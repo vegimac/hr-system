@@ -262,20 +262,27 @@ async function _elmCall(pfad, label) {
     }
 }
 
-/** Fault-100 / fehlendes Zertifikat — Klartext statt nur Client.security. */
+/** Fault-Hinweise — Code 100 mischt oft zwei Ursachen in einem Satz. */
 function _elmFaultHinweis(j) {
     const blob = ((j.faultCode || '') + ' ' + (j.faultText || '') + ' ' + (j.responseXml || '')
         + ' ' + (j.security?.meldung || '')).toLowerCase();
     if (/non-certified|descriptioncode>\s*100|fault 100/.test(blob)
-        || (j.security && /Fault 100/i.test(j.security.meldung || ''))) {
+        || (j.security && /non-certified|Empfängerzertifikat|All Transmitters/i.test(j.security.meldung || ''))) {
+        const gemischt = /not been signed|not signed/.test(blob);
+        if (gemischt) {
+            return '<div style="margin-top:6px;font-size:12.5px;line-height:1.4">'
+                + '<b>Wahrscheinlich:</b> falsches Empfängerzertifikat zum Verschlüsseln. '
+                + 'Gegen RefApps ELMv6: F07 → Empfänger = '
+                + '<code>SwissdecDistributorELMv6Test.pem</code> (nicht RefApps-Receiver.cer). '
+                + 'Dann CheckInterop erneut.</div>';
+        }
         return '<div style="margin-top:6px;font-size:12.5px;line-height:1.4">'
-            + '<b>Was fehlt:</b> Das ERP-Zertifikat muss von der Swissdec-CA kommen. '
-            + 'Selbst signiert zählt nicht. Sobald das .pfx da ist: F07-Karte → '
-            + '«Swissdec-.pfx importieren», dann CheckInterop / Registrieren erneut.</div>';
+            + '<b>Was fehlt:</b> ERP muss das ELMv6-Transmitter-.p12 von Swissdec sein '
+            + '(CN=All Transmitters Test). F07 → «Swissdec-.pfx importieren».</div>';
     }
     if (/security/i.test((j.faultCode || '') + ' ' + (j.faultText || ''))) {
         return '<div style="margin-top:4px;font-size:12px">WS-Security (Signatur/Verschlüsselung) verlangt — '
-            + 'ERP-.pfx hinterlegen und erneut senden.</div>';
+            + 'ERP-.pfx und Empfänger SwissdecDistributorELMv6Test.pem prüfen.</div>';
     }
     return '';
 }
@@ -524,7 +531,12 @@ async function suaStatusLaden() {
                 ? `<div><b>MonitoringID:</b> <code style="font-size:11px">${esc(j.monitoringId)}</code></div>`
                 : `<div style="color:#b45309"><b>MonitoringID fehlt</b> — auf den Swissdec-Testsystemen zwingend. Server: <code style="font-size:11px">Swissdec__MonitoringId=…</code></div>`)
             + `<div style="margin-top:4px"><b>ERP:</b> ${erpHinweis}</div>`
-            + `<div style="margin-top:2px"><b>Empfänger-Zert.:</b> ${j.empfaengerZertifikat ? '✓ hinterlegt' : '— (Fallback Assets / aus Antwort)'}</div>`
+            + `<div style="margin-top:2px"><b>Empfänger-Zert.:</b> ${j.empfaengerZertifikat
+                ? `✓ ${esc((j.empfaenger && j.empfaenger.subject) || 'hinterlegt')}`
+                  + (/Distributor ELMv6/i.test((j.empfaenger && j.empfaenger.subject) || '')
+                      ? ''
+                      : ' <span style="color:#b45309">· für RefApps ELMv6 bitte «Distributor ELMv6 Test» laden</span>')
+                : '— (Fallback Assets / aus Antwort)'}</div>`
             + `<div style="margin-top:2px"><b>SUA:</b> ${j.sua ? '✓ gespeichert' : '— noch keines'}</div>`
             + (fall
                 ? `<div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#f6f3ee;border:1px solid #e7e1d8">

@@ -128,9 +128,9 @@ public class ElmTransmitterClient
         string archivName = "request",
         CancellationToken ct = default)
     {
-        // RefApps-Receiver-Zertifikat aus Assets, falls noch keines hinterlegt
-        // (sonst lehnt RefApps mit Client.security ab — Signatur allein reicht nicht).
-        empfaengerZertifikat ??= _store.LadeEmpfaenger() ?? ElmZertifikatStore.LadeRefAppsEmpfaengerFallback();
+        // Empfängerzertifikat: gespeichert, sonst Distributor-ELMv6-Asset.
+        // Klassisches RefApps-Receiver aus Fault-Antworten wird bewusst übersprungen.
+        empfaengerZertifikat ??= _store.LadeEmpfaengerFuerVerschluesselung();
 
         var envelopeXml = Envelope(body);
         var doc = new XmlDocument { PreserveWhitespace = true };
@@ -203,17 +203,28 @@ public class ElmTransmitterClient
 
         bool Enthaelt(params string[] teile) => teile.Any(t => text.Contains(t));
 
-        // 1) Unser Zertifikat wird nicht anerkannt. Laut Sicherheitsrichtlinie
-        //    (SecurityTransmitter_d.pdf, Kap. 5.3) prüft der Distributor den
-        //    mitgeschickten öffentlichen Schlüssel gegen das Swissdec-CA-Zertifikat.
+        // 1) Zertifikat nicht anerkannt — ABER: die Swissdec-Meldung mischt oft
+        //    «non-certified … or has not been signed» in EINEM Satz (DescriptionCode 100).
+        //    Wenn beides vorkommt, ist die häufigste Ursache bei bereits importiertem
+        //    Swissdec-.pfx ein falsches Empfängerzertifikat (Verschlüsselung → Empfänger
+        //    sieht keine Signatur), nicht «selbst signiert».
         if (Enthaelt("non-certified", "not certified", "unknown ca", "untrusted",
                      "certificate path", "certpath", "certificate is not", "invalid certificate"))
         {
+            if (Enthaelt("not been signed", "not signed", "missing signature", "no signature"))
+            {
+                return new ElmWsSecurity.PruefErgebnis(
+                    ElmWsSecurity.Befund.ZertifikatNichtVertrauenswuerdig,
+                    "RefApps meldet «non-certified or not signed» (Code 100). Wenn das ERP schon "
+                    + "von der Swissdec-Test-CA kommt (CN=All Transmitters Test), liegt es meist am "
+                    + "Empfängerzertifikat: gegen RefApps ELMv6 muss «SwissdecDistributorELMv6Test.pem» "
+                    + "zum Verschlüsseln hinterlegt sein — nicht RefApps-Receiver.cer.");
+            }
             return new ElmWsSecurity.PruefErgebnis(
                 ElmWsSecurity.Befund.ZertifikatNichtVertrauenswuerdig,
                 "Der Empfänger erkennt unser Zertifikat nicht an. Er prüft den mitgeschickten "
-                + "öffentlichen Schlüssel gegen das Swissdec-CA-Zertifikat — ein selbst erzeugtes "
-                + "Zertifikat besteht diese Prüfung nicht.");
+                + "öffentlichen Schlüssel gegen die Swissdec-CA. Gegen RefApps: das ELMv6-"
+                + "Transmitter-.p12 von project.swissdec.ch/documents/29 importieren.");
         }
 
         // 2) Gar nicht signiert — etwas anderes als ein nicht anerkanntes Zertifikat.
@@ -230,15 +241,15 @@ public class ElmTransmitterClient
         {
             return new ElmWsSecurity.PruefErgebnis(
                 ElmWsSecurity.Befund.VerschluesselungFehlt,
-                "Der Empfänger erwartet einen verschlüsselten Aufruf. Fehlt sein Zertifikat bei uns, "
-                + "können wir nicht verschlüsseln — es wird aus der ersten Antwort übernommen, "
-                + "danach bitte erneut senden.");
+                "Der Empfänger erwartet einen verschlüsselten Aufruf. Gegen RefApps ELMv6: "
+                + "Empfängerzertifikat «SwissdecDistributorELMv6Test.pem» hinterlegen und erneut senden.");
         }
         if (Enthaelt("decrypt", "decryption"))
         {
             return new ElmWsSecurity.PruefErgebnis(
                 ElmWsSecurity.Befund.EntschluesselungFehlgeschlagen,
-                "Der Empfänger konnte unseren Aufruf nicht entschlüsseln.");
+                "Der Empfänger konnte unseren Aufruf nicht entschlüsseln. Oft falsches Empfänger-"
+                + "zertifikat (RefApps ELMv6 braucht Distributor-ELMv6, nicht RefApps-Receiver).");
         }
 
         return null;   // Kein Urteil — der Fault-Text spricht für sich.

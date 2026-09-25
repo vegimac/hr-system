@@ -180,6 +180,41 @@ public class ElmZertifikatStore
         return X509CertificateLoader.LoadCertificateFromFile(p);
     }
 
+    /// <summary>
+    /// Empfänger für WS-Encryption an RefApps ELMv6. Ein aus Fault-Antworten
+    /// gelerntes klassisches RefApps-Receiver-.cer wird ignoriert zugunsten des
+    /// Distributor-ELMv6-Assets (sonst Fault 100/110).
+    /// </summary>
+    public X509Certificate2? LadeEmpfaengerFuerVerschluesselung()
+    {
+        var gespeichert = LadeEmpfaenger();
+        var fallback = LadeRefAppsEmpfaengerFallback();
+        if (gespeichert == null) return fallback;
+        if (IstKlassischerRefAppsReceiver(gespeichert)
+            && fallback != null
+            && fallback.Subject.Contains("Distributor", StringComparison.OrdinalIgnoreCase))
+            return fallback;
+        return gespeichert;
+    }
+
+    private static bool IstKlassischerRefAppsReceiver(X509Certificate2 z) =>
+        z.Subject.Contains("RefApp", StringComparison.OrdinalIgnoreCase)
+        && !z.Subject.Contains("Distributor", StringComparison.OrdinalIgnoreCase);
+
+    public object EmpfaengerInfo()
+    {
+        var z = LadeEmpfaenger();
+        if (z == null) return new { vorhanden = false };
+        return new
+        {
+            vorhanden = true,
+            subject = z.Subject,
+            issuer = z.Issuer,
+            notAfter = z.NotAfter,
+            thumbprint = z.Thumbprint,
+        };
+    }
+
     public void SpeichereEmpfaenger(byte[] derOderPem)
     {
         var p = Path.Combine(_root, EmpfaengerDatei);
@@ -188,33 +223,52 @@ public class ElmZertifikatStore
     }
 
     /// <summary>
-    /// RefApps liefert sein Zertifikat in jeder signierten Antwort als
-    /// BinarySecurityToken — einmal übernehmen, dann können wir verschlüsseln.
+    /// Empfängerzertifikat aus einer <b>erfolgreichen</b> Antwort übernehmen.
+    /// Faults der RefApps ELMv6 sind oft mit dem klassischen «RefApps Receiver»
+    /// signiert — den dürfen wir NICHT als Verschlüsselungsziel speichern
+    /// (Live-Probe 25.09.2026: Encrypt damit → Fault 110/100).
     /// </summary>
     public bool UebernehmeEmpfaengerAusAntwort(XmlDocument antw)
     {
         if (HatEmpfaengerZertifikat()) return false;
+        var istFault = antw.GetElementsByTagName("Fault", "http://schemas.xmlsoap.org/soap/envelope/").Count > 0
+                    || antw.GetElementsByTagName("Fault").Count > 0;
+        if (istFault) return false;
         var z = ElmWsSecurity.ZertifikatAusAntwort(antw);
         if (z == null) return false;
+        // Nur Distributor-/ELMv6-Empfänger lernen — klassischer RefApps-Receiver ist falsch für V6.
+        if (z.Subject.Contains("RefApp", StringComparison.OrdinalIgnoreCase)
+            && !z.Subject.Contains("Distributor", StringComparison.OrdinalIgnoreCase))
+            return false;
         SpeichereEmpfaenger(z.RawData);
         return true;
     }
 
     /// <summary>
-    /// Eingebettetes RefApps-Receiver-Zertifikat (Assets), Fallback wenn noch
-    /// keines gespeichert ist — sonst scheitert der erste Register-Aufruf.
+    /// Eingebettetes Empfängerzertifikat (Assets), Fallback wenn noch keines
+    /// gespeichert ist. Gegen RefApps stable V6 (Live-Probe 25.09.2026) muss
+    /// <b>SwissdecDistributorELMv6Test</b> zum Verschlüsseln verwendet werden —
+    /// RefApps-Receiver.cer führt dort zu Fault 110 «not encrypted».
     /// </summary>
     public static X509Certificate2? LadeRefAppsEmpfaengerFallback()
     {
-        foreach (var kandidat in new[]
+        foreach (var name in new[]
                  {
-                     Path.Combine(AppContext.BaseDirectory, "Assets", "Swissdec", "RefApps-Receiver.cer"),
-                     Path.Combine(Directory.GetCurrentDirectory(), "Assets", "Swissdec", "RefApps-Receiver.cer"),
+                     "SwissdecDistributorELMv6Test.cer",
+                     "SwissdecDistributorELMv6Test.pem",
+                     "RefApps-Receiver.cer",
                  })
         {
-            if (!File.Exists(kandidat)) continue;
-            try { return X509CertificateLoader.LoadCertificateFromFile(kandidat); }
-            catch { /* nächster Pfad */ }
+            foreach (var kandidat in new[]
+                     {
+                         Path.Combine(AppContext.BaseDirectory, "Assets", "Swissdec", name),
+                         Path.Combine(Directory.GetCurrentDirectory(), "Assets", "Swissdec", name),
+                     })
+            {
+                if (!File.Exists(kandidat)) continue;
+                try { return X509CertificateLoader.LoadCertificateFromFile(kandidat); }
+                catch { /* nächster Pfad */ }
+            }
         }
         return null;
     }

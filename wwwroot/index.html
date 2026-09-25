@@ -5608,9 +5608,9 @@
                             <button type="button" class="btn-primary" onclick="suaErpPfxImport()">📥 .pfx importieren</button>
                             <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer">
                                 Empfänger-.cer
-                                <input type="file" id="suaEmpfFile" accept=".cer,.pem,.crt,.der" style="font-size:12px" onchange="suaEmpfaengerUpload()">
+                                <input type="file" id="suaEmpfFile" accept=".cer,.pem,.crt,.der,application/x-x509-ca-cert,application/pkix-cert,*/*" style="font-size:12px" onchange="suaEmpfaengerUpload()">
                             </label>
-                            <span style="font-size:11.5px;color:#8b8b8b">(Empfänger optional — sonst aus Assets/Antwort)</span>
+                            <span style="font-size:11.5px;color:#8b8b8b">(ELMv6/RefApps: SwissdecDistributorELMv6Test.pem)</span>
                         </div>
                         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px">
                             <label style="font-size:11.5px;color:#475569">UID (CHE-…)
@@ -9776,7 +9776,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260924i"></script>
+<script src="js/swissdec.js?v=20260925b"></script>
 <script src="js/hauptsitze.js?v=20260901a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>

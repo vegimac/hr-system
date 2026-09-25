@@ -471,6 +471,38 @@ F07_07 die Erneuerung (`RenewCertificate`, ohne Einmalpasswort) und F07_08 die
 Sobald das .pfx von Swissdec/itserv da ist: F07-Karte → importieren → CheckInterop →
 Register. Kein weiterer Code nötig für F02_02+ / F03 / F07_01.
 
+**Antwort Isabelle Leubin (Swissdec, 25.09.2026):** Testzertifikate unter
+[project.swissdec.ch/documents/29](https://project.swissdec.ch/documents/29)
+(Login nötig). Für RefApps/Testsysteme **das Transmitterzertifikat von dort** verwenden
+— nicht selbst signieren. (Das löst Fault 100 / «non-certified digital certificate».)
+
+**ELMv6-Paket (itserve Dropbox, Stand 18.05.2026):**
+`https://www.itserve.ch/dropbox/download/77a332eb-8ea9-4d9d-bafb-22ddad85d91b`
+
+| Datei | Zweck |
+|---|---|
+| `SwissdecAllTransmittersTest_Test-ELM6-Transmitter.p12` | Signatur (privater Schlüssel) → ERP-Import |
+| `…_privateKeyPassword.txt` | Passwort für das .p12 |
+| `SwissdecDistributorELMv6Test.pem` | Verschlüsselung an den Distributor → Empfänger-.cer |
+| `Test-ELM6-Transmitter_CA.crt` | CA (Trust) |
+| Subject TX | `CN=All Transmitters Test, O=Swissdec, C=CH` (CA: Test ELM Transmitter CA UID=6.0) |
+
+Lokal entpackt unter `~/Downloads/Swissdec-ELMv6-Transmitter/`.
+
+**Empfängerzertifikat (Live-Probe 25.09.2026, Cursor):** Gegen
+`test.swissdec.ch/refapps/stable/…/V6` muss mit
+`SwissdecDistributorELMv6Test.pem` verschlüsselt werden — **nicht** mit
+`RefApps-Receiver.cer`. Mit RefApps-Receiver → Fault 110 «not encrypted»;
+mit Distributor-ELMv6 → CheckInterop HTTP 200.
+
+| Datei | Rolle |
+|---|---|
+| `…Transmitter.p12` | Signatur (ERP) |
+| `SwissdecDistributorELMv6Test.pem` | Verschlüsselung an RefApps ELMv6 |
+| `RefApps-Receiver.cer` | nur klassische/ältere RefApps-Antworten, nicht ELMv6-Encrypt |
+
+**Privaten Schlüssel / Passwort nie committen.**
+
 **Server:** `Swissdec__CertStoragePath=/var/data/hr-system/swissdec-certs` (Test:
 `…-test/swissdec-certs`) in der systemd-Umgebung setzen — analog Documents.
 

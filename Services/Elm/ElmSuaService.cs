@@ -67,6 +67,7 @@ public class ElmSuaService
             monitoringId = _einst.MonitoringId,
             erp = _store.ErpInfo(),
             empfaengerZertifikat = _store.HatEmpfaengerZertifikat(),
+            empfaenger = _store.EmpfaengerInfo(),
             sua = _store.HatSuaZertifikat(),
             fall,
             hauptsitz = hs == null ? null : new { hs.Name, hs.Uid, hs.Ort, hs.KantonCode, hs.Plz, hs.Strasse },

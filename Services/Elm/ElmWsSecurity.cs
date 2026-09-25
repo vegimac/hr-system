@@ -103,6 +103,8 @@ public static class ElmWsSecurity
         signed.SignedInfo.SignatureMethod = AlgoRsaSha256;
         foreach (var id in new[] { tsId, bodyId })
         {
+            // RefApps-Proben (09.09.2026) signieren mit rsa-sha256, Digest aber sha1.
+            // Richtlinie empfiehlt sha256 — wir bleiben bei sha256; bei Bedarf umstellbar.
             var r = new Reference("#" + id) { DigestMethod = AlgoSha256 };
             r.AddTransform(new XmlDsigExcC14NTransform());
             signed.AddReference(r);
@@ -130,7 +132,11 @@ public static class ElmWsSecurity
     /// <summary>
     /// Verschlüsselt den INHALT des SOAP-Body mit einem frischen AES-256-Schlüssel und
     /// legt diesen — mit dem Zertifikat des Empfängers via RSA-OAEP geschützt — als
-    /// `EncryptedKey` in den Security-Header. Nach <see cref="Signiere"/> aufrufen.
+    /// <c>EncryptedKey</c> in den Security-Header. Nach <see cref="Signiere"/> aufrufen.
+    ///
+    /// Wichtig: Am EncryptedKey muss ein KeyInfo mit Empfänger-Hinweis stehen
+    /// (SubjectKeyIdentifier), sonst findet der Java-Receiver den privaten Schlüssel
+    /// nicht und meldet Fault 100 «not signed» (RefApps-Proben 09.09.2026).
     /// </summary>
     public static void Verschluessele(XmlDocument doc, X509Certificate2 empfaengerZertifikat)
     {
@@ -143,32 +149,83 @@ public static class ElmWsSecurity
         aes.KeySize = 256;
         aes.Mode = CipherMode.CBC;
         aes.GenerateKey();
+        aes.GenerateIV();
 
         var enc = new EncryptedXml();
         var verschluesselt = enc.EncryptData(body, aes, content: true);
 
+        var ekId = "EK-" + Guid.NewGuid().ToString("N")[..8];
+        var edId = "ED-" + Guid.NewGuid().ToString("N")[..8];
+
         var ed = new EncryptedData
         {
-            Type = EncryptedXml.XmlEncElementContentUrl,   // nur der Inhalt, nicht der Body selbst
-            Id = "ED-" + Guid.NewGuid().ToString("N")[..8],
+            Type = EncryptedXml.XmlEncElementContentUrl,
+            Id = edId,
             EncryptionMethod = new EncryptionMethod(AlgoAes256Cbc),
             CipherData = new CipherData(verschluesselt),
         };
 
+        // EncryptedData → EncryptedKey verknüpfen (RefApps/WSS4J verlangt das,
+        // sonst «has not been encrypted» / Code 110 trotz vorhandenem CipherValue).
+        var edStr = doc.CreateElement("wsse", "SecurityTokenReference", NsWsse);
+        edStr.SetAttribute("TokenType",
+            "http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd",
+            "http://docs.oasis-open.org/wss/oasis-wss-soap-message-security-1.1#EncryptedKey");
+        // wsse11:TokenType — Attribut im 1.1-Namensraum setzen
+        var wsse11 = "http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd";
+        var tokenType = doc.CreateAttribute("wsse11", "TokenType", wsse11);
+        tokenType.Value = "http://docs.oasis-open.org/wss/oasis-wss-soap-message-security-1.1#EncryptedKey";
+        edStr.Attributes.Append(tokenType);
+        var edRef = doc.CreateElement("wsse", "Reference", NsWsse);
+        edRef.SetAttribute("URI", "#" + ekId);
+        edStr.AppendChild(edRef);
+        var edKi = new KeyInfo();
+        edKi.AddClause(new KeyInfoNode(edStr));
+        ed.KeyInfo = edKi;
+
         var ek = new EncryptedKey
         {
-            Id = "EK-" + Guid.NewGuid().ToString("N")[..8],
+            Id = ekId,
             EncryptionMethod = new EncryptionMethod(EncryptedXml.XmlEncRSAOAEPUrl),
             CipherData = new CipherData(rsa.Encrypt(aes.Key, RSAEncryptionPadding.OaepSHA1)),
         };
-        ek.ReferenceList.Add(new DataReference("#" + ed.Id));
+        ek.ReferenceList.Add(new DataReference("#" + edId));
+
+        // Empfänger-Hinweis (SKI), analog zu den funktionierenden RefApps-Proben.
+        var ski = EmpfaengerSki(empfaengerZertifikat);
+        if (ski != null)
+        {
+            var str = doc.CreateElement("wsse", "SecurityTokenReference", NsWsse);
+            var kid = doc.CreateElement("wsse", "KeyIdentifier", NsWsse);
+            kid.SetAttribute("EncodingType", EncodingBase64);
+            kid.SetAttribute("ValueType",
+                "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509SubjectKeyIdentifier");
+            kid.InnerText = Convert.ToBase64String(ski);
+            str.AppendChild(kid);
+            var ki = new KeyInfo();
+            ki.AddClause(new KeyInfoNode(str));
+            ek.KeyInfo = ki;
+        }
 
         EncryptedXml.ReplaceElement(body, ed, content: true);
 
-        // Der Schlüssel gehört in den Security-Header, nicht in den Body.
         var security = HoleOderErzeugeSecurityHeader(doc);
         var ekNode = doc.ImportNode(ek.GetXml(), true);
         security.InsertBefore(ekNode, security.FirstChild);
+    }
+
+    /// <summary>SubjectKeyIdentifier aus dem Zertifikat (Extension).</summary>
+    private static byte[]? EmpfaengerSki(X509Certificate2 zert)
+    {
+        var ski = zert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().FirstOrDefault();
+        if (ski == null) return null;
+        // SubjectKeyIdentifier ist Hex ohne Trenner; in Bytes wandeln.
+        var hex = ski.SubjectKeyIdentifier;
+        if (string.IsNullOrEmpty(hex) || hex.Length % 2 != 0) return null;
+        var bytes = new byte[hex.Length / 2];
+        for (var i = 0; i < bytes.Length; i++)
+            bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        return bytes;
     }
 
     // ── Prüfen und Entschlüsseln ─────────────────────────────────────────────
