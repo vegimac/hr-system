@@ -192,30 +192,30 @@ public class DocumentsController : ControllerBase
                 e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId,
                 e.ProbezeitGespraech1DokumentId, e.ProbezeitGespraech2DokumentId,
                 e.ArbeitszeugnisDokumentId,
-                e.AhvKarteDokumentId, e.GeburtsurkundeDokumentId, e.ZivilstandDokumentId, e.FotoDokumentId
+                e.AhvKarteDokumentId, e.GeburtsurkundeDokumentId, e.ZivilstandDokumentId, e.FotoDokumentId,
+                e.KuendigungDokumentId
             })
             .FirstOrDefaultAsync();
-        var permitDocIds = await _db.EmployeePermitHistories.AsNoTracking()
+        // Genauere Angaben pro Eintrag (Walter 25.09.2026): «Ausweis Lea» statt
+        // «Ausweis Familienmitglied», «Vertrag ab 22.09.2026» statt nur «Vertrag».
+        var permitDocs = await _db.EmployeePermitHistories.AsNoTracking()
             .Where(h => h.EmployeeId == employeeId && h.DokumentId != null)
-            .Select(h => h.DokumentId!.Value).ToListAsync();
-        var familyDocIds = await _db.EmployeeFamilyMembers.AsNoTracking()
-            .Where(f => f.EmployeeId == employeeId && f.DokumentId != null)
-            .Select(f => f.DokumentId!.Value).ToListAsync();
-        var familyGebDocIds = await _db.EmployeeFamilyMembers.AsNoTracking()
-            .Where(f => f.EmployeeId == employeeId && f.GeburtsurkundeDokumentId != null)
-            .Select(f => f.GeburtsurkundeDokumentId!.Value).ToListAsync();
-        var bankDocIds = await _db.EmployeeBankAccounts.AsNoTracking()
+            .Select(h => new { Id = h.DokumentId!.Value, Code = h.PermitType != null ? h.PermitType.Code : null }).ToListAsync();
+        var familyDocs = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId && (f.DokumentId != null || f.GeburtsurkundeDokumentId != null))
+            .Select(f => new { f.DokumentId, f.GeburtsurkundeDokumentId, f.FirstName, f.MemberType }).ToListAsync();
+        var bankDocs = await _db.EmployeeBankAccounts.AsNoTracking()
             .Where(b => b.EmployeeId == employeeId && b.DokumentId != null)
-            .Select(b => b.DokumentId!.Value).ToListAsync();
+            .Select(b => new { Id = b.DokumentId!.Value, b.Iban }).ToListAsync();
         var weitAgDocIds = await _db.WeitereArbeitgeber.AsNoTracking()
             .Where(a => a.EmployeeId == employeeId && a.ErlaubnisDokumentId != null)
             .Select(a => a.ErlaubnisDokumentId!.Value).ToListAsync();
-        var absenzDocIds = await _db.Absences.AsNoTracking()
+        var absenzDocs = await _db.Absences.AsNoTracking()
             .Where(a => a.EmployeeId == employeeId && a.DokumentId != null)
-            .Select(a => a.DokumentId!.Value).ToListAsync();
-        var vertragDocIds = await _db.Employments.AsNoTracking()
+            .Select(a => new { Id = a.DokumentId!.Value, a.DateFrom, a.DateTo }).ToListAsync();
+        var vertragDocs = await _db.Employments.AsNoTracking()
             .Where(v => v.EmployeeId == employeeId && v.VertragDokumentId != null)
-            .Select(v => v.VertragDokumentId!.Value).ToListAsync();
+            .Select(v => new { Id = v.VertragDokumentId!.Value, v.ContractStartDate }).ToListAsync();
         var pregnancyDokIds = await _db.EmployeePregnancies.AsNoTracking()
             .Where(p => p.EmployeeId == employeeId && p.ArztbestaetigungDokumentId != null)
             .Select(p => p.ArztbestaetigungDokumentId!.Value).ToListAsync();
@@ -237,18 +237,28 @@ public class DocumentsController : ControllerBase
         AddLink(emp?.NightWorkAusnahmeDokumentId, "Nachtarbeit: Ausnahmeregelung");
         AddLink(emp?.ProbezeitGespraech1DokumentId, "Probezeitgespräch 1");
         AddLink(emp?.ProbezeitGespraech2DokumentId, "Probezeitgespräch 2");
-        foreach (var pid in permitDocIds) AddLink(pid, "Bewilligung (Aufenthalt)");
-        foreach (var fid in familyDocIds) AddLink(fid, "Ausweis Familienmitglied");
+        foreach (var p in permitDocs) AddLink(p.Id, string.IsNullOrWhiteSpace(p.Code) ? "Bewilligung" : $"Bewilligung {p.Code}");
+        foreach (var f in familyDocs)
+        {
+            var wer = string.IsNullOrWhiteSpace(f.FirstName)
+                ? (f.MemberType == "Kind" ? "Kind" : "Partner/in") : f.FirstName!.Trim();
+            AddLink(f.DokumentId, $"Ausweis {wer}");
+            AddLink(f.GeburtsurkundeDokumentId, $"Geburtsurkunde {wer}");
+        }
         // Direkt verknüpfte Dokumente (Walter 23.09.2026)
         AddLink(emp?.ArbeitszeugnisDokumentId, "Arbeitszeugnis");
         AddLink(emp?.AhvKarteDokumentId,       "AHV-Karte");
         AddLink(emp?.GeburtsurkundeDokumentId, "Geburtsurkunde");
         AddLink(emp?.ZivilstandDokumentId,     "Zivilstandsdokument");
         AddLink(emp?.FotoDokumentId,           "Mitarbeiterfoto");
-        foreach (var gid in familyGebDocIds) AddLink(gid, "Geburtsurkunde Familienmitglied");
-        foreach (var bid in bankDocIds) AddLink(bid, "Bankbeleg");
-        foreach (var vid in vertragDocIds) AddLink(vid, "Unterschriebener Vertrag");
-        foreach (var aid in absenzDocIds) AddLink(aid, "Absenz");
+        AddLink(emp?.KuendigungDokumentId,     "Kündigung");
+        foreach (var b in bankDocs)
+        {
+            var iban = (b.Iban ?? "").Replace(" ", "");
+            AddLink(b.Id, iban.Length >= 4 ? $"Bankbeleg …{iban[^4..]}" : "Bankbeleg");
+        }
+        foreach (var v in vertragDocs) AddLink(v.Id, $"Vertrag ab {v.ContractStartDate:dd.MM.yyyy}");
+        foreach (var a in absenzDocs) AddLink(a.Id, $"Absenz {a.DateFrom:dd.MM.} – {a.DateTo:dd.MM.yyyy}");
         foreach (var wid in weitAgDocIds) AddLink(wid, "Erlaubnis Hauptarbeitgeber");
         foreach (var mid in pregnancyDokIds) AddLink(mid, "Arztbestätigung errechneter Termin");
         foreach (var lid in lohnAbtDokIds) AddLink(lid, "Lohnabtretung / Pfändung");

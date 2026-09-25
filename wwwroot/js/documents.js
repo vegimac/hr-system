@@ -491,7 +491,11 @@ function renderDokTableRow(d, showCategoryColumns) {
         : dokExt === '.zip' ? 'ZIP'
         : (dokExt ? dokExt.slice(1).toUpperCase().slice(0, 4) : 'FILE');
     const icon = `<span class="dok-ft ${ftClass}">${ftLabel}</span>`;
-    const typeTag = '';   // Tag entfällt — Pille zeigt schon den Typ
+    // Fest verknüpft (Walter 25.09.2026): sichtbar in der Liste, nicht nur im ⋮-Menü.
+    // Solche Dokumente sind nicht löschbar (Server-Sperre + kein «Löschen» im Menü).
+    const typeTag = d.linked && Array.isArray(d.linkedAs) && d.linkedAs.length
+        ? ` <span title="Fest verknüpft — nicht löschbar. Zuerst die Verknüpfung lösen." style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;vertical-align:middle;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:700;text-decoration:none;white-space:nowrap">🔗 ${esc(d.linkedAs.join(' · '))}</span>`
+        : '';
     // Walter 20.07.2026: Bemerkung ist aussagekräftig; Filename nur Fallback.
     const beschreibungInner = d.bemerkung
         ? `<b>${esc(d.bemerkung)}</b>`
