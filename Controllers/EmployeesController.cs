@@ -584,6 +584,8 @@ public class EmployeesController : ControllerBase
             employee.ProbezeitEntscheidAm,
             // Arbeitszeugnis verknüpft (Walter 06.09.2026)
             employee.ArbeitszeugnisDokumentId,
+            // Kündigungsschreiben (Walter 25.09.2026)
+            employee.KuendigungDokumentId,
             // Ausweis MA (Pass/ID) — für «bestehenden ersetzen?» im Verknüpfen-
             // Dialog nach dem Upload (Walter 23.09.2026).
             employee.IdPassDokumentId,
@@ -1289,7 +1291,8 @@ public class EmployeesController : ControllerBase
             && kind != "probezeit_gespraech1" && kind != "probezeit_gespraech2"
             && kind != "arbeitszeugnis"
             && kind != "ahv_karte" && kind != "geburtsurkunde"
-            && kind != "zivilstand" && kind != "foto")
+            && kind != "zivilstand" && kind != "foto"
+            && kind != "kuendigung")
             return BadRequest(new { error = "KIND_INVALID", message = "kind ungültig." });
 
         if (dto.DokumentId.HasValue)
@@ -1312,6 +1315,7 @@ public class EmployeesController : ControllerBase
         else if (kind == "geburtsurkunde")          emp.GeburtsurkundeDokumentId       = dto.DokumentId;
         else if (kind == "zivilstand")              emp.ZivilstandDokumentId           = dto.DokumentId;
         else if (kind == "foto")                    emp.FotoDokumentId                 = dto.DokumentId;
+        else if (kind == "kuendigung")              emp.KuendigungDokumentId           = dto.DokumentId;
         else                                        emp.NightWorkExamDokumentId        = dto.DokumentId;
 
         await _context.SaveChangesAsync();
@@ -1329,7 +1333,8 @@ public class EmployeesController : ControllerBase
             ahvKarteDokumentId       = emp.AhvKarteDokumentId,
             geburtsurkundeDokumentId = emp.GeburtsurkundeDokumentId,
             zivilstandDokumentId     = emp.ZivilstandDokumentId,
-            fotoDokumentId           = emp.FotoDokumentId
+            fotoDokumentId           = emp.FotoDokumentId,
+            kuendigungDokumentId     = emp.KuendigungDokumentId
         });
     }
 

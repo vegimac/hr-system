@@ -1184,6 +1184,26 @@ function _ovArbeitszeugnisRowHtml(emp) {
     </div>`;
 }
 
+// Kündigungsschreiben in der Anstellungs-Karte (Walter 25.09.2026): erscheint,
+// sobald eine Kündigung erfasst ist oder ein Schreiben hängt. Gleicher freier
+// Slot wie das Arbeitszeugnis (die Karte hat eine feste Höhe).
+function _ovKuendigungRowHtml(emp) {
+    const dokId = emp?.kuendigungDokumentId || null;
+    if (!emp || (!dokId && !emp.kuendigungAusgesprochenAm && !emp.kuendigungPer)) return '';
+    const btn = 'background:#3f3f3f;color:#fff;border:none;border-radius:9px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700;line-height:1.3';
+    const btn2 = 'background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:9px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700;line-height:1.3';
+    const inhalt = dokId
+        ? `<button type="button" style="${btn}" onclick="qstOpenBefreiungsDok(${emp.id}, ${dokId}, {sticky:true})">👁 Schreiben</button>
+           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'kuendigung')">ersetzen</button>
+           <button type="button" style="background:none;border:none;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0" onclick="nwUnlinkDoku(${emp.id},'kuendigung','Kündigungsschreiben')">lösen</button>`
+        : `<span style="color:#a16207;font-weight:700">fehlt</span>
+           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'kuendigung')">📎 verknüpfen</button>`;
+    return `<div class="ov-pf ov-anst-pz-slot" style="flex-direction:column;align-items:flex-start;justify-content:flex-end;margin-bottom:0">
+        <div class="ov-pfl" style="margin-bottom:1px">Kündigung</div>
+        <div style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;line-height:28px;min-height:28px;overflow:hidden">${inhalt}</div>
+    </div>`;
+}
+
 // ── Detail rendern ─────────────────────────────
 function renderEmployeeDetail(emp) {
     const panel = document.getElementById('empDetailPanel');
@@ -1861,6 +1881,7 @@ function loadUebersichtTab() {
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.exitDate','Austritt')}</div><div class="ov-pfv">${emp.exitDate ? formatDate(emp.exitDate) : '<span class="ov-empty">–</span>'}</div></div>
                 ${_ovDienstalterRowHtml(emp)}
                 ${_ovArbeitszeugnisRowHtml(emp)}
+                ${_ovKuendigungRowHtml(emp)}
                 <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             </div>
             <div class="ov-anst-kuend-row">
@@ -2970,7 +2991,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
           'probezeit_gespraech1', 'probezeit_gespraech2',
           'lohn_assignment', 'qst_tarif', 'arbeitszeugnis',
           // Direkt verknüpfte Dokumente (Walter 23.09.2026)
-          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde', 'vertrag', 'absenz', 'weitere_ag'].includes(kind)) return;
+          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde', 'vertrag', 'absenz', 'weitere_ag',
+          // Kündigungsschreiben (Walter 25.09.2026)
+          'kuendigung'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2997,6 +3020,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                       : kind === 'zivilstand'          ? ['marriage_cert']
                       : kind === 'bank_beleg'          ? ['bank_card']
                       : kind === 'vertrag'             ? ['contract']
+                      : kind === 'kuendigung'          ? ['termination']
                           :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
@@ -3018,6 +3042,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                        : kind === 'zivilstand'         ? /(ehe|heirat|scheidung|zivilstand|familienausweis|partnerschaft)/i
                        : kind === 'bank_beleg'         ? /(bank|iban|konto|post)/i
                        : kind === 'vertrag'            ? /(vertrag|contract|flex|mtp|fix)/i
+                       : kind === 'kuendigung'         ? /(kündig|kuendig|austritt|aufhebung)/i
                        : kind === 'absenz'             ? /(arzt|zeugnis|unfall|krank|bescheinigung|spital|suva)/i
                        : kind === 'weitere_ag'         ? /(hauptarbeitgeber|erlaubnis|nebenerwerb|bewilligung arbeitgeber)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
@@ -3074,6 +3099,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'zivilstand'          ? 'Zivilstandsdokument verknüpfen'
                    : kind === 'bank_beleg'          ? 'Bankbeleg verknüpfen'
                    : kind === 'vertrag'             ? 'Unterschriebenen Vertrag verknüpfen'
+                   : kind === 'kuendigung'          ? 'Kündigungsschreiben verknüpfen'
                    : kind === 'absenz'              ? 'Dokument zur Absenz verknüpfen'
                    : kind === 'weitere_ag'          ? 'Erlaubnis Hauptarbeitgeber verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
@@ -3097,7 +3123,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                             ? 'Wähle das ausgestellte (unterschriebene) Arbeitszeugnis — passende sind oben hervorgehoben. Oder lade das Zeugnis neu hoch.'
                         : kind === 'zivilstand'
                             ? 'Wähle das Dokument zum Zivilstand (Eheschein, Familienausweis, Scheidungsurteil …) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
-                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg' || kind === 'vertrag' || kind === 'absenz' || kind === 'weitere_ag')
+                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg' || kind === 'vertrag' || kind === 'absenz' || kind === 'weitere_ag' || kind === 'kuendigung')
                             ? 'Wähle das passende Dokument — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
@@ -3400,7 +3426,8 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         }
         // Nachtarbeit-Belege / Arbeitszeugnis: MA-Detail neu laden.
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme' || kind === 'arbeitszeugnis'
-             || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand' || kind === 'vertrag') && typeof selectEmployee === 'function') selectEmployee(empId);
+             || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand' || kind === 'vertrag'
+             || kind === 'kuendigung') && typeof selectEmployee === 'function') selectEmployee(empId);
         if (kind === 'bank_beleg' && typeof loadBankAccountsTab === 'function') loadBankAccountsTab(empId);
         if (kind === 'vertrag' && window._vertragElternNachher) {
             const n = window._vertragElternNachher; window._vertragElternNachher = null;

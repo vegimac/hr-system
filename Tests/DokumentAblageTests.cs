@@ -98,6 +98,24 @@ public class DokumentAblageTests
     }
 
     [Fact]
+    public async Task Kündigung_ist_Ablageziel_und_wird_verknüpft()
+    {
+        var (db, ma) = MitMa(nameof(Kündigung_ist_Ablageziel_und_wird_verknüpft));
+        ma.KuendigungPer = new DateTime(2026, 10, 31);
+        await db.SaveChangesAsync();
+        var service = new DokumentAblageService(db);
+
+        var opt = (await service.OptionenAsync(10))!.Single(o => o.Key == "kuendigung");
+        Assert.Equal("per 31.10.2026", opt.Sub);
+        Assert.False(opt.Historie);                  // ersetzt still
+
+        var (fehler, _) = await service.VerknuepfeAsync(10, 600, new[] { "kuendigung" });
+        Assert.Null(fehler);
+        await db.SaveChangesAsync();
+        Assert.Equal(600, (await db.Employees.SingleAsync(e => e.Id == 10)).KuendigungDokumentId);
+    }
+
+    [Fact]
     public async Task Fremder_Eintrag_wird_abgewiesen()
     {
         var (db, _) = MitMa(nameof(Fremder_Eintrag_wird_abgewiesen));

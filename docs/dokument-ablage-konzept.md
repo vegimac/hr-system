@@ -22,7 +22,7 @@ Upload-Weg (`openDokUploadModal` ohne Verknüpfen-Knopf) benutzt.
 
 | Angabe | Historie | Verhalten |
 |---|---|---|
-| Ausweis, AHV-Karte, Geburtsurkunde, Zivilstand, Nachtarbeit, Ausweis Partner/Kind, Geburtsurkunde Kind | nein | neues Dokument **ersetzt still**; das alte bleibt in den Dokumenten, nur unverknüpft |
+| Ausweis, AHV-Karte, Geburtsurkunde, Zivilstand, Nachtarbeit, Kündigung, Ausweis Partner/Kind, Geburtsurkunde Kind | nein | neues Dokument **ersetzt still**; das alte bleibt in den Dokumenten, nur unverknüpft |
 | Bewilligung | ja | «Neue Bewilligung» (Formular + Einlesen) oder «Bestehende Bewilligung» (Dokument dieses Eintrags austauschen, mit Rückfrage) |
 | Vertrag | ja | Dokument hängt am gewählten Vertragsabschnitt; das alte Dokument bleibt beim alten Vertrag |
 | Bank, Absenz | ja | bestehendes Konto/Absenz wählen (Rückfrage, wenn schon ein Beleg da ist) oder neu erfassen |
@@ -53,6 +53,7 @@ Kategorie → Typ). **Nie über den Namen.**
 | Nachtarbeit Arztzeugnis / Ausnahme | `night_work_exam` / `night_work_ausnahme` (neu) |
 | Bank | `bank_card` |
 | Vertrag | `contract` |
+| Kündigung | `termination` (neu) |
 | Absenz | `absence` (neu) |
 | Bewilligung | `permit` |
 | Ausweis Partner/in | `spouse` |
@@ -88,7 +89,7 @@ Im Postfach bleiben Kategorie und Knöpfe unten fest sichtbar.
 - Formular-Ziele, Foto und «Anderes» setzen kein Feld — das UI öffnet danach das
   passende Formular (`dokNeueBewilligungMitDok`, `dokNeueBankMitDok`,
   `dokNeueAbsenzMitDok`, `dokFotoAusschnitt`).
-- Kein neues Schema — alle Verknüpfungsfelder existieren seit Schema-Stand 21–23.
+- Verknüpfungsfelder seit Schema-Stand 21–23; Kündigungsschreiben `employee.kuendigung_dokument_id` seit Schema-Stand 31 (25.09.2026), sichtbar in der Anstellungs-Karte (ansehen / ersetzen / lösen).
 
 ## Später
 

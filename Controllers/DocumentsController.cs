@@ -1725,6 +1725,8 @@ public class DocumentsController : ControllerBase
             blockers.Add("Zivilstandsdokument");
         if (await _db.Employees.AnyAsync(e => e.FotoDokumentId == id))
             blockers.Add("Mitarbeiterfoto");
+        if (await _db.Employees.AnyAsync(e => e.KuendigungDokumentId == id))
+            blockers.Add("Kündigungsschreiben");
         if (await _db.EmployeeFamilyMembers.AnyAsync(f => f.GeburtsurkundeDokumentId == id))
             blockers.Add("Geburtsurkunde Familienmitglied");
         if (await _db.EmployeeBankAccounts.AnyAsync(b => b.DokumentId == id))

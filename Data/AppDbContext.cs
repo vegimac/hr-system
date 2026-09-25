@@ -295,6 +295,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ProbezeitEntscheid).HasColumnName("probezeit_entscheid");
             entity.Property(e => e.ProbezeitEntscheidAm).HasColumnName("probezeit_entscheid_am").HasColumnType("date");
             entity.Property(e => e.ArbeitszeugnisDokumentId).HasColumnName("arbeitszeugnis_dokument_id");
+            entity.Property(e => e.KuendigungDokumentId).HasColumnName("kuendigung_dokument_id");
             entity.Property(e => e.AhvKarteDokumentId).HasColumnName("ahv_karte_dokument_id");
             entity.Property(e => e.GeburtsurkundeDokumentId).HasColumnName("geburtsurkunde_dokument_id");
             entity.Property(e => e.ZivilstandDokumentId).HasColumnName("zivilstand_dokument_id");

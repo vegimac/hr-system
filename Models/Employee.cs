@@ -247,6 +247,13 @@ public class Employee
     /// </summary>
     public int? ArbeitszeugnisDokumentId { get; set; }
 
+    /// <summary>
+    /// Kündigungsschreiben (Walter 25.09.2026): verknüpftes Dokument zur
+    /// Kündigung (Gekündigt am / Kündigung per), abgelegt über «Wofür ist das
+    /// Dokument? → Kündigung» oder in der Anstellungs-Karte.
+    /// </summary>
+    public int? KuendigungDokumentId { get; set; }
+
     // Direkt verknüpfte Dokumente (Walter-Vorgabe 23.09.2026, «Dokumente an der
     // Info statt in Ordnern»). Ersetzen die Typ-Verknüpfung (linked_field_code)
     // für AHV-Karte, Geburtsurkunde, Zivilstand (Ehe/Scheidung) und Foto.

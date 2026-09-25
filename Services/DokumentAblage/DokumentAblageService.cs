@@ -17,7 +17,7 @@ namespace HrSystem.Services.DokumentAblage;
 ///     Kategorie gefunden wird — NIE über den Namen des Typs.
 ///
 /// Regeln (Walter 25.09.2026):
-///   • Angaben OHNE Historie (Ausweis, AHV-Karte …): neues Dokument ersetzt das
+///   • Angaben OHNE Historie (Ausweis, AHV-Karte, Kündigung …): neues Dokument ersetzt das
 ///     alte ohne Rückfrage; das alte bleibt in den Dokumenten, nur unverknüpft.
 ///   • Angaben MIT Historie (Bewilligung, Vertrag, Bank, Absenz): das Dokument
 ///     gehört zu genau einem Eintrag und bleibt dort. «Ersetzen» heisst nur
@@ -52,6 +52,8 @@ public class DokumentAblageService
         new("bank",                 "Bank",           "Bankbeleg",                     new[] { "bank_card" }, Historie: true),
         new("bank_neu",             "Bank",           "Bankbeleg neue Bank",           new[] { "bank_card" }, Formular: true),
         new("vertrag",              "Vertrag",        "Unterschriebener Vertrag",      new[] { "contract" }, Historie: true),
+        // Kündigung (Walter 25.09.2026): gehört zur aktuellen Kündigung → ersetzen wie ohne Historie.
+        new("kuendigung",           "Kündigung",      "Kündigung",                     new[] { "termination" }),
         new("absenz_neu",           "Absenz",         "Neue Absenz erfassen",          new[] { "absence" }, Formular: true),
         new("absenz",               "Absenz",         "Absenz",                        new[] { "absence" }, Historie: true),
         new("bewilligung_neu",      "Bewilligung",    "Neue Bewilligung",              new[] { "permit" }, Formular: true),
@@ -165,6 +167,12 @@ public class DokumentAblageService
             liste.Add(O($"vertrag:{v.Id}", string.IsNullOrEmpty(modell) ? zeit : $"{modell} · {zeit}", v.VertragDokumentId));
         }
 
+        liste.Add(O("kuendigung",
+            emp.KuendigungPer.HasValue ? $"per {emp.KuendigungPer.Value:dd.MM.yyyy}"
+            : emp.KuendigungAusgesprochenAm.HasValue ? $"vom {emp.KuendigungAusgesprochenAm.Value:dd.MM.yyyy}"
+            : "Kündigungsschreiben",
+            emp.KuendigungDokumentId));
+
         liste.Add(O("absenz_neu", "Krankheit, Unfall … mit Von/Bis"));
         foreach (var a in absenzen)
             liste.Add(O($"absenz:{a.Id}", $"{a.DateFrom:dd.MM.yy} – {a.DateTo:dd.MM.yy}", a.DokumentId, AbsenzLabel(a.AbsenceType)));
@@ -264,6 +272,7 @@ public class DokumentAblageService
                 case "zivilstand":           (await Ma()).ZivilstandDokumentId = dokumentId; break;
                 case "nachtarbeit_zeugnis":  (await Ma()).NightWorkExamDokumentId = dokumentId; break;
                 case "nachtarbeit_ausnahme": (await Ma()).NightWorkAusnahmeDokumentId = dokumentId; break;
+                case "kuendigung":           (await Ma()).KuendigungDokumentId = dokumentId; break;
                 case "bank":
                 {
                     var k = await _db.EmployeeBankAccounts.FirstOrDefaultAsync(x => x.Id == refId && x.EmployeeId == employeeId);
