@@ -644,6 +644,13 @@ async function _pbMoveLoadPreview(d) {
 }
 
 function pbOpenMove(d) {
+    _pbMoveDoc = d;
+    _pbAblageEmpId = null;
+    if (typeof _dab !== 'undefined') _dab = null;
+    const zl = document.getElementById('pbAblageZiele');
+    if (zl) zl.innerHTML = 'Bitte zuerst den Mitarbeiter wählen.';
+    const kt = document.getElementById('pbAblageKategorie');
+    if (kt) kt.innerHTML = '';
     _pbMoveLoadPreview(d);   // rechts das Dokument (Walter 08.09.2026)
     document.getElementById('pbMoveId').value = d.id;
     document.getElementById('pbMoveFileInfo').innerHTML = `<b>${d.originalFilename}</b>${d.bemerkung ? '<br>' + d.bemerkung : ''}`;
@@ -684,6 +691,45 @@ function pbOpenMove(d) {
     pbRenderTypTree();
 
     document.getElementById('pbMoveModal').style.display = 'block';
+    if (d.employee) pbMoveMaGewaehlt();   // MA schon bekannt → Ablageziele gleich laden
+}
+
+// Ablage nach Angabe (Walter 25.09.2026): sobald der MA feststeht, die Ziele
+// dieses MA laden (Baustein dabInit in documents.js).
+let _pbMoveDoc = null;
+let _pbAblageEmpId = null;
+
+function _pbMoveEmp() {
+    const empVal = document.getElementById('pbMoveEmpInput').value.trim();
+    const m = /– (.+)$/.exec(empVal);
+    const empNr = m ? m[1].trim() : '';
+    return _pbAllEmployees.find(e => e.employeeNumber === empNr) || null;
+}
+
+async function pbMoveMaGewaehlt() {
+    const emp = _pbMoveEmp();
+    const zl = document.getElementById('pbAblageZiele');
+    if (!emp) {
+        _pbAblageEmpId = null;
+        if (typeof _dab !== 'undefined') _dab = null;
+        zl.innerHTML = 'Bitte zuerst den Mitarbeiter wählen.';
+        document.getElementById('pbAblageKategorie').innerHTML = '';
+        return;
+    }
+    if (_pbAblageEmpId === emp.id) return;
+    _pbAblageEmpId = emp.id;
+    zl.innerHTML = 'Lädt…';
+    if (typeof dabInit !== 'function') { zl.innerHTML = 'Bitte Seite neu laden (Cmd+Shift+R).'; return; }
+    const bem = document.getElementById('pbMoveBemerkung');
+    await dabInit({
+        empId: emp.id, spalten: 2,
+        listEl: zl,
+        katEl: document.getElementById('pbAblageKategorie'),
+        bemerkungEl: bem,
+        istBild: (_pbMoveDoc?.mimeType || '').toLowerCase().startsWith('image/'),
+        // Text aus dem Postfach (Bemerkung/Mitteilung) nicht überschreiben
+        bemerkungVonHand: !!bem.value.trim(),
+    });
 }
 
 // Datalist neu aufbauen aufgrund Filiale + Status-Filter.
@@ -761,60 +807,50 @@ function pbSelectTyp(typId) {
 }
 function pbCloseMove() {
     document.getElementById('pbMoveModal').style.display = 'none';
+    _pbAblageEmpId = null;
+    if (typeof _dab !== 'undefined') _dab = null;
     if (_pbMovePreviewUrl) { URL.revokeObjectURL(_pbMovePreviewUrl); _pbMovePreviewUrl = null; }
     const b = document.getElementById('pbMovePreviewBody'); if (b) b.innerHTML = '';
 }
 
 async function pbDoMove(e) {
     e.preventDefault();
+    const alertEl = document.getElementById('pbMoveAlert');
+    const fehler = txt => { alertEl.innerHTML = `<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">${txt}</div>`; };
     const id = document.getElementById('pbMoveId').value;
-    const empVal = document.getElementById('pbMoveEmpInput').value.trim();
-    const m = /– (.+)$/.exec(empVal);
-    const empNr = m ? m[1].trim() : '';
-    const emp = _pbAllEmployees.find(e => e.employeeNumber === empNr);
-    if (!emp) {
-        document.getElementById('pbMoveAlert').innerHTML = '<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">MA nicht gefunden — bitte aus Liste wählen</div>';
-        return;
-    }
-    const typ = document.getElementById('pbMoveTyp').value;
-    if (!typ) {
-        document.getElementById('pbMoveAlert').innerHTML = '<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">Bitte Dokument-Typ wählen</div>';
-        return;
-    }
+    const emp = _pbMoveEmp();
+    if (!emp) return fehler('MA nicht gefunden — bitte aus Liste wählen');
+    if (_pbAblageEmpId !== emp.id) await pbMoveMaGewaehlt();
+    // Ablage nach Angabe (Walter 25.09.2026): wofür + Kategorie am Schluss.
+    const bereit = await dabBereit();
+    if (bereit.abbruch) return;
+    if (bereit.fehler) return fehler(bereit.fehler);
     const bem = document.getElementById('pbMoveBemerkung').value;
     try {
         const r = await fetch(`/api/mailbox/${id}/move-to-employee`, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employeeId: emp.id, dokumentTypId: parseInt(typ, 10), bemerkung: bem })
+            body: JSON.stringify({ employeeId: emp.id, dokumentTypId: bereit.typId, bemerkung: bem,
+                                   ablageZiele: bereit.ziele.join(';') })
         });
-        if (!r.ok) throw new Error(await r.text() || 'HTTP ' + r.status);
+        if (!r.ok) {
+            const txt = await r.text();
+            let j = null; try { j = JSON.parse(txt); } catch {}
+            throw new Error((j && (j.message || j.error)) || txt || 'HTTP ' + r.status);
+        }
         let respData = null;
         try { respData = await r.json(); } catch {}
-        const dateiName = document.querySelector('#pbMoveFileInfo b')?.textContent || '';
         pbCloseMove();
         await pbLoadList();
         await pbUpdateBadge();
         const neuId = respData?.employeeDokumentId;
         if (!neuId) return;
-        // Testphase Walter 23.09.2026: direkt mit einer Angabe verknüpfen
-        // (Ausweis MA/Partner/Kind, neue Bewilligung) — Dialog in documents.js.
-        let verkn = null;
-        if (typeof dokVerknuepfenFragen === 'function')
-            verkn = await dokVerknuepfenFragen(emp.id, neuId, dateiName);
-        // Walter 23.09.2026: wie beim Hochladen im Dokumente-Tab fragen, ob
-        // OneCrew-Benutzer per Mail informiert werden sollen.
-        if (typeof dokAskNotifyUser === 'function')
-            await dokAskNotifyUser(neuId, bem, emp.id,
-                'Das Dokument wurde beim Mitarbeiter abgelegt. Sollen OneCrew-Benutzer per E-Mail darüber informiert werden?');
-        if (verkn?.bewilligung && typeof dokNeueBewilligungMitDok === 'function')
-            await dokNeueBewilligungMitDok(emp.id, neuId);
-        if (verkn?.neueBank && typeof dokNeueBankMitDok === 'function')
-            await dokNeueBankMitDok(emp.id, neuId);
-        if (verkn?.neueAbsenz && typeof dokNeueAbsenzMitDok === 'function')
-            await dokNeueAbsenzMitDok(emp.id, neuId);
+        await dabNachher({
+            empId: emp.id, docId: neuId, bereit, bemerkung: bem, verknuepft: respData.verknuepft,
+            notifyIntro: 'Das Dokument wurde beim Mitarbeiter abgelegt. Sollen OneCrew-Benutzer per E-Mail darüber informiert werden?',
+        });
     } catch (err) {
-        document.getElementById('pbMoveAlert').innerHTML = `<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">Fehler: ${err.message}</div>`;
+        fehler('Fehler: ' + err.message);
     }
 }
 

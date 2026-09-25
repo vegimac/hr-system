@@ -904,13 +904,13 @@
                  Vorschau (pbMovePreview) füllt pbOpenMove per Blob. -->
             <div id="pbMoveModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.4)">
                 <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;border-radius:12px;width:min(96vw,1400px);height:min(92vh,980px);display:flex;box-shadow:0 20px 50px rgba(0,0,0,0.25);overflow:hidden">
-                <div style="width:520px;max-width:100%;flex:0 0 auto;padding:24px;overflow-y:auto;box-sizing:border-box;border-right:1px solid #e2e8f0">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+                <div style="width:780px;max-width:100%;flex:0 0 auto;padding:16px 22px 0;overflow-y:auto;box-sizing:border-box;border-right:1px solid #e2e8f0">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                         <h2 style="margin:0;font-size:17px;font-weight:700">In MA-Personalakte ablegen</h2>
                         <button onclick="pbCloseMove()" style="background:none;border:none;cursor:pointer;font-size:22px;color:#64748b">&times;</button>
                     </div>
                     <div id="pbMoveAlert" style="margin-bottom:12px"></div>
-                    <form id="pbMoveForm" onsubmit="pbDoMove(event)" style="display:flex;flex-direction:column;gap:12px">
+                    <form id="pbMoveForm" onsubmit="pbDoMove(event)" style="display:flex;flex-direction:column;gap:9px">
                         <input type="hidden" id="pbMoveId">
                         <div id="pbMoveFileInfo" style="background:#f1f5f9;padding:10px;border-radius:7px;font-size:12px;color:#475569"></div>
                         <div>
@@ -925,23 +925,28 @@
                                     <option value="all">Alle</option>
                                 </select>
                             </div>
-                            <input list="pbMoveEmpList" id="pbMoveEmpInput" required placeholder="Name oder Personalnummer" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px">
+                            <input list="pbMoveEmpList" id="pbMoveEmpInput" required placeholder="Name oder Personalnummer" onchange="pbMoveMaGewaehlt()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px">
                             <datalist id="pbMoveEmpList"></datalist>
                             <div id="pbMoveEmpCount" style="font-size:11px;color:#94a3b8;margin-top:4px"></div>
                         </div>
+                        <!-- Ablage nach Angabe (Walter 25.09.2026): statt Kategorien-Baum zuerst
+                             «wofür», die Kategorie steht am Schluss (documents.js dabInit). -->
                         <div>
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Dokument-Typ *</label>
-                            <div id="pbMoveTypSummary" style="font-size:12px;color:#64748b;margin-bottom:5px">Bitte Kategorie und Typ wählen</div>
-                            <div id="pbMoveTypTree" style="border:1px solid #e2e8f0;border-radius:8px;max-height:280px;overflow-y:auto;background:#f8fafc"></div>
-                            <input type="hidden" id="pbMoveTyp" required>
+                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Wofür ist das Dokument? * <span style="font-weight:500;color:#94a3b8">— mehrere möglich</span></label>
+                            <div id="pbAblageZiele" style="border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;padding:4px 6px;font-size:12.5px;color:#94a3b8">Bitte zuerst den Mitarbeiter wählen.</div>
+                            <input type="hidden" id="pbMoveTyp">
                         </div>
                         <div>
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Bemerkung (optional)</label>
-                            <textarea id="pbMoveBemerkung" rows="2" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Titel / Bemerkung</label>
+                            <textarea id="pbMoveBemerkung" rows="2" oninput="if(_dab)_dab.bemerkungVonHand=true" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
                         </div>
-                        <div style="display:flex;gap:8px;margin-top:8px">
+                        <!-- Knöpfe bleiben unten sichtbar, auch wenn die Liste lang wird (Walter 25.09.2026) -->
+                        <div style="position:sticky;bottom:0;background:white;padding:8px 0 16px;margin-top:2px;border-top:1px solid #e2e8f0">
+                            <div id="pbAblageKategorie" style="margin-bottom:8px"></div>
+                            <div style="display:flex;gap:8px">
                             <button type="submit" class="btn btn-success" style="flex:1">In Personalakte ablegen</button>
                             <button type="button" onclick="pbCloseMove()" class="btn btn-outline" style="flex:1">Abbrechen</button>
+                        </div>
                         </div>
                     </form>
                 </div>
@@ -9738,7 +9743,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/qst-modal.js?v=20260915c"></script>
 <script src="js/users.js?v=20260911a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
-<script src="js/documents.js?v=20260925a"></script>
+<script src="js/documents.js?v=20260925b"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260805a"></script>
@@ -11251,7 +11256,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
      POSTEINGANG (Mailbox pro Filiale)
      ═══════════════════════════════════════════════════════════════════ -->
 <!-- ═══════════════ MODUL-SCRIPTS Block 2 (Phase A) ═══════════════ -->
-<script src="js/posteingang.js?v=20260923d"></script>
+<script src="js/posteingang.js?v=20260925a"></script>
 <script src="js/hr-rav.js?v=20260806a"></script>
 <script src="js/lohn-edit-lock.js?v=20260806a"></script>
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>

@@ -27,10 +27,13 @@ public class MailboxController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly string _storagePath;
+    private readonly HrSystem.Services.DokumentAblage.DokumentAblageService _ablage;
 
-    public MailboxController(AppDbContext db, IConfiguration config, IWebHostEnvironment env)
+    public MailboxController(AppDbContext db, IConfiguration config, IWebHostEnvironment env,
+                             HrSystem.Services.DokumentAblage.DokumentAblageService ablage)
     {
         _db = db;
+        _ablage = ablage;
         var configured = config["Documents:StoragePath"];
         if (string.IsNullOrWhiteSpace(configured))
             configured = Path.Combine(env.ContentRootPath, "data", "documents");
@@ -836,8 +839,13 @@ public class MailboxController : ControllerBase
         Directory.CreateDirectory(destDir);
         var destPath = Path.Combine(destDir, newStorageName);
 
+        var ziele = HrSystem.Services.DokumentAblage.DokumentAblageService.ParseZiele(dto.AblageZiele);
+        var dateiVerschoben = false;
         if (System.IO.File.Exists(srcPath))
+        {
             System.IO.File.Move(srcPath, destPath);
+            dateiVerschoben = true;
+        }
 
         // Original-Uploader aus dem Posteingang behalten (Walter 22.07.2026 —
         // Upload-Protokoll für Buchhaltung/Bommer). Fallback = wer jetzt ablegt.
@@ -858,11 +866,45 @@ public class MailboxController : ControllerBase
             HochgeladenVon   = doc.UploadedBy ?? GetCurrentUserId(),
             HochgeladenAm    = doc.UploadedAt != default ? doc.UploadedAt : DateTime.Now,
         };
-        _db.EmployeeDokumente.Add(empDoc);
-        _db.MailboxDocuments.Remove(doc);
-        await _db.SaveChangesAsync();
+        if (ziele.Count == 0)
+        {
+            _db.EmployeeDokumente.Add(empDoc);
+            _db.MailboxDocuments.Remove(doc);
+            await _db.SaveChangesAsync();
+            return Ok(new { employeeDokumentId = empDoc.Id });
+        }
 
-        return Ok(new { employeeDokumentId = empDoc.Id });
+        // Ablegen + Verknüpfen in EINER Transaktion. Scheitert das Verknüpfen,
+        // bleibt alles im Postfach — auch die Datei wandert zurück.
+        await using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            _db.EmployeeDokumente.Add(empDoc);
+            _db.MailboxDocuments.Remove(doc);
+            await _db.SaveChangesAsync();
+            var (fehler, verknuepft) = await _ablage.VerknuepfeAsync(emp.Id, empDoc.Id, ziele);
+            if (fehler != null)
+            {
+                await tx.RollbackAsync();
+                DateiZurueck();
+                return BadRequest(new { error = "ABLAGEZIEL", message = fehler });
+            }
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+            return Ok(new { employeeDokumentId = empDoc.Id, verknuepft });
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            DateiZurueck();
+            throw;
+        }
+
+        void DateiZurueck()
+        {
+            try { if (dateiVerschoben && System.IO.File.Exists(destPath)) System.IO.File.Move(destPath, srcPath); }
+            catch { /* best-effort */ }
+        }
     }
 
     // ── DELETE: Dokument verwerfen ────────────────────────────────────────
@@ -1304,7 +1346,9 @@ public class MailboxController : ControllerBase
     }
 }
 
-public record MoveToEmployeeDto(int EmployeeId, int DokumentTypId, string? Bemerkung);
+// AblageZiele (Walter 25.09.2026): «ausweis;vertrag:12» — beim Ablegen gleich
+// verknüpfen, wie beim Hochladen in der Dokumentverwaltung.
+public record MoveToEmployeeDto(int EmployeeId, int DokumentTypId, string? Bemerkung, string? AblageZiele = null);
 
 /// <summary>mode: move | forward — Ziel analog Upload.</summary>
 public record MailboxTransferDto(

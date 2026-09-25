@@ -9,9 +9,14 @@ zuerst, **wofür** das Dokument ist: Ausweis, AHV-Karte, Vertrag X, Absenz Y,
 Bewilligung … Die **Kategorie ergibt sich daraus** und steht erst am Schluss
 («automatisch», bei Bedarf änderbar).
 
+Dasselbe gilt seit 25.09.2026 im **Postfach** beim «📁 Ablegen»: sobald der
+Mitarbeiter gewählt ist, erscheint statt des Kategorien-Baums die Liste
+«Wofür ist das Dokument?», die Kategorie steht über den Knöpfen am Schluss.
+
 Uploads direkt in der MA-Maske (Ausweis-, Bewilligungs-, Vertrags-Knöpfe usw.)
 bleiben **unverändert** — sie laufen weiter über `openDokUploadModal`.
-Der Posteingang nutzt weiter den nachträglichen Dialog `dokVerknuepfenFragen`.
+Der nachträgliche Dialog `dokVerknuepfenFragen` wird nur noch vom alten
+Upload-Weg (`openDokUploadModal` ohne Verknüpfen-Knopf) benutzt.
 
 ## Regeln
 
@@ -60,13 +65,21 @@ Ein **admin** kann sie sich merken lassen («Für … künftig immer diese Kateg
 wenn der Typ noch keinen Code hat und kein anderer Typ den Code trägt).
 Die neuen Codes sind in der Dokumentstruktur (Systemeinstellungen) wählbar.
 
+## Grösse
+
+Die Liste steht in zwei Spalten, damit alle Angaben ohne Scrollen sichtbar sind
+(Dokumentverwaltung: Maske bis 1480 px breit, Postfach: linke Spalte 780 px).
+Im Postfach bleiben Kategorie und Knöpfe unten fest sichtbar.
+
 ## Technik
 
 | Datei | Aufgabe |
 |---|---|
 | `Services/DokumentAblage/DokumentAblageService.cs` | **die** Zielliste (`Arten`), Optionen pro MA, Code → Typ, Verknüpfen |
 | `Controllers/DocumentsController.cs` | `GET ablage-ziele/{empId}`, `POST ablage-ziele/typ-merken`, `upload` mit `ablageZiele` |
-| `wwwroot/js/documents.js` | `openDokAblageModal` / `dabToggle` / `dabHochladen` (Präfix `dab`) |
+| `wwwroot/js/documents.js` | Baustein `dabInit` / `dabBereit` / `dabNachher` + Maske `openDokAblageModal` (Präfix `dab`) |
+| `wwwroot/js/posteingang.js` | Postfach «Ablegen»: `pbMoveMaGewaehlt` lädt die Ziele, `pbDoMove` legt ab |
+| `Controllers/MailboxController.cs` | `move-to-employee` mit `ablageZiele` (eine Transaktion, Datei geht bei Fehler zurück ins Postfach) |
 | `Tests/DokumentAblageTests.cs` | Optionen, Verknüpfen, fremde Einträge, Code-Rückfall |
 
 - `upload` mit `ablageZiele=ausweis;ahv_karte;vertrag:12`: Dokument speichern und
@@ -79,6 +92,6 @@ Die neuen Codes sind in der Dokumentstruktur (Systemeinstellungen) wählbar.
 
 ## Später
 
-- Posteingang und MA-Masken-Uploads auf dieselbe Zielliste umstellen.
+- MA-Masken-Uploads auf dieselbe Zielliste umstellen (bewusst noch nicht).
 - Dokumentenliste nach Angabe statt nach Ordner gruppieren; dann braucht es die
   Kategorie nur noch für Altbestand, d.velop-Import und Aufbewahrung.
