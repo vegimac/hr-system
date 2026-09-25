@@ -3416,7 +3416,7 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         // Nachtarbeit-Belege / Arbeitszeugnis: MA-Detail neu laden.
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme' || kind === 'arbeitszeugnis'
              || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand' || kind === 'vertrag'
-             || kind === 'kuendigung') && typeof selectEmployee === 'function') selectEmployee(empId);
+             || kind === 'kuendigung' || kind === 'id_pass') && typeof selectEmployee === 'function') selectEmployee(empId);
         if (kind === 'bank_beleg' && typeof loadBankAccountsTab === 'function') loadBankAccountsTab(empId);
         if (kind === 'vertrag' && window._vertragElternNachher) {
             const n = window._vertragElternNachher; window._vertragElternNachher = null;
@@ -6143,6 +6143,18 @@ function linkedDocButton(linkedCode, directKind) {
     // GRÜN mit Häkchen; «fehlt» bleibt blass mit gestricheltem Rand.
     const styleActive   = "background:#dcfce7;border:1px solid #86efac;color:#15803d";
     const styleInactive = "background:#f8f7f4;border:1px dashed #d5d0c6;color:#b3ada1";
+    // Feld mit direkter Verknüpfung (Walter 25.09.2026): liegt nur ein Dokument
+    // in der Kategorie, ist noch NICHTS verknüpft → gelb «Doku verknüpfen» statt
+    // grünem Häkchen (sonst sieht es aus wie verknüpft, Fall Pass Tomova).
+    if (directKind && hasDoc) {
+        return `<button class="emp-field-docbtn" data-linked-code="${linkedCode}" data-direct-kind="${directKind}"
+                   title="Noch nicht verknüpft — in den Dokumenten liegt passendes. Klicken zum Verknüpfen."
+                   onclick="openLinkedDocOrLink('${linkedCode}','${directKind}')"
+                   style="margin-left:8px;background:#fef3c7;border:1px dashed #fcd34d;color:#92400e;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
+                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                   <span>Doku verknüpfen</span>
+               </button>`;
+    }
     const tooltip = hasDoc ? 'Dokument vorhanden — klicken zum Öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
     // directKind (Walter 23.09.2026): Feld hat eine direkte Verknüpfung, die
     // noch leer ist — fehlt auch das Typ-Dokument, öffnet der Klick den
@@ -6168,8 +6180,8 @@ function linkedDocButton(linkedCode, directKind) {
 // (fallbackCode), sonst grauer Knopf, der den Verknüpfen-Dialog öffnet.
 function directDocButton(docId, kind, fallbackCode) {
     if (docId) {
-        return `<button class="emp-field-docbtn" title="Dokument verknüpft — klicken zum Öffnen"
-                   onclick="openDirectDoc(${docId})"
+        return `<button class="emp-field-docbtn" title="Dokument verknüpft — anschauen oder durch ein neueres ersetzen"
+                   onclick="directDocMenu(event, ${docId}, '${kind}')"
                    style="margin-left:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                    <span>Doku ✓</span>
@@ -6190,9 +6202,33 @@ async function openDirectDoc(docId) {
         await previewUrlFetch(`/api/documents/preview/${docId}`, 'Dokument', ah());
 }
 
+// Walter 25.09.2026: Feld mit direkter Verknüpfung, die noch leer ist → IMMER
+// verknüpfen (Auswahl, passende Dokumente oben), nie in die Kategorie springen.
 function openLinkedDocOrLink(code, kind) {
-    if (window._linkedDocCodes && window._linkedDocCodes.has(code)) return openLinkedDoc(code);
     openAusweisDokuModal(selectedEmployeeId, kind);
+}
+
+// Menü am grünen «Doku ✓» eines Feldes OHNE Historie (Pass/Ausweis, AHV-Karte,
+// Geburtsurkunde, Zivilstand — Walter 25.09.2026): anschauen, durch ein neueres
+// ersetzen (keine Historie, das alte bleibt nur in den Dokumenten) oder lösen.
+// Felder MIT Historie (Bewilligung, Vertrag, Bank, Absenz) haben das nicht.
+function directDocMenu(ev, docId, kind) {
+    ev.stopPropagation();
+    document.getElementById('ddMenu')?.remove();
+    const r = ev.currentTarget.getBoundingClientRect();
+    const labels = { id_pass: 'Ausweis', ahv_karte: 'AHV-Karte', geburtsurkunde: 'Geburtsurkunde', zivilstand: 'Zivilstandsdokument' };
+    const was = labels[kind] || 'Dokument';
+    const m = document.createElement('div');
+    m.id = 'ddMenu';
+    m.className = 'dok-menu show';
+    m.style.cssText = `position:fixed;top:${Math.round(r.bottom + 4)}px;left:${Math.round(r.left)}px;z-index:9500;min-width:230px`;
+    m.innerHTML = `
+        <button class="dok-menu-item" onclick="document.getElementById('ddMenu')?.remove(); openDirectDoc(${docId})">👁 Anschauen</button>
+        <button class="dok-menu-item" onclick="document.getElementById('ddMenu')?.remove(); openAusweisDokuModal(selectedEmployeeId,'${kind}')">↻ Neueres Dokument verknüpfen</button>
+        <button class="dok-menu-item danger" onclick="document.getElementById('ddMenu')?.remove(); nwUnlinkDoku(selectedEmployeeId,'${kind}','${was}')">Verknüpfung lösen</button>`;
+    document.body.appendChild(m);
+    const zu = e => { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('click', zu, true); } };
+    setTimeout(() => document.addEventListener('click', zu, true), 0);
 }
 
 // Nachgeladenes linked-codes-Set → bestehende Doku-Buttons tauschen,
