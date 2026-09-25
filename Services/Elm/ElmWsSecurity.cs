@@ -275,6 +275,10 @@ public static class ElmWsSecurity
             try
             {
                 Entschluessele(doc, unserZertifikat.GetRSAPrivateKey()!);
+                // ReplaceData hinterlässt den DOM manchmal inkonsistent für die
+                // anschliessende CheckSignature — neu laden stabilisiert C14N
+                // (Live-Probe Register 25.09.2026: Signatur erst nach Reload gültig).
+                doc.LoadXml(doc.OuterXml);
             }
             catch (Exception ex)
             {

@@ -171,9 +171,13 @@ public class ElmTransmitterClient
             if (deutung != null) pruef = deutung;
 
             var klartext = antw.OuterXml;
-            try { klartext = XDocument.Parse(klartext).ToString(); } catch { /* roh lassen */ }
+            // F04: Archiv = signierter Klartext OHNE Pretty-Print (XDocument.ToString
+            // verändert Whitespace → Digests ungültig). UI darf formatiert anzeigen.
             _store.ArchiviereKlartext(archivName + "-response", klartext);
-            return r with { ResponseXml = klartext, Security = pruef };
+            string anzeige;
+            try { anzeige = XDocument.Parse(klartext).ToString(); }
+            catch { anzeige = klartext; }
+            return r with { ResponseXml = anzeige, Security = pruef };
         }
         catch
         {
@@ -433,6 +437,6 @@ public class ElmTransmitterClient
                       + "Bitte Swissdec-.pfx importieren (F07-Karte)."
             };
         }
-        return await PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), archivName, ct);
+        return await PostGesichertAsync(url, body, erp, _store.LadeEmpfaengerFuerVerschluesselung(), archivName, ct);
     }
 }

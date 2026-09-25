@@ -124,7 +124,7 @@ public class ElmSuaService
             dto.AlsTestfall);
         PruefeSchema(body, "Register");
 
-        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), "sua-register", ct);
+        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaengerFuerVerschluesselung(), "sua-register", ct);
         var abgewiesen = ElmTransmitterClient.DeuteSicherheitsFault(call);
         if (abgewiesen != null)
         {
@@ -204,7 +204,7 @@ public class ElmSuaService
 
         var body = BaueSynchronizeBody(fall, signBlock);
         PruefeSchema(body, "Synchronize");
-        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), "sua-sync", ct);
+        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaengerFuerVerschluesselung(), "sua-sync", ct);
         var abgewiesen = ElmTransmitterClient.DeuteSicherheitsFault(call);
         if (abgewiesen != null)
         {
