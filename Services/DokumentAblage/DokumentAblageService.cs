@@ -62,6 +62,11 @@ public class DokumentAblageService
         new("ausweis_partner",      "Familie",        "Ausweis Partner/in",            new[] { "spouse" }),
         new("ausweis_kind",         "Familie",        "Ausweis Kind",                  new[] { "child_id" }),
         new("geburtsurkunde_kind",  "Familie",        "Geburtsurkunde Kind",           new[] { "birth_cert" }),
+        // Noch nicht erfasste Familienmitglieder (Walter 25.09.2026): Formular öffnen,
+        // das Dokument hängt danach am neuen Eintrag — wie «Bankbeleg neue Bank».
+        new("partner_neu",             "Familie", "Ausweis neue/r Partner/in",  new[] { "spouse" },     Formular: true),
+        new("kind_neu",                "Familie", "Ausweis neues Kind",         new[] { "child_id" },   Formular: true),
+        new("kind_neu_geburtsurkunde", "Familie", "Geburtsurkunde neues Kind",  new[] { "birth_cert" }, Formular: true),
         // ── Anderes: kurze Liste statt der ganzen Dokumentstruktur ──
         new("anderes:korrespondenz",  "Anderes", "Korrespondenz",               new[] { "andere_korrespondenz" }, Anderes: true),
         new("anderes:arztzeugnis",    "Anderes", "Arztzeugnis (ohne Absenz)",   new[] { "andere_arztzeugnis" }, Anderes: true),
@@ -186,6 +191,9 @@ public class DokumentAblageService
             liste.Add(O($"ausweis_kind:{m.Id}", FamName(m), m.DokumentId));
             liste.Add(O($"geburtsurkunde_kind:{m.Id}", FamName(m), m.GeburtsurkundeDokumentId));
         }
+        liste.Add(O("partner_neu", "Partner/in erfassen"));
+        liste.Add(O("kind_neu", "Kind erfassen"));
+        liste.Add(O("kind_neu_geburtsurkunde", "Kind erfassen"));
 
         // Bewilligung nur bei Ausländer/innen; bestehende Einträge = Dokument austauschen.
         if (!istCh)

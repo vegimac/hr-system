@@ -3033,6 +3033,9 @@ function dabTitel(o) {
     const vorPunkt = s => String(s || '').split(' · ')[0];
     if (o.key.startsWith('bewilligung')) return o.key === 'bewilligung_neu' ? 'Bewilligung' : 'Bewilligung ' + vorPunkt(o.sub);
     if (o.key.startsWith('bank')) return 'Bankbeleg';
+    if (o.key === 'partner_neu') return 'Ausweis Partner/in';
+    if (o.key === 'kind_neu') return 'Ausweis Kind';
+    if (o.key === 'kind_neu_geburtsurkunde') return 'Geburtsurkunde Kind';
     if (o.key === 'absenz_neu') return 'Absenz';
     if (o.key.startsWith('absenz:')) return `${o.label} ${o.sub || ''}`.trim();
     if (/^(ausweis_partner|ausweis_kind|geburtsurkunde_kind):/.test(o.key)) return `${o.label} ${vorPunkt(o.sub)}`.trim();
@@ -3156,6 +3159,35 @@ async function dabNachher({ empId, docId, bereit, bemerkung, verknuepft, notifyI
     if (einzig === 'bank_neu') await dokNeueBankMitDok(empId, docId);
     if (einzig === 'absenz_neu') await dokNeueAbsenzMitDok(empId, docId);
     if (einzig === 'bewilligung_neu') await dokNeueBewilligungMitDok(empId, docId);
+    if (einzig === 'partner_neu') await dokNeuesFamilienmitgliedMitDok(empId, docId, 'Ehepartner', null);
+    if (einzig === 'kind_neu') await dokNeuesFamilienmitgliedMitDok(empId, docId, 'Kind', null);
+    if (einzig === 'kind_neu_geburtsurkunde') await dokNeuesFamilienmitgliedMitDok(empId, docId, 'Kind', 'geburtsurkunde');
+}
+
+// Neues Familienmitglied mit dem soeben abgelegten Dokument (Walter 25.09.2026):
+// MA öffnen, Familie-Tab zeigen, Formular «Familienangehörigen hinzufügen» mit
+// vorgewähltem Typ öffnen. Nach dem Speichern hängt saveFamilyMember das
+// Dokument an den neuen Eintrag (Ausweis bzw. Geburtsurkunde).
+async function dokNeuesFamilienmitgliedMitDok(empId, docId, typ, art) {
+    if (typeof openFamilyModal !== 'function') return;
+    if (window.selectedEmployeeId !== empId) {
+        window.activeEmpId = empId;
+        if (typeof showPage === 'function') showPage('mitarbeiter');
+        for (let i = 0; i < 40 && window.selectedEmployeeId !== empId; i++)
+            await new Promise(r => setTimeout(r, 150));
+        if (window.selectedEmployeeId !== empId && typeof selectEmployee === 'function') await selectEmployee(empId);
+    }
+    if (typeof switchEmpTab === 'function') switchEmpTab('familie');
+    openFamilyModal(null);
+    const typEl = document.getElementById('fmMemberType');
+    if (typEl) { typEl.value = typ; if (typeof fmTypeChanged === 'function') fmTypeChanged(); }
+    window._famAfterSave = async (memberId) => {
+        const r = await fetch(`/api/employees/${empId}/family/${memberId}/dokument`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(art ? { dokumentId: docId, art } : { dokumentId: docId }) });
+        if (r.ok && typeof showToast === 'function')
+            showToast(`✓ ${art === 'geburtsurkunde' ? 'Geburtsurkunde' : 'Ausweis'} mit dem neuen Familienmitglied verknüpft`, 'success');
+    };
 }
 
 // ── Dokumentverwaltung: «+ Dokument hochladen» ────────────────────────

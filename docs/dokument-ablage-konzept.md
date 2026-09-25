@@ -25,6 +25,7 @@ Upload-Weg (`openDokUploadModal` ohne Verknüpfen-Knopf) benutzt.
 | Ausweis, AHV-Karte, Geburtsurkunde, Zivilstand, Nachtarbeit, Kündigung, Ausweis Partner/Kind, Geburtsurkunde Kind | nein | neues Dokument **ersetzt still**; das alte bleibt in den Dokumenten, nur unverknüpft |
 | Bewilligung | ja | «Neue Bewilligung» (Formular + Einlesen) oder «Bestehende Bewilligung» (Dokument dieses Eintrags austauschen, mit Rückfrage) |
 | Vertrag | ja | Dokument hängt am gewählten Vertragsabschnitt; das alte Dokument bleibt beim alten Vertrag |
+| Familie noch nicht erfasst | – | «Ausweis neue/r Partner/in», «Ausweis neues Kind», «Geburtsurkunde neues Kind» öffnen das Familien-Formular; nach dem Speichern hängt das Dokument am neuen Eintrag |
 | Bank, Absenz | ja | bestehendes Konto/Absenz wählen (Rückfrage, wenn schon ein Beleg da ist) oder neu erfassen |
 
 - **Mehrfachauswahl:** ein Dokument kann an mehreren Angaben hängen (z.B. ein
@@ -56,8 +57,8 @@ Kategorie → Typ). **Nie über den Namen.**
 | Kündigung | `termination` (neu) |
 | Absenz | `absence` (neu) |
 | Bewilligung | `permit` |
-| Ausweis Partner/in | `spouse` |
-| Ausweis Kind | `child_id` (neu) |
+| Ausweis Partner/in (auch «neue/r Partner/in») | `spouse` |
+| Ausweis Kind (auch «neues Kind») | `child_id` (neu) |
 | Anderes | `andere_korrespondenz`, `andere_arztzeugnis`, `andere_lohn`, `andere_weiterbildung`, `andere_sonstiges` (neu) |
 
 Hat ein Code noch **keinen** Typ, wählt man die Kategorie am Schluss selbst.

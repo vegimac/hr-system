@@ -64,6 +64,10 @@ public class DokumentAblageTests
         var (db, _) = MitMa(nameof(Schweizer_bekommen_keine_Bewilligung), nation: "CH");
         var keys = (await new DokumentAblageService(db).OptionenAsync(10))!.Select(o => o.Key).ToList();
         Assert.DoesNotContain(keys, k => k.StartsWith("bewilligung"));
+        // Familie ist auch ohne erfasste Angehörige wählbar (neu erfassen)
+        Assert.Contains("partner_neu", keys);
+        Assert.Contains("kind_neu", keys);
+        Assert.Contains("kind_neu_geburtsurkunde", keys);
     }
 
     [Fact]
@@ -128,6 +132,7 @@ public class DokumentAblageTests
 
     [Theory]
     [InlineData("bewilligung_neu")]
+    [InlineData("kind_neu")]
     [InlineData("foto")]
     [InlineData("anderes:lohn")]
     [InlineData("gibtsnicht")]

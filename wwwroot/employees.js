@@ -7868,6 +7868,7 @@ function openEmployeeAddressModalFromFamily() {
 }
 
 function closeFamilyModal() {
+    window._famAfterSave = null;   // Abbruch → kein Dokument verknüpfen
     const modal = document.getElementById('familyModal');
     modal.style.display = 'none';
     modal.classList.remove('fam-docs-open');
@@ -7961,6 +7962,8 @@ async function saveFamilyMember() {
     };
 
     const isEdit = editingFamilyMemberId !== null;
+    // Neu angelegt aus der Dokument-Ablage (Walter 25.09.2026): danach das Dokument anhängen.
+    const famAfterSave = !isEdit ? window._famAfterSave : null;
     const url    = isEdit
         ? `/api/employees/${selectedEmployeeId}/family/${editingFamilyMemberId}`
         : `/api/employees/${selectedEmployeeId}/family`;
@@ -7986,7 +7989,11 @@ async function saveFamilyMember() {
             alert(msg);
             return;
         }
+        let neuId = null;
+        if (famAfterSave) { try { neuId = (await res.clone().json())?.id ?? null; } catch {} }
+        window._famAfterSave = null;
         closeFamilyModal();
+        if (famAfterSave && neuId) { try { await famAfterSave(neuId); } catch (e) { console.error('famAfterSave', e); } }
         loadFamilieTab(selectedEmployeeId);
         // QST-Prüfroutine (Walter 23.08.2026): Ehepartner/Kind-Änderungen
         // können Tarif + Kinderziffer kippen — sofort melden.
