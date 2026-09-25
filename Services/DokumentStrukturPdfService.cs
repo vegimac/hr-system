@@ -142,6 +142,16 @@ public class DokumentStrukturPdfService
         "spouse"           => "Ehegatte (Familie)",
         "employee_photo"   => "Mitarbeiterfoto",
         "family_allowance" => "FAK-Entscheid (Kinderzulage)",
+        // Ablage nach Angabe (Walter 25.09.2026)
+        "night_work_exam"      => "Nachtarbeit: Arztzeugnis",
+        "night_work_ausnahme"  => "Nachtarbeit: Ausnahmeregelung",
+        "absence"              => "Absenz (z.B. Arztzeugnis)",
+        "child_id"             => "Ausweis Kind",
+        "andere_korrespondenz" => "Anderes: Korrespondenz",
+        "andere_arztzeugnis"   => "Anderes: Arztzeugnis ohne Absenz",
+        "andere_lohn"          => "Anderes: Lohn",
+        "andere_weiterbildung" => "Anderes: Weiterbildung",
+        "andere_sonstiges"     => "Anderes: Sonstiges",
         ""                 => null,
         _                  => code
     };

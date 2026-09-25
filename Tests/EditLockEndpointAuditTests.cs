@@ -130,6 +130,7 @@ public class EditLockEndpointAuditTests
         ["CompanyDokumenteController"]     = "Filial-Dokumente — Files, kein Lohn",
         ["MailboxController"]              = "Posteingang/Postfach — Files, kein Lohn",
         ["WebDavController"]               = "WebDAV-Zugriff — Files",
+        ["WebStampController"]             = "Briefpost über WebStamp der Post — Zugang + Briefversand, kein Lohn",
 
         // Importer — laufen typischerweise vor dem ersten Lohnlauf,
         // sind admin/superuser-restricted. Lock-Check hier wäre falsch

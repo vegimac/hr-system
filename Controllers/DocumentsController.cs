@@ -20,15 +20,18 @@ public class DocumentsController : ControllerBase
     private readonly OfficeToPdfService _officePdf;
     private readonly EmailService _email;
     private readonly DokumentStrukturPdfService _strukturPdf;
+    private readonly HrSystem.Services.DokumentAblage.DokumentAblageService _ablage;
 
     /// <summary>
     /// Storage-Pfad wird aus appsettings.json (Documents:StoragePath) gelesen.
     /// Default: "data/documents" relativ zum Content-Root.
     /// Auf dem Server via systemd-Environment "Documents__StoragePath=/var/data/hr-system/documents".
     /// </summary>
-    public DocumentsController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, OfficeToPdfService officePdf, EmailService email, DokumentStrukturPdfService strukturPdf)
+    public DocumentsController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, OfficeToPdfService officePdf, EmailService email, DokumentStrukturPdfService strukturPdf,
+                               HrSystem.Services.DokumentAblage.DokumentAblageService ablage)
     {
         _db = db;
+        _ablage = ablage;
         _officePdf = officePdf;
         _email = email;
         _strukturPdf = strukturPdf;
@@ -305,7 +308,10 @@ public class DocumentsController : ControllerBase
         [FromForm] DateTime? dateiGeaendertAm = null,
         [FromForm] DateTime? zugriffAm = null,
         [FromForm] string? geaendertVon = null,
-        [FromForm] string? dvelopDokumentId = null)
+        [FromForm] string? dvelopDokumentId = null,
+        // Ablage nach Angabe (Walter 25.09.2026): «ausweis;ahv_karte;vertrag:12» —
+        // das Dokument wird in derselben Transaktion an diese Angaben gehängt.
+        [FromForm] string? ablageZiele = null)
     {
         if (file is null || file.Length == 0)
             return BadRequest("Keine Datei hochgeladen.");
@@ -412,10 +418,110 @@ public class DocumentsController : ControllerBase
             GeaendertVon     = string.IsNullOrWhiteSpace(geaendertVon) ? null : geaendertVon.Trim(),
             DvelopDokumentId = string.IsNullOrWhiteSpace(dvelopDokumentId) ? null : dvelopDokumentId.Trim()
         };
-        _db.EmployeeDokumente.Add(doc);
-        await _db.SaveChangesAsync();
+        var ziele = HrSystem.Services.DokumentAblage.DokumentAblageService.ParseZiele(ablageZiele);
+        if (ziele.Count == 0)
+        {
+            _db.EmployeeDokumente.Add(doc);
+            await _db.SaveChangesAsync();
+            return Ok(new { doc.Id, doc.FilenameOriginal, doc.GroesseBytes, doc.HochgeladenAm });
+        }
 
-        return Ok(new { doc.Id, doc.FilenameOriginal, doc.GroesseBytes, doc.HochgeladenAm });
+        // Dokument + Verknüpfungen in EINER Transaktion: bricht das Verknüpfen ab,
+        // bleibt kein unverknüpftes Dokument liegen (vorher zwei Schritte).
+        await using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            _db.EmployeeDokumente.Add(doc);
+            await _db.SaveChangesAsync();
+            var (fehler, verknuepft) = await _ablage.VerknuepfeAsync(employeeId, doc.Id, ziele);
+            if (fehler != null)
+            {
+                await tx.RollbackAsync();
+                TryDeleteFile(fullPath);
+                return BadRequest(new { error = "ABLAGEZIEL", message = fehler });
+            }
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+            return Ok(new { doc.Id, doc.FilenameOriginal, doc.GroesseBytes, doc.HochgeladenAm, verknuepft });
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            TryDeleteFile(fullPath);
+            throw;
+        }
+    }
+
+    private static void TryDeleteFile(string pfad)
+    {
+        try { if (System.IO.File.Exists(pfad)) System.IO.File.Delete(pfad); } catch { /* best-effort */ }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // ABLAGE NACH ANGABE (Walter 25.09.2026) — Konzept docs/dokument-ablage-konzept.md
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Alle Ablageziele eines Mitarbeiters für die neue Upload-Maske der
+    /// Dokumentverwaltung: pro Ziel das heute verknüpfte Dokument und die
+    /// Kategorie, die sich daraus ergibt (null = am Schluss selbst wählen).
+    /// </summary>
+    [HttpGet("ablage-ziele/{employeeId:int}")]
+    public async Task<IActionResult> AblageZiele(int employeeId)
+    {
+        var optionen = await _ablage.OptionenAsync(employeeId);
+        if (optionen == null) return NotFound();
+        var typen = await _ablage.TypenFuerCodesAsync();
+        var titel = await _db.EmployeeDokumente.AsNoTracking()
+            .Where(d => d.EmployeeId == employeeId)
+            .Select(d => new { d.Id, d.Bemerkung, d.FilenameOriginal })
+            .ToDictionaryAsync(d => d.Id, d => string.IsNullOrWhiteSpace(d.Bemerkung) ? d.FilenameOriginal : d.Bemerkung!);
+        return Ok(new
+        {
+            istAdmin = User.IsInRole("admin"),
+            optionen = optionen.Select(o =>
+            {
+                var art = HrSystem.Services.DokumentAblage.DokumentAblageService.FindeArt(o.Key)!;
+                var typ = HrSystem.Services.DokumentAblage.DokumentAblageService.TypFuerArt(art, typen);
+                return new
+                {
+                    o.Key, o.Gruppe, o.Label, o.Sub, o.Code, o.Historie, o.Formular, o.NurBild, o.Anderes,
+                    currentDokumentId = o.CurrentDokumentId,
+                    currentTitel = o.CurrentDokumentId is int cid && titel.TryGetValue(cid, out var tt) ? tt : null,
+                    typ = typ == null ? null : new { typ.TypId, typ.TypName, typ.KategorieName },
+                };
+            }),
+        });
+    }
+
+    public class TypMerkenDto
+    {
+        public string Code { get; set; } = "";
+        public int TypId { get; set; }
+    }
+
+    /// <summary>
+    /// «Für dieses Ablageziel immer diese Kategorie» — setzt den Feld-Code am
+    /// Dokument-Typ. Nur admin (Systemeinstellung) und nur, wenn der Typ noch
+    /// keinen Code trägt und kein anderer Typ den Code schon hat.
+    /// </summary>
+    [HttpPost("ablage-ziele/typ-merken")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> AblageTypMerken([FromBody] TypMerkenDto dto)
+    {
+        var code = (dto.Code ?? "").Trim();
+        if (!HrSystem.Services.DokumentAblage.DokumentAblageService.Arten.Any(a => a.Codes.Contains(code)))
+            return BadRequest(new { error = "CODE", message = "Unbekannter Feld-Code." });
+        if (await _db.DokumentTypen.AnyAsync(t => t.Aktiv && t.LinkedFieldCode == code))
+            return Conflict(new { error = "CODE_VERGEBEN", message = "Für dieses Ablageziel ist schon eine Kategorie hinterlegt." });
+        var typ = await _db.DokumentTypen.FirstOrDefaultAsync(t => t.Id == dto.TypId);
+        if (typ == null) return NotFound();
+        if (!string.IsNullOrWhiteSpace(typ.LinkedFieldCode))
+            return Conflict(new { error = "TYP_BELEGT",
+                message = $"Der Typ «{typ.Name}» ist schon mit einer anderen Angabe verbunden." });
+        typ.LinkedFieldCode = code;
+        await _db.SaveChangesAsync();
+        return Ok(new { typ.Id, typ.LinkedFieldCode });
     }
 
     // ──────────────────────────────────────────────────────────────────────

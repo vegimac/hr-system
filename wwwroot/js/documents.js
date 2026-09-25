@@ -274,7 +274,8 @@ function renderDokumenteUi() {
                 </button>
                 <div style="flex:1;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-shrink:0">
                     <!-- d.velop Import nur noch unter System (Walter 19.07.2026). -->
-                    <button class="btn btn-primary" onclick="openDokUploadModal()"
+                    <!-- Ablage nach Angabe (Walter 25.09.2026): zuerst «wofür», Kategorie am Schluss -->
+                    <button class="btn btn-primary" onclick="openDokAblageModal()"
                             style="padding:6px 14px;font-size:13px;white-space:nowrap">
                         + Dokument hochladen
                     </button>
@@ -2917,3 +2918,323 @@ async function dokBulkStartUpload() {
     if (okCount > 0) loadEmpDokumente(_dokState.empId);
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+// ABLAGE NACH ANGABE (Walter-Vorgabe 25.09.2026, docs/dokument-ablage-konzept.md)
+// Neuer Weg NUR für «+ Dokument hochladen» in der Dokumentverwaltung: zuerst
+// «Wofür ist das Dokument?» (Ausweis, AHV-Karte, Vertrag X, Absenz Y …),
+// die Kategorie ergibt sich daraus und steht erst am Schluss. Die Ziele und
+// die Kategorie je Ziel kommen vom Server (GET /api/documents/ablage-ziele).
+// Hochladen + Verknüpfen laufen in EINEM Aufruf (ablageZiele).
+// Uploads aus der MA-Maske (Ausweis-, Bewilligungs-, Vertrags-Knöpfe) nutzen
+// weiter openDokUploadModal — dort bleibt alles wie es ist.
+// Mehrfachauswahl: normale Ziele sind kombinierbar; Formulare (neue
+// Bewilligung/Bank/Absenz), das Foto und «Anderes» stehen allein.
+// ══════════════════════════════════════════════════════════════════════
+let _dab = null;
+
+const _dabEsc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+async function openDokAblageModal() {
+    if (!_dokState.empId) return;
+    const empId = _dokState.empId;
+    let data;
+    try {
+        const r = await fetch(`/api/documents/ablage-ziele/${empId}`, { headers: ah() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        data = await r.json();
+    } catch (e) { alert('Ablageziele konnten nicht geladen werden: ' + e.message); return; }
+    _dab = { empId, optionen: data.optionen || [], istAdmin: !!data.istAdmin,
+             gewaehlt: [], typManuell: false, istBild: false, bemerkungVonHand: false };
+
+    const heute = new Date().toISOString().slice(0, 10);
+    document.getElementById('dabOverlay')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="dabOverlay" style="position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9999;display:flex;align-items:center;justify-content:center"
+         onclick="if(event.target===this)closeDokAblageModal()">
+        <div class="modal" style="border-radius:16px;width:900px;max-width:95vw;max-height:92vh;display:flex;flex-direction:column;padding:22px 26px;box-shadow:0 22px 70px rgba(60,55,48,0.22)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h3 style="margin:0;font-size:17px;font-weight:800;color:#3f3f3f">Dokument hochladen</h3>
+                <button onclick="closeDokAblageModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#8b8b8b">×</button>
+            </div>
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:20px;min-height:0;flex:1">
+                <div class="dok-upload-form" style="display:flex;flex-direction:column;gap:12px">
+                    <div>
+                        <label>Datei</label>
+                        <div class="dok-upload-dropzone" id="dabDropzone" onclick="document.getElementById('dabFile').click()">
+                            <div class="dok-upload-dropzone-text" id="dabDropText">
+                                Datei hierher ziehen oder klicken zum Auswählen<br>
+                                <small style="font-size:11px">PDF, Bilder, Word, max. 50 MB</small>
+                            </div>
+                        </div>
+                        <input type="file" id="dabFile" style="display:none" onchange="dabDateiGewaehlt(this.files[0])"
+                               accept=".pdf,.jpg,.jpeg,.png,.gif,.tiff,.tif,.docx,.doc,.xlsx,.xls,.txt">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div><label>Datum des Dokuments</label><input type="date" id="dabVon" value="${heute}"></div>
+                        <div><label>Gültig bis <small style="font-weight:400;color:#8b8b8b">(nur bei Ablauf)</small></label><input type="date" id="dabBis"></div>
+                    </div>
+                    <div>
+                        <label>Titel / Bemerkung</label>
+                        <textarea id="dabBemerkung" rows="2" placeholder="ergibt sich aus der Auswahl" oninput="_dab.bemerkungVonHand = true"></textarea>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;min-height:0">
+                    <label style="font-size:12.5px;font-weight:700;color:#3f3f3f;margin-bottom:6px">Wofür ist das Dokument? <span style="font-weight:500;color:#8b8b8b">— mehrere möglich</span></label>
+                    <div id="dabZiele" style="flex:1;min-height:200px;max-height:min(440px,52vh);overflow-y:auto;background:rgba(255,255,255,0.38);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:4px"></div>
+                </div>
+            </div>
+            <div id="dabKategorie" style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(139,139,139,0.25)"></div>
+            <div id="dabStatus" style="font-size:12.5px;margin-top:6px"></div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px">
+                <button type="button" onclick="closeDokAblageModal()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                <button type="button" id="dabSubmit" onclick="dabHochladen()" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 20px;cursor:pointer;font-size:13.5px;font-weight:700">Hochladen</button>
+            </div>
+        </div>
+    </div>`);
+
+    const dz = document.getElementById('dabDropzone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => {
+        e.preventDefault(); dz.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            document.getElementById('dabFile').files = e.dataTransfer.files;
+            dabDateiGewaehlt(e.dataTransfer.files[0]);
+        }
+    });
+    dabRenderZiele();
+    dabRenderKategorie();
+}
+
+function closeDokAblageModal() {
+    document.getElementById('dabOverlay')?.remove();
+    _dab = null;
+}
+
+function dabDateiGewaehlt(file) {
+    if (!file || !_dab) return;
+    const gr = file.size > 1024 * 1024 ? (file.size / 1024 / 1024).toFixed(1) + ' MB' : (file.size / 1024).toFixed(0) + ' KB';
+    document.getElementById('dabDropText').innerHTML =
+        `<div class="dok-upload-dropzone-file">${_dabEsc(file.name)}</div><small style="font-size:11px;color:#646464">${gr}</small>`;
+    // Mitarbeiterfoto nur bei Bildern anbieten
+    _dab.istBild = (file.type || '').toLowerCase().startsWith('image/');
+    if (!_dab.istBild) _dab.gewaehlt = _dab.gewaehlt.filter(k => !dabOpt(k)?.nurBild);
+    dabRenderZiele();
+    dabRenderKategorie();
+}
+
+const dabOpt = key => _dab?.optionen.find(o => o.key === key);
+
+function dabRenderZiele() {
+    const box = document.getElementById('dabZiele');
+    if (!box || !_dab) return;
+    const sichtbar = _dab.optionen.filter(o => !o.nurBild || _dab.istBild);
+    let html = '';
+    sichtbar.forEach((o, i) => {
+        if (i === 0 || sichtbar[i - 1].gruppe !== o.gruppe)
+            html += `<div style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8b8b8b;padding:${i === 0 ? '6px' : '12px'} 10px 2px">${_dabEsc(o.gruppe)}</div>`;
+        const an = _dab.gewaehlt.includes(o.key);
+        const badge = o.currentDokumentId
+            ? `<span title="${_dabEsc(o.currentTitel || '')}" style="margin-left:auto;flex:none;font-size:10.5px;font-weight:700;color:#646464;background:rgba(255,255,255,0.58);border:1px solid rgba(139,139,139,0.3);border-radius:8px;padding:1px 7px">${o.historie ? 'hat Dokument' : 'wird ersetzt'}</span>`
+            : '';
+        html += `
+        <label style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;cursor:pointer;${an ? 'background:rgba(255,255,255,0.75);box-shadow:inset 0 0 0 1px #3f3f3f' : ''}">
+            <input type="checkbox" ${an ? 'checked' : ''} onchange="dabToggle('${o.key}', this.checked)" style="width:16px;height:16px;accent-color:#3f3f3f;flex:none">
+            <span style="font-size:13.5px;color:#3f3f3f;font-weight:600;flex:none">${_dabEsc(o.label)}</span>
+            ${o.sub ? `<span style="font-size:12px;color:#8b8b8b;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_dabEsc(o.sub)}</span>` : ''}
+            ${badge}
+        </label>`;
+    });
+    box.innerHTML = html;
+}
+
+function dabToggle(key, an) {
+    const o = dabOpt(key);
+    if (!o || !_dab) return;
+    const allein = x => x.formular || x.anderes;
+    if (an) {
+        // Formular/Foto/«Anderes» stehen allein; ein normales Ziel verdrängt sie.
+        _dab.gewaehlt = allein(o) ? [key] : _dab.gewaehlt.filter(k => !allein(dabOpt(k)));
+        if (!_dab.gewaehlt.includes(key)) _dab.gewaehlt.push(key);
+    } else {
+        _dab.gewaehlt = _dab.gewaehlt.filter(k => k !== key);
+    }
+    _dab.typManuell = false;
+    // Titel aus der Auswahl vorschlagen, solange niemand von Hand geschrieben hat
+    // (der Scanner benennt Dateien nach der Personalnummer — der Titel hilft in der Liste).
+    if (!_dab.bemerkungVonHand) {
+        document.getElementById('dabBemerkung').value = _dab.gewaehlt.map(k => dabTitel(dabOpt(k))).join(', ');
+    }
+    dabRenderZiele();
+    dabRenderKategorie();
+}
+
+// Titel-Vorschlag pro Ziel, z.B. «Bewilligung B», «Krankheit 01.09.26 – 05.09.26», «Ausweis Kind Lea Muster».
+function dabTitel(o) {
+    const vorPunkt = s => String(s || '').split(' · ')[0];
+    if (o.key.startsWith('bewilligung')) return o.key === 'bewilligung_neu' ? 'Bewilligung' : 'Bewilligung ' + vorPunkt(o.sub);
+    if (o.key.startsWith('bank')) return 'Bankbeleg';
+    if (o.key === 'absenz_neu') return 'Absenz';
+    if (o.key.startsWith('absenz:')) return `${o.label} ${o.sub || ''}`.trim();
+    if (/^(ausweis_partner|ausweis_kind|geburtsurkunde_kind):/.test(o.key)) return `${o.label} ${vorPunkt(o.sub)}`.trim();
+    return o.label;
+}
+
+// Kategorie am Schluss: aus dem ersten gewählten Ziel abgeleitet.
+function dabRenderKategorie() {
+    const el = document.getElementById('dabKategorie');
+    if (!el || !_dab) return;
+    const erstes = dabOpt(_dab.gewaehlt[0]);
+    if (!erstes) {
+        el.innerHTML = `<span style="font-size:12.5px;color:#8b8b8b">Kategorie: ergibt sich aus der Auswahl</span>`;
+        return;
+    }
+    const typ = erstes.typ;
+    if (typ && !_dab.typManuell) {
+        el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:#3f3f3f">
+            <span style="color:#8b8b8b">Kategorie</span>
+            <b>${_dabEsc(typ.kategorieName)} › ${_dabEsc(typ.typName)}</b>
+            <span style="font-size:11px;color:#646464;background:rgba(255,255,255,0.58);border:1px solid rgba(139,139,139,0.3);border-radius:8px;padding:1px 7px">automatisch</span>
+            <a href="javascript:void(0)" onclick="_dab.typManuell=true;dabRenderKategorie()" style="font-size:12px;color:#646464">ändern</a>
+        </div>`;
+        return;
+    }
+    const tax = _dokState.taxonomy || [];
+    const katId = typ ? (tax.find(k => (k.typen || []).some(t => t.id === typ.typId))?.id || '') : '';
+    el.innerHTML = `
+        ${!typ ? `<div style="font-size:12.5px;color:#92400e;margin-bottom:6px">Für «${_dabEsc(erstes.label)}» ist noch keine Kategorie hinterlegt — bitte einmal wählen.</div>` : ''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:640px" class="dok-upload-form">
+            <div><label>Kategorie</label>
+                <select id="dabKat" onchange="dabKatGewaehlt(this.value)">
+                    <option value="">– Bitte wählen –</option>
+                    ${tax.map(k => `<option value="${k.id}" ${String(k.id) === String(katId) ? 'selected' : ''}>${_dabEsc(k.name)}</option>`).join('')}
+                </select></div>
+            <div><label>Typ</label><select id="dabTyp"><option value="">– Erst Kategorie wählen –</option></select></div>
+        </div>
+        ${!typ && _dab.istAdmin ? `<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:#3f3f3f;cursor:pointer">
+            <input type="checkbox" id="dabMerken" checked style="width:15px;height:15px;accent-color:#3f3f3f">
+            Für «${_dabEsc(erstes.label)}» künftig immer diese Kategorie verwenden</label>` : ''}`;
+    if (katId) { dabKatGewaehlt(katId); document.getElementById('dabTyp').value = typ.typId; }
+}
+
+function dabKatGewaehlt(katId) {
+    const sel = document.getElementById('dabTyp');
+    const k = (_dokState.taxonomy || []).find(x => String(x.id) === String(katId));
+    sel.innerHTML = '<option value="">– Bitte wählen –</option>'
+        + (k?.typen || []).map(t => `<option value="${t.id}">${_dabEsc(t.name)}</option>`).join('');
+}
+
+function _dabStatus(text, fehler) {
+    const el = document.getElementById('dabStatus');
+    if (el) { el.textContent = text; el.style.color = fehler ? '#b91c1c' : '#646464'; }
+}
+
+async function dabHochladen() {
+    if (!_dab) return;
+    const d = _dab;
+    const file = document.getElementById('dabFile').files[0];
+    if (!file) return _dabStatus('Bitte eine Datei wählen.', true);
+    if (!d.gewaehlt.length) return _dabStatus('Bitte wählen, wofür das Dokument ist.', true);
+    const erstes = dabOpt(d.gewaehlt[0]);
+    const manuell = d.typManuell || !erstes.typ;
+    const typId = manuell ? document.getElementById('dabTyp')?.value : erstes.typ.typId;
+    if (!typId) return _dabStatus('Bitte Kategorie und Typ wählen.', true);
+    const branch = allBranches?.find(b => b.id === fixedCompanyProfileId);
+    if (!branch?.restaurantCode) return _dabStatus('Bitte zuerst eine Filiale auswählen.', true);
+
+    // Angaben mit Historie: das Dokument gehört zu genau diesem Eintrag — hat er
+    // schon eins, nachfragen. Ohne Historie wird still ersetzt (Walter 25.09.2026).
+    for (const k of d.gewaehlt) {
+        const o = dabOpt(k);
+        if (!o.historie || !o.currentDokumentId) continue;
+        const ok = await liquidConfirm(
+            `Bei «${o.label}${o.sub ? ' · ' + o.sub : ''}» ist schon «${o.currentTitel || 'ein Dokument'}» hinterlegt.\n\nDokument austauschen? Das bisherige bleibt in den Dokumenten.`,
+            { title: 'Dokument austauschen?', yesLabel: 'Austauschen', noLabel: 'Abbrechen' });
+        if (!ok) return;
+    }
+
+    const verknuepfen = d.gewaehlt.filter(k => { const o = dabOpt(k); return !o.formular && !o.anderes; });
+    const bemerkung = document.getElementById('dabBemerkung').value.trim();
+    const von = document.getElementById('dabVon').value, bis = document.getElementById('dabBis').value;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('employeeId', d.empId);
+    fd.append('dokumentTypId', typId);
+    fd.append('branchCode', branch.restaurantCode);
+    if (bemerkung) fd.append('bemerkung', bemerkung);
+    if (von) fd.append('gueltigVon', von);
+    if (bis) fd.append('gueltigBis', bis);
+    if (verknuepfen.length) fd.append('ablageZiele', verknuepfen.join(';'));
+
+    const btn = document.getElementById('dabSubmit');
+    btn.disabled = true;
+    _dabStatus('Lade hoch…');
+    let res;
+    try {
+        const r = await fetch('/api/documents/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd });
+        if (!r.ok) {
+            const txt = await r.text();
+            let j = null; try { j = JSON.parse(txt); } catch {}
+            if (j?.error === 'DUPLIKAT_INHALT') {
+                const am = j.hochgeladenAm ? new Date(j.hochgeladenAm).toLocaleDateString('de-CH') : '';
+                throw new Error(`Genau diese Datei ist schon abgelegt: «${j.titel || j.filename}»${am ? ' vom ' + am : ''}.`);
+            }
+            throw new Error((j && (j.message || j.error)) || txt || 'HTTP ' + r.status);
+        }
+        res = await r.json();
+    } catch (e) {
+        btn.disabled = false;
+        return _dabStatus('Fehler: ' + e.message, true);
+    }
+
+    // Kategorie merken (nur admin, nur wenn noch keine hinterlegt war)
+    if (!erstes.typ && document.getElementById('dabMerken')?.checked) {
+        try {
+            await fetch('/api/documents/ablage-ziele/typ-merken', {
+                method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: erstes.code, typId: Number(typId) }) });
+        } catch { /* Merken ist Komfort — der Upload ist erledigt */ }
+    }
+
+    const empId = d.empId, gewaehlt = d.gewaehlt.slice();
+    closeDokAblageModal();
+    if (typeof loadEmpDokumente === 'function') loadEmpDokumente(empId);
+    if (typeof showToast === 'function')
+        showToast('✓ Abgelegt' + ((res.verknuepft || []).length ? ': ' + res.verknuepft.join(', ') : ''), 'success');
+
+    // MA-Übersicht zeigt die Doku-Knöpfe (AHV, Zivilstand, Bank, Familie …) — neu laden.
+    const maFeld = gewaehlt.some(k => !k.startsWith('absenz') && !k.startsWith('anderes') && !dabOptStatic(k));
+    if (maFeld && window.selectedEmployeeId === empId && typeof selectEmployee === 'function') selectEmployee(empId);
+    if (gewaehlt.some(k => k.startsWith('absenz:')) && window.selectedEmployeeId === empId && typeof loadAbsenzenTab === 'function')
+        loadAbsenzenTab(empId);
+
+    // Unterschriebener Vertrag eines MA unter 18 → Unterschrift der Eltern (wie bisher)
+    const vertragKey = gewaehlt.find(k => k.startsWith('vertrag:'));
+    if (vertragKey && typeof istMinderjaehrig === 'function' && typeof vertragElternFrage === 'function') {
+        try {
+            const r = await fetch(`/api/employees/${empId}`, { headers: ah() });
+            const emp = r.ok ? await r.json() : null;
+            if (emp && istMinderjaehrig(emp.dateOfBirth))
+                await vertragElternFrage(empId, Number(vertragKey.split(':')[1]), emp.firstName);
+        } catch {}
+    }
+
+    await dokAskNotifyUser(res.id, bemerkung);
+
+    // Formular-Ziele: erst jetzt das passende Formular öffnen (wie bisher).
+    const einzig = gewaehlt[0];
+    if (einzig === 'foto') {
+        const ok = await dokFotoAusschnitt(empId, { id: res.id, dokumentTypId: Number(typId) });
+        if (ok && window.selectedEmployeeId === empId && typeof selectEmployee === 'function') selectEmployee(empId);
+    }
+    if (einzig === 'bank_neu') await dokNeueBankMitDok(empId, res.id);
+    if (einzig === 'absenz_neu') await dokNeueAbsenzMitDok(empId, res.id);
+    if (einzig === 'bewilligung_neu') await dokNeueBewilligungMitDok(empId, res.id);
+}
+
+// Formular-/Anderes-Ziele setzen kein Feld am MA.
+function dabOptStatic(key) {
+    return ['foto', 'bank_neu', 'absenz_neu', 'bewilligung_neu'].includes(key);
+}

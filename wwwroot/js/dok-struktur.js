@@ -89,7 +89,17 @@ function renderDokstrukturTypen() {
         // Walter-Vorgabe 07.06.2026: Mitarbeiterfoto in der MA-Maske.
         'employee_photo':  'Mitarbeiterfoto',
         // Walter-Vorgabe 19.07.2026: FAK-Entscheid bei Kinderzulage.
-        'family_allowance': 'FAK-Entscheid (Kinderzulage)'
+        'family_allowance': 'FAK-Entscheid (Kinderzulage)',
+        // Ablage nach Angabe (Walter 25.09.2026) — siehe DokumentAblageService.
+        'night_work_exam':      'Nachtarbeit: Arztzeugnis',
+        'night_work_ausnahme':  'Nachtarbeit: Ausnahmeregelung',
+        'absence':              'Absenz (z.B. Arztzeugnis)',
+        'child_id':             'Ausweis Kind',
+        'andere_korrespondenz': 'Anderes: Korrespondenz',
+        'andere_arztzeugnis':   'Anderes: Arztzeugnis ohne Absenz',
+        'andere_lohn':          'Anderes: Lohn',
+        'andere_weiterbildung': 'Anderes: Weiterbildung',
+        'andere_sonstiges':     'Anderes: Sonstiges'
     };
     el.innerHTML = kat.typen.map(t => {
         const link = t.linkedFieldCode
@@ -350,6 +360,15 @@ function dokstrukturEditTyp(id) {
               <option value="spouse"          ${t?.linkedFieldCode === 'spouse'          ? 'selected' : ''}>Ehegatte (Familie)</option>
               <option value="employee_photo"  ${t?.linkedFieldCode === 'employee_photo'  ? 'selected' : ''}>Mitarbeiterfoto</option>
               <option value="family_allowance" ${t?.linkedFieldCode === 'family_allowance' ? 'selected' : ''}>FAK-Entscheid (Kinderzulage)</option>
+              <option value="night_work_exam" ${t?.linkedFieldCode === 'night_work_exam' ? 'selected' : ''}>Nachtarbeit: Arztzeugnis</option>
+              <option value="night_work_ausnahme" ${t?.linkedFieldCode === 'night_work_ausnahme' ? 'selected' : ''}>Nachtarbeit: Ausnahmeregelung</option>
+              <option value="absence" ${t?.linkedFieldCode === 'absence' ? 'selected' : ''}>Absenz (z.B. Arztzeugnis)</option>
+              <option value="child_id" ${t?.linkedFieldCode === 'child_id' ? 'selected' : ''}>Ausweis Kind</option>
+              <option value="andere_korrespondenz" ${t?.linkedFieldCode === 'andere_korrespondenz' ? 'selected' : ''}>Anderes: Korrespondenz</option>
+              <option value="andere_arztzeugnis" ${t?.linkedFieldCode === 'andere_arztzeugnis' ? 'selected' : ''}>Anderes: Arztzeugnis ohne Absenz</option>
+              <option value="andere_lohn" ${t?.linkedFieldCode === 'andere_lohn' ? 'selected' : ''}>Anderes: Lohn</option>
+              <option value="andere_weiterbildung" ${t?.linkedFieldCode === 'andere_weiterbildung' ? 'selected' : ''}>Anderes: Weiterbildung</option>
+              <option value="andere_sonstiges" ${t?.linkedFieldCode === 'andere_sonstiges' ? 'selected' : ''}>Anderes: Sonstiges</option>
             </select>
             <div style="font-size:11px;color:#94a3b8;margin-top:3px">
               Wenn gesetzt, erscheint neben dem Stammdaten-Feld in der MA-Maske ein 📎-Button.
