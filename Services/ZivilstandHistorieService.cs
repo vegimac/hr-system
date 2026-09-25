@@ -28,6 +28,21 @@ public class ZivilstandHistorieService
             .ToListAsync();
         var letzter = hist.LastOrDefault();
         if (letzter != null && Norm(letzter.Zivilstand) == neuN) return;   // schon so
+        // «ledig» ist IMMER eine Korrektur (Walter 25.09.2026, Fall Pavikjevikj):
+        // Wer einmal verheiratet war, wird geschieden oder verwitwet, nie wieder
+        // ledig. Ein Wechsel auf «ledig» heisst also: der frühere Stand war falsch.
+        // Sonst bliebe «verheiratet seit jeher» + «ledig ab heute» stehen, und
+        // Lohnläufe vor heute verlangten einen Ehepartner.
+        if (neuN == "ledig")
+        {
+            _db.EmployeeZivilstandHistories.RemoveRange(hist);
+            _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory
+            {
+                EmployeeId = employeeId, Zivilstand = "ledig", GueltigAb = null,
+                Bemerkung = $"Korrektur: ledig seit jeher ({quelle})",
+            });
+            return;
+        }
         if (hist.Count == 0 && altN.Length > 0 && altN != neuN)
             _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory
             {
