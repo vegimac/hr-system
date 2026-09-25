@@ -191,8 +191,14 @@ public class DokumentAblageService
             liste.Add(O($"ausweis_kind:{m.Id}", FamName(m), m.DokumentId));
             liste.Add(O($"geburtsurkunde_kind:{m.Id}", FamName(m), m.GeburtsurkundeDokumentId));
         }
-        liste.Add(O("partner_neu", "Partner/in erfassen"));
-        liste.Add(O("kind_neu", "Kind erfassen"));
+        // Hinweis, wenn noch niemand erfasst ist (Walter 25.09.2026): der Ausweis
+        // legt die Person gleich an — die Angaben werden aus dem Ausweis gelesen.
+        var hatPartner = familie.Any(m => m.MemberType is "Ehepartner" or "Konkubinatspartner");
+        var hatKind = familie.Any(m => m.MemberType == "Kind");
+        liste.Add(O("partner_neu", hatPartner ? "weitere/n Partner/in erfassen"
+                                              : "noch niemand erfasst · wird aus dem Ausweis erfasst"));
+        liste.Add(O("kind_neu", hatKind ? "weiteres Kind · aus dem Ausweis erfassen"
+                                        : "noch kein Kind erfasst · wird aus dem Ausweis erfasst"));
         liste.Add(O("kind_neu_geburtsurkunde", "Kind erfassen"));
 
         // Bewilligung nur bei Ausländer/innen; bestehende Einträge = Dokument austauschen.

@@ -3181,6 +3181,13 @@ async function dokNeuesFamilienmitgliedMitDok(empId, docId, typ, art) {
     openFamilyModal(null);
     const typEl = document.getElementById('fmMemberType');
     if (typEl) { typEl.value = typ; if (typeof fmTypeChanged === 'function') fmTypeChanged(); }
+    // Ausweis gleich einlesen (Walter 25.09.2026): dieselbe Erkennung wie
+    // «🪪 Ausweis einlesen» im Familien-Formular — Name, Geburtsdatum,
+    // Geschlecht, Nationalität, bei Ausländerausweisen auch Bewilligung.
+    if (art !== 'geburtsurkunde' && typeof fmOcrAusweisRun === 'function'
+        && await liquidConfirm('Soll OneCrew die Angaben jetzt aus dem Ausweis einlesen?',
+               { title: 'Ausweis einlesen', yesLabel: 'Einlesen', noLabel: 'Selbst erfassen' }))
+        await fmOcrAusweisRun(docId);
     window._famAfterSave = async (memberId) => {
         const r = await fetch(`/api/employees/${empId}/family/${memberId}/dokument`, {
             method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
