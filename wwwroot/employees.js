@@ -1444,18 +1444,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0">
                 <span style="display:inline-flex;align-items:center;gap:8px">
                     ${_t('ma.section.bank','Bankverbindung')}
-                    <button title="Verknüpfte Dokumente öffnen (Bankkarte / IBAN-Beleg)"
-                            onclick="openLinkedDoc('bank_card')"
-                            style="background:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#dcfce7' : '#f8f7f4'};border:1px ${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? 'solid #86efac' : 'dashed #d5d0c6'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? '#15803d' : '#b3ada1'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                            <line x1="10" y1="9" x2="8" y2="9"/>
-                        </svg>
-                        <span>Doku${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? ' ✓' : ''}</span>
-                    </button>
+                    <!-- Doku pro Bankverbindung statt neben dem Titel (Walter 25.09.2026) -->
                 </span>
                 <!-- Walter 29.08.2026: Pille ganz rechts in der Sektions-Titelzeile
                      (wie «+ Neue QST-Version») — nicht mehr im empTabActionBar. -->
@@ -4613,25 +4602,13 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
     // Walter-Vorgabe 07.06.2026: Doku-Button neben „Bewilligungen" (analog
     // Bank-Tab) — öffnet die Dokumenten-Verwaltung gefiltert auf den
     // Permit-Dokument-Typ (linked_field_code='permit').
-    const permitHasDoc = window._linkedDocCodes && window._linkedDocCodes.has('permit');
-    const permitDocBtn = `<button title="${permitHasDoc ? 'Verknüpftes Bewilligungs-Dokument öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen'}"
-                                  onclick="openLinkedDoc('permit')"
-                                  style="background:${permitHasDoc ? '#dcfce7' : '#f8f7f4'};border:1px ${permitHasDoc ? 'solid #86efac' : 'dashed #d5d0c6'};border-radius:6px;padding:2px 7px;cursor:pointer;color:${permitHasDoc ? '#15803d' : '#b3ada1'};display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                  <polyline points="14 2 14 8 20 8"/>
-                                  <line x1="16" y1="13" x2="8" y2="13"/>
-                                  <line x1="16" y1="17" x2="8" y2="17"/>
-                                  <line x1="10" y1="9" x2="8" y2="9"/>
-                              </svg>
-                              <span>Doku${permitHasDoc ? ' ✓' : ''}</span>
-                          </button>`;
+    // Titel-Knopf «Doku» entfernt (Walter 25.09.2026): Doku pro Bewilligung in der Zeile.
     const permitsSection = `
     <div style="margin-bottom:22px">
         <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0">
             <span style="display:inline-flex;align-items:center;gap:8px">
                 Bewilligungen
-                ${permitDocBtn}
+                <!-- Doku pro Bewilligung in der Zeile, nicht neben dem Titel (Walter 25.09.2026) -->
                 ${selectedEmployee?.zemisNumber ? `<span style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border-radius:999px;padding:2px 10px;text-transform:none;letter-spacing:0" title="ZEMIS-Nummer (Ausländerregister) — von der Ausweis-Rückseite">ZEMIS ${esc(selectedEmployee.zemisNumber)}</span>` : ''}
                 ${(window._permHistCount || 0) > 0 ? `<button id="permHistPill" onclick="permHistToggle()" title="Ältere Bewilligungen ein-/ausblenden" style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border:none;border-radius:999px;padding:2px 10px;cursor:pointer;text-transform:none;letter-spacing:0">🕘 History (${window._permHistCount})</button>` : ''}
             </span>
@@ -13687,7 +13664,7 @@ function renderBankAccountsList(el, list) {
         }
         return `<tr style="${active ? '' : 'opacity:0.65;'}border-bottom:1px solid #f1f5f9">
             <td style="padding:10px 14px">
-                <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${formatIbanDisplay(b.iban)}${hauptbankBadge}${_bankBelegPill(employeeId, b)}</div>
+                <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${formatIbanDisplay(b.iban)}${hauptbankBadge}</div>
                 <div style="font-size:11px;color:#64748b">${b.bankName ?? ''}${b.bic ? ' · ' + b.bic : ''}</div>
                 ${inhaber}
                 ${ref}
@@ -13697,15 +13674,19 @@ function renderBankAccountsList(el, list) {
             <td style="padding:10px 14px;text-align:center">${status}</td>
             <td style="padding:10px 14px;color:#94a3b8;font-size:12px">${b.bemerkung ?? ''}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">
+              <div style="display:inline-flex;align-items:center;gap:8px">
+                ${_bankBelegPill(employeeId, b)}
                 ${b.inLohnVerwendet
                     ? `<span title="Diese Bankverbindung wurde bereits in einem Lohnlauf verwendet und ist nicht mehr editierbar. Für Änderungen: '+ Neue Bankverbindung' oben rechts." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
                     : `<div class="dok-menu-wrap" style="display:inline-block">
                         <button class="dok-menu-btn" onclick="bankToggleMenu(event, ${b.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="bankMenu-${b.id}">
                             <button class="dok-menu-item" onclick='openBankAccountModal(${JSON.stringify(b).replace(/'/g,"&#39;")})'>Bearbeiten</button>
+                            ${b.dokumentId ? `<button class="dok-menu-item" onclick="openAusweisDokuModal(${employeeId},'bank_beleg',{bankAccountId:${b.id}})">Doku ersetzen</button>` : ''}
                             <button class="dok-menu-item danger" onclick="deleteBankAccount(${b.id})">Löschen</button>
                         </div>
                        </div>`}
+              </div>
             </td>
         </tr>`;
     }).join('');
@@ -13894,15 +13875,17 @@ function openWeitererAgModal(employeeId, ag) {
     };
 }
 
-// Beleg pro Bankkonto (Walter 23.09.2026): grün = verknüpft (Klick = Vorschau),
-// gestrichelt = fehlt (Klick = verknüpfen/hochladen).
+// Doku pro Bankkonto (Walter 23.09.2026, Look seit 25.09.2026 wie bei der
+// Bewilligung): grün «👁 Doku» = verknüpft (Klick = anschauen), gestrichelt
+// «🔗 Doku verknüpfen» = fehlt (Klick = verknüpfen/hochladen). Ersetzen über ⋮.
 function _bankBelegPill(employeeId, b) {
-    const base = 'margin-left:8px;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;font-family:inherit;font-size:11px;font-weight:600;line-height:1';
     return b.dokumentId
-        ? `<button class="emp-field-docbtn" title="Bankbeleg verknüpft — klicken zum Öffnen" onclick="openDirectDoc(${b.dokumentId})"
-               style="${base};background:#dcfce7;border:1px solid #86efac;color:#15803d">Beleg ✓</button>`
-        : `<button class="emp-field-docbtn" title="Bankkarte / IBAN-Beleg verknüpfen oder hochladen" onclick="openAusweisDokuModal(${employeeId},'bank_beleg',{bankAccountId:${b.id}})"
-               style="${base};background:#f8f7f4;border:1px dashed #d5d0c6;color:#b3ada1">Beleg</button>`;
+        ? `<button type="button" onclick="qstOpenBefreiungsDok(${employeeId}, ${b.dokumentId})"
+               style="flex-shrink:0;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px"
+               title="Bankbeleg anschauen">👁 Doku</button>`
+        : `<button type="button" onclick="openAusweisDokuModal(${employeeId},'bank_beleg',{bankAccountId:${b.id}})"
+               style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer"
+               title="Bankkarte / IBAN-Beleg verknüpfen oder hochladen">🔗 Doku verknüpfen</button>`;
 }
 
 function formatIbanDisplay(iban) {
