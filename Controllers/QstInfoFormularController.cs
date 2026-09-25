@@ -17,6 +17,18 @@ namespace HrSystem.Controllers;
 [Route("api/qst-info-formular")]
 public class QstInfoFormularController : ControllerBase
 {
+    /// <summary>
+    /// Geschlecht eines Familienmitglieds → Kreuz W (true) / M (false) auf dem
+    /// Formular; unbekannt/divers → null (Kästchen bleiben leer). Akzeptiert alle
+    /// im Bestand vorkommenden Schreibweisen (female/weiblich/w/f, male/männlich/m).
+    /// </summary>
+    public static bool? GeschlechtWeiblich(string? gender)
+    {
+        if (HrSystem.Services.PayrollCalculations.IstWeiblich(gender)) return true;
+        var g = gender?.Trim().ToLowerInvariant();
+        return g is "male" or "männlich" or "maennlich" or "m" ? false : null;
+    }
+
     private readonly AppDbContext _db;
     private readonly QstInfoFormularPdfService _pdf;
 
@@ -182,7 +194,9 @@ public class QstInfoFormularController : ControllerBase
                     // Unterhaltspflicht ebenfalls leer: die Frage hat dann
                     // keine Wirkung mehr (Walter 01.09.2026).
                     Erstausbildung: (alter >= 18 && !f.KeineUnterhaltspflicht)
-                                        ? f.InErstausbildung : (bool?)null);
+                                        ? f.InErstausbildung : (bool?)null,
+                    // Geschlecht aus dem Familie-Tab (Walter 25.09.2026); unbekannt → leer.
+                    Weiblich:      GeschlechtWeiblich(f.Gender));
             })
             .ToList();
 

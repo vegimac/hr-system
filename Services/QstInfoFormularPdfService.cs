@@ -24,8 +24,10 @@ namespace HrSystem.Services;
 /// (Alimente) — dann zählt es für die Kinderziffer, aber nicht für den
 /// Alleinerziehenden-Tarif H.
 /// </summary>
+/// <paramref name="Weiblich"/> (Walter-Vorgabe 25.09.2026): Geschlecht zum
+/// Ankreuzen W/M in der ersten Spalte; null = leer lassen, der MA kreuzt an.
 public record QstInfoKind(string? Name, string? Geburtsdatum, bool? Haushalt, bool? Erstausbildung,
-    bool? Unterhalt = null);
+    bool? Unterhalt = null, bool? Weiblich = null);
 
 public record QstInfoPrefill(
     string? Personalnummer = null, string? NameVorname = null, string? Geburtsdatum = null,
@@ -448,32 +450,38 @@ public class QstInfoFormularPdfService
         // noch über den Alleinerziehenden-Tarif, Erstausbildung nur ab 18.
         e.Table(t =>
         {
+            // Walter-Vorgabe 25.09.2026: Geschlecht W/M als erste Spalte, alle
+            // Spalten enger — die Kästchen stehen näher beisammen.
             t.ColumnsDefinition(c =>
             {
-                c.RelativeColumn(4.2f);   // Name, Vorname
-                c.RelativeColumn(2.2f);   // Geburtsdatum
-                c.RelativeColumn(2.1f);   // Unterhaltspflicht
-                c.RelativeColumn(2.1f);   // im gleichen Haushalt lebend
-                c.RelativeColumn(2.1f);   // ab 18 Jahren in 1. Ausbildung
+                c.RelativeColumn(1.4f);   // Geschlecht W/M
+                c.RelativeColumn(4.0f);   // Name, Vorname
+                c.RelativeColumn(2.0f);   // Geburtsdatum
+                c.RelativeColumn(1.7f);   // Unterhaltspflicht
+                c.RelativeColumn(1.7f);   // im gleichen Haushalt lebend
+                c.RelativeColumn(1.7f);   // ab 18 Jahren in 1. Ausbildung
             });
 
             // Textkopf für die beiden Schreibspalten.
             void Head(string txt) => t.Cell().Background(Soft).BorderBottom(0.7f).BorderColor(Rule)
                 .Padding(4).AlignBottom().Text(txt).SemiBold().FontSize(8f).FontColor(Ink);
 
-            // Kopf einer Ja/Nein-Spalte: Frage (zweizeilig) + darunter «Ja Nein»
-            // exakt über den Kästchen der Datenzeilen.
-            void HeadJaNein(string zeile1, string zeile2) =>
-                t.Cell().Background(Soft).BorderBottom(0.7f).BorderColor(Rule).Padding(4).Column(col =>
+            // Kopf einer Zweier-Spalte: Frage (zweizeilig) + darunter die beiden
+            // Antworten («Ja Nein» bzw. «W M») exakt über den Kästchen.
+            // Die Zeilen sind bewusst gesetzt: bei den engen Spalten würde QuestPDF
+            // sonst selbst umbrechen («in 1. / Ausbildung»).
+            void HeadZweier(string links, string rechts, params string[] zeilen) =>
+                t.Cell().Background(Soft).BorderBottom(0.7f).BorderColor(Rule).Padding(4).AlignBottom().Column(col =>
                 {
-                    col.Item().AlignCenter().Text(zeile1).SemiBold().FontSize(8f).FontColor(Ink);
-                    col.Item().AlignCenter().Text(zeile2).SemiBold().FontSize(8f).FontColor(Ink);
+                    foreach (var z in zeilen)
+                        col.Item().AlignCenter().Text(z).SemiBold().FontSize(8f).FontColor(Ink);
                     col.Item().PaddingTop(2).Row(r =>
                     {
-                        r.RelativeItem().AlignCenter().Text("Ja").FontSize(8f).FontColor(Ink);
-                        r.RelativeItem().AlignCenter().Text("Nein").FontSize(8f).FontColor(Ink);
+                        r.RelativeItem().AlignCenter().Text(links).FontSize(8f).FontColor(Ink);
+                        r.RelativeItem().AlignCenter().Text(rechts).FontSize(8f).FontColor(Ink);
                     });
                 });
+            void HeadJaNein(params string[] zeilen) => HeadZweier("Ja", "Nein", zeilen);
 
             // Datenzelle: nur die zwei Kästchen, in denselben Hälften wie oben.
             void ZelleJaNein(bool? wert) =>
@@ -483,15 +491,17 @@ public class QstInfoFormularPdfService
                     r.RelativeItem().AlignCenter().Element(f => Check(f, wert == false));
                 });
 
+            HeadZweier("W", "M", "Geschlecht");
             Head("Name, Vorname");
             Head("Geburtsdatum");
             HeadJaNein("Unterhalts-", "pflicht");
-            HeadJaNein("im gleichen", "Haushalt lebend");
-            HeadJaNein("ab 18 Jahren", "in 1. Ausbildung");
+            HeadJaNein("im gleichen", "Haushalt", "lebend");
+            HeadJaNein("ab 18 Jahren", "in Erst-", "ausbildung");
 
             for (var i = 0; i < 5; i++)
             {
                 var k = i < kinder.Count ? kinder[i] : null;
+                ZelleJaNein(k?.Weiblich);   // links W, rechts M
                 t.Cell().Padding(3).Element(f => WriteLine(f, k?.Name));
                 t.Cell().Padding(3).Element(f => WriteLine(f, k?.Geburtsdatum));
                 ZelleJaNein(k?.Unterhalt);
