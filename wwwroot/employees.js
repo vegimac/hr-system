@@ -1378,7 +1378,7 @@ function renderEmployeeDetail(emp) {
                             <span style="font-size:22px;line-height:1">🆘</span><div style="min-width:0;white-space:nowrap">${_hcNotfallVal}</div>
                         </div>
                     </div>
-                    ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${directDocButton(emp.geburtsurkundeDokumentId, 'geburtsurkunde', 'birth_cert')}` : null)}
+                    ${_hcFact('Geburtstag', emp.dateOfBirth ? birthHeader /* kein Doku-Symbol am Geburtstag (Walter 26.09.2026) */ : null)}
                     ${_hcFact(_t('ma.field.phone','Telefon'), _hcPhoneVal)}
                     ${_hcFact('E-Mail', _hcEmailVal)}
                 </div>
