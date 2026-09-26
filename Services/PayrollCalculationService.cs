@@ -429,6 +429,14 @@ public static class PayrollCalculations
             {
                 decimal cap = d.MaxBaseMonthly is > 0 ? d.MaxBaseMonthly.Value : decimal.MaxValue / 24m;
                 decimal Band(decimal b) => Math.Max(0m, Math.Min(b, cap) - von);
+                // Kumulierte Basis: Deckel oben, Band-Untergrenze «von», Boden 0.
+                // Ist die KUMULIERTE Basis selbst negativ (eine Korrektur zieht die
+                // Jahresbasis unter null — TF44 Hans Lusser Aug 2025: Taggeld-Korrektur
+                // −28'000 auf 1'500 Lohn), gibt es keinen Lohn, der in ein Band fiele:
+                // der Betrag geht unverändert durch, damit die Rückerstattung so
+                // ausfällt wie bei der ungedeckelten AHV (Walter 26.09.2026).
+                decimal Kum(decimal lohn, decimal monate)
+                    => lohn < 0 ? lohn : Math.Max(0m, Math.Min(lohn, cap * monate) - von * monate);
                 // Wechselt die Versicherungslösung mitten im Jahr (TF03 Pia Lusser:
                 // KTG 12 bis 31.05., KTG 11 ab 01.06.), bringt die Regel ihre EIGENE
                 // Aufroll-Basis mit — nur die Monate, in denen sie galt. Sonst zöge der
@@ -451,8 +459,8 @@ public static class PayrollCalculations
                         // Beispiel Aebi Dez 2024 (Austritt 20.12.): Nov 12'958.35 → ALV 12'350 +
                         // ALVZ 608.35; Dez 9'395 bei Höchstlohn 20/30 × 12'350 → ALV 8'233.33,
                         // ALVZ 1'161.67 (RefXML: 8'233.35 / 1'161.65).
-                        decimal kumBisher = Math.Max(0m, Math.Min(ytdGross, cap * monateBisher) - von * monateBisher);
-                        decimal kumTotal  = Math.Max(0m, Math.Min(ytdGross + basis, cap * monateTotal) - von * monateTotal);
+                        decimal kumBisher = Kum(ytdGross, monateBisher);
+                        decimal kumTotal  = Kum(ytdGross + basis, monateTotal);
                         // Darf negativ sein: eine spätere Korrektur senkt die YTD-Basis
                         // unter das schon Verbeitragte → Rückerstattung (TF07 Burri Feb:
                         // Nachzahlung 15'000 → 5'500, ALV/NBU Januar anteilig zurück).
@@ -461,7 +469,7 @@ public static class PayrollCalculations
                     else
                     {
                         decimal ytdGedeckelt = ytdListe.Sum(Band);
-                        decimal jahresBand   = Math.Max(0m, Math.Min(ytdGross + basis, cap * monateTotal) - von * monateTotal);
+                        decimal jahresBand   = Kum(ytdGross + basis, monateTotal);
                         basis = jahresBand - ytdGedeckelt;
                     }
                     // Kennzeichnen nur, wenn die Kumulation etwas gegenüber der flachen
