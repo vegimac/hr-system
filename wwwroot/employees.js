@@ -6146,9 +6146,9 @@ function linkedDocButton(linkedCode, directKind) {
     // Feld mit direkter Verknüpfung (Walter 25.09.2026): liegt nur ein Dokument
     // in der Kategorie, ist noch NICHTS verknüpft → gelb «Doku verknüpfen» statt
     // grünem Häkchen (sonst sieht es aus wie verknüpft, Fall Pass Tomova).
-    if (directKind && hasDoc) {
+    if (directKind) {
         return `<button class="emp-field-docbtn" data-linked-code="${linkedCode}" data-direct-kind="${directKind}"
-                   title="Noch nicht verknüpft — in den Dokumenten liegt passendes. Klicken zum Verknüpfen."
+                   title="Noch kein Dokument verknüpft — klicken zum Verknüpfen oder Hochladen"
                    onclick="openLinkedDocOrLink('${linkedCode}','${directKind}')"
                    style="margin-left:8px;background:#fef3c7;border:1px dashed #fcd34d;color:#92400e;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -6190,9 +6190,9 @@ function directDocButton(docId, kind, fallbackCode) {
     if (fallbackCode) return linkedDocButton(fallbackCode, kind);
     return `<button class="emp-field-docbtn" title="Noch kein Dokument verknüpft — klicken zum Verknüpfen oder Hochladen"
                onclick="openAusweisDokuModal(selectedEmployeeId,'${kind}')"
-               style="margin-left:8px;background:#f8f7f4;border:1px dashed #d5d0c6;color:#b3ada1;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
+               style="margin-left:8px;background:#fef3c7;border:1px dashed #fcd34d;color:#92400e;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-               <span>Doku</span>
+               <span>Doku verknüpfen</span>
            </button>`;
 }
 
@@ -6214,17 +6214,35 @@ function openLinkedDocOrLink(code, kind) {
 // direkt; unten links im Vorschaufenster «Anderes Dokument verknüpfen» (ersetzt,
 // keine Historie — das alte bleibt nur in den Dokumenten) und «Verknüpfung lösen».
 // Felder MIT Historie (Bewilligung, Vertrag, Bank, Absenz) haben das nicht.
-async function openDirectDocVerknuepft(docId, kind) {
+async function openDirectDocVerknuepft(docId, kind, ctx) {
     const empId = selectedEmployeeId;
-    const labels = { id_pass: 'Ausweis', ahv_karte: 'AHV-Karte', geburtsurkunde: 'Geburtsurkunde', zivilstand: 'Zivilstandsdokument' };
+    const labels = { id_pass: 'Ausweis', ahv_karte: 'AHV-Karte', geburtsurkunde: 'Geburtsurkunde', zivilstand: 'Zivilstandsdokument', bank_beleg: 'Bankbeleg' };
     const was = labels[kind] || 'Dokument';
     if (!(await openDirectDoc(docId)) || typeof filePreviewSetExtra !== 'function') return;
     const knopf = 'padding:7px 14px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer';
+    // Bank (Walter 26.09.2026): Verknüpfung hängt am Konto → Konto-ID mitgeben.
+    const ctxJs = ctx ? JSON.stringify(ctx).replace(/"/g, '&quot;') : 'undefined';
+    const loesen = kind === 'bank_beleg' && ctx?.bankAccountId
+        ? `bankBelegLoesen(${empId}, ${ctx.bankAccountId})`
+        : `nwUnlinkDoku(${empId},'${kind}','${was}')`;
     filePreviewSetExtra(`
-        <button type="button" style="${knopf};color:#0f172a" title="${was}: neueres Dokument wählen oder hochladen — ersetzt das bisherige"
-                onclick="filePreviewClose(); openAusweisDokuModal(${empId},'${kind}')">↻ Anderes Dokument verknüpfen</button>
+        <button type="button" style="${knopf};color:#0f172a" title="${was}: anderes Dokument wählen oder hochladen — ersetzt das bisherige"
+                onclick="filePreviewClose(); openAusweisDokuModal(${empId},'${kind}',${ctxJs})">↻ Anderes Dokument verknüpfen</button>
         <button type="button" style="${knopf};color:#b91c1c" title="Nur die Verknüpfung lösen — das Dokument bleibt in den Dokumenten"
-                onclick="filePreviewClose(); nwUnlinkDoku(${empId},'${kind}','${was}')">Verknüpfung lösen</button>`);
+                onclick="filePreviewClose(); ${loesen}">Verknüpfung lösen</button>`);
+}
+
+// Bankbeleg vom Konto lösen (Walter 26.09.2026) — das Dokument bleibt in den Dokumenten.
+async function bankBelegLoesen(empId, bankId) {
+    if (!(await liquidConfirm('Bankbeleg von dieser Bankverbindung lösen?\n\nNur die Verknüpfung wird entfernt — das Dokument selbst bleibt in den Dokumenten.',
+            { title: 'Verknüpfung lösen', yesLabel: 'Lösen', noLabel: 'Abbrechen' }))) return;
+    try {
+        const r = await fetch(`/api/employees/${empId}/bank-accounts/${bankId}/dokument`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentId: null }) });
+        if (!r.ok) { const j = await r.json().catch(() => null); alert(j?.message || `Lösen fehlgeschlagen (${r.status})`); return; }
+        if (typeof loadBankAccountsTab === 'function') loadBankAccountsTab(empId);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
 // Nachgeladenes linked-codes-Set → bestehende Doku-Buttons tauschen,
@@ -13714,7 +13732,6 @@ function renderBankAccountsList(el, list) {
                         <button class="dok-menu-btn" onclick="bankToggleMenu(event, ${b.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="bankMenu-${b.id}">
                             <button class="dok-menu-item" onclick='openBankAccountModal(${JSON.stringify(b).replace(/'/g,"&#39;")})'>Bearbeiten</button>
-                            ${b.dokumentId ? `<button class="dok-menu-item" onclick="openAusweisDokuModal(${employeeId},'bank_beleg',{bankAccountId:${b.id}})">Doku ersetzen</button>` : ''}
                             <button class="dok-menu-item danger" onclick="deleteBankAccount(${b.id})">Löschen</button>
                         </div>
                        </div>`}
@@ -13911,13 +13928,20 @@ function openWeitererAgModal(employeeId, ag) {
 // Bewilligung): grün «👁 Doku» = verknüpft (Klick = anschauen), gestrichelt
 // «🔗 Doku verknüpfen» = fehlt (Klick = verknüpfen/hochladen). Ersetzen über ⋮.
 function _bankBelegPill(employeeId, b) {
-    return b.dokumentId
-        ? `<button type="button" onclick="qstOpenBefreiungsDok(${employeeId}, ${b.dokumentId})"
-               style="flex-shrink:0;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px"
-               title="Bankbeleg anschauen">👁 Doku</button>`
-        : `<button type="button" onclick="openAusweisDokuModal(${employeeId},'bank_beleg',{bankAccountId:${b.id}})"
-               style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer"
-               title="Bankkarte / IBAN-Beleg verknüpfen oder hochladen">🔗 Doku verknüpfen</button>`;
+    // Gleiches System wie AHV/Pass (Walter 26.09.2026): grün = verknüpft (Klick =
+    // Vorschau, unten «Anderes Dokument verknüpfen» / «Verknüpfung lösen»);
+    // gelb = nichts verknüpft (Walter 26.09.2026: gelb, egal ob schon ein
+    // Beleg in den Dokumenten liegt). Klick auf gelb = verknüpfen/hochladen.
+    const base = 'background:%BG%;border:1px %BORDER%;color:%COLOR%;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1';
+    const stil = (bg, border, color) => base.replace('%BG%', bg).replace('%BORDER%', border).replace('%COLOR%', color);
+    const svg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+    const verknuepfen = `openAusweisDokuModal(${employeeId},'bank_beleg',{bankAccountId:${b.id}})`;
+    if (b.dokumentId)
+        return `<button type="button" class="emp-field-docbtn" title="Bankbeleg verknüpft — klicken zum Anschauen (ersetzen/lösen unten im Fenster)"
+                   onclick="openDirectDocVerknuepft(${b.dokumentId}, 'bank_beleg', {bankAccountId:${b.id}})"
+                   style="${stil('#dcfce7', 'solid #86efac', '#15803d')}">${svg}<span>Doku ✓</span></button>`;
+    return `<button type="button" class="emp-field-docbtn" title="Noch kein Bankbeleg verknüpft — klicken zum Verknüpfen oder Hochladen"
+               onclick="${verknuepfen}" style="${stil('#fef3c7', 'dashed #fcd34d', '#92400e')}">${svg}<span>Doku verknüpfen</span></button>`;
 }
 
 function formatIbanDisplay(iban) {
