@@ -30,8 +30,7 @@ public static class QstJahresmodell
         decimal IstBasis,
         decimal? SatzBasis,
         decimal? SatzAperiodisch = null,
-        string? TarifCode = null,
-        decimal JahresRest = 0);
+        string? TarifCode = null);
 
     public readonly record struct YtdStand(
         decimal IstBisher,
@@ -42,8 +41,7 @@ public static class QstJahresmodell
         int QstTageBisher = 0,
         IReadOnlyDictionary<string, decimal>? IstJeCode = null,
         decimal TageChBisher = 0,
-        decimal TageEffBisher = 0,
-        decimal RestVormonat = 0);
+        decimal TageEffBisher = 0);
 
     /// <summary>Vertragsabschnitt (Von inklusiv, Bis inklusiv oder offen).</summary>
     public readonly record struct Zeitraum(DateOnly Von, DateOnly? Bis);
@@ -323,11 +321,33 @@ public static class QstJahresmodell
     /// </para>
     /// <para>
     /// <paramref name="restVormonat"/> ist der Rundungsrest des Vormonats
-    /// (kumulierte Steuer exakt − tatsaechlich abgezogen), der im Slip mitgefuehrt
-    /// wird. Ohne ihn liefe der Rest ueber «bereits bezahlt» wieder verloren. Die
+    /// (kumulierte Steuer exakt − tatsaechlich abgezogen). Ohne ihn liefe der Rest
+    /// ueber «bereits bezahlt» wieder verloren. Er wird NICHT gespeichert, sondern
+    /// aus den Vormonats-Toepfen neu gerechnet (<see cref="JahressteuerExakt"/>) —
+    /// so wirkt die Regel sofort, auch auf laengst abgeschlossenen Monaten. Die
     /// gerundeten Toepfe in <c>SteuerJeCode</c> bleiben die Anzeige auf dem Beleg.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Kumulierte Steuer eines Standes, rappengenau (Σ Topf × Satz). Dient als
+    /// Stand des Vormonats fuer den Rundungsrest — mit den HEUTE gueltigen Codes,
+    /// damit eine rueckwirkende Umbuchung (K1) nicht doppelt zaehlt: der Posten
+    /// steckt in «bereits bezahlt», die Umbuchung im Stand.
+    /// </summary>
+    public static decimal JahressteuerExakt(
+        decimal satzLohn,
+        IReadOnlyDictionary<string, decimal> istJeCode,
+        Func<string, decimal> satzPctFuerCode)
+    {
+        decimal summe = 0;
+        foreach (var kv in istJeCode)
+        {
+            if (kv.Value == 0 || string.IsNullOrWhiteSpace(kv.Key)) continue;
+            summe += kv.Value * satzPctFuerCode(kv.Key) / 100m;
+        }
+        return summe;
+    }
+
     public static TopfErgebnis RechneToepfe(
         decimal satzLohn,
         IReadOnlyDictionary<string, decimal> istJeCode,
@@ -399,10 +419,7 @@ public static class QstJahresmodell
                         var tm = Regex.Match(bez.GetString() ?? "", @"Quellensteuer\s+([A-Za-z]{1,2}\d[YNyn])");
                         if (tm.Success) tarif = tm.Groups[1].Value.ToUpperInvariant();
                     }
-                    decimal rest = line.TryGetProperty("jahresRest", out var jr)
-                        && jr.ValueKind == JsonValueKind.Number
-                        ? jr.GetDecimal() : 0;
-                    return new SlipZeile(-betrag, basis, satzBasis, satzAper, tarif, rest);
+                    return new SlipZeile(-betrag, basis, satzBasis, satzAper, tarif);
                 }
             }
             return new SlipZeile(0, brutto, null);

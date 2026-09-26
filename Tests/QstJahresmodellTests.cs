@@ -64,6 +64,23 @@ public class QstJahresmodellTests
     }
 
     [Fact]
+    public void RestVormonat_AusDemStandGerechnet_TF22BucherAugust()
+    {
+        // Der Rest wird NICHT gespeichert, sondern aus den Toepfen des Vormonats
+        // neu gerechnet — so wirkt die Regel auch auf laengst abgeschlossene Monate.
+        var juli = new Dictionary<string, decimal> { ["A0N"] = 28503.75m, ["C0N"] = 5504.15m };
+        decimal SatzJuli(string c) => c == "A0N" ? 8.30m : 7.70m;
+        var exaktJuli = QstJahresmodell.JahressteuerExakt(4858.27m, juli, SatzJuli);
+        var restJuli = exaktJuli - 2789.60m;                 // tatsaechlich abgezogen Jan-Juli
+        Assert.Equal(0.031m, Math.Round(restJuli, 3));
+
+        var august = new Dictionary<string, decimal> { ["A0N"] = 28503.75m, ["C0N"] = 10025.45m };
+        decimal SatzAugust(string c) => c == "A0N" ? 8.20m : 7.60m;
+        var t = QstJahresmodell.RechneToepfe(4816.15m, august, SatzAugust, 2789.60m, restJuli);
+        Assert.Equal(309.60m, t.QstMonat);                   // RefXML 2025-08, vorher 309.65
+    }
+
+    [Fact]
     public void Toepfe_RestLaeuftInDenNaechstenMonat()
     {
         // Der Rest ist die Bruecke: kumuliert exakt minus tatsaechlich abgezogen.

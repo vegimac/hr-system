@@ -182,15 +182,6 @@ public class DeductionRule
     public string? QstTarifCode { get; set; }
 
     /// <summary>
-    /// Transient: Rundungsrest des Jahresmodells (kumulierte Steuer exakt − tatsächlich
-    /// abgezogen), Slip-Feld «jahresRest». Der Folgemonat zieht ihn ab, damit die
-    /// kumulierte Steuer rappengenau weiterläuft und nur der Monatsabzug auf 5 Rp.
-    /// gerundet wird (Walter 26.09.2026).
-    /// </summary>
-    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public decimal? QstJahresRest { get; set; }
-
-    /// <summary>
     /// Transient (Walter 11.09.2026): abweichende Bemessungsbasis für die Anzeige
     /// im Lohnzettel — QST bei Wohnsitz Ausland: nur der CH-Arbeitstage-Anteil
     /// des Bruttolohns ist steuerbar (Swissdec TaxableEarning).

@@ -4747,10 +4747,6 @@ public class PayrollCalculationEngine
 
         decimal ist = 0, bezahlt = 0, satz = 0, aper = 0;
         int tage = 0;
-        // Rundungsrest des LETZTEN Vormonats (Walter 26.09.2026): die kumulierte
-        // Steuer laeuft rappengenau weiter, gerundet wird nur der Monatsabzug.
-        decimal restVormonat = 0;
-        int restMonat = 0;
         var jeCode = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         foreach (var g in rows.GroupBy(r => r.Month))
         {
@@ -4775,7 +4771,6 @@ public class PayrollCalculationEngine
                 var code = codeMonat ?? z.TarifCode;
                 if (!string.IsNullOrWhiteSpace(code))
                     jeCode[code] = jeCode.GetValueOrDefault(code) + z.IstBasis;
-                if (g.Key >= restMonat) { restMonat = g.Key; restVormonat = z.JahresRest; }
             }
             tage += QstJahresmodell.QstTageDesMonats(year, g.Key, vertraege);
         }
@@ -4817,7 +4812,7 @@ public class PayrollCalculationEngine
             .ToListAsync();
         bezahlt += posten.Where(k => bekannteVersionen.Contains(k.NeueVersionId)).Sum(k => k.Differenz);
 
-        return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper, tage, jeCode, chBisher, effBisher, restVormonat);
+        return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper, tage, jeCode, chBisher, effBisher);
     }
 
     /// <summary>
@@ -4911,7 +4906,6 @@ public class PayrollCalculationEngine
         decimal qstBetrag;
         decimal? satzPct;
         string? sonderHinweis = null;
-        decimal? jahresRest = null;
         bool jahresmodell = QstJahresmodell.GiltFuer(einstellung.Steuerkanton)
                             && vordef == null
                             && _qstJahresYtd != null;
@@ -4984,12 +4978,25 @@ public class PayrollCalculationEngine
             }
             else
             {
+                // Rundungsrest des Vormonats (Walter 26.09.2026): kumulierte Steuer
+                // per Vormonat rappengenau minus das, was tatsaechlich abgezogen wurde.
+                // Frisch gerechnet statt gespeichert — wirkt damit auch auf Monate, die
+                // vor dieser Regel abgeschlossen wurden, und braucht keine Migration.
+                decimal restVormonat = 0;
+                if (ytd.IstJeCode is { Count: > 0 } vorToepfe && ytd.QstTageBisher > 0)
+                {
+                    var satzLohnVormonat = QstJahresmodell.SatzLohnAusTagen(
+                        ytd.SatzBisher, ytd.QstTageBisher, ytd.AperiodischBisher);
+                    var exaktVormonat = QstJahresmodell.JahressteuerExakt(
+                        satzLohnVormonat, vorToepfe,
+                        c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnVormonat, periodFrom.Year));
+                    restVormonat = exaktVormonat - ytd.BezahltBisher;
+                }
                 var t = QstJahresmodell.RechneToepfe(
                     satzLohnLookup, toepfe,
                     c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnLookup, periodFrom.Year),
-                    ytd.BezahltBisher, ytd.RestVormonat);
+                    ytd.BezahltBisher, restVormonat);
                 qstBetrag = t.QstMonat;
-                jahresRest = t.Rest;
                 satzPct = !string.IsNullOrWhiteSpace(codeJetzt) && t.SatzJeCode.TryGetValue(codeJetzt, out var p)
                     ? p
                     : t.SatzJeCode.Values.FirstOrDefault();
@@ -5085,7 +5092,6 @@ public class PayrollCalculationEngine
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
             QstSatzBasis     = slipSatz,
             QstSatzAperiodisch = slipAper,
-            QstJahresRest    = jahresRest,
             QstTarifCode     = qstCode,
             BasisOverride    = (tageHinweis != null || jahresmodell) ? bruttolohn : null,
             Hinweis          = sonderHinweis,
