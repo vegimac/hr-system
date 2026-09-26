@@ -151,3 +151,26 @@ sieben Testfällen (TF03, TF09, TF12, TF15, TF16, TF40, TF41) plus 9 Werkzeug-Gr
 die Arbeitsliste steht im Bericht. Die Zahl der OFFENEN ist im Test als Deckel festgehalten:
 wird sie grösser, hat eine Änderung an der Lohnrechnung etwas bewegt. Nicht anheben, ohne die
 neue Abweichung verstanden zu haben.
+
+
+## TI September 2025 — 8/8 grün (26.09.2026)
+
+Filiale **Beratung, Bellinzona**, Vorab-Lauf nach drei Fixes desselben Tages (QST-Mutation ab
+Mutationsmonat, Auslandwohnsitz beim Kantonswechsel, 5-Rp.-Rundung im Jahresmodell):
+
+| Nr. | Mitarbeiter | QST | Bemerkung |
+|---|---|---|---|
+| 17 | Binggeli | A0N 495.95 | |
+| 19 | Andrey | A0N 78.00 | |
+| 22 | Bucher | C0N 388.45 | vorher 388.40 (5-Rp.-Fix); August 309.60 |
+| 23 | Koller | B0N 375.00 | |
+| 24 | Utzinger | B0N 1'244.00 | KTG kumuliert (Lohnband) |
+| 29 | Forster | R0N 696.00 | XML A0N 876.00 = Call-Liste Frage 3, nicht nachbauen |
+| 34 | Rinaldi | B1N 99.10 | vorher 99.05 (5-Rp.-Fix) |
+| 36 | Maldini | T0N 320.00 | Eintritt ins Jahresmodell mitten im Jahr: TI-Topf startet frisch (Satz-Lohn 5'000), Grenzgänger IT bleibt erhalten |
+
+BVG je Person auf den Rappen wie RefXML (320.83 / 379.17 / 318.50 / 834.17 / 379.16 / 197.16 /
+455.00; Rinaldi ohne BVG). SV-Summen 1–2 Rp. unter der Statistiksumme der RefXML = **A5**.
+
+**Roos (Nr. 35) ist ab September in der Filiale Werkhof/Büro Bern** (Tausch mit Maldini):
+BE B0Y 349.00, Monatsmodell, BVG 433.33 — ebenfalls = RefXML.
