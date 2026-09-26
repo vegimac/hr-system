@@ -1,0 +1,36 @@
+---
+description: Swissdec Muster-AG Beleg-Prüfung — jeder Rappen 1:1 (bis Übung durch)
+alwaysApply: true
+---
+
+# Swissdec Beleg-Check — EXAKT 1:1 (Walter 27.09.2026, ABSOLUT)
+
+Gilt **bis die Muster-AG-Beleg-Übung durch ist**. Anlass: Maldini BVG 433.33 statt 379.17
+wurde übersehen, weil nur QST grob geprüft wurde → Monate neu rechnen.
+
+## Pflicht bei jedem Beleg / Vorab-PDF / Slip-Paste
+
+Gegen **CSV** (`wagetypes_export` / Lohnarten) **und** **RefXML** des Monats, Zeile für Zeile:
+
+1. Brutto / Lohnarten (Stunden, Monatslohn, KiZu, 13. ML, Zulagen …)
+2. AHV / IV / EO
+3. ALV + ALVZ
+4. KTG
+5. UVG / NBU + UVGZ
+6. **BVG inkl. Code und Betrag** (nie überspringen)
+7. QST (Code, Kanton, Basis, Satz, Abzug)
+8. Netto / Auszahlung
+
+## Urteil
+
+- **Grün** nur wenn alle Beträge rappengenau zu CSV/RefXML passen (bzw. bewusst dokumentierte Abweichung).
+- Jede Differenz **> 0 Rp.** = rot melden mit Ist/Soll/Quelle.
+- **Verboten:** «SV wirkt konsistent», «Rest ok», nur QST prüfen, Netto allein als Proxy.
+- Bekannte Swissdec-Offenpunkte (z.B. Forster O2 R0N vs A0N) explizit so kennzeichnen — nicht als stilles Grün.
+
+## Quellen (nicht aus dem Kopf)
+
+- RefXML: `SWISSCEC/RefXML/RefXML_YYYY-MM_MONTHLY.xml`
+- QST-Soll Jahresmodell: `SWISSCEC/Abgleich/qst_jahresmodell_soll.md`
+- Lohnarten/CSV: `Assets/Swissdec/Testmandant/wagetypes_export.csv`
+- Call-Offen: `docs/swissdec-call-2026-09-24.md`

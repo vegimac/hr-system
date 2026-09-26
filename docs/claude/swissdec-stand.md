@@ -174,3 +174,31 @@ BVG je Person auf den Rappen wie RefXML (320.83 / 379.17 / 318.50 / 834.17 / 379
 
 **Roos (Nr. 35) ist ab September in der Filiale Werkhof/Büro Bern** (Tausch mit Maldini):
 BE B0Y 349.00, Monatsmodell, BVG 433.33 — ebenfalls = RefXML.
+
+
+## TI Oktober 2025 — 8/8 grün (27.09.2026)
+
+Filiale **Beratung, Bellinzona**. Quellensteuer: Binggeli A0N 495.95 · Andrey A0N 93.60 ·
+Bucher C0N 155.90 · Koller B0N 391.15 (Basis 5'215 inkl. Kinderzulage) · Utzinger C0N 1'625.00 ·
+Rinaldi B1N 99.10 · Maldini T0N 354.20 · Forster R0N 243.60 auf 2'100 (7 von 20 CH-Tagen; Basis
+= RefXML, Buchstabe = Call-Liste Frage 3).
+
+Drei Fehler auf dem Weg dorthin, alle behoben:
+
+1. **QST-Versionskette (4c).** Der Vorgänger wurde mit «≤ ab» gesucht → beim zweiten Lauf fand
+   4c den Eintrag des Monats selbst, erbte nichts mehr, und ein falscher Kanton blieb stehen
+   (Maldini Oktober BE statt TI). Dazu bekam eine neue Version kein `ValidTo` → nachgetragene
+   frühere Monate überlappten alle späteren («zwei AKTUELL»). Helfer `QstVorgaenger` /
+   `QstEndeDerVersion`, Tests `SwissdecQstVersionsketteTests`.
+2. **BVG-Fixbetrag (4c).** Die 5b-Zeile wird über die Bemerkung «5050» gesucht; beim zweiten
+   4c-Lauf heisst sie «Mutation» → Betrag verloren, Vormonatsbetrag zurück (433.33 statt 379.17;
+   Maldini und Roos tauschen per 1.9. BVG-Code 11/22). Helfer `BvgFixAmTag`.
+   **Merksatz: jeder Schritt des Testmandanten muss wiederholbar sein — ein zweiter Lauf darf
+   nie zerstören, was der erste richtig gemacht hat.** Reparatur bestehender Daten: 5b nochmals.
+3. **Fehlender Tarif war unsichtbar.** `ComputeQstDeduction` gab `null` zurück, wenn der
+   Tarifservice nichts fand → Beleg ganz ohne QST-Zeile. Jetzt Zeile mit 0.00 + Klartext.
+
+**Maldini F vs. T (Call-Liste 3b):** Testdaten geben ab Oktober F0N/F1N, den Buchstaben F kennt
+`tar25ti` nicht (A B C E G H L M N P Q R S T U V); RefXML rechnet T0N/T1N. Im Testmandanten von
+Hand auf T0N/T1N gesetzt (SQL auf `hr_system_test`) — **ein erneuter 4c-Lauf für Okt–Dez schreibt
+F wieder hinein.**
