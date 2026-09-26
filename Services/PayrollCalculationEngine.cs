@@ -2937,7 +2937,9 @@ public class PayrollCalculationEngine
                 }
                 // Ferien-Tage-Saldo ist mit der Geld-Auszahlung abgegolten → 0.
                 // Filial-Schalter «Ferien-Tage am Austritt auszahlen» aus → Tage bleiben (Walter 10.09.2026).
-                if (company?.FerientageAmAustrittAuszahlen ?? true)
+                // Beim Modellwechsel mit weiterlaufender Anstellung bleiben sie immer stehen
+                // (Walter 26.09.2026).
+                if (isAustritt && (company?.FerientageAmAustrittAuszahlen ?? true))
                     ferienTageSaldoNeu = 0m;
             }
 
@@ -3445,7 +3447,10 @@ public class PayrollCalculationEngine
                     ferienGeldSaldoNeu    = 0m;
                 }
                 // Ferien-Tage-Saldo ist mit der Geld-Auszahlung abgegolten → 0.
-                ferienTageSaldoNeu = 0m;
+                // NUR beim echten Austritt: beim Modellwechsel (FLEX → FIX, Anstellung
+                // läuft weiter) bleiben die Tage stehen — der Tage-Saldo ist die Kontrolle,
+                // dass auch Stundenlöhner Ferien BEZIEHEN (Walter 26.09.2026, TF14 Egli).
+                if (isAustritt) ferienTageSaldoNeu = 0m;
             }
 
             // ── 13. Monatslohn (FLEX) ───────────────────────────────────────
@@ -4368,7 +4373,9 @@ public class PayrollCalculationEngine
                 // Wert ≠ 0 (Saldo ist auf 4 Dez. geführt → keine 0.00-Rauschzeile).
                 // Filial-Schalter «Ferien-Tage am Austritt auszahlen» (Walter 10.09.2026):
                 // aus → keine CHF-Zeile, Tages-Saldo bleibt stehen.
-                bool ferientageAuszahlenFix = company?.FerientageAmAustrittAuszahlen ?? true;
+                // Nur beim echten Austritt auszahlen und nullen; beim Modellwechsel
+                // (FIX → FLEX/MTP) nimmt der MA die Tage mit (Walter 26.09.2026).
+                bool ferientageAuszahlenFix = isAustritt && (company?.FerientageAmAustrittAuszahlen ?? true);
                 decimal ferienTageAnzeige = Math.Round(ferienTageSaldoNeu, 2);
                 if (ferientageAuszahlenFix && ferienTageAnzeige != 0m && fixTagessatz > 0)
                 {

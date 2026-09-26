@@ -193,6 +193,43 @@ public class ExitSettlementTests
             new[] { (new DateOnly(2026, 10, 1), "FIX-M") }));
     }
 
+    // ── Ferien-Tage beim Modellwechsel bleiben stehen (Walter 26.09.2026) ─────
+    // Der Tage-Saldo ist die Kontrolle, dass auch Stundenlöhner Ferien BEZIEHEN.
+    // Genullt / ausbezahlt wird er nur beim echten Austritt; beim Modellwechsel
+    // mit weiterlaufender Anstellung nimmt der MA die Tage mit.
+    // TF14 Egli, August 2025: letzter FLEX-Monat, ab 01.09. Monatslohn →
+    // 26.25 + 2.92 muss 29.17 bleiben, nicht 0.00.
+    /// <summary>Spiegelt die Bedingung in der Engine (FLEX/MTP/FIX-Schlusslohn-Zweig).</summary>
+    private static decimal FerienTageNachSchlusslohn(
+        decimal saldoNeu, bool istAustritt, bool filialeZahltTageAus = true)
+        => istAustritt && filialeZahltTageAus ? 0m : saldoNeu;
+
+    [Fact]
+    public void Modellwechsel_BehaeltFerienTage()
+    {
+        bool modellwechsel = PayrollCalculations.IsModellwechselSchlusslohn(
+            new DateOnly(2025, 8, 31), "FLEX", new DateOnly(2025, 8, 1), new DateOnly(2025, 8, 31),
+            new[] { (new DateOnly(2025, 9, 1), "FIX") });
+        bool austritt = PayrollCalculations.IsLetzterLohn(
+            new DateOnly(2025, 8, 31), new DateOnly(2025, 8, 1), new DateOnly(2025, 8, 31),
+            new[] { new DateOnly(2025, 9, 1) });
+        Assert.True(modellwechsel);
+        Assert.False(austritt);
+        Assert.Equal(29.17m, FerienTageNachSchlusslohn(29.17m, austritt));
+    }
+
+    [Fact]
+    public void EchterAustritt_NulltFerienTageWeiterhin()
+    {
+        bool austritt = PayrollCalculations.IsLetzterLohn(
+            new DateOnly(2025, 8, 31), new DateOnly(2025, 8, 1), new DateOnly(2025, 8, 31),
+            Array.Empty<DateOnly>());
+        Assert.True(austritt);
+        Assert.Equal(0m, FerienTageNachSchlusslohn(29.17m, austritt));
+        // Filial-Schalter «Ferien-Tage am Austritt auszahlen» aus → Tage bleiben (10.09.2026).
+        Assert.Equal(29.17m, FerienTageNachSchlusslohn(29.17m, austritt, filialeZahltTageAus: false));
+    }
+
     [Fact]
     public void Modellwechsel_OhneFolgevertrag_KeinSchlusslohn_SondernAustritt()
     {
