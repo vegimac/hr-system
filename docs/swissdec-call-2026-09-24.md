@@ -29,6 +29,14 @@ Wo die XML etwas anderes zeigt als CSV + Gesetz, haben wir es bewusst NICHT nach
 - **Folge:** Alle 12 Monate weichen ab (Jahr: wir 7'631.10, XML 9'570.15).
 - **Frage:** Welcher Code gilt? Fehlt im Export eine Mutation?
 
+### 3b. TF36 Maldini — Tarifbuchstabe F existiert im Tessin nicht (26.09.2026)
+- **Was in der CSV steht:** ab 01.10.2025 Code **F0N**, ab 01.11.2025 **F1N** (Kanton TI, Grenzgänger Italien, Wohnsitz Como).
+- **Was in der XML steht:** **T0N** (Oktober) und **T1N** (November/Dezember) — der Buchstabe F kommt in der RefXML nie vor.
+- **Was wir geprüft haben:** die ESTV-Tarifdatei `tar25ti` kennt die Buchstaben A, B, C, E, G, H, L, M, N, P, Q, R, S, T, U, V — **kein F**. T ist im Tessin der Grenzgänger-Buchstabe zu C, und Maldini war vorher C0Y (verheiratet, Partnerin erwerbstätig). F war der Code im System vor 2021.
+- **Folge:** mit F0N findet OneCrew keinen Tarif → Oktober bis Dezember ohne Quellensteuer. Soll laut XML: Oktober 354.20 auf 5'215.
+- **Frage:** ist der Code in den Testdaten veraltet? Gilt T0N/T1N?
+- Im Testmandanten von Hand auf T0N/T1N gesetzt, damit die übrigen Monate prüfbar bleiben; der Import folgt weiter der CSV.
+
 ### 4. TF25 Lehmann — Umzug 1.4. aber Quellensteuer-Wechsel erst 1.5.
 - **Was in den Testdaten steht:** Adresse wechselt am **1.4.2025** von Milano nach Malters LU (Bewilligung G → B). Der Steuerkanton wechselt aber erst am **1.5.2025** von TI nach LU. Zusätzlich steht im April ein «Wegzug aus der Schweiz» (PersonDepartureDate 25.04.2025), der im Mai wieder verschwindet.
 - **Gesetz (Kreisschreiben 45):** Umzug am 1. des Monats → neuer Kanton ab diesem Monat, also LU ab April.

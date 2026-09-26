@@ -5003,6 +5003,14 @@ public class PayrollCalculationEngine
                 var topfTxt = string.Join(", ", t.SteuerJeCode.Select(kv => $"{kv.Key} {kv.Value:0.00}"));
                 sonderHinweis = $"Jahresmodell, Satz-Lohn {t.SatzLohn:0.00}"
                     + (t.SteuerJeCode.Count > 1 ? $" · Töpfe {topfTxt}" : "");
+                // Topf-Code ohne Tarif: nicht stillschweigend mit 0 % rechnen (Walter 26.09.2026).
+                var ohneTarif = toepfe.Keys
+                    .Where(c => !string.IsNullOrWhiteSpace(c)
+                             && !QstTarifVorhanden(einstellung.Steuerkanton!, c, satzLohnLookup, periodFrom.Year))
+                    .ToList();
+                if (ohneTarif.Count > 0)
+                    sonderHinweis += $" · ACHTUNG: kein Tarif «{string.Join("», «", ohneTarif)}» im Kanton "
+                        + $"{einstellung.Steuerkanton} fuer {periodFrom.Year} — dieser Anteil wird mit 0 % gerechnet.";
                 if (_qstNachzahlungStandalone && satzPct.HasValue)
                 {
                     // Nachzahlung nach Austritt: nur die Zahlung zum neuen Satz (Showcase TF41
@@ -5033,17 +5041,32 @@ public class PayrollCalculationEngine
                 satzbestimmenderBruttoCHF: satzBrutto,
                 istBruttoCHF: bruttolohn,
                 jahr: periodFrom.Year);   // Tarif der Lohnperiode, nicht des Rechen-Tages (Walter 09.09.2026)
-            if (qstCalc is null) return null;
-            qstBetrag = qstCalc.MindeststeuerAngewendet
-                ? qstCalc.SteuerbetragCHF
-                : PayrollCalculations.Round05(qstCalc.SteuerbetragCHF);
-
-            // Walter-Vorgabe 27.05.2026: bei Mindeststeuer effektiven Satz zeigen
-            // (Betrag/Brutto), damit die Zeile auf dem Lohnzettel aufgeht.
-            if (qstCalc.MindeststeuerAngewendet && bruttolohn > 0)
-                satzPct = Math.Round(qstBetrag / bruttolohn * 100m, 2);
+            if (qstCalc is null)
+            {
+                // Kein Tarif fuer diese Kombination (Walter 26.09.2026, TF36 Maldini:
+                // Testdaten geben Code «F0N», den Tessiner Buchstaben F gibt es nicht).
+                // Frueher verschwand die ganze QST-Zeile lautlos — im Echtbetrieb merkt
+                // das niemand. Jetzt bleibt die Zeile mit 0.00 und sagt, was fehlt.
+                qstBetrag = 0;
+                satzPct = null;
+                sonderHinweis = $"Kein Tarif «{einstellung.TarifCode}{einstellung.AnzahlKinder}"
+                    + $"{(einstellung.Kirchensteuer ? 'Y' : 'N')}» im Kanton {einstellung.Steuerkanton} "
+                    + $"fuer {periodFrom.Year} hinterlegt — Quellensteuer NICHT berechnet. "
+                    + "Tarifcode pruefen oder Tarifdatei einlesen.";
+            }
             else
-                satzPct = qstCalc.SteuersatzPct;
+            {
+                qstBetrag = qstCalc.MindeststeuerAngewendet
+                    ? qstCalc.SteuerbetragCHF
+                    : PayrollCalculations.Round05(qstCalc.SteuerbetragCHF);
+
+                // Walter-Vorgabe 27.05.2026: bei Mindeststeuer effektiven Satz zeigen
+                // (Betrag/Brutto), damit die Zeile auf dem Lohnzettel aufgeht.
+                if (qstCalc.MindeststeuerAngewendet && bruttolohn > 0)
+                    satzPct = Math.Round(qstBetrag / bruttolohn * 100m, 2);
+                else
+                    satzPct = qstCalc.SteuersatzPct;
+            }
         }
 
         // Walter-Vorgabe 27.05.2026: bei QST-pflichtigem MA mit erfasstem Tarif
@@ -5097,6 +5120,12 @@ public class PayrollCalculationEngine
             Hinweis          = sonderHinweis,
         };
     }
+
+    /// <summary>Gibt es fuer diesen Tarifcode ueberhaupt einen Tarif im Kanton?
+    /// Trennt «kein Tarif hinterlegt» von «Satz ist 0 %» (tiefe Stufe).</summary>
+    private bool QstTarifVorhanden(string kanton, string code, decimal satzLohn, int jahr)
+        => QstJahresmodell.TryParseCode(code, out var tarif, out var kinder, out var kirche)
+           && _tarifService.GetSteuersatzProzent(kanton, tarif, kinder, kirche, satzLohn, jahr) != null;
 
     private decimal SatzPctFuerJahrescode(string kanton, string code, decimal satzLohn, int jahr)
     {
