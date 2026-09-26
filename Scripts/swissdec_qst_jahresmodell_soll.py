@@ -8,8 +8,8 @@ Modell (Anhang 1, Y1/Y15/Y23/Y27/Y39/Y40):
   SB-Lohn (satzbestimmend, Monat) = [ Σ periodische QST-Löhne (je Monat auf Gesamtpensum hochgerechnet)
                                        ÷ QST-Tage kumuliert × 360  +  Σ aperiodische QST-Löhne ] ÷ 12
   je Tarifcode ein Topf «QST-Lohn kumuliert»; jeden Monat für JEDEN Topf:
-      Steuer kumuliert = Satz(Code, SB-Lohn) × Topf     (5 Rp.)
-  Abzug des Monats = Σ Töpfe (neu kumuliert) − bisher abgezogen.  Rückwirkend bekannt gewordene
+      Steuer kumuliert = Satz(Code, SB-Lohn) × Topf     (rappengenau)
+  Abzug des Monats = Σ Töpfe (neu kumuliert) − Stand Vormonat, auf 5 Rp.  Rückwirkend bekannt gewordene
   Tarifwechsel (ValidAsOf < Mutationsmonat) verschieben Löhne zwischen den Töpfen → Korrektur im Monat
   des Bekanntwerdens (Y40).
 
@@ -200,6 +200,7 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
     zeilen = []
     hinweis = None
     per_kum, aper_kum, tage_kum = 0.0, 0.0, 0
+    exakt_vormonat = 0.0
     ch_kum, eff_kum = 0.0, 0.0
     tage_ch = float(tfdata.get("PersonWorkingDaysCH") or 0)
     tage_eff = float(tfdata.get("PersonEffectiveWorkingDays") or 0)
@@ -265,9 +266,12 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
         toepfe = defaultdict(float)
         for k, lohn in monatslohn.items():
             toepfe[code_fuer(achse, ym, jahr, k)] += lohn
-        kum = {c: r05(satz(kanton, jahr, c, sb) * l) for c, l in toepfe.items() if c}
+        # Gerundet wird NUR der Monatsabzug: die kumulierte Steuer laeuft rappengenau
+        # weiter (Walter 26.09.2026, belegt an TF22 08/09, TF23 12, TF34 09).
+        kum = {c: satz(kanton, jahr, c, sb) * l for c, l in toepfe.items() if c}
         total_kum = sum(kum.values())
-        abzug = r05(total_kum - bezahlt)
+        abzug = r05(total_kum - exakt_vormonat)
+        exakt_vormonat = total_kum
         bezahlt = r05(bezahlt + abzug)
         zeilen.append({"monat": ym, "code": code_fuer(achse, ym, jahr, m), "basis": basis, "sb": sb,
                        "ratio": (ratio_m, ratio_k) if ratio_m < 1 or ratio_k < 1 else None,
@@ -291,7 +295,7 @@ def main():
 
     md = ["# QST-Jahresmodell — Soll nach Anhang 1 vs. RefXML (%d)\n" % jahr,
           "Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12; je Tarifcode ein Topf, "
-          "Steuer kumuliert = Satz(Code, SB) × Topf (5 Rp.), Monatsabzug = Σ Töpfe − bisher abgezogen. "
+          "Steuer kumuliert = Satz(Code, SB) × Topf (rappengenau), Monatsabzug = Differenz zum Vormonat auf 5 Rp. "
           "XML = Current + Korrekturen desselben Monats. Tarife: `Assets/Quellensteuer/tar%s*.txt`. "
           "Ein-/Austrittsmonat: Monatslohn × Tage/30 (TAGE30, Eintrittstag zählt), CSV-1001 verworfen (A7). "
           "Kantons-/Modellwechsel beendet die Tabelle (Monatsmodell des neuen Kantons).\n" % str(jahr)[2:]]

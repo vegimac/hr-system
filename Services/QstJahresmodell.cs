@@ -22,14 +22,16 @@ public static class QstJahresmodell
         decimal Jahressteuer,
         decimal QstMonat,
         IReadOnlyDictionary<string, decimal> SteuerJeCode,
-        IReadOnlyDictionary<string, decimal> SatzJeCode);
+        IReadOnlyDictionary<string, decimal> SatzJeCode,
+        decimal Rest = 0);
 
     public readonly record struct SlipZeile(
         decimal QstBezahlt,
         decimal IstBasis,
         decimal? SatzBasis,
         decimal? SatzAperiodisch = null,
-        string? TarifCode = null);
+        string? TarifCode = null,
+        decimal JahresRest = 0);
 
     public readonly record struct YtdStand(
         decimal IstBisher,
@@ -40,7 +42,8 @@ public static class QstJahresmodell
         int QstTageBisher = 0,
         IReadOnlyDictionary<string, decimal>? IstJeCode = null,
         decimal TageChBisher = 0,
-        decimal TageEffBisher = 0);
+        decimal TageEffBisher = 0,
+        decimal RestVormonat = 0);
 
     /// <summary>Vertragsabschnitt (Von inklusiv, Bis inklusiv oder offen).</summary>
     public readonly record struct Zeitraum(DateOnly Von, DateOnly? Bis);
@@ -310,30 +313,43 @@ public static class QstJahresmodell
     }
 
     /// <summary>
-    /// Anhang Y15/Y23: je Code Steuer kumuliert = Satz(Code, Satz-Lohn) × Topf (5 Rp.).
-    /// Monatsabzug = Σ Töpfe − bereits bezahlt (nicht extra runden).
+    /// Anhang Y15/Y23: je Code Steuer kumuliert = Satz(Code, Satz-Lohn) × Topf.
+    /// <para>
+    /// Gerundet wird NUR der Monatsabzug, nicht der einzelne Topf (Walter 26.09.2026,
+    /// nachgerechnet an TF22 Bucher Aug/Sep, TF23 Koller Dez, TF34 Rinaldi Sep): die
+    /// RefXML fuehrt die kumulierte Steuer rappengenau weiter und rundet erst die
+    /// Differenz des Monats auf 5 Rp. Rundet man schon den Topf, weicht der Monat um
+    /// bis zu 5 Rp. ab (TF34 Sep 99.05 statt 99.10, Jahr 2'739.50 statt 2'739.55).
+    /// </para>
+    /// <para>
+    /// <paramref name="restVormonat"/> ist der Rundungsrest des Vormonats
+    /// (kumulierte Steuer exakt − tatsaechlich abgezogen), der im Slip mitgefuehrt
+    /// wird. Ohne ihn liefe der Rest ueber «bereits bezahlt» wieder verloren. Die
+    /// gerundeten Toepfe in <c>SteuerJeCode</c> bleiben die Anzeige auf dem Beleg.
+    /// </para>
     /// </summary>
     public static TopfErgebnis RechneToepfe(
         decimal satzLohn,
         IReadOnlyDictionary<string, decimal> istJeCode,
         Func<string, decimal> satzPctFuerCode,
-        decimal bereitsBezahlt)
+        decimal bereitsBezahlt,
+        decimal restVormonat = 0)
     {
         var steuer = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         var saetze = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        decimal jahres = 0;
+        decimal jahresExakt = 0;
         foreach (var kv in istJeCode.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (kv.Value == 0 || string.IsNullOrWhiteSpace(kv.Key)) continue;
             var pct = satzPctFuerCode(kv.Key);
             saetze[kv.Key] = pct;
-            var topf = PayrollCalculations.Round05(kv.Value * pct / 100m);
-            steuer[kv.Key] = topf;
-            jahres += topf;
+            var topf = kv.Value * pct / 100m;
+            steuer[kv.Key] = PayrollCalculations.Round05(topf);
+            jahresExakt += topf;
         }
-        // Monatsabzug nicht runden — sonst laufen die Töpfe gegen Swissdec (Walter 20.09.2026).
-        var monat = jahres - bereitsBezahlt;
-        return new TopfErgebnis(satzLohn, jahres, monat, steuer, saetze);
+        var monat = PayrollCalculations.Round05(jahresExakt - bereitsBezahlt - restVormonat);
+        var rest = jahresExakt - bereitsBezahlt - monat;
+        return new TopfErgebnis(satzLohn, PayrollCalculations.Round05(jahresExakt), monat, steuer, saetze, rest);
     }
 
     /// <summary>
@@ -383,7 +399,10 @@ public static class QstJahresmodell
                         var tm = Regex.Match(bez.GetString() ?? "", @"Quellensteuer\s+([A-Za-z]{1,2}\d[YNyn])");
                         if (tm.Success) tarif = tm.Groups[1].Value.ToUpperInvariant();
                     }
-                    return new SlipZeile(-betrag, basis, satzBasis, satzAper, tarif);
+                    decimal rest = line.TryGetProperty("jahresRest", out var jr)
+                        && jr.ValueKind == JsonValueKind.Number
+                        ? jr.GetDecimal() : 0;
+                    return new SlipZeile(-betrag, basis, satzBasis, satzAper, tarif, rest);
                 }
             }
             return new SlipZeile(0, brutto, null);

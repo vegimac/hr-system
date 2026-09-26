@@ -23,11 +23,54 @@ public class QstJahresmodellTests
     }
 
     [Fact]
-    public void Rechne_MonatsabzugNichtAuf5RpRunden()
+    public void Rechne_MonatsabzugAuf5RpGerundet()
     {
+        // Walter 26.09.2026: gerundet wird der MONATSABZUG, nicht der Topf.
+        // 5'111.00 x 8.70 % = 444.657; 444.657 - 100.01 = 344.647 -> 344.65.
         var r = QstJahresmodell.Rechne(5111.00m, 100.01m, 1, 8.70m);
         Assert.Equal(444.65m, r.Jahressteuer);
-        Assert.Equal(344.64m, r.QstMonat);
+        Assert.Equal(344.65m, r.QstMonat);
+    }
+
+    [Fact]
+    public void Toepfe_RundenNurDenMonat_TF34RinaldiSeptember()
+    {
+        // RefXML 2025-09: 99.10. Mit gerundeten Toepfen kam 99.05 heraus
+        // (B1N 26'290 x 1.90 % = 499.51 -> 499.50), Jahr 2'739.50 statt 2'739.55.
+        var toepfe = new Dictionary<string, decimal>
+        {
+            ["A0N"] = 15000.00m,   // Jan-Maerz
+            ["B0N"] = 5000.00m,    // April
+            ["B1N"] = 26290.00m,   // Mai-September
+        };
+        decimal Satz(string c) => c switch { "A0N" => 8.70m, "B0N" => 3.90m, _ => 1.90m };
+        // Rest des Vormonats: kumuliert exakt 1'900.425 minus abgezogen 1'900.45.
+        var t = QstJahresmodell.RechneToepfe(5125.42m, toepfe, Satz, 1900.45m, -0.025m);
+        Assert.Equal(99.10m, t.QstMonat);
+    }
+
+    [Fact]
+    public void Toepfe_RundenNurDenMonat_TF22BucherSeptember()
+    {
+        // RefXML 2025-09: 388.45 (mit gerundeten Toepfen kam 388.40 heraus).
+        var toepfe = new Dictionary<string, decimal>
+        {
+            ["A0N"] = 28503.75m,   // Jan-Juni
+            ["C0N"] = 15136.45m,   // Juli-September
+        };
+        decimal Satz(string c) => c == "A0N" ? 8.20m : 7.60m;
+        var t = QstJahresmodell.RechneToepfe(4848.91m, toepfe, Satz, 3099.25m, -0.0083m);
+        Assert.Equal(388.45m, t.QstMonat);
+    }
+
+    [Fact]
+    public void Toepfe_RestLaeuftInDenNaechstenMonat()
+    {
+        // Der Rest ist die Bruecke: kumuliert exakt minus tatsaechlich abgezogen.
+        var toepfe = new Dictionary<string, decimal> { ["A0N"] = 5111.00m };
+        var t = QstJahresmodell.RechneToepfe(5111.00m, toepfe, _ => 8.70m, 0m);
+        Assert.Equal(444.65m, t.QstMonat);
+        Assert.Equal(0.007m, Math.Round(t.Rest, 3));   // 444.657 - 444.65
     }
 
     [Fact]

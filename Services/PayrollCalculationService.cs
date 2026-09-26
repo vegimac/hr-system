@@ -530,6 +530,7 @@ public static class PayrollCalculations
                 satzBasis   = d.QstSatzBasis,
                 satzAperiodisch = d.QstSatzAperiodisch,
                 qstCode     = d.QstTarifCode,
+                jahresRest  = d.QstJahresRest,
                 betrag,
                 // AG-Anteil (positiv) fürs Fibu-Journal — pro Zeile mit korrekter
                 // Staffel-Stufe. NULL = kein AG-Anteil.

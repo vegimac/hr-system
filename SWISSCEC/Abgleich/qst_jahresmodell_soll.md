@@ -1,6 +1,6 @@
 # QST-Jahresmodell — Soll nach Anhang 1 vs. RefXML (2025)
 
-Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12; je Tarifcode ein Topf, Steuer kumuliert = Satz(Code, SB) × Topf (5 Rp.), Monatsabzug = Σ Töpfe − bisher abgezogen. XML = Current + Korrekturen desselben Monats. Tarife: `Assets/Quellensteuer/tar25*.txt`. Ein-/Austrittsmonat: Monatslohn × Tage/30 (TAGE30, Eintrittstag zählt), CSV-1001 verworfen (A7). Kantons-/Modellwechsel beendet die Tabelle (Monatsmodell des neuen Kantons).
+Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12; je Tarifcode ein Topf, Steuer kumuliert = Satz(Code, SB) × Topf (rappengenau), Monatsabzug = Differenz zum Vormonat auf 5 Rp. XML = Current + Korrekturen desselben Monats. Tarife: `Assets/Quellensteuer/tar25*.txt`. Ein-/Austrittsmonat: Monatslohn × Tage/30 (TAGE30, Eintrittstag zählt), CSV-1001 verworfen (A7). Kantons-/Modellwechsel beendet die Tabelle (Monatsmodell des neuen Kantons).
 
 ## TF17 Binggeli Fritz (TI, Modell Y, Pensum AG1 70.0%, Nebenerwerb 30.0%)
 
@@ -57,13 +57,13 @@ Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodis
 | 04 | A0N | 5307.60 | 5307.60 | 5012.73 | 5012.75 | A0N 8.50% | 480.65 | 480.65 | ✓ |  |
 | 05 | A0N | 4521.30 | 4521.30 | 4914.44 | 4914.45 | A0N 8.30% | 335.15 | 335.15 | ✓ |  |
 | 06 | A0N | 3931.55 | 3931.55 | 4750.62 | 4750.65 | A0N 8.00% | 240.80 | -2039.50 | 2280.30 |  |
-| 07 | C0N | 5504.15 | 5504.15 | 4858.27 | 4858.25 | A0N 8.30% / C0N 7.70% | 509.30 | 2789.65 | -2280.35 |  |
-| 08 | C0N | 4521.30 | 4521.30 | 4816.15 | 4816.15 | A0N 8.20% / C0N 7.60% | 309.65 | 309.60 | ✓ |  |
-| 09 | C0N | 5111.00 | 5111.00 | 4848.91 | 4848.90 | A0N 8.20% / C0N 7.60% | 388.40 | 388.45 | ✓ |  |
+| 07 | C0N | 5504.15 | 5504.15 | 4858.27 | 4858.25 | A0N 8.30% / C0N 7.70% | 509.35 | 2789.65 | -2280.30 |  |
+| 08 | C0N | 4521.30 | 4521.30 | 4816.15 | 4816.15 | A0N 8.20% / C0N 7.60% | 309.60 | 309.60 | ✓ |  |
+| 09 | C0N | 5111.00 | 5111.00 | 4848.91 | 4848.90 | A0N 8.20% / C0N 7.60% | 388.45 | 388.45 | ✓ |  |
 | 10 | C0N | 3538.40 | 3538.40 | 4717.86 | 4717.85 | A0N 8.00% / C0N 7.30% | 155.90 | 155.90 | ✓ |  |
 | 11 | C0N | 4717.85 | 4717.85 | 4717.86 | 4717.85 | A0N 8.00% / C0N 7.30% | 344.40 | 344.40 | ✓ |  |
 | 12 | C0N | 5111.00 | 5111.00 | 4750.62 | 4750.60 | A0N 8.00% / C0N 7.30% | 373.10 | -3987.95 | 4361.05 |  |
-| **Jahr** | | | | | | **4361.05** | **0.05** | | |
+| **Jahr** | | | | | | **4361.10** | **0.05** | | |
 
 ## TF23 Koller Ludwig (TI, Modell Y, Pensum AG1 100.0%)
 
@@ -80,8 +80,8 @@ Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodis
 | 09 | B0N | 5000.00 | 5000.00 | 7500.00 | 7500.00 | A0N 12.30% / B0N 7.50% | 375.00 | 375.00 | ✓ |  |
 | 10 | B0N | 5215.00 | 5215.00 | 7521.50 | 7521.50 | A0N 12.30% / B0N 7.50% | 391.15 | 391.15 | ✓ |  |
 | 11 | B1N | 5215.00 | 5215.00 | 7539.09 | 7539.10 | A0N 12.30% / B0N 7.50% / B1N 4.70% | 245.10 | 245.10 | ✓ |  |
-| 12 | B1N | 10215.00 | 10215.00 | 7970.42 | 7970.40 | A0N 12.80% / B0N 8.10% / B1N 5.40% | 1014.35 | 1014.40 | ✓ |  |
-| **Jahr** | | | | | | **9915.60** | **9915.65** | | |
+| 12 | B1N | 10215.00 | 10215.00 | 7970.42 | 7970.40 | A0N 12.80% / B0N 8.10% / B1N 5.40% | 1014.40 | 1014.40 | ✓ |  |
+| **Jahr** | | | | | | **9915.65** | **9915.65** | | |
 
 ## TF24 Utzinger Jan (TI, Modell Y, Pensum AG1 100.0%)
 
@@ -171,11 +171,11 @@ _ab 05: QST-Kanton LU, Modell Y → nicht mehr Jahresmodell TI, hier nicht gefü
 | 06 | B0N | 5000.00 | 5000.00 | 5000.00 | 5000.00 | A0N 8.50% / B0N 3.70% | -295.00 | -295.00 | ✓ | 04 A0N -425.00→B0N 185.00; 05 A0N -425.00→B0N 185.00 |
 | 07 | B1N | 5860.00 | 5860.00 | 5084.46 | 5084.45 | A0N 8.60% / B0N 3.80% / B1N 1.90% | -48.65 | -48.65 | ✓ | 05 B0N -185.00→B1N 90.00; 06 B0N -185.00→B1N 90.00 |
 | 08 | B1N | 5215.00 | 5215.00 | 5107.50 | 5107.50 | A0N 8.70% / B0N 3.90% / B1N 1.90% | 119.10 | 119.10 | ✓ |  |
-| 09 | B1N | 5215.00 | 5215.00 | 5125.42 | 5125.40 | A0N 8.70% / B0N 3.90% / B1N 1.90% | 99.05 | 99.10 | ✓ |  |
+| 09 | B1N | 5215.00 | 5215.00 | 5125.42 | 5125.40 | A0N 8.70% / B0N 3.90% / B1N 1.90% | 99.10 | 99.10 | ✓ |  |
 | 10 | B1N | 5215.00 | 5215.00 | 5139.75 | 5139.75 | A0N 8.70% / B0N 3.90% / B1N 1.90% | 99.10 | 99.10 | ✓ |  |
 | 11 | B1N | 5215.00 | 5215.00 | 5151.48 | 5151.50 | A0N 8.80% / B0N 4.00% / B1N 2.00% | 155.80 | 155.80 | ✓ |  |
 | 12 | B1N | 10215.00 | 10215.00 | 5577.92 | 5577.90 | A0N 9.50% / B0N 4.70% / B1N 2.30% | 485.10 | 485.10 | ✓ |  |
-| **Jahr** | | | | | | **2739.50** | **2739.55** | | |
+| **Jahr** | | | | | | **2739.55** | **2739.55** | | |
 
 ## TF35 Roos Roland (TI, Modell Y, Pensum AG1 100.0%)
 
@@ -194,8 +194,6 @@ _ab 05: QST-Kanton LU, Modell Y → nicht mehr Jahresmodell TI, hier nicht gefü
 _ab 09: QST-Kanton BE, Modell M → nicht mehr Jahresmodell TI, hier nicht geführt._
 
 ## TF41 Meier Max (TI, Modell Y, Pensum AG1 100.0%)
-
-**Mai/Juli — Abweichung zur Spalte «Abzug Modell» ist KEIN Fehler (geprüft 23.09.2026):** Der Mai ist ein **Korrekturlohn** (Dienstaltersgeschenk 30'000, kein periodischer Lohn). Bei einer Nachzahlung besteuert die Engine im Jahresmodell nur die Zahlung selbst (18.6 % × 30'000 = **5'580**) und gleicht die Töpfe im nächsten ordentlichen Lohn aus — der Hinweis steht auf dem Beleg. Der Juli holt das nach: 18.6 % × 90'000 − 13'830 bezahlt = **2'910** (Tabelle: 1'860). Jahrestotal 16'740 in beiden Varianten. Die Tabelle rechnet jeden Monat als regulären Lauf und kennt die Aufteilung nicht.
 
 | Monat | Code | QST-Lohn Modell | QST-Lohn XML | SB-Lohn Modell | SB-Lohn XML | Satz | Abzug Modell | Abzug XML | Diff | XML-Korrekturen |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
