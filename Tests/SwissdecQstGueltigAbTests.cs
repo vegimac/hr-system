@@ -61,3 +61,28 @@ public class SwissdecQstGueltigAbTests
         Assert.Equal(D(2025, 9, 1), ab);
     }
 }
+
+/// <summary>
+/// Schritt 4c: Kantonswechsel mit Wohnsitz im Ausland.
+/// Anlass Walter 26.09.2026: TF36 Maldini zieht per 01.09.2025 nach Como und wird
+/// Grenzgaenger; der QST-Kanton TI ist sein ARBEITSort. Der Inland-Zweig «Umzug = QST»
+/// haette die eben gesetzten Grenzgaenger-Angaben wieder geloescht.
+/// </summary>
+public class SwissdecWohnsitzImAuslandTests
+{
+    [Fact]
+    public void Grenzgaenger_ZaehltAlsAuslandwohnsitz()
+        => Assert.True(SwissdecTestmandantController.WohnsitzImAusland("IT", "EX"));
+
+    [Fact]
+    public void WohnkantonEX_ReichtAuchOhneGrenzgaengerFeld()
+        => Assert.True(SwissdecTestmandantController.WohnsitzImAusland(null, "EX"));
+
+    [Fact]
+    public void UmzugInnerhalbDerSchweiz_BleibtInland()
+    {
+        // TF35 Roos September (TI → BE), TF40 Farine Oktober (VD)
+        Assert.False(SwissdecTestmandantController.WohnsitzImAusland(null, "BE"));
+        Assert.False(SwissdecTestmandantController.WohnsitzImAusland(null, null));
+    }
+}

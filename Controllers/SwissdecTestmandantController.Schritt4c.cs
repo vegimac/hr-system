@@ -43,6 +43,17 @@ public partial class SwissdecTestmandantController
         return wechselJetzt && validAsOf.Value > mutationsMonat ? mutationsMonat : validAsOf.Value;
     }
 
+    /// <summary>
+    /// Zieht die Person mit dieser Mutation ins Ausland? (Walter 26.09.2026, TF36 Maldini September.)
+    /// Dann ist der QST-Kanton der ARBEITSkanton und sagt nichts ueber den Wohnort — der
+    /// Inland-Zweig «Umzug = QST» darf nicht laufen, sonst loescht
+    /// <see cref="QstKantonswechselService.InlandWohnsitzAbAsync"/> die Grenzgaenger-Angaben
+    /// (Steuer-ID, Geburtsort, Wohnsitzstaat) auf derselben neuen Version gleich wieder.
+    /// Umgekehrt (Grenzgaenger-Feld wird geleert = Zuzug in die Schweiz) bleibt es beim Inland-Zweig.
+    /// </summary>
+    public static bool WohnsitzImAusland(string? crossborder, string? wohnkanton)
+        => crossborder != null || string.Equals(wohnkanton, "EX", StringComparison.OrdinalIgnoreCase);
+
     // Monatswerte → Schritt 5
     private static readonly HashSet<string> Monatswerte = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -421,6 +432,12 @@ public partial class SwissdecTestmandantController
             {
                 var code = V("PersonTASCode"); var kt = V("PersonTASCanton");
                 var ab = QstGueltigAb(tag1, Datum(V("PersonTASCodeValidAsOf")), code, kt);
+                // Wohnsitz ins AUSLAND (Walter 26.09.2026, TF36 Maldini September): dann ist der
+                // QST-Kanton der ARBEITSkanton (TI), nicht der Wohnkanton — der Inland-Zweig
+                // «Umzug = QST» unten gilt hier NICHT, sonst loescht er die frisch gesetzten
+                // Grenzgaenger-Angaben (Steuer-ID, Geburtsort, Wohnsitzstaat) gleich wieder.
+                var auslandCode = V("PersonCrossborder");
+                var zugAusland = WohnsitzImAusland(auslandCode, V("PersonResidenceCanton"));
                 var aend = rows.Where(r => qstTags.Contains(r.Tag)).Select(r => $"{r.Label}: {r.Alt ?? "–"} → {r.Neu ?? "–"}").ToList();
                 // QST-Pflicht endet (Walter 10.09.2026): Code leer UND Kanton leer (Januar-Muster)
                 // ODER Code «NON» (Swissdec: nicht quellensteuerpflichtig, z.B. nach C-Ausweis —
@@ -429,7 +446,9 @@ public partial class SwissdecTestmandantController
                 var codeNon = string.Equals(code, "NON", StringComparison.OrdinalIgnoreCase);
                 var beenden = (Hat("PersonTASCode") && code == null && Hat("PersonTASCanton") && kt == null) || codeNon;
                 felder["Quellensteuer"] = (beenden ? $"QST-Pflicht endet per {(ab.AddDays(-1)):dd.MM.yyyy}{(codeNon ? " (Code NON)" : "")}: " : $"neuer Eintrag ab {ab:dd.MM.yyyy}: ") + string.Join(" · ", aend);
-                if (!beenden && kt != null && QstKantonswechselService.KantonName(kt) != null)
+                if (!beenden && zugAusland)
+                    felder["Wohnsitz"] = $"Wohnsitz im Ausland ab {ab:dd.MM.yyyy}{(auslandCode != null ? $" ({auslandCode})" : "")} — QST-Kanton {kt ?? "–"} ist der Arbeitsort, kein Inland-Umzug";
+                else if (!beenden && kt != null && QstKantonswechselService.KantonName(kt) != null)
                     felder["Umzug = QST"] = $"Wohnort {kt} gilt ab {ab:dd.MM.yyyy} (TAS), nicht ab Adressmutation";
                 if (!vorschau)
                 {
@@ -473,6 +492,7 @@ public partial class SwissdecTestmandantController
                         if (Hat("PersonCrossborderPlaceOfBirth")) q.GrenzgaengerGeburtsort = V("PersonCrossborderPlaceOfBirth");
                         if (Hat("PersonCrossborderValidAsOf")) q.GrenzgaengerAb = Datum(V("PersonCrossborderValidAsOf"));
                         if (Hat("PersonCrossborder")) q.IsGrenzgaenger = V("PersonCrossborder") != null;
+                        if (auslandCode != null) { q.Wohnsitzstaat = auslandCode; q.WohnsitzAusland = auslandCode; }
                         if (Hat("PersonOtherActivity")) q.WeitereBeschaftigungen = V("PersonOtherActivity") != null;
                         if (Hat("PersonTotalOtherActivityRate")) q.GesamtpensumWeitereAg = Dez(V("PersonTotalOtherActivityRate"));
                         if (Hat("PersonTASKindOfResidence")) q.IsWochenaufenthalter = V("PersonTASKindOfResidence") == "Weekly";
@@ -481,7 +501,7 @@ public partial class SwissdecTestmandantController
                         // Umzug = QST (Walter 16.09.2026): Wohnort-Historie auf TAS-Datum
                         // ziehen + Grenzgänger-Flags auf der neuen CH-Version löschen
                         // (TF25: CSV-Adresse 1.4. Malters, TAS LU erst 1.5.).
-                        if (kt != null && QstKantonswechselService.KantonName(kt) != null)
+                        if (!zugAusland && kt != null && QstKantonswechselService.KantonName(kt) != null)
                         {
                             var wohn = await _db.EmployeeWohnortHistories
                                 .Where(h => h.EmployeeId == emp.Id && h.KantonCode == kt && !h.DatumOffen && h.GueltigAb != null)
