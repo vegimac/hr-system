@@ -26,6 +26,23 @@ public partial class SwissdecTestmandantController
 
     private sealed record Mutation(string Fall, string Tag, string Label, DateOnly Monat, string? Alt, string? Neu);
 
+    /// <summary>
+    /// Ab wann eine QST-Mutation gilt (Walter 26.09.2026, Fall TF36 Maldini September).
+    /// Bringt dieselbe Mutation einen neuen QST-Code und/oder einen neuen QST-Kanton,
+    /// dann gilt sie ab dem Mutationsmonat — auch wenn «PersonTASCodeValidAsOf» in die
+    /// Zukunft zeigt (Swissdec fuellt dort teils schon den naechsten Wechsel ein: Sep-Mutation
+    /// T0N/TI mit ValidAsOf 01.11., waehrend die RefXML den September bereits mit T0N TI rechnet).
+    /// Ein RUECKWIRKENDES ValidAsOf (≤ Mutationsmonat) bleibt unveraendert massgebend
+    /// (TF31/TF33/TF34: Juni-Mutation wirkt ab April). Ohne Code-/Kantonwechsel bleibt alles
+    /// wie bisher — auch eine reine Vorankuendigung (TF36 April: nur ValidAsOf 01.06.).
+    /// </summary>
+    public static DateOnly QstGueltigAb(DateOnly mutationsMonat, DateOnly? validAsOf, string? code, string? kanton)
+    {
+        if (validAsOf == null) return mutationsMonat;
+        var wechselJetzt = code != null || kanton != null;
+        return wechselJetzt && validAsOf.Value > mutationsMonat ? mutationsMonat : validAsOf.Value;
+    }
+
     // Monatswerte → Schritt 5
     private static readonly HashSet<string> Monatswerte = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -402,8 +419,8 @@ public partial class SwissdecTestmandantController
             var qstTags = new[] { "PersonTASCode", "PersonTASCodeValidAsOf", "PersonTASCanton", "PersonTASMunicipalityID", "PersonTASCalculationModel", "PersonTASTriggerOfChange", "PersonTASKindOfResidence", "PersonGrantTASCode", "PersonCrossborder", "PersonCrossborderPlaceOfBirth", "PersonCrossborderTaxID", "PersonCrossborderValidAsOf", "PersonOtherActivity", "PersonTotalOtherActivityRate" };
             if (qstTags.Any(Hat))
             {
-                var ab = Datum(V("PersonTASCodeValidAsOf")) ?? tag1;
                 var code = V("PersonTASCode"); var kt = V("PersonTASCanton");
+                var ab = QstGueltigAb(tag1, Datum(V("PersonTASCodeValidAsOf")), code, kt);
                 var aend = rows.Where(r => qstTags.Contains(r.Tag)).Select(r => $"{r.Label}: {r.Alt ?? "–"} → {r.Neu ?? "–"}").ToList();
                 // QST-Pflicht endet (Walter 10.09.2026): Code leer UND Kanton leer (Januar-Muster)
                 // ODER Code «NON» (Swissdec: nicht quellensteuerpflichtig, z.B. nach C-Ausweis —
