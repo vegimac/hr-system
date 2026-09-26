@@ -1566,15 +1566,32 @@ public class PayrollCalculationEngine
         // (Ferien%/Feiertag%/13.ML). Keine gerundeten Zwischenresultate —
         // Lohnzeilen-CHF werden am Add-Ort separat gerundet.
         var codeAmounts = new Dictionary<string, decimal>();
-        void AddAmount(string code, decimal amtExact)
+        // Zweite Spur mit den Beträgen, die auf dem BELEG stehen (nach Round05 /
+        // Math.Round). Nur für die ANGEZEIGTE 13.-ML-Basis — gerechnet wird
+        // unverändert mit den exakten Produkten (Walter 26.09.2026, TF14 Egli:
+        // Basis stand auf 4'774.02 statt 4'774.05, weil die Ferienentschädigung
+        // mit 354.025 statt der ausbezahlten 354.05 einfloss).
+        var codeAmountsAnzeige = new Dictionary<string, decimal>();
+        void AddAmount(string code, decimal amtExact, decimal? amtAnzeige = null)
         {
             if (string.IsNullOrEmpty(code) || amtExact == 0) return;
             codeAmounts[code] = (codeAmounts.TryGetValue(code, out var v) ? v : 0m) + amtExact;
+            codeAmountsAnzeige[code] = (codeAmountsAnzeige.TryGetValue(code, out var a) ? a : 0m)
+                                     + (amtAnzeige ?? amtExact);
         }
         decimal SumByFlag(Func<Lohnposition, bool> selector)
         {
             decimal sum = 0;
             foreach (var kv in codeAmounts)
+                if (lohnposByCode.TryGetValue(kv.Key, out var lp) && selector(lp))
+                    sum += kv.Value;
+            return sum;
+        }
+        /// <summary>Dieselbe Flag-Summe aus den Beleg-Beträgen — nur für die Anzeige.</summary>
+        decimal SumByFlagAnzeige(Func<Lohnposition, bool> selector)
+        {
+            decimal sum = 0;
+            foreach (var kv in codeAmountsAnzeige)
                 if (lohnposByCode.TryGetValue(kv.Key, out var lp) && selector(lp))
                     sum += kv.Value;
             return sum;
@@ -2496,7 +2513,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)festlohnArbeitBetrag
                 });
                 totalLohn += festlohnArbeitBetrag;
-                AddAmount("10.1", festlohnExact);
+                AddAmount("10.1", festlohnExact, festlohnArbeitBetrag);
             }
 
             // Walter-Vorgabe 01.08.2026: Unbezahlter Urlaub auch auf dem
@@ -2541,7 +2558,7 @@ public class PayrollCalculationEngine
                 mtpStdLabel += ")";
                 lohnLines.Add(new { bezeichnung = mtpStdLabel, code = "55.3", anzahl = (decimal?)mehrstundenAus, prozent = (decimal?)100m, basis = (decimal?)hourlyRate, betrag = mtpBasis, accrued = (decimal?)mtpBasis });
                 totalLohn += mtpBasis;
-                AddAmount("55.3", mtpExact);  // exaktes Produkt für Flag-Summen
+                AddAmount("55.3", mtpExact, mtpBasis);  // exaktes Produkt für Flag-Summen, Beleg-Betrag für die Anzeige
             }
 
             // ── Krankheit: Lohnkürzung + 88%-Gutschrift (im Karenzfenster) ──
@@ -2726,7 +2743,7 @@ public class PayrollCalculationEngine
                 if (ferienMonatlich)
                 {
                     totalLohn += ferienEnt;
-                    AddAmount(ferienCode, ferienEntExact);
+                    AddAmount(ferienCode, ferienEntExact, ferienEnt);
                 }
             }
 
@@ -2734,7 +2751,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "195.4", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)Math.Round(feiertagBasisExact, 2), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
                 totalLohn += feiertagEnt;
-                AddAmount("195.4", feiertagEntExact);  // exakt für 13.ML-Flags
+                AddAmount("195.4", feiertagEntExact, feiertagEnt);  // exakt für 13.ML-Flags, Beleg-Betrag für die Anzeige
             }
 
             // ── MTP Ferien-Auszahlung anteilsmässig aus Pott (Walter 09.05.2026) ─
@@ -2786,7 +2803,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)mtpFerienAuszahlungBetrag
                 });
                 totalLohn += mtpFerienAuszahlungBetrag;
-                AddAmount("10.2", mtpFerienAuszahlungExact);
+                AddAmount("10.2", mtpFerienAuszahlungExact, mtpFerienAuszahlungBetrag);
             }
 
             // Ferien-Geld-Saldo neu: Pott − Auszahlung (exakt, dann Schluss-Rundung)
@@ -2942,7 +2959,10 @@ public class PayrollCalculationEngine
             // ohne Lohnpositions-Code — Walter 04.08.2026, siehe Block oben.
             decimal mtp13BasisExact = ThirteenthBasisMitAuszahlungen(
                 SumByFlag(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisMtp);
-            decimal mtp13Basis = Math.Round(mtp13BasisExact, 2); // Anzeige / Saldo-Input
+            // Angezeigte Basis aus den Beleg-Beträgen (Walter 26.09.2026); gerechnet
+            // wird weiter mit mtp13BasisExact.
+            decimal mtp13Basis = Math.Round(ThirteenthBasisMitAuszahlungen(
+                SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisMtp), 2);
             // Display-Werte für die Saldi-Sektion im Auszahlungsmonat:
             // Vormonat / Aktueller Zuwachs / Bezogen / Saldo. Werden nur in
             // Auszahlungsmonaten gefüllt, sonst null.
@@ -3225,7 +3245,7 @@ public class PayrollCalculationEngine
             //   → zusätzlich fliessen alle Zulagen mit der Flag ein.
             //   → Nacht-Kompensation wird unter demselben Code geführt
             //     (SV-gleich wie Stundenlohn).
-            AddAmount("20", lohnExact + nachtKompExact);
+            AddAmount("20", lohnExact + nachtKompExact, lohnBrutto + nachtKompBrutto);
             decimal feiertagBasisUtpExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag);
             decimal feiertagEntExact      = feiertagBasisUtpExact * holidayPct / 100m;
             decimal feiertagEnt           = Round05(feiertagEntExact);   // 5 Rappen (Walter 09.09.2026)
@@ -3272,7 +3292,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "195.2", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)Math.Round(feiertagBasisUtpExact, 2), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
                 totalLohn += feiertagEnt;
-                AddAmount("195.2", feiertagEntExact);
+                AddAmount("195.2", feiertagEntExact, feiertagEnt);
             }
 
             // UTP-Kaskade: Ferien-Basis enthält auch die Feiertagentschädigung.
@@ -3299,7 +3319,7 @@ public class PayrollCalculationEngine
                 if (ferienMonatlichUtp)
                 {
                     totalLohn += ferienEnt;
-                    AddAmount(ferienCodeUtp, ferienEntExactUtp);
+                    AddAmount(ferienCodeUtp, ferienEntExactUtp, ferienEnt);
                 }
             }
 
@@ -3455,7 +3475,9 @@ public class PayrollCalculationEngine
                 // Rückstellung (basis13ForSaldoUtp) UND Verfall.
                 decimal basis13Exact = ThirteenthBasisMitAuszahlungen(
                     SumByFlag(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisUtp);
-                decimal basis13 = Math.Round(basis13Exact, 2);
+                // Anzeige aus den Beleg-Beträgen (Walter 26.09.2026, TF14 Egli).
+                decimal basis13 = Math.Round(ThirteenthBasisMitAuszahlungen(
+                    SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisUtp), 2);
                 decimal currentAccrualExact = basis13Exact * thirteenthPct / 100m;
                 decimal currentAccrual = Round05(currentAccrualExact);   // 5 Rappen (Walter 09.09.2026)
 
@@ -3913,7 +3935,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)ferienBetragFix
                 });
                 totalLohn += ferienBetragFix;
-                AddAmount("10.2", ferienExactFix);
+                AddAmount("10.2", ferienExactFix, ferienBetragFix);
             }
 
             if (feiertagBetragFix > 0)
@@ -3928,7 +3950,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)feiertagBetragFix
                 });
                 totalLohn += feiertagBetragFix;
-                AddAmount("10.3", feiertagExactFix);
+                AddAmount("10.3", feiertagExactFix, feiertagBetragFix);
             }
 
             // ── Unbezahlter Urlaub: Festlohn-Kürzung (FIX / FIX-M) ─────────
@@ -4148,7 +4170,7 @@ public class PayrollCalculationEngine
             decimal thirteenthPctForSaldoFix  = thirteenthPct;
             decimal prevThirteenthForSaldoFix = prevThirteenth;
             decimal fix13BasisExact = SumByFlag(lp => lp.ZaehltAlsBasis13ml);
-            decimal fix13Basis = Math.Round(fix13BasisExact, 2);
+            decimal fix13Basis = Math.Round(SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml), 2);
             decimal fix13Accrual = 0m;
             if (thirteenthPct > 0)
             {
