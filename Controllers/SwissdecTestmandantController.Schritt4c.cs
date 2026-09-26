@@ -76,6 +76,26 @@ public partial class SwissdecTestmandantController
     /// FRUEHEREN Monats eine offene Version stehen, die alle spaeteren ueberlappte —
     /// in der Versionsliste zwei «AKTUELL» (Walter 26.09.2026, TF36 Maldini).
     /// </summary>
+    /// <summary>
+    /// Der BVG-Eintrag am Mutationstag, aus dem eine neue Versicherungs-Zeile den
+    /// Fixbetrag (Lohnart 5050) und die manuelle Basis uebernimmt.
+    /// <para>
+    /// Erste Wahl ist die Zeile aus Schritt 5b («5050» in der Bemerkung). Beim
+    /// WIEDERHOLTEN Lauf von 4c stammt die Zeile am selben Tag aber von 4c selbst und
+    /// heisst «Swissdec-Testdaten Mutation» — dann zaehlt jede Zeile des Tages, die
+    /// einen Betrag traegt. Ohne diesen zweiten Rueckfall ging der Fixbetrag verloren
+    /// und der Betrag des VORMONATS kam zurueck (Walter 27.09.2026, TF36 Maldini:
+    /// BVG 433.33 statt 379.17, nachdem September nochmals eingespielt wurde).
+    /// </para>
+    /// </summary>
+    public static EmployeeVersicherungCode? BvgFixAmTag(IEnumerable<EmployeeVersicherungCode> amMutationstag)
+    {
+        var liste = amMutationstag.ToList();
+        return liste.FirstOrDefault(x => x.Bemerkung != null
+                   && x.Bemerkung.Contains("5050", StringComparison.OrdinalIgnoreCase))
+            ?? liste.FirstOrDefault(x => x.BeitragFixAn != null || x.BeitragFixAg != null || x.BvgBasisManuell != null);
+    }
+
     public static DateOnly? QstEndeDerVersion(IEnumerable<DateOnly> alleStarts, DateOnly ab)
     {
         DateOnly? naechste = null;
@@ -399,7 +419,7 @@ public partial class SwissdecTestmandantController
                     txt.Add($"{art}: {string.Join("+", aktuelle.Select(a => a.Code)) } → {(neueCodes.Count == 0 ? "nicht versichert" : string.Join("+", neueCodes))}" + (art == "BVG" && Hat("PersonBVGLPPManuallyBase") ? $" · Basis manuell {(basis?.ToString("0") ?? "–")}" : ""));
                     if (vorschau) continue;
                     var schonAbTag1 = bestehend.Where(v => v.Art == art && v.ValidFrom == tag1).ToList();
-                    var fix5050 = schonAbTag1.FirstOrDefault(x => x.Bemerkung != null && x.Bemerkung.Contains("5050", StringComparison.OrdinalIgnoreCase));
+                    var fix5050 = BvgFixAmTag(schonAbTag1);
                     foreach (var a in aktuelle)
                         if (a.ValidFrom < tag1) a.ValidTo = vortag;
                         else _db.EmployeeVersicherungCodes.Remove(a);
@@ -412,7 +432,7 @@ public partial class SwissdecTestmandantController
                         {
                             EmployeeId = emp.Id, Art = art, Code = c.ToUpperInvariant(), ValidFrom = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now,
                             BvgEintrittsgrund = art == "BVG" ? vorlage?.BvgEintrittsgrund : null, BvgVollArbeitsfaehig = art == "BVG" ? vorlage?.BvgVollArbeitsfaehig : null,
-                            BvgBasisManuell = art == "BVG" ? (Hat("PersonBVGLPPManuallyBase") ? basis : vorlage?.BvgBasisManuell) : null,
+                            BvgBasisManuell = art == "BVG" ? (Hat("PersonBVGLPPManuallyBase") ? basis : (fix5050?.BvgBasisManuell ?? vorlage?.BvgBasisManuell)) : null,
                             BeitragFixAn = art == "BVG" ? (fix5050?.BeitragFixAn ?? vorlage?.BeitragFixAn) : null,
                             BeitragFixAg = art == "BVG" ? (fix5050?.BeitragFixAg ?? vorlage?.BeitragFixAg) : null,
                         });
