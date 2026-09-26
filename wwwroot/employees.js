@@ -1167,14 +1167,14 @@ function _ovArbeitszeugnisRowHtml(emp) {
     const btn = 'background:#3f3f3f;color:#fff;border:none;border-radius:9px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700;line-height:1.3';
     const btn2 = 'background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:9px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700;line-height:1.3';
     const exitVorbei = new Date(emp.exitDate) < new Date(new Date().toDateString());
+    // Doku-Symbol wie überall (Walter 26.09.2026); «erstellen» bleibt eigener Knopf.
+    const dokIcon = docIconBtn({ docId: dokId, was: 'Arbeitszeugnis',
+        verknuepfen: `openAusweisDokuModal(${emp.id},'arbeitszeugnis')`,
+        loesen: `nwUnlinkDoku(${emp.id},'arbeitszeugnis','Arbeitszeugnis')` });
     const inhalt = dokId
-        ? `<span style="color:#166534;font-weight:700">✓ ausgestellt</span>
-           <button type="button" style="${btn}" onclick="qstOpenBefreiungsDok(${emp.id}, ${dokId}, {sticky:true})">👁 Zeugnis</button>
-           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'arbeitszeugnis')">ersetzen</button>
-           <button type="button" style="background:none;border:none;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0" onclick="nwUnlinkDoku(${emp.id},'arbeitszeugnis','Arbeitszeugnis')">lösen</button>`
+        ? `<span style="color:#166534;font-weight:700">✓ ausgestellt</span> ${dokIcon}`
         : `<span style="color:${exitVorbei ? '#9f1239' : '#a16207'};font-weight:700">${exitVorbei ? '⚠ fehlt' : 'offen'}</span>
-           <button type="button" style="${btn}" onclick="openZeugnisModal(${emp.id})">📄 erstellen</button>
-           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'arbeitszeugnis')">📎 verknüpfen</button>`;
+           <button type="button" style="${btn}" onclick="openZeugnisModal(${emp.id})">📄 erstellen</button> ${dokIcon}`;
     // Sitzt im freien Slot zwischen Austritt und L-GAV (die Anstellungs-Karte
     // hat eine feste Höhe mit overflow:hidden — eine zusätzliche Zeile wäre
     // abgeschnitten).
@@ -1192,12 +1192,10 @@ function _ovKuendigungRowHtml(emp) {
     if (!emp || (!dokId && !emp.kuendigungAusgesprochenAm && !emp.kuendigungPer)) return '';
     const btn = 'background:#3f3f3f;color:#fff;border:none;border-radius:9px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700;line-height:1.3';
     const btn2 = 'background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:9px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700;line-height:1.3';
-    const inhalt = dokId
-        ? `<button type="button" style="${btn}" onclick="qstOpenBefreiungsDok(${emp.id}, ${dokId}, {sticky:true})">👁 Schreiben</button>
-           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'kuendigung')">ersetzen</button>
-           <button type="button" style="background:none;border:none;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0" onclick="nwUnlinkDoku(${emp.id},'kuendigung','Kündigungsschreiben')">lösen</button>`
-        : `<span style="color:#a16207;font-weight:700">fehlt</span>
-           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'kuendigung')">📎 verknüpfen</button>`;
+    // Doku-Symbol wie überall (Walter 26.09.2026)
+    const inhalt = docIconBtn({ docId: dokId, was: 'Kündigungsschreiben',
+        verknuepfen: `openAusweisDokuModal(${emp.id},'kuendigung')`,
+        loesen: `nwUnlinkDoku(${emp.id},'kuendigung','Kündigungsschreiben')` });
     return `<div class="ov-pf ov-anst-pz-slot" style="flex-direction:column;align-items:flex-start;justify-content:flex-end;margin-bottom:0">
         <div class="ov-pfl" style="margin-bottom:1px">Kündigung</div>
         <div style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;line-height:28px;min-height:28px;overflow:hidden">${inhalt}</div>
@@ -2266,9 +2264,11 @@ function _empContractActionsHtml(emp, c, allContracts) {
             : `<button type="button" onclick="vertragUnterschriftElternSetzen(${emp.id}, ${cid}, true)" title="Unter 18: Unterschrift der Erziehungsberechtigten auf dem Vertrag bestätigen"
                    style="margin-right:8px;background:#fef2f2;border:1px dashed #fca5a5;color:#b91c1c;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Eltern fehlt</button>`)
         : '';
-    const vertragPill = vDok
-        ? `<button type="button" class="emp-field-docbtn" onclick="openDirectDoc(${vDok})" title="Unterschriebener Vertrag verknüpft — klicken zum Öffnen"
-               style="margin-right:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:11px;font-weight:600;line-height:1;font-family:inherit">Unterschrieben ✓</button>`
+    // Doku-Symbol wie überall (Walter 26.09.2026); gelb nur bei laufenden Verträgen.
+    const vertragPill = (vDok || !historisch)
+        ? docIconBtn({ docId: vDok, was: 'Unterschriebener Vertrag', style: 'margin-right:8px',
+            verknuepfen: `openAusweisDokuModal(${emp.id},'vertrag',{employmentId:${cid}})`,
+            loesen: `docLoesenPatch('/api/employees/${emp.id}/employments/${cid}/dokument','Unterschriebener Vertrag',()=>selectEmployee(${emp.id}))` })
         : '';
     const items = historisch
         ? `${editItem}
@@ -4729,12 +4729,9 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                 </div>
                 <!-- Tarifbestätigung als Beleg (Walter 21.08.2026) — auch bei
                      gesperrten Einträgen verknüpfbar (reiner Beleg, kein Lock). -->
-                ${e.dokumentId
-                    ? `<span style="display:inline-flex;gap:4px;align-items:center;margin-left:auto;margin-right:8px;flex-shrink:0">
-                        <button class="fam-tile-doc fam-tile-doc-ok" onclick="qstOpenBefreiungsDok(${selectedEmployeeId}, ${e.dokumentId})" title="Tarifbestätigung öffnen">📄 Tarifbestätigung</button>
-                        <button class="fam-tile-doc" onclick="openAusweisDokuModal(${selectedEmployeeId},'qst_tarif',{qstEntryId:${e.id}})" title="Anderes Dokument verknüpfen">↻</button>
-                        <button class="fam-tile-doc fam-tile-doc-danger" onclick="qstTarifDokUnlink(${e.id})" title="Verknüpfung lösen">✕</button></span>`
-                    : `<button class="fam-tile-doc" style="margin-left:auto;margin-right:8px;flex-shrink:0" onclick="openAusweisDokuModal(${selectedEmployeeId},'qst_tarif',{qstEntryId:${e.id}})" title="Tarifbestätigung der Steuerbehörde verknüpfen">📎 Tarifbestätigung</button>`}
+                ${docIconBtn({ docId: e.dokumentId, was: 'Tarifbestätigung', style: 'margin-left:auto;margin-right:8px',
+                    verknuepfen: `openAusweisDokuModal(${selectedEmployeeId},'qst_tarif',{qstEntryId:${e.id}})`,
+                    loesen: `qstTarifDokUnlink(${e.id})` })}
                 ${e.inLohnVerwendet
                     ? `<span style="display:inline-flex;align-items:center;gap:6px;flex-shrink:0;margin-left:4px">
                         <span title="Tarif eingefroren (definitiv abgerechnet). «Erfahren am» kann noch nachgetragen werden — Korrektur der Zwischenmonate läuft automatisch." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help">🔒 verwendet${e.verwendetBis ? ' bis ' + e.verwendetBis.slice(5, 7) + '/' + e.verwendetBis.slice(0, 4) : ''}</span>
@@ -5648,14 +5645,10 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 } else if (_partnerPflicht) {
                     spousePermitBadge += `<span class="fam-tile-badge fam-tile-badge-warn" title="Erwerbstätig-Frage offen — blockt bei QST-pflichtigen verheirateten MA den Lohnlauf">⚠ Erwerbstätig?</span>`;
                 }
-                const hasSpouseDok = !!m.dokumentId;
-                if (hasSpouseDok) {
-                    spouseDocBtn = `<button class="fam-tile-doc fam-tile-doc-ok" onclick="event.stopPropagation();qstOpenBefreiungsDok(${employeeId}, ${m.dokumentId})" title="Verknüpftes Beleg-Dokument öffnen">📄 Doku</button>
-                        <button class="fam-tile-doc" onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})" title="Anderes Dokument verknüpfen">↻</button>
-                        <button class="fam-tile-doc fam-tile-doc-danger" onclick="event.stopPropagation();spouseDokuUnlink(${employeeId}, ${m.id})" title="Verknüpfung lösen">✕</button>`;
-                } else {
-                    spouseDocBtn = `<button class="fam-tile-doc" onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})" title="Beleg-Dokument verknüpfen">📎 Doku</button>`;
-                }
+                // Doku-Symbol wie überall (Walter 26.09.2026)
+                spouseDocBtn = docIconBtn({ docId: m.dokumentId, was: 'Ausweis Partner/in', stop: true,
+                    verknuepfen: `openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})`,
+                    loesen: `spouseDokuUnlink(${employeeId}, ${m.id})` });
             }
 
             // Walter-Vorgabe 20.08.2026: Kind in Erstausbildung — Kinderziffer
@@ -5674,11 +5667,15 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             // Belege am Kind (Walter 23.09.2026): Ausweis (nur Anzeige, wenn
             // verknüpft) + Geburtsurkunde (verknüpfen/öffnen).
             if (type === 'Kind') {
+                // Doku-Symbole wie überall (Walter 26.09.2026): Ausweis nur, wenn
+                // verknüpft (Ausweis ist beim Kind keine Pflicht), Geburtsurkunde immer.
+                const famUrl = `/api/employees/${employeeId}/family/${m.id}/dokument`;
                 if (m.dokumentId)
-                    spouseDocBtn += `<button class="fam-tile-doc fam-tile-doc-ok" onclick="event.stopPropagation();openDirectDoc(${m.dokumentId})" title="Verknüpften Ausweis öffnen">🪪 Ausweis ✓</button>`;
-                spouseDocBtn += m.geburtsurkundeDokumentId
-                    ? `<button class="fam-tile-doc fam-tile-doc-ok" onclick="event.stopPropagation();openDirectDoc(${m.geburtsurkundeDokumentId})" title="Verknüpfte Geburtsurkunde öffnen">📄 Geburtsurkunde ✓</button>`
-                    : `<button class="fam-tile-doc" onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'fam_geburtsurkunde',{familyMemberId:${m.id}})" title="Geburtsurkunde verknüpfen oder hochladen">📄 Geburtsurkunde</button>`;
+                    spouseDocBtn += docIconBtn({ docId: m.dokumentId, was: 'Ausweis Kind', stop: true, style: 'margin-right:4px',
+                        verknuepfen: `openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})`,
+                        loesen: `docLoesenPatch('${famUrl}','Ausweis Kind',()=>loadFamilieTab(${employeeId}))` });
+                spouseDocBtn += docIconBtn({ docId: m.geburtsurkundeDokumentId, was: 'Geburtsurkunde', stop: true,
+                    verknuepfen: `openAusweisDokuModal(${employeeId},'fam_geburtsurkunde',{familyMemberId:${m.id}})` });
             }
             if (type === 'Konkubinatspartner') {
                 spousePermitBadge += `<span class="fam-tile-badge" style="background:#fce7f3;color:#9d174d" title="Konkubinat — befreit NICHT von der QST (auch mit CH/C); H1/A0 läuft über das gemeinsame Kind">💞 Konkubinat</span>`;
@@ -6230,6 +6227,51 @@ async function openDirectDocVerknuepft(docId, kind, ctx) {
                 onclick="filePreviewClose(); openAusweisDokuModal(${empId},'${kind}',${ctxJs})">↻ Anderes Dokument verknüpfen</button>
         <button type="button" style="${knopf};color:#b91c1c" title="Nur die Verknüpfung lösen — das Dokument bleibt in den Dokumenten"
                 onclick="filePreviewClose(); ${loesen}">Verknüpfung lösen</button>`);
+}
+
+// ══ Doku-Symbol, überall gleich (Walter 26.09.2026) ══════════════════════
+// Grün = verknüpft: Klick zeigt das Dokument, unten im Vorschaufenster
+// «↻ Anderes Dokument verknüpfen» und (wo möglich) «Verknüpfung lösen».
+// Gelb = nicht verknüpft: Klick öffnet das Verknüpfen. Nur das Symbol, der
+// Text steht im Tooltip. opts: { docId, was, verknuepfen (JS), loesen (JS,
+// optional), stop (Klick nicht an die Kachel weitergeben), style (extra) }.
+const _DOK_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+window._docIconReg = window._docIconReg || {};
+let _docIconN = 0;
+function docIconBtn(opts) {
+    const stop = opts.stop ? 'event.stopPropagation();' : '';
+    const base = 'border-radius:6px;padding:3px 5px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;line-height:1;font-family:inherit;flex-shrink:0;' + (opts.style || '');
+    const was = opts.was || 'Dokument';
+    if (opts.docId) {
+        const key = 'd' + (++_docIconN);
+        window._docIconReg[key] = { was, verknuepfen: opts.verknuepfen || '', loesen: opts.loesen || '' };
+        return `<button type="button" class="emp-field-docbtn" title="${was} verknüpft — klicken zum Anschauen"
+                   onclick="${stop}docIconOeffnen(${opts.docId}, '${key}')"
+                   style="${base};background:#dcfce7;border:1px solid #86efac;color:#15803d">${_DOK_SVG}</button>`;
+    }
+    return `<button type="button" class="emp-field-docbtn" title="${was}: noch nicht verknüpft — klicken zum Verknüpfen oder Hochladen"
+               onclick="${stop}${opts.verknuepfen}"
+               style="${base};background:#fef3c7;border:1px dashed #fcd34d;color:#92400e">${_DOK_SVG}</button>`;
+}
+async function docIconOeffnen(docId, key) {
+    const reg = window._docIconReg[key] || {};
+    if (!(await openDirectDoc(docId)) || typeof filePreviewSetExtra !== 'function') return;
+    const knopf = 'padding:7px 14px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer';
+    filePreviewSetExtra(
+        (reg.verknuepfen ? `<button type="button" style="${knopf};color:#0f172a" title="${reg.was}: anderes Dokument wählen oder hochladen — ersetzt das bisherige"
+                onclick="filePreviewClose(); ${reg.verknuepfen}">↻ Anderes Dokument verknüpfen</button>` : '')
+        + (reg.loesen ? `<button type="button" style="${knopf};color:#b91c1c" title="Nur die Verknüpfung lösen — das Dokument bleibt in den Dokumenten"
+                onclick="filePreviewClose(); ${reg.loesen}">Verknüpfung lösen</button>` : ''));
+}
+// Verknüpfung per PATCH {dokumentId:null} lösen, danach neu laden.
+async function docLoesenPatch(url, was, nachher) {
+    if (!(await liquidConfirm(`${was} lösen?\n\nNur die Verknüpfung wird entfernt — das Dokument selbst bleibt in den Dokumenten.`,
+            { title: 'Verknüpfung lösen', yesLabel: 'Lösen', noLabel: 'Abbrechen' }))) return;
+    try {
+        const r = await fetch(url, { method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify({ dokumentId: null }) });
+        if (!r.ok) { const j = await r.json().catch(() => null); alert(j?.message || `Lösen fehlgeschlagen (${r.status})`); return; }
+        if (typeof nachher === 'function') nachher();
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
 // Bankbeleg vom Konto lösen (Walter 26.09.2026) — das Dokument bleibt in den Dokumenten.
@@ -10075,15 +10117,12 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                          <polyline points="14 2 14 8 20 8"/>
                          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
                        </svg>`;
-            const docBtn = a.dokumentId
-                ? `<button type="button" class="abs-dok-btn" title="Verknüpftes Dokument öffnen"
-                           onclick="openDirectDoc(${a.dokumentId})"
-                           style="background:#dcfce7;border-color:#86efac;color:#15803d">${docSvg}</button>`
-                : (a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
-                    ? `<button type="button" class="abs-dok-btn" title="Kein Arztzeugnis verknüpft — klicken zum Verknüpfen oder Hochladen"
-                               onclick="openAusweisDokuModal(${employeeId},'absenz',{absenceId:${a.id}})"
-                               style="background:#fef3c7;border:1px dashed #fcd34d;color:#92400e">${docSvg}</button>`
-                    : '';
+            // Doku-Symbol wie überall (Walter 26.09.2026); gelb nur bei Krankheit/Unfall.
+            const docBtn = (a.dokumentId || a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
+                ? docIconBtn({ docId: a.dokumentId, was: a.absenceType === 'KRANK' || a.absenceType === 'UNFALL' ? 'Arztzeugnis' : 'Dokument zur Absenz',
+                    verknuepfen: `openAusweisDokuModal(${employeeId},'absenz',{absenceId:${a.id}})`,
+                    loesen: `docLoesenPatch('/api/employees/${employeeId}/absences/${a.id}/dokument','Dokument der Absenz',()=>loadAbsenzenTab(${employeeId}))` })
+                : '';
 
             // Soft-Lock (Walter Aug 2026): nur wenn Definitiv «abgeschlossen»
             // (DTA) — Flag kommt vom Server (inLohnVerwendet).
@@ -11835,7 +11874,7 @@ async function loadLohnAssignmentsTab(employeeId) {
 
 function renderLohnAssignmentsList(el, list) {
     // Walter 02.08.2026: Dokument-Pflicht wie Bewilligungen —
-    // «🔗 Doku verknüpfen» (gestrichelt) / «👁 Doku» (grün) + Header-Badge.
+    // Doku-Symbol (grün = anschauen, gelb = verknüpfen) + Header-Badge.
     const fmt = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const today = new Date().toISOString().slice(0, 10);
     const missingDok = list.filter(a => !a.dokumentId).length;
@@ -11905,16 +11944,8 @@ function renderLohnAssignmentsList(el, list) {
             ? '#fef2f2'
             : (wirksam ? '#f0fdf4' : '#fafafa');
 
-        const dokBtn = hasDok
-            ? `<button type="button" onclick="qstOpenBefreiungsDok(${a.employeeId || selectedEmployeeId}, ${a.dokumentId})"
-                   style="flex-shrink:0;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px"
-                   title="${esc(a.dokumentName || 'Dokument')} anschauen">
-                   👁 Doku
-               </button>`
-            : `<button type="button" onclick="laOpenDokuModal(${a.id})"
-                   style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer">
-                   🔗 Doku verknüpfen
-               </button>`;
+        const dokBtn = docIconBtn({ docId: hasDok ? a.dokumentId : null, was: 'Beleg Lohnabtretung',
+            verknuepfen: `laOpenDokuModal(${a.id})`, loesen: `laUnlinkDokument(${a.id})` });
 
         const card = `
         <div style="padding:8px 12px;border:${rowBorder};border-radius:8px;background:${rowBg};margin-bottom:6px;display:flex;align-items:flex-start;gap:12px">
@@ -13787,9 +13818,9 @@ async function loadWeitereAgTab(employeeId) {
             const ort = [a.plz, a.ort].filter(Boolean).join(' ') + (a.kanton ? ' ' + a.kanton : '');
             const pensum = [a.pensumProzent != null ? `${Number(a.pensumProzent)} %` : '', a.stundenProWoche != null ? `${Number(a.stundenProWoche)} h/Wo.` : ''].filter(Boolean).join(' · ') || '–';
             const base = 'margin-left:8px;border-radius:6px;padding:2px 7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;line-height:1';
-            const erlaubnis = !a.istHauptarbeitgeber ? '' : a.erlaubnisDokumentId
-                ? `<button type="button" onclick="openDirectDoc(${a.erlaubnisDokumentId})" title="Erlaubnis Hauptarbeitgeber öffnen" style="${base};background:#dcfce7;border:1px solid #86efac;color:#15803d">Erlaubnis ✓</button>`
-                : `<button type="button" onclick="openAusweisDokuModal(${employeeId},'weitere_ag',{weitereAgId:${a.id}})" title="Erlaubnis des Hauptarbeitgebers verknüpfen oder hochladen" style="${base};background:#fef2f2;border:1px dashed #fca5a5;color:#b91c1c">Erlaubnis fehlt</button>`;
+            const erlaubnis = !a.istHauptarbeitgeber ? '' : docIconBtn({ docId: a.erlaubnisDokumentId, was: 'Erlaubnis Hauptarbeitgeber', style: 'margin-left:8px',
+                verknuepfen: `openAusweisDokuModal(${employeeId},'weitere_ag',{weitereAgId:${a.id}})`,
+                loesen: `docLoesenPatch('/api/employees/${employeeId}/weitere-arbeitgeber/${a.id}/dokument','Erlaubnis Hauptarbeitgeber',()=>loadWeitereAgTab(${employeeId}))` });
             const aJson = JSON.stringify(a).replace(/'/g, '&#39;');
             return `<tr style="${aktiv ? '' : 'opacity:0.6;'}border-bottom:1px solid #f1f5f9">
                 <td style="padding:10px 14px"><div style="font-weight:600">${esc(a.name)}</div>
@@ -13926,8 +13957,8 @@ function openWeitererAgModal(employeeId, ag) {
 }
 
 // Doku pro Bankkonto (Walter 23.09.2026, Look seit 25.09.2026 wie bei der
-// Bewilligung): grün «👁 Doku» = verknüpft (Klick = anschauen), gestrichelt
-// «🔗 Doku verknüpfen» = fehlt (Klick = verknüpfen/hochladen). Ersetzen über ⋮.
+// Bewilligung): Doku-Symbol grün = verknüpft (Klick = anschauen, unten ersetzen/lösen),
+// gelb = fehlt (Klick = verknüpfen/hochladen).
 function _bankBelegPill(employeeId, b) {
     // Gleiches System wie AHV/Pass (Walter 26.09.2026): grün = verknüpft (Klick =
     // Vorschau, unten «Anderes Dokument verknüpfen» / «Verknüpfung lösen»);
@@ -15723,16 +15754,9 @@ function renderPermitListHtml(entries) {
         // Dokument im Vorschau-Panel (anschauen!) — neu verknüpfen/ersetzen
         // läuft über das ⋮-Menü. Nur der gestrichelte «verknüpfen»-Button
         // (kein Doku) öffnet weiterhin direkt den Picker.
-        const dokBtn = h.dokumentId
-            ? `<button type="button" onclick='qstOpenBefreiungsDok(selectedEmployeeId, ${h.dokumentId})'
-                   style="flex-shrink:0;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px"
-                   title="${esc(h.dokumentName || 'Dokument')} anschauen">
-                   👁 Doku
-               </button>`
-            : `<button type="button" onclick='permitOpenDokuModal(${h.id})'
-                   style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer">
-                   🔗 Doku verknüpfen
-               </button>`;
+        const dokBtn = docIconBtn({ docId: h.dokumentId, was: 'Bewilligung', style: 'margin-right:2px',
+            verknuepfen: `permitOpenDokuModal(${h.id})`,
+            loesen: `docLoesenPatch('/api/employees/${selectedEmployeeId}/permit-history/${h.id}/dokument','Bewilligungs-Dokument',()=>{ loadPermitHistory(selectedEmployeeId); selectEmployee(selectedEmployeeId); })` });
         // Walter 19.07.2026: bei abgelaufener Bewilligung SMS-Erinnerung an den MA
         // (eCall, analog Vertrags-SMS). Ohne Handynummer grau/disabled.
         const phone = (selectedEmployee?.phoneMobile || '').trim();
@@ -15768,7 +15792,6 @@ function renderPermitListHtml(entries) {
                 <button class="dok-menu-btn" onclick="permitToggleMenu(event, ${h.id})" title="Aktionen">⋮</button>
                 <div class="dok-menu" id="permitMenu-${h.id}">
                     <button class="dok-menu-item" onclick='openPermitHistoryModal(${h.id})'>Bearbeiten</button>
-                    ${h.dokumentId ? `<button class="dok-menu-item" onclick='permitOpenDokuModal(${h.id})'>Doku ersetzen</button>` : ''}
                     <button class="dok-menu-item danger" onclick='deletePermitHistoryEntry(${h.id})'>Löschen</button>
                 </div>
             </div>` : ''}
