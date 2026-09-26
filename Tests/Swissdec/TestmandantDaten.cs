@@ -241,6 +241,30 @@ public static class TestmandantDaten
         return res;
     }
 
+    /// <summary>
+    /// Dokumentierte CSV-Lücken, die Walter im Testmandanten von Hand nachgetragen hat
+    /// (docs/swissdec-abweichungsprotokoll.md, F5 / F5b). Ohne sie rechnet der Nachrechner
+    /// gegen unvollständige Eingaben und meldet Abweichungen, die es in der Testinstanz
+    /// nicht gibt. Reihenfolge: tf → Monat → Lohnart → Betrag.
+    /// </summary>
+    public static void ErgaenzeCsvLuecken(Dictionary<string, SortedDictionary<string, Dictionary<string, decimal>>> lohnarten)
+    {
+        // F5: TF11 Bosshard März 2025 — Mitarbeiterbeteiligung 20'000 fehlt als Lohnposten,
+        // in der CSV steht nur «5210 Ausgleich geldwerte Vorteile» 20'250. XML: OwnershipRight
+        // 20'000, AHV März 36'550. Nachgetragen als «1960 Steuerbare Beteiligungsrechte».
+        // F5b: Spiegel im Juni — CSV 5210 = −19'750, Lohnposten −20'000 fehlt ebenso.
+        Ergaenze(lohnarten, "TF11", "2025-03", "1960",  20000m);
+        Ergaenze(lohnarten, "TF11", "2025-06", "1960", -20000m);
+    }
+
+    private static void Ergaenze(Dictionary<string, SortedDictionary<string, Dictionary<string, decimal>>> lohnarten,
+                                 string tf, string monat, string code, decimal betrag)
+    {
+        if (!lohnarten.TryGetValue(tf, out var proMonat)) return;
+        if (!proMonat.TryGetValue(monat, out var arten)) proMonat[monat] = arten = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        arten[code] = arten.GetValueOrDefault(code) + betrag;
+    }
+
     // ── Swissdec-Lohnartenkatalog (SV-Pflichten) ────────────────────────────
     public sealed record Lohnart(string Code, string Bezeichnung, bool Brutto, bool Ahv, bool Uvg, bool Uvgz, bool Ktg, bool Bvg, bool Qst);
 

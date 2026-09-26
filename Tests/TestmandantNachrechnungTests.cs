@@ -24,16 +24,30 @@ public class TestmandantNachrechnungTests
                                  decimal Wir, decimal Swissdec, string Hinweis)
     {
         public decimal Diff => Wir - Swissdec;
+        /// <summary>BEWUSST (Abweichungsprotokoll) · WERKZEUG (Grenze des Nachrechners) · OFFEN.</summary>
+        public string Art { get; init; } = "OFFEN";
+        public string Grund { get; init; } = "";
     }
 
     /// <summary>
-    /// Bekannte, bewusste Abweichungen (docs/swissdec-abweichungsprotokoll.md) — sie
-    /// erscheinen im Bericht, zählen aber nicht als Fehler.
+    /// Bekannte Fälle einordnen, damit die offene Liste nur enthält, was wirklich
+    /// noch zu klären ist (Walter 26.09.2026).
     /// </summary>
-    private static bool IstBewusst(Befund b) =>
-        // A7: Teilmonat — Swissdec zahlt den vollen Monatslohn und kürzt mit Lohnart 1001,
-        // OneCrew rechnet die Tage selbst (TF25/26 Februar 8'400 vs 8'000).
-        (b.Tf is "TF25" or "TF26" && b.Monat == "2025-02");
+    private static Befund Einordnen(Befund b) => b switch
+    {
+        // Abweichungsprotokoll A7: Teilmonat — Swissdec zahlt den vollen Monatslohn und
+        // kürzt mit Lohnart 1001, OneCrew rechnet die Tage selbst (Eintritt 10.02.).
+        { Tf: "TF25" or "TF26", Monat: "02" }
+            => b with { Art = "BEWUSST", Grund = "A7 Teilmonat: Eintrittstag zählt (8'400 statt 8'000)" },
+
+        // Nachzahlung nach Austritt: die Engine rechnet sie über die Anstellungsmonate des
+        // AUSTRITTSJAHRES ab (Alter, Sätze, Höchstlöhne per Austrittsmonat, CalculateCorrectionAsync).
+        // Der Nachrechner kennt nur das laufende Jahr — er kann den Fall nicht abbilden.
+        { Tf: "TF07", Monat: "01" or "02" }
+            => b with { Art = "WERKZEUG", Grund = "Nachzahlung nach Austritt (Austrittsjahr 2024) — Korrekturlauf, nicht im Nachrechner" },
+
+        _ => b,
+    };
 
     [Fact]
     public void AlleTestfaelle_GegenRefXml()
@@ -43,6 +57,7 @@ public class TestmandantNachrechnungTests
         var personen   = TestmandantDaten.LadePersonen();
         var mutationen = TestmandantDaten.LadeMutationen();
         var lohnarten  = TestmandantDaten.LadeLohnarten();
+        TestmandantDaten.ErgaenzeCsvLuecken(lohnarten);
 
         var xmlYtd   = Enumerable.Range(1, 12).ToDictionary(m => m, m => TestmandantDaten.LadeXmlYtd(Jahr, m));
         var xmlMonat = Enumerable.Range(1, 12).ToDictionary(m => m, m => TestmandantDaten.LadeXmlMonat(Jahr, m));
@@ -103,7 +118,8 @@ public class TestmandantNachrechnungTests
             }
         }
 
-        var offen = befunde.Where(b => !IstBewusst(b)).ToList();
+        befunde = befunde.Select(Einordnen).ToList();
+        var offen = befunde.Where(b => b.Art == "OFFEN").ToList();
         SchreibeBericht(befunde, offen, gepruefteWerte, gepruefteMonate);
 
         // Stand 26.09.2026: die verbleibenden Abweichungen sind im Bericht einzeln
@@ -116,12 +132,14 @@ public class TestmandantNachrechnungTests
     }
 
     /// <summary>
-    /// Stand beim Bau des Nachrechners (26.09.2026): 48 Abweichungen in 9 Testfällen,
-    /// aufgelistet in `SWISSCEC/Abgleich/nachrechnung.md`. Bewusst als Deckel, nicht als
-    /// Ziel — jede abgearbeitete Abweichung senkt die Zahl, eine neue lässt den Test rot
-    /// werden. NICHT anheben, ohne die neue Abweichung verstanden zu haben.
+    /// Offene Abweichungen, die noch niemand erklärt hat — Stand 26.09.2026: **29** in
+    /// sieben Testfällen (TF03, TF09, TF12, TF15, TF16, TF40, TF41), aufgelistet in
+    /// `SWISSCEC/Abgleich/nachrechnung.md`. Eingeordnete Fälle (BEWUSST / WERKZEUG,
+    /// siehe <see cref="Einordnen"/>) zählen hier NICHT mit.
+    /// Deckel, nicht Ziel: jede geklärte Abweichung senkt die Zahl, eine neue lässt den
+    /// Test rot werden. NICHT anheben, ohne die neue Abweichung verstanden zu haben.
     /// </summary>
-    private const int ErwarteteAbweichungen = 48;
+    private const int ErwarteteAbweichungen = 29;
 
     private static void SchreibeBericht(List<Befund> alle, List<Befund> offen, int werte, int monate)
     {
@@ -133,24 +151,24 @@ public class TestmandantNachrechnungTests
         sb.AppendLine("Personen + Mutationen aus den beiden anderen CSV — gerechnet mit `PayrollCalculations.BuildResult`,");
         sb.AppendLine("verglichen mit `SWISSCEC/RefXML/*_RETROSPECTIVE.xml` (YTD-Basen) und `*_MONTHLY.xml` (SV-Abzug).");
         sb.AppendLine();
-        sb.AppendLine($"**{monate} Monatsabrechnungen, {werte} Vergleiche, {offen.Count} offene Abweichungen"
-                      + $" ({alle.Count - offen.Count} bewusst).**");
+        sb.AppendLine($"**{monate} Monatsabrechnungen, {werte} Vergleiche, {offen.Count} offene Abweichungen** "
+                      + $"(dazu {alle.Count(b => b.Art == "BEWUSST")} bewusste und "
+                      + $"{alle.Count(b => b.Art == "WERKZEUG")} Werkzeug-Grenzen, unten aufgeführt).");
         sb.AppendLine();
         sb.AppendLine("Nicht Teil dieser Nachrechnung (kommt im Lohnlauf aus der Datenbank): Stunden, Verträge,");
         sb.AppendLine("Saldi, Ferien-/Feiertag-Tage, 13.-ML-Rückstellung, Quellensteuer.");
         sb.AppendLine();
-        sb.AppendLine("## Bekannte Grenzen des Nachrechners");
+        sb.AppendLine("## Grenzen des Nachrechners");
         sb.AppendLine();
-        sb.AppendLine("Diese Punkte kann der Nachrechner nicht abbilden — die Abweichungen unten sind dort");
-        sb.AppendLine("**kein** Befund gegen die Lohnrechnung, sondern eine Lücke des Prüfwerkzeugs:");
-        sb.AppendLine();
-        sb.AppendLine("- **Nachzahlung nach Austritt** (TF07 Burri Jan/Feb): die Engine rechnet sie über die");
-        sb.AppendLine("  Anstellungsmonate des Austrittsjahres ab (Alter, Sätze und Höchstlöhne per Austrittsmonat,");
+        sb.AppendLine("- **Nachzahlung nach Austritt**: die Engine rechnet sie über die Anstellungsmonate des");
+        sb.AppendLine("  Austrittsjahres ab (Alter, Sätze und Höchstlöhne per Austrittsmonat,");
         sb.AppendLine("  `CalculateCorrectionAsync`). Der Nachrechner kennt nur das laufende Jahr.");
         sb.AppendLine("- **Monate ohne Lohnart** werden übersprungen; im echten Lohnlauf zählen sie als");
-        sb.AppendLine("  Beschäftigungsmonat für den kumulierten Höchstlohn (betrifft Ein-/Austrittsmonate).");
-        sb.AppendLine("- **Austritt und Wiedereintritt im selben Jahr** (TF40, TF41) bildet der Nachrechner nur");
-        sb.AppendLine("  über ein Vertragsfenster ab.");
+        sb.AppendLine("  Beschäftigungsmonat für den kumulierten Höchstlohn (Ein-/Austrittsmonate).");
+        sb.AppendLine("- **Austritt und Wiedereintritt im selben Jahr** bildet der Nachrechner nur über ein");
+        sb.AppendLine("  Vertragsfenster ab.");
+        sb.AppendLine("- **Dokumentierte CSV-Lücken** (F5/F5b, TF11 März/Juni) trägt `ErgaenzeCsvLuecken` nach,");
+        sb.AppendLine("  genau wie sie in der Testinstanz von Hand erfasst sind.");
         sb.AppendLine();
 
         if (offen.Count > 0)
@@ -167,16 +185,22 @@ public class TestmandantNachrechnungTests
         }
         else sb.AppendLine("## Keine offenen Abweichungen\n");
 
-        var bewusst = alle.Except(offen).ToList();
-        if (bewusst.Count > 0)
+        foreach (var (art, titel) in new[]
+                 {
+                     ("BEWUSST",  "Bewusste Abweichungen (docs/swissdec-abweichungsprotokoll.md)"),
+                     ("WERKZEUG", "Grenzen des Nachrechners — kein Befund gegen die Lohnrechnung"),
+                 })
         {
-            sb.AppendLine("## Bewusste Abweichungen (Abweichungsprotokoll)");
+            var gruppe = alle.Where(b => b.Art == art).ToList();
+            if (gruppe.Count == 0) continue;
+            sb.AppendLine($"## {titel}");
             sb.AppendLine();
-            sb.AppendLine("| Testfall | Monat | Prüfung | OneCrew | Swissdec |");
-            sb.AppendLine("|---|---|---|---:|---:|");
-            foreach (var b in bewusst.OrderBy(b => b.Tf, StringComparer.Ordinal).ThenBy(b => b.Monat, StringComparer.Ordinal))
+            sb.AppendLine("| Testfall | Monat | Prüfung | OneCrew | Swissdec | Grund |");
+            sb.AppendLine("|---|---|---|---:|---:|---|");
+            foreach (var b in gruppe.OrderBy(b => b.Tf, StringComparer.Ordinal).ThenBy(b => b.Monat, StringComparer.Ordinal))
                 sb.AppendLine($"| {b.Tf} {b.Name} | {b.Monat} | {b.Was} | {b.Wir.ToString("N2", CultureInfo.InvariantCulture)} "
-                            + $"| {b.Swissdec.ToString("N2", CultureInfo.InvariantCulture)} |");
+                            + $"| {b.Swissdec.ToString("N2", CultureInfo.InvariantCulture)} | {b.Grund} |");
+            sb.AppendLine();
         }
 
         var ziel = Path.Combine(TestmandantDaten.RepoRoot, "SWISSCEC", "Abgleich");

@@ -139,7 +139,15 @@ Beschäftigungsmonate, AHV-Freibetrag ab Referenzalter samt Verzicht, Versicheru
 13.-ML-Rückstellung, Quellensteuer. Dafür braucht es weiterhin einen echten Lohnlauf — aber
 stichprobenweise statt Monat für Monat.
 
-**Stand 26.09.2026:** 384 Monatsabrechnungen, 2'565 Vergleiche, **48 offene Abweichungen** in 9
-Testfällen (TF03, TF07, TF09, TF11, TF12, TF15, TF16, TF40, TF41) — die Arbeitsliste steht im
-Bericht. Die Zahl ist im Test als Deckel festgehalten: wird sie grösser, hat eine Änderung an der
-Lohnrechnung etwas bewegt. Nicht anheben, ohne die neue Abweichung verstanden zu haben.
+**Einordnung der Befunde** (`Einordnen` im Test): **BEWUSST** = im Abweichungsprotokoll belegt
+(z.B. A7 Teilmonat TF25/26); **WERKZEUG** = Grenze des Nachrechners, kein Befund gegen die
+Lohnrechnung (Nachzahlung nach Austritt TF07 — die Engine rechnet sie über das Austrittsjahr,
+`CalculateCorrectionAsync`); **OFFEN** = noch zu klären. Dokumentierte CSV-Lücken trägt
+`TestmandantDaten.ErgaenzeCsvLuecken` nach, genau wie in der Testinstanz von Hand erfasst
+(F5/F5b: TF11 Bosshard, Beteiligung 20'000 im März, Storno im Juni).
+
+**Stand 26.09.2026:** 384 Monatsabrechnungen, 2'565 Vergleiche, **29 offene Abweichungen** in
+sieben Testfällen (TF03, TF09, TF12, TF15, TF16, TF40, TF41) plus 9 Werkzeug-Grenzen (TF07) —
+die Arbeitsliste steht im Bericht. Die Zahl der OFFENEN ist im Test als Deckel festgehalten:
+wird sie grösser, hat eine Änderung an der Lohnrechnung etwas bewegt. Nicht anheben, ohne die
+neue Abweichung verstanden zu haben.
