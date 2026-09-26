@@ -119,3 +119,27 @@ zusätzlich `app_user.is_super_admin` (403 `NUR_SUPERADMIN`). Die offiziellen Ad
 `Services/Elm/ElmEndpunkte.cs` (zwei Knöpfe füllen sie ein); die **freie Eingabe bleibt bewusst offen**,
 weil die Testinfrastruktur wechselnde Receiver-Adressen liefert und ohnehin nur der Super-Admin
 hinkommt. Tests: `Tests/ElmAdressierungTests.cs`.
+
+## Nachrechner Muster AG — offline gegen die RefXML (Walter 26.09.2026)
+
+`dotnet test --filter TestmandantNachrechnung` rechnet **alle Testfälle × alle Monate 2025 ohne
+Datenbank und ohne bestätigte Lohnläufe** nach: Lohnarten aus `wagetypes_export.csv`, Sätze und
+Lohnbänder aus `company_export.csv`, Personen + Mutationen aus den beiden anderen CSV — gerechnet
+mit der **echten** `PayrollCalculations.BuildResult`, verglichen mit `SWISSCEC/RefXML/*.xml`
+(RETROSPECTIVE = YTD-Basen, als Monats-Delta; MONTHLY = SV-Abzug). Bericht:
+`SWISSCEC/Abgleich/nachrechnung.md`. Code: `Tests/Swissdec/TestmandantDaten.cs` (Lader),
+`Tests/Swissdec/TestmandantNachrechner.cs` (Rechnung), `Tests/TestmandantNachrechnungTests.cs`.
+
+**Abgedeckt:** SV-Basen je Versicherung, Höchstlöhne und Lohnbänder, kumulierte Aufrollung über die
+Beschäftigungsmonate, AHV-Freibetrag ab Referenzalter samt Verzicht, Versicherungs-Codes
+(UVG A0/A1/A2/A3, UVGZ/KTG 10/11/12) und deren Wechsel unter dem Jahr, AHV/ALV-Befreiung
+(unter 18, `PersonAHVALVSpecialCase`).
+
+**Nicht abgedeckt** (kommt im Lohnlauf aus der DB): Stunden, Verträge, Saldi, Ferien-/Feiertag-Tage,
+13.-ML-Rückstellung, Quellensteuer. Dafür braucht es weiterhin einen echten Lohnlauf — aber
+stichprobenweise statt Monat für Monat.
+
+**Stand 26.09.2026:** 384 Monatsabrechnungen, 2'565 Vergleiche, **48 offene Abweichungen** in 9
+Testfällen (TF03, TF07, TF09, TF11, TF12, TF15, TF16, TF40, TF41) — die Arbeitsliste steht im
+Bericht. Die Zahl ist im Test als Deckel festgehalten: wird sie grösser, hat eine Änderung an der
+Lohnrechnung etwas bewegt. Nicht anheben, ohne die neue Abweichung verstanden zu haben.
