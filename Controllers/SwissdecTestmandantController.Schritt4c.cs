@@ -54,6 +54,36 @@ public partial class SwissdecTestmandantController
     public static bool WohnsitzImAusland(string? crossborder, string? wohnkanton)
         => crossborder != null || string.Equals(wohnkanton, "EX", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Die QST-Version, von der eine neue Version erbt: der letzte Eintrag VOR
+    /// <paramref name="ab"/> (Walter 26.09.2026, TF36 Maldini Oktober). Bewusst nicht
+    /// «≤ ab» — sonst faende ein zweiter Lauf desselben Monats den eigenen Eintrag,
+    /// erbte nichts mehr, und ein falscher Kanton aus einem frueheren Lauf bliebe stehen.
+    /// Reihenfolge: der Eintrag, der ab abdeckt; sonst der juengste davor; sonst
+    /// irgendeiner (Erstanlage aus der Zukunft heraus).
+    /// </summary>
+    public static EmployeeQuellensteuer? QstVorgaenger(IEnumerable<EmployeeQuellensteuer> eintraege, DateOnly ab)
+    {
+        var davor = eintraege.Where(q => q.ValidFrom < ab).OrderByDescending(q => q.ValidFrom).ToList();
+        return davor.FirstOrDefault(q => q.ValidTo == null || q.ValidTo >= ab)
+            ?? davor.FirstOrDefault()
+            ?? eintraege.OrderByDescending(q => q.ValidFrom).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Bis wann eine neue QST-Version ab <paramref name="ab"/> gilt: bis zum Tag vor der
+    /// naechsten bestehenden Version, sonst offen. Ohne das blieb beim Nachtragen eines
+    /// FRUEHEREN Monats eine offene Version stehen, die alle spaeteren ueberlappte —
+    /// in der Versionsliste zwei «AKTUELL» (Walter 26.09.2026, TF36 Maldini).
+    /// </summary>
+    public static DateOnly? QstEndeDerVersion(IEnumerable<DateOnly> alleStarts, DateOnly ab)
+    {
+        DateOnly? naechste = null;
+        foreach (var d in alleStarts)
+            if (d > ab && (naechste == null || d < naechste.Value)) naechste = d;
+        return naechste?.AddDays(-1);
+    }
+
     // Monatswerte → Schritt 5
     private static readonly HashSet<string> Monatswerte = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -453,7 +483,12 @@ public partial class SwissdecTestmandantController
                 if (!vorschau)
                 {
                     var eintraege = await _db.EmployeeQuellensteuer.Where(q => q.EmployeeId == emp.Id).OrderByDescending(q => q.ValidFrom).ToListAsync();
-                    var letzter = eintraege.FirstOrDefault(q => q.ValidFrom <= ab && (q.ValidTo == null || q.ValidTo >= ab)) ?? eintraege.FirstOrDefault();
+                    // Vorgaenger = der Eintrag VOR diesem Datum (Walter 26.09.2026, TF36 Maldini
+                    // Oktober): frueher fand «<= ab» beim WIEDERHOLTEN Anlegen den Eintrag des
+                    // Monats selbst, damit erbte er nichts mehr und ein falscher Kanton blieb
+                    // stehen. Jetzt leitet auch ein zweiter Lauf die Version wieder vom
+                    // Vorgaenger ab — der Import ist damit wirklich wiederholbar.
+                    var letzter = QstVorgaenger(eintraege, ab);
                     if (beenden)
                     {
                         foreach (var q in eintraege.Where(q => q.ValidTo == null || q.ValidTo >= ab)) q.ValidTo = ab.AddDays(-1);
@@ -461,10 +496,9 @@ public partial class SwissdecTestmandantController
                     else
                     {
                         var q = eintraege.FirstOrDefault(x => x.ValidFrom == ab);
-                        if (q == null)
+                        q ??= new EmployeeQuellensteuer { EmployeeId = emp.Id, ValidFrom = ab, ErfahrenAm = tag1, CreatedAt = DateTime.Now };
                         {
-                            q = new EmployeeQuellensteuer { EmployeeId = emp.Id, ValidFrom = ab, ErfahrenAm = tag1, CreatedAt = DateTime.Now };
-                            if (letzter != null)
+                            if (letzter != null && !ReferenceEquals(letzter, q))
                             {
                                 q.Steuerkanton = letzter.Steuerkanton; q.SteuerkantonName = letzter.SteuerkantonName; q.QstGemeinde = letzter.QstGemeinde; q.QstGemeindeBfsNr = letzter.QstGemeindeBfsNr;
                                 q.QstCode = letzter.QstCode; q.TarifCode = letzter.TarifCode; q.AnzahlKinder = letzter.AnzahlKinder; q.Kirchensteuer = letzter.Kirchensteuer;
@@ -475,8 +509,13 @@ public partial class SwissdecTestmandantController
                                 q.SpezielBewilligt = letzter.SpezielBewilligt;
                             }
                             q.TarifvorschlagQst = false;
-                            _db.EmployeeQuellensteuer.Add(q);
+                            if (q.Id == 0) _db.EmployeeQuellensteuer.Add(q);
+                            // Kette sauber schliessen (Walter 26.09.2026): Vorgaenger enden lassen
+                            // UND diese Version gegen die naechste begrenzen. Ohne das blieb beim
+                            // Nachtragen eines frueheren Monats eine offene Version stehen, die
+                            // spaetere ueberlappte — in der Liste zwei «AKTUELL» (TF36 Maldini).
                             foreach (var alt in eintraege.Where(x => x.ValidFrom < ab && (x.ValidTo == null || x.ValidTo >= ab))) alt.ValidTo = ab.AddDays(-1);
+                            q.ValidTo = QstEndeDerVersion(eintraege.Select(x => x.ValidFrom), ab);
                         }
                         q.ErfahrenAm = tag1;
                         if (code != null)
