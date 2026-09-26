@@ -6180,8 +6180,8 @@ function linkedDocButton(linkedCode, directKind) {
 // (fallbackCode), sonst grauer Knopf, der den Verknüpfen-Dialog öffnet.
 function directDocButton(docId, kind, fallbackCode) {
     if (docId) {
-        return `<button class="emp-field-docbtn" title="Dokument verknüpft — anschauen oder durch ein neueres ersetzen"
-                   onclick="directDocMenu(event, ${docId}, '${kind}')"
+        return `<button class="emp-field-docbtn" title="Dokument verknüpft — klicken zum Anschauen (ersetzen/lösen unten im Fenster)"
+                   onclick="openDirectDocVerknuepft(${docId}, '${kind}')"
                    style="margin-left:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                    <span>Doku ✓</span>
@@ -6197,9 +6197,10 @@ function directDocButton(docId, kind, fallbackCode) {
 }
 
 async function openDirectDoc(docId) {
-    if (!docId) return;
+    if (!docId) return false;
     if (typeof previewUrlFetch === 'function')
-        await previewUrlFetch(`/api/documents/preview/${docId}`, 'Dokument', ah());
+        return await previewUrlFetch(`/api/documents/preview/${docId}`, 'Dokument', ah());
+    return false;
 }
 
 // Walter 25.09.2026: Feld mit direkter Verknüpfung, die noch leer ist → IMMER
@@ -6208,27 +6209,22 @@ function openLinkedDocOrLink(code, kind) {
     openAusweisDokuModal(selectedEmployeeId, kind);
 }
 
-// Menü am grünen «Doku ✓» eines Feldes OHNE Historie (Pass/Ausweis, AHV-Karte,
-// Geburtsurkunde, Zivilstand — Walter 25.09.2026): anschauen, durch ein neueres
-// ersetzen (keine Historie, das alte bleibt nur in den Dokumenten) oder lösen.
+// Grünes «Doku ✓» eines Feldes OHNE Historie (Pass/Ausweis, AHV-Karte,
+// Geburtsurkunde, Zivilstand — Walter 26.09.2026): Klick zeigt das Dokument
+// direkt; unten links im Vorschaufenster «Anderes Dokument verknüpfen» (ersetzt,
+// keine Historie — das alte bleibt nur in den Dokumenten) und «Verknüpfung lösen».
 // Felder MIT Historie (Bewilligung, Vertrag, Bank, Absenz) haben das nicht.
-function directDocMenu(ev, docId, kind) {
-    ev.stopPropagation();
-    document.getElementById('ddMenu')?.remove();
-    const r = ev.currentTarget.getBoundingClientRect();
+async function openDirectDocVerknuepft(docId, kind) {
+    const empId = selectedEmployeeId;
     const labels = { id_pass: 'Ausweis', ahv_karte: 'AHV-Karte', geburtsurkunde: 'Geburtsurkunde', zivilstand: 'Zivilstandsdokument' };
     const was = labels[kind] || 'Dokument';
-    const m = document.createElement('div');
-    m.id = 'ddMenu';
-    m.className = 'dok-menu show';
-    m.style.cssText = `position:fixed;top:${Math.round(r.bottom + 4)}px;left:${Math.round(r.left)}px;z-index:9500;min-width:230px`;
-    m.innerHTML = `
-        <button class="dok-menu-item" onclick="document.getElementById('ddMenu')?.remove(); openDirectDoc(${docId})">👁 Anschauen</button>
-        <button class="dok-menu-item" onclick="document.getElementById('ddMenu')?.remove(); openAusweisDokuModal(selectedEmployeeId,'${kind}')">↻ Neueres Dokument verknüpfen</button>
-        <button class="dok-menu-item danger" onclick="document.getElementById('ddMenu')?.remove(); nwUnlinkDoku(selectedEmployeeId,'${kind}','${was}')">Verknüpfung lösen</button>`;
-    document.body.appendChild(m);
-    const zu = e => { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('click', zu, true); } };
-    setTimeout(() => document.addEventListener('click', zu, true), 0);
+    if (!(await openDirectDoc(docId)) || typeof filePreviewSetExtra !== 'function') return;
+    const knopf = 'padding:7px 14px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer';
+    filePreviewSetExtra(`
+        <button type="button" style="${knopf};color:#0f172a" title="${was}: neueres Dokument wählen oder hochladen — ersetzt das bisherige"
+                onclick="filePreviewClose(); openAusweisDokuModal(${empId},'${kind}')">↻ Anderes Dokument verknüpfen</button>
+        <button type="button" style="${knopf};color:#b91c1c" title="Nur die Verknüpfung lösen — das Dokument bleibt in den Dokumenten"
+                onclick="filePreviewClose(); nwUnlinkDoku(${empId},'${kind}','${was}')">Verknüpfung lösen</button>`);
 }
 
 // Nachgeladenes linked-codes-Set → bestehende Doku-Buttons tauschen,
