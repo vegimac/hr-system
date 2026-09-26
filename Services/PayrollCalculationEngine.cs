@@ -223,7 +223,7 @@ public class PayrollCalculationEngine
                              || (k.Status == "VERRECHNET"
                                  && existingPeriod != null
                                  && k.VerrechnetPeriodeId == existingPeriod.Id)))
-                .Select(k => new { k.Jahr, k.Monat, k.Differenz, k.AlterCode, k.NeuerCode, k.NeueVersionId })
+                .Select(k => new { k.Id, k.Jahr, k.Monat, k.Differenz, k.AlterCode, k.NeuerCode, k.NeueVersionId })
                 .ToListAsync();
             // Wissens-Achse: ein OFFENER Posten wird erst in dem Lohnlauf verrechnet, in dem
             // die neue Version bekannt ist (Erfahren am ≤ Periodenende) — nie früher.
@@ -243,6 +243,34 @@ public class PayrollCalculationEngine
             if (kPosten.Count > 0)
             {
                 qstKorrBetrag = Math.Round(kPosten.Sum(k => k.Differenz), 2);
+
+                // «Alt» = zuletzt gemeldeter Code DESSELBEN Monats (Swissdec Old-Block),
+                // nicht der Ur-Code des eingefrorenen Belegs: bei der zweiten Korrektur
+                // eines Monats (TF33 Châtelain — Mai erst A0Y→B0Y, im Juli dann B0Y→B1Y)
+                // stünde sonst weiter A0Y. QstKorrekturService setzt das seit 21.09.2026
+                // beim Anlegen; FRÜHER entstandene Posten tragen den Ur-Code noch und
+                // werden als VERRECHNET nicht mehr ersetzt — darum hier beim Anzeigen aus
+                // der Kette ableiten (Claude 26.09.2026). Der Betrag war immer richtig.
+                var korrJahre = kPosten.Select(k => k.Jahr).Distinct().ToList();
+                var korrKette = await _db.QstKorrekturen
+                    .Where(k => k.EmployeeId == employeeId && korrJahre.Contains(k.Jahr))
+                    .Select(k => new { k.Id, k.Jahr, k.Monat, k.NeuerCode })
+                    .ToListAsync();
+                string? VorigerCode(int id, int jahr, int monat) => korrKette
+                    .Where(f => f.Jahr == jahr && f.Monat == monat && f.Id < id
+                             && !string.IsNullOrWhiteSpace(f.NeuerCode))
+                    .OrderByDescending(f => f.Id)
+                    .Select(f => f.NeuerCode)
+                    .FirstOrDefault();
+                var kAnzeige = kPosten
+                    .Select(k => new
+                    {
+                        k.Jahr, k.Monat,
+                        AlterCode = VorigerCode(k.Id, k.Jahr, k.Monat) ?? k.AlterCode,
+                        k.NeuerCode
+                    })
+                    .ToList();
+
                 // Label: «Erstattung Apr/Mai A0N→B0N» — alle Monate als Mmm, nie als Zahl
                 // (Walter 18.09.2026). Feste DE-Kürzel, kein Culture-Lookup (Linux/ICU).
                 static string MonKurz(int jahr, int monat, int refJahr)
@@ -252,7 +280,7 @@ public class PayrollCalculationEngine
                     var name = monat is >= 1 and <= 12 ? mon[monat] : $"?{monat}";
                     return jahr == refJahr ? name : $"{name} {jahr}";
                 }
-                var teile = kPosten
+                var teile = kAnzeige
                     .GroupBy(k => (
                         Alt: string.IsNullOrWhiteSpace(k.AlterCode) ? "?" : k.AlterCode.Trim(),
                         Neu: string.IsNullOrWhiteSpace(k.NeuerCode) ? "?" : k.NeuerCode.Trim()))
