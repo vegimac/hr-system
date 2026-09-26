@@ -1664,6 +1664,9 @@ public class PayrollController : HrControllerBase
         decimal srvNet      = SrvDec("nettolohn");
         decimal srvAhv      = SrvDec("svBasisAhv");
         decimal srvBvg      = SrvDec("svBasisBvg");
+        // Ungedeckelt, für die Höchstlohn-Aufrollung der Folgemonate (Walter 26.09.2026).
+        decimal srvNbuv     = SrvDec("svBasisNbuv");
+        decimal srvKtg      = SrvDec("svBasisKtg");
         decimal srvQst      = SrvDec("qstBetrag");
         decimal srvHour     = SrvDec("neuerHourSaldo");
         decimal srvNacht    = SrvDec("neuerNachtSaldo");
@@ -1744,6 +1747,8 @@ public class PayrollController : HrControllerBase
         snapshot.Netto                  = srvNet;
         snapshot.SvBasisAhv             = srvAhv;
         snapshot.SvBasisBvg             = srvBvg;
+        snapshot.SvBasisNbuv            = srvNbuv;
+        snapshot.SvBasisKtg             = srvKtg;
         snapshot.QstBetrag              = srvQst;
         snapshot.ThirteenthAccumulated  = srv13Acc;
         snapshot.FerienGeldSaldo        = srvFerGeld;

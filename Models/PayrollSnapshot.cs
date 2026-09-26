@@ -24,6 +24,13 @@ public class PayrollSnapshot
     public decimal Netto                 { get; set; }
     public decimal SvBasisAhv            { get; set; }  // AHV/ALV-pflichtiger Lohn
     public decimal SvBasisBvg            { get; set; }  // BVG-pflichtiger Lohn (vor Koordinationsabzug)
+    // Ungedeckelte Monatsbasen für die Höchstlohn-Aufrollung (Walter 26.09.2026,
+    // Muster AG TF12 Casanova): NBU/UVG und KTG weichen von der AHV-Basis ab, sobald
+    // eine Lohnart die Pflichten unterschiedlich trägt (EO-Taggeld ist AHV-, nicht
+    // UVG-pflichtig). Mit dem AHV-Wert als Proxy lief der kumulierte Höchstlohn für
+    // UVG/UVGZ/KTG auf der falschen Grundlage.
+    public decimal SvBasisNbuv           { get; set; }  // NBU-/UVG-pflichtiger Lohn (ungedeckelt)
+    public decimal SvBasisKtg            { get; set; }  // KTG-pflichtiger Lohn (ungedeckelt)
     public decimal QstBetrag             { get; set; }  // Quellensteuer-Abzug (positiver Wert)
     public decimal ThirteenthAccumulated { get; set; }  // Kumulierter 13. ML per Ende dieser Periode
     public decimal FerienGeldSaldo       { get; set; }  // Feriengeldsaldo per Ende dieser Periode

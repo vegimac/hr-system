@@ -3039,6 +3039,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Netto).HasColumnName("netto").HasColumnType("numeric(10,2)");
             entity.Property(e => e.SvBasisAhv).HasColumnName("sv_basis_ahv").HasColumnType("numeric(10,2)");
             entity.Property(e => e.SvBasisBvg).HasColumnName("sv_basis_bvg").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.SvBasisNbuv).HasColumnName("sv_basis_nbuv").HasColumnType("numeric(10,2)").HasDefaultValue(0m);
+            entity.Property(e => e.SvBasisKtg).HasColumnName("sv_basis_ktg").HasColumnType("numeric(10,2)").HasDefaultValue(0m);
             entity.Property(e => e.QstBetrag).HasColumnName("qst_betrag").HasColumnType("numeric(10,2)");
             entity.Property(e => e.ThirteenthAccumulated).HasColumnName("thirteenth_accumulated").HasColumnType("numeric(10,2)");
             entity.Property(e => e.FerienGeldSaldo).HasColumnName("ferien_geld_saldo").HasColumnType("numeric(10,2)");

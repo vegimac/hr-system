@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 32;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026)
+const int SchemaStand = 33;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1537,6 +1537,22 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE employee_family_member ADD COLUMN IF NOT EXISTS geburtsurkunde_dokument_id INTEGER;
         ALTER TABLE employee_bank_account ADD COLUMN IF NOT EXISTS dokument_id INTEGER;
     ");
+    // Ungedeckelte SV-Basen je Versicherungsart im Snapshot (Walter 26.09.2026,
+    // Schema-Stand 33): die Höchstlohn-Aufrollung für NBU/UVG, UVGZ und KTG lief
+    // auf der AHV-Basis als Proxy — falsch, sobald eine Lohnart die Pflichten
+    // unterschiedlich trägt (TF12 Casanova: EO-Taggeld Juni 2'000 ist AHV-, nicht
+    // UVG-pflichtig → UVGZ-Basis August 12'350 statt 14'046.65).
+    // Altbestand: Wert aus dem eingefrorenen Slip übernehmen, sonst die AHV-Basis
+    // (= bisheriges Verhalten). Platzierung: VOR SchemaCheckService.Pruefe.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE payroll_snapshot ADD COLUMN IF NOT EXISTS sv_basis_nbuv NUMERIC(10,2) NOT NULL DEFAULT 0;
+        ALTER TABLE payroll_snapshot ADD COLUMN IF NOT EXISTS sv_basis_ktg  NUMERIC(10,2) NOT NULL DEFAULT 0;
+        UPDATE payroll_snapshot
+           SET sv_basis_nbuv = COALESCE((slip_json->>'svBasisNbuv')::numeric, sv_basis_ahv),
+               sv_basis_ktg  = COALESCE((slip_json->>'svBasisKtg')::numeric,  sv_basis_ahv)
+         WHERE sv_basis_nbuv = 0 AND sv_basis_ktg = 0;
+    ");
+
     // Unterschriebener Vertrag pro Vertragsabschnitt (Walter 23.09.2026).
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employment ADD COLUMN IF NOT EXISTS vertrag_dokument_id INTEGER;

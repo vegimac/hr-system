@@ -129,9 +129,20 @@ public class PayrollCalculationEngine
                && p.Year == year
                && p.Month >= 1 && p.Month < month
                && s.Status != "STORNIERT"
-            select new { p.Month, s.SvBasisAhv }
+            select new { p.Month, s.SvBasisAhv, s.SvBasisNbuv, s.SvBasisKtg }
         ).ToListAsync();
         List<decimal>? ytdSvBasesDez = ytdSnapshots.Select(x => x.SvBasisAhv).ToList();
+        // Die Aufrollung braucht je Versicherungsart ihre EIGENE ungedeckelte Basis
+        // (Walter 26.09.2026, TF12 Casanova): AHV ≠ UVG, sobald eine Lohnart die
+        // Pflichten unterschiedlich trägt (EO-Taggeld). Snapshots aus der Zeit vor
+        // Schema-Stand 33 tragen 0 → dann weiter die AHV-Basis wie bisher.
+        decimal YtdBasisFuer(string? categoryCode, decimal ahv, decimal nbuv, decimal ktg)
+            => (categoryCode ?? "").ToUpperInvariant() switch
+            {
+                "NBUV" or "UVGZ" => nbuv != 0m ? nbuv : ahv,
+                "KTG"            => ktg  != 0m ? ktg  : ahv,
+                _                => ahv,   // AHV, ALV, ALVZ, BVG … bleiben auf der AHV-Basis
+            };
         var ytdMonate = ytdSnapshots.Select(x => x.Month).ToHashSet();
         // AHV-Freibetrag kumuliert (Walter 21.09.2026, AHVV Art. 6quater, Swissdec TF16 Aebi Feb 2025):
         // Vormonate desselben Jahres, in denen der Freibetrag schon galt (ab Folgemonat des
@@ -695,8 +706,19 @@ public class PayrollCalculationEngine
         // ganzen Lohnlauf dieses Monats, Teilmonate gibt es hier nicht.
         foreach (var r in deductions)
         {
+            // NBU/UVGZ und KTG rollen auf ihrer eigenen Basis auf, nicht auf der AHV
+            // (Walter 26.09.2026). Ohne eigene Basis bleibt YtdBasenEigen null → die
+            // gemeinsame AHV-Liste greift wie bisher (ALV/ALVZ).
+            var eigeneArt = ytdSnapshots
+                .Select(x => YtdBasisFuer(r.CategoryCode, x.SvBasisAhv, x.SvBasisNbuv, x.SvBasisKtg))
+                .ToList();
+            bool eigeneBasis = !eigeneArt.SequenceEqual(ytdSvBasesDez);
+            if (eigeneBasis) r.YtdBasenEigen = eigeneArt;
+
             if (r.LoesungAb is not { } ab || ab.Year != year || ab.Month <= 1) continue;
-            r.YtdBasenEigen = ytdSnapshots.Where(x => x.Month >= ab.Month).Select(x => x.SvBasisAhv).ToList();
+            r.YtdBasenEigen = ytdSnapshots.Where(x => x.Month >= ab.Month)
+                .Select(x => YtdBasisFuer(r.CategoryCode, x.SvBasisAhv, x.SvBasisNbuv, x.SvBasisKtg))
+                .ToList();
             r.AusgleichMonateBisherEigen = PayrollCalculations.BeschaeftigungsMonate(
                 employee.Employments, year, ab.Month, month - 1, ytdMonate);
             r.AusgleichMonateEigen = r.AusgleichMonateBisherEigen
