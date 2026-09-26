@@ -13757,7 +13757,7 @@ function renderBankAccountsList(el, list) {
             <td style="padding:10px 14px;color:#94a3b8;font-size:12px">${b.bemerkung ?? ''}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">
               <div style="display:inline-flex;align-items:center;gap:8px">
-                ${_bankBelegPill(employeeId, b)}
+                ${_bankBelegPill(b.employeeId || selectedEmployeeId, b)}
                 ${b.inLohnVerwendet
                     ? `<span title="Diese Bankverbindung wurde bereits in einem Lohnlauf verwendet und ist nicht mehr editierbar. Für Änderungen: '+ Neue Bankverbindung' oben rechts." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
                     : `<div class="dok-menu-wrap" style="display:inline-block">
