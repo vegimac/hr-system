@@ -6150,9 +6150,9 @@ function linkedDocButton(linkedCode, directKind) {
         return `<button class="emp-field-docbtn" data-linked-code="${linkedCode}" data-direct-kind="${directKind}"
                    title="Noch kein Dokument verknüpft — klicken zum Verknüpfen oder Hochladen"
                    onclick="openLinkedDocOrLink('${linkedCode}','${directKind}')"
-                   style="margin-left:8px;background:#fef3c7;border:1px dashed #fcd34d;color:#92400e;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
+                   style="margin-left:8px;background:#fef3c7;border:1px dashed #fcd34d;color:#92400e;border-radius:6px;padding:3px 5px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                   <span>Doku verknüpfen</span>
+                   
                </button>`;
     }
     const tooltip = hasDoc ? 'Dokument vorhanden — klicken zum Öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
@@ -6162,7 +6162,7 @@ function linkedDocButton(linkedCode, directKind) {
     const onclickJs = directKind ? `openLinkedDocOrLink('${linkedCode}','${directKind}')` : `openLinkedDoc('${linkedCode}')`;
     return `<button class="emp-field-docbtn" data-linked-code="${linkedCode}"${directKind ? ` data-direct-kind="${directKind}"` : ''} title="${tooltip}"
                onclick="${onclickJs}"
-               style="margin-left:8px;${hasDoc ? styleActive : styleInactive};border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;transition:all .15s">
+               style="margin-left:8px;${hasDoc ? styleActive : styleInactive};border-radius:6px;padding:3px 5px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;transition:all .15s">
                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                  <polyline points="14 2 14 8 20 8"/>
@@ -6170,7 +6170,7 @@ function linkedDocButton(linkedCode, directKind) {
                  <line x1="16" y1="17" x2="8" y2="17"/>
                  <line x1="10" y1="9" x2="8" y2="9"/>
                </svg>
-               <span>Doku${hasDoc ? ' ✓' : ''}</span>
+               
            </button>`;
 }
 
@@ -6182,17 +6182,17 @@ function directDocButton(docId, kind, fallbackCode) {
     if (docId) {
         return `<button class="emp-field-docbtn" title="Dokument verknüpft — klicken zum Anschauen (ersetzen/lösen unten im Fenster)"
                    onclick="openDirectDocVerknuepft(${docId}, '${kind}')"
-                   style="margin-left:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
+                   style="margin-left:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:3px 5px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                   <span>Doku ✓</span>
+                   
                </button>`;
     }
     if (fallbackCode) return linkedDocButton(fallbackCode, kind);
     return `<button class="emp-field-docbtn" title="Noch kein Dokument verknüpft — klicken zum Verknüpfen oder Hochladen"
                onclick="openAusweisDokuModal(selectedEmployeeId,'${kind}')"
-               style="margin-left:8px;background:#fef3c7;border:1px dashed #fcd34d;color:#92400e;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
+               style="margin-left:8px;background:#fef3c7;border:1px dashed #fcd34d;color:#92400e;border-radius:6px;padding:3px 5px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-               <span>Doku verknüpfen</span>
+               
            </button>`;
 }
 
@@ -10078,10 +10078,11 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
             const docBtn = a.dokumentId
                 ? `<button type="button" class="abs-dok-btn" title="Verknüpftes Dokument öffnen"
                            onclick="openDirectDoc(${a.dokumentId})"
-                           style="background:#dcfce7;border-color:#86efac;color:#15803d">${docSvg}<span>Doku ✓</span></button>`
+                           style="background:#dcfce7;border-color:#86efac;color:#15803d">${docSvg}</button>`
                 : (a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
-                    ? `<button type="button" class="abs-dok-btn" title="Arztzeugnis verknüpfen oder hochladen"
-                               onclick="openAusweisDokuModal(${employeeId},'absenz',{absenceId:${a.id}})">${docSvg}<span>Doku</span></button>`
+                    ? `<button type="button" class="abs-dok-btn" title="Kein Arztzeugnis verknüpft — klicken zum Verknüpfen oder Hochladen"
+                               onclick="openAusweisDokuModal(${employeeId},'absenz',{absenceId:${a.id}})"
+                               style="background:#fef3c7;border:1px dashed #fcd34d;color:#92400e">${docSvg}</button>`
                     : '';
 
             // Soft-Lock (Walter Aug 2026): nur wenn Definitiv «abgeschlossen»
@@ -13932,16 +13933,16 @@ function _bankBelegPill(employeeId, b) {
     // Vorschau, unten «Anderes Dokument verknüpfen» / «Verknüpfung lösen»);
     // gelb = nichts verknüpft (Walter 26.09.2026: gelb, egal ob schon ein
     // Beleg in den Dokumenten liegt). Klick auf gelb = verknüpfen/hochladen.
-    const base = 'background:%BG%;border:1px %BORDER%;color:%COLOR%;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1';
+    const base = 'background:%BG%;border:1px %BORDER%;color:%COLOR%;border-radius:6px;padding:3px 5px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1';
     const stil = (bg, border, color) => base.replace('%BG%', bg).replace('%BORDER%', border).replace('%COLOR%', color);
     const svg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
     const verknuepfen = `openAusweisDokuModal(${employeeId},'bank_beleg',{bankAccountId:${b.id}})`;
     if (b.dokumentId)
         return `<button type="button" class="emp-field-docbtn" title="Bankbeleg verknüpft — klicken zum Anschauen (ersetzen/lösen unten im Fenster)"
                    onclick="openDirectDocVerknuepft(${b.dokumentId}, 'bank_beleg', {bankAccountId:${b.id}})"
-                   style="${stil('#dcfce7', 'solid #86efac', '#15803d')}">${svg}<span>Doku ✓</span></button>`;
+                   style="${stil('#dcfce7', 'solid #86efac', '#15803d')}">${svg}</button>`;
     return `<button type="button" class="emp-field-docbtn" title="Noch kein Bankbeleg verknüpft — klicken zum Verknüpfen oder Hochladen"
-               onclick="${verknuepfen}" style="${stil('#fef3c7', 'dashed #fcd34d', '#92400e')}">${svg}<span>Doku verknüpfen</span></button>`;
+               onclick="${verknuepfen}" style="${stil('#fef3c7', 'dashed #fcd34d', '#92400e')}">${svg}</button>`;
 }
 
 function formatIbanDisplay(iban) {
