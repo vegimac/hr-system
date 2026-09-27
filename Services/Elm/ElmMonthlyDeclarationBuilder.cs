@@ -103,6 +103,35 @@ public class ElmMonthlyDeclarationBuilder
         var employments = await _db.Employments.AsNoTracking()
             .Where(em => empIds.Contains(em.EmployeeId))
             .ToListAsync(ct);
+        // Statistik-Stammdaten: Ausbildung und Stellung stehen bereits in den
+        // LSE-Feldern (Walter 27.09.2026) — nicht nochmals erfassen, nur uebersetzen.
+        var lseJeMa = await _db.EmployeeLse.AsNoTracking()
+            .Where(l => empIds.Contains(l.EmployeeId))
+            .ToListAsync(ct);
+        var lseById = lseJeMa.ToDictionary(l => l.EmployeeId);
+        var stellungMapping = await _db.LseCodeMappings.AsNoTracking()
+            .Where(m => m.MappingTyp == "STELLUNG")
+            .ToListAsync(ct);
+
+        // Arbeitszeitmodelle der Rechtseinheit + Zuordnung je Person (Gueltig-ab).
+        var modelle = stamm.Hauptsitz == null
+            ? new List<Arbeitszeitmodell>()
+            : await _db.Arbeitszeitmodelle.AsNoTracking()
+                .Where(m => m.HauptsitzId == stamm.Hauptsitz.Id && m.IsActive)
+                .OrderBy(m => m.Id).ToListAsync(ct);
+        var zuordnungen = modelle.Count == 0
+            ? new List<EmployeeArbeitszeitmodell>()
+            : await _db.EmployeeArbeitszeitmodelle.AsNoTracking()
+                .Where(z => empIds.Contains(z.EmployeeId))
+                .ToListAsync(ct);
+        var unbrauchbar = modelle.Where(m => !m.IstMeldefaehig).ToList();
+        if (unbrauchbar.Count > 0)
+            return new BuildResult("", 0, 0, 0,
+                new List<string> { "Arbeitszeitmodelle ohne Wochenstunden UND ohne Wochenlektionen: "
+                    + string.Join(", ", unbrauchbar.Select(m => $"«{m.Bezeichnung}»"))
+                    + ". Swissdec verlangt einen der beiden Werte — bitte am Hauptsitz ergaenzen." },
+                new List<string>());
+
         var qstVersionen = await _db.EmployeeQuellensteuer.AsNoTracking()
             .Where(q => empIds.Contains(q.EmployeeId))
             .ToListAsync(ct);
@@ -171,7 +200,9 @@ public class ElmMonthlyDeclarationBuilder
                     ?? employments.Where(m => m.EmployeeId == e.Id)
                            .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
 
-                statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, statByCode, monatStr, monatsAnfang, monatsEnde, warn));
+                lseById.TryGetValue(e.Id, out var lse);
+                statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, statByCode, lse, stellungMapping,
+                                                       monatStr, monatsAnfang, monatsEnde, warn));
                 statZeilen++;
 
                 var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen, stamm, monatStr, monatsAnfang, warn);
@@ -189,14 +220,24 @@ public class ElmMonthlyDeclarationBuilder
 
             var emHaupt = employments.Where(m => m.EmployeeId == e.Id)
                 .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
+            // Am Monatsende gueltiges Modell (juengstes Gueltig-ab <= Monatsende).
+            var modellId = zuordnungen
+                .Where(z => z.EmployeeId == e.Id && z.GueltigAb <= DateOnly.FromDateTime(monatsEnde))
+                .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id)
+                .Select(z => (int?)z.ArbeitszeitmodellId).FirstOrDefault();
+            var modell = modellId != null ? modelle.FirstOrDefault(m => m.Id == modellId) : null;
+            modell ??= modelle.FirstOrDefault();   // Rueckfall: Standardmodell der Rechtseinheit
+
             var person = new XElement(Sd + "Person",
                 Particulars(e, warn, WohnGemeinde(e)),
                 new XElement(C + "Work",
                     new XAttribute("workID", WorkId(e)),
+                    modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
                     new XElement(C + "WorkingTime", WorkingTime(emHaupt, stamm.Haupt.NormalWeeklyHours ?? 42m)),
                     new XElement(C + "EntryDate", (e.EntryDate ?? emHaupt?.ContractStartDate ?? monatsAnfang).ToString("yyyy-MM-dd"))),
-                statistikZeilen.Count > 0 ? new XElement(Sd + "StatisticSalaries", statistikZeilen) : null,
-                qstZeilenPerson.Count > 0 ? new XElement(Sd + "TaxAtSourceSalaries", qstZeilenPerson) : null);
+                // Reihenfolge laut XSD (MonthlyPersonType): Quellensteuer VOR Statistik.
+                qstZeilenPerson.Count > 0 ? new XElement(Sd + "TaxAtSourceSalaries", qstZeilenPerson) : null,
+                statistikZeilen.Count > 0 ? new XElement(Sd + "StatisticSalaries", statistikZeilen) : null);
             personen.Add(person);
         }
 
@@ -255,16 +296,40 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "TotalCommission", "0.00"),
                 new XElement(Sd + "CurrentMonth", monatStr)))).ToList();
 
-        // ── Arbeitszeitmodelle: heute genau eines (bekannte Lücke) ───────────
-        var arbeitszeit = new List<XElement>
+        // ── Arbeitszeitmodelle der Rechtseinheit ─────────────────────────────
+        // Ohne erfasste Modelle gilt ein Standardmodell aus den Wochenstunden der
+        // Filiale — damit verhaelt sich Schaub wie bisher (42 h).
+        var arbeitszeit = new List<XElement>();
+        if (modelle.Count == 0)
         {
-            new(C + "CompanyWorkingTime",
+            arbeitszeit.Add(new XElement(C + "CompanyWorkingTime",
                 new XAttribute("companyWorkingTimeID", "#cwt1"),
-                new XElement(C + "WeeklyHours", Amt(stamm.Haupt.NormalWeeklyHours ?? 42m)))
-        };
-        warn.Add("Arbeitszeitmodelle: OneCrew kennt nur die Wochenstunden je Filiale und meldet deshalb EIN Modell. "
-               + "Die Referenz führt mehrere Modelle je Rechtseinheit (Stunden, Lektionen, gemischt), auf die jede Person verweist — "
-               + "dafür braucht es die Arbeitszeitmodell-Verwaltung (eigener Auftrag).");
+                new XElement(C + "WeeklyHours", Amt(stamm.Haupt.NormalWeeklyHours ?? 42m))));
+            warn.Add("Keine Arbeitszeitmodelle erfasst — gemeldet wird ein Standardmodell aus den Wochenstunden der Filiale "
+                   + $"({Amt(stamm.Haupt.NormalWeeklyHours ?? 42m)} h). Erfassung: Hauptsitz → Arbeitszeitmodelle.");
+        }
+        else
+        {
+            foreach (var m in modelle)
+            {
+                XElement inhalt;
+                if (m.Wochenstunden is > 0m && m.Wochenlektionen is > 0m)
+                    inhalt = new XElement(C + "WeeklyHoursAndLessons",
+                        new XElement(C + "WeeklyHours", Amt(m.Wochenstunden!.Value)),
+                        new XElement(C + "WeeklyLessons", Amt(m.Wochenlektionen!.Value)));
+                else if (m.Wochenlektionen is > 0m)
+                    inhalt = new XElement(C + "WeeklyLessons", Amt(m.Wochenlektionen!.Value));
+                else
+                    inhalt = new XElement(C + "WeeklyHours", Amt(m.Wochenstunden!.Value));
+                arbeitszeit.Add(new XElement(C + "CompanyWorkingTime",
+                    new XAttribute("companyWorkingTimeID", "#" + m.KennungOderId),
+                    inhalt));
+            }
+            var ohneZuordnung = empIds.Count(id => !zuordnungen.Any(z => z.EmployeeId == id));
+            if (ohneZuordnung > 0)
+                warn.Add($"{ohneZuordnung} Personen ohne Arbeitszeitmodell — gemeldet wird «{modelle[0].Bezeichnung}» "
+                       + "als Standard der Rechtseinheit (MA → Arbeitszeitmodell).");
+        }
 
         var kontakt = await _db.AppUsers.AsNoTracking()
             .Where(u => u.IsActive && u.Role == "admin")
@@ -311,7 +376,8 @@ public class ElmMonthlyDeclarationBuilder
     /// </summary>
     private XElement BaueStatistikZeile(
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
-        Dictionary<string, string> statByCode, string monatStr,
+        Dictionary<string, string> statByCode, EmployeeLse? lse,
+        List<LseCodeMapping> stellungMapping, string monatStr,
         DateTime von, DateTime bis, List<string> warn)
     {
         decimal brutto = 0, zulagen = 0, famz = 0, dritt = 0, ueberstunden = 0, ml13 = 0, sonstige = 0;
@@ -360,9 +426,8 @@ public class ElmMonthlyDeclarationBuilder
             new XAttribute("addresseeIDRef", "#BFS"),
             new XAttribute("workIDRef", WorkId(e)),
             new XElement(Sd + "CurrentMonth", monatStr),
-            new XElement(Sd + "AdditionalParticulars",
-                string.IsNullOrWhiteSpace(em?.JobTitle) ? null : new XElement(Sd + "JobTitle", em!.JobTitle!.Trim())),
-            KindOfWagePayment(em, filiale),
+            BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn),
+            KindOfWagePayment(em, filiale, slip),
             new XElement(Sd + "MonthlyValues",
                 new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(brutto)),
                 new XElement(Sd + "Allowances", Betrag05(zulagen + sonstige)),
@@ -385,27 +450,79 @@ public class ElmMonthlyDeclarationBuilder
         return stat1;
     }
 
-    /// <summary>Lohnart der Statistik: Monatslohn oder Stundenlohn.</summary>
-    private static XElement KindOfWagePayment(Employment? em, CompanyProfile filiale)
+    /// <summary>
+    /// Lohnart der Statistik: Monatslohn oder Stundenlohn. Reihenfolge und Aufbau
+    /// laut XSD (StatisticMonthlyType / StatisticHourlyType) — beim Stundenlohn
+    /// gehoeren Ansatz, Ferien-, Feiertags- und 13.-ML-Prozent in den Block
+    /// ContractualHourlyWage, danach die tatsaechlich geleistete Zeit.
+    /// </summary>
+    private static XElement KindOfWagePayment(Employment? em, CompanyProfile filiale, JsonElement slip)
     {
+        var dreizehnter = Amt(em?.ThirteenthSalary == true ? filiale.DefaultThirteenthSalaryPercent ?? 8.33m : 0m);
         var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
+        var befristet = em?.ContractEndDate != null;
+
         if (model is "FIX" or "FIX-M" or "MTP")
             return new XElement(Sd + "KindOfWagePayment",
                 new XElement(Sd + "Monthly",
-                    new XElement(Sd + "Contract", "indefiniteSalaryMth"),
+                    new XElement(Sd + "Contract", befristet ? "fixedSalaryMth" : "indefiniteSalaryMth"),
                     new XElement(Sd + "ContractualMonthlyWage", Amt(em?.MonthlySalary ?? 0m)),
-                    new XElement(Sd + "Contractual13th",
-                        Amt(em?.ThirteenthSalary == true ? filiale.DefaultThirteenthSalaryPercent ?? 8.33m : 0m))));
+                    new XElement(Sd + "Contractual13th", dreizehnter)));
+
+        var ferienProzent = Amt((filiale.DefaultVacationWeeks ?? 5) >= 6
+            ? filiale.DefaultVacationPercent6Weeks ?? 13.04m
+            : filiale.DefaultVacationPercent5Weeks ?? 10.65m);
+        var stundenansatz = em?.HourlyRate ?? 0m;
+        var lektionenansatz = em?.LessonRate ?? stundenansatz;
+        var stunden = Num(slip, "workedHours");
+
         return new XElement(Sd + "KindOfWagePayment",
             new XElement(Sd + "Hourly",
-                new XElement(Sd + "Contract", "indefiniteSalaryHrs"),
-                new XElement(Sd + "ContractualHourlyWage", Amt(em?.HourlyRate ?? 0m)),
-                new XElement(Sd + "ContractualVacation",
-                    Amt((filiale.DefaultVacationWeeks ?? 5) >= 6
-                        ? filiale.DefaultVacationPercent6Weeks ?? 13.04m
-                        : filiale.DefaultVacationPercent5Weeks ?? 10.65m)),
-                new XElement(Sd + "Contractual13th",
-                    Amt(em?.ThirteenthSalary == true ? filiale.DefaultThirteenthSalaryPercent ?? 8.33m : 0m))));
+                new XElement(Sd + "Contract", befristet ? "fixedSalaryHrs" : "indefiniteSalaryHrs"),
+                new XElement(Sd + "ContractualHourlyWage",
+                    new XElement(Sd + "Salary",
+                        new XElement(Sd + "PaidByHour", Amt(stundenansatz)),
+                        new XElement(Sd + "PaidByLesson", Amt(lektionenansatz))),
+                    new XElement(Sd + "Vacation", ferienProzent),
+                    new XElement(Sd + "PublicHolidayCompensation", Amt(filiale.DefaultHolidayPercent ?? 4m)),
+                    new XElement(Sd + "Contractual13th", dreizehnter)),
+                new XElement(Sd + "TotallyWorked",
+                    new XElement(Sd + "TotalHoursOfWork", Amt(stunden)))));
+    }
+
+    /// <summary>
+    /// Statistik-Stammdaten der Person. Alle vier Felder sind im Schema PFLICHT
+    /// (StatisticAdditionalParticularsType): Ausbildung, berufliche Stellung,
+    /// Funktion, Ferienanspruch in Tagen. Ausbildung und Stellung kommen aus den
+    /// LSE-Feldern und werden hier nur uebersetzt; fehlen sie, meldet OneCrew den
+    /// vorsichtigsten Wert UND sagt es.
+    /// </summary>
+    private XElement BaueStatistikStammdaten(
+        Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
+        EmployeeLse? lse, List<LseCodeMapping> stellungMapping, List<string> warn)
+    {
+        var ausbildungCode = lse?.Education;
+        if (!ElmStatistikCodes.AusbildungErfasst(ausbildungCode))
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Ausbildung für die Statistik nicht erfasst "
+                   + "— gemeldet wird «ohne abgeschlossene Berufsausbildung» (MA → BFS/Statistik).");
+
+        var stellungCode = lse?.PositionOverride;
+        if (stellungCode == null && !string.IsNullOrWhiteSpace(em?.JobTitle))
+            stellungCode = stellungMapping
+                .FirstOrDefault(m => string.Equals(m.SourceCode, em!.JobTitle!.Trim(), StringComparison.OrdinalIgnoreCase))?.BfsCode;
+        if (!ElmStatistikCodes.StellungErfasst(stellungCode))
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): berufliche Stellung nicht erfasst "
+                   + "— gemeldet wird «ohne Kaderfunktion» (LSE-Zuordnung Funktion → Stellung).");
+
+        var stundenlohn = (em?.EmploymentModel?.ToUpperInvariant() ?? "") is not ("FIX" or "FIX-M" or "MTP");
+        var ferienwochen = (filiale.DefaultVacationWeeks ?? 5) >= 6 ? 6 : 5;
+        var tage = ElmStatistikCodes.Ferientage(stundenlohn, ferienwochen, lse?.LeaveEntitlementDays);
+
+        return new XElement(Sd + "AdditionalParticulars",
+            new XElement(Sd + "Education", ElmStatistikCodes.Ausbildung(ausbildungCode)),
+            new XElement(Sd + "Position", ElmStatistikCodes.Stellung(stellungCode)),
+            new XElement(Sd + "JobTitle", string.IsNullOrWhiteSpace(em?.JobTitle) ? "—" : em!.JobTitle!.Trim()),
+            new XElement(Sd + "LeaveEntitlement", ((int)Math.Round(tage, 0)).ToString()));
     }
 
     /// <summary>

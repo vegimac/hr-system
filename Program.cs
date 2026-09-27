@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 33;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026)
+const int SchemaStand = 34;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1656,6 +1656,39 @@ using (var scope = app.Services.CreateScope())
             brief_pdf      bytea
         );
         CREATE INDEX IF NOT EXISTS ix_webstamp_auftrag_employee ON webstamp_auftrag(employee_id);
+    ");
+
+    // Arbeitszeitmodelle der Rechtseinheit (Walter 27.09.2026, Schema-Stand 34).
+    // Swissdec meldet sie als CompanyWorkingTime; die Lohnrechnung liest sie NICHT.
+    // Die Zuordnung hat ein Gueltig-ab, weil das Modell ohne Vertragswechsel aendern
+    // kann (Muster AG: Casanova ab 01.10.2025, Lehmann ab 01.04.2025).
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS arbeitszeitmodell (
+            id                  serial PRIMARY KEY,
+            hauptsitz_id        integer NOT NULL REFERENCES hauptsitz(id) ON DELETE CASCADE,
+            kennung             text,
+            bezeichnung         text NOT NULL DEFAULT '',
+            wochenstunden       numeric(5,2),
+            wochenlektionen     numeric(5,2),
+            ferientage_pro_jahr numeric(5,2),
+            is_active           boolean NOT NULL DEFAULT true,
+            created_at          timestamp without time zone NOT NULL DEFAULT now(),
+            updated_at          timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_arbeitszeitmodell_hauptsitz ON arbeitszeitmodell(hauptsitz_id);
+
+        CREATE TABLE IF NOT EXISTS employee_arbeitszeitmodell (
+            id                    serial PRIMARY KEY,
+            employee_id           integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            arbeitszeitmodell_id  integer NOT NULL REFERENCES arbeitszeitmodell(id) ON DELETE CASCADE,
+            gueltig_ab            date NOT NULL,
+            bemerkung             text,
+            created_at            timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_emp_azm_employee ON employee_arbeitszeitmodell(employee_id, gueltig_ab);
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_emp_azm_tag ON employee_arbeitszeitmodell(employee_id, gueltig_ab);
+
+        ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS leave_entitlement_days numeric(5,2);
     ");
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

@@ -59,6 +59,14 @@ public class EmployeeLse
     /// <summary>AS «inHouseID» (optional, nur wenn mit BFS vereinbart).</summary>
     public string? InHouseId { get; set; }
 
+    /// <summary>
+    /// Ferienanspruch in Tagen pro Jahr für die Swissdec-Statistik
+    /// (<c>LeaveEntitlement</c>, Walter 27.09.2026). NULL = aus der Regel rechnen:
+    /// Stunden-/Lektionenlohn mit Ferienentschädigung in Prozent → 0, sonst
+    /// Ferienwochen × 5. Eine Eingabe hier sticht die Regel.
+    /// </summary>
+    public decimal? LeaveEntitlementDays { get; set; }
+
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
     public string? UpdatedBy { get; set; }
 }

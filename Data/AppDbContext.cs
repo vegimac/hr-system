@@ -87,6 +87,8 @@ public class AppDbContext : DbContext
     public DbSet<PayrollSnapshot>       PayrollSnapshots       => Set<PayrollSnapshot>();
     public DbSet<ElmStammdaten>         ElmStammdaten          => Set<ElmStammdaten>();
     public DbSet<Hauptsitz>             Hauptsitze             => Set<Hauptsitz>();
+    public DbSet<Arbeitszeitmodell>         Arbeitszeitmodelle         => Set<Arbeitszeitmodell>();
+    public DbSet<EmployeeArbeitszeitmodell> EmployeeArbeitszeitmodelle => Set<EmployeeArbeitszeitmodell>();
     public DbSet<QstKorrektur>          QstKorrekturen         => Set<QstKorrektur>();
     public DbSet<FamzKorrektur>         FamzKorrekturen        => Set<FamzKorrektur>();
     public DbSet<EmployeeDarlehen>      EmployeeDarlehen       => Set<EmployeeDarlehen>();
@@ -938,6 +940,40 @@ public class AppDbContext : DbContext
             entity.Property(e => e.BvgVersichertSeit).HasColumnName("bvg_versichert_seit").HasColumnType("date");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by").HasMaxLength(150);
+        });
+
+        // Arbeitszeitmodelle der Rechtseinheit (Walter 27.09.2026, Swissdec CompanyWorkingTime)
+        modelBuilder.Entity<Arbeitszeitmodell>(entity =>
+        {
+            entity.ToTable("arbeitszeitmodell");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.HauptsitzId).HasColumnName("hauptsitz_id");
+            entity.Property(e => e.Kennung).HasColumnName("kennung").HasMaxLength(60);
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(120);
+            entity.Property(e => e.Wochenstunden).HasColumnName("wochenstunden").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.Wochenlektionen).HasColumnName("wochenlektionen").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.FerientageProJahr).HasColumnName("ferientage_pro_jahr").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.Ignore(e => e.IstMeldefaehig);
+            entity.Ignore(e => e.KennungOderId);
+            entity.HasOne(e => e.Hauptsitz).WithMany().HasForeignKey(e => e.HauptsitzId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EmployeeArbeitszeitmodell>(entity =>
+        {
+            entity.ToTable("employee_arbeitszeitmodell");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.ArbeitszeitmodellId).HasColumnName("arbeitszeitmodell_id");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab").HasColumnType("date");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Arbeitszeitmodell).WithMany().HasForeignKey(e => e.ArbeitszeitmodellId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Hauptsitz/Rechtseinheit (Walter 29.08.2026)
@@ -1841,6 +1877,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PositionOverride).HasColumnName("position_override");
             entity.Property(e => e.PracticedProfession).HasColumnName("practiced_profession");
             entity.Property(e => e.InHouseId).HasColumnName("in_house_id");
+            entity.Property(e => e.LeaveEntitlementDays).HasColumnName("leave_entitlement_days").HasColumnType("numeric(5,2)");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
