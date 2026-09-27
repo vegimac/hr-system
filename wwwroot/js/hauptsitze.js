@@ -16,6 +16,7 @@ async function loadHauptsitze() {
         const r = await fetch('/api/hauptsitze', { headers: ah() });
         if (!r.ok) { el.innerHTML = '<div style="color:#b91c1c;padding:12px">Laden fehlgeschlagen.</div>'; return; }
         _hsList = await r.json();
+        await azmLaden();
         window._hsCache = _hsList; // für die Filial-Stammdaten-Anzeige
         hsRender();
     } catch (e) {
@@ -58,7 +59,102 @@ function hsRender() {
                     ? h.filialen.map(f => `<span style="background:#fff;border:1px solid rgba(60,55,48,0.14);border-radius:8px;padding:1px 8px;margin-right:4px;display:inline-block;margin-top:3px">${esc((f.restaurantCode ? f.restaurantCode + ' ' : '') + f.name)}</span>`).join('')
                     : '<span style="color:#b45309">keine zugeordnet — Zuordnung im Filial-Stammdaten-Modal («Bearbeiten» bei der Filiale)</span>'}
             </div>
+            <div style="font-size:12.5px;margin-top:6px">
+                <span style="font-weight:600;color:#646464">Kontakt für Lohnmeldungen:</span>
+                ${[h.kontaktName, h.kontaktEmail, h.kontaktTelefon].filter(Boolean).join(' · ')
+                    || '<span style="color:#b45309">nicht erfasst — in der Meldung erscheint der erste Admin-Benutzer</span>'}
+            </div>
+            <div id="azmBlock-${h.id}" style="margin-top:10px;padding-top:9px;border-top:1px solid rgba(60,55,48,0.12)"></div>
         </div>`).join('');
+    _hsList.forEach(h => azmRender(h.id));
+}
+
+// ── Arbeitszeitmodelle (Walter 27.09.2026) ────────────────────────────────
+// Swissdec meldet sie als CompanyWorkingTime; jede Person verweist auf eines.
+// Die Lohnrechnung liest sie NICHT — sie bleibt bei den Wochenstunden der Filiale.
+let _azmAlle = [];
+
+async function azmLaden() {
+    try {
+        const r = await fetch('/api/arbeitszeitmodelle', { headers: ah() });
+        _azmAlle = r.ok ? await r.json() : [];
+    } catch { _azmAlle = []; }
+}
+
+function azmRender(hauptsitzId) {
+    const el = document.getElementById('azmBlock-' + hauptsitzId);
+    if (!el) return;
+    const liste = _azmAlle.filter(m => m.hauptsitzId === hauptsitzId);
+    const zeit = (m) => m.wochenstunden && m.wochenlektionen
+        ? `${Number(m.wochenstunden).toFixed(2)} h + ${Number(m.wochenlektionen).toFixed(2)} Lekt./Wo`
+        : m.wochenlektionen ? `${Number(m.wochenlektionen).toFixed(2)} Lektionen/Wo`
+        : m.wochenstunden ? `${Number(m.wochenstunden).toFixed(2)} h/Wo` : '⚠ keine Zeit erfasst';
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+            <span style="font-weight:600;color:#646464;font-size:12.5px">Arbeitszeitmodelle (Swissdec)</span>
+            <span style="flex:1"></span>
+            <button onclick="azmNeu(${hauptsitzId})" style="background:rgba(255,255,255,0.6);border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:3px 11px;font-size:12px;font-weight:600;color:#3f3f3f;cursor:pointer">+ Modell</button>
+        </div>
+        ${liste.length === 0
+            ? '<div style="font-size:12px;color:#8b8b8b">Keines erfasst — die Meldung nimmt dann ein Standardmodell aus den Wochenstunden der Filiale.</div>'
+            : liste.map(m => `
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;padding:3px 0">
+                    <span style="background:#fff;border:1px solid rgba(60,55,48,0.14);border-radius:8px;padding:1px 8px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${esc(m.kennungOderId)}</span>
+                    <b>${esc(m.bezeichnung)}</b>
+                    <span style="color:${m.meldefaehig ? '#646464' : '#b91c1c'}">${zeit(m)}</span>
+                    ${m.ferientageProJahr ? `<span style="color:#8b8b8b">· ${Number(m.ferientageProJahr).toFixed(0)} Ferientage</span>` : ''}
+                    <span style="color:#8b8b8b">· ${m.mitarbeiter} MA</span>
+                    ${m.isActive ? '' : '<span style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:0 7px;font-size:11px">inaktiv</span>'}
+                    <span style="flex:1"></span>
+                    <button onclick="azmBearbeiten(${m.id})" style="background:none;border:none;color:#646464;cursor:pointer;font-size:12px;text-decoration:underline">bearbeiten</button>
+                    ${m.mitarbeiter === 0 ? `<button onclick="azmLoeschen(${m.id})" style="background:none;border:none;color:#b91c1c;cursor:pointer;font-size:12px;text-decoration:underline">löschen</button>` : ''}
+                </div>`).join('')}`;
+}
+
+async function azmNeu(hauptsitzId) {
+    const bez = prompt('Bezeichnung des Arbeitszeitmodells (z.B. «Standard», «Lager»):');
+    if (!bez) return;
+    const std = prompt('Wochenstunden (leer lassen, wenn nur Lektionen):', '42');
+    const lek = prompt('Wochenlektionen (leer lassen, wenn nur Stunden):', '');
+    await azmSpeichern(null, {
+        hauptsitzId, bezeichnung: bez,
+        wochenstunden: std ? Number(std) : null,
+        wochenlektionen: lek ? Number(lek) : null,
+        isActive: true
+    });
+}
+
+async function azmBearbeiten(id) {
+    const m = _azmAlle.find(x => x.id === id);
+    if (!m) return;
+    const bez = prompt('Bezeichnung:', m.bezeichnung);
+    if (bez === null) return;
+    const std = prompt('Wochenstunden:', m.wochenstunden ?? '');
+    const lek = prompt('Wochenlektionen:', m.wochenlektionen ?? '');
+    await azmSpeichern(id, {
+        hauptsitzId: m.hauptsitzId, kennung: m.kennung, bezeichnung: bez,
+        wochenstunden: std ? Number(std) : null,
+        wochenlektionen: lek ? Number(lek) : null,
+        ferientageProJahr: m.ferientageProJahr, isActive: m.isActive
+    });
+}
+
+async function azmSpeichern(id, dto) {
+    const r = await fetch(id ? `/api/arbeitszeitmodelle/${id}` : '/api/arbeitszeitmodelle', {
+        method: id ? 'PUT' : 'POST', headers: ah(), body: JSON.stringify(dto)
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen', 'error'); return; }
+    await azmLaden(); hsRender();
+    showToast('Arbeitszeitmodell gespeichert', 'success');
+}
+
+async function azmLoeschen(id) {
+    if (!await liquidConfirm('Dieses Arbeitszeitmodell löschen?', { title: 'Arbeitszeitmodell' })) return;
+    const r = await fetch(`/api/arbeitszeitmodelle/${id}`, { method: 'DELETE', headers: ah() });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Löschen fehlgeschlagen', 'error'); return; }
+    await azmLaden(); hsRender();
 }
 
 // ── Modal (ov-Standard: class="modal" bekommt den Greige-Verlauf) ──────
@@ -110,6 +206,21 @@ function _hsEnsureModal() {
                 </label>
             </div>
         </div>
+        <!-- Kontaktperson fuer elektronische Lohnmeldungen (Walter 27.09.2026).
+             Sie gehoert der Rechtseinheit, nicht dem, der die Meldung erzeugt. -->
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(60,55,48,0.15)">
+            <div style="font-size:13px;font-weight:700;color:#3f3f3f">Kontaktperson für Lohnmeldungen</div>
+            <div style="font-size:11.5px;color:#8b8b8b;margin:4px 0 12px;line-height:1.55">
+                Wer eine Rückfrage zur elektronischen Lohnmeldung bekommt. Steht im Kopf jeder
+                Meldung an Ausgleichskasse, Steuerverwaltung und Statistik. Leer = es wird der
+                erste Admin-Benutzer gemeldet.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+                <label style="${lbl};grid-column:span 2">Name<input id="hsKontaktName" placeholder="Vorname Nachname" style="${inp}"></label>
+                <label style="${lbl}">E-Mail<input id="hsKontaktEmail" type="email" style="${inp}"></label>
+                <label style="${lbl}">Telefon<input id="hsKontaktTel" placeholder="041 218 65 32" style="${inp}"></label>
+            </div>
+        </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
             <button onclick="hsCloseModal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;color:#3f3f3f;cursor:pointer">Abbrechen</button>
             <button id="hsSaveBtn" onclick="hsSave()" style="background:#3f3f3f;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;color:#fff;cursor:pointer">Speichern</button>
@@ -129,6 +240,7 @@ function hsOpenModal(id) {
     set('hsPlz', h?.plz); set('hsOrt', h?.ort); set('hsKanton', h?.kantonCode); set('hsBem', h?.bemerkung);
     set('hsFixPensen', h?.fixPensenErlaubt); set('hsFlexMax', h?.flexStundenMax);
     set('hsMtpMin', h?.mtpStundenMin);       set('hsMtpMax', h?.mtpStundenMax);
+    set('hsKontaktName', h?.kontaktName); set('hsKontaktEmail', h?.kontaktEmail); set('hsKontaktTel', h?.kontaktTelefon);
     document.getElementById('hsModal').style.display = 'block';
 }
 
@@ -148,6 +260,9 @@ async function hsSave() {
         flexStundenMax: num('hsFlexMax'),
         mtpStundenMin:  num('hsMtpMin'),
         mtpStundenMax:  num('hsMtpMax'),
+        kontaktName:    val('hsKontaktName'),
+        kontaktEmail:   val('hsKontaktEmail'),
+        kontaktTelefon: val('hsKontaktTel'),
     };
     // Untergrenze über Obergrenze waere eine Regel, die nie jemand erfuellen kann.
     if (dto.mtpStundenMin != null && dto.mtpStundenMax != null

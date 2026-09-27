@@ -231,6 +231,10 @@ public class LseController : ControllerBase
             positionOverride = lse?.PositionOverride,
             practicedProfession = lse?.PracticedProfession,
             inHouseId = lse?.InHouseId,
+            // Ferienanspruch in Tagen fuer die Swissdec-Statistik (Walter 27.09.2026).
+            // Leer = aus der Regel gerechnet: Stundenlohn mit Ferienprozent -> 0,
+            // sonst Ferienwochen x 5.
+            leaveEntitlementDays = lse?.LeaveEntitlementDays,
         });
     }
 
@@ -241,6 +245,7 @@ public class LseController : ControllerBase
         public int? PositionOverride { get; set; }
         public string? PracticedProfession { get; set; }
         public string? InHouseId { get; set; }
+        public decimal? LeaveEntitlementDays { get; set; }
     }
 
     [HttpPut("employee/{employeeId:int}")]
@@ -255,6 +260,8 @@ public class LseController : ControllerBase
             return BadRequest(new { error = "POSITION_UNGUELTIG", message = "Berufliche Stellung: BFS-Code 1–5." });
         if ((dto.PracticedProfession?.Length ?? 0) > 255)
             return BadRequest(new { error = "BERUF_ZU_LANG", message = "Ausgeübter Beruf: max. 255 Zeichen." });
+        if (dto.LeaveEntitlementDays is < 0m or > 99m)
+            return BadRequest(new { error = "FERIENTAGE_UNGUELTIG", message = "Ferientage: 0 bis 99 pro Jahr." });
 
         var lse = await _db.EmployeeLse.FirstOrDefaultAsync(x => x.EmployeeId == employeeId);
         if (lse == null) { lse = new EmployeeLse { EmployeeId = employeeId }; _db.EmployeeLse.Add(lse); }
@@ -263,6 +270,7 @@ public class LseController : ControllerBase
         lse.PositionOverride = dto.PositionOverride;
         lse.PracticedProfession = string.IsNullOrWhiteSpace(dto.PracticedProfession) ? null : dto.PracticedProfession.Trim();
         lse.InHouseId = string.IsNullOrWhiteSpace(dto.InHouseId) ? null : dto.InHouseId.Trim();
+        lse.LeaveEntitlementDays = dto.LeaveEntitlementDays;
         lse.UpdatedAt = DateTime.Now;
         lse.UpdatedBy = Actor();
         await _db.SaveChangesAsync();

@@ -24,7 +24,9 @@ public class HauptsitzController : ControllerBase
         string? Plz, string? Ort, string? KantonCode, string? Bemerkung, bool? IsActive,
         // Vertragsregeln der Rechtseinheit (Walter 01.09.2026). Leer = Standard.
         string? FixPensenErlaubt = null, decimal? FlexStundenMax = null,
-        decimal? MtpStundenMin = null, decimal? MtpStundenMax = null);
+        decimal? MtpStundenMin = null, decimal? MtpStundenMax = null,
+        // Kontaktperson für elektronische Lohnmeldungen (Walter 27.09.2026)
+        string? KontaktName = null, string? KontaktEmail = null, string? KontaktTelefon = null);
 
     private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
@@ -50,6 +52,7 @@ public class HauptsitzController : ControllerBase
             h.Id, h.Name, h.Uid, h.Strasse, h.Plz, h.Ort, h.KantonCode,
             h.Bemerkung, h.IsActive,
             h.FixPensenErlaubt, h.FlexStundenMax, h.MtpStundenMin, h.MtpStundenMax,
+            h.KontaktName, h.KontaktEmail, h.KontaktTelefon,
             // Was tatsächlich gilt (inkl. Standard-Rückfall) — damit die Maske
             // zeigen kann, wogegen der Sync wirklich prüft.
             regelnEffektiv = Effektiv(h),
@@ -80,7 +83,10 @@ public class HauptsitzController : ControllerBase
             FixPensenErlaubt = NormPensen(dto.FixPensenErlaubt),
             FlexStundenMax   = dto.FlexStundenMax,
             MtpStundenMin    = dto.MtpStundenMin,
-            MtpStundenMax    = dto.MtpStundenMax
+            MtpStundenMax    = dto.MtpStundenMax,
+            KontaktName      = Norm(dto.KontaktName),
+            KontaktEmail     = Norm(dto.KontaktEmail),
+            KontaktTelefon   = Norm(dto.KontaktTelefon)
         };
         _db.Hauptsitze.Add(h);
         await _db.SaveChangesAsync();
@@ -108,6 +114,9 @@ public class HauptsitzController : ControllerBase
         h.FlexStundenMax   = dto.FlexStundenMax;
         h.MtpStundenMin    = dto.MtpStundenMin;
         h.MtpStundenMax    = dto.MtpStundenMax;
+        h.KontaktName      = Norm(dto.KontaktName);
+        h.KontaktEmail     = Norm(dto.KontaktEmail);
+        h.KontaktTelefon   = Norm(dto.KontaktTelefon);
         if (dto.IsActive.HasValue) h.IsActive = dto.IsActive.Value;
         h.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();

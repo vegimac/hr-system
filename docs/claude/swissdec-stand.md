@@ -279,15 +279,22 @@ Drittleistungen, **P** Überstunden, **O** 13. Monatslohn. Sozialabgaben = AHV +
 BVG aus der BVG-Zeile. Eine Lohnart ohne Statistik-Code zählt zum Bruttolohn **und meldet das** —
 stillschweigend weglassen wäre der schlimmere Fehler.
 
-**Bekannte Lücken — werden im Vergleich rot und sind nicht gefüllt:**
+**Beide Lücken geschlossen (27.09.2026):**
 
-1. **Arbeitszeitmodelle.** Die Referenz führt vier Modelle je Rechtseinheit (42 h, 40 h,
-   21 Lektionen, 20 h + 10 Lektionen) mit eigener ID, auf die jede Person über
-   `companyWorkingTimeIDRef` verweist. OneCrew kennt nur die Wochenstunden je Filiale und meldet
-   deshalb EIN Modell ohne Verweis. Dafür braucht es die Arbeitszeitmodell-Verwaltung
-   (Auftrag «Systemtest Unternehmen» Punkt 6) — **eigener Auftrag, noch nicht gebaut.**
-2. **Statistik-Stammdaten.** Ausbildung (Swissdec-Stufen), Kaderfunktion (`Position`) und
-   Ferienanspruch in Tagen (`LeaveEntitlement`) liegen so nicht in OneCrew; gemeldet wird nur die
-   Funktion als `JobTitle`. Siehe `docs/swissdec-testmandant.md`, bekannte Lücken.
+1. **Arbeitszeitmodelle.** Tabelle `arbeitszeitmodell` je Rechtseinheit (Kennung, Bezeichnung,
+   Wochenstunden und/oder Wochenlektionen, Ferientage) + `employee_arbeitszeitmodell` mit
+   **Gültig-ab**. Bewusst eine Verlaufstabelle statt eines Vertragsfelds: das Modell kann ohne
+   Vertragswechsel ändern (TF12 Casanova ab 01.10.2025, TF25 Lehmann ab 01.04.2025), und ein
+   Vertragsstück nur wegen einer Meldeangabe wäre eine gefälschte Historie. **Die Lohnrechnung
+   liest die Modelle NICHT** — sie bleibt bei den Wochenstunden der Filiale. Ohne erfasste Modelle
+   gilt ein Standardmodell aus der Filiale, Schaub verhält sich also wie bisher; ein Modell ohne
+   Stunden UND ohne Lektionen sperrt die Meldung mit Klartext. Verwaltung: System → Hauptsitze,
+   Zuordnung am MA unter «BFS / Statistik». Import: 3a (Modelle), 4a (Zuordnung), 4c (Wechsel).
+2. **Statistik-Stammdaten.** Ausbildung und Stellung werden **nicht neu erfasst**, sondern aus den
+   LSE-Feldern übersetzt (`employee_lse.education` 1–8, `position_override` bzw.
+   `lse_code_mapping` STELLUNG 1–5) — zentrales Mapping in `Services/Elm/ElmStatistikCodes.cs`,
+   gemeinsam für LSE und ELM. Neu ist nur `employee_lse.leave_entitlement_days` als Handeingabe;
+   ohne sie gilt die Regel: Stunden-/Lektionenlohn mit Ferienprozent → 0, sonst Ferienwochen × 5.
+   Fehlende Werte melden den vorsichtigsten Wert **und sagen es** im Cockpit.
 
 Keine Werte aus der Referenz abgeschrieben oder hart codiert.

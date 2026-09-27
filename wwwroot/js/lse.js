@@ -349,9 +349,59 @@ async function lseEmpBlockAppend(container, employeeId) {
                 <select id="lseEmpPos" class="no-liquid" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;min-width:200px">${opt(codes.position, lse.positionOverride)}</select></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Ausgeübter Beruf (Klartext, LSE)
                 <input id="lseEmpBeruf" maxlength="255" value="${_lseEsc(lse.practicedProfession || '')}" placeholder="z.B. Restaurantmitarbeiter/in" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;min-width:220px"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px" title="Für die Swissdec-Lohnstatistik. Leer = aus der Regel gerechnet: Stundenlohn mit Ferienprozent → 0, sonst Ferienwochen × 5.">Ferientage/Jahr (Swissdec)
+                <input id="lseEmpFerien" type="number" min="0" max="99" step="1" value="${lse.leaveEntitlementDays ?? ''}" placeholder="aus Regel" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;width:110px"></label>
             <button onclick="lseEmpBlockSave(${employeeId})" style="${_lseBtnDark};padding:6px 14px">Speichern</button>
-        </div>`;
+        </div>
+        <div id="lseEmpAzm" style="font-size:11.5px;color:#8b8b8b;margin-top:8px"></div>`;
     container.appendChild(div);
+    lseEmpArbeitszeitmodell(employeeId);
+}
+
+// Arbeitszeitmodell der Person (Walter 27.09.2026) — reine Meldeangabe fuer die
+// Swissdec-Statistik; die Lohnrechnung benutzt sie NICHT. Darum hier bei den
+// Statistik-Angaben und nicht im Vertrag.
+async function lseEmpArbeitszeitmodell(employeeId) {
+    const el = document.getElementById('lseEmpAzm');
+    if (!el) return;
+    try {
+        const [rz, rm] = await Promise.all([
+            fetch(`/api/arbeitszeitmodelle/mitarbeiter/${employeeId}`, { headers: ah() }),
+            fetch('/api/arbeitszeitmodelle', { headers: ah() }),
+        ]);
+        if (!rz.ok || !rm.ok) { el.style.display = 'none'; return; }
+        const zuord = await rz.json();
+        const modelle = (await rm.json()).filter(m => m.isActive);
+        if (modelle.length === 0) { el.style.display = 'none'; return; }
+        const heute = new Date().toISOString().slice(0, 10);
+        const aktuell = zuord.find(z => z.gueltigAb <= heute) || zuord[0];
+        const dat = (iso) => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : '';
+        el.innerHTML = `
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span><b>Arbeitszeitmodell (Swissdec):</b> ${aktuell ? _lseEsc(aktuell.bezeichnung || '–') + ' seit ' + dat(aktuell.gueltigAb) : 'keines zugeordnet'}</span>
+                <select id="lseEmpAzmSel" class="no-liquid" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:8px">
+                    ${modelle.map(m => `<option value="${m.id}" ${aktuell && aktuell.arbeitszeitmodellId === m.id ? 'selected' : ''}>${_lseEsc(m.bezeichnung)}</option>`).join('')}
+                </select>
+                <input id="lseEmpAzmAb" type="date" value="${heute}" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:8px">
+                <button onclick="lseEmpAzmSave(${employeeId})" style="${_lseBtnDark};padding:5px 12px">Zuordnen</button>
+            </div>
+            ${zuord.length > 1 ? `<div style="margin-top:5px">Verlauf: ${zuord.map(z => `${dat(z.gueltigAb)} ${_lseEsc(z.bezeichnung || '–')}`).join(' · ')}</div>` : ''}`;
+        el.style.display = '';
+    } catch { el.style.display = 'none'; }
+}
+
+async function lseEmpAzmSave(employeeId) {
+    const id = parseInt(document.getElementById('lseEmpAzmSel')?.value, 10);
+    const ab = document.getElementById('lseEmpAzmAb')?.value;
+    if (!id || !ab) return;
+    const r = await fetch(`/api/arbeitszeitmodelle/mitarbeiter/${employeeId}`, {
+        method: 'POST', headers: ah(),
+        body: JSON.stringify({ arbeitszeitmodellId: id, gueltigAb: ab })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen', 'error'); return; }
+    showToast('Arbeitszeitmodell zugeordnet', 'success');
+    lseEmpArbeitszeitmodell(employeeId);
 }
 
 async function lseEmpBlockSave(employeeId) {
@@ -360,6 +410,8 @@ async function lseEmpBlockSave(employeeId) {
         universityDegree: parseInt(document.getElementById('lseEmpDeg')?.value, 10) || null,
         positionOverride: parseInt(document.getElementById('lseEmpPos')?.value, 10) || null,
         practicedProfession: document.getElementById('lseEmpBeruf')?.value || null,
+        leaveEntitlementDays: document.getElementById('lseEmpFerien')?.value === ''
+            ? null : Number(document.getElementById('lseEmpFerien')?.value),
     };
     const r = await fetch(`/api/lse/employee/${employeeId}`, { method: 'PUT', headers: ah(), body: JSON.stringify(dto) });
     const j = await r.json().catch(() => ({}));
