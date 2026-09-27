@@ -118,6 +118,17 @@ Quality-Tool-XML darf hier abweichen. **Nicht** der Engine anpassen.
 
 Regel: Tarif, BUR, PLZ, QST-Code immer aus Stammdaten/CSV, nie aus der RefXML kopieren.
 
+**Rappen-Rundung kaufmännisch (Walter 27.09.2026, ABSOLUT).** `Math.Round(x, 2)` rundet in .NET
+«zur geraden Ziffer» (Banker's Rounding): 163.625 → 163.62, 163.635 → 163.64. In einer
+Lohnabrechnung ist das falsch. Sichtbar an **TF14 Egli, Oktober 2025**: KTG 11 mit 1.309 % auf
+12'500 = 163.625 ergab 163.62 statt **163.63**, Netto damit 2'038.90 statt **2'038.85**.
+Zentraler Helfer `PayrollCalculations.Rappen(wert)` (= `MidpointRounding.AwayFromZero`), angewendet
+auf **alle** Rundungen auf zwei Stellen in `PayrollCalculationService` und
+`PayrollCalculationEngine` — Abzüge, AG-Beiträge, QST, 13. ML, Zulagen, und bewusst auch Stunden
+und Tage (niemand erwartet, dass 2.925 h zu 2.92 wird und 2.935 h zu 2.94). Die 5-Rappen-Rundung
+des Schlussbetrags bleibt `Round05`. **Nie wieder `Math.Round(betrag, 2)` in der Lohnrechnung.**
+Tests: `Tests/RappenRundungTests.cs`.
+
 **F4 — erledigt 27.09.2026 (Walter).** Die frühere Lesart «ESTV schreibt 180 Stunden vor, 182 nur um die XML zu treffen wäre falsch» ist **widerlegt**. Quellenlage:
 
 - **180 Stunden** (bzw. 2'160/Jahr, bzw. 21,667 Tage) gelten NUR, wenn der Lohn **nicht monatlich** ausbezahlt wird — Personalverleih, Wochenzahlung. ESTV-FAQ zum KS 45, Ziff. 7.3.3: «Eine Hochrechnung auf 180 bzw. 2'160 Stunden … ist nur zulässig, wenn die Lohnzahlung nicht monatlich erfolgt. Bei monatlicher Lohnzahlung hat die Umrechnung zwingend nach den Grundsätzen von Ziffern 6.4 und 7.3.2 zu erfolgen.» Dasselbe in den ELM-6.0-Richtlinien, Kap. 10.6.4, S. 285. **OneCrew zahlt immer monatlich → die 180-Regel greift bei uns nie.**

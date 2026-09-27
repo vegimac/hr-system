@@ -101,7 +101,7 @@ public class PayrollCalculationEngine
                      && z.Status == "AUSBEZAHLT")
             .Select(z => new { z.NettoAkonto, z.PayoutDate })
             .FirstOrDefaultAsync();
-        decimal   akontoBereitsAusbezahlt      = akontoAusbezahlt != null ? Math.Round(akontoAusbezahlt.NettoAkonto, 2) : 0m;
+        decimal   akontoBereitsAusbezahlt      = akontoAusbezahlt != null ? PayrollCalculations.Rappen(akontoAusbezahlt.NettoAkonto) : 0m;
         DateOnly? akontoBereitsAusbezahltDatum = akontoAusbezahlt?.PayoutDate;
 
         // ── Dezember-Jahresausgleich für gedeckelte SV (ALV/NBU) ───────────
@@ -246,7 +246,7 @@ public class PayrollCalculationEngine
             }
             if (kPosten.Count > 0)
             {
-                qstKorrBetrag = Math.Round(kPosten.Sum(k => k.Differenz), 2);
+                qstKorrBetrag = PayrollCalculations.Rappen(kPosten.Sum(k => k.Differenz));
 
                 // «Alt» = zuletzt gemeldeter Code DESSELBEN Monats (Swissdec Old-Block),
                 // nicht der Ur-Code des eingefrorenen Belegs: bei der zweiten Korrektur
@@ -334,9 +334,8 @@ public class PayrollCalculationEngine
                     // (allenfalls schon verrechneten) Rate dieser Periode.
                     var eigene = alleRaten.Where(r => r.DarlehenId == d.Id).ToList();
                     var dieserMonat = eigene.FirstOrDefault(r => r.PeriodYear == year && r.PeriodMonth == month);
-                    decimal restVorher = Math.Round(
-                        d.Betrag - eigene.Where(r => !(r.PeriodYear == year && r.PeriodMonth == month))
-                                         .Sum(r => r.Betrag), 2);
+                    decimal restVorher = PayrollCalculations.Rappen(d.Betrag - eigene.Where(r => !(r.PeriodYear == year && r.PeriodMonth == month))
+                                         .Sum(r => r.Betrag));
                     if (restVorher <= 0) continue;
 
                     decimal rate;
@@ -357,9 +356,9 @@ public class PayrollCalculationEngine
                         if (!vertragLaeuftWeiter) rate = restVorher;
                         if (rate <= 0) continue;
                     }
-                    decimal restNachher = Math.Round(restVorher - rate, 2);
+                    decimal restNachher = PayrollCalculations.Rappen(restVorher - rate);
                     string label = $"Rückzahlung {d.Zweck} (Rest CHF {restNachher.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("de-CH"))})";
-                    darlehenRaten.Add((d.Id, label, Math.Round(rate, 2), restNachher));
+                    darlehenRaten.Add((d.Id, label, PayrollCalculations.Rappen(rate), restNachher));
                 }
             }
         }
@@ -1434,13 +1433,13 @@ public class PayrollCalculationEngine
             decimal betrag;
             if (resolved.Amount.HasValue)
             {
-                betrag = Math.Round(resolved.Amount.Value, 2);
+                betrag = PayrollCalculations.Rappen(resolved.Amount.Value);
             }
             else
             {
                 // Fallback: kein Tarif-Satz hinterlegt → gespeicherten Wert nehmen
                 // (Backward-Compat für Alt-Einträge ohne Tarif-Pflege).
-                betrag = Math.Round(fa.MonthlyAmount, 2);
+                betrag = PayrollCalculations.Rappen(fa.MonthlyAmount);
             }
             // Synthetic-Zeile mit 0 nur ausgeben, wenn auch wirklich etwas hätte
             // anfallen sollen — sonst keine Phantom-Zeile.
@@ -1493,7 +1492,7 @@ public class PayrollCalculationEngine
                     Periode        = periodeStr,
                     LohnpositionId = lp.Id,
                     Lohnposition   = lp,
-                    Betrag         = Math.Round(k.Betrag, 2),
+                    Betrag         = PayrollCalculations.Rappen(k.Betrag),
                     Bemerkung      = $"{art} {mon}{name}",
                     CreatedAt      = k.CreatedAt
                 });
@@ -1673,7 +1672,7 @@ public class PayrollCalculationEngine
         {
             var     lp = z.Lohnposition!;
             if (lp.Code == Code13mlAuszahlen) continue; // Auslöser, kein Betrag
-            decimal b  = Math.Round(z.Betrag, 2);
+            decimal b  = PayrollCalculations.Rappen(z.Betrag);
 
             bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
                         || lp.BvgPflichtig    || lp.QstPflichtig;
@@ -1684,7 +1683,7 @@ public class PayrollCalculationEngine
                 // Split: Eingegebener Betrag = Total (inkl. 13. ML)
                 // Basis  = Total × 12/13  (auf 2 Dezimalen)
                 // 13. ML = Total − Basis  (Rest → Summe bleibt exakt)
-                decimal basis13  = Math.Round(b * 12m / 13m, 2);
+                decimal basis13  = PayrollCalculations.Rappen(b * 12m / 13m);
                 decimal ml13     = b - basis13;
                 string  bez      = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : "");
 
@@ -1742,7 +1741,7 @@ public class PayrollCalculationEngine
                          || lp2.BvgPflichtig    || lp2.QstPflichtig;
             if (anyFlag2) continue; // bereits in zulagenSvLines
 
-            decimal b = Math.Round(z.Betrag, 2);
+            decimal b = PayrollCalculations.Rappen(z.Betrag);
             zulagenExtraLines.Add(new { bezeichnung = lp2.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""), code = lp2.Code, betrag = b });
             zulagenExtraTotal += b;
         }
@@ -1765,7 +1764,7 @@ public class PayrollCalculationEngine
             .ToListAsync();
         foreach (var dd in darlehenAuszahlungenLohn)
         {
-            decimal ab = Math.Round(dd.Betrag, 2);
+            decimal ab = PayrollCalculations.Rappen(dd.Betrag);
             zulagenExtraLines.Add(new {
                 bezeichnung = $"Auszahlung Darlehen/Vorschuss «{dd.Zweck}»",
                 code = (string?)null,
@@ -1779,13 +1778,13 @@ public class PayrollCalculationEngine
         // Saldi-Übersicht — Vormonat (Schuld vor der Periode), Aktuell
         // (neue LOHN-Auszahlung), Bezogen (Rate), Saldo (offener Rest).
         // Konsistent per Konstruktion: Saldo = Vormonat + Auszahlung − Rate.
-        decimal dlPayoutTotal   = darlehenAuszahlungenLohn.Sum(dd2 => Math.Round(dd2.Betrag, 2));
+        decimal dlPayoutTotal   = darlehenAuszahlungenLohn.Sum(dd2 => PayrollCalculations.Rappen(dd2.Betrag));
         decimal dlPayoutInListe = darlehenAuszahlungenLohn
             .Where(dd2 => dd2.StartJahr < year || (dd2.StartJahr == year && dd2.StartMonat <= month))
-            .Sum(dd2 => Math.Round(dd2.Betrag, 2));
+            .Sum(dd2 => PayrollCalculations.Rappen(dd2.Betrag));
         decimal dlVormonat  = Math.Max(0m, darlehenRaten.Sum(r => r.RestNachher + r.Rate) - dlPayoutInListe);
         decimal dlBezogen   = darlehenRaten.Sum(r => r.Rate);
-        decimal dlSaldoNeu  = Math.Round(dlVormonat + dlPayoutTotal - dlBezogen, 2);
+        decimal dlSaldoNeu  = PayrollCalculations.Rappen(dlVormonat + dlPayoutTotal - dlBezogen);
         bool hatDarlehenSaldo = darlehenRaten.Count > 0 || dlPayoutTotal != 0;
 
         // ── EO-Entschädigung Mutterschaft / Vaterschaft (Walter-Entscheid 17.08.2026) ──
@@ -1834,7 +1833,7 @@ public class PayrollCalculationEngine
                 var eoSatz100 = (await _ktgService.CalculateAsync(employeeId, companyProfileId))?.Tagessatz100;
                 if (eoSatz100 is > 0)
                 {
-                    decimal eoTaggeld = Math.Min(Math.Round(eoSatz100.Value * 0.80m, 2), 220m);
+                    decimal eoTaggeld = Math.Min(PayrollCalculations.Rappen(eoSatz100.Value * 0.80m), 220m);
 
                     void EoAddLine(string code, string fallbackBez, int tage, decimal betrag, decimal satz)
                     {
@@ -1858,18 +1857,18 @@ public class PayrollCalculationEngine
                     if (eoTageMutter > 0)
                     {
                         EoAddLine("120.1", "Mutterschaftsentschädigung EO", eoTageMutter,
-                                  Math.Round(eoTaggeld * eoTageMutter, 2), eoTaggeld);
+                                  PayrollCalculations.Rappen(eoTaggeld * eoTageMutter), eoTaggeld);
                         if (eoFestlohnModell)
                             EoAddLine("125.1", "Korr. Mutterschaftsentschädigung EO", eoTageMutter,
-                                      -Math.Round(eoSatz100.Value * eoTageMutter, 2), eoSatz100.Value);
+                                      -PayrollCalculations.Rappen(eoSatz100.Value * eoTageMutter), eoSatz100.Value);
                     }
                     if (eoTageVater > 0)
                     {
                         EoAddLine("120.2", "Vaterschaftsentschädigung EO", eoTageVater,
-                                  Math.Round(eoTaggeld * eoTageVater, 2), eoTaggeld);
+                                  PayrollCalculations.Rappen(eoTaggeld * eoTageVater), eoTaggeld);
                         if (eoFestlohnModell)
                             EoAddLine("125.2", "Korr. Vaterschaftsentschädigung EO", eoTageVater,
-                                      -Math.Round(eoSatz100.Value * eoTageVater, 2), eoSatz100.Value);
+                                      -PayrollCalculations.Rappen(eoSatz100.Value * eoTageVater), eoSatz100.Value);
                     }
                 }
             }
@@ -1930,13 +1929,13 @@ public class PayrollCalculationEngine
                         string milModel = (emp.EmploymentModel ?? "").ToUpperInvariant();
                         bool milFestlohn = milModel is "FIX" or "FIX-M";
                         decimal s100 = Math.Min(milSatz100.Value, 275m);
-                        decimal s88  = Math.Min(Math.Round(milSatz100.Value * 0.88m, 2), 245m);
-                        decimal s80  = Math.Min(Math.Round(milSatz100.Value * 0.80m, 2), 245m);
+                        decimal s88  = Math.Min(PayrollCalculations.Rappen(milSatz100.Value * 0.88m), 245m);
+                        decimal s80  = Math.Min(PayrollCalculations.Rappen(milSatz100.Value * 0.80m), 245m);
 
                         void MilAddLine(string code, string fallbackBez, int tage, decimal satz, bool negativ = false)
                         {
                             if (tage <= 0) return;
-                            decimal betrag = Math.Round(satz * tage, 2) * (negativ ? -1m : 1m);
+                            decimal betrag = PayrollCalculations.Rappen(satz * tage) * (negativ ? -1m : 1m);
                             var lpM = lohnposByCode.TryGetValue(code, out var l) ? l : null;
                             zulagenSvLines.Add(new {
                                 bezeichnung = $"{lpM?.Bezeichnung ?? fallbackBez} ({tage} Tage)",
@@ -1992,7 +1991,7 @@ public class PayrollCalculationEngine
         decimal lohnposAbzugTotal = 0;
         foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ABZUG" && !IsVortrag(z)))
         {
-            decimal b  = Math.Round(z.Betrag, 2);
+            decimal b  = PayrollCalculations.Rappen(z.Betrag);
             var     lp = z.Lohnposition!;
             lohnposAbzugLines.Add(new {
                 bezeichnung = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""),
@@ -2183,7 +2182,7 @@ public class PayrollCalculationEngine
         // das Ferien-Geld-Saldo zu reduzieren.
         decimal ferienGeldAuszahlungManuell = zulagenEntries
             .Where(z => z.Lohnposition?.Code == "195.3" && z.Lohnposition.Typ == "ZULAGE")
-            .Sum(z => Math.Round(z.Betrag, 2));
+            .Sum(z => PayrollCalculations.Rappen(z.Betrag));
 
         // ── Automatische Ferien-Geld-Auszahlung im Dezember (UTP/MTP) ──
         // Wenn am CompanyProfile aktiviert (AutoFerienGeldAuszahlungDezember)
@@ -2270,8 +2269,8 @@ public class PayrollCalculationEngine
             // abgedeckten Perioden (z.B. 5 Ferien + 26 Krank → -0.01h statt 0).
             decimal sollStundenVollExakt = guaranteedH / 7m * mtpPeriodTage;
             decimal festlohnVollExakt    = sollStundenVollExakt * hourlyRate;
-            decimal sollStundenVoll = Math.Round(sollStundenVollExakt, 2);  // nur Anzeige
-            decimal festlohnVoll    = Math.Round(festlohnVollExakt,    2);  // nur Anzeige
+            decimal sollStundenVoll = PayrollCalculations.Rappen(sollStundenVollExakt);  // nur Anzeige
+            decimal festlohnVoll    = PayrollCalculations.Rappen(festlohnVollExakt);  // nur Anzeige
 
             // ── MTP + FERIEN Regel (Walter 24.04.2026, präzisiert 26.05.2026) ────────────────
             // Pro Ferientag:
@@ -2439,10 +2438,10 @@ public class PayrollCalculationEngine
             //   2) CHF-Produkt = Anzeige-Stunden × Satz (exakt, z.B. 81.43×21.66)
             //   3) Round nur für Lohnzeile / Saldo; AddAmount bekommt das EXAKTE Produkt
             //      (Ferien%/Feiertag%/13.ML ohne Drift aus Zeilen-Rundung)
-            decimal sollStunden = Math.Round(sollStundenExakt, 2);
+            decimal sollStunden = PayrollCalculations.Rappen(sollStundenExakt);
             decimal festlohnArbeitStunden = sollStunden;
             decimal festlohnExact = sollStunden * hourlyRate;
-            decimal festlohnArbeitBetrag = Math.Round(festlohnExact, 2);
+            decimal festlohnArbeitBetrag = PayrollCalculations.Rappen(festlohnExact);
 
             // Stunden-Saldo inkl. Vormonat. workedHours = absolute Stempel (Tag+Nacht).
             // Krank/Unfall/Ferien kürzen das SOLL (oben), nicht die IST-Stempel.
@@ -2453,15 +2452,15 @@ public class PayrollCalculationEngine
             // Filial-Schalter «Stunden-Saldo im Lohn verrechnen» (Walter 10.09.2026):
             // aus → keine «MTP + Stunden»-Zeile, Mehrstunden bleiben als Saldo stehen.
             bool stundenSaldoImLohnMtp = company?.StundenSaldoImLohnVerrechnen ?? true;
-            decimal mehrstundenAus = stundenSaldoImLohnMtp ? Math.Round(Math.Max(0, nettoH), 2) : 0m;
-            decimal neuerSaldo     = stundenSaldoImLohnMtp ? Math.Round(Math.Min(0, nettoH), 2) : Math.Round(nettoH, 2);
+            decimal mehrstundenAus = stundenSaldoImLohnMtp ? PayrollCalculations.Rappen(Math.Max(0, nettoH)) : 0m;
+            decimal neuerSaldo     = stundenSaldoImLohnMtp ? PayrollCalculations.Rappen(Math.Min(0, nettoH)) : PayrollCalculations.Rappen(nettoH);
 
             decimal mtpExact = mehrstundenAus * hourlyRate;
-            decimal mtpBasis = Math.Round(mtpExact, 2);
+            decimal mtpBasis = PayrollCalculations.Rappen(mtpExact);
 
             // Ausbezahlte Feiertage (eigene Stunden-Auszahlung)
             decimal feiertagExact = feiertagStunden * hourlyRate;
-            decimal feiertagAusz  = Math.Round(feiertagExact, 2);
+            decimal feiertagAusz  = PayrollCalculations.Rappen(feiertagExact);
 
             // Basis für Minimum-Lohn-Kontrolle = Stundenlohn
             // Walter-Vorgabe 30.05.2026: Festlohn-Zeile auch dann zeigen, wenn der
@@ -2539,7 +2538,7 @@ public class PayrollCalculationEngine
                 lohnLines.Add(new {
                     bezeichnung = "Unbezahlter Urlaub",
                     code    = "110.1",
-                    anzahl  = (decimal?)Math.Round(mtpUnbezUrlaubTage, 2),
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(mtpUnbezUrlaubTage),
                     prozent = (decimal?)null,
                     basis   = (decimal?)null,
                     betrag  = 0m,
@@ -2555,7 +2554,7 @@ public class PayrollCalculationEngine
 
             if (feiertagAusz > 0)
             {
-                decimal feiertagStdAnzeige = Math.Round(feiertagStunden, 2);
+                decimal feiertagStdAnzeige = PayrollCalculations.Rappen(feiertagStunden);
                 lohnLines.Add(new { bezeichnung = $"{feiertagStdAnzeige} Ausbezahlte Feiertage", code = "50.1", anzahl = (decimal?)feiertagStdAnzeige, prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
                 totalLohn += feiertagAusz;
             }
@@ -2566,7 +2565,7 @@ public class PayrollCalculationEngine
                 // soll im Label sehen WIE die Mehrstunden entstehen.
                 // Formel: nettoH = workedHours + absenzGutschrift - sollStundenExakt + vormonat
                 // Anzeige: Ist/Soll gerundet (Rechnung blieb exakt).
-                decimal istStunden = Math.Round(workedHours + absenzGutschrift, 2);
+                decimal istStunden = PayrollCalculations.Rappen(workedHours + absenzGutschrift);
                 string mtpStdLabel = $"MTP + Stunden ({istStunden:0.00}h Ist − {sollStunden:0.00}h Soll";
                 if (vormonatHourSaldo > 0) mtpStdLabel += $" + {vormonatHourSaldo:0.00}h Vormonat";
                 else if (vormonatHourSaldo < 0) mtpStdLabel += $" − {Math.Abs(vormonatHourSaldo):0.00}h Vormonat";
@@ -2613,10 +2612,10 @@ public class PayrollCalculationEngine
                     if (t.BvgAuf100) krankBvgKorrekturMtp += tagWert * 0.20m;  // fehlende 20%
                 }
             }
-            krankAbzugMtp        = Math.Round(krankAbzugMtp,        2);
-            krank88Mtp           = Math.Round(krank88Mtp,           2);
-            krank80Mtp           = Math.Round(krank80Mtp,           2);
-            krankBvgKorrekturMtp = Math.Round(krankBvgKorrekturMtp, 2);
+            krankAbzugMtp        = PayrollCalculations.Rappen(krankAbzugMtp);
+            krank88Mtp           = PayrollCalculations.Rappen(krank88Mtp);
+            krank80Mtp           = PayrollCalculations.Rappen(krank80Mtp);
+            krankBvgKorrekturMtp = PayrollCalculations.Rappen(krankBvgKorrekturMtp);
 
             // Walter-Vorgabe 30.05.2026: Korrektur Krankheit (Code 75) wird bei MTP
             // NICHT mehr gebucht — die Lohn-Kürzung wegen Krankheit ist bereits
@@ -2630,7 +2629,7 @@ public class PayrollCalculationEngine
                     code    = "70.1",
                     anzahl  = (decimal?)krankTage88Mtp,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)Math.Round(krankTagesBasisMtp, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisMtp),
                     betrag  = krank88Mtp,
                     accrued = (decimal?)krank88Mtp
                 });
@@ -2664,10 +2663,10 @@ public class PayrollCalculationEngine
                     if (t.BvgAuf100) unfallBvgKorrekturMtp += tagWert * 0.20m;
                 }
             }
-            unfallAbzugMtp        = Math.Round(unfallAbzugMtp,        2);
-            unfall88Mtp           = Math.Round(unfall88Mtp,           2);
-            unfall80Mtp           = Math.Round(unfall80Mtp,           2);
-            unfallBvgKorrekturMtp = Math.Round(unfallBvgKorrekturMtp, 2);
+            unfallAbzugMtp        = PayrollCalculations.Rappen(unfallAbzugMtp);
+            unfall88Mtp           = PayrollCalculations.Rappen(unfall88Mtp);
+            unfall80Mtp           = PayrollCalculations.Rappen(unfall80Mtp);
+            unfallBvgKorrekturMtp = PayrollCalculations.Rappen(unfallBvgKorrekturMtp);
 
             // Walter-Vorgabe 30.05.2026: Korrektur Unfall (Code 65) wird bei MTP
             // NICHT mehr gebucht — Festlohn-Kürzung erfolgt bereits direkt am
@@ -2680,7 +2679,7 @@ public class PayrollCalculationEngine
                     code    = "60.2",
                     anzahl  = (decimal?)unfallTage88Mtp,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)Math.Round(unfallTagesBasisMtp, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(unfallTagesBasisMtp),
                     betrag  = unfall88Mtp,
                     accrued = (decimal?)unfall88Mtp
                 });
@@ -2707,7 +2706,7 @@ public class PayrollCalculationEngine
             decimal lohnersatzSummeMtp = krank88Mtp + krank80Mtp + unfall88Mtp + unfall80Mtp;
             if (feiertagAufLohnersatzErlaubt && holidayPct > 0 && lohnersatzSummeMtp > 0)
             {
-                decimal feiertagLohnersatzMtp = Math.Round(lohnersatzSummeMtp * holidayPct / 100m, 2);
+                decimal feiertagLohnersatzMtp = PayrollCalculations.Rappen(lohnersatzSummeMtp * holidayPct / 100m);
                 if (feiertagLohnersatzMtp > 0)
                 {
                     lohnLines.Add(new {
@@ -2715,7 +2714,7 @@ public class PayrollCalculationEngine
                         code    = "195.4",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)holidayPct,
-                        basis   = (decimal?)Math.Round(lohnersatzSummeMtp, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(lohnersatzSummeMtp),
                         betrag  = feiertagLohnersatzMtp,
                         accrued = (decimal?)feiertagLohnersatzMtp
                     });
@@ -2751,7 +2750,7 @@ public class PayrollCalculationEngine
                     code    = ferienCode,
                     anzahl  = (decimal?)null,
                     prozent = (decimal?)vacationPct,
-                    basis   = (decimal?)Math.Round(ferienBasisExact, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(ferienBasisExact),
                     betrag  = ferienMonatlich ? ferienEnt : 0m,   // sonst: wandert in den Saldo
                     accrued = (decimal?)ferienEnt
                 });
@@ -2764,7 +2763,7 @@ public class PayrollCalculationEngine
 
             if (feiertagEnt > 0)
             {
-                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "195.4", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)Math.Round(feiertagBasisExact, 2), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
+                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "195.4", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)PayrollCalculations.Rappen(feiertagBasisExact), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
                 totalLohn += feiertagEnt;
                 AddAmount("195.4", feiertagEntExact, feiertagEnt);  // exakt für 13.ML-Flags, Beleg-Betrag für die Anzeige
             }
@@ -2796,7 +2795,7 @@ public class PayrollCalculationEngine
                 // Cap: nie mehr als der gesamte Pott (Saldo bleibt ≥ 0)
                 if (mtpFerienAuszahlungExact > pottFerienGeldChf)
                     mtpFerienAuszahlungExact = pottFerienGeldChf;
-                mtpFerienAuszahlungBetrag = Math.Round(mtpFerienAuszahlungExact, 2);
+                mtpFerienAuszahlungBetrag = PayrollCalculations.Rappen(mtpFerienAuszahlungExact);
             }
 
             if (mtpFerienAuszahlungBetrag > 0)
@@ -2806,12 +2805,12 @@ public class PayrollCalculationEngine
                 // Logik (Tagessatz = Pott CHF / Pott Tage) siehe CLAUDE.md.
                 bool _capped = mtpFerienAuszahlungExact + 0.005m < mtpAvgTagessatz * mtpFerienTage;
                 string _labelExtra = _capped
-                    ? $"({Math.Round(mtpFerienTage,2)} × {mtpAvgTagessatz:F2}, max {mtpFerienAuszahlungBetrag:F2})"
-                    : $"({Math.Round(mtpFerienTage,2)} × {mtpAvgTagessatz:F2})";
+                    ? $"({PayrollCalculations.Rappen(mtpFerienTage)} × {mtpAvgTagessatz:F2}, max {mtpFerienAuszahlungBetrag:F2})"
+                    : $"({PayrollCalculations.Rappen(mtpFerienTage)} × {mtpAvgTagessatz:F2})";
                 lohnLines.Add(new {
                     bezeichnung = $"{LabelFor("10.2", "Festlohn bezogene Ferien")} {_labelExtra}",
                     code    = "10.2",
-                    anzahl  = (decimal?)Math.Round(mtpFerienTage, 2),
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(mtpFerienTage),
                     prozent = (decimal?)null,
                     basis   = (decimal?)null,
                     betrag  = mtpFerienAuszahlungBetrag,
@@ -2822,7 +2821,7 @@ public class PayrollCalculationEngine
             }
 
             // Ferien-Geld-Saldo neu: Pott − Auszahlung (exakt, dann Schluss-Rundung)
-            ferienGeldSaldoNeu  = Math.Round(pottFerienGeldChf - mtpFerienAuszahlungExact, 2);
+            ferienGeldSaldoNeu  = PayrollCalculations.Rappen(pottFerienGeldChf - mtpFerienAuszahlungExact);
             ferienGeldAuszahlung = mtpFerienAuszahlungBetrag;
 
             // Manuelle Ferien-Geld-Saldo-Auszahlung (Code 195.3): reduziert
@@ -2838,7 +2837,7 @@ public class PayrollCalculationEngine
             // Synthetische 195.3-Zeile mit dem aktuellen Saldo, voll SV-pflichtig.
             if (autoDezemberAuszahlung && lpFerienAuszahlung != null && ferienGeldSaldoNeu > 0)
             {
-                decimal autoBetrag = Math.Round(ferienGeldSaldoNeu, 2);
+                decimal autoBetrag = PayrollCalculations.Rappen(ferienGeldSaldoNeu);
                 lohnLines.Add(new {
                     bezeichnung = lpFerienAuszahlung.Bezeichnung + " (Jahresende)",
                     code    = lpFerienAuszahlung.Code,
@@ -2860,7 +2859,7 @@ public class PayrollCalculationEngine
             }
 
             // Nacht-Saldo
-            decimal neuerNachtSaldo = Math.Round(vormonatNachtSaldo + nightBonus - nachtKompStunden, 2);
+            decimal neuerNachtSaldo = PayrollCalculations.Rappen(vormonatNachtSaldo + nightBonus - nachtKompStunden);
 
             // ── SV-pflichtige Zulagen zu totalLohn addieren (MTP) ─────────
             decimal mainLohnMtp = totalLohn;
@@ -2897,9 +2896,9 @@ public class PayrollCalculationEngine
                     lohnLines.Add(new {
                         bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
                         code    = "55.10",
-                        anzahl  = (decimal?)Math.Round(neuerNachtSaldo, 2),
+                        anzahl  = (decimal?)PayrollCalculations.Rappen(neuerNachtSaldo),
                         prozent = (decimal?)null,
-                        basis   = (decimal?)Math.Round(hourlyRate, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(hourlyRate),
                         betrag  = nachtAusz,
                         accrued = (decimal?)nachtAusz
                     });
@@ -2918,9 +2917,9 @@ public class PayrollCalculationEngine
                     lohnLines.Add(new {
                         bezeichnung = $"Verrechnung Minusstunden ({SchlussSuffix()})",
                         code    = "55.2",
-                        anzahl  = (decimal?)Math.Round(neuerSaldo, 2),
+                        anzahl  = (decimal?)PayrollCalculations.Rappen(neuerSaldo),
                         prozent = (decimal?)null,
-                        basis   = (decimal?)Math.Round(hourlyRate, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(hourlyRate),
                         betrag  = minusBetrag,
                         accrued = (decimal?)minusBetrag
                     });
@@ -2978,8 +2977,8 @@ public class PayrollCalculationEngine
                 SumByFlag(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisMtp);
             // Angezeigte Basis aus den Beleg-Beträgen (Walter 26.09.2026); gerechnet
             // wird weiter mit mtp13BasisExact.
-            decimal mtp13Basis = Math.Round(ThirteenthBasisMitAuszahlungen(
-                SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisMtp), 2);
+            decimal mtp13Basis = PayrollCalculations.Rappen(ThirteenthBasisMitAuszahlungen(
+                SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisMtp));
             // Display-Werte für die Saldi-Sektion im Auszahlungsmonat:
             // Vormonat / Aktueller Zuwachs / Bezogen / Saldo. Werden nur in
             // Auszahlungsmonaten gefüllt, sonst null.
@@ -2989,7 +2988,7 @@ public class PayrollCalculationEngine
             if (thirteenthForfeited && thirteenthPct > 0)
             {
                 decimal currentAccrual = Round05(mtp13BasisExact * thirteenthPct / 100m);
-                decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrual, 2);
+                decimal forfeitedAmt = PayrollCalculations.Rappen(prevThirteenth + currentAccrual);
                 if (forfeitedAmt > 0)
                 {
                     lohnLines.Add(new {
@@ -3015,7 +3014,7 @@ public class PayrollCalculationEngine
                 // Aufwand vs. Saldo-Auflösung).
                 decimal currentAccrualExact = mtp13BasisExact * thirteenthPct / 100m;
                 decimal currentAccrual = Round05(currentAccrualExact);
-                dreizehnterMtp = Math.Round(prevThirteenth + currentAccrual, 2);
+                dreizehnterMtp = PayrollCalculations.Rappen(prevThirteenth + currentAccrual);
                 if (currentAccrual > 0)
                 {
                     lohnLines.Add(new {
@@ -3084,7 +3083,7 @@ public class PayrollCalculationEngine
                     code    = "70.2",
                     anzahl  = (decimal?)krankTage80Mtp,
                     prozent = (decimal?)80m,
-                    basis   = (decimal?)Math.Round(krankTagesBasisMtp, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisMtp),
                     betrag  = krank80Mtp,
                     accrued = (decimal?)krank80Mtp
                 });
@@ -3106,7 +3105,7 @@ public class PayrollCalculationEngine
                     code    = "60.3",
                     anzahl  = (decimal?)unfallTage80Mtp,
                     prozent = (decimal?)80m,
-                    basis   = (decimal?)Math.Round(unfallTagesBasisMtp, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(unfallTagesBasisMtp),
                     betrag  = unfall80Mtp,
                     accrued = (decimal?)unfall80Mtp
                 });
@@ -3158,12 +3157,11 @@ public class PayrollCalculationEngine
             // ergäbe 17'142.85 (TF25/26 Feb, Claude 20.09.2026).
             if (isShortPeriod && guaranteedH > 0 && hourlyRate > 0 && _qstJahresYtd == null)
             {
-                var mtpFestDiff = Math.Round(
-                    guaranteedH / 7m * (normalPeriodDays - shortPeriodDays) * hourlyRate
-                    * (1m + holidayPct / 100m), 2);
+                var mtpFestDiff = PayrollCalculations.Rappen(guaranteedH / 7m * (normalPeriodDays - shortPeriodDays) * hourlyRate
+                    * (1m + holidayPct / 100m));
                 // periodische Zulagen (Kinderzulage) ebenfalls auf den vollen Monat (Walter 09.09.2026)
                 if (shortPeriodDays > 0 && deltaQstPeriodisch > 0)
-                    mtpFestDiff += Math.Round(deltaQstPeriodisch * ((decimal)normalPeriodDays / shortPeriodDays - 1m), 2);
+                    mtpFestDiff += PayrollCalculations.Rappen(deltaQstPeriodisch * ((decimal)normalPeriodDays / shortPeriodDays - 1m));
                 if (mtpFestDiff > 0) satzBasisMtp = svBasesMtp.Qst + mtpFestDiff;
             }
             // Kurzmonat × Nebenerwerb kombiniert (Walter 21.09.2026, wie FIX): erst voller
@@ -3189,15 +3187,15 @@ public class PayrollCalculationEngine
                     SollStunden:          sollStunden,
                     Mehrstunden:          mehrstundenAus,
                     // Anzeige gerundet — Rechnung lief exakt bis Mehrstunden/CHF
-                    AbsenzGutschrift:     Math.Round(absenzGutschrift, 2),
+                    AbsenzGutschrift:     PayrollCalculations.Rappen(absenzGutschrift),
                     AbsenzBreakdown:      absenzBreakdown.ToDictionary(
-                                             kv => kv.Key, kv => Math.Round(kv.Value, 2)),
+                                             kv => kv.Key, kv => PayrollCalculations.Rappen(kv.Value)),
                     SollStundenVoll:        sollStundenVoll,
-                    SollFerienReduktion:    Math.Round(ferienStundenAequivalent, 2),
-                    SollKrankReduktion:     Math.Round(krankStundenAequivalent, 2),
-                    SollUnfallReduktion:    Math.Round(unfallStundenAequivalent, 2),
+                    SollFerienReduktion:    PayrollCalculations.Rappen(ferienStundenAequivalent),
+                    SollKrankReduktion:     PayrollCalculations.Rappen(krankStundenAequivalent),
+                    SollUnfallReduktion:    PayrollCalculations.Rappen(unfallStundenAequivalent),
                     GuaranteedHoursPerWeek: guaranteedH,
-                    FerienTageInPeriode:    Math.Round(mtpFerienTage, 2),
+                    FerienTageInPeriode:    PayrollCalculations.Rappen(mtpFerienTage),
                     FerienKuerzungVorschlag:     kuerzungVorschlag,
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
                     FerienKuerzungBisherTage:    kuerzungBisherTage,
@@ -3205,7 +3203,7 @@ public class PayrollCalculationEngine
                     FerienTageGekuerzt:          ferienTageGekuerzt,
                     NightHours:           nightHours,
                     NightBonus:           nightBonus,
-                    NachtKompStunden:     Math.Round(nachtKompStunden, 2),
+                    NachtKompStunden:     PayrollCalculations.Rappen(nachtKompStunden),
                     VormonatNachtSaldo:   vormonatNachtSaldo,
                     NeuerNachtSaldo:      neuerNachtSaldo,
                     VacationWeeks:        vacationWeeks,
@@ -3250,13 +3248,13 @@ public class PayrollCalculationEngine
             // ── UTP / FLEX ────────────────────────────────────────────────
             // Walter 31.07.2026: Produkte EXAKT → AddAmount; Round nur Lohnzeile.
             // Brutto/Netto/Auszahlung am Ende kaufmännisch auf 0.05 (Round05).
-            decimal workedHoursAnzeige = Math.Round(workedHours, 2);
+            decimal workedHoursAnzeige = PayrollCalculations.Rappen(workedHours);
             decimal lohnExact          = workedHoursAnzeige * hourlyRate;
-            decimal nachtKompExact     = Math.Round(utpAuszahlungStunden, 2) * hourlyRate;
+            decimal nachtKompExact     = PayrollCalculations.Rappen(utpAuszahlungStunden) * hourlyRate;
             decimal feiertagAuszExact  = feiertagStunden * hourlyRate;
-            decimal lohnBrutto       = Math.Round(lohnExact, 2);
-            decimal nachtKompBrutto  = Math.Round(nachtKompExact, 2);
-            decimal feiertagAusz     = Math.Round(feiertagAuszExact, 2);
+            decimal lohnBrutto       = PayrollCalculations.Rappen(lohnExact);
+            decimal nachtKompBrutto  = PayrollCalculations.Rappen(nachtKompExact);
+            decimal feiertagAusz     = PayrollCalculations.Rappen(feiertagAuszExact);
 
             // UTP: Feiertag-Basis aus Lohnpositions-Flags
             //   → Stundenlohn (20.1) trägt ZaehltAlsBasisFeiertag=true
@@ -3279,7 +3277,7 @@ public class PayrollCalculationEngine
                 lohnLines.Add(new {
                     bezeichnung = "Unbezahlter Urlaub",
                     code    = "110.1",
-                    anzahl  = (decimal?)Math.Round(unbezUrlaubTageFerien, 2),
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(unbezUrlaubTageFerien),
                     prozent = (decimal?)null,
                     basis   = (decimal?)null,
                     betrag  = 0m,
@@ -3292,7 +3290,7 @@ public class PayrollCalculationEngine
                 lohnLines.Add(new {
                     bezeichnung = "Nacht-Kompensation",
                     code    = "55.10",
-                    anzahl  = (decimal?)Math.Round(utpAuszahlungStunden, 2),
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(utpAuszahlungStunden),
                     prozent = (decimal?)null,
                     basis   = (decimal?)hourlyRate,
                     betrag  = nachtKompBrutto,
@@ -3303,12 +3301,12 @@ public class PayrollCalculationEngine
 
             if (feiertagAusz > 0)
             {
-                lohnLines.Add(new { bezeichnung = "Ausbezahlte Feiertage", code = "50.1", anzahl = (decimal?)Math.Round(feiertagStunden, 2), prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
+                lohnLines.Add(new { bezeichnung = "Ausbezahlte Feiertage", code = "50.1", anzahl = (decimal?)PayrollCalculations.Rappen(feiertagStunden), prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
                 totalLohn += feiertagAusz;
             }
             if (feiertagEnt > 0)
             {
-                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "195.2", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)Math.Round(feiertagBasisUtpExact, 2), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
+                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "195.2", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)PayrollCalculations.Rappen(feiertagBasisUtpExact), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
                 totalLohn += feiertagEnt;
                 AddAmount("195.2", feiertagEntExact, feiertagEnt);
             }
@@ -3330,7 +3328,7 @@ public class PayrollCalculationEngine
                     code    = ferienCodeUtp,
                     anzahl  = (decimal?)null,
                     prozent = (decimal?)vacationPct,
-                    basis   = (decimal?)Math.Round(ferienBasisUtpExact, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(ferienBasisUtpExact),
                     betrag  = ferienMonatlichUtp ? ferienEnt : 0m,
                     accrued = (decimal?)ferienEnt
                 });
@@ -3371,7 +3369,7 @@ public class PayrollCalculationEngine
             // Synthetische 195.3-Zeile mit dem aktuellen Saldo, voll SV-pflichtig.
             if (autoDezemberAuszahlung && lpFerienAuszahlung != null && ferienGeldSaldoNeu > 0)
             {
-                decimal autoBetrag = Math.Round(ferienGeldSaldoNeu, 2);
+                decimal autoBetrag = PayrollCalculations.Rappen(ferienGeldSaldoNeu);
                 lohnLines.Add(new {
                     bezeichnung = lpFerienAuszahlung.Bezeichnung + " (Jahresende)",
                     code    = lpFerienAuszahlung.Code,
@@ -3392,7 +3390,7 @@ public class PayrollCalculationEngine
                 ferienGeldSaldoNeu    = 0m;
             }
 
-            decimal neuerNachtSaldoUtp = Math.Round(vormonatNachtSaldo + nightBonus - nachtKompStunden, 2);
+            decimal neuerNachtSaldoUtp = PayrollCalculations.Rappen(vormonatNachtSaldo + nightBonus - nachtKompStunden);
 
             // ── SV-pflichtige Zulagen zu totalLohn addieren (UTP) ─────────
             decimal mainLohnUtp = totalLohn;
@@ -3429,9 +3427,9 @@ public class PayrollCalculationEngine
                     lohnLines.Add(new {
                         bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
                         code    = "55.10",
-                        anzahl  = (decimal?)Math.Round(neuerNachtSaldoUtp, 2),
+                        anzahl  = (decimal?)PayrollCalculations.Rappen(neuerNachtSaldoUtp),
                         prozent = (decimal?)null,
-                        basis   = (decimal?)Math.Round(hourlyRate, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(hourlyRate),
                         betrag  = nachtAusz,
                         accrued = (decimal?)nachtAusz
                     });
@@ -3497,8 +3495,8 @@ public class PayrollCalculationEngine
                 decimal basis13Exact = ThirteenthBasisMitAuszahlungen(
                     SumByFlag(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisUtp);
                 // Anzeige aus den Beleg-Beträgen (Walter 26.09.2026, TF14 Egli).
-                decimal basis13 = Math.Round(ThirteenthBasisMitAuszahlungen(
-                    SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisUtp), 2);
+                decimal basis13 = PayrollCalculations.Rappen(ThirteenthBasisMitAuszahlungen(
+                    SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml), auszahlung13BasisUtp));
                 decimal currentAccrualExact = basis13Exact * thirteenthPct / 100m;
                 decimal currentAccrual = Round05(currentAccrualExact);   // 5 Rappen (Walter 09.09.2026)
 
@@ -3507,7 +3505,7 @@ public class PayrollCalculationEngine
                     // Verfall: Pott + Monatszuwachs entfallen (kein SV, Saldo 0).
                     // Gilt einheitlich für den GANZEN Saldo inkl. importiertem
                     // 906-Alt-Saldo (L-GAV, Walter 04.08.2026).
-                    decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrualExact, 2);
+                    decimal forfeitedAmt = PayrollCalculations.Rappen(prevThirteenth + currentAccrualExact);
                     if (forfeitedAmt > 0)
                     {
                         lohnLines.Add(new {
@@ -3586,7 +3584,7 @@ public class PayrollCalculationEngine
                         thirteenthPrevForDisplayUtp = prevThirteenth;
                         thirteenthAccrualForDisplayUtp = 0m;
                         thirteenthPayoutForDisplayUtp = prevThirteenth;
-                        dreizehnterUtp = Math.Round(currentAccrual + prevThirteenth, 2);
+                        dreizehnterUtp = PayrollCalculations.Rappen(currentAccrual + prevThirteenth);
                         prevThirteenthForSaldoUtp = 0;
                     }
                     // sonst: prevThirteenthForSaldoUtp bleibt prevThirteenth
@@ -3632,9 +3630,9 @@ public class PayrollCalculationEngine
                         if (t.BvgAuf100) krankBvgKorrekturUtp += tagWert * 0.20m;
                     }
                 }
-                krank88Utp           = Math.Round(krank88Utp,           2);
-                krank80Utp           = Math.Round(krank80Utp,           2);
-                krankBvgKorrekturUtp = Math.Round(krankBvgKorrekturUtp, 2);
+                krank88Utp           = PayrollCalculations.Rappen(krank88Utp);
+                krank80Utp           = PayrollCalculations.Rappen(krank80Utp);
+                krankBvgKorrekturUtp = PayrollCalculations.Rappen(krankBvgKorrekturUtp);
             }
 
             // 88%: voll SV-pflichtig (AhvAlv/Nbu/Ktg/Bvg/Qst). NACH 13. ML,
@@ -3646,7 +3644,7 @@ public class PayrollCalculationEngine
                     code    = "70.1",
                     anzahl  = (decimal?)krankTage88Utp,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisUtp),
                     betrag  = krank88Utp,
                     accrued = (decimal?)krank88Utp
                 });
@@ -3667,7 +3665,7 @@ public class PayrollCalculationEngine
                     code    = "70.2",
                     anzahl  = (decimal?)krankTage80Utp,
                     prozent = (decimal?)80m,
-                    basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisUtp),
                     betrag  = krank80Utp,
                     accrued = (decimal?)krank80Utp
                 });
@@ -3707,9 +3705,9 @@ public class PayrollCalculationEngine
                         if (t.BvgAuf100) unfallBvgKorrekturUtp += tagWert * 0.20m;
                     }
                 }
-                unfall88Utp           = Math.Round(unfall88Utp,           2);
-                unfall80Utp           = Math.Round(unfall80Utp,           2);
-                unfallBvgKorrekturUtp = Math.Round(unfallBvgKorrekturUtp, 2);
+                unfall88Utp           = PayrollCalculations.Rappen(unfall88Utp);
+                unfall80Utp           = PayrollCalculations.Rappen(unfall80Utp);
+                unfallBvgKorrekturUtp = PayrollCalculations.Rappen(unfallBvgKorrekturUtp);
             }
             if (unfall88Utp > 0)
             {
@@ -3718,7 +3716,7 @@ public class PayrollCalculationEngine
                     code    = "60.2",
                     anzahl  = (decimal?)unfallTage88Utp,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisUtp),
                     betrag  = unfall88Utp,
                     accrued = (decimal?)unfall88Utp
                 });
@@ -3736,7 +3734,7 @@ public class PayrollCalculationEngine
                     code    = "60.3",
                     anzahl  = (decimal?)unfallTage80Utp,
                     prozent = (decimal?)80m,
-                    basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisUtp),
                     betrag  = unfall80Utp,
                     accrued = (decimal?)unfall80Utp
                 });
@@ -3767,7 +3765,7 @@ public class PayrollCalculationEngine
             decimal lohnersatzSummeUtp = krank88Utp + krank80Utp + unfall88Utp + unfall80Utp;
             if (feiertagAufLohnersatzErlaubt && holidayPct > 0 && lohnersatzSummeUtp > 0)
             {
-                decimal feiertagLohnersatzUtp = Math.Round(lohnersatzSummeUtp * holidayPct / 100m, 2);
+                decimal feiertagLohnersatzUtp = PayrollCalculations.Rappen(lohnersatzSummeUtp * holidayPct / 100m);
                 if (feiertagLohnersatzUtp > 0)
                 {
                     lohnLines.Add(new {
@@ -3775,7 +3773,7 @@ public class PayrollCalculationEngine
                         code    = "195.2",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)holidayPct,
-                        basis   = (decimal?)Math.Round(lohnersatzSummeUtp, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(lohnersatzSummeUtp),
                         betrag  = feiertagLohnersatzUtp,
                         accrued = (decimal?)feiertagLohnersatzUtp
                     });
@@ -3893,8 +3891,8 @@ public class PayrollCalculationEngine
             decimal pct            = emp.EmploymentPercentage ?? 100m;
             // MonthlySalary enthält den tatsächlichen Lohn (nach Pensum), MonthlySalaryFte den 100%-Wert
             // Monatslohn: auf 2 Dezimalen (keine 0.05-Pre-Rundung)
-            decimal monthSalaryFull = emp.MonthlySalary ?? Math.Round((emp.MonthlySalaryFte ?? 0) * pct / 100m, 2);
-            decimal fteSalary       = emp.MonthlySalaryFte ?? (pct > 0 ? Math.Round(monthSalaryFull * 100m / pct, 2) : monthSalaryFull);
+            decimal monthSalaryFull = emp.MonthlySalary ?? PayrollCalculations.Rappen((emp.MonthlySalaryFte ?? 0) * pct / 100m);
+            decimal fteSalary       = emp.MonthlySalaryFte ?? (pct > 0 ? PayrollCalculations.Rappen(monthSalaryFull * 100m / pct) : monthSalaryFull);
 
             // Bei Eintritt/Austritt innerhalb der Periode: Monatslohn per Tagessatz-Formel
             //   Tagessatz = MonthlySalary × 12 / 365
@@ -3905,7 +3903,7 @@ public class PayrollCalculationEngine
             decimal monthSalaryExact = isShortPeriod
                 ? TeilmonatAnteil(company.TeilmonatMethode, monthSalaryFull, periodEffectiveFrom, periodTo, shortPeriodDays, normalPeriodDays)
                 : monthSalaryFull;
-            decimal monthSalary = Math.Round(monthSalaryExact, 2);
+            decimal monthSalary = PayrollCalculations.Rappen(monthSalaryExact);
 
             string fixReasonTxt = (shortReasonStart && shortReasonEnd)
                 ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy} / Austritt {periodTo:dd.MM.yyyy}"
@@ -3928,8 +3926,8 @@ public class PayrollCalculationEngine
             decimal fixTagessatz = monthSalaryFull * 12m / 365m;
             decimal ferienExactFix   = fixTagessatz * ferienTageGenommen;
             decimal feiertagExactFix = fixTagessatz * feiertagTageGenommen;
-            decimal ferienBetragFix   = Math.Round(ferienExactFix, 2);
-            decimal feiertagBetragFix = Math.Round(feiertagExactFix, 2);
+            decimal ferienBetragFix   = PayrollCalculations.Rappen(ferienExactFix);
+            decimal feiertagBetragFix = PayrollCalculations.Rappen(feiertagExactFix);
             decimal festlohnArbeitFix = monthSalary - ferienBetragFix - feiertagBetragFix;
 
             lohnLines.Add(new
@@ -3938,7 +3936,7 @@ public class PayrollCalculationEngine
                 code    = "10.1",
                 anzahl      = (decimal?)null,
                 prozent     = pct < 100m ? (decimal?)pct : (decimal?)null,
-                basis       = pct < 100m ? (decimal?)Math.Round(fteSalary, 2) : (decimal?)null,
+                basis       = pct < 100m ? (decimal?)PayrollCalculations.Rappen(fteSalary) : (decimal?)null,
                 betrag      = festlohnArbeitFix,
                 accrued     = (decimal?)festlohnArbeitFix
             });
@@ -3950,9 +3948,9 @@ public class PayrollCalculationEngine
                 lohnLines.Add(new {
                     bezeichnung = LabelFor("10.2", "Festlohn für bezogene Ferien"),
                     code    = "10.2",
-                    anzahl  = (decimal?)Math.Round(ferienTageGenommen, 2),
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(ferienTageGenommen),
                     prozent = (decimal?)null,
-                    basis   = (decimal?)Math.Round(fixTagessatz, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(fixTagessatz),
                     betrag  = ferienBetragFix,
                     accrued = (decimal?)ferienBetragFix
                 });
@@ -3965,9 +3963,9 @@ public class PayrollCalculationEngine
                 lohnLines.Add(new {
                     bezeichnung = LabelFor("10.3", "Festlohn für bezogene Feiertage"),
                     code    = "10.3",
-                    anzahl  = (decimal?)Math.Round(feiertagTageGenommen, 2),
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(feiertagTageGenommen),
                     prozent = (decimal?)null,
-                    basis   = (decimal?)Math.Round(fixTagessatz, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(fixTagessatz),
                     betrag  = feiertagBetragFix,
                     accrued = (decimal?)feiertagBetragFix
                 });
@@ -3984,15 +3982,15 @@ public class PayrollCalculationEngine
                 .Where(a => a.AbsenceType == "UNBEZ_URLAUB")
                 .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
             decimal unbezUrlaubExactFix = fixTagessatz * unbezUrlaubTageFix;
-            decimal unbezUrlaubBetragFix = Math.Round(unbezUrlaubExactFix, 2);
+            decimal unbezUrlaubBetragFix = PayrollCalculations.Rappen(unbezUrlaubExactFix);
             if (unbezUrlaubBetragFix > 0)
             {
                 lohnLines.Add(new {
                     bezeichnung = "Unbezahlter Urlaub",
                     code    = "110.1",
-                    anzahl  = (decimal?)Math.Round(unbezUrlaubTageFix, 2),
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(unbezUrlaubTageFix),
                     prozent = (decimal?)null,
-                    basis   = (decimal?)Math.Round(fixTagessatz, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(fixTagessatz),
                     betrag  = -unbezUrlaubBetragFix,
                     accrued = (decimal?)(-unbezUrlaubBetragFix)
                 });
@@ -4028,10 +4026,10 @@ public class PayrollCalculationEngine
                     if (t.BvgAuf100) krankBvgKorrekturFix += tagWert * 0.20m;
                 }
             }
-            krankAbzugFix        = Math.Round(krankAbzugFix,        2);
-            krank88Fix           = Math.Round(krank88Fix,           2);
-            krank80Fix           = Math.Round(krank80Fix,           2);
-            krankBvgKorrekturFix = Math.Round(krankBvgKorrekturFix, 2);
+            krankAbzugFix        = PayrollCalculations.Rappen(krankAbzugFix);
+            krank88Fix           = PayrollCalculations.Rappen(krank88Fix);
+            krank80Fix           = PayrollCalculations.Rappen(krank80Fix);
+            krankBvgKorrekturFix = PayrollCalculations.Rappen(krankBvgKorrekturFix);
 
             if (krankAbzugFix > 0)
             {
@@ -4040,7 +4038,7 @@ public class PayrollCalculationEngine
                     code    = "75.1",
                     anzahl  = (decimal?)krankBreakdown.Count,
                     prozent = (decimal?)null,
-                    basis   = (decimal?)Math.Round(krankTagesBasisFix, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisFix),
                     betrag  = -krankAbzugFix,
                     accrued = (decimal?)(-krankAbzugFix)
                 });
@@ -4054,7 +4052,7 @@ public class PayrollCalculationEngine
                     code    = "70.1",
                     anzahl  = (decimal?)krankTage88Fix,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)Math.Round(krankTagesBasisFix, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisFix),
                     betrag  = krank88Fix,
                     accrued = (decimal?)krank88Fix
                 });
@@ -4087,10 +4085,10 @@ public class PayrollCalculationEngine
                     if (t.BvgAuf100) unfallBvgKorrekturFix += tagWert * 0.20m;
                 }
             }
-            unfallAbzugFix        = Math.Round(unfallAbzugFix,        2);
-            unfall88Fix           = Math.Round(unfall88Fix,           2);
-            unfall80Fix           = Math.Round(unfall80Fix,           2);
-            unfallBvgKorrekturFix = Math.Round(unfallBvgKorrekturFix, 2);
+            unfallAbzugFix        = PayrollCalculations.Rappen(unfallAbzugFix);
+            unfall88Fix           = PayrollCalculations.Rappen(unfall88Fix);
+            unfall80Fix           = PayrollCalculations.Rappen(unfall80Fix);
+            unfallBvgKorrekturFix = PayrollCalculations.Rappen(unfallBvgKorrekturFix);
 
             if (unfallAbzugFix > 0)
             {
@@ -4099,7 +4097,7 @@ public class PayrollCalculationEngine
                     code    = "65.1",
                     anzahl  = (decimal?)unfallBreakdown.Count,
                     prozent = (decimal?)null,
-                    basis   = (decimal?)Math.Round(unfallTagesBasisFix, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(unfallTagesBasisFix),
                     betrag  = -unfallAbzugFix,
                     accrued = (decimal?)(-unfallAbzugFix)
                 });
@@ -4113,7 +4111,7 @@ public class PayrollCalculationEngine
                     code    = "60.2",
                     anzahl  = (decimal?)unfallTage88Fix,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)Math.Round(unfallTagesBasisFix, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(unfallTagesBasisFix),
                     betrag  = unfall88Fix,
                     accrued = (decimal?)unfall88Fix
                 });
@@ -4161,15 +4159,15 @@ public class PayrollCalculationEngine
             }
             if (fixSollKuerzungExakt > sollStundenFixExakt) fixSollKuerzungExakt = sollStundenFixExakt;
             sollStundenFixExakt -= fixSollKuerzungExakt;
-            decimal sollStundenFix = Math.Round(sollStundenFixExakt, 2);
+            decimal sollStundenFix = PayrollCalculations.Rappen(sollStundenFixExakt);
 
             // Ist-/Saldo-Berechnung (wie MTP, aber ohne Payout) — exaktes Soll:
             //   Netto = Worked + AbsenzGutschrift − Soll + Vormonat-Saldo
             //   → Neuer Saldo (kann positiv oder negativ sein; keine Auszahlung).
             decimal nettoHFix      = workedHours + absenzGutschrift - sollStundenFixExakt + vormonatHourSaldo;
-            decimal neuerHourSaldoFix = Math.Round(nettoHFix, 2);
+            decimal neuerHourSaldoFix = PayrollCalculations.Rappen(nettoHFix);
 
-            decimal neuerNachtSaldoFix = Math.Round(vormonatNachtSaldo + nightBonus - nachtKompStunden, 2);
+            decimal neuerNachtSaldoFix = PayrollCalculations.Rappen(vormonatNachtSaldo + nightBonus - nachtKompStunden);
 
             // ── SV-pflichtige Zulagen zu totalLohn addieren (FIX) ─────────
             decimal mainLohnFix = totalLohn;
@@ -4192,7 +4190,7 @@ public class PayrollCalculationEngine
             decimal thirteenthPctForSaldoFix  = thirteenthPct;
             decimal prevThirteenthForSaldoFix = prevThirteenth;
             decimal fix13BasisExact = SumByFlag(lp => lp.ZaehltAlsBasis13ml);
-            decimal fix13Basis = Math.Round(SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml), 2);
+            decimal fix13Basis = PayrollCalculations.Rappen(SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml));
             decimal fix13Accrual = 0m;
             if (thirteenthPct > 0)
             {
@@ -4207,7 +4205,7 @@ public class PayrollCalculationEngine
             decimal? fix13PayoutForDisplay  = null;
             if (thirteenthForfeited && thirteenthPct > 0)
             {
-                decimal forfeitedAmt = Math.Round(prevThirteenth + fix13Accrual, 2);
+                decimal forfeitedAmt = PayrollCalculations.Rappen(prevThirteenth + fix13Accrual);
                 if (forfeitedAmt > 0)
                 {
                     lohnLines.Add(new {
@@ -4228,7 +4226,7 @@ public class PayrollCalculationEngine
                 // FIX/FIX-M-Auszahlung: identisches Splitting wie MTP. Aktueller
                 // Monatsanteil und Saldo-Auszahlung als getrennte Lohnposition-
                 // Zeilen, damit FIBU/Abacus-Export sie unterscheiden kann.
-                dreizehnterFix = Math.Round(prevThirteenth + fix13Accrual, 2);
+                dreizehnterFix = PayrollCalculations.Rappen(prevThirteenth + fix13Accrual);
                 fix13PrevForDisplay    = prevThirteenth;
                 fix13AccrualForDisplay = fix13Accrual;
                 fix13PayoutForDisplay  = dreizehnterFix;
@@ -4289,7 +4287,7 @@ public class PayrollCalculationEngine
                     code    = "70.2",
                     anzahl  = (decimal?)krankTage80Fix,
                     prozent = (decimal?)80m,
-                    basis   = (decimal?)Math.Round(krankTagesBasisFix, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisFix),
                     betrag  = krank80Fix,
                     accrued = (decimal?)krank80Fix
                 });
@@ -4311,7 +4309,7 @@ public class PayrollCalculationEngine
                     code    = "60.3",
                     anzahl  = (decimal?)unfallTage80Fix,
                     prozent = (decimal?)80m,
-                    basis   = (decimal?)Math.Round(unfallTagesBasisFix, 2),
+                    basis   = (decimal?)PayrollCalculations.Rappen(unfallTagesBasisFix),
                     betrag  = unfall80Fix,
                     accrued = (decimal?)unfall80Fix
                 });
@@ -4352,9 +4350,9 @@ public class PayrollCalculationEngine
                     lohnLines.Add(new {
                         bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
                         code    = "55.10",
-                        anzahl  = (decimal?)Math.Round(neuerNachtSaldoFix, 2),
+                        anzahl  = (decimal?)PayrollCalculations.Rappen(neuerNachtSaldoFix),
                         prozent = (decimal?)null,
-                        basis   = (decimal?)Math.Round(exitStundensatzFix, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(exitStundensatzFix),
                         betrag  = nachtAusz,
                         accrued = (decimal?)nachtAusz
                     });
@@ -4374,9 +4372,9 @@ public class PayrollCalculationEngine
                             ? $"Zeitsaldo Auszahlung ({SchlussSuffix()})"
                             : $"Verrechnung Minusstunden ({SchlussSuffix()})",
                             code    = "55.2",
-                        anzahl  = (decimal?)Math.Round(neuerHourSaldoFix, 2),
+                        anzahl  = (decimal?)PayrollCalculations.Rappen(neuerHourSaldoFix),
                         prozent = (decimal?)null,
-                        basis   = (decimal?)Math.Round(exitStundensatzFix, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(exitStundensatzFix),
                         betrag  = saldoBetrag,
                         accrued = (decimal?)saldoBetrag
                     });
@@ -4393,7 +4391,7 @@ public class PayrollCalculationEngine
                 // Nur beim echten Austritt auszahlen und nullen; beim Modellwechsel
                 // (FIX → FLEX/MTP) nimmt der MA die Tage mit (Walter 26.09.2026).
                 bool ferientageAuszahlenFix = isAustritt && (company?.FerientageAmAustrittAuszahlen ?? true);
-                decimal ferienTageAnzeige = Math.Round(ferienTageSaldoNeu, 2);
+                decimal ferienTageAnzeige = PayrollCalculations.Rappen(ferienTageSaldoNeu);
                 if (ferientageAuszahlenFix && ferienTageAnzeige != 0m && fixTagessatz > 0)
                 {
                     decimal ferienBetrag = ExitSettlementBetrag(ferienTageSaldoNeu, fixTagessatz);
@@ -4404,7 +4402,7 @@ public class PayrollCalculationEngine
                             code    = "40.1",
                         anzahl  = (decimal?)ferienTageAnzeige,
                         prozent = (decimal?)null,
-                        basis   = (decimal?)Math.Round(fixTagessatz, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(fixTagessatz),
                         betrag  = ferienBetrag,
                         accrued = (decimal?)ferienBetrag
                     });
@@ -4415,7 +4413,7 @@ public class PayrollCalculationEngine
                 if (ferientageAuszahlenFix) ferienTageSaldoNeu = 0m;
                 // Feiertag-Tage: Resttage auszahlen (gleicher Tagessatz)
                 // Filial-Schalter «Feiertag-Tage am Austritt auszahlen» aus → Saldo bleibt (Walter 10.09.2026).
-                decimal feiertagTageAnzeige = Math.Round(feiertagTageSaldoNeu, 2);
+                decimal feiertagTageAnzeige = PayrollCalculations.Rappen(feiertagTageSaldoNeu);
                 if (feiertagTageAnzeige > 0 && fixTagessatz > 0 && (company?.FeiertagstageAmAustrittAuszahlen ?? true))
                 {
                     decimal feiertagBetrag = ExitSettlementBetrag(feiertagTageSaldoNeu, fixTagessatz);
@@ -4424,7 +4422,7 @@ public class PayrollCalculationEngine
                         code    = "50.1",
                         anzahl  = (decimal?)feiertagTageAnzeige,
                         prozent = (decimal?)null,
-                        basis   = (decimal?)Math.Round(fixTagessatz, 2),
+                        basis   = (decimal?)PayrollCalculations.Rappen(fixTagessatz),
                         betrag  = feiertagBetrag,
                         accrued = (decimal?)feiertagBetrag
                     });
@@ -4466,8 +4464,8 @@ public class PayrollCalculationEngine
             {
                 var faktorKurz = monthSalary > 0 ? monthSalaryFull / monthSalary : 1m;
                 satzBasisFix = svBasesFix.Qst - monthSalary + monthSalaryFull
-                             + Math.Round(deltaQstPeriodisch * (faktorKurz - 1m), 2)
-                             + Math.Round(dreizehnterFix * (faktorKurz - 1m), 2);
+                             + PayrollCalculations.Rappen(deltaQstPeriodisch * (faktorKurz - 1m))
+                             + PayrollCalculations.Rappen(dreizehnterFix * (faktorKurz - 1m));
             }
             decimal? satzBruttoFix = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, satzBasisFix, workedHours: 0, company,
@@ -4488,14 +4486,14 @@ public class PayrollCalculationEngine
                     NeuerHourSaldo:       neuerHourSaldoFix,
                     WorkedHours:          workedHours,
                     SollStunden:          sollStundenFix,
-                    SollStundenVoll:      Math.Round(sollStundenFixVollExakt, 2),
+                    SollStundenVoll:      PayrollCalculations.Rappen(sollStundenFixVollExakt),
                     Mehrstunden:          0,
-                    AbsenzGutschrift:     Math.Round(absenzGutschrift, 2),
+                    AbsenzGutschrift:     PayrollCalculations.Rappen(absenzGutschrift),
                     AbsenzBreakdown:      absenzBreakdown.ToDictionary(
-                                             kv => kv.Key, kv => Math.Round(kv.Value, 2)),
+                                             kv => kv.Key, kv => PayrollCalculations.Rappen(kv.Value)),
                     NightHours:           nightHours,
                     NightBonus:           nightBonus,
-                    NachtKompStunden:     Math.Round(nachtKompStunden, 2),
+                    NachtKompStunden:     PayrollCalculations.Rappen(nachtKompStunden),
                     VormonatNachtSaldo:   vormonatNachtSaldo,
                     NeuerNachtSaldo:      neuerNachtSaldoFix,
                     VacationWeeks:        vacationWeeks,
@@ -4872,7 +4870,7 @@ public class PayrollCalculationEngine
                 ratioAper = (b.Ch + chJetzt) / (b.Eff + effJetzt);
                 if (ratioAper > 1) ratioAper = 1;
             }
-            var gekuerzt = Math.Round(periodVoll * ratioMonat + aperVoll * ratioAper, 2);
+            var gekuerzt = PayrollCalculations.Rappen(periodVoll * ratioMonat + aperVoll * ratioAper);
             if (gekuerzt < bruttoVoll)
             {
                 bruttolohn = gekuerzt;
@@ -5058,7 +5056,7 @@ public class PayrollCalculationEngine
                 // Walter-Vorgabe 27.05.2026: bei Mindeststeuer effektiven Satz zeigen
                 // (Betrag/Brutto), damit die Zeile auf dem Lohnzettel aufgeht.
                 if (qstCalc.MindeststeuerAngewendet && bruttolohn > 0)
-                    satzPct = Math.Round(qstBetrag / bruttolohn * 100m, 2);
+                    satzPct = PayrollCalculations.Rappen(qstBetrag / bruttolohn * 100m);
                 else
                     satzPct = qstCalc.SteuersatzPct;
             }
@@ -5215,7 +5213,7 @@ public class PayrollCalculationEngine
 
             foreach (var z in zulagen.Where(z => z.Lohnposition!.Typ == "ZULAGE"))
             {
-                decimal b = Math.Round(z.Betrag, 2);
+                decimal b = PayrollCalculations.Rappen(z.Betrag);
                 var lp = z.Lohnposition!;
                 bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
                             || lp.BvgPflichtig || lp.QstPflichtig;
@@ -5246,7 +5244,7 @@ public class PayrollCalculationEngine
 
             foreach (var z in zulagen.Where(z => z.Lohnposition!.Typ == "ABZUG"))
             {
-                decimal b = Math.Round(z.Betrag, 2);
+                decimal b = PayrollCalculations.Rappen(z.Betrag);
                 var lp = z.Lohnposition!;
                 lohnposAbzugLines.Add(new {
                     bezeichnung = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""),
@@ -5297,7 +5295,7 @@ public class PayrollCalculationEngine
                         code = "195.2",
                         anzahl = (decimal?)null,
                         prozent = (decimal?)holidayPctCorr,
-                        basis = (decimal?)Math.Round(feiertagBasisExact, 2),
+                        basis = (decimal?)PayrollCalculations.Rappen(feiertagBasisExact),
                         betrag = feiertagEnt,
                         accrued = (decimal?)feiertagEnt
                     });

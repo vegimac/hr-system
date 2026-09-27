@@ -209,7 +209,7 @@ public static class PayrollCalculations
             if (auszExakt > pottChfExakt) auszExakt = pottChfExakt; // Cap: kein Vorbezug
             if (auszExakt > 0)
             {
-                decimal auszLine = Math.Round(auszExakt, 2);
+                decimal auszLine = Rappen(auszExakt);
                 lohnLines.Add(new
                 {
                     bezeichnung = $"Ferienentschädigung-Auszahlung ({tageGenommen:F1} Tage)",
@@ -224,7 +224,7 @@ public static class PayrollCalculations
             }
         }
 
-        return (Math.Round(auszExakt, 2), Math.Round(pottChfExakt - auszExakt, 2));
+        return (Rappen(auszExakt), Rappen(pottChfExakt - auszExakt));
     }
 
     public static object BuildResult(
@@ -491,16 +491,16 @@ public static class PayrollCalculations
 
             // Abzug-Betrag: auf 2 Dezimalen (0.05-Rundung erst auf Schlussresultat)
             decimal betrag = d.Type == "fixed"
-                ? -Math.Round(d.Rate, 2)
-                : -Math.Round(basis * d.Rate / 100m, 2);
+                ? -Rappen(d.Rate)
+                : -Rappen(basis * d.Rate / 100m);
 
             // AG-Beitrag (Walter 22.05.2026): mit DEMSELBEN Regel-Eintrag + derselben
             // Basis wie der AN-Abzug → die richtige (alters-/modellgestaffelte) Stufe
             // greift automatisch (wichtig bei BVG). Positiv (= AG-Aufwand). Wird im
             // Fibu-Journal auf 4060/4061/4062 gebucht; berührt Konto 1920 NICHT.
             decimal? agBetrag = d.RateEmployer is > 0
-                ? (d.Type == "fixed" ? Math.Round(d.RateEmployer.Value, 2)          // fester AG-Beitrag (BVG-Fixbetrag)
-                                     : Math.Round(basis * d.RateEmployer.Value / 100m, 2))
+                ? (d.Type == "fixed" ? Rappen(d.RateEmployer.Value)          // fester AG-Beitrag (BVG-Fixbetrag)
+                                     : Rappen(basis * d.RateEmployer.Value / 100m))
                 : (decimal?)null;
 
             totalAbzuege += betrag;
@@ -526,7 +526,7 @@ public static class PayrollCalculations
                 // sonst die echte Rate bei Type=percent, sonst null.
                 prozent     = d.DisplayRatePercent
                               ?? (d.Type == "percent" ? (decimal?)d.Rate : null),
-                basis       = (decimal?)Math.Round(basis, 2),
+                basis       = (decimal?)Rappen(basis),
                 satzBasis   = d.QstSatzBasis,
                 satzAperiodisch = d.QstSatzAperiodisch,
                 qstCode     = d.QstTarifCode,
@@ -563,10 +563,10 @@ public static class PayrollCalculations
                 basis        = (decimal?)null,
                 satzBasis    = (decimal?)null,
                 satzAperiodisch = (decimal?)null,
-                betrag       = -Math.Round(qstKorrekturBetrag, 2),
+                betrag       = -Rappen(qstKorrekturBetrag),
                 agBetrag     = (decimal?)null
             });
-            totalAbzuege -= Math.Round(qstKorrekturBetrag, 2);
+            totalAbzuege -= Rappen(qstKorrekturBetrag);
         }
 
         // Schlussresultat: nur Nettolohn und Auszahlungsbetrag werden auf 0.05
@@ -592,7 +592,7 @@ public static class PayrollCalculations
                 decimal restSchuld = Math.Max(0, la.Zielbetrag - la.BereitsAbgezogen);
                 ueber = Math.Min(ueber, restSchuld);
             }
-            ueber = Math.Round(ueber, 2);
+            ueber = Rappen(ueber);
             if (ueber <= 0) continue;
 
             string amtName = la.Behoerde?.Name ?? "Behörde";
@@ -691,7 +691,7 @@ public static class PayrollCalculations
                 decimal anteil = (b.AufteilungTyp ?? "VOLL").ToUpperInvariant() switch
                 {
                     "FIXBETRAG"        => Math.Min(rest, val),
-                    "PROZENT"          => Math.Round(val / 100m * auszahlungsbetrag, 2),
+                    "PROZENT"          => Rappen(val / 100m * auszahlungsbetrag),
                     "NETTO_ABZUEGLICH" => Math.Max(0, auszahlungsbetrag - val),
                     _                  => 0   // VOLL → Hauptbank bekommt es
                 };
@@ -733,9 +733,9 @@ public static class PayrollCalculations
         {
             thirteenthMonthly = saldo.ThirteenthAccrualForDisplay.HasValue
                 ? saldo.ThirteenthAccrualForDisplay.Value
-                : Math.Round(saldo.Basis13ml * saldo.ThirteenthPct / 100m, 2);
+                : Rappen(saldo.Basis13ml * saldo.ThirteenthPct / 100m);
         }
-        decimal thirteenthAccumulated = Math.Round(saldo.PrevThirteenth + thirteenthMonthly, 2);
+        decimal thirteenthAccumulated = Rappen(saldo.PrevThirteenth + thirteenthMonthly);
 
         var monthNames = new[] { "", "Januar", "Februar", "März", "April", "Mai", "Juni",
                                      "Juli", "August", "September", "Oktober", "November", "Dezember" };
@@ -764,30 +764,30 @@ public static class PayrollCalculations
 
             // Lohn
             lohnLines,
-            totalLohn       = Math.Round(totalLohn, 2),   // 2 Dezimalen, nicht 0.05
+            totalLohn       = Rappen(totalLohn),   // 2 Dezimalen, nicht 0.05
 
             // Abzüge (SV-Abzüge: AHV, ALV, QST etc.)
             abzugLines      = abzugResult,
-            totalAbzuege    = Math.Round(totalAbzuege, 2),   // 2 Dezimalen, nicht 0.05
+            totalAbzuege    = Rappen(totalAbzuege),   // 2 Dezimalen, nicht 0.05
 
             // Netto
             nettolohn,
 
             // Nicht-SV-pflichtige Zulagen & Abzüge (nach Netto)
             zulagenExtraLines,
-            zulagenExtraTotal   = Math.Round(zulagenExtraTotal, 2),
+            zulagenExtraTotal   = Rappen(zulagenExtraTotal),
             abzuegeExtraLines,
-            abzuegeExtraTotal   = Math.Round(abzuegeExtraTotal, 2),
+            abzuegeExtraTotal   = Rappen(abzuegeExtraTotal),
             lohnAbtretungen     = lohnAbtretungResults,  // für Confirm: bereits_abgezogen aktualisieren
             auszahlungsbetrag,
 
             // K3-Darlehens-Saldo (Walter 29.08.2026) — Zeile in der
             // Saldi-Übersicht (Screen + PDF): offener Rest nach dieser Periode.
             hatDarlehenSaldo,
-            darlehenVormonat    = Math.Round(darlehenVormonat, 2),
-            darlehenAuszahlung  = Math.Round(darlehenAuszahlung, 2),
-            darlehenRateBezogen = Math.Round(darlehenRateBezogen, 2),
-            darlehenSaldoNeu    = Math.Round(darlehenSaldoNeu, 2),
+            darlehenVormonat    = Rappen(darlehenVormonat),
+            darlehenAuszahlung  = Rappen(darlehenAuszahlung),
+            darlehenRateBezogen = Rappen(darlehenRateBezogen),
+            darlehenSaldoNeu    = Rappen(darlehenSaldoNeu),
 
             // Auszahlungs-Empfänger (für PDF-Sektion am Ende):
             //   typ = BANK | BEHOERDE
@@ -795,17 +795,17 @@ public static class PayrollCalculations
             auszahlungEmpfaenger,
 
             // Stunden-Info
-            workedHours        = Math.Round(saldo.WorkedHours, 2),
-            sollStunden        = Math.Round(saldo.SollStunden, 2),
-            mehrstunden        = Math.Round(saldo.Mehrstunden, 2),
-            absenzGutschrift   = Math.Round(saldo.AbsenzGutschrift, 2),
+            workedHours        = Rappen(saldo.WorkedHours),
+            sollStunden        = Rappen(saldo.SollStunden),
+            mehrstunden        = Rappen(saldo.Mehrstunden),
+            absenzGutschrift   = Rappen(saldo.AbsenzGutschrift),
             // Aufschlüsselung der Gutschrift pro AbsenceType — Frontend zeigt
             // statt "Absenz 42.00" einzeln "Krank 8.40 + Feiertag 33.60 + …"
             absenzBreakdown    = saldo.AbsenzBreakdown is null
                                     ? new Dictionary<string, decimal>()
                                     : saldo.AbsenzBreakdown.ToDictionary(
                                         kv => kv.Key,
-                                        kv => Math.Round(kv.Value, 2)),
+                                        kv => Rappen(kv.Value)),
             vormonatHourSaldo  = saldo.VormonatHourSaldo,
             neuerHourSaldo     = saldo.NeuerHourSaldo,
             // Optional: Soll-Berechnungs-Erläuterung (MTP)
@@ -817,9 +817,9 @@ public static class PayrollCalculations
             ferienTageInPeriode    = saldo.FerienTageInPeriode,
 
             // Nacht-Zeitzuschlag
-            nightHours         = Math.Round(saldo.NightHours, 2),
-            nightBonus         = Math.Round(saldo.NightBonus, 2),        // +10% Zeitgutschrift
-            nachtKompStunden   = Math.Round(saldo.NachtKompStunden, 2),  // eingelöste Ruhetage
+            nightHours         = Rappen(saldo.NightHours),
+            nightBonus         = Rappen(saldo.NightBonus),        // +10% Zeitgutschrift
+            nachtKompStunden   = Rappen(saldo.NachtKompStunden),  // eingelöste Ruhetage
             vormonatNachtSaldo = saldo.VormonatNachtSaldo,
             neuerNachtSaldo    = saldo.NeuerNachtSaldo,
 
@@ -832,7 +832,7 @@ public static class PayrollCalculations
             thirteenthPayout            = saldo.ThirteenthPayout,
             thirteenthPrevForDisplay    = saldo.ThirteenthPrevForDisplay,
             thirteenthAccrualForDisplay = saldo.ThirteenthAccrualForDisplay,
-            basis13ml                   = Math.Round(saldo.Basis13ml, 2),
+            basis13ml                   = Rappen(saldo.Basis13ml),
             isInProbation               = saldo.IsInProbation,
             thirteenthForfeited         = saldo.ThirteenthForfeited,
             showFlexThirteenthSaldo     = saldo.ShowFlexThirteenthSaldo,
@@ -855,7 +855,7 @@ public static class PayrollCalculations
             ferienGeldAuszahlung = saldo.FerienGeldAuszahlung,
             ferienGeldSaldoNeu   = saldo.FerienGeldSaldoNeu,
             // Zuwachs = Saldo neu + Auszahlung - Vormonat  (rückrechenbar)
-            ferienGeldAccrual = Math.Round(saldo.FerienGeldSaldoNeu + saldo.FerienGeldAuszahlung - saldo.VormonatFerienGeld, 2),
+            ferienGeldAccrual = Rappen(saldo.FerienGeldSaldoNeu + saldo.FerienGeldAuszahlung - saldo.VormonatFerienGeld),
 
             // Ferien-Kürzungs-Vorschlag (Art. 329b OR)
             ferienKuerzung = saldo.FerienKuerzungVorschlag != null && saldo.FerienKuerzungVorschlag.HasKuerzungVorschlag
@@ -885,9 +885,9 @@ public static class PayrollCalculations
             usingDefaultDeductions,
 
             // SV-Basen + QST für Snapshot-Denormalisierung
-            svBasisAhv  = Math.Round(svBases.Ahv,  2),
-            svBasisBvg  = Math.Round(svBases.Bvg,  2),
-            qstBetrag   = Math.Round(qstBetragOut, 2),
+            svBasisAhv  = Rappen(svBases.Ahv),
+            svBasisBvg  = Rappen(svBases.Bvg),
+            qstBetrag   = Rappen(qstBetragOut),
             qstHinweise = deductions
                 .Where(d => d.CategoryCode == "QST" && !string.IsNullOrWhiteSpace(d.Hinweis))
                 .Select(d => d.Hinweis!)
@@ -898,15 +898,15 @@ public static class PayrollCalculations
             // Schatten-Basen-Vergleich (Swissdec Schritt 2) — komplette Basen
             // fürs Protokoll + Flag-Nachrechnung. Reine Diagnose, kein Einfluss
             // auf Beträge; null wenn kein Katalog übergeben wurde.
-            svBasisNbuv = Math.Round(svBases.Nbuv, 2),
-            svBasisKtg  = Math.Round(svBases.Ktg,  2),
-            svBasisQst  = Math.Round(svBases.Qst,  2),
+            svBasisNbuv = Rappen(svBases.Nbuv),
+            svBasisKtg  = Rappen(svBases.Ktg),
+            svBasisQst  = Rappen(svBases.Qst),
             schattenBasen = lohnposByCode is null
                 ? null
                 : SchattenBasenService.Compute(lohnLines, lohnposByCode, kontrollBases, schattenBvgKorrektur),
             // Phase 3 Etappe 1: Quelle der produktiven Basen + max. Abweichung
             basenQuelle,
-            basenDiffMax = Math.Round(basenDiffMax, 2),
+            basenDiffMax = Rappen(basenDiffMax),
         };
     }
 
@@ -1056,6 +1056,27 @@ public static class PayrollCalculations
 
     public static decimal Round05(decimal value)
         => Math.Round(value / 0.05m, 0, MidpointRounding.AwayFromZero) * 0.05m;
+
+    /// <summary>
+    /// Rundung auf Rappen — kaufmännisch, also die Hälfte immer AUFWÄRTS
+    /// (Walter 27.09.2026).
+    /// <para>
+    /// `Math.Round(x, 2)` rundet in .NET standardmässig «zur geraden Ziffer»
+    /// (Banker's Rounding): 163.625 wird zu 163.62, 163.635 aber zu 163.64. Das ist
+    /// in einer Lohnabrechnung falsch und war an TF14 Egli, Oktober 2025 sichtbar:
+    /// KTG 11 mit 1.309 % auf 12'500 = 163.625 ergab 163.62 statt 163.63, das Netto
+    /// damit 2'038.90 statt 2'038.85.
+    /// </para>
+    /// <para>
+    /// Diese Funktion gilt in der ganzen Lohnberechnung — Abzüge, AG-Beiträge,
+    /// Quellensteuer, 13. ML, Zulagen — und bewusst auch für Stunden und Tage:
+    /// niemand erwartet, dass 2.925 h zu 2.92 wird und 2.935 h zu 2.94. Nie wieder
+    /// `Math.Round(betrag, 2)` in der Lohnrechnung schreiben; die 5-Rappen-Rundung
+    /// des Schlussbetrags bleibt <see cref="Round05"/>.
+    /// </para>
+    /// </summary>
+    public static decimal Rappen(decimal wert)
+        => Math.Round(wert, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>
     /// FAK-Mindesteinkommen-Sperre (Familienzulagen nur ab kantonalem
@@ -1244,7 +1265,7 @@ public static class PayrollCalculations
     /// Nacht-Saldo 0.18 + 0.13 = 0.31 h → 0.31 × 20.40 = 6.32.
     /// </summary>
     public static decimal ExitSettlementBetrag(decimal anzahl, decimal satz)
-        => Math.Round(Math.Round(anzahl, 2) * Math.Round(satz, 2), 2);
+        => Rappen(Rappen(anzahl) * Rappen(satz));
 
     /// <summary>
     /// FIX/FIX-M ohne HourlyRate: Stundensatz aus dem Monatslohn ableiten —
@@ -1489,13 +1510,13 @@ public static class PayrollCalculations
             // eine Annahme ohne Quelle — TF18 Blanc September: 41 % + 60 % = 101 %, gekappt kam
             // 7'076.76 statt 7'241.90 heraus.
             decimal gesamtPensum = eigenesPensum + qst.GesamtpensumWeitereAg.Value;
-            return Math.Round(periodisch * gesamtPensum / eigenesPensum + einmalig, 2);
+            return Rappen(periodisch * gesamtPensum / eigenesPensum + einmalig);
         }
 
         // B2: Gesamteinkommen aller AGs bekannt
         if (qst.GesamteinkommenWeitereAg.HasValue && qst.GesamteinkommenWeitereAg.Value > 0)
         {
-            return Math.Round(bruttolohn + qst.GesamteinkommenWeitereAg.Value, 2);
+            return Rappen(bruttolohn + qst.GesamteinkommenWeitereAg.Value);
         }
 
         // B3: Hochrechnung auf 100%
@@ -1504,12 +1525,12 @@ public static class PayrollCalculations
         {
             // Stundenlöhner: auf die betriebsübliche Monats-Arbeitszeit, nicht auf 180 h
             // (siehe MonatsstundenVollzeit); Ausfallstunden zählen mit (Kap. 10.6.4.3).
-            return Math.Round(periodisch * MonatsstundenVollzeit(company) / stundenMitAusfall + einmalig, 2);
+            return Rappen(periodisch * MonatsstundenVollzeit(company) / stundenMitAusfall + einmalig);
         }
         if (pensumPct.HasValue && pensumPct.Value > 0 && pensumPct.Value < 100)
         {
             // Festlohn: Umrechnung über Pensum
-            return Math.Round(periodisch * 100m / pensumPct.Value + einmalig, 2);
+            return Rappen(periodisch * 100m / pensumPct.Value + einmalig);
         }
         return einmalig > 0 && periodisch == 0 ? einmalig : null;
     }
@@ -1536,7 +1557,7 @@ public static class PayrollCalculations
     {
         var wochenstunden = company?.NormalWeeklyHours ?? 0m;
         if (wochenstunden <= 0) wochenstunden = LgavWochenstunden;
-        return Math.Round(wochenstunden * 52m / 12m, 2);
+        return Rappen(wochenstunden * 52m / 12m);
     }
 
     /// <summary>

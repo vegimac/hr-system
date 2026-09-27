@@ -47,14 +47,14 @@ Saldi, Ferien-/Feiertag-Tage, 13.-ML-Rückstellung, Quellensteuer.
 | TF40 Farine Corinne | 10 | ALVZ-Basis | 18,525.00 | 0.00 | +18525.00 |  |
 | TF40 Farine Corinne | 10 | UVG-Basis | 12,350.00 | 7,600.00 | +4750.00 |  |
 | TF40 Farine Corinne | 10 | UVGZ-Basis | 12,350.00 | 4,000.00 | +8350.00 |  |
-| TF40 Farine Corinne | 10 | SV-Abzug Monat | 638.81 | 378.05 | +260.76 | AHV + ALV + ALVZ + NBU |
+| TF40 Farine Corinne | 10 | SV-Abzug Monat | 638.82 | 378.05 | +260.77 | AHV + ALV + ALVZ + NBU |
 | TF40 Farine Corinne | 12 | ALV-Basis | 12,350.00 | 25,450.00 | -13100.00 |  |
 | TF40 Farine Corinne | 12 | ALVZ-Basis | 18,525.00 | 17,033.35 | +1491.65 |  |
 | TF40 Farine Corinne | 12 | UVG-Basis | 12,350.00 | 17,100.00 | -4750.00 |  |
 | TF40 Farine Corinne | 12 | UVGZ-Basis | 12,350.00 | 20,700.00 | -8350.00 |  |
-| TF40 Farine Corinne | 12 | SV-Abzug Monat | 2,678.43 | 2,891.35 | -212.92 | AHV + ALV + ALVZ + NBU |
+| TF40 Farine Corinne | 12 | SV-Abzug Monat | 2,678.44 | 2,891.35 | -212.91 | AHV + ALV + ALVZ + NBU |
 | TF41 Meier Max | 07 | ALVZ-Basis | 18,525.00 | 0.00 | +18525.00 |  |
-| TF41 Meier Max | 07 | SV-Abzug Monat | 956.81 | 852.45 | +104.36 | AHV + ALV + ALVZ + NBU |
+| TF41 Meier Max | 07 | SV-Abzug Monat | 956.82 | 852.45 | +104.37 | AHV + ALV + ALVZ + NBU |
 
 ## Grenzen des Nachrechners — kein Befund gegen die Lohnrechnung
 
