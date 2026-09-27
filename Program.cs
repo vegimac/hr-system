@@ -211,6 +211,7 @@ builder.Services.AddSingleton<HrSystem.Services.Elm.ElmXmlValidator>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmZertifikatStore>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmSuaService>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmAnnualDeclarationBuilder>();
+builder.Services.AddScoped<HrSystem.Services.Elm.ElmMonthlyDeclarationBuilder>();
 builder.Services.AddScoped<AuswertungenReportPdfService>();
 builder.Services.AddScoped<ProbezeitberichtPdfService>();
 builder.Services.AddScoped<ProbezeitCheckinPdfService>();

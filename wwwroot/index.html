@@ -1391,6 +1391,36 @@
             <!-- Spaltentitel im fixen Kopf (wie Benutzerverwaltung) —
                  Titel + Filter + Spaltenköpfe = ein Block; nur Datenzeilen scrollen
                  (Walter 22.07.2026). -->
+            <div class="page liquid-mask fixhead" id="page-elm-meldungen">
+                <div class="page-head" style="padding-right:32px">
+                    <div>
+                        <h1 class="page-title">ELM-Meldungen</h1>
+                        <p class="page-sub">Monatsmeldung (Quellensteuer + Statistik) erzeugen, gegen die Swissdec-Schemas prüfen und mit der Referenz vergleichen</p>
+                    </div>
+                </div>
+                <div class="page-body" style="padding:0 32px 32px">
+                    <div class="modal" style="position:static;display:block;background:none;padding:0">
+                        <div class="ma-modal-box" style="max-width:1100px;margin:0">
+                            <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                                <div style="flex:1;min-width:280px">
+                                    <label style="display:block;font-size:12px;color:#646464;margin-bottom:5px">Monat</label>
+                                    <select id="elmMonatSel"></select>
+                                </div>
+                                <button type="button" id="elmErzeugenBtn" class="btn-primary"
+                                        style="font-size:13px;padding:9px 20px" onclick="elmMeldungErzeugen()">Meldung erzeugen</button>
+                            </div>
+                            <div id="elmHinweis" style="font-size:12px;color:#8b8b8b;margin-bottom:4px"></div>
+                            <div style="font-size:12px;color:#8b8b8b;line-height:1.5">
+                                Gesendet wird hier nichts. Das XML wird heruntergeladen und im RefApps-Transmitter hochgeladen;
+                                direktes Senden kommt erst mit dem Transmitter-Zertifikat. Wählbar sind nur Monate, die in
+                                <strong>allen</strong> Filialen der Rechtseinheit definitiv abgeschlossen sind.
+                            </div>
+                            <div id="elmErgebnis" style="display:none;margin-top:20px"></div>
+                            <pre id="elmXmlBox" style="display:none;white-space:pre-wrap;font-size:11px;background:rgba(60,55,48,0.05);padding:14px;border-radius:10px;margin-top:14px;max-height:460px;overflow:auto"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="page liquid-mask fixhead" id="page-perioden">
                 <div class="sticky-page-head per-page-head">
                 <div class="page-head" style="padding-right:32px;margin-bottom:0">
@@ -1575,6 +1605,11 @@
                         <img src="img/lohnkat-perioden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohnperioden</div>
                         <div class="admin-card-desc">Abrechnungsperioden verwalten und abschliessen</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('elm-meldungen')">
+                        <img src="img/lohnkat-perioden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">ELM-Meldungen</div>
+                        <div class="admin-card-desc">Monatsmeldung Quellensteuer + Statistik erzeugen und prüfen</div>
                     </div>
                         <div class="admin-card" onclick="showPage('sv-saetze')">
                         <img src="img/lohnkat-sv-saetze.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -9758,6 +9793,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/austritt.js?v=20260922b"></script>
 <script src="js/contracts-edit.js?v=20260923a"></script>
 <script src="js/payroll.js?v=20260927c"></script>
+<script src="js/elm-meldungen.js?v=20260927a"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260918a"></script>

@@ -251,3 +251,43 @@ Fristen); für die EMA gilt das echte Eintrittsdatum.
 
 Der BVG-Code selbst kommt aus `employee_versicherung_code` (Art BVG) — er fehlte bei Müller, bis
 4c ihn am 27.09.2026 aus dem Grunddatensatz nachzog.
+
+
+## E6 — Monatsmeldung DeclareMonthlySalary (Walter 27.09.2026)
+
+**Calculation Test des Quality Tools:** der monatliche Abgleich läuft über **2024-11 bis 2026-02**
+mit rund **1'134 Prüfpunkten**. Die Meldung wird an die Quality-Tool-Adresse **gesendet**, nicht
+hochgeladen: `https://test.swissdec.ch/qualitytool/stable/domain-analyzer/services/elm/SalaryDeclaration/V6`
+(«Your current Interface ELM V6»). Solange es kein Transmitter-Zertifikat gibt, lädt Walter das XML
+im RefApps-Transmitter hoch; direktes Senden kommt mit F02/F07 und dann nur an die Adresse, die der
+Super-Admin in `ElmEndpunkte` festgelegt hat.
+
+**Gebaut:**
+
+| Baustein | Inhalt |
+|---|---|
+| `Services/Elm/ElmGemeinsam.cs` | Namensräume, Kopf (RequestContext), Firmenbeschreibung mit Workplaces, Personalien, Arbeitszeit-Block, `LadeRechtseinheitAsync`. **Jahres- und Monatsmeldung teilen diese Teile** — der Jahresbaustein schrumpfte dadurch von 469 auf 278 Zeilen. |
+| `Services/Elm/ElmMonthlyDeclarationBuilder.cs` | `DeclareMonthlySalary` aus den **definitiv abgeschlossenen** Lohnzetteln eines Monats über alle Filialen. Ist eine Filiale nicht abgeschlossen → Abbruch mit Klartext, keine halbe Meldung. Empfänger nur, wer Daten bekommt (Nullmeldungs-Regel). `<TestCase/>` gesetzt. |
+| `Services/Elm/ElmXmlVergleich.cs` | Feld-für-Feld-Vergleich gegen eine Referenz, Personen über die **Personalnummer** zugeordnet (die Referenz sortiert anders). Bewusste Abweichungen (A5) werden markiert, nicht gezählt. Bericht als Markdown. |
+| `GET /api/elm/monthly/{jahr}/{monat}` | XML + XSD-Prüfung + Vergleich + Bericht (admin, superuser). |
+| `GET /api/elm/monthly/moegliche-monate` | nur Monate, die in **allen** Filialen definitiv abgeschlossen sind. |
+| Cockpit `page-elm-meldungen` | Lohn-Hub → «ELM-Meldungen»: Monat wählen, Meldung erzeugen, Prüfergebnis, Unterschiedstabelle, XML ansehen/herunterladen (`saveBlobAsk`). Kein Senden. |
+
+**Statistik-Zuordnung:** die Monatswerte kommen aus dem Lohnzettel über den `StatistikCode` der
+Lohnart (ELM-Lohnraster): **I** Bruttolohn, **J** Zulagen, **K** Familienzulagen, **Y**
+Drittleistungen, **P** Überstunden, **O** 13. Monatslohn. Sozialabgaben = AHV + ALV + ALVZ + NBU,
+BVG aus der BVG-Zeile. Eine Lohnart ohne Statistik-Code zählt zum Bruttolohn **und meldet das** —
+stillschweigend weglassen wäre der schlimmere Fehler.
+
+**Bekannte Lücken — werden im Vergleich rot und sind nicht gefüllt:**
+
+1. **Arbeitszeitmodelle.** Die Referenz führt vier Modelle je Rechtseinheit (42 h, 40 h,
+   21 Lektionen, 20 h + 10 Lektionen) mit eigener ID, auf die jede Person über
+   `companyWorkingTimeIDRef` verweist. OneCrew kennt nur die Wochenstunden je Filiale und meldet
+   deshalb EIN Modell ohne Verweis. Dafür braucht es die Arbeitszeitmodell-Verwaltung
+   (Auftrag «Systemtest Unternehmen» Punkt 6) — **eigener Auftrag, noch nicht gebaut.**
+2. **Statistik-Stammdaten.** Ausbildung (Swissdec-Stufen), Kaderfunktion (`Position`) und
+   Ferienanspruch in Tagen (`LeaveEntitlement`) liegen so nicht in OneCrew; gemeldet wird nur die
+   Funktion als `JobTitle`. Siehe `docs/swissdec-testmandant.md`, bekannte Lücken.
+
+Keine Werte aus der Referenz abgeschrieben oder hart codiert.

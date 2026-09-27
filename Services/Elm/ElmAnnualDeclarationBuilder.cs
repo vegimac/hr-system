@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using HrSystem.Data;
 using Microsoft.EntityFrameworkCore;
+using static HrSystem.Services.Elm.ElmGemeinsam;
 
 namespace HrSystem.Services.Elm;
 
@@ -33,12 +34,6 @@ public class ElmAnnualDeclarationBuilder
         _validator = validator;
     }
 
-    private static readonly XNamespace Sdst = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types";
-    private static readonly XNamespace Sdc  = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container";
-    private static readonly XNamespace Sd   = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration";
-    private static readonly XNamespace Ep   = "urn:ch:swissdec:basis:v1:20260306:components";
-    private static readonly XNamespace C    = "urn:ch:swissdec:common:v3:20260306";
-
     /// <summary>Monats-Höchstlohn ALV/NBU (148'200 / 12) — E2-Näherung.</summary>
     private const decimal AlvMonatsCap = 12350m;
 
@@ -46,61 +41,20 @@ public class ElmAnnualDeclarationBuilder
         string Xml, int Personen, int Uebersprungen, decimal TotalAhv, decimal TotalAlv,
         List<string> Warnungen, List<string> XsdFehler);
 
-    private static string Amt(decimal v) => v.ToString("0.00", CultureInfo.InvariantCulture);
-
-    /// <summary>«Bahnhofstrasse» + «1» → «Bahnhofstrasse 1» (Swissdec führt Strasse und Nummer in EINEM Feld).</summary>
-    private static string StrasseMitNr(string? strasse, string? nr)
-    {
-        var st = (strasse ?? "").Trim(); var n = (nr ?? "").Trim();
-        if (st.Length == 0) return n;
-        return n.Length == 0 || st.EndsWith(" " + n) ? st : $"{st} {n}";
-    }
-
     public async Task<BuildResult> BuildAhvAsync(int year, CancellationToken ct = default)
     {
         var warn = new List<string>();
 
-        // ── Stammdaten Rechtseinheit ──────────────────────────────────────
-        var branches = await _db.CompanyProfiles.AsNoTracking()
-            .OrderBy(p => p.Id).ToListAsync(ct);
-        if (branches.Count == 0)
-            return new BuildResult("", 0, 0, 0, 0,
-                new List<string> { "Keine Filialen (CompanyProfiles) vorhanden." }, new List<string>());
-        var main = branches[0];
+        // ── Stammdaten Rechtseinheit (gemeinsam mit der Monatsmeldung) ────
+        var stamm = await LadeRechtseinheitAsync(_db, warn, ct);
+        if (stamm == null)
+            return new BuildResult("", 0, 0, 0, 0, warn, new List<string>());
+        var branches = stamm.Filialen;
+        var main = stamm.Haupt;
+        var uid = stamm.Uid;
 
-        // E3-Stammdaten der Rechtseinheit (eine Zeile) — primäre Quelle;
-        // Fallback: CompanyProfile-Felder, zuletzt Platzhalter + Hinweis.
-        var st = await _db.ElmStammdaten.AsNoTracking()
-            .OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
-
-        // UID + Firmenname der MELDEEINHEIT aus der Hauptsitz-Verwaltung
-        // (Walter 29.08.2026). Mehrere Hauptsitze → E5 meldet pro
-        // Rechtseinheit; bis dahin läuft alles unter dem ersten (+ Hinweis).
-        var hsIds = branches.Where(b2 => b2.HauptsitzId != null)
-            .Select(b2 => b2.HauptsitzId!.Value).Distinct().ToList();
-        Models.Hauptsitz? hs = null;
-        if (hsIds.Count > 0)
-        {
-            var hsList = await _db.Hauptsitze.AsNoTracking()
-                .Where(h => hsIds.Contains(h.Id)).OrderBy(h => h.Id).ToListAsync(ct);
-            hs = hsList.FirstOrDefault();
-            if (hsIds.Count > 1)
-                warn.Add($"Filialen sind {hsIds.Count} verschiedenen Hauptsitzen zugeordnet — Meldung pro Rechtseinheit kommt in E5; dieses XML läuft komplett unter «{hs?.Name}».");
-        }
-        else
-        {
-            hs = await _db.Hauptsitze.AsNoTracking()
-                .Where(h => h.IsActive).OrderBy(h => h.Id).FirstOrDefaultAsync(ct);
-            if (hs != null)
-                warn.Add($"Keine Filiale ist einem Hauptsitz zugeordnet — es wird «{hs.Name}» verwendet (Zuordnung: Filiale → Stammdaten bearbeiten).");
-        }
-
-        var uid = (hs?.Uid ?? st?.Uid ?? main.UidBfs ?? main.UidNummer ?? "").Trim();
-        if (!Regex.IsMatch(uid, @"^CHE-\d{3}\.\d{3}\.\d{3}$"))
-        {
-            warn.Add($"UID fehlt/ungültig («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (Hauptsitz-Verwaltung: UID erfassen).");
-            uid = "CHE-123.123.123";
-        }
+        // «versichert seit» für UVG/BVG kommt weiterhin aus elm_stammdaten (E3).
+        var st = await _db.ElmStammdaten.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
 
         // Führende Quelle für Nummern = EMPFÄNGER-KATALOG (Walter 28.08.2026):
         // LohndatenEmpfaenger (zentral) + CompanyProfileEmpfaenger (Mitglied-/
@@ -212,88 +166,9 @@ public class ElmAnnualDeclarationBuilder
                 ?? employments.Where(m => m.EmployeeId == x.EmployeeId)
                        .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
 
-            // SV-Nummer: 756.xxxx.xxxx.xx oder <unknown/>
-            var svDigits = Regex.Replace(e.SocialSecurityNumber ?? "", @"\D", "");
-            XElement svEl;
-            if (svDigits.Length == 13)
-                svEl = new XElement(C + "SV-AS-Number",
-                    $"{svDigits[..3]}.{svDigits.Substring(3, 4)}.{svDigits.Substring(7, 4)}.{svDigits.Substring(11, 2)}");
-            else
-            {
-                svEl = new XElement(C + "unknown");
-                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): AHV-Nummer fehlt/ungültig — als «unknown» gemeldet.");
-            }
+            var particulars = Particulars(e, warn);
 
-            var sex = (e.Gender ?? "").ToLowerInvariant();
-            var sexCode = sex.StartsWith("f") || sex.StartsWith("w") ? "F" : "M";
-            if (string.IsNullOrEmpty(sex))
-                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Geschlecht fehlt — als M gemeldet.");
-
-            var civil = MapCivilStatus(e.MaritalStatus);
-            var natCode = (e.NationalityRef?.Code ?? "").ToUpperInvariant();
-            if (!Regex.IsMatch(natCode, "^[A-Z]{2}$"))
-            {
-                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Nationalität fehlt — als CH gemeldet.");
-                natCode = "CH";
-            }
-
-            var zip = string.IsNullOrWhiteSpace(e.ZipCode) ? "0000" : e.ZipCode!.Trim();
-            var city = string.IsNullOrWhiteSpace(e.City) ? "Unbekannt" : e.City!.Trim();
-            if (zip == "0000" || city == "Unbekannt")
-                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Adresse unvollständig — Platzhalter eingesetzt.");
-            var canton = (e.CantonCode ?? "").ToUpperInvariant();
-            var landCh = string.IsNullOrWhiteSpace(e.Country) || e.Country!.Trim().ToUpperInvariant() == "CH";
-            if (!Regex.IsMatch(canton, "^[A-Z]{2}$"))
-            {
-                canton = landCh ? "LU" : "EX";
-                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Wohnkanton fehlt — als {canton} gemeldet.");
-            }
-
-            var civilEl = new XElement(C + "CivilStatus", new XElement(C + "Status", civil));
-            if (e.MaritalStatusSince != null)
-                civilEl.Add(new XElement(C + "ValidAsOf", e.MaritalStatusSince.Value.ToString("yyyy-MM-dd")));
-
-            var particulars = new XElement(C + "Particulars",
-                new XElement(C + "Social-InsuranceIdentification", svEl),
-                new XElement(C + "EmployeeNumber", e.EmployeeNumber),
-                new XElement(C + "Lastname", e.LastName),
-                new XElement(C + "Firstname", e.FirstName),
-                new XElement(C + "Sex", sexCode),
-                new XElement(C + "DateOfBirth", e.DateOfBirth.Value.ToString("yyyy-MM-dd")),
-                new XElement(C + "Nationality", natCode),
-                civilEl,
-                new XElement(C + "Addresses",
-                    new XElement(C + "Address",
-                        string.IsNullOrWhiteSpace(e.Street) ? null : new XElement(C + "Street", e.Street.Trim()),
-                        new XElement(C + "ZIP-Code", zip),
-                        new XElement(C + "City", city),
-                        new XElement(C + "ResidenceCanton", canton))),
-                new XElement(C + "LanguageCode",
-                    new[] { "de", "fr", "it", "en" }.Contains((e.LanguageCode ?? "de").ToLowerInvariant())
-                        ? (e.LanguageCode ?? "de").ToLowerInvariant() : "de"));
-
-            // WorkingTime: FIX/FIX-M + MTP = Steady, FLEX/unbekannt = Unsteady
-            XElement workingTime;
-            var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
-            var branchWeekly = main.NormalWeeklyHours ?? 42m;
-            if ((model == "FIX" || model == "FIX-M") && em != null)
-            {
-                var pct = em.EmploymentPercentage ?? 100m;
-                var weekly = Math.Round(branchWeekly * pct / 100m, 2);
-                workingTime = new XElement(C + "Steady",
-                    new XElement(C + "WeeklyHours", Amt(weekly)),
-                    new XElement(C + "ActivityRate", Amt(pct)));
-            }
-            else if (model == "MTP" && em?.GuaranteedHoursPerWeek is decimal gh && gh > 0)
-            {
-                workingTime = new XElement(C + "Steady",
-                    new XElement(C + "WeeklyHours", Amt(gh)),
-                    new XElement(C + "ActivityRate", Amt(Math.Round(gh / branchWeekly * 100m, 2))));
-            }
-            else
-            {
-                workingTime = new XElement(C + "Unsteady");
-            }
+            var workingTime = WorkingTime(em, main.NormalWeeklyHours ?? 42m);
 
             var entry = e.EntryDate ?? em?.ContractStartDate ?? yearStart;
             var work = new XElement(C + "Work",
@@ -324,57 +199,13 @@ public class ElmAnnualDeclarationBuilder
         }
 
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─
-        var companyName = (hs?.Name ?? main.CompanyName ?? "Schaub Restaurants GmbH").Trim();
-        // Sitzadresse der Rechtseinheit: Hauptsitz-Verwaltung, Fallback erste Filiale.
-        var sitzStrasse = !string.IsNullOrWhiteSpace(hs?.Strasse) ? hs!.Strasse!.Trim() : StrasseMitNr(main.Street, main.HouseNumber);
-        var sitzPlz     = !string.IsNullOrWhiteSpace(hs?.Plz)     ? hs!.Plz!.Trim()     : (main.ZipCode ?? "").Trim();
-        var sitzOrt     = !string.IsNullOrWhiteSpace(hs?.Ort)     ? hs!.Ort!.Trim()     : (main.City ?? "").Trim();
-        // Workplace-IDs: Filialcode (z.B. #LU, #058) — stabil und lesbar; Fallback DB-Id.
-        string WpId(Models.CompanyProfile b2) => "#" + (string.IsNullOrWhiteSpace(b2.RestaurantCode) ? $"wp{b2.Id}" : b2.RestaurantCode!.Trim());
-        // BFS-Gemeindenummer: Feld an der Filiale ist massgebend (Ausnahmen/Testdaten);
-        // ist es leer, aus dem Ortschaftsverzeichnis (swiss_location) über PLZ+Ort ableiten.
-        var gemeindeNr = new Dictionary<int, int>();
-        foreach (var b2 in branches)
+        var companyName = stamm.Firmenname;
+        var companyDescription = CompanyDescription(stamm, new[]
         {
-            if (b2.BfsGemeindeNr is > 0) { gemeindeNr[b2.Id] = b2.BfsGemeindeNr.Value; continue; }
-            var plz = (b2.ZipCode ?? "").Trim(); var ort = (b2.City ?? "").Trim().ToLowerInvariant();
-            if (plz.Length != 4) { warn.Add($"Filiale «{b2.FullDisplayName}»: keine BFS-Gemeindenummer (PLZ fehlt) — Swissdec verlangt MunicipalityID pro Workplace."); continue; }
-            var treffer = await _db.SwissLocations.AsNoTracking()
-                .Where(l => l.Plz4 == plz).Select(l => new { l.BfsNr, l.Ortschaftsname, l.Gemeindename }).ToListAsync(ct);
-            var nrs = treffer.Select(t => t.BfsNr).Distinct().ToList();
-            var best = treffer.FirstOrDefault(t => (t.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(ort) || (t.Gemeindename ?? "").ToLowerInvariant() == ort)?.BfsNr
-                       ?? (nrs.Count == 1 ? nrs[0] : (int?)null);
-            if (best is > 0) gemeindeNr[b2.Id] = best.Value;
-            else warn.Add($"Filiale «{b2.FullDisplayName}»: BFS-Gemeindenummer nicht eindeutig ableitbar (PLZ {plz}, {nrs.Count} Gemeinden) — bitte in den Stammdaten → Betriebsangaben eintragen.");
-        }
-        var companyDescription = new XElement(Sd + "CompanyDescription",
-            new XElement(C + "Name", new XElement(C + "HR-RC-Name", companyName)),
-            new XElement(C + "Address",
-                string.IsNullOrWhiteSpace(sitzStrasse) ? null : new XElement(C + "Street", sitzStrasse),
-                new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(sitzPlz) ? "0000" : sitzPlz),
-                new XElement(C + "City", string.IsNullOrWhiteSpace(sitzOrt) ? "Unbekannt" : sitzOrt),
-                new XElement(C + "Country", "SWITZERLAND")),
-            new XElement(C + "UID-BFS", new XElement(Ep + "UID", uid)),
-            branches.Select(b2 => new XElement(C + "Workplace",
-                new XAttribute("workplaceID", WpId(b2)),
-                // BUR-Nummer = offizielle Betriebsstätten-Kennung (Muster A63837147);
-                // nur mitgeben, wenn sie dem XSD-Pattern [A-Z][0-9]{8} entspricht.
-                Regex.IsMatch((b2.BurNummer ?? "").Trim(), "^[A-Z][0-9]{8}$")
-                    ? new XElement(C + "BUR-REE-Number", b2.BurNummer!.Trim())
-                    : null,
-                // AddressExtended (Reihenfolge XSD): ComplementaryLine, Street, ZIP, City, Country, Canton, MunicipalityID.
-                // ComplementaryLine = Filialbezeichnung («Hauptsitz», «Werkhof/Büro» — Swissdec-Testmandant).
-                new XElement(C + "AddressExtended",
-                    string.IsNullOrWhiteSpace(b2.BranchName) ? null : new XElement(C + "ComplementaryLine", b2.BranchName!.Trim()),
-                    string.IsNullOrWhiteSpace(StrasseMitNr(b2.Street, b2.HouseNumber)) ? null : new XElement(C + "Street", StrasseMitNr(b2.Street, b2.HouseNumber)),
-                    new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(b2.ZipCode) ? "0000" : b2.ZipCode!.Trim()),
-                    new XElement(C + "City", string.IsNullOrWhiteSpace(b2.City) ? "Unbekannt" : b2.City!.Trim()),
-                    new XElement(C + "Country", "SWITZERLAND"),
-                    string.IsNullOrWhiteSpace(b2.KantonCode) ? null : new XElement(C + "Canton", b2.KantonCode!.Trim().ToUpperInvariant()),
-                    gemeindeNr.TryGetValue(b2.Id, out var gnr) ? new XElement(C + "MunicipalityID", gnr) : null))),
             new XElement(C + "CompanyWorkingTime",
                 new XAttribute("companyWorkingTimeID", "#cwt1"),
-                new XElement(C + "WeeklyHours", Amt(main.NormalWeeklyHours ?? 42m))));
+                new XElement(C + "WeeklyHours", Amt(main.NormalWeeklyHours ?? 42m)))
+        });
 
         // ── Gesamtdokument ────────────────────────────────────────────────
         var now = DateTime.Now;
@@ -385,17 +216,7 @@ public class ElmAnnualDeclarationBuilder
                 new XAttribute(XNamespace.Xmlns + "sd", Sd),
                 new XAttribute(XNamespace.Xmlns + "ep", Ep),
                 new XAttribute(XNamespace.Xmlns + "c", C),
-                new XElement(Ep + "RequestContext",
-                    new XElement(Ep + "UserAgent",
-                        new XElement(Ep + "Producer", "Schaub Restaurants GmbH"),
-                        new XElement(Ep + "Name", "OneCrew"),
-                        new XElement(Ep + "Version", "2026.08"),
-                        new XElement(Ep + "StandardVersion", "6.0"),
-                        new XElement(Ep + "Certificate", "n/a")),
-                    new XElement(Ep + "CompanyName", companyName),
-                    new XElement(Ep + "TransmissionDate", now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
-                    new XElement(Ep + "RequestID", Guid.NewGuid().ToString("N")),
-                    new XElement(Ep + "LanguageCode", "de")),
+                RequestContext(companyName, now),
                 new XElement(Sdc + "Job",
                     new XElement(Sdc + "Addressees",
                         new XElement(Sdc + "Addressee",
@@ -454,16 +275,4 @@ public class ElmAnnualDeclarationBuilder
             new XElement(Sd + "NoneWithReason", fallbackGrund));
     }
 
-    private static string MapCivilStatus(string? ms)
-    {
-        var s = (ms ?? "").ToLowerInvariant();
-        if (s.Contains("verheiratet")) return "married";
-        if (s.Contains("getrennt")) return "separated";
-        if (s.Contains("geschieden")) return "divorced";
-        if (s.Contains("verwitwet")) return "widowed";
-        if (s.Contains("aufgel")) return "partnershipDissolvedByLaw";
-        if (s.Contains("partnerschaft")) return "registeredPartnership";
-        if (s.Contains("ledig") || s.Contains("konkubinat")) return "single";   // Konkubinat ist kein Zivilstand → ledig
-        return "unknown";
-    }
 }

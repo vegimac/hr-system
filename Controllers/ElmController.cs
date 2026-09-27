@@ -22,14 +22,17 @@ public class ElmController : ControllerBase
 {
     private readonly ElmTransmitterClient _client;
     private readonly ElmAnnualDeclarationBuilder _builder;
+    private readonly ElmMonthlyDeclarationBuilder _monatsBuilder;
     private readonly ElmSuaService _sua;
     private readonly ElmZertifikatStore _store;
     private readonly AppDbContext _db;
     public ElmController(ElmTransmitterClient client, ElmAnnualDeclarationBuilder builder,
+        ElmMonthlyDeclarationBuilder monatsBuilder,
         ElmSuaService sua, ElmZertifikatStore store, AppDbContext db)
     {
         _client = client;
         _builder = builder;
+        _monatsBuilder = monatsBuilder;
         _sua = sua;
         _store = store;
         _db = db;
@@ -157,6 +160,107 @@ public class ElmController : ControllerBase
             xsdFehler = r.XsdFehler,
             valid = r.XsdFehler.Count == 0 && r.Xml.Length > 0
         });
+    }
+
+    /// <summary>
+    /// E6: Monatsmeldung (Quellensteuer + Statistik) als DeclareMonthlySalary-XML,
+    /// gegen die ELM-6.0-Schemas validiert und — wenn eine Referenz von Swissdec
+    /// vorliegt — Feld für Feld mit ihr verglichen. Nur KUNSTDATEN.
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpGet("monthly/{year:int}/{month:int}")]
+    public async Task<IActionResult> Monthly(int year, int month, CancellationToken ct)
+    {
+        if (year < 2020 || year > 2100 || month < 1 || month > 12)
+            return BadRequest(new { error = "PERIODE_UNGUELTIG", message = "Bitte Jahr und Monat gültig angeben." });
+
+        var r = await _monatsBuilder.BuildAsync(year, month, ct);
+        object? vergleich = null;
+        string? bericht = null;
+        if (r.Xml.Length > 0)
+        {
+            var refDatei = ReferenzDatei(year, month);
+            if (refDatei != null)
+            {
+                try
+                {
+                    var e = ElmXmlVergleich.Vergleiche(r.Xml, await System.IO.File.ReadAllTextAsync(refDatei, ct));
+                    bericht = ElmXmlVergleich.Bericht(e, $"ELM-Monatsmeldung {year}-{month:00}", System.IO.Path.GetFileName(refDatei));
+                    vergleich = new
+                    {
+                        referenz = System.IO.Path.GetFileName(refDatei),
+                        geprueft = e.Geprueft, offen = e.Offen, bewusst = e.Bewusst,
+                        personenIst = e.PersonenIst, personenSoll = e.PersonenSoll,
+                        unterschiede = e.Unterschiede.Take(400).Select(u => new
+                        {
+                            person = u.Person, feld = u.Feld, ist = u.Ist, soll = u.Soll,
+                            bewusst = u.Bewusst
+                        })
+                    };
+                }
+                catch (Exception ex)
+                {
+                    bericht = null;
+                    vergleich = new { fehler = $"Referenz nicht lesbar: {ex.Message}" };
+                }
+            }
+        }
+
+        return Ok(new
+        {
+            xml = r.Xml,
+            personen = r.Personen,
+            qstZeilen = r.QstZeilen,
+            statistikZeilen = r.StatistikZeilen,
+            warnungen = r.Warnungen,
+            xsdFehler = r.XsdFehler,
+            valid = r.XsdFehler.Count == 0 && r.Xml.Length > 0,
+            vergleich,
+            bericht
+        });
+    }
+
+    /// <summary>
+    /// Monate, für die eine Meldung erzeugt werden kann: in ALLEN Filialen der
+    /// Rechtseinheit definitiv abgeschlossen. Alles andere wäre eine Meldung mit
+    /// halben Daten.
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpGet("monthly/moegliche-monate")]
+    public async Task<IActionResult> MoeglicheMonate(CancellationToken ct)
+    {
+        var filialen = await _db.CompanyProfiles.AsNoTracking().Select(c => c.Id).ToListAsync(ct);
+        var perioden = await _db.PayrollPerioden.AsNoTracking()
+            .Where(p => filialen.Contains(p.CompanyProfileId))
+            .Select(p => new { p.Year, p.Month, p.Status, p.CompanyProfileId })
+            .ToListAsync(ct);
+        var monate = perioden
+            .GroupBy(p => new { p.Year, p.Month })
+            .OrderByDescending(g => g.Key.Year).ThenByDescending(g => g.Key.Month)
+            .Select(g => new
+            {
+                jahr = g.Key.Year,
+                monat = g.Key.Month,
+                filialen = g.Select(x => x.CompanyProfileId).Distinct().Count(),
+                offen = g.Count(x => x.Status != "abgeschlossen"),
+                bereit = g.All(x => x.Status == "abgeschlossen"),
+                referenz = ReferenzDatei(g.Key.Year, g.Key.Month) != null
+            })
+            .ToList();
+        return Ok(new { monate });
+    }
+
+    /// <summary>Referenz-XML von Swissdec, falls im Repo vorhanden (zwei Schreibweisen).</summary>
+    private static string? ReferenzDatei(int year, int month)
+    {
+        var ordner = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SWISSCEC", "RefXML");
+        if (!Directory.Exists(ordner)) return null;
+        foreach (var muster in new[] { $"RefXML_{year}-{month:00}_MONTHLY*.xml", $"RefXML_{year}{month:00}_MONTHLY*.xml" })
+        {
+            var treffer = Directory.GetFiles(ordner, muster).OrderBy(x => x).FirstOrDefault();
+            if (treffer != null) return treffer;
+        }
+        return null;
     }
 
     // ── E3: Stammdaten Rechtseinheit (Walter 28.08.2026) ──────────────

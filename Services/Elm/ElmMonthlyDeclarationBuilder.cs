@@ -1,0 +1,500 @@
+using System.Text.Json;
+using System.Xml.Linq;
+using HrSystem.Data;
+using HrSystem.Models;
+using Microsoft.EntityFrameworkCore;
+using static HrSystem.Services.Elm.ElmGemeinsam;
+
+namespace HrSystem.Services.Elm;
+
+/// <summary>
+/// Etappe E6 (Walter 27.09.2026): Monatsmeldung <c>DeclareMonthlySalary</c> —
+/// Quellensteuer je Kanton + BFS-Statistik, aus den DEFINITIV abgeschlossenen
+/// Lohnzetteln eines Monats über alle Filialen der Rechtseinheit.
+///
+/// <para>Vorlage und Soll: <c>SWISSCEC/RefXML/RefXML_202411_MONTHLY.xml</c>
+/// (Muster AG). Geprüft wird die Meldung im Calculation Test des Quality Tools.</para>
+///
+/// <para>Bewusste Lücken, die der Vergleich rot zeigt und die gemeldet werden
+/// (nicht stillschweigend gefüllt):</para>
+/// <list type="bullet">
+/// <item>CompanyWorkingTime: OneCrew kennt nur die Wochenstunden je Filiale, die
+/// Referenz führt mehrere Modelle je Rechtseinheit (42 h, 40 h, 21 Lektionen,
+/// 20 h + 10 Lektionen) mit eigener ID, auf die jede Person verweist. Dafür
+/// braucht es die Arbeitszeitmodell-Verwaltung — eigener Auftrag.</item>
+/// <item>Statistik-Stammdaten: Ausbildung (Swissdec-Stufen), Kaderfunktion und
+/// Ferienanspruch in Tagen liegen so nicht in OneCrew
+/// (<c>docs/swissdec-testmandant.md</c>, bekannte Lücken).</item>
+/// </list>
+/// </summary>
+public class ElmMonthlyDeclarationBuilder
+{
+    private readonly AppDbContext _db;
+    private readonly ElmXmlValidator _validator;
+
+    public ElmMonthlyDeclarationBuilder(AppDbContext db, ElmXmlValidator validator)
+    {
+        _db = db;
+        _validator = validator;
+    }
+
+    public record BuildResult(
+        string Xml, int Personen, int QstZeilen, int StatistikZeilen,
+        List<string> Warnungen, List<string> XsdFehler);
+
+    /// <summary>Zahl aus dem Lohnzettel (slip_json), 0 wenn nicht vorhanden.</summary>
+    private static decimal Num(JsonElement el, string name)
+        => el.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDecimal() : 0m;
+
+    private static string? Str(JsonElement el, string name)
+        => el.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    public async Task<BuildResult> BuildAsync(int year, int month, CancellationToken ct = default)
+    {
+        var warn = new List<string>();
+        var stamm = await LadeRechtseinheitAsync(_db, warn, ct);
+        if (stamm == null) return new BuildResult("", 0, 0, 0, warn, new List<string>());
+
+        var filialIds = stamm.Filialen.Select(b => b.Id).ToList();
+        var filialeById = stamm.Filialen.ToDictionary(b => b.Id);
+
+        // ── Perioden: NUR definitiv abgeschlossene (Walter 27.09.2026) ────────
+        var perioden = await _db.PayrollPerioden.AsNoTracking()
+            .Where(p => p.Year == year && p.Month == month && filialIds.Contains(p.CompanyProfileId))
+            .ToListAsync(ct);
+        if (perioden.Count == 0)
+            return new BuildResult("", 0, 0, 0,
+                new List<string> { $"Für {month:00}.{year} gibt es in keiner Filiale eine Lohnperiode." }, new List<string>());
+
+        var offen = perioden.Where(p => p.Status != "abgeschlossen")
+            .Select(p => filialeById.TryGetValue(p.CompanyProfileId, out var b) ? b.FullDisplayName : $"Filiale {p.CompanyProfileId}")
+            .OrderBy(x => x).ToList();
+        if (offen.Count > 0)
+            return new BuildResult("", 0, 0, 0,
+                new List<string> { $"Nicht definitiv abgeschlossen: {string.Join(", ", offen)}. Eine Monatsmeldung wird nur aus abgeschlossenen Lohnläufen erzeugt." },
+                new List<string>());
+
+        var periodeIds = perioden.Select(p => p.Id).ToList();
+        var snaps = await _db.PayrollSnapshots.AsNoTracking()
+            .Where(s => periodeIds.Contains(s.PayrollPeriodeId) && s.Status != "STORNIERT")
+            .Select(s => new { s.EmployeeId, s.PayrollPeriodeId, s.SlipJson })
+            .ToListAsync(ct);
+        if (snaps.Count == 0)
+            return new BuildResult("", 0, 0, 0,
+                new List<string> { $"Keine Lohnzettel für {month:00}.{year}." }, new List<string>());
+
+        var periodeFiliale = perioden.ToDictionary(p => p.Id, p => p.CompanyProfileId);
+
+        // ── Statistik-Zuordnung der Lohnarten (ELM-Lohnraster, Spalte StatistikCode) ─
+        var statistikJeCode = await _db.Lohnpositionen.AsNoTracking()
+            .Where(l => l.StatistikCode != null)
+            .Select(l => new { l.Code, l.StatistikCode })
+            .ToListAsync(ct);
+        var statByCode = statistikJeCode
+            .GroupBy(x => x.Code)
+            .ToDictionary(g => g.Key, g => (g.First().StatistikCode ?? "").Trim().ToUpperInvariant());
+
+        var empIds = snaps.Select(s => s.EmployeeId).Distinct().ToList();
+        var emps = await _db.Employees.AsNoTracking()
+            .Include(e => e.NationalityRef)
+            .Where(e => empIds.Contains(e.Id))
+            .ToListAsync(ct);
+        var empById = emps.ToDictionary(e => e.Id);
+        var employments = await _db.Employments.AsNoTracking()
+            .Where(em => empIds.Contains(em.EmployeeId))
+            .ToListAsync(ct);
+        var qstVersionen = await _db.EmployeeQuellensteuer.AsNoTracking()
+            .Where(q => empIds.Contains(q.EmployeeId))
+            .ToListAsync(ct);
+
+        // Wohngemeinde der Personen: die Statistik verlangt die BFS-Nummer in der
+        // Adresse. OneCrew führt sie am MA nicht — sie wird über die PLZ aus dem
+        // Ortschaftsverzeichnis abgeleitet, wie bei den Filialen.
+        var plzListe = emps.Select(e2 => (e2.ZipCode ?? "").Trim()).Where(z => z.Length == 4).Distinct().ToList();
+        var orte = await _db.SwissLocations.AsNoTracking()
+            .Where(l => plzListe.Contains(l.Plz4))
+            .Select(l => new { l.Plz4, l.BfsNr, l.Ortschaftsname, l.Gemeindename })
+            .ToListAsync(ct);
+        int? WohnGemeinde(Employee e2)
+        {
+            var plz = (e2.ZipCode ?? "").Trim();
+            if (plz.Length != 4) return null;
+            var ort = (e2.City ?? "").Trim().ToLowerInvariant();
+            var kand = orte.Where(o => o.Plz4 == plz).ToList();
+            var best = kand.FirstOrDefault(o => (o.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(ort)
+                                             || (o.Gemeindename ?? "").ToLowerInvariant() == ort)?.BfsNr;
+            if (best is > 0) return best;
+            var nrs = kand.Select(o => o.BfsNr).Distinct().ToList();
+            return nrs.Count == 1 ? nrs[0] : null;
+        }
+
+        var monatsAnfang = new DateTime(year, month, 1);
+        var monatsEnde = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+        var monatStr = $"{year:0000}-{month:00}";
+
+        var personen = new List<XElement>();
+        var qstKantone = new SortedSet<string>(StringComparer.Ordinal);
+        var qstTotal = new Dictionary<string, (decimal Basis, decimal Steuer)>(StringComparer.Ordinal);
+        int qstZeilen = 0, statZeilen = 0;
+
+        foreach (var g in snaps.GroupBy(s => s.EmployeeId).OrderBy(g => g.Key))
+        {
+            if (!empById.TryGetValue(g.Key, out var e)) continue;
+            if (e.DateOfBirth == null)
+            {
+                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Geburtsdatum fehlt (Pflichtfeld) — nicht gemeldet.");
+                continue;
+            }
+
+            var statistikZeilen = new List<XElement>();
+            var qstZeilenPerson = new List<XElement>();
+
+            foreach (var s in g.OrderBy(x => x.PayrollPeriodeId))
+            {
+                if (string.IsNullOrWhiteSpace(s.SlipJson)) continue;
+                JsonElement slip;
+                try { slip = JsonDocument.Parse(s.SlipJson).RootElement; }
+                catch (JsonException)
+                {
+                    warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Lohnzettel nicht lesbar — nicht gemeldet.");
+                    continue;
+                }
+
+                var filialId = periodeFiliale[s.PayrollPeriodeId];
+                if (!filialeById.TryGetValue(filialId, out var filiale)) continue;
+
+                var em = employments
+                    .Where(m => m.EmployeeId == e.Id && m.CompanyProfileId == filialId
+                             && m.ContractStartDate <= monatsEnde
+                             && (m.ContractEndDate == null || m.ContractEndDate >= monatsAnfang))
+                    .OrderByDescending(m => m.ContractStartDate).FirstOrDefault()
+                    ?? employments.Where(m => m.EmployeeId == e.Id)
+                           .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
+
+                statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, statByCode, monatStr, monatsAnfang, monatsEnde, warn));
+                statZeilen++;
+
+                var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen, stamm, monatStr, monatsAnfang, warn);
+                if (qst != null)
+                {
+                    qstZeilenPerson.Add(qst.Value.Zeile);
+                    qstKantone.Add(qst.Value.Kanton);
+                    var bisher = qstTotal.TryGetValue(qst.Value.Kanton, out var t) ? t : (0m, 0m);
+                    qstTotal[qst.Value.Kanton] = (bisher.Item1 + qst.Value.Basis, bisher.Item2 + qst.Value.Steuer);
+                    qstZeilen++;
+                }
+            }
+
+            if (statistikZeilen.Count == 0 && qstZeilenPerson.Count == 0) continue;
+
+            var emHaupt = employments.Where(m => m.EmployeeId == e.Id)
+                .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
+            var person = new XElement(Sd + "Person",
+                Particulars(e, warn, WohnGemeinde(e)),
+                new XElement(C + "Work",
+                    new XAttribute("workID", WorkId(e)),
+                    new XElement(C + "WorkingTime", WorkingTime(emHaupt, stamm.Haupt.NormalWeeklyHours ?? 42m)),
+                    new XElement(C + "EntryDate", (e.EntryDate ?? emHaupt?.ContractStartDate ?? monatsAnfang).ToString("yyyy-MM-dd"))),
+                statistikZeilen.Count > 0 ? new XElement(Sd + "StatisticSalaries", statistikZeilen) : null,
+                qstZeilenPerson.Count > 0 ? new XElement(Sd + "TaxAtSourceSalaries", qstZeilenPerson) : null);
+            personen.Add(person);
+        }
+
+        if (personen.Count == 0)
+            return new BuildResult("", 0, 0, 0,
+                new List<string> { $"Keine meldbaren Personen für {month:00}.{year}." }, new List<string>());
+
+        // ── Empfänger: nur wer Daten bekommt (Nullmeldungs-Regel) ────────────
+        var addressees = new List<XElement>();
+        foreach (var kt in qstKantone)
+            addressees.Add(new XElement(Sdc + "Addressee",
+                new XAttribute("addresseeID", $"#QST-{kt}"),
+                new XElement(Ep + "AddresseeIdentification", kt),
+                new XElement(Ep + "ProcessByDistributor", "true")));
+        if (statZeilen > 0)
+            addressees.Add(new XElement(Sdc + "Addressee",
+                new XAttribute("addresseeID", "#BFS"),
+                new XElement(Ep + "AddresseeIdentification", "Statistic"),
+                new XElement(Ep + "ProcessByDistributor", "true")));
+
+        // ── Institutions: QST-Schuldnernummer je Kanton aus dem Empfänger-Katalog ─
+        var empfaenger = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .Include(x => x.Zuordnungen)
+            .Where(x => x.IsActive && x.Art == "QST")
+            .ToListAsync(ct);
+        var institutions = new List<XElement>();
+        foreach (var kt in qstKantone)
+        {
+            var kasse = empfaenger.FirstOrDefault(x => (x.KantonCode ?? "").Trim().ToUpperInvariant() == kt);
+            var nummer = (kasse?.Kassennummer ?? "").Trim();
+            if (nummer.Length == 0)
+            {
+                nummer = (kasse?.Zuordnungen.Select(z => (z.Mitgliednummer ?? "").Trim()).FirstOrDefault(v => v.Length > 0)) ?? "";
+            }
+            if (nummer.Length == 0)
+            {
+                warn.Add($"Quellensteuer {kt}: keine Schuldner-/Abrechnungsnummer im Empfänger-Katalog — Platzhalter im XML. Ohne echte Nummer weist die Steuerverwaltung die Meldung zurück.");
+                nummer = "0000.0";
+            }
+            institutions.Add(new XElement(Sd + "TaxAtSource",
+                new XAttribute("addresseeIDRef", $"#QST-{kt}"),
+                new XElement(Sd + "CustomerIdentity", nummer),
+                new XElement(Sd + "TaxAtSourceType", "salaries")));
+        }
+        if (statZeilen > 0)
+            institutions.Add(new XElement(Sd + "Statistic",
+                new XAttribute("addresseeIDRef", "#BFS"),
+                new XElement(Sd + "PayAgreement", "individualContract")));
+
+        // ── Summen je QST-Kanton ─────────────────────────────────────────────
+        var totals = qstKantone.Select(kt => new XElement(Sd + "TaxAtSourceTotals",
+            new XAttribute("addresseeIDRef", $"#QST-{kt}"),
+            new XElement(Sd + "TotalMonth",
+                new XElement(Sd + "TotalTaxableEarning", Betrag05(qstTotal[kt].Basis)),
+                new XElement(Sd + "TotalTaxAtSource", Betrag05(qstTotal[kt].Steuer)),
+                new XElement(Sd + "TotalCommission", "0.00"),
+                new XElement(Sd + "CurrentMonth", monatStr)))).ToList();
+
+        // ── Arbeitszeitmodelle: heute genau eines (bekannte Lücke) ───────────
+        var arbeitszeit = new List<XElement>
+        {
+            new(C + "CompanyWorkingTime",
+                new XAttribute("companyWorkingTimeID", "#cwt1"),
+                new XElement(C + "WeeklyHours", Amt(stamm.Haupt.NormalWeeklyHours ?? 42m)))
+        };
+        warn.Add("Arbeitszeitmodelle: OneCrew kennt nur die Wochenstunden je Filiale und meldet deshalb EIN Modell. "
+               + "Die Referenz führt mehrere Modelle je Rechtseinheit (Stunden, Lektionen, gemischt), auf die jede Person verweist — "
+               + "dafür braucht es die Arbeitszeitmodell-Verwaltung (eigener Auftrag).");
+
+        var kontakt = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.IsActive && u.Role == "admin")
+            .OrderBy(u => u.Id).FirstOrDefaultAsync(ct);
+
+        var jetzt = DateTime.Now;
+        var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null),
+            new XElement(Sdcst + "DeclareMonthlySalary",
+                new XAttribute(XNamespace.Xmlns + "sdcst", Sdcst),
+                new XAttribute(XNamespace.Xmlns + "sdc", Sdc),
+                new XAttribute(XNamespace.Xmlns + "sd", Sd),
+                new XAttribute(XNamespace.Xmlns + "ep", Ep),
+                new XAttribute(XNamespace.Xmlns + "c", C),
+                RequestContext(stamm.Firmenname, jetzt),
+                new XElement(Sdc + "Job",
+                    new XElement(Sdc + "Addressees", addressees),
+                    // Übungs-/Testmeldung — nie als Produktivmeldung werten
+                    new XElement(Sdc + "TestCase")),
+                new XElement(Sd + "MonthlySalaryDeclaration",
+                    new XAttribute("schemaVersion", "0.0"),
+                    CompanyDescription(stamm, arbeitszeit),
+                    new XElement(Sd + "Staff", personen),
+                    new XElement(Sd + "Institutions", institutions),
+                    totals.Count > 0 ? new XElement(Sd + "SalaryTotals", totals) : null,
+                    new XElement(Sd + "SalaryCounters",
+                        qstZeilen > 0 ? new XElement(Sd + "NumberOf-TaxAtSourceSalary-Tags", qstZeilen) : null,
+                        statZeilen > 0 ? new XElement(Sd + "NumberOf-StatisticSalary-Tags", statZeilen) : null),
+                    new XElement(Sd + "ContactPerson",
+                        new XElement(Sd + "Name", ((kontakt?.FirstName + " " + kontakt?.LastName) ?? "").Trim() is { Length: > 0 } n ? n : stamm.Firmenname),
+                        string.IsNullOrWhiteSpace(kontakt?.Email) ? null : new XElement(Sd + "EmailAddress", kontakt!.Email!.Trim()),
+                        string.IsNullOrWhiteSpace(stamm.Haupt.Phone) ? null : new XElement(Sd + "PhoneNumber", stamm.Haupt.Phone!.Trim())))));
+
+        var xml = doc.Declaration + Environment.NewLine + doc.ToString();
+        var xsdFehler = _validator.Validate(xml);
+        return new BuildResult(xml, personen.Count, qstZeilen, statZeilen, warn, xsdFehler);
+    }
+
+    /// <summary>
+    /// Eine BFS-Statistikzeile je Person und Filiale. Die Monatswerte kommen aus dem
+    /// Lohnzettel über den StatistikCode der Lohnart (ELM-Lohnraster):
+    /// I = Bruttolohn, J = Zulagen, K = Familienzulagen, Y = Drittleistungen,
+    /// P = Überstunden, O = 13. Monatslohn. Sozialabgaben und BVG kommen aus den
+    /// Abzugszeilen (AHV + ALV + NBU bzw. BVG) und sind negativ.
+    /// </summary>
+    private XElement BaueStatistikZeile(
+        Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
+        Dictionary<string, string> statByCode, string monatStr,
+        DateTime von, DateTime bis, List<string> warn)
+    {
+        decimal brutto = 0, zulagen = 0, famz = 0, dritt = 0, ueberstunden = 0, ml13 = 0, sonstige = 0;
+
+        if (slip.TryGetProperty("lohnLines", out var ll) && ll.ValueKind == JsonValueKind.Array)
+            foreach (var z in ll.EnumerateArray())
+            {
+                var betrag = Num(z, "betrag");
+                if (betrag == 0) continue;
+                var code = (Str(z, "code") ?? "").Trim();
+                var stat = code.Length > 0 && statByCode.TryGetValue(code, out var sc) ? sc : "";
+                var kennung = stat.Length > 0 ? stat[..1] : "";
+                switch (kennung)
+                {
+                    case "I": brutto += betrag; break;
+                    case "J": zulagen += betrag; break;
+                    case "K": famz += betrag; break;
+                    case "Y": dritt += betrag; break;
+                    case "P": ueberstunden += betrag; break;
+                    case "O": ml13 += betrag; break;
+                    default:
+                        // Ohne Statistik-Code zählt die Zeile zum Bruttolohn — sie ist Lohn,
+                        // und stillschweigend weglassen wäre der schlimmere Fehler.
+                        brutto += betrag;
+                        if (code.Length > 0 && !statByCode.ContainsKey(code))
+                            warn.Add($"Lohnart «{code}» hat keinen Statistik-Code — als Bruttolohn gemeldet (Lohnpositionen → Statistik-Code setzen).");
+                        break;
+                }
+            }
+
+        // Zulagen/Abzüge ausserhalb der Lohnarten (Swissdec-Testdaten, manuelle Zulagen)
+        if (slip.TryGetProperty("zulagenExtraTotal", out _)) sonstige += Num(slip, "zulagenExtraTotal");
+
+        decimal sozial = 0, bvg = 0;
+        if (slip.TryGetProperty("abzugLines", out var al) && al.ValueKind == JsonValueKind.Array)
+            foreach (var z in al.EnumerateArray())
+            {
+                var cat = (Str(z, "categoryCode") ?? "").Trim().ToUpperInvariant();
+                var betrag = Num(z, "betrag");   // negativ
+                if (cat is "AHV" or "ALV" or "ALVZ" or "NBUV") sozial += betrag;
+                else if (cat == "BVG") bvg += betrag;
+            }
+
+        var stat1 = new XElement(Sd + "StatisticSalary",
+            new XAttribute("workplaceIDRef", WpId(filiale)),
+            new XAttribute("addresseeIDRef", "#BFS"),
+            new XAttribute("workIDRef", WorkId(e)),
+            new XElement(Sd + "CurrentMonth", monatStr),
+            new XElement(Sd + "AdditionalParticulars",
+                string.IsNullOrWhiteSpace(em?.JobTitle) ? null : new XElement(Sd + "JobTitle", em!.JobTitle!.Trim())),
+            KindOfWagePayment(em, filiale),
+            new XElement(Sd + "MonthlyValues",
+                new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(brutto)),
+                new XElement(Sd + "Allowances", Betrag05(zulagen + sonstige)),
+                new XElement(Sd + "FamilyIncomeSupplement", Betrag05(famz)),
+                new XElement(Sd + "PaymentsByThird", Betrag05(dritt)),
+                new XElement(Sd + "SocialContributions", Betrag05(sozial)),
+                // BVG-Fixbetrag der Kasse: NICHT auf 5 Rappen runden (Walter 21.09.2026)
+                new XElement(Sd + "BVG-LPP-RegularContribution", Amt(bvg)),
+                new XElement(Sd + "ShortTimeWorkCompensation", "0.00")),
+            new XElement(Sd + "AnnualValues",
+                new XElement(Sd + "Period",
+                    new XElement(Ep + "from", von.ToString("yyyy-MM-dd")),
+                    new XElement(Ep + "until", bis.ToString("yyyy-MM-dd"))),
+                new XElement(Sd + "Overtime", Betrag05(ueberstunden)),
+                new XElement(Sd + "Earnings13th", Betrag05(ml13)),
+                new XElement(Sd + "SporadicBenefits", "0.00"),
+                new XElement(Sd + "FringeBenefits", "0.00"),
+                new XElement(Sd + "CapitalPayment", "0.00"),
+                new XElement(Sd + "OtherBenefits", "0.00")));
+        return stat1;
+    }
+
+    /// <summary>Lohnart der Statistik: Monatslohn oder Stundenlohn.</summary>
+    private static XElement KindOfWagePayment(Employment? em, CompanyProfile filiale)
+    {
+        var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
+        if (model is "FIX" or "FIX-M" or "MTP")
+            return new XElement(Sd + "KindOfWagePayment",
+                new XElement(Sd + "Monthly",
+                    new XElement(Sd + "Contract", "indefiniteSalaryMth"),
+                    new XElement(Sd + "ContractualMonthlyWage", Amt(em?.MonthlySalary ?? 0m)),
+                    new XElement(Sd + "Contractual13th",
+                        Amt(em?.ThirteenthSalary == true ? filiale.DefaultThirteenthSalaryPercent ?? 8.33m : 0m))));
+        return new XElement(Sd + "KindOfWagePayment",
+            new XElement(Sd + "Hourly",
+                new XElement(Sd + "Contract", "indefiniteSalaryHrs"),
+                new XElement(Sd + "ContractualHourlyWage", Amt(em?.HourlyRate ?? 0m)),
+                new XElement(Sd + "ContractualVacation",
+                    Amt((filiale.DefaultVacationWeeks ?? 5) >= 6
+                        ? filiale.DefaultVacationPercent6Weeks ?? 13.04m
+                        : filiale.DefaultVacationPercent5Weeks ?? 10.65m)),
+                new XElement(Sd + "Contractual13th",
+                    Amt(em?.ThirteenthSalary == true ? filiale.DefaultThirteenthSalaryPercent ?? 8.33m : 0m))));
+    }
+
+    /// <summary>
+    /// Quellensteuer-Zeile aus dem Lohnzettel. Gemeldet wird nur, wenn der Monat
+    /// tatsächlich eine QST-Zeile hat — sonst gehört die Person nicht in die
+    /// QST-Meldung dieses Kantons.
+    /// </summary>
+    private (XElement Zeile, string Kanton, decimal Basis, decimal Steuer)? BaueQstZeile(
+        Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
+        List<EmployeeQuellensteuer> versionen, RechtseinheitStamm stamm,
+        string monatStr, DateTime monatsAnfang, List<string> warn)
+    {
+        if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
+        JsonElement? qstZeile = null;
+        foreach (var z in al.EnumerateArray())
+            if ((Str(z, "categoryCode") ?? "") == "QST") { qstZeile = z; break; }
+        if (qstZeile == null) return null;
+
+        var zeile = qstZeile.Value;
+        var basis = Num(zeile, "basis");
+        var satzBasis = zeile.TryGetProperty("satzBasis", out var sb) && sb.ValueKind == JsonValueKind.Number
+            ? sb.GetDecimal() : basis;
+        var steuer = -Num(zeile, "betrag");          // im Slip negativ
+        var code = (Str(zeile, "qstCode") ?? "").Trim().ToUpperInvariant();
+
+        var stichtag = DateOnly.FromDateTime(monatsAnfang);
+        var version = QstVersionWahl.Waehle(versionen.Where(v => v.EmployeeId == e.Id).ToList(), stichtag);
+        var kanton = (version?.Steuerkanton ?? "").Trim().ToUpperInvariant();
+        if (kanton.Length != 2)
+        {
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Quellensteuer ohne Steuerkanton — Zeile nicht gemeldet.");
+            return null;
+        }
+        if (code.Length == 0)
+        {
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Quellensteuer ohne Tarifcode — Zeile nicht gemeldet.");
+            return null;
+        }
+
+        var wohnKanton = (e.CantonCode ?? "").Trim().ToUpperInvariant();
+        var wohnAusland = !string.IsNullOrWhiteSpace(e.Country) && e.Country!.Trim().ToUpperInvariant() != "CH";
+        var residence = wohnAusland || wohnKanton.Length != 2
+            ? new XElement(Sd + "Residence", new XElement(Sd + "CountryAbroad",
+                  string.IsNullOrWhiteSpace(version?.Wohnsitzstaat) ? "XX" : version!.Wohnsitzstaat!.Trim().ToUpperInvariant()))
+            : new XElement(Sd + "Residence", new XElement(Sd + "CantonCH", wohnKanton));
+
+        // Ein- und Austritt melden, wenn sie in diesen Monat fallen
+        XElement? declaration = null;
+        var monatsEnde = monatsAnfang.AddMonths(1).AddDays(-1);
+        if (e.EntryDate is DateTime ed && ed >= monatsAnfang && ed <= monatsEnde)
+            declaration = new XElement(Sd + "DeclarationCategory",
+                new XElement(Sd + "Entry",
+                    new XElement(Sd + "ValidAsOf", ed.ToString("yyyy-MM-dd")),
+                    new XElement(Sd + "Reason", "entryCompany")));
+        else if (e.ExitDate is DateTime xd && xd >= monatsAnfang && xd <= monatsEnde)
+            declaration = new XElement(Sd + "DeclarationCategory",
+                new XElement(Sd + "Withdrawal",
+                    new XElement(Sd + "ValidAsOf", xd.ToString("yyyy-MM-dd")),
+                    new XElement(Sd + "Reason", "withdrawalCompany")));
+
+        var konfession = MapKonfession(e.Religion);
+        var x = new XElement(Sd + "TaxAtSourceSalary",
+            new XAttribute("addresseeIDRef", $"#QST-{kanton}"),
+            konfession == null ? null : new XElement(Sd + "AdditionalParticulars",
+                new XElement(Sd + "Denomination", konfession)),
+            new XElement(Sd + "TaxAtSourceCanton", kanton),
+            version?.QstGemeindeBfsNr is > 0 ? new XElement(Sd + "TaxAtSourceMunicipalityID", version!.QstGemeindeBfsNr!.Value) : null,
+            new XElement(Sd + "CurrentMonth", monatStr),
+            new XElement(Sd + "Current",
+                new XAttribute("workplaceIDRef", WpId(filiale)),
+                new XElement(Sd + "TaxAtSourceCategory", new XElement(C + "TaxAtSourceCode", code)),
+                new XElement(Sd + "TaxableEarning", Betrag05(basis)),
+                new XElement(Sd + "AscertainedTaxableEarning", Betrag05(satzBasis)),
+                new XElement(Sd + "TaxAtSource", Betrag05(steuer)),
+                residence,
+                stamm.GemeindeNr.TryGetValue(filiale.Id, out var wg) ? new XElement(Sd + "WorkMunicipalityID", wg) : null,
+                declaration));
+        return (x, kanton, basis, steuer);
+    }
+
+    /// <summary>Konfession → Swissdec-Denomination. Unbekannt = kein Element.</summary>
+    public static string? MapKonfession(string? religion)
+    {
+        var r = (religion ?? "").ToLowerInvariant();
+        if (r.Length == 0) return null;
+        if (r.Contains("roem") || r.Contains("röm") || r.Contains("katholisch") && !r.Contains("christ")) return "romanCatholic";
+        if (r.Contains("christkath") || r.Contains("altkath")) return "christCatholic";
+        if (r.Contains("reformiert") || r.Contains("evang") || r.Contains("protest")) return "protestant";
+        if (r.Contains("keine") || r.Contains("konfessionslos") || r.Contains("ohne")) return "other";
+        return null;
+    }
+}

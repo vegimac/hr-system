@@ -1371,7 +1371,7 @@ function roleName(r) {
 // Systemeinstellungen-Eintrag aktiv bleibt wenn man in einem Admin-Bereich ist.
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log','aktive-sitzungen',
-                         'perioden','dokumentstruktur','archiv-import','dvelop-import',
+                         'perioden','elm-meldungen','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
 
@@ -1562,6 +1562,7 @@ function showPage(name) {
     if (name === 'saldo-vortrag') svInit();
     if (name === 'lohnlauf')      llInit();
     if (name === 'perioden') initPeriodenPage();
+    if (name === 'elm-meldungen' && typeof elmMeldungenInit === 'function') elmMeldungenInit();
     if (name === 'sollstunden') sollInit();
     if (name === 'ferien') ferienInit();
     if (name === 'alter-report') alterInit();
