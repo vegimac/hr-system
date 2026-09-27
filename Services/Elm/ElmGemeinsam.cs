@@ -190,7 +190,25 @@ public static class ElmGemeinsam
             arbeitszeitmodelle);
 
     /// <summary>
-    /// Personalien. <paramref name="mitGemeinde"/> setzt die BFS-Gemeindenummer der
+    /// Bewilligungsart → Swissdec <c>ResidenceCategory</c>. Nur für Ausländer;
+    /// Schweizer haben keine (Walter 27.09.2026, Beleg TF14 annual-B, TF37 shortTerm-L).
+    /// Ein unbekannter Buchstabe gibt null — lieber keine Angabe als eine falsche.
+    /// </summary>
+    public static string? Bewilligung(string? code) => (code ?? "").Trim().ToUpperInvariant() switch
+    {
+        "L" => "shortTerm-L",
+        "B" => "annual-B",
+        "C" => "settled-C",
+        "G" => "crossBorder-G",
+        "N" => "asylumSeeker-N",
+        "S" => "needForProtection-S",
+        "F" => "ProvisionallyAdmittedForeigners-F",
+        "CI" => "ResidentForeignNationalWithGainfulEmployment-Ci",
+        _ => null,
+    };
+
+    /// <summary>
+    /// Personalien. <paramref name="wohnGemeindeNr"/> setzt die BFS-Gemeindenummer der
     /// Wohnadresse — die Monatsmeldung (Statistik) braucht sie, die Jahresmeldung nicht.
     /// </summary>
     public static XElement Particulars(Employee e, List<string> warn, int? wohnGemeindeNr = null)
@@ -243,6 +261,12 @@ public static class ElmGemeinsam
             new XElement(C + "ResidenceCanton", canton),
             wohnGemeindeNr is > 0 ? new XElement(C + "MunicipalityID", wohnGemeindeNr!.Value) : null);
 
+        // Bewilligungsart nur bei Ausländern (Reihenfolge laut XSD nach Nationality).
+        var bewilligung = natCode == "CH" ? null : Bewilligung(e.PermitType?.Code);
+        if (natCode != "CH" && bewilligung == null && e.PermitTypeId != null)
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Bewilligungsart «{e.PermitType?.Code}» "
+                   + "ist Swissdec nicht bekannt — ohne Angabe gemeldet.");
+
         return new XElement(C + "Particulars",
             new XElement(C + "Social-InsuranceIdentification", svEl),
             new XElement(C + "EmployeeNumber", e.EmployeeNumber),
@@ -251,6 +275,7 @@ public static class ElmGemeinsam
             new XElement(C + "Sex", sexCode),
             new XElement(C + "DateOfBirth", e.DateOfBirth!.Value.ToString("yyyy-MM-dd")),
             new XElement(C + "Nationality", natCode),
+            bewilligung == null ? null : new XElement(C + "ResidenceCategory", bewilligung),
             civilEl,
             new XElement(C + "Addresses", adresse),
             new XElement(C + "LanguageCode",

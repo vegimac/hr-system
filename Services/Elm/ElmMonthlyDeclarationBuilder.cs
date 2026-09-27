@@ -86,17 +86,20 @@ public class ElmMonthlyDeclarationBuilder
         var periodeFiliale = perioden.ToDictionary(p => p.Id, p => p.CompanyProfileId);
 
         // ── Statistik-Zuordnung der Lohnarten (ELM-Lohnraster, Spalte StatistikCode) ─
-        var statistikJeCode = await _db.Lohnpositionen.AsNoTracking()
-            .Where(l => l.StatistikCode != null)
-            .Select(l => new { l.Code, l.StatistikCode })
+        // Zuordnung Lohnzeile → Statistik-Topf über die SWISSDEC-LOHNART der
+        // Lohnposition (Walter 27.09.2026). Der Code der Lohnposition ist unser
+        // eigener; massgebend ist die Lohnart des Musterlohnartenstamms.
+        var positionen = await _db.Lohnpositionen.AsNoTracking()
+            .Select(l => new { l.Code, l.SwissdecLohnart })
             .ToListAsync(ct);
-        var statByCode = statistikJeCode
+        var lohnartByCode = positionen
             .GroupBy(x => x.Code)
-            .ToDictionary(g => g.Key, g => (g.First().StatistikCode ?? "").Trim().ToUpperInvariant());
+            .ToDictionary(g => g.Key, g => (g.First().SwissdecLohnart ?? "").Trim());
 
         var empIds = snaps.Select(s => s.EmployeeId).Distinct().ToList();
         var emps = await _db.Employees.AsNoTracking()
             .Include(e => e.NationalityRef)
+            .Include(e => e.PermitType)
             .Where(e => empIds.Contains(e.Id))
             .ToListAsync(ct);
         var empById = emps.ToDictionary(e => e.Id);
@@ -200,9 +203,13 @@ public class ElmMonthlyDeclarationBuilder
                     ?? employments.Where(m => m.EmployeeId == e.Id)
                            .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
 
+                // Eintritt = Beginn der Anstellung, die IN DIESEM MONAT galt — nicht das
+                // Eintrittsdatum am MA (Walter 27.09.2026, TF16 Aebi: der Wiedereintritt
+                // 15.01.2025 gehört nicht in die Novembermeldung 2024).
+                var eintrittMonat = em?.ContractStartDate ?? e.EntryDate ?? monatsAnfang;
                 lseById.TryGetValue(e.Id, out var lse);
-                statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, statByCode, lse, stellungMapping,
-                                                       monatStr, monatsAnfang, monatsEnde, warn));
+                statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, lohnartByCode, lse, stellungMapping,
+                                                       monatStr, monatsAnfang, monatsEnde, eintrittMonat, warn));
                 statZeilen++;
 
                 var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen, stamm, monatStr, monatsAnfang, warn);
@@ -218,8 +225,16 @@ public class ElmMonthlyDeclarationBuilder
 
             if (statistikZeilen.Count == 0 && qstZeilenPerson.Count == 0) continue;
 
-            var emHaupt = employments.Where(m => m.EmployeeId == e.Id)
-                .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
+            // Stand des MELDEMONATS, nie der heutige (Walter 27.09.2026): Pensum,
+            // Wochenstunden und Eintritt kommen aus der Anstellung, die im Monat galt.
+            // Beleg TF44 Lusser Nov 2024 = 100 % / 42 h, nicht das heutige 20 % / 8.4 h.
+            var emHaupt = employments
+                .Where(m => m.EmployeeId == e.Id
+                         && m.ContractStartDate <= monatsEnde
+                         && (m.ContractEndDate == null || m.ContractEndDate >= monatsAnfang))
+                .OrderByDescending(m => m.ContractStartDate).FirstOrDefault()
+                ?? employments.Where(m => m.EmployeeId == e.Id)
+                       .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
             // Am Monatsende gueltiges Modell (juengstes Gueltig-ab <= Monatsende).
             var modellId = zuordnungen
                 .Where(z => z.EmployeeId == e.Id && z.GueltigAb <= DateOnly.FromDateTime(monatsEnde))
@@ -234,7 +249,7 @@ public class ElmMonthlyDeclarationBuilder
                     new XAttribute("workID", WorkId(e)),
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
                     new XElement(C + "WorkingTime", WorkingTime(emHaupt, stamm.Haupt.NormalWeeklyHours ?? 42m)),
-                    new XElement(C + "EntryDate", (e.EntryDate ?? emHaupt?.ContractStartDate ?? monatsAnfang).ToString("yyyy-MM-dd"))),
+                    new XElement(C + "EntryDate", (emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd"))),
                 // Reihenfolge laut XSD (MonthlyPersonType): Quellensteuer VOR Statistik.
                 qstZeilenPerson.Count > 0 ? new XElement(Sd + "TaxAtSourceSalaries", qstZeilenPerson) : null,
                 statistikZeilen.Count > 0 ? new XElement(Sd + "StatisticSalaries", statistikZeilen) : null);
@@ -264,6 +279,7 @@ public class ElmMonthlyDeclarationBuilder
             .Where(x => x.IsActive && x.Art == "QST")
             .ToListAsync(ct);
         var institutions = new List<XElement>();
+        var fehlendeQstNummern = new List<string>();
         foreach (var kt in qstKantone)
         {
             var kasse = empfaenger.FirstOrDefault(x => (x.KantonCode ?? "").Trim().ToUpperInvariant() == kt);
@@ -273,10 +289,7 @@ public class ElmMonthlyDeclarationBuilder
                 nummer = (kasse?.Zuordnungen.Select(z => (z.Mitgliednummer ?? "").Trim()).FirstOrDefault(v => v.Length > 0)) ?? "";
             }
             if (nummer.Length == 0)
-            {
-                warn.Add($"Quellensteuer {kt}: keine Schuldner-/Abrechnungsnummer im Empfänger-Katalog — Platzhalter im XML. Ohne echte Nummer weist die Steuerverwaltung die Meldung zurück.");
-                nummer = "0000.0";
-            }
+                fehlendeQstNummern.Add(kt);
             institutions.Add(new XElement(Sd + "TaxAtSource",
                 new XAttribute("addresseeIDRef", $"#QST-{kt}"),
                 new XElement(Sd + "CustomerIdentity", nummer),
@@ -286,6 +299,14 @@ public class ElmMonthlyDeclarationBuilder
             institutions.Add(new XElement(Sd + "Statistic",
                 new XAttribute("addresseeIDRef", "#BFS"),
                 new XElement(Sd + "PayAgreement", "individualContract")));
+        // Ohne Schuldnernummer weist die Steuerverwaltung die Meldung zurück — dann
+        // lieber gar keine Meldung als eine mit Platzhalter (Walter 27.09.2026).
+        if (fehlendeQstNummern.Count > 0)
+            return new BuildResult("", 0, 0, 0,
+                new List<string> { "Keine Schuldner-/Abrechnungsnummer im Empfänger-Katalog für die Quellensteuer "
+                    + string.Join(", ", fehlendeQstNummern)
+                    + ". Erfassen unter System → Behörden & Empfänger (Art «QST», Kanton, Kassennummer); ohne sie wird die Meldung zurückgewiesen." },
+                new List<string>());
 
         // ── Summen je QST-Kanton ─────────────────────────────────────────────
         var totals = qstKantone.Select(kt => new XElement(Sd + "TaxAtSourceTotals",
@@ -376,11 +397,14 @@ public class ElmMonthlyDeclarationBuilder
     /// </summary>
     private XElement BaueStatistikZeile(
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
-        Dictionary<string, string> statByCode, EmployeeLse? lse,
+        Dictionary<string, string> lohnartByCode, EmployeeLse? lse,
         List<LseCodeMapping> stellungMapping, string monatStr,
-        DateTime von, DateTime bis, List<string> warn)
+        DateTime von, DateTime bis, DateTime eintritt, List<string> warn)
     {
-        decimal brutto = 0, zulagen = 0, famz = 0, dritt = 0, ueberstunden = 0, ml13 = 0, sonstige = 0;
+        var topf = new Dictionary<ElmStatistikCodes.Topf, decimal>();
+        void Buche(ElmStatistikCodes.Topf t, decimal betrag)
+            => topf[t] = (topf.TryGetValue(t, out var v) ? v : 0m) + betrag;
+        decimal Wert(ElmStatistikCodes.Topf t) => topf.TryGetValue(t, out var v) ? v : 0m;
 
         if (slip.TryGetProperty("lohnLines", out var ll) && ll.ValueKind == JsonValueKind.Array)
             foreach (var z in ll.EnumerateArray())
@@ -388,36 +412,37 @@ public class ElmMonthlyDeclarationBuilder
                 var betrag = Num(z, "betrag");
                 if (betrag == 0) continue;
                 var code = (Str(z, "code") ?? "").Trim();
-                var stat = code.Length > 0 && statByCode.TryGetValue(code, out var sc) ? sc : "";
-                var kennung = stat.Length > 0 ? stat[..1] : "";
-                switch (kennung)
+                var lohnartTxt = code.Length > 0 && lohnartByCode.TryGetValue(code, out var la) ? la : "";
+                if (lohnartTxt.Length == 0) lohnartTxt = code;     // Testmandant führt die Lohnart als Code
+                if (!int.TryParse(lohnartTxt, out var lohnart))
                 {
-                    case "I": brutto += betrag; break;
-                    case "J": zulagen += betrag; break;
-                    case "K": famz += betrag; break;
-                    case "Y": dritt += betrag; break;
-                    case "P": ueberstunden += betrag; break;
-                    case "O": ml13 += betrag; break;
-                    default:
-                        // Ohne Statistik-Code zählt die Zeile zum Bruttolohn — sie ist Lohn,
-                        // und stillschweigend weglassen wäre der schlimmere Fehler.
-                        brutto += betrag;
-                        if (code.Length > 0 && !statByCode.ContainsKey(code))
-                            warn.Add($"Lohnart «{code}» hat keinen Statistik-Code — als Bruttolohn gemeldet (Lohnpositionen → Statistik-Code setzen).");
-                        break;
+                    Buche(ElmStatistikCodes.Topf.Bruttolohn, betrag);
+                    warn.Add($"Lohnzeile «{(Str(z, "bezeichnung") ?? code)}» ohne Swissdec-Lohnart — als Bruttolohn gemeldet "
+                           + "(Lohnpositionen → Swissdec-Lohnart setzen).");
+                    continue;
                 }
+                var ziel = ElmStatistikCodes.TopfFuer(lohnart);
+                if (ziel == null)
+                {
+                    Buche(ElmStatistikCodes.Topf.Bruttolohn, betrag);
+                    warn.Add($"Lohnart {lohnart} ist keinem Statistik-Topf zugeordnet — als Bruttolohn gemeldet. "
+                           + "Zuordnung in ElmStatistikCodes.TopfFuer ergänzen (Richtlinien Kap. 12).");
+                    continue;
+                }
+                Buche(ziel.Value, betrag);
             }
 
-        // Zulagen/Abzüge ausserhalb der Lohnarten (Swissdec-Testdaten, manuelle Zulagen)
-        if (slip.TryGetProperty("zulagenExtraTotal", out _)) sonstige += Num(slip, "zulagenExtraTotal");
-
+        // Sozialabgaben: Swissdec rundet JEDEN Beitrag einzeln auf 5 Rappen und
+        // summiert erst dann (Walter 27.09.2026, an TF16 Nov 2024 nachgerechnet:
+        // 686.80 + 135.85 + 3.05 + 198.35 = 1'024.05; die Summe der rappengenauen
+        // Beträge ergäbe 1'024.00). Die Lohnbelege bleiben rappengenau.
         decimal sozial = 0, bvg = 0;
-        if (slip.TryGetProperty("abzugLines", out var al) && al.ValueKind == JsonValueKind.Array)
-            foreach (var z in al.EnumerateArray())
+        if (slip.TryGetProperty("abzugLines", out var al2) && al2.ValueKind == JsonValueKind.Array)
+            foreach (var z in al2.EnumerateArray())
             {
                 var cat = (Str(z, "categoryCode") ?? "").Trim().ToUpperInvariant();
                 var betrag = Num(z, "betrag");   // negativ
-                if (cat is "AHV" or "ALV" or "ALVZ" or "NBUV") sozial += betrag;
+                if (cat is "AHV" or "ALV" or "ALVZ" or "NBUV") sozial += PayrollCalculations.Round05(betrag);
                 else if (cat == "BVG") bvg += betrag;
             }
 
@@ -429,24 +454,25 @@ public class ElmMonthlyDeclarationBuilder
             BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn),
             KindOfWagePayment(em, filiale, slip),
             new XElement(Sd + "MonthlyValues",
-                new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(brutto)),
-                new XElement(Sd + "Allowances", Betrag05(zulagen + sonstige)),
-                new XElement(Sd + "FamilyIncomeSupplement", Betrag05(famz)),
-                new XElement(Sd + "PaymentsByThird", Betrag05(dritt)),
-                new XElement(Sd + "SocialContributions", Betrag05(sozial)),
+                new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(Wert(ElmStatistikCodes.Topf.Bruttolohn))),
+                new XElement(Sd + "Allowances", Betrag05(Wert(ElmStatistikCodes.Topf.Zulagen))),
+                new XElement(Sd + "FamilyIncomeSupplement", Betrag05(Wert(ElmStatistikCodes.Topf.Familienzulagen))),
+                new XElement(Sd + "PaymentsByThird", Betrag05(Wert(ElmStatistikCodes.Topf.Drittleistungen))),
+                new XElement(Sd + "SocialContributions", Amt(sozial)),
                 // BVG-Fixbetrag der Kasse: NICHT auf 5 Rappen runden (Walter 21.09.2026)
                 new XElement(Sd + "BVG-LPP-RegularContribution", Amt(bvg)),
-                new XElement(Sd + "ShortTimeWorkCompensation", "0.00")),
+                new XElement(Sd + "ShortTimeWorkCompensation", Betrag05(Wert(ElmStatistikCodes.Topf.Kurzarbeit)))),
             new XElement(Sd + "AnnualValues",
                 new XElement(Sd + "Period",
-                    new XElement(Ep + "from", von.ToString("yyyy-MM-dd")),
+                    // Beginn = Eintritt, wenn er in diesen Monat fällt (Walter 27.09.2026).
+                    new XElement(Ep + "from", (eintritt > von && eintritt <= bis ? eintritt : von).ToString("yyyy-MM-dd")),
                     new XElement(Ep + "until", bis.ToString("yyyy-MM-dd"))),
-                new XElement(Sd + "Overtime", Betrag05(ueberstunden)),
-                new XElement(Sd + "Earnings13th", Betrag05(ml13)),
-                new XElement(Sd + "SporadicBenefits", "0.00"),
-                new XElement(Sd + "FringeBenefits", "0.00"),
-                new XElement(Sd + "CapitalPayment", "0.00"),
-                new XElement(Sd + "OtherBenefits", "0.00")));
+                new XElement(Sd + "Overtime", Betrag05(Wert(ElmStatistikCodes.Topf.Ueberstunden))),
+                new XElement(Sd + "Earnings13th", Betrag05(Wert(ElmStatistikCodes.Topf.Dreizehnter))),
+                new XElement(Sd + "SporadicBenefits", Betrag05(Wert(ElmStatistikCodes.Topf.Unregelmaessig))),
+                new XElement(Sd + "FringeBenefits", Betrag05(Wert(ElmStatistikCodes.Topf.Naturalleistungen))),
+                new XElement(Sd + "CapitalPayment", Betrag05(Wert(ElmStatistikCodes.Topf.Kapitalleistung))),
+                new XElement(Sd + "OtherBenefits", Betrag05(Wert(ElmStatistikCodes.Topf.Uebrige)))));
         return stat1;
     }
 
