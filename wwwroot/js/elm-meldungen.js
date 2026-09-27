@@ -208,6 +208,8 @@ async function elmXmlHerunterladen(jahr, monat) {
     // holt sie als ganz gewoehnlichen Download ab — daran kann sich keine
     // Erweiterung mehr aufhaengen.
     elmHinweis('Datei wird bereitgestellt…', false);
+    const altStack = document.getElementById('elmFehlerStack');
+    if (altStack) altStack.textContent = '';
     try {
         const res = await fetch(`/api/elm/monthly/${jahr}/${monat}/datei-marke`, {
             method: 'POST',
@@ -219,7 +221,42 @@ async function elmXmlHerunterladen(jahr, monat) {
         elmHinweis(`${d.dateiname} wird heruntergeladen — die Datei liegt im Download-Ordner.`, false);
     } catch (e) {
         elmHinweis(`Herunterladen fehlgeschlagen: ${e.message} — als Ausweg «XML kopieren».`, true);
+        elmZeigeStack(e);
     }
+}
+
+// Walter 27.09.2026: bei einem Fehler auch den Stack zeigen (klein, ausklappbar).
+// Steht dort chrome-extension://… oder safari-web-extension://…, kommt der Fehler
+// aus einer Browser-Erweiterung und nicht aus OneCrew — das sieht man sonst nie.
+// Bewusst ueber DOM-Knoten aufgebaut, nicht ueber innerHTML: der Stack ist fremder
+// Text und hat in der Seite nichts als Markup verloren.
+function elmZeigeStack(e) {
+    const hinweis = document.getElementById('elmHinweis');
+    if (!hinweis || !hinweis.parentNode) return;
+    let box = document.getElementById('elmFehlerStack');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'elmFehlerStack';
+        box.style.cssText = 'margin:4px 0 8px';
+        hinweis.parentNode.insertBefore(box, hinweis.nextSibling);
+    }
+    box.textContent = '';
+    const stack = (e && (e.stack || e.message)) ? String(e.stack || e.message) : 'kein Stack vorhanden';
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = 'Woher kommt der Fehler?';
+    summary.style.cssText = 'cursor:pointer;font-size:11.5px;color:#8b8b8b';
+    const pre = document.createElement('pre');
+    pre.textContent = stack;
+    pre.style.cssText = 'white-space:pre-wrap;font-size:11px;color:#646464;'
+        + 'background:rgba(60,55,48,0.05);padding:10px;border-radius:8px;margin:6px 0 0;max-height:220px;overflow:auto';
+    const hinw = document.createElement('div');
+    hinw.style.cssText = 'font-size:11.5px;color:#8b8b8b;margin-top:6px';
+    hinw.textContent = /(-extension:\/\/)/.test(stack)
+        ? 'Der Fehler stammt aus einer Browser-Erweiterung, nicht aus OneCrew.'
+        : 'Steht in den Zeilen eine Adresse mit «-extension://», stammt der Fehler aus einer Browser-Erweiterung.';
+    details.appendChild(summary); details.appendChild(pre); details.appendChild(hinw);
+    box.appendChild(details);
 }
 
 // Notausgang, wenn der «Speichern unter…»-Dialog am Rechner klemmt: das XML in
