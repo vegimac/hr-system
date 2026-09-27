@@ -2897,6 +2897,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.WeitereAgLand).HasColumnName("weitere_ag_land").HasMaxLength(60);
             entity.Property(e => e.GesamteinkommenWeitereAg).HasColumnName("gesamteinkommen_weitere_ag").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Halbfamilie).HasColumnName("halbfamilie").HasMaxLength(100);
+            entity.Property(e => e.SorgerechtCode).HasColumnName("sorgerecht_code").HasMaxLength(40);
             entity.Property(e => e.WohnsitzAusland).HasColumnName("wohnsitz_ausland").HasMaxLength(100);
             entity.Property(e => e.Wohnsitzstaat).HasColumnName("wohnsitzstaat").HasMaxLength(10);
             entity.Property(e => e.AdresseAusland).HasColumnName("adresse_ausland").HasMaxLength(500);

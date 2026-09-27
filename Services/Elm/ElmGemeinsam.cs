@@ -312,7 +312,17 @@ public static class ElmGemeinsam
     /// Arbeitszeit-Block einer Person: FIX/FIX-M und MTP = Steady (Wochenstunden +
     /// Beschäftigungsgrad), FLEX = Unsteady.
     /// </summary>
-    public static XElement WorkingTime(Employment? em, decimal betriebsWochenstunden)
+    /// <summary>
+    /// Arbeitszeit-Block einer Person. <paramref name="vollzeitWochenstunden"/> sind die
+    /// Wochenstunden des zugeordneten Arbeitszeitmodells, sonst die der Filiale.
+    /// <para>
+    /// Gemeldet werden die <b>vereinbarten Wochenstunden der Person</b>
+    /// (<c>employment.weekly_hours</c>), nicht die Vollzeit der Filiale mal Pensum
+    /// (Walter 27.09.2026: Burri und Oberli melden 40.00, nicht 42.00). Nur wenn die
+    /// Person keine eigenen Wochenstunden hat, wird aus Vollzeit × Pensum gerechnet.
+    /// </para>
+    /// </summary>
+    public static XElement WorkingTime(Employment? em, decimal vollzeitWochenstunden)
     {
         // Honorar ohne Zeitbindung hat keine feste Arbeitszeit (Walter 27.09.2026).
         var art = (em?.SwissdecVertragsart ?? "").Trim();
@@ -322,14 +332,17 @@ public static class ElmGemeinsam
         if ((model == "FIX" || model == "FIX-M") && em != null)
         {
             var pct = em.EmploymentPercentage ?? 100m;
+            var std = em.WeeklyHours is > 0m
+                ? em.WeeklyHours!.Value
+                : PayrollCalculations.Rappen(vollzeitWochenstunden * pct / 100m);
             return new XElement(C + "Steady",
-                new XElement(C + "WeeklyHours", Amt(PayrollCalculations.Rappen(betriebsWochenstunden * pct / 100m))),
+                new XElement(C + "WeeklyHours", Amt(std)),
                 new XElement(C + "ActivityRate", Amt(pct)));
         }
         if (model == "MTP" && em?.GuaranteedHoursPerWeek is decimal gh && gh > 0)
             return new XElement(C + "Steady",
                 new XElement(C + "WeeklyHours", Amt(gh)),
-                new XElement(C + "ActivityRate", Amt(PayrollCalculations.Rappen(gh / betriebsWochenstunden * 100m))));
+                new XElement(C + "ActivityRate", Amt(PayrollCalculations.Rappen(gh / vollzeitWochenstunden * 100m))));
         return new XElement(C + "Unsteady");
     }
 }

@@ -353,6 +353,9 @@ public partial class SwissdecTestmandantController
                     q.WeitereBeschaftigungen = V("PersonOtherActivity") != null;
                     q.GesamtpensumWeitereAg = Dez(V("PersonTotalOtherActivityRate"));
                     q.Halbfamilie = V("PersonSingleParentFamily") != null ? "ja" : null;
+                    // Art der Alleinerziehenden-Situation im Original behalten
+                    // (SoleCustody …) — die Meldung braucht sie genau (Walter 27.09.2026).
+                    q.SorgerechtCode = V("PersonSingleParentFamily");
                     q.IsGrenzgaenger = land != "CH";
                     q.Wohnsitzstaat = land != "CH" ? land : null;
                     q.WohnsitzAusland = land != "CH" ? land : null;

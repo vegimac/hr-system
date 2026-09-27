@@ -129,6 +129,7 @@ public class QstKantonswechselService
             GesamtpensumWeitereAg = alt.GesamtpensumWeitereAg,
             GesamteinkommenWeitereAg = alt.GesamteinkommenWeitereAg,
             Halbfamilie = alt.Halbfamilie,
+            SorgerechtCode = alt.SorgerechtCode,
             WohnsitzAusland = alt.WohnsitzAusland,
             Wohnsitzstaat = alt.Wohnsitzstaat,
             AdresseAusland = alt.AdresseAusland,

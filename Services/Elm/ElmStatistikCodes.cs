@@ -158,8 +158,12 @@ public static class ElmStatistikCodes
     /// </summary>
     public static decimal Ferientage(bool stundenlohnMitFerienProzent, int ferienwochen, decimal? handeingabe)
     {
-        if (handeingabe is >= 0m) return handeingabe.Value;
+        // Richtlinien ELM 6.0, S. 366: Ferienprozent und Ferientage werden NIE
+        // zusammen gemeldet. Beim Stunden-/Lektionenlohn steht der Prozentsatz im
+        // Block ContractualHourlyWage — dann sind die Tage zwingend 0, auch wenn
+        // jemand von Hand etwas erfasst hat (Walter 27.09.2026, TF14 Egli).
         if (stundenlohnMitFerienProzent) return 0m;
+        if (handeingabe is >= 0m) return handeingabe.Value;
         return ferienwochen * 5m;
     }
 }

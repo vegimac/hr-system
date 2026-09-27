@@ -236,3 +236,32 @@ public class ElmMonitoringIdTests
         Assert.Equal(32, kurz!.Length);
     }
 }
+
+/// <summary>
+/// Ferienanspruch in der Statistik (Walter 27.09.2026). Richtlinien ELM 6.0, S. 366:
+/// Ferienprozent und Ferientage werden NIE zusammen gemeldet. Beim Stunden- oder
+/// Lektionenlohn steht der Prozentsatz im Block ContractualHourlyWage — dann sind
+/// die Tage zwingend 0 (TF14 Egli, November 2024).
+/// </summary>
+public class ElmFerientageTests
+{
+    [Fact]
+    public void Stundenlohn_MitFerienprozent_ImmerNull()
+    {
+        Assert.Equal(0m, ElmStatistikCodes.Ferientage(true, 5, null));
+        // Auch eine Handeingabe darf das nicht aushebeln — sonst stuenden beide
+        // Angaben in der Meldung.
+        Assert.Equal(0m, ElmStatistikCodes.Ferientage(true, 5, 25m));
+    }
+
+    [Fact]
+    public void Monatslohn_AusFerienwochen()
+    {
+        Assert.Equal(25m, ElmStatistikCodes.Ferientage(false, 5, null));
+        Assert.Equal(30m, ElmStatistikCodes.Ferientage(false, 6, null));
+    }
+
+    [Fact]
+    public void Monatslohn_HandeingabeSticht()
+        => Assert.Equal(22m, ElmStatistikCodes.Ferientage(false, 5, 22m));
+}

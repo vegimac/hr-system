@@ -203,6 +203,7 @@ public class QstKonfessionSyncService
             GesamtpensumWeitereAg        = src.GesamtpensumWeitereAg,
             GesamteinkommenWeitereAg     = src.GesamteinkommenWeitereAg,
             Halbfamilie                  = src.Halbfamilie,
+            SorgerechtCode               = src.SorgerechtCode,
             WohnsitzAusland              = src.WohnsitzAusland,
             Wohnsitzstaat                = src.Wohnsitzstaat,
             AdresseAusland               = src.AdresseAusland,

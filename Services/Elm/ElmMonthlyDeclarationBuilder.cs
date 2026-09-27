@@ -256,7 +256,8 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(C + "Work",
                     new XAttribute("workID", WorkId(e)),
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
-                    new XElement(C + "WorkingTime", WorkingTime(emHaupt, stamm.Haupt.NormalWeeklyHours ?? 42m)),
+                    new XElement(C + "WorkingTime", WorkingTime(emHaupt,
+                        modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : stamm.Haupt.NormalWeeklyHours ?? 42m)),
                     new XElement(C + "EntryDate", (emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd"))),
                 // Reihenfolge laut XSD (MonthlyPersonType): Quellensteuer VOR Statistik.
                 qstZeilenPerson.Count > 0 ? new XElement(Sd + "TaxAtSourceSalaries", qstZeilenPerson) : null,
@@ -388,10 +389,12 @@ public class ElmMonthlyDeclarationBuilder
                 new XAttribute(XNamespace.Xmlns + "ep", Ep),
                 new XAttribute(XNamespace.Xmlns + "c", C),
                 RequestContext(stamm.Firmenname, jetzt, _einstellungen),
+                // Kein <sdc:TestCase/> (Walter 27.09.2026): die Referenzmeldung hat
+                // keines, und das Quality Tool prüft gegen sie. Solange kein
+                // Transmitter-Zertifikat existiert, kann ohnehin nichts produktiv
+                // übermittelt werden.
                 new XElement(Sdc + "Job",
-                    new XElement(Sdc + "Addressees", addressees),
-                    // Übungs-/Testmeldung — nie als Produktivmeldung werten
-                    new XElement(Sdc + "TestCase")),
+                    new XElement(Sdc + "Addressees", addressees)),
                 new XElement(Sd + "MonthlySalaryDeclaration",
                     new XAttribute("schemaVersion", "0.0"),
                     CompanyDescription(stamm, arbeitszeit),
@@ -649,10 +652,22 @@ public class ElmMonthlyDeclarationBuilder
         var konfession = MapKonfession(e.Religion);
         XElement? alleinerziehend = null;
         if (string.Equals(version?.Halbfamilie, "ja", StringComparison.OrdinalIgnoreCase))
+        {
+            // Vier Fälle laut Schema: kein Konkubinat, oder im Konkubinat mit
+            // alleinigem Sorgerecht / geteiltem Sorgerecht und höherem Einkommen /
+            // volljährigem Kind und höherem Einkommen. Ohne erfasste Art gilt die
+            // vorsichtige Annahme «kein Konkubinat».
+            var art2 = (version!.SorgerechtCode ?? "").Trim();
+            if (art2.Length == 0 && version.LivesInKonkubinat) art2 = "ShareCustodyAndHigherIncome";
             alleinerziehend = new XElement(Sd + "SingleParentFamily",
-                version!.LivesInKonkubinat
-                    ? new XElement(Sd + "Concubinage", new XElement(Sd + "SoleCustody"))
-                    : new XElement(Sd + "NoConcubinage"));
+                art2 switch
+                {
+                    "SoleCustody" => new XElement(Sd + "Concubinage", new XElement(Sd + "SoleCustody")),
+                    "ShareCustodyAndHigherIncome" => new XElement(Sd + "Concubinage", new XElement(Sd + "ShareCustodyAndHigherIncome")),
+                    "AdultChildAndHigherIncome" => new XElement(Sd + "Concubinage", new XElement(Sd + "AdultChildAndHigherIncome")),
+                    _ => new XElement(Sd + "NoConcubinage"),
+                });
+        }
         var kinderEl = kinder
             .Where(k => k.QstDeductibleFrom != null)
             .OrderBy(k => k.DateOfBirth)

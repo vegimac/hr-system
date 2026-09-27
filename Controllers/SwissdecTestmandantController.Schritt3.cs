@@ -137,6 +137,29 @@ public partial class SwissdecTestmandantController
         hinweise.Add("Mindesterwerbseinkommen (Jahr/Monat) steht nicht in den Testdaten — bleibt leer; falls ein Testfall es braucht, ergänzen wir es dann.");
         hinweise.Add("Geburtszulage wird auch als Adoptionszulage übernommen (Testdaten nennen nur «BirthAllowance»).");
 
+        // ── C1) Kontaktperson der Rechtseinheit (Walter 27.09.2026) ──
+        // Steht im Kopf jeder Meldung. Aus den Firmendaten des Testmandanten —
+        // nie private Angaben eines Benutzers.
+        var hsKontakt = await _db.Hauptsitze.OrderBy(h2 => h2.Id).FirstOrDefaultAsync();
+        var kName = T25("CompanyContactPerson");
+        if (hsKontakt != null && !string.IsNullOrWhiteSpace(kName))
+        {
+            var felder = new Dictionary<string, string?>
+            {
+                ["Name"] = kName,
+                ["E-Mail"] = T25("CompanyEmailAddress"),
+                ["Telefon"] = T25("CompanyPhoneNumber"),
+            };
+            aktionen.Add(new Aktion("aktualisieren", "Kontaktperson", hsKontakt.Name, felder));
+            if (!vorschau)
+            {
+                hsKontakt.KontaktName = kName!.Trim();
+                hsKontakt.KontaktEmail = T25("CompanyEmailAddress")?.Trim();
+                hsKontakt.KontaktTelefon = T25("CompanyPhoneNumber")?.Trim();
+                hsKontakt.UpdatedAt = DateTime.Now;
+            }
+        }
+
         // ── C2) Quellensteuer-Empfänger je Kanton (Walter 27.09.2026) ──
         // Die Schuldner-/Abrechnungsnummer steht in den Firmendaten
         // (CompanyTAS<Kanton>CustomerIdentity) und gehört in den Empfänger-Katalog;

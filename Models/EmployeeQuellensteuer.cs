@@ -96,6 +96,15 @@ public class EmployeeQuellensteuer
     /// <summary>Halbfamilie-Status (Dropdown-Wert)</summary>
     public string? Halbfamilie { get; set; }
 
+    /// <summary>
+    /// Art der Alleinerziehenden-Situation für die QST-Meldung (Walter 27.09.2026,
+    /// Swissdec <c>SingleParentFamily</c>): <c>NoConcubinage</c>, <c>SoleCustody</c>,
+    /// <c>ShareCustodyAndHigherIncome</c> oder <c>AdultChildAndHigherIncome</c>.
+    /// NULL = nicht erfasst; dann meldet OneCrew bei Halbfamilie «Ja» und Konkubinat
+    /// nichts Genaueres, sondern «kein Konkubinat» — die vorsichtige Annahme.
+    /// </summary>
+    public string? SorgerechtCode { get; set; }
+
     /// <summary>Wohnsitz im Ausland (Dropdown, z.B. "Deutschland")</summary>
     public string? WohnsitzAusland { get; set; }
 

@@ -619,7 +619,7 @@ public partial class SwissdecTestmandantController
                                 q.Steuerkanton = letzter.Steuerkanton; q.SteuerkantonName = letzter.SteuerkantonName; q.QstGemeinde = letzter.QstGemeinde; q.QstGemeindeBfsNr = letzter.QstGemeindeBfsNr;
                                 q.QstCode = letzter.QstCode; q.TarifCode = letzter.TarifCode; q.AnzahlKinder = letzter.AnzahlKinder; q.Kirchensteuer = letzter.Kirchensteuer;
                                 q.ArbeitsortKanton = letzter.ArbeitsortKanton; q.WeitereBeschaftigungen = letzter.WeitereBeschaftigungen; q.GesamtpensumWeitereAg = letzter.GesamtpensumWeitereAg;
-                                q.Halbfamilie = letzter.Halbfamilie; q.IsGrenzgaenger = letzter.IsGrenzgaenger; q.IsWochenaufenthalter = letzter.IsWochenaufenthalter;
+                                q.Halbfamilie = letzter.Halbfamilie; q.SorgerechtCode = letzter.SorgerechtCode; q.IsGrenzgaenger = letzter.IsGrenzgaenger; q.IsWochenaufenthalter = letzter.IsWochenaufenthalter;
                                 q.Wohnsitzstaat = letzter.Wohnsitzstaat; q.WohnsitzAusland = letzter.WohnsitzAusland;
                                 q.GrenzgaengerSteuerId = letzter.GrenzgaengerSteuerId; q.GrenzgaengerGeburtsort = letzter.GrenzgaengerGeburtsort; q.GrenzgaengerAb = letzter.GrenzgaengerAb;
                                 q.SpezielBewilligt = letzter.SpezielBewilligt;
