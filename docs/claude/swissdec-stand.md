@@ -225,3 +225,29 @@ AHV+ALV+NBU = 1'237.45).
    **Merksatz: beim Aufrollen zählt die gespeicherte Basis der Versicherung, auch wenn sie 0 ist.**
 
 Tests: `Tests/KorrekturlohnYtdBasisTests.cs` (echte Monatswerte von Herz, inkl. Mai-Null).
+
+
+## Vorgabe für E7 — Austrittsmeldung (EMA), Stand September 2025 (Walter 27.09.2026)
+
+`SWISSCEC/RefXML/RefXML_2025-09_EMA.xml` ist die Vorlage. Sie enthält sieben Personen:
+
+| Person | BVG-Code | Eintritt | Austritt |
+|---|---|---|---|
+| Paganini | 22 | 01.01.2025 | – |
+| Lamon | 11 | 01.01.2025 | – |
+| Blanc | 22 | 01.01.2025 | – |
+| Müller | 11 | 01.01.2025 | 30.09.2025 |
+| Armanini | 11 | 01.09.2025 | – |
+| Roos | 11 | 01.01.2025 | – |
+| Maldini | 22, 22 (zwei Einträge) | 01.01.2025 | – |
+
+**Prüfpunkt, der leicht schiefgeht:** In der Meldung steht bei Müller als Eintritt der
+**01.01.2025**, nicht der 01.05.2025. OneCrew zeigt im Lohnkopf «Vertrag seit 1.5.2025» — das ist
+der Beginn des AKTUELLEN Vertragsabschnitts nach dem Wechsel zum Monatslohn. Die Austrittsmeldung
+braucht dagegen den **Eintritt ins Unternehmen** (`employee.entry_date`), nicht den Vertragsbeginn.
+Beim Bau von E7 gezielt prüfen — die beiden Daten fallen bei jedem Modell- oder Filialwechsel
+auseinander. Verwandt, aber NICHT dasselbe: `Dienstalter.Massgebend` (nahtlose Vertragskette für
+Fristen); für die EMA gilt das echte Eintrittsdatum.
+
+Der BVG-Code selbst kommt aus `employee_versicherung_code` (Art BVG) — er fehlte bei Müller, bis
+4c ihn am 27.09.2026 aus dem Grunddatensatz nachzog.
