@@ -211,6 +211,9 @@ async function elmXmlHerunterladen(jahr, monat) {
         const wie = await saveBlobAsk(new Blob([_elmXml], { type: 'application/xml' }), name);
         if (wie === 'abgebrochen')
             elmHinweis('Speichern abgebrochen — die Datei wurde nicht abgelegt.', true);
+        else if (wie === 'neuer-tab')
+            elmHinweis(`${name} ist in einem neuen Tab offen — dort mit Cmd+S sichern. `
+                     + 'Der übliche Download wurde blockiert.', true);
         else if (wie === 'fallback')
             elmHinweis(`${name} (${kb} KB) liegt im Download-Ordner. Der «Speichern unter…»-Dialog `
                      + `war nicht verfügbar${window._saveBlobGrund ? ' (' + window._saveBlobGrund + ')' : ''}.`, false);

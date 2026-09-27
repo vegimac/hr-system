@@ -64,13 +64,38 @@ async function saveBlobAsk(blob, filename) {
             grund = (e && (e.name || e.message)) ? `${e.name || ''} ${e.message || ''}`.trim() : '';
         }
     }
+    // Ohne Picker: klassischer Anker-Download. Walter-Bug 27.09.2026 — im ELM-Bereich
+    // kam «Failed to execute 'insertAdjacentHTML' on 'Element': … invalid XML». Der
+    // Aufrufer war keiner von uns: eine Browser-Erweiterung haengt sich an
+    // document.body und stolpert ueber den eingehaengten Anker. Also haengen wir
+    // ihn gar nicht mehr ein — ein Klick funktioniert auch ohne. Jede Stufe hat ihr
+    // eigenes Netz, damit ein einziger fremder Fehler nicht den Download verhindert.
     const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objUrl; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
-    window._saveBlobGrund = grund;   // fuer Fehlersuche, wenn der Dialog nicht kam
-    return 'fallback';
+    const aufraeumen = () => setTimeout(() => URL.revokeObjectURL(objUrl), 15000);
+
+    const anker = (einhaengen) => {
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = filename;
+        a.rel = 'noopener';
+        if (einhaengen) { a.style.display = 'none'; document.body.appendChild(a); }
+        try { a.click(); } finally { if (einhaengen) a.remove(); }
+    };
+
+    try { anker(false); aufraeumen(); window._saveBlobGrund = grund; return 'fallback'; }
+    catch (e1) { grund = grund || `${e1.name || ''} ${e1.message || ''}`.trim(); }
+
+    try { anker(true); aufraeumen(); window._saveBlobGrund = grund; return 'fallback'; }
+    catch (e2) { grund = grund || `${e2.name || ''} ${e2.message || ''}`.trim(); }
+
+    // Letzte Stufe: Datei in einem neuen Tab oeffnen — von dort mit Cmd+S sichern.
+    const fenster = window.open(objUrl, '_blank');
+    aufraeumen();
+    window._saveBlobGrund = grund;
+    if (!fenster) throw new Error(
+        'Der Browser hat den Download blockiert' + (grund ? ` (${grund})` : '')
+        + '. Bitte Pop-ups fuer diese Seite erlauben oder eine Erweiterung abschalten.');
+    return 'neuer-tab';
 }
 
 // Wie saveBlobAsk, aber für eine bereits erzeugte (Blob-)URL — typisch für
