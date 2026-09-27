@@ -203,204 +203,23 @@ function elmXmlAnsehen() {
 
 async function elmXmlHerunterladen(jahr, monat) {
     if (!_elmXml) { elmHinweis('Es liegt noch kein XML vor — bitte zuerst «Meldung erzeugen».', true); return; }
-    const name = `DeclareMonthlySalary_${jahr}-${String(monat).padStart(2, '0')}.xml`;
-    const kb = Math.max(1, Math.round(_elmXml.length / 1024));
-    // Walter-Vorgabe 21.05.2026: nie still herunterladen — «Speichern unter…».
-    // Walter 27.09.2026: aber auch nie still SCHEITERN — jeder Ausgang wird gesagt.
+    // Walter 27.09.2026: KEIN Blob, KEIN Link in der Seite, KEIN «Speichern unter…».
+    // Der Server legt die Datei unter einer einmaligen Marke bereit, und der Browser
+    // holt sie als ganz gewoehnlichen Download ab — daran kann sich keine
+    // Erweiterung mehr aufhaengen.
+    elmHinweis('Datei wird bereitgestellt…', false);
     try {
-        const wie = await saveBlobAsk(new Blob([_elmXml], { type: 'application/xml' }), name);
-        if (wie === 'abgebrochen')
-            elmHinweis('Speichern abgebrochen — die Datei wurde nicht abgelegt.', true);
-        else if (wie === 'neuer-tab')
-            elmHinweis(`${name} ist in einem neuen Tab offen — dort mit Cmd+S sichern. `
-                     + 'Der übliche Download wurde blockiert.', true);
-        else if (wie === 'fallback')
-            elmHinweis(`${name} (${kb} KB) liegt im Download-Ordner. Der «Speichern unter…»-Dialog `
-                     + `war nicht verfügbar${window._saveBlobGrund ? ' (' + window._saveBlobGrund + ')' : ''}.`, false);
-        else
-            elmHinweis(`${name} (${kb} KB) gespeichert.`, false);
-    } catch (e) {
-        elmHinweis(`Herunterladen fehlgeschlagen: ${e.message}`, true);
-    }
-}
-
-// ── Durchgang über ALLE Monate mit Referenz (Walter 27.09.2026) ──────────────
-// Der Einzelmonat sagt einem, ob ein Monat stimmt. Erst der Durchgang über alle
-// zeigt, ob ein Fehler einmalig ist oder sich durch das Jahr zieht.
-
-let _elmAlleBericht = '';
-let _elmJahr = 0, _elmMonat = 0;
-
-async function elmAllePruefen() {
-    const d = await elmAlleHolen(null);
-    if (!d) return;
-    // Die Referenzen von Swissdec liegen im Quellcode, nicht im veröffentlichten
-    // Programm (und 7 MB Übungsdaten gehören auch nicht auf die Lohnanlage).
-    // Also fragen wir sie beim Benutzer ab (Walter 27.09.2026).
-    if (d.dateienNoetig) { elmReferenzenWaehlen(d.hinweis); return; }
-    elmZeigeAlle(d);
-}
-
-function elmReferenzenWaehlen(hinweis) {
-    const box = document.getElementById('elmAlleErgebnis');
-    if (box) {
-        box.style.display = 'block';
-        box.innerHTML = `<div style="font-size:12.5px;color:#646464;line-height:1.6">${elmEsc(hinweis || '')}<br>
-            Der Ordner liegt in deinem Projekt unter <code>SWISSCEC/RefXML</code>. Im Auswahlfenster
-            alle <code>RefXML_…_MONTHLY.xml</code> auf einmal markieren (Cmd+A und dann die anderen abwählen,
-            oder ins Suchfeld <code>MONTHLY</code> tippen). Die Dateien werden nur für diese Prüfung gelesen
-            und nirgends gespeichert.</div>
-            <div style="margin-top:12px"><button type="button" class="btn-primary"
-                style="font-size:12.5px;padding:7px 15px" onclick="elmReferenzenDateiwahl()">Referenzen auswählen…</button></div>`;
-    }
-    elmReferenzenDateiwahl();
-}
-
-function elmReferenzenDateiwahl() {
-    let inp = document.getElementById('elmRefDateien');
-    if (!inp) {
-        inp = document.createElement('input');
-        inp.type = 'file';
-        inp.id = 'elmRefDateien';
-        inp.multiple = true;
-        inp.accept = '.xml,text/xml,application/xml';
-        inp.style.display = 'none';
-        inp.addEventListener('change', async () => {
-            const dateien = Array.from(inp.files || []);
-            inp.value = '';
-            if (dateien.length === 0) return;
-            const d = await elmAlleHolen(dateien);
-            if (d) elmZeigeAlle(d);
+        const res = await fetch(`/api/elm/monthly/${jahr}/${monat}/datei-marke`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
         });
-        document.body.appendChild(inp);
-    }
-    inp.click();
-}
-
-// dateien = null -> Referenzen von der Platte des Servers; sonst hochladen.
-async function elmAlleHolen(dateien) {
-    const btn = document.getElementById('elmAlleBtn');
-    const box = document.getElementById('elmAlleErgebnis');
-    if (btn) { btn.disabled = true; btn.textContent = 'prüft alle Monate…'; }
-    elmZeigeErgebnis(null);
-    if (box && dateien) {
-        box.style.display = 'block';
-        box.innerHTML = `<div style="font-size:12.5px;color:#646464">${dateien.length} Referenzen gelesen. `
-                      + 'Jeder Monat wird erzeugt, gegen das Schema geprüft und Feld für Feld verglichen. '
-                      + 'Das dauert einen Moment.</div>';
-    }
-    try {
-        let res;
-        if (dateien) {
-            const fd = new FormData();
-            for (const f of dateien) fd.append('dateien', f, f.name);
-            res = await fetch('/api/elm/monthly/alle-pruefen', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + localStorage.hrToken },
-                body: fd
-            });
-        } else {
-            res = await fetch('/api/elm/monthly/alle-pruefen', {
-                headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
-            });
-        }
         const d = await res.json();
         if (!res.ok) throw new Error(d.message || d.error || ('HTTP ' + res.status));
-        _elmAlleBericht = d.bericht || '';
-        return d;
+        window.location.href = `/api/elm/datei/${d.marke}`;
+        elmHinweis(`${d.dateiname} wird heruntergeladen — die Datei liegt im Download-Ordner.`, false);
     } catch (e) {
-        _elmAlleBericht = '';
-        if (box) {
-            box.style.display = 'block';
-            box.innerHTML = `<div style="font-size:12.5px;color:#b91c1c">Fehler: ${elmEsc(e.message)}</div>`;
-        }
-        return null;
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Alle Monate prüfen'; }
+        elmHinweis(`Herunterladen fehlgeschlagen: ${e.message} — als Ausweg «XML kopieren».`, true);
     }
-}
-
-function elmZeigeAlle(d) {
-    const box = document.getElementById('elmAlleErgebnis');
-    if (!box) return;
-    const z = d.zusammenfassung || {};
-    if (d.hinweis) { box.innerHTML = `<div style="font-size:12.5px;color:#646464">${elmEsc(d.hinweis)}</div>`; return; }
-
-    const pille = (text, farbe) =>
-        `<span style="display:inline-block;padding:3px 11px;border-radius:999px;font-size:12px;font-weight:600;background:${farbe.bg};color:${farbe.fg}">${text}</span>`;
-    const gruen = { bg: '#dcfce7', fg: '#166534' };
-    const rot   = { bg: '#fee2e2', fg: '#991b1b' };
-    const grau  = { bg: 'rgba(60,55,48,0.10)', fg: '#3f3f3f' };
-
-    let html = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-        ${pille(`${z.fertig} von ${z.gesamt} Monaten erzeugt`, grau)}
-        ${pille(z.mitOffenen ? `${z.mitOffenen} mit offenen Unterschieden` : 'alle deckungsgleich',
-                z.mitOffenen ? rot : gruen)}
-        ${z.nichtBereit ? pille(`${z.nichtBereit} noch nicht meldebereit`, grau) : ''}
-      </div>`;
-
-    html += `<div style="border:1px solid rgba(60,55,48,0.14);border-radius:10px;overflow:auto;max-height:420px">
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-        <thead><tr>
-          <th style="text-align:left;padding:7px 10px;position:sticky;top:0;background:#efece5">Monat</th>
-          <th style="text-align:right;padding:7px 10px;position:sticky;top:0;background:#efece5">Personen</th>
-          <th style="text-align:right;padding:7px 10px;position:sticky;top:0;background:#efece5">Felder</th>
-          <th style="text-align:right;padding:7px 10px;position:sticky;top:0;background:#efece5">Offen</th>
-          <th style="text-align:right;padding:7px 10px;position:sticky;top:0;background:#efece5">Bewusst</th>
-          <th style="text-align:left;padding:7px 10px;position:sticky;top:0;background:#efece5">Schema</th>
-        </tr></thead><tbody>`;
-
-    for (const m of (d.monate || [])) {
-        const mm = String(m.monat).padStart(2, '0');
-        if (!m.bereit || m.grund) {
-            html += `<tr style="border-top:1px solid rgba(60,55,48,0.10)">
-                <td style="padding:6px 10px">${mm}.${m.jahr}</td>
-                <td colspan="5" style="padding:6px 10px;color:#8b8b8b">${elmEsc(m.grund || 'nicht bereit')}</td></tr>`;
-            continue;
-        }
-        const offenFarbe = m.offen > 0 ? '#b91c1c' : '#166534';
-        html += `<tr style="border-top:1px solid rgba(60,55,48,0.10)">
-            <td style="padding:6px 10px;font-weight:600">${mm}.${m.jahr}</td>
-            <td style="padding:6px 10px;text-align:right">${m.personen} von ${m.personenSoll}</td>
-            <td style="padding:6px 10px;text-align:right;color:#646464">${m.geprueft}</td>
-            <td style="padding:6px 10px;text-align:right;font-weight:600;color:${offenFarbe}">${m.offen === 0 ? '—' : m.offen}</td>
-            <td style="padding:6px 10px;text-align:right;color:#646464">${m.bewusst}</td>
-            <td style="padding:6px 10px;color:${m.xsdFehler ? '#b91c1c' : '#646464'}">${m.xsdFehler ? m.xsdFehler + ' Fehler' : 'in Ordnung'}</td>
-          </tr>`;
-        for (const u of (m.unterschiede || [])) {
-            html += `<tr style="background:rgba(185,28,28,0.05)">
-                <td style="padding:4px 10px"></td>
-                <td style="padding:4px 10px;font-size:11.5px">${elmEsc(u.person)}</td>
-                <td colspan="2" style="padding:4px 10px;font-size:11.5px;color:#646464">${elmEsc(u.feld)}</td>
-                <td style="padding:4px 10px;font-size:11.5px;text-align:right">${elmEsc(u.ist ?? '—')}</td>
-                <td style="padding:4px 10px;font-size:11.5px">statt ${elmEsc(u.soll ?? '—')}</td>
-              </tr>`;
-        }
-    }
-    html += `</tbody></table></div>`;
-
-    if ((d.uebergangen || []).length > 0) {
-        html += `<div style="margin-top:12px"><div style="font-weight:600;font-size:12.5px;margin-bottom:5px">Nicht verwendete Dateien</div>
-            <ul style="margin:0;padding-left:18px;font-size:12px;color:#646464">
-            ${d.uebergangen.map(u => `<li>${elmEsc(u)}</li>`).join('')}</ul></div>`;
-    }
-
-    if (_elmAlleBericht) {
-        html += `<div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
-            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:7px 15px;border-radius:10px"
-                    onclick="elmAlleBerichtHerunterladen()">Bericht herunterladen</button>
-          </div>
-          <details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px;color:#646464">Bericht ansehen</summary>
-            <pre style="white-space:pre-wrap;font-size:11.5px;background:rgba(60,55,48,0.05);padding:12px;border-radius:10px;margin-top:8px;max-height:420px;overflow:auto">${elmEsc(_elmAlleBericht)}</pre></details>`;
-    }
-    box.innerHTML = html;
-}
-
-function elmAlleBerichtHerunterladen() {
-    if (!_elmAlleBericht) return;
-    const heute = new Date().toISOString().slice(0, 10);
-    // Walter-Vorgabe 21.05.2026: nie still herunterladen — «Speichern unter…».
-    saveBlobAsk(new Blob([_elmAlleBericht], { type: 'text/markdown' }), `elm_monatsmeldungen_${heute}.md`);
 }
 
 // Notausgang, wenn der «Speichern unter…»-Dialog am Rechner klemmt: das XML in

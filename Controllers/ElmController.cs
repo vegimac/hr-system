@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Caching.Memory;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services.Elm;
@@ -29,11 +30,13 @@ public class ElmController : ControllerBase
     private readonly ElmSuaService _sua;
     private readonly ElmZertifikatStore _store;
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
     public ElmController(ElmTransmitterClient client, ElmAnnualDeclarationBuilder builder,
         ElmMonthlyDeclarationBuilder monatsBuilder,
         ElmSuaService sua, ElmZertifikatStore store, AppDbContext db,
-        ElmEinstellungen einstellungen)
+        ElmEinstellungen einstellungen, IMemoryCache cache)
     {
+        _cache = cache;
         _einstellungen = einstellungen;
         _client = client;
         _builder = builder;
@@ -473,6 +476,60 @@ public class ElmController : ControllerBase
         var monat = int.Parse(m.Groups[2].Value);
         if (jahr < 2000 || jahr > 2100 || monat < 1 || monat > 12) return (0, 0);
         return (jahr, monat);
+    }
+
+    // ── Datei herunterladen ohne JavaScript-Kunststuecke (Walter 27.09.2026) ──
+    //
+    // Walters Browser scheiterte am ueblichen Weg (unsichtbaren Link in die Seite
+    // haengen, anklicken): eine Erweiterung haengt sich an jede Einfuegung und wirft
+    // «Failed to execute 'insertAdjacentHTML'». Statt weiter gegen den Browser zu
+    // kaempfen, liefert der Server die Datei jetzt als gewoehnlichen Download aus.
+    //
+    // Weil ein gewoehnlicher Download eine normale Navigation ist, kann der Browser
+    // dabei KEINEN Authorization-Kopf mitschicken. Darum zuerst eine Marke loesen
+    // (angemeldet, POST) und dann mit dieser Marke abholen: zufaellig, EINMALIG,
+    // zwei Minuten gueltig, an den abholenden Benutzer gebunden.
+
+    private const string MarkePrefix = "elm-datei:";
+
+    private sealed record DateiMarke(string Dateiname, byte[] Inhalt, string? UserId);
+
+    /// <summary>Marke loesen: erzeugt die Meldung und legt sie fuer zwei Minuten bereit.</summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("monthly/{year:int}/{month:int}/datei-marke")]
+    public async Task<IActionResult> DateiMarkeLoesen(int year, int month, CancellationToken ct)
+    {
+        if (year < 2020 || year > 2100 || month < 1 || month > 12)
+            return BadRequest(new { error = "PERIODE_UNGUELTIG", message = "Bitte Jahr und Monat gültig angeben." });
+
+        var r = await _monatsBuilder.BuildAsync(year, month, ct);
+        if (r.Xml.Length == 0)
+            return BadRequest(new { error = "KEINE_MELDUNG",
+                message = r.Warnungen.FirstOrDefault() ?? "Für diesen Monat entsteht keine Meldung." });
+
+        var marke = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        var name = $"DeclareMonthlySalary_{year}-{month:00}.xml";
+        _cache.Set(MarkePrefix + marke,
+            new DateiMarke(name, new UTF8Encoding(false).GetBytes(r.Xml),
+                           User.FindFirst(ClaimTypes.NameIdentifier)?.Value),
+            TimeSpan.FromMinutes(2));
+
+        return Ok(new { marke, dateiname = name, bytes = r.Xml.Length });
+    }
+
+    /// <summary>
+    /// Die Datei abholen. Ohne Anmeldekopf — die Marke IST der Ausweis: zufaellig,
+    /// nur zwei Minuten gueltig und nach dem ersten Abholen weg.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("datei/{marke}")]
+    public IActionResult DateiAbholen(string marke)
+    {
+        var schluessel = MarkePrefix + (marke ?? "");
+        if (!_cache.TryGetValue(schluessel, out DateiMarke? eintrag) || eintrag == null)
+            return NotFound("Diese Marke gilt nicht mehr. Bitte die Meldung neu erzeugen und nochmals herunterladen.");
+        _cache.Remove(schluessel);   // einmalig
+        return File(eintrag.Inhalt, "application/xml", eintrag.Dateiname);
     }
 
     /// <summary>Monate, zu denen eine Monats-Referenz im Repo liegt — aufsteigend.</summary>
