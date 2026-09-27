@@ -1429,13 +1429,30 @@ public static class PayrollCalculations
     ///        - bei Festlohn: × 100/Pensum
     ///   Einmalige Zulagen (Bonus, Provision, VR) zählen 1:1, ohne Hochrechnung.
     /// </summary>
+    /// <summary>
+    /// Absenz-Typen, deren Stunden als AUSFALLSTUNDEN in den eigenen Beschäftigungsgrad
+    /// zählen: Lohnausfall, für den im Monat Lohn oder Ersatzeinkommen abgerechnet wird
+    /// (Krankheit, Unfall, EO = Militär/Zivilschutz/Mutterschaft/Vaterschaft).
+    /// Ferien und Feiertage stehen bewusst NICHT hier — die sind beim Stundenlöhner über
+    /// die Prozentzuschläge abgegolten und wären doppelt gezählt.
+    /// </summary>
+    public static readonly IReadOnlySet<string> QstAusfallTypen =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "KRANK", "UNFALL", "MILITAER", "ZIVILSCHUTZ", "MUTTERSCHAFT", "VATERSCHAFT" };
+
+    /// <summary>Summe der Ausfallstunden aus der Absenz-Aufschlüsselung des Monats.</summary>
+    public static decimal QstAusfallStunden(IReadOnlyDictionary<string, decimal>? absenzBreakdown)
+        => absenzBreakdown == null ? 0m
+         : absenzBreakdown.Where(kv => QstAusfallTypen.Contains(kv.Key)).Sum(kv => kv.Value);
+
     public static decimal? ComputeSatzBruttoForNebenjob(
         EmployeeQuellensteuer? qst,
         decimal bruttolohn,
         decimal workedHours,
         CompanyProfile company,
         decimal? pensumPct = null,
-        decimal einmaligNichtHochrechnen = 0)
+        decimal einmaligNichtHochrechnen = 0,
+        decimal ausfallStunden = 0)
     {
         // Variante A: keine Nebenbeschäftigung → kein Hochrechnen
         if (qst is null || !qst.WeitereBeschaftigungen)
@@ -1452,7 +1469,14 @@ public static class PayrollCalculations
         {
             // GesamtpensumWeitereAg ist das Pensum bei den ANDEREN AGs.
             // Eigenes Pensum kommt vom Vertrag oder wird aus Stundenanteil ermittelt.
-            decimal eigenesPensum = pensumPct ?? EstimatePensumFromStunden(workedHours, company);
+            // Ausfallstunden zählen zum eigenen Beschäftigungsgrad (Walter 27.09.2026).
+            // Quelle: Swissdec, Richtlinien für Lohndatenverarbeitung ELM 6.0, Ausgabe
+            // 06.03.2026, Kap. 10.6.4.3, gedruckte S. 287 (PDF-Seite 300) —
+            // `docs/swissdec/ELM_6.0_Richtlinien_Lohndatenverarbeitung_20260306.pdf`.
+            // Beispiel dort: 3 gearbeitete + 32 Ausfallstunden = 35 → 35/182 = 19.23 %.
+            // Ohne die Ausfallstunden bekäme ein Kranker einen zu tiefen Grad und damit
+            // einen zu hohen Steuersatz.
+            decimal eigenesPensum = pensumPct ?? EstimatePensumFromStunden(workedHours + Math.Max(0m, ausfallStunden), company);
             if (eigenesPensum <= 0)
                 return einmalig > 0 ? einmalig : null;
             // Summe ≥ 100 % heisst nicht «kein Hochrechnen» — der IST-Lohn ist
@@ -1475,11 +1499,12 @@ public static class PayrollCalculations
         }
 
         // B3: Hochrechnung auf 100%
-        if (workedHours > 0)
+        var stundenMitAusfall = workedHours + Math.Max(0m, ausfallStunden);
+        if (stundenMitAusfall > 0)
         {
             // Stundenlöhner: auf die betriebsübliche Monats-Arbeitszeit, nicht auf 180 h
-            // (siehe MonatsstundenVollzeit).
-            return Math.Round(periodisch * MonatsstundenVollzeit(company) / workedHours + einmalig, 2);
+            // (siehe MonatsstundenVollzeit); Ausfallstunden zählen mit (Kap. 10.6.4.3).
+            return Math.Round(periodisch * MonatsstundenVollzeit(company) / stundenMitAusfall + einmalig, 2);
         }
         if (pensumPct.HasValue && pensumPct.Value > 0 && pensumPct.Value < 100)
         {

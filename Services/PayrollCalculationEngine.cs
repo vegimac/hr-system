@@ -3170,7 +3170,8 @@ public class PayrollCalculationEngine
             // Monat, dann Gesamtpensum. Ohne Nebenerwerb = Kurzmonat-Basis.
             decimal? satzBruttoMtp = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, satzBasisMtp, workedHours, company,
-                einmaligNichtHochrechnen: deltaQstEinmalig);
+                einmaligNichtHochrechnen: deltaQstEinmalig,
+                ausfallStunden: PayrollCalculations.QstAusfallStunden(absenzBreakdown));
             if (!satzBruttoMtp.HasValue && satzBasisMtp != svBasesMtp.Qst)
                 satzBruttoMtp = satzBasisMtp;
             var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp, deltaQstEinmalig, dreizehnterMtp);
@@ -3816,7 +3817,8 @@ public class PayrollCalculationEngine
             // im QST-Eintrag.
             decimal? satzBruttoUtp = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, svBasesUtp.Qst, workedHours, company,
-                einmaligNichtHochrechnen: deltaQstEinmalig);
+                einmaligNichtHochrechnen: deltaQstEinmalig,
+                ausfallStunden: PayrollCalculations.QstAusfallStunden(absenzBreakdown));
             var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp, deltaQstEinmalig, dreizehnterUtp);
             if (qstRuleUtp is not null) deductions.Add(qstRuleUtp);
 

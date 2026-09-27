@@ -126,7 +126,11 @@ Regel: Tarif, BUR, PLZ, QST-Code immer aus Stammdaten/CSV, nie aus der RefXML ko
 
 **Eine feste Zahl 182 steht nirgends** — es ist die betriebsübliche Arbeitszeit, die bei der Muster AG und bei Schaub (L-GAV 42 h) zufällig beide Male 182 ergibt. Umgesetzt als `MonatsstundenVollzeit(company)` = Wochenstunden der Filiale × 52 ÷ 12; fehlt die Angabe, gilt bewusst die L-GAV-Woche 42 h, NIE wieder still 180. Der Beschäftigungsgrad geht **ungerundet** in die Hochrechnung (gerundet käme Januar 4'859.48 statt 4'859.35 heraus; die Richtlinien zeigen ihn im Beispiel nur gerundet an). Code: `EstimatePensumFromStunden` / `ComputeSatzBruttoForNebenjob`, Tests `Tests/QstNebenjobHochrechnungTests.cs` (Blanc Jan/Sep/Okt + Fall über 100 %).
 
-**Offen geblieben:** Das Richtlinien-Beispiel zählt **Ausfallstunden** (Krankheit, Unfall, EO) zum eigenen Beschäftigungsgrad — dort 3 gearbeitete + 32 Ausfallstunden = 35. OneCrew rechnet bisher nur mit den gearbeiteten Stunden; wer krank ist, bekommt dadurch einen zu tiefen Grad und einen zu hohen Steuersatz. Noch nicht gebaut.
+**Ausfallstunden — erledigt 27.09.2026.** Fundstelle: Swissdec, *Richtlinien für Lohndatenverarbeitung*, ELM 6.0, Ausgabe 06.03.2026, **Kap. 10.6.4.3**, gedruckte **S. 287** (PDF-Seite 300) — liegt im Repo unter `docs/swissdec/ELM_6.0_Richtlinien_Lohndatenverarbeitung_20260306.pdf`. (Das Kreisschreiben 45 der ESTV selbst liegt NICHT im Repo; dessen Ziffern sind oben nach der ESTV-FAQ zitiert.) Beispiel dort: 3 gearbeitete + **32 Ausfallstunden** = 35 → 35/182 = 19.23 %, andere AG 60 % → Total 79.23 %.
+
+Eigenes Pensum = (gearbeitete + Ausfallstunden) ÷ betriebsübliche Monats-Arbeitszeit. Als Ausfall zählen die Typen mit Lohn oder Ersatzeinkommen: **KRANK, UNFALL, MILITAER, ZIVILSCHUTZ, MUTTERSCHAFT, VATERSCHAFT** (`PayrollCalculations.QstAusfallTypen`). Ferien und Feiertage bewusst NICHT — beim Stundenlöhner sind sie über die Prozentzuschläge abgegolten und wären doppelt gezählt. Die Stunden kommen aus der Absenz-Aufschlüsselung des Monats (`QstAusfallStunden(absenzBreakdown)`), übergeben in den FLEX- und MTP-Zweigen; FIX rechnet über das Vertragspensum und braucht sie nicht.
+
+**Rundung:** Das Richtlinien-Beispiel rechnet mit dem angezeigten, auf zwei Stellen gerundeten Grad (19.23 / 79.23) und kommt auf 3'535.07; mit dem genauen Verhältnis sind es 3'534.96. Die RefXML rechnet genau — nur so treffen Blancs fünf Monate auf den Rappen. Wir folgen der RefXML.
 
 ---
 
