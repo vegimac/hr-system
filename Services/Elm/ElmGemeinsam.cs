@@ -160,8 +160,14 @@ public static class ElmGemeinsam
             gemeindeNr);
     }
 
-    /// <summary>Meldungskopf (RequestContext) — identisch für Jahres- und Monatsmeldung.</summary>
-    public static XElement RequestContext(string firmenname, DateTime jetzt)
+    /// <summary>
+    /// Meldungskopf (RequestContext) — identisch für Jahres- und Monatsmeldung.
+    /// Die MonitoringID kommt als LETZTES Element (Walter 27.09.2026), gleich wie
+    /// bei den SUA-Aufrufen; auf den Swissdec-Testsystemen ordnet sie die
+    /// Übermittlung dem richtigen Benutzer zu. Ohne gesetzte ID fehlt das Element —
+    /// auf der Produktion soll es fehlen.
+    /// </summary>
+    public static XElement RequestContext(string firmenname, DateTime jetzt, ElmEinstellungen? einstellungen = null)
         => new(Ep + "RequestContext",
             new XElement(Ep + "UserAgent",
                 new XElement(Ep + "Producer", "Schaub Restaurants GmbH"),
@@ -172,7 +178,8 @@ public static class ElmGemeinsam
             new XElement(Ep + "CompanyName", firmenname),
             new XElement(Ep + "TransmissionDate", jetzt.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
             new XElement(Ep + "RequestID", Guid.NewGuid().ToString("N")),
-            new XElement(Ep + "LanguageCode", "de"));
+            new XElement(Ep + "LanguageCode", "de"),
+            einstellungen?.MonitoringElement(Ep));
 
     /// <summary>
     /// Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces.

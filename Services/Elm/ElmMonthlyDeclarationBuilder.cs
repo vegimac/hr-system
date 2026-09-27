@@ -32,10 +32,13 @@ public class ElmMonthlyDeclarationBuilder
     private readonly AppDbContext _db;
     private readonly ElmXmlValidator _validator;
 
-    public ElmMonthlyDeclarationBuilder(AppDbContext db, ElmXmlValidator validator)
+    private readonly ElmEinstellungen _einstellungen;
+
+    public ElmMonthlyDeclarationBuilder(AppDbContext db, ElmXmlValidator validator, ElmEinstellungen einstellungen)
     {
         _db = db;
         _validator = validator;
+        _einstellungen = einstellungen;
     }
 
     public record BuildResult(
@@ -384,7 +387,7 @@ public class ElmMonthlyDeclarationBuilder
                 new XAttribute(XNamespace.Xmlns + "sd", Sd),
                 new XAttribute(XNamespace.Xmlns + "ep", Ep),
                 new XAttribute(XNamespace.Xmlns + "c", C),
-                RequestContext(stamm.Firmenname, jetzt),
+                RequestContext(stamm.Firmenname, jetzt, _einstellungen),
                 new XElement(Sdc + "Job",
                     new XElement(Sdc + "Addressees", addressees),
                     // Übungs-/Testmeldung — nie als Produktivmeldung werten

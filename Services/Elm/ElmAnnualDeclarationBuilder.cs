@@ -28,10 +28,13 @@ public class ElmAnnualDeclarationBuilder
     private readonly AppDbContext _db;
     private readonly ElmXmlValidator _validator;
 
-    public ElmAnnualDeclarationBuilder(AppDbContext db, ElmXmlValidator validator)
+    private readonly ElmEinstellungen _einstellungen;
+
+    public ElmAnnualDeclarationBuilder(AppDbContext db, ElmXmlValidator validator, ElmEinstellungen einstellungen)
     {
         _db = db;
         _validator = validator;
+        _einstellungen = einstellungen;
     }
 
     /// <summary>Monats-Höchstlohn ALV/NBU (148'200 / 12) — E2-Näherung.</summary>
@@ -216,7 +219,7 @@ public class ElmAnnualDeclarationBuilder
                 new XAttribute(XNamespace.Xmlns + "sd", Sd),
                 new XAttribute(XNamespace.Xmlns + "ep", Ep),
                 new XAttribute(XNamespace.Xmlns + "c", C),
-                RequestContext(companyName, now),
+                RequestContext(companyName, now, _einstellungen),
                 new XElement(Sdc + "Job",
                     new XElement(Sdc + "Addressees",
                         new XElement(Sdc + "Addressee",

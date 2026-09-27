@@ -7,6 +7,7 @@
 
 function swissdecInit() {
     elmLadeZiele();
+    elmMonLaden();
     const y = document.getElementById('elmAnnualYear');
     if (y && !y.value) y.value = new Date().getFullYear();
     elmStammLoad();
@@ -723,4 +724,56 @@ function _suaZeigeErgebnis(j) {
             <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.responseXml)}</pre>` : ''}
         <details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Gesendete Anfrage</summary>
             <pre style="background:#f6f3ee;border:1px solid #e7e1d8;padding:10px 12px;border-radius:10px;max-height:280px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.requestXml || '')}</pre></details>`;
+}
+
+
+// ── MonitoringID (Walter 27.09.2026) ───────────────────────────────────────
+// Auf den Swissdec-Testsystemen zwingend, auf der Produktion muss sie leer
+// bleiben — darum erscheint die Karte dort gar nicht.
+async function elmMonLaden() {
+    const card = document.getElementById('elmMonCard');
+    if (!card) return;
+    try {
+        const r = await fetch('/api/elm/monitoring-id', { headers: ah() });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (!j.editierbar) return;                 // Produktion: Karte bleibt unsichtbar
+        card.style.display = '';
+        const inp = document.getElementById('elmMonInput');
+        if (inp) inp.value = j.gespeichert || '';
+        elmMonInfo(j);
+    } catch (_) {}
+}
+
+function elmMonInfo(j) {
+    const el = document.getElementById('elmMonInfo');
+    if (!el) return;
+    if (j.wirksam) {
+        const quelle = j.gespeichert ? 'hier gespeichert' : 'aus der Server-Variable Swissdec:MonitoringId';
+        el.innerHTML = `In den Meldungen steht <code>${String(j.wirksam).replace(/[<>&]/g, '')}</code> (${quelle}).`;
+        el.style.color = '#166534';
+    } else {
+        el.textContent = 'Zurzeit keine MonitoringID — das Element fehlt im XML. Auf den Testsystemen wird die Übermittlung dann keinem Benutzer zugeordnet.';
+        el.style.color = '#92400e';
+    }
+}
+
+async function elmMonSpeichern() {
+    const inp = document.getElementById('elmMonInput');
+    const el = document.getElementById('elmMonInfo');
+    if (!inp) return;
+    try {
+        const r = await fetch('/api/elm/monitoring-id', {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monitoringId: inp.value })
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.message || j.error || ('HTTP ' + r.status));
+        await elmMonLaden();
+        if (el) { el.textContent = 'Gespeichert.'; el.style.color = '#166534'; }
+        setTimeout(elmMonLaden, 400);
+    } catch (e) {
+        if (el) { el.textContent = 'Fehler: ' + e.message; el.style.color = '#b91c1c'; }
+    }
 }

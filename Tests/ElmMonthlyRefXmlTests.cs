@@ -163,3 +163,76 @@ public class ElmBurPruefzifferTests
         Assert.False(ElmStammdatenPruefung.BurFormatOkPruefzifferFalsch(bur));
     }
 }
+
+/// <summary>
+/// MonitoringID im Meldungskopf (Walter 27.09.2026). Auf den Swissdec-Testsystemen
+/// zwingend, auf der Produktion muss sie fehlen. Sie steht als LETZTES Element im
+/// RequestContext — in JEDER Meldung (Monat, Jahr, EMA).
+/// </summary>
+public class ElmMonitoringIdTests
+{
+    private static ElmEinstellungen Mit(string? wert) => new(new MiniConfig(wert));
+
+    /// <summary>Minimale Konfiguration — nur der eine Schlüssel, ohne Zusatzpaket.</summary>
+    private sealed class MiniConfig : Microsoft.Extensions.Configuration.IConfiguration
+    {
+        private readonly string? _wert;
+        public MiniConfig(string? wert) => _wert = wert;
+        public string? this[string key]
+        {
+            get => key == "Swissdec:MonitoringId" ? _wert : null;
+            set { }
+        }
+        public IEnumerable<Microsoft.Extensions.Configuration.IConfigurationSection> GetChildren() =>
+            Array.Empty<Microsoft.Extensions.Configuration.IConfigurationSection>();
+        public Microsoft.Extensions.Primitives.IChangeToken GetReloadToken() => new NoopToken();
+        public Microsoft.Extensions.Configuration.IConfigurationSection GetSection(string key) =>
+            throw new NotSupportedException();
+
+        private sealed class NoopToken : Microsoft.Extensions.Primitives.IChangeToken
+        {
+            public bool ActiveChangeCallbacks => false;
+            public bool HasChanged => false;
+            public IDisposable RegisterChangeCallback(Action<object?> callback, object? state) => new Noop();
+            private sealed class Noop : IDisposable { public void Dispose() { } }
+        }
+    }
+
+    [Fact]
+    public void OhneId_FehltDasElement()
+    {
+        var ctx = ElmGemeinsam.RequestContext("Muster AG", new DateTime(2026, 9, 27), Mit(null));
+        Assert.DoesNotContain(ctx.Elements(), x => x.Name.LocalName == "MonitoringID");
+    }
+
+    [Fact]
+    public void OhneEinstellungen_FehltDasElement()
+    {
+        var ctx = ElmGemeinsam.RequestContext("Muster AG", new DateTime(2026, 9, 27));
+        Assert.DoesNotContain(ctx.Elements(), x => x.Name.LocalName == "MonitoringID");
+    }
+
+    [Fact]
+    public void MitId_StehtAlsLetztesElement()
+    {
+        var ctx = ElmGemeinsam.RequestContext("Muster AG", new DateTime(2026, 9, 27), Mit("onecrew-test-42"));
+        var letztes = ctx.Elements().Last();
+        Assert.Equal("MonitoringID", letztes.Name.LocalName);
+        Assert.Equal("onecrew-test-42", letztes.Value);
+    }
+
+    [Theory]
+    [InlineData("  abc  ", "abc")]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    public void WertWirdBereinigt(string roh, string? erwartet)
+        => Assert.Equal(erwartet, ElmEinstellungen.Bereinige(roh));
+
+    [Fact]
+    public void ZuLangWirdAufTzweiunddreissigGekuerzt()
+    {
+        var lang = new string('x', 40);
+        var kurz = ElmEinstellungen.Bereinige(lang);
+        Assert.Equal(32, kurz!.Length);
+    }
+}

@@ -23,13 +23,16 @@ public class ElmController : ControllerBase
     private readonly ElmTransmitterClient _client;
     private readonly ElmAnnualDeclarationBuilder _builder;
     private readonly ElmMonthlyDeclarationBuilder _monatsBuilder;
+    private readonly ElmEinstellungen _einstellungen;
     private readonly ElmSuaService _sua;
     private readonly ElmZertifikatStore _store;
     private readonly AppDbContext _db;
     public ElmController(ElmTransmitterClient client, ElmAnnualDeclarationBuilder builder,
         ElmMonthlyDeclarationBuilder monatsBuilder,
-        ElmSuaService sua, ElmZertifikatStore store, AppDbContext db)
+        ElmSuaService sua, ElmZertifikatStore store, AppDbContext db,
+        ElmEinstellungen einstellungen)
     {
+        _einstellungen = einstellungen;
         _client = client;
         _builder = builder;
         _monatsBuilder = monatsBuilder;
@@ -248,6 +251,54 @@ public class ElmController : ControllerBase
             })
             .ToList();
         return Ok(new { monate });
+    }
+
+    // ── MonitoringID (Walter 27.09.2026) ──────────────────────────────
+    // Auf den Swissdec-Testsystemen zwingend, auf der Produktion muss sie LEER
+    // bleiben. Darum nur auf der Testinstanz editierbar.
+
+    private static bool IstTestinstanz()
+        => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INSTANCE_LABEL"));
+
+    public record MonitoringDto(string? MonitoringId);
+
+    [HttpGet("monitoring-id")]
+    public IActionResult MonitoringIdLesen()
+        => Ok(new
+        {
+            gespeichert = _einstellungen.MonitoringIdGespeichert,
+            ausServerVariable = _einstellungen.MonitoringIdAusKonfiguration,
+            wirksam = _einstellungen.MonitoringId,
+            editierbar = IstTestinstanz(),
+            maxLaenge = ElmEinstellungen.MaxLaenge,
+        });
+
+    [HttpPut("monitoring-id")]
+    public async Task<IActionResult> MonitoringIdSpeichern([FromBody] MonitoringDto dto, CancellationToken ct)
+    {
+        if (!IstTestinstanz())
+            return StatusCode(403, new { error = "NUR_TESTINSTANZ",
+                message = "Die MonitoringID gehört auf die Testsysteme. Auf der Produktion muss sie leer bleiben — dort wird sie nicht gebraucht." });
+
+        var wert = ElmEinstellungen.Bereinige(dto.MonitoringId);
+        var zeile = await _db.AppSettings.FirstOrDefaultAsync(x => x.Key == ElmEinstellungen.SettingKey, ct);
+        if (wert == null)
+        {
+            if (zeile != null) _db.AppSettings.Remove(zeile);
+        }
+        else
+        {
+            if (zeile == null)
+            {
+                zeile = new Models.AppSetting { Key = ElmEinstellungen.SettingKey };
+                _db.AppSettings.Add(zeile);
+            }
+            zeile.Value = wert;
+            zeile.UpdatedAt = DateTime.Now;
+        }
+        await _db.SaveChangesAsync(ct);
+        _einstellungen.Verwerfen();
+        return Ok(new { gespeichert = wert, wirksam = _einstellungen.MonitoringId });
     }
 
     /// <summary>Referenz-XML von Swissdec, falls im Repo vorhanden (zwei Schreibweisen).</summary>
