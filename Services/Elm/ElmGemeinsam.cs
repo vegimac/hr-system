@@ -298,9 +298,11 @@ public static class ElmGemeinsam
             new XElement(C + "Sex", sexCode),
             new XElement(C + "DateOfBirth", e.DateOfBirth!.Value.ToString("yyyy-MM-dd")),
             new XElement(C + "Nationality", natCode),
-            bewilligung == null ? null : new XElement(C + "ResidenceCategory", bewilligung),
             civilEl,
             new XElement(C + "Addresses", adresse),
+            // Reihenfolge laut XSD (ParticularsType): … Addresses, EmailAddress,
+            // PhoneNumber, MobilePhoneNumber, ResidenceCategory, LanguageCode.
+            bewilligung == null ? null : new XElement(C + "ResidenceCategory", bewilligung),
             new XElement(C + "LanguageCode",
                 new[] { "de", "fr", "it", "en" }.Contains((e.LanguageCode ?? "de").ToLowerInvariant())
                     ? (e.LanguageCode ?? "de").ToLowerInvariant() : "de"));
