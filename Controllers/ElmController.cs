@@ -180,38 +180,76 @@ public class ElmController : ControllerBase
             return BadRequest(new { error = "PERIODE_UNGUELTIG", message = "Bitte Jahr und Monat gültig angeben." });
 
         var r = await _monatsBuilder.BuildAsync(year, month, ct);
+
+        // Referenz von der Platte, wenn eine da ist. Im veröffentlichten Programm
+        // gibt es den Ordner SWISSCEC nicht — dort wird die Datei hochgeladen
+        // (POST …/vergleichen), und diese Antwort sagt es dem Benutzer.
+        var refDatei = ReferenzDatei(year, month);
+        string? refXml = refDatei == null ? null : await System.IO.File.ReadAllTextAsync(refDatei, ct);
+        return Ok(MonatsAntwort(r, year, month,
+            refXml, refDatei == null ? null : System.IO.Path.GetFileName(refDatei)));
+    }
+
+    /// <summary>
+    /// Denselben Monat mit einer HOCHGELADENEN Referenz vergleichen (Walter 27.09.2026)
+    /// — ein Monat, eine Datei. Die Datei wird nur für diesen Aufruf gelesen.
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("monthly/{year:int}/{month:int}/vergleichen")]
+    [RequestSizeLimit(16 * 1024 * 1024)]
+    public async Task<IActionResult> MonthlyVergleichen(int year, int month,
+        [FromForm] IFormFile? referenz, CancellationToken ct)
+    {
+        if (year < 2020 || year > 2100 || month < 1 || month > 12)
+            return BadRequest(new { error = "PERIODE_UNGUELTIG", message = "Bitte Jahr und Monat gültig angeben." });
+        if (referenz == null || referenz.Length == 0)
+            return BadRequest(new { error = "KEINE_REFERENZ", message = "Bitte eine Referenz-Datei auswählen." });
+
+        var name = System.IO.Path.GetFileName(referenz.FileName ?? "Referenz.xml");
+        var (dJahr, dMonat) = MonatAusDateiname(name);
+        // Falscher Monat ergäbe hunderte Scheinunterschiede — lieber gleich sagen.
+        if (dJahr != 0 && (dJahr != year || dMonat != month))
+            return BadRequest(new { error = "MONAT_PASST_NICHT",
+                message = $"«{name}» ist die Referenz für {dMonat:00}.{dJahr}, verglichen wird aber {month:00}.{year}. "
+                        + "Bitte die Datei zu diesem Monat wählen." });
+
+        var r = await _monatsBuilder.BuildAsync(year, month, ct);
+        using var leser = new StreamReader(referenz.OpenReadStream());
+        var refXml = await leser.ReadToEndAsync(ct);
+        return Ok(MonatsAntwort(r, year, month, refXml, name));
+    }
+
+    /// <summary>Antwort für einen Monat — mit Vergleich, wenn eine Referenz vorliegt.</summary>
+    private static object MonatsAntwort(ElmMonthlyDeclarationBuilder.BuildResult r,
+        int year, int month, string? refXml, string? refName)
+    {
         object? vergleich = null;
         string? bericht = null;
-        if (r.Xml.Length > 0)
+        if (r.Xml.Length > 0 && refXml != null)
         {
-            var refDatei = ReferenzDatei(year, month);
-            if (refDatei != null)
+            try
             {
-                try
+                var e = ElmXmlVergleich.Vergleiche(r.Xml, refXml);
+                bericht = ElmXmlVergleich.Bericht(e, $"ELM-Monatsmeldung {year}-{month:00}", refName ?? "Referenz");
+                vergleich = new
                 {
-                    var e = ElmXmlVergleich.Vergleiche(r.Xml, await System.IO.File.ReadAllTextAsync(refDatei, ct));
-                    bericht = ElmXmlVergleich.Bericht(e, $"ELM-Monatsmeldung {year}-{month:00}", System.IO.Path.GetFileName(refDatei));
-                    vergleich = new
+                    referenz = refName,
+                    geprueft = e.Geprueft, offen = e.Offen, bewusst = e.Bewusst,
+                    personenIst = e.PersonenIst, personenSoll = e.PersonenSoll,
+                    unterschiede = e.Unterschiede.Take(400).Select(u => new
                     {
-                        referenz = System.IO.Path.GetFileName(refDatei),
-                        geprueft = e.Geprueft, offen = e.Offen, bewusst = e.Bewusst,
-                        personenIst = e.PersonenIst, personenSoll = e.PersonenSoll,
-                        unterschiede = e.Unterschiede.Take(400).Select(u => new
-                        {
-                            person = u.Person, feld = u.Feld, ist = u.Ist, soll = u.Soll,
-                            bewusst = u.Bewusst
-                        })
-                    };
-                }
-                catch (Exception ex)
-                {
-                    bericht = null;
-                    vergleich = new { fehler = $"Referenz nicht lesbar: {ex.Message}" };
-                }
+                        person = u.Person, feld = u.Feld, ist = u.Ist, soll = u.Soll,
+                        bewusst = u.Bewusst
+                    })
+                };
+            }
+            catch (Exception ex)
+            {
+                vergleich = new { fehler = $"Referenz nicht lesbar: {ex.Message}" };
             }
         }
 
-        return Ok(new
+        return new
         {
             xml = r.Xml,
             personen = r.Personen,
@@ -220,9 +258,10 @@ public class ElmController : ControllerBase
             warnungen = r.Warnungen,
             xsdFehler = r.XsdFehler,
             valid = r.XsdFehler.Count == 0 && r.Xml.Length > 0,
+            referenzFehlt = r.Xml.Length > 0 && refXml == null,
             vergleich,
             bericht
-        });
+        };
     }
 
     /// <summary>

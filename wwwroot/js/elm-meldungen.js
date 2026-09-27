@@ -83,6 +83,7 @@ async function elmMeldungErzeugen() {
         const d = await res.json();
         if (!res.ok) throw new Error(d.message || d.error || ('HTTP ' + res.status));
         _elmXml = d.xml || '';
+        _elmJahr = jahr; _elmMonat = monat;
         elmZeigeErgebnis(d, jahr, monat);
     } catch (e) {
         elmHinweis(`Fehler: ${e.message}`, true);
@@ -115,6 +116,17 @@ function elmZeigeErgebnis(d, jahr, monat) {
         html += `<div style="margin-bottom:14px"><div style="font-weight:600;font-size:13px;margin-bottom:6px">Schema-Fehler</div>
             <ul style="margin:0;padding-left:18px;font-size:12.5px;color:#b91c1c">
             ${d.xsdFehler.map(f => `<li>${elmEsc(f)}</li>`).join('')}</ul></div>`;
+    }
+
+    if (d.referenzFehlt) {
+        html += `<div style="margin-bottom:14px;font-size:12.5px;color:#646464;line-height:1.6">
+            Die Referenz von Swissdec liegt nicht auf dem Server — sie gehört auch nicht auf eine Lohnanlage.
+            Wähle die Datei <code>RefXML_${jahr}${String(monat).padStart(2,'0')}_MONTHLY.xml</code> (oder
+            <code>RefXML_${jahr}-${String(monat).padStart(2,'0')}_MONTHLY.xml</code>) aus deinem Projektordner
+            <code>SWISSCEC/RefXML</code>. Sie wird nur für diesen Vergleich gelesen.
+            <div style="margin-top:10px"><button type="button" class="btn-primary"
+                style="font-size:12.5px;padding:7px 15px" onclick="elmReferenzWaehlen()">Mit Referenz vergleichen…</button></div>
+          </div>`;
     }
 
     const v = d.vergleich;
@@ -214,6 +226,7 @@ async function elmXmlHerunterladen(jahr, monat) {
 // zeigt, ob ein Fehler einmalig ist oder sich durch das Jahr zieht.
 
 let _elmAlleBericht = '';
+let _elmJahr = 0, _elmMonat = 0;
 
 async function elmAllePruefen() {
     const d = await elmAlleHolen(null);
@@ -409,5 +422,50 @@ async function elmXmlKopieren() {
         } else {
             elmHinweis(`Kopieren fehlgeschlagen: ${e.message}`, true);
         }
+    }
+}
+
+// Einen einzelnen Monat gegen eine ausgewaehlte Referenz halten (Walter 27.09.2026).
+// Ein Monat, eine Datei — so, wie die Zertifizierung Monat fuer Monat laeuft.
+function elmReferenzWaehlen() {
+    if (!_elmJahr) { elmHinweis('Bitte zuerst «Meldung erzeugen».', true); return; }
+    let inp = document.getElementById('elmRefEinzel');
+    if (!inp) {
+        inp = document.createElement('input');
+        inp.type = 'file';
+        inp.id = 'elmRefEinzel';
+        inp.accept = '.xml,text/xml,application/xml';
+        inp.style.display = 'none';
+        inp.addEventListener('change', async () => {
+            const datei = (inp.files || [])[0];
+            inp.value = '';
+            if (datei) await elmMitReferenzVergleichen(datei);
+        });
+        document.body.appendChild(inp);
+    }
+    inp.click();
+}
+
+async function elmMitReferenzVergleichen(datei) {
+    elmHinweis(`${datei.name} wird mit ${String(_elmMonat).padStart(2,'0')}.${_elmJahr} verglichen…`, false);
+    try {
+        const fd = new FormData();
+        fd.append('referenz', datei, datei.name);
+        const res = await fetch(`/api/elm/monthly/${_elmJahr}/${_elmMonat}/vergleichen`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken },
+            body: fd
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.message || d.error || ('HTTP ' + res.status));
+        _elmXml = d.xml || _elmXml;
+        elmZeigeErgebnis(d, _elmJahr, _elmMonat);
+        const v = d.vergleich;
+        if (v && !v.fehler)
+            elmHinweis(v.offen === 0
+                ? `${String(_elmMonat).padStart(2,'0')}.${_elmJahr} deckt sich mit der Referenz (${v.bewusst} bewusste Abweichungen).`
+                : `${v.offen} offene Unterschiede gegenüber ${v.referenz}.`, v.offen > 0);
+    } catch (e) {
+        elmHinweis(`Vergleich fehlgeschlagen: ${e.message}`, true);
     }
 }
