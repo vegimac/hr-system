@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Text;
+using System.Text.RegularExpressions;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services.Elm;
@@ -251,6 +253,130 @@ public class ElmController : ControllerBase
             })
             .ToList();
         return Ok(new { monate });
+    }
+
+    /// <summary>
+    /// Alle Monate, zu denen eine Referenz von Swissdec im Repo liegt, in EINEM
+    /// Durchgang erzeugen und vergleichen (Walter 27.09.2026). Der Einzelmonat sagt,
+    /// ob ein Monat stimmt; erst der Durchgang über alle zeigt, ob ein Fehler einmalig
+    /// ist oder sich durch das Jahr zieht.
+    ///
+    /// <para>Rein lesend: es wird nichts gespeichert und nichts gesendet.</para>
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpGet("monthly/alle-pruefen")]
+    public async Task<IActionResult> AlleMonatePruefen(CancellationToken ct)
+    {
+        var refMonate = ReferenzMonate();
+        if (refMonate.Count == 0)
+            return Ok(new { monate = new List<object>(), bericht = (string?)null,
+                zusammenfassung = new { gesamt = 0, fertig = 0, mitOffenen = 0, nichtBereit = 0 },
+                hinweis = "Im Ordner SWISSCEC/RefXML liegt keine Monats-Referenz." });
+
+        var zeilen = new List<object>();
+        var tabelle = new StringBuilder();
+        var abschnitte = new StringBuilder();
+        int fertig = 0, mitOffenen = 0, nichtBereit = 0;
+
+        tabelle.AppendLine("| Monat | Personen | Felder | Offen | Bewusst | Schema |");
+        tabelle.AppendLine("|---|---:|---:|---:|---:|---|");
+
+        foreach (var (jahr, monat, datei) in refMonate)
+        {
+            ct.ThrowIfCancellationRequested();
+            var name = $"{monat:00}.{jahr}";
+            var refName = System.IO.Path.GetFileName(datei);
+            var r = await _monatsBuilder.BuildAsync(jahr, monat, ct);
+
+            // Kein XML = der Monat ist nicht meldebereit. Das ist KEIN Fehler der
+            // Rechnung, sondern eine offene Lohnperiode — darum getrennt gezählt.
+            if (r.Xml.Length == 0)
+            {
+                nichtBereit++;
+                var grund = r.Warnungen.FirstOrDefault() ?? "Es wurde keine Meldung erzeugt.";
+                zeilen.Add(new { jahr, monat, referenz = refName, bereit = false, grund });
+                tabelle.AppendLine($"| {name} | — | — | — | — | nicht bereit |");
+                abschnitte.AppendLine($"## {name} — nicht bereit");
+                abschnitte.AppendLine();
+                abschnitte.AppendLine(grund);
+                abschnitte.AppendLine();
+                continue;
+            }
+
+            var schema = r.XsdFehler.Count == 0 ? "ok" : $"{r.XsdFehler.Count} Fehler";
+
+            ElmXmlVergleich.Ergebnis? e = null;
+            string? lesefehler = null;
+            try { e = ElmXmlVergleich.Vergleiche(r.Xml, await System.IO.File.ReadAllTextAsync(datei, ct)); }
+            catch (Exception ex) { lesefehler = $"Referenz nicht lesbar: {ex.Message}"; }
+
+            if (e == null)
+            {
+                zeilen.Add(new { jahr, monat, referenz = refName, bereit = true,
+                    personen = r.Personen, xsdFehler = r.XsdFehler.Count, grund = lesefehler });
+                tabelle.AppendLine($"| {name} | {r.Personen} | — | — | — | {schema} |");
+                continue;
+            }
+
+            fertig++;
+            if (e.Offen > 0) mitOffenen++;
+            zeilen.Add(new
+            {
+                jahr, monat, referenz = refName, bereit = true,
+                personen = r.Personen, personenSoll = e.PersonenSoll,
+                geprueft = e.Geprueft, offen = e.Offen, bewusst = e.Bewusst,
+                xsdFehler = r.XsdFehler.Count,
+                warnungen = r.Warnungen,
+                // Nur die OFFENEN in die Antwort — die bewussten stehen im Bericht.
+                unterschiede = e.Unterschiede.Where(u => !u.IstBewusst).Take(80).Select(u => new
+                {
+                    person = u.Person, feld = u.Feld, ist = u.Ist, soll = u.Soll
+                })
+            });
+            tabelle.AppendLine($"| {name} | {r.Personen} von {e.PersonenSoll} | {e.Geprueft} "
+                             + $"| {(e.Offen == 0 ? "—" : $"**{e.Offen}**")} | {e.Bewusst} | {schema} |");
+
+            // Aus «# 11.2024» wird «## 11.2024» — der Einzelbericht wird Abschnitt.
+            abschnitte.AppendLine("#" + ElmXmlVergleich.Bericht(e, name, refName));
+            abschnitte.AppendLine();
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("# ELM-Monatsmeldungen gegen die Referenz");
+        sb.AppendLine();
+        sb.AppendLine($"Stand {DateTime.Now:dd.MM.yyyy HH:mm} · {refMonate.Count} Monate mit Referenz · "
+                    + $"{fertig} erzeugt und verglichen, {mitOffenen} davon mit offenen Unterschieden, "
+                    + $"{nichtBereit} noch nicht meldebereit.");
+        sb.AppendLine();
+        sb.Append(tabelle);
+        sb.AppendLine();
+        sb.Append(abschnitte);
+
+        return Ok(new
+        {
+            monate = zeilen,
+            zusammenfassung = new { gesamt = refMonate.Count, fertig, mitOffenen, nichtBereit },
+            bericht = sb.ToString()
+        });
+    }
+
+    /// <summary>Monate, zu denen eine Monats-Referenz im Repo liegt — aufsteigend.</summary>
+    private static List<(int Jahr, int Monat, string Datei)> ReferenzMonate()
+    {
+        var res = new List<(int, int, string)>();
+        var ordner = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SWISSCEC", "RefXML");
+        if (!Directory.Exists(ordner)) return res;
+        foreach (var datei in Directory.GetFiles(ordner, "RefXML_*MONTHLY*.xml"))
+        {
+            // Beide Schreibweisen im Ordner: RefXML_2024-12_MONTHLY und RefXML_202411_MONTHLY.
+            var m = Regex.Match(System.IO.Path.GetFileName(datei), @"^RefXML_(\d{4})-?(\d{2})_MONTHLY");
+            if (!m.Success) continue;
+            res.Add((int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value), datei));
+        }
+        return res
+            .GroupBy(x => (x.Item1, x.Item2))          // pro Monat nur EINE Referenz
+            .Select(g => g.OrderBy(x => x.Item3, StringComparer.Ordinal).First())
+            .OrderBy(x => x.Item1).ThenBy(x => x.Item2).ToList();
     }
 
     // ── MonitoringID (Walter 27.09.2026) ──────────────────────────────
