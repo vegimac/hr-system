@@ -137,6 +137,31 @@ public partial class SwissdecTestmandantController
         hinweise.Add("Mindesterwerbseinkommen (Jahr/Monat) steht nicht in den Testdaten — bleibt leer; falls ein Testfall es braucht, ergänzen wir es dann.");
         hinweise.Add("Geburtszulage wird auch als Adoptionszulage übernommen (Testdaten nennen nur «BirthAllowance»).");
 
+        // ── C2) Quellensteuer-Empfänger je Kanton (Walter 27.09.2026) ──
+        // Die Schuldner-/Abrechnungsnummer steht in den Firmendaten
+        // (CompanyTAS<Kanton>CustomerIdentity) und gehört in den Empfänger-Katalog;
+        // ohne sie weist die Steuerverwaltung die Monatsmeldung zurück.
+        // Wiederholbar: gefunden wird über Art «QST» + Kanton.
+        var qstEmpf = await _db.LohndatenEmpfaengers.Where(e2 => e2.Art == "QST").ToListAsync();
+        foreach (var kt in new[] { "LU", "BE", "VD", "TI", "AG", "ZG" })
+        {
+            var nummer = T25($"CompanyTAS{kt}CustomerIdentity");
+            if (string.IsNullOrWhiteSpace(nummer)) continue;
+            var felder = new Dictionary<string, string?> { ["Kanton"] = kt, ["Schuldner-Nr."] = nummer };
+            var e3 = qstEmpf.FirstOrDefault(x => string.Equals(x.KantonCode, kt, StringComparison.OrdinalIgnoreCase));
+            aktionen.Add(new Aktion(e3 == null ? "anlegen" : "aktualisieren", "QST-Empfänger", $"Steuerverwaltung {kt}", felder));
+            if (vorschau) continue;
+            if (e3 == null)
+            {
+                e3 = new LohndatenEmpfaenger { Art = "QST", KantonCode = kt, CreatedAt = DateTime.Now };
+                _db.LohndatenEmpfaengers.Add(e3); qstEmpf.Add(e3);
+            }
+            e3.Bezeichnung = $"Steuerverwaltung Kanton {kt}";
+            e3.Kassennummer = nummer!.Trim();
+            e3.IsActive = true;
+            e3.UpdatedAt = DateTime.Now;
+        }
+
         // ── D) Arbeitszeitmodelle der Rechtseinheit (Walter 27.09.2026) ──
         // Swissdec meldet sie als CompanyWorkingTime; die Personen verweisen darauf.
         // Wiederholbar: gefunden wird über die Kennung, nichts wird doppelt angelegt.
