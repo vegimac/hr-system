@@ -38,7 +38,12 @@ function cdFilename(cd, fallback) {
 }
 window.cdFilename = cdFilename;
 
+// Rueckgabe (Walter 27.09.2026): 'gespeichert' | 'abgebrochen' | 'fallback'.
+// Vorher lief jeder Ausgang stumm — wer abbrach und wer an einem blockierten
+// Dialog haengenblieb, sah beides nichts. Alte Aufrufer ignorieren den Wert
+// einfach weiter; wer will, kann es dem Benutzer sagen.
 async function saveBlobAsk(blob, filename) {
+    let grund = '';
     if (window.showSaveFilePicker) {
         try {
             const ext  = (String(filename).match(/\.[^.]+$/) || [''])[0].toLowerCase();
@@ -52,10 +57,11 @@ async function saveBlobAsk(blob, filename) {
             const w = await handle.createWritable();
             await w.write(blob);
             await w.close();
-            return;
+            return 'gespeichert';
         } catch (e) {
-            if (e && e.name === 'AbortError') return;   // User hat abgebrochen
+            if (e && e.name === 'AbortError') return 'abgebrochen';   // User hat abgebrochen
             // sonst: klassischer Download als Fallback
+            grund = (e && (e.name || e.message)) ? `${e.name || ''} ${e.message || ''}`.trim() : '';
         }
     }
     const objUrl = URL.createObjectURL(blob);
@@ -63,6 +69,8 @@ async function saveBlobAsk(blob, filename) {
     a.href = objUrl; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+    window._saveBlobGrund = grund;   // fuer Fehlersuche, wenn der Dialog nicht kam
+    return 'fallback';
 }
 
 // Wie saveBlobAsk, aber für eine bereits erzeugte (Blob-)URL — typisch für

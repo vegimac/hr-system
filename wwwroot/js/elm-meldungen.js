@@ -160,6 +160,8 @@ function elmZeigeErgebnis(d, jahr, monat) {
         html += `<div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
             <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:7px 15px;border-radius:10px"
                     onclick="elmXmlAnsehen()">XML ansehen</button>
+            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:7px 15px;border-radius:10px"
+                    onclick="elmXmlKopieren()">XML kopieren</button>
             <button type="button" class="btn-primary" style="font-size:12.5px;padding:7px 15px"
                     onclick="elmXmlHerunterladen(${jahr}, ${monat})">XML herunterladen</button>
           </div>
@@ -187,11 +189,24 @@ function elmXmlAnsehen() {
     box.textContent = _elmXml;
 }
 
-function elmXmlHerunterladen(jahr, monat) {
-    if (!_elmXml) return;
+async function elmXmlHerunterladen(jahr, monat) {
+    if (!_elmXml) { elmHinweis('Es liegt noch kein XML vor — bitte zuerst «Meldung erzeugen».', true); return; }
     const name = `DeclareMonthlySalary_${jahr}-${String(monat).padStart(2, '0')}.xml`;
+    const kb = Math.max(1, Math.round(_elmXml.length / 1024));
     // Walter-Vorgabe 21.05.2026: nie still herunterladen — «Speichern unter…».
-    saveBlobAsk(new Blob([_elmXml], { type: 'application/xml' }), name);
+    // Walter 27.09.2026: aber auch nie still SCHEITERN — jeder Ausgang wird gesagt.
+    try {
+        const wie = await saveBlobAsk(new Blob([_elmXml], { type: 'application/xml' }), name);
+        if (wie === 'abgebrochen')
+            elmHinweis('Speichern abgebrochen — die Datei wurde nicht abgelegt.', true);
+        else if (wie === 'fallback')
+            elmHinweis(`${name} (${kb} KB) liegt im Download-Ordner. Der «Speichern unter…»-Dialog `
+                     + `war nicht verfügbar${window._saveBlobGrund ? ' (' + window._saveBlobGrund + ')' : ''}.`, false);
+        else
+            elmHinweis(`${name} (${kb} KB) gespeichert.`, false);
+    } catch (e) {
+        elmHinweis(`Herunterladen fehlgeschlagen: ${e.message}`, true);
+    }
 }
 
 // ── Durchgang über ALLE Monate mit Referenz (Walter 27.09.2026) ──────────────
@@ -301,4 +316,29 @@ function elmAlleBerichtHerunterladen() {
     const heute = new Date().toISOString().slice(0, 10);
     // Walter-Vorgabe 21.05.2026: nie still herunterladen — «Speichern unter…».
     saveBlobAsk(new Blob([_elmAlleBericht], { type: 'text/markdown' }), `elm_monatsmeldungen_${heute}.md`);
+}
+
+// Notausgang, wenn der «Speichern unter…»-Dialog am Rechner klemmt: das XML in
+// die Zwischenablage legen. Von dort in einen Editor einfügen und als
+// DeclareMonthlySalary_JJJJ-MM.xml ablegen (Walter 27.09.2026).
+async function elmXmlKopieren() {
+    if (!_elmXml) { elmHinweis('Es liegt noch kein XML vor — bitte zuerst «Meldung erzeugen».', true); return; }
+    try {
+        await navigator.clipboard.writeText(_elmXml);
+        elmHinweis('XML in der Zwischenablage — in einen Editor einfügen und als .xml speichern.', false);
+    } catch (e) {
+        // Ohne Clipboard-Recht: Text markieren, dann kann der Benutzer selbst kopieren.
+        const box = document.getElementById('elmXmlBox');
+        if (box) {
+            box.style.display = 'block';
+            box.textContent = _elmXml;
+            const r = document.createRange();
+            r.selectNodeContents(box);
+            const sel = window.getSelection();
+            sel.removeAllRanges(); sel.addRange(r);
+            elmHinweis('Kopieren war nicht erlaubt — das XML ist unten markiert, bitte mit Cmd+C kopieren.', true);
+        } else {
+            elmHinweis(`Kopieren fehlgeschlagen: ${e.message}`, true);
+        }
+    }
 }
