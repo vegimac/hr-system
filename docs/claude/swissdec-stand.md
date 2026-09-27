@@ -202,3 +202,26 @@ Drei Fehler auf dem Weg dorthin, alle behoben:
 `tar25ti` nicht (A B C E G H L M N P Q R S T U V); RefXML rechnet T0N/T1N. Im Testmandanten von
 Hand auf T0N/T1N gesetzt (SQL auf `hr_system_test`) — **ein erneuter 4c-Lauf für Okt–Dez schreibt
 F wieder hinein.**
+
+
+## Korrekturlohn nach Austritt — Jahresbasis je Versicherung (27.09.2026)
+
+**TF01 Monica Herz** (Filiale Beratung, Gansingen AG), Austritt 31.03.2025, Gratifikation 20'000
+im Oktober. Zwei Fehler übereinander, beide behoben, Beleg jetzt = RefXML
+(AHV 1'060.00 · ALV 18.60 auf 1'690.70 · ALVZ 91.55 auf 18'309.30 · KTG 12 24.60 ·
+NBU 67.30 auf 4'190.70 · UVGZ 32.44 · kein BVG · Netto 18'705.50; Kontrollsumme
+AHV+ALV+NBU = 1'237.45).
+
+1. **Der Korrekturpfad rollte auf der AHV-Basis auf.** `CalculateCorrectionAsync` baute
+   `ytdAustrittsjahr` nur aus `SvBasisAhv`; der Monatslauf war am 26.09. schon umgestellt.
+   `YtdBasisFuer` ist jetzt eine Methode der Klasse und wird von beiden Pfaden benutzt —
+   die Logik gibt es nicht mehr zweimal.
+2. **Eine Null ist ein Wert.** `YtdBasisFuer` las `nbuv == 0` als «nicht hinterlegt» und griff
+   auf die AHV-Basis zurück. Herz bekam im **Mai** nach dem Austritt ein EO-Taggeld von 1'300:
+   AHV- und KTG-pflichtig, **nicht** UVG-pflichtig → UVG-Basis des Monats echte 0.00. Der
+   Rückgriff machte daraus 1'300 UVG-Lohn und hob den Jahresdeckel (12'350 × 3 Monate) um
+   denselben Betrag → Oktober 2'890.70 statt 4'190.70. Der Rückgriff ist entfernt; die
+   Migration auf Schema-Stand 33 hat jede Altzeile gefüllt, es gibt keine leeren mehr.
+   **Merksatz: beim Aufrollen zählt die gespeicherte Basis der Versicherung, auch wenn sie 0 ist.**
+
+Tests: `Tests/KorrekturlohnYtdBasisTests.cs` (echte Monatswerte von Herz, inkl. Mai-Null).
