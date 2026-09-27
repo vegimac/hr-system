@@ -32,20 +32,31 @@ async function elmMeldungenInit() {
 function elmFuelleMonate() {
     const sel = document.getElementById('elmMonatSel');
     if (!sel) return;
-    const bereit = _elmMonate.filter(m => m.bereit);
-    if (bereit.length === 0) {
-        sel.innerHTML = '<option value="">– kein Monat definitiv abgeschlossen –</option>';
+    if (_elmMonate.length === 0) {
+        sel.innerHTML = '<option value="">– keine Lohnperioden vorhanden –</option>';
+        elmHinweis('Es gibt noch keine Lohnperioden. Eine Meldung entsteht aus abgeschlossenen Lohnläufen.', true);
         return;
     }
-    sel.innerHTML = bereit.map(m => {
+    // Walter 27.09.2026: ALLE Monate zeigen. Nicht meldebereite stehen mit dem Grund
+    // da und sind gesperrt — eine leere Liste sagt einem nicht, woran es liegt.
+    sel.innerHTML = _elmMonate.map(m => {
         const mm = String(m.monat).padStart(2, '0');
         const ref = m.referenz ? ' · Referenz vorhanden' : '';
-        return `<option value="${m.jahr}-${mm}">${mm}.${m.jahr} · ${m.filialen} Filialen${ref}</option>`;
+        if (m.bereit) return `<option value="${m.jahr}-${mm}">${mm}.${m.jahr} · ${m.filialen} Filialen${ref}</option>`;
+        const wort = m.offen === 1 ? 'Filiale' : 'Filialen';
+        return `<option value="" disabled>${mm}.${m.jahr} · noch offen in ${m.offen} von ${m.filialen} ${wort}</option>`;
     }).join('');
-    const offen = _elmMonate.filter(m => !m.bereit).length;
-    elmHinweis(offen > 0
-        ? `${bereit.length} Monate sind meldebereit. ${offen} weitere sind noch nicht in allen Filialen definitiv abgeschlossen und darum nicht wählbar.`
-        : `${bereit.length} Monate sind meldebereit.`, false);
+    const bereit = _elmMonate.filter(m => m.bereit);
+    const ersteBereit = _elmMonate.findIndex(m => m.bereit);
+    if (ersteBereit >= 0) sel.selectedIndex = ersteBereit;
+    if (bereit.length === 0) {
+        elmHinweis(`Kein Monat ist meldebereit. Eine Meldung entsteht nur aus Lohnläufen, die in ALLEN ${_elmMonate[0].filialen} Filialen definitiv abgeschlossen sind — sonst wäre es eine halbe Meldung.`, true);
+    } else {
+        const offen = _elmMonate.length - bereit.length;
+        elmHinweis(offen > 0
+            ? `${bereit.length} Monate sind meldebereit, ${offen} weitere noch nicht in allen Filialen abgeschlossen (grau).`
+            : `${bereit.length} Monate sind meldebereit.`, false);
+    }
 }
 
 function elmHinweis(text, fehler) {
