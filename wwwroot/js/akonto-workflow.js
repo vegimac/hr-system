@@ -1007,8 +1007,14 @@ function akWfSelectMa(id) {
     const zahlung = (_akWfData?.zahlungen || []).find(z => z.id === id);
     const empId   = zahlung?.employeeId;
     const empFull = empId && _akWfEmpMap ? _akWfEmpMap[empId] : null;
+    // Periode des angezeigten Belegs mitgeben (Walter 27.09.2026) — dieselbe, die
+    // unten an lzInit geht. Ohne sie riet der Kopf am Alter herum.
+    const kopfJahr  = Number(_lohnWfData?.periode?.year)
+                   || parseInt(document.getElementById('lohnYearSelect')?.value) || 0;
+    const kopfMonat = Number(_lohnWfData?.periode?.month)
+                   || parseInt(document.getElementById('lohnMonthSelect')?.value) || 0;
     if (empFull && typeof showLohnVertragInfo === 'function') {
-        try { showLohnVertragInfo(empFull); } catch (e) { console.error('showLohnVertragInfo failed', e); }
+        try { showLohnVertragInfo(empFull, kopfJahr, kopfMonat); } catch (e) { console.error('showLohnVertragInfo failed', e); }
     }
     // Zulagen-Card unconditionally sichtbar machen — auch wenn lzInit selbst
     // scheitern sollte, soll der „+ Erfassen"-Button für den User erreichbar

@@ -1241,10 +1241,10 @@ async function loadLohnList() {
                 window.activeEmpId = e.id;
                 localStorage.setItem(`lohnLastEmp_${cid}`, String(e.id));
                 highlightLohnEmp(row);
-                showLohnVertragInfo(e);
-                _lohnWfRenderStatusBar();
                 const year  = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
                 const month = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
+                showLohnVertragInfo(e, year, month);
+                _lohnWfRenderStatusBar();
                 lzInit(e.id, cid, year, month);
                 loadLohnSlip(e.id, cid, year, month);
             };
@@ -1330,7 +1330,7 @@ function filterLohnEmpList() {
     });
 }
 
-function showLohnVertragInfo(emp) {
+function showLohnVertragInfo(emp, periodeJahr, periodeMonat) {
     // Walter 19.05.2026: Card wird gleichzeitig in Definitiv-Tab (lohn*) und
     // Akonto-Tab (akWf*) gerendert, damit beide Bildschirme identisch wirken.
     const targets = [
@@ -1424,16 +1424,16 @@ function showLohnVertragInfo(emp) {
     // für die Ferienanspruchs-Stufe (5 vs. 6 Wochen) und Mindestlohn-Alters-
     // schwellen (z.B. unter 18 = Lehrlings-Satz).
     //
-    // Massgebend ist die TATSÄCHLICH ANGEZEIGTE Periode (_lohnViewYear/_lohnViewMonth),
-    // nicht der Stand der Auswahlfelder der Lohn-Seite (Walter 27.09.2026): dieselbe
-    // Funktion zeichnet den Kopf auch im Lohnlauf-Fenster, wo es die Felder gar nicht
-    // gibt — dort blieb der zuletzt auf der Lohn-Seite eingestellte Monat stehen
-    // (Januar-Beleg mit «Alter 39 J. (am 1.8.2025)»). Reihenfolge: geladene Periode,
-    // sonst die Auswahlfelder, sonst heute.
-    const viewY = (typeof _lohnViewYear  !== 'undefined' && _lohnViewYear)  ? Number(_lohnViewYear)  : 0;
-    const viewM = (typeof _lohnViewMonth !== 'undefined' && _lohnViewMonth) ? Number(_lohnViewMonth) : 0;
-    const periodYear  = viewY || parseInt(document.getElementById('lohnYearSelect')?.value) || new Date().getFullYear();
-    const periodMonth = viewM || parseInt(document.getElementById('lohnMonthSelect')?.value) || (new Date().getMonth() + 1);
+    // Massgebend ist die Periode, mit der der BELEG geladen wird — sie kommt als
+    // Parameter vom Aufrufer (Walter 27.09.2026). Frühere Versuche lagen daneben:
+    // die Auswahlfelder der Lohn-Seite behalten ihren Wert, auch wenn der Beleg aus
+    // dem Lohnlauf-Fenster kommt (Januar-Beleg mit «am 1.8.2025»), und
+    // _lohnViewYear/_lohnViewMonth wird auch von «zur ältesten offenen Periode
+    // springen» gesetzt (Februar-Beleg mit «am 1.1.2025»). Beide sind nicht
+    // zwingend der Monat, den man gerade ansieht. Rückfall nur, wenn der Aufrufer
+    // nichts übergibt: Auswahlfelder, sonst heute.
+    const periodYear  = Number(periodeJahr)  || parseInt(document.getElementById('lohnYearSelect')?.value) || new Date().getFullYear();
+    const periodMonth = Number(periodeMonat) || parseInt(document.getElementById('lohnMonthSelect')?.value) || (new Date().getMonth() + 1);
     const periodStart = new Date(periodYear, periodMonth - 1, 1);
     let alterStr = '–';
     let gebStr = '–';
