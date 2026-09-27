@@ -114,11 +114,19 @@ Quality-Tool-XML darf hier abweichen. **Nicht** der Engine anpassen.
 | F3 | weitere Fallen | PLZ `3008.00`, doppeltes `Contractual13th`, … | siehe `docs/swissdec-testmandant.md` | BEWUSST |
 | F5 | **CSV-Lücke** TF11 Bosshard März 2025: Mitarbeiterbeteiligung 20'000 fehlt als Lohnposten, nur `5210 Ausgleich geldwerte Vorteile` 20'250 vorhanden | **manuell nachgetragen** (Walter 21.09.2026): Zulage «1960 Steuerbare Beteiligungsrechte» 20'000, Bemerkung «CSV-Lücke, XML OwnershipRight 20'000 – Swissdec-Frage 7» — NICHT «Swissdec-Testdaten», sonst räumt 5b sie ab | XML `OwnershipRight` 20'000, AHV März 36'550, Lohnausweis 61'645 | ERGÄNZT (Swissdec gefragt) |
 | F5b | **Spiegel im Juni:** CSV Juni `5210 Ausgleich geldwerte Vorteile` **−19'750** (= −20'000 Storno + 250 Auto), aber wieder KEIN Lohnposten −20'000; XML AHV Jan–Jun 107'100 = ohne die 20'000 | **manuell nachgetragen** (21.09.2026): Zulage «1960» **−20'000**, Bemerkung «Storno Beteiligung März (F5)»; die 5210-Zulage bleibt −19'750 (5b übernimmt Vorzeichen seit 21.09.2026) | XML Juni AHV 11'950, ALVZ −400, SV 965.55 | ERGÄNZT |
-| F4 | QST Stundenlöhner: Monat = **180 h** (ESTV) | TF18 Blanc Jan 2025: 35 h, Nebenjob 60 % → satzbestimmend **4'821.42**, B0Y **6.72 %**, QST **79.25** (Round05; rappengenau 79.26) | `AscertainedTaxableEarning` **4'859.35**, QST **80.30** (35 / **182** = 42×52/12) | BEWUSST |
+| F4 | ~~QST Stundenlöhner: Monat = 180 h~~ | **ERLEDIGT 27.09.2026 — war unser Fehler, keine bewusste Abweichung.** Siehe unten. | | BEHOBEN |
 
 Regel: Tarif, BUR, PLZ, QST-Code immer aus Stammdaten/CSV, nie aus der RefXML kopieren.
 
-**F4 — Rechnung (nicht nachbauen):** Kreisschreiben 45 / ESTV rechnet den Stundenlöhner auf **180 Stunden/Monat**. OneCrew: eigenes Pensum = 35/180 = 19.44 %, plus weitere AG 60 % → 79.44 %; 1'179.45 × 79.44 / 19.44 = **4'821.42**; Stufe B0Y BE 6.72 % × 1'179.45 = 79.26 → **79.25** (QST auf 5 Rp., 20.09.2026). Die Soll-XML nimmt die Filial-Woche (42 h × 52 / 12 = **182 h**) → 4'859.35 und 6.81 % = 80.30. Code: `EstimatePensumFromStunden` / `ComputeSatzBruttoForNebenjob` (`PayrollCalculationService`). 182 h nur, um die XML zu treffen, wäre falsch.
+**F4 — erledigt 27.09.2026 (Walter).** Die frühere Lesart «ESTV schreibt 180 Stunden vor, 182 nur um die XML zu treffen wäre falsch» ist **widerlegt**. Quellenlage:
+
+- **180 Stunden** (bzw. 2'160/Jahr, bzw. 21,667 Tage) gelten NUR, wenn der Lohn **nicht monatlich** ausbezahlt wird — Personalverleih, Wochenzahlung. ESTV-FAQ zum KS 45, Ziff. 7.3.3: «Eine Hochrechnung auf 180 bzw. 2'160 Stunden … ist nur zulässig, wenn die Lohnzahlung nicht monatlich erfolgt. Bei monatlicher Lohnzahlung hat die Umrechnung zwingend nach den Grundsätzen von Ziffern 6.4 und 7.3.2 zu erfolgen.» Dasselbe in den ELM-6.0-Richtlinien, Kap. 10.6.4, S. 285. **OneCrew zahlt immer monatlich → die 180-Regel greift bei uns nie.**
+- **Bei monatlicher Zahlung** zählt die **betriebsübliche Arbeitszeit** (KS 45 Ziff. 6.4). Kanton Bern, TaxInfo: «Das Pensum ist … nach dem Verhältnis der geleisteten Stunden … zu den betriebsüblichen Arbeitsstunden … pro Monat festzulegen.» Bei 42 h/Woche = 42 × 52 ÷ 12 = **182 h**. Swissdec rechnet im Beispiel 10.6.4.3 der Richtlinien (S. 287) genau so vor: «Monats-Arbeitszeit AG 1 = 182.00», «BG AG 1 19.23 % = 35/182×100», «BG Total 79.23 % = 19.23 % + 60 %».
+- **Kein Deckel bei 100 %**: ESTV-FAQ Ziff. 7.3.2 — «Für die Berechnung des satzbestimmenden Einkommens ist der Gesamtbeschäftigungsgrad heranzuziehen. Dieser kann auch grösser als 100% sein.» Blanc September: 41 % + 60 % = 101 %.
+
+**Eine feste Zahl 182 steht nirgends** — es ist die betriebsübliche Arbeitszeit, die bei der Muster AG und bei Schaub (L-GAV 42 h) zufällig beide Male 182 ergibt. Umgesetzt als `MonatsstundenVollzeit(company)` = Wochenstunden der Filiale × 52 ÷ 12; fehlt die Angabe, gilt bewusst die L-GAV-Woche 42 h, NIE wieder still 180. Der Beschäftigungsgrad geht **ungerundet** in die Hochrechnung (gerundet käme Januar 4'859.48 statt 4'859.35 heraus; die Richtlinien zeigen ihn im Beispiel nur gerundet an). Code: `EstimatePensumFromStunden` / `ComputeSatzBruttoForNebenjob`, Tests `Tests/QstNebenjobHochrechnungTests.cs` (Blanc Jan/Sep/Okt + Fall über 100 %).
+
+**Offen geblieben:** Das Richtlinien-Beispiel zählt **Ausfallstunden** (Krankheit, Unfall, EO) zum eigenen Beschäftigungsgrad — dort 3 gearbeitete + 32 Ausfallstunden = 35. OneCrew rechnet bisher nur mit den gearbeiteten Stunden; wer krank ist, bekommt dadurch einen zu tiefen Grad und einen zu hohen Steuersatz. Noch nicht gebaut.
 
 ---
 
@@ -152,7 +160,7 @@ AHV 21, Rundung, Ferien-Tage, QST-aus-Stammdaten gelten **auf beiden** — kein 
 
 ## Kurz fürs Quality Tool (Burri Dez 2024)
 
-Ankreiden erwartet: F4 (Blanc QST 79.25 vs 80.30). A1 seit 11.09.2026 behoben.  
+Ankreiden erwartet: — (F4 seit 27.09.2026 behoben, A1 seit 11.09.2026).  
 Nicht ankreiden / andere XML-Felder: NBU ±2 Rp. (A5), KTG/UVGZ, Ferientage (A2/A3), Stundensaldo ohne CHF.
 
 Nächster Eintrag: wenn ein Beleg-Check eine neue **bewusste** Differenz ergibt — hier ergänzen (ID, TF, Monat, OneCrew, Swissdec, Begründung, Status).

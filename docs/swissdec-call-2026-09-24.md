@@ -43,10 +43,10 @@ Wo die XML etwas anderes zeigt als CSV + Gesetz, haben wir es bewusst NICHT nach
 - **Was wir gemacht haben:** Wir folgen dem Steuerkanton der Testdaten (TI bis 30.4., LU ab 1.5.) und haben den Wohnort intern auf denselben Schnitt gelegt, damit Beleg und QST zusammenpassen.
 - **Frage:** Ist der April bewusst «Grenzgängerin in TI mit Schweizer Adresse»? Und was soll das Wegzugsdatum 25.04.?
 
-### 5. Stundenlöhner: 180 oder 182 Stunden pro Monat? (TF18 Blanc, Kanton BE)
-- **Was in der XML steht:** Der satzbestimmende Lohn wird mit **182 h** hochgerechnet (42 h × 52 Wochen ÷ 12) → QST 80.30.
-- **Was wir rechnen:** Nach ESTV / Kreisschreiben 45 mit **180 h** → QST 79.25.
-- **Frage:** Verlangt das Quality Tool 182? Dann widerspricht es dem Kreisschreiben.
+### 5. ~~Stundenlöhner: 180 oder 182 Stunden pro Monat?~~ — ERLEDIGT 27.09.2026, nicht mehr fragen
+- Beantwortet aus den Quellen: ESTV-FAQ zum KS 45 Ziff. 7.3.3 (180 h nur ohne monatliche Lohnzahlung) und Ziff. 7.3.2 (Gesamtbeschäftigungsgrad darf über 100 % liegen), KS 45 Ziff. 6.4 (betriebsübliche Arbeitszeit), ELM-6.0-Richtlinien Beispiel 10.6.4.3 («Monats-Arbeitszeit AG 1 = 182.00»).
+- OneCrew gebaut und korrigiert; Einzelheiten im Abweichungsprotokoll unter F4.
+
 
 ### 7. TF11 Bosshard, März 2025 — in der CSV fehlt der Lohn zur Mitarbeiterbeteiligung (20'000)
 - **Was in der XML steht:** Lohnausweis «OwnershipRight» (Beteiligungsrechte) **20'000**, AHV-Lohn März 36'550, Bruttolohn Jahr 61'645.

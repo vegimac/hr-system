@@ -1459,7 +1459,12 @@ public static class PayrollCalculations
             // nur der eigene Anteil. Satzbestimmend = auf das Gesamtpensum
             // hochrechnen, höchstens 100 % (KS 45). TF17 Binggeli: 70 % + 30 %
             // → 4'550 × 100/70 = 6'500, nicht 4'550.
-            decimal gesamtPensum = Math.Min(100m, eigenesPensum + qst.GesamtpensumWeitereAg.Value);
+            // KEIN Deckel bei 100 % (Walter 27.09.2026, Quelle ESTV-FAQ zum KS 45 Ziff. 7.3.2:
+            // «Für die Berechnung des satzbestimmenden Einkommens ist der Gesamtbeschäftigungsgrad
+            // heranzuziehen. Dieser kann auch grösser als 100% sein.»). Die frühere Kappung war
+            // eine Annahme ohne Quelle — TF18 Blanc September: 41 % + 60 % = 101 %, gekappt kam
+            // 7'076.76 statt 7'241.90 heraus.
+            decimal gesamtPensum = eigenesPensum + qst.GesamtpensumWeitereAg.Value;
             return Math.Round(periodisch * gesamtPensum / eigenesPensum + einmalig, 2);
         }
 
@@ -1472,8 +1477,9 @@ public static class PayrollCalculations
         // B3: Hochrechnung auf 100%
         if (workedHours > 0)
         {
-            // Stundenlöhner: Umrechnung auf 180h/Monat (ESTV-Vorgabe)
-            return Math.Round(periodisch * 180m / workedHours + einmalig, 2);
+            // Stundenlöhner: auf die betriebsübliche Monats-Arbeitszeit, nicht auf 180 h
+            // (siehe MonatsstundenVollzeit).
+            return Math.Round(periodisch * MonatsstundenVollzeit(company) / workedHours + einmalig, 2);
         }
         if (pensumPct.HasValue && pensumPct.Value > 0 && pensumPct.Value < 100)
         {
@@ -1484,13 +1490,44 @@ public static class PayrollCalculations
     }
 
     /// <summary>
-    /// Schätzt das Pensum eines Stundenlöhners aus den IST-Stunden für
-    /// den Monat (gegen Vollzeit 180h gemäss ESTV-Vorgabe).
+    /// Betriebsübliche Arbeitszeit pro Monat = Wochenstunden der Filiale × 52 ÷ 12.
+    /// <para>
+    /// Quelle (Walter 27.09.2026): KS 45 Ziff. 6.4 und ESTV-FAQ 7.3.3 — die feste Hochrechnung
+    /// auf 180 Stunden gilt NUR, wenn der Lohn nicht monatlich ausbezahlt wird (Personalverleih,
+    /// Wochenzahlung). Bei monatlicher Zahlung zählt die betriebsübliche Arbeitszeit; Kanton Bern
+    /// (TaxInfo): «Das Pensum ist nach dem Verhältnis der geleisteten Stunden zu den
+    /// betriebsüblichen Arbeitsstunden pro Monat festzulegen.» Swissdec rechnet im Beispiel
+    /// 10.6.4.3 der ELM-6.0-Richtlinien mit «Monats-Arbeitszeit AG 1 = 182.00» (42 h × 52 ÷ 12).
+    /// OneCrew zahlt IMMER monatlich aus — die 180-Stunden-Regel greift bei uns nie.
+    /// </para>
+    /// <para>
+    /// Fehlen die Wochenstunden an der Filiale, gilt bewusst die L-GAV-Woche von 42 Stunden
+    /// (Walter-Vorgabe 27.09.2026) — NICHT still die alten 180 Stunden.
+    /// </para>
+    /// </summary>
+    public const decimal LgavWochenstunden = 42m;
+
+    public static decimal MonatsstundenVollzeit(CompanyProfile? company)
+    {
+        var wochenstunden = company?.NormalWeeklyHours ?? 0m;
+        if (wochenstunden <= 0) wochenstunden = LgavWochenstunden;
+        return Math.Round(wochenstunden * 52m / 12m, 2);
+    }
+
+    /// <summary>
+    /// Beschäftigungsgrad eines Stundenlöhners aus den IST-Stunden des Monats, gemessen an der
+    /// betriebsüblichen Monats-Arbeitszeit (<see cref="MonatsstundenVollzeit"/>).
+    /// Bewusst OHNE Deckel bei 100 % — wer mehr arbeitet, hat einen höheren Grad
+    /// (ESTV-FAQ zum KS 45 Ziff. 7.3.2).
     /// </summary>
     public static decimal EstimatePensumFromStunden(decimal workedHours, CompanyProfile company)
     {
         if (workedHours <= 0) return 0;
-        return Math.Min(100m, Math.Round(workedHours / 180m * 100m, 2));
+        // Bewusst NICHT auf 2 Stellen gerundet: der Grad geht als Nenner in die Hochrechnung,
+        // eine Rundung dort verschiebt den satzbestimmenden Lohn um bis zu einen halben Franken
+        // (TF18 Blanc Januar: gerundet 4'859.48 statt 4'859.35). Die Richtlinien zeigen den Grad
+        // im Beispiel nur gerundet an; gerechnet wird mit dem genauen Verhaeltnis.
+        return Math.Round(workedHours / MonatsstundenVollzeit(company) * 100m, 6);
     }
 
     // Walter-Vorgabe 20.05.2026: Lohnperiode = IMMER Kalendermonat (1.–letzter Tag).
