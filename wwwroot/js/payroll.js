@@ -1302,6 +1302,14 @@ async function loadLohnList() {
                 if (vertragPanel && vertragPanel.style.display === 'none') {
                     sel.click();
                     setTimeout(() => sel.scrollIntoView({ block: 'nearest' }), 50);
+                } else {
+                    // Periodenwechsel bei offenem Detail (Walter 27.09.2026): die Liste wird
+                    // neu gebaut, aber NICHT geklickt (sonst springt die Liste bei jedem
+                    // Refresh). Der Kopf trug darum noch die Periode von vorher — beim
+                    // Wechsel Februar → März stand weiter «Alter … (am 1.2.2025)».
+                    // Nur den Kopf mit der neuen Periode nachziehen, sonst nichts anfassen.
+                    const selEmp = active.find(x => Number(x.id) === Number(_lohnSelectedEmpId));
+                    if (selEmp) showLohnVertragInfo(selEmp, y, m);
                 }
             }
         }
