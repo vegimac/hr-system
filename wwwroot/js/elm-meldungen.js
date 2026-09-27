@@ -216,26 +216,89 @@ async function elmXmlHerunterladen(jahr, monat) {
 let _elmAlleBericht = '';
 
 async function elmAllePruefen() {
+    const d = await elmAlleHolen(null);
+    if (!d) return;
+    // Die Referenzen von Swissdec liegen im Quellcode, nicht im veröffentlichten
+    // Programm (und 7 MB Übungsdaten gehören auch nicht auf die Lohnanlage).
+    // Also fragen wir sie beim Benutzer ab (Walter 27.09.2026).
+    if (d.dateienNoetig) { elmReferenzenWaehlen(d.hinweis); return; }
+    elmZeigeAlle(d);
+}
+
+function elmReferenzenWaehlen(hinweis) {
+    const box = document.getElementById('elmAlleErgebnis');
+    if (box) {
+        box.style.display = 'block';
+        box.innerHTML = `<div style="font-size:12.5px;color:#646464;line-height:1.6">${elmEsc(hinweis || '')}<br>
+            Der Ordner liegt in deinem Projekt unter <code>SWISSCEC/RefXML</code>. Im Auswahlfenster
+            alle <code>RefXML_…_MONTHLY.xml</code> auf einmal markieren (Cmd+A und dann die anderen abwählen,
+            oder ins Suchfeld <code>MONTHLY</code> tippen). Die Dateien werden nur für diese Prüfung gelesen
+            und nirgends gespeichert.</div>
+            <div style="margin-top:12px"><button type="button" class="btn-primary"
+                style="font-size:12.5px;padding:7px 15px" onclick="elmReferenzenDateiwahl()">Referenzen auswählen…</button></div>`;
+    }
+    elmReferenzenDateiwahl();
+}
+
+function elmReferenzenDateiwahl() {
+    let inp = document.getElementById('elmRefDateien');
+    if (!inp) {
+        inp = document.createElement('input');
+        inp.type = 'file';
+        inp.id = 'elmRefDateien';
+        inp.multiple = true;
+        inp.accept = '.xml,text/xml,application/xml';
+        inp.style.display = 'none';
+        inp.addEventListener('change', async () => {
+            const dateien = Array.from(inp.files || []);
+            inp.value = '';
+            if (dateien.length === 0) return;
+            const d = await elmAlleHolen(dateien);
+            if (d) elmZeigeAlle(d);
+        });
+        document.body.appendChild(inp);
+    }
+    inp.click();
+}
+
+// dateien = null -> Referenzen von der Platte des Servers; sonst hochladen.
+async function elmAlleHolen(dateien) {
     const btn = document.getElementById('elmAlleBtn');
     const box = document.getElementById('elmAlleErgebnis');
     if (btn) { btn.disabled = true; btn.textContent = 'prüft alle Monate…'; }
     elmZeigeErgebnis(null);
-    if (box) {
+    if (box && dateien) {
         box.style.display = 'block';
-        box.innerHTML = '<div style="font-size:12.5px;color:#646464">Jeder Monat wird erzeugt, gegen das Schema geprüft '
-                      + 'und Feld für Feld mit der Referenz verglichen. Das dauert einen Moment.</div>';
+        box.innerHTML = `<div style="font-size:12.5px;color:#646464">${dateien.length} Referenzen gelesen. `
+                      + 'Jeder Monat wird erzeugt, gegen das Schema geprüft und Feld für Feld verglichen. '
+                      + 'Das dauert einen Moment.</div>';
     }
     try {
-        const res = await fetch('/api/elm/monthly/alle-pruefen', {
-            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
-        });
+        let res;
+        if (dateien) {
+            const fd = new FormData();
+            for (const f of dateien) fd.append('dateien', f, f.name);
+            res = await fetch('/api/elm/monthly/alle-pruefen', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + localStorage.hrToken },
+                body: fd
+            });
+        } else {
+            res = await fetch('/api/elm/monthly/alle-pruefen', {
+                headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+            });
+        }
         const d = await res.json();
         if (!res.ok) throw new Error(d.message || d.error || ('HTTP ' + res.status));
         _elmAlleBericht = d.bericht || '';
-        elmZeigeAlle(d);
+        return d;
     } catch (e) {
         _elmAlleBericht = '';
-        if (box) box.innerHTML = `<div style="font-size:12.5px;color:#b91c1c">Fehler: ${elmEsc(e.message)}</div>`;
+        if (box) {
+            box.style.display = 'block';
+            box.innerHTML = `<div style="font-size:12.5px;color:#b91c1c">Fehler: ${elmEsc(e.message)}</div>`;
+        }
+        return null;
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Alle Monate prüfen'; }
     }
@@ -299,6 +362,12 @@ function elmZeigeAlle(d) {
         }
     }
     html += `</tbody></table></div>`;
+
+    if ((d.uebergangen || []).length > 0) {
+        html += `<div style="margin-top:12px"><div style="font-weight:600;font-size:12.5px;margin-bottom:5px">Nicht verwendete Dateien</div>
+            <ul style="margin:0;padding-left:18px;font-size:12px;color:#646464">
+            ${d.uebergangen.map(u => `<li>${elmEsc(u)}</li>`).join('')}</ul></div>`;
+    }
 
     if (_elmAlleBericht) {
         html += `<div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">

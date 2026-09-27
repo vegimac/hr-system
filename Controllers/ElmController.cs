@@ -267,12 +267,76 @@ public class ElmController : ControllerBase
     [HttpGet("monthly/alle-pruefen")]
     public async Task<IActionResult> AlleMonatePruefen(CancellationToken ct)
     {
-        var refMonate = ReferenzMonate();
-        if (refMonate.Count == 0)
-            return Ok(new { monate = new List<object>(), bericht = (string?)null,
-                zusammenfassung = new { gesamt = 0, fertig = 0, mitOffenen = 0, nichtBereit = 0 },
-                hinweis = "Im Ordner SWISSCEC/RefXML liegt keine Monats-Referenz." });
+        var quellen = new List<(int Jahr, int Monat, string Name, string Xml)>();
+        foreach (var (jahr, monat, datei) in ReferenzMonate())
+            quellen.Add((jahr, monat, System.IO.Path.GetFileName(datei),
+                         await System.IO.File.ReadAllTextAsync(datei, ct)));
 
+        if (quellen.Count == 0)
+            return Ok(new
+            {
+                monate = new List<object>(), bericht = (string?)null,
+                zusammenfassung = new { gesamt = 0, fertig = 0, mitOffenen = 0, nichtBereit = 0 },
+                dateienNoetig = true,
+                hinweis = "Die Referenzen von Swissdec liegen nicht auf diesem Server — "
+                        + "sie gehören nicht auf eine Lohnanlage. Bitte die Dateien aus dem Ordner "
+                        + "SWISSCEC/RefXML auswählen (alle RefXML_…_MONTHLY.xml auf einmal)."
+            });
+
+        return await VergleicheMonate(quellen, ct);
+    }
+
+    /// <summary>
+    /// Dasselbe mit hochgeladenen Referenzen (Walter 27.09.2026). Der Ordner
+    /// SWISSCEC/RefXML liegt im Quellcode, nicht im veröffentlichten Programm —
+    /// und 7 MB Swissdec-Übungsdaten haben auf der Produktion auch nichts verloren.
+    /// Die Dateien werden nur für diesen Aufruf gelesen und nirgends gespeichert.
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("monthly/alle-pruefen")]
+    [RequestSizeLimit(64 * 1024 * 1024)]
+    public async Task<IActionResult> AlleMonatePruefenMitDateien(
+        [FromForm] List<IFormFile> dateien, CancellationToken ct)
+    {
+        var quellen = new List<(int Jahr, int Monat, string Name, string Xml)>();
+        var uebergangen = new List<string>();
+
+        foreach (var f in dateien ?? new List<IFormFile>())
+        {
+            var name = System.IO.Path.GetFileName(f.FileName ?? "");
+            var (jahr, monat) = MonatAusDateiname(name);
+            if (jahr == 0)
+            {
+                uebergangen.Add($"{name} — kein Monat im Namen erkennbar (erwartet RefXML_JJJJ-MM_MONTHLY.xml).");
+                continue;
+            }
+            if (quellen.Any(q => q.Jahr == jahr && q.Monat == monat))
+            {
+                uebergangen.Add($"{name} — für {monat:00}.{jahr} liegt schon eine Referenz vor.");
+                continue;
+            }
+            using var leser = new StreamReader(f.OpenReadStream());
+            quellen.Add((jahr, monat, name, await leser.ReadToEndAsync(ct)));
+        }
+
+        if (quellen.Count == 0)
+            return BadRequest(new { error = "KEINE_REFERENZ",
+                message = "Keine brauchbare Referenz dabei. Erwartet werden die Dateien "
+                        + "RefXML_JJJJ-MM_MONTHLY.xml aus dem Ordner SWISSCEC/RefXML.",
+                uebergangen });
+
+        quellen = quellen.OrderBy(q => q.Jahr).ThenBy(q => q.Monat).ToList();
+        return await VergleicheMonate(quellen, ct, uebergangen);
+    }
+
+    /// <summary>
+    /// Alle übergebenen Monate erzeugen und Feld für Feld mit ihrer Referenz
+    /// vergleichen. Rein lesend: es wird nichts gespeichert und nichts gesendet.
+    /// </summary>
+    private async Task<IActionResult> VergleicheMonate(
+        List<(int Jahr, int Monat, string Name, string Xml)> quellen,
+        CancellationToken ct, List<string>? uebergangen = null)
+    {
         var zeilen = new List<object>();
         var tabelle = new StringBuilder();
         var abschnitte = new StringBuilder();
@@ -281,11 +345,10 @@ public class ElmController : ControllerBase
         tabelle.AppendLine("| Monat | Personen | Felder | Offen | Bewusst | Schema |");
         tabelle.AppendLine("|---|---:|---:|---:|---:|---|");
 
-        foreach (var (jahr, monat, datei) in refMonate)
+        foreach (var (jahr, monat, refName, refXml) in quellen)
         {
             ct.ThrowIfCancellationRequested();
             var name = $"{monat:00}.{jahr}";
-            var refName = System.IO.Path.GetFileName(datei);
             var r = await _monatsBuilder.BuildAsync(jahr, monat, ct);
 
             // Kein XML = der Monat ist nicht meldebereit. Das ist KEIN Fehler der
@@ -307,7 +370,7 @@ public class ElmController : ControllerBase
 
             ElmXmlVergleich.Ergebnis? e = null;
             string? lesefehler = null;
-            try { e = ElmXmlVergleich.Vergleiche(r.Xml, await System.IO.File.ReadAllTextAsync(datei, ct)); }
+            try { e = ElmXmlVergleich.Vergleiche(r.Xml, refXml); }
             catch (Exception ex) { lesefehler = $"Referenz nicht lesbar: {ex.Message}"; }
 
             if (e == null)
@@ -344,7 +407,7 @@ public class ElmController : ControllerBase
         var sb = new StringBuilder();
         sb.AppendLine("# ELM-Monatsmeldungen gegen die Referenz");
         sb.AppendLine();
-        sb.AppendLine($"Stand {DateTime.Now:dd.MM.yyyy HH:mm} · {refMonate.Count} Monate mit Referenz · "
+        sb.AppendLine($"Stand {DateTime.Now:dd.MM.yyyy HH:mm} · {quellen.Count} Monate mit Referenz · "
                     + $"{fertig} erzeugt und verglichen, {mitOffenen} davon mit offenen Unterschieden, "
                     + $"{nichtBereit} noch nicht meldebereit.");
         sb.AppendLine();
@@ -355,9 +418,22 @@ public class ElmController : ControllerBase
         return Ok(new
         {
             monate = zeilen,
-            zusammenfassung = new { gesamt = refMonate.Count, fertig, mitOffenen, nichtBereit },
+            zusammenfassung = new { gesamt = quellen.Count, fertig, mitOffenen, nichtBereit },
+            uebergangen = uebergangen ?? new List<string>(),
             bericht = sb.ToString()
         });
+    }
+
+    /// <summary>Jahr und Monat aus einem Referenz-Dateinamen — 0/0, wenn keiner drinsteht.</summary>
+    public static (int Jahr, int Monat) MonatAusDateiname(string dateiname)
+    {
+        // Beide Schreibweisen: RefXML_2024-12_MONTHLY.xml und RefXML_202411_MONTHLY.xml.
+        var m = Regex.Match(dateiname ?? "", @"(\d{4})-?(\d{2})_MONTHLY", RegexOptions.IgnoreCase);
+        if (!m.Success) return (0, 0);
+        var jahr = int.Parse(m.Groups[1].Value);
+        var monat = int.Parse(m.Groups[2].Value);
+        if (jahr < 2000 || jahr > 2100 || monat < 1 || monat > 12) return (0, 0);
+        return (jahr, monat);
     }
 
     /// <summary>Monate, zu denen eine Monats-Referenz im Repo liegt — aufsteigend.</summary>
