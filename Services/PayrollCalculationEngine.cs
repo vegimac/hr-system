@@ -5122,14 +5122,22 @@ public class PayrollCalculationEngine
 
     /// <summary>
     /// Die ungedeckelte Jahresbasis, auf der ein gedeckelter Abzug aufrollt — je
-    /// Versicherungsart die eigene (Walter 26.09.2026). Fehlt sie im Snapshot (Altbestand,
-    /// Spalten erst ab Schema-Stand 33), gilt die AHV-Basis wie bisher.
+    /// Versicherungsart die eigene (Walter 26.09.2026).
+    /// <para>
+    /// Eine Null ist hier ein ECHTER Wert, kein fehlender (Walter 27.09.2026, TF01 Herz):
+    /// im Mai bekam sie nur ein EO-Taggeld von 1'300 — AHV- und KTG-pflichtig, aber nicht
+    /// UVG-pflichtig, die UVG-Basis dieses Monats ist also 0.00. Der frühere Rückgriff
+    /// «0 ⇒ nimm die AHV-Basis» machte daraus 1'300 und hob den Jahresdeckel um denselben
+    /// Betrag an (Oktober-Nachzahlung 2'890.70 statt 4'190.70). Den Rückgriff braucht es
+    /// nicht mehr: die Migration auf Schema-Stand 33 hat jede Altzeile gefüllt — aus dem
+    /// Lohnzettel, wo er den Wert trägt, sonst ersatzweise aus der AHV-Basis.
+    /// </para>
     /// </summary>
     private static decimal YtdBasisFuer(string? categoryCode, decimal ahv, decimal nbuv, decimal ktg)
         => (categoryCode ?? "").ToUpperInvariant() switch
         {
-            "NBUV" or "UVGZ" => nbuv != 0m ? nbuv : ahv,
-            "KTG"            => ktg  != 0m ? ktg  : ahv,
+            "NBUV" or "UVGZ" => nbuv,
+            "KTG"            => ktg,
             _                => ahv,   // AHV, ALV, ALVZ, BVG … bleiben auf der AHV-Basis
         };
 

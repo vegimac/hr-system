@@ -38,8 +38,11 @@ public class KorrekturlohnYtdBasisTests
         YtdBasenEigen = ytdEigen,
     };
 
-    private static readonly List<decimal> YtdAhv = new() { 12350m, 12350m, 10659.30m };   // Summe 35'359.30
-    private static readonly List<decimal> YtdUvg = new() { 12350m, 12350m,  8159.30m };   // Summe 32'859.30
+    // Echte Monatswerte von Herz (RefXML RETROSPECTIVE): Januar, Februar, Maerz und der
+    // Mai mit dem EO-Taggeld 1'300 nach dem Austritt — AHV- und KTG-pflichtig, aber
+    // NICHT UVG-pflichtig, die UVG-Basis dieses Monats ist echte 0.00.
+    private static readonly List<decimal> YtdAhv = new() { 10416.95m, 10416.95m, 13225.40m, 1300m };   // 35'359.30
+    private static readonly List<decimal> YtdUvg = new() { 10416.95m, 10416.95m, 12025.40m,    0m };   // 32'859.30
     private const decimal Nachzahlung = 20000m;
     private const decimal Monate = 3m;   // Januar bis Austritt 31.03., die Nachzahlung bringt keinen Monat
 
@@ -82,5 +85,16 @@ public class KorrekturlohnYtdBasisTests
         var z = NbuZeile(null);
         Assert.Equal(1690.70m, (decimal)z["basis"]!);
         Assert.Equal(-27.15m, (decimal)z["betrag"]!);
+    }
+
+    [Fact]
+    public void MonatOhneUvgLohn_BleibtNull_UndWirdNichtDurchDieAhvBasisErsetzt()
+    {
+        // Walter 27.09.2026: der frühere Rückgriff «0 ⇒ nimm die AHV-Basis» machte aus dem
+        // Mai-Taggeld 1'300 UVG-Lohn und hob den Jahresdeckel um denselben Betrag an —
+        // der Oktober kam auf 2'890.70 statt 4'190.70.
+        var mitRueckgriff = new List<decimal>(YtdUvg); mitRueckgriff[3] = 1300m;
+        Assert.Equal(2890.70m, (decimal)NbuZeile(mitRueckgriff)["basis"]!);
+        Assert.Equal(4190.70m, (decimal)NbuZeile(YtdUvg)["basis"]!);
     }
 }
