@@ -124,3 +124,28 @@ public class SwissdecBvgFixAmTagTests
         Assert.Equal(4500m, SwissdecTestmandantController.BvgFixAmTag(amTag)!.BvgBasisManuell);
     }
 }
+
+/// <summary>
+/// Schritt 4c: welcher BVG-Code gilt, wenn eine Mutation nur «versichert» umschaltet.
+/// Anlass Walter 27.09.2026 (TF30 Müller): «PersonBVGLPPInsured» 0 → 1 ab 01.05.2025,
+/// ohne «PersonBVGLPPCode1»; bisher war kein Code erfasst, weil er nicht versichert war.
+/// Der Code 11 steht nur im Grunddatensatz (testcases_export) — Beleg RefXML_2025-09_EMA.
+/// </summary>
+public class SwissdecBvgCodeTests
+{
+    [Fact]
+    public void Mutation_Gewinnt()
+        => Assert.Equal("22", SwissdecTestmandantController.BvgCode("22", "11", "11"));
+
+    [Fact]
+    public void OhneMutation_GiltDerBisherige()
+        => Assert.Equal("11", SwissdecTestmandantController.BvgCode(null, "11", "21"));
+
+    [Fact]
+    public void OhneMutationUndOhneBisherigen_GiltDerGrunddatensatz()
+        => Assert.Equal("11", SwissdecTestmandantController.BvgCode(null, null, "11"));
+
+    [Fact]
+    public void GarNichts_BleibtLeer()
+        => Assert.Null(SwissdecTestmandantController.BvgCode(null, null, null));
+}

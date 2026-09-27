@@ -77,6 +77,20 @@ public partial class SwissdecTestmandantController
     /// in der Versionsliste zwei «AKTUELL» (Walter 26.09.2026, TF36 Maldini).
     /// </summary>
     /// <summary>
+    /// Welcher BVG-Code fuer eine Mutation gilt: der aus der Mutation, sonst der bisher
+    /// erfasste, sonst der aus dem Grunddatensatz des Testfalls.
+    /// <para>
+    /// Der letzte Rueckfall ist noetig, wenn «PersonBVGLPPInsured» auf 1 wechselt, ohne einen
+    /// Code mitzubringen, und bisher gar keiner erfasst war, weil die Person nicht versichert
+    /// war (Walter 27.09.2026, TF30 Mueller ab 01.05.2025). Ohne ihn bekam der Eintrag keinen
+    /// Code — der Beleg zeigte «BVG (Fixbetrag)» ohne Nummer, und der Austrittsmeldung fehlte
+    /// der Code 11 (RefXML_2025-09_EMA).
+    /// </para>
+    /// </summary>
+    public static string? BvgCode(string? ausMutation, string? bisher, string? ausGrunddaten)
+        => ausMutation ?? bisher ?? ausGrunddaten;
+
+    /// <summary>
     /// Der BVG-Eintrag am Mutationstag, aus dem eine neue Versicherungs-Zeile den
     /// Fixbetrag (Lohnart 5050) und die manuelle Basis uebernimmt.
     /// <para>
@@ -133,6 +147,15 @@ public partial class SwissdecTestmandantController
         var nurSet = NurSet(nur);
         var auswahl = alle.Where(m => (nurMonat == null || m.Monat == nurMonat) && (nurSet == null || nurSet.Contains(m.Fall.Split(' ')[0].ToUpperInvariant()))).ToList();
 
+        // Grunddaten der Testfaelle: Rueckfall fuer Felder, die eine Mutation voraussetzt,
+        // aber nicht mitliefert (Walter 27.09.2026, TF30 Mueller: «BVG versichert» wechselt im
+        // Mai auf 1, der BVG-Code steht nur im Grunddatensatz).
+        var grunddaten = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        var tcPfad = CsvPfad("testcases_export.csv");
+        if (System.IO.File.Exists(tcPfad))
+            foreach (var f in LeseTestfaelle(tcPfad))
+                grunddaten[f.Id.ToUpperInvariant()] = f.W;
+
         var aktionen = new List<Aktion>();
         var hinweise = new List<string>();
         var hs = await _db.Hauptsitze.AsNoTracking().FirstOrDefaultAsync(h => h.Uid == "CHE-999.999.996");
@@ -149,6 +172,10 @@ public partial class SwissdecTestmandantController
             var w = rows.GroupBy(r => r.Tag).ToDictionary(g => g.Key, g => g.Last().Neu?.Trim(), StringComparer.OrdinalIgnoreCase);
             string? V(string k) => w.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v) && v != "None" ? v : null;
             bool Hat(string k) => w.ContainsKey(k);
+            // Wert aus dem Grunddatensatz des Testfalls (Stand Eintritt), wenn die Mutation ihn
+            // nicht mitbringt und es auch keinen bestehenden Eintrag gibt.
+            string? Grund(string k) => grunddaten.TryGetValue(fall.Split(' ')[0].ToUpperInvariant(), out var g)
+                && g.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v) && v != "None" ? v : null;
             var persNr = NummerOhneKomma(fall.Split(' ')[0].Replace("TF", "").TrimStart('0'));
             var emp = await _db.Employees.Include(e => e.Employments).FirstOrDefaultAsync(e => e.EmployeeNumber == persNr);
             var felder = new Dictionary<string, string?>();
@@ -402,7 +429,13 @@ public partial class SwissdecTestmandantController
                     if (art == "BVG")
                     {
                         var vers = Hat("PersonBVGLPPInsured") ? V("PersonBVGLPPInsured") is "1" or "1.0" : aktuelle.Any();
-                        var code = NummerOhneKomma(V("PersonBVGLPPCode1")) ?? aktuelle.FirstOrDefault()?.Code;
+                        // Kein Code in der Mutation und keiner bisher (BVG war nicht versichert):
+                        // dann gilt der Code aus dem Grunddatensatz (Walter 27.09.2026, TF30 Mueller
+                        // — «versichert» ab 01.05.2025, Code 11 nur im Grunddatensatz; Beleg
+                        // RefXML_2025-09_EMA, Austrittsmeldung mit BVG-LPP-Code 11).
+                        var code = BvgCode(NummerOhneKomma(V("PersonBVGLPPCode1")),
+                                           aktuelle.FirstOrDefault()?.Code,
+                                           NummerOhneKomma(Grund("PersonBVGLPPCode1")));
                         if (vers && code != null) neueCodes.Add(code);
                     }
                     else
