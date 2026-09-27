@@ -118,6 +118,14 @@ public static class ElmGemeinsam
         var gemeindeNr = new Dictionary<int, int>();
         foreach (var b in filialen)
         {
+            // BUR-/REE-Nummer mit Prüfziffer kontrollieren, bevor sie in die Meldung geht.
+            var burRoh = (b.BurNummer ?? "").Trim();
+            if (burRoh.Length > 0 && !ElmStammdatenPruefung.BurNummerGueltig(burRoh))
+                warn.Add($"Filiale «{b.FullDisplayName}»: BUR-Nummer «{burRoh}» ist ungültig "
+                       + (ElmStammdatenPruefung.BurFormatOkPruefzifferFalsch(burRoh)
+                          ? "(Prüfziffer stimmt nicht)" : "(Format: ein Buchstabe, acht Ziffern)")
+                       + " — sie wird NICHT gemeldet, bitte in den Stammdaten korrigieren.");
+
             if (b.BfsGemeindeNr is > 0) { gemeindeNr[b.Id] = b.BfsGemeindeNr.Value; continue; }
             var plz = (b.ZipCode ?? "").Trim(); var ort = (b.City ?? "").Trim().ToLowerInvariant();
             if (plz.Length != 4)
@@ -133,6 +141,14 @@ public static class ElmGemeinsam
                        ?? (nrs.Count == 1 ? nrs[0] : (int?)null);
             if (best is > 0) gemeindeNr[b.Id] = best.Value;
             else warn.Add($"Filiale «{b.FullDisplayName}»: BFS-Gemeindenummer nicht eindeutig ableitbar (PLZ {plz}, {nrs.Count} Gemeinden) — bitte in den Stammdaten eintragen.");
+
+            // PLZ und Ort müssen zusammenpassen (Walter 27.09.2026): die Muster-Filiale ZG
+            // trug PLZ 6003 (Luzern) statt 6300 — Swissdec weist so etwas zurück.
+            if (treffer.Count > 0
+                && !treffer.Any(t2 => (t2.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(ort)
+                                   || (t2.Gemeindename ?? "").ToLowerInvariant() == ort))
+                warn.Add($"Filiale «{b.FullDisplayName}»: PLZ {plz} gehört nicht zu «{b.City}» "
+                       + $"(zu dieser PLZ: {string.Join(", ", treffer.Select(t2 => t2.Ortschaftsname).Distinct().Take(3))}) — bitte in den Stammdaten korrigieren.");
         }
 
         return new RechtseinheitStamm(
@@ -175,8 +191,8 @@ public static class ElmGemeinsam
             new XElement(C + "UID-BFS", new XElement(Ep + "UID", s.Uid)),
             s.Filialen.Select(b => new XElement(C + "Workplace",
                 new XAttribute("workplaceID", WpId(b)),
-                Regex.IsMatch((b.BurNummer ?? "").Trim(), "^[A-Z][0-9]{8}$")
-                    ? new XElement(C + "BUR-REE-Number", b.BurNummer!.Trim())
+                ElmStammdatenPruefung.BurNummerGueltig(b.BurNummer)
+                    ? new XElement(C + "BUR-REE-Number", b.BurNummer!.Trim().ToUpperInvariant())
                     : null,
                 // Reihenfolge laut XSD: ComplementaryLine, Street, ZIP, City, Country, Canton, MunicipalityID
                 new XElement(C + "AddressExtended",

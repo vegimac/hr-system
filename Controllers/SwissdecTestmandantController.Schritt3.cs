@@ -137,11 +137,57 @@ public partial class SwissdecTestmandantController
         hinweise.Add("Mindesterwerbseinkommen (Jahr/Monat) steht nicht in den Testdaten — bleibt leer; falls ein Testfall es braucht, ergänzen wir es dann.");
         hinweise.Add("Geburtszulage wird auch als Adoptionszulage übernommen (Testdaten nennen nur «BirthAllowance»).");
 
+        // ── D) Arbeitszeitmodelle der Rechtseinheit (Walter 27.09.2026) ──
+        // Swissdec meldet sie als CompanyWorkingTime; die Personen verweisen darauf.
+        // Wiederholbar: gefunden wird über die Kennung, nichts wird doppelt angelegt.
+        var hs = await _db.Hauptsitze.OrderBy(h => h.Id).FirstOrDefaultAsync();
+        if (hs == null)
+        {
+            hinweise.Add("Arbeitszeitmodelle übersprungen — es gibt noch keinen Hauptsitz (Schritt 1).");
+        }
+        else
+        {
+            var vorhanden = await _db.Arbeitszeitmodelle.Where(m => m.HauptsitzId == hs.Id).ToListAsync();
+            for (int i = 1; i <= 9; i++)
+            {
+                var kennungRoh = T25($"CompanyWorkingTimeModel{i}CompanyWorkingTimeID");
+                if (string.IsNullOrWhiteSpace(kennungRoh)) continue;
+                var kennung = kennungRoh!.TrimStart('#').Trim();
+                var bez = T25($"CompanyWorkingTimeModel{i}Description") ?? kennung;
+                var std = Dz(T25($"CompanyWorkingTimeModel{i}WeeklyHours"));
+                var lek = Dz(T25($"CompanyWorkingTimeModel{i}WeeklyLessons"));
+                if (std is not > 0m && lek is not > 0m)
+                {
+                    hinweise.Add($"Arbeitszeitmodell «{bez}» hat weder Wochenstunden noch Wochenlektionen — nicht angelegt.");
+                    continue;
+                }
+                var felder = new Dictionary<string, string?>
+                {
+                    ["Kennung"] = kennung,
+                    ["Wochenstunden"] = std?.ToString("0.00", CultureInfo.InvariantCulture) ?? "–",
+                    ["Wochenlektionen"] = lek?.ToString("0.00", CultureInfo.InvariantCulture) ?? "–",
+                };
+                var m2 = vorhanden.FirstOrDefault(x => string.Equals(x.Kennung, kennung, StringComparison.OrdinalIgnoreCase));
+                aktionen.Add(new Aktion(m2 == null ? "anlegen" : "aktualisieren", "Arbeitszeitmodell", bez!, felder));
+                if (vorschau) continue;
+                if (m2 == null)
+                {
+                    m2 = new Arbeitszeitmodell { HauptsitzId = hs.Id, Kennung = kennung, CreatedAt = DateTime.Now };
+                    _db.Arbeitszeitmodelle.Add(m2); vorhanden.Add(m2);
+                }
+                m2.Bezeichnung = bez!;
+                m2.Wochenstunden = std;
+                m2.Wochenlektionen = lek;
+                m2.IsActive = true;
+                m2.UpdatedAt = DateTime.Now;
+            }
+        }
+
         if (!vorschau)
         {
             await _db.SaveChangesAsync();
             _log.LogInformation("Swissdec-Testmandant Schritt 3a angelegt: {N} Aktionen", aktionen.Count);
         }
-        return Ok(new SchrittErgebnis("3a · AHV/ALV + FAK-Ansätze", vorschau, aktionen, hinweise));
+        return Ok(new SchrittErgebnis("3a · AHV/ALV + FAK-Ansätze + Arbeitszeitmodelle", vorschau, aktionen, hinweise));
     }
 }

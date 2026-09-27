@@ -148,6 +148,9 @@ public partial class SwissdecTestmandantController
                     .OrderBy(x => x.ContractStartDate).FirstOrDefault();
                 vertrag.ContractEndDate = naechster?.ContractStartDate.AddDays(-1);
                 vertrag.ContractType = V("PersonContractMonthly") == "fixedSalaryMth" ? "befristet" : "unbefristet";
+                // Vertragsart nach Swissdec fuer die Lohnstatistik (Walter 27.09.2026).
+                vertrag.SwissdecVertragsart = V("PersonContractMonthly") ?? V("PersonContractHourly") ?? ohneZeit;
+                vertrag.JahreslohnOhneZeitbindung = Dez(V("PersonContractNoTimeConstraintAnnualWage"));
                 vertrag.JobTitle = V("PersonJobTitle");
                 vertrag.EducationLevelCode = edu;
                 vertrag.EmploymentPercentage = modell == "FIX" ? (pensum ?? 100m) : null;
@@ -269,6 +272,56 @@ public partial class SwissdecTestmandantController
                         if (bvgBisher != null) { e.BeitragFixAn = bvgBisher.BeitragFixAn; e.BeitragFixAg = bvgBisher.BeitragFixAg; }
                     }
                     _db.EmployeeVersicherungCodes.Add(e);
+                }
+                await _db.SaveChangesAsync();
+            }
+
+            // ── Statistik-Stammdaten + Arbeitszeitmodell (Walter 27.09.2026) ──
+            // Ausbildung und Stellung landen in den LSE-Feldern — dort fuehrt OneCrew
+            // sie ohnehin fuer die Lohnstrukturerhebung; eine zweite Erfassung waere
+            // eine Fehlerquelle. Wiederholbar: bestehende Zeile wird aktualisiert.
+            if (!vorschau)
+            {
+                var bfsEdu = HrSystem.Services.Elm.ElmStatistikCodes.BfsAusbildung(V("PersonEducation"));
+                var bfsPos = HrSystem.Services.Elm.ElmStatistikCodes.BfsStellung(V("PersonPosition"));
+                var ferienTage = Dez(V("PersonLeaveEntitlement"));
+                if (bfsEdu != null || bfsPos != null || ferienTage != null)
+                {
+                    var lse = await _db.EmployeeLse.FirstOrDefaultAsync(l => l.EmployeeId == emp.Id);
+                    if (lse == null) { lse = new EmployeeLse { EmployeeId = emp.Id }; _db.EmployeeLse.Add(lse); }
+                    if (bfsEdu != null) lse.Education = bfsEdu;
+                    if (bfsPos != null) lse.PositionOverride = bfsPos;
+                    if (ferienTage != null) lse.LeaveEntitlementDays = ferienTage;
+                    lse.UpdatedAt = DateTime.Now;
+                    lse.UpdatedBy = "Swissdec-Testdaten";
+                }
+
+                var modellKennung = (V("PersonCompanyWorkingTimeModel") ?? "").Trim();
+                if (modellKennung.Length > 0)
+                {
+                    // Die Testdaten nennen nur die Nummer («1.0») — daraus wird die Kennung
+                    // «CompanyWorkingTime1», wie sie Schritt 3a angelegt hat.
+                    var nr = NummerOhneKomma(modellKennung);
+                    var kennung = modellKennung.StartsWith("#") || modellKennung.StartsWith("Company", StringComparison.OrdinalIgnoreCase)
+                        ? modellKennung.TrimStart('#')
+                        : $"CompanyWorkingTime{nr}";
+                    var azModell = await _db.Arbeitszeitmodelle
+                        .FirstOrDefaultAsync(m => m.Kennung != null && m.Kennung.ToLower() == kennung.ToLower());
+                    if (azModell == null)
+                        probleme.Add($"Arbeitszeitmodell «{kennung}» gibt es nicht — zuerst Schritt 3a laufen lassen.");
+                    else
+                    {
+                        var ab = f.Entry;
+                        var z = await _db.EmployeeArbeitszeitmodelle
+                            .FirstOrDefaultAsync(x => x.EmployeeId == emp.Id && x.GueltigAb == ab);
+                        if (z == null)
+                        {
+                            z = new EmployeeArbeitszeitmodell { EmployeeId = emp.Id, GueltigAb = ab, CreatedAt = DateTime.Now };
+                            _db.EmployeeArbeitszeitmodelle.Add(z);
+                        }
+                        z.ArbeitszeitmodellId = azModell.Id;
+                        z.Bemerkung = "Swissdec-Testdaten";
+                    }
                 }
                 await _db.SaveChangesAsync();
             }

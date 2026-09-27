@@ -474,6 +474,69 @@ public partial class SwissdecTestmandantController
                 if (!vorschau) await _db.SaveChangesAsync();
             }
 
+            // ── Arbeitszeitmodell wechselt (Walter 27.09.2026) ──
+            // Ohne Vertragswechsel: TF12 Casanova ab 01.10.2025 Modell 1 → 2,
+            // TF25 Lehmann ab 01.04.2025 Modell 2 → 1. Deshalb eine eigene
+            // Verlaufszeile mit Gueltig-ab statt eines neuen Vertragsstuecks.
+            if (Hat("PersonCompanyWorkingTimeModel"))
+            {
+                var nr = NummerOhneKomma(V("PersonCompanyWorkingTimeModel"));
+                var kennung = nr == null ? null : $"CompanyWorkingTime{nr}";
+                if (kennung == null)
+                {
+                    felder["Arbeitszeitmodell"] = "kein Modell mehr hinterlegt — Zuordnung bleibt unveraendert";
+                }
+                else
+                {
+                    var azm = await _db.Arbeitszeitmodelle
+                        .FirstOrDefaultAsync(m => m.Kennung != null && m.Kennung.ToLower() == kennung.ToLower());
+                    if (azm == null)
+                        probleme.Add($"Arbeitszeitmodell «{kennung}» gibt es nicht — zuerst Schritt 3a laufen lassen.");
+                    else
+                    {
+                        felder["Arbeitszeitmodell"] = $"{azm.Bezeichnung} ({kennung}) ab {tag1:dd.MM.yyyy}";
+                        if (!vorschau)
+                        {
+                            var z = await _db.EmployeeArbeitszeitmodelle
+                                .FirstOrDefaultAsync(x => x.EmployeeId == emp.Id && x.GueltigAb == tag1);
+                            if (z == null)
+                            {
+                                z = new EmployeeArbeitszeitmodell { EmployeeId = emp.Id, GueltigAb = tag1, CreatedAt = DateTime.Now };
+                                _db.EmployeeArbeitszeitmodelle.Add(z);
+                            }
+                            z.ArbeitszeitmodellId = azm.Id;
+                            z.Bemerkung = "Swissdec-Testdaten Mutation";
+                            await _db.SaveChangesAsync();
+                        }
+                    }
+                }
+            }
+
+            // ── Statistik-Stammdaten aendern sich (Walter 27.09.2026) ──
+            if (Hat("PersonEducation") || Hat("PersonPosition") || Hat("PersonLeaveEntitlement"))
+            {
+                var bfsEdu = HrSystem.Services.Elm.ElmStatistikCodes.BfsAusbildung(V("PersonEducation"));
+                var bfsPos = HrSystem.Services.Elm.ElmStatistikCodes.BfsStellung(V("PersonPosition"));
+                var tage = Dez(V("PersonLeaveEntitlement"));
+                felder["Statistik"] = string.Join(" · ", new[]
+                {
+                    bfsEdu != null ? $"Ausbildung {V("PersonEducation")}" : null,
+                    bfsPos != null ? $"Stellung {V("PersonPosition")}" : null,
+                    tage != null ? $"Ferientage {tage:0.#}" : null,
+                }.Where(x => x != null));
+                if (!vorschau)
+                {
+                    var lse = await _db.EmployeeLse.FirstOrDefaultAsync(l => l.EmployeeId == emp.Id);
+                    if (lse == null) { lse = new EmployeeLse { EmployeeId = emp.Id }; _db.EmployeeLse.Add(lse); }
+                    if (bfsEdu != null) lse.Education = bfsEdu;
+                    if (bfsPos != null) lse.PositionOverride = bfsPos;
+                    if (tage != null) lse.LeaveEntitlementDays = tage;
+                    lse.UpdatedAt = DateTime.Now;
+                    lse.UpdatedBy = "Swissdec-Testdaten Mutation";
+                    await _db.SaveChangesAsync();
+                }
+            }
+
             // ── Verzicht auf AHV-Freibetrag 1'400 (Walter 15.09.2026, TF44 Lusser) ──
             if (Hat("PersonWaiveOfPensionDeduct"))
             {
@@ -643,7 +706,8 @@ public partial class SwissdecTestmandantController
         || tag is "PersonLastname" or "PersonFirstname" or "PersonDateOfBirth" or "PersonResidenceCategory" or "PersonDateOfDeath" or "PersonCivilStatus" or "PersonCivilStatusValidAsOf"
         or "PersonStreet" or "PersonZIPCode" or "PersonCity" or "PersonResidenceCanton" or "PersonCountry" or "PersonMunicipalityID" or "PersonDepartureDate" or "PersonEntryDate"
         or "PersonWithdrawalDate" or "PersonAgreedWeeklyHours" or "PersonActivityRateEmployer1" or "PersonContractMonthly" or "PersonContractHourly" or "PersonContractNoTimeConstraint"
-        or "PersonContractNoTimeConstraintAnnualWage" or "PersonWorkplace" or "PersonCompanyWorkingTimeModel" or "PersonContractHourlyWagePaidByHour" or "PersonContractHourlyWagePaidByLesson"
+        or "PersonContractNoTimeConstraintAnnualWage" or "PersonWorkplace" or "PersonCompanyWorkingTimeModel"
+        or "PersonEducation" or "PersonPosition" or "PersonLeaveEntitlement" or "PersonJobTitle" or "PersonContractHourlyWagePaidByHour" or "PersonContractHourlyWagePaidByLesson"
         or "PersonHourlyLessonWage" or "PersonActivityRateUnsteady" or "PersonUVGLAACode" or "PersonUVGZLAACCode1" or "PersonUVGZLAACCode2" or "PersonKTGAMCCode1" or "PersonKTGAMCCode2"
         or "PersonBVGLPPCode1" or "PersonBVGLPPInsured" or "PersonBVGLPPManuallyBase" or "PersonGrantTASCode" or "PersonOtherActivity" or "PersonTotalOtherActivityRate"
         or "PersonWaiveOfPensionDeduct";

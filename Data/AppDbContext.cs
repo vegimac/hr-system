@@ -341,6 +341,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SalaryType).HasColumnName("salary_type");
             entity.Property(e => e.ContractStartDate).HasColumnName("contract_start_date").HasColumnType("date");
             entity.Property(e => e.ContractEndDate).HasColumnName("contract_end_date").HasColumnType("date");
+            entity.Property(e => e.SwissdecVertragsart).HasColumnName("swissdec_vertragsart").HasMaxLength(60);
+            entity.Property(e => e.JahreslohnOhneZeitbindung).HasColumnName("jahreslohn_ohne_zeitbindung").HasColumnType("numeric(12,2)");
             entity.Property(e => e.JobTitle).HasColumnName("job_title");
             entity.Property(e => e.JobGroupId).HasColumnName("job_group_id");
             entity.HasOne(e => e.JobGroup).WithMany().HasForeignKey(e => e.JobGroupId);
@@ -989,6 +991,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Ort).HasColumnName("ort").HasMaxLength(120);
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.KontaktName).HasColumnName("kontakt_name").HasMaxLength(200);
+            entity.Property(e => e.KontaktEmail).HasColumnName("kontakt_email").HasMaxLength(200);
+            entity.Property(e => e.KontaktTelefon).HasColumnName("kontakt_telefon").HasMaxLength(60);
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.FixPensenErlaubt).HasColumnName("fix_pensen_erlaubt").HasMaxLength(200);
             entity.Property(e => e.FlexStundenMax).HasColumnName("flex_stunden_max").HasColumnType("numeric(5,2)");

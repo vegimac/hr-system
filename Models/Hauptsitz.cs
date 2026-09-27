@@ -23,6 +23,16 @@ public class Hauptsitz
     public string? KantonCode { get; set; }
 
     public string? Bemerkung { get; set; }
+
+    /// <summary>
+    /// Kontaktperson der Rechtseinheit für elektronische Lohnmeldungen
+    /// (Walter 27.09.2026, Swissdec <c>ContactPerson</c>). Wer eine Rückfrage zur
+    /// Meldung bekommt — bewusst am Hauptsitz und nicht am angemeldeten Benutzer:
+    /// die Meldung gehört der Rechtseinheit, nicht dem, der sie erzeugt hat.
+    /// </summary>
+    public string? KontaktName { get; set; }
+    public string? KontaktEmail { get; set; }
+    public string? KontaktTelefon { get; set; }
     public bool IsActive { get; set; } = true;
 
     // ── Vertragsregeln der Rechtseinheit (Walter-Vorgabe 01.09.2026) ──────

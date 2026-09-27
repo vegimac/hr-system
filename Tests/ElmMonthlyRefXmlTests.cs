@@ -125,3 +125,41 @@ public class ElmKonfessionTests
     public void UnbekanntGibtKeinFeld(string? quelle)
         => Assert.Null(ElmMonthlyDeclarationBuilder.MapKonfession(quelle));
 }
+
+/// <summary>
+/// BUR-/REE-Prüfziffer (Walter 27.09.2026). Anlass: die Muster-Filiale ZG trägt in
+/// den Testdaten A38197421 (Prüfziffer falsch) und PLZ 6003 statt 6300; die Referenz
+/// erwartet A38197423. Swissdec weist so etwas zurück — OneCrew soll es vorher sagen.
+/// </summary>
+public class ElmBurPruefzifferTests
+{
+    [Theory]
+    [InlineData("A92978109")]   // Hauptsitz Luzern
+    [InlineData("A89058593")]   // Werkhof/Büro Bern
+    [InlineData("A89058588")]   // Verkauf Vevey
+    [InlineData("A38197423")]   // Zug, wie die Referenz sie erwartet
+    [InlineData("A63837147")]   // Schaub-Beispiel aus dem Protokoll
+    public void EchteNummernGehenDurch(string bur)
+        => Assert.True(ElmStammdatenPruefung.BurNummerGueltig(bur));
+
+    [Theory]
+    [InlineData("A38197421")]   // Zug aus den Testdaten — Prüfziffer falsch
+    [InlineData("A92978100")]
+    public void FalschePruefzifferFaelltDurch(string bur)
+    {
+        Assert.False(ElmStammdatenPruefung.BurNummerGueltig(bur));
+        Assert.True(ElmStammdatenPruefung.BurFormatOkPruefzifferFalsch(bur));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    [InlineData("92978109")]     // ohne Buchstabe
+    [InlineData("A9297810")]     // zu kurz
+    [InlineData("AA2978109")]
+    public void FalschesFormatFaelltDurch(string? bur)
+    {
+        Assert.False(ElmStammdatenPruefung.BurNummerGueltig(bur));
+        Assert.False(ElmStammdatenPruefung.BurFormatOkPruefzifferFalsch(bur));
+    }
+}

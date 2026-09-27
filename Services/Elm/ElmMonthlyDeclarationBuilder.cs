@@ -357,9 +357,24 @@ public class ElmMonthlyDeclarationBuilder
                        + "als Standard der Rechtseinheit (MA → Arbeitszeitmodell).");
         }
 
-        var kontakt = await _db.AppUsers.AsNoTracking()
-            .Where(u => u.IsActive && u.Role == "admin")
-            .OrderBy(u => u.Id).FirstOrDefaultAsync(ct);
+        // Kontaktperson der Rechtseinheit (Walter 27.09.2026): wer eine Rückfrage zur
+        // Meldung bekommt. Bewusst am Hauptsitz gepflegt, nicht der angemeldete
+        // Benutzer — die Meldung gehört der Firma, nicht dem, der sie erzeugt hat.
+        var kontaktName = (stamm.Hauptsitz?.KontaktName ?? "").Trim();
+        var kontaktMail = (stamm.Hauptsitz?.KontaktEmail ?? "").Trim();
+        var kontaktTel  = (stamm.Hauptsitz?.KontaktTelefon ?? "").Trim();
+        if (kontaktName.Length == 0)
+        {
+            var admin = await _db.AppUsers.AsNoTracking()
+                .Where(u => u.IsActive && u.Role == "admin")
+                .OrderBy(u => u.Id).FirstOrDefaultAsync(ct);
+            kontaktName = $"{admin?.FirstName} {admin?.LastName}".Trim();
+            if (kontaktMail.Length == 0) kontaktMail = (admin?.Email ?? "").Trim();
+            if (kontaktTel.Length == 0) kontaktTel = (stamm.Haupt.Phone ?? "").Trim();
+            warn.Add("Keine Kontaktperson am Hauptsitz erfasst — gemeldet wird der erste Admin-Benutzer. "
+                   + "Erfassung: System → Hauptsitze → Kontaktperson für Lohnmeldungen.");
+        }
+        if (kontaktName.Length == 0) kontaktName = stamm.Firmenname;
 
         var jetzt = DateTime.Now;
         var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null),
@@ -384,9 +399,9 @@ public class ElmMonthlyDeclarationBuilder
                         qstZeilen > 0 ? new XElement(Sd + "NumberOf-TaxAtSourceSalary-Tags", qstZeilen) : null,
                         statZeilen > 0 ? new XElement(Sd + "NumberOf-StatisticSalary-Tags", statZeilen) : null),
                     new XElement(Sd + "ContactPerson",
-                        new XElement(Sd + "Name", ((kontakt?.FirstName + " " + kontakt?.LastName) ?? "").Trim() is { Length: > 0 } n ? n : stamm.Firmenname),
-                        string.IsNullOrWhiteSpace(kontakt?.Email) ? null : new XElement(Sd + "EmailAddress", kontakt!.Email!.Trim()),
-                        string.IsNullOrWhiteSpace(stamm.Haupt.Phone) ? null : new XElement(Sd + "PhoneNumber", stamm.Haupt.Phone!.Trim())))));
+                        new XElement(Sd + "Name", kontaktName),
+                        kontaktMail.Length == 0 ? null : new XElement(Sd + "EmailAddress", kontaktMail),
+                        kontaktTel.Length == 0 ? null : new XElement(Sd + "PhoneNumber", kontaktTel)))));
 
         var xml = doc.Declaration + Environment.NewLine + doc.ToString();
         var xsdFehler = _validator.Validate(xml);

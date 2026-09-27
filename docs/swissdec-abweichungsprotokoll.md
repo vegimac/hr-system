@@ -205,3 +205,15 @@ Ankreiden erwartet zusätzlich: A6 (Lehmann QST/Wohnort ab 1.5. vs CSV-Adresse 1
 | **Status** | GEBAUT — Januar nach Deploy neu bestätigen (alte Slips ohne `qstCode` fallen auf Waehle zurück). |
 
 Ferien-Saldo +2.92 Tage auf denselben Belegen = A2/A3 (Egli), nicht O1.
+
+---
+
+## Swissdec-Fallen in den Testdaten (Walter 27.09.2026)
+
+| Fall | Was in den Testdaten steht | Was die RefXML erwartet | Umgang |
+|---|---|---|---|
+| **Filiale ZG** | PLZ **6003** (das ist Luzern) und BUR **A38197421** (Prüfziffer falsch) | PLZ **6300**, BUR **A38197423** | OneCrew prüft beides jetzt selbst: eine BUR-Nummer mit falscher Prüfziffer wird **nicht gemeldet** und gemeldet, eine PLZ, die nicht zum Ort gehört, ebenso (`ElmStammdatenPruefung`, `Tests/ElmMonthlyRefXmlTests.cs`). Walter korrigiert die Filiale in den Stammdaten. |
+
+Die BUR-Prüfziffer folgt dem Modulo-11-Verfahren des BFS (Gewichte 5, 4, 3, 2, 7, 6, 5;
+Rest 1 = keine gültige Nummer). Gegengeprüft an allen sechs Nummern der Muster AG und an
+der Schaub-Nummer aus E3 — alle gehen durch, nur die ZG-Nummer aus den Testdaten fällt durch.

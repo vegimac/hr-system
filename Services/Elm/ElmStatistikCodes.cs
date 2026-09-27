@@ -56,6 +56,31 @@ public static class ElmStatistikCodes
 
     public static bool StellungErfasst(int? bfsCode) => bfsCode is >= 1 and <= 5;
 
+    /// <summary>Rückrichtung für den Testmandanten: Swissdec-Wert → BFS-Ausbildungscode.</summary>
+    public static int? BfsAusbildung(string? swissdec) => (swissdec ?? "").Trim() switch
+    {
+        "universityMaster" or "doctorate" => 1,
+        "higherEducationBachelor" or "higherEducationMaster" or "universityBachelor" => 2,
+        "higherVocEducation" => 3,
+        "teacherCertificate" => 4,
+        "universityEntranceCertificate" => 5,
+        "vocEducationCompl" => 6,
+        "enterpriseEducation" => 7,
+        "mandatorySchoolOnly" => 8,
+        _ => null,
+    };
+
+    /// <summary>Rückrichtung für den Testmandanten: Swissdec-Wert → BFS-Stellungscode.</summary>
+    public static int? BfsStellung(string? swissdec) => (swissdec ?? "").Trim() switch
+    {
+        "highestCadre" => 1,
+        "middleCadre" => 2,
+        "lowerCadre" => 3,
+        "lowestCadre" => 4,
+        "noCadre" => 5,
+        _ => null,
+    };
+
     /// <summary>Topf der Lohnstatistik, in den eine Lohnart fällt.</summary>
     public enum Topf
     {
