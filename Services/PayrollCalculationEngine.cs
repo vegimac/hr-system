@@ -136,13 +136,6 @@ public class PayrollCalculationEngine
         // (Walter 26.09.2026, TF12 Casanova): AHV ≠ UVG, sobald eine Lohnart die
         // Pflichten unterschiedlich trägt (EO-Taggeld). Snapshots aus der Zeit vor
         // Schema-Stand 33 tragen 0 → dann weiter die AHV-Basis wie bisher.
-        decimal YtdBasisFuer(string? categoryCode, decimal ahv, decimal nbuv, decimal ktg)
-            => (categoryCode ?? "").ToUpperInvariant() switch
-            {
-                "NBUV" or "UVGZ" => nbuv != 0m ? nbuv : ahv,
-                "KTG"            => ktg  != 0m ? ktg  : ahv,
-                _                => ahv,   // AHV, ALV, ALVZ, BVG … bleiben auf der AHV-Basis
-            };
         var ytdMonate = ytdSnapshots.Select(x => x.Month).ToHashSet();
         // AHV-Freibetrag kumuliert (Walter 21.09.2026, AHVV Art. 6quater, Swissdec TF16 Aebi Feb 2025):
         // Vormonate desselben Jahres, in denen der Freibetrag schon galt (ab Folgemonat des
@@ -5127,6 +5120,19 @@ public class PayrollCalculationEngine
         => QstJahresmodell.TryParseCode(code, out var tarif, out var kinder, out var kirche)
            && _tarifService.GetSteuersatzProzent(kanton, tarif, kinder, kirche, satzLohn, jahr) != null;
 
+    /// <summary>
+    /// Die ungedeckelte Jahresbasis, auf der ein gedeckelter Abzug aufrollt — je
+    /// Versicherungsart die eigene (Walter 26.09.2026). Fehlt sie im Snapshot (Altbestand,
+    /// Spalten erst ab Schema-Stand 33), gilt die AHV-Basis wie bisher.
+    /// </summary>
+    private static decimal YtdBasisFuer(string? categoryCode, decimal ahv, decimal nbuv, decimal ktg)
+        => (categoryCode ?? "").ToUpperInvariant() switch
+        {
+            "NBUV" or "UVGZ" => nbuv != 0m ? nbuv : ahv,
+            "KTG"            => ktg  != 0m ? ktg  : ahv,
+            _                => ahv,   // AHV, ALV, ALVZ, BVG … bleiben auf der AHV-Basis
+        };
+
     private decimal SatzPctFuerJahrescode(string kanton, string code, decimal satzLohn, int jahr)
     {
         if (!QstJahresmodell.TryParseCode(code, out var tarif, out var kinder, out var kirche))
@@ -5317,6 +5323,7 @@ public class PayrollCalculationEngine
             // Nachzahlung nach Austritt: Freibetrag-Monate des Austrittsjahres, die Nachzahlung selbst
             // bringt KEINEN zusätzlichen Monat (ahvFreibetragKeinNeuerMonat).
             decimal? ahvFbYtd = null; int ahvFbMonateBisher = 0; string? ahvFbText = null;
+            Func<string?, List<decimal>>? ytdBasenJeArt = null;
             if (nachzahlungNachAustritt)
             {
                 // Beschäftigungsmonate im Austrittsjahr (Teilmonate anteilig) — die Nachzahlung
@@ -5325,7 +5332,7 @@ public class PayrollCalculationEngine
                     from s in _db.PayrollSnapshots
                     join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
                     where s.EmployeeId == employeeId && p.Year == svYear && p.Month <= svMonth && s.Status != "STORNIERT"
-                    select new { p.Month, s.SvBasisAhv }).ToListAsync();
+                    select new { p.Month, s.SvBasisAhv, s.SvBasisNbuv, s.SvBasisKtg }).ToListAsync();
                 // Frühere Nachzahlungen nach dem Austritt (z.B. Burri Jan 2025)
                 // gehören zur selben Austritts-AHV, sonst fehlt die 15'000 in der
                 // Februar-Korrektur und ALV/NBU können die Überzahlung nicht zurückgeben.
@@ -5335,8 +5342,18 @@ public class PayrollCalculationEngine
                     where s.EmployeeId == employeeId && s.Status != "STORNIERT"
                        && (p.Year > svYear || (p.Year == svYear && p.Month > svMonth))
                        && (p.Year < year || (p.Year == year && p.Month < month))
-                    select s.SvBasisAhv).ToListAsync();
-                ytdAustrittsjahr = snapsAustritt.Select(x => x.SvBasisAhv).Concat(snapsNachzahlung).ToList();
+                    select new { s.SvBasisAhv, s.SvBasisNbuv, s.SvBasisKtg }).ToListAsync();
+                ytdAustrittsjahr = snapsAustritt.Select(x => x.SvBasisAhv)
+                    .Concat(snapsNachzahlung.Select(x => x.SvBasisAhv)).ToList();
+                // Je Versicherungsart die EIGENE ungedeckelte Jahresbasis (Walter 27.09.2026,
+                // TF01 Herz Oktober): die Nachzahlung nach Austritt rollte UVG/UVGZ auf der
+                // AHV-Basis auf. Herz: AHV 35'359.30, UVG 32'859.30 — mit der AHV-Basis blieben
+                // 1'690.70 statt 4'190.70 bis zum Jahresdeckel 3 x 12'350. Derselbe Fehler war
+                // im regulaeren Monatslauf schon behoben; der Korrekturlohn fehlte noch.
+                ytdBasenJeArt = (string? cat) => snapsAustritt
+                    .Select(x => YtdBasisFuer(cat, x.SvBasisAhv, x.SvBasisNbuv, x.SvBasisKtg))
+                    .Concat(snapsNachzahlung.Select(x => YtdBasisFuer(cat, x.SvBasisAhv, x.SvBasisNbuv, x.SvBasisKtg)))
+                    .ToList();
                 ausgleichMonate = Math.Max(1m / 30m, PayrollCalculations.BeschaeftigungsMonate(employee.Employments, svYear, 1, svMonth, snapsAustritt.Select(x => x.Month).ToHashSet()));
                 ausgleichMonateBisher = ausgleichMonate;
                 ausgleichLabel = $" (Nachzahlung, Austrittsjahr {svYear})";
@@ -5347,7 +5364,7 @@ public class PayrollCalculationEngine
                         .ToList();
                     if (fbMonate.Count > 0)
                     {
-                        ahvFbYtd = fbMonate.Sum(x => x.SvBasisAhv) + snapsNachzahlung.Sum();
+                        ahvFbYtd = fbMonate.Sum(x => x.SvBasisAhv) + snapsNachzahlung.Sum(x => x.SvBasisAhv);
                         ahvFbMonateBisher = fbMonate.Select(x => x.Month).Distinct().Count();
                         ahvFbText = PayrollCalculations.MonateAlsText(fbMonate.Select(x => x.Month).Distinct().OrderBy(m => m).ToList());
                     }
@@ -5424,6 +5441,16 @@ public class PayrollCalculationEngine
             // (Swissdec TF07 Jan 2025: kein BVG auf der Überzeit-Nachzahlung).
             if (nachzahlungNachAustritt)
                 deductions = deductions.Where(r => !string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            // Gedeckelte Abzuege rollen je Versicherungsart auf IHRER eigenen Jahresbasis auf
+            // (Walter 27.09.2026, TF01 Herz Oktober). Ohne eigene Liste bleibt YtdBasenEigen
+            // null und BuildResult nimmt die AHV-Basis wie bisher.
+            if (ytdBasenJeArt != null)
+                foreach (var r in deductions)
+                {
+                    var eigen = ytdBasenJeArt(r.CategoryCode);
+                    if (!eigen.SequenceEqual(ytdAustrittsjahr)) r.YtdBasenEigen = eigen;
+                }
 
             var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst);
 
