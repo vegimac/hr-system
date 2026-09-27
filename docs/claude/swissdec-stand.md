@@ -298,3 +298,19 @@ stillschweigend weglassen wäre der schlimmere Fehler.
    Fehlende Werte melden den vorsichtigsten Wert **und sagen es** im Cockpit.
 
 Keine Werte aus der Referenz abgeschrieben oder hart codiert.
+
+
+## ELM-Monatsmeldung November 2024 — deckungsgleich (27.09.2026)
+
+Die erste vollständige Monatsmeldung stimmt Feld für Feld mit
+`RefXML_202411_MONTHLY.xml` überein — **einzige Abweichung ist F1** (Egli A0Y 36.05 statt A0N 34.00,
+und die daraus folgende LU-Summe). Bericht: `SWISSCEC/Abgleich/elm_2024-11_monthly.md`.
+
+Auf dem Weg dorthin geklärt und gebaut: Wochenstunden der Person statt Vollzeit × Pensum ·
+`SingleParentFamily` mit allen vier Schema-Werten (neues Feld `sorgerecht_code`) ·
+`LeaveEntitlement` beim Stundenlohn zwingend 0 (Richtlinien S. 366) · Kontaktperson aus den
+Firmendaten · kein `<TestCase/>` mehr · Reihenfolge `ResidenceCategory` nach der Adresse ·
+Sozialabgaben je Beitrag auf 5 Rappen, dann summiert (A5 richtiggestellt).
+
+**Nächste Schritte:** RETROSPECTIVE (Jahresmeldung des laufenden Jahres) und EMA (NotifyChanges)
+für November 2024, dann Monat für Monat weiter bis 2026-02.
