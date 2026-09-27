@@ -1422,10 +1422,18 @@ function showLohnVertragInfo(emp) {
 
     // Walter-Vorgabe 19.05.2026: Alter zum Periodenbeginn anzeigen — relevant
     // für die Ferienanspruchs-Stufe (5 vs. 6 Wochen) und Mindestlohn-Alters-
-    // schwellen (z.B. unter 18 = Lehrlings-Satz). Wir nehmen die aktuell im
-    // Lohn-Tab gewählte Periode; wenn keine vorhanden, fallback heute.
-    const periodYear  = parseInt(document.getElementById('lohnYearSelect')?.value) || new Date().getFullYear();
-    const periodMonth = parseInt(document.getElementById('lohnMonthSelect')?.value) || (new Date().getMonth() + 1);
+    // schwellen (z.B. unter 18 = Lehrlings-Satz).
+    //
+    // Massgebend ist die TATSÄCHLICH ANGEZEIGTE Periode (_lohnViewYear/_lohnViewMonth),
+    // nicht der Stand der Auswahlfelder der Lohn-Seite (Walter 27.09.2026): dieselbe
+    // Funktion zeichnet den Kopf auch im Lohnlauf-Fenster, wo es die Felder gar nicht
+    // gibt — dort blieb der zuletzt auf der Lohn-Seite eingestellte Monat stehen
+    // (Januar-Beleg mit «Alter 39 J. (am 1.8.2025)»). Reihenfolge: geladene Periode,
+    // sonst die Auswahlfelder, sonst heute.
+    const viewY = (typeof _lohnViewYear  !== 'undefined' && _lohnViewYear)  ? Number(_lohnViewYear)  : 0;
+    const viewM = (typeof _lohnViewMonth !== 'undefined' && _lohnViewMonth) ? Number(_lohnViewMonth) : 0;
+    const periodYear  = viewY || parseInt(document.getElementById('lohnYearSelect')?.value) || new Date().getFullYear();
+    const periodMonth = viewM || parseInt(document.getElementById('lohnMonthSelect')?.value) || (new Date().getMonth() + 1);
     const periodStart = new Date(periodYear, periodMonth - 1, 1);
     let alterStr = '–';
     let gebStr = '–';
