@@ -289,6 +289,10 @@ public static class ElmGemeinsam
     /// </summary>
     public static XElement WorkingTime(Employment? em, decimal betriebsWochenstunden)
     {
+        // Honorar ohne Zeitbindung hat keine feste Arbeitszeit (Walter 27.09.2026).
+        var art = (em?.SwissdecVertragsart ?? "").Trim();
+        if (art.Contains("NoTimeConstraint", StringComparison.OrdinalIgnoreCase))
+            return new XElement(C + "Unsteady");
         var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
         if ((model == "FIX" || model == "FIX-M") && em != null)
         {

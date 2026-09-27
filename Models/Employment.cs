@@ -27,6 +27,28 @@ public class Employment
     public DateTime? ContractEndDate { get; set; }
 
     /// <summary>
+    /// Vertragsart nach Swissdec für die Lohnstatistik (Walter 27.09.2026):
+    /// <c>indefiniteSalaryMth</c>, <c>fixedSalaryMth</c>, <c>apprentice</c>,
+    /// <c>internshipContract</c>, <c>indefiniteSalaryHrs</c>, <c>fixedSalaryHrs</c>,
+    /// <c>indefiniteSalaryNoTimeConstraint</c> …
+    /// <para>
+    /// NULL = aus dem Modell ableiten (FIX/MTP → Monatslohn, FLEX → Stundenlohn;
+    /// mit Enddatum befristet). Das Feld ist nötig, weil OneCrew sonst weder einen
+    /// Honorarvertrag noch einen Lehrvertrag von einem gewöhnlichen unterscheiden
+    /// kann — und ein Enddatum allein heisst nicht «befristet» (die Vertragskette
+    /// setzt es auch bei Modell- und Filialwechseln).
+    /// </para>
+    /// </summary>
+    public string? SwissdecVertragsart { get; set; }
+
+    /// <summary>
+    /// Vertraglicher Jahreslohn bei Verträgen ohne Zeitbindung (Honorar,
+    /// <c>NoTimeConstraint</c>) — die Statistik verlangt dort einen Jahresbetrag
+    /// statt eines Monatslohns.
+    /// </summary>
+    public decimal? JahreslohnOhneZeitbindung { get; set; }
+
+    /// <summary>
     /// Stellenbezeichnung (Free-Text) — wird 1:1 auf den Vertrag gedruckt,
     /// z.B. „Shift Coordinator", „Rest. Manager Stellvertreter". Hat NICHTS
     /// mit der Funktionsgruppen-/Mindestlohn-Klassifikation zu tun (das ist

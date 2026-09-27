@@ -105,13 +105,16 @@ public class ElmXmlVergleichTests
 /// <summary>Konfessions-Zuordnung der Quellensteuer-Zeile.</summary>
 public class ElmKonfessionTests
 {
+    // Werte laut Schema (DenominationType): romanCatholic, christianCatholic,
+    // reformedEvangelical, jewishCommunity, otherOrNone.
     [Theory]
     [InlineData("roemisch_katholisch", "romanCatholic")]
     [InlineData("römisch-katholisch", "romanCatholic")]
-    [InlineData("reformiert", "protestant")]
-    [InlineData("evangelisch-reformiert", "protestant")]
-    [InlineData("christkatholisch", "christCatholic")]
-    [InlineData("konfessionslos", "other")]
+    [InlineData("reformiert", "reformedEvangelical")]
+    [InlineData("evangelisch-reformiert", "reformedEvangelical")]
+    [InlineData("christkatholisch", "christianCatholic")]
+    [InlineData("juedisch", "jewishCommunity")]
+    [InlineData("konfessionslos", "otherOrNone")]
     public void BekannteKonfessionen(string quelle, string erwartet)
         => Assert.Equal(erwartet, ElmMonthlyDeclarationBuilder.MapKonfession(quelle));
 

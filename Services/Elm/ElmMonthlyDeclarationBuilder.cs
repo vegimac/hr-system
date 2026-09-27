@@ -138,6 +138,9 @@ public class ElmMonthlyDeclarationBuilder
         var qstVersionen = await _db.EmployeeQuellensteuer.AsNoTracking()
             .Where(q => empIds.Contains(q.EmployeeId))
             .ToListAsync(ct);
+        var familie = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => empIds.Contains(f.EmployeeId))
+            .ToListAsync(ct);
 
         // Wohngemeinde der Personen: die Statistik verlangt die BFS-Nummer in der
         // Adresse. OneCrew führt sie am MA nicht — sie wird über die PLZ aus dem
@@ -212,7 +215,9 @@ public class ElmMonthlyDeclarationBuilder
                                                        monatStr, monatsAnfang, monatsEnde, eintrittMonat, warn));
                 statZeilen++;
 
-                var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen, stamm, monatStr, monatsAnfang, warn);
+                var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen,
+                                       familie.Where(k => k.EmployeeId == e.Id && k.MemberType == "Kind").ToList(),
+                                       stamm, monatStr, monatsAnfang, warn);
                 if (qst != null)
                 {
                     qstZeilenPerson.Add(qst.Value.Zeile);
@@ -486,12 +491,25 @@ public class ElmMonthlyDeclarationBuilder
     {
         var dreizehnter = Amt(em?.ThirteenthSalary == true ? filiale.DefaultThirteenthSalaryPercent ?? 8.33m : 0m);
         var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
-        var befristet = em?.ContractEndDate != null;
+        var art = (em?.SwissdecVertragsart ?? "").Trim();
 
-        if (model is "FIX" or "FIX-M" or "MTP")
+        // Verträge ohne Zeitbindung (Honorar) melden einen Jahreslohn.
+        if (art == "indefiniteSalaryNoTimeConstraint" || art == "fixedSalaryNoTimeConstraint")
+            return new XElement(Sd + "KindOfWagePayment",
+                new XElement(Sd + "NoTimeConstraint",
+                    new XElement(Sd + "Contract", art),
+                    new XElement(Sd + "ContractualAnnualWage", Amt(em?.JahreslohnOhneZeitbindung ?? 0m))));
+
+        var monatsvertrag = model is "FIX" or "FIX-M" or "MTP";
+        if (art.Length > 0) monatsvertrag = art.EndsWith("Mth") || art is "apprentice" or "internshipContract";
+
+        if (monatsvertrag)
             return new XElement(Sd + "KindOfWagePayment",
                 new XElement(Sd + "Monthly",
-                    new XElement(Sd + "Contract", befristet ? "fixedSalaryMth" : "indefiniteSalaryMth"),
+                    // Ohne erfasste Vertragsart gilt «unbefristet»: ein Enddatum allein
+                    // heisst nicht befristet — die Vertragskette setzt es auch bei
+                    // Modell- und Filialwechseln (Walter 27.09.2026).
+                    new XElement(Sd + "Contract", art.Length > 0 ? art : "indefiniteSalaryMth"),
                     new XElement(Sd + "ContractualMonthlyWage", Amt(em?.MonthlySalary ?? 0m)),
                     new XElement(Sd + "Contractual13th", dreizehnter)));
 
@@ -500,11 +518,10 @@ public class ElmMonthlyDeclarationBuilder
             : filiale.DefaultVacationPercent5Weeks ?? 10.65m);
         var stundenansatz = em?.HourlyRate ?? 0m;
         var lektionenansatz = em?.LessonRate ?? stundenansatz;
-        var stunden = Num(slip, "workedHours");
 
         return new XElement(Sd + "KindOfWagePayment",
             new XElement(Sd + "Hourly",
-                new XElement(Sd + "Contract", befristet ? "fixedSalaryHrs" : "indefiniteSalaryHrs"),
+                new XElement(Sd + "Contract", art.Length > 0 ? art : "indefiniteSalaryHrs"),
                 new XElement(Sd + "ContractualHourlyWage",
                     new XElement(Sd + "Salary",
                         new XElement(Sd + "PaidByHour", Amt(stundenansatz)),
@@ -513,7 +530,7 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "PublicHolidayCompensation", Amt(filiale.DefaultHolidayPercent ?? 4m)),
                     new XElement(Sd + "Contractual13th", dreizehnter)),
                 new XElement(Sd + "TotallyWorked",
-                    new XElement(Sd + "TotalHoursOfWork", Amt(stunden)))));
+                    new XElement(Sd + "TotalHoursOfWork", Amt(Num(slip, "workedHours"))))));
     }
 
     /// <summary>
@@ -558,8 +575,8 @@ public class ElmMonthlyDeclarationBuilder
     /// </summary>
     private (XElement Zeile, string Kanton, decimal Basis, decimal Steuer)? BaueQstZeile(
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
-        List<EmployeeQuellensteuer> versionen, RechtseinheitStamm stamm,
-        string monatStr, DateTime monatsAnfang, List<string> warn)
+        List<EmployeeQuellensteuer> versionen, List<EmployeeFamilyMember> kinder,
+        RechtseinheitStamm stamm, string monatStr, DateTime monatsAnfang, List<string> warn)
     {
         if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
         JsonElement? qstZeile = null;
@@ -609,11 +626,35 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "ValidAsOf", xd.ToString("yyyy-MM-dd")),
                     new XElement(Sd + "Reason", "withdrawalCompany")));
 
+        // Konfession, Alleinerziehende und Kinder mit Anspruchsdauer (Walter 27.09.2026).
+        // Reihenfolge laut XSD: Denomination, SingleParentFamily, MarriagePartner, Children.
         var konfession = MapKonfession(e.Religion);
+        XElement? alleinerziehend = null;
+        if (string.Equals(version?.Halbfamilie, "ja", StringComparison.OrdinalIgnoreCase))
+            alleinerziehend = new XElement(Sd + "SingleParentFamily",
+                version!.LivesInKonkubinat
+                    ? new XElement(Sd + "Concubinage", new XElement(Sd + "SoleCustody"))
+                    : new XElement(Sd + "NoConcubinage"));
+        var kinderEl = kinder
+            .Where(k => k.QstDeductibleFrom != null)
+            .OrderBy(k => k.DateOfBirth)
+            .Select(k => new XElement(Sd + "Children",
+                new XElement(Sd + "Lastname", (k.LastName ?? e.LastName ?? "").Trim()),
+                new XElement(Sd + "Firstname", (k.FirstName ?? "").Trim()),
+                new XElement(Sd + "DateOfBirth", (k.DateOfBirth ?? k.QstDeductibleFrom!.Value).ToString("yyyy-MM-dd")),
+                new XElement(Sd + "Start", k.QstDeductibleFrom!.Value.ToString("yyyy-MM-dd")),
+                k.QstDeductibleUntil == null ? null : new XElement(Sd + "End", k.QstDeductibleUntil.Value.ToString("yyyy-MM-dd"))))
+            .ToList();
+        XElement? zusatz = null;
+        if (konfession != null || alleinerziehend != null || kinderEl.Count > 0)
+            zusatz = new XElement(Sd + "AdditionalParticulars",
+                konfession == null ? null : new XElement(Sd + "Denomination", konfession),
+                alleinerziehend,
+                kinderEl);
+
         var x = new XElement(Sd + "TaxAtSourceSalary",
             new XAttribute("addresseeIDRef", $"#QST-{kanton}"),
-            konfession == null ? null : new XElement(Sd + "AdditionalParticulars",
-                new XElement(Sd + "Denomination", konfession)),
+            zusatz,
             new XElement(Sd + "TaxAtSourceCanton", kanton),
             version?.QstGemeindeBfsNr is > 0 ? new XElement(Sd + "TaxAtSourceMunicipalityID", version!.QstGemeindeBfsNr!.Value) : null,
             new XElement(Sd + "CurrentMonth", monatStr),
@@ -630,14 +671,20 @@ public class ElmMonthlyDeclarationBuilder
     }
 
     /// <summary>Konfession → Swissdec-Denomination. Unbekannt = kein Element.</summary>
+    /// <summary>
+    /// Konfession → Swissdec <c>DenominationType</c>. Die erlaubten Werte stehen im
+    /// Schema: romanCatholic, christianCatholic, reformedEvangelical, jewishCommunity,
+    /// otherOrNone. Unbekannt = kein Element (lieber keine Angabe als eine falsche).
+    /// </summary>
     public static string? MapKonfession(string? religion)
     {
         var r = (religion ?? "").ToLowerInvariant();
         if (r.Length == 0) return null;
-        if (r.Contains("roem") || r.Contains("röm") || r.Contains("katholisch") && !r.Contains("christ")) return "romanCatholic";
-        if (r.Contains("christkath") || r.Contains("altkath")) return "christCatholic";
-        if (r.Contains("reformiert") || r.Contains("evang") || r.Contains("protest")) return "protestant";
-        if (r.Contains("keine") || r.Contains("konfessionslos") || r.Contains("ohne")) return "other";
+        if (r.Contains("christkath") || r.Contains("altkath")) return "christianCatholic";
+        if (r.Contains("roem") || r.Contains("röm") || r.Contains("katholisch")) return "romanCatholic";
+        if (r.Contains("reformiert") || r.Contains("evang") || r.Contains("protest")) return "reformedEvangelical";
+        if (r.Contains("jued") || r.Contains("jüd") || r.Contains("israel")) return "jewishCommunity";
+        if (r.Contains("keine") || r.Contains("konfessionslos") || r.Contains("ohne") || r.Contains("andere")) return "otherOrNone";
         return null;
     }
 }
