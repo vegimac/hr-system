@@ -5675,7 +5675,8 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                         verknuepfen: `openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})`,
                         loesen: `docLoesenPatch('${famUrl}','Ausweis Kind',()=>loadFamilieTab(${employeeId}))` });
                 spouseDocBtn += docIconBtn({ docId: m.geburtsurkundeDokumentId, was: 'Geburtsurkunde', stop: true,
-                    verknuepfen: `openAusweisDokuModal(${employeeId},'fam_geburtsurkunde',{familyMemberId:${m.id}})` });
+                    verknuepfen: `openAusweisDokuModal(${employeeId},'fam_geburtsurkunde',{familyMemberId:${m.id}})`,
+                    loesen: `docLoesenPatch('${famUrl}','Geburtsurkunde',()=>loadFamilieTab(${employeeId}),{art:'geburtsurkunde'})` });
             }
             if (type === 'Konkubinatspartner') {
                 spousePermitBadge += `<span class="fam-tile-badge" style="background:#fce7f3;color:#9d174d" title="Konkubinat — befreit NICHT von der QST (auch mit CH/C); H1/A0 läuft über das gemeinsame Kind">💞 Konkubinat</span>`;
@@ -6264,11 +6265,14 @@ async function docIconOeffnen(docId, key) {
                 onclick="filePreviewClose(); ${reg.loesen}">Verknüpfung lösen</button>` : ''));
 }
 // Verknüpfung per PATCH {dokumentId:null} lösen, danach neu laden.
-async function docLoesenPatch(url, was, nachher) {
+// extra = weitere Body-Felder. Die Geburtsurkunde am Kind liegt in einem eigenen
+// Feld und braucht art='geburtsurkunde' — ohne das löste der Aufruf den Ausweis
+// statt der Geburtsurkunde (Walter 28.09.2026).
+async function docLoesenPatch(url, was, nachher, extra) {
     if (!(await liquidConfirm(`${was} lösen?\n\nNur die Verknüpfung wird entfernt — das Dokument selbst bleibt in den Dokumenten.`,
             { title: 'Verknüpfung lösen', yesLabel: 'Lösen', noLabel: 'Abbrechen' }))) return;
     try {
-        const r = await fetch(url, { method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify({ dokumentId: null }) });
+        const r = await fetch(url, { method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify({ dokumentId: null, ...(extra || {}) }) });
         if (!r.ok) { const j = await r.json().catch(() => null); alert(j?.message || `Lösen fehlgeschlagen (${r.status})`); return; }
         if (typeof nachher === 'function') nachher();
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
