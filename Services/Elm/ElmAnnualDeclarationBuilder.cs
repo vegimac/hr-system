@@ -193,12 +193,13 @@ public class ElmAnnualDeclarationBuilder
                         new XElement(Sd + "AccountingTime",
                             new XElement(Ep + "from", from.ToString("yyyy-MM-dd")),
                             new XElement(Ep + "until", until.ToString("yyyy-MM-dd"))),
-                        new XElement(Sd + "AHV-AVS-BaseSalary", Amt(x.Ahv)),
-                        new XElement(Sd + "AHV-AVS-Income", Amt(x.Ahv)),
-                        new XElement(Sd + "ALV-AC-Income", Amt(x.Alv))))));
+                        new XElement(Sd + "AHV-AVS-BaseSalary", Betrag05(x.Ahv)),
+                        new XElement(Sd + "AHV-AVS-Income", Betrag05(x.Ahv)),
+                        new XElement(Sd + "ALV-AC-Income", Betrag05(x.Alv))))));
 
-            totalAhv += x.Ahv;
-            totalAlv += x.Alv;
+            // Totale = Summe der gemeldeten (gerundeten) Einzelwerte, sonst passen sie nicht zusammen.
+            totalAhv += PayrollCalculations.Round05(x.Ahv);
+            totalAlv += PayrollCalculations.Round05(x.Alv);
         }
 
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─

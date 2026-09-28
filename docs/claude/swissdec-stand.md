@@ -321,7 +321,8 @@ für November 2024, dann Monat für Monat weiter bis 2026-02.
   an denen im Monat jemand Lohn hat (`NurArbeitsorteMitLohn`, Walter: «nur senden was ein Lohn
   hat»). Jahresmeldung unverändert alle Filialen (FAK je Arbeitsort, Richtlinien S. 116).
 - **F1 Egli** A0Y 36.05 vs A0N 34.00 + SalaryTotals LU — bewusst, wie erwartet.
-- **OFFEN — TF16 Aebi BVG:** Referenz neu `BVG-LPP-RegularContribution` **−758.35**, wir −758.33
-  (= CSV 5050 = alte Referenz). Widerspricht der Vorgabe «BVG NICHT auf 5 Rp. runden» (Walter
-  21.09.2026) → nicht geändert, Walter-Entscheid, sobald die neue Referenz zeigt, ob Swissdec
-  BVG jetzt generell auf 5 Rp. rundet (z.B. Jan 2025 −408.33 / −751.09) oder nur bei Aebi.
+- **TF16 Aebi BVG:** Referenz neu **−758.35**, wir −758.33 (= CSV 5050). **Walter 28.09.2026
+  (Swissdec-Berater): in der Meldung KEINE ungerundeten Beträge** → BVG pro Abzugszeile auf 5 Rp.
+  (ersetzt «BVG nicht runden» vom 21.09.); Lohnbeleg bleibt beim Kassen-Fixbetrag. Gleich in der
+  Jahresmeldung: AHV-/ALV-Löhne je Person auf 5 Rp., Totale = Summe der gerundeten Werte.
+  Prozentsätze (13. ML 8.33, Ferien 13.04) bleiben, wie in der Referenz.

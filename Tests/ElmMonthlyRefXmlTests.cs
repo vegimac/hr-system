@@ -153,6 +153,21 @@ public class ElmMonatsArbeitsorteTests
     }
 }
 
+/// <summary>
+/// Keine ungerundeten Beträge in der Meldung (Walter 28.09.2026, Swissdec-Berater) —
+/// auch BVG geht auf 5 Rappen; Quality Tool TF16 Aebi Nov 2024 erwartet −758.35.
+/// </summary>
+public class ElmBvgRundungTests
+{
+    [Theory]
+    [InlineData(-758.33, "-758.35")]   // TF16 Aebi, CSV 5050 = 758.33
+    [InlineData(-408.33, "-408.35")]
+    [InlineData(-751.09, "-751.10")]
+    [InlineData(-640.00, "-640.00")]
+    public void BvgAufFuenfRappen(decimal beleg, string gemeldet)
+        => Assert.Equal(gemeldet, ElmGemeinsam.Betrag05(beleg));
+}
+
 /// <summary>Konfessions-Zuordnung der Quellensteuer-Zeile.</summary>
 public class ElmKonfessionTests
 {

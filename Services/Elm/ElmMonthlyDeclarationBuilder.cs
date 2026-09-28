@@ -479,7 +479,7 @@ public class ElmMonthlyDeclarationBuilder
                 var cat = (Str(z, "categoryCode") ?? "").Trim().ToUpperInvariant();
                 var betrag = Num(z, "betrag");   // negativ
                 if (cat is "AHV" or "ALV" or "ALVZ" or "NBUV") sozial += PayrollCalculations.Round05(betrag);
-                else if (cat == "BVG") bvg += betrag;
+                else if (cat == "BVG") bvg += PayrollCalculations.Round05(betrag);
             }
 
         var stat1 = new XElement(Sd + "StatisticSalary",
@@ -495,7 +495,9 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "FamilyIncomeSupplement", Betrag05(Wert(ElmStatistikCodes.Topf.Familienzulagen))),
                 new XElement(Sd + "PaymentsByThird", Betrag05(Wert(ElmStatistikCodes.Topf.Drittleistungen))),
                 new XElement(Sd + "SocialContributions", Amt(sozial)),
-                // BVG-Fixbetrag der Kasse: NICHT auf 5 Rappen runden (Walter 21.09.2026)
+                // Auch BVG auf 5 Rappen (Walter 28.09.2026, Swissdec-Berater: keine ungerundeten
+                // Beträge; Quality Tool TF16 Aebi −758.35). Ersetzt «BVG nicht runden» vom 21.09.;
+                // der Lohnbeleg bleibt beim Fixbetrag der Kasse.
                 new XElement(Sd + "BVG-LPP-RegularContribution", Amt(bvg)),
                 new XElement(Sd + "ShortTimeWorkCompensation", Betrag05(Wert(ElmStatistikCodes.Topf.Kurzarbeit)))),
             new XElement(Sd + "AnnualValues",
