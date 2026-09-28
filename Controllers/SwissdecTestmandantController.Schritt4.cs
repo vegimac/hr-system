@@ -146,7 +146,7 @@ public partial class SwissdecTestmandantController
                 var naechster = emp.Employments
                     .Where(x => !ReferenceEquals(x, vertrag) && x.EasyAtWorkContractId == null && x.ContractStartDate > vertrag.ContractStartDate)
                     .OrderBy(x => x.ContractStartDate).FirstOrDefault();
-                vertrag.ContractEndDate = naechster?.ContractStartDate.AddDays(-1);
+                vertrag.ContractEndDate = VertragsEndeBeiWiederholung(vertrag.ContractEndDate, naechster?.ContractStartDate);
                 vertrag.ContractType = V("PersonContractMonthly") == "fixedSalaryMth" ? "befristet" : "unbefristet";
                 // Vertragsart nach Swissdec fuer die Lohnstatistik (Walter 27.09.2026).
                 vertrag.SwissdecVertragsart = V("PersonContractMonthly") ?? V("PersonContractHourly") ?? ohneZeit;
@@ -411,6 +411,19 @@ public partial class SwissdecTestmandantController
             res.Add(new Testfall(id, name, entry, w));
         }
         return res;
+    }
+
+    /// <summary>
+    /// Vertragsende bei einem wiederholten 4a-Lauf: ein Austritt aus 4c (Ende vor dem
+    /// nächsten Abschnitt, z.B. TF16 Aebi 20.12.2024 vor Wiedereintritt 15.01.2025) bleibt
+    /// stehen; nur ein fehlendes oder überlappendes Ende wird auf den Vortag des nächsten
+    /// Abschnitts gesetzt. Ohne nächsten Abschnitt bleibt das bisherige Ende (TF07 Burri 31.12.2024).
+    /// </summary>
+    public static DateTime? VertragsEndeBeiWiederholung(DateTime? bisher, DateTime? naechsterStart)
+    {
+        if (naechsterStart == null) return bisher;
+        var vortag = naechsterStart.Value.AddDays(-1);
+        return bisher != null && bisher.Value.Date <= vortag.Date ? bisher : vortag;
     }
 
     /// <summary>«1.0» → «1», «6020.0» → «6020», «22.0» → «22».</summary>
