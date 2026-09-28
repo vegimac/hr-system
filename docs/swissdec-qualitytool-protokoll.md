@@ -55,12 +55,27 @@ Endstand (Sendung 19:48):
 Alle übrigen Felder aller fünf Personen (TF07 Burri, TF14 Egli, TF16 Aebi, TF37 Oberli,
 TF44 Lusser) stimmen mit der Referenz überein.
 
-### 2024-12 — in Arbeit
+### 2024-12 — erledigt bis auf F1 (bewusst)
 
 | Sendung | DeclarationId | Ergebnis |
 |---|---|---|
 | Lauf 2, 28.09.2026 19:56 | 18d98dc0cf2fd3ad1 | Egli rot (aufgeklappt), Aebi, Lusser, Burri, SalaryTotals, catchAll mit Befunden (nicht aufgeklappt); Oberli ohne Request-Zeile |
 | Lauf 2, 28.09.2026 20:41 (nach K3/K4) | 18d9903553ea02485 | Egli nur noch `TaxAtSourceSalaries` fehlt (→ K5); ResidenceCategory, Period, Earnings13th grün |
+| Lauf 2, 28.09.2026 22:17 (nach K5 + K6) | 18d99577e3f2a09ee | nicht mehr aufgeklappt (Lauf danach im Quality Tool zurückgesetzt) |
+| Lauf 2, 28.09.2026 22:27 (Neusendung nach Reset) | **18d995fb49a10029d** | **nur noch F1** (Egli + SalaryTotals) |
+
+Endstand (Sendung 22:27):
+
+| Testfall | Feld | Soll (Referenz) | Ist (OneCrew) | Urteil |
+|---|---|---|---:|---|
+| TF14 Egli, LU | Correction/Old TaxAtSourceCode | A0N | A0Y | **bewusst — F1** |
+| TF14 Egli, LU | Correction/Old TaxAtSource | −34.00 | −36.05 | **bewusst — F1** |
+| SalaryTotals LU | CorrectionMonth TotalTaxAtSource | −34.00 | −36.05 | **bewusst — F1** |
+
+Alle übrigen Felder (TF07 Burri, TF14 Egli, TF16 Aebi, TF37 Oberli, TF44 Lusser, catchAll)
+stimmen mit der Referenz überein. Beleg-Check 1:1 (CSV + RefXML Monat/Retrospective) für
+Egli, Aebi und Burri Dezember grün, abgesehen von F1 und den dokumentierten Rundungen
+A4/A5 (SV rappengenau auf dem Beleg) und K2 (BVG Aebi 758.33 Beleg / 758.35 Meldung).
 
 Befunde Egli (TF14, LU) und daraus abgeleitet — die alte lokale Referenz hatte dasselbe,
 es war beim Dezember-Beleg-Check nur nicht geprüft worden:
@@ -159,15 +174,32 @@ Keine bewussten Abweichungen, sondern Fehler bzw. Vorgaben, die wir übernommen 
   `CorrectionMonth` −36.05 statt −34.00 — Folge von **F1**, bewusst.
 - Tests `QstKorrekturNonTests`.
 
+### K6 — Testmandant 4a überschrieb Austritte (28.09.2026)
+
+- **Befund (lokaler Vergleich vor dem Senden):** Dezember TF16 Aebi `SocialContributions`
+  −765.60 statt −726.55, `WithdrawalDate` fehlte bei Aebi (20.12.) und Burri (31.12.).
+- **Ursache:** Kein Rechenfehler. Ein wiederholter Lauf von Schritt 4a (für die Statistikfelder)
+  setzte das Vertragsende neu: Aebi auf den Vortag des Wiedereintritts (14.01.2025), Burri auf
+  leer. Ohne Austritt rechnete die Engine ALV/NBU mit dem vollen Monats-Höchstlohn statt
+  anteilig (148'200 ÷ 360 × 50 SV-Tage = 20'583.33 kumuliert).
+- **Umsetzung:** 4a behält ein bestehendes Vertragsende, solange es vor dem nächsten Abschnitt
+  liegt (`VertragsEndeBeiWiederholung`). Testdaten Aebi/Burri korrigiert, BE + LU ab November
+  neu bestätigt. Aebi Dezember danach: ALV 90.57 auf 8'233.33, ALVZ 5.81, NBU 132.23,
+  UVGZ 12 5.90 auf 1'161.67 → `SocialContributions` −726.55 = Referenz.
+- Commit d844c85, Tests `Testmandant4aVertragsendeTests`.
+
 ## Offen
 
-- **Dezember nach K5:** Schritt 5c, 4c Dezember nur TF14, Monate ab November neu bestätigen,
-  Dezember neu senden.
+- **Januar 2025 ff.:** alle Monate ab Januar 2025 neu bestätigen (5c hat alles zurückgesetzt)
+  und senden. Beim Aufklappen immer die **neueste** Request-Zeile prüfen. Im Quality Tool
+  nie «Edit → Reset» (löscht die Sendungen des Laufs); Refresh steht rechts unter ACTIONS.
+- **Jahresmeldung (YearlyRetrospective), Beobachtung:** Referenz TF16 Aebi 2024
+  `AHV-ALV-NBUV-AVS-AC-AANP-Contribution` 1'750.55 = Beiträge auf der **Jahresbasis**, je Zeile
+  auf 5 Rp. (AHV 1'184.75 + ALV 226.40 + ALVZ 8.85 + NBU 330.55). Summe der Monate wäre
+  1'750.60. Beim Bau der Jahresmeldung so rechnen.
 
 - **Fragenliste an Swissdec** (`docs/swissdec-call-2026-09-24.md`, Teil A, 7 Fragen) — noch
   nicht besprochen, noch nicht gemailt (Stand 28.09.2026). Betrifft Monate ab 2025, nicht
   November 2024.
-- Übrige Dezember-Testfälle (Aebi, Burri, Lusser, SalaryTotals, catchAll) aufklappen;
-  Oberli (keine Request-Zeile) prüfen.
 - Weitere Teilprozesse des Laufs (YearlyRetrospective, EMA, YearlyProspective) sind noch nicht
   gesendet.
