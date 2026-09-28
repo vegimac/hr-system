@@ -51,7 +51,79 @@ public class ElmSuaService
         string? State,
         string? Meldung,
         ElmSuaFall? Fall,
-        bool SuaVorhanden);
+        bool SuaVorhanden)
+    {
+        /// <summary>Meldungen aus der Antwort (Code + Text) — auch bei einem Fault.</summary>
+        public SuaMeldungen? Meldungen { get; init; }
+    }
+
+    /// <summary>Eine Zeile aus der Antwort: Stufe, Code, Text.</summary>
+    public record SuaMeldung(string? Stufe, string? Code, string? Text);
+
+    /// <summary>
+    /// Was die Antwort inhaltlich sagt (Walter-Auftrag 28.09.2026, Punkt 4). Bisher
+    /// stand nur «Abgewiesen» da; der eigentliche Grund liegt in den Notification-
+    /// Elementen und blieb im Roh-XML verborgen.
+    /// </summary>
+    public record SuaMeldungen(string? Code, List<SuaMeldung> Zeilen, string? Einmalpasswort)
+    {
+        /// <summary>Erster DescriptionCode — der, den Swissdec im Gespräch nennt.</summary>
+        public string? DescriptionCode => Zeilen.FirstOrDefault(z => z.Code != null)?.Code;
+        public string? Description => Zeilen.FirstOrDefault(z => !string.IsNullOrWhiteSpace(z.Text))?.Text;
+    }
+
+    /// <summary>Code, mit dem Swissdec einen unplausiblen Antrag abweist.</summary>
+    public const string CodeNichtPlausibel = "2052";
+
+    /// <summary>Code, unter dem das Einmalpasswort in der Antwort steht.</summary>
+    public const string CodeEinmalpasswort = "9998";
+
+    /// <summary>
+    /// Notification-Elemente einer Antwort lesen (QualityLevel / DescriptionCode /
+    /// Description). Sie stehen sowohl in Quittungen als auch im Fault-Detail.
+    /// </summary>
+    public static SuaMeldungen LiesMeldungen(string? xml, string? faultCode = null)
+    {
+        var zeilen = new List<SuaMeldung>();
+        string? otp = null;
+        if (!string.IsNullOrWhiteSpace(xml))
+        {
+            try
+            {
+                foreach (var n in XDocument.Parse(xml).Descendants()
+                             .Where(e => e.Name.LocalName == "Notification"))
+                {
+                    string? V(string name) => n.Elements()
+                        .FirstOrDefault(e => e.Name.LocalName == name)?.Value.Trim();
+                    var code = V("DescriptionCode");
+                    var text = V("Description");
+                    zeilen.Add(new SuaMeldung(V("QualityLevel"), code, text));
+                    if (code == CodeEinmalpasswort && otp == null)
+                        otp = EinmalpasswortAus(text);
+                }
+            }
+            catch { /* unlesbar: dann bleibt es beim Roh-XML in der Anzeige */ }
+        }
+        return new SuaMeldungen(faultCode, zeilen, otp);
+    }
+
+    /// <summary>
+    /// Das Einmalpasswort aus dem Meldungstext ziehen (Muster «DW8K-1234-…»).
+    /// Findet sich kein solches Muster, gilt der ganze Text — lieber zu viel
+    /// anbieten als den Benutzer suchen lassen.
+    /// </summary>
+    public static string? EinmalpasswortAus(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var m = System.Text.RegularExpressions.Regex.Match(text,
+            "[A-Z0-9]{4}(?:-[A-Z0-9]{4})+");
+        return m.Success ? m.Value : text.Trim();
+    }
+
+    /// <summary>Hat Swissdec den Antrag als unplausibel abgewiesen (2052)?</summary>
+    public static bool IstNichtPlausibel(SuaMeldungen m)
+        => m.Zeilen.Any(z => z.Code == CodeNichtPlausibel)
+           || (m.Code ?? "").Contains("plausible", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Status für die UI — Zertifikate + laufender Fall.</summary>
     public async Task<object> StatusAsync(CancellationToken ct)
@@ -129,7 +201,8 @@ public class ElmSuaService
         if (abgewiesen != null)
         {
             return new SuaErgebnis(call, null, abgewiesen.Meldung, _store.LadeFall(),
-                _store.HatSuaZertifikat());
+                _store.HatSuaZertifikat())
+            { Meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode) };
         }
         var (requestId, key, password) = ParseRegisterAntwort(call.ResponseXml);
 
@@ -167,7 +240,8 @@ public class ElmSuaService
             meldung = "Antwort erhalten, aber keine CertificateRequestID/Credentials gefunden — Antwort-XML prüfen.";
         }
 
-        return new SuaErgebnis(call, null, meldung, fall ?? _store.LadeFall(), _store.HatSuaZertifikat());
+        return new SuaErgebnis(call, null, meldung, fall ?? _store.LadeFall(), _store.HatSuaZertifikat())
+        { Meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode) };
     }
 
     /// <summary>
@@ -182,13 +256,18 @@ public class ElmSuaService
         var fall = _store.LadeFall()
             ?? throw new InvalidOperationException("Kein laufender SUA-Fall — zuerst «Registrieren».");
 
+        // Welche ST-Variante? Wurde eine schon einmal angenommen, bleibt es dabei.
+        var ohneSt = fall.CsrOhneStateOrProvince;
+
         XElement? signBlock = null;
         RSA? csrKey = null;
+        var istSignieren = false;
         if (renew)
         {
             if (fall.Subject == null)
                 throw new InvalidOperationException("Für Renew fehlt der Subject-DN aus einer früheren Quittung.");
-            (signBlock, csrKey) = BaueRenewBlock(fall.Subject);
+            (signBlock, csrKey) = BaueRenewBlock(fall.Subject, ohneSt);
+            istSignieren = true;
         }
         else if (!string.IsNullOrWhiteSpace(oneTimePassword))
         {
@@ -199,17 +278,53 @@ public class ElmSuaService
             if (!string.Equals(fall.LetzterState, "verified", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException(
                     $"SignCertificate erst bei Status «verified» (aktuell: «{fall.LetzterState ?? "—"}»).");
-            (signBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword.Trim());
+            (signBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword.Trim(), ohneSt);
+            istSignieren = true;
         }
 
-        var body = BaueSynchronizeBody(fall, signBlock);
-        PruefeSchema(body, "Synchronize");
-        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaengerFuerVerschluesselung(), "sua-sync", ct);
+        async Task<ElmTransmitterClient.ElmCallResult> SendeAsync(XElement? block)
+        {
+            var b = BaueSynchronizeBody(fall, block);
+            PruefeSchema(b, "Synchronize");
+            return await _client.PostGesichertAsync(url, b, erp,
+                _store.LadeEmpfaengerFuerVerschluesselung(), "sua-sync", ct);
+        }
+
+        var call = await SendeAsync(signBlock);
         var abgewiesen = ElmTransmitterClient.DeuteSicherheitsFault(call);
         if (abgewiesen != null)
         {
             return new SuaErgebnis(call, fall.LetzterState, abgewiesen.Meldung, fall,
-                _store.HatSuaZertifikat());
+                _store.HatSuaZertifikat())
+            { Meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode) };
+        }
+
+        var meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode);
+        string? zweiterVersuch = null;
+
+        // Zweiter Versuch ohne StateOrProvince (Walter-Auftrag 28.09.2026, Punkt 2):
+        // Die Quittung liefert dort «nA»; laut Tabelle in Anhang C.3.2 ist das Feld
+        // optional. Weist Swissdec den Antrag als unplausibel ab (2052), war er nicht
+        // in Bearbeitung — das Einmalpasswort ist also noch nicht verbraucht, und ein
+        // zweiter Versuch ohne ST ist zulässig. NUR bei genau diesem Code, und nur
+        // einmal: bei jedem anderen Fehler wird nichts wiederholt.
+        if (istSignieren && !ohneSt && IstNichtPlausibel(meldungen)
+            && !string.IsNullOrWhiteSpace(fall.Subject?.StateOrProvinceName))
+        {
+            csrKey?.Dispose();
+            csrKey = null;
+            XElement? zweiterBlock;
+            if (renew) (zweiterBlock, csrKey) = BaueRenewBlock(fall.Subject!, true);
+            else       (zweiterBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword!.Trim(), true);
+
+            var zweiterCall = await SendeAsync(zweiterBlock);
+            var zweiteMeldungen = LiesMeldungen(zweiterCall.ResponseXml, zweiterCall.FaultCode);
+            zweiterVersuch = IstNichtPlausibel(zweiteMeldungen)
+                ? $"Auch ohne «{fall.Subject!.StateOrProvinceName}» als StateOrProvince abgewiesen ({CodeNichtPlausibel})."
+                : "Zweiter Versuch OHNE StateOrProvince — dieser wurde angenommen.";
+            call = zweiterCall;
+            meldungen = zweiteMeldungen;
+            ohneSt = true;
         }
 
         var geparst = ParseSynchronizeAntwort(call.ResponseXml);
@@ -219,21 +334,31 @@ public class ElmSuaService
             fall.UpdatedAt = DateTime.Now;
         }
         if (geparst.Subject != null)
+        {
+            // Die UID kommt nur in der Quittung mit; ein späteres Synchronize ohne
+            // X509Subject darf sie nicht wieder wegräumen.
+            geparst.Subject.CompanyUidBfs ??= fall.Subject?.CompanyUidBfs;
             fall.Subject = geparst.Subject;
+        }
 
         string? meldung = geparst.Fehler ?? call.FaultText;
         if (geparst.State != null)
             meldung = StateMeldung(geparst.State);
+        if (zweiterVersuch != null)
+            meldung = string.IsNullOrWhiteSpace(meldung) ? zweiterVersuch : meldung + " · " + zweiterVersuch;
 
         if (geparst.ZertifikatPem != null && csrKey != null)
         {
             var pemText = PemAusBase64(geparst.ZertifikatPem);
             _store.SpeichereSua(pemText, csrKey);
-            meldung = (meldung ?? "") + " · SUA-Zertifikat gespeichert.";
+            fall.CsrOhneStateOrProvince = ohneSt;   // dieselbe Variante beim Erneuern
+            meldung = (meldung ?? "") + " · SUA-Zertifikat gespeichert"
+                    + (ohneSt ? " (CSR ohne StateOrProvince)" : "") + ".";
         }
 
         _store.SpeichereFall(fall);
-        return new SuaErgebnis(call, geparst.State, meldung, fall, _store.HatSuaZertifikat());
+        return new SuaErgebnis(call, geparst.State, meldung, fall, _store.HatSuaZertifikat())
+        { Meldungen = meldungen };
     }
 
     // ── XML bauen ────────────────────────────────────────────────────────────
@@ -350,9 +475,10 @@ public class ElmSuaService
             _einst.MonitoringElement(Ep));
 
     /// <summary>CSR aus Empfänger-Subject — DN nicht selbst erfinden (Bauanleitung).</summary>
-    public static (XElement Block, RSA Key) BaueSignBlock(ElmSuaSubject subject, string oneTimePassword)
+    public static (XElement Block, RSA Key) BaueSignBlock(ElmSuaSubject subject, string oneTimePassword,
+        bool ohneStateOrProvince = false)
     {
-        var (pemB64, key) = ErzeugeCsrPemBase64(subject);
+        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince);
         // Creation/StoryID stammen aus ep:StoryBaseType; PEM/OTP aus dem c-Schema.
         var block = new XElement(C + "SignCertificate",
             new XElement(Ep + "Creation", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
@@ -362,9 +488,10 @@ public class ElmSuaService
         return (block, key);
     }
 
-    public static (XElement Block, RSA Key) BaueRenewBlock(ElmSuaSubject subject)
+    public static (XElement Block, RSA Key) BaueRenewBlock(ElmSuaSubject subject,
+        bool ohneStateOrProvince = false)
     {
-        var (pemB64, key) = ErzeugeCsrPemBase64(subject);
+        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince);
         var block = new XElement(C + "RenewCertificate",
             new XElement(Ep + "Creation", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
             new XElement(Ep + "StoryID", Guid.NewGuid().ToString("N")),
@@ -372,13 +499,18 @@ public class ElmSuaService
         return (block, key);
     }
 
-    public static (string PemBase64, RSA Key) ErzeugeCsrPemBase64(ElmSuaSubject subject)
+    public static (string PemBase64, RSA Key) ErzeugeCsrPemBase64(
+        ElmSuaSubject subject, bool ohneStateOrProvince = false)
     {
-        var dn = subject.AlsDn();
-        if (string.IsNullOrWhiteSpace(dn))
+        // Transmitter-Richtlinien ELM 6.0, Anhang C.3.2/C.3.3: PKCS#10 als PEM,
+        // Sha256WithRSA, RSA 2048, Subject exakt gemäss Quittung — UND die ORG_ID
+        // «NTRCH-{UID}» als organizationIdentifier (OID 2.5.4.97). Fehlt sie, kommt
+        // Fault NOT_plausible 2052 (Walter-Befund 28.09.2026).
+        var name = subject.AlsX500Name(ohneStateOrProvince);
+        if (name.Name.Length == 0)
             throw new InvalidOperationException("Subject-DN ist leer — Quittung prüfen.");
         var rsa = RSA.Create(2048);
-        var req = new CertificateRequest(dn, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var req = new CertificateRequest(name, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var csrDer = req.CreateSigningRequest();
         var pem = "-----BEGIN CERTIFICATE REQUEST-----\n"
                 + Convert.ToBase64String(csrDer, Base64FormattingOptions.InsertLineBreaks)
@@ -452,6 +584,10 @@ public class ElmSuaService
                     CountryName = V("CountryName") ?? "",
                     BusinessCategory = V("BusinessCategory"),
                 };
+                // Die UID steht NEBEN dem X509Subject (Common.xsd: X509Subject,
+                // dann CompanyUID-BFS) — aus ihr entsteht die ORG_ID im CSR.
+                subject.CompanyUidBfs = x509.Parent?.Elements()
+                    .FirstOrDefault(e => e.Name.LocalName == "CompanyUID-BFS")?.Value.Trim();
             }
 
             // Zertifikat-PEM steckt in Certificate/PEM (nicht CSR-PEM).

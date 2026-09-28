@@ -364,6 +364,13 @@ public class ElmSuaFall
     /// ein ANDERER Typ als im Register (kein addresseeID, kein ProcessByDistributor).
     /// </summary>
     public string? Domain { get; set; }
+
+    /// <summary>
+    /// Wurde der CSR OHNE StateOrProvince angenommen? Dann muss auch die Erneuerung
+    /// ohne ST laufen — sonst kippt sie aus demselben Grund (Walter 28.09.2026).
+    /// </summary>
+    public bool CsrOhneStateOrProvince { get; set; }
+
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 }
 
@@ -376,15 +383,60 @@ public class ElmSuaSubject
     public string CountryName { get; set; } = "";
     public string? BusinessCategory { get; set; }
 
-    /// <summary>DN-String für CertificateRequest — Reihenfolge wie üblich CN, O, L, S, C.</summary>
-    public string AlsDn()
+    /// <summary>
+    /// UID aus der Quittung (Element <c>CompanyUID-BFS</c> neben dem X509Subject),
+    /// z.B. <c>CHE-999.999.996</c>. Aus ihr entsteht die ORG_ID.
+    /// </summary>
+    public string? CompanyUidBfs { get; set; }
+
+    /// <summary>organizationIdentifier — RFC 4519, in X.500 die OID 2.5.4.97.</summary>
+    public const string OrgIdOid = "2.5.4.97";
+
+    /// <summary>Vorsilbe laut Transmitter-Richtlinien ELM 6.0, Anhang C.3.3.</summary>
+    public const string OrgIdPrefix = "NTRCH-";
+
+    /// <summary>
+    /// ORG_ID des Zertifikatsantrags: «NTRCH-» + UID aus der Quittung
+    /// (z.B. <c>NTRCH-CHE-999.999.996</c>). Ohne UID null — dann fehlt das Feld,
+    /// und Swissdec weist den Antrag mit «NOT_plausible 2052» ab
+    /// (Walter-Befund 28.09.2026: genau daran scheiterte F07_06).
+    /// </summary>
+    public string? OrganizationIdentifier =>
+        string.IsNullOrWhiteSpace(CompanyUidBfs) ? null : OrgIdPrefix + CompanyUidBfs!.Trim();
+
+    /// <summary>
+    /// Subject für den CSR. Reihenfolge wie in den Transmitter-Richtlinien
+    /// Anhang C.3.2/C.3.3 aufgeführt: C, ST, L, CN, O, organizationIdentifier.
+    /// </summary>
+    /// <param name="ohneStateOrProvince">
+    /// ST weglassen. Die Quittung liefert dort teils «nA» — laut Tabelle ist das
+    /// Feld optional, und Swissdec nimmt den Antrag ohne ST womöglich an, wenn er
+    /// mit «nA» abgewiesen wird.
+    /// </param>
+    public X500DistinguishedName AlsX500Name(bool ohneStateOrProvince = false)
+    {
+        var b = new X500DistinguishedNameBuilder();
+        if (!string.IsNullOrWhiteSpace(CountryName)) b.AddCountryOrRegion(CountryName.Trim());
+        if (!ohneStateOrProvince && !string.IsNullOrWhiteSpace(StateOrProvinceName))
+            b.AddStateOrProvinceName(StateOrProvinceName.Trim());
+        if (!string.IsNullOrWhiteSpace(LocalityName)) b.AddLocalityName(LocalityName.Trim());
+        if (!string.IsNullOrWhiteSpace(CommonName)) b.AddCommonName(CommonName.Trim());
+        if (!string.IsNullOrWhiteSpace(OrganizationName)) b.AddOrganizationName(OrganizationName.Trim());
+        if (OrganizationIdentifier is { } orgId) b.Add(OrgIdOid, orgId);
+        return b.Build();
+    }
+
+    /// <summary>Lesbare Fassung desselben Subjects — für Anzeige, Log und Tests.</summary>
+    public string AlsDn(bool ohneStateOrProvince = false)
     {
         var teile = new List<string>();
         if (!string.IsNullOrWhiteSpace(CommonName)) teile.Add("CN=" + Esc(CommonName));
         if (!string.IsNullOrWhiteSpace(OrganizationName)) teile.Add("O=" + Esc(OrganizationName));
         if (!string.IsNullOrWhiteSpace(LocalityName)) teile.Add("L=" + Esc(LocalityName));
-        if (!string.IsNullOrWhiteSpace(StateOrProvinceName)) teile.Add("S=" + Esc(StateOrProvinceName));
+        if (!ohneStateOrProvince && !string.IsNullOrWhiteSpace(StateOrProvinceName))
+            teile.Add("S=" + Esc(StateOrProvinceName));
         if (!string.IsNullOrWhiteSpace(CountryName)) teile.Add("C=" + Esc(CountryName));
+        if (OrganizationIdentifier is { } orgId) teile.Add($"OID.{OrgIdOid}=" + Esc(orgId));
         return string.Join(", ", teile);
     }
 

@@ -682,6 +682,29 @@ async function _suaSync(renew, otp) {
 function _suaZeigeErgebnis(j) {
     const out = document.getElementById('suaResult');
     const e = j.ergebnis || {};
+
+    // Walter-Auftrag 28.09.2026: was die Antwort SAGT, gehoert nach OBEN — Code,
+    // DescriptionCode und Beschreibung. Vorher stand da nur «Abgewiesen», und der
+    // Grund (z.B. 2052 = Antrag nicht plausibel) lag im Roh-XML vergraben.
+    const zeilen = j.meldungen || [];
+    const schlecht = !!(e.faultCode || e.faultText);
+    const kopf = [j.code, j.descriptionCode].filter(Boolean).join(' · ');
+    const meldeBlock = (zeilen.length || kopf)
+        ? `<div style="background:${schlecht ? '#fef2f2' : '#eef2f7'};border:1px solid ${schlecht ? '#fecaca' : '#cbd5e1'};
+                    color:${schlecht ? '#991b1b' : '#334155'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+             ${kopf ? `<div style="font-weight:700">${esc(kopf)}</div>` : ''}
+             ${zeilen.map(z => `<div style="margin-top:4px;font-size:12.5px">
+                 ${z.code ? `<b>${esc(z.code)}</b> ` : ''}${esc(z.text || '')}
+                 ${z.stufe ? `<span style="opacity:.7"> (${esc(z.stufe)})</span>` : ''}</div>`).join('')}
+           </div>`
+        : '';
+
+    // Einmalpasswort aus Code 9998 gleich ins Feld — niemand soll es abtippen.
+    if (j.otpVorschlag) {
+        const otpEl = document.getElementById('suaOtp');
+        if (otpEl && !otpEl.value.trim()) otpEl.value = j.otpVorschlag;
+    }
+
     const meldung = j.meldung
         ? `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;margin-bottom:8px"><b>${esc(j.meldung)}</b></div>`
         : '';
@@ -696,7 +719,7 @@ function _suaZeigeErgebnis(j) {
         lokaleZeit: e.lokaleZeit, zeitAbweichung: e.zeitAbweichung, versatzSekunden: e.versatzSekunden,
         security: e.security,
     };
-    out.innerHTML = meldung + state;
+    out.innerHTML = meldeBlock + meldung + state;
     // TLS/Fault/XML darunter anhängen
     const tmp = document.createElement('div');
     tmp.id = '_suaTmpOut';

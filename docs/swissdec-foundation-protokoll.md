@@ -21,7 +21,7 @@ PREREQUISITE). Vollständiger Wortlaut: Abschnitt «Vollständiger Katalog» unt
 | F04 Archivierung | 3 | 0 | offen (signiert/unverschlüsselt archivieren + SignatureConfirmation) |
 | F05 Übermittlung | 8 | 0 | offen · **Expertin: erst nach F07** |
 | F06 Validierung | 1 | 0 | offen (PlausibilityRules / Distributor-Ablehnung) |
-| F07 SUA-Zertifikat | 20 | 0 | Client+UI gebaut · **XML am 24.09. korrigiert** (4 Schema-Fehler + MonitoringID) · wartet auf Zertifikatsfrage |
+| F07 SUA-Zertifikat | 20 | 0 | Client+UI gebaut · **XML am 24.09. korrigiert** (4 Schema-Fehler + MonitoringID) · **28.09.: Fault 2052 = fehlende ORG_ID im CSR, behoben** |
 | F08 Prozesse | 13 | 0 | offen (GetStatus, DialogMessages, Sync/Async) |
 | **Total** | **90** | **7 belegt · 12 gebaut** | |
 
@@ -457,6 +457,34 @@ F07_07 die Erneuerung (`RenewCertificate`, ohne Einmalpasswort) und F07_08 die
 **Noch offen nach dem Bau:** gegen RefApps vorführen (F07_01–08); **Swissdec-.pfx**
 (statt selbst signiert) importieren — sonst Fault 100; F07_08 Doppel-Signatur
 (CheckInterop mit ERP+SUA) — `ElmWsSecurity` signiert heute mit einem Zertifikat.
+
+### F07_06 — Fault «NOT_plausible 2052»: die ORG_ID fehlte im CSR (28.09.2026)
+
+**Befund.** `SignCertificate` wurde mit `NOT_plausible`, DescriptionCode **2052** abgewiesen.
+Das Einmalpasswort war richtig (es kam in der Status-Antwort unter Code **9998**, `DW8K-…`),
+also lag es am **CSR**.
+
+**Ursache.** Die Transmitter-Richtlinien ELM 6.0, Anhang C.3.2/C.3.3 (S. 105–106) verlangen im
+Subject nicht nur C, ST, L, CN und O aus der Quittung, sondern zusätzlich
+**ORG_ID = «NTRCH-» + UID** als `organizationIdentifier` (OID **2.5.4.97**). Genau dieses Feld
+hat OneCrew nicht gesetzt — der Antrag war damit formal unvollständig und wurde als unplausibel
+zurückgewiesen. Die UID steht in der Quittung neben dem `X509Subject` im Element
+`CompanyUID-BFS` (Common.xsd); sie wurde bisher gar nicht gelesen.
+
+**Behoben.**
+
+| | |
+|---|---|
+| UID aus der Quittung mitlesen | `ElmSuaSubject.CompanyUidBfs` (aus `CompanyUID-BFS`) |
+| ORG_ID bilden | `ElmSuaSubject.OrganizationIdentifier` = «NTRCH-» + UID |
+| CSR-Subject | `AlsX500Name()` über `X500DistinguishedNameBuilder`, Reihenfolge C, ST, L, CN, O, OID 2.5.4.97 |
+| ST-Frage | Quittung liefert «nA». Erster Versuch genau so; kommt wieder 2052, läuft **ein** zweiter Versuch OHNE ST (laut Tabelle optional). Welche Variante angenommen wurde, steht in der Meldung und in `ElmSuaFall.CsrOhneStateOrProvince` — die Erneuerung nimmt dieselbe. |
+| Antwort lesen | `ElmSuaService.LiesMeldungen` — Code, DescriptionCode, Description stehen jetzt OBEN in der Karte statt nur «Abgewiesen»; das Einmalpasswort aus Code 9998 füllt das Feld von selbst. |
+| Tests | `Tests/ElmSuaTests.cs` — CSR wird mit `CertificateRequest.LoadSigningRequestPem` wieder eingelesen und auf `OID.2.5.4.97=NTRCH-CHE-999.999.996`, CN/O/L/ST/C, SHA256 und RSA 2048 geprüft |
+
+Der zweite Versuch läuft **nur** bei genau 2052: Swissdec hat den Antrag dann gar nicht
+bearbeitet, das Einmalpasswort ist also noch nicht verbraucht. Bei jedem anderen Fehler wird
+nichts wiederholt — sonst verbrennt man das Passwort und muss den ganzen Fall neu anmelden.
 
 **Vorbereitet für den Schlüssel (24.09.2026, offline):**
 

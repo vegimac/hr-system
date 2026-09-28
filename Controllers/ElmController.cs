@@ -801,6 +801,14 @@ public class ElmController : ControllerBase
                 dto.ContractIdentity, dto.AlsTestfall), ct);
             return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url,
                 state = r.State, meldung = r.Meldung, fall = r.Fall, suaVorhanden = r.SuaVorhanden,
+                // Was die Antwort inhaltlich sagt — Code, DescriptionCode, Description
+                // (Walter 28.09.2026). Ein Einmalpasswort aus Code 9998 kommt als
+                // Vorschlag mit, damit es niemand aus dem Roh-XML abtippen muss.
+                meldungen = r.Meldungen?.Zeilen,
+                code = r.Meldungen?.Code,
+                descriptionCode = r.Meldungen?.DescriptionCode,
+                description = r.Meldungen?.Description,
+                otpVorschlag = r.Meldungen?.Einmalpasswort,
                 ergebnis = r.Call });
         }
         catch (Exception ex)
@@ -824,6 +832,14 @@ public class ElmController : ControllerBase
             var r = await _sua.SynchronizeAsync(ziel.Value.Url!, dto.OneTimePassword, dto.Renew, ct);
             return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url,
                 state = r.State, meldung = r.Meldung, fall = r.Fall, suaVorhanden = r.SuaVorhanden,
+                // Was die Antwort inhaltlich sagt — Code, DescriptionCode, Description
+                // (Walter 28.09.2026). Ein Einmalpasswort aus Code 9998 kommt als
+                // Vorschlag mit, damit es niemand aus dem Roh-XML abtippen muss.
+                meldungen = r.Meldungen?.Zeilen,
+                code = r.Meldungen?.Code,
+                descriptionCode = r.Meldungen?.DescriptionCode,
+                description = r.Meldungen?.Description,
+                otpVorschlag = r.Meldungen?.Einmalpasswort,
                 ergebnis = r.Call });
         }
         catch (Exception ex)
