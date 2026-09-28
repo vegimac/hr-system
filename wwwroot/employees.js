@@ -15712,15 +15712,20 @@ function renderPermitListHtml(entries) {
         ?? null;
 
     // Überlapp-Erkennung (paarweise) — für oranger Hinweis-Banner.
+    // Rückwirkende Korrektur (erfahren erst nach Ende des anderen Eintrags) ist
+    // keine Überlappung: bis dahin galt der andere Eintrag als bekannt.
     const dates = list.map(h => ({
         from: h.validFrom ? h.validFrom.slice(0,10) : null,
-        to:   h.validTo   ? h.validTo.slice(0,10)   : '9999-12-31'
+        to:   h.validTo   ? h.validTo.slice(0,10)   : '9999-12-31',
+        known: (h.erfahrenAm || h.validFrom || '').slice(0,10)
     }));
     let hasOverlap = false;
     for (let i = 0; i < dates.length && !hasOverlap; i++) {
         for (let j = i + 1; j < dates.length && !hasOverlap; j++) {
             const a = dates[i], b = dates[j];
-            if (a.from && b.from && a.from <= b.to && b.from <= a.to) hasOverlap = true;
+            if (!(a.from && b.from && a.from <= b.to && b.from <= a.to)) continue;
+            if (a.known > b.to || b.known > a.to) continue;
+            hasOverlap = true;
         }
     }
 
@@ -15785,7 +15790,8 @@ function renderPermitListHtml(entries) {
             <div style="flex:1;min-width:0">
                 <div style="font-weight:600;color:#475569;font-size:12.5px">${code}${desc}${aktuellPille}</div>
                 <div style="font-size:11.5px;color:#64748b;margin-top:1px">
-                    ${fromTxt} – ${toTxt}
+                    ${fromTxt} – ${toTxt}${h.erfahrenAm && _iso(h.erfahrenAm) > _iso(h.validFrom)
+                        ? ` · erfahren ${formatDate(h.erfahrenAm)} <span style="color:#c2410c">(versetzt)</span>` : ''}
                 </div>
                 ${noteTxt}
             </div>

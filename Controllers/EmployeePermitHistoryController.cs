@@ -85,6 +85,7 @@ public class EmployeePermitHistoryController : ControllerBase
         public string? PermitDescription { get; set; }
         public DateOnly  ValidFrom { get; set; }
         public DateOnly? ValidTo   { get; set; }   // = behördliches Ablauf-Datum auf dem Ausweis
+        public DateOnly? ErfahrenAm { get; set; }
         public string?   Note { get; set; }
         // Walter 14.06.2026: Verknüpftes Bewilligungs-PDF.
         public int?      DokumentId { get; set; }
@@ -222,6 +223,7 @@ public class EmployeePermitHistoryController : ControllerBase
             PermitDescription = h.PermitType?.Description,
             ValidFrom         = h.ValidFrom,
             ValidTo           = h.ValidTo,
+            ErfahrenAm        = h.ErfahrenAm,
             Note              = h.Note,
             DokumentId        = h.DokumentId,
             DokumentName      = h.DokumentId.HasValue
