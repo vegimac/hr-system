@@ -307,4 +307,25 @@ public class ElmSuaTests
         Assert.Null(m.Einmalpasswort);
         Assert.False(ElmSuaService.IstNichtPlausibel(m));
     }
+
+    [Fact]
+    public void ZertifikatPem_UeberspringtUserAgentCertificateOhnePem()
+    {
+        var doc = System.Xml.Linq.XDocument.Parse("""
+            <Envelope><Body><SynchronizeResponse>
+              <UserAgent><Producer>Swissdec</Producer><Certificate>swissdec</Certificate></UserAgent>
+              <State>signed</State>
+              <Certificate><PEM>LS0tLS1CRUdJTg==</PEM></Certificate>
+            </SynchronizeResponse></Body></Envelope>
+            """);
+        Assert.Equal("LS0tLS1CRUdJTg==", ElmSuaService.ZertifikatPemAus(doc));
+    }
+
+    [Fact]
+    public void ZertifikatPem_OhneZertifikat_IstNull()
+    {
+        var doc = System.Xml.Linq.XDocument.Parse(
+            "<Envelope><UserAgent><Certificate>swissdec</Certificate></UserAgent></Envelope>");
+        Assert.Null(ElmSuaService.ZertifikatPemAus(doc));
+    }
 }

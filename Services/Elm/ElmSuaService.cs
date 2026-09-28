@@ -321,7 +321,7 @@ public class ElmSuaService
             var zweiteMeldungen = LiesMeldungen(zweiterCall.ResponseXml, zweiterCall.FaultCode);
             zweiterVersuch = IstNichtPlausibel(zweiteMeldungen)
                 ? $"Auch ohne «{fall.Subject!.StateOrProvinceName}» als StateOrProvince abgewiesen ({CodeNichtPlausibel})."
-                : "Zweiter Versuch OHNE StateOrProvince — dieser wurde angenommen.";
+                : "Zweiter Versuch OHNE StateOrProvince — kein 2052 mehr, Ergebnis siehe Meldung.";
             call = zweiterCall;
             meldungen = zweiteMeldungen;
             ohneSt = true;
@@ -590,17 +590,25 @@ public class ElmSuaService
                     .FirstOrDefault(e => e.Name.LocalName == "CompanyUID-BFS")?.Value.Trim();
             }
 
-            // Zertifikat-PEM steckt in Certificate/PEM (nicht CSR-PEM).
-            var certEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Certificate");
-            var pem = certEl?.Descendants().FirstOrDefault(e => e.Name.LocalName == "PEM")?.Value.Trim();
-
-            return new SyncParse(state, subject, pem, fehlerText);
+            return new SyncParse(state, subject, ZertifikatPemAus(doc), fehlerText);
         }
         catch (Exception ex)
         {
             return new(null, null, null, ex.GetBaseException().Message);
         }
     }
+
+    /// <summary>
+    /// Das ausgestellte Zertifikat (Certificate/PEM) aus der Antwort. Es zählt das
+    /// erste «Certificate» MIT PEM — die Antwort enthält vorher schon
+    /// <c>UserAgent/Certificate</c> («swissdec») ohne PEM. Würde jenes genommen,
+    /// ginge das Zertifikat verloren, obwohl das Einmalpasswort verbraucht ist.
+    /// </summary>
+    public static string? ZertifikatPemAus(XDocument doc)
+        => doc.Descendants()
+            .Where(e => e.Name.LocalName == "Certificate")
+            .Select(c => c.Elements().FirstOrDefault(e => e.Name.LocalName == "PEM")?.Value.Trim())
+            .FirstOrDefault(p => !string.IsNullOrEmpty(p));
 }
 
 public record ElmSuaRegisterDto(
