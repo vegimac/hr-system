@@ -692,16 +692,14 @@ public class ElmMonthlyDeclarationBuilder
     }
 
     /// <summary>
-    /// Sozialabgaben der Statistik (negativ), auf 5 Rappen: AHV/IV/EO und ALV bilden EINEN
-    /// Posten, ALVZ und NBU je einen eigenen — jeder Posten wird für sich gerundet, dann
-    /// summiert. Beleg TF18 Blanc Jan 2025: AHV −62.51 + ALV −12.97 = −75.48 → −75.50 (RefXML);
-    /// einzeln gerundet käme −75.45 heraus. Nachgerechnet an allen 44 Statistikzeilen
-    /// Nov 2024 – Jan 2025 (Walter 28.09.2026). Die Lohnbelege bleiben rappengenau.
-    /// BVG ebenfalls auf 5 Rappen (Quality Tool TF16 Aebi −758.35).
+    /// Sozialabgaben der Statistik (negativ): AHV/IV/EO, ALV, ALVZ und NBU je für sich auf
+    /// 5 Rappen, dann summiert. Beleg Quality Tool Jan 2025 TF18 Blanc: AHV −62.51 → −62.50,
+    /// ALV −12.97 → −12.95 = −75.45 (die alte RefXML hatte −75.50). Die Lohnbelege bleiben
+    /// rappengenau. BVG ebenfalls auf 5 Rappen (Quality Tool TF16 Aebi −758.35).
     /// </summary>
     public static decimal Sozialabgaben(JsonElement slip, out decimal bvg)
     {
-        decimal ahvAlv = 0, alvz = 0, nbu = 0, bvgRoh = 0;
+        decimal ahv = 0, alv = 0, alvz = 0, nbu = 0, bvgRoh = 0;
         if (slip.TryGetProperty("abzugLines", out var al) && al.ValueKind == JsonValueKind.Array)
             foreach (var z in al.EnumerateArray())
             {
@@ -709,14 +707,16 @@ public class ElmMonthlyDeclarationBuilder
                 var betrag = Num(z, "betrag");   // negativ
                 switch (cat)
                 {
-                    case "AHV" or "ALV": ahvAlv += betrag; break;
+                    case "AHV": ahv += betrag; break;
+                    case "ALV": alv += betrag; break;
                     case "ALVZ": alvz += betrag; break;
                     case "NBUV": nbu += betrag; break;
                     case "BVG": bvgRoh += betrag; break;
                 }
             }
         bvg = PayrollCalculations.Round05(bvgRoh);
-        return PayrollCalculations.Round05(ahvAlv) + PayrollCalculations.Round05(alvz) + PayrollCalculations.Round05(nbu);
+        return PayrollCalculations.Round05(ahv) + PayrollCalculations.Round05(alv)
+             + PayrollCalculations.Round05(alvz) + PayrollCalculations.Round05(nbu);
     }
 
     /// <summary>
@@ -996,6 +996,9 @@ public class ElmMonthlyDeclarationBuilder
     /// Geburtszulage …). Der 13./14. Monatslohn gehört nicht dazu, auch wenn er
     /// einmalig ausbezahlt wird (RefXML: TF14 Egli 13. ML ohne SporadicBenefits,
     /// TF40 Farine Dez 2025: 1212 500 + 1500 6'150 = 6'650, ohne 13. ML 1'333.35).
+    /// Ebenfalls nicht: Kapitalleistungen (Lohnausweis Ziffer 4) und Beteiligungsrechte
+    /// (Ziffer 5) — QST-SB-aperiodisch folgt Ziffer 3 des Lohnausweises (Richtlinie ELM 6.0,
+    /// Kap. 10.6.1). Beleg Quality Tool Jan 2025 TF30 Müller MEY: 1960 5'500 ohne SporadicBenefits.
     /// </summary>
     public static HashSet<string> AperiodischeQstCodes(
         IEnumerable<(string Code, string? SwissdecLohnart, bool QstPflichtig, bool QstPeriodisch)> positionen)
@@ -1007,6 +1010,7 @@ public class ElmMonthlyDeclarationBuilder
             var la = int.TryParse((p.SwissdecLohnart ?? "").Trim(), out var n) ? n
                    : int.TryParse(p.Code, out var n2) ? n2 : 0;
             if (ElmStatistikCodes.TopfFuer(la) == ElmStatistikCodes.Topf.Dreizehnter) continue;
+            if (la == 1410 || la is >= 1960 and <= 1969) continue;
             set.Add(p.Code);
         }
         return set;
@@ -1024,9 +1028,9 @@ public class ElmMonthlyDeclarationBuilder
     /// <summary>
     /// Weitere Erwerbstätigkeit (OtherActivities): Beschäftigungsgrad bei uns — Monatslohn
     /// laut Vertrag, Stundenlohn aus den geleisteten Stunden des Monats (Stunden ÷ Monats-Vollzeit,
-    /// auf 0.05; derselbe Grad, mit dem der Lohnlauf den satzbestimmenden Lohn rechnet) —
-    /// und das Gesamtpensum bei den anderen Arbeitgebern, falls bekannt.
-    /// RefXML Jan 2025: TF19 Andrey 50/40, TF20 Arnold 40 ohne Gesamtpensum, TF18 Blanc 35 h → 19.25/60.
+    /// auf zwei Stellen) — und das Gesamtpensum bei den anderen Arbeitgebern, falls bekannt.
+    /// RefXML Jan 2025: TF19 Andrey 50/40, TF20 Arnold 40 ohne Gesamtpensum;
+    /// Quality Tool Jan 2025: TF18 Blanc 35 h ÷ 182 h → 19.23/60.
     /// </summary>
     public static XElement? WeitereErwerbstaetigkeit(EmployeeQuellensteuer? version, Employment? em,
                                                      CompanyProfile filiale, JsonElement slip)
@@ -1042,7 +1046,7 @@ public class ElmMonthlyDeclarationBuilder
         {
             var vollzeit = PayrollCalculations.MonatsstundenVollzeit(filiale);
             var pct = vollzeit > 0 ? Num(slip, "workedHours") / vollzeit * 100m : 0m;
-            grad = new XElement(Sd + "HourlyOrLessonSalary", Amt(PayrollCalculations.Round05(pct)));
+            grad = new XElement(Sd + "HourlyOrLessonSalary", Amt(Math.Round(pct, 2, MidpointRounding.AwayFromZero)));
         }
         else
             grad = new XElement(Sd + "MonthlySalary", Amt(em?.EmploymentPercentage ?? 100m));

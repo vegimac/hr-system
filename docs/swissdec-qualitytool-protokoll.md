@@ -92,7 +92,21 @@ Aus der Referenz abgeleitet (nicht aufgeklappt, gleiche Ursache): Aebi `Withdraw
 Burri `WithdrawalDate` 2024-12-31; Lusser SporadicBenefits kumuliert; Oberli Period from
 2024-11-16; SalaryTotals LU `CorrectionMonth` −2'281.65 / −34.00 → **K4** bzw. offen.
 
-### 2025-01 — lokaler Vergleich, noch nicht gesendet
+### 2025-01 — gesendet, Korrektur K9 offen zum Neusenden
+
+| Sendung | DeclarationId | Ergebnis |
+|---|---|---|
+| Lauf 2, 28.09.2026 23:36 | 18d999c6f4f5b7a69 | Bosshard, Blanc, Forster, Müller, SalaryTotals BE, catchAll BE rot |
+
+- **Blanc** `HourlyOrLessonSalary` 19.25 statt 19.23, `SocialContributions` −75.50 statt −75.45 → **K9**.
+- **Müller** (MEY) `SporadicBenefits` 5'500 zu viel (auch catchAll) → **K9**.
+- **Forster** Adresse, A0N/576.00 statt R0N/459.00 — Swissdec-Frage 3 (Testdaten nennen R0N/Varese).
+  Folge: SalaryTotals BE `TotalTaxAtSource` 5'188.00 statt 5'305.00 (Differenz 117 = 576 − 459).
+- **Bosshard** `FamilyIncomeSupplement` 260.00 statt 268.00. Unsere Testdaten (Export vom
+  07.09.2026, Lohnart 3000) und die alte RefXML sagen 260 — das Quality Tool hat die Referenz am
+  28.09. geändert. Nicht angleichen; zuerst prüfen, ob Swissdec neue Testdaten veröffentlicht hat.
+
+Lokaler Vergleich vor dem Senden:
 
 Erste Erzeugung (28.09.2026): 7 Schema-Fehler (Vertragsart AWT/Verwaltungsrat im falschen Block,
 QST-Wohnsitz Ausland ohne KindOfResidence, Wohnsitzland der Person) → Commit ab89525. Danach
@@ -104,8 +118,8 @@ Bleibt bewusst bzw. offen (nicht angleichen):
 | Testfall | Feld | Referenz | OneCrew | Urteil |
 |---|---|---|---|---|
 | TF28 Arbenz, TF34 Rinaldi | Weekly/ZIP-Code | `3008.00` / `6982.00` | `3008` / `6982` | Artefakt der Referenz (PLZ als Zahl exportiert) |
-| TF29 Forster | Personenadresse | Via Como 12, 21100 Varese | Via Dogana 4, 20123 Milano | Eingabedaten (CSV) nennen Milano — wir rechnen aus der CSV |
-| TF29 Forster | TaxAtSourceCode / TaxAtSource | R0N / 459.00 | A0N / 576.00 | offene Swissdec-Frage (R0N vs A0N), `docs/swissdec-call-2026-09-24.md` |
+| TF29 Forster | Personenadresse | Via Dogana 4, 20123 Milano | Via Como 12, 21100 Varese | Eingabedaten (CSV) nennen Varese — wir rechnen aus der CSV |
+| TF29 Forster | TaxAtSourceCode / TaxAtSource | A0N / 576.00 | R0N / 459.00 | offene Swissdec-Frage 3 (R0N vs A0N), `docs/swissdec-call-2026-09-24.md` |
 | alle mit BVG | BVG-LPP-RegularContribution | ungerundet (z.B. −197.16) | auf 5 Rp. (−197.15) | **K2** — lokale Referenz veraltet, Quality Tool rundet |
 
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
@@ -211,7 +225,7 @@ Referenzmonaten gegengeprüft. Lohnberechnung unverändert — nur die Meldung.
 
 | Befund (Testfall) | Regel |
 |---|---|
-| Blanc `SocialContributions` −75.50 statt −75.45 | AHV/IV/EO + ALV als **ein** Posten auf 5 Rp., ALVZ und NBU je einzeln. Trifft alle 44 Zeilen Nov 2024 – Jan 2025 (alte Regel 43). |
+| Blanc `SocialContributions` | ~~AHV/IV/EO + ALV als ein Posten auf 5 Rp.~~ — vom Quality Tool widerlegt, ersetzt durch **K9**. |
 | Burri erscheint im Januar nicht | Kein StatisticSalary, wenn die Anstellung vor dem Monat endete (Lohn nach Austritt); QST bliebe. |
 | Oberli `EntryDate` 2024-11-16 | Beginn der nahtlosen Vertragskette, nicht des Abschnitts im Monat. |
 | Bucher, Châtelain, Koller, Maldini, Rinaldi, Roos: Kinder zu früh | Kind nur, wenn der QST-Abzug im Meldemonat schon begonnen hat. |
@@ -223,8 +237,8 @@ Referenzmonaten gegengeprüft. Lohnberechnung unverändert — nur die Meldung.
 | Herz, Blanc, Lamon `Steady` | Stundenlohn **mit vereinbarten Wochenstunden** = Steady (Grad = Wochenstunden ÷ Modell). FLEX aus easy@work (ohne Wochenstunden) bleibt Unsteady. |
 | Estermann, Hasler, Rinaldi `doctorate`; Koller, Paganini `universityBachelor` | Ausbildung aus LSE-Ausbildung + LSE-Hochschultitel (1 Doktorat, 2 Master, 3 Bachelor). |
 | Arnold, Meier C., Hasler, Müller `ResidenceCategory` | Katalog: `B_EU_EFTA` usw. zählen als Buchstabe; neu MV90, MV120, ANDERE (Schema-Stand 38). |
-| Andrey, Arbenz, Arnold, Binggeli, Blanc, Forster, Meier C. `OtherActivities` | Aus «weitere Beschäftigungen» der QST-Erfassung: Monatslohn = Pensum laut Vertrag, Stundenlohn = Stunden ÷ Monats-Vollzeit auf 0.05 (Blanc 35 h ÷ 182 = 19.25), plus Gesamtpensum anderswo. |
-| Oberli QST `SporadicBenefits` 2'000 | QST-pflichtige Lohnarten mit «einmalig» (Bonus, Sonderzulage, VR-Honorar, Nachzahlungen), ohne 13./14. ML — an allen 25 Fällen 2025/26 bestätigt. |
+| Andrey, Arbenz, Arnold, Binggeli, Blanc, Forster, Meier C. `OtherActivities` | Aus «weitere Beschäftigungen» der QST-Erfassung: Monatslohn = Pensum laut Vertrag, Stundenlohn = Stunden ÷ Monats-Vollzeit (Rundung korrigiert in **K9**), plus Gesamtpensum anderswo. |
+| Oberli QST `SporadicBenefits` 2'000 | QST-pflichtige Lohnarten mit «einmalig» (Bonus, Sonderzulage, VR-Honorar, Nachzahlungen), ohne 13./14. ML. Ausnahme Lohnausweis Ziffer 4/5 → **K9**. |
 | Blanc, Utzinger `MarriagePartner` | Bei Tarif B, C, T: Ehepartner mit AHV-Nr. oder unknown, eigene Adresse sonst die des MA, Wohnsitz, bei Erwerbstätigkeit Arbeitskanton + Beginn. |
 
 Tests `ElmMonatJanuar2025Tests`.
@@ -239,9 +253,23 @@ Tests `ElmMonatJanuar2025Tests`.
   gleicher Adresse «im Haushalt», Utzinger).
 - **Testdaten:** bestehende Muster-AG-Daten auf der Testinstanz nach dem Deploy nachgeführt.
 
+### K9 — Januar 2025: Befunde des Quality Tools (28.09.2026)
+
+Drei Regeln aus K7 stammten aus der alten RefXML; das Quality Tool rechnet anders. Nur die
+Meldung, Lohnberechnung unverändert.
+
+| Befund (Testfall) | Regel neu |
+|---|---|
+| Blanc `SocialContributions` −75.45 | AHV/IV/EO, ALV, ALVZ, NBU **je einzeln** auf 5 Rp., dann summiert (−62.51 → −62.50, −12.97 → −12.95). |
+| Blanc `HourlyOrLessonSalary` 19.23 | Stunden ÷ Monats-Vollzeit × 100 auf **zwei Stellen** (35 ÷ 182), nicht auf 0.05. |
+| Müller MEY ohne `SporadicBenefits` | Kapitalleistung (1410, Lohnausweis Ziffer 4) und Beteiligungsrechte (1960–1969, Ziffer 5) zählen nicht: QST-SB-aperiodisch folgt Ziffer 3 (Richtlinie ELM 6.0, Kap. 10.6.1, Tabelle QST-SB-aperiodisch). Gegengeprüft: Müller 1960 Jan–Apr in keiner RefXML mit SporadicBenefits; Hasler VR-Honorar April 10'000 bleibt drin. |
+
+Tests `ElmMonatJanuar2025Tests`.
+
 ## Offen
 
-- **Januar 2025:** nach Deploy + Testdaten-Nachführung (K8) neu erzeugen, vergleichen, senden.
+- **Januar 2025:** nach Deploy (K9) neu erzeugen und senden. Erwartet rot: Forster + SalaryTotals BE
+  (Frage 3), Bosshard 268 (Testdaten-Stand prüfen).
 - **Februar 2025 ff.:** alle Monate neu bestätigen (5c hat alles zurückgesetzt) und senden. Beim Aufklappen immer die **neueste** Request-Zeile prüfen. Im Quality Tool
   nie «Edit → Reset» (löscht die Sendungen des Laufs); Refresh steht rechts unter ACTIONS.
 - **Jahresmeldung (YearlyRetrospective), Beobachtung:** Referenz TF16 Aebi 2024

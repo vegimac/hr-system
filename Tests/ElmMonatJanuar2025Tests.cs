@@ -14,12 +14,12 @@ public class ElmMonatJanuar2025Tests
     private static JsonElement Slip(string json) => JsonDocument.Parse(json).RootElement;
 
     [Fact]
-    public void Sozialabgaben_AhvUndAlv_als_ein_Posten_gerundet()
+    public void Sozialabgaben_je_Abzug_gerundet()
     {
-        // TF18 Blanc: −62.51 − 12.97 = −75.48 → −75.50 (einzeln gerundet wäre −75.45)
+        // Quality Tool TF18 Blanc: −62.51 → −62.50, −12.97 → −12.95 = −75.45 (nicht −75.50)
         var slip = Slip("""{"abzugLines":[{"categoryCode":"AHV","betrag":-62.51},{"categoryCode":"ALV","betrag":-12.97},{"categoryCode":"ALVZ","betrag":0},{"categoryCode":"BVG","betrag":-76.44}]}""");
         var sozial = ElmMonthlyDeclarationBuilder.Sozialabgaben(slip, out var bvg);
-        Assert.Equal(-75.50m, sozial);
+        Assert.Equal(-75.45m, sozial);
         Assert.Equal(-76.45m, bvg);
     }
 
@@ -98,6 +98,9 @@ public class ElmMonatJanuar2025Tests
             ("180.1", (string?)"1200", true, false),  // 13. ML — nie (TF14 Egli)
             ("1070", (string?)"1070", true, true),    // Schichtzulage periodisch
             ("1420", (string?)"1420", false, false),  // nicht QST-pflichtig
+            ("1960", (string?)"1960", true, false),   // Beteiligungsrechte, LA Ziffer 5 (TF30 Müller MEY)
+            ("1962", (string?)"1962", true, false),   // Mitarbeiteroptionen, LA Ziffer 5
+            ("1410", (string?)"1410", true, false),   // Kapitalleistung, LA Ziffer 4
         });
         Assert.Equal(new[] { "1210", "1500" }, set.OrderBy(x => x).ToArray());
     }
@@ -148,12 +151,12 @@ public class ElmMonatJanuar2025Tests
     [Fact]
     public void Weitere_Erwerbstaetigkeit_Stundenlohn_aus_Stunden()
     {
-        // TF18 Blanc: 35 h ÷ 182 h = 19.23 % → 19.25; Gesamtpensum anderswo 60 %
+        // Quality Tool TF18 Blanc: 35 h ÷ 182 h = 19.23 %; Gesamtpensum anderswo 60 %
         var q = new EmployeeQuellensteuer { WeitereBeschaftigungen = true, GesamtpensumWeitereAg = 60m };
         var em = new Employment { EmploymentModel = "FLEX", SwissdecVertragsart = "indefiniteSalaryHrs", WeeklyHours = 8.4m };
         var filiale = new CompanyProfile { NormalWeeklyHours = 42m };
         var oa = ElmMonthlyDeclarationBuilder.WeitereErwerbstaetigkeit(q, em, filiale, Slip("""{"workedHours":35}"""))!;
-        Assert.Equal("19.25", oa.Element(ElmGemeinsam.Sd + "HourlyOrLessonSalary")?.Value);
+        Assert.Equal("19.23", oa.Element(ElmGemeinsam.Sd + "HourlyOrLessonSalary")?.Value);
         Assert.Equal("60.00", oa.Element(ElmGemeinsam.Sd + "TotalOtherActivityRate")?.Value);
     }
 
