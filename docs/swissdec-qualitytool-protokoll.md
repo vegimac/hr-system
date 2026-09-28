@@ -60,6 +60,7 @@ TF44 Lusser) stimmen mit der Referenz überein.
 | Sendung | DeclarationId | Ergebnis |
 |---|---|---|
 | Lauf 2, 28.09.2026 19:56 | 18d98dc0cf2fd3ad1 | Egli rot (aufgeklappt), Aebi, Lusser, Burri, SalaryTotals, catchAll mit Befunden (nicht aufgeklappt); Oberli ohne Request-Zeile |
+| Lauf 2, 28.09.2026 20:41 (nach K3/K4) | 18d9903553ea02485 | Egli nur noch `TaxAtSourceSalaries` fehlt (→ K5); ResidenceCategory, Period, Earnings13th grün |
 
 Befunde Egli (TF14, LU) und daraus abgeleitet — die alte lokale Referenz hatte dasselbe,
 es war beim Dezember-Beleg-Check nur nicht geprüft worden:
@@ -69,7 +70,7 @@ es war beim Dezember-Beleg-Check nur nicht geprüft worden:
 | ResidenceCategory | settled-C | annual-B | Bewilligung vom heutigen MA statt vom Meldemonat → **K3** |
 | AnnualValues/Period from | 2024-11-01 | 2024-12-01 | Jahreswerte nur aus dem aktuellen Monat → **K4** |
 | AnnualValues/Earnings13th | 479.55 | 304.10 | dito (175.45 Nov + 304.10 Dez) → **K4** |
-| TaxAtSourceSalaries | Correction Nov: Old A0N −34.00 → New NON, Withdrawal 01.11. settled-C | fehlt | Korrekturmeldung (K5/E6) noch nicht gebaut → **offen** |
+| TaxAtSourceSalaries | Correction Nov: Old A0N −34.00 → New NON, Withdrawal 01.11. settled-C | fehlt | Korrekturmeldung → **K5** (Old bleibt A0Y / −36.05 wegen F1) |
 
 Aus der Referenz abgeleitet (nicht aufgeklappt, gleiche Ursache): Aebi `WithdrawalDate`
 2024-12-20, Period until 20.12., SporadicBenefits 3'000 und OtherBenefits 1'250 kumuliert;
@@ -137,18 +138,36 @@ Keine bewussten Abweichungen, sondern Fehler bzw. Vorgaben, die wir übernommen 
   Filiale aus den definitiv abgeschlossenen Lohnzetteln des Jahres (`Toepfe`).
 - Tests `ElmMonatsJahreswerteTests`.
 
+### K5 — Quellensteuer-Korrektur rückwirkend (28.09.2026)
+
+- **Befund:** Dezember TF14 Egli, `TaxAtSourceSalaries` fehlt. Mutation Dezember: settled-C,
+  Code NON, Auslöser `AwaitCorrectionFromCompany`, **ohne** neues «Gültig ab» — das bisherige
+  (01.11.2024) bleibt. Egli war also ab Eintritt nicht pflichtig; erfahren im Dezember.
+- **Daten (Testmandant 4c):** Bei diesem Auslöser ohne mutiertes Gültig-ab wirkt die Änderung
+  ab Beginn der Version, die im Vormonat auf dem Beleg stand (`RueckwirkendAb`). Egli danach:
+  Bewilligung B ab 01.11. (bis 30.11.) und C ab 01.11., erfahren 01.12.; QST A0Y 01.11.–30.11.
+  und «NON» ab 01.11., erfahren 01.12. Überbleibsel früherer Läufe (die Version
+  «1.12.–30.11.») werden gelöscht; auch beim normalen Beenden entsteht kein verkehrter Zeitraum mehr.
+- **Lohn:** Der Korrekturposten rechnet NON/NOY mit neu = 0 → November alt A0Y 36.05, neu 0,
+  **Erstattung 36.05 auf dem Dezember-Beleg** (Zeile «Quellensteuer-Korrektur»).
+- **Meldung:** Im Meldemonat verrechnete Posten erscheinen als `Correction` (Old = Gemeldetes
+  negativ, New = Nachrechnung; NON als `CategoryPredefined` mit `Withdrawal` + Grund, sonst
+  `Mutation` + Grund aus dem Codewechsel). Ohne laufenden Abzug entsteht eine reine
+  Korrektur-Zeile (zählt in `NumberOf-TaxAtSourceSalary-Tags`), die Summen erhalten
+  `TotalMonth` 0.00 und `CorrectionMonth` je Monat.
+- **Verbleibende Differenz:** Old-Block A0Y / −36.05 statt A0N / −34.00, Summe LU
+  `CorrectionMonth` −36.05 statt −34.00 — Folge von **F1**, bewusst.
+- Tests `QstKorrekturNonTests`.
+
 ## Offen
 
-- **Korrekturmeldung Quellensteuer (Etappe K5/E6)** — Egli Dezember: C-Ausweis rückwirkend,
-  November wird mit NON korrigiert. Braucht (a) die Rückerstattung der November-QST auf dem
-  Dezember-Beleg über einen `qst_korrektur`-Posten und (b) den `Correction`-Block in der
-  Meldung inkl. `CorrectionMonth` in den Summen. Old-Block = was wir im November gemeldet
-  haben (A0Y / 36.05, Folge von F1), nicht A0N / 34.00 der Referenz.
+- **Dezember nach K5:** Schritt 5c, 4c Dezember nur TF14, Monate ab November neu bestätigen,
+  Dezember neu senden.
 
 - **Fragenliste an Swissdec** (`docs/swissdec-call-2026-09-24.md`, Teil A, 7 Fragen) — noch
   nicht besprochen, noch nicht gemailt (Stand 28.09.2026). Betrifft Monate ab 2025, nicht
   November 2024.
-- **2024-12 nach Deploy von K3/K4 neu senden** und die übrigen Testfälle aufklappen;
-  Oberli (keine Request-Zeile) und catchAll prüfen.
+- Übrige Dezember-Testfälle (Aebi, Burri, Lusser, SalaryTotals, catchAll) aufklappen;
+  Oberli (keine Request-Zeile) prüfen.
 - Weitere Teilprozesse des Laufs (YearlyRetrospective, EMA, YearlyProspective) sind noch nicht
   gesendet.

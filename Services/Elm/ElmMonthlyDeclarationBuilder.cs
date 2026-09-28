@@ -261,6 +261,16 @@ public class ElmMonthlyDeclarationBuilder
             .Where(f => empIds.Contains(f.EmployeeId))
             .ToListAsync(ct);
 
+        // QST-Korrekturen der Vormonate, die in diesem Monat verrechnet wurden (TF14 Egli Dez 2024).
+        var korrekturen = await _db.QstKorrekturen.AsNoTracking()
+            .Where(k => k.VerrechnetPeriodeId != null && periodeIds.Contains(k.VerrechnetPeriodeId.Value))
+            .OrderBy(k => k.Jahr).ThenBy(k => k.Monat).ThenBy(k => k.Id)
+            .ToListAsync(ct);
+        foreach (var k in korrekturen.Where(x => !empIds.Contains(x.EmployeeId)))
+            warn.Add($"QST-Korrektur {k.Monat:00}.{k.Jahr} (MA-Id {k.EmployeeId}) ohne Lohnzettel in diesem Monat — nicht gemeldet.");
+        var versionById = qstVersionen.ToDictionary(v => v.Id);
+        var korrTotal = new Dictionary<string, SortedDictionary<string, (decimal Basis, decimal Steuer)>>(StringComparer.Ordinal);
+
         // Wohngemeinde der Personen: die Statistik verlangt die BFS-Nummer in der
         // Adresse. OneCrew führt sie am MA nicht — sie wird über die PLZ aus dem
         // Ortschaftsverzeichnis abgeleitet, wie bei den Filialen.
@@ -366,6 +376,50 @@ public class ElmMonthlyDeclarationBuilder
                 }
             }
 
+            var permitId = BewilligungAmStichtag(bewilligungen.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsEnde));
+            var permitAmEnde = permitId != null && permitTypen.TryGetValue(permitId.Value, out var pt) ? pt : null;
+
+            foreach (var k in korrekturen.Where(x => x.EmployeeId == e.Id))
+            {
+                versionById.TryGetValue(k.NeueVersionId, out var neu);
+                var alt = k.AlteVersionId is int aid && versionById.TryGetValue(aid, out var av) ? av : null;
+                var kt = (neu?.Steuerkanton ?? alt?.Steuerkanton ?? "").Trim().ToUpperInvariant();
+                if (kt.Length != 2 || !filialeById.TryGetValue(k.CompanyProfileId, out var kFiliale))
+                {
+                    warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): QST-Korrektur {k.Monat:00}.{k.Jahr} ohne Steuerkanton oder Filiale — nicht gemeldet.");
+                    continue;
+                }
+                var grund = QstKorrekturGrund(k, (permitAmEnde ?? e.PermitType)?.Code, e.NationalityRef?.Code,
+                                              alt?.Steuerkanton, neu?.Steuerkanton);
+                var block = QstKorrekturBlock(k, WpId(kFiliale), neu?.ValidFrom ?? new DateOnly(k.Jahr, k.Monat, 1), grund);
+
+                var ziel = qstZeilenPerson.FirstOrDefault(z => (string?)z.Attribute("addresseeIDRef") == $"#QST-{kt}");
+                if (ziel == null)
+                {
+                    // Nur Korrektur, kein laufender Abzug (Egli Dez 2024: C-Ausweis, NON).
+                    var kopf = QstVersionWahl.Waehle(qstVersionen.Where(v => v.EmployeeId == e.Id), DateOnly.FromDateTime(monatsAnfang)) ?? neu;
+                    var gemeinde = neu?.QstGemeindeBfsNr ?? kopf?.QstGemeindeBfsNr;
+                    ziel = new XElement(Sd + "TaxAtSourceSalary",
+                        new XAttribute("addresseeIDRef", $"#QST-{kt}"),
+                        QstZusatz(e, kopf, familie.Where(f => f.EmployeeId == e.Id && f.MemberType == "Kind").ToList()),
+                        new XElement(Sd + "TaxAtSourceCanton", kt),
+                        gemeinde is > 0 ? new XElement(Sd + "TaxAtSourceMunicipalityID", gemeinde.Value) : null,
+                        new XElement(Sd + "CurrentMonth", monatStr));
+                    qstZeilenPerson.Add(ziel);
+                    qstKantone.Add(kt);
+                    if (!qstTotal.ContainsKey(kt)) qstTotal[kt] = (0m, 0m);
+                    qstZeilen++;
+                }
+                ziel.Add(block);
+                gemeldeteFilialen.Add(k.CompanyProfileId);
+
+                var (dBasis, dSteuer) = QstKorrekturWirkung(k);
+                if (!korrTotal.TryGetValue(kt, out var jeMonat)) korrTotal[kt] = jeMonat = new SortedDictionary<string, (decimal, decimal)>(StringComparer.Ordinal);
+                var mKey = $"{k.Jahr:0000}-{k.Monat:00}";
+                var bisherK = jeMonat.TryGetValue(mKey, out var bk) ? bk : (0m, 0m);
+                jeMonat[mKey] = (bisherK.Item1 + dBasis, bisherK.Item2 + dSteuer);
+            }
+
             if (statistikZeilen.Count == 0 && qstZeilenPerson.Count == 0) continue;
 
             // Stand des MELDEMONATS, nie der heutige (Walter 27.09.2026): Pensum,
@@ -386,10 +440,8 @@ public class ElmMonthlyDeclarationBuilder
             var modell = modellId != null ? modelle.FirstOrDefault(m => m.Id == modellId) : null;
             modell ??= modelle.FirstOrDefault();   // Rueckfall: Standardmodell der Rechtseinheit
 
-            var permitId = BewilligungAmStichtag(bewilligungen.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsEnde));
             var person = new XElement(Sd + "Person",
-                Particulars(e, warn, WohnGemeinde(e),
-                    permitId != null && permitTypen.TryGetValue(permitId.Value, out var pt) ? pt : null),
+                Particulars(e, warn, WohnGemeinde(e), permitAmEnde),
                 new XElement(C + "Work",
                     new XAttribute("workID", WorkId(e)),
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
@@ -462,7 +514,14 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "TotalTaxableEarning", Betrag05(qstTotal[kt].Basis)),
                 new XElement(Sd + "TotalTaxAtSource", Betrag05(qstTotal[kt].Steuer)),
                 new XElement(Sd + "TotalCommission", "0.00"),
-                new XElement(Sd + "CurrentMonth", monatStr)))).ToList();
+                new XElement(Sd + "CurrentMonth", monatStr)),
+            korrTotal.TryGetValue(kt, out var jeMonat)
+                ? jeMonat.Select(m => new XElement(Sd + "CorrectionMonth",
+                    new XElement(Sd + "TotalTaxableEarning", Amt(m.Value.Basis)),
+                    new XElement(Sd + "TotalTaxAtSource", Amt(m.Value.Steuer)),
+                    new XElement(Sd + "TotalCommission", "0.00"),
+                    new XElement(Sd + "Month", m.Key)))
+                : null)).ToList();
 
         // ── Arbeitszeitmodelle der Rechtseinheit ─────────────────────────────
         // Ohne erfasste Modelle gilt ein Standardmodell aus den Wochenstunden der
@@ -761,7 +820,30 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "ValidAsOf", xd.ToString("yyyy-MM-dd")),
                     new XElement(Sd + "Reason", "withdrawalCompany")));
 
-        // Konfession, Alleinerziehende und Kinder mit Anspruchsdauer (Walter 27.09.2026).
+        var x = new XElement(Sd + "TaxAtSourceSalary",
+            new XAttribute("addresseeIDRef", $"#QST-{kanton}"),
+            QstZusatz(e, version, kinder),
+            new XElement(Sd + "TaxAtSourceCanton", kanton),
+            version?.QstGemeindeBfsNr is > 0 ? new XElement(Sd + "TaxAtSourceMunicipalityID", version!.QstGemeindeBfsNr!.Value) : null,
+            new XElement(Sd + "CurrentMonth", monatStr),
+            new XElement(Sd + "Current",
+                new XAttribute("workplaceIDRef", WpId(filiale)),
+                QstKategorie(code),
+                new XElement(Sd + "TaxableEarning", Betrag05(basis)),
+                new XElement(Sd + "AscertainedTaxableEarning", Betrag05(satzBasis)),
+                new XElement(Sd + "TaxAtSource", Betrag05(steuer)),
+                residence,
+                stamm.GemeindeNr.TryGetValue(filiale.Id, out var wg) ? new XElement(Sd + "WorkMunicipalityID", wg) : null,
+                declaration));
+        return (x, kanton, basis, steuer);
+    }
+
+    /// <summary>
+    /// Personenangaben der QST-Zeile: Konfession, Alleinerziehende und Kinder mit
+    /// Anspruchsdauer (Walter 27.09.2026). Null = nichts zu melden.
+    /// </summary>
+    private static XElement? QstZusatz(Employee e, EmployeeQuellensteuer? version, List<EmployeeFamilyMember> kinder)
+    {
         // Reihenfolge laut XSD: Denomination, SingleParentFamily, MarriagePartner, Children.
         var konfession = MapKonfession(e.Religion);
         XElement? alleinerziehend = null;
@@ -792,29 +874,84 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "Start", k.QstDeductibleFrom!.Value.ToString("yyyy-MM-dd")),
                 k.QstDeductibleUntil == null ? null : new XElement(Sd + "End", k.QstDeductibleUntil.Value.ToString("yyyy-MM-dd"))))
             .ToList();
-        XElement? zusatz = null;
-        if (konfession != null || alleinerziehend != null || kinderEl.Count > 0)
-            zusatz = new XElement(Sd + "AdditionalParticulars",
-                konfession == null ? null : new XElement(Sd + "Denomination", konfession),
-                alleinerziehend,
-                kinderEl);
+        if (konfession == null && alleinerziehend == null && kinderEl.Count == 0) return null;
+        return new XElement(Sd + "AdditionalParticulars",
+            konfession == null ? null : new XElement(Sd + "Denomination", konfession),
+            alleinerziehend,
+            kinderEl);
+    }
 
-        var x = new XElement(Sd + "TaxAtSourceSalary",
-            new XAttribute("addresseeIDRef", $"#QST-{kanton}"),
-            zusatz,
-            new XElement(Sd + "TaxAtSourceCanton", kanton),
-            version?.QstGemeindeBfsNr is > 0 ? new XElement(Sd + "TaxAtSourceMunicipalityID", version!.QstGemeindeBfsNr!.Value) : null,
-            new XElement(Sd + "CurrentMonth", monatStr),
-            new XElement(Sd + "Current",
-                new XAttribute("workplaceIDRef", WpId(filiale)),
-                new XElement(Sd + "TaxAtSourceCategory", new XElement(C + "TaxAtSourceCode", code)),
-                new XElement(Sd + "TaxableEarning", Betrag05(basis)),
-                new XElement(Sd + "AscertainedTaxableEarning", Betrag05(satzBasis)),
-                new XElement(Sd + "TaxAtSource", Betrag05(steuer)),
-                residence,
-                stamm.GemeindeNr.TryGetValue(filiale.Id, out var wg) ? new XElement(Sd + "WorkMunicipalityID", wg) : null,
-                declaration));
-        return (x, kanton, basis, steuer);
+    /// <summary>Tarifcode (A0N …) oder vordefinierte Kategorie (NON, MEY …) laut Schema.</summary>
+    public static XElement QstKategorie(string? code)
+    {
+        var c = (code ?? "").Trim().ToUpperInvariant();
+        return new XElement(Sd + "TaxAtSourceCategory", QstVordefinierteKategorie.Parse(c) != null
+            ? new XElement(C + "CategoryPredefined", c)
+            : new XElement(C + "TaxAtSourceCode", c));
+    }
+
+    private static bool IstNullKategorie(string? code)
+        => QstVordefinierteKategorie.Parse(code) is { } k && QstVordefinierteKategorie.IstNullAbzug(k.Art);
+
+    /// <summary>
+    /// Korrektur eines Vormonats aus einem im Meldemonat verrechneten QST-Posten
+    /// (Swissdec CompanyCorrection; RefXML Dez 2024 TF14 Egli, Jun 2025 TF31, Jul 2025 TF33).
+    /// Old = das Gemeldete mit umgekehrtem Vorzeichen, New = die Nachrechnung. NON/NOY melden
+    /// 0.00 und einen Austritt, alle anderen eine Mutation.
+    /// </summary>
+    public static XElement QstKorrekturBlock(QstKorrektur k, string workplaceIdRef, DateOnly gueltigAb, string grund)
+    {
+        var neuNull = IstNullKategorie(k.NeuerCode);
+        return new XElement(Sd + "Correction",
+            new XElement(Sd + "Month", $"{k.Jahr:0000}-{k.Monat:00}"),
+            new XElement(Sd + "Old",
+                new XAttribute("workplaceIDRef", workplaceIdRef),
+                QstKategorie(k.AlterCode),
+                new XElement(Sd + "TaxableEarning", Betrag05(-k.Basis)),
+                new XElement(Sd + "AscertainedTaxableEarning", Betrag05(-k.SatzBasis)),
+                new XElement(Sd + "TaxAtSource", Betrag05(-k.AlterBetrag))),
+            new XElement(Sd + "New",
+                new XAttribute("workplaceIDRef", workplaceIdRef),
+                QstKategorie(k.NeuerCode),
+                new XElement(Sd + "TaxableEarning", Betrag05(neuNull ? 0m : k.Basis)),
+                new XElement(Sd + "AscertainedTaxableEarning", Betrag05(neuNull ? 0m : k.SatzBasis)),
+                new XElement(Sd + "TaxAtSource", Betrag05(neuNull ? 0m : k.NeuerBetrag)),
+                new XElement(Sd + "DeclarationCategory",
+                    new XElement(Sd + (neuNull ? "Withdrawal" : "Mutation"),
+                        new XElement(Sd + "ValidAsOf", gueltigAb.ToString("yyyy-MM-dd")),
+                        new XElement(Sd + "Reason", grund)))));
+    }
+
+    /// <summary>Summen-Wirkung einer Korrektur (New + Old), je Betrag auf 5 Rappen.</summary>
+    public static (decimal Basis, decimal Steuer) QstKorrekturWirkung(QstKorrektur k)
+    {
+        var neuNull = IstNullKategorie(k.NeuerCode);
+        return (PayrollCalculations.Round05(neuNull ? 0m : k.Basis) - PayrollCalculations.Round05(k.Basis),
+                PayrollCalculations.Round05(neuNull ? 0m : k.NeuerBetrag) - PayrollCalculations.Round05(k.AlterBetrag));
+    }
+
+    /// <summary>
+    /// Grund der Korrektur laut Schema. Rückwirkend nicht pflichtig: C-Bewilligung →
+    /// settled-C, Schweizer → naturalization. Codewechsel: Buchstabe → civilstate,
+    /// Kinderzahl → childrenDeduction, Kirchensteuer → churchTax, Kanton → residence.
+    /// </summary>
+    public static string QstKorrekturGrund(QstKorrektur k, string? bewilligungAmEnde, string? nationalitaet,
+                                           string? kantonAlt, string? kantonNeu)
+    {
+        if (IstNullKategorie(k.NeuerCode))
+            return string.Equals(bewilligungAmEnde, "C", StringComparison.OrdinalIgnoreCase) ? "settled-C"
+                 : string.Equals(nationalitaet, "CH", StringComparison.OrdinalIgnoreCase) ? "naturalization"
+                 : "others";
+        var alt = System.Text.RegularExpressions.Regex.Match((k.AlterCode ?? "").Trim().ToUpperInvariant(), @"^([A-Z]{1,2})(\d)([YN])$");
+        var neu = System.Text.RegularExpressions.Regex.Match((k.NeuerCode ?? "").Trim().ToUpperInvariant(), @"^([A-Z]{1,2})(\d)([YN])$");
+        if (!string.IsNullOrWhiteSpace(kantonAlt) && !string.IsNullOrWhiteSpace(kantonNeu)
+            && !string.Equals(kantonAlt.Trim(), kantonNeu.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "residence";
+        if (!alt.Success || !neu.Success) return "others";
+        if (alt.Groups[1].Value != neu.Groups[1].Value) return "civilstate";
+        if (alt.Groups[2].Value != neu.Groups[2].Value) return "childrenDeduction";
+        if (alt.Groups[3].Value != neu.Groups[3].Value) return "churchTax";
+        return "others";
     }
 
     /// <summary>Konfession → Swissdec-Denomination. Unbekannt = kein Element.</summary>

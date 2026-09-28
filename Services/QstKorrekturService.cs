@@ -87,7 +87,10 @@ public class QstKorrekturService
         var alleVersionen = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == neueVersion.EmployeeId)
             .ToListAsync(ct);
-        var jahresNeu = QstJahresmodell.GiltFuer(neueVersion.Steuerkanton)
+        // NON/NOY (rückwirkend nicht pflichtig, TF14 Egli Dez 2024): neu = 0, kein Tarif.
+        var nullAbzug = QstVordefinierteKategorie.Parse(neueVersion.QstCode) is { } kat
+            && QstVordefinierteKategorie.IstNullAbzug(kat.Art);
+        var jahresNeu = !nullAbzug && QstJahresmodell.GiltFuer(neueVersion.Steuerkanton)
             ? await RechneJahresKorrekturKetteAsync(
                 neueVersion,
                 betroffen.Select(r => (r.Year, r.Month, r.SlipJson)).ToList(),
@@ -130,7 +133,11 @@ public class QstKorrekturService
                 ?? Math.Max(basis, sollVersion.MindestlohnSatzbestimmung ?? 0m);
             if (satzBasisEff < basis) satzBasisEff = basis;
 
-            if (jahresNeu != null)
+            if (nullAbzug)
+            {
+                neuerBetrag = 0m;
+            }
+            else if (jahresNeu != null)
             {
                 if (!jahresNeu.TryGetValue((r.Year, r.Month), out neuerBetrag))
                     continue;

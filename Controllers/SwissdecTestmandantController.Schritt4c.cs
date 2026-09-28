@@ -44,6 +44,21 @@ public partial class SwissdecTestmandantController
     }
 
     /// <summary>
+    /// «AwaitCorrectionFromCompany» ohne mutiertes «PersonTASCodeValidAsOf» (Walter 28.09.2026,
+    /// TF14 Egli Dez 2024: A0Y → NON, RefXML Withdrawal ValidAsOf 2024-11-01): das bisherige
+    /// Gültig-ab bleibt, die Änderung wirkt also ab Beginn der Version, die im Vormonat auf dem
+    /// Beleg stand. Null = nicht rückwirkend (Version beginnt im Mutationsmonat oder fehlt).
+    /// Später erfahrene Versionen zählen nicht — ein zweiter Lauf findet dasselbe Datum.
+    /// </summary>
+    public static DateOnly? RueckwirkendAb(DateOnly mutationsMonat, IEnumerable<EmployeeQuellensteuer> versionen)
+    {
+        var vortag = mutationsMonat.AddDays(-1);
+        var aufBeleg = QstVersionWahl.Waehle(
+            versionen.Where(v => v.ValidTo == null || v.ValidTo >= vortag), vortag);
+        return aufBeleg != null && aufBeleg.ValidFrom < mutationsMonat ? aufBeleg.ValidFrom : null;
+    }
+
+    /// <summary>
     /// Zieht die Person mit dieser Mutation ins Ausland? (Walter 26.09.2026, TF36 Maldini September.)
     /// Dann ist der QST-Kanton der ARBEITSkanton und sagt nichts ueber den Wohnort — der
     /// Inland-Zweig «Umzug = QST» darf nicht laufen, sonst loescht
@@ -184,6 +199,11 @@ public partial class SwissdecTestmandantController
             gruppen++;
             var tag1 = mon;                      // Wirkung ab Monatsanfang
             var vortag = tag1.AddDays(-1);
+            DateOnly? rueckAb = null;
+            if (!Hat("PersonTASCodeValidAsOf")
+                && string.Equals(V("PersonTASTriggerOfChange"), "AwaitCorrectionFromCompany", StringComparison.OrdinalIgnoreCase))
+                rueckAb = RueckwirkendAb(tag1, await _db.EmployeeQuellensteuer.AsNoTracking()
+                    .Where(q => q.EmployeeId == emp.Id).ToListAsync());
 
             // ── Monatswerte / später ──
             foreach (var r in rows.Where(r => Monatswerte.Contains(r.Tag))) spaeter.Add($"{r.Label}: {r.Alt ?? "–"} → {r.Neu ?? "–"}");
@@ -198,7 +218,12 @@ public partial class SwissdecTestmandantController
             if (Hat("PersonResidenceCategory"))
             {
                 var pc = MapPermit(V("PersonResidenceCategory"), out var ph); var p = pc == null ? null : permits.FirstOrDefault(x => x.Code.Equals(pc, StringComparison.OrdinalIgnoreCase));
-                stamm.Add($"Bewilligung → {pc ?? "–"} ab {tag1:dd.MM.yyyy}" + (pc == "C" ? " (C-Ausweis → keine QST-Pflicht mehr)" : "")); if (ph != null) probleme.Add(ph);
+                // Rückwirkende Korrektur (TF14 Egli Dez 2024): C galt schon ab Beginn der
+                // QST-Version, erfahren haben wir es erst im Mutationsmonat.
+                var permitAb = rueckAb ?? tag1;
+                stamm.Add($"Bewilligung → {pc ?? "–"} ab {permitAb:dd.MM.yyyy}"
+                    + (permitAb < tag1 ? $", erfahren am {tag1:dd.MM.yyyy}" : "")
+                    + (pc == "C" ? " (C-Ausweis → keine QST-Pflicht mehr)" : "")); if (ph != null) probleme.Add(ph);
                 if (!vorschau)
                 {
                     emp.PermitTypeId = p?.Id;
@@ -209,13 +234,21 @@ public partial class SwissdecTestmandantController
                     // Gleiches Muster wie EmployeePermitHistoryController: Vorgänger schliessen,
                     // neuen Eintrag idempotent anlegen.
                     var histAlle = await _db.EmployeePermitHistories.Where(h => h.EmployeeId == emp.Id).ToListAsync();
-                    if (!histAlle.Any(h => h.ValidFrom == tag1 && h.PermitTypeId == p?.Id))
+                    // Rückwirkend: Eintrag desselben Typs aus einem früheren Lauf (ab Mutationsmonat) weg.
+                    if (permitAb < tag1)
+                        foreach (var alt in histAlle.Where(h => h.PermitTypeId == p?.Id && h.ValidFrom > permitAb && h.ValidFrom <= tag1).ToList())
+                        {
+                            _db.EmployeePermitHistories.Remove(alt);
+                            histAlle.Remove(alt);
+                        }
+                    if (!histAlle.Any(h => h.ValidFrom == permitAb && h.PermitTypeId == p?.Id))
                     {
+                        // Vorgänger ab permitAb stand bis zum Vormonat auf dem Beleg → endet am Vortag.
                         foreach (var vg in histAlle.Where(h => h.ValidFrom < tag1 && (h.ValidTo == null || h.ValidTo >= tag1)))
-                            vg.ValidTo = tag1.AddDays(-1);
+                            vg.ValidTo = vg.ValidFrom < permitAb ? permitAb.AddDays(-1) : vortag;
                         _db.EmployeePermitHistories.Add(new EmployeePermitHistory
                         {
-                            EmployeeId = emp.Id, PermitTypeId = p?.Id, ValidFrom = tag1,
+                            EmployeeId = emp.Id, PermitTypeId = p?.Id, ValidFrom = permitAb,
                             ErfahrenAm = tag1,
                             Note = $"Swissdec-Testdaten Mutation {mon:yyyy-MM} ({V("PersonResidenceCategory")})",
                             CreatedAt = DateTime.Now,
@@ -577,7 +610,7 @@ public partial class SwissdecTestmandantController
             if (qstTags.Any(Hat))
             {
                 var code = V("PersonTASCode"); var kt = V("PersonTASCanton");
-                var ab = QstGueltigAb(tag1, Datum(V("PersonTASCodeValidAsOf")), code, kt);
+                var ab = rueckAb ?? QstGueltigAb(tag1, Datum(V("PersonTASCodeValidAsOf")), code, kt);
                 // Wohnsitz ins AUSLAND (Walter 26.09.2026, TF36 Maldini September): dann ist der
                 // QST-Kanton der ARBEITSkanton (TI), nicht der Wohnkanton — der Inland-Zweig
                 // «Umzug = QST» unten gilt hier NICHT, sonst loescht er die frisch gesetzten
@@ -589,9 +622,15 @@ public partial class SwissdecTestmandantController
                 // ODER Code «NON» (Swissdec: nicht quellensteuerpflichtig, z.B. nach C-Ausweis —
                 // TF14 Egli Dez 2024). Bei NON keinen neuen Eintrag anlegen, sonst würde der
                 // A0Y-Vorgänger kopiert und weiter gerechnet.
-                var codeNon = string.Equals(code, "NON", StringComparison.OrdinalIgnoreCase);
+                var codeNon = QstVordefinierteKategorie.Parse(code) is { Art: QstVordefinierteKategorie.Art.Non or QstVordefinierteKategorie.Art.Noy };
                 var beenden = (Hat("PersonTASCode") && code == null && Hat("PersonTASCanton") && kt == null) || codeNon;
-                felder["Quellensteuer"] = (beenden ? $"QST-Pflicht endet per {(ab.AddDays(-1)):dd.MM.yyyy}{(codeNon ? " (Code NON)" : "")}: " : $"neuer Eintrag ab {ab:dd.MM.yyyy}: ") + string.Join(" · ", aend);
+                // Rückwirkend nicht pflichtig (TF14 Egli Dez 2024: NON ab 01.11., erfahren 01.12.):
+                // eigene Version «keine QST», damit der Lohnlauf die bereits abgezogene QST erstattet.
+                var nonRueckwirkend = codeNon && ab < tag1;
+                felder["Quellensteuer"] = (nonRueckwirkend
+                        ? $"keine QST ab {ab:dd.MM.yyyy} (Code {code!.ToUpperInvariant()}), erfahren am {tag1:dd.MM.yyyy} → Erstattung im Lohnlauf {tag1:MM.yyyy}: "
+                        : beenden ? $"QST-Pflicht endet per {(ab.AddDays(-1)):dd.MM.yyyy}{(codeNon ? $" (Code {code!.ToUpperInvariant()})" : "")}: "
+                        : $"neuer Eintrag ab {ab:dd.MM.yyyy}: ") + string.Join(" · ", aend);
                 if (!beenden && zugAusland)
                     felder["Wohnsitz"] = $"Wohnsitz im Ausland ab {ab:dd.MM.yyyy}{(auslandCode != null ? $" ({auslandCode})" : "")} — QST-Kanton {kt ?? "–"} ist der Arbeitsort, kein Inland-Umzug";
                 else if (!beenden && kt != null && QstKantonswechselService.KantonName(kt) != null)
@@ -605,8 +644,51 @@ public partial class SwissdecTestmandantController
                     // stehen. Jetzt leitet auch ein zweiter Lauf die Version wieder vom
                     // Vorgaenger ab — der Import ist damit wirklich wiederholbar.
                     var letzter = QstVorgaenger(eintraege, ab);
-                    if (beenden)
+                    if (nonRueckwirkend)
                     {
+                        var codeGross = code!.ToUpperInvariant();
+                        var non = eintraege.FirstOrDefault(x => x.ValidFrom == ab
+                            && string.Equals(x.QstCode, codeGross, StringComparison.OrdinalIgnoreCase));
+                        // Überbleibsel früherer Läufe zwischen ab und Mutationsmonat (Egli: A0Y «1.12.–30.11.»).
+                        foreach (var alt in eintraege.Where(x => !ReferenceEquals(x, non) && x.ValidFrom > ab && x.ValidFrom <= tag1).ToList())
+                        {
+                            _db.EmployeeQuellensteuer.Remove(alt);
+                            eintraege.Remove(alt);
+                        }
+                        var aufBeleg = QstVersionWahl.Waehle(eintraege.Where(x => !ReferenceEquals(x, non)), vortag);
+                        // Was bis zum Vormonat auf dem Beleg stand, endet am Vortag; ältere vor ab.
+                        foreach (var alt in eintraege.Where(x => !ReferenceEquals(x, non) && (x.ValidTo == null || x.ValidTo >= tag1)))
+                            alt.ValidTo = alt.ValidFrom < ab ? ab.AddDays(-1) : vortag;
+                        if (non == null)
+                        {
+                            non = new EmployeeQuellensteuer { EmployeeId = emp.Id, ValidFrom = ab, CreatedAt = DateTime.Now };
+                            _db.EmployeeQuellensteuer.Add(non);
+                        }
+                        non.ErfahrenAm = tag1;
+                        non.ValidTo = null;
+                        non.QstCode = codeGross;
+                        non.TarifCode = null;
+                        non.AnzahlKinder = 0;
+                        non.Kirchensteuer = codeGross == "NOY";
+                        non.TarifvorschlagQst = false;
+                        if (aufBeleg != null)
+                        {
+                            non.Steuerkanton = aufBeleg.Steuerkanton; non.SteuerkantonName = aufBeleg.SteuerkantonName;
+                            non.QstGemeinde = aufBeleg.QstGemeinde; non.QstGemeindeBfsNr = aufBeleg.QstGemeindeBfsNr;
+                            non.ArbeitsortKanton = aufBeleg.ArbeitsortKanton;
+                        }
+                        non.HerleitungJson = JsonSerializer.Serialize(new { quelle = "Swissdec-Testdaten Mutation", monat = mon.ToString("yyyy-MM"), ausloeser = V("PersonTASTriggerOfChange") });
+                        non.UpdatedAt = DateTime.Now;
+                    }
+                    else if (beenden)
+                    {
+                        // Version, die erst ab dem Ende beginnen würde, ist ein Überbleibsel früherer
+                        // Läufe — löschen statt «1.12.–30.11.» stehen zu lassen.
+                        foreach (var q in eintraege.Where(q => q.ValidFrom >= ab && q.ValidFrom <= tag1).ToList())
+                        {
+                            _db.EmployeeQuellensteuer.Remove(q);
+                            eintraege.Remove(q);
+                        }
                         foreach (var q in eintraege.Where(q => q.ValidTo == null || q.ValidTo >= ab)) q.ValidTo = ab.AddDays(-1);
                     }
                     else
