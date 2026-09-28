@@ -314,3 +314,14 @@ Sozialabgaben je Beitrag auf 5 Rappen, dann summiert (A5 richtiggestellt).
 
 **Nächste Schritte:** RETROSPECTIVE (Jahresmeldung des laufenden Jahres) und EMA (NotifyChanges)
 für November 2024, dann Monat für Monat weiter bis 2026-02.
+
+**Quality Tool 28.09.2026 (neuer Lauf, Referenz von Swissdec aktualisiert):** Die lokalen
+`SWISSCEC/RefXML/*` (Stand 09./10.09.) sind damit VERALTET. Befund November 2024:
+- **Arbeitsorte:** Referenz nur noch #LU und #BE → Monatsmeldung führt seither nur Filialen,
+  an denen im Monat jemand Lohn hat (`NurArbeitsorteMitLohn`, Walter: «nur senden was ein Lohn
+  hat»). Jahresmeldung unverändert alle Filialen (FAK je Arbeitsort, Richtlinien S. 116).
+- **F1 Egli** A0Y 36.05 vs A0N 34.00 + SalaryTotals LU — bewusst, wie erwartet.
+- **OFFEN — TF16 Aebi BVG:** Referenz neu `BVG-LPP-RegularContribution` **−758.35**, wir −758.33
+  (= CSV 5050 = alte Referenz). Widerspricht der Vorgabe «BVG NICHT auf 5 Rp. runden» (Walter
+  21.09.2026) → nicht geändert, Walter-Entscheid, sobald die neue Referenz zeigt, ob Swissdec
+  BVG jetzt generell auf 5 Rp. rundet (z.B. Jan 2025 −408.33 / −751.09) oder nur bei Aebi.

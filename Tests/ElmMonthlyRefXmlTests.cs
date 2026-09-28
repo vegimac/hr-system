@@ -102,6 +102,57 @@ public class ElmXmlVergleichTests
     }
 }
 
+/// <summary>
+/// Arbeitsorte der Monatsmeldung (Walter 28.09.2026). Das Quality Tool erwartet im
+/// November 2024 nur #LU und #BE — die Filialen, an denen jemand Lohn hat —, nicht
+/// alle sechs der Muster AG.
+/// </summary>
+public class ElmMonatsArbeitsorteTests
+{
+    private static HrSystem.Models.CompanyProfile Filiale(int id, string kanton) => new()
+    {
+        Id = id, RestaurantCode = kanton, BranchName = kanton, KantonCode = kanton, ZipCode = "6003", City = "Luzern"
+    };
+
+    private static ElmGemeinsam.RechtseinheitStamm MusterAg()
+    {
+        var filialen = new List<HrSystem.Models.CompanyProfile>
+        {
+            Filiale(1, "LU"), Filiale(2, "BE"), Filiale(3, "VD"), Filiale(4, "TI"), Filiale(5, "AG"), Filiale(6, "ZG"),
+        };
+        return new ElmGemeinsam.RechtseinheitStamm(null, filialen, filialen[0], "CHE-999.999.996",
+            "Muster AG", "Bahnhofstrasse 1", "6003", "Luzern", new Dictionary<int, int>());
+    }
+
+    [Fact]
+    public void NurFilialenMitLohn_InDerFirmenbeschreibung()
+    {
+        var stamm = ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(MusterAg(), new HashSet<int> { 1, 2 });
+        var firma = ElmGemeinsam.CompanyDescription(stamm, Array.Empty<System.Xml.Linq.XElement>());
+
+        var ids = firma.Elements().Where(x => x.Name.LocalName == "Workplace")
+            .Select(x => (string?)x.Attribute("workplaceID")).ToList();
+        Assert.Equal(new[] { "#LU", "#BE" }, ids);
+    }
+
+    [Fact]
+    public void Reihenfolge_BleibtWieInDenStammdaten()
+    {
+        var stamm = ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(MusterAg(), new HashSet<int> { 6, 2 });
+        Assert.Equal(new[] { 2, 6 }, stamm.Filialen.Select(b => b.Id));
+    }
+
+    [Fact]
+    public void Rest_DerRechtseinheit_BleibtUnveraendert()
+    {
+        var voll = MusterAg();
+        var stamm = ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(voll, new HashSet<int> { 2 });
+        Assert.Same(voll.Haupt, stamm.Haupt);
+        Assert.Equal("CHE-999.999.996", stamm.Uid);
+        Assert.Equal(6, voll.Filialen.Count);
+    }
+}
+
 /// <summary>Konfessions-Zuordnung der Quellensteuer-Zeile.</summary>
 public class ElmKonfessionTests
 {

@@ -45,6 +45,14 @@ public class ElmMonthlyDeclarationBuilder
         string Xml, int Personen, int QstZeilen, int StatistikZeilen,
         List<string> Warnungen, List<string> XsdFehler);
 
+    /// <summary>
+    /// Die Monatsmeldung führt nur Arbeitsorte, an denen im Monat jemand Lohn hat
+    /// (Walter 28.09.2026, Quality Tool Nov 2024: nur #LU und #BE). Die Jahresmeldung
+    /// bleibt bei allen Filialen — die FAK wird je Arbeitsort adressiert, auch ohne Personen.
+    /// </summary>
+    public static RechtseinheitStamm NurArbeitsorteMitLohn(RechtseinheitStamm stamm, IReadOnlySet<int> filialenMitLohn)
+        => stamm with { Filialen = stamm.Filialen.Where(b => filialenMitLohn.Contains(b.Id)).ToList() };
+
     /// <summary>Zahl aus dem Lohnzettel (slip_json), 0 wenn nicht vorhanden.</summary>
     private static decimal Num(JsonElement el, string name)
         => el.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDecimal() : 0m;
@@ -173,6 +181,7 @@ public class ElmMonthlyDeclarationBuilder
         var personen = new List<XElement>();
         var qstKantone = new SortedSet<string>(StringComparer.Ordinal);
         var qstTotal = new Dictionary<string, (decimal Basis, decimal Steuer)>(StringComparer.Ordinal);
+        var gemeldeteFilialen = new HashSet<int>();
         int qstZeilen = 0, statZeilen = 0;
 
         foreach (var g in snaps.GroupBy(s => s.EmployeeId).OrderBy(g => g.Key))
@@ -217,6 +226,7 @@ public class ElmMonthlyDeclarationBuilder
                 statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, lohnartByCode, lse, stellungMapping,
                                                        monatStr, monatsAnfang, monatsEnde, eintrittMonat, warn));
                 statZeilen++;
+                gemeldeteFilialen.Add(filialId);
 
                 var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen,
                                        familie.Where(k => k.EmployeeId == e.Id && k.MemberType == "Kind").ToList(),
@@ -397,7 +407,7 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sdc + "Addressees", addressees)),
                 new XElement(Sd + "MonthlySalaryDeclaration",
                     new XAttribute("schemaVersion", "0.0"),
-                    CompanyDescription(stamm, arbeitszeit),
+                    CompanyDescription(NurArbeitsorteMitLohn(stamm, gemeldeteFilialen), arbeitszeit),
                     new XElement(Sd + "Staff", personen),
                     new XElement(Sd + "Institutions", institutions),
                     totals.Count > 0 ? new XElement(Sd + "SalaryTotals", totals) : null,
