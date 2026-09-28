@@ -18408,9 +18408,14 @@ async function fmOcrAusweisRun(docId) {
 // «Dienstalter seit» ist nur die Handeingabe für Ausnahmen.
 function _ovDienstalterRowHtml(emp) {
     const hand = !!emp.dienstalterSeit;
+    // Walter 28.09.2026: Ohne Handeingabe stand hier nur «aus der Vertragskette»
+    // — ohne Datum. Jetzt steht das gerechnete Datum da und die Herkunft daneben.
     const wert = hand
         ? `${formatDate(emp.dienstalterSeit)} <span style="color:#8b8b8b;font-size:11px">(von Hand)</span>`
-        : `<span style="color:#8b8b8b">aus der Vertragskette</span>`;
+        : emp.dienstalterGerechnet
+            ? `${formatDate(emp.dienstalterGerechnet)} <span style="color:#8b8b8b;font-size:11px">(aus der Vertragskette)</span>`
+            // NULL kommt nur, wenn WEDER Eintritt NOCH ein Vertrag da ist.
+            : `<span style="color:#8b8b8b">– kein Eintrittsdatum –</span>`;
     const titel = hand && emp.dienstalterBemerkung ? ` title="${esc(emp.dienstalterBemerkung)}"` : '';
     return `<div class="ov-pf ov-anst-datum"${titel}>
         <div class="ov-pfl">Dienstalter seit</div>

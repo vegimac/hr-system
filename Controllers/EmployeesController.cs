@@ -550,6 +550,11 @@ public class EmployeesController : ControllerBase
             // weil easy@work beim Übertritt ein neues Eintrittsdatum vergibt.
             employee.DienstalterSeit,
             employee.DienstalterBemerkung,
+            // Walter 28.09.2026: In der Maske stand ohne Handeingabe nur «aus der
+            // Vertragskette» — ohne Datum, und damit ohne Aussage. Der gerechnete
+            // Wert gehört gleich mit; die Rechnung ist dieselbe wie im Vorschlag.
+            dienstalterGerechnet = Services.Dienstalter.Massgebend(
+                employee, employee.Employments, DateOnly.FromDateTime(DateTime.Today)),
             employee.ExitDate,
             // Kündigungs-Daten (Walter 16.07.2026): vom Kündigungsschreiben
             // gesetzt, vom Rückzug gelöscht; in der Anstellungs-Zeile editierbar.
