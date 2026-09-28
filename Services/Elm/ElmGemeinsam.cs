@@ -40,6 +40,19 @@ public static class ElmGemeinsam
         return n.Length == 0 || st.EndsWith(" " + n) ? st : $"{st} {n}";
     }
 
+    /// <summary>
+    /// Land für c:Country in Swissdec-Schreibweise (englisch, gross): CH → SWITZERLAND,
+    /// IT → ITALY, DE → GERMANY (RefXML Grenzgänger TF28/29/34). Unbekannter Code bleibt stehen.
+    /// </summary>
+    public static string LandName(string? land)
+    {
+        var c = (land ?? "").Trim().ToUpperInvariant();
+        if (c.Length == 0 || c is "CH" or "SCHWEIZ" or "SWITZERLAND" or "SUISSE" or "SVIZZERA") return "SWITZERLAND";
+        if (c.Length != 2) return c;
+        try { return new RegionInfo(c).EnglishName.ToUpperInvariant(); }
+        catch (ArgumentException) { return c; }
+    }
+
     public static string MapCivilStatus(string? ms)
     {
         var s = (ms ?? "").ToLowerInvariant();
@@ -269,9 +282,11 @@ public static class ElmGemeinsam
 
         var landCh = string.IsNullOrWhiteSpace(e.Country) || e.Country!.Trim().ToUpperInvariant() == "CH";
         var canton = (e.CantonCode ?? "").ToUpperInvariant();
-        if (!Regex.IsMatch(canton, "^[A-Z]{2}$"))
+        if (!landCh)
+            canton = "EX";
+        else if (!Regex.IsMatch(canton, "^[A-Z]{2}$"))
         {
-            canton = landCh ? "LU" : "EX";
+            canton = "LU";
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Wohnkanton fehlt — als {canton} gemeldet.");
         }
 
@@ -283,9 +298,9 @@ public static class ElmGemeinsam
             string.IsNullOrWhiteSpace(e.Street) ? null : new XElement(C + "Street", e.Street.Trim()),
             new XElement(C + "ZIP-Code", zip),
             new XElement(C + "City", city),
-            new XElement(C + "Country", "SWITZERLAND"),
+            new XElement(C + "Country", LandName(e.Country)),
             new XElement(C + "ResidenceCanton", canton),
-            wohnGemeindeNr is > 0 ? new XElement(C + "MunicipalityID", wohnGemeindeNr!.Value) : null);
+            landCh && wohnGemeindeNr is > 0 ? new XElement(C + "MunicipalityID", wohnGemeindeNr!.Value) : null);
 
         // Bewilligungsart nur bei Ausländern (Reihenfolge laut XSD nach Nationality).
         var permit = bewilligungAmStichtag ?? e.PermitType;

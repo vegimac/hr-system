@@ -260,6 +260,9 @@ public class ElmMonthlyDeclarationBuilder
         var familie = await _db.EmployeeFamilyMembers.AsNoTracking()
             .Where(f => empIds.Contains(f.EmployeeId))
             .ToListAsync(ct);
+        var wochenAdressen = await _db.EmployeeAddresses.AsNoTracking()
+            .Where(a => empIds.Contains(a.EmployeeId) && a.AddressType == "Wochenaufenthalt")
+            .ToListAsync(ct);
 
         // QST-Korrekturen der Vormonate, die in diesem Monat verrechnet wurden (TF14 Egli Dez 2024).
         var korrekturen = await _db.QstKorrekturen.AsNoTracking()
@@ -365,7 +368,9 @@ public class ElmMonthlyDeclarationBuilder
 
                 var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen,
                                        familie.Where(k => k.EmployeeId == e.Id && k.MemberType == "Kind").ToList(),
-                                       stamm, monatStr, monatsAnfang, warn);
+                                       stamm, monatStr, monatsAnfang, warn,
+                                       wochenAdressen.Where(a => a.EmployeeId == e.Id)
+                                           .OrderByDescending(a => a.ValidFrom).FirstOrDefault());
                 if (qst != null)
                 {
                     qstZeilenPerson.Add(qst.Value.Zeile);
@@ -688,14 +693,14 @@ public class ElmMonthlyDeclarationBuilder
         var art = (em?.SwissdecVertragsart ?? "").Trim();
 
         // Verträge ohne Zeitbindung (Honorar) melden einen Jahreslohn.
-        if (art == "indefiniteSalaryNoTimeConstraint" || art == "fixedSalaryNoTimeConstraint")
+        if (art is "indefiniteSalaryNoTimeConstraint" or "fixedSalaryNoTimeConstraint" or "administrativeBoard")
             return new XElement(Sd + "KindOfWagePayment",
                 new XElement(Sd + "NoTimeConstraint",
                     new XElement(Sd + "Contract", art),
                     new XElement(Sd + "ContractualAnnualWage", Amt(em?.JahreslohnOhneZeitbindung ?? 0m))));
 
         var monatsvertrag = model is "FIX" or "FIX-M" or "MTP";
-        if (art.Length > 0) monatsvertrag = art.EndsWith("Mth") || art is "apprentice" or "internshipContract";
+        if (art.Length > 0) monatsvertrag = art is "indefiniteSalaryMth" or "indefiniteSalaryMthAWT" or "fixedSalaryMth" or "apprentice" or "internshipContract";
 
         if (monatsvertrag)
             return new XElement(Sd + "KindOfWagePayment",
@@ -770,7 +775,8 @@ public class ElmMonthlyDeclarationBuilder
     private (XElement Zeile, string Kanton, decimal Basis, decimal Steuer)? BaueQstZeile(
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
         List<EmployeeQuellensteuer> versionen, List<EmployeeFamilyMember> kinder,
-        RechtseinheitStamm stamm, string monatStr, DateTime monatsAnfang, List<string> warn)
+        RechtseinheitStamm stamm, string monatStr, DateTime monatsAnfang, List<string> warn,
+        EmployeeAddress? wochenAdresse = null)
     {
         if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
         JsonElement? qstZeile = null;
@@ -799,12 +805,8 @@ public class ElmMonthlyDeclarationBuilder
             return null;
         }
 
-        var wohnKanton = (e.CantonCode ?? "").Trim().ToUpperInvariant();
-        var wohnAusland = !string.IsNullOrWhiteSpace(e.Country) && e.Country!.Trim().ToUpperInvariant() != "CH";
-        var residence = wohnAusland || wohnKanton.Length != 2
-            ? new XElement(Sd + "Residence", new XElement(Sd + "CountryAbroad",
-                  string.IsNullOrWhiteSpace(version?.Wohnsitzstaat) ? "XX" : version!.Wohnsitzstaat!.Trim().ToUpperInvariant()))
-            : new XElement(Sd + "Residence", new XElement(Sd + "CantonCH", wohnKanton));
+        var residence = QstResidence(e.CantonCode, e.Country, version?.Wohnsitzstaat,
+            version?.IsWochenaufenthalter == true, wochenAdresse);
 
         // Ein- und Austritt melden, wenn sie in diesen Monat fallen
         XElement? declaration = null;
@@ -879,6 +881,34 @@ public class ElmMonthlyDeclarationBuilder
             konfession == null ? null : new XElement(Sd + "Denomination", konfession),
             alleinerziehend,
             kinderEl);
+    }
+
+    /// <summary>
+    /// QST-Wohnsitz laut Schema (TaxAtSourceResidenceType): Wohnkanton CH, sonst Wohnsitzstaat
+    /// plus Pflichtangabe KindOfResidence — Wochenaufenthalt mit Adresse in der Schweiz, sonst
+    /// tägliche Rückkehr (RefXML Jan 2025: TF28 Arbenz IT Weekly Bern, TF29 Forster IT Daily,
+    /// TF30 Müller DE Daily).
+    /// </summary>
+    public static XElement QstResidence(string? wohnKanton, string? land, string? wohnsitzstaat,
+        bool wochenaufenthalter, EmployeeAddress? wochenAdresse)
+    {
+        var kanton = (wohnKanton ?? "").Trim().ToUpperInvariant();
+        var landCode = (land ?? "").Trim().ToUpperInvariant();
+        if ((landCode.Length == 0 || landCode == "CH") && kanton.Length == 2)
+            return new XElement(Sd + "Residence", new XElement(Sd + "CantonCH", kanton));
+
+        var staat = !string.IsNullOrWhiteSpace(wohnsitzstaat) ? wohnsitzstaat!.Trim().ToUpperInvariant()
+                  : landCode.Length == 2 && landCode != "CH" ? landCode : "XX";
+        XElement art = wochenaufenthalter && wochenAdresse != null
+            ? new XElement(Sd + "Weekly",
+                string.IsNullOrWhiteSpace(wochenAdresse.Street) ? null : new XElement(C + "Street", wochenAdresse.Street.Trim()),
+                new XElement(C + "ZIP-Code", (wochenAdresse.ZipCode ?? "").Trim()),
+                new XElement(C + "City", (wochenAdresse.City ?? "").Trim()),
+                new XElement(C + "Country", ElmGemeinsam.LandName(wochenAdresse.Country)))
+            : new XElement(Sd + "Daily");
+        return new XElement(Sd + "Residence",
+            new XElement(Sd + "AbroadCountry", staat),
+            new XElement(Sd + "KindOfResidence", art));
     }
 
     /// <summary>Tarifcode (A0N …) oder vordefinierte Kategorie (NON, MEY …) laut Schema.</summary>
