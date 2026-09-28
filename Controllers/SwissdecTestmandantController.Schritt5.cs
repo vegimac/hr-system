@@ -388,6 +388,11 @@ public partial class SwissdecTestmandantController
             ? new List<PayrollSnapshot>()
             : await _db.PayrollSnapshots.Where(s => periodeIds.Contains(s.PayrollPeriodeId)).ToListAsync();
         var saldi = await _db.PayrollSaldos.Where(s => filialIds.Contains(s.CompanyProfileId)).ToListAsync();
+        // Korrektur-Posten gehören zu den verworfenen Lohnläufen: blieben sie stehen, zählten
+        // VERRECHNETE Posten beim Neubestätigen als «bereits bezahlt» und die Differenz käme
+        // doppelt. Die Lohnläufe legen sie aus den QST-/Familien-Versionen selbst wieder an.
+        var qstPosten = await _db.QstKorrekturen.Where(k => filialIds.Contains(k.CompanyProfileId)).ToListAsync();
+        var famzPosten = await _db.FamzKorrekturen.Where(k => filialIds.Contains(k.CompanyProfileId)).ToListAsync();
 
         var aktionen = new List<Aktion>();
         var hinweise = new List<string>();
@@ -397,13 +402,16 @@ public partial class SwissdecTestmandantController
             var nPer = perIds.Count;
             var nSnap = snaps.Count(s => perIds.Contains(s.PayrollPeriodeId));
             var nSaldo = saldi.Count(s => s.CompanyProfileId == f.Id);
+            var nKorr = qstPosten.Count(k => k.CompanyProfileId == f.Id) + famzPosten.Count(k => k.CompanyProfileId == f.Id);
             aktionen.Add(new Aktion("aktualisieren", "Lohnlauf",
-                $"{f.RestaurantCode}: {nPer} Perioden → offen, {nSnap} Lohnzettel + {nSaldo} Saldi löschen", new()));
+                $"{f.RestaurantCode}: {nPer} Perioden → offen, {nSnap} Lohnzettel + {nSaldo} Saldi + {nKorr} Korrektur-Posten löschen", new()));
         }
         if (!vorschau)
         {
             if (snaps.Count > 0) _db.PayrollSnapshots.RemoveRange(snaps);
             if (saldi.Count > 0) _db.PayrollSaldos.RemoveRange(saldi);
+            if (qstPosten.Count > 0) _db.QstKorrekturen.RemoveRange(qstPosten);
+            if (famzPosten.Count > 0) _db.FamzKorrekturen.RemoveRange(famzPosten);
             foreach (var p in perioden)
             {
                 p.Status = "offen";
@@ -415,6 +423,7 @@ public partial class SwissdecTestmandantController
             await _db.SaveChangesAsync();
         }
         hinweise.Add("Zulagen, Stempelzeiten und Verträge bleiben. 180.3 (Bosshard Mai) bleibt.");
+        hinweise.Add("QST- und FamZ-Korrektur-Posten werden gelöscht; der Lohnlauf legt sie beim Neubestätigen aus den Versionen wieder an.");
         hinweise.Add("Danach im Lohnlauf den ÄLTESTEN offenen Monat zuerst bestätigen (Nov 2024 bzw. Eintritt), dann den nächsten — sonst fehlt der 13.-Pott.");
         hinweise.Add("Stunden-Saldo rot bei FIX (Ist = 0) ist nur Anzeige; Muster AG verrechnet ihn nicht in CHF.");
         if (nurSet != null) hinweise.Insert(0, "Nur Filiale " + string.Join(", ", nurSet) + ".");
