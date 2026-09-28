@@ -415,14 +415,16 @@ public class ElmSuaSubject
     /// </param>
     public X500DistinguishedName AlsX500Name(bool ohneStateOrProvince = false)
     {
+        // X500DistinguishedNameBuilder kodiert in UMGEKEHRTER Aufrufreihenfolge —
+        // darum rückwärts hinzufügen, damit im CSR C, ST, L, CN, O, ORG_ID steht.
         var b = new X500DistinguishedNameBuilder();
-        if (!string.IsNullOrWhiteSpace(CountryName)) b.AddCountryOrRegion(CountryName.Trim());
+        if (OrganizationIdentifier is { } orgId) b.Add(OrgIdOid, orgId);
+        if (!string.IsNullOrWhiteSpace(OrganizationName)) b.AddOrganizationName(OrganizationName.Trim());
+        if (!string.IsNullOrWhiteSpace(CommonName)) b.AddCommonName(CommonName.Trim());
+        if (!string.IsNullOrWhiteSpace(LocalityName)) b.AddLocalityName(LocalityName.Trim());
         if (!ohneStateOrProvince && !string.IsNullOrWhiteSpace(StateOrProvinceName))
             b.AddStateOrProvinceName(StateOrProvinceName.Trim());
-        if (!string.IsNullOrWhiteSpace(LocalityName)) b.AddLocalityName(LocalityName.Trim());
-        if (!string.IsNullOrWhiteSpace(CommonName)) b.AddCommonName(CommonName.Trim());
-        if (!string.IsNullOrWhiteSpace(OrganizationName)) b.AddOrganizationName(OrganizationName.Trim());
-        if (OrganizationIdentifier is { } orgId) b.Add(OrgIdOid, orgId);
+        if (!string.IsNullOrWhiteSpace(CountryName)) b.AddCountryOrRegion(CountryName.Trim());
         return b.Build();
     }
 

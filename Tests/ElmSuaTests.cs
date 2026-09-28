@@ -212,6 +212,21 @@ public class ElmSuaTests
     };
 
     [Fact]
+    public void Csr_KodiertSubjectInDerReihenfolgeDerRichtlinie()
+    {
+        var (b64, key) = ElmSuaService.ErzeugeCsrPemBase64(MusterSubject());
+        using (key)
+        {
+            var pem = System.Text.Encoding.ASCII.GetString(Convert.FromBase64String(b64));
+            var csr = CertificateRequest.LoadSigningRequestPem(
+                pem, HashAlgorithmName.SHA256, signerSignaturePadding: RSASignaturePadding.Pkcs1);
+            var oids = csr.SubjectName.EnumerateRelativeDistinguishedNames(reversed: false)
+                .Select(r => r.GetSingleElementType().Value).ToList();
+            Assert.Equal(new[] { "2.5.4.6", "2.5.4.8", "2.5.4.7", "2.5.4.3", "2.5.4.10", "2.5.4.97" }, oids);
+        }
+    }
+
+    [Fact]
     public void OrgId_IstNtrchPlusUid()
     {
         Assert.Equal("NTRCH-CHE-999.999.996", MusterSubject().OrganizationIdentifier);

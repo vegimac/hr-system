@@ -486,6 +486,16 @@ Der zweite Versuch läuft **nur** bei genau 2052: Swissdec hat den Antrag dann g
 bearbeitet, das Einmalpasswort ist also noch nicht verbraucht. Bei jedem anderen Fehler wird
 nichts wiederholt — sonst verbrennt man das Passwort und muss den ganzen Fall neu anmelden.
 
+**Nachtrag 28.09.2026 11:21 — trotz ORG_ID wieder 2052 (mit und ohne ST).** `openssl asn1parse`
+des erzeugten CSR zeigte: die Felder waren **rückwärts** kodiert (ORG_ID, O, CN, L, ST, C).
+`X500DistinguishedNameBuilder` schreibt in umgekehrter Aufrufreihenfolge; die Tests prüften nur
+das Vorkommen, nicht die Reihenfolge. Behoben: `AlsX500Name()` fügt rückwärts hinzu, kodiert ist
+jetzt C, ST, L, CN, O, ORG_ID. Test `Csr_KodiertSubjectInDerReihenfolgeDerRichtlinie` prüft die
+OID-Folge im kodierten CSR. Gleichzeitig: `ZertifikatPemAus` nimmt das erste `Certificate` MIT
+PEM — vorher wäre `UserAgent/Certificate` («swissdec») gegriffen und ein ausgestelltes Zertifikat
+verloren gegangen. Offen, falls es weiter 2052 gibt: Kodierung des Felds `PEM` (heute Base64 des
+PEM-Texts; Alternative Base64 des DER) — dann bei Swissdec nachfragen, CSR beilegen.
+
 **Vorbereitet für den Schlüssel (24.09.2026, offline):**
 
 | Baustein | Wo |
