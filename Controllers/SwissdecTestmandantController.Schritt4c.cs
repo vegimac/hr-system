@@ -326,6 +326,8 @@ public partial class SwissdecTestmandantController
                             WeeklyHours = vorher.WeeklyHours, GuaranteedHoursPerWeek = vorher.GuaranteedHoursPerWeek, LessonRate = vorher.LessonRate, WeeklyLessons = vorher.WeeklyLessons,
                             TeilzeitUnter8hWoche = vorher.TeilzeitUnter8hWoche, MonthlySalaryFte = vorher.MonthlySalaryFte, MonthlySalary = vorher.MonthlySalary, HourlyRate = vorher.HourlyRate,
                             EasyAtWorkManualOverride = true, VacationPaymentMode = vorher.VacationPaymentMode, IsActive = true, ThirteenthSalary = vorher.ThirteenthSalary,
+                            SwissdecVertragsart = vorher.SwissdecVertragsart, JahreslohnOhneZeitbindung = vorher.JahreslohnOhneZeitbindung,
+                            VierzehnterMonatslohn = vorher.VierzehnterMonatslohn,
                         };
                         _db.Employments.Add(neuV); emp.Employments.Add(neuV);
                     }
@@ -350,6 +352,9 @@ public partial class SwissdecTestmandantController
                     if (Hat("PersonPartnerSVASNumber")) p.SocialSecurityNumber = V("PersonPartnerSVASNumber") == "unknown" ? null : V("PersonPartnerSVASNumber");
                     if (Hat("PersonPartnerResidenceCantonCH") || Hat("PersonPartnerCountry") || Hat("PersonPartnerResidenceAbroadCountry"))
                         p.LivesInSwitzerland = V("PersonPartnerResidenceCantonCH") != null || LandCode(V("PersonPartnerCountry")) == "CH";
+                    if (Hat("PersonPartnerStreet") || Hat("PersonPartnerCity"))
+                        await SetzePartnerAdresseAsync(emp, p, V("PersonPartnerStreet"), NummerOhneKomma(V("PersonPartnerZIPCode")), V("PersonPartnerCity"),
+                            LandCode(V("PersonPartnerCountry")) ?? V("PersonPartnerResidenceAbroadCountry"), V("PersonPartnerResidenceCantonCH"));
                     if (Hat("PersonPartnerStartActivity"))
                     {
                         p.Erwerbstaetig = true; p.Stellenantritt = Datum(V("PersonPartnerStartActivity"))?.ToDateTime(TimeOnly.MinValue);
@@ -436,6 +441,8 @@ public partial class SwissdecTestmandantController
                             TeilzeitUnter8hWoche = aktiv.TeilzeitUnter8hWoche, MonthlySalaryFte = aktiv.MonthlySalaryFte, MonthlySalary = aktiv.MonthlySalary, HourlyRate = aktiv.HourlyRate,
                             EasyAtWorkManualOverride = true, VacationPaymentMode = aktiv.VacationPaymentMode, IsActive = true,
                             ThirteenthSalary = aktiv.ThirteenthSalary,
+                            SwissdecVertragsart = aktiv.SwissdecVertragsart, JahreslohnOhneZeitbindung = aktiv.JahreslohnOhneZeitbindung,
+                            VierzehnterMonatslohn = aktiv.VierzehnterMonatslohn,
                         };
                         WendeVertragAn(neu, w, neuesModell, fil);
                         aktiv.ContractEndDate = vortag.ToDateTime(TimeOnly.MinValue);
@@ -809,7 +816,12 @@ public partial class SwissdecTestmandantController
         if (modell == "FIX") { v.HourlyRate = null; v.EmploymentPercentage ??= 100m; }
         else { v.MonthlySalary = null; v.MonthlySalaryFte = null; v.EmploymentPercentage = null; }
         if (Hat("PersonContractNoTimeConstraintAnnualWage") && Dez(V("PersonContractNoTimeConstraintAnnualWage")) is { } jl)
-        { v.MonthlySalary = Math.Round(jl / 12m, 2); v.MonthlySalaryFte = v.MonthlySalary; }
+        { v.MonthlySalary = Math.Round(jl / 12m, 2); v.MonthlySalaryFte = v.MonthlySalary; v.JahreslohnOhneZeitbindung = jl; }
+        // Swissdec-Vertragsart für die Lohnstatistik nachführen, wenn die Mutation sie nennt.
+        var art = (Hat("PersonContractMonthly") ? V("PersonContractMonthly") : null)
+               ?? (Hat("PersonContractHourly") ? V("PersonContractHourly") : null)
+               ?? (Hat("PersonContractNoTimeConstraint") ? V("PersonContractNoTimeConstraint") : null);
+        if (art != null && !char.IsDigit(art[0])) v.SwissdecVertragsart = art;
     }
 
     private static List<Mutation> LeseMutationen(string pfad)

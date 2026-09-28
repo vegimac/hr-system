@@ -151,6 +151,7 @@ public partial class SwissdecTestmandantController
                 // Vertragsart nach Swissdec fuer die Lohnstatistik (Walter 27.09.2026).
                 vertrag.SwissdecVertragsart = V("PersonContractMonthly") ?? V("PersonContractHourly") ?? ohneZeit;
                 vertrag.JahreslohnOhneZeitbindung = Dez(V("PersonContractNoTimeConstraintAnnualWage"));
+                vertrag.VierzehnterMonatslohn = V("PersonContractMonthly14th") != null || V("PersonContractHourly14th") != null;
                 vertrag.JobTitle = V("PersonJobTitle");
                 vertrag.EducationLevelCode = edu;
                 vertrag.EmploymentPercentage = modell == "FIX" ? (pensum ?? 100m) : null;
@@ -219,8 +220,9 @@ public partial class SwissdecTestmandantController
                     p.DateOfBirth = Datum(V("PersonPartnerDateOfBirth"))?.ToDateTime(TimeOnly.MinValue);
                     p.SocialSecurityNumber = V("PersonPartnerSVASNumber") == "unknown" ? null : V("PersonPartnerSVASNumber");
                     p.LivesInSwitzerland = pLand == "CH" || V("PersonPartnerResidenceCantonCH") != null;
-                    // Eigene Partner-Adresse = nicht im Haushalt des MA (Blanc: Riehen vs. Bern).
-                    p.LebtImHaushalt = V("PersonPartnerStreet") == null;
+                    p.LebtImHaushalt = true;
+                    await SetzePartnerAdresseAsync(emp, p, V("PersonPartnerStreet"), NummerOhneKomma(V("PersonPartnerZIPCode")),
+                        V("PersonPartnerCity"), pLand, V("PersonPartnerResidenceCantonCH"));
                     p.Gender = sex == "female" ? "male" : sex == "male" ? "female" : null;
                     ErgaenzePartnerFuerQst(p, V("PersonTASCode"), V("PersonPartnerNationality"),
                         V("PersonPartnerResidenceCategory"), natCode ?? MaNationalitaetsCode(emp, nats), nats, permits, emp.NationalityId);
@@ -228,7 +230,6 @@ public partial class SwissdecTestmandantController
                     if (p.Id == 0) _db.EmployeeFamilyMembers.Add(p);
                     await _db.SaveChangesAsync();
                 }
-                if (V("PersonPartnerStreet") != null) probleme.Add("Partner-Adresse (getrennter Wohnsitz) steht in den Testdaten — im Familie-Tab als alternative Adresse nachtragen, falls ein Testfall sie braucht.");
             }
 
             // ── Versicherungs-Codes ──
@@ -283,13 +284,14 @@ public partial class SwissdecTestmandantController
             if (!vorschau)
             {
                 var bfsEdu = HrSystem.Services.Elm.ElmStatistikCodes.BfsAusbildung(V("PersonEducation"));
+                var bfsTitel = HrSystem.Services.Elm.ElmStatistikCodes.BfsHochschultitel(V("PersonEducation"));
                 var bfsPos = HrSystem.Services.Elm.ElmStatistikCodes.BfsStellung(V("PersonPosition"));
                 var ferienTage = Dez(V("PersonLeaveEntitlement"));
                 if (bfsEdu != null || bfsPos != null || ferienTage != null)
                 {
                     var lse = await _db.EmployeeLse.FirstOrDefaultAsync(l => l.EmployeeId == emp.Id);
                     if (lse == null) { lse = new EmployeeLse { EmployeeId = emp.Id }; _db.EmployeeLse.Add(lse); }
-                    if (bfsEdu != null) lse.Education = bfsEdu;
+                    if (bfsEdu != null) { lse.Education = bfsEdu; lse.UniversityDegree = bfsTitel; }
                     if (bfsPos != null) lse.PositionOverride = bfsPos;
                     if (ferienTage != null) lse.LeaveEntitlementDays = ferienTage;
                     lse.UpdatedAt = DateTime.Now;
@@ -546,6 +548,32 @@ public partial class SwissdecTestmandantController
         return nats.FirstOrDefault(n => n.Id == emp.NationalityId)?.Code;
     }
 
+    /// <summary>
+    /// Partner-Adresse aus den Testdaten: dieselbe Adresse wie der MA = im Haushalt
+    /// (TF24 Utzinger); sonst eine eigene «Adresse Ehepartner», auf die das
+    /// Familienmitglied verweist (TF18 Blanc: Riehen BS, MA in Bern).
+    /// </summary>
+    private async Task SetzePartnerAdresseAsync(Employee emp, EmployeeFamilyMember p,
+        string? strasse, string? plz, string? ort, string? land, string? kanton)
+    {
+        if (string.IsNullOrWhiteSpace(strasse) && string.IsNullOrWhiteSpace(ort)) return;
+        var gleich = string.Equals((strasse ?? "").Trim(), (emp.Street ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
+                  && string.Equals((plz ?? "").Trim(), (emp.ZipCode ?? "").Trim(), StringComparison.Ordinal);
+        if (gleich)
+        {
+            p.LebtImHaushalt = true;
+            p.AlternativeAddressId = null;
+            return;
+        }
+        var a = p.AlternativeAddressId is int id ? await _db.EmployeeAddresses.FirstOrDefaultAsync(x => x.Id == id) : null;
+        a ??= new EmployeeAddress { EmployeeId = emp.Id, AddressType = "Adresse Ehepartner", CreatedAt = DateTime.Now };
+        a.Street = strasse; a.ZipCode = plz; a.City = ort; a.Country = land ?? "CH"; a.Canton = kanton;
+        a.Description = "Swissdec-Testdaten"; a.UpdatedAt = DateTime.Now;
+        if (a.Id == 0) { _db.EmployeeAddresses.Add(a); await _db.SaveChangesAsync(); }
+        p.AlternativeAddressId = a.Id;
+        p.LebtImHaushalt = false;
+    }
+
     private static string? MapPermit(string? s, out string? hinweis)
     {
         hinweis = null;
@@ -559,9 +587,9 @@ public partial class SwissdecTestmandantController
             case "ProvisionallyAdmittedForeigners-F": return "F";
             case "asylumSeeker-N": return "N";
             case "peopleInNeedOfProtection-S": return "S";
-            case "NotificationProcedureForShorttermWork90Days": hinweis = "Meldeverfahren 90 Tage — keine Bewilligungsart im Katalog; bleibt leer."; return null;
-            case "NotificationProcedureForShorttermWork120Days": hinweis = "Meldeverfahren 120 Tage — keine Bewilligungsart im Katalog; bleibt leer."; return null;
-            case "othersNotSwiss": hinweis = "Aufenthaltskategorie «othersNotSwiss» (z.B. Grenzgänger ohne G) — Bewilligung bleibt leer."; return null;
+            case "NotificationProcedureForShorttermWork90Days": return "MV90";
+            case "NotificationProcedureForShorttermWork120Days": return "MV120";
+            case "othersNotSwiss": return "ANDERE";
             default: hinweis = $"Aufenthaltskategorie «{s}» unbekannt."; return null;
         }
     }

@@ -185,11 +185,12 @@ public class ElmMonthlyDeclarationBuilder
         // Lohnposition (Walter 27.09.2026). Der Code der Lohnposition ist unser
         // eigener; massgebend ist die Lohnart des Musterlohnartenstamms.
         var positionen = await _db.Lohnpositionen.AsNoTracking()
-            .Select(l => new { l.Code, l.SwissdecLohnart })
+            .Select(l => new { l.Code, l.SwissdecLohnart, l.QstPflichtig, l.QstPeriodisch })
             .ToListAsync(ct);
         var lohnartByCode = positionen
             .GroupBy(x => x.Code)
             .ToDictionary(g => g.Key, g => (g.First().SwissdecLohnart ?? "").Trim());
+        var qstAperiodisch = AperiodischeQstCodes(positionen.Select(p => (p.Code, p.SwissdecLohnart, p.QstPflichtig, p.QstPeriodisch)));
 
         var empIds = snaps.Select(s => s.EmployeeId).Distinct().ToList();
         var emps = await _db.Employees.AsNoTracking()
@@ -263,6 +264,12 @@ public class ElmMonthlyDeclarationBuilder
         var wochenAdressen = await _db.EmployeeAddresses.AsNoTracking()
             .Where(a => empIds.Contains(a.EmployeeId) && a.AddressType == "Wochenaufenthalt")
             .ToListAsync(ct);
+        var partnerAdressIds = familie.Where(f => f.AlternativeAddressId != null).Select(f => f.AlternativeAddressId!.Value).ToList();
+        var partnerAdressen = partnerAdressIds.Count == 0
+            ? new Dictionary<int, EmployeeAddress>()
+            : await _db.EmployeeAddresses.AsNoTracking()
+                .Where(a => partnerAdressIds.Contains(a.Id))
+                .ToDictionaryAsync(a => a.Id, ct);
 
         // QST-Korrekturen der Vormonate, die in diesem Monat verrechnet wurden (TF14 Egli Dez 2024).
         var korrekturen = await _db.QstKorrekturen.AsNoTracking()
@@ -324,6 +331,15 @@ public class ElmMonthlyDeclarationBuilder
             var austritt = anstellung?.Ende is DateTime aus && aus >= monatsAnfang && aus <= monatsEnde ? aus : (DateTime?)null;
             var periodeBis = austritt ?? monatsEnde;
             var ersterMonatDerPeriode = new DateTime(periodeVon.Year, periodeVon.Month, 1);
+            // Lohn nach dem Austritt (z.B. Überstunden-Auszahlung) gehört nicht mehr in die
+            // Lohnstatistik des Monats — die Quellensteuer schon (RefXML Jan 2025: TF07 Burri,
+            // Austritt 31.12.2024, fehlt im Januar ganz).
+            var imMonatAngestellt = anstellung != null && anstellung.Value.Start <= monatsEnde
+                                    && (anstellung.Value.Ende == null || anstellung.Value.Ende >= monatsAnfang);
+            var partner = familie
+                .Where(f => f.EmployeeId == e.Id && f.MemberType == "Ehepartner" && f.DateOfDeath == null)
+                .OrderByDescending(f => f.Id).FirstOrDefault();
+            var partnerAdresse = partner?.AlternativeAddressId is int paId && partnerAdressen.TryGetValue(paId, out var pa) ? pa : null;
 
             foreach (var s in g.OrderBy(x => x.PayrollPeriodeId))
             {
@@ -361,18 +377,23 @@ public class ElmMonthlyDeclarationBuilder
                 }
 
                 lseById.TryGetValue(e.Id, out var lse);
-                statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, lohnartByCode, lse, stellungMapping,
-                                                       monatStr, periodeVon, periodeBis, jahresToepfe, warn));
-                statZeilen++;
-                gemeldeteFilialen.Add(filialId);
+                if (imMonatAngestellt)
+                {
+                    statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, lohnartByCode, lse, stellungMapping,
+                                                           monatStr, periodeVon, periodeBis, jahresToepfe, warn));
+                    statZeilen++;
+                    gemeldeteFilialen.Add(filialId);
+                }
 
                 var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen,
                                        familie.Where(k => k.EmployeeId == e.Id && k.MemberType == "Kind").ToList(),
                                        stamm, monatStr, monatsAnfang, warn,
                                        wochenAdressen.Where(a => a.EmployeeId == e.Id)
-                                           .OrderByDescending(a => a.ValidFrom).FirstOrDefault());
+                                           .OrderByDescending(a => a.ValidFrom).FirstOrDefault(),
+                                       qstAperiodisch, partner, partnerAdresse);
                 if (qst != null)
                 {
+                    gemeldeteFilialen.Add(filialId);
                     qstZeilenPerson.Add(qst.Value.Zeile);
                     qstKantone.Add(qst.Value.Kanton);
                     var bisher = qstTotal.TryGetValue(qst.Value.Kanton, out var t) ? t : (0m, 0m);
@@ -406,7 +427,7 @@ public class ElmMonthlyDeclarationBuilder
                     var gemeinde = neu?.QstGemeindeBfsNr ?? kopf?.QstGemeindeBfsNr;
                     ziel = new XElement(Sd + "TaxAtSourceSalary",
                         new XAttribute("addresseeIDRef", $"#QST-{kt}"),
-                        QstZusatz(e, kopf, familie.Where(f => f.EmployeeId == e.Id && f.MemberType == "Kind").ToList()),
+                        QstZusatz(e, kopf, familie.Where(f => f.EmployeeId == e.Id && f.MemberType == "Kind").ToList(), monatsEnde),
                         new XElement(Sd + "TaxAtSourceCanton", kt),
                         gemeinde is > 0 ? new XElement(Sd + "TaxAtSourceMunicipalityID", gemeinde.Value) : null,
                         new XElement(Sd + "CurrentMonth", monatStr));
@@ -452,7 +473,9 @@ public class ElmMonthlyDeclarationBuilder
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
                     new XElement(C + "WorkingTime", WorkingTime(emHaupt,
                         modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : stamm.Haupt.NormalWeeklyHours ?? 42m)),
-                    new XElement(C + "EntryDate", (emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd")),
+                    // Beginn der nahtlosen Vertragskette, nicht des Abschnitts im Monat
+                    // (RefXML Jan 2025: TF37 Oberli 2024-11-16 trotz neuem Vertrag ab 01.01.).
+                    new XElement(C + "EntryDate", (anstellung?.Start ?? emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd")),
                     austritt == null ? null : new XElement(C + "WithdrawalDate", austritt.Value.ToString("yyyy-MM-dd"))),
                 // Reihenfolge laut XSD (MonthlyPersonType): Quellensteuer VOR Statistik.
                 qstZeilenPerson.Count > 0 ? new XElement(Sd + "TaxAtSourceSalaries", qstZeilenPerson) : null,
@@ -634,19 +657,7 @@ public class ElmMonthlyDeclarationBuilder
         decimal Wert(ElmStatistikCodes.Topf t) => topf.TryGetValue(t, out var v) ? v : 0m;
         decimal Jahr(ElmStatistikCodes.Topf t) => jahresToepfe.TryGetValue(t, out var v) ? v : 0m;
 
-        // Sozialabgaben: Swissdec rundet JEDEN Beitrag einzeln auf 5 Rappen und
-        // summiert erst dann (Walter 27.09.2026, an TF16 Nov 2024 nachgerechnet:
-        // 686.80 + 135.85 + 3.05 + 198.35 = 1'024.05; die Summe der rappengenauen
-        // Beträge ergäbe 1'024.00). Die Lohnbelege bleiben rappengenau.
-        decimal sozial = 0, bvg = 0;
-        if (slip.TryGetProperty("abzugLines", out var al2) && al2.ValueKind == JsonValueKind.Array)
-            foreach (var z in al2.EnumerateArray())
-            {
-                var cat = (Str(z, "categoryCode") ?? "").Trim().ToUpperInvariant();
-                var betrag = Num(z, "betrag");   // negativ
-                if (cat is "AHV" or "ALV" or "ALVZ" or "NBUV") sozial += PayrollCalculations.Round05(betrag);
-                else if (cat == "BVG") bvg += PayrollCalculations.Round05(betrag);
-            }
+        var sozial = Sozialabgaben(slip, out var bvg);
 
         var stat1 = new XElement(Sd + "StatisticSalary",
             new XAttribute("workplaceIDRef", WpId(filiale)),
@@ -654,7 +665,7 @@ public class ElmMonthlyDeclarationBuilder
             new XAttribute("workIDRef", WorkId(e)),
             new XElement(Sd + "CurrentMonth", monatStr),
             BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn),
-            KindOfWagePayment(em, filiale, slip),
+            KindOfWagePayment(em, filiale, slip, lohnartByCode),
             new XElement(Sd + "MonthlyValues",
                 new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(Wert(ElmStatistikCodes.Topf.Bruttolohn))),
                 new XElement(Sd + "Allowances", Betrag05(Wert(ElmStatistikCodes.Topf.Zulagen))),
@@ -681,14 +692,47 @@ public class ElmMonthlyDeclarationBuilder
     }
 
     /// <summary>
+    /// Sozialabgaben der Statistik (negativ), auf 5 Rappen: AHV/IV/EO und ALV bilden EINEN
+    /// Posten, ALVZ und NBU je einen eigenen — jeder Posten wird für sich gerundet, dann
+    /// summiert. Beleg TF18 Blanc Jan 2025: AHV −62.51 + ALV −12.97 = −75.48 → −75.50 (RefXML);
+    /// einzeln gerundet käme −75.45 heraus. Nachgerechnet an allen 44 Statistikzeilen
+    /// Nov 2024 – Jan 2025 (Walter 28.09.2026). Die Lohnbelege bleiben rappengenau.
+    /// BVG ebenfalls auf 5 Rappen (Quality Tool TF16 Aebi −758.35).
+    /// </summary>
+    public static decimal Sozialabgaben(JsonElement slip, out decimal bvg)
+    {
+        decimal ahvAlv = 0, alvz = 0, nbu = 0, bvgRoh = 0;
+        if (slip.TryGetProperty("abzugLines", out var al) && al.ValueKind == JsonValueKind.Array)
+            foreach (var z in al.EnumerateArray())
+            {
+                var cat = (Str(z, "categoryCode") ?? "").Trim().ToUpperInvariant();
+                var betrag = Num(z, "betrag");   // negativ
+                switch (cat)
+                {
+                    case "AHV" or "ALV": ahvAlv += betrag; break;
+                    case "ALVZ": alvz += betrag; break;
+                    case "NBUV": nbu += betrag; break;
+                    case "BVG": bvgRoh += betrag; break;
+                }
+            }
+        bvg = PayrollCalculations.Round05(bvgRoh);
+        return PayrollCalculations.Round05(ahvAlv) + PayrollCalculations.Round05(alvz) + PayrollCalculations.Round05(nbu);
+    }
+
+    /// <summary>
     /// Lohnart der Statistik: Monatslohn oder Stundenlohn. Reihenfolge und Aufbau
     /// laut XSD (StatisticMonthlyType / StatisticHourlyType) — beim Stundenlohn
     /// gehoeren Ansatz, Ferien-, Feiertags- und 13.-ML-Prozent in den Block
     /// ContractualHourlyWage, danach die tatsaechlich geleistete Zeit.
     /// </summary>
-    private static XElement KindOfWagePayment(Employment? em, CompanyProfile filiale, JsonElement slip)
+    private static XElement KindOfWagePayment(Employment? em, CompanyProfile filiale, JsonElement slip,
+                                              IReadOnlyDictionary<string, string> lohnartByCode)
     {
         var dreizehnter = Amt(em?.ThirteenthSalary == true ? filiale.DefaultThirteenthSalaryPercent ?? 8.33m : 0m);
+        // Ein vertraglicher 14. Monatslohn ist ein zweites «Contractual13th» (RefXML TF04 Fankhauser 8.33 + 8.33).
+        var vierzehnter = em?.VierzehnterMonatslohn == true
+            ? new XElement(Sd + "Contractual13th", Amt(filiale.DefaultThirteenthSalaryPercent ?? 8.33m))
+            : null;
         var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
         var art = (em?.SwissdecVertragsart ?? "").Trim();
 
@@ -710,13 +754,28 @@ public class ElmMonthlyDeclarationBuilder
                     // Modell- und Filialwechseln (Walter 27.09.2026).
                     new XElement(Sd + "Contract", art.Length > 0 ? art : "indefiniteSalaryMth"),
                     new XElement(Sd + "ContractualMonthlyWage", Amt(em?.MonthlySalary ?? 0m)),
-                    new XElement(Sd + "Contractual13th", dreizehnter)));
+                    new XElement(Sd + "Contractual13th", dreizehnter),
+                    vierzehnter));
 
-        var ferienProzent = Amt((filiale.DefaultVacationWeeks ?? 5) >= 6
-            ? filiale.DefaultVacationPercent6Weeks ?? 13.04m
-            : filiale.DefaultVacationPercent5Weeks ?? 10.65m);
+        // Ferien- und Feiertagsprozent: der Satz, den der Lohnlauf tatsächlich angewendet hat
+        // (Lohnart 1160/1161 im Lohnzettel; RefXML Jan 2025 TF02 Paganini 13.04 % ab 50).
+        // Ohne solche Zeile gilt die Ferienwoche aus dem Lohnzettel, dann die der Filiale.
+        var wochen = Num(slip, "vacationWeeks") is > 0m and var vw ? vw : filiale.DefaultVacationWeeks ?? 5;
+        var ferienProzent = ProzentAusLohnzeile(slip, lohnartByCode, 1160)
+            ?? (wochen >= 6 ? filiale.DefaultVacationPercent6Weeks ?? 13.04m : filiale.DefaultVacationPercent5Weeks ?? 10.65m);
+        var feiertagProzent = ProzentAusLohnzeile(slip, lohnartByCode, 1161) ?? filiale.DefaultHolidayPercent ?? 4m;
         var stundenansatz = em?.HourlyRate ?? 0m;
         var lektionenansatz = em?.LessonRate ?? stundenansatz;
+
+        var stunden = Num(slip, "workedHours");
+        var lektionen = Lektionen(slip, lohnartByCode, em?.LessonRate);
+        XElement gearbeitet = lektionen <= 0m
+            ? new XElement(Sd + "TotalHoursOfWork", Amt(stunden))
+            : stunden <= 0m
+                ? new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen))
+                : new XElement(Sd + "TotalHoursAndLessonsOfWork",
+                    new XElement(Sd + "TotalHoursOfWork", Amt(stunden)),
+                    new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen)));
 
         return new XElement(Sd + "KindOfWagePayment",
             new XElement(Sd + "Hourly",
@@ -725,11 +784,44 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "Salary",
                         new XElement(Sd + "PaidByHour", Amt(stundenansatz)),
                         new XElement(Sd + "PaidByLesson", Amt(lektionenansatz))),
-                    new XElement(Sd + "Vacation", ferienProzent),
-                    new XElement(Sd + "PublicHolidayCompensation", Amt(filiale.DefaultHolidayPercent ?? 4m)),
-                    new XElement(Sd + "Contractual13th", dreizehnter)),
-                new XElement(Sd + "TotallyWorked",
-                    new XElement(Sd + "TotalHoursOfWork", Amt(Num(slip, "workedHours"))))));
+                    new XElement(Sd + "Vacation", Amt(ferienProzent)),
+                    new XElement(Sd + "PublicHolidayCompensation", Amt(feiertagProzent)),
+                    new XElement(Sd + "Contractual13th", dreizehnter),
+                    vierzehnter),
+                new XElement(Sd + "TotallyWorked", gearbeitet)));
+    }
+
+    /// <summary>Prozentsatz der ersten Lohnzeile mit dieser Swissdec-Lohnart, null wenn keine.</summary>
+    private static decimal? ProzentAusLohnzeile(JsonElement slip, IReadOnlyDictionary<string, string> lohnartByCode, int lohnart)
+    {
+        if (!slip.TryGetProperty("lohnLines", out var ll) || ll.ValueKind != JsonValueKind.Array) return null;
+        foreach (var z in ll.EnumerateArray())
+        {
+            var code = (Str(z, "code") ?? "").Trim();
+            var la = code.Length > 0 && lohnartByCode.TryGetValue(code, out var t) && t.Length > 0 ? t : code;
+            if (la == lohnart.ToString() && Num(z, "prozent") is > 0m and var p) return p;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Geleistete Lektionen (Lohnart 1006). Der Lohnzettel führt die Anzahl nicht immer —
+    /// dann Betrag ÷ Lektionenansatz (TF02 Paganini Jan 2025: 600 ÷ 30 = 20).
+    /// </summary>
+    public static decimal Lektionen(JsonElement slip, IReadOnlyDictionary<string, string> lohnartByCode, decimal? lektionenansatz)
+    {
+        if (!slip.TryGetProperty("lohnLines", out var ll) || ll.ValueKind != JsonValueKind.Array) return 0m;
+        decimal summe = 0;
+        foreach (var z in ll.EnumerateArray())
+        {
+            var code = (Str(z, "code") ?? "").Trim();
+            var la = code.Length > 0 && lohnartByCode.TryGetValue(code, out var t) && t.Length > 0 ? t : code;
+            if (la != "1006") continue;
+            var anzahl = Num(z, "anzahl");
+            if (anzahl != 0) summe += anzahl;
+            else if (lektionenansatz is > 0m) summe += Num(z, "betrag") / lektionenansatz.Value;
+        }
+        return PayrollCalculations.Rappen(summe);
     }
 
     /// <summary>
@@ -759,9 +851,12 @@ public class ElmMonthlyDeclarationBuilder
         var stundenlohn = (em?.EmploymentModel?.ToUpperInvariant() ?? "") is not ("FIX" or "FIX-M" or "MTP");
         var ferienwochen = (filiale.DefaultVacationWeeks ?? 5) >= 6 ? 6 : 5;
         var tage = ElmStatistikCodes.Ferientage(stundenlohn, ferienwochen, lse?.LeaveEntitlementDays);
+        // Verwaltungsrat hat keinen Ferienanspruch (RefXML Jan 2025: TF39 Hasler 0).
+        if ((em?.SwissdecVertragsart ?? "").Trim() == "administrativeBoard" && lse?.LeaveEntitlementDays == null)
+            tage = 0m;
 
         return new XElement(Sd + "AdditionalParticulars",
-            new XElement(Sd + "Education", ElmStatistikCodes.Ausbildung(ausbildungCode)),
+            new XElement(Sd + "Education", ElmStatistikCodes.Ausbildung(ausbildungCode, lse?.UniversityDegree)),
             new XElement(Sd + "Position", ElmStatistikCodes.Stellung(stellungCode)),
             new XElement(Sd + "JobTitle", string.IsNullOrWhiteSpace(em?.JobTitle) ? "—" : em!.JobTitle!.Trim()),
             new XElement(Sd + "LeaveEntitlement", ((int)Math.Round(tage, 0)).ToString()));
@@ -776,7 +871,8 @@ public class ElmMonthlyDeclarationBuilder
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
         List<EmployeeQuellensteuer> versionen, List<EmployeeFamilyMember> kinder,
         RechtseinheitStamm stamm, string monatStr, DateTime monatsAnfang, List<string> warn,
-        EmployeeAddress? wochenAdresse = null)
+        EmployeeAddress? wochenAdresse = null, IReadOnlySet<string>? aperiodischeCodes = null,
+        EmployeeFamilyMember? partner = null, EmployeeAddress? partnerAdresse = null)
     {
         if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
         JsonElement? qstZeile = null;
@@ -822,18 +918,25 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "ValidAsOf", xd.ToString("yyyy-MM-dd")),
                     new XElement(Sd + "Reason", "withdrawalCompany")));
 
+        var aperiodisch = aperiodischeCodes == null ? 0m : SummeCodes(slip, aperiodischeCodes);
+        var ehepartner = TarifMitEhepartner(code)
+            ? Ehepartner(e, partner, partnerAdresse, warn)
+            : null;
+
         var x = new XElement(Sd + "TaxAtSourceSalary",
             new XAttribute("addresseeIDRef", $"#QST-{kanton}"),
-            QstZusatz(e, version, kinder),
+            QstZusatz(e, version, kinder, monatsEnde, ehepartner),
             new XElement(Sd + "TaxAtSourceCanton", kanton),
             version?.QstGemeindeBfsNr is > 0 ? new XElement(Sd + "TaxAtSourceMunicipalityID", version!.QstGemeindeBfsNr!.Value) : null,
             new XElement(Sd + "CurrentMonth", monatStr),
             new XElement(Sd + "Current",
                 new XAttribute("workplaceIDRef", WpId(filiale)),
+                WeitereErwerbstaetigkeit(version, em, filiale, slip),
                 QstKategorie(code),
                 new XElement(Sd + "TaxableEarning", Betrag05(basis)),
                 new XElement(Sd + "AscertainedTaxableEarning", Betrag05(satzBasis)),
                 new XElement(Sd + "TaxAtSource", Betrag05(steuer)),
+                aperiodisch != 0m ? new XElement(Sd + "SporadicBenefits", Betrag05(aperiodisch)) : null,
                 residence,
                 stamm.GemeindeNr.TryGetValue(filiale.Id, out var wg) ? new XElement(Sd + "WorkMunicipalityID", wg) : null,
                 declaration));
@@ -844,7 +947,8 @@ public class ElmMonthlyDeclarationBuilder
     /// Personenangaben der QST-Zeile: Konfession, Alleinerziehende und Kinder mit
     /// Anspruchsdauer (Walter 27.09.2026). Null = nichts zu melden.
     /// </summary>
-    private static XElement? QstZusatz(Employee e, EmployeeQuellensteuer? version, List<EmployeeFamilyMember> kinder)
+    private static XElement? QstZusatz(Employee e, EmployeeQuellensteuer? version, List<EmployeeFamilyMember> kinder,
+                                       DateTime monatsEnde, XElement? ehepartner = null)
     {
         // Reihenfolge laut XSD: Denomination, SingleParentFamily, MarriagePartner, Children.
         var konfession = MapKonfession(e.Religion);
@@ -866,8 +970,10 @@ public class ElmMonthlyDeclarationBuilder
                     _ => new XElement(Sd + "NoConcubinage"),
                 });
         }
+        // Nur Kinder, deren Abzug im Meldemonat schon begonnen hat (RefXML Jan 2025:
+        // TF22 Bucher, Kind mit Abzug ab 01.03.2026, fehlt).
         var kinderEl = kinder
-            .Where(k => k.QstDeductibleFrom != null)
+            .Where(k => k.QstDeductibleFrom != null && k.QstDeductibleFrom.Value.Date <= monatsEnde.Date)
             .OrderBy(k => k.DateOfBirth)
             .Select(k => new XElement(Sd + "Children",
                 new XElement(Sd + "Lastname", (k.LastName ?? e.LastName ?? "").Trim()),
@@ -876,11 +982,147 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "Start", k.QstDeductibleFrom!.Value.ToString("yyyy-MM-dd")),
                 k.QstDeductibleUntil == null ? null : new XElement(Sd + "End", k.QstDeductibleUntil.Value.ToString("yyyy-MM-dd"))))
             .ToList();
-        if (konfession == null && alleinerziehend == null && kinderEl.Count == 0) return null;
+        if (konfession == null && alleinerziehend == null && ehepartner == null && kinderEl.Count == 0) return null;
         return new XElement(Sd + "AdditionalParticulars",
             konfession == null ? null : new XElement(Sd + "Denomination", konfession),
             alleinerziehend,
+            ehepartner,
             kinderEl);
+    }
+
+    /// <summary>
+    /// Lohnpositionen, die in der Quellensteuer als aperiodische Leistung zählen:
+    /// QST-pflichtig und «einmalig» (Bonus, Sonderzulage, VR-Honorar, Nachzahlungen,
+    /// Geburtszulage …). Der 13./14. Monatslohn gehört nicht dazu, auch wenn er
+    /// einmalig ausbezahlt wird (RefXML: TF14 Egli 13. ML ohne SporadicBenefits,
+    /// TF40 Farine Dez 2025: 1212 500 + 1500 6'150 = 6'650, ohne 13. ML 1'333.35).
+    /// </summary>
+    public static HashSet<string> AperiodischeQstCodes(
+        IEnumerable<(string Code, string? SwissdecLohnart, bool QstPflichtig, bool QstPeriodisch)> positionen)
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var p in positionen)
+        {
+            if (!p.QstPflichtig || p.QstPeriodisch) continue;
+            var la = int.TryParse((p.SwissdecLohnart ?? "").Trim(), out var n) ? n
+                   : int.TryParse(p.Code, out var n2) ? n2 : 0;
+            if (ElmStatistikCodes.TopfFuer(la) == ElmStatistikCodes.Topf.Dreizehnter) continue;
+            set.Add(p.Code);
+        }
+        return set;
+    }
+
+    private static decimal SummeCodes(JsonElement slip, IReadOnlySet<string> codes)
+    {
+        if (!slip.TryGetProperty("lohnLines", out var ll) || ll.ValueKind != JsonValueKind.Array) return 0m;
+        decimal s = 0;
+        foreach (var z in ll.EnumerateArray())
+            if (codes.Contains((Str(z, "code") ?? "").Trim())) s += Num(z, "betrag");
+        return s;
+    }
+
+    /// <summary>
+    /// Weitere Erwerbstätigkeit (OtherActivities): Beschäftigungsgrad bei uns — Monatslohn
+    /// laut Vertrag, Stundenlohn aus den geleisteten Stunden des Monats (Stunden ÷ Monats-Vollzeit,
+    /// auf 0.05; derselbe Grad, mit dem der Lohnlauf den satzbestimmenden Lohn rechnet) —
+    /// und das Gesamtpensum bei den anderen Arbeitgebern, falls bekannt.
+    /// RefXML Jan 2025: TF19 Andrey 50/40, TF20 Arnold 40 ohne Gesamtpensum, TF18 Blanc 35 h → 19.25/60.
+    /// </summary>
+    public static XElement? WeitereErwerbstaetigkeit(EmployeeQuellensteuer? version, Employment? em,
+                                                     CompanyProfile filiale, JsonElement slip)
+    {
+        if (version?.WeitereBeschaftigungen != true) return null;
+        var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
+        var art = (em?.SwissdecVertragsart ?? "").Trim();
+        var stundenlohn = art.Length > 0
+            ? art is "indefiniteSalaryHrs" or "fixedSalaryHrs"
+            : model is not ("FIX" or "FIX-M" or "MTP");
+        XElement grad;
+        if (stundenlohn)
+        {
+            var vollzeit = PayrollCalculations.MonatsstundenVollzeit(filiale);
+            var pct = vollzeit > 0 ? Num(slip, "workedHours") / vollzeit * 100m : 0m;
+            grad = new XElement(Sd + "HourlyOrLessonSalary", Amt(PayrollCalculations.Round05(pct)));
+        }
+        else
+            grad = new XElement(Sd + "MonthlySalary", Amt(em?.EmploymentPercentage ?? 100m));
+        return new XElement(Sd + "OtherActivities",
+            grad,
+            version.GesamtpensumWeitereAg is > 0m
+                ? new XElement(Sd + "TotalOtherActivityRate", Amt(version.GesamtpensumWeitereAg.Value))
+                : null);
+    }
+
+    /// <summary>
+    /// Tarife, bei denen die QST-Meldung den Ehepartner verlangt: B (Alleinverdiener),
+    /// C (Doppelverdiener), T (Grenzgänger IT, verheiratet) — so in allen RefXML 2025/26;
+    /// A, H und die vordefinierten Kategorien melden keinen.
+    /// </summary>
+    public static bool TarifMitEhepartner(string? code)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match((code ?? "").Trim().ToUpperInvariant(), @"^([A-Z]{1,2})\d[YN]$");
+        return m.Success && m.Groups[1].Value is "B" or "C" or "T";
+    }
+
+    /// <summary>
+    /// Ehepartner laut Schema (MarriagePartnerType): AHV-Nummer oder «unknown», Name,
+    /// Geburtsdatum, Adresse (eigene Adresse, sonst die des MA), Wohnsitz und — wenn
+    /// erwerbstätig mit bekanntem Stellenantritt — Arbeitsort-Kanton (EX im Ausland).
+    /// Null + Hinweis, wenn kein Ehepartner erfasst ist.
+    /// </summary>
+    public static XElement? Ehepartner(Employee e, EmployeeFamilyMember? p, EmployeeAddress? eigeneAdresse, List<string> warn)
+    {
+        if (p == null)
+        {
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): QST-Tarif verlangt den Ehepartner, im Familie-Tab ist keiner erfasst — ohne Partnerangaben gemeldet.");
+            return null;
+        }
+        if (p.DateOfBirth == null)
+        {
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Geburtsdatum des Ehepartners fehlt (Pflichtfeld) — ohne Partnerangaben gemeldet.");
+            return null;
+        }
+
+        string? strasse, plz, ort, land, kanton;
+        if (eigeneAdresse != null)
+        {
+            strasse = eigeneAdresse.Street; plz = eigeneAdresse.ZipCode; ort = eigeneAdresse.City;
+            land = eigeneAdresse.Country; kanton = eigeneAdresse.Canton;
+        }
+        else
+        {
+            strasse = e.Street; plz = e.ZipCode; ort = e.City; land = e.Country; kanton = e.CantonCode;
+        }
+        var landCode = LandCodeIso(land);
+        var inCh = landCode is null or "CH";
+        var kt = (kanton ?? "").Trim().ToUpperInvariant();
+        XElement residence = inCh && kt.Length == 2
+            ? new XElement(Sd + "Residence", new XElement(Sd + "CantonCH", kt))
+            : new XElement(Sd + "Residence", new XElement(Sd + "AbroadCountry", inCh ? "CH" : landCode));
+        if (inCh && kt.Length != 2)
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Wohnkanton des Ehepartners fehlt — bitte an der Partner-Adresse erfassen.");
+
+        XElement? arbeit = null;
+        if (p.Erwerbstaetig == true && p.Stellenantritt != null)
+        {
+            var akt = (p.ArbeitgeberKanton ?? "").Trim().ToUpperInvariant();
+            arbeit = new XElement(Sd + "WorkOrCompensatory",
+                new XElement(Sd + "Workplace", akt.Length == 2 ? akt : "EX"),
+                new XElement(Sd + "Start", p.Stellenantritt.Value.ToString("yyyy-MM-dd")));
+        }
+
+        return new XElement(Sd + "MarriagePartner",
+            new XElement(Sd + "Social-InsuranceIdentification", SvNummer(p.SocialSecurityNumber)),
+            new XElement(Sd + "Lastname", (p.LastName ?? e.LastName ?? "").Trim()),
+            new XElement(Sd + "Firstname", (p.FirstName ?? "").Trim()),
+            new XElement(Sd + "DateOfBirth", p.DateOfBirth.Value.ToString("yyyy-MM-dd")),
+            new XElement(Sd + "Address",
+                string.IsNullOrWhiteSpace(strasse) ? null : new XElement(C + "Street", strasse.Trim()),
+                new XElement(C + "ZIP-Code", (plz ?? "").Trim()),
+                new XElement(C + "City", (ort ?? "").Trim()),
+                new XElement(C + "Country", LandName(land))),
+            residence,
+            arbeit);
     }
 
     /// <summary>

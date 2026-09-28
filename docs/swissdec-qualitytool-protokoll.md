@@ -92,6 +92,22 @@ Aus der Referenz abgeleitet (nicht aufgeklappt, gleiche Ursache): Aebi `Withdraw
 Burri `WithdrawalDate` 2024-12-31; Lusser SporadicBenefits kumuliert; Oberli Period from
 2024-11-16; SalaryTotals LU `CorrectionMonth` −2'281.65 / −34.00 → **K4** bzw. offen.
 
+### 2025-01 — lokaler Vergleich, noch nicht gesendet
+
+Erste Erzeugung (28.09.2026): 7 Schema-Fehler (Vertragsart AWT/Verwaltungsrat im falschen Block,
+QST-Wohnsitz Ausland ohne KindOfResidence, Wohnsitzland der Person) → Commit ab89525. Danach
+«Schema in Ordnung, 35 Personen, 21 QST-Zeilen, 35 Statistik-Zeilen». Der inhaltliche Vergleich
+gegen `RefXML_2025-01_MONTHLY.xml` ergab die Korrekturen **K7** (Programm) und **K8** (Testdaten).
+
+Bleibt bewusst bzw. offen (nicht angleichen):
+
+| Testfall | Feld | Referenz | OneCrew | Urteil |
+|---|---|---|---|---|
+| TF28 Arbenz, TF34 Rinaldi | Weekly/ZIP-Code | `3008.00` / `6982.00` | `3008` / `6982` | Artefakt der Referenz (PLZ als Zahl exportiert) |
+| TF29 Forster | Personenadresse | Via Como 12, 21100 Varese | Via Dogana 4, 20123 Milano | Eingabedaten (CSV) nennen Milano — wir rechnen aus der CSV |
+| TF29 Forster | TaxAtSourceCode / TaxAtSource | R0N / 459.00 | A0N / 576.00 | offene Swissdec-Frage (R0N vs A0N), `docs/swissdec-call-2026-09-24.md` |
+| alle mit BVG | BVG-LPP-RegularContribution | ungerundet (z.B. −197.16) | auf 5 Rp. (−197.15) | **K2** — lokale Referenz veraltet, Quality Tool rundet |
+
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 
 ### F1 — TF14 Egli, Quellensteuer-Code (November 2024)
@@ -188,10 +204,45 @@ Keine bewussten Abweichungen, sondern Fehler bzw. Vorgaben, die wir übernommen 
   UVGZ 12 5.90 auf 1'161.67 → `SocialContributions` −726.55 = Referenz.
 - Commit d844c85, Tests `Testmandant4aVertragsendeTests`.
 
+### K7 — Januar 2025: Inhalt der Monatsmeldung (28.09.2026)
+
+Aus dem lokalen Vergleich gegen `RefXML_2025-01_MONTHLY.xml`, jede Regel an weiteren
+Referenzmonaten gegengeprüft. Lohnberechnung unverändert — nur die Meldung.
+
+| Befund (Testfall) | Regel |
+|---|---|
+| Blanc `SocialContributions` −75.50 statt −75.45 | AHV/IV/EO + ALV als **ein** Posten auf 5 Rp., ALVZ und NBU je einzeln. Trifft alle 44 Zeilen Nov 2024 – Jan 2025 (alte Regel 43). |
+| Burri erscheint im Januar nicht | Kein StatisticSalary, wenn die Anstellung vor dem Monat endete (Lohn nach Austritt); QST bliebe. |
+| Oberli `EntryDate` 2024-11-16 | Beginn der nahtlosen Vertragskette, nicht des Abschnitts im Monat. |
+| Bucher, Châtelain, Koller, Maldini, Rinaldi, Roos: Kinder zu früh | Kind nur, wenn der QST-Abzug im Meldemonat schon begonnen hat. |
+| Paganini `Allowances` 90 | Lohnarten 1070–1073 (Schicht, Pikett, Nacht, Sonntag) = Zulagen (auch Farine Dez 2025 Pikett 30'500). |
+| Paganini `Vacation` 13.04 | Ferien-/Feiertagsprozent aus der Ferienzeile des Lohnzettels (Lohnart 1160/1161), nicht der Filial-Standard. |
+| Paganini Lektionen 20 | `TotalHoursAndLessonsOfWork`; Lektionen = Lohnart 1006, ohne Anzahl Betrag ÷ Lektionenansatz. |
+| Fankhauser zweites `Contractual13th` | Neues Vertragsfeld «14. Monatslohn» (`employment.vierzehnter_monatslohn`, Schema-Stand 38). |
+| Hasler `LeaveEntitlement` 0, `Unsteady` | Verwaltungsrat: keine Ferientage, keine feste Arbeitszeit. |
+| Herz, Blanc, Lamon `Steady` | Stundenlohn **mit vereinbarten Wochenstunden** = Steady (Grad = Wochenstunden ÷ Modell). FLEX aus easy@work (ohne Wochenstunden) bleibt Unsteady. |
+| Estermann, Hasler, Rinaldi `doctorate`; Koller, Paganini `universityBachelor` | Ausbildung aus LSE-Ausbildung + LSE-Hochschultitel (1 Doktorat, 2 Master, 3 Bachelor). |
+| Arnold, Meier C., Hasler, Müller `ResidenceCategory` | Katalog: `B_EU_EFTA` usw. zählen als Buchstabe; neu MV90, MV120, ANDERE (Schema-Stand 38). |
+| Andrey, Arbenz, Arnold, Binggeli, Blanc, Forster, Meier C. `OtherActivities` | Aus «weitere Beschäftigungen» der QST-Erfassung: Monatslohn = Pensum laut Vertrag, Stundenlohn = Stunden ÷ Monats-Vollzeit auf 0.05 (Blanc 35 h ÷ 182 = 19.25), plus Gesamtpensum anderswo. |
+| Oberli QST `SporadicBenefits` 2'000 | QST-pflichtige Lohnarten mit «einmalig» (Bonus, Sonderzulage, VR-Honorar, Nachzahlungen), ohne 13./14. ML — an allen 25 Fällen 2025/26 bestätigt. |
+| Blanc, Utzinger `MarriagePartner` | Bei Tarif B, C, T: Ehepartner mit AHV-Nr. oder unknown, eigene Adresse sonst die des MA, Wohnsitz, bei Erwerbstätigkeit Arbeitskanton + Beginn. |
+
+Tests `ElmMonatJanuar2025Tests`.
+
+### K8 — Testmandant: Vertragskopien und Stammdaten (28.09.2026)
+
+- **Befund:** Aebi `NoTimeConstraint` fehlte im Januar (Monthly gemeldet). Folgeverträge aus 4c/5b
+  (Wiedereintritt, Lohnänderung) erbten die Swissdec-Vertragsart nicht.
+- **Umsetzung:** Alle Vertragskopien übernehmen Vertragsart, Jahreslohn ohne Zeitbindung und
+  14. ML; 4c führt die Vertragsart nach, wenn die Mutation sie nennt. 4a setzt Hochschultitel,
+  14. ML, Bewilligung MV90/MV120/ANDERE und eine eigene Partner-Adresse (Blanc Riehen BS; bei
+  gleicher Adresse «im Haushalt», Utzinger).
+- **Testdaten:** bestehende Muster-AG-Daten auf der Testinstanz nach dem Deploy nachgeführt.
+
 ## Offen
 
-- **Januar 2025 ff.:** alle Monate ab Januar 2025 neu bestätigen (5c hat alles zurückgesetzt)
-  und senden. Beim Aufklappen immer die **neueste** Request-Zeile prüfen. Im Quality Tool
+- **Januar 2025:** nach Deploy + Testdaten-Nachführung (K8) neu erzeugen, vergleichen, senden.
+- **Februar 2025 ff.:** alle Monate neu bestätigen (5c hat alles zurückgesetzt) und senden. Beim Aufklappen immer die **neueste** Request-Zeile prüfen. Im Quality Tool
   nie «Edit → Reset» (löscht die Sendungen des Laufs); Refresh steht rechts unter ACTIONS.
 - **Jahresmeldung (YearlyRetrospective), Beobachtung:** Referenz TF16 Aebi 2024
   `AHV-ALV-NBUV-AVS-AC-AANP-Contribution` 1'750.55 = Beiträge auf der **Jahresbasis**, je Zeile

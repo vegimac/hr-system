@@ -19,10 +19,19 @@ public static class ElmStatistikCodes
     /// 1 Universität/ETH · 2 Fachhochschule/PH · 3 höhere Berufsbildung ·
     /// 4 Lehrerpatent · 5 Matura · 6 abgeschlossene Berufsausbildung ·
     /// 7 unternehmensinterne Ausbildung · 8 ohne abgeschlossene Berufsausbildung.
-    /// Die drei Swissdec-Werte ohne BFS-Entsprechung (doctorate,
-    /// higherEducationMaster, universityBachelor) kommen hier nicht vor.
+    /// Bei Uni und FH bestimmt der LSE-Hochschultitel (1 Doktorat, 2 Master, 3 Bachelor)
+    /// die feinere Swissdec-Stufe (RefXML Jan 2025: TF09 Estermann doctorate, TF23 Koller
+    /// universityBachelor); ohne Titel gilt Uni = Master, FH = Bachelor.
     /// </summary>
-    public static string Ausbildung(int? bfsCode) => bfsCode switch
+    public static string Ausbildung(int? bfsCode, int? hochschultitel = null) => (bfsCode, hochschultitel) switch
+    {
+        (1 or 2, 1) => "doctorate",
+        (1, 3) => "universityBachelor",
+        (2, 2) => "higherEducationMaster",
+        _ => AusbildungOhneTitel(bfsCode),
+    };
+
+    private static string AusbildungOhneTitel(int? bfsCode) => bfsCode switch
     {
         1 => "universityMaster",
         2 => "higherEducationBachelor",
@@ -59,14 +68,23 @@ public static class ElmStatistikCodes
     /// <summary>Rückrichtung für den Testmandanten: Swissdec-Wert → BFS-Ausbildungscode.</summary>
     public static int? BfsAusbildung(string? swissdec) => (swissdec ?? "").Trim() switch
     {
-        "universityMaster" or "doctorate" => 1,
-        "higherEducationBachelor" or "higherEducationMaster" or "universityBachelor" => 2,
+        "universityMaster" or "doctorate" or "universityBachelor" => 1,
+        "higherEducationBachelor" or "higherEducationMaster" => 2,
         "higherVocEducation" => 3,
         "teacherCertificate" => 4,
         "universityEntranceCertificate" => 5,
         "vocEducationCompl" => 6,
         "enterpriseEducation" => 7,
         "mandatorySchoolOnly" => 8,
+        _ => null,
+    };
+
+    /// <summary>Rückrichtung für den Testmandanten: Swissdec-Wert → LSE-Hochschultitel (1 Doktorat, 2 Master, 3 Bachelor).</summary>
+    public static int? BfsHochschultitel(string? swissdec) => (swissdec ?? "").Trim() switch
+    {
+        "doctorate" => 1,
+        "universityMaster" or "higherEducationMaster" => 2,
+        "universityBachelor" or "higherEducationBachelor" => 3,
         _ => null,
     };
 
@@ -118,7 +136,8 @@ public static class ElmStatistikCodes
     {
         // Grundlohn und regelmässige Zulagen
         1000 or 1001 or 1005 or 1006 or 1010 or 1033 => Topf.Bruttolohn,
-        1070 or 1071 or 1072 or 1073 => Topf.Bruttolohn,
+        // Schicht-, Pikett-, Nacht- und Sonntagszulagen (RefXML Jan 2025: TF02 Schichtzulage 90 → Allowances)
+        1070 or 1071 or 1072 or 1073 => Topf.Zulagen,
         1160 or 1161 or 1162 or 1163 or 1168 => Topf.Bruttolohn,
         1500 => Topf.Bruttolohn,                     // Verwaltungsratshonorar
         // Überstunden und Überzeit

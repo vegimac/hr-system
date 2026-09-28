@@ -49,6 +49,13 @@ public class Employment
     public decimal? JahreslohnOhneZeitbindung { get; set; }
 
     /// <summary>
+    /// Vertraglich vereinbarter 14. Monatslohn. Die Auszahlung läuft als eigene
+    /// Lohnposition; das Feld sagt nur, dass der Vertrag ihn vorsieht — die
+    /// Lohnstatistik meldet ihn als zweites «Contractual13th».
+    /// </summary>
+    public bool VierzehnterMonatslohn { get; set; }
+
+    /// <summary>
     /// Stellenbezeichnung (Free-Text) — wird 1:1 auf den Vertrag gedruckt,
     /// z.B. „Shift Coordinator", „Rest. Manager Stellvertreter". Hat NICHTS
     /// mit der Funktionsgruppen-/Mindestlohn-Klassifikation zu tun (das ist

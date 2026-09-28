@@ -53,6 +53,23 @@ public static class ElmGemeinsam
         catch (ArgumentException) { return c; }
     }
 
+    /// <summary>ISO-Code des Landes; Schweiz-Schreibweisen und leer → «CH», unbekannter Text → null.</summary>
+    public static string? LandCodeIso(string? land)
+    {
+        var c = (land ?? "").Trim().ToUpperInvariant();
+        if (c.Length == 0 || c is "CH" or "SCHWEIZ" or "SWITZERLAND" or "SUISSE" or "SVIZZERA") return "CH";
+        return c.Length == 2 ? c : null;
+    }
+
+    /// <summary>AHV-Nummer im Swissdec-Format 756.xxxx.xxxx.xx, sonst «unknown».</summary>
+    public static XElement SvNummer(string? ahv)
+    {
+        var d = Regex.Replace(ahv ?? "", @"\D", "");
+        return d.Length == 13
+            ? new XElement(C + "SV-AS-Number", $"{d[..3]}.{d.Substring(3, 4)}.{d.Substring(7, 4)}.{d.Substring(11, 2)}")
+            : new XElement(C + "unknown");
+    }
+
     public static string MapCivilStatus(string? ms)
     {
         var s = (ms ?? "").ToLowerInvariant();
@@ -229,9 +246,15 @@ public static class ElmGemeinsam
     /// Bewilligungsart → Swissdec <c>ResidenceCategory</c>. Nur für Ausländer;
     /// Schweizer haben keine (Walter 27.09.2026, Beleg TF14 annual-B, TF37 shortTerm-L).
     /// Ein unbekannter Buchstabe gibt null — lieber keine Angabe als eine falsche.
+    /// Der Katalog führt EU/EFTA-Varianten als «B_EU_EFTA» usw. — für Swissdec zählt
+    /// nur der Buchstabe. Meldeverfahren und «andere» haben keinen Buchstaben
+    /// (RefXML Jan 2025: TF20 Arnold 90 Tage, TF21 Meier 120 Tage, TF30/TF39 othersNotSwiss).
     /// </summary>
-    public static string? Bewilligung(string? code) => (code ?? "").Trim().ToUpperInvariant() switch
+    public static string? Bewilligung(string? code) => BewilligungOhneGruppe(code) switch
     {
+        "MV90" => "NotificationProcedureForShorttermWork90Days",
+        "MV120" => "NotificationProcedureForShorttermWork120Days",
+        "ANDERE" => "othersNotSwiss",
         "L" => "shortTerm-L",
         "B" => "annual-B",
         "C" => "settled-C",
@@ -242,6 +265,12 @@ public static class ElmGemeinsam
         "CI" => "ResidentForeignNationalWithGainfulEmployment-Ci",
         _ => null,
     };
+
+    private static string BewilligungOhneGruppe(string? code)
+    {
+        var c = (code ?? "").Trim().ToUpperInvariant();
+        return c.EndsWith("_EU_EFTA", StringComparison.Ordinal) ? c[..^"_EU_EFTA".Length] : c;
+    }
 
     /// <summary>
     /// Personalien. <paramref name="wohnGemeindeNr"/> setzt die BFS-Gemeindenummer der
@@ -329,7 +358,7 @@ public static class ElmGemeinsam
 
     /// <summary>
     /// Arbeitszeit-Block einer Person: FIX/FIX-M und MTP = Steady (Wochenstunden +
-    /// Beschäftigungsgrad), FLEX = Unsteady.
+    /// Beschäftigungsgrad), FLEX nur mit vereinbarten Wochenstunden Steady, sonst Unsteady.
     /// </summary>
     /// <summary>
     /// Arbeitszeit-Block einer Person. <paramref name="vollzeitWochenstunden"/> sind die
@@ -343,9 +372,10 @@ public static class ElmGemeinsam
     /// </summary>
     public static XElement WorkingTime(Employment? em, decimal vollzeitWochenstunden)
     {
-        // Honorar ohne Zeitbindung hat keine feste Arbeitszeit (Walter 27.09.2026).
+        // Honorar ohne Zeitbindung und Verwaltungsrat haben keine feste Arbeitszeit
+        // (Walter 27.09.2026; RefXML Jan 2025 TF39 Hasler Unsteady).
         var art = (em?.SwissdecVertragsart ?? "").Trim();
-        if (art.Contains("NoTimeConstraint", StringComparison.OrdinalIgnoreCase))
+        if (art.Contains("NoTimeConstraint", StringComparison.OrdinalIgnoreCase) || art == "administrativeBoard")
             return new XElement(C + "Unsteady");
         var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
         if ((model == "FIX" || model == "FIX-M") && em != null)
@@ -362,6 +392,13 @@ public static class ElmGemeinsam
             return new XElement(C + "Steady",
                 new XElement(C + "WeeklyHours", Amt(gh)),
                 new XElement(C + "ActivityRate", Amt(PayrollCalculations.Rappen(gh / vollzeitWochenstunden * 100m))));
+        // Stundenlohn mit vereinbarten Wochenstunden ist eine feste Arbeitszeit
+        // (RefXML Jan 2025: TF01 Herz 42 h, TF18 Blanc 8.40 h = 20 %). FLEX aus
+        // easy@work hat keine Wochenstunden und bleibt Unsteady.
+        if (model == "FLEX" && em?.WeeklyHours is decimal wh && wh > 0 && vollzeitWochenstunden > 0)
+            return new XElement(C + "Steady",
+                new XElement(C + "WeeklyHours", Amt(wh)),
+                new XElement(C + "ActivityRate", Amt(PayrollCalculations.Rappen(wh / vollzeitWochenstunden * 100m))));
         return new XElement(C + "Unsteady");
     }
 }
