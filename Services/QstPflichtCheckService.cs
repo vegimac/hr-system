@@ -11,13 +11,13 @@ namespace HrSystem.Services;
 /// dieser fünf Bedingungen ist erfüllt:
 ///   1. MA ist Schweizer Staatsbürger (NationalityRef.Code = "CH").
 ///   2. MA hat einen C-Ausweis (EmployeePermitHistory: PermitType.Code = "C"
-///      am Stichtag gültig).
+///      oder "C_EU_EFTA", am Stichtag gültig).
 ///   3. MA hat eine Befreiung der Steuerbehörde (QstBefreitDurchBehoerde + Dok +
 ///      Gueltig-ab/bis-Fenster).
 ///   4. MA ist verheiratet (marital_status) mit einem Schweizer Ehepartner
 ///      (EmployeeFamilyMember MemberType="Ehepartner", NationalityRef.Code="CH").
 ///   5. MA ist verheiratet mit einem C-Ausweis-Ehepartner (PermitType.Code="C"
-///      mit gültiger Bewilligung).
+///      oder "C_EU_EFTA", mit gültiger Bewilligung).
 ///
 /// Zu 4./5. (Walter 30.08.2026) — drei Stolperfallen:
 ///   • Konkubinat befreit NIE: nur Ehe/eingetragene Partnerschaft zählt.
@@ -37,6 +37,12 @@ public class QstPflichtCheckService
     private readonly AppDbContext _db;
 
     public QstPflichtCheckService(AppDbContext db) { _db = db; }
+
+    /// <summary>Niederlassungsbewilligung C — mit und ohne EU/EFTA-Zusatz.</summary>
+    public static readonly string[] CAusweisCodes = { "C", "C_EU_EFTA" };
+
+    public static bool IstCAusweis(string? permitCode)
+        => permitCode != null && CAusweisCodes.Contains(permitCode.Trim().ToUpperInvariant());
 
     public record QstPflichtCheckResult(
         bool   IsPflichtOffen,    // true = QST-pflichtig UND keine Erfassung am Stichtag → Lohnlauf-Block
@@ -148,7 +154,7 @@ public class QstPflichtCheckService
             .Include(h => h.PermitType)
             .Where(h => h.EmployeeId == employeeId
                      && h.PermitType != null
-                     && h.PermitType.Code == "C"
+                     && CAusweisCodes.Contains(h.PermitType.Code)
                      && h.ValidFrom <= stichtag
                      && (h.ErfahrenAm ?? h.ValidFrom) <= stichtag)
             .OrderByDescending(h => h.ValidFrom)
@@ -304,7 +310,7 @@ public class QstPflichtCheckService
                 }
 
                 // 5. Spouse C-Ausweis (mit gültigem Ablauf)? (0a: dito)
-                bool spouseHatC = spouse.PermitType?.Code == "C"
+                bool spouseHatC = IstCAusweis(spouse.PermitType?.Code)
                                && (spouse.PermitExpiryDate == null
                                    || spouse.PermitExpiryDate.Value >= stichtag.ToDateTime(TimeOnly.MinValue));
 
@@ -342,7 +348,7 @@ public class QstPflichtCheckService
                 .Select(f => new { Nat = f.NationalityRef!.Code, Permit = f.PermitType!.Code, f.FirstName })
                 .FirstOrDefaultAsync();
             bool eheBefreiend = ehe != null
-                && (string.Equals(ehe.Nat, "CH", StringComparison.OrdinalIgnoreCase) || ehe.Permit == "C");
+                && (string.Equals(ehe.Nat, "CH", StringComparison.OrdinalIgnoreCase) || IstCAusweis(ehe.Permit));
             if (eheBefreiend)
             {
                 var wer = string.IsNullOrWhiteSpace(ehe!.FirstName) ? "Ein Ehepartner" : $"Ehepartner {ehe.FirstName}";

@@ -489,7 +489,7 @@ public class KontrollListenController : ControllerBase
             .Include(h => h.PermitType)
             .Where(h => empIds.Contains(h.EmployeeId)
                      && h.PermitType != null
-                     && h.PermitType.Code == "C")
+                     && QstPflichtCheckService.CAusweisCodes.Contains(h.PermitType.Code))
             .ToListAsync();
         var cEintragByEmp = cHistAll
             .GroupBy(h => h.EmployeeId)

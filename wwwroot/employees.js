@@ -5630,7 +5630,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 // QST BEFREIT (Befreiungsgründe 4/5) — die Erwerbstätigkeit
                 // interessiert dann nicht, keine ⚠-Badges (der Server blockt
                 // solche MA im Lohnlauf ohnehin nicht).
-                const _partnerBefreit = (isCh || (pCode || '').toUpperCase() === 'C')
+                const _partnerBefreit = (isCh || ['C', 'C_EU_EFTA'].includes((pCode || '').toUpperCase()))
                     && m.livesInSwitzerland === true;
                 const _partnerPflicht = (_msFam.includes('verheiratet') || (_msFam.includes('partnerschaft') && !_msFam.includes('aufgel')))
                     && !_msFam.includes('getrennt') && !selectedEmployee?.separatedSince
