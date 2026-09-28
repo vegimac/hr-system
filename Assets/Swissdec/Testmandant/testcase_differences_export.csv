@@ -30,11 +30,11 @@ TF02 Paganini Maria,PersonNumberOfLessons,Anzahl Lektionen,2026-02-01,20.0,0.0
 TF03 Lusser Pia,PersonActivityRateEmployer1,Beschäftigungsgrad AG 1,2025-06-01,100.0,20.0
 TF03 Lusser Pia,PersonAgreedWeeklyHours,Individuell vereinbarte wöchentliche Arbeitszeit Stunden,2025-06-01,42.0,8.4
 TF03 Lusser Pia,PersonBVGLPPInsured,BVG (1 = Versichert / 0 = Nicht versichert),2025-06-01,1.0,0.0
-TF03 Lusser Pia,PersonKTGAMCCode1,KTG-Code,2025-06-01,,11
-TF03 Lusser Pia,PersonKTGAMCCode2,KTG-Code,2025-06-01,12,
+TF03 Lusser Pia,PersonKTGAMCCode1,KTG-Code 10 / 11,2025-06-01,,11
+TF03 Lusser Pia,PersonKTGAMCCode2,KTG-Code 12,2025-06-01,12,
 TF03 Lusser Pia,PersonUVGLAACode,UVG-Code,2025-06-01,A1,A3
-TF03 Lusser Pia,PersonUVGZLAACCode1,UVGZ-Code,2025-06-01,,10
-TF03 Lusser Pia,PersonUVGZLAACCode2,UVGZ-Code,2025-06-01,12,
+TF03 Lusser Pia,PersonUVGZLAACCode1,UVGZ-Code 10 / 11,2025-06-01,,10
+TF03 Lusser Pia,PersonUVGZLAACCode2,UVGZ-Code 12,2025-06-01,12,
 TF03 Lusser Pia,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-12-01,,31.12.2025
 TF04 Fankhauser Markus,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-12-01,,31.12.2025
 TF04 Fankhauser Markus,PersonAdditionalPaymentAfterWithdrawal,Codewechsel / Korrektur- Nachzahlung nach Austritt,2026-02-01,,N
@@ -60,6 +60,15 @@ TF10 Ganz Heinz,PersonDateOfDeath,"Todesfall, verstorben am",2025-10-01,,30.10.2
 TF10 Ganz Heinz,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-10-01,,30.10.2025
 TF10 Ganz Heinz,PersonAdditionalPaymentAfterWithdrawal,Codewechsel / Korrektur- Nachzahlung nach Austritt,2025-11-01,,N
 TF10 Ganz Heinz,PersonAdditionalPaymentAfterWithdrawal,Codewechsel / Korrektur- Nachzahlung nach Austritt,2025-12-01,N,N
+TF11 Bosshard Peter,PersonChild2Age,No labels found for the given SSC tag: PersonChild2Age,2025-03-01,,0.0
+TF11 Bosshard Peter,PersonChild2BirthMonthDate,No labels found for the given SSC tag: PersonChild2BirthMonthDate,2025-03-01,,16.03.
+TF11 Bosshard Peter,PersonChild2DateOfBirth,Geburtsdatum,2025-03-01,,16.03.2025
+TF11 Bosshard Peter,PersonChild2EndTAS,Ende des Anspruchs auf Kinderabzug QST,2025-03-01,,2043-03-31
+TF11 Bosshard Peter,PersonChild2Firstname,Vorname,2025-03-01,,Kevin
+TF11 Bosshard Peter,PersonChild2Lastname,Name,2025-03-01,,Bosshard
+TF11 Bosshard Peter,PersonChild2StartTAS,Beginn des Anspruchs auf Kinderabzug QST,2025-03-01,,2025-04-01
+TF11 Bosshard Peter,PersonBVGLPPManuallyBase,BVG übermittelte manuelle Basis,2025-04-01,,153200.0
+TF11 Bosshard Peter,PersonBVGLPPManuallyBase,BVG übermittelte manuelle Basis,2025-05-01,153200.0,
 TF11 Bosshard Peter,PersonActivityRateEmployer1,Beschäftigungsgrad AG 1,2025-06-01,30.0,100.0
 TF11 Bosshard Peter,PersonAgreedWeeklyHours,Individuell vereinbarte wöchentliche Arbeitszeit Stunden,2025-06-01,12.6,42.0
 TF12 Casanova Renato,PersonEffectiveWorkingDays,Arbeitstage effektive,2025-03-01,3.0,20.0
@@ -73,21 +82,29 @@ TF12 Casanova Renato,PersonCompanyWorkingTimeModel,Arbeitszeitmodelle,2025-10-01
 TF12 Casanova Renato,PersonContractMonthly,Vertrag,2025-10-01,indefiniteSalaryMth,
 TF12 Casanova Renato,PersonContractNoTimeConstraint,Vertrag,2025-10-01,,fixedSalaryNoTimeConstraint
 TF12 Casanova Renato,PersonContractNoTimeConstraintAnnualWage,Vertraglicher Jahreslohn,2025-10-01,,0.0
-TF12 Casanova Renato,PersonKTGAMCCode1,KTG-Code,2025-10-01,10,
-TF12 Casanova Renato,PersonKTGAMCCode2,KTG-Code,2025-10-01,,12
+TF12 Casanova Renato,PersonKTGAMCCode1,KTG-Code 10 / 11,2025-10-01,10,
+TF12 Casanova Renato,PersonKTGAMCCode2,KTG-Code 12,2025-10-01,,12
 TF12 Casanova Renato,PersonUVGLAACode,UVG-Code,2025-10-01,A2,A1
-TF12 Casanova Renato,PersonUVGZLAACCode1,UVGZ-Code,2025-10-01,11,
-TF12 Casanova Renato,PersonUVGZLAACCode2,UVGZ-Code,2025-10-01,,12
+TF12 Casanova Renato,PersonUVGZLAACCode1,UVGZ-Code 10 / 11,2025-10-01,11,
+TF12 Casanova Renato,PersonUVGZLAACCode2,UVGZ-Code 12,2025-10-01,,12
 TF12 Casanova Renato,PersonWorkplace,Arbeitsort,2025-10-01,LU,BE
 TF12 Casanova Renato,PersonBVGLPPManuallyBase,BVG übermittelte manuelle Basis,2025-11-01,130000.0,
 TF12 Casanova Renato,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-12-01,,31.12.2025
 TF13 Combertaldi Renato,PersonUVGLAACode,UVG-Code,2025-03-01,A0,A1
-TF13 Combertaldi Renato,PersonUVGZLAACCode1,UVGZ-Code,2025-03-01,10,11
+TF13 Combertaldi Renato,PersonUVGZLAACCode1,UVGZ-Code 10 / 11,2025-03-01,10,11
 TF13 Combertaldi Renato,PersonBVGLPPInsured,BVG (1 = Versichert / 0 = Nicht versichert),2026-01-01,0.0,1.0
-TF13 Combertaldi Renato,PersonKTGAMCCode1,KTG-Code,2026-01-01,10,11
+TF13 Combertaldi Renato,PersonChild1Age,No labels found for the given SSC tag: PersonChild1Age,2026-01-01,,0.0
+TF13 Combertaldi Renato,PersonChild1BirthMonthDate,No labels found for the given SSC tag: PersonChild1BirthMonthDate,2026-01-01,,01.01.
+TF13 Combertaldi Renato,PersonChild1DateOfBirth,Geburtsdatum,2026-01-01,,01.01.2026
+TF13 Combertaldi Renato,PersonChild1EndTAS,Ende des Anspruchs auf Kinderabzug QST,2026-01-01,,2044-01-31
+TF13 Combertaldi Renato,PersonChild1Firstname,Vorname,2026-01-01,,Ylenia
+TF13 Combertaldi Renato,PersonChild1Lastname,Name,2026-01-01,,Combertaldi
+TF13 Combertaldi Renato,PersonChild1StartTAS,Beginn des Anspruchs auf Kinderabzug QST,2026-01-01,,2026-02-01
+TF13 Combertaldi Renato,PersonKTGAMCCode1,KTG-Code 10 / 11,2026-01-01,10,11
 TF14 Egli Anna,PersonNumberOfHours,Anzahl Stunden,2024-12-01,75.0,130.0
 TF14 Egli Anna,PersonResidenceCategory,Aufenthaltsbewilligung,2024-12-01,annual-B,settled-C
-TF14 Egli Anna,PersonTASCode,QST-Code,2024-12-01,A0Y,NON
+TF14 Egli Anna,PersonTASCode,QST-Code,2024-12-01,A0N,NON
+TF14 Egli Anna,PersonTASCodeValidAsOf,QST-Code Gültig ab,2024-12-01,,01.11.2024
 TF14 Egli Anna,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2024-12-01,,AwaitCorrectionFromCompany
 TF14 Egli Anna,PersonTAXTASPeriodForObjection,Abrechnungsbeleg für QST,2024-12-01,x,
 TF14 Egli Anna,PersonNumberOfHours,Anzahl Stunden,2025-01-01,130.0,120.0
@@ -98,6 +115,7 @@ TF14 Egli Anna,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-01-01,01.11.2024,
 TF14 Egli Anna,PersonTASMunicipalityID,QST-Gemeinde,2025-01-01,1069.0,
 TF14 Egli Anna,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-01-01,AwaitCorrectionFromCompany,
 TF14 Egli Anna,PersonNumberOfHours,Anzahl Stunden,2025-02-01,120.0,115.0
+TF14 Egli Anna,PersonDenomination,Konfession,2025-03-01,romanCatholic,otherOrNone
 TF14 Egli Anna,PersonNumberOfHours,Anzahl Stunden,2025-03-01,115.0,160.0
 TF14 Egli Anna,PersonNumberOfHours,Anzahl Stunden,2025-04-01,160.0,95.0
 TF14 Egli Anna,PersonNumberOfHours,Anzahl Stunden,2025-05-01,95.0,140.0
@@ -134,8 +152,8 @@ TF16 Aebi Anna,PersonTAXRectificateOriginalDocID,Rektifikat DocID des Lohnauswei
 TF16 Aebi Anna,PersonTAXRectificateRemark,No labels found for the given SSC tag: PersonTAXRectificateRemark,2025-02-01,Testfall 16 - Rectificate,
 TF16 Aebi Anna,PersonWorkingDaysCH,Arbeitstage CH,2025-02-01,11.0,20.0
 TF16 Aebi Anna,PersonEffectiveWorkingDays,Arbeitstage effektive,2025-03-01,20.0,18.0
-TF16 Aebi Anna,PersonUVGZLAACCode1,UVGZ-Code,2025-03-01,,11
-TF16 Aebi Anna,PersonUVGZLAACCode2,UVGZ-Code,2025-03-01,12,
+TF16 Aebi Anna,PersonUVGZLAACCode1,UVGZ-Code 10 / 11,2025-03-01,,11
+TF16 Aebi Anna,PersonUVGZLAACCode2,UVGZ-Code 12,2025-03-01,12,
 TF16 Aebi Anna,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-03-01,,27.03.2025
 TF16 Aebi Anna,PersonWorkingDaysCH,Arbeitstage CH,2025-03-01,20.0,18.0
 TF17 Binggeli Fritz,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-12-01,,31.12.2025
@@ -194,6 +212,13 @@ TF22 Bucher Elisabeth,PersonNumberOfHours,Anzahl Stunden,2025-10-01,130.0,90.0
 TF22 Bucher Elisabeth,PersonNumberOfHours,Anzahl Stunden,2025-11-01,90.0,120.0
 TF22 Bucher Elisabeth,PersonNumberOfHours,Anzahl Stunden,2025-12-01,120.0,130.0
 TF22 Bucher Elisabeth,PersonNumberOfHours,Anzahl Stunden,2026-01-01,130.0,40.0
+TF22 Bucher Elisabeth,PersonChild1Age,No labels found for the given SSC tag: PersonChild1Age,2026-02-01,,0.0
+TF22 Bucher Elisabeth,PersonChild1BirthMonthDate,No labels found for the given SSC tag: PersonChild1BirthMonthDate,2026-02-01,,01.02.
+TF22 Bucher Elisabeth,PersonChild1DateOfBirth,Geburtsdatum,2026-02-01,,01.02.2026
+TF22 Bucher Elisabeth,PersonChild1EndTAS,Ende des Anspruchs auf Kinderabzug QST,2026-02-01,,2044-02-29
+TF22 Bucher Elisabeth,PersonChild1Firstname,Vorname,2026-02-01,,Lea
+TF22 Bucher Elisabeth,PersonChild1Lastname,Name,2026-02-01,,Bucher
+TF22 Bucher Elisabeth,PersonChild1StartTAS,Beginn des Anspruchs auf Kinderabzug QST,2026-02-01,,2026-03-01
 TF22 Bucher Elisabeth,PersonNumberOfHours,Anzahl Stunden,2026-02-01,40.0,96.0
 TF23 Koller Ludwig,ChangeCivilStatusbeforeNnYears,No labels found for the given SSC tag: ChangeCivilStatusbeforeNnYears,2025-05-01,33.0,0.0
 TF23 Koller Ludwig,PersonCivilStatus,Zivilstand,2025-05-01,single,married
@@ -216,7 +241,7 @@ TF23 Koller Ludwig,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-
 TF23 Koller Ludwig,PersonChild1Age,No labels found for the given SSC tag: PersonChild1Age,2025-10-01,,0.0
 TF23 Koller Ludwig,PersonChild1BirthMonthDate,No labels found for the given SSC tag: PersonChild1BirthMonthDate,2025-10-01,,09.10.
 TF23 Koller Ludwig,PersonChild1DateOfBirth,Geburtsdatum,2025-10-01,,09.10.2025
-TF23 Koller Ludwig,PersonChild1EndTAS,Ende des Anspruchs auf Kinderabzug QST,2025-10-01,,52535.0
+TF23 Koller Ludwig,PersonChild1EndTAS,Ende des Anspruchs auf Kinderabzug QST,2025-10-01,,2043-10-31
 TF23 Koller Ludwig,PersonChild1Firstname,Vorname,2025-10-01,,Sven
 TF23 Koller Ludwig,PersonChild1Lastname,Name,2025-10-01,,Koller
 TF23 Koller Ludwig,PersonChild1StartTAS,Beginn des Anspruchs auf Kinderabzug QST,2025-10-01,,2025-11-01
@@ -260,14 +285,17 @@ TF25 Lehmann Nadine,PersonMunicipalityID,Gemeinde-Nr.,2025-04-01,,1062.0
 TF25 Lehmann Nadine,PersonResidenceCanton,Wohnkanton,2025-04-01,EX,LU
 TF25 Lehmann Nadine,PersonResidenceCategory,Aufenthaltsbewilligung,2025-04-01,crossBorder-G,annual-B
 TF25 Lehmann Nadine,PersonStreet,Strasse,2025-04-01,Via Pisanello 2,Hauptstrasse 4
+TF25 Lehmann Nadine,PersonTASCalculationModel,Berechnungmodell QST,2025-04-01,Y,M
+TF25 Lehmann Nadine,PersonTASCanton,QST-Kanton,2025-04-01,TI,LU
+TF25 Lehmann Nadine,PersonTASCode,QST-Code,2025-04-01,A0N,A0Y
+TF25 Lehmann Nadine,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-04-01,01.02.2025,01.04.2025
+TF25 Lehmann Nadine,PersonTASMunicipalityID,QST-Gemeinde,2025-04-01,5002.0,1061.0
 TF25 Lehmann Nadine,PersonWorkingDaysCH,Arbeitstage CH,2025-04-01,9.0,18.0
 TF25 Lehmann Nadine,PersonWorkplace,Arbeitsort,2025-04-01,TI,LU
 TF25 Lehmann Nadine,PersonZIPCode,Postleitzahl,2025-04-01,20146.0,6102.0
 TF25 Lehmann Nadine,PersonDepartureDate,Wegzugsdatum,2025-05-01,25.04.2025,
-TF25 Lehmann Nadine,PersonTASCanton,QST-Kanton,2025-05-01,TI,LU
-TF25 Lehmann Nadine,PersonTASCode,QST-Code,2025-05-01,A0N,A0Y
 TF25 Lehmann Nadine,PersonTASKindOfResidence,Aufenthaltskategorie,2025-05-01,Daily,
-TF25 Lehmann Nadine,PersonTASMunicipalityID,QST-Gemeinde,2025-05-01,5002.0,1062.0
+TF25 Lehmann Nadine,PersonTASMunicipalityID,QST-Gemeinde,2025-05-01,1061.0,1062.0
 TF25 Lehmann Nadine,PersonWorkingDaysCH,Arbeitstage CH,2025-05-01,18.0,20.0
 TF25 Lehmann Nadine,PersonEffectiveWorkingDays,Arbeitstage effektive,2025-06-01,20.0,10.0
 TF25 Lehmann Nadine,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-06-01,,15.06.2025
@@ -325,13 +353,13 @@ TF30 Müller Heinrich,PersonContractNoTimeConstraint,Vertrag,2025-05-01,indefini
 TF30 Müller Heinrich,PersonContractNoTimeConstraintAnnualWage,Vertraglicher Jahreslohn,2025-05-01,0.0,
 TF30 Müller Heinrich,PersonDepartureDate,Wegzugsdatum,2025-05-01,15.04.2025,
 TF30 Müller Heinrich,PersonEffectiveWorkingDays,Arbeitstage effektive,2025-05-01,,20.0
-TF30 Müller Heinrich,PersonKTGAMCCode1,KTG-Code,2025-05-01,10,11
+TF30 Müller Heinrich,PersonKTGAMCCode1,KTG-Code 10 / 11,2025-05-01,10,11
 TF30 Müller Heinrich,PersonTASCode,QST-Code,2025-05-01,MEY,A0Y
 TF30 Müller Heinrich,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-05-01,01.01.2025,01.05.2025
 TF30 Müller Heinrich,PersonTASKindOfResidence,Aufenthaltskategorie,2025-05-01,Daily,
 TF30 Müller Heinrich,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-05-01,,CompanyMutation
 TF30 Müller Heinrich,PersonUVGLAACode,UVG-Code,2025-05-01,A0,A1
-TF30 Müller Heinrich,PersonUVGZLAACCode1,UVGZ-Code,2025-05-01,10,11
+TF30 Müller Heinrich,PersonUVGZLAACCode1,UVGZ-Code 10 / 11,2025-05-01,10,11
 TF30 Müller Heinrich,PersonWorkingDaysCH,Arbeitstage CH,2025-05-01,,20.0
 TF30 Müller Heinrich,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-06-01,CompanyMutation,
 TF30 Müller Heinrich,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-09-01,,30.09.2025
@@ -348,7 +376,7 @@ TF31 Bolletto Franca,PersonPartnerFirstname,Vorname,2025-06-01,,Luigi
 TF31 Bolletto Franca,PersonPartnerLastname,Name,2025-06-01,,Bolletto
 TF31 Bolletto Franca,PersonPartnerResidenceCantonCH,Wohnsitz in der Schweiz (Kanton auswählen),2025-06-01,,VD
 TF31 Bolletto Franca,PersonPartnerSVASNumber,Sozialversicherungsnummer SV,2025-06-01,,unknown
-TF31 Bolletto Franca,PersonPartnerStreet,Strasse,2025-06-01,,Route de chavannes 11 
+TF31 Bolletto Franca,PersonPartnerStreet,Strasse,2025-06-01,,Route de chavannes 11
 TF31 Bolletto Franca,PersonPartnerZIPCode,Postleitzahl,2025-06-01,,1007.0
 TF31 Bolletto Franca,PersonTASCode,QST-Code,2025-06-01,A0N,B0N
 TF31 Bolletto Franca,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-06-01,01.01.2025,01.04.2025
@@ -438,7 +466,7 @@ TF35 Roos Roland,PersonPartnerBirthMonthDate,No labels found for the given SSC t
 TF35 Roos Roland,PersonPartnerCity,Ort,2025-05-01,,Bellinzona
 TF35 Roos Roland,PersonPartnerDateOfBirth,Geburtsdatum,2025-05-01,,12.06.1972
 TF35 Roos Roland,PersonPartnerFirstname,Vorname,2025-05-01,,Melanie
-TF35 Roos Roland,PersonPartnerLastname,Name,2025-05-01,,Roos 
+TF35 Roos Roland,PersonPartnerLastname,Name,2025-05-01,,Roos
 TF35 Roos Roland,PersonPartnerResidenceCantonCH,Wohnsitz in der Schweiz (Kanton auswählen),2025-05-01,,TI
 TF35 Roos Roland,PersonPartnerSVASNumber,Sozialversicherungsnummer SV,2025-05-01,,756.3454.9922.51
 TF35 Roos Roland,PersonPartnerStreet,Strasse,2025-05-01,,Via Ospedale 10
@@ -468,8 +496,8 @@ TF35 Roos Roland,PersonChild1Age,No labels found for the given SSC tag: PersonCh
 TF35 Roos Roland,PersonChild1BirthMonthDate,No labels found for the given SSC tag: PersonChild1BirthMonthDate,2025-10-01,,10.10.
 TF35 Roos Roland,PersonChild1DateOfBirth,Geburtsdatum,2025-10-01,,10.10.2025
 TF35 Roos Roland,PersonChild1EndTAS,Ende des Anspruchs auf Kinderabzug QST,2025-10-01,,2043-10-31
-TF35 Roos Roland,PersonChild1Firstname,Vorname,2025-10-01,,Antonello 
-TF35 Roos Roland,PersonChild1Lastname,Name,2025-10-01,,Roos 
+TF35 Roos Roland,PersonChild1Firstname,Vorname,2025-10-01,,Antonello
+TF35 Roos Roland,PersonChild1Lastname,Name,2025-10-01,,Roos
 TF35 Roos Roland,PersonChild1StartTAS,Beginn des Anspruchs auf Kinderabzug QST,2025-10-01,,2025-11-01
 TF35 Roos Roland,PersonDepartureDate,Wegzugsdatum,2025-10-01,31.08.2025,
 TF35 Roos Roland,PersonTASCode,QST-Code,2025-11-01,B0Y,B1Y
@@ -477,7 +505,6 @@ TF35 Roos Roland,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-11-01,01.06.202
 TF35 Roos Roland,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-11-01,,CompanyMutation
 TF35 Roos Roland,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-12-01,CompanyMutation,
 TF35 Roos Roland,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-12-01,,31.12.2025
-TF36 Maldini Fabio,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-04-01,01.01.2025,01.06.2025
 TF36 Maldini Fabio,ChangeCivilStatusbeforeNnYears,No labels found for the given SSC tag: ChangeCivilStatusbeforeNnYears,2025-05-01,34.0,0.0
 TF36 Maldini Fabio,PersonCivilStatus,Zivilstand,2025-05-01,single,married
 TF36 Maldini Fabio,PersonCivilStatusValidAsOf,Gültig ab,2025-05-01,17.06.1991,25.05.2025
@@ -493,11 +520,13 @@ TF36 Maldini Fabio,PersonPartnerStreet,Strasse,2025-05-01,,Blockweg 2
 TF36 Maldini Fabio,PersonPartnerZIPCode,Postleitzahl,2025-05-01,,3007.0
 TF36 Maldini Fabio,PersonPartnerCountry,Land,2025-06-01,,SWITZERLAND
 TF36 Maldini Fabio,PersonTASCode,QST-Code,2025-06-01,A0Y,B0Y
+TF36 Maldini Fabio,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-06-01,01.01.2025,01.06.2025
 TF36 Maldini Fabio,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-06-01,,CompanyMutation
 TF36 Maldini Fabio,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-07-01,CompanyMutation,
 TF36 Maldini Fabio,PersonPartnerStartActivity,Beginn der Tätigkeit,2025-08-01,,28.07.2025
 TF36 Maldini Fabio,PersonPartnerWorkplace,Arbeitsort,2025-08-01,,TI
 TF36 Maldini Fabio,PersonTASCode,QST-Code,2025-08-01,B0Y,C0Y
+TF36 Maldini Fabio,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-08-01,01.06.2025,01.08.2025
 TF36 Maldini Fabio,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-08-01,,CompanyMutation
 TF36 Maldini Fabio,PersonBVGLPPCode1,BVG-Code 11 / 21 / 22,2025-09-01,11.0,22.0
 TF36 Maldini Fabio,PersonCity,Ort,2025-09-01,Bern,Como
@@ -508,13 +537,20 @@ TF36 Maldini Fabio,PersonCrossborderTaxID,Steueridentifikationsnummer,2025-09-01
 TF36 Maldini Fabio,PersonCrossborderValidAsOf,Gültig ab,2025-09-01,,01.09.2024
 TF36 Maldini Fabio,PersonDepartureDate,Wegzugsdatum,2025-09-01,,28.08.2025
 TF36 Maldini Fabio,PersonMunicipalityID,Gemeinde-Nr.,2025-09-01,351.0,
+TF36 Maldini Fabio,PersonPartnerCity,Ort,2025-09-01,Bern,Como
+TF36 Maldini Fabio,PersonPartnerCountry,Land,2025-09-01,SWITZERLAND,ITALY
+TF36 Maldini Fabio,PersonPartnerResidenceAbroadCountry,Wohnsitz im Ausland,2025-09-01,,IT
+TF36 Maldini Fabio,PersonPartnerResidenceCantonCH,Wohnsitz in der Schweiz (Kanton auswählen),2025-09-01,BE,
+TF36 Maldini Fabio,PersonPartnerStreet,Strasse,2025-09-01,Blockweg 2,Via Milano 26
+TF36 Maldini Fabio,PersonPartnerWorkplace,Arbeitsort,2025-09-01,TI,EX
+TF36 Maldini Fabio,PersonPartnerZIPCode,Postleitzahl,2025-09-01,3007.0,22100.0
 TF36 Maldini Fabio,PersonResidenceCanton,Wohnkanton,2025-09-01,BE,EX
 TF36 Maldini Fabio,PersonResidenceCategory,Aufenthaltsbewilligung,2025-09-01,annual-B,crossBorder-G
 TF36 Maldini Fabio,PersonStreet,Strasse,2025-09-01,Blockweg 2,Via Milano 26
 TF36 Maldini Fabio,PersonTASCalculationModel,Berechnungmodell QST,2025-09-01,M,Y
 TF36 Maldini Fabio,PersonTASCanton,QST-Kanton,2025-09-01,BE,TI
 TF36 Maldini Fabio,PersonTASCode,QST-Code,2025-09-01,C0Y,T0N
-TF36 Maldini Fabio,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-09-01,01.06.2025,01.11.2025
+TF36 Maldini Fabio,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-09-01,01.08.2025,01.09.2025
 TF36 Maldini Fabio,PersonTASKindOfResidence,Aufenthaltskategorie,2025-09-01,,Daily
 TF36 Maldini Fabio,PersonTASMunicipalityID,QST-Gemeinde,2025-09-01,351.0,5002.0
 TF36 Maldini Fabio,PersonWorkplace,Arbeitsort,2025-09-01,BE,TI
@@ -527,16 +563,8 @@ TF36 Maldini Fabio,PersonChild1Firstname,Vorname,2025-10-01,,Marc
 TF36 Maldini Fabio,PersonChild1Lastname,Name,2025-10-01,,Maldini
 TF36 Maldini Fabio,PersonChild1StartTAS,Beginn des Anspruchs auf Kinderabzug QST,2025-10-01,,2025-11-01
 TF36 Maldini Fabio,PersonDepartureDate,Wegzugsdatum,2025-10-01,28.08.2025,
-TF36 Maldini Fabio,PersonPartnerCity,Ort,2025-10-01,Bern,Como
-TF36 Maldini Fabio,PersonPartnerCountry,Land,2025-10-01,SWITZERLAND,ITALY
-TF36 Maldini Fabio,PersonPartnerResidenceAbroadCountry,Wohnsitz im Ausland,2025-10-01,,IT
-TF36 Maldini Fabio,PersonPartnerResidenceCantonCH,Wohnsitz in der Schweiz (Kanton auswählen),2025-10-01,BE,
-TF36 Maldini Fabio,PersonPartnerStreet,Strasse,2025-10-01,Blockweg 2,Via Milano 26
-TF36 Maldini Fabio,PersonPartnerWorkplace,Arbeitsort,2025-10-01,TI,EX
-TF36 Maldini Fabio,PersonPartnerZIPCode,Postleitzahl,2025-10-01,3007.0,22100.0
-TF36 Maldini Fabio,PersonTASCode,QST-Code,2025-10-01,T0N,F0N
-TF36 Maldini Fabio,PersonTASCode,QST-Code,2025-11-01,F0N,F1N
-TF36 Maldini Fabio,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-11-01,01.11.2025,
+TF36 Maldini Fabio,PersonTASCode,QST-Code,2025-11-01,T0N,T1N
+TF36 Maldini Fabio,PersonTASCodeValidAsOf,QST-Code Gültig ab,2025-11-01,01.09.2025,01.11.2025
 TF36 Maldini Fabio,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2025-12-01,CompanyMutation,
 TF36 Maldini Fabio,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-12-01,,31.12.2025
 TF37 Oberli Christine,PersonEffectiveWorkingDays,Arbeitstage effektive,2024-12-01,10.0,20.0
@@ -574,10 +602,10 @@ TF40 Farine Corinne,PersonBVGLPPManuallyBase,BVG übermittelte manuelle Basis,20
 TF40 Farine Corinne,PersonContractMonthly,Vertrag,2025-03-01,fixedSalaryMth,
 TF40 Farine Corinne,PersonContractNoTimeConstraint,Vertrag,2025-03-01,,administrativeBoard
 TF40 Farine Corinne,PersonContractNoTimeConstraintAnnualWage,Vertraglicher Jahreslohn,2025-03-01,,0.0
-TF40 Farine Corinne,PersonKTGAMCCode1,KTG-Code,2025-03-01,11,10
+TF40 Farine Corinne,PersonKTGAMCCode1,KTG-Code 10 / 11,2025-03-01,11,10
 TF40 Farine Corinne,PersonUVGLAACode,UVG-Code,2025-03-01,A1,A0
-TF40 Farine Corinne,PersonUVGZLAACCode1,UVGZ-Code,2025-03-01,,10
-TF40 Farine Corinne,PersonUVGZLAACCode2,UVGZ-Code,2025-03-01,12,
+TF40 Farine Corinne,PersonUVGZLAACCode1,UVGZ-Code 10 / 11,2025-03-01,,10
+TF40 Farine Corinne,PersonUVGZLAACCode2,UVGZ-Code 12,2025-03-01,12,
 TF40 Farine Corinne,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-03-01,,31.03.2025
 TF40 Farine Corinne,PersonActivityRateEmployer1,Beschäftigungsgrad AG 1,2025-10-01,,100.0
 TF40 Farine Corinne,PersonActivityRateUnsteady,Beschäftigungsgrad unregelmässig,2025-10-01,x,
@@ -590,7 +618,7 @@ TF40 Farine Corinne,PersonContractNoTimeConstraint,Vertrag,2025-10-01,administra
 TF40 Farine Corinne,PersonContractNoTimeConstraintAnnualWage,Vertraglicher Jahreslohn,2025-10-01,0.0,
 TF40 Farine Corinne,PersonDepartureDate,Wegzugsdatum,2025-10-01,,28.09.2025
 TF40 Farine Corinne,PersonEntryDate,Eintritt in das Unternehmen,2025-10-01,01.01.2025,01.10.2025
-TF40 Farine Corinne,PersonKTGAMCCode1,KTG-Code,2025-10-01,10,11
+TF40 Farine Corinne,PersonKTGAMCCode1,KTG-Code 10 / 11,2025-10-01,10,11
 TF40 Farine Corinne,PersonMunicipalityID,Gemeinde-Nr.,2025-10-01,351.0,5890.0
 TF40 Farine Corinne,PersonResidenceCanton,Wohnkanton,2025-10-01,BE,VD
 TF40 Farine Corinne,PersonStreet,Strasse,2025-10-01,Blockweg 2,Rue des Moulins 13
@@ -599,7 +627,7 @@ TF40 Farine Corinne,PersonTASCanton,QST-Kanton,2025-10-01,BE,VD
 TF40 Farine Corinne,PersonTASCode,QST-Code,2025-10-01,A1Y,A1N
 TF40 Farine Corinne,PersonTASMunicipalityID,QST-Gemeinde,2025-10-01,351.0,5890.0
 TF40 Farine Corinne,PersonUVGLAACode,UVG-Code,2025-10-01,A0,A1
-TF40 Farine Corinne,PersonUVGZLAACCode1,UVGZ-Code,2025-10-01,10,11
+TF40 Farine Corinne,PersonUVGZLAACCode1,UVGZ-Code 10 / 11,2025-10-01,10,11
 TF40 Farine Corinne,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-10-01,31.03.2025,31.10.2025
 TF40 Farine Corinne,PersonWorkplace,Arbeitsort,2025-10-01,BE,VD
 TF40 Farine Corinne,PersonZIPCode,Postleitzahl,2025-10-01,3007.0,1800.0
@@ -631,18 +659,18 @@ TF43 Ochsenbein Lea,PersonAdditionalPaymentAfterWithdrawal,Codewechsel / Korrekt
 TF44 Lusser Hans,PersonActivityRateEmployer1,Beschäftigungsgrad AG 1,2025-03-01,100.0,20.0
 TF44 Lusser Hans,PersonAgreedWeeklyHours,Individuell vereinbarte wöchentliche Arbeitszeit Stunden,2025-03-01,42.0,8.4
 TF44 Lusser Hans,PersonBVGLPPInsured,BVG (1 = Versichert / 0 = Nicht versichert),2025-03-01,1.0,0.0
-TF44 Lusser Hans,PersonKTGAMCCode1,KTG-Code,2025-03-01,,11
-TF44 Lusser Hans,PersonKTGAMCCode2,KTG-Code,2025-03-01,12,
+TF44 Lusser Hans,PersonKTGAMCCode1,KTG-Code 10 / 11,2025-03-01,,11
+TF44 Lusser Hans,PersonKTGAMCCode2,KTG-Code 12,2025-03-01,12,
 TF44 Lusser Hans,PersonUVGLAACode,UVG-Code,2025-03-01,A1,A3
-TF44 Lusser Hans,PersonUVGZLAACCode1,UVGZ-Code,2025-03-01,,10
-TF44 Lusser Hans,PersonUVGZLAACCode2,UVGZ-Code,2025-03-01,12,
+TF44 Lusser Hans,PersonUVGZLAACCode1,UVGZ-Code 10 / 11,2025-03-01,,10
+TF44 Lusser Hans,PersonUVGZLAACCode2,UVGZ-Code 12,2025-03-01,12,
 TF44 Lusser Hans,PersonWaiveOfPensionDeduct,Verzicht auf AHV-Freibetrag,2025-03-01,,x
-TF44 Lusser Hans,PersonSplitCurrentYearIncome,PersonSplitEinkommenAktuellesJahr,2025-08-01,,9000.0
-TF44 Lusser Hans,PersonSplitPreviousYearIncome,PersonSplitEinkommenVorjahr,2025-08-01,,-28000.0
-TF44 Lusser Hans,PersonSplitPreviousYearPeriodFrom,PersonSplitVorJahrPeriodeVon,2025-08-01,,01.11.2024
-TF44 Lusser Hans,PersonSplitPreviousYearPeriodUntil,PersonSplitVorJahrPeriodeBis,2025-08-01,,31.12.2024
-TF44 Lusser Hans,PersonSplitCurrentYearIncome,PersonSplitEinkommenAktuellesJahr,2025-09-01,9000.0,10500.0
-TF44 Lusser Hans,PersonSplitCurrentYearIncome,PersonSplitEinkommenAktuellesJahr,2025-10-01,10500.0,12000.0
-TF44 Lusser Hans,PersonSplitCurrentYearIncome,PersonSplitEinkommenAktuellesJahr,2025-11-01,12000.0,13500.0
-TF44 Lusser Hans,PersonSplitCurrentYearIncome,PersonSplitEinkommenAktuellesJahr,2025-12-01,13500.0,15000.0
+TF44 Lusser Hans,PersonSplitCurrentYearIncome,Split Einkommen aktuelles Jahr,2025-08-01,,9000.0
+TF44 Lusser Hans,PersonSplitPreviousYearIncome,Split Einkommen Vorjahr,2025-08-01,,-28000.0
+TF44 Lusser Hans,PersonSplitPreviousYearPeriodFrom,Split Vorjahresperiode von,2025-08-01,,01.11.2024
+TF44 Lusser Hans,PersonSplitPreviousYearPeriodUntil,Split Vorjahresperiode bis,2025-08-01,,31.12.2024
+TF44 Lusser Hans,PersonSplitCurrentYearIncome,Split Einkommen aktuelles Jahr,2025-09-01,9000.0,10500.0
+TF44 Lusser Hans,PersonSplitCurrentYearIncome,Split Einkommen aktuelles Jahr,2025-10-01,10500.0,12000.0
+TF44 Lusser Hans,PersonSplitCurrentYearIncome,Split Einkommen aktuelles Jahr,2025-11-01,12000.0,13500.0
+TF44 Lusser Hans,PersonSplitCurrentYearIncome,Split Einkommen aktuelles Jahr,2025-12-01,13500.0,15000.0
 TF44 Lusser Hans,PersonWithdrawalDate,Austritt aus dem Unternehmen,2025-12-01,,31.12.2025

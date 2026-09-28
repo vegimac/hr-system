@@ -266,10 +266,31 @@ Meldung, Lohnberechnung unverändert.
 
 Tests `ElmMonatJanuar2025Tests`.
 
+### K10 — Neue Swissdec-Testdaten, Stand 28.09.2026 (23:50)
+
+Walter hat die CSV-Exporte neu heruntergeladen (vorher Stand 07.09.2026). Swissdec hat die Testdaten
+an die Referenz angepasst — damit erledigen sich mehrere offene Fragen:
+
+| Testfall | Änderung | Folge |
+|---|---|---|
+| TF29 Forster | Milano, Via Dogana 4, Tarif **A0N** statt R0N/Varese | Swissdec-Frage 3 erledigt |
+| TF14 Egli | Tarif **A0N** statt A0Y ab 01.11.2024, NON ab Dezember; Konfession ab März 2025 «keine» | F1 sollte wegfallen |
+| TF36 Maldini | **T0N/T1N** statt F0N/F1N, Partner-Wegzug nach Como schon ab September, QST-Gültig-ab je Monat | Frage 3b erledigt |
+| TF25 Lehmann | QST-Wechsel TI → LU (A0Y, Gemeinde 1061, Mai 1062) schon **ab April** | Frage 4 erledigt |
+| TF26 Jenzer | Como, Grenzgänger G statt Milano | — |
+| TF11 Bosshard | Kinderzulage 268/483 statt 260/475; Kind 2 (Kevin) als Mutation März 2025 statt Stammdaten; BVG-Basis manuell 153'200 im April | Quality-Tool-Befund Jan 2025 erledigt |
+| TF13 Combertaldi, TF22 Bucher | Kind erst ab Geburt (Mutation) statt ab Beginn | — |
+| alle mit BVG | Lohnart 5050 auf 5 Rappen | Lohnberechnung: BVG auf 5 Rp. (`docs/claude/fachlogik.md`) |
+| Firma | FAK-Ansätze 2025 (LU 215/260/268, BE 250/310, VD 322/365/425/468, TI 215/268, AG 2026 225/278); Arbeitsorte VD/TI/AG/ZG erst ab 2025, ZG 2026 leer | Schritt 3 neu laufen lassen |
+
+Programm: Schritt 4c übernimmt jetzt Kind 1–5 (vorher nur Kind 1). CSV in `Assets/Swissdec/Testmandant`
+und `SWISSCEC/Testmandant` ersetzt.
+
 ## Offen
 
-- **Januar 2025:** nach Deploy (K9) neu erzeugen und senden. Erwartet rot: Forster + SalaryTotals BE
-  (Frage 3), Bosshard 268 (Testdaten-Stand prüfen).
+- **Muster AG neu aufbauen** (Walter-Entscheid 28.09.2026): Schritte 1–5 mit den neuen CSV, danach
+  Test-DB auf Reste der alten Daten prüfen (Maldini F-Codes, Egli A0Y, Lehmann Mai), dann
+  November 2024 ff. neu bestätigen und senden.
 - **Februar 2025 ff.:** alle Monate neu bestätigen (5c hat alles zurückgesetzt) und senden. Beim Aufklappen immer die **neueste** Request-Zeile prüfen. Im Quality Tool
   nie «Edit → Reset» (löscht die Sendungen des Laufs); Refresh steht rechts unter ACTIONS.
 - **Jahresmeldung (YearlyRetrospective), Beobachtung:** Referenz TF16 Aebi 2024

@@ -34,49 +34,49 @@ CompanyWorkplaceBECanton,BE,BE,BE
 CompanyWorkplaceBEMunicipalityID,351,351,351
 CompanyWorkplaceBEFAKSolution,Spida,Familienausgleichskasse Kanton Bern,Familienausgleichskasse Kanton Bern
 CompanyWorkplaceVD,,,
-CompanyWorkplaceVDWorkplaceID,#VD,#VD,#VD
-CompanyWorkplaceVDBUR-REE-Number,A89058588,A89058588,A89058588
-CompanyWorkplaceVDDesignation,Verkauf,Verkauf,Verkauf
-CompanyWorkplaceVDStreet,Rue des Moulins 9,Rue des Moulins 9,Rue des Moulins 9
-CompanyWorkplaceVDZIPCode,1800,1800,1800
-CompanyWorkplaceVDCity,Vevey,Vevey,Vevey
-CompanyWorkplaceVDCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
-CompanyWorkplaceVDCanton,VD,VD,VD
-CompanyWorkplaceVDMunicipalityID,5890,5890,5890
-CompanyWorkplaceVDFAKSolution,Spida,Caisse cantonale vaudoise de compensation,Caisse cantonale vaudoise de compensation
+CompanyWorkplaceVDWorkplaceID,,#VD,#VD
+CompanyWorkplaceVDBUR-REE-Number,,A89058588,A89058588
+CompanyWorkplaceVDDesignation,,Verkauf,Verkauf
+CompanyWorkplaceVDStreet,,Rue des Moulins 9,Rue des Moulins 9
+CompanyWorkplaceVDZIPCode,,1800,1800
+CompanyWorkplaceVDCity,,Vevey,Vevey
+CompanyWorkplaceVDCountry,,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceVDCanton,,VD,VD
+CompanyWorkplaceVDMunicipalityID,,5890,5890
+CompanyWorkplaceVDFAKSolution,,Caisse cantonale vaudoise de compensation,Caisse cantonale vaudoise de compensation
 CompanyWorkplaceTI,,,
-CompanyWorkplaceTIWorkplaceID,#TI,#TI,#TI
-CompanyWorkplaceTIBUR-REE-Number,A92978114,A92978114,A92978114
-CompanyWorkplaceTIDesignation,Beratung,Beratung,Beratung
-CompanyWorkplaceTIStreet,Via Canonico Ghiringhelli 19,Via Canonico Ghiringhelli 19,Via Canonico Ghiringhelli 19
-CompanyWorkplaceTIZIPCode,6500,6500,6500
-CompanyWorkplaceTICity,Bellinzona,Bellinzona,Bellinzona
-CompanyWorkplaceTICountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
-CompanyWorkplaceTICanton,TI,TI,TI
-CompanyWorkplaceTIMunicipalityID,5002,5002,5002
-CompanyWorkplaceTIFAKSolution,Spida,Istituto delle assicurazioni sociali,Istituto delle assicurazioni sociali
+CompanyWorkplaceTIWorkplaceID,,#TI,#TI
+CompanyWorkplaceTIBUR-REE-Number,,A92978114,A92978114
+CompanyWorkplaceTIDesignation,,Beratung,Beratung
+CompanyWorkplaceTIStreet,,Via Canonico Ghiringhelli 19,Via Canonico Ghiringhelli 19
+CompanyWorkplaceTIZIPCode,,6500,6500
+CompanyWorkplaceTICity,,Bellinzona,Bellinzona
+CompanyWorkplaceTICountry,,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceTICanton,,TI,TI
+CompanyWorkplaceTIMunicipalityID,,5002,5002
+CompanyWorkplaceTIFAKSolution,,Istituto delle assicurazioni sociali,Istituto delle assicurazioni sociali
 CompanyWorkplaceAG,,,
-CompanyWorkplaceAGWorkplaceID,#AG,#AG,#AG
-CompanyWorkplaceAGBUR-REE-Number,A12054926,A12054926,A12054926
-CompanyWorkplaceAGDesignation,Beratung,Beratung,Beratung
-CompanyWorkplaceAGStreet,Galterstrasse 3,Galterstrasse 3,Galterstrasse 3
-CompanyWorkplaceAGZIPCode,5272,5272,5272
-CompanyWorkplaceAGCity,Gansingen,Gansingen,Gansingen
-CompanyWorkplaceAGCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
-CompanyWorkplaceAGCanton,AG,AG,AG
-CompanyWorkplaceAGMunicipalityID,4164,4164,4164
-CompanyWorkplaceAGFAKSolution,Spida,Familienausgleichskasse Kanton Aargau,Familienausgleichskasse Kanton Aargau
+CompanyWorkplaceAGWorkplaceID,,#AG,#AG
+CompanyWorkplaceAGBUR-REE-Number,,A12054926,A12054926
+CompanyWorkplaceAGDesignation,,Beratung,Beratung
+CompanyWorkplaceAGStreet,,Galterstrasse 3,Galterstrasse 3
+CompanyWorkplaceAGZIPCode,,5272,5272
+CompanyWorkplaceAGCity,,Gansingen,Gansingen
+CompanyWorkplaceAGCountry,,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceAGCanton,,AG,AG
+CompanyWorkplaceAGMunicipalityID,,4164,4164
+CompanyWorkplaceAGFAKSolution,,Familienausgleichskasse Kanton Aargau,Familienausgleichskasse Kanton Aargau
 CompanyWorkplaceZG,,,
-CompanyWorkplaceZGWorkplaceID,#ZG,#ZG,#ZG
-CompanyWorkplaceZGBUR-REE-Number,A38197421,A38197421,A38197421
-CompanyWorkplaceZGDesignation,Beratung,Beratung,Beratung
-CompanyWorkplaceZGStreet,Grafenaustrasse 5,Grafenaustrasse 5,Grafenaustrasse 5
-CompanyWorkplaceZGZIPCode,6003,6003,6003
-CompanyWorkplaceZGCity,Zug,Zug,Zug
-CompanyWorkplaceZGCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
-CompanyWorkplaceZGCanton,ZG,ZG,ZG
-CompanyWorkplaceZGMunicipalityID,1711,1711,1711
-CompanyWorkplaceZGFAKSolution,Spida,Familienausgleichskasse Kanton Zug,Familienausgleichskasse Kanton Zug
+CompanyWorkplaceZGWorkplaceID,,#ZG,
+CompanyWorkplaceZGBUR-REE-Number,,A38197423,
+CompanyWorkplaceZGDesignation,,Beratung,
+CompanyWorkplaceZGStreet,,Grafenaustrasse 5,
+CompanyWorkplaceZGZIPCode,,6300,
+CompanyWorkplaceZGCity,,Zug,
+CompanyWorkplaceZGCountry,,SWITZERLAND,
+CompanyWorkplaceZGCanton,,ZG,
+CompanyWorkplaceZGMunicipalityID,,1711,
+CompanyWorkplaceZGFAKSolution,,Familienausgleichskasse Kanton Zug,
 CompanyWorkingTimeModel1,,,
 CompanyWorkingTimeModel1CompanyWorkingTimeID,#CompanyWorkingTime1,#CompanyWorkingTime1,#CompanyWorkingTime1
 CompanyWorkingTimeModel1Description,Standard,Standard,Standard
@@ -127,25 +127,25 @@ CompanyFAKCAFSpidaBranchNumber,079,,
 CompanyFAKCAFSpidaCustomerNumber,5676.3,,
 CompanyFAKCAFSpidaInstitutionID,#FAK_Spida,,
 CompanyFAKCAFSpidaLUChildAllowanceEducationAllowance,LU,,
-CompanyFAKCAFSpidaLURate0to11,200,,
-CompanyFAKCAFSpidaLURate12to15,210,,
-CompanyFAKCAFSpidaLURate16to25,250,,
+CompanyFAKCAFSpidaLURate0to11,210,,
+CompanyFAKCAFSpidaLURate12to15,260,,
+CompanyFAKCAFSpidaLURate16to25,260,,
 CompanyFAKCAFSpidaLURateBirthAllowance,1000,,
 CompanyFAKCAFSpidaBE,BE,,
 CompanyFAKCAFSpidaBERate0to15,230,,
 CompanyFAKCAFSpidaBERate16to25,290,,
 CompanyFAKCAFSpidaVD,VD,,
 CompanyFAKCAFSpidaVDRate0to15,300,,
-CompanyFAKCAFSpidaVDRate0to15From3rdChild,380,,
-CompanyFAKCAFSpidaVDRate16to25,360,,
+CompanyFAKCAFSpidaVDRate0to15From3rdChild,340,,
+CompanyFAKCAFSpidaVDRate16to25,400,,
 CompanyFAKCAFSpidaVDRate16to25From3rdChild,440,,
 CompanyFAKCAFSpidaVDRateBirthAllowance,1500,,
 CompanyFAKCAFSpidaTI,TI,,
 CompanyFAKCAFSpidaTIRate0to15,200,,
 CompanyFAKCAFSpidaTIRate16to25,250,,
 CompanyFAKCAFSpidaAG,AG,,
-CompanyFAKCAFSpidaAGRate0to15,215,,
-CompanyFAKCAFSpidaAGRate16to25,268,,
+CompanyFAKCAFSpidaAGRate0to15,200,,
+CompanyFAKCAFSpidaAGRate16to25,250,,
 CompanyFAKCAFLU,,,
 CompanyFAKCAFLUName,,Familienausgleichskassen Kanton Luzern,Familienausgleichskassen Kanton Luzern
 CompanyFAKCAFLUBranchNumber,,003,003
@@ -154,10 +154,10 @@ CompanyFAKCAFLUWorkplaceCanton,,LU,LU
 CompanyFAKCAFLUInstitutionID,,#FAK_LU_KK,#FAK_LU_KK
 CompanyFAKCAFLUIntercantonalAgreement,,,
 CompanyFAKCAFLUChildAllowanceEducationAllowance,,,
-CompanyFAKCAFLURate0to11,,200,200
-CompanyFAKCAFLURate12to15,,210,210
-CompanyFAKCAFLURate16to25,,250,250
-CompanyFAKCAFLURateBirthAllowance,,1000,1000
+CompanyFAKCAFLURate0to11,,215,215
+CompanyFAKCAFLURate12to15,,260,260
+CompanyFAKCAFLURate16to25,,268,268
+CompanyFAKCAFLURateBirthAllowance,,1075,1075
 CompanyFAKCAFBE,,,
 CompanyFAKCAFBEName,,Familienausgleichskasse Kanton Bern,Familienausgleichskasse Kanton Bern
 CompanyFAKCAFBEBranchNumber,,002,002
@@ -165,8 +165,8 @@ CompanyFAKCAFBECustomerNumber,,100-2136.90,100-2136.90
 CompanyFAKCAFBEWorkplaceCanton,,BE,BE
 CompanyFAKCAFBEInstitutionID,,#FAK_BE_KK,#FAK_BE_KK
 CompanyFAKCAFBEIntercantonalAgreement,,,
-CompanyFAKCAFBERate0to15,,230,230
-CompanyFAKCAFBERate16to25,,290,290
+CompanyFAKCAFBERate0to15,,250,250
+CompanyFAKCAFBERate16to25,,310,310
 CompanyFAKCAFVD,,,
 CompanyFAKCAFVDName,,Caisse cantonale vaudoise de compensation,Caisse cantonale vaudoise de compensation
 CompanyFAKCAFVDBranchNumber,,022,022
@@ -174,11 +174,11 @@ CompanyFAKCAFVDCustomerNumber,,100-7766.80,100-7766.80
 CompanyFAKCAFVDWorkplaceCanton,,VD,VD
 CompanyFAKCAFVDInstitutionID,,#FAK_VD_KK,#FAK_VD_KK
 CompanyFAKCAFVDIntercantonalAgreement,,,
-CompanyFAKCAFVDRate0to15,,300,300
-CompanyFAKCAFVDRate0to15From3rdChild,,380,380
-CompanyFAKCAFVDRate16to25,,360,360
-CompanyFAKCAFVDRate16to25From3rdChild,,440,440
-CompanyFAKCAFVDRateBirthAllowance,,1500,1500
+CompanyFAKCAFVDRate0to15,,322,322
+CompanyFAKCAFVDRate0to15From3rdChild,,365,365
+CompanyFAKCAFVDRate16to25,,425,425
+CompanyFAKCAFVDRate16to25From3rdChild,,468,468
+CompanyFAKCAFVDRateBirthAllowance,,1617,1617
 CompanyFAKCAFTI,,,
 CompanyFAKCAFTIName,,Istituto delle assicurazioni sociali,Istituto delle assicurazioni sociali
 CompanyFAKCAFTIBranchNumber,,021,021
@@ -186,8 +186,8 @@ CompanyFAKCAFTICustomerNumber,,100-5467.80,100-5467.80
 CompanyFAKCAFTIWorkplaceCanton,,TI,TI
 CompanyFAKCAFTIInstitutionID,,#FAK_TI_KK,#FAK_TI_KK
 CompanyFAKCAFTIIntercantonalAgreement,,x,x
-CompanyFAKCAFTIRate0to15,,200,200
-CompanyFAKCAFTIRate16to25,,250,250
+CompanyFAKCAFTIRate0to15,,215,215
+CompanyFAKCAFTIRate16to25,,268,268
 CompanyFAKCAFAG,,,
 CompanyFAKCAFAGName,,SVA Aargau,SVA Aargau
 CompanyFAKCAFAGBranchNumber,,019,019
@@ -195,8 +195,8 @@ CompanyFAKCAFAGCustomerNumber,,5050.1,5050.1
 CompanyFAKCAFAGWorkplaceCanton,,AG,AG
 CompanyFAKCAFAGInstitutionID,,#FAK_AG_SVA,#FAK_AG_SVA
 CompanyFAKCAFAGIntercantonalAgreement,,,
-CompanyFAKCAFAGRate0to15,,215,215
-CompanyFAKCAFAGRate16to25,,268,268
+CompanyFAKCAFAGRate0to15,,215,225
+CompanyFAKCAFAGRate16to25,,268,278
 CompanyFAKCAFZG,,,
 CompanyFAKCAFZGName,,AK Zug,AK Zug
 CompanyFAKCAFZGBranchNumber,,009,009
@@ -329,7 +329,7 @@ CompanyBVGLPPInsurerAddress,"Fellerstrasse 23
 3027 Bern","Fellerstrasse 23
 3027 Bern","Fellerstrasse 23
 3027 Bern"
-CompanyBVGLPPGeneralValidAsOf,2021-01-01,2022-01-01,2023-01-01
+CompanyBVGLPPGeneralValidAsOf,2024-01-01,2025-01-01,2026-01-01
 CompanyBVGLPPInstitutionID,#BVG,#BVG,#BVG
 CompanyBVGLPPPossibleSolutions,"11,21,22,K2010","11,21,22,K2010","11,21,22,K2010"
 CompanyBVGLPPCode,,,

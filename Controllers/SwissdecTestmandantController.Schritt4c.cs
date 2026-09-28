@@ -145,7 +145,10 @@ public partial class SwissdecTestmandantController
     // Abgeleitete Hilfsfelder ohne eigene Bedeutung
     private static readonly HashSet<string> Ignorieren = new(StringComparer.OrdinalIgnoreCase)
     {
-        "PersonPartnerAge", "PersonPartnerBirthMonthDate", "PersonChild1Age", "PersonChild1BirthMonthDate", "ChangeCivilStatusbeforeNnYears",
+        "PersonPartnerAge", "PersonPartnerBirthMonthDate", "ChangeCivilStatusbeforeNnYears",
+        "PersonChild1Age", "PersonChild1BirthMonthDate", "PersonChild2Age", "PersonChild2BirthMonthDate",
+        "PersonChild3Age", "PersonChild3BirthMonthDate", "PersonChild4Age", "PersonChild4BirthMonthDate",
+        "PersonChild5Age", "PersonChild5BirthMonthDate",
     };
 
     private async Task<IActionResult> Schritt4c(bool vorschau, string? monat, string? nur)
@@ -371,16 +374,18 @@ public partial class SwissdecTestmandantController
                     await _db.SaveChangesAsync();
                 }
             }
-            if (rows.Any(r => r.Tag.StartsWith("PersonChild1")))
+            for (int ki = 1; ki <= 5; ki++)
             {
-                var kv = V("PersonChild1Firstname"); var von = Datum(V("PersonChild1StartTAS")); var bis = Datum(V("PersonChild1EndTAS"));
-                fam.Add($"Kind {kv} ({Datum(V("PersonChild1DateOfBirth")):dd.MM.yyyy}) QST-Abzug {von:dd.MM.yyyy}–{bis:dd.MM.yyyy}");
+                var pk = $"PersonChild{ki}";
+                if (!rows.Any(r => r.Tag.StartsWith(pk))) continue;
+                var kv = V(pk + "Firstname"); var von = Datum(V(pk + "StartTAS")); var bis = Datum(V(pk + "EndTAS"));
+                fam.Add($"Kind {kv} ({Datum(V(pk + "DateOfBirth")):dd.MM.yyyy}) QST-Abzug {von:dd.MM.yyyy}–{bis:dd.MM.yyyy}");
                 if (!vorschau && kv != null)
                 {
                     var kind = await _db.EmployeeFamilyMembers.FirstOrDefaultAsync(m => m.EmployeeId == emp.Id && m.MemberType == "Kind" && m.FirstName == kv)
                             ?? new EmployeeFamilyMember { EmployeeId = emp.Id, MemberType = "Kind", FirstName = kv, CreatedAt = DateTime.Now };
-                    kind.LastName = V("PersonChild1Lastname") ?? emp.LastName;
-                    if (Hat("PersonChild1DateOfBirth")) kind.DateOfBirth = Datum(V("PersonChild1DateOfBirth"))?.ToDateTime(TimeOnly.MinValue);
+                    kind.LastName = V(pk + "Lastname") ?? emp.LastName;
+                    if (Hat(pk + "DateOfBirth")) kind.DateOfBirth = Datum(V(pk + "DateOfBirth"))?.ToDateTime(TimeOnly.MinValue);
                     kind.QstDeductibleFrom = von?.ToDateTime(TimeOnly.MinValue); kind.QstDeductibleUntil = bis?.ToDateTime(TimeOnly.MinValue);
                     kind.ErfahrenAm = tag1;
                     kind.LebtImHaushalt = true; kind.LivesInSwitzerland = emp.Country == "CH"; kind.UpdatedAt = DateTime.Now;
@@ -791,7 +796,7 @@ public partial class SwissdecTestmandantController
     }
 
     private static bool Bekannt(string tag) =>
-        tag.StartsWith("PersonPartner") || tag.StartsWith("PersonChild1") || tag.StartsWith("PersonCrossborder") || tag.StartsWith("PersonTAS")
+        tag.StartsWith("PersonPartner") || tag.StartsWith("PersonChild") || tag.StartsWith("PersonCrossborder") || tag.StartsWith("PersonTAS")
         || tag is "PersonLastname" or "PersonFirstname" or "PersonDateOfBirth" or "PersonResidenceCategory" or "PersonDateOfDeath" or "PersonCivilStatus" or "PersonCivilStatusValidAsOf"
         or "PersonStreet" or "PersonZIPCode" or "PersonCity" or "PersonResidenceCanton" or "PersonCountry" or "PersonMunicipalityID" or "PersonDepartureDate" or "PersonEntryDate"
         or "PersonWithdrawalDate" or "PersonAgreedWeeklyHours" or "PersonActivityRateEmployer1" or "PersonContractMonthly" or "PersonContractHourly" or "PersonContractNoTimeConstraint"
