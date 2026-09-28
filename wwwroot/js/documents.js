@@ -538,12 +538,18 @@ function renderDokTableRow(d, showCategoryColumns) {
         : isLinked
             ? `<div class="dok-menu-locked" title="Verknüpft als: ${linkedTitle} — erst die Verknüpfung lösen, dann löschbar">🔒 Verknüpft: ${linkedTitle}<br><span style="font-size:10.5px">nicht löschbar</span></div>`
             : `<button class="dok-menu-item danger" onclick="dokDelete(${d.id})">Löschen</button>`;
+    // Walter 28.09.2026: Bisher stand im Menü nur «nicht löschbar» — und damit war
+    // man am Ende. Jetzt lässt sich der Zeiger hier lösen; das Dokument bleibt.
+    const unlinkItem = (isLinked && canDelete)
+        ? `<button class="dok-menu-item" onclick="dokVerknuepfungLoesen(${d.id})">Verknüpfung lösen</button>`
+        : '';
     const actions = `<div class="dok-actions">
         <div class="dok-menu-wrap">
             <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="dokToggleMenu(event, ${d.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
             <div class="dok-menu" id="dokMenu-${d.id}">
                 <button class="dok-menu-item" onclick="openDokEditModal(${d.id})">Bearbeiten</button>
                 ${canDownload ? `<button class="dok-menu-item" onclick="dokDownload(${d.id})">Herunterladen</button>` : ''}
+                ${unlinkItem}
                 ${deleteItem}
             </div>
         </div>
@@ -3335,4 +3341,95 @@ async function dabHochladen() {
     closeDokAblageModal();
     if (typeof loadEmpDokumente === 'function') loadEmpDokumente(empId);
     await dabNachher({ empId, docId: res.id, bereit, bemerkung, verknuepft: res.verknuepft });
+}
+
+
+// ── Verknüpfung lösen (Walter 28.09.2026) ───────────────────────────────────
+// Ein verknüpftes Dokument bleibt bewusst gesperrt gegen Löschen. Bisher fehlte
+// aber der Weg, die Verknüpfung zu lösen — man las «nicht löschbar» und stand an.
+// Gelöst wird nur der Zeiger; die Datei bleibt liegen.
+
+async function dokVerknuepfungLoesen(docId) {
+    if (typeof dokCloseAllMenus === 'function') dokCloseAllMenus();
+    let liste;
+    try {
+        const r = await fetch(`/api/documents/${docId}/verknuepfungen`, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        liste = await r.json();
+    } catch (e) {
+        showToast('Verknüpfungen konnten nicht geladen werden: ' + e.message, 'error');
+        return;
+    }
+    if (!liste || liste.length === 0) {
+        showToast('Dieses Dokument ist nirgends verknüpft — es lässt sich direkt löschen.', 'info');
+        loadEmpDokumente(selectedEmployeeId);
+        return;
+    }
+
+    const wahl = liste.length === 1 ? liste[0] : await dokWaehleVerknuepfung(liste);
+    if (!wahl) return;
+
+    const ok = await liquidConfirm(
+        `Verknüpfung «${wahl.label}» lösen?\n\nDas Dokument bleibt erhalten — nur der Eintrag zeigt nicht mehr darauf. `
+        + 'Danach lässt es sich löschen oder neu verknüpfen.',
+        { title: 'Verknüpfung lösen', yesLabel: 'Lösen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+
+    try {
+        const r = await fetch(`/api/documents/${docId}/verknuepfung-loesen`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: wahl.key })
+        });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) throw new Error(j?.message || j?.error || ('HTTP ' + r.status));
+        showToast('✓ ' + (j.message || 'Verknüpfung gelöst'), 'success');
+        loadEmpDokumente(selectedEmployeeId);
+    } catch (e) {
+        showToast('Lösen fehlgeschlagen: ' + e.message, 'error');
+    }
+}
+
+/// Mehrere Verknüpfungen: fragen statt raten.
+function dokWaehleVerknuepfung(liste) {
+    return new Promise(resolve => {
+        const alt = document.getElementById('dokVkLoesenModal');
+        if (alt) alt.remove();
+        const box = document.createElement('div');
+        box.id = 'dokVkLoesenModal';
+        box.className = 'modal';
+        box.style.display = 'flex';
+        box.innerHTML = `
+          <div class="ma-modal-box" style="max-width:520px">
+            <h3 style="margin:0 0 4px">Welche Verknüpfung lösen?</h3>
+            <div style="font-size:12.5px;color:#646464;margin-bottom:14px">
+              Dieses Dokument hängt an ${liste.length} Stellen. Das Dokument selbst bleibt erhalten.
+            </div>
+            <div id="dokVkListe" style="display:flex;flex-direction:column;gap:8px"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:16px">
+              <button type="button" id="dokVkAbbrechen"
+                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);
+                       border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            </div>
+          </div>`;
+        document.body.appendChild(box);
+
+        const listeEl = box.querySelector('#dokVkListe');
+        liste.forEach(v => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = v.label;
+            b.style.cssText = 'text-align:left;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;'
+                + 'padding:10px 14px;cursor:pointer;font-size:13.5px;color:#3f3f3f;'
+                + 'box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)';
+            b.onclick = () => { box.remove(); resolve(v); };
+            listeEl.appendChild(b);
+        });
+
+        const weg = () => { box.remove(); resolve(null); };
+        box.querySelector('#dokVkAbbrechen').onclick = weg;
+        box.addEventListener('click', ev => { if (ev.target === box) weg(); });
+    });
 }
