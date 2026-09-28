@@ -168,6 +168,83 @@ public class ElmBvgRundungTests
         => Assert.Equal(gemeldet, ElmGemeinsam.Betrag05(beleg));
 }
 
+/// <summary>
+/// Quality Tool Dezember 2024 (Walter 28.09.2026): Jahreswerte kumuliert ab Beginn der
+/// Anstellung im Jahr, Austritt im Monat, Bewilligung zum Monatsende.
+/// </summary>
+public class ElmMonatsJahreswerteTests
+{
+    private static HrSystem.Models.Employment Ab(string von, string? bis) => new()
+    {
+        ContractStartDate = DateTime.Parse(von),
+        ContractEndDate = bis == null ? null : DateTime.Parse(bis),
+    };
+
+    private static readonly DateTime DezAnfang = new(2024, 12, 1);
+    private static readonly DateTime DezEnde = new(2024, 12, 31);
+
+    [Fact]
+    public void Aebi_AustrittImDezember_WiedereintrittIstNeueKette()
+    {
+        var a = ElmMonthlyDeclarationBuilder.Anstellung(
+            new[] { Ab("2024-11-01", "2024-12-20"), Ab("2025-01-15", "2025-03-27") }, DezAnfang, DezEnde);
+        Assert.Equal(new DateTime(2024, 11, 1), a!.Value.Start);
+        Assert.Equal(new DateTime(2024, 12, 20), a.Value.Ende);
+    }
+
+    [Fact]
+    public void Aebi_November_AustrittLiegtNachDemMonat()
+    {
+        var a = ElmMonthlyDeclarationBuilder.Anstellung(
+            new[] { Ab("2024-11-01", "2024-12-20") }, new DateTime(2024, 11, 1), new DateTime(2024, 11, 30));
+        Assert.Equal(new DateTime(2024, 12, 20), a!.Value.Ende);   // Aufrufer meldet nur Austritte im Monat
+    }
+
+    [Fact]
+    public void NahtloserWechsel_IstKeinAustritt()
+    {
+        var a = ElmMonthlyDeclarationBuilder.Anstellung(
+            new[] { Ab("2024-03-01", "2024-06-30"), Ab("2024-07-01", "2024-12-31"), Ab("2025-01-01", null) },
+            DezAnfang, DezEnde);
+        Assert.Equal(new DateTime(2024, 3, 1), a!.Value.Start);
+        Assert.Null(a.Value.Ende);
+    }
+
+    [Fact]
+    public void Egli_BewilligungC_AbDezember_NovemberNochB()
+    {
+        var hist = new[]
+        {
+            new HrSystem.Models.EmployeePermitHistory { Id = 1, PermitTypeId = 2, ValidFrom = new DateOnly(2024, 11, 1), ValidTo = new DateOnly(2024, 11, 30) },
+            new HrSystem.Models.EmployeePermitHistory { Id = 2, PermitTypeId = 3, ValidFrom = new DateOnly(2024, 12, 1), ErfahrenAm = new DateOnly(2024, 12, 1) },
+        };
+        Assert.Equal(2, ElmMonthlyDeclarationBuilder.BewilligungAmStichtag(hist, new DateOnly(2024, 11, 30)));
+        Assert.Equal(3, ElmMonthlyDeclarationBuilder.BewilligungAmStichtag(hist, new DateOnly(2024, 12, 31)));
+    }
+
+    [Fact]
+    public void Bewilligung_ErstSpaeterErfahren_ZaehltNochNicht()
+    {
+        var hist = new[]
+        {
+            new HrSystem.Models.EmployeePermitHistory { Id = 1, PermitTypeId = 2, ValidFrom = new DateOnly(2024, 1, 1) },
+            new HrSystem.Models.EmployeePermitHistory { Id = 2, PermitTypeId = 3, ValidFrom = new DateOnly(2024, 11, 1), ErfahrenAm = new DateOnly(2024, 12, 5) },
+        };
+        Assert.Equal(2, ElmMonthlyDeclarationBuilder.BewilligungAmStichtag(hist, new DateOnly(2024, 11, 30)));
+    }
+
+    [Fact]
+    public void Egli_13ML_KumuliertNovemberPlusDezember()
+    {
+        var map = new Dictionary<string, string>();
+        static System.Text.Json.JsonElement Slip(string json) => System.Text.Json.JsonDocument.Parse(json).RootElement;
+        var nov = ElmMonthlyDeclarationBuilder.Toepfe(Slip("""{"lohnLines":[{"code":"1005","betrag":1875.0},{"code":"1201","betrag":175.45}]}"""), map, null);
+        var dez = ElmMonthlyDeclarationBuilder.Toepfe(Slip("""{"lohnLines":[{"code":"1005","betrag":3250.0},{"code":"1201","betrag":304.10},{"code":"6000","betrag":200.0}]}"""), map, null);
+        var summe = nov[ElmStatistikCodes.Topf.Dreizehnter] + dez[ElmStatistikCodes.Topf.Dreizehnter];
+        Assert.Equal("479.55", ElmGemeinsam.Betrag05(summe));
+    }
+}
+
 /// <summary>Konfessions-Zuordnung der Quellensteuer-Zeile.</summary>
 public class ElmKonfessionTests
 {

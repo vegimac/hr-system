@@ -1,0 +1,154 @@
+# Swissdec Quality Tool — Testprotokoll (Muster AG, ELM 6.0)
+
+Angelegt 28.09.2026 (Walter). Hält fest, welche Monatsmeldungen der Muster AG an das
+Quality Tool gegangen sind, was es angestrichen hat und **warum wir dort abweichen**.
+Für die Zertifizierung und für Rückfragen von Swissdec.
+
+- **Grundsatz:** Wir rechnen aus den Eingabedaten (CSV `Assets/Swissdec/Testmandant/`),
+  nicht aus der Soll-XML. Bewusste Abweichungen stehen mit Begründung im
+  `docs/swissdec-abweichungsprotokoll.md`; hier wird nur auf sie verwiesen.
+- **Quality Tool:** `https://test.swissdec.ch/qualitytool/stable` → ELM → Calculation Test,
+  Benutzer `schaub`, Rundungstoleranz Personen und Totale **CHF 0.00**.
+- **Nur Kunstdaten** der Testinstanz test.onecrew.ch — nie produktive Daten.
+
+## Ablauf einer Sendung
+
+1. OneCrew (test.onecrew.ch) → Kachel **«ELM-Meldungen»** → Monat wählen → «Meldung erzeugen»
+   → «XML herunterladen» (`DeclareMonthlySalary_JJJJ-MM.xml`). Ein Monat ist nur wählbar, wenn
+   der Lohnlauf in allen Filialen definitiv abgeschlossen ist.
+2. Refapps Transmitter → **«Testdaten»**: Datei hochladen (alte Datei gleichen Namens vorher
+   löschen, sonst wird die alte gesendet).
+3. Refapps Transmitter → ELM 6.x → **DeclareMonthlySalary**: Endpoint «Qualitytool Stable»,
+   Datei wählen, «DeclareMonthlySalary», danach «GetStatusFromDeclareMonthlySalary».
+   Kontrolle: es muss eine **neue DeclarationId** erscheinen.
+4. Quality Tool → Actions → **Refresh** → Reiter des Monats.
+
+## Läufe
+
+| Lauf | Referenzdaten | Status |
+|---|---|---|
+| 1 — 27.09.2026 | alter Stand (wie `SWISSCEC/RefXML/` vom 09./10.09.) | am 28.09. archiviert («Edit → Archive Run»), weil Swissdec die Referenz aktualisiert hatte |
+| 2 — ab 28.09.2026 | aktueller Stand («New → V6 Run German») | aktiv |
+
+**Folge:** Die lokalen Dateien in `SWISSCEC/RefXML/` sind seit 28.09.2026 **veraltet**
+(sie haben z.B. noch alle sechs Arbeitsorte und ungerundete BVG-Beträge). Massgebend ist
+das Quality Tool.
+
+## Ergebnisse je Monat
+
+### 2024-11 — erledigt bis auf F1 (bewusst)
+
+| Sendung | DeclarationId | Ergebnis |
+|---|---|---|
+| Lauf 1, 27.09.2026 23:58 | 18d94c5daae72ae5f | Egli rot, SalaryTotals rot, catchAll gelb |
+| Lauf 2, 28.09.2026 18:50 / 18:54 | 18d98a25524f26049 / 18d98a5d74817bd22 | zusätzlich Aebi BVG rot (neue Referenz) |
+| Lauf 2, 28.09.2026 19:48 (nach Korrektur K1 + K2) | **18d98d51b4a008876** | **nur noch F1** (Egli + SalaryTotals) |
+
+Endstand (Sendung 19:48):
+
+| Testfall | Feld | Soll (Referenz) | Ist (OneCrew) | Urteil |
+|---|---|---:|---:|---|
+| TF14 Egli, LU | TaxAtSourceCode | A0N | A0Y | **bewusst — F1** |
+| TF14 Egli, LU | TaxAtSource | 34.00 | 36.05 | **bewusst — F1** (Folge des Codes) |
+| SalaryTotals LU | TotalTaxAtSource | 34.00 | 36.05 | **bewusst — F1** (Summe aus Egli) |
+
+Alle übrigen Felder aller fünf Personen (TF07 Burri, TF14 Egli, TF16 Aebi, TF37 Oberli,
+TF44 Lusser) stimmen mit der Referenz überein.
+
+### 2024-12 — in Arbeit
+
+| Sendung | DeclarationId | Ergebnis |
+|---|---|---|
+| Lauf 2, 28.09.2026 19:56 | 18d98dc0cf2fd3ad1 | Egli rot (aufgeklappt), Aebi, Lusser, Burri, SalaryTotals, catchAll mit Befunden (nicht aufgeklappt); Oberli ohne Request-Zeile |
+
+Befunde Egli (TF14, LU) und daraus abgeleitet — die alte lokale Referenz hatte dasselbe,
+es war beim Dezember-Beleg-Check nur nicht geprüft worden:
+
+| Feld | Soll | Ist | Ursache → Korrektur |
+|---|---|---|---|
+| ResidenceCategory | settled-C | annual-B | Bewilligung vom heutigen MA statt vom Meldemonat → **K3** |
+| AnnualValues/Period from | 2024-11-01 | 2024-12-01 | Jahreswerte nur aus dem aktuellen Monat → **K4** |
+| AnnualValues/Earnings13th | 479.55 | 304.10 | dito (175.45 Nov + 304.10 Dez) → **K4** |
+| TaxAtSourceSalaries | Correction Nov: Old A0N −34.00 → New NON, Withdrawal 01.11. settled-C | fehlt | Korrekturmeldung (K5/E6) noch nicht gebaut → **offen** |
+
+Aus der Referenz abgeleitet (nicht aufgeklappt, gleiche Ursache): Aebi `WithdrawalDate`
+2024-12-20, Period until 20.12., SporadicBenefits 3'000 und OtherBenefits 1'250 kumuliert;
+Burri `WithdrawalDate` 2024-12-31; Lusser SporadicBenefits kumuliert; Oberli Period from
+2024-11-16; SalaryTotals LU `CorrectionMonth` −2'281.65 / −34.00 → **K4** bzw. offen.
+
+## Bewusste Abweichungen (Begründung für das Quality Tool)
+
+### F1 — TF14 Egli, Quellensteuer-Code (November 2024)
+
+> Die Eingabedaten (CSV, `PersonTASCode`) geben für Anna Egli im November 2024 den Tarif
+> **A0Y** vor. Die Referenz zeigt **A0N**. Wir rechnen aus den Eingabedaten und nicht aus
+> der Referenz: A0Y, Kanton LU, steuerbarer Lohn 2'281.65 → Quellensteuer **36.05**
+> (Referenz 34.00). Der steuerbare Lohn stimmt überein; nur Tarifcode und damit Satz weichen
+> ab. Die Kantonssumme LU weicht ausschliesslich deswegen ab.
+
+Quelle: Abweichungsprotokoll Teil II, **F1**. Status BEWUSST — nicht angleichen.
+
+## Korrekturen aufgrund des Quality Tools
+
+Keine bewussten Abweichungen, sondern Fehler bzw. Vorgaben, die wir übernommen haben.
+
+### K1 — Arbeitsorte: nur Filialen mit Lohn im Monat (28.09.2026)
+
+- **Befund:** catchAll «different child_nodelist_length, expected 9 actual 13» in
+  `CompanyDescription`. Die Referenz führt im November nur **#LU** und **#BE**; OneCrew meldete
+  alle sechs Filialen der Muster AG (LU, BE, VD, TI, AG, ZG).
+- **Entscheid Walter:** «nur senden, was einen Lohn hat».
+- **Umsetzung:** Die Monatsmeldung führt nur Arbeitsorte, an denen im Monat jemand Lohn hat
+  (`ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn`). Die Arbeitszeitmodelle bleiben
+  vollständig (so auch die Referenz). Die **Jahresmeldung bleibt bei allen Filialen**, weil
+  die Familienausgleichskasse je Arbeitsort adressiert wird, auch ohne Personen
+  (ELM-6.0-Richtlinien S. 116).
+- Commit 339fad0, Tests `ElmMonatsArbeitsorteTests`.
+
+### K2 — Keine ungerundeten Beträge in der Meldung (28.09.2026)
+
+- **Befund:** TF16 Aebi `BVG-LPP-RegularContribution` Soll **−758.35**, Ist −758.33. Die CSV
+  (Lohnart 5050) und die alte Referenz hatten 758.33.
+- **Vorgabe:** Swissdec-Berater (via Walter): in der Meldung dürfen keine ungerundeten Beträge
+  stehen. Ersetzt die frühere Vorgabe «BVG nicht auf 5 Rappen runden» (21.09.2026).
+- **Umsetzung:** Monatsmeldung: BVG je Abzugszeile auf 5 Rappen (wie die Sozialabgaben).
+  Jahresmeldung: AHV- und ALV-Löhne je Person auf 5 Rappen, Totale aus den gerundeten Werten.
+  **Lohnbelege bleiben rappengenau** (Aebi-Beleg weiterhin 758.33 = Fixbetrag der Kasse).
+  Prozentsätze (13. ML 8.33 %, Ferien 13.04 %) bleiben ungerundet, wie in der Referenz.
+- Commit 67de599, Tests `ElmBvgRundungTests`.
+
+### K3 — Bewilligung des Meldemonats (28.09.2026)
+
+- **Befund:** Dezember TF14 Egli `ResidenceCategory` Soll settled-C, Ist annual-B.
+- **Umsetzung:** Die Monatsmeldung nimmt die Bewilligung aus der Bewilligungs-Historie, die am
+  Monatsende galt und bis dahin bekannt war («erfahren am»); ohne Historie die am MA
+  (`ElmMonthlyDeclarationBuilder.BewilligungAmStichtag`).
+
+### K4 — Jahreswerte kumuliert, Austritt im Monat (28.09.2026)
+
+- **Befund:** Dezember TF14 Egli Period from / Earnings13th; aus der Referenz ebenso Aebi,
+  Burri, Lusser, Oberli.
+- **Regel (aus allen Referenzmonaten 11/2024–03/2025 bestätigt):** AnnualValues laufen
+  kumuliert ab Beginn der Anstellung im Jahr (spätestens 1. Januar) bis Monatsende bzw.
+  Austritt. Ein Wiedereintritt beginnt neu (Aebi: 01.11.–20.12.2024, dann ab 15.01.2025).
+  Ein nahtloser Vertragswechsel ist kein Austritt. Fällt das Ende der Anstellung in den
+  Monat, steht es als `WithdrawalDate` im Work-Block.
+- **Umsetzung:** `Anstellung` (lückenlose Vertragskette), Töpfe der Vormonate derselben
+  Filiale aus den definitiv abgeschlossenen Lohnzetteln des Jahres (`Toepfe`).
+- Tests `ElmMonatsJahreswerteTests`.
+
+## Offen
+
+- **Korrekturmeldung Quellensteuer (Etappe K5/E6)** — Egli Dezember: C-Ausweis rückwirkend,
+  November wird mit NON korrigiert. Braucht (a) die Rückerstattung der November-QST auf dem
+  Dezember-Beleg über einen `qst_korrektur`-Posten und (b) den `Correction`-Block in der
+  Meldung inkl. `CorrectionMonth` in den Summen. Old-Block = was wir im November gemeldet
+  haben (A0Y / 36.05, Folge von F1), nicht A0N / 34.00 der Referenz.
+
+- **Fragenliste an Swissdec** (`docs/swissdec-call-2026-09-24.md`, Teil A, 7 Fragen) — noch
+  nicht besprochen, noch nicht gemailt (Stand 28.09.2026). Betrifft Monate ab 2025, nicht
+  November 2024.
+- **2024-12 nach Deploy von K3/K4 neu senden** und die übrigen Testfälle aufklappen;
+  Oberli (keine Request-Zeile) und catchAll prüfen.
+- Weitere Teilprozesse des Laufs (YearlyRetrospective, EMA, YearlyProspective) sind noch nicht
+  gesendet.

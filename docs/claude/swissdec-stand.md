@@ -315,6 +315,9 @@ Sozialabgaben je Beitrag auf 5 Rappen, dann summiert (A5 richtiggestellt).
 **Nächste Schritte:** RETROSPECTIVE (Jahresmeldung des laufenden Jahres) und EMA (NotifyChanges)
 für November 2024, dann Monat für Monat weiter bis 2026-02.
 
+**Testprotokoll Quality Tool (Sendungen, Ergebnisse, Begründungen):** `docs/swissdec-qualitytool-protokoll.md`
+— nach jeder Sendung nachführen.
+
 **Quality Tool 28.09.2026 (neuer Lauf, Referenz von Swissdec aktualisiert):** Die lokalen
 `SWISSCEC/RefXML/*` (Stand 09./10.09.) sind damit VERALTET. Befund November 2024:
 - **Arbeitsorte:** Referenz nur noch #LU und #BE → Monatsmeldung führt seither nur Filialen,

@@ -234,7 +234,10 @@ public static class ElmGemeinsam
     /// Personalien. <paramref name="wohnGemeindeNr"/> setzt die BFS-Gemeindenummer der
     /// Wohnadresse — die Monatsmeldung (Statistik) braucht sie, die Jahresmeldung nicht.
     /// </summary>
-    public static XElement Particulars(Employee e, List<string> warn, int? wohnGemeindeNr = null)
+    /// <param name="bewilligungAmStichtag">Bewilligung, die im Meldemonat galt (Monatsmeldung);
+    /// null = die heutige am MA.</param>
+    public static XElement Particulars(Employee e, List<string> warn, int? wohnGemeindeNr = null,
+                                       PermitType? bewilligungAmStichtag = null)
     {
         var svDigits = Regex.Replace(e.SocialSecurityNumber ?? "", @"\D", "");
         XElement svEl;
@@ -285,9 +288,10 @@ public static class ElmGemeinsam
             wohnGemeindeNr is > 0 ? new XElement(C + "MunicipalityID", wohnGemeindeNr!.Value) : null);
 
         // Bewilligungsart nur bei Ausländern (Reihenfolge laut XSD nach Nationality).
-        var bewilligung = natCode == "CH" ? null : Bewilligung(e.PermitType?.Code);
-        if (natCode != "CH" && bewilligung == null && e.PermitTypeId != null)
-            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Bewilligungsart «{e.PermitType?.Code}» "
+        var permit = bewilligungAmStichtag ?? e.PermitType;
+        var bewilligung = natCode == "CH" ? null : Bewilligung(permit?.Code);
+        if (natCode != "CH" && bewilligung == null && permit != null)
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Bewilligungsart «{permit.Code}» "
                    + "ist Swissdec nicht bekannt — ohne Angabe gemeldet.");
 
         return new XElement(C + "Particulars",
