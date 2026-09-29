@@ -615,6 +615,19 @@ gültig, dieser Fix funktioniert also.
   - Neue Reihenfolge: mit ORG_ID zuerst, wie es die SUA-Spezifikation V1.5 in
     Tabelle 2 und 3 verlangt.
 
+**Nachtrag 29.09.2026, 17:24 Uhr:** Auch MIT Quittierung (Quittung SQ18d9d3fb77d88cdac)
+wurden alle vier PEM-Text-Varianten abgewiesen (2052).
+
+- **Offene Frage:** In welcher Form gehört der CSR ins Feld `PEM`? Das Schema
+  definiert `xs:base64Binary` mit der Doku «Die CSR ist im PEM Format». Wir schicken
+  Base64 des PEM-Textes, möglich ist auch Base64 des binären CSR (DER).
+- **Gebaut:** zwei weitere Varianten `der-richtlinie` und `der-quittung`
+  (`ElmCsrVariante.PemAlsDer`, `ElmSuaFall.CsrPemAlsDer`). Die vier abgewiesenen
+  Varianten bleiben gesperrt.
+- **Scheitern auch diese:** Anfrage an Swissdec. Beizulegen sind das Format des
+  PEM-Felds, ein Muster-SignCertificate aus dem RefApps-Transmitter und die
+  CertificateRequestID.
+
 ---
 
 ### Korrektur 24.09.2026 — vier schema-ungültige Meldungen + fehlende MonitoringID

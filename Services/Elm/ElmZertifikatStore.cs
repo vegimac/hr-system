@@ -384,6 +384,9 @@ public class ElmSuaFall
     /// <summary>Wurde der CSR OHNE ORG_ID angenommen? Die Erneuerung nimmt dieselbe Variante.</summary>
     public bool CsrOhneOrgId { get; set; }
 
+    /// <summary>Wurde das PEM-Feld als binärer CSR (DER) angenommen? Gilt auch fürs Erneuern.</summary>
+    public bool CsrPemAlsDer { get; set; }
+
     /// <summary>
     /// CSR-Varianten (<see cref="ElmCsrVariante.Kennung"/>), die Swissdec bei DIESEM Antrag
     /// mit 2052 abgewiesen hat — werden nicht nochmals geschickt (Walter 29.09.2026).
@@ -413,7 +416,11 @@ public class ElmSuaFall
 /// Quittung» — und die Quittung enthält keine ORG_ID. Die SUA-Spezifikation V1.5
 /// (Tabellen 2 und 3) verlangt die ORG_ID im CSR — darum kommt sie zuerst.
 /// </summary>
-public record ElmCsrVariante(string Kennung, string Text, bool OhneSt, bool OhneOrgId)
+/// <param name="PemAlsDer">
+/// Feld <c>PEM</c> (xs:base64Binary) als Base64 des binären CSR statt als Base64 des
+/// PEM-Textes. Die Schema-Doku sagt nur «im PEM Format» — beides ist lesbar.
+/// </param>
+public record ElmCsrVariante(string Kennung, string Text, bool OhneSt, bool OhneOrgId, bool PemAlsDer = false)
 {
     /// <summary>
     /// 1 = ohne Quittierung der Stories: am 29.09.2026 alle vier Varianten mit 2052
@@ -427,6 +434,10 @@ public record ElmCsrVariante(string Kennung, string Text, bool OhneSt, bool Ohne
         new ElmCsrVariante("richtlinie-ohne-st", "mit ORG_ID, ohne ST", true, false),
         new ElmCsrVariante("quittung", "exakt wie Quittung (ohne ORG_ID)", false, true),
         new ElmCsrVariante("quittung-ohne-st", "wie Quittung, ohne ST und ohne ORG_ID", true, true),
+        // Am 29.09.2026 17:24 waren alle vier PEM-Text-Varianten auch MIT Quittierung
+        // abgewiesen — bleibt die Form des PEM-Felds.
+        new ElmCsrVariante("der-richtlinie", "mit ORG_ID, PEM-Feld als binärer CSR (DER)", false, false, true),
+        new ElmCsrVariante("der-quittung", "wie Quittung, PEM-Feld als binärer CSR (DER)", false, true, true),
     };
 
     /// <summary>
@@ -447,7 +458,8 @@ public record ElmCsrVariante(string Kennung, string Text, bool OhneSt, bool Ohne
 
     /// <summary>Die bei der Ausstellung angenommene Variante — für die Erneuerung.</summary>
     public static ElmCsrVariante Angenommen(ElmSuaFall fall) =>
-        Reihenfolge.First(v => v.OhneSt == fall.CsrOhneStateOrProvince && v.OhneOrgId == fall.CsrOhneOrgId);
+        Reihenfolge.First(v => v.OhneSt == fall.CsrOhneStateOrProvince && v.OhneOrgId == fall.CsrOhneOrgId
+                            && v.PemAlsDer == fall.CsrPemAlsDer);
 }
 
 public class ElmSuaSubject

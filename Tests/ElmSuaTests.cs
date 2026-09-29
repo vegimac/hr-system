@@ -295,15 +295,31 @@ public class ElmSuaTests
     public void Varianten_ZuerstMitOrgId_DieBereitsAbgewiesenenNichtMehr()
     {
         var fall = new ElmSuaFall { Subject = MusterSubject() };
-        Assert.Equal(new[] { "richtlinie", "richtlinie-ohne-st", "quittung", "quittung-ohne-st" },
+        Assert.Equal(new[] { "richtlinie", "richtlinie-ohne-st", "quittung", "quittung-ohne-st",
+                             "der-richtlinie", "der-quittung" },
             ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
 
-        fall.CsrAbgewiesen.AddRange(new[] { "quittung", "richtlinie" });
-        Assert.Equal(new[] { "richtlinie-ohne-st", "quittung-ohne-st" },
+        // Stand 29.09.2026 17:24 — die vier PEM-Text-Varianten sind abgewiesen.
+        fall.CsrAbgewiesen.AddRange(new[] { "richtlinie", "richtlinie-ohne-st", "quittung", "quittung-ohne-st" });
+        Assert.Equal(new[] { "der-richtlinie", "der-quittung" },
             ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
 
-        fall.CsrAbgewiesen.AddRange(new[] { "quittung-ohne-st", "richtlinie-ohne-st" });
+        fall.CsrAbgewiesen.AddRange(new[] { "der-richtlinie", "der-quittung" });
         Assert.Empty(ElmCsrVariante.Offene(fall));
+    }
+
+    [Fact]
+    public void Csr_PemFeldAlsDer_IstDerBinaereAntragOhnePemKopf()
+    {
+        var (b64, key) = ElmSuaService.ErzeugeCsrPemBase64(MusterSubject(), alsDer: true);
+        using (key)
+        {
+            var der = Convert.FromBase64String(b64);
+            Assert.Equal(0x30, der[0]);   // ASN.1 SEQUENCE, kein «-----BEGIN»
+            var csr = CertificateRequest.LoadSigningRequest(
+                der, HashAlgorithmName.SHA256, signerSignaturePadding: RSASignaturePadding.Pkcs1);
+            Assert.Contains("OID.2.5.4.97=NTRCH-CHE-999.999.996", csr.SubjectName.Name, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -313,7 +329,7 @@ public class ElmSuaTests
         s.StateOrProvinceName = "";
         s.CompanyUidBfs = null;
         var fall = new ElmSuaFall { Subject = s };
-        Assert.Equal(new[] { "quittung" }, ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
+        Assert.Equal(new[] { "quittung", "der-quittung" }, ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
     }
 
     [Fact]

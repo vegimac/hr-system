@@ -272,7 +272,8 @@ public class ElmSuaService
                     "Erneuern geht nur mit einem vorhandenen SUA-Zertifikat samt Schlüssel — die Anfrage muss doppelt signiert sein (ERP + SUA).");
             // Erneuern mit der Variante, die bei der Ausstellung angenommen wurde.
             variante = ElmCsrVariante.Angenommen(fall);
-            (signBlock, csrKey) = BaueRenewBlock(fall.Subject, variante.OhneSt, variante.OhneOrgId);
+            (signBlock, csrKey) = BaueRenewBlock(fall.Subject, variante.OhneSt, variante.OhneOrgId,
+                variante.PemAlsDer);
             istSignieren = true;
         }
         else if (!string.IsNullOrWhiteSpace(oneTimePassword))
@@ -295,10 +296,10 @@ public class ElmSuaService
             }
             variante = ElmCsrVariante.Offene(fall).FirstOrDefault()
                 ?? throw new InvalidOperationException(
-                    "Swissdec hat bei diesem Antrag schon alle vier CSR-Varianten abgewiesen (2052). "
+                    "Swissdec hat bei diesem Antrag schon alle CSR-Varianten abgewiesen (2052). "
                     + "Nicht nochmals senden — CSR an Swissdec schicken oder neu registrieren.");
             (signBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword.Trim(),
-                variante.OhneSt, variante.OhneOrgId);
+                variante.OhneSt, variante.OhneOrgId, variante.PemAlsDer);
             istSignieren = true;
         }
 
@@ -339,7 +340,7 @@ public class ElmSuaService
                 csrKey?.Dispose();
                 variante = naechste;
                 (signBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword!.Trim(),
-                    variante.OhneSt, variante.OhneOrgId);
+                    variante.OhneSt, variante.OhneOrgId, variante.PemAlsDer);
                 call = await SendeAsync(signBlock);
                 meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode);
                 if (ElmTransmitterClient.DeuteSicherheitsFault(call) != null) break;
@@ -383,6 +384,7 @@ public class ElmSuaService
             // dieselbe Variante beim Erneuern
             fall.CsrOhneStateOrProvince = variante.OhneSt;
             fall.CsrOhneOrgId = variante.OhneOrgId;
+            fall.CsrPemAlsDer = variante.PemAlsDer;
             meldung = (meldung ?? "") + $" · SUA-Zertifikat gespeichert (CSR {variante.Text}).";
         }
 
@@ -511,9 +513,9 @@ public class ElmSuaService
 
     /// <summary>CSR aus Empfänger-Subject — DN nicht selbst erfinden (Bauanleitung).</summary>
     public static (XElement Block, RSA Key) BaueSignBlock(ElmSuaSubject subject, string oneTimePassword,
-        bool ohneStateOrProvince = false, bool ohneOrgId = false)
+        bool ohneStateOrProvince = false, bool ohneOrgId = false, bool pemAlsDer = false)
     {
-        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince, ohneOrgId);
+        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince, ohneOrgId, pemAlsDer);
         // Creation/StoryID stammen aus ep:StoryBaseType; PEM/OTP aus dem c-Schema.
         var block = new XElement(C + "SignCertificate",
             new XElement(Ep + "Creation", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
@@ -524,9 +526,9 @@ public class ElmSuaService
     }
 
     public static (XElement Block, RSA Key) BaueRenewBlock(ElmSuaSubject subject,
-        bool ohneStateOrProvince = false, bool ohneOrgId = false)
+        bool ohneStateOrProvince = false, bool ohneOrgId = false, bool pemAlsDer = false)
     {
-        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince, ohneOrgId);
+        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince, ohneOrgId, pemAlsDer);
         var block = new XElement(C + "RenewCertificate",
             new XElement(Ep + "Creation", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
             new XElement(Ep + "StoryID", Guid.NewGuid().ToString("N")),
@@ -535,7 +537,7 @@ public class ElmSuaService
     }
 
     public static (string PemBase64, RSA Key) ErzeugeCsrPemBase64(
-        ElmSuaSubject subject, bool ohneStateOrProvince = false, bool ohneOrgId = false)
+        ElmSuaSubject subject, bool ohneStateOrProvince = false, bool ohneOrgId = false, bool alsDer = false)
     {
         // Transmitter-Richtlinien ELM 6.0, Anhang C.3.2/C.3.3: PKCS#10 als PEM,
         // Sha256WithRSA, RSA 2048, Subject gemäss Quittung. Ob die ORG_ID
@@ -546,6 +548,7 @@ public class ElmSuaService
         var rsa = RSA.Create(2048);
         var req = new CertificateRequest(name, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var csrDer = req.CreateSigningRequest();
+        if (alsDer) return (Convert.ToBase64String(csrDer), rsa);
         // RFC 7468: 64 Zeichen je Zeile, nur LF. InsertLineBreaks lieferte 76er-Zeilen
         // mit CRLF zwischen LF-Kopfzeilen (Vergleich SUA-Spezifikation 29.09.2026).
         var pem = new string(PemEncoding.Write("CERTIFICATE REQUEST", csrDer)) + "\n";
