@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
@@ -893,6 +894,50 @@ public class ElmController : ControllerBase
         alt.GeaendertAm = DateTime.Now;
         _store.SpeichereFoundationEintrag(id!, alt);
         return Ok(alt);
+    }
+
+    /// <summary>
+    /// Bereitschafts-Check vor dem Foundation-Termin: Zertifikate, MonitoringID, Archiv,
+    /// dann ein Ping und ein CheckInterop gegen das gewählte Ziel. Nur auf Knopfdruck.
+    /// </summary>
+    [HttpPost("foundation/bereitschaft")]
+    public async Task<IActionResult> FoundationBereitschaft([FromBody] ElmZielDto dto, CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var jetzt = DateTime.Now;
+        var ziel = ZielAufloesen(dto);
+        var punkte = new List<ElmBereitschaft.Punkt> { ElmBereitschaft.Ziel(ziel?.Url) };
+
+        X509Certificate2? erp = null, sua = null;
+        try { erp = _store.LadeErp(); } catch { /* unten als fehlend gemeldet */ }
+        try { sua = _store.LadeSua(); } catch { /* unten als fehlend gemeldet */ }
+        var vertrauen = _store.LadeVertrauensliste();
+        punkte.Add(ElmBereitschaft.Erp(erp, jetzt));
+        punkte.Add(ElmBereitschaft.Sua(sua, jetzt));
+        punkte.Add(ElmBereitschaft.Empfaenger(_store.LadeEmpfaengerFuerVerschluesselung(), vertrauen));
+        punkte.Add(ElmBereitschaft.Vertrauen(vertrauen));
+        punkte.Add(ElmBereitschaft.Monitoring(_einstellungen.MonitoringId));
+        var (anzahl, beschreibbar) = _store.ArchivZustand();
+        punkte.Add(ElmBereitschaft.Archiv(anzahl, beschreibbar));
+
+        if (ziel != null)
+        {
+            punkte.Add(ElmBereitschaft.Ping(await _client.PingAsync(ziel.Value.Url!, 0, ct)));
+            if (erp?.HasPrivateKey == true)
+                punkte.Add(ElmBereitschaft.Interop(
+                    await _client.CheckInteroperabilityAsync(ziel.Value.Url!, 0.01m, 0, ct), sua?.HasPrivateKey == true));
+            else
+                punkte.Add(new ElmBereitschaft.Punkt("CheckInterop", ElmBereitschaft.Rot,
+                    "Nicht versucht — ohne ERP-Zertifikat mit Schlüssel geht die Anfrage unsigniert raus."));
+        }
+
+        return Ok(new
+        {
+            geprueftAm = jetzt,
+            gesamt = punkte.Any(p => p.Stufe == ElmBereitschaft.Rot) ? ElmBereitschaft.Rot
+                   : punkte.Any(p => p.Stufe == ElmBereitschaft.Warn) ? ElmBereitschaft.Warn : ElmBereitschaft.Ok,
+            punkte = punkte.Select(p => new { p.Titel, p.Stufe, p.Text, p.Tipp }),
+        });
     }
 
     /// <summary>Foundation F04: archivierte Klartext-Nachrichten (signiert, unverschlüsselt).</summary>

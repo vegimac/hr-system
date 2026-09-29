@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260929b">
+    <link rel="stylesheet" href="css/app.css?v=20260929c">
 </head>
 <body>
 
@@ -5722,6 +5722,18 @@
                         <div id="kommListe" class="komm-liste"></div>
                         <div id="kommDetail" class="komm-detail"></div>
                     </div>
+                    <div id="kommPaneBereit" style="display:none">
+                        <div class="komm-detail" style="max-width:980px">
+                            <div class="komm-detail-kopf">
+                                <div>
+                                    <div class="komm-detail-titel">Bereitschaft für den Termin mit itserv</div>
+                                    <div class="komm-klein">Prüft Zertifikate samt Restlaufzeit, MonitoringID und Archiv, dann einen Ping und einen CheckInterop gegen das gewählte Ziel. Am Termintag vor dem Call einmal drücken.</div>
+                                </div>
+                                <button type="button" class="komm-btn-primaer" id="kommBereitBtn" onclick="kommBereitschaftPruefen()">Bereitschaft prüfen</button>
+                            </div>
+                            <div id="kommBereitErgebnis" class="komm-klein" style="margin-top:12px">Noch nicht geprüft.</div>
+                        </div>
+                    </div>
                     <div id="kommPaneArchiv" class="komm-grid komm-grid-archiv" style="display:none">
                         <div class="komm-detail">
                             <div class="komm-detail-titel" style="margin-bottom:4px">Archiv (F04)</div>
@@ -9879,7 +9891,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
 <script src="js/swissdec.js?v=20260929b"></script>
-<script src="js/swissdec-komm.js?v=20260929d"></script>
+<script src="js/swissdec-komm.js?v=20260929e"></script>
 <script src="js/hauptsitze.js?v=20260927a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>

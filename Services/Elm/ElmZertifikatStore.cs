@@ -402,6 +402,24 @@ public class ElmZertifikatStore
 
     private static readonly Regex ArchivName = new(@"^[0-9]{8}-[0-9]{6}-[A-Za-z0-9_\-]+\.xml$");
 
+    /// <summary>Anzahl archivierter Nachrichten und ob der Archiv-Ordner beschreibbar ist.</summary>
+    public (int Anzahl, bool Beschreibbar) ArchivZustand()
+    {
+        var dir = Path.Combine(_root, "archiv");
+        try
+        {
+            Directory.CreateDirectory(dir);
+            var probe = Path.Combine(dir, ".schreibprobe");
+            File.WriteAllText(probe, "");
+            File.Delete(probe);
+            return (Directory.GetFiles(dir, "*.xml").Length, true);
+        }
+        catch
+        {
+            return (Directory.Exists(dir) ? Directory.GetFiles(dir, "*.xml").Length : 0, false);
+        }
+    }
+
     public List<ElmArchivDatei> ListeArchiv(int max = 60)
     {
         var dir = Path.Combine(_root, "archiv");

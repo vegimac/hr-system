@@ -12809,6 +12809,18 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         .komm-schritt-nr { flex: 0 0 26px; height: 26px; border-radius: 50%; background: #3f3f3f; color: #fff;
             font-weight: 700; font-size: 12.5px; display: flex; align-items: center; justify-content: center; }
         .komm-schritt-titel { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #8b8b8b; font-weight: 700; margin-bottom: 4px; }
+        .komm-bereit-gesamt { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .komm-bereit-liste { display: flex; flex-direction: column; gap: 8px; }
+        .komm-bereit-zeile { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start;
+            padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(60,55,48,0.14); background: rgba(255,255,255,0.45); color: #3f3f3f; }
+        .komm-bereit-zeichen { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 13px; color: #fff; }
+        .komm-bereit-ok .komm-bereit-zeichen { background: #5b8a5e; }
+        .komm-bereit-warn .komm-bereit-zeichen { background: #c28a2c; }
+        .komm-bereit-rot .komm-bereit-zeichen { background: #b54747; }
+        .komm-bereit-rot { border-color: rgba(181,71,71,0.35); background: rgba(254,242,242,0.7); }
+        .komm-bereit-warn { border-color: rgba(194,138,44,0.35); background: rgba(255,247,230,0.7); }
+        body.theme-dark .komm-bereit-zeile { background: rgba(255,255,255,0.05); color: #e5e5e5; border-color: rgba(255,255,255,0.12); }
         .komm-its { width: 16px; height: 16px; border-radius: 4px; vertical-align: -3px; margin-right: 6px; }
         .komm-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
         .komm-hinweis { margin-top: 6px; background: #fdf1dc; border: 1px solid #f3d9a4; color: #7c5a10; border-radius: 10px; padding: 7px 10px; font-size: 12px; }

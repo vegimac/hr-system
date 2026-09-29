@@ -46,6 +46,14 @@ Unter Entwicklung → Swissdec gibt es zwei Kacheln.
   - Reiter «Archiv» (F04): archivierte Nachrichten mit Signaturen, Verschlüsselung und
     SignatureConfirmation, anklickbar (`GET /api/elm/archiv`).
   - Reiter «Einrichtung»: die bisherigen Karten Verbindung, Zertifikate/SUA und MonitoringID.
+  - Reiter «✅ Bereitschaft» (29.09.2026): ein Knopf vor dem Termin
+    (`POST /api/elm/foundation/bereitschaft`, Logik `Services/Elm/ElmBereitschaft.cs`,
+    Tests `Tests/ElmBereitschaftTests.cs`).
+    - Geprüft werden Ziel, ERP-Zertifikat, SUA-Zertifikat samt Resttagen (orange unter 3 Tagen,
+      rot wenn abgelaufen, weil Erneuern dann nicht mehr geht), Empfängerzertifikat,
+      Vertrauensliste, MonitoringID und Archiv.
+    - Danach folgen ein echter Ping und ein CheckInterop.
+    - Jeder Punkt ist grün, orange oder rot, mit einem Satz dazu, was zu tun ist.
 - **Lohn-Test** (`page-swissdec`): Etappenplan, Jahresmeldung, Stammdaten, Testmandant
   Muster AG, Verweis auf ELM-Meldungen.
 

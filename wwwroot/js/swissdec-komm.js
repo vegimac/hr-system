@@ -264,7 +264,9 @@ function kommTab(key) {
     try { localStorage.setItem('kommTab', key); } catch (_) { /* egal */ }
     const tabs = document.getElementById('kommTabs');
     if (tabs) {
-        tabs.innerHTML = KOMM_GRUPPEN.map(g => {
+        tabs.innerHTML = `<button type="button" class="komm-tab ${key === 'bereit' ? 'aktiv' : ''}" onclick="kommTab('bereit')">✅ Bereitschaft</button>
+           <span class="komm-tab-trenner"></span>`
+        + KOMM_GRUPPEN.map(g => {
             const liste = KOMM_KATALOG.filter(c => c.id.startsWith(g.key));
             const ok = liste.filter(c => _kommEintrag(c).status === 'ok').length;
             return `<button type="button" class="komm-tab ${key === g.key ? 'aktiv' : ''}" onclick="kommTab('${g.key}')">
@@ -276,6 +278,7 @@ function kommTab(key) {
     }
     const zeige = (id, an) => { const e = document.getElementById(id); if (e) e.style.display = an ? '' : 'none'; };
     zeige('kommPaneTest', key.startsWith('F'));
+    zeige('kommPaneBereit', key === 'bereit');
     zeige('kommPaneArchiv', key === 'archiv');
     zeige('kommPaneEinrichtung', key === 'einrichtung');
     if (key === 'archiv') kommArchivLaden();
@@ -497,4 +500,45 @@ async function kommArchivZeigen(name, zeile) {
         el.innerHTML = `<div class="komm-schritt-titel" style="margin-bottom:6px">${esc(name)}</div>
             <pre class="komm-xml">${esc(schoen)}</pre>`;
     } catch (e) { el.innerHTML = `<span class="komm-rot">${esc(e.message)}</span>`; }
+}
+
+// ── Bereitschafts-Check vor dem Termin ───────────────────────────────────
+async function kommBereitschaftPruefen() {
+    const el = document.getElementById('kommBereitErgebnis');
+    const btn = document.getElementById('kommBereitBtn');
+    if (!el) return;
+    const url = (document.getElementById('elmUrl')?.value || '').trim();
+    el.innerHTML = '⏳ Prüfe Zertifikate, dann Ping und CheckInterop…';
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch('/api/elm/foundation/bereitschaft', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j?.message || ('HTTP ' + r.status));
+        const zeichen = { ok: '✓', warn: '!', rot: '✗' };
+        const gesamt = {
+            ok: ['komm-status-ok', 'Bereit — alles grün.'],
+            warn: ['komm-status-leer', 'Fast bereit — orange Punkte ansehen.'],
+            rot: ['komm-status-fehler', 'Nicht bereit — rote Punkte zuerst beheben.'],
+        }[j.gesamt] || ['komm-status-leer', ''];
+        const zeit = new Date(j.geprueftAm).toLocaleString('de-CH');
+        el.innerHTML = `
+            <div class="komm-bereit-gesamt"><span class="komm-status ${gesamt[0]}">${esc(gesamt[1])}</span>
+                <span class="komm-klein">geprüft ${esc(zeit)}</span></div>
+            <div class="komm-bereit-liste">${(j.punkte || []).map(p => `
+                <div class="komm-bereit-zeile komm-bereit-${p.stufe}">
+                    <span class="komm-bereit-zeichen">${zeichen[p.stufe] || '·'}</span>
+                    <div><div class="komm-schritt-titel">${esc(p.titel)}</div>
+                         <div>${esc(p.text)}</div>
+                         ${p.tipp ? `<div class="komm-klein" style="margin-top:2px">→ ${esc(p.tipp)}</div>` : ''}</div>
+                </div>`).join('')}</div>`;
+        kommKopfLaden();
+    } catch (e) {
+        el.innerHTML = `<span class="komm-rot">Fehler: ${esc(e.message)}</span>`;
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
