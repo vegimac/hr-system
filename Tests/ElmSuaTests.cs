@@ -271,6 +271,59 @@ public class ElmSuaTests
         }
     }
 
+    // ── CSR-Varianten (Walter 29.09.2026): mit frischem Antrag «mit ORG_ID»
+    //    abgewiesen (2052); Anhang C.3.3 verlangt den CSR «gemäss Quittung». ───
+
+    [Fact]
+    public void Csr_OhneOrgId_IstExaktDasQuittungsSubject()
+    {
+        var (b64, key) = ElmSuaService.ErzeugeCsrPemBase64(MusterSubject(), ohneOrgId: true);
+        using (key)
+        {
+            var pem = System.Text.Encoding.ASCII.GetString(Convert.FromBase64String(b64));
+            var csr = CertificateRequest.LoadSigningRequestPem(
+                pem, HashAlgorithmName.SHA256, signerSignaturePadding: RSASignaturePadding.Pkcs1);
+            var oids = csr.SubjectName.EnumerateRelativeDistinguishedNames(reversed: false)
+                .Select(r => r.GetSingleElementType().Value).ToList();
+            Assert.Equal(new[] { "2.5.4.6", "2.5.4.8", "2.5.4.7", "2.5.4.3", "2.5.4.10" }, oids);
+            Assert.DoesNotContain("2.5.4.97", csr.SubjectName.Name, StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain("2.5.4.97", MusterSubject().AlsDn(ohneOrgId: true), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Varianten_ZuerstOhneOrgId_DieBereitsAbgewiesenenNichtMehr()
+    {
+        var fall = new ElmSuaFall { Subject = MusterSubject() };
+        Assert.Equal(new[] { "quittung", "quittung-ohne-st", "richtlinie", "richtlinie-ohne-st" },
+            ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
+
+        fall.CsrAbgewiesen.AddRange(new[] { "quittung", "richtlinie" });
+        Assert.Equal(new[] { "quittung-ohne-st", "richtlinie-ohne-st" },
+            ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
+
+        fall.CsrAbgewiesen.AddRange(new[] { "quittung-ohne-st", "richtlinie-ohne-st" });
+        Assert.Empty(ElmCsrVariante.Offene(fall));
+    }
+
+    [Fact]
+    public void Varianten_OhneStUndOhneUid_KeineDoppeltenCsr()
+    {
+        var s = MusterSubject();
+        s.StateOrProvinceName = "";
+        s.CompanyUidBfs = null;
+        var fall = new ElmSuaFall { Subject = s };
+        Assert.Equal(new[] { "quittung" }, ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
+    }
+
+    [Fact]
+    public void Erneuerung_NimmtDieAngenommeneVariante()
+    {
+        Assert.Equal("richtlinie", ElmCsrVariante.Angenommen(new ElmSuaFall()).Kennung);
+        Assert.Equal("quittung-ohne-st", ElmCsrVariante.Angenommen(
+            new ElmSuaFall { CsrOhneStateOrProvince = true, CsrOhneOrgId = true }).Kennung);
+    }
+
     // ── Antwort lesen: Code, DescriptionCode, Description, Einmalpasswort ─────
 
     private const string AntwortMitOtp = """

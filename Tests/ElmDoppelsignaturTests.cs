@@ -147,6 +147,23 @@ public class ElmDoppelsignaturTests
         Assert.Contains("SUA", ex.Message);
     }
 
+    /// <summary>
+    /// Die Antwort der Gegenseite muss am Original geprüft werden (Walter 29.09.2026:
+    /// «Signatur der Antwort ist ungültig» bei jeder RefApps-Antwort). Umformatiert
+    /// für die Anzeige stimmen die Digests nicht mehr.
+    /// </summary>
+    [Fact]
+    public void Antwort_NurImOriginalGueltig_NichtUmformatiert()
+    {
+        var doc = Nachricht();
+        ElmWsSecurity.Signiere(doc, Zertifikat("CN=Distributor"));
+        var roh = doc.OuterXml;
+        var umformatiert = System.Xml.Linq.XDocument.Parse(roh).ToString();
+
+        Assert.True(PruefeSignatur(Lade(roh), 0).Gueltig);
+        Assert.False(PruefeSignatur(Lade(umformatiert), 0).Gueltig);
+    }
+
     [Fact]
     public void Csr_Pem_NachRfc7468_64ZeichenNurLf()
     {

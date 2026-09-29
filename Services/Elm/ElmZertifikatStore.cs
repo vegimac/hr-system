@@ -381,7 +381,54 @@ public class ElmSuaFall
     /// </summary>
     public bool CsrOhneStateOrProvince { get; set; }
 
+    /// <summary>Wurde der CSR OHNE ORG_ID angenommen? Die Erneuerung nimmt dieselbe Variante.</summary>
+    public bool CsrOhneOrgId { get; set; }
+
+    /// <summary>
+    /// CSR-Varianten (<see cref="ElmCsrVariante.Kennung"/>), die Swissdec bei DIESEM Antrag
+    /// mit 2052 abgewiesen hat — werden nicht nochmals geschickt (Walter 29.09.2026).
+    /// </summary>
+    public List<string> CsrAbgewiesen { get; set; } = new();
+
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
+}
+
+/// <summary>
+/// Aufbau des CSR-Subjects. Die Richtlinie ist nicht eindeutig: Anhang C.3.2 zeigt das
+/// fertige Zertifikat MIT ORG_ID und ST/L optional, C.3.3 verlangt einen CSR «gemäss
+/// Quittung» — und die Quittung enthält keine ORG_ID. Mit frischem Antrag am 29.09.2026
+/// abgewiesen (2052): mit ORG_ID, mit und ohne ST. Darum zuerst die zwei ungetesteten
+/// Varianten ohne ORG_ID.
+/// </summary>
+public record ElmCsrVariante(string Kennung, string Text, bool OhneSt, bool OhneOrgId)
+{
+    public static readonly IReadOnlyList<ElmCsrVariante> Reihenfolge = new[]
+    {
+        new ElmCsrVariante("quittung", "exakt wie Quittung (ohne ORG_ID)", false, true),
+        new ElmCsrVariante("quittung-ohne-st", "wie Quittung, ohne ST und ohne ORG_ID", true, true),
+        new ElmCsrVariante("richtlinie", "mit ORG_ID (Anhang C.3.2)", false, false),
+        new ElmCsrVariante("richtlinie-ohne-st", "mit ORG_ID, ohne ST", true, false),
+    };
+
+    /// <summary>
+    /// Noch nicht abgewiesene Varianten dieses Antrags, in Versuchsreihenfolge.
+    /// Ohne ST bzw. ohne UID in der Quittung wären zwei Varianten derselbe CSR — die
+    /// jeweils zweite fällt dann weg.
+    /// </summary>
+    public static List<ElmCsrVariante> Offene(ElmSuaFall fall)
+    {
+        var hatSt = !string.IsNullOrWhiteSpace(fall.Subject?.StateOrProvinceName);
+        var hatOrgId = fall.Subject?.OrganizationIdentifier != null;
+        return Reihenfolge
+            .Where(v => !fall.CsrAbgewiesen.Contains(v.Kennung))
+            .Where(v => hatSt || !v.OhneSt)
+            .Where(v => hatOrgId || v.OhneOrgId)
+            .ToList();
+    }
+
+    /// <summary>Die bei der Ausstellung angenommene Variante — für die Erneuerung.</summary>
+    public static ElmCsrVariante Angenommen(ElmSuaFall fall) =>
+        Reihenfolge.First(v => v.OhneSt == fall.CsrOhneStateOrProvince && v.OhneOrgId == fall.CsrOhneOrgId);
 }
 
 public class ElmSuaSubject
@@ -423,12 +470,16 @@ public class ElmSuaSubject
     /// Feld optional, und Swissdec nimmt den Antrag ohne ST womöglich an, wenn er
     /// mit «nA» abgewiesen wird.
     /// </param>
-    public X500DistinguishedName AlsX500Name(bool ohneStateOrProvince = false)
+    /// <param name="ohneOrgId">
+    /// ORG_ID weglassen: CSR exakt wie das X509Subject der Quittung (Anhang C.3.3
+    /// «muss der Quittung entsprechen»), die keine ORG_ID enthält.
+    /// </param>
+    public X500DistinguishedName AlsX500Name(bool ohneStateOrProvince = false, bool ohneOrgId = false)
     {
         // X500DistinguishedNameBuilder kodiert in UMGEKEHRTER Aufrufreihenfolge —
         // darum rückwärts hinzufügen, damit im CSR C, ST, L, CN, O, ORG_ID steht.
         var b = new X500DistinguishedNameBuilder();
-        if (OrganizationIdentifier is { } orgId) b.Add(OrgIdOid, orgId);
+        if (!ohneOrgId && OrganizationIdentifier is { } orgId) b.Add(OrgIdOid, orgId);
         if (!string.IsNullOrWhiteSpace(OrganizationName)) b.AddOrganizationName(OrganizationName.Trim());
         if (!string.IsNullOrWhiteSpace(CommonName)) b.AddCommonName(CommonName.Trim());
         if (!string.IsNullOrWhiteSpace(LocalityName)) b.AddLocalityName(LocalityName.Trim());
@@ -439,7 +490,7 @@ public class ElmSuaSubject
     }
 
     /// <summary>Lesbare Fassung desselben Subjects — für Anzeige, Log und Tests.</summary>
-    public string AlsDn(bool ohneStateOrProvince = false)
+    public string AlsDn(bool ohneStateOrProvince = false, bool ohneOrgId = false)
     {
         var teile = new List<string>();
         if (!string.IsNullOrWhiteSpace(CommonName)) teile.Add("CN=" + Esc(CommonName));
@@ -448,7 +499,7 @@ public class ElmSuaSubject
         if (!ohneStateOrProvince && !string.IsNullOrWhiteSpace(StateOrProvinceName))
             teile.Add("S=" + Esc(StateOrProvinceName));
         if (!string.IsNullOrWhiteSpace(CountryName)) teile.Add("C=" + Esc(CountryName));
-        if (OrganizationIdentifier is { } orgId) teile.Add($"OID.{OrgIdOid}=" + Esc(orgId));
+        if (!ohneOrgId && OrganizationIdentifier is { } orgId) teile.Add($"OID.{OrgIdOid}=" + Esc(orgId));
         return string.Join(", ", teile);
     }
 

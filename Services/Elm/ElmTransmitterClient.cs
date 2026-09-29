@@ -114,6 +114,14 @@ public class ElmTransmitterClient
 
         /// <summary>Anfrage trug zwei Signaturen (ERP + SUA) — Foundation F07_07/F07_08.</summary>
         public bool DoppeltSigniert { get; init; }
+
+        /// <summary>
+        /// Antwort Byte für Byte wie empfangen. Signaturprüfung und F04-Archiv brauchen
+        /// das Original — <see cref="ResponseXml"/> ist für die Anzeige umformatiert, und
+        /// jedes zusätzliche Leerzeichen macht die Digests der Gegenseite ungültig.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string? RohAntwort { get; init; }
     }
 
     /// <summary>
@@ -160,7 +168,7 @@ public class ElmTransmitterClient
         try
         {
             var antw = new XmlDocument { PreserveWhitespace = true };
-            antw.LoadXml(r.ResponseXml);
+            antw.LoadXml(r.RohAntwort ?? r.ResponseXml);
 
             // Empfängerzertifikat aus der Antwort lernen (nächster Aufruf verschlüsselt).
             _store.UebernehmeEmpfaengerAusAntwort(antw);
@@ -371,7 +379,7 @@ public class ElmTransmitterClient
             try { pretty = XDocument.Parse(body).ToString(); } catch { /* Rohtext lassen */ }
             return new ElmCallResult(res.IsSuccessStatusCode, (int)res.StatusCode, sw.ElapsedMilliseconds,
                 envelope, pretty, res.IsSuccessStatusCode ? null : $"HTTP {(int)res.StatusCode} {res.ReasonPhrase}")
-                { Tls = _tls.Value };
+                { Tls = _tls.Value, RohAntwort = body };
         }
         catch (Exception ex)
         {

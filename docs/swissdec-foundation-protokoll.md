@@ -574,6 +574,29 @@ mit Distributor-ELMv6 → CheckInterop HTTP 200.
 **Server:** `Swissdec__CertStoragePath=/var/data/hr-system/swissdec-certs` (Test:
 `…-test/swissdec-certs`) in der systemd-Umgebung setzen — analog Documents.
 
+### F07_06 — 2052 auch mit frischem Antrag; Antwort-Signatur falsch geprüft (29.09.2026)
+
+- **Frischer Antrag** (Quittung 29.09. 16:30:55): mit ORG_ID abgewiesen, mit und
+  ohne ST «nA» (2052). Die Ursache war also nicht ein abgelaufener Antrag.
+- **Richtlinie Anhang C:**
+  - C.3.2 zeigt das fertige Zertifikat MIT ORG_ID.
+  - C.3.3 verlangt einen CSR «gemäss Quittung», und das X509Subject der Quittung
+    hat KEINE ORG_ID.
+  - Beides lässt sich nicht gleichzeitig erfüllen, und die Varianten ohne ORG_ID
+    waren noch nie geschickt worden.
+- **Gebaut: vier Varianten (`ElmCsrVariante`).** Reihenfolge: exakt wie Quittung →
+  wie Quittung ohne ST → mit ORG_ID → mit ORG_ID ohne ST.
+  - Jeder Klick auf «Signieren» nimmt die erste Variante, die bei diesem Antrag noch
+    nicht abgewiesen wurde. Nur bei genau 2052 geht es mit der nächsten weiter.
+  - Abgewiesene Varianten stehen im Fall (`CsrAbgewiesen`), die angenommene Variante
+    nimmt auch die Erneuerung (`CsrOhneStateOrProvince`, `CsrOhneOrgId`).
+  - Sind alle abgewiesen, wird nichts mehr gesendet. Dann geht der CSR an Swissdec.
+- **«Signatur der Antwort ist ungültig» war unser Fehler.** `PostAsync` hat die
+  Antwort für die Anzeige umformatiert, und genau diese umformatierte Fassung wurde
+  geprüft und archiviert. Neu gilt `ElmCallResult.RohAntwort`: Prüfung und F04-Archiv
+  laufen auf dem Original, formatiert wird nur die Anzeige.
+- Tests: `ElmSuaTests` (Varianten), `ElmDoppelsignaturTests.Antwort_NurImOriginalGueltig_NichtUmformatiert`.
+
 ---
 
 ### Korrektur 24.09.2026 — vier schema-ungültige Meldungen + fehlende MonitoringID

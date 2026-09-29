@@ -256,9 +256,7 @@ public class ElmSuaService
         var fall = _store.LadeFall()
             ?? throw new InvalidOperationException("Kein laufender SUA-Fall — zuerst «Registrieren».");
 
-        // Welche ST-Variante? Wurde eine schon einmal angenommen, bleibt es dabei.
-        var ohneSt = fall.CsrOhneStateOrProvince;
-
+        ElmCsrVariante? variante = null;
         XElement? signBlock = null;
         RSA? csrKey = null;
         var istSignieren = false;
@@ -272,7 +270,9 @@ public class ElmSuaService
             suaFuerRenew = _store.LadeSuaZumSignieren()
                 ?? throw new InvalidOperationException(
                     "Erneuern geht nur mit einem vorhandenen SUA-Zertifikat samt Schlüssel — die Anfrage muss doppelt signiert sein (ERP + SUA).");
-            (signBlock, csrKey) = BaueRenewBlock(fall.Subject, ohneSt);
+            // Erneuern mit der Variante, die bei der Ausstellung angenommen wurde.
+            variante = ElmCsrVariante.Angenommen(fall);
+            (signBlock, csrKey) = BaueRenewBlock(fall.Subject, variante.OhneSt, variante.OhneOrgId);
             istSignieren = true;
         }
         else if (!string.IsNullOrWhiteSpace(oneTimePassword))
@@ -284,7 +284,12 @@ public class ElmSuaService
             if (!string.Equals(fall.LetzterState, "verified", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException(
                     $"SignCertificate erst bei Status «verified» (aktuell: «{fall.LetzterState ?? "—"}»).");
-            (signBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword.Trim(), ohneSt);
+            variante = ElmCsrVariante.Offene(fall).FirstOrDefault()
+                ?? throw new InvalidOperationException(
+                    "Swissdec hat bei diesem Antrag schon alle vier CSR-Varianten abgewiesen (2052). "
+                    + "Nicht nochmals senden — CSR an Swissdec schicken oder neu registrieren.");
+            (signBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword.Trim(),
+                variante.OhneSt, variante.OhneOrgId);
             istSignieren = true;
         }
 
@@ -306,31 +311,34 @@ public class ElmSuaService
         }
 
         var meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode);
-        string? zweiterVersuch = null;
+        var versuche = new List<string>();
 
-        // Zweiter Versuch ohne StateOrProvince (Walter-Auftrag 28.09.2026, Punkt 2):
-        // Die Quittung liefert dort «nA»; laut Tabelle in Anhang C.3.2 ist das Feld
-        // optional. Weist Swissdec den Antrag als unplausibel ab (2052), war er nicht
-        // in Bearbeitung — das Einmalpasswort ist also noch nicht verbraucht, und ein
-        // zweiter Versuch ohne ST ist zulässig. NUR bei genau diesem Code, und nur
-        // einmal: bei jedem anderen Fehler wird nichts wiederholt.
-        if (istSignieren && !ohneSt && IstNichtPlausibel(meldungen)
-            && !string.IsNullOrWhiteSpace(fall.Subject?.StateOrProvinceName))
+        // Weitere CSR-Varianten (Walter-Auftrag 28./29.09.2026): Weist Swissdec den
+        // Antrag als unplausibel ab (2052), war er nicht in Bearbeitung — das
+        // Einmalpasswort ist noch nicht verbraucht, die nächste Variante ist zulässig.
+        // NUR bei genau diesem Code: bei jedem anderen Fehler wird nichts wiederholt.
+        // Abgewiesene Varianten merkt sich der Fall, damit keine zweimal geht.
+        if (istSignieren && !renew && variante != null)
         {
-            csrKey?.Dispose();
-            csrKey = null;
-            XElement? zweiterBlock;
-            if (renew) (zweiterBlock, csrKey) = BaueRenewBlock(fall.Subject!, true);
-            else       (zweiterBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword!.Trim(), true);
+            while (IstNichtPlausibel(meldungen))
+            {
+                if (!fall.CsrAbgewiesen.Contains(variante.Kennung)) fall.CsrAbgewiesen.Add(variante.Kennung);
+                versuche.Add($"{variante.Text}: {CodeNichtPlausibel}");
+                var naechste = ElmCsrVariante.Offene(fall).FirstOrDefault();
+                if (naechste == null) break;
 
-            var zweiterCall = await SendeAsync(zweiterBlock);
-            var zweiteMeldungen = LiesMeldungen(zweiterCall.ResponseXml, zweiterCall.FaultCode);
-            zweiterVersuch = IstNichtPlausibel(zweiteMeldungen)
-                ? $"Auch ohne «{fall.Subject!.StateOrProvinceName}» als StateOrProvince abgewiesen ({CodeNichtPlausibel})."
-                : "Zweiter Versuch OHNE StateOrProvince — kein 2052 mehr, Ergebnis siehe Meldung.";
-            call = zweiterCall;
-            meldungen = zweiteMeldungen;
-            ohneSt = true;
+                csrKey?.Dispose();
+                variante = naechste;
+                (signBlock, csrKey) = BaueSignBlock(fall.Subject!, oneTimePassword!.Trim(),
+                    variante.OhneSt, variante.OhneOrgId);
+                call = await SendeAsync(signBlock);
+                meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode);
+                if (ElmTransmitterClient.DeuteSicherheitsFault(call) != null) break;
+            }
+            if (!IstNichtPlausibel(meldungen))
+                versuche.Add($"{variante.Text}: kein {CodeNichtPlausibel}");
+            else
+                versuche.Add("alle CSR-Varianten abgewiesen — nicht nochmals senden, CSR an Swissdec schicken");
         }
 
         var geparst = ParseSynchronizeAntwort(call.ResponseXml);
@@ -350,16 +358,21 @@ public class ElmSuaService
         string? meldung = geparst.Fehler ?? call.FaultText;
         if (geparst.State != null)
             meldung = StateMeldung(geparst.State);
-        if (zweiterVersuch != null)
-            meldung = string.IsNullOrWhiteSpace(meldung) ? zweiterVersuch : meldung + " · " + zweiterVersuch;
+        // Nur erwähnen, wenn es mehr als den ersten, angenommenen Versuch gab.
+        if (versuche.Count > 1 || (versuche.Count == 1 && IstNichtPlausibel(meldungen)))
+        {
+            var text = "CSR-Versuche: " + string.Join(" · ", versuche);
+            meldung = string.IsNullOrWhiteSpace(meldung) ? text : meldung + " · " + text;
+        }
 
-        if (geparst.ZertifikatPem != null && csrKey != null)
+        if (geparst.ZertifikatPem != null && csrKey != null && variante != null)
         {
             var pemText = PemAusBase64(geparst.ZertifikatPem);
             _store.SpeichereSua(pemText, csrKey);
-            fall.CsrOhneStateOrProvince = ohneSt;   // dieselbe Variante beim Erneuern
-            meldung = (meldung ?? "") + " · SUA-Zertifikat gespeichert"
-                    + (ohneSt ? " (CSR ohne StateOrProvince)" : "") + ".";
+            // dieselbe Variante beim Erneuern
+            fall.CsrOhneStateOrProvince = variante.OhneSt;
+            fall.CsrOhneOrgId = variante.OhneOrgId;
+            meldung = (meldung ?? "") + $" · SUA-Zertifikat gespeichert (CSR {variante.Text}).";
         }
 
         _store.SpeichereFall(fall);
@@ -482,9 +495,9 @@ public class ElmSuaService
 
     /// <summary>CSR aus Empfänger-Subject — DN nicht selbst erfinden (Bauanleitung).</summary>
     public static (XElement Block, RSA Key) BaueSignBlock(ElmSuaSubject subject, string oneTimePassword,
-        bool ohneStateOrProvince = false)
+        bool ohneStateOrProvince = false, bool ohneOrgId = false)
     {
-        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince);
+        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince, ohneOrgId);
         // Creation/StoryID stammen aus ep:StoryBaseType; PEM/OTP aus dem c-Schema.
         var block = new XElement(C + "SignCertificate",
             new XElement(Ep + "Creation", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
@@ -495,9 +508,9 @@ public class ElmSuaService
     }
 
     public static (XElement Block, RSA Key) BaueRenewBlock(ElmSuaSubject subject,
-        bool ohneStateOrProvince = false)
+        bool ohneStateOrProvince = false, bool ohneOrgId = false)
     {
-        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince);
+        var (pemB64, key) = ErzeugeCsrPemBase64(subject, ohneStateOrProvince, ohneOrgId);
         var block = new XElement(C + "RenewCertificate",
             new XElement(Ep + "Creation", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
             new XElement(Ep + "StoryID", Guid.NewGuid().ToString("N")),
@@ -506,13 +519,12 @@ public class ElmSuaService
     }
 
     public static (string PemBase64, RSA Key) ErzeugeCsrPemBase64(
-        ElmSuaSubject subject, bool ohneStateOrProvince = false)
+        ElmSuaSubject subject, bool ohneStateOrProvince = false, bool ohneOrgId = false)
     {
         // Transmitter-Richtlinien ELM 6.0, Anhang C.3.2/C.3.3: PKCS#10 als PEM,
-        // Sha256WithRSA, RSA 2048, Subject exakt gemäss Quittung — UND die ORG_ID
-        // «NTRCH-{UID}» als organizationIdentifier (OID 2.5.4.97). Fehlt sie, kommt
-        // Fault NOT_plausible 2052 (Walter-Befund 28.09.2026).
-        var name = subject.AlsX500Name(ohneStateOrProvince);
+        // Sha256WithRSA, RSA 2048, Subject gemäss Quittung. Ob die ORG_ID
+        // «NTRCH-{UID}» (OID 2.5.4.97) in den CSR gehört, ist offen — siehe ElmCsrVariante.
+        var name = subject.AlsX500Name(ohneStateOrProvince, ohneOrgId);
         if (name.Name.Length == 0)
             throw new InvalidOperationException("Subject-DN ist leer — Quittung prüfen.");
         var rsa = RSA.Create(2048);
