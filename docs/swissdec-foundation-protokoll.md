@@ -496,6 +496,15 @@ PEM — vorher wäre `UserAgent/Certificate` («swissdec») gegriffen und ein au
 verloren gegangen. Offen, falls es weiter 2052 gibt: Kodierung des Felds `PEM` (heute Base64 des
 PEM-Texts; Alternative Base64 des DER) — dann bei Swissdec nachfragen, CSR beilegen.
 
+**Antwort Swissdec 29.09.2026:** «Auf den ersten Blick scheint Ihr Ablauf richtig zu sein. Auf
+der RefApps ist die Gültigkeit von Passwörtern etc. allerdings etwas kurzlebig — d.h. das
+Wochenende war wohl zu lang. Ansonsten können Sie Ihren Ablauf mit dem des RefApps-Transmitters
+vergleichen.» Folge: Der Fall (Credentials + Einmalpasswort) war beim Signieren am Montag
+abgelaufen; die Korrekturen ORG_ID + Reihenfolge wurden nie mit einem frischen Fall geprüft.
+Vorgehen: neuer Register (ersetzt den gespeicherten Fall) → Synchronize bis `verified` →
+sofort SignCertificate, alles in einer Sitzung. Erst wenn dann wieder 2052 kommt: Ablauf mit
+dem RefApps-Transmitter vergleichen (PEM-Kodierung).
+
 **Vorbereitet für den Schlüssel (24.09.2026, offline):**
 
 | Baustein | Wo |
