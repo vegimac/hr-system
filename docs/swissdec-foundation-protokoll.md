@@ -628,6 +628,23 @@ wurden alle vier PEM-Text-Varianten abgewiesen (2052).
   PEM-Felds, ein Muster-SignCertificate aus dem RefApps-Transmitter und die
   CertificateRequestID.
 
+**✅ F07_06 erfolgreich (29.09.2026, 17:30 Uhr):** Das SUA-Zertifikat ist ausgestellt
+und gespeichert.
+
+- **Angenommene Variante `der-richtlinie`:**
+  - Subject C=CH, ST=nA, L=Luzern, CN=NTRCH-CHE-999.999.996@swissdec.ch,
+    O=Muster AG, ORG_ID NTRCH-CHE-999.999.996
+  - Feld `PEM` = Base64 des binären CSR (DER), **nicht** Base64 des PEM-Textes.
+  - Die Quittung ist per `ReceivedStoryIDs` bestätigt.
+- **Lehre:** «im PEM Format» beim Schema-Typ `xs:base64Binary` heisst hier: den
+  Inhalt zwischen den PEM-Kopfzeilen senden, also genau einmal Base64-kodiert.
+  Gesendet hatten wir doppelt kodiert.
+- Die Reihenfolge beginnt seither mit `der-richtlinie`.
+- **Nächste Schritte:**
+  - CheckInteroperability doppelt signiert (F07_08, SUA-Spez. 6.3 Schritte 12–16)
+  - Renew (F07_07)
+  - F07_02 und F07_05 mit einer neuen Registrierung
+
 ---
 
 ### Korrektur 24.09.2026 — vier schema-ungültige Meldungen + fehlende MonitoringID

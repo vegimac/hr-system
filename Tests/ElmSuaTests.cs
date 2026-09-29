@@ -295,8 +295,8 @@ public class ElmSuaTests
     public void Varianten_ZuerstMitOrgId_DieBereitsAbgewiesenenNichtMehr()
     {
         var fall = new ElmSuaFall { Subject = MusterSubject() };
-        Assert.Equal(new[] { "richtlinie", "richtlinie-ohne-st", "quittung", "quittung-ohne-st",
-                             "der-richtlinie", "der-quittung" },
+        Assert.Equal(new[] { "der-richtlinie", "der-quittung", "richtlinie", "richtlinie-ohne-st",
+                             "quittung", "quittung-ohne-st" },
             ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
 
         // Stand 29.09.2026 17:24 — die vier PEM-Text-Varianten sind abgewiesen.
@@ -329,7 +329,7 @@ public class ElmSuaTests
         s.StateOrProvinceName = "";
         s.CompanyUidBfs = null;
         var fall = new ElmSuaFall { Subject = s };
-        Assert.Equal(new[] { "quittung", "der-quittung" }, ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
+        Assert.Equal(new[] { "der-quittung", "quittung" }, ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
     }
 
     [Fact]

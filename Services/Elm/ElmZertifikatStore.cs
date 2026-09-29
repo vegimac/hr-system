@@ -428,16 +428,16 @@ public record ElmCsrVariante(string Kennung, string Text, bool OhneSt, bool Ohne
     /// </summary>
     public const int AufbauAktuell = 2;
 
+    // Angenommen am 29.09.2026 17:30: «der-richtlinie» (ORG_ID, ST «nA», PEM-Feld = DER).
+    // Alle PEM-Text-Varianten waren vorher mit 2052 abgewiesen — sie bleiben nur als Rückfall.
     public static readonly IReadOnlyList<ElmCsrVariante> Reihenfolge = new[]
     {
+        new ElmCsrVariante("der-richtlinie", "mit ORG_ID, PEM-Feld als binärer CSR (DER)", false, false, true),
+        new ElmCsrVariante("der-quittung", "wie Quittung, PEM-Feld als binärer CSR (DER)", false, true, true),
         new ElmCsrVariante("richtlinie", "mit ORG_ID (SUA-Spez. Tabelle 2/3)", false, false),
         new ElmCsrVariante("richtlinie-ohne-st", "mit ORG_ID, ohne ST", true, false),
         new ElmCsrVariante("quittung", "exakt wie Quittung (ohne ORG_ID)", false, true),
         new ElmCsrVariante("quittung-ohne-st", "wie Quittung, ohne ST und ohne ORG_ID", true, true),
-        // Am 29.09.2026 17:24 waren alle vier PEM-Text-Varianten auch MIT Quittierung
-        // abgewiesen — bleibt die Form des PEM-Felds.
-        new ElmCsrVariante("der-richtlinie", "mit ORG_ID, PEM-Feld als binärer CSR (DER)", false, false, true),
-        new ElmCsrVariante("der-quittung", "wie Quittung, PEM-Feld als binärer CSR (DER)", false, true, true),
     };
 
     /// <summary>
