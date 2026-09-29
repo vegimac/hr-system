@@ -677,6 +677,22 @@ und gespeichert.
   - Wir bauen den Schritt deshalb nicht.
   - Frage an Swissdec: Ist Schritt 14 in ELM 6.0 entfallen oder wird er anders abgebildet?
 
+**✅ F07_07 Renew erfolgreich (29.09.2026, 17:44 Uhr):** RenewCertificate doppelt signiert
+(ERP + bisheriges SUA).
+
+- HTTP 200, Signatur gültig. Die Antwort ist für das bisherige SUA-Zertifikat verschlüsselt.
+- Neues Zertifikat:
+  - gleicher Subject-DN
+  - Issuer SUA RefApps CA
+  - gültig 29.09.2026 15:44Z bis 09.10.2026 15:44Z
+  - StoryID SC18d9d51b676b2f724
+- Gespeichert. Es ersetzt das bisherige.
+- RefApps erlaubt die Erneuerung offenbar jederzeit, auch am Ausstellungstag.
+- UI-Korrektur: Nach einem erhaltenen Zertifikat steht nicht mehr «verified — bereit
+  zum Signieren», sondern «SUA-Zertifikat erneuert/ausgestellt und gespeichert, gültig
+  bis …».
+- Nächster Schritt: CheckInteroperability mit dem erneuerten Zertifikat.
+
 ---
 
 ### Korrektur 24.09.2026 — vier schema-ungültige Meldungen + fehlende MonitoringID

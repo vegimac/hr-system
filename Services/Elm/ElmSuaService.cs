@@ -385,7 +385,14 @@ public class ElmSuaService
             fall.CsrOhneStateOrProvince = variante.OhneSt;
             fall.CsrOhneOrgId = variante.OhneOrgId;
             fall.CsrPemAlsDer = variante.PemAlsDer;
-            meldung = (meldung ?? "") + $" · SUA-Zertifikat gespeichert (CSR {variante.Text}).";
+            // «verified — bereit zum Signieren» passt nicht mehr, sobald das Zertifikat da ist.
+            string bis = "";
+            try { bis = $", gültig bis {X509Certificate2.CreateFromPem(pemText).NotAfter:dd.MM.yyyy HH:mm}"; }
+            catch { }
+            meldung = (renew ? "SUA-Zertifikat erneuert und gespeichert" : "SUA-Zertifikat ausgestellt und gespeichert")
+                + $"{bis} (CSR {variante.Text}).";
+            if (versuche.Count > 1)
+                meldung += " · CSR-Versuche: " + string.Join(" · ", versuche);
         }
 
         _store.SpeichereFall(fall);
