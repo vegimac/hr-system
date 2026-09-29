@@ -157,7 +157,7 @@ const KOMM_KATALOG = [
       werkzeug: null,
       aktionen: [{ label: 'Erneuern', art: 'renew' }, _kInterop('danach CheckInterop mit neuem Zertifikat')],
       erwartet: '«SUA-Zertifikat erneuert und gespeichert», danach CheckInterop mit «Anfrage doppelt signiert (ERP + SUA)».',
-      vorbelegt: { status: 'offen', notiz: 'Renew ✓ 29.09.2026 17:44 — CheckInterop mit dem neuen Zertifikat noch vorführen' } },
+      vorbelegt: { status: 'ok', notiz: 'Renew ✓ 29.09.2026 18:01, CheckInterop doppelt signiert mit neuem Zertifikat ✓ 18:02' } },
     { id: 'F07_08', titel: 'CheckInterop doppelt signiert', typ: 'TOOL · DOUBLE',
       werkzeug: null, aktionen: [_kInterop()],
       erwartet: '«Anfrage doppelt signiert (ERP + SUA)», Signatur gültig, zwei SignatureConfirmation.',

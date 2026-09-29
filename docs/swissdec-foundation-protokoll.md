@@ -711,7 +711,17 @@ und gespeichert.
 - UI-Korrektur: Nach einem erhaltenen Zertifikat steht nicht mehr «verified — bereit
   zum Signieren», sondern «SUA-Zertifikat erneuert/ausgestellt und gespeichert, gültig
   bis …».
-- Nächster Schritt: CheckInteroperability mit dem erneuerten Zertifikat.
+
+**✅ F07_07 abgeschlossen (29.09.2026, 18:02 Uhr)** — erstmals über die neue Oberfläche
+Kommunikations-Test (F07 → F07_07).
+
+- 18:01 zweites Renew, wieder doppelt signiert. HTTP 200, Signatur gültig, Antwort verschlüsselt.
+  Neues Zertifikat gültig bis 09.10.2026 18:01 Lokalzeit.
+- 18:02 CheckInteroperability mit dem erneuerten Zertifikat an `.../stable/receiver/services/elm/SalaryDeclaration/V6`:
+  - HTTP 200, 387 ms, «Anfrage doppelt signiert (ERP + SUA)»
+  - Signatur gültig, Antwort verschlüsselt
+  - Interoperabilität bestätigt: Umlaute zurück, Addition 999000000000.01, Subtraktion 998999999999.99
+  - Systemzeit: Abweichung 0.2 s
 
 ---
 
