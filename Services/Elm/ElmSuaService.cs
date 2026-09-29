@@ -141,9 +141,22 @@ public class ElmSuaService
             empfaengerZertifikat = _store.HatEmpfaengerZertifikat(),
             empfaenger = _store.EmpfaengerInfo(),
             sua = _store.HatSuaZertifikat(),
+            suaInfo = SuaInfo(),
             fall,
             hauptsitz = hs == null ? null : new { hs.Name, hs.Uid, hs.Ort, hs.KantonCode, hs.Plz, hs.Strasse },
         };
+    }
+
+    private object? SuaInfo()
+    {
+        try
+        {
+            using var z = _store.LadeSua();
+            if (z == null) return null;
+            return new { subject = z.Subject, issuer = z.Issuer, notBefore = z.NotBefore, notAfter = z.NotAfter,
+                mitSchluessel = z.HasPrivateKey };
+        }
+        catch { return null; }
     }
 
     public object ErzeugeErp()

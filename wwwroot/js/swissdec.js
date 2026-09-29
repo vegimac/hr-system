@@ -5,14 +5,13 @@
 //  Kap. 4: Ping nie automatisieren).
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Lohn-Test (page-swissdec). Verbindung, Zertifikate und MonitoringID liegen seit
+// 29.09.2026 im Kommunikations-Test (swissdec-komm.js, page-swissdec-kommunikation).
 function swissdecInit() {
-    elmLadeZiele();
-    elmMonLaden();
     const y = document.getElementById('elmAnnualYear');
     if (y && !y.value) y.value = new Date().getFullYear();
     elmStammLoad();
     tmInit();
-    suaStatusLaden();
 }
 
 // ── Testmandant «Muster AG» (Walter 07.09.2026) — nur Testinstanz ──────────
@@ -209,20 +208,34 @@ async function elmLadeZiele() {
     }
 }
 
-async function _elmCall(pfad, label) {
-    const out = document.getElementById('elmResult');
+/**
+ * opt.out = Ziel-Element (Standard elmResult), opt.operand / opt.versatz überschreiben
+ * die Felder der Einrichtung. Gibt { antwort, j } zurück oder { fehler }.
+ */
+async function _elmCall(pfad, label, opt = {}) {
+    const out = document.getElementById(opt.out || 'elmResult');
     const url = (document.getElementById('elmUrl')?.value || '').trim();
-    if (!url) { if (out) out.innerHTML = '<div style="color:#b91c1c">Bitte eine Endpoint-URL eintragen oder einen der beiden Knöpfe benutzen.</div>'; return; }
+    if (!url) {
+        const f = 'Bitte eine Endpoint-URL eintragen oder einen der beiden Knöpfe benutzen.';
+        if (out) out.innerHTML = `<div style="color:#b91c1c">${f}</div>`;
+        return { fehler: f };
+    }
     try { localStorage.setItem('elmEndpointUrl', url); } catch (e) { /* egal */ }
     if (out) out.innerHTML = `<div style="color:#64748b">⏳ ${label} läuft…</div>`;
     try {
         const r = await fetch(`/api/elm/${pfad}`, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, versatzSekunden: _elmVersatz(), zweiterOperand: _elmOperand2() })
+            body: JSON.stringify({ url,
+                versatzSekunden: opt.versatz ?? _elmVersatz(),
+                zweiterOperand: opt.operand ?? _elmOperand2() })
         });
         const antwort = await r.json();
-        if (!r.ok) { out.innerHTML = `<div style="color:#b91c1c">Fehler: ${esc(antwort?.message || antwort?.error || ('HTTP ' + r.status))}</div>`; return; }
+        if (!r.ok) {
+            const f = antwort?.message || antwort?.error || ('HTTP ' + r.status);
+            out.innerHTML = `<div style="color:#b91c1c">Fehler: ${esc(f)}</div>`;
+            return { fehler: f };
+        }
         // Server antwortet mit { ziel, name, url, ergebnis } — das Ergebnis
         // ist der eigentliche Aufruf (ok/httpStatus/dauerMs/XML).
         const j = antwort.ergebnis || antwort;
@@ -258,8 +271,10 @@ async function _elmCall(pfad, label) {
                 <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(j.responseXml)}</pre>` : ''}
             <details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Gesendete Anfrage anzeigen</summary>
                 <pre style="background:#f6f3ee;border:1px solid #e7e1d8;padding:10px 12px;border-radius:10px;max-height:280px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(j.requestXml || '')}</pre></details>`;
+        return { antwort, j };
     } catch (e) {
         if (out) out.innerHTML = `<div style="color:#b91c1c">Verbindungsfehler: ${esc(e.message)}</div>`;
+        return { fehler: e.message };
     }
 }
 
@@ -619,8 +634,8 @@ function _suaZielBody(extra) {
     return Object.assign({ url }, extra || {});
 }
 
-async function suaRegister() {
-    const out = document.getElementById('suaResult');
+async function suaRegister(outId) {
+    const out = document.getElementById(outId || 'suaResult');
     out.innerHTML = '⏳ Registrieren…';
     try {
         const body = _suaZielBody({
@@ -640,31 +655,32 @@ async function suaRegister() {
             body: JSON.stringify(body)
         });
         const j = await r.json().catch(() => null);
-        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Fehler')}</span>`; return; }
-        _suaZeigeErgebnis(j);
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Fehler')}</span>`; return { fehler: j?.message || 'Fehler' }; }
+        _suaZeigeErgebnis(j, outId);
         suaStatusLaden();
-    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; }
+        return j;
+    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; return { fehler: e.message }; }
 }
 
-async function suaSynchronize() {
-    await _suaSync(false);
+async function suaSynchronize(outId) {
+    return _suaSync(false, null, outId);
 }
-async function suaSignieren() {
-    const otp = (document.getElementById('suaOtp')?.value || '').trim();
+async function suaSignieren(outId, otpFeldId) {
+    const otp = (document.getElementById(otpFeldId || 'suaOtp')?.value || '').trim();
     if (!otp) {
-        document.getElementById('suaResult').innerHTML =
+        document.getElementById(outId || 'suaResult').innerHTML =
             '<span style="color:#b45309">Einmalpasswort eintragen (nach Status verified).</span>';
-        return;
+        return { fehler: 'Einmalpasswort fehlt' };
     }
-    await _suaSync(false, otp);
+    return _suaSync(false, otp, outId);
 }
-async function suaRenew() {
-    if (!(await liquidConfirm('SUA-Zertifikat erneuern (RenewCertificate)?', { title: 'Erneuern', yesLabel: 'Erneuern', noLabel: 'Abbrechen' }))) return;
-    await _suaSync(true);
+async function suaRenew(outId) {
+    if (!(await liquidConfirm('SUA-Zertifikat erneuern (RenewCertificate)?', { title: 'Erneuern', yesLabel: 'Erneuern', noLabel: 'Abbrechen' }))) return null;
+    return _suaSync(true, null, outId);
 }
 
-async function _suaSync(renew, otp) {
-    const out = document.getElementById('suaResult');
+async function _suaSync(renew, otp, outId) {
+    const out = document.getElementById(outId || 'suaResult');
     out.innerHTML = renew ? '⏳ Erneuern…' : (otp ? '⏳ Signieren…' : '⏳ Status…');
     try {
         const body = _suaZielBody({ oneTimePassword: otp || null, renew: !!renew });
@@ -673,14 +689,15 @@ async function _suaSync(renew, otp) {
             body: JSON.stringify(body)
         });
         const j = await r.json().catch(() => null);
-        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Fehler')}</span>`; return; }
-        _suaZeigeErgebnis(j);
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Fehler')}</span>`; return { fehler: j?.message || 'Fehler' }; }
+        _suaZeigeErgebnis(j, outId);
         suaStatusLaden();
-    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; }
+        return j;
+    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; return { fehler: e.message }; }
 }
 
-function _suaZeigeErgebnis(j) {
-    const out = document.getElementById('suaResult');
+function _suaZeigeErgebnis(j, outId) {
+    const out = document.getElementById(outId || 'suaResult');
     const e = j.ergebnis || {};
 
     // Walter-Auftrag 28.09.2026: was die Antwort SAGT, gehoert nach OBEN — Code,
@@ -701,8 +718,10 @@ function _suaZeigeErgebnis(j) {
 
     // Einmalpasswort aus Code 9998 gleich ins Feld — niemand soll es abtippen.
     if (j.otpVorschlag) {
-        const otpEl = document.getElementById('suaOtp');
-        if (otpEl && !otpEl.value.trim()) otpEl.value = j.otpVorschlag;
+        ['suaOtp', 'kommOtp'].forEach(id => {
+            const otpEl = document.getElementById(id);
+            if (otpEl && !otpEl.value.trim()) otpEl.value = j.otpVorschlag;
+        });
     }
 
     const meldung = j.meldung
@@ -722,7 +741,6 @@ function _suaZeigeErgebnis(j) {
     out.innerHTML = meldeBlock + meldung + state;
     // TLS/Fault/XML darunter anhängen
     const tmp = document.createElement('div');
-    tmp.id = '_suaTmpOut';
     out.appendChild(tmp);
     // schreibe in tmp wie _elmCall
     const sec = fake.security

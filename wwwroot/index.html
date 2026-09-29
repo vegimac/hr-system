@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260923b">
+    <link rel="stylesheet" href="css/app.css?v=20260929b">
 </head>
 <body>
 
@@ -5491,10 +5491,18 @@
                 </div>
                 <div class="entw-hub-group" id="entwHubGrp-swissdec" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <div class="admin-card" onclick="showPage('swissdec-kommunikation')">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+                            <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block">
+                            <img src="img/itserv-logo.jpg?v=20260929a" alt="itserv" loading="lazy" style="width:64px;height:64px;border-radius:16px;display:block;box-shadow:0 4px 12px rgba(60,55,48,0.18)">
+                        </div>
+                        <div class="admin-card-title">Kommunikations-Test</div>
+                        <div class="admin-card-desc">Foundation mit itserv — Verbindung, Sicherheit, SUA-Zertifikat, Archiv. Prüfpunkt für Prüfpunkt am Bildschirm.</div>
+                    </div>
                         <div class="admin-card" onclick="showPage('swissdec')">
                         <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Swissdec ELM 6.0</div>
-                        <div class="admin-card-desc">Lohnmeldung, Testinfrastruktur und Zertifizierung</div>
+                        <div class="admin-card-title">Lohn-Test</div>
+                        <div class="admin-card-desc">Testmandant Muster AG, Jahresmeldung, Stammdaten — Lohndaten für die Zertifizierung</div>
                     </div>
                     </div>
                 </div>
@@ -5546,16 +5554,19 @@
 
             <div class="page fixhead" id="page-swissdec">
                 <div class="page-head"><div>
-                    <h1 class="page-title">Swissdec — Elektronische Lohnmeldung (ELM 6.0)</h1>
-                    <p class="page-sub">Weg zur Zertifizierung · Meldeeinheit = Schaub Restaurants GmbH (UID), Filialen = Workplaces · Übungen auf der Testinstanz.</p>
+                    <h1 class="page-title">Swissdec · Lohn-Test</h1>
+                    <p class="page-sub">Lohndaten für die Zertifizierung · Testmandant Muster AG, Jahres- und Monatsmeldungen · nur Testinstanz. Verbindung und Foundation: «Kommunikations-Test».</p>
                 </div></div>
                 <div class="page-body">
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;max-width:980px">
+                        <button type="button" class="komm-btn-sekundaer" onclick="showPage('swissdec-kommunikation')">📡 Kommunikations-Test (Foundation, itserv)</button>
+                        <button type="button" class="komm-btn-sekundaer" onclick="showPage('elm-meldungen')">🧾 ELM-Meldungen (Monat, Vergleich mit RefXML)</button>
+                    </div>
                     <div class="card" style="padding:16px 18px;margin-bottom:16px;max-width:980px">
                         <div style="font-weight:700;font-size:14px;margin-bottom:8px">Etappenplan (docs/swissdec-elm6-konzept.md)</div>
                         <table style="width:100%;border-collapse:collapse;font-size:12.5px">
                             <tbody>
-                                <tr><td style="padding:3px 8px;width:44px;font-weight:700">E1</td><td style="padding:3px 8px">Verbindungstest — Ping <span style="color:#166534;font-weight:600">✓ erledigt (Prod + Refapps)</span> · CheckInteroperability wartet auf Transmitter-Zertifikat (E1b)</td><td style="padding:3px 8px;width:130px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">Ping ✓</span></td></tr>
-                                <tr><td style="padding:3px 8px;font-weight:700">E1b</td><td style="padding:3px 8px">WS-Security (Signatur + Verschlüsselung) — braucht Entwicklungs-Zertifikat von Swissdec (Erstberatung; Swissdec = eigene CA, kein Test-Keystore öffentlich)</td><td style="padding:3px 8px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">wartet</span></td></tr>
+                                <tr><td style="padding:3px 8px;width:44px;font-weight:700">E1</td><td style="padding:3px 8px">Verbindung, WS-Security, SUA-Zertifikat — Foundation-Test, siehe «Kommunikations-Test»</td><td style="padding:3px 8px;width:130px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">läuft</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E2</td><td style="padding:3px 8px">XML-Generator Jahresmeldung AHV — 28.08.2026 mit Kunstdaten via Refapps-Transmitter übermittelt: DeclareAnnualSalary SUCCESS · GetStatus ACCEPTED · Completion released (voller Zyklus)</td><td style="padding:3px 8px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">erledigt ✓</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E3</td><td style="padding:3px 8px">Stammdaten Rechtseinheit — Empfänger-Katalog als führende Quelle; 28.08.2026 Ende-zu-Ende verifiziert (Meldung mit Katalog-Nummern übermittelt, Business State FINISHED). Auf Prod: echte Mirus-Nummern in den Katalog übertragen</td><td style="padding:3px 8px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">erledigt ✓</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E4</td><td style="padding:3px 8px">Erste Übermittlung an Refapps Receiver (3-Schritt-Protokoll + Quittungen)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
@@ -5568,161 +5579,6 @@
                         </table>
                     </div>
 
-                    <!-- MonitoringID (Walter 27.09.2026): auf den Swissdec-Testsystemen zwingend,
-                         auf der Produktion muss sie leer bleiben — dort ist die Karte gesperrt. -->
-                    <div class="card" id="elmMonCard" style="padding:16px 18px;margin-bottom:16px;max-width:980px;display:none">
-                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">MonitoringID (Swissdec-Testsysteme)</div>
-                        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px">
-                            Sie ordnet unsere Übermittlungen auf den Testsystemen dem richtigen Benutzer zu — ohne sie
-                            findet man seine eigene Meldung dort nicht wieder. Sie geht als letztes Element in den Kopf
-                            <b>jeder</b> Meldung (Monat, Jahr, EMA). <b>Auf der Produktion bleibt sie leer</b>, dort wird
-                            sie nicht gebraucht.
-                        </p>
-                        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-                            <div style="flex:1;min-width:260px">
-                                <label style="display:block;font-size:12px;color:#646464;margin-bottom:5px">MonitoringID (1–32 Zeichen)</label>
-                                <input id="elmMonInput" maxlength="32" placeholder="von Swissdec erhalten"
-                                       style="width:100%;padding:8px 11px;border:1px solid rgba(60,55,48,0.2);border-radius:10px;font-size:13px">
-                            </div>
-                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:8px 18px" onclick="elmMonSpeichern()">Speichern</button>
-                        </div>
-                        <div id="elmMonInfo" style="font-size:12px;color:#8b8b8b;margin-top:8px"></div>
-                    </div>
-
-                    <div class="card" style="padding:16px 18px;max-width:980px">
-                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">E1 · Verbindungstest</div>
-                        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px">
-                            <b>Ping</b> prüft die Erreichbarkeit + vergleicht die Systemzeiten; <b>CheckInteroperability</b> testet Umlaute und Zahlformate über die ganze SOAP-Strecke.
-                            Wählbar sind zwei fest hinterlegte Ziele: der <b>Refapps Receiver</b> der Swissdec-Testinfrastruktur oder der produktive Distributor
-                            (Ping ist dort für Support-Zwecke erlaubt — nur manuell, nie automatisiert). Die Adressen sind im Programm hinterlegt und lassen sich
-                            hier nicht ändern; der Bereich ist dem Superadmin vorbehalten.
-                            <br><b>Hinweis:</b> CheckInteroperability wird zurzeit mit «Client.security» abgewiesen — das ist korrekt so: ab dieser Operation verlangt Swissdec
-                            eine WS-Security-Signatur mit dem Transmitter-Zertifikat, das erst über die Swissdec-Erstberatung/Zertifizierung erhältlich ist (E1b).
-                        </p>
-                        <!-- Foundation-Test F01_01 «Adressierung» (Walter 24.09.2026): Die Schranke ist die
-                             PERSON, nicht das Feld — diese Seite liegt im Bereich «Entwicklung», den nur der
-                             Super-Admin vergeben kann, und die Endpunkte prüfen IsSuperAdmin serverseitig.
-                             Darum bleibt die freie Eingabe: die Testinfrastruktur liefert wechselnde
-                             Receiver-Adressen. Die beiden Knöpfe füllen die bekannten Adressen ein. -->
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
-                            <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:4px;flex:1;min-width:420px">Endpoint-URL
-                                <input type="text" id="elmUrl" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%" placeholder="https://…/services/elm/SalaryDeclaration/V6">
-                            </label>
-                            <button type="button" data-elm-ziel="test" onclick="elmSetZiel('test')" style="background:#3f3f3f;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer" title="Refapps Receiver der Testinfrastruktur (ELMv6) — unser Übungsplatz">Refapps Receiver (Test)</button>
-                            <button type="button" data-elm-ziel="prod" onclick="elmSetZiel('prod')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#3f3f3f;cursor:pointer" title="Produktiver Distributor — nimmt ohne Zertifikat nur Ping an">Prod-Distributor</button>
-                        </div>
-                        <div style="font-size:12px;color:#8b8b8b;margin-bottom:10px">
-                            Nur für den Super-Admin erreichbar — ein Admin kann sich den Bereich «Entwicklung» weder selbst geben noch zuteilen (Swissdec F01_01).
-                        </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-                            <button type="button" class="btn-primary" onclick="elmPing()">📡 Ping</button>
-                            <button type="button" class="btn-secondary" onclick="elmCheckInterop()">🔤 CheckInteroperability</button>
-                            <!-- Foundation F03_02/F03_03 (Walter 24.09.2026): Der zweite Operand ist die
-                                 EINZIGE Eingabe dieses Aufrufs — die Umlaut-Zeichenkette und die erste Zahl
-                                 (9.99E11) stehen fest im Programm. Geprüft wird mit 0.01, 0.00 und
-                                 −999'000'000'000.00; gesendet wird immer mit zwei Nachkommastellen. -->
-                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;margin-left:8px">
-                                2. Operand
-                                <input type="text" id="elmOperand2" value="0.01"
-                                       style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:150px;text-align:right"
-                                       title="Zweiter Operand für CheckInteroperability. Wird immer mit zwei Nachkommastellen gesendet (Swissdec F03_03).">
-                            </label>
-                            <span style="display:flex;gap:4px">
-                                <button type="button" onclick="elmSetOperand('0.01')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">0.01</button>
-                                <button type="button" onclick="elmSetOperand('0.00')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">0.00</button>
-                                <button type="button" onclick="elmSetOperand('-999000000000.00')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">−999'000'000'000.00</button>
-                            </span>
-                            <!-- Foundation F01_03: simulierte Verstellung der Serveruhr. Der Wert gilt für
-                                 die GESENDETE Zeit und für die Vergleichsbasis — ab 60 Sekunden muss die
-                                 Fehlermeldung erscheinen. Gilt nur für den einzelnen Aufruf. -->
-                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;margin-left:8px">
-                                Test: Systemzeit verstellen
-                                <input type="number" id="elmVersatz" value="0" step="10" min="-86400" max="86400"
-                                       style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:100px;text-align:right"
-                                       title="Sekunden. Verstellt die gesendete Zeit UND unsere Vergleichsbasis — ab 60 Sekunden muss die Fehlermeldung kommen (Swissdec F01_03).">
-                                <span style="color:#8b8b8b">Sek.</span>
-                            </label>
-                        </div>
-                        <div id="elmResult" style="font-size:12.5px"></div>
-                    </div>
-
-                    <!-- Foundation F07 SUA-Zertifikat (Walter/Cursor 24.09.2026) -->
-                    <div class="card" style="padding:16px 18px;max-width:980px;margin-top:16px">
-                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">F07 · SUA-Zertifikat</div>
-                        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px">
-                            Expertin itserv: Zertifikate <b>selbst in Foundation</b> erzeugen, <b>F07 vor F05</b>.
-                            Ablauf: 1) ERP erzeugen <i>oder</i> Swissdec-.pfx importieren · 2) Registrieren · 3) Status
-                            (processing / registered / verified / rejected / expired) · 4) bei
-                            <b>verified</b> mit Einmalpasswort signieren. Subject-DN aus der Quittung —
-                            nicht selbst erfinden. Schlüssel ausserhalb von <code>/var/www</code>.
-                            <br><b>Wichtig:</b> Gegen RefApps braucht das ERP ein von der Swissdec-CA
-                            signiertes .pfx (sonst Fault 100). Selbst erzeugen reicht nur zum lokalen Üben.
-                        </p>
-                        <div id="suaStatus" style="font-size:12.5px;margin-bottom:10px;color:#64748b">⏳ Status laden…</div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-                            <button type="button" class="btn-secondary" onclick="suaErpErzeugen()">🔑 ERP selbst erzeugen</button>
-                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer">
-                                Swissdec-.pfx
-                                <input type="file" id="suaPfxFile" accept=".pfx,.p12" style="font-size:12px">
-                            </label>
-                            <input type="password" id="suaPfxPwd" placeholder="PFX-Passwort" autocomplete="new-password"
-                                   style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:140px">
-                            <button type="button" class="btn-primary" onclick="suaErpPfxImport()">📥 .pfx importieren</button>
-                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer">
-                                Empfänger-.cer
-                                <input type="file" id="suaEmpfFile" accept=".cer,.pem,.crt,.der,application/x-x509-ca-cert,application/pkix-cert,*/*" style="font-size:12px" onchange="suaEmpfaengerUpload()">
-                            </label>
-                            <span style="font-size:11.5px;color:#8b8b8b">(ELMv6/RefApps: SwissdecDistributorELMv6Test.pem)</span>
-                        </div>
-                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px">
-                            <label style="font-size:11.5px;color:#475569">UID (CHE-…)
-                                <input type="text" id="suaUid" placeholder="CHE-123.456.789" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
-                            </label>
-                            <label style="font-size:11.5px;color:#475569">Firmenname
-                                <input type="text" id="suaFirma" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
-                            </label>
-                            <label style="font-size:11.5px;color:#475569">Kontakt
-                                <input type="text" id="suaKontakt" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
-                            </label>
-                            <label style="font-size:11.5px;color:#475569">PLZ
-                                <input type="text" id="suaPlz" value="6000" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
-                            </label>
-                            <label style="font-size:11.5px;color:#475569">Ort
-                                <input type="text" id="suaOrt" value="Luzern" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
-                            </label>
-                            <label style="font-size:11.5px;color:#475569">Adressat-Nr.
-                                <input type="text" id="suaAddressee" value="1234" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px" title="AddresseeIdentification (RefApps-Test oft 1234)">
-                            </label>
-                            <label style="font-size:11.5px;color:#475569">Versicherungszweig
-                                <select id="suaDomain" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px" title="sd:Domain — der Zweig des adressierten Versicherers. Das Synchronize verlangt ihn zwingend.">
-                                    <option value="UVG-LAA">UVG (Unfall)</option>
-                                    <option value="UVGZ-LAAC">UVGZ (Unfall-Zusatz)</option>
-                                    <option value="KTG-AMC">KTG (Krankentaggeld)</option>
-                                    <option value="BVG-LPP">BVG (Pensionskasse)</option>
-                                </select>
-                            </label>
-                        </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-                            <button type="button" class="btn-primary" onclick="suaRegister()">📤 Registrieren (F07_01)</button>
-                            <button type="button" class="btn-secondary" onclick="suaSynchronize()">🔄 Status abfragen</button>
-                            <!-- Standard AUS: Ein Testfall lässt sich laut Richtlinie (Anhang C.2.1.2)
-                                 «starten, jedoch nicht abschliessen» — er liefert NIE ein Zertifikat. -->
-                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer"
-                                   title="Nur zum Prüfen, ob eine Anmeldung möglich wäre. Ein Testfall wird nie abgeschlossen — es kommt statt der Quittung immer ein Fehlercode zurück.">
-                                <input type="checkbox" id="suaTestfall">
-                                nur als Testfall (kein Zertifikat möglich)
-                            </label>
-                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px">
-                                Einmalpasswort
-                                <input type="text" id="suaOtp" autocomplete="one-time-code"
-                                       style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:140px"
-                                       title="Erst bei Status verified — SignCertificate">
-                            </label>
-                            <button type="button" class="btn-primary" onclick="suaSignieren()">✍️ Signieren (F07_06)</button>
-                            <button type="button" class="btn-secondary" onclick="suaRenew()">♻ Erneuern (F07_07)</button>
-                        </div>
-                        <div id="suaResult" style="font-size:12.5px"></div>
-                    </div>
 
                     <div class="card" style="padding:16px 18px;max-width:980px;margin-top:16px">
                         <div style="font-weight:700;font-size:14px;margin-bottom:4px">E2 · Jahresmeldung AHV (XML)</div>
@@ -5841,6 +5697,189 @@
                             <span style="font-size:11.5px;color:#8b8b8b">Lohnzettel + Saldi der Muster AG löschen, Perioden wieder offen. Zulagen/5b bleiben. Danach ältesten Monat zuerst neu bestätigen.</span>
                         </div>
                         <div id="tmErgebnis" style="font-size:12.5px;color:#3f3f3f"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ SWISSDEC KOMMUNIKATIONS-TEST (Walter 29.09.2026) ═══
+                 Foundation-Test mit itserv am Bildschirm: Prüfpunkt wählen, itserv stellt im
+                 Swissdec-Werkzeug ein, in OneCrew auslösen, gemeinsam bewerten.
+                 Logik: js/swissdec-komm.js · Stand je Prüfpunkt: /api/elm/foundation/stand.
+                 Die Karten unter «Einrichtung» sind die früheren Verbindungs-/F07-Karten
+                 der Swissdec-Seite (IDs unverändert, nur verschoben). -->
+            <div class="page fixhead" id="page-swissdec-kommunikation">
+                <div class="page-head"><div style="display:flex;align-items:center;gap:14px">
+                    <img src="img/itserv-logo.jpg?v=20260929a" alt="itserv" style="width:48px;height:48px;border-radius:12px;box-shadow:0 4px 12px rgba(60,55,48,0.18)">
+                    <div>
+                        <h1 class="page-title">Swissdec · Kommunikations-Test</h1>
+                        <p class="page-sub">Foundation-Test mit itserv — Prüfpunkt wählen, Einstellung im Swissdec-Werkzeug abwarten, in OneCrew auslösen, Ergebnis gemeinsam bewerten.</p>
+                    </div>
+                </div></div>
+                <div class="page-body">
+                    <div id="kommKopf" class="komm-kopf"></div>
+                    <div id="kommTabs" class="komm-tabs sticky-section-head"></div>
+                    <div id="kommPaneTest" class="komm-grid">
+                        <div id="kommListe" class="komm-liste"></div>
+                        <div id="kommDetail" class="komm-detail"></div>
+                    </div>
+                    <div id="kommPaneArchiv" class="komm-grid komm-grid-archiv" style="display:none">
+                        <div class="komm-detail">
+                            <div class="komm-detail-titel" style="margin-bottom:4px">Archiv (F04)</div>
+                            <div class="komm-klein" style="margin-bottom:10px">Jede Anfrage signiert vor dem Verschlüsseln, jede Antwort nach dem Entschlüsseln — so wie sie über die Leitung ging, nur lesbar. Zeile anklicken zeigt die Datei.</div>
+                            <div id="kommArchivListe"></div>
+                        </div>
+                        <div id="kommArchivInhalt" class="komm-detail"><div class="komm-klein">Datei links auswählen.</div></div>
+                    </div>
+                    <div id="kommPaneEinrichtung" style="display:none">
+                    <!-- MonitoringID (Walter 27.09.2026): auf den Swissdec-Testsystemen zwingend,
+                         auf der Produktion muss sie leer bleiben — dort ist die Karte gesperrt. -->
+                    <div class="card" id="elmMonCard" style="padding:16px 18px;margin-bottom:16px;max-width:980px;display:none">
+                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">MonitoringID (Swissdec-Testsysteme)</div>
+                        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px">
+                            Sie ordnet unsere Übermittlungen auf den Testsystemen dem richtigen Benutzer zu — ohne sie
+                            findet man seine eigene Meldung dort nicht wieder. Sie geht als letztes Element in den Kopf
+                            <b>jeder</b> Meldung (Monat, Jahr, EMA). <b>Auf der Produktion bleibt sie leer</b>, dort wird
+                            sie nicht gebraucht.
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                            <div style="flex:1;min-width:260px">
+                                <label style="display:block;font-size:12px;color:#646464;margin-bottom:5px">MonitoringID (1–32 Zeichen)</label>
+                                <input id="elmMonInput" maxlength="32" placeholder="von Swissdec erhalten"
+                                       style="width:100%;padding:8px 11px;border:1px solid rgba(60,55,48,0.2);border-radius:10px;font-size:13px">
+                            </div>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:8px 18px" onclick="elmMonSpeichern()">Speichern</button>
+                        </div>
+                        <div id="elmMonInfo" style="font-size:12px;color:#8b8b8b;margin-top:8px"></div>
+                    </div>
+
+                    <div class="card" style="padding:16px 18px;max-width:980px">
+                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">Ziel und freier Test</div>
+                        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px">
+                            <b>Ping</b> prüft die Erreichbarkeit + vergleicht die Systemzeiten; <b>CheckInteroperability</b> testet Umlaute und Zahlformate über die ganze SOAP-Strecke.
+                            Wählbar sind zwei fest hinterlegte Ziele: der <b>Refapps Receiver</b> der Swissdec-Testinfrastruktur oder der produktive Distributor
+                            (Ping ist dort für Support-Zwecke erlaubt — nur manuell, nie automatisiert). Die Adressen sind im Programm hinterlegt und lassen sich
+                            hier nicht ändern; der Bereich ist dem Superadmin vorbehalten.
+                        </p>
+                        <!-- Foundation-Test F01_01 «Adressierung» (Walter 24.09.2026): Die Schranke ist die
+                             PERSON, nicht das Feld — diese Seite liegt im Bereich «Entwicklung», den nur der
+                             Super-Admin vergeben kann, und die Endpunkte prüfen IsSuperAdmin serverseitig.
+                             Darum bleibt die freie Eingabe: die Testinfrastruktur liefert wechselnde
+                             Receiver-Adressen. Die beiden Knöpfe füllen die bekannten Adressen ein. -->
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                            <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:4px;flex:1;min-width:420px">Endpoint-URL
+                                <input type="text" id="elmUrl" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%" placeholder="https://…/services/elm/SalaryDeclaration/V6">
+                            </label>
+                            <button type="button" data-elm-ziel="test" onclick="elmSetZiel('test')" style="background:#3f3f3f;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer" title="Refapps Receiver der Testinfrastruktur (ELMv6) — unser Übungsplatz">Refapps Receiver (Test)</button>
+                            <button type="button" data-elm-ziel="prod" onclick="elmSetZiel('prod')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#3f3f3f;cursor:pointer" title="Produktiver Distributor — nimmt ohne Zertifikat nur Ping an">Prod-Distributor</button>
+                        </div>
+                        <div style="font-size:12px;color:#8b8b8b;margin-bottom:10px">
+                            Nur für den Super-Admin erreichbar — ein Admin kann sich den Bereich «Entwicklung» weder selbst geben noch zuteilen (Swissdec F01_01).
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+                            <button type="button" class="btn-primary" onclick="elmPing()">📡 Ping</button>
+                            <button type="button" class="btn-secondary" onclick="elmCheckInterop()">🔤 CheckInteroperability</button>
+                            <!-- Foundation F03_02/F03_03 (Walter 24.09.2026): Der zweite Operand ist die
+                                 EINZIGE Eingabe dieses Aufrufs — die Umlaut-Zeichenkette und die erste Zahl
+                                 (9.99E11) stehen fest im Programm. Geprüft wird mit 0.01, 0.00 und
+                                 −999'000'000'000.00; gesendet wird immer mit zwei Nachkommastellen. -->
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;margin-left:8px">
+                                2. Operand
+                                <input type="text" id="elmOperand2" value="0.01"
+                                       style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:150px;text-align:right"
+                                       title="Zweiter Operand für CheckInteroperability. Wird immer mit zwei Nachkommastellen gesendet (Swissdec F03_03).">
+                            </label>
+                            <span style="display:flex;gap:4px">
+                                <button type="button" onclick="elmSetOperand('0.01')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">0.01</button>
+                                <button type="button" onclick="elmSetOperand('0.00')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">0.00</button>
+                                <button type="button" onclick="elmSetOperand('-999000000000.00')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">−999'000'000'000.00</button>
+                            </span>
+                            <!-- Foundation F01_03: simulierte Verstellung der Serveruhr. Der Wert gilt für
+                                 die GESENDETE Zeit und für die Vergleichsbasis — ab 60 Sekunden muss die
+                                 Fehlermeldung erscheinen. Gilt nur für den einzelnen Aufruf. -->
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;margin-left:8px">
+                                Test: Systemzeit verstellen
+                                <input type="number" id="elmVersatz" value="0" step="10" min="-86400" max="86400"
+                                       style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:100px;text-align:right"
+                                       title="Sekunden. Verstellt die gesendete Zeit UND unsere Vergleichsbasis — ab 60 Sekunden muss die Fehlermeldung kommen (Swissdec F01_03).">
+                                <span style="color:#8b8b8b">Sek.</span>
+                            </label>
+                        </div>
+                        <div id="elmResult" style="font-size:12.5px"></div>
+                    </div>
+
+                    <!-- Foundation F07 SUA-Zertifikat (Walter/Cursor 24.09.2026) -->
+                    <div class="card" style="padding:16px 18px;max-width:980px;margin-top:16px">
+                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">Zertifikate und SUA-Registrierung</div>
+                        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px">
+                            ERP-Zertifikat (Swissdec-.pfx), Empfängerzertifikat und die Daten für die Registrierung.
+                            Die einzelnen F07-Schritte löst du im Reiter <b>F07</b> aus; hier stehen dieselben Knöpfe für freie Versuche.
+                            Schlüssel liegen ausserhalb von <code>/var/www</code>.
+                        </p>
+                        <div id="suaStatus" style="font-size:12.5px;margin-bottom:10px;color:#64748b">⏳ Status laden…</div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+                            <button type="button" class="btn-secondary" onclick="suaErpErzeugen()">🔑 ERP selbst erzeugen</button>
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer">
+                                Swissdec-.pfx
+                                <input type="file" id="suaPfxFile" accept=".pfx,.p12" style="font-size:12px">
+                            </label>
+                            <input type="password" id="suaPfxPwd" placeholder="PFX-Passwort" autocomplete="new-password"
+                                   style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:140px">
+                            <button type="button" class="btn-primary" onclick="suaErpPfxImport()">📥 .pfx importieren</button>
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer">
+                                Empfänger-.cer
+                                <input type="file" id="suaEmpfFile" accept=".cer,.pem,.crt,.der,application/x-x509-ca-cert,application/pkix-cert,*/*" style="font-size:12px" onchange="suaEmpfaengerUpload()">
+                            </label>
+                            <span style="font-size:11.5px;color:#8b8b8b">(ELMv6/RefApps: SwissdecDistributorELMv6Test.pem)</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px">
+                            <label style="font-size:11.5px;color:#475569">UID (CHE-…)
+                                <input type="text" id="suaUid" placeholder="CHE-123.456.789" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
+                            </label>
+                            <label style="font-size:11.5px;color:#475569">Firmenname
+                                <input type="text" id="suaFirma" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
+                            </label>
+                            <label style="font-size:11.5px;color:#475569">Kontakt
+                                <input type="text" id="suaKontakt" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
+                            </label>
+                            <label style="font-size:11.5px;color:#475569">PLZ
+                                <input type="text" id="suaPlz" value="6000" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
+                            </label>
+                            <label style="font-size:11.5px;color:#475569">Ort
+                                <input type="text" id="suaOrt" value="Luzern" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px">
+                            </label>
+                            <label style="font-size:11.5px;color:#475569">Adressat-Nr.
+                                <input type="text" id="suaAddressee" value="1234" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px" title="AddresseeIdentification (RefApps-Test oft 1234)">
+                            </label>
+                            <label style="font-size:11.5px;color:#475569">Versicherungszweig
+                                <select id="suaDomain" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px" title="sd:Domain — der Zweig des adressierten Versicherers. Das Synchronize verlangt ihn zwingend.">
+                                    <option value="UVG-LAA">UVG (Unfall)</option>
+                                    <option value="UVGZ-LAAC">UVGZ (Unfall-Zusatz)</option>
+                                    <option value="KTG-AMC">KTG (Krankentaggeld)</option>
+                                    <option value="BVG-LPP">BVG (Pensionskasse)</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+                            <button type="button" class="btn-primary" onclick="suaRegister()">📤 Registrieren (F07_01)</button>
+                            <button type="button" class="btn-secondary" onclick="suaSynchronize()">🔄 Status abfragen</button>
+                            <!-- Standard AUS: Ein Testfall lässt sich laut Richtlinie (Anhang C.2.1.2)
+                                 «starten, jedoch nicht abschliessen» — er liefert NIE ein Zertifikat. -->
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer"
+                                   title="Nur zum Prüfen, ob eine Anmeldung möglich wäre. Ein Testfall wird nie abgeschlossen — es kommt statt der Quittung immer ein Fehlercode zurück.">
+                                <input type="checkbox" id="suaTestfall">
+                                nur als Testfall (kein Zertifikat möglich)
+                            </label>
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px">
+                                Einmalpasswort
+                                <input type="text" id="suaOtp" autocomplete="one-time-code"
+                                       style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:140px"
+                                       title="Erst bei Status verified — SignCertificate">
+                            </label>
+                            <button type="button" class="btn-primary" onclick="suaSignieren()">✍️ Signieren (F07_06)</button>
+                            <button type="button" class="btn-secondary" onclick="suaRenew()">♻ Erneuern (F07_07)</button>
+                        </div>
+                        <div id="suaResult" style="font-size:12.5px"></div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -9765,7 +9804,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260927a"></script>
+<script src="js/app-core.js?v=20260929a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260908a"></script>
@@ -9839,7 +9878,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260929a"></script>
+<script src="js/swissdec.js?v=20260929b"></script>
+<script src="js/swissdec-komm.js?v=20260929b"></script>
 <script src="js/hauptsitze.js?v=20260927a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>

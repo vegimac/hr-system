@@ -859,4 +859,57 @@ public class ElmController : ControllerBase
         _store.SpeichereEmpfaenger(ms.ToArray());
         return Ok(new { ok = true, message = "Empfängerzertifikat gespeichert — ab jetzt werden Requests verschlüsselt." });
     }
+
+    // ── Kommunikations-Test: Stand je Foundation-Prüfpunkt (Walter 29.09.2026) ──
+
+    [HttpGet("foundation/stand")]
+    public async Task<IActionResult> FoundationStand()
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        return Ok(_store.LadeFoundationStand());
+    }
+
+    public record ElmFoundationDto(string? Status, string? Notiz, string? LetzterVersuch);
+
+    private static readonly Regex PruefpunktId = new(@"^F0[1-8]_[0-9]{2}$");
+
+    [HttpPut("foundation/stand/{id}")]
+    public async Task<IActionResult> FoundationStandSetzen(string id, [FromBody] ElmFoundationDto dto)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        if (!PruefpunktId.IsMatch(id ?? ""))
+            return BadRequest(new { error = "ID_UNGUELTIG", message = "Prüfpunkt-ID im Format F07_06 erwartet." });
+        var alt = _store.LadeFoundationStand().GetValueOrDefault(id!) ?? new ElmFoundationEintrag();
+        var status = (dto.Status ?? alt.Status).Trim().ToLowerInvariant();
+        if (status is not ("ok" or "fehler" or "offen"))
+            return BadRequest(new { error = "STATUS_UNGUELTIG", message = "Status «ok», «fehler» oder «offen»." });
+        alt.Status = status;
+        if (dto.Notiz != null) alt.Notiz = dto.Notiz.Trim().Length == 0 ? null : dto.Notiz.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.LetzterVersuch))
+        {
+            alt.LetzterVersuch = dto.LetzterVersuch.Trim();
+            alt.LetzterVersuchAm = DateTime.Now;
+        }
+        alt.GeaendertAm = DateTime.Now;
+        _store.SpeichereFoundationEintrag(id!, alt);
+        return Ok(alt);
+    }
+
+    /// <summary>Foundation F04: archivierte Klartext-Nachrichten (signiert, unverschlüsselt).</summary>
+    [HttpGet("archiv")]
+    public async Task<IActionResult> Archiv()
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        return Ok(_store.ListeArchiv());
+    }
+
+    [HttpGet("archiv/{name}")]
+    public async Task<IActionResult> ArchivDatei(string name)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var inhalt = _store.LeseArchiv(name);
+        return inhalt == null
+            ? NotFound(new { error = "NICHT_GEFUNDEN", message = "Archivdatei nicht gefunden." })
+            : Content(inhalt, "application/xml; charset=utf-8");
+    }
 }

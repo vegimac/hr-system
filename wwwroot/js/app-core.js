@@ -1378,7 +1378,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
 // Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
 // Sidebar-Eintrag «Entwicklung» aktiv und bekommen denselben Zurueck-Button
 // wie die System-Unterseiten — nur eben zurueck nach «entwicklung».
-const _devSubPages = ['swissdec', 'programmbegruessung'];
+const _devSubPages = ['swissdec', 'swissdec-kommunikation', 'programmbegruessung'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
@@ -1571,6 +1571,7 @@ function showPage(name) {
     if (name === 'wochenstunden-report' && typeof wsInit === 'function') wsInit();
     if (name === 'mtp-stunden-report' && typeof mtpwInit === 'function') mtpwInit();
     if (name === 'swissdec' && typeof swissdecInit === 'function') swissdecInit();
+    if (name === 'swissdec-kommunikation' && typeof kommInit === 'function') kommInit();
     if (name === 'programmbegruessung' && typeof pbgInit === 'function') pbgInit();
     if (name === 'exit-survey-report' && typeof esInit === 'function') esInit();
     if (name === 'absenz-kalender') akalInit();

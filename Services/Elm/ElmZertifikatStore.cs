@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml;
 using Microsoft.Extensions.Configuration;
 
@@ -333,6 +334,58 @@ public class ElmZertifikatStore
         if (File.Exists(p)) File.Delete(p);
     }
 
+    // ── Foundation-Stand je Prüfpunkt (Walter 29.09.2026) ────────────────────
+    // Bewusst Datei statt DB: gehört zur Testinfrastruktur wie Zertifikate und Fall.
+
+    private const string FoundationDatei = "foundation-stand.json";
+
+    public Dictionary<string, ElmFoundationEintrag> LadeFoundationStand()
+    {
+        var p = Path.Combine(_root, FoundationDatei);
+        if (!File.Exists(p)) return new();
+        try { return JsonSerializer.Deserialize<Dictionary<string, ElmFoundationEintrag>>(File.ReadAllText(p)) ?? new(); }
+        catch { return new(); }
+    }
+
+    public void SpeichereFoundationEintrag(string id, ElmFoundationEintrag eintrag)
+    {
+        var stand = LadeFoundationStand();
+        stand[id] = eintrag;
+        var p = Path.Combine(_root, FoundationDatei);
+        File.WriteAllText(p, JsonSerializer.Serialize(stand, new JsonSerializerOptions { WriteIndented = true }));
+        VersucheRechte600(p);
+    }
+
+    // ── Archiv lesen (Foundation F04_01_2: Archiv-Dateien im ERP prüfen) ─────
+
+    private static readonly Regex ArchivName = new(@"^[0-9]{8}-[0-9]{6}-[A-Za-z0-9_\-]+\.xml$");
+
+    public List<ElmArchivDatei> ListeArchiv(int max = 60)
+    {
+        var dir = Path.Combine(_root, "archiv");
+        if (!Directory.Exists(dir)) return new();
+        return new DirectoryInfo(dir).GetFiles("*.xml")
+            .OrderByDescending(f => f.Name)
+            .Take(max)
+            .Select(f =>
+            {
+                var inhalt = "";
+                try { inhalt = File.ReadAllText(f.FullName); } catch { }
+                return new ElmArchivDatei(f.Name, f.LastWriteTime, f.Length,
+                    inhalt.Contains("SignatureConfirmation", StringComparison.Ordinal),
+                    inhalt.Contains("EncryptedData", StringComparison.Ordinal),
+                    Regex.Matches(inhalt, @"<(\w+:)?Signature[\s>]").Count);
+            })
+            .ToList();
+    }
+
+    public string? LeseArchiv(string name)
+    {
+        if (!ArchivName.IsMatch(name ?? "")) return null;
+        var p = Path.Combine(_root, "archiv", name!);
+        return File.Exists(p) ? File.ReadAllText(p) : null;
+    }
+
     private static void VersucheRechte600(string pfad)
     {
         try
@@ -344,6 +397,21 @@ public class ElmZertifikatStore
         catch { /* Rechte best-effort */ }
     }
 }
+
+/// <summary>Stand eines Foundation-Prüfpunkts im Kommunikations-Test (Walter 29.09.2026).</summary>
+public class ElmFoundationEintrag
+{
+    /// <summary>«ok», «fehler» oder «offen».</summary>
+    public string Status { get; set; } = "offen";
+    public string? Notiz { get; set; }
+    /// <summary>Kurzfassung des letzten Versuchs (was OneCrew angezeigt hat).</summary>
+    public string? LetzterVersuch { get; set; }
+    public DateTime? LetzterVersuchAm { get; set; }
+    public DateTime GeaendertAm { get; set; } = DateTime.Now;
+}
+
+public record ElmArchivDatei(string Name, DateTime Zeit, long Bytes,
+    bool SignatureConfirmation, bool Verschluesselt, int Signaturen);
 
 /// <summary>Persistierter Stand eines SUA-Antrags (F07).</summary>
 public class ElmSuaFall

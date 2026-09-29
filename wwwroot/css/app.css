@@ -12739,3 +12739,119 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         body.theme-dark .vc-wunsch-tile h4 { color: #94a3b8; }
         body.theme-dark .vc-wunsch-tile.on h4,
         body.theme-dark .vc-wunsch-tile p { color: #f2f5f8; }
+
+        /* ── Swissdec Kommunikations-Test (Walter 29.09.2026) ─────────────────
+           Liquid Glass: warme Karten, Kohle-Pille primär, Glas-Pille sekundär.
+           Grün/Rot nur für den Prüf-Status. js/swissdec-komm.js */
+        .komm-kopf { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; max-width: 1360px; }
+        .komm-kachel {
+            background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.62); border-radius: 14px;
+            padding: 10px 14px; font-size: 12.5px; color: #3f3f3f;
+            box-shadow: 0 4px 14px rgba(60,55,48,0.10); border-left: 4px solid rgba(60,55,48,0.18);
+        }
+        .komm-kachel-ok { border-left-color: #7fa37f; }
+        .komm-kachel-warn { border-left-color: #d6a756; }
+        .komm-kachel-rot { border-left-color: #c46a6a; }
+        .komm-kachel-titel { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #8b8b8b; font-weight: 700; margin-bottom: 4px; }
+        .komm-klein { font-size: 11.5px; color: #8b8b8b; word-break: break-all; }
+        .komm-warn { color: #92400e; font-weight: 600; }
+        .komm-rot { color: #b91c1c; font-weight: 600; }
+        .komm-gruen { color: #3f7a3f; font-weight: 600; }
+
+        .komm-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 0 12px; max-width: 1360px; }
+        .komm-tab {
+            background: rgba(255,255,255,0.45); border: 1px solid rgba(60,55,48,0.18); border-radius: 12px;
+            padding: 6px 12px; font-size: 12.5px; color: #3f3f3f; cursor: pointer; transition: transform .15s, box-shadow .15s;
+        }
+        .komm-tab:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(60,55,48,0.12); }
+        .komm-tab.aktiv { background: #3f3f3f; border-color: #3f3f3f; color: #fff; }
+        .komm-tab-zahl { font-size: 11px; opacity: .7; margin-left: 4px; }
+        .komm-tab-trenner { width: 1px; height: 22px; background: rgba(60,55,48,0.2); margin: 0 6px; }
+
+        .komm-grid { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; align-items: start; max-width: 1360px; }
+        .komm-grid-archiv { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+        .komm-liste {
+            display: flex; flex-direction: column; gap: 4px; padding: 8px;
+            background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+            border-radius: 16px; box-shadow: 0 6px 18px rgba(60,55,48,0.14);
+        }
+        .komm-zeile {
+            display: flex; align-items: center; gap: 8px; text-align: left; width: 100%;
+            background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 7px 10px;
+            font-size: 12.5px; color: #3f3f3f; cursor: pointer;
+        }
+        .komm-zeile:hover { background: rgba(255,255,255,0.45); }
+        .komm-zeile.aktiv { background: #fff; border-color: rgba(255,255,255,0.95); box-shadow: 0 2px 6px rgba(60,55,48,0.13); }
+        .komm-zeile.leer { color: #9a968e; }
+        .komm-id { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: #646464; min-width: 54px; }
+        .komm-titel { flex: 1; line-height: 1.3; }
+        .komm-werkzeug-marke { font-size: 12px; opacity: .75; }
+        .komm-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 10px; background: rgba(60,55,48,0.22); }
+        .komm-dot-ok { background: #6f9e6f; }
+        .komm-dot-fehler { background: #c45a5a; }
+        .komm-dot-leer { background: transparent; border: 1.5px dashed rgba(60,55,48,0.3); }
+
+        .komm-detail {
+            background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+            border-radius: 16px; padding: 16px 18px; box-shadow: 0 6px 18px rgba(60,55,48,0.14); font-size: 13px; color: #3f3f3f;
+        }
+        .komm-detail-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+        .komm-detail-id { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #646464; }
+        .komm-detail-id span { font-family: inherit; color: #8b8b8b; }
+        .komm-detail-titel { font-size: 17px; font-weight: 700; color: #2f2f2f; margin-top: 2px; }
+        .komm-status { font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; white-space: nowrap;
+            background: rgba(255,255,255,0.6); border: 1px solid rgba(60,55,48,0.18); color: #646464; }
+        .komm-status-ok { background: #e3eee3; border-color: #b8ccb8; color: #3f5540; }
+        .komm-status-fehler { background: #fbe9e9; border-color: #f0c4c4; color: #8f2a2a; }
+        .komm-status-leer { border-style: dashed; color: #9a968e; }
+
+        .komm-schritt { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid rgba(60,55,48,0.10); }
+        .komm-schritt-nr { flex: 0 0 26px; height: 26px; border-radius: 50%; background: #3f3f3f; color: #fff;
+            font-weight: 700; font-size: 12.5px; display: flex; align-items: center; justify-content: center; }
+        .komm-schritt-titel { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #8b8b8b; font-weight: 700; margin-bottom: 4px; }
+        .komm-its { width: 16px; height: 16px; border-radius: 4px; vertical-align: -3px; margin-right: 6px; }
+        .komm-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .komm-hinweis { margin-top: 6px; background: #fdf1dc; border: 1px solid #f3d9a4; color: #7c5a10; border-radius: 10px; padding: 7px 10px; font-size: 12px; }
+        .komm-otp { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #646464; }
+        .komm-otp input, .komm-bewertung textarea {
+            background: #fff; border: 1px solid rgba(255,255,255,0.95); border-radius: 10px; padding: 7px 10px; font-size: 13px;
+            box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);
+        }
+        .komm-otp input { width: 190px; font-family: ui-monospace, Menlo, monospace; }
+        .komm-btn-primaer, .komm-btn-sekundaer, .komm-btn-ok, .komm-btn-fehler {
+            border-radius: 12px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+            transition: transform .15s, box-shadow .15s;
+        }
+        .komm-btn-primaer { background: #3f3f3f; color: #fff; border: 1px solid #3f3f3f; }
+        .komm-btn-sekundaer { background: rgba(255,255,255,0.55); color: #3f3f3f; border: 1px solid rgba(60,55,48,0.25); }
+        .komm-btn-ok { background: rgba(255,255,255,0.55); color: #3f5540; border: 1px solid #b8ccb8; }
+        .komm-btn-fehler { background: rgba(255,255,255,0.55); color: #8f2a2a; border: 1px solid #f0c4c4; }
+        .komm-btn-primaer:hover, .komm-btn-sekundaer:hover, .komm-btn-ok:hover, .komm-btn-fehler:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(60,55,48,0.16); }
+        .komm-btn-ok.gewaehlt { background: #6f9e6f; border-color: #6f9e6f; color: #fff; }
+        .komm-btn-fehler.gewaehlt { background: #c45a5a; border-color: #c45a5a; color: #fff; }
+        .komm-btn-sekundaer.gewaehlt { background: #3f3f3f; border-color: #3f3f3f; color: #fff; }
+        .komm-ergebnis { margin: 6px 0 4px; font-size: 12.5px; }
+        .komm-ergebnis:empty { display: none; }
+        .komm-bewertung { border-top: 1px solid rgba(60,55,48,0.10); padding-top: 10px; margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+        .komm-bewertung textarea { width: 100%; resize: vertical; font-family: inherit; }
+
+        .komm-archiv-summe { font-size: 12.5px; margin-bottom: 8px; }
+        .komm-archiv { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .komm-archiv th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: #8b8b8b; padding: 4px 6px; }
+        .komm-archiv td { padding: 5px 6px; border-top: 1px solid rgba(60,55,48,0.10); }
+        .komm-archiv tbody tr { cursor: pointer; }
+        .komm-archiv tbody tr:hover { background: rgba(255,255,255,0.45); }
+        .komm-archiv tbody tr.aktiv { background: #fff; }
+        .komm-xml { background: #1f2937; color: #d1fae5; padding: 10px 12px; border-radius: 10px; max-height: 70vh; overflow: auto; font-size: 11px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+        #kommPaneEinrichtung .card { max-width: 1100px !important; }
+
+        body.theme-dark .komm-kachel, body.theme-dark .komm-tab, body.theme-dark .komm-btn-sekundaer { background: rgba(51,65,85,0.6); color: #e2e8f0; border-color: rgba(148,163,184,0.3); }
+        body.theme-dark .komm-liste, body.theme-dark .komm-detail { background: #1e293b; color: #e2e8f0; }
+        body.theme-dark .komm-zeile { color: #e2e8f0; }
+        body.theme-dark .komm-zeile.aktiv { background: #334155; }
+        body.theme-dark .komm-detail-titel { color: #f1f5f9; }
+        body.theme-dark .komm-tab.aktiv { background: #e2e8f0; color: #1e293b; }
+        @media (max-width: 1100px) {
+            .komm-kopf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .komm-grid, .komm-grid-archiv { grid-template-columns: 1fr; }
+        }

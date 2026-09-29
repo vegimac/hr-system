@@ -31,6 +31,26 @@ er sich aber erst, wenn der Aufruf durchkommt (F03 braucht die Signatur aus F02)
 Fast alles ist `CHECKED_BY_EXPERT` — der Experte prüft im Gespräch; dieses Protokoll ist die
 Antwort auf «wie habt ihr das gelöst?».
 
+## Oberfläche für den Termin mit itserv (Walter 29.09.2026)
+
+Unter Entwicklung → Swissdec gibt es zwei Kacheln.
+
+- **Kommunikations-Test** (`page-swissdec-kommunikation`, `js/swissdec-komm.js`)
+  - Oben stehen Ziel, ERP- und SUA-Zertifikat (mit Ablaufdatum), MonitoringID und Fortschritt.
+  - Die Reiter F01–F08 enthalten je eine Liste der Prüfpunkte.
+  - Jeder Prüfpunkt führt in drei Schritten: ① was itserv im Werkzeug einstellt,
+    ② Knopf in OneCrew, ③ was erscheinen muss. Darunter stehen das Ergebnis und die
+    Bewertung (Bestanden / Nicht bestanden / Offen mit Notiz).
+  - Jeder Versuch wird als Kurzfassung gespeichert (`foundation-stand.json` neben den
+    Zertifikaten, `GET/PUT /api/elm/foundation/stand`).
+  - Reiter «Archiv» (F04): archivierte Nachrichten mit Signaturen, Verschlüsselung und
+    SignatureConfirmation, anklickbar (`GET /api/elm/archiv`).
+  - Reiter «Einrichtung»: die bisherigen Karten Verbindung, Zertifikate/SUA und MonitoringID.
+- **Lohn-Test** (`page-swissdec`): Etappenplan, Jahresmeldung, Stammdaten, Testmandant
+  Muster AG, Verweis auf ELM-Meldungen.
+
+Die Katalog-Texte in `swissdec-komm.js` müssen mit dem Katalog unten übereinstimmen.
+
 ## Zwei Zertifikate (wichtig — Stand Expertin itserv 24.09.2026)
 
 **Auskunft Expertin (Walter, Call/Mail 24.09.2026 morgens):**
