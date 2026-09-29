@@ -537,6 +537,15 @@ async function suaStatusLaden() {
         const erp = j.erp || {};
         const fall = j.fall;
         const hs = j.hauptsitz;
+        // Nach einem Neuladen sind die Felder leer — die Werte der letzten
+        // Registrierung stehen im Fall (vor allem der Kontakt, den kein Stammdatum liefert).
+        if (fall) {
+            [['suaUid', fall.uid], ['suaFirma', fall.companyName], ['suaKontakt', fall.contactName]]
+                .forEach(([id, wert]) => {
+                    const feld = document.getElementById(id);
+                    if (feld && !feld.value && wert) feld.value = wert;
+                });
+        }
         if (hs) {
             const uidEl = document.getElementById('suaUid');
             const firmaEl = document.getElementById('suaFirma');
@@ -649,7 +658,15 @@ async function suaEmpfaengerUpload() {
 }
 
 function _suaZielBody(extra) {
-    const url = (document.getElementById('elmUrl')?.value || '').trim();
+    let url = (document.getElementById('elmUrl')?.value || '').trim();
+    if (!url) {
+        // Leeres Feld nach einem Neuladen: zuletzt benutzte Adresse, sonst der Refapps
+        // Receiver — nie still der Prod-Distributor.
+        try { url = localStorage.getItem('elmEndpointUrl') || ''; } catch (e) { /* egal */ }
+        url = url || _elmZielUrls.test || '';
+        const el = document.getElementById('elmUrl');
+        if (el && url) el.value = url;
+    }
     return Object.assign({ url }, extra || {});
 }
 
@@ -723,7 +740,7 @@ function _suaZeigeErgebnis(j, outId) {
     // DescriptionCode und Beschreibung. Vorher stand da nur «Abgewiesen», und der
     // Grund (z.B. 2052 = Antrag nicht plausibel) lag im Roh-XML vergraben.
     const zeilen = j.meldungen || [];
-    const schlecht = !!(e.faultCode || e.faultText);
+    const schlecht = !!(e.faultCode || e.faultText || j.abgewiesen);
     const kopf = [j.code, j.descriptionCode].filter(Boolean).join(' · ');
     const meldeBlock = (zeilen.length || kopf)
         ? `<div style="background:${schlecht ? '#fef2f2' : '#eef2f7'};border:1px solid ${schlecht ? '#fecaca' : '#cbd5e1'};
@@ -743,8 +760,11 @@ function _suaZeigeErgebnis(j, outId) {
         });
     }
 
+    const stateSchlecht = /^(rejected|expired)$/i.test(j.state || '');
     const meldung = j.meldung
-        ? `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;margin-bottom:8px"><b>${esc(j.meldung)}</b></div>`
+        ? (schlecht || stateSchlecht
+            ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px"><b>✗ ${esc(j.meldung)}</b></div>`
+            : `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;margin-bottom:8px"><b>${esc(j.meldung)}</b></div>`)
         : '';
     const state = j.state
         ? `<div style="margin-bottom:6px">Status: <b>${esc(j.state)}</b></div>` : '';

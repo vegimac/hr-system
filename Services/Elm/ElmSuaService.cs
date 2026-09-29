@@ -70,6 +70,13 @@ public class ElmSuaService
         /// <summary>Erster DescriptionCode — der, den Swissdec im Gespräch nennt.</summary>
         public string? DescriptionCode => Zeilen.FirstOrDefault(z => z.Code != null)?.Code;
         public string? Description => Zeilen.FirstOrDefault(z => !string.IsNullOrWhiteSpace(z.Text))?.Text;
+
+        /// <summary>
+        /// Die Antwort trägt ein <c>Error</c> (ErrorResponseType) statt Success/Case —
+        /// der Empfänger hat abgewiesen, obwohl HTTP 200 und kein SOAP-Fault kam
+        /// (z.B. 3800 «Forced ConsumerFault», Foundation F07_02).
+        /// </summary>
+        public bool Abgewiesen { get; init; }
     }
 
     /// <summary>Code, mit dem Swissdec einen unplausiblen Antrag abweist.</summary>
@@ -86,11 +93,17 @@ public class ElmSuaService
     {
         var zeilen = new List<SuaMeldung>();
         string? otp = null;
+        var abgewiesen = false;
         if (!string.IsNullOrWhiteSpace(xml))
         {
             try
             {
-                foreach (var n in XDocument.Parse(xml).Descendants()
+                var doc = XDocument.Parse(xml);
+                // «Error» gibt es auch als Notification-Gruppe in einer Quittung; die
+                // Abweisung erkennt man am Pflichtfeld EndUserInformation des ErrorResponseType.
+                abgewiesen = doc.Descendants().Any(e => e.Name.LocalName == "Error"
+                    && e.Elements().Any(k => k.Name.LocalName == "EndUserInformation"));
+                foreach (var n in doc.Descendants()
                              .Where(e => e.Name.LocalName == "Notification"))
                 {
                     string? V(string name) => n.Elements()
@@ -104,7 +117,7 @@ public class ElmSuaService
             }
             catch { /* unlesbar: dann bleibt es beim Roh-XML in der Anzeige */ }
         }
-        return new SuaMeldungen(faultCode, zeilen, otp);
+        return new SuaMeldungen(faultCode, zeilen, otp) { Abgewiesen = abgewiesen };
     }
 
     /// <summary>
@@ -218,6 +231,7 @@ public class ElmSuaService
             { Meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode) };
         }
         var (requestId, key, password) = ParseRegisterAntwort(call.ResponseXml);
+        var meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode);
 
         ElmSuaFall? fall = null;
         string? meldung = null;
@@ -232,6 +246,7 @@ public class ElmSuaService
                 AddresseeIdentification = addresseeId,
                 Uid = uid,
                 CompanyName = name,
+                ContactName = kontakt,
                 AlsTestfall = dto.AlsTestfall,
                 Domain = domain,
                 LetzterState = null,
@@ -248,13 +263,20 @@ public class ElmSuaService
         {
             meldung = call.Error ?? "Register ohne Success-Antwort.";
         }
+        else if (meldungen.Abgewiesen)
+        {
+            var grund = string.Join(": ", new[] { meldungen.DescriptionCode, meldungen.Description }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+            meldung = "Registrierung abgewiesen" + (grund.Length > 0 ? $" — {grund}" : "")
+                + ". Kein neuer Fall gespeichert, der bisherige bleibt.";
+        }
         else
         {
             meldung = "Antwort erhalten, aber keine CertificateRequestID/Credentials gefunden — Antwort-XML prüfen.";
         }
 
         return new SuaErgebnis(call, null, meldung, fall ?? _store.LadeFall(), _store.HatSuaZertifikat())
-        { Meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode) };
+        { Meldungen = meldungen };
     }
 
     /// <summary>
@@ -383,6 +405,9 @@ public class ElmSuaService
         string? meldung = geparst.Fehler ?? call.FaultText;
         if (geparst.State != null)
             meldung = StateMeldung(geparst.State);
+        else if (string.IsNullOrWhiteSpace(meldung) && meldungen.Abgewiesen)
+            meldung = "Abgewiesen — " + string.Join(": ", new[] { meldungen.DescriptionCode, meldungen.Description }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
         // Nur erwähnen, wenn es mehr als den ersten, angenommenen Versuch gab.
         if (versuche.Count > 1 || (versuche.Count == 1 && IstNichtPlausibel(meldungen)))
         {

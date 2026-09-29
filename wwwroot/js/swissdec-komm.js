@@ -20,6 +20,9 @@ const KOMM_GRUPPEN = [
 
 const _kInterop = (label = 'CheckInteroperability senden', operand = '0.01') => ({ label, art: 'interop', operand });
 const _kFault = (erwartet) => `Oben rot «✗ Antwort abgelehnt (WS-Security)», darunter ${erwartet}.`;
+// Die SUA-Einstellungen liegen NICHT unter «SUA 1.0/1.1» (andere Schema-Version, Fehler 1000),
+// sondern beim ELM-6-Empfänger, an den OneCrew registriert (Probe 29.09.2026).
+const _kSuaEmpf = 'ELM → ELM 6.x → Zeile Reference Receiver · UVG-LAA · 1234 (Active) → RegisterOrganizationAuthentication =';
 
 // werkzeug = was itserv im Swissdec-Werkzeug einstellt (TOOL_SETTING); null = nichts.
 // gebaut:false = in OneCrew noch nicht vorführbar.
@@ -146,20 +149,25 @@ const KOMM_KATALOG = [
       hinweis: 'Jede Registrierung startet einen neuen Fall. Die Daten (UID, Firma …) stehen unter «Einrichtung».',
       vorbelegt: { status: 'ok', notiz: 'CertificateRequestID 18d9cc06ddbe68ea9' } },
     { id: 'F07_02', titel: 'Register → Fault anzeigen', typ: 'TOOL · REGISTER · UI',
-      werkzeug: 'Fault für die Registrierung einstellen.', aktionen: [{ label: 'Registrieren', art: 'register' }],
-      erwartet: 'Rot mit Code, DescriptionCode und Text oben im Ergebnis.',
-      hinweis: 'Startet einen neuen Fall: danach für F07_03–F07_05 weiterverwenden.' },
+      werkzeug: `${_kSuaEmpf} «SwissdecFault» (oder «SOAPFault»).`, aktionen: [{ label: 'Registrieren', art: 'register' }],
+      erwartet: 'Rot «✗ Registrierung abgewiesen — 3800: Forced ConsumerFault …» mit Code und Text oben im Ergebnis.',
+      hinweis: 'Bei einem Fault speichert OneCrew keinen neuen Fall — der bisherige bleibt.' },
     { id: 'F07_03', titel: 'Synchronize → Processing', typ: 'TOOL · SYNC · UI',
-      werkzeug: 'Status «Processing» einstellen.', aktionen: [{ label: 'Status abfragen', art: 'status' }],
-      erwartet: '«Status: processing — Anfrage in Bearbeitung.»' },
+      werkzeug: `${_kSuaEmpf} «RegisterProcessing».`, aktionen: [{ label: 'Status abfragen', art: 'status' }],
+      erwartet: '«Status: processing — Anfrage in Bearbeitung.»',
+      hinweis: 'Braucht einen Fall, der noch nicht «verified» war: vorher mit derselben Einstellung registrieren (F07_01).',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 22:16 Probe' } },
     { id: 'F07_04', titel: 'Synchronize → Registered', typ: 'TOOL · SYNC · UI',
-      werkzeug: 'Status «Registered» einstellen.', aktionen: [{ label: 'Status abfragen', art: 'status' }],
-      erwartet: '«Status: registered — registriert, nächster Schritt folgt.»' },
+      werkzeug: 'Offen: Der Refapps Receiver bietet nur Processing / Verification / Rejected.', aktionen: [{ label: 'Status abfragen', art: 'status' }],
+      erwartet: '«Status: registered — registriert, nächster Schritt folgt.»',
+      hinweis: 'Probe 29.09.2026: Mit «RegisterVerification» kommt direkt «verified». itserv fragen, wie «registered» zu erzeugen ist.' },
     { id: 'F07_05', titel: 'Synchronize → Rejected', typ: 'TOOL · SYNC · UI',
-      werkzeug: 'Status «Rejected» einstellen.', aktionen: [{ label: 'Status abfragen', art: 'status' }],
-      erwartet: '«Status: rejected — Anfrage abgelehnt.» in Rot.' },
+      werkzeug: `${_kSuaEmpf} «RegisterRejected».`, aktionen: [{ label: 'Status abfragen', art: 'status' }],
+      erwartet: '«Status: rejected — Anfrage abgelehnt.» in Rot.',
+      hinweis: 'Ein Fall, der einmal «verified» war, fällt nicht mehr zurück: mit «RegisterRejected» neu registrieren, dann abfragen.',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 22:35 Probe' } },
     { id: 'F07_06', titel: 'Verified → SignCertificate', typ: 'TOOL · SIGN · UI',
-      werkzeug: 'Status «Verified» einstellen (liefert das Einmalpasswort).',
+      werkzeug: `${_kSuaEmpf} «RegisterVerification» (Standard, liefert das Einmalpasswort).`,
       aktionen: [{ label: 'Status abfragen', art: 'status' }, { label: 'Signieren', art: 'sign' }],
       erwartet: '«SUA-Zertifikat ausgestellt und gespeichert, gültig bis …».',
       hinweis: 'Signieren verbraucht das Einmalpasswort. Vorher «Status abfragen», damit die Quittung bestätigt wird.',

@@ -484,6 +484,8 @@ public class ElmSuaFall
     public string? AddresseeIdentification { get; set; }
     public string? Uid { get; set; }
     public string? CompanyName { get; set; }
+    /// <summary>Kontakt der Registrierung — belegt das Feld nach einem Neuladen wieder vor.</summary>
+    public string? ContactName { get; set; }
     /// <summary>Subject-DN-Teile aus der Quittung (für den CSR).</summary>
     public ElmSuaSubject? Subject { get; set; }
 

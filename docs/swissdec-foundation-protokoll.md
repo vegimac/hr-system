@@ -373,6 +373,41 @@ Unterscheidung über `security.art == "SignaturFehlt"`). Ziel wird auch bei eing
 Adresse als «Refapps Receiver (Testinfrastruktur)» erkannt; Feld «2. Operand» formatiert beim
 Verlassen auf zwei Stellen; Bewertung steht über dem Ergebnis.
 
+### F07-Probe ohne itserv (29.09.2026, 21:45–22:45)
+
+**Wo die SUA-Zustände eingestellt werden:** NICHT unter «SUA → SUA 1.0 / SUA 1.1» — dort
+angelegte Empfänger 1234 antworten mit **1000** «unterstützt die Schema-Version elm-v6 nicht».
+Richtig ist **ELM → ELM 6.x → Create → Reference Receiver · UVG-LAA · ReceiverID 1234 · Active**.
+Die Zeile hat die Option **RegisterOrganizationAuthentication** mit SOAPFault / SwissdecFault /
+RegisterProcessing / RegisterVerification (Standard) / RegisterRejected. Die SUA-Zeilen
+(1.0 und 1.1) sind angelegt, aber inaktiv.
+
+| Prüfpunkt | Einstellung | Ergebnis |
+|---|---|---|
+| F07_03 | RegisterProcessing, neu registriert | 22:16 «Status: processing» ✓ |
+| F07_04 | – | **offen**: keine Einstellung für «registered»; RegisterVerification liefert direkt «verified» → itserv fragen |
+| F07_05 | RegisterRejected, neu registriert | 22:35 `<State>rejected</State>` ✓ |
+| F07_02 | SwissdecFault | 22:42 Code 3800 «Forced ConsumerFault by Jackpot Implementation!» — kein Fall gespeichert; Anzeige war grau/grün → umgebaut, Wiederholung offen |
+
+Erkenntnisse:
+- Der Receiver wertet die Einstellung **bei jeder Statusabfrage** neu aus (processing → verified
+  ohne neue Registrierung), aber ein Fall, der einmal **verified** war, fällt nicht mehr auf
+  rejected zurück — für F07_05 neu registrieren.
+- Der Fault bei der Registrierung kommt **nicht als SOAP-Fault**, sondern als HTTP 200 mit
+  `Addressee/Error` (ErrorResponseType, Pflichtfeld `EndUserInformation`).
+- Stolpersteine unterwegs: Registrieren im Kommunikations-Test scheiterte an leeren Feldern
+  (Kontakt nie vorbelegt; nach Neuladen auch die Endpoint-URL).
+
+Umbau danach: `SuaMeldungen.Abgewiesen` (Error mit EndUserInformation) ⇒ Meldung rot
+«✗ Registrierung abgewiesen — 3800: … Kein neuer Fall gespeichert»; rejected/expired ebenfalls
+rot; Kontakt wird im Fall gespeichert und mit UID/Firma nach dem Neuladen vorbelegt; leere
+Endpoint-URL fällt auf die zuletzt benutzte bzw. den Refapps Receiver zurück (nie Prod);
+Kommunikations-Test nennt bei F07 die echten Receiver-Einstellungen.
+
+**Stand Fall danach:** der abgelehnte Übungsfall ist gespeichert — für Erneuern (F07_07) und
+den Termin zum Schluss mit RegisterVerification neu registrieren, abfragen, sofort signieren.
+Das SUA-Zertifikat von 18:01 (gültig bis 09.10.2026) bleibt bis dahin gespeichert.
+
 ### Ursprüngliche Einschätzung (überholt)
 
 | Punkt | Verlangt | Was wir dafür bauen müssen |

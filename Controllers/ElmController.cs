@@ -812,6 +812,7 @@ public class ElmController : ControllerBase
                 descriptionCode = r.Meldungen?.DescriptionCode,
                 description = r.Meldungen?.Description,
                 otpVorschlag = r.Meldungen?.Einmalpasswort,
+                abgewiesen = r.Meldungen?.Abgewiesen == true,
                 ergebnis = r.Call });
         }
         catch (Exception ex)
@@ -843,6 +844,7 @@ public class ElmController : ControllerBase
                 descriptionCode = r.Meldungen?.DescriptionCode,
                 description = r.Meldungen?.Description,
                 otpVorschlag = r.Meldungen?.Einmalpasswort,
+                abgewiesen = r.Meldungen?.Abgewiesen == true,
                 ergebnis = r.Call });
         }
         catch (Exception ex)

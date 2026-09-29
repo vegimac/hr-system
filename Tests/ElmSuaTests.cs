@@ -382,6 +382,46 @@ public class ElmSuaTests
         Assert.Null(m.Einmalpasswort);
     }
 
+    // Refapps «RegisterOrganizationAuthentication = SwissdecFault» (Probe 29.09.2026):
+    // HTTP 200, kein SOAP-Fault, aber Addressee/Error statt Success.
+    private const string RegisterMitError = """
+        <Envelope><Body><RegisterOrganizationAuthenticationResponse>
+          <Addressees><Addressee addresseeID="#addressee">
+            <AddresseeIdentification>1234</AddresseeIdentification>
+            <Error>
+              <EndUserInformation>Forced ConsumerFault</EndUserInformation>
+              <FaultInformation><Notification><QualityLevel>Acceptance</QualityLevel>
+                <DescriptionCode>3800</DescriptionCode>
+                <Description>Forced ConsumerFault by Jackpot Implementation!</Description></Notification>
+              </FaultInformation>
+            </Error>
+          </Addressee></Addressees>
+        </RegisterOrganizationAuthenticationResponse></Body></Envelope>
+        """;
+
+    [Fact]
+    public void AddresseeError_GiltAlsAbgewiesen()
+    {
+        var m = ElmSuaService.LiesMeldungen(RegisterMitError);
+        Assert.True(m.Abgewiesen);
+        Assert.Equal("3800", m.DescriptionCode);
+        Assert.Equal("Forced ConsumerFault by Jackpot Implementation!", m.Description);
+    }
+
+    [Fact]
+    public void ErrorGruppeInQuittung_IstKeineAbweisung()
+    {
+        var m = ElmSuaService.LiesMeldungen("""
+            <Envelope><Body><Success>
+              <ProducerResponseNotifications><Error><Notification>
+                <QualityLevel>Error</QualityLevel><DescriptionCode>1</DescriptionCode>
+                <Description>x</Description></Notification></Error></ProducerResponseNotifications>
+            </Success></Body></Envelope>
+            """);
+        Assert.False(m.Abgewiesen);
+        Assert.False(ElmSuaService.LiesMeldungen(AntwortMitOtp).Abgewiesen);
+    }
+
     [Fact]
     public void OhneMeldungen_BleibtAllesLeer_StattZuRaten()
     {
