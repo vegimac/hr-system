@@ -85,6 +85,8 @@ public class ElmController : ControllerBase
         var treffer = ElmEndpunkte.Finde(dto?.Ziel);
         if (treffer != null) return (treffer.Url, treffer.Name);
         var frei = (dto?.Url ?? "").Trim();
+        var bekannt = ElmEndpunkte.FindeNachUrl(frei);
+        if (bekannt != null) return (bekannt.Url, bekannt.Name);
         if (UrlOk(frei)) return (frei, "Eigene Adresse");
         return null;
     }

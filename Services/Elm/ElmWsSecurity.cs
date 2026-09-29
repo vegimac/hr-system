@@ -275,6 +275,8 @@ public static class ElmWsSecurity
     public record PruefErgebnis(Befund Befund, string Meldung, string? Zertifikat = null)
     {
         public bool Ok => Befund == Befund.Gueltig;
+        /// <summary>Befund als Text fürs UI (das Enum geht sonst als Zahl über die Leitung).</summary>
+        public string Art => Befund.ToString();
     }
 
     /// <summary>

@@ -12846,6 +12846,7 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         .komm-ergebnis:empty { display: none; }
         .komm-bewertung { border-top: 1px solid rgba(60,55,48,0.10); padding-top: 10px; margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
         .komm-bewertung textarea { width: 100%; resize: vertical; font-family: inherit; }
+        .komm-bewertung + .komm-ergebnis:not(:empty) { border-top: 1px solid rgba(60,55,48,0.10); padding-top: 10px; margin-top: 10px; }
 
         .komm-archiv-summe { font-size: 12.5px; margin-bottom: 8px; }
         .komm-archiv { width: 100%; border-collapse: collapse; font-size: 12px; }

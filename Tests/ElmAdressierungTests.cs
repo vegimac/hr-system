@@ -38,6 +38,20 @@ public class ElmAdressierungTests
     public void AllesAndere_WirdAbgewiesen(string? eingabe)
         => Assert.Null(ElmEndpunkte.Finde(eingabe));
 
+    [Theory]
+    [InlineData("https://test.swissdec.ch/refapps/stable/receiver/services/elm/SalaryDeclaration/V6", "test")]
+    [InlineData(" https://test.swissdec.ch/refapps/stable/receiver/services/elm/SalaryDeclaration/V6/ ", "test")]
+    [InlineData("https://distributor.swissdec.ch/services/elm/SalaryDeclaration/V6", "prod")]
+    public void HinterlegteAdresse_WirdAlsZielErkannt(string url, string schluessel)
+        => Assert.Equal(schluessel, ElmEndpunkte.FindeNachUrl(url)?.Schluessel);
+
+    [Theory]
+    [InlineData("https://eigener-server.example/elm")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void FremdeAdresse_BleibtEigeneAdresse(string? url)
+        => Assert.Null(ElmEndpunkte.FindeNachUrl(url));
+
     /// <summary>
     /// Die eigentliche Schranke für F01_01 ist die PERSON (Walter-Entscheid
     /// 24.09.2026): frei eingeben darf nur der Super-Admin. Der Test liest die

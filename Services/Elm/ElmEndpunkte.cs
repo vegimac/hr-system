@@ -43,4 +43,12 @@ public static class ElmEndpunkte
     public static Ziel? Finde(string? schluessel)
         => Alle.FirstOrDefault(z => string.Equals(z.Schluessel, (schluessel ?? "").Trim(),
                                                   StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Eingetragene Adresse → hinterlegtes Ziel, wenn sie genau eines davon ist.</summary>
+    public static Ziel? FindeNachUrl(string? url)
+    {
+        var u = (url ?? "").Trim().TrimEnd('/');
+        return u.Length == 0 ? null
+            : Alle.FirstOrDefault(z => string.Equals(z.Url, u, StringComparison.OrdinalIgnoreCase));
+    }
 }

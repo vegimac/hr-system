@@ -242,18 +242,30 @@ async function _elmCall(pfad, label, opt = {}) {
         const zielZeile = antwort.name
             ? `<div style="color:#64748b;font-size:12px;margin-bottom:6px">Ziel: <b>${esc(antwort.name)}</b> · ${esc(antwort.url || '')}</div>`
             : '';
-        const okBadge = j.ok
+        // Hat WS-Security die Antwort abgelehnt, zählt ihr Inhalt nicht (F02_03–F02_08, F02_11).
+        // Einzige Ausnahme: ein Fault, dem nur die Signatur fehlt — den verlangt Swissdec
+        // angezeigt (F02_10), mit der Warnung darüber.
+        const hatFault = !!(j.faultCode || j.faultText);
+        const abgelehnt = !!(j.security && !j.security.ok);
+        const inhaltVerworfen = abgelehnt && !(hatFault && j.security.art === 'SignaturFehlt');
+        const okBadge = inhaltVerworfen
+            ? `<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-weight:700">✗ Antwort abgelehnt (WS-Security)</span>`
+            : j.ok
             ? `<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:8px;font-weight:700">✓ Antwort erhalten</span>`
             : `<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-weight:700">✗ ${esc(j.error || 'fehlgeschlagen')}</span>`;
         // Grund im Klartext, wenn der Empfänger den Aufruf mit einem SOAP-Fault
         // abweist (HTTP 500) — «Client.security» statt nur «HTTP 500».
-        const faultBlock = (j.faultCode || j.faultText)
-            ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+        const faultBlock = !hatFault ? ''
+            : inhaltVerworfen
+            ? `<div style="background:rgba(255,255,255,0.45);border:1px dashed rgba(60,55,48,0.25);color:#8b8b8b;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px">
+                   Fault zurückgewiesen — Inhalt nicht vertrauenswürdig, wird nicht übernommen:
+                   <span style="text-decoration:line-through">${esc([j.faultCode, j.faultText].filter(Boolean).join(' · '))}</span>
+               </div>`
+            : `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
                    <b>Abgewiesen${j.faultCode ? ' — ' + esc(j.faultCode) : ''}</b>
                    ${j.faultText ? `<div style="margin-top:3px">${esc(j.faultText)}</div>` : ''}
                    ${_elmFaultHinweis(j)}
-               </div>`
-            : '';
+               </div>`;
         const secBlock = j.security
             ? `<div style="background:${j.security.ok ? '#e7f0e7' : '#fef2f2'};border:1px solid ${j.security.ok ? '#b8ccb8' : '#fecaca'};color:${j.security.ok ? '#3f5540' : '#991b1b'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
                  <b>WS-Security:</b> ${esc(j.security.meldung || '')}</div>`
@@ -388,6 +400,13 @@ function _elmOperand2() {
 function elmSetOperand(wert) {
     const el = document.getElementById('elmOperand2');
     if (el) el.value = wert;
+}
+
+/** F03_03: Eingabe sichtbar auf zwei Nachkommastellen bringen («5» → «5.00»). */
+function elmOperandFormatieren(el) {
+    const roh = (el.value || '').trim().replace(/['’\s]/g, '').replace(',', '.').replace('−', '-');
+    if (!/^-?\d+(\.\d+)?$/.test(roh)) return;
+    el.value = Number(roh).toFixed(2);
 }
 
 /**

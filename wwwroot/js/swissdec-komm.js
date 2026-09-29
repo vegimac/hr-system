@@ -19,7 +19,7 @@ const KOMM_GRUPPEN = [
 ];
 
 const _kInterop = (label = 'CheckInteroperability senden', operand = '0.01') => ({ label, art: 'interop', operand });
-const _kFault = (erwartet) => `OneCrew zeigt die Ablehnung rot an: ${erwartet}. Kein grünes «Antwort erhalten» ohne Warnung.`;
+const _kFault = (erwartet) => `Oben rot «✗ Antwort abgelehnt (WS-Security)», darunter ${erwartet}.`;
 
 // werkzeug = was itserv im Swissdec-Werkzeug einstellt (TOOL_SETTING); null = nichts.
 // gebaut:false = in OneCrew noch nicht vorführbar.
@@ -52,34 +52,41 @@ const KOMM_KATALOG = [
       erwartet: 'Distributor nimmt die verschlüsselte Anfrage an. «Gesendete Anfrage» zeigt EncryptedData im Body.',
       vorbelegt: { status: 'ok', notiz: '29.09.2026 CheckInterop verschlüsselt angenommen' } },
     { id: 'F02_03', titel: 'Manipulierte Verschlüsselung', typ: 'TOOL · INTEROP · UI',
-      werkzeug: '«Tamper Encryption» einschalten.', aktionen: [_kInterop()],
-      erwartet: _kFault('«WS-Security: Die Antwort konnte nicht entschlüsselt werden»') },
+      werkzeug: 'Force Errors → «Tamper Encryption» ein.', aktionen: [_kInterop()],
+      erwartet: _kFault('«WS-Security: Die Antwort konnte nicht entschlüsselt werden»'),
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:40 Probe' } },
     { id: 'F02_04', titel: 'Antwort unverschlüsselt', typ: 'TOOL · INTEROP · UI',
-      werkzeug: '«Enable Encryption» ausschalten.', aktionen: [_kInterop()],
-      erwartet: _kFault('«WS-Security: Die Antwort kam unverschlüsselt»') },
+      werkzeug: 'Security Settings → «Encryption Enabled on Response» aus.', aktionen: [_kInterop()],
+      erwartet: _kFault('«WS-Security: Die Antwort kam unverschlüsselt»'),
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:45 Probe' } },
     { id: 'F02_05', titel: 'Request signiert', typ: 'CHECK_INTEROP',
       werkzeug: null, aktionen: [_kInterop(), { label: 'Archiv öffnen', art: 'archiv' }],
       erwartet: 'Distributor nimmt die signierte Anfrage an; im Archiv trägt der Request eine Signatur.',
       vorbelegt: { status: 'ok', notiz: '29.09.2026 CheckInterop signiert angenommen' } },
     { id: 'F02_06', titel: 'Manipulierte Signatur', typ: 'TOOL · INTEROP · UI',
-      werkzeug: '«Tamper Signature» einschalten.', aktionen: [_kInterop()],
-      erwartet: _kFault('«WS-Security: Die Signatur der Antwort ist ungültig»') },
+      werkzeug: 'Force Errors → «Tamper Signature» ein.', aktionen: [_kInterop()],
+      erwartet: _kFault('«WS-Security: Die Signatur der Antwort ist ungültig»'),
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:46 Probe' } },
     { id: 'F02_07', titel: 'Antwort ohne Signatur', typ: 'TOOL · INTEROP · UI',
-      werkzeug: '«Enable Signature» ausschalten.', aktionen: [_kInterop()],
-      erwartet: _kFault('«WS-Security: Die Antwort ist nicht signiert»') },
+      werkzeug: 'Security Settings → «Signature Enabled on Response» aus.', aktionen: [_kInterop()],
+      erwartet: _kFault('«WS-Security: Die Antwort ist nicht signiert»'),
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:49 Probe' } },
     { id: 'F02_08', titel: 'Unbekannter Schlüssel', typ: 'TOOL · INTEROP · UI',
-      werkzeug: '«Use unknown Key» einschalten.', aktionen: [_kInterop()],
+      werkzeug: 'Force Errors → «Use unknown Key for Response Signature» ein.', aktionen: [_kInterop()],
       erwartet: _kFault('«WS-Security: Das Zertifikat der Antwort ist nicht vertrauenswürdig»') + ' Kein grüner Interop-Block darunter.',
-      hinweis: 'Gebaut 29.09.2026: Vertrauensliste (Distributor ELMv6 Test, RefApp Receiver, Ordner «vertrauen»). Kommt stattdessen «Signatur ungültig», hat RefApps nur den Schlüssel getauscht — ist ebenfalls erkannt.' },
+      hinweis: 'Probe 29.09.2026 20:51: RefApps signiert mit «Distributor Test Fake» (Fake Issuer CA) — von der Vertrauensliste abgewiesen.',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:51 Probe' } },
     { id: 'F02_09', titel: 'Signierter SOAP-Fault', typ: 'TOOL · INTEROP · UI',
-      werkzeug: 'Signierten SOAP-Fault auslösen.', aktionen: [_kInterop()],
-      erwartet: 'Rot «Abgewiesen» mit Fault-Code und Text im Klartext.' },
+      werkzeug: 'Force Errors → «Throw SOAP Fault» ein.', aktionen: [_kInterop()],
+      erwartet: 'WS-Security grün, darunter rot «Abgewiesen» mit Fault-Code und Text im Klartext.',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:53 Throw SOAP Fault: soap:Server, Unexpected service error occurred' } },
     { id: 'F02_10', titel: 'Unsignierter SOAP-Fault', typ: 'TOOL · INTEROP · UI',
-      werkzeug: 'Unsignierten SOAP-Fault auslösen.', aktionen: [_kInterop()],
-      erwartet: 'Rot «Abgewiesen» mit Fault-Code und Text im Klartext.' },
+      werkzeug: '«Throw SOAP Fault» ein, «Signature Enabled» aus.', aktionen: [_kInterop()],
+      erwartet: 'Warnung «Die Antwort ist nicht signiert», darunter trotzdem rot «Abgewiesen» mit Fault-Code und Text.',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:56' } },
     { id: 'F02_11', titel: 'Fault mit ungültiger Signatur', typ: 'TOOL · INTEROP · UI',
-      werkzeug: 'SOAP-Fault mit ungültiger Signatur auslösen.', aktionen: [_kInterop()],
-      erwartet: _kFault('der Fault wird zurückgewiesen («Signatur ungültig»)') },
+      werkzeug: '«Throw SOAP Fault» und «Tamper Signature» ein.', aktionen: [_kInterop()],
+      erwartet: _kFault('«WS-Security: Die Signatur der Antwort ist ungültig». Der Fault erscheint nur grau und durchgestrichen als «zurückgewiesen», nicht als rote Ablehnung') },
 
     // ── F03 Interoperabilität ──────────────────────────────────────────────
     { id: 'F03_01', titel: 'CheckInterop senden und anzeigen', typ: 'INTEROP · UI',
@@ -90,16 +97,20 @@ const KOMM_KATALOG = [
       werkzeug: null,
       aktionen: [_kInterop('mit 0.01', '0.01'), _kInterop('mit 0.00', '0.00'),
                  _kInterop('mit −999\'000\'000\'000.00', '-999000000000.00')],
-      erwartet: 'Alle drei Werte: «Interoperabilität bestätigt», Addition und Subtraktion stimmen.' },
+      erwartet: 'Alle drei Werte: «Interoperabilität bestätigt», Addition und Subtraktion stimmen.',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:31 (0.00 und −999 Mia.)' } },
     { id: 'F03_03', titel: 'Immer zwei Nachkommastellen', typ: 'INTEROP',
-      werkzeug: null, aktionen: [_kInterop('mit 0.00', '0.00')],
-      erwartet: '«Gesendete Anfrage» zeigt SecondOperand 0.00 (nicht 0).' },
+      werkzeug: null, aktionen: [{ label: 'Einrichtung öffnen (Feld «2. Operand»)', art: 'einrichtung' }],
+      erwartet: 'In «Einrichtung» im Feld «2. Operand» 5 eintippen: das Feld zeigt beim Verlassen 5.00, der grüne Block «Gesendet: … 2. Operand 5.00».',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 20:36 Eingabe 5 → gesendet 5.00' } },
     { id: 'F03_04', titel: 'Manipulierter UmlautString', typ: 'TOOL · INTEROP · UI',
-      werkzeug: '«Tamper UmlautString» einschalten.', aktionen: [_kInterop()],
-      erwartet: 'Rot «Interoperabilität nicht bestätigt» mit der Abweichung bei den Umlauten.' },
+      werkzeug: 'Distributor Operations Responses → «Tamper Check Interoperability Encoding» ein.', aktionen: [_kInterop()],
+      erwartet: 'Rot «Interoperabilität nicht bestätigt» mit der Abweichung bei den Umlauten.',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 21:01 Probe' } },
     { id: 'F03_05', titel: 'Manipulierter FirstOperand', typ: 'TOOL · INTEROP · UI',
-      werkzeug: '«Tamper FirstOperand» einschalten.', aktionen: [_kInterop()],
-      erwartet: 'Rot «Interoperabilität nicht bestätigt» mit der Abweichung beim Rechenergebnis.' },
+      werkzeug: 'Distributor Operations Responses → «Tamper Check Interoperability Result» ein.', aktionen: [_kInterop()],
+      erwartet: 'Rot «Interoperabilität nicht bestätigt» mit der Abweichung beim Rechenergebnis.',
+      vorbelegt: { status: 'ok', notiz: '29.09.2026 21:03 Probe' } },
 
     // ── F04 Archivierung ───────────────────────────────────────────────────
     { id: 'F04_01', titel: 'Archiv signiert und unverschlüsselt', typ: 'VALIDATOR · UI',
@@ -345,7 +356,6 @@ function kommDetailZeichnen() {
             <div><div class="komm-schritt-titel">Erwartet</div><div>${esc(c.erwartet)}</div>
                  ${c.hinweis ? `<div class="komm-hinweis">⚠ ${esc(c.hinweis)}</div>` : ''}</div>
         </div>
-        <div id="kommResult" class="komm-ergebnis"></div>
         ${c.gebaut === false ? '' : `
         <div class="komm-bewertung">
             <div class="komm-schritt-titel">Bewertung</div>
@@ -358,7 +368,8 @@ function kommDetailZeichnen() {
             <div class="komm-klein">${e.letzterVersuch
                 ? `Letzter Versuch ${e.letzterVersuchAm ? new Date(e.letzterVersuchAm).toLocaleString('de-CH') : ''}: ${esc(e.letzterVersuch)}`
                 : (e.vorbelegt ? 'Stand aus dem Foundation-Protokoll.' : 'Noch kein Versuch aufgezeichnet.')}</div>
-        </div>`}`;
+        </div>`}
+        <div id="kommResult" class="komm-ergebnis"></div>`;
 }
 
 async function kommAktion(i) {
@@ -427,8 +438,11 @@ async function kommBewerten(status) {
     dto.status = status || _kommEintrag(c).status;
     await kommSpeichern(c.id, dto);
     if (status) {
+        const ergebnis = document.getElementById('kommResult')?.innerHTML || '';
         kommTab(_kommTab);
         kommKopfZeichnen();
+        const el = document.getElementById('kommResult');
+        if (el && ergebnis) el.innerHTML = ergebnis;
     }
 }
 

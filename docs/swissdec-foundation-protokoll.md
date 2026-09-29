@@ -339,6 +339,40 @@ signiert (Aussteller `Test ELM Transmitter CA, UID=6.0`), also genau mit dem Ass
 Tauscht RefApps nur den Schlüssel und lässt das Distributor-Zertifikat stehen, meldet OneCrew
 «Signatur ungültig». Auch das gilt als erkannt.
 
+### Generalprobe ohne itserv (29.09.2026, 20:30–21:05)
+
+Walter kann die Receiver-Einstellungen selbst schalten (Refapps Receiver → «Einstellungen»,
+Login schaub; wirkt über MonitoringID `schaub` auf OneCrew). Alle F02/F03-Fehlerfälle echt
+durchgespielt, im Quality Tool selbst auf Success gesetzt (der Experte bestätigt im Termin).
+
+| Prüfpunkt | Häkchen im Receiver | OneCrew zeigte |
+|---|---|---|
+| F03_02 0.00 / −999 Mia. | – | grün, Addition/Subtraktion stimmen |
+| F03_03 | – | Eingabe «5» → gesendet 5.00 |
+| F02_03 | Force Errors → Tamper Encryption | rot: nicht entschlüsselbar |
+| F02_04 | Security Settings → Encryption Enabled on Response aus | rot: unverschlüsselt |
+| F02_06 | Force Errors → Tamper Signature | rot: Signatur ungültig |
+| F02_07 | Security Settings → Signature Enabled on Response aus | rot: nicht signiert |
+| F02_08 | Force Errors → Use unknown Key for Response Signature | rot: «Distributor Test Fake» (Fake Issuer CA) nicht vertrauenswürdig |
+| F02_09 | Force Errors → Throw SOAP Fault | Signatur gültig, rot «Abgewiesen — soap:Server · Unexpected service error occurred» |
+| F02_10 | Throw SOAP Fault + Signature Enabled aus | Warnung nicht signiert, Fault trotzdem angezeigt |
+| F02_11 | Throw SOAP Fault + Tamper Signature | rot Signatur ungültig — **aber Fault noch als rote Ablehnung** → umgebaut, s.u. |
+| F03_04 | Distributor Operations → Tamper Check Interoperability Encoding | rot: Interop nicht bestätigt, Umlaute verfälscht |
+| F03_05 | Distributor Operations → Tamper Check Interoperability Result | rot: Interop nicht bestätigt, FirstOperand/Rechnung falsch |
+
+Erkenntnisse aus den Antworten:
+- Faults signiert RefApps mit **«Distributor ELMv6 Test»** (wie normale Antworten), nicht mit
+  dem alten «RefApp Receiver»; Algorithmus **rsa-sha256** (die rsa-sha1-Sorge ist erledigt).
+- Die Antwort trägt **zwei `SignatureConfirmation`** (ERP + SUA) und wird entschlüsselt
+  archiviert → F04_02 voraussichtlich erfüllt, an einer Archivdatei nachprüfen.
+
+Umbau danach (UI): abgelehnte Antwort ⇒ Abzeichen rot «✗ Antwort abgelehnt (WS-Security)»
+statt «✓ Antwort erhalten»; Fault-Inhalt einer abgelehnten Antwort nur grau/durchgestrichen
+«zurückgewiesen» — Ausnahme der Fault, dem NUR die Signatur fehlt (F02_10 verlangt Anzeige;
+Unterscheidung über `security.art == "SignaturFehlt"`). Ziel wird auch bei eingetippter
+Adresse als «Refapps Receiver (Testinfrastruktur)» erkannt; Feld «2. Operand» formatiert beim
+Verlassen auf zwei Stellen; Bewertung steht über dem Ergebnis.
+
 ### Ursprüngliche Einschätzung (überholt)
 
 | Punkt | Verlangt | Was wir dafür bauen müssen |
