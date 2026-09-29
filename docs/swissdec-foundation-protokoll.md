@@ -658,6 +658,25 @@ und gespeichert.
   Das gilt auch für RenewCertificate.
 - Test: `Antwort_FuerSuaVerschluesselt_WirdMitSuaSchluesselEntschluesselt`.
 
+**✅ F07_08 erfolgreich (29.09.2026, 17:41 Uhr):** CheckInteroperability doppelt signiert
+(ERP + SUA).
+
+- HTTP 200. Die Antwort ist für das SUA-Zertifikat verschlüsselt und wird jetzt entschlüsselt.
+  Signatur gültig.
+- Zwei `SignatureConfirmation`.
+- `UmlautStringIsCorrect` und `FirstOperandIsCorrect` = true.
+- Addition 999000000000.01 und Subtraktion 998999999999.99 stimmen.
+- Systemzeit: 0,2 s Abweichung.
+- **Offene Frage an Swissdec (SUA-Spez. V1.5, Tabelle 10, Schritt 14):**
+  - Die Spezifikation von 2019 verlangt eine zweite CheckInterop-Nachricht, die die
+    erhaltene Quittung (receipt) zurückschickt. Erst danach löscht der Distributor die
+    Registrierungsdaten.
+  - Das ELM-6.0-Schema kennt dafür **kein Feld**. `CheckInteroperabilityRequestType`
+    hat nur UserAgent, UmlautString, FirstOperand, SecondOperand, SystemDateTime und
+    MonitoringID. Die Antwort enthält keine Quittung.
+  - Wir bauen den Schritt deshalb nicht.
+  - Frage an Swissdec: Ist Schritt 14 in ELM 6.0 entfallen oder wird er anders abgebildet?
+
 ---
 
 ### Korrektur 24.09.2026 — vier schema-ungültige Meldungen + fehlende MonitoringID
