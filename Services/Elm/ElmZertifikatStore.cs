@@ -274,6 +274,48 @@ public class ElmZertifikatStore
         return null;
     }
 
+    /// <summary>
+    /// F02_08 — Zertifikate, mit denen eine Antwort signiert sein darf: der Distributor ELMv6
+    /// (normale Antworten) und der klassische RefApp Receiver (Faults), beide aus Assets,
+    /// plus alles unter <c>vertrauen/</c> neben den Zertifikaten (z.B. Produktiv-Distributor
+    /// oder Swissdec-Stelle). Das gespeicherte Empfängerzertifikat zählt bewusst NICHT —
+    /// es wurde früher ungeprüft aus Antworten übernommen.
+    /// </summary>
+    public List<X509Certificate2> LadeVertrauensliste()
+    {
+        var liste = new List<X509Certificate2>();
+        void Hinzu(string pfad)
+        {
+            try
+            {
+                var z = X509CertificateLoader.LoadCertificateFromFile(pfad);
+                if (!liste.Any(v => v.RawData.AsSpan().SequenceEqual(z.RawData))) liste.Add(z);
+            }
+            catch { /* unlesbare Datei überspringen */ }
+        }
+
+        foreach (var name in new[] { "SwissdecDistributorELMv6Test.cer", "RefApps-Receiver.cer" })
+        {
+            var pfad = new[]
+                {
+                    Path.Combine(AppContext.BaseDirectory, "Assets", "Swissdec", name),
+                    Path.Combine(Directory.GetCurrentDirectory(), "Assets", "Swissdec", name),
+                }
+                .FirstOrDefault(File.Exists);
+            if (pfad != null) Hinzu(pfad);
+        }
+
+        var ordner = Path.Combine(_root, "vertrauen");
+        if (Directory.Exists(ordner))
+            foreach (var datei in Directory.GetFiles(ordner)
+                         .Where(d => d.EndsWith(".cer", StringComparison.OrdinalIgnoreCase)
+                                  || d.EndsWith(".crt", StringComparison.OrdinalIgnoreCase)
+                                  || d.EndsWith(".pem", StringComparison.OrdinalIgnoreCase))
+                         .OrderBy(d => d))
+                Hinzu(datei);
+        return liste;
+    }
+
     // ── SUA-Zertifikat (nach SignCertificate) ────────────────────────────────
 
     public bool HatSuaZertifikat() => File.Exists(Path.Combine(_root, SuaPemDatei));

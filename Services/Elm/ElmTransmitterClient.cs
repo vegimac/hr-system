@@ -170,9 +170,6 @@ public class ElmTransmitterClient
             var antw = new XmlDocument { PreserveWhitespace = true };
             antw.LoadXml(r.RohAntwort ?? r.ResponseXml);
 
-            // Empfängerzertifikat aus der Antwort lernen (nächster Aufruf verschlüsselt).
-            _store.UebernehmeEmpfaengerAusAntwort(antw);
-
             // SOAP-Faults der RefApps sind oft mit rsa-sha1 signiert — die fachliche
             // Ablehnung (Client.security) ist wichtiger als unsere Signaturprüfung.
             var istFault = antw.GetElementsByTagName("Fault", "http://schemas.xmlsoap.org/soap/envelope/").Count > 0
@@ -181,7 +178,12 @@ public class ElmTransmitterClient
             var pruef = ElmWsSecurity.PruefeMitSchluesseln(antw,
                 suaZertifikat == null ? new[] { erpZertifikat } : new[] { erpZertifikat, suaZertifikat },
                 verschluesselungPflicht: verschlPflicht,
-                signaturPflicht: !istFault);
+                signaturPflicht: !istFault,
+                vertrauensliste: _store.LadeVertrauensliste());
+
+            // Empfängerzertifikat nur aus einer geprüften Antwort lernen — sonst würde eine
+            // fremd signierte Antwort (F02_08) das Verschlüsselungsziel umbiegen.
+            if (pruef.Ok) _store.UebernehmeEmpfaengerAusAntwort(antw);
 
             var deutung = DeuteSicherheitsFault(r);
             if (deutung != null) pruef = deutung;
@@ -431,7 +433,9 @@ public class ElmTransmitterClient
 
         var r = MitFault(MitZeitvergleich(
             await PostGesichertOderKlarAsync(url, body, "check-interop", ct), versatzSekunden));
-        // Die Antwort wird nachgerechnet, nicht geglaubt (F03_04/F03_05).
+        // Die Antwort wird nachgerechnet, nicht geglaubt (F03_04/F03_05) — aber nur, wenn
+        // WS-Security sie akzeptiert hat; der Inhalt einer abgelehnten Antwort zählt nicht.
+        if (r.Security is { Ok: false }) return r;
         return r with { Interop = ElmInterop.Pruefe(r.ResponseXml, zweiterOperand) };
     }
 

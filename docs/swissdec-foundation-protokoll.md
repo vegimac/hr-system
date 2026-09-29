@@ -297,6 +297,40 @@ bleibt aussen vor. Die Tests erzeugen ihre Zertifikate selbst — sie laufen ohn
 CheckInteroperability, sobald es da ist. Ohne Zertifikat läuft der Aufruf unverändert unsigniert —
 die RefApps weisen ihn dann wie gehabt mit `Client.security` ab.
 
+### F02_08 Vertrauensprüfung gebaut (29.09.2026)
+
+**Lücke bis dahin:** Die Signatur wurde mit dem Zertifikat geprüft, das in der Antwort selbst
+mitkommt. Bei «Use unknown Key» signiert RefApps mit einem fremden Schlüssel. Legt es das passende
+fremde Zertifikat bei, ist die Signatur rechnerisch korrekt, und OneCrew hätte grün gemeldet.
+Zusätzlich wurde das Empfängerzertifikat vor jeder Prüfung aus der Antwort übernommen.
+
+**Belegt aus den Live-Antworten:** Normale Antworten sind mit `CN=Distributor ELMv6 Test`
+signiert (Aussteller `Test ELM Transmitter CA, UID=6.0`), also genau mit dem Asset
+`SwissdecDistributorELMv6Test.cer`. Das Zertifikat der Stelle selbst liegt uns nicht vor.
+
+**Gebaut:**
+- `ElmZertifikatStore.LadeVertrauensliste()`:
+  - `SwissdecDistributorELMv6Test.cer` und `RefApps-Receiver.cer` (klassische Faults) aus Assets
+  - dazu jede `.cer/.crt/.pem` im Ordner `vertrauen/` neben den Zertifikaten
+  - Für den Produktivbetrieb kommt das Produktiv-Distributor-Zertifikat bzw. die Swissdec-Stelle
+    dorthin.
+  - Das gespeicherte `empfaenger.cer` zählt bewusst nicht, weil es früher ungeprüft gelernt wurde.
+- `ElmWsSecurity.IstVertrauenswuerdig`: Das Zertifikat muss byte-genau in der Liste stehen oder
+  über eine selbstsignierte Stelle aus der Liste ausgestellt sein. Die Kette wird ohne
+  Nachladen und ohne Sperrliste geprüft.
+- Neuer Befund `ZertifikatNichtVertrauenswuerdig` mit Klartext «nicht vertrauenswürdig …
+  ausgestellt von …».
+- Empfängerzertifikat wird nur noch aus einer akzeptierten Antwort gelernt.
+- CheckInterop rechnet den Inhalt einer abgelehnten Antwort nicht mehr nach. Es erscheint kein
+  grüner Interop-Block unter einem roten WS-Security-Befund.
+- Tests: `Tests/ElmVertrauenTests.cs` (5). Geprüft werden: unbekannter Schlüssel mit passendem
+  Zertifikat wird abgelehnt, bekanntes Zertifikat wird akzeptiert, Kette zur hinterlegten Stelle
+  wird akzeptiert und eine fremde Stelle nicht, die Liste enthält Distributor, RefApp Receiver
+  und den Ordner `vertrauen/`.
+
+Tauscht RefApps nur den Schlüssel und lässt das Distributor-Zertifikat stehen, meldet OneCrew
+«Signatur ungültig». Auch das gilt als erkannt.
+
 ### Ursprüngliche Einschätzung (überholt)
 
 | Punkt | Verlangt | Was wir dafür bauen müssen |

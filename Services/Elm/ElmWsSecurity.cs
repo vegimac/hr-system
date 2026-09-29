@@ -295,8 +295,11 @@ public static class ElmWsSecurity
     /// Anfrage (ERP + SUA) verschlüsselt der Distributor die Antwort für das SUA-Zertifikat
     /// (Live 29.09.2026, CheckInterop F07_08: «oaep decoding error» mit dem ERP-Schlüssel).
     /// </summary>
+    /// <param name="vertrauensliste">F02_08: bekannte Swissdec-Zertifikate bzw. -Stellen. NULL = keine
+    /// Vertrauensprüfung (nur Unit-Tests mit selbst erzeugten Zertifikaten).</param>
     public static PruefErgebnis PruefeMitSchluesseln(XmlDocument doc, IReadOnlyList<X509Certificate2> unsereZertifikate,
-        bool verschluesselungPflicht = true, bool signaturPflicht = true)
+        bool verschluesselungPflicht = true, bool signaturPflicht = true,
+        IReadOnlyList<X509Certificate2>? vertrauensliste = null)
     {
         // 1) Verschlüsselung
         var hatteVerschluesselung = doc.GetElementsByTagName("EncryptedData", NsXenc).Count > 0;
@@ -364,6 +367,13 @@ public static class ElmWsSecurity
                 $"Das Zertifikat der Antwort ist nicht gültig (Laufzeit {zert.NotBefore:dd.MM.yyyy} – {zert.NotAfter:dd.MM.yyyy}).",
                 Name(zert));
 
+        if (vertrauensliste != null && !IstVertrauenswuerdig(zert, vertrauensliste))
+            return new PruefErgebnis(Befund.ZertifikatNichtVertrauenswuerdig,
+                $"Das Zertifikat der Antwort ist nicht vertrauenswürdig: «{Name(zert)}», ausgestellt von «{zert.Issuer}». "
+                + "Es ist weder ein bekanntes Swissdec-Zertifikat noch von einer hinterlegten Swissdec-Stelle ausgestellt. "
+                + "Die Signatur passt zwar zum mitgeschickten Zertifikat, aber jeder kann so signieren — die Antwort wird nicht akzeptiert.",
+                Name(zert));
+
         return new PruefErgebnis(Befund.Gueltig,
             $"Signatur gültig{(hatteVerschluesselung ? ", Antwort war verschlüsselt" : "")}.", Name(zert));
     }
@@ -423,6 +433,31 @@ public static class ElmWsSecurity
             aes.Key = sitzungsSchluessel;
             var klartext = enc.DecryptData(ed, aes);
             enc.ReplaceData(el, klartext);
+        }
+    }
+
+    /// <summary>
+    /// Vertrauenswürdig ist ein Zertifikat, das byte-genau in der Liste steht, oder dessen Kette
+    /// zu einer Stelle aus der Liste führt (ohne Online-Nachladen, ohne Sperrlisten).
+    /// </summary>
+    public static bool IstVertrauenswuerdig(X509Certificate2 zert, IReadOnlyList<X509Certificate2> vertrauensliste)
+    {
+        if (vertrauensliste.Any(v => v.RawData.AsSpan().SequenceEqual(zert.RawData))) return true;
+        var stellen = vertrauensliste.Where(v => v.SubjectName.RawData.AsSpan().SequenceEqual(v.IssuerName.RawData)).ToList();
+        if (stellen.Count == 0) return false;
+        try
+        {
+            using var kette = new X509Chain();
+            kette.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            kette.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+            kette.ChainPolicy.DisableCertificateDownloads = true;
+            foreach (var s in stellen) kette.ChainPolicy.CustomTrustStore.Add(s);
+            foreach (var z in vertrauensliste.Except(stellen)) kette.ChainPolicy.ExtraStore.Add(z);
+            return kette.Build(zert);
+        }
+        catch
+        {
+            return false;
         }
     }
 
