@@ -187,4 +187,41 @@ public class ElmDoppelsignaturTests
                 zeile => Assert.True(zeile.Length <= 64, $"Zeile zu lang: {zeile.Length}"));
         }
     }
+
+    private static X509Certificate2 ZertifikatMitSki(string name)
+    {
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest(name, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        req.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(req.PublicKey, false));
+        var zert = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddYears(1));
+        return X509CertificateLoader.LoadPkcs12(zert.Export(X509ContentType.Pfx, "test"), "test",
+            X509KeyStorageFlags.Exportable);
+    }
+
+    /// <summary>
+    /// Live 29.09.2026 (CheckInterop F07_08): nach der doppelt signierten Anfrage kam die
+    /// Antwort für das SUA-Zertifikat verschlüsselt — mit dem ERP-Schlüssel «oaep decoding error».
+    /// </summary>
+    [Fact]
+    public void Antwort_FuerSuaVerschluesselt_WirdMitSuaSchluesselEntschluesselt()
+    {
+        var erp = ZertifikatMitSki("CN=ERP");
+        var sua = ZertifikatMitSki("CN=SUA");
+        var distributor = Zertifikat("CN=Distributor");
+
+        var doc = Nachricht();
+        ElmWsSecurity.Signiere(doc, new[] { distributor });
+        ElmWsSecurity.Verschluessele(doc, sua);
+        var antwort = doc.OuterXml;
+
+        Assert.Same(sua, ElmWsSecurity.WaehleEntschluesselungsZertifikat(Lade(antwort), new[] { erp, sua }));
+
+        var nurErp = ElmWsSecurity.Pruefe(Lade(antwort), erp);
+        Assert.Equal(ElmWsSecurity.Befund.EntschluesselungFehlgeschlagen, nurErp.Befund);
+
+        var beide = Lade(antwort);
+        var pruef = ElmWsSecurity.PruefeMitSchluesseln(beide, new[] { erp, sua });
+        Assert.True(pruef.Ok, pruef.Meldung);
+        Assert.Contains("1234.55", beide.OuterXml);
+    }
 }

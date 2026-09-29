@@ -645,6 +645,19 @@ und gespeichert.
   - Renew (F07_07)
   - F07_02 und F07_05 mit einer neuen Registrierung
 
+**F07_08, erster Versuch (29.09.2026, 17:33 Uhr):** CheckInteroperability doppelt signiert.
+
+- HTTP 200. Die Antwort enthält **zwei** `SignatureConfirmation`, je eine für die ERP-
+  und die SUA-Signatur. Der Distributor hat beide Signaturen also akzeptiert.
+- Der Fehler lag bei uns: «oaep decoding error». Nach einer doppelt signierten Anfrage
+  verschlüsselt der Distributor die Antwort für das **SUA-Zertifikat**. Der
+  `KeyIdentifier` (SubjectKeyIdentifier) am `EncryptedKey` zeigt, für welches. OneCrew
+  entschlüsselte immer mit dem ERP-Schlüssel.
+- **Behoben:** `ElmWsSecurity.WaehleEntschluesselungsZertifikat` wählt den eigenen
+  Schlüssel über den SubjectKeyIdentifier. `PruefeMitSchluesseln` bekommt ERP und SUA.
+  Das gilt auch für RenewCertificate.
+- Test: `Antwort_FuerSuaVerschluesselt_WirdMitSuaSchluesselEntschluesselt`.
+
 ---
 
 ### Korrektur 24.09.2026 — vier schema-ungültige Meldungen + fehlende MonitoringID

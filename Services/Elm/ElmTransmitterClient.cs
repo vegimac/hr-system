@@ -178,7 +178,8 @@ public class ElmTransmitterClient
             var istFault = antw.GetElementsByTagName("Fault", "http://schemas.xmlsoap.org/soap/envelope/").Count > 0
                         || antw.GetElementsByTagName("Fault").Count > 0;
             var verschlPflicht = empfaengerZertifikat != null && !istFault;
-            var pruef = ElmWsSecurity.Pruefe(antw, erpZertifikat,
+            var pruef = ElmWsSecurity.PruefeMitSchluesseln(antw,
+                suaZertifikat == null ? new[] { erpZertifikat } : new[] { erpZertifikat, suaZertifikat },
                 verschluesselungPflicht: verschlPflicht,
                 signaturPflicht: !istFault);
 

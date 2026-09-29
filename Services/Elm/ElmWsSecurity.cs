@@ -287,17 +287,28 @@ public static class ElmWsSecurity
     /// <param name="signaturPflicht">F02_07: fehlende Signatur ist ein Fehler.</param>
     public static PruefErgebnis Pruefe(XmlDocument doc, X509Certificate2? unserZertifikat,
         bool verschluesselungPflicht = true, bool signaturPflicht = true)
+        => PruefeMitSchluesseln(doc, unserZertifikat == null ? Array.Empty<X509Certificate2>() : new[] { unserZertifikat },
+            verschluesselungPflicht, signaturPflicht);
+
+    /// <summary>
+    /// Wie oben, aber mit mehreren eigenen Zertifikaten: Nach einer doppelt signierten
+    /// Anfrage (ERP + SUA) verschlüsselt der Distributor die Antwort für das SUA-Zertifikat
+    /// (Live 29.09.2026, CheckInterop F07_08: «oaep decoding error» mit dem ERP-Schlüssel).
+    /// </summary>
+    public static PruefErgebnis PruefeMitSchluesseln(XmlDocument doc, IReadOnlyList<X509Certificate2> unsereZertifikate,
+        bool verschluesselungPflicht = true, bool signaturPflicht = true)
     {
         // 1) Verschlüsselung
         var hatteVerschluesselung = doc.GetElementsByTagName("EncryptedData", NsXenc).Count > 0;
         if (hatteVerschluesselung)
         {
-            if (unserZertifikat?.GetRSAPrivateKey() == null)
+            var schluessel = unsereZertifikate.Where(z => z.HasPrivateKey && z.GetRSAPrivateKey() != null).ToList();
+            if (schluessel.Count == 0)
                 return new PruefErgebnis(Befund.EntschluesselungFehlgeschlagen,
                     "Die Antwort ist verschlüsselt, aber es ist kein privater Schlüssel hinterlegt.");
             try
             {
-                Entschluessele(doc, unserZertifikat.GetRSAPrivateKey()!);
+                Entschluessele(doc, WaehleEntschluesselungsZertifikat(doc, schluessel).GetRSAPrivateKey()!);
                 // ReplaceData hinterlässt den DOM manchmal inkonsistent für die
                 // anschliessende CheckSignature — neu laden stabilisiert C14N
                 // (Live-Probe Register 25.09.2026: Signatur erst nach Reload gültig).
@@ -355,6 +366,28 @@ public static class ElmWsSecurity
 
         return new PruefErgebnis(Befund.Gueltig,
             $"Signatur gültig{(hatteVerschluesselung ? ", Antwort war verschlüsselt" : "")}.", Name(zert));
+    }
+
+    /// <summary>
+    /// Das eigene Zertifikat, für das der Absender den Sitzungsschlüssel verschlüsselt hat —
+    /// erkannt am SubjectKeyIdentifier im KeyInfo des EncryptedKey. Ohne Kennzeichner bzw.
+    /// ohne Treffer das erste (bisheriges Verhalten).
+    /// </summary>
+    public static X509Certificate2 WaehleEntschluesselungsZertifikat(XmlDocument doc, IReadOnlyList<X509Certificate2> kandidaten)
+    {
+        var ek = doc.GetElementsByTagName("EncryptedKey", NsXenc).Cast<XmlElement>().FirstOrDefault();
+        var kid = ek?.GetElementsByTagName("KeyIdentifier", NsWsse).Cast<XmlElement>().FirstOrDefault();
+        if (kid != null && (kid.GetAttribute("ValueType") ?? "").EndsWith("X509SubjectKeyIdentifier", StringComparison.Ordinal))
+        {
+            byte[]? gesucht = null;
+            try { gesucht = Convert.FromBase64String(kid.InnerText.Trim()); } catch { }
+            if (gesucht != null)
+            {
+                var treffer = kandidaten.FirstOrDefault(z => EmpfaengerSki(z) is { } ski && ski.AsSpan().SequenceEqual(gesucht));
+                if (treffer != null) return treffer;
+            }
+        }
+        return kandidaten[0];
     }
 
     /// <summary>
