@@ -248,7 +248,7 @@ async function _elmCall(pfad, label) {
         out.innerHTML = `
             ${zielZeile}
             <div style="margin-bottom:8px">${okBadge}
-                <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms</span></div>
+                <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms${j.doppeltSigniert ? ' · Anfrage doppelt signiert (ERP + SUA)' : ''}</span></div>
             ${_elmTlsBlock(j)}
             ${secBlock}
             ${faultBlock}
@@ -717,7 +717,7 @@ function _suaZeigeErgebnis(j) {
         responseXml: e.responseXml, requestXml: e.requestXml,
         diffSekunden: e.diffSekunden, distributorZeit: e.distributorZeit,
         lokaleZeit: e.lokaleZeit, zeitAbweichung: e.zeitAbweichung, versatzSekunden: e.versatzSekunden,
-        security: e.security,
+        security: e.security, doppeltSigniert: e.doppeltSigniert,
     };
     out.innerHTML = meldeBlock + meldung + state;
     // TLS/Fault/XML darunter anhängen
@@ -739,7 +739,7 @@ function _suaZeigeErgebnis(j) {
                ${_elmFaultHinweis(fake)}
            </div>` : '';
     tmp.innerHTML = `<div style="margin-bottom:8px">${okBadge}
-            <span style="color:#64748b;margin-left:8px">HTTP ${fake.httpStatus || '—'} · ${fake.dauerMs || '—'} ms</span></div>
+            <span style="color:#64748b;margin-left:8px">HTTP ${fake.httpStatus || '—'} · ${fake.dauerMs || '—'} ms${fake.doppeltSigniert ? ' · Anfrage doppelt signiert (ERP + SUA)' : ''}</span></div>
         ${_elmTlsBlock(fake)}
         ${sec}
         ${faultBlock}

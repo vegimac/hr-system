@@ -262,10 +262,16 @@ public class ElmSuaService
         XElement? signBlock = null;
         RSA? csrKey = null;
         var istSignieren = false;
+        // RenewCertificate verlangt die Doppelsignatur ERP + bisheriges SUA
+        // (Sicherheitsrichtlinie Tabelle 4.6, Foundation F07_07).
+        X509Certificate2? suaFuerRenew = null;
         if (renew)
         {
             if (fall.Subject == null)
                 throw new InvalidOperationException("Für Renew fehlt der Subject-DN aus einer früheren Quittung.");
+            suaFuerRenew = _store.LadeSuaZumSignieren()
+                ?? throw new InvalidOperationException(
+                    "Erneuern geht nur mit einem vorhandenen SUA-Zertifikat samt Schlüssel — die Anfrage muss doppelt signiert sein (ERP + SUA).");
             (signBlock, csrKey) = BaueRenewBlock(fall.Subject, ohneSt);
             istSignieren = true;
         }
@@ -287,7 +293,7 @@ public class ElmSuaService
             var b = BaueSynchronizeBody(fall, block);
             PruefeSchema(b, "Synchronize");
             return await _client.PostGesichertAsync(url, b, erp,
-                _store.LadeEmpfaengerFuerVerschluesselung(), "sua-sync", ct);
+                _store.LadeEmpfaengerFuerVerschluesselung(), "sua-sync", ct, suaFuerRenew);
         }
 
         var call = await SendeAsync(signBlock);
@@ -512,9 +518,9 @@ public class ElmSuaService
         var rsa = RSA.Create(2048);
         var req = new CertificateRequest(name, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         var csrDer = req.CreateSigningRequest();
-        var pem = "-----BEGIN CERTIFICATE REQUEST-----\n"
-                + Convert.ToBase64String(csrDer, Base64FormattingOptions.InsertLineBreaks)
-                + "\n-----END CERTIFICATE REQUEST-----\n";
+        // RFC 7468: 64 Zeichen je Zeile, nur LF. InsertLineBreaks lieferte 76er-Zeilen
+        // mit CRLF zwischen LF-Kopfzeilen (Vergleich SUA-Spezifikation 29.09.2026).
+        var pem = new string(PemEncoding.Write("CERTIFICATE REQUEST", csrDer)) + "\n";
         return (Convert.ToBase64String(Encoding.ASCII.GetBytes(pem)), rsa);
     }
 

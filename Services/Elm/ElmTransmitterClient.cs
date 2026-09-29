@@ -111,6 +111,9 @@ public class ElmTransmitterClient
 
         /// <summary>WS-Security-Prüfung der Antwort (F02 / F07); NULL = nicht geprüft.</summary>
         public ElmWsSecurity.PruefErgebnis? Security { get; init; }
+
+        /// <summary>Anfrage trug zwei Signaturen (ERP + SUA) — Foundation F07_07/F07_08.</summary>
+        public bool DoppeltSigniert { get; init; }
     }
 
     /// <summary>
@@ -120,13 +123,15 @@ public class ElmTransmitterClient
     /// Fehlt das Empfängerzertifikat, wird es aus dem BinarySecurityToken der
     /// Antwort übernommen (RefApps liefert es in jeder signierten Antwort).
     /// Vor dem Verschlüsseln wird die signierte Klartext-Nachricht archiviert (F04).
+    /// Mit <paramref name="suaZertifikat"/> wird doppelt signiert (erst ERP, dann SUA).
     /// </summary>
     public async Task<ElmCallResult> PostGesichertAsync(
         string url, XElement body,
         X509Certificate2 erpZertifikat,
         X509Certificate2? empfaengerZertifikat,
         string archivName = "request",
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        X509Certificate2? suaZertifikat = null)
     {
         // Empfängerzertifikat: gespeichert, sonst Distributor-ELMv6-Asset.
         // Klassisches RefApps-Receiver aus Fault-Antworten wird bewusst übersprungen.
@@ -138,7 +143,9 @@ public class ElmTransmitterClient
         // als beim Empfänger (Falle aus ElmWsSecurity-Kommentar).
         doc.LoadXml(XDocument.Parse(envelopeXml).ToString(SaveOptions.DisableFormatting));
 
-        ElmWsSecurity.Signiere(doc, erpZertifikat);
+        ElmWsSecurity.Signiere(doc, suaZertifikat == null
+            ? new[] { erpZertifikat }
+            : new[] { erpZertifikat, suaZertifikat });
         // F04: signiert und UNVERSCHLÜSSELT archivieren (vor dem Encrypt).
         _store.ArchiviereKlartext(archivName + "-request", doc.OuterXml);
 
@@ -147,7 +154,7 @@ public class ElmTransmitterClient
 
         var gesichert = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" + doc.OuterXml;
         var r = await PostAsync(url, gesichert, ct);
-        r = MitFault(r);
+        r = MitFault(r) with { DoppeltSigniert = suaZertifikat != null };
 
         if (string.IsNullOrWhiteSpace(r.ResponseXml)) return r;
         try
@@ -437,6 +444,8 @@ public class ElmTransmitterClient
                       + "Bitte Swissdec-.pfx importieren (F07-Karte)."
             };
         }
-        return await PostGesichertAsync(url, body, erp, _store.LadeEmpfaengerFuerVerschluesselung(), archivName, ct);
+        // Ist ein SUA-Zertifikat installiert, geht CheckInterop doppelt signiert (F07_08).
+        return await PostGesichertAsync(url, body, erp, _store.LadeEmpfaengerFuerVerschluesselung(),
+            archivName, ct, _store.LadeSuaZumSignieren());
     }
 }

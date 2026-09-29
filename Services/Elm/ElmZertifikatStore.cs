@@ -301,6 +301,16 @@ public class ElmZertifikatStore
         return X509Certificate2.CreateFromPem(pem);
     }
 
+    /// <summary>
+    /// SUA-Zertifikat für die zweite Signatur — nur mit privatem Schlüssel, sonst NULL
+    /// (dann geht die Anfrage einfach signiert, wie vor dem SUA-Prozess).
+    /// </summary>
+    public X509Certificate2? LadeSuaZumSignieren()
+    {
+        var sua = LadeSua();
+        return sua?.HasPrivateKey == true ? sua : null;
+    }
+
     // ── Laufender SUA-Fall (CertificateRequestID + Credentials) ─────────────
 
     public ElmSuaFall? LadeFall()

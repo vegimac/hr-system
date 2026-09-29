@@ -505,6 +505,27 @@ Vorgehen: neuer Register (ersetzt den gespeicherten Fall) → Synchronize bis `v
 sofort SignCertificate, alles in einer Sitzung. Erst wenn dann wieder 2052 kommt: Ablauf mit
 dem RefApps-Transmitter vergleichen (PEM-Kodierung).
 
+**Vergleich mit der SUA-Detailspezifikation V1.5 (29.09.2026, `SWISSCEC/SUA_1.0_FA_d_…pdf`).**
+Der am 28.09. gesendete CSR erfüllt Kap. 5.1.5/5.2 vollständig (CN `NTRCH-{UID}@swissdec.ch`,
+O/L/ST/C aus der Quittung, OID 2.5.4.97, RSA 2048, SHA-256, Signatur gültig). Einzige formale
+Auffälligkeit: PEM-Text mit 76er-Zeilen und gemischt CRLF/LF — seither nach RFC 7468 (64 Zeichen,
+nur LF, `PemEncoding.Write`). Kap. 6.3 Schritte 12–16: nach dem Zertifikat folgt ein doppelt
+signiertes CheckInterop.
+
+### F07_07 / F07_08 — Doppelsignatur gebaut (29.09.2026)
+
+Sicherheitsrichtlinie Kap. 3.3.1 Punkt 6 + Tabelle 4.6: erst ERP-, dann UID-/SUA-Signatur,
+beide über denselben Body und denselben Timestamp, je ein eigenes BinarySecurityToken.
+
+| | |
+|---|---|
+| Signieren mit 1 oder 2 Zertifikaten | `ElmWsSecurity.Signiere(doc, IReadOnlyList<X509Certificate2>)` |
+| SUA nur mit Schlüssel | `ElmZertifikatStore.LadeSuaZumSignieren()` |
+| CheckInterop | automatisch doppelt, sobald ein SUA-Zertifikat installiert ist (F07_08) |
+| RenewCertificate | immer doppelt (ERP + bisheriges SUA); ohne SUA klare Fehlermeldung (F07_07) |
+| Anzeige | «Anfrage doppelt signiert (ERP + SUA)» neben HTTP-Status (`ElmCallResult.DoppeltSigniert`) |
+| Tests | `Tests/ElmDoppelsignaturTests.cs` (6) |
+
 **Vorbereitet für den Schlüssel (24.09.2026, offline):**
 
 | Baustein | Wo |

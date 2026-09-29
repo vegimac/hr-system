@@ -52,9 +52,23 @@ public static class ElmWsSecurity
     /// Das Dokument wird an Ort verändert.
     /// </summary>
     public static void Signiere(XmlDocument doc, X509Certificate2 zertifikat)
+        => Signiere(doc, new[] { zertifikat });
+
+    /// <summary>
+    /// Einfach- oder Doppelsignatur (Sicherheitsrichtlinie Kap. 3.3.1 Punkt 6): zuerst
+    /// das ERP-Zertifikat, danach das UID-/SUA-Zertifikat. Beide Signaturen decken
+    /// DENSELBEN Timestamp und DENSELBEN Body ab; jedes Zertifikat reist als eigenes
+    /// BinarySecurityToken mit. Pflicht für RenewCertificate und für CheckInterop mit
+    /// installiertem SUA (Tabelle 4.6, Foundation F07_07/F07_08).
+    /// </summary>
+    public static void Signiere(XmlDocument doc, IReadOnlyList<X509Certificate2> zertifikate)
     {
-        if (zertifikat.GetRSAPrivateKey() == null)
-            throw new InvalidOperationException("Das Zertifikat enthält keinen privaten Schlüssel — Signieren nicht möglich.");
+        if (zertifikate.Count == 0)
+            throw new ArgumentException("Mindestens ein Zertifikat zum Signieren nötig.", nameof(zertifikate));
+        foreach (var z in zertifikate)
+            if (z.GetRSAPrivateKey() == null)
+                throw new InvalidOperationException(
+                    $"Das Zertifikat «{z.GetNameInfo(X509NameType.SimpleName, false)}» enthält keinen privaten Schlüssel — Signieren nicht möglich.");
 
         doc.PreserveWhitespace = true;
         var security = HoleOderErzeugeSecurityHeader(doc);
@@ -69,14 +83,19 @@ public static class ElmWsSecurity
         ts.AppendChild(TextElement(doc, "wsu", "Expires", NsWsu, Zeit(jetzt.AddSeconds(TimestampGueltigSekunden))));
         security.AppendChild(ts);
 
-        // 2) Zertifikat als BinarySecurityToken mit direkter Referenz
-        var bst = doc.CreateElement("wsse", "BinarySecurityToken", NsWsse);
-        var bstId = "X509-" + kennung;
-        bst.SetAttribute("EncodingType", EncodingBase64);
-        bst.SetAttribute("ValueType", ValueTypeX509);
-        bst.SetAttribute("Id", NsWsu, bstId);
-        bst.InnerText = Convert.ToBase64String(zertifikat.RawData);
-        security.AppendChild(bst);
+        // 2) Jedes Zertifikat als BinarySecurityToken mit direkter Referenz
+        var bstIds = new List<string>();
+        for (var i = 0; i < zertifikate.Count; i++)
+        {
+            var bst = doc.CreateElement("wsse", "BinarySecurityToken", NsWsse);
+            var bstId = i == 0 ? "X509-" + kennung : $"X509-{kennung}-{i + 1}";
+            bst.SetAttribute("EncodingType", EncodingBase64);
+            bst.SetAttribute("ValueType", ValueTypeX509);
+            bst.SetAttribute("Id", NsWsu, bstId);
+            bst.InnerText = Convert.ToBase64String(zertifikate[i].RawData);
+            security.AppendChild(bst);
+            bstIds.Add(bstId);
+        }
 
         // 3) Body bekommt eine Kennung, damit die Signatur ihn referenzieren kann
         var body = EinzigesElement(doc, NsSoap, "Body")
@@ -94,24 +113,28 @@ public static class ElmWsSecurity
         doc.LoadXml(doc.OuterXml);
         security = EinzigesElement(doc, NsWsse, "Security")!;
 
-        // 5) Signatur über Timestamp UND Body
-        var signed = new WsuSignedXml(doc)
+        // 5) Je Zertifikat eine Signatur über Timestamp UND Body, in der Reihenfolge
+        //    der Liste (ERP zuerst, dann SUA).
+        for (var i = 0; i < zertifikate.Count; i++)
         {
-            SigningKey = zertifikat.GetRSAPrivateKey(),
-        };
-        signed.SignedInfo!.CanonicalizationMethod = SignedXml.XmlDsigExcC14NTransformUrl;
-        signed.SignedInfo.SignatureMethod = AlgoRsaSha256;
-        foreach (var id in new[] { tsId, bodyId })
-        {
-            // RefApps-Proben (09.09.2026) signieren mit rsa-sha256, Digest aber sha1.
-            // Richtlinie empfiehlt sha256 — wir bleiben bei sha256; bei Bedarf umstellbar.
-            var r = new Reference("#" + id) { DigestMethod = AlgoSha256 };
-            r.AddTransform(new XmlDsigExcC14NTransform());
-            signed.AddReference(r);
+            var signed = new WsuSignedXml(doc)
+            {
+                SigningKey = zertifikate[i].GetRSAPrivateKey(),
+            };
+            signed.SignedInfo!.CanonicalizationMethod = SignedXml.XmlDsigExcC14NTransformUrl;
+            signed.SignedInfo.SignatureMethod = AlgoRsaSha256;
+            foreach (var id in new[] { tsId, bodyId })
+            {
+                // RefApps-Proben (09.09.2026) signieren mit rsa-sha256, Digest aber sha1.
+                // Richtlinie empfiehlt sha256 — wir bleiben bei sha256; bei Bedarf umstellbar.
+                var r = new Reference("#" + id) { DigestMethod = AlgoSha256 };
+                r.AddTransform(new XmlDsigExcC14NTransform());
+                signed.AddReference(r);
+            }
+            signed.KeyInfo = SecurityTokenReference(doc, bstIds[i]);
+            signed.ComputeSignature();
+            security.AppendChild(doc.ImportNode(signed.GetXml(), true));
         }
-        signed.KeyInfo = SecurityTokenReference(doc, bstId);
-        signed.ComputeSignature();
-        security.AppendChild(doc.ImportNode(signed.GetXml(), true));
     }
 
     /// <summary>KeyInfo mit direkter Referenz auf das mitgeschickte Zertifikat (Richtlinie Punkt 3).</summary>
