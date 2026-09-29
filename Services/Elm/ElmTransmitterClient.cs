@@ -115,6 +115,9 @@ public class ElmTransmitterClient
         /// <summary>Anfrage trug zwei Signaturen (ERP + SUA) — Foundation F07_07/F07_08.</summary>
         public bool DoppeltSigniert { get; init; }
 
+        /// <summary>SignatureConfirmation der Antwort gegen unsere Signaturen (F04_02); NULL = nicht geprüft.</summary>
+        public ElmSignaturBestaetigung.Ergebnis? SignaturBestaetigung { get; init; }
+
         /// <summary>
         /// Antwort Byte für Byte wie empfangen. Signaturprüfung und F04-Archiv brauchen
         /// das Original — <see cref="ResponseXml"/> ist für die Anzeige umformatiert, und
@@ -155,7 +158,8 @@ public class ElmTransmitterClient
             ? new[] { erpZertifikat }
             : new[] { erpZertifikat, suaZertifikat });
         // F04: signiert und UNVERSCHLÜSSELT archivieren (vor dem Encrypt).
-        _store.ArchiviereKlartext(archivName + "-request", doc.OuterXml);
+        var signierteAnfrage = doc.OuterXml;
+        _store.ArchiviereKlartext(archivName + "-request", signierteAnfrage);
 
         if (empfaengerZertifikat != null)
             ElmWsSecurity.Verschluessele(doc, empfaengerZertifikat);
@@ -195,7 +199,11 @@ public class ElmTransmitterClient
             string anzeige;
             try { anzeige = XDocument.Parse(klartext).ToString(); }
             catch { anzeige = klartext; }
-            return r with { ResponseXml = anzeige, Security = pruef };
+            return r with
+            {
+                ResponseXml = anzeige, Security = pruef,
+                SignaturBestaetigung = ElmSignaturBestaetigung.Pruefe(signierteAnfrage, klartext),
+            };
         }
         catch
         {

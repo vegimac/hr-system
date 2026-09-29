@@ -121,8 +121,8 @@ const KOMM_KATALOG = [
       erwartet: 'Jede Anfrage und Antwort liegt im Archiv: mit Signatur, ohne Verschlüsselung, lesbar in OneCrew.' },
     { id: 'F04_02', titel: 'SignatureConfirmation im Archiv', typ: 'SIGNATURE_CONFIRMATION',
       werkzeug: null, aktionen: [{ label: 'Archiv öffnen', art: 'archiv' }],
-      erwartet: 'Die archivierten Antworten enthalten SignatureConfirmation (Spalte im Archiv).',
-      hinweis: 'OneCrew prüft den Wert der SignatureConfirmation noch nicht gegen die eigene Signatur.' },
+      erwartet: 'Spalte «SignatureConfirmation» im Archiv: bei jeder Antwort auf eine signierte Anfrage «✓ passt» — der Wert entspricht genau unserer Signatur (bei Doppelsignatur beiden) und ist von der Antwort mitsigniert. Oben: «passt zu unserer Signatur: X von X».',
+      hinweis: 'Geprüft wird gegen die archivierte Anfrage mit gleichem Namen. Ping ist nicht signiert und braucht keine Bestätigung («— nicht signiert»). Dieselbe Prüfung erscheint auch direkt nach jedem Aufruf unter «WS-Security».' },
 
     // ── F05 Übermittlung (Etappe E4, noch nicht gebaut) ────────────────────
     ...[
@@ -484,12 +484,28 @@ async function kommArchivLaden() {
         const liste = r.ok ? await r.json() : [];
         if (!liste.length) { el.innerHTML = '<div class="komm-klein">Noch keine archivierten Nachrichten.</div>'; return; }
         const antworten = liste.filter(d => /-response\.xml$/.test(d.name));
-        const mitSc = antworten.filter(d => d.signatureConfirmation).length;
+        // F04_02: gezählt werden nur Antworten auf SIGNIERTE Anfragen (Ping braucht keine Bestätigung)
+        const geprueft = antworten.filter(d => d.scStand && d.scStand !== 'NichtVerlangt');
+        const bestaetigt = geprueft.filter(d => d.scStand === 'Bestaetigt').length;
+        const offen = geprueft.length - bestaetigt;
         const verschl = liste.filter(d => d.verschluesselt).length;
         const zusammen = `<div class="komm-archiv-summe">
             <span class="${verschl ? 'komm-rot' : 'komm-gruen'}">${verschl ? `✗ ${verschl} Datei(en) verschlüsselt` : `✓ alle ${liste.length} Dateien unverschlüsselt`}</span>
             · <span>${liste.filter(d => d.signaturen > 0).length} mit Signatur</span>
-            · <span>Antworten mit SignatureConfirmation: <b>${mitSc}</b> von ${antworten.length}</span></div>`;
+            · <span class="${offen ? 'komm-rot' : ''}">SignatureConfirmation passt zu unserer Signatur: <b>${bestaetigt}</b> von ${geprueft.length}</span></div>`;
+        const scZelle = d => {
+            const t = esc(d.scMeldung || '') + (d.anfrage ? ` (geprüft gegen ${esc(d.anfrage)})` : '');
+            switch (d.scStand) {
+                case 'Bestaetigt':    return `<span class="komm-gruen" title="${t}">✓ passt</span>`;
+                case 'NichtVerlangt': return `<span class="komm-klein" title="${t}">— nicht signiert</span>`;
+                case 'Fehlt':         return `<span class="komm-rot" title="${t}">✗ fehlt</span>`;
+                case 'Abweichend':    return `<span class="komm-rot" title="${t}">✗ passt nicht</span>`;
+                case 'NichtSigniert': return `<span class="komm-rot" title="${t}">✗ nicht mitsigniert</span>`;
+                default: return d.signatureConfirmation
+                    ? '<span class="komm-klein" title="Keine zugehörige Anfrage im Archiv">vorhanden, ungeprüft</span>'
+                    : '<span class="komm-klein">—</span>';
+            }
+        };
         el.innerHTML = zusammen + `<table class="komm-archiv"><thead><tr>
                 <th>Zeit</th><th>Nachricht</th><th>Signaturen</th><th>verschlüsselt</th><th>SignatureConfirmation</th></tr></thead><tbody>`
             + liste.map(d => {
@@ -500,7 +516,7 @@ async function kommArchivLaden() {
                     <td>${esc(art)}</td>
                     <td>${d.signaturen || '<span class="komm-rot">keine</span>'}</td>
                     <td>${d.verschluesselt ? '<span class="komm-rot">ja</span>' : 'nein'}</td>
-                    <td>${istAntwort ? (d.signatureConfirmation ? '✓' : '<span class="komm-klein">—</span>') : ''}</td></tr>`;
+                    <td>${istAntwort ? scZelle(d) : ''}</td></tr>`;
             }).join('') + '</tbody></table>';
     } catch (e) { el.innerHTML = `<span class="komm-rot">${esc(e.message)}</span>`; }
 }

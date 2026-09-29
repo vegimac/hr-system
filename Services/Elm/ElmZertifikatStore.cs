@@ -424,19 +424,44 @@ public class ElmZertifikatStore
     {
         var dir = Path.Combine(_root, "archiv");
         if (!Directory.Exists(dir)) return new();
-        return new DirectoryInfo(dir).GetFiles("*.xml")
-            .OrderByDescending(f => f.Name)
+        var alle = new DirectoryInfo(dir).GetFiles("*.xml").OrderBy(f => f.Name, StringComparer.Ordinal).ToList();
+        return alle
+            .OrderByDescending(f => f.Name, StringComparer.Ordinal)
             .Take(max)
             .Select(f =>
             {
                 var inhalt = "";
                 try { inhalt = File.ReadAllText(f.FullName); } catch { }
+                ElmSignaturBestaetigung.Ergebnis? sc = null;
+                var anfrage = ArchivAnfrageZu(f.Name, alle);
+                if (anfrage != null)
+                {
+                    try { sc = ElmSignaturBestaetigung.Pruefe(File.ReadAllText(anfrage.FullName), inhalt); }
+                    catch { /* Anzeige ohne Prüfung */ }
+                }
                 return new ElmArchivDatei(f.Name, f.LastWriteTime, f.Length,
                     inhalt.Contains("SignatureConfirmation", StringComparison.Ordinal),
                     inhalt.Contains("EncryptedData", StringComparison.Ordinal),
-                    Regex.Matches(inhalt, @"<(\w+:)?Signature[\s>]").Count);
+                    Regex.Matches(inhalt, @"<(\w+:)?Signature[\s>]").Count)
+                { ScStand = sc?.Art, ScMeldung = sc?.Meldung, Anfrage = anfrage?.Name };
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// Zur Antwort «…-X-response.xml» die jüngste Anfrage «…-X-request.xml», die nicht
+    /// später liegt. Beide tragen denselben Namen; die Anfrage wird vor dem Senden
+    /// archiviert, die Antwort danach. NULL für Anfragen und wenn keine passt.
+    /// </summary>
+    public static FileInfo? ArchivAnfrageZu(string antwortName, IReadOnlyList<FileInfo> alleAufsteigend)
+    {
+        var m = Regex.Match(antwortName, @"^[0-9]{8}-[0-9]{6}-(?<art>.+)-response\.xml$");
+        if (!m.Success) return null;
+        var gesucht = m.Groups["art"].Value + "-request.xml";
+        return alleAufsteigend
+            .Where(f => f.Name.Length > 16 && f.Name[16..] == gesucht
+                     && string.CompareOrdinal(f.Name, antwortName) < 0)
+            .LastOrDefault();
     }
 
     public string? LeseArchiv(string name)
@@ -471,7 +496,14 @@ public class ElmFoundationEintrag
 }
 
 public record ElmArchivDatei(string Name, DateTime Zeit, long Bytes,
-    bool SignatureConfirmation, bool Verschluesselt, int Signaturen);
+    bool SignatureConfirmation, bool Verschluesselt, int Signaturen)
+{
+    /// <summary>F04_02: Stand der SignatureConfirmation gegen die zugehörige Anfrage (nur Antworten).</summary>
+    public string? ScStand { get; init; }
+    public string? ScMeldung { get; init; }
+    /// <summary>Archivierte Anfrage, gegen die geprüft wurde.</summary>
+    public string? Anfrage { get; init; }
+}
 
 /// <summary>Persistierter Stand eines SUA-Antrags (F07).</summary>
 public class ElmSuaFall

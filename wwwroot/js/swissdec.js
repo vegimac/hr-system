@@ -276,6 +276,7 @@ async function _elmCall(pfad, label, opt = {}) {
                 <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms${j.doppeltSigniert ? ' · Anfrage doppelt signiert (ERP + SUA)' : ''}</span></div>
             ${_elmTlsBlock(j)}
             ${secBlock}
+            ${_elmScBlock(j.signaturBestaetigung, j.security)}
             ${faultBlock}
             ${_elmInteropBlock(antwort, j)}
             ${_elmZeitBlock(j)}
@@ -288,6 +289,18 @@ async function _elmCall(pfad, label, opt = {}) {
         if (out) out.innerHTML = `<div style="color:#b91c1c">Verbindungsfehler: ${esc(e.message)}</div>`;
         return { fehler: e.message };
     }
+}
+
+/**
+ * F04_02 — SignatureConfirmation gegen unsere eigenen Signaturen. Nur anzeigen, wenn
+ * die Antwort-Signatur gültig ist (sonst ist auch die Bestätigung nicht belastbar)
+ * und die Anfrage signiert war (Ping braucht keine).
+ */
+function _elmScBlock(sb, security) {
+    if (!sb || sb.art === 'NichtVerlangt' || !security || !security.ok) return '';
+    const ok = sb.ok === true;
+    return `<div style="background:${ok ? '#e7f0e7' : '#fef2f2'};border:1px solid ${ok ? '#b8ccb8' : '#fecaca'};color:${ok ? '#3f5540' : '#991b1b'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+             <b>SignatureConfirmation:</b> ${ok ? '✓ ' : '✗ '}${esc(sb.meldung || '')}</div>`;
 }
 
 /** Fault-Hinweise — Code 100 mischt oft zwei Ursachen in einem Satz. */
@@ -776,6 +789,7 @@ function _suaZeigeErgebnis(j, outId) {
         diffSekunden: e.diffSekunden, distributorZeit: e.distributorZeit,
         lokaleZeit: e.lokaleZeit, zeitAbweichung: e.zeitAbweichung, versatzSekunden: e.versatzSekunden,
         security: e.security, doppeltSigniert: e.doppeltSigniert,
+        signaturBestaetigung: e.signaturBestaetigung,
     };
     out.innerHTML = meldeBlock + meldung + state;
     // TLS/Fault/XML darunter anhängen
@@ -799,6 +813,7 @@ function _suaZeigeErgebnis(j, outId) {
             <span style="color:#64748b;margin-left:8px">HTTP ${fake.httpStatus || '—'} · ${fake.dauerMs || '—'} ms${fake.doppeltSigniert ? ' · Anfrage doppelt signiert (ERP + SUA)' : ''}</span></div>
         ${_elmTlsBlock(fake)}
         ${sec}
+        ${_elmScBlock(fake.signaturBestaetigung, fake.security)}
         ${faultBlock}
         ${fake.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
             <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.responseXml)}</pre>` : ''}

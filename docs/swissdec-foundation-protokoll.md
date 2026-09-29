@@ -410,6 +410,26 @@ Kommunikations-Test nennt bei F07 die echten Receiver-Einstellungen.
 Umbau wiederholt (23:00): rot «✗ Registrierung abgewiesen — 3800 …» ✓.
 Offen: Nach dem Neuladen stand im Feld Firmenname die UID — Vorbelegung prüfen.
 
+### F04_02 SignatureConfirmation wird geprüft (29.09.2026, nachts gebaut)
+
+Bisher zeigte das Archiv nur, **ob** eine Antwort eine SignatureConfirmation enthält. Neu
+(`Services/Elm/ElmSignaturBestaetigung.cs`) prüft OneCrew, dass sie **genau unsere Signatur**
+bestätigt (Sicherheitsrichtlinie Kap. 4.3.4, Nichtabstreitbarkeit des Empfangs):
+- jeder `ds:SignatureValue` unserer Anfrage (bei Doppelsignatur beide) kommt als `Value` einer
+  `wsse11:SignatureConfirmation` zurück, und es gibt keinen fremden Wert;
+- jede SignatureConfirmation ist über ihre `wsu:Id` von der Signatur der Antwort abgedeckt
+  (`ds:SignedInfo/ds:Reference URI="#…"`) — sonst könnte sie unterwegs eingefügt worden sein.
+
+Stände: passt / fehlt / passt nicht / nicht mitsigniert / nicht signiert (Ping — nichts zu
+bestätigen). Die Prüfung meldet nur, sie verwirft keine Antwort.
+- **Direkt nach dem Aufruf:** Zeile «SignatureConfirmation: …» unter «WS-Security» (nur wenn
+  die Antwort-Signatur gültig ist).
+- **Archiv:** Spalte «SignatureConfirmation» je Antwort, geprüft gegen die archivierte Anfrage
+  mit gleichem Namen (jüngste davor); Summe «passt zu unserer Signatur: X von Y».
+
+Nachzuprüfen mit Walter: Archiv öffnen, bei den Antworten von heute Abend (Register,
+Synchronize, Renew, CheckInterop) muss «✓ passt» stehen.
+
 ### Ursprüngliche Einschätzung (überholt)
 
 | Punkt | Verlangt | Was wir dafür bauen müssen |
@@ -916,7 +936,7 @@ nicht auf Prod.
 | # | Was gebaut werden muss | Vorhanden? |
 |---|---|---|
 | **F03** | CheckInterop mit festem FirstOperand/UmlautString; SecondOperand wählbar (0.01 / 0.00 / −999'000'000'000.00); immer 2 Nachkommastellen; Response prüfen (Umlaut klein, Operanden); Tamper-Varianten melden | ✅ **gebaut 24.09.2026** — `ElmInterop` + UI + 30 Tests (siehe Abschnitt F03) |
-| **F04** | Jeder Request/Response **signiert und unverschlüsselt** archivieren; SignatureConfirmation in der Response prüfen | 🟡 Archiv unter `archiv/` gebaut · SignatureConfirmation-Prüfung noch offen |
+| **F04** | Jeder Request/Response **signiert und unverschlüsselt** archivieren; SignatureConfirmation in der Response prüfen | 🟡 Archiv unter `archiv/` gebaut · SignatureConfirmation-Prüfung gebaut 29.09.2026, Nachprüfung am Archiv offen |
 | **F05** | SubscribeOrganization; 1 vs. n Addressees; Declare mit Empfängerwahl; DeclarationId spiegeln; Substitution; eindeutige RequestID; `<TestCase/>` | Sample-XML vorhanden · Client/UI fehlt (E4) |
 | **F06** | PlausibilityRules-Verletzung → Distributor-Fehler dem User zeigen | fehlt |
 | **F07** | RegisterOrganization → Synchronize (Processing/Registered/Rejected) → SignCertificate (Verified) → Renew → doppelte Signatur (ERP+SUA) auf CheckInterop | ✅ Client+UI · PFX-Import bereit · RefApps wartet auf Swissdec-.pfx · F07_08 offen |
