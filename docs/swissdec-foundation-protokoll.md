@@ -404,9 +404,11 @@ rot; Kontakt wird im Fall gespeichert und mit UID/Firma nach dem Neuladen vorbel
 Endpoint-URL fällt auf die zuletzt benutzte bzw. den Refapps Receiver zurück (nie Prod);
 Kommunikations-Test nennt bei F07 die echten Receiver-Einstellungen.
 
-**Stand Fall danach:** der abgelehnte Übungsfall ist gespeichert — für Erneuern (F07_07) und
-den Termin zum Schluss mit RegisterVerification neu registrieren, abfragen, sofort signieren.
-Das SUA-Zertifikat von 18:01 (gültig bis 09.10.2026) bleibt bis dahin gespeichert.
+**Abschluss 23:22:** RegisterVerification → neu registriert → verified (Einmalpasswort kam
+über Code 9998 ins Feld) → signiert: «SUA-Zertifikat ausgestellt und gespeichert, gültig bis
+09.10.2026 23:2x». Der gespeicherte Fall ist damit wieder erneuerbar (F07_07). F07_02 nach dem
+Umbau wiederholt (23:00): rot «✗ Registrierung abgewiesen — 3800 …» ✓.
+Offen: Nach dem Neuladen stand im Feld Firmenname die UID — Vorbelegung prüfen.
 
 ### Ursprüngliche Einschätzung (überholt)
 
