@@ -865,6 +865,154 @@ public class ElmController : ControllerBase
         return Ok(new { ok = true, message = "Empfängerzertifikat gespeichert — ab jetzt werden Requests verschlüsselt." });
     }
 
+    // ── Übermittlung F05 / F06 / F08 (Declare, GetStatus, Synchronize, Subscribe) ──
+
+    private IActionResult ZielFehlt()
+        => BadRequest(new { error = "ZIEL_UNBEKANNT",
+             message = "Bitte «test» oder «prod» wählen oder eine gültige https-Adresse eingeben." });
+
+    private static object Projektion(ElmVorgang v) => new
+    {
+        v.Id, v.Art, v.Titel, v.TestCase, v.Substitution, v.DoppeltSigniert, v.Gesendet,
+        v.RequestId, v.ResponseId, v.JobKey, v.JobFinished, v.LetzteStatusAbfrage, v.StatusAbfragen,
+        v.Uid, v.Firmenname, v.Protokoll,
+        naechsteStatusAbfrageIn = v.LetzteStatusAbfrage is DateTime t
+            ? Math.Max(0, ElmUebermittlungService.MindestabstandStatusSekunden - (int)(DateTime.Now - t).TotalSeconds) : 0,
+        adressaten = v.Adressaten.Select(a => new
+        {
+            a.AddresseeId, a.Identification, a.Domain, a.Verarbeiten, a.Zustand,
+            a.Fehler, a.FehlerDetail, a.FehlerCode, a.Wartung,
+            a.FallId, a.Key, a.Password, a.TestCaseBestaetigt, a.InstitutionName, a.Hinweise,
+            a.State, stateText = ElmUebermittlungXml.StateText(a.State),
+            a.LetzteSynchronisierung, a.Synchronisierungen,
+            a.UnterdrueckteInstitutionStories, a.UnterdrueckteSenderStories, a.Verfuegbar, a.Completion,
+            ausstehend = a.Ausstehend.Select(g => new { g.StoryId, g.Art, g.AntwortAuf, g.Gesendet, g.Erstellt }),
+            zuQuittieren = ElmUebermittlungXml.ZuQuittieren(a).Count,
+            stories = a.Stories.Select(s => new
+            {
+                s.StoryId, s.Art, s.Empfangen, s.Quittiert, s.Beantwortet, s.AntwortStoryId, s.Empfangszaehler, s.Xml,
+                dialog = s.Art == "DialogMessage" ? LiesDialog(s.Xml) : null,
+            }),
+        }),
+    };
+
+    private static ElmDialog.Nachricht? LiesDialog(string xml)
+    {
+        try { return ElmDialog.Lies(System.Xml.Linq.XElement.Parse(xml)); }
+        catch { return null; }
+    }
+
+    private object Antwort(ElmUebermittlungService.Ergebnis r, string zielName) => new
+    {
+        ok = r.Ok, meldung = r.Meldung, name = zielName,
+        faultCode = r.FaultCode, faultText = r.FaultCode == null ? null : ElmUebermittlungXml.FaultText(r.FaultCode),
+        hinweise = r.Hinweise, warnungen = r.Warnungen,
+        vorgang = r.Vorgang == null ? null : Projektion(r.Vorgang),
+        ergebnis = r.Call,
+    };
+
+    [HttpGet("uebermittlung")]
+    public async Task<IActionResult> UebermittlungListe([FromServices] ElmUebermittlungService dienst)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        return Ok(dienst.Liste().Select(Projektion));
+    }
+
+    [HttpGet("uebermittlung/vorschau")]
+    public async Task<IActionResult> UebermittlungVorschau([FromServices] ElmUebermittlungService dienst,
+        string art, int jahr, int? monat, CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        try { return Ok(await dienst.VorschauAsync(art == "annual" ? "annual" : "monthly", jahr, monat, ct)); }
+        catch (Exception ex) { return BadRequest(new { error = "VORSCHAU", message = ex.GetBaseException().Message }); }
+    }
+
+    public record ElmDeclareBody(string? Ziel, string? Url, string? Art, int Jahr, int? Monat,
+        bool TestCase = true, string? Substitution = null, Dictionary<string, bool>? Adressaten = null,
+        bool DoppeltSignieren = true, bool RequestIdWiederverwenden = false);
+
+    [HttpPost("uebermittlung/declare")]
+    public async Task<IActionResult> UebermittlungDeclare([FromServices] ElmUebermittlungService dienst,
+        [FromBody] ElmDeclareBody dto, CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var ziel = ZielAufloesen(new ElmZielDto(dto.Ziel, dto.Url));
+        if (ziel == null) return ZielFehlt();
+        try
+        {
+            var r = await dienst.DeclareAsync(ziel.Value.Url!, new ElmUebermittlungService.DeclareOptionen(
+                dto.Art == "annual" ? "annual" : "monthly", dto.Jahr, dto.Monat, dto.TestCase, dto.Substitution,
+                dto.Adressaten, dto.DoppeltSignieren, dto.RequestIdWiederverwenden), ct);
+            return Ok(Antwort(r, ziel.Value.Name));
+        }
+        catch (Exception ex) { return BadRequest(new { error = "DECLARE", message = ex.GetBaseException().Message }); }
+    }
+
+    public record ElmVorgangBody(string? Ziel, string? Url, string VorgangId);
+
+    [HttpPost("uebermittlung/status")]
+    public async Task<IActionResult> UebermittlungStatus([FromServices] ElmUebermittlungService dienst,
+        [FromBody] ElmVorgangBody dto, CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var ziel = ZielAufloesen(new ElmZielDto(dto.Ziel, dto.Url));
+        if (ziel == null) return ZielFehlt();
+        try { return Ok(Antwort(await dienst.StatusAsync(ziel.Value.Url!, dto.VorgangId, ct), ziel.Value.Name)); }
+        catch (Exception ex) { return BadRequest(new { error = "STATUS", message = ex.GetBaseException().Message }); }
+    }
+
+    public record ElmDialogAntwortBody(string StoryId, Dictionary<short, string?>? Werte);
+    public record ElmSyncBody(string? Ziel, string? Url, string VorgangId, string AddresseeId,
+        List<ElmDialogAntwortBody>? Antworten = null, bool Abmelden = false);
+
+    [HttpPost("uebermittlung/synchronize")]
+    public async Task<IActionResult> UebermittlungSynchronize([FromServices] ElmUebermittlungService dienst,
+        [FromBody] ElmSyncBody dto, CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var ziel = ZielAufloesen(new ElmZielDto(dto.Ziel, dto.Url));
+        if (ziel == null) return ZielFehlt();
+        try
+        {
+            var antworten = (dto.Antworten ?? new())
+                .Select(a => new ElmUebermittlungService.DialogAntwort(a.StoryId, a.Werte ?? new()))
+                .ToList();
+            var r = await dienst.SynchronizeAsync(ziel.Value.Url!, dto.VorgangId, dto.AddresseeId, antworten, dto.Abmelden, ct);
+            return Ok(Antwort(r, ziel.Value.Name));
+        }
+        catch (Exception ex) { return BadRequest(new { error = "SYNC", message = ex.GetBaseException().Message }); }
+    }
+
+    public record ElmSubscribeBody(string? Ziel, string? Url,
+        string? Uid, string? Firmenname, string? Kontakt, string? AddresseeIdentification, string? Domain,
+        string? Plz, string? Ort, string? Versicherer, string? Kundennummer, string? Vertragsnummer,
+        bool TestCase = true, bool DoppeltSignieren = true);
+
+    [HttpPost("uebermittlung/subscribe")]
+    public async Task<IActionResult> UebermittlungSubscribe([FromServices] ElmUebermittlungService dienst,
+        [FromBody] ElmSubscribeBody dto, CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var ziel = ZielAufloesen(new ElmZielDto(dto.Ziel, dto.Url));
+        if (ziel == null) return ZielFehlt();
+        try
+        {
+            var r = await dienst.SubscribeAsync(ziel.Value.Url!, new ElmUebermittlungService.SubscribeOptionen(
+                dto.Uid, dto.Firmenname, dto.Kontakt, dto.AddresseeIdentification, dto.Domain,
+                dto.Plz, dto.Ort, dto.Versicherer, dto.Kundennummer, dto.Vertragsnummer,
+                dto.TestCase, dto.DoppeltSignieren), ct);
+            return Ok(Antwort(r, ziel.Value.Name));
+        }
+        catch (Exception ex) { return BadRequest(new { error = "SUBSCRIBE", message = ex.GetBaseException().Message }); }
+    }
+
+    [HttpDelete("uebermittlung/{id}")]
+    public async Task<IActionResult> UebermittlungLoeschen([FromServices] ElmUebermittlungService dienst, string id)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        return dienst.Loesche(id) ? Ok(new { ok = true }) : NotFound(new { error = "NICHT_GEFUNDEN" });
+    }
+
     // ── Kommunikations-Test: Stand je Foundation-Prüfpunkt (Walter 29.09.2026) ──
 
     [HttpGet("foundation/stand")]

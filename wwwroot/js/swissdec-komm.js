@@ -124,23 +124,41 @@ const KOMM_KATALOG = [
       erwartet: 'Spalte «SignatureConfirmation» im Archiv: bei jeder Antwort auf eine signierte Anfrage «✓ passt» — der Wert entspricht genau unserer Signatur (bei Doppelsignatur beiden) und ist von der Antwort mitsigniert. Oben: «passt zu unserer Signatur: X von X».',
       hinweis: 'Geprüft wird gegen die archivierte Anfrage mit gleichem Namen. Ping ist nicht signiert und braucht keine Bestätigung («— nicht signiert»). Dieselbe Prüfung erscheint auch direkt nach jedem Aufruf unter «WS-Security».' },
 
-    // ── F05 Übermittlung (Etappe E4, noch nicht gebaut) ────────────────────
-    ...[
-        ['F05_01', 'SubscribeOrganization'],
-        ['F05_02', 'Genau ein Adressat'],
-        ['F05_03', 'Mehrere Adressaten (ProcessedByDistributor)'],
-        ['F05_04', 'Declare mit Adressatenauswahl'],
-        ['F05_05', 'DeclarationId im Synchronize gespiegelt'],
-        ['F05_06', 'Substitution mit DeclarationId'],
-        ['F05_07', 'Eindeutige RequestID'],
-        ['F05_08', 'Vollständiger Prozess mit TestCase'],
-    ].map(([id, titel]) => ({ id, titel, typ: 'ÜBERMITTLUNG', werkzeug: null, aktionen: [], gebaut: false,
-        erwartet: 'Noch nicht gebaut (Etappe E4). Laut Expertin nach F07.' })),
+    // ── F05 Übermittlung (gebaut 30.09.2026, noch nicht gegen den Receiver geprobt) ──
+    // ueb = Übermittlungs-Panel in Schritt 2 (js/swissdec-uebermittlung.js)
+    { id: 'F05_01', titel: 'SubscribeOrganization', typ: 'SUBSCRIBE_ORG', werkzeug: null,
+      ueb: { modus: 'subscribe' },
+      erwartet: 'Grün «angemeldet, SubscriptionID …». Danach «Synchronisieren»: State «subscribed», eventuell eine Liste «Verfügbar».',
+      hinweis: 'Die Anmeldung ist synchron — es gibt keinen JobKey und keine Statusabfrage.' },
+    { id: 'F05_02', titel: 'Genau ein Adressat', typ: 'DECLARE', werkzeug: null,
+      ueb: { modus: 'declare', art: 'annual' },
+      erwartet: 'Jahresmeldung AHV (ein Adressat) senden → JobKey. «Status abfragen» → Adressat erfolgreich mit DeclarationID, Key und Passwort.' },
+    { id: 'F05_03', titel: 'Mehrere Adressaten (ProcessedByDistributor)', typ: 'DECLARE', werkzeug: null,
+      ueb: { modus: 'declare', art: 'monthly' },
+      erwartet: 'Monatsmeldung mit mehreren Adressaten (QST je Kanton + Statistik). «Status abfragen» zeigt jeden Adressaten einzeln mit seinem Ergebnis.' },
+    { id: 'F05_04', titel: 'Declare mit Adressatenauswahl', typ: 'DECLARE', werkzeug: null,
+      ueb: { modus: 'declare', art: 'monthly' },
+      erwartet: '«Adressaten anzeigen», einen abwählen, senden. Der abgewählte geht mit ProcessByDistributor=false mit und erscheint im Status als «nicht verarbeitet (abgewählt)».' },
+    { id: 'F05_05', titel: 'DeclarationId im Synchronize gespiegelt', typ: 'SYNCHRONIZE', werkzeug: null,
+      ueb: { modus: 'declare' },
+      erwartet: 'Nach erfolgreichem Status beim Adressaten «Synchronisieren»: die gesendete Anfrage enthält DeclarationID und Credentials aus dem Status, die Antwort nennt dieselbe DeclarationID.',
+      hinweis: 'Weicht die DeclarationID der Antwort ab, erscheint oben eine Warnung.' },
+    { id: 'F05_06', titel: 'Substitution mit DeclarationId', typ: 'DECLARE', werkzeug: null,
+      ueb: { modus: 'declare', substitution: true },
+      erwartet: 'DeclarationID einer ABGESCHLOSSENEN Meldung ins Feld «Ersatzmeldung für» eintragen, senden → neuer JobKey, im Titel «Ersatzmeldung».',
+      hinweis: 'Ersetzen geht nur für eine abgeschlossene Meldung (AB-09) — sonst muss der Distributor ablehnen.' },
+    { id: 'F05_07', titel: 'Eindeutige RequestID', typ: 'DECLARE', werkzeug: null,
+      ueb: { modus: 'declare', requestIdProbe: true },
+      erwartet: 'Normal gesendet hat jede Anfrage eine neue RequestID. Mit dem Häkchen «RequestID nochmals verwenden» muss der Distributor ablehnen — die Ablehnung erscheint im Klartext.' },
+    { id: 'F05_08', titel: 'Vollständiger Prozess mit TestCase', typ: 'DECLARE · SYNC', werkzeug: null,
+      ueb: { modus: 'declare' },
+      erwartet: 'Mit TestCase senden → Status → Synchronisieren bis «Finished». Jede Synchronize-Anfrage trägt TestCase, beim Adressaten steht «TestCase bestätigt».' },
 
     // ── F06 Validierung ────────────────────────────────────────────────────
     { id: 'F06_01', titel: 'Verletzte Plausibilitätsregeln anzeigen', typ: 'PLAUSIBILITY',
-      werkzeug: null, aktionen: [], gebaut: false,
-      erwartet: 'Noch nicht gebaut. Die Fehlermeldung des Distributors muss im Klartext erscheinen.' },
+      werkzeug: 'Receiver so einstellen, dass er die Meldung als nicht plausibel abweist (Einstellung beim Test festlegen).',
+      ueb: { modus: 'declare' },
+      erwartet: 'Rot «Abgewiesen — NOT_plausible …» mit Code und Beschreibung jeder verletzten Regel im Klartext; beim Adressaten der Fehlertext.' },
 
     // ── F07 SUA-Zertifikat ─────────────────────────────────────────────────
     { id: 'F07_01', titel: 'RegisterOrganization', typ: 'REGISTER_ORG',
@@ -182,18 +200,36 @@ const KOMM_KATALOG = [
       erwartet: '«Anfrage doppelt signiert (ERP + SUA)», Signatur gültig, zwei SignatureConfirmation.',
       vorbelegt: { status: 'ok', notiz: '29.09.2026 17:41' } },
 
-    // ── F08 Prozesse (noch nicht gebaut) ───────────────────────────────────
-    ...[
-        ['F08_01', 'Synchrone Übermittlung mit Quittungen'],
-        ['F08_02', 'GetStatus mit JobKey'],
-        ['F08_03', 'Stories synchronisieren'],
-        ['F08_04', 'Dialog manuell bedienen'],
-        ['F08_05', 'Dialog beantworten (Reply)'],
-        ['F08_06', 'Dialog quittieren (Confirm)'],
-        ['F08_07', 'RandomDialogMessage anzeigen'],
-        ['F08_08', 'CompleteDialogMessage anzeigen'],
-    ].map(([id, titel]) => ({ id, titel, typ: 'PROZESS', werkzeug: null, aktionen: [], gebaut: false,
-        erwartet: 'Noch nicht gebaut.' })),
+    // ── F08 Prozesse (gebaut 30.09.2026, noch nicht gegen den Receiver geprobt) ──
+    { id: 'F08_01', titel: 'Synchrone Übermittlung mit Quittungen', typ: 'SUBSCRIBE · SYNC', werkzeug: null,
+      ueb: { modus: 'subscribe' },
+      erwartet: 'Anmeldung senden: das Ergebnis kommt direkt in der Antwort. Beim Synchronisieren erscheinen die Quittungen als Stories und werden im nächsten Synchronisieren quittiert.' },
+    { id: 'F08_02', titel: 'GetStatus mit JobKey', typ: 'GETSTATUS', werkzeug: null,
+      ueb: { modus: 'declare' },
+      erwartet: '«Status abfragen» sendet den JobKey. Solange nicht fertig: «in Bearbeitung», frühestens alle 10 s. Nach JobFinished keine weitere Abfrage. Abgewählte Adressaten: «nicht verarbeitet (abgewählt)».' },
+    { id: 'F08_03', titel: 'Stories synchronisieren', typ: 'SYNCHRONIZE', werkzeug: null,
+      ueb: { modus: 'declare' },
+      erwartet: 'Neue Stories (Quittungen, Dialoge, Completion) erscheinen beim Adressaten mit «wird quittiert»; nach dem nächsten Synchronisieren «quittiert». Doppelt erhaltene Stories werden nochmals quittiert, unterdrückte IDs gehen bei jedem Synchronisieren mit.' },
+    { id: 'F08_04', titel: 'Dialog manuell bedienen', typ: 'DIALOG · UI',
+      werkzeug: 'Receiver so einstellen, dass er eine DialogMessage schickt (Einstellung beim Test festlegen).',
+      ueb: { modus: 'declare' },
+      erwartet: 'Die DialogMessage erscheint mit Titel, Beschreibung, Abschnitten und allen Absätzen; Fragen als Eingabefelder mit Vorgabewert.' },
+    { id: 'F08_05', titel: 'Dialog beantworten (Reply)', typ: 'DIALOG · REPLY',
+      werkzeug: 'Receiver: DialogMessage mit Fragen (Einstellung beim Test festlegen).',
+      ueb: { modus: 'declare' },
+      erwartet: 'Pflichtfelder ausfüllen, «Antwort senden». Leeres Pflichtfeld oder falscher Typ → Meldung, nichts gesendet. Die Antwort spiegelt die Nachricht mit Previous/ResponseStoryID.' },
+    { id: 'F08_06', titel: 'Dialog quittieren (Confirm)', typ: 'DIALOG · CONFIRM',
+      werkzeug: 'Receiver: DialogMessage (auch als Fehler-Meldung) schicken lassen.',
+      ueb: { modus: 'declare' },
+      erwartet: 'Eine reine Info-Nachricht wird im nächsten Synchronisieren quittiert (ReceivedStoryIDs) — danach «quittiert».' },
+    { id: 'F08_07', titel: 'RandomDialogMessage anzeigen', typ: 'DIALOG · UI',
+      werkzeug: 'Receiver: RandomDialogMessage (Einstellung beim Test festlegen).',
+      ueb: { modus: 'declare' },
+      erwartet: 'Jeder Absatz-Typ (Text, Zahl, Betrag, Datum, Ja/Nein/Unbekannt …) wird lesbar angezeigt; Datumsangaben als TT.MM.JJJJ.' },
+    { id: 'F08_08', titel: 'CompleteDialogMessage anzeigen', typ: 'DIALOG · UI',
+      werkzeug: 'Receiver: CompleteDialogMessage bzw. Completion (Einstellung beim Test festlegen).',
+      ueb: { modus: 'declare' },
+      erwartet: 'Completion: Link öffnet die Seite des Empfängers mit key= und password= (URL-kodiert); Key und Passwort stehen daneben roh zum Kopieren.' },
 ];
 
 let _kommStand = {};
@@ -357,6 +393,7 @@ function kommDetailZeichnen() {
             <div style="flex:1"><div class="komm-schritt-titel">In OneCrew auslösen</div>
                  ${c.gebaut === false
                     ? '<span class="komm-klein">Noch nicht vorführbar.</span>'
+                    : c.ueb ? '<div id="uebPanel" class="ueb-panel"></div>'
                     : `<div class="komm-knoepfe">${otp}${knoepfe}</div>`}</div>
         </div>
         <div class="komm-schritt">
@@ -378,6 +415,7 @@ function kommDetailZeichnen() {
                 : (e.vorbelegt ? 'Stand aus dem Foundation-Protokoll.' : 'Noch kein Versuch aufgezeichnet.')}</div>
         </div>`}
         <div id="kommResult" class="komm-ergebnis"></div>`;
+    if (c.ueb && typeof uebInit === 'function') uebInit(c);
 }
 
 async function kommAktion(i) {
@@ -488,9 +526,14 @@ async function kommArchivLaden() {
         const geprueft = antworten.filter(d => d.scStand && d.scStand !== 'NichtVerlangt');
         const bestaetigt = geprueft.filter(d => d.scStand === 'Bestaetigt').length;
         const offen = geprueft.length - bestaetigt;
-        const verschl = liste.filter(d => d.verschluesselt).length;
+        // Eine Antwort, die wir nicht entschlüsseln konnten (F02_03), liegt so im Archiv,
+        // wie sie ankam — das ist kein Archivfehler. Rot bleibt nur eine verschlüsselte Anfrage.
+        const nichtEntschl = liste.filter(d => d.nichtEntschluesselbar).length;
+        const verschl = liste.filter(d => d.verschluesselt && !d.nichtEntschluesselbar).length;
+        const klartext = liste.length - nichtEntschl;
         const zusammen = `<div class="komm-archiv-summe">
-            <span class="${verschl ? 'komm-rot' : 'komm-gruen'}">${verschl ? `✗ ${verschl} Datei(en) verschlüsselt` : `✓ alle ${liste.length} Dateien unverschlüsselt`}</span>
+            <span class="${verschl ? 'komm-rot' : 'komm-gruen'}">${verschl ? `✗ ${verschl} Datei(en) verschlüsselt` : `✓ alle ${klartext} Dateien unverschlüsselt`}</span>
+            ${nichtEntschl ? `· <span class="komm-klein" title="Antwort konnte nicht entschlüsselt werden und liegt so im Archiv, wie sie ankam">${nichtEntschl} Antwort(en) nicht entschlüsselbar (Probe F02_03)</span>` : ''}
             · <span>${liste.filter(d => d.signaturen > 0).length} mit Signatur</span>
             · <span class="${offen ? 'komm-rot' : ''}">SignatureConfirmation passt zu unserer Signatur: <b>${bestaetigt}</b> von ${geprueft.length}</span></div>`;
         const scZelle = d => {
@@ -515,7 +558,8 @@ async function kommArchivLaden() {
                     <td>${new Date(d.zeit).toLocaleString('de-CH')}</td>
                     <td>${esc(art)}</td>
                     <td>${d.signaturen || '<span class="komm-rot">keine</span>'}</td>
-                    <td>${d.verschluesselt ? '<span class="komm-rot">ja</span>' : 'nein'}</td>
+                    <td>${d.nichtEntschluesselbar ? '<span class="komm-klein">nicht entschlüsselbar (Probe F02_03)</span>'
+                        : d.verschluesselt ? '<span class="komm-rot">ja</span>' : 'nein'}</td>
                     <td>${istAntwort ? scZelle(d) : ''}</td></tr>`;
             }).join('') + '</tbody></table>';
     } catch (e) { el.innerHTML = `<span class="komm-rot">${esc(e.message)}</span>`; }

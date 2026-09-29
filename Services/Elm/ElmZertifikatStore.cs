@@ -443,7 +443,11 @@ public class ElmZertifikatStore
                     inhalt.Contains("SignatureConfirmation", StringComparison.Ordinal),
                     inhalt.Contains("EncryptedData", StringComparison.Ordinal),
                     Regex.Matches(inhalt, @"<(\w+:)?Signature[\s>]").Count)
-                { ScStand = sc?.Art, ScMeldung = sc?.Meldung, Anfrage = anfrage?.Name };
+                {
+                    ScStand = sc?.Art, ScMeldung = sc?.Meldung, Anfrage = anfrage?.Name,
+                    NichtEntschluesselbar = f.Name.EndsWith("-response.xml", StringComparison.Ordinal)
+                                            && inhalt.Contains("EncryptedData", StringComparison.Ordinal),
+                };
             })
             .ToList();
     }
@@ -469,6 +473,36 @@ public class ElmZertifikatStore
         if (!ArchivName.IsMatch(name ?? "")) return null;
         var p = Path.Combine(_root, "archiv", name!);
         return File.Exists(p) ? File.ReadAllText(p) : null;
+    }
+
+    // ── Übermittlungen F05/F08 (Walter 30.09.2026) ───────────────────────────
+
+    private const string UebermittlungDatei = "uebermittlungen.json";
+    private static readonly object UebermittlungSperre = new();
+
+    public ElmUebermittlungsStand LadeUebermittlungen()
+    {
+        lock (UebermittlungSperre)
+        {
+            var p = Path.Combine(_root, UebermittlungDatei);
+            if (!File.Exists(p)) return new();
+            try { return JsonSerializer.Deserialize<ElmUebermittlungsStand>(File.ReadAllText(p)) ?? new(); }
+            catch { return new(); }
+        }
+    }
+
+    public void SpeichereUebermittlungen(ElmUebermittlungsStand stand)
+    {
+        lock (UebermittlungSperre)
+        {
+            Directory.CreateDirectory(_root);
+            // Nur die letzten 2000 ResponseIDs — reicht für die Doubletten-Erkennung (AB-10).
+            if (stand.GeseheneResponseIds.Count > 2000)
+                stand.GeseheneResponseIds = stand.GeseheneResponseIds.TakeLast(2000).ToList();
+            var p = Path.Combine(_root, UebermittlungDatei);
+            File.WriteAllText(p, JsonSerializer.Serialize(stand, new JsonSerializerOptions { WriteIndented = true }));
+            VersucheRechte600(p);
+        }
     }
 
     private static void VersucheRechte600(string pfad)
@@ -503,6 +537,12 @@ public record ElmArchivDatei(string Name, DateTime Zeit, long Bytes,
     public string? ScMeldung { get; init; }
     /// <summary>Archivierte Anfrage, gegen die geprüft wurde.</summary>
     public string? Anfrage { get; init; }
+    /// <summary>
+    /// Antwort, die wir nicht entschlüsseln konnten (F02_03 «Tamper Encryption»): sie liegt
+    /// so im Archiv, wie sie ankam. Anfragen werden immer VOR dem Verschlüsseln archiviert —
+    /// eine verschlüsselte Anfrage-Datei bleibt darum ein echter Fehler.
+    /// </summary>
+    public bool NichtEntschluesselbar { get; init; }
 }
 
 /// <summary>Persistierter Stand eines SUA-Antrags (F07).</summary>

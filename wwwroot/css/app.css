@@ -12858,6 +12858,55 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         .komm-xml { background: #1f2937; color: #d1fae5; padding: 10px 12px; border-radius: 10px; max-height: 70vh; overflow: auto; font-size: 11px; white-space: pre-wrap; word-break: break-all; margin: 0; }
         #kommPaneEinrichtung .card { max-width: 1100px !important; }
 
+        /* Übermittlung F05/F06/F08 (js/swissdec-uebermittlung.js, 30.09.2026) */
+        .ueb-panel { display: flex; flex-direction: column; gap: 10px; }
+        .ueb-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 12px; align-items: end; }
+        .ueb-form label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: #646464; }
+        .ueb-form .ueb-breit { grid-column: 1 / -1; }
+        .ueb-form input[type=text], .ueb-form input[type=number], .ueb-dialog input[type=text] {
+            background: #fff; border: 1px solid rgba(255,255,255,0.95); border-radius: 10px; padding: 7px 10px; font-size: 13px; color: #3f3f3f;
+            box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);
+        }
+        .ueb-check { flex-direction: row !important; align-items: center; gap: 6px !important; font-size: 12.5px !important; color: #3f3f3f !important; }
+        .ueb-probe { background: #fdf1dc; border: 1px solid #f3d9a4; border-radius: 10px; padding: 6px 10px; }
+        .ueb-adressaten:empty { display: none; }
+        .ueb-adressaten { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(60,55,48,0.14); }
+        .ueb-adressat { display: flex; gap: 6px; align-items: center; font-size: 12.5px; }
+        .ueb-klein { padding: 4px 10px !important; font-size: 12px !important; }
+        .komm-btn-primaer:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; }
+        .ueb-liste-kopf { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+        .ueb-liste { display: flex; flex-direction: column; gap: 10px; }
+        .ueb-vorgang { border: 1px solid rgba(60,55,48,0.16); border-radius: 14px; padding: 10px 12px; background: rgba(255,255,255,0.35); }
+        .ueb-vorgang-kopf, .ueb-adr-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+        .ueb-adr { border-top: 1px solid rgba(60,55,48,0.10); margin-top: 8px; padding-top: 8px; }
+        .ueb-adr-zeile { font-size: 12.5px; margin-top: 3px; }
+        .ueb-roh { background: #fff; padding: 1px 6px; border-radius: 6px; user-select: all; }
+        .ueb-z { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin-left: 6px; border: 1px solid rgba(60,55,48,0.18); }
+        .ueb-z-ok { background: #e3eee3; border-color: #b8ccb8; color: #3f5540; }
+        .ueb-z-rot { background: #fbe9e9; border-color: #f0c4c4; color: #8f2a2a; }
+        .ueb-z-warn { background: #fdf1dc; border-color: #f3d9a4; color: #7c5a10; }
+        .ueb-z-grau { background: rgba(255,255,255,0.5); color: #8b8b8b; }
+        .ueb-meldung { border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+        .ueb-gruen { background: #e7f0e7; border: 1px solid #b8ccb8; color: #3f5540; }
+        .ueb-rot { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .ueb-hinweis-zeile { font-size: 12.5px; margin-top: 4px; }
+        .ueb-h-error { color: #991b1b; }
+        .ueb-h-warning { color: #7c5a10; }
+        .ueb-story { margin-top: 6px; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,0.45); border: 1px solid rgba(60,55,48,0.10); }
+        .ueb-story-kopf { font-size: 12.5px; }
+        .ueb-dialog { background: rgba(255,255,255,0.6); }
+        .ueb-dialog-kopf { margin: 4px 0; }
+        .ueb-absatz { display: grid; grid-template-columns: minmax(140px, 30%) 1fr; gap: 8px; align-items: center; margin-top: 5px; font-size: 12.5px; }
+        .ueb-label { color: #646464; }
+        .ueb-abschnitt { margin-top: 8px; padding-left: 10px; border-left: 2px solid rgba(60,55,48,0.18); }
+        .ueb-abschnitt-titel { font-weight: 700; font-size: 12.5px; }
+        .ueb-completion { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: #eef2f7; border: 1px solid #cbd5e1; }
+        .ueb-url { word-break: break-all; margin-top: 3px; }
+        .ueb-protokoll { margin-top: 8px; font-size: 12px; }
+        .ueb-protokoll summary { cursor: pointer; color: #8b8b8b; }
+        body.theme-dark .ueb-vorgang, body.theme-dark .ueb-story { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); }
+        body.theme-dark .ueb-check, body.theme-dark .ueb-label { color: #e2e8f0 !important; }
+
         body.theme-dark .komm-kachel, body.theme-dark .komm-tab, body.theme-dark .komm-btn-sekundaer { background: rgba(51,65,85,0.6); color: #e2e8f0; border-color: rgba(148,163,184,0.3); }
         body.theme-dark .komm-liste, body.theme-dark .komm-detail { background: #1e293b; color: #e2e8f0; }
         body.theme-dark .komm-zeile { color: #e2e8f0; }

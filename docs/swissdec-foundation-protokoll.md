@@ -937,10 +937,40 @@ nicht auf Prod.
 |---|---|---|
 | **F03** | CheckInterop mit festem FirstOperand/UmlautString; SecondOperand wählbar (0.01 / 0.00 / −999'000'000'000.00); immer 2 Nachkommastellen; Response prüfen (Umlaut klein, Operanden); Tamper-Varianten melden | ✅ **gebaut 24.09.2026** — `ElmInterop` + UI + 30 Tests (siehe Abschnitt F03) |
 | **F04** | Jeder Request/Response **signiert und unverschlüsselt** archivieren; SignatureConfirmation in der Response prüfen | 🟡 Archiv unter `archiv/` gebaut · SignatureConfirmation-Prüfung gebaut 29.09.2026, Nachprüfung am Archiv offen |
-| **F05** | SubscribeOrganization; 1 vs. n Addressees; Declare mit Empfängerwahl; DeclarationId spiegeln; Substitution; eindeutige RequestID; `<TestCase/>` | Sample-XML vorhanden · Client/UI fehlt (E4) |
-| **F06** | PlausibilityRules-Verletzung → Distributor-Fehler dem User zeigen | fehlt |
+| **F05** | SubscribeOrganization; 1 vs. n Addressees; Declare mit Empfängerwahl; DeclarationId spiegeln; Substitution; eindeutige RequestID; `<TestCase/>` | 🟡 **gebaut 30.09.2026 nachts** — noch nicht gegen den Receiver geprobt (siehe Abschnitt «F05 / F06 / F08») |
+| **F06** | PlausibilityRules-Verletzung → Distributor-Fehler dem User zeigen | 🟡 gebaut 30.09.2026 — Fault und Adressaten-Fehler im Klartext, Probe offen |
 | **F07** | RegisterOrganization → Synchronize (Processing/Registered/Rejected) → SignCertificate (Verified) → Renew → doppelte Signatur (ERP+SUA) auf CheckInterop | ✅ Client+UI · PFX-Import bereit · RefApps wartet auf Swissdec-.pfx · F07_08 offen |
-| **F08** | Sync-Übermittlung mit Quittungen; GetStatus(JobKey); Stories; DialogMessage (manuell/Reply/Confirm/Random/Complete) | fehlt |
+| **F08** | Sync-Übermittlung mit Quittungen; GetStatus(JobKey); Stories; DialogMessage (manuell/Reply/Confirm/Random/Complete) | 🟡 gebaut 30.09.2026 — Probe offen |
+
+### F05 / F06 / F08 — Übermittlung gebaut (30.09.2026, nachts, ohne Receiver)
+
+Im Kommunikations-Test hat jeder Prüfpunkt F05_xx, F06_01 und F08_xx in Schritt 2 ein
+Übermittlungs-Panel (`js/swissdec-uebermittlung.js`): Formular (Meldung bzw. Anmeldung)
+und darunter die Liste aller gesendeten Übermittlungen mit ihren Adressaten.
+
+| Teil | Wo | Was es tut |
+|---|---|---|
+| Declare | `ElmUebermittlungService.DeclareAsync` | Meldung aus dem Monats- bzw. Jahres-Builder (Kunstdaten der Testinstanz), TestCase / Substitution / ProcessByDistributor je Adressat gesetzt, Schema geprüft, signiert (doppelt mit SUA, abschaltbar), verschlüsselt. JobKey wird gespeichert. |
+| GetStatus | `StatusAsync` | JobKey senden; frühestens alle 10 s (UC002, serverseitig gesperrt); nach JobFinished gesperrt. Je Adressat Ignored / Processing / Error / Success mit DeclarationID, Key, Passwort, Hinweisen. |
+| Synchronize | `SynchronizeAsync` | DeclarationID + Credentials + TestCase gespiegelt; ReceivedStoryIDs für alle noch nicht quittierten Stories; ReceivedState = letzter State; unterdrückte IDs bei JEDEM Synchronize mit (UC009); doppelt erhaltene Stories nochmals quittiert. |
+| Dialog | `ElmDialog` | Anzeige mit Abschnitten und allen Absatz-Typen; Antwort spiegelt die Nachricht mit `Previous/ResponseStoryID`, Pflichtfeld- und Typprüfung vor dem Senden; eigene Antwort geht mit, bis der Empfänger sie quittiert. |
+| Completion | `ElmCompletion` | Link nach Anhang E (key/password URL-kodiert, Anker bleibt am Ende), Key und Passwort roh daneben; ohne eigene Credentials die des Falls. |
+| Anmeldung | `SubscribeAsync` | SubscribeOrganization synchron (kein JobKey); Synchronize mit SubscriptionID, Abmelden (Unsubscribe). |
+| Fault | `SendeAsync` | SalaryDeclarationFault im Klartext (NOT_plausible / NOT_valid / NOT_accepted + Code + Text). Antworten mit ungültiger WS-Security werden nicht übernommen (wie F02). |
+| AB-10 | `SendeAsync` | Jede Anfrage neue RequestID; Antwort-RequestID wird verglichen; doppelte ResponseID → Warnung. F05_07-Probe: Häkchen «RequestID nochmals verwenden». |
+
+Stand der Fälle: `uebermittlungen.json` im Zertifikatsverzeichnis (keine DB-Tabelle,
+kein Schema-Stand). Tests: `Tests/ElmUebermittlungTests.cs` (47 — jede gebaute Anfrage
+gegen die ELM-6.0-Schemas, Parser gegen die Musterdateien der Richtlinien, Anhang-E-Beispiel,
+Dialog-Spiegelung).
+
+**Offen für die Probe mit dem Receiver:** welche Receiver-Einstellung welche Antwort
+erzeugt (Plausibilitätsfehler, DialogMessage, RandomDialogMessage, Completion) — steht in
+der App bei diesen Punkten als «Einstellung beim Test festlegen».
+
+**Archiv:** Eine Antwort, die wir nicht entschlüsseln konnten (F02_03 «Tamper Encryption»),
+liegt so im Archiv, wie sie ankam. Sie wird jetzt als «nicht entschlüsselbar (Probe F02_03)»
+geführt statt als roter Archivfehler; rot bleibt nur eine verschlüsselte ANFRAGE-Datei.
 
 ---
 

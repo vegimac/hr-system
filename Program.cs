@@ -212,6 +212,7 @@ builder.Services.AddScoped<HrSystem.Services.Elm.ElmZertifikatStore>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmSuaService>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmAnnualDeclarationBuilder>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmMonthlyDeclarationBuilder>();
+builder.Services.AddScoped<HrSystem.Services.Elm.ElmUebermittlungService>();
 builder.Services.AddScoped<AuswertungenReportPdfService>();
 builder.Services.AddScoped<ProbezeitberichtPdfService>();
 builder.Services.AddScoped<ProbezeitCheckinPdfService>();
