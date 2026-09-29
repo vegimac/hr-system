@@ -390,24 +390,43 @@ public class ElmSuaFall
     /// </summary>
     public List<string> CsrAbgewiesen { get; set; } = new();
 
+    /// <summary>
+    /// Aufbau der Anfrage, unter dem <see cref="CsrAbgewiesen"/> gesammelt wurde. Ändert
+    /// sich der Aufbau (<see cref="ElmCsrVariante.AufbauAktuell"/>), zählen frühere
+    /// Abweisungen nicht mehr.
+    /// </summary>
+    public int CsrAufbau { get; set; }
+
+    /// <summary>
+    /// StoryIDs, die der Distributor in diesem Fall geliefert hat (v.a. die Quittung).
+    /// Jedes folgende Synchronize quittiert sie in <c>CaseContext/ReceivedStoryIDs</c>
+    /// (Richtlinie ELM 6.0, UC008 Schritt 3).
+    /// </summary>
+    public List<string> ErhalteneStoryIds { get; set; } = new();
+
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 }
 
 /// <summary>
 /// Aufbau des CSR-Subjects. Die Richtlinie ist nicht eindeutig: Anhang C.3.2 zeigt das
 /// fertige Zertifikat MIT ORG_ID und ST/L optional, C.3.3 verlangt einen CSR «gemäss
-/// Quittung» — und die Quittung enthält keine ORG_ID. Mit frischem Antrag am 29.09.2026
-/// abgewiesen (2052): mit ORG_ID, mit und ohne ST. Darum zuerst die zwei ungetesteten
-/// Varianten ohne ORG_ID.
+/// Quittung» — und die Quittung enthält keine ORG_ID. Die SUA-Spezifikation V1.5
+/// (Tabellen 2 und 3) verlangt die ORG_ID im CSR — darum kommt sie zuerst.
 /// </summary>
 public record ElmCsrVariante(string Kennung, string Text, bool OhneSt, bool OhneOrgId)
 {
+    /// <summary>
+    /// 1 = ohne Quittierung der Stories: am 29.09.2026 alle vier Varianten mit 2052
+    /// abgewiesen. 2 = mit <c>ReceivedStoryIDs</c> (UC008).
+    /// </summary>
+    public const int AufbauAktuell = 2;
+
     public static readonly IReadOnlyList<ElmCsrVariante> Reihenfolge = new[]
     {
+        new ElmCsrVariante("richtlinie", "mit ORG_ID (SUA-Spez. Tabelle 2/3)", false, false),
+        new ElmCsrVariante("richtlinie-ohne-st", "mit ORG_ID, ohne ST", true, false),
         new ElmCsrVariante("quittung", "exakt wie Quittung (ohne ORG_ID)", false, true),
         new ElmCsrVariante("quittung-ohne-st", "wie Quittung, ohne ST und ohne ORG_ID", true, true),
-        new ElmCsrVariante("richtlinie", "mit ORG_ID (Anhang C.3.2)", false, false),
-        new ElmCsrVariante("richtlinie-ohne-st", "mit ORG_ID, ohne ST", true, false),
     };
 
     /// <summary>

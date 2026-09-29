@@ -113,6 +113,55 @@ public class ElmSuaSchemaTests
         using (key) IstGueltig(Dienst().BaueSynchronizeBody(Fall(state: "verified"), block));
     }
 
+    /// <summary>UC008 Schritt 3: die Quittung wird im nächsten Synchronize quittiert (Walter 29.09.2026).</summary>
+    [Fact]
+    public void Synchronize_QuittiertErhalteneStories_UndBleibtGueltig()
+    {
+        var fall = Fall(state: "verified");
+        fall.ErhalteneStoryIds.AddRange(new[] { "SQ18d9d11e8beec0a34", "SQ2" });
+        var (block, key) = ElmSuaService.BaueSignBlock(new ElmSuaSubject
+        {
+            CommonName = "NTRCH-CHE-999.999.996@swissdec.ch", OrganizationName = "Muster AG",
+            LocalityName = "Luzern", StateOrProvinceName = "nA", CountryName = "CH",
+        }, "X9QH-DBQB-UT69-A2RK");
+        using (key)
+        {
+            var body = Dienst().BaueSynchronizeBody(fall, block);
+            IstGueltig(body);
+            var kontext = body.Descendants().First(e => e.Name.LocalName == "CaseContext");
+            Assert.Equal("ReceivedStoryIDs", kontext.Elements().First().Name.LocalName);
+            Assert.Equal(new[] { "SQ18d9d11e8beec0a34", "SQ2" },
+                kontext.Elements().First().Elements().Select(e => e.Value));
+        }
+    }
+
+    [Fact]
+    public void Synchronize_OhneErhalteneStories_KeineQuittungsliste()
+        => Assert.DoesNotContain(Dienst().BaueSynchronizeBody(Fall(), null).Descendants(),
+                                 e => e.Name.LocalName == "ReceivedStoryIDs");
+
+    [Fact]
+    public void StoryIds_AusDerQuittung_OhneDieQuittungslistenSelbst()
+    {
+        var doc = System.Xml.Linq.XDocument.Parse("""
+            <Envelope><Body><SynchronizeResponse>
+              <ResponseContext><ResponseID>R1</ResponseID></ResponseContext>
+              <Case>
+                <CaseContext>
+                  <ReceivedStoryIDs><StoryID>unsere-alte</StoryID></ReceivedStoryIDs>
+                </CaseContext>
+                <State>verified</State>
+                <Quittance>
+                  <Creation>2026-09-29T16:30:55.983+02:00</Creation>
+                  <StoryID>SQ18d9d11e8beec0a34</StoryID>
+                  <X509Subject><CommonName>NTRCH-CHE-999.999.996@swissdec.ch</CommonName></X509Subject>
+                </Quittance>
+              </Case>
+            </SynchronizeResponse></Body></Envelope>
+            """);
+        Assert.Equal(new[] { "SQ18d9d11e8beec0a34" }, ElmSuaService.StoryIdsAus(doc));
+    }
+
     [Fact]
     public void Synchronize_MitErneuerung_IstGueltig()
     {

@@ -597,6 +597,24 @@ mit Distributor-ELMv6 → CheckInterop HTTP 200.
   laufen auf dem Original, formatiert wird nur die Anzeige.
 - Tests: `ElmSuaTests` (Varianten), `ElmDoppelsignaturTests.Antwort_NurImOriginalGueltig_NichtUmformatiert`.
 
+**Nachtrag 29.09.2026, 16:50 Uhr: alle vier Varianten mit 2052 abgewiesen.** Damit
+kommt das Subject als Ursache nicht mehr in Frage. Die Antwort-Signatur war jetzt
+gültig, dieser Fix funktioniert also.
+
+- **Neuer Befund:** Laut Richtlinie UC008 Schritt 3 trägt jedes Synchronize die
+  StoryIDs aller erhaltenen Stories des Falls in `CaseContext/ReceivedStoryIDs` ein.
+  OneCrew hat die Quittung (`StoryID SQ…`) nie quittiert, sondern gleich signiert.
+- **Gebaut:**
+  - `ElmSuaFall.ErhalteneStoryIds`: gesammelt aus jeder Synchronize-Antwort, aber
+    nur Stories im `Case`, nicht die Quittungslisten selbst.
+  - Jedes folgende Synchronize quittiert diese IDs.
+  - Signieren ohne gemerkte StoryID wird verweigert, zuerst kommt «Status abfragen».
+  - Der Anfrage-Aufbau ist jetzt Stand 2 (`ElmCsrVariante.AufbauAktuell`). Damit
+    gelten die Abweisungen aus Stand 1 nicht mehr, und alle vier Varianten sind
+    wieder offen.
+  - Neue Reihenfolge: mit ORG_ID zuerst, wie es die SUA-Spezifikation V1.5 in
+    Tabelle 2 und 3 verlangt.
+
 ---
 
 ### Korrektur 24.09.2026 — vier schema-ungültige Meldungen + fehlende MonitoringID

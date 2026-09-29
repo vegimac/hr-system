@@ -284,6 +284,15 @@ public class ElmSuaService
             if (!string.Equals(fall.LetzterState, "verified", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException(
                     $"SignCertificate erst bei Status «verified» (aktuell: «{fall.LetzterState ?? "—"}»).");
+            if (fall.ErhalteneStoryIds.Count == 0)
+                throw new InvalidOperationException(
+                    "Die Quittung ist noch nicht quittiert. Zuerst «Status abfragen» (ohne Einmalpasswort) — "
+                    + "OneCrew merkt sich dabei die StoryID der Quittung und bestätigt sie beim Signieren.");
+            if (fall.CsrAufbau != ElmCsrVariante.AufbauAktuell)
+            {
+                fall.CsrAbgewiesen.Clear();
+                fall.CsrAufbau = ElmCsrVariante.AufbauAktuell;
+            }
             variante = ElmCsrVariante.Offene(fall).FirstOrDefault()
                 ?? throw new InvalidOperationException(
                     "Swissdec hat bei diesem Antrag schon alle vier CSR-Varianten abgewiesen (2052). "
@@ -354,6 +363,8 @@ public class ElmSuaService
             geparst.Subject.CompanyUidBfs ??= fall.Subject?.CompanyUidBfs;
             fall.Subject = geparst.Subject;
         }
+        foreach (var id in geparst.StoryIds)
+            if (!fall.ErhalteneStoryIds.Contains(id)) fall.ErhalteneStoryIds.Add(id);
 
         string? meldung = geparst.Fehler ?? call.FaultText;
         if (geparst.State != null)
@@ -427,6 +438,11 @@ public class ElmSuaService
     {
         var caseEl = new XElement(Sdc + "Case",
             new XElement(C + "CaseContext",
+                // UC008 Schritt 3: alle erhaltenen Stories dieses Falls quittieren.
+                fall.ErhalteneStoryIds.Count > 0
+                    ? new XElement(Ep + "ReceivedStoryIDs",
+                        fall.ErhalteneStoryIds.Select(id => new XElement(Ep + "StoryID", id)))
+                    : null,
                 new XElement(Ep + "Credentials",
                     new XElement(Ep + "Key", fall.CredentialKey),
                     new XElement(Ep + "Password", fall.CredentialPassword)),
@@ -572,7 +588,29 @@ public class ElmSuaService
         catch { return (null, null, null); }
     }
 
-    private record SyncParse(string? State, ElmSuaSubject? Subject, string? ZertifikatPem, string? Fehler);
+    private record SyncParse(string? State, ElmSuaSubject? Subject, string? ZertifikatPem, string? Fehler,
+        IReadOnlyList<string>? StoryIdListe = null)
+    {
+        public IReadOnlyList<string> StoryIds => StoryIdListe ?? Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// StoryIDs der Stories, die der Distributor im Fall liefert (Quittung u.a.) — nicht
+    /// die Quittungs- und Unterdrückungslisten selbst.
+    /// </summary>
+    public static List<string> StoryIdsAus(XDocument doc)
+    {
+        var listen = new[] { "ReceivedStoryIDs", "SuppressedSenderStoryIDs", "SuppressedInstitutionStoryIDs" };
+        return doc.Descendants()
+            .Where(e => e.Name.LocalName == "Case")
+            .SelectMany(c => c.Descendants())
+            .Where(e => e.Name.LocalName == "StoryID" && !e.HasElements
+                     && !listen.Contains(e.Parent?.Name.LocalName))
+            .Select(e => e.Value.Trim())
+            .Where(v => v.Length > 0)
+            .Distinct()
+            .ToList();
+    }
 
     private static SyncParse ParseSynchronizeAntwort(string? xml)
     {
@@ -608,7 +646,7 @@ public class ElmSuaService
                     .FirstOrDefault(e => e.Name.LocalName == "CompanyUID-BFS")?.Value.Trim();
             }
 
-            return new SyncParse(state, subject, ZertifikatPemAus(doc), fehlerText);
+            return new SyncParse(state, subject, ZertifikatPemAus(doc), fehlerText, StoryIdsAus(doc));
         }
         catch (Exception ex)
         {

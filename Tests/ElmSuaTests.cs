@@ -292,14 +292,14 @@ public class ElmSuaTests
     }
 
     [Fact]
-    public void Varianten_ZuerstOhneOrgId_DieBereitsAbgewiesenenNichtMehr()
+    public void Varianten_ZuerstMitOrgId_DieBereitsAbgewiesenenNichtMehr()
     {
         var fall = new ElmSuaFall { Subject = MusterSubject() };
-        Assert.Equal(new[] { "quittung", "quittung-ohne-st", "richtlinie", "richtlinie-ohne-st" },
+        Assert.Equal(new[] { "richtlinie", "richtlinie-ohne-st", "quittung", "quittung-ohne-st" },
             ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
 
         fall.CsrAbgewiesen.AddRange(new[] { "quittung", "richtlinie" });
-        Assert.Equal(new[] { "quittung-ohne-st", "richtlinie-ohne-st" },
+        Assert.Equal(new[] { "richtlinie-ohne-st", "quittung-ohne-st" },
             ElmCsrVariante.Offene(fall).Select(v => v.Kennung));
 
         fall.CsrAbgewiesen.AddRange(new[] { "quittung-ohne-st", "richtlinie-ohne-st" });
