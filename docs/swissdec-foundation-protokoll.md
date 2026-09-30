@@ -1058,7 +1058,12 @@ Bestätigung Walter ausstehend).
   eine schon gesendete ID ⇒ «RequestID … wurde schon einmal gesendet — Nichts gesendet.»
   Das Häkchen führt genau das vor. Neue IDs sind GUIDs (`NeueId`). Test:
   `RequestId_SchonGesendet_ErkenntListeLetzteUndProtokoll`.
+- Probe der Sperre 30.09.2026 19:06 (nach Deploy d47e772): Häkchen gesetzt, Jahresmeldung AHV 2025
+  → rot «RequestID 73280a18f0c4493dae3145f6e62eb427 wurde schon einmal gesendet — OneCrew
+  verschickt keine RequestID zweimal. Nichts gesendet.», kein neuer Fall. ✓
 - Quality Tool: noch nicht gesetzt — Vorführung beim Experten.
+- Vorführ-Anleitung für den Termin: `docs/swissdec-vorfuehrung/Swissdec-Foundation-Vorfuehrung.pdf`
+  (Quelle `vorfuehrung.html`, ein Kapitel pro Seite).
 
 ### Aufräumen der Übermittlungs-Seite (30.09.2026, nach F08_03)
 
