@@ -1023,6 +1023,17 @@ OneCrew erkennt die Doublette an der StoryID (Empfangszähler 2), legt keine zwe
 quittiert sie im nächsten Synchronize nochmals. Quality Tool F08_03_1 mit Kommentar → Success (69/90,
 Bestätigung Walter ausstehend).
 
+### F05_03 / F05_04 / F08_02 — mehrere Adressaten, einer abgewählt (30.09.2026, 17:32–17:40)
+
+- F08_02_1 vorher schon mit den beiden Jahresmeldungen von 09:00/09:06 belegt → Success (70/90).
+- Monatsmeldung 01.2025 der Muster AG, TestCase, doppelt signiert. Adressaten BE, TI, VD
+  (TaxAtSource) + Statistic; **VD abgewählt** (ProcessByDistributor=false).
+- 17:32:11 Declare: HTTP 200, JobKey `23128947f7bfba10d`, RequestID `11f1a97a06a0439b97b76930dffec387`.
+- GetStatus: **JobFinished** — BE, TI, Statistic erfolgreich (je eigene Credentials, gemeinsame
+  DeclarationID `18da230ab6d74b23e`, TestCase bestätigt); VD «nicht verarbeitet (abgewählt)».
+- Nebenbei behoben: die verschlüsselte Anfrage (lange CipherValue ohne Leerzeichen) drückte die
+  Seite breiter als den Bildschirm, alle Knöpfe lagen ausserhalb.
+
 ### Aufräumen der Übermittlungs-Seite (30.09.2026, nach F08_03)
 
 Anlass: Doppelklick auf «Synchronisieren», Archiv nicht auffindbar, «Gesendete Anfrage» zeigte nur
