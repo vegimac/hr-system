@@ -393,7 +393,7 @@ function kommDetailZeichnen() {
             <div style="flex:1"><div class="komm-schritt-titel">In OneCrew auslösen</div>
                  ${c.gebaut === false
                     ? '<span class="komm-klein">Noch nicht vorführbar.</span>'
-                    : c.ueb ? '<div id="uebPanel" class="ueb-panel"></div>'
+                    : c.ueb ? '<div id="uebPanel" class="ueb-panel"></div><div id="kommResult" class="komm-ergebnis"></div>'
                     : `<div class="komm-knoepfe">${otp}${knoepfe}</div>`}</div>
         </div>
         <div class="komm-schritt">
@@ -414,7 +414,7 @@ function kommDetailZeichnen() {
                 ? `Letzter Versuch ${e.letzterVersuchAm ? new Date(e.letzterVersuchAm).toLocaleString('de-CH') : ''}: ${esc(e.letzterVersuch)}`
                 : (e.vorbelegt ? 'Stand aus dem Foundation-Protokoll.' : 'Noch kein Versuch aufgezeichnet.')}</div>
         </div>`}
-        <div id="kommResult" class="komm-ergebnis"></div>`;
+        ${c.ueb ? '' : '<div id="kommResult" class="komm-ergebnis"></div>'}`;
     if (c.ueb && typeof uebInit === 'function') uebInit(c);
 }
 

@@ -48,7 +48,7 @@ function _uebDeclareHtml() {
     const f = _uebForm();
     const art = _uebCfg.art || f.art || 'monthly';
     const heute = new Date();
-    const jahr = f.jahr || heute.getFullYear();
+    const jahr = f.jahr || (art === 'annual' ? heute.getFullYear() - 1 : heute.getFullYear());
     const monat = f.monat || (heute.getMonth() || 12);
     return `
     <div class="ueb-form">
