@@ -981,7 +981,17 @@ geführt statt als roter Archivfehler; rot bleibt nur eine verschlüsselte ANFRA
   WS-Security gültig, SignatureConfirmation für beide Signaturen.
 - 09:02:00 GetStatus: **JobFinished**, 046.000 «Swissdec Jackpot Institution» erfolgreich,
   DeclarationID `18da0718929ac04cf`, TestCase bestätigt, Key + Passwort erhalten.
-- Ergebnis wie erwartet.
+- Ergebnis wie erwartet. Quality Tool F05_02_1 → Success (66/90).
+
+### F05_05 — DeclarationID im Synchronize (30.09.2026, 09:07)
+
+- Synchronize zum Fall aus F05_02 (046.000) mit DeclarationID, Credentials aus GetStatus, TestCase.
+- Antwort: `<ns3:DeclarationID>18da0718929ac04cf</ns3:DeclarationID>`, Credentials und TestCase
+  gespiegelt, RequestID `33d2089389d54885b46c04296bb903b0` im ResponseContext UND AddresseeContext.
+  State `CompletionReleaseMissing`, Completion-Story `18da0718e0302233d` (Link gültig bis 10:00:05).
+- Quality Tool F05_05_1 → Success (67/90).
+- Nebenbei: um 09:06:57 versehentlich zweite Jahresmeldung gesendet (JobKey `62f6f740320581a44`,
+  noch ohne Status) — bleibt stehen, verwendbar für F05_08.
 
 ---
 
