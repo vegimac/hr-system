@@ -390,7 +390,7 @@ function kommDetailZeichnen() {
         </div>
         <div class="komm-schritt">
             <div class="komm-schritt-nr">2</div>
-            <div style="flex:1"><div class="komm-schritt-titel">In OneCrew auslösen</div>
+            <div style="flex:1;min-width:0"><div class="komm-schritt-titel">In OneCrew auslösen</div>
                  ${c.gebaut === false
                     ? '<span class="komm-klein">Noch nicht vorführbar.</span>'
                     : c.ueb ? '<div id="uebPanel" class="ueb-panel"></div><div id="kommResult" class="komm-ergebnis"></div>'

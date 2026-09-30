@@ -352,10 +352,10 @@ function uebListeZeichnen() {
             </summary>
             <div class="ueb-vorgang-body">
                 <div class="ueb-vorgang-leiste">
-                    <div class="komm-klein">RequestID <code>${esc(v.requestId)}</code>${v.substitution ? ` · ersetzt <code>${esc(v.substitution)}</code>` : ''}
-                        ${v.doppeltSigniert ? ' · doppelt signiert' : ''}${v.statusAbfragen ? ` · ${v.statusAbfragen}× Status` : ''}</div>
                     <div class="komm-knoepfe">${statusKnopf}
                         <button type="button" class="komm-btn-sekundaer ueb-klein" onclick="uebLoeschen(${vi})">Entfernen</button></div>
+                    <div class="komm-klein">RequestID <code>${esc(v.requestId)}</code>${v.substitution ? ` · ersetzt <code>${esc(v.substitution)}</code>` : ''}
+                        ${v.doppeltSigniert ? ' · doppelt signiert' : ''}${v.statusAbfragen ? ` · ${v.statusAbfragen}× Status` : ''}</div>
                 </div>
                 ${v.adressaten.map((a, ai) => _uebAdressatHtml(v, vi, a, ai)).join('')}
                 <details class="ueb-protokoll"><summary>Protokoll (${v.protokoll.length}) · Anfrage und Antwort je Schritt</summary>
