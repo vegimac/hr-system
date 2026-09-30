@@ -11,6 +11,7 @@ let _uebPunkt = null;
 let _uebVorgaenge = [];
 let _uebVorschau = null;
 let _uebTimer = null;
+let _uebBeschaeftigt = false;
 
 const _uebDomains = ['UVG-LAA', 'UVGZ-LAAC', 'KTG-AMC', 'BVG-LPP'];
 
@@ -148,9 +149,20 @@ function _uebAuswahl() {
 
 // ── Aufrufe ───────────────────────────────────────────────────────────────
 
+/** Während einer Anfrage sind alle Knöpfe der Übermittlung gesperrt (kein Doppelklick). */
+function _uebSperren(an) {
+    _uebBeschaeftigt = an;
+    document.getElementById('uebPanel')?.classList.toggle('ueb-beschaeftigt', an);
+}
+
 async function _uebPost(pfad, body, warteText) {
+    if (_uebBeschaeftigt) return { fehler: 'Es läuft noch eine Anfrage.' };
+    _uebSperren(true);
     const out = document.getElementById('kommResult');
-    if (out) out.innerHTML = `<span class="komm-klein">⏳ ${esc(warteText)}</span>`;
+    if (out) {
+        out.innerHTML = `<div class="ueb-meldung ueb-warte"><b>⏳ ${esc(warteText)}</b> <span class="komm-klein">Bitte warten — nicht nochmals klicken.</span></div>`;
+        out.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
     try {
         const r = await fetch('/api/elm/uebermittlung/' + pfad, {
             method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
@@ -167,6 +179,8 @@ async function _uebPost(pfad, body, warteText) {
     } catch (e) {
         if (out) out.innerHTML = `<div class="ueb-meldung ueb-rot"><b>Verbindungsfehler: ${esc(e.message)}</b></div>`;
         return { fehler: e.message };
+    } finally {
+        _uebSperren(false);
     }
 }
 
@@ -177,6 +191,7 @@ async function _uebVersuchMerken(label, j) {
 }
 
 async function uebDeclare() {
+    if (_uebBeschaeftigt) return;
     if (!_uebVorschau && !(await uebAdressatenLaden())) return;
     const art = _uebWert('uebArt') || 'monthly';
     const alt = !!document.getElementById('uebRequestIdAlt')?.checked;
@@ -202,6 +217,7 @@ async function uebDeclare() {
 }
 
 async function uebSubscribe() {
+    if (_uebBeschaeftigt) return;
     if (!(await liquidConfirm('Anmeldung (SubscribeOrganization) an den Swissdec-Testdistributor senden?',
         { title: 'Anmelden', yesLabel: 'Senden', noLabel: 'Abbrechen' }))) return;
     const j = await _uebPost('subscribe', {
@@ -217,7 +233,7 @@ async function uebSubscribe() {
 
 async function uebStatus(vi) {
     const v = _uebVorgaenge[vi];
-    if (!v) return;
+    if (!v || _uebBeschaeftigt) return;
     const j = await _uebPost('status', { vorgangId: v.id }, 'Status wird abgefragt…');
     await _uebVersuchMerken('GetStatus', j);
     uebListeLaden();
@@ -226,7 +242,7 @@ async function uebStatus(vi) {
 async function uebSync(vi, ai, extra) {
     const v = _uebVorgaenge[vi];
     const a = v?.adressaten?.[ai];
-    if (!a) return;
+    if (!a || _uebBeschaeftigt) return;
     if (extra?.abmelden && !(await liquidConfirm(`Anmeldung ${a.identification} beenden (Unsubscribe)?`,
         { title: 'Abmelden', yesLabel: 'Abmelden', noLabel: 'Abbrechen' }))) return;
     const j = await _uebPost('synchronize', Object.assign({ vorgangId: v.id, addresseeId: a.addresseeId }, extra || {}),
@@ -248,10 +264,15 @@ async function uebDialogSenden(vi, ai, si) {
 
 async function uebLoeschen(vi) {
     const v = _uebVorgaenge[vi];
-    if (!v) return;
-    if (!(await liquidConfirm(`«${v.titel}» aus der Liste entfernen? Beim Distributor ändert sich nichts.`,
+    if (!v || _uebBeschaeftigt) return;
+    if (!(await liquidConfirm(`«${v.titel}» aus der Liste entfernen? Beim Distributor ändert sich nichts, die Archivdateien bleiben.`,
         { title: 'Entfernen', yesLabel: 'Entfernen', noLabel: 'Abbrechen' }))) return;
-    await fetch('/api/elm/uebermittlung/' + encodeURIComponent(v.id), { method: 'DELETE', headers: ah() });
+    const r = await fetch('/api/elm/uebermittlung/' + encodeURIComponent(v.id), { method: 'DELETE', headers: ah() });
+    if (!r.ok) {
+        const j = await r.json().catch(() => null);
+        const out = document.getElementById('kommResult');
+        if (out) out.innerHTML = `<div class="ueb-meldung ueb-rot"><b>✗ ${esc(j?.message || 'HTTP ' + r.status)}</b></div>`;
+    }
     uebListeLaden();
 }
 
@@ -311,29 +332,103 @@ function uebListeZeichnen() {
         return;
     }
     let warten = 0;
-    el.innerHTML = liste.map(({ v, vi }) => {
+    const offen = _uebOffen();
+    el.innerHTML = liste.map(({ v, vi }, i) => {
         const w = _uebWarteSek(v);
         if (w > 0 && !v.jobFinished) warten = Math.max(warten, w);
         const statusKnopf = v.art === 'subscribe' ? '' : v.jobFinished
             ? '<span class="komm-klein">JobFinished — keine Statusabfrage mehr</span>'
             : `<button type="button" class="komm-btn-primaer ueb-klein" ${w > 0 ? 'disabled' : ''} onclick="uebStatus(${vi})">
                    Status abfragen${w > 0 ? ` (in ${w} s)` : ''}</button>`;
-        return `<div class="ueb-vorgang">
-            <div class="ueb-vorgang-kopf">
-                <div><b>${esc(v.titel)}</b>
-                    <div class="komm-klein">${_uebDatum(v.gesendet, true)} · RequestID <code>${esc(v.requestId)}</code>
-                        ${v.jobKey ? ` · JobKey <code>${esc(v.jobKey)}</code>` : ''}${v.substitution ? ` · ersetzt <code>${esc(v.substitution)}</code>` : ''}
-                        ${v.doppeltSigniert ? ' · doppelt signiert' : ''}${v.statusAbfragen ? ` · ${v.statusAbfragen}× Status` : ''}</div></div>
-                <div class="komm-knoepfe">${statusKnopf}
-                    <button type="button" class="komm-btn-sekundaer ueb-klein" onclick="uebLoeschen(${vi})">Entfernen</button></div>
+        const istOffen = v.id in offen ? offen[v.id] : i === 0;
+        const chips = v.adressaten.map(a => {
+            const [klasse, text] = a.state ? [_uebStateKlasse(a.state), a.state] : (_uebZustand[a.zustand] || ['ueb-z-grau', a.zustand]);
+            return `<span class="ueb-z ${klasse}">${esc(a.identification)} · ${esc(text)}</span>`;
+        }).join(' ');
+        return `<details class="ueb-vorgang" data-id="${esc(v.id)}" ${istOffen ? 'open' : ''} ontoggle="_uebOffenMerken(this)">
+            <summary class="ueb-vorgang-kopf">
+                <div><b>${esc(v.titel)}</b> ${chips}
+                    <div class="komm-klein">${_uebDatum(v.gesendet, true)}${v.jobKey ? ` · JobKey <code>${esc(v.jobKey)}</code>` : ''}</div></div>
+            </summary>
+            <div class="ueb-vorgang-body">
+                <div class="ueb-vorgang-leiste">
+                    <div class="komm-klein">RequestID <code>${esc(v.requestId)}</code>${v.substitution ? ` · ersetzt <code>${esc(v.substitution)}</code>` : ''}
+                        ${v.doppeltSigniert ? ' · doppelt signiert' : ''}${v.statusAbfragen ? ` · ${v.statusAbfragen}× Status` : ''}</div>
+                    <div class="komm-knoepfe">${statusKnopf}
+                        <button type="button" class="komm-btn-sekundaer ueb-klein" onclick="uebLoeschen(${vi})">Entfernen</button></div>
+                </div>
+                ${v.adressaten.map((a, ai) => _uebAdressatHtml(v, vi, a, ai)).join('')}
+                <details class="ueb-protokoll"><summary>Protokoll (${v.protokoll.length}) · Anfrage und Antwort je Schritt</summary>
+                    ${v.protokoll.map(_uebProtokollZeile).join('')}
+                </details>
             </div>
-            ${v.adressaten.map((a, ai) => _uebAdressatHtml(v, vi, a, ai)).join('')}
-            <details class="ueb-protokoll"><summary>Protokoll (${v.protokoll.length})</summary>
-                ${v.protokoll.map(p => `<div><span class="komm-klein">${_uebDatum(p.zeit, true)} · ${esc(p.schritt)}</span> ${esc(p.text)}</div>`).join('')}
-            </details>
-        </div>`;
+        </details>`;
     }).join('');
     if (warten > 0) _uebTimer = setTimeout(uebListeZeichnen, warten * 1000 + 200);
+}
+
+function _uebOffen() {
+    try { return JSON.parse(localStorage.getItem('uebOffen') || '{}'); } catch (_) { return {}; }
+}
+function _uebOffenMerken(el) {
+    const o = _uebOffen();
+    o[el.dataset.id] = el.open;
+    try { localStorage.setItem('uebOffen', JSON.stringify(o)); } catch (_) { /* egal */ }
+}
+
+function _uebStateKlasse(state) {
+    if (state === 'Finished' || state === 'subscribed') return 'ueb-z-ok';
+    if (state === 'Rejected') return 'ueb-z-rot';
+    if (state === 'closed') return 'ueb-z-grau';
+    return 'ueb-z-warn';
+}
+
+// ── Protokoll mit Archiv (F04) ────────────────────────────────────────────
+
+function _uebProtokollZeile(p) {
+    const link = (name, label) => name
+        ? `<button type="button" class="ueb-archiv-link" onclick="uebArchivZeigen(this, '${esc(name)}')">${label}</button>` : '';
+    return `<div class="ueb-prot-zeile">
+        <div><span class="komm-klein">${_uebDatum(p.zeit, true)} · ${esc(p.schritt)}</span> ${esc(p.text)}
+            ${link(p.archivAnfrage, 'Anfrage')}${link(p.archivAntwort, 'Antwort')}</div>
+        <div class="ueb-archiv-inhalt"></div>
+    </div>`;
+}
+
+/** Signierte Klartext-XML ohne Leerraum → eingerückt, nur für die Anzeige. */
+function _uebXmlHuebsch(xml) {
+    const teile = xml.replace(/>\s*</g, '>\n<').split('\n');
+    let tiefe = 0;
+    return teile.map(t => {
+        if (/^<\//.test(t)) tiefe = Math.max(0, tiefe - 1);
+        const zeile = '  '.repeat(tiefe) + t;
+        if (/^<[^!?\/][^>]*>$/.test(t) && !/\/>$/.test(t)) tiefe++;
+        return zeile;
+    }).join('\n');
+}
+
+async function uebArchivZeigen(btn, name) {
+    const box = btn.closest('.ueb-prot-zeile')?.querySelector('.ueb-archiv-inhalt');
+    if (!box) return;
+    if (box.dataset.name === name) { box.innerHTML = ''; box.dataset.name = ''; return; }
+    box.dataset.name = name;
+    box.innerHTML = '<span class="komm-klein">⏳ …</span>';
+    try {
+        const r = await fetch('/api/elm/archiv/' + encodeURIComponent(name), { headers: ah(), cache: 'no-store' });
+        const text = await r.text();
+        if (!r.ok) throw new Error(r.status === 404 ? 'Archivdatei nicht gefunden.' : 'HTTP ' + r.status);
+        box.innerHTML = `<div class="ueb-archiv-kopf"><code>${esc(name)}</code>
+                <button type="button" class="komm-btn-sekundaer ueb-klein" onclick="uebArchivSpeichern('${esc(name)}')">Herunterladen</button></div>
+            <pre class="komm-xml">${esc(_uebXmlHuebsch(text))}</pre>`;
+    } catch (e) {
+        box.innerHTML = `<span class="komm-rot">${esc(e.message)}</span>`;
+    }
+}
+
+async function uebArchivSpeichern(name) {
+    const r = await fetch('/api/elm/archiv/' + encodeURIComponent(name), { headers: ah(), cache: 'no-store' });
+    if (!r.ok) return;
+    await saveBlobAsk(await r.blob(), name);
 }
 
 function _uebAdressatHtml(v, vi, a, ai) {
@@ -361,7 +456,9 @@ function _uebAdressatHtml(v, vi, a, ai) {
         </div>
         ${zeilen.map(z => `<div class="ueb-adr-zeile">${z}</div>`).join('')}
         ${_uebHinweisZeilen(a.hinweise)}
-        ${a.completion ? _uebCompletionHtml(a.completion) : ''}
+        ${!a.completion ? '' : (a.state === 'Finished' || a.state === 'closed')
+            ? '<div class="ueb-adr-zeile komm-klein">✓ Completion freigegeben — Fall abgeschlossen.</div>'
+            : _uebCompletionHtml(a.completion)}
         ${a.stories.map((s, si) => _uebStoryHtml(vi, ai, s, si)).join('')}
     </div>`;
 }

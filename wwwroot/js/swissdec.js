@@ -786,6 +786,7 @@ function _suaZeigeErgebnis(j, outId) {
         ok: e.ok, error: e.error, httpStatus: e.httpStatus, dauerMs: e.dauerMs,
         faultCode: e.faultCode, faultText: e.faultText, tls: e.tls,
         responseXml: e.responseXml, requestXml: e.requestXml,
+        klartextAnfrage: e.klartextAnfrage, archivAnfrage: e.archivAnfrage,
         diffSekunden: e.diffSekunden, distributorZeit: e.distributorZeit,
         lokaleZeit: e.lokaleZeit, zeitAbweichung: e.zeitAbweichung, versatzSekunden: e.versatzSekunden,
         security: e.security, doppeltSigniert: e.doppeltSigniert,
@@ -817,7 +818,9 @@ function _suaZeigeErgebnis(j, outId) {
         ${faultBlock}
         ${fake.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
             <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.responseXml)}</pre>` : ''}
-        <details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Gesendete Anfrage</summary>
+        ${fake.klartextAnfrage ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Gesendete Anfrage (lesbar, vor der Verschlüsselung)${fake.archivAnfrage ? ' · Archiv ' + esc(fake.archivAnfrage) : ''}</summary>
+            <pre style="background:#f6f3ee;border:1px solid #e7e1d8;padding:10px 12px;border-radius:10px;max-height:280px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.klartextAnfrage)}</pre></details>` : ''}
+        <details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Gesendete Anfrage${fake.klartextAnfrage ? ' (wie verschickt, verschlüsselt)' : ''}</summary>
             <pre style="background:#f6f3ee;border:1px solid #e7e1d8;padding:10px 12px;border-radius:10px;max-height:280px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.requestXml || '')}</pre></details>`;
 }
 

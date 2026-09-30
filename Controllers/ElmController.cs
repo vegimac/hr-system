@@ -1010,7 +1010,11 @@ public class ElmController : ControllerBase
     public async Task<IActionResult> UebermittlungLoeschen([FromServices] ElmUebermittlungService dienst, string id)
     {
         if (!await IstSuperAdminAsync()) return NurSuperAdmin();
-        return dienst.Loesche(id) ? Ok(new { ok = true }) : NotFound(new { error = "NICHT_GEFUNDEN" });
+        try
+        {
+            return dienst.Loesche(id) ? Ok(new { ok = true }) : NotFound(new { error = "NICHT_GEFUNDEN" });
+        }
+        catch (InvalidOperationException ex) { return Conflict(new { error = "BESCHAEFTIGT", message = ex.Message }); }
     }
 
     // ── Kommunikations-Test: Stand je Foundation-Prüfpunkt (Walter 29.09.2026) ──

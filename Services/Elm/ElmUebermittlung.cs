@@ -55,6 +55,9 @@ public class ElmProtokollZeile
     public string Text { get; set; } = "";
     public string? RequestId { get; set; }
     public string? ResponseId { get; set; }
+    /// <summary>F04-Archivdateien (signierter Klartext) zu diesem Schritt.</summary>
+    public string? ArchivAnfrage { get; set; }
+    public string? ArchivAntwort { get; set; }
 }
 
 public class ElmVorgangAdressat
@@ -551,6 +554,26 @@ public static class ElmUebermittlungXml
         }
         a.Fehler = null;
         a.FehlerDetail = null;
+    }
+
+    /// <summary>
+    /// Ergebniszeile eines Synchronize: welche Stories wir quittiert haben, welche neu
+    /// kamen und welche der Empfänger nochmals geschickt hat — je mit Art und StoryID,
+    /// damit man im Protokoll ohne Archiv sieht, was passiert ist (F08_03).
+    /// </summary>
+    public static string SyncText(ElmVorgangAdressat a, IReadOnlyCollection<string> quittiert,
+        IReadOnlyCollection<string> neu, IReadOnlyCollection<string> erneut)
+    {
+        string Liste(IEnumerable<string> ids) => string.Join(", ", ids.Select(id =>
+        {
+            var art = a.Stories.FirstOrDefault(x => x.StoryId == id)?.Art;
+            return art == null ? id : $"{art} {id}";
+        }));
+        return $"{a.Identification}: {StateText(a.State)}"
+             + (quittiert.Count > 0 ? $" · quittiert: {Liste(quittiert)}" : "")
+             + (neu.Count > 0 ? $" · neu: {Liste(neu)}" : "")
+             + (erneut.Count > 0 ? $" · erneut erhalten: {Liste(erneut)}" : "")
+             + (a.Ausstehend.Count > 0 ? $" · {a.Ausstehend.Count} eigene Antwort(en) noch nicht quittiert" : "");
     }
 
     /// <summary>StoryIDs, die im nächsten Synchronize quittiert werden müssen.</summary>

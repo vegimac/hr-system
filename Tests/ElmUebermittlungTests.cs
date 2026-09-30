@@ -395,6 +395,25 @@ public class ElmUebermittlungTests
     }
 
     [Fact]
+    public void SyncText_NenntQuittierteNeueUndErneutErhalteneStoriesMitId()
+    {
+        // F08_03: der Empfänger schickt die schon quittierte Quittung nochmals, dazu die Completion.
+        var a = Adressat("AHV-AVS");
+        Uebernehme(a, Sync("CompletionReleaseMissing", new[] { new SyncStory("Q-1", "AHV-AVS-Quittance", "<q/>") }), Array.Empty<string>());
+        Uebernehme(a, Sync("Finished", new[]
+        {
+            new SyncStory("Q-1", "AHV-AVS-Quittance", "<q/>"),
+            new SyncStory("C-1", "Completion", "<c/>"),
+        }), new[] { "Q-1" });
+
+        var text = SyncText(a, new[] { "Q-1" }, new[] { "C-1" }, new[] { "Q-1" });
+        Assert.Contains("quittiert: AHV-AVS-Quittance Q-1", text);
+        Assert.Contains("neu: Completion C-1", text);
+        Assert.Contains("erneut erhalten: AHV-AVS-Quittance Q-1", text);
+        Assert.StartsWith(a.Identification + ": Finished", text);
+    }
+
+    [Fact]
     public void UnterdrueckteIds_BleibenUndWerdenImmerMitgesendet()
     {
         var a = Adressat("TaxAtSource");

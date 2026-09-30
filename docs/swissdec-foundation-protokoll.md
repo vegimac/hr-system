@@ -1010,6 +1010,32 @@ Zwischendurch 09:15 ein Synchronize auf den ERSTEN Fall (18da0718929ac04cf): Com
 quittiert, State weiter CompletionReleaseMissing (Link dort nicht geöffnet).
 Offen: AHV-Quittance-Story `18da077917e8c2876` wird erst im nächsten Synchronize quittiert.
 
+### F08_03 — Stories mehrfach erhalten (30.09.2026, 10:43, Receiver Jackpot)
+
+Gleicher Fall wie F05_08. Der Receiver schickt schon quittierte Stories bewusst nochmals:
+
+| Zeit | Wir senden (ReceivedStoryIDs) | Receiver schickt zurück |
+|---|---|---|
+| 10:43:08 | AHV-AVS-Quittance `18da077917e8c2876` | Completion `18da0778fe61fedfb` nochmals |
+| 10:43:17 | Completion `18da0778fe61fedfb` | AHV-AVS-Quittance nochmals |
+
+OneCrew erkennt die Doublette an der StoryID (Empfangszähler 2), legt keine zweite Story an und
+quittiert sie im nächsten Synchronize nochmals. Quality Tool F08_03_1 mit Kommentar → Success (69/90,
+Bestätigung Walter ausstehend).
+
+### Aufräumen der Übermittlungs-Seite (30.09.2026, nach F08_03)
+
+Anlass: Doppelklick auf «Synchronisieren», Archiv nicht auffindbar, «Gesendete Anfrage» zeigte nur
+das verschlüsselte XML. Seither:
+
+- Während einer Anfrage sind alle Knöpfe gesperrt; der Server weist eine zweite gleichzeitige
+  Übermittlung ab («Es läuft gerade eine andere Übermittlung»).
+- Jeder Protokoll-Schritt hat die Knöpfe «Anfrage» / «Antwort» → F04-Archivdatei (signierter
+  Klartext) direkt in der Liste, mit «Herunterladen».
+- Das Ergebnis zeigt zusätzlich die lesbare Anfrage vor der Verschlüsselung.
+- Die Sync-Zeile nennt Art + StoryID: «quittiert: …», «neu: …», «erneut erhalten: …».
+- Fälle sind zuklappbar (neuester offen); abgeschlossene Fälle zeigen den Completion-Kasten nicht mehr.
+
 ---
 
 ## Vollständiger Katalog (Walter 24.09.2026 aus dem Werkzeug)

@@ -12904,6 +12904,23 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         .ueb-url { word-break: break-all; margin-top: 3px; }
         .ueb-protokoll { margin-top: 8px; font-size: 12px; }
         .ueb-protokoll summary { cursor: pointer; color: #8b8b8b; }
+        /* Aufräumen 30.09.2026: Fälle zuklappbar, Sperre während einer Anfrage, Archiv je Schritt */
+        details.ueb-vorgang > summary.ueb-vorgang-kopf { cursor: pointer; list-style: none; }
+        details.ueb-vorgang > summary.ueb-vorgang-kopf::-webkit-details-marker { display: none; }
+        details.ueb-vorgang > summary.ueb-vorgang-kopf::before { content: '▸'; color: #8b8b8b; margin-right: 6px; }
+        details.ueb-vorgang[open] > summary.ueb-vorgang-kopf::before { content: '▾'; }
+        details.ueb-vorgang > summary .ueb-z { margin-left: 4px; }
+        .ueb-vorgang-body { margin-top: 8px; }
+        .ueb-vorgang-leiste { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ueb-panel.ueb-beschaeftigt button, .ueb-panel.ueb-beschaeftigt summary { pointer-events: none; opacity: .5; }
+        .ueb-warte { background: #f6f3ee; border: 1px solid #e7e1d8; color: #3f3f3f; }
+        .ueb-prot-zeile { padding: 3px 0; border-top: 1px solid rgba(60,55,48,0.08); }
+        .ueb-archiv-link { border: 1px solid rgba(60,55,48,0.20); background: rgba(255,255,255,0.55); color: #3f3f3f;
+            border-radius: 8px; padding: 0 7px; font-size: 11px; margin-left: 4px; cursor: pointer; }
+        .ueb-archiv-link:hover { background: #fff; }
+        .ueb-archiv-kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0; font-size: 11px; }
+        .ueb-archiv-inhalt pre { max-height: 320px; overflow: auto; }
+        body.theme-dark .ueb-archiv-link { background: rgba(51,65,85,0.6); color: #e2e8f0; }
         body.theme-dark .ueb-vorgang, body.theme-dark .ueb-story { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); }
         body.theme-dark .ueb-check, body.theme-dark .ueb-label { color: #e2e8f0 !important; }
 

@@ -154,8 +154,9 @@ public class ElmZertifikatStore
     /// <summary>
     /// Foundation F04 — signierten Klartext (Request vor Encrypt / Response nach Decrypt)
     /// unter <c>archiv/</c> ablegen. Best-effort, nie Aufruf abbrechen.
+    /// Gibt den Dateinamen zurück (NULL = nicht geschrieben).
     /// </summary>
-    public void ArchiviereKlartext(string name, string xml)
+    public string? ArchiviereKlartext(string name, string xml)
     {
         try
         {
@@ -166,8 +167,9 @@ public class ElmZertifikatStore
                 $"{DateTime.Now:yyyyMMdd-HHmmss}-{sicher}.xml");
             File.WriteAllText(datei, xml ?? "", Encoding.UTF8);
             VersucheRechte600(datei);
+            return Path.GetFileName(datei);
         }
-        catch { /* Archiv best-effort */ }
+        catch { return null; /* Archiv best-effort */ }
     }
 
     // ── Empfängerzertifikat (für WS-Encryption) ──────────────────────────────

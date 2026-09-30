@@ -125,6 +125,12 @@ public class ElmTransmitterClient
         /// </summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public string? RohAntwort { get; init; }
+
+        /// <summary>Signierte Anfrage vor der Verschlüsselung, für die Anzeige formatiert.</summary>
+        public string? KlartextAnfrage { get; init; }
+        /// <summary>F04-Archivdateien dieses Aufrufs (NULL = nicht archiviert).</summary>
+        public string? ArchivAnfrage { get; init; }
+        public string? ArchivAntwort { get; init; }
     }
 
     /// <summary>
@@ -159,14 +165,22 @@ public class ElmTransmitterClient
             : new[] { erpZertifikat, suaZertifikat });
         // F04: signiert und UNVERSCHLÜSSELT archivieren (vor dem Encrypt).
         var signierteAnfrage = doc.OuterXml;
-        _store.ArchiviereKlartext(archivName + "-request", signierteAnfrage);
+        var archivAnfrage = _store.ArchiviereKlartext(archivName + "-request", signierteAnfrage);
+        string klartextAnfrage;
+        try { klartextAnfrage = XDocument.Parse(signierteAnfrage).ToString(); }
+        catch { klartextAnfrage = signierteAnfrage; }
 
         if (empfaengerZertifikat != null)
             ElmWsSecurity.Verschluessele(doc, empfaengerZertifikat);
 
         var gesichert = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" + doc.OuterXml;
         var r = await PostAsync(url, gesichert, ct);
-        r = MitFault(r) with { DoppeltSigniert = suaZertifikat != null };
+        r = MitFault(r) with
+        {
+            DoppeltSigniert = suaZertifikat != null,
+            KlartextAnfrage = klartextAnfrage,
+            ArchivAnfrage = archivAnfrage,
+        };
 
         if (string.IsNullOrWhiteSpace(r.ResponseXml)) return r;
         try
@@ -195,13 +209,13 @@ public class ElmTransmitterClient
             var klartext = antw.OuterXml;
             // F04: Archiv = signierter Klartext OHNE Pretty-Print (XDocument.ToString
             // verändert Whitespace → Digests ungültig). UI darf formatiert anzeigen.
-            _store.ArchiviereKlartext(archivName + "-response", klartext);
+            var archivAntwort = _store.ArchiviereKlartext(archivName + "-response", klartext);
             string anzeige;
             try { anzeige = XDocument.Parse(klartext).ToString(); }
             catch { anzeige = klartext; }
             return r with
             {
-                ResponseXml = anzeige, Security = pruef,
+                ResponseXml = anzeige, Security = pruef, ArchivAntwort = archivAntwort,
                 SignaturBestaetigung = ElmSignaturBestaetigung.Pruefe(signierteAnfrage, klartext),
             };
         }

@@ -17,6 +17,28 @@ public class ElmUebermittlungService
     /// <summary>UC002: automatisierte Statusabfragen mindestens 10 s auseinander.</summary>
     public const int MindestabstandStatusSekunden = 10;
 
+    /// <summary>
+    /// Immer nur eine Übermittlung gleichzeitig: jede liest und schreibt uebermittlungen.json,
+    /// und ein Doppelklick darf keine zweite Anfrage auslösen. Wer kommt, während eine
+    /// läuft, wird abgewiesen statt eingereiht.
+    /// </summary>
+    private static readonly SemaphoreSlim Sperre = new(1, 1);
+
+    private static async Task<T> Exklusiv<T>(Func<Task<T>> arbeit)
+    {
+        if (!await Sperre.WaitAsync(0))
+            throw new InvalidOperationException("Es läuft gerade eine andere Übermittlung — bitte warten, bis sie fertig ist.");
+        try { return await arbeit(); }
+        finally { Sperre.Release(); }
+    }
+
+    private static ElmProtokollZeile Zeile(string schritt, string text, string requestId, ElmTransmitterClient.ElmCallResult? call, string? responseId = null)
+        => new()
+        {
+            Schritt = schritt, Text = text, RequestId = requestId, ResponseId = responseId,
+            ArchivAnfrage = call?.ArchivAnfrage, ArchivAntwort = call?.ArchivAntwort,
+        };
+
     private readonly ElmTransmitterClient _client;
     private readonly ElmZertifikatStore _store;
     private readonly ElmMonthlyDeclarationBuilder _monat;
@@ -87,7 +109,10 @@ public class ElmUebermittlungService
 
     // ── Declare (UC001) ──────────────────────────────────────────────────
 
-    public async Task<Ergebnis> DeclareAsync(string url, DeclareOptionen o, CancellationToken ct)
+    public Task<Ergebnis> DeclareAsync(string url, DeclareOptionen o, CancellationToken ct)
+        => Exklusiv(() => DeclareInternAsync(url, o, ct));
+
+    private async Task<Ergebnis> DeclareInternAsync(string url, DeclareOptionen o, CancellationToken ct)
     {
         var art = o.Art == "annual" ? "annual" : "monthly";
         var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, o.Jahr, o.Monat, ct);
@@ -141,11 +166,9 @@ public class ElmUebermittlungService
                 Verarbeiten = a.Verarbeiten,
             }).ToList(),
         };
-        v.Protokoll.Add(new ElmProtokollZeile
-        {
-            Schritt = "declare", RequestId = requestId, ResponseId = s.Kopf.ResponseId,
-            Text = $"Gesendet an {string.Join(", ", gewaehlt.Select(a => a.Identification + (a.Verarbeiten ? "" : " (abgewählt)")))} — JobKey {jobKey}",
-        });
+        v.Protokoll.Add(Zeile("declare",
+            $"Gesendet an {string.Join(", ", gewaehlt.Select(a => a.Identification + (a.Verarbeiten ? "" : " (abgewählt)")))} — JobKey {jobKey}",
+            requestId, s.Call, s.Kopf.ResponseId));
         stand.Vorgaenge.Insert(0, v);
         _store.SpeichereUebermittlungen(stand);
         return new Ergebnis(true, $"Übermittelt — JobKey {jobKey}. Als Nächstes «Status abfragen».", v, s.Call)
@@ -154,7 +177,10 @@ public class ElmUebermittlungService
 
     // ── GetStatus (UC002) ────────────────────────────────────────────────
 
-    public async Task<Ergebnis> StatusAsync(string url, string vorgangId, CancellationToken ct)
+    public Task<Ergebnis> StatusAsync(string url, string vorgangId, CancellationToken ct)
+        => Exklusiv(() => StatusInternAsync(url, vorgangId, ct));
+
+    private async Task<Ergebnis> StatusInternAsync(string url, string vorgangId, CancellationToken ct)
     {
         var stand = _store.LadeUebermittlungen();
         var v = Finde(stand, vorgangId);
@@ -177,7 +203,7 @@ public class ElmUebermittlungService
             v.DoppeltSigniert, stand, requestId, ct);
         if (s.Abbruch != null)
         {
-            v.Protokoll.Add(new ElmProtokollZeile { Schritt = "status", RequestId = requestId, Text = s.Abbruch });
+            v.Protokoll.Add(Zeile("status", s.Abbruch, requestId, s.Call));
             _store.SpeichereUebermittlungen(stand);
             return new Ergebnis(false, s.Abbruch, v, s.Call) { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = s.Warnungen };
         }
@@ -196,7 +222,7 @@ public class ElmUebermittlungService
         }
         if (st.JobFinished == true) v.JobFinished = true;
         var text = Zusammenfassung(v, st.JobFinished == true);
-        v.Protokoll.Add(new ElmProtokollZeile { Schritt = "status", RequestId = requestId, ResponseId = s.Kopf.ResponseId, Text = text });
+        v.Protokoll.Add(Zeile("status", text, requestId, s.Call, s.Kopf.ResponseId));
         _store.SpeichereUebermittlungen(stand);
         return new Ergebnis(true, text, v, s.Call) { Warnungen = s.Warnungen };
     }
@@ -232,7 +258,11 @@ public class ElmUebermittlungService
 
     // ── Synchronize (UC005/UC008/UC009) ─────────────────────────────────
 
-    public async Task<Ergebnis> SynchronizeAsync(string url, string vorgangId, string addresseeId,
+    public Task<Ergebnis> SynchronizeAsync(string url, string vorgangId, string addresseeId,
+        List<DialogAntwort>? antworten, bool abmelden, CancellationToken ct)
+        => Exklusiv(() => SynchronizeInternAsync(url, vorgangId, addresseeId, antworten, abmelden, ct));
+
+    private async Task<Ergebnis> SynchronizeInternAsync(string url, string vorgangId, string addresseeId,
         List<DialogAntwort>? antworten, bool abmelden, CancellationToken ct)
     {
         var stand = _store.LadeUebermittlungen();
@@ -279,7 +309,7 @@ public class ElmUebermittlungService
         warn.AddRange(s.Warnungen);
         if (s.Abbruch != null)
         {
-            v.Protokoll.Add(new ElmProtokollZeile { Schritt = "sync", RequestId = requestId, Text = $"{a.Identification}: {s.Abbruch}" });
+            v.Protokoll.Add(Zeile("sync", $"{a.Identification}: {s.Abbruch}", requestId, s.Call));
             _store.SpeichereUebermittlungen(stand);
             return new Ergebnis(false, s.Abbruch, v, s.Call) { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = warn };
         }
@@ -287,24 +317,17 @@ public class ElmUebermittlungService
         var sync = LiesSynchronize(s.Body);
         if (sync.FallId != null && sync.FallId != a.FallId)
             warn.Add($"Die Antwort nennt eine andere Fall-ID ({sync.FallId}) als gesendet ({a.FallId}).");
-        var neuVorher = a.Stories.Count;
+        var bekannt = a.Stories.Select(x => x.StoryId).ToHashSet();
         Uebernehme(a, sync, quittieren);
-        var doppelt = sync.Stories.Where(x => a.Stories.Any(y => y.StoryId == x.StoryId && y.Empfangszaehler > 1)).ToList();
-        foreach (var d in doppelt)
-            warn.Add($"Story {d.StoryId} ({d.Art}) kam erneut — wird nochmals quittiert.");
+        var neu = sync.Stories.Where(x => !bekannt.Contains(x.StoryId)).Select(x => x.StoryId).Distinct().ToList();
+        var erneut = sync.Stories.Where(x => bekannt.Contains(x.StoryId)).Select(x => x.StoryId).Distinct().ToList();
+        foreach (var id in erneut)
+            warn.Add($"Story {id} ({a.Stories.First(x => x.StoryId == id).Art}) kam erneut — wird nochmals quittiert.");
 
-        string text;
-        if (sync.Fehler != null)
-            text = $"{a.Identification}: Fehler — {sync.Fehler}";
-        else
-        {
-            var neu = a.Stories.Count - neuVorher;
-            text = $"{a.Identification}: {StateText(a.State)}"
-                 + (quittieren.Count > 0 ? $" · {quittieren.Count} Story(s) quittiert" : "")
-                 + (neu > 0 ? $" · {neu} neue Story(s): {string.Join(", ", a.Stories.Skip(neuVorher).Select(x => x.Art))}" : "")
-                 + (a.Ausstehend.Count > 0 ? $" · {a.Ausstehend.Count} eigene Antwort(en) noch nicht quittiert" : "");
-        }
-        v.Protokoll.Add(new ElmProtokollZeile { Schritt = "sync", RequestId = requestId, ResponseId = s.Kopf.ResponseId, Text = text });
+        var text = sync.Fehler != null
+            ? $"{a.Identification}: Fehler — {sync.Fehler}"
+            : SyncText(a, quittieren, neu, erneut);
+        v.Protokoll.Add(Zeile("sync", text, requestId, s.Call, s.Kopf.ResponseId));
         _store.SpeichereUebermittlungen(stand);
         return new Ergebnis(sync.Fehler == null, text, v, s.Call)
         { Hinweise = sync.Hinweise, Warnungen = warn };
@@ -312,7 +335,10 @@ public class ElmUebermittlungService
 
     // ── SubscribeOrganization (Kap. 7, synchron) ────────────────────────
 
-    public async Task<Ergebnis> SubscribeAsync(string url, SubscribeOptionen o, CancellationToken ct)
+    public Task<Ergebnis> SubscribeAsync(string url, SubscribeOptionen o, CancellationToken ct)
+        => Exklusiv(() => SubscribeInternAsync(url, o, ct));
+
+    private async Task<Ergebnis> SubscribeInternAsync(string url, SubscribeOptionen o, CancellationToken ct)
     {
         var uid = (o.Uid ?? "").Trim();
         var firma = (o.Firmenname ?? "").Trim();
@@ -361,7 +387,7 @@ public class ElmUebermittlungService
             : string.Join(" · ", v.Adressaten.Select(a => a.Zustand == "Success"
                 ? $"{a.Identification}: angemeldet, SubscriptionID {a.FallId}"
                 : a.Zustand == "Error" ? $"{a.Identification}: Fehler — {a.Fehler}" : $"{a.Identification}: {a.Zustand}"));
-        v.Protokoll.Add(new ElmProtokollZeile { Schritt = "subscribe", RequestId = requestId, ResponseId = s.Kopf.ResponseId, Text = text });
+        v.Protokoll.Add(Zeile("subscribe", text, requestId, s.Call, s.Kopf.ResponseId));
         stand.Vorgaenge.Insert(0, v);
         _store.SpeichereUebermittlungen(stand);
         return new Ergebnis(v.Adressaten.Any(a => a.Zustand == "Success"), text, v, s.Call) { Warnungen = s.Warnungen };
@@ -373,10 +399,16 @@ public class ElmUebermittlungService
 
     public bool Loesche(string id)
     {
-        var stand = _store.LadeUebermittlungen();
-        var weg = stand.Vorgaenge.RemoveAll(v => v.Id == id) > 0;
-        if (weg) _store.SpeichereUebermittlungen(stand);
-        return weg;
+        if (!Sperre.Wait(0))
+            throw new InvalidOperationException("Es läuft gerade eine Übermittlung — bitte warten, bis sie fertig ist.");
+        try
+        {
+            var stand = _store.LadeUebermittlungen();
+            var weg = stand.Vorgaenge.RemoveAll(v => v.Id == id) > 0;
+            if (weg) _store.SpeichereUebermittlungen(stand);
+            return weg;
+        }
+        finally { Sperre.Release(); }
     }
 
     private static ElmVorgang Finde(ElmUebermittlungsStand stand, string id)
