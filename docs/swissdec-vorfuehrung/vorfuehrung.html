@@ -52,8 +52,8 @@
     <div class="rechts">OneCrew · Schaub Restaurants GmbH<br>ELM 6.0 · Testinstanz test.onecrew.ch<br>Stand 30.09.2026</div></div>
 
   <table>
-    <tr><th style="width:38mm">Stand Quality Tool</th><td><b>74 von 90</b> Prüfungen auf Success (von uns vorgeprobt, der Experte bestätigt im Termin).</td></tr>
-    <tr><th>Noch offen (16)</th><td>F05_01 · F05_07 · F06_01 · F07_04 (3 Prüfungen) · F08_01 · F08_04 · F08_05 · F08_06 · F08_07 (3) · F08_08 (3)</td></tr>
+    <tr><th style="width:38mm">Stand Quality Tool</th><td><b>76 von 90</b> Prüfungen auf Success (von uns vorgeprobt, der Experte bestätigt im Termin).</td></tr>
+    <tr><th>Noch offen (14)</th><td>F05_07 · F06_01 · F07_04 (3 Prüfungen) · F08_04 · F08_05 · F08_06 · F08_07 (3) · F08_08 (3)</td></tr>
     <tr><th>Offene Fragen</th><td>Letzte Seite — dort stehen die Punkte, bei denen wir die Einstellung von itserv brauchen.</td></tr>
   </table>
 
@@ -189,16 +189,17 @@
 
 <!-- ═════════════════════════════ F05 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F05 — Übermittlung</h2><div class="rechts">8 Prüfungen · 6 ✅ · 2 offen<br>F05_01, F05_07</div></div>
+  <div class="kopf"><h2>F05 — Übermittlung</h2><div class="rechts">8 Prüfungen · 7 ✅ · 1 offen<br>F05_07</div></div>
   <div class="info"><b>Aufbau Schritt ②:</b> Formular (Meldung · Jahr · Monat · ☑ TestCase · ☑ doppelt signieren · «Ersatzmeldung für DeclarationID») → <span class="knopf">Adressaten anzeigen</span> → <span class="knopf">Meldung senden</span>.
   Darunter die Liste <b>«ÜBERMITTLUNGEN»</b>: neuester Fall oben, Kopf anklicken zum Auf-/Zuklappen. Im Fall links <span class="knopf">Status abfragen</span> (frühestens alle 10 s), je Adressat <span class="knopf">Synchronisieren</span>.
   <b>Testdaten Muster AG:</b> Jahresmeldung AHV <b>2025</b> → Adressat 046.000 · Monatsmeldung <b>2025 / 1</b> → BE, TI, VD, Statistic. TestCase und doppelt signieren immer angehakt. Das Formular merkt sich die letzte Meldung — vor dem Senden Meldung/Jahr/Monat prüfen.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_01</span><span class="titel">SubscribeOrganization (zusammen mit F08_01)</span><span class="stand offen">⏳ offen</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span>keine (Standard)</span></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_01</span><span class="titel">SubscribeOrganization (zusammen mit F08_01)</span><span class="stand ok">✅ 30.09. 19:59</span></div>
+    <div class="zeile"><span class="lab">① Einstellung</span><span>keine (Standard: UVG-LAA · 1234 → «SubscribeOrganization = SubscribeAndSuccess»)</span></div>
     <div class="zeile"><span class="lab">② OneCrew</span><span><ol><li>Prüfpunkt F05_01: Formular «Anmeldung». Felder prüfen: UID <code>CHE-999.999.996</code>, Firma <b>Muster AG</b>, Kontakt, PLZ/Ort (Luzern), Adressat <b>1234</b>, Versicherungszweig <b>UVG-LAA</b>, ☑ TestCase.</li>
       <li><span class="knopf">Anmelden (SubscribeOrganization)</span></li><li>Im neuen Fall beim Adressaten <span class="knopf">Synchronisieren</span>.</li></ol></span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span>Grün «1234: angemeldet, SubscriptionID …» — <b>ohne</b> JobKey und ohne Statusabfrage (synchron). Nach Synchronisieren State «subscribed», evtl. Liste «Verfügbar».</span></div></div>
+    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span>Grün «1234: angemeldet, SubscriptionID …» — <b>ohne</b> JobKey und ohne Statusabfrage (synchron). Nach Synchronisieren State «subscribed», evtl. Liste «Verfügbar».</span></div>
+    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">Fall «Anmeldung UVG-LAA 1234 · TestCase» 30.09.2026 19:59 · SubscriptionID <code>18da2b10777158a02</code> · Synchronisieren → subscribed, neu UVG-LAA-Profile <code>18da2b10c48cdb1c5</code> → nächstes Synchronisieren → quittiert. (Erste Probe 19:17, SubscriptionID <code>18da28c7b8e38003a</code>.)</span></div></div>
 
   <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_02</span><span class="titel">Genau ein Adressat</span><span class="stand ok">✅ 30.09. 09:00</span></div>
     <div class="zeile"><span class="lab">② / ③</span><span>Jahresmeldung AHV 2025 → nur 046.000 → senden → JobKey → <span class="knopf">Status abfragen</span> → 046.000 «erfolgreich» mit DeclarationID, Key, Passwort.</span></div>
@@ -265,12 +266,13 @@
 
 <!-- ═════════════════════════════ F08 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F08 — Prozesse</h2><div class="rechts">13 Prüfungen · 3 ✅ · 10 offen</div></div>
+  <div class="kopf"><h2>F08 — Prozesse</h2><div class="rechts">13 Prüfungen · 4 ✅ · 9 offen</div></div>
   <p class="unter">Übermittlungs-Formular wie bei F05. Für F08_04 bis F08_08 braucht es eine Receiver-Einstellung von itserv — vorher erfragen und notieren.
   Ablauf dann immer: Meldung senden → <span class="knopf">Status abfragen</span> → beim Adressaten <span class="knopf">Synchronisieren</span> → Nachricht erscheint beim Adressaten.</p>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F08_01</span><span class="titel">Synchrone Übermittlung mit Quittungen</span><span class="stand offen">⏳ offen</span></div>
-    <div class="zeile"><span class="lab">Ablauf</span><span>Zusammen mit <b>F05_01</b> (Anmeldung): Ergebnis kommt direkt in der Antwort. Beim Synchronisieren erscheinen Quittungen als Stories mit «wird quittiert», nach dem nächsten Synchronisieren «quittiert».</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F08_01</span><span class="titel">Synchrone Übermittlung mit Quittungen</span><span class="stand ok">✅ 30.09. 20:01</span></div>
+    <div class="zeile"><span class="lab">Ablauf</span><span>Zusammen mit <b>F05_01</b> (Anmeldung): Ergebnis kommt direkt in der Antwort. Beim Synchronisieren erscheinen Quittungen als Stories mit «wird quittiert» (Knopf «Synchronisieren (1 quittieren)»), nach dem nächsten Synchronisieren «quittiert».</span></div>
+    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">SubscriptionID <code>18da2b10777158a02</code>: 19:59 angemeldet (synchron, ohne JobKey) · 20:00 subscribed, neu UVG-LAA-Profile <code>18da2b10c48cdb1c5</code> · 20:01 «quittiert: UVG-LAA-Profile 18da2b10c48cdb1c5».</span></div></div>
 
   <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F08_02</span><span class="titel">GetStatus mit JobKey (1) · abgewählter Adressat (2)</span><span class="stand ok">✅ 30.09.</span></div>
     <div class="zeile"><span class="lab">Beleg</span><span class="beleg">(1) JobKey <code>42f69723bac79ca02</code> → JobFinished 09:02; <code>62f6f740320581a44</code> → JobFinished 09:14. Abfragen frühestens alle 10 s, nach JobFinished keine mehr («JobFinished — keine Statusabfrage mehr»).<br>
@@ -300,7 +302,7 @@
     <tr><td>3</td><td><b>F08_04–F08_08:</b> Welche Einstellungen für DialogMessage, RandomDialogMessage und CompleteDialogMessage?</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
     <tr><td>4</td><td><b>F05_07:</b> Ist die Sperre im TX die erwartete Lösung? (Offenlegung: eine doppelte RequestID am 30.09. 18:56 vor dem Umbau.)</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
     <tr><td>5</td><td><b>F08_03:</b> Der Receiver schickt schon quittierte Stories erneut (AHV-Quittance <code>18da077917e8c2876</code> steht deshalb wieder auf «wird quittiert»). Ist das gewollt?</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
-    <tr><td>6</td><td><b>F05_01:</b> Welche Receiver-Zeile nimmt SubscribeOrganization an (UVG-LAA · 1234)?</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
+    <tr><td>6</td><td><b>Receiver-Optionen:</b> Bei UVG-LAA · 1234 gibt es Auswahllisten «DeclareAnnualSalary», «DeclareMonthlySalary», «NotifyChanges» (Standard DeclareResult). Sind das die Einstellungen für F06_01 und F08_04–F08_08?</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
   </table>
 
   <h3>Nur falls gefragt</h3>

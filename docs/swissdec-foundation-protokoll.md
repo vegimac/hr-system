@@ -1065,6 +1065,21 @@ Bestätigung Walter ausstehend).
 - Vorführ-Anleitung für den Termin: `docs/swissdec-vorfuehrung/Swissdec-Foundation-Vorfuehrung.pdf`
   (Quelle `vorfuehrung.html`, ein Kapitel pro Seite).
 
+### F05_01 + F08_01 — SubscribeOrganization mit Quittung (30.09.2026, 19:17–20:01)
+
+- Receiver: UVG-LAA · 1234 aktiv, «SubscribeOrganization = SubscribeAndSuccess» (Standard),
+  RegisterOrganizationAuthentication = RegisterVerification.
+- Formular F05_01: CHE-999.999.996 · Muster AG · 6000 Luzern · Adressat 1234 · UVG-LAA · TestCase ·
+  doppelt signiert.
+- 19:59 «Anmelden» → synchron (kein JobKey) «1234: angemeldet, SubscriptionID `18da2b10777158a02`»,
+  TestCase bestätigt, WS-Security gültig, beide SignatureConfirmation.
+- 20:00 Synchronisieren → «subscribed — angemeldet · neu: UVG-LAA-Profile `18da2b10c48cdb1c5`»
+  (Story «wird quittiert», Knopf «Synchronisieren (1 quittieren)»).
+- 20:01 Synchronisieren → «quittiert: UVG-LAA-Profile 18da2b10c48cdb1c5», Story «quittiert». ✓
+- Erste Probe 19:17 (SubscriptionID `18da28c7b8e38003a`, Profil `18da28c7efd2e5496` noch nicht
+  quittiert) bleibt als Probe stehen.
+- Quality Tool danach: 76/90.
+
 ### Aufräumen der Übermittlungs-Seite (30.09.2026, nach F08_03)
 
 Anlass: Doppelklick auf «Synchronisieren», Archiv nicht auffindbar, «Gesendete Anfrage» zeigte nur
