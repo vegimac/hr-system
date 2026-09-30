@@ -12905,13 +12905,14 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         .ueb-protokoll { margin-top: 8px; font-size: 12px; }
         .ueb-protokoll summary { cursor: pointer; color: #8b8b8b; }
         /* Aufräumen 30.09.2026: Fälle zuklappbar, Sperre während einer Anfrage, Archiv je Schritt */
-        details.ueb-vorgang > summary.ueb-vorgang-kopf { cursor: pointer; list-style: none; }
+        details.ueb-vorgang > summary.ueb-vorgang-kopf { cursor: pointer; list-style: none; justify-content: flex-start; }
         details.ueb-vorgang > summary.ueb-vorgang-kopf::-webkit-details-marker { display: none; }
         details.ueb-vorgang > summary.ueb-vorgang-kopf::before { content: '▸'; color: #8b8b8b; margin-right: 6px; }
         details.ueb-vorgang[open] > summary.ueb-vorgang-kopf::before { content: '▾'; }
         details.ueb-vorgang > summary .ueb-z { margin-left: 4px; }
         .ueb-vorgang-body { margin-top: 8px; }
-        .ueb-vorgang-leiste { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ueb-vorgang-leiste { display: flex; justify-content: flex-start; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ueb-panel .ueb-adr-kopf { justify-content: flex-start; }
         .ueb-panel.ueb-beschaeftigt button, .ueb-panel.ueb-beschaeftigt summary { pointer-events: none; opacity: .5; }
         .ueb-warte { background: #f6f3ee; border: 1px solid #e7e1d8; color: #3f3f3f; }
         .ueb-prot-zeile { padding: 3px 0; border-top: 1px solid rgba(60,55,48,0.08); }
