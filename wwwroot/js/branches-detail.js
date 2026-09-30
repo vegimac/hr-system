@@ -2328,7 +2328,8 @@ function filDoksOpenUpload() {
             <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:16px">Dokument hochladen</div>
             <div style="margin-bottom:12px">
                 <div style="${label}">Datei</div>
-                <input type="file" id="cdokFile" style="font-size:13px;color:#3f3f3f;width:100%">
+                <input type="file" id="cdokFile" accept="${UPLOAD_ACCEPT}" onchange="uploadInputPruefen(this)" style="font-size:13px;color:#3f3f3f;width:100%">
+                <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">PDF oder Bilder</div>
             </div>
             <div style="margin-bottom:12px">
                 <div style="${label}">Kategorie</div>

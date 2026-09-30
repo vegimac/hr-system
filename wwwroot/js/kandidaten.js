@@ -114,7 +114,7 @@ async function openKandidatModal() {
         <div style="margin-top:10px">
             <button onclick="document.getElementById('kdFiles').click()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:#3f3f3f">📎 Dokumente anhängen</button>
             <button onclick="kdPfOpen()" title="Dokument aus dem Filial-Posteingang übernehmen (z.B. gescannte Bewerbungsunterlagen)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:#3f3f3f;margin-left:6px">📥 Aus Posteingang</button>
-            <input type="file" id="kdFiles" accept="application/pdf,image/*" multiple style="display:none" onchange="kdFilesPicked(this.files)">
+            <input type="file" id="kdFiles" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx" multiple style="display:none" onchange="kdFilesPicked(this.files)">
             <div id="kdPfPicker" style="display:none;margin-top:8px;background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:8px;max-height:220px;overflow:auto;font-size:12.5px"></div>
             <div id="kdFileListVorhanden" style="font-size:12px;color:#646464;margin-top:6px"></div>
             <div id="kdFileList" style="font-size:12px;color:#646464;margin-top:6px"></div>
@@ -130,8 +130,8 @@ async function openKandidatModal() {
 
 // Mehrfach anhängen (Walter 10.08.2026): jede Auswahl wird ANGEHÄNGT, nicht
 // ersetzt — so kann man nacheinander CV, Bewilligung, Zeugnis … dazuklicken.
-function kdFilesPicked(files) {
-    for (const f of Array.from(files || [])) {
+async function kdFilesPicked(files) {
+    for (const f of await uploadDateienPruefen(files)) {
         if (!_kdFiles.some(x => x.name === f.name && x.size === f.size)) _kdFiles.push(f);
     }
     const inp = document.getElementById('kdFiles');
@@ -217,7 +217,8 @@ async function kdPfAdd(id, name) {
         const r = await fetch(`/api/mailbox/${id}/download`, { headers: ah() });
         if (!r.ok) { showToast('Datei konnte nicht geladen werden.', 'error'); return; }
         const blob = await r.blob();
-        const f = new File([blob], name || 'dokument', { type: blob.type || 'application/octet-stream' });
+        const f = await uploadDateiPruefen(new File([blob], name || 'dokument', { type: blob.type || 'application/octet-stream' }));
+        if (!f) return;
         if (_kdFiles.some(x => x.name === f.name && x.size === f.size)) { showToast('Datei ist bereits angehängt.', 'error'); return; }
         _kdFiles.push(f);
         kdFilesRender();

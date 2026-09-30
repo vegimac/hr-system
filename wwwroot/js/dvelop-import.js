@@ -937,9 +937,11 @@ function dvelopMissingQuickUpload(idx) {
     // d.velop liefert Dateinamen — wir setzen ihn als Hint, der Browser kann aber
     // jeden Namen akzeptieren (User-Datei hat oft den gleichen Namen)
     input.style.display = 'none';
+    input.accept = UPLOAD_ACCEPT;
     input.onchange = async () => {
         if (!input.files.length) return;
-        const file = input.files[0];
+        const file = await uploadDateiPruefen(input.files[0]);
+        if (!file) return;
         await dvelopUploadMissingFile(idx, m, file);
     };
     document.body.appendChild(input);

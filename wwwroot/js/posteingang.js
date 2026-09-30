@@ -460,8 +460,10 @@ async function pbOpenUpload() {
     document.getElementById('pbNotifyUser').innerHTML = '<option value="">– keine Benachrichtigung –</option>';
     document.getElementById('pbUploadAlert').innerHTML = '';
     pbClearFile();
-    document.getElementById('pbFile').onchange = (e) => {
-        if (e.target.files.length > 0) pbShowFile(e.target.files[0]);
+    document.getElementById('pbFile').onchange = async (e) => {
+        if (!e.target.files.length) return;
+        const [file] = await uploadInputPruefen(e.target);
+        if (file) pbShowFile(file); else pbClearFile();
     };
 
     const targetSel = document.getElementById('pbUploadTarget');
@@ -516,12 +518,13 @@ function pbUploadTargetChanged() {
 }
 function pbCloseUpload() { document.getElementById('pbUploadModal').style.display = 'none'; }
 
-function pbHandleDrop(ev) {
+async function pbHandleDrop(ev) {
     ev.preventDefault();
     document.getElementById('pbDropZone').classList.remove('drag-over');
     const files = ev.dataTransfer?.files;
     if (!files || files.length === 0) return;
-    const file = files[0];
+    const file = await uploadDateiPruefen(files[0]);
+    if (!file) return;
     // File-Input setzen via DataTransfer (so dass Form-Submit den File mitnimmt)
     const dt = new DataTransfer();
     dt.items.add(file);
@@ -1399,7 +1402,7 @@ async function mtSend() {
     try {
         const r = await fetch('/api/mailbox/mitteilung', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd });
         const j = await r.json().catch(() => ({}));
-        if (!r.ok) { al.innerHTML = warn(j.error || j.message || ('Fehler ' + r.status)); return; }
+        if (!r.ok) { al.innerHTML = warn(j.message || j.error || ('Fehler ' + r.status)); return; }
         mtClose();
         if (typeof showToast === 'function') showToast(`Mitteilung an ${j.empfaenger} Benutzer gesendet${j.mails ? ` · ${j.mails} Ankündigung(en) per E-Mail` : ''}.`, 'success');
         if (typeof pbLoadList === 'function') pbLoadList();

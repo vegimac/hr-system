@@ -543,6 +543,7 @@ function renderDokTableRow(d, showCategoryColumns) {
             <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="dokToggleMenu(event, ${d.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
             <div class="dok-menu" id="dokMenu-${d.id}">
                 <button class="dok-menu-item" onclick="openDokEditModal(${d.id})">Bearbeiten</button>
+                ${isOffice && canDelete ? `<button class="dok-menu-item" onclick="dokInPdfUmwandeln(${d.id})">In PDF umwandeln</button>` : ''}
                 ${canDownload ? `<button class="dok-menu-item" onclick="dokDownload(${d.id})">Herunterladen</button>` : ''}
                 ${deleteItem}
             </div>
@@ -769,6 +770,9 @@ async function dokOpenPreviewPanel(id, opts) {
     const dlBtn = _canDl ? `
                 <button onclick="dokDownload(${doc.id})" title="Herunterladen"
                         style="background:none;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:14px;color:#475569;padding:1px 8px">⬇</button>` : '';
+    const pdfBtn = (_canDl && !isPdfDoc && _officeExts0.includes(_ext0)) ? `
+                <button onclick="dokClosePreviewPanel(); dokInPdfUmwandeln(${doc.id})" title="In PDF umwandeln und die Word-/Excel-Datei ersetzen"
+                        style="background:none;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:#475569;padding:2px 8px">→ PDF</button>` : '';
 
     // Walter-Vorgabe 27.05.2026 (Schritt 2): Vorschau-Panel schmaler —
     // soll nicht über die Dokumenten-Liste schwappen, sondern nur die
@@ -794,6 +798,7 @@ async function dokOpenPreviewPanel(id, opts) {
             <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
                 ${printBtn}
                 ${dlBtn}
+                ${pdfBtn}
                 ${rotateBtns}
                 <button onclick="dokClosePreviewPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;padding:0 6px">×</button>
             </div>
@@ -1289,6 +1294,23 @@ async function dokDelete(id) {
     }
 }
 
+// Word/Excel-Dokument in ein PDF umwandeln und das Original ersetzen
+// (Walter-Vorgabe 01.10.2026). Verknüpfungen bleiben — gleiche Dokument-ID.
+async function dokInPdfUmwandeln(id) {
+    dokCloseAllMenus();
+    const frage = 'Das Dokument wird in ein PDF umgewandelt und die Word-/Excel-Datei durch das PDF ersetzt. Verknüpfungen bleiben bestehen.';
+    if (!(await liquidConfirm(frage, { title: 'In PDF umwandeln', yesLabel: 'Umwandeln', noLabel: 'Abbrechen' }))) return;
+    try {
+        const r = await fetch(`/api/documents/${id}/in-pdf-umwandeln`, { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || j.error || ('HTTP ' + r.status));
+        if (typeof showToast === 'function') showToast(`In PDF umgewandelt: «${j.filenameOriginal}»`, 'success');
+        loadEmpDokumente(_dokState.empId);
+    } catch (err) {
+        await liquidConfirm('Umwandlung fehlgeschlagen: ' + err.message, { title: 'In PDF umwandeln', yesLabel: 'OK', hideNo: true });
+    }
+}
+
 // ── Upload-Modal ──────────────────────────────────────────────────────
 function openDokUploadModal() {
     if (!_dokState.empId) return;
@@ -1320,12 +1342,12 @@ function openDokUploadModal() {
                     <div class="dok-upload-dropzone" id="dokDropzone" onclick="document.getElementById('dokFileInput').click()">
                         <div class="dok-upload-dropzone-text" id="dokDropzoneText">
                             Datei hierher ziehen oder klicken zum Auswählen<br>
-                            <small style="font-size:11px">PDF, Bilder, Word, max. 50 MB</small>
+                            <small style="font-size:11px">PDF oder Bilder, max. 50 MB</small>
                         </div>
                     </div>
                     <input type="file" id="dokFileInput" style="display:none"
                            onchange="dokFileSelected(this.files[0])"
-                           accept=".pdf,.jpg,.jpeg,.png,.gif,.tiff,.tif,.docx,.doc,.xlsx,.xls,.txt">
+                           accept="${UPLOAD_ACCEPT}">
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                     <div>
@@ -1830,8 +1852,17 @@ function dokSyncBis() {
     }
 }
 
-function dokFileSelected(file) {
+async function dokFileSelected(file) {
     if (!file) return;
+    if (!uploadIstErlaubt(file.name)) {
+        const input = document.getElementById('dokFileInput');
+        [file] = await uploadInputPruefen(input);
+        if (!file) {
+            document.getElementById('dokDropzoneText').innerHTML =
+                'Datei hierher ziehen oder klicken zum Auswählen<br><small style="font-size:11px">PDF oder Bilder, max. 50 MB</small>';
+            return;
+        }
+    }
     const sizeStr = file.size > 1024*1024
         ? (file.size/1024/1024).toFixed(1) + ' MB'
         : (file.size/1024).toFixed(0) + ' KB';
@@ -2561,12 +2592,12 @@ function openDokBulkModal() {
                onclick="document.getElementById('dokBulkFileInput').click()">
             <div style="color:#475569;font-size:14px;font-weight:500">📁 Dateien hierher ziehen oder klicken zum Auswählen</div>
             <div style="color:#94a3b8;font-size:12px;margin-top:6px">
-              Mehrfachauswahl möglich · PDF, Bilder, Word, max. 50 MB pro Datei
+              Mehrfachauswahl möglich · PDF oder Bilder, max. 50 MB pro Datei
             </div>
           </div>
           <input type="file" id="dokBulkFileInput" multiple style="display:none"
                  onchange="dokBulkFilesSelected(this.files)"
-                 accept=".pdf,.jpg,.jpeg,.png,.gif,.tiff,.tif,.docx,.doc,.xlsx,.xls,.txt">
+                 accept="${UPLOAD_ACCEPT}">
 
           <!-- Optional: Bemerkung für alle -->
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px">
@@ -2651,7 +2682,11 @@ async function closeDokBulkModal() {
 
 async function dokBulkFilesSelected(fileList) {
     const taxonomy = _dokState.taxonomy;
-    const newItems = Array.from(fileList).map(file => {
+    const files = await uploadDateienPruefen(fileList);
+    const bulkInput = document.getElementById('dokBulkFileInput');
+    if (bulkInput) bulkInput.value = '';
+    if (!files.length) return;
+    const newItems = files.map(file => {
         const parsed = parseDocFilename(file.name, taxonomy);
         return {
             file,
@@ -3224,11 +3259,11 @@ async function openDokAblageModal() {
                         <div class="dok-upload-dropzone" id="dabDropzone" onclick="document.getElementById('dabFile').click()">
                             <div class="dok-upload-dropzone-text" id="dabDropText">
                                 Datei hierher ziehen oder klicken zum Auswählen<br>
-                                <small style="font-size:11px">PDF, Bilder, Word, max. 50 MB</small>
+                                <small style="font-size:11px">PDF oder Bilder, max. 50 MB</small>
                             </div>
                         </div>
                         <input type="file" id="dabFile" style="display:none" onchange="dabDateiGewaehlt(this.files[0])"
-                               accept=".pdf,.jpg,.jpeg,.png,.gif,.tiff,.tif,.docx,.doc,.xlsx,.xls,.txt">
+                               accept="${UPLOAD_ACCEPT}">
                     </div>
                     <div><label>Datum des Dokuments</label><input type="date" id="dabVon" value="${heute}"></div>
                     <div><label>Gültig bis <small style="font-weight:400;color:#8b8b8b">(nur bei Ablauf)</small></label><input type="date" id="dabBis"></div>
@@ -3275,8 +3310,16 @@ function closeDokAblageModal() {
     _dab = null;
 }
 
-function dabDateiGewaehlt(file) {
+async function dabDateiGewaehlt(file) {
     if (!file || !_dab) return;
+    if (!uploadIstErlaubt(file.name)) {
+        [file] = await uploadInputPruefen(document.getElementById('dabFile'));
+        if (!file) {
+            document.getElementById('dabDropText').innerHTML =
+                'Datei hierher ziehen oder klicken zum Auswählen<br><small style="font-size:11px">PDF oder Bilder, max. 50 MB</small>';
+            return;
+        }
+    }
     const gr = file.size > 1024 * 1024 ? (file.size / 1024 / 1024).toFixed(1) + ' MB' : (file.size / 1024).toFixed(0) + ' KB';
     document.getElementById('dabDropText').innerHTML =
         `<div class="dok-upload-dropzone-file">${_dabEsc(file.name)}</div><small style="font-size:11px;color:#646464">${gr}</small>`;

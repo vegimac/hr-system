@@ -328,24 +328,9 @@ public class DocumentsController : ControllerBase
         if (string.IsNullOrWhiteSpace(branchCode))
             return BadRequest("Filiale-Code fehlt. Bitte zuerst eine Filiale wählen.");
 
-        // Datei-Endungs-Whitelist (Walter-Vorgabe 09.06.2026): vorher nahm der
-        // Endpunkt JEDE Endung an — inkl. .exe/.bat/.html/.js. Jetzt nur explizit
-        // erlaubte HR-/Office-Typen. Endung wird gegen lowercase geprüft.
-        var allowedExt = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            ".pdf",
-            ".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff",
-            ".doc", ".docx",
-            ".xls", ".xlsx",
-            ".ppt", ".pptx",
-            ".odt", ".ods", ".odp", ".rtf",
-            ".csv", ".txt"
-        };
-        var uploadExt = (Path.GetExtension(file.FileName) ?? "").ToLowerInvariant();
-        if (!allowedExt.Contains(uploadExt))
-            return BadRequest(new {
-                error = $"Dateityp '{uploadExt}' nicht erlaubt. Zugelassen: "
-                      + string.Join(", ", allowedExt.OrderBy(x => x))
-            });
+        // Nur PDF + Bilder (Walter-Vorgabe 01.10.2026, vorher auch Office/CSV/TXT).
+        if (!DokumentUploadRegel.IstErlaubt(file.FileName))
+            return BadRequest(DokumentUploadRegel.Fehler(file.FileName));
 
         // Mitarbeiter + Typ existieren?
         var empExists = await _db.Employees.AnyAsync(e => e.Id == employeeId);
@@ -902,6 +887,80 @@ public class DocumentsController : ControllerBase
 
         // Nicht konvertierbar (z.B. ZIP) → kein PDF möglich.
         return StatusCode(415, new { error = "Für diesen Dateityp ist keine PDF-Vorschau möglich." });
+    }
+
+    /// <summary>
+    /// Word/Excel/PowerPoint-Datei VOR dem Hochladen nach PDF wandeln
+    /// (Walter-Vorgabe 01.10.2026). Speichert nichts — liefert nur das PDF
+    /// zurück; der Browser lädt es danach über den normalen Upload hoch.
+    /// </summary>
+    [HttpPost("in-pdf-umwandeln")]
+    [RequestSizeLimit(50 * 1024 * 1024)]
+    public async Task<IActionResult> DateiInPdfUmwandeln([FromForm] IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "Keine Datei hochgeladen." });
+        if (!OfficeToPdfService.CanConvert(file.FileName))
+            return BadRequest(new { error = "NICHT_UMWANDELBAR", message = "Diese Datei kann OneCrew nicht in ein PDF umwandeln. Bitte selbst als PDF speichern." });
+
+        byte[] input;
+        await using (var ms = new MemoryStream())
+        {
+            await file.CopyToAsync(ms);
+            input = ms.ToArray();
+        }
+        var pdf = await _officePdf.ConvertToPdfAsync(input, file.FileName);
+        if (pdf is null)
+            return StatusCode(500, new { error = "PDF-Umwandlung fehlgeschlagen. Ist LibreOffice auf dem Server installiert?" });
+
+        var name = Path.GetFileNameWithoutExtension(file.FileName) + ".pdf";
+        Response.Headers["Content-Disposition"] = ContentDispositionUtil.Build("attachment", name, "dokument.pdf");
+        return File(pdf, "application/pdf");
+    }
+
+    /// <summary>
+    /// Bereits abgelegtes Word/Excel/PowerPoint-Dokument in ein PDF umwandeln
+    /// und das Original ersetzen (Walter-Vorgabe 01.10.2026). Die Dokument-ID
+    /// bleibt gleich — Verknüpfungen (Bewilligung, Vertrag …) bleiben bestehen.
+    /// </summary>
+    [HttpPost("{id:int}/in-pdf-umwandeln")]
+    public async Task<IActionResult> DokumentInPdfUmwandeln(int id)
+    {
+        var doc = await _db.EmployeeDokumente.FindAsync(id);
+        if (doc is null) return NotFound();
+        if (!OfficeToPdfService.CanConvert(doc.FilenameOriginal))
+            return BadRequest(new { error = "NICHT_UMWANDELBAR", message = "Nur Word-, Excel- und PowerPoint-Dokumente können umgewandelt werden." });
+
+        var altPfad = ResolveFilePath(doc);
+        if (altPfad is null) return NotFound(new { error = "Datei nicht im Storage gefunden." });
+
+        var pdf = await _officePdf.ConvertToPdfAsync(await System.IO.File.ReadAllBytesAsync(altPfad), doc.FilenameOriginal);
+        if (pdf is null)
+            return StatusCode(500, new { error = "PDF-Umwandlung fehlgeschlagen. Ist LibreOffice auf dem Server installiert?" });
+
+        var neuStorage = Guid.NewGuid().ToString("N") + ".pdf";
+        var neuPfad = Path.Combine(Path.GetDirectoryName(altPfad)!, neuStorage);
+        await System.IO.File.WriteAllBytesAsync(neuPfad, pdf);
+
+        var altName = doc.FilenameOriginal;
+        doc.FilenameOriginal = Path.GetFileNameWithoutExtension(doc.FilenameOriginal ?? "dokument") + ".pdf";
+        doc.FilenameStorage  = neuStorage;
+        doc.MimeType         = "application/pdf";
+        doc.GroesseBytes     = pdf.LongLength;
+        doc.DateiGeaendertAm = DateTime.Now;
+        doc.GeaendertVon     = await GetActorNameAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch
+        {
+            TryDeleteFile(neuPfad);
+            throw;
+        }
+        TryDeleteFile(altPfad);
+
+        return Ok(new { ok = true, doc.Id, doc.FilenameOriginal, vorher = altName, doc.GroesseBytes });
     }
 
     /// <summary>

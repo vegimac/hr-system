@@ -1808,14 +1808,14 @@ function liquidConfirm(message, opts = {}) {
         if (old) old.remove();
         const wrap = document.createElement('div');
         wrap.id = 'liquidConfirmModal';
-        wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+        wrap.style.cssText = `position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:${opts.zIndex || 9800};display:flex;align-items:center;justify-content:center`;
         const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         wrap.innerHTML = `
         <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:460px;width:92%;padding:22px 24px">
             <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:8px">${esc(opts.title || 'Frage')}</div>
             <div style="font-size:13.5px;color:#646464;line-height:1.5;white-space:pre-line">${esc(message)}</div>
             <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
-                <button id="lcNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${esc(opts.noLabel || 'Nein')}</button>
+                <button id="lcNo" style="${opts.hideNo ? 'display:none;' : ''}background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${esc(opts.noLabel || 'Nein')}</button>
                 <button id="lcYes" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${esc(opts.yesLabel || 'Ja')}</button>
             </div>
         </div>`;

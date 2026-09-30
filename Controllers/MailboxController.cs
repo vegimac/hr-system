@@ -410,6 +410,8 @@ public class MailboxController : ControllerBase
         if (betreff.Length == 0) return BadRequest(new { error = "Bitte einen Betreff eingeben." });
         if (text.Length == 0 && (file == null || file.Length == 0))
             return BadRequest(new { error = "Bitte einen Text eingeben oder eine Datei anhängen." });
+        if (file != null && file.Length > 0 && !DokumentUploadRegel.IstErlaubt(file.FileName))
+            return BadRequest(DokumentUploadRegel.Fehler(file.FileName));
 
         var empfaenger = await _db.AppUsers.AsNoTracking()
             .Where(u => ids.Contains(u.Id) && u.IsActive && u.Role != "employee")
@@ -528,6 +530,8 @@ public class MailboxController : ControllerBase
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { error = "Keine Datei hochgeladen." });
+        if (!DokumentUploadRegel.IstErlaubt(file.FileName))
+            return BadRequest(DokumentUploadRegel.Fehler(file.FileName));
 
         var t = (targetType ?? "BRANCH").ToUpperInvariant();
         int effectiveBranchId;
