@@ -222,7 +222,8 @@ public class ElmUebermittlungService
         var text = Zusammenfassung(v, st.JobFinished == true);
         v.Protokoll.Add(Zeile("status", text, requestId, s.Call, s.Kopf.ResponseId));
         _store.SpeichereUebermittlungen(stand);
-        return new Ergebnis(true, text, v, s.Call) { Warnungen = s.Warnungen };
+        var ohneFehler = !v.Adressaten.Any(a => a.Zustand == "Error");
+        return new Ergebnis(ohneFehler, text, v, s.Call) { Warnungen = s.Warnungen };
     }
 
     private static void UebernehmeStatus(ElmVorgangAdressat a, AdressatStatus n)
@@ -246,7 +247,7 @@ public class ElmUebermittlungService
         var teile = v.Adressaten.Select(a => a.Zustand switch
         {
             "Success" => $"{a.Identification}: erfolgreich, DeclarationID {a.FallId}",
-            "Error" => $"{a.Identification}: Fehler — {a.Fehler}",
+            "Error" => $"{a.Identification}: Fehler{(string.IsNullOrEmpty(a.FehlerCode) ? "" : " " + a.FehlerCode)} — {a.Fehler}",
             "Ignored" => $"{a.Identification}: nicht verarbeitet (abgewählt)",
             "Processing" => $"{a.Identification}: in Bearbeitung",
             _ => $"{a.Identification}: {a.Zustand}",
