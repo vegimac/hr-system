@@ -972,6 +972,17 @@ der App bei diesen Punkten als «Einstellung beim Test festlegen».
 liegt so im Archiv, wie sie ankam. Sie wird jetzt als «nicht entschlüsselbar (Probe F02_03)»
 geführt statt als roter Archivfehler; rot bleibt nur eine verschlüsselte ANFRAGE-Datei.
 
+### F05_02 — genau ein Adressat (30.09.2026, 09:00–09:02, Receiver Standard)
+
+- Jahresmeldung AHV 2025 der Muster AG, TestCase, doppelt signiert (ERP + SUA).
+  Ein Adressat: 046.000 AHV-AVS. Warnungen: 3 MA mit «unknown» AHV-Nummer (Herz 1,
+  Meier 21, Müller 30 — so auch in den RefXML), 2 MA ohne AHV-Lohn 2025 übersprungen.
+- 09:00:04 Declare: HTTP 200, JobKey `42f69723bac79ca02`, RequestID `a61512d61e074a62a372a172f99a5819`,
+  WS-Security gültig, SignatureConfirmation für beide Signaturen.
+- 09:02:00 GetStatus: **JobFinished**, 046.000 «Swissdec Jackpot Institution» erfolgreich,
+  DeclarationID `18da0718929ac04cf`, TestCase bestätigt, Key + Passwort erhalten.
+- Ergebnis wie erwartet.
+
 ---
 
 ## Vollständiger Katalog (Walter 24.09.2026 aus dem Werkzeug)
