@@ -138,6 +138,9 @@ public static class ElmDialog
                 normal = y switch { "ja" => "yes", "nein" => "no", "unbekannt" => "unknown", _ => y };
                 return normal is "yes" or "no" or "unknown" ? null : "ja, nein oder unbekannt erwartet";
             case "Date":
+                // xs:date darf eine Zeitzone tragen («2026-09-30+02:00», «2026-09-30Z»).
+                var zone = System.Text.RegularExpressions.Regex.Match(s, @"^(\d{4}-\d{2}-\d{2})(Z|[+-]\d{2}:\d{2})$");
+                if (zone.Success) s = zone.Groups[1].Value;
                 if (DateOnly.TryParseExact(s, new[] { "yyyy-MM-dd", "dd.MM.yyyy", "d.M.yyyy" },
                         CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
                 { normal = dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture); return null; }

@@ -489,7 +489,11 @@ function _uebDialogWert(typ, wert) {
     if (wert == null) return '';
     if (typ === 'Boolean') return wert === 'true' ? 'ja' : wert === 'false' ? 'nein' : wert;
     if (typ === 'YesNoUnknown') return { yes: 'ja', no: 'nein', unknown: 'unbekannt' }[wert] || wert;
-    if (typ === 'Date' && /^\d{4}-\d{2}-\d{2}$/.test(wert)) return `${wert.slice(8, 10)}.${wert.slice(5, 7)}.${wert.slice(0, 4)}`;
+    // xs:date / xs:dateTime dürfen eine Zeitzone tragen — angezeigt wird die Wanduhrzeit wie geliefert.
+    const d = typ === 'Date' && /^(\d{4})-(\d{2})-(\d{2})(Z|[+-]\d{2}:\d{2})?$/.exec(wert);
+    if (d) return `${d[3]}.${d[2]}.${d[1]}`;
+    const dt = typ === 'DateTime' && /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.exec(wert);
+    if (dt) return `${dt[3]}.${dt[2]}.${dt[1]} ${dt[4]}:${dt[5]}${dt[6] ? ':' + dt[6] : ''}`;
     return wert;
 }
 

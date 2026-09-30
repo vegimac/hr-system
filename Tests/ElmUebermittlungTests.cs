@@ -549,6 +549,10 @@ public class ElmUebermittlungTests
     [InlineData("YesNoUnknown", "nein", "no")]
     [InlineData("Date", "30.09.2026", "2026-09-30")]
     [InlineData("Date", "2026-09-30", "2026-09-30")]
+    [InlineData("Date", "2026-09-30+02:00", "2026-09-30")]
+    [InlineData("Date", "2026-09-30Z", "2026-09-30")]
+    [InlineData("DateTime", "2026-09-30T20:32:48.579+02:00", "2026-09-30T20:32:48+02:00")]
+    [InlineData("DateTime", "30.09.2026 20:32:48", "2026-09-30T20:32:48+02:00")]
     public void Dialog_WerteWerdenNormalisiert(string typ, string roh, string erwartet)
     {
         Assert.Null(ElmDialog.PruefeWert(typ, roh, out var normal));
