@@ -97,12 +97,18 @@ location = /__onecrew-laden {
 }
 NGX
 
+    # Sicherungskopien NIE in sites-enabled ablegen: nginx liest dort jede
+    # Datei, eine Kopie waere ein doppelter server-Block (Ausfall 30.09.2026).
+    BAK=/etc/nginx/backup-deploy
+    sudo mkdir -p "$BAK"
+    sudo find /etc/nginx/sites-enabled -maxdepth 1 -name '*.bak-*' -exec mv -t "$BAK" {} + 2>/dev/null || true
+
     GEAENDERT=""
     for f in /etc/nginx/sites-enabled/*; do
         [ -f "$f" ] || continue
         grep -q 'proxy_pass http://127.0.0.1:5' "$f" || continue
         grep -q 'onecrew-server-laden.conf' "$f" && continue
-        sudo cp "$f" "$f.bak-laden"
+        sudo cp "$f" "$BAK/$(basename "$f").bak-laden"
         sudo sed -i 's#^[[:space:]]*server {#&\n    include /etc/nginx/snippets/onecrew-server-laden.conf;#' "$f"
         GEAENDERT="$GEAENDERT $f"
         echo "    nginx-Include in $f"
@@ -110,11 +116,11 @@ NGX
     if sudo nginx -t >/dev/null 2>&1; then
         sudo systemctl reload nginx
         echo "    nginx: Sanduhr-Seite bei 502 aktiv"
-        for f in $GEAENDERT; do sudo rm -f "$f.bak-laden"; done
+        for f in $GEAENDERT; do sudo rm -f "$BAK/$(basename "$f").bak-laden"; done
     else
         echo "    nginx: Konfig-Check fehlgeschlagen — Include zurückgenommen"
         for f in $GEAENDERT; do
-            [ -f "$f.bak-laden" ] && sudo mv "$f.bak-laden" "$f"
+            [ -f "$BAK/$(basename "$f").bak-laden" ] && sudo mv "$BAK/$(basename "$f").bak-laden" "$f"
         done
     fi
 }
@@ -206,14 +212,15 @@ NGX
 <body><div><h1>OneCrew wird gerade aktualisiert…</h1><p>Der Server startet neu. Die Seite lädt in wenigen Sekunden automatisch.</p></div></body></html>
 HTML
         if ! grep -q 'onecrew-prod-start.conf' "$SITE"; then
-            sudo cp "$SITE" "$SITE.bak-startseite"
+            sudo mkdir -p /etc/nginx/backup-deploy
+            sudo cp "$SITE" /etc/nginx/backup-deploy/hr-system.bak-startseite
             awk '{print} /client_max_body_size 100M;/ && !done {print "    include snippets/onecrew-prod-start.conf;"; print "    location = /onecrew-startet.html { root /var/www/html; internal; try_files /onecrew-startet-prod.html =404; }"; done=1}' "$SITE" | sudo tee "$SITE.neu" > /dev/null
             sudo mv "$SITE.neu" "$SITE"
             if sudo nginx -t >/dev/null 2>&1; then
                 sudo systemctl reload nginx
                 echo "    ✓ Neustart-Seite in nginx (Prod) eingehaengt"
             else
-                sudo cp "$SITE.bak-startseite" "$SITE"
+                sudo cp /etc/nginx/backup-deploy/hr-system.bak-startseite "$SITE"
                 echo "    ! nginx -t fehlgeschlagen — Neustart-Seite nicht eingehaengt, Config zurueckgesetzt"
             fi
         fi
