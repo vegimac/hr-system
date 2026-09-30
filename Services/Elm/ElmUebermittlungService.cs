@@ -135,8 +135,6 @@ public class ElmUebermittlungService
         var s = await SendeAsync(url, anfrage, art == "annual" ? "declare-annual" : "declare-monthly",
             o.DoppeltSignieren, stand, requestId, ct);
         warn.AddRange(s.Warnungen);
-        if (o.RequestIdWiederverwenden)
-            warn.Insert(0, $"Bewusst mit der RequestID der letzten Anfrage gesendet ({requestId}) — Probe F05_07.");
 
         var jobKey = LiesStatus(s.Body).JobKey;
         if (s.Abbruch != null || jobKey == null)
@@ -445,10 +443,13 @@ public class ElmUebermittlungService
         var erp = _store.LadeErp()
             ?? throw new InvalidOperationException("ERP-Zertifikat fehlt (Einrichtung).");
         X509Certificate2? sua = doppelt ? _store.LadeSuaZumSignieren() : null;
+        if (RequestIdSchonGesendet(stand, requestId))
+            throw new InvalidOperationException($"RequestID {requestId} wurde schon einmal gesendet — OneCrew verschickt keine RequestID zweimal. Nichts gesendet.");
 
         var call = await _client.PostGesichertAsync(url, anfrage, erp, _store.LadeEmpfaengerFuerVerschluesselung(),
             archivName, ct, sua);
         stand.LetzteRequestId = requestId;
+        stand.GesendeteRequestIds.Add(requestId);
 
         var warn = new List<string>();
         if (doppelt && sua == null)

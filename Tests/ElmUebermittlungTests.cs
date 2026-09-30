@@ -414,6 +414,23 @@ public class ElmUebermittlungTests
     }
 
     [Fact]
+    public void RequestId_SchonGesendet_ErkenntListeLetzteUndProtokoll()
+    {
+        var s = new ElmUebermittlungsStand { LetzteRequestId = "LETZTE" };
+        s.GesendeteRequestIds.Add("LISTE");
+        var v = Vorgang("monthly");
+        v.RequestId = "DECLARE";
+        v.Protokoll.Add(new ElmProtokollZeile { Schritt = "status", RequestId = "STATUS" });
+        s.Vorgaenge.Add(v);
+
+        Assert.True(RequestIdSchonGesendet(s, "LETZTE"));
+        Assert.True(RequestIdSchonGesendet(s, "LISTE"));
+        Assert.True(RequestIdSchonGesendet(s, "DECLARE"));
+        Assert.True(RequestIdSchonGesendet(s, "STATUS"));
+        Assert.False(RequestIdSchonGesendet(s, "NEU"));
+    }
+
+    [Fact]
     public void UnterdrueckteIds_BleibenUndWerdenImmerMitgesendet()
     {
         var a = Adressat("TaxAtSource");

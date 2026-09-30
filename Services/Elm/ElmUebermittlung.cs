@@ -19,8 +19,10 @@ public class ElmUebermittlungsStand
     public List<ElmVorgang> Vorgaenge { get; set; } = new();
     /// <summary>AB-10: doppelt empfangene ResponseIDs erkennen.</summary>
     public List<string> GeseheneResponseIds { get; set; } = new();
-    /// <summary>Zuletzt gesendete RequestID — nur für die bewusste Probe F05_07.</summary>
+    /// <summary>Zuletzt gesendete RequestID — nur für die Vorführung F05_07.</summary>
     public string? LetzteRequestId { get; set; }
+    /// <summary>F05_07: jede je gesendete RequestID — auch von gelöschten Übermittlungen.</summary>
+    public List<string> GesendeteRequestIds { get; set; } = new();
 }
 
 /// <summary>Eine Übermittlung: Declare-Job oder Anmeldung (SubscribeOrganization).</summary>
@@ -575,6 +577,17 @@ public static class ElmUebermittlungXml
              + (erneut.Count > 0 ? $" · erneut erhalten: {Liste(erneut)}" : "")
              + (a.Ausstehend.Count > 0 ? $" · {a.Ausstehend.Count} eigene Antwort(en) noch nicht quittiert" : "");
     }
+
+    /// <summary>
+    /// F05_07 (CHECKED_BY_EXPERT): «Jede vom TX gesendete RequestID ist eindeutig; eine mehrfach
+    /// verwendete RequestID führt zu einem Fehler.» Der Testdistributor lehnt Doubletten nicht ab
+    /// (30.09.2026 ausprobiert) — also muss OneCrew selbst verweigern. Zählt auch die IDs aus
+    /// dem Protokoll, damit Übermittlungen von vor dieser Liste mitgeprüft werden.
+    /// </summary>
+    public static bool RequestIdSchonGesendet(ElmUebermittlungsStand s, string requestId)
+        => s.GesendeteRequestIds.Contains(requestId)
+           || s.LetzteRequestId == requestId
+           || s.Vorgaenge.Any(v => v.RequestId == requestId || v.Protokoll.Any(p => p.RequestId == requestId));
 
     /// <summary>StoryIDs, die im nächsten Synchronize quittiert werden müssen.</summary>
     public static List<string> ZuQuittieren(ElmVorgangAdressat a)

@@ -1045,6 +1045,21 @@ Bestätigung Walter ausstehend).
   AHV 212'507.65) — auf der Testinstanz ist offenbar nur der Januar abgeschlossen. Für die
   Übermittlungs-Prüfpunkte egal, für einen echten Beleg-Abgleich nicht.
 
+### F05_07 — eindeutige RequestID (30.09.2026, 18:56–19:10)
+
+- Quality Tool: F05_07_1 ist **CHECKED_BY_EXPERT**, Wortlaut «Jede vom TX gesendete RequestID ist
+  eindeutig; eine mehrfach verwendete RequestID führt zu einem Fehler.»
+- Probe mit dem alten Häkchen: Jahresmeldung AHV 2025 bewusst mit RequestID
+  `aa9c114da1dd4a489cfbca5d265b42a3` (schon verwendet) gesendet → der Testdistributor hat NICHT
+  abgelehnt (JobKey `43172858b83354ef2`, Status JobFinished, DeclarationID `18da27a9c79775aa1`).
+  Diese eine Doublette ist also beim Distributor angekommen — gegenüber itserv offen erwähnen.
+- Folgerung: der Fehler muss im TX entstehen. OneCrew führt jetzt `GesendeteRequestIds` und prüft
+  vor jedem Versand (Declare/Status/Synchronize/Subscribe) auch alle IDs aus dem Protokoll;
+  eine schon gesendete ID ⇒ «RequestID … wurde schon einmal gesendet — Nichts gesendet.»
+  Das Häkchen führt genau das vor. Neue IDs sind GUIDs (`NeueId`). Test:
+  `RequestId_SchonGesendet_ErkenntListeLetzteUndProtokoll`.
+- Quality Tool: noch nicht gesetzt — Vorführung beim Experten.
+
 ### Aufräumen der Übermittlungs-Seite (30.09.2026, nach F08_03)
 
 Anlass: Doppelklick auf «Synchronisieren», Archiv nicht auffindbar, «Gesendete Anfrage» zeigte nur

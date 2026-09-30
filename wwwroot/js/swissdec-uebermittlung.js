@@ -66,7 +66,7 @@ function _uebDeclareHtml() {
         <label class="ueb-breit">Ersatzmeldung für DeclarationID ${_uebCfg.substitution ? '' : '<span class="komm-klein">(leer = normale Meldung)</span>'}
             <input type="text" id="uebSubstitution" placeholder="DeclarationID der ersetzten Meldung"></label>
         ${_uebCfg.requestIdProbe ? `<label class="ueb-check ueb-breit ueb-probe"><input type="checkbox" id="uebRequestIdAlt">
-            RequestID der letzten Anfrage nochmals verwenden (Probe: der Distributor muss ablehnen)</label>` : ''}
+            RequestID der letzten Anfrage nochmals verwenden (Vorführung: OneCrew muss das Senden verweigern)</label>` : ''}
     </div>
     <div id="uebAdressaten" class="ueb-adressaten"></div>
     <div class="komm-knoepfe">
@@ -196,7 +196,7 @@ async function uebDeclare() {
     const art = _uebWert('uebArt') || 'monthly';
     const alt = !!document.getElementById('uebRequestIdAlt')?.checked;
     const sub = _uebWert('uebSubstitution');
-    const frage = alt ? 'Meldung bewusst mit der RequestID der letzten Anfrage senden? Der Distributor muss sie ablehnen.'
+    const frage = alt ? 'Meldung mit der RequestID der letzten Anfrage senden? OneCrew muss das verweigern — es geht nichts an den Distributor.'
         : `${_uebVorschau.titel} an den Swissdec-Testdistributor senden${sub ? ' (Ersatzmeldung für ' + sub + ')' : ''}?`;
     if (!(await liquidConfirm(frage, { title: 'Meldung senden', yesLabel: 'Senden', noLabel: 'Abbrechen' }))) return;
     const btn = document.getElementById('uebSendenBtn');
