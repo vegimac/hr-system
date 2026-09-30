@@ -6194,11 +6194,45 @@ function directDocButton(docId, kind, fallbackCode) {
            </button>`;
 }
 
+// Word/Excel wird über /preview-pdf als PDF angezeigt statt heruntergeladen
+// (Walter 01.10.2026). Rückgabe 'umgewandelt' = gespeichert ist noch Word/Excel.
 async function openDirectDoc(docId) {
     if (!docId) return false;
-    if (typeof previewUrlFetch === 'function')
-        return await previewUrlFetch(`/api/documents/preview/${docId}`, 'Dokument', ah());
-    return false;
+    try {
+        let r = await fetch(`/api/documents/preview-pdf/${docId}`, { headers: ah() });
+        if (r.status === 415) r = await fetch(`/api/documents/preview/${docId}`, { headers: ah() });
+        if (!r.ok) {
+            const j = await r.json().catch(() => null);
+            alert('Konnte Dokument nicht laden: ' + (j?.message || j?.error || 'HTTP ' + r.status));
+            return false;
+        }
+        const umgewandelt = r.headers.get('X-Umgewandelt') === '1';
+        const blob = await r.blob();
+        const name = cdFilename(r.headers.get('Content-Disposition') || '', 'Dokument');
+        await previewFileModal(blob, name, { ohneDownload: umgewandelt });
+        return umgewandelt ? 'umgewandelt' : true;
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+        return false;
+    }
+}
+
+// Knopf im Vorschaufenster für Word/Excel: dauerhaft in PDF umwandeln.
+// nachher = JS, das die Vorschau danach neu öffnet (mit denselben Knöpfen).
+function _docPdfKnopf(docId, nachher) {
+    const knopf = 'padding:7px 14px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer';
+    return `<button type="button" style="${knopf};color:#0f172a" title="Word/Excel durch ein PDF ersetzen — die Verknüpfung bleibt"
+            onclick="docDauerhaftInPdf(${docId}, () => { ${nachher} })">📄 In PDF umwandeln</button>`;
+}
+async function docDauerhaftInPdf(docId, nachher) {
+    try {
+        const r = await fetch(`/api/documents/${docId}/in-pdf-umwandeln`, { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { alert('Umwandlung fehlgeschlagen: ' + (j.message || j.error || 'HTTP ' + r.status)); return; }
+        filePreviewClose();
+        if (typeof showToast === 'function') showToast(`In PDF umgewandelt: «${j.filenameOriginal}»`, 'success');
+        if (typeof nachher === 'function') nachher();
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
 // Walter 25.09.2026: Feld mit direkter Verknüpfung, die noch leer ist → IMMER
@@ -6216,14 +6250,16 @@ async function openDirectDocVerknuepft(docId, kind, ctx) {
     const empId = selectedEmployeeId;
     const labels = { id_pass: 'Ausweis', ahv_karte: 'AHV-Karte', geburtsurkunde: 'Geburtsurkunde', zivilstand: 'Zivilstandsdokument', bank_beleg: 'Bankbeleg' };
     const was = labels[kind] || 'Dokument';
-    if (!(await openDirectDoc(docId)) || typeof filePreviewSetExtra !== 'function') return;
+    const geoeffnet = await openDirectDoc(docId);
+    if (!geoeffnet || typeof filePreviewSetExtra !== 'function') return;
     const knopf = 'padding:7px 14px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer';
     // Bank (Walter 26.09.2026): Verknüpfung hängt am Konto → Konto-ID mitgeben.
     const ctxJs = ctx ? JSON.stringify(ctx).replace(/"/g, '&quot;') : 'undefined';
     const loesen = kind === 'bank_beleg' && ctx?.bankAccountId
         ? `bankBelegLoesen(${empId}, ${ctx.bankAccountId})`
         : `nwUnlinkDoku(${empId},'${kind}','${was}')`;
-    filePreviewSetExtra(`
+    filePreviewSetExtra(
+        (geoeffnet === 'umgewandelt' ? _docPdfKnopf(docId, `openDirectDocVerknuepft(${docId},'${kind}',${ctxJs})`) : '') + `
         <button type="button" style="${knopf};color:#0f172a" title="${was}: anderes Dokument wählen oder hochladen — ersetzt das bisherige"
                 onclick="filePreviewClose(); openAusweisDokuModal(${empId},'${kind}',${ctxJs})">↻ Anderes Dokument verknüpfen</button>
         <button type="button" style="${knopf};color:#b91c1c" title="Nur die Verknüpfung lösen — das Dokument bleibt in den Dokumenten"
@@ -6256,10 +6292,12 @@ function docIconBtn(opts) {
 }
 async function docIconOeffnen(docId, key) {
     const reg = window._docIconReg[key] || {};
-    if (!(await openDirectDoc(docId)) || typeof filePreviewSetExtra !== 'function') return;
+    const geoeffnet = await openDirectDoc(docId);
+    if (!geoeffnet || typeof filePreviewSetExtra !== 'function') return;
     const knopf = 'padding:7px 14px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer';
     filePreviewSetExtra(
-        (reg.verknuepfen ? `<button type="button" style="${knopf};color:#0f172a" title="${reg.was}: anderes Dokument wählen oder hochladen — ersetzt das bisherige"
+        (geoeffnet === 'umgewandelt' ? _docPdfKnopf(docId, `docIconOeffnen(${docId}, '${key}')`) : '')
+        + (reg.verknuepfen ? `<button type="button" style="${knopf};color:#0f172a" title="${reg.was}: anderes Dokument wählen oder hochladen — ersetzt das bisherige"
                 onclick="filePreviewClose(); ${reg.verknuepfen}">↻ Anderes Dokument verknüpfen</button>` : '')
         + (reg.loesen ? `<button type="button" style="${knopf};color:#b91c1c" title="Nur die Verknüpfung lösen — das Dokument bleibt in den Dokumenten"
                 onclick="filePreviewClose(); ${reg.loesen}">Verknüpfung lösen</button>` : ''));

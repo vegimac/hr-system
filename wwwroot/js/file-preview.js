@@ -104,7 +104,7 @@ function _fpEnsureModal() {
         + '<span id="filePreviewExtra" style="margin-right:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:#475569"></span>'
         + '<button id="filePreviewDossierBtn" onclick="filePreviewDossierToggle()" style="display:none;padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">📁 Ins Dossier ablegen</button>'
         + '<button onclick="filePreviewPrint()" style="padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">🖨 Drucken</button>'
-        + '<button onclick="filePreviewDownload()" style="padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">⬇ Herunterladen</button>'
+        + '<button id="filePreviewDownloadBtn" onclick="filePreviewDownload()" style="padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">⬇ Herunterladen</button>'
         + '<button onclick="filePreviewClose()" style="padding:7px 16px;border:none;background:#0f172a;color:white;border-radius:7px;font-size:13px;cursor:pointer">✕ Schliessen</button>'
         + '</div>'
         + '</div>';
@@ -155,6 +155,10 @@ async function previewFileModal(blob, filename, opts) {
     if (dosBtn)  dosBtn.style.display = _fpEmpId ? '' : 'none';
     if (dosForm) dosForm.style.display = 'none';
     if (dosStat) dosStat.textContent = '';
+    // opts.ohneDownload: z.B. Word-Dokument, das nur für die Anzeige als PDF
+    // gerendert wurde — ein Download würde dieses Zwischen-PDF speichern.
+    const dlBtn = document.getElementById('filePreviewDownloadBtn');
+    if (dlBtn) dlBtn.style.display = opts && opts.ohneDownload ? 'none' : '';
     // Extra-Zone links in der Knopfleiste (Walter 23.08.2026, z.B.
     // Unterzeichner-Umschalter beim Vertrags-PDF) — bei jedem Öffnen leeren;
     // Aufrufer setzt sie danach via filePreviewSetExtra().

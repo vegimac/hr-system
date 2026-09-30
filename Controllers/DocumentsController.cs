@@ -882,6 +882,8 @@ public class DocumentsController : ControllerBase
 
             var name = Path.GetFileNameWithoutExtension(doc.FilenameOriginal ?? "dokument") + ".pdf";
             Response.Headers["Content-Disposition"] = ContentDispositionUtil.Build("inline", name, "dokument.pdf");
+            // Gespeichert ist weiterhin Word/Excel — der Browser bietet dann «In PDF umwandeln» an.
+            Response.Headers["X-Umgewandelt"] = "1";
             return File(pdf, "application/pdf");
         }
 
