@@ -993,6 +993,23 @@ geführt statt als roter Archivfehler; rot bleibt nur eine verschlüsselte ANFRA
 - Nebenbei: um 09:06:57 versehentlich zweite Jahresmeldung gesendet (JobKey `62f6f740320581a44`,
   noch ohne Status) — bleibt stehen, verwendbar für F05_08.
 
+### F05_08 — vollständiger Prozess mit TestCase (30.09.2026, 09:06–09:20)
+
+Fall = zweite Jahresmeldung AHV 2025 an 046.000.
+
+| Zeit | Schritt | Ergebnis |
+|---|---|---|
+| 09:06 | Declare | JobKey `62f6f740320581a44` |
+| 09:14 | GetStatus | JobFinished, DeclarationID `18da0778af117690e`, Key `6d356425-…` |
+| 09:17 | Synchronize | CompletionReleaseMissing, Completion-Story `18da0778fe61fedfb` (gültig bis 10:06) |
+| 09:18 | Completion-Link (Anhang E, key/password angehängt) | «Successfully released Completion!» |
+| 09:20 | Synchronize | **Finished**, Completion quittiert, AHV-AVS-Quittance Story `18da077917e8c2876` (AHV 212'507.65 / ALV 191'057.65 — Beträge hier nicht geprüft) |
+
+TestCase in jeder Antwort gespiegelt. Quality Tool F05_08_1 → Success (68/90).
+Zwischendurch 09:15 ein Synchronize auf den ERSTEN Fall (18da0718929ac04cf): Completion-Story
+quittiert, State weiter CompletionReleaseMissing (Link dort nicht geöffnet).
+Offen: AHV-Quittance-Story `18da077917e8c2876` wird erst im nächsten Synchronize quittiert.
+
 ---
 
 ## Vollständiger Katalog (Walter 24.09.2026 aus dem Werkzeug)
