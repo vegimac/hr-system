@@ -1034,6 +1034,17 @@ Bestätigung Walter ausstehend).
 - Nebenbei behoben: die verschlüsselte Anfrage (lange CipherValue ohne Leerzeichen) drückte die
   Seite breiter als den Bildschirm, alle Knöpfe lagen ausserhalb.
 
+### F05_06 — Ersatzmeldung (30.09.2026, 18:40–18:42)
+
+- Jahresmeldung AHV 2025 an 046.000, TestCase, doppelt signiert, Ersatz für die abgeschlossene
+  Meldung `18da0778af117690e` (F05_08, State Finished).
+- Anfrage (Archiv, Klartext): `<sdc:Substitution><sdc:PredecessorDeclarationIDWithAcceptedState>18da0778af117690e</…>`.
+- 18:40:39 Declare: JobKey `f31645d25670da708`, RequestID `0242d0a3e05a428d8eb3e8de70a490ac`.
+- 18:41:51 GetStatus: JobFinished, 046.000 erfolgreich, neue DeclarationID `18da26c741367eaf6`.
+- Beobachtung: der Inhalt der Jahresmeldung umfasst nur **Januar 2025** (33 Lohn-Tags, Summe
+  AHV 212'507.65) — auf der Testinstanz ist offenbar nur der Januar abgeschlossen. Für die
+  Übermittlungs-Prüfpunkte egal, für einen echten Beleg-Abgleich nicht.
+
 ### Aufräumen der Übermittlungs-Seite (30.09.2026, nach F08_03)
 
 Anlass: Doppelklick auf «Synchronisieren», Archiv nicht auffindbar, «Gesendete Anfrage» zeigte nur
