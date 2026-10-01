@@ -28,8 +28,9 @@ function dpInit() {
     const iso = d => d.toISOString().slice(0, 10);
     const fromEl = document.getElementById('dpFrom');
     const toEl = document.getElementById('dpTo');
-    if (fromEl && !fromEl.value) fromEl.value = iso(monthAgo);
-    if (toEl && !toEl.value) toEl.value = iso(today);
+    const nurOffice = document.getElementById('dpTyp')?.value === 'office';
+    if (fromEl && !fromEl.value && !nurOffice) fromEl.value = iso(monthAgo);
+    if (toEl && !toEl.value && !nurOffice) toEl.value = iso(today);
 
     dpSyncBranchLabel();
     dpLoad();
@@ -59,10 +60,38 @@ function dpBuildParams() {
     if (to) p.set('to', to);
     if (q) p.set('q', q);
     p.set('limit', lim);
+    if (document.getElementById('dpTyp')?.value === 'office') p.set('nurOffice', 'true');
     // Nur wenn Sidebar eine konkrete Filiale hat — sonst Server = erlaubte Filialen.
     if (fixedCompanyProfileId)
         p.set('companyProfileId', String(fixedCompanyProfileId));
     return p;
+}
+
+// «Nur Word/Excel» sucht den ganzen Altbestand — der Zeitraum (Standard:
+// letzte 30 Tage) würde die meisten verstecken, darum wird er geleert.
+function dpTypGewechselt() {
+    if (document.getElementById('dpTyp')?.value === 'office') {
+        const f = document.getElementById('dpFrom'), t = document.getElementById('dpTo');
+        if (f) f.value = '';
+        if (t) t.value = '';
+    }
+    dpLoad();
+}
+
+function dpIstOffice(name) {
+    return /\.(docx?|odt|rtf|xlsx?|ods|pptx?|odp)$/i.test(name || '');
+}
+
+async function dpInPdf(id) {
+    if (!(await liquidConfirm('Das Dokument wird in ein PDF umgewandelt und die Word-/Excel-Datei durch das PDF ersetzt. Verknüpfungen bleiben bestehen.',
+            { title: 'In PDF umwandeln', yesLabel: 'Umwandeln', noLabel: 'Abbrechen' }))) return;
+    try {
+        const r = await fetch(`/api/documents/${id}/in-pdf-umwandeln`, { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { alert('Umwandlung fehlgeschlagen: ' + (j.message || j.error || 'HTTP ' + r.status)); return; }
+        if (typeof showToast === 'function') showToast(`In PDF umgewandelt: «${j.filenameOriginal}»`, 'success');
+        dpLoad();
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
 async function dpLoad() {
@@ -113,7 +142,8 @@ function dpRender() {
     const mount = document.getElementById('dpResults');
     if (!mount) return;
     if (!_dpRows.length) {
-        mount.innerHTML = '<div style="padding:28px;text-align:center;color:#94a3b8">Keine Uploads im gewählten Zeitraum.</div>';
+        const nurOffice = document.getElementById('dpTyp')?.value === 'office';
+        mount.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8">${nurOffice ? 'Keine Word-/Excel-Dokumente gefunden.' : 'Keine Uploads im gewählten Zeitraum.'}</div>`;
         return;
     }
     const rows = _dpRows.map(r => {
@@ -135,6 +165,8 @@ function dpRender() {
                 <div style="font-size:11px;color:#94a3b8">${dpEsc(dpFmtSize(r.groesseBytes))}${r.bemerkung ? ' · ' + dpEsc(r.bemerkung) : ''}</div>
             </td>
             <td style="text-align:right;white-space:nowrap">
+                ${typeof openDirectDoc === 'function' ? `<button class="btn btn-sm btn-outline" onclick="openDirectDoc(${r.id})" title="Dokument ansehen">Ansehen</button>` : ''}
+                ${dpIstOffice(r.filename) ? `<button class="btn btn-sm btn-outline" onclick="dpInPdf(${r.id})" title="Word/Excel durch ein PDF ersetzen">→ PDF</button>` : ''}
                 <button class="btn btn-sm btn-outline" onclick="dpOpenEmployee(${r.employeeId})" title="Mitarbeiter öffnen">MA</button>
             </td>
         </tr>`;

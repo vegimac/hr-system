@@ -2268,12 +2268,13 @@ public class DocumentsController : ControllerBase
         [FromQuery] DateOnly? to = null,
         [FromQuery] int? companyProfileId = null,
         [FromQuery] string? q = null,
-        [FromQuery] int limit = 500)
+        [FromQuery] int limit = 500,
+        [FromQuery] bool nurOffice = false)
     {
         try
         {
             if (limit > 5000) limit = 5000;
-            var built = await BuildUploadProtocolAsync(from, to, companyProfileId, q, limit);
+            var built = await BuildUploadProtocolAsync(from, to, companyProfileId, q, limit, nurOffice);
             if (built.ErrorResult != null) return built.ErrorResult;
             return Ok(new {
                 total = built.Items.Count,
@@ -2313,9 +2314,10 @@ public class DocumentsController : ControllerBase
         [FromQuery] DateOnly? from = null,
         [FromQuery] DateOnly? to = null,
         [FromQuery] int? companyProfileId = null,
-        [FromQuery] string? q = null)
+        [FromQuery] string? q = null,
+        [FromQuery] bool nurOffice = false)
     {
-        var built = await BuildUploadProtocolAsync(from, to, companyProfileId, q, 10000);
+        var built = await BuildUploadProtocolAsync(from, to, companyProfileId, q, 10000, nurOffice);
         if (built.ErrorResult != null) return built.ErrorResult;
 
         static string Csv(string? s)
@@ -2356,7 +2358,7 @@ public class DocumentsController : ControllerBase
     private sealed record UploadProtocolBuild(List<UploadProtocolRow> Items, IActionResult? ErrorResult);
 
     private async Task<UploadProtocolBuild> BuildUploadProtocolAsync(
-        DateOnly? from, DateOnly? to, int? companyProfileId, string? q, int limit)
+        DateOnly? from, DateOnly? to, int? companyProfileId, string? q, int limit, bool nurOffice = false)
     {
         if (limit < 1) limit = 1;
         if (limit > 10000) limit = 10000;
@@ -2416,6 +2418,15 @@ public class DocumentsController : ControllerBase
             query = query.Where(x => x.d.BranchCode == filterCode);
         else if (allowedCodes.Count > 0)
             query = query.Where(x => x.d.BranchCode != null && allowedCodes.Contains(x.d.BranchCode));
+
+        // Nur Word/Excel/PowerPoint (Walter 01.10.2026): Altbestand finden, der in PDF umgewandelt werden soll.
+        if (nurOffice)
+            query = query.Where(x =>
+                x.d.FilenameOriginal.ToLower().EndsWith(".doc") || x.d.FilenameOriginal.ToLower().EndsWith(".docx")
+                || x.d.FilenameOriginal.ToLower().EndsWith(".odt") || x.d.FilenameOriginal.ToLower().EndsWith(".rtf")
+                || x.d.FilenameOriginal.ToLower().EndsWith(".xls") || x.d.FilenameOriginal.ToLower().EndsWith(".xlsx")
+                || x.d.FilenameOriginal.ToLower().EndsWith(".ods") || x.d.FilenameOriginal.ToLower().EndsWith(".ppt")
+                || x.d.FilenameOriginal.ToLower().EndsWith(".pptx") || x.d.FilenameOriginal.ToLower().EndsWith(".odp"));
 
         if (search != null)
         {

@@ -2085,6 +2085,10 @@
                             <input type="date" id="dpTo" class="f-input" style="margin-top:3px" onchange="dpLoad()">
                         </label>
                         <input type="text" id="dpSearch" class="f-input" placeholder="Suche (MA, Datei, Uploader…)" style="min-width:180px;flex:1" onkeydown="if(event.key==='Enter')dpLoad()">
+                        <select id="dpTyp" class="f-input" style="max-width:220px" onchange="dpTypGewechselt()">
+                            <option value="">Alle Dateitypen</option>
+                            <option value="office">Nur Word/Excel (in PDF umwandeln)</option>
+                        </select>
                         <select id="dpLimit" class="f-input" style="max-width:110px" onchange="dpLoad()">
                             <option value="200">200</option>
                             <option value="500" selected>500</option>
@@ -9874,7 +9878,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/payroll.js?v=20260927c"></script>
 <script src="js/elm-meldungen.js?v=20260927i"></script>
 <script src="js/fibu.js?v=20260805a"></script>
-<script src="js/dok-protokoll.js?v=20260722d"></script>
+<script src="js/dok-protokoll.js?v=20261001a"></script>
 <script src="js/payroll-perioden.js?v=20260918a"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
 <script src="js/admin-settings.js?v=20260922a"></script>
