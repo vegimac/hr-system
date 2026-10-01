@@ -26,16 +26,16 @@ async function _trFehler(r) {
     try { const j = JSON.parse(t); t = j.message || j.error || t; } catch (_) {}
     return t || ('HTTP ' + r.status);
 }
-const _trZielLabel = z => ({ ALLE: 'alle', FIXM: 'FIX-M (Management)', GF: 'Geschäftsführer', LGAV: 'nur mit L-GAV-Ausbildung' })[z] || z;
+const _trZielLabel = z => ({ ALLE: 'alle', FIXM: 'FIX-M (Management)', GF: 'Geschäftsführer' })[z] || z;
 
-// Pille pro Zustand. Gastro-Ausbildung (LGAV) ohne Nachweis = rot (McD-Pflicht).
+// Pille pro Zustand.
 function _trPille(s) {
     const st = {
         Gueltig:      ['#dcfce7', '#166534', '✓ erledigt'],
         LaeuftAb:     ['#fef3c7', '#92400e', 'läuft bald ab'],
         Abgelaufen:   ['#fee2e2', '#991b1b', 'abgelaufen'],
         OffenInFrist: ['#fef9c3', '#854d0e', 'offen'],
-        Offen:        s.zielgruppe === 'LGAV' ? ['#fee2e2', '#991b1b', 'Nachweis fehlt'] : ['rgba(139,139,139,0.14)', '#646464', 'offen'],
+        Offen:        ['rgba(139,139,139,0.14)', '#646464', 'offen'],
         Fehlt:        ['#fee2e2', '#991b1b', 'fehlt'],
         NichtBetroffen: ['rgba(139,139,139,0.10)', '#8b8b8b', 'nicht nötig'],
     }[s.zustand] || ['rgba(139,139,139,0.14)', '#646464', s.zustandLabel || s.zustand];
@@ -159,7 +159,6 @@ function _stEnsureModal() {
                         <option value="ALLE">alle</option>
                         <option value="FIXM">FIX-M (Management)</option>
                         <option value="GF">Geschäftsführer</option>
-                        <option value="LGAV">nur mit L-GAV-Ausbildung (Ib bis IV)</option>
                     </select>
                 </div>
                 <div class="f-group">
@@ -309,7 +308,7 @@ function trRender() {
     const k = d.kontext || {};
     const kopf = [
         k.modell ? `Vertrag ${_trEsc(k.modell)}` : null,
-        k.einstufung ? `Einstufung ${_trEsc(k.einstufung)}` : 'Einstufung —',
+        `Gastro-Ausbildung: Einstufung ${_trEsc(k.einstufung || 'Ia')} (aus easy@work)`,
         k.eintritt ? `massgebender Eintritt ${_trDat(k.eintritt)}` : null,
     ].filter(Boolean).join(' · ');
 
@@ -322,7 +321,6 @@ function trRender() {
         if (e?.art === 'FRED') nachweis = `<span title="erfasst von ${_trEsc(e.erfasstVon || '')}">✓ in FRED${e.erfasstVon ? ` <span style="color:#8b8b8b">· ${_trEsc(e.erfasstVon)}</span>` : ''}</span>`;
         else if (e?.dokumentId) nachweis = `<a href="javascript:void(0)" onclick="trDokAnsehen(${e.dokumentId})" style="color:#3f3f3f">📄 ${_trEsc(e.dokumentName || 'Dokument')}</a>`;
         else if (e) nachweis = `<a href="javascript:void(0)" onclick="trOpenNachweis(${e.id})" style="color:#92400e">ohne Nachweis · anhängen</a>`;
-        if (s.code === 'GASTRO' && k.einstufung) nachweis += `<div style="font-size:11px;color:#8b8b8b">Einstufung Vertrag: ${_trEsc(k.einstufung)}</div>`;
 
         const offen = !s.letzterId || s.zustand === 'Abgelaufen' || s.zustand === 'LaeuftAb';
         const knopf = offen
@@ -730,7 +728,7 @@ function schulungUebersichtRender() {
     const el = document.getElementById('schulungUebersichtList');
     const d = _su.data;
     if (!el || !d) return;
-    const luecke = z => ['Fehlt', 'Abgelaufen', 'LaeuftAb'].includes(z.zustand) || (z.zustand === 'Offen' && z.zielgruppe === 'LGAV');
+    const luecke = z => ['Fehlt', 'Abgelaufen', 'LaeuftAb'].includes(z.zustand);
     const q = (_su.suche || '').trim().toLowerCase();
     let zeilen = d.zeilen || [];
     if (q) zeilen = zeilen.filter(z => `${z.vorname} ${z.nachname} ${z.employeeNumber}`.toLowerCase().includes(q));
@@ -744,8 +742,8 @@ function schulungUebersichtRender() {
     const zelle = z => {
         if (!z || z.zustand === 'NichtBetroffen') return '<span style="color:#cfc8bc">·</span>';
         const farbe = { Gueltig: '#166534', LaeuftAb: '#92400e', Abgelaufen: '#991b1b', Fehlt: '#991b1b', OffenInFrist: '#854d0e',
-                        Offen: z.zielgruppe === 'LGAV' ? '#991b1b' : '#8b8b8b' }[z.zustand] || '#646464';
-        const zeichen = { Gueltig: '✓', LaeuftAb: '!', Abgelaufen: '✕', Fehlt: '✕', OffenInFrist: '…', Offen: z.zielgruppe === 'LGAV' ? '✕' : '–' }[z.zustand] || '?';
+                        Offen: '#8b8b8b' }[z.zustand] || '#646464';
+        const zeichen = { Gueltig: '✓', LaeuftAb: '!', Abgelaufen: '✕', Fehlt: '✕', OffenInFrist: '…', Offen: '–' }[z.zustand] || '?';
         const txt = z.letztesDatum ? _trDat(z.letztesDatum) + (z.gueltigBis ? ` → ${_trDat(z.gueltigBis)}` : '') : (z.faelligAm ? `fällig ${_trDat(z.faelligAm)}` : z.zustandLabel);
         return `<span title="${_trEsc(z.name + ': ' + z.zustandLabel + (txt ? ' · ' + txt : ''))}" style="color:${farbe};font-weight:700;white-space:nowrap">${zeichen}
             <span style="font-weight:500;font-size:11px">${_trEsc(z.letztesDatum ? _trDat(z.gueltigBis || z.letztesDatum) : '')}</span></span>`;

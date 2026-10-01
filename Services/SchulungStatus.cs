@@ -8,7 +8,8 @@ namespace HrSystem.Services;
 ///
 /// Regeln:
 /// - Zielgruppe: ALLE, FIXM (Vertragsmodell FIX-M oder Geschäftsführer), GF (Funktion
-///   REST_MANAGER), LGAV (Einstufung Ib bis IV = easy CCNT 1, 2, 3, 4, 6; nicht Ia).
+///   REST_MANAGER). Die Gastro-Ausbildung ist KEINE Schulung: sie kommt als Einstufung
+///   aus easy@work und wird nur über den Mindestlohn-Check geprüft.
 /// - Ablauf = Datum des jüngsten Eintrags + Auffrischung (Monate). Ohne Auffrischung
 ///   gilt der Eintrag unbegrenzt.
 /// - Wiedereintritt: bei Schulungen mit Frist ab Eintritt zählt ein Eintrag vor dem
@@ -19,17 +20,14 @@ namespace HrSystem.Services;
 ///   erst nach Fristablauf und nur für Eintritte ab Erfassung der Schulung im
 ///   Verzeichnis (sonst würde der ganze Altbestand auf einmal gemahnt); bei Schulungen
 ///   mit Auffrischung und ohne Frist (Nothelfer, Peak, SECO) sofort. Schulungen ohne
-///   beides (Gastro-Ausbildung) sind nur rot in den Listen, ohne To-do.
+///   beides bleiben «offen», ohne To-do.
 /// - «Warnen ab» leer = diese Schulung erzeugt keine To-dos.
 /// </summary>
 public static class SchulungStatus
 {
     public const int WiedereintrittToleranzTage = 30;
 
-    public static readonly string[] Zielgruppen = { "ALLE", "FIXM", "GF", "LGAV" };
-
-    private static readonly HashSet<string> LgavMitAusbildung =
-        new(StringComparer.OrdinalIgnoreCase) { "Ib", "II", "IIIa", "IIIb", "IV" };
+    public static readonly string[] Zielgruppen = { "ALLE", "FIXM", "GF" };
 
     public sealed record Typ(int Id, string Code, string Name, int? RefreshMonate, int? FristTage,
                              string Zielgruppe, bool FredMoeglich, int? WarnenAbTage, DateTime CreatedAt);
@@ -53,7 +51,6 @@ public static class SchulungStatus
     {
         "FIXM" => IstGf(k) || string.Equals(k.Modell, "FIX-M", StringComparison.OrdinalIgnoreCase),
         "GF"   => IstGf(k),
-        "LGAV" => !string.IsNullOrWhiteSpace(k.EducationLevelCode) && LgavMitAusbildung.Contains(k.EducationLevelCode!.Trim()),
         _      => true,
     };
 
@@ -63,7 +60,6 @@ public static class SchulungStatus
     {
         "FIXM" => "FIX-M (Management)",
         "GF"   => "Geschäftsführer",
-        "LGAV" => "nur mit L-GAV-Ausbildung",
         _      => "alle",
     };
 

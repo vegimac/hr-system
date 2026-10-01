@@ -14,7 +14,7 @@ Vergleicht **Soll** (laut Vertrag / Modell) mit **Ist** (gestempelte Stunden) f�
 Überblick über Saldi und Bezüge (Ferientage, Feiertage, Nachtstunden). **Nacht-Saldo** gilt für **alle Modelle inkl. FLEX** (inkl. Vortrag aus Monatsblatt). Soft-Warnung bei Kompensation > 9 h — siehe [Lohnlauf](#lohnlauf).
 
 ### Schulungen
-Stand aller Mitarbeitenden der gewählten Filiale: Hygiene, Sicherheit, SRIW, Gastro-Ausbildung, Nothelfer, Peak, SECO. **Nur Ansicht** — ein Klick auf die Zeile öffnet den Mitarbeiter im Tab **«Verfügbarkeit / Training»**, dort wird erfasst (in FRED abhaken oder Papier-Nachweis hochladen). «nur mit Lücken» zeigt, wer etwas Fehlendes, Abgelaufenes oder bald Ablaufendes hat. Welche Schulung für wen gilt und wie lange, steht unter **System → Verzeichnisse & Vorgaben → Schulungen & Ausbildungen**.
+Stand aller Mitarbeitenden der gewählten Filiale: Hygiene, Sicherheit, SRIW, Nothelfer, Peak, SECO. Die Gastro-Ausbildung ist keine Schulung: Sie kommt als Einstufung aus easy@work und steht in der Spalte «Vertrag»; geprüft wird nur, ob der Mindestlohn dazu passt. **Nur Ansicht** — ein Klick auf die Zeile öffnet den Mitarbeiter im Tab **«Verfügbarkeit / Training»**, dort wird erfasst (in FRED abhaken oder Papier-Nachweis hochladen). «nur mit Lücken» zeigt, wer etwas Fehlendes, Abgelaufenes oder bald Ablaufendes hat. Welche Schulung für wen gilt und wie lange, steht unter **System → Verzeichnisse & Vorgaben → Schulungen & Ausbildungen**.
 
 ## HR: Reports über alle Filialen
 

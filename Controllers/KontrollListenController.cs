@@ -110,7 +110,7 @@ public class KontrollListenController : ControllerBase
             .ToDictionaryAsync(e => e.Id);
         var vertraege = (await _db.Employments.AsNoTracking()
                 .Where(v => ids.Contains(v.EmployeeId))
-                .Select(v => new { v.EmployeeId, v.ContractStartDate, v.ContractEndDate, v.IsActive, v.ProbationEndDate, v.VertragDokumentId, v.CompanyProfileId, v.UnterschriftEltern })
+                .Select(v => new { v.EmployeeId, v.ContractStartDate, v.ContractEndDate, v.IsActive, v.ProbationEndDate, v.VertragDokumentId, v.CompanyProfileId, v.UnterschriftEltern, v.EducationLevelCode })
                 .ToListAsync())
             .GroupBy(v => v.EmployeeId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(v => v.ContractStartDate).ToList());
@@ -175,7 +175,7 @@ public class KontrollListenController : ControllerBase
             ("ahv",       "Soz.-Nr.",                              "feld"),
             ("qst",       "QST",                                   "feld"),
             ("stellen",   "Antrag Stellenantritt",                 "dokument"),
-            ("ausbildung","Anerkannte Ausbildung Gastro",          "schulung+dokument"),
+            ("ausbildung","Anerkannte Ausbildung Gastro",          "feld"),
             ("hygiene",   "Lebensmittel­hygiene",                   "schulung+dokument"),
             ("sicherheit","Sicherheit",                            "schulung+dokument"),
             ("sriw",      "SRIW",                                  "schulung+dokument"),
@@ -299,8 +299,12 @@ public class KontrollListenController : ControllerBase
                     : mitQst.Contains(m.Id) ? Z("ok") : Z("na");
                 zellen["stellen"] = HatWort(m.Id, "Stellenantritt")
                     ? Z("ok") : (typ is "F" or "N") ? Z("fehlt", "fehlt", "Antrag Stellenantritt nicht gefunden") : Z("na");
-                zellen["ausbildung"] = SchulungZelle(m.Id, "GASTRO", new[] { "Ausbildung", "EFZ", "EBA", "Diplom" },
-                    "Einstufung mit anerkannter Ausbildung — Nachweis fehlt");
+                // Gastro-Ausbildung = Einstufung aus easy@work; rot nur, wenn der Mindestlohn nicht passt.
+                var einstufung = string.IsNullOrWhiteSpace(aktVertrag?.EducationLevelCode) ? "Ia" : aktVertrag!.EducationLevelCode!;
+                var mindestlohn = meine.FirstOrDefault(a => a.Category == "minimum_wage_violation");
+                zellen["ausbildung"] = mindestlohn != null
+                    ? Z("fehlt", einstufung, $"Einstufung {einstufung} (aus easy@work) — {mindestlohn.Title}")
+                    : Z("text", einstufung, $"Einstufung {einstufung} aus easy@work, Mindestlohn passt");
                 zellen["hygiene"] = SchulungZelle(m.Id, "HYGIENE", new[] { "Hygiene" }, "Lebensmittelhygiene nicht erfasst");
                 zellen["sicherheit"] = SchulungZelle(m.Id, "SICHERHEIT", new[] { "Sicherheit", "Erstunterweisung" }, "Sicherheit/Erstunterweisung nicht erfasst");
                 zellen["sriw"] = SchulungZelle(m.Id, "SRIW", new[] { "SRIW" }, "SRIW nicht erfasst");

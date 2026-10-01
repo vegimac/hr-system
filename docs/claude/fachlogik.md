@@ -182,7 +182,7 @@ Stellen, die NICHT betroffen sind (bewusst):
 - Pay frequency leer → aus Contract type (Fix → month, sonst → hour)
 - Group membership leer → `Employee` → CREW
 - Qualification CCNT leer → `5 Sans qualification` → EduLevel `Ia`
-- Qualification CCNT-Zuordnung (`mapCcntToEduLevel` in import.html): 1 → IV, 2 → IIIb, 3 → IIIa, 4 → II, 5 → Ia, **6 Progresso → Ib** (seit 01.10.2026). Für alle Stufen ausser Ia ist der Nachweis der Gastro-Ausbildung Pflicht (Schulungs-Typ GASTRO, Zielgruppe LGAV).
+- Qualification CCNT-Zuordnung (`mapCcntToEduLevel` in import.html): 1 → IV, 2 → IIIb, 3 → IIIa, 4 → II, 5 → Ia, **6 Progresso → Ib** (seit 01.10.2026). Die Gastro-Ausbildung kommt NUR so aus easy@work — kein Schulungs-Eintrag, keine Frist, kein Nachweis-Pflichtfeld; einzige Prüfung ist der Mindestlohn-Check (`minimum_wage_violation`) gegen die Einstufung des aktuellen Vertrags.
 
 **Eintrittsdatum aus easy@work-Import (Walter-Vorgabe 13.05.2026):** `Von` ist das **Eintrittsdatum ins Unternehmen** → wird direkt als `Employee.EntryDate` übernommen. Ist `Von` leer, wird fix `01.01.2024` gesetzt. KEIN Rückgriff mehr auf `Datum der Betriebszugehörigkeit` / `Eintrittsdatum` (waren zu dünn gefüllt). Für `Employment.ContractStartDate` (= echter Lohn-Beginn pro Vertrag) wird `Pay rate from` genutzt — fällt auf `Von` zurück wenn leer. Der easy@work-Import läuft über `PUT /api/employees/{id}` (EmployeesController) — dieser Pfad überschreibt `EntryDate` bei JEDEM Re-Import (kein Leer-Guard, anders als die Stammdaten-/Archiv-Importer). Telefon wird beim Import über `formatPhone()` in `import.html` auf `+41 79 333 44 55` normalisiert (akzeptiert 9-/10-/11-/12-stellig, mit/ohne `+`, `0041`, `0`-Vorwahl).
 

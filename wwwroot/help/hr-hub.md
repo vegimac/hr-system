@@ -9,7 +9,7 @@ Der HR-Hub ist in Kategorie-Kacheln gegliedert (wie die Systemeinstellungen): **
 ### Kontrolle
 - **Lücken** — fehlende Ehepartner-Dokumente, MA-Dokumente, Nachtarbeit-Nachweise; mit Export
 - **Dok-Upload-Protokoll** — wer hat wann was hochgeladen (wichtig für Buchhaltung/Revision), inkl. CSV
-- **Schulungen** — Stand aller MA (Hygiene, Sicherheit, SRIW, Gastro-Ausbildung, Nothelfer, Peak, SECO), nur Ansicht. Erfasst wird im Mitarbeiter, Tab «Verfügbarkeit / Training»; Gültigkeit und Fristen stehen unter System → Verzeichnisse & Vorgaben → Schulungen & Ausbildungen. Warnungen: «Schulung läuft ab», «abgelaufen», «fehlt».
+- **Schulungen** — Stand aller MA (Hygiene, Sicherheit, SRIW, Nothelfer, Peak, SECO), nur Ansicht. Erfasst wird im Mitarbeiter, Tab «Verfügbarkeit / Training»; Gültigkeit und Fristen stehen unter System → Verzeichnisse & Vorgaben → Schulungen & Ausbildungen. Warnungen: «Schulung läuft ab», «abgelaufen», «fehlt».
 
 ### Kündigung / Zeugnisse
 Alle Schreiben an einem Ort — siehe [Kündigung & Austritt](#austritt).

@@ -12,22 +12,12 @@ public class SchulungStatusTests
     private static Typ Hygiene => new(1, "HYGIENE", "Lebensmittelhygiene", null, 1, "ALLE", true, 60, Erfasst);
     private static Typ Sriw => new(2, "SRIW", "SRIW", null, 14, "ALLE", true, 60, Erfasst);
     private static Typ Sicherheit => new(3, "SICHERHEIT", "Erstunterweisung Sicherheit", 24, 1, "ALLE", true, 60, Erfasst);
-    private static Typ Gastro => new(4, "GASTRO", "Gastro-Ausbildung", null, null, "LGAV", false, 60, Erfasst);
+    private static Typ Zertifikat => new(4, "ZERTIFIKAT", "Zertifikat ohne Frist", null, null, "ALLE", false, 60, Erfasst);
     private static Typ Peak => new(5, "PEAK", "Peak-Verifizierung", 12, null, "FIXM", false, 60, Erfasst);
     private static Typ Seco => new(6, "SECO", "SECO", 12, null, "GF", false, 60, Erfasst);
 
     private static Kontext Crew(DateOnly? eintritt = null, string? edu = "Ia")
         => new("FLEX", "CREW", edu, eintritt ?? new DateOnly(2020, 1, 1));
-
-    [Fact]
-    public void Gastro_nur_mit_Ausbildung_Ib_bis_IV()
-    {
-        Assert.False(Betrifft("LGAV", Crew(edu: "Ia")));
-        Assert.True(Betrifft("LGAV", Crew(edu: "Ib")));
-        Assert.True(Betrifft("LGAV", Crew(edu: "IIIa")));
-        Assert.True(Betrifft("LGAV", Crew(edu: "IV")));
-        Assert.False(Betrifft("LGAV", Crew(edu: null)));
-    }
 
     [Fact]
     public void Gf_sieht_FixM_und_Gf_Schulungen()
@@ -128,15 +118,15 @@ public class SchulungStatusTests
     [Fact]
     public void Wiedereintritt_setzt_Zertifikat_ohne_Frist_nicht_zurueck()
     {
-        var ausweis = new Eintrag(1, Gastro.Id, new DateOnly(2018, 6, 30), "DOKUMENT", 4);
-        var r = Berechne(Gastro, new[] { ausweis }, Crew(new DateOnly(2026, 9, 1), "IIIa"), Heute);
+        var ausweis = new Eintrag(1, Zertifikat.Id, new DateOnly(2018, 6, 30), "DOKUMENT", 4);
+        var r = Berechne(Zertifikat, new[] { ausweis }, Crew(new DateOnly(2026, 9, 1)), Heute);
         Assert.Equal(Zustand.Gueltig, r.Zustand);
     }
 
     [Fact]
-    public void Gastro_fehlt_ohne_ToDo()
+    public void Ohne_Frist_und_Auffrischung_offen_ohne_ToDo()
     {
-        var r = Berechne(Gastro, Array.Empty<Eintrag>(), Crew(edu: "II"), Heute);
+        var r = Berechne(Zertifikat, Array.Empty<Eintrag>(), Crew(), Heute);
         Assert.Equal(Zustand.Offen, r.Zustand);
         Assert.False(r.Melden);
     }
