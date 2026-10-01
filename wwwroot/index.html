@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260930e">
+    <link rel="stylesheet" href="css/app.css?v=20261001a">
 </head>
 <body>
 
@@ -4687,6 +4687,7 @@
                 </div>
                 </div><!-- /.fh-page-head -->
                 <div class="page-body fh-body">
+                    <div id="svStandHint"></div>
                     <div class="card fh-list-card">
                         <div class="fh-list-scroll">
                             <table class="fh-table fh-table-body">
@@ -4711,6 +4712,7 @@
                         <p style="font-size:12.5px;color:#8b8b8b;margin:0 0 12px">Sätze, die in einzelnen Filialen vom Standard abweichen — die Abweichung gewinnt dort gegen den Standard.</p>
                         <div id="svBranchSection"></div>
                     </div>
+                    <div id="svHistorie" style="margin-top:28px"></div>
                 </div>
 
                 <!-- Formular (Drawer-Style) -->
@@ -4923,12 +4925,6 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer">
-                            <input type="checkbox" id="mwShowAll" onchange="mwRender()" style="cursor:pointer"> Alle Versionen (inkl. abgelaufen)
-                        </label>
-                        <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px" title="Zeigt die Matrix der Sätze, die an diesem Datum gültig waren (auch abgelaufene Jahrgänge). Leer = aktuelle Ansicht.">Anzeigen am
-                            <input type="date" id="mwViewDate" onchange="mwRender()" style="padding:6px 10px;border:1px solid #c7d2fe;border-radius:8px;font-size:13px;background:#f1efe9">
-                        </label>
                         <span id="mwInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
                         <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px" title="Datum, ab dem die neue Folge-Version (Kopie der aktuellen Sätze) gelten soll.">Neue Sätze ab
                             <input type="date" id="mwCreateDate" style="padding:6px 10px;border:1px solid #c7d2fe;border-radius:8px;font-size:13px;background:#f1efe9">
@@ -9881,10 +9877,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20261001a"></script>
 <script src="js/payroll-perioden.js?v=20260918a"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260922a"></script>
+<script src="js/admin-settings.js?v=20261001a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
-<script src="js/minimum-wages.js?v=20260831a"></script>
+<script src="js/minimum-wages.js?v=20261001a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260821b"></script>
 <script src="js/easyatwork.js?v=20260924b"></script>

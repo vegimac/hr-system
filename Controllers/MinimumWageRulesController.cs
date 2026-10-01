@@ -88,22 +88,30 @@ public class MinimumWageRulesController : ControllerBase
             .Select(p => new { p.PeriodFrom, p.PeriodTo })
             .ToListAsync();
 
-        var result = rules.Select(r => new
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        var result = rules.Select(r =>
         {
-            r.Id,
-            r.JobGroupCode,
-            r.EmploymentModelCode,
-            r.EducationLevelId,
-            r.SalaryType,
-            r.Amount,
-            r.ValidFrom,
-            r.ValidTo,
-            r.IsActive,
-            r.AgeMax,
-            r.Confirmed,
-            inLohnVerwendet = frozen.Any(p =>
-                DateOnly.FromDateTime(r.ValidFrom) <= p.PeriodTo
-             && (r.ValidTo == null || DateOnly.FromDateTime(r.ValidTo.Value) >= p.PeriodFrom))
+            var vf = DateOnly.FromDateTime(r.ValidFrom);
+            DateOnly? vt = r.ValidTo.HasValue ? DateOnly.FromDateTime(r.ValidTo.Value) : null;
+            var verwendet = frozen.Any(p => vf <= p.PeriodTo && (vt == null || vt >= p.PeriodFrom));
+            var lage = StammdatenVersionRegel.Zeitlage(vf, vt, heute);
+            return new
+            {
+                r.Id,
+                r.JobGroupCode,
+                r.EmploymentModelCode,
+                r.EducationLevelId,
+                r.SalaryType,
+                r.Amount,
+                r.ValidFrom,
+                r.ValidTo,
+                r.IsActive,
+                r.AgeMax,
+                r.Confirmed,
+                inLohnVerwendet = verwendet,
+                zeitlage = lage,
+                bearbeitbar = StammdatenVersionRegel.Bearbeitbar(lage, verwendet),
+            };
         });
 
         return Ok(result);
@@ -130,6 +138,16 @@ public class MinimumWageRulesController : ControllerBase
     {
         var rule = await _db.MinimumWageRulesNew.FindAsync(id);
         if (rule is null) return NotFound();
+
+        var lage = StammdatenVersionRegel.Zeitlage(DateOnly.FromDateTime(rule.ValidFrom),
+            rule.ValidTo.HasValue ? DateOnly.FromDateTime(rule.ValidTo.Value) : null,
+            DateOnly.FromDateTime(DateTime.Today));
+        if (lage == StammdatenVersionRegel.Vergangen)
+            return Conflict(new
+            {
+                error   = "MINWAGE_VERGANGEN",
+                message = "Dieser Mindestlohn gehört zu einer abgelaufenen Version und bleibt unverändert."
+            });
 
         // In-Lohn-verwendet-Sperre (Walter-Vorgabe 23.05.2026): überlappt der Satz
         // eine eingefrorene Lohnperiode, wurde er bereits abgerechnet → Direkt-Edit
@@ -180,10 +198,27 @@ public class MinimumWageRulesController : ControllerBase
                 firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
             });
 
+        if (!StammdatenVersionRegel.NeuerStartErlaubt(eff, DateOnly.FromDateTime(DateTime.Today)))
+            return Conflict(new
+            {
+                error   = "NUR_KUENFTIG",
+                message = $"Eine neue Version muss in der Zukunft beginnen — {eff:dd.MM.yyyy} ist heute oder vorbei."
+            });
+
         // Duplikat-Schutz: noch keine Version mit genau diesem Gültig-ab.
         var alreadyExists = await _db.MinimumWageRulesNew.AnyAsync(r => r.ValidFrom == effDt);
         if (alreadyExists)
             return Conflict(new { error = $"Es existieren bereits Sätze mit Gültig-ab {eff:dd.MM.yyyy}." });
+
+        // Neue Version nur NACH der jüngsten — sonst würde eine bestehende geplante Version zerschnitten.
+        var spaeteste = await _db.MinimumWageRulesNew.Where(r => r.IsActive && r.ValidFrom > effDt)
+            .OrderByDescending(r => r.ValidFrom).Select(r => (DateTime?)r.ValidFrom).FirstOrDefaultAsync();
+        if (spaeteste.HasValue)
+            return Conflict(new
+            {
+                error   = "SPAETERE_VERSION",
+                message = $"Es gibt bereits eine Version ab {spaeteste.Value:dd.MM.yyyy}. Eine neue Version muss danach beginnen."
+            });
 
         // Aktuell offene Sätze, die vor dem Stichtag gelten.
         var current = await _db.MinimumWageRulesNew
@@ -213,6 +248,42 @@ public class MinimumWageRulesController : ControllerBase
 
         await _db.SaveChangesAsync();
         return Ok(new { copied = current.Count, effectiveDate = eff.ToString("yyyy-MM-dd") });
+    }
+
+    // DELETE /api/minimum-wage-rules/version/2027-01-01 — eine künftige Version
+    // ganz entfernen (z.B. Datum vertippt). Nur die jüngste, nur künftig, nur
+    // wenn in keinem Lohnlauf; die Vorversion gilt danach wieder ohne Ende.
+    [Authorize(Roles = "admin")]
+    [HttpDelete("version/{gueltigAb}")]
+    public async Task<IActionResult> DeleteVersion(DateOnly gueltigAb)
+    {
+        var abDt = gueltigAb.ToDateTime(TimeOnly.MinValue);
+        if (!StammdatenVersionRegel.NeuerStartErlaubt(gueltigAb, DateOnly.FromDateTime(DateTime.Today)))
+            return Conflict(new { error = "NUR_KUENFTIG", message = "Nur künftige Versionen lassen sich löschen." });
+
+        var zeilen = await _db.MinimumWageRulesNew.Where(r => r.ValidFrom == abDt).ToListAsync();
+        if (zeilen.Count == 0) return NotFound(new { error = "NICHT_GEFUNDEN", message = $"Keine Version ab {gueltigAb:dd.MM.yyyy}." });
+
+        if (await _db.MinimumWageRulesNew.AnyAsync(r => r.IsActive && r.ValidFrom > abDt))
+            return Conflict(new { error = "SPAETERE_VERSION", message = "Es gibt eine noch spätere Version — bitte zuerst diese löschen." });
+
+        foreach (var z in zeilen)
+            if (await IsRuleInLohnVerwendetAsync(z))
+                return Conflict(new { error = "MINWAGE_LOCKED", message = "Diese Version wurde bereits in einem Lohnlauf verwendet und lässt sich nicht löschen." });
+
+        var vortag = gueltigAb.AddDays(-1).ToDateTime(TimeOnly.MinValue);
+        var vorgaenger = await _db.MinimumWageRulesNew.Where(r => r.ValidTo == vortag).ToListAsync();
+        foreach (var z in zeilen)
+        {
+            var v = vorgaenger.FirstOrDefault(p =>
+                p.JobGroupCode == z.JobGroupCode && p.EmploymentModelCode == z.EmploymentModelCode
+                && p.EducationLevelId == z.EducationLevelId && p.SalaryType == z.SalaryType
+                && p.AgeMax == z.AgeMax);
+            if (v != null) v.ValidTo = z.ValidTo;
+        }
+        _db.MinimumWageRulesNew.RemoveRange(zeilen);
+        await _db.SaveChangesAsync();
+        return Ok(new { geloescht = zeilen.Count, gueltigAb = gueltigAb.ToString("yyyy-MM-dd") });
     }
 
     // GET /api/minimum-wage-rules/check-period?companyProfileId=&year=&month=

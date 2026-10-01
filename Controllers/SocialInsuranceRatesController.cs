@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,25 @@ namespace HrSystem.Controllers;
 public class SocialInsuranceRatesController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public SocialInsuranceRatesController(AppDbContext db) => _db = db;
+    private readonly LohnEditLockService _editLock;
+    public SocialInsuranceRatesController(AppDbContext db, LohnEditLockService editLock)
+    {
+        _db = db;
+        _editLock = editLock;
+    }
+
+    private static DateOnly Heute => DateOnly.FromDateTime(DateTime.Today);
+
+    /// <summary>Gleicher Fach-Schlüssel = Vorgänger/Nachfolger desselben Satzes.</summary>
+    private static bool GleicherSatz(SocialInsuranceRate a, SocialInsuranceRate b) =>
+        a.Code == b.Code && a.MinAge == b.MinAge && a.MaxAge == b.MaxAge
+        && a.EmploymentModelCode == b.EmploymentModelCode && a.OnlyQuellensteuer == b.OnlyQuellensteuer
+        && a.BasisType == b.BasisType && a.CompanyProfileId == b.CompanyProfileId
+        && a.Gender == b.Gender && (a.LoesungsCode ?? "") == (b.LoesungsCode ?? "");
+
+    private async Task<List<SocialInsuranceRate>> GleicheSaetzeAsync(SocialInsuranceRate r)
+        => (await _db.SocialInsuranceRates.Where(x => x.Code == r.Code && x.Id != r.Id && x.IsActive).ToListAsync())
+            .Where(x => GleicherSatz(x, r)).ToList();
 
     // GET – alle Sätze (aktiv + inaktiv), sortiert.
     // Liefert pro Zeile ein Flag `inLohnVerwendet` mit dem das Frontend
@@ -38,8 +57,13 @@ public class SocialInsuranceRatesController : ControllerBase
             .Select(p => new { p.PeriodFrom, p.PeriodTo })
             .ToListAsync();
 
+        var heute = DateOnly.FromDateTime(DateTime.Today);
         var result = rates.Select(r => new
         {
+            zeitlage = StammdatenVersionRegel.Zeitlage(r.ValidFrom, r.ValidTo, heute),
+            bearbeitbar = StammdatenVersionRegel.Bearbeitbar(
+                StammdatenVersionRegel.Zeitlage(r.ValidFrom, r.ValidTo, heute),
+                frozenPerioden.Any(p => r.ValidFrom <= p.PeriodTo && (r.ValidTo == null || r.ValidTo >= p.PeriodFrom))),
             r.Id, r.Code, r.Name, r.Description, r.Rate, r.RateEmployer, r.BasisType,
             r.EmploymentModelCode, r.MinAge, r.MaxAge,
             r.FreibetragMonthly, r.CoordinationDeduction, r.MaxBaseMonthly, r.MaxBaseFlatMonthly,
@@ -150,6 +174,25 @@ public class SocialInsuranceRatesController : ControllerBase
             });
         }
 
+        // Datums-Regeln (Walter-Vorgabe 01.10.2026): vergangen = nie; aktuell =
+        // Beginn bleibt (sonst ändert sich rückwirkend, was schon galt), Ende
+        // frühestens heute; geplant = Beginn bleibt in der Zukunft.
+        var lage = StammdatenVersionRegel.Zeitlage(rate.ValidFrom, rate.ValidTo, Heute);
+        if (lage == StammdatenVersionRegel.Vergangen)
+            return Conflict(new { error = "SV_RATE_VERGANGEN",
+                message = "Dieser SV-Satz ist abgelaufen und bleibt unverändert." });
+        if (lage == StammdatenVersionRegel.Aktuell && dto.ValidFrom != rate.ValidFrom)
+            return Conflict(new { error = "SV_RATE_BEGINN_FIX",
+                message = $"Der Satz gilt bereits seit {rate.ValidFrom:dd.MM.yyyy} — das Gültig-ab bleibt. Für eine Änderung ab einem späteren Datum «Neu ab» verwenden." });
+        if (lage == StammdatenVersionRegel.Geplant && !StammdatenVersionRegel.NeuerStartErlaubt(dto.ValidFrom, Heute))
+            return Conflict(new { error = "NUR_KUENFTIG",
+                message = "Ein geplanter Satz muss in der Zukunft beginnen." });
+        if (dto.ValidTo.HasValue && dto.ValidTo.Value < Heute && dto.ValidTo != rate.ValidTo)
+            return Conflict(new { error = "SV_RATE_ENDE_VERGANGEN",
+                message = "Das Gültig-bis darf nicht in der Vergangenheit liegen." });
+        if (dto.ValidTo.HasValue && dto.ValidTo.Value < dto.ValidFrom)
+            return BadRequest(new { error = "INVALID_VALID_TO", message = "Gültig-bis liegt vor Gültig-ab." });
+
         rate.Code                  = dto.Code;
         rate.Name                  = dto.Name;
         rate.Description           = dto.Description;
@@ -201,15 +244,28 @@ public class SocialInsuranceRatesController : ControllerBase
                 message = $"Das neue Gültig-ab ({dto.ValidFrom:yyyy-MM-dd}) muss nach dem alten ({oldRate.ValidFrom:yyyy-MM-dd}) liegen."
             });
 
-        // Falls Vorgänger schon eine ValidTo hat und das neue ValidFrom danach liegt,
-        // entstünde eine Lücke — auch erlaubt, aber transparent halten.
-        if (oldRate.ValidTo.HasValue && dto.ValidFrom > oldRate.ValidTo.Value.AddDays(1))
-        {
-            // Kein Fehler — Lücke kann gewollt sein (z.B. Pause in der Pflicht).
-        }
+        // Neue Versionen nur in der Zukunft und nicht in einer schon
+        // abgerechneten Periode (Akonto kann vor Monatsbeginn laufen).
+        if (!StammdatenVersionRegel.NeuerStartErlaubt(dto.ValidFrom, Heute))
+            return Conflict(new { error = "NUR_KUENFTIG",
+                message = $"Eine neue Version muss in der Zukunft beginnen — {dto.ValidFrom:dd.MM.yyyy} ist heute oder vorbei." });
+        var firstAllowed = await _editLock.GetGlobalFirstAllowedDateAsync();
+        if (firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value)
+            return Conflict(new { error = "LOHN_EDIT_LOCKED",
+                message = $"Das Gültig-ab {dto.ValidFrom:dd.MM.yyyy} liegt in einer bereits verarbeiteten Lohnperiode. Frühestes Datum: {firstAllowed.Value:dd.MM.yyyy}." });
 
-        // Vorgänger atomisch begrenzen
-        oldRate.ValidTo = dto.ValidFrom.AddDays(-1);
+        // Nur von der jüngsten Version aus — sonst würde eine bestehende
+        // spätere Version überlappt.
+        var spaeter = (await GleicheSaetzeAsync(oldRate)).Where(x => x.ValidFrom > oldRate.ValidFrom)
+            .OrderBy(x => x.ValidFrom).FirstOrDefault();
+        if (spaeter != null)
+            return Conflict(new { error = "SPAETERE_VERSION",
+                message = $"Für diesen Satz gibt es schon eine Version ab {spaeter.ValidFrom:dd.MM.yyyy} — «Neu ab» bitte bei dieser jüngsten Version." });
+
+        // Vorgänger begrenzen — nur wenn er sonst über den neuen Beginn hinaus
+        // liefe (ein bereits beendeter Satz bleibt, wie er ist: gewollte Lücke).
+        if (oldRate.ValidTo == null || oldRate.ValidTo.Value >= dto.ValidFrom)
+            oldRate.ValidTo = dto.ValidFrom.AddDays(-1);
 
         // Neue Zeile mit den übermittelten Werten (Schlüsselfelder dürfen
         // sich nicht ändern — sonst wäre's kein Nachfolger sondern ein
@@ -256,14 +312,35 @@ public class SocialInsuranceRatesController : ControllerBase
         return Ok(newRate);
     }
 
-    // DELETE – soft-delete
+    // DELETE – künftige Version entfernen (z.B. Datum vertippt). Vergangene und
+    // in einem Lohnlauf verwendete Sätze bleiben (Walter-Vorgabe 01.10.2026);
+    // ein aktueller, unbenutzter Satz wird wie bisher nur deaktiviert. Ein
+    // geplanter wird ganz gelöscht (der Unique-Index zählt inaktive Zeilen mit)
+    // und sein Vorgänger gilt wieder bis zum ursprünglichen Ende.
     [Authorize(Roles = "admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
         var rate = await _db.SocialInsuranceRates.FindAsync(id);
         if (rate is null) return NotFound();
-        rate.IsActive = false;
+
+        var lage = StammdatenVersionRegel.Zeitlage(rate.ValidFrom, rate.ValidTo, Heute);
+        var verwendet = await IsRateInLohnVerwendetAsync(rate);
+        var grund = StammdatenVersionRegel.Sperrgrund(lage, verwendet);
+        if (grund != null)
+            return Conflict(new { error = "SV_RATE_LOCKED", message = grund + " Löschen ist nicht möglich." });
+
+        if (lage == StammdatenVersionRegel.Geplant)
+        {
+            var vortag = rate.ValidFrom.AddDays(-1);
+            var vorgaenger = (await GleicheSaetzeAsync(rate)).FirstOrDefault(x => x.ValidTo == vortag);
+            if (vorgaenger != null) vorgaenger.ValidTo = rate.ValidTo;
+            _db.SocialInsuranceRates.Remove(rate);
+        }
+        else
+        {
+            rate.IsActive = false;
+        }
         await _db.SaveChangesAsync();
         return NoContent();
     }

@@ -1619,6 +1619,7 @@ let svAllRates = [];
 async function loadSvSaetze() {
     const tbody = document.getElementById('svTableBody');
     if (!tbody) return;
+    svStand = null;
     tbody.innerHTML = '<tr><td colspan="13" style="padding:30px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>';
     try {
         const res = await fetch('/api/social-insurance-rates', { headers: ah() });
@@ -1649,6 +1650,107 @@ async function loadSvSaetze() {
     }
 }
 let svKontoByPos = {};
+// Gewählter Stand aus der Historie (ISO-Datum). null = heute gültig + geplant.
+let svStand = null;
+
+function svTodayIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function svFmt(iso) { const s = String(iso || '').slice(0, 10); return s ? `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}` : '–'; }
+function svValidAt(r, iso) {
+    const vf = String(r.validFrom || '').slice(0, 10);
+    const vt = r.validTo ? String(r.validTo).slice(0, 10) : null;
+    return vf <= iso && (vt == null || vt >= iso);
+}
+// Gleicher Fach-Schlüssel wie im Backend (Vorgänger/Nachfolger desselben Satzes).
+function svGleicherSatz(a, b) {
+    return a.code === b.code && (a.minAge ?? null) === (b.minAge ?? null) && (a.maxAge ?? null) === (b.maxAge ?? null)
+        && (a.employmentModelCode ?? null) === (b.employmentModelCode ?? null) && !!a.onlyQuellensteuer === !!b.onlyQuellensteuer
+        && a.basisType === b.basisType && (a.companyProfileId ?? null) === (b.companyProfileId ?? null)
+        && (a.gender ?? null) === (b.gender ?? null) && (a.loesungsCode ?? '') === (b.loesungsCode ?? '');
+}
+function svSpaetereVersion(r) {
+    return svAllRates.filter(x => x.id !== r.id && x.isActive && svGleicherSatz(x, r)
+            && String(x.validFrom).slice(0, 10) > String(r.validFrom).slice(0, 10))
+        .sort((a, b) => String(a.validFrom).localeCompare(String(b.validFrom)))[0] || null;
+}
+
+function svSelectStand(iso) {
+    svStand = iso || null;
+    svRender();
+}
+
+// Stände = Tage, an denen mindestens ein Satz neu beginnt.
+function svStaende() {
+    const heute = svTodayIso();
+    const map = {};
+    svAllRates.filter(r => r.isActive).forEach(r => {
+        const d = String(r.validFrom).slice(0, 10);
+        (map[d] || (map[d] = [])).push(r);
+    });
+    const tage = Object.keys(map).sort();
+    const aktuellerTag = tage.filter(d => d <= heute).slice(-1)[0] || null;
+    return tage.map((d, i) => ({
+        tag: d,
+        bis: tage[i + 1] ? (() => { const x = new Date(tage[i + 1] + 'T00:00:00'); x.setDate(x.getDate() - 1);
+            return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; })() : null,
+        lage: d > heute ? 'geplant' : (d === aktuellerTag ? 'aktuell' : 'vergangen'),
+        saetze: map[d],
+    })).reverse();
+}
+
+function svRenderStandHint() {
+    const host = document.getElementById('svStandHint');
+    if (!host) return;
+    if (!svStand) { host.innerHTML = ''; return; }
+    const st = svStaende().find(s => s.tag === svStand);
+    const text = !st ? '' : st.lage === 'vergangen' ? 'abgelaufen — nur Ansicht, bleibt unverändert'
+        : st.lage === 'aktuell' ? 'heute gültig' : 'geplant';
+    host.innerHTML = `<div class="mw-planhint" style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span>Stand am <b>${svFmt(svStand)}</b> — alle Sätze, die an diesem Tag galten · ${text}</span>
+        <button class="vh-btn" style="margin-left:auto" onclick="svSelectStand(null)">← zurück zu aktuell</button>
+    </div>`;
+}
+
+function svRenderHistorie() {
+    const host = document.getElementById('svHistorie');
+    if (!host) return;
+    const staende = svStaende();
+    if (!staende.length) { host.innerHTML = ''; return; }
+    const pill = s => s.lage === 'geplant' ? '<span class="vh-pill vh-pill-plan">geplant</span>'
+        : s.lage === 'aktuell' ? '<span class="vh-pill vh-pill-akt">aktuell</span>'
+        : '<span class="vh-pill">vergangen</span>';
+    host.innerHTML = `<div class="card" style="padding:0">
+        <div class="mw-section-head" style="padding:10px 14px">Historie<span class="mw-unit">Stände · anklicken zeigt alle Sätze, die an dem Tag galten</span></div>
+        <div class="vh-list">${staende.map(s => {
+            const codes = [...new Set(s.saetze.map(r => r.code))].join(', ');
+            const info = [`${s.saetze.length} Satz${s.saetze.length !== 1 ? 'sätze' : ''} neu ab diesem Tag: ${escHtml(codes)}`,
+                          s.saetze.some(r => r.inLohnVerwendet) ? '🔒 in Lohn verwendet' : ''].filter(Boolean).join(' · ');
+            return `<div class="vh-row${svStand === s.tag ? ' sel' : ''}" onclick="svSelectStand('${s.tag}')">
+                <span class="vh-range">${svFmt(s.tag)} – ${s.bis ? svFmt(s.bis) : 'offen'}</span>${pill(s)}
+                <span class="vh-info">${info}</span>
+            </div>`;
+        }).join('')}</div>
+    </div>`;
+}
+
+async function svDelete(id) {
+    const r = svAllRates.find(x => x.id === id);
+    if (!r) return;
+    if (!(await liquidConfirm(`«${r.name}» ab ${svFmt(r.validFrom)} wird gelöscht. Die Vorversion gilt danach wieder bis zu ihrem ursprünglichen Ende.`,
+        { title: 'Geplante Version löschen?', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
+    try {
+        const res = await fetch(`/api/social-insurance-rates/${id}`, { method: 'DELETE', headers: ah() });
+        if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            showToast(j.message || j.error || `Löschen fehlgeschlagen (HTTP ${res.status})`, 'error');
+            return;
+        }
+        showToast('Geplante Version gelöscht', 'success');
+        loadSvSaetze();
+    } catch (e) { showToast('Verbindungsfehler: ' + e.message, 'error'); }
+}
 
 function svRender() {
     const tbody      = document.getElementById('svTableBody');
@@ -1656,9 +1758,16 @@ function svRender() {
     const showInact  = document.getElementById('svShowInactive')?.checked ?? false;
     const infoEl     = document.getElementById('svInfo');
 
-    let rows = svAllRates;
+    // Standardansicht = heute gültig + geplant; abgelaufene Sätze nur über die
+    // Historie unten (Stand an einem Datum, Walter 01.10.2026).
+    const _heute = svTodayIso();
+    let rows = svStand
+        ? svAllRates.filter(r => svValidAt(r, svStand))
+        : svAllRates.filter(r => !(r.validTo && String(r.validTo).slice(0, 10) < _heute));
     if (filterCode) rows = rows.filter(r => r.code === filterCode);
     if (!showInact)  rows = rows.filter(r => r.isActive);
+    svRenderStandHint();
+    svRenderHistorie();
 
     // SV-Sätze pro Filiale (Walter-Vorgabe 06.08.2026): oberer Bereich zeigt
     // NUR die globalen Standard-Sätze (companyProfileId == null); Zeilen mit
@@ -1732,19 +1841,29 @@ function svRender() {
         // verwendete Sätze sind gesperrt — „Bearbeiten" deaktiviert, dafür
         // „Neu ab" als Versionierungs-Workflow. Lock-Pille analog Bank/Vertrag.
         // Walter-Vorgabe 09.06.2026: Aktionen in das einheitliche ⋮-Menü.
+        // Walter-Vorgabe 01.10.2026: zusätzlich nach Datum — abgelaufene Sätze
+        // nie, der aktuelle nur ohne Lohnlauf, geplante frei (Server: `bearbeitbar`).
         const locked    = !!r.inLohnVerwendet;
         const rateJson  = JSON.stringify(r).replace(/"/g,'&quot;');
-        const editItem  = locked
-            ? `<button class="dok-menu-item" disabled title="In Lohn verwendet — nur ‚Neu ab' möglich" style="opacity:0.45;cursor:not-allowed">Bearbeiten</button>`
+        const sperrTitel = r.zeitlage === 'vergangen' ? 'Abgelaufen — bleibt unverändert' : 'In Lohn verwendet — nur «Neu ab» möglich';
+        const editItem  = !r.bearbeitbar
+            ? `<button class="dok-menu-item" disabled title="${sperrTitel}" style="opacity:0.45;cursor:not-allowed">Bearbeiten</button>`
             : `<button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'edit')">Bearbeiten</button>`;
+        const spaeter = svSpaetereVersion(r);
+        const neuAbItem = spaeter
+            ? `<button class="dok-menu-item" disabled title="Es gibt schon eine Version ab ${fmtDate(spaeter.validFrom)} — dort «Neu ab» verwenden" style="opacity:0.45;cursor:not-allowed">Neu ab Datum</button>`
+            : `<button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'new-version')">Neu ab Datum</button>`;
+        const delItem = r.zeitlage === 'geplant' && r.bearbeitbar
+            ? `<button class="dok-menu-item danger" onclick="svDelete(${r.id})">Geplante Version löschen</button>` : '';
         const actionsMenu = `
             <div class="dok-menu-wrap" style="display:inline-block">
                 <button class="dok-menu-btn" onclick="svToggleMenu(event, ${r.id})" title="Aktionen">⋮</button>
                 <div class="dok-menu" id="svMenu-${r.id}">
                     <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'view')">👁 Ansehen</button>
                     ${editItem}
-                    <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'new-version')">Neu ab Datum</button>
+                    ${neuAbItem}
                     <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'duplicate')" title="Alle Werte übernehmen und als NEUEN Satz speichern — z.B. für eine Filial-Abweichung">⧉ Duplizieren</button>
+                    ${delItem}
                 </div>
             </div>`;
         const lockPill  = locked
@@ -1982,6 +2101,20 @@ function svOpenForm(rate, mode) {
         el.disabled = isView;
     });
     if (isView && cpSel) cpSel.disabled = true;
+    // Datums-Regeln (Walter 01.10.2026): ein heute gültiger Satz behält sein
+    // Gültig-ab; neue/geplante Versionen beginnen frühestens morgen.
+    const vfEl = document.getElementById('svValidFrom');
+    const vtEl = document.getElementById('svValidTo');
+    const morgen = new Date(); morgen.setDate(morgen.getDate() + 1);
+    const morgenIso = `${morgen.getFullYear()}-${String(morgen.getMonth() + 1).padStart(2, '0')}-${String(morgen.getDate()).padStart(2, '0')}`;
+    vfEl.min = ''; vtEl.min = ''; vfEl.title = '';
+    if (_svFormMode === 'edit' && rate?.zeitlage === 'aktuell') {
+        vfEl.disabled = true;
+        vfEl.title = 'Der Satz gilt bereits — das Gültig-ab bleibt. Für eine Änderung ab später «Neu ab» verwenden.';
+        vtEl.min = svTodayIso();
+    } else if (_svFormMode === 'new-version' || (_svFormMode === 'edit' && rate?.zeitlage === 'geplant')) {
+        vfEl.min = morgenIso;
+    }
     const submitBtn = document.querySelector('#svForm button[type="submit"]');
     if (submitBtn) submitBtn.style.display = isView ? 'none' : '';
 

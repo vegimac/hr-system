@@ -3,22 +3,23 @@
 // Stil/Muster wie SV-Sätze in admin-settings.js. Nutzt globale Helfer:
 //   ah()        – Auth-Header (index.html)
 //   showToast() – Toast (payroll.js)
-// Styling über die .mw-* Klassen in index.html (light + theme-dark).
+// Styling über die .mw-* Klassen in css/app.css (light + theme-dark).
 //
 // Datenmodell minimum_wage_rule_new:
 //   jobGroupCode, employmentModelCode, educationLevelId, salaryType
 //   (hourly/monthly), amount, validFrom, validTo, isActive, ageMax
-// Versioniert über validFrom/validTo → Änderungen können an beliebigem Datum
-// greifen. Stichtag-Filter zeigt die an einem Datum gültigen Sätze; „Alle
-// Versionen" zeigt die komplette Historie.
+// Versioniert über validFrom/validTo; eine Version = alle Sätze mit demselben
+// Gültig-ab (POST /copy legt sie gemeinsam an).
+//
+// Ansicht (Walter-Vorgabe 01.10.2026): oben die heute gültigen Sätze (plus die
+// nächste geplante Version daneben), unten die Historie aller Versionen —
+// Klick zeigt die Sätze jener Version. Bearbeiten nach Zeitlage (Server liefert
+// `bearbeitbar`): vergangen nie, aktuell nur ohne Lohnlauf, künftig frei.
 // ============================================================================
 
 let mwAllRules = [];
-let mwShowAll  = false;
-// Stichtag der Toolbar «Anzeigen am» (#mwViewDate). '' = heutiges Verhalten
-// (max. 2 Generationen: aktuell + nächste). Gesetzt = reine Nur-Lese-Ansicht
-// der an diesem Datum gültigen Sätze (auch abgelaufene Jahrgänge).
-let mwViewDate = '';
+// Gewählte Version aus der Historie (Gültig-ab ISO). null = Standardansicht.
+let mwSelVersion = null;
 // Frühestes erlaubtes Gültig-ab für eine neue Folge-Version (global über alle
 // Filialen): 1. Tag des Monats nach der letzten abgeschlossenen Periode. null = frei.
 let mwFirstAllowed = null;
@@ -69,13 +70,10 @@ function mwFmtDate(iso) {
     const s = mwIso(iso);
     return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4);
 }
-// Kurzform für die enge „ab"-Zelle: TT.MM.JJ
-function mwShortDate(iso) {
-    const s = mwIso(iso);
-    if (!s) return '';
-    return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(2, 4);
+function mwTodayIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-function mwTodayIso() { return new Date().toISOString().slice(0, 10); }
 
 // Betrag immer im Format 00.00 (zwei Nachkommastellen, Punkt) — akzeptiert beim
 // Tippen Komma ODER Punkt, gibt leeren String bei ungültiger Eingabe zurück.
@@ -92,37 +90,44 @@ function mwValidAt(r, dateIso) {
     const vt = mwIso(r.validTo);
     return vf <= dateIso && (vt == null || vt >= dateIso);
 }
-// Regelmenge, aus der die Matrix gerendert wird: ohne Stichtag alle Regeln
-// (mwAggregate wählt daraus used/unused/newest), mit Stichtag nur die an
-// diesem Tag gültigen Sätze.
-function mwRuleSet() {
-    return mwViewDate ? mwAllRules.filter(r => mwValidAt(r, mwViewDate)) : mwAllRules;
+function mwActive() { return mwAllRules.filter(r => r.isActive); }
+function mwSetAt(dateIso) { return mwActive().filter(r => mwValidAt(r, dateIso)); }
+function mwCellKey(r) { return [r.salaryType, r.jobGroupCode, r.employmentModelCode, r.educationLevelId, r.ageMax ?? ''].join('|'); }
+function mwByKey(rules) { const m = {}; rules.forEach(r => { m[mwCellKey(r)] = r; }); return m; }
+
+// Versionen = je ein Gültig-ab. Zeitlage wie der Server (heute als Grenze).
+function mwVersions() {
+    const today = mwTodayIso();
+    const map = {};
+    mwActive().forEach(r => {
+        const vf = mwIso(r.validFrom);
+        const v = map[vf] || (map[vf] = { from: vf, to: undefined, rules: [] });
+        v.rules.push(r);
+        const vt = mwIso(r.validTo);
+        v.to = (v.to === undefined) ? vt : (v.to === null || vt === null ? null : (vt > v.to ? vt : v.to));
+    });
+    return Object.values(map).map(v => {
+        const lage = v.from > today ? 'geplant' : (v.to && v.to < today ? 'vergangen' : 'aktuell');
+        return {
+            ...v,
+            lage,
+            verwendet: v.rules.some(r => r.inLohnVerwendet),
+            offen: v.rules.filter(r => !r.confirmed).length,
+        };
+    }).sort((a, b) => b.from.localeCompare(a.from));
+}
+function mwNextPlanned() {
+    return mwVersions().filter(v => v.lage === 'geplant').sort((a, b) => a.from.localeCompare(b.from))[0] || null;
 }
 
-// Geplante Folge-Version derselben Zelle, deren Gültig-ab GENAU auf abDatum fällt.
-function mwFindFuture(cur, abDatum) {
-    if (!abDatum) return null;
-    return mwAllRules.find(r =>
-        r.id !== cur.id
-        && r.jobGroupCode === cur.jobGroupCode
-        && r.employmentModelCode === cur.employmentModelCode
-        && r.educationLevelId === cur.educationLevelId
-        && r.salaryType === cur.salaryType
-        && (r.ageMax ?? null) === (cur.ageMax ?? null)
-        && mwIso(r.validFrom) === abDatum) || null;
-}
-
-// Beim Öffnen der Page (showPage → mwInit): einfach laden.
-// Kein Stichtag-Filter mehr (Walter-Vorgabe 23.05.2026) — die Matrix zeigt immer
-// die heute gültige Version + automatisch die nächste zukünftige (falls vorhanden).
+// Beim Öffnen der Page (showPage → mwInit): Standardansicht laden.
 function mwInit() {
+    mwSelVersion = null;
     mwLoad();
 }
 
 // IMMER die komplette Historie laden (all=true) — daraus rendert mwRender()
-// sowohl die Stichtag-Matrix (aktuell gültige Sätze) als auch die geplanten
-// „ab"-Sätze und die Versions-Historie. Der inLohnVerwendet-Flag pro Satz
-// kommt vom Backend (überlappt eine eingefrorene Lohnperiode → gesperrt).
+// die aktuelle Matrix, die geplante Spalte und die Versions-Liste.
 async function mwLoad() {
     const cont = document.getElementById('mwContainer');
     if (!cont) return;
@@ -145,34 +150,9 @@ async function mwLoad() {
     }
 }
 
-// „alt vs. neu" rein über inLohnVerwendet (NICHT über das heutige Datum,
-// Walter-Vorgabe 23.05.2026): „in Verwendung/alt" = der Satz wurde in einer
-// eingefrorenen Lohnperiode verwendet; „neu" = noch nicht verwendet, editierbar.
-function mwVf(r) { return mwIso(r.validFrom); }
-
-// Gruppiert Regeln pro Zellen-Schlüssel und liefert je { used, unused, newest }:
-//   used   = neueste bereits verwendete Version (inLohnVerwendet)
-//   unused = neueste noch nicht verwendete Version (editierbar)
-//   newest = neueste Version überhaupt (egal ob verwendet)
-function mwAggregate(rules, keyFn) {
-    const map = {};
-    rules.forEach(r => {
-        const k = keyFn(r);
-        const c = map[k] || (map[k] = { used: null, unused: null, newest: null });
-        if (!c.newest || mwVf(r) > mwVf(c.newest)) c.newest = r;
-        if (r.inLohnVerwendet) { if (!c.used   || mwVf(r) > mwVf(c.used))   c.used   = r; }
-        else                   { if (!c.unused || mwVf(r) > mwVf(c.unused)) c.unused = r; }
-    });
-    return map;
-}
-
-// Ist die neueste Generation noch NICHT verwendet → man editiert sie direkt,
-// eine NEUE Folge-Version ist (noch) nicht sinnvoll. Erst wenn die neueste
-// Generation in einer Periode verwendet wurde, kann eine neue angelegt werden.
-function mwNewestGenerationEditable() {
-    if (!mwAllRules.length) return true;
-    const globalMax = mwAllRules.map(mwVf).sort().slice(-1)[0];
-    return !mwAllRules.some(r => mwVf(r) === globalMax && r.inLohnVerwendet);
+function mwSelectVersion(fromIso) {
+    mwSelVersion = fromIso || null;
+    mwRender();
 }
 
 function mwRender() {
@@ -180,115 +160,87 @@ function mwRender() {
     const infoEl = document.getElementById('mwInfo');
     if (!cont) return;
 
-    mwShowAll = document.getElementById('mwShowAll')?.checked ?? false;
-    // «Alle Versionen» hat Vorrang vor dem Stichtag — Datum dann deaktiviert.
-    const vdEl = document.getElementById('mwViewDate');
-    mwViewDate = mwShowAll ? '' : (vdEl?.value || '');
-    if (vdEl) { vdEl.disabled = mwShowAll; vdEl.style.opacity = mwShowAll ? '0.45' : ''; }
-
-    // Zweispaltig (in Verwendung + neu), wenn es eine bereits verwendete Generation
-    // gibt UND eine neuere noch-nicht-verwendete (= geplant/editierbar) darüber.
-    const usedDates   = mwAllRules.filter(r => r.inLohnVerwendet).map(mwVf).sort();
-    const unusedDates = mwAllRules.filter(r => !r.inLohnVerwendet).map(mwVf).sort();
-    const usedMax   = usedDates.length   ? usedDates[usedDates.length - 1]     : null;
-    const unusedMax = unusedDates.length ? unusedDates[unusedDates.length - 1] : null;
-    let split   = !!(usedMax && unusedMax && unusedMax > usedMax);
-    let abDatum = split ? unusedMax : '';
-    // Stichtag-Ansicht: immer einspaltig (genau die am Datum gültigen Sätze).
-    if (mwViewDate) { split = false; abDatum = ''; }
-
-    // Date-Picker-Floor (frühestes Datum nach der letzten abgeschlossenen Periode).
+    const today = mwTodayIso();
     const cdEl = document.getElementById('mwCreateDate');
-    if (cdEl && mwFirstAllowed) cdEl.min = mwFirstAllowed;
-
-    // „+ Folge-Version anlegen" nur möglich, wenn die neueste Generation bereits
-    // verwendet wurde (sonst editiert man sie direkt).
-    const createBtn = document.getElementById('mwCreateBtn');
-    if (createBtn) {
-        const blocked = mwNewestGenerationEditable();
-        createBtn.disabled = blocked;
-        createBtn.style.opacity = blocked ? '0.45' : '';
-        createBtn.style.cursor  = blocked ? 'not-allowed' : '';
-        createBtn.title = blocked
-            ? 'Die aktuellen Sätze sind noch nicht in einem Lohnlauf verwendet — bearbeite sie direkt in der Tabelle. Eine neue Folge-Version ist erst möglich, sobald sie in einer abgeschlossenen Periode verwendet wurde.'
-            : 'Legt für das gewählte Datum eine vollständige Folge-Version an (Kopie der aktuellen Sätze, danach pro Zelle anpassbar).';
+    if (cdEl) {
+        const morgen = new Date(); morgen.setDate(morgen.getDate() + 1);
+        const morgenIso = `${morgen.getFullYear()}-${String(morgen.getMonth() + 1).padStart(2, '0')}-${String(morgen.getDate()).padStart(2, '0')}`;
+        cdEl.min = mwFirstAllowed && mwFirstAllowed > morgenIso ? mwFirstAllowed : morgenIso;
     }
 
-    // «Alle Versionen (inkl. abgelaufen)»: die komplette Historie, ungefiltert.
-    if (mwShowAll) {
-        if (infoEl) infoEl.textContent = `${mwAllRules.length} Versionen (alle, inkl. abgelaufen)`;
-        cont.innerHTML = mwAllRules.length
-            ? mwRenderHistory(mwAllRules, 'komplette Historie inkl. abgelaufener Versionen')
-            : '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
-        return;
-    }
-
-    const shown = mwRuleSet();
-    if (!shown.length) {
-        if (infoEl) infoEl.textContent = mwViewDate ? `keine Sätze am ${mwFmtDate(mwViewDate)}` : '0 Sätze';
-        cont.innerHTML = mwViewDate
-            ? `<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Am ${mwFmtDate(mwViewDate)} sind keine Sätze gültig.</div>`
-            : '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
-        return;
-    }
-    if (infoEl) infoEl.textContent = mwViewDate
-        ? `Sätze gültig am ${mwFmtDate(mwViewDate)}`
-        : (split ? 'aktuell + neu' : 'aktuelle Sätze') + (abDatum ? ` · ab ${mwFmtDate(abDatum)}` : '');
-
-    const youthRules = shown.filter(r => r.ageMax != null);
+    const versions = mwVersions();
+    const sel = mwSelVersion ? versions.find(v => v.from === mwSelVersion) : null;
+    if (mwSelVersion && !sel) mwSelVersion = null;
 
     let html = '';
-    if (mwViewDate)   html += mwRenderViewHint();
-    else if (split)   html += mwRenderPlanHint(abDatum);
-    html += mwRenderMatrix('Stundenlöhne', 'CHF / Std.',        'hourly',  split, abDatum);
-    html += mwRenderMatrix('Monatslöhne',  'CHF / Mt. · 100 %', 'monthly', split, abDatum);
-    html += mwRenderYouth(youthRules, split, abDatum);
+    if (sel) {
+        // Einzelne Version aus der Historie
+        const left = mwByKey(mwSetAt(sel.from));
+        if (infoEl) infoEl.textContent = `Version ab ${mwFmtDate(sel.from)}`;
+        html += mwRenderVersionHint(sel);
+        html += mwRenderMatrix('Stundenlöhne', 'CHF / Std.',        'hourly',  left, null, null);
+        html += mwRenderMatrix('Monatslöhne',  'CHF / Mt. · 100 %', 'monthly', left, null, null);
+        html += mwRenderYouth(left, null, null);
+    } else {
+        const current = mwSetAt(today);
+        const planned = mwNextPlanned();
+        if (!current.length && !planned) {
+            if (infoEl) infoEl.textContent = '0 Sätze';
+            cont.innerHTML = '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>'
+                + mwRenderVersionList(versions);
+            return;
+        }
+        // Gibt es heute nichts Gültiges, steht die geplante Version allein.
+        const left  = mwByKey(current.length ? current : mwSetAt(planned.from));
+        const right = current.length && planned ? mwByKey(mwSetAt(planned.from)) : null;
+        const abDatum = right ? planned.from : null;
+        if (infoEl) infoEl.textContent = 'aktuelle Sätze' + (abDatum ? ` · geplant ab ${mwFmtDate(abDatum)}` : '');
+        if (right) html += mwRenderPlanHint(abDatum);
+        html += mwRenderMatrix('Stundenlöhne', 'CHF / Std.',        'hourly',  left, right, abDatum);
+        html += mwRenderMatrix('Monatslöhne',  'CHF / Mt. · 100 %', 'monthly', left, right, abDatum);
+        html += mwRenderYouth(left, right, abDatum);
+    }
+    html += mwRenderVersionList(versions);
     cont.innerHTML = html;
 }
 
-// (Aktuell ungenutzt — «Alle Versionen» zeigt seit 31.08.2026 die komplette
-// Historie.) Pro Satz die relevanten max-2 Versionen — basierend auf NUTZUNG (nicht Datum):
-// die neueste verwendete (in Verwendung) + die neuere noch nicht verwendete (neu).
-function mwRelevantVersions(rules) {
-    const agg = mwAggregate(rules, r => [r.salaryType, r.jobGroupCode, r.employmentModelCode, r.educationLevelId, r.ageMax ?? ''].join('|'));
-    const out = [];
-    Object.values(agg).forEach(c => {
-        if (c.used) out.push(c.used);
-        if (c.unused && (!c.used || mwVf(c.unused) > mwVf(c.used))) out.push(c.unused);
-    });
-    return out;
+// Banner über der Matrix, wenn eine Version aus der Historie gewählt ist.
+function mwRenderVersionHint(v) {
+    const range = `ab <b>${mwFmtDate(v.from)}</b>${v.to ? ` bis <b>${mwFmtDate(v.to)}</b>` : ''}`;
+    const text = v.lage === 'vergangen' ? 'abgelaufen — nur Ansicht, bleibt unverändert'
+        : v.lage === 'aktuell' ? (v.verwendet ? 'aktuell — in einem Lohnlauf verwendet, nur über eine neue Version änderbar' : 'aktuell — noch in keinem Lohnlauf, Beträge anklicken zum Ändern')
+        : (v.verwendet ? 'geplant — schon in einem Lohnlauf verwendet' : 'geplant — Beträge anklicken zum Ändern');
+    const isNewest = mwVersions()[0]?.from === v.from;
+    const delBtn = v.lage === 'geplant' && !v.verwendet && isNewest
+        ? `<button class="vh-btn vh-btn-danger" onclick="mwDeleteVersion('${v.from}')">Version löschen</button>` : '';
+    return `<div class="card mw-section" style="overflow:visible"><div class="mw-planhint" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span>Version ${range} · ${text}</span>
+        <span style="margin-left:auto;display:flex;gap:8px">${delBtn}<button class="vh-btn" onclick="mwSelectVersion(null)">← zurück zu aktuell</button></span>
+    </div></div>`;
 }
 
-// Erklär-Banner der Stichtag-Ansicht («Anzeigen am»): reine Nur-Lese-Ansicht.
-function mwRenderViewHint() {
-    const body = `Sätze gültig am <b>${mwFmtDate(mwViewDate)}</b> — historische Ansicht, Beträge sind hier nicht editierbar. Datumsfeld leeren für die normale Ansicht (aktuell + nächste geplante Version).`;
-    return `<div class="card mw-section" style="overflow:visible"><div class="mw-planhint">${body}</div></div>`;
-}
-
-// Erklär-Banner über der Matrix, wenn eine neue (noch nicht verwendete) Version
-// neben der bereits verwendeten existiert.
+// Erklär-Banner, wenn neben den aktuellen Sätzen eine geplante Version existiert.
 function mwRenderPlanHint(abDatum) {
-    const body = `Linke Spalte «Aktuell» = bereits in einem Lohnlauf verwendet (grau, Referenz). Rechte Spalte <b>ab ${mwFmtDate(abDatum)}</b> = neuer Satz, anklicken zum Bestätigen/Anpassen. <b style="color:#047857">Grün</b> = Betrag geändert, <b style="color:#d97706">Orange</b> = bestätigt &amp; unverändert, <b style="color:#dc2626">Rot</b> = noch nicht bestätigt.`;
+    const body = `Linke Spalte «Aktuell» = heute gültig. Rechte Spalte <b>ab ${mwFmtDate(abDatum)}</b> = geplanter Satz, anklicken zum Bestätigen/Anpassen. <b style="color:#047857">Grün</b> = Betrag geändert, <b style="color:#d97706">Orange</b> = bestätigt &amp; unverändert, <b style="color:#dc2626">Rot</b> = noch nicht bestätigt.`;
     return `<div class="card mw-section" style="overflow:visible"><div class="mw-planhint">${body}</div></div>`;
 }
 
-// Eine aktuelle (Stichtag-)Betragszelle. Reine Referenz, daher KEIN Schloss-Icon
-// mehr: gesperrte (im Lohnlauf verwendete) Sätze werden hellgrau dargestellt und
-// sind nicht direkt editierbar (Klick erklärt warum). Nicht-gesperrte (z.B. neue,
-// noch ungenutzte) Sätze bleiben editierbar.
-function mwCurCell(cur) {
-    // Stichtag-Ansicht = reine Historien-Ansicht → nie editierbar.
-    if (mwViewDate)
-        return `<td class="mw-amount mw-cur-ro" style="cursor:default" title="Stichtag-Ansicht (gültig am ${mwFmtDate(mwViewDate)}) — zum Bearbeiten das Datumsfeld leeren"><span>${mwAmt(cur.amount)}</span></td>`;
-    if (cur.inLohnVerwendet)
-        return `<td class="mw-amount mw-cur-ro" onclick="mwLockedInfo()" title="In einem Lohnlauf verwendet — nur über „Folge-Version anlegen" änderbar"><span>${mwAmt(cur.amount)}</span></td>`;
-    return `<td class="mw-amount" onclick="mwEdit(${cur.id})" title="Betrag bearbeiten"><span>${mwAmt(cur.amount)}</span></td>`;
+function mwSperrTitel(r) {
+    return r.zeitlage === 'vergangen' ? 'Abgelaufene Version — bleibt unverändert'
+        : 'In einem Lohnlauf verwendet — nur über eine neue Version änderbar';
 }
 
-// Die neue (noch nicht verwendete) Betragszelle NEBEN der „in Verwendung"-Spalte.
-// `edt` = der editierbare neue Satz, `ref` = die verwendete Referenz (für Farbe).
+// Betragszelle der (linken) Hauptspalte.
+function mwCurCell(r) {
+    if (!r) return `<td class="mw-empty">–</td>`;
+    if (!r.bearbeitbar)
+        return `<td class="mw-amount mw-cur-ro" onclick="mwLockedInfo(${r.id})" title="${mwSperrTitel(r)}"><span>${mwAmt(r.amount)}</span></td>`;
+    return `<td class="mw-amount" onclick="mwEdit(${r.id})" title="Betrag bearbeiten"><span>${mwAmt(r.amount)}</span></td>`;
+}
+
+// Geplante Betragszelle NEBEN der aktuellen Spalte.
 // Drei-Farben-Logik (Walter-Vorgabe 23.05.2026):
-//   GRÜN   = Betrag ≠ Referenz (geändert)
+//   GRÜN   = Betrag ≠ aktuell (geändert)
 //   ORANGE = bestätigt (gespeichert), aber unverändert
 //   ROT    = noch nicht bestätigt (frisch kopiert, noch zu prüfen)
 function mwFutCell(edt, ref) {
@@ -297,24 +249,24 @@ function mwFutCell(edt, ref) {
     if (ref && Number(edt.amount) !== Number(ref.amount)) { cls = 'mw-fut-changed';  hint = 'geänderter Satz'; }
     else if (edt.confirmed)                               { cls = 'mw-fut-reviewed'; hint = 'bestätigt, unverändert'; }
     else                                                  { cls = 'mw-fut-same';     hint = 'noch nicht bestätigt'; }
-    return `<td class="mw-amount mw-fut-col ${cls}" onclick="mwEdit(${edt.id})" title="Neuer Satz (${hint}) — bearbeiten"><span>${mwAmt(edt.amount)}</span></td>`;
+    const click = edt.bearbeitbar ? `mwEdit(${edt.id})` : `mwLockedInfo(${edt.id})`;
+    return `<td class="mw-amount mw-fut-col ${cls}" onclick="${click}" title="Geplanter Satz (${hint})"><span>${mwAmt(edt.amount)}</span></td>`;
 }
 
-function mwRenderMatrix(title, unit, salaryType, split, abDatum) {
-    const all = mwRuleSet().filter(r => r.salaryType === salaryType && r.ageMax == null);
-    const agg = mwAggregate(all, r => r.jobGroupCode + '|' + r.employmentModelCode + '|' + r.educationLevelId);
+// left/right = Map Zellenschlüssel → Regel. right = null → einspaltig.
+function mwRenderMatrix(title, unit, salaryType, left, right, abDatum) {
+    const split = !!right;
+    const pool = [...Object.values(left), ...Object.values(right || {})]
+        .filter(r => r.salaryType === salaryType && r.ageMax == null);
 
-    // Zeilen = vorhandene (Funktion, Modell)-Kombis.
     const seen = new Set();
     const rowKeys = [];
-    all.forEach(r => {
+    pool.forEach(r => {
         const k = r.jobGroupCode + '|' + r.employmentModelCode;
         if (!seen.has(k)) { seen.add(k); rowKeys.push({ g: r.jobGroupCode, m: r.employmentModelCode }); }
     });
     rowKeys.sort((a, b) => (mwGroupIdx(a.g) - mwGroupIdx(b.g)) || (mwModelIdx(a.m) - mwModelIdx(b.m)));
 
-    // Kopf: ohne neue Version eine Zeile; mit neuer Version zwei Zeilen —
-    // Ausbildungsstufe überspannt je 2 Spalten, Subzeile „in Verwendung | neu ab".
     let thead;
     if (!split) {
         const head = MW_EDU.map(e => `<th>${e.label}<span class="mw-sub">${e.sub}</span></th>`).join('');
@@ -332,15 +284,9 @@ function mwRenderMatrix(title, unit, salaryType, split, abDatum) {
     } else {
         body = rowKeys.map(rk => {
             const cells = MW_EDU.map(e => {
-                const c = agg[rk.g + '|' + rk.m + '|' + e.id];
-                if (!split) {
-                    const eff = c ? c.newest : null;     // neueste Version (editierbar wenn unbenutzt, sonst grau)
-                    return eff ? mwCurCell(eff) : `<td class="mw-empty">–</td>`;
-                }
-                const ref = c ? c.used : null;           // links: verwendete Referenz (grau)
-                const edt = c ? c.unused : null;         // rechts: neuer editierbarer Satz
-                const leftTd = ref ? mwCurCell(ref) : `<td class="mw-empty">–</td>`;
-                return leftTd + mwFutCell(edt, ref);
+                const k = [salaryType, rk.g, rk.m, e.id, ''].join('|');
+                const l = left[k] || null;
+                return split ? mwCurCell(l) + mwFutCell(right[k] || null, l) : mwCurCell(l);
             }).join('');
             return `<tr>
                 <td class="mw-row-label">${MW_GROUP_LABEL[rk.g] || rk.g}${mwBadge(rk.m)}</td>
@@ -360,29 +306,30 @@ function mwRenderMatrix(title, unit, salaryType, split, abDatum) {
     </div>`;
 }
 
-function mwRenderYouth(rules, split, abDatum) {
-    if (!rules.length) return '';
-    const agg = mwAggregate(rules, r => [r.jobGroupCode, r.employmentModelCode, r.educationLevelId, r.ageMax, r.salaryType].join('|'));
-    const cells = Object.values(agg).sort((a, b) => {
-        const ra = a.newest, rb = b.newest;
+function mwRenderYouth(left, right, abDatum) {
+    const split = !!right;
+    const all = [...Object.values(left), ...Object.values(right || {})].filter(r => r.ageMax != null);
+    if (!all.length) return '';
+    const keys = [...new Set(all.map(mwCellKey))];
+    const rep = k => left[k] || right?.[k];
+    keys.sort((a, b) => {
+        const ra = rep(a), rb = rep(b);
         return (mwGroupIdx(ra.jobGroupCode) - mwGroupIdx(rb.jobGroupCode))
             || (mwModelIdx(ra.employmentModelCode) - mwModelIdx(rb.employmentModelCode))
             || (ra.educationLevelId - rb.educationLevelId)
             || ((ra.ageMax ?? 0) - (rb.ageMax ?? 0));
     });
 
-    const rows = cells.map(c => {
-        const r = c.newest;
-        const leftRule = split ? c.used : c.newest;
-        const leftTd = leftRule ? mwCurCell(leftRule) : `<td class="mw-empty">–</td>`;
-        const rightTd = split ? mwFutCell(c.unused, c.used) : '';
+    const rows = keys.map(k => {
+        const r = rep(k);
+        const l = left[k] || null;
         return `<tr>
             <td class="mw-row-label">${MW_GROUP_LABEL[r.jobGroupCode] || r.jobGroupCode}</td>
             <td>${mwBadge(r.employmentModelCode, 'margin-left:0')}</td>
             <td class="mw-muted">${mwEduLabel(r.educationLevelId)}</td>
             <td class="mw-muted">bis ${r.ageMax} J.</td>
             <td class="mw-muted">${r.salaryType === 'hourly' ? 'CHF / Std.' : 'CHF / Mt.'}</td>
-            ${leftTd}${rightTd}
+            ${mwCurCell(l)}${split ? mwFutCell(right[k] || null, l) : ''}
         </tr>`;
     }).join('');
 
@@ -405,44 +352,30 @@ function mwRenderYouth(rules, split, abDatum) {
     </div>`;
 }
 
-function mwRenderHistory(rules, subtitle) {
-    // Sortierung (Walter-Vorgabe 23.05.2026): Modell → Ausbildung → Funktion →
-    // Alter → gültig ab. „Gültig ab" als innerster Schlüssel hält die zwei
-    // Versionen (aktuell + geplant) desselben Satzes direkt untereinander.
-    const sorted = [...rules].sort((a, b) =>
-        (mwModelIdx(a.employmentModelCode) - mwModelIdx(b.employmentModelCode))
-        || (a.educationLevelId - b.educationLevelId)
-        || (mwGroupIdx(a.jobGroupCode) - mwGroupIdx(b.jobGroupCode))
-        || ((a.ageMax ?? 9999) - (b.ageMax ?? 9999))
-        || (String(a.validFrom || '').localeCompare(String(b.validFrom || ''))));
-
-    const rows = sorted.map(r => `
-        <tr style="${r.isActive ? '' : 'opacity:0.5'}">
-            <td class="mw-row-label">${MW_GROUP_LABEL[r.jobGroupCode] || r.jobGroupCode}</td>
-            <td>${mwBadge(r.employmentModelCode, 'margin-left:0')}</td>
-            <td class="mw-muted">${mwEduLabel(r.educationLevelId)}</td>
-            <td class="mw-muted">${r.salaryType === 'hourly' ? 'CHF / Std.' : 'CHF / Mt.'}${r.ageMax != null ? ` · ≤${r.ageMax} J.` : ''}</td>
-            ${r.inLohnVerwendet
-                ? `<td class="mw-amount mw-locked" style="cursor:default" onclick="mwLockedInfo()" title="In einem Lohnlauf verwendet — gesperrt"><span><span class="mw-lock">🔒</span>${mwAmt(r.amount)}</span></td>`
-                : `<td class="mw-amount" onclick="mwEdit(${r.id})" title="Betrag bearbeiten"><span>${mwAmt(r.amount)}</span></td>`}
-            <td class="mw-muted" style="font-size:12px">${mwFmtDate(r.validFrom)}</td>
-            <td class="mw-muted" style="font-size:12px">${mwFmtDate(r.validTo)}</td>
-        </tr>`).join('');
-
+// Historie unten: eine Zeile pro Version, Klick zeigt deren Sätze.
+function mwRenderVersionList(versions) {
+    if (!versions.length) return '';
+    const pill = v => {
+        if (v.lage === 'geplant')   return `<span class="vh-pill vh-pill-plan">geplant</span>`;
+        if (v.lage === 'aktuell')   return `<span class="vh-pill vh-pill-akt">aktuell</span>`;
+        return `<span class="vh-pill">vergangen</span>`;
+    };
+    const rows = versions.map(v => {
+        const info = [
+            `${v.rules.length} Sätze`,
+            v.verwendet ? '🔒 in Lohn verwendet' : '',
+            v.lage === 'geplant' && v.offen ? `<span style="color:#dc2626">${v.offen} noch nicht bestätigt</span>` : '',
+        ].filter(Boolean).join(' · ');
+        const sel = mwSelVersion === v.from ? ' sel' : '';
+        return `<div class="vh-row${sel}" onclick="mwSelectVersion('${v.from}')" title="Sätze dieser Version anzeigen">
+            <span class="vh-range">${mwFmtDate(v.from)} – ${v.to ? mwFmtDate(v.to) : 'offen'}</span>
+            ${pill(v)}
+            <span class="vh-info">${info}</span>
+        </div>`;
+    }).join('');
     return `<div class="card mw-section">
-        <div class="mw-section-head">Versionen pro Satz<span class="mw-unit">${subtitle || 'aktuell + nächste geplante (max. 2)'}</span></div>
-        <table class="mw-table">
-            <thead><tr>
-                <th class="mw-th-row">Funktion</th>
-                <th class="mw-th-row">Modell</th>
-                <th class="mw-th-row">Ausbildung</th>
-                <th class="mw-th-row">Einheit</th>
-                <th>Betrag</th>
-                <th class="mw-th-row">Gültig ab</th>
-                <th class="mw-th-row">Gültig bis</th>
-            </tr></thead>
-            <tbody>${rows}</tbody>
-        </table>
+        <div class="mw-section-head">Historie<span class="mw-unit">alle Versionen · anklicken zum Anzeigen</span></div>
+        <div class="vh-list">${rows}</div>
     </div>`;
 }
 
@@ -458,19 +391,23 @@ function mwOverlay(innerHtml) {
 }
 function mwCloseOverlay() { document.getElementById('mwOverlay')?.remove(); }
 
-// Hinweis-Toast für gesperrte (in einem Lohnlauf verwendete) Sätze.
-function mwLockedInfo() {
-    showToast('Dieser Mindestlohn wurde bereits in einem Lohnlauf verwendet und ist gesperrt. Für eine Änderung „+ Folge-Version anlegen" und den geplanten Satz ab dem neuen Datum anpassen.', 'info');
+// Hinweis für gesperrte Sätze (abgelaufen oder in einem Lohnlauf verwendet).
+function mwLockedInfo(id) {
+    const r = mwAllRules.find(x => x.id === id);
+    if (r && r.zeitlage === 'vergangen') {
+        showToast('Dieser Mindestlohn gehört zu einer abgelaufenen Version und bleibt unverändert.', 'info');
+        return;
+    }
+    showToast('Dieser Mindestlohn wurde bereits in einem Lohnlauf verwendet und ist gesperrt. Für eine Änderung rechts ein Datum wählen und «+ Folge-Version anlegen».', 'info');
 }
 
 function mwEdit(id) {
     const r = mwAllRules.find(x => x.id === id);
     if (!r) return;
-    // Sicherheitsnetz: gesperrte Sätze öffnen kein Edit-Modal (Backend gibt sonst 409).
-    if (r.inLohnVerwendet) { mwLockedInfo(); return; }
+    if (!r.bearbeitbar) { mwLockedInfo(id); return; }
 
     const unit = r.salaryType === 'hourly' ? 'CHF / Std.' : 'CHF / Mt.';
-    const isFuture = mwIso(r.validFrom) > mwTodayIso();
+    const isFuture = r.zeitlage === 'geplant';
     mwOverlay(`
         <h3 style="margin:0 0 6px;font-size:16px">${isFuture ? 'Geplanten Mindestlohn bearbeiten' : 'Mindestlohn bearbeiten'}</h3>
         <p class="mw-muted" style="margin:0 0 18px;font-size:13px;line-height:1.5">
@@ -497,10 +434,9 @@ async function mwSaveAmount(id) {
             method: 'PUT', headers: ah(), body: JSON.stringify({ amount: amt })
         });
         if (!res.ok) {
-            // 409 MINWAGE_LOCKED: Satz wurde inzwischen in einem Lohnlauf verwendet.
             const data = await res.json().catch(() => ({}));
             showToast(data.message || data.error || ('Speichern fehlgeschlagen (HTTP ' + res.status + ')'), 'error');
-            if (res.status === 409) { mwCloseOverlay(); mwLoad(); }   // Lock-Flag neu laden
+            if (res.status === 409) { mwCloseOverlay(); mwLoad(); }
             return;
         }
         mwCloseOverlay();
@@ -509,77 +445,53 @@ async function mwSaveAmount(id) {
     } catch (e) { showToast('Fehler: ' + e.message, 'error'); }
 }
 
-// „+ Folge-Version anlegen" — legt für das gewählte „Geplante Sätze ab"-Datum
-// eine vollständige Kopie der aktuell offenen Sätze an (/copy). Danach sind die
-// geplanten Beträge pro Zelle editierbar. Genau der „nur neue Lohn ab"-Pfad,
-// über den auch gesperrte (im Lohnlauf verwendete) Sätze geändert werden.
+// «+ Folge-Version anlegen» — kopiert die jüngste Version auf das gewählte
+// Datum (/copy). Nur künftige Daten, nur nach der jüngsten Version.
 async function mwCreateGeneration() {
-    // Eine neue Folge-Version ist erst sinnvoll, wenn die neueste Generation
-    // bereits in einem Lohnlauf verwendet wurde (Walter-Vorgabe 23.05.2026).
-    // Solange sie editierbar (unbenutzt) ist, bearbeitet man sie direkt.
-    if (mwNewestGenerationEditable()) {
-        showToast('Die aktuellen Sätze sind noch nicht in einem Lohnlauf verwendet — bitte direkt in der Tabelle bearbeiten. Eine neue Folge-Version ist erst möglich, sobald sie in einer abgeschlossenen Periode verwendet wurde.', 'info');
-        return;
-    }
     const d = document.getElementById('mwCreateDate')?.value;
     if (!d) {
-        showToast('Bitte zuerst rechts ein „Neue Sätze ab"-Datum wählen.', 'error');
+        showToast('Bitte zuerst rechts ein «Neue Sätze ab»-Datum wählen.', 'error');
         document.getElementById('mwCreateDate')?.focus();
+        return;
+    }
+    if (d <= mwTodayIso()) {
+        showToast('Eine neue Version muss in der Zukunft beginnen.', 'error');
         return;
     }
     if (mwFirstAllowed && d < mwFirstAllowed) {
         showToast(`Das Gültig-ab-Datum muss am oder nach dem ${mwFmtDate(mwFirstAllowed)} liegen — frühester Termin nach der letzten abgeschlossenen Lohnperiode (über alle Filialen).`, 'error');
         return;
     }
-    if (mwAllRules.some(r => mwIso(r.validFrom) === d)) {
-        showToast(`Für den ${mwFmtDate(d)} existiert bereits eine Version. Sind das deine aktuellen Sätze, kannst du sie direkt in der Tabelle anklicken und bearbeiten — „+ Folge-Version anlegen" ist nur für ein NEUES, künftiges Datum.`, 'info');
+    const newest = mwVersions()[0];
+    if (newest && d <= newest.from) {
+        showToast(`Es gibt bereits eine Version ab ${mwFmtDate(newest.from)}. Eine neue Version muss danach beginnen — oder die bestehende in der Historie anklicken und dort anpassen.`, 'info');
         return;
     }
-    if (!confirm(`Folge-Version ab ${mwFmtDate(d)} anlegen?\n\nAlle aktuell offenen Sätze werden kopiert und auf den Vortag begrenzt. Danach kannst du die geplanten Beträge pro Zelle anpassen.`)) return;
+    if (!(await liquidConfirm(`Alle Sätze der jüngsten Version werden kopiert und gelten ab ${mwFmtDate(d)}. Danach kannst du die geplanten Beträge pro Zelle anpassen.`,
+        { title: `Folge-Version ab ${mwFmtDate(d)} anlegen?`, yesLabel: 'Anlegen', noLabel: 'Abbrechen' }))) return;
     try {
         const res  = await fetch('/api/minimum-wage-rules/copy', {
             method: 'POST', headers: ah(), body: JSON.stringify({ effectiveDate: d })
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { showToast(data.error || ('Anlegen fehlgeschlagen (HTTP ' + res.status + ')'), 'error'); return; }
+        if (!res.ok) { showToast(data.message || data.error || ('Anlegen fehlgeschlagen (HTTP ' + res.status + ')'), 'error'); return; }
         showToast(`${data.copied} Sätze ab ${mwFmtDate(d)} angelegt — jetzt pro Zelle anpassbar`, 'success');
         const cd = document.getElementById('mwCreateDate'); if (cd) cd.value = '';
-        mwLoad();   // Historie neu laden → geplante Spalte erscheint automatisch
+        mwSelVersion = null;
+        mwLoad();
     } catch (e) { showToast('Fehler: ' + e.message, 'error'); }
 }
 
-function mwOpenCopy() {
-    mwOverlay(`
-        <h3 style="margin:0 0 6px;font-size:16px">Neue Sätze ab Datum erstellen</h3>
-        <p class="mw-muted" style="margin:0 0 18px;font-size:13px;line-height:1.5">
-            Kopiert alle aktuell gültigen Sätze auf ein neues Gültig-ab-Datum. Die
-            bisherigen Sätze werden automatisch auf den Vortag begrenzt. Danach kannst
-            du die Beträge der neuen Sätze anpassen.
-        </p>
-        <label class="mw-muted" style="font-size:12px">Gültig ab</label>
-        <input id="mwCopyDate" type="date" value="${mwTodayIso()}"
-               style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;margin:5px 0 20px;font-size:15px">
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button class="btn btn-secondary" onclick="mwCloseOverlay()">Abbrechen</button>
-            <button class="btn btn-primary" onclick="mwDoCopy()">Erstellen</button>
-        </div>`);
-}
-
-async function mwDoCopy() {
-    const d = document.getElementById('mwCopyDate')?.value;
-    if (!d) { showToast('Bitte ein Datum wählen', 'error'); return; }
+// Künftige (jüngste) Version ganz löschen — die Vorversion gilt danach wieder ohne Ende.
+async function mwDeleteVersion(fromIso) {
+    if (!(await liquidConfirm(`Alle Sätze ab ${mwFmtDate(fromIso)} werden gelöscht. Die vorherige Version gilt danach wieder ohne Enddatum.`,
+        { title: 'Geplante Version löschen?', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
     try {
-        const res  = await fetch('/api/minimum-wage-rules/copy', {
-            method: 'POST', headers: ah(), body: JSON.stringify({ effectiveDate: d })
-        });
+        const res = await fetch(`/api/minimum-wage-rules/version/${fromIso}`, { method: 'DELETE', headers: ah() });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { showToast(data.error || ('Kopieren fehlgeschlagen (HTTP ' + res.status + ')'), 'error'); return; }
-        mwCloseOverlay();
-        showToast(`${data.copied} Sätze ab ${mwFmtDate(d)} erstellt`, 'success');
-        const sa = document.getElementById('mwShowAll');
-        const vd = document.getElementById('mwViewDate');
-        if (sa) sa.checked = false;
-        if (vd) { vd.disabled = false; vd.style.opacity = ''; vd.value = ''; }
+        if (!res.ok) { showToast(data.message || data.error || ('Löschen fehlgeschlagen (HTTP ' + res.status + ')'), 'error'); return; }
+        showToast(`Version ab ${mwFmtDate(fromIso)} gelöscht`, 'success');
+        mwSelVersion = null;
         mwLoad();
     } catch (e) { showToast('Fehler: ' + e.message, 'error'); }
 }
