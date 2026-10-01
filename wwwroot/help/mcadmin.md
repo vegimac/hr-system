@@ -18,7 +18,6 @@ direkt unter «Mitarbeiter».
 | **QST-Info Formular** | Fragebogen «Quellensteuer-Informationen» zum Ausdrucken — Blanko oder mit MA-Vorauswahl vorbefüllt. Deckt alle Fragen des kantonalen QST-Anmeldeformulars ab (Partner, Kinder, weitere Arbeitgeber). Zusammen mit dem MA ausfüllen, dann in OneCrew nachtragen — siehe [Quellensteuer](#qst). |
 | **Notfall Kontakte** | Druckliste (A4 quer) aller aktiven MA der Filiale mit Notfall-Name, Beziehung (Ankreuz-Reihe Partner/Kind/Andere) und Telefon — fehlende Kontakte als Schreiblinien zum Handnachtrag. MA mit erfasster Kündigung erscheinen nicht; 6-Monats-Befristungen bleiben drauf. |
 | **Manager-DP** | Der Manager-Dienstplan (FIX-M-Schichtplanung) — inkl. Ferienplaner. |
-| **Manager Schulung** | Nothelfer / Peak-Verifizierung / Seco der gewählten Filiale. |
 | **Mirus Absenz Import** | (nur Admin) Mirus-Dienstplan-XLS in Absenzen umwandeln. |
 
 Zwischenzeugnis, Arbeitsbestätigung und Arbeits-Aufforderung bleiben im

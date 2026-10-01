@@ -1993,7 +1993,8 @@ const ALLOWED_CCNT_QUALIFICATIONS = {
     '2': '2 Avec CFC + 6 jours',
     '3': '3 Avec CFC',
     '4': '4 Avec AFP',
-    '5': '5 Sans qualification'
+    '5': '5 Sans qualification',
+    '6': '6 Avec Progresso'
 };
 
 function isEasyworkApiImportRow(row) {
@@ -2074,6 +2075,7 @@ function mapCcntToEduLevel(raw, requireValid = false) {
         case '3': return 'IIIa';
         case '4': return 'II';
         case '5': return 'Ia';
+        case '6': return 'Ib';
         default:  return '';
     }
 }
@@ -2954,6 +2956,7 @@ function contractFormHtml(idx, row, hasExistingContract, activeContract = null, 
     //   2 Avec CFC + 6 jours        → IIIb
     //   3 Avec CFC                  → IIIa
     //   4 Avec AFP                  → II
+    //   6 Avec Progresso            → Ib
     //   5 Sans qualification → Ia. Leer/ungültig blockiert nur im API-Einzelimport;
     //   Legacy/Admin-CSV bleibt beim bisherigen Default Ia.
     const requireCcnt = isEasyworkApiImportRow(row);

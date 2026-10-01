@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 38;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026)
+const int SchemaStand = 39;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1715,6 +1715,43 @@ using (var scope = app.Services.CreateScope())
         WHERE NOT EXISTS (SELECT 1 FROM permit_type WHERE code = 'ANDERE');
     ");
 
+    // Schulungen & Ausbildungen (Walter 01.10.2026, Schema-Stand 39): Verzeichnis
+    // + Historie pro MA, genau ein Nachweis pro Eintrag (FRED oder Dokument).
+    // Seed + Übernahme der McAdmin-Daten folgen nach dem eID/SSO-Block weiter unten.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS schulung_typ (
+            id             serial PRIMARY KEY,
+            code           text NOT NULL,
+            name           text NOT NULL DEFAULT '',
+            refresh_monate integer,
+            frist_tage     integer,
+            zielgruppe     text NOT NULL DEFAULT 'ALLE',
+            fred_moeglich  boolean NOT NULL DEFAULT false,
+            warnen_ab_tage integer DEFAULT 60,
+            aktiv          boolean NOT NULL DEFAULT true,
+            sort_order     integer NOT NULL DEFAULT 0,
+            beschreibung   text,
+            created_at     timestamp without time zone NOT NULL DEFAULT now(),
+            updated_at     timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_schulung_typ_code ON schulung_typ(code);
+
+        CREATE TABLE IF NOT EXISTS employee_schulung (
+            id               serial PRIMARY KEY,
+            employee_id      integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            schulung_typ_id  integer NOT NULL REFERENCES schulung_typ(id),
+            datum            date NOT NULL,
+            art              text NOT NULL DEFAULT 'DOKUMENT',
+            dokument_id      integer REFERENCES employee_dokument(id) ON DELETE SET NULL,
+            titel            text,
+            bemerkung        text,
+            erfasst_von      text,
+            erfasst_am       timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_employee_schulung_emp ON employee_schulung(employee_id, schulung_typ_id, datum);
+        CREATE INDEX IF NOT EXISTS ix_employee_schulung_dok ON employee_schulung(dokument_id);
+    ");
+
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
     HrSystem.Services.SchemaCheckService.Pruefe(
         db, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
@@ -1881,10 +1918,18 @@ using (var scope = app.Services.CreateScope())
          'Ausnahmebewilligung hinterlegen',
          'Das Bewilligungsschreiben beim Mitarbeiter als Dokument verknüpfen. Ist keines vorhanden, bei der HR melden.',
          210),
-        ('schulung_peak',
-         'Schulung anmelden',
-         'Person zur Schulung anmelden und danach das Schulungsdatum beim Mitarbeiter erfassen.',
+        ('schulung_laeuft_ab',
+         'Auffrischung planen',
+         'Person zur Auffrischung anmelden. Danach im Mitarbeiter, Tab «Verfügbarkeit / Training», einen neuen Eintrag mit Datum und Nachweis erfassen.',
          220),
+        ('schulung_abgelaufen',
+         'Schulung erneuern',
+         'Die Schulung ist nicht mehr gültig. Person anmelden und danach im Tab «Verfügbarkeit / Training» den neuen Eintrag mit Nachweis erfassen.',
+         221),
+        ('schulung_fehlt',
+         'Schulung nachholen',
+         'Schulung durchführen (Hygiene und Sicherheit am ersten Tag, SRIW innert 14 Tagen). Danach im Tab «Verfügbarkeit / Training» abhaken: in FRED oder mit Dokument.',
+         222),
         ('ahv_nummer_fehlt',
          'AHV-Nummer nachtragen',
          'Nummer vom Versicherungsausweis oder der Krankenkassenkarte im Tab «Übersicht» bei den Personalien eintragen.',
@@ -4859,14 +4904,62 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS schulung_nothelfer_am date,
             ADD COLUMN IF NOT EXISTS schulung_peak_am date,
             ADD COLUMN IF NOT EXISTS schulung_seco_am date;
-        -- Nur die Peak-Verifizierung warnt im Dashboard (Walter 14.08.2026);
-        -- Nothelfer + Seco laufen über die Liste «Manager Schulung» (HR → Kontrolle).
-        DELETE FROM dashboard_warning_config WHERE category IN ('schulung_nothelfer', 'schulung_seco');
+        -- Seit 01.10.2026 drei generische Schulungs-Warnungen aus dem Verzeichnis
+        -- «Schulungen & Ausbildungen» statt der einzelnen Manager-Kategorien.
+        DELETE FROM dashboard_warning_config WHERE category IN ('schulung_nothelfer', 'schulung_seco', 'schulung_peak');
+        DELETE FROM todo_anleitung WHERE category IN ('schulung_nothelfer', 'schulung_seco', 'schulung_peak');
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
-            ('schulung_peak', 'Schulung Peak-Verifizierung läuft ab', TRUE, 60, 14, 'warning', 'critical', TRUE, 24, 60, 'red_overdue')
+            ('schulung_laeuft_ab',  'Schulung läuft bald ab',   TRUE, NULL, 14,   'warning',  'critical', TRUE,  24, 60, 'red_overdue'),
+            ('schulung_abgelaufen', 'Schulung abgelaufen',      TRUE, NULL, NULL, 'critical', NULL,       FALSE, 25, 55, 'red_overdue'),
+            ('schulung_fehlt',      'Schulung fehlt nach Frist', TRUE, NULL, NULL, 'critical', NULL,       FALSE, 26, 55, 'red_overdue')
         ON CONFLICT (category) DO NOTHING;
+    ");
+
+    // Verzeichnis «Schulungen & Ausbildungen» (Walter 01.10.2026, Schema-Stand 39):
+    // nur in die LEERE Tabelle seeden (Einträge sind im UI editierbar). Die
+    // Gültigkeit von Nothelfer/Peak/Seco kommt aus den bisherigen app_setting-Werten.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO schulung_typ (code, name, refresh_monate, frist_tage, zielgruppe, fred_moeglich, warnen_ab_tage, sort_order, beschreibung)
+        SELECT v.code, v.name, v.refresh, v.frist, v.ziel, v.fred, v.warnen, v.sort, v.beschr
+        FROM (VALUES
+            ('HYGIENE',    'Lebensmittelhygiene',          NULL::int, 1,  'ALLE', TRUE,  60, 10, 'Am ersten Arbeitstag (Onboarding).'),
+            ('SICHERHEIT', 'Erstunterweisung Sicherheit',  24,        1,  'ALLE', TRUE,  60, 20, 'Am ersten Arbeitstag (Onboarding), danach Auffrischung.'),
+            ('SRIW',       'SRIW',                         NULL::int, 14, 'ALLE', TRUE,  60, 30, 'Innert 14 Tagen nach Eintritt.'),
+            ('GASTRO',     'Gastro-Ausbildung',            NULL::int, NULL::int, 'LGAV', FALSE, 60, 40, 'Nachweis der beruflichen Qualifikation (L-GAV-Einstufung Ib bis IV).'),
+            ('NOTHELFER',  'Nothelferkurs',
+                COALESCE((SELECT CASE WHEN value ~ '^[0-9]+$' THEN value::int END FROM app_setting WHERE key = 'Schulung.NothelferMonate'), 24),
+                NULL::int, 'FIXM', FALSE, 60, 50, NULL),
+            ('PEAK',       'Peak-Verifizierung',
+                COALESCE((SELECT CASE WHEN value ~ '^[0-9]+$' THEN value::int END FROM app_setting WHERE key = 'Schulung.PeakMonate'), 12),
+                NULL::int, 'FIXM', FALSE, 60, 60, NULL),
+            ('SECO',       'SECO-Schulung',
+                COALESCE((SELECT CASE WHEN value ~ '^[0-9]+$' THEN value::int END FROM app_setting WHERE key = 'Schulung.SecoMonate'), 12),
+                NULL::int, 'GF',   FALSE, 60, 70, NULL)
+        ) AS v(code, name, refresh, frist, ziel, fred, warnen, sort, beschr)
+        WHERE NOT EXISTS (SELECT 1 FROM schulung_typ);
+    ");
+
+    // Bisherige McAdmin-Schulungsdaten als erste Einträge übernehmen (einmalig,
+    // Marker in app_setting). Die employee-Spalten bleiben als Altbestand stehen.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO employee_schulung (employee_id, schulung_typ_id, datum, art, bemerkung, erfasst_von, erfasst_am)
+        SELECT e.id, t.id, d.datum, 'UEBERNOMMEN', 'Aus der Liste Manager-Schulungen übernommen', 'System', LOCALTIMESTAMP
+        FROM employee e
+        CROSS JOIN LATERAL (VALUES
+            ('NOTHELFER', e.schulung_nothelfer_am),
+            ('PEAK',      e.schulung_peak_am),
+            ('SECO',      e.schulung_seco_am)
+        ) AS d(code, datum)
+        JOIN schulung_typ t ON t.code = d.code
+        WHERE d.datum IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM app_setting WHERE key = 'Schulung.McAdminUebernommen')
+          AND NOT EXISTS (SELECT 1 FROM employee_schulung s
+                          WHERE s.employee_id = e.id AND s.schulung_typ_id = t.id AND s.datum = d.datum);
+        INSERT INTO app_setting (key, value, updated_at)
+        SELECT 'Schulung.McAdminUebernommen', to_char(LOCALTIMESTAMP, 'YYYY-MM-DD'), now()
+        WHERE NOT EXISTS (SELECT 1 FROM app_setting WHERE key = 'Schulung.McAdminUebernommen');
     ");
 
     // ── Manager-Dienstplan (Walter 08.08.2026, ersetzt Excel «Manager DP»):

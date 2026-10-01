@@ -52,6 +52,8 @@ public class AppDbContext : DbContext
     public DbSet<Absence> Absences => Set<Absence>();
     public DbSet<FerienKuerzungEintrag> FerienKuerzungen => Set<FerienKuerzungEintrag>();
     public DbSet<WeitererArbeitgeber> WeitereArbeitgeber => Set<WeitererArbeitgeber>();
+    public DbSet<SchulungTyp> SchulungTypen => Set<SchulungTyp>();
+    public DbSet<EmployeeSchulung> EmployeeSchulungen => Set<EmployeeSchulung>();
     public DbSet<PayrollSaldo> PayrollSaldos => Set<PayrollSaldo>();
     public DbSet<LohnKontoMapping> LohnKontoMappings => Set<LohnKontoMapping>();
     public DbSet<KrankheitKarenzSaldo> KrankheitKarenzSaldos => Set<KrankheitKarenzSaldo>();
@@ -1467,6 +1469,46 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am").HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.EmployeeId);
+        });
+
+        // Schulungen & Ausbildungen (Walter 01.10.2026)
+        modelBuilder.Entity<SchulungTyp>(entity =>
+        {
+            entity.ToTable("schulung_typ");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.RefreshMonate).HasColumnName("refresh_monate");
+            entity.Property(e => e.FristTage).HasColumnName("frist_tage");
+            entity.Property(e => e.Zielgruppe).HasColumnName("zielgruppe");
+            entity.Property(e => e.FredMoeglich).HasColumnName("fred_moeglich");
+            entity.Property(e => e.WarnenAbTage).HasColumnName("warnen_ab_tage");
+            entity.Property(e => e.Aktiv).HasColumnName("aktiv");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.Beschreibung).HasColumnName("beschreibung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<EmployeeSchulung>(entity =>
+        {
+            entity.ToTable("employee_schulung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.SchulungTypId).HasColumnName("schulung_typ_id");
+            entity.Property(e => e.Datum).HasColumnName("datum");
+            entity.Property(e => e.Art).HasColumnName("art");
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.Titel).HasColumnName("titel");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von");
+            entity.Property(e => e.ErfasstAm).HasColumnName("erfasst_am").HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.SchulungTyp).WithMany().HasForeignKey(e => e.SchulungTypId);
+            entity.HasIndex(e => e.EmployeeId);
+            entity.HasIndex(e => e.DokumentId);
         });
 
         // Absenzbedingte Ferienkürzung (Walter 23.09.2026)

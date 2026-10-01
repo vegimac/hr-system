@@ -41,7 +41,6 @@ async function wcInit() {
         _wcRows.sort((a, b) => (a.todoPriority ?? 100) - (b.todoPriority ?? 100)
             || (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         wcSyncPriorities();
-        await wcSchulLoad();   // Schulungs-Gültigkeit VOR dem Render (Unterzeile)
         wcRender();
     } catch (e) {
         if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;color:#dc2626;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</td></tr>`;
@@ -181,7 +180,7 @@ function wcRender() {
                 </select>
             </td>
             <td style="${WC_TD};text-align:center">${dateBased ? escSevSel : '<span style="color:#b8b0a4;font-size:11px">—</span>'}</td>
-        </tr>${c.category === 'schulung_peak' ? wcSchulSubRow() : ''}`;
+        </tr>${c.category === 'schulung_laeuft_ab' ? wcSchulSubRow() : ''}`;
     }).join('');
 }
 
@@ -228,8 +227,6 @@ async function wcSave() {
             alert('Speichern fehlgeschlagen: ' + msg);
             return;
         }
-        // Schulungs-Gültigkeit mitspeichern (Unterzeile, Walter 21.08.2026).
-        await wcSchulSaveIfChanged();
         if (typeof toast === 'function') toast('Warnungen gespeichert');
         else if (typeof showToast === 'function') showToast('Warnungen gespeichert');
         await wcInit();
@@ -240,60 +237,16 @@ async function wcSave() {
     }
 }
 
-// ── Schulungs-Gültigkeit (Walter 21.08.2026, integriert in die Liste) ───
-// Keine eigene Karte: die Monate erscheinen als Unterzeile direkt an der
-// Warnung «Schulung Peak-Verifizierung läuft ab» (wcRender) und werden mit
-// dem globalen Speichern-Button mitgespeichert (wcSave).
-let _wcSchulMonate = null;
-
-async function wcSchulLoad() {
-    try {
-        const r = await fetch('/api/manager-schulungen/settings', { headers: ah() });
-        if (r.ok) _wcSchulMonate = await r.json();
-    } catch (_) { _wcSchulMonate = null; }
-}
-
-function wcSchulSet(key, val) {
-    if (!_wcSchulMonate) return;
-    const n = parseInt(val, 10);
-    _wcSchulMonate[key] = Number.isFinite(n) && n >= 1 ? n : _wcSchulMonate[key];
-}
-
-/** Unterzeile unter der Schulungs-Warnung: Gültigkeit pro Schulung in Monaten. */
+// ── Schulungen (Walter 01.10.2026) ───────────────────────────────────
+// Gültigkeit, Frist und «warnen ab» stehen pro Schulung im Verzeichnis
+// «Schulungen & Ausbildungen» — hier nur der Hinweis unter der Warnung.
 function wcSchulSubRow() {
-    if (!_wcSchulMonate) return '';
-    const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
-    const dis = isAdmin ? '' : ' disabled';
-    const inp = (key, label, val) => `
-        <label style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#8b8b8b">${label}
-            <input type="number" min="1" max="240" value="${val}" style="${WC_INP}"${dis}
-                   onchange="wcSchulSet('${key}', this.value)"></label>`;
     return `
         <tr style="border-bottom:1px solid #ece7df;background:rgba(255,255,255,0.35)">
             <td style="${WC_TD}"></td>
-            <td colspan="7" style="${WC_TD};padding-top:2px">
-                <span style="font-size:11.5px;color:#8b8b8b;margin-right:10px"
-                      title="Ab dem erfassten Schulungsdatum gilt die Schulung so viele Monate — daraus rechnen sich die «bis»-Daten, die Ampeln in der Manager-Schulungs-Liste und diese Ablauf-Warnung.">
-                    ↳ Gültigkeit (Monate):</span>
-                ${inp('nothelferMonate', 'Nothelfer', _wcSchulMonate.nothelferMonate)}
-                <span style="margin:0 8px;color:#d5d0c6">·</span>
-                ${inp('peakMonate', 'Peak-Verif.', _wcSchulMonate.peakMonate)}
-                <span style="margin:0 8px;color:#d5d0c6">·</span>
-                ${inp('secoMonate', 'Seco', _wcSchulMonate.secoMonate)}
+            <td colspan="7" style="${WC_TD};padding-top:2px;font-size:11.5px;color:#8b8b8b">
+                ↳ Gültigkeit, Frist ab Eintritt und Vorlauf stehen pro Schulung im Verzeichnis
+                <a href="#" onclick="showPage('schulung-typen');return false" style="color:#3f3f3f">Schulungen &amp; Ausbildungen</a>.
             </td>
         </tr>`;
-}
-
-/** Wird von wcSave nach dem Haupt-PUT aufgerufen (admin-only, best-effort). */
-async function wcSchulSaveIfChanged() {
-    if (!_wcSchulMonate) return;
-    const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
-    if (!isAdmin) return;
-    try {
-        await fetch('/api/manager-schulungen/settings', {
-            method: 'PUT',
-            headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify(_wcSchulMonate)
-        });
-    } catch (_) { /* best-effort — Warnungs-Save ist wichtiger */ }
 }

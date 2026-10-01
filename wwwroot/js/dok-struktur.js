@@ -100,7 +100,8 @@ function renderDokstrukturTypen() {
         'andere_lohn':          'Anderes: Lohn',
         'andere_weiterbildung': 'Anderes: Weiterbildung',
         'andere_sonstiges':     'Anderes: Sonstiges',
-        'termination':          'Kündigung'
+        'termination':          'Kündigung',
+        'schulung':             'Ausbildung / Schulung'
     };
     el.innerHTML = kat.typen.map(t => {
         const link = t.linkedFieldCode
@@ -371,6 +372,7 @@ function dokstrukturEditTyp(id) {
               <option value="andere_weiterbildung" ${t?.linkedFieldCode === 'andere_weiterbildung' ? 'selected' : ''}>Anderes: Weiterbildung</option>
               <option value="andere_sonstiges" ${t?.linkedFieldCode === 'andere_sonstiges' ? 'selected' : ''}>Anderes: Sonstiges</option>
               <option value="termination" ${t?.linkedFieldCode === 'termination' ? 'selected' : ''}>Kündigung</option>
+              <option value="schulung" ${t?.linkedFieldCode === 'schulung' ? 'selected' : ''}>Ausbildung / Schulung</option>
             </select>
             <div style="font-size:11px;color:#94a3b8;margin-top:3px">
               Wenn gesetzt, erscheint neben dem Stammdaten-Feld in der MA-Maske ein 📎-Button.

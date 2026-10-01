@@ -143,6 +143,8 @@ public class KontrollListenController : ControllerBase
                           .ToListAsync())
             .GroupBy(d => d.EmployeeId)
             .ToDictionary(g => g.Key, g => g.ToList());
+        var schulungen = (await SchulungAuswertung.LadeAsync(_db, heute, ids.ToList()))
+            .ToDictionary(s => s.EmployeeId);
         bool HatCode(int id, params string[] codes)
             => doks.TryGetValue(id, out var l) && l.Any(d => d.Code != null && codes.Contains(d.Code));
         bool HatWort(int id, params string[] woerter)
@@ -169,17 +171,41 @@ public class KontrollListenController : ControllerBase
             ("migr",      "Anmeldung Migrationsamt (G/F/S)",       "dokument"),
             ("ansaess",   "Ansässigkeitsbesch. Grenzgänger",       "dokument"),
             ("gzZusatz",  "Vertragszusatz Grenzgänger",            "dokument"),
-            ("mutter",    "Mutterschutzinfo",                      "dokument"),
+            ("mutter",    "Mutterschutzinfo",                      "feld+dokument"),
             ("ahv",       "Soz.-Nr.",                              "feld"),
             ("qst",       "QST",                                   "feld"),
             ("stellen",   "Antrag Stellenantritt",                 "dokument"),
-            ("ausbildung","Anerkannte Ausbildung Gastro",          "dokument"),
-            ("hygiene",   "Lebensmittel­hygiene",                   "dokument"),
-            ("sicherheit","Sicherheit",                            "dokument"),
+            ("ausbildung","Anerkannte Ausbildung Gastro",          "schulung+dokument"),
+            ("hygiene",   "Lebensmittel­hygiene",                   "schulung+dokument"),
+            ("sicherheit","Sicherheit",                            "schulung+dokument"),
+            ("sriw",      "SRIW",                                  "schulung+dokument"),
             ("bewerbung", "Bewerbungs­unterlagen",                  "dokument"),
         };
 
         object Z(string status, string? text = null, string? tip = null) => new { status, text, tip };
+
+        // Schulungen aus dem Training-Block; ein Dokument mit passendem Stichwort zählt weiterhin als erledigt.
+        object SchulungZelle(int id, string code, string[] woerter, string fehltTip)
+        {
+            static string D(DateOnly d) => d.ToString("dd.MM.yyyy");
+            bool wort = HatWort(id, woerter);
+            if (!schulungen.TryGetValue(id, out var ms)) return wort ? Z("ok") : Z("fehlt", "fehlt", fehltTip);
+            var st = ms.Staende.FirstOrDefault(s => s.Typ.Code == code);
+            if (st == null) return wort ? Z("ok") : Z("fehlt", "fehlt", fehltTip);
+            var e = st.Ergebnis;
+            var nachweis = e.Letzter == null ? "" : e.Letzter.Art switch { "FRED" => " · in FRED", "UEBERNOMMEN" => " · übernommen", _ => " · Papier" };
+            return e.Zustand switch
+            {
+                SchulungStatus.Zustand.NichtBetroffen => Z("na"),
+                SchulungStatus.Zustand.Gueltig => Z("ok", null,
+                    $"{st.Typ.Name} am {D(e.Letzter!.Datum)}{nachweis}" + (e.GueltigBis.HasValue ? $", gültig bis {D(e.GueltigBis.Value)}" : "")),
+                SchulungStatus.Zustand.LaeuftAb => Z("warn", D(e.GueltigBis!.Value), $"{st.Typ.Name} läuft am {D(e.GueltigBis.Value)} ab"),
+                SchulungStatus.Zustand.Abgelaufen => Z("fehlt", "abgelaufen", $"{st.Typ.Name} abgelaufen am {D(e.GueltigBis!.Value)}"),
+                SchulungStatus.Zustand.OffenInFrist => wort ? Z("ok")
+                    : Z("warn", e.FaelligAm.HasValue ? "bis " + D(e.FaelligAm.Value) : "offen", $"{st.Typ.Name} noch offen, Frist läuft"),
+                _ => wort ? Z("ok") : Z("fehlt", "fehlt", fehltTip),
+            };
+        }
 
         var zeilen = mas
             .OrderBy(m => m.FirstName ?? "").ThenBy(m => m.LastName ?? "")
@@ -214,7 +240,9 @@ public class KontrollListenController : ControllerBase
                     : aktVertrag?.UnterschriftEltern == true ? Z("ok")
                     : Z("fehlt", "fehlt", "Unter 18 — Unterschrift der Erziehungsberechtigten am Vertrag nicht bestätigt");
 
-                zellen["verfueg"] = mitVerfuegbarkeit.Contains(m.Id) ? Z("ok") : Z("fehlt", "fehlt", "Keine Verfügbarkeit aus easy@work");
+                zellen["verfueg"] = mitVerfuegbarkeit.Contains(m.Id) ? Z("ok")
+                    : aktVertrag?.VertragDokumentId != null ? Z("ok", null, "Im unterschriebenen Vertrag enthalten")
+                    : Z("fehlt", "fehlt", "Keine Verfügbarkeit aus easy@work und kein unterschriebener Vertrag");
                 zellen["partnerweb"] = Z("unbekannt", "?", "Diese Angabe führt OneCrew nicht");
                 // Erlaubnis nötig, wenn ein weiterer (gültiger) AG Hauptarbeitgeber ist.
                 weitereAg.TryGetValue(m.Id, out var ags);
@@ -260,16 +288,22 @@ public class KontrollListenController : ControllerBase
                          || string.Equals(ef?.Gender, "W", StringComparison.OrdinalIgnoreCase)
                          || (ef?.Gender ?? "").StartsWith("weib", StringComparison.OrdinalIgnoreCase)
                          || (ef?.Gender ?? "").StartsWith("female", StringComparison.OrdinalIgnoreCase);
-                zellen["mutter"] = !frau ? Z("na") : HatWort(m.Id, "Mutterschutz") ? Z("ok") : Z("fehlt", "fehlt", "Mutterschutz-Info nicht gefunden");
+                // Mutterschutz-Info und Verfügbarkeit stehen im unterschriebenen Vertrag (Walter 01.10.2026).
+                bool vertragUnterschrieben = aktVertrag?.VertragDokumentId != null;
+                zellen["mutter"] = !frau ? Z("na")
+                    : vertragUnterschrieben ? Z("ok", null, "Im unterschriebenen Vertrag enthalten")
+                    : HatWort(m.Id, "Mutterschutz") ? Z("ok") : Z("fehlt", "fehlt", "Mutterschutz-Info nicht gefunden");
 
                 zellen["ahv"] = !string.IsNullOrWhiteSpace(ef?.SocialSecurityNumber) ? Z("ok") : Z("fehlt", "fehlt", "AHV-Nummer fehlt");
                 zellen["qst"] = meine.Any(a => a.Category == "qst_pflicht_offen") ? Z("fehlt", "fehlt", "QST-Pflicht offen")
                     : mitQst.Contains(m.Id) ? Z("ok") : Z("na");
                 zellen["stellen"] = HatWort(m.Id, "Stellenantritt")
                     ? Z("ok") : (typ is "F" or "N") ? Z("fehlt", "fehlt", "Antrag Stellenantritt nicht gefunden") : Z("na");
-                zellen["ausbildung"] = HatWort(m.Id, "Ausbildung", "EFZ", "EBA", "Diplom") ? Z("ok") : Z("na");
-                zellen["hygiene"] = HatWort(m.Id, "Hygiene") ? Z("ok") : Z("fehlt", "fehlt", "Lebensmittelhygiene nicht gefunden");
-                zellen["sicherheit"] = HatWort(m.Id, "Sicherheit", "Erstunterweisung") ? Z("ok") : Z("fehlt", "fehlt", "Sicherheit/Erstunterweisung nicht gefunden");
+                zellen["ausbildung"] = SchulungZelle(m.Id, "GASTRO", new[] { "Ausbildung", "EFZ", "EBA", "Diplom" },
+                    "Einstufung mit anerkannter Ausbildung — Nachweis fehlt");
+                zellen["hygiene"] = SchulungZelle(m.Id, "HYGIENE", new[] { "Hygiene" }, "Lebensmittelhygiene nicht erfasst");
+                zellen["sicherheit"] = SchulungZelle(m.Id, "SICHERHEIT", new[] { "Sicherheit", "Erstunterweisung" }, "Sicherheit/Erstunterweisung nicht erfasst");
+                zellen["sriw"] = SchulungZelle(m.Id, "SRIW", new[] { "SRIW" }, "SRIW nicht erfasst");
                 zellen["bewerbung"] = HatWort(m.Id, "Bewerbung") ? Z("ok") : Z("fehlt", "fehlt", "Bewerbungsunterlagen nicht gefunden");
 
                 return new

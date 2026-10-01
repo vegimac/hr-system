@@ -58,6 +58,9 @@ public class DokumentAblageService
         new("absenz",               "Absenz",         "Absenz",                        new[] { "absence" }, Historie: true),
         new("bewilligung_neu",      "Bewilligung",    "Neue Bewilligung",              new[] { "permit" }, Formular: true),
         new("bewilligung",          "Bewilligung",    "Bestehende Bewilligung",          new[] { "permit" }, Historie: true),
+        // Schulungen & Ausbildungen (Walter 01.10.2026): genau ein Dokument pro Eintrag.
+        new("schulung_neu",         "Ausbildung / Schulung", "Neue Schulung / Ausbildung", new[] { "schulung", "andere_weiterbildung" }, Formular: true),
+        new("schulung",             "Ausbildung / Schulung", "Bestehende Schulung",        new[] { "schulung", "andere_weiterbildung" }, Historie: true),
         // ── Familie (je Person ein Feld, ohne Historie) ──
         new("ausweis_partner",      "Familie",        "Ausweis Partner/in",            new[] { "spouse" }),
         new("ausweis_kind",         "Familie",        "Ausweis Kind",                  new[] { "child_id" }),
@@ -211,6 +214,18 @@ public class DokumentAblageService
                     b.DokumentId));
         }
 
+        var schulungen = await (
+            from s in _db.EmployeeSchulungen.AsNoTracking()
+            join t in _db.SchulungTypen.AsNoTracking() on s.SchulungTypId equals t.Id
+            where s.EmployeeId == employeeId
+            orderby s.Datum descending, s.Id descending
+            select new { s.Id, s.Datum, s.Art, s.DokumentId, t.Name }).Take(8).ToListAsync();
+        liste.Add(O("schulung_neu", "Hygiene, Sicherheit, SRIW, Gastro-Ausweis, Nothelfer …"));
+        foreach (var s in schulungen)
+            liste.Add(O($"schulung:{s.Id}",
+                $"{s.Datum:dd.MM.yyyy}" + (s.Art == "FRED" ? " · in FRED" : s.DokumentId == null ? " · ohne Nachweis" : ""),
+                s.DokumentId, s.Name));
+
         foreach (var a in Arten.Where(a => a.Anderes))
             liste.Add(O(a.Schluessel));
         return liste;
@@ -320,6 +335,14 @@ public class DokumentAblageService
                     if (art.Schluessel == "geburtsurkunde_kind") m.GeburtsurkundeDokumentId = dokumentId;
                     else m.DokumentId = dokumentId;
                     m.UpdatedAt = jetzt; break;
+                }
+                case "schulung":
+                {
+                    var s = await _db.EmployeeSchulungen.FirstOrDefaultAsync(x => x.Id == refId && x.EmployeeId == employeeId);
+                    if (s == null) return ("Die gewählte Schulung gehört nicht zu diesem Mitarbeiter.", verknuepft);
+                    if (await _db.EmployeeSchulungen.AnyAsync(x => x.DokumentId == dokumentId && x.Id != s.Id))
+                        return ("Dieses Dokument ist bereits Nachweis einer anderen Schulung.", verknuepft);
+                    s.DokumentId = dokumentId; s.Art = "DOKUMENT"; break;
                 }
                 default:
                     return ($"Ablageziel «{ziel}» wird nicht unterstützt.", verknuepft);

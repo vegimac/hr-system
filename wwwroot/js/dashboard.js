@@ -119,6 +119,9 @@ const DASH_CATEGORY_META = {
     birthday:               { i18nKey: 'dash.cat.birthday',         label: 'Geburtstage',            icon: '🎂', color: '#9333ea' },
     anniversary:            { i18nKey: 'dash.cat.anniversary',      label: 'Dienstjubiläen',         icon: '🎉', color: '#15803d' },
     availability_missing:   { i18nKey: 'dash.cat.availabilityMissing', label: 'Verfügbarkeit fehlt', icon: '🕒', color: '#92400e' },
+    schulung_laeuft_ab:     { label: 'Schulung läuft bald ab',   icon: '🎓', color: '#b45309' },
+    schulung_abgelaufen:    { label: 'Schulung abgelaufen',      icon: '🎓', color: '#b91c1c' },
+    schulung_fehlt:         { label: 'Schulung fehlt nach Frist', icon: '🎓', color: '#b91c1c' },
     audit_log_stumm:        { i18nKey: 'dash.cat.auditSilent', label: 'Aktivitäts-Log stumm', icon: '🧾', color: '#b91c1c' }
 };
 
@@ -536,6 +539,9 @@ function dashTodoOnClick(a) {
             case 'kuendigung_sperrfrist_ende': return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'ferienkuerzung_moeglich':    return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'erlaubnis_hauptarbeitgeber_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
+            case 'schulung_laeuft_ab':
+            case 'schulung_abgelaufen':
+            case 'schulung_fehlt':      return `onclick="dashOpenEmployee(${a.employeeId}, 'verfuegbarkeit')"`;
             case 'kuendigung_ablauf':
             case 'exit_pending_active':
             case 'birthday':

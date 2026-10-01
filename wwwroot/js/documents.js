@@ -3076,6 +3076,8 @@ function dabTitel(o) {
     if (o.key === 'kind_neu') return 'Ausweis Kind';
     if (o.key === 'kind_neu_geburtsurkunde') return 'Geburtsurkunde Kind';
     if (o.key === 'absenz_neu') return 'Absenz';
+    if (o.key === 'schulung_neu') return 'Schulung / Ausbildung';
+    if (o.key.startsWith('schulung:')) return `${o.label} ${String(o.sub || '').split(' · ')[0]}`.trim();
     if (o.key.startsWith('absenz:')) return `${o.label} ${o.sub || ''}`.trim();
     if (/^(ausweis_partner|ausweis_kind|geburtsurkunde_kind):/.test(o.key)) return `${o.label} ${vorPunkt(o.sub)}`.trim();
     return o.label;
@@ -3201,6 +3203,24 @@ async function dabNachher({ empId, docId, bereit, bemerkung, verknuepft, notifyI
     if (einzig === 'partner_neu') await dokNeuesFamilienmitgliedMitDok(empId, docId, 'Ehepartner', null);
     if (einzig === 'kind_neu') await dokNeuesFamilienmitgliedMitDok(empId, docId, 'Kind', null);
     if (einzig === 'kind_neu_geburtsurkunde') await dokNeuesFamilienmitgliedMitDok(empId, docId, 'Kind', 'geburtsurkunde');
+    if (einzig === 'schulung_neu') await dokNeueSchulungMitDok(empId, docId);
+    if (gewaehlt.some(k => k.startsWith('schulung:')) && window.selectedEmployeeId === empId && typeof trLoad === 'function')
+        trLoad(empId);
+}
+
+// Neue Schulung mit dem soeben abgelegten Dokument (Walter 01.10.2026): MA öffnen,
+// Tab «Verfügbarkeit / Training», Erfassen-Maske mit dem Dokument als Nachweis.
+async function dokNeueSchulungMitDok(empId, docId) {
+    if (typeof trOpenErfassen !== 'function') return;
+    if (window.selectedEmployeeId !== empId) {
+        window.activeEmpId = empId;
+        if (typeof showPage === 'function') showPage('mitarbeiter');
+        for (let i = 0; i < 40 && window.selectedEmployeeId !== empId; i++)
+            await new Promise(r => setTimeout(r, 150));
+        if (window.selectedEmployeeId !== empId && typeof selectEmployee === 'function') await selectEmployee(empId);
+    }
+    if (typeof switchEmpTab === 'function') switchEmpTab('verfuegbarkeit');
+    await trOpenErfassen(null, { dokumentId: docId });
 }
 
 // Neues Familienmitglied mit dem soeben abgelegten Dokument (Walter 25.09.2026):

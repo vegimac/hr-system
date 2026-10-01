@@ -2423,79 +2423,62 @@ public class DashboardService
             }
         }
 
-        // ── Manager-Schulungen (Walter-Vorgabe 14.08.2026) ──────────────
-        // Nothelfer / Peak-Verifizierung / Seco laufen ab: Ablauf =
-        // Schulungsdatum + Gültigkeit (Monate, app_setting via
-        // SchulungConfig). Nur FIX-M-Manager mit aktivem Vertrag; fehlende
-        // Daten meldet die Schulungs-Übersicht, nicht das Dashboard.
-        // Nur Peak-Verifizierung warnt (Walter 14.08.2026) — Nothelfer/Seco
-        // stehen in der Liste «Manager Schulung» (HR → Kontrolle).
-        if (Enabled("schulung_peak"))
+        // ── Schulungen & Ausbildungen (Walter-Vorgabe 01.10.2026) ────────
+        // Drei generische Warnungen aus dem Verzeichnis (ersetzen die früheren
+        // schulung_nothelfer/peak/seco). Was gemeldet wird, entscheidet
+        // SchulungStatus (Melden) — dieselbe Rechnung wie im MA-Tab.
+        if (Enabled("schulung_laeuft_ab") || Enabled("schulung_abgelaufen") || Enabled("schulung_fehlt"))
         {
-            var schulSettings = await _db.AppSettings.AsNoTracking()
-                .Where(s => s.Key.StartsWith("Schulung."))
-                .ToDictionaryAsync(s => s.Key, s => s.Value);
-            int Monate(string key, int fallback) =>
-                SchulungConfig.ParseMonate(schulSettings.TryGetValue(key, out var v) ? v : null, fallback);
-            var pkMonate = Monate(SchulungConfig.KeyPeak, SchulungConfig.DefaultPeak);
-
-            var mgrs = await _db.Employees.AsNoTracking()
-                .Where(e => e.IsActive && !e.IsPayrollExcluded
-                         && !e.EmployeeNumber.ToLower().EndsWith("alt")
-                         && e.Employments.Any(em => em.IsActive
-                              && em.EmploymentModel == "FIX-M"
-                              && (companyProfileId == null || em.CompanyProfileId == companyProfileId)))
-                .Select(e => new
-                {
-                    e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
-                    e.SchulungNothelferAm, e.SchulungPeakAm, e.SchulungSecoAm,
-                })
-                .ToListAsync();
-
-            foreach (var mg in mgrs)
+            var schulStaende = await SchulungAuswertung.LadeAsync(_db, today, null, companyProfileId);
+            foreach (var ma in schulStaende)
             {
-                void CheckSchulung(string cat, string schulungName, DateTime? am, int monate)
+                var maName = $"{ma.Vorname} {ma.Nachname}".Trim();
+                foreach (var s in ma.Staende.Where(x => x.Ergebnis.Melden))
                 {
-                    if (!Enabled(cat) || am is null) return;
-                    var bis = DateOnly.FromDateTime(am.Value).AddMonths(monate);
-                    int tage = bis.DayNumber - today.DayNumber;
-                    if (tage > WarnDays(cat, 60)) return;
-                    string phrase = tage < 0 ? $"seit {-tage} Tag(en) abgelaufen"
-                                  : tage == 0 ? "läuft heute ab"
-                                  : $"läuft in {tage} Tag(en) ab";
+                    var r = s.Ergebnis;
+                    var name = s.Typ.Name;
+                    string cat; string title; string sub; string sev; DateOnly? due = null;
+                    switch (r.Zustand)
+                    {
+                        case SchulungStatus.Zustand.LaeuftAb:
+                            cat = "schulung_laeuft_ab";
+                            title = r.TageBis == 0 ? $"{name} läuft heute ab" : $"{name} läuft in {r.TageBis} Tag(en) ab";
+                            sub = $"{name} vom {r.Letzter!.Datum:dd.MM.yyyy}, gültig bis {r.GueltigBis:dd.MM.yyyy}";
+                            sev = Severity(cat, r.TageBis ?? 0, "warning", "critical");
+                            due = r.GueltigBis;
+                            break;
+                        case SchulungStatus.Zustand.Abgelaufen:
+                            cat = "schulung_abgelaufen";
+                            title = $"{name} abgelaufen";
+                            sub = $"{name} vom {r.Letzter!.Datum:dd.MM.yyyy}, gültig bis {r.GueltigBis:dd.MM.yyyy}";
+                            sev = SeverityState(cat, "critical");
+                            due = r.GueltigBis;
+                            break;
+                        case SchulungStatus.Zustand.Fehlt:
+                            cat = "schulung_fehlt";
+                            title = $"{name} fehlt";
+                            sub = r.FaelligAm.HasValue
+                                ? $"fällig war am {r.FaelligAm:dd.MM.yyyy} — im Tab «Verfügbarkeit / Training» erfassen"
+                                : "kein Nachweis erfasst — im Tab «Verfügbarkeit / Training» erfassen";
+                            sev = SeverityState(cat, "critical");
+                            due = r.FaelligAm;
+                            break;
+                        default:
+                            continue;
+                    }
+                    if (!Enabled(cat)) continue;
                     alerts.Add(new DashboardAlert
                     {
                         Category = cat,
-                        Severity = Severity(cat, tage, "warning", "critical"),
-                        Title    = $"Schulung {schulungName} {phrase}",
-                        Subtitle = $"{mg.FirstName} {mg.LastName} · Personalnr. {mg.EmployeeNumber} · "
-                                 + $"{schulungName} vom {am:dd.MM.yyyy}, gültig bis {bis:dd.MM.yyyy}",
-                        DueDate  = bis.ToDateTime(TimeOnly.MinValue),
-                        DaysUntil = tage,
-                        EmployeeId     = mg.Id,
-                        EmployeeNumber = mg.EmployeeNumber,
-                        EmployeeName   = $"{mg.FirstName} {mg.LastName}".Trim(),
+                        Severity = sev,
+                        Title    = title,
+                        Subtitle = $"{maName} · Personalnr. {ma.EmployeeNumber} · {sub}",
+                        DueDate  = due?.ToDateTime(TimeOnly.MinValue),
+                        DaysUntil = r.TageBis,
+                        EmployeeId     = ma.EmployeeId,
+                        EmployeeNumber = ma.EmployeeNumber,
+                        EmployeeName   = maName,
                     });
-                }
-                // Leeres Datum = ebenfalls warnen (Walter 14.08.2026):
-                // ohne Schulungsdatum keine Kontrolle möglich → kritisch.
-                if (mg.SchulungPeakAm is null)
-                {
-                    alerts.Add(new DashboardAlert
-                    {
-                        Category = "schulung_peak",
-                        Severity = Severity("schulung_peak", 0, "warning", "critical"),
-                        Title    = "Schulung Peak-Verifizierung fehlt",
-                        Subtitle = $"{mg.FirstName} {mg.LastName} · Personalnr. {mg.EmployeeNumber} · "
-                                 + "kein Schulungsdatum erfasst — in der Liste «Manager Schulung» (HR → Kontrolle) nachtragen",
-                        EmployeeId     = mg.Id,
-                        EmployeeNumber = mg.EmployeeNumber,
-                        EmployeeName   = $"{mg.FirstName} {mg.LastName}".Trim(),
-                    });
-                }
-                else
-                {
-                    CheckSchulung("schulung_peak", "Peak-Verifizierung", mg.SchulungPeakAm, pkMonate);
                 }
             }
         }

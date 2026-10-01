@@ -842,7 +842,7 @@ function kontrolleDossierRender() {
     const kopf = `<tr>
         <th style="${th};min-width:30px">Nr.</th><th style="${th};min-width:170px">Name/Vorname</th>
         <th style="${th}">Eintritt</th><th style="${th}">Austritt</th>
-        ${spalten.map(s => `<th style="${th}" title="Quelle: ${s.quelle === 'keine' ? 'in OneCrew nicht vorhanden' : s.quelle.replace('feld', 'Feld/Verknüpfung').replace('dokument', 'Dokument-Stichwort')}">${_kEsc(s.label)}</th>`).join('')}
+        ${spalten.map(s => `<th style="${th}" title="Quelle: ${s.quelle === 'keine' ? 'in OneCrew nicht vorhanden' : s.quelle.replace('feld', 'Feld/Verknüpfung').replace('schulung', 'Schulungen (Tab Verfügbarkeit / Training)').replace('dokument', 'Dokument-Stichwort')}">${_kEsc(s.label)}</th>`).join('')}
         <th style="${th}">To-do</th>
     </tr>`;
     const body = zeilen.map((z, n) => {

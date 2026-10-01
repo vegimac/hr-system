@@ -153,6 +153,7 @@ public class DokumentStrukturPdfService
         "andere_weiterbildung" => "Anderes: Weiterbildung",
         "andere_sonstiges"     => "Anderes: Sonstiges",
         "termination"          => "Kündigung",
+        "schulung"             => "Ausbildung / Schulung",
         ""                 => null,
         _                  => code
     };

@@ -1373,7 +1373,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log','aktive-sitzungen',
                          'perioden','elm-meldungen','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','schulung-typen','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
 
 // Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
 // Sidebar-Eintrag «Entwicklung» aktiv und bekommen denselben Zurueck-Button
@@ -1554,7 +1554,8 @@ function showPage(name) {
     if (name === 'akis-meldung' && typeof akisInit === 'function') akisInit();
     if (name === 'manager-dienstplan' && typeof dpInit === 'function') dpInit();
     if (name === 'ferien-planer' && typeof fplInit === 'function') fplInit();
-    if (name === 'manager-schulungen' && typeof msInit === 'function') msInit();
+    if (name === 'schulungen-uebersicht' && typeof schulungUebersichtInit === 'function') schulungUebersichtInit();
+    if (name === 'schulung-typen' && typeof schulungTypenInit === 'function') schulungTypenInit();
     if (name === 'ma-email' && typeof maEmailInit === 'function') maEmailInit();
     if (name === 'ma-eaw' && typeof maEawInit === 'function') maEawInit();
     if (name === 'hr-hub' && typeof hrKandBadge === 'function') hrKandBadge();
@@ -1665,13 +1666,8 @@ function onBranchChange() {
 
     if (currentPageName === 'mitarbeiter') {
         loadMitarbeiterList();
-    } else if (currentPageName === 'manager-schulungen') {
-        // Walter 21.08.2026: beim McAdmin-Einstieg folgt die Liste der
-        // Sidebar-Filiale — Wechsel oben links filtert sofort neu.
-        if (typeof _msVonMcAdmin !== 'undefined' && _msVonMcAdmin) {
-            _msFiliale = currentBranchId ? String(currentBranchId) : '';
-            if (typeof msRender === 'function') msRender();
-        }
+    } else if (currentPageName === 'schulungen-uebersicht') {
+        if (typeof schulungUebersichtInit === 'function') schulungUebersichtInit();
     } else if (currentPageName === 'vertraege') {
         loadVtList();
     } else if (currentPageName === 'lohn') {

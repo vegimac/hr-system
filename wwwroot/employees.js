@@ -1407,7 +1407,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')" style="line-height:1.2;text-align:center">${_t('ma.tab.restAdmin','MA<br>Formulare')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')" style="line-height:1.2;text-align:center">${_t('ma.tab.absencesKtg','Absenzen /<br>KTG/UVG')}</div>
-            <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
+            <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availabilityTraining','Verfügbarkeit /<br>Training')}</div>
             <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
             <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')" style="line-height:1.2;text-align:center">Dokumente /<br>Historie</div>
         </div>
@@ -1517,11 +1517,12 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
-        <!-- TAB: Verfügbarkeit (verfügbare Arbeitszeiten, versioniert) -->
+        <!-- TAB: Verfügbarkeit / Training (Walter 01.10.2026: Training-Block darunter) -->
         <div class="emp-tab-content" id="emp-tab-verfuegbarkeit">
             <div id="verfuegbarkeitContent">
                 <div class="emp-placeholder" style="height:200px">${_t('ma.loading','Wird geladen...')}</div>
             </div>
+            <div id="trainingContent" style="margin-top:22px"></div>
         </div>
 
         <!-- TAB: Zulagen & Abzüge -->
@@ -2530,7 +2531,8 @@ function switchEmpTab(tab) {
         } else if (tab === 'absenzen') {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
         } else if (tab === 'verfuegbarkeit' && !isExcluded) {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="verfNewForm()">${plusIcon} Neue Verfügbarkeit</button>`;
+            tabBar.innerHTML = `<button class="btn-emp-add" onclick="verfNewForm()">${plusIcon} Neue Verfügbarkeit</button>`
+                + `<button class="btn-emp-add" onclick="trOpenErfassen()">${plusIcon} Schulung erfassen</button>`;
         } else if (tab === 'dokumente') {
             // Walter-Vorgabe 09.06.2026: „Dokument hochladen" sitzt jetzt im Doku-
             // Body (rechts in der .dok-list-header-Zeile, auf Höhe des Kategorie-
@@ -2557,6 +2559,7 @@ function switchEmpTab(tab) {
         if (typeof loadKtgTab === 'function') loadKtgTab(selectedEmployeeId);
     }
     if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof loadVerfuegbarkeitTab === 'function') loadVerfuegbarkeitTab(selectedEmployeeId);
+    if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof trLoad === 'function') trLoad(selectedEmployeeId);
     if (tab === 'zulagen'        && selectedEmployeeId) {
         // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
         // teilen sich den neuen „Zulagen & Abzüge"-Tab.

@@ -262,6 +262,12 @@ public class DocumentsController : ControllerBase
         foreach (var wid in weitAgDocIds) AddLink(wid, "Erlaubnis Hauptarbeitgeber");
         foreach (var mid in pregnancyDokIds) AddLink(mid, "Arztbestätigung errechneter Termin");
         foreach (var lid in lohnAbtDokIds) AddLink(lid, "Lohnabtretung / Pfändung");
+        var schulungDocs = await (
+            from s in _db.EmployeeSchulungen.AsNoTracking()
+            join t in _db.SchulungTypen.AsNoTracking() on s.SchulungTypId equals t.Id
+            where s.EmployeeId == employeeId && s.DokumentId != null
+            select new { Id = s.DokumentId!.Value, t.Name, s.Datum }).ToListAsync();
+        foreach (var s in schulungDocs) AddLink(s.Id, $"{s.Name} vom {s.Datum:dd.MM.yyyy}");
 
         // Wer hat abgelegt (Walter 14.08.2026): User-ID → Klarname auflösen.
         var uploaderIds = docs.Where(d => d.HochgeladenVon.HasValue)
@@ -1812,6 +1818,8 @@ public class DocumentsController : ControllerBase
             blockers.Add("Arztbestätigung errechneter Termin (Mutterschaft)");
         if (await _db.EmployeeLohnAssignments.AnyAsync(a => a.DokumentId == id))
             blockers.Add("Lohnabtretung / Pfändung");
+        if (await _db.EmployeeSchulungen.AnyAsync(s => s.DokumentId == id))
+            blockers.Add("Nachweis Schulung / Ausbildung");
 
         if (blockers.Count > 0)
         {
