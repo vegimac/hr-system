@@ -2,318 +2,433 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Swissdec Foundation-Test — Vorführ-Anleitung</title>
+<title>Swissdec Foundation-Test — Handbuch für den Termin</title>
 <style>
-  @page { size: A4; margin: 13mm 14mm 14mm 14mm; }
+  @page { size: A4; margin: 11mm 13mm 11mm 13mm; }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 9.6pt; line-height: 1.38; color: #2f2f2f; margin: 0; }
-  h1 { font-size: 19pt; margin: 0 0 2mm; color: #1a1a1a; }
-  h2 { font-size: 15pt; margin: 0 0 1mm; color: #1a1a1a; }
-  h3 { font-size: 10.5pt; margin: 4mm 0 1.5mm; color: #3f3f3f; }
-  p { margin: 1.2mm 0; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 9.7pt; line-height: 1.36; color: #2f2f2f; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 2mm; color: #1a1a1a; }
+  h2 { font-size: 16pt; margin: 0; color: #1a1a1a; }
+  h3 { font-size: 11pt; margin: 4mm 0 1.5mm; color: #3f3f3f; }
+  p { margin: 1.4mm 0; }
   .kapitel { page-break-before: always; }
-  .kopf { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #3f3f3f; padding-bottom: 1.5mm; margin-bottom: 2.5mm; }
-  .kopf .rechts { font-size: 8.5pt; color: #646464; text-align: right; }
-  .unter { color: #646464; font-size: 9pt; margin-bottom: 2mm; }
-  .pp { border: 1px solid #d6d0c4; border-radius: 5px; padding: 2mm 3mm; margin: 2mm 0; break-inside: avoid; background: #fbfaf7; }
-  .pp-kopf { display: flex; align-items: baseline; gap: 2.5mm; margin-bottom: 1mm; }
-  .pp-kopf .id { font-family: Menlo, monospace; font-weight: 700; font-size: 9.5pt; }
+  .kopf { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #3f3f3f; padding-bottom: 1.5mm; margin-bottom: 3mm; }
+  .kopf .rechts { font-size: 9pt; color: #646464; text-align: right; }
+  .worum { background: #f3f2ee; border-radius: 6px; padding: 2mm 3.2mm; margin: 0 0 2.5mm; }
+  .worum b.t { display: block; font-size: 9pt; color: #646464; text-transform: uppercase; letter-spacing: .04em; margin-bottom: .8mm; }
+  .pp { border: 1px solid #d6d0c4; border-radius: 6px; padding: 1.8mm 3mm; margin: 2mm 0; break-inside: avoid; background: #fbfaf7; }
+  .pp-kopf { display: flex; align-items: baseline; gap: 2.5mm; margin-bottom: 1.2mm; }
+  .pp-kopf .id { font-family: Menlo, monospace; font-weight: 700; font-size: 9.6pt; }
   .pp-kopf .titel { font-weight: 700; flex: 1; }
-  .box { display: inline-block; width: 3.6mm; height: 3.6mm; border: 1.2px solid #3f3f3f; border-radius: 1px; vertical-align: -0.6mm; margin-right: 1mm; }
-  .stand { font-size: 8pt; font-weight: 700; padding: 0.3mm 2mm; border-radius: 3mm; white-space: nowrap; }
-  .ok { background: #e3eee3; color: #36513a; border: 1px solid #b8ccb8; }
-  .offen { background: #fdf1dc; color: #7c5a10; border: 1px solid #f3d9a4; }
-  .expert { background: #e8ecf5; color: #36456b; border: 1px solid #c3cbe0; }
-  .zeile { display: grid; grid-template-columns: 30mm 1fr; gap: 2mm; margin: 0.6mm 0; }
-  .zeile > .lab { color: #646464; font-weight: 600; }
-  .zeile ol, .zeile ul { margin: 0; padding-left: 4.5mm; }
-  .zeile li { margin: 0.2mm 0; }
-  .beleg { font-size: 8.4pt; color: #555; }
-  code, .mono { font-family: Menlo, monospace; font-size: 8.4pt; background: #efece5; padding: 0 1mm; border-radius: 1mm; }
-  .knopf { display: inline-block; font-weight: 700; border: 1px solid #3f3f3f; border-radius: 2.2mm; padding: 0 1.8mm; font-size: 8.6pt; white-space: nowrap; }
+  .box { display: inline-block; width: 3.8mm; height: 3.8mm; border: 1.3px solid #3f3f3f; border-radius: 1px; vertical-align: -0.7mm; margin-right: 1mm; }
+  .ok { font-size: 8.4pt; font-weight: 700; padding: .3mm 2mm; border-radius: 3mm; white-space: nowrap; background: #e3eee3; color: #36513a; border: 1px solid #b8ccb8; }
+  .offen { font-size: 8.4pt; font-weight: 700; padding: .3mm 2mm; border-radius: 3mm; white-space: nowrap; background: #fdf1dc; color: #7c5a10; border: 1px solid #f3d9a4; }
+  .z { display: grid; grid-template-columns: 27mm 1fr; gap: 2mm; margin: .8mm 0; }
+  .z > .lab { color: #646464; font-weight: 700; }
+  .z ol, .z ul { margin: 0; padding-left: 4.5mm; }
+  .z li { margin: .3mm 0; }
+  .sag { background: #eef1ea; border-left: 3px solid #6f8f6a; padding: 1mm 2.5mm; border-radius: 0 4px 4px 0; font-style: italic; }
+  .beleg { font-size: 8.4pt; color: #6b6b6b; }
+  code, .mono { font-family: Menlo, monospace; font-size: 8.6pt; background: #efece5; padding: 0 1mm; border-radius: 1mm; }
+  .knopf { display: inline-block; font-weight: 700; border: 1px solid #3f3f3f; border-radius: 2.4mm; padding: 0 1.9mm; font-size: 9pt; white-space: nowrap; }
   .rot { color: #991b1b; font-weight: 600; }
   .gruen { color: #2f5a34; font-weight: 600; }
-  .hinweis { border-left: 3px solid #d9a441; background: #fdf6e7; padding: 1.5mm 3mm; margin: 2mm 0; break-inside: avoid; }
-  .info { border-left: 3px solid #6b7280; background: #f3f2ee; padding: 1.5mm 3mm; margin: 2mm 0; break-inside: avoid; }
+  .hinweis { border-left: 3px solid #d9a441; background: #fdf6e7; padding: 1.8mm 3mm; margin: 2.5mm 0; break-inside: avoid; }
+  .info { border-left: 3px solid #6b7280; background: #f3f2ee; padding: 1.8mm 3mm; margin: 2.5mm 0; break-inside: avoid; }
   table { border-collapse: collapse; width: 100%; margin: 1.5mm 0; }
-  th, td { border: 1px solid #d6d0c4; padding: 1mm 2mm; text-align: left; vertical-align: top; }
-  th { background: #efece5; font-size: 8.8pt; }
-  .klein { font-size: 8.4pt; color: #646464; }
-  .check li { list-style: none; margin: 1mm 0; }
+  th, td { border: 1px solid #d6d0c4; padding: .9mm 2mm; text-align: left; vertical-align: top; }
+  th { background: #efece5; font-size: 9.2pt; }
+  .klein { font-size: 8.8pt; color: #646464; }
   .check { padding-left: 0; }
-  .notiz { border-bottom: 1px solid #bbb; height: 7mm; }
+  .check li { list-style: none; margin: 1.4mm 0; }
+  .notiz { border-bottom: 1px solid #bbb; height: 7.5mm; }
+  .wb td:first-child { font-weight: 700; width: 38mm; }
+  pre { font-family: Menlo, monospace; font-size: 8.6pt; background: #efece5; padding: 2mm 3mm; border-radius: 4px; margin: 1mm 0; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 
 <!-- ═════════════════════════════ DECKBLATT ═════════════════════════════ -->
 <section>
-  <div class="kopf"><h1>Swissdec Foundation-Test<br>Vorführ-Anleitung für den Termin mit itserv</h1>
-    <div class="rechts">OneCrew · Schaub Restaurants GmbH<br>ELM 6.0 · Testinstanz test.onecrew.ch<br>Stand 30.09.2026</div></div>
+  <div class="kopf"><h1>Swissdec Foundation-Test<br>Handbuch für den Termin mit itserv</h1>
+    <div class="rechts">OneCrew · Schaub Restaurants GmbH<br>ELM 6.0 · Testinstanz test.onecrew.ch<br>Stand 02.10.2026</div></div>
+
+  <div class="worum"><b class="t">Worum es bei diesem Test geht</b>
+    Lohnprogramme schicken Lohndaten elektronisch an AHV, Versicherungen und Steuerämter. Dazwischen steht eine
+    «Poststelle» von Swissdec (der <b>Distributor</b>). Im Foundation-Test prüft die Expertin von itserv, ob OneCrew
+    korrekt mit dieser Poststelle redet: Briefe richtig adressieren, versiegeln, Antworten prüfen, Fehler verständlich anzeigen.
+    <b>Um Lohnbeträge geht es hier nicht.</b></div>
 
   <table>
-    <tr><th style="width:38mm">Stand Quality Tool</th><td><b>76 von 90</b> Prüfungen auf Success (von uns vorgeprobt, der Experte bestätigt im Termin).</td></tr>
-    <tr><th>Noch offen (14)</th><td>F05_07 · F06_01 · F07_04 (3 Prüfungen) · F08_04 · F08_05 · F08_06 · F08_07 (3) · F08_08 (3)</td></tr>
-    <tr><th>Offene Fragen</th><td>Letzte Seite — dort stehen die Punkte, bei denen wir die Einstellung von itserv brauchen.</td></tr>
+    <tr><th style="width:40mm">Stand</th><td><b>87 von 90 Prüfungen erledigt</b> (im Swissdec-Werkzeug auf «Success»). Die Expertin bestätigt sie im Termin.</td></tr>
+    <tr><th>Noch offen</th><td><b>F07_04</b> (3 Prüfungen): Dafür gibt es im Test-Empfänger keine Einstellung. Das klärt die Expertin (letzte Seite).</td></tr>
+    <tr><th>Wichtigstes Datum</th><td>Das Test-Zertifikat («SUA-Zertifikat») läuft am <b>09.10.2026</b> ab. Termin am besten vorher.</td></tr>
   </table>
 
-  <h3>Vor dem Termin (am selben Tag)</h3>
+  <h3>Drei Grundregeln</h3>
+  <ol>
+    <li><b>Jeden Knopf nur einmal drücken.</b> Solange OneCrew arbeitet, sind alle Knöpfe grau. Warten, bis das Ergebnis da ist.</li>
+    <li><b>Rot ist oft richtig.</b> Viele Prüfungen testen absichtlich einen Fehler. Dann muss OneCrew rot anzeigen, und genau das will die Expertin sehen.</li>
+    <li><b>Du musst nichts erklären können.</b> Bei jedem Punkt steht unter «Du sagst» ein Satz zum Vorlesen. Fragt die Expertin tiefer nach, sagst du: <i>«Das schauen wir im Protokoll nach»</i>, und zeigst das Archiv (Seite F04).</li>
+  </ol>
+
+  <h3>So ist jede Seite aufgebaut</h3>
+  <table>
+    <tr><th style="width:40mm">Worum es geht</th><td>Ein Alltagsvergleich, damit du weisst, was geprüft wird.</td></tr>
+    <tr><th>itserv stellt ein</th><td>Was die Expertin (oder du auf Zuruf) im Test-Empfänger umstellt. «Nichts» = nichts tun.</td></tr>
+    <tr><th>Du klickst</th><td>Die Knöpfe in OneCrew, in dieser Reihenfolge.</td></tr>
+    <tr><th>Du siehst</th><td>Was auf dem Bildschirm erscheinen muss. Stimmt es, Häkchen <span class="box"></span> setzen.</td></tr>
+    <tr><th>Du sagst</th><td><span class="sag">Ein Satz zum Vorlesen.</span></td></tr>
+  </table>
+</section>
+
+<!-- ═════════════════════════════ VORBEREITUNG ═════════════════════════════ -->
+<section class="kapitel">
+  <div class="kopf"><h2>Vorbereitung und Ablauf</h2><div class="rechts">am Tag des Termins, ca. 15 Minuten vorher</div></div>
+
+  <h3>Vorher erledigen</h3>
   <ul class="check">
-    <li><span class="box"></span><b>SUA-Zertifikat gültig bis 09.10.2026.</b> Liegt der Termin danach: vorher F07_07 «Erneuern».</li>
-    <li><span class="box"></span>Letzter Deploy gemacht, im Browser Hard-Reload (Cmd+Shift+R), Zoom 100 % (Cmd+0).</li>
-    <li><span class="box"></span>Anmelden auf <b>test.onecrew.ch</b> (walter.schaub@gmail.com).</li>
-    <li><span class="box"></span><b>Entwicklung → Swissdec → Kachel «Kommunikations-Test»</b> öffnen.</li>
-    <li><span class="box"></span>Reiter <b>«✅ Bereitschaft»</b> → <span class="knopf">Bereitschaft prüfen</span> → alles grün (Zertifikate, MonitoringID, Archiv, Ping, CheckInterop).</li>
-    <li><span class="box"></span>Refapps Receiver → «Einstellungen» (Login <span class="mono">schaub</span>): <b>alles auf Standard</b> — keine «Force Errors», «Encryption/Signature Enabled on Response» ein, bei ELM 6.x · UVG-LAA · 1234 «RegisterOrganizationAuthentication = RegisterVerification».</li>
-    <li><span class="box"></span>Quality Tool in einem zweiten Fenster offen. Bildschirm teilen.</li>
+    <li><span class="box"></span>Im Browser <b>test.onecrew.ch</b> öffnen und anmelden (walter.schaub@gmail.com). Einmal <b>Cmd+Shift+R</b> drücken (neu laden), Zoom auf 100 % (<b>Cmd+0</b>).</li>
+    <li><span class="box"></span>Links <b>Entwicklung → Swissdec → Kachel «Kommunikations-Test»</b> öffnen.</li>
+    <li><span class="box"></span>Oben Reiter <b>«✅ Bereitschaft»</b> → <span class="knopf">Bereitschaft prüfen</span>. Alles muss grün sein. Ist etwas orange oder rot, steht daneben, was zu tun ist.</li>
+    <li><span class="box"></span>In einem zweiten Fenster den <b>Refapps Receiver</b> öffnen (das ist der Test-Empfänger, Login <span class="mono">schaub</span>) → «Einstellungen». Alles auf Standard:
+      <ul>
+        <li>keine «Force Errors» angehakt, «Encryption / Signature Enabled on Response» <b>ein</b></li>
+        <li>Zeile «Reference Receiver · AHV-AVS · 046.000»: aktiv, alle Auswahllisten auf <b>DeclareResult</b></li>
+        <li>Zeile «Reference Receiver · UVG-LAA · 1234»: RegisterOrganizationAuthentication = <b>RegisterVerification</b>, Delay <b>0</b></li>
+      </ul></li>
+    <li><span class="box"></span>In einem dritten Fenster das <b>Quality Tool</b> (Swissdec-Werkzeug mit den 90 Prüfungen) offen haben.</li>
+    <li><span class="box"></span>Bildschirm teilen, dieses Handbuch ausgedruckt neben dir.</li>
   </ul>
 
   <h3>So läuft jeder Prüfpunkt</h3>
   <ol>
-    <li>Oben den Reiter <b>F01 … F08</b> wählen, links den <b>Prüfpunkt</b> anklicken.</li>
-    <li><b>Schritt ① — Einstellung:</b> itserv stellt im Swissdec-Werkzeug ein (oder du auf Zuruf im Refapps Receiver → «Einstellungen»). Warten, bis itserv «ist eingestellt» sagt.</li>
-    <li><b>Schritt ② — Auslösen:</b> den Knopf in OneCrew <b>einmal</b> drücken. Solange die Anfrage läuft, sind alle Knöpfe grau — nicht nochmals klicken.</li>
-    <li><b>Schritt ③ — Vergleichen:</b> das Ergebnis mit «Es muss erscheinen» auf dieser Anleitung vergleichen und dem Experten zeigen.</li>
-    <li><b>Bewerten:</b> in OneCrew die Bewertung setzen; im Quality Tool Stift → Success (+ Kommentar), wenn der Experte einverstanden ist.</li>
+    <li>In OneCrew oben den Reiter <b>F01 … F08</b> wählen, links den <b>Prüfpunkt</b> anklicken. Rechts erscheinen drei Schritte: ① Einstellung, ② Knopf, ③ was erscheinen muss.</li>
+    <li><b>Einstellung:</b> Die Expertin stellt um oder sagt dir, was du im Refapps Receiver umstellen sollst. Warten, bis sie «ist eingestellt» sagt.</li>
+    <li><b>Knopf drücken</b>, einmal.</li>
+    <li><b>Vergleichen</b> mit «Du siehst» in diesem Handbuch und der Expertin zeigen.</li>
     <li><b>Zurückstellen:</b> Einstellung im Receiver wieder auf Standard, <b>bevor</b> der nächste Punkt kommt.</li>
   </ol>
 
-  <div class="info"><b>Belege zeigen:</b> Reiter <b>«Archiv»</b> = jede Anfrage und Antwort, signiert und unverschlüsselt.
-  Bei Meldungen (F05/F08) zusätzlich im Fall unter «ÜBERMITTLUNGEN» → <b>«Protokoll»</b> → pro Schritt die Knöpfe <span class="knopf">Anfrage</span> <span class="knopf">Antwort</span>.
-  Im Ergebnis gibt es ausserdem «Gesendete Anfrage (lesbar, vor der Verschlüsselung)».</div>
+  <div class="info"><b>Wenn die Expertin einen Beleg sehen will</b>, statt neu durchzuspielen: Reiter <b>«Archiv»</b> (oben neben F01–F08). Dort liegt jede
+  Anfrage und jede Antwort als Datei, lesbar. Bei Meldungen (F05, F08) zusätzlich im Fall unter «Übermittlungen» → <b>«Protokoll»</b> →
+  Knöpfe <span class="knopf">Anfrage</span> <span class="knopf">Antwort</span>.</div>
 
-  <h3>Legende</h3>
-  <p><span class="stand ok">✅ Success</span> im Quality Tool gesetzt, von uns vorgeprobt (Datum/Beleg steht dabei) — wenn itserv nicht neu durchspielen will, reicht «Beleg zeigen».<br>
-  <span class="stand offen">⏳ offen</span> noch nicht gesetzt — im Termin durchspielen.<br>
-  <span class="stand expert">Experte</span> CHECKED_BY_EXPERT — der Experte beurteilt selbst.<br>
-  <span class="box"></span> zum Abhaken während des Termins.</p>
+  <div class="hinweis"><b>Liste «Übermittlungen» (F05–F08):</b> Der neueste Fall steht immer oben und ist aufgeklappt.
+  Alle älteren liegen zugeklappt unter «Ältere Übermittlungen (n) anzeigen». Für die Vorführung immer den <b>obersten</b> Fall nehmen.</div>
+
+  <h3>Wenn etwas nicht klappt</h3>
+  <table>
+    <tr><th style="width:62mm">Es passiert …</th><th>Du machst / sagst</th></tr>
+    <tr><td>Es kommt rot, obwohl grün erwartet</td><td>Einstellung im Receiver prüfen: Ist noch etwas vom letzten Punkt angehakt? Zurückstellen, nochmals drücken.</td></tr>
+    <tr><td>«Endempfänger nicht erreichbar» / Zeitüberschreitung</td><td>Im Receiver «Delay» auf 0 prüfen. Sonst: <span class="sag">«Der Test-Empfänger antwortet gerade nicht, ich versuche es nochmals.»</span></td></tr>
+    <tr><td>Expertin fragt etwas Technisches</td><td><span class="sag">«Das ist im Protokoll dokumentiert, ich zeige Ihnen die Datei.»</span> → Archiv.</td></tr>
+    <tr><td>Du weisst nicht, ob es stimmt</td><td><span class="sag">«Passt das so für Sie?»</span> — die Expertin entscheidet ohnehin selbst.</td></tr>
+  </table>
+</section>
+
+<!-- ═════════════════════════════ WÖRTERBUCH ═════════════════════════════ -->
+<section class="kapitel">
+  <div class="kopf"><h2>Kleines Wörterbuch</h2><div class="rechts">Wörter, die im Termin fallen können</div></div>
+  <p>Du musst keines davon erklären können. Die Liste hilft nur, damit dich kein Wort überrascht.</p>
+
+  <table class="wb">
+    <tr><th>Wort</th><th>Bedeutet einfach</th></tr>
+    <tr><td>Transmitter (TX)</td><td>Das Sendersystem, also <b>OneCrew</b>.</td></tr>
+    <tr><td>Distributor</td><td>Die zentrale <b>Poststelle</b> von Swissdec. Nimmt Meldungen an und verteilt sie.</td></tr>
+    <tr><td>Receiver / Empfänger</td><td>Wer die Meldung am Ende bekommt: AHV-Kasse (046.000), Unfallversicherung (1234), Steueramt (BE, TI, VD), Statistik.</td></tr>
+    <tr><td>Refapps Receiver</td><td>Der <b>Test-Empfänger</b> von Swissdec. Dort stellt man ein, wie er antworten soll (auch absichtlich falsch).</td></tr>
+    <tr><td>Quality Tool</td><td>Das Swissdec-Werkzeug mit der Liste der 90 Prüfungen, wo «Success» eingetragen wird.</td></tr>
+    <tr><td>Ping</td><td>«Hallo, bist du da?» — die einfachste Anfrage.</td></tr>
+    <tr><td>TLS / https</td><td>Die Leitung ist abhörsicher (wie beim E-Banking).</td></tr>
+    <tr><td>Verschlüsselung</td><td>Der Brief ist in einem <b>verschlossenen Umschlag</b>, nur der Empfänger kann ihn öffnen.</td></tr>
+    <tr><td>Signatur</td><td>Ein <b>Siegel / eine Unterschrift</b>: zeigt, wer den Brief geschickt hat und dass niemand etwas verändert hat.</td></tr>
+    <tr><td>Zertifikat</td><td>Ein <b>elektronischer Ausweis</b>, mit dem man siegelt.</td></tr>
+    <tr><td>ERP-Zertifikat</td><td>Der Ausweis von <b>OneCrew</b> als Programm.</td></tr>
+    <tr><td>SUA-Zertifikat</td><td>Der Ausweis der <b>Firma</b> (hier Muster AG). Man beantragt ihn, bekommt ein Passwort und lässt ihn ausstellen.</td></tr>
+    <tr><td>doppelt signiert</td><td>Zwei Siegel auf einem Brief: das von OneCrew und das der Firma.</td></tr>
+    <tr><td>SignatureConfirmation</td><td>Die <b>Empfangsbestätigung</b>: Der Empfänger bestätigt, welches Siegel er gesehen hat.</td></tr>
+    <tr><td>SOAP-Fault / Fault</td><td>Eine <b>Fehlermeldung</b> des Empfängers.</td></tr>
+    <tr><td>CheckInteroperability</td><td>Ein <b>Rechentest</b>: OneCrew schickt Zahlen und Umlaute, der Empfänger rechnet und schickt zurück. Stimmt alles, verstehen sich beide.</td></tr>
+    <tr><td>Archiv</td><td>Die <b>Ablage</b> aller gesendeten und empfangenen Briefe, lesbar.</td></tr>
+    <tr><td>Declare / Meldung</td><td>Das Senden einer Lohnmeldung (Monat oder Jahr).</td></tr>
+    <tr><td>Adressat</td><td>Ein Empfänger einer Meldung. Eine Meldung kann mehrere haben.</td></tr>
+    <tr><td>JobKey</td><td>Die <b>Abholnummer</b>: Damit fragt OneCrew später nach, ob alles angekommen ist («Status abfragen»).</td></tr>
+    <tr><td>DeclarationID</td><td>Die <b>Aktennummer</b> einer Meldung.</td></tr>
+    <tr><td>RequestID</td><td>Die <b>Briefnummer</b>. Jeder Brief bekommt eine neue, nie doppelt.</td></tr>
+    <tr><td>TestCase</td><td>Stempel <b>«Nur Test»</b> — nichts davon gilt echt.</td></tr>
+    <tr><td>Synchronisieren</td><td>«Gibt es Neuigkeiten zu dieser Meldung?» — holt Antworten ab und bestätigt Erhaltenes.</td></tr>
+    <tr><td>Story</td><td>Eine einzelne <b>Nachricht</b> innerhalb einer Meldung (z.B. Quittung, Rückfrage).</td></tr>
+    <tr><td>quittieren</td><td>Bestätigen: «Diese Nachricht habe ich bekommen.»</td></tr>
+    <tr><td>Dialog / DialogMessage</td><td>Eine <b>Rückfrage</b> des Empfängers, manchmal mit Feldern zum Ausfüllen.</td></tr>
+    <tr><td>Completion</td><td>Ein Link, über den die Meldung beim Empfänger freigegeben wird.</td></tr>
+    <tr><td>Plausibilität</td><td>«Kann das stimmen?» — z.B. niemand ist über 100 Jahre alt.</td></tr>
+  </table>
 </section>
 
 <!-- ═════════════════════════════ F01 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F01 — Verbindung</h2><div class="rechts">6 Prüfungen · alle ✅<br>vom Experten bestätigt 24.09.2026</div></div>
-  <p class="unter">Reiter <b>F01</b>. Ping ist die einzige Anfrage ohne Signatur und Verschlüsselung.</p>
+  <div class="kopf"><h2>F01 — Verbindung</h2><div class="rechts">6 Prüfungen · alle erledigt<br>Reiter «F01»</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    Kommt OneCrew bei der richtigen Poststelle an, und merkt es, wenn deren Uhr falsch geht? Vergleich: Telefonnummer richtig gewählt, und man hört «Hallo».</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F01_01</span><span class="titel">Adressierung — URL nur für Berechtigte</span><span class="stand ok">✅ 24.09.2026</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span>keine</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span><span class="knopf">Einrichtung zeigen</span> (Reiter «Einrichtung», Karte Verbindung).</span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span>Ziel «Refapps Receiver (Testinfrastruktur)». Sagen: Die Endpoint-URL ändert nur der Super-Admin, die Seite liegt im Bereich «Entwicklung», der Server prüft das bei jedem Aufruf; gesendet wird nur an die hinterlegten Swissdec-Endpunkte über https.</span></div>
-  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F01_01</span><span class="titel">Richtige Adresse, nicht frei änderbar</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>Nichts.</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Reiter «Einrichtung» → Karte «Verbindung» zeigen.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>Ziel «Refapps Receiver (Testinfrastruktur)» mit https-Adresse.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Die Adresse ist fest hinterlegt. Ändern kann sie nur der Super-Admin, normale Benutzer kommen gar nicht in diesen Bereich.»</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F01_02</span><span class="titel">Ping — Erfolgsmeldung</span><span class="stand ok">✅ 24.09.2026</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span>keine</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span><span class="knopf">Ping senden</span></span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span class="gruen">Grün «Antwort erhalten», HTTP 200, Systemzeit stimmt überein.</span></div>
-  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F01_02</span><span class="titel">Ping — die Poststelle antwortet</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>Nichts.</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span><span class="knopf">Ping senden</span></span></div>
+    <div class="z"><span class="lab">Du siehst</span><span class="gruen">Grün «Antwort erhalten», Systemzeit stimmt überein.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Die Poststelle ist erreichbar, OneCrew zeigt das grün an.»</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F01_03</span><span class="titel">Ping mit falscher Systemzeit</span><span class="stand ok">✅ 24.09.2026</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span>«<b>Fake Ping Time</b>» einschalten (Distributor meldet eine falsche Zeit).</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span><span class="knopf">Ping senden</span> · zusätzlich möglich: <span class="knopf">Ping mit eigener Uhr +120 s (Simulation)</span></span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span class="rot">Rot «Systemzeit weicht ab» mit der Differenz (Grenze 1 Minute).</span></div>
-    <div class="zeile"><span class="lab">Danach</span><span>«Fake Ping Time» wieder aus.</span></div>
-  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F01_03</span><span class="titel">Ping mit falscher Uhrzeit</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>«<b>Fake Ping Time</b>» ein (die Poststelle meldet absichtlich eine falsche Uhrzeit).</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span><span class="knopf">Ping senden</span></span></div>
+    <div class="z"><span class="lab">Du siehst</span><span class="rot">Rot «Systemzeit weicht ab» mit der Differenz (erlaubt ist 1 Minute).</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«OneCrew merkt, dass die Uhren mehr als eine Minute auseinanderliegen, und zeigt das als Fehler.»</span></div>
+    <div class="z"><span class="lab">Danach</span><span>«Fake Ping Time» wieder aus.</span></div></div>
 </section>
 
 <!-- ═════════════════════════════ F02 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F02 — Sicherheit</h2><div class="rechts">27 Prüfungen · alle ✅<br>Generalprobe 29.09.2026, 20:30–21:05</div></div>
-  <p class="unter">Reiter <b>F02</b>. Knopf ist überall <span class="knopf">CheckInteroperability senden</span>. Bei allen Fehlerfällen steht oben rot <b>«✗ Antwort abgelehnt (WS-Security)»</b>, darunter der Grund.
-  <b>Nach jedem Fehlerfall die Einstellung wieder zurückstellen.</b></p>
+  <div class="kopf"><h2>F02 — Sicherheit</h2><div class="rechts">27 Prüfungen · alle erledigt<br>Reiter «F02» · Probe 29.09.2026</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    Briefe gehen nur <b>versiegelt</b> und im <b>verschlossenen Umschlag</b> raus. Kommt eine Antwort zurück, die aufgerissen, falsch gesiegelt
+    oder offen ist, muss OneCrew das merken und <b>rot</b> anzeigen. Die Expertin manipuliert dafür absichtlich die Antworten.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F02_01</span><span class="titel">Transportsicherheit (TLS)</span><span class="stand ok">✅ 24.09.2026</span></div>
-    <div class="zeile"><span class="lab">① / ③</span><span>keine Einstellung → Block «🔒 Verbindung verschlüsselt — TLS 1.2/1.3» mit Chiffre und Serverzertifikat.</span></div></div>
+  <div class="info">Bei <b>allen</b> Punkten auf dieser Seite ist der Knopf derselbe: <span class="knopf">CheckInteroperability senden</span>.
+  <b>Nach jedem Punkt die Einstellung zurückstellen.</b></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F02_02</span><span class="titel">Request-Nutzdaten verschlüsselt</span><span class="stand ok">✅ 29.09.2026</span></div>
-    <div class="zeile"><span class="lab">① / ③</span><span>keine Einstellung → Distributor nimmt an. «Gesendete Anfrage (wie verschickt, verschlüsselt)» aufklappen: <code>EncryptedData</code> im Body. Danach <span class="knopf">Archiv öffnen</span>: dort liegt dieselbe Anfrage unverschlüsselt.</span></div></div>
-
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F02_05</span><span class="titel">Request signiert</span><span class="stand ok">✅ 29.09.2026</span></div>
-    <div class="zeile"><span class="lab">① / ③</span><span>keine Einstellung → angenommen. «Gesendete Anfrage (lesbar)» bzw. Archiv: <code>ds:Signature</code> über Timestamp und Body (rsa-sha256), bei SUA zwei Signaturen.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F02_01 · 02 · 05</span><span class="titel">Normalfall: Leitung sicher, Brief verschlossen und versiegelt</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>Nichts.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span class="gruen">Grün. Block «🔒 Verbindung verschlüsselt — TLS». «Gesendete Anfrage (wie verschickt)» zeigt einen unlesbaren, verschlüsselten Teil.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Jede Anfrage ausser Ping geht verschlüsselt und signiert raus. Im Archiv liegt dieselbe Anfrage lesbar.»</span></div></div>
 
   <table>
-    <tr><th style="width:15mm">Punkt</th><th style="width:62mm">① itserv stellt ein</th><th>③ Es muss erscheinen (rot)</th><th style="width:8mm"></th></tr>
-    <tr><td><b>F02_03</b></td><td>Force Errors → «Tamper Encryption» ein</td><td>«WS-Security: Die Antwort konnte nicht entschlüsselt werden»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F02_04</b></td><td>Security Settings → «Encryption Enabled on Response» <b>aus</b></td><td>«WS-Security: Die Antwort kam unverschlüsselt»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F02_06</b></td><td>Force Errors → «Tamper Signature» ein</td><td>«WS-Security: Die Signatur der Antwort ist ungültig»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F02_07</b></td><td>Security Settings → «Signature Enabled on Response» <b>aus</b></td><td>«WS-Security: Die Antwort ist nicht signiert»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F02_08</b></td><td>Force Errors → «Use unknown Key for Response Signature» ein</td><td>«Das Zertifikat der Antwort ist nicht vertrauenswürdig» (signiert von «Distributor Test Fake», Fake Issuer CA — nicht auf der Vertrauensliste). Kein grüner Interop-Block.</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F02_09</b></td><td>Force Errors → «Throw SOAP Fault» ein</td><td>WS-Security <span class="gruen">grün</span>, darunter rot «Abgewiesen — soap:Server · Unexpected service error occurred» im Klartext.</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F02_10</b></td><td>«Throw SOAP Fault» ein <b>und</b> «Signature Enabled on Response» aus</td><td>Warnung «Die Antwort ist nicht signiert», darunter trotzdem rot «Abgewiesen» mit Fault-Code und Text.</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F02_11</b></td><td>«Throw SOAP Fault» <b>und</b> «Tamper Signature» ein</td><td>«Die Signatur der Antwort ist ungültig». Der Fault erscheint nur <b>grau durchgestrichen</b> als «zurückgewiesen» — keine rote Ablehnung (Fault mit ungültiger Signatur wird verworfen).</td><td><span class="box"></span></td></tr>
+    <tr><th style="width:17mm">Punkt</th><th style="width:58mm">itserv stellt ein</th><th>Du siehst (rot)</th><th style="width:8mm"></th></tr>
+    <tr><td><b>F02_03</b></td><td>«Tamper Encryption» ein<br><span class="klein">Umschlag beschädigt</span></td><td>«Die Antwort konnte nicht entschlüsselt werden»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F02_04</b></td><td>«Encryption Enabled on Response» <b>aus</b><br><span class="klein">Antwort ohne Umschlag</span></td><td>«Die Antwort kam unverschlüsselt»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F02_06</b></td><td>«Tamper Signature» ein<br><span class="klein">Siegel gefälscht</span></td><td>«Die Signatur der Antwort ist ungültig»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F02_07</b></td><td>«Signature Enabled on Response» <b>aus</b><br><span class="klein">Antwort ohne Siegel</span></td><td>«Die Antwort ist nicht signiert»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F02_08</b></td><td>«Use unknown Key for Response Signature» ein<br><span class="klein">fremder Ausweis</span></td><td>«Das Zertifikat der Antwort ist nicht vertrauenswürdig» (Distributor Test Fake)</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F02_09</b></td><td>«Throw SOAP Fault» ein<br><span class="klein">echte Fehlermeldung, korrekt gesiegelt</span></td><td>Siegel <span class="gruen">grün</span>, darunter rot «Abgewiesen — soap:Server · Unexpected service error occurred»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F02_10</b></td><td>«Throw SOAP Fault» ein <b>und</b> «Signature Enabled on Response» aus<br><span class="klein">Fehlermeldung ohne Siegel</span></td><td>Warnung «nicht signiert», darunter trotzdem rot «Abgewiesen» mit Text</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F02_11</b></td><td>«Throw SOAP Fault» <b>und</b> «Tamper Signature» ein<br><span class="klein">Fehlermeldung mit gefälschtem Siegel</span></td><td>«Signatur ungültig». Die Fehlermeldung erscheint nur <b>grau durchgestrichen</b> als «zurückgewiesen»</td><td><span class="box"></span></td></tr>
   </table>
-  <div class="hinweis">Nach F02_10 und F02_11 <b>beide</b> Häkchen zurückstellen. Zum Schluss einmal CheckInterop ohne Einstellung: muss wieder grün sein.</div>
+
+  <div class="z"><span class="lab">Du sagst</span><span class="sag">«OneCrew traut keiner Antwort, deren Umschlag oder Siegel nicht stimmt, und zeigt den Grund im Klartext an.»</span></div>
+  <div class="hinweis">Nach F02_10 und F02_11 <b>beide</b> Häkchen zurück. Zum Schluss einmal ohne Einstellung senden: muss wieder grün sein.</div>
 </section>
 
 <!-- ═════════════════════════════ F03 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F03 — Interoperabilität</h2><div class="rechts">12 Prüfungen · alle ✅<br>29.09.2026</div></div>
-  <p class="unter">Reiter <b>F03</b>. Anfrage enthält fest Operand 1 = <code>9.99E11</code> und UmlautString <code>ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ</code>; die Antwort muss die Kleinbuchstaben und die richtige Rechnung liefern.</p>
+  <div class="kopf"><h2>F03 — Interoperabilität (Rechentest)</h2><div class="rechts">12 Prüfungen · alle erledigt<br>Reiter «F03» · Probe 29.09.2026</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    Verstehen sich OneCrew und die Poststelle? OneCrew schickt zwei Zahlen und ein Wort mit Umlauten (ÄËÖÜ…). Die Poststelle rechnet plus und minus
+    und schickt die Umlaute klein zurück. OneCrew prüft, ob alles stimmt.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_01</span><span class="titel">CheckInterop senden und anzeigen</span><span class="stand ok">✅ 29.09.2026</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span><span class="knopf">CheckInteroperability senden</span></span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span class="gruen">Grün «Interoperabilität bestätigt» mit Umlauten, Addition und Subtraktion.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_01</span><span class="titel">Rechentest senden</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>Nichts.</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span><span class="knopf">CheckInteroperability senden</span></span></div>
+    <div class="z"><span class="lab">Du siehst</span><span class="gruen">Grün «Interoperabilität bestätigt» mit Umlauten, Plus- und Minus-Rechnung.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Alle Werte kommen richtig zurück, OneCrew bestätigt das grün.»</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_02</span><span class="titel">Zweiter Operand 0.01 / 0.00 / −999'000'000'000.00</span><span class="stand ok">✅ 29.09.2026</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span>nacheinander <span class="knopf">mit 0.01</span> <span class="knopf">mit 0.00</span> <span class="knopf">mit −999'000'000'000.00</span></span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span>jedes Mal grün «Interoperabilität bestätigt», Addition und Subtraktion stimmen.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_02</span><span class="titel">Mit verschiedenen Zahlen</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>nacheinander <span class="knopf">mit 0.01</span> <span class="knopf">mit 0.00</span> <span class="knopf">mit −999'000'000'000.00</span></span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>Jedes Mal grün «Interoperabilität bestätigt».</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_03</span><span class="titel">Immer zwei Nachkommastellen</span><span class="stand ok">✅ 29.09.2026</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span><span class="knopf">Einrichtung öffnen (Feld «2. Operand»)</span> → <b>5</b> eintippen → Feld verlassen → CheckInterop senden.</span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span>Feld zeigt <b>5.00</b>; im grünen Block «Gesendet: … 2. Operand 5.00».</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_03</span><span class="titel">Immer zwei Stellen nach dem Komma</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span><span class="knopf">Einrichtung öffnen (Feld «2. Operand»)</span> → <b>5</b> eintippen → ins nächste Feld klicken → CheckInteroperability senden.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>Das Feld zeigt von selbst <b>5.00</b>; im grünen Ergebnis «2. Operand 5.00».</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Eine Zahl ohne Kommastellen ergänzt OneCrew automatisch auf zwei Stellen.»</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_04</span><span class="titel">Manipulierter UmlautString</span><span class="stand ok">✅ 29.09.2026</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span>Distributor Operations Responses → «<b>Tamper Check Interoperability Encoding</b>» ein</span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span class="rot">Rot «Interoperabilität nicht bestätigt» mit der Abweichung bei den Umlauten.</span></div>
-    <div class="zeile"><span class="lab">Danach</span><span>Einstellung aus.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_04</span><span class="titel">Umlaute absichtlich verfälscht</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>«<b>Tamper Check Interoperability Encoding</b>» ein</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span class="rot">Rot «Interoperabilität nicht bestätigt», Umlaute verfälscht.</span></div>
+    <div class="z"><span class="lab">Danach</span><span>Einstellung aus.</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_05</span><span class="titel">Manipulierter FirstOperand</span><span class="stand ok">✅ 29.09.2026</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span>Distributor Operations Responses → «<b>Tamper Check Interoperability Result</b>» ein</span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span class="rot">Rot «Interoperabilität nicht bestätigt» mit der Abweichung beim Rechenergebnis.</span></div>
-    <div class="zeile"><span class="lab">Danach</span><span>Einstellung aus.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F03_05</span><span class="titel">Rechnung absichtlich verfälscht</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>«<b>Tamper Check Interoperability Result</b>» ein</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span class="rot">Rot «Interoperabilität nicht bestätigt», Rechenergebnis falsch.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Stimmt auch nur ein Wert nicht, bestätigt OneCrew die Verbindung nicht.»</span></div>
+    <div class="z"><span class="lab">Danach</span><span>Einstellung aus.</span></div></div>
 </section>
 
 <!-- ═════════════════════════════ F04 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F04 — Archivierung</h2><div class="rechts">3 Prüfungen · alle ✅</div></div>
-  <p class="unter">Reiter <b>«Archiv»</b> (oben neben den Reitern F01–F08) oder im Prüfpunkt <span class="knopf">Archiv öffnen</span>.</p>
+  <div class="kopf"><h2>F04 — Archiv</h2><div class="rechts">3 Prüfungen · alle erledigt<br>Reiter «Archiv»</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    Jeder gesendete und empfangene Brief muss aufbewahrt werden: <b>mit Siegel</b> (damit man später beweisen kann, wer was geschickt hat),
+    aber <b>ohne Umschlag</b> (damit man ihn lesen kann).</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F04_01</span><span class="titel">Requests und Responses signiert und unverschlüsselt archiviert (1 + 2)</span><span class="stand ok">✅</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span>Archiv öffnen, eine Anfrage und die zugehörige Antwort anklicken.</span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span>Jede Anfrage und Antwort als eigene Datei <code>JJJJMMTT-HHMMSS-&lt;art&gt;-request.xml</code> / <code>-response.xml</code>, <b>mit Signatur, ohne Verschlüsselung</b>, lesbar in OneCrew. Die Datei wird vor dem Verschlüsseln (Anfrage) bzw. nach dem Entschlüsseln (Antwort) geschrieben, ohne Umformatieren — die Signaturen bleiben prüfbar.</span></div>
-    <div class="zeile"><span class="lab">Sagen</span><span>Eine Antwort, die wir nicht entschlüsseln konnten (Probe F02_03), liegt so im Archiv, wie sie ankam, und ist als «nicht entschlüsselbar (Probe F02_03)» markiert. Bei Meldungen gibt es dieselben Dateien direkt im Protokoll des Falls (Knöpfe «Anfrage» / «Antwort»).</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F04_01</span><span class="titel">Alles wird gesiegelt und lesbar abgelegt</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>Nichts.</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Oben Reiter <b>«Archiv»</b> → eine Anfrage anklicken → die dazugehörige Antwort anklicken.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>Jede Anfrage und jede Antwort als eigene Datei, lesbar, mit Signatur.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Gespeichert wird vor dem Verschlüsseln bzw. nach dem Entschlüsseln. So bleibt das Siegel prüfbar und der Inhalt lesbar.»</span></div>
+    <div class="z"><span class="lab">Falls gefragt</span><span>Eine einzige Datei ist unlesbar: die absichtlich beschädigte Antwort aus F02_03. Sie ist als «nicht entschlüsselbar (Probe F02_03)» markiert.</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F04_02</span><span class="titel">SignatureConfirmation in der Response im Archiv</span><span class="stand ok">✅</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span>Archiv: Spalte «SignatureConfirmation».</span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span>Bei jeder Antwort auf eine signierte Anfrage «<b>✓ passt</b>»: der Wert entspricht genau unserer Signatur (bei Doppelsignatur beiden) und ist von der Antwort mitsigniert. Oben «passt zu unserer Signatur: X von X». Ping: «— nicht signiert» (nichts zu bestätigen).</span></div>
-    <div class="zeile"><span class="lab">Sagen</span><span>Dieselbe Prüfung erscheint auch direkt nach jedem Aufruf unter «WS-Security» als Zeile «SignatureConfirmation: ✓ Empfang bestätigt».</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F04_02</span><span class="titel">Empfangsbestätigung in jeder Antwort</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Im Archiv die Spalte «SignatureConfirmation» zeigen.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>Bei jeder Antwort «<b>✓ passt</b>», oben «passt zu unserer Signatur: X von X». Beim Ping steht «nicht signiert», das ist richtig.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Der Empfänger bestätigt in jeder Antwort unser Siegel, bei doppelter Signatur beide. OneCrew prüft das bei jedem Aufruf.»</span></div></div>
 </section>
 
 <!-- ═════════════════════════════ F05 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F05 — Übermittlung</h2><div class="rechts">8 Prüfungen · 7 ✅ · 1 offen<br>F05_07</div></div>
-  <div class="info"><b>Aufbau Schritt ②:</b> Formular (Meldung · Jahr · Monat · ☑ TestCase · ☑ doppelt signieren · «Ersatzmeldung für DeclarationID») → <span class="knopf">Adressaten anzeigen</span> → <span class="knopf">Meldung senden</span>.
-  Darunter die Liste <b>«ÜBERMITTLUNGEN»</b>: neuester Fall oben, Kopf anklicken zum Auf-/Zuklappen. Im Fall links <span class="knopf">Status abfragen</span> (frühestens alle 10 s), je Adressat <span class="knopf">Synchronisieren</span>.
-  <b>Testdaten Muster AG:</b> Jahresmeldung AHV <b>2025</b> → Adressat 046.000 · Monatsmeldung <b>2025 / 1</b> → BE, TI, VD, Statistic. TestCase und doppelt signieren immer angehakt. Das Formular merkt sich die letzte Meldung — vor dem Senden Meldung/Jahr/Monat prüfen.</div>
+  <div class="kopf"><h2>F05 — Meldungen senden</h2><div class="rechts">8 Prüfungen · alle erledigt<br>Reiter «F05» · Proben 30.09.2026</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    Jetzt werden echte (Test-)Lohnmeldungen verschickt: an einen oder mehrere Empfänger, mit Stempel «Nur Test», mit eindeutiger Briefnummer.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_01</span><span class="titel">SubscribeOrganization (zusammen mit F08_01)</span><span class="stand ok">✅ 30.09. 19:59</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span>keine (Standard: UVG-LAA · 1234 → «SubscribeOrganization = SubscribeAndSuccess»)</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span><ol><li>Prüfpunkt F05_01: Formular «Anmeldung». Felder prüfen: UID <code>CHE-999.999.996</code>, Firma <b>Muster AG</b>, Kontakt, PLZ/Ort (Luzern), Adressat <b>1234</b>, Versicherungszweig <b>UVG-LAA</b>, ☑ TestCase.</li>
-      <li><span class="knopf">Anmelden (SubscribeOrganization)</span></li><li>Im neuen Fall beim Adressaten <span class="knopf">Synchronisieren</span>.</li></ol></span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span>Grün «1234: angemeldet, SubscriptionID …» — <b>ohne</b> JobKey und ohne Statusabfrage (synchron). Nach Synchronisieren State «subscribed», evtl. Liste «Verfügbar».</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">Fall «Anmeldung UVG-LAA 1234 · TestCase» 30.09.2026 19:59 · SubscriptionID <code>18da2b10777158a02</code> · Synchronisieren → subscribed, neu UVG-LAA-Profile <code>18da2b10c48cdb1c5</code> → nächstes Synchronisieren → quittiert. (Erste Probe 19:17, SubscriptionID <code>18da28c7b8e38003a</code>.)</span></div></div>
+  <div class="info"><b>Das Formular ist bei allen Punkten gleich:</b> Meldung wählen → Jahr → (Monat) → ☑ TestCase → ☑ doppelt signieren →
+  <span class="knopf">Adressaten anzeigen</span> → <span class="knopf">Meldung senden</span>. Danach im neuen Fall (oben in der Liste):
+  <span class="knopf">Status abfragen</span> (frühestens alle 10 Sekunden), dann beim Empfänger <span class="knopf">Synchronisieren</span>.<br>
+  <b>Testdaten:</b> «Jahresmeldung AHV» <b>2025</b> → Empfänger 046.000 · «Monatsmeldung» <b>2025 / 1</b> → BE, TI, VD, Statistic.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_02</span><span class="titel">Genau ein Adressat</span><span class="stand ok">✅ 30.09. 09:00</span></div>
-    <div class="zeile"><span class="lab">② / ③</span><span>Jahresmeldung AHV 2025 → nur 046.000 → senden → JobKey → <span class="knopf">Status abfragen</span> → 046.000 «erfolgreich» mit DeclarationID, Key, Passwort.</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">Fall «Jahresmeldung AHV 2025 · TestCase» 30.09.2026 09:00:04 · JobKey <code>42f69723bac79ca02</code> · DeclarationID <code>18da0718929ac04cf</code></span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_01</span><span class="titel">Anmeldung bei einem Empfänger</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Formular «Anmeldung» (UID CHE-999.999.996, Muster AG, Empfänger 1234 UVG-LAA, ☑ TestCase) → <span class="knopf">Anmelden (SubscribeOrganization)</span> → im neuen Fall <span class="knopf">Synchronisieren</span>.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span class="gruen">Grün «1234: angemeldet, SubscriptionID …», danach «subscribed».</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Die Firma ist beim Empfänger angemeldet, die Bestätigung kam sofort zurück.»</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_03 + F05_04</span><span class="titel">Mehrere Adressaten · Adressatenauswahl</span><span class="stand ok">✅ 30.09. 17:32</span></div>
-    <div class="zeile"><span class="lab">② / ③</span><span>Monatsmeldung 2025 / 1 → <span class="knopf">Adressaten anzeigen</span> → BE, TI, VD, Statistic → <b>VD abwählen</b> → senden → Status: BE, TI, Statistic «erfolgreich» (gemeinsame DeclarationID, je eigene Credentials), VD «nicht verarbeitet (abgewählt)» (ProcessByDistributor=false).</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">Fall «Monatsmeldung 01.2025 · TestCase» · JobKey <code>23128947f7bfba10d</code> · DeclarationID <code>18da230ab6d74b23e</code></span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_02 + 05</span><span class="titel">Genau ein Empfänger · Aktennummer wird zurückgespiegelt</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Jahresmeldung AHV 2025 → senden → <span class="knopf">Status abfragen</span> → <span class="knopf">Synchronisieren</span> → «Protokoll» → <span class="knopf">Anfrage</span> / <span class="knopf">Antwort</span>.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>046.000 «erfolgreich» mit DeclarationID (Aktennummer), Key und Passwort. In Anfrage und Antwort steht dieselbe DeclarationID.</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_05</span><span class="titel">DeclarationID im Synchronize gespiegelt</span><span class="stand ok">✅ 30.09. 09:07</span></div>
-    <div class="zeile"><span class="lab">② / ③</span><span>Beim erfolgreichen Adressaten <span class="knopf">Synchronisieren</span> → Protokoll → <span class="knopf">Anfrage</span>: DeclarationID + Key/Password aus dem Status; <span class="knopf">Antwort</span>: dieselbe DeclarationID. Weicht sie ab, erscheint oben eine Warnung.</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">Fall 09:00 · DeclarationID <code>18da0718929ac04cf</code> · RequestID <code>33d2089389d54885b46c04296bb903b0</code></span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_03 + 04</span><span class="titel">Mehrere Empfänger, einen abwählen</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Monatsmeldung 2025 / 1 → <span class="knopf">Adressaten anzeigen</span> → bei <b>VD</b> das Häkchen weg → senden → Status abfragen.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>BE, TI, Statistic «erfolgreich», VD «nicht verarbeitet (abgewählt)».</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Man kann pro Meldung wählen, welche Empfänger beliefert werden.»</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_06</span><span class="titel">Ersatzmeldung (Substitution)</span><span class="stand ok">✅ 30.09. 18:40</span></div>
-    <div class="zeile"><span class="lab">② / ③</span><span>Jahresmeldung AHV 2025 + im Feld «Ersatzmeldung für DeclarationID» die ID einer Meldung im State <b>Finished</b> → Bestätigung zeigt «(Ersatzmeldung für …)» → senden → Fall zeigt «ersetzt …» → Status erfolgreich. Protokoll → Anfrage: <code>&lt;sdc:Substitution&gt;&lt;sdc:PredecessorDeclarationIDWithAcceptedState&gt;</code>.</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">JobKey <code>f31645d25670da708</code> · ersetzt <code>18da0778af117690e</code> → neue DeclarationID <code>18da26c741367eaf6</code></span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_06</span><span class="titel">Ersatzmeldung</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Jahresmeldung AHV 2025 + im Feld «Ersatzmeldung für DeclarationID» die Aktennummer einer abgeschlossenen Meldung (Fall mit «Finished») → senden.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>Im Fall «ersetzt …», Status erfolgreich mit neuer Aktennummer.</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_07</span><span class="titel">Eindeutige RequestID</span><span class="stand offen">⏳ offen</span> <span class="stand expert">Experte</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span>keine</span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span>Prüfpunkt F05_07 → Jahresmeldung AHV 2025, Ersatzmeldung leer → ☑ «RequestID der letzten Anfrage nochmals verwenden» → <span class="knopf">Meldung senden</span> → bestätigen.</span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span class="rot">Rot «RequestID … wurde schon einmal gesendet — OneCrew verschickt keine RequestID zweimal. Nichts gesendet.» Kein neuer Fall in der Liste.</span></div>
-    <div class="zeile"><span class="lab">Sagen</span><span>Jede Anfrage bekommt eine neue ID (GUID). OneCrew führt eine Liste aller je gesendeten RequestIDs (auch von entfernten Fällen) und prüft sie vor <b>jedem</b> Versand — Meldung, Status, Synchronize, Anmeldung. <b>Offen legen:</b> Am 30.09. um 18:56 ging bei einer Probe <b>vor</b> diesem Umbau einmal eine doppelte ID an den Testdistributor (<code>aa9c114da1dd4a489cfbca5d265b42a3</code>); er hat sie nicht abgelehnt — darum die Sperre im TX.</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">Probe der Sperre 30.09.2026 19:06: RequestID <code>73280a18f0c4493dae3145f6e62eb427</code> verweigert, nichts gesendet, kein neuer Fall.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_07</span><span class="titel">Briefnummer nie doppelt</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Jahresmeldung AHV 2025 → ☑ «RequestID der letzten Anfrage nochmals verwenden» → <span class="knopf">Meldung senden</span>.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span class="rot">Rot «RequestID … wurde schon einmal gesendet — Nichts gesendet.» Kein neuer Fall.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«OneCrew führt eine Liste aller je gesendeten Briefnummern und verweigert eine doppelte. Ehrlicherweise: Bei einer Probe vor dem Einbau dieser Sperre ging am 30.09. einmal eine doppelte Nummer durch, der Testdistributor hat sie angenommen. Seither verhindert OneCrew das selbst.»</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_08</span><span class="titel">Vollständiger Prozess mit TestCase</span><span class="stand ok">✅ 30.09. 09:06–09:20</span></div>
-    <div class="zeile"><span class="lab">② / ③</span><span>Senden → Status (JobFinished) → Synchronisieren (CompletionReleaseMissing, Completion-Story) → Completion-Link öffnen → «Successfully released Completion!» → Synchronisieren → <b>Finished</b>, Quittung als Story. Jede Anfrage trägt TestCase, beim Adressaten «TestCase bestätigt».</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">JobKey <code>62f6f740320581a44</code> · DeclarationID <code>18da0778af117690e</code> · Completion <code>18da0778fe61fedfb</code> · AHV-Quittance <code>18da077917e8c2876</code></span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F05_08</span><span class="titel">Ganzer Ablauf mit Stempel «Nur Test»</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>Senden → Status → Synchronisieren → Completion-Link öffnen («Successfully released Completion!») → Synchronisieren → <b>Finished</b>. Beim Empfänger «TestCase bestätigt».</span></div></div>
 </section>
 
 <!-- ═════════════════════════════ F06 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F06 — Validierung</h2><div class="rechts">1 Prüfung · offen</div></div>
+  <div class="kopf"><h2>F06 — Plausibilität</h2><div class="rechts">1 Prüfung · erledigt 02.10.2026<br>Reiter «F06»</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    «Kann das stimmen?» Eine Meldung mit unmöglichen Angaben (z.B. jemand ist 126 Jahre alt, AHV-Nummer mit falscher Prüfziffer) darf nicht einfach durchgehen.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F06_01</span><span class="titel">Verletzte Plausibilitätsregeln anzeigen</span><span class="stand offen">⏳ offen</span></div>
-    <div class="zeile"><span class="lab">① Einstellung</span><span><b>itserv fragen:</b> Receiver so einstellen, dass er die Meldung als nicht plausibel abweist. Einstellung hier notieren:<div class="notiz"></div></span></div>
-    <div class="zeile"><span class="lab">② OneCrew</span><span><ol><li>Prüfpunkt F06_01 → Monatsmeldung 2025 / 1 (oder Jahresmeldung AHV 2025) → <span class="knopf">Adressaten anzeigen</span> → <span class="knopf">Meldung senden</span>.</li>
-      <li>Kommt die Ablehnung nicht sofort: <span class="knopf">Status abfragen</span>, danach ggf. <span class="knopf">Synchronisieren</span>.</li></ol></span></div>
-    <div class="zeile"><span class="lab">③ Es muss erscheinen</span><span class="rot">Rot «Abgewiesen — NOT_plausible …» mit Code und Beschreibung jeder verletzten Regel im Klartext; beim Adressaten der Fehlertext.</span></div>
-    <div class="zeile"><span class="lab">Danach</span><span>Einstellung zurück auf Standard.</span></div></div>
+  <div class="hinweis"><b>Wichtig zu wissen:</b> Der Test-Empfänger von Swissdec prüft das <b>nicht</b>. Am 30.09. haben wir eine Meldung mit Alter 126
+  und eine mit falscher AHV-Nummer geschickt: Beide wurden ohne Hinweis angenommen. Darum prüft <b>OneCrew selbst vor dem Senden</b>.
+  Die Swissdec-Regeln erlauben das ausdrücklich (Baustein AB-12, Punkt 2).</div>
 
-  <div class="info">Hinweis, falls gefragt: Vor dem Senden prüft OneCrew jede Meldung gegen das ELM-Schema; eine schema-ungültige Meldung wird gar nicht gesendet («entspricht nicht dem ELM-Schema und wurde NICHT gesendet»).
-  Die Plausibilitätsprüfung selbst macht der Distributor — OneCrew zeigt seine Meldungen an.</div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F06_01</span><span class="titel">Unplausible Meldung wird erkannt und nicht gesendet</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Vorher</span><span>In TablePlus, <b>nur in der Datenbank <code>hr_system_test</code></b>, die AHV-Nummer der Test-Person Anita Zahnd falsch machen:
+      <pre>UPDATE employee
+SET social_security_number = '756.6564.5197.22'
+WHERE id = 94
+  AND social_security_number = '756.6564.5197.21';</pre></span></div>
+    <div class="z"><span class="lab">itserv stellt ein</span><span>Nichts.</span></div>
+    <div class="z"><span class="lab">Du klickst</span><span>Prüfpunkt F06_01 → Monatsmeldung 2025 / 1 → <span class="knopf">Adressaten anzeigen</span>. Danach <span class="knopf">Meldung senden</span>.</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span><span class="rot">Schon nach «Adressaten anzeigen» ein roter Kasten «✗ Plausibilitätsprüfung: Diese Meldung würde OneCrew nicht senden» — «Error P-AHV — Anita Zahnd (6): AHV-Nummer 756.6564.5197.22 hat eine falsche Prüfziffer».</span>
+      Nach «Meldung senden»: rot «… wurde NICHT gesendet», kein neuer Fall.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Der Test-Distributor prüft das nicht, darum prüft OneCrew selbst vor dem Senden: Alter unter 100, AHV-Prüfziffer, Geburtsdatum, Eintritt und Austritt. Meldet der Distributor selbst einen Plausibilitätsfehler, zeigt OneCrew ihn genauso an.»</span></div>
+    <div class="z"><span class="lab">Danach</span><span><b>Unbedingt zurücksetzen</b>, sonst blockiert OneCrew jede Meldung mit Anita Zahnd:
+      <pre>UPDATE employee
+SET social_security_number = '756.6564.5197.21'
+WHERE id = 94
+  AND social_security_number = '756.6564.5197.22';</pre></span></div>
+    <div class="beleg">Vorgeführt 02.10.2026 mit der Monatsmeldung 01.2025.</div></div>
 </section>
 
 <!-- ═════════════════════════════ F07 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F07 — SUA-Zertifikat</h2><div class="rechts">20 Prüfungen · 17 ✅ · F07_04 offen (3)<br>Proben 29.09.2026</div></div>
-  <div class="info"><b>Wo die Einstellung liegt:</b> Refapps Receiver → ELM → <b>ELM 6.x</b> → Zeile «Reference Receiver · UVG-LAA · 1234 (Active)» → <b>RegisterOrganizationAuthentication</b> = SOAPFault / SwissdecFault / RegisterProcessing / <b>RegisterVerification (Standard)</b> / RegisterRejected. <b>Nicht</b> unter «SUA 1.0/1.1» (dort Fehler 1000).</div>
-  <div class="hinweis"><b>Wichtig:</b> Jede Registrierung startet einen neuen Fall. Wer F07_02/03/05 vorführt, spielt am Schluss <b>F07_06 nochmals ganz durch</b> (RegisterVerification → Registrieren → Status → Signieren), damit wieder ein gültiger, erneuerbarer Fall mit Zertifikat da ist.</div>
+  <div class="kopf"><h2>F07 — Firmenausweis (SUA-Zertifikat)</h2><div class="rechts">20 Prüfungen · 17 erledigt · F07_04 offen<br>Reiter «F07» · Proben 29.09.2026</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    Die Firma beantragt ihren elektronischen Ausweis. Ablauf wie beim Pass: <b>Antrag stellen</b> → <b>Stand abfragen</b> («in Bearbeitung», «geprüft»,
+    «abgelehnt») → mit dem erhaltenen <b>Passwort ausstellen lassen</b> → später <b>verlängern</b>.</div>
+
+  <div class="info"><b>Wo die Expertin umstellt:</b> Refapps Receiver → ELM 6.x → Zeile «Reference Receiver · UVG-LAA · 1234» →
+  Auswahlliste <b>RegisterOrganizationAuthentication</b>. Standard ist <b>RegisterVerification</b>.</div>
 
   <table>
-    <tr><th style="width:14mm">Punkt</th><th style="width:44mm">① Einstellung</th><th>② OneCrew</th><th>③ Es muss erscheinen</th><th style="width:8mm"></th></tr>
-    <tr><td><b>F07_01</b> ✅</td><td>RegisterVerification (Standard)</td><td><span class="knopf">Registrieren</span> (Daten unter «Registrierungsdaten»)</td><td>Quittung mit CertificateRequestID, Key und Passwort.</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_02</b> ✅</td><td>SwissdecFault (oder SOAPFault)</td><td><span class="knopf">Registrieren</span></td><td class="rot">«✗ Registrierung abgewiesen — 3800: Forced ConsumerFault …» — kein neuer Fall gespeichert.</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_03</b> ✅</td><td>RegisterProcessing — vorher damit neu registrieren</td><td><span class="knopf">Status abfragen</span></td><td>«Status: processing — Anfrage in Bearbeitung.»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_04</b> ⏳</td><td><b>unbekannt — itserv fragen</b> (Receiver bietet nur Processing / Verification / Rejected)</td><td><span class="knopf">Status abfragen</span></td><td>«Status: registered — registriert, nächster Schritt folgt.»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_05</b> ✅</td><td>RegisterRejected — damit <b>neu</b> registrieren (ein verified-Fall fällt nicht zurück)</td><td><span class="knopf">Status abfragen</span></td><td class="rot">«Status: rejected — Anfrage abgelehnt.»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_06</b> ✅</td><td>RegisterVerification (Standard)</td><td><span class="knopf">Status abfragen</span> (Einmalpasswort kommt) → <span class="knopf">Signieren</span></td><td>«SUA-Zertifikat ausgestellt und gespeichert, gültig bis …». Signieren verbraucht das Einmalpasswort.</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_07</b> ✅</td><td>keine</td><td><span class="knopf">Erneuern</span> → <span class="knopf">danach CheckInterop mit neuem Zertifikat</span></td><td>«SUA-Zertifikat erneuert und gespeichert», danach «Anfrage doppelt signiert (ERP + SUA)».</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_08</b> ✅</td><td>keine</td><td><span class="knopf">CheckInteroperability senden</span></td><td>«Anfrage doppelt signiert (ERP + SUA)», Signatur gültig, zwei SignatureConfirmation.</td><td><span class="box"></span></td></tr>
+    <tr><th style="width:14mm">Punkt</th><th style="width:40mm">itserv stellt ein</th><th style="width:40mm">Du klickst</th><th>Du siehst</th><th style="width:7mm"></th></tr>
+    <tr><td><b>F07_01</b></td><td>RegisterVerification (Standard)</td><td><span class="knopf">Registrieren</span></td><td>Quittung mit Antragsnummer, Key und Passwort.</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_02</b></td><td>SwissdecFault</td><td><span class="knopf">Registrieren</span></td><td class="rot">«✗ Registrierung abgewiesen — 3800 …». Kein neuer Fall gespeichert.</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_03</b></td><td>RegisterProcessing, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span></td><td>«Status: processing — Anfrage in Bearbeitung.»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_04</b> <span class="offen">offen</span></td><td><b>Expertin fragen</b> — im Receiver gibt es keine Einstellung dafür</td><td><span class="knopf">Status abfragen</span></td><td>«Status: registered — registriert, nächster Schritt folgt.»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_05</b></td><td>RegisterRejected, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span></td><td class="rot">«Status: rejected — Anfrage abgelehnt.»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_06</b></td><td>RegisterVerification, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span> (Passwort kommt mit) → <span class="knopf">Signieren</span></td><td>«SUA-Zertifikat ausgestellt und gespeichert, gültig bis …».</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_07</b></td><td>Nichts</td><td><span class="knopf">Erneuern</span> → <span class="knopf">danach CheckInterop mit neuem Zertifikat</span></td><td>«SUA-Zertifikat erneuert», danach «Anfrage doppelt signiert (ERP + SUA)».</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_08</b></td><td>Nichts</td><td><span class="knopf">CheckInteroperability senden</span></td><td>«Anfrage doppelt signiert (ERP + SUA)», zwei Empfangsbestätigungen.</td><td><span class="box"></span></td></tr>
   </table>
-  <p class="klein">Belege: CertificateRequestID <code>18d9cc06ddbe68ea9</code> (F07_01) · processing 22:16 · rejected 22:35 · Fault 3800 23:00 · signiert 17:30 und 23:2x (gültig bis 09.10.2026) · Renew 18:01, CheckInterop doppelt 18:02 — alle 29.09.2026.</p>
+
+  <div class="hinweis"><b>Ganz wichtig:</b> Jedes «Registrieren» startet einen neuen Antrag. Wer F07_02, 03 oder 05 vorführt, macht am Schluss
+  <b>F07_06 nochmals ganz</b> (RegisterVerification → Registrieren → Status abfragen → Signieren). Sonst ist danach kein gültiger Ausweis mehr da.</div>
+
+  <div class="pp"><div class="pp-kopf"><span class="id">F07_04</span><span class="titel">Was du zum offenen Punkt sagst</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Den Zustand ‹registered› konnten wir nicht erzeugen. Der Test-Empfänger bietet nur Processing, Verification und Rejected. Wir haben es auch mit Status-Abfrage nach dem Signieren und mit Verzögerung probiert. OneCrew kann ‹registered› anzeigen. Können Sie den Empfänger dafür einstellen?»</span></div>
+    <div class="z"><span class="lab">Falls ja</span><span>Expertin stellt ein → <span class="knopf">Status abfragen</span> → es muss «Status: registered — registriert, nächster Schritt folgt.» erscheinen. Danach F07_06 nochmals ganz durchspielen.</span></div></div>
 </section>
 
 <!-- ═════════════════════════════ F08 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F08 — Prozesse</h2><div class="rechts">13 Prüfungen · 4 ✅ · 9 offen</div></div>
-  <p class="unter">Übermittlungs-Formular wie bei F05. Für F08_04 bis F08_08 braucht es eine Receiver-Einstellung von itserv — vorher erfragen und notieren.
-  Ablauf dann immer: Meldung senden → <span class="knopf">Status abfragen</span> → beim Adressaten <span class="knopf">Synchronisieren</span> → Nachricht erscheint beim Adressaten.</p>
+  <div class="kopf"><h2>F08 — Abläufe und Rückfragen</h2><div class="rechts">13 Prüfungen · alle erledigt<br>Reiter «F08» · Proben 30.09. und 02.10.2026</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    Was nach dem Senden passiert: Bestätigungen abholen, Nachrichten des Empfängers lesen und bestätigen, und <b>Rückfragen</b> (Dialoge)
+    anzeigen und beantworten — wie ein Formular, das die AHV-Kasse zurückschickt.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F08_01</span><span class="titel">Synchrone Übermittlung mit Quittungen</span><span class="stand ok">✅ 30.09. 20:01</span></div>
-    <div class="zeile"><span class="lab">Ablauf</span><span>Zusammen mit <b>F05_01</b> (Anmeldung): Ergebnis kommt direkt in der Antwort. Beim Synchronisieren erscheinen Quittungen als Stories mit «wird quittiert» (Knopf «Synchronisieren (1 quittieren)»), nach dem nächsten Synchronisieren «quittiert».</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">SubscriptionID <code>18da2b10777158a02</code>: 19:59 angemeldet (synchron, ohne JobKey) · 20:00 subscribed, neu UVG-LAA-Profile <code>18da2b10c48cdb1c5</code> · 20:01 «quittiert: UVG-LAA-Profile 18da2b10c48cdb1c5».</span></div></div>
+  <div class="info"><b>Für alle Dialog-Punkte (F08_04 bis F08_08)</b> stellt die Expertin im Refapps Receiver bei der Zeile
+  «Reference Receiver · <b>AHV-AVS · 046.000</b>» die Liste <b>DeclareAnnualSalary</b> auf <b>DeclareDialog</b> und daneben den <b>Dialog-Typ</b> (Random / BESTA / Complete).
+  Dann immer: <b>Jahresmeldung AHV 2025</b> → <span class="knopf">Adressaten anzeigen</span> → <span class="knopf">Meldung senden</span> → nach 10 Sekunden
+  <span class="knopf">Status abfragen</span> bis «JobFinished» → beim Empfänger 046.000 <span class="knopf">Synchronisieren</span> → die Rückfrage erscheint.
+  <b>Danach wieder auf DeclareResult.</b></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F08_02</span><span class="titel">GetStatus mit JobKey (1) · abgewählter Adressat (2)</span><span class="stand ok">✅ 30.09.</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">(1) JobKey <code>42f69723bac79ca02</code> → JobFinished 09:02; <code>62f6f740320581a44</code> → JobFinished 09:14. Abfragen frühestens alle 10 s, nach JobFinished keine mehr («JobFinished — keine Statusabfrage mehr»).<br>
-    (2) Monatsmeldung JobKey <code>23128947f7bfba10d</code>: VD «nicht verarbeitet (abgewählt)», ohne Credentials, ohne Synchronisieren-Knopf.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F08_01 + 02</span><span class="titel">Sofort-Antwort · Nachfragen mit Abholnummer</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Bei der Anmeldung (F05_01) kam die Bestätigung sofort in der Antwort. Bei Meldungen fragt OneCrew mit der Abholnummer nach (Status abfragen), bis ‹JobFinished› kommt; abgewählte Empfänger erscheinen als ‹nicht verarbeitet›.»</span></div></div>
 
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F08_03</span><span class="titel">Stories synchronisieren</span><span class="stand ok">✅ 30.09. 10:43</span></div>
-    <div class="zeile"><span class="lab">Beleg</span><span class="beleg">Fall 09:06: der Receiver schickt schon quittierte Stories erneut (Completion, AHV-Quittance je «2× empfangen»). OneCrew erkennt die Doublette an der StoryID, legt keine zweite Story an und quittiert nochmals. Die Ergebniszeile nennt «quittiert: … · neu: … · erneut erhalten: …» mit Art und StoryID.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">F08_03</span><span class="titel">Nachrichten abholen und bestätigen</span><span class="ok">erledigt</span></div>
+    <div class="z"><span class="lab">Du siehst</span><span>Neue Nachrichten stehen mit «wird quittiert», der Knopf heisst <span class="knopf">Synchronisieren (1 quittieren)</span>. Nach dem nächsten Klick: «quittiert». Schickt der Empfänger eine Nachricht nochmals, steht «2× empfangen», und sie wird nochmals bestätigt.</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Jede Nachricht wird beim nächsten Synchronisieren bestätigt. Doppelt gelieferte erkennt OneCrew an der Nummer.»</span></div></div>
 
   <table>
-    <tr><th style="width:15mm">Punkt</th><th style="width:40mm">① Einstellung (notieren)</th><th>② / ③ Es muss erscheinen</th><th style="width:8mm"></th></tr>
-    <tr><td><b>F08_04</b> ⏳</td><td>DialogMessage<div class="notiz"></div></td><td>Die DialogMessage erscheint beim Adressaten mit Titel, Beschreibung, Abschnitten und allen Absätzen; Fragen als Eingabefelder mit Vorgabewert. State «DialogMessagePending».</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F08_05</b> ⏳</td><td>DialogMessage mit Fragen<div class="notiz"></div></td><td>Pflichtfelder (*) ausfüllen, leer = Vorgabewert, Datum TT.MM.JJJJ, Betrag 0.00 → <span class="knopf">Antwort senden</span>. Leeres Pflichtfeld / falscher Typ → Meldung, nichts gesendet. Die Antwort geht mit dem Synchronize (Previous/ResponseStoryID); bis der Empfänger quittiert, steht «eigene Antwort noch nicht quittiert».</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F08_06</b> ⏳</td><td>DialogMessage als Info-/Fehler-Meldung<div class="notiz"></div></td><td>«Nur zur Kenntnis — wird mit dem nächsten Synchronisieren quittiert.» → <span class="knopf">Synchronisieren</span> → «quittiert» (ReceivedStoryIDs).</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F08_07</b> ⏳<br><span class="klein">3 Prüf.</span></td><td>RandomDialogMessage<div class="notiz"></div></td><td>Jeder Absatz-Typ lesbar: Text, Zahl, Betrag, Datum (TT.MM.JJJJ), Ja/Nein/Unbekannt …</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F08_08</b> ⏳<br><span class="klein">3 Prüf.</span></td><td>CompleteDialogMessage / Completion<div class="notiz"></div></td><td>Alle Felder der Nachricht angezeigt. Completion: Link mit <code>key=</code> und <code>password=</code> (URL-kodiert), Key und Passwort roh daneben zum Kopieren; Link öffnen → «Successfully released Completion!».</td><td><span class="box"></span></td></tr>
+    <tr><th style="width:15mm">Punkt</th><th style="width:30mm">Dialog-Typ</th><th>Du siehst / machst</th><th style="width:7mm"></th></tr>
+    <tr><td><b>F08_04</b></td><td>BESTA Dialog</td><td>Rückfrage des Bundesamts für Statistik erscheint mit Feldern. Von Hand ausfüllen → <span class="knopf">Antwort senden</span> → <span class="knopf">Synchronisieren</span> → «Finished».</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F08_05</b></td><td>Complete Dialog</td><td>Alle Pflichtfelder (*) ausfüllen (leer = Vorgabewert) → <span class="knopf">Antwort senden</span> → <span class="knopf">Synchronisieren</span> → «Finished» und AHV-Quittung.</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F08_06</b></td><td>Complete Dialog</td><td>Wie F08_05. Die Rückfrage wird beim nächsten Synchronisieren bestätigt, auch wenn der Empfänger sie nochmals schickt. <span class="klein">(Siehe Kasten unten.)</span></td><td><span class="box"></span></td></tr>
+    <tr><td><b>F08_07</b></td><td>Random Dialog</td><td>Eine Nachricht «nur zur Kenntnis» (ohne Felder) mit Titel, Beschreibung und Absätzen. <span class="knopf">Synchronisieren</span> → «quittiert».</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F08_08</b></td><td>Complete Dialog</td><td>«Dialog with every possible element»: alle Feldarten lesbar (Text, Zahl, Betrag, Datum TT.MM.JJJJ, Ja/Nein/Unbekannt).</td><td><span class="box"></span></td></tr>
   </table>
+
+  <div class="pp"><div class="pp-kopf"><span class="id">F08_06</span><span class="titel">Was du zu «Dialog mit Error» sagst</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Eine Rückfrage mit Fehler lässt sich im Test-Empfänger nicht einstellen. Wir haben Random, BESTA und Complete Dialog probiert, dazu DeclareCompletionComplicated und SwissdecFault, und am 02.10. einen Complete Dialog mit unsinnigen Antworten: Alles wurde ohne Fehler angenommen. OneCrew bestätigt jede Rückfrage beim nächsten Synchronisieren, egal was drinsteht, und zeigt Fehler rot an. Wie löst man den Fall im Empfänger aus?»</span></div>
+    <div class="beleg">Beleg 02.10.2026: DeclarationID 18dac360d3ef618db, Rückfrage 18dac3612982b9482, Antwort angenommen, State Finished.</div></div>
 </section>
 
 <!-- ═════════════════════════════ FRAGEN ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>Offene Fragen an itserv</h2><div class="rechts">im Termin klären, Antworten notieren</div></div>
+  <div class="kopf"><h2>Fragen an die Expertin</h2><div class="rechts">im Termin klären, Antworten notieren</div></div>
 
   <table>
-    <tr><th style="width:8mm">#</th><th style="width:70mm">Frage</th><th>Antwort</th></tr>
-    <tr><td>1</td><td><b>F07_04:</b> Wie erzeugt man den SUA-Zustand «registered»? RegisterVerification liefert direkt «verified».</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
-    <tr><td>2</td><td><b>F06_01:</b> Welche Receiver-Einstellung weist eine Meldung als «nicht plausibel» ab?</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
-    <tr><td>3</td><td><b>F08_04–F08_08:</b> Welche Einstellungen für DialogMessage, RandomDialogMessage und CompleteDialogMessage?</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
-    <tr><td>4</td><td><b>F05_07:</b> Ist die Sperre im TX die erwartete Lösung? (Offenlegung: eine doppelte RequestID am 30.09. 18:56 vor dem Umbau.)</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
-    <tr><td>5</td><td><b>F08_03:</b> Der Receiver schickt schon quittierte Stories erneut (AHV-Quittance <code>18da077917e8c2876</code> steht deshalb wieder auf «wird quittiert»). Ist das gewollt?</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
-    <tr><td>6</td><td><b>Receiver-Optionen:</b> Bei UVG-LAA · 1234 gibt es Auswahllisten «DeclareAnnualSalary», «DeclareMonthlySalary», «NotifyChanges» (Standard DeclareResult). Sind das die Einstellungen für F06_01 und F08_04–F08_08?</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
+    <tr><th style="width:8mm">#</th><th style="width:78mm">Frage (zum Vorlesen)</th><th>Antwort</th></tr>
+    <tr><td>1</td><td><b>F07_04:</b> «Wie stellt man den Test-Empfänger ein, damit beim Status-Abfragen ‹registered› zurückkommt? Wir sehen nur Processing, Verification und Rejected.»</td><td><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div></td></tr>
+    <tr><td>2</td><td><b>F08_06:</b> «Wie erzeugt man eine Rückfrage mit Error? Alle Dialog-Typen wurden ohne Fehler angenommen.»</td><td><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div></td></tr>
+    <tr><td>3</td><td><b>F06_01:</b> «Ist es in Ordnung, dass OneCrew die Plausibilität selbst vor dem Senden prüft, weil der Test-Distributor das nicht tut?»</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
+    <tr><td>4</td><td><b>Wie weiter:</b> «Was ist nach dem Foundation-Test der nächste Schritt zur Zertifizierung, und bis wann?»</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
   </table>
 
   <h3>Nur falls gefragt</h3>
   <ul>
-    <li>Die Jahresmeldung AHV 2025 der Muster AG enthält auf der Testinstanz nur die Januar-Löhne (nur Januar abgeschlossen). Für die Übermittlungs-Prüfpunkte ohne Belang.</li>
-    <li>Drei Personen werden mit AHV-Nummer «unknown» gemeldet (Herz, Meier Christian, Müller Heinrich) — so auch in den RefXML.</li>
-    <li>Ausführliches Protokoll mit Code-Stellen: <code>docs/swissdec-foundation-protokoll.md</code>.</li>
+    <li>Die Jahresmeldung AHV 2025 der Muster AG enthält auf der Testinstanz nur die Januar-Löhne. Für diese Prüfungen spielt das keine Rolle.</li>
+    <li>Drei Test-Personen werden mit AHV-Nummer «unknown» gemeldet (Herz, Meier Christian, Müller Heinrich), so auch in den Swissdec-Referenzdaten.</li>
+    <li>Ausführliches technisches Protokoll: <code>docs/swissdec-foundation-protokoll.md</code>.</li>
   </ul>
 
   <h3>Notizen</h3>
-  <div class="notiz"></div><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div>
+  <div class="notiz"></div><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div>
 </section>
 
 </body>

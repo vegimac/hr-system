@@ -9,9 +9,12 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 
 ## Stand
 
-> **Aktuell (02.10.2026): Quality Tool 85/90.** Offen: F06_01 (Plausibilitätsprüfung im
-> Transmitter gebaut, siehe unten), F07_04 und F08_06 (nur mit itserv). Die Tabelle unten ist der
-> Stand vom 24.09.2026.
+> **Aktuell (02.10.2026, Abend): Quality Tool 87/90, Gates 2/2 (Run 25554).** F06_01 bestanden
+> (Plausibilitätsprüfung im Transmitter, siehe unten). F08_01_1 nachgetragen. F08_06_1 auf Success
+> mit Kommentar: auch der Dialog-Typ «Complete» (02.10.) lief durch (Finished, keine Notification
+> mit Error) — Auslösen muss itserv zeigen. Einzig offen: F07_04 (3 Zeilen, «Registered» hat im
+> Test-Empfänger keine Einstellung). Handbuch für den Termin: `docs/swissdec-vorfuehrung/`.
+> Die Tabelle unten ist der Stand vom 24.09.2026.
 
 Die Zahlen der Übersicht sind **Einzelprüfungen** (Zeilen im Werkzeug inkl. TOOL_SETTING /
 PREREQUISITE). Vollständiger Wortlaut: Abschnitt «Vollständiger Katalog» unten
