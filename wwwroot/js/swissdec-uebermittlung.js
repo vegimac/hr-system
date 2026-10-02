@@ -335,14 +335,14 @@ function uebListeZeichnen() {
     }
     let warten = 0;
     const offen = _uebOffen();
-    el.innerHTML = liste.map(({ v, vi }, i) => {
+    const html = liste.map(({ v, vi }, i) => {
         const w = _uebWarteSek(v);
         if (w > 0 && !v.jobFinished) warten = Math.max(warten, w);
         const statusKnopf = v.art === 'subscribe' ? '' : v.jobFinished
             ? '<span class="komm-klein">JobFinished — keine Statusabfrage mehr</span>'
             : `<button type="button" class="komm-btn-primaer ueb-klein" ${w > 0 ? 'disabled' : ''} onclick="uebStatus(${vi})">
                    Status abfragen${w > 0 ? ` (in ${w} s)` : ''}</button>`;
-        const istOffen = v.id in offen ? offen[v.id] : i === 0;
+        const istOffen = i === 0 ? (v.id in offen ? offen[v.id] : true) : offen[v.id] === true && _uebAeltereOffen;
         const chips = v.adressaten.map(a => {
             const [klasse, text] = a.state ? [_uebStateKlasse(a.state), a.state] : (_uebZustand[a.zustand] || ['ueb-z-grau', a.zustand]);
             return `<span class="ueb-z ${klasse}">${esc(a.identification)} · ${esc(text)}</span>`;
@@ -365,9 +365,15 @@ function uebListeZeichnen() {
                 </details>
             </div>
         </details>`;
-    }).join('');
+    });
+    el.innerHTML = html[0] + (html.length > 1
+        ? `<details class="ueb-aeltere" ${_uebAeltereOffen ? 'open' : ''} ontoggle="_uebAeltereOffen = this.open">
+               <summary class="komm-klein" style="cursor:pointer;margin:10px 0 6px">Ältere Übermittlungen (${html.length - 1}) anzeigen</summary>${html.slice(1).join('')}</details>`
+        : '');
     if (warten > 0) _uebTimer = setTimeout(uebListeZeichnen, warten * 1000 + 200);
 }
+
+let _uebAeltereOffen = false;
 
 function _uebOffen() {
     try { return JSON.parse(localStorage.getItem('uebOffen') || '{}'); } catch (_) { return {}; }
