@@ -83,15 +83,25 @@ public class ElmUebermittlungService
     // ── Vorschau ─────────────────────────────────────────────────────────
 
     public record Vorschau(string Art, string Titel, List<Adressat> Adressaten, string Uid, string Firmenname,
-        List<string> Warnungen, List<string> XsdFehler);
+        List<string> Warnungen, List<string> XsdFehler)
+    {
+        public List<Hinweis> Plausibilitaet { get; init; } = new();
+    }
 
     public async Task<Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct)
     {
         var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, jahr, monat, ct);
         if (xml.Length == 0) return new Vorschau(art, titel, new(), "", "", warn, xsd);
-        var v = LiesVorlage(XDocument.Parse(xml).Root!);
-        return new Vorschau(v.Art, titel, v.Adressaten, v.Uid, v.Firmenname, warn, xsd);
+        var root = XDocument.Parse(xml).Root!;
+        var v = LiesVorlage(root);
+        return new Vorschau(v.Art, titel, v.Adressaten, v.Uid, v.Firmenname, warn, xsd)
+        { Plausibilitaet = ElmPlausibilitaet.Pruefe(root, Periodenende(art, jahr, monat)) };
     }
+
+    private static DateTime Periodenende(string art, int jahr, int? monat)
+        => art == "annual" || monat is null or < 1 or > 12
+            ? new DateTime(jahr, 12, 31)
+            : new DateTime(jahr, monat.Value, DateTime.DaysInMonth(jahr, monat.Value));
 
     private async Task<(string Xml, string Titel, List<string> Warn, List<string> Xsd)> BaueMeldungAsync(
         string art, int jahr, int? monat, CancellationToken ct)
@@ -121,6 +131,12 @@ public class ElmUebermittlungService
         if (xsd.Count > 0)
             return new Ergebnis(false, "Die Meldung entspricht nicht dem ELM-Schema und wurde NICHT gesendet: "
                 + string.Join(" · ", xsd.Take(3)), null, null) { Warnungen = warn };
+
+        var plausi = ElmPlausibilitaet.Pruefe(XDocument.Parse(xml).Root!, Periodenende(art, o.Jahr, o.Monat));
+        if (plausi.Count > 0)
+            return new Ergebnis(false, $"Plausibilitätsprüfung: {plausi.Count} Verstoss/Verstösse gegen die Plausibilitätsregeln — "
+                + "die Meldung wurde NICHT gesendet. Bitte die Daten korrigieren.", null, null)
+            { Hinweise = plausi, Warnungen = warn };
 
         var stand = _store.LadeUebermittlungen();
         var requestId = o.RequestIdWiederverwenden && stand.LetzteRequestId != null

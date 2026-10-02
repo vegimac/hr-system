@@ -9,6 +9,10 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 
 ## Stand
 
+> **Aktuell (02.10.2026): Quality Tool 85/90.** Offen: F06_01 (Plausibilitätsprüfung im
+> Transmitter gebaut, siehe unten), F07_04 und F08_06 (nur mit itserv). Die Tabelle unten ist der
+> Stand vom 24.09.2026.
+
 Die Zahlen der Übersicht sind **Einzelprüfungen** (Zeilen im Werkzeug inkl. TOOL_SETTING /
 PREREQUISITE). Vollständiger Wortlaut: Abschnitt «Vollständiger Katalog» unten
 (Walter kopiert 24.09.2026).
@@ -1092,6 +1096,48 @@ das verschlüsselte XML. Seither:
 - Das Ergebnis zeigt zusätzlich die lesbare Anfrage vor der Verschlüsselung.
 - Die Sync-Zeile nennt Art + StoryID: «quittiert: …», «neu: …», «erneut erhalten: …».
 - Fälle sind zuklappbar (neuester offen); abgeschlossene Fälle zeigen den Completion-Kasten nicht mehr.
+
+### Stand 02.10.2026 — Support antwortet nicht, Rest selbst angehen
+
+- Nach F08_04/05/07/08 (01.10.) stand das Quality Tool bei 84/90; F05_07 hat Walter am 02.10.
+  eingetragen → **85/90** erwartet.
+- Offen: **F06_01, F07_04, F08_06** (dazu je die TOOL/UI-Zeilen).
+
+### F07_04 — «Registered» lässt sich mit dem Refapps Receiver nicht erzeugen (02.10.2026)
+
+- Der Receiver bietet für RegisterOrganizationAuthentication nur SOAPFault / SwissdecFault /
+  RegisterProcessing / RegisterVerification / RegisterRejected — kein «RegisterRegistered».
+- Versuch 1 (17:3x): «Status abfragen» auf den signierten Fall → wieder **verified** (neues
+  Einmal-Passwort, Code 9998, Stufe Plausibility). Kein «registered».
+- Versuch 2 (17:49): Delay 120 s beim Receiver. Der Delay verzögert nur die Antwort; der
+  Distributor bricht nach ~32 s ab → 1000 «Endempfänger nicht erreichbar … Read timed out».
+  OneCrew zeigt das rot und überschreibt den gespeicherten Fall NICHT (richtig).
+- Die Anzeige für «registered» ist gebaut (`ElmSuaService.StateMeldung`: «registriert, nächster
+  Schritt folgt»). **Bleibt für itserv:** wie stellt man den Receiver auf «registered»?
+
+### F06_01 — Plausibilitätsprüfung im Transmitter (02.10.2026)
+
+- Versuche 30.09.: Test-MA Anita Zahnd (`hr_system_test`) mit Alter 126 und mit falscher
+  AHV-Prüfziffer (756.6564.5197.22) gesendet — beide **angenommen**, ProducerResponseNotifications
+  leer. Der RefApps-Distributor prüft diese Regeln also nicht.
+- Spezifikation AB-12 (TransmitterRequirements S. 122 f.), Punkt 2: «Das Sendersystem kann die
+  Meldung vor dem Versenden auf ihre Plausibilität prüfen.» Beispielregel 11.17: «Alter muss
+  kleiner als 100 Jahre sein».
+- **Gebaut:** `Services/Elm/ElmPlausibilitaet.cs` prüft die FERTIGE Meldung (was hinausginge):
+  - Alter ≥ 100 am Periodenende (Monatsmeldung: Monatsletzter, Jahresmeldung: 31.12.)
+  - Geburtsdatum nach dem Periodenende
+  - AHV-Nummer mit falscher EAN-13-Prüfziffer (`unknown` wird nicht geprüft)
+  - Austritt vor Eintritt, Eintritt vor Geburtsdatum
+- Vorschau (`GET uebermittlung/vorschau`, Feld `plausibilitaet`) zeigt die Verstösse rot
+  «✗ Plausibilitätsprüfung: Diese Meldung würde OneCrew nicht senden» mit Regel, Person, Wert.
+- Senden (`DeclareInternAsync`, direkt nach der XSD-Prüfung): bei Verstössen nichts senden,
+  Ergebnis rot «wurde NICHT gesendet» mit Hinweisen `Error · Plausibility · P-ALTER/P-AHV/P-DATUM`.
+- Plausibilitätsfehler des Distributors selbst (ProducerResponseNotifications / Error-Element,
+  11.2.1.4/11.2.1.5) zeigt OneCrew schon seit 30.09. in derselben Form an.
+- Tests: `Tests/ElmPlausibilitaetTests.cs` (inkl. aller RefXML-Monatsmeldungen der Muster AG
+  ohne Fehlalarm).
+- Für die Prüfung: Test-MA in `hr_system_test` kurz auf Alter ≥ 100 oder falsche Prüfziffer
+  setzen, Vorschau + Senden zeigen, danach zurücksetzen.
 
 ---
 

@@ -157,9 +157,9 @@ const KOMM_KATALOG = [
 
     // ── F06 Validierung ────────────────────────────────────────────────────
     { id: 'F06_01', titel: 'Verletzte Plausibilitätsregeln anzeigen', typ: 'PLAUSIBILITY',
-      werkzeug: 'Receiver so einstellen, dass er die Meldung als nicht plausibel abweist (Einstellung beim Test festlegen).',
+      werkzeug: 'Der RefApps-Distributor prüft keine Plausibilität (Alter 126 und falsche AHV-Prüfziffer wurden angenommen). OneCrew prüft deshalb selbst vor dem Senden (AB-12 Punkt 2): Test-MA mit Geburtsjahr vor 100 Jahren oder falscher AHV-Prüfziffer in die Meldung nehmen.',
       ueb: { modus: 'declare' },
-      erwartet: 'Rot «Abgewiesen — NOT_plausible …» mit Code und Beschreibung jeder verletzten Regel im Klartext; beim Adressaten der Fehlertext.' },
+      erwartet: 'Schon in der Vorschau rot «Plausibilitätsprüfung» mit Regel, Person und Wert; «Senden» liefert «wurde NICHT gesendet» mit denselben Hinweisen (Error · Plausibility). Meldet der Distributor selbst Plausibilitätsfehler, erscheinen sie gleich (ProducerResponseNotifications).' },
 
     // ── F07 SUA-Zertifikat ─────────────────────────────────────────────────
     { id: 'F07_01', titel: 'RegisterOrganization', typ: 'REGISTER_ORG',

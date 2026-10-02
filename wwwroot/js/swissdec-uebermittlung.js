@@ -129,6 +129,8 @@ async function uebAdressatenLaden() {
                     <b>${esc(a.identification)}</b> <span class="komm-klein">${esc(a.domain || '')} · ${esc(a.addresseeId)}</span></label>`).join('')
                 : '<span class="komm-rot">Keine Adressaten — die Meldung ist leer.</span>')
             + (j.adressaten.length > 1 ? '<div class="komm-klein">Abgewählte Adressaten gehen mit ProcessByDistributor=false mit.</div>' : '')
+            + ((j.plausibilitaet || []).length
+                ? `<div class="ueb-meldung ueb-rot"><b>✗ Plausibilitätsprüfung: Diese Meldung würde OneCrew nicht senden.</b>${_uebHinweisZeilen(j.plausibilitaet)}</div>` : '')
             + (probleme.length ? `<div class="komm-hinweis">${probleme.slice(0, 8).map(esc).join('<br>')}</div>` : '');
         return j;
     } catch (e) {
