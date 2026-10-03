@@ -499,6 +499,8 @@ public class DocumentsController : ControllerBase
     {
         public string Code { get; set; } = "";
         public int TypId { get; set; }
+        /// <summary>Bestehende Zuordnung bewusst umhängen (Kategorie «ändern»).</summary>
+        public bool Ersetzen { get; set; }
     }
 
     /// <summary>
@@ -510,7 +512,7 @@ public class DocumentsController : ControllerBase
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> AblageTypMerken([FromBody] TypMerkenDto dto)
     {
-        var fehler = await _ablage.TypMerkenAsync(dto.Code, dto.TypId);
+        var fehler = await _ablage.TypMerkenAsync(dto.Code, dto.TypId, dto.Ersetzen);
         if (fehler is { } f)
             return f.Fehler switch
             {

@@ -292,9 +292,10 @@ public class DokumentAblageService
     /// <summary>
     /// «Für diese Angabe künftig immer diesen Typ» (N:1, Walter 03.10.2026): hat der
     /// Typ noch keine Hauptverknüpfung, wird es diese; sonst eine weitere Angabe.
-    /// Liefert Fehlercode + Text oder null.
+    /// Mit <paramref name="ersetzen"/> wird eine bestehende Zuordnung bewusst
+    /// umgehängt (Kategorie «ändern»), sonst abgewiesen. Liefert Fehlercode + Text oder null.
     /// </summary>
-    public async Task<(string Fehler, string Text)?> TypMerkenAsync(string code, int typId)
+    public async Task<(string Fehler, string Text)?> TypMerkenAsync(string code, int typId, bool ersetzen = false)
     {
         code = (code ?? "").Trim();
         if (!Arten.Any(a => a.Codes.Contains(code)))
@@ -305,12 +306,25 @@ public class DokumentAblageService
             || await _db.DokumentTypZusatzCodes.AnyAsync(z => z.DokumentTypId == typId && z.Code == code))
             return null;
         var belegt = await TypMitCodeAsync(code);
-        if (belegt != null)
+        if (belegt != null && !ersetzen)
             return ("CODE_VERGEBEN", $"Diese Angabe ist schon dem Typ «{belegt.Name}» zugeordnet.");
 
-        // Verwaiste Zusatzzeile (Typ inaktiv) räumen, sonst greift der UNIQUE-Index.
+        // Bisherige Zuordnung lösen (bei inaktiven Typen auch ohne «ersetzen» —
+        // sonst greift der UNIQUE-Index der Zusatztabelle).
         var alt = await _db.DokumentTypZusatzCodes.Where(z => z.Code == code).ToListAsync();
         _db.DokumentTypZusatzCodes.RemoveRange(alt);
+        if (ersetzen)
+        {
+            var bisher = await _db.DokumentTypen.Where(t => t.LinkedFieldCode == code && t.Id != typId).ToListAsync();
+            foreach (var t in bisher)
+            {
+                // Erste weitere Angabe rückt nach, damit der alte Typ seine Hauptverknüpfung behält.
+                var nach = await _db.DokumentTypZusatzCodes
+                    .Where(z => z.DokumentTypId == t.Id && z.Code != code).OrderBy(z => z.Id).FirstOrDefaultAsync();
+                t.LinkedFieldCode = nach?.Code;
+                if (nach != null) _db.DokumentTypZusatzCodes.Remove(nach);
+            }
+        }
         if (string.IsNullOrWhiteSpace(typ.LinkedFieldCode))
             typ.LinkedFieldCode = code;
         else

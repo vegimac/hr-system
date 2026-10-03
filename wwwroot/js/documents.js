@@ -3114,10 +3114,10 @@ function dabRenderKategorie() {
                 </select></div>
             <div><label>Typ</label><select id="dabTyp"><option value="">– Erst Kategorie wählen –</option></select></div>
         </div>
-        ${!typ && _dab.istAdmin ? `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px">
+        ${_dab.istAdmin ? `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px">
             <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#3f3f3f;cursor:pointer">
-            <input type="checkbox" id="dabMerken" checked style="width:15px;height:15px;accent-color:#3f3f3f">
-            Für «${_dabEsc(erstes.label)}» künftig immer diese Kategorie verwenden</label>
+            <input type="checkbox" id="dabMerken" ${!typ ? 'checked' : ''} style="width:15px;height:15px;accent-color:#3f3f3f">
+            Für «${_dabEsc(erstes.label)}» künftig immer diese Kategorie verwenden${typ ? ` <span style="color:#8b8b8b">(bisher ${_dabEsc(typ.kategorieName)} › ${_dabEsc(typ.typName)})</span>` : ''}</label>
             <button type="button" onclick="dabKategorieJetztMerken(this)" title="Zuordnung sofort speichern — auch ohne Dokument hochzuladen"
                 style="background:rgba(255,255,255,0.58);border:1px solid rgba(60,55,48,0.20);color:#3f3f3f;border-radius:999px;padding:5px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Jetzt speichern</button>
         </div>` : ''}`;
@@ -3131,11 +3131,12 @@ async function dabKategorieJetztMerken(btn) {
     if (!erstes) return;
     const typId = document.getElementById('dabTyp')?.value;
     if (!typId) { _dabToast('Bitte Kategorie und Typ wählen.', 'error'); return; }
+    if (erstes.typ && String(erstes.typ.typId) === String(typId)) { _dab.typManuell = false; dabRenderKategorie(); return; }
     if (btn) btn.disabled = true;
     try {
         const r = await fetch('/api/documents/ablage-ziele/typ-merken', {
             method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: erstes.code, typId: Number(typId) }) });
+            body: JSON.stringify({ code: erstes.code, typId: Number(typId), ersetzen: !!erstes.typ }) });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.message || j.error || ('HTTP ' + r.status));
         // Neu laden: ein Code kann mehrere Angaben betreffen (z.B. Geburtsurkunde MA + Kind).
@@ -3190,7 +3191,9 @@ async function dabBereit() {
         typId: Number(typId),
         ziele: _dab.gewaehlt.filter(k => { const o = dabOpt(k); return !o.formular && !o.anderes; }),
         gewaehlt: _dab.gewaehlt.slice(),
-        merkenCode: !erstes.typ && document.getElementById('dabMerken')?.checked ? erstes.code : null,
+        merkenCode: manuell && document.getElementById('dabMerken')?.checked
+            && String(erstes.typ?.typId ?? '') !== String(typId) ? erstes.code : null,
+        merkenErsetzen: !!erstes.typ,
     };
 }
 
@@ -3203,7 +3206,7 @@ async function dabNachher({ empId, docId, bereit, bemerkung, verknuepft, notifyI
         try {
             await fetch('/api/documents/ablage-ziele/typ-merken', {
                 method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: bereit.merkenCode, typId: bereit.typId }) });
+                body: JSON.stringify({ code: bereit.merkenCode, typId: bereit.typId, ersetzen: !!bereit.merkenErsetzen }) });
         } catch { /* Merken ist Komfort — das Dokument ist abgelegt */ }
     }
     const gewaehlt = bereit.gewaehlt;

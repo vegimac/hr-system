@@ -189,6 +189,15 @@ public class DokumentAblageTests
         // Nochmals dasselbe = kein Fehler, keine Dublette
         Assert.Null(await svc.TypMerkenAsync("birth_cert", 30));
         Assert.Equal(1, await db.DokumentTypZusatzCodes.CountAsync());
+
+        // Kategorie «ändern» = bewusst umhängen: Angabe wandert, bleibt aber nur an einem Typ
+        Assert.Null(await svc.TypMerkenAsync("marriage_cert", 31, ersetzen: true));
+        typen = await svc.TypenFuerCodesAsync();
+        Assert.Equal(31, DokumentAblageService.TypFuerArt(DokumentAblageService.FindeArt("zivilstand")!, typen)!.TypId);
+        // Familienbuch behält eine Hauptverknüpfung: die Geburtsurkunde rückt nach
+        Assert.Equal("birth_cert", (await db.DokumentTypen.FindAsync(30))!.LinkedFieldCode);
+        Assert.Equal(1, await db.DokumentTypZusatzCodes.CountAsync());
+        Assert.Equal(30, DokumentAblageService.TypFuerArt(DokumentAblageService.FindeArt("geburtsurkunde")!, typen)!.TypId);
     }
 
     [Fact]
