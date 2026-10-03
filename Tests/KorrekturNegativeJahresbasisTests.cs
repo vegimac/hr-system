@@ -66,7 +66,7 @@ public class KorrekturNegativeJahresbasisTests
     {
         var ktg = AbzugZeile(Rechne(-26500m, Ktg()), "KTG");
         Assert.Equal(-26500m, (decimal)ktg["basis"]!);
-        Assert.Equal(255.99m, (decimal)ktg["betrag"]!);   // positiv = Rückerstattung
+        Assert.Equal(256.00m, (decimal)ktg["betrag"]!);   // positiv = Rückerstattung; 255.99 auf 5 Rp.
     }
 
     [Fact]

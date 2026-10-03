@@ -72,7 +72,7 @@ public class YtdBasisJeVersicherungTests
     {
         var z = UvgzZeile(YtdUvg);
         Assert.Equal(14046.67m, (decimal)z["basis"]!);
-        Assert.Equal(-108.72m, (decimal)z["betrag"]!);
+        Assert.Equal(-108.70m, (decimal)z["betrag"]!);   // 108.72 auf 5 Rp.
     }
 
     [Fact]
@@ -81,6 +81,6 @@ public class YtdBasisJeVersicherungTests
         // Gegenprobe: ohne eigene Basis greift die gemeinsame AHV-Liste — der alte Wert.
         var z = UvgzZeile(null);
         Assert.Equal(12350.00m, (decimal)z["basis"]!);
-        Assert.Equal(-95.59m, (decimal)z["betrag"]!);
+        Assert.Equal(-95.60m, (decimal)z["betrag"]!);    // 95.59 auf 5 Rp.
     }
 }

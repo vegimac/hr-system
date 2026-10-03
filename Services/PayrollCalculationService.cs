@@ -503,14 +503,12 @@ public static class PayrollCalculations
                                      : Rappen(basis * d.RateEmployer.Value / 100m))
                 : (decimal?)null;
 
-            // BVG auf 5 Rappen (Walter 28.09.2026): so verlangen es die Swissdec-Testdaten
-            // (Muster AG, Stand 28.09.2026: TF18 Blanc 76.45 statt 76.44, TF36 Maldini
-            // 433.35 statt 433.33) und so meldet ELM den Beitrag — gilt für alle Filialen.
-            if (d.CategoryCode?.ToUpperInvariant() is "BVG" or "BVG_ZUSATZ")
-            {
-                betrag = Round05(betrag);
-                if (agBetrag is { } ag) agBetrag = Round05(ag);
-            }
+            // Jeder Abzug auf 5 Rappen: BVG seit 28.09.2026 (Swissdec-Testdaten TF18 Blanc
+            // 76.45 statt 76.44, TF36 Maldini 433.35 statt 433.33), alle übrigen Sozialabgaben
+            // seit 04.10.2026 (Walter: wie Mirus; ELM meldet die SocialContributions je Beitrag
+            // auf 5 Rp. — Beleg = Meldung). Gilt für alle Filialen.
+            betrag = Round05(betrag);
+            if (agBetrag is { } ag) agBetrag = Round05(ag);
 
             totalAbzuege += betrag;
             if (d.CategoryCode == "QST") qstBetragOut += -betrag;

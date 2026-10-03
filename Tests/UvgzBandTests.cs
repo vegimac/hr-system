@@ -81,7 +81,7 @@ public class UvgzBandTests
         var (lines, total) = Run(15000m, ytd: new List<decimal>(), monate: 1m, bisher: 0m);
         var uvgz = Line(lines, "UVGZ");
         Assert.Equal(2650m, (decimal)uvgz["basis"]!);
-        Assert.Equal(-Math.Round(2650m * 0.508m / 100m, 2), (decimal)uvgz["betrag"]!);
+        Assert.Equal(-PayrollCalculations.Round05(Math.Round(2650m * 0.508m / 100m, 2)), (decimal)uvgz["betrag"]!);
         decimal summe = lines.Sum(l => (decimal)l["betrag"]!);
         Assert.Equal(summe, total);
     }
