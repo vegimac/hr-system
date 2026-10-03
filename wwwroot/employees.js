@@ -18455,22 +18455,23 @@ async function fmOcrAusweisRun(docId) {
 // «Dienstalter seit» ist nur die Handeingabe für Ausnahmen.
 function _ovDienstalterRowHtml(emp) {
     const hand = !!emp.dienstalterSeit;
-    // Walter 28.09.2026: Ohne Handeingabe stand hier nur «aus der Vertragskette»
-    // — ohne Datum. Jetzt steht das gerechnete Datum da und die Herkunft daneben.
-    const wert = hand
-        ? `${formatDate(emp.dienstalterSeit)} <span style="color:#8b8b8b;font-size:11px">(von Hand)</span>`
-        : emp.dienstalterGerechnet
-            ? `${formatDate(emp.dienstalterGerechnet)} <span style="color:#8b8b8b;font-size:11px">(aus der Vertragskette)</span>`
-            // NULL kommt nur, wenn WEDER Eintritt NOCH ein Vertrag da ist.
-            : `<span style="color:#8b8b8b">– kein Eintrittsdatum –</span>`;
-    const titel = hand && emp.dienstalterBemerkung ? ` title="${esc(emp.dienstalterBemerkung)}"` : '';
-    return `<div class="ov-pf ov-anst-datum"${titel}>
+    // Walter 28.09.2026: gerechnetes Datum + Herkunft. Herkunft und «ansehen» stehen
+    // in einer zweiten Zeile — die Spalte ist nur so breit wie ein Datum.
+    const datum = hand ? emp.dienstalterSeit : emp.dienstalterGerechnet;
+    const wert = datum
+        ? formatDate(datum)
+        // NULL kommt nur, wenn WEDER Eintritt NOCH ein Vertrag da ist.
+        : `<span style="color:#8b8b8b;font-size:12px">– kein Eintritt –</span>`;
+    const herkunft = hand ? 'von Hand' : 'aus Verträgen';
+    const titel = hand && emp.dienstalterBemerkung
+        ? esc(emp.dienstalterBemerkung)
+        : (hand ? 'Von Hand gesetzt' : 'Aus der Vertragskette berechnet') + ' — ab wann zählen die Dienstjahre? (Lohnfortzahlung, Karenz, Sperrfrist)';
+    return `<div class="ov-pf ov-anst-datum">
         <div class="ov-pfl">Dienstalter seit</div>
-        <div class="ov-pfv" style="display:flex;align-items:center;gap:6px">
-            ${wert}
-            <button type="button" onclick="ovDienstalterModal(${emp.id})"
-                    title="Ab wann zählen die Dienstjahre? (Lohnfortzahlung, Karenz, Sperrfrist)"
-                    style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:8px;padding:1px 7px;font-size:11px;color:#3f3f3f;cursor:pointer">ansehen</button>
+        <div class="ov-pfv">${wert}</div>
+        <div onclick="ovDienstalterModal(${emp.id})" title="${titel}"
+             style="font-size:10.5px;line-height:1.2;margin-top:-3px;color:#8b8b8b;white-space:nowrap;cursor:pointer">
+            ${herkunft} · <span style="text-decoration:underline;color:#646464">ansehen</span>
         </div>
     </div>`;
 }
