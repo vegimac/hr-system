@@ -3114,10 +3114,47 @@ function dabRenderKategorie() {
                 </select></div>
             <div><label>Typ</label><select id="dabTyp"><option value="">– Erst Kategorie wählen –</option></select></div>
         </div>
-        ${!typ && _dab.istAdmin ? `<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:#3f3f3f;cursor:pointer">
+        ${!typ && _dab.istAdmin ? `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:#3f3f3f;cursor:pointer">
             <input type="checkbox" id="dabMerken" checked style="width:15px;height:15px;accent-color:#3f3f3f">
-            Für «${_dabEsc(erstes.label)}» künftig immer diese Kategorie verwenden</label>` : ''}`;
+            Für «${_dabEsc(erstes.label)}» künftig immer diese Kategorie verwenden</label>
+            <button type="button" onclick="dabKategorieJetztMerken(this)" title="Zuordnung sofort speichern — auch ohne Dokument hochzuladen"
+                style="background:rgba(255,255,255,0.58);border:1px solid rgba(60,55,48,0.20);color:#3f3f3f;border-radius:999px;padding:5px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Jetzt speichern</button>
+        </div>` : ''}`;
     if (katId) { dabKatGewaehlt(katId); document.getElementById('dabTyp').value = typ.typId; }
+}
+
+// «Künftig immer diese Kategorie» sofort speichern, ohne Dokument (Walter 03.10.2026).
+const _dabToast = (m, t) => { if (typeof showToast === 'function') showToast(m, t); };
+async function dabKategorieJetztMerken(btn) {
+    const erstes = dabOpt(_dab?.gewaehlt[0]);
+    if (!erstes) return;
+    const typId = document.getElementById('dabTyp')?.value;
+    if (!typId) { _dabToast('Bitte Kategorie und Typ wählen.', 'error'); return; }
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch('/api/documents/ablage-ziele/typ-merken', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: erstes.code, typId: Number(typId) }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || j.error || ('HTTP ' + r.status));
+        // Neu laden: ein Code kann mehrere Angaben betreffen (z.B. Geburtsurkunde MA + Kind).
+        const r2 = await fetch(`/api/documents/ablage-ziele/${_dab.empId}`, { headers: ah() });
+        if (r2.ok) {
+            const neu = (await r2.json()).optionen || [];
+            for (const o of _dab.optionen) {
+                const n = neu.find(x => x.key === o.key);
+                if (n) o.typ = n.typ;
+            }
+        }
+        _dab.typManuell = false;
+        _dabToast(`✓ Für «${erstes.label}» gespeichert`, 'success');
+        dabRenderZiele();
+        dabRenderKategorie();
+    } catch (e) {
+        _dabToast('Nicht gespeichert: ' + e.message, 'error');
+        if (btn) btn.disabled = false;
+    }
 }
 
 function dabKatGewaehlt(katId) {

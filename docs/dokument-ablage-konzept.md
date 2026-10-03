@@ -65,6 +65,8 @@ Hat ein Code noch **keinen** Typ, wählt man die Kategorie am Schluss selbst.
 Ein **admin** kann sie sich merken lassen («Für … künftig immer diese Kategorie»
 → `POST /api/documents/ablage-ziele/typ-merken`, setzt den Code am Typ — nur
 wenn der Typ noch keinen Code hat und kein anderer Typ den Code trägt).
+Daneben speichert «Jetzt speichern» die Zuordnung sofort, ohne Dokument
+hochzuladen (`dabKategorieJetztMerken`, Walter 03.10.2026).
 Die neuen Codes sind in der Dokumentstruktur (Systemeinstellungen) wählbar.
 
 ## Grösse
