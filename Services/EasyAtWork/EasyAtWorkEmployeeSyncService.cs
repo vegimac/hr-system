@@ -1890,6 +1890,20 @@ public class EasyAtWorkEmployeeSyncService
                 continue;
             }
 
+            // Treffer über Nummer/ID, aber offensichtlich eine andere Person → nie
+            // überschreiben (Walter-Bug 03.10.2026, Pelagia auf Sahras Datensatz).
+            if (co != null && IstAnderePerson(co.FirstName, co.LastName, co.DateOfBirth,
+                                              master.FirstName, master.LastName, master.DateOfBirth))
+            {
+                var weg = matchedKey != null ? $"Nummer {matchedKey}" : $"easy@work-ID {eaw.Id}";
+                row.Status = "CONFLICT";
+                row.Reason = $"Über {weg} mit MA #{co.Id} «{co.FirstName} {co.LastName}» verknüpft, aber Name und Geburtsdatum passen nicht — andere Person? Nicht übernommen, bitte Nummern/Verknüpfung klären.";
+                row.Diffs = new();
+                res.Rows.Add(row); res.CountConflict++;
+                res.Notes.Add($"⚠ {master.FirstName} {master.LastName} (Nr. {row.Number}): {row.Reason}");
+                continue;
+            }
+
             // Über eine ALTE Nummer gematcht? (matchender Key ≠ aktuelle Personalnr.)
             if (co != null && matchedKey != null
                 && !string.Equals(co.EmployeeNumber?.Trim(), matchedKey, StringComparison.OrdinalIgnoreCase))
@@ -2435,6 +2449,16 @@ public class EasyAtWorkEmployeeSyncService
                     {
                         existingByEawId = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.ReentryEmployeeId.Value, ct);
                         viaNameDob = existingByEawId != null;
+                    }
+                    if (existingByEawId != null && !viaNameDob)
+                    {
+                        var mNeu = masterByEaw[row.EawEmployeeId];
+                        if (IstAnderePerson(existingByEawId.FirstName, existingByEawId.LastName, existingByEawId.DateOfBirth,
+                                            mNeu.FirstName, mNeu.LastName, mNeu.DateOfBirth))
+                        {
+                            res.Notes.Add($"⚠ {mNeu.FirstName} {mNeu.LastName} (Nr. {eaw.Number}): easy@work-ID {eaw.Id} hängt an MA #{existingByEawId.Id} «{existingByEawId.FirstName} {existingByEawId.LastName}» — Name und Geburtsdatum passen nicht. Nicht übernommen, bitte klären.");
+                            continue;
+                        }
                     }
                     if (existingByEawId != null)
                     {
@@ -4693,6 +4717,23 @@ public class EasyAtWorkEmployeeSyncService
 
     private static string NameDobKey(string? firstName, string? lastName, DateOnly dateOfBirth)
         => NameDobKey(firstName, lastName, dateOfBirth.ToDateTime(TimeOnly.MinValue));
+
+    /// <summary>
+    /// Offensichtlich eine andere Person? Vorname UND Nachname weichen ab und das
+    /// Geburtsdatum bestätigt nicht (Walter-Bug 03.10.2026: Pelagia Pantouveri wurde
+    /// über eine Alias-Nummer auf Sahra Dschafaris Datensatz geschrieben). Heirat
+    /// (nur Nachname neu) oder Tippfehler in einem Namen gelten als dieselbe Person.
+    /// </summary>
+    public static bool IstAnderePerson(string? coVorname, string? coNachname, DateTime? coGeburt,
+                                       string? eawVorname, string? eawNachname, DateOnly? eawGeburt)
+    {
+        static string Norm(string? s) => new string((s ?? "").Trim().ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+        var vornameGleich  = Norm(coVorname)  == Norm(eawVorname);
+        var nachnameGleich = Norm(coNachname) == Norm(eawNachname);
+        if (vornameGleich || nachnameGleich) return false;
+        if (coGeburt.HasValue && eawGeburt.HasValue && DateOnly.FromDateTime(coGeburt.Value) == eawGeburt.Value) return false;
+        return true;
+    }
 
     /// <summary>
     /// Soll bei einem Nummernwechsel ein Alias gespeichert werden? Nur wenn die
