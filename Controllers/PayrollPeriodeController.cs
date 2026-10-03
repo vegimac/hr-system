@@ -796,6 +796,8 @@ public class PayrollPeriodeController : ControllerBase
                 s.Id,
                 s.EmployeeId,
                 Name = s.Employee == null ? "" : s.Employee.LastName + " " + s.Employee.FirstName,
+                FirstName = s.Employee == null ? "" : s.Employee.FirstName,
+                LastName  = s.Employee == null ? "" : s.Employee.LastName,
                 s.Brutto,
                 s.Netto,
                 s.SvBasisAhv,

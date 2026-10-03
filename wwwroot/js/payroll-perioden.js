@@ -522,23 +522,40 @@ async function perShowSnapshots(periodeId, label) {
 
         if (snaps.length === 0) { alert(`Keine Lohnzettel in Periode «${label}».`); return; }
 
+        // Periode für «Wieder öffnen» — erreicht auch MA, die im Lohnlauf nicht mehr
+        // in der Liste stehen (z.B. ausgetreten), deren Lohnzettel aber das Löschen sperrt.
+        const pr = await fetch(`/api/payroll-perioden/${periodeId}`, { headers: ah() });
+        const per = pr.ok ? await pr.json() : null;
+        const periodeOffen = per?.status === 'offen';
+        const statusText = { BERECHNET: 'berechnet', FREIGEGEBEN_GF: 'bestätigt (GF)', HR_BESTAETIGT: 'bestätigt (HR)', ABGESCHLOSSEN: 'abgeschlossen' };
+
+        snaps.sort((a, b) => (a.firstName||'').localeCompare(b.firstName||'') || (a.lastName||'').localeCompare(b.lastName||''));
         let html = `<b>Lohnzettel — ${label}</b><br><br>`;
         html += `<table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead><tr style="background:#f1f5f9">
                 <th style="padding:6px 10px;text-align:left">Mitarbeiter</th>
+                <th style="padding:6px 10px;text-align:left">Status</th>
                 <th style="padding:6px 10px;text-align:right">Brutto</th>
                 <th style="padding:6px 10px;text-align:right">Netto</th>
-                <th style="padding:6px 10px;text-align:center">Finalisiert</th>
+                <th style="padding:6px 10px"></th>
             </tr></thead><tbody>`;
         snaps.forEach(s => {
+            const st = s.status || 'BERECHNET';
+            const bestaetigt = s.isFinal || st !== 'BERECHNET';
+            const name = `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name;
+            const oeffnenBtn = (periodeOffen && bestaetigt && !s.isFinal)
+                ? `<button class="btn btn-sm btn-outline" onclick="perSnapshotWiederOeffnen(${periodeId},'${(label||'').replace(/'/g, "\\'")}',${s.employeeId},'${name.replace(/'/g, "\\'")}')">Wieder öffnen</button>`
+                : '';
             html += `<tr style="border-top:1px solid #f1f5f9">
-                <td style="padding:6px 10px">${s.name}</td>
+                <td style="padding:6px 10px">${name}</td>
+                <td style="padding:6px 10px;color:${bestaetigt ? '#166534' : '#8b8b8b'}">${s.isFinal ? 'finalisiert' : (statusText[st] || st)}</td>
                 <td style="padding:6px 10px;text-align:right">CHF ${Number(s.brutto).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                 <td style="padding:6px 10px;text-align:right">CHF ${Number(s.netto).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-                <td style="padding:6px 10px;text-align:center">${s.isFinal ? '✓' : '–'}</td>
+                <td style="padding:6px 10px;text-align:right">${oeffnenBtn}</td>
             </tr>`;
         });
         html += '</tbody></table>';
+        html += `<div style="display:none" id="perSnapPeriodeInfo" data-cid="${per?.companyProfileId ?? ''}" data-year="${per?.year ?? ''}" data-month="${per?.month ?? ''}"></div>`;
 
         // Einfaches Modal
         let modal = document.getElementById('perSnapshotModal');
@@ -558,5 +575,31 @@ async function perShowSnapshots(periodeId, label) {
             </div>`;
         modal.style.display = 'flex';
     } catch(e) { alert(e.message); }
+}
+
+async function perSnapshotWiederOeffnen(periodeId, label, employeeId, name) {
+    const info = document.getElementById('perSnapPeriodeInfo')?.dataset || {};
+    if (!info.cid || !info.year || !info.month) { alert('Periode nicht gefunden.'); return; }
+    if (!await liquidConfirm(`Lohnzettel von ${name} (${label}) wieder öffnen?`, { title: 'Wieder öffnen', yesLabel: 'Wieder öffnen', noLabel: 'Abbrechen' })) return;
+    try {
+        const res = await fetch('/api/payroll/reopen', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                employeeId,
+                companyProfileId: Number(info.cid),
+                payrollPeriodeId: periodeId,
+                year:  Number(info.year),
+                month: Number(info.month)
+            })
+        });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.error || e.message || `HTTP ${res.status}`);
+        }
+        showToast(`Lohnzettel von ${name} wieder geöffnet`, 'success');
+        document.getElementById('perSnapshotModal')?.remove();
+        perLoadPerioden();
+    } catch(e) { alert('Wieder öffnen fehlgeschlagen: ' + e.message); }
 }
 
