@@ -23,6 +23,9 @@
 (function () {
     'use strict';
 
+    // Ab so vielen Einträgen zeigt das Panel oben ein Suchfeld.
+    const SUCH_AB = 8;
+
     function lqEsc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     }
@@ -64,6 +67,17 @@
         const panel = document.createElement('div');
         panel.className = 'lqsel-panel';
         panel.style.display = 'none';
+        // Tipp-Suche (Walter 04.10.2026): «mcb» oder «205» → McBonus.
+        const search = document.createElement('input');
+        search.type = 'text';
+        search.className = 'lqsel-search';
+        search.placeholder = 'Suchen … (Text oder Nummer)';
+        search.autocomplete = 'off';
+        search.spellcheck = false;
+        const list = document.createElement('div');
+        list.className = 'lqsel-list';
+        panel.appendChild(search);
+        panel.appendChild(list);
         wrap.appendChild(btn);
         wrap.appendChild(panel);
 
@@ -103,7 +117,51 @@
                     html += optHtml(node);
                 }
             });
-            panel.innerHTML = html || '<div class="lqsel-group">— leer —</div>';
+            list.innerHTML = html || '<div class="lqsel-group">— leer —</div>';
+            const mitSuche = sel.options.length >= SUCH_AB;
+            panel.classList.toggle('lqsel-mit-suche', mitSuche);
+            search.style.display = mitSuche ? '' : 'none';
+            if (!mitSuche) search.value = '';
+            applyFilter();
+        }
+
+        const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        function sichtbareOpts() {
+            return Array.from(list.querySelectorAll('.lqsel-opt')).filter(el => el.style.display !== 'none' && !el.classList.contains('dis'));
+        }
+        function setActive(el) {
+            list.querySelectorAll('.lqsel-opt.active').forEach(x => x.classList.remove('active'));
+            if (el) { el.classList.add('active'); el.scrollIntoView && el.scrollIntoView({ block: 'nearest' }); }
+        }
+        function applyFilter() {
+            const q = norm(search.value.trim());
+            list.querySelectorAll('.lqsel-opt').forEach(el => {
+                el.style.display = !q || norm(el.textContent).includes(q) ? '' : 'none';
+            });
+            let group = null, groupHatTreffer = false;
+            const schliesseGruppe = () => { if (group) group.style.display = groupHatTreffer ? '' : 'none'; };
+            Array.from(list.children).forEach(el => {
+                if (el.classList.contains('lqsel-group')) { schliesseGruppe(); group = el; groupHatTreffer = false; }
+                else if (el.style.display !== 'none') groupHatTreffer = true;
+            });
+            schliesseGruppe();
+            let leer = list.querySelector('.lqsel-leer');
+            const keine = q && !sichtbareOpts().length;
+            if (keine && !leer) {
+                leer = document.createElement('div');
+                leer.className = 'lqsel-group lqsel-leer';
+                leer.textContent = 'Kein Treffer';
+                list.appendChild(leer);
+            } else if (!keine && leer) leer.remove();
+            setActive(q ? sichtbareOpts()[0] : null);
+        }
+        function choose(el) {
+            if (!el || el.classList.contains('dis')) return;
+            sel.value = el.getAttribute('data-v');
+            sel.dispatchEvent(new Event('change'));
+            renderBtn();
+            close();
+            btn.focus({ preventScroll: true });
         }
 
         // Panel am body → nicht von Modal-transform als Containing-Block
@@ -112,7 +170,10 @@
             if (!wrap.contains(e.target) && !panel.contains(e.target)) close();
         }
         function onScroll(e) { if (!panel.contains(e.target)) close(); }
-        function open()  {
+        // Bildschirmtastatur (iPad) löst resize aus — dann nicht schliessen.
+        function onResize() { if (document.activeElement !== search) close(); }
+        function open(startText)  {
+            search.value = startText || '';
             renderPanel();
             if (panel.parentNode !== document.body) document.body.appendChild(panel);
             panel.style.display = 'block';
@@ -127,35 +188,54 @@
             const below = window.innerHeight - r.bottom;
             const panelH = Math.min(panel.scrollHeight, 340);
             if (below < panelH + 12 && r.top > panelH + 12) {
-                panel.style.top = (r.top - panelH - 4) + 'px';
-                panel.style.bottom = 'auto';
+                // Unten verankert, damit das Panel beim Filtern am Feld bleibt.
+                panel.style.top = 'auto';
+                panel.style.bottom = (window.innerHeight - r.top + 4) + 'px';
             } else {
                 panel.style.top = (r.bottom + 4) + 'px';
                 panel.style.bottom = 'auto';
             }
             document.addEventListener('mousedown', onDocDown, true);
             document.addEventListener('scroll', onScroll, true);
-            window.addEventListener('resize', close);
-            const cur = panel.querySelector('.lqsel-opt.sel');
-            if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+            window.addEventListener('resize', onResize);
+            if (!search.value) {
+                const cur = list.querySelector('.lqsel-opt.sel');
+                if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+            }
+            if (search.style.display !== 'none') search.focus({ preventScroll: true });
         }
         function close() {
             panel.style.display = 'none';
             document.removeEventListener('mousedown', onDocDown, true);
             document.removeEventListener('scroll', onScroll, true);
-            window.removeEventListener('resize', close);
+            window.removeEventListener('resize', onResize);
         }
 
         btn.addEventListener('click', () => (panel.style.display === 'none' ? open() : close()));
-        btn.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+        btn.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { close(); return; }
+            // Tippen auf dem fokussierten Feld öffnet direkt mit Suche.
+            if (e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey
+                && sel.options.length >= SUCH_AB && panel.style.display === 'none') {
+                e.preventDefault();
+                open(e.key);
+            }
+        });
+        search.addEventListener('input', applyFilter);
+        search.addEventListener('keydown', (e) => {
+            const opts = sichtbareOpts();
+            const i = opts.indexOf(list.querySelector('.lqsel-opt.active'));
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActive(opts[Math.min(i + 1, opts.length - 1)] || opts[0]); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(opts[Math.max(i - 1, 0)]); }
+            else if (e.key === 'Enter') { e.preventDefault(); choose(opts[i] || opts[0]); }
+            else if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus({ preventScroll: true }); }
+            else if (e.key === 'Tab') close();
+        });
         panel.addEventListener('mousedown', (e) => {
             const t = e.target.closest('.lqsel-opt');
             if (!t || t.classList.contains('dis')) return;
             e.preventDefault();
-            sel.value = t.getAttribute('data-v');
-            sel.dispatchEvent(new Event('change'));
-            renderBtn();
-            close();
+            choose(t);
         });
 
         // Optionstexte/-listen ändern sich (Zähler, Nachladen) → mitziehen.

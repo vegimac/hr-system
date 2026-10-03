@@ -2709,7 +2709,20 @@
             font-size: 13px; color: #3f3f3f; cursor: pointer;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .lqsel-opt:hover { background: #ece9e2; }
+        .lqsel-opt:hover, .lqsel-opt.active { background: #ece9e2; }
+        /* Tipp-Suche im Dropdown (Walter 04.10.2026): Suchfeld bleibt oben,
+           nur die Liste darunter scrollt. */
+        .lqsel-panel.lqsel-mit-suche { overflow: hidden; }
+        .lqsel-mit-suche .lqsel-list { max-height: 286px; overflow-y: auto; }
+        .lqsel-search {
+            display: block; box-sizing: border-box; width: 100%;
+            margin: 0 0 6px; padding: 8px 12px;
+            font-size: 13px; color: #3f3f3f; font-family: inherit;
+            background: #fff; border: 1px solid rgba(60,55,48,0.14); border-radius: 10px;
+            box-shadow: inset 0 1px 2px rgba(60,55,48,0.08); outline: none;
+        }
+        .lqsel-search:focus { border-color: #6b7280; }
+        body.theme-dark .lqsel-search { background: rgba(255,255,255,0.08); color: var(--dlg-text); border-color: rgba(255,255,255,0.18); }
         .lqsel-opt.sel { font-weight: 700; }
         .lqsel-opt.sel::before { content: "✓ "; color: #6b7280; }
         .lqsel-opt.dis { color: #b8b2a7; cursor: default; }
