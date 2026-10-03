@@ -67,6 +67,14 @@ public class RosterAbsenceImportController : ControllerBase
             ["UU"] = "UNBEZ_URLAUB", // Unbezahlter Urlaub (Walter-Vorgabe 27.06.2026)
         };
 
+    // Bekannte Dienstplan-Codes, die nur angezeigt und NICHT importiert werden
+    // (Walter-Vorgabe 03.10.2026). Code → Bezeichnung in der Vorschau.
+    private static readonly Dictionary<string, string> NurAnzeigeCodes =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FR"] = "Frei",
+        };
+
     // ── DTOs ────────────────────────────────────────────────────────────────
 
     public class PreviewRow
@@ -89,8 +97,10 @@ public class RosterAbsenceImportController : ControllerBase
         public string? DbLastName      { get; set; }
         public string? EmploymentModel { get; set; }
 
-        // OK | UPDATE | NO_MATCH | AMBIGUOUS | UNKNOWN_CODE | DUPLICATE
+        // OK | UPDATE | NO_MATCH | AMBIGUOUS | UNKNOWN_CODE | NICHT_IMPORTIERT | DUPLICATE
         public string  Status { get; set; } = "OK";
+        /// <summary>Bei Status NICHT_IMPORTIERT: Bezeichnung des Codes (z.B. «Frei»).</summary>
+        public string? Bezeichnung { get; set; }
         public string? Note   { get; set; }
         /// <summary>Bei Status UPDATE: Id der zu ersetzenden bestehenden Absenz.</summary>
         public int?    ExistingAbsenceId { get; set; }
@@ -139,7 +149,7 @@ public class RosterAbsenceImportController : ControllerBase
 
         foreach (var r in spans)
         {
-            if (r.Status == "UNKNOWN_CODE") continue;
+            if (r.Status == "UNKNOWN_CODE" || r.Status == "NICHT_IMPORTIERT") continue;
 
             var matches = employees
                 .Where(e => NameTokensMatch(e.FirstName, e.LastName, "", r.RawName))
@@ -231,7 +241,8 @@ public class RosterAbsenceImportController : ControllerBase
         foreach (var r in spans)
         {
             if (selectedRows.Count > 0 && !selectedRows.Contains(r.RowNum)) continue;
-            if (r.Status == "UNKNOWN_CODE" || string.IsNullOrEmpty(r.AbsenceType)) { skipped++; continue; }
+            if (r.Status == "UNKNOWN_CODE" || r.Status == "NICHT_IMPORTIERT"
+                || string.IsNullOrEmpty(r.AbsenceType)) { skipped++; continue; }
 
             // Stufe 0: manuelle Zuordnung gewinnt immer.
             Employee? emp = null;
@@ -718,7 +729,14 @@ public class RosterAbsenceImportController : ControllerBase
                             DayCount    = 1,
                             HadStar     = hadStar,
                         };
-                        if (string.IsNullOrEmpty(cur.AbsenceType))
+                        if (string.IsNullOrEmpty(cur.AbsenceType)
+                            && NurAnzeigeCodes.TryGetValue(norm, out var bezeichnung))
+                        {
+                            cur.Status      = "NICHT_IMPORTIERT";
+                            cur.Bezeichnung = bezeichnung;
+                            cur.Note        = $"{bezeichnung} — wird zurzeit nicht importiert.";
+                        }
+                        else if (string.IsNullOrEmpty(cur.AbsenceType))
                         {
                             cur.Status = "UNKNOWN_CODE";
                             cur.Note   = $"Unbekannter Code \"{norm}\" — wird nicht importiert.";

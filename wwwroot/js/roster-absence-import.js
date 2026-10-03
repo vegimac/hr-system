@@ -9,6 +9,7 @@
 //   4) Commit → /api/imports/roster-absences/commit legt Absence-Records an
 //      oder korrigiert bestehende (gleicher Typ, geänderter Zeitraum/Stunden)
 //
+// FR = Frei wird erkannt und angezeigt, aber nicht importiert (Walter 03.10.2026).
 // Codes im Plan: FE = Ferien, KR = Krankheit, UN = Unfall. Konsekutive gleiche
 // Tage werden zu einer Absenz zusammengefasst. Identische Dubletten werden
 // übersprungen; Korrekturen (UPDATE) sind wählbar.
@@ -166,7 +167,7 @@ function renderRosterImportPreview(data) {
             <td style="padding:8px 10px;text-align:center">${cb}</td>
             <td style="padding:8px 10px">${r.rawName}</td>
             <td style="padding:8px 10px">${maCell}</td>
-            <td style="padding:8px 10px">${_raTypeBadge(r.absenceType)}</td>
+            <td style="padding:8px 10px">${r.status === 'NICHT_IMPORTIERT' ? _raNurAnzeigeBadge(r.bezeichnung) : _raTypeBadge(r.absenceType)}</td>
             <td style="padding:8px 10px;white-space:nowrap">${_raFmtDate(r.dateFrom)} – ${_raFmtDate(r.dateTo)}</td>
             <td style="padding:8px 10px;text-align:center;color:#475569">${r.dayCount}</td>
             <td style="padding:8px 10px">${hoursCell}</td>
@@ -262,6 +263,7 @@ function rosterImportUpdateCommitBtn() {
 function _raRowBg(status) {
     if (status === 'DUPLICATE')    return '#f8fafc';
     if (status === 'UNKNOWN_CODE') return '#fffbeb';
+    if (status === 'NICHT_IMPORTIERT') return '#f8fafc';
     if (status === 'UPDATE')       return '#f6f3ee';
     if (status === 'OK')           return '#f0fdf4';
     return 'white';
@@ -273,6 +275,10 @@ function _raTypeBadge(type) {
     return `<span style="font-size:11px;background:${v[0]};color:${v[1]};padding:2px 8px;border-radius:8px;font-weight:600">${v[2]}</span>`;
 }
 
+function _raNurAnzeigeBadge(bezeichnung) {
+    return `<span style="font-size:11px;background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:8px;font-weight:600">${bezeichnung || '–'}</span>`;
+}
+
 function _raStatusBadge(s) {
     const map = {
         'OK':           ['bereit',       '#dcfce7', '#15803d'],
@@ -281,6 +287,7 @@ function _raStatusBadge(s) {
         'AMBIGUOUS':    ['Mehrdeutig',   '#fef3c7', '#854d0e'],
         'DUPLICATE':    ['schon erfasst','#f1f5f9', '#475569'],
         'UNKNOWN_CODE': ['Code unbekannt','#fef3c7', '#854d0e'],
+        'NICHT_IMPORTIERT': ['nicht importiert','#f1f5f9', '#475569'],
     };
     const v = map[s]; if (!v) return s;
     return `<span style="font-size:10px;background:${v[1]};color:${v[2]};padding:1px 7px;border-radius:8px;font-weight:600">${v[0]}</span>`;
