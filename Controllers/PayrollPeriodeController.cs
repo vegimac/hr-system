@@ -59,6 +59,7 @@ public class PayrollPeriodeController : ControllerBase
                 p.CreatedAt,
                 SnapshotCount = p.Snapshots.Count,
                 FinalCount    = p.Snapshots.Count(s => s.IsFinal),
+                BestaetigtCount = p.Snapshots.Count(s => s.IsFinal || (s.Status != null && s.Status != "" && s.Status != "BERECHNET")),
                 // Akonto-Workflow (Walter-Vorgabe 17.05.2026): pro Periode
                 // gibt's einen parallelen Akonto-Status + Counter wieviele
                 // MA-Lohnblätter schon berechnet sind. Wird im UI zusammen
@@ -219,8 +220,28 @@ public class PayrollPeriodeController : ControllerBase
         if (periode.Status != "offen")
             return Conflict(new { error = $"Periode ist nicht mehr offen (Status: {periode.Status}). Erst 'wieder öffnen' / 'zurück an GF', dann löschen." });
 
-        if (periode.Snapshots.Count > 0)
-            return Conflict(new { error = $"Es bestehen {periode.Snapshots.Count} bestätigte Lohnzettel für diese Periode. Bitte zuerst alle Lohnzettel wieder öffnen, dann erneut versuchen." });
+        // Nur bestätigte Lohnzettel blockieren. «BERECHNET» (z.B. nach «Zurück an GF»)
+        // zeigt der Lohnlauf als offen, ohne «Wieder öffnen» — die gehen mit weg.
+        var bestaetigt = periode.Snapshots.Count(IstBestaetigt);
+        if (bestaetigt > 0)
+            return Conflict(new { error = $"Es bestehen {bestaetigt} bestätigte Lohnzettel für diese Periode. Bitte zuerst alle Lohnzettel wieder öffnen, dann erneut versuchen." });
+
+        var berechnete = periode.Snapshots.ToList();
+        var berechneteIds = berechnete.Select(s => s.Id).ToList();
+        var abtretungen = await _db.PayrollLohnAbtretungEntries
+            .Where(e => berechneteIds.Contains(e.PayrollSnapshotId))
+            .ToListAsync();
+        foreach (var old in abtretungen)
+        {
+            var la = await _db.EmployeeLohnAssignments.FindAsync(old.EmployeeLohnAssignmentId);
+            if (la != null)
+            {
+                la.BereitsAbgezogen = Math.Max(0, Math.Round(la.BereitsAbgezogen - old.Betrag, 2));
+                la.UpdatedAt        = DateTime.Now;
+            }
+            _db.PayrollLohnAbtretungEntries.Remove(old);
+        }
+        if (berechnete.Count > 0) _db.PayrollSnapshots.RemoveRange(berechnete);
 
         // PayrollSaldi für diese Year/Month/Company:
         //   • 'confirmed' Saldi blockieren (HR hat schon Lohn bestätigt) →
@@ -286,9 +307,13 @@ public class PayrollPeriodeController : ControllerBase
             deletedPeriodeId = id,
             companyProfileId,
             saldiDeleted,
-            auditDeleted = auditRows.Count
+            auditDeleted = auditRows.Count,
+            berechneteLohnzettelGeloescht = berechnete.Count
         });
     }
+
+    private static bool IstBestaetigt(PayrollSnapshot s)
+        => s.IsFinal || !(string.IsNullOrEmpty(s.Status) || s.Status == "BERECHNET");
 
     /// <summary>
     /// Provisorischer Lohnabschluss durch den Geschäftsführer.

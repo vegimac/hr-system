@@ -133,16 +133,28 @@ async function perLoadPerioden() {
             // Walter-Vorgabe 17.05.2026: Akonto-Status muss OFFEN sein,
             // sonst hängen Akonto-Datensätze + Workflow-Audit dran.
             const akontoOffen = akS === 'OFFEN';
+            // «Berechnete» Lohnzettel (z.B. nach «Zurück an GF») blockieren nicht —
+            // sie erscheinen im Lohnlauf als offen und haben kein «Wieder öffnen».
+            const bestaetigt  = p.bestaetigtCount ?? p.snapshotCount ?? 0;
             const canDelete   = !isAbgeschlossen
                               && !isProvisorisch
                               && p.status === 'offen'
                               && akontoOffen
-                              && (p.snapshotCount || 0) === 0
+                              && bestaetigt === 0
                               && (p.akontoCount  || 0) === 0;
+            let deleteSperre = '';
+            if (!canDelete && p.status === 'offen') {
+                if (bestaetigt > 0)
+                    deleteSperre = `Löschen gesperrt: ${bestaetigt} bestätigte Lohnzettel — im Lohnlauf wieder öffnen`;
+                else if (!akontoOffen || (p.akontoCount || 0) > 0)
+                    deleteSperre = 'Löschen gesperrt: Akonto-Lauf ist gestartet — zuerst Akonto zurücksetzen';
+            }
             const deleteBtn = canDelete
                 ? ` <button class="btn btn-sm btn-outline" style="color:#b91c1c;border-color:#fca5a5"
                             onclick="perDelete(${p.id},'${(p.label || '').replace(/'/g, "\\'")}')">🗑 Löschen</button>`
-                : '';
+                : (deleteSperre
+                    ? ` <span style="font-size:11px;color:#8b8b8b;white-space:normal;max-width:190px;line-height:1.25">${deleteSperre}</span>`
+                    : '');
 
             // Abschliessen-Button: nur bei vollem Definitiv-Offen sinnvoll
             const abschliessenBtn = (!isAbgeschlossen && !isProvisorisch)
@@ -335,7 +347,7 @@ async function perAbschliessen(periodeId, label) {
 }
 
 async function perDelete(periodeId, label) {
-    if (!confirm(`Periode «${label}» wirklich löschen?\n\nNur möglich solange Status = "offen" und keine Lohnzettel bestätigt wurden.`)) return;
+    if (!await liquidConfirm(`Periode «${label}» wirklich löschen?\n\nNur möglich solange die Periode offen ist und kein Lohnzettel bestätigt ist. Nur berechnete (unbestätigte) Lohnzettel werden mitgelöscht.`, { title: 'Periode löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' })) return;
     try {
         let res = await fetch(`/api/payroll-perioden/${periodeId}`, {
             method: 'DELETE', headers: ah()
