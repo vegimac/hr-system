@@ -1287,6 +1287,7 @@ public class PayrollCalculationEngine
                && (a.ErfahrenAm == null || a.ErfahrenAm <= periodTo)
             select new {
                 AllowanceId    = a.Id,
+                FamilyMemberId = a.FamilyMemberId,
                 MonthlyAmount  = a.MonthlyAmount,    // Snapshot zum ValidFrom — Fallback wenn kein Tarif
                 AllowanceType  = a.AllowanceType,    // "KZ" | "AZ" | "GZ" | "AdoptZ" | NULL
                 TarifSatzNr    = a.TarifSatzNr,      // 1, 2, oder NULL (Pauschal/Alt-Daten)
@@ -1446,6 +1447,26 @@ public class PayrollCalculationEngine
             if (betrag == 0m && fa.MonthlyAmount == 0m)
             {
                 continue;
+            }
+
+            if (!istGz)
+            {
+                bool Laufend(string? typ) => !string.Equals(typ, "GZ", StringComparison.OrdinalIgnoreCase)
+                                          && !string.Equals(typ, "AdoptZ", StringComparison.OrdinalIgnoreCase);
+                bool vorgaenger = familienzulagenRaw.Any(o => o.FamilyMemberId == fa.FamilyMemberId
+                    && o.AllowanceId != fa.AllowanceId && Laufend(o.AllowanceType)
+                    && o.ValidTo == fa.ValidFrom.AddDays(-1));
+                bool nachfolger = fa.ValidTo.HasValue && familienzulagenRaw.Any(o => o.FamilyMemberId == fa.FamilyMemberId
+                    && o.AllowanceId != fa.AllowanceId && Laufend(o.AllowanceType)
+                    && o.ValidFrom == fa.ValidTo.Value.AddDays(1));
+                var anteil = PayrollCalculations.FamzMonatsAnteil(
+                    new DateOnly(year, month, 1), fa.ValidFrom, fa.ValidTo, vorgaenger, nachfolger);
+                if (anteil <= 0m) continue;
+                if (anteil < 1m)
+                {
+                    betrag = PayrollCalculations.FamzAnteilBetrag(betrag, anteil);
+                    bemerkung += $" · anteilig {anteil * 30m:0}/30 Tage";
+                }
             }
 
             familienzulagenSynth.Add(new LohnZulage

@@ -1067,6 +1067,32 @@ public static class PayrollCalculations
         => Math.Round(value / 0.05m, 0, MidpointRounding.AwayFromZero) * 0.05m;
 
     /// <summary>
+    /// Anteil eines Familienzulagen-Eintrags an einem Monat, 30-Tage-Basis wie die
+    /// Ausgleichskasse (Walter 04.10.2026, Fomina: 14.–31.08. = 17/30 → 310 × 17/30 = 175.65).
+    /// Schliesst ein Eintrag desselben Kindes nahtlos an (KZ → AZ), zahlt der Eintrag,
+    /// der am Monatsersten gilt, den ganzen Monat und der neue beginnt im Folgemonat.
+    /// </summary>
+    public static decimal FamzMonatsAnteil(DateOnly monatStart, DateOnly validFrom, DateOnly? validTo,
+                                           bool hatVorgaenger, bool hatNachfolger)
+    {
+        var monatEnde = monatStart.AddMonths(1).AddDays(-1);
+        if (validFrom > monatEnde || (validTo.HasValue && validTo.Value < monatStart)) return 0m;
+        int von = 1, bis = 30;
+        if (validFrom > monatStart)
+        {
+            if (hatVorgaenger) return 0m;
+            von = Math.Min(validFrom.Day, 30);
+        }
+        if (validTo.HasValue && validTo.Value < monatEnde && !hatNachfolger)
+            bis = Math.Min(validTo.Value.Day, 30);
+        return Math.Max(0, bis - von + 1) / 30m;
+    }
+
+    /// <summary>Monatsbetrag × Anteil; angebrochene Monate auf 5 Rappen wie die Ausgleichskasse.</summary>
+    public static decimal FamzAnteilBetrag(decimal monatsBetrag, decimal anteil)
+        => anteil >= 1m ? Rappen(monatsBetrag) : Round05(monatsBetrag * anteil);
+
+    /// <summary>
     /// Rundung auf Rappen — kaufmännisch, also die Hälfte immer AUFWÄRTS
     /// (Walter 27.09.2026).
     /// <para>

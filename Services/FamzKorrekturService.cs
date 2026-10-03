@@ -66,20 +66,57 @@ public class FamzKorrekturService
             .Select(k => new { k.Jahr, k.Monat })
             .ToListAsync(ct);
 
-        var kandidaten = rows
-            .Select(r => (r.Year, r.Month, r.CompanyProfileId))
-            .Where(r =>
-            {
-                var mStart = new DateOnly(r.Year, r.Month, 1);
-                var mEnd = mStart.AddMonths(1).AddDays(-1);
-                bool imFenster = allowance.ValidFrom <= mEnd
-                    && (allowance.ValidTo == null || allowance.ValidTo >= mStart);
-                bool vorKenntnis = mEnd < bekanntMonat;
-                bool hattePosten = altePostenMonate.Any(p => p.Jahr == r.Year && p.Monat == r.Month);
-                // Nachzahlung: im Fenster + vor Kenntnis
-                // Rückforderung: nicht mehr im Fenster, aber früher Posten/Zahlung möglich
-                return (imFenster && vorKenntnis) || (!imFenster && (hattePosten || mStart >= allowance.ValidFrom));
-            })
+        var kandidatenMap = new Dictionary<(int Year, int Month), int>();
+        foreach (var r in rows)
+        {
+            var mStart = new DateOnly(r.Year, r.Month, 1);
+            var mEnd = mStart.AddMonths(1).AddDays(-1);
+            bool imFenster = allowance.ValidFrom <= mEnd
+                && (allowance.ValidTo == null || allowance.ValidTo >= mStart);
+            bool vorKenntnis = mEnd < bekanntMonat;
+            bool hattePosten = altePostenMonate.Any(p => p.Jahr == r.Year && p.Monat == r.Month);
+            // Nachzahlung: im Fenster + vor Kenntnis
+            // Rückforderung: nicht mehr im Fenster, aber früher Posten/Zahlung möglich
+            if ((imFenster && vorKenntnis) || (!imFenster && (hattePosten || mStart >= allowance.ValidFrom)))
+                kandidatenMap[(r.Year, r.Month)] = r.CompanyProfileId;
+        }
+
+        // Monate vor Kenntnis ohne abgeschlossenen OneCrew-Lohnlauf (z.B. noch in Mirus
+        // abgerechnet, Walter 04.10.2026 Fomina): auch dort wurde die Zulage nie bezahlt —
+        // Nachzahlung, sofern der MA in dem Monat angestellt war.
+        var anstellungen = (await _db.Employments.AsNoTracking()
+                .Where(e => e.EmployeeId == member.EmployeeId)
+                .Select(e => new { e.ContractStartDate, e.ContractEndDate, e.CompanyProfileId })
+                .ToListAsync(ct))
+            .Select(e => (Von: DateOnly.FromDateTime(e.ContractStartDate),
+                          Bis: e.ContractEndDate.HasValue ? DateOnly.FromDateTime(e.ContractEndDate.Value) : (DateOnly?)null,
+                          Cp: e.CompanyProfileId ?? 0))
+            .ToList();
+        for (var mStart = new DateOnly(allowance.ValidFrom.Year, allowance.ValidFrom.Month, 1);
+             mStart < bekanntMonat && (allowance.ValidTo == null || mStart <= allowance.ValidTo);
+             mStart = mStart.AddMonths(1))
+        {
+            if (kandidatenMap.ContainsKey((mStart.Year, mStart.Month))) continue;
+            var mEnd = mStart.AddMonths(1).AddDays(-1);
+            var anst = anstellungen
+                .Where(a => a.Von <= mEnd && (a.Bis == null || a.Bis >= mStart))
+                .OrderByDescending(a => a.Von)
+                .FirstOrDefault();
+            if (anst == default) continue;
+            kandidatenMap[(mStart.Year, mStart.Month)] = anst.Cp;
+        }
+
+        var geschwister = await _db.FamilyMemberAllowances.AsNoTracking()
+            .Where(a => a.FamilyMemberId == allowance.FamilyMemberId && a.Id != allowance.Id
+                     && a.AllowanceType != "GZ" && a.AllowanceType != "AdoptZ")
+            .Select(a => new { a.ValidFrom, a.ValidTo })
+            .ToListAsync(ct);
+        bool vorgaenger = geschwister.Any(g => g.ValidTo == allowance.ValidFrom.AddDays(-1));
+        bool nachfolger = allowance.ValidTo.HasValue
+            && geschwister.Any(g => g.ValidFrom == allowance.ValidTo.Value.AddDays(1));
+
+        var kandidaten = kandidatenMap
+            .Select(kv => (kv.Key.Year, kv.Key.Month, CompanyProfileId: kv.Value))
             .OrderBy(r => r.Year).ThenBy(r => r.Month)
             .ToList();
 
@@ -95,7 +132,10 @@ public class FamzKorrekturService
                 && (allowance.ValidTo == null || allowance.ValidTo >= mStart);
             bool vorKenntnis = mEnd < bekanntMonat;
 
-            decimal soll = (imFenster && vorKenntnis) ? monatsBetrag : 0m;
+            decimal soll = (imFenster && vorKenntnis)
+                ? PayrollCalculations.FamzAnteilBetrag(monatsBetrag,
+                    PayrollCalculations.FamzMonatsAnteil(mStart, allowance.ValidFrom, allowance.ValidTo, vorgaenger, nachfolger))
+                : 0m;
             // Ab Erfahrungsmonat zahlt der Live-Lauf — hier keine Korrektur.
             if (imFenster && !vorKenntnis) continue;
 
