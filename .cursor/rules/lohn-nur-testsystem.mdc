@@ -1,17 +1,22 @@
 ---
-description: Lohnläufe nur auf dem Testsystem — Prod ohne Lohn bis Walter anders sagt
+description: Lohnläufe auf dem Testsystem — Prod nur für den Mirus-Parallelvergleich (ab 03.10.2026)
 alwaysApply: true
 ---
 
-# Lohn nur Testsystem (Walter, 18.09.2026)
+# Lohn nur Testsystem (Walter, 18.09.2026 — gelockert 03.10.2026)
 
-Walter testet **Löhne / Lohnläufe / QST-Korrekturen / Beleg-Checks** ausschliesslich auf dem **Testsystem** (`test.onecrew.ch`, DB `hr_system_test`).
+Walter testet **Swissdec-Übungen / QST-Korrekturen / Beleg-Checks gegen RefXML** weiterhin auf dem **Testsystem** (`test.onecrew.ch`, DB `hr_system_test`).
 
-**Produktiv** (`hrsystem`): bis auf Weiteres **keine Lohnläufe**, keine Lohn-Verifikation, keine Annahme dass dort Perioden/Snapshots/QST-Korrekturen existieren oder geprüft werden müssen.
+## Ausnahme seit 03.10.2026: Mirus-Parallelvergleich auf Prod
 
-Folgen für den Agenten:
+Walter bereitet die Löhne in **OneCrew Prod** (`hrsystem`) vor und gibt dem Agenten pro MA den **Lohnbeleg aus Mirus und aus OneCrew**. Prod-Lohnperioden/Snapshots dürfen dafür existieren und werden geprüft.
 
-- Bei «wie viele Löhne falsch?», Korrektur-Zählungen, Beleg-Checks → **nur Test-DB / Testinstanz**
-- Nicht verlangen, dass Prod dieselben Lohnmonate hat
-- Deploy bleibt `./deploy.sh` (both), aber Lohn-Fachchecks = Test
-- Erst wenn Walter explizit «auch Prod» / «Lohn auf Prod» sagt, gilt diese Regel nicht mehr
+- Vergleich Zeile für Zeile (Brutto/Lohnarten, AHV/IV/EO, ALV, KTG, UVG/NBU, BVG, QST, Familienzulagen, Netto/Auszahlung, Saldi Ferien/13. ML/Stunden) — jede Differenz > 0 Rp. mit Ist (OneCrew) / Soll (Mirus) / Ursache melden, nie «Rest ok».
+- Bewusste Mirus-Abweichungen als solche kennzeichnen, nicht «fixen» (z.B. kein Ferien-Vorbezug, `docs/claude/fachlogik.md`).
+- Parallelbetrieb: Mirus zahlt aus. In OneCrew Prod **nie** «Definitiv abschliessen» / DTA an Bank (Lohnzettel ins MA-Postfach + E-Mail) ohne ausdrückliches Walter-OK.
+- Fehler in der Lohnlogik werden für ALLE Perioden korrigiert (keine scharfen Lohnläufe, CLAUDE.md).
+
+## Sonst
+
+- Swissdec-/RefXML-Beleg-Checks und Korrektur-Zählungen → **nur Test-DB / Testinstanz**
+- Deploy bleibt `./deploy.sh` (both)
