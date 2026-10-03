@@ -201,6 +201,31 @@ public class DokumentAblageTests
     }
 
     [Fact]
+    public async Task Absenzarten_haben_je_eine_eigene_Kategorie_mit_Rückfall()
+    {
+        // Walter 03.10.2026: Mutter-/Vaterschaft ändern darf Feiertag nicht mitziehen.
+        var (db, _) = MitMa(nameof(Absenzarten_haben_je_eine_eigene_Kategorie_mit_Rückfall));
+        db.DokumentKategorien.Add(new DokumentKategorie { Id = 1, Name = "Absenzen", SortOrder = 10 });
+        db.DokumentTypen.Add(new DokumentTyp { Id = 40, KategorieId = 1, Name = "Arztzeugnis", LinkedFieldCode = "absence" });
+        db.DokumentTypen.Add(new DokumentTyp { Id = 41, KategorieId = 1, Name = "Mutterschaft" });
+        db.Absences.Add(new Absence { Id = 70, EmployeeId = 10, AbsenceType = "MUTT_VATER", DateFrom = new DateOnly(2026, 7, 9), DateTo = new DateOnly(2026, 7, 16) });
+        db.Absences.Add(new Absence { Id = 71, EmployeeId = 10, AbsenceType = "FEIERTAG", DateFrom = new DateOnly(2025, 2, 25), DateTo = new DateOnly(2025, 2, 25) });
+        await db.SaveChangesAsync();
+        var svc = new DokumentAblageService(db);
+
+        Assert.Null(await svc.TypMerkenAsync("absence_mutt_vater", 41, ersetzen: true));
+
+        var typen = await svc.TypenFuerCodesAsync();
+        var opt = (await svc.OptionenAsync(10))!;
+        DokumentAblageService.TypInfo? Typ(string key) => DokumentAblageService.TypFuerOption(opt.Single(o => o.Key == key), typen);
+        Assert.Equal(41, Typ("absenz:70")!.TypId);   // Mutter-/Vaterschaft → eigene Kategorie
+        Assert.Equal(40, Typ("absenz:71")!.TypId);   // Feiertag bleibt beim allgemeinen Absenz-Typ
+        Assert.Equal(40, Typ("absenz_neu")!.TypId);
+        Assert.Equal("absence", (await db.DokumentTypen.FindAsync(40))!.LinkedFieldCode);
+        Assert.Equal("CODE", (await svc.TypMerkenAsync("absence_x; drop", 41))?.Fehler);
+    }
+
+    [Fact]
     public void Ziel_Schlüssel_werden_streng_gelesen()
     {
         Assert.Equal("vertrag", DokumentAblageService.FindeArt("vertrag:12")!.Schluessel);

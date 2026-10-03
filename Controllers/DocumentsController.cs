@@ -482,8 +482,7 @@ public class DocumentsController : ControllerBase
             istAdmin = User.IsInRole("admin"),
             optionen = optionen.Select(o =>
             {
-                var art = HrSystem.Services.DokumentAblage.DokumentAblageService.FindeArt(o.Key)!;
-                var typ = HrSystem.Services.DokumentAblage.DokumentAblageService.TypFuerArt(art, typen);
+                var typ = HrSystem.Services.DokumentAblage.DokumentAblageService.TypFuerOption(o, typen);
                 return new
                 {
                     o.Key, o.Gruppe, o.Label, o.Sub, o.Code, o.Historie, o.Formular, o.NurBild, o.Anderes,

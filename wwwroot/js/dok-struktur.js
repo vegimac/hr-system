@@ -103,13 +103,17 @@ function renderDokstrukturTypen() {
         'termination':          'Kündigung',
         'schulung':             'Ausbildung / Schulung'
     };
+    // Absenzart-Codes «absence_krank» … (Walter 03.10.2026)
+    const codeLabel = c => fieldLabel[c] || (c.startsWith('absence_')
+        ? 'Absenz: ' + ((typeof ABSENCE_LABELS !== 'undefined' && ABSENCE_LABELS[c.slice(8).toUpperCase()]?.label) || c.slice(8))
+        : c);
     el.innerHTML = kat.typen.map(t => {
         const chip = 'margin-left:6px;font-size:10px;font-weight:600;background:#ece9e2;color:#6b6152;padding:1px 7px;border-radius:9px';
         const link = (t.linkedFieldCode
-            ? `<span style="${chip}">📎 ${fieldLabel[t.linkedFieldCode] || t.linkedFieldCode}</span>`
+            ? `<span style="${chip}">📎 ${codeLabel(t.linkedFieldCode)}</span>`
             : '')
             // Weitere Angaben (N:1, Walter 03.10.2026) — mit ✕ lösbar.
-            + (t.zusatzCodes || []).map(c => `<span style="${chip}">📎 ${fieldLabel[c] || c}<a href="javascript:void(0)" title="Verknüpfung lösen"
+            + (t.zusatzCodes || []).map(c => `<span style="${chip}">📎 ${codeLabel(c)}<a href="javascript:void(0)" title="Verknüpfung lösen"
                 onclick="event.stopPropagation();dokstrukturZusatzLoesen(${t.id}, '${c}')" style="margin-left:5px;color:#8b8b8b;text-decoration:none">✕</a></span>`).join('');
         const open = _dokstruktur.openTypId === t.id;
         return `
@@ -354,6 +358,7 @@ function dokstrukturEditTyp(id) {
             <label>Verknüpft mit MA-Feld <span style="font-weight:400;color:#94a3b8;font-size:11px">(optional)</span></label>
             <select id="dstLinkedField">
               <option value="" ${!t?.linkedFieldCode ? 'selected' : ''}>— keine Verknüpfung —</option>
+              ${t?.linkedFieldCode?.startsWith('absence_') ? `<option value="${t.linkedFieldCode}" selected>Absenz: ${(typeof ABSENCE_LABELS !== 'undefined' && ABSENCE_LABELS[t.linkedFieldCode.slice(8).toUpperCase()]?.label) || t.linkedFieldCode.slice(8)}</option>` : ''}
               <option value="permit"          ${t?.linkedFieldCode === 'permit'          ? 'selected' : ''}>Bewilligung</option>
               <option value="passport"        ${t?.linkedFieldCode === 'passport'        ? 'selected' : ''}>Pass / Reisepass</option>
               <option value="id_card"         ${t?.linkedFieldCode === 'id_card'         ? 'selected' : ''}>Identitätskarte</option>

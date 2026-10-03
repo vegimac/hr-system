@@ -71,6 +71,11 @@ Angabe aber nie auf mehrere Typen. Die erste Angabe eines Typs steht in
 Feld), jede weitere in `dokument_typ_zusatz_code` (code UNIQUE, Schema-Stand 41).
 Die Kategorie-Suche (`TypenFuerCodesAsync`) liest beide, Hauptverknüpfung zuerst.
 In der Doku-Struktur erscheinen weitere Angaben als 📎-Chip mit ✕ zum Lösen.
+**Absenzen je Art (Walter 03.10.2026):** bestehende Absenzen tragen den Code
+`absence_<art>` (z.B. `absence_mutt_vater`, `DokumentAblageService.AbsenzCode`);
+ohne eigene Zuordnung gilt `absence` (= «Neue Absenz erfassen», Art erst im Formular).
+Kategorie «ändern» mit «Jetzt speichern» bzw. Häkchen hängt eine bestehende
+Zuordnung bewusst um (`ersetzen`).
 Daneben speichert «Jetzt speichern» die Zuordnung sofort, ohne Dokument
 hochzuladen (`dabKategorieJetztMerken`, Walter 03.10.2026).
 Die neuen Codes sind in der Dokumentstruktur (Systemeinstellungen) wählbar.

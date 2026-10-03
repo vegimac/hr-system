@@ -140,10 +140,10 @@ public class DokumentAblageService
             .AnyAsync(n => n.Id == emp.NationalityId && n.Code.ToUpper() == "CH");
 
         var liste = new List<Option>();
-        Option O(string key, string? sub = null, int? current = null, string? label = null)
+        Option O(string key, string? sub = null, int? current = null, string? label = null, string? code = null)
         {
             var art = FindeArt(key)!;
-            return new Option(key, art.Gruppe, label ?? art.Label, sub, art.Codes[0], current,
+            return new Option(key, art.Gruppe, label ?? art.Label, sub, code ?? art.Codes[0], current,
                               art.Historie, art.Formular, art.NurBild, art.Anderes);
         }
 
@@ -183,7 +183,8 @@ public class DokumentAblageService
 
         liste.Add(O("absenz_neu", "Krankheit, Unfall … mit Von/Bis"));
         foreach (var a in absenzen)
-            liste.Add(O($"absenz:{a.Id}", $"{a.DateFrom:dd.MM.yy} – {a.DateTo:dd.MM.yy}", a.DokumentId, AbsenzLabel(a.AbsenceType)));
+            liste.Add(O($"absenz:{a.Id}", $"{a.DateFrom:dd.MM.yy} – {a.DateTo:dd.MM.yy}", a.DokumentId, AbsenzLabel(a.AbsenceType),
+                        AbsenzCode(a.AbsenceType)));
 
         string FamName(EmployeeFamilyMember m)
             => $"{m.FirstName} {m.LastName}".Trim() + (m.DateOfBirth.HasValue ? $" · {m.DateOfBirth.Value.Year}" : "");
@@ -231,8 +232,25 @@ public class DokumentAblageService
         return liste;
     }
 
+    /// <summary>
+    /// Eigener Feld-Code je Absenzart (Walter 03.10.2026: «ändere ich eine, ändert
+    /// die Kategorie bei allen»), z.B. «absence_mutt_vater». Ohne eigene Zuordnung
+    /// gilt die allgemeine Absenz-Zuordnung «absence» (= «Neue Absenz erfassen»).
+    /// </summary>
+    public static string AbsenzCode(string? typ)
+        => string.IsNullOrWhiteSpace(typ) ? "absence" : "absence_" + typ.Trim().ToLowerInvariant();
+
+    /// <summary>Feld-Code, den die Ablage kennt (feste Liste oder Absenzart-Code).</summary>
+    public static bool IstAblageCode(string code)
+        => Arten.Any(a => a.Codes.Contains(code))
+           || System.Text.RegularExpressions.Regex.IsMatch(code ?? "", "^absence_[a-z0-9_]{1,40}$");
+
+    /// <summary>Typ für eine Option: ihr eigener Code zuerst, dann die Codes der Art.</summary>
+    public static TypInfo? TypFuerOption(Option o, IReadOnlyDictionary<string, TypInfo> typen)
+        => typen.TryGetValue(o.Code, out var eigen) ? eigen : TypFuerArt(FindeArt(o.Key)!, typen);
+
     // Gleiche Bezeichnungen wie ABSENCE_LABELS in employees.js.
-    private static string AbsenzLabel(string typ) => (typ ?? "").ToUpperInvariant() switch
+    public static string AbsenzLabel(string typ) => (typ ?? "").ToUpperInvariant() switch
     {
         "KRANK" => "Krankheit",
         "UNFALL" => "Unfall",
@@ -298,7 +316,7 @@ public class DokumentAblageService
     public async Task<(string Fehler, string Text)?> TypMerkenAsync(string code, int typId, bool ersetzen = false)
     {
         code = (code ?? "").Trim();
-        if (!Arten.Any(a => a.Codes.Contains(code)))
+        if (!IstAblageCode(code))
             return ("CODE", "Unbekannter Feld-Code.");
         var typ = await _db.DokumentTypen.FirstOrDefaultAsync(t => t.Id == typId);
         if (typ == null) return ("TYP", "Typ nicht gefunden.");

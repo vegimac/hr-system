@@ -158,6 +158,7 @@ public class DokumentStrukturPdfService
         "termination"          => "Kündigung",
         "schulung"             => "Ausbildung / Schulung",
         ""                 => null,
+        var c when c.StartsWith("absence_") => "Absenz: " + HrSystem.Services.DokumentAblage.DokumentAblageService.AbsenzLabel(c["absence_".Length..].ToUpperInvariant()),
         _                  => code
     };
 }
