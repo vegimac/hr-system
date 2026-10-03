@@ -262,7 +262,61 @@ public class DokumentAblageService
         var ergebnis = new Dictionary<string, TypInfo>();
         foreach (var z in zeilen.OrderBy(z => z.KatSort).ThenBy(z => z.SortOrder).ThenBy(z => z.Id))
             ergebnis.TryAdd(z.LinkedFieldCode!.Trim(), new TypInfo(z.Id, z.Name, z.Kat));
+
+        // Weitere Angaben pro Typ (N:1, Walter 03.10.2026) — die Hauptverknüpfung geht vor.
+        var zusatz = await _db.DokumentTypZusatzCodes.AsNoTracking()
+            .Join(_db.DokumentTypen.AsNoTracking().Where(t => t.Aktiv), z => z.DokumentTypId, t => t.Id, (z, t) => new { z.Code, t.Id, t.Name, t.KategorieId })
+            .Join(_db.DokumentKategorien.AsNoTracking().Where(k => k.Aktiv), x => x.KategorieId, k => k.Id, (x, k) => new { x.Code, x.Id, x.Name, Kat = k.Name })
+            .ToListAsync();
+        foreach (var z in zusatz.OrderBy(z => z.Id))
+            ergebnis.TryAdd(z.Code.Trim(), new TypInfo(z.Id, z.Name, z.Kat));
         return ergebnis;
+    }
+
+    /// <summary>
+    /// Typ, dem eine Angabe schon zugeordnet ist (Haupt- oder Zusatzverknüpfung,
+    /// nur aktive Typen) — für die Regel «eine Angabe nie auf mehrere Typen».
+    /// </summary>
+    public async Task<DokumentTyp?> TypMitCodeAsync(string code, int? ausserTypId = null)
+    {
+        code = (code ?? "").Trim();
+        var haupt = await _db.DokumentTypen.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Aktiv && t.LinkedFieldCode == code && t.Id != ausserTypId);
+        if (haupt != null) return haupt;
+        return await _db.DokumentTypZusatzCodes.AsNoTracking()
+            .Where(z => z.Code == code && z.DokumentTypId != ausserTypId)
+            .Join(_db.DokumentTypen.AsNoTracking().Where(t => t.Aktiv), z => z.DokumentTypId, t => t.Id, (z, t) => t)
+            .FirstOrDefaultAsync();
+    }
+
+    /// <summary>
+    /// «Für diese Angabe künftig immer diesen Typ» (N:1, Walter 03.10.2026): hat der
+    /// Typ noch keine Hauptverknüpfung, wird es diese; sonst eine weitere Angabe.
+    /// Liefert Fehlercode + Text oder null.
+    /// </summary>
+    public async Task<(string Fehler, string Text)?> TypMerkenAsync(string code, int typId)
+    {
+        code = (code ?? "").Trim();
+        if (!Arten.Any(a => a.Codes.Contains(code)))
+            return ("CODE", "Unbekannter Feld-Code.");
+        var typ = await _db.DokumentTypen.FirstOrDefaultAsync(t => t.Id == typId);
+        if (typ == null) return ("TYP", "Typ nicht gefunden.");
+        if ((typ.LinkedFieldCode ?? "").Trim() == code
+            || await _db.DokumentTypZusatzCodes.AnyAsync(z => z.DokumentTypId == typId && z.Code == code))
+            return null;
+        var belegt = await TypMitCodeAsync(code);
+        if (belegt != null)
+            return ("CODE_VERGEBEN", $"Diese Angabe ist schon dem Typ «{belegt.Name}» zugeordnet.");
+
+        // Verwaiste Zusatzzeile (Typ inaktiv) räumen, sonst greift der UNIQUE-Index.
+        var alt = await _db.DokumentTypZusatzCodes.Where(z => z.Code == code).ToListAsync();
+        _db.DokumentTypZusatzCodes.RemoveRange(alt);
+        if (string.IsNullOrWhiteSpace(typ.LinkedFieldCode))
+            typ.LinkedFieldCode = code;
+        else
+            _db.DokumentTypZusatzCodes.Add(new DokumentTypZusatzCode { DokumentTypId = typId, Code = code });
+        await _db.SaveChangesAsync();
+        return null;
     }
 
     /// <summary>Typ für eine Art: der erste ihrer Codes, der einen Typ hat.</summary>

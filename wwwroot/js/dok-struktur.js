@@ -104,9 +104,13 @@ function renderDokstrukturTypen() {
         'schulung':             'Ausbildung / Schulung'
     };
     el.innerHTML = kat.typen.map(t => {
-        const link = t.linkedFieldCode
-            ? `<span style="margin-left:6px;font-size:10px;font-weight:600;background:#ece9e2;color:#6b6152;padding:1px 7px;border-radius:9px">📎 ${fieldLabel[t.linkedFieldCode] || t.linkedFieldCode}</span>`
-            : '';
+        const chip = 'margin-left:6px;font-size:10px;font-weight:600;background:#ece9e2;color:#6b6152;padding:1px 7px;border-radius:9px';
+        const link = (t.linkedFieldCode
+            ? `<span style="${chip}">📎 ${fieldLabel[t.linkedFieldCode] || t.linkedFieldCode}</span>`
+            : '')
+            // Weitere Angaben (N:1, Walter 03.10.2026) — mit ✕ lösbar.
+            + (t.zusatzCodes || []).map(c => `<span style="${chip}">📎 ${fieldLabel[c] || c}<a href="javascript:void(0)" title="Verknüpfung lösen"
+                onclick="event.stopPropagation();dokstrukturZusatzLoesen(${t.id}, '${c}')" style="margin-left:5px;color:#8b8b8b;text-decoration:none">✕</a></span>`).join('');
         const open = _dokstruktur.openTypId === t.id;
         return `
         <div class="dokstruktur-row" style="${t.anzahlDokumente > 0 ? 'cursor:pointer' : ''}" onclick="dokstrukturToggleDocs(${t.id})" title="${t.anzahlDokumente > 0 ? 'Klick: abgelegte Dokumente anzeigen' : ''}">
@@ -415,6 +419,16 @@ async function dokstrukturSaveTyp(id) {
     } catch (err) {
         document.getElementById('dstStatus').innerHTML = `<span style="color:#b91c1c">${err.message}</span>`;
     }
+}
+
+async function dokstrukturZusatzLoesen(typId, code) {
+    const ok = await liquidConfirm('Diese Verknüpfung vom Typ lösen? Beim Ablegen wird die Kategorie dann wieder von Hand gewählt.',
+        { title: 'Verknüpfung lösen?', yesLabel: 'Lösen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    const r = await fetch(`/api/documents/admin/typ/${typId}/zusatz-code/${encodeURIComponent(code)}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { if (typeof showToast === 'function') showToast('Nicht gelöst: HTTP ' + r.status, 'error'); return; }
+    if (typeof invalidateDokTaxonomyCache === 'function') invalidateDokTaxonomyCache();
+    loadDokumentStruktur();
 }
 
 async function dokstrukturDeleteTyp(id) {

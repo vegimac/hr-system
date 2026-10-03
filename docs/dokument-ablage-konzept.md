@@ -63,8 +63,14 @@ Kategorie → Typ). **Nie über den Namen.**
 
 Hat ein Code noch **keinen** Typ, wählt man die Kategorie am Schluss selbst.
 Ein **admin** kann sie sich merken lassen («Für … künftig immer diese Kategorie»
-→ `POST /api/documents/ablage-ziele/typ-merken`, setzt den Code am Typ — nur
-wenn der Typ noch keinen Code hat und kein anderer Typ den Code trägt).
+→ `POST /api/documents/ablage-ziele/typ-merken`).
+**N:1 erlaubt, 1:N nicht (Walter 03.10.2026):** mehrere Angaben dürfen auf
+denselben Typ zeigen (z.B. Zivilstand + Geburtsurkunde → «Familienbuch»), eine
+Angabe aber nie auf mehrere Typen. Die erste Angabe eines Typs steht in
+`dokument_typ.linked_field_code` (die übrigen Programmteile lesen nur dieses
+Feld), jede weitere in `dokument_typ_zusatz_code` (code UNIQUE, Schema-Stand 41).
+Die Kategorie-Suche (`TypenFuerCodesAsync`) liest beide, Hauptverknüpfung zuerst.
+In der Doku-Struktur erscheinen weitere Angaben als 📎-Chip mit ✕ zum Lösen.
 Daneben speichert «Jetzt speichern» die Zuordnung sofort, ohne Dokument
 hochzuladen (`dabKategorieJetztMerken`, Walter 03.10.2026).
 Die neuen Codes sind in der Dokumentstruktur (Systemeinstellungen) wählbar.

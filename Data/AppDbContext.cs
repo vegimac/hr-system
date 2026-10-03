@@ -102,6 +102,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeBankAccount>       EmployeeBankAccounts        => Set<EmployeeBankAccount>();
     public DbSet<DokumentKategorie>         DokumentKategorien          => Set<DokumentKategorie>();
     public DbSet<DokumentTyp>               DokumentTypen               => Set<DokumentTyp>();
+    public DbSet<DokumentTypZusatzCode>     DokumentTypZusatzCodes      => Set<DokumentTypZusatzCode>();
     public DbSet<EmployeeDokument>          EmployeeDokumente           => Set<EmployeeDokument>();
     public DbSet<CompanyDokument>           CompanyDokumente            => Set<CompanyDokument>();
     public DbSet<LohndatenEmpfaenger>       LohndatenEmpfaengers        => Set<LohndatenEmpfaenger>();
@@ -1726,6 +1727,16 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Aktiv).HasColumnName("aktiv").HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.LinkedFieldCode).HasColumnName("linked_field_code").HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<DokumentTypZusatzCode>(entity =>
+        {
+            entity.ToTable("dokument_typ_zusatz_code");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.DokumentTypId).HasColumnName("dokument_typ_id");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(50);
+            entity.HasIndex(e => e.Code).IsUnique();
         });
 
         // ── EmployeeDokument ─────────────────────────────────────────────────

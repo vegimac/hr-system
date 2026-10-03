@@ -502,27 +502,35 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// «Für dieses Ablageziel immer diese Kategorie» — setzt den Feld-Code am
-    /// Dokument-Typ. Nur admin (Systemeinstellung) und nur, wenn der Typ noch
-    /// keinen Code trägt und kein anderer Typ den Code schon hat.
+    /// «Für dieses Ablageziel immer diese Kategorie» — ordnet die Angabe dem
+    /// Dokument-Typ zu. Nur admin. N:1 erlaubt (mehrere Angaben pro Typ), 1:N
+    /// nicht (eine Angabe hat höchstens einen Typ) — Walter 03.10.2026.
     /// </summary>
     [HttpPost("ablage-ziele/typ-merken")]
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> AblageTypMerken([FromBody] TypMerkenDto dto)
     {
-        var code = (dto.Code ?? "").Trim();
-        if (!HrSystem.Services.DokumentAblage.DokumentAblageService.Arten.Any(a => a.Codes.Contains(code)))
-            return BadRequest(new { error = "CODE", message = "Unbekannter Feld-Code." });
-        if (await _db.DokumentTypen.AnyAsync(t => t.Aktiv && t.LinkedFieldCode == code))
-            return Conflict(new { error = "CODE_VERGEBEN", message = "Für dieses Ablageziel ist schon eine Kategorie hinterlegt." });
-        var typ = await _db.DokumentTypen.FirstOrDefaultAsync(t => t.Id == dto.TypId);
-        if (typ == null) return NotFound();
-        if (!string.IsNullOrWhiteSpace(typ.LinkedFieldCode))
-            return Conflict(new { error = "TYP_BELEGT",
-                message = $"Der Typ «{typ.Name}» ist schon mit einer anderen Angabe verbunden." });
-        typ.LinkedFieldCode = code;
+        var fehler = await _ablage.TypMerkenAsync(dto.Code, dto.TypId);
+        if (fehler is { } f)
+            return f.Fehler switch
+            {
+                "TYP" => NotFound(new { error = f.Fehler, message = f.Text }),
+                "CODE_VERGEBEN" => Conflict(new { error = f.Fehler, message = f.Text }),
+                _ => BadRequest(new { error = f.Fehler, message = f.Text }),
+            };
+        return Ok(new { typId = dto.TypId, code = dto.Code.Trim() });
+    }
+
+    /// <summary>Weitere Angabe vom Typ lösen (Doku-Struktur, Walter 03.10.2026).</summary>
+    [HttpDelete("admin/typ/{id:int}/zusatz-code/{code}")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> DeleteTypZusatzCode(int id, string code)
+    {
+        var z = await _db.DokumentTypZusatzCodes.FirstOrDefaultAsync(x => x.DokumentTypId == id && x.Code == code.Trim());
+        if (z == null) return NotFound();
+        _db.DokumentTypZusatzCodes.Remove(z);
         await _db.SaveChangesAsync();
-        return Ok(new { typ.Id, typ.LinkedFieldCode });
+        return Ok();
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -1912,6 +1920,8 @@ public class DocumentsController : ControllerBase
             .GroupBy(d => d.DokumentTypId)
             .Select(g => new { TypId = g.Key, Anzahl = g.Count() })
             .ToDictionaryAsync(x => x.TypId, x => x.Anzahl);
+        var zusatz = (await _db.DokumentTypZusatzCodes.AsNoTracking().OrderBy(z => z.Id).ToListAsync())
+            .GroupBy(z => z.DokumentTypId).ToDictionary(g => g.Key, g => g.Select(z => z.Code).ToList());
 
         var result = kategorien.Select(k => new {
             k.Id, k.Name, k.SortOrder, k.Aktiv,
@@ -1920,6 +1930,7 @@ public class DocumentsController : ControllerBase
                                    .Sum(t => usageByTyp.GetValueOrDefault(t.Id, 0)),
             typen = typen.Where(t => t.KategorieId == k.Id).Select(t => new {
                 t.Id, t.Name, t.SortOrder, t.Aktiv, t.LinkedFieldCode,
+                zusatzCodes = zusatz.GetValueOrDefault(t.Id) ?? new List<string>(),
                 anzahlDokumente = usageByTyp.GetValueOrDefault(t.Id, 0)
             }).ToList()
         });
@@ -1942,6 +1953,8 @@ public class DocumentsController : ControllerBase
             .GroupBy(d => d.DokumentTypId)
             .Select(g => new { TypId = g.Key, Anzahl = g.Count() })
             .ToDictionaryAsync(x => x.TypId, x => x.Anzahl);
+        var zusatz = (await _db.DokumentTypZusatzCodes.AsNoTracking().OrderBy(z => z.Id).ToListAsync())
+            .GroupBy(z => z.DokumentTypId).ToDictionary(g => g.Key, g => g.Select(z => z.Code).ToList());
 
         var blocks = kategorien.Select(k => new DokumentStrukturPdfService.KategorieBlock
         {
@@ -1956,6 +1969,7 @@ public class DocumentsController : ControllerBase
                 SortOrder = t.SortOrder,
                 Aktiv = t.Aktiv,
                 LinkedFieldCode = t.LinkedFieldCode,
+                ZusatzCodes = zusatz.GetValueOrDefault(t.Id) ?? new List<string>(),
                 AnzahlDokumente = usageByTyp.GetValueOrDefault(t.Id, 0)
             }).ToList()
         }).ToList();
@@ -2077,6 +2091,9 @@ public class DocumentsController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Name ist erforderlich.");
         var katExists = await _db.DokumentKategorien.AnyAsync(k => k.Id == dto.KategorieId.Value);
         if (!katExists) return BadRequest("Kategorie nicht gefunden.");
+        if (!string.IsNullOrWhiteSpace(dto.LinkedFieldCode)
+            && await _ablage.TypMitCodeAsync(dto.LinkedFieldCode) is { } belegt)
+            return Conflict($"Diese Verknüpfung ist schon dem Typ «{belegt.Name}» zugeordnet.");
         var t = new DokumentTyp {
             KategorieId = dto.KategorieId.Value,
             Name = dto.Name.Trim(),
@@ -2106,7 +2123,17 @@ public class DocumentsController : ControllerBase
         // LinkedFieldCode: leerer String (vom UI Dropdown "— keine —") = bewusst auf null setzen.
         // Property nicht im DTO = unverändert lassen (haben wir nicht: DTO ist immer voll geschickt).
         // Hier setzen wir bei JEDEM PUT, weil das Frontend immer den aktuellen Wert mitschickt.
-        t.LinkedFieldCode = string.IsNullOrWhiteSpace(dto.LinkedFieldCode) ? null : dto.LinkedFieldCode!.Trim();
+        var neuCode = string.IsNullOrWhiteSpace(dto.LinkedFieldCode) ? null : dto.LinkedFieldCode!.Trim();
+        if (neuCode != null && neuCode != (t.LinkedFieldCode ?? "").Trim())
+        {
+            // Eine Angabe nie auf mehrere Typen (Walter 03.10.2026).
+            if (await _ablage.TypMitCodeAsync(neuCode, ausserTypId: id) is { } belegt)
+                return Conflict($"Diese Verknüpfung ist schon dem Typ «{belegt.Name}» zugeordnet.");
+            // War sie eine weitere Angabe dieses Typs, wird sie jetzt die Hauptverknüpfung.
+            _db.DokumentTypZusatzCodes.RemoveRange(
+                await _db.DokumentTypZusatzCodes.Where(z => z.DokumentTypId == id && z.Code == neuCode).ToListAsync());
+        }
+        t.LinkedFieldCode = neuCode;
         await _db.SaveChangesAsync();
         return Ok();
     }

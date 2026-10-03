@@ -164,6 +164,34 @@ public class DokumentAblageTests
     }
 
     [Fact]
+    public async Task Mehrere_Angaben_auf_einen_Typ_aber_nie_eine_Angabe_auf_mehrere_Typen()
+    {
+        // Walter 03.10.2026: Geburtsurkunde UND Zivilstand → «Familienbuch» (N:1), nie 1:N.
+        var db = NeueDb(nameof(Mehrere_Angaben_auf_einen_Typ_aber_nie_eine_Angabe_auf_mehrere_Typen));
+        db.DokumentKategorien.Add(new DokumentKategorie { Id = 1, Name = "Persönliche Angaben", SortOrder = 10 });
+        db.DokumentTypen.Add(new DokumentTyp { Id = 30, KategorieId = 1, Name = "Familienbuch", LinkedFieldCode = "marriage_cert" });
+        db.DokumentTypen.Add(new DokumentTyp { Id = 31, KategorieId = 1, Name = "Sonstiges" });
+        await db.SaveChangesAsync();
+        var svc = new DokumentAblageService(db);
+
+        Assert.Null(await svc.TypMerkenAsync("birth_cert", 30));
+        Assert.Equal("marriage_cert", (await db.DokumentTypen.FindAsync(30))!.LinkedFieldCode);
+        var typen = await svc.TypenFuerCodesAsync();
+        Assert.Equal(30, DokumentAblageService.TypFuerArt(DokumentAblageService.FindeArt("geburtsurkunde")!, typen)!.TypId);
+        Assert.Equal(30, DokumentAblageService.TypFuerArt(DokumentAblageService.FindeArt("zivilstand")!, typen)!.TypId);
+
+        // Dieselbe Angabe auf einen zweiten Typ → abgewiesen (Haupt- und Zusatzverknüpfung)
+        Assert.Equal("CODE_VERGEBEN", (await svc.TypMerkenAsync("birth_cert", 31))?.Fehler);
+        Assert.Equal("CODE_VERGEBEN", (await svc.TypMerkenAsync("marriage_cert", 31))?.Fehler);
+        // Typ ohne Hauptverknüpfung bekommt die Angabe als Hauptverknüpfung
+        Assert.Null(await svc.TypMerkenAsync("andere_sonstiges", 31));
+        Assert.Equal("andere_sonstiges", (await db.DokumentTypen.FindAsync(31))!.LinkedFieldCode);
+        // Nochmals dasselbe = kein Fehler, keine Dublette
+        Assert.Null(await svc.TypMerkenAsync("birth_cert", 30));
+        Assert.Equal(1, await db.DokumentTypZusatzCodes.CountAsync());
+    }
+
+    [Fact]
     public void Ziel_Schlüssel_werden_streng_gelesen()
     {
         Assert.Equal("vertrag", DokumentAblageService.FindeArt("vertrag:12")!.Schluessel);

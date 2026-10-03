@@ -24,6 +24,7 @@ public class DokumentStrukturPdfService
         public int SortOrder { get; set; }
         public bool Aktiv { get; set; } = true;
         public string? LinkedFieldCode { get; set; }
+        public List<string> ZusatzCodes { get; set; } = new();
         public int AnzahlDokumente { get; set; }
     }
 
@@ -110,7 +111,9 @@ public class DokumentStrukturPdfService
                     foreach (var typ in k.Typen)
                     {
                         var name = typ.Name + (typ.Aktiv ? "" : "  · inaktiv");
-                        var link = LinkedLabel(typ.LinkedFieldCode);
+                        var labels = new[] { typ.LinkedFieldCode }.Concat(typ.ZusatzCodes)
+                            .Select(LinkedLabel).Where(l => l != null).ToList();
+                        var link = labels.Count > 0 ? string.Join(", ", labels) : null;
                         zweig.Item().PaddingVertical(2.5f).Row(r =>
                         {
                             r.RelativeItem().AlignMiddle().Text(t =>
