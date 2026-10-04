@@ -4064,8 +4064,8 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)(-unbezUrlaubBetragFix)
                 });
                 totalLohn -= unbezUrlaubBetragFix;
-                AddAmount("10.1", -unbezUrlaubExactFix);
-                Grundzeile("10.1", -unbezUrlaubBetragFix);
+                AddAmount("110.1", -unbezUrlaubExactFix);
+                Grundzeile("110.1", -unbezUrlaubBetragFix);
             }
 
             // ── Krankheit: Lohnkürzung + 88%-Gutschrift (FIX / FIX-M) ──

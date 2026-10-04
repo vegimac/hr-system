@@ -318,7 +318,9 @@ der Lohnposition 55.10 steuern Feiertag-%, Ferien-% (in den Pott, der beim Austr
 mit ausbezahlt wird) und 13. ML. Walter 04.10.2026: 55.10 trägt dieselben Flags wie der
 Stundenlohn (Mirus behandelt Nachtstunden wie normale Stunden; Fall Radogoshi
 0.30 h × 20.40 = 6.12). Die Auszahlung wird darum VOR den Flag-Summen gebucht.
-FIX/FIX-M: Nacht-Saldo-Auszahlung ohne Flag-Wirkung (kein Ferien-/Feiertag-%).
+FIX/FIX-M: Nacht-Saldo-Auszahlung ohne Ferien-/Feiertag-% (FIX führt Tage); SV und 13. ML
+nach den Flags von 55.10 (Walter 04.10.2026). Unbezahlter Urlaub FIX (110.1, negativ) mindert
+SV- und 13.-Basis nach den Flags von 110.1 — «13. ML» muss dort JA sein.
 
 ---
 
