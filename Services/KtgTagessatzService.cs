@@ -44,20 +44,35 @@ public class KtgTagessatzService
         _logger = logger;
     }
 
-    public async Task<KtgTagessatzResult?> CalculateAsync(int employeeId, int companyProfileId)
+    /// <param name="stichtag">Lohnlauf: Ende der Lohnperiode. Massgebend ist der Vertrag,
+    /// der bis dahin begonnen hat — nicht <c>is_active</c>: beim Austritt ist der Vertrag
+    /// schon inaktiv, die Krankheit im letzten Monat muss trotzdem bezahlt werden
+    /// (Walter 04.10.2026, Radogoshi).</param>
+    public async Task<KtgTagessatzResult?> CalculateAsync(int employeeId, int companyProfileId, DateOnly? stichtag = null)
     {
-        // Aktives Employment holen
-        var employment = await _db.Employments
+        var kandidaten = _db.Employments
             .Include(e => e.CompanyProfile)
-            .Where(e => e.EmployeeId == employeeId
-                     && e.CompanyProfileId == companyProfileId
-                     && e.IsActive)
-            .OrderByDescending(e => e.ContractStartDate)
-            .FirstOrDefaultAsync();
+            .Where(e => e.EmployeeId == employeeId && e.CompanyProfileId == companyProfileId);
+
+        Employment? employment;
+        if (stichtag is { } st)
+        {
+            var stDt = st.ToDateTime(TimeOnly.MinValue);
+            employment = await kandidaten
+                .Where(e => e.ContractStartDate <= stDt)
+                .OrderByDescending(e => e.ContractStartDate)
+                .FirstOrDefaultAsync();
+        }
+        else
+        {
+            employment = await kandidaten.Where(e => e.IsActive)
+                    .OrderByDescending(e => e.ContractStartDate).FirstOrDefaultAsync()
+                ?? await kandidaten.OrderByDescending(e => e.ContractStartDate).FirstOrDefaultAsync();
+        }
 
         if (employment is null)
         {
-            _logger.LogWarning("Kein aktives Employment für Employee {EmpId}/Profile {ProfileId}", employeeId, companyProfileId);
+            _logger.LogWarning("Kein Employment für Employee {EmpId}/Profile {ProfileId} (Stichtag {Stichtag})", employeeId, companyProfileId, stichtag);
             return null;
         }
 

@@ -1851,7 +1851,7 @@ public class PayrollCalculationEngine
 
             if (eoTageMutter > 0 || eoTageVater > 0)
             {
-                var eoSatz100 = (await _ktgService.CalculateAsync(employeeId, companyProfileId))?.Tagessatz100;
+                var eoSatz100 = (await _ktgService.CalculateAsync(employeeId, companyProfileId, periodTo))?.Tagessatz100;
                 if (eoSatz100 is > 0)
                 {
                     decimal eoTaggeld = Math.Min(PayrollCalculations.Rappen(eoSatz100.Value * 0.80m), 220m);
@@ -1944,7 +1944,7 @@ public class PayrollCalculationEngine
 
                 if (m100 + m88 + m80 + z100 + z88 + z80 > 0)
                 {
-                    var milSatz100 = (await _ktgService.CalculateAsync(employeeId, companyProfileId))?.Tagessatz100;
+                    var milSatz100 = (await _ktgService.CalculateAsync(employeeId, companyProfileId, periodTo))?.Tagessatz100;
                     if (milSatz100 is > 0)
                     {
                         string milModel = (emp.EmploymentModel ?? "").ToUpperInvariant();
@@ -2611,7 +2611,7 @@ public class PayrollCalculationEngine
             decimal krankTagesBasisMtp = 0m;
             if (krankBreakdown.Count > 0 || unfallBreakdown.Count > 0)
             {
-                var ktgMtp = await _ktgService.CalculateAsync(employeeId, companyProfileId);
+                var ktgMtp = await _ktgService.CalculateAsync(employeeId, companyProfileId, periodTo);
                 krankTagesBasisMtp = ktgMtp?.Tagessatz100
                                   ?? (guaranteedH * hourlyRate * 52m / 365m);
             }
@@ -3628,7 +3628,7 @@ public class PayrollCalculationEngine
             decimal krankTagesBasisUtp = 0m;
             if (krankBreakdown.Count > 0 || unfallBreakdown.Count > 0)
             {
-                var ktgUtp = await _ktgService.CalculateAsync(employeeId, companyProfileId);
+                var ktgUtp = await _ktgService.CalculateAsync(employeeId, companyProfileId, periodTo);
                 krankTagesBasisUtp = ktgUtp?.Tagessatz100 ?? 0m;
             }
             decimal krank88Utp    = 0m;
