@@ -152,7 +152,7 @@ async function lsimRechnen() {
             const e = await r.json();
             const fehler = (e.fehler || []).map(f => `<li>${_lsimEsc(f)}</li>`).join('');
             const ohneLp = (e.codesOhneLohnposition || []).length
-                ? `<div style="color:#b45309;margin-left:22px">Nicht übernommen, Code fehlt im OneCrew-Katalog: ${e.codesOhneLohnposition.map(_lsimEsc).join(', ')}</div>` : '';
+                ? `<div style="color:#b45309;margin-left:22px">Nicht übernommen, keine OneCrew-Lohnart zu Mirus-Code ${e.codesOhneLohnposition.map(_lsimEsc).join(', ')} — im «Lohnraster Mirus (Referenz)» verknüpfen</div>` : '';
             zeilen.push(`<div style="margin:3px 0">${e.mitFehler ? '⚠' : '✓'} <b>${_LSIM_MONATE[monat - 1]}</b>: ${e.gerechnet} von ${e.mitarbeiter} MA gerechnet${e.mitFehler ? `, <span style="color:#b45309">${e.mitFehler} nicht rechenbar</span>` : ''}
                 ${fehler ? `<details style="margin-left:22px"><summary style="cursor:pointer;color:#64748b">Welche?</summary><ul style="margin:4px 0">${fehler}</ul></details>` : ''}
                 ${ohneLp}</div>`);
@@ -266,7 +266,7 @@ function lsimRenderVergleich() {
                 </tr></thead>
                 <tbody>${z.monate.map(m => `
                     <tr style="border-top:1px solid #eee;cursor:pointer" onclick="lsimDetail(${z.employeeId}, ${m.monat}, this)">
-                        <td style="padding:3px 6px">${_LSIM_MONATE[m.monat - 1]}${m.fehler ? ` <span style="color:#b45309" title="${_lsimEsc(m.fehler)}">⚠ nicht rechenbar</span>` : ''}${!m.simuliert ? ' <span style="color:#b45309">fehlt in OneCrew</span>' : ''}${m.sonderzahlungen ? ' <span title="' + _lsimEsc(m.sonderzahlungen) + '" style="color:#3730a3">＋Sonderzahlung</span>' : ''}</td>
+                        <td style="padding:3px 6px">${_LSIM_MONATE[m.monat - 1]}${m.fehler ? ` <span style="color:#b45309" title="${_lsimEsc(m.fehler)}">⚠ nicht rechenbar</span>` : ''}${!m.simuliert ? ' <span style="color:#b45309">fehlt in OneCrew</span>' : ''}${m.sonderzahlungen ? ' <span title="' + _lsimEsc(m.sonderzahlungen) + '" style="color:#3730a3">＋Sonderzahlung</span>' : ''}${m.nachtraegeMirus ? '<div style="font-size:11.5px;color:#854d0e">Mirus-Nachtrag früherer Monate (OneCrew rechnet ihn im richtigen Monat): ' + _lsimEsc(m.nachtraegeMirus) + '</div>' : ''}</td>
                         ${zellen(m.brutto, m.bruttoMirus)}
                         ${zellen(m.netto, m.nettoMirus)}
                         ${zellen(m.auszahlung, m.auszahlungMirus)}

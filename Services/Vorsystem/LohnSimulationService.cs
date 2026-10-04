@@ -68,16 +68,23 @@ public class LohnSimulationService
             .Where(v => v.CompanyProfileId == companyProfileId && v.Jahr == jahr && v.Monat == monat
                      && v.Sektion == "AN" && codes.Contains(v.Code) && v.Betrag != 0)
             .ToListAsync();
-        var lohnpositionen = (await _db.Lohnpositionen.AsNoTracking()
-                .Where(l => codes.Contains(l.Code) && l.IsActive)
-                .ToListAsync())
-            .GroupBy(l => l.Code).ToDictionary(g => g.Key, g => g.OrderBy(l => l.Id).First());
+        var verknuepft = await _db.ElmLohnraster.AsNoTracking()
+            .Where(r => codes.Contains(r.Code) && r.VerwendetLohnpositionId != null)
+            .Select(r => new { r.Code, Lp = r.VerwendetLohnposition! })
+            .ToListAsync();
+        var gleicherCode = await _db.Lohnpositionen.AsNoTracking()
+            .Where(l => codes.Contains(l.Code) && l.IsActive)
+            .ToListAsync();
+        var lohnpositionen = WaehleLohnpositionen(
+            codes,
+            verknuepft.Select(v => (v.Code, v.Lp)).ToList(),
+            gleicherCode);
         var wiederkehrend = (await _db.EmployeeRecurringWages.AsNoTracking()
                 .Where(r => empIds.Contains(r.EmployeeId)
                          && r.ValidFrom <= pTo && (r.ValidTo == null || r.ValidTo >= pFrom))
-                .Select(r => new { r.EmployeeId, r.Lohnposition!.Code })
+                .Select(r => new { r.EmployeeId, r.LohnpositionId })
                 .ToListAsync())
-            .Select(r => (r.EmployeeId, r.Code)).ToHashSet();
+            .Select(r => (r.EmployeeId, r.LohnpositionId)).ToHashSet();
 
         var codesOhneLp = lohnkonto.Select(v => v.Code).Distinct()
             .Where(c => !lohnpositionen.ContainsKey(c)).OrderBy(c => c).ToList();
@@ -99,7 +106,7 @@ public class LohnSimulationService
             var sonder = lohnkonto
                 .Where(v => v.EmployeeId == ma.Id
                          && lohnpositionen.ContainsKey(v.Code)
-                         && !wiederkehrend.Contains((ma.Id, v.Code)))
+                         && !wiederkehrend.Contains((ma.Id, lohnpositionen[v.Code].Id)))
                 .ToList();
             var zulagen = sonder.Select(v => new LohnZulage
             {
@@ -170,6 +177,26 @@ public class LohnSimulationService
             ? await _db.SimulationVortraege.Where(v => v.CompanyProfileId == companyProfileId).ExecuteDeleteAsync()
             : 0;
         return (loehne, vortraege);
+    }
+
+    /// <summary>
+    /// OneCrew-Lohnart pro Mirus-Code: zuerst die Verknüpfung im «Lohnraster Mirus»
+    /// (gleiche Nummer kann in OneCrew etwas anderes bedeuten), sonst gleicher Code.
+    /// Inaktive Lohnarten zählen nicht.
+    /// </summary>
+    public static Dictionary<string, Lohnposition> WaehleLohnpositionen(
+        IEnumerable<string> codes,
+        IReadOnlyList<(string Code, Lohnposition Lp)> verknuepft,
+        IReadOnlyList<Lohnposition> gleicherCode)
+    {
+        var ergebnis = new Dictionary<string, Lohnposition>(StringComparer.Ordinal);
+        foreach (var code in codes)
+        {
+            var lp = verknuepft.Where(v => v.Code == code && v.Lp.IsActive).Select(v => v.Lp).FirstOrDefault()
+                  ?? gleicherCode.Where(l => l.Code == code && l.IsActive).OrderBy(l => l.Id).FirstOrDefault();
+            if (lp != null) ergebnis[code] = lp;
+        }
+        return ergebnis;
     }
 
     public static void Uebernimm(SimulationLohn zeile, JsonNode slip, SimulationLohn? vormonat,

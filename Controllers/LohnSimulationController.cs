@@ -89,6 +89,12 @@ public class LohnSimulationController : ControllerBase
                      && ((v.Sektion == "AN" && v.Code != "6000.1") || (v.Sektion == "AG" && v.Code == "6000.1")))
             .Select(v => new { v.EmployeeId, v.Monat, v.Code, v.Betrag })
             .ToListAsync();
+        var nachtragsCodes = LohnSimulationKontext.NachtragsCodes.ToList();
+        var nachtraege = await _db.VorsystemLohnkonten.AsNoTracking()
+            .Where(v => v.CompanyProfileId == companyProfileId && v.Jahr == jahr && v.Sektion == "AN"
+                     && nachtragsCodes.Contains(v.Code) && v.Betrag != 0)
+            .Select(v => new { v.EmployeeId, v.Monat, v.Code, v.Bezeichnung, v.Betrag })
+            .ToListAsync();
         var simMonate = sim.Select(s => s.Monat).Distinct().ToHashSet();
         var empIds = sim.Select(s => s.EmployeeId)
             .Concat(mirus.Where(m => simMonate.Contains(m.Monat)).Select(m => m.EmployeeId))
@@ -110,12 +116,15 @@ public class LohnSimulationController : ControllerBase
                 var s = sim.FirstOrDefault(x => x.EmployeeId == n.Id && x.Monat == monat);
                 decimal mb = M(n.Id, monat, "250.1"), mn = M(n.Id, monat, "1000.1"), ma = M(n.Id, monat, "6000.1");
                 if (s == null && mb == 0 && mn == 0 && ma == 0) continue;
+                var nt = nachtraege.Where(x => x.EmployeeId == n.Id && x.Monat == monat).ToList();
                 monate.Add(new
                 {
                     monat,
                     simuliert = s != null,
                     fehler = s?.Fehler,
                     sonderzahlungen = s?.Sonderzahlungen,
+                    nachtraegeMirus = nt.Count == 0 ? null
+                        : string.Join(" · ", nt.Select(x => $"{x.Code} {x.Bezeichnung} {x.Betrag:0.00}")),
                     brutto = s?.Brutto ?? 0m, bruttoMirus = mb,
                     netto = s?.Netto ?? 0m, nettoMirus = mn,
                     auszahlung = s?.Auszahlung ?? 0m, auszahlungMirus = ma,

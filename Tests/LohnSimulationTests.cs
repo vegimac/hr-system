@@ -92,6 +92,8 @@ public class LohnSimulationTests
     [InlineData("200.9", false)]   // 13. ML a/McBonus folgt aus 200.5
     [InlineData("500.101", false)] // AHV-Abzug
     [InlineData("560.1", false)]   // QST
+    [InlineData("200.190", false)] // FamZ-Nachzahlung: Simulation zahlt schon im richtigen Monat
+    [InlineData("565.1", false)]   // QST-Korrektur: dito
     public void Sonderzahlungen_nur_was_die_Engine_nicht_selbst_rechnet(string code, bool erwartet)
     {
         Assert.Equal(erwartet, LohnSimulationKontext.SonderzahlungsCodes.Contains(code));
@@ -110,5 +112,38 @@ public class LohnSimulationTests
         var text = JsonSerializer.Serialize(zeilen);
         Assert.Contains("Stundenlohn", text);
         Assert.Contains("AHV", text);
+    }
+
+    [Fact]
+    public void Nachtraege_werden_nicht_gerechnet_aber_als_Ursache_gefuehrt()
+    {
+        Assert.Contains("200.190", LohnSimulationKontext.NachtragsCodes);
+        Assert.Contains("565.1", LohnSimulationKontext.NachtragsCodes);
+        Assert.Empty(LohnSimulationKontext.NachtragsCodes.Intersect(LohnSimulationKontext.SonderzahlungsCodes));
+    }
+
+    [Fact]
+    public void Lohnart_kommt_zuerst_aus_der_Raster_Verknuepfung()
+    {
+        var bonus  = new Lohnposition { Id = 7, Code = "205", Bezeichnung = "Bonus", IsActive = true };
+        var gleich = new Lohnposition { Id = 3, Code = "200.5", Bezeichnung = "Anderes", IsActive = true };
+        var r = LohnSimulationService.WaehleLohnpositionen(
+            new[] { "200.5" }, new List<(string, Lohnposition)> { ("200.5", bonus) }, new List<Lohnposition> { gleich });
+        Assert.Equal(7, r["200.5"].Id);
+    }
+
+    [Fact]
+    public void Ohne_Verknuepfung_gilt_gleicher_Code_inaktive_zaehlen_nicht()
+    {
+        var aktiv   = new Lohnposition { Id = 4, Code = "950.1", IsActive = true };
+        var inaktiv = new Lohnposition { Id = 9, Code = "600.5", IsActive = false };
+        var verkInaktiv = new Lohnposition { Id = 11, Code = "X", IsActive = false };
+        var r = LohnSimulationService.WaehleLohnpositionen(
+            new[] { "950.1", "600.5", "565.1" },
+            new List<(string, Lohnposition)> { ("950.1", verkInaktiv) },
+            new List<Lohnposition> { aktiv, inaktiv });
+        Assert.Equal(4, r["950.1"].Id);
+        Assert.False(r.ContainsKey("600.5"));
+        Assert.False(r.ContainsKey("565.1"));
     }
 }
