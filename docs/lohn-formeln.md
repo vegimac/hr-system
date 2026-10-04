@@ -148,6 +148,10 @@ Feiertagentschädigung auf Lohnersatz (195.2) = (Karenz 88 % + Taggeld 80 %) × 
         Regel B FLEX/FIX      → Zeile NEIN (steckt in der AHV-Basis)
         Manueller Tagessatz   → Zeile NEIN (Mirus-Satz = AHV-Durchschnitt)
 ```
+Korrekturlohn nach Austritt (`CalculateCorrectionAsync`, Walter 04.10.2026): auf den erfassten
+Zulagen nach deren Flags — Feiertag-% und Ferien-% (FLEX/MTP, Ferien direkt ausbezahlt, Pott
+ist zu), 13. ML nur FLEX (nicht bei Austritt in der Probezeit). MTP/FIX: kein 13. ML auf der
+Korrektur (läuft über den 13.-Saldo).
 - Auf das Taggeld selbst kommen **keine weiteren Zuschläge**: Ferien und 13. ML stecken im
   Tagessatz, der Feiertag nur wie oben (Walter 04.10.2026). Mirus rechnet ebenso
   (13. ML ohne Taggeld in der Basis).

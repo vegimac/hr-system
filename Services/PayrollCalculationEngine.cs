@@ -5246,6 +5246,8 @@ public class PayrollCalculationEngine
             // Feiertags-Bemessungsgrundlage aus Lohnpositions-Flags
             // (z.B. 65.2 Korrektur UVG Versicherung → L-GAV 2.27 %).
             decimal feiertagBasisExact = 0m;
+            decimal ferienBasisKorrExact = 0m;
+            decimal basis13KorrExact = 0m;
 
             foreach (var z in zulagen.Where(z => z.Lohnposition!.Typ == "ZULAGE"))
             {
@@ -5255,6 +5257,8 @@ public class PayrollCalculationEngine
                             || lp.BvgPflichtig || lp.QstPflichtig;
                 string bez = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : "");
                 if (lp.ZaehltAlsBasisFeiertag) feiertagBasisExact += b;
+                if (lp.ZaehltAlsBasisFerien)   ferienBasisKorrExact += b;
+                if (lp.ZaehltAlsBasis13ml)     basis13KorrExact += b;
                 if (anyFlag)
                 {
                     zulagenSvLines.Add(new {
@@ -5342,7 +5346,66 @@ public class PayrollCalculationEngine
                     deltaKtg  += feiertagEnt;
                     deltaBvg  += feiertagEnt;
                     deltaQst  += feiertagEnt;
+                    var lp1952 = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == "195.2" && l.IsActive);
+                    if (lp1952?.ZaehltAlsBasisFerien == true) ferienBasisKorrExact += feiertagEnt;
+                    if (lp1952?.ZaehltAlsBasis13ml == true)   basis13KorrExact += feiertagEnt;
                 }
+            }
+
+            // Ferien + 13. ML auf der Korrektur nach den Flags der Lohnpositionen
+            // (Walter 04.10.2026 — vorher nur der Feiertag). Ferien wie der Feiertag nur
+            // FLEX/MTP (FIX führt Ferien als Tage); Ferien-Pott ist nach dem Austritt
+            // geschlossen → direkt ausbezahlt. 13. ML nur FLEX (monatlich); MTP/FIX
+            // rechnen ihn über den 13.-Saldo, der beim Austritt schon abgerechnet ist.
+            async Task KorrZeileAsync(string code, string bez, decimal prozent, decimal basis, decimal betrag)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = bez, code,
+                    anzahl  = (decimal?)null,
+                    prozent = (decimal?)prozent,
+                    basis   = (decimal?)PayrollCalculations.Rappen(basis),
+                    betrag, accrued = (decimal?)betrag
+                });
+                totalLohn += betrag;
+                var lpK = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == code && l.IsActive);
+                if (lpK?.AhvAlvPflichtig ?? true) deltaAhv  += betrag;
+                if (lpK?.NbuvPflichtig   ?? true) deltaNbuv += betrag;
+                if (lpK?.KtgPflichtig    ?? true) deltaKtg  += betrag;
+                if (lpK?.BvgPflichtig    ?? true) deltaBvg  += betrag;
+                if (lpK?.QstPflichtig    ?? true)
+                {
+                    deltaQst += betrag;
+                    if (lpK != null && !IstPeriodischeZulage(lpK)) deltaQstEinmalig += betrag;
+                }
+            }
+
+            decimal vacationPctKorr = company.DefaultVacationPercent5Weeks ?? 0m;
+            if (employee.DateOfBirth.HasValue
+                && DateOnly.FromDateTime(employee.DateOfBirth.Value).AddYears(company.VacationSixWeeksFromAge) <= periodTo)
+                vacationPctKorr = Math.Max(vacationPctKorr, company.DefaultVacationPercent6Weeks ?? 13.04m);
+            if (isHourlyFeiertag && vacationPctKorr > 0 && ferienBasisKorrExact > 0)
+            {
+                decimal ferienKorr = Round05(ferienBasisKorrExact * vacationPctKorr / 100m);
+                if (ferienKorr > 0)
+                {
+                    string ferienCodeKorr = vacationPctKorr >= 13m ? "195.3" : "195.1";
+                    await KorrZeileAsync(ferienCodeKorr, "Ferienentschädigung", vacationPctKorr, ferienBasisKorrExact, ferienKorr);
+                    var lpF = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == ferienCodeKorr && l.IsActive);
+                    if (lpF?.ZaehltAlsBasis13ml == true) basis13KorrExact += ferienKorr;
+                }
+            }
+
+            bool isFlexKorr = string.Equals(modelCorr, "FLEX", StringComparison.OrdinalIgnoreCase)
+                           || string.Equals(modelCorr, "UTP", StringComparison.OrdinalIgnoreCase);
+            decimal thirteenthPctKorr = emp.ThirteenthSalary ? (company.DefaultThirteenthSalaryPercent ?? 0m) : 0m;
+            var austrittK = ResolveAustrittDate(employee.ExitDate, emp.ContractEndDate);
+            bool verfallenInProbezeit = emp.ProbationEndDate.HasValue && austrittK.HasValue
+                && austrittK.Value <= DateOnly.FromDateTime(emp.ProbationEndDate.Value);
+            if (isFlexKorr && !verfallenInProbezeit && thirteenthPctKorr > 0 && basis13KorrExact > 0)
+            {
+                decimal dreizehnterKorr = Round05(basis13KorrExact * thirteenthPctKorr / 100m);
+                if (dreizehnterKorr > 0)
+                    await KorrZeileAsync("180.1", "13. Monatslohn", thirteenthPctKorr, basis13KorrExact, dreizehnterKorr);
             }
 
             // ── Nachzahlung nach Austritt (Walter 11.09.2026, Swissdec TF07) ──
