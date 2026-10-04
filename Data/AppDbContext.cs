@@ -65,6 +65,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
     public DbSet<EmployeeVersicherungCode> EmployeeVersicherungCodes => Set<EmployeeVersicherungCode>();
     public DbSet<EmployeeBvgPflicht> EmployeeBvgPflichten => Set<EmployeeBvgPflicht>();
+    public DbSet<VorsystemLohnkonto> VorsystemLohnkonten => Set<VorsystemLohnkonto>();
     public DbSet<EmployeeQstArbeitstage>   EmployeeQstArbeitstage      => Set<EmployeeQstArbeitstage>();   // Walter 11.09.2026
     public DbSet<QstSonderkategorie>       QstSonderkategorien         => Set<QstSonderkategorie>();
     public DbSet<QstSonderkategorieSatz>   QstSonderkategorieSaetze    => Set<QstSonderkategorieSatz>();
@@ -2463,6 +2464,28 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => new { e.EmployeeId, e.GueltigAb })
                   .HasDatabaseName("ix_employee_bvg_pflicht_emp");
+        });
+
+        // ── VorsystemLohnkonto (Walter 04.10.2026, Mirus-Lohnkonto der Monate vor OneCrew) ──
+        modelBuilder.Entity<VorsystemLohnkonto>(entity =>
+        {
+            entity.ToTable("vorsystem_lohnkonto");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Jahr).HasColumnName("jahr");
+            entity.Property(e => e.Monat).HasColumnName("monat");
+            entity.Property(e => e.Sektion).HasColumnName("sektion").HasMaxLength(2);
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(20);
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.Quelle).HasColumnName("quelle").HasMaxLength(20);
+            entity.Property(e => e.Dateiname).HasColumnName("dateiname");
+            entity.Property(e => e.ImportiertAm).HasColumnName("importiert_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ImportiertVon).HasColumnName("importiert_von");
+            entity.HasIndex(e => new { e.EmployeeId, e.CompanyProfileId, e.Jahr, e.Monat, e.Sektion, e.Code })
+                  .IsUnique().HasDatabaseName("ux_vorsystem_lohnkonto");
         });
 
         // ── EmployeeUniformDepot (Walter Aug 2026) ─────────────────────────

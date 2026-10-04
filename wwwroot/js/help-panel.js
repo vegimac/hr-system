@@ -115,6 +115,7 @@ const HELP_PAGE_BY_APP_PAGE = {
     'saldo-vortrag':                 'onboarding',
     'saldo-vortrag-import':          'onboarding',
     'saldo-vortrag-import-stunden':  'onboarding',
+    'mirus-lohnkonto-import':        'onboarding',
     'stammdaten-import':             'onboarding',
     'dvelop-import':                 'onboarding',
     'kontoplan':                     'system',
@@ -176,6 +177,7 @@ function helpContextLabel(ctx) {
         'roster-absence-import': 'Mirus Absenz Import',
         'saldo-vortrag-import': 'CHF-Saldi Import',
         'saldo-vortrag-import-stunden': 'Stunden-Saldi Import',
+        'mirus-lohnkonto-import': 'Lohnkonto Mirus',
     };
     const tabLabels = {
         'uebersicht': 'Übersicht',
