@@ -1953,6 +1953,55 @@ public class DashboardService
             ? earliestOpen.Value.ToDateTime(TimeOnly.MinValue)
             : now;
 
+        // ── BVG-Versicherungspflicht prüfen (Walter 04.10.2026) ───────────
+        // Vorschlag (Vertrag bzw. Ø Lohnmonate, inkl. 13. ML) ≠ erfasster Status
+        // am Stichtag (älteste offene Lohnperiode) → Meldung. Nie automatisch ändern.
+        // FLEX unter 3 Lohnmonaten hat noch keinen Vorschlag → keine Meldung.
+        if (Enabled("bvg_pflicht_pruefen"))
+        {
+            var bvgTag = DateOnly.FromDateTime(effectiveDt);
+            var bvgQ = _db.Employees.AsNoTracking()
+                .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt")
+                         && e.Employments.Any(em => em.ContractEndDate == null || em.ContractEndDate >= effectiveDt));
+            if (companyProfileId.HasValue)
+                bvgQ = bvgQ.Where(e => e.Employments.Any(em =>
+                    em.CompanyProfileId == companyProfileId.Value
+                    && (em.ContractEndDate == null || em.ContractEndDate >= effectiveDt)));
+            var bvgKand = await bvgQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.DateOfBirth })
+                .ToListAsync();
+            // BVG: ab 1.1. nach dem 17. Geburtstag bis zum Referenzalter.
+            bvgKand = bvgKand.Where(e => e.DateOfBirth == null
+                    || (e.DateOfBirth.Value.AddYears(17) < effectiveDt && e.DateOfBirth.Value.AddYears(65) > effectiveDt))
+                .ToList();
+            var bvgIds = bvgKand.Select(e => e.Id).ToList();
+            var bvgEintraege = await _db.EmployeeBvgPflichten.AsNoTracking()
+                .Where(p => bvgIds.Contains(p.EmployeeId))
+                .ToListAsync();
+            var bvgVorschlaege = await new BvgPflichtService(_db).VorschlaegeAsync(bvgIds, bvgTag);
+            foreach (var e in bvgKand)
+            {
+                if (!bvgVorschlaege.TryGetValue(e.Id, out var vs) || vs.Versichert == null) continue;
+                var status = BvgPflichtService.StatusInPeriode(bvgEintraege.Where(p => p.EmployeeId == e.Id), bvgTag, bvgTag);
+                if (status == vs.Versichert) continue;
+                var bvgName = $"{e.FirstName} {e.LastName}".Trim();
+                var vorschlagTxt = vs.Versichert == true ? "versichert" : "nicht versichert";
+                var erfasstTxt = status == null ? "noch nicht festgelegt (Lohn prüft jeden Monat einzeln)"
+                               : status == true ? "erfasst: versichert" : "erfasst: nicht versichert";
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "bvg_pflicht_pruefen",
+                    Severity = SeverityState("bvg_pflicht_pruefen", "warning"),
+                    Title    = $"BVG: Vorschlag {vorschlagTxt}",
+                    Subtitle = $"{bvgName} · Personalnr. {e.EmployeeNumber} · {erfasstTxt} · {vs.Grundlage}",
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = bvgName
+                });
+            }
+        }
+
         var mwQ = _db.Employments
             .Include(em => em.Employee)
             .Include(em => em.JobGroup)   // FK-Code statt JobTitle (Walter 26.05.2026)

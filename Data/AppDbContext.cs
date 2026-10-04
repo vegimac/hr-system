@@ -64,6 +64,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
     public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
     public DbSet<EmployeeVersicherungCode> EmployeeVersicherungCodes => Set<EmployeeVersicherungCode>();
+    public DbSet<EmployeeBvgPflicht> EmployeeBvgPflichten => Set<EmployeeBvgPflicht>();
     public DbSet<EmployeeQstArbeitstage>   EmployeeQstArbeitstage      => Set<EmployeeQstArbeitstage>();   // Walter 11.09.2026
     public DbSet<QstSonderkategorie>       QstSonderkategorien         => Set<QstSonderkategorie>();
     public DbSet<QstSonderkategorieSatz>   QstSonderkategorieSaetze    => Set<QstSonderkategorieSatz>();
@@ -2443,6 +2444,25 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.Art, e.ValidFrom })
                   .HasDatabaseName("ix_emp_vers_code_emp_art_from");
+        });
+
+        // ── EmployeeBvgPflicht (Walter 04.10.2026, BVG versichert ja/nein pro Person) ──
+        modelBuilder.Entity<EmployeeBvgPflicht>(entity =>
+        {
+            entity.ToTable("employee_bvg_pflicht");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Versichert).HasColumnName("versichert");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab").HasColumnType("date");
+            entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis").HasColumnType("date");
+            entity.Property(e => e.Quelle).HasColumnName("quelle").HasMaxLength(20);
+            entity.Property(e => e.Jahreslohn).HasColumnName("jahreslohn").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => new { e.EmployeeId, e.GueltigAb })
+                  .HasDatabaseName("ix_employee_bvg_pflicht_emp");
         });
 
         // ── EmployeeUniformDepot (Walter Aug 2026) ─────────────────────────

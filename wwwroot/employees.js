@@ -1603,6 +1603,24 @@ function renderEmployeeDetail(emp) {
 
             <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
 
+            <!-- BVG versichert ja/nein pro Person (Walter 04.10.2026): mutmasslicher
+                 Jahreslohn inkl. 13. ML statt Monats-Schwelle. -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span title="Ob der MA in der Pensionskasse versichert ist — entschieden nach dem erwarteten Jahreslohn inkl. 13. ML, nicht Monat für Monat.">BVG-Versicherungspflicht</span>
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                    <span id="bpHistPillSlot"></span>
+                    <button class="btn-emp-add" onclick="bpOpenModal(null)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Festlegen
+                    </button>
+                </span>
+            </div>
+            <div id="bpContent">
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
+            </div>
+
+            <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
+
             <!-- Versicherungs-Codes (Walter 07.09.2026, Swissdec-Lösungen): UVG/UVGZ/KTG/BVG.
                  Ohne Eintrag gilt der Standard der SV-Sätze — erfasst wird nur, wer abweicht. -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -2574,6 +2592,7 @@ function switchEmpTab(tab) {
         if (typeof loadUniformDepotTab === 'function') loadUniformDepotTab(selectedEmployeeId);
         if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
         if (typeof vcLoad === 'function') vcLoad(selectedEmployeeId);
+        if (typeof bpLoad === 'function') bpLoad(selectedEmployeeId);
         if (typeof loadDarlehenTab === 'function') loadDarlehenTab(selectedEmployeeId);
         loadRecurringWagesTab(selectedEmployeeId);
         loadLohnAssignmentsTab(selectedEmployeeId);

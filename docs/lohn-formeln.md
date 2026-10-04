@@ -234,12 +234,34 @@ AN-Abzug   = Basis × Satz AN % · AG-Beitrag = dieselbe Basis × Satz AG % (agB
 **BVG (Reihenfolge: Schwelle → Min → Max):**
 ```
 Koordinierte Basis = Brutto-BVG-Basis − Koordinationsabzug (2'205)
+Pflicht pro Person : employee_bvg_pflicht in der Periode
+                       nicht versichert → Basis 0
+                       versichert       → KEINE Schwelle, weiter mit Minimum
+                       kein Eintrag     → Eintrittsschwelle wie unten (Altverhalten)
 Eintrittsschwelle  : Monatsbasis × 12 < 22'680  → nicht versichert (Basis 0)
 Minimum            : versichert & Basis < 315   → Basis = 315
 Maximum (flach)    : Basis = min(Basis, 5'355)  — FLACHER Monats-Cap, kein Jahresausgleich
 BVG_ZUSATZ (Kader) : rechnet auf dem Koordinationsabzug selbst (2'205 fix)
 BVG-Staffeln       : alters-/modellabhängige Zeilen (MinAge/MaxAge) — Engine wählt die Stufe
 ```
+
+**BVG-Versicherungspflicht pro Person (Walter 04.10.2026):** massgebend ist der
+mutmassliche Jahreslohn (BVG Art. 2, BVV 2 Art. 3), nicht der einzelne Monat —
+wer versichert ist, zahlt auch im Krankheits- oder Ferienmonat mind. auf 315
+(Mirus Blerta Sela: jeden Monat 22.05). Erfasst als `employee_bvg_pflicht`
+(versichert ja/nein ab/bis, Quelle HAND/VORSCHLAG/MIRUS), Karte im MA-Tab
+«Zulagen & Abzüge». Berührt ein «versichert»-Eintrag die Periode, gilt der
+ganze Monat als versichert. Vorschlag (`BvgPflichtVorschlag`, immer inkl. 13. ML
+nach Vertrag):
+```
+FIX / FIX-M : Monatslohn × 12 × (1 + 13.-ML-%)
+MTP         : garantierte Std./Woche × Stundenlohn × 52 × (1 + 13.-ML-%)
+FLEX        : Ø BVG-Basis ohne 180.x aus max. 12 Lohnmonaten ohne Krankheit/Unfall
+              (70.1/70.2/75.1/60.2/60.3/65.1), mind. 3 Monate × 12 × (1 + 13.-ML-%)
+Vorschlag   : Jahreslohn ≥ Eintrittsschwelle (SV-Satz BVG) → versichert
+```
+Weicht der Vorschlag vom Eintrag ab (oder fehlt der Eintrag), meldet das To-do
+`bvg_pflicht_pruefen` (Stichtag älteste offene Lohnperiode). Nie automatisch ändern.
 
 **FAK (nur Arbeitgeber):** `FAK = Satz AG (1.635 %) × AHV-Basis` — kein AN-Abzug,
 AG-only-Zeilen (Rate 0) erscheinen nie auf dem Lohnzettel.
@@ -328,6 +350,7 @@ SV- und 13.-Basis nach den Flags von 110.1 — «13. ML» muss dort JA sein.
 
 1. Kein Ferien-Vorbezug (Pott-Cap) — Mirus-Abweichung, gleicht sich übers Jahr aus.
 2. BVG-Monats-Cap statt Jahresverteilung des 13. ML — Dezember-Thema, bewusst offen.
-3. BVG-Eintrittsschwelle als Monats-Proxy (×12) — wie Mirus «Abgrenzung monatlich».
+3. BVG-Eintrittsschwelle als Monats-Proxy (×12) — nur noch ohne Eintrag in
+   `employee_bvg_pflicht`; mit Eintrag entscheidet die Person (seit 04.10.2026).
 4. FLEX ohne Stunden = Brutto 0.00 ist legitim (kein Fehler); DTA filtert Beträge ≤ 0.
 5. MTP-Anzeige «Garantiert/Monat» (52/12) ≠ Periodenlohn (pro-rata) — Anzeige vs. Rechnung.

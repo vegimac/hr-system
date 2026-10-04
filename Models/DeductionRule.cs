@@ -100,6 +100,14 @@ public class DeductionRule
     [NotMapped]
     public decimal? EntryThresholdYearly { get; set; }
 
+    /// <summary>
+    /// BVG-Versicherungspflicht dieser Person (employee_bvg_pflicht) in der Lohnperiode.
+    /// true = versichert (keine Monats-Schwelle, Min-Basis gilt), false = nicht versichert,
+    /// null = kein Eintrag → Monats-Schwelle wie bisher. Transient.
+    /// </summary>
+    [NotMapped]
+    public bool? BvgVersichert { get; set; }
+
     /// <summary>Gilt nur für Mitarbeiter mit Quellensteuer-Pflicht</summary>
     public bool OnlyQuellensteuer { get; set; } = false;
 

@@ -267,6 +267,10 @@ Vertiefung der QST-Prüfungen um Ehepartner- und Kinder-Regeln (KS 45):
 
 BVG- und BVG-Zusatz-Abzug sowie der AG-Beitrag werden in `BuildResult` auf 5 Rappen gerundet — in ALLEN Filialen, nicht nur im Swissdec-Testmandanten (Walter: «wenn ich über Swissdec abrechne, muss ich die 5 Rappen machen, auch in meinen Filialen»). Anlass: Swissdec-Testdaten Stand 28.09.2026 (Lohnart 5050: Blanc 76.45 statt 76.44, Maldini 433.35 statt 433.33). Alle übrigen Abzüge (AHV, ALV, NBU, KTG, QST) bleiben rappengenau. Tests `BvgFuenfRappenTests`.
 
+### BVG-Versicherungspflicht pro Person (Walter-Vorgabe 04.10.2026)
+
+Ob jemand BVG-versichert ist, entscheidet der **mutmassliche Jahreslohn inkl. 13. ML**, nicht der einzelne Monat — wie Mirus (Subcodes 101 nicht pflichtig / 102 / 103 pro Person). Erfasst in `employee_bvg_pflicht` (ab/bis), Vorschlag nach Vertrag (FIX/FIX-M/MTP) bzw. Ø Lohnmonate ohne Krankheit (FLEX, ab 3 Monaten), To-do `bvg_pflicht_pruefen` bei Abweichung. Ohne Eintrag bleibt die alte Monats-Schwelle. Formeln: `docs/lohn-formeln.md` (BVG).
+
 ### BVG-Zusatz-Mitgliedschaft (Walter-Vorgabe 26.05.2026)
 
 Der **BVG-Zusatz** ist eine Belohnung, kein Vertragsmodell-Automatismus. Pro MA wird einzeln entschieden, ob er im Vorsorge-Programm ist — meist FIX-M, aber NICHT zwingend. Andere Vertragsmodelle können auch teilnehmen.

@@ -395,7 +395,12 @@ public static class PayrollCalculations
             //   • Min. koordinierte Basis: ist der MA versichert, zahlt er mind. auf
             //     der Untergrenze (z.B. 315/Mt.) — auch wenn (Brutto − Koord.) kleiner
             //     oder 0 ist. Reihenfolge: Schwelle → Min → (weiter unten) Max-Cap.
-            if (d.EntryThresholdYearly is > 0 && svBases.Bvg * 12m < d.EntryThresholdYearly.Value)
+            //   • Pro Person erfasst (employee_bvg_pflicht, Walter 04.10.2026): der
+            //     mutmassliche Jahreslohn entscheidet, nicht der einzelne Monat —
+            //     versichert bleibt versichert, auch im Krankheits- oder Ferienmonat.
+            if (d.BvgVersichert == false)
+                basis = 0;
+            else if (d.BvgVersichert != true && d.EntryThresholdYearly is > 0 && svBases.Bvg * 12m < d.EntryThresholdYearly.Value)
                 basis = 0;
             else if (d.MinBaseMonthly is > 0 && svBases.Bvg > 0 && basis < d.MinBaseMonthly.Value)
                 basis = d.MinBaseMonthly.Value;

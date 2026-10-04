@@ -690,6 +690,7 @@ public class PayrollCalculationEngine
         var vertragsbeginn = DateOnly.FromDateTime(emp.ContractStartDate);
         if (vertragsbeginn > periodFrom && vertragsbeginn <= periodToFull) codeStichtag = vertragsbeginn;
         deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, codeStichtag, ueberReferenzalter);
+        await WendeBvgPflichtAnAsync(deductions, employeeId, periodFrom, periodToFull);
 
         // Eigene Aufroll-Basis für Lösungen, die ERST IM LAUFENDEN JAHR begonnen haben
         // (Walter-Fall 23.09.2026, TF03 Pia Lusser: KTG 11 ab 01.06.). Nur dann weicht
@@ -5568,6 +5569,7 @@ public class PayrollCalculationEngine
                                         || string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase))))
                 .ToList();
             deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, svPeriodFrom, ueberRef);
+            await WendeBvgPflichtAnAsync(deductions, employeeId, svPeriodFrom, svPeriodTo);
             // Nachzahlung nach Austritt: BVG-Versicherung endete mit dem Austritt → kein BVG-Abzug
             // (Swissdec TF07 Jan 2025: kein BVG auf der Überzeit-Nachzahlung).
             if (nachzahlungNachAustritt)
@@ -5728,6 +5730,20 @@ public class PayrollCalculationEngine
     /// Abzugszeile (AN) mit festem AG-Beitrag. Ohne Einträge am MA und ohne
     /// Code-Zeilen in den SV-Sätzen ändert sich nichts am bisherigen Ergebnis.
     /// </summary>
+    /// <summary>
+    /// BVG versichert ja/nein pro Person (employee_bvg_pflicht, Walter 04.10.2026).
+    /// Ohne Eintrag bleibt die Monats-Schwelle in BuildResult. «Nicht versichert»
+    /// entfernt auch einen festen BVG-Beitrag.
+    /// </summary>
+    private async Task WendeBvgPflichtAnAsync(List<DeductionRule> deductions, int employeeId, DateOnly von, DateOnly bis)
+    {
+        var status = await new BvgPflichtService(_db).StatusInPeriodeAsync(employeeId, von, bis);
+        if (status == null) return;
+        static bool IstBvg(DeductionRule r) => string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase);
+        if (status == false) deductions.RemoveAll(r => IstBvg(r) && r.Type == "fixed");
+        foreach (var r in deductions.Where(IstBvg)) r.BvgVersichert = status;
+    }
+
     private async Task<List<DeductionRule>> WendeVersicherungsCodesAnAsync(
         List<DeductionRule> deductions, int employeeId, DateOnly stichtag, bool ueberReferenzalter)
     {
