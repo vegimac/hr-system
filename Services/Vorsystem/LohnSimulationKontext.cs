@@ -64,6 +64,8 @@ public sealed class LohnSimulationKontext
         "200.5",   // McBonus (13. ML a/McBonus 200.9 rechnet die Engine)
         "200.10",  // 13. Monatslohn (Zulage)
         "200.41",  // Diverse Zulagen
+        "200.190", // Familienzulagen Nachzahlung Vorjahr (2026 bucht Mirus in 190.1)
+        "565.1",   // Korrektur Quellensteuer Vorjahr
         "595.4",   // Korrektur UVG Versicherung
         "595.5",   // Korrektur BVG Versicherung
         "600.5",   // Korrektur BVG Vorjahr
@@ -78,15 +80,12 @@ public sealed class LohnSimulationKontext
     public const string McBonus13mlAnteilCode = "200.9";
 
     /// <summary>
-    /// Mirus-Nachträge für frühere Monate. Die Simulation rechnet jeden Monat mit den
-    /// heutigen Familien- und QST-Daten, zahlt also schon im richtigen Monat — eine
-    /// Übernahme wäre doppelt. Im Vergleich als Ursache angezeigt, nicht gerechnet.
+    /// Mirus-Codes ohne eigene OneCrew-Lohnart: OneCrew bucht FamZ-Nachzahlungen auf
+    /// dieselbe Lohnart wie die laufende Zulage (FamzKorrektur, Swissdec 3001).
     /// </summary>
-    public static readonly IReadOnlySet<string> NachtragsCodes = new HashSet<string>(StringComparer.Ordinal)
+    public static readonly IReadOnlyDictionary<string, string> GleicheLohnartWie = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        "200.190", // Familienzulagen Nachzahlung
-        "565.1",   // Korrektur Quellensteuer
-        "565.10",  // Korrektur Quellensteuer (auto.)
+        ["200.190"] = "190.1",
     };
 
     /// <summary>

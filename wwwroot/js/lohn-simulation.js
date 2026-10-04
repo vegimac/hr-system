@@ -266,7 +266,7 @@ function lsimRenderVergleich() {
                 </tr></thead>
                 <tbody>${z.monate.map(m => `
                     <tr style="border-top:1px solid #eee;cursor:pointer" onclick="lsimDetail(${z.employeeId}, ${m.monat}, this)">
-                        <td style="padding:3px 6px">${_LSIM_MONATE[m.monat - 1]}${m.fehler ? ` <span style="color:#b45309" title="${_lsimEsc(m.fehler)}">⚠ nicht rechenbar</span>` : ''}${!m.simuliert ? ' <span style="color:#b45309">fehlt in OneCrew</span>' : ''}${m.sonderzahlungen ? ' <span title="' + _lsimEsc(m.sonderzahlungen) + '" style="color:#3730a3">＋Sonderzahlung</span>' : ''}${m.nachtraegeMirus ? '<div style="font-size:11.5px;color:#854d0e">Mirus-Nachtrag früherer Monate (OneCrew rechnet ihn im richtigen Monat): ' + _lsimEsc(m.nachtraegeMirus) + '</div>' : ''}</td>
+                        <td style="padding:3px 6px">${_LSIM_MONATE[m.monat - 1]}${m.fehler ? ` <span style="color:#b45309" title="${_lsimEsc(m.fehler)}">⚠ nicht rechenbar</span>` : ''}${!m.simuliert ? ' <span style="color:#b45309">fehlt in OneCrew</span>' : ''}${m.sonderzahlungen ? ' <span title="' + _lsimEsc(m.sonderzahlungen) + '" style="color:#3730a3">＋Sonderzahlung</span>' : ''}</td>
                         ${zellen(m.brutto, m.bruttoMirus)}
                         ${zellen(m.netto, m.nettoMirus)}
                         ${zellen(m.auszahlung, m.auszahlungMirus)}

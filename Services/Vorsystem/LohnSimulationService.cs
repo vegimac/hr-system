@@ -77,8 +77,9 @@ public class LohnSimulationService
             .Where(r => codes.Contains(r.Code) && r.VerwendetLohnpositionId != null)
             .Select(r => new { r.Code, Lp = r.VerwendetLohnposition! })
             .ToListAsync();
+        var suchCodes = codes.Concat(LohnSimulationKontext.GleicheLohnartWie.Values).Distinct().ToList();
         var gleicherCode = await _db.Lohnpositionen.AsNoTracking()
-            .Where(l => codes.Contains(l.Code) && l.IsActive)
+            .Where(l => suchCodes.Contains(l.Code) && l.IsActive)
             .ToListAsync();
         var lohnpositionen = WaehleLohnpositionen(
             codes,
@@ -187,7 +188,8 @@ public class LohnSimulationService
 
     /// <summary>
     /// OneCrew-Lohnart pro Mirus-Code: zuerst die Verknüpfung im «Lohnraster Mirus»
-    /// (gleiche Nummer kann in OneCrew etwas anderes bedeuten), sonst gleicher Code.
+    /// (gleiche Nummer kann in OneCrew etwas anderes bedeuten), sonst gleicher Code,
+    /// sonst die Lohnart aus <see cref="LohnSimulationKontext.GleicheLohnartWie"/>.
     /// Inaktive Lohnarten zählen nicht.
     /// </summary>
     public static Dictionary<string, Lohnposition> WaehleLohnpositionen(
@@ -198,8 +200,11 @@ public class LohnSimulationService
         var ergebnis = new Dictionary<string, Lohnposition>(StringComparer.Ordinal);
         foreach (var code in codes)
         {
+            var ziel = LohnSimulationKontext.GleicheLohnartWie.GetValueOrDefault(code);
             var lp = verknuepft.Where(v => v.Code == code && v.Lp.IsActive).Select(v => v.Lp).FirstOrDefault()
-                  ?? gleicherCode.Where(l => l.Code == code && l.IsActive).OrderBy(l => l.Id).FirstOrDefault();
+                  ?? gleicherCode.Where(l => l.Code == code && l.IsActive).OrderBy(l => l.Id).FirstOrDefault()
+                  ?? (ziel == null ? null
+                      : gleicherCode.Where(l => l.Code == ziel && l.IsActive).OrderBy(l => l.Id).FirstOrDefault());
             if (lp != null) ergebnis[code] = lp;
         }
         return ergebnis;
