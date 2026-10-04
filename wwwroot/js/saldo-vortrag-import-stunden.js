@@ -27,7 +27,18 @@ function svhImpInit() {
     if (btn) btn.disabled = true;
     // Startsaldo-Periode = älteste noch offene Lohnperiode (wie Lohnlauf /
     // CHF-Import; Walter 02.08.2026).
-    svhImpSetPeriodeFromOpenLohn(cpId);
+    // Lohn-Simulation (Walter 04.10.2026): nur wenn die Simulations-Seite den Import
+    // geöffnet hat — sonst immer der echte Vortrag.
+    const sim = !!window._lsimVortragOeffnen;
+    window._lsimVortragOeffnen = false;
+    const simBox = document.getElementById('svhImpSim');
+    if (simBox) simBox.checked = sim;
+    if (sim) {
+        const inp = document.getElementById('svhImpPeriode');
+        if (inp) inp.value = `${window._lsimJahr || new Date().getFullYear()}-01`;
+    } else {
+        svhImpSetPeriodeFromOpenLohn(cpId);
+    }
 }
 
 /** Setzt #svhImpPeriode auf YYYY-MM der ältesten offenen Lohnperiode. */
@@ -210,13 +221,18 @@ async function svhImpCommit() {
     const rows = svhImpEffectiveCommitRows();
     if (rows.length === 0) { svhImpShowAlert('Keine MA zum Speichern.', 'err'); return; }
 
-    if (!confirm(`Saldi (Zeit/Nacht/Ferien-Tage/Feiertag-Tage) für ${rows.length} MA in Periode ${data.periode} speichern? Bestehende Vortrag-Werte für 901/902/903/904 dieser MA werden überschrieben.`)) return;
+    const simZiel = !!document.getElementById('svhImpSim')?.checked;
+    const frage = simZiel
+        ? `Saldi für ${rows.length} MA für die Lohn-Simulation speichern? Der echte Saldo-Vortrag bleibt unverändert.`
+        : `Saldi (Zeit/Nacht/Ferien-Tage/Feiertag-Tage) für ${rows.length} MA in Periode ${data.periode} speichern? Bestehende Vortrag-Werte für 901/902/903/904 dieser MA werden überschrieben.`;
+    if (!await liquidConfirm(frage, { title: simZiel ? 'Saldi für die Simulation' : 'Saldo-Vortrag speichern', yesLabel: 'Speichern', noLabel: 'Abbrechen' })) return;
 
     svhImpShowAlert('⏳ Wird gespeichert…', 'warn');
     document.getElementById('svhImpCommitBtn').disabled = true;
 
     try {
-        const r = await fetch('/api/saldo-vortrag-import/stunden/commit', {
+        const sim = !!document.getElementById('svhImpSim')?.checked;
+        const r = await fetch('/api/saldo-vortrag-import/stunden/commit' + (sim ? '?simulation=true' : ''), {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + localStorage.getItem('hrToken'),
@@ -241,7 +257,7 @@ async function svhImpCommit() {
         }
         const result = await r.json();
         svhImpShowAlert(`Gespeichert: ${result.created} neu + ${result.updated} aktualisiert${result.skipped ? ' · ' + result.skipped + ' übersprungen' : ''}. Fenster wird in 2 Sekunden geschlossen…`, 'ok');
-        setTimeout(() => { if (typeof showPage === 'function') showPage('admin-hub'); }, 2000);
+        setTimeout(() => { if (typeof showPage === 'function') showPage(sim ? 'lohn-simulation' : 'admin-hub'); }, 2000);
     } catch (err) {
         svhImpShowAlert('Verbindungsfehler: ' + err.message, 'err');
     }

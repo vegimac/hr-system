@@ -34,6 +34,7 @@ public class PayrollCalculationEngine
     private readonly QstPflichtCheckService _qstCheck;
     private readonly QstKorrekturService _qstKorrektur;
     private readonly FamzKorrekturService _famzKorrektur;
+    private readonly HrSystem.Services.Vorsystem.LohnSimulationKontext _sim;
 
     public PayrollCalculationEngine(
         AppDbContext db,
@@ -45,7 +46,8 @@ public class PayrollCalculationEngine
         FerienKuerzungService ferienKuerzung,
         QstPflichtCheckService qstCheck,
         QstKorrekturService qstKorrektur,
-        FamzKorrekturService famzKorrektur)
+        FamzKorrekturService famzKorrektur,
+        HrSystem.Services.Vorsystem.LohnSimulationKontext? sim = null)
     {
         _db             = db;
         _tarifService   = tarifService;
@@ -57,6 +59,7 @@ public class PayrollCalculationEngine
         _qstCheck       = qstCheck;
         _qstKorrektur   = qstKorrektur;
         _famzKorrektur  = famzKorrektur;
+        _sim            = sim ?? new HrSystem.Services.Vorsystem.LohnSimulationKontext();
     }
 
     public async Task<IActionResult> CalculateAsync(
@@ -122,7 +125,11 @@ public class PayrollCalculationEngine
         // Kumulation läuft jetzt in JEDEM Monat (Aufrollmethode), nicht nur im Dezember,
         // und der kumulierte Höchstlohn folgt den Beschäftigungsmonaten (Teilmonate
         // anteilig auf 30-Tage-Basis) statt pauschal 12 × Monatsmaximum.
-        var ytdSnapshots = await (
+        bool simAktiv = _sim.Aktiv;
+        var ytdSnapshots = simAktiv
+            ? _sim.VormonateJahr.Where(x => x.Fehler == null && x.Monat < month)
+                .Select(x => new { Month = x.Monat, x.SvBasisAhv, x.SvBasisNbuv, x.SvBasisKtg }).ToList()
+            : await (
             from s in _db.PayrollSnapshots
             join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
             where s.EmployeeId == employeeId
@@ -179,6 +186,7 @@ public class PayrollCalculationEngine
         // rechnen würde rückwirkende QST-Versionen/Korrektur-Posten fälschlich
         // in die abgeschlossene Anzeige mischen.
         if (!ignoreFrozenSnapshot
+            && !simAktiv
             && existingPeriod != null
             && existingPeriod.Status == "abgeschlossen")
         {
@@ -211,13 +219,16 @@ public class PayrollCalculationEngine
         // Wissens-Achse (Walter 15.09.2026): Versionen mit «Erfahren am» in
         // diesem Monat materialisieren hier fehlende K1-Posten (z.B. 4c hat
         // die Version schon angelegt, die Vormonate waren damals noch offen).
-        await _qstKorrektur.EnsureKorrekturenFuerLohnlaufAsync(employeeId, year, month, "Lohnlauf");
-        await _famzKorrektur.EnsureKorrekturenFuerLohnlaufAsync(employeeId, year, month, "Lohnlauf");
+        if (!simAktiv)
+        {
+            await _qstKorrektur.EnsureKorrekturenFuerLohnlaufAsync(employeeId, year, month, "Lohnlauf");
+            await _famzKorrektur.EnsureKorrekturenFuerLohnlaufAsync(employeeId, year, month, "Lohnlauf");
+        }
         decimal qstKorrBetrag = 0m;
         string? qstKorrLabel  = null;
         {
             var kPosten = await _db.QstKorrekturen
-                .Where(k => k.EmployeeId == employeeId
+                .Where(k => !simAktiv && k.EmployeeId == employeeId
                          // NIE im eigenen Ursprungs-Monat verrechnen (Walter-Bug
                          // 29.08.2026: wird die Ursprungs-Periode wieder geöffnet
                          // und neu gerechnet, enthält sie die neue QST bereits
@@ -318,7 +329,7 @@ public class PayrollCalculationEngine
         var darlehenRaten = new List<(int DarlehenId, string Label, decimal Rate, decimal RestNachher)>();
         {
             var offeneDarlehen = await _db.EmployeeDarlehen
-                .Where(d => d.EmployeeId == employeeId
+                .Where(d => !simAktiv && d.EmployeeId == employeeId
                          && d.Status != "STORNIERT"
                          && (d.StartJahr < year || (d.StartJahr == year && d.StartMonat <= month)))
                 .ToListAsync();
@@ -737,12 +748,14 @@ public class PayrollCalculationEngine
         // erneut, da prevSaldo weiterhin null ist.
         var aktuellePeriode = $"{year}-{month:D2}";
         var vortragLookup = prevSaldo == null
-            ? await _db.LohnZulagen
+            ? (simAktiv
+                ? new Dictionary<string, decimal>(_sim.Vortrag)
+                : await _db.LohnZulagen
                 .Include(z => z.Lohnposition)
                 .Where(z => z.EmployeeId == employeeId
                          && z.Periode == aktuellePeriode
                          && z.Lohnposition!.Kategorie == "Saldo-Vortrag")
-                .ToDictionaryAsync(z => z.Lohnposition!.Code, z => z.Betrag)
+                .ToDictionaryAsync(z => z.Lohnposition!.Code, z => z.Betrag))
             : new Dictionary<string, decimal>();
         if (vortragLookup.Count > 0)
         {
@@ -1219,12 +1232,13 @@ public class PayrollCalculationEngine
         // Idempotent — erzeugt pro MA/Jahr maximal einen Eintrag auf
         // Lohnposition 600.24. Wird VOR dem Laden der Zulagen aufgerufen
         // damit der neu angelegte Abzug in dieser Periode mit berechnet wird.
-        await _lgav.EnsureAsync(employee, emp, company, year, month, periodFrom, periodTo);
+        if (!simAktiv)
+            await _lgav.EnsureAsync(employee, emp, company, year, month, periodFrom, periodTo);
 
         // Uniformen-Depot CHF 50 beim 1. Lohn (Walter Aug 2026) — idempotent,
         // schreibt LohnZulage 600.32 + employee_uniform_depot vor dem Laden.
         // Filial-Schalter «Uniform-Depot» (Walter 10.09.2026): aus → kein Abzug.
-        if (company.UniformDepotAktiv)
+        if (company.UniformDepotAktiv && !simAktiv)
             await _uniformDepot.EnsureChargeAsync(employee, year, month);
 
         // ── Zulagen & Abzüge für diese Periode laden ──────────────────────
@@ -1234,7 +1248,9 @@ public class PayrollCalculationEngine
         // in-memory (ohne DB-Eintrag), damit die bestehende Berechnungslogik
         // unverändert bleibt.
         string periodeStr = $"{year:D4}-{month:D2}";
-        var einmaligeZulagen = await _db.LohnZulagen
+        var einmaligeZulagen = simAktiv
+            ? _sim.Zulagen.OrderBy(z => z.Lohnposition!.SortOrder).ToList()
+            : await _db.LohnZulagen
             .Include(z => z.Lohnposition)
             .Where(z => z.EmployeeId == employeeId && z.Periode == periodeStr)
             .OrderBy(z => z.Lohnposition!.SortOrder)
@@ -1487,7 +1503,7 @@ public class PayrollCalculationEngine
         // 190.x, Bemerkung mit Monat + Kind (Walter 18.09.2026, Swissdec 3001).
         {
             var famzKorr = await _db.FamzKorrekturen
-                .Where(k => k.EmployeeId == employeeId
+                .Where(k => !simAktiv && k.EmployeeId == employeeId
                          && !(k.Jahr == year && k.Monat == month)
                          && (k.Status == "OFFEN"
                              || (k.Status == "VERRECHNET"
@@ -2091,7 +2107,7 @@ public class PayrollCalculationEngine
         // Filial-Schalter «Uniform-Depot» aus → kein Depot-Strang (Walter 10.09.2026).
         // Monatsende, nicht das aufs Vertragsende gekürzte periodTo: endet der Vertrag
         // vor dem Austrittsdatum im selben Monat, fiel der Refund sonst weg (Walter 04.10.2026, Radogoshi).
-        var (depotRefund, depotAmt, depotLabel) = company.UniformDepotAktiv
+        var (depotRefund, depotAmt, depotLabel) = company.UniformDepotAktiv && !simAktiv
             ? await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodToFull)
             : (false, 0m, (string?)null);
         if (depotRefund && depotAmt > 0)
@@ -4632,7 +4648,9 @@ public class PayrollCalculationEngine
         int employeeId, int year, int month)
     {
         if (month <= 1) return 0m;
-        var slips = await (
+        var slips = _sim.Aktiv
+            ? _sim.VormonateJahr.Where(x => x.Fehler == null && x.Monat < month).Select(x => x.SlipJson ?? "").ToList()
+            : await (
             from s in _db.PayrollSnapshots
             join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
             where s.EmployeeId == employeeId
@@ -4802,7 +4820,10 @@ public class PayrollCalculationEngine
         if (month <= 1)
             return new QstJahresmodell.YtdStand(0, 0, n, 0, 0, 0);
 
-        var rows = await (
+        var rows = _sim.Aktiv
+            ? _sim.VormonateJahr.Where(x => x.Fehler == null && x.Monat >= start.Month && x.Monat < month)
+                .Select(x => new { Month = x.Monat, SlipJson = x.SlipJson ?? "" }).ToList()
+            : await (
             from s in _db.PayrollSnapshots
             join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
             where s.EmployeeId == employee.Id
@@ -5845,6 +5866,7 @@ public class PayrollCalculationEngine
     private async Task<PayrollSaldo?> VormonatsSaldoAsync(
         int employeeId, int companyProfileId, int year, int month)
     {
+        if (_sim.Aktiv) return _sim.Vormonat;
         var saldi = await _db.PayrollSaldos
             .Where(s => s.EmployeeId == employeeId)
             .ToListAsync();

@@ -24,7 +24,18 @@ function svImpInit() {
     if (btn) btn.disabled = true;
     // Migrations-Periode = älteste noch offene Lohnperiode der Filiale
     // (gleicher Default wie Lohnlauf; Walter 02.08.2026).
-    svImpSetPeriodeFromOpenLohn(cpId);
+    // Lohn-Simulation (Walter 04.10.2026): nur wenn die Simulations-Seite den Import
+    // geöffnet hat — sonst immer der echte Vortrag.
+    const sim = !!window._lsimVortragOeffnen;
+    window._lsimVortragOeffnen = false;
+    const simBox = document.getElementById('svImpSim');
+    if (simBox) simBox.checked = sim;
+    if (sim) {
+        const inp = document.getElementById('svImpPeriode');
+        if (inp) inp.value = `${window._lsimJahr || new Date().getFullYear()}-01`;
+    } else {
+        svImpSetPeriodeFromOpenLohn(cpId);
+    }
 }
 
 /** Setzt #svImpPeriode auf YYYY-MM der ältesten offenen Lohnperiode. */
@@ -210,13 +221,18 @@ async function svImpCommit() {
     if (rows.length === 0) { svImpShowAlert('Keine MA zum Speichern (alle ohne Match).', 'err'); return; }
 
     const cpId = data.companyProfileId;
-    if (!confirm(`Vortrag-Saldi für ${rows.length} MA in Periode ${data.periode} speichern? Bestehende Vortrag-Werte für 905/906 dieser MA werden überschrieben.`)) return;
+    const simZiel = !!document.getElementById('svImpSim')?.checked;
+    const frage = simZiel
+        ? `Saldi für ${rows.length} MA für die Lohn-Simulation speichern? Der echte Saldo-Vortrag bleibt unverändert.`
+        : `Vortrag-Saldi für ${rows.length} MA in Periode ${data.periode} speichern? Bestehende Vortrag-Werte für 905/906 dieser MA werden überschrieben.`;
+    if (!await liquidConfirm(frage, { title: simZiel ? 'Saldi für die Simulation' : 'Saldo-Vortrag speichern', yesLabel: 'Speichern', noLabel: 'Abbrechen' })) return;
 
     svImpShowAlert('⏳ Wird gespeichert…', 'warn');
     document.getElementById('svImpCommitBtn').disabled = true;
 
     try {
-        const r = await fetch('/api/saldo-vortrag-import/chf/commit', {
+        const sim = !!document.getElementById('svImpSim')?.checked;
+        const r = await fetch('/api/saldo-vortrag-import/chf/commit' + (sim ? '?simulation=true' : ''), {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + localStorage.getItem('hrToken'),
@@ -237,7 +253,7 @@ async function svImpCommit() {
         }
         const result = await r.json();
         svImpShowAlert(`Gespeichert: ${result.created} neu + ${result.updated} aktualisiert${result.skipped ? ' · ' + result.skipped + ' übersprungen' : ''}. Fenster wird in 2 Sekunden geschlossen…`, 'ok');
-        setTimeout(() => { if (typeof showPage === 'function') showPage('admin-hub'); }, 2000);
+        setTimeout(() => { if (typeof showPage === 'function') showPage(sim ? 'lohn-simulation' : 'admin-hub'); }, 2000);
     } catch (err) {
         svImpShowAlert('Verbindungsfehler: ' + err.message, 'err');
     }

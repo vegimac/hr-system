@@ -151,6 +151,7 @@ public class EditLockEndpointAuditTests
         ["ImportController"]                    = "PDF-Stempelzeiten-Import ENTFERNT (Walter 19.06.2026) — Endpunkte liefern nur noch 410 Gone, kein Schreibpfad in employee_time_entry. Stempelzeiten kommen ausschliesslich über die easy@work-API.",
         ["SaldoVortragImportController"]        = "Saldo-Vortrag Bulk-Import (Mirus Saldomethode) — admin/superuser, einmalige Migration",
         ["MirusLohnkontoImportController"]      = "Mirus-Lohnkonto der Monate vor OneCrew (vorsystem_lohnkonto) — admin, schreibt keine OneCrew-Lohndaten (kein Snapshot/Saldo/Zulage)",
+        ["LohnSimulationController"]            = "Lohn-Simulation (simulation_lohn) — admin, rechnet mit der Engine ohne Perioden/Snapshots/Saldi/Zulagen und ohne Versand",
         ["MirusAddressCompareController"]       = "Mirus Adressliste-Vergleich — read-only Auswertung, kein Schreibpfad",
 
         // QST-Formulare etc.

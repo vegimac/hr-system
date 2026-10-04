@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 43;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vorsystem_lohnkonto Mirus-Lohnkonto (04.10.2026)
+const int SchemaStand = 44;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vorsystem_lohnkonto Mirus-Lohnkonto (04.10.2026) · 44: simulation_vortrag + simulation_lohn Lohn-Simulation (04.10.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -234,6 +234,8 @@ builder.Services.AddScoped<SperrfristService>();
 // L-GAV-Beitrag: automatischer Jahresabzug nach Vertragstyp/Pensum
 builder.Services.AddScoped<LgavBeitragService>();
 builder.Services.AddScoped<UniformDepotService>();
+builder.Services.AddScoped<HrSystem.Services.Vorsystem.LohnSimulationKontext>();
+builder.Services.AddScoped<HrSystem.Services.Vorsystem.LohnSimulationService>();
 builder.Services.AddScoped<PayrollCalculationEngine>();
 // Snapshot-Neuberechnung (hält offene Perioden frisch — Walter-Vorgabe 22.05.2026).
 builder.Services.AddScoped<SnapshotRecomputeService>();
@@ -1816,6 +1818,50 @@ using (var scope = app.Services.CreateScope())
             ON vorsystem_lohnkonto(employee_id, company_profile_id, jahr, monat, sektion, code);
         CREATE INDEX IF NOT EXISTS ix_vorsystem_lohnkonto_cp
             ON vorsystem_lohnkonto(company_profile_id, jahr, monat);
+    ");
+
+    // Lohn-Simulation (Walter 04.10.2026, Schema-Stand 44): Mirus-Saldi 31.12.2025 +
+    // simulierte Lohnzettel, getrennt von lohn_zulage / payroll_snapshot / payroll_saldo.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS simulation_vortrag (
+            id                 serial PRIMARY KEY,
+            employee_id        integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            company_profile_id integer NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
+            code               varchar(10) NOT NULL,
+            betrag             numeric(12,4) NOT NULL,
+            quelle             text,
+            importiert_am      timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_simulation_vortrag
+            ON simulation_vortrag(employee_id, code);
+
+        CREATE TABLE IF NOT EXISTS simulation_lohn (
+            id                     serial PRIMARY KEY,
+            employee_id            integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            company_profile_id     integer NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
+            jahr                   integer NOT NULL,
+            monat                  integer NOT NULL,
+            brutto                 numeric(12,2) NOT NULL DEFAULT 0,
+            netto                  numeric(12,2) NOT NULL DEFAULT 0,
+            auszahlung             numeric(12,2) NOT NULL DEFAULT 0,
+            sv_basis_ahv           numeric(12,2) NOT NULL DEFAULT 0,
+            sv_basis_nbuv          numeric(12,2) NOT NULL DEFAULT 0,
+            sv_basis_ktg           numeric(12,2) NOT NULL DEFAULT 0,
+            hour_saldo             numeric(12,4) NOT NULL DEFAULT 0,
+            nacht_saldo            numeric(12,4) NOT NULL DEFAULT 0,
+            ferien_geld_saldo      numeric(12,4) NOT NULL DEFAULT 0,
+            ferien_tage_saldo      numeric(12,4) NOT NULL DEFAULT 0,
+            feiertag_tage_saldo    numeric(12,4) NOT NULL DEFAULT 0,
+            thirteenth_accumulated numeric(12,4) NOT NULL DEFAULT 0,
+            slip_json              text,
+            fehler                 text,
+            sonderzahlungen        text,
+            berechnet_am           timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_simulation_lohn
+            ON simulation_lohn(employee_id, company_profile_id, jahr, monat);
+        CREATE INDEX IF NOT EXISTS ix_simulation_lohn_cp
+            ON simulation_lohn(company_profile_id, jahr, monat);
     ");
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

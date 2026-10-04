@@ -66,6 +66,8 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeVersicherungCode> EmployeeVersicherungCodes => Set<EmployeeVersicherungCode>();
     public DbSet<EmployeeBvgPflicht> EmployeeBvgPflichten => Set<EmployeeBvgPflicht>();
     public DbSet<VorsystemLohnkonto> VorsystemLohnkonten => Set<VorsystemLohnkonto>();
+    public DbSet<SimulationVortrag> SimulationVortraege => Set<SimulationVortrag>();
+    public DbSet<SimulationLohn> SimulationLoehne => Set<SimulationLohn>();
     public DbSet<EmployeeQstArbeitstage>   EmployeeQstArbeitstage      => Set<EmployeeQstArbeitstage>();   // Walter 11.09.2026
     public DbSet<QstSonderkategorie>       QstSonderkategorien         => Set<QstSonderkategorie>();
     public DbSet<QstSonderkategorieSatz>   QstSonderkategorieSaetze    => Set<QstSonderkategorieSatz>();
@@ -2486,6 +2488,50 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ImportiertVon).HasColumnName("importiert_von");
             entity.HasIndex(e => new { e.EmployeeId, e.CompanyProfileId, e.Jahr, e.Monat, e.Sektion, e.Code })
                   .IsUnique().HasDatabaseName("ux_vorsystem_lohnkonto");
+        });
+
+        // ── Lohn-Simulation (Walter 04.10.2026) ──
+        modelBuilder.Entity<SimulationVortrag>(entity =>
+        {
+            entity.ToTable("simulation_vortrag");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(10);
+            entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(12,4)");
+            entity.Property(e => e.Quelle).HasColumnName("quelle");
+            entity.Property(e => e.ImportiertAm).HasColumnName("importiert_am").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => new { e.EmployeeId, e.Code }).IsUnique().HasDatabaseName("ux_simulation_vortrag");
+        });
+
+        modelBuilder.Entity<SimulationLohn>(entity =>
+        {
+            entity.ToTable("simulation_lohn");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Jahr).HasColumnName("jahr");
+            entity.Property(e => e.Monat).HasColumnName("monat");
+            entity.Property(e => e.Brutto).HasColumnName("brutto").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.Netto).HasColumnName("netto").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.Auszahlung).HasColumnName("auszahlung").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.SvBasisAhv).HasColumnName("sv_basis_ahv").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.SvBasisNbuv).HasColumnName("sv_basis_nbuv").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.SvBasisKtg).HasColumnName("sv_basis_ktg").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.HourSaldo).HasColumnName("hour_saldo").HasColumnType("numeric(12,4)");
+            entity.Property(e => e.NachtSaldo).HasColumnName("nacht_saldo").HasColumnType("numeric(12,4)");
+            entity.Property(e => e.FerienGeldSaldo).HasColumnName("ferien_geld_saldo").HasColumnType("numeric(12,4)");
+            entity.Property(e => e.FerienTageSaldo).HasColumnName("ferien_tage_saldo").HasColumnType("numeric(12,4)");
+            entity.Property(e => e.FeiertagTageSaldo).HasColumnName("feiertag_tage_saldo").HasColumnType("numeric(12,4)");
+            entity.Property(e => e.ThirteenthAccumulated).HasColumnName("thirteenth_accumulated").HasColumnType("numeric(12,4)");
+            entity.Property(e => e.SlipJson).HasColumnName("slip_json");
+            entity.Property(e => e.Fehler).HasColumnName("fehler");
+            entity.Property(e => e.Sonderzahlungen).HasColumnName("sonderzahlungen");
+            entity.Property(e => e.BerechnetAm).HasColumnName("berechnet_am").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => new { e.EmployeeId, e.CompanyProfileId, e.Jahr, e.Monat })
+                  .IsUnique().HasDatabaseName("ux_simulation_lohn");
         });
 
         // ── EmployeeUniformDepot (Walter Aug 2026) ─────────────────────────

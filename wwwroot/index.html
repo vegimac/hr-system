@@ -7651,6 +7651,10 @@
                         <button class="btn btn-primary" onclick="svImpAnalyze()">Analysieren</button>
                         <button class="btn btn-success" id="svImpCommitBtn" onclick="svImpCommit()" disabled>Import bestätigen</button>
                     </div>
+                    <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:#3f3f3f;cursor:pointer">
+                        <input type="checkbox" id="svImpSim" style="width:16px;height:16px">
+                        <span>Nur für die <b>Lohn-Simulation</b> speichern (Mirus-Saldi per 31.12. — der echte Saldo-Vortrag bleibt unverändert)</span>
+                    </label>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
                         <b>Prinzip:</b> Mirus-Datei = <b>Schlussaldo Vormonat</b> → speichern als <b>Startsaldo Folgemonat</b>. Beispiel: Liste Juni aus Mirus, Periode <b>Juli</b> wählen.<br>
                         <b>Spalten:</b> <code>G</code> = 13. MLohn CHF (Vortrag-Code 906) · <code>K</code> = Ferien-Geld CHF (905) · <code>M</code> = Stunden in CHF (IGNORIERT — kommt aus dem Stunden-Saldi-Import).<br>
@@ -7707,6 +7711,10 @@
                         <button class="btn btn-primary" onclick="svhImpAnalyze()">Analysieren</button>
                         <button class="btn btn-success" id="svhImpCommitBtn" onclick="svhImpCommit()" disabled>Import bestätigen</button>
                     </div>
+                    <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:#3f3f3f;cursor:pointer">
+                        <input type="checkbox" id="svhImpSim" style="width:16px;height:16px">
+                        <span>Nur für die <b>Lohn-Simulation</b> speichern (Mirus-Saldi per 31.12. — der echte Saldo-Vortrag bleibt unverändert)</span>
+                    </label>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
                         <b>Prinzip:</b> Mirus-Datei = <b>Schlussaldo Vormonat</b> → speichern als <b>Startsaldo Folgemonat</b>. Beispiel: Monatsblatt Juni hochladen, Periode <b>Juli</b> wählen.<br>
                         <b>Importiert:</b> «Überstunden» → Zeitsaldo (901) · «Zeitzuschlag» → Nacht (904) · «Ferien» → Ferien-Tage (903) · «Feier» → Feiertag-Tage (902).<br>
@@ -7765,6 +7773,41 @@
                 <div id="mlkStatus" style="margin-top:16px"></div>
                 <div id="mlkSummary" style="margin-top:16px"></div>
                 <div id="mlkPreview" style="margin-top:16px"></div>
+            </div>
+
+            <!-- ═══════════════ LOHN-SIMULATION (Vorsystem-Monate nachrechnen) ═══════════════
+                 Walter 04.10.2026: OneCrew rechnet die Monate vor dem ersten Lohnlauf nach
+                 (Start Mirus-Saldi 31.12., Sonderzahlungen aus dem Lohnkonto) und vergleicht
+                 mit Mirus. Schreibt nur simulation_lohn. JS: js/lohn-simulation.js (Prefix lsim). -->
+            <div class="page" id="page-lohn-simulation">
+                <div class="sticky-page-head">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Lohn-Simulation</h1>
+                        <p class="page-sub">OneCrew rechnet die Monate vor dem ersten Lohnlauf nach und vergleicht sie mit dem Mirus-Lohnkonto. Es entstehen keine Lohnläufe, keine Lohnzettel, kein Versand.</p>
+                    </div>
+                </div>
+                <div id="lsimAlert" style="margin-bottom:12px"></div>
+                <div class="card" style="padding:24px">
+                    <div id="lsimBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
+                    <div id="lsimSchritte"></div>
+                    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:16px">
+                        <div>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Jahr</label>
+                            <input type="number" id="lsimJahr" min="2024" max="2030" style="width:90px;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white" onchange="lsimLoadStatus()">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Rechnen bis Monat</label>
+                            <select id="lsimBis"></select>
+                        </div>
+                        <button class="btn btn-primary" id="lsimRechnenBtn" onclick="lsimRechnen()">Simulation rechnen</button>
+                        <button class="btn btn-secondary" onclick="lsimVerwerfen()">Simulation verwerfen</button>
+                    </div>
+                </div>
+                </div><!-- /.sticky-page-head -->
+
+                <div id="lsimFortschritt" style="margin-top:16px"></div>
+                <div id="lsimVergleich" style="margin-top:16px"></div>
             </div>
 
             <!-- Dienstplan-XLS → Absenzen erfassen (FE=Ferien / KR=Krankheit /
@@ -8047,9 +8090,20 @@
                         <div class="admin-card-desc">Mirus «Lohnkonto» (Word) → alle Lohnarten pro MA und Monat. Für den Vergleich OneCrew ↔ Mirus und für einen Start mitten im Jahr. Ändert keine OneCrew-Löhne.</div>
                     </div>
 
-                    <div class="admin-card" onclick="showPage('mirus-address-compare')">
+                    <div class="admin-card" onclick="showPage('lohn-simulation')">
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
                             <span style="background:#ece9e2;color:#6b6152;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">11</span>
+                            <div class="admin-card-icon" style="background:#e0e7ff;color:#3730a3;width:36px;height:36px">
+                                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>
+                            </div>
+                        </div>
+                        <div class="admin-card-title">Lohn-Simulation</div>
+                        <div class="admin-card-desc">OneCrew rechnet die Monate vor dem ersten Lohnlauf nach (Start: Mirus-Saldi per 31.12., Sonderzahlungen aus dem Lohnkonto) und vergleicht mit Mirus. Keine Lohnläufe, kein Versand.</div>
+                    </div>
+
+                    <div class="admin-card" onclick="showPage('mirus-address-compare')">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                            <span style="background:#ece9e2;color:#6b6152;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">12</span>
                             <div class="admin-card-icon" style="background:#fef3c7;color:#92400e;width:36px;height:36px">
                                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                             </div>
@@ -9910,7 +9964,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261004a"></script>
+<script src="js/app-core.js?v=20261004b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -9935,9 +9989,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/swiss-locations.js?v=20260816a"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
 <script src="js/stammdaten-import.js?v=20260704p"></script>
-<script src="js/saldo-vortrag-import.js?v=20260803i"></script>
-<script src="js/saldo-vortrag-import-stunden.js?v=20260803i"></script>
+<script src="js/saldo-vortrag-import.js?v=20261004a"></script>
+<script src="js/saldo-vortrag-import-stunden.js?v=20261004a"></script>
 <script src="js/mirus-lohnkonto-import.js?v=20261004a"></script>
+<script src="js/lohn-simulation.js?v=20261004a"></script>
 <script src="js/mirus-address-compare.js?v=20260831a"></script>
 <script src="js/mirus-fehlende-ma.js?v=20260903b"></script>
 <script src="js/gespraech.js?v=20260913j"></script>
@@ -9997,7 +10052,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/elm-lohnraster.js?v=20260921a"></script>
 <script src="js/lohnschema.js?v=20260819d"></script>
 <script src="js/global-search.js?v=20260901a"></script>
-<script src="js/help-panel.js?v=20261004a"></script>
+<script src="js/help-panel.js?v=20261004b"></script>
 <script src="js/i18n.js?v=20260923b"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">

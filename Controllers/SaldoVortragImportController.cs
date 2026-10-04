@@ -172,7 +172,7 @@ public class SaldoVortragImportController : ControllerBase
     // ── COMMIT ───────────────────────────────────────────────────────────────
 
     [HttpPost("chf/commit")]
-    public async Task<IActionResult> CommitChf([FromBody] CommitDto dto)
+    public async Task<IActionResult> CommitChf([FromBody] CommitDto dto, [FromQuery] bool simulation = false)
     {
         if (dto is null) return BadRequest(new { error = "Body fehlt." });
         if (string.IsNullOrEmpty(dto.Periode) || dto.Periode.Length != 7 || dto.Periode[4] != '-')
@@ -218,6 +218,20 @@ public class SaldoVortragImportController : ControllerBase
             .Include(e => e.Employments)
             .Where(e => empIds.Contains(e.Id))
             .ToListAsync();
+
+        if (simulation)
+        {
+            var werte = new List<SimWert>();
+            foreach (var row in dto.Rows)
+            {
+                var emp = emps.FirstOrDefault(e => e.Id == row.EmployeeId);
+                if (emp is null) continue;
+                var model = NormalizeModel(FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode)?.EmploymentModel);
+                werte.Add(new SimWert(row.EmployeeId, "905", row.FerienGeldChf, IsRelevant905(model)));
+                werte.Add(new SimWert(row.EmployeeId, "906", row.DreizehnterChf, IsRelevant906(model)));
+            }
+            return await SimulationsVortragSpeichernAsync(dto.CompanyProfileId, werte, "Mirus Saldomethode (CHF)", dto.Rows.Count - emps.Count);
+        }
 
         // Bestehende Vortrag-Einträge dieser MA für 905/906 laden (für Upsert).
         var existing = await _db.LohnZulagen
@@ -542,7 +556,7 @@ public class SaldoVortragImportController : ControllerBase
     }
 
     [HttpPost("stunden/commit")]
-    public async Task<IActionResult> CommitStunden([FromBody] StundenCommitDto dto)
+    public async Task<IActionResult> CommitStunden([FromBody] StundenCommitDto dto, [FromQuery] bool simulation = false)
     {
         if (dto is null) return BadRequest(new { error = "Body fehlt." });
         if (string.IsNullOrEmpty(dto.Periode) || dto.Periode.Length != 7 || dto.Periode[4] != '-')
@@ -610,6 +624,22 @@ public class SaldoVortragImportController : ControllerBase
             .Include(e => e.Employments)
             .Where(e => empIds.Contains(e.Id))
             .ToListAsync();
+
+        if (simulation)
+        {
+            var werte = new List<SimWert>();
+            foreach (var row in dto.Rows)
+            {
+                var emp = emps.FirstOrDefault(e => e.Id == row.EmployeeId);
+                if (emp is null) continue;
+                var model = NormalizeModel(FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode)?.EmploymentModel);
+                werte.Add(new SimWert(row.EmployeeId, "901", row.StundenSaldo, IsRelevant901(model)));
+                werte.Add(new SimWert(row.EmployeeId, "904", row.NachtSaldo, IsRelevant904(model)));
+                werte.Add(new SimWert(row.EmployeeId, "903", row.FerienTageSaldo, IsRelevant903(model)));
+                werte.Add(new SimWert(row.EmployeeId, "902", row.FeiertagTageSaldo, IsRelevant902(model)));
+            }
+            return await SimulationsVortragSpeichernAsync(dto.CompanyProfileId, werte, "Mirus Monatsblatt", dto.Rows.Count - emps.Count);
+        }
 
         var existing = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
@@ -695,6 +725,58 @@ public class SaldoVortragImportController : ControllerBase
         }
 
         return Ok(new CommitResult(created, updated, skipped, hinweise));
+    }
+
+    private record SimWert(int EmployeeId, string Code, decimal? Wert, bool Relevant);
+
+    /// <summary>
+    /// Lohn-Simulation (Walter 04.10.2026): gleiche Relevanz-Regeln wie der echte
+    /// Vortrag, aber in simulation_vortrag — lohn_zulage bleibt unberührt.
+    /// Nicht relevant → Eintrag weg; Wert fehlt in der Datei → nicht anfassen.
+    /// </summary>
+    private async Task<IActionResult> SimulationsVortragSpeichernAsync(
+        int companyProfileId, List<SimWert> werte, string quelle, int fehlend)
+    {
+        var empIds = werte.Select(w => w.EmployeeId).Distinct().ToList();
+        var bestehend = await _db.SimulationVortraege
+            .Where(v => empIds.Contains(v.EmployeeId))
+            .ToListAsync();
+        int created = 0, updated = 0;
+        foreach (var w in werte)
+        {
+            var ex = bestehend.FirstOrDefault(v => v.EmployeeId == w.EmployeeId && v.Code == w.Code);
+            if (!w.Relevant)
+            {
+                if (ex != null) _db.SimulationVortraege.Remove(ex);
+                continue;
+            }
+            if (w.Wert is null) continue;
+            var betrag = Math.Round(w.Wert.Value, 4);
+            if (ex == null)
+            {
+                _db.SimulationVortraege.Add(new SimulationVortrag
+                {
+                    EmployeeId = w.EmployeeId,
+                    CompanyProfileId = companyProfileId,
+                    Code = w.Code,
+                    Betrag = betrag,
+                    Quelle = quelle,
+                    ImportiertAm = DateTime.Now,
+                });
+                created++;
+            }
+            else
+            {
+                ex.CompanyProfileId = companyProfileId;
+                ex.Betrag = betrag;
+                ex.Quelle = quelle;
+                ex.ImportiertAm = DateTime.Now;
+                updated++;
+            }
+        }
+        await _db.SaveChangesAsync();
+        var hinweise = new List<string> { "Für die Simulation gespeichert — der echte Saldo-Vortrag ist unverändert." };
+        return Ok(new CommitResult(created, updated, Math.Max(0, fehlend), hinweise));
     }
 
     /// <summary>

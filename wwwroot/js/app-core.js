@@ -1372,7 +1372,7 @@ function roleName(r) {
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log','aktive-sitzungen',
                          'perioden','elm-meldungen','dokumentstruktur','archiv-import','dvelop-import',
-                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-lohnkonto-import','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill',
+                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-lohnkonto-import','lohn-simulation','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','schulung-typen','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
 
 // Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
@@ -1522,6 +1522,7 @@ function showPage(name) {
     if (name === 'saldo-vortrag-import') svImpInit();
     if (name === 'saldo-vortrag-import-stunden') svhImpInit();
     if (name === 'mirus-lohnkonto-import' && typeof mlkInit === 'function') mlkInit();
+    if (name === 'lohn-simulation' && typeof lsimInit === 'function') lsimInit();
     if (name === 'mirus-address-compare') macInit();
     if (name === 'mirus-fehlende-ma' && typeof mfmInit === 'function') mfmInit();
     if (name === 'gespraech' && typeof bgsInit === 'function') bgsInit();
@@ -1755,6 +1756,8 @@ function onBranchChange() {
         if (typeof svhImpInit === 'function') svhImpInit();
     } else if (currentPageName === 'mirus-lohnkonto-import') {
         if (typeof mlkInit === 'function') mlkInit();
+    } else if (currentPageName === 'lohn-simulation') {
+        if (typeof lsimInit === 'function') lsimInit();
     } else if (currentPageName === 'mirus-address-compare') {
         if (typeof macInit === 'function') macInit();
     } else if (currentPageName === 'mirus-fehlende-ma') {
