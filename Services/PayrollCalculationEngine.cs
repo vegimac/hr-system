@@ -2028,8 +2028,10 @@ public class PayrollCalculationEngine
         // in abzugLines (= Auszahlung) wenn Austritt + Uniform zurückgegeben.
         // Status-Wechsel erst bei Confirm (ApplyAfterConfirmAsync).
         // Filial-Schalter «Uniform-Depot» aus → kein Depot-Strang (Walter 10.09.2026).
+        // Monatsende, nicht das aufs Vertragsende gekürzte periodTo: endet der Vertrag
+        // vor dem Austrittsdatum im selben Monat, fiel der Refund sonst weg (Walter 04.10.2026, Radogoshi).
         var (depotRefund, depotAmt, depotLabel) = company.UniformDepotAktiv
-            ? await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo)
+            ? await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodToFull)
             : (false, 0m, (string?)null);
         if (depotRefund && depotAmt > 0)
         {
