@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 44;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vorsystem_lohnkonto Mirus-Lohnkonto (04.10.2026) · 44: simulation_vortrag + simulation_lohn Lohn-Simulation (04.10.2026)
+const int SchemaStand = 45;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vorsystem_lohnkonto Mirus-Lohnkonto (04.10.2026) · 44: simulation_vortrag + simulation_lohn Lohn-Simulation (04.10.2026) · 45: McBonus 205→200.5, Lohnarten 600.5 Korrektur BVG Vorjahr + 950.1 Vorschuss, Raster verknüpft (04.10.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -4781,6 +4781,37 @@ using (var scope = app.Services.CreateScope())
         JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
         WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema x
                           WHERE x.modell = 'ALLE' AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
+    ");
+
+    // ── McBonus / Vorschuss / Korrektur BVG Vorjahr nach Raster (Walter 04.10.2026) ──
+    // Prod führte McBonus noch unter dem Alt-Code 205 (Fibu-Position 200.5 fand ihn
+    // nicht); Vorschuss 950.1 und Korrektur BVG Vorjahr 600.5 fehlten als Lohnart,
+    // obwohl der Kontoplan sie kennt. Mirus-Lohnkonto + Lohn-Simulation brauchen sie.
+    db.Database.ExecuteSqlRaw(@"
+        UPDATE lohnposition SET code = '200.5'
+         WHERE code = '205' AND kategorie = 'Bonus'
+           AND NOT EXISTS (SELECT 1 FROM lohnposition x WHERE x.code = '200.5');
+
+        INSERT INTO lohnposition
+            (code, bezeichnung, kategorie, typ,
+             ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+             lohnausweisfeld, sort_order, is_active, nicht_drucken_wenn_null, nicht_im_vertrag_drucken)
+        SELECT v.code, v.bezeichnung, 'Abzüge', 'ABZUG',
+               false, false, false, false, false,
+               v.feld, v.so, true, true, true
+        FROM (VALUES
+            ('600.5', 'Korrektur BVG Vorjahr', '10', 601),
+            ('950.1', 'Vorschuss',             NULL, 950)
+        ) AS v(code, bezeichnung, feld, so)
+        WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
+
+        UPDATE elm_lohnraster r
+           SET verwendet_lohnposition_id = lp.id
+          FROM lohnposition lp
+         WHERE lp.code = r.code AND lp.is_active = true
+           AND r.code IN ('200.5', '600.5', '950.1')
+           AND r.verwendet_lohnposition_id IS NULL
+           AND NOT EXISTS (SELECT 1 FROM elm_lohnraster x WHERE x.verwendet_lohnposition_id = lp.id);
     ");
 
     // ── 13. ML auszahlen (Walter 17.09.2026, Swissdec TF11 Bosshard Mai) ──

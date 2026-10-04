@@ -68,6 +68,11 @@ public class LohnSimulationService
             .Where(v => v.CompanyProfileId == companyProfileId && v.Jahr == jahr && v.Monat == monat
                      && v.Sektion == "AN" && codes.Contains(v.Code) && v.Betrag != 0)
             .ToListAsync();
+        var anteil13McBonus = (await _db.VorsystemLohnkonten.AsNoTracking()
+                .Where(v => v.CompanyProfileId == companyProfileId && v.Jahr == jahr && v.Monat == monat
+                         && v.Sektion == "AN" && v.Code == LohnSimulationKontext.McBonus13mlAnteilCode)
+                .ToListAsync())
+            .GroupBy(v => v.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(v => v.Betrag));
         var verknuepft = await _db.ElmLohnraster.AsNoTracking()
             .Where(r => codes.Contains(r.Code) && r.VerwendetLohnpositionId != null)
             .Select(r => new { r.Code, Lp = r.VerwendetLohnposition! })
@@ -114,7 +119,8 @@ public class LohnSimulationService
                 Periode = periode,
                 LohnpositionId = lohnpositionen[v.Code].Id,
                 Lohnposition = lohnpositionen[v.Code],
-                Betrag = v.Betrag,
+                Betrag = SonderBetrag(v.Code, v.Betrag, lohnpositionen[v.Code],
+                    anteil13McBonus.GetValueOrDefault(ma.Id)),
                 Bemerkung = "aus Mirus-Lohnkonto",
             }).ToList();
 
@@ -198,6 +204,16 @@ public class LohnSimulationService
         }
         return ergebnis;
     }
+
+    /// <summary>
+    /// Mirus führt McBonus (200.5) und dessen 13.-ML-Anteil (200.9) getrennt. Trägt
+    /// die OneCrew-Lohnart das orange Häkchen (Betrag inkl. 13. ML, Engine teilt
+    /// 12/13 + 1/13), ist der erfasste Betrag das Total beider Mirus-Zeilen.
+    /// </summary>
+    public static decimal SonderBetrag(string mirusCode, decimal betrag, Lohnposition lp, decimal anteil13McBonus) =>
+        mirusCode == LohnSimulationKontext.McBonusCode && lp.DreijehnterMlPflichtig
+            ? betrag + anteil13McBonus
+            : betrag;
 
     public static void Uebernimm(SimulationLohn zeile, JsonNode slip, SimulationLohn? vormonat,
         IReadOnlyDictionary<string, decimal> vortrag)

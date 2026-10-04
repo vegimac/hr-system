@@ -146,4 +146,14 @@ public class LohnSimulationTests
         Assert.False(r.ContainsKey("600.5"));
         Assert.False(r.ContainsKey("565.1"));
     }
+
+    [Fact]
+    public void McBonus_mit_orangem_Haekchen_bekommt_das_Total_inkl_13ml_Anteil()
+    {
+        var orange = new Lohnposition { Code = "200.5", DreijehnterMlPflichtig = true, IsActive = true };
+        var ohne   = new Lohnposition { Code = "200.5", DreijehnterMlPflichtig = false, IsActive = true };
+        Assert.Equal(150.00m, LohnSimulationService.SonderBetrag("200.5", 137.50m, orange, 12.50m));
+        Assert.Equal(137.50m, LohnSimulationService.SonderBetrag("200.5", 137.50m, ohne, 12.50m));
+        Assert.Equal(200.00m, LohnSimulationService.SonderBetrag("950.1", 200.00m, orange, 12.50m));
+    }
 }

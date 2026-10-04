@@ -74,6 +74,9 @@ public sealed class LohnSimulationKontext
         "950.1",   // Vorschuss
     };
 
+    public const string McBonusCode = "200.5";
+    public const string McBonus13mlAnteilCode = "200.9";
+
     /// <summary>
     /// Mirus-Nachträge für frühere Monate. Die Simulation rechnet jeden Monat mit den
     /// heutigen Familien- und QST-Daten, zahlt also schon im richtigen Monat — eine
