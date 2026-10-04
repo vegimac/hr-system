@@ -66,7 +66,7 @@ Auszahlung = (PottCHF/PottTage) × bezogen   Cap = Pott CHF
 ## 11–15. 13. ML, KTG, SV, QST, Netto
 
 - 13. ML: FLEX monatlich; MTP/FIX nur Payout-Monate; Probezeit blockt
-- KTG: Regel A (&lt;4 Perioden) vs. Regel B (Ø SvBasisAhv); 88% / 80%
+- KTG: Regel A (&lt;4 Perioden) vs. Regel B (Ø SvBasisAhv); 88% / 80%; Feiertag auf Lohnersatz nur wenn nicht schon im Tagessatz (Details `docs/lohn-formeln.md` Abschnitt 6)
 - SV: BVG Schwelle→Min→Max; ALV/NBU Cap 12'350 + Dezember-Jahresausgleich; BVG Cap flach 5'355
 - QST: ESTV Variante A/B1/B2/B3; Mindestbetrag (z.B. LU 13)
 - Netto = Round05(Lohn+Abzüge); Abtretung; Bank-Split; Akonto-Verrechnung

@@ -68,6 +68,24 @@ public class KtgTagessatzAustrittTests
     }
 
     [Fact]
+    public async Task Hochrechnung_ohne_Feiertag_manueller_Satz_mit_Feiertag()
+    {
+        var (db, empId, cpId) = await SeedAsync();
+        using var _ = db;
+        var svc = new KtgTagessatzService(db, NullLogger<KtgTagessatzService>.Instance);
+
+        var auto = await svc.CalculateAsync(empId, cpId, new DateOnly(2026, 9, 26));
+        Assert.Equal("A", auto!.Regel);
+        Assert.False(auto.EnthaeltFeiertag);
+
+        (await db.Employees.FindAsync(empId))!.KtgTagessatzManuell = 37.06m;
+        await db.SaveChangesAsync();
+        var manuell = await svc.CalculateAsync(empId, cpId, new DateOnly(2026, 9, 26));
+        Assert.Equal(37.06m, manuell!.Tagessatz100);
+        Assert.True(manuell.EnthaeltFeiertag);
+    }
+
+    [Fact]
     public async Task Vertrag_beginnt_nach_Stichtag_kein_Tagessatz()
     {
         var (db, empId, cpId) = await SeedAsync();

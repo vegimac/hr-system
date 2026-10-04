@@ -126,18 +126,31 @@ Orange (DreijehnterMlPflichtig, McBonus): Betrag enthält den 13. schon (12/13+1
 
 **Tagessatz-Basis (`KtgTagessatzService`, NICHT der Ferien-Tagessatz!):**
 ```
-StdLohn_brutto = HourlyRate × (1 + Ferien-%) × (1 + 8.33 %)
-Regel A (Vertrag ≤ 4 abgeschlossene Perioden):
+StdLohn_brutto = HourlyRate × (1 + Ferien-%) × (1 + 8.33 %)      ← OHNE Feiertag-%
+Regel A (weniger als 4 Lohnmonate seit Vertragsbeginn in dieser Filiale):
     FIX/FIX-M : MonthlySalary × 12 / 365
     MTP       : WoStd_garantiert × StdLohn_brutto × 52 / 365
-    FLEX      : max_part_time_hours × StdLohn_brutto × 52 / 365
-Regel B (≥ 4 Perioden): Ø der effektiven SV-Basen (AHV) der letzten ≤ 12 Monate × 12 / 365
-    MTP: Garantie-Anteil wie A + Ø-Überschuss der letzten Perioden
-Manueller Tagessatz (emp.KtgTagessatzManuell) übersteuert alles.
+    FLEX      : max_part_time_hours (Default 17) × StdLohn_brutto × 52 / 365
+Regel B (≥ 4 Lohnmonate): letzte ≤ 12 Monate
+    FLEX/FIX  : Ø AHV-Basis × 12 / 365   (AHV-Basis enthält Ferien, 13. ML UND Feiertag)
+    MTP       : Garantie-Anteil wie A + Ø «MTP + Stunden» × (1+Ferien-%) × 1.0833 × 12 / 365
+Manueller Tagessatz (emp.KtgTagessatzManuell, z.B. aus Mirus) übersteuert alles.
+Massgebender Vertrag = zuletzt begonnener bis Periodenende (nicht is_active — Austrittsmonat).
 
 Tagessatz88 = Tagessatz100 × 0.88     (Karenzentschädigung, Codes 70.1 Krank / 60.2 Unfall)
 Tagessatz80 = Tagessatz100 × 0.80     (Taggeld nach Karenz, Codes 70.2 / 60.3)
+
+Feiertagentschädigung auf Lohnersatz (195.2) = (Karenz 88 % + Taggeld 80 %) × Feiertag-%
+    nur FLEX/MTP, nur solange die Krank-/Unfall-Kette < 2 volle Monate dauert,
+    und NUR wenn der Tagessatz den Feiertag nicht schon enthält:
+        Regel A (alle)        → Zeile ja
+        Regel B MTP           → Zeile ja
+        Regel B FLEX/FIX      → Zeile NEIN (steckt in der AHV-Basis)
+        Manueller Tagessatz   → Zeile NEIN (Mirus-Satz = AHV-Durchschnitt)
 ```
+- Auf das Taggeld selbst kommen **keine weiteren Zuschläge**: Ferien und 13. ML stecken im
+  Tagessatz, der Feiertag nur wie oben (Walter 04.10.2026). Mirus rechnet ebenso
+  (13. ML ohne Taggeld in der Basis).
 - Gezahlt wird auf **Kalendertagen** (Versicherung zahlt auch Sa+So).
 - **MTP:** Festlohn-Kürzung statt Korrektur-Zeile (Stunden ÷5 laut Dienstplan, Abschnitt 2).
 - **FIX/FIX-M:** Korrektur-Modell — Monatslohn läuft weiter, Korrektur Codes 75.1 (Krank) /
@@ -269,6 +282,10 @@ Ferien-Pott im Akonto: nur Bezüge mit DateTo ≤ Stichtag; Rest im Definitivlau
 Beim letzten Lohn werden alle Saldi ausbezahlt/verrechnet: Zeitsaldo 55.2 (auch Minusstunden),
 Nacht-Kompensation 55.10, ausbezahlte Ferientage 40.1, Feiertag-Stunden 50.1,
 13.-ML-Saldo 180.1 — SV-Abzüge auf den Auszahlungsbeträgen (Abschnitt 8).
+
+FLEX: Die Nacht-Saldo-Auszahlung zählt wie gearbeitete Stunden (Basis Code 20) und
+bekommt damit Feiertag-%, Ferien-% (in den Pott, der gleich mit ausbezahlt wird) und
+13. ML — wie Mirus (Walter 04.10.2026, Fall Radogoshi: 0.30 h × 20.40 = 6.12).
 
 ---
 

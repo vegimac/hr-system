@@ -2609,11 +2609,13 @@ public class PayrollCalculationEngine
             // AU-Beginn) wird die fehlende Differenz zu 100% in deltaBvg
             // geschoben → BVG-Basis steht unverändert auf bisherigem Lohn.
             decimal krankTagesBasisMtp = 0m;
+            bool tagessatzMitFeiertagMtp = false;
             if (krankBreakdown.Count > 0 || unfallBreakdown.Count > 0)
             {
                 var ktgMtp = await _ktgService.CalculateAsync(employeeId, companyProfileId, periodTo);
                 krankTagesBasisMtp = ktgMtp?.Tagessatz100
                                   ?? (guaranteedH * hourlyRate * 52m / 365m);
+                tagessatzMitFeiertagMtp = ktgMtp?.EnthaeltFeiertag ?? false;
             }
             decimal krankAbzugMtp = 0m, krank88Mtp = 0m, krank80Mtp = 0m;
             decimal krankTage88Mtp = 0m, krankTage80Mtp = 0m;
@@ -2727,7 +2729,7 @@ public class PayrollCalculationEngine
             // Zeitliche Grenze: feiertagAufLohnersatzErlaubt (2-Monats-Regel,
             // siehe Kommentar bei der Berechnung nach den Tages-Breakdowns).
             decimal lohnersatzSummeMtp = krank88Mtp + krank80Mtp + unfall88Mtp + unfall80Mtp;
-            if (feiertagAufLohnersatzErlaubt && holidayPct > 0 && lohnersatzSummeMtp > 0)
+            if (feiertagAufLohnersatzErlaubt && !tagessatzMitFeiertagMtp && holidayPct > 0 && lohnersatzSummeMtp > 0)
             {
                 decimal feiertagLohnersatzMtp = PayrollCalculations.Rappen(lohnersatzSummeMtp * holidayPct / 100m);
                 if (feiertagLohnersatzMtp > 0)
@@ -3284,7 +3286,13 @@ public class PayrollCalculationEngine
             //   → zusätzlich fliessen alle Zulagen mit der Flag ein.
             //   → Nacht-Kompensation wird unter demselben Code geführt
             //     (SV-gleich wie Stundenlohn).
-            AddAmount("20", lohnExact + nachtKompExact, lohnBrutto + nachtKompBrutto);
+            // Nacht-Saldo beim letzten Lohn ebenso — zählt damit für Ferien, Feiertag
+            // und 13. ML wie gearbeitete Stunden (Walter 04.10.2026: wie Mirus, Fall Radogoshi).
+            decimal nachtSaldoVorSchluss = PayrollCalculations.Rappen(vormonatNachtSaldo + nightBonus - nachtKompStunden);
+            decimal nachtAuszSchluss = isLetzterLohn && nachtSaldoVorSchluss > 0 && hourlyRate > 0
+                ? ExitSettlementBetrag(nachtSaldoVorSchluss, hourlyRate)
+                : 0m;
+            AddAmount("20", lohnExact + nachtKompExact + nachtAuszSchluss, lohnBrutto + nachtKompBrutto + nachtAuszSchluss);
             decimal feiertagBasisUtpExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag);
             decimal feiertagEntExact      = feiertagBasisUtpExact * holidayPct / 100m;
             decimal feiertagEnt           = Round05(feiertagEntExact);   // 5 Rappen (Walter 09.09.2026)
@@ -3320,6 +3328,20 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)nachtKompBrutto
                 });
                 totalLohn += nachtKompBrutto;
+            }
+
+            if (nachtAuszSchluss > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
+                    code    = "55.10",
+                    anzahl  = (decimal?)nachtSaldoVorSchluss,
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)PayrollCalculations.Rappen(hourlyRate),
+                    betrag  = nachtAuszSchluss,
+                    accrued = (decimal?)nachtAuszSchluss
+                });
+                totalLohn += nachtAuszSchluss;
             }
 
             if (feiertagAusz > 0)
@@ -3431,9 +3453,9 @@ public class PayrollCalculationEngine
             // SV-pflichtig → totalLohn + ALLE delta*-Basen. Betrag aus den
             // ANGEZEIGTEN (gerundeten) Werten.
             // Der Block läuft bewusst VOR dem 13.-ML-Block (Walter 04.08.2026):
-            // beide Auszahlungen fliessen via auszahlung13BasisUtp in die
-            // 13.-ML-Basis (13. auf AUSZAHLUNG, nicht auf Gutschrift — Mirus
-            // rechnet den 13. auch auf der Nacht-Kompensation). Bei Verfall
+            // die Ferien-Geld-Auszahlung fliesst via auszahlung13BasisUtp in die
+            // 13.-ML-Basis (13. auf AUSZAHLUNG, nicht auf Gutschrift); die
+            // Nacht-Saldo-Auszahlung läuft seit 04.10.2026 oben über Code 20. Bei Verfall
             // (thirteenthForfeited) bzw. Probezeit-Rückstellung routet der
             // 13.-ML-Block unten die Basis unverändert selbst.
             // Referenzfall Patricia (580062, Juli 2026, Austritt 31.07.):
@@ -3444,24 +3466,8 @@ public class PayrollCalculationEngine
             // 13.-Block zusätzlich «13. Monatslohn (Saldo-Auszahlung)» 278.54.
             if (isLetzterLohn)
             {
-                if (neuerNachtSaldoUtp > 0 && hourlyRate > 0)
-                {
-                    decimal nachtAusz = ExitSettlementBetrag(neuerNachtSaldoUtp, hourlyRate);
-                    lohnLines.Add(new {
-                        bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
-                        code    = "55.10",
-                        anzahl  = (decimal?)PayrollCalculations.Rappen(neuerNachtSaldoUtp),
-                        prozent = (decimal?)null,
-                        basis   = (decimal?)PayrollCalculations.Rappen(hourlyRate),
-                        betrag  = nachtAusz,
-                        accrued = (decimal?)nachtAusz
-                    });
-                    totalLohn += nachtAusz;
-                    deltaAhv += nachtAusz; deltaNbuv += nachtAusz; deltaKtg += nachtAusz;
-                    deltaBvg += nachtAusz; deltaQst += nachtAusz;
-                    auszahlung13BasisUtp += nachtAusz;
-                    neuerNachtSaldoUtp = 0m;
-                }
+                // Nacht-Saldo ist oben mit dem Stundenlohn ausbezahlt (Code 20).
+                if (nachtAuszSchluss > 0) neuerNachtSaldoUtp = 0m;
                 // Rest-Ferien-Geld-Pott auszahlen (nach normalem Bezug; der
                 // Pott kann nie negativ sein → keine Verrechnung nötig).
                 if (ferienGeldSaldoNeu > 0)
@@ -3626,10 +3632,12 @@ public class PayrollCalculationEngine
             // schreiben direkt in delta* um die SV-Basis korrekt zu setzen.
             // Unfall UTP nutzt denselben Tagessatz (gleiche Berechnung).
             decimal krankTagesBasisUtp = 0m;
+            bool tagessatzMitFeiertagUtp = false;
             if (krankBreakdown.Count > 0 || unfallBreakdown.Count > 0)
             {
                 var ktgUtp = await _ktgService.CalculateAsync(employeeId, companyProfileId, periodTo);
                 krankTagesBasisUtp = ktgUtp?.Tagessatz100 ?? 0m;
+                tagessatzMitFeiertagUtp = ktgUtp?.EnthaeltFeiertag ?? false;
             }
             decimal krank88Utp    = 0m;
             decimal krank80Utp    = 0m;
@@ -3786,7 +3794,7 @@ public class PayrollCalculationEngine
             // Zeitliche Grenze: feiertagAufLohnersatzErlaubt (2-Monats-Regel,
             // siehe Kommentar bei der Berechnung nach den Tages-Breakdowns).
             decimal lohnersatzSummeUtp = krank88Utp + krank80Utp + unfall88Utp + unfall80Utp;
-            if (feiertagAufLohnersatzErlaubt && holidayPct > 0 && lohnersatzSummeUtp > 0)
+            if (feiertagAufLohnersatzErlaubt && !tagessatzMitFeiertagUtp && holidayPct > 0 && lohnersatzSummeUtp > 0)
             {
                 decimal feiertagLohnersatzUtp = PayrollCalculations.Rappen(lohnersatzSummeUtp * holidayPct / 100m);
                 if (feiertagLohnersatzUtp > 0)

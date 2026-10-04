@@ -243,8 +243,9 @@ public class FeiertagLohnersatzTests
         // Genau 2 Buchungs-Stellen (MTP + FLEX/UTP) — FIX/FIX-M bewusst NICHT.
         var count = Regex.Matches(src, @"bezeichnung = ""Feiertagentschädigung auf Lohnersatz""").Count;
         Assert.Equal(2, count);
-        // Beide Stellen respektieren die 2-Monats-Grenze.
-        Assert.Equal(2, Regex.Matches(src, @"if \(feiertagAufLohnersatzErlaubt && holidayPct > 0").Count);
+        // Beide Stellen respektieren die 2-Monats-Grenze und lassen die Zeile weg,
+        // wenn der Tagessatz den Feiertag schon enthält (Walter 04.10.2026).
+        Assert.Equal(2, Regex.Matches(src, @"if \(feiertagAufLohnersatzErlaubt && !tagessatzMitFeiertag(Utp|Mtp) && holidayPct > 0").Count);
         // Der Guard nutzt die zentrale statische Regel.
         Assert.Contains("IsFeiertagAufLohnersatzErlaubt(kettenBeginn, periodTo)", src);
     }

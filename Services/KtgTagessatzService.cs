@@ -102,7 +102,8 @@ public class KtgTagessatzService
                 Breakdown:      new KtgBreakdown {
                     Hinweis = "Manueller Tagessatz — übersteuert die Auto-Berechnung (z.B. aus altem Lohnsystem übernommen).",
                     WochenStunden = ResolveWochenStunden(employment, companyM),
-                }
+                },
+                EnthaeltFeiertag: true
             );
         }
 
@@ -182,7 +183,8 @@ public class KtgTagessatzService
             Tagessatz88:    karenzAbgeschlossen ? 0m : Math.Round(tagessatz100 * 0.88m, 2),
             Tagessatz80:    Math.Round(tagessatz100 * 0.80m, 2),
             Breakdown:      breakdown,
-            KarenzAbgeschlossen: karenzAbgeschlossen
+            KarenzAbgeschlossen: karenzAbgeschlossen,
+            EnthaeltFeiertag: regel == "B" && modell != "MTP"
         );
     }
 
@@ -372,7 +374,11 @@ public record KtgTagessatzResult(
     decimal      Tagessatz88,
     decimal      Tagessatz80,
     KtgBreakdown Breakdown,
-    bool         KarenzAbgeschlossen = false
+    bool         KarenzAbgeschlossen = false,
+    /// <summary>Tagessatz enthält die Feiertagentschädigung schon (AHV-Durchschnitt
+    /// FLEX Regel B, manueller Satz aus Mirus) → keine «Feiertagentschädigung auf
+    /// Lohnersatz» mehr obendrauf (Walter 04.10.2026).</summary>
+    bool         EnthaeltFeiertag = false
 );
 
 public class KtgBreakdown
