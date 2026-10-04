@@ -283,9 +283,12 @@ Beim letzten Lohn werden alle Saldi ausbezahlt/verrechnet: Zeitsaldo 55.2 (auch 
 Nacht-Kompensation 55.10, ausbezahlte Ferientage 40.1, Feiertag-Stunden 50.1,
 13.-ML-Saldo 180.1 — SV-Abzüge auf den Auszahlungsbeträgen (Abschnitt 8).
 
-FLEX: Die Nacht-Saldo-Auszahlung zählt wie gearbeitete Stunden (Basis Code 20) und
-bekommt damit Feiertag-%, Ferien-% (in den Pott, der gleich mit ausbezahlt wird) und
-13. ML — wie Mirus (Walter 04.10.2026, Fall Radogoshi: 0.30 h × 20.40 = 6.12).
+Nacht (55.10) — FLEX monatliche Kompensation und Austritts-Auszahlung FLEX/MTP: Die Flags
+der Lohnposition 55.10 steuern Feiertag-%, Ferien-% (in den Pott, der beim Austritt gleich
+mit ausbezahlt wird) und 13. ML. Walter 04.10.2026: 55.10 trägt dieselben Flags wie der
+Stundenlohn (Mirus behandelt Nachtstunden wie normale Stunden; Fall Radogoshi
+0.30 h × 20.40 = 6.12). Die Auszahlung wird darum VOR den Flag-Summen gebucht.
+FIX/FIX-M: Nacht-Saldo-Auszahlung ohne Flag-Wirkung (kein Ferien-/Feiertag-%).
 
 ---
 

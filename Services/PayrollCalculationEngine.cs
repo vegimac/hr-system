@@ -2747,6 +2747,27 @@ public class PayrollCalculationEngine
                 }
             }
 
+            // Nacht-Saldo beim letzten Lohn VOR den Flag-Summen: 55.10-Flags steuern
+            // Feiertag/Ferien/13. ML (Walter 04.10.2026, wie Mirus).
+            decimal nachtSaldoVorSchlussMtp = PayrollCalculations.Rappen(vormonatNachtSaldo + nightBonus - nachtKompStunden);
+            decimal nachtAuszSchlussMtp = isLetzterLohn && nachtSaldoVorSchlussMtp > 0 && hourlyRate > 0
+                ? ExitSettlementBetrag(nachtSaldoVorSchlussMtp, hourlyRate)
+                : 0m;
+            if (nachtAuszSchlussMtp > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
+                    code    = "55.10",
+                    anzahl  = (decimal?)nachtSaldoVorSchlussMtp,
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)PayrollCalculations.Rappen(hourlyRate),
+                    betrag  = nachtAuszSchlussMtp,
+                    accrued = (decimal?)nachtAuszSchlussMtp
+                });
+                totalLohn += nachtAuszSchlussMtp;
+                AddAmount("55.10", nachtAuszSchlussMtp);
+            }
+
             // MTP: Feiertag-/Ferien-Basis aus Lohnpositions-Flags
             //   → Festlohn (10.1) + Zusatzstunden (10.4) haben ZaehltAlsBasisFeiertag=true
             //   → nur Zusatzstunden (10.4) hat ZaehltAlsBasisFerien=true
@@ -2901,8 +2922,9 @@ public class PayrollCalculationEngine
             // MINUS-Saldo zu verrechnen (nichts doppelt auszahlen).
             // Der Block läuft bewusst VOR dem 13.-ML-Block (Walter 04.08.2026):
             // der 13. wird auf Saldo-AUSZAHLUNGEN gerechnet, nicht auf der
-            // Gutschrift — Nacht-Saldo- und Ferien-Geld-Auszahlung fliessen
-            // deshalb via auszahlung13BasisMtp in die 13.-ML-Basis. Der
+            // Gutschrift — die Ferien-Geld-Auszahlung fliesst deshalb via
+            // auszahlung13BasisMtp in die 13.-ML-Basis (Nacht-Saldo seit
+            // 04.10.2026 oben über die 55.10-Flags). Der
             // 13.-ML-Saldo selbst wird unten via isPayoutMonthMtp
             // (|| isLetzterLohn) komplett ausbezahlt bzw. verfällt in der
             // Probezeit (thirteenthForfeited — dann auch kein 13. auf den
@@ -2914,25 +2936,8 @@ public class PayrollCalculationEngine
             decimal auszahlung13BasisMtp = 0m;
             if (isLetzterLohn)
             {
-                // Nacht-Saldo auszahlen (positiv; × Stundenlohn)
-                if (neuerNachtSaldo > 0 && hourlyRate > 0)
-                {
-                    decimal nachtAusz = ExitSettlementBetrag(neuerNachtSaldo, hourlyRate);
-                    lohnLines.Add(new {
-                        bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
-                        code    = "55.10",
-                        anzahl  = (decimal?)PayrollCalculations.Rappen(neuerNachtSaldo),
-                        prozent = (decimal?)null,
-                        basis   = (decimal?)PayrollCalculations.Rappen(hourlyRate),
-                        betrag  = nachtAusz,
-                        accrued = (decimal?)nachtAusz
-                    });
-                    totalLohn += nachtAusz;
-                    deltaAhv += nachtAusz; deltaNbuv += nachtAusz; deltaKtg += nachtAusz;
-                    deltaBvg += nachtAusz; deltaQst += nachtAusz;
-                    auszahlung13BasisMtp += nachtAusz;
-                    neuerNachtSaldo = 0m;
-                }
+                // Nacht-Saldo ist oben ausbezahlt (55.10, vor den Flag-Summen).
+                if (nachtAuszSchlussMtp > 0) neuerNachtSaldo = 0m;
                 // Negativer Zeitsaldo → verrechnen (negative Lohnzeile).
                 // Bewusst NICHT in die 13.-ML-Basis (nur Nacht- + Ferien-Geld-
                 // Auszahlung, Walter 04.08.2026 / Mirus-Referenz).
@@ -3284,15 +3289,15 @@ public class PayrollCalculationEngine
             // UTP: Feiertag-Basis aus Lohnpositions-Flags
             //   → Stundenlohn (20.1) trägt ZaehltAlsBasisFeiertag=true
             //   → zusätzlich fliessen alle Zulagen mit der Flag ein.
-            //   → Nacht-Kompensation wird unter demselben Code geführt
-            //     (SV-gleich wie Stundenlohn).
-            // Nacht-Saldo beim letzten Lohn ebenso — zählt damit für Ferien, Feiertag
-            // und 13. ML wie gearbeitete Stunden (Walter 04.10.2026: wie Mirus, Fall Radogoshi).
+            // Nacht-Kompensation + Nacht-Saldo beim letzten Lohn unter 55.10: dessen
+            // Flags steuern Feiertag/Ferien/13. ML (Mirus: wie normale Stunden,
+            // Walter 04.10.2026, Fall Radogoshi). Muss VOR den Flag-Summen stehen.
             decimal nachtSaldoVorSchluss = PayrollCalculations.Rappen(vormonatNachtSaldo + nightBonus - nachtKompStunden);
             decimal nachtAuszSchluss = isLetzterLohn && nachtSaldoVorSchluss > 0 && hourlyRate > 0
                 ? ExitSettlementBetrag(nachtSaldoVorSchluss, hourlyRate)
                 : 0m;
-            AddAmount("20", lohnExact + nachtKompExact + nachtAuszSchluss, lohnBrutto + nachtKompBrutto + nachtAuszSchluss);
+            AddAmount("20", lohnExact, lohnBrutto);
+            AddAmount("55.10", nachtKompExact + nachtAuszSchluss, nachtKompBrutto + nachtAuszSchluss);
             decimal feiertagBasisUtpExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag);
             decimal feiertagEntExact      = feiertagBasisUtpExact * holidayPct / 100m;
             decimal feiertagEnt           = Round05(feiertagEntExact);   // 5 Rappen (Walter 09.09.2026)
@@ -3455,7 +3460,7 @@ public class PayrollCalculationEngine
             // Der Block läuft bewusst VOR dem 13.-ML-Block (Walter 04.08.2026):
             // die Ferien-Geld-Auszahlung fliesst via auszahlung13BasisUtp in die
             // 13.-ML-Basis (13. auf AUSZAHLUNG, nicht auf Gutschrift); die
-            // Nacht-Saldo-Auszahlung läuft seit 04.10.2026 oben über Code 20. Bei Verfall
+            // Nacht-Saldo-Auszahlung läuft seit 04.10.2026 oben über die Flags von 55.10. Bei Verfall
             // (thirteenthForfeited) bzw. Probezeit-Rückstellung routet der
             // 13.-ML-Block unten die Basis unverändert selbst.
             // Referenzfall Patricia (580062, Juli 2026, Austritt 31.07.):
@@ -3466,7 +3471,7 @@ public class PayrollCalculationEngine
             // 13.-Block zusätzlich «13. Monatslohn (Saldo-Auszahlung)» 278.54.
             if (isLetzterLohn)
             {
-                // Nacht-Saldo ist oben mit dem Stundenlohn ausbezahlt (Code 20).
+                // Nacht-Saldo ist oben ausbezahlt (55.10, vor den Flag-Summen).
                 if (nachtAuszSchluss > 0) neuerNachtSaldoUtp = 0m;
                 // Rest-Ferien-Geld-Pott auszahlen (nach normalem Bezug; der
                 // Pott kann nie negativ sein → keine Verrechnung nötig).
