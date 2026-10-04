@@ -1139,6 +1139,9 @@ public static class PayrollCalculations
     /// </summary>
     public const string Code13mlAuszahlen = "180.3";
 
+    /// <summary>Lohnposition der 13.-ML-Zeilen (laufend, Saldo-Auszahlung, Rückstellung).</summary>
+    public const string Code13ml = "180.1";
+
     /// <summary>
     /// Bestimmt ob in diesem Monat der angesammelte 13.-ML-Saldo ausbezahlt wird.
     /// Primär aus dem CSV-Feld ThirteenthMonthPayoutMonths (z.B. "6,12" für

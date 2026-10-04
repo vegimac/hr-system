@@ -130,17 +130,17 @@ public class FamilienzulagenMindesteinkommenTests
         var src = EngineSrc;
 
         // Aufruf auf der echten AHV-Basis (identisch zur SvBases-Ahv-Zeile)
-        var call = $"ApplyFamilienzulagenSperre({mainLohn} + deltaAhv + {dreizehnter})";
+        var call = $"ApplyFamilienzulagenSperre(AhvBasisNachLohnposition({mainLohn}, {dreizehnter}))";
         int callIdx = src.IndexOf(call, StringComparison.Ordinal);
         Assert.True(callIdx >= 0,
             $"Aufruf «{call}» nicht gefunden — FAK-Sperre fehlt im Modell-Zweig.");
 
         // ... und zwar VOR der SvBases-Konstruktion (sonst würde die QST-Basis
         // gesperrte FamZ noch enthalten).
-        int svIdx = src.IndexOf($"var {svBasesVar} = new SvBases(", StringComparison.Ordinal);
+        int svIdx = src.IndexOf($"var {svBasesVar} = SvBasenNachLohnposition(", StringComparison.Ordinal);
         Assert.True(svIdx >= 0, $"SvBases-Konstruktion «{svBasesVar}» nicht gefunden.");
         Assert.True(callIdx < svIdx,
-            $"ApplyFamilienzulagenSperre muss VOR «var {svBasesVar} = new SvBases(...)» laufen.");
+            $"ApplyFamilienzulagenSperre muss VOR «var {svBasesVar} = SvBasenNachLohnposition(...)» laufen.");
     }
 
     [Fact]

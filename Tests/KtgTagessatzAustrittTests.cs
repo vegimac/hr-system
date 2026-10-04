@@ -86,6 +86,35 @@ public class KtgTagessatzAustrittTests
     }
 
     [Fact]
+    public async Task Stundenlohn_Tagessatz_enthaelt_Ferien_und_13ml_FIX_nicht()
+    {
+        var (db, empId, cpId) = await SeedAsync();
+        using var _ = db;
+        var svc = new KtgTagessatzService(db, NullLogger<KtgTagessatzService>.Instance);
+
+        var flex = await svc.CalculateAsync(empId, cpId, new DateOnly(2026, 9, 26));
+        Assert.True(flex!.EnthaeltFerien);
+        Assert.True(flex.Enthaelt13ml);
+
+        var vertrag = await db.Employments.FirstAsync(e => e.EmployeeId == empId);
+        vertrag.EmploymentModel = "FIX";
+        vertrag.MonthlySalary = 4500m;
+        await db.SaveChangesAsync();
+        var fix = await svc.CalculateAsync(empId, cpId, new DateOnly(2026, 9, 26));
+        if (fix != null)
+        {
+            Assert.False(fix.EnthaeltFerien);
+            Assert.False(fix.Enthaelt13ml);
+        }
+
+        (await db.Employees.FindAsync(empId))!.KtgTagessatzManuell = 37.06m;
+        await db.SaveChangesAsync();
+        var manuell = await svc.CalculateAsync(empId, cpId, new DateOnly(2026, 9, 26));
+        Assert.True(manuell!.EnthaeltFerien);
+        Assert.True(manuell.Enthaelt13ml);
+    }
+
+    [Fact]
     public async Task Vertrag_beginnt_nach_Stichtag_kein_Tagessatz()
     {
         var (db, empId, cpId) = await SeedAsync();

@@ -251,18 +251,22 @@ public class FeiertagLohnersatzTests
     }
 
     [Fact]
-    public void Engine_FeiertagAufLohnersatz_Utp_VollSvPflichtig()
+    public void Engine_FeiertagAufLohnersatz_SvNachHaekchen()
     {
         var src = ReadAllText("Services/PayrollCalculationEngine.cs");
-        // Im UTP-Zweig liegt die Zeile NACH dem mainLohn-Snapshot → sie muss
-        // explizit in ALLE fünf delta*-SV-Basen fliessen.
-        var idx = src.IndexOf("lohnersatzSummeUtp", StringComparison.Ordinal);
-        Assert.True(idx > 0, "UTP-Block «Feiertagentschädigung auf Lohnersatz» nicht gefunden.");
-        var block = src.Substring(idx, Math.Min(2200, src.Length - idx));
-        Assert.Contains("deltaAhv  += feiertagLohnersatzUtp", block);
-        Assert.Contains("deltaNbuv += feiertagLohnersatzUtp", block);
-        Assert.Contains("deltaKtg  += feiertagLohnersatzUtp", block);
-        Assert.Contains("deltaBvg  += feiertagLohnersatzUtp", block);
-        Assert.Contains("deltaQst  += feiertagLohnersatzUtp", block);
+        // Beide Zweige buchen die Zeile VOR dem mainLohn-Snapshot als Grundzeile
+        // → SV nach den Häkchen von 195.2 / 195.4 (Walter 04.10.2026).
+        Assert.Contains("Grundzeile(\"195.2\", feiertagLohnersatzUtp)", src);
+        Assert.Contains("Grundzeile(\"195.4\", feiertagLohnersatzMtp)", src);
+        Assert.DoesNotContain("deltaAhv  += feiertagLohnersatzUtp", src);
+    }
+
+    [Fact]
+    public void Engine_UnfallTaggeld_NutztEigeneHaekchen()
+    {
+        var src = ReadAllText("Services/PayrollCalculationEngine.cs");
+        // 60.3 (UVG Taggeld 80 %) hatte die SV-Häkchen von 60.2 (Karenz) → war AHV-pflichtig.
+        Assert.DoesNotContain("LpFlagsOr(\"60.2\"", src);
+        Assert.Equal(3, Regex.Matches(src, @"LpFlagsOr\(""60\.3""").Count);
     }
 }

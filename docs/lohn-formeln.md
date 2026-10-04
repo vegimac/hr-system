@@ -122,6 +122,25 @@ SV        : bei FLEX monatlich verbeitragt; bei Saldo-Modellen im Auszahlungsmon
 Orange (DreijehnterMlPflichtig, McBonus): Betrag enthält den 13. schon (12/13+1/13), nicht in den Pott.
 ```
 
+### Häkchen der Lohnpositionen wirken überall (Walter 04.10.2026)
+
+«Das was wir heute zertifizieren muss dem Endstand unseres Programmes entsprechen.»
+Jede Zeile auf dem Lohnzettel zählt nach den Häkchen IHRER Lohnposition — auch die
+Grundzeilen (Stundenlohn 20, Festlohn 10.1/10.2/10.3, Feiertag/Ferien 195.x, Karenz,
+Korrekturen 75.1/65.1, MTP 55.3, Nacht 55.10) und die Austritts-Auszahlungen
+(55.10 Nacht-Saldo, 55.2 Zeitsaldo, 40.1 Ferien, 50.1 Feiertage):
+```
+SV-Basis X = Summe aller Zeilen − Zeilen, deren Lohnposition Häkchen X NICHT hat
+             (X = AHV/ALV, NBU, KTG, BVG, QST; 13. ML über 180.1)
+13.-Basis  = Summe Zeilen mit Häkchen «13. ML» (inkl. 40.1-Auszahlung, FIX-Austritt)
+```
+Fehlt eine Lohnposition im Katalog, zählt sie als pflichtig (wie bisher). Stimmt ein Wert
+nicht, wird der KATALOG korrigiert (beide Systeme), nie der Code. Engine-Helfer:
+`Grundzeile` / `SvNachLohnposition` / `SvBasenNachLohnposition` / `AddLohnersatz`.
+Mitbehoben: UVG-Taggeld 60.3 nutzte die SV-Häkchen von 60.2 (war AHV-pflichtig); die
+automatische Ferien-Auszahlung am Jahresende zählte doppelt in die SV-Basen; FIX-Austritts-
+Auszahlungen bekamen nie 13. ML.
+
 ## 6. Krankheit / Unfall (KTG/UVG)
 
 **Tagessatz-Basis (`KtgTagessatzService`, NICHT der Ferien-Tagessatz!):**
@@ -155,6 +174,13 @@ Korrektur (läuft über den 13.-Saldo).
 - Auf das Taggeld selbst kommen **keine weiteren Zuschläge**: Ferien und 13. ML stecken im
   Tagessatz, der Feiertag nur wie oben (Walter 04.10.2026). Mirus rechnet ebenso
   (13. ML ohne Taggeld in der Basis).
+- **Lohnersatz-Spur (Walter 04.10.2026):** 70.1 / 70.2 / 60.2 / 60.3 (+ Feiertag auf
+  Lohnersatz 195.2 / 195.4) laufen NICHT über die normale Feiertag-Basis. Ihre Häkchen
+  «Ferien» / «13. ML» wirken nur, wenn der Tagessatz den Zuschlag nicht schon enthält
+  (`KtgTagessatzResult.EnthaeltFerien` / `Enthaelt13ml`: FLEX/MTP-Hochrechnung und manueller
+  Satz = enthalten; FIX = Monatslohn × 12/365 → nicht enthalten, dort zählt die 88 %-Karenz
+  mit Häkchen in die 13.-Basis). «Feiertag» auf 70.x/60.x = Basis der Feiertagentschädigung
+  auf Lohnersatz (fehlt die Lohnposition: zählt).
 - Gezahlt wird auf **Kalendertagen** (Versicherung zahlt auch Sa+So).
 - **MTP:** Festlohn-Kürzung statt Korrektur-Zeile (Stunden ÷5 laut Dienstplan, Abschnitt 2).
 - **FIX/FIX-M:** Korrektur-Modell — Monatslohn läuft weiter, Korrektur Codes 75.1 (Krank) /

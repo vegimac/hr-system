@@ -103,7 +103,9 @@ public class KtgTagessatzService
                     Hinweis = "Manueller Tagessatz — übersteuert die Auto-Berechnung (z.B. aus altem Lohnsystem übernommen).",
                     WochenStunden = ResolveWochenStunden(employment, companyM),
                 },
-                EnthaeltFeiertag: true
+                EnthaeltFeiertag: true,
+                EnthaeltFerien:   true,
+                Enthaelt13ml:     true
             );
         }
 
@@ -184,7 +186,9 @@ public class KtgTagessatzService
             Tagessatz80:    Math.Round(tagessatz100 * 0.80m, 2),
             Breakdown:      breakdown,
             KarenzAbgeschlossen: karenzAbgeschlossen,
-            EnthaeltFeiertag: regel == "B" && modell != "MTP"
+            EnthaeltFeiertag: regel == "B" && modell != "MTP",
+            EnthaeltFerien:   modell is not ("FIX" or "FIX-M"),
+            Enthaelt13ml:     modell is not ("FIX" or "FIX-M")
         );
     }
 
@@ -378,7 +382,12 @@ public record KtgTagessatzResult(
     /// <summary>Tagessatz enthält die Feiertagentschädigung schon (AHV-Durchschnitt
     /// FLEX Regel B, manueller Satz aus Mirus) → keine «Feiertagentschädigung auf
     /// Lohnersatz» mehr obendrauf (Walter 04.10.2026).</summary>
-    bool         EnthaeltFeiertag = false
+    bool         EnthaeltFeiertag = false,
+    /// <summary>Tagessatz enthält Ferien% bzw. 13. ML schon (FLEX/MTP: Stundenlohn
+    /// × Ferien × 13. ML; manuell: AHV-Durchschnitt). Dann wirken die Häkchen
+    /// Ferien/13. ML der Lohnersatz-Positionen nicht nochmals (Walter 04.10.2026).</summary>
+    bool         EnthaeltFerien = false,
+    bool         Enthaelt13ml = false
 );
 
 public class KtgBreakdown
