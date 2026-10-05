@@ -98,6 +98,8 @@ public record SaldoBlock(
     decimal? FerienKuerzungGesamtTage = null,
     // Absenzbedingte Ferienkürzung als HR-Eintrag in dieser Periode (Walter 23.09.2026)
     decimal FerienTageGekuerzt = 0,
+    // Ferien ausbezahlt ohne Bezug, Tage (Walter 05.10.2026)
+    decimal FerienTageAusbezahlt = 0,
 
     // ── 13.-ML-Basis (für Saldo-Berechnung: Summe aller Lohnpositionen
     //    mit Flag ZaehltAlsBasis13ml = true; via SumByFlag im Controller) ──

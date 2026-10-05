@@ -352,6 +352,13 @@ Der frühere kombinierte Tab „Absenzen Zulagen Abzüge" ist jetzt in zwei sepa
 - Engine (MTP- und UTP-Block): bei true `betrag = ferienEnt`, `totalLohn += ferienEnt`, `AddAmount(code)` (Flag-Basen 13. ML etc.), in den Pott geht 0 (`ferienEntPott` / CalcFerienGeld mit 0). Ferientage-Gutschrift läuft weiter; ein bestehender Pott-Saldo bleibt und wird wie bisher (Bezug/Dezember/Austritt) ausbezahlt.
 - Ob die monatliche Ferienentschädigung in die 13.-ML-Basis zählt, steuert das Häkchen «zählt als Basis 13. ML» der Lohnposition 195.1/195.3/195.5/195.6 — nicht der Schalter.
 
+### Ferien auszahlen ohne Bezug (Walter 05.10.2026, Schema-Stand 47)
+- Tabelle `ferien_auszahlung` (wie `ferien_kuerzung`: eigener HR-Eintrag, KEINE `absence`-Zeile). Erfassung im MA, Tab «Absenzen» → «Absenz erfassen» → «Ferien auszahlen (ohne Bezug)» (`openFerienAuszahlungModal`), Zeile «Ferien ausbezahlt» in der Liste. `datum` = Lohnlauf-Monat, Lohn-Sperre wie Absenzen, Filiale = Vertrag am Datum.
+- Zwei Arten: **TAGE** (Anzahl Tage; Geld im Verhältnis aus dem Topf) und **VORJAHR** («Saldo per 31.12.»: Tage und Topf Ende Vorjahr, abzüglich seit 1.1. Bezogenem — alte Tage gehen zuerst weg; höchstens ein Eintrag pro Jahr, 409 `VORJAHR_DOPPELT`).
+- Rechnung `Services/FerienAuszahlungRechnung.cs` (rein, Tests `FerienAuszahlungRechnungTests`), Saldo 31.12. `Services/FerienAuszahlungDaten.cs`. Engine: Tage nach Bezug/Kürzung abziehen, Geld als Zeile **40.1** (FLEX/MTP aus dem Topf, FIX Tage × Monatslohn × 12/365). Nie mehr als vorhanden — kein Vorbezug.
+- Slip `ferienTageAusbezahlt` → Lohnzettel-PDF (Ferien bezogen), Saldo-Tabelle im Lohnlauf, Fibu FIX-Ferien-RST.
+- Die alte «manuelle Ferien-Geld-Saldo-Auszahlung» über eine 195.3-Zulage ist ersetzt (195.3 ist seit dem ELM-Raster die Ferienentschädigung 13.04 %); die Dezember-Auszahlung bucht ebenfalls auf 40.1.
+
 ### Lohnperioden
 
 - **Lohnperiode = IMMER Kalendermonat (Walter-Vorgabe 20.05.2026, final):** Die Periode ist ausnahmslos der Kalendermonat (1.–letzter Tag). Die frühere Periodenflexibilität (Starttag 21/1, Periodenregel-Konfiguration, Übergangs-Lohnläufe) ist **komplett entfernt** — Code, Schema und UI. Grund: gesetzliche Berechnungen (QST, ALV, AHV) laufen ohnehin kalendermonatlich; der Akonto-Lauf deckt die Zahlung vor Monatsende ab.

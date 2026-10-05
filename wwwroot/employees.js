@@ -10013,6 +10013,10 @@ async function loadAbsenzenTab(employeeId) {
             const fkRes = await fetch(`/api/absences/employee/${employeeId}/ferienkuerzungen`, { headers: ah() });
             window._fkCache = { employeeId, list: fkRes.ok ? await fkRes.json() : [] };
         } catch { window._fkCache = { employeeId, list: [] }; }
+        try {
+            const faRes = await fetch(`/api/absences/employee/${employeeId}/ferienauszahlungen`, { headers: ah() });
+            window._faCache = { employeeId, list: faRes.ok ? await faRes.json() : [] };
+        } catch { window._faCache = { employeeId, list: [] }; }
         renderAbsenzenList(el, absences, employeeId, karenzKrankHist, sperrfrist, karenzUnfallHist);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
@@ -10235,6 +10239,8 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
     }
     const fkList = (window._fkCache && window._fkCache.employeeId === employeeId) ? window._fkCache.list : [];
     (fkList || []).forEach(k => rowItems.push({ d: k.datum || '', html: _fkRowHtml(employeeId, k) }));
+    const faList = (window._faCache && window._faCache.employeeId === employeeId) ? window._faCache.list : [];
+    (faList || []).forEach(f => rowItems.push({ d: f.datum || '', html: _faRowHtml(employeeId, f) }));
     rows = rowItems.length
         ? rowItems.sort((x, y) => String(y.d).localeCompare(String(x.d))).map(r => r.html).join('')
         : `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">Keine Absenzen erfasst</td></tr>`;
@@ -10609,7 +10615,8 @@ async function openAbsenceModal(existing, opts) {
         `<option value="${t.code}" ${t.code === currentVal ? 'selected' : ''}>${t.bezeichnung}</option>`
     ).join('')
         // Walter 23.09.2026: öffnet das eigene Formular (keine echte Absenz-Zeile).
-        + (existing ? '' : '<option value="FERIEN_KUERZUNG">Absenzbedingte Ferienkürzung</option>');
+        + (existing ? '' : '<option value="FERIEN_KUERZUNG">Absenzbedingte Ferienkürzung</option>')
+        + (existing ? '' : '<option value="FERIEN_AUSZAHLUNG">Ferien auszahlen (ohne Bezug)</option>');
 
     // Aktive Lohnperiode der MA-Filiale ermitteln, um die Datums-Auswahl auf
     // diese Periode zu begrenzen (Walter-Wunsch: nicht versehentlich in eine
@@ -11399,6 +11406,145 @@ async function openFerienKuerzungModal(empId, eintrag, dienstjahrVon) {
     };
     wrap.querySelector('#fkOk').onclick = () => speichern(false);
     wrap.querySelector('#fkVerzicht').onclick = () => speichern(true);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Ferien auszahlen ohne Bezug (Walter-Vorgabe 05.10.2026). Eigene Tabelle
+// ferien_auszahlung — in der Absenzen-Liste als Zeile. «Anzahl Tage»: Geld im
+// Verhältnis aus dem Ferien-Topf (FIX: Tage × Tagessatz). «Saldo per 31.12.»:
+// Tage und Geld Ende Vorjahr, abzüglich seit 1.1. Bezogenem. Gerechnet und
+// gedeckelt wird im Lohnlauf des Monats (kein Vorbezug).
+// ══════════════════════════════════════════════════════════════════════
+function faToggleMenu(event, id) { rowMenuToggle(event, 'fa', id); }
+
+function _faRowHtml(employeeId, f) {
+    const vorjahr = f.art === 'VORJAHR';
+    const jahr = String(f.datum || '').slice(0, 4);
+    const tageTxt = vorjahr ? `Saldo 31.12.${jahr ? Number(jahr) - 1 : ''}` : `${Number(f.tage).toFixed(2).replace(/\.00$/, '')} Tage`;
+    const stdTxt = vorjahr
+        ? '<span class="abs-hours-label">Tage + Geld Ende Vorjahr</span>'
+        : `<span class="abs-hours-neg">−${Number(f.tage).toFixed(2)} Tage</span> <span class="abs-hours-label">Ferien</span>`;
+    const notiz = f.bemerkung ? esc(f.bemerkung) : 'Betrag im Lohnlauf des Monats';
+    const fJson = JSON.stringify(f).replace(/'/g, '&#39;');
+    return `<tr>
+        <td><span class="abs-type-badge" style="background:#dcfce7;color:#166534;border:1px solid #86efac">Ferien ausbezahlt</span></td>
+        <td style="white-space:nowrap">${_absDatumKurz(f.datum)}</td>
+        <td style="white-space:nowrap;color:#475569">${tageTxt}</td>
+        <td>${stdTxt}</td>
+        <td class="abs-notes" title="${notiz}">${notiz}</td>
+        <td class="abs-actions">
+            <div class="dok-menu-wrap">
+                <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="faToggleMenu(event, ${f.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
+                <div class="dok-menu" id="faMenu-${f.id}">
+                    <button class="dok-menu-item" onclick='openFerienAuszahlungModal(${employeeId}, ${fJson})'>Bearbeiten</button>
+                    <button class="dok-menu-item danger" onclick="faLoeschen(${employeeId}, ${f.id})">Löschen</button>
+                </div>
+            </div>
+        </td>
+    </tr>`;
+}
+
+async function faLoeschen(employeeId, id) {
+    if (!(await liquidConfirm('Diese Ferien-Auszahlung löschen? Tage und Geld bleiben dann im Ferien-Saldo.',
+            { title: 'Ferien-Auszahlung löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
+    const r = await fetch(`/api/absences/ferienauszahlung/${id}`, { method: 'DELETE', headers: ah() });
+    if (window.lohnEditLock && await window.lohnEditLock.handleResponse(r)) return;
+    if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || ('Fehler ' + r.status)); return; }
+    loadAbsenzenTab(employeeId);
+}
+
+async function openFerienAuszahlungModal(empId, eintrag) {
+    if (!empId) return;
+    const heuteIso = new Date().toISOString().slice(0, 10);
+    const num = n => Number(n || 0).toFixed(2);
+    const chf = n => Number(n || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    document.getElementById('faOverlay')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'faOverlay';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    const lbl = 'display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px';
+    const pill = 'display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;border:1px solid rgba(60,55,48,0.20);cursor:pointer;font-size:13px;color:#3f3f3f';
+    wrap.innerHTML = `
+    <div class="modal" style="max-width:520px;width:94%;padding:22px 24px;border-radius:16px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:10px">Ferien auszahlen (ohne Bezug)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label style="${pill}" id="faArtTageLbl"><input type="radio" name="faArt" value="TAGE"> Anzahl Tage</label>
+            <label style="${pill}" id="faArtVjLbl"><input type="radio" name="faArt" value="VORJAHR"> Saldo per 31.12. Vorjahr</label>
+        </div>
+        <div id="faInfo" style="margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(220,252,231,0.55);border:1px solid rgba(22,101,52,0.25);font-size:12.5px;color:#3f3f3f;line-height:1.55">Lade Saldo …</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+            <div><label style="${lbl}">Gebucht per (Lohnlauf-Monat)</label>
+                 <input type="date" id="faDatum" class="ma-input" value="${eintrag?.datum || heuteIso}"></div>
+            <div id="faTageWrap"><label style="${lbl}">Tage auszahlen</label>
+                 <input type="number" id="faTage" class="ma-input" step="0.01" min="0" value="${eintrag?.tage ?? ''}"></div>
+        </div>
+        <div style="margin-top:10px"><label style="${lbl}">Bemerkung (optional)</label>
+             <input type="text" id="faBem" class="ma-input" value="${esc(eintrag?.bemerkung || '')}" placeholder="z.B. Restferien 2025 auf Wunsch ausbezahlt"></div>
+        <div id="faStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+            <button id="faAbbr" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button id="faOk" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+        </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const close = () => wrap.remove();
+    wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+    wrap.querySelector('#faAbbr').onclick = close;
+
+    let info = null;
+    const art = () => wrap.querySelector('input[name="faArt"]:checked')?.value || 'TAGE';
+    const zeige = () => {
+        const vj = art() === 'VORJAHR';
+        wrap.querySelector('#faTageWrap').style.visibility = vj ? 'hidden' : 'visible';
+        wrap.querySelector('#faArtTageLbl').style.borderColor = vj ? 'rgba(60,55,48,0.20)' : '#3f3f3f';
+        wrap.querySelector('#faArtVjLbl').style.borderColor = vj ? '#3f3f3f' : 'rgba(60,55,48,0.20)';
+        const box = wrap.querySelector('#faInfo');
+        if (!info) { box.textContent = 'Saldo konnte nicht geladen werden.'; return; }
+        const vm = info.vormonat;
+        const vmTxt = vm
+            ? `Saldo Ende ${vm.periode.slice(5, 7)}.${vm.periode.slice(0, 4)}: <b>${num(vm.tage)} Tage</b>${Number(vm.chf) ? ` · Topf <b>CHF ${chf(vm.chf)}</b>` : ''}`
+            : 'Noch kein Ferien-Saldo aus einem Lohnlauf.';
+        const vjTxt = info.vorjahr
+            ? `Saldo per 31.12.${info.vorjahr.jahr}: <b>${num(info.vorjahr.tage)} Tage</b>${Number(info.vorjahr.chf) ? ` · Topf <b>CHF ${chf(info.vorjahr.chf)}</b>` : ''}`
+            : 'Saldo per 31.12. Vorjahr ist nicht bekannt.';
+        box.innerHTML = vj
+            ? `${vjTxt}<br>Ausbezahlt werden Tage und Geld Ende Vorjahr, abzüglich der seit 1.1. bezogenen Tage (die alten Tage gehen zuerst weg). Gedeckelt auf das vorhandene Guthaben.`
+            : `${vmTxt}<br>Das Geld kommt im Verhältnis aus dem Ferien-Topf (Topf ÷ Tage × ausbezahlte Tage), bei FIX Tage × Tagessatz. Nie mehr als vorhanden.`;
+    };
+    const ladeInfo = async () => {
+        const d = wrap.querySelector('#faDatum').value || heuteIso;
+        try {
+            const r = await fetch(`/api/absences/employee/${empId}/ferienauszahlung-info?datum=${d}`, { headers: ah() });
+            info = r.ok ? await r.json() : null;
+        } catch { info = null; }
+        zeige();
+    };
+    wrap.querySelector(`input[name="faArt"][value="${eintrag?.art === 'VORJAHR' ? 'VORJAHR' : 'TAGE'}"]`).checked = true;
+    wrap.querySelectorAll('input[name="faArt"]').forEach(r => r.onchange = zeige);
+    wrap.querySelector('#faDatum').onchange = ladeInfo;
+    await ladeInfo();
+
+    wrap.querySelector('#faOk').onclick = async () => {
+        const st = wrap.querySelector('#faStatus');
+        const a = art();
+        const tage = parseFloat(wrap.querySelector('#faTage').value || '0');
+        if (a === 'TAGE' && !(tage > 0)) { st.textContent = 'Bitte die Anzahl Tage angeben.'; return; }
+        const body = {
+            employeeId: empId,
+            datum: wrap.querySelector('#faDatum').value,
+            art: a,
+            tage: a === 'TAGE' ? tage : null,
+            bemerkung: wrap.querySelector('#faBem').value.trim() || null,
+        };
+        const url = eintrag ? `/api/absences/ferienauszahlung/${eintrag.id}` : '/api/absences/ferienauszahlung';
+        const r = await fetch(url, { method: eintrag ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(r)) return;
+        if (!r.ok) { const j = await r.json().catch(() => ({})); st.textContent = j.message || ('Fehler ' + r.status); return; }
+        close();
+        loadAbsenzenTab(empId);
+        if (typeof showToast === 'function') showToast(a === 'VORJAHR' ? '✓ Auszahlung Saldo 31.12. erfasst' : `✓ Ferien-Auszahlung ${num(tage)} Tage erfasst`, 'success');
+    };
 }
 
 // Absenzen-Liste: kurzes Datum dd.mm.yy (Walter 23.09.2026, nur diese Tabelle).

@@ -92,6 +92,22 @@ FLEX      : kein fester Satz — Pott-Tagessatz
 ```
 Krankheit/Unfall ist AUSGENOMMEN → eigener KtgTagessatzService (Abschnitt 6).
 
+**Ferien auszahlen ohne Bezug (Walter 05.10.2026, Tabelle `ferien_auszahlung`):**
+```
+Erfasst im MA, Tab «Absenzen» → «Ferien auszahlen». Datum = Lohnlauf-Monat.
+Art TAGE    : Tage = min(Wunsch, Tage-Saldo nach Bezug/Kürzung des Monats)
+Art VORJAHR : Tage = min(Saldo 31.12. Vorjahr − seit 1.1. bezogen/gekürzt/ausbezahlt, Tage-Saldo)
+FLEX/MTP    : CHF = Tage × (Topf CHF ÷ Topf Tage)                    (Code 40.1)
+              VORJAHR: CHF = Topf 31.12. × Tage ÷ Tage 31.12.
+              Cap = Topf CHF — KEIN Vorbezug, negativer Topf ⇒ 0
+FIX/FIX-M   : CHF = Tage × Monatslohn × 12 / 365                     (Code 40.1)
+SV/13. ML   : nach den Häkchen der Lohnposition 40.1
+```
+Saldo 31.12.: letzter Lohnlauf des Vorjahres, sonst Vortrag 903/905 im Januar (Lohn-Simulation:
+Vortrag aus Mirus). Die frühere «manuelle Ferien-Geld-Saldo-Auszahlung» lief über 195.3 —
+das ist seit dem ELM-Raster die Ferienentschädigung 13.04 % und wird dafür nicht mehr verwendet.
+Die Dezember-Auszahlung (Filial-Schalter) bucht ebenfalls auf 40.1.
+
 **FIX-Split beim Bezug:** Festlohn wird aufgeteilt in 10.1 Festlohn ·
 10.2 Festlohn für bezogene Ferien · 10.3 Festlohn für bezogene Feiertage (Summe unverändert).
 

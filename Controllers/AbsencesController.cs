@@ -525,6 +525,120 @@ public class AbsencesController : ControllerBase
         return Ok();
     }
 
+    // ── Ferien auszahlen ohne Bezug (Walter-Vorgabe 05.10.2026) ──────────
+    // Eigene Tabelle wie die Kürzung (kein Abwesenheitstag). Art TAGE = Anzahl
+    // Tage, Geld im Verhältnis aus dem Topf; Art VORJAHR = Saldo per 31.12.
+    // (höchstens einmal pro Jahr). Gedeckelt wird im Lohnlauf (kein Vorbezug).
+
+    [HttpGet("employee/{employeeId:int}/ferienauszahlung-info")]
+    public async Task<IActionResult> FerienAuszahlungInfo(int employeeId, [FromQuery] string? datum)
+    {
+        var d = DateOnly.TryParse(datum, out var p) ? p : DateOnly.FromDateTime(DateTime.Today);
+        var saldi = await _db.PayrollSaldos.AsNoTracking().Where(s => s.EmployeeId == employeeId).ToListAsync();
+        var vormonat = saldi
+            .Where(s => s.PeriodYear * 100 + s.PeriodMonth < d.Year * 100 + d.Month)
+            .OrderByDescending(s => s.PeriodYear * 100 + s.PeriodMonth).ThenByDescending(s => s.Id)
+            .FirstOrDefault();
+        var vj = await FerienAuszahlungDaten.SaldoVorjahrAsync(_db, employeeId, d.Year);
+        return Ok(new
+        {
+            vormonat = vormonat == null ? null : new
+            {
+                periode = $"{vormonat.PeriodYear}-{vormonat.PeriodMonth:D2}",
+                tage = Math.Round(vormonat.FerienTageSaldo, 2),
+                chf = Math.Round(vormonat.FerienGeldSaldo, 2),
+            },
+            vorjahr = vj == null ? null : new { jahr = d.Year - 1, tage = Math.Round(vj.Tage, 2), chf = Math.Round(vj.Chf, 2) },
+        });
+    }
+
+    [HttpGet("employee/{employeeId:int}/ferienauszahlungen")]
+    public async Task<IActionResult> FerienAuszahlungen(int employeeId)
+        => Ok(await _db.FerienAuszahlungen.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId)
+            .OrderByDescending(f => f.Datum)
+            .Select(f => new { f.Id, f.EmployeeId, datum = f.Datum.ToString("yyyy-MM-dd"), f.Art, f.Tage,
+                               f.Bemerkung, f.ErstelltVon, f.ErstelltAm })
+            .ToListAsync());
+
+    public class FerienAuszahlungDto
+    {
+        public int      EmployeeId { get; set; }
+        public string   Datum      { get; set; } = "";
+        public string   Art        { get; set; } = FerienAuszahlungRechnung.ArtTage;
+        public decimal? Tage       { get; set; }
+        public string?  Bemerkung  { get; set; }
+    }
+
+    [HttpPost("ferienauszahlung")]
+    public Task<IActionResult> FerienAuszahlungAnlegen([FromBody] FerienAuszahlungDto dto) => FerienAuszahlungSpeichernAsync(null, dto);
+
+    [HttpPut("ferienauszahlung/{id:int}")]
+    public Task<IActionResult> FerienAuszahlungAendern(int id, [FromBody] FerienAuszahlungDto dto) => FerienAuszahlungSpeichernAsync(id, dto);
+
+    private async Task<IActionResult> FerienAuszahlungSpeichernAsync(int? id, FerienAuszahlungDto dto)
+    {
+        if (!DateOnly.TryParse(dto.Datum, out var datum))
+            return BadRequest(new { error = "DATUM", message = "Datum fehlt oder ist ungültig." });
+        var art = (dto.Art ?? "").Trim().ToUpperInvariant();
+        if (art != FerienAuszahlungRechnung.ArtTage && art != FerienAuszahlungRechnung.ArtVorjahr)
+            return BadRequest(new { error = "ART", message = "Bitte «Anzahl Tage» oder «Saldo per 31.12.» wählen." });
+        decimal? tage = null;
+        if (art == FerienAuszahlungRechnung.ArtTage)
+        {
+            tage = Math.Round(dto.Tage ?? 0m, 2);
+            if (tage <= 0)
+                return BadRequest(new { error = "TAGE", message = "Bitte die Anzahl Tage angeben." });
+        }
+
+        FerienAuszahlungEintrag? e = null;
+        if (id.HasValue)
+        {
+            e = await _db.FerienAuszahlungen.FirstOrDefaultAsync(f => f.Id == id.Value);
+            if (e == null) return NotFound();
+            var lockAlt = await CheckLohnLockAsync(e.EmployeeId, e.Datum, e.Datum);
+            if (lockAlt != null) return lockAlt;
+        }
+        int empId = e?.EmployeeId ?? dto.EmployeeId;
+        var lockNeu = await CheckLohnLockAsync(empId, datum, datum);
+        if (lockNeu != null) return lockNeu;
+
+        if (art == FerienAuszahlungRechnung.ArtVorjahr)
+        {
+            bool doppelt = await _db.FerienAuszahlungen.AnyAsync(f => f.EmployeeId == empId
+                && f.Art == FerienAuszahlungRechnung.ArtVorjahr && f.Datum.Year == datum.Year && f.Id != (id ?? 0));
+            if (doppelt)
+                return Conflict(new { error = "VORJAHR_DOPPELT",
+                    message = $"Der Saldo per 31.12.{datum.Year - 1} ist schon zur Auszahlung erfasst." });
+        }
+
+        if (e == null)
+        {
+            e = new FerienAuszahlungEintrag { EmployeeId = empId };
+            _db.FerienAuszahlungen.Add(e);
+        }
+        e.Datum       = datum;
+        e.Art         = art;
+        e.Tage        = tage;
+        e.Bemerkung   = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
+        e.ErstelltVon = User.Identity?.Name;
+        e.ErstelltAm  = DateTime.Now;
+        await _db.SaveChangesAsync();
+        return Ok(new { e.Id, datum = e.Datum.ToString("yyyy-MM-dd"), e.Art, e.Tage });
+    }
+
+    [HttpDelete("ferienauszahlung/{id:int}")]
+    public async Task<IActionResult> FerienAuszahlungLoeschen(int id)
+    {
+        var e = await _db.FerienAuszahlungen.FirstOrDefaultAsync(f => f.Id == id);
+        if (e == null) return NotFound();
+        var lockRes = await CheckLohnLockAsync(e.EmployeeId, e.Datum, e.Datum);
+        if (lockRes != null) return lockRes;
+        _db.FerienAuszahlungen.Remove(e);
+        await _db.SaveChangesAsync();
+        return Ok();
+    }
+
     // ── DELETE /api/absences/{id} ─────────────────────────────────────────
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)

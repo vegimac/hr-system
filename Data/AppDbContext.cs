@@ -51,6 +51,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeTimeEntry> EmployeeTimeEntries => Set<EmployeeTimeEntry>();
     public DbSet<Absence> Absences => Set<Absence>();
     public DbSet<FerienKuerzungEintrag> FerienKuerzungen => Set<FerienKuerzungEintrag>();
+    public DbSet<FerienAuszahlungEintrag> FerienAuszahlungen => Set<FerienAuszahlungEintrag>();
     public DbSet<WeitererArbeitgeber> WeitereArbeitgeber => Set<WeitererArbeitgeber>();
     public DbSet<SchulungTyp> SchulungTypen => Set<SchulungTyp>();
     public DbSet<EmployeeSchulung> EmployeeSchulungen => Set<EmployeeSchulung>();
@@ -1529,6 +1530,21 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Verzicht).HasColumnName("verzicht");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.ErstelltVon).HasColumnName("erstellt_von");
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.EmployeeId);
+        });
+
+        modelBuilder.Entity<FerienAuszahlungEintrag>(entity =>
+        {
+            entity.ToTable("ferien_auszahlung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Datum).HasColumnName("datum");
+            entity.Property(e => e.Art).HasColumnName("art");
+            entity.Property(e => e.Tage).HasColumnName("tage").HasColumnType("numeric(6,2)");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.ErstelltVon).HasColumnName("erstellt_von");
             entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am").HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.EmployeeId);

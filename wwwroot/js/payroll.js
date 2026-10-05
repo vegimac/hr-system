@@ -2112,7 +2112,7 @@ function renderLohnSlip(s, targetEl) {
                     <td class="ls-desc" style="color:#15803d">Ferien-Saldo Tage (${s.vacationWeeks || 5} Wo.)</td>
                     <td class="ls-num" style="color:#64748b;white-space:nowrap">${fmtNum(s.vormonatFerienTage ?? 0)}</td>
                     <td class="ls-num">${pos(s.ferienTageAccrual ?? 0)}</td>
-                    <td class="ls-num">${neg((s.ferienTageGenommen ?? 0) + (s.ferienTageGekuerzt ?? 0))}</td>
+                    <td class="ls-num">${neg((s.ferienTageGenommen ?? 0) + (s.ferienTageGekuerzt ?? 0) + (s.ferienTageAusbezahlt ?? 0))}</td>
                     <td class="ls-amt" style="color:${ftSaldo >= 0 ? '#15803d' : '#dc2626'};font-weight:600;white-space:nowrap">${fmtNum(ftSaldo)}</td>
                 </tr>`);
                 // Absenzbedingte Ferienkürzung (Walter 23.09.2026) — als HR-Eintrag erfasst.
@@ -2121,6 +2121,14 @@ function renderLohnSlip(s, targetEl) {
                         <td class="ls-desc" style="color:#b45309;padding-left:18px">davon Ferienkürzung (Art. 329b OR)</td>
                         <td class="ls-num"></td><td class="ls-num"></td>
                         <td class="ls-num" style="color:#b45309">${neg(s.ferienTageGekuerzt)}</td>
+                        <td class="ls-amt"></td>
+                    </tr>`);
+                }
+                if (Number(s.ferienTageAusbezahlt) > 0) {
+                    rows.push(`<tr>
+                        <td class="ls-desc" style="color:#15803d;padding-left:18px">davon ausbezahlt (ohne Bezug)</td>
+                        <td class="ls-num"></td><td class="ls-num"></td>
+                        <td class="ls-num" style="color:#15803d">${neg(s.ferienTageAusbezahlt)}</td>
                         <td class="ls-amt"></td>
                     </tr>`);
                 }

@@ -417,8 +417,9 @@ public class PayrollPdfService
             {
                 var vor = GetDecimal(slip, "vormonatFerienTage");
                 var acc = GetDecimal(slip, "ferienTageAccrual");
-                // Bezogen + absenzbedingte Ferienkürzung (Walter 23.09.2026), damit die Zeile aufgeht.
-                var bez = (GetDecimal(slip, "ferienTageGenommen") ?? 0) + (GetDecimal(slip, "ferienTageGekuerzt") ?? 0);
+                // Bezogen + Ferienkürzung + ausbezahlte Tage, damit die Zeile aufgeht.
+                var bez = (GetDecimal(slip, "ferienTageGenommen") ?? 0) + (GetDecimal(slip, "ferienTageGekuerzt") ?? 0)
+                        + (GetDecimal(slip, "ferienTageAusbezahlt") ?? 0);
                 var weeks = GetInt(slip, "vacationWeeks");
                 Cell(t.Cell(), $"Ferien-Saldo Tage ({weeks} Wo.)", left: true, color: Green);
                 Cell(t.Cell(), Num(vor), right: true, color: Muted);

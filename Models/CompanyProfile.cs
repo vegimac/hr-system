@@ -169,8 +169,8 @@ public class CompanyProfile
     /// <summary>
     /// Wenn true: bei UTP- und MTP-Mitarbeitenden wird im Dezember-Lohnlauf
     /// das gesamte aktuelle Ferien-Geld-Saldo automatisch ausbezahlt
-    /// (Lohnposition 195.3 "Ferien-Geld-Auszahlung"). Saldo geht auf 0.
-    /// Bei Austritt mid-year weiterhin manuelle Buchung über 195.3-Zulage.
+    /// (Lohnposition 40.1). Saldo geht auf 0. Auszahlungen während des Jahres:
+    /// Tabelle ferien_auszahlung («Ferien auszahlen» im Tab Absenzen).
     /// FIX/FIX-M haben kein Ferien-Geld-Saldo — Flag wirkt dort nicht.
     /// </summary>
     public bool AutoFerienGeldAuszahlungDezember { get; set; } = true;

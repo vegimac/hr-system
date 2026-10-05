@@ -860,6 +860,7 @@ public static class PayrollCalculations
             ferienTageAccrual  = Math.Round(saldo.FerienTageAccrual, 4),
             ferienTageGenommen = Math.Round(saldo.FerienTageGenommen, 4),
             ferienTageGekuerzt = Math.Round(saldo.FerienTageGekuerzt, 4),
+            ferienTageAusbezahlt = Math.Round(saldo.FerienTageAusbezahlt, 4),
             vormonatFerienTage = saldo.VormonatFerienTage,
             ferienTageSaldoNeu = saldo.FerienTageSaldoNeu,
             // Ferien-Geld (nur UTP/MTP, bei FIX immer 0)
@@ -1339,7 +1340,7 @@ public static class PayrollCalculations
     /// Rückstellungs-Routing macht die Engine (ResolveThirteenthProbationStatus),
     /// die Basis ist in allen drei Zweigen dieselbe.
     /// ACHTUNG Doppelzählung: Auszahlungen MIT Lohnpositions-Code (MTP-
-    /// Ferienbezug Code 2, manuelle/Jahresend-Auszahlung 195.3) stecken
+    /// Ferienbezug 10.2, Ferien-Auszahlung/Jahresend-Auszahlung 40.1) stecken
     /// bereits in der Flag-Summe (AddAmount) und dürfen NICHT in
     /// <paramref name="auszahlungenOhneCode"/> — nur codelose Zeilen.
     /// </summary>

@@ -1169,6 +1169,43 @@ public class PayrollCalculationEngine
         }
         decimal ferienTageSaldoNeu = Math.Round(vormonatFerienTage + ferienTageAccrual - ferienTageGenommen - ferienTageGekuerzt, 4);
 
+        // Ferien auszahlen ohne Bezug (Walter-Vorgabe 05.10.2026): HR-Einträge mit
+        // Datum in dieser Periode, Filiale wie bei der Kürzung. Hier nur die Tage;
+        // das Geld rechnet jeder Modell-Zweig (Topf bzw. FIX-Tagessatz).
+        var ferienAuszahlungPosten = new List<FerienAuszahlungRechnung.Posten>();
+        {
+            var eintraege = await _db.FerienAuszahlungen.AsNoTracking()
+                .Where(f => f.EmployeeId == employeeId && f.Datum >= periodFrom && f.Datum <= periodTo)
+                .OrderBy(f => f.Datum).ThenBy(f => f.Id)
+                .ToListAsync();
+            foreach (var f in eintraege)
+            {
+                var fDt = f.Datum.ToDateTime(TimeOnly.MinValue);
+                var fCp = await _db.Employments.AsNoTracking()
+                    .Where(e => e.EmployeeId == employeeId && e.CompanyProfileId != null && e.ContractStartDate <= fDt)
+                    .OrderByDescending(e => e.ContractStartDate)
+                    .Select(e => e.CompanyProfileId).FirstOrDefaultAsync();
+                if (fCp == null || fCp == companyProfileId)
+                    ferienAuszahlungPosten.Add(new(f.Id, f.Art, f.Tage));
+            }
+        }
+        var ferienAuszahlungTage = new List<FerienAuszahlungRechnung.Ergebnis>();
+        if (ferienAuszahlungPosten.Count > 0)
+        {
+            FerienAuszahlungRechnung.Vorjahr? ferienVorjahr = null;
+            decimal ferienVerbrauchtSeitJanuar = 0m;
+            if (ferienAuszahlungPosten.Any(p => p.Art == FerienAuszahlungRechnung.ArtVorjahr))
+            {
+                ferienVorjahr = await FerienSaldoVorjahrAsync(employeeId, year);
+                ferienVerbrauchtSeitJanuar = await FerienVerbrauchtSeitJanuarAsync(employeeId, year, periodFrom, periodTo);
+            }
+            ferienAuszahlungTage = FerienAuszahlungRechnung.TageAufloesen(
+                ferienAuszahlungPosten, ferienTageSaldoNeu, ferienVorjahr, ferienVerbrauchtSeitJanuar);
+        }
+        decimal ferienTageAusbezahlt = ferienAuszahlungTage.Sum(e => e.Tage);
+        decimal ferienTageVorAuszahlung = ferienTageSaldoNeu;
+        ferienTageSaldoNeu = Math.Round(ferienTageSaldoNeu - ferienTageAusbezahlt, 4);
+
         // ── Ferienanspruch-Kürzungs-Vorschlag (Art. 329b OR) ──────────────
         // Berechnet kumulierte Abwesenheits-Tage pro Dienstjahr und schlägt
         // ggfs. eine Kürzung vor (1/12 pro vollem Monat über Schwellwert).
@@ -2274,28 +2311,18 @@ public class PayrollCalculationEngine
             lohnLines.AddRange(sorted);
         }
 
-        // ── Manuelle Ferien-Geld-Saldo-Auszahlung (Code 195.3) ──────────
-        // Wird bei Austritt oder Jahresende gebucht — die entsprechende
-        // Zulage wurde bereits oben als SV-pflichtige Zeile verarbeitet
-        // (fließt in totalLohn, alle Sozialversicherungen und 13.-ML-Basis).
-        // Hier lesen wir nur den Gesamtbetrag, um im MTP/UTP-Block damit
-        // das Ferien-Geld-Saldo zu reduzieren.
-        decimal ferienGeldAuszahlungManuell = zulagenEntries
-            .Where(z => z.Lohnposition?.Code == "195.3" && z.Lohnposition.Typ == "ZULAGE")
-            .Sum(z => PayrollCalculations.Rappen(z.Betrag));
-
         // ── Automatische Ferien-Geld-Auszahlung im Dezember (UTP/MTP) ──
         // Wenn am CompanyProfile aktiviert (AutoFerienGeldAuszahlungDezember)
         // und der Lohnlauf im Dezember ist: nach CalcFerienGeld wird der
-        // verbleibende Saldo als synthetische 195.3-Lohnzeile ausbezahlt.
-        // Lohnposition 195.3 einmalig laden — wird unten benötigt für
-        // Bezeichnung, SV-Flags und Basis-Tracking.
+        // verbleibende Saldo als synthetische 40.1-Lohnzeile ausbezahlt
+        // (195.3 ist seit dem ELM-Raster die Ferienentschädigung 13.04 %).
+        // Manuelle Auszahlungen laufen über ferien_auszahlung (oben).
         Lohnposition? lpFerienAuszahlung = null;
         bool autoDezemberAuszahlung = month == 12 && company.AutoFerienGeldAuszahlungDezember;
         if (autoDezemberAuszahlung)
         {
             lpFerienAuszahlung = await _db.Lohnpositionen
-                .FirstOrDefaultAsync(l => l.Code == "195.3" && l.IsActive);
+                .FirstOrDefaultAsync(l => l.Code == "40.1" && l.IsActive);
         }
 
         // ── Krankheit & Unfall: tag-genaue Listen (Datum + Prozent + InKarenz)
@@ -2963,17 +2990,27 @@ public class PayrollCalculationEngine
             ferienGeldSaldoNeu  = PayrollCalculations.Rappen(pottFerienGeldChf - mtpFerienAuszahlungExact);
             ferienGeldAuszahlung = mtpFerienAuszahlungBetrag;
 
-            // Manuelle Ferien-Geld-Saldo-Auszahlung (Code 195.3): reduziert
-            // das Saldo. Der Betrag wurde schon als SV-pflichtige Zulage
-            // zu totalLohn addiert — hier nur noch die Saldo-Führung.
-            if (ferienGeldAuszahlungManuell > 0)
+            // Ferien auszahlen ohne Bezug (Walter 05.10.2026): Geld im Verhältnis aus dem Topf.
+            foreach (var z in FerienAuszahlungRechnung.ZeilenAusTopf(ferienAuszahlungTage, ferienGeldSaldoNeu, ferienTageVorAuszahlung))
             {
-                ferienGeldAuszahlung += ferienGeldAuszahlungManuell;
-                ferienGeldSaldoNeu   = Math.Max(0m, ferienGeldSaldoNeu - ferienGeldAuszahlungManuell);
+                lohnLines.Add(new {
+                    bezeichnung = FerienAuszahlungRechnung.Bezeichnung(z, LabelFor("40.1", "Ferien-Auszahlung"), year - 1),
+                    code    = "40.1",
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(z.Tage),
+                    prozent = (decimal?)null,
+                    basis   = z.Satz,
+                    betrag  = z.Betrag,
+                    accrued = (decimal?)z.Betrag
+                });
+                totalLohn += z.Betrag;
+                AddAmount("40.1", z.Betrag);
+                Grundzeile("40.1", z.Betrag);
+                ferienGeldAuszahlung += z.Betrag;
+                ferienGeldSaldoNeu    = PayrollCalculations.Rappen(ferienGeldSaldoNeu - z.Betrag);
             }
 
             // Automatische Jahresend-Auszahlung des Ferien-Geld-Saldos (MTP).
-            // Synthetische 195.3-Zeile mit dem aktuellen Saldo, voll SV-pflichtig.
+            // Synthetische 40.1-Zeile mit dem aktuellen Saldo, voll SV-pflichtig.
             if (autoDezemberAuszahlung && lpFerienAuszahlung != null && ferienGeldSaldoNeu > 0)
             {
                 decimal autoBetrag = PayrollCalculations.Rappen(ferienGeldSaldoNeu);
@@ -3306,6 +3343,7 @@ public class PayrollCalculationEngine
                     FerienKuerzungBisherTage:    kuerzungBisherTage,
                     FerienKuerzungGesamtTage:    kuerzungGesamtTage,
                     FerienTageGekuerzt:          ferienTageGekuerzt,
+                    FerienTageAusbezahlt:        ferienTageAusbezahlt,
                     NightHours:           nightHours,
                     NightBonus:           nightBonus,
                     NachtKompStunden:     PayrollCalculations.Rappen(nachtKompStunden),
@@ -3585,17 +3623,27 @@ public class PayrollCalculationEngine
             AddAmount("40.1", ferienGeldAuszahlung);
             Grundzeile("40.1", ferienGeldAuszahlung);
 
-            // Manuelle Ferien-Geld-Saldo-Auszahlung (Code 195.3): reduziert
-            // das Saldo. Der Betrag wurde schon als SV-pflichtige Zulage
-            // zu totalLohn addiert — hier nur noch die Saldo-Führung.
-            if (ferienGeldAuszahlungManuell > 0)
+            // Ferien auszahlen ohne Bezug (Walter 05.10.2026): Geld im Verhältnis aus dem Topf.
+            foreach (var z in FerienAuszahlungRechnung.ZeilenAusTopf(ferienAuszahlungTage, ferienGeldSaldoNeu, ferienTageVorAuszahlung))
             {
-                ferienGeldAuszahlung += ferienGeldAuszahlungManuell;
-                ferienGeldSaldoNeu   = Math.Max(0m, ferienGeldSaldoNeu - ferienGeldAuszahlungManuell);
+                lohnLines.Add(new {
+                    bezeichnung = FerienAuszahlungRechnung.Bezeichnung(z, LabelFor("40.1", "Ferien-Auszahlung"), year - 1),
+                    code    = "40.1",
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(z.Tage),
+                    prozent = (decimal?)null,
+                    basis   = z.Satz,
+                    betrag  = z.Betrag,
+                    accrued = (decimal?)z.Betrag
+                });
+                totalLohn += z.Betrag;
+                AddAmount("40.1", z.Betrag);
+                Grundzeile("40.1", z.Betrag);
+                ferienGeldAuszahlung += z.Betrag;
+                ferienGeldSaldoNeu    = PayrollCalculations.Rappen(ferienGeldSaldoNeu - z.Betrag);
             }
 
             // Automatische Jahresend-Auszahlung des Ferien-Geld-Saldos (UTP).
-            // Synthetische 195.3-Zeile mit dem aktuellen Saldo, voll SV-pflichtig.
+            // Synthetische 40.1-Zeile mit dem aktuellen Saldo, voll SV-pflichtig.
             if (autoDezemberAuszahlung && lpFerienAuszahlung != null && ferienGeldSaldoNeu > 0)
             {
                 decimal autoBetrag = PayrollCalculations.Rappen(ferienGeldSaldoNeu);
@@ -3946,6 +3994,7 @@ public class PayrollCalculationEngine
                     FerienKuerzungBisherTage:    kuerzungBisherTage,
                     FerienKuerzungGesamtTage:    kuerzungGesamtTage,
                     FerienTageGekuerzt:          ferienTageGekuerzt,
+                    FerienTageAusbezahlt:        ferienTageAusbezahlt,
                     Basis13ml:            basis13ForSaldoUtp,
                     IsInProbation:        isInProbation,
                     ThirteenthForfeited:  thirteenthForfeited,
@@ -4266,6 +4315,24 @@ public class PayrollCalculationEngine
             decimal mainLohnFix = totalLohn;
             lohnLines.AddRange(zulagenSvLines);
             totalLohn += zulagenSvTotal;
+
+            // Ferien auszahlen ohne Bezug (Walter 05.10.2026): FIX hat keinen CHF-Topf,
+            // Tage × Tagessatz wie beim Austritt; SV und 13. ML nach den Häkchen von 40.1.
+            foreach (var z in FerienAuszahlungRechnung.ZeilenFix(ferienAuszahlungTage, fixTagessatz))
+            {
+                lohnLines.Add(new {
+                    bezeichnung = FerienAuszahlungRechnung.Bezeichnung(z, LabelFor("40.1", "Ferien-Auszahlung"), year - 1),
+                    code    = "40.1",
+                    anzahl  = (decimal?)PayrollCalculations.Rappen(z.Tage),
+                    prozent = (decimal?)null,
+                    basis   = z.Satz,
+                    betrag  = z.Betrag,
+                    accrued = (decimal?)z.Betrag
+                });
+                totalLohn += z.Betrag;
+                SvNachLohnposition("40.1", z.Betrag);
+                AddAmount("40.1", z.Betrag);
+            }
 
             // ── Austritts-Schlussabrechnung FIX/FIX-M (Walter-Vorgabe 04.08.2026) ──
             // Beim letzten Lohn werden alle Saldi ausbezahlt bzw. verrechnet:
@@ -4610,6 +4677,7 @@ public class PayrollCalculationEngine
                     FerienKuerzungBisherTage:    kuerzungBisherTage,
                     FerienKuerzungGesamtTage:    kuerzungGesamtTage,
                     FerienTageGekuerzt:          ferienTageGekuerzt,
+                    FerienTageAusbezahlt:        ferienTageAusbezahlt,
                     Basis13ml:            fix13BasisExact),
                 lohnAssignments, bankAccounts, usingDefaultDeductions,
                 periodeFooterText: periodeFooterText,
@@ -5863,6 +5931,37 @@ public class PayrollCalculationEngine
     /// Vormonats-Saldo des MA: jüngster Saldo vor dieser Periode, egal welche
     /// Filiale (Dezember → Januar und Filialwechsel).
     /// </summary>
+    /// <summary>Ferien-Saldo per 31.12. Vorjahr — in der Simulation der Simulations-Vortrag.</summary>
+    private async Task<FerienAuszahlungRechnung.Vorjahr?> FerienSaldoVorjahrAsync(int employeeId, int year)
+    {
+        if (_sim.Aktiv)
+        {
+            bool hatTage = _sim.Vortrag.TryGetValue("903", out var t);
+            bool hatChf  = _sim.Vortrag.TryGetValue("905", out var c);
+            return hatTage || hatChf ? new(t, c) : null;
+        }
+        return await FerienAuszahlungDaten.SaldoVorjahrAsync(_db, employeeId, year);
+    }
+
+    /// <summary>Seit 1.1. bezogene, gekürzte und in früheren Monaten ausbezahlte Ferientage (bis Periodenende).</summary>
+    private async Task<decimal> FerienVerbrauchtSeitJanuarAsync(int employeeId, int year, DateOnly periodFrom, DateOnly periodTo)
+    {
+        var jan1 = new DateOnly(year, 1, 1);
+        var ferien = await _db.Absences.AsNoTracking()
+            .Where(a => a.EmployeeId == employeeId && a.AbsenceType == "FERIEN"
+                     && a.DateTo >= jan1 && a.DateFrom <= periodTo)
+            .ToListAsync();
+        decimal bezogen = ferien.Sum(a => (decimal)CountAbsenceDaysInPeriod(a, jan1, periodTo));
+        decimal gekuerzt = await _db.FerienKuerzungen.AsNoTracking()
+            .Where(k => k.EmployeeId == employeeId && !k.Verzicht && k.Datum >= jan1 && k.Datum <= periodTo)
+            .SumAsync(k => k.Tage);
+        decimal ausbezahlt = await _db.FerienAuszahlungen.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId && f.Art == FerienAuszahlungRechnung.ArtTage
+                     && f.Datum >= jan1 && f.Datum < periodFrom)
+            .SumAsync(f => f.Tage ?? 0m);
+        return bezogen + gekuerzt + ausbezahlt;
+    }
+
     private async Task<PayrollSaldo?> VormonatsSaldoAsync(
         int employeeId, int companyProfileId, int year, int month)
     {
