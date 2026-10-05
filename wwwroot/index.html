@@ -6572,7 +6572,10 @@
                             </div>
                         </div>
                         <div id="atEoHint" style="display:none;margin-top:12px;padding:8px 12px;background:#fdf3e7;border:1px solid #e8d5b8;border-radius:8px;color:#8a6437;font-size:12px">
-                            <b>EO-Typ (Mutterschaft/Vaterschaft):</b> «Wirkung» bleibt bewusst überall auf Soll reduzieren/neutral — der Lohnersatz läuft automatisch über die EO-Zeilen 120.x (Taggeld 80%, Deckel CHF&nbsp;220) bzw. 125.x (Korrektur FIX/FIX-M). Die MTP-Soll-Kürzung nutzt die hier gewählte Zählweise und Basis. Ein «Stunden gutschreiben» würde doppelt vergüten.
+                            <b>EO-Typ (Mutterschaft/Vaterschaft):</b> «Wirkung» gehört bei FIX und MTP auf «Soll reduzieren», bei FLEX auf «neutral» — der Lohnersatz läuft automatisch über die EO-Zeilen 120.x (Taggeld 80%, Deckel CHF&nbsp;220) bzw. 125.x (Korrektur FIX/FIX-M). Die Soll-Kürzung nutzt die hier gewählte Zählweise (MTP auf Basis der Garantie). Ein «Stunden gutschreiben» würde doppelt vergüten.
+                        </div>
+                        <div id="atSollHint" style="display:none;margin-top:12px;padding:8px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-size:12px">
+                            <b>Achtung:</b> Bei unbezahltem Urlaub, Mutterschaft/Vaterschaft und Militär/Zivilschutz gehört bei FIX und MTP «Soll reduzieren» hin. «Stunden gutschreiben» wird bei diesen Typen nicht verbucht (der Lohnersatz läuft über eigene Zeilen), und «neutral» kürzt das Soll nicht — der Mitarbeiter fiele ins Minus.
                         </div>
                         <div id="atFeiertagHint" style="display:none;margin-top:12px;padding:8px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-size:12px">
                             <b>Achtung — Feiertag bei MTP/FLEX:</b> MTP und FLEX haben keinen Feiertag zugut, er ist über die Feiertagsentschädigung (% pro Stunde) schon bezahlt. Mit dieser Einstellung würde ein importierter Feiertag zusätzlich Stunden gutschreiben bzw. auszahlen — also doppelt. Richtig ist bei MTP und FLEX «Stunden neutral».
@@ -10031,7 +10034,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20261001a"></script>
 <script src="js/payroll-perioden.js?v=20261003b"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20261005c"></script>
+<script src="js/admin-settings.js?v=20261006a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261001a"></script>

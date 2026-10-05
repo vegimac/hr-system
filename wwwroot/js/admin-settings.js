@@ -2689,13 +2689,9 @@ function atFlexZwToggle() {
 }
 
 // FIX/MTP: bei «Stunden neutral» rechnet die Engine weder Zählweise noch Basis.
-// Offen bleiben sie, wenn die Stunden trotzdem gebraucht werden: Nacht-Saldo-
-// Abbau (Reduziert Saldo) und bei MTP die Soll-Kürzung von EO/Militär, die
-// unabhängig von der Wirkung läuft.
+// Offen bleiben sie nur für den Nacht-Saldo-Abbau (Reduziert Saldo).
 function atMxZwToggle() {
-    const code  = (document.getElementById('atCode')?.value || '').toUpperCase().trim();
     const nacht = document.getElementById('atReduziertSaldo')?.value === 'NACHT_STUNDEN';
-    const mtpTypMechanik = ['MUTT_VATER', 'MUTTERSCHAFT', 'VATERSCHAFT', 'MILITAER', 'ZIVILSCHUTZ'].includes(code);
     const setzen = (ids, an) => ids.forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -2703,7 +2699,22 @@ function atMxZwToggle() {
         el.style.opacity = an ? '1' : '0.4';
     });
     setzen(['atZwFix', 'atBasisFix'], document.getElementById('atWirkFix')?.value !== 'KEINE' || nacht);
-    setzen(['atZwMtp', 'atBasisMtp'], document.getElementById('atWirkMtp')?.value !== 'KEINE' || nacht || mtpTypMechanik);
+    setzen(['atZwMtp', 'atBasisMtp'], document.getElementById('atWirkMtp')?.value !== 'KEINE' || nacht);
+    atSollTypWarnung();
+}
+
+// UU, EO und Militär/Zivilschutz: Lohnersatz läuft über eigene Zeilen, die Zeit
+// über die Soll-Kürzung. «Gutschreiben» wird bewusst nicht verbucht (sonst doppelt),
+// «neutral» kürzt das Soll nicht → der MA fiele ins Minus (Walter 05.10.2026).
+const AT_SOLL_TYPEN = ['UNBEZ_URLAUB', 'MUTT_VATER', 'MUTTERSCHAFT', 'VATERSCHAFT', 'MILITAER', 'ZIVILSCHUTZ'];
+function atSollTypWarnung() {
+    const el = document.getElementById('atSollHint');
+    if (!el) return;
+    const code = (document.getElementById('atCode')?.value || '').toUpperCase().trim();
+    const falsch = AT_SOLL_TYPEN.includes(code)
+        && (document.getElementById('atWirkFix')?.value !== 'SOLL_KUERZUNG'
+         || document.getElementById('atWirkMtp')?.value !== 'SOLL_KUERZUNG');
+    el.style.display = falsch ? 'block' : 'none';
 }
 
 // MTP/FLEX haben keinen Feiertag zugut (% pro Stunde, Walter 05.10.2026) —

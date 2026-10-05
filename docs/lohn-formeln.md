@@ -138,6 +138,12 @@ Eine Quelle für alle: `Services/AbsenzSaldoTypen.cs` (Codes je Saldo aus dem Ka
 Standard FERIEN/FEIERTAG/NACHT_KOMP ohne aktiven Eintrag) — genutzt von Lohnrechnung
 (inkl. MTP-Ferientage und Ferienverbrauch seit Januar), Saldo-Liste und Akonto.
 
+**MTP-Soll-Kürzung nach Katalog (Walter 05.10.2026):** Unbezahlter Urlaub, EO
+(Mutterschaft/Vaterschaft) und Militär/Zivilschutz kürzen das MTP-Soll nur, wenn
+`wirkung_mtp = SOLL_KUERZUNG` (Standard). FIX ist schon so (`wirkung_fix`). «Gutschreiben»
+wird bei diesen Typen weiterhin nicht verbucht (Lohnersatz über eigene Zeilen); die Maske
+warnt rot, wenn nicht «Soll reduzieren» steht.
+
 ## 5. 13. Monatslohn
 
 ```

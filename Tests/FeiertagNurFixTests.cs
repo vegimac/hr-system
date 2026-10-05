@@ -53,6 +53,16 @@ public class FeiertagNurFixTests
     }
 
     [Fact]
+    public void Engine_MtpSollKuerzung_NurWennKatalogSieVerlangt()
+    {
+        var src = File.ReadAllText(Path.Combine(RepoRoot, "Services/PayrollCalculationEngine.cs"));
+        Assert.Contains("bool MtpSollKuerzung(Absence a) => GetAbsenzTyp(a.AbsenceType).WirkungMtp == \"SOLL_KUERZUNG\";", src);
+        Assert.Contains("a.AbsenceType == \"UNBEZ_URLAUB\" && MtpSollKuerzung(a)", src);
+        Assert.Contains("\"MUTT_VATER\" or \"MUTTERSCHAFT\" or \"VATERSCHAFT\" && MtpSollKuerzung(x)", src);
+        Assert.Contains("\"MILITAER\" or \"ZIVILSCHUTZ\" && MtpSollKuerzung(x)", src);
+    }
+
+    [Fact]
     public void Katalog_FeiertagMtpFlexNeutral()
     {
         var src = File.ReadAllText(Path.Combine(RepoRoot, "Program.cs"));

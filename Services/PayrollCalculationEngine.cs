@@ -483,7 +483,11 @@ public class PayrollCalculationEngine
         // Fallback-Konfiguration falls Tabelle noch leer (Backward-Compatibility)
         AbsenzTyp GetAbsenzTyp(string code) => absenzTypConfig.TryGetValue(code, out var t) ? t
             : new AbsenzTyp { Code = code, Zeitgutschrift = code != "FEIERTAG", GutschriftModus = code == "FERIEN" ? "1/7" : "1/5",
-                              ReduziertSaldo = AbsenzSaldoTypen.Standard(code) };
+                              ReduziertSaldo = AbsenzSaldoTypen.Standard(code),
+                              WirkungFix = code is "UNBEZ_URLAUB" or "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT" or "MILITAER" or "ZIVILSCHUTZ"
+                                  ? "SOLL_KUERZUNG" : "GUTSCHRIFT",
+                              WirkungMtp = code is "UNBEZ_URLAUB" or "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT" or "MILITAER" or "ZIVILSCHUTZ"
+                                  ? "SOLL_KUERZUNG" : code is "FEIERTAG" ? "KEINE" : "GUTSCHRIFT" };
 
         // ── Mitarbeiter-Alter berechnen (für BVG, AHV-Schwellen) ─────────────
         // Schweizer Regel: Beitragspflicht gilt ab 1.1. des Jahres, in dem das
@@ -2503,8 +2507,11 @@ public class PayrollCalculationEngine
             // sinkt der Festlohn (= Soll × Stundenlohn); erreicht der MA die
             // reduzierte Garantie nicht, ergibt sich ein Minus-Saldo, erreicht/
             // übertrifft er sie, wird's im Stundenlohn ausbezahlt.
+            // Soll-Kürzung nur, wenn der Katalog sie verlangt (Walter 05.10.2026) —
+            // gilt für UU, EO und Militär/Zivilschutz gleich.
+            bool MtpSollKuerzung(Absence a) => GetAbsenzTyp(a.AbsenceType).WirkungMtp == "SOLL_KUERZUNG";
             decimal mtpUnbezUrlaubTage = absences
-                .Where(a => a.AbsenceType == "UNBEZ_URLAUB")
+                .Where(a => a.AbsenceType == "UNBEZ_URLAUB" && MtpSollKuerzung(a))
                 .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
             decimal unbezUrlaubStundenAequivalent = mtpUnbezUrlaubTage * guaranteedH / 7m;
             // EO Mutterschaft/Vaterschaft (Walter-Entscheid 18.08.2026): bei MTP
@@ -2521,7 +2528,7 @@ public class PayrollCalculationEngine
             decimal mtpEoTage = 0m;
             decimal eoStundenAequivalent = 0m;
             foreach (var a in absences.Where(x =>
-                x.AbsenceType is "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT"))
+                x.AbsenceType is "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT" && MtpSollKuerzung(x)))
             {
                 decimal tage = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
                 if (tage <= 0) continue;
@@ -2534,7 +2541,7 @@ public class PayrollCalculationEngine
             // Lohnersatz über die Stufen-Zeilen 80.x/90.x im Zulagen-Block.
             decimal mtpMilitaerTage = 0m;
             decimal militaerStundenAequivalent = 0m;
-            foreach (var a in absences.Where(x => x.AbsenceType is "MILITAER" or "ZIVILSCHUTZ"))
+            foreach (var a in absences.Where(x => x.AbsenceType is "MILITAER" or "ZIVILSCHUTZ" && MtpSollKuerzung(x)))
             {
                 decimal tage = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
                 if (tage <= 0) continue;
