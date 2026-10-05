@@ -2435,78 +2435,31 @@ public class PayrollCalculationEngine
             if (mtpFerienTage == 0m && ferienStundenMtp > 0 && guaranteedH > 0)
                 mtpFerienTage = ferienStundenMtp * 7m / guaranteedH;
 
-            // ── MTP Krank/Unfall-Kürzung am Festlohn (Walter-Vorgabe 30.05.2026) ────
-            // Bei MTP wird der Festlohn um Krank-/Unfall-WERKTAGE gekürzt mit
-            // der 1/5-Wochenstunden-Logik (analog FIX-Saldo-Gutschrift). Sa+So
-            // Krank-/Unfall-Tage zählen NICHT für die Festlohn-Reduktion, weil
-            // der MA an Wochenenden ohnehin nicht arbeiten würde — aber die
-            // Krank-Taggeld 80% / Karenzentschädigung 88% bleibt auf Krank-
-            // KALENDERtagen (Versicherung kompensiert alle Tage).
-            //
-            // Bei voll abgedeckter Periode (alle Werktage Krank + Ferien) kann
-            // das Stunden-Total der Abzüge das Pro-Rata-Soll geringfügig
-            // übersteigen (z.B. 19 Krank-Werktage × WoStd/5 = 129.2h und
-            // 5 Ferien-Tage × WoStd/7 = 24.29h, Summe 153.49h vs. Soll 150.57h).
-            // Der Festlohn wird dann per Math.Max(0, …)-Clamp auf 0 begrenzt.
-            //
-            // Eliminiert die früheren „Korrektur Krankheit/Unfall"-Zeilen
-            // (Code 75/65) — bei FIX/FIX-M bleibt das Korrektur-Modell.
-            // Kürzung läuft über Stunden-Äquivalente → Soll (unten), nicht über
-            // vorgerundete Tagessatz-CHF.
-            // Zähl-Tage = «hätte gearbeitet»-Auswahl der Absenz (worked_days,
-            // Dienstplan-Regel Walter 13.08.2026): NICHT pauschal Sa/So
-            // wegnehmen — in der Gastro wird auch am Wochenende gearbeitet.
-            // Massgeblich ist die Tagesauswahl im Absenz-Modal («Welche Tage
-            // hätte der/die Mitarbeitende gearbeitet?»). Nur wenn KEINE
-            // Auswahl gepflegt ist, gilt die Voll-Wochen-Abkürzung Mo–Fr
-            // (5 Tage/Woche, Sa+So weg).
-            HashSet<DateOnly> GeplantTage(string typ)
-            {
-                var set = new HashSet<DateOnly>();
-                foreach (var ab in absences.Where(x => x.AbsenceType == typ))
-                {
-                    List<DateOnly>? days = null;
-                    if (!string.IsNullOrWhiteSpace(ab.WorkedDays))
-                    {
-                        try
-                        {
-                            days = System.Text.Json.JsonSerializer
-                                .Deserialize<string[]>(ab.WorkedDays)!
-                                .Select(s => DateOnly.TryParse(s, out var d) ? d : (DateOnly?)null)
-                                .Where(d => d.HasValue).Select(d => d!.Value).ToList();
-                        }
-                        catch { days = null; }
-                    }
-                    if (days is { Count: > 0 }) { foreach (var d in days) set.Add(d); }
-                    else
-                    {
-                        for (var d = ab.DateFrom; d <= ab.DateTo; d = d.AddDays(1))
-                            if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
-                                set.Add(d);
-                    }
-                }
-                return set;
-            }
-            var krankGeplant  = GeplantTage("KRANK");
-            var unfallGeplant = GeplantTage("UNFALL");
-            decimal mtpKrankWerktage = krankBreakdown
-                .Where(t => krankGeplant.Contains(t.Datum))
-                .Sum(t => t.Prozent / 100m);
-            decimal mtpUnfallWerktage = unfallBreakdown
-                .Where(t => unfallGeplant.Contains(t.Datum))
-                .Sum(t => t.Prozent / 100m);
-            // Tage-Anzeige (für Label/Saldo): mtpKrankTage/mtpUnfallTage spiegeln
-            // die Werktag-Zählung, NICHT die Kalendertage. Das ist konsistent
-            // zur 1/5-Logik (sonst wäre das Label inkonsistent zur Berechnung).
-            decimal mtpKrankTage  = mtpKrankWerktage;
-            decimal mtpUnfallTage = mtpUnfallWerktage;
+            // ── MTP Krank/Unfall (Walter 05.10.2026, docs/zeitgutschrift-krank-unfall-konzept.md) ──
+            // Geld zählt nach Kalendertagen, Zeit nach der Zeitgutschrift:
+            //   • Festlohn läuft voll (keine Kürzung um Krank/Unfall),
+            //   • Korrektur 75.1/65.1 = Garantie ÷ 7 × Stundenlohn × Krank-% pro Kalendertag,
+            //     dazu Karenz 88 % / Taggeld 80 % (weiter unten, wie FIX),
+            //   • die Zeitgutschrift (Dienstplan, danach 1/7) kürzt nur das Saldo-Soll.
+            // Löst die Festlohn-Kürzung «Garantie ÷ 5 pro geplantem Tag» (30.05.2026) ab.
+            // Wirkung «neutral» im Katalog = keine Zeitgutschrift; das Geld läuft trotzdem.
+            List<KrankUnfallZeitgutschrift.Tag> MtpZeitTage(string typ)
+                => GetAbsenzTyp(typ).WirkungMtp == "KEINE"
+                    ? new List<KrankUnfallZeitgutschrift.Tag>()
+                    : absences.Where(x => x.AbsenceType == typ)
+                        .SelectMany(x => KrankUnfallZeitgutschrift.Tage(x, emp, company, periodFrom, periodTo))
+                        .ToList();
+            var krankZeitTage  = MtpZeitTage("KRANK");
+            var unfallZeitTage = MtpZeitTage("UNFALL");
+            decimal mtpKrankTage  = krankBreakdown.Sum(t => t.Prozent / 100m);
+            decimal mtpUnfallTage = unfallBreakdown.Sum(t => t.Prozent / 100m);
 
-            // Stunden-Äquivalente (exakt, ungerundet) für die Subtraktion
-            // Ferien: 1/7-Kalender (alle Tage zählen)
-            // Krank/Unfall: 1/5-Werktag (NUR Mo-Fr zählen)
+            // Stunden-Äquivalente (exakt, ungerundet)
+            // Ferien: 1/7-Kalender (alle Tage zählen) — kürzt Festlohn und Saldo-Soll
+            // Krank/Unfall: Zeitgutschrift — kürzt nur das Saldo-Soll
             decimal ferienStundenAequivalent = mtpFerienTage * guaranteedH / 7m;
-            decimal krankStundenAequivalent  = mtpKrankWerktage  * guaranteedH / 5m;
-            decimal unfallStundenAequivalent = mtpUnfallWerktage * guaranteedH / 5m;
+            decimal krankStundenAequivalent  = krankZeitTage.Sum(t => t.Stunden);
+            decimal unfallStundenAequivalent = unfallZeitTage.Sum(t => t.Stunden);
             // Unbezahlter Urlaub (Walter-Vorgabe 27.06.2026): garantierte Soll-
             // Stunden um die UU-Tage kürzen — 1/7-Kalender wie Ferien. Dadurch
             // sinkt der Festlohn (= Soll × Stundenlohn); erreicht der MA die
@@ -2554,21 +2507,26 @@ public class PayrollCalculationEngine
                 mtpMilitaerTage += tage;
                 militaerStundenAequivalent += tage * guaranteedH / divisor;
             }
-            // Sollstunden für Stunden-Saldo + Festlohn-Anzahl-Spalte —
-            // mit EXAKTEN Werten, dann Cap auf 0 (Festlohn kann nie negativ).
+            // Lohn-Soll (Festlohn-Anzahl-Spalte) — EXAKT, dann Cap auf 0
+            // (Festlohn kann nie negativ). Krank/Unfall kürzen den Festlohn
+            // NICHT mehr (Walter 05.10.2026) — dafür gibt es 75.1/65.1.
             decimal sollStundenExakt = sollStundenVollExakt
                 - ferienStundenAequivalent
-                - krankStundenAequivalent
-                - unfallStundenAequivalent
                 - unbezUrlaubStundenAequivalent
                 - eoStundenAequivalent
                 - militaerStundenAequivalent;
             // Cap: bei voll abgedeckter Periode kann das Stunden-Total der
             // Abzüge das Pro-Rata-Soll geringfügig übersteigen (Ferien 1/7 +
-            // Krank 1/5 mischen sich) → auf 0 clampen.
+            // EO/Militär 1/5 mischen sich) → auf 0 clampen.
             if (sollStundenExakt < 0m) sollStundenExakt = 0m;
             // Toleranz-Clamp für Rundungs-Drift aus decimal-Arithmetik.
             if (Math.Abs(sollStundenExakt) < 0.01m) sollStundenExakt = 0m;
+            // Saldo-Soll = Lohn-Soll − Zeitgutschrift Krank/Unfall. Bewusst OHNE
+            // Cap: deckt der Dienstplan mehr als die Garantie ab, entstehen
+            // Plusstunden (Walter: «er muss auch ins Plus kommen können»).
+            decimal saldoSollExakt = sollStundenExakt - krankStundenAequivalent - unfallStundenAequivalent;
+            if (Math.Abs(saldoSollExakt) < 0.01m) saldoSollExakt = 0m;
+            decimal saldoSoll = PayrollCalculations.Rappen(saldoSollExakt);
             // Walter 31.07.2026 — keine Zwischenrundung:
             //   1) Stunden exakt bis Anzeige
             //   2) CHF-Produkt = Anzeige-Stunden × Satz (exakt, z.B. 81.43×21.66)
@@ -2581,10 +2539,10 @@ public class PayrollCalculationEngine
 
             // Stunden-Saldo inkl. Vormonat. workedHours = absolute Stempel (Tag+Nacht).
             // Krank/Unfall/Ferien kürzen das SOLL (oben), nicht die IST-Stempel.
-            // absenzGutschrift = bezahlte Absenzen (Schulung/Militär/NACHT_KOMP …),
+            // absenzGutschrift = bezahlte Absenzen (Schulung/NACHT_KOMP …),
             // bei MTP OHNE Krank/Unfall/Ferien (Walter 30.05. / 03.08.2026).
-            // EXAKT gegen sollStundenExakt — keine Zwischenrundung (Walter 31.07.2026).
-            decimal nettoH         = workedHours + absenzGutschrift - sollStundenExakt + vormonatHourSaldo;
+            // EXAKT gegen saldoSollExakt — keine Zwischenrundung (Walter 31.07.2026).
+            decimal nettoH         = workedHours + absenzGutschrift - saldoSollExakt + vormonatHourSaldo;
             // Filial-Schalter «Stunden-Saldo im Lohn verrechnen» (Walter 10.09.2026):
             // aus → keine «MTP + Stunden»-Zeile, Mehrstunden bleiben als Saldo stehen.
             bool stundenSaldoImLohnMtp = company?.StundenSaldoImLohnVerrechnen ?? true;
@@ -2618,33 +2576,13 @@ public class PayrollCalculationEngine
                             ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
                             : $"Austritt {periodTo:dd.MM.yyyy}";
                     mtpFestlohnLabel = $"{LabelFor("10.1", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
-                } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0 || mtpUnbezUrlaubTage > 0 || mtpEoTage > 0 || mtpMilitaerTage > 0) {
+                } else if (mtpFerienTage > 0 || mtpUnbezUrlaubTage > 0 || mtpEoTage > 0 || mtpMilitaerTage > 0) {
                     // Walter-Vorgabe 30.05.2026: nur Stunden im Label, keine CHF.
                     // Soll-Stunden minus Stunden-Äquivalente pro Absenz-Typ.
+                    // Krank/Unfall stehen nicht hier (Festlohn läuft voll), sondern
+                    // in 75.1/65.1 und im Saldo-Soll der Zeile «MTP + Stunden».
                     var teile = new List<string> { $"{sollStundenVoll:0.00}h Soll" };
                     if (ferienStundenAequivalent  > 0) teile.Add($"− {ferienStundenAequivalent:0.00}h Ferien");
-                    // Werktag/Wochenend-Split sichtbar machen (Walter 13.08.2026):
-                    // z.B. 4 Krank-Kalendertage = «2×4.20h + 2×0h» — Sa/So zählen
-                    // für die Festlohn-Kürzung mit 0 (Lohnersatz via KTG-Zeilen).
-                    // Aufschlüsselung (Walter 13.08.2026): geplante Arbeitstage
-                    // × Tagessatz + nicht eingeplante Tage × 0 — z.B.
-                    // «2×4.20h + 2×0h nicht eingeplant» bei 4 Kalendertagen.
-                    if (krankStundenAequivalent > 0)
-                    {
-                        decimal krankFrei = krankBreakdown.Sum(t => t.Prozent / 100m) - mtpKrankWerktage;
-                        string det = krankFrei > 0.004m
-                            ? $" [{mtpKrankWerktage:0.##}×{guaranteedH / 5m:0.00}h + {krankFrei:0.##}×0h nicht eingeplant]"
-                            : "";
-                        teile.Add($"− {krankStundenAequivalent:0.00}h Krank{det}");
-                    }
-                    if (unfallStundenAequivalent > 0)
-                    {
-                        decimal unfallFrei = unfallBreakdown.Sum(t => t.Prozent / 100m) - mtpUnfallWerktage;
-                        string det = unfallFrei > 0.004m
-                            ? $" [{mtpUnfallWerktage:0.##}×{guaranteedH / 5m:0.00}h + {unfallFrei:0.##}×0h nicht eingeplant]"
-                            : "";
-                        teile.Add($"− {unfallStundenAequivalent:0.00}h Unfall{det}");
-                    }
                     if (unbezUrlaubStundenAequivalent > 0) teile.Add($"− {unbezUrlaubStundenAequivalent:0.00}h Unbez. Urlaub");
                     // EO: 1/7-Kalender wie Ferien (kein Dienstplan während Mutterschaft)
                     if (eoStundenAequivalent > 0) teile.Add($"− {eoStundenAequivalent:0.00}h Mutter-/Vaterschaft");
@@ -2702,10 +2640,19 @@ public class PayrollCalculationEngine
             {
                 // Walter-Vorgabe 30.05.2026: Label transparent machen — Walter
                 // soll im Label sehen WIE die Mehrstunden entstehen.
-                // Formel: nettoH = workedHours + absenzGutschrift - sollStundenExakt + vormonat
+                // Formel: nettoH = workedHours + absenzGutschrift - saldoSollExakt + vormonat
                 // Anzeige: Ist/Soll gerundet (Rechnung blieb exakt).
                 decimal istStunden = PayrollCalculations.Rappen(workedHours + absenzGutschrift);
-                string mtpStdLabel = $"MTP + Stunden ({istStunden:0.00}h Ist − {sollStunden:0.00}h Soll";
+                string mtpStdLabel = $"MTP + Stunden ({istStunden:0.00}h Ist − {saldoSoll:0.00}h Soll";
+                if (krankStundenAequivalent > 0 || unfallStundenAequivalent > 0)
+                {
+                    var zg = new List<string>();
+                    if (krankStundenAequivalent > 0)
+                        zg.Add($"Krank {PayrollCalculations.Rappen(krankStundenAequivalent):0.00}h ({KrankUnfallZeitgutschrift.Erklaerung(krankZeitTage)})");
+                    if (unfallStundenAequivalent > 0)
+                        zg.Add($"Unfall {PayrollCalculations.Rappen(unfallStundenAequivalent):0.00}h ({KrankUnfallZeitgutschrift.Erklaerung(unfallZeitTage)})");
+                    mtpStdLabel += $" [Soll nach Zeitgutschrift {string.Join(", ", zg)}]";
+                }
                 if (vormonatHourSaldo > 0) mtpStdLabel += $" + {vormonatHourSaldo:0.00}h Vormonat";
                 else if (vormonatHourSaldo < 0) mtpStdLabel += $" − {Math.Abs(vormonatHourSaldo):0.00}h Vormonat";
                 mtpStdLabel += ")";
@@ -2763,11 +2710,28 @@ public class PayrollCalculationEngine
             AddLohnersatz("70.1", krank88Mtp);
             AddLohnersatz("70.2", krank80Mtp);
 
-            // Walter-Vorgabe 30.05.2026: Korrektur Krankheit (Code 75) wird bei MTP
-            // NICHT mehr gebucht — die Lohn-Kürzung wegen Krankheit ist bereits
-            // direkt am Festlohn vorgenommen (festlohnKrankKuerzung mit MTP-Tagessatz).
-            // Eine zusätzliche Korrektur-Zeile mit KTG-Tagessatz wäre Doppelbuchung.
-            // krankBvgKorrekturMtp bleibt unberührt (BVG-Wartefrist).
+            // Korrektur Krankheit 75.1 (Walter 05.10.2026, wie FIX): der Festlohn
+            // läuft voll, pro Kalendertag −Garantie ÷ 7 × Stundenlohn × Krank-%.
+            // Ferien/13. ML/Feiertag nach den Häkchen von 75.1 (die Basis sinkt
+            // wieder, weil der Tagessatz der 88/80-Zeilen diese Anteile enthält).
+            decimal korrekturTagMtp = guaranteedH / 7m * hourlyRate;
+            decimal krankKorrekturExactMtp = krankBreakdown.Sum(t => t.Prozent / 100m) * korrekturTagMtp;
+            decimal krankKorrekturMtp = PayrollCalculations.Rappen(krankKorrekturExactMtp);
+            if (krankKorrekturMtp > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = LabelFor("75.1", "Korrektur Krankheit"),
+                    code    = "75.1",
+                    anzahl  = (decimal?)krankBreakdown.Count,
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)PayrollCalculations.Rappen(korrekturTagMtp),
+                    betrag  = -krankKorrekturMtp,
+                    accrued = (decimal?)(-krankKorrekturMtp)
+                });
+                totalLohn -= krankKorrekturMtp;
+                AddAmount("75.1", -krankKorrekturExactMtp, -krankKorrekturMtp);
+                Grundzeile("75.1", -krankKorrekturMtp);
+            }
             if (krank88Mtp > 0)
             {
                 lohnLines.Add(new {
@@ -2816,10 +2780,24 @@ public class PayrollCalculationEngine
             AddLohnersatz("60.2", unfall88Mtp);
             AddLohnersatz("60.3", unfall80Mtp);
 
-            // Walter-Vorgabe 30.05.2026: Korrektur Unfall (Code 65) wird bei MTP
-            // NICHT mehr gebucht — Festlohn-Kürzung erfolgt bereits direkt am
-            // Festlohn (festlohnUnfallKuerzung mit MTP-Tagessatz). unfallBvgKorrekturMtp
-            // bleibt unberührt (BVG-Wartefrist).
+            // Korrektur Unfall 65.1 (Walter 05.10.2026) — wie 75.1.
+            decimal unfallKorrekturExactMtp = unfallBreakdown.Sum(t => t.Prozent / 100m) * korrekturTagMtp;
+            decimal unfallKorrekturMtp = PayrollCalculations.Rappen(unfallKorrekturExactMtp);
+            if (unfallKorrekturMtp > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = LabelFor("65.1", "Korrektur Unfall"),
+                    code    = "65.1",
+                    anzahl  = (decimal?)unfallBreakdown.Count,
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)PayrollCalculations.Rappen(korrekturTagMtp),
+                    betrag  = -unfallKorrekturMtp,
+                    accrued = (decimal?)(-unfallKorrekturMtp)
+                });
+                totalLohn -= unfallKorrekturMtp;
+                AddAmount("65.1", -unfallKorrekturExactMtp, -unfallKorrekturMtp);
+                Grundzeile("65.1", -unfallKorrekturMtp);
+            }
             if (unfall88Mtp > 0)
             {
                 lohnLines.Add(new {
@@ -3335,7 +3313,7 @@ public class PayrollCalculationEngine
                     VormonatHourSaldo:    vormonatHourSaldo,
                     NeuerHourSaldo:       neuerSaldo,
                     WorkedHours:          workedHours,
-                    SollStunden:          sollStunden,
+                    SollStunden:          saldoSoll,   // Saldo-Soll (nach Zeitgutschrift Krank/Unfall)
                     Mehrstunden:          mehrstundenAus,
                     // Anzeige gerundet — Rechnung lief exakt bis Mehrstunden/CHF
                     AbsenzGutschrift:     PayrollCalculations.Rappen(absenzGutschrift),

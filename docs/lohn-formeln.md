@@ -54,11 +54,30 @@ Mehrstunden    = gestempelt über Soll → Code 55.3 (MTP-Zusatzstunden)
 ```
 Vom Soll werden abgezogen (nur Stunden, Lohnersatz separat):
 - **Ferien:** `WoStd / 7` pro Ferien-KALENDERtag (Sa+So zählen mit)
-- **Krank/Unfall:** `WoStd / 5` pro «hätte gearbeitet»-Tag laut Dienstplan-Auswahl
-  (`absence.worked_days`); ohne Auswahl: Mo–Fr-Pauschale
-- **EO Mutter-/Vaterschaft:** Divisor aus Absenz-Typ-Katalog (`GutschriftModus` 1/7 → ÷7
-  alle Kalendertage, 1/5 → ÷5), Default 1/7
+- **Unbezahlter Urlaub / EO Mutter-/Vaterschaft / Militär:** nur wenn der Katalog
+  «Soll reduzieren» verlangt (`wirkung_mtp`); Divisor aus dem Katalog, Default 1/7
 - **Cap:** Festlohn nie < 0 (`Math.Max(0, …)`) — bei voll abgedeckter Periode 0.00
+- **Krank/Unfall kürzen den Festlohn NICHT** (Walter 05.10.2026) — siehe unten.
+
+**MTP Krankheit/Unfall (Walter 05.10.2026, ersetzt die Festlohn-Kürzung vom 30.05.2026):**
+Geld zählt nach Kalendertagen, Zeit nach der Zeitgutschrift.
+```
+Festlohn 10.1   = Lohn-Soll × HourlyRate                 (Lohn-Soll ohne Krank/Unfall-Abzug)
+Korrektur 75.1  = − Σ Krank-Kalendertage × Krank-%  × WoStd/7 × HourlyRate
+Korrektur 65.1  = − Σ Unfall-Kalendertage × Unfall-% × WoStd/7 × HourlyRate
+Karenz/Taggeld  = 88 % / 80 % × KTG-Tagessatz pro Kalendertag     (70.1/70.2 · 60.2/60.3)
+Saldo-Soll      = Lohn-Soll − Zeitgutschrift Krank − Zeitgutschrift Unfall   (ohne Cap)
+Stunden-Saldo   = Ist + Absenz-Gutschrift − Saldo-Soll + Vormonat
+```
+- Zeitgutschrift = `Services/KrankUnfallZeitgutschrift.cs` (Methode der Filiale, «Dienstplan
+  bis», Arbeitstage pro Woche — `docs/zeitgutschrift-krank-unfall-konzept.md`). Wirkung MTP
+  «neutral» im Katalog = keine Zeitgutschrift (das Geld läuft trotzdem).
+- Minusstunden werden nicht vom Lohn abgezogen (Nachholen), Plusstunden über 55.3 bezahlt.
+- 75.1/65.1 tragen das Häkchen «Basis Ferien» (Schema-Stand 52): der KTG-Tagessatz der
+  88/80-Zeilen enthält Ferien und 13. ML, darum muss die Korrektur diese Anteile aus der
+  Basis wieder herausnehmen — sonst gäbe es Ferien doppelt.
+- Ganzer Monat krank: Festlohn = Korrektur (beide `WoStd/7 × Periodentage`), es bleibt
+  nur Karenz/Taggeld.
 
 **Anzeige 100 %:** Vertrags-Card «Garantiert/Monat» = `WoStd × HourlyRate × 52/12`
 (nur Anzeige/Vertragstext — NICHT Periodenlohn).
@@ -221,7 +240,9 @@ Korrektur (läuft über den 13.-Saldo).
   mit Häkchen in die 13.-Basis). «Feiertag» auf 70.x/60.x = Basis der Feiertagentschädigung
   auf Lohnersatz (fehlt die Lohnposition: zählt).
 - Gezahlt wird auf **Kalendertagen** (Versicherung zahlt auch Sa+So).
-- **MTP:** Festlohn-Kürzung statt Korrektur-Zeile (Stunden ÷5 laut Dienstplan, Abschnitt 2).
+- **MTP:** Korrektur-Modell wie FIX (Walter 05.10.2026) — Festlohn läuft, Korrektur 75.1/65.1
+  = WoStd/7 × HourlyRate pro Kalendertag; die Zeitgutschrift wirkt nur aufs Saldo-Soll
+  (Abschnitt 2, «MTP Krankheit/Unfall»).
 - **FIX/FIX-M:** Korrektur-Modell — Monatslohn läuft weiter, Korrektur Codes 75.1 (Krank) /
   65.1 (Unfall) negativ, Taggeld positiv.
 - Karenz-Tage gemäss Filial-Konfiguration (`KarenzService`); Taggeld 80 % ist zugleich

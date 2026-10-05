@@ -61,7 +61,7 @@ Pott Tage = Vormonat Tage + Accrual Tage
 Auszahlung = (PottCHF/PottTage) × bezogen   Cap = Pott CHF
 ```
 
-**MTP Festlohn:** Soll = `H/7 × Periodentage`, gekürzt um Ferien×H/7 + Krank/Unfall-Werktage×H/5.
+**MTP Festlohn:** Soll = `H/7 × Periodentage`, gekürzt um Ferien×H/7 (+ UU/EO/Militär nach Katalog). Krank/Unfall (05.10.2026): Festlohn läuft, Korrektur 75.1/65.1 = Kalendertage × H/7 × Stundenlohn, Zeitgutschrift nur fürs Saldo-Soll (`docs/lohn-formeln.md`).
 
 ## 11–15. 13. ML, KTG, SV, QST, Netto
 

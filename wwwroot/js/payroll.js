@@ -1735,7 +1735,7 @@ async function jumpToMaForBankEntry(employeeId) {
 // kommt eine kompakte „Stunden Lohnperiode"-Card, die zeigt:
 //   • Pro-Rata-Soll Periode
 //   • Abzug Ferien (1/7-Kalender)
-//   • Abzug Krank/Unfall (1/5-Werktag)
+//   • Abzug Krank/Unfall (Zeitgutschrift, MTP nur Saldo-Soll)
 //   • Effektives Soll
 //   • Gestempelt (Ist) + Absenz-Gutschrift
 //   • Vormonat-Saldo
@@ -1757,8 +1757,10 @@ function renderStundenCard(s) {
     const soll       = Number(s.sollStunden ?? 0);
     const sollVoll   = Number(s.sollStundenVoll ?? soll);
     const ferienRed  = Number(s.sollFerienReduktion ?? 0);
-    // Krank/Unfall-Reduktion ist sollVoll - ferien - soll (Restdifferenz)
-    const krankUnfallRed = Math.max(0, sollVoll - ferienRed - soll);
+    // MTP: Krank/Unfall = Zeitgutschrift (Dienstplan, danach 1/7) — kürzt nur das
+    // Saldo-Soll; der Rest (Unbez. Urlaub/EO/Militär) ist sollVoll − Ferien − soll − ZG.
+    const zgRed = isMtp ? Number(s.sollKrankReduktion ?? 0) + Number(s.sollUnfallReduktion ?? 0) : 0;
+    const krankUnfallRed = Math.max(0, sollVoll - ferienRed - soll - zgRed);
     const worked     = Number(s.workedHours ?? 0);
     const absenz     = Number(s.absenzGutschrift ?? 0);
     const ist        = worked + absenz;
@@ -1791,7 +1793,8 @@ function renderStundenCard(s) {
         <div style="padding:8px 18px 14px">
             ${row('Soll voll (Pro-Rata)', fNum(sollVoll) + ' h')}
             ${ferienRed > 0 ? row('− Ferien (1/7-Kalender)', '−' + fNum(ferienRed) + ' h', { color:'#dc2626' }) : ''}
-            ${krankUnfallRed > 0 ? row(isMtp ? '− Krank/Unfall (1/5-Werktag)' : '− Absenz-Kürzung (Krank/Unfall/Militär/EO)', '−' + fNum(krankUnfallRed) + ' h', { color:'#dc2626' }) : ''}
+            ${zgRed > 0 ? row('− Krank/Unfall (Zeitgutschrift)', '−' + fNum(zgRed) + ' h', { color:'#dc2626' }) : ''}
+            ${krankUnfallRed > 0 ? row(isMtp ? '− Unbez. Urlaub / EO / Militär' : '− Absenz-Kürzung (Krank/Unfall/Militär/EO)', '−' + fNum(krankUnfallRed) + ' h', { color:'#dc2626' }) : ''}
             ${row('Effektives Soll', fNum(soll) + ' h', { bold:true })}
             ${row('Gestempelt (Ist)', fNum(worked) + ' h')}
             ${absenz > 0 ? row('+ Absenz-Gutschrift', '+' + fNum(absenz) + ' h', { muted:true }) : ''}

@@ -137,9 +137,9 @@ public class MtpStundenReportController : ControllerBase
                       && em.EmploymentModel == "MTP"
                       && em.ContractStartDate <= w1Dt
                       && (em.ContractEndDate == null || em.ContractEndDate >= w0Dt))
-            .Select(em => new { em.EmployeeId, em.ContractStartDate, em.ContractEndDate,
-                                em.GuaranteedHoursPerWeek })
             .ToListAsync();
+        var filiale = await _db.CompanyProfiles.AsNoTracking()
+            .FirstOrDefaultAsync(cp => cp.Id == companyProfileId);
         var empIds = contracts.Select(c => c.EmployeeId).Distinct().ToList();
 
         // Aktiv-Filter wie Notfall-Liste (Walter 25.08.2026): Kündigungen raus,
@@ -181,13 +181,12 @@ public class MtpStundenReportController : ControllerBase
         // Absenzen im Bereich + Katalog-Divisoren.
         var absences = await _db.Absences.AsNoTracking()
             .Where(a => ids.Contains(a.EmployeeId) && a.DateFrom <= w1 && a.DateTo >= w0)
-            .Select(a => new { a.EmployeeId, a.AbsenceType, a.DateFrom, a.DateTo,
-                               a.WorkedDays, a.Prozent })
             .ToListAsync();
-        var typZaehlweise = (await _db.AbsenzTypen.AsNoTracking()
-                .Select(t => new { t.Code, t.ZaehlweiseMtp })
+        var typKatalog = (await _db.AbsenzTypen.AsNoTracking()
+                .Select(t => new { t.Code, t.ZaehlweiseMtp, t.WirkungMtp })
                 .ToListAsync())
-            .GroupBy(t => t.Code).ToDictionary(g => g.Key, g => g.First().ZaehlweiseMtp);
+            .GroupBy(t => t.Code).ToDictionary(g => g.Key, g => g.First());
+        var typZaehlweise = typKatalog.ToDictionary(kv => kv.Key, kv => kv.Value.ZaehlweiseMtp);
 
         // Schwangerschaft/Mutterschutz-Badge (Walter 25.08.2026) — gleiche
         // Fenster-Logik wie die MA-Liste (16 Wochen nach Geburt/ET).
@@ -219,37 +218,6 @@ public class MtpStundenReportController : ControllerBase
             var gueltigAb = e.EntryDate.HasValue ? DateOnly.FromDateTime(e.EntryDate.Value) : DateOnly.MinValue;
             var gueltigBis = e.ExitDate.HasValue ? DateOnly.FromDateTime(e.ExitDate.Value) : DateOnly.MaxValue;
 
-            // Krank/Unfall: geplante Tage (worked_days JSON, Fallback Mo–Fr).
-            HashSet<DateOnly> GeplantTage(string typ)
-            {
-                var set = new HashSet<DateOnly>();
-                foreach (var ab in absLookup[e.Id].Where(x => x.AbsenceType == typ))
-                {
-                    List<DateOnly>? days = null;
-                    if (!string.IsNullOrWhiteSpace(ab.WorkedDays))
-                    {
-                        try
-                        {
-                            days = System.Text.Json.JsonSerializer
-                                .Deserialize<string[]>(ab.WorkedDays)!
-                                .Select(s => DateOnly.TryParse(s, out var d) ? d : (DateOnly?)null)
-                                .Where(d => d.HasValue).Select(d => d!.Value).ToList();
-                        }
-                        catch { days = null; }
-                    }
-                    if (days is { Count: > 0 }) { foreach (var d in days) set.Add(d); }
-                    else
-                    {
-                        for (var d = ab.DateFrom; d <= ab.DateTo; d = d.AddDays(1))
-                            if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
-                                set.Add(d);
-                    }
-                }
-                return set;
-            }
-            var krankGeplant  = GeplantTage("KRANK");
-            var unfallGeplant = GeplantTage("UNFALL");
-
             var weekVals = new List<MtpWeekCell?>();
             decimal sum = 0m; int cnt = 0;
             foreach (var mo in wochen)
@@ -276,14 +244,11 @@ public class MtpStundenReportController : ControllerBase
                             break;
                         case "KRANK":
                         case "UNFALL":
-                        {
-                            var geplant = a.AbsenceType == "KRANK" ? krankGeplant : unfallGeplant;
-                            int tage = 0;
-                            for (var d = f; d <= t; d = d.AddDays(1))
-                                if (geplant.Contains(d)) tage++;
-                            absenz += tage * garantiertH / 5m * (a.Prozent / 100m);
+                            // Zeitgutschrift wie im Lohn (Dienstplan, danach 1/7 —
+                            // Services/KrankUnfallZeitgutschrift.cs). «Neutral» = 0.
+                            if (typKatalog.GetValueOrDefault(a.AbsenceType)?.WirkungMtp != "KEINE")
+                                absenz += KrankUnfallZeitgutschrift.Tage(a, c, filiale, f, t).Sum(x => x.Stunden);
                             break;
-                        }
                         case "MUTT_VATER":
                         case "MUTTERSCHAFT":
                         case "VATERSCHAFT":

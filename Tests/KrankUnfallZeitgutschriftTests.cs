@@ -187,4 +187,82 @@ public class KrankUnfallZeitgutschriftTests
         var json = AbsencesController.TageBisPlanende("[\"2026-09-03\",\"2026-09-01\",\"2026-09-07\"]", D(9, 5));
         Assert.Equal("[\"2026-09-01\",\"2026-09-03\"]", json);
     }
+
+    [Fact]
+    public void MTP_Garantie_21_Plan_bis_Mittwoch_danach_ein_Siebtel()
+    {
+        // Mo 07.09.–So 13.09., Dienstplan bis Mi 09.09., geplant Mo + Mi.
+        // Vorschlag 2.5 Arbeitstage → 21 ÷ 2.5 = 8.4 h pro geplantem Tag,
+        // Di 0 h, Do–So 4 × 21 ÷ 7 = 12 h → 28.8 h (mehr als die Garantie: Plusstunden).
+        var a = new Absence
+        {
+            AbsenceType = "KRANK", DateFrom = D(9, 7), DateTo = D(9, 13), Prozent = 100m,
+            DienstplanBis = D(9, 9), WorkedDays = "[\"2026-09-07\",\"2026-09-09\"]",
+        };
+        var emp = new Employment { EmploymentModel = "MTP", GuaranteedHoursPerWeek = 21m };
+        var filiale = new CompanyProfile { NormalWeeklyHours = 42m, ZeitgutschriftKrankMethode = Plan };
+        Assert.Equal(28.8m, KrankUnfallZeitgutschrift.Stunden(a, emp, filiale));
+    }
+
+    // ── MTP-Geldmodell (Quelltext-Wächter, Muster FeiertagLohnersatzTests) ──
+    // Festlohn läuft voll, Korrektur 75.1/65.1 = Garantie ÷ 7 × Stundenlohn pro
+    // Kalendertag, die Zeitgutschrift kürzt nur das Saldo-Soll.
+
+    private static string Quelle(string relPfad)
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir != null && !File.Exists(Path.Combine(dir, "hr-system.csproj")))
+            dir = Directory.GetParent(dir)?.FullName;
+        return File.ReadAllText(Path.Combine(dir ?? throw new InvalidOperationException("hr-system.csproj fehlt"), relPfad));
+    }
+
+    private static string MtpBlock()
+    {
+        var src = Quelle("Services/PayrollCalculationEngine.cs");
+        int von = src.IndexOf("// ── MTP Krank/Unfall (Walter 05.10.2026", StringComparison.Ordinal);
+        int bis = src.IndexOf("// ── Feiertagentschädigung auf Lohnersatz", von, StringComparison.Ordinal);
+        Assert.True(von > 0 && bis > von, "MTP-Block nicht gefunden");
+        return src[von..bis];
+    }
+
+    [Fact]
+    public void MTP_Festlohn_wird_nicht_um_Krank_Unfall_gekuerzt()
+    {
+        var block = MtpBlock();
+        int s = block.IndexOf("decimal sollStundenExakt = sollStundenVollExakt", StringComparison.Ordinal);
+        string lohnSoll = block[s..block.IndexOf(';', s)];
+        Assert.DoesNotContain("krank", lohnSoll, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("unfall", lohnSoll, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("guaranteedH / 5m", block);
+    }
+
+    [Fact]
+    public void MTP_Saldo_rechnet_gegen_Soll_nach_Zeitgutschrift()
+    {
+        var block = MtpBlock();
+        Assert.Contains("saldoSollExakt = sollStundenExakt - krankStundenAequivalent - unfallStundenAequivalent", block);
+        Assert.Contains("nettoH         = workedHours + absenzGutschrift - saldoSollExakt", block);
+        Assert.Contains("KrankUnfallZeitgutschrift.Tage(x, emp, company, periodFrom, periodTo)", block);
+    }
+
+    [Fact]
+    public void MTP_bucht_Korrektur_75_1_und_65_1_pro_Kalendertag()
+    {
+        var block = MtpBlock();
+        Assert.Contains("decimal korrekturTagMtp = guaranteedH / 7m * hourlyRate;", block);
+        Assert.Contains("code    = \"75.1\"", block);
+        Assert.Contains("code    = \"65.1\"", block);
+        Assert.Contains("Grundzeile(\"75.1\", -krankKorrekturMtp);", block);
+        Assert.Contains("Grundzeile(\"65.1\", -unfallKorrekturMtp);", block);
+    }
+
+    [Fact]
+    public void Katalog_75_1_65_1_zaehlt_in_Ferien_Basis()
+    {
+        var program = Quelle("Program.cs");
+        Assert.Matches(@"const int SchemaStand = (5[2-9]|[6-9]\d|\d{3});", program);
+        Assert.Contains("if (dbStand < 52)", program);
+        Assert.Contains("UPDATE lohnposition SET zaehlt_als_basis_ferien = true\n             WHERE code IN ('75.1', '65.1')",
+            program.Replace("\r\n", "\n"));
+    }
 }
