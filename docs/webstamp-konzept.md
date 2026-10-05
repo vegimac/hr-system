@@ -23,6 +23,26 @@ pro Empfänger.
 - Einschreiben: Der Druckservice gilt laut Post nur für Briefe **ohne Barcode**
   (A-/B-Post, Ausland). Einschreiben (Barcode) wäre nur mit Selbstdruck möglich —
   bei der Post nachfragen.
+
+## Zweiter Weg: Selbstdruck (Walter 05.10.2026, noch nicht gebaut)
+
+Walter will Briefe auch bei uns drucken: OneCrew bestellt nur die Frankatur und setzt
+sie selbst in den Brief. Nötig für **Einschreiben** (Kündigung) — Produkt mit
+`barcode = true`, Sendungsnummer kommt als `tracking_number` zurück, Rückschein über
+`return_code`. Im Antrag an die Post (Application-ID) so angegeben: Selbstdruck als
+Standard, Druck- und Versandservice für normale A-/B-Post.
+
+Bausteine laut Schnittstellenbeschreibung (`docs/webstamp/wsws-v6-schnittstelle.md`):
+- `new_order` mit `printservice = false`, `a_addresses` (Empfänger), `sender`.
+- Variante Bild: `single = false`, `file_type = png` (oder pdf), `print_zone = 1`
+  (Frankierzone) → pro Stamp `print_data` + `image_width_mm`/`image_height_mm`;
+  OneCrew setzt das Bild über der Adresse ins Fenster.
+- Variante Medium: `custom_media` (`type = letter`, A4, `franking_x/y`,
+  `recipient_x/y`) mit `single = true`, `file_type = pdf` → die Post liefert eine
+  A4-Seite mit Frankatur und Adresse an unseren Fenster-Massen.
+- Vorher immer `new_order_preview` (kostenlos).
+- In der Testumgebung klären: welche Variante, ob Einschreiben im Selbstdruck mit
+  unserem Fenster-Brief geht (oder Etikette nötig ist), Druckmedium-IDs (`get_medias`).
 - Echtbetrieb verlangt laut Post ein **Abnahmeprotokoll** und einen
   **Integrationsvertrag**. Erst danach die Sperre per Code-Änderung aufheben.
 
@@ -45,6 +65,7 @@ Kontakt Post: webservice.webstamp@swisspost.ch
 
 Fest im Code (`Services/WebStamp/WebStampEndpunkte.cs`), wie bei Swissdec.
 WSDL: `docs/webstamp/wsws-v6.wsdl` (am 24.09.2026 von der Testumgebung geholt).
+Schnittstellenbeschreibung der Post (V06.05): `docs/webstamp/wsws-v6-schnittstelle.md`.
 
 ## Technik
 
