@@ -240,7 +240,7 @@ function lsimRenderVergleich() {
                     <td style="padding:4px 6px">${_lsimChf(p.diffNetto)}</td>
                 </tr>`).join('')}</tbody>
             </table>
-            <div style="margin-top:8px;font-size:12px;color:#64748b">Δ = OneCrew minus Mirus. Mirus: 250.1 Bruttolohn, 1000.1 Nettolohn, 6000.1 Auszahlung. Klick auf einen Monat zeigt beide Lohnzettel Zeile für Zeile.</div>
+            <div style="margin-top:8px;font-size:12px;color:#64748b">Δ = OneCrew minus Mirus. Mirus: 250.1 Bruttolohn, 1000.1 Nettolohn, 6000.1 Auszahlung (OneCrew inkl. Lohnabtretung/Pfändung ans Amt). Klick auf einen Monat zeigt beide Lohnzettel Zeile für Zeile.</div>
         </div>`;
 
     const zellen = (ist, soll) => {

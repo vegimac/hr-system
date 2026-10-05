@@ -35,6 +35,15 @@ public class LohnSimulationTests
     }
 
     [Fact]
+    public void Lohnabtretung_zaehlt_im_Vergleich_zur_Auszahlung()
+    {
+        var slip = """{"auszahlungsbetrag":0,"lohnAbtretungen":[{"behoerdeName":"Amt A","betrag":1234.55},{"betrag":10.00}]}""";
+        Assert.Equal(1244.55m, LohnSimulationController.LohnAbtretungTotal(slip));
+        Assert.Equal(0m, LohnSimulationController.LohnAbtretungTotal("""{"auszahlungsbetrag":500}"""));
+        Assert.Equal(0m, LohnSimulationController.LohnAbtretungTotal(null));
+    }
+
+    [Fact]
     public void Erster_Monat_hat_keinen_Vormonat()
     {
         Assert.Null(LohnSimulationKontext.WaehleVormonat(new[] { Z(2026, 2, 5) }, 2026, 1));

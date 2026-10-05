@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using HrSystem.Data;
 using HrSystem.Services.Vorsystem;
@@ -75,14 +76,22 @@ public class LohnSimulationController : ControllerBase
     /// <summary>
     /// Brutto / Netto / Auszahlung pro MA und Monat: Simulation (Ist) gegen Mirus (Soll).
     /// Mirus: 250.1 Bruttolohn, 1000.1 Nettolohn, 6000.1 Auszahlung (AG-Teil).
+    /// Mirus-6000.1 enthält auch die Überweisung ans Amt (Lohnabtretung/Pfändung),
+    /// darum zählt die OneCrew-Auszahlung hier inkl. <c>lohnAbtretungen</c>.
     /// </summary>
     [HttpGet("vergleich")]
     public async Task<IActionResult> Vergleich([FromQuery] int companyProfileId, [FromQuery] int jahr)
     {
-        var sim = await _db.SimulationLoehne.AsNoTracking()
+        var sim = (await _db.SimulationLoehne.AsNoTracking()
             .Where(z => z.CompanyProfileId == companyProfileId && z.Jahr == jahr)
-            .Select(z => new { z.EmployeeId, z.Monat, z.Brutto, z.Netto, z.Auszahlung, z.Fehler, z.Sonderzahlungen })
-            .ToListAsync();
+            .Select(z => new { z.EmployeeId, z.Monat, z.Brutto, z.Netto, z.Auszahlung, z.Fehler, z.Sonderzahlungen, z.SlipJson })
+            .ToListAsync())
+            .Select(z => new
+            {
+                z.EmployeeId, z.Monat, z.Brutto, z.Netto, z.Fehler, z.Sonderzahlungen,
+                Auszahlung = z.Auszahlung + LohnAbtretungTotal(z.SlipJson),
+            })
+            .ToList();
         var codes = new[] { "250.1", "1000.1", "6000.1" };
         var mirus = await _db.VorsystemLohnkonten.AsNoTracking()
             .Where(v => v.CompanyProfileId == companyProfileId && v.Jahr == jahr && codes.Contains(v.Code)
@@ -153,6 +162,17 @@ public class LohnSimulationController : ControllerBase
             },
             mirus,
         });
+    }
+
+    /// <summary>Summe der Lohnabtretungen/Pfändungen, die OneCrew direkt ans Amt überweist.</summary>
+    public static decimal LohnAbtretungTotal(string? slipJson)
+    {
+        if (string.IsNullOrWhiteSpace(slipJson)) return 0m;
+        if (JsonNode.Parse(slipJson)?["lohnAbtretungen"] is not JsonArray arr) return 0m;
+        return arr.OfType<JsonObject>()
+            .Select(a => a["betrag"])
+            .Where(b => b is JsonValue v && v.GetValueKind() == JsonValueKind.Number)
+            .Sum(b => b!.GetValue<decimal>());
     }
 
     /// <summary>Jede Zeile aus den «…Lines»-Listen des Lohnzettels (Lohn, Zulagen, Abzüge).</summary>
