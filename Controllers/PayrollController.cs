@@ -934,9 +934,14 @@ public class PayrollController : HrControllerBase
         var stichEnd   = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
 
         // Bezogene Ferien + Feiertage + Nacht-Kompensation im Bereich Jan..Stichtag.
+        // Welche Absenz welchen Saldo reduziert, steht im Katalog (wie im Lohnlauf).
+        var ferienCodes   = await AbsenzSaldoTypen.CodesAsync(_db, AbsenzSaldoTypen.FerienTage);
+        var feiertagCodes = await AbsenzSaldoTypen.CodesAsync(_db, AbsenzSaldoTypen.FeiertagTage);
+        var nachtCodes    = await AbsenzSaldoTypen.CodesAsync(_db, AbsenzSaldoTypen.NachtStunden);
+        var saldoCodes = ferienCodes.Concat(feiertagCodes).Concat(nachtCodes).Distinct().ToList();
         var ferAbs = await _db.Absences.AsNoTracking()
             .Where(a => empIds.Contains(a.EmployeeId)
-                     && (a.AbsenceType == "FERIEN" || a.AbsenceType == "FEIERTAG" || a.AbsenceType == "NACHT_KOMP")
+                     && saldoCodes.Contains(a.AbsenceType)
                      && a.DateFrom <= stichEnd && a.DateTo >= yearStartD)
             .ToListAsync();
         var ferAbsByEmp = ferAbs.GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
@@ -1055,13 +1060,13 @@ public class PayrollController : HrControllerBase
             decimal nachtKomp = 0m;
             if (ferAbsByEmp.TryGetValue(e.EmployeeId, out var fa))
             {
-                bezug = fa.Where(a => a.AbsenceType == "FERIEN")
+                bezug = fa.Where(a => ferienCodes.Contains(a.AbsenceType))
                           .Sum(a => CountAbsenceDaysInPeriod(a, yearStartD, stichEnd));
-                feiertagBezug = fa.Where(a => a.AbsenceType == "FEIERTAG")
+                feiertagBezug = fa.Where(a => feiertagCodes.Contains(a.AbsenceType))
                           .Sum(a => CountAbsenceDaysInPeriod(a, yearStartD, stichEnd)
                                     * ((a.Prozent > 0 ? a.Prozent : 100m) / 100m));
                 // Nacht-Komp nur im Fenster ab Vortrag (sonst Doppelzählung).
-                nachtKomp = fa.Where(a => a.AbsenceType == "NACHT_KOMP")
+                nachtKomp = fa.Where(a => nachtCodes.Contains(a.AbsenceType))
                           .Sum(a => ScaleAbsenceHoursToPeriod(a, nachtFrom, stichEnd));
             }
 

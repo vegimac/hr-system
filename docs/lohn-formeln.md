@@ -134,6 +134,9 @@ Ferien- bzw. Feiertag-Tage-Saldo reduziert, steht im Absenz-Typ unter «Reduzier
 (`FERIEN_TAGE` / `FEIERTAG_TAGE`) — die Engine zählt `ferienTageGenommen` /
 `feiertagTageGenommen` daraus, nicht mehr über den Code. Den Feiertag-Saldo führt nur
 FIX/FIX-M. Die Maske warnt, wenn bei FERIEN/FEIERTAG der passende Saldo fehlt.
+Eine Quelle für alle: `Services/AbsenzSaldoTypen.cs` (Codes je Saldo aus dem Katalog,
+Standard FERIEN/FEIERTAG/NACHT_KOMP ohne aktiven Eintrag) — genutzt von Lohnrechnung
+(inkl. MTP-Ferientage und Ferienverbrauch seit Januar), Saldo-Liste und Akonto.
 
 ## 5. 13. Monatslohn
 

@@ -32,6 +32,7 @@ namespace HrSystem.Services;
 public class AkontoLaufService
 {
     private readonly AppDbContext        _db;
+    private HashSet<string>? _ferienCodes;
     private readonly Iso20022PainService _painSvc;
     private readonly LgavBeitragService  _lgav;
     private readonly KtgTagessatzService _ktgTagessatz;
@@ -375,8 +376,9 @@ public class AkontoLaufService
             case "FLEX":
             case "MTP":
                 // Regel 5/6: Stunden bis Stichtag × Rate + Ferien-Pott (nur abgeschlossene Bezüge)
+                _ferienCodes ??= await AbsenzSaldoTypen.CodesAsync(_db, AbsenzSaldoTypen.FerienTage);
                 (brutto, bruttoErlaeuterung) = ComputeBruttoHourly(
-                    e, emp, profile, periodFrom, periodTo, stichtag, timeEntries, absences, lastSaldo);
+                    e, emp, profile, periodFrom, periodTo, stichtag, timeEntries, absences, lastSaldo, _ferienCodes);
                 // Walter-Vorgabe 30.05.2026: bei UTP zusätzlich Krank-Karenz 88%
                 // (Tage VOR Stichtag × KTG-Tagessatz × 88%) und Feiertagentschädigung
                 // (% auf Brutto) ins Akonto-Brutto einrechnen. Diese Komponenten
@@ -596,7 +598,8 @@ public class AkontoLaufService
         DateOnly periodFrom, DateOnly periodTo, DateOnly stichtag,
         List<EmployeeTimeEntry> timeEntries,
         List<Absence> absences,
-        PayrollSaldo? lastSaldo)
+        PayrollSaldo? lastSaldo,
+        ISet<string> ferienCodes)
     {
         decimal hourly = emp.HourlyRate ?? 0m;
         var model = (emp.EmploymentModel ?? "").ToUpperInvariant();
@@ -639,7 +642,7 @@ public class AkontoLaufService
         {
             var empAbsences = absences.Where(a => a.EmployeeId == e.Id).ToList();
             decimal bezogeneTage = FerienAuszahlungService
-                .SumAbgeschlosseneFerientageBisStichtag(empAbsences, periodFrom, stichtag);
+                .SumAbgeschlosseneFerientageBisStichtag(empAbsences, periodFrom, stichtag, ferienCodes);
             // Walter-Vorgabe 06.06.2026 (Stufe 1b): aus der Filiale, altersaware
             decimal vacationPct = profile.DefaultVacationPercent5Weeks ?? 10.65m;
             if (e.DateOfBirth.HasValue)

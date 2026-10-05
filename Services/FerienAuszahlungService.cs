@@ -88,12 +88,13 @@ public class FerienAuszahlungService
     public static decimal SumAbgeschlosseneFerientageBisStichtag(
         IEnumerable<Absence> absences,
         DateOnly periodFrom,
-        DateOnly stichtag)
+        DateOnly stichtag,
+        ISet<string>? ferienCodes = null)
     {
         decimal sum = 0m;
         foreach (var a in absences)
         {
-            if (a.AbsenceType != "FERIEN") continue;
+            if (ferienCodes != null ? !ferienCodes.Contains(a.AbsenceType) : a.AbsenceType != "FERIEN") continue;
             if (a.DateFrom < periodFrom)  continue;   // ausserhalb der Periode
             if (a.DateTo   > stichtag)    continue;   // noch nicht abgeschlossen
             int days = a.DateTo.DayNumber - a.DateFrom.DayNumber + 1;

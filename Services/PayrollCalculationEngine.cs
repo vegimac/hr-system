@@ -483,7 +483,7 @@ public class PayrollCalculationEngine
         // Fallback-Konfiguration falls Tabelle noch leer (Backward-Compatibility)
         AbsenzTyp GetAbsenzTyp(string code) => absenzTypConfig.TryGetValue(code, out var t) ? t
             : new AbsenzTyp { Code = code, Zeitgutschrift = code != "FEIERTAG", GutschriftModus = code == "FERIEN" ? "1/7" : "1/5",
-                              ReduziertSaldo = code switch { "FERIEN" => "FERIEN_TAGE", "FEIERTAG" => "FEIERTAG_TAGE", _ => null } };
+                              ReduziertSaldo = AbsenzSaldoTypen.Standard(code) };
 
         // ── Mitarbeiter-Alter berechnen (für BVG, AHV-Schwellen) ─────────────
         // Schweizer Regel: Beitragspflicht gilt ab 1.1. des Jahres, in dem das
@@ -1047,7 +1047,7 @@ public class PayrollCalculationEngine
                 if (MatrixWirkung(typCfg))
                     utpAuszahlungStunden += hours;
             }
-            else if (isMTP && a.AbsenceType == "FERIEN")
+            else if (isMTP && typCfg.ReduziertSaldo == AbsenzSaldoTypen.FerienTage)
             {
                 // MTP + FERIEN: KEINE Zeitgutschrift (Walter-Regel).
                 // Die eigentliche Verarbeitung passiert im MTP-Block weiter
@@ -2418,7 +2418,7 @@ public class PayrollCalculationEngine
             // Walter-Vorgabe 30.05.2026: mtpFerienTage IMMER direkt aus den
             // Absencen zählen (Tage × Prozent/100). Keine Zwischenrundung.
             decimal mtpFerienTage = absences
-                .Where(a => a.AbsenceType == "FERIEN")
+                .Where(a => GetAbsenzTyp(a.AbsenceType).ReduziertSaldo == AbsenzSaldoTypen.FerienTage)
                 .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo)
                           * (a.Prozent > 0 ? a.Prozent / 100m : 1m));
             // Fallback NUR wenn keine Absencen erfasst sind, ferienStundenMtp
@@ -5944,8 +5944,9 @@ public class PayrollCalculationEngine
     private async Task<decimal> FerienVerbrauchtSeitJanuarAsync(int employeeId, int year, DateOnly periodFrom, DateOnly periodTo)
     {
         var jan1 = new DateOnly(year, 1, 1);
+        var ferienCodes = (await AbsenzSaldoTypen.CodesAsync(_db, AbsenzSaldoTypen.FerienTage)).ToList();
         var ferien = await _db.Absences.AsNoTracking()
-            .Where(a => a.EmployeeId == employeeId && a.AbsenceType == "FERIEN"
+            .Where(a => a.EmployeeId == employeeId && ferienCodes.Contains(a.AbsenceType)
                      && a.DateTo >= jan1 && a.DateFrom <= periodTo)
             .ToListAsync();
         decimal bezogen = ferien.Sum(a => (decimal)CountAbsenceDaysInPeriod(a, jan1, periodTo));
