@@ -1234,6 +1234,7 @@ function openAbsenzTypForm(t) {
             ? 'block' : 'none';
     atFeiertagWarnung();
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
+    atMxZwToggle();
     const vpEl = document.getElementById('atVerlaengertProbezeit');
     if (vpEl) vpEl.checked = d.verlaengertProbezeit ?? false;
     const zvSel = document.getElementById('atZvKuerzel');
@@ -2683,6 +2684,24 @@ function atFlexZwToggle() {
     if (!zw) return;
     zw.disabled = !an;
     zw.style.opacity = an ? '1' : '0.4';
+}
+
+// FIX/MTP: bei «Stunden neutral» rechnet die Engine weder Zählweise noch Basis.
+// Offen bleiben sie, wenn die Stunden trotzdem gebraucht werden: Nacht-Saldo-
+// Abbau (Reduziert Saldo) und bei MTP die Soll-Kürzung von EO/Militär, die
+// unabhängig von der Wirkung läuft.
+function atMxZwToggle() {
+    const code  = (document.getElementById('atCode')?.value || '').toUpperCase().trim();
+    const nacht = document.getElementById('atReduziertSaldo')?.value === 'NACHT_STUNDEN';
+    const mtpTypMechanik = ['MUTT_VATER', 'MUTTERSCHAFT', 'VATERSCHAFT', 'MILITAER', 'ZIVILSCHUTZ'].includes(code);
+    const setzen = (ids, an) => ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = !an;
+        el.style.opacity = an ? '1' : '0.4';
+    });
+    setzen(['atZwFix', 'atBasisFix'], document.getElementById('atWirkFix')?.value !== 'KEINE' || nacht);
+    setzen(['atZwMtp', 'atBasisMtp'], document.getElementById('atWirkMtp')?.value !== 'KEINE' || nacht || mtpTypMechanik);
 }
 
 // MTP/FLEX haben keinen Feiertag zugut (% pro Stunde, Walter 05.10.2026) —

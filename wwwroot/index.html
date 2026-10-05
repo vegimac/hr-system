@@ -6498,7 +6498,7 @@
                         <div style="display:grid;grid-template-columns:140px 1fr 90px;gap:14px">
                             <div>
                                 <span class="at-mx-lbl" style="margin-top:0">Code *</span>
-                                <input type="text" id="atCode" class="f-input" placeholder="z.B. KRANK" style="text-transform:uppercase;font-weight:700" oninput="atFeiertagWarnung()">
+                                <input type="text" id="atCode" class="f-input" placeholder="z.B. KRANK" style="text-transform:uppercase;font-weight:700" oninput="atMxZwToggle();atFeiertagWarnung()">
                             </div>
                             <div>
                                 <span class="at-mx-lbl" style="margin-top:0">Bezeichnung *</span>
@@ -6517,7 +6517,7 @@
                             <div class="at-mx-card">
                                 <div class="at-mx-kopf">FIX / FIX-M</div>
                                 <span class="at-mx-lbl">Wirkung</span>
-                                <select id="atWirkFix" class="f-input">
+                                <select id="atWirkFix" class="f-input" onchange="atMxZwToggle()">
                                     <option value="GUTSCHRIFT">Stunden gutschreiben</option>
                                     <option value="SOLL_KUERZUNG">Soll reduzieren</option>
                                     <option value="KEINE">Stunden neutral</option>
@@ -6537,7 +6537,7 @@
                             <div class="at-mx-card">
                                 <div class="at-mx-kopf">MTP</div>
                                 <span class="at-mx-lbl">Wirkung</span>
-                                <select id="atWirkMtp" class="f-input" onchange="atFeiertagWarnung()">
+                                <select id="atWirkMtp" class="f-input" onchange="atMxZwToggle();atFeiertagWarnung()">
                                     <option value="GUTSCHRIFT">Stunden gutschreiben</option>
                                     <option value="SOLL_KUERZUNG">Soll reduzieren</option>
                                     <option value="KEINE">Stunden neutral</option>
@@ -6585,7 +6585,7 @@
                         <div style="font-size:12px;font-weight:700;color:#6b6152;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Erweiterte Einstellungen</div>
                         <div style="max-width:380px">
                             <label class="f-label" for="atReduziertSaldo">Reduziert Saldo</label>
-                            <select id="atReduziertSaldo" class="f-input">
+                            <select id="atReduziertSaldo" class="f-input" onchange="atMxZwToggle()">
                                 <option value="">Keiner</option>
                                 <option value="NACHT_STUNDEN">Nacht-Saldo (Stunden)</option>
                                 <option value="FERIEN_TAGE">Ferien-Saldo (Tage)</option>
@@ -10030,7 +10030,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20261001a"></script>
 <script src="js/payroll-perioden.js?v=20261003b"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20261005a"></script>
+<script src="js/admin-settings.js?v=20261005b"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261001a"></script>
