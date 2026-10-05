@@ -1153,6 +1153,7 @@ async function loadAbsenzTypen() {
         const reduziertBadge = (r) => {
             if (r === 'NACHT_STUNDEN') return `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#ede9fe;color:#5b21b6">Nacht</span>`;
             if (r === 'FERIEN_TAGE')   return `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#15803d">Ferien</span>`;
+            if (r === 'FEIERTAG_TAGE') return `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#fef3c7;color:#92400e">Feiertag</span>`;
             return `<span style="color:#cbd5e1">—</span>`;
         };
 
@@ -1235,6 +1236,7 @@ function openAbsenzTypForm(t) {
     atFeiertagWarnung();
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
     atMxZwToggle();
+    atSaldoWarnung();
     const vpEl = document.getElementById('atVerlaengertProbezeit');
     if (vpEl) vpEl.checked = d.verlaengertProbezeit ?? false;
     const zvSel = document.getElementById('atZvKuerzel');
@@ -2716,6 +2718,26 @@ function atFeiertagFalsch() {
 function atFeiertagWarnung() {
     const el = document.getElementById('atFeiertagHint');
     if (el) el.style.display = atFeiertagFalsch() ? 'block' : 'none';
+    atSaldoWarnung();
+}
+
+// Ferien/Feiertag bauen ihren Tage-Saldo nur ab, wenn «Reduziert Saldo» passt —
+// die Lohnrechnung liest das aus dem Katalog.
+function atSaldoSoll() {
+    const code = (document.getElementById('atCode')?.value || '').toUpperCase().trim();
+    return code === 'FERIEN' ? 'FERIEN_TAGE' : code === 'FEIERTAG' ? 'FEIERTAG_TAGE' : null;
+}
+
+function atSaldoWarnung() {
+    const el = document.getElementById('atSaldoHint');
+    if (!el) return;
+    const soll = atSaldoSoll();
+    const ist  = document.getElementById('atReduziertSaldo')?.value || '';
+    if (!soll || ist === soll) { el.style.display = 'none'; return; }
+    el.textContent = soll === 'FERIEN_TAGE'
+        ? 'Achtung: Ferien reduzieren nur dann den Ferien-Saldo, wenn hier «Ferien-Saldo (Tage)» steht.'
+        : 'Achtung: Feiertage reduzieren bei FIX/FIX-M nur dann den Feiertag-Saldo, wenn hier «Feiertag-Saldo (Tage)» steht.';
+    el.style.display = 'block';
 }
 
 

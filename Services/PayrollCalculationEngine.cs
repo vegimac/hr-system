@@ -482,7 +482,8 @@ public class PayrollCalculationEngine
             .ToDictionaryAsync(t => t.Code, t => t);
         // Fallback-Konfiguration falls Tabelle noch leer (Backward-Compatibility)
         AbsenzTyp GetAbsenzTyp(string code) => absenzTypConfig.TryGetValue(code, out var t) ? t
-            : new AbsenzTyp { Code = code, Zeitgutschrift = code != "FEIERTAG", GutschriftModus = code == "FERIEN" ? "1/7" : "1/5" };
+            : new AbsenzTyp { Code = code, Zeitgutschrift = code != "FEIERTAG", GutschriftModus = code == "FERIEN" ? "1/7" : "1/5",
+                              ReduziertSaldo = code switch { "FERIEN" => "FERIEN_TAGE", "FEIERTAG" => "FEIERTAG_TAGE", _ => null } };
 
         // ── Mitarbeiter-Alter berechnen (für BVG, AHV-Schwellen) ─────────────
         // Schweizer Regel: Beitragspflicht gilt ab 1.1. des Jahres, in dem das
@@ -1134,11 +1135,12 @@ public class PayrollCalculationEngine
             ferienTageAccrual = Math.Round(Math.Max(0m, ferienTageAccrual - ferienKuerzungUu), 4);
         }
 
-        // Tatsächlich bezogene Ferientage aus FERIEN-Absenzen — nur Tage in
-        // der aktuellen Lohnperiode zählen (Absenzen können sich über mehrere
+        // Tatsächlich bezogene Ferientage — welche Absenz den Ferien-Saldo
+        // reduziert, steht im Katalog («Reduziert Saldo»). Nur Tage in der
+        // aktuellen Lohnperiode zählen (Absenzen können sich über mehrere
         // Perioden erstrecken).
         decimal ferienTageGenommen = 0;
-        foreach (var a in absences.Where(x => x.AbsenceType == "FERIEN"))
+        foreach (var a in absences.Where(x => GetAbsenzTyp(x.AbsenceType).ReduziertSaldo == "FERIEN_TAGE"))
         {
             ferienTageGenommen += CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
         }
@@ -1242,7 +1244,7 @@ public class PayrollCalculationEngine
                 decimal feiertagKuerzungUu = (0.5m * 12m) / 365m * unbezUrlaubTageFerien;
                 feiertagTageAccrual = Math.Round(Math.Max(0m, feiertagTageAccrual - feiertagKuerzungUu), 4);
             }
-            foreach (var a in absences.Where(x => x.AbsenceType == "FEIERTAG"))
+            foreach (var a in absences.Where(x => GetAbsenzTyp(x.AbsenceType).ReduziertSaldo == "FEIERTAG_TAGE"))
             {
                 decimal prozent = a.Prozent > 0 ? a.Prozent : 100m;
                 int tageInPeriode = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);

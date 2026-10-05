@@ -233,8 +233,9 @@ public class AbsenzTypenController : ControllerBase
         if (dto.ReduziertSaldo != null
             && dto.ReduziertSaldo != ""
             && dto.ReduziertSaldo != "NACHT_STUNDEN"
-            && dto.ReduziertSaldo != "FERIEN_TAGE")
-            return "ReduziertSaldo: erlaubt sind NACHT_STUNDEN, FERIEN_TAGE oder leer.";
+            && dto.ReduziertSaldo != "FERIEN_TAGE"
+            && dto.ReduziertSaldo != "FEIERTAG_TAGE")
+            return "ReduziertSaldo: erlaubt sind NACHT_STUNDEN, FERIEN_TAGE, FEIERTAG_TAGE oder leer.";
         if (dto.BasisStunden != null
             && dto.BasisStunden != ""
             && dto.BasisStunden != "BETRIEB"

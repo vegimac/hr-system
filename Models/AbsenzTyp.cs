@@ -40,6 +40,7 @@ public class AbsenzTyp
     /// Welcher Saldo wird durch diese Absenz reduziert?
     ///   NACHT_STUNDEN = Nacht-Saldo (NACHT_KOMP)
     ///   FERIEN_TAGE   = Ferien-Tage-Saldo (FERIEN)
+    ///   FEIERTAG_TAGE = Feiertag-Tage-Saldo (FEIERTAG, nur FIX/FIX-M führt ihn)
     ///   null          = reduziert keinen Saldo
     /// </summary>
     public string? ReduziertSaldo { get; set; }

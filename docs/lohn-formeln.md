@@ -129,6 +129,12 @@ keine 50.1. Gesteuert über den Katalog (`wirkung_mtp` / `wirkung_flex` = KEINE)
 Engine folgt ihm, die Absenz-Typ-Maske warnt (rot + Rückfrage beim Speichern), wenn
 dort etwas anderes eingestellt wird.
 
+**Tage-Saldi aus dem Katalog (Walter 05.10.2026, Schema-Stand 49):** Welche Absenz den
+Ferien- bzw. Feiertag-Tage-Saldo reduziert, steht im Absenz-Typ unter «Reduziert Saldo»
+(`FERIEN_TAGE` / `FEIERTAG_TAGE`) — die Engine zählt `ferienTageGenommen` /
+`feiertagTageGenommen` daraus, nicht mehr über den Code. Den Feiertag-Saldo führt nur
+FIX/FIX-M. Die Maske warnt, wenn bei FERIEN/FEIERTAG der passende Saldo fehlt.
+
 ## 5. 13. Monatslohn
 
 ```

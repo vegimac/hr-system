@@ -42,6 +42,17 @@ public class FeiertagNurFixTests
     }
 
     [Fact]
+    public void Engine_TageSaldiAusDemKatalog()
+    {
+        var src = File.ReadAllText(Path.Combine(RepoRoot, "Services/PayrollCalculationEngine.cs"));
+        Assert.Contains("GetAbsenzTyp(x.AbsenceType).ReduziertSaldo == \"FERIEN_TAGE\"", src);
+        Assert.Contains("GetAbsenzTyp(x.AbsenceType).ReduziertSaldo == \"FEIERTAG_TAGE\"", src);
+        var prog = File.ReadAllText(Path.Combine(RepoRoot, "Program.cs"));
+        Assert.Matches(@"SET reduziert_saldo = 'FEIERTAG_TAGE'\s+WHERE code = 'FEIERTAG' AND reduziert_saldo IS NULL", prog);
+        Assert.Matches(@"SET reduziert_saldo = 'FERIEN_TAGE'\s+WHERE code = 'FERIEN' AND reduziert_saldo IS NULL", prog);
+    }
+
+    [Fact]
     public void Katalog_FeiertagMtpFlexNeutral()
     {
         var src = File.ReadAllText(Path.Combine(RepoRoot, "Program.cs"));

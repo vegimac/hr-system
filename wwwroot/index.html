@@ -6585,13 +6585,14 @@
                         <div style="font-size:12px;font-weight:700;color:#6b6152;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Erweiterte Einstellungen</div>
                         <div style="max-width:380px">
                             <label class="f-label" for="atReduziertSaldo">Reduziert Saldo</label>
-                            <select id="atReduziertSaldo" class="f-input" onchange="atMxZwToggle()">
+                            <select id="atReduziertSaldo" class="f-input" onchange="atMxZwToggle();atSaldoWarnung()">
                                 <option value="">Keiner</option>
                                 <option value="NACHT_STUNDEN">Nacht-Saldo (Stunden)</option>
                                 <option value="FERIEN_TAGE">Ferien-Saldo (Tage)</option>
                                 <option value="FEIERTAG_TAGE">Feiertag-Saldo (Tage)</option>
                             </select>
                             <div style="color:#64748b;font-size:11px;margin-top:4px">Welcher Saldo wird durch diese Absenz reduziert?</div>
+                            <div id="atSaldoHint" style="display:none;margin-top:8px;padding:8px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-size:12px"></div>
                         </div>
                         
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:14px">
@@ -10030,7 +10031,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20261001a"></script>
 <script src="js/payroll-perioden.js?v=20261003b"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20261005b"></script>
+<script src="js/admin-settings.js?v=20261005c"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261001a"></script>
