@@ -35,7 +35,7 @@ function svhImpInit() {
     if (simBox) simBox.checked = sim;
     if (sim) {
         const inp = document.getElementById('svhImpPeriode');
-        if (inp) inp.value = `${window._lsimJahr || new Date().getFullYear()}-01`;
+        if (inp) inp.value = `${window._lsimVortragJahr || new Date().getFullYear()}-01`;
     } else {
         svhImpSetPeriodeFromOpenLohn(cpId);
     }

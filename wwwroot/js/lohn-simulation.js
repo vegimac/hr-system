@@ -36,7 +36,7 @@ function lsimInit() {
             : `⚠️ Bitte zuerst eine Filiale im Hauptmenü wählen.`;
     }
     const jahrInp = document.getElementById('lsimJahr');
-    if (jahrInp && !jahrInp.value) jahrInp.value = window._lsimJahr || new Date().getFullYear();
+    if (jahrInp && !jahrInp.value) jahrInp.value = window._lsimVortragJahr || new Date().getFullYear();
     const bis = document.getElementById('lsimBis');
     if (bis && !bis.options.length) {
         bis.innerHTML = _LSIM_MONATE.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
@@ -64,7 +64,7 @@ async function _lsimFehlertext(r) {
 /** Öffnet einen Saldo-Vortrag-Import mit gesetztem Häkchen «für die Simulation». */
 function lsimVortragImport(seite) {
     window._lsimVortragOeffnen = true;
-    window._lsimJahr = _lsimJahr();
+    window._lsimVortragJahr = _lsimJahr();
     showPage(seite);
 }
 

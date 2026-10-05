@@ -32,7 +32,7 @@ function svImpInit() {
     if (simBox) simBox.checked = sim;
     if (sim) {
         const inp = document.getElementById('svImpPeriode');
-        if (inp) inp.value = `${window._lsimJahr || new Date().getFullYear()}-01`;
+        if (inp) inp.value = `${window._lsimVortragJahr || new Date().getFullYear()}-01`;
     } else {
         svImpSetPeriodeFromOpenLohn(cpId);
     }
