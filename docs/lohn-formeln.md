@@ -121,6 +121,14 @@ FIX/FIX-M : Feiertag-TAGE-Saldo (Accrual/Bezug), keine Auszahlung — Bewertung
 ```
 Ausbezahlte Feiertag-Stunden (Austritt/Sonderfall) = Code 50.1.
 
+**Feiertags-Absenz nur bei FIX/FIX-M (Walter 05.10.2026):** MTP und FLEX haben keinen
+Feiertag zugut — er ist über das % pro Stunde bezahlt. Von Hand erfassen ist gesperrt
+(400 `FEIERTAG_NUR_FIX`, Option fehlt in der Absenz-Maske); ein importierter Feiertag
+bleibt als Info stehen und wirkt nicht: 0 Stunden, keine Soll-Kürzung, keine Gutschrift,
+keine 50.1. Gesteuert über den Katalog (`wirkung_mtp` / `wirkung_flex` = KEINE) — die
+Engine folgt ihm, die Absenz-Typ-Maske warnt (rot + Rückfrage beim Speichern), wenn
+dort etwas anderes eingestellt wird.
+
 ## 5. 13. Monatslohn
 
 ```

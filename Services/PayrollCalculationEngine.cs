@@ -1075,11 +1075,6 @@ public class PayrollCalculationEngine
                 // (MTP-Soll-Blöcke, FIX-Split/Korrektur, Ferien-Pott, EO).
                 AddBreakdown(a.AbsenceType, hours);
             }
-            else if (a.AbsenceType == "FEIERTAG")
-            {
-                // Feiertag (ausbezahlt): separat ausbezahlen.
-                feiertagStunden += hours;
-            }
             else if (!MatrixWirkung(typCfg))
             {
                 // KEINE = wirklich kein Zeiteinfluss (18.08.2026 — vorher

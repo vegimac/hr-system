@@ -276,6 +276,35 @@ public class AbsencesController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Feiertage haben nur FIX/FIX-M zugut (Walter 05.10.2026). MTP/FLEX bekommen
+    /// die Entschädigung als % pro Stunde — von Hand erfassen ist dort gesperrt.
+    /// Importierte Feiertage bleiben erlaubt, wirken aber nicht (Engine).
+    /// </summary>
+    private async Task<IActionResult?> CheckFeiertagNurFixAsync(int employeeId, DateOnly from, DateOnly to)
+    {
+        var fromDt = from.ToDateTime(TimeOnly.MinValue);
+        var toDt   = to.ToDateTime(TimeOnly.MinValue);
+        var modelle = await _db.Employments.AsNoTracking()
+            .Where(e => e.EmployeeId == employeeId
+                     && e.ContractStartDate <= toDt
+                     && (e.ContractEndDate == null || e.ContractEndDate >= fromDt))
+            .Select(e => e.EmploymentModel)
+            .ToListAsync();
+        if (FeiertagErfassbar(modelle)) return null;
+        return BadRequest(new
+        {
+            error = "FEIERTAG_NUR_FIX",
+            message = "Feiertage werden nur bei FIX-Verträgen erfasst. Bei MTP und FLEX ist der Feiertag "
+                    + "über die Feiertagsentschädigung (% pro Stunde) bezahlt.",
+        });
+    }
+
+    /// <summary>Ohne Vertrag im Zeitraum nicht sperren — dann fehlt die Grundlage für die Regel.</summary>
+    public static bool FeiertagErfassbar(IReadOnlyCollection<string?> modelleImZeitraum)
+        => modelleImZeitraum.Count == 0
+        || modelleImZeitraum.Any(m => m is "FIX" or "FIX-M");
+
     private static string AbsenceTypeLabel(string? code) => (code ?? "").ToUpperInvariant() switch
     {
         "KRANK" => "Krankheit",
@@ -310,6 +339,12 @@ public class AbsencesController : ControllerBase
 
         var overlap = await CheckOverlapAsync(dto.EmployeeId, from, to);
         if (overlap != null) return overlap;
+
+        if (string.Equals(dto.AbsenceType.Trim(), "FEIERTAG", StringComparison.OrdinalIgnoreCase))
+        {
+            var nurFix = await CheckFeiertagNurFixAsync(dto.EmployeeId, from, to);
+            if (nurFix != null) return nurFix;
+        }
 
         var absence = new Absence
         {
@@ -350,6 +385,13 @@ public class AbsencesController : ControllerBase
 
         var overlap = await CheckOverlapAsync(absence.EmployeeId, newFrom, newTo, excludeId: id);
         if (overlap != null) return overlap;
+
+        if (string.Equals(dto.AbsenceType, "FEIERTAG", StringComparison.OrdinalIgnoreCase)
+            && absence.AbsenceType != "FEIERTAG")
+        {
+            var nurFix = await CheckFeiertagNurFixAsync(absence.EmployeeId, newFrom, newTo);
+            if (nurFix != null) return nurFix;
+        }
 
         absence.AbsenceType   = dto.AbsenceType.ToUpper();
         absence.DateFrom      = newFrom;

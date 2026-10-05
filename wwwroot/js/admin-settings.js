@@ -1232,6 +1232,7 @@ function openAbsenzTypForm(t) {
     if (eoHint) eoHint.style.display =
         ['MUTT_VATER', 'MUTTERSCHAFT', 'VATERSCHAFT'].includes((d.code ?? '').toUpperCase())
             ? 'block' : 'none';
+    atFeiertagWarnung();
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
     const vpEl = document.getElementById('atVerlaengertProbezeit');
     if (vpEl) vpEl.checked = d.verlaengertProbezeit ?? false;
@@ -1289,6 +1290,13 @@ async function saveAbsenzTyp() {
     const bez  = document.getElementById('atBez').value.trim();
     if (!code) { alert('Bitte Code eingeben.'); return; }
     if (!bez)  { alert('Bitte Bezeichnung eingeben.'); return; }
+    if (atFeiertagFalsch()) {
+        const trotzdem = await liquidConfirm(
+            'MTP und FLEX haben keinen Feiertag zugut — er ist über die Feiertagsentschädigung (% pro Stunde) bezahlt. '
+            + 'Mit dieser Einstellung wird ein importierter Feiertag doppelt vergütet. Richtig ist «Stunden neutral».',
+            { title: 'Feiertag bei MTP/FLEX', yesLabel: 'Trotzdem speichern', noLabel: 'Zurück' });
+        if (!trotzdem) return;
+    }
 
     // Matrix (18.08.2026) — Legacy-Felder werden daraus abgeleitet (Brücke
     // für Alt-Leser wie die hours_credited-Nachrechnung).
@@ -2675,6 +2683,20 @@ function atFlexZwToggle() {
     if (!zw) return;
     zw.disabled = !an;
     zw.style.opacity = an ? '1' : '0.4';
+}
+
+// MTP/FLEX haben keinen Feiertag zugut (% pro Stunde, Walter 05.10.2026) —
+// jede andere Wirkung als «neutral» zahlt den Feiertag doppelt.
+function atFeiertagFalsch() {
+    const code = (document.getElementById('atCode')?.value || '').toUpperCase().trim();
+    if (code !== 'FEIERTAG') return false;
+    return document.getElementById('atWirkMtp')?.value !== 'KEINE'
+        || document.getElementById('atWirkFlex')?.value !== 'KEINE';
+}
+
+function atFeiertagWarnung() {
+    const el = document.getElementById('atFeiertagHint');
+    if (el) el.style.display = atFeiertagFalsch() ? 'block' : 'none';
 }
 
 

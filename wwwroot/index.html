@@ -6498,7 +6498,7 @@
                         <div style="display:grid;grid-template-columns:140px 1fr 90px;gap:14px">
                             <div>
                                 <span class="at-mx-lbl" style="margin-top:0">Code *</span>
-                                <input type="text" id="atCode" class="f-input" placeholder="z.B. KRANK" style="text-transform:uppercase;font-weight:700">
+                                <input type="text" id="atCode" class="f-input" placeholder="z.B. KRANK" style="text-transform:uppercase;font-weight:700" oninput="atFeiertagWarnung()">
                             </div>
                             <div>
                                 <span class="at-mx-lbl" style="margin-top:0">Bezeichnung *</span>
@@ -6537,7 +6537,7 @@
                             <div class="at-mx-card">
                                 <div class="at-mx-kopf">MTP</div>
                                 <span class="at-mx-lbl">Wirkung</span>
-                                <select id="atWirkMtp" class="f-input">
+                                <select id="atWirkMtp" class="f-input" onchange="atFeiertagWarnung()">
                                     <option value="GUTSCHRIFT">Stunden gutschreiben</option>
                                     <option value="SOLL_KUERZUNG">Soll reduzieren</option>
                                     <option value="KEINE">Stunden neutral</option>
@@ -6557,7 +6557,7 @@
                             <div class="at-mx-card">
                                 <div class="at-mx-kopf">FLEX</div>
                                 <span class="at-mx-lbl">Wirkung</span>
-                                <select id="atWirkFlex" class="f-input" onchange="atFlexZwToggle()">
+                                <select id="atWirkFlex" class="f-input" onchange="atFlexZwToggle();atFeiertagWarnung()">
                                     <option value="AUSZAHLUNG">als Stundenlohn auszahlen</option>
                                     <option value="KEINE">Stunden neutral</option>
                                 </select>
@@ -6573,6 +6573,9 @@
                         </div>
                         <div id="atEoHint" style="display:none;margin-top:12px;padding:8px 12px;background:#fdf3e7;border:1px solid #e8d5b8;border-radius:8px;color:#8a6437;font-size:12px">
                             <b>EO-Typ (Mutterschaft/Vaterschaft):</b> «Wirkung» bleibt bewusst überall auf Soll reduzieren/neutral — der Lohnersatz läuft automatisch über die EO-Zeilen 120.x (Taggeld 80%, Deckel CHF&nbsp;220) bzw. 125.x (Korrektur FIX/FIX-M). Die MTP-Soll-Kürzung nutzt die hier gewählte Zählweise und Basis. Ein «Stunden gutschreiben» würde doppelt vergüten.
+                        </div>
+                        <div id="atFeiertagHint" style="display:none;margin-top:12px;padding:8px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-size:12px">
+                            <b>Achtung — Feiertag bei MTP/FLEX:</b> MTP und FLEX haben keinen Feiertag zugut, er ist über die Feiertagsentschädigung (% pro Stunde) schon bezahlt. Mit dieser Einstellung würde ein importierter Feiertag zusätzlich Stunden gutschreiben bzw. auszahlen — also doppelt. Richtig ist bei MTP und FLEX «Stunden neutral».
                         </div>
                         <div style="color:#8b8b8b;font-size:11px;margin-top:10px">Der Katalog zeigt, was gerechnet wird — z.B. Krankheit: MTP Garantie + laut Dienstplan · Nacht-Kompensation: Betrieb, 1/5 pauschal · Ferien/Mutterschaft: 1/7 Kalender.</div>
                     </div>
@@ -10027,7 +10030,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20261001a"></script>
 <script src="js/payroll-perioden.js?v=20261003b"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20261001a"></script>
+<script src="js/admin-settings.js?v=20261005a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261001a"></script>
@@ -10531,7 +10534,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261005a"></script>
+<script src="employees.js?v=20261005b"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 

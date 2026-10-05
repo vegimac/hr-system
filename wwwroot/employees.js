@@ -10611,7 +10611,13 @@ async function openAbsenceModal(existing, opts) {
     const typen = await getAbsenzTypen();
     const sel = document.getElementById('absTypeSelect');
     const currentVal = existing?.absenceType ?? 'KRANK';
-    sel.innerHTML = typen.map(t =>
+    // Feiertag nur bei FIX/FIX-M erfassbar (Walter 05.10.2026) — eine bestehende
+    // (importierte) Feiertags-Absenz bleibt bearbeitbar.
+    const absModell = (selectedEmployee?.employmentModel ?? '').toUpperCase();
+    const feiertagGesperrt = absModell === 'MTP' || absModell === 'FLEX' || absModell === 'UTP';
+    sel.innerHTML = typen
+        .filter(t => !(feiertagGesperrt && t.code === 'FEIERTAG' && currentVal !== 'FEIERTAG'))
+        .map(t =>
         `<option value="${t.code}" ${t.code === currentVal ? 'selected' : ''}>${t.bezeichnung}</option>`
     ).join('')
         // Walter 23.09.2026: öffnet das eigene Formular (keine echte Absenz-Zeile).
@@ -10969,8 +10975,8 @@ async function calcAbsHoursPreview() {
     // garantiertem Mindestpensum). Feiertagentschädigung wird als % auf den
     // Stundenlohn berechnet und jeden Monat mit dem Lohn ausbezahlt — daher
     // kein Eintrag in den Arbeitsstunden-Saldo und kein Feiertag-Tage-Saldo.
-    if ((empModel === 'MTP' || empModel === 'FLEX') && type === 'FEIERTAG') {
-        previewEl.innerHTML = `<span class="abs-hours-label">${empModel}: Feiertagentschädigung wird als % monatlich mit dem Lohn ausbezahlt (kein Saldo-Eintrag)</span>`;
+    if ((empModel === 'MTP' || empModel === 'FLEX' || empModel === 'UTP') && type === 'FEIERTAG') {
+        previewEl.innerHTML = `<span class="abs-hours-label">${empModel}: nur Info — keine Wirkung auf Lohn oder Stunden. Der Feiertag ist über die Feiertagsentschädigung (% pro Stunde) bezahlt.</span>`;
         previewEl.dataset.hours = '0';
         return;
     }
