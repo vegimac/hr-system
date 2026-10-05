@@ -413,7 +413,7 @@ function renderFilialenDetail(b) {
             <p class="ein-tab-lead">Pro Filiale, nach Thema. Zugeklappt der Stand, aufgeklappt die Felder.</p>
             ${einGroup('Zeit &amp; Anwesenheit',
             einSec('arbeitszeit', 'Arbeitszeit',
-                `Nacht ${nightStart}–${nightEnd} · ${b.normalWeeklyHours ?? '–'} h/Woche · max. ${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) + ' h' : 'keine Grenze'} · Teilmonat ${({TAGESSATZ365:'Tagessatz 365',KALENDERTAGE:'Kalendertage',TAGE30:'30 Tage'})[b.teilmonatMethode || 'TAGESSATZ365']}`, `
+                `Nacht ${nightStart}–${nightEnd} · ${b.normalWeeklyHours ?? '–'} h/Woche · max. ${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) + ' h' : 'keine Grenze'} · Teilmonat ${({TAGESSATZ365:'Tagessatz 365',KALENDERTAGE:'Kalendertage',TAGE30:'30 Tage'})[b.teilmonatMethode || 'TAGESSATZ365']} · Krank/Unfall ${({DIENSTPLAN_1_7:'Dienstplan, dann 1/7',KALENDER_1_7:'immer 1/7',MO_FR_1_5:'Mo–Fr 1/5'})[b.zeitgutschriftKrankMethode || 'DIENSTPLAN_1_7']}`, `
             <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Nacht Beginn</div>
                     <div class="emp-field-value"><input type="time" id="einNightStart" class="ef-input" value="${nightStart}"></div></div>
@@ -431,9 +431,16 @@ function renderFilialenDetail(b) {
                         <option value="KALENDERTAGE" ${b.teilmonatMethode === 'KALENDERTAGE' ? 'selected' : ''}>Kalendertage des Monats (15/30, 16/31)</option>
                         <option value="TAGE30" ${b.teilmonatMethode === 'TAGE30' ? 'selected' : ''}>30-Tage-Methode (jeder Monat 30 Tage)</option>
                     </select></div></div>
+                <div class="emp-field"><div class="emp-field-label">Zeitgutschrift Krank/Unfall <span class="ein-hint">(FIX, FIX-M, MTP)</span></div>
+                    <div class="emp-field-value"><select id="einZeitgutschriftKrank" class="ef-input">
+                        <option value="DIENSTPLAN_1_7" ${(b.zeitgutschriftKrankMethode || 'DIENSTPLAN_1_7') === 'DIENSTPLAN_1_7' ? 'selected' : ''}>Dienstplan, danach 1/7 pro Kalendertag</option>
+                        <option value="KALENDER_1_7" ${b.zeitgutschriftKrankMethode === 'KALENDER_1_7' ? 'selected' : ''}>Immer 1/7 pro Kalendertag</option>
+                        <option value="MO_FR_1_5" ${b.zeitgutschriftKrankMethode === 'MO_FR_1_5' ? 'selected' : ''}>Mo–Fr 1/5, Wochenende 0</option>
+                    </select></div></div>
             </div>
-            <div class="ein-hint" style="margin-top:2px">Gilt nur für den anteiligen Monatslohn. Taggelder und Absenzen rechnen immer mit dem Kalendertag-Satz (× 12 ÷ 365).</div>`,
-                'Nachtgrenze, Wochenstunden und wie der Teilmonat gerechnet wird') +
+            <div class="ein-hint" style="margin-top:2px">Teilmonat gilt nur für den anteiligen Monatslohn. Taggelder und Absenzen rechnen immer mit dem Kalendertag-Satz (× 12 ÷ 365).</div>
+            <div class="ein-hint" style="margin-top:2px">Zeitgutschrift: Solange der Dienstplan bekannt ist, zählt jeder eingeplante Tag Wochenstunden ÷ Arbeitstage, ein freier Tag 0 h. Danach Wochenstunden ÷ 7 pro Kalendertag.</div>`,
+                'Nachtgrenze, Wochenstunden, Teilmonat und Zeitgutschrift bei Krankheit') +
             einSec('ferien', 'Ferien &amp; Feiertage',
                 `Ferien ${b.defaultVacationPercent5Weeks ?? '–'} % · erhöht ${b.defaultVacationPercent6Weeks ?? '–'} % ab ${b.vacationSixWeeksFromAge ?? 50}${Number(b.vacationSixWeeksFromAge ?? 50) >= 99 ? ' (nie)' : ''} · Feiertag ${b.defaultHolidayPercent ?? '–'} % · ${b.ferienAuszahlungMonatlich === true ? 'monatlich ausbezahlt' : 'Ferien-Pott'}`, `
             <div class="emp-field-grid">
@@ -927,6 +934,7 @@ async function saveEinstellungen(branchId) {
     const autoFG       = g('einAutoFerienGeld')?.value === 'true';
     const ferienMonatl = g('einFerienMonatlich')?.value === 'true';
     const teilmonat    = g('einTeilmonat')?.value || 'TAGESSATZ365';
+    const zgKrank      = g('einZeitgutschriftKrank')?.value || 'DIENSTPLAN_1_7';
     const ferientageAustritt   = g('einFerientageAustritt')?.value !== 'false';
     const feiertagstageAustritt= g('einFeiertagstageAustritt')?.value !== 'false';
     const stundenSaldoImLohn   = g('einStundenSaldoImLohn')?.value !== 'false';
@@ -977,6 +985,7 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/auto-ferien-geld-dezember`,   { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: autoFG }) }),
             fetch(`/api/companyprofiles/${branchId}/ferien-auszahlung-monatlich`, { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: ferienMonatl }) }),
             fetch(`/api/companyprofiles/${branchId}/teilmonat-methode`,           { method: 'PATCH', headers: H, body: JSON.stringify({ methode: teilmonat }) }),
+            fetch(`/api/companyprofiles/${branchId}/zeitgutschrift-krank`,        { method: 'PATCH', headers: H, body: JSON.stringify({ methode: zgKrank }) }),
             fetch(`/api/companyprofiles/${branchId}/uniform-depot`,               { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: uniformDepotAktiv }) }),
             fetch(`/api/companyprofiles/${branchId}/schlussabrechnung`,           { method: 'PATCH', headers: H, body: JSON.stringify({ ferientageAmAustrittAuszahlen: ferientageAustritt, feiertagstageAmAustrittAuszahlen: feiertagstageAustritt, stundenSaldoImLohnVerrechnen: stundenSaldoImLohn }) }),
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
@@ -1005,6 +1014,7 @@ async function saveEinstellungen(branchId) {
             autoFerienGeldAuszahlungDezember: autoFG,
             ferienAuszahlungMonatlich: ferienMonatl,
             teilmonatMethode: teilmonat,
+            zeitgutschriftKrankMethode: zgKrank,
             ferientageAmAustrittAuszahlen: ferientageAustritt,
             feiertagstageAmAustrittAuszahlen: feiertagstageAustritt,
             stundenSaldoImLohnVerrechnen: stundenSaldoImLohn,

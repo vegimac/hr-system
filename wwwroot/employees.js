@@ -1980,7 +1980,7 @@ function loadUebersichtTab() {
         const actions = _empContractActionsHtml(emp, c, contracts);
         // Punkt: offen/laufend = grün, beendet = grau (unabhängig von den Aktions-Buttons)
         const laufend = !_empContractIsEnded(c);
-        const metaExtra = [pensum, lohn].filter(Boolean).map(t => ' · ' + esc(t)).join('');
+        const metaExtra = [pensum, empArbeitstageText(c), lohn].filter(Boolean).map(t => ' · ' + esc(t)).join('');
         const filCode = empContractBranchCode(c);
         const filHtml = filCode
             ? `<span class="ov-vfil" title="${esc(empContractBranchTitle(c))}">${esc(filCode)}</span>`
@@ -2142,7 +2142,7 @@ function renderEmpContractList(emp) {
             ? `<span class="emp-contract-status">archiviert</span>`
             : `<span class="emp-contract-status active">aktiv</span>`;
         const actions = _empContractActionsHtml(emp, c, contracts);
-        const metaExtra = [pensum, wage].filter(Boolean).map(t => ' · ' + esc(t)).join('');
+        const metaExtra = [pensum, empArbeitstageText(c), wage].filter(Boolean).map(t => ' · ' + esc(t)).join('');
         const filCode = empContractBranchCode(c);
         const filHtml = filCode
             ? `<span class="ov-vfil" title="${esc(empContractBranchTitle(c))}">${esc(filCode)}</span>`
@@ -2224,6 +2224,86 @@ function empContractPensumText(c) {
     return '';
 }
 
+// Arbeitstage pro Woche (Walter 05.10.2026) — Zeitgutschrift Krank/Unfall.
+// Gleiche Regel wie Services/KrankUnfallZeitgutschrift.cs: von Hand oder Vorschlag
+// (FIX 5 × Pensum, MTP 5 × Garantie ÷ Betriebszeit, auf 0.5 gerundet, max. 5).
+function empArbeitstage(c) {
+    const m = (c.employmentModel || '').toUpperCase();
+    if (!['FIX', 'FIX-M', 'MTP'].includes(m)) return null;
+    const hand = c.arbeitstageProWoche != null ? Number(c.arbeitstageProWoche) : null;
+    if (hand != null && hand >= 0.5 && hand <= 6) return { wert: hand, vonHand: true, vorschlag: empArbeitstageVorschlag(c) };
+    return { wert: empArbeitstageVorschlag(c), vonHand: false, vorschlag: empArbeitstageVorschlag(c) };
+}
+function empArbeitstageVorschlag(c) {
+    const m = (c.employmentModel || '').toUpperCase();
+    let roh;
+    if (m === 'MTP') {
+        const betrieb = Number(empContractBranch(c)?.normalWeeklyHours) > 0 ? Number(empContractBranch(c).normalWeeklyHours) : 42;
+        const g = Number(c.guaranteedHoursPerWeek);
+        if (!(g > 0)) return 5;
+        roh = 5 * g / betrieb;
+    } else {
+        const p = Number(c.employmentPercentage);
+        roh = 5 * (p > 0 ? p : 100) / 100;
+    }
+    return Math.min(5, Math.max(0.5, Math.round(roh * 2) / 2));
+}
+function empArbeitstageText(c) {
+    const a = empArbeitstage(c);
+    if (!a) return '';
+    const n = a.wert.toLocaleString('de-CH', { maximumFractionDigits: 1 });
+    return `${n} Tage/Wo${a.vonHand ? '' : ' (Vorschlag)'}`;
+}
+async function empArbeitstageBearbeiten(employmentId, employeeId) {
+    const c = (selectedEmployee?.employments || []).find(x => (x.id ?? x.employmentId) === employmentId);
+    if (!c) return;
+    const a = empArbeitstage(c);
+    if (!a) return;
+    const fmt = v => v.toLocaleString('de-CH', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    let opts = `<option value="">Vorschlag (${fmt(a.vorschlag)})</option>`;
+    for (let v = 0.5; v <= 6; v += 0.5)
+        opts += `<option value="${v}" ${a.vonHand && a.wert === v ? 'selected' : ''}>${fmt(v)} Tage</option>`;
+    const wahl = await new Promise(resolve => {
+        document.getElementById('empArbeitstageModal')?.remove();
+        const wrap = document.createElement('div');
+        wrap.id = 'empArbeitstageModal';
+        wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+        wrap.innerHTML = `
+        <div class="modal" style="max-width:480px;width:92%;padding:22px 24px;border-radius:16px">
+            <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:8px">Arbeitstage pro Woche</div>
+            <div style="font-size:13.5px;color:#646464;line-height:1.5">
+                Damit rechnet OneCrew die Zeitgutschrift bei Krankheit und Unfall:
+                ein eingeplanter Tag zählt Wochenstunden ÷ Arbeitstage.
+                Ohne Eingabe gilt der Vorschlag aus ${(c.employmentModel || '').toUpperCase() === 'MTP' ? 'den garantierten Stunden' : 'dem Pensum'}.
+            </div>
+            <select id="empArbeitstageSel" class="ef-input" style="margin-top:14px;width:100%">${opts}</select>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+                <button id="empAtNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                <button id="empAtYes" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+            </div>
+        </div>`;
+        document.body.appendChild(wrap);
+        const done = v => { wrap.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+        const onKey = e => { if (e.key === 'Escape') done(undefined); };
+        document.addEventListener('keydown', onKey);
+        wrap.addEventListener('click', e => { if (e.target === wrap) done(undefined); });
+        wrap.querySelector('#empAtNo').onclick  = () => done(undefined);
+        wrap.querySelector('#empAtYes').onclick = () => done(wrap.querySelector('#empArbeitstageSel').value);
+    });
+    if (wahl === undefined) return;
+    const res = await fetch(`/api/employments/${employmentId}/arbeitstage`, {
+        method: 'PATCH',
+        headers: { ...ah(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ arbeitstage: wahl === '' ? null : Number(wahl) }),
+    });
+    if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        await liquidConfirm(d.message || `Speichern fehlgeschlagen (HTTP ${res.status}).`, { title: 'Arbeitstage', yesLabel: 'OK', hideNo: true });
+        return;
+    }
+    selectEmployee(employeeId);
+}
+
 function _empContractIsEnded(c) {
     const today = new Date().toISOString().slice(0, 10);
     const end = c.contractEndDate ? String(c.contractEndDate).slice(0, 10) : '';
@@ -2289,10 +2369,14 @@ function _empContractActionsHtml(emp, c, allContracts) {
             verknuepfen: `openAusweisDokuModal(${emp.id},'vertrag',{employmentId:${cid}})`,
             loesen: `docLoesenPatch('/api/employees/${emp.id}/employments/${cid}/dokument','Unterschriebener Vertrag',()=>selectEmployee(${emp.id}))` })
         : '';
+    // Arbeitstage pro Woche: eigenes Feld (easy@work kennt es nicht), HR-Team.
+    const arbeitstageItem = empArbeitstage(c) && ['admin', 'superuser', 'buchhaltung'].includes(currentUser?.role)
+        ? `<button type="button" class="dok-menu-item" onclick="empArbeitstageBearbeiten(${cid}, ${emp.id})">Arbeitstage pro Woche</button>`
+        : '';
     const items = historisch
-        ? `${editItem}
+        ? `${editItem}${arbeitstageItem}
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${deleteItem}`
-        : `${editItem}
+        : `${editItem}${arbeitstageItem}
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${smsItems}${deleteItem}`;
     const pillen = elternPill + vertragPill;
     return `${pillen ? `<span style="margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center">${pillen}</span>` : ''}<div class="dok-menu-wrap ov-vmenu" style="${pillen ? '' : 'margin-left:auto;'}flex-shrink:0">
@@ -10683,13 +10767,18 @@ async function openAbsenceModal(existing, opts) {
     window._absIsNew = isNewAbs;
     window._absUserTouchedDays = false;
     window._absContinuationHint = '';
+    window._absDienstplanBis = existing?.dienstplanBis ? String(existing.dienstplanBis).slice(0, 10) : '';
 
     // Neue Krank/Unfall direkt im Anschluss an Vormonat → Mo–Fr erzwingen
-    // (Sa/So frei), analog Import-Fix Walter 26.07.2026.
-    if (isNewAbs && (currentVal === 'KRANK' || currentVal === 'UNFALL')) {
+    // (Sa/So frei), analog Import-Fix Walter 26.07.2026. Bei FIX/MTP zählt
+    // ohne Dienstplan 1/7 — dort keine Vorauswahl.
+    if (isNewAbs && (currentVal === 'KRANK' || currentVal === 'UNFALL') && !_absZgModell()) {
         await _absApplyContinuationMoFr(currentVal, document.getElementById('absDateFrom').value);
     }
 
+    // Raster der letzten Absenz wegräumen — sonst liest _absZgTageAusDom alte Kreuze.
+    const dayBox = document.getElementById('absDayCheckboxes');
+    if (dayBox) dayBox.innerHTML = '';
     renderAbsDayCheckboxes();
     calcAbsHoursPreview();
 }
@@ -10754,6 +10843,7 @@ function closeAbsenceModal() {
     window._absIsNew = false;
     window._absUserTouchedDays = false;
     window._absContinuationHint = '';
+    window._absDienstplanBis = '';
 }
 
 // Wenn Von-Datum geändert wird: Bis-Datum automatisch auf dasselbe Datum
@@ -10778,7 +10868,7 @@ async function renderAbsDayCheckboxes() {
 
     // Neue Krank/Unfall: bei Datums-/Typ-Wechsel Fortsetzung Vormonat neu prüfen
     // (solange User kein eigenes Muster gewählt hat).
-    if (window._absIsNew && (type === 'KRANK' || type === 'UNFALL') && !window._absUserTouchedDays) {
+    if (window._absIsNew && (type === 'KRANK' || type === 'UNFALL') && !window._absUserTouchedDays && !_absZgModell()) {
         await _absApplyContinuationMoFr(type, from);
         // Zeitraum Bis kann länger sein als beim ersten Apply — Mo–Fr neu aufbauen.
         if (window._absContinuationHint) {
@@ -10817,6 +10907,8 @@ async function renderAbsDayCheckboxes() {
         calcAbsHoursPreview();
         return;
     }
+
+    if (_absZgModell() && await _absZgRaster(box, days, from, to)) return;
 
     // KRANK / UNFALL: Tage auswählen (1/5).
     // Walter-Vorgabe 28.05.2026: 7-Spalten-Wochenraster Mo-So. Default-
@@ -10875,6 +10967,128 @@ async function renderAbsDayCheckboxes() {
     </div>`;
     box.innerHTML = html;
     calcAbsHoursPreview();
+}
+
+// ── Zeitgutschrift Krank/Unfall FIX/FIX-M/MTP (Walter 05.10.2026) ──────────
+// Bis «Dienstplan bekannt bis» zählt ein eingeplanter Tag Wochenstunden ÷
+// Arbeitstage, ein freier Tag 0 h; danach Wochenstunden ÷ 7 pro Kalendertag.
+// Die Stunden rechnet der Server — dieselbe Regel wie im Lohn.
+function _absZgModell() {
+    const m = (selectedEmployee?.employmentModel || '').toUpperCase();
+    return m === 'FIX' || m === 'FIX-M' || m === 'MTP';
+}
+function _absZgTageAusDom() {
+    const boxes = document.querySelectorAll('#absDayCheckboxes input[type=checkbox]');
+    if (boxes.length) window._absEditWorkedDays = [...boxes].filter(cb => cb.checked).map(cb => cb.value);
+}
+async function _absZgVorschau() {
+    const type = document.getElementById('absTypeSelect').value;
+    const from = document.getElementById('absDateFrom').value;
+    const to   = document.getElementById('absDateTo').value;
+    if (!from || !to || from > to) return null;
+    _absZgTageAusDom();
+    let prozent = Number(document.getElementById('absProzent')?.value ?? 100);
+    if (!Number.isFinite(prozent) || prozent <= 0) prozent = 100;
+    try {
+        const res = await fetch('/api/absences/zeitgutschrift-vorschau', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                employeeId: selectedEmployeeId, absenceType: type, dateFrom: from, dateTo: to,
+                dienstplanBis: window._absDienstplanBis || null,
+                workedDays: JSON.stringify(window._absEditWorkedDays || []),
+                prozent: Math.min(prozent, 100),
+            }),
+        });
+        return res.ok ? await res.json() : null;
+    } catch { return null; }
+}
+function _absZgPlanSetzen(wert) {
+    _absZgTageAusDom();
+    window._absDienstplanBis = wert || '';
+    window._absUserTouchedDays = true;
+    renderAbsDayCheckboxes();
+}
+/** Raster «Dienstplan bekannt bis». false = Vertrag am Datum ist nicht FIX/MTP → altes Raster. */
+async function _absZgRaster(box, days, from, to) {
+    _absZgTageAusDom();
+    let plan = window._absDienstplanBis || '';
+    if (plan && plan < from) plan = '';
+    if (plan && plan > to) plan = to;
+    window._absDienstplanBis = plan;
+
+    const v = await _absZgVorschau();
+    if (!v || !v.betrifft) return false;
+    const n2 = x => Number(x).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const w = Number(v.wochenstunden) || 0;
+
+    if (v.methode !== 'DIENSTPLAN_1_7') {
+        const txt = v.methode === 'MO_FR_1_5'
+            ? `Mo–Fr je ${n2(w / 5)} h (Wochenstunden ÷ 5), Sa/So 0 h`
+            : `jeder Kalendertag ${n2(w / 7)} h (Wochenstunden ÷ 7)`;
+        box.innerHTML = `<div class="abs-day-info">Die Filiale rechnet Krankheit und Unfall ohne Dienstplan: ${txt}.</div>`;
+        calcAbsHoursPreview();
+        return true;
+    }
+
+    const at = Number(v.arbeitstage) || 5;
+    const atText = at.toLocaleString('de-CH', { maximumFractionDigits: 1 });
+    let html = `<div class="abs-day-label">Dienstplan bekannt bis</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+            <input type="date" id="absDienstplanBis" class="ma-input" style="max-width:170px" min="${from}" max="${to}" value="${plan}" onchange="_absZgPlanSetzen(this.value)">
+            <div class="abs-day-quick" style="margin:0">
+                <button type="button" onclick="_absZgPlanSetzen('${to}')">Plan deckt ganze Absenz</button>
+                <button type="button" onclick="_absZgPlanSetzen('')">Kein Dienstplan</button>
+            </div>
+        </div>`;
+    if (!plan) {
+        html += `<div class="abs-day-info">Ohne Dienstplan zählt jeder Kalendertag ${n2(w / 7)} h (Wochenstunden ÷ 7). Ist der Dienstplan bekannt: Datum eintragen und die eingeplanten Tage ankreuzen.</div>`;
+        box.innerHTML = html;
+        calcAbsHoursPreview();
+        return true;
+    }
+
+    const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    const preselect = window._absEditWorkedDays ?? [];
+    html += '<div class="abs-day-label">An welchen Tagen war der/die Mitarbeitende eingeplant?</div>'
+          + '<div class="abs-day-quick">'
+          + '<button type="button" onclick="absDayPreset(\'mofr\')">Mo–Fr Muster</button>'
+          + '<button type="button" onclick="absDayPreset(\'5and2\')">5 gearbeitet / 2 frei</button>'
+          + '<button type="button" onclick="absDayPreset(\'all\')">Alle Tage</button>'
+          + '<button type="button" onclick="absDayPreset(\'none\')">Keine</button>'
+          + '</div>'
+          + '<div class="abs-day-grid-head"><div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div></div>'
+          + '<div class="abs-day-grid">';
+    const offset = (days[0].getDay() + 6) % 7;
+    for (let i = 0; i < offset; i++) html += '<div class="abs-day-item abs-day-empty"></div>';
+    days.forEach(d => {
+        const iso = localIso(d);
+        const dow = d.getDay();
+        const dateStr = d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
+        const isSaSo = dow === 0 || dow === 6;
+        if (iso <= plan) {
+            html += `<label class="abs-day-item${isSaSo ? ' abs-day-weekend' : ''}">
+                <input type="checkbox" value="${iso}" ${preselect.includes(iso) ? 'checked' : ''} onchange="window._absUserTouchedDays=true;calcAbsHoursPreview()">
+                <span class="abs-day-name">${dayNames[dow]}</span>
+                <span class="abs-day-date">${dateStr}</span>
+            </label>`;
+        } else {
+            html += `<div class="abs-day-item" title="Nach dem Dienstplan: Wochenstunden ÷ 7" style="opacity:.55;background:#eceae4;cursor:default">
+                <span class="abs-day-name">${dayNames[dow]}</span>
+                <span class="abs-day-date">${dateStr}</span>
+                <span style="font-size:10px;color:#646464">1/7</span>
+            </div>`;
+        }
+    });
+    html += '</div>';
+    html += `<div style="margin-top:8px;font-size:11.5px;color:#64748b;display:flex;gap:16px;flex-wrap:wrap">
+        <span><span style="display:inline-block;width:12px;height:12px;background:#6b6152;border-radius:4px;vertical-align:-2px"></span> eingeplant → ${n2(w / at)} h (Wochenstunden ÷ ${atText} Arbeitstage)</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;vertical-align:-2px"></span> frei → 0 h</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#eceae4;border-radius:4px;vertical-align:-2px"></span> 1/7 = nach dem Dienstplan → ${n2(w / 7)} h</span>
+    </div>`;
+    box.innerHTML = html;
+    calcAbsHoursPreview();
+    return true;
 }
 
 // Walter-Vorgabe 30.05.2026: Schnellauswahl-Muster für die Krank-/Unfall-
@@ -10943,6 +11157,23 @@ async function calcAbsHoursPreview() {
     const empModel = selectedEmployee?.employmentModel ?? '';
     const previewEl = document.getElementById('absHoursPreview');
     if (!previewEl) return;
+
+    if ((type === 'KRANK' || type === 'UNFALL') && _absZgModell()) {
+        const seq = (window._absZgSeq = (window._absZgSeq || 0) + 1);
+        const v = await _absZgVorschau();
+        if (seq !== window._absZgSeq) return;
+        if (v && v.betrifft) {
+            const n2 = x => Number(x).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const at = Number(v.arbeitstage).toLocaleString('de-CH', { maximumFractionDigits: 1 });
+            const pz = Number(document.getElementById('absProzent')?.value ?? 100);
+            const pzText = Number.isFinite(pz) && pz > 0 && pz < 100 ? ` · bei ${pz} % Ausfall` : '';
+            previewEl.innerHTML = `<span class="abs-hours-pos">+${n2(v.stunden)} h</span> <span class="abs-hours-label">${esc(v.erklaerung || 'keine Tage')}${pzText}</span>`
+                + `<br><span class="abs-hours-label">Wochenstunden ${n2(v.wochenstunden)} h · ${at} Arbeitstage pro Woche ${v.arbeitstageVonHand ? '(von Hand)' : '(Vorschlag, ändern im Vertrag ⋮)'}</span>`;
+            previewEl.dataset.hours = Number(v.stunden).toFixed(2);
+            previewEl.dataset.nachtKompOver9 = '';
+            return;
+        }
+    }
 
     const workedDays = getAbsWorkedDays();
     const count      = workedDays.length;
@@ -11169,6 +11400,7 @@ async function saveAbsence() {
         prozent,
         notes,
         ferienfaehig:  type === 'FERIEN' && !!document.getElementById('absFerienfaehig')?.checked,
+        dienstplanBis: (type === 'KRANK' || type === 'UNFALL') && _absZgModell() ? (window._absDienstplanBis || null) : null,
     };
 
     try {

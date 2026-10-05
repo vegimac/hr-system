@@ -960,6 +960,11 @@ public class PayrollCalculationEngine
             int daysInPeriod = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
             if (daysInPeriod == 0) return 0;
 
+            // Krankheit/Unfall FIX/FIX-M/MTP: Methode der Filiale + Dienstplan bis +
+            // Arbeitstage pro Woche (Walter 05.10.2026) statt Katalog-Zählweise/-Basis.
+            if (KrankUnfallZeitgutschrift.Betrifft(a.AbsenceType, emp.EmploymentModel))
+                return KrankUnfallZeitgutschrift.Stunden(a, emp, company, periodFrom, periodTo);
+
             decimal betriebWeekly = company.NormalWeeklyHours ?? 42m;
             decimal pct           = emp.EmploymentPercentage ?? 100m;
             decimal weeklyH       = betriebWeekly;

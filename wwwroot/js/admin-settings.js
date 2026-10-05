@@ -2698,8 +2698,12 @@ function atMxZwToggle() {
         el.disabled = !an;
         el.style.opacity = an ? '1' : '0.4';
     });
-    setzen(['atZwFix', 'atBasisFix'], document.getElementById('atWirkFix')?.value !== 'KEINE' || nacht);
-    setzen(['atZwMtp', 'atBasisMtp'], document.getElementById('atWirkMtp')?.value !== 'KEINE' || nacht);
+    // Krank/Unfall FIX/MTP: Zeitgutschrift der Filiale (KrankUnfallZeitgutschrift), nicht der Katalog.
+    const krank = ['KRANK', 'UNFALL'].includes((document.getElementById('atCode')?.value || '').toUpperCase().trim());
+    setzen(['atZwFix', 'atBasisFix'], !krank && (document.getElementById('atWirkFix')?.value !== 'KEINE' || nacht));
+    setzen(['atZwMtp', 'atBasisMtp'], !krank && (document.getElementById('atWirkMtp')?.value !== 'KEINE' || nacht));
+    const krankHint = document.getElementById('atKrankHint');
+    if (krankHint) krankHint.style.display = krank ? 'block' : 'none';
     atSollTypWarnung();
 }
 

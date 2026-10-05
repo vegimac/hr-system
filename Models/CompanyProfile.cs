@@ -199,6 +199,14 @@ public class CompanyProfile
     public string TeilmonatMethode { get; set; } = "TAGESSATZ365";
 
     /// <summary>
+    /// Zeitgutschrift Krankheit/Unfall FIX/FIX-M/MTP (Walter 05.10.2026):
+    ///   DIENSTPLAN_1_7 — geplante Tage bis «Dienstplan bis» ÷ Arbeitstage, danach 1/7 (Standard)
+    ///   KALENDER_1_7   — jeder Kalendertag Wochenstunden ÷ 7
+    ///   MO_FR_1_5      — Mo–Fr Wochenstunden ÷ 5, Sa/So 0
+    /// </summary>
+    public string ZeitgutschriftKrankMethode { get; set; } = "DIENSTPLAN_1_7";
+
+    /// <summary>
     /// Lohnausweis Box F (Form 11 dfe): "Unentgeltliche Beförderung
     /// zwischen Wohn- und Arbeitsort". Bei McDonald's typischerweise false
     /// (kein Werks-Bus).

@@ -101,6 +101,14 @@ public class Employment
     public decimal? WeeklyHours { get; set; }
     public decimal? GuaranteedHoursPerWeek { get; set; }
 
+    /// <summary>
+    /// Arbeitstage pro Woche (Walter 05.10.2026), Schritte 0.5 — nur FIX/FIX-M/MTP.
+    /// Teiler der Zeitgutschrift pro geplantem Krank-/Unfalltag. Leer = Vorschlag
+    /// (<see cref="Services.KrankUnfallZeitgutschrift.ArbeitstageVorschlag"/>).
+    /// easy@work kennt das Feld nicht — der Import fasst es nie an.
+    /// </summary>
+    public decimal? ArbeitstageProWoche { get; set; }
+
     /// <summary>13. Monatslohn ja/nein (Walter 08.09.2026): Standard true (L-GAV: alle). false = kein 13. ML,
     /// keine Rückstellung — für Verträge ausserhalb L-GAV (Lizenznehmer, Swissdec-Testfälle).</summary>
     public bool ThirteenthSalary { get; set; } = true;

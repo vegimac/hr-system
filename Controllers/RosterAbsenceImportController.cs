@@ -268,6 +268,11 @@ public class RosterAbsenceImportController : ControllerBase
             var workedDays = ComputeWorkedDays(r.AbsenceType, r.Days);
             var hours      = ComputeHours(r.AbsenceType, activeEmp?.EmploymentModel ?? "",
                                           typCfg, profile, activeEmp, workedDays.Count);
+            // Krank/Unfall FIX/FIX-M/MTP: der Import kennt keinen Dienstplan → 1/7 (Walter 05.10.2026).
+            if (activeEmp != null && KrankUnfallZeitgutschrift.Betrifft(r.AbsenceType, activeEmp.EmploymentModel))
+                hours = Math.Round(KrankUnfallZeitgutschrift.Stunden(
+                    new Absence { AbsenceType = r.AbsenceType, DateFrom = df, DateTo = dt, Prozent = 100m },
+                    activeEmp, profile), 2);
             var workedJson = System.Text.Json.JsonSerializer.Serialize(workedDays);
 
             // Bestehende Überlappungen (DB + bereits in diesem Commit angelegte/geänderte).
@@ -328,6 +333,7 @@ public class RosterAbsenceImportController : ControllerBase
                 primary.DateFrom      = df;
                 primary.DateTo        = dt;
                 primary.WorkedDays    = workedJson;
+                primary.DienstplanBis = null;
                 primary.HoursCredited = hours;
                 primary.Prozent       = 100m;
                 primary.Notes         = $"Import Dienstplan {DateTime.Now:dd.MM.yyyy} (Korrektur)";

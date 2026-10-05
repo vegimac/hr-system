@@ -360,6 +360,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmploymentPercentage).HasColumnName("employment_percentage");
             entity.Property(e => e.WeeklyHours).HasColumnName("weekly_hours");
             entity.Property(e => e.GuaranteedHoursPerWeek).HasColumnName("guaranteed_hours_per_week");
+            entity.Property(e => e.ArbeitstageProWoche).HasColumnName("arbeitstage_pro_woche").HasColumnType("numeric(3,1)");
             entity.Property(e => e.ThirteenthSalary).HasColumnName("thirteenth_salary").HasDefaultValue(true);
             entity.Property(e => e.FunktionGeprueft).HasColumnName("funktion_geprueft");
             entity.Property(e => e.LessonRate).HasColumnName("lesson_rate").HasColumnType("numeric(10,2)");
@@ -743,6 +744,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AutoFerienGeldAuszahlungDezember).HasColumnName("auto_ferien_geld_auszahlung_dezember").HasDefaultValue(true);
             entity.Property(e => e.FerienAuszahlungMonatlich).HasColumnName("ferien_auszahlung_monatlich").HasDefaultValue(false);
             entity.Property(e => e.TeilmonatMethode).HasColumnName("teilmonat_methode").HasMaxLength(20).HasDefaultValue("TAGESSATZ365");
+            entity.Property(e => e.ZeitgutschriftKrankMethode).HasColumnName("zeitgutschrift_krank_methode").HasMaxLength(20).HasDefaultValue("DIENSTPLAN_1_7");
             entity.Property(e => e.LohnausweisBoxFFreierTransport).HasColumnName("lohnausweis_box_f_freier_transport").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisBoxGKantineGratis).HasColumnName("lohnausweis_box_g_kantine_gratis").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisPos21VerpflegungMonat).HasColumnName("lohnausweis_pos_2_1_verpflegung_monat").HasColumnType("numeric(10,2)");
@@ -1554,6 +1556,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("absence");
             entity.Property(e => e.Ferienfaehig).HasColumnName("ferienfaehig");
+            entity.Property(e => e.DienstplanBis).HasColumnName("dienstplan_bis").HasColumnType("date");
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
             entity.Property(e => e.EasyatworkRef).HasColumnName("easyatwork_ref");
             entity.HasKey(e => e.Id);

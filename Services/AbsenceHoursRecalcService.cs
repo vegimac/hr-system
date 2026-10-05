@@ -73,7 +73,6 @@ public class AbsenceHoursRecalcService
             }
 
             profiles.TryGetValue(branchId, out var profile);
-            var model = emp?.EmploymentModel ?? "";
 
             // WorkedDays: KRANK/UNFALL behalten User-Auswahl; sonst nach Modus neu.
             string? newWorkedJson = a.WorkedDays;
@@ -88,7 +87,7 @@ public class AbsenceHoursRecalcService
                 newWorkedJson = JsonSerializer.Serialize(dayList);
             }
 
-            var newHours = ComputeHours(code, model, typ, profile, emp, dayList.Count, a.Prozent);
+            var newHours = StundenFuerAbsenz(a, typ, profile, emp, dayList.Count);
 
             bool changed = a.HoursCredited != newHours
                         || !string.Equals(a.WorkedDays ?? "", newWorkedJson ?? "", StringComparison.Ordinal);
@@ -146,8 +145,7 @@ public class AbsenceHoursRecalcService
 
             // Tagesauswahl UNVERÄNDERT übernehmen (leer → Mo–Fr-Fallback).
             var dayList = ParseWorkedDays(a.WorkedDays, a.DateFrom, a.DateTo);
-            var newHours = ComputeHours(a.AbsenceType, emp?.EmploymentModel ?? "",
-                                        typ, profile, emp, dayList.Count, a.Prozent);
+            var newHours = StundenFuerAbsenz(a, typ, profile, emp, dayList.Count);
 
             if (a.HoursCredited == newHours) { skippedNoChange++; continue; }
 
@@ -207,6 +205,18 @@ public class AbsenceHoursRecalcService
             all.Add(d.ToString("yyyy-MM-dd"));
         }
         return all;
+    }
+
+    /// <summary>
+    /// Gespeicherte Stunden einer Absenz: Krankheit/Unfall FIX/FIX-M/MTP über
+    /// <see cref="KrankUnfallZeitgutschrift"/>, alles andere über <see cref="ComputeHours"/>.
+    /// </summary>
+    public static decimal StundenFuerAbsenz(
+        Absence a, AbsenzTyp typ, CompanyProfile? profile, Employment? emp, int dayCount)
+    {
+        if (emp != null && KrankUnfallZeitgutschrift.Betrifft(a.AbsenceType, emp.EmploymentModel))
+            return Math.Round(KrankUnfallZeitgutschrift.Stunden(a, emp, profile), 2);
+        return ComputeHours(a.AbsenceType, emp?.EmploymentModel ?? "", typ, profile, emp, dayCount, a.Prozent);
     }
 
     /// <summary>

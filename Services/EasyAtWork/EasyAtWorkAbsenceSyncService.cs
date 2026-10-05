@@ -239,15 +239,18 @@ public class EasyAtWorkAbsenceSyncService
                 if (!dryRun)
                 {
                     bool datumNeu = ex.DateFrom != w.Von || ex.DateTo != w.Bis;
+                    bool tagesauswahlEx = BrauchtTagesauswahl(w.Code, w.EmpId, w.Von);
+                    bool tageBehalten = tagesauswahlEx && !datumNeu && ex.AbsenceType == w.Code;
+                    // Datumsänderung bei Krank/Unfall FIX/FIX-M/MTP: alte
+                    // Tagesauswahl passt nicht mehr → leeren (zählt dann 1/7).
+                    if (tagesauswahlEx && !tageBehalten) ex.DienstplanBis = null;
                     ex.EmployeeId = w.EmpId;
                     ex.AbsenceType = w.Code;
                     ex.DateFrom = w.Von;
                     ex.DateTo = w.Bis;
                     ex.Prozent = w.Prozent;
-                    FillHours(ex, w.Code, profiles, employments, typen);
-                    // Datumsänderung bei Krank/Unfall FIX/FIX-M/MTP: alte
-                    // Tagesauswahl passt nicht mehr → leeren + Hinweis.
-                    if (datumNeu && BrauchtTagesauswahl(w.Code, w.EmpId, w.Von))
+                    FillHours(ex, w.Code, profiles, employments, typen, tageBehalten);
+                    if (tagesauswahlEx && !tageBehalten)
                         ex.WorkedDays = null;
                     ex.UpdatedAt = DateTime.Now;
                 }
@@ -305,7 +308,7 @@ public class EasyAtWorkAbsenceSyncService
             var tagesauswahl = BrauchtTagesauswahl(w.Code, w.EmpId, w.Von);
             zeilen.Add(new SyncRow(r, w.EmpId, Name(w.EmpId), w.EasyTyp, w.Code,
                 w.Von.ToString("yyyy-MM-dd"), w.Bis.ToString("yyyy-MM-dd"), w.Prozent, "NEU",
-                tagesauswahl ? "⚠ Arbeitstage («hätte gearbeitet») im Absenzen-Tab eintragen" : null));
+                tagesauswahl ? "Zeitgutschrift 1/7 pro Tag — Dienstplan bei Bedarf im Absenzen-Tab eintragen" : null));
             if (!dryRun)
             {
                 var a = new Absence
@@ -317,7 +320,7 @@ public class EasyAtWorkAbsenceSyncService
                     Prozent = w.Prozent,
                     EasyatworkRef = r,
                     Notes = $"easy@work-Sync ({w.EasyTyp})"
-                          + (tagesauswahl ? " · ⚠ Arbeitstage (Tagesauswahl) noch eintragen" : ""),
+                          + (tagesauswahl ? " · Zeitgutschrift 1/7, Dienstplan bei Bedarf eintragen" : ""),
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now,
                 };
@@ -361,7 +364,8 @@ public class EasyAtWorkAbsenceSyncService
 
     /// <summary>WorkedDays + HoursCredited wie der Absenzen-Tab (BuildDays/ComputeHours).</summary>
     private static void FillHours(Absence a, string code,
-        Dictionary<int, CompanyProfile> profiles, List<Employment> employments, List<AbsenzTyp> typen)
+        Dictionary<int, CompanyProfile> profiles, List<Employment> employments, List<AbsenzTyp> typen,
+        bool tageBehalten = false)
     {
         var typ = typen.FirstOrDefault(t => t.Code == code);
         if (typ is null) { a.WorkedDays = null; a.HoursCredited = 0m; return; }
@@ -378,9 +382,10 @@ public class EasyAtWorkAbsenceSyncService
         CompanyProfile? profile = null;
         if (emp?.CompanyProfileId is int bid) profiles.TryGetValue(bid, out profile);
         var days = AbsenceHoursRecalcService.BuildDaysForModus(a.DateFrom, a.DateTo, typ.GutschriftModus ?? "1/5");
-        a.WorkedDays = JsonSerializer.Serialize(days);
-        a.HoursCredited = AbsenceHoursRecalcService.ComputeHours(
-            code, emp?.EmploymentModel ?? "", typ, profile, emp, days.Count, a.Prozent);
+        // Von Hand gepflegte Tagesauswahl + «Dienstplan bis» bleiben, solange das
+        // Datum gleich bleibt (Walter 05.10.2026) — easy@work kennt keinen Dienstplan.
+        if (!tageBehalten) a.WorkedDays = JsonSerializer.Serialize(days);
+        a.HoursCredited = AbsenceHoursRecalcService.StundenFuerAbsenz(a, typ, profile, emp, days.Count);
     }
 
     /// <summary>Laravel-paginiert alle Seiten durchlaufen (data[] pro Seite).</summary>

@@ -358,9 +358,11 @@ public class AbsencesController : ControllerBase
             Notes         = dto.Notes,
             Ferienfaehig  = dto.Ferienfaehig == true
                             && string.Equals(dto.AbsenceType.Trim(), "FERIEN", StringComparison.OrdinalIgnoreCase),
+            DienstplanBis = DienstplanBisNormalisieren(dto.DienstplanBis, dto.AbsenceType.Trim(), from, to),
             CreatedAt     = DateTime.Now,
             UpdatedAt     = DateTime.Now,
         };
+        await KrankUnfallStundenSetzenAsync(absence);
 
         _db.Absences.Add(absence);
         await _db.SaveChangesAsync();
@@ -402,6 +404,8 @@ public class AbsencesController : ControllerBase
         absence.Notes         = dto.Notes;
         if (dto.Ferienfaehig.HasValue) absence.Ferienfaehig = dto.Ferienfaehig.Value;
         if (absence.AbsenceType != "FERIEN") absence.Ferienfaehig = false;
+        absence.DienstplanBis = DienstplanBisNormalisieren(dto.DienstplanBis, absence.AbsenceType, newFrom, newTo);
+        await KrankUnfallStundenSetzenAsync(absence);
         absence.UpdatedAt     = DateTime.Now;
 
         await _db.SaveChangesAsync();
@@ -712,9 +716,119 @@ public class AbsencesController : ControllerBase
         notes           = a.Notes,
         dokumentId      = a.DokumentId,
         ferienfaehig    = a.Ferienfaehig,
+        dienstplanBis   = a.DienstplanBis?.ToString("yyyy-MM-dd"),
         createdAt       = a.CreatedAt,
         inLohnVerwendet = inLohnVerwendet,
     };
+
+    // ── Zeitgutschrift Krankheit/Unfall (Walter 05.10.2026) ──────────────
+
+    /// <summary>Vertrag am Stichtag (sonst aktivster/jüngster) + seine Filiale.</summary>
+    private async Task<(Employment? Vertrag, CompanyProfile? Filiale)> VertragAmAsync(int employeeId, DateOnly datum)
+    {
+        var dt = datum.ToDateTime(TimeOnly.MinValue);
+        var alle = await _db.Employments.AsNoTracking()
+            .Where(e => e.EmployeeId == employeeId)
+            .ToListAsync();
+        var vertrag = alle
+            .Where(e => e.ContractStartDate <= dt && (e.ContractEndDate == null || e.ContractEndDate >= dt))
+            .OrderByDescending(e => e.ContractStartDate)
+            .FirstOrDefault()
+            ?? alle.OrderByDescending(e => e.IsActive).ThenByDescending(e => e.ContractStartDate).FirstOrDefault();
+        CompanyProfile? filiale = vertrag?.CompanyProfileId is int cpId
+            ? await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == cpId)
+            : null;
+        return (vertrag, filiale);
+    }
+
+    /// <summary>Nur Krank/Unfall; vor Absenzbeginn = kein Plan, nach Absenzende = Absenzende.</summary>
+    public static DateOnly? DienstplanBisNormalisieren(string? wert, string? typ, DateOnly von, DateOnly bis)
+    {
+        if ((typ ?? "").ToUpperInvariant() is not ("KRANK" or "UNFALL")) return null;
+        if (!DateOnly.TryParse(wert, out var d) || d < von) return null;
+        return d > bis ? bis : d;
+    }
+
+    /// <summary>Angekreuzte Tage nach «Dienstplan bis» zählen nicht — gar nicht erst speichern.</summary>
+    public static string? TageBisPlanende(string? workedDays, DateOnly? dienstplanBis)
+    {
+        if (dienstplanBis is not DateOnly ende) return workedDays;
+        var tage = KrankUnfallZeitgutschrift.GeplanteTage(workedDays)
+            .Where(d => d <= ende)
+            .OrderBy(d => d)
+            .Select(d => d.ToString("yyyy-MM-dd"));
+        return System.Text.Json.JsonSerializer.Serialize(tage);
+    }
+
+    /// <summary>Krank/Unfall FIX/FIX-M/MTP: Stunden rechnet der Server, nicht die Maske.</summary>
+    private async Task KrankUnfallStundenSetzenAsync(Absence a)
+    {
+        var (vertrag, filiale) = await VertragAmAsync(a.EmployeeId, a.DateFrom);
+        if (vertrag == null || !KrankUnfallZeitgutschrift.Betrifft(a.AbsenceType, vertrag.EmploymentModel)) return;
+        a.WorkedDays    = TageBisPlanende(a.WorkedDays, a.DienstplanBis);
+        a.HoursCredited = Math.Round(KrankUnfallZeitgutschrift.Stunden(a, vertrag, filiale), 2);
+    }
+
+    public class ZeitgutschriftVorschauDto
+    {
+        public int     EmployeeId    { get; set; }
+        public string  AbsenceType   { get; set; } = "";
+        public string  DateFrom      { get; set; } = "";
+        public string  DateTo        { get; set; } = "";
+        public string? DienstplanBis { get; set; }
+        public string? WorkedDays    { get; set; }
+        public decimal? Prozent      { get; set; }
+    }
+
+    // ── POST /api/absences/zeitgutschrift-vorschau ────────────────────────
+    // Rechnet die Krank-/Unfall-Gutschrift für die Maske — dieselbe Regel wie
+    // Lohnrechnung und Speichern. Speichert nichts.
+    [HttpPost("zeitgutschrift-vorschau")]
+    public async Task<IActionResult> ZeitgutschriftVorschau([FromBody] ZeitgutschriftVorschauDto dto)
+    {
+        if (dto is null || dto.EmployeeId <= 0
+            || !DateOnly.TryParse(dto.DateFrom, out var von)
+            || !DateOnly.TryParse(dto.DateTo, out var bis)
+            || bis < von || bis.DayNumber - von.DayNumber > 400)
+            return BadRequest(new { error = "INVALID_PARAMS" });
+
+        var typ = (dto.AbsenceType ?? "").Trim().ToUpperInvariant();
+        var (vertrag, filiale) = await VertragAmAsync(dto.EmployeeId, von);
+        if (vertrag == null || !KrankUnfallZeitgutschrift.Betrifft(typ, vertrag.EmploymentModel))
+            return Ok(new { betrifft = false });
+
+        var planBis = DienstplanBisNormalisieren(dto.DienstplanBis, typ, von, bis);
+        var a = new Absence
+        {
+            EmployeeId    = dto.EmployeeId,
+            AbsenceType   = typ,
+            DateFrom      = von,
+            DateTo        = bis,
+            DienstplanBis = planBis,
+            WorkedDays    = dto.WorkedDays,
+            Prozent       = ClampProzent(dto.Prozent),
+        };
+        var tage = KrankUnfallZeitgutschrift.Tage(a, vertrag, filiale);
+        decimal? betrieb = filiale?.NormalWeeklyHours;
+        return Ok(new
+        {
+            betrifft          = true,
+            modell            = vertrag.EmploymentModel,
+            methode           = KrankUnfallZeitgutschrift.Methode(filiale?.ZeitgutschriftKrankMethode),
+            wochenstunden     = Math.Round(KrankUnfallZeitgutschrift.Wochenstunden(vertrag, betrieb), 2),
+            arbeitstage       = KrankUnfallZeitgutschrift.Arbeitstage(vertrag, betrieb),
+            arbeitstageVonHand = vertrag.ArbeitstageProWoche != null,
+            dienstplanBis     = planBis?.ToString("yyyy-MM-dd"),
+            stunden           = Math.Round(tage.Sum(t => t.Stunden), 2),
+            erklaerung        = KrankUnfallZeitgutschrift.Erklaerung(tage),
+            tage              = tage.Select(t => new
+            {
+                datum   = t.Datum.ToString("yyyy-MM-dd"),
+                art     = t.Art.ToString(),
+                stunden = Math.Round(t.Stunden, 2),
+            }),
+        });
+    }
 
     // Prozent auf 1–100 clampen; Default 100 wenn nicht übermittelt.
     private static decimal ClampProzent(decimal? p)
@@ -737,4 +851,6 @@ public class AbsenceDto
     public string? Notes        { get; set; }
     /// <summary>Nur FERIEN: arbeitsunfähig, aber ferienfähig (Walter 23.09.2026). NULL = unverändert.</summary>
     public bool?   Ferienfaehig { get; set; }
+    /// <summary>Nur KRANK/UNFALL: Dienstplan bekannt bis (inkl.), leer = kein Plan → 1/7 (Walter 05.10.2026).</summary>
+    public string? DienstplanBis { get; set; }
 }

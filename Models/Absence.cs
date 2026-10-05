@@ -18,6 +18,13 @@ public class Absence
     /// </summary>
     public string? WorkedDays { get; set; }
 
+    /// <summary>
+    /// Nur KRANK/UNFALL (Walter 05.10.2026): bis zu diesem Tag (inkl.) ist der
+    /// Dienstplan bekannt — angekreuzte Tage zählen Wochenstunden ÷ Arbeitstage,
+    /// nicht angekreuzte 0. Danach bzw. ohne Datum: Wochenstunden ÷ 7 pro Kalendertag.
+    /// </summary>
+    public DateOnly? DienstplanBis { get; set; }
+
     /// <summary>Berechnete Stunden (immer positiv gespeichert, inkl. Prozent-Reduktion).</summary>
     public decimal HoursCredited { get; set; }
 

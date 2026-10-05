@@ -602,6 +602,23 @@ public class CompanyProfilesController : ControllerBase
     }
     public record TeilmonatMethodeDto(string Methode);
 
+    // PATCH /api/companyprofiles/{id}/zeitgutschrift-krank  (Walter 05.10.2026)
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/zeitgutschrift-krank")]
+    public async Task<IActionResult> UpdateZeitgutschriftKrank(int id, [FromBody] TeilmonatMethodeDto dto,
+        [FromServices] AbsenceHoursRecalcService recalc)
+    {
+        if (dto is null || !KrankUnfallZeitgutschrift.Methoden.Contains(dto.Methode))
+            return BadRequest(new { message = "Methode muss DIENSTPLAN_1_7, KALENDER_1_7 oder MO_FR_1_5 sein." });
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        if (profile.ZeitgutschriftKrankMethode == dto.Methode) return Ok(profile);
+        profile.ZeitgutschriftKrankMethode = dto.Methode;
+        await _context.SaveChangesAsync();
+        await recalc.FixKrankUnfallHoursAsync();
+        return Ok(profile);
+    }
+
     // PATCH /api/companyprofiles/{id}/ferien-auszahlung-monatlich
     // Ferienentschädigung FLEX/MTP monatlich auszahlen statt Ferien-Pott
     // (Walter 08.09.2026, Filial-Ebene: alle oder keiner).
@@ -831,6 +848,7 @@ public class CompanyProfilesController : ControllerBase
             t.AutoFerienGeldAuszahlungDezember = source.AutoFerienGeldAuszahlungDezember;
             t.FerienAuszahlungMonatlich        = source.FerienAuszahlungMonatlich;
             t.TeilmonatMethode                 = source.TeilmonatMethode;
+            t.ZeitgutschriftKrankMethode       = source.ZeitgutschriftKrankMethode;
             // Schlussabrechnung / Stunden im Lohn (Walter 10.09.2026)
             t.FerientageAmAustrittAuszahlen    = source.FerientageAmAustrittAuszahlen;
             t.FeiertagstageAmAustrittAuszahlen = source.FeiertagstageAmAustrittAuszahlen;

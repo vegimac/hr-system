@@ -6580,7 +6580,10 @@
                         <div id="atFeiertagHint" style="display:none;margin-top:12px;padding:8px 12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;color:#991b1b;font-size:12px">
                             <b>Achtung — Feiertag bei MTP/FLEX:</b> MTP und FLEX haben keinen Feiertag zugut, er ist über die Feiertagsentschädigung (% pro Stunde) schon bezahlt. Mit dieser Einstellung würde ein importierter Feiertag zusätzlich Stunden gutschreiben bzw. auszahlen — also doppelt. Richtig ist bei MTP und FLEX «Stunden neutral».
                         </div>
-                        <div style="color:#8b8b8b;font-size:11px;margin-top:10px">Der Katalog zeigt, was gerechnet wird — z.B. Krankheit: MTP Garantie + laut Dienstplan · Nacht-Kompensation: Betrieb, 1/5 pauschal · Ferien/Mutterschaft: 1/7 Kalender.</div>
+                        <div id="atKrankHint" style="display:none;margin-top:12px;padding:8px 12px;background:#fdf3e7;border:1px solid #e8d5b8;border-radius:8px;color:#8a6437;font-size:12px">
+                            <b>Krankheit/Unfall bei FIX, FIX-M und MTP:</b> Zählweise und Basis kommen nicht von hier. Es gilt die Zeitgutschrift der Filiale (Filiale → Einstellungen → Arbeitszeit): bis «Dienstplan bekannt bis» zählt jeder eingeplante Tag Wochenstunden ÷ Arbeitstage, danach 1/7 pro Kalendertag. Wochenstunden aus dem Vertrag (MTP: Garantie), Arbeitstage pro Woche am Vertrag. Die Wirkung (FIX gutschreiben, MTP Soll reduzieren) gilt weiterhin von hier.
+                        </div>
+                        <div style="color:#8b8b8b;font-size:11px;margin-top:10px">Der Katalog zeigt, was gerechnet wird — z.B. Nacht-Kompensation: Betrieb, 1/5 pauschal · Ferien/Mutterschaft: 1/7 Kalender.</div>
                     </div>
 
                     <!-- Erweiterte Einstellungen -->
@@ -10008,7 +10011,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260927a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20261001a"></script>
+<script src="js/branches-detail.js?v=20261006a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260915c"></script>
@@ -10034,7 +10037,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20261001a"></script>
 <script src="js/payroll-perioden.js?v=20261003b"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20261006a"></script>
+<script src="js/admin-settings.js?v=20261006b"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261001a"></script>
@@ -10538,7 +10541,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261005b"></script>
+<script src="employees.js?v=20261006a"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 

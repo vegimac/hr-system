@@ -25,6 +25,38 @@ public class EmploymentsController : ControllerBase
         _uniformDepot = uniformDepot;
     }
 
+    public record ArbeitstageDto(decimal? Arbeitstage);
+
+    /// <summary>
+    /// Arbeitstage pro Woche (Walter 05.10.2026) — eigener Weg, weil easy@work das
+    /// Feld nicht kennt und der Import es sonst wegräumen würde. NULL = Vorschlag.
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPatch("{id:int}/arbeitstage")]
+    public async Task<IActionResult> UpdateArbeitstage(int id, [FromBody] ArbeitstageDto dto,
+        [FromServices] AbsenceHoursRecalcService recalc)
+    {
+        var emp = await _context.Employments.FindAsync(id);
+        if (emp is null) return NotFound();
+        if ((emp.EmploymentModel ?? "").ToUpperInvariant() is not ("FIX" or "FIX-M" or "MTP"))
+            return BadRequest(new { error = "NUR_FIX_MTP", message = "Arbeitstage pro Woche gibt es nur bei FIX, FIX-M und MTP." });
+        if (dto?.Arbeitstage is decimal w && !KrankUnfallZeitgutschrift.ArbeitstageGueltig(w))
+            return BadRequest(new { error = "UNGUELTIG", message = "Arbeitstage: 0.5 bis 6 in Schritten von 0.5." });
+        emp.ArbeitstageProWoche = dto?.Arbeitstage;
+        await _context.SaveChangesAsync();
+        await recalc.FixKrankUnfallHoursAsync();
+        var filiale = emp.CompanyProfileId is int cpId
+            ? await _context.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == cpId)
+            : null;
+        return Ok(new
+        {
+            arbeitstageProWoche = emp.ArbeitstageProWoche,
+            arbeitstage = KrankUnfallZeitgutschrift.Arbeitstage(emp, filiale?.NormalWeeklyHours),
+            vorschlag   = KrankUnfallZeitgutschrift.ArbeitstageVorschlag(
+                emp.EmploymentModel, emp.EmploymentPercentage, emp.GuaranteedHoursPerWeek, filiale?.NormalWeeklyHours),
+        });
+    }
+
     /// <summary>
     /// Lohnlauf-Schutz für Verträge (Walter-Vorgabe 17.05.2026,
     /// präzisiert 01.08.2026): Ein Vertrag gilt als „in Lohnlauf verwendet",
