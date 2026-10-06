@@ -2361,14 +2361,11 @@ function _empContractActionsHtml(emp, c, allContracts) {
             verknuepfen: `openAusweisDokuModal(${emp.id},'vertrag',{employmentId:${cid}})`,
             loesen: `docLoesenPatch('/api/employees/${emp.id}/employments/${cid}/dokument','Unterschriebener Vertrag',()=>selectEmployee(${emp.id}))` })
         : '';
-    // Arbeitstage pro Woche: eigenes Feld (easy@work kennt es nicht), HR-Team.
-    const arbeitstageItem = empArbeitstage(c) && ['admin', 'superuser', 'buchhaltung'].includes(currentUser?.role)
-        ? `<button type="button" class="dok-menu-item" onclick="empArbeitstageBearbeiten(${cid}, ${emp.id})">Arbeitstage pro Woche</button>`
-        : '';
+    // Arbeitstage pro Woche: nur noch in «Vertrag bearbeiten» neben dem Pensum (Walter 06.10.2026).
     const items = historisch
-        ? `${editItem}${arbeitstageItem}
+        ? `${editItem}
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${deleteItem}`
-        : `${editItem}${arbeitstageItem}
+        : `${editItem}
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${smsItems}${deleteItem}`;
     const pillen = elternPill + vertragPill;
     return `${pillen ? `<span style="margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center">${pillen}</span>` : ''}<div class="dok-menu-wrap ov-vmenu" style="${pillen ? '' : 'margin-left:auto;'}flex-shrink:0">

@@ -46,8 +46,8 @@ Anzahl, so arbeiten die FIX-Teilzeit-MA bei Schaub. Abweichungen (z.B. 100 % in 
 eine feste Tageszahl sagt beim MTP nichts aus). Der Endpunkt lehnt MTP ab (400 `NUR_FIX`).
 
 Gesetzt wird es in der Maske «Vertrag bearbeiten» unter «Lohn & Pensum» neben dem Pensum
-(Vorschlag zieht beim Pensum-Ändern mit) oder im Mitarbeiter → Vertrag → ⋮ «Arbeitstage pro Woche»
-(HR-Team). Beide schreiben nach dem Speichern über den Endpunkt
+(Vorschlag zieht beim Pensum-Ändern mit, Tagessoll wird angezeigt). Der frühere Eintrag im ⋮-Menü
+der Vertragszeile ist entfernt (Walter 06.10.2026). Gespeichert wird nach dem Vertrag über den Endpunkt
 `PATCH /api/employments/{id}/arbeitstage`. Bewusst ein eigener Weg: easy@work kennt das Feld nicht,
 der Import würde es sonst wegräumen. Neue Vertragsabschnitte (easy@work-Sync inkl. künftiger
 Verträge und Filial-Übertritt, Lohnanpassung, neuer Vertrag von Hand) übernehmen die Handeingabe
