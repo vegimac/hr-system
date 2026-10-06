@@ -2623,7 +2623,8 @@ function switchEmpTab(tab) {
             // langSwitcher (reservierte Zone, CLAUDE.md).
             tabBar.innerHTML = '';
         } else if (tab === 'absenzen') {
-            tabBar.innerHTML = `<button class="btn-emp-add" onclick="openAbsenceModal(null)">${plusIcon} Absenz erfassen</button>`;
+            // «+ Absenz erfassen» sitzt über der Absenzen-Liste (Walter 06.10.2026).
+            tabBar.innerHTML = '';
         } else if (tab === 'verfuegbarkeit' && !isExcluded) {
             tabBar.innerHTML = `<button class="btn-emp-add" onclick="verfNewForm()">${plusIcon} Neue Verfügbarkeit</button>`
                 + `<button class="btn-emp-add" onclick="trOpenErfassen()">${plusIcon} Schulung erfassen</button>`;
@@ -10335,9 +10336,10 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                 ${criticalBanner}
                 ${sperrHtml}
             </div>
-            <!-- „Absenz erfassen" sitzt jetzt im Header (empTabActionBar) — Walter 01.06.2026 -->
-            <div class="abs-toolbar" style="display:none">
-                <button class="btn-emp-add" onclick="openAbsenceModal(null)">Absenz erfassen</button>
+            <!-- Walter 06.10.2026: oben rechts unter dem Sprach-/Suchband war der Knopf versteckt — jetzt direkt über der Liste. -->
+            <div class="abs-toolbar" style="padding:2px 12px 10px">
+                <button class="btn btn-primary" onclick="openAbsenceModal(null)"
+                        style="padding:7px 16px;font-size:13.5px;white-space:nowrap">+ Absenz erfassen</button>
             </div>
             <div class="abs-cols">
                 <table class="abs-table abs-table-head">
