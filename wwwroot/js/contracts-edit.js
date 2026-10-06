@@ -191,6 +191,7 @@ async function openContractEditModal(c, mode = 'edit') {
         if (r?.ok) atRoh = (await r.json().catch(() => ({}))).arbeitstageProWoche;
     }
     _ceArbeitstageStart = atRoh != null ? String(Number(atRoh)) : '';
+    await ceBetriebWocheLaden(c.companyProfileId ?? (typeof currentBranchId !== 'undefined' ? currentBranchId : null));
     ceArbeitstageOptionen(_ceArbeitstageStart);
     document.getElementById('ceWeeklyHours').value        = c.weeklyHours ?? '';
     document.getElementById('ceGuaranteedHours').value    = c.guaranteedHoursPerWeek ?? '';
@@ -318,6 +319,28 @@ function ceArbeitstageOptionen(wert) {
     sel.innerHTML = html;
     sel.value = wert;
     sel.disabled = !ceArbeitstageDarf();
+    ceArbeitstageInfo();
+}
+// Tagessoll wie KrankUnfallZeitgutschrift.Wochenstunden: Filial-Normalstunden × Pensum ÷ Arbeitstage.
+let _ceBetriebWoche = 42;
+async function ceBetriebWocheLaden(filialeId) {
+    _ceBetriebWoche = 42;
+    if (!filialeId) return;
+    const r = await fetch(`/api/companyprofiles/${filialeId}`, { headers: ah() }).catch(() => null);
+    const p = r?.ok ? await r.json().catch(() => null) : null;
+    if (p?.normalWeeklyHours > 0) _ceBetriebWoche = Number(p.normalWeeklyHours);
+}
+function ceArbeitstageInfo() {
+    const el = document.getElementById('ceArbeitstageInfo');
+    const sel = document.getElementById('ceArbeitstage');
+    if (!el || !sel) return;
+    const p = parseFloat(document.getElementById('cePensum').value);
+    const woche = _ceBetriebWoche * (p > 0 ? p : 100) / 100;
+    const tage = sel.value !== ''
+        ? Number(sel.value)
+        : Math.min(5, Math.max(0.5, Math.round(5 * (p > 0 ? p : 100) / 100 * 2) / 2));
+    const n2 = x => x.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    el.innerHTML = `Tagessoll <b>${n2(woche / tage)} h</b> · ${n2(woche)} h ÷ ${tage.toLocaleString('de-CH', { maximumFractionDigits: 1 })} Tage`;
 }
 
 // Letztes Compliance-Ergebnis (für "Mindestlohn übernehmen"-Button)
