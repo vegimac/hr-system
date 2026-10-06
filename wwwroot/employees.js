@@ -10760,6 +10760,8 @@ async function openAbsenceModal(existing, opts) {
     window._absUserTouchedDays = false;
     window._absContinuationHint = '';
     window._absDienstplanBis = existing?.dienstplanBis ? String(existing.dienstplanBis).slice(0, 10) : '';
+    // Neue Absenz: «Dienstplan bekannt bis» folgt dem Bis-Datum, bis man es von Hand ändert (Walter 06.10.2026).
+    window._absPlanAuto = isNewAbs;
 
     // Neue Krank/Unfall direkt im Anschluss an Vormonat → Mo–Fr erzwingen
     // (Sa/So frei), analog Import-Fix Walter 26.07.2026. Bei FIX/MTP zählt
@@ -10836,6 +10838,7 @@ function closeAbsenceModal() {
     window._absUserTouchedDays = false;
     window._absContinuationHint = '';
     window._absDienstplanBis = '';
+    window._absPlanAuto = false;
 }
 
 // Wenn Von-Datum geändert wird: Bis-Datum automatisch auf dasselbe Datum
@@ -10995,8 +10998,9 @@ async function _absZgVorschau() {
         return res.ok ? await res.json() : null;
     } catch { return null; }
 }
-function _absZgPlanSetzen(wert) {
+function _absZgPlanSetzen(wert, folgtBis = false) {
     _absZgTageAusDom();
+    window._absPlanAuto = folgtBis;
     window._absDienstplanBis = wert || '';
     window._absUserTouchedDays = true;
     renderAbsDayCheckboxes();
@@ -11004,7 +11008,7 @@ function _absZgPlanSetzen(wert) {
 /** Raster «Dienstplan bekannt bis». false = Vertrag am Datum ist nicht FIX/MTP → altes Raster. */
 async function _absZgRaster(box, days, from, to) {
     _absZgTageAusDom();
-    let plan = window._absDienstplanBis || '';
+    let plan = window._absPlanAuto ? to : (window._absDienstplanBis || '');
     if (plan && plan < from) plan = '';
     if (plan && plan > to) plan = to;
     window._absDienstplanBis = plan;
@@ -11029,7 +11033,7 @@ async function _absZgRaster(box, days, from, to) {
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
             <input type="date" id="absDienstplanBis" class="ma-input" style="max-width:170px" min="${from}" max="${to}" value="${plan}" onchange="_absZgPlanSetzen(this.value)">
             <div class="abs-day-quick" style="margin:0">
-                <button type="button" onclick="_absZgPlanSetzen('${to}')">Plan deckt ganze Absenz</button>
+                <button type="button" onclick="_absZgPlanSetzen('${to}', true)">Plan deckt ganze Absenz</button>
                 <button type="button" onclick="_absZgPlanSetzen('')">Kein Dienstplan</button>
             </div>
         </div>`;
