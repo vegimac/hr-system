@@ -185,6 +185,13 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('ceMonthlySalaryFte').value   = c.monthlySalaryFte ?? '';
     document.getElementById('ceMonthlySalary').value      = c.monthlySalary ?? '';
     document.getElementById('cePensum').value             = c.employmentPercentage ?? '';
+    let atRoh = c.arbeitstageProWoche;
+    if (atRoh === undefined && mode === 'edit' && c.id) {
+        const r = await fetch(`/api/employments/${c.id}`, { headers: ah() }).catch(() => null);
+        if (r?.ok) atRoh = (await r.json().catch(() => ({}))).arbeitstageProWoche;
+    }
+    _ceArbeitstageStart = atRoh != null ? String(Number(atRoh)) : '';
+    ceArbeitstageOptionen(_ceArbeitstageStart);
     document.getElementById('ceWeeklyHours').value        = c.weeklyHours ?? '';
     document.getElementById('ceGuaranteedHours').value    = c.guaranteedHoursPerWeek ?? '';
     const _lr = document.getElementById('ceLessonRate');    if (_lr) _lr.value = c.lessonRate ?? '';
@@ -255,6 +262,7 @@ function onCeModelChange() {
     show('ceFteWrap',        isFix);
     show('ceMonthlyWrap',    isFix);
     show('cePensumWrap',     isFix);
+    show('ceArbeitstageWrap', isFix);
     // Walter-Vorgabe 26.05.2026: „Max. h/Woche" nur bei UTP. Bei MTP
     // redundant zu „Garantierte h/Woche" (Engine nimmt GuaranteedHoursPerWeek
     // mit Fallback auf WeeklyHours); beim Save wird WeeklyHours bei MTP
@@ -289,6 +297,27 @@ function onCeFteChange() {
 
 function onCePensumChange() {
     onCeFteChange();
+    ceArbeitstageOptionen(document.getElementById('ceArbeitstage')?.value ?? '');
+}
+
+// Arbeitstage pro Woche (Walter 06.10.2026) — gleiche Regel wie
+// Services/KrankUnfallZeitgutschrift.cs: leer = Vorschlag 5 × Pensum.
+// Schreiben dürfen admin/superuser/buchhaltung (PATCH …/arbeitstage).
+let _ceArbeitstageStart = '';
+function ceArbeitstageDarf() {
+    return ['admin', 'superuser', 'buchhaltung'].includes(currentUser?.role);
+}
+function ceArbeitstageOptionen(wert) {
+    const sel = document.getElementById('ceArbeitstage');
+    if (!sel) return;
+    const p = parseFloat(document.getElementById('cePensum').value);
+    const vorschlag = Math.min(5, Math.max(0.5, Math.round(5 * (p > 0 ? p : 100) / 100 * 2) / 2));
+    const fmt = v => v.toLocaleString('de-CH', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    let html = `<option value="">Vorschlag (${fmt(vorschlag)})</option>`;
+    for (let v = 0.5; v <= 6; v += 0.5) html += `<option value="${v}">${fmt(v)} Tage</option>`;
+    sel.innerHTML = html;
+    sel.value = wert;
+    sel.disabled = !ceArbeitstageDarf();
 }
 
 // Letztes Compliance-Ergebnis (für "Mindestlohn übernehmen"-Button)
@@ -608,6 +637,23 @@ async function saveContractEdit() {
             try { const j = JSON.parse(txt); msg = j.error || j.title || msg; } catch { if (txt) msg = txt; }
             errEl.textContent = msg;
             return;
+        }
+        const atWahl = document.getElementById('ceArbeitstage')?.value ?? '';
+        if (isFix && ceArbeitstageDarf() && atWahl !== _ceArbeitstageStart) {
+            const gespeichert = _ceMode === 'edit' ? null : await res.clone().json().catch(() => null);
+            const vertragId = _ceMode === 'edit' ? id : gespeichert?.employment?.id;
+            if (vertragId) {
+                const atRes = await fetch(`/api/employments/${vertragId}/arbeitstage`, {
+                    method: 'PATCH',
+                    headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ arbeitstage: atWahl === '' ? null : Number(atWahl) }),
+                });
+                if (!atRes.ok) {
+                    const d = await atRes.json().catch(() => ({}));
+                    errEl.textContent = 'Vertrag gespeichert, Arbeitstage nicht: ' + (d.message || 'Fehler ' + atRes.status);
+                    return;
+                }
+            }
         }
         closeContractEditModal();
         // MA-Liste über loadVtList neu aufbauen — DIE Funktion wendet auch den

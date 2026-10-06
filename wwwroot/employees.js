@@ -11162,7 +11162,7 @@ async function calcAbsHoursPreview() {
             const tagessoll = Number(v.wochenstunden) / (Number(v.arbeitstage) > 0 ? Number(v.arbeitstage) : 5);
             const basisText = v.hatArbeitstage
                 ? `Tagessoll ${n2(tagessoll)} h = ${n2(v.wochenstunden)} h ÷ ${at} Arbeitstage pro Woche `
-                  + (v.arbeitstageVonHand ? '(am Vertrag eingetragen)' : '(Vorschlag aus dem Pensum — stimmt das? Sonst im Vertrag ⋮ «Arbeitstage pro Woche» ändern)')
+                  + (v.arbeitstageVonHand ? '(am Vertrag eingetragen)' : '(Vorschlag aus dem Pensum — stimmt das? Sonst im Vertrag bearbeiten unter «Arbeitstage / Woche» ändern)')
                 : `Tagessoll ${n2(tagessoll)} h = Garantie ${n2(v.wochenstunden)} h ÷ 5`;
             previewEl.innerHTML = `<span class="abs-hours-pos">+${n2(v.stunden)} h</span> <span class="abs-hours-label">${esc(v.erklaerung || 'keine Tage')}${pzText}</span>`
                 + `<br><span class="abs-hours-label">${esc(basisText)}</span>`;
