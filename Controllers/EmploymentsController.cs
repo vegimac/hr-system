@@ -41,7 +41,7 @@ public class EmploymentsController : ControllerBase
         if (!KrankUnfallZeitgutschrift.HatArbeitstage(emp.EmploymentModel))
             return BadRequest(new { error = "NUR_FIX", message = "Arbeitstage pro Woche gibt es nur bei FIX und FIX-M. MTP rechnet immer 1/5 der Garantie." });
         if (dto?.Arbeitstage is decimal w && !KrankUnfallZeitgutschrift.ArbeitstageGueltig(w))
-            return BadRequest(new { error = "UNGUELTIG", message = "Arbeitstage: 0.5 bis 6 in Schritten von 0.5." });
+            return BadRequest(new { error = "UNGUELTIG", message = "Arbeitstage: 2.5 bis 5 in Schritten von 0.5." });
         emp.ArbeitstageProWoche = dto?.Arbeitstage;
         await _context.SaveChangesAsync();
         await recalc.FixKrankUnfallHoursAsync();

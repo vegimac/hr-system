@@ -2231,13 +2231,13 @@ function empArbeitstage(c) {
     const m = (c.employmentModel || '').toUpperCase();
     if (!['FIX', 'FIX-M'].includes(m)) return null;
     const hand = c.arbeitstageProWoche != null ? Number(c.arbeitstageProWoche) : null;
-    if (hand != null && hand >= 0.5 && hand <= 6) return { wert: hand, vonHand: true, vorschlag: empArbeitstageVorschlag(c) };
+    if (hand != null && hand >= 2.5 && hand <= 5) return { wert: hand, vonHand: true, vorschlag: empArbeitstageVorschlag(c) };
     return { wert: empArbeitstageVorschlag(c), vonHand: false, vorschlag: empArbeitstageVorschlag(c) };
 }
 function empArbeitstageVorschlag(c) {
     const p = Number(c.employmentPercentage);
     const roh = 5 * (p > 0 ? p : 100) / 100;
-    return Math.min(5, Math.max(0.5, Math.round(roh * 2) / 2));
+    return Math.min(5, Math.max(2.5, Math.round(roh * 2) / 2));
 }
 function empArbeitstageText(c) {
     const a = empArbeitstage(c);
@@ -2252,7 +2252,7 @@ async function empArbeitstageBearbeiten(employmentId, employeeId) {
     if (!a) return;
     const fmt = v => v.toLocaleString('de-CH', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     let opts = `<option value="">Vorschlag (${fmt(a.vorschlag)})</option>`;
-    for (let v = 0.5; v <= 6; v += 0.5)
+    for (let v = 2.5; v <= 5; v += 0.5)
         opts += `<option value="${v}" ${a.vonHand && a.wert === v ? 'selected' : ''}>${fmt(v)} Tage</option>`;
     const wahl = await new Promise(resolve => {
         document.getElementById('empArbeitstageModal')?.remove();

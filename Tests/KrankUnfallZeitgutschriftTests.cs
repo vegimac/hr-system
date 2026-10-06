@@ -86,12 +86,13 @@ public class KrankUnfallZeitgutschriftTests
     }
 
     [Theory]
-    [InlineData(0.5, true)]
     [InlineData(2.5, true)]
-    [InlineData(6, true)]
-    [InlineData(0, false)]
-    [InlineData(2.3, false)]
-    [InlineData(6.5, false)]
+    [InlineData(4.5, true)]
+    [InlineData(5, true)]
+    [InlineData(2, false)]
+    [InlineData(3.3, false)]
+    [InlineData(5.5, false)]
+    [InlineData(6, false)]
     public void Arbeitstage_Schritte_halbe_Tage(double wert, bool gueltig)
         => Assert.Equal(gueltig, KrankUnfallZeitgutschrift.ArbeitstageGueltig((decimal)wert));
 

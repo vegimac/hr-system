@@ -30,8 +30,9 @@ Die Filiale wählt die Methode (Filiale → Einstellungen → Arbeitszeit → «
 
 ## Arbeitstage pro Woche
 
-Neues Feld am Vertrag (`employment.arbeitstage_pro_woche`, Schritte von 0.5, erlaubt 0.5–6),
-**nur FIX/FIX-M** (Walter 06.10.2026). Tagessoll = Wochenstunden ÷ Arbeitstage:
+Neues Feld am Vertrag (`employment.arbeitstage_pro_woche`, Schritte von 0.5, erlaubt 2.5–5),
+**nur FIX/FIX-M** (Walter 06.10.2026). Untergrenze 2.5: FIX gibt es nicht unter 50 %; Obergrenze 5:
+der L-GAV verlangt 2 Ruhetage pro Woche. Tagessoll = Wochenstunden ÷ Arbeitstage:
 
 | Vertrag | Wochenstunden | Arbeitstage | Tagessoll |
 |---|---|---|---|

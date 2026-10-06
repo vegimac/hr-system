@@ -25,8 +25,9 @@ public static class KrankUnfallZeitgutschrift
     public const string MoFr15           = "MO_FR_1_5";
     public static readonly string[] Methoden = { DienstplanDann17, Kalender17, MoFr15 };
 
-    public const decimal ArbeitstageMin = 0.5m;
-    public const decimal ArbeitstageMax = 6m;
+    /// <summary>FIX gibt es nicht unter 50 % (= 2.5 Tage); mehr als 5 Tage lässt der L-GAV nicht zu (2 Ruhetage).</summary>
+    public const decimal ArbeitstageMin = 2.5m;
+    public const decimal ArbeitstageMax = 5m;
 
     public enum TagArt { Geplant, Frei, Kalender, Werktag, Wochenende }
 
@@ -63,7 +64,7 @@ public static class KrankUnfallZeitgutschrift
         if (!HatArbeitstage(modell)) return 5m;
         decimal roh = 5m * (pensum is > 0 ? pensum.Value : 100m) / 100m;
         decimal gerundet = Math.Round(roh * 2m, MidpointRounding.AwayFromZero) / 2m;
-        return Math.Clamp(gerundet, ArbeitstageMin, 5m);
+        return Math.Clamp(gerundet, ArbeitstageMin, ArbeitstageMax);
     }
 
     public static decimal Arbeitstage(Employment emp, decimal? betriebWochenstunden)
@@ -84,7 +85,7 @@ public static class KrankUnfallZeitgutschrift
         neu.ArbeitstageProWoche = w;
     }
 
-    /// <summary>Erlaubte Handeingabe: 0.5 bis 6 in Schritten von 0.5.</summary>
+    /// <summary>Erlaubte Handeingabe: 2.5 bis 5 in Schritten von 0.5.</summary>
     public static bool ArbeitstageGueltig(decimal wert)
         => wert >= ArbeitstageMin && wert <= ArbeitstageMax && wert * 2m == Math.Floor(wert * 2m);
 

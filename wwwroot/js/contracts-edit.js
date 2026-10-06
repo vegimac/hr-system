@@ -312,10 +312,10 @@ function ceArbeitstageOptionen(wert) {
     const sel = document.getElementById('ceArbeitstage');
     if (!sel) return;
     const p = parseFloat(document.getElementById('cePensum').value);
-    const vorschlag = Math.min(5, Math.max(0.5, Math.round(5 * (p > 0 ? p : 100) / 100 * 2) / 2));
+    const vorschlag = Math.min(5, Math.max(2.5, Math.round(5 * (p > 0 ? p : 100) / 100 * 2) / 2));
     const fmt = v => v.toLocaleString('de-CH', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     let html = `<option value="">Vorschlag (${fmt(vorschlag)})</option>`;
-    for (let v = 0.5; v <= 6; v += 0.5) html += `<option value="${v}">${fmt(v)} Tage</option>`;
+    for (let v = 2.5; v <= 5; v += 0.5) html += `<option value="${v}">${fmt(v)} Tage</option>`;
     sel.innerHTML = html;
     sel.value = wert;
     sel.disabled = !ceArbeitstageDarf();
@@ -338,7 +338,7 @@ function ceArbeitstageInfo() {
     const woche = _ceBetriebWoche * (p > 0 ? p : 100) / 100;
     const tage = sel.value !== ''
         ? Number(sel.value)
-        : Math.min(5, Math.max(0.5, Math.round(5 * (p > 0 ? p : 100) / 100 * 2) / 2));
+        : Math.min(5, Math.max(2.5, Math.round(5 * (p > 0 ? p : 100) / 100 * 2) / 2));
     const n2 = x => x.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     el.innerHTML = `Tagessoll <b>${n2(woche / tage)} h</b> · ${n2(woche)} h ÷ ${tage.toLocaleString('de-CH', { maximumFractionDigits: 1 })} Tage`;
 }
