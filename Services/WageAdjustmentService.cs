@@ -241,6 +241,7 @@ public class WageAdjustmentService
                 ProbationEndDate       = src.ProbationEndDate,
                 IsActive               = true,
             };
+            KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(neu, src);
             _db.Employments.Add(neu);
             created++;
 

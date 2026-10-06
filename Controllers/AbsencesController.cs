@@ -817,7 +817,9 @@ public class AbsencesController : ControllerBase
             methode           = KrankUnfallZeitgutschrift.Methode(filiale?.ZeitgutschriftKrankMethode),
             wochenstunden     = Math.Round(KrankUnfallZeitgutschrift.Wochenstunden(vertrag, betrieb), 2),
             arbeitstage       = KrankUnfallZeitgutschrift.Arbeitstage(vertrag, betrieb),
-            arbeitstageVonHand = vertrag.ArbeitstageProWoche != null,
+            arbeitstageVonHand = KrankUnfallZeitgutschrift.HatArbeitstage(vertrag.EmploymentModel)
+                                 && vertrag.ArbeitstageProWoche != null,
+            hatArbeitstage    = KrankUnfallZeitgutschrift.HatArbeitstage(vertrag.EmploymentModel),
             dienstplanBis     = planBis?.ToString("yyyy-MM-dd"),
             stunden           = Math.Round(tage.Sum(t => t.Stunden), 2),
             erklaerung        = KrankUnfallZeitgutschrift.Erklaerung(tage),

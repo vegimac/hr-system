@@ -2225,27 +2225,18 @@ function empContractPensumText(c) {
 }
 
 // Arbeitstage pro Woche (Walter 05.10.2026) — Zeitgutschrift Krank/Unfall.
-// Gleiche Regel wie Services/KrankUnfallZeitgutschrift.cs: von Hand oder Vorschlag
-// (FIX 5 × Pensum, MTP 5 × Garantie ÷ Betriebszeit, auf 0.5 gerundet, max. 5).
+// Gleiche Regel wie Services/KrankUnfallZeitgutschrift.cs: nur FIX/FIX-M, von Hand
+// oder Vorschlag 5 × Pensum (auf 0.5 gerundet, max. 5). MTP rechnet immer Garantie ÷ 5.
 function empArbeitstage(c) {
     const m = (c.employmentModel || '').toUpperCase();
-    if (!['FIX', 'FIX-M', 'MTP'].includes(m)) return null;
+    if (!['FIX', 'FIX-M'].includes(m)) return null;
     const hand = c.arbeitstageProWoche != null ? Number(c.arbeitstageProWoche) : null;
     if (hand != null && hand >= 0.5 && hand <= 6) return { wert: hand, vonHand: true, vorschlag: empArbeitstageVorschlag(c) };
     return { wert: empArbeitstageVorschlag(c), vonHand: false, vorschlag: empArbeitstageVorschlag(c) };
 }
 function empArbeitstageVorschlag(c) {
-    const m = (c.employmentModel || '').toUpperCase();
-    let roh;
-    if (m === 'MTP') {
-        const betrieb = Number(empContractBranch(c)?.normalWeeklyHours) > 0 ? Number(empContractBranch(c).normalWeeklyHours) : 42;
-        const g = Number(c.guaranteedHoursPerWeek);
-        if (!(g > 0)) return 5;
-        roh = 5 * g / betrieb;
-    } else {
-        const p = Number(c.employmentPercentage);
-        roh = 5 * (p > 0 ? p : 100) / 100;
-    }
+    const p = Number(c.employmentPercentage);
+    const roh = 5 * (p > 0 ? p : 100) / 100;
     return Math.min(5, Math.max(0.5, Math.round(roh * 2) / 2));
 }
 function empArbeitstageText(c) {
@@ -2273,8 +2264,9 @@ async function empArbeitstageBearbeiten(employmentId, employeeId) {
             <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:8px">Arbeitstage pro Woche</div>
             <div style="font-size:13.5px;color:#646464;line-height:1.5">
                 Damit rechnet OneCrew die Zeitgutschrift bei Krankheit und Unfall:
-                ein eingeplanter Tag zählt Wochenstunden ÷ Arbeitstage.
-                Ohne Eingabe gilt der Vorschlag aus ${(c.employmentModel || '').toUpperCase() === 'MTP' ? 'den garantierten Stunden' : 'dem Pensum'}.
+                ein eingeplanter Tag zählt das Tagessoll = Wochenstunden ÷ Arbeitstage
+                (z.B. 100 % in 4 Tagen = 42 ÷ 4 = 10.50 h).
+                Ohne Eingabe gilt der Vorschlag aus dem Pensum (volle Tage, 80 % = 4 Tage).
             </div>
             <select id="empArbeitstageSel" class="ef-input" style="margin-top:14px;width:100%">${opts}</select>
             <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
@@ -11167,8 +11159,13 @@ async function calcAbsHoursPreview() {
             const at = Number(v.arbeitstage).toLocaleString('de-CH', { maximumFractionDigits: 1 });
             const pz = Number(document.getElementById('absProzent')?.value ?? 100);
             const pzText = Number.isFinite(pz) && pz > 0 && pz < 100 ? ` · bei ${pz} % Ausfall` : '';
+            const tagessoll = Number(v.wochenstunden) / (Number(v.arbeitstage) > 0 ? Number(v.arbeitstage) : 5);
+            const basisText = v.hatArbeitstage
+                ? `Tagessoll ${n2(tagessoll)} h = ${n2(v.wochenstunden)} h ÷ ${at} Arbeitstage pro Woche `
+                  + (v.arbeitstageVonHand ? '(am Vertrag eingetragen)' : '(Vorschlag aus dem Pensum — stimmt das? Sonst im Vertrag ⋮ «Arbeitstage pro Woche» ändern)')
+                : `Tagessoll ${n2(tagessoll)} h = Garantie ${n2(v.wochenstunden)} h ÷ 5`;
             previewEl.innerHTML = `<span class="abs-hours-pos">+${n2(v.stunden)} h</span> <span class="abs-hours-label">${esc(v.erklaerung || 'keine Tage')}${pzText}</span>`
-                + `<br><span class="abs-hours-label">Wochenstunden ${n2(v.wochenstunden)} h · ${at} Arbeitstage pro Woche ${v.arbeitstageVonHand ? '(von Hand)' : '(Vorschlag, ändern im Vertrag ⋮)'}</span>`;
+                + `<br><span class="abs-hours-label">${esc(basisText)}</span>`;
             previewEl.dataset.hours = Number(v.stunden).toFixed(2);
             previewEl.dataset.nachtKompOver9 = '';
             return;

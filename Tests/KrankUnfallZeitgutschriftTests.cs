@@ -27,15 +27,56 @@ public class KrankUnfallZeitgutschriftTests
         => Assert.Equal((decimal)erwartet, KrankUnfallZeitgutschrift.ArbeitstageVorschlag("FIX", pensum, null, 42m));
 
     [Theory]
-    [InlineData(21, 2.5)]
-    [InlineData(25, 3.0)]
-    [InlineData(42, 5.0)]
-    public void Vorschlag_MTP_aus_Garantie(int garantie, double erwartet)
-        => Assert.Equal((decimal)erwartet, KrankUnfallZeitgutschrift.ArbeitstageVorschlag("MTP", null, garantie, 42m));
+    [InlineData(21)]
+    [InlineData(25)]
+    [InlineData(42)]
+    public void MTP_immer_fuenf_Tage(int garantie)
+        => Assert.Equal(5m, KrankUnfallZeitgutschrift.ArbeitstageVorschlag("MTP", null, garantie, 42m));
 
     [Fact]
-    public void Vorschlag_MTP_ohne_Garantie_fuenf()
+    public void MTP_ohne_Garantie_fuenf()
         => Assert.Equal(5m, KrankUnfallZeitgutschrift.ArbeitstageVorschlag("MTP", null, null, 42m));
+
+    [Fact]
+    public void MTP_ignoriert_Handeingabe()
+    {
+        var emp = new Employment { EmploymentModel = "MTP", GuaranteedHoursPerWeek = 21m, ArbeitstageProWoche = 3m };
+        Assert.Equal(5m, KrankUnfallZeitgutschrift.Arbeitstage(emp, 42m));
+        Assert.False(KrankUnfallZeitgutschrift.HatArbeitstage("MTP"));
+        Assert.True(KrankUnfallZeitgutschrift.HatArbeitstage("FIX-M"));
+    }
+
+    [Fact]
+    public void FIX_100_in_vier_Tagen_Tagessoll_10_5()
+    {
+        var mi = D(9, 2);
+        Assert.Equal(10.5m, KrankUnfallZeitgutschrift.Stunden(Plan, mi, mi, mi, Tage(mi), 42m, 4m, 100m));
+    }
+
+    [Fact]
+    public void Arbeitstage_gehen_auf_neuen_Abschnitt_mit_gleichem_Pensum()
+    {
+        var alt = new Employment { EmploymentModel = "FIX", EmploymentPercentage = 100m, ArbeitstageProWoche = 4m };
+        var neu = new Employment { EmploymentModel = "FIX", EmploymentPercentage = 100m };
+        KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(neu, alt);
+        Assert.Equal(4m, neu.ArbeitstageProWoche);
+    }
+
+    [Fact]
+    public void Arbeitstage_nicht_uebernommen_bei_anderem_Pensum_oder_MTP()
+    {
+        var alt = new Employment { EmploymentModel = "FIX", EmploymentPercentage = 100m, ArbeitstageProWoche = 4m };
+        var anderesPensum = new Employment { EmploymentModel = "FIX", EmploymentPercentage = 80m };
+        var mtp = new Employment { EmploymentModel = "MTP", GuaranteedHoursPerWeek = 21m };
+        var schonGesetzt = new Employment { EmploymentModel = "FIX", EmploymentPercentage = 100m, ArbeitstageProWoche = 5m };
+        KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(anderesPensum, alt);
+        KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(mtp, alt);
+        KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(schonGesetzt, alt);
+        KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(new Employment { EmploymentModel = "FIX" }, null);
+        Assert.Null(anderesPensum.ArbeitstageProWoche);
+        Assert.Null(mtp.ArbeitstageProWoche);
+        Assert.Equal(5m, schonGesetzt.ArbeitstageProWoche);
+    }
 
     [Fact]
     public void Handeingabe_sticht_Vorschlag()
@@ -192,8 +233,8 @@ public class KrankUnfallZeitgutschriftTests
     public void MTP_Garantie_21_Plan_bis_Mittwoch_danach_ein_Siebtel()
     {
         // Mo 07.09.–So 13.09., Dienstplan bis Mi 09.09., geplant Mo + Mi.
-        // Vorschlag 2.5 Arbeitstage → 21 ÷ 2.5 = 8.4 h pro geplantem Tag,
-        // Di 0 h, Do–So 4 × 21 ÷ 7 = 12 h → 28.8 h (mehr als die Garantie: Plusstunden).
+        // MTP: Garantie ÷ 5 = 4.2 h pro geplantem Tag, Di 0 h,
+        // Do–So 4 × 21 ÷ 7 = 12 h → 20.4 h.
         var a = new Absence
         {
             AbsenceType = "KRANK", DateFrom = D(9, 7), DateTo = D(9, 13), Prozent = 100m,
@@ -201,7 +242,7 @@ public class KrankUnfallZeitgutschriftTests
         };
         var emp = new Employment { EmploymentModel = "MTP", GuaranteedHoursPerWeek = 21m };
         var filiale = new CompanyProfile { NormalWeeklyHours = 42m, ZeitgutschriftKrankMethode = Plan };
-        Assert.Equal(28.8m, KrankUnfallZeitgutschrift.Stunden(a, emp, filiale));
+        Assert.Equal(20.4m, KrankUnfallZeitgutschrift.Stunden(a, emp, filiale));
     }
 
     // ── MTP-Geldmodell (Quelltext-Wächter, Muster FeiertagLohnersatzTests) ──

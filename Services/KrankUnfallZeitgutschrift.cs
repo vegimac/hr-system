@@ -9,8 +9,9 @@ namespace HrSystem.Services;
 /// Rechnung — Lohnrechnung, Absenz-Maske, Neuberechnung und Berichte rufen sie auf.
 ///
 /// Methode der Filiale:
-///   DIENSTPLAN_1_7 — bis «Dienstplan bis» (inkl.): angekreuzter Tag = Wochenstunden ÷ Arbeitstage,
-///                    nicht angekreuzt = 0; danach bzw. ohne Datum: Wochenstunden ÷ 7 pro Kalendertag
+///   DIENSTPLAN_1_7 — bis «Dienstplan bis» (inkl.): angekreuzter Tag = Tagessoll (FIX/FIX-M
+///                    Wochenstunden ÷ Arbeitstage, MTP Garantie ÷ 5), nicht angekreuzt = 0;
+///                    danach bzw. ohne Datum: Wochenstunden ÷ 7 pro Kalendertag
 ///   KALENDER_1_7   — jeder Kalendertag Wochenstunden ÷ 7
 ///   MO_FR_1_5      — Mo–Fr Wochenstunden ÷ 5, Sa/So 0
 /// Krank-% wirkt auf jeden Tag. Keine Wochengrenze — Plusstunden sind möglich.
@@ -50,31 +51,38 @@ public static class KrankUnfallZeitgutschrift
         return emp.WeeklyHours ?? betrieb * (emp.EmploymentPercentage ?? 100m) / 100m;
     }
 
+    /// <summary>Arbeitstage pro Woche gibt es nur bei FIX/FIX-M; MTP rechnet immer 1/5 der Garantie.</summary>
+    public static bool HatArbeitstage(string? modell) => Modell(modell) is "FIX" or "FIX-M";
+
     /// <summary>
-    /// Vorschlag auf 0.5 gerundet: FIX/FIX-M 5 × Pensum, MTP 5 × Garantie ÷ Betriebszeit
-    /// (21 h bei 42 h → 2.5; 25 h → 2.98 → 3). Höchstens 5.
+    /// Vorschlag auf 0.5 gerundet: FIX/FIX-M 5 × Pensum (volle Tage, reduzierte Anzahl —
+    /// 80 % → 4), höchstens 5. MTP immer 5 (Garantie ÷ 5 pro angekreuztem Tag).
     /// </summary>
     public static decimal ArbeitstageVorschlag(string? modell, decimal? pensum, decimal? garantie, decimal? betriebWochenstunden)
     {
-        decimal roh;
-        if (Modell(modell) == "MTP")
-        {
-            decimal betrieb = betriebWochenstunden is > 0 ? betriebWochenstunden.Value : 42m;
-            if (garantie is not > 0) return 5m;
-            roh = 5m * garantie.Value / betrieb;
-        }
-        else
-        {
-            roh = 5m * (pensum is > 0 ? pensum.Value : 100m) / 100m;
-        }
+        if (!HatArbeitstage(modell)) return 5m;
+        decimal roh = 5m * (pensum is > 0 ? pensum.Value : 100m) / 100m;
         decimal gerundet = Math.Round(roh * 2m, MidpointRounding.AwayFromZero) / 2m;
         return Math.Clamp(gerundet, ArbeitstageMin, 5m);
     }
 
     public static decimal Arbeitstage(Employment emp, decimal? betriebWochenstunden)
-        => emp.ArbeitstageProWoche is >= ArbeitstageMin and <= ArbeitstageMax
+        => HatArbeitstage(emp.EmploymentModel) && emp.ArbeitstageProWoche is >= ArbeitstageMin and <= ArbeitstageMax
             ? emp.ArbeitstageProWoche.Value
             : ArbeitstageVorschlag(emp.EmploymentModel, emp.EmploymentPercentage, emp.GuaranteedHoursPerWeek, betriebWochenstunden);
+
+    /// <summary>
+    /// Neuer Vertragsabschnitt (easy@work-Import, Lohnanpassung, neuer Vertrag): eine von Hand
+    /// eingetragene Anzahl Arbeitstage vom Vorgänger übernehmen, solange beide FIX/FIX-M sind
+    /// und das Pensum gleich bleibt — easy@work kennt das Feld nicht. Sonst gilt der Vorschlag.
+    /// </summary>
+    public static void ArbeitstageUebernehmen(Employment neu, Employment? vorgaenger)
+    {
+        if (neu.ArbeitstageProWoche != null || vorgaenger?.ArbeitstageProWoche is not decimal w) return;
+        if (!HatArbeitstage(neu.EmploymentModel) || !HatArbeitstage(vorgaenger.EmploymentModel)) return;
+        if ((neu.EmploymentPercentage ?? 100m) != (vorgaenger.EmploymentPercentage ?? 100m)) return;
+        neu.ArbeitstageProWoche = w;
+    }
 
     /// <summary>Erlaubte Handeingabe: 0.5 bis 6 in Schritten von 0.5.</summary>
     public static bool ArbeitstageGueltig(decimal wert)

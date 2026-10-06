@@ -38,8 +38,8 @@ public class EmploymentsController : ControllerBase
     {
         var emp = await _context.Employments.FindAsync(id);
         if (emp is null) return NotFound();
-        if ((emp.EmploymentModel ?? "").ToUpperInvariant() is not ("FIX" or "FIX-M" or "MTP"))
-            return BadRequest(new { error = "NUR_FIX_MTP", message = "Arbeitstage pro Woche gibt es nur bei FIX, FIX-M und MTP." });
+        if (!KrankUnfallZeitgutschrift.HatArbeitstage(emp.EmploymentModel))
+            return BadRequest(new { error = "NUR_FIX", message = "Arbeitstage pro Woche gibt es nur bei FIX und FIX-M. MTP rechnet immer 1/5 der Garantie." });
         if (dto?.Arbeitstage is decimal w && !KrankUnfallZeitgutschrift.ArbeitstageGueltig(w))
             return BadRequest(new { error = "UNGUELTIG", message = "Arbeitstage: 0.5 bis 6 in Schritten von 0.5." });
         emp.ArbeitstageProWoche = dto?.Arbeitstage;
@@ -292,6 +292,7 @@ public class EmploymentsController : ControllerBase
             // Ende = Tag vor Beginn des neuen Vertrags
             openContract.ContractEndDate = employment.ContractStartDate.AddDays(-1);
         }
+        KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(employment, openContract);
 
         // Tatsächlicher Lohn aus FTE × Pensum berechnen (falls FTE vorhanden)
         if (employment.MonthlySalaryFte.HasValue && employment.EmploymentPercentage.HasValue)

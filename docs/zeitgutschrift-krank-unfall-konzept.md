@@ -20,7 +20,7 @@ Die Filiale wählt die Methode (Filiale → Einstellungen → Arbeitszeit → «
 
 | Methode | Rechnung pro Tag |
 |---|---|
-| `DIENSTPLAN_1_7` (Standard) | bis «Dienstplan bekannt bis»: eingeplanter Tag = Wochenstunden ÷ Arbeitstage, freier Tag = 0 h; danach bzw. ohne Datum: Wochenstunden ÷ 7 pro Kalendertag |
+| `DIENSTPLAN_1_7` (Standard) | bis «Dienstplan bekannt bis»: eingeplanter Tag = Tagessoll (FIX/FIX-M Wochenstunden ÷ Arbeitstage, MTP Garantie ÷ 5), freier Tag = 0 h; danach bzw. ohne Datum: Wochenstunden ÷ 7 pro Kalendertag |
 | `KALENDER_1_7` | jeder Kalendertag Wochenstunden ÷ 7 |
 | `MO_FR_1_5` | Mo–Fr Wochenstunden ÷ 5, Sa/So 0 h |
 
@@ -30,17 +30,31 @@ Die Filiale wählt die Methode (Filiale → Einstellungen → Arbeitszeit → «
 
 ## Arbeitstage pro Woche
 
-Neues Feld am Vertrag (`employment.arbeitstage_pro_woche`, Schritte von 0.5, erlaubt 0.5–6).
-Leer = Vorschlag:
+Neues Feld am Vertrag (`employment.arbeitstage_pro_woche`, Schritte von 0.5, erlaubt 0.5–6),
+**nur FIX/FIX-M** (Walter 06.10.2026). Tagessoll = Wochenstunden ÷ Arbeitstage:
 
-- FIX/FIX-M: 5 × Pensum (80 % → 4, 50 % → 2.5)
-- MTP: 5 × Garantie ÷ Betriebs-Wochenstunden, auf 0.5 gerundet (21 h bei 42 h → 2.5; 25 h → 3), höchstens 5
-- MTP ohne Garantie: 5
+| Vertrag | Wochenstunden | Arbeitstage | Tagessoll |
+|---|---|---|---|
+| 80 % in 4 vollen Tagen | 33.6 | 4 | 8.40 h |
+| 100 % in 4 Tagen | 42 | 4 | 10.50 h |
+| 80 % in 5 kürzeren Tagen | 33.6 | 5 | 6.72 h |
+
+Leer = Vorschlag 5 × Pensum, auf 0.5 gerundet (80 % → 4, 50 % → 2.5) — volle Tage, reduzierte
+Anzahl, so arbeiten die FIX-Teilzeit-MA bei Schaub. Abweichungen (z.B. 100 % in 4 Tagen) von Hand.
+**MTP hat kein Feld:** ein eingeplanter Tag zählt immer Garantie ÷ 5 (der Dienstplan schwankt,
+eine feste Tageszahl sagt beim MTP nichts aus). Der Endpunkt lehnt MTP ab (400 `NUR_FIX`).
 
 Gesetzt wird es im Mitarbeiter → Vertrag → ⋮ «Arbeitstage pro Woche» (HR-Team), Endpunkt
 `PATCH /api/employments/{id}/arbeitstage`. Bewusst ein eigener Weg: easy@work kennt das Feld nicht,
-der Import würde es sonst wegräumen. Erzeugt der easy@work-Sync einen neuen Vertragsabschnitt,
-gilt dort wieder der Vorschlag.
+der Import würde es sonst wegräumen. Neue Vertragsabschnitte (easy@work-Sync inkl. künftiger
+Verträge und Filial-Übertritt, Lohnanpassung, neuer Vertrag von Hand) übernehmen die Handeingabe
+vom Vorgänger, solange beide FIX/FIX-M sind und das Pensum gleich bleibt
+(`KrankUnfallZeitgutschrift.ArbeitstageUebernehmen`); sonst gilt der Vorschlag. Die Absenz-Maske
+zeigt das Tagessoll und fragt beim Vorschlag «stimmt das?».
+
+**Feiertage bleiben bei Wochenstunden ÷ 5** (bewusst nicht ÷ Arbeitstage): der Feiertag-Saldo gibt
+allen 6 Tage pro Jahr, unabhängig vom Pensum. 80 %: 6 × 6.72 h = 40.32 h = 80 % von 6 × 8.40 h.
+Mit ÷ Arbeitstage wären es 6 × 8.40 h — 25 % zu viel.
 
 ## «Dienstplan bekannt bis»
 

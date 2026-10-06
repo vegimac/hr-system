@@ -3704,6 +3704,7 @@ public class EasyAtWorkEmployeeSyncService
             .ToListAsync(ct);
 
         var matched = new HashSet<Employment>();
+        var neuAngelegt = new List<Employment>();
         foreach (var seg in timeline)
         {
             var startDt  = seg.Start.ToDateTime(TimeOnly.MinValue);
@@ -3833,7 +3834,7 @@ public class EasyAtWorkEmployeeSyncService
 
             if (existing == null)
             {
-                db.Employments.Add(new Employment
+                var neu = new Employment
                 {
                     Employee             = emp,
                     EmployeeId           = emp.Id,
@@ -3856,7 +3857,13 @@ public class EasyAtWorkEmployeeSyncService
                     EasyAtWorkPayRateId  = seg.EasyAtWorkPayRateId,
                     EasyAtWorkUpdatedAt  = seg.EasyAtWorkUpdatedAt,
                     EasyAtWorkManualOverride = seg.EasyAtWorkManualOverride,
-                });
+                };
+                KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(neu, existingAll.Concat(neuAngelegt)
+                    .Where(e => e.ContractStartDate < startDt)
+                    .OrderByDescending(e => e.ContractStartDate)
+                    .FirstOrDefault());
+                neuAngelegt.Add(neu);
+                db.Employments.Add(neu);
             }
             else
             {
@@ -4322,7 +4329,7 @@ public class EasyAtWorkEmployeeSyncService
             .FirstOrDefaultAsync(ct);
         if (current != null) current.ContractEndDate = capDate;
 
-        _db.Employments.Add(new Employment
+        var neu = new Employment
         {
             EmployeeId           = emp.Id,
             CompanyProfileId     = companyProfileId,
@@ -4340,7 +4347,9 @@ public class EasyAtWorkEmployeeSyncService
             HourlyRate           = future.HourlyRate,
             MonthlySalary        = future.MonthlySalary,
             MonthlySalaryFte     = future.MonthlySalaryFte,
-        });
+        };
+        KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(neu, current);
+        _db.Employments.Add(neu);
     }
 
     /// <summary>Austritt nach dem Vertrags-Sync bewerten (Walter-Bug 15.07.2026):
@@ -4453,7 +4462,7 @@ public class EasyAtWorkEmployeeSyncService
             if (has) return false;   // schon vorhanden → nichts tun (Backfill nur bei Lücke)
         }
 
-        db.Employments.Add(new Employment
+        var neu = new Employment
         {
             Employee             = emp,
             EmployeeId           = emp.Id,
@@ -4472,7 +4481,14 @@ public class EasyAtWorkEmployeeSyncService
             HourlyRate           = hourlyRate,
             MonthlySalary        = monthlySalary,
             MonthlySalaryFte     = monthlySalaryFte,
-        });
+        };
+        // Übertritt aus einer anderen Filiale: Arbeitstage vom letzten Vertrag mitnehmen.
+        if (emp.Id != 0)
+            KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(neu, await db.Employments.AsNoTracking()
+                .Where(em => em.EmployeeId == emp.Id && em.ContractStartDate < startDate)
+                .OrderByDescending(em => em.ContractStartDate)
+                .FirstOrDefaultAsync(ct));
+        db.Employments.Add(neu);
         return true;
     }
 
