@@ -184,7 +184,7 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('ceHourlyRate').value         = c.hourlyRate ?? '';
     document.getElementById('ceMonthlySalaryFte').value   = c.monthlySalaryFte ?? '';
     document.getElementById('ceMonthlySalary').value      = c.monthlySalary ?? '';
-    document.getElementById('cePensum').value             = c.employmentPercentage ?? '';
+    cePensumOptionen(c.employmentPercentage);
     let atRoh = c.arbeitstageProWoche;
     if (atRoh === undefined && mode === 'edit' && c.id) {
         const r = await fetch(`/api/employments/${c.id}`, { headers: ah() }).catch(() => null);
@@ -301,6 +301,20 @@ function onCePensumChange() {
     ceArbeitstageOptionen(document.getElementById('ceArbeitstage')?.value ?? '');
 }
 
+// Pensum als Auswahl 50–100 % in Zehnerschritten mit den Tagen pro Woche (Walter 06.10.2026).
+// Ein anderer gespeicherter Wert (z.B. 75 % aus easy@work) bleibt als eigene Zeile wählbar.
+function cePensumOptionen(wert) {
+    const sel = document.getElementById('cePensum');
+    if (!sel) return;
+    const tage = p => Math.min(5, Math.max(2.5, Math.round(5 * p / 100 * 2) / 2))
+        .toLocaleString('de-CH', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const stufen = [50, 60, 70, 80, 90, 100];
+    const aktuell = wert != null && wert !== '' && Number(wert) > 0 ? Number(wert) : 100;
+    const werte = stufen.includes(aktuell) ? stufen : [...stufen, aktuell].sort((a, b) => a - b);
+    sel.innerHTML = werte.map(p => `<option value="${p}">${p} %  ·  ${tage(p)} Tage/Woche${stufen.includes(p) ? '' : ' (bisher)'}</option>`).join('');
+    sel.value = String(aktuell);
+}
+
 // Arbeitstage pro Woche (Walter 06.10.2026) — gleiche Regel wie
 // Services/KrankUnfallZeitgutschrift.cs: leer = Vorschlag 5 × Pensum.
 // Schreiben dürfen admin/superuser/buchhaltung (PATCH …/arbeitstage).
@@ -357,7 +371,7 @@ async function checkCeMinimumWage() {
     const isFix = employmentModel === 'FIX' || employmentModel === 'FIX-M';
     const isMtp = employmentModel === 'MTP';
     const startDate = document.getElementById('ceStartDate').value;
-    const pensum = parseFloat(document.getElementById('cePensum').value) || (isFix ? 100 : null);
+    const pensum = isFix ? (parseFloat(document.getElementById('cePensum').value) || 100) : null;
     const hourly = parseFloat(document.getElementById('ceHourlyRate').value);
     // Compliance-Check erwartet `monthlySalary` als 100%-FTE-Wert (er rechnet
     // selbst × Pensum). Walter-Vorgabe 26.05.2026: Bug-Fix — vorher schickten

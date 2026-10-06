@@ -10030,7 +10030,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260922b"></script>
-<script src="js/contracts-edit.js?v=20261006c"></script>
+<script src="js/contracts-edit.js?v=20261006d"></script>
 <script src="js/payroll.js?v=20261006a"></script>
 <script src="js/elm-meldungen.js?v=20260927i"></script>
 <script src="js/fibu.js?v=20260805a"></script>
@@ -11448,7 +11448,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     </div>
                     <div class="ce-field" id="cePensumWrap" style="display:none">
                         <label class="ce-lbl" data-i18n="vt.modal.field.pensumPct">Pensum (%)</label>
-                        <input type="number" id="cePensum" class="ce-inp" min="0" max="100" oninput="onCePensumChange()">
+                        <select id="cePensum" class="ce-inp" onchange="onCePensumChange()"></select>
                     </div>
                     <!-- Arbeitstage pro Woche nur FIX/FIX-M (Zeitgutschrift Krank/Unfall). Eigener Speicherweg PATCH …/arbeitstage, easy@work kennt das Feld nicht. -->
                     <div class="ce-field" id="ceArbeitstageWrap" style="display:none">
