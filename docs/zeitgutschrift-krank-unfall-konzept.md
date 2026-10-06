@@ -30,9 +30,12 @@ Die Filiale wählt die Methode (Filiale → Einstellungen → Arbeitszeit → «
 
 ## Arbeitstage pro Woche
 
-Neues Feld am Vertrag (`employment.arbeitstage_pro_woche`, Schritte von 0.5, erlaubt 2.5–5),
-**nur FIX/FIX-M** (Walter 06.10.2026). Untergrenze 2.5: FIX gibt es nicht unter 50 %; Obergrenze 5:
-der L-GAV verlangt 2 Ruhetage pro Woche. Tagessoll = Wochenstunden ÷ Arbeitstage:
+Neues Feld am Vertrag (`employment.arbeitstage_pro_woche`, **nur FIX/FIX-M** (Walter 06.10.2026).
+Standard (leer, so kommt jeder Vertrag aus easy@work): **volle Tage zu 8.40 h** — Tage = 5 × Pensum.
+Von Hand: bei **100 % nur 5 oder 4 Tage** (8.40 h / 10.50 h), bei reduziertem Pensum 2.5 bis 5 in
+halben Tagen (nicht starr — Ausnahmen bleiben möglich). Untergrenze 2.5: FIX gibt es nicht unter 50 %;
+Obergrenze 5: der L-GAV verlangt 2 Ruhetage pro Woche. Eine Handeingabe ausserhalb der Regel
+(z.B. nach Pensum-Wechsel) zählt nicht — dann gilt wieder der Standard. Tagessoll = Wochenstunden ÷ Arbeitstage:
 
 | Vertrag | Wochenstunden | Arbeitstage | Tagessoll |
 |---|---|---|---|

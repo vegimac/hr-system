@@ -68,8 +68,9 @@ public static class KrankUnfallZeitgutschrift
     }
 
     public static decimal Arbeitstage(Employment emp, decimal? betriebWochenstunden)
-        => HatArbeitstage(emp.EmploymentModel) && emp.ArbeitstageProWoche is >= ArbeitstageMin and <= ArbeitstageMax
-            ? emp.ArbeitstageProWoche.Value
+        => HatArbeitstage(emp.EmploymentModel) && emp.ArbeitstageProWoche is decimal w
+           && ArbeitstageGueltig(w, emp.EmploymentPercentage)
+            ? w
             : ArbeitstageVorschlag(emp.EmploymentModel, emp.EmploymentPercentage, emp.GuaranteedHoursPerWeek, betriebWochenstunden);
 
     /// <summary>
@@ -85,9 +86,15 @@ public static class KrankUnfallZeitgutschrift
         neu.ArbeitstageProWoche = w;
     }
 
-    /// <summary>Erlaubte Handeingabe: 2.5 bis 5 in Schritten von 0.5.</summary>
-    public static bool ArbeitstageGueltig(decimal wert)
-        => wert >= ArbeitstageMin && wert <= ArbeitstageMax && wert * 2m == Math.Floor(wert * 2m);
+    /// <summary>
+    /// Handeingabe (Walter 06.10.2026): 100 % nur 5 Tage (8.40 h) oder 4 Tage (10.50 h);
+    /// reduziertes Pensum 2.5 bis 5 in halben Tagen. Ohne Eingabe (z.B. Vertrag aus easy@work)
+    /// gilt der Vorschlag — volle Tage zu 8.40 h.
+    /// </summary>
+    public static bool ArbeitstageGueltig(decimal wert, decimal? pensum)
+        => (pensum ?? 100m) >= 100m
+            ? wert is 4m or 5m
+            : wert >= ArbeitstageMin && wert <= ArbeitstageMax && wert * 2m == Math.Floor(wert * 2m);
 
     public static HashSet<DateOnly> GeplanteTage(string? workedDaysJson)
     {

@@ -86,15 +86,42 @@ public class KrankUnfallZeitgutschriftTests
     }
 
     [Theory]
-    [InlineData(2.5, true)]
-    [InlineData(4.5, true)]
-    [InlineData(5, true)]
-    [InlineData(2, false)]
-    [InlineData(3.3, false)]
-    [InlineData(5.5, false)]
-    [InlineData(6, false)]
-    public void Arbeitstage_Schritte_halbe_Tage(double wert, bool gueltig)
-        => Assert.Equal(gueltig, KrankUnfallZeitgutschrift.ArbeitstageGueltig((decimal)wert));
+    [InlineData(4, 100, true)]
+    [InlineData(5, 100, true)]
+    [InlineData(4.5, 100, false)]
+    [InlineData(3, 100, false)]
+    [InlineData(6, 100, false)]
+    [InlineData(5, 80, true)]
+    [InlineData(3.5, 80, true)]
+    [InlineData(2.5, 50, true)]
+    [InlineData(2, 50, false)]
+    [InlineData(5.5, 80, false)]
+    [InlineData(3.3, 80, false)]
+    public void Arbeitstage_100_Prozent_4_oder_5_reduziert_halbe_Tage(double wert, double pensum, bool gueltig)
+        => Assert.Equal(gueltig, KrankUnfallZeitgutschrift.ArbeitstageGueltig((decimal)wert, (decimal)pensum));
+
+    [Theory]
+    [InlineData(100, 5)]
+    [InlineData(90, 4.5)]
+    [InlineData(80, 4)]
+    [InlineData(70, 3.5)]
+    [InlineData(60, 3)]
+    [InlineData(50, 2.5)]
+    public void Vertrag_aus_easy_ohne_Eingabe_volle_Tage_zu_8_4_Stunden(double pensum, double tage)
+    {
+        // easy@work kennt das Feld nicht → ArbeitstageProWoche bleibt leer → Vorschlag.
+        var emp = new Employment { EmploymentModel = "FIX", EmploymentPercentage = (decimal)pensum };
+        var at = KrankUnfallZeitgutschrift.Arbeitstage(emp, 42m);
+        Assert.Equal((decimal)tage, at);
+        Assert.Equal(8.4m, KrankUnfallZeitgutschrift.Wochenstunden(emp, 42m) / at);
+    }
+
+    [Fact]
+    public void Handeingabe_ausserhalb_der_Regel_faellt_auf_Vorschlag()
+    {
+        var emp = new Employment { EmploymentModel = "FIX", EmploymentPercentage = 100m, ArbeitstageProWoche = 4.5m };
+        Assert.Equal(5m, KrankUnfallZeitgutschrift.Arbeitstage(emp, 42m));
+    }
 
     [Fact]
     public void Wochenstunden_FIX_Pensum_MTP_Garantie()

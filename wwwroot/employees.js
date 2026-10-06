@@ -2231,7 +2231,9 @@ function empArbeitstage(c) {
     const m = (c.employmentModel || '').toUpperCase();
     if (!['FIX', 'FIX-M'].includes(m)) return null;
     const hand = c.arbeitstageProWoche != null ? Number(c.arbeitstageProWoche) : null;
-    if (hand != null && hand >= 2.5 && hand <= 5) return { wert: hand, vonHand: true, vorschlag: empArbeitstageVorschlag(c) };
+    const p = Number(c.employmentPercentage) > 0 ? Number(c.employmentPercentage) : 100;
+    const gueltig = p >= 100 ? (hand === 4 || hand === 5) : (hand >= 2.5 && hand <= 5 && hand * 2 === Math.floor(hand * 2));
+    if (hand != null && gueltig) return { wert: hand, vonHand: true, vorschlag: empArbeitstageVorschlag(c) };
     return { wert: empArbeitstageVorschlag(c), vonHand: false, vorschlag: empArbeitstageVorschlag(c) };
 }
 function empArbeitstageVorschlag(c) {

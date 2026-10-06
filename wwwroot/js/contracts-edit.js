@@ -328,10 +328,12 @@ function ceArbeitstageOptionen(wert) {
     const p = parseFloat(document.getElementById('cePensum').value);
     const vorschlag = Math.min(5, Math.max(2.5, Math.round(5 * (p > 0 ? p : 100) / 100 * 2) / 2));
     const fmt = v => v.toLocaleString('de-CH', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    let html = `<option value="">Vorschlag (${fmt(vorschlag)})</option>`;
-    for (let v = 2.5; v <= 5; v += 0.5) html += `<option value="${v}">${fmt(v)} Tage</option>`;
+    // 100 %: nur 5 (Standard) oder 4 Tage; reduziert: 2.5–5 in halben Tagen. Standard = volle Tage zu 8.40 h.
+    const andere = (p > 0 ? p : 100) >= 100 ? [4] : [2.5, 3, 3.5, 4, 4.5, 5].filter(v => v !== vorschlag);
+    let html = `<option value="">${fmt(vorschlag)} Tage (Standard)</option>`;
+    for (const v of andere) html += `<option value="${v}">${fmt(v)} Tage</option>`;
     sel.innerHTML = html;
-    sel.value = wert;
+    sel.value = andere.includes(Number(wert)) ? String(Number(wert)) : '';
     sel.disabled = !ceArbeitstageDarf();
     ceArbeitstageInfo();
 }
