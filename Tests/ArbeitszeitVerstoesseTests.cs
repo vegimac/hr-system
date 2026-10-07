@@ -117,6 +117,77 @@ public class ArbeitszeitVerstoesseTests
         Assert.Contains("nach 22:00", v.Text);
     }
 
+    static HrSystem.Models.ArbeitszeitRegelWert W(string regel, string key, decimal? wert, bool vorlage = true) =>
+        new() { HauptsitzId = vorlage ? 1 : null, CompanyProfileId = vorlage ? null : 7, Regel = regel, Schluessel = key, Wert = wert };
+
+    [Fact]
+    public void Filiale_uebersteuert_Vorlage_und_Vorlage_das_Gesetz()
+    {
+        var e = ArbeitszeitEinstellungen.Aufloesen(
+            new[] { W(V.Woche, "max_std", 48), W(V.Block, "max_std", 5) },
+            new[] { W(V.Woche, "max_std", 45, vorlage: false) });
+        Assert.Equal(45, e.Wert(V.Woche, "max_std"));
+        Assert.Equal(5, e.Wert(V.Block, "max_std"));
+        Assert.Equal(14, e.Wert(V.Praesenz, "max_std"));
+        Assert.Equal("Über 45 h 00 pro Woche", V.Titel(V.Woche, e));
+    }
+
+    [Fact]
+    public void Ausgeschaltete_Regel_meldet_nichts()
+    {
+        var e = ArbeitszeitEinstellungen.Aufloesen(new[] { W(V.Pause, ArbeitszeitRegelKatalog.Aktiv, 0) }, Array.Empty<HrSystem.Models.ArbeitszeitRegelWert>());
+        var v = V.Pruefe(new V.Person(1, Erwachsen, new[] { S(Mo, "10:00", "16:00") }, Array.Empty<DateOnly>()), Mo, Mo.AddDays(6), e);
+        var b = Assert.Single(v);
+        Assert.Equal(V.Block, b.Art);
+    }
+
+    [Fact]
+    public void Eigene_Pausengrenze_wirkt()
+    {
+        var e = ArbeitszeitEinstellungen.Aufloesen(new[] { W(V.Pause, "zaehlt_ab_min", 10), W(V.Pause, "pause1_min", 10) }, Array.Empty<HrSystem.Models.ArbeitszeitRegelWert>());
+        var st = new[] { S(Mo, "10:00", "13:00"), S(Mo, "13:12", "16:00") };
+        Assert.NotEmpty(V.Pruefe(new V.Person(1, Erwachsen, st, Array.Empty<DateOnly>()), Mo, Mo.AddDays(6))
+            .Where(x => x.Art == V.Pause));
+        Assert.Empty(V.Pruefe(new V.Person(1, Erwachsen, st, Array.Empty<DateOnly>()), Mo, Mo.AddDays(6), e)
+            .Where(x => x.Art == V.Pause));
+    }
+
+    [Fact]
+    public void Jugendliche_am_Sonntag_und_am_sonntagsgleichen_Feiertag()
+    {
+        var geburt = Mo.ToDateTime(TimeOnly.MinValue).AddYears(-16);
+        var sonntag = Mo.AddDays(6);
+        var mittwoch = Mo.AddDays(2);
+        var st = new[] { S(mittwoch, "10:00", "14:00"), S(sonntag, "10:00", "14:00") };
+        var feiertage = new Dictionary<DateOnly, string> { [mittwoch] = "Fantasietag" };
+        var v = V.Pruefe(new V.Person(1, geburt, st, Array.Empty<DateOnly>()), Mo, sonntag, null, feiertage)
+            .Where(x => x.Art == V.SonntagJugend).ToList();
+        Assert.Equal(2, v.Count);
+        Assert.Contains("Fantasietag", v[0].Text);
+        Assert.Contains("am Sonntag", v[1].Text);
+
+        var nurFeiertage = ArbeitszeitEinstellungen.Aufloesen(new[] { W(V.SonntagJugend, "sonntage", 0) }, Array.Empty<HrSystem.Models.ArbeitszeitRegelWert>());
+        Assert.Single(V.Pruefe(new V.Person(1, geburt, st, Array.Empty<DateOnly>()), Mo, sonntag, nurFeiertage, feiertage),
+            x => x.Art == V.SonntagJugend);
+    }
+
+    [Fact]
+    public void Sonntag_beginnt_am_Samstag_um_23_Uhr()
+    {
+        var geburt = Mo.ToDateTime(TimeOnly.MinValue).AddYears(-17);
+        var samstag = Mo.AddDays(5);
+        var v = V.Pruefe(new V.Person(1, geburt, new[] { S(samstag, "18:00", "23:30") }, Array.Empty<DateOnly>()), Mo, Mo.AddDays(6));
+        var s = Assert.Single(v, x => x.Art == V.SonntagJugend);
+        Assert.Equal(30, s.Ist);
+    }
+
+    [Fact]
+    public void Erwachsene_am_Sonntag_kein_Verstoss()
+    {
+        var st = new[] { S(Mo.AddDays(6), "10:00", "14:00") };
+        Assert.Empty(V.Pruefe(new V.Person(1, Erwachsen, st, Array.Empty<DateOnly>()), Mo, Mo.AddDays(6)));
+    }
+
     [Fact]
     public void Mehr_als_18_Naechte_in_6_Wochen()
     {

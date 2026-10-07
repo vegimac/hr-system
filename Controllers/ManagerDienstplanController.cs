@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -261,56 +262,10 @@ public class ManagerDienstplanController : ControllerBase
             f.Scope,
             f.KantonCode,
             f.CompanyProfileId,
+            sonntagsgleich = FeiertagVorschlag.IstSonntagsgleich(f),
         }));
     }
-
-    public class FeiertagDto
-    {
-        public string? Datum { get; set; }
-        public string? Bezeichnung { get; set; }
-        public string? Scope { get; set; }
-        public string? KantonCode { get; set; }
-        public int? CompanyProfileId { get; set; }
-    }
-
-    [Authorize(Roles = "admin,superuser")]
-    [HttpPost("feiertage")]
-    public async Task<IActionResult> AddFeiertag([FromBody] FeiertagDto dto)
-    {
-        if (!DateOnly.TryParse(dto.Datum, out var datum))
-            return BadRequest(new { error = "DATUM_UNGUELTIG" });
-        if (string.IsNullOrWhiteSpace(dto.Bezeichnung))
-            return BadRequest(new { error = "BEZEICHNUNG_FEHLT" });
-        var scope = (dto.Scope ?? "NATIONAL").ToUpperInvariant();
-        if (scope is not ("NATIONAL" or "KANTON" or "FILIALE"))
-            return BadRequest(new { error = "SCOPE_UNGUELTIG" });
-        if (scope == "KANTON" && string.IsNullOrWhiteSpace(dto.KantonCode))
-            return BadRequest(new { error = "KANTON_FEHLT" });
-        if (scope == "FILIALE" && !dto.CompanyProfileId.HasValue)
-            return BadRequest(new { error = "FILIALE_FEHLT" });
-        _db.DienstplanFeiertage.Add(new DienstplanFeiertag
-        {
-            Datum = datum,
-            Bezeichnung = dto.Bezeichnung.Trim(),
-            Scope = scope,
-            KantonCode = scope == "KANTON" ? dto.KantonCode!.Trim().ToUpperInvariant() : null,
-            CompanyProfileId = scope == "FILIALE" ? dto.CompanyProfileId : null,
-            CreatedAt = DateTime.Now,
-        });
-        await _db.SaveChangesAsync();
-        return Ok(new { ok = true });
-    }
-
-    [Authorize(Roles = "admin,superuser")]
-    [HttpDelete("feiertage/{id:int}")]
-    public async Task<IActionResult> DeleteFeiertag(int id)
-    {
-        var f = await _db.DienstplanFeiertage.FindAsync(id);
-        if (f == null) return NotFound();
-        _db.DienstplanFeiertage.Remove(f);
-        await _db.SaveChangesAsync();
-        return Ok(new { ok = true });
-    }
+    // Erfassen/Löschen seit 07.10.2026 nur noch im Filial-Detail (FeiertageController).
 
     // ── Schulferien pro Filiale (admin überall, sonst Planungsrecht) ─────
     [HttpGet("schulferien")]

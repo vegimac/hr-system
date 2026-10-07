@@ -39,7 +39,7 @@ Ferien, Krankheit, Unfall, Mutterschaft, **Schulung**, Militär usw. werden **im
 
 ## Feiertage & Schulferien
 
-- **🎉 Feiertage** (Pflege: HR/Admin): gelten **national**, pro **Kanton** oder für **eine Filiale** (Gemeinde-Feiertag). Im Plan: roter Stern ★ in der Filialzeile — Mauszeiger darauf zeigt Datum und Name.
+- **🎉 Feiertage** (nur Anzeige — erfasst werden sie im Filial-Detail, Tab «Arbeitszeit & Feiertage»): gelten **national**, pro **Kanton** oder für **eine Filiale** (Gemeinde-Feiertag). Im Plan: roter Stern ★ in der Filialzeile — Mauszeiger darauf zeigt Datum und Name.
 - **🎓 Schulferien** (Pflege: wer planen darf): pro Filiale mit Von–Bis. Im Plan: blaues Band in der Filialzeile.
 
 In beiden Fenstern kannst du oben nach **Jahr und Filiale filtern**; Neues erfassst du über **«+ Neu erfassen»**.

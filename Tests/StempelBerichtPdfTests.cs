@@ -13,12 +13,13 @@ public class StempelBerichtPdfTests
     {
         var stempel = new List<StempelZeit> { new(Tag, "08:00", "14:10", 480, 850, 370), new(Tag, "14:30", "17:00", 870, 1020, 150) };
         var zeilen = Enumerable.Range(0, 60).Select(i => new StempelVerstossZeile(
-            ArbeitszeitVerstoesse.Reihenfolge[i % 8], "Titel", Tag.AddDays(i), Tag.AddDays(i + (i % 3 == 0 ? 6 : 0)),
+            ArbeitszeitVerstoesse.Reihenfolge[i % ArbeitszeitVerstoesse.Reihenfolge.Length], "Titel", Tag.AddDays(i), Tag.AddDays(i + (i % 3 == 0 ? 6 : 0)),
             "Anna Muster hat zu lange gearbeitet — ein längerer Text, damit die Zeile umbricht und mehrere Seiten entstehen.",
             370, 330, "Art. 18 ArGV1", stempel)).ToList();
         var daten = new StempelVerstoesseDaten("999 Musterhausen", Tag, Tag.AddMonths(1), 12,
-            ArbeitszeitVerstoesse.Reihenfolge.Select(a => new StempelVerstossArt(a, ArbeitszeitVerstoesse.Titel[a], ArbeitszeitVerstoesse.Regel[a], 3)).ToList(),
-            new List<StempelVerstossMa> { new(1, "9990001", "Anna", "Muster", zeilen), new(2, null, "Beat", "Beispiel", zeilen.Take(2).ToList()) });
+            ArbeitszeitVerstoesse.Reihenfolge.Select(a => new StempelVerstossArt(a, ArbeitszeitVerstoesse.Titel(a), ArbeitszeitVerstoesse.Beschreibung(a), 3)).ToList(),
+            new List<StempelVerstossMa> { new(1, "9990001", "Anna", "Muster", zeilen), new(2, null, "Beat", "Beispiel", zeilen.Take(2).ToList()) },
+            new List<string> { "Zu viele Nächte" });
         var pdf = new StempelBerichtPdfService().Verstoesse(daten);
         Assert.True(pdf.Length > 1000);
     }

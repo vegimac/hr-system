@@ -624,46 +624,21 @@ async function dpSfDelete(id) {
 }
 
 // ── Feiertage (National / Kanton / Filiale) ─────────────────────────────
+// Nur Anzeige — gepflegt werden die Feiertage seit 07.10.2026 im Filial-Detail
+// «Arbeitszeit & Feiertage» (inkl. «dem Sonntag gleichgestellt»).
 async function dpOpenFeiertage() {
     if (!_dpData) return;
-    const filOpts = (_dpData.filialen || []).map(f => `<option value="${f.id}">${f.code ? f.code + ' ' : ''}${f.name || ''}</option>`).join('');
-    const kannPflegen = typeof currentUser !== 'undefined' && ['admin', 'superuser'].includes(currentUser?.role);
     _dpMgmtModal('🎉 Feiertage (national / kantonal / Filiale)', `
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Jahr
                 <select id="dpFtYear" onchange="dpFtReload()" style="${_dpInp}">${_dpYearOpts()}</select></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Filiale
                 <select id="dpFtFilter" onchange="dpFtReload()" style="${_dpInp};min-width:170px">${_dpFilterOpts()}</select></label>
-            <span style="flex:1"></span>
-            ${kannPflegen ? `<button onclick="dpToggleForm('dpFtForm')" style="${_dpBtnDark}">+ Neu erfassen</button>` : ''}
         </div>
-        <div id="dpFtForm" style="display:none;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px;margin-top:10px">
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Datum
-                <input id="dpFtDatum" type="date" style="${_dpInp}"></label>
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bezeichnung
-                <input id="dpFtName" placeholder="z.B. Auffahrt" style="${_dpInp};min-width:150px"></label>
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Geltung
-                <select id="dpFtScope" onchange="dpFtScopeChanged()" style="${_dpInp}">
-                    <option value="NATIONAL">National (alle Filialen)</option>
-                    <option value="KANTON">Kanton</option>
-                    <option value="FILIALE">Nur eine Filiale (Gemeinde)</option>
-                </select></label>
-            <label id="dpFtKantonWrap" style="font-size:11px;color:#8b8b8b;display:none;flex-direction:column;gap:3px">Kanton
-                <input id="dpFtKanton" placeholder="z.B. AG" maxlength="2" style="${_dpInp};width:70px;text-transform:uppercase"></label>
-            <label id="dpFtCpWrap" style="font-size:11px;color:#8b8b8b;display:none;flex-direction:column;gap:3px">Filiale
-                <select id="dpFtCp" style="${_dpInp};min-width:170px">${filOpts}</select></label>
-            <button onclick="dpFtAdd()" style="${_dpBtnDark}">Speichern</button>
-        </div>
+        <div style="margin-top:10px;font-size:12.5px;color:#646464;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:8px 12px">
+            Feiertage erfassen und ändern: System → Filialen → Filiale wählen → Tab «Arbeitszeit &amp; Feiertage».</div>
         <div id="dpFtList" style="margin-top:12px;font-size:13px;color:#3f3f3f">Wird geladen…</div>`);
     await dpFtReload();
-}
-
-function dpFtScopeChanged() {
-    const scope = document.getElementById('dpFtScope')?.value;
-    const k = document.getElementById('dpFtKantonWrap');
-    const c = document.getElementById('dpFtCpWrap');
-    if (k) k.style.display = scope === 'KANTON' ? 'flex' : 'none';
-    if (c) c.style.display = scope === 'FILIALE' ? 'flex' : 'none';
 }
 
 function _dpFtScopeLabel(f) {
@@ -690,43 +665,14 @@ async function dpFtReload() {
                 || (f.scope === 'FILIALE' && f.companyProfileId === parseInt(filter, 10)));
         }
         if (!list.length) { el.innerHTML = `<span style="color:#8b8b8b">Keine Feiertage für ${year}${filter ? ' in dieser Filiale' : ''} erfasst.</span>`; return; }
-        const kannPflegen = typeof currentUser !== 'undefined' && ['admin', 'superuser'].includes(currentUser?.role);
         el.innerHTML = list.map(f => `
             <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(60,55,48,0.1)">
                 <span style="min-width:80px;color:#8b8b8b">${_dpFmtD(f.datum)}</span>
                 <b>${f.bezeichnung}</b>
                 <span style="background:${f.scope === 'NATIONAL' ? '#e0e7ff' : f.scope === 'KANTON' ? '#fef3c7' : '#dcfce7'};border-radius:8px;padding:1px 8px;font-size:11.5px;color:#3f3f3f">${_dpFtScopeLabel(f)}</span>
-                <span style="flex:1"></span>
-                ${kannPflegen ? `<button onclick="dpFtDelete(${f.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b">🗑</button>` : ''}
+                ${f.sonntagsgleich ? '<span style="font-size:11.5px;color:#7c3aed">wie Sonntag</span>' : ''}
             </div>`).join('');
     } catch (_) { el.textContent = 'Verbindungsfehler.'; }
-}
-
-async function dpFtAdd() {
-    const scope = document.getElementById('dpFtScope')?.value || 'NATIONAL';
-    const body = {
-        datum: document.getElementById('dpFtDatum')?.value,
-        bezeichnung: (document.getElementById('dpFtName')?.value || '').trim(),
-        scope,
-        kantonCode: scope === 'KANTON' ? (document.getElementById('dpFtKanton')?.value || '').trim().toUpperCase() : null,
-        companyProfileId: scope === 'FILIALE' ? parseInt(document.getElementById('dpFtCp')?.value, 10) : null,
-    };
-    if (!body.datum || !body.bezeichnung) { showToast('Datum und Bezeichnung ausfüllen.', 'error'); return; }
-    if (scope === 'KANTON' && !body.kantonCode) { showToast('Kanton angeben (z.B. AG).', 'error'); return; }
-    const r = await fetch('/api/manager-dienstplan/feiertage', { method: 'POST', headers: ah(), body: JSON.stringify(body) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen.', 'error'); return; }
-    document.getElementById('dpFtName').value = '';
-    await dpFtReload();
-    dpLoad();
-}
-
-async function dpFtDelete(id) {
-    if (!await liquidConfirm('Diesen Feiertag löschen?', { title: 'Feiertage' })) return;
-    const r = await fetch(`/api/manager-dienstplan/feiertage/${id}`, { method: 'DELETE', headers: ah() });
-    if (!r.ok) { showToast('Löschen fehlgeschlagen.', 'error'); return; }
-    await dpFtReload();
-    dpLoad();
 }
 
 function _dpShowImportModal(bodyHtml, onOk) {

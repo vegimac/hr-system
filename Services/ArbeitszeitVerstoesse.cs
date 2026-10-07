@@ -2,22 +2,14 @@ namespace HrSystem.Services;
 
 /// <summary>
 /// Arbeitszeit-Verstösse aus den Stempelzeiten (Walter 07.10.2026, McAdmin-Bericht).
-/// Reine Rechnung ohne DB — Grundlage: ArG/ArGV1 + L-GAV, abgeleitet aus dem
-/// easy@work-Bericht «Anomalien Stempelzeiten 2.0». Bewusste Abweichungen zu easy:
+/// Reine Rechnung ohne DB. Grenzwerte aus <see cref="ArbeitszeitEinstellungen"/>
+/// (Standard = ArG/ArGV1/L-GAV, einstellbar am Hauptsitz und pro Filiale), abgeleitet
+/// aus dem easy@work-Bericht «Anomalien Stempelzeiten 2.0». Bewusste Abweichungen zu easy:
 /// Pausen zählen erst ab 15 Min. (Art. 15 ArG «Viertelstunde»), Pausenpflicht erst
 /// bei MEHR als 5½ Std., Stempel ohne Dauer und Tage mit 0 Min. zählen nicht.
 /// </summary>
 public static class ArbeitszeitVerstoesse
 {
-    public const int PauseZaehltAbMin = 15;
-    public const int BlockMaxMin = 330;            // Art. 18 Abs. 1 ArGV1: 5½ Std. am Stück
-    public const int NachtTagMaxMin = 540;         // Art. 17a ArG: 9 Std. bei Nachtarbeit
-    public const int PraesenzMaxMin = 14 * 60;     // Art. 10 Abs. 3 ArG
-    public const int PraesenzNachtMaxMin = 10 * 60;// Art. 17a ArG
-    public const int PraesenzJugendMaxMin = 12 * 60;// Art. 31 Abs. 1 ArG
-    public const int JugendTagMaxMin = 540;        // Art. 31 Abs. 1 ArG
-    public const int WocheMaxMin = 50 * 60;        // Art. 9 Abs. 1 lit. b ArG
-    public const int RuhetageMin = 2;              // L-GAV Art. 15
     public const int NaechteFensterTage = NightWorkComplianceService.WindowDays;
     public const int NaechteMax = NightWorkComplianceService.Threshold;
 
@@ -29,6 +21,9 @@ public static class ArbeitszeitVerstoesse
     public const string Ruhetage = "RUHETAGE";
     public const string Naechte = "NAECHTE";
     public const string Jugend = "JUGEND";
+    public const string SonntagJugend = "SONNTAG_JUGEND";
+
+    public static readonly string[] Reihenfolge = { Pause, Block, NachtTag, Praesenz, Woche, Ruhetage, Naechte, Jugend, SonntagJugend };
 
     public record Stempel(DateOnly Tag, DateTime Ein, DateTime Aus)
     {
@@ -42,55 +37,74 @@ public static class ArbeitszeitVerstoesse
                            string Text, int Ist, int Grenze, string Recht,
                            IReadOnlyList<Stempel> Stempel);
 
-    public static readonly IReadOnlyDictionary<string, string> Titel = new Dictionary<string, string>
-    {
-        [Pause]    = "Pause zu kurz",
-        [Block]    = "Zu lange am Stück",
-        [NachtTag] = "Nachtarbeit über 9 Std.",
-        [Praesenz] = "Präsenzzeit zu lang",
-        [Woche]    = "Über 50 Std. pro Woche",
-        [Ruhetage] = "Weniger als 2 Ruhetage",
-        [Naechte]  = "Zu viele Nächte",
-        [Jugend]   = "Jugendschutz",
-    };
+    static string H(decimal std) => Dauer((int)Math.Round(std * 60));
+    static string Uhr(decimal std) => $"{(int)std}:{(int)Math.Round((std - (int)std) * 60):00}";
 
-    public static readonly IReadOnlyDictionary<string, string> Regel = new Dictionary<string, string>
+    public static string Titel(string art, ArbeitszeitEinstellungen? e = null)
     {
-        [Pause]    = "Mehr als 5½ Std. → 15 Min., mehr als 7 Std. → 30 Min., mehr als 9 Std. → 60 Min. Pause (davon 30 am Stück). Unterbrüche unter 15 Min. zählen nicht.",
-        [Block]    = "Vor und nach einer Pause höchstens 5½ Std. am Stück arbeiten.",
-        [NachtTag] = "Wer zwischen 23 und 6 Uhr arbeitet, darf an diesem Tag höchstens 9 Std. arbeiten.",
-        [Praesenz] = "Erster Stempel bis letzter Stempel inkl. Pausen: höchstens 14 Std., mit Nachtarbeit 10 Std., Jugendliche 12 Std.",
-        [Woche]    = "Höchstens 50 Std. pro Woche (Montag–Sonntag).",
-        [Ruhetage] = "Mindestens 2 freie Kalendertage pro Woche (Montag–Sonntag).",
-        [Naechte]  = "Mehr als 18 Nächte in 6 Wochen = dauernde Nachtarbeit mit Untersuchungspflicht.",
-        [Jugend]   = "Unter 18: höchstens 9 Std. pro Tag, nicht nach 22 Uhr (unter 16: 20 Uhr) und nicht vor 6 Uhr.",
-    };
+        e ??= ArbeitszeitEinstellungen.Gesetz;
+        return art switch
+        {
+            NachtTag => $"Nachtarbeit über {H(e.Wert(NachtTag, "max_std"))}",
+            Woche    => $"Über {H(e.Wert(Woche, "max_std"))} pro Woche",
+            Ruhetage => $"Weniger als {e.Wert(Ruhetage, "min_tage"):0} Ruhetage",
+            _        => ArbeitszeitRegelKatalog.Finde(art)?.Titel ?? art,
+        };
+    }
 
-    public static readonly string[] Reihenfolge = { Pause, Block, NachtTag, Praesenz, Woche, Ruhetage, Naechte, Jugend };
+    public static string Beschreibung(string art, ArbeitszeitEinstellungen? e = null)
+    {
+        e ??= ArbeitszeitEinstellungen.Gesetz;
+        var eigen = e.EigenerText(art);
+        if (eigen != null) return eigen;
+        decimal W(string k) => e.Wert(art, k);
+        return art switch
+        {
+            Pause => $"Mehr als {H(W("ab1_std"))} → {W("pause1_min"):0} Min., mehr als {H(W("ab2_std"))} → {W("pause2_min"):0} Min., "
+                   + $"mehr als {H(W("ab3_std"))} → {W("pause3_min"):0} Min. Pause (davon {W("am_stueck_min"):0} am Stück). "
+                   + $"Unterbrüche unter {W("zaehlt_ab_min"):0} Min. zählen nicht.",
+            Block => $"Vor und nach einer Pause höchstens {H(W("max_std"))} am Stück arbeiten.",
+            NachtTag => $"Wer zwischen {Uhr(W("nacht_von"))} und {Uhr(W("nacht_bis"))} Uhr arbeitet, darf an diesem Tag höchstens {H(W("max_std"))} arbeiten.",
+            Praesenz => $"Erster Stempel bis letzter Stempel inkl. Pausen: höchstens {H(W("max_std"))}, mit Nachtarbeit {H(W("max_nacht_std"))}, Jugendliche {H(W("max_jugend_std"))}.",
+            Woche => $"Höchstens {H(W("max_std"))} pro Woche (Montag–Sonntag).",
+            Ruhetage => $"Mindestens {W("min_tage"):0} freie Kalendertage pro Woche (Montag–Sonntag).",
+            Naechte => $"Mehr als {NaechteMax} Nächte in 6 Wochen = dauernde Nachtarbeit mit Untersuchungspflicht.",
+            Jugend => $"Unter 18: höchstens {H(W("max_std"))} pro Tag, nicht nach {Uhr(W("ende_ab16"))} Uhr (unter 16: {Uhr(W("ende_unter16"))} Uhr) und nicht vor {Uhr(W("beginn"))} Uhr.",
+            SonntagJugend => W("sonntage") != 0
+                ? "Unter 18: keine Arbeit an Sonntagen und an Feiertagen, die dem Sonntag gleichgestellt sind (Samstag 23 Uhr bis Sonntag 23 Uhr). Ausnahmen wie Lehre oder Bewilligung sind nicht geprüft."
+                : "Unter 18: keine Arbeit an Feiertagen, die dem Sonntag gleichgestellt sind (Vortag 23 Uhr bis 23 Uhr). Ausnahmen wie Lehre oder Bewilligung sind nicht geprüft.",
+            _ => "",
+        };
+    }
 
     /// <summary>Alle Verstösse im Zeitraum. Wochen zählen dort, wo ihr Sonntag liegt;
-    /// Stempel müssen eine Woche vor/nach dem Zeitraum mitgeliefert werden, Nächte 6 Wochen davor.</summary>
-    public static List<Verstoss> Pruefe(Person p, DateOnly von, DateOnly bis)
+    /// Stempel müssen eine Woche vor/nach dem Zeitraum mitgeliefert werden, Nächte 6 Wochen davor.
+    /// <paramref name="sonntagsgleich"/> = Feiertage der Filiale, die dem Sonntag gleichgestellt sind (1. August immer).</summary>
+    public static List<Verstoss> Pruefe(Person p, DateOnly von, DateOnly bis,
+        ArbeitszeitEinstellungen? e = null, IReadOnlyDictionary<DateOnly, string>? sonntagsgleich = null)
     {
+        e ??= ArbeitszeitEinstellungen.Gesetz;
         var gueltig = p.Stempel.Where(s => s.Aus > s.Ein).OrderBy(s => s.Ein).ToList();
         var res = new List<Verstoss>();
 
         foreach (var tag in gueltig.Where(s => s.Tag >= von && s.Tag <= bis).GroupBy(s => s.Tag).OrderBy(g => g.Key))
-            res.AddRange(PruefeTag(p, tag.Key, tag.ToList()));
+            res.AddRange(PruefeTag(p, tag.Key, tag.ToList(), e));
 
         for (var mo = Montag(von); mo <= bis; mo = mo.AddDays(7))
         {
             var so = mo.AddDays(6);
             if (so < von || so > bis) continue;
-            res.AddRange(PruefeWoche(p, mo, gueltig));
+            res.AddRange(PruefeWoche(p, mo, gueltig, e));
         }
 
-        res.AddRange(PruefeNaechte(p, von, bis));
+        if (e.IstAktiv(Naechte)) res.AddRange(PruefeNaechte(p, von, bis));
+        if (e.IstAktiv(SonntagJugend)) res.AddRange(PruefeSonntagJugend(p, von, bis, gueltig, e, sonntagsgleich));
         return res.OrderBy(v => v.Von).ThenBy(v => v.Art).ToList();
     }
 
-    static IEnumerable<Verstoss> PruefeTag(Person p, DateOnly tag, List<Stempel> st)
+    static IEnumerable<Verstoss> PruefeTag(Person p, DateOnly tag, List<Stempel> st, ArbeitszeitEinstellungen e)
     {
+        int zaehltAb = (int)e.Wert(Pause, "zaehlt_ab_min");
         int gearbeitet = st.Sum(s => s.Minuten);
         var pausen = new List<int>();
         var bloecke = new List<(DateTime Von, DateTime Bis)>();
@@ -98,7 +112,7 @@ public static class ArbeitszeitVerstoesse
         for (int i = 1; i < st.Count; i++)
         {
             int luecke = (int)Math.Round((st[i].Ein - cur.Bis).TotalMinutes);
-            if (luecke >= PauseZaehltAbMin)
+            if (luecke >= zaehltAb)
             {
                 pausen.Add(luecke);
                 bloecke.Add(cur);
@@ -110,75 +124,85 @@ public static class ArbeitszeitVerstoesse
 
         int pauseTotal = pausen.Sum();
         int pauseMax = pausen.Count == 0 ? 0 : pausen.Max();
-        int soll = gearbeitet > 540 ? 60 : gearbeitet > 420 ? 30 : gearbeitet > 330 ? 15 : 0;
-        int sollAmStueck = gearbeitet > 540 ? 30 : 0;
-        bool pauseFehlt = pauseTotal < soll || pauseMax < sollAmStueck;
+        int soll = gearbeitet > e.Minuten(Pause, "ab3_std") ? (int)e.Wert(Pause, "pause3_min")
+                 : gearbeitet > e.Minuten(Pause, "ab2_std") ? (int)e.Wert(Pause, "pause2_min")
+                 : gearbeitet > e.Minuten(Pause, "ab1_std") ? (int)e.Wert(Pause, "pause1_min") : 0;
+        int sollAmStueck = gearbeitet > e.Minuten(Pause, "ab3_std") ? (int)e.Wert(Pause, "am_stueck_min") : 0;
+        bool pauseFehlt = e.IstAktiv(Pause) && (pauseTotal < soll || pauseMax < sollAmStueck);
         if (pauseFehlt)
         {
             var text = $"{Dauer(gearbeitet)} gearbeitet — vorgeschrieben sind mindestens {soll} Min. Pause"
                      + (sollAmStueck > 0 ? $", davon {sollAmStueck} Min. am Stück" : "")
                      + $". Genommen: {(pauseTotal == 0 ? "keine" : pauseTotal + " Min.")}"
                      + (sollAmStueck > 0 && pausen.Count > 0 ? $" (längste {pauseMax} Min.)" : "") + ".";
-            yield return new(p.EmployeeId, Pause, tag, tag, text, pauseTotal, soll, "Art. 15 ArG", st);
+            yield return new(p.EmployeeId, Pause, tag, tag, text, pauseTotal, soll, Recht(Pause), st);
         }
-        else
+        else if (e.IstAktiv(Block))
         {
-            var lang = bloecke.Where(b => (b.Bis - b.Von).TotalMinutes > BlockMaxMin).ToList();
+            int blockMax = e.Minuten(Block, "max_std");
+            var lang = bloecke.Where(b => (b.Bis - b.Von).TotalMinutes > blockMax).ToList();
             if (lang.Count > 0)
             {
                 var b = lang.OrderByDescending(x => x.Bis - x.Von).First();
                 int min = (int)Math.Round((b.Bis - b.Von).TotalMinutes);
                 yield return new(p.EmployeeId, Block, tag, tag,
-                    $"{b.Von:HH:mm}–{b.Bis:HH:mm} ({Dauer(min)}) ohne Pause gearbeitet — am Stück sind höchstens 5 h 30 erlaubt. Die Pause ist zwar lang genug, liegt aber falsch.",
-                    min, BlockMaxMin, "Art. 18 ArGV1", st);
+                    $"{b.Von:HH:mm}–{b.Bis:HH:mm} ({Dauer(min)}) ohne Pause gearbeitet — am Stück sind höchstens {Dauer(blockMax)} erlaubt."
+                    + (pausen.Count > 0 ? " Die Pause ist zwar lang genug, liegt aber falsch." : ""),
+                    min, blockMax, Recht(Block), st);
             }
         }
 
-        bool nacht = st.Any(s => NachtMinuten(s.Ein, s.Aus) > 0);
+        decimal nVon = e.Wert(NachtTag, "nacht_von"), nBis = e.Wert(NachtTag, "nacht_bis");
+        bool nacht = st.Any(s => MinutenImFenster(s.Ein, s.Aus, nVon, nBis) > 0);
         int? alter = p.Geburt.HasValue ? MindestlohnAlter.Alter(p.Geburt.Value, tag.ToDateTime(TimeOnly.MinValue)) : null;
         bool jugend = alter is < 18;
 
-        if (nacht && gearbeitet > NachtTagMaxMin)
+        int nachtMax = e.Minuten(NachtTag, "max_std");
+        if (e.IstAktiv(NachtTag) && nacht && gearbeitet > nachtMax)
             yield return new(p.EmployeeId, NachtTag, tag, tag,
-                $"{Dauer(gearbeitet)} gearbeitet mit Nachtarbeit (23–6 Uhr) — erlaubt sind höchstens 9 Std.",
-                gearbeitet, NachtTagMaxMin, "Art. 17a ArG", st);
+                $"{Dauer(gearbeitet)} gearbeitet mit Nachtarbeit ({Uhr(nVon)}–{Uhr(nBis)} Uhr) — erlaubt sind höchstens {Dauer(nachtMax)}.",
+                gearbeitet, nachtMax, Recht(NachtTag), st);
 
         int praesenz = (int)Math.Round((st.Max(s => s.Aus) - st[0].Ein).TotalMinutes);
-        int praesenzMax = jugend ? PraesenzJugendMaxMin : nacht ? PraesenzNachtMaxMin : PraesenzMaxMin;
-        if (praesenz > praesenzMax)
+        int praesenzMax = jugend ? e.Minuten(Praesenz, "max_jugend_std")
+                        : nacht ? e.Minuten(Praesenz, "max_nacht_std") : e.Minuten(Praesenz, "max_std");
+        if (e.IstAktiv(Praesenz) && praesenz > praesenzMax)
             yield return new(p.EmployeeId, Praesenz, tag, tag,
                 $"Von {st[0].Ein:HH:mm} bis {st.Max(s => s.Aus):HH:mm} = {Dauer(praesenz)} inkl. Pausen — erlaubt sind "
-                + (jugend ? "für Jugendliche 12 Std." : nacht ? "mit Nachtarbeit 10 Std." : "14 Std."),
+                + (jugend ? "für Jugendliche " : nacht ? "mit Nachtarbeit " : "") + Dauer(praesenzMax) + ".",
                 praesenz, praesenzMax, jugend ? "Art. 31 ArG" : nacht ? "Art. 17a ArG" : "Art. 10 ArG", st);
 
-        if (jugend)
+        if (jugend && e.IstAktiv(Jugend))
         {
-            int grenzeStunde = alter >= 16 ? 22 : 20;
+            decimal ende = alter >= 16 ? e.Wert(Jugend, "ende_ab16") : e.Wert(Jugend, "ende_unter16");
+            decimal beginn = e.Wert(Jugend, "beginn");
+            int tagMax = e.Minuten(Jugend, "max_std");
             var teile = new List<string>();
-            if (gearbeitet > JugendTagMaxMin) teile.Add($"{Dauer(gearbeitet)} gearbeitet (höchstens 9 Std.)");
-            var spaet = st.Where(s => MinutenAusserhalb(s.Ein, s.Aus, grenzeStunde) > 0).ToList();
+            if (gearbeitet > tagMax) teile.Add($"{Dauer(gearbeitet)} gearbeitet (höchstens {Dauer(tagMax)})");
+            var spaet = st.Where(s => MinutenImFenster(s.Ein, s.Aus, ende, beginn) > 0).ToList();
             if (spaet.Count > 0)
-                teile.Add($"gearbeitet nach {grenzeStunde}:00 oder vor 6:00 (bis {spaet.Max(s => s.Aus):HH:mm})");
+                teile.Add($"gearbeitet nach {Uhr(ende)} oder vor {Uhr(beginn)} Uhr (bis {spaet.Max(s => s.Aus):HH:mm})");
             if (teile.Count > 0)
                 yield return new(p.EmployeeId, Jugend, tag, tag,
                     $"{alter} Jahre: " + string.Join(", ", teile) + ". Ausnahmen (Lehre, Bewilligung) sind nicht geprüft.",
-                    gearbeitet, JugendTagMaxMin, "Art. 31 ArG", st);
+                    gearbeitet, tagMax, Recht(Jugend), st);
         }
     }
 
-    static IEnumerable<Verstoss> PruefeWoche(Person p, DateOnly mo, List<Stempel> alle)
+    static IEnumerable<Verstoss> PruefeWoche(Person p, DateOnly mo, List<Stempel> alle, ArbeitszeitEinstellungen e)
     {
         var so = mo.AddDays(6);
         var st = alle.Where(s => s.Tag >= mo && s.Tag <= so).ToList();
         if (st.Count == 0) yield break;
 
         int summe = st.Sum(s => s.Minuten);
-        if (summe > WocheMaxMin)
+        int wocheMax = e.Minuten(Woche, "max_std");
+        if (e.IstAktiv(Woche) && summe > wocheMax)
             yield return new(p.EmployeeId, Woche, mo, so,
-                $"{Dauer(summe)} gearbeitet in der Woche — erlaubt sind höchstens 50 Std.",
-                summe, WocheMaxMin, "Art. 9 ArG", st);
+                $"{Dauer(summe)} gearbeitet in der Woche — erlaubt sind höchstens {Dauer(wocheMax)}.",
+                summe, wocheMax, Recht(Woche), st);
 
-        var beginn = mo.ToDateTime(TimeOnly.MinValue);
+        if (!e.IstAktiv(Ruhetage)) yield break;
         var arbeitstage = new HashSet<DateOnly>();
         foreach (var s in alle)
             for (var t = DateOnly.FromDateTime(s.Ein); t <= DateOnly.FromDateTime(s.Aus); t = t.AddDays(1))
@@ -188,10 +212,11 @@ public static class ArbeitszeitVerstoesse
                 if (Ueberlappung(s.Ein, s.Aus, tVon, tVon.AddDays(1)) > 0) arbeitstage.Add(t);
             }
         int frei = 7 - arbeitstage.Count;
-        if (frei < RuhetageMin)
+        int minFrei = (int)e.Wert(Ruhetage, "min_tage");
+        if (frei < minFrei)
             yield return new(p.EmployeeId, Ruhetage, mo, so,
-                $"{arbeitstage.Count} Tage gearbeitet, nur {(frei == 0 ? "kein" : frei.ToString())} freier Tag — vorgeschrieben sind 2 Ruhetage pro Woche.",
-                frei, RuhetageMin, "L-GAV Art. 15", st);
+                $"{arbeitstage.Count} Tage gearbeitet, nur {(frei == 0 ? "kein" : frei.ToString())} freier Tag — vorgeschrieben sind {minFrei} Ruhetage pro Woche.",
+                frei, minFrei, Recht(Ruhetage), st);
     }
 
     static IEnumerable<Verstoss> PruefeNaechte(Person p, DateOnly von, DateOnly bis)
@@ -220,24 +245,53 @@ public static class ArbeitszeitVerstoesse
     static Verstoss NaechteVerstoss(Person p, DateOnly von, DateOnly bis, int max) =>
         new(p.EmployeeId, Naechte, von, bis,
             $"Bis zu {max} Nächte in 6 Wochen — ab mehr als {NaechteMax} Nächten braucht es die ärztliche Untersuchung und das Zeugnis.",
-            max, NaechteMax, "Art. 30 ArGV1", Array.Empty<Stempel>());
+            max, NaechteMax, Recht(Naechte), Array.Empty<Stempel>());
 
-    /// <summary>Minuten im Nachtfenster 23–6 Uhr (Art. 10 ArG).</summary>
-    public static int NachtMinuten(DateTime ein, DateTime aus)
+    /// <summary>Sonntag bzw. Feiertag gilt von 23 Uhr am Vortag bis 23 Uhr (Art. 18 ArG).</summary>
+    static IEnumerable<Verstoss> PruefeSonntagJugend(Person p, DateOnly von, DateOnly bis, List<Stempel> alle,
+        ArbeitszeitEinstellungen e, IReadOnlyDictionary<DateOnly, string>? sonntagsgleich)
+    {
+        if (!p.Geburt.HasValue) yield break;
+        bool sonntage = e.Wert(SonntagJugend, "sonntage") != 0;
+        for (var d = von; d <= bis; d = d.AddDays(1))
+        {
+            string? feiertag = null;
+            if (sonntagsgleich != null && sonntagsgleich.TryGetValue(d, out var name)) feiertag = name;
+            else if (d.Month == 8 && d.Day == 1) feiertag = "Bundesfeiertag";
+            bool sonntag = d.DayOfWeek == DayOfWeek.Sunday;
+            if (feiertag == null && !(sonntage && sonntag)) continue;
+
+            int alter = MindestlohnAlter.Alter(p.Geburt.Value, d.ToDateTime(TimeOnly.MinValue));
+            if (alter >= 18) continue;
+            var fVon = d.ToDateTime(TimeOnly.MinValue).AddHours(-1);
+            var fBis = fVon.AddDays(1);
+            var st = alle.Where(s => Ueberlappung(s.Ein, s.Aus, fVon, fBis) > 0).ToList();
+            if (st.Count == 0) continue;
+            int min = (int)Math.Round(st.Sum(s => Ueberlappung(s.Ein, s.Aus, fVon, fBis)));
+            var wann = feiertag != null ? $"am Feiertag «{feiertag}» (dem Sonntag gleichgestellt)" : "am Sonntag";
+            yield return new(p.EmployeeId, SonntagJugend, d, d,
+                $"{alter} Jahre: {Dauer(min)} gearbeitet {wann} — Jugendliche dürfen dann nicht arbeiten. Ausnahmen (Lehre, Bewilligung) sind nicht geprüft.",
+                min, 0, Recht(SonntagJugend), st);
+        }
+    }
+
+    static string Recht(string art) => ArbeitszeitRegelKatalog.Finde(art)?.Recht ?? "";
+
+    /// <summary>Minuten im Fenster vonStd–bisStd (über Mitternacht, wenn vonStd ≥ bisStd).</summary>
+    public static int MinutenImFenster(DateTime ein, DateTime aus, decimal vonStd, decimal bisStd)
     {
         double sum = 0;
+        var v = TimeSpan.FromHours((double)vonStd);
+        var b = TimeSpan.FromHours((double)bisStd);
         for (var t = ein.Date.AddDays(-1); t <= aus.Date; t = t.AddDays(1))
-            sum += Ueberlappung(ein, aus, t.AddHours(23), t.AddDays(1).AddHours(6));
+            sum += vonStd >= bisStd
+                ? Ueberlappung(ein, aus, t + v, t.AddDays(1) + b)
+                : Ueberlappung(ein, aus, t + v, t + b);
         return (int)Math.Round(sum);
     }
 
-    static int MinutenAusserhalb(DateTime ein, DateTime aus, int grenzeStunde)
-    {
-        double sum = 0;
-        for (var t = ein.Date.AddDays(-1); t <= aus.Date; t = t.AddDays(1))
-            sum += Ueberlappung(ein, aus, t.AddHours(grenzeStunde), t.AddDays(1).AddHours(6));
-        return (int)Math.Round(sum);
-    }
+    /// <summary>Minuten im gesetzlichen Nachtfenster 23–6 Uhr (Art. 10 ArG).</summary>
+    public static int NachtMinuten(DateTime ein, DateTime aus) => MinutenImFenster(ein, aus, 23, 6);
 
     static double Ueberlappung(DateTime a1, DateTime a2, DateTime b1, DateTime b2)
     {

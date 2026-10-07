@@ -248,6 +248,7 @@ function renderFilialenDetail(b) {
 
             <div class="emp-tab"        data-ftab="f-einstellungen"  onclick="switchFilialenTab('f-einstellungen')">Einstellungen</div>
             <div class="emp-tab"        data-ftab="f-empf"           onclick="switchFilialenTab('f-empf')" style="line-height:1.15;text-align:center">Lohndaten<br>Empfänger</div>
+            <div class="emp-tab"        data-ftab="f-arbeitszeit"    onclick="switchFilialenTab('f-arbeitszeit')" style="line-height:1.15;text-align:center">Arbeitszeit<br>&amp; Feiertage</div>
             ${cdokCanSee() ? `<div class="emp-tab" data-ftab="f-doks" onclick="switchFilialenTab('f-doks')">Dokumente</div>` : ''}
             <!-- Aktions-Buttons des Einstellungen-Tabs sitzen in der Tab-Leiste
                  (nicht-scrollender Kopfbereich) — bleiben so immer sichtbar.
@@ -659,6 +660,9 @@ function renderFilialenDetail(b) {
              Nur sichtbar für admin oder User mit canCompanyDokumente
              (AuthController.Me); das Backend prüft den Zugriff zusätzlich. -->
         ${cdokCanSee() ? `
+        <div class="emp-tab-content" id="fil-tab-f-arbeitszeit">
+            ${typeof azTabHtml === 'function' ? azTabHtml(b.id) : ''}
+        </div>
         <div class="emp-tab-content" id="fil-tab-f-doks">
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 Dokumente
@@ -1090,6 +1094,9 @@ function switchFilialenTab(tab) {
     // Dokumente-Tab: Liste beim Betreten (neu) laden.
     if (tab === 'f-doks' && selectedBranch && typeof filDoksLoad === 'function') {
         filDoksLoad(selectedBranch.id);
+    }
+    if (tab === 'f-arbeitszeit' && selectedBranch && typeof azTabLoad === 'function') {
+        azTabLoad(selectedBranch.id);
     }
     // Lohndatenempfänger-Tab: Zuordnungen beim Betreten laden.
     if (tab === 'f-empf' && selectedBranch && typeof cpEmpfLoad === 'function') {

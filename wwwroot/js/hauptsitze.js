@@ -45,6 +45,7 @@ function hsRender() {
                     <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'hs-${h.id}')" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="dokMenu-hs-${h.id}">
                         <button class="dok-menu-item" onclick="dokCloseAllMenus();hsOpenModal(${h.id})">Bearbeiten</button>
+                        <button class="dok-menu-item" onclick="azVorlageOeffnen(${h.id}, ${JSON.stringify(h.name || '').replace(/"/g, '&quot;')})">Arbeitszeit-Regeln (Vorlage)</button>
                         <button class="dok-menu-item danger" onclick="dokCloseAllMenus();hsDelete(${h.id})">Löschen</button>
                     </div>
                 </div>

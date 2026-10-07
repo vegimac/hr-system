@@ -12,7 +12,8 @@ public record StempelVerstossMa(int EmployeeId, string? Nummer, string? Vorname,
                                 List<StempelVerstossZeile> Verstoesse);
 public record StempelVerstossArt(string Art, string Titel, string Regel, int Anzahl);
 public record StempelVerstoesseDaten(string Filiale, DateOnly Von, DateOnly Bis, int AnzahlMa,
-                                     List<StempelVerstossArt> ProArt, List<StempelVerstossMa> Mitarbeiter);
+                                     List<StempelVerstossArt> ProArt, List<StempelVerstossMa> Mitarbeiter,
+                                     List<string> Ausgeschaltet);
 
 public record StempelKorrekturZeile(int Id, DateOnly Tag, string Ein, string? Aus, string? VorherEin, string? VorherAus,
                                     string Art, string? Von, DateTime? Am, string? Kommentar, string? Protokoll);
@@ -38,6 +39,7 @@ public class StempelBerichtPdfService
         [ArbeitszeitVerstoesse.Ruhetage] = "#7c3aed",
         [ArbeitszeitVerstoesse.Naechte]  = "#1e3a8a",
         [ArbeitszeitVerstoesse.Jugend]   = "#db2777",
+        [ArbeitszeitVerstoesse.SonntagJugend] = "#9d174d",
         ["ZEIT"]       = "#b45309",
         ["MANUELL"]    = "#4f46e5",
         ["BEARBEITET"] = "#6b7280",
@@ -125,7 +127,10 @@ public class StempelBerichtPdfService
                         r.ConstantItem(110).Text(a.Titel).SemiBold().FontSize(7.5f);
                         r.RelativeItem().Text(a.Regel).FontSize(7.5f).FontColor(Body);
                     });
-                col.Item().PaddingTop(4).Text("Grundlage: Stempelzeiten aus easy@work. Wochen zählen zum Zeitraum, in dem ihr Sonntag liegt. " +
+                if (d.Ausgeschaltet.Count > 0)
+                    col.Item().PaddingTop(4).Text("Für diese Filiale ausgeschaltet: " + string.Join(", ", d.Ausgeschaltet) + ".")
+                        .FontSize(7f).FontColor(Body);
+                col.Item().PaddingTop(4).Text("Grundlage: Stempelzeiten aus easy@work, Regeln und Feiertage der Filiale. Wochen zählen zum Zeitraum, in dem ihr Sonntag liegt. " +
                     "Stempel ohne Dauer werden nicht gezählt.").FontSize(6.5f).FontColor(Muted);
             });
         })).GeneratePdf();

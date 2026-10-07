@@ -140,25 +140,35 @@ public class StempelBerichteController : HrControllerBase
             .GroupBy(t => t.EmployeeId)
             .ToDictionary(g => g.Key, g => (IReadOnlyCollection<DateOnly>)g.Select(t => t.EntryDate).Distinct().ToList());
 
+        var einst = await ArbeitszeitEinstellungenLader.FuerFilialeAsync(_db, r.Cp);
+        var kanton = await _db.CompanyProfiles.AsNoTracking().Where(c => c.Id == r.Cp)
+            .Select(c => c.KantonCode).FirstOrDefaultAsync();
+        var sonntagsgleich = (await _db.DienstplanFeiertage.AsNoTracking()
+                .Where(f => f.Datum >= r.Von && f.Datum <= r.Bis).ToListAsync())
+            .Where(f => FeiertagVorschlag.GiltFuer(f, r.Cp, kanton?.Trim()) && FeiertagVorschlag.IstSonntagsgleich(f))
+            .GroupBy(f => f.Datum)
+            .ToDictionary(g => g.Key, g => g.First().Bezeichnung);
+
         var gruppen = new List<StempelVerstossMa>();
         foreach (var m in NachVorname(ma.Values))
         {
             var person = new V.Person(m.Id, m.Geburt,
                 stempel.TryGetValue(m.Id, out var st) ? st : new List<V.Stempel>(),
                 naechte.TryGetValue(m.Id, out var n) ? n : Array.Empty<DateOnly>());
-            var liste = V.Pruefe(person, r.Von, r.Bis);
+            var liste = V.Pruefe(person, r.Von, r.Bis, einst, sonntagsgleich);
             if (liste.Count == 0) continue;
             gruppen.Add(new StempelVerstossMa(m.Id, m.Nummer, m.Vorname, m.Nachname,
-                liste.Select(v => new StempelVerstossZeile(v.Art, V.Titel[v.Art], v.Von, v.Bis, v.Text,
+                liste.Select(v => new StempelVerstossZeile(v.Art, V.Titel(v.Art, einst), v.Von, v.Bis, v.Text,
                     v.Ist, v.Grenze, v.Recht,
                     v.Stempel.OrderBy(s => s.Ein).Select(s => ZeileVon(s)).ToList())).ToList()));
         }
 
-        var proArt = V.Reihenfolge
-            .Select(a => new StempelVerstossArt(a, V.Titel[a], V.Regel[a],
+        var proArt = V.Reihenfolge.Where(einst.IstAktiv)
+            .Select(a => new StempelVerstossArt(a, V.Titel(a, einst), V.Beschreibung(a, einst),
                 gruppen.Sum(g => g.Verstoesse.Count(v => v.Art == a))))
             .ToList();
-        return (null, new StempelVerstoesseDaten(r.Filiale, r.Von, r.Bis, ids.Count, proArt, gruppen));
+        var aus = V.Reihenfolge.Where(a => !einst.IstAktiv(a)).Select(a => V.Titel(a, einst)).ToList();
+        return (null, new StempelVerstoesseDaten(r.Filiale, r.Von, r.Bis, ids.Count, proArt, gruppen, aus));
     }
 
     static StempelZeit ZeileVon(V.Stempel s)

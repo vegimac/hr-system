@@ -126,6 +126,7 @@ public class AppDbContext : DbContext
     public DbSet<ElmLohnrasterEintrag>      ElmLohnraster               => Set<ElmLohnrasterEintrag>();
     public DbSet<VertragsmodellLohnschema>  LohnschemaEintraege         => Set<VertragsmodellLohnschema>();
     public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
+    public DbSet<ArbeitszeitRegelWert>      ArbeitszeitRegelWerte       => Set<ArbeitszeitRegelWert>();
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
     public DbSet<InterviewTermin>           InterviewTermine            => Set<InterviewTermin>();
@@ -2123,9 +2124,25 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Scope).HasColumnName("scope");
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code");
             entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Sonntagsgleich).HasColumnName("sonntagsgleich");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
                   .HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.Datum);
+        });
+        modelBuilder.Entity<ArbeitszeitRegelWert>(entity =>
+        {
+            entity.ToTable("arbeitszeit_regel_wert");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.HauptsitzId).HasColumnName("hauptsitz_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Regel).HasColumnName("regel");
+            entity.Property(e => e.Schluessel).HasColumnName("schluessel");
+            entity.Property(e => e.Wert).HasColumnName("wert").HasColumnType("numeric(8,2)");
+            entity.Property(e => e.Text).HasColumnName("text");
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.GeaendertVon).HasColumnName("geaendert_von");
         });
         modelBuilder.Entity<InterviewFenster>(entity =>
         {

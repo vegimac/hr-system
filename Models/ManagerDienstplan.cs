@@ -49,6 +49,8 @@ public class DienstplanFeiertag
     public string? KantonCode { get; set; }
     /// <summary>Bei Scope=FILIALE: die betroffene Filiale.</summary>
     public int? CompanyProfileId { get; set; }
+    /// <summary>Dem Sonntag gleichgestellt (Art. 20a ArG, kantonal; 1. August immer) — Jugendschutz im Arbeitszeit-Bericht.</summary>
+    public bool Sonntagsgleich { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 }
 
