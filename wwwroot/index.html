@@ -5135,6 +5135,66 @@
                     </div>
                     <div id="eawSyncResult"></div>
 
+                    <style>
+                        #saKarte { margin-top:22px; padding:18px 20px; border-radius:16px; border:1px solid rgba(255,255,255,0.62);
+                                   background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%); box-shadow:0 8px 24px rgba(60,55,48,0.14); }
+                        #saKarte h3 { margin:0 0 6px; font-size:15px; color:#3f3f3f; }
+                        #saKarte p { color:#646464; font-size:13px; margin:0 0 12px; line-height:1.5; }
+                        #saKarte .sa-reihe { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px; }
+                        #saKarte label.sa-feld { font-size:13px; color:#646464; display:flex; flex-direction:column; gap:4px; }
+                        #saKarte input[type=date], #saKarte .yp-text { background:#fff; border:1px solid rgba(255,255,255,0.95); border-radius:10px;
+                                   box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9); padding:7px 10px; }
+                        #saKarte .sa-pill { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:#3f3f3f; padding:6px 11px;
+                                   border:1px solid rgba(60,55,48,0.20); border-radius:10px; cursor:pointer; }
+                        #saKarte .sa-pill:has(input:checked) { border-color:#3f3f3f; }
+                        #saKarte .sa-glas { background:rgba(255,255,255,0.55); color:#3f3f3f; border:1px solid rgba(139,139,139,0.35); border-radius:12px;
+                                   padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; }
+                        #saKarte .sa-kohle { background:#3f3f3f; color:#fff; border:none; border-radius:12px; padding:9px 18px; font-size:13.5px; font-weight:700; cursor:pointer; }
+                        #saKarte button:disabled { opacity:.5; cursor:default; }
+                        #saKarte .sa-hinweis { font-size:13px; color:#3f3f3f; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.5); margin-bottom:10px; }
+                        #saKarte .sa-hinweis.sa-gruen { background:#dcfce7; color:#166534; }
+                        #saKarte .sa-rot { color:#b91c1c; }
+                        #saKarte .sa-balken { background:rgba(60,55,48,0.12); border-radius:99px; height:8px; overflow:hidden; margin-top:6px; }
+                        #saKarte .sa-balken > div { background:#3f3f3f; height:100%; border-radius:99px; transition:width .4s; }
+                        #saKarte .sa-tab { width:100%; border-collapse:collapse; font-size:12.5px; }
+                        #saKarte .sa-tab th { text-align:left; color:#8b8b8b; font-weight:600; padding:4px 8px; }
+                        #saKarte .sa-tab td { padding:6px 8px; border-top:1px solid rgba(60,55,48,0.10); vertical-align:top; color:#3f3f3f; }
+                        #saKarte .sa-tab .r { text-align:right; font-variant-numeric:tabular-nums; }
+                        #saKarte .sa-klein { font-size:11.5px; color:#8b8b8b; margin-top:2px; }
+                        #saKarte .sa-klein.sa-rot { color:#b91c1c; }
+                        #saKarte .sa-hinweis.sa-gelb { background:#fef3c7; color:#92400e; }
+                    </style>
+                    <div id="saKarte">
+                        <h3>🗓 Stempelzeiten-Automat — mehrere Monate und Filialen</h3>
+                        <p>Holt die Stempelzeiten <strong>Monat für Monat</strong> und Filiale für Filiale, genau wie «Importieren» oben.
+                           Neue Stempel werden angelegt, bestehende aktualisiert (Korrekturen, Kommentare). Abgeschlossene Lohnperioden bleiben gesperrt.
+                           Mehrfaches Laufen verdoppelt nichts. Bitte das Fenster offen lassen — «Anhalten» stoppt nach dem laufenden Monat.</p>
+                        <div class="sa-reihe">
+                            <button type="button" class="sa-glas" onclick="saSchnell('vorjahr')">Vorjahr</button>
+                            <button type="button" class="sa-glas" onclick="saSchnell('jahr')">Dieses Jahr bis heute</button>
+                            <button type="button" class="sa-glas" onclick="saSchnell('zwei')">Vorjahr + dieses Jahr</button>
+                        </div>
+                        <div class="sa-reihe">
+                            <label class="sa-feld">Von <input type="date" id="saVon"></label>
+                            <label class="sa-feld">Bis <input type="date" id="saBis"></label>
+                        </div>
+                        <div style="font-size:13px;color:#646464;margin-bottom:6px">Filialen
+                            <button type="button" class="sa-glas" style="margin-left:8px" onclick="saAlle(true)">alle</button>
+                            <button type="button" class="sa-glas" onclick="saAlle(false)">keine</button>
+                        </div>
+                        <div class="sa-reihe" id="saFilialen"><span style="color:#8b8b8b;font-size:13px">Wird geladen…</span></div>
+                        <div class="sa-reihe" style="justify-content:space-between">
+                            <label class="sa-pill" title="Sonst wird ein Monat mit nicht zugeordneten easy@work-MA gar nicht importiert und rot gemeldet.">
+                                <input type="checkbox" id="saUeberspringen"> Nicht zuordenbare MA überspringen (werden aufgelistet)
+                            </label>
+                            <span style="display:flex;gap:10px">
+                                <button type="button" class="sa-glas" id="saStoppBtn" onclick="saAnhalten()" disabled>Anhalten</button>
+                                <button type="button" class="sa-kohle" id="saStartBtn" onclick="saStarten()">Automat starten</button>
+                            </span>
+                        </div>
+                        <div id="saErgebnis"></div>
+                    </div>
+
                     <h3 style="margin:30px 0 8px;font-size:15px">Mitarbeiter-Stammdaten-Sync</h3>
                     <p style="color:#64748b;font-size:13px;margin-bottom:10px">Holt MA-Stammdaten aus easy@work. <strong>Vorschau</strong> zeigt pro MA was sich ändert (NEW/UPDATE/UNCHANGED/CONFLICT). Beim <strong>Importieren</strong> kannst du die selektieren, die übernommen werden sollen.</p>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
@@ -9988,7 +10048,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
 <script src="js/dashboard.js?v=20261004a"></script>
-<script src="js/session-timeout.js?v=20260904h"></script>
+<script src="js/session-timeout.js?v=20261007a"></script>
 <script src="js/session-lock.js?v=20260911a"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
@@ -10043,7 +10103,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/minimum-wages.js?v=20261007a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20261001b"></script>
-<script src="js/easyatwork.js?v=20260924b"></script>
+<script src="js/easyatwork.js?v=20261007a"></script>
+<script src="js/eaw-stempel-automat.js?v=20261007a"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
 <script src="js/ferien-report.js?v=20260803i"></script>

@@ -758,8 +758,9 @@ public class EasyAtWorkTimepunchSyncService
                 st = new EasyAtWorkSyncState { CompanyProfileId = req.CompanyProfileId, Resource = "TIMEPUNCH" };
                 _db.EasyAtWorkSyncStates.Add(st);
             }
+            // Cursor (LastSeenUpdatedAt) gehört dem Auto-Sync: ein einzelner Monat würde
+            // ihn über Änderungen in anderen Monaten hinwegschieben.
             st.LastSyncAt = DateTime.UtcNow;
-            if (res.MaxUpdatedAt.HasValue) st.LastSeenUpdatedAt = res.MaxUpdatedAt;
             st.LastRowCount = res.RowCount;
             st.LastError = null;
             await _db.SaveChangesAsync(ct);
@@ -1926,8 +1927,6 @@ public class EasyAtWorkTimepunchSyncService
             st.LastSyncAt = DateTime.UtcNow;
             st.LastRowCount = res.CountInserted;
             st.LastError = null;
-            var maxUpd = punches.Where(p => p.UpdatedAt.HasValue).Select(p => p.UpdatedAt!.Value).DefaultIfEmpty().Max();
-            if (maxUpd != default) st.LastSeenUpdatedAt = maxUpd;
             await _db.SaveChangesAsync(ct);
         }
 

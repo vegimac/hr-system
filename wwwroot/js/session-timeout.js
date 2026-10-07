@@ -268,5 +268,10 @@
         if (modalEl) modalEl.style.display = 'none';
     }
 
-    window.SessionGuard = { start, stop };
+    // Lange Hintergrund-Läufe (z.B. Stempel-Automat) zählen als Arbeit: kein
+    // Sperrbildschirm mitten im Lauf, Token wird weiter verlängert. Die harte
+    // 14-Stunden-Grenze bleibt.
+    function aktivitaet() { if (checkTimer) onActivity(); }
+
+    window.SessionGuard = { start, stop, aktivitaet };
 })();
