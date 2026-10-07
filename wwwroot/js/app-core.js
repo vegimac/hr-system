@@ -1573,6 +1573,8 @@ function showPage(name) {
     if (name === 'fluktuation-report' && typeof flukInit === 'function') flukInit();
     if (name === 'wochenstunden-report' && typeof wsInit === 'function') wsInit();
     if (name === 'mtp-stunden-report' && typeof mtpwInit === 'function') mtpwInit();
+    if (name === 'stempel-verstoesse' && typeof szvInit === 'function') szvInit();
+    if (name === 'stempel-korrekturen' && typeof szkInit === 'function') szkInit();
     if (name === 'swissdec' && typeof swissdecInit === 'function') swissdecInit();
     if (name === 'swissdec-kommunikation' && typeof kommInit === 'function') kommInit();
     if (name === 'programmbegruessung' && typeof pbgInit === 'function') pbgInit();
@@ -1791,6 +1793,10 @@ function onBranchChange() {
     } else if (currentPageName === 'mtp-stunden-report') {
         // MTP-Stunden-Kontrolle folgt der Sidebar-Filiale (Walter 25.08.2026).
         if (typeof mtpwLoad === 'function') mtpwLoad();
+    } else if (currentPageName === 'stempel-verstoesse') {
+        if (typeof szvLoad === 'function') szvLoad();
+    } else if (currentPageName === 'stempel-korrekturen') {
+        if (typeof szkLoad === 'function') szkLoad();
     }
 
     // Mirus-Digest-Vorschau folgt der Sidebar-Filiale (Walter 23.07.2026).

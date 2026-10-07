@@ -17,6 +17,8 @@ direkt unter «Mitarbeiter».
 | **Absenzkalender** | Monats-Übersicht aller Absenzen der Filiale. |
 | **QST-Info Formular** | Fragebogen «Quellensteuer-Informationen» zum Ausdrucken — Blanko oder mit MA-Vorauswahl vorbefüllt. Deckt alle Fragen des kantonalen QST-Anmeldeformulars ab (Partner, Kinder, weitere Arbeitgeber). Zusammen mit dem MA ausfüllen, dann in OneCrew nachtragen — siehe [Quellensteuer](#qst). |
 | **Notfall Kontakte** | Druckliste (A4 quer) aller aktiven MA der Filiale mit Notfall-Name, Beziehung (Ankreuz-Reihe Partner/Kind/Andere) und Telefon — fehlende Kontakte als Schreiblinien zum Handnachtrag. MA mit erfasster Kündigung erscheinen nicht; 6-Monats-Befristungen bleiben drauf. |
+| **Stempel Korrekturen** | Alle Stempel der Filiale, die in easy@work von Hand geändert oder erfasst wurden: Zeit jetzt und vorher, Kommentar, wer korrigiert hat und wann. Oben die Anzahl pro Art und pro Person, die korrigiert hat. PDF zum Ausdrucken. |
+| **Arbeitszeit Verstösse** | Prüft die Stempelzeiten nach Arbeitsgesetz und L-GAV: Pause zu kurz, zu lange am Stück, Nachtarbeit über 9 Std., Präsenzzeit, über 50 Std. pro Woche, weniger als 2 Ruhetage, mehr als 18 Nächte in 6 Wochen und Jugendschutz. Pro Tag zeigt ein Band die Stempel (Nacht 23–6 Uhr schraffiert), pro Woche die Stunden je Tag. Klick auf eine Kachel filtert. Die Regeln stehen unten unter «Wie wird geprüft?». |
 | **Manager-DP** | Der Manager-Dienstplan (FIX-M-Schichtplanung) — inkl. Ferienplaner. |
 | **Mirus Absenz Import** | (nur Admin) Mirus-Dienstplan-XLS in Absenzen umwandeln. |
 
