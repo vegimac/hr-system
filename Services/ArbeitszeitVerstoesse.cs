@@ -31,7 +31,25 @@ public static class ArbeitszeitVerstoesse
     }
 
     public record Person(int EmployeeId, DateTime? Geburt, IReadOnlyList<Stempel> Stempel,
-                         IReadOnlyCollection<DateOnly> NachtTage);
+                         IReadOnlyCollection<DateOnly> NachtTage, NachtNachweis? Nachweis = null);
+
+    /// <summary>Unterlagen Nachtarbeit wie im Dashboard: Arztzeugnis als Dokument + Ausnahmeregelung.
+    /// Gültig ab = Ausstellung, bis = gerechnetes Ende (leer = ohne Ende).</summary>
+    public record NachtNachweis(bool Arztzeugnis, DateOnly? Ab, DateOnly? Bis, bool Ausnahmeregelung)
+    {
+        public bool GiltAm(DateOnly tag) =>
+            Arztzeugnis && Ausnahmeregelung && (Ab == null || Ab <= tag) && (Bis == null || Bis >= tag);
+
+        public string Fehlt(DateOnly von, DateOnly bis)
+        {
+            if (!Arztzeugnis) return Ausnahmeregelung ? "Kein Arztzeugnis hinterlegt." : "Kein Arztzeugnis und keine Ausnahmeregelung hinterlegt.";
+            var teile = new List<string>();
+            if (Ab != null && Ab > von) teile.Add($"Arztzeugnis erst ab {Ab:dd.MM.yyyy} gültig");
+            if (Bis != null && Bis < bis) teile.Add($"Arztzeugnis nur bis {Bis:dd.MM.yyyy} gültig");
+            if (!Ausnahmeregelung) teile.Add("Ausnahmeregelung fehlt");
+            return teile.Count == 0 ? "" : string.Join(", ", teile) + ".";
+        }
+    }
 
     public record Verstoss(int EmployeeId, string Art, DateOnly Von, DateOnly Bis,
                            string Text, int Ist, int Grenze, string Recht,
@@ -68,7 +86,7 @@ public static class ArbeitszeitVerstoesse
             Praesenz => $"Erster Stempel bis letzter Stempel inkl. Pausen: höchstens {H(W("max_std"))}, mit Nachtarbeit {H(W("max_nacht_std"))}, Jugendliche {H(W("max_jugend_std"))}.",
             Woche => $"Höchstens {H(W("max_std"))} pro Woche (Montag–Sonntag).",
             Ruhetage => $"Mindestens {W("min_tage"):0} freie Kalendertage pro Woche (Montag–Sonntag).",
-            Naechte => $"Mehr als {NaechteMax} Nächte in 6 Wochen = dauernde Nachtarbeit mit Untersuchungspflicht.",
+            Naechte => $"Mehr als {NaechteMax} Nächte in 6 Wochen = dauernde Nachtarbeit mit Untersuchungspflicht. Nicht gemeldet, solange ein gültiges Arztzeugnis und die Ausnahmeregelung hinterlegt sind.",
             Jugend => $"Unter 18: höchstens {H(W("max_std"))} pro Tag, nicht nach {Uhr(W("ende_ab16"))} Uhr (unter 16: {Uhr(W("ende_unter16"))} Uhr) und nicht vor {Uhr(W("beginn"))} Uhr.",
             SonntagJugend => W("sonntage") != 0
                 ? "Unter 18: keine Arbeit an Sonntagen und an Feiertagen, die dem Sonntag gleichgestellt sind (Samstag 23 Uhr bis Sonntag 23 Uhr). Ausnahmen wie Lehre oder Bewilligung sind nicht geprüft."
@@ -227,7 +245,7 @@ public static class ArbeitszeitVerstoesse
         foreach (var n in naechte.Where(d => d >= von && d <= bis))
         {
             int anzahl = naechte.Count(d => d > n.AddDays(-NaechteFensterTage) && d <= n);
-            if (anzahl > NaechteMax)
+            if (anzahl > NaechteMax && p.Nachweis?.GiltAm(n) != true)
             {
                 start ??= n;
                 ende = n;
@@ -242,10 +260,13 @@ public static class ArbeitszeitVerstoesse
         if (start != null) yield return NaechteVerstoss(p, start.Value, ende!.Value, max);
     }
 
-    static Verstoss NaechteVerstoss(Person p, DateOnly von, DateOnly bis, int max) =>
-        new(p.EmployeeId, Naechte, von, bis,
-            $"Bis zu {max} Nächte in 6 Wochen — ab mehr als {NaechteMax} Nächten braucht es die ärztliche Untersuchung und das Zeugnis.",
+    static Verstoss NaechteVerstoss(Person p, DateOnly von, DateOnly bis, int max)
+    {
+        var fehlt = (p.Nachweis ?? new NachtNachweis(false, null, null, false)).Fehlt(von, bis);
+        return new(p.EmployeeId, Naechte, von, bis,
+            $"Bis zu {max} Nächte in 6 Wochen — ab mehr als {NaechteMax} Nächten braucht es die ärztliche Untersuchung und das Zeugnis. {fehlt}".TrimEnd(),
             max, NaechteMax, Recht(Naechte), Array.Empty<Stempel>());
+    }
 
     /// <summary>Sonntag bzw. Feiertag gilt von 23 Uhr am Vortag bis 23 Uhr (Art. 18 ArG).</summary>
     static IEnumerable<Verstoss> PruefeSonntagJugend(Person p, DateOnly von, DateOnly bis, List<Stempel> alle,

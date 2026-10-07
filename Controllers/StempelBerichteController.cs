@@ -140,6 +140,16 @@ public class StempelBerichteController : HrControllerBase
             .GroupBy(t => t.EmployeeId)
             .ToDictionary(g => g.Key, g => (IReadOnlyCollection<DateOnly>)g.Select(t => t.EntryDate).Distinct().ToList());
 
+        var nachweise = (await _db.Employees.AsNoTracking()
+                .Where(e => ids.Contains(e.Id))
+                .Select(e => new { e.Id, e.NightWorkExamDokumentId, e.NightWorkExamIssued, e.NightWorkExamValidUntil, e.NightWorkAusnahmeDokumentId })
+                .ToListAsync())
+            .ToDictionary(e => e.Id, e => new V.NachtNachweis(
+                e.NightWorkExamDokumentId.HasValue,
+                e.NightWorkExamIssued.HasValue ? DateOnly.FromDateTime(e.NightWorkExamIssued.Value) : null,
+                e.NightWorkExamValidUntil.HasValue ? DateOnly.FromDateTime(e.NightWorkExamValidUntil.Value) : null,
+                e.NightWorkAusnahmeDokumentId.HasValue));
+
         var einst = await ArbeitszeitEinstellungenLader.FuerFilialeAsync(_db, r.Cp);
         var kanton = await _db.CompanyProfiles.AsNoTracking().Where(c => c.Id == r.Cp)
             .Select(c => c.KantonCode).FirstOrDefaultAsync();
@@ -154,7 +164,8 @@ public class StempelBerichteController : HrControllerBase
         {
             var person = new V.Person(m.Id, m.Geburt,
                 stempel.TryGetValue(m.Id, out var st) ? st : new List<V.Stempel>(),
-                naechte.TryGetValue(m.Id, out var n) ? n : Array.Empty<DateOnly>());
+                naechte.TryGetValue(m.Id, out var n) ? n : Array.Empty<DateOnly>(),
+                nachweise.GetValueOrDefault(m.Id));
             var liste = V.Pruefe(person, r.Von, r.Bis, einst, sonntagsgleich);
             if (liste.Count == 0) continue;
             gruppen.Add(new StempelVerstossMa(m.Id, m.Nummer, m.Vorname, m.Nachname,

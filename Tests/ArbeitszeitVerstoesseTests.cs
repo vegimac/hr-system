@@ -197,5 +197,40 @@ public class ArbeitszeitVerstoesseTests
         Assert.Equal(V.Naechte, n.Art);
         Assert.Equal(Mo.AddDays(4), n.Von);
         Assert.Equal(20, n.Ist);
+        Assert.Contains("Kein Arztzeugnis", n.Text);
+    }
+
+    static List<DateOnly> ZwanzigNaechte => Enumerable.Range(0, 20).Select(i => Mo.AddDays(-14 + i)).ToList();
+
+    [Fact]
+    public void Naechte_mit_gueltigem_Arztzeugnis_und_Ausnahmeregelung_kein_Verstoss()
+    {
+        var nw = new V.NachtNachweis(true, Mo.AddDays(-100), Mo.AddDays(400), true);
+        Assert.Empty(V.Pruefe(new V.Person(1, Erwachsen, Array.Empty<V.Stempel>(), ZwanzigNaechte, nw), Mo, Mo.AddDays(6)));
+    }
+
+    [Fact]
+    public void Naechte_Arztzeugnis_ohne_Ende_gilt()
+    {
+        var nw = new V.NachtNachweis(true, null, null, true);
+        Assert.Empty(V.Pruefe(new V.Person(1, Erwachsen, Array.Empty<V.Stempel>(), ZwanzigNaechte, nw), Mo, Mo.AddDays(6)));
+    }
+
+    [Fact]
+    public void Naechte_nur_vor_dem_Arztzeugnis_gemeldet()
+    {
+        var nw = new V.NachtNachweis(true, Mo.AddDays(5), Mo.AddDays(400), true);
+        var n = Assert.Single(V.Pruefe(new V.Person(1, Erwachsen, Array.Empty<V.Stempel>(), ZwanzigNaechte, nw), Mo, Mo.AddDays(6)));
+        Assert.Equal(Mo.AddDays(4), n.Von);
+        Assert.Equal(Mo.AddDays(4), n.Bis);
+        Assert.Contains("erst ab", n.Text);
+    }
+
+    [Fact]
+    public void Naechte_Ausnahmeregelung_fehlt()
+    {
+        var nw = new V.NachtNachweis(true, Mo.AddDays(-100), Mo.AddDays(400), false);
+        var n = Assert.Single(V.Pruefe(new V.Person(1, Erwachsen, Array.Empty<V.Stempel>(), ZwanzigNaechte, nw), Mo, Mo.AddDays(6)));
+        Assert.EndsWith("Ausnahmeregelung fehlt.", n.Text);
     }
 }
