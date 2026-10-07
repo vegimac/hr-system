@@ -624,8 +624,8 @@ async function dpSfDelete(id) {
 }
 
 // ── Feiertage (National / Kanton / Filiale) ─────────────────────────────
-// Nur Anzeige — gepflegt werden die Feiertage seit 07.10.2026 im Filial-Detail
-// «Arbeitszeit & Feiertage» (inkl. «dem Sonntag gleichgestellt»).
+// Nur Anzeige — gepflegt werden die Feiertage seit 07.10.2026 global in
+// Systemeinstellungen → Lohn-Stammdaten → Feiertage (inkl. «dem Sonntag gleichgestellt»).
 async function dpOpenFeiertage() {
     if (!_dpData) return;
     _dpMgmtModal('🎉 Feiertage (national / kantonal / Filiale)', `
@@ -636,7 +636,7 @@ async function dpOpenFeiertage() {
                 <select id="dpFtFilter" onchange="dpFtReload()" style="${_dpInp};min-width:170px">${_dpFilterOpts()}</select></label>
         </div>
         <div style="margin-top:10px;font-size:12.5px;color:#646464;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:8px 12px">
-            Feiertage erfassen und ändern: System → Filialen → Filiale wählen → Tab «Arbeitszeit &amp; Feiertage».</div>
+            Feiertage erfassen und ändern: Systemeinstellungen → Lohn-Stammdaten → Feiertage (nur Admin).</div>
         <div id="dpFtList" style="margin-top:12px;font-size:13px;color:#3f3f3f">Wird geladen…</div>`);
     await dpFtReload();
 }

@@ -159,7 +159,7 @@ public class EditLockEndpointAuditTests
         ["ZwischenverdienistController"]   = "RAV-Zwischenverdienst — admin/superuser-Formular",
         ["AhvAnmeldungController"]         = "AHV-Anmeldung 318.260 — reines Ausgabe-Formular (POST erzeugt nur PDF, persistiert nichts)",
         ["ManagerDienstplanController"]    = "Manager-Dienstplan (Schicht-Kürzel pro Tag) — reine Planung, keine Lohndaten",
-        ["FeiertageController"]            = "Feiertage pro Filiale (Dienstplan + Stempel-Berichte) — keine Lohndaten",
+        ["FeiertageController"]            = "Feiertage global (Dienstplan + Stempel-Berichte) — keine Lohndaten",
         ["ArbeitszeitRegelnController"]    = "Regeln für Stempel-Verstösse (Bericht) — keine Lohndaten",
         ["HrInterviewController"]          = "HR-Büro-Kalender Vorstellungsgespräche — reine Planung, keine Lohndaten",
         ["BewerbungsgespraechController"]  = "Gesprächsmodus Bewerbungsgespräch (Autosave-Erfassung, Entscheid, PDF) — Rekrutierung, keine Lohndaten",

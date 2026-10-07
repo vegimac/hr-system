@@ -1677,6 +1677,11 @@
                         <div class="admin-card-title">Absenz-Typen</div>
                         <div class="admin-card-desc">Krank, Unfall, Ferien, Mutterschaft — lohnwirksame Zeitgutschrift-Regeln</div>
                     </div>
+                        <div class="admin-card" onclick="showPage('feiertage')">
+                        <img src="img/lohnkat-feiertage.webp?v=20261007a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Feiertage</div>
+                        <div class="admin-card-desc">National, pro Kanton oder Filiale — inkl. «wie Sonntag» (Art. 20a ArG) und Jahresvorschlag</div>
+                    </div>
                     </div>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-filialen" style="display:none">
@@ -5085,6 +5090,18 @@
                         <button id="stNeuBtn" class="btn btn-primary" onclick="stOpenNew()">+ Neue Schulung</button>
                     </div>
                     <div class="card" style="padding:8px 10px" id="schulungTypenList"></div>
+                </div>
+            </div>
+
+            <div class="page liquid-mask fixhead" id="page-feiertage">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Feiertage</h1>
+                        <p class="page-sub">Gelten für alle Filialen — national, pro Kanton oder für eine einzelne Filiale. «Wie Sonntag» = dem Sonntag gleichgestellt (Art. 20a ArG): Jugendliche dürfen dann nicht arbeiten. Grundlage für Manager-Dienstplan und Stempel-Berichte.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div id="ftgInhalt">Wird geladen…</div>
                 </div>
             </div>
 
@@ -10168,7 +10185,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261007a"></script>
+<script src="js/app-core.js?v=20261007b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10205,7 +10222,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260927a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20261007b"></script>
+<script src="js/branches-detail.js?v=20261007c"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260915c"></script>
@@ -10246,12 +10263,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/stempel-berichte.js?v=20261007c"></script>
+<script src="js/stempel-berichte.js?v=20261007d"></script>
 <script src="js/swissdec.js?v=20260930c"></script>
 <script src="js/swissdec-komm.js?v=20261002a"></script>
 <script src="js/swissdec-uebermittlung.js?v=20261002b"></script>
 <script src="js/hauptsitze.js?v=20261007a"></script>
-<script src="js/arbeitszeit-regeln.js?v=20261007b"></script>
+<script src="js/arbeitszeit-regeln.js?v=20261007d"></script>
+<script src="js/feiertage.js?v=20261007a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>
@@ -10259,7 +10277,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/elm-lohnraster.js?v=20260921a"></script>
 <script src="js/lohnschema.js?v=20260819d"></script>
 <script src="js/global-search.js?v=20260901a"></script>
-<script src="js/help-panel.js?v=20261007a"></script>
+<script src="js/help-panel.js?v=20261007b"></script>
 <script src="js/i18n.js?v=20260923b"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
@@ -11743,7 +11761,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>
 <script src="js/ahv-anmeldung.js?v=20260831a"></script>
 <script src="js/akis-meldung.js?v=20260831a"></script>
-<script src="js/manager-dienstplan.js?v=20261007a"></script>
+<script src="js/manager-dienstplan.js?v=20261007b"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
 <script src="js/manager-schulungen.js?v=20261001b"></script>
 <script src="js/schulungen.js?v=20261001c"></script>

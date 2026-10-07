@@ -98,6 +98,7 @@ const HELP_PAGE_BY_APP_PAGE = {
     'ma-email':              'hr-hub',
     'schulungen-uebersicht': 'auswertungen',
     'schulung-typen':        'system',
+    'feiertage':             'system',
     'ferien-planer':         'manager-dienstplan',
     'zwischenverdienst':     'hr-hub',
     'lse-export':            'hr-hub',

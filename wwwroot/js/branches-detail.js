@@ -248,7 +248,7 @@ function renderFilialenDetail(b) {
 
             <div class="emp-tab"        data-ftab="f-einstellungen"  onclick="switchFilialenTab('f-einstellungen')">Einstellungen</div>
             <div class="emp-tab"        data-ftab="f-empf"           onclick="switchFilialenTab('f-empf')" style="line-height:1.15;text-align:center">Lohndaten<br>Empfänger</div>
-            <div class="emp-tab"        data-ftab="f-arbeitszeit"    onclick="switchFilialenTab('f-arbeitszeit')" style="line-height:1.15;text-align:center">Arbeitszeit<br>&amp; Feiertage</div>
+            <div class="emp-tab"        data-ftab="f-arbeitszeit"    onclick="switchFilialenTab('f-arbeitszeit')">Arbeitszeit</div>
             ${cdokCanSee() ? `<div class="emp-tab" data-ftab="f-doks" onclick="switchFilialenTab('f-doks')">Dokumente</div>` : ''}
             <!-- Aktions-Buttons des Einstellungen-Tabs sitzen in der Tab-Leiste
                  (nicht-scrollender Kopfbereich) — bleiben so immer sichtbar.

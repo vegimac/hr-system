@@ -182,7 +182,7 @@ function szvRender() {
     html += `<details class="szb-regeln"><summary>Wie wird geprüft?</summary>
         ${d.proArt.map(a => `<div style="--f:${_SZ_FARBE[a.art]}"><b>${_szEsc(a.titel)}</b>${_szEsc(a.regel)}</div>`).join('')}
         ${(d.ausgeschaltet || []).length ? `<p>Für diese Filiale ausgeschaltet: ${d.ausgeschaltet.map(_szEsc).join(', ')}.</p>` : ''}
-        <p>Grundlage sind die Stempelzeiten aus easy@work und die Regeln und Feiertage der Filiale (Filial-Detail → «Arbeitszeit &amp; Feiertage»). Wochen zählen zum Zeitraum, in dem ihr Sonntag liegt. Stempel ohne Dauer zählen nicht.</p>
+        <p>Grundlage sind die Stempelzeiten aus easy@work und die Regeln der Filiale (Filial-Detail → «Arbeitszeit») sowie die Feiertage (Systemeinstellungen → Lohn-Stammdaten → Feiertage). Wochen zählen zum Zeitraum, in dem ihr Sonntag liegt. Stempel ohne Dauer zählen nicht.</p>
     </details>`;
     box.innerHTML = html;
 }

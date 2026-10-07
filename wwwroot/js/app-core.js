@@ -1373,7 +1373,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log','aktive-sitzungen',
                          'perioden','elm-meldungen','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-lohnkonto-import','lohn-simulation','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','schulung-typen','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','schulung-typen','feiertage','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
 
 // Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
 // Sidebar-Eintrag «Entwicklung» aktiv und bekommen denselben Zurueck-Button
@@ -1558,6 +1558,7 @@ function showPage(name) {
     if (name === 'ferien-planer' && typeof fplInit === 'function') fplInit();
     if (name === 'schulungen-uebersicht' && typeof schulungUebersichtInit === 'function') schulungUebersichtInit();
     if (name === 'schulung-typen' && typeof schulungTypenInit === 'function') schulungTypenInit();
+    if (name === 'feiertage' && typeof feiertageInit === 'function') feiertageInit();
     if (name === 'ma-email' && typeof maEmailInit === 'function') maEmailInit();
     if (name === 'ma-eaw' && typeof maEawInit === 'function') maEawInit();
     if (name === 'hr-hub' && typeof hrKandBadge === 'function') hrKandBadge();

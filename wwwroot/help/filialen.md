@@ -28,11 +28,11 @@ Namen für Formulare (AG-Vertreter etc.). Die **Unterschrift** auf dem PDF kommt
 
 💡 **Kommunaler Mindestlohn:** Du erfasst den **Jahreslohn**. Monat = Jahr/13, Stundenlohn = Jahr / 52 / Wochenstunden der Filiale. Jugendliche nur wenn „gilt für Jugend" aktiv.
 
-## Arbeitszeit & Feiertage
+## Arbeitszeit
 
 Eigener Tab im Filial-Detail.
 
-- **Feiertage:** pro Jahr. «Vorschlag übernehmen» schlägt die Feiertage für den Kanton der Filiale vor — du hakst an, was gilt. **Wie Sonntag** = dem Sonntag gleichgestellt (kantonal; 1. August immer): Jugendliche dürfen dann nicht arbeiten. Ein Kantons-Feiertag gilt für alle Filialen im selben Kanton. Der Manager-Dienstplan zeigt die Feiertage nur an.
+- **Feiertage** sind nicht mehr hier: sie gelten für alle Filialen gemeinsam und werden in Systemeinstellungen → Lohn-Stammdaten → **Feiertage** gepflegt (nur Admin).
 - **Regeln für Stempel-Verstösse:** Die Vorlage kommt vom Hauptsitz (⋮ beim Hauptsitz → «Arbeitszeit-Regeln (Vorlage)», nur Admin). Hier setzt du nur, was in dieser Filiale anders ist: Regel ein/aus, Grenzwerte, eigene Erklärung. Leer = wie Vorlage (grau angezeigt).
 
 ## Tipps

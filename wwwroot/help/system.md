@@ -19,6 +19,7 @@ Die Seite ist in **sechs Hauptkategorie-Kacheln** gegliedert: **Lohn-Stammdaten*
 | **QST-Tarife** | Kantonale Tarifdateien |
 | **Familienzulagen-Tarife** | FAK-Sätze |
 | **Absenz-Typen** | Katalog Krank/Ferien/… |
+| **Feiertage** | Für alle Filialen: national, pro Kanton oder für eine Filiale. «Wie Sonntag» = dem Sonntag gleichgestellt (Art. 20a ArG, Jugendliche dürfen nicht arbeiten). «Vorschlag übernehmen» pro Jahr und Kanton — für AG, LU und BE nach der kantonalen Liste vorbelegt. Nur Admin ändert. |
 | **Behörden** | Stamm für [Lohnabtretungen](#lohnabtretungen): Adresse, IBAN, Sachbearbeiter, optional Kontoinhaber = andere Behörde (für DTA, z.B. ORS Burgdorf → Zürich) |
 | **Ärzte** | Für Mutterschutz-Briefe |
 | **Mutterschafts-Regeln** | Gesetzliche Fristen (ArG/OR) |
