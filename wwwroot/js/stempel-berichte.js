@@ -7,7 +7,7 @@
 
 const _SZ_FARBE = {
     PAUSE: '#d97706', BLOCK: '#ea580c', NACHT_9H: '#4f46e5', PRAESENZ: '#0e7490',
-    WOCHE_50H: '#be123c', RUHETAGE: '#7c3aed', NAECHTE: '#1e3a8a', JUGEND: '#db2777', SONNTAG_JUGEND: '#9d174d',
+    WOCHE_50H: '#be123c', RUHETAGE: '#7c3aed', NAECHTE: '#1e3a8a', JUGEND: '#db2777', SONNTAG_JUGEND: '#9d174d', RUHEZEIT: '#0f766e', GANZER_RUHETAG: '#6d28d9', SIEBEN_TAGE: '#b91c1c',
     ZEIT: '#b45309', MANUELL: '#4f46e5', BEARBEITET: '#6b7280', KOMMENTAR: '#0e7490'
 };
 const _SZK_ART = { ZEIT: 'Zeit korrigiert', MANUELL: 'Von Hand erfasst', BEARBEITET: 'Bearbeitet', KOMMENTAR: 'Nur Kommentar' };
@@ -115,21 +115,28 @@ function _szvBand(stempel) {
     return `<div class="szb-band">${nacht}${balken}</div><div class="szb-ticks">${ticks}</div>`;
 }
 
+// Säulen pro Tag (nach Schichtbeginn); «bis 00:45» = Schicht endet nach Mitternacht.
 function _szvWoche(v) {
-    const tage = {};
-    v.stempel.forEach(s => { tage[s.tag] = (tage[s.tag] || 0) + s.minuten; });
+    const tage = {}, spaet = {};
+    v.stempel.forEach(s => {
+        tage[s.tag] = (tage[s.tag] || 0) + s.minuten;
+        if (s.ausMin > 1440 && (!spaet[s.tag] || s.ausMin > spaet[s.tag].ausMin)) spaet[s.tag] = s;
+    });
     const max = Math.max(600, ...Object.values(tage));
     const von = new Date(v.von + 'T12:00:00');
+    const anzahl = Math.min(14, Math.round((new Date(v.bis + 'T12:00:00') - von) / 86400000) + 1);
     let html = '<div class="szb-woche">';
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < anzahl; i++) {
         const d = new Date(von); d.setDate(von.getDate() + i);
         const iso = _szIso(d), min = tage[iso] || 0;
         html += `<div class="szb-wtag${min ? '' : ' frei'}">
             <div class="szb-wsaeule"><div style="height:${min / max * 100}%"></div></div>
-            <b>${_SZ_WT[d.getDay()]}</b><small>${min ? _szDauer(min) : 'frei'}</small></div>`;
+            <b>${_SZ_WT[d.getDay()]}</b><small>${min ? _szDauer(min) : 'frei'}</small>${spaet[iso] ? `<small class="szb-spaet">bis ${spaet[iso].aus}</small>` : ''}</div>`;
     }
     return html + '</div>';
 }
+
+const _SZV_SPANNE = { NAECHTE: 'Zeitraum', RUHEZEIT: 'Ruhezeit', SIEBEN_TAGE: 'In Folge' };
 
 function szvRender() {
     const box = document.getElementById('szvResult');
@@ -156,10 +163,10 @@ function szvRender() {
         m.verstoesse.forEach(v => {
             const tag = v.von === v.bis
                 ? `<b>${_szWt(v.von)}</b><span>${_szDatum(v.von)}</span>`
-                : `<b>${v.art === 'NAECHTE' ? 'Zeitraum' : 'Woche'}</b><span>${_szDatum(v.von).slice(0, 6)} – ${_szDatum(v.bis)}</span>`;
+                : `<b>${_SZV_SPANNE[v.art] || 'Woche'}</b><span>${_szDatum(v.von).slice(0, 6)} – ${_szDatum(v.bis)}</span>`;
             const bild = v.art === 'NAECHTE' ? '' : (v.von === v.bis ? _szvBand(v.stempel) : _szvWoche(v));
-            const zeiten = v.von === v.bis && v.stempel.length
-                ? `<div class="szb-zeiten">${v.stempel.map(s => `${s.ein}–${s.aus}`).join(' · ')}</div>` : '';
+            const zeiten = (v.von === v.bis || v.art === 'RUHEZEIT') && v.stempel.length
+                ? `<div class="szb-zeiten">${v.stempel.map(s => `${v.von === v.bis ? '' : _szWt(s.tag) + ' '}${s.ein}–${s.aus}`).join(' · ')}</div>` : '';
             html += `<div class="szb-zeile" style="--f:${_SZ_FARBE[v.art]}">
                 <div class="szb-tag">${tag}</div>
                 <div class="szb-inhalt">

@@ -19,11 +19,17 @@ public static class ArbeitszeitVerstoesse
     public const string Praesenz = "PRAESENZ";
     public const string Woche = "WOCHE_50H";
     public const string Ruhetage = "RUHETAGE";
+    public const string Ruhezeit = "RUHEZEIT";
+    public const string GanzerRuhetag = "GANZER_RUHETAG";
+    public const string SiebenTage = "SIEBEN_TAGE";
     public const string Naechte = "NAECHTE";
     public const string Jugend = "JUGEND";
     public const string SonntagJugend = "SONNTAG_JUGEND";
 
-    public static readonly string[] Reihenfolge = { Pause, Block, NachtTag, Praesenz, Woche, Ruhetage, Naechte, Jugend, SonntagJugend };
+    public static readonly string[] Reihenfolge = { Pause, Block, NachtTag, Praesenz, Woche, Ruhezeit, GanzerRuhetag, Ruhetage, SiebenTage, Naechte, Jugend, SonntagJugend };
+
+    static readonly string[] Wt = { "So", "Mo", "Di", "Mi", "Do", "Fr", "Sa" };
+    static string Zeitpunkt(DateTime t) => $"{Wt[(int)t.DayOfWeek]} {t:dd.MM. HH:mm}";
 
     public record Stempel(DateOnly Tag, DateTime Ein, DateTime Aus)
     {
@@ -85,7 +91,12 @@ public static class ArbeitszeitVerstoesse
             NachtTag => $"Wer zwischen {Uhr(W("nacht_von"))} und {Uhr(W("nacht_bis"))} Uhr arbeitet, darf an diesem Tag höchstens {H(W("max_std"))} arbeiten.",
             Praesenz => $"Erster Stempel bis letzter Stempel inkl. Pausen: höchstens {H(W("max_std"))}, mit Nachtarbeit {H(W("max_nacht_std"))}, Jugendliche {H(W("max_jugend_std"))}.",
             Woche => $"Höchstens {H(W("max_std"))} pro Woche (Montag–Sonntag).",
-            Ruhetage => $"Mindestens {W("min_tage"):0} freie Kalendertage pro Woche (Montag–Sonntag).",
+            Ruhetage => $"Mindestens {W("min_tage"):0} Ruhetage pro Woche (Montag–Sonntag). Ein Tag ist frei, wenn an ihm keine Schicht beginnt. "
+                      + $"Halber Ruhetag: höchstens {H(W("halbtag_max_std"))} Arbeit und frei bis {Uhr(W("halbtag_bis"))} Uhr oder ab {Uhr(W("halbtag_ab"))} Uhr.",
+            Ruhezeit => $"Zwischen Schluss und nächstem Arbeitsbeginn mindestens {H(W("min_std"))} frei, einmal pro Woche {H(W("verkuerzt_std"))}; Jugendliche {H(W("jugend_std"))}.",
+            GanzerRuhetag => $"Pro Woche mindestens einmal {H(W("min_std"))} am Stück frei (tägliche Ruhezeit + 24 Std. ganzer Ruhetag)."
+                      + (W("ausnahme_24") != 0 ? " Mit zwei Ruhetagen oder Feiertagen in der Woche genügen einmal 24 Std." : ""),
+            SiebenTage => $"Höchstens {W("max_tage"):0} Tage in Folge. Ein Tag mehr nur, wenn an jedem Tag höchstens {H(W("max_std_tag"))} gearbeitet wird und danach {H(W("frei_std"))} am Stück frei sind.",
             Naechte => $"Mehr als {NaechteMax} Nächte in 6 Wochen = dauernde Nachtarbeit mit Untersuchungspflicht. Nicht gemeldet, solange ein gültiges Arztzeugnis und die Ausnahmeregelung hinterlegt sind.",
             Jugend => $"Unter 18: höchstens {H(W("max_std"))} pro Tag, nicht nach {Uhr(W("ende_ab16"))} Uhr (unter 16: {Uhr(W("ende_unter16"))} Uhr) und nicht vor {Uhr(W("beginn"))} Uhr.",
             SonntagJugend => W("sonntage") != 0
@@ -96,7 +107,7 @@ public static class ArbeitszeitVerstoesse
     }
 
     /// <summary>Alle Verstösse im Zeitraum. Wochen zählen dort, wo ihr Sonntag liegt;
-    /// Stempel müssen eine Woche vor/nach dem Zeitraum mitgeliefert werden, Nächte 6 Wochen davor.
+    /// Stempel müssen zwei Wochen vor und eine Woche nach dem Zeitraum mitgeliefert werden, Nächte 6 Wochen davor.
     /// <paramref name="sonntagsgleich"/> = Feiertage der Filiale, die dem Sonntag gleichgestellt sind (1. August immer).</summary>
     public static List<Verstoss> Pruefe(Person p, DateOnly von, DateOnly bis,
         ArbeitszeitEinstellungen? e = null, IReadOnlyDictionary<DateOnly, string>? sonntagsgleich = null)
@@ -113,7 +124,11 @@ public static class ArbeitszeitVerstoesse
             var so = mo.AddDays(6);
             if (so < von || so > bis) continue;
             res.AddRange(PruefeWoche(p, mo, gueltig, e));
+            if (e.IstAktiv(GanzerRuhetag)) res.AddRange(PruefeGanzerRuhetag(p, mo, gueltig, e, sonntagsgleich));
         }
+
+        if (e.IstAktiv(Ruhezeit)) res.AddRange(PruefeRuhezeit(p, von, bis, gueltig, e));
+        if (e.IstAktiv(SiebenTage)) res.AddRange(PruefeSiebenTage(p, von, bis, gueltig, e));
 
         if (e.IstAktiv(Naechte)) res.AddRange(PruefeNaechte(p, von, bis));
         if (e.IstAktiv(SonntagJugend)) res.AddRange(PruefeSonntagJugend(p, von, bis, gueltig, e, sonntagsgleich));
@@ -221,20 +236,168 @@ public static class ArbeitszeitVerstoesse
                 summe, wocheMax, Recht(Woche), st);
 
         if (!e.IstAktiv(Ruhetage)) yield break;
-        var arbeitstage = new HashSet<DateOnly>();
-        foreach (var s in alle)
-            for (var t = DateOnly.FromDateTime(s.Ein); t <= DateOnly.FromDateTime(s.Aus); t = t.AddDays(1))
-            {
-                if (t < mo || t > so) continue;
-                var tVon = t.ToDateTime(TimeOnly.MinValue);
-                if (Ueberlappung(s.Ein, s.Aus, tVon, tVon.AddDays(1)) > 0) arbeitstage.Add(t);
-            }
-        int frei = 7 - arbeitstage.Count;
-        int minFrei = (int)e.Wert(Ruhetage, "min_tage");
-        if (frei < minFrei)
+        int frei = 0, halb = 0;
+        for (int i = 0; i < 7; i++)
+        {
+            var d = mo.AddDays(i);
+            var tag = st.Where(s => s.Tag == d).ToList();
+            if (tag.Count == 0) frei++;
+            else if (IstHalberRuhetag(d, tag, e)) halb++;
+        }
+        decimal ruhe = frei + halb * 0.5m;
+        decimal minFrei = e.Wert(Ruhetage, "min_tage");
+        if (ruhe < minFrei)
+        {
+            var freiText = frei == 0 ? "kein freier Tag" : frei == 1 ? "nur 1 freier Tag" : $"nur {frei} freie Tage";
+            if (halb > 0) freiText += halb == 1 ? " und 1 halber" : $" und {halb} halbe";
             yield return new(p.EmployeeId, Ruhetage, mo, so,
-                $"{arbeitstage.Count} Tage gearbeitet, nur {(frei == 0 ? "kein" : frei.ToString())} freier Tag — vorgeschrieben sind {minFrei} Ruhetage pro Woche.",
-                frei, minFrei, Recht(Ruhetage), st);
+                $"{7 - frei} Tage gearbeitet, {freiText} — vorgeschrieben sind {minFrei:0} Ruhetage pro Woche.",
+                (int)Math.Floor(ruhe), (int)minFrei, Recht(Ruhetage), st);
+        }
+    }
+
+    /// <summary>L-GAV Art. 16 Abs. 2: frei bis 12 Uhr oder ab 14.30 Uhr, höchstens 5 Std. Arbeit.</summary>
+    static bool IstHalberRuhetag(DateOnly d, List<Stempel> tag, ArbeitszeitEinstellungen e)
+    {
+        if (tag.Sum(s => s.Minuten) > e.Minuten(Ruhetage, "halbtag_max_std")) return false;
+        var basis = d.ToDateTime(TimeOnly.MinValue);
+        var freiBis = basis.AddMinutes(e.Minuten(Ruhetage, "halbtag_bis"));
+        var freiAb = basis.AddMinutes(e.Minuten(Ruhetage, "halbtag_ab"));
+        return tag.All(s => s.Ein >= freiBis) || tag.All(s => s.Aus <= freiAb);
+    }
+
+    record Luecke(DateTime Von, DateTime Bis, bool Offen)
+    {
+        public int Minuten => (int)Math.Round((Bis - Von).TotalMinutes);
+    }
+
+    /// <summary>Freie Zeiten zwischen den Stempeln; vor dem ersten und nach dem letzten Stempel offen.</summary>
+    static List<Luecke> Luecken(List<Stempel> alle)
+    {
+        var res = new List<Luecke>();
+        if (alle.Count == 0) return res;
+        res.Add(new Luecke(alle[0].Ein.AddDays(-30), alle[0].Ein, true));
+        var ende = alle[0].Aus;
+        foreach (var s in alle.Skip(1))
+        {
+            if (s.Ein > ende) res.Add(new Luecke(ende, s.Ein, false));
+            if (s.Aus > ende) ende = s.Aus;
+        }
+        res.Add(new Luecke(ende, ende.AddDays(30), true));
+        return res;
+    }
+
+    /// <summary>Gehört die freie Zeit als ganzer Ruhetag zur Woche? Massgebend ist die Mitte der
+    /// 24 Std., die nach der täglichen Ruhezeit (Mindestdauer − 24 Std.) frühestens/spätestens liegen können.</summary>
+    static bool ZaehltFuerWoche(Luecke l, int mindestMin, DateTime wVon, DateTime wBis)
+    {
+        if (l.Minuten < mindestMin) return false;
+        var mitteFrueh = l.Von.AddMinutes(mindestMin - 12 * 60);
+        var mitteSpaet = l.Bis.AddMinutes(-12 * 60);
+        return mitteFrueh < wBis && mitteSpaet >= wVon;
+    }
+
+    static IEnumerable<Verstoss> PruefeGanzerRuhetag(Person p, DateOnly mo, List<Stempel> alle,
+        ArbeitszeitEinstellungen e, IReadOnlyDictionary<DateOnly, string>? sonntagsgleich)
+    {
+        var so = mo.AddDays(6);
+        var st = alle.Where(s => s.Tag >= mo && s.Tag <= so).ToList();
+        if (st.Count == 0) yield break;
+        var wVon = mo.ToDateTime(TimeOnly.MinValue);
+        var wBis = wVon.AddDays(7);
+        var luecken = Luecken(alle);
+        int mindest = e.Minuten(GanzerRuhetag, "min_std");
+        if (luecken.Any(l => ZaehltFuerWoche(l, mindest, wVon, wBis))) yield break;
+
+        if (e.Wert(GanzerRuhetag, "ausnahme_24") != 0)
+        {
+            int ruhetage = Enumerable.Range(0, 7).Select(mo.AddDays)
+                .Count(d => !alle.Any(s => s.Tag == d) || sonntagsgleich?.ContainsKey(d) == true);
+            if (ruhetage >= 2 && luecken.Any(l => ZaehltFuerWoche(l, 24 * 60, wVon, wBis))) yield break;
+        }
+
+        var laengste = luecken.Where(l => !l.Offen && l.Bis > wVon && l.Von < wBis).MaxBy(l => l.Minuten);
+        var text = laengste == null
+            ? $"Keine freie Zeit am Stück — für den ganzen Ruhetag braucht es mindestens {Dauer(mindest)}."
+            : $"Längste freie Zeit am Stück: {Dauer(laengste.Minuten)} ({Zeitpunkt(laengste.Von)} – {Zeitpunkt(laengste.Bis)}) — "
+              + $"für den ganzen Ruhetag braucht es mindestens {Dauer(mindest)} (tägliche Ruhezeit + 24 Std.).";
+        yield return new(p.EmployeeId, GanzerRuhetag, mo, so, text,
+            laengste?.Minuten ?? 0, mindest, Recht(GanzerRuhetag), st);
+    }
+
+    record Arbeitstag(DateOnly Tag, DateTime Beginn, DateTime Ende, int Minuten, List<Stempel> Stempel);
+
+    static List<Arbeitstag> Arbeitstage(List<Stempel> alle) =>
+        alle.GroupBy(s => s.Tag).OrderBy(g => g.Key)
+            .Select(g => new Arbeitstag(g.Key, g.Min(s => s.Ein), g.Max(s => s.Aus), g.Sum(s => s.Minuten), g.OrderBy(s => s.Ein).ToList()))
+            .ToList();
+
+    static IEnumerable<Verstoss> PruefeRuhezeit(Person p, DateOnly von, DateOnly bis, List<Stempel> alle, ArbeitszeitEinstellungen e)
+    {
+        var tage = Arbeitstage(alle);
+        int normal = e.Minuten(Ruhezeit, "min_std");
+        int kurz = e.Minuten(Ruhezeit, "verkuerzt_std");
+        int jugend = e.Minuten(Ruhezeit, "jugend_std");
+        var verkuerztInWoche = new HashSet<DateOnly>();
+        for (int i = 0; i + 1 < tage.Count; i++)
+        {
+            var a = tage[i];
+            var b = tage[i + 1];
+            int frei = (int)Math.Round((b.Beginn - a.Ende).TotalMinutes);
+            if (frei <= 0) continue;
+            bool jung = p.Geburt.HasValue && MindestlohnAlter.Alter(p.Geburt.Value, a.Tag.ToDateTime(TimeOnly.MinValue)) < 18;
+            int mindest = jung ? jugend : normal;
+            if (frei >= mindest) continue;
+            bool verkuerzungFrei = !jung && frei >= kurz && verkuerztInWoche.Add(Montag(a.Tag));
+            if (verkuerzungFrei || a.Tag < von || a.Tag > bis) continue;
+
+            string grund = jung ? "Jugendliche brauchen" : "vorgeschrieben sind";
+            string zusatz = jung ? "" : frei >= kurz
+                ? $" Die Verkürzung auf {Dauer(kurz)} ist in dieser Woche schon gebraucht."
+                : $" Einmal pro Woche sind {Dauer(kurz)} erlaubt.";
+            yield return new(p.EmployeeId, Ruhezeit, a.Tag, b.Tag,
+                $"Schluss {Zeitpunkt(a.Ende)}, wieder Beginn {Zeitpunkt(b.Beginn)} — nur {Dauer(frei)} Ruhezeit, {grund} {Dauer(mindest)}.{zusatz}",
+                frei, mindest, Recht(Ruhezeit), a.Stempel.Concat(b.Stempel).ToList());
+        }
+    }
+
+    static IEnumerable<Verstoss> PruefeSiebenTage(Person p, DateOnly von, DateOnly bis, List<Stempel> alle, ArbeitszeitEinstellungen e)
+    {
+        var tage = Arbeitstage(alle);
+        int max = (int)e.Wert(SiebenTage, "max_tage");
+        int maxTag = e.Minuten(SiebenTage, "max_std_tag");
+        int freiDanach = e.Minuten(SiebenTage, "frei_std");
+        int i = 0;
+        while (i < tage.Count)
+        {
+            int j = i;
+            while (j + 1 < tage.Count && tage[j + 1].Tag == tage[j].Tag.AddDays(1)) j++;
+            int anzahl = j - i + 1;
+            var serie = tage.GetRange(i, anzahl);
+            i = j + 1;
+            if (anzahl <= max) continue;
+            var ueber = serie[max].Tag;
+            if (ueber < von || ueber > bis) continue;
+
+            string text;
+            if (anzahl == max + 1)
+            {
+                var lang = serie.Where(t => t.Minuten > maxTag).ToList();
+                int frei = i < tage.Count ? (int)Math.Round((tage[i].Beginn - serie[^1].Ende).TotalMinutes) : int.MaxValue;
+                if (lang.Count == 0 && frei >= freiDanach) continue;
+                var gruende = new List<string>();
+                if (lang.Count > 0)
+                    gruende.Add("mehr als " + Dauer(maxTag) + " am " + string.Join(", ", lang.Select(t => $"{Wt[(int)t.Tag.DayOfWeek]} {t.Tag:dd.MM.} ({Dauer(t.Minuten)})")));
+                if (frei < freiDanach)
+                    gruende.Add($"danach nur {Dauer(frei)} frei statt {Dauer(freiDanach)}");
+                text = $"{anzahl} Tage in Folge gearbeitet — erlaubt nur mit höchstens {Dauer(maxTag)} pro Tag und danach {Dauer(freiDanach)} frei. Hier: {string.Join("; ", gruende)}.";
+            }
+            else
+                text = $"{anzahl} Tage in Folge gearbeitet — erlaubt sind höchstens {max + 1} (und nur mit höchstens {Dauer(maxTag)} pro Tag und danach {Dauer(freiDanach)} frei).";
+
+            yield return new(p.EmployeeId, SiebenTage, serie[0].Tag, serie[^1].Tag, text,
+                anzahl, max, Recht(SiebenTage), serie.SelectMany(t => t.Stempel).ToList());
+        }
     }
 
     static IEnumerable<Verstoss> PruefeNaechte(Person p, DateOnly von, DateOnly bis)

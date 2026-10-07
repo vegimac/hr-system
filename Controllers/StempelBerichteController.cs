@@ -121,7 +121,7 @@ public class StempelBerichteController : HrControllerBase
         var ma = await MitarbeiterAsync(stempelIds.Concat(r!.VertragIds));
         var ids = ma.Keys.ToList();
 
-        var ladeVon = r.Von.AddDays(-7);
+        var ladeVon = r.Von.AddDays(-14);
         var ladeBis = r.Bis.AddDays(7);
         var stempel = (await _db.EmployeeTimeEntries.AsNoTracking()
                 .Where(t => ids.Contains(t.EmployeeId) && t.TimeOut != null

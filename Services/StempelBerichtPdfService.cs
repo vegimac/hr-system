@@ -40,6 +40,9 @@ public class StempelBerichtPdfService
         [ArbeitszeitVerstoesse.Naechte]  = "#1e3a8a",
         [ArbeitszeitVerstoesse.Jugend]   = "#db2777",
         [ArbeitszeitVerstoesse.SonntagJugend] = "#9d174d",
+        [ArbeitszeitVerstoesse.Ruhezeit] = "#0f766e",
+        [ArbeitszeitVerstoesse.GanzerRuhetag] = "#6d28d9",
+        [ArbeitszeitVerstoesse.SiebenTage] = "#b91c1c",
         ["ZEIT"]       = "#b45309",
         ["MANUELL"]    = "#4f46e5",
         ["BEARBEITET"] = "#6b7280",
@@ -139,6 +142,8 @@ public class StempelBerichtPdfService
     static string StempelText(StempelVerstossZeile v)
     {
         if (v.Von == v.Bis) return string.Join("  ·  ", v.Stempel.Select(s => $"{s.Ein}–{s.Aus}"));
+        if (v.Art == ArbeitszeitVerstoesse.Ruhezeit)
+            return string.Join("  ·  ", v.Stempel.Select(s => $"{Wt[(int)s.Tag.DayOfWeek]} {s.Ein}–{s.Aus}"));
         return string.Join("  ·  ", v.Stempel.GroupBy(s => s.Tag).Select(g =>
             $"{Wt[(int)g.Key.DayOfWeek]} {ArbeitszeitVerstoesse.Dauer(g.Sum(s => s.Minuten))}"));
     }

@@ -108,6 +108,117 @@ public class ArbeitszeitVerstoesseTests
         Assert.DoesNotContain(Pruefe(Erwachsen, st), x => x.Art == V.Ruhetage);
     }
 
+    // Muster wie im Bericht: Schichten über Mitternacht, «freie» Tage dazwischen, aber nie 35 h am Stück.
+    static V.Stempel[] WocheUeberMitternacht(string mittwochBeginn) => new[]
+    {
+        S(Mo.AddDays(-1), "14:00", "22:00"),
+        S(Mo, "17:00", "00:45", 1),
+        S(Mo.AddDays(2), mittwochBeginn, "18:00"),
+        S(Mo.AddDays(3), "10:00", "16:00"),
+        S(Mo.AddDays(4), "18:00", "01:00", 1),
+        S(Mo.AddDays(6), "10:00", "17:00"),
+        S(Mo.AddDays(7), "10:00", "14:00"),
+    };
+
+    [Fact]
+    public void Schicht_ueber_Mitternacht_freier_Tag_zaehlt_aber_kein_ganzer_Ruhetag()
+    {
+        var v = V.Pruefe(new V.Person(1, Erwachsen, WocheUeberMitternacht("10:00"), Array.Empty<DateOnly>()), Mo, Mo.AddDays(6));
+        Assert.DoesNotContain(v, x => x.Art == V.Ruhetage);
+        var g = Assert.Single(v, x => x.Art == V.GanzerRuhetag);
+        Assert.Equal(33 * 60 + 15, g.Ist);
+        Assert.Contains("Di 03.03. 00:45", g.Text);
+    }
+
+    [Fact]
+    public void Ab_35_Stunden_am_Stueck_ist_der_ganze_Ruhetag_erfuellt()
+    {
+        var v = V.Pruefe(new V.Person(1, Erwachsen, WocheUeberMitternacht("12:00"), Array.Empty<DateOnly>()), Mo, Mo.AddDays(6));
+        Assert.DoesNotContain(v, x => x.Art == V.GanzerRuhetag);
+    }
+
+    [Fact]
+    public void Ausnahme_24_Stunden_nur_wenn_eingeschaltet()
+    {
+        var st = WocheUeberMitternacht("10:00");
+        var e = ArbeitszeitEinstellungen.Aufloesen(new[] { W(V.GanzerRuhetag, "ausnahme_24", 1) }, Array.Empty<HrSystem.Models.ArbeitszeitRegelWert>());
+        Assert.DoesNotContain(V.Pruefe(new V.Person(1, Erwachsen, st, Array.Empty<DateOnly>()), Mo, Mo.AddDays(6), e),
+            x => x.Art == V.GanzerRuhetag);
+    }
+
+    [Fact]
+    public void Ruhezeit_einmal_pro_Woche_8_Stunden_erlaubt()
+    {
+        var einmal = new[] { S(Mo, "14:00", "23:00"), S(Mo.AddDays(1), "07:00", "12:00") };
+        Assert.DoesNotContain(Pruefe(Erwachsen, einmal), x => x.Art == V.Ruhezeit);
+
+        var zweimal = einmal.Concat(new[] { S(Mo.AddDays(2), "14:00", "23:00"), S(Mo.AddDays(3), "07:00", "12:00") }).ToArray();
+        var r = Assert.Single(Pruefe(Erwachsen, zweimal), x => x.Art == V.Ruhezeit);
+        Assert.Equal(Mo.AddDays(2), r.Von);
+        Assert.Contains("schon gebraucht", r.Text);
+    }
+
+    [Fact]
+    public void Ruhezeit_unter_8_Stunden_immer_Verstoss()
+    {
+        var r = Assert.Single(Pruefe(Erwachsen, S(Mo, "15:00", "23:30"), S(Mo.AddDays(1), "06:30", "12:00")), x => x.Art == V.Ruhezeit);
+        Assert.Equal(7 * 60, r.Ist);
+        Assert.Equal(11 * 60, r.Grenze);
+    }
+
+    [Fact]
+    public void Jugendliche_brauchen_12_Stunden_Ruhezeit()
+    {
+        var geburt = Mo.ToDateTime(TimeOnly.MinValue).AddYears(-17);
+        var r = Assert.Single(Pruefe(geburt, S(Mo, "10:00", "19:00"), S(Mo.AddDays(1), "06:30", "12:00")), x => x.Art == V.Ruhezeit);
+        Assert.Equal(12 * 60, r.Grenze);
+    }
+
+    static V.Stempel[] Tage(int anzahl, string bis = "15:00") =>
+        Enumerable.Range(0, anzahl).Select(i => S(Mo.AddDays(i), "09:00", bis)).ToArray();
+
+    [Fact]
+    public void Sieben_Tage_mit_max_9_Stunden_und_83_Stunden_frei_erlaubt()
+    {
+        Assert.DoesNotContain(Pruefe(Erwachsen, Tage(7)), x => x.Art == V.SiebenTage);
+    }
+
+    [Fact]
+    public void Sieben_Tage_mit_einem_langen_Tag_ist_Verstoss()
+    {
+        var st = Tage(7).Select((s, i) => i == 3 ? S(s.Tag, "08:00", "18:00") : s).ToArray();
+        var v = Assert.Single(Pruefe(Erwachsen, st), x => x.Art == V.SiebenTage);
+        Assert.Contains("Do 05.03.", v.Text);
+    }
+
+    [Fact]
+    public void Sieben_Tage_ohne_83_Stunden_frei_danach_ist_Verstoss()
+    {
+        var st = Tage(7).Append(S(Mo.AddDays(9), "09:00", "15:00")).ToArray();
+        var v = Assert.Single(Pruefe(Erwachsen, st), x => x.Art == V.SiebenTage);
+        Assert.Contains("danach nur", v.Text);
+    }
+
+    [Fact]
+    public void Acht_Tage_in_Folge_immer_Verstoss()
+    {
+        var v = Assert.Single(Pruefe(Erwachsen, Tage(8)), x => x.Art == V.SiebenTage);
+        Assert.Equal(8, v.Ist);
+    }
+
+    [Fact]
+    public void Zwei_halbe_Ruhetage_ergeben_einen()
+    {
+        var st = Enumerable.Range(0, 4).Select(i => S(Mo.AddDays(i), "09:00", "17:00"))
+            .Append(S(Mo.AddDays(5), "15:00", "19:00"))
+            .Append(S(Mo.AddDays(6), "08:00", "12:00")).ToArray();
+        Assert.DoesNotContain(Pruefe(Erwachsen, st), x => x.Art == V.Ruhetage);
+
+        var nurEinHalber = st.Take(4).Append(S(Mo.AddDays(4), "09:00", "17:00")).Append(st[4]).ToArray();
+        var r = Assert.Single(Pruefe(Erwachsen, nurEinHalber), x => x.Art == V.Ruhetage);
+        Assert.Contains("und 1 halber", r.Text);
+    }
+
     [Fact]
     public void Jugendliche_nicht_nach_22_Uhr()
     {

@@ -233,9 +233,9 @@ async function azRegelnLoad(ebene, containerId) {
                        <option value="1" ${p[eigen] === 1 ? 'selected' : ''}>ja</option>
                        <option value="0" ${p[eigen] === 0 ? 'selected' : ''}>nein</option></select>`
                 : `<span style="display:flex;align-items:center;gap:6px">
-                       <input type="number" id="${id}" ${dis} step="${p.einheit === 'Std.' ? '0.25' : '1'}" min="${p.min}" max="${p.max}"
+                       <input type="number" id="${id}" ${dis} step="${p.einheit === 'Std.' || p.einheit === 'Uhr' ? '0.25' : '1'}" min="${p.min}" max="${p.max}"
                               value="${_azZahl(p[eigen])}" placeholder="${_azZahl(vorher)}" style="${_azInp};width:90px">
-                       <span style="font-size:12px;color:#8b8b8b">${_azEsc(p.einheit)}</span></span>`;
+                       <span style="font-size:12px;color:#8b8b8b" ${p.einheit === 'Uhr' ? 'title="Dezimal: 14.5 = 14:30 Uhr"' : ''}>${_azEsc(p.einheit)}${p.einheit === 'Uhr' ? ' (14.5 = 14:30)' : ''}</span></span>`;
             return `<label style="display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:#646464">${_azEsc(p.label)}${feld}</label>`;
         }).join('');
         return `

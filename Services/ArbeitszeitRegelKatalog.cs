@@ -66,9 +66,29 @@ public static class ArbeitszeitRegelKatalog
         {
             new("max_std", "Höchstens pro Woche", "Std.", 50, 1, 100),
         }),
-        new(ArbeitszeitVerstoesse.Ruhetage, "Weniger als 2 Ruhetage", "L-GAV Art. 15", new Parameter[]
+        new(ArbeitszeitVerstoesse.Ruhezeit, "Ruhezeit zu kurz", "Art. 15a / 31 ArG", new Parameter[]
         {
-            new("min_tage", "Freie Tage pro Woche mindestens", "Tage", 2, 0, 7),
+            new("min_std", "Mindestens frei zwischen zwei Arbeitstagen", "Std.", 11, 1, 24),
+            new("verkuerzt_std", "Einmal pro Woche verkürzt auf", "Std.", 8, 0, 24),
+            new("jugend_std", "Jugendliche mindestens", "Std.", 12, 1, 24),
+        }),
+        new(ArbeitszeitVerstoesse.GanzerRuhetag, "Kein ganzer Ruhetag", "L-GAV Art. 16 · Art. 21 ArGV1", new Parameter[]
+        {
+            new("min_std", "Pro Woche einmal frei am Stück", "Std.", 35, 24, 72),
+            new("ausnahme_24", "24 Std. genügen bei 2 Ruhetagen/Feiertagen in der Woche (Art. 19 ArGV1)", "ja/nein", 0, 0, 1),
+        }),
+        new(ArbeitszeitVerstoesse.Ruhetage, "Weniger als 2 Ruhetage", "L-GAV Art. 16", new Parameter[]
+        {
+            new("min_tage", "Ruhetage pro Woche mindestens", "Tage", 2, 0, 7),
+            new("halbtag_max_std", "Halber Ruhetag: höchstens Arbeit", "Std.", 5, 0, 12),
+            new("halbtag_bis", "Halber Ruhetag: frei bis", "Uhr", 12, 0, 24),
+            new("halbtag_ab", "oder frei ab", "Uhr", 14.5m, 0, 24),
+        }),
+        new(ArbeitszeitVerstoesse.SiebenTage, "Zu viele Tage in Folge", "L-GAV Art. 16 Abs. 3", new Parameter[]
+        {
+            new("max_tage", "Normal höchstens in Folge", "Tage", 6, 1, 13),
+            new("max_std_tag", "Ein Tag mehr nur mit höchstens pro Tag", "Std.", 9, 1, 24),
+            new("frei_std", "und danach frei am Stück", "Std.", 83, 24, 168),
         }),
         new(ArbeitszeitVerstoesse.Naechte, "Zu viele Nächte", "Art. 30 ArGV1", Array.Empty<Parameter>()),
         new(ArbeitszeitVerstoesse.Jugend, "Jugendschutz", "Art. 31 ArG", new Parameter[]
