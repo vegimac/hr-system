@@ -359,6 +359,213 @@
         return btn;
     }
 
+    // ── Schnell-Erfassung (Walter 07.10.2026) ─────────────────────────────
+    // Das native Datumsfeld macht aus «26» das Jahr 0026. Darum steht vor jedem
+    // type="date" ein Textfeld, das Kurzformen versteht; das native Feld bleibt
+    // unsichtbar die Datenquelle (ID, .value ISO, onchange, min/max unverändert).
+    //   2.9.26 · 02.09.2026 · 020926 · 02092026 · 2.9. · 0209 · 15 (Tag im Monat)
+    //   h / heute · g / gestern · morgen · ende / ultimo (Monatsende)
+    //   +3 / -1 (Tage) · +2w · +1m · +1j (ab Feldwert, sonst heute)
+    //   ↑ / ↓ = ±1 Tag, Bild↑ / Bild↓ = ±1 Monat · Enter/Tab übernimmt · Esc verwirft
+    const _valDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+
+    function fmtCh(iso) {
+        return iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
+    }
+    function isoOf(dt) { return toIso(dt.getFullYear(), dt.getMonth(), dt.getDate()); }
+    function gueltig(y, m, d) {
+        const dt = new Date(y, m, d);
+        return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d ? dt : null;
+    }
+    function addMonate(dt, n) {
+        const tag = dt.getDate();
+        const z = new Date(dt.getFullYear(), dt.getMonth() + n, 1);
+        z.setDate(Math.min(tag, new Date(z.getFullYear(), z.getMonth() + 1, 0).getDate()));
+        return z;
+    }
+    function jahr4(yy, geburt) {
+        const cur = new Date().getFullYear();
+        let y = 2000 + yy;
+        if (y > cur + (geburt ? 0 : 20)) y -= 100;
+        return y;
+    }
+
+    /** Eingabe → ISO (yyyy-mm-dd) oder null. basisIso = bisheriger Feldwert (für +n, «15»). */
+    function parseEingabe(raw, basisIso, geburt) {
+        const s = String(raw || '').trim().toLowerCase();
+        if (!s) return '';
+        const heute = new Date(); heute.setHours(0, 0, 0, 0);
+        const b = basisIso && /^\d{4}-\d{2}-\d{2}$/.test(basisIso)
+            ? new Date(+basisIso.slice(0, 4), +basisIso.slice(5, 7) - 1, +basisIso.slice(8, 10))
+            : heute;
+        if (['h', 'heute', 't', 'today'].includes(s)) return isoOf(heute);
+        if (['g', 'gestern'].includes(s)) return isoOf(new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() - 1));
+        if (s === 'morgen') return isoOf(new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() + 1));
+        if (['ende', 'ultimo', 'u', 'me'].includes(s)) return isoOf(new Date(b.getFullYear(), b.getMonth() + 1, 0));
+        let m = /^([+-])\s*(\d{1,4})\s*([twmjy]?)$/.exec(s);
+        if (m) {
+            const n = (m[1] === '-' ? -1 : 1) * +m[2];
+            const e = m[3] || 't';
+            if (e === 't') return isoOf(new Date(b.getFullYear(), b.getMonth(), b.getDate() + n));
+            if (e === 'w') return isoOf(new Date(b.getFullYear(), b.getMonth(), b.getDate() + 7 * n));
+            if (e === 'm') return isoOf(addMonate(b, n));
+            return isoOf(addMonate(b, 12 * n));
+        }
+        m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+        if (m) { const dt = gueltig(+m[1], +m[2] - 1, +m[3]); return dt ? isoOf(dt) : null; }
+        let d, mo, y;
+        if (/^\d+$/.test(s)) {
+            if (s.length <= 2) { d = +s; mo = b.getMonth() + 1; y = b.getFullYear(); }
+            else if (s.length === 4) { d = +s.slice(0, 2); mo = +s.slice(2, 4); y = heute.getFullYear(); }
+            else if (s.length === 6) { d = +s.slice(0, 2); mo = +s.slice(2, 4); y = jahr4(+s.slice(4, 6), geburt); }
+            else if (s.length === 8) { d = +s.slice(0, 2); mo = +s.slice(2, 4); y = +s.slice(4, 8); }
+            else return null;
+        } else {
+            const t = s.split(/[.,\/\-\s]+/).filter(Boolean);
+            if (t.length < 2 || t.length > 3 || !t.every(x => /^\d+$/.test(x))) return null;
+            d = +t[0]; mo = +t[1];
+            if (t.length === 2) y = heute.getFullYear();
+            else if (t[2].length <= 2) y = jahr4(+t[2], geburt);
+            else if (t[2].length === 4) y = +t[2];
+            else return null;
+        }
+        const dt = gueltig(y, mo - 1, d);
+        return dt ? isoOf(dt) : null;
+    }
+
+    function setzeFehler(tx, text) {
+        tx.classList.toggle('yp-invalid', !!text);
+        if (text) tx.title = text; else tx.title = tx._ypTitle || '';
+    }
+
+    function nativeSetzen(native, iso) {
+        const tx = native._ypText;
+        const alt = _valDesc.get.call(native);
+        _valDesc.set.call(native, iso);
+        if (tx) { tx.value = fmtCh(iso); setzeFehler(tx, ''); }
+        if (alt !== iso) {
+            native.dispatchEvent(new Event('input', { bubbles: true }));
+            native.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    function textUebernehmen(native) {
+        const tx = native._ypText;
+        const raw = tx.value.trim();
+        const aktuell = _valDesc.get.call(native);
+        if (raw === fmtCh(aktuell)) { setzeFehler(tx, ''); return true; }
+        const iso = parseEingabe(raw, aktuell, isBirthField(native));
+        if (iso === null) { setzeFehler(tx, 'Datum nicht erkannt — z.B. 2.9.26, 020926, h (heute), +7'); return false; }
+        if (iso && native.min && iso < native.min) { setzeFehler(tx, `Frühestens ${fmtCh(native.min)}`); return false; }
+        if (iso && native.max && iso > native.max) { setzeFehler(tx, `Spätestens ${fmtCh(native.max)}`); return false; }
+        nativeSetzen(native, iso);
+        return true;
+    }
+
+    function spiegeln(native) {
+        const tx = native._ypText, wrap = native.parentElement;
+        if (!tx) return;
+        tx.className = native.className.replace(/\byp-native\b/g, '').trim() + ' yp-text' + (tx.classList.contains('yp-invalid') ? ' yp-invalid' : '');
+        tx.style.cssText = native.style.cssText;
+        tx.disabled = native.disabled;
+        tx.readOnly = native.readOnly;
+        tx.required = native.required;
+        tx.placeholder = native.getAttribute('placeholder') || 'TT.MM.JJ';
+        if (native._ypBtn) native._ypBtn.disabled = native.disabled || native.readOnly;
+        if (wrap && wrap.classList.contains('yp-field-wrap')) wrap.style.display = native.style.display === 'none' ? 'none' : '';
+    }
+
+    // Eigene Regeln statt app.css — import.html lädt app.css nicht.
+    function tippStil() {
+        if (document.getElementById('ypTippStil')) return;
+        const st = document.createElement('style');
+        st.id = 'ypTippStil';
+        st.textContent = 'input.yp-native{display:none!important}'
+            + 'input.yp-text{font-variant-numeric:tabular-nums}'
+            + 'input.yp-text.yp-invalid{border-color:#dc2626!important;box-shadow:0 0 0 2px rgba(220,38,38,.15)!important}';
+        document.head.appendChild(st);
+    }
+
+    function tippfeld(native) {
+        if (native._ypText || native.getAttribute('data-yp-tippen') === 'off') return;
+        tippStil();
+        const tx = document.createElement('input');
+        tx.type = 'text';
+        tx.autocomplete = 'off';
+        tx.spellcheck = false;
+        tx._ypTitle = native.title || 'Tippen: 2.9.26 · 020926 · 2.9. · h = heute · +7 / −1 · ↑↓ = Tag';
+        tx.title = tx._ypTitle;
+        native._ypText = tx;
+        native.parentElement.insertBefore(tx, native);
+        native.classList.add('yp-native');
+        native.tabIndex = -1;
+        spiegeln(native);
+        tx.value = fmtCh(_valDesc.get.call(native));
+
+        try {
+            Object.defineProperty(native, 'value', {
+                configurable: true,
+                get() { return _valDesc.get.call(this); },
+                set(v) { _valDesc.set.call(this, v); tx.value = fmtCh(_valDesc.get.call(this)); setzeFehler(tx, ''); },
+            });
+            Object.defineProperty(native, 'focus', { configurable: true, value: (o) => tx.focus(o) });
+            Object.defineProperty(native, 'select', { configurable: true, value: () => tx.select() });
+        } catch { /* ignore */ }
+
+        new MutationObserver(() => {
+            spiegeln(native);
+            if (document.activeElement !== tx) tx.value = fmtCh(_valDesc.get.call(native));
+        }).observe(native, { attributes: true, attributeFilter: ['class', 'style', 'disabled', 'readonly', 'required', 'placeholder', 'value'] });
+
+        tx.addEventListener('focus', () => setTimeout(() => { if (document.activeElement === tx) tx.select(); }, 0));
+        tx.addEventListener('change', () => textUebernehmen(native));
+        tx.addEventListener('blur', () => textUebernehmen(native));
+        tx.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { textUebernehmen(native); return; }
+            if (ev.key === 'Escape' && tx.value !== fmtCh(_valDesc.get.call(native))) {
+                ev.stopPropagation();
+                tx.value = fmtCh(_valDesc.get.call(native)); setzeFehler(tx, '');
+                return;
+            }
+            if (ev.key === 'ArrowDown' && (ev.altKey || ev.metaKey)) {
+                ev.preventDefault();
+                textUebernehmen(native);
+                openMenu(native, native._ypBtn || tx);
+                return;
+            }
+            const schritt = { ArrowUp: ['t', 1], ArrowDown: ['t', -1], PageUp: ['m', 1], PageDown: ['m', -1] }[ev.key];
+            if (schritt && !ev.altKey && !ev.metaKey && !ev.ctrlKey && !tx.readOnly) {
+                ev.preventDefault();
+                const basis = parseEingabe(tx.value, _valDesc.get.call(native), isBirthField(native)) || isoOf(new Date());
+                const neu = parseEingabe(`${schritt[1] > 0 ? '+' : '-'}1${schritt[0]}`, basis);
+                tx.value = fmtCh(neu);
+                setzeFehler(tx, '');
+            }
+        });
+    }
+
+    /** data-chdate-Textfelder (Swiss-Format direkt im Feld): Kurzformen beim Verlassen normalisieren. */
+    function chTippen(input) {
+        if (input._ypCh) return;
+        input._ypCh = true;
+        const norm = () => {
+            const raw = input.value.trim();
+            if (!raw) return;
+            const iso = parseEingabe(raw, parseIsoOrNull(raw), isBirthField(input));
+            if (iso && fmtCh(iso) !== raw) {
+                input.value = fmtCh(iso);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        };
+        input.addEventListener('blur', norm);
+        input.addEventListener('keydown', ev => { if (ev.key === 'Enter') norm(); });
+    }
+    function parseIsoOrNull(v) {
+        const ch = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(String(v || '').trim());
+        return ch ? toIso(+ch[3], +ch[2] - 1, +ch[1]) : null;
+    }
+
     function attach(input) {
         if (!input || input._ypAttached) return;
         const yp = (input.getAttribute('data-yp') || '').toLowerCase();
@@ -374,6 +581,7 @@
         // Tippen bleibt möglich — Kalender nur über den Button.
         // showPicker() (natives Kalender-Icon in manchen Browsern) → unser Menü.
         ensureCalButton(input);
+        if (isDate) tippfeld(input); else chTippen(input);
         input.addEventListener('keydown', (ev) => {
             if (ev.key === 'ArrowDown' && (ev.altKey || ev.metaKey)) {
                 ev.preventDefault();
@@ -419,7 +627,7 @@
         window._ypObserver = mo;
     }
 
-    window.YearPick = { attach, attachById, scan, startAuto, openMenu, closeMenu };
+    window.YearPick = { attach, attachById, scan, startAuto, openMenu, closeMenu, parseEingabe };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', startAuto);

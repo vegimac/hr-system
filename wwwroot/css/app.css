@@ -4438,7 +4438,7 @@
             outline: none;
         }
         .ov-editin::placeholder { color: #b8c0ca; font-weight: 500; }
-        input[type="date"].ov-editin { min-height: 22px; }
+        input[type="date"].ov-editin, input.yp-text.ov-editin { min-height: 22px; }
         .ov-editin:hover { border-bottom-color: rgba(140, 132, 120, 0.55); }
         /* 3-Spalten-Steckbrief mit buendigen Label-Wert-Zeilen */
         .ov-cols { display: flex; }
@@ -6391,6 +6391,7 @@
             min-width: 0;
         }
         .yp-field-wrap > input[type="date"],
+        .yp-field-wrap > input.yp-text,
         .yp-field-wrap > input[data-chdate],
         .yp-field-wrap > input[data-yp] {
             flex: 1 1 auto;
@@ -11580,7 +11581,7 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
    des Datums-Quickpicks) streckt sich sonst auf 100% Zellbreite und schiebt
    das «gültig bis»-Badge weit nach rechts — hier kompakt halten. */
 #msBody .yp-field-wrap { width: auto; flex: none; }
-#msBody .yp-field-wrap > input[type="date"] { flex: none; width: 108px; }
+#msBody .yp-field-wrap > input[type="date"], #msBody .yp-field-wrap > input.yp-text { flex: none; width: 108px; }
 
 /* Manager-DP: heutige Spalte markieren (Walter 14.08.2026) — rote
    Innenränder links+rechts pro Zelle ergeben eine durchgehende Spalten-
