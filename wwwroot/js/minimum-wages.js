@@ -327,7 +327,7 @@ function mwRenderYouth(left, right, abDatum) {
             <td class="mw-row-label">${MW_GROUP_LABEL[r.jobGroupCode] || r.jobGroupCode}</td>
             <td>${mwBadge(r.employmentModelCode, 'margin-left:0')}</td>
             <td class="mw-muted">${mwEduLabel(r.educationLevelId)}</td>
-            <td class="mw-muted">bis ${r.ageMax} J.</td>
+            <td class="mw-muted" title="Gilt bis zum Vormonat des ${r.ageMax + 1}. Geburtstags — im Geburtstagsmonat gilt schon der Erwachsenen-Mindestlohn.">bis zum ${r.ageMax + 1}. Geburtstag</td>
             <td class="mw-muted">${r.salaryType === 'hourly' ? 'CHF / Std.' : 'CHF / Mt.'}</td>
             ${mwCurCell(l)}${split ? mwFutCell(right[k] || null, l) : ''}
         </tr>`;
@@ -411,7 +411,7 @@ function mwEdit(id) {
     mwOverlay(`
         <h3 style="margin:0 0 6px;font-size:16px">${isFuture ? 'Geplanten Mindestlohn bearbeiten' : 'Mindestlohn bearbeiten'}</h3>
         <p class="mw-muted" style="margin:0 0 18px;font-size:13px;line-height:1.5">
-            ${MW_GROUP_LABEL[r.jobGroupCode] || r.jobGroupCode} · ${r.employmentModelCode} · ${mwEduLabel(r.educationLevelId)}${r.ageMax != null ? ` · ≤${r.ageMax} J.` : ''}<br>
+            ${MW_GROUP_LABEL[r.jobGroupCode] || r.jobGroupCode} · ${r.employmentModelCode} · ${mwEduLabel(r.educationLevelId)}${r.ageMax != null ? ` · bis zum ${r.ageMax + 1}. Geburtstag` : ''}<br>
             gültig ab <b>${mwFmtDate(r.validFrom)}</b>${isFuture ? ' <span style="color:#4338ca">(geplant)</span>' : ''}
         </p>
         <label class="mw-muted" style="font-size:12px">Betrag (${unit}) — Format 00.00</label>
