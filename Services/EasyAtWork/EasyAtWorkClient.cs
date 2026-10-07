@@ -470,20 +470,11 @@ public class EasyAtWorkClient
         if (string.IsNullOrWhiteSpace(body)) return null;
         try
         {
-            using var doc = JsonDocument.Parse(body);
-            var root = doc.RootElement;
-            // { "data": { … } } oder nacktes Objekt
-            if (root.ValueKind == JsonValueKind.Object
-                && root.TryGetProperty("data", out var dataEl)
-                && dataEl.ValueKind == JsonValueKind.Object)
-            {
-                return dataEl.Deserialize<EawTimepunch>(JsonOpts);
-            }
-            return root.Deserialize<EawTimepunch>(JsonOpts);
+            return EasyAtWorkTimepunchJson.Lesen(body, JsonOpts);
         }
         catch (Exception ex)
         {
-            _log.LogDebug(ex, "easy@work Timepunch {Id} (Customer {C}): JSON nicht lesbar.", timepunchId, customerId);
+            _log.LogWarning(ex, "easy@work Timepunch {Id} (Customer {C}): JSON nicht lesbar.", timepunchId, customerId);
             return null;
         }
     }
