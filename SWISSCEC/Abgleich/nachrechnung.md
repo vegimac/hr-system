@@ -39,22 +39,22 @@ Saldi, Ferien-/Feiertag-Tage, 13.-ML-Rückstellung, Quellensteuer.
 | TF15 Degelo Lorenz | 03 | ALV-Basis | 411.67 | 823.35 | -411.68 |  |
 | TF15 Degelo Lorenz | 03 | ALVZ-Basis | 617.50 | 1,235.00 | -617.50 |  |
 | TF15 Degelo Lorenz | 03 | UVGZ-Basis | 411.67 | 823.35 | -411.68 |  |
-| TF15 Degelo Lorenz | 03 | SV-Abzug Monat | 156.04 | 163.65 | -7.61 | AHV + ALV + ALVZ + NBU |
+| TF15 Degelo Lorenz | 03 | SV-Abzug Monat | 156.05 | 163.65 | -7.60 | AHV + ALV + ALVZ + NBU |
 | TF16 Aebi Anna | 02 | UVG-Basis | 12,350.00 | 18,936.65 | -6586.65 |  |
 | TF16 Aebi Anna | 02 | UVGZ-Basis | 7,500.60 | 913.95 | +6586.65 |  |
-| TF16 Aebi Anna | 02 | SV-Abzug Monat | 1,176.22 | 1,207.80 | -31.58 | AHV + ALV + ALVZ + NBU |
+| TF16 Aebi Anna | 02 | SV-Abzug Monat | 1,176.25 | 1,207.80 | -31.55 | AHV + ALV + ALVZ + NBU |
 | TF40 Farine Corinne | 10 | ALV-Basis | 12,350.00 | 4,000.00 | +8350.00 |  |
 | TF40 Farine Corinne | 10 | ALVZ-Basis | 18,525.00 | 0.00 | +18525.00 |  |
 | TF40 Farine Corinne | 10 | UVG-Basis | 12,350.00 | 7,600.00 | +4750.00 |  |
 | TF40 Farine Corinne | 10 | UVGZ-Basis | 12,350.00 | 4,000.00 | +8350.00 |  |
-| TF40 Farine Corinne | 10 | SV-Abzug Monat | 638.82 | 378.05 | +260.77 | AHV + ALV + ALVZ + NBU |
+| TF40 Farine Corinne | 10 | SV-Abzug Monat | 638.85 | 378.05 | +260.80 | AHV + ALV + ALVZ + NBU |
 | TF40 Farine Corinne | 12 | ALV-Basis | 12,350.00 | 25,450.00 | -13100.00 |  |
 | TF40 Farine Corinne | 12 | ALVZ-Basis | 18,525.00 | 17,033.35 | +1491.65 |  |
 | TF40 Farine Corinne | 12 | UVG-Basis | 12,350.00 | 17,100.00 | -4750.00 |  |
 | TF40 Farine Corinne | 12 | UVGZ-Basis | 12,350.00 | 20,700.00 | -8350.00 |  |
-| TF40 Farine Corinne | 12 | SV-Abzug Monat | 2,678.44 | 2,891.35 | -212.91 | AHV + ALV + ALVZ + NBU |
+| TF40 Farine Corinne | 12 | SV-Abzug Monat | 2,678.45 | 2,891.35 | -212.90 | AHV + ALV + ALVZ + NBU |
 | TF41 Meier Max | 07 | ALVZ-Basis | 18,525.00 | 0.00 | +18525.00 |  |
-| TF41 Meier Max | 07 | SV-Abzug Monat | 956.82 | 852.45 | +104.37 | AHV + ALV + ALVZ + NBU |
+| TF41 Meier Max | 07 | SV-Abzug Monat | 956.85 | 852.45 | +104.40 | AHV + ALV + ALVZ + NBU |
 
 ## Grenzen des Nachrechners — kein Befund gegen die Lohnrechnung
 
