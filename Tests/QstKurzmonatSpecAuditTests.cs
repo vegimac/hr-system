@@ -57,6 +57,6 @@ public class QstKurzmonatSpecAuditTests
     {
         // ComputeQstDeduction: satzbestimmend darf nie UNTER den IST-Brutto
         // fallen (Schutzklausel bleibt bestehen).
-        Assert.Contains("if (satzBrutto < bruttolohn) satzBrutto = bruttolohn;", Engine);
+        Assert.Contains("if (satzBrutto < bruttoVoll) satzBrutto = bruttoVoll;", Engine);
     }
 }

@@ -6,18 +6,18 @@ namespace HrSystem.Tests;
 
 /// <summary>
 /// Tests für die benutzerbezogene Session-/Logout-Policy
-/// (Walter-Vorgabe 21.06.2026).
+/// (Walter-Vorgabe 21.06.2026, Sperrbildschirm 04.09.2026).
 ///
-/// Prüft die Rollen-Defaults, die User-Override-Werte und das Clamping
-/// (5–1440) in AuthController.EffectiveIdleTimeout / EffectiveMaxSession —
-/// genau diese Werte fliessen in die JWT-Ablaufzeit und in die Token-Claims.
+/// Inaktivität: 0–30 Minuten, 0 = kein Sperren durch Inaktivität, Standard 15 für alle.
+/// Maximale Sitzung: Rollen-Default (MA 30, sonst 480), geklemmt auf 5–1440.
+/// Genau diese Werte fliessen in die JWT-Ablaufzeit und in die Token-Claims.
 /// </summary>
 public class SessionPolicyTests
 {
     private static AppUser U(string role, int? idle = null, int? max = null) =>
         new AppUser { Role = role, IdleTimeoutMinutes = idle, MaxSessionMinutes = max };
 
-    // ── Rollen-Defaults (kein User-Wert gesetzt) ──────────────────────────
+    // ── Defaults (kein User-Wert gesetzt) ─────────────────────────────────
     [Fact]
     public void EmployeeDefaults_Idle15_Max30()
     {
@@ -32,48 +32,55 @@ public class SessionPolicyTests
     [InlineData("admin")]
     [InlineData("buchhaltung")]
     [InlineData("lowuser")]
-    public void NonEmployeeDefaults_Idle30_Max480(string role)
+    public void NonEmployeeDefaults_Idle15_Max480(string role)
     {
         var u = U(role);
-        Assert.Equal(30,  AuthController.EffectiveIdleTimeout(u));
+        Assert.Equal(15,  AuthController.EffectiveIdleTimeout(u));
         Assert.Equal(480, AuthController.EffectiveMaxSession(u));
     }
 
-    // ── User-Override gewinnt über den Rollen-Default ─────────────────────
+    // ── User-Wert gewinnt über den Default ────────────────────────────────
     [Fact]
     public void UserOverride_TakesPrecedence()
     {
-        var u = U("employee", idle: 45, max: 120);
-        Assert.Equal(45,  AuthController.EffectiveIdleTimeout(u));
+        var u = U("employee", idle: 25, max: 120);
+        Assert.Equal(25,  AuthController.EffectiveIdleTimeout(u));
         Assert.Equal(120, AuthController.EffectiveMaxSession(u));
     }
 
-    // ── Clamping auf den gültigen Bereich 5–1440 ──────────────────────────
     [Fact]
-    public void Override_BelowMinimum_ClampedTo5()
+    public void Idle_Null_Minuten_heisst_kein_Sperren()
     {
-        var u = U("user", idle: 1, max: 0);
-        Assert.Equal(5, AuthController.EffectiveIdleTimeout(u));
-        Assert.Equal(5, AuthController.EffectiveMaxSession(u));
+        var u = U("user", idle: 0);
+        Assert.Equal(0, AuthController.EffectiveIdleTimeout(u));
+    }
+
+    // ── Klemmen: Inaktivität 0–30, Sitzung 5–1440 ─────────────────────────
+    [Fact]
+    public void Override_BelowMinimum_Clamped()
+    {
+        var u = U("user", idle: -5, max: 0);
+        Assert.Equal(AuthController.IDLE_MIN, AuthController.EffectiveIdleTimeout(u));
+        Assert.Equal(AuthController.POLICY_MIN, AuthController.EffectiveMaxSession(u));
     }
 
     [Fact]
-    public void Override_AboveMaximum_ClampedTo1440()
+    public void Override_AboveMaximum_Clamped()
     {
         var u = U("user", idle: 5000, max: 99999);
-        Assert.Equal(1440, AuthController.EffectiveIdleTimeout(u));
-        Assert.Equal(1440, AuthController.EffectiveMaxSession(u));
+        Assert.Equal(AuthController.IDLE_MAX, AuthController.EffectiveIdleTimeout(u));
+        Assert.Equal(AuthController.POLICY_MAX, AuthController.EffectiveMaxSession(u));
     }
 
     [Fact]
     public void Override_AtBounds_PassesThrough()
     {
-        var lo = U("user", idle: AuthController.POLICY_MIN, max: AuthController.POLICY_MIN);
-        Assert.Equal(5, AuthController.EffectiveIdleTimeout(lo));
+        var lo = U("user", idle: AuthController.IDLE_MIN, max: AuthController.POLICY_MIN);
+        Assert.Equal(0, AuthController.EffectiveIdleTimeout(lo));
         Assert.Equal(5, AuthController.EffectiveMaxSession(lo));
 
-        var hi = U("user", idle: AuthController.POLICY_MAX, max: AuthController.POLICY_MAX);
-        Assert.Equal(1440, AuthController.EffectiveIdleTimeout(hi));
+        var hi = U("user", idle: AuthController.IDLE_MAX, max: AuthController.POLICY_MAX);
+        Assert.Equal(30,   AuthController.EffectiveIdleTimeout(hi));
         Assert.Equal(1440, AuthController.EffectiveMaxSession(hi));
     }
 }

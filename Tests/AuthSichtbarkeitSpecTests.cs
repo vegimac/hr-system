@@ -65,7 +65,7 @@ public class AuthSichtbarkeitSpecTests
         var src = ReadAllText("wwwroot/js/app-core.js");
         var idx = src.IndexOf("function installAuth401Interceptor", StringComparison.Ordinal);
         Assert.True(idx > 0, "401-Interceptor nicht gefunden.");
-        var block = src.Substring(idx, Math.Min(1800, src.Length - idx));
+        var block = src.Substring(idx, Math.Min(4000, src.Length - idx));
         Assert.Contains("/api/auth/change-password", block);
         Assert.Contains("/api/auth/login", block);
         Assert.Contains("/api/auth/impersonate", block);

@@ -182,6 +182,16 @@ public class EditLockEndpointAuditTests
         ["ContractShareController"]                = "Öffentlicher Vertrags-Link-Token (Create) + anonyme PDF-Auslieferung — read-only-Generation, kein Lohn-Datum",
         ["ElmController"]                          = "Swissdec ELM E1–E3 (Walter 27./28.08.2026): Ping/CheckInteroperability (externe Test-Calls) + elm_stammdaten (Katalog Rechtseinheit, kein MA-Lohn)"
         ,["HauptsitzController"]                    = "Hauptsitz/Rechtseinheiten-Katalog (Walter 29.08.2026) — Stammdaten, kein MA-Lohn"
+        ,["SwissdecTestmandantController"]          = "Swissdec-Testmandant Muster AG (Walter 07.09.2026) — nur Testinstanz (INSTANCE_LABEL, sonst 403), admin; legt Kunstdaten der Testfälle an, keine echten Lohnläufe"
+        ,["SwissdecTestmandantController.Schritt2"]  = "Swissdec-Testmandant Schritt 2 — nur Testinstanz, admin, Kunstdaten"
+        ,["SwissdecTestmandantController.Schritt3"]  = "Swissdec-Testmandant Schritt 3 — nur Testinstanz, admin, Kunstdaten"
+        ,["SwissdecTestmandantController.Schritt3b"] = "Swissdec-Testmandant Schritt 3b — nur Testinstanz, admin, Kunstdaten"
+        ,["SwissdecTestmandantController.Schritt4"]  = "Swissdec-Testmandant Schritt 4 — nur Testinstanz, admin, Kunstdaten"
+        ,["SwissdecTestmandantController.Schritt4b"] = "Swissdec-Testmandant Schritt 4b — nur Testinstanz, admin, Kunstdaten"
+        ,["SwissdecTestmandantController.Schritt5"]  = "Swissdec-Testmandant Schritt 5a–c — nur Testinstanz, admin, Kunstdaten"
+        ,["MirusFehlendeMaController"]              = "Mirus «fehlende MA» — POST nur für Datei-Upload (analyze/pdf), reine Auswertung, schreibt nichts"
+        ,["EasyAtWorkHrFilesController"]            = "easy@work HR-Dateien (Walter 08.09.2026) — Dokument an MA senden / Dateitypen / Dossier-Eingang, admin; keine Lohndaten"
+        ,["MaEasyAtWorkController"]                 = "easy@work-Mitteilung an MA (Walter 08.09.2026) — PDF-Versand über easy@work, keine Lohndaten"
         ,["ArbeitszeitmodellController"]            = "Arbeitszeitmodelle der Rechtseinheit (Walter 27.09.2026) — reine Meldeangabe für Swissdec CompanyWorkingTime; die Lohnrechnung liest sie NICHT"
     };
 
