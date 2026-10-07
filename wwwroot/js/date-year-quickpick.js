@@ -54,15 +54,10 @@
 
     function yearRange(input) {
         const cur = new Date().getFullYear();
-        let from, to;
-        if (isBirthField(input)) {
-            // Geburtsdaten: weit in die Vergangenheit (Ehepartner/Kinder/MA).
-            from = 1920;
-            to = cur;
-        } else {
-            from = cur - 10;
-            to = cur + 4;
-        }
+        // Vergangene Jahre frei wählbar (Walter 07.10.2026: «nicht nur 2001, auch 1995»);
+        // die Liste scrollt beim Öffnen trotzdem zum gewählten Jahr.
+        let from = 1920;
+        let to = isBirthField(input) ? cur : cur + 4;
         // Gewähltes Jahr immer in der Liste halten (Edit alter Werte).
         if (_y && _y < from) from = _y;
         if (_y && _y > to) to = _y;
