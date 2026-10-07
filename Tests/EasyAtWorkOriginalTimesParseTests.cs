@@ -61,4 +61,20 @@ public class EasyAtWorkOriginalTimesParseTests
         Assert.Equal(new DateTime(2026, 7, 2, 11, 0, 0), oin);
         Assert.Equal(new DateTime(2026, 7, 2, 13, 37, 0), oout);
     }
+
+    [Fact]
+    public void CreatedAt_nahe_am_Ein_ist_Originalzeit()
+        => Assert.True(EasyAtWorkTimepunchSyncService.CreatedAtIstOriginal(
+            new DateTime(2026, 7, 2, 9, 2, 0, DateTimeKind.Utc), new DateTime(2026, 7, 2, 9, 30, 0, DateTimeKind.Utc)));
+
+    [Fact]
+    public void Nachtraeglich_erfasster_Stempel_hat_keine_Originalzeit()
+        // Stempel 02.07. 11:12 UTC, von Hand erfasst am 03.07. 12:02 UTC
+        => Assert.False(EasyAtWorkTimepunchSyncService.CreatedAtIstOriginal(
+            new DateTime(2026, 7, 3, 12, 2, 0, DateTimeKind.Utc), new DateTime(2026, 7, 2, 11, 12, 0, DateTimeKind.Utc)));
+
+    [Fact]
+    public void Unveraendert_gestempelt_ist_keine_Korrektur()
+        => Assert.False(EasyAtWorkTimepunchSyncService.CreatedAtIstOriginal(
+            new DateTime(2026, 7, 2, 9, 30, 20, DateTimeKind.Utc), new DateTime(2026, 7, 2, 9, 30, 0, DateTimeKind.Utc)));
 }

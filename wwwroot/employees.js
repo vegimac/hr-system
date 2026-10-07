@@ -13090,6 +13090,74 @@ const stempelOriginalTimes = (r) => {
     }
     return { in: tin, out: tout };
 };
+// Verlauf eines Stempels live aus easy@work (Kommentare + Änderungsprotokoll).
+// Felder der Einträge sind nicht dokumentiert → generisch anzeigen, Rohdaten aufklappbar.
+async function stempelEasyVerlauf(entryId) {
+    const old = document.getElementById('stzVerlaufModal');
+    if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'stzVerlaufModal';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `<div class="modal" style="max-width:640px;width:94%;max-height:86vh;overflow:auto;padding:22px 24px;border-radius:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="font-size:15px;font-weight:800;color:#3f3f3f">Verlauf aus easy@work</div>
+            <button type="button" id="stzVerlaufZu" style="background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:5px 12px;cursor:pointer">✕</button>
+        </div>
+        <div id="stzVerlaufInhalt" style="font-size:13px;color:#646464">Wird geladen…</div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const zu = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') zu(); };
+    document.addEventListener('keydown', onKey);
+    wrap.addEventListener('click', e => { if (e.target === wrap) zu(); });
+    wrap.querySelector('#stzVerlaufZu').onclick = zu;
+    const ziel = wrap.querySelector('#stzVerlaufInhalt');
+
+    const zeit = (v) => {
+        if (!v || typeof v !== 'string') return '';
+        const iso = /[zZ]|[+-]\d{2}:?\d{2}$/.test(v) ? v : v.replace(' ', 'T') + 'Z';
+        const d = new Date(iso);
+        return isNaN(d) ? v : d.toLocaleString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
+    const TEXT = ['text', 'comment', 'body', 'message', 'content', 'description'];
+    const WER = ['created_by_name', 'user_name', 'author_name', 'causer_name'];
+    const eintrag = (art, e) => {
+        if (e == null) return '';
+        if (typeof e !== 'object') return `<div class="stz-vl-row"><b>${art}</b> · ${esc(String(e))}</div>`;
+        const wer = WER.map(k => e[k]).find(v => typeof v === 'string' && v.trim())
+            || (e.user && typeof e.user === 'object' ? (e.user.name || [e.user.firstname, e.user.lastname].filter(Boolean).join(' ')) : (typeof e.user === 'string' ? e.user : ''))
+            || (typeof e.created_by === 'string' ? e.created_by : '');
+        const text = TEXT.map(k => e[k]).find(v => typeof v === 'string' && v.trim());
+        const rest = Object.entries(e)
+            .filter(([k, v]) => !TEXT.includes(k) && !WER.includes(k) && k !== 'id' && !/(^|_)(id|at)$/.test(k)
+                && k !== 'user' && k !== 'created_by' && v != null && v !== '' && typeof v !== 'object')
+            .map(([k, v]) => `${esc(k)}: ${esc(String(v))}`).join(' · ');
+        return `<div style="padding:8px 0;border-bottom:1px solid rgba(60,55,48,0.10)">
+            <div style="font-size:12px;color:#8b8b8b">${art}${e.created_at ? ' · ' + esc(zeit(e.created_at)) : ''}${wer ? ' · ' + esc(wer) : ''}</div>
+            <div style="color:#3f3f3f;margin-top:2px">${text ? esc(text) : (rest || '<i>(ohne Text)</i>')}</div>
+            ${text && rest ? `<div style="font-size:12px;color:#8b8b8b;margin-top:2px">${rest}</div>` : ''}
+        </div>`;
+    };
+    try {
+        const res = await fetch(`/api/employees/${selectedEmployeeId}/timeentries/${entryId}/easy-verlauf`, { headers: ah() });
+        const j = res.ok ? await res.json() : null;
+        if (!j || !j.verfuegbar) { ziel.textContent = j?.grund || `Fehler ${res.status}`; return; }
+        const liste = (v) => Array.isArray(v) ? v : (v && Array.isArray(v.data) ? v.data : []);
+        const zeilen = [
+            ...liste(j.comments).map(e => eintrag('Kommentar', e)),
+            ...liste(j.changelog).map(e => eintrag('Protokoll', e)),
+        ].join('');
+        ziel.innerHTML = `
+            <div style="font-size:12px;color:#8b8b8b;margin-bottom:6px">Erstellt ${esc(zeit(j.createdAt) || '–')} · zuletzt geändert ${esc(zeit(j.updatedAt) || '–')}</div>
+            ${zeilen || '<div>easy@work liefert zu diesem Stempel keine Kommentare.</div>'}
+            <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:#8b8b8b">Rohdaten easy@work</summary>
+                <pre style="white-space:pre-wrap;font-size:11px;background:rgba(255,255,255,0.6);border-radius:8px;padding:8px;max-height:300px;overflow:auto">${esc(JSON.stringify(j.roh, null, 2))}</pre>
+            </details>`;
+    } catch (e) {
+        ziel.textContent = 'Fehler: ' + e.message;
+    }
+}
+
 const stempelFmtDate = (iso) => {
     if (!iso) return '';
     const m = /(\d{4})-(\d{2})-(\d{2})/.exec(iso);
@@ -13375,7 +13443,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         // Korrekturzeile (oben): geänderte Werte markiert, Kommentar mit Audit.
         const timeCls = wasEdited ? ' stempel-time-edited' : '';
         const korrekturKommentar = wasEdited
-            ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span class="stempel-edit-meta">geändert ${new Date(r.editedAt).toLocaleDateString('de-CH')} von ${esc(r.editedBy)}</span>`
+            ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span class="stempel-edit-meta" style="cursor:pointer;text-decoration:underline dotted" title="Kommentare und Verlauf aus easy@work anzeigen" onclick="stempelEasyVerlauf(${r.id})">geändert ${new Date(r.editedAt).toLocaleDateString('de-CH')} von ${esc(r.editedBy)}</span>`
             : esc(r.comment);
 
         // Kommentar-Zelle: Kommentar + (optional) Wochentotal direkt dahinter.
@@ -13412,6 +13480,8 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         // Original-Zeile direkt darunter (Pfeil ↳ zur Korrektur).
         // Zeiten aus DB-Feldern, Fallback Audit-Text im Kommentar.
         const orig = stempelOriginalTimes(r);
+        // Nachträglich von Hand erfasst: keine Originalzeit — Zeile weglassen statt «— —».
+        if (!orig.in && !orig.out && !r.originalComment) return mainRow;
         const origInShow  = orig.in  || '—';
         const origOutShow = orig.out || '—';
         const origRow = `

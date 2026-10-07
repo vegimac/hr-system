@@ -207,6 +207,20 @@ public class EasyAtWorkTimepunchSyncService
     }
 
     /// <summary>
+    /// created_at taugt nur als Originalzeit, wenn der Stempel live gestempelt und danach
+    /// korrigiert wurde (created_at nahe am Ein). Liegt es mehr als 12 h daneben, wurde der
+    /// Stempel nachträglich von Hand erfasst — dann gibt es keine Originalzeit.
+    /// </summary>
+    public static bool CreatedAtIstOriginal(DateTime createdAt, DateTime ein)
+    {
+        var diff = Math.Abs((createdAt - ein).TotalMinutes);
+        return diff >= 1 && diff <= 12 * 60;
+    }
+
+    private static bool GleicheMinute(DateTime a, DateTime b)
+        => Math.Abs((a - b).TotalMinutes) < 1;
+
+    /// <summary>
     /// Parst aus easy@work-Audit-Texten die Original-Zeiten:
     ///   «Ein vom 17 Januar 07:38 bis zum 17 Jan 07:15 geändert» → OriginalIn 07:38
     ///   «Aus vom 2.7.2026, 13:37 bis zum 2.7.2026, 15:15 geändert» → OriginalOut 13:37
@@ -1063,7 +1077,7 @@ public class EasyAtWorkTimepunchSyncService
                 // (Walter-Bug 18.07.2026: 24 geändert nach wiederholtem Import).
                 if (!origIn.HasValue && !existing.OriginalTimeIn.HasValue
                     && p.IsEdited && p.CreatedAt.HasValue
-                    && Math.Abs((p.CreatedAt.Value - p.In.Value).TotalMinutes) >= 1)
+                    && CreatedAtIstOriginal(p.CreatedAt.Value, p.In.Value))
                 {
                     origIn = UtcToSwissLocal(p.CreatedAt.Value);
                 }
@@ -1072,6 +1086,15 @@ public class EasyAtWorkTimepunchSyncService
                 // dürfen gespeicherte Metadaten NICHT löschen oder mit
                 // «easy@work»/UpdatedAt-Fallback ersetzen.
                 var keepOrigIn  = origIn  ?? existing.OriginalTimeIn;
+                // Altbestand: nachträglich erfasster Stempel bekam den Erfassungszeitpunkt
+                // als «Original» (Walter 07.10.2026: 23.09. «Original 12:02» = erfasst 24.09.).
+                if (!origIn.HasValue && keepOrigIn.HasValue && p.CreatedAt.HasValue
+                    && !CreatedAtIstOriginal(p.CreatedAt.Value, p.In.Value)
+                    && (GleicheMinute(keepOrigIn.Value, UtcToSwissLocal(p.CreatedAt.Value))
+                        || GleicheMinute(keepOrigIn.Value, p.CreatedAt.Value)))
+                {
+                    keepOrigIn = null;
+                }
                 var keepOrigOut = origOut ?? existing.OriginalTimeOut;
                 var keepComment = !string.IsNullOrWhiteSpace(p.JoinedComments)
                     ? p.JoinedComments : existing.Comment;
@@ -1138,7 +1161,7 @@ public class EasyAtWorkTimepunchSyncService
 
             // Fallback created_at nur beim INSERT (kein vorhandener Wert).
             if (!origIn.HasValue && p.IsEdited && p.CreatedAt.HasValue
-                && Math.Abs((p.CreatedAt.Value - p.In.Value).TotalMinutes) >= 1)
+                && CreatedAtIstOriginal(p.CreatedAt.Value, p.In.Value))
             {
                 origIn = UtcToSwissLocal(p.CreatedAt.Value);
             }
@@ -1693,7 +1716,7 @@ public class EasyAtWorkTimepunchSyncService
             if (!row.OriginalTimeOut.HasValue && p.OriginalOut.HasValue)
                 row.OriginalTimeOut = UtcToSwissLocal(p.OriginalOut.Value);
             if (!row.OriginalTimeIn.HasValue && p.IsEdited && p.CreatedAt.HasValue && inLocal.HasValue
-                && Math.Abs((p.CreatedAt.Value - p.In!.Value).TotalMinutes) >= 1)
+                && CreatedAtIstOriginal(p.CreatedAt.Value, p.In!.Value))
             {
                 row.OriginalTimeIn = UtcToSwissLocal(p.CreatedAt.Value);
             }

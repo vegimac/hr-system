@@ -23,9 +23,53 @@ namespace HrSystem.Controllers;
 public class EmployeeTimeEntriesController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public EmployeeTimeEntriesController(AppDbContext db)
+    private readonly HrSystem.Services.EasyAtWork.EasyAtWorkClient _eaw;
+    public EmployeeTimeEntriesController(AppDbContext db, HrSystem.Services.EasyAtWork.EasyAtWorkClient eaw)
     {
         _db = db;
+        _eaw = eaw;
+    }
+
+    // GET /api/employees/{employeeId}/timeentries/{id}/easy-verlauf
+    // Kommentare + Änderungsprotokoll des Stempels live aus easy@work (read-only).
+    // Roh durchgereicht: welche Felder easy@work dort liefert, ist nicht dokumentiert.
+    [HttpGet("{id:int}/easy-verlauf")]
+    public async Task<IActionResult> EasyVerlauf(int employeeId, int id, CancellationToken ct)
+    {
+        var entry = await _db.EmployeeTimeEntries.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == id && t.EmployeeId == employeeId, ct);
+        if (entry is null) return NotFound();
+        if (entry.EasyAtWorkTimepunchId is not int tpId || entry.EasyAtWorkCustomerId is not int custId)
+            return Ok(new { verfuegbar = false, grund = "Stempel ohne easy@work-Verknüpfung." });
+
+        var (status, body) = await _eaw.GetRawAsync(
+            $"customers/{custId}/timepunches/{tpId}?include_changelog=true&with%5B%5D=comments", ct);
+        if (status < 200 || status >= 300)
+            return Ok(new { verfuegbar = false, grund = $"easy@work antwortet mit HTTP {status}." });
+
+        System.Text.Json.JsonElement daten;
+        try
+        {
+            var root = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(body);
+            daten = root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("data", out var d) ? d : root;
+        }
+        catch
+        {
+            return Ok(new { verfuegbar = false, grund = "Antwort von easy@work nicht lesbar." });
+        }
+        System.Text.Json.JsonElement? Teil(string name)
+            => daten.ValueKind == System.Text.Json.JsonValueKind.Object && daten.TryGetProperty(name, out var v) ? v : null;
+
+        return Ok(new
+        {
+            verfuegbar = true,
+            timepunchId = tpId,
+            createdAt = Teil("created_at"),
+            updatedAt = Teil("updated_at"),
+            comments  = Teil("comments"),
+            changelog = Teil("changelog"),
+            roh       = daten,
+        });
     }
 
     private static IActionResult ReadOnlyResponse() => new ObjectResult(new
