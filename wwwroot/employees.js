@@ -13141,17 +13141,27 @@ async function stempelEasyVerlauf(entryId) {
     try {
         const res = await fetch(`/api/employees/${selectedEmployeeId}/timeentries/${entryId}/easy-verlauf`, { headers: ah() });
         const j = res.ok ? await res.json() : null;
-        if (!j || !j.verfuegbar) { ziel.textContent = j?.grund || `Fehler ${res.status}`; return; }
+        const preStil = 'white-space:pre-wrap;font-size:11px;background:rgba(255,255,255,0.6);border-radius:8px;padding:8px;max-height:300px;overflow:auto';
+        const versucheHtml = (j?.versuche || []).map(v =>
+            `<div style="font-size:12px;margin-top:4px"><b>${esc(v.abfrage)}</b> → HTTP ${v.status}${v.meldung ? `<pre style="${preStil};margin:3px 0 0">${esc(v.meldung)}</pre>` : ''}</div>`).join('');
+        if (!j || !j.verfuegbar) {
+            ziel.innerHTML = `<div>${esc(j?.grund || `Fehler ${res.status}`)}</div>${versucheHtml}`;
+            return;
+        }
         const liste = (v) => Array.isArray(v) ? v : (v && Array.isArray(v.data) ? v.data : []);
         const zeilen = [
             ...liste(j.comments).map(e => eintrag('Kommentar', e)),
             ...liste(j.changelog).map(e => eintrag('Protokoll', e)),
         ].join('');
+        const gesp = j.gespeichert || {};
         ziel.innerHTML = `
             <div style="font-size:12px;color:#8b8b8b;margin-bottom:6px">Erstellt ${esc(zeit(j.createdAt) || '–')} · zuletzt geändert ${esc(zeit(j.updatedAt) || '–')}</div>
             ${zeilen || '<div>easy@work liefert zu diesem Stempel keine Kommentare.</div>'}
+            <div style="font-size:12px;color:#8b8b8b;margin-top:10px">In OneCrew gespeichert: Kommentar «${esc(gesp.kommentar || '–')}» · Protokoll «${esc(gesp.protokoll || '–')}»</div>
             <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:#8b8b8b">Rohdaten easy@work</summary>
-                <pre style="white-space:pre-wrap;font-size:11px;background:rgba(255,255,255,0.6);border-radius:8px;padding:8px;max-height:300px;overflow:auto">${esc(JSON.stringify(j.roh, null, 2))}</pre>
+                ${versucheHtml}
+                <pre style="${preStil};margin-top:6px">${esc(JSON.stringify(j.roh, null, 2))}</pre>
+                ${j.rohKommentare ? `<pre style="${preStil};margin-top:6px">${esc(JSON.stringify(j.rohKommentare, null, 2))}</pre>` : ''}
             </details>`;
     } catch (e) {
         ziel.textContent = 'Fehler: ' + e.message;

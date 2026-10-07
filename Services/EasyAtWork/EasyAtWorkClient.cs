@@ -438,16 +438,36 @@ public class EasyAtWorkClient
     public virtual async Task<EawTimepunch?> GetTimepunchAsync(
         int customerId, int timepunchId, CancellationToken ct = default)
     {
-        var path = $"customers/{customerId}/timepunches/{timepunchId}"
-                 + "?include_changelog=true"
-                 + "&with%5B%5D=comments";
-        var (status, body) = await GetRawAsync(path, ct);
-        if (status == 404 || string.IsNullOrWhiteSpace(body)) return null;
-        if (status < 200 || status >= 300)
+        var basis = $"customers/{customerId}/timepunches/{timepunchId}";
+        var (status, body) = await GetRawAsync(basis + TimepunchMitAllem, ct);
+        if (status == 404) return null;
+        if (status >= 200 && status < 300) return ParseTimepunch(body, timepunchId, customerId);
+
+        // Kombinierte Abfrage abgelehnt (Walter 07.10.2026: HTTP 422) → Changelog und
+        // Kommentare einzeln holen und zusammenführen, sonst ohne Zusatz.
+        _log.LogDebug("easy@work Timepunch {Id} (Customer {C}): HTTP {Status} mit Changelog+Kommentaren, Einzelabruf.",
+            timepunchId, customerId, status);
+        var (sA, bA) = await GetRawAsync(basis + TimepunchNurChangelog, ct);
+        var (sB, bB) = await GetRawAsync(basis + TimepunchNurKommentare, ct);
+        var tpA = sA is >= 200 and < 300 ? ParseTimepunch(bA, timepunchId, customerId) : null;
+        var tpB = sB is >= 200 and < 300 ? ParseTimepunch(bB, timepunchId, customerId) : null;
+        var tp = tpA ?? tpB;
+        if (tp == null)
         {
-            _log.LogDebug("easy@work Timepunch {Id} (Customer {C}): HTTP {Status}.", timepunchId, customerId, status);
-            return null;
+            var (sC, bC) = await GetRawAsync(basis, ct);
+            return sC is >= 200 and < 300 ? ParseTimepunch(bC, timepunchId, customerId) : null;
         }
+        if (tpB?.Comments is { Count: > 0 }) tp.Comments = tpB.Comments;
+        return tp;
+    }
+
+    public const string TimepunchMitAllem      = "?include_changelog=true&with%5B%5D=comments";
+    public const string TimepunchNurChangelog  = "?include_changelog=true";
+    public const string TimepunchNurKommentare = "?with%5B%5D=comments";
+
+    private EawTimepunch? ParseTimepunch(string body, int timepunchId, int customerId)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
         try
         {
             using var doc = JsonDocument.Parse(body);

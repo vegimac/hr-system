@@ -42,33 +42,52 @@ public class EmployeeTimeEntriesController : ControllerBase
         if (entry.EasyAtWorkTimepunchId is not int tpId || entry.EasyAtWorkCustomerId is not int custId)
             return Ok(new { verfuegbar = false, grund = "Stempel ohne easy@work-Verknüpfung." });
 
-        var (status, body) = await _eaw.GetRawAsync(
-            $"customers/{custId}/timepunches/{tpId}?include_changelog=true&with%5B%5D=comments", ct);
-        if (status < 200 || status >= 300)
-            return Ok(new { verfuegbar = false, grund = $"easy@work antwortet mit HTTP {status}." });
+        var basis = $"customers/{custId}/timepunches/{tpId}";
+        var versuche = new List<object>();
+        async Task<System.Text.Json.JsonElement?> Hole(string query)
+        {
+            var (status, body) = await _eaw.GetRawAsync(basis + query, ct);
+            var ok = status >= 200 && status < 300;
+            versuche.Add(new
+            {
+                abfrage = string.IsNullOrEmpty(query) ? "(ohne Zusatz)" : Uri.UnescapeDataString(query),
+                status,
+                meldung = ok ? null : (body.Length > 600 ? body[..600] + " …" : body),
+            });
+            if (!ok) return null;
+            try
+            {
+                var root = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(body);
+                return root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("data", out var d) ? d : root;
+            }
+            catch { return null; }
+        }
+        static System.Text.Json.JsonElement? Teil(System.Text.Json.JsonElement? el, string name)
+            => el is { ValueKind: System.Text.Json.JsonValueKind.Object } o && o.TryGetProperty(name, out var v) ? v : null;
 
-        System.Text.Json.JsonElement daten;
-        try
+        var alles = await Hole(HrSystem.Services.EasyAtWork.EasyAtWorkClient.TimepunchMitAllem);
+        System.Text.Json.JsonElement? mitChangelog = alles, mitKommentaren = alles;
+        if (alles is null)
         {
-            var root = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(body);
-            daten = root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("data", out var d) ? d : root;
+            mitChangelog   = await Hole(HrSystem.Services.EasyAtWork.EasyAtWorkClient.TimepunchNurChangelog);
+            mitKommentaren = await Hole(HrSystem.Services.EasyAtWork.EasyAtWorkClient.TimepunchNurKommentare);
         }
-        catch
-        {
-            return Ok(new { verfuegbar = false, grund = "Antwort von easy@work nicht lesbar." });
-        }
-        System.Text.Json.JsonElement? Teil(string name)
-            => daten.ValueKind == System.Text.Json.JsonValueKind.Object && daten.TryGetProperty(name, out var v) ? v : null;
+        var daten = alles ?? mitChangelog ?? mitKommentaren ?? await Hole("");
+        if (daten is null)
+            return Ok(new { verfuegbar = false, grund = "easy@work lehnt jede Abfrage dieses Stempels ab.", versuche });
 
         return Ok(new
         {
             verfuegbar = true,
             timepunchId = tpId,
-            createdAt = Teil("created_at"),
-            updatedAt = Teil("updated_at"),
-            comments  = Teil("comments"),
-            changelog = Teil("changelog"),
+            createdAt = Teil(daten, "created_at"),
+            updatedAt = Teil(daten, "updated_at"),
+            comments  = Teil(mitKommentaren, "comments"),
+            changelog = Teil(mitChangelog, "changelog"),
+            gespeichert = new { kommentar = entry.Comment, protokoll = entry.OriginalComment },
+            versuche,
             roh       = daten,
+            rohKommentare = alles is null ? mitKommentaren : null,
         });
     }
 
