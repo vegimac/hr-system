@@ -19,6 +19,19 @@ public static class MindestlohnAlter
     public static int? AlterFuerRegel(DateTime? geburt, DateOnly stichtag)
         => AlterFuerRegel(geburt, stichtag.ToDateTime(TimeOnly.MinValue));
 
+    /// <summary>
+    /// Letzter Tag, an dem ein Jugendsatz (age_max) noch gilt: Ende des Monats vor dem
+    /// Geburtstag, an dem age_max überschritten wird (age_max 17, Geburtstag 30.07. ⇒ 30.06.).
+    /// </summary>
+    public static DateTime JugendsatzBis(DateTime geburt, int ageMax)
+    {
+        var gb = Volljaehrig(geburt, ageMax);
+        return new DateTime(gb.Year, gb.Month, 1).AddDays(-1);
+    }
+
+    /// <summary>Geburtstag, an dem age_max überschritten wird (29.02. ⇒ 28.02. im Nicht-Schaltjahr).</summary>
+    public static DateTime Volljaehrig(DateTime geburt, int ageMax) => geburt.Date.AddYears(ageMax + 1);
+
     /// <summary>Vollendete Jahre am Tag. Geburtstag 29. Februar zählt in Nicht-Schaltjahren am 28. (Art. 77 OR).</summary>
     public static int Alter(DateTime geburt, DateTime tag)
     {

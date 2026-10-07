@@ -27,6 +27,15 @@ public class MindestlohnAlterTests
     }
 
     [Fact]
+    public void Jugendsatz_gilt_bis_Ende_Vormonat_des_18_Geburtstags()
+    {
+        Assert.Equal(new DateTime(2026, 6, 30), MindestlohnAlter.JugendsatzBis(new DateTime(2008, 7, 30), 17));
+        Assert.Equal(new DateTime(2026, 7, 31), MindestlohnAlter.JugendsatzBis(new DateTime(2008, 8, 1), 17));
+        Assert.Equal(new DateTime(2026, 1, 31), MindestlohnAlter.JugendsatzBis(new DateTime(2008, 2, 29), 17));
+        Assert.Equal(new DateTime(2026, 7, 30), MindestlohnAlter.Volljaehrig(new DateTime(2008, 7, 30), 17));
+    }
+
+    [Fact]
     public void Ohne_Geburtsdatum_kein_Alter()
         => Assert.Null(MindestlohnAlter.AlterFuerRegel(null, new DateTime(2026, 7, 1)));
 

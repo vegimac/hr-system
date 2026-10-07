@@ -562,6 +562,14 @@ async function checkCeMinimumWage() {
         if (cr.warningMessage) {
             html += `<div class="ce-hint">${cr.warningMessage}</div>`;
         }
+        if (cr.jugendsatzBis) {
+            const monat = iso => new Date(iso + 'T00:00:00').toLocaleDateString('de-CH', { month: 'long', year: 'numeric' });
+            const ab = new Date(cr.jugendsatzBis + 'T00:00:00'); ab.setDate(ab.getDate() + 1);
+            const abIso = `${ab.getFullYear()}-${String(ab.getMonth() + 1).padStart(2, '0')}-01`;
+            const geb = cr.jugendsatzGeburtstag ? new Date(cr.jugendsatzGeburtstag + 'T00:00:00').toLocaleDateString('de-CH') : '';
+            html += `<div class="ce-hint">Jugendlohn gilt bis Ende Lohnperiode <strong>${monat(cr.jugendsatzBis)}</strong>`
+                  + ` · ab ${monat(abIso)} Erwachsenen-Mindestlohn${geb ? ` (${Number(cr.jugendsatzGeburtstag.slice(0, 4)) - Number(String(_ceMa?.dateOfBirth || '').slice(0, 4)) || 18}. Geburtstag am ${geb})` : ''}.</div>`;
+        }
         html += `</div>`;
         resultEl.innerHTML = html;
     } catch (e) {

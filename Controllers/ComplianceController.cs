@@ -65,6 +65,14 @@ public class ComplianceController : ControllerBase
             .ToListAsync();
         var rule = candidates.FirstOrDefault();
 
+        // Jugendsatz: bis wann er gilt (Ende Lohnperiode vor dem Geburtstagsmonat).
+        string? jugendsatzBis = null, jugendsatzGeburtstag = null;
+        if (rule?.AgeMax is int ageMax && request.BirthDate is DateTime geb)
+        {
+            jugendsatzBis        = HrSystem.Services.MindestlohnAlter.JugendsatzBis(geb, ageMax).ToString("yyyy-MM-dd");
+            jugendsatzGeburtstag = HrSystem.Services.MindestlohnAlter.Volljaehrig(geb, ageMax).ToString("yyyy-MM-dd");
+        }
+
         if (rule == null)
         {
             return Ok(new
@@ -90,7 +98,9 @@ public class ComplianceController : ControllerBase
                     jobGroupCode = request.JobGroupCode,
                     employmentModelCode,
                     salaryType,
-                    minimumHourlyRate = rule.Amount
+                    minimumHourlyRate = rule.Amount,
+                    jugendsatzBis,
+                    jugendsatzGeburtstag
                 });
             }
 
@@ -114,7 +124,9 @@ public class ComplianceController : ControllerBase
                 currentHourlyRate = request.HourlyRate,
                 minimumHourlyRate = rule.Amount,
                 difference,
-                warningMessage
+                warningMessage,
+                jugendsatzBis,
+                jugendsatzGeburtstag
             });
         }
 
@@ -135,7 +147,9 @@ public class ComplianceController : ControllerBase
                 salaryType,
                 minimumMonthlySalary     = minimumEffective,   // anteilig
                 minimumMonthlySalaryFte  = minimumFte,         // 100%-Basis
-                employmentPercentage     = request.EmploymentPercentage ?? 100m
+                employmentPercentage     = request.EmploymentPercentage ?? 100m,
+                jugendsatzBis,
+                jugendsatzGeburtstag
             });
         }
 
@@ -165,7 +179,9 @@ public class ComplianceController : ControllerBase
             minimumMonthlySalaryFte  = minimumFte,              // Minimum 100%
             employmentPercentage     = request.EmploymentPercentage ?? 100m,
             difference = monthlyDifference,
-            warningMessage = monthlyWarningMessage
+            warningMessage = monthlyWarningMessage,
+            jugendsatzBis,
+            jugendsatzGeburtstag
         });
     }
 
