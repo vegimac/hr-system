@@ -2053,14 +2053,7 @@ public class DashboardService
                 : em.EducationLevelCode;
             if (!eduLevelByCode.TryGetValue(eduCode!, out var eduLevelId)) continue;
 
-            int? ageAtCheck = null;
-            if (emp.DateOfBirth.HasValue)
-            {
-                var bd = emp.DateOfBirth.Value;
-                int a = checkDate.Year - bd.Year;
-                if (checkDate < new DateTime(checkDate.Year, bd.Month, bd.Day)) a--;
-                ageAtCheck = a;
-            }
+            int? ageAtCheck = MindestlohnAlter.AlterFuerRegel(emp.DateOfBirth, checkDate);
 
             var modelCode = em.EmploymentModel.ToUpperInvariant() switch
             {

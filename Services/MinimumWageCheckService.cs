@@ -109,16 +109,9 @@ public class MinimumWageCheckService
         if (eduLevelId == null)
             return new MinWageCheckResult("NO_RULE", null, null, null, null, "Bildungsstufe nicht gefunden.");
 
-        // Alter am Stichtag (für altersabhängige Jugend-Regeln).
-        int? age = null;
+        // Alter für altersabhängige Jugend-Regeln — am Ende des Stichtag-Monats.
         var effDt = effectiveDate.ToDateTime(TimeOnly.MinValue);
-        if (dateOfBirth.HasValue)
-        {
-            var bd = dateOfBirth.Value;
-            int a = effDt.Year - bd.Year;
-            if (effDt < new DateTime(effDt.Year, bd.Month, bd.Day)) a--;
-            age = a;
-        }
+        int? age = MindestlohnAlter.AlterFuerRegel(dateOfBirth, effDt);
 
         // Spezifischste Regel zuerst: niedrigster age_max (Jugendliche), NULLS LAST;
         // dann jüngstes Gültig-ab.

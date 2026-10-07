@@ -148,15 +148,8 @@ public class ContractsController : ControllerBase
         {
             var salaryType2 = employment.SalaryType ?? GetSalaryType(employment.EmploymentModel);
 
-            // Alter zum Vertrags-Stichtag (für altersabhängige Regeln, z.B. unter 18)
-            int? ageAtCheck = null;
-            if (employee.DateOfBirth.HasValue)
-            {
-                var bd = employee.DateOfBirth.Value;
-                int age = checkDate.Year - bd.Year;
-                if (checkDate < new DateTime(checkDate.Year, bd.Month, bd.Day)) age--;
-                ageAtCheck = age;
-            }
+            // Alter für altersabhängige Regeln (Jugendlohn bis 18) — am Ende des Stichtag-Monats.
+            int? ageAtCheck = HrSystem.Services.MindestlohnAlter.AlterFuerRegel(employee.DateOfBirth, checkDate);
 
             var candidates = await _context.MinimumWageRulesNew
                 .Where(r => r.IsActive && r.JobGroupCode == empJobCode

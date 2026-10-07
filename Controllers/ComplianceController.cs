@@ -40,16 +40,8 @@ public class ComplianceController : ControllerBase
         var employmentModelCode = MapEmploymentModel(request.EmploymentModel);
         var salaryType = GetSalaryType(request.EmploymentModel);
 
-        // Alter zum Stichtag berechnen (für altersabhängige Regeln, z.B. unter 18)
-        int? ageAtEffective = null;
-        if (request.BirthDate.HasValue)
-        {
-            var bd = request.BirthDate.Value;
-            var ed = request.EffectiveDate;
-            int age = ed.Year - bd.Year;
-            if (ed < new DateTime(ed.Year, bd.Month, bd.Day)) age--;
-            ageAtEffective = age;
-        }
+        // Alter für altersabhängige Regeln (Jugendlohn bis 18) — am Ende des Stichtag-Monats.
+        int? ageAtEffective = HrSystem.Services.MindestlohnAlter.AlterFuerRegel(request.BirthDate, request.EffectiveDate);
 
         // Regel-Lookup mit Alters-Filter:
         //   age_max IS NULL                → gilt immer

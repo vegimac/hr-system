@@ -119,6 +119,19 @@ async function ensureCeStammdatenLoaded() {
 //        'new' (POST leerer neuer Vertrag)
 let _ceMode = 'edit';
 
+// MA des Vertrags (Geburtsdatum für den Jugend-Mindestlohn, Name, Ausbildung).
+// Nie blind selectedVtEmployee: aus dem MA-Detail geöffnet, steht dort ein anderer
+// oder gar kein MA — dann fiel der Check auf den Erwachsenen-Mindestlohn zurück.
+let _ceMa = null;
+async function ceMaZumVertrag(employeeId) {
+    const id = Number(employeeId) || (typeof selectedVtEmployee !== 'undefined' ? selectedVtEmployee?.id : null);
+    if (!id) return null;
+    if (typeof selectedVtEmployee !== 'undefined' && selectedVtEmployee?.id === id) return selectedVtEmployee;
+    if (typeof selectedEmployee !== 'undefined' && selectedEmployee?.id === id) return selectedEmployee;
+    const r = await fetch(`/api/employees/${id}`, { headers: ah() }).catch(() => null);
+    return r?.ok ? await r.json().catch(() => null) : null;
+}
+
 async function openContractEditModal(c, mode = 'edit') {
     // Bestehenden Vertrag von Hand ändern darf nur der Administrator
     // (Walter-Vorgabe 23.09.2026) — sonst läuft die Änderung über easy@work
@@ -153,9 +166,10 @@ async function openContractEditModal(c, mode = 'edit') {
     // Modal-Inhalte übersetzen (data-i18n von Labels, Buttons, Placeholders)
     if (window.i18n && window.i18n.applyAll) window.i18n.applyAll(modal);
 
+    _ceMa = await ceMaZumVertrag(c.employeeId);
     // Sub-Header (MA-Name)
-    const empName = selectedVtEmployee
-        ? `${selectedVtEmployee.firstName ?? ''} ${selectedVtEmployee.lastName ?? ''}`.trim()
+    const empName = _ceMa
+        ? `${_ceMa.firstName ?? ''} ${_ceMa.lastName ?? ''}`.trim()
         : '';
     document.getElementById('ceModalSub').textContent =
         (empName ? empName + ' · ' : '') + (c.jobTitle ?? '') + ' · ' + (c.employmentModel ?? '');
@@ -172,7 +186,7 @@ async function openContractEditModal(c, mode = 'edit') {
 
     // Felder befüllen — bei 'import'/'new' ID leer lassen
     document.getElementById('ceContractId').value      = mode === 'edit' ? (c.id ?? '') : '';
-    document.getElementById('ceEmployeeId').value      = c.employeeId ?? selectedVtEmployee?.id ?? '';
+    document.getElementById('ceEmployeeId').value      = c.employeeId ?? _ceMa?.id ?? '';
     document.getElementById('ceStartDate').value       = c.contractStartDate ? c.contractStartDate.slice(0,10) : '';
     document.getElementById('ceEmploymentModel').value = c.employmentModel ?? 'FLEX';
     document.getElementById('ceContractType').value    = isBefristet ? 'befristet' : 'unbefristet';
@@ -238,7 +252,7 @@ async function openContractEditModal(c, mode = 'edit') {
     // als c.jobGroupCode (via JobGroup-FK-Nav). c.jobTitle ist die Stellen-
     // bezeichnung (Free-Text) und gehört NICHT in dieses Dropdown.
     document.getElementById('ceJobGroup').value        = (c.jobGroupCode || 'CREW');
-    document.getElementById('ceEducationLevel').value  = (c.educationLevelCode || selectedVtEmployee?.educationLevelCode || 'Ia');
+    document.getElementById('ceEducationLevel').value  = (c.educationLevelCode || _ceMa?.educationLevelCode || 'Ia');
     document.getElementById('ceErrorMsg').textContent  = '';
     document.getElementById('ceComplianceResult').innerHTML = '';
 
@@ -428,9 +442,7 @@ async function checkCeMinimumWage() {
         const effectiveDate = (startDate > todayIso) ? startDate : todayIso;
         // Geburtsdatum für altersabhängige Regel (z.B. unter 18 Jahre).
         // Backend-Property heisst dateOfBirth (JSON camelCase von DateOfBirth).
-        const birthDate = selectedVtEmployee?.dateOfBirth
-            ? selectedVtEmployee.dateOfBirth.slice(0, 10)
-            : null;
+        const birthDate = _ceMa?.dateOfBirth ? String(_ceMa.dateOfBirth).slice(0, 10) : null;
         const body = {
             jobGroupCode,
             educationLevelCode,
