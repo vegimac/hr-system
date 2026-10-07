@@ -427,7 +427,8 @@ public class EawTimepunch
         Comments == null || Comments.Count == 0
             ? null
             : string.Join(" / ",
-                Comments.Select(c => c.AnyText).Where(t => !string.IsNullOrWhiteSpace(t)));
+                Comments.Select(c => c.AnyText).Where(t => !string.IsNullOrWhiteSpace(t))
+                        .Distinct(StringComparer.OrdinalIgnoreCase));
 
     /// <summary>Changelog-Texte (Audit) zusammengezogen — Quelle für Original-Zeiten.</summary>
     public string? JoinedChangelog =>

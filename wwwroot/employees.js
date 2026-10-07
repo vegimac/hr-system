@@ -13453,7 +13453,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         // Korrekturzeile (oben): geänderte Werte markiert, Kommentar mit Audit.
         const timeCls = wasEdited ? ' stempel-time-edited' : '';
         const korrekturKommentar = wasEdited
-            ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span class="stempel-edit-meta" style="cursor:pointer;text-decoration:underline dotted" title="Kommentare und Verlauf aus easy@work anzeigen" onclick="stempelEasyVerlauf(${r.id})">geändert ${new Date(r.editedAt).toLocaleDateString('de-CH')} von ${esc(r.editedBy)}</span>`
+            ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span class="stempel-edit-meta" style="cursor:pointer;text-decoration:underline dotted" title="Kommentare und Verlauf aus easy@work anzeigen" onclick="stempelEasyVerlauf(${r.id})">geändert${r.editedAt ? ' ' + new Date(r.editedAt).toLocaleDateString('de-CH') : ''}${r.editedBy ? ' von ' + esc(r.editedBy) : ''}</span>`
             : esc(r.comment);
 
         // Kommentar-Zelle: Kommentar + (optional) Wochentotal direkt dahinter.
