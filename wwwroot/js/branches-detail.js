@@ -613,6 +613,17 @@ function renderFilialenDetail(b) {
             </div>
             <div class="ein-hint" style="margin-top:2px">Bei «Deaktiviert» wird kein Depot-Abzug mehr angelegt. Bereits einbehaltene Depots bleiben und werden beim Austritt wie bisher zurückerstattet.</div>`,
                 'CHF 50 Depot beim ersten Lohn, Rückgabe beim Austritt') +
+            einSec('lektionenlohn', 'Lektionen Lohn',
+                b.lektionenLohnAktiv === true ? 'aktiv · Felder Lohn / Lektion und Lektionen / Woche im Vertrag (FLEX/MTP)' : 'deaktiviert', `
+            <div class="emp-field-grid">
+                <div class="emp-field"><div class="emp-field-label">Status</div>
+                    <div class="emp-field-value"><select id="einLektionenLohnAktiv" class="ef-input">
+                        <option value="true"  ${b.lektionenLohnAktiv === true ? 'selected' : ''}>Aktiv</option>
+                        <option value="false" ${b.lektionenLohnAktiv !== true ? 'selected' : ''}>Deaktiviert</option>
+                    </select></div></div>
+            </div>
+            <div class="ein-hint" style="margin-top:2px">Nur für Lehrpersonal mit Lohn pro Lektion. Bei «Deaktiviert» blendet der Vertrag die beiden Felder aus — ausser ein Vertrag hat bereits einen Lektionenlohn eingetragen.</div>`,
+                'Lohn pro Lektion im Vertrag (FLEX/MTP) anzeigen') +
             einSec('mindestlohn', 'Mindestlohn Gemeinde / Kanton',
                 'nur falls Gemeinde/Kanton einen eigenen Mindestlohn vorschreibt – übersteuert den L-GAV nach oben', `
             <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>`,
@@ -947,6 +958,7 @@ async function saveEinstellungen(branchId) {
     const lgavVoll     = Number(g('einLgavVoll')?.value);
     const lgavRed      = Number(g('einLgavRed')?.value);
     const uniformDepotAktiv = g('einUniformDepotAktiv')?.value !== 'false';
+    const lektionenLohnAktiv = g('einLektionenLohnAktiv')?.value === 'true';
     const akontoAktiv         = g('einAkontoAktiv')?.value !== 'false';
     const lohnlaufNurHr       = g('einLohnlaufNurHr')?.value === 'true';
     const akontoProzent       = Number(g('einAkontoProzent')?.value);
@@ -987,6 +999,7 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/teilmonat-methode`,           { method: 'PATCH', headers: H, body: JSON.stringify({ methode: teilmonat }) }),
             fetch(`/api/companyprofiles/${branchId}/zeitgutschrift-krank`,        { method: 'PATCH', headers: H, body: JSON.stringify({ methode: zgKrank }) }),
             fetch(`/api/companyprofiles/${branchId}/uniform-depot`,               { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: uniformDepotAktiv }) }),
+            fetch(`/api/companyprofiles/${branchId}/lektionen-lohn`,              { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: lektionenLohnAktiv }) }),
             fetch(`/api/companyprofiles/${branchId}/schlussabrechnung`,           { method: 'PATCH', headers: H, body: JSON.stringify({ ferientageAmAustrittAuszahlen: ferientageAustritt, feiertagstageAmAustrittAuszahlen: feiertagstageAustritt, stundenSaldoImLohnVerrechnen: stundenSaldoImLohn }) }),
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
@@ -1022,6 +1035,7 @@ async function saveEinstellungen(branchId) {
             karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist,
             lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed,
             uniformDepotAktiv,
+            lektionenLohnAktiv,
             thirteenthMonthPayoutMonths: tpMonths.join(','), thirteenthMonthPayoutsPerYear: tpMonths.length || 12,
             akontoProzentFix: akontoProzent,
             akontoProzentFixM: akontoProzentFixM,

@@ -663,6 +663,19 @@ public class CompanyProfilesController : ControllerBase
         return Ok(profile);
     }
 
+    // PATCH /api/companyprofiles/{id}/lektionen-lohn  (Walter 07.10.2026)
+    // Felder Lohn / Lektion + Lektionen / Woche im Vertrag dieser Filiale anzeigen.
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/lektionen-lohn")]
+    public async Task<IActionResult> UpdateLektionenLohn(int id, [FromBody] AutoFerienGeldDezemberDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        profile.LektionenLohnAktiv = dto.Aktiv;
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+
     // PATCH /api/companyprofiles/{id}/lgav
     [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/lgav")]
@@ -854,6 +867,7 @@ public class CompanyProfilesController : ControllerBase
             t.FeiertagstageAmAustrittAuszahlen = source.FeiertagstageAmAustrittAuszahlen;
             t.StundenSaldoImLohnVerrechnen     = source.StundenSaldoImLohnVerrechnen;
             t.UniformDepotAktiv                = source.UniformDepotAktiv;
+            t.LektionenLohnAktiv               = source.LektionenLohnAktiv;
             // ── Karenz ──
             t.KarenzjahrBasis      = source.KarenzjahrBasis;
             t.KarenzTageMax        = source.KarenzTageMax;

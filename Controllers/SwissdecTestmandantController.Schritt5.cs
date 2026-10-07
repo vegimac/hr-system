@@ -91,6 +91,7 @@ public partial class SwissdecTestmandantController
                 f.FeiertagstageAmAustrittAuszahlen = false;
                 f.StundenSaldoImLohnVerrechnen = false;
                 f.UniformDepotAktiv = false;   // Walter 10.09.2026
+                f.LektionenLohnAktiv = true;   // Muster AG hat Lektionenlöhne (1006)
                 // Bereits angelegte Depot-Zeilen der Muster-AG-Personen entfernen (sonst
                 // Rückgabe-Hinweis beim letzten Lohn), es gab dafür nie einen Abzug.
                 var depotEmpIds = await _db.Employments.Where(e => e.CompanyProfileId == f.Id).Select(e => e.EmployeeId).Distinct().ToListAsync();

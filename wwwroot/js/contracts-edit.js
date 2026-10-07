@@ -270,9 +270,12 @@ function onCeModelChange() {
     // automatisch = GuaranteedHoursPerWeek gesetzt.
     show('ceWeeklyWrap',     isUtp);
     show('ceGuaranteedWrap', isMtp);
-    // Lektionenlohn nur bei Stundenlohn-Modellen (FLEX/UTP/MTP), nie bei FIX.
-    show('ceLessonRateWrap', !isFix);
-    show('ceWeeklyLessonsWrap', !isFix);
+    // Lektionenlohn nur bei Stundenlohn-Modellen (FLEX/UTP/MTP), nie bei FIX — und nur,
+    // wenn die Filiale «Lektionen Lohn» aktiv hat oder der Vertrag schon einen Wert trägt.
+    const lektionWert = !!(document.getElementById('ceLessonRate')?.value || document.getElementById('ceWeeklyLessons')?.value);
+    const lektionen = !isFix && (_ceLektionenLohnAktiv || lektionWert);
+    show('ceLessonRateWrap', lektionen);
+    show('ceWeeklyLessonsWrap', lektionen);
     // < 8 h / Wo. nur bei FLEX — eigene Grid-Zelle rechts neben Max. h/Woche.
     show('ceTeilzeitUnter8hWrap', isUtp);
     if (!isUtp && typeof empSetYesNo === 'function')
@@ -339,12 +342,15 @@ function ceArbeitstageOptionen(wert) {
 }
 // Tagessoll wie KrankUnfallZeitgutschrift.Wochenstunden: Filial-Normalstunden × Pensum ÷ Arbeitstage.
 let _ceBetriebWoche = 42;
+let _ceLektionenLohnAktiv = false;
 async function ceBetriebWocheLaden(filialeId) {
     _ceBetriebWoche = 42;
+    _ceLektionenLohnAktiv = false;
     if (!filialeId) return;
     const r = await fetch(`/api/companyprofiles/${filialeId}`, { headers: ah() }).catch(() => null);
     const p = r?.ok ? await r.json().catch(() => null) : null;
     if (p?.normalWeeklyHours > 0) _ceBetriebWoche = Number(p.normalWeeklyHours);
+    _ceLektionenLohnAktiv = p?.lektionenLohnAktiv === true;
 }
 function ceArbeitstageInfo() {
     const el = document.getElementById('ceArbeitstageInfo');

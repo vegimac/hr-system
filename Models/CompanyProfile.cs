@@ -383,6 +383,13 @@ public class CompanyProfile
     public bool UniformDepotAktiv { get; set; } = true;
 
     /// <summary>
+    /// «Lektionen Lohn» (Walter 07.10.2026): zeigt im Vertrag bei FLEX/MTP die Felder
+    /// Lohn / Lektion und Lektionen / Woche. Reine Anzeige — die Lohnrechnung liest
+    /// einen gesetzten Lektionenlohn immer. Default false = Schaub.
+    /// </summary>
+    public bool LektionenLohnAktiv { get; set; }
+
+    /// <summary>
     /// Akonto-Prozentsatz für FIX (Akonto-Lohn-Modell). Das Akonto für FIX
     /// = AkontoProzentFix % des voraussichtlich ausbezahlten Monatslohns.
     /// Default 80 %, pro Filiale im Einstellungen-Tab änderbar. Siehe

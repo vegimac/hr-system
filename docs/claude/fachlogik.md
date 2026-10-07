@@ -506,6 +506,10 @@ Ferien-TAGE laufen immer weiter (Egli +2.92 trotz %-Entschädigung ist gewollt).
 
 `CompanyProfile.UniformDepotAktiv` (boolean NOT NULL DEFAULT true, Schema-Stand 4). Bei false legt der Lohnlauf (`PayrollCalculationEngine` vor `EnsureChargeAsync`) und das Nachziehen pro Periode (`UniformDepotService.EnsureChargesForPeriodAsync`) keinen CHF-50-Abzug (600.32) mehr an; bestehende Depots und deren Rückerstattung bleiben unverändert. UI: Filial-Einstellungen, Sektion «Uniform-Depot» direkt nach L-GAV-Vollzugsbeitrag; PATCH `/api/companyprofiles/{id}/uniform-depot`. Muster AG (5a): false.
 
+## «Lektionen Lohn» als Filial-Schalter (Walter 07.10.2026)
+
+`CompanyProfile.LektionenLohnAktiv` (boolean NOT NULL DEFAULT false, Schema-Stand 53). **Reine Anzeige:** bei false blendet «Vertrag bearbeiten» (FLEX/MTP) die Felder «Lohn / Lektion» und «Lektionen / Woche» aus — ausser der Vertrag trägt schon einen Wert (nie still verstecken). Lohnrechnung und ELM-Meldung (1006) lesen `employment.lesson_rate`/`weekly_lessons` unverändert, unabhängig vom Schalter. Stand 53 schaltet einmalig jede Filiale ein, in der ein Vertrag schon einen Lektionenlohn hat. UI: Filial-Einstellungen → «Beiträge & Abzüge» → «Lektionen Lohn» (nach Uniform-Depot); PATCH `/api/companyprofiles/{id}/lektionen-lohn`. Muster AG (5a): true.
+
 ## Nachzahlung nach Austritt — SV der Austrittsperiode zurechnen (Walter 11.09.2026)
 
 Korrekturlohn für Ausgetretene (`CalculateCorrectionAsync`), wenn der Austritt vor der Lohnperiode liegt: Art. 30ter Abs. 3 AHVV — der nach dem Austritt ausbezahlte Lohn gilt als in der Anstellungsperiode erzielt. Deshalb:
