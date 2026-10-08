@@ -13119,29 +13119,78 @@ async function stempelEasyVerlauf(entryId) {
     wrap.querySelector('#stzVerlaufZu').onclick = zu;
     const ziel = wrap.querySelector('#stzVerlaufInhalt');
 
+    // easy@work liefert Stempel-/Protokoll-Zeiten als UTC ohne Suffix → +Z, Anzeige Zürich.
     const zeit = (v) => {
         if (!v || typeof v !== 'string') return '';
         const iso = /[zZ]|[+-]\d{2}:?\d{2}$/.test(v) ? v : v.replace(' ', 'T') + 'Z';
         const d = new Date(iso);
         return isNaN(d) ? v : d.toLocaleString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
+    const uhrUtc = (v) => {
+        if (!v || typeof v !== 'string') return '';
+        const iso = /[zZ]|[+-]\d{2}:?\d{2}$/.test(v) ? v : v.replace(' ', 'T') + 'Z';
+        const d = new Date(iso);
+        return isNaN(d) ? '' : d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+    };
+    // Datum-Felder (business_date) nicht umrechnen — nur Kalendertag.
+    const wertAnzeigen = (k, v) => {
+        if (typeof v === 'boolean') return v ? 'ja' : 'nein';
+        if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(v)) {
+            if (k === 'business_date' || /_date$/.test(k)) {
+                const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
+                return m ? `${m[3]}.${m[2]}.${m[1]}` : v;
+            }
+            return zeit(v);
+        }
+        return String(v);
+    };
     const TEXT = ['text', 'comment', 'body', 'message', 'content', 'description'];
     const WER = ['created_by_name', 'user_name', 'author_name', 'causer_name'];
-    const eintrag = (art, e) => {
+    const SCHWARZ = '#1a1a1a', ROT = '#b91c1c';
+    const gleichWert = (a, b) => (a == null && b == null) || String(a ?? '') === String(b ?? '');
+    const stempelLabel = (e, farbe, geaendert) => {
+        const einF = geaendert?.in ? ROT : farbe;
+        const ausF = geaendert?.out ? ROT : farbe;
+        let hint = '';
+        if (e.manually_closed === true) hint = geaendert?.manually_closed
+            ? `<span style="color:${ROT}"> · von Hand geschlossen</span>`
+            : ' · von Hand geschlossen';
+        else if (e.manually_closed === false && !e.out) hint = ' · ohne Aus (später Tagesabschluss / offen)';
+        if (e.manually_opened === true) hint += geaendert?.manually_opened
+            ? `<span style="color:${ROT}"> · von Hand geöffnet</span>` : ' · von Hand geöffnet';
+        return `<div style="margin-top:2px;font-weight:700;color:${farbe}">`
+            + `Ein <span style="color:${einF}">${esc(uhrUtc(e.in) || '–')}</span>`
+            + ` · Aus <span style="color:${ausF}">${esc(uhrUtc(e.out) || '–')}</span>${hint}</div>`;
+    };
+    const eintrag = (art, e, vorher) => {
         if (e == null) return '';
         if (typeof e !== 'object') return `<div class="stz-vl-row"><b>${art}</b> · ${esc(String(e))}</div>`;
         const wer = WER.map(k => e[k]).find(v => typeof v === 'string' && v.trim())
             || (e.user && typeof e.user === 'object' ? (e.user.name || [e.user.firstname, e.user.lastname].filter(Boolean).join(' ')) : (typeof e.user === 'string' ? e.user : ''))
             || (typeof e.created_by === 'string' ? e.created_by : '');
         const text = TEXT.map(k => e[k]).find(v => typeof v === 'string' && v.trim());
+        const istKorrektur = !!vorher && (e.in != null || e.out != null || vorher.in != null || vorher.out != null);
+        const geaendert = istKorrektur ? {
+            in: !gleichWert(e.in, vorher.in),
+            out: !gleichWert(e.out, vorher.out),
+            manually_closed: !gleichWert(e.manually_closed, vorher.manually_closed),
+            manually_opened: !gleichWert(e.manually_opened, vorher.manually_opened),
+        } : null;
+        const farbe = istKorrektur ? ROT : SCHWARZ;
+        const titel = istKorrektur ? 'Korrektur' : (art === 'Protokoll' ? 'Stempelung' : art);
+        const hatStempel = e.in != null || e.out != null || (vorher && (vorher.in != null || vorher.out != null));
+        const restKeys = ['approved', 'time_edited', 'business_date', 'value', 'length'];
         const rest = Object.entries(e)
-            .filter(([k, v]) => !TEXT.includes(k) && !WER.includes(k) && k !== 'id' && !/(^|_)(id|at)$/.test(k)
-                && k !== 'user' && k !== 'created_by' && v != null && v !== '' && typeof v !== 'object')
-            .map(([k, v]) => `${esc(k)}: ${esc(String(v))}`).join(' · ');
+            .filter(([k, v]) => restKeys.includes(k) && v != null && v !== '' && typeof v !== 'object')
+            .map(([k, v]) => {
+                const neu = istKorrektur && vorher && !gleichWert(v, vorher[k]);
+                return `<span style="${neu ? `color:${ROT};font-weight:700` : ''}">${esc(k)}: ${esc(wertAnzeigen(k, v))}</span>`;
+            }).join(' · ');
         return `<div style="padding:8px 0;border-bottom:1px solid rgba(60,55,48,0.10)">
-            <div style="font-size:12px;color:#8b8b8b">${art}${e.created_at ? ' · ' + esc(zeit(e.created_at)) : ''}${wer ? ' · ' + esc(wer) : ''}</div>
-            <div style="color:#3f3f3f;margin-top:2px">${text ? esc(text) : (rest || '<i>(ohne Text)</i>')}</div>
-            ${text && rest ? `<div style="font-size:12px;color:#8b8b8b;margin-top:2px">${rest}</div>` : ''}
+            <div style="font-size:12px;color:#8b8b8b"><b style="color:${farbe}">${titel}</b>${e.created_at ? ' · ' + esc(zeit(e.created_at)) : ''}${wer ? ' · ' + esc(wer) : ''}</div>
+            ${hatStempel ? stempelLabel(e, farbe, geaendert) : ''}
+            ${text ? `<div style="color:${farbe};margin-top:2px">${esc(text)}</div>` : ''}
+            ${rest ? `<div style="font-size:12px;color:#8b8b8b;margin-top:2px">${rest}</div>` : ''}
         </div>`;
     };
     try {
@@ -13155,44 +13204,59 @@ async function stempelEasyVerlauf(entryId) {
             return;
         }
         const liste = (v) => Array.isArray(v) ? v : (v && Array.isArray(v.data) ? v.data : []);
+        const kommentare = liste(j.comments);
+        const protokoll = liste(j.changelog);
+        // Protokoll chronologisch: erste Stempelung schwarz, spätere Korrektur rot (geänderte Felder).
+        const protoSortiert = [...protokoll].sort((a, b) => {
+            const ta = Date.parse((a.created_at || a.updated_at || '').replace(' ', 'T') + 'Z') || 0;
+            const tb = Date.parse((b.created_at || b.updated_at || '').replace(' ', 'T') + 'Z') || 0;
+            if (ta !== tb) return ta - tb;
+            return (a.id || 0) - (b.id || 0);
+        });
         const zeilen = [
-            ...liste(j.comments).map(e => eintrag('Kommentar', e)),
-            ...liste(j.changelog).map(e => eintrag('Protokoll', e)),
+            ...kommentare.map(e => eintrag('Kommentar', e, null)),
+            ...protoSortiert.map((e, i) => eintrag('Protokoll', e, i > 0 ? protoSortiert[i - 1] : null)),
         ].join('');
         const gesp = j.gespeichert || {};
         const z = j.zeiten || {};
-        const uhr = (v) => {
+        // OneCrew-Zeiten sind Lokalzeit (timestamp without time zone) — kein +Z.
+        const uhrLokal = (v) => {
             if (!v) return '';
-            const d = new Date(typeof v === 'string' && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(v) ? v.replace(' ', 'T') : v);
+            const s = typeof v === 'string' ? v : String(v);
+            const d = new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(s) ? s : s.replace(' ', 'T'));
             return isNaN(d) ? '' : d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
         };
-        const ein = uhr(z.ein), aus = uhr(z.aus), oEin = uhr(z.originalEin), oAus = uhr(z.originalAus);
-        const hatAenderung = (oEin && oEin !== ein) || (oAus && oAus !== aus);
+        const ein = uhrLokal(z.ein), aus = uhrLokal(z.aus), oEin = uhrLokal(z.originalEin), oAus = uhrLokal(z.originalAus);
+        const hatAenderung = (oEin && oEin !== ein) || (oAus && oAus !== aus) || protoSortiert.length > 1;
         const zeitVergleich = (ein || aus) ? `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 12px">
             <div style="flex:1;min-width:140px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:10px 12px">
                 <div style="font-size:11px;font-weight:700;color:#8b8b8b;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px">Ein</div>
                 ${oEin && oEin !== ein
-                    ? `<div><span style="color:#15803d;font-weight:700;text-decoration:line-through">${esc(oEin)}</span>
+                    ? `<div><span style="color:${SCHWARZ};font-weight:700;text-decoration:line-through">${esc(oEin)}</span>
                          <span style="margin:0 6px;color:#8b8b8b">→</span>
-                         <span style="color:#b91c1c;font-weight:800;font-size:16px">${esc(ein || '–')}</span></div>`
-                    : `<div style="font-weight:800;font-size:16px;color:#1a1a1a">${esc(ein || '–')}</div>`}
+                         <span style="color:${ROT};font-weight:800;font-size:16px">${esc(ein || '–')}</span></div>`
+                    : `<div style="font-weight:800;font-size:16px;color:${SCHWARZ}">${esc(ein || '–')}</div>`}
             </div>
             <div style="flex:1;min-width:140px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:10px 12px">
                 <div style="font-size:11px;font-weight:700;color:#8b8b8b;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px">Aus</div>
                 ${oAus && oAus !== aus
-                    ? `<div><span style="color:#15803d;font-weight:700;text-decoration:line-through">${esc(oAus)}</span>
+                    ? `<div><span style="color:${SCHWARZ};font-weight:700;text-decoration:line-through">${esc(oAus || '–')}</span>
                          <span style="margin:0 6px;color:#8b8b8b">→</span>
-                         <span style="color:#b91c1c;font-weight:800;font-size:16px">${esc(aus || '–')}</span></div>`
-                    : `<div style="font-weight:800;font-size:16px;color:#1a1a1a">${esc(aus || '–')}</div>`}
+                         <span style="color:${ROT};font-weight:800;font-size:16px">${esc(aus || '–')}</span></div>`
+                    : (protoSortiert.length > 1 && protoSortiert[0].out == null && aus
+                        ? `<div><span style="color:${SCHWARZ};font-weight:700">–</span>
+                             <span style="margin:0 6px;color:#8b8b8b">→</span>
+                             <span style="color:${ROT};font-weight:800;font-size:16px">${esc(aus)}</span></div>`
+                        : `<div style="font-weight:800;font-size:16px;color:${SCHWARZ}">${esc(aus || '–')}</div>`)}
             </div>
-            ${hatAenderung ? `<div style="flex-basis:100%;font-size:11.5px;color:#8b8b8b"><span style="color:#15803d;font-weight:700">grün</span> = Original · <span style="color:#b91c1c;font-weight:700">rot</span> = geändert</div>` : ''}
+            ${hatAenderung ? `<div style="flex-basis:100%;font-size:11.5px;color:#8b8b8b"><span style="color:${SCHWARZ};font-weight:700">schwarz</span> = erste / falsche Stempelung · <span style="color:${ROT};font-weight:700">rot</span> = Korrektur</div>` : ''}
         </div>` : '';
         ziel.innerHTML = `
-            <div style="font-size:12px;color:#8b8b8b;margin-bottom:6px">Erstellt ${esc(zeit(j.createdAt) || '–')} · zuletzt geändert ${esc(zeit(j.updatedAt) || '–')}</div>
+            <div style="font-size:12px;color:#8b8b8b;margin-bottom:6px">Erstellt ${esc(zeit(j.createdAt) || '–')} · zuletzt geändert ${esc(zeit(j.updatedAt) || '–')} · Zeiten Zürich</div>
             ${zeitVergleich}
             ${zeilen || '<div>easy@work liefert zu diesem Stempel keine Kommentare.</div>'}
             <div style="font-size:12px;color:#8b8b8b;margin-top:10px">In OneCrew gespeichert: Kommentar «${esc(gesp.kommentar || '–')}» · Protokoll «${esc(gesp.protokoll || '–')}»</div>
-            <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:#8b8b8b">Rohdaten easy@work</summary>
+            <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:#8b8b8b">Rohdaten easy@work (UTC, unverändert)</summary>
                 ${versucheHtml}
                 <pre style="${preStil};margin-top:6px">${esc(JSON.stringify(j.roh, null, 2))}</pre>
                 ${j.rohKommentare && JSON.stringify(j.rohKommentare) !== JSON.stringify(j.roh)
