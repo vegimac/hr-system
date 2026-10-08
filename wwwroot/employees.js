@@ -12974,8 +12974,14 @@ async function loadStempelzeitenTab(employeeId) {
     const monthOpts = MONATSNAMEN_DE.map((n, i) => `
         <option value="${i+1}" ${i+1 === el._stempelMonth ? 'selected' : ''}>${n}</option>`).join('');
     const filterHtml = `
-        <select id="stempelYearSel" class="f-input stempel-period-sel stempel-period-year" onchange="stempelChangePeriod()">${yearOpts}</select>
-        <select id="stempelMonthSel" class="f-input stempel-period-sel stempel-period-month" onchange="stempelChangePeriod()">${monthOpts}</select>`;
+        <div class="stempel-period-field">
+            <span class="stempel-period-label">Jahr</span>
+            <select id="stempelYearSel" class="f-input stempel-period-sel stempel-period-year" onchange="stempelChangePeriod()">${yearOpts}</select>
+        </div>
+        <div class="stempel-period-field">
+            <span class="stempel-period-label">Monat</span>
+            <select id="stempelMonthSel" class="f-input stempel-period-sel stempel-period-month" onchange="stempelChangePeriod()">${monthOpts}</select>
+        </div>`;
 
     // Walter 19.07.2026 (final): Filter + Spaltenköpfe AUSSERHALB des Scrolls
     // (kein sticky mehr) — sonst hüpfen sie am Listenanfang/-ende.
