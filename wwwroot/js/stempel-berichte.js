@@ -78,9 +78,13 @@ function _szPdf(prefix, pfad, name) {
 }
 
 function _szMaKopf(m, rechts) {
-    return `<div class="szb-ma-kopf">
+    const id = m.employeeId;
+    const jump = id
+        ? ` role="link" tabindex="0" onclick="dashOpenEmployee(${id},'stempelzeiten')" onkeydown="if(event.key==='Enter')dashOpenEmployee(${id},'stempelzeiten')" title="Mitarbeiter öffnen (Stempelzeiten)"`
+        : '';
+    return `<div class="szb-ma-kopf${id ? ' szb-ma-sprung' : ''}"${jump}>
         <div class="szb-avatar">${_szEsc(_szInitialen(m.vorname, m.nachname))}</div>
-        <div class="szb-ma-name">${_szEsc((m.vorname || '') + ' ' + (m.nachname || ''))}${m.nummer ? `<span>${_szEsc(m.nummer)}</span>` : ''}</div>
+        <div class="szb-ma-name">${_szEsc((m.vorname || '') + ' ' + (m.nachname || ''))}${m.nummer ? `<span>${_szEsc(m.nummer)}</span>` : ''}${id ? '<span class="szb-ma-pfeil">›</span>' : ''}</div>
         <div class="szb-ma-rechts">${rechts}</div>
     </div>`;
 }
