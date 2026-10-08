@@ -18,6 +18,12 @@
 #   Prod: NUR HTTP 200 — das Prod-Label ist absichtlich leer!
 #         Port zur Laufzeit aus der Prod-Unit/Env gelesen; nicht lesbar →
 #         Fallback systemctl is-active.
+#
+# Weg zurück (Walter 08.10.2026): nach dem Stop und VOR dem Entpacken wird
+# die Datenbank verschlüsselt gesichert (…/vor-deploy/, mit Probe-Entschlüsselung)
+# und das bisherige Programm nach /var/www/<app>.vorher verschoben.
+# Scheitert die Sicherung, startet das alte Programm wieder und der Deploy
+# bricht ab — es gibt keinen Deploy ohne Sicherung. Zurückrollen: RESTORE.md D/E.
 # ════════════════════════════════════════════════════════════════════
 
 set -e  # Bei jedem Fehler abbrechen
@@ -65,10 +71,56 @@ MODE="$1"
 COMMIT="$2"
 TEST_RESULT="-"
 PROD_RESULT="-"
+SICHERUNG="-"
+SICHERUNG_TEST="-"
+SICHERUNG_PROD="-"
+STAMP=$(date +%Y-%m-%d_%H-%M-%S)
 
 log_deploy() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') commit=$COMMIT modus=$MODE test=$TEST_RESULT prod=$PROD_RESULT" \
+    echo "$(date '+%Y-%m-%d %H:%M:%S') commit=$COMMIT modus=$MODE test=$TEST_RESULT prod=$PROD_RESULT sicherung_test=$SICHERUNG_TEST sicherung_prod=$SICHERUNG_PROD" \
         | sudo tee -a /var/log/onecrew-deploys.log > /dev/null
+}
+
+# Datenbank verschlüsselt sichern, solange der Dienst steht (= exakt der Stand
+# vor den Start-Migrationen). Danach Probe: entschlüsseln + Inhaltsverzeichnis
+# lesen — erst dann gilt die Sicherung. pg_restore --list hört nach dem
+# Inhaltsverzeichnis auf; cat leert den Rest, sonst bricht gpg mit «Broken pipe»
+# ab, bevor es die Prüfsumme am Dateiende kontrolliert hat. Dateiname beginnt mit «db-», damit die
+# nächtliche Rotation (14 Tage) und bei Prod der Swiss-Backup-Upload greifen.
+# $1 Datenbank · $2 Passphrase-Datei · $3 Ordner · $4 Kürzel
+sicherung_vor_deploy() {
+    local db="$1" pass="$2" ordner="$3" kurz="$4"
+    local ziel="$ordner/db-vor-deploy-$kurz-$STAMP-$COMMIT.dump.gpg"
+    SICHERUNG="-"
+    if ! sudo test -f "$pass"; then
+        echo "    ✗ Passphrase-Datei fehlt: $pass"
+        return 1
+    fi
+    sudo mkdir -p "$ordner"
+    sudo chmod 700 "$ordner"
+    if ! sudo bash -c "set -o pipefail; cd /tmp; sudo -u postgres pg_dump -F c '$db' | gpg --batch --yes --passphrase-file '$pass' --symmetric --cipher-algo AES256 --output '$ziel'"; then
+        sudo rm -f "$ziel"
+        echo "    ✗ Datenbank-Sicherung fehlgeschlagen ($db)"
+        return 1
+    fi
+    if ! sudo bash -c "set -o pipefail; gpg --batch --quiet --passphrase-file '$pass' --decrypt '$ziel' | { pg_restore --list > /dev/null && cat > /dev/null; }"; then
+        sudo rm -f "$ziel"
+        echo "    ✗ Probe-Entschlüsselung der Sicherung fehlgeschlagen ($db)"
+        return 1
+    fi
+    echo "    ✓ Sicherung: $ziel ($(sudo du -h "$ziel" | cut -f1))"
+    # Je System die letzten 10 Sicherungen behalten.
+    sudo find "$ordner" -maxdepth 1 -name "db-vor-deploy-$kurz-*.dump.gpg" -printf '%T@ %p\n' \
+        | sort -rn | tail -n +11 | cut -d' ' -f2- | xargs -r sudo rm -f
+    SICHERUNG=$(basename "$ziel")
+}
+
+# Bisheriges Programm nach <app>.vorher schieben statt löschen (eine Generation).
+release_beiseite() {
+    local app="$1"
+    sudo rm -rf "$app.vorher"
+    sudo mkdir -p "$app.vorher"
+    sudo find "$app" -mindepth 1 -maxdepth 1 ! -name '.*' -exec mv -t "$app.vorher" {} +
 }
 
 # Sanduhr-Seite VOR dem Service-Stop nach /var/www/html legen (überlebt
@@ -131,7 +183,18 @@ if [ "$MODE" = "both" ] || [ "$MODE" = "test" ]; then
     if systemctl list-unit-files 2>/dev/null | grep -q '^hr-system-test\.service'; then
         echo "── Testinstanz deployen ──"
         sudo systemctl stop hr-system-test
-        sudo rm -rf /var/www/hr-system-test/*
+        if ! sicherung_vor_deploy hr_system_test /etc/hr-system/backup-test.passphrase \
+                /var/backups/hr-system-test/vor-deploy test; then
+            sudo systemctl start hr-system-test
+            TEST_RESULT="FEHLER-SICHERUNG"
+            log_deploy
+            echo ""
+            echo "✗ FEHLER: Keine Sicherung der Test-Datenbank — Deploy abgebrochen."
+            echo "  Testinstanz läuft wieder mit dem alten Programm, Produktiv unberührt."
+            exit 1
+        fi
+        SICHERUNG_TEST="$SICHERUNG"
+        release_beiseite /var/www/hr-system-test
         sudo tar -xzf ~/hr-system-publish.tar.gz -C /var/www/hr-system-test 2>/dev/null
         sudo chown -R www-data:www-data /var/www/hr-system-test
         # Mac tar behält oft 600 — nginx/Diagnose brauchen world-readable wwwroot
@@ -228,7 +291,18 @@ HTML
 
     echo "── Produktiv deployen ──"
     sudo systemctl stop hr-system
-    sudo rm -rf /var/www/hr-system/*
+    if ! sicherung_vor_deploy hrsystem /etc/hr-system/backup.passphrase \
+            /var/backups/hr-system/vor-deploy prod; then
+        sudo systemctl start hr-system
+        PROD_RESULT="FEHLER-SICHERUNG"
+        log_deploy
+        echo ""
+        echo "✗ FEHLER: Keine Sicherung der Produktiv-Datenbank — Deploy abgebrochen."
+        echo "  Produktiv läuft wieder mit dem alten Programm."
+        exit 1
+    fi
+    SICHERUNG_PROD="$SICHERUNG"
+    release_beiseite /var/www/hr-system
     sudo tar -xzf ~/hr-system-publish.tar.gz -C /var/www/hr-system 2>/dev/null
     sudo chown -R www-data:www-data /var/www/hr-system
     # Mac tar behält oft 600 — nginx/Diagnose brauchen world-readable wwwroot
@@ -298,6 +372,8 @@ fi
 log_deploy
 echo "── Status ──"
 echo "commit=$COMMIT test=$TEST_RESULT prod=$PROD_RESULT"
+echo "Sicherung vor Deploy: test=$SICHERUNG_TEST prod=$SICHERUNG_PROD"
+echo "Vorheriges Programm:  /var/www/hr-system.vorher bzw. /var/www/hr-system-test.vorher"
 REMOTE
 
 echo ""

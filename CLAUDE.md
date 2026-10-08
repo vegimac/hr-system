@@ -56,7 +56,7 @@ dotnet build
 # damit Änderungen live sichtbar sind. KEIN Hot-Reload, KEIN Build-Step.
 ```
 
-DB-Backup/Restore: siehe `RESTORE.md`. Backups laufen täglich um 03:00 auf dem Server (Prod) bzw. 03:30 (Testinstanz, eigene Passphrase `/etc/hr-system/backup-test.passphrase`).
+DB-Backup/Restore: siehe `RESTORE.md`. Backups laufen täglich um 03:00 auf dem Server (Prod) bzw. 03:30 (Testinstanz, eigene Passphrase `/etc/hr-system/backup-test.passphrase`). Prod wird danach per `rclone copy` nach **Infomaniak Swiss Backup** kopiert (ausser Haus, geprüft 08.10.2026; «Backup OK» im Log schliesst den Upload ein). **Weg zurück beim Deploy (Walter 08.10.2026):** `deploy.sh` sichert pro System nach dem Stopp die Datenbank verschlüsselt nach `…/vor-deploy/` (mit Probe-Entschlüsselung; scheitert sie, startet das alte Programm wieder und der Deploy bricht ab) und schiebt das alte Programm nach `/var/www/<app>.vorher` statt es zu löschen. Zurückrollen: `RESTORE.md` Szenario E (nur Programm) bzw. D (Programm + Datenbank). Diese Sicherung nie entfernen, um den Deploy schneller zu machen.
 
 ### Testinstanz test.onecrew.ch → PFLICHT: `docs/claude/testinstanz-stand.md` lesen
 

@@ -32,7 +32,7 @@ Referenz der Lohnrechnung: `docs/lohn-formeln.md` (+ PDF im selben Ordner).
 | Domains | **onecrew.ch** (MA/produktiv), test.hr-srgmbh.ch (Admin/Test) | ☐ Registrar + DNS-Verwaltung dokumentieren (vermutlich Infomaniak) |
 | Datenbank | PostgreSQL lokal auf dem VPS, DB `hr_system` | Zugriff via TablePlus (SSH-Tunnel) |
 | Dokumente/Uploads | Server-Filesystem (`Documents.StoragePath` / Mailbox-Storage) | im täglichen Backup enthalten |
-| Backups | `/var/backups/hr-system/` täglich 03:00 (Cron, root) | GPG-verschlüsselt! Details + Restore: **RESTORE.md** im Repo |
+| Backups | `/var/backups/hr-system/` täglich 03:00 (Cron, root), danach Kopie nach **Infomaniak Swiss Backup** (ausser Haus); zusätzlich Datenbank-Sicherung vor jedem Deploy (`vor-deploy/`) | GPG-verschlüsselt! Details + Restore: **RESTORE.md** im Repo |
 
 ## 3. Zugänge & Secrets — Inventar
 
@@ -76,7 +76,11 @@ Auf Walters Mac (oder jedem Mac mit Repo + SSH-Key + .NET 8 SDK):
 cd /Users/Walter/projects/hr-system && git pull origin main && ./deploy.sh
 ```
 
-`deploy.sh` macht: dotnet publish → tar → scp auf den VPS → Service-Restart.
+`deploy.sh` macht: dotnet publish → tar → hochladen → pro System (erst Test,
+dann Prod): Dienst stoppen → Datenbank sichern (`vor-deploy/`, ohne Sicherung
+kein Update) → altes Programm nach `/var/www/<app>.vorher` → neues entpacken →
+starten → Gesundheits-Check. Geht etwas schief: **RESTORE.md** Szenario E (nur
+Programm zurück) bzw. D (Programm + Datenbank).
 Danach im Browser Hard-Reload (Cmd+Shift+R). Fürs Frontend gilt: bei jeder
 JS/CSS-Änderung wird der Cache-Buster (`?v=…`) hochgezählt — macht Claude
 automatisch.
@@ -129,7 +133,8 @@ So arbeitet Walter heute, und so können es die Söhne übernehmen:
 
 1. Ruhe bewahren: der Betrieb läuft automatisch weiter (Sync, Backups, App).
 2. Passwort-Manager-Zugang holen (☐ geregelter Ort), damit Punkt 3–5 gehen.
-3. Prüfen, dass Backups laufen (`ls /var/backups/hr-system/` — Datum heute?).
+3. Prüfen, dass Backups laufen (`sudo tail /var/log/hr-system-backup.log` —
+   «Backup OK» von heute? Das schliesst den Swiss-Backup-Upload mit ein).
 4. Für Änderungen/Fehler: Kapitel 5 (Deploy) + 6 (Claude) — der nächste
    Lohnlauf gelingt mit dem Runbook in Kapitel 4.
 5. Rechnungen im Blick: Infomaniak (Server/Domains), Anthropic, eCall —

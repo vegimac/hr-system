@@ -4,9 +4,18 @@
 ```
 /var/backups/hr-system/db-YYYY-MM-DD_HH-MM.dump.gpg     ← PostgreSQL-Dump (custom format)
 /var/backups/hr-system/docs-YYYY-MM-DD_HH-MM.tar.gz.gpg ← Documents-Tarball
+/var/backups/hr-system/vor-deploy/db-vor-deploy-prod-<Zeit>-<Commit>.dump.gpg ← Sicherung unmittelbar vor jedem Deploy
 ```
 
-Tägliches automatisches Backup um 03:00 via Cron (`crontab -l` als root).
+Tägliches automatisches Backup um 03:00 via Cron (`crontab -l` als root),
+Skript `/usr/local/bin/hr-system-backup.sh`, Log `/var/log/hr-system-backup.log`.
+Am Ende jedes Laufs werden alle `*.gpg` (inkl. `vor-deploy/`) nach
+**Infomaniak Swiss Backup** kopiert (siehe «Ausser Haus» unten).
+Die Zeile «Backup OK» im Log erscheint nur, wenn auch dieser Upload geklappt hat.
+
+Testinstanz: eigenes Skript `/usr/local/bin/backup-hr-test.sh` (03:30), Ordner
+`/var/backups/hr-system-test/`, eigene Passphrase `/etc/hr-system/backup-test.passphrase`,
+nur lokal (Kunstdaten).
 
 Manueller Sofort-Lauf:
 ```bash
@@ -83,9 +92,80 @@ sudo gpg --batch --passphrase-file /etc/hr-system/backup.passphrase \
 # Datei liegt nun in /tmp/$WANTED
 ```
 
-## Rotation
-Backups älter als 30 Tage werden automatisch gelöscht beim nächsten Backup-Lauf.
+### D) Deploy rückgängig machen — Programm UND Datenbank
 
-## Off-Site (TODO für Produktion)
-Aktuell nur lokal auf dem Server. Bei Server-Verlust = Backups weg.
-Für Produktion: täglicher Sync zu Infomaniak Swiss Backup oder S3.
+Für den Fall, dass ein Deploy Daten beschädigt hat (z.B. eine falsche
+Start-Migration). **Alles, was seit dem Deploy erfasst wurde, geht verloren** —
+nur nach Rücksprache mit Walter.
+
+`./deploy.sh` sichert vor jedem Update die Datenbank (nach dem Stopp, also exakt
+der Stand vor den Start-Migrationen) und schiebt das bisherige Programm nach
+`/var/www/hr-system.vorher`. Welche Sicherung zu welchem Deploy gehört, steht in
+`/var/log/onecrew-deploys.log` (`sicherung_prod=…`).
+
+```bash
+DUMP=$(sudo ls -t /var/backups/hr-system/vor-deploy/db-vor-deploy-prod-*.dump.gpg | head -1)
+echo "$DUMP"   # prüfen: richtiger Deploy?
+
+sudo systemctl stop hr-system
+
+# Datenbank: wie Szenario A, Schritte 1, 3, 4 mit $DUMP
+sudo gpg --batch --passphrase-file /etc/hr-system/backup.passphrase \
+    --decrypt "$DUMP" > /tmp/restore.dump
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS hrsystem;"
+sudo -u postgres psql -c "CREATE DATABASE hrsystem OWNER hrapp;"
+set -a; source /etc/hr-system/env; set +a
+PGPASSWORD="$DB_PASSWORD" pg_restore -h localhost -U hrapp -d hrsystem \
+    --no-owner --no-acl /tmp/restore.dump
+rm /tmp/restore.dump
+
+# Programm: weiter mit Szenario E ab «Programm tauschen»
+```
+
+### E) Deploy rückgängig machen — nur Programm
+
+Der Normalfall bei einem fehlerhaften Update: die Start-Migrationen fügen nur
+Spalten/Tabellen hinzu, das alte Programm läuft darauf weiter (es überspringt den
+Startblock, weil die Datenbank einen höheren Schema-Stand meldet). Keine Daten gehen verloren.
+
+```bash
+sudo systemctl stop hr-system
+# Programm tauschen
+sudo rm -rf /var/www/hr-system.kaputt
+sudo mv /var/www/hr-system /var/www/hr-system.kaputt
+sudo mv /var/www/hr-system.vorher /var/www/hr-system
+sudo chown -R www-data:www-data /var/www/hr-system
+sudo systemctl start hr-system
+```
+
+Danach den Fehler im Code beheben und normal mit `./deploy.sh` ausrollen.
+Achtung: Ein weiterer Deploy überschreibt `.vorher` — es gibt nur eine Generation.
+Testinstanz analog: `hr-system-test`, Datenbank `hr_system_test` (Besitzer `hr_test`),
+Sicherungen in `/var/backups/hr-system-test/vor-deploy/`, Passphrase `backup-test.passphrase`.
+
+### F) Backup aus Swiss Backup zurückholen (Server verloren)
+
+```bash
+# auf dem neuen Server, rclone mit dem Swiss-Backup-Zugang eingerichtet
+rclone lsl swissbackup:default/onecrew-nachtbackup | sort -k2,3 | tail
+rclone copy swissbackup:default/onecrew-nachtbackup/db-YYYY-MM-DD_03-00.dump.gpg /var/backups/hr-system/
+# danach Szenario A bzw. B — Passphrase aus dem Passwort-Manager
+```
+
+## Rotation
+- Datenbank-Sicherungen (auch `vor-deploy/`): 14 Tage, lokal und in Swiss Backup.
+- Dokument-Tarballs: 3 Tage, lokal und in Swiss Backup (je ~6.5 GB).
+- `vor-deploy/`: zusätzlich nur die letzten 10 pro System.
+
+## Ausser Haus (Off-Site) — eingerichtet
+Das nächtliche Skript kopiert mit `rclone copy` (nie `sync`) nach
+`swissbackup:default/onecrew-nachtbackup` (Infomaniak Swiss Backup, Schweiz).
+Zugang: `/root/.config/rclone/rclone.conf`. Verschlüsselt mit derselben Passphrase
+wie lokal — Infomaniak sieht nur `.gpg`-Dateien.
+Geprüft 08.10.2026: letzte 10 Läufe «Swiss Backup OK», Dateien vom Tag liegen dort.
+
+Kontrolle:
+```bash
+sudo grep -E "Backup (OK|MIT FEHLERN)|✗" /var/log/hr-system-backup.log | tail
+sudo rclone --config /root/.config/rclone/rclone.conf lsl swissbackup:default/onecrew-nachtbackup | sort -k2,3 | tail -4
+```
