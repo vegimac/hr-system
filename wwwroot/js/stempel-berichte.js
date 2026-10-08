@@ -77,6 +77,24 @@ function _szPdf(prefix, pfad, name) {
     previewUrlFetch('/api/reports/' + pfad + '/pdf?' + qs, `${name}_${von}_${bis}.pdf`, ah());
 }
 
+/** Podium Rang 1–3: items = [{ name, wert, unter, onclick? }] */
+function _szPodium(titel, items) {
+    if (!items.length) return '';
+    const karten = items.slice(0, 3).map((it, i) => {
+        const r = i + 1;
+        const attrs = it.onclick
+            ? ` class="szb-podium-karte r${r} klick" onclick="${it.onclick}" title="${_szEsc(it.title || 'Öffnen')}"`
+            : ` class="szb-podium-karte r${r}"`;
+        return `<div${attrs}>
+            <div class="szb-podium-rang">${r}</div>
+            <div class="szb-podium-name">${_szEsc(it.name)}</div>
+            <div class="szb-podium-wert">${_szEsc(String(it.wert))}</div>
+            ${it.unter ? `<div class="szb-podium-unter">${_szEsc(it.unter)}</div>` : ''}
+        </div>`;
+    }).join('');
+    return `<div class="szb-podium"><div class="szb-podium-titel">${_szEsc(titel)}</div>${karten}</div>`;
+}
+
 function _szMaKopf(m, rechts) {
     const id = m.employeeId;
     const jump = id
@@ -216,6 +234,17 @@ function szkRender() {
     const anteil = d.stempelTotal ? (100 * d.korrigiert / d.stempelTotal).toFixed(1) : '0.0';
 
     let html = `<div class="szb-summe"><div class="szb-zahl">${d.korrigiert}</div><div>von <b>${d.stempelTotal}</b> Stempeln korrigiert oder kommentiert (${anteil} %) · ${d.mitarbeiter.length} Mitarbeitende<br><span>${_szEsc(d.filiale)} · ${_szDatum(d.von)} – ${_szDatum(d.bis)}</span></div></div>`;
+    const topMa = [...d.mitarbeiter].filter(m => m.zeilen.length)
+        .sort((a, b) => b.zeilen.length - a.zeilen.length || (a.vorname || '').localeCompare(b.vorname || '', 'de'))
+        .slice(0, 3)
+        .map(m => ({
+            name: `${m.vorname || ''} ${m.nachname || ''}`.trim(),
+            wert: String(m.zeilen.length),
+            unter: m.nummer ? `Pers.-Nr. ${m.nummer}` : `${m.zeilen.length === 1 ? 'Korrektur' : 'Korrekturen'}`,
+            onclick: m.employeeId ? `dashOpenEmployee(${m.employeeId},'stempelzeiten')` : '',
+            title: 'Mitarbeiter öffnen',
+        }));
+    html += _szPodium('Meiste Korrekturen · Rang 1–3', topMa);
     html += '<div class="szb-kacheln">' + Object.entries(_SZK_ART).map(([a, t]) => {
         const n = alle.filter(z => z.art === a).length;
         return `<button type="button" class="szb-kachel${_szkFilter === a ? ' aktiv' : ''}${n ? '' : ' null'}" style="--f:${_SZ_FARBE[a]}" onclick="szkFilter('${a}')"><b>${n}</b><span>${t}</span></button>`;
@@ -409,8 +438,19 @@ function szfRender() {
 
     let html = `<div class="szb-summe"><div class="szb-zahl">${_szfZahl(schnittK)}</div><div>Korrekturen pro 100 Stempel über alle Filialen · <b>${korr}</b> von <b>${stempel}</b> Stempeln<br>
         <span>${verst} Verstösse (${_szfZahl(schnittV)} pro 100 Stempel) · ${d.filialen.length} Filialen · ${_szDatum(d.von)} – ${_szDatum(d.bis)}</span></div></div>`;
-    html += '<div class="szf-raster">';
-    html += _szfBalken('Korrekturen pro 100 Stempel', d.filialen,
+    const topFil = [...d.filialen].filter(f => f.korrigiert > 0)
+        .map(f => ({ f, pro100: _szfPro100(f.korrigiert, f.stempel) }))
+        .sort((a, b) => b.pro100 - a.pro100 || b.f.korrigiert - a.f.korrigiert || a.f.filiale.localeCompare(b.f.filiale, 'de'))
+        .slice(0, 3)
+        .map(({ f, pro100 }) => ({
+            name: f.filiale,
+            wert: _szfZahl(pro100),
+            unter: `${f.korrigiert} von ${f.stempel} Stempeln · pro 100`,
+            onclick: `szfOeffnen(${f.id},'korrekturen')`,
+            title: `Korrekturen ${f.filiale} öffnen`,
+        }));
+    html += _szPodium('Meiste Korrekturen · Rang 1–3 (pro 100 Stempel)', topFil);
+    html += '<div class="szf-raster">';    html += _szfBalken('Korrekturen pro 100 Stempel', d.filialen,
         f => Object.keys(_SZK_ART).map(a => ({ art: a, n: f.korrekturProArt[a] || 0 })),
         a => _SZ_FARBE[a], a => _SZK_ART[a], schnittK, 'korrekturen',
         f => `${f.korrigiert} / ${f.stempel}`);

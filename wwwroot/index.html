@@ -3791,6 +3791,23 @@
                 .szb-wer { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:-4px 0 16px; font-size:12px; color:#646464; }
                 .szb-wer > span:first-child { margin-right:4px; }
                 .szb-chip { display:inline-flex; gap:4px; align-items:center; border:1px solid color-mix(in srgb, var(--f) 35%, transparent); background:color-mix(in srgb, var(--f) 9%, rgba(255,255,255,0.6)); color:var(--f); border-radius:999px; padding:2px 9px; font-size:11.5px; font-weight:600; white-space:nowrap; }
+                /* Podium Rang 1–3 (meiste Korrekturen) */
+                .szb-podium { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; margin:0 0 16px; }
+                .szb-podium-karte { position:relative; background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.75); border-radius:16px; box-shadow:0 6px 18px rgba(60,55,48,0.10); padding:14px 14px 12px; text-align:center; min-width:0; }
+                .szb-podium-karte.klick { cursor:pointer; transition:transform .15s, box-shadow .15s; }
+                .szb-podium-karte.klick:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(60,55,48,0.16); }
+                .szb-podium-rang { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; font-weight:800; font-size:13px; color:#fff; margin-bottom:8px; }
+                .szb-podium-karte.r1 .szb-podium-rang { background:#b45309; }
+                .szb-podium-karte.r2 .szb-podium-rang { background:#6b7280; }
+                .szb-podium-karte.r3 .szb-podium-rang { background:#a16207; }
+                .szb-podium-karte.r1 { border-color:rgba(180,83,9,0.35); box-shadow:0 8px 22px rgba(180,83,9,0.14); }
+                .szb-podium-name { font-weight:750; font-size:14px; color:#1a1a1a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+                .szb-podium-wert { font-size:22px; font-weight:800; color:#1a1a1a; letter-spacing:-0.5px; margin-top:4px; }
+                .szb-podium-unter { font-size:11.5px; color:#8b8b8b; margin-top:2px; }
+                .szb-podium-titel { font-size:12px; font-weight:700; color:#646464; letter-spacing:0.02em; margin:0 0 8px; grid-column:1 / -1; }
+                @media (max-width:720px) { .szb-podium { grid-template-columns:1fr; } }
+                body.theme-dark .szb-podium-karte { background:rgba(30,41,59,0.6); border-color:rgba(255,255,255,0.08); }
+                body.theme-dark .szb-podium-name, body.theme-dark .szb-podium-wert { color:#f1f5f9; }
                 .szb-karte { background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.75); border-radius:16px; box-shadow:0 6px 18px rgba(60,55,48,0.10); margin-bottom:14px; overflow:hidden; }
                 .szb-ma-kopf { display:flex; align-items:center; gap:12px; padding:11px 16px; background:linear-gradient(165deg, #eeece4 0%, #e7e4db 100%); }
                 .szb-ma-kopf.szb-ma-sprung { cursor:pointer; transition:background .12s; }
@@ -10361,7 +10378,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/stempel-berichte.js?v=20261008c"></script>
+<script src="js/stempel-berichte.js?v=20261008d"></script>
 <script src="js/swissdec.js?v=20260930c"></script>
 <script src="js/swissdec-komm.js?v=20261002a"></script>
 <script src="js/swissdec-uebermittlung.js?v=20261002b"></script>
