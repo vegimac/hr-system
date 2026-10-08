@@ -9,6 +9,7 @@ namespace HrSystem.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[HrSystem.Services.MaEintrag(typeof(HrSystem.Models.Employment))]
 public class EmploymentsController : ControllerBase
 {
     private readonly AppDbContext         _context;
@@ -208,6 +209,7 @@ public class EmploymentsController : ControllerBase
 
     // POST /api/employments — neuer Vertrag (schliesst den offenen automatisch)
     [HttpPost]
+    [HrSystem.Services.OhneMaFilialPruefung]   // Übertritt: GF der neuen Filiale legt den Vertrag an — geprüft wird die Ziel-Filiale
     public async Task<IActionResult> Create(Employment employment)
     {
         var employeeExists = await _context.Employees
@@ -215,6 +217,11 @@ public class EmploymentsController : ControllerBase
 
         if (!employeeExists)
             return BadRequest(new { error = $"Mitarbeiter {employment.EmployeeId} nicht gefunden." });
+
+        if (HrSystem.Services.MaFilialZugriff.IstEingeschraenkt(User)
+            && (employment.CompanyProfileId is not int zielFiliale
+                || !await HttpContext.RequestServices.GetRequiredService<HrSystem.Services.MaFilialZugriff>().DarfFilialeAsync(User, zielFiliale)))
+            return StatusCode(403, new { error = "KEINE_FILIALE", message = "Verträge nur in den eigenen Filialen anlegen." });
 
         // Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %, 13. ML %
         // sind aus dem Vertrag entfernt — kommen jetzt aus der Filiale. Keine

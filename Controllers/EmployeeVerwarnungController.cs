@@ -16,6 +16,7 @@ namespace HrSystem.Controllers;
 [Authorize(Roles = "admin,superuser,user")]
 [ApiController]
 [Route("api/verwarnungen")]
+[HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeVerwarnung))]
 public class EmployeeVerwarnungController : ControllerBase
 {
     private readonly AppDbContext _db;

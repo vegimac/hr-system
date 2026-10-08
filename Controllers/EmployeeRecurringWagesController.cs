@@ -21,6 +21,7 @@ namespace HrSystem.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/employee-recurring-wages")]
+[HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeRecurringWage))]
 public class EmployeeRecurringWagesController : ControllerBase
 {
     private readonly AppDbContext        _db;

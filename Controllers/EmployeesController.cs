@@ -12,6 +12,7 @@ namespace HrSystem.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[HrSystem.Services.MaEintrag(typeof(HrSystem.Models.Employee))]
 public class EmployeesController : ControllerBase
 {
     private readonly AppDbContext _context;

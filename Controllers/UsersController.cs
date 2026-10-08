@@ -158,15 +158,46 @@ public class UsersController : ControllerBase
         return null;
     }
 
+    // Buchhaltung trägt «buchhaltung» als ERSTE Rolle und «superuser» als zweite —
+    // deshalb nie die erste Rolle lesen, sondern User.IsInRole (alle Rollen).
+    // Gross/Klein und Leerzeichen egal, damit «Admin » nicht durchrutscht.
+    internal static bool IstAdminRolle(string? rolle)
+        => string.Equals(rolle?.Trim(), "admin", StringComparison.OrdinalIgnoreCase);
+
+    // Rollen, die ALLE Filialen sehen (lowuser ist seit 22.07.2026 filial-beschränkt).
+    internal static bool SiehtAlleFilialen(string? rolle)
+        => rolle?.Trim().ToLowerInvariant() is "admin" or "superuser";
+
+    /// <summary>
+    /// Buchhaltung hat den superuser-Claim, ist aber auf ihre Filialen beschränkt. Sie darf
+    /// deshalb nur Benutzer innerhalb ihrer Filialen anlegen/ändern und keine Rolle vergeben,
+    /// die alle Filialen sieht — sonst legt sie sich einen Superuser an (Passwort setzt sie ja
+    /// selbst) oder teilt sich fremde Filialen zu. null = erlaubt.
+    /// </summary>
+    private async Task<IActionResult?> FilialGrenzeAsync(int callerId, string? neueRolle,
+        IEnumerable<int> neueFilialen, AppUser? bestehend)
+    {
+        if (!User.IsInRole("buchhaltung") || User.IsInRole("admin")) return null;
+        var verboten = StatusCode(403, new { error = "NUR_EIGENE_FILIALEN",
+            message = "Buchhaltung darf nur Benutzer der eigenen Filialen bearbeiten und keine Rolle vergeben, die alle Filialen sieht." });
+        if (SiehtAlleFilialen(neueRolle) || (bestehend != null && SiehtAlleFilialen(bestehend.Role)))
+            return verboten;
+        var eigene = (await _context.UserBranchAccesses.AsNoTracking()
+            .Where(a => a.UserId == callerId).Select(a => a.CompanyProfileId).ToListAsync()).ToHashSet();
+        var betroffen = neueFilialen.Concat(bestehend?.BranchAccess.Select(a => a.CompanyProfileId) ?? []);
+        return betroffen.All(eigene.Contains) ? null : verboten;
+    }
+
     // POST /api/users – nur admin/superuser
     [HttpPost]
     [Authorize(Roles = "admin,superuser")]
     public async Task<IActionResult> Create([FromBody] CreateUserRequest req)
     {
-        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
-
-        if (callerRole == "superuser" && req.Role == "admin")
+        if (!User.IsInRole("admin") && IstAdminRolle(req.Role))
             return Forbid();
+        if (await FilialGrenzeAsync(int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value),
+                req.Role, req.BranchIds ?? new List<int>(), null) is { } grenzeCreate)
+            return grenzeCreate;
 
         var policyErr = ValidateSessionPolicy(req.IdleTimeoutMinutes, req.MaxSessionMinutes);
         if (policyErr != null) return BadRequest(new { message = policyErr });
@@ -226,7 +257,6 @@ public class UsersController : ControllerBase
     [Authorize(Roles = "admin,superuser")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequest req)
     {
-        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value;
         var callerId   = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
         var user = await _context.AppUsers
@@ -235,8 +265,10 @@ public class UsersController : ControllerBase
 
         if (user == null) return NotFound();
 
-        if (callerRole == "superuser" && (user.Role == "admin" || req.Role == "admin"))
+        if (!User.IsInRole("admin") && (IstAdminRolle(user.Role) || IstAdminRolle(req.Role)))
             return Forbid();
+        if (await FilialGrenzeAsync(callerId, req.Role, req.BranchIds ?? new List<int>(), user) is { } grenze)
+            return grenze;
 
         var policyErr = ValidateSessionPolicy(req.IdleTimeoutMinutes, req.MaxSessionMinutes);
         if (policyErr != null) return BadRequest(new { message = policyErr });
@@ -269,7 +301,7 @@ public class UsersController : ControllerBase
         user.ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false;
         // Sitzungs-Policy nur durch Admin änderbar (Walter 04.09.2026) —
         // Superuser sendet den Wert mit, er wird aber nicht übernommen.
-        if (callerRole == "admin")
+        if (User.IsInRole("admin"))
         {
             user.IdleTimeoutMinutes = req.IdleTimeoutMinutes;
             user.MaxSessionMinutes  = req.MaxSessionMinutes;
@@ -413,8 +445,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> UploadSignature(int id, [FromForm] IFormFile? file)
     {
         var callerId   = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
-        if (callerId != id && callerRole != "admin" && callerRole != "superuser")
+        if (callerId != id && !User.IsInRole("admin") && !User.IsInRole("superuser"))
             return Forbid();
 
         if (file == null || file.Length == 0)
@@ -499,8 +530,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> DeleteSignature(int id)
     {
         var callerId   = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var callerRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
-        if (callerId != id && callerRole != "admin" && callerRole != "superuser")
+        if (callerId != id && !User.IsInRole("admin") && !User.IsInRole("superuser"))
             return Forbid();
 
         var user = await _context.AppUsers.FindAsync(id);

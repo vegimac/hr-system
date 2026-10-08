@@ -18,6 +18,7 @@ namespace HrSystem.Controllers;
 [ApiController]
 [Authorize(Roles = "admin,superuser,user")]
 [Route("api/pregnancies")]
+[HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeePregnancy))]
 public class PregnancyController : HrControllerBase
 {
     private readonly PregnancyPdfService _pdf;

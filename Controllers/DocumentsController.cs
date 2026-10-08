@@ -553,6 +553,7 @@ public class DocumentsController : ControllerBase
     /// kommt aus dem JWT.
     /// </summary>
     [HttpPost("{id:int}/notify")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     public async Task<IActionResult> Notify(int id, [FromBody] DokumentNotifyDto dto)
     {
         var doc = await _db.EmployeeDokumente.FindAsync(id);
@@ -773,11 +774,13 @@ public class DocumentsController : ControllerBase
     /// aber keine Datei lokal speichern (Missbrauchsschutz).
     /// </summary>
     [HttpGet("download/{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Download(int id) => await ServeFile(id, asAttachment: true);
 
     /// <summary>Datei inline anzeigen (für PDF-Vorschau im Browser).</summary>
     [HttpGet("preview/{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     public async Task<IActionResult> Preview(int id) => await ServeFile(id, asAttachment: false);
 
     // ──────────────────────────────────────────────────────────────────
@@ -804,6 +807,7 @@ public class DocumentsController : ControllerBase
     /// wird HIER — der Link selbst trägt danach die Berechtigung.
     /// </summary>
     [HttpPost("{id:int}/view-token")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     public async Task<IActionResult> CreateViewToken(int id, [FromQuery] bool asPdf = false)
     {
         var doc = await _db.EmployeeDokumente.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
@@ -863,6 +867,7 @@ public class DocumentsController : ControllerBase
     /// Andere Typen → 415 (Frontend zeigt „keine Vorschau möglich").
     /// </summary>
     [HttpGet("preview-pdf/{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     public async Task<IActionResult> PreviewPdf(int id)
     {
         var doc = await _db.EmployeeDokumente.FindAsync(id);
@@ -941,6 +946,7 @@ public class DocumentsController : ControllerBase
     /// bleibt gleich — Verknüpfungen (Bewilligung, Vertrag …) bleiben bestehen.
     /// </summary>
     [HttpPost("{id:int}/in-pdf-umwandeln")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     public async Task<IActionResult> DokumentInPdfUmwandeln(int id)
     {
         var doc = await _db.EmployeeDokumente.FindAsync(id);
@@ -1174,6 +1180,7 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpPost("{id:int}/ocr-permit")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     public async Task<IActionResult> OcrPermit(int id)
     {
         var doc = await _db.EmployeeDokumente.FindAsync(id);
@@ -1557,6 +1564,7 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpPost("{id:int}/rotate")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     public async Task<IActionResult> Rotate(int id, [FromQuery] int deg = 90, [FromQuery] int page = 0)
     {
         var doc = await _db.EmployeeDokumente.FindAsync(id);
@@ -1697,6 +1705,7 @@ public class DocumentsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateDocDto dto)
     {
         var doc = await _db.EmployeeDokumente.FindAsync(id);
@@ -1772,6 +1781,7 @@ public class DocumentsController : ControllerBase
     /// Datenverlust durch normale Benutzer.
     /// </summary>
     [HttpDelete("{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeDokument))]
     [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Delete(int id)
     {

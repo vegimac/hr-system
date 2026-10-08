@@ -19,6 +19,7 @@ namespace HrSystem.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/employee-bank-accounts")]
+[HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeBankAccount))]
 public class EmployeeBankAccountsController : ControllerBase
 {
     private readonly AppDbContext        _db;

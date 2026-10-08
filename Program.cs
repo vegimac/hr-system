@@ -378,7 +378,13 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
 });
 
 // Controller / API
-builder.Services.AddControllers(o => o.Filters.Add<VirenScanFilter>());
+// MaFilialFilter (Walter 08.10.2026): GF/Buchhaltung nur MA der eigenen Filialen.
+builder.Services.AddScoped<MaFilialZugriff>();
+builder.Services.AddControllers(o =>
+{
+    o.Filters.Add<VirenScanFilter>();
+    o.Filters.Add<MaFilialFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

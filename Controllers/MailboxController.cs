@@ -1236,7 +1236,7 @@ public class MailboxController : ControllerBase
     }
 
     private bool UserIsAdmin()
-        => User.FindFirstValue(ClaimTypes.Role) == "admin";
+        => User.IsInRole("admin");
 
     /// <summary>Buchhaltungs-Postfach sichtbar für: Rolle buchhaltung + Admin.</summary>
     private bool UserCanSeeBuchhaltung()

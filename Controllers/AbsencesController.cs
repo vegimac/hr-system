@@ -7,6 +7,7 @@ namespace HrSystem.Controllers;
 
 [ApiController]
 [Route("api/absences")]
+[HrSystem.Services.MaEintrag(typeof(HrSystem.Models.Absence))]
 public class AbsencesController : ControllerBase
 {
     private readonly AppDbContext        _db;
@@ -511,6 +512,7 @@ public class AbsencesController : ControllerBase
     public Task<IActionResult> FerienKuerzungAnlegen([FromBody] FerienKuerzungDto dto) => FerienKuerzungSpeichernAsync(null, dto);
 
     [HttpPut("ferienkuerzung/{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.FerienKuerzungEintrag))]
     public Task<IActionResult> FerienKuerzungAendern(int id, [FromBody] FerienKuerzungDto dto) => FerienKuerzungSpeichernAsync(id, dto);
 
     private async Task<IActionResult> FerienKuerzungSpeichernAsync(int? id, FerienKuerzungDto dto)
@@ -560,6 +562,7 @@ public class AbsencesController : ControllerBase
     }
 
     [HttpDelete("ferienkuerzung/{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.FerienKuerzungEintrag))]
     public async Task<IActionResult> FerienKuerzungLoeschen(int id)
     {
         var e = await _db.FerienKuerzungen.FirstOrDefaultAsync(k => k.Id == id);
@@ -620,6 +623,7 @@ public class AbsencesController : ControllerBase
     public Task<IActionResult> FerienAuszahlungAnlegen([FromBody] FerienAuszahlungDto dto) => FerienAuszahlungSpeichernAsync(null, dto);
 
     [HttpPut("ferienauszahlung/{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.FerienAuszahlungEintrag))]
     public Task<IActionResult> FerienAuszahlungAendern(int id, [FromBody] FerienAuszahlungDto dto) => FerienAuszahlungSpeichernAsync(id, dto);
 
     private async Task<IActionResult> FerienAuszahlungSpeichernAsync(int? id, FerienAuszahlungDto dto)
@@ -674,6 +678,7 @@ public class AbsencesController : ControllerBase
     }
 
     [HttpDelete("ferienauszahlung/{id:int}")]
+    [HrSystem.Services.MaEintrag(typeof(HrSystem.Models.FerienAuszahlungEintrag))]
     public async Task<IActionResult> FerienAuszahlungLoeschen(int id)
     {
         var e = await _db.FerienAuszahlungen.FirstOrDefaultAsync(f => f.Id == id);

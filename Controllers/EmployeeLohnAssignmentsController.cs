@@ -15,6 +15,7 @@ namespace HrSystem.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/employee-lohn-assignments")]
+[HrSystem.Services.MaEintrag(typeof(HrSystem.Models.EmployeeLohnAssignment))]
 public class EmployeeLohnAssignmentsController : ControllerBase
 {
     private readonly AppDbContext        _db;
