@@ -8,6 +8,12 @@ let _pbAllEmployees  = [];
 let _pbExpandedCats  = new Set();
 let _pbSelectedTypId = null;
 
+// Dateiname, Mitteilung und Bemerkung kommen vom Absender (auch MA) — vor jedem
+// innerHTML bzw. Attribut maskieren.
+function _pbEsc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 // ── Auto-Refresh für Posteingang ──────────────────────────────────────
 // Pollt alle 20 Sekunden die Liste während die Page aktiv ist, damit
 // neue Dokumente von anderen Usern (Geschäftsführer einer anderen Filiale)
@@ -307,9 +313,9 @@ async function pbLoadList() {
             const empInfo = isPersonalInbox
                 ? ''
                 : (d.employee
-                    ? `<span style="color:#6b7280;font-weight:600">${d.employee.name} (${d.employee.employeeNumber})</span>`
+                    ? `<span style="color:#6b7280;font-weight:600">${_pbEsc(d.employee.name)} (${_pbEsc(d.employee.employeeNumber)})</span>`
                     : '<span style="color:#94a3b8">– ohne MA-Bezug –</span>');
-            const uploaderInfo = d.uploader ? `${d.uploader.name?.trim() || d.uploader.username}` : 'Unbekannt';
+            const uploaderInfo = d.uploader ? _pbEsc(d.uploader.name?.trim() || d.uploader.username) : 'Unbekannt';
             // Wer hat es in DIESES Postfach gegeben (Walter 01.09.2026)? Der
             // fette Name ist der ursprüngliche Absender — kam das Dokument über
             // eine Weiterleitung, ist das eine andere Person, und genau die
@@ -317,21 +323,21 @@ async function pbLoadList() {
             const weiter = d.weitergeleitetVon
                 ? (d.weitergeleitetVon.name?.trim() || d.weitergeleitetVon.username) : null;
             const weiterInfo = weiter
-                ? `<span style="color:#64748b"> · weitergeleitet von <b style="font-weight:600;color:#475569">${weiter}</b></span>`
+                ? `<span style="color:#64748b"> · weitergeleitet von <b style="font-weight:600;color:#475569">${_pbEsc(weiter)}</b></span>`
                 : '';
-            const notifyInfo = d.notifyUser ? `<span style="color:#a16207;font-size:11px">📧 → ${d.notifyUser.name?.trim() || d.notifyUser.username}</span>` : '';
-            const title = d.messageBody
+            const notifyInfo = d.notifyUser ? `<span style="color:#a16207;font-size:11px">📧 → ${_pbEsc(d.notifyUser.name?.trim() || d.notifyUser.username)}</span>` : '';
+            const title = _pbEsc(d.messageBody
                 ? (d.originalFilename || 'Mitteilung')
-                : (d.originalFilename || 'Dokument');
+                : (d.originalFilename || 'Dokument'));
             // Mitteilung MIT Anhang (Walter 05.09.2026): Text + Datei am selben Eintrag.
             const hasFile = !!d.mimeType || (d.fileSizeBytes > 0);
             // Ablegen: geteilte Postfächer + eigene Box; nicht aus fremdem MA-Postfach-Kontext.
             // Walter 23.09.2026: auch Mitteilungen MIT Anhang — nur reine Text-Mitteilungen nicht.
             const canAblage = isOps && d.targetType !== 'EMPLOYEE' && hasFile;
             const previewBtn = d.messageBody
-                ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>${hasFile ? ` <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:12.5px" onclick="pbOpenPreview(${d.id})">📎 ${d.bemerkung || 'Anhang'}</span>` : ''}`
+                ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>${hasFile ? ` <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:12.5px" onclick="pbOpenPreview(${d.id})">📎 ${_pbEsc(d.bemerkung || 'Anhang')}</span>` : ''}`
                 : `<span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${title}</span>`;
-            const docJson = JSON.stringify(d).replace(/'/g, '&#39;');
+            const docJson = _pbEsc(JSON.stringify(d));
             // Zeugnis-Entwurf für HR (Walter 06.09.2026): Eintrag trägt die Entwurf-ID
             // im StorageFilename → Knopf «Entwurf öffnen».
             const zeMatch = /^zeugnis-entwurf-(\d+)$/.exec(d.storageFilename || '');
@@ -344,8 +350,8 @@ async function pbLoadList() {
                         ${hasFile ? `<span style="font-size:11px;color:#94a3b8">${sizeKb} KB</span>` : ''}
                         ${notifyInfo}
                     </div>
-                    ${d.messageBody ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${d.messageBody}</div>` : ''}
-                    ${d.bemerkung && !(d.messageBody && hasFile) ? `<div style="font-size:13px;color:#475569;margin-top:4px">${d.bemerkung}</div>` : ''}
+                    ${d.messageBody ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${_pbEsc(d.messageBody)}</div>` : ''}
+                    ${d.bemerkung && !(d.messageBody && hasFile) ? `<div style="font-size:13px;color:#475569;margin-top:4px">${_pbEsc(d.bemerkung)}</div>` : ''}
                     <div style="font-size:12px;color:#64748b;margin-top:6px">
                         <!-- Absender GROSS zuerst (Walter-Vorgabe 13.07.2026) -->
                         <span style="font-size:13.5px;font-weight:700;color:#3f3f3f">${uploaderInfo}</span>${weiterInfo}
@@ -625,7 +631,7 @@ async function _pbMoveLoadPreview(d) {
     if (_pbMovePreviewUrl) { URL.revokeObjectURL(_pbMovePreviewUrl); _pbMovePreviewUrl = null; }
     if (title) title.textContent = '👁 ' + (d.originalFilename || 'Dokument');
     if (d.messageBody && !d.mimeType) {
-        body.innerHTML = `<div style="padding:24px;color:#e5e7eb;font-size:13px;white-space:pre-wrap;max-width:640px">${String(d.messageBody).replace(/</g,'&lt;')}</div>`;
+        body.innerHTML = `<div style="padding:24px;color:#e5e7eb;font-size:13px;white-space:pre-wrap;max-width:640px">${_pbEsc(d.messageBody)}</div>`;
         return;
     }
     body.innerHTML = 'Lädt…';
@@ -656,7 +662,7 @@ function pbOpenMove(d) {
     if (kt) kt.innerHTML = '';
     _pbMoveLoadPreview(d);   // rechts das Dokument (Walter 08.09.2026)
     document.getElementById('pbMoveId').value = d.id;
-    document.getElementById('pbMoveFileInfo').innerHTML = `<b>${d.originalFilename}</b>${d.bemerkung ? '<br>' + d.bemerkung : ''}`;
+    document.getElementById('pbMoveFileInfo').innerHTML = `<b>${_pbEsc(d.originalFilename)}</b>${d.bemerkung ? '<br>' + _pbEsc(d.bemerkung) : ''}`;
     document.getElementById('pbMoveBemerkung').value = d.bemerkung || d.messageBody || '';
     document.getElementById('pbMoveAlert').innerHTML = '';
 
@@ -1137,7 +1143,7 @@ async function pbCropFillThumbs() {
     if (!host) return;
     const imgs = _pbLastDocs.filter(d => _pbIsImgDoc(d));
     host.innerHTML = imgs.map(d => `
-        <img data-cropthumb="${d.id}" onclick="pbCropLoadImage(${d.id})" title="${(d.originalFilename || '').replace(/"/g, '&quot;')}"
+        <img data-cropthumb="${d.id}" onclick="pbCropLoadImage(${d.id})" title="${_pbEsc(d.originalFilename)}"
              style="width:44px;height:44px;object-fit:cover;border-radius:7px;border:2px solid rgba(60,55,48,0.2);background:#fff;cursor:pointer">`).join('');
     for (const d of imgs) {
         const el = host.querySelector(`[data-cropthumb="${d.id}"]`);

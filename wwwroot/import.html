@@ -3219,9 +3219,7 @@ function validateEndDate(idx) {
     const errEl = document.getElementById(`endDateErr-${idx}`);
     const btn   = document.getElementById(`btnSave-${idx}`);
     if (!start || !end || !errEl) return;
-    const maxEnd = new Date(start);
-    maxEnd.setMonth(maxEnd.getMonth() + 6);
-    const isOver = new Date(end) > maxEnd;
+    const isOver = end > isoPlusMonate(start, 6);
     errEl.style.display = isOver ? '' : 'none';
     if (btn) btn.disabled = isOver;
 }
@@ -3235,12 +3233,7 @@ function toggleEndDate(idx) {
         const endEl = document.getElementById(`endDate-${idx}`);
         if (endEl && !endEl.value) {
             const start = document.getElementById(`startDate-${idx}`)?.value;
-            if (start) {
-                const d = new Date(start);
-                d.setMonth(d.getMonth() + 6);
-                d.setDate(d.getDate() - 1);
-                endEl.value = d.toISOString().split('T')[0];
-            }
+            if (start) endEl.value = isoPlusMonate(start, 6, -1);
         }
     }
 }
@@ -3251,12 +3244,20 @@ function calcProbationEnd(idx) {
     const grp = document.getElementById(`probEndGroup-${idx}`);
     if (grp) grp.style.display = months > 0 ? '' : 'none';
     if (months > 0 && start) {
-        const d = new Date(start);
-        d.setMonth(d.getMonth() + months);
-        d.setDate(d.getDate() - 1);
+        const iso = isoPlusMonate(start, months, -1);
         const el = document.getElementById(`probEnd-${idx}`);
-        if (el) el.value = d.toLocaleDateString('de-CH');
+        if (el) el.value = iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4);
     }
+}
+
+// Kalenderdatum + Monate (+ Tage) ohne Zeitzone: new Date('yyyy-mm-dd') ist UTC-Mitternacht,
+// mit setMonth/toISOString rutscht das Ergebnis beim Wechsel in die Sommerzeit einen Tag zurück.
+// Monatsende wie C# AddMonths: 31.01. + 1 Monat = 28.02.
+function isoPlusMonate(iso, monate, tage = 0) {
+    const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+    const letzterTag = new Date(Date.UTC(y, m - 1 + monate + 1, 0)).getUTCDate();
+    const ziel = new Date(Date.UTC(y, m - 1 + monate, Math.min(d, letzterTag) + tage));
+    return ziel.toISOString().slice(0, 10);
 }
 
 function renderNewRow(e) {
@@ -4025,12 +4026,7 @@ function buildContractPayload(idx, employeeId, row) {
     // Probezeit
     const probMonths = parseInt(document.getElementById(`probation-${idx}`)?.value || '0');
     let probEndDate = null;
-    if (probMonths > 0 && startDate) {
-        const d = new Date(startDate);
-        d.setMonth(d.getMonth() + probMonths);
-        d.setDate(d.getDate() - 1);
-        probEndDate = d.toISOString().split('T')[0];
-    }
+    if (probMonths > 0 && startDate) probEndDate = isoPlusMonate(startDate, probMonths, -1);
     // Befristung
     const isFixedTerm = document.getElementById(`fixedTerm-${idx}`)?.value === 'yes';
     const fixedEndDate = isFixedTerm ? (document.getElementById(`endDate-${idx}`)?.value || null) : null;

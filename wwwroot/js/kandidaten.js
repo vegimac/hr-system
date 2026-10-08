@@ -20,6 +20,8 @@ const _kdInp = 'background:#fff;border:1px solid rgba(60,55,48,0.22);border-radi
 const _kdBtnDark = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer';
 
 function _kdEsc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+// Wert als JS-Argument in einem onclick="…"-Attribut (Dateinamen kommen vom Absender).
+function _kdJsArg(s) { return JSON.stringify(String(s ?? '')).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // CH-Telefonformat «+41 79 333 44 55» — gleiche Logik wie formatPhone()
 // im easy@work-Importer (import.html).
@@ -205,7 +207,7 @@ async function kdPfLoadFiles() {
         if (!files.length) { el.innerHTML = '<span style="color:#8b8b8b">Keine Dateien in diesem Postfach.</span>'; return; }
         el.innerHTML = `<div style="color:#8b8b8b;font-size:11.5px;margin-bottom:3px">Datei anklicken zum Übernehmen — das Original bleibt im Postfach.</div>` + files.map(m => `
             <div style="display:flex;align-items:center;gap:8px;padding:3px 2px;border-bottom:1px solid rgba(60,55,48,0.07)">
-                <a onclick="kdPfAdd(${m.id}, '${_kdEsc(m.originalFilename).replace(/'/g, '&#39;')}')" style="cursor:pointer;color:#1d4ed8;text-decoration:underline">📄 ${_kdEsc(m.originalFilename)}</a>
+                <a onclick="kdPfAdd(${m.id}, ${_kdJsArg(m.originalFilename)})" style="cursor:pointer;color:#1d4ed8;text-decoration:underline">📄 ${_kdEsc(m.originalFilename)}</a>
                 <span style="color:#b0aca4;font-size:11px">${_kdFmtTs((m.uploadedAt || '').slice(0, 16).replace('T', ' '))}</span>
                 ${m.bemerkung ? `<span style="color:#8b8b8b;font-size:11px">· ${_kdEsc(m.bemerkung)}</span>` : ''}
             </div>`).join('');
