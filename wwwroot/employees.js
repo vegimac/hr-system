@@ -13167,7 +13167,8 @@ async function stempelEasyVerlauf(entryId) {
             <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:#8b8b8b">Rohdaten easy@work</summary>
                 ${versucheHtml}
                 <pre style="${preStil};margin-top:6px">${esc(JSON.stringify(j.roh, null, 2))}</pre>
-                ${j.rohKommentare ? `<pre style="${preStil};margin-top:6px">${esc(JSON.stringify(j.rohKommentare, null, 2))}</pre>` : ''}
+                ${j.rohKommentare && JSON.stringify(j.rohKommentare) !== JSON.stringify(j.roh)
+                    ? `<pre style="${preStil};margin-top:6px">${esc(JSON.stringify(j.rohKommentare, null, 2))}</pre>` : ''}
             </details>`;
     } catch (e) {
         ziel.textContent = 'Fehler: ' + e.message;

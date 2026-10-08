@@ -86,8 +86,10 @@ public class EmployeeTimeEntriesController : ControllerBase
             changelog = Teil(mitChangelog, "changelog"),
             gespeichert = new { kommentar = entry.Comment, protokoll = entry.OriginalComment },
             versuche,
-            roh       = daten,
-            rohKommentare = alles is null ? mitKommentaren : null,
+            roh = daten,
+            // Zweites Fenster nur, wenn Changelog und Kommentare aus getrennten
+            // Abfragen kamen — sonst ist rohKommentare = roh (Doppel-Anzeige).
+            rohKommentare = alles is null && mitChangelog is not null ? mitKommentaren : null,
         });
     }
 
