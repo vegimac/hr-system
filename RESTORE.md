@@ -152,9 +152,48 @@ rclone copy swissbackup:default/onecrew-nachtbackup/db-YYYY-MM-DD_03-00.dump.gpg
 # danach Szenario A bzw. B — Passphrase aus dem Passwort-Manager
 ```
 
+### G) Gelöschtes oder verändertes Dokument zurückholen (bis 1 Jahr)
+
+Der Dokumenten-Spiegel (siehe unten) legt jede Nacht alles, was seit dem Vortag
+gelöscht, gedreht, in PDF umgewandelt oder sonst überschrieben wurde, nach
+`papierkorb/<Lauf>` — mit dem gleichen Pfad wie im Dokumentenordner.
+Den Speicherpfad liefert die Datenbank (`employee_dokument.filename_storage`).
+
+```bash
+R="sudo rclone --config /root/.config/rclone/rclone.conf"
+$R lsf swissbackup-doku:papierkorb                         # Läufe (Datum)
+$R lsf -R swissbackup-doku:papierkorb | grep 807369baa77d  # Datei suchen
+$R copy swissbackup-doku:papierkorb/2026-10-09_03-00/058/68/807369baa77d419191e688f3c64ff08a.PDF /tmp/zurueck/
+# Ganzer Ordner wie heute: swissbackup-doku:aktuell (z.B. nach Server-Verlust)
+$R copy swissbackup-doku:aktuell /var/data/hr-system/documents --transfers 8
+sudo chown -R www-data:www-data /var/data/hr-system/documents
+```
+
+## Dokumenten-Spiegel (Walter 08.10.2026)
+- Ziel `swissbackup-doku:` = rclone-**crypt** über `swissbackup:default/onecrew-dokumente`
+  (Inhalt UND Dateinamen verschlüsselt; Infomaniak sieht nur Zeichensalat).
+- Passwort: `/etc/hr-system/backup-docs.passphrase` (nur root) + Passwort-Manager
+  «HR-System Dokumenten-Spiegel». **Ohne dieses Passwort ist der Spiegel wertlos** —
+  es ist ein ANDERES als die Backup-Passphrase.
+- Nächtlich im Backup-Skript: `rclone sync … aktuell --backup-dir papierkorb/<Lauf>`,
+  `--max-delete 1000` (mehr Löschungen ⇒ Abbruch + «MIT FEHLERN» im Log, z.B. bei
+  einem versehentlich geleerten Ordner). Papierkorb-Läufe älter als 365 Tage werden
+  nach Ordnerdatum entfernt.
+- Skript-Quelle: `server/hr-system-backup.sh` im Repo. Installieren:
+  `scp server/hr-system-backup.sh ubuntu@83.228.209.119:/tmp/ && ssh ubuntu@83.228.209.119 'sudo install -m 700 -o root -g root /tmp/hr-system-backup.sh /usr/local/bin/'`
+
+Neuer Server — Zugang wieder einrichten (nach `swissbackup` selbst):
+```bash
+sudo rclone --config /root/.config/rclone/rclone.conf config create swissbackup-doku crypt \
+    remote=swissbackup:default/onecrew-dokumente filename_encryption=standard \
+    directory_name_encryption=true password='<Passwort aus dem Passwort-Manager>'
+```
+
 ## Rotation
 - Datenbank-Sicherungen (auch `vor-deploy/`): 14 Tage, lokal und in Swiss Backup.
-- Dokument-Tarballs: 3 Tage, lokal und in Swiss Backup (je ~6.5 GB).
+- Dokument-Tarballs: 3 Tage, lokal und in Swiss Backup (je ~6.5 GB) — laufen parallel
+  zum Spiegel weiter, bis eine Wiederherstellung aus dem Spiegel geprüft ist.
+- Dokumenten-Spiegel: aktueller Stand immer; Papierkorb 365 Tage.
 - `vor-deploy/`: zusätzlich nur die letzten 10 pro System.
 
 ## Ausser Haus (Off-Site) — eingerichtet

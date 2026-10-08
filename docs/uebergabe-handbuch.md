@@ -46,6 +46,7 @@ Diese Liste ist die Checkliste, dass nichts vergessen geht:
 | 3 | Infomaniak-Kundenkonto | VPS, Rechnungen, DNS, Domains | ☐ |
 | 4 | Server-ENV `/etc/hr-system/env` | `DB_PASSWORD`, `JWT_SECRET`, `EASYATWORK_CLIENT_ID/SECRET` | liegt auf dem Server (root) |
 | 5 | Backup-Passphrase | GPG-Entschlüsselung der Backups — **ohne sie sind Backups wertlos** | `/etc/hr-system/backup.passphrase` + Passwort-Manager «HR-System Backup Passphrase» |
+| 5b | Dokumenten-Spiegel-Passwort | Entschlüsselung des Dokumenten-Spiegels in Swiss Backup (gelöschte Dokumente 1 Jahr zurückholbar) — **eigenes Passwort, ohne es ist der Spiegel wertlos** | `/etc/hr-system/backup-docs.passphrase` + Passwort-Manager «HR-System Dokumenten-Spiegel» ☐ |
 | 6 | PostgreSQL `postgres`-User | TablePlus/DB-Arbeiten | via ENV/Passwort-Manager |
 | 7 | easy@work API (Client-ID/Secret) + Support-Kontakt | Stempelzeiten/MA-Sync | ENV + ☐ Support-Mailadresse notieren |
 | 8 | SMTP-Konto (Absender OneCrew-Mails) | Lohnzettel-Versand, App-Links | Admin-UI → SMTP (DB `smtp_setting`), Passwort ☐ |
