@@ -69,4 +69,27 @@ public class ZivilstandLedigKorrekturTests
         Assert.Equal("ledig", (await svc.AmAsync(1, heute.AddDays(-1))).Zivilstand);
         Assert.Equal("verheiratet", (await svc.AmAsync(1, heute.AddDays(30))).Zivilstand);
     }
+
+    [Fact]
+    public async Task Verspaetetes_Erfahren_zaehlt_erst_ab_Wissensdatum()
+    {
+        // Wie bei Kindern/QST: Gültig ab 1.1., erfahren am 1.6. → Jan–Mai noch alter Stand.
+        using var db = NeueDb(nameof(Verspaetetes_Erfahren_zaehlt_erst_ab_Wissensdatum));
+        db.Employees.Add(new Employee { Id = 1, FirstName = "Aldina", LastName = "Test", EmployeeNumber = "1", MaritalStatus = "geschieden" });
+        db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory { EmployeeId = 1, Zivilstand = "ledig", GueltigAb = null });
+        db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory
+        {
+            EmployeeId = 1,
+            Zivilstand = "geschieden",
+            GueltigAb = new DateOnly(2026, 1, 1),
+            ErfahrenAm = new DateOnly(2026, 6, 1),
+            Bemerkung = "Scheidung verspätet gemeldet",
+        });
+        await db.SaveChangesAsync();
+
+        var svc = new ZivilstandHistorieService(db);
+        Assert.Equal("ledig", (await svc.AmAsync(1, new DateOnly(2026, 3, 15))).Zivilstand);
+        Assert.Equal("geschieden", (await svc.AmAsync(1, new DateOnly(2026, 6, 1))).Zivilstand);
+        Assert.Equal("geschieden", (await svc.AmAsync(1, new DateOnly(2026, 7, 1))).Zivilstand);
+    }
 }

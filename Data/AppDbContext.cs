@@ -48,6 +48,8 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeFamilyMember> EmployeeFamilyMembers => Set<EmployeeFamilyMember>();
     public DbSet<EmployeeAddress> EmployeeAddresses => Set<EmployeeAddress>();
     public DbSet<FamilyMemberAllowance> FamilyMemberAllowances => Set<FamilyMemberAllowance>();
+    public DbSet<FamilyMemberPermitHistory> FamilyMemberPermitHistories => Set<FamilyMemberPermitHistory>();
+    public DbSet<FamilyMemberErwerbHistory> FamilyMemberErwerbHistories => Set<FamilyMemberErwerbHistory>();
     public DbSet<EmployeeTimeEntry> EmployeeTimeEntries => Set<EmployeeTimeEntry>();
     public DbSet<Absence> Absences => Set<Absence>();
     public DbSet<FerienKuerzungEintrag> FerienKuerzungen => Set<FerienKuerzungEintrag>();
@@ -1328,6 +1330,55 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.NationalityRef).WithMany().HasForeignKey(e => e.NationalityId).OnDelete(DeleteBehavior.SetNull);
+            entity.Ignore(e => e.PermitSeit);
+            entity.Ignore(e => e.PermitErfahrenAm);
+            entity.Ignore(e => e.ErwerbSeit);
+            entity.Ignore(e => e.ErwerbErfahrenAm);
+        });
+
+        // ── FamilyMemberPermitHistory (Walter 08.10.2026) ──────────────────
+        modelBuilder.Entity<FamilyMemberPermitHistory>(entity =>
+        {
+            entity.ToTable("family_member_permit_history");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FamilyMemberId).HasColumnName("family_member_id");
+            entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.FamilyMemberId);
+            entity.HasOne(e => e.FamilyMember).WithMany(m => m.PermitHistories)
+                .HasForeignKey(e => e.FamilyMemberId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── FamilyMemberErwerbHistory (Walter 08.10.2026) ──────────────────
+        modelBuilder.Entity<FamilyMemberErwerbHistory>(entity =>
+        {
+            entity.ToTable("family_member_erwerb_history");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FamilyMemberId).HasColumnName("family_member_id");
+            entity.Property(e => e.Erwerbstaetig).HasColumnName("erwerbstaetig");
+            entity.Property(e => e.ArbeitgeberName).HasColumnName("arbeitgeber_name").HasMaxLength(150);
+            entity.Property(e => e.ArbeitgeberStrasse).HasColumnName("arbeitgeber_strasse").HasMaxLength(150);
+            entity.Property(e => e.ArbeitgeberPlz).HasColumnName("arbeitgeber_plz").HasMaxLength(10);
+            entity.Property(e => e.ArbeitgeberOrt).HasColumnName("arbeitgeber_ort").HasMaxLength(120);
+            entity.Property(e => e.ArbeitgeberKanton).HasColumnName("arbeitgeber_kanton").HasMaxLength(10);
+            entity.Property(e => e.Stellenantritt).HasColumnName("stellenantritt").HasColumnType("date");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
+            entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.FamilyMemberId);
+            entity.HasOne(e => e.FamilyMember).WithMany(m => m.ErwerbHistories)
+                .HasForeignKey(e => e.FamilyMemberId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── EmployeeAddress ────────────────────────────────────────────────

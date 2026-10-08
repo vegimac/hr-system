@@ -16,6 +16,8 @@ public class EmployeeFamilyMembersController : ControllerBase
         _context = context;
     }
 
+    static DateOnly? AsDate(DateTime? dt) => dt.HasValue ? DateOnly.FromDateTime(dt.Value) : null;
+
     // GET /api/employees/{employeeId}/family
     [HttpGet]
     public async Task<IActionResult> GetByEmployee(int employeeId)
@@ -158,6 +160,12 @@ public class EmployeeFamilyMembersController : ControllerBase
 
         _context.EmployeeFamilyMembers.Add(member);
         await _context.SaveChangesAsync();
+        try { await SyncHistoriesAsync(member, member); }
+        catch (InvalidOperationException ex) when (ex.Message == "ERFAHREN_VOR_GUELTIG")
+        {
+            return BadRequest(new { error = "ERFAHREN_VOR_GUELTIG", message = "«Erfahren am» darf nicht vor «Seit» liegen." });
+        }
+        await _context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetById), new { employeeId, id = member.Id }, member);
     }
@@ -214,8 +222,185 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.GemeinsamesKindMitPartner  = member.GemeinsamesKindMitPartner;
         existing.UpdatedAt            = DateTime.Now;
 
+        try { await SyncHistoriesAsync(existing, member); }
+        catch (InvalidOperationException ex) when (ex.Message == "ERFAHREN_VOR_GUELTIG")
+        {
+            return BadRequest(new { error = "ERFAHREN_VOR_GUELTIG", message = "«Erfahren am» darf nicht vor «Seit» liegen." });
+        }
         await _context.SaveChangesAsync();
         return Ok(existing);
+    }
+
+    // GET …/family/{id}/permit-history
+    [HttpGet("{id:int}/permit-history")]
+    public async Task<IActionResult> ListPermitHistory(int employeeId, int id)
+    {
+        if (!await MemberOk(employeeId, id)) return NotFound();
+        var list = await _context.FamilyMemberPermitHistories.AsNoTracking()
+            .Include(h => h.PermitType)
+            .Where(h => h.FamilyMemberId == id)
+            .OrderByDescending(h => h.ValidFrom).ThenByDescending(h => h.Id)
+            .Select(h => new
+            {
+                h.Id,
+                h.PermitTypeId,
+                permitCode = h.PermitType != null ? h.PermitType.Code : null,
+                permitLabel = h.PermitType != null ? (h.PermitType.Description ?? h.PermitType.Code) : "CH / keine",
+                validFrom = h.ValidFrom.ToString("yyyy-MM-dd"),
+                erfahrenAm = h.ErfahrenAm.HasValue ? h.ErfahrenAm.Value.ToString("yyyy-MM-dd") : null,
+                validTo = h.ValidTo.HasValue ? h.ValidTo.Value.ToString("yyyy-MM-dd") : null,
+                h.Note,
+            })
+            .ToListAsync();
+        return Ok(list);
+    }
+
+    // GET …/family/{id}/erwerb-history
+    [HttpGet("{id:int}/erwerb-history")]
+    public async Task<IActionResult> ListErwerbHistory(int employeeId, int id)
+    {
+        if (!await MemberOk(employeeId, id)) return NotFound();
+        var list = await _context.FamilyMemberErwerbHistories.AsNoTracking()
+            .Where(h => h.FamilyMemberId == id)
+            .OrderByDescending(h => h.ValidFrom).ThenByDescending(h => h.Id)
+            .Select(h => new
+            {
+                h.Id,
+                h.Erwerbstaetig,
+                h.ArbeitgeberName,
+                h.ArbeitgeberKanton,
+                stellenantritt = h.Stellenantritt.HasValue ? h.Stellenantritt.Value.ToString("yyyy-MM-dd") : null,
+                validFrom = h.ValidFrom.ToString("yyyy-MM-dd"),
+                erfahrenAm = h.ErfahrenAm.HasValue ? h.ErfahrenAm.Value.ToString("yyyy-MM-dd") : null,
+                h.Note,
+            })
+            .ToListAsync();
+        return Ok(list);
+    }
+
+    [HttpDelete("{id:int}/permit-history/{histId:int}")]
+    public async Task<IActionResult> DeletePermitHistory(int employeeId, int id, int histId)
+    {
+        if (!await MemberOk(employeeId, id)) return NotFound();
+        var h = await _context.FamilyMemberPermitHistories.FirstOrDefaultAsync(x => x.Id == histId && x.FamilyMemberId == id);
+        if (h == null) return NotFound();
+        _context.FamilyMemberPermitHistories.Remove(h);
+        await _context.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
+    [HttpDelete("{id:int}/erwerb-history/{histId:int}")]
+    public async Task<IActionResult> DeleteErwerbHistory(int employeeId, int id, int histId)
+    {
+        if (!await MemberOk(employeeId, id)) return NotFound();
+        var h = await _context.FamilyMemberErwerbHistories.FirstOrDefaultAsync(x => x.Id == histId && x.FamilyMemberId == id);
+        if (h == null) return NotFound();
+        _context.FamilyMemberErwerbHistories.Remove(h);
+        await _context.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
+    Task<bool> MemberOk(int employeeId, int id)
+        => _context.EmployeeFamilyMembers.AnyAsync(m => m.Id == id && m.EmployeeId == employeeId);
+
+    /// <summary>
+    /// Bewilligungs-/Erwerbs-Historie nachführen, wenn Seit/ErfahrenAm
+    /// mitgeliefert werden oder sich der Snapshot ändert (Walter 08.10.2026).
+    /// </summary>
+    async Task SyncHistoriesAsync(EmployeeFamilyMember snap, EmployeeFamilyMember dto)
+    {
+        var typ = (snap.MemberType ?? "").Trim();
+        if (typ is not ("Ehepartner" or "Konkubinatspartner")) return;
+
+        // ── Bewilligung ──────────────────────────────────────────────────
+        var permitHist = await _context.FamilyMemberPermitHistories
+            .Where(h => h.FamilyMemberId == snap.Id)
+            .OrderBy(h => h.ValidFrom).ThenBy(h => h.Id)
+            .ToListAsync();
+        bool hatPermitDaten = snap.PermitTypeId != null || snap.NationalityId != null;
+        var letzterP = permitHist.LastOrDefault();
+        bool permitGeaendert = letzterP == null
+            || letzterP.PermitTypeId != snap.PermitTypeId
+            || letzterP.ValidTo != AsDate(snap.PermitExpiryDate);
+        // Seit vom Client; bei Änderung ohne Seit → heute (wie Kinder «neu»).
+        var permitSeit = dto.PermitSeit ?? DateOnly.FromDateTime(DateTime.Today);
+        if (hatPermitDaten && (dto.PermitSeit.HasValue || permitHist.Count == 0 || permitGeaendert))
+        {
+            var ea = dto.PermitErfahrenAm;
+            if (ea.HasValue && ea.Value < permitSeit)
+                throw new InvalidOperationException("ERFAHREN_VOR_GUELTIG");
+            if (letzterP != null && letzterP.ValidFrom == permitSeit)
+            {
+                letzterP.PermitTypeId = snap.PermitTypeId;
+                letzterP.ValidTo = AsDate(snap.PermitExpiryDate);
+                letzterP.ErfahrenAm = ea;
+            }
+            else if (permitGeaendert || dto.PermitSeit.HasValue || permitHist.Count == 0)
+            {
+                if (letzterP != null && letzterP.ValidFrom < permitSeit && letzterP.PermitTypeId != null
+                    && (letzterP.ValidTo == null || letzterP.ValidTo >= permitSeit))
+                    letzterP.ValidTo = permitSeit.AddDays(-1);
+                _context.FamilyMemberPermitHistories.Add(new FamilyMemberPermitHistory
+                {
+                    FamilyMemberId = snap.Id,
+                    PermitTypeId = snap.PermitTypeId,
+                    ValidFrom = permitSeit,
+                    ErfahrenAm = ea,
+                    ValidTo = AsDate(snap.PermitExpiryDate),
+                    Note = permitHist.Count == 0 ? "Ersterfassung" : null,
+                    CreatedAt = DateTime.Now,
+                });
+            }
+        }
+
+        // ── Erwerbstätigkeit ─────────────────────────────────────────────
+        var erwerbHist = await _context.FamilyMemberErwerbHistories
+            .Where(h => h.FamilyMemberId == snap.Id)
+            .OrderBy(h => h.ValidFrom).ThenBy(h => h.Id)
+            .ToListAsync();
+        var letzterE = erwerbHist.LastOrDefault();
+        bool erwerbGeaendert = letzterE == null
+            || letzterE.Erwerbstaetig != snap.Erwerbstaetig
+            || !string.Equals(letzterE.ArbeitgeberName, snap.ArbeitgeberName, StringComparison.Ordinal)
+            || !string.Equals(letzterE.ArbeitgeberKanton, snap.ArbeitgeberKanton, StringComparison.Ordinal);
+        var erwerbSeit = dto.ErwerbSeit
+            ?? AsDate(snap.Stellenantritt)
+            ?? DateOnly.FromDateTime(DateTime.Today);
+        if (snap.Erwerbstaetig != null && (dto.ErwerbSeit.HasValue || erwerbHist.Count == 0 || erwerbGeaendert))
+        {
+            var ea = dto.ErwerbErfahrenAm;
+            if (ea.HasValue && ea.Value < erwerbSeit)
+                throw new InvalidOperationException("ERFAHREN_VOR_GUELTIG");
+            if (letzterE != null && letzterE.ValidFrom == erwerbSeit)
+            {
+                letzterE.Erwerbstaetig = snap.Erwerbstaetig;
+                letzterE.ArbeitgeberName = snap.ArbeitgeberName;
+                letzterE.ArbeitgeberStrasse = snap.ArbeitgeberStrasse;
+                letzterE.ArbeitgeberPlz = snap.ArbeitgeberPlz;
+                letzterE.ArbeitgeberOrt = snap.ArbeitgeberOrt;
+                letzterE.ArbeitgeberKanton = snap.ArbeitgeberKanton;
+                letzterE.Stellenantritt = AsDate(snap.Stellenantritt);
+                letzterE.ErfahrenAm = ea;
+            }
+            else if (erwerbGeaendert || dto.ErwerbSeit.HasValue || erwerbHist.Count == 0)
+            {
+                _context.FamilyMemberErwerbHistories.Add(new FamilyMemberErwerbHistory
+                {
+                    FamilyMemberId = snap.Id,
+                    Erwerbstaetig = snap.Erwerbstaetig,
+                    ArbeitgeberName = snap.ArbeitgeberName,
+                    ArbeitgeberStrasse = snap.ArbeitgeberStrasse,
+                    ArbeitgeberPlz = snap.ArbeitgeberPlz,
+                    ArbeitgeberOrt = snap.ArbeitgeberOrt,
+                    ArbeitgeberKanton = snap.ArbeitgeberKanton,
+                    Stellenantritt = AsDate(snap.Stellenantritt),
+                    ValidFrom = erwerbSeit,
+                    ErfahrenAm = ea,
+                    Note = erwerbHist.Count == 0 ? "Ersterfassung" : null,
+                    CreatedAt = DateTime.Now,
+                });
+            }
+        }
     }
 
     /// <summary>

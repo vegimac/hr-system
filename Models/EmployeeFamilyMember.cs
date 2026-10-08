@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace HrSystem.Models;
 
 public class EmployeeFamilyMember
@@ -102,6 +104,17 @@ public class EmployeeFamilyMember
 
     /// <summary>Ehepartner: Stellenantritt beim Arbeitgeber.</summary>
     public DateTime? Stellenantritt { get; set; }
+
+    // ── Historie-Felder nur für Create/Update-Payload (Walter 08.10.2026) ──
+    // Werden beim Speichern in family_member_*_history geschrieben; nicht
+    // eigene Spalten auf employee_family_member.
+    [NotMapped] public DateOnly? PermitSeit { get; set; }
+    [NotMapped] public DateOnly? PermitErfahrenAm { get; set; }
+    [NotMapped] public DateOnly? ErwerbSeit { get; set; }
+    [NotMapped] public DateOnly? ErwerbErfahrenAm { get; set; }
+
+    public List<FamilyMemberPermitHistory> PermitHistories { get; set; } = new();
+    public List<FamilyMemberErwerbHistory> ErwerbHistories { get; set; } = new();
 
     /// <summary>
     /// Kind: steht in beruflicher/schulischer ERSTausbildung. Relevant ab dem

@@ -7667,6 +7667,23 @@ function openFamilyModal(member) {
     fmFillPermitAndNationalitySelects(_defaultPermitTypeId, _defaultNationalityId);
     document.getElementById('fmPermitExpiry').value = toDateInput(member?.permitExpiryDate);
     document.getElementById('fmZemisNumber').value  = member?.zemisNumber ?? '';
+    // Bewilligung/Erwerb: Seit + Erfahren am (Walter 08.10.2026) — neu = heute.
+    const _fmHeute = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; })();
+    const _pSeit = document.getElementById('fmPermitSeit');
+    const _pEa = document.getElementById('fmPermitErfahrenAm');
+    if (_pSeit) _pSeit.value = '';
+    if (_pEa) _pEa.value = _fmHeute;
+    const _eSeit = document.getElementById('fmErwerbSeit');
+    const _eEa = document.getElementById('fmErwerbErfahrenAm');
+    if (_eSeit) _eSeit.value = toDateInput(member?.stellenantritt) || '';
+    if (_eEa) _eEa.value = _fmHeute;
+    if (member?.id) fmLoadPartnerHistories(member.id);
+    else {
+        const pl = document.getElementById('fmPermitHistList');
+        const el = document.getElementById('fmErwerbHistList');
+        if (pl) { pl.style.display = 'none'; pl.innerHTML = ''; }
+        if (el) el.innerHTML = '';
+    }
 
     // Walter-Vorgabe 07.06.2026: „Dokument hochladen"-Button NUR beim
     // Ehepartner sichtbar — klickt auf den normalen Standard-Upload-Dialog
@@ -8167,8 +8184,24 @@ async function saveFamilyMember() {
         stellenantritt:         document.getElementById('fmStellenantritt')?.value      || null,
         inErstausbildung:       document.getElementById('fmInErstausbildung')?.checked ?? false,
         keineUnterhaltspflicht: document.getElementById('fmKeineUnterhaltspflicht')?.checked ?? false,
+        // Historie Seit/Erfahren (Walter 08.10.2026) — leer Seit = kein neuer Hist-Eintrag
+        // ausser Ersteintrag (Server). Erfahren leer = gleich Seit.
+        permitSeit:             document.getElementById('fmPermitSeit')?.value || null,
+        permitErfahrenAm:       document.getElementById('fmPermitErfahrenAm')?.value || null,
+        erwerbSeit:             document.getElementById('fmErwerbSeit')?.value || null,
+        erwerbErfahrenAm:       document.getElementById('fmErwerbErfahrenAm')?.value || null,
         // Zulagen werden separat über /api/family-members/{id}/allowances verwaltet.
     };
+    const _ps = payload.permitSeit, _pe = payload.permitErfahrenAm;
+    if (_ps && _pe && _pe < _ps) {
+        alert('Bewilligung: «Erfahren am» darf nicht vor «Seit» liegen.');
+        return;
+    }
+    const _es = payload.erwerbSeit, _ee = payload.erwerbErfahrenAm;
+    if (_es && _ee && _ee < _es) {
+        alert('Erwerbstätigkeit: «Erfahren am» darf nicht vor «Seit» liegen.');
+        return;
+    }
 
     const isEdit = editingFamilyMemberId !== null;
     // Neu angelegt aus der Dokument-Ablage (Walter 25.09.2026): danach das Dokument anhängen.
@@ -8210,6 +8243,78 @@ async function saveFamilyMember() {
     } catch {
         alert('Verbindungsfehler.');
     }
+}
+
+// Bewilligungs-/Erwerbs-Historie im Familien-Modal (Walter 08.10.2026).
+async function fmLoadPartnerHistories(memberId) {
+    if (!selectedEmployeeId || !memberId) return;
+    const pEl = document.getElementById('fmPermitHistList');
+    const eEl = document.getElementById('fmErwerbHistList');
+    try {
+        const [rp, re] = await Promise.all([
+            fetch(`/api/employees/${selectedEmployeeId}/family/${memberId}/permit-history`, { headers: ah(), cache: 'no-store' }),
+            fetch(`/api/employees/${selectedEmployeeId}/family/${memberId}/erwerb-history`, { headers: ah(), cache: 'no-store' }),
+        ]);
+        const pList = rp.ok ? await rp.json() : [];
+        const eList = re.ok ? await re.json() : [];
+        if (pEl) {
+            if (!pList.length) { pEl.style.display = 'none'; pEl.innerHTML = ''; }
+            else {
+                pEl.style.display = 'block';
+                pEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Bewilligungs-Historie</div>`
+                    + pList.map((h, i) => {
+                        const ga = (h.validFrom || '').slice(0, 10);
+                        const ea = (h.erfahrenAm || '').slice(0, 10);
+                        const eaTxt = ea && ea !== ga
+                            ? ` · erfahren ${formatDate(ea)} <span style="color:#c2410c">(versetzt)</span>`
+                            : (ea ? ` · erfahren ${formatDate(ea)}` : '');
+                        return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 10px;margin-bottom:4px;border-radius:8px;background:${i===0?'#fff':'rgba(255,255,255,0.45)'};box-shadow:0 1px 3px rgba(60,55,48,0.08)">
+                            <span style="flex-shrink:0;font-size:10px;font-weight:700;border-radius:999px;padding:1px 8px;${i===0?'color:#166534;background:#dcfce7':'color:#6b6152;background:#ece9e2'}">${i===0?'aktuell':'früher'}</span>
+                            <div style="flex:1;min-width:0"><b>${esc(h.permitLabel || h.permitCode || 'CH / keine')}</b>
+                            <span style="color:#8b8b8b"> · ab ${ga ? formatDate(ga) : '–'}${h.validTo ? ' bis ' + formatDate(h.validTo) : ''}${eaTxt}</span></div>
+                            <button type="button" onclick="fmDeletePermitHist(${memberId},${h.id})" title="Eintrag löschen" style="background:#fff;border:1px dashed #fca5a5;color:#991b1b;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer">🗑</button>
+                        </div>`;
+                    }).join('');
+            }
+        }
+        if (eEl) {
+            if (!eList.length) { eEl.innerHTML = ''; }
+            else {
+                eEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin:6px 0 4px">Erwerbs-Historie</div>`
+                    + eList.map((h, i) => {
+                        const ga = (h.validFrom || '').slice(0, 10);
+                        const ea = (h.erfahrenAm || '').slice(0, 10);
+                        const erw = h.erwerbstaetig === true ? 'Ja' : (h.erwerbstaetig === false ? 'Nein' : '–');
+                        const ag = h.arbeitgeberName ? ` · ${esc(h.arbeitgeberName)}` : '';
+                        const eaTxt = ea && ea !== ga
+                            ? ` · erfahren ${formatDate(ea)} <span style="color:#c2410c">(versetzt)</span>`
+                            : (ea ? ` · erfahren ${formatDate(ea)}` : '');
+                        return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 10px;margin-bottom:4px;border-radius:8px;background:${i===0?'#fff':'rgba(255,255,255,0.45)'};box-shadow:0 1px 3px rgba(60,55,48,0.08)">
+                            <span style="flex-shrink:0;font-size:10px;font-weight:700;border-radius:999px;padding:1px 8px;${i===0?'color:#166534;background:#dcfce7':'color:#6b6152;background:#ece9e2'}">${i===0?'aktuell':'früher'}</span>
+                            <div style="flex:1;min-width:0"><b>Erwerbstätig: ${erw}</b>${ag}
+                            <span style="color:#8b8b8b"> · ab ${ga ? formatDate(ga) : '–'}${eaTxt}</span></div>
+                            <button type="button" onclick="fmDeleteErwerbHist(${memberId},${h.id})" title="Eintrag löschen" style="background:#fff;border:1px dashed #fca5a5;color:#991b1b;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer">🗑</button>
+                        </div>`;
+                    }).join('');
+            }
+        }
+    } catch (e) {
+        if (pEl) pEl.innerHTML = `<div style="color:#b91c1c;font-size:12px">Historie: ${esc(e.message)}</div>`;
+    }
+}
+
+async function fmDeletePermitHist(memberId, histId) {
+    if (!selectedEmployeeId || !(await liquidConfirm('Diesen Bewilligungs-Eintrag löschen?', { yesLabel: 'Löschen' }))) return;
+    const r = await fetch(`/api/employees/${selectedEmployeeId}/family/${memberId}/permit-history/${histId}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { alert('Löschen fehlgeschlagen.'); return; }
+    await fmLoadPartnerHistories(memberId);
+}
+
+async function fmDeleteErwerbHist(memberId, histId) {
+    if (!selectedEmployeeId || !(await liquidConfirm('Diesen Erwerbs-Eintrag löschen?', { yesLabel: 'Löschen' }))) return;
+    const r = await fetch(`/api/employees/${selectedEmployeeId}/family/${memberId}/erwerb-history/${histId}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { alert('Löschen fehlgeschlagen.'); return; }
+    await fmLoadPartnerHistories(memberId);
 }
 
 async function deleteFamilyMember(id) {
@@ -18801,9 +18906,9 @@ window.maAenderungenOeffnen = maAenderungenOeffnen;
 
 
 // ══════════════════════════════════════════════════════════════════════
-// Zivilstand-Historie (Walter 04.09.2026): Zivilstand mit Gültig-ab — für
-// QST-Alt-Einträge («damals verheiratet»). Wird beim Wechsel automatisch
-// nachgeführt; hier ergänzen/korrigieren.
+// Zivilstand-Historie (Walter 04.09.2026, Erfahren am 08.10.2026): Zivilstand
+// mit Gültig-ab + Wissensdatum — wie bei Kindern/QST. Wird beim Wechsel
+// automatisch nachgeführt; hier ergänzen/korrigieren.
 // ══════════════════════════════════════════════════════════════════════
 const ZIV_OPTIONEN = [
     ['ledig', 'Ledig'], ['verheiratet', 'Verheiratet'], ['getrennt', 'Getrennt'],
@@ -18813,7 +18918,15 @@ const ZIV_OPTIONEN = [
 ];
 let _zivEmpId = null;
 
+function _zivHeuteIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function _zivEnsureModal() {
+    // Altes Modal ohne «Erfahren am» ersetzen (einmal nach Deploy / Hard-Reload).
+    const alt = document.getElementById('zivModal');
+    if (alt && !document.getElementById('zivEa')) alt.remove();
     if (document.getElementById('zivModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -18821,14 +18934,15 @@ function _zivEnsureModal() {
     div.id = 'zivModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:9700;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(640px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(720px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
         <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🕘 Zivilstand-Historie</div>
         <div id="zivMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:12px"></div>
-        <div style="display:grid;grid-template-columns:1.2fr 1fr 1.4fr auto;gap:10px 12px;align-items:end;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:10px 12px">
+        <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:10px 12px;align-items:end;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:10px 12px">
             <label style="${lbl}">Zivilstand<select id="zivNeu" style="${inp}">${ZIV_OPTIONEN.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
             <label style="${lbl}">Gültig ab <span style="font-weight:400">(leer = seit jeher)</span><input id="zivAb" type="date" style="${inp}"></label>
-            <label style="${lbl}">Bemerkung<input id="zivBem" style="${inp}" placeholder="z.B. Heirat, Scheidungsurteil"></label>
+            <label style="${lbl}">Erfahren am <span style="font-weight:400">(leer = gleich Gültig ab)</span><input id="zivEa" type="date" style="${inp}" title="Ab wann wir vom Zivilstandswechsel wussten — steuert QST-Nachzahlung wie bei Kindern"></label>
             <button onclick="zivAdd()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;height:36px">+ Eintrag</button>
+            <label style="${lbl};grid-column:1 / -1">Bemerkung<input id="zivBem" style="${inp}" placeholder="z.B. Heirat, Scheidungsurteil"></label>
         </div>
         <div id="zivListe" style="margin-top:12px"></div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
@@ -18859,6 +18973,7 @@ async function openZivilstandHistorie(empId) {
     if (nameEl && selectedEmployee)
         nameEl.textContent = `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''} — aktuell ${formatMaritalStatus(selectedEmployee.zivilstand ?? selectedEmployee.maritalStatus) || '–'}${selectedEmployee.maritalStatusSince ? ' seit ' + formatDate(selectedEmployee.maritalStatusSince) : ''}`;
     document.getElementById('zivAb').value = '';
+    document.getElementById('zivEa').value = _zivHeuteIso();
     document.getElementById('zivBem').value = '';
     document.getElementById('zivModal').style.display = 'block';
     await zivLoad();
@@ -18879,22 +18994,36 @@ async function zivLoad() {
         return;
     }
     const sorted = [...list].sort((a, b) => String(b.gueltigAb || '').localeCompare(String(a.gueltigAb || '')) || ((b.id || 0) - (a.id || 0)));
-    el.innerHTML = sorted.map((h, i) => `
+    el.innerHTML = sorted.map((h, i) => {
+        const ga = (h.gueltigAb || '').toString().slice(0, 10);
+        const ea = (h.erfahrenAm || '').toString().slice(0, 10);
+        const eaTxt = ea && ea !== ga
+            ? ` · erfahren ${formatDate(ea)} <span style="color:#c2410c">(versetzt)</span>`
+            : (ea ? ` · erfahren ${formatDate(ea)}` : '');
+        return `
         <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#3f3f3f;padding:9px 12px;margin-bottom:6px;border-radius:10px;background:${i === 0 ? '#fff' : 'rgba(255,255,255,0.5)'};box-shadow:0 1px 4px rgba(60,55,48,0.08);${i === 0 ? '' : 'opacity:.8'}">
             <span style="flex-shrink:0;font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 9px;${i === 0 ? 'color:#166534;background:#dcfce7' : 'color:#6b6152;background:#ece9e2'}">${i === 0 ? 'aktuell' : 'früher'}</span>
             <div style="flex:1;min-width:0">
                 <div style="font-weight:600">${esc(formatMaritalStatus(h.zivilstand) || h.zivilstand)}</div>
-                <div style="color:#8b8b8b;font-size:12px">${h.gueltigAb ? 'ab ' + formatDate(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + formatDate(h.gueltigBis) : ''}${h.bemerkung ? ' · ' + esc(h.bemerkung) : ''}</div>
+                <div style="color:#8b8b8b;font-size:12px">${ga ? 'ab ' + formatDate(ga) : 'seit jeher'}${h.gueltigBis ? ' bis ' + formatDate(h.gueltigBis) : ''}${eaTxt}${h.bemerkung ? ' · ' + esc(h.bemerkung) : ''}</div>
             </div>
             ${isAdmin ? `<button onclick="zivDelete(${h.id})" title="Eintrag löschen" style="flex-shrink:0;background:#fff;border:1px dashed #fca5a5;color:#991b1b;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">🗑</button>` : ''}
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
 async function zivAdd() {
     if (!_zivEmpId) return;
+    const gueltigAb = document.getElementById('zivAb').value || null;
+    const erfahrenAm = document.getElementById('zivEa').value || null;
+    if (gueltigAb && erfahrenAm && erfahrenAm < gueltigAb) {
+        alert('«Erfahren am» darf nicht vor «Gültig ab» liegen.');
+        return;
+    }
     const body = {
         zivilstand: document.getElementById('zivNeu').value,
-        gueltigAb: document.getElementById('zivAb').value || null,
+        gueltigAb,
+        erfahrenAm,
         bemerkung: document.getElementById('zivBem').value.trim() || null,
     };
     try {
@@ -18902,6 +19031,7 @@ async function zivAdd() {
         const j = await r.json().catch(() => ({}));
         if (!r.ok) { alert(j.message || j.error || ('Fehler HTTP ' + r.status)); return; }
         document.getElementById('zivAb').value = '';
+        document.getElementById('zivEa').value = _zivHeuteIso();
         document.getElementById('zivBem').value = '';
         await zivLoad();
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }

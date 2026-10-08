@@ -33,7 +33,15 @@ public class EmployeeZivilstandController : ControllerBase
         {
             var h = list[i];
             DateOnly? bis = (i + 1 < list.Count && list[i + 1].GueltigAb.HasValue) ? list[i + 1].GueltigAb!.Value.AddDays(-1) : null;
-            result.Add(new { h.Id, zivilstand = h.Zivilstand, gueltigAb = h.GueltigAb?.ToString("yyyy-MM-dd"), gueltigBis = bis?.ToString("yyyy-MM-dd"), h.Bemerkung });
+            result.Add(new
+            {
+                h.Id,
+                zivilstand = h.Zivilstand,
+                gueltigAb = h.GueltigAb?.ToString("yyyy-MM-dd"),
+                gueltigBis = bis?.ToString("yyyy-MM-dd"),
+                erfahrenAm = h.ErfahrenAm?.ToString("yyyy-MM-dd"),
+                h.Bemerkung,
+            });
         }
         return Ok(result);
     }
@@ -46,24 +54,63 @@ public class EmployeeZivilstandController : ControllerBase
         return Ok(new { zivilstand = z, seit = seit?.ToString("yyyy-MM-dd"), ausHistorie = ausHist, stichtag = d.ToString("yyyy-MM-dd") });
     }
 
-    public sealed class EntryDto { public string? Zivilstand { get; set; } public string? GueltigAb { get; set; } public string? Bemerkung { get; set; } }
+    public sealed class EntryDto
+    {
+        public string? Zivilstand { get; set; }
+        public string? GueltigAb { get; set; }
+        /// <summary>Wissensdatum (wie bei Kindern/QST). Leer/null = gleich Gültig ab.</summary>
+        public string? ErfahrenAm { get; set; }
+        public string? Bemerkung { get; set; }
+    }
+
+    static (DateOnly? Ab, DateOnly? Ea, IActionResult? Fehler) ParseDaten(EntryDto dto)
+    {
+        DateOnly? ab = null;
+        if (!string.IsNullOrWhiteSpace(dto.GueltigAb))
+        {
+            var d = EmployeeQuellensteuerController.ParseDatum(dto.GueltigAb);
+            if (d == null) return (null, null, new BadRequestObjectResult(new { error = "DATUM_UNGUELTIG", message = "Gültig ab ist ungültig." }));
+            ab = d;
+        }
+        DateOnly? ea = null;
+        if (!string.IsNullOrWhiteSpace(dto.ErfahrenAm))
+        {
+            var d = EmployeeQuellensteuerController.ParseDatum(dto.ErfahrenAm);
+            if (d == null) return (null, null, new BadRequestObjectResult(new { error = "DATUM_UNGUELTIG", message = "Erfahren am ist ungültig." }));
+            ea = d;
+        }
+        // Wie Kinder/QST: Erfahren am darf nicht vor Gültig ab liegen.
+        if (ab.HasValue && ea.HasValue && ea.Value < ab.Value)
+            return (null, null, new BadRequestObjectResult(new { error = "ERFAHREN_VOR_GUELTIG", message = "«Erfahren am» darf nicht vor «Gültig ab» liegen." }));
+        return (ab, ea, null);
+    }
 
     [HttpPost]
     public async Task<IActionResult> Add(int employeeId, [FromBody] EntryDto dto)
     {
         var z = ZivilstandHistorieService.Norm(dto.Zivilstand);
-        if (z.Length == 0) return BadRequest(new { error = "ZIVILSTAND_FEHLT" });
+        if (z.Length == 0) return BadRequest(new { error = "ZIVILSTAND_FEHLT", message = "Zivilstand fehlt." });
         if (!await _db.Employees.AnyAsync(e => e.Id == employeeId)) return NotFound();
-        DateOnly? ab = null;
-        if (!string.IsNullOrWhiteSpace(dto.GueltigAb))
-        {
-            var d = EmployeeQuellensteuerController.ParseDatum(dto.GueltigAb);
-            if (d == null) return BadRequest(new { error = "DATUM_UNGUELTIG" });
-            ab = d;
-        }
+        var (ab, ea, fehler) = ParseDaten(dto);
+        if (fehler != null) return fehler;
         var gleich = await _db.EmployeeZivilstandHistories.FirstOrDefaultAsync(h => h.EmployeeId == employeeId && h.GueltigAb == ab);
-        if (gleich != null) { gleich.Zivilstand = z; gleich.Bemerkung = dto.Bemerkung?.Trim(); }
-        else _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory { EmployeeId = employeeId, Zivilstand = z, GueltigAb = ab, ErfahrenAm = DateOnly.FromDateTime(DateTime.Now), Bemerkung = dto.Bemerkung?.Trim() });
+        if (gleich != null)
+        {
+            gleich.Zivilstand = z;
+            gleich.ErfahrenAm = ea;
+            gleich.Bemerkung = dto.Bemerkung?.Trim();
+        }
+        else
+        {
+            _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory
+            {
+                EmployeeId = employeeId,
+                Zivilstand = z,
+                GueltigAb = ab,
+                ErfahrenAm = ea,
+                Bemerkung = dto.Bemerkung?.Trim(),
+            });
+        }
         await _db.SaveChangesAsync();
         return Ok(new { ok = true });
     }
@@ -75,11 +122,17 @@ public class EmployeeZivilstandController : ControllerBase
         if (h == null) return NotFound();
         var z = ZivilstandHistorieService.Norm(dto.Zivilstand);
         if (z.Length > 0) h.Zivilstand = z;
-        if (dto.GueltigAb != null)
+        if (dto.GueltigAb != null || dto.ErfahrenAm != null)
         {
-            if (dto.GueltigAb == "") h.GueltigAb = null;
-            else if (EmployeeQuellensteuerController.ParseDatum(dto.GueltigAb) is DateOnly d) h.GueltigAb = d;
-            else return BadRequest(new { error = "DATUM_UNGUELTIG" });
+            // Fehlende Felder aus dem bestehenden Eintrag nehmen; leerer String = bewusst leeren.
+            var (ab, ea, fehler) = ParseDaten(new EntryDto
+            {
+                GueltigAb = dto.GueltigAb == null ? h.GueltigAb?.ToString("yyyy-MM-dd") : (dto.GueltigAb == "" ? null : dto.GueltigAb),
+                ErfahrenAm = dto.ErfahrenAm == null ? h.ErfahrenAm?.ToString("yyyy-MM-dd") : (dto.ErfahrenAm == "" ? null : dto.ErfahrenAm),
+            });
+            if (fehler != null) return fehler;
+            if (dto.GueltigAb != null) h.GueltigAb = ab;
+            if (dto.ErfahrenAm != null) h.ErfahrenAm = ea;
         }
         if (dto.Bemerkung != null) h.Bemerkung = dto.Bemerkung.Trim();
         await _db.SaveChangesAsync();

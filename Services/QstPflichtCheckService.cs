@@ -309,10 +309,13 @@ public class QstPflichtCheckService
                         OffeneQstErfassungId: offenId, QstEndeVorschlag: offenEnde, BefreiungAb: heiratBefreiungAb);
                 }
 
-                // 5. Spouse C-Ausweis (mit gültigem Ablauf)? (0a: dito)
-                bool spouseHatC = IstCAusweis(spouse.PermitType?.Code)
-                               && (spouse.PermitExpiryDate == null
-                                   || spouse.PermitExpiryDate.Value >= stichtag.ToDateTime(TimeOnly.MinValue));
+                // 5. Spouse C-Ausweis am Stichtag (Wirkung + Wissen, Walter 08.10.2026)?
+                var spousePermitHist = await _db.FamilyMemberPermitHistories.AsNoTracking()
+                    .Include(h => h.PermitType)
+                    .Where(h => h.FamilyMemberId == spouse.Id)
+                    .ToListAsync();
+                bool spouseHatC = FamilyMemberQstHistorie.SpouseHatCAmStichtag(
+                    spouse, spousePermitHist, stichtag, IstCAusweis);
 
                 // Hinweis nur, wenn die Befreiung AUSSCHLIESSLICH an der
                 // Wohnsituation scheitert — der Partner also CH-Bürger ist
@@ -636,9 +639,17 @@ public class QstPflichtCheckService
         if (isVerheiratet && (t == "A" || t == "H"))
             w.Add($"Zivilstand «verheiratet», aber Tarif {t} — für Verheiratete gilt B (Alleinverdiener) oder C (Doppelverdiener).");
 
-        if (t == "C" && spouse?.Erwerbstaetig == false)
+        // Erwerb am Stichtag aus Historie (Walter 08.10.2026), Fallback Snapshot.
+        bool? spouseErwerb = spouse?.Erwerbstaetig;
+        if (spouse != null)
+        {
+            var eh = await _db.FamilyMemberErwerbHistories.AsNoTracking()
+                .Where(h => h.FamilyMemberId == spouse.Id).ToListAsync();
+            spouseErwerb = FamilyMemberQstHistorie.ErwerbstaetigAmStichtag(spouse, eh, stichtag);
+        }
+        if (t == "C" && spouseErwerb == false)
             w.Add("Tarif C (Doppelverdiener), aber der Ehepartner ist als NICHT erwerbstätig erfasst — Tarif B prüfen.");
-        if (t == "B" && spouse?.Erwerbstaetig == true)
+        if (t == "B" && spouseErwerb == true)
             w.Add("Tarif B (Alleinverdiener), aber der Ehepartner ist erwerbstätig — Tarif C prüfen.");
 
         if (t == "H" && !isVerheiratet)
