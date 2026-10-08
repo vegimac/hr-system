@@ -13096,6 +13096,32 @@ const stempelOriginalTimes = (r) => {
     }
     return { in: tin, out: tout };
 };
+
+/** Kurzer Korrekturtext für die Stempel-Tabelle (Walter 08.10.2026). */
+function stempelKorrekturKurz(r) {
+    const jetztIn  = stempelFmtTime(r.timeIn);
+    const jetztAus = stempelFmtTime(r.timeOut);
+    const orig = stempelOriginalTimes(r);
+    const teile = [];
+    const einGleich = !orig.in || !jetztIn || orig.in === jetztIn;
+    const ausGleich = (!orig.out && !jetztAus) || (orig.out && jetztAus && orig.out === jetztAus);
+    if (!orig.out && jetztAus) teile.push(`offen → Aus ${jetztAus}`);
+    else if (orig.out && !jetztAus) teile.push(`Aus ${orig.out} → offen`);
+    else if (!einGleich && !ausGleich)
+        teile.push(`${orig.in || '–'}–${orig.out || '–'} → ${jetztIn || '–'}–${jetztAus || '–'}`);
+    else if (!ausGleich && orig.out && jetztAus) teile.push(`Aus ${orig.out} → ${jetztAus}`);
+    else if (!einGleich && orig.in && jetztIn) teile.push(`Ein ${orig.in} → ${jetztIn}`);
+    else if (jetztIn || jetztAus) teile.push(`korrigiert ${[jetztIn, jetztAus].filter(Boolean).join('–')}`);
+    else teile.push('korrigiert');
+    if (r.editedAt) {
+        const d = new Date(r.editedAt);
+        if (!isNaN(d)) teile.push(d.toLocaleDateString('de-CH'));
+    }
+    if (r.editedBy) teile.push(`von ${r.editedBy}`);
+    const kommentar = (r.comment || '').trim();
+    if (kommentar) teile.push(`«${kommentar}»`);
+    return teile.join(' · ');
+}
 // Verlauf eines Stempels live aus easy@work (Kommentare + Änderungsprotokoll).
 // Felder der Einträge sind nicht dokumentiert → generisch anzeigen, Rohdaten aufklappbar.
 async function stempelEasyVerlauf(entryId) {
@@ -13549,10 +13575,11 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
             weekBadge = `<span class="stempel-week-badge" title="Wochentotal Mo–So (gestempelt)${maxWeekly != null ? ' · Max ' + stempelFmtHours(maxWeekly) + ' h' : ''}">${kwLabel}${hrsLabel}</span>`;
         }
 
-        // Korrekturzeile (oben): geänderte Werte markiert, Kommentar mit Audit.
+        // Korrektur: kurze Zusammenfassung statt «geändert von…» + Original-Zeile
+        // (Walter 08.10.2026 — wie im easy@work-Verlauf gelesen).
         const timeCls = wasEdited ? ' stempel-time-edited' : '';
         const korrekturKommentar = wasEdited
-            ? `${esc(r.comment || '')}${r.comment ? ' · ' : ''}<span class="stempel-edit-meta" style="cursor:pointer;text-decoration:underline dotted" title="Kommentare und Verlauf aus easy@work anzeigen" onclick="stempelEasyVerlauf(${r.id})">geändert${r.editedAt ? ' ' + new Date(r.editedAt).toLocaleDateString('de-CH') : ''}${r.editedBy ? ' von ' + esc(r.editedBy) : ''}</span>`
+            ? `<span class="stempel-edit-meta" style="cursor:pointer;text-decoration:underline dotted" title="Kommentare und Verlauf aus easy@work anzeigen" onclick="stempelEasyVerlauf(${r.id})">${esc(stempelKorrekturKurz(r))}</span>`
             : esc(r.comment);
 
         // Kommentar-Zelle: Kommentar + (optional) Wochentotal direkt dahinter.
@@ -13573,7 +13600,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         // Edit-/Löschen-Buttons mehr — easy@work ist die Quelle der Wahrheit.
 
         const totalRow = stempelFmtHours(absH(r));
-        const mainRow = `
+        return `
             <tr class="${rowCls}" data-row-id="${r.id}">
                 <td class="stempel-td stempel-td-date">${stempelFmtDate(r.entryDate)}</td>
                 <td class="stempel-td stempel-td-time${timeCls}">${stempelFmtTime(r.timeIn)}</td>
@@ -13583,26 +13610,6 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
                 <td class="stempel-td stempel-td-num stempel-td-total">${totalRow}</td>
                 <td class="stempel-td stempel-td-comment">${kommentarCell}</td>
             </tr>`;
-
-        if (!wasEdited) return mainRow;
-
-        // Original-Zeile direkt darunter (Pfeil ↳ zur Korrektur).
-        // Zeiten aus DB-Feldern, Fallback Audit-Text im Kommentar.
-        const orig = stempelOriginalTimes(r);
-        // Nachträglich von Hand erfasst: keine Originalzeit — Zeile weglassen statt «— —».
-        if (!orig.in && !orig.out && !r.originalComment) return mainRow;
-        const origInShow  = orig.in  || '—';
-        const origOutShow = orig.out || '—';
-        const origRow = `
-            <tr class="stempel-orig-row${isLastOfWeek ? ' stempel-row-week-end' : ''}">
-                <td class="stempel-td stempel-orig-label">↳ Original</td>
-                <td class="stempel-td stempel-td-time stempel-orig-time">${origInShow}</td>
-                <td class="stempel-td stempel-td-time stempel-orig-time">${origOutShow}</td>
-                <td class="stempel-td stempel-orig-spacer" colspan="3"></td>
-                <td class="stempel-td stempel-orig-comment">${esc(r.originalComment || '')}</td>
-            </tr>`;
-
-        return mainRow + origRow;
     }).join('');
 
     const empty = sorted.length === 0
