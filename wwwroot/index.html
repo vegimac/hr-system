@@ -2659,7 +2659,7 @@
                             </div>
                             <div>
                                 <div class="hr-card-title" data-i18n="hr.card.reporting">Auswertungen / Reporting</div>
-                                <div class="hr-card-status" style="color:#15803d">5 Reports verfügbar — Zeile anklicken</div>
+                                <div class="hr-card-status" style="color:#15803d">6 Reports verfügbar — Zeile anklicken</div>
                             </div>
                         </div>
                         <ul>
@@ -2668,6 +2668,7 @@
                             <li style="cursor:pointer" onclick="showPage('exit-survey-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Austritts-Feedback</b>: anonyme Fragebogen-Antworten (Filiale, Note, Gründe) <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li style="cursor:pointer" onclick="showPage('wochenstunden-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Ø Wochenstunden</b>: gestempelte Stunden pro MA, Zeitraum frei — Sidebar-Filiale oder alle <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li style="cursor:pointer" onclick="showPage('mtp-stunden-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>MTP-Stunden-Kontrolle</b>: Garantie vs. Ist pro Woche inkl. Absenzen — Sidebar-Filiale <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
+                            <li style="cursor:pointer" onclick="showPage('stempel-filialvergleich')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Stempelzeiten alle Filialen</b>: Korrekturen und Arbeitszeit-Verstösse pro 100 Stempel, Verlauf und Übersicht, Zeitraum frei <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li class="hr-idea"><b>Personalbestand</b>: FTE / Headcount pro Filiale</li>
                             <li class="hr-idea">Verteilung Vertragstyp (FIX / MTP / FLEX)</li>
                             <li class="hr-idea">Eintritte / Austritte pro Monat (Trendlinie)</li>
@@ -3836,6 +3837,34 @@
                 body.theme-dark .szb-ma-kopf { background:rgba(51,65,85,0.7); }
                 body.theme-dark .szb-ma-name, body.theme-dark .szb-tag span, body.theme-dark .szb-jetzt, body.theme-dark .szb-zahl { color:#f1f5f9; }
                 body.theme-dark .szb-text, body.theme-dark .szb-kachel span, body.theme-dark .szb-summe { color:#cbd5e1; }
+                .szf-raster { display:grid; grid-template-columns:repeat(auto-fit, minmax(440px, 1fr)); gap:14px; }
+                .szf-karte { background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.75); border-radius:16px; box-shadow:0 8px 24px rgba(60,55,48,0.08); padding:14px 16px; margin-bottom:14px; }
+                .szf-titel { font-size:14px; font-weight:760; color:#1a1a1a; margin-bottom:10px; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
+                .szf-titel span { font-size:11.5px; font-weight:500; color:#8b8b8b; }
+                .szf-legende { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+                .szf-zeile { display:grid; grid-template-columns:130px 1fr 44px 110px; align-items:center; gap:10px; padding:5px 4px; border-radius:8px; cursor:pointer; }
+                .szf-zeile:hover { background:rgba(60,55,48,0.05); }
+                .szf-name { font-size:13px; font-weight:650; color:#3f3f3f; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+                .szf-bahn { position:relative; height:20px; background:rgba(60,55,48,0.06); border-radius:6px; display:flex; overflow:hidden; }
+                .szf-teil { height:100%; }
+                .szf-schnitt { position:absolute; top:-2px; bottom:-2px; border-left:2px dashed #3f3f3f; opacity:0.55; }
+                .szf-wert { font-size:14px; font-weight:760; color:#1a1a1a; text-align:right; font-variant-numeric:tabular-nums; }
+                .szf-roh { font-size:11.5px; color:#8b8b8b; font-variant-numeric:tabular-nums; }
+                .szf-tab { width:auto; border-collapse:collapse; font-size:12.5px; }
+                .szf-tab td.r, .szf-tab th.r { padding-left:14px; }
+                .szf-tab th { text-align:left; font-size:11px; font-weight:700; color:#646464; padding:6px 6px; border-bottom:1px solid #e2ddd3; vertical-align:bottom; }
+                .szf-tab td { padding:6px 6px; border-bottom:1px solid #f0ebe3; color:#3f3f3f; font-variant-numeric:tabular-nums; }
+                .szf-tab .r { text-align:right; }
+                .szf-tab th.szf-dreh { height:120px; width:30px; padding:4px 2px; }
+                .szf-tab th.szf-dreh span { writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap; display:inline-block; }
+                .szf-tab td.szf-heat { text-align:center; background:color-mix(in srgb, var(--f) calc(var(--a) * 100%), transparent); font-weight:650; }
+                .szf-tab td.szf-aus { text-align:center; color:#b8b2a7; font-size:11px; }
+                .szf-tab td.szf-fil { font-weight:650; white-space:nowrap; }
+                .szf-tab a { color:#1a1a1a; text-decoration:underline; text-decoration-color:rgba(60,55,48,0.3); }
+                .szf-tab tr.szf-total td { font-weight:700; border-top:2px solid #e2ddd3; border-bottom:none; }
+                body.theme-dark .szf-karte { background:rgba(30,41,59,0.6); border-color:rgba(255,255,255,0.08); }
+                body.theme-dark .szf-titel, body.theme-dark .szf-wert, body.theme-dark .szf-tab a { color:#f1f5f9; }
+                body.theme-dark .szf-name, body.theme-dark .szf-tab td { color:#cbd5e1; }
             </style>
             <div class="page fixhead" id="page-stempel-verstoesse">
                 <div class="page-head"><div>
@@ -3885,6 +3914,29 @@
                         </div>
                     </div>
                     <div id="szkResult"></div>
+                </div>
+            </div>
+            <div class="page fixhead" id="page-stempel-filialvergleich">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Stempelzeiten alle Filialen</h1>
+                    <p class="page-sub">Korrekturen und Arbeitszeit-Verstösse pro 100 Stempel im Vergleich · Filiale anklicken öffnet den Einzelbericht.</p>
+                </div></div>
+                <div class="page-body">
+                    <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+                        <button type="button" class="szb-glas" onclick="showPage('hr-hub')" style="align-self:center">← Zurück</button>
+                        <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Von</div><input type="date" id="szfFrom" class="ma-input" onchange="szfLoad()"></div>
+                        <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Bis</div><input type="date" id="szfTo" class="ma-input" onchange="szfLoad()"></div>
+                        <div class="szb-schnell">
+                            <button type="button" onclick="szfZeitraum('vormonat')">Vormonat</button>
+                            <button type="button" onclick="szfZeitraum('monat')">Dieser Monat</button>
+                            <button type="button" onclick="szfZeitraum('drei')">3 Monate</button>
+                            <button type="button" onclick="szfZeitraum('jahr')">Dieses Jahr</button>
+                        </div>
+                        <div style="margin-left:auto;display:flex;gap:8px;align-self:center">
+                            <button type="button" class="szb-kohle" onclick="szfLoad()">Aktualisieren</button>
+                        </div>
+                    </div>
+                    <div id="szfResult"></div>
                 </div>
             </div>
 
@@ -10225,7 +10277,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261008a"></script>
+<script src="js/app-core.js?v=20261008b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10303,7 +10355,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/stempel-berichte.js?v=20261007d"></script>
+<script src="js/stempel-berichte.js?v=20261008a"></script>
 <script src="js/swissdec.js?v=20260930c"></script>
 <script src="js/swissdec-komm.js?v=20261002a"></script>
 <script src="js/swissdec-uebermittlung.js?v=20261002b"></script>
@@ -10318,7 +10370,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/elm-lohnraster.js?v=20260921a"></script>
 <script src="js/lohnschema.js?v=20260819d"></script>
 <script src="js/global-search.js?v=20260901a"></script>
-<script src="js/help-panel.js?v=20261007b"></script>
+<script src="js/help-panel.js?v=20261008a"></script>
 <script src="js/i18n.js?v=20260923b"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">

@@ -21,7 +21,8 @@ public record StempelKorrekturMa(int EmployeeId, string? Nummer, string? Vorname
                                  List<StempelKorrekturZeile> Zeilen);
 public record StempelAnzahl(string Name, int Anzahl);
 public record StempelKorrekturenDaten(string Filiale, DateOnly Von, DateOnly Bis, int StempelTotal, int Korrigiert,
-                                      List<StempelAnzahl> ProBearbeiter, List<StempelKorrekturMa> Mitarbeiter);
+                                      List<StempelAnzahl> ProBearbeiter, List<StempelKorrekturMa> Mitarbeiter,
+                                      Dictionary<string, int>? StempelProMonat = null);
 
 /// <summary>PDFs der McAdmin-Stempelberichte (Walter 07.10.2026) — A4 hoch, Karten pro MA.</summary>
 public class StempelBerichtPdfService

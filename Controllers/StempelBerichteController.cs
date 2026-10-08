@@ -70,14 +70,8 @@ public class StempelBerichteController : HrControllerBase
         if (profil == null)
             return (NotFound(new { error = "FILIALE_NICHT_GEFUNDEN", message = "Filiale nicht gefunden." }), null);
 
-        var heute = DateOnly.FromDateTime(DateTime.Today);
-        var vormonat = new DateOnly(heute.Year, heute.Month, 1).AddMonths(-1);
-        var von = DateOnly.TryParse(from, out var f) ? f : vormonat;
-        var bis = DateOnly.TryParse(to, out var t) ? t : vormonat.AddMonths(1).AddDays(-1);
-        if (bis < von)
-            return (BadRequest(new { error = "ZEITRAUM", message = "«Bis» liegt vor «Von»." }), null);
-        if (bis > von.AddYears(1))
-            return (BadRequest(new { error = "ZEITRAUM", message = "Höchstens ein Jahr auf einmal." }), null);
+        var (zeitFehler, von, bis) = Zeitraum(from, to);
+        if (zeitFehler != null) return (zeitFehler, null);
 
         var vonDt = von.ToDateTime(TimeOnly.MinValue);
         var bisDt = bis.ToDateTime(TimeOnly.MinValue);
@@ -90,6 +84,19 @@ public class StempelBerichteController : HrControllerBase
             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
         if (titel.Length == 0) titel = profil.BranchName ?? "";
         return (null, new Rahmen(cp, titel, von, bis, vertragIds));
+    }
+
+    (IActionResult? Fehler, DateOnly Von, DateOnly Bis) Zeitraum(string? from, string? to)
+    {
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        var vormonat = new DateOnly(heute.Year, heute.Month, 1).AddMonths(-1);
+        var von = DateOnly.TryParse(from, out var f) ? f : vormonat;
+        var bis = DateOnly.TryParse(to, out var t) ? t : vormonat.AddMonths(1).AddDays(-1);
+        if (bis < von)
+            return (BadRequest(new { error = "ZEITRAUM", message = "«Bis» liegt vor «Von»." }), von, bis);
+        if (bis > von.AddYears(1))
+            return (BadRequest(new { error = "ZEITRAUM", message = "Höchstens ein Jahr auf einmal." }), von, bis);
+        return (null, von, bis);
     }
 
     record MaKopf(int Id, string? Nummer, string? Vorname, string? Nachname, DateTime? Geburt);
@@ -201,7 +208,11 @@ public class StempelBerichteController : HrControllerBase
             .Where(t => t.EntryDate >= r.Von && t.EntryDate <= r.Bis
                      && (t.SourceCompanyProfileId == r.Cp
                          || (t.SourceCompanyProfileId == null && vertrag.Contains(t.EmployeeId))));
-        int total = await basis.CountAsync();
+        var proTag = await basis.GroupBy(t => t.EntryDate)
+            .Select(g => new { Tag = g.Key, Anzahl = g.Count() }).ToListAsync();
+        int total = proTag.Sum(x => x.Anzahl);
+        var proMonat = proTag.GroupBy(x => x.Tag.ToString("yyyy-MM"))
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Anzahl));
         var roh = await basis
             .Where(t => t.EditedBy != null || t.OriginalTimeIn != null || t.OriginalTimeOut != null
                      || (t.Comment != null && t.Comment != ""))
@@ -237,7 +248,62 @@ public class StempelBerichteController : HrControllerBase
             .Select(g => new StempelAnzahl(g.Key, g.Count()))
             .OrderByDescending(x => x.Anzahl).ThenBy(x => x.Name).ToList();
         return (null, new StempelKorrekturenDaten(r.Filiale, r.Von, r.Bis, total,
-            gruppen.Sum(g => g.Zeilen.Count), proBearbeiter, gruppen));
+            gruppen.Sum(g => g.Zeilen.Count), proBearbeiter, gruppen, proMonat));
+    }
+
+    // ── Filialvergleich (HR-Hub → Auswertungen, Walter 08.10.2026) ───────
+    // Rechnet pro Filiale exakt die beiden Einzelberichte — die Zahlen müssen
+    // mit «Korrekturen Stempelzeiten» / «Arbeitszeit-Verstösse» übereinstimmen.
+
+    [HttpGet("stempel-filialvergleich")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> Filialvergleich([FromQuery] string? from, [FromQuery] string? to)
+    {
+        var (zeitFehler, von, bis) = Zeitraum(from, to);
+        if (zeitFehler != null) return zeitFehler;
+        var vonIso = von.ToString("yyyy-MM-dd");
+        var bisIso = bis.ToString("yyyy-MM-dd");
+
+        var monate = new List<string>();
+        for (var m = new DateOnly(von.Year, von.Month, 1); m <= bis; m = m.AddMonths(1))
+            monate.Add(m.ToString("yyyy-MM"));
+
+        var filialIds = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.IsActive).Select(c => c.Id).ToListAsync();
+        var zeilen = new List<StempelFilialZeile>();
+        var ohneStempel = new List<string>();
+        foreach (var id in filialIds)
+        {
+            if (!await CanAccessBranchAsync(id)) continue;
+            var (fk, k) = await KorrekturenAsync(id, vonIso, bisIso);
+            var (fv, v) = await VerstoesseAsync(id, vonIso, bisIso);
+            if (fk != null || fv != null) continue;
+
+            var korrekturen = k!.Mitarbeiter.SelectMany(m => m.Zeilen).ToList();
+            var verstoesse = v!.Mitarbeiter.SelectMany(m => m.Verstoesse).ToList();
+            if (k.StempelTotal == 0 && verstoesse.Count == 0)
+            {
+                ohneStempel.Add(k.Filiale);
+                continue;
+            }
+
+            var aktiv = v.ProArt.Select(a => a.Art).ToHashSet();
+            var proMonat = monate.Select(mo => new StempelFilialMonat(mo,
+                k.StempelProMonat?.GetValueOrDefault(mo) ?? 0,
+                korrekturen.Count(z => z.Tag.ToString("yyyy-MM") == mo),
+                verstoesse.Count(x => x.Bis.ToString("yyyy-MM") == mo))).ToList();
+
+            zeilen.Add(new StempelFilialZeile(id, k.Filiale, k.StempelTotal, k.Korrigiert, k.Mitarbeiter.Count,
+                korrekturen.GroupBy(z => z.Art).ToDictionary(g => g.Key, g => g.Count()),
+                v.AnzahlMa, verstoesse.Count, v.Mitarbeiter.Count,
+                v.ProArt.ToDictionary(a => a.Art, a => a.Anzahl),
+                V.Reihenfolge.Where(a => !aktiv.Contains(a)).ToList(),
+                proMonat));
+        }
+
+        var arten = V.Reihenfolge.Select(a => new StempelFilialArt(a, V.Titel(a), V.Beschreibung(a))).ToList();
+        return Ok(new StempelFilialvergleichDaten(von, bis, arten,
+            zeilen.OrderBy(z => z.Filiale, StringComparer.OrdinalIgnoreCase).ToList(), ohneStempel));
     }
 
     static bool GleicheMinute(DateTime? a, DateTime? b) =>
@@ -258,3 +324,11 @@ public class StempelBerichteController : HrControllerBase
         catch { return TimeZoneInfo.Local; }
     }
 }
+
+public record StempelFilialMonat(string Monat, int Stempel, int Korrigiert, int Verstoesse);
+public record StempelFilialZeile(int Id, string Filiale, int Stempel, int Korrigiert, int MaMitKorrektur,
+    Dictionary<string, int> KorrekturProArt, int AnzahlMa, int Verstoesse, int MaMitVerstoss,
+    Dictionary<string, int> VerstossProArt, List<string> VerstossAus, List<StempelFilialMonat> ProMonat);
+public record StempelFilialArt(string Art, string Titel, string Regel);
+public record StempelFilialvergleichDaten(DateOnly Von, DateOnly Bis, List<StempelFilialArt> VerstossArten,
+    List<StempelFilialZeile> Filialen, List<string> OhneStempel);
