@@ -190,6 +190,33 @@ public class StempelBerichtPdfService
                         });
                     }
                 });
+                var topMa = d.Mitarbeiter.Where(m => m.Zeilen.Count > 0)
+                    .OrderByDescending(m => m.Zeilen.Count)
+                    .ThenBy(m => m.Vorname, StringComparer.OrdinalIgnoreCase)
+                    .Take(3).ToList();
+                if (topMa.Count > 0)
+                    col.Item().Element(Karte).Column(k =>
+                    {
+                        k.Spacing(3);
+                        KartenTitel(k, "Meiste Korrekturen in dieser Filiale · Rang 1–3", "");
+                        k.Item().Row(r =>
+                        {
+                            r.Spacing(8);
+                            for (int i = 0; i < topMa.Count; i++)
+                            {
+                                var m = topMa[i];
+                                r.RelativeItem().Border(0.5f).BorderColor(Line).Background(i == 0 ? "#f5efe4" : Soft)
+                                    .Padding(6).AlignCenter().Column(c =>
+                                    {
+                                        c.Item().Text($"{i + 1}.").Bold().FontSize(11f).FontColor(i == 0 ? "#b45309" : Ink);
+                                        c.Item().Text(Name(m.Vorname, m.Nachname)).SemiBold().FontSize(9f);
+                                        c.Item().Text(m.Zeilen.Count.ToString()).Bold().FontSize(14f).FontColor(Ink);
+                                        if (!string.IsNullOrWhiteSpace(m.Nummer))
+                                            c.Item().Text(m.Nummer).FontSize(7f).FontColor(Muted);
+                                    });
+                            }
+                        });
+                    });
                 if (d.ProBearbeiter.Count > 0)
                     col.Item().Text(t =>
                     {
@@ -275,33 +302,6 @@ public class StempelBerichtPdfService
                     Kennzahl(r.RelativeItem(), Zahl(schnittV), $"Verstösse pro 100 Stempel · {verst} total");
                     Kennzahl(r.RelativeItem(), d.Filialen.Count.ToString(), "Filialen mit Stempeln");
                 });
-
-                var top = d.Filialen.Where(f => f.Korrigiert > 0)
-                    .Select(f => (f.Filiale, Pro100: Pro100(f.Korrigiert, f.Stempel), f.Korrigiert, f.Stempel))
-                    .OrderByDescending(x => x.Pro100).ThenByDescending(x => x.Korrigiert)
-                    .ThenBy(x => x.Filiale, StringComparer.OrdinalIgnoreCase).Take(3).ToList();
-                if (top.Count > 0)
-                    col.Item().Element(Karte).Column(k =>
-                    {
-                        k.Spacing(3);
-                        KartenTitel(k, "Meiste Korrekturen · Rang 1–3", "pro 100 Stempel");
-                        k.Item().Row(r =>
-                        {
-                            r.Spacing(8);
-                            for (int i = 0; i < top.Count; i++)
-                            {
-                                var t = top[i];
-                                r.RelativeItem().Border(0.5f).BorderColor(Line).Background(i == 0 ? "#f5efe4" : Soft)
-                                    .Padding(6).AlignCenter().Column(c =>
-                                    {
-                                        c.Item().Text($"{i + 1}.").Bold().FontSize(11f).FontColor(i == 0 ? "#b45309" : Ink);
-                                        c.Item().Text(t.Filiale).SemiBold().FontSize(9f);
-                                        c.Item().Text(Zahl(t.Pro100)).Bold().FontSize(14f).FontColor(Ink);
-                                        c.Item().Text($"{t.Korrigiert} / {t.Stempel}").FontSize(7f).FontColor(Muted);
-                                    });
-                            }
-                        });
-                    });
 
                 col.Item().Row(r =>
                 {

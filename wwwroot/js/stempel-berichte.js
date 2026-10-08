@@ -244,7 +244,7 @@ function szkRender() {
             onclick: m.employeeId ? `dashOpenEmployee(${m.employeeId},'stempelzeiten')` : '',
             title: 'Mitarbeiter öffnen',
         }));
-    html += _szPodium('Meiste Korrekturen · Rang 1–3', topMa);
+    html += _szPodium('Meiste Korrekturen in dieser Filiale · Rang 1–3', topMa);
     html += '<div class="szb-kacheln">' + Object.entries(_SZK_ART).map(([a, t]) => {
         const n = alle.filter(z => z.art === a).length;
         return `<button type="button" class="szb-kachel${_szkFilter === a ? ' aktiv' : ''}${n ? '' : ' null'}" style="--f:${_SZ_FARBE[a]}" onclick="szkFilter('${a}')"><b>${n}</b><span>${t}</span></button>`;
@@ -438,18 +438,6 @@ function szfRender() {
 
     let html = `<div class="szb-summe"><div class="szb-zahl">${_szfZahl(schnittK)}</div><div>Korrekturen pro 100 Stempel über alle Filialen · <b>${korr}</b> von <b>${stempel}</b> Stempeln<br>
         <span>${verst} Verstösse (${_szfZahl(schnittV)} pro 100 Stempel) · ${d.filialen.length} Filialen · ${_szDatum(d.von)} – ${_szDatum(d.bis)}</span></div></div>`;
-    const topFil = [...d.filialen].filter(f => f.korrigiert > 0)
-        .map(f => ({ f, pro100: _szfPro100(f.korrigiert, f.stempel) }))
-        .sort((a, b) => b.pro100 - a.pro100 || b.f.korrigiert - a.f.korrigiert || a.f.filiale.localeCompare(b.f.filiale, 'de'))
-        .slice(0, 3)
-        .map(({ f, pro100 }) => ({
-            name: f.filiale,
-            wert: _szfZahl(pro100),
-            unter: `${f.korrigiert} von ${f.stempel} Stempeln · pro 100`,
-            onclick: `szfOeffnen(${f.id},'korrekturen')`,
-            title: `Korrekturen ${f.filiale} öffnen`,
-        }));
-    html += _szPodium('Meiste Korrekturen · Rang 1–3 (pro 100 Stempel)', topFil);
     html += '<div class="szf-raster">';    html += _szfBalken('Korrekturen pro 100 Stempel', d.filialen,
         f => Object.keys(_SZK_ART).map(a => ({ art: a, n: f.korrekturProArt[a] || 0 })),
         a => _SZ_FARBE[a], a => _SZK_ART[a], schnittK, 'korrekturen',
