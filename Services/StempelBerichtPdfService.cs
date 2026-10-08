@@ -24,6 +24,14 @@ public record StempelKorrekturenDaten(string Filiale, DateOnly Von, DateOnly Bis
                                       List<StempelAnzahl> ProBearbeiter, List<StempelKorrekturMa> Mitarbeiter,
                                       Dictionary<string, int>? StempelProMonat = null);
 
+public record StempelFilialMonat(string Monat, int Stempel, int Korrigiert, int Verstoesse);
+public record StempelFilialZeile(int Id, string Filiale, int Stempel, int Korrigiert, int MaMitKorrektur,
+    Dictionary<string, int> KorrekturProArt, int AnzahlMa, int Verstoesse, int MaMitVerstoss,
+    Dictionary<string, int> VerstossProArt, List<string> VerstossAus, List<StempelFilialMonat> ProMonat);
+public record StempelFilialArt(string Art, string Titel, string Regel);
+public record StempelFilialvergleichDaten(DateOnly Von, DateOnly Bis, List<StempelFilialArt> VerstossArten,
+    List<StempelFilialZeile> Filialen, List<string> OhneStempel);
+
 /// <summary>PDFs der McAdmin-Stempelberichte (Walter 07.10.2026) — A4 hoch, Karten pro MA.</summary>
 public class StempelBerichtPdfService
 {
@@ -235,9 +243,290 @@ public class StempelBerichtPdfService
         })).GeneratePdf();
     }
 
-    static void Seite(PageDescriptor page, string titel, string filiale, DateOnly von, DateOnly bis)
+    static readonly string[] Linie = { "#0ea5e9", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4", "#f97316", "#84cc16", "#ec4899", "#6366f1" };
+    static readonly string[] Monat = { "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez" };
+    static double Pro100(int n, int stempel) => stempel == 0 ? 0 : n * 100.0 / stempel;
+    static string Zahl(double x) => x.ToString("0.0");
+    static string MonatKurz(string jjjjMm) => $"{Monat[int.Parse(jjjjMm[5..7]) - 1]} {jjjjMm[2..4]}";
+
+    /// <summary>HR-Hub «Stempelzeiten alle Filialen» (Walter 08.10.2026) — A4 quer, gleiche Zahlen wie der Bildschirm.</summary>
+    public byte[] Filialvergleich(StempelFilialvergleichDaten d)
     {
-        page.Size(PageSizes.A4);
+        QuestPDF.Settings.License = LicenseType.Community;
+        int stempel = d.Filialen.Sum(f => f.Stempel), korr = d.Filialen.Sum(f => f.Korrigiert), verst = d.Filialen.Sum(f => f.Verstoesse);
+        double schnittK = Pro100(korr, stempel), schnittV = Pro100(verst, stempel);
+        var artTitel = d.VerstossArten.ToDictionary(a => a.Art, a => a.Titel);
+
+        return Document.Create(doc => doc.Page(page =>
+        {
+            Seite(page, "Stempelzeiten alle Filialen", "Filialvergleich", d.Von, d.Bis, quer: true);
+            page.Content().Column(col =>
+            {
+                col.Spacing(10);
+                if (d.Filialen.Count == 0)
+                {
+                    col.Item().PaddingTop(20).AlignCenter().Text("Keine Stempel im Zeitraum.").FontSize(11f).FontColor(Muted);
+                    return;
+                }
+
+                col.Item().Row(r =>
+                {
+                    Kennzahl(r.RelativeItem(), Zahl(schnittK), $"Korrekturen pro 100 Stempel · {korr} von {stempel}");
+                    Kennzahl(r.RelativeItem(), Zahl(schnittV), $"Verstösse pro 100 Stempel · {verst} total");
+                    Kennzahl(r.RelativeItem(), d.Filialen.Count.ToString(), "Filialen mit Stempeln");
+                });
+
+                col.Item().Row(r =>
+                {
+                    r.Spacing(12);
+                    BalkenKarte(r.RelativeItem(), "Korrekturen pro 100 Stempel", schnittK, d.Filialen,
+                        f => KorrekturArt.Keys.Select(a => (a, f.KorrekturProArt.GetValueOrDefault(a))).ToList(),
+                        a => KorrekturArt[a], f => $"{f.Korrigiert} / {f.Stempel}");
+                    BalkenKarte(r.RelativeItem(), "Verstösse pro 100 Stempel", schnittV, d.Filialen,
+                        f => d.VerstossArten.Select(a => (a.Art, f.VerstossProArt.GetValueOrDefault(a.Art))).ToList(),
+                        a => artTitel.GetValueOrDefault(a, a), f => $"{f.Verstoesse} bei {f.MaMitVerstoss} MA");
+                });
+
+                col.Item().PageBreak();
+                col.Item().Element(Karte).Column(k =>
+                {
+                    k.Spacing(4);
+                    KartenTitel(k, "Übersicht aller Filialen", "Farbe = Häufung innerhalb der Spalte · «aus» = Regel in der Filiale ausgeschaltet");
+                    k.Item().Element(c => Uebersicht(c, d));
+                });
+
+                var svg = VerlaufSvg(d);
+                if (svg != null)
+                    col.Item().ShowEntire().Element(Karte).Column(k =>
+                    {
+                        k.Spacing(4);
+                        KartenTitel(k, "Verlauf: Korrekturen pro 100 Stempel", "pro Monat · Monat ohne Stempel = Lücke");
+                        k.Item().Inlined(i =>
+                        {
+                            i.Spacing(8);
+                            for (int fi = 0; fi < d.Filialen.Count; fi++)
+                                i.Item().Text(t =>
+                                {
+                                    t.Span("■ ").FontColor(Linie[fi % Linie.Length]);
+                                    t.Span(d.Filialen[fi].Filiale).FontSize(7.5f);
+                                });
+                        });
+                        k.Item().Svg(svg).FitWidth();
+                    });
+
+                col.Item().Element(c => Rechenweg(c, d));
+            });
+        })).GeneratePdf();
+    }
+
+    static IContainer Karte(IContainer c) =>
+        c.Background(Soft).Border(0.5f).BorderColor(Line).Padding(8);
+
+    static void KartenTitel(ColumnDescriptor k, string titel, string zusatz) =>
+        k.Item().Text(t =>
+        {
+            t.Span(titel).Bold().FontSize(10f).FontColor(Ink);
+            t.Span("   " + zusatz).FontSize(7f).FontColor(Muted);
+        });
+
+    static void Kennzahl(IContainer c, string zahl, string text) =>
+        c.Padding(2).Background(Soft).Border(0.5f).BorderColor(Line).Padding(6).Column(k =>
+        {
+            k.Item().Text(zahl).Bold().FontSize(16f).FontColor(Ink);
+            k.Item().Text(text).FontSize(7.5f);
+        });
+
+    static void BalkenKarte(IContainer c, string titel, double schnitt, List<StempelFilialZeile> filialen,
+        Func<StempelFilialZeile, List<(string Art, int N)>> teileVon, Func<string, string> artName,
+        Func<StempelFilialZeile, string> roh)
+    {
+        var zeilen = filialen.Select(f =>
+        {
+            var teile = teileVon(f).Where(t => t.N > 0).Select(t => (t.Art, W: Pro100(t.N, f.Stempel))).ToList();
+            return (F: f, Teile: teile, Wert: teile.Sum(t => t.W));
+        }).OrderByDescending(z => z.Wert).ToList();
+        double max = Math.Max(1, Math.Max(schnitt, zeilen.Max(z => z.Wert))) * 1.08;
+        var arten = zeilen.SelectMany(z => z.Teile.Select(t => t.Art)).Distinct().ToList();
+
+        c.Element(Karte).Column(k =>
+        {
+            k.Spacing(4);
+            KartenTitel(k, titel, $"Ø alle Filialen {Zahl(schnitt)} · senkrechte Linie");
+            if (arten.Count > 0)
+                k.Item().Inlined(i =>
+                {
+                    i.Spacing(6);
+                    foreach (var a in arten)
+                        i.Item().Text(t =>
+                        {
+                            t.Span("■ ").FontColor(Farbe.GetValueOrDefault(a, "#6b7280"));
+                            t.Span(artName(a)).FontSize(6.5f);
+                        });
+                });
+            foreach (var z in zeilen)
+                k.Item().PaddingVertical(1.5f).Row(r =>
+                {
+                    r.ConstantItem(78).AlignMiddle().Text(z.F.Filiale).SemiBold().FontSize(8f).FontColor(Body);
+                    r.RelativeItem().AlignMiddle().Height(10).Layers(l =>
+                    {
+                        l.PrimaryLayer().Background("#e9e5dc").Row(b =>
+                        {
+                            double rest = max;
+                            foreach (var t in z.Teile)
+                            {
+                                b.RelativeItem((float)t.W).Height(10).Background(Farbe.GetValueOrDefault(t.Art, "#6b7280"));
+                                rest -= t.W;
+                            }
+                            if (rest > 0.0001) b.RelativeItem((float)rest);
+                        });
+                        l.Layer().Row(b =>
+                        {
+                            if (schnitt > 0.0001) b.RelativeItem((float)schnitt);
+                            b.ConstantItem(1.2f).Height(10).Background(Ink);
+                            if (max - schnitt > 0.0001) b.RelativeItem((float)(max - schnitt));
+                        });
+                    });
+                    r.ConstantItem(30).AlignMiddle().AlignRight().Text(Zahl(z.Wert)).Bold().FontSize(9f).FontColor(Ink);
+                    r.ConstantItem(70).AlignMiddle().PaddingLeft(6).Text(roh(z.F)).FontSize(7f).FontColor(Muted);
+                });
+        });
+    }
+
+    static string? VerlaufSvg(StempelFilialvergleichDaten d)
+    {
+        var monate = d.Filialen[0].ProMonat.Select(m => m.Monat).ToList();
+        if (monate.Count < 2) return null;
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        string F(double v) => v.ToString("0.#", ci);
+        const double W = 760, H = 125, L = 34, R = 12, T = 8, B = 20;
+        var punkte = d.Filialen.Select(f => f.ProMonat.Select(m => m.Stempel > 0 ? Pro100(m.Korrigiert, m.Stempel) : (double?)null).ToList()).ToList();
+        double max = Math.Max(1, punkte.SelectMany(p => p).Where(v => v != null).Select(v => v!.Value).DefaultIfEmpty(0).Max()) * 1.1;
+        double X(int i) => L + (W - L - R) * i / (monate.Count - 1);
+        double Y(double v) => T + (H - T - B) * (1 - v / max);
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {F(W)} {F(H)}' width='{F(W)}' height='{F(H)}' font-family='Arial'>");
+        for (int s = 0; s <= 4; s++)
+        {
+            double v = max * s / 4;
+            sb.Append($"<line x1='{F(L)}' x2='{F(W - R)}' y1='{F(Y(v))}' y2='{F(Y(v))}' stroke='#e2ddd3' stroke-width='0.6'/>");
+            sb.Append($"<text x='{F(L - 4)}' y='{F(Y(v) + 3)}' text-anchor='end' font-size='7' fill='#8b8b8b'>{Zahl(v)}</text>");
+        }
+        for (int i = 0; i < monate.Count; i++)
+            sb.Append($"<text x='{F(X(i))}' y='{F(H - 6)}' text-anchor='middle' font-size='7' fill='#8b8b8b'>{MonatKurz(monate[i])}</text>");
+        for (int fi = 0; fi < punkte.Count; fi++)
+        {
+            var farbe = Linie[fi % Linie.Length];
+            var pfad = new System.Text.StringBuilder();
+            bool offen = false;
+            for (int i = 0; i < punkte[fi].Count; i++)
+            {
+                var v = punkte[fi][i];
+                if (v == null) { offen = false; continue; }
+                pfad.Append($"{(offen ? "L" : "M")}{F(X(i))},{F(Y(v.Value))} ");
+                offen = true;
+                sb.Append($"<circle cx='{F(X(i))}' cy='{F(Y(v.Value))}' r='2' fill='{farbe}'/>");
+            }
+            if (pfad.Length > 0) sb.Append($"<path d='{pfad}' fill='none' stroke='{farbe}' stroke-width='1.4'/>");
+        }
+        sb.Append("</svg>");
+        return sb.ToString();
+    }
+
+    static string Mischen(string hex, double anteil)
+    {
+        int Kanal(int i) => Convert.ToInt32(hex.Substring(1 + 2 * i, 2), 16);
+        string K(int i) => ((int)Math.Round(255 + (Kanal(i) - 255) * anteil)).ToString("x2");
+        return $"#{K(0)}{K(1)}{K(2)}";
+    }
+
+    static void Uebersicht(IContainer c, StempelFilialvergleichDaten d)
+    {
+        var arten = d.VerstossArten.Where(a => d.Filialen.Any(f => !f.VerstossAus.Contains(a.Art))).ToList();
+        var maxArt = arten.ToDictionary(a => a.Art, a => Math.Max(1, d.Filialen.Max(f => f.VerstossProArt.GetValueOrDefault(a.Art))));
+        int Summe(Func<StempelFilialZeile, int> sel) => d.Filialen.Sum(sel);
+
+        c.Table(tb =>
+        {
+            tb.ColumnsDefinition(cd =>
+            {
+                cd.RelativeColumn();
+                for (int i = 0; i < 7; i++) cd.ConstantColumn(46);
+                foreach (var _ in arten) cd.ConstantColumn(22);
+            });
+
+            IContainer Kopf(IContainer x) => x.BorderBottom(0.8f).BorderColor(Line).PaddingHorizontal(3).PaddingVertical(3).AlignBottom();
+            tb.Header(h =>
+            {
+                h.Cell().Element(Kopf).Text("Filiale").Bold().FontSize(7f);
+                foreach (var t in new[] { "Stempel", "Korrek-\nturen", "pro 100", "MA mit\nKorr.", "Verstösse", "pro 100", "MA mit\nVerst." })
+                    h.Cell().Element(Kopf).AlignRight().Text(t).Bold().FontSize(7f);
+                foreach (var a in arten)
+                    h.Cell().Element(Kopf).AlignCenter().RotateLeft().Text(a.Titel).Bold().FontSize(6.5f);
+            });
+
+            IContainer Zelle(IContainer x) => x.BorderBottom(0.4f).BorderColor(Line).PaddingHorizontal(3).PaddingVertical(3).AlignMiddle();
+            void Wert(string s, bool fett = false)
+            {
+                var t = tb.Cell().Element(Zelle).AlignRight().Text(s).FontSize(8f);
+                if (fett) t.Bold();
+            }
+
+            foreach (var f in d.Filialen)
+            {
+                tb.Cell().Element(Zelle).Text(f.Filiale).SemiBold().FontSize(8f).FontColor(Ink);
+                Wert(f.Stempel.ToString()); Wert(f.Korrigiert.ToString()); Wert(Zahl(Pro100(f.Korrigiert, f.Stempel)), true);
+                Wert(f.MaMitKorrektur.ToString()); Wert(f.Verstoesse.ToString());
+                Wert(Zahl(Pro100(f.Verstoesse, f.Stempel)), true); Wert($"{f.MaMitVerstoss} / {f.AnzahlMa}");
+                foreach (var a in arten)
+                {
+                    if (f.VerstossAus.Contains(a.Art))
+                    {
+                        tb.Cell().Element(Zelle).AlignCenter().Text("aus").FontSize(6.5f).FontColor("#b8b2a7");
+                        continue;
+                    }
+                    int n = f.VerstossProArt.GetValueOrDefault(a.Art);
+                    var farbe = Farbe.GetValueOrDefault(a.Art, "#6b7280");
+                    var zelle = tb.Cell().Element(Zelle);
+                    if (n > 0) zelle = zelle.Background(Mischen(farbe, 0.15 + 0.6 * n / maxArt[a.Art]));
+                    zelle.AlignCenter().Text(n > 0 ? n.ToString() : "·").SemiBold().FontSize(7.5f);
+                }
+            }
+
+            IContainer Fuss(IContainer x) => x.BorderTop(1.2f).BorderColor(Line).PaddingHorizontal(3).PaddingVertical(3).AlignMiddle();
+            tb.Cell().Element(Fuss).Text("Total").Bold().FontSize(8f).FontColor(Ink);
+            int stT = Summe(x => x.Stempel), kT = Summe(x => x.Korrigiert), vT = Summe(x => x.Verstoesse);
+            foreach (var s in new[] { stT.ToString(), kT.ToString(), Zahl(Pro100(kT, stT)), Summe(x => x.MaMitKorrektur).ToString(),
+                                      vT.ToString(), Zahl(Pro100(vT, stT)), $"{Summe(x => x.MaMitVerstoss)} / {Summe(x => x.AnzahlMa)}" })
+                tb.Cell().Element(Fuss).AlignRight().Text(s).Bold().FontSize(8f);
+            foreach (var a in arten)
+                tb.Cell().Element(Fuss).AlignCenter().Text(d.Filialen.Sum(f => f.VerstossProArt.GetValueOrDefault(a.Art)).ToString()).Bold().FontSize(7.5f);
+        });
+    }
+
+    static void Rechenweg(IContainer c, StempelFilialvergleichDaten d) => c.Column(k =>
+    {
+        k.Spacing(2);
+        k.Item().Text("Wie wird gerechnet?").Bold().FontSize(9f).FontColor(Ink);
+        k.Item().Text("Pro Filiale exakt dieselbe Rechnung wie in den Einzelberichten «Korrekturen Stempelzeiten» und «Arbeitszeit-Verstösse». " +
+            "«Pro 100 Stempel» macht grosse und kleine Filialen vergleichbar: Korrekturen bzw. Verstösse ÷ Stempel × 100. " +
+            "Ein Verstoss zählt im Monat, in dem er endet (Wochenregeln: Sonntag der Woche).").FontSize(7.5f);
+        if (d.OhneStempel.Count > 0)
+            k.Item().Text("Ohne Stempel im Zeitraum: " + string.Join(", ", d.OhneStempel) + ".").FontSize(7.5f);
+        k.Item().PaddingTop(4).Text("Regeln").Bold().FontSize(8f).FontColor(Ink);
+        foreach (var a in d.VerstossArten)
+            k.Item().Row(r =>
+            {
+                r.ConstantItem(3).Background(Farbe.GetValueOrDefault(a.Art, "#6b7280"));
+                r.ConstantItem(6);
+                r.ConstantItem(130).Text(a.Titel).SemiBold().FontSize(7f);
+                r.RelativeItem().Text(a.Regel).FontSize(7f).FontColor(Body);
+            });
+    });
+
+    static void Seite(PageDescriptor page, string titel, string filiale, DateOnly von, DateOnly bis, bool quer = false)
+    {
+        page.Size(quer ? PageSizes.A4.Landscape() : PageSizes.A4);
         page.Margin(1.3f, Unit.Centimetre);
         page.DefaultTextStyle(t => t.FontFamily("Arial").FontSize(8f).FontColor(Body));
         page.Header().PaddingBottom(8).Column(c =>

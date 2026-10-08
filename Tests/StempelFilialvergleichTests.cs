@@ -111,4 +111,35 @@ public class StempelFilialvergleichTests
         var r = await Controller(db, 1, "admin").Filialvergleich("2025-01-01", "2026-09-30");
         Assert.IsType<BadRequestObjectResult>(r);
     }
+
+    [Fact]
+    public async Task Pdf_aus_dem_Controller()
+    {
+        await using var db = await Daten();
+        var r = Assert.IsType<FileContentResult>(await Controller(db, 1, "admin").FilialvergleichPdf("2026-09-01", "2026-09-30"));
+        Assert.Equal("application/pdf", r.ContentType);
+        Assert.Equal("Stempelzeiten-Filialvergleich_2026-09-01_2026-09-30.pdf", r.FileDownloadName);
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(r.FileContents, 0, 4));
+    }
+
+    [Fact]
+    public void Pdf_mit_vielen_Filialen_Monaten_und_allen_Arten()
+    {
+        var arten = ArbeitszeitVerstoesse.Reihenfolge
+            .Select(a => new StempelFilialArt(a, ArbeitszeitVerstoesse.Titel(a), ArbeitszeitVerstoesse.Beschreibung(a))).ToList();
+        var monate = new[] { "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12" };
+        var filialen = Enumerable.Range(1, 8).Select(i => new StempelFilialZeile(i, $"1{i}0 Filiale mit langem Namen {i}", 3000 + i * 100,
+            40 + i * 15, 20 + i, new Dictionary<string, int> { ["ZEIT"] = 20 + i, ["MANUELL"] = 10, ["BEARBEITET"] = 5 + i, ["KOMMENTAR"] = 5 + i * 13 },
+            60, 30 + i * 5, 10 + i,
+            arten.ToDictionary(a => a.Art, a => (i * 7 + a.Art.Length) % 9),
+            i == 3 ? new List<string> { ArbeitszeitVerstoesse.Jugend } : new List<string>(),
+            monate.Select((m, mi) => new StempelFilialMonat(m, mi == 4 && i == 2 ? 0 : 250 + i, 5 + mi % 4 + i, 3)).ToList())).ToList();
+        var d = new StempelFilialvergleichDaten(new DateOnly(2026, 1, 1), new DateOnly(2026, 12, 31), arten, filialen, new List<string> { "999 Neu" });
+
+        var bytes = new StempelBerichtPdfService().Filialvergleich(d);
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(bytes, 0, 4));
+
+        var leer = new StempelBerichtPdfService().Filialvergleich(d with { Filialen = new() });
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(leer, 0, 4));
+    }
 }

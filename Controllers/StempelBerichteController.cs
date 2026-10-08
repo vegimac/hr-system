@@ -259,8 +259,24 @@ public class StempelBerichteController : HrControllerBase
     [Authorize(Roles = "admin,superuser")]
     public async Task<IActionResult> Filialvergleich([FromQuery] string? from, [FromQuery] string? to)
     {
+        var (fehler, daten) = await FilialvergleichAsync(from, to);
+        return fehler ?? Ok(daten);
+    }
+
+    [HttpGet("stempel-filialvergleich/pdf")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> FilialvergleichPdf([FromQuery] string? from, [FromQuery] string? to)
+    {
+        var (fehler, daten) = await FilialvergleichAsync(from, to);
+        if (fehler != null) return fehler;
+        var bytes = _pdf.Filialvergleich(daten!);
+        return File(bytes, "application/pdf", $"Stempelzeiten-Filialvergleich_{daten!.Von:yyyy-MM-dd}_{daten.Bis:yyyy-MM-dd}.pdf");
+    }
+
+    async Task<(IActionResult? Fehler, StempelFilialvergleichDaten? Daten)> FilialvergleichAsync(string? from, string? to)
+    {
         var (zeitFehler, von, bis) = Zeitraum(from, to);
-        if (zeitFehler != null) return zeitFehler;
+        if (zeitFehler != null) return (zeitFehler, null);
         var vonIso = von.ToString("yyyy-MM-dd");
         var bisIso = bis.ToString("yyyy-MM-dd");
 
@@ -302,7 +318,7 @@ public class StempelBerichteController : HrControllerBase
         }
 
         var arten = V.Reihenfolge.Select(a => new StempelFilialArt(a, V.Titel(a), V.Beschreibung(a))).ToList();
-        return Ok(new StempelFilialvergleichDaten(von, bis, arten,
+        return (null, new StempelFilialvergleichDaten(von, bis, arten,
             zeilen.OrderBy(z => z.Filiale, StringComparer.OrdinalIgnoreCase).ToList(), ohneStempel));
     }
 
@@ -324,11 +340,3 @@ public class StempelBerichteController : HrControllerBase
         catch { return TimeZoneInfo.Local; }
     }
 }
-
-public record StempelFilialMonat(string Monat, int Stempel, int Korrigiert, int Verstoesse);
-public record StempelFilialZeile(int Id, string Filiale, int Stempel, int Korrigiert, int MaMitKorrektur,
-    Dictionary<string, int> KorrekturProArt, int AnzahlMa, int Verstoesse, int MaMitVerstoss,
-    Dictionary<string, int> VerstossProArt, List<string> VerstossAus, List<StempelFilialMonat> ProMonat);
-public record StempelFilialArt(string Art, string Titel, string Regel);
-public record StempelFilialvergleichDaten(DateOnly Von, DateOnly Bis, List<StempelFilialArt> VerstossArten,
-    List<StempelFilialZeile> Filialen, List<string> OhneStempel);

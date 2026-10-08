@@ -254,6 +254,11 @@ const _SZF_MONAT = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Se
 
 function szfInit() { _szInitZeitraum('szf'); szfLoad(); }
 function szfZeitraum(art) { _szZeitraumSetzen('szf', art); }
+function szfPdf() {
+    const von = document.getElementById('szfFrom').value, bis = document.getElementById('szfTo').value;
+    const qs = new URLSearchParams({ from: von, to: bis });
+    previewUrlFetch('/api/reports/stempel-filialvergleich/pdf?' + qs, `Stempelzeiten-Filialvergleich_${von}_${bis}.pdf`, ah());
+}
 
 async function szfLoad() {
     const box = document.getElementById('szfResult');
