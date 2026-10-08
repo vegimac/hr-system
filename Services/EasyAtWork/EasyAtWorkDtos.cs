@@ -355,7 +355,7 @@ public class EawTimepunchComment
 }
 
 /// <summary>
-/// Changelog-Eintrag eines Timepunch (API: <c>include_changelog=true</c> am
+/// Changelog-Eintrag eines Timepunch (API: <c>include_changelog=1</c> am
 /// Einzelabruf). Enthält die Audit-Texte «Ein/Aus vom … bis … geändert» —
 /// die normalen <c>comments</c> haben oft nur den Freitext («Falsch gestempelt»).
 /// </summary>
@@ -390,7 +390,7 @@ public class EawTimepunch
     [JsonPropertyName("edited_by_id")]  public int?     EditedById    { get; set; }
     /// <summary>Kommentare als Array — nur befüllt, wenn `?with[]=comments` mitgesendet wurde.</summary>
     [JsonPropertyName("comments")]      public List<EawTimepunchComment>? Comments { get; set; }
-    /// <summary>Audit-Historie — nur am Einzelabruf mit <c>include_changelog=true</c>.</summary>
+    /// <summary>Audit-Historie — nur am Einzelabruf mit <c>include_changelog=1</c>.</summary>
     [JsonPropertyName("changelog")]     public List<EawTimepunchChangelogEntry>? Changelog { get; set; }
 
     // ── Original-Zeit (falls bearbeitet). Wir probieren mehrere wahrscheinliche

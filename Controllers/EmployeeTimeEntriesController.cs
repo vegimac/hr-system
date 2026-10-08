@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -76,6 +77,13 @@ public class EmployeeTimeEntriesController : ControllerBase
         if (daten is null)
             return Ok(new { verfuegbar = false, grund = "easy@work lehnt jede Abfrage dieses Stempels ab.", versuche });
 
+        // Originalzeiten: zuerst OneCrew, sonst aus easy@work-Audit-Texten («Ein/Aus vom … geändert»).
+        var (parsedIn, parsedOut) = EasyAtWorkTimepunchSyncService.ParseEditedTimesFromTexts(
+            entry.EntryDate,
+            TexteAus(mitKommentaren, "comments").Concat(TexteAus(mitChangelog, "changelog")));
+        var origIn  = entry.OriginalTimeIn  ?? parsedIn;
+        var origOut = entry.OriginalTimeOut ?? parsedOut;
+
         return Ok(new
         {
             verfuegbar = true,
@@ -84,6 +92,13 @@ public class EmployeeTimeEntriesController : ControllerBase
             updatedAt = Teil(daten, "updated_at"),
             comments  = Teil(mitKommentaren, "comments"),
             changelog = Teil(mitChangelog, "changelog"),
+            zeiten = new
+            {
+                ein = entry.TimeIn,
+                aus = entry.TimeOut,
+                originalEin = origIn,
+                originalAus = origOut,
+            },
             gespeichert = new { kommentar = entry.Comment, protokoll = entry.OriginalComment },
             versuche,
             roh = daten,
@@ -91,6 +106,23 @@ public class EmployeeTimeEntriesController : ControllerBase
             // Abfragen kamen — sonst ist rohKommentare = roh (Doppel-Anzeige).
             rohKommentare = alles is null && mitChangelog is not null ? mitKommentaren : null,
         });
+    }
+
+    static IEnumerable<string?> TexteAus(System.Text.Json.JsonElement? el, string name)
+    {
+        var teil = el is { ValueKind: System.Text.Json.JsonValueKind.Object } o
+            && o.TryGetProperty(name, out var v) ? v : (System.Text.Json.JsonElement?)null;
+        if (teil is not { ValueKind: System.Text.Json.JsonValueKind.Array } arr) yield break;
+        foreach (var item in arr.EnumerateArray())
+        {
+            if (item.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+            foreach (var key in new[] { "text", "body", "message", "comment", "content", "description" })
+                if (item.TryGetProperty(key, out var t) && t.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    yield return t.GetString();
+                    break;
+                }
+        }
     }
 
     private static IActionResult ReadOnlyResponse() => new ObjectResult(new

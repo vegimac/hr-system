@@ -13160,8 +13160,36 @@ async function stempelEasyVerlauf(entryId) {
             ...liste(j.changelog).map(e => eintrag('Protokoll', e)),
         ].join('');
         const gesp = j.gespeichert || {};
+        const z = j.zeiten || {};
+        const uhr = (v) => {
+            if (!v) return '';
+            const d = new Date(typeof v === 'string' && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(v) ? v.replace(' ', 'T') : v);
+            return isNaN(d) ? '' : d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+        };
+        const ein = uhr(z.ein), aus = uhr(z.aus), oEin = uhr(z.originalEin), oAus = uhr(z.originalAus);
+        const hatAenderung = (oEin && oEin !== ein) || (oAus && oAus !== aus);
+        const zeitVergleich = (ein || aus) ? `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 12px">
+            <div style="flex:1;min-width:140px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:10px 12px">
+                <div style="font-size:11px;font-weight:700;color:#8b8b8b;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px">Ein</div>
+                ${oEin && oEin !== ein
+                    ? `<div><span style="color:#15803d;font-weight:700;text-decoration:line-through">${esc(oEin)}</span>
+                         <span style="margin:0 6px;color:#8b8b8b">→</span>
+                         <span style="color:#b91c1c;font-weight:800;font-size:16px">${esc(ein || '–')}</span></div>`
+                    : `<div style="font-weight:800;font-size:16px;color:#1a1a1a">${esc(ein || '–')}</div>`}
+            </div>
+            <div style="flex:1;min-width:140px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:10px 12px">
+                <div style="font-size:11px;font-weight:700;color:#8b8b8b;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px">Aus</div>
+                ${oAus && oAus !== aus
+                    ? `<div><span style="color:#15803d;font-weight:700;text-decoration:line-through">${esc(oAus)}</span>
+                         <span style="margin:0 6px;color:#8b8b8b">→</span>
+                         <span style="color:#b91c1c;font-weight:800;font-size:16px">${esc(aus || '–')}</span></div>`
+                    : `<div style="font-weight:800;font-size:16px;color:#1a1a1a">${esc(aus || '–')}</div>`}
+            </div>
+            ${hatAenderung ? `<div style="flex-basis:100%;font-size:11.5px;color:#8b8b8b"><span style="color:#15803d;font-weight:700">grün</span> = Original · <span style="color:#b91c1c;font-weight:700">rot</span> = geändert</div>` : ''}
+        </div>` : '';
         ziel.innerHTML = `
             <div style="font-size:12px;color:#8b8b8b;margin-bottom:6px">Erstellt ${esc(zeit(j.createdAt) || '–')} · zuletzt geändert ${esc(zeit(j.updatedAt) || '–')}</div>
+            ${zeitVergleich}
             ${zeilen || '<div>easy@work liefert zu diesem Stempel keine Kommentare.</div>'}
             <div style="font-size:12px;color:#8b8b8b;margin-top:10px">In OneCrew gespeichert: Kommentar «${esc(gesp.kommentar || '–')}» · Protokoll «${esc(gesp.protokoll || '–')}»</div>
             <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:#8b8b8b">Rohdaten easy@work</summary>

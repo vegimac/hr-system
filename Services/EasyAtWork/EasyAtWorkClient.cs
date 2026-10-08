@@ -433,7 +433,8 @@ public class EasyAtWorkClient
     /// <summary>
     /// Einzelner Stempel inkl. Changelog (Walter 18.07.2026). Die List-API liefert
     /// die Audit-Zeilen «Ein/Aus vom … geändert» nicht — nur der Einzelabruf mit
-    /// <c>include_changelog=true</c>. Best-effort: null bei Fehler/404.
+    /// <c>include_changelog=1</c> (Walter 08.10.2026: Laravel-Boolean akzeptiert
+    /// <c>true</c> oft nicht → HTTP 422 «must be true or false»). Best-effort: null bei Fehler/404.
     /// </summary>
     public virtual async Task<EawTimepunch?> GetTimepunchAsync(
         int customerId, int timepunchId, CancellationToken ct = default)
@@ -443,8 +444,7 @@ public class EasyAtWorkClient
         if (status == 404) return null;
         if (status >= 200 && status < 300) return ParseTimepunch(body, timepunchId, customerId);
 
-        // Kombinierte Abfrage abgelehnt (Walter 07.10.2026: HTTP 422) → Changelog und
-        // Kommentare einzeln holen und zusammenführen, sonst ohne Zusatz.
+        // Kombinierte Abfrage abgelehnt → Changelog und Kommentare einzeln holen.
         _log.LogDebug("easy@work Timepunch {Id} (Customer {C}): HTTP {Status} mit Changelog+Kommentaren, Einzelabruf.",
             timepunchId, customerId, status);
         var (sA, bA) = await GetRawAsync(basis + TimepunchNurChangelog, ct);
@@ -461,8 +461,9 @@ public class EasyAtWorkClient
         return tp;
     }
 
-    public const string TimepunchMitAllem      = "?include_changelog=true&with%5B%5D=comments";
-    public const string TimepunchNurChangelog  = "?include_changelog=true";
+    // Laravel boolean: 1/0 (nicht "true"/"false" — das gab HTTP 422, Walter 08.10.2026).
+    public const string TimepunchMitAllem      = "?include_changelog=1&with%5B%5D=comments";
+    public const string TimepunchNurChangelog  = "?include_changelog=1";
     public const string TimepunchNurKommentare = "?with%5B%5D=comments";
 
     private EawTimepunch? ParseTimepunch(string body, int timepunchId, int customerId)
