@@ -122,6 +122,13 @@ public class DokumentUploadRegelTests
     }
 
     [Fact]
+    public void WebDav_prueftKopfAusStream()
+    {
+        Assert.True(DokumentUploadRegel.InhaltPasst("Scan.pdf", new MemoryStream(A("%PDF-1.4\n" + new string('x', 5000)))));
+        Assert.False(DokumentUploadRegel.InhaltPasst("Scan.pdf", new MemoryStream(A("<html>"))));
+    }
+
+    [Fact]
     public void Postfach_prueftNurInhalt_EndungEgal()
     {
         Assert.True(DokumentUploadRegel.IstPdfOderBild(Datei("image", B(0xFF, 0xD8, 0xFF, 0xE1))));

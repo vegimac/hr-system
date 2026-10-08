@@ -66,6 +66,14 @@ public static class DokumentUploadRegel
         return ext == ".pdf" ? IstPdf(kopf) : IstBild(kopf);
     }
 
+    /// <summary>Wie oben, Kopf aus einem Stream (WebDAV schreibt erst auf die Platte).</summary>
+    public static bool InhaltPasst(string? dateiname, Stream s)
+    {
+        var puffer = new byte[KopfLaenge];
+        var n = KopfLesen(s, puffer);
+        return InhaltPasst(dateiname, puffer.AsSpan(0, n));
+    }
+
     public static object InhaltFehler(string? dateiname)
     {
         var name = Path.GetFileName(dateiname ?? "");

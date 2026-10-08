@@ -395,6 +395,12 @@ public class WebDavController : ControllerBase
             return StatusCode(403);
         }
 
+        if (!HrSystem.Services.DokumentUploadRegel.IstErlaubt(fname))
+        {
+            _log.LogWarning("WebDAV upload abgelehnt (nur PDF/Bilder): {Filename} from {Uploader}", fname, user.Username);
+            return StatusCode(415);
+        }
+
         // Datei in Storage schreiben
         var ext = Path.GetExtension(fname);
         var storageName = Guid.NewGuid().ToString("N") + ext;
@@ -412,6 +418,16 @@ public class WebDavController : ControllerBase
         {
             try { System.IO.File.Delete(fullPath); } catch { }
             return BadRequest();
+        }
+
+        bool inhaltOk;
+        await using (var kopf = System.IO.File.OpenRead(fullPath))
+            inhaltOk = HrSystem.Services.DokumentUploadRegel.InhaltPasst(fname, kopf);
+        if (!inhaltOk)
+        {
+            try { System.IO.File.Delete(fullPath); } catch { }
+            _log.LogWarning("WebDAV upload abgelehnt (Inhalt passt nicht zur Endung): {Filename} from {Uploader}", fname, user.Username);
+            return StatusCode(415);
         }
 
         HrSystem.Services.ScanErgebnis scan;
