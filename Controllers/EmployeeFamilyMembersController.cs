@@ -300,6 +300,84 @@ public class EmployeeFamilyMembersController : ControllerBase
         return Ok(new { ok = true });
     }
 
+    public sealed class PermitStatusDto
+    {
+        public int? PermitTypeId { get; set; }
+        public string? Seit { get; set; }
+        public string? ErfahrenAm { get; set; }
+    }
+
+    public sealed class ErwerbStatusDto
+    {
+        public bool? Erwerbstaetig { get; set; }
+        public string? Seit { get; set; }
+        public string? ErfahrenAm { get; set; }
+    }
+
+    /// <summary>Bewilligungsstatus ändern (QST) — Seit + Erfahren am (Walter 08.10.2026).</summary>
+    [HttpPost("{id:int}/permit-status")]
+    public async Task<IActionResult> ChangePermitStatus(int employeeId, int id, [FromBody] PermitStatusDto dto)
+    {
+        var m = await _context.EmployeeFamilyMembers.FirstOrDefaultAsync(x => x.Id == id && x.EmployeeId == employeeId);
+        if (m == null) return NotFound();
+        var seit = EmployeeQuellensteuerController.ParseDatum(dto.Seit);
+        if (seit == null) return BadRequest(new { error = "DATUM_UNGUELTIG", message = "«Seit» ist Pflicht." });
+        DateOnly? ea = null;
+        if (!string.IsNullOrWhiteSpace(dto.ErfahrenAm))
+        {
+            ea = EmployeeQuellensteuerController.ParseDatum(dto.ErfahrenAm);
+            if (ea == null) return BadRequest(new { error = "DATUM_UNGUELTIG", message = "«Erfahren am» ist ungültig." });
+            if (ea.Value < seit.Value)
+                return BadRequest(new { error = "ERFAHREN_VOR_GUELTIG", message = "«Erfahren am» darf nicht vor «Seit» liegen." });
+        }
+        m.PermitTypeId = dto.PermitTypeId is > 0 ? dto.PermitTypeId : null;
+        m.UpdatedAt = DateTime.Now;
+        _context.FamilyMemberPermitHistories.Add(new FamilyMemberPermitHistory
+        {
+            FamilyMemberId = m.Id,
+            PermitTypeId = m.PermitTypeId,
+            ValidFrom = seit.Value,
+            ErfahrenAm = ea,
+            Note = "Statusänderung",
+            CreatedAt = DateTime.Now,
+        });
+        await _context.SaveChangesAsync();
+        return Ok(new { ok = true, permitTypeId = m.PermitTypeId, seit = seit.Value.ToString("yyyy-MM-dd") });
+    }
+
+    /// <summary>Erwerbsstatus ändern (Tarif B/C) — Seit + Erfahren am (Walter 08.10.2026).</summary>
+    [HttpPost("{id:int}/erwerb-status")]
+    public async Task<IActionResult> ChangeErwerbStatus(int employeeId, int id, [FromBody] ErwerbStatusDto dto)
+    {
+        var m = await _context.EmployeeFamilyMembers.FirstOrDefaultAsync(x => x.Id == id && x.EmployeeId == employeeId);
+        if (m == null) return NotFound();
+        if (dto.Erwerbstaetig == null)
+            return BadRequest(new { error = "ERWERB_FEHLT", message = "Neuer Status (Ja/Nein) fehlt." });
+        var seit = EmployeeQuellensteuerController.ParseDatum(dto.Seit);
+        if (seit == null) return BadRequest(new { error = "DATUM_UNGUELTIG", message = "«Seit» ist Pflicht." });
+        DateOnly? ea = null;
+        if (!string.IsNullOrWhiteSpace(dto.ErfahrenAm))
+        {
+            ea = EmployeeQuellensteuerController.ParseDatum(dto.ErfahrenAm);
+            if (ea == null) return BadRequest(new { error = "DATUM_UNGUELTIG", message = "«Erfahren am» ist ungültig." });
+            if (ea.Value < seit.Value)
+                return BadRequest(new { error = "ERFAHREN_VOR_GUELTIG", message = "«Erfahren am» darf nicht vor «Seit» liegen." });
+        }
+        m.Erwerbstaetig = dto.Erwerbstaetig;
+        m.UpdatedAt = DateTime.Now;
+        _context.FamilyMemberErwerbHistories.Add(new FamilyMemberErwerbHistory
+        {
+            FamilyMemberId = m.Id,
+            Erwerbstaetig = dto.Erwerbstaetig,
+            ValidFrom = seit.Value,
+            ErfahrenAm = ea,
+            Note = "Statusänderung",
+            CreatedAt = DateTime.Now,
+        });
+        await _context.SaveChangesAsync();
+        return Ok(new { ok = true, erwerbstaetig = m.Erwerbstaetig, seit = seit.Value.ToString("yyyy-MM-dd") });
+    }
+
     Task<bool> MemberOk(int employeeId, int id)
         => _context.EmployeeFamilyMembers.AnyAsync(m => m.Id == id && m.EmployeeId == employeeId);
 

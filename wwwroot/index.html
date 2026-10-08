@@ -10487,40 +10487,20 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </span>
             </div>
             <div id="fmOcrInfo" style="font-size:12px;margin:6px 0 2px;min-height:0"></div>
-            <!-- Gültig bis ausgeblendet (Walter 08.10.2026): Historie nur Seit + Erfahren.
-                 Hidden bleibt für OCR/Altbestand. -->
+            <!-- Gültig bis ausgeblendet (Walter 08.10.2026). Bewilligung = Status
+                 für QST, nicht «neuer Ausweis» — Wechsel nur über Status ändern. -->
             <input type="hidden" id="fmPermitExpiry" value="">
             <div class="emp-field-grid-3">
-                <div class="fmf-field" id="fmPermitField">
-                    <label class="fmf-label" data-i18n="fam.field.permit">Bewilligung</label>
-                    <select class="fmf-select" id="fmPermitTypeId">
-                        <option value="" data-i18n="fam.field.permitDefault">– keine / CH-Bürger –</option>
-                    </select>
-                </div>
-                <div class="fmf-field" id="fmPermitSeitField">
-                    <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wirkung)</span></label>
-                    <input class="fmf-input" id="fmPermitSeit" type="date"
-                           title="Ab wann die Bewilligung gilt — für rückwirkende QST (Ehepartner C)">
-                </div>
-                <div class="fmf-field" id="fmPermitErfahrenField">
-                    <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wissen · leer = Seit)</span></label>
-                    <input class="fmf-input" id="fmPermitErfahrenAm" type="date"
-                           title="Ab wann wir von der Bewilligung wussten — leer = gleich «Seit»">
-                </div>
                 <div class="fmf-field" id="fmZemisField">
                     <label class="fmf-label" data-i18n="fam.field.zemis">ZEMIS-Nr.</label>
                     <input class="fmf-input" id="fmZemisNumber" type="text" data-i18n-placeholder="ma.placeholder.zemis" placeholder="z.B. 22952410">
                 </div>
-
-                <div class="fmf-field" style="grid-column:span 2">
+                <div class="fmf-field" style="grid-column:span 1">
                     <label class="fmf-label" data-i18n="fam.field.nationality">Nationalität</label>
                     <select class="fmf-select" id="fmNationalityId">
                         <option value="">–</option>
                     </select>
                 </div>
-                <!-- Kompaktierung (Walter 20.08.2026): Checkbox aus der Person-
-                     Sektion hierher in die freie Zelle neben der Nationalität —
-                     spart eine ganze Zeile. -->
                 <div class="fmf-field">
                     <label class="fmf-label" data-i18n="fam.field.livesInCh">In der Schweiz lebend</label>
                     <label class="fmf-checkbox-card">
@@ -10528,11 +10508,6 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
                     </label>
                 </div>
-                <!-- Keine Unterhaltspflicht (Walter-Vorgabe 01.09.2026, Fall
-                     Ossenih): Stiefkind aus früherer Beziehung des Partners
-                     oder Kind ohne Sorgerecht. Die QST-Kinderziffer knüpft an
-                     die Unterhaltspflicht — so ein Kind zählt nie. Nur beim
-                     Typ «Kind» sichtbar (fmQstBlocksVisibility). -->
                 <div class="fmf-field" id="fmKeineUnterhaltField">
                     <label class="fmf-label">Unterhaltspflicht</label>
                     <label class="fmf-checkbox-card" title="Kind, für das der/die MA keine Unterhaltspflicht hat — z.B. Stiefkind aus einer früheren Beziehung des Partners oder Kind ohne Sorgerecht. Zählt dann NICHT für die QST-Kinderziffer.">
@@ -10541,10 +10516,64 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     </label>
                 </div>
             </div>
-            <!-- Auslands-Partner-Hinweis (Walter 25.08.2026, Fall Flüchtlings-
-                 familien): erscheint nur bei Ehepartner, der nicht in der
-                 Schweiz lebt — fmUpdateAuslandHint() in employees.js. -->
-            <div id="fmPermitHistList" style="margin-top:8px;display:none"></div>
+
+            <!-- Bewilligungsstatus (QST): aktueller Stand + Status ändern -->
+            <div id="fmPermitStatusBlock" style="margin-top:10px">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.12)">
+                    <div style="min-width:0;flex:1">
+                        <div class="fmf-label" style="margin-bottom:4px">Bewilligungsstatus <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(für QST)</span></div>
+                        <div id="fmPermitStandText" style="font-size:13.5px;font-weight:600;color:#3f3f3f">– noch nicht erfasst –</div>
+                        <div style="font-size:11px;color:#8b8b8b;margin-top:3px;line-height:1.35">Nur erfassen, wenn sich der Status ändert (z.B. B→C, Einbürgerung) — nicht bei neuem Ausweis gleicher Art.</div>
+                    </div>
+                    <button type="button" id="fmPermitWechselBtn" onclick="fmOpenPermitWechsel()"
+                            style="flex-shrink:0;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer">Status ändern</button>
+                </div>
+                <!-- Ersterfassung (neu / noch keine Historie) -->
+                <div id="fmPermitErst" style="display:none;margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.45);border:1px dashed rgba(60,55,48,0.22)">
+                    <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Ersterfassung Bewilligungsstatus</div>
+                    <div class="emp-field-grid-3">
+                        <div class="fmf-field" id="fmPermitField">
+                            <label class="fmf-label" data-i18n="fam.field.permit">Bewilligung</label>
+                            <select class="fmf-select" id="fmPermitTypeId">
+                                <option value="" data-i18n="fam.field.permitDefault">– keine / CH-Bürger –</option>
+                            </select>
+                        </div>
+                        <div class="fmf-field" id="fmPermitSeitField">
+                            <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wirkung)</span></label>
+                            <input class="fmf-input" id="fmPermitSeit" type="date">
+                        </div>
+                        <div class="fmf-field" id="fmPermitErfahrenField">
+                            <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(leer = Seit)</span></label>
+                            <input class="fmf-input" id="fmPermitErfahrenAm" type="date">
+                        </div>
+                    </div>
+                </div>
+                <!-- Statuswechsel-Panel -->
+                <div id="fmPermitWechselPanel" style="display:none;margin-top:8px;padding:10px 12px;border-radius:12px;background:#eeece4;border:1px solid rgba(60,55,48,0.16)">
+                    <div style="font-size:12px;font-weight:700;color:#3f3f3f;margin-bottom:8px">Bewilligungsstatus ändern</div>
+                    <div class="emp-field-grid-3">
+                        <div class="fmf-field">
+                            <label class="fmf-label">Neuer Status</label>
+                            <select class="fmf-select" id="fmPermitWechselTyp">
+                                <option value="">– keine / CH-Bürger –</option>
+                            </select>
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wirkung)</span></label>
+                            <input class="fmf-input" id="fmPermitWechselSeit" type="date">
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wissen)</span></label>
+                            <input class="fmf-input" id="fmPermitWechselEa" type="date">
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+                        <button type="button" onclick="fmClosePermitWechsel()" style="background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">Abbrechen</button>
+                        <button type="button" onclick="fmSavePermitWechsel()" style="background:#3f3f3f;color:#fff;border:none;border-radius:999px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">Status speichern</button>
+                    </div>
+                </div>
+                <div id="fmPermitHistList" style="margin-top:8px;display:none"></div>
+            </div>
             <div id="fmAuslandHint" style="display:none;margin-top:6px;padding:7px 11px;border-radius:10px;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.18);font-size:11.5px;color:#646464">
                 🌍 Partner lebt im Ausland (gleicher Haushalt wie der MA zählt mit):
                 <b>keine Schweizer Bewilligung</b> und <b>kein CH-Arbeitgeber</b> nötig.
@@ -10648,29 +10677,64 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div class="emp-section-title" id="fmErwerbTitle">Erwerbstätigkeit Ehepartner</div>
                 <!-- Zeile 1 = Erwerbstätig-Frage; CH-Arbeitgeber nur sichtbar,
                      wenn der Partner in der Schweiz wohnt. -->
-                <!-- Historie nur Ja/Nein + Seit/Erfahren (Walter 08.10.2026) —
-                     Arbeitgeber ist Snapshot, keine eigene Historie. -->
-                <div class="emp-field-grid-3" style="margin-bottom:8px">
-                    <div class="fmf-field">
-                        <label class="fmf-label" title="Zählt auch: Ersatzeinkommen wie Rente, Arbeitslosen- oder Militärentschädigung — und Einkommen im AUSLAND (Tarifbestimmung schweizweit, TaxInfo BE). Beispiel Status S: Ehemann in der Ukraine mit Militärsold = Ja → Tarif C.">Erwerbstätig / Ersatzeinkommen? ⓘ</label>
-                        <div style="display:flex;gap:6px;align-items:center;min-height:36px">
-                            <label class="zst-pill"><input type="radio" name="fmErwerb" value="" checked onchange="fmErwerbChanged()"> –</label>
-                            <label class="zst-pill"><input type="radio" name="fmErwerb" value="ja" onchange="fmErwerbChanged()"> Ja</label>
-                            <label class="zst-pill"><input type="radio" name="fmErwerb" value="nein" onchange="fmErwerbChanged()"> Nein</label>
+                <!-- Erwerbsstatus für Tarif B/C — Wechsel nur bei Statusänderung -->
+                <div id="fmErwerbStatusBlock" style="margin-bottom:10px">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.12)">
+                        <div style="min-width:0;flex:1">
+                            <div class="fmf-label" style="margin-bottom:4px" title="inkl. Rente/Militärsold, auch im Ausland → Tarif C">Erwerbstätig / Ersatzeinkommen? ⓘ <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Tarif B/C)</span></div>
+                            <div id="fmErwerbStandText" style="font-size:13.5px;font-weight:600;color:#3f3f3f">– noch nicht erfasst –</div>
+                            <div style="font-size:11px;color:#8b8b8b;margin-top:3px;line-height:1.35">Nur bei Wechsel Ja↔Nein erfassen — Arbeitgeber-Adresse unten ohne Historie.</div>
+                        </div>
+                        <button type="button" id="fmErwerbWechselBtn" onclick="fmOpenErwerbWechsel()"
+                                style="flex-shrink:0;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer">Status ändern</button>
+                    </div>
+                    <div id="fmErwerbErst" style="display:none;margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.45);border:1px dashed rgba(60,55,48,0.22)">
+                        <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Ersterfassung Erwerbsstatus</div>
+                        <div class="emp-field-grid-3">
+                            <div class="fmf-field">
+                                <label class="fmf-label">Erwerbstätig?</label>
+                                <div style="display:flex;gap:6px;align-items:center;min-height:36px">
+                                    <label class="zst-pill"><input type="radio" name="fmErwerb" value="" checked onchange="fmErwerbChanged()"> –</label>
+                                    <label class="zst-pill"><input type="radio" name="fmErwerb" value="ja" onchange="fmErwerbChanged()"> Ja</label>
+                                    <label class="zst-pill"><input type="radio" name="fmErwerb" value="nein" onchange="fmErwerbChanged()"> Nein</label>
+                                </div>
+                            </div>
+                            <div class="fmf-field">
+                                <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wirkung)</span></label>
+                                <input class="fmf-input" id="fmErwerbSeit" type="date">
+                            </div>
+                            <div class="fmf-field">
+                                <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(leer = Seit)</span></label>
+                                <input class="fmf-input" id="fmErwerbErfahrenAm" type="date">
+                            </div>
                         </div>
                     </div>
-                    <div class="fmf-field">
-                        <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wirkung · B/C)</span></label>
-                        <input class="fmf-input" id="fmErwerbSeit" type="date"
-                               title="Ab wann dieser Erwerbs-Stand gilt — für rückwirkende QST B↔C">
+                    <div id="fmErwerbWechselPanel" style="display:none;margin-top:8px;padding:10px 12px;border-radius:12px;background:#eeece4;border:1px solid rgba(60,55,48,0.16)">
+                        <div style="font-size:12px;font-weight:700;color:#3f3f3f;margin-bottom:8px">Erwerbsstatus ändern</div>
+                        <div class="emp-field-grid-3">
+                            <div class="fmf-field">
+                                <label class="fmf-label">Neuer Status</label>
+                                <div style="display:flex;gap:6px;align-items:center;min-height:36px">
+                                    <label class="zst-pill"><input type="radio" name="fmErwerbWechsel" value="ja"> Ja</label>
+                                    <label class="zst-pill"><input type="radio" name="fmErwerbWechsel" value="nein"> Nein</label>
+                                </div>
+                            </div>
+                            <div class="fmf-field">
+                                <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wirkung)</span></label>
+                                <input class="fmf-input" id="fmErwerbWechselSeit" type="date">
+                            </div>
+                            <div class="fmf-field">
+                                <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wissen)</span></label>
+                                <input class="fmf-input" id="fmErwerbWechselEa" type="date">
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+                            <button type="button" onclick="fmCloseErwerbWechsel()" style="background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">Abbrechen</button>
+                            <button type="button" onclick="fmSaveErwerbWechsel()" style="background:#3f3f3f;color:#fff;border:none;border-radius:999px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer">Status speichern</button>
+                        </div>
                     </div>
-                    <div class="fmf-field">
-                        <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wissen · leer = Seit)</span></label>
-                        <input class="fmf-input" id="fmErwerbErfahrenAm" type="date"
-                               title="Ab wann wir vom Erwerbs-Wechsel wussten — leer = gleich «Seit»">
-                    </div>
+                    <div id="fmErwerbHistList" style="margin-top:8px"></div>
                 </div>
-                <div id="fmErwerbHistList" style="margin-bottom:8px"></div>
                 <!-- CH-Arbeitgeber nur, wenn der Partner in der Schweiz wohnt
                      (Walter 15.09.2026: gleicher Haushalt eines Auslands-MA
                      = ebenfalls Ausland → Felder weg). -->
@@ -10894,7 +10958,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261008i"></script>
+<script src="employees.js?v=20261008j"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 

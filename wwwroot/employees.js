@@ -6075,13 +6075,12 @@ function fmQstBlocksVisibility(type) {
     // = Befreiung). Verborgene Inputs behalten ihre Werte (kein Datenverlust
     // beim Bearbeiten von Alt-Erfassungen).
     const istKind = type === 'Kind';
-    ['fmMaidenNameField', 'fmSsnField', 'fmPhoneField',
-     'fmPermitField', 'fmPermitSeitField', 'fmPermitErfahrenField', 'fmZemisField'].forEach(id => {
+    ['fmMaidenNameField', 'fmSsnField', 'fmPhoneField', 'fmZemisField'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = istKind ? 'none' : '';
     });
-    const pHist = document.getElementById('fmPermitHistList');
-    if (pHist && istKind) { pHist.style.display = 'none'; }
+    const pBlock = document.getElementById('fmPermitStatusBlock');
+    if (pBlock) pBlock.style.display = istKind ? 'none' : '';
     // Auslands-Partner-Hinweis hängt am Typ (nur Ehepartner) — mitschalten.
     if (typeof fmUpdateAuslandHint === 'function') fmUpdateAuslandHint();
 }
@@ -7576,7 +7575,7 @@ async function qstRecheckNachAenderung(empId) {
 
 let editingFamilyMemberId = null;
 
-function openFamilyModal(member) {
+async function openFamilyModal(member) {
     editingFamilyMemberId = member ? member.id : null;
 
     document.getElementById('familyModalTitle').textContent =
@@ -7669,8 +7668,10 @@ function openFamilyModal(member) {
     fmFillPermitAndNationalitySelects(_defaultPermitTypeId, _defaultNationalityId);
     document.getElementById('fmPermitExpiry').value = toDateInput(member?.permitExpiryDate);
     document.getElementById('fmZemisNumber').value  = member?.zemisNumber ?? '';
-    // Bewilligung/Erwerb: Seit + Erfahren am (Walter 08.10.2026) — neu = heute.
+    // Bewilligung/Erwerb: Status-UI (Walter 08.10.2026) — Ersterfassung oder «Status ändern».
     const _fmHeute = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; })();
+    window._fmPermitTypeId = member?.permitTypeId ?? _defaultPermitTypeId ?? null;
+    window._fmErwerbStand = member?.erwerbstaetig ?? null;
     const _pSeit = document.getElementById('fmPermitSeit');
     const _pEa = document.getElementById('fmPermitErfahrenAm');
     if (_pSeit) _pSeit.value = '';
@@ -7679,12 +7680,17 @@ function openFamilyModal(member) {
     const _eEa = document.getElementById('fmErwerbErfahrenAm');
     if (_eSeit) _eSeit.value = '';
     if (_eEa) _eEa.value = _fmHeute;
-    if (member?.id) fmLoadPartnerHistories(member.id);
-    else {
+    fmClosePermitWechsel();
+    fmCloseErwerbWechsel();
+    if (member?.id) {
+        await fmLoadPartnerHistories(member.id);
+        fmRefreshStatusUi(true);
+    } else {
         const pl = document.getElementById('fmPermitHistList');
         const el = document.getElementById('fmErwerbHistList');
         if (pl) { pl.style.display = 'none'; pl.innerHTML = ''; }
         if (el) el.innerHTML = '';
+        fmRefreshStatusUi(false);
     }
 
     // Walter-Vorgabe 07.06.2026: „Dokument hochladen"-Button NUR beim
@@ -8169,12 +8175,19 @@ async function saveFamilyMember() {
         qstDeductibleFrom:      document.getElementById('fmQstFrom').value            || null,
         qstDeductibleUntil:     document.getElementById('fmQstUntil').value           || null,
         erfahrenAm:             document.getElementById('fmErfahrenAm')?.value         || null,
-        permitTypeId:           Number.isFinite(permitTypeId) && permitTypeId > 0 ? permitTypeId : null,
+        permitTypeId:           (() => {
+            const fromSel = Number.isFinite(permitTypeId) && permitTypeId > 0 ? permitTypeId : null;
+            if (document.getElementById('fmPermitErst')?.style.display !== 'none') return fromSel;
+            return window._fmPermitTypeId != null ? Number(window._fmPermitTypeId) || null : fromSel;
+        })(),
         permitExpiryDate:       document.getElementById('fmPermitExpiry').value       || null,
         zemisNumber:            (document.getElementById('fmZemisNumber').value || '').trim() || null,
         nationalityId:          Number.isFinite(nationalityId) && nationalityId > 0 ? nationalityId : null,
         // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder.
-        erwerbstaetig:          fmGetErwerb(),
+        erwerbstaetig:          (document.getElementById('fmErwerbErst')?.style.display !== 'none'
+                                    ? fmGetErwerb()
+                                    : (window._fmErwerbStand === true || window._fmErwerbStand === false
+                                        ? window._fmErwerbStand : fmGetErwerb())),
         // Konkubinat (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
         maHatHoeheresEinkommen:     fmGetMaEink(),
         gemeinsamesKindMitPartner:  fmGetGemKind(),
@@ -8188,10 +8201,15 @@ async function saveFamilyMember() {
         keineUnterhaltspflicht: document.getElementById('fmKeineUnterhaltspflicht')?.checked ?? false,
         // Historie Seit/Erfahren (Walter 08.10.2026) — leer Seit = kein neuer Hist-Eintrag
         // ausser Ersteintrag (Server). Erfahren leer = gleich Seit.
-        permitSeit:             document.getElementById('fmPermitSeit')?.value || null,
-        permitErfahrenAm:       document.getElementById('fmPermitErfahrenAm')?.value || null,
-        erwerbSeit:             document.getElementById('fmErwerbSeit')?.value || null,
-        erwerbErfahrenAm:       document.getElementById('fmErwerbErfahrenAm')?.value || null,
+        // Seit/Erfahren nur bei Ersterfassung (Status-Wechsel hat eigenen Speichern-Knopf).
+        permitSeit:             (document.getElementById('fmPermitErst')?.style.display !== 'none'
+                                    ? (document.getElementById('fmPermitSeit')?.value || null) : null),
+        permitErfahrenAm:       (document.getElementById('fmPermitErst')?.style.display !== 'none'
+                                    ? (document.getElementById('fmPermitErfahrenAm')?.value || null) : null),
+        erwerbSeit:             (document.getElementById('fmErwerbErst')?.style.display !== 'none'
+                                    ? (document.getElementById('fmErwerbSeit')?.value || null) : null),
+        erwerbErfahrenAm:       (document.getElementById('fmErwerbErst')?.style.display !== 'none'
+                                    ? (document.getElementById('fmErwerbErfahrenAm')?.value || null) : null),
         // Zulagen werden separat über /api/family-members/{id}/allowances verwaltet.
     };
     const _ps = payload.permitSeit, _pe = payload.permitErfahrenAm;
@@ -8247,6 +8265,153 @@ async function saveFamilyMember() {
     }
 }
 
+// ── Bewilligungs-/Erwerbs-Status (Walter 08.10.2026) ─────────────────────
+// Aktueller Stand anzeigen; Wechsel nur über «Status ändern» + Seit/Erfahren.
+function _fmHeuteIso() {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+function fmRefreshStatusUi(hasMemberId) {
+    const typ = document.getElementById('fmMemberType')?.value || '';
+    const partner = typ === 'Ehepartner' || typ === 'Konkubinatspartner';
+    const pErst = document.getElementById('fmPermitErst');
+    const pBtn = document.getElementById('fmPermitWechselBtn');
+    const eErst = document.getElementById('fmErwerbErst');
+    const eBtn = document.getElementById('fmErwerbWechselBtn');
+    const pHistLen = window._fmPermitHistCount || 0;
+    const eHistLen = window._fmErwerbHistCount || 0;
+    const needPermitErst = partner && (!hasMemberId || pHistLen === 0);
+    const needErwerbErst = partner && (!hasMemberId || eHistLen === 0 || window._fmErwerbStand == null);
+    if (pErst) pErst.style.display = needPermitErst ? '' : 'none';
+    if (pBtn) pBtn.style.display = (partner && hasMemberId && !needPermitErst) ? '' : 'none';
+    if (eErst) eErst.style.display = needErwerbErst ? '' : 'none';
+    if (eBtn) eBtn.style.display = (partner && hasMemberId && !needErwerbErst) ? '' : 'none';
+    fmUpdatePermitStandText();
+    fmUpdateErwerbStandText();
+}
+
+function fmUpdatePermitStandText() {
+    const el = document.getElementById('fmPermitStandText');
+    if (!el) return;
+    const hist = window._fmPermitHistLatest;
+    if (hist) {
+        const ga = (hist.validFrom || '').slice(0, 10);
+        const ea = (hist.erfahrenAm || ga || '').slice(0, 10);
+        const eaTxt = ea && ea !== ga ? ` · erfahren ${formatDate(ea)}` : '';
+        el.textContent = `${hist.permitLabel || hist.permitCode || 'CH / keine'} · seit ${ga ? formatDate(ga) : '–'}${eaTxt}`;
+        return;
+    }
+    const sel = document.getElementById('fmPermitTypeId');
+    const opt = sel?.selectedOptions?.[0];
+    const label = (opt && opt.value) ? opt.textContent : null;
+    el.textContent = label || '– noch nicht erfasst –';
+}
+
+function fmUpdateErwerbStandText() {
+    const el = document.getElementById('fmErwerbStandText');
+    if (!el) return;
+    const hist = window._fmErwerbHistLatest;
+    if (hist) {
+        const erw = hist.erwerbstaetig === true ? 'Ja' : (hist.erwerbstaetig === false ? 'Nein' : '–');
+        const ga = (hist.validFrom || '').slice(0, 10);
+        const ea = (hist.erfahrenAm || ga || '').slice(0, 10);
+        const eaTxt = ea && ea !== ga ? ` · erfahren ${formatDate(ea)}` : '';
+        el.textContent = `${erw} · seit ${ga ? formatDate(ga) : '–'}${eaTxt}`;
+        return;
+    }
+    const v = window._fmErwerbStand;
+    el.textContent = v === true ? 'Ja' : (v === false ? 'Nein' : '– noch nicht erfasst –');
+}
+
+function fmFillPermitWechselSelect() {
+    const src = document.getElementById('fmPermitTypeId');
+    const dst = document.getElementById('fmPermitWechselTyp');
+    if (!src || !dst) return;
+    dst.innerHTML = src.innerHTML;
+    const cur = window._fmPermitTypeId;
+    dst.value = cur != null && cur !== '' ? String(cur) : '';
+    dst.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function fmOpenPermitWechsel() {
+    if (!editingFamilyMemberId) { alert('Bitte zuerst speichern, dann den Status ändern.'); return; }
+    fmFillPermitWechselSelect();
+    document.getElementById('fmPermitWechselSeit').value = '';
+    document.getElementById('fmPermitWechselEa').value = _fmHeuteIso();
+    document.getElementById('fmPermitWechselPanel').style.display = '';
+}
+
+function fmClosePermitWechsel() {
+    const p = document.getElementById('fmPermitWechselPanel');
+    if (p) p.style.display = 'none';
+}
+
+async function fmSavePermitWechsel() {
+    if (!selectedEmployeeId || !editingFamilyMemberId) return;
+    const seit = document.getElementById('fmPermitWechselSeit')?.value;
+    const ea = document.getElementById('fmPermitWechselEa')?.value || null;
+    if (!seit) { alert('«Seit» (Wirkung) ist Pflicht.'); return; }
+    if (ea && ea < seit) { alert('«Erfahren am» darf nicht vor «Seit» liegen.'); return; }
+    const typRaw = document.getElementById('fmPermitWechselTyp')?.value;
+    const permitTypeId = typRaw ? parseInt(typRaw, 10) : null;
+    try {
+        const r = await fetch(`/api/employees/${selectedEmployeeId}/family/${editingFamilyMemberId}/permit-status`, {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permitTypeId: Number.isFinite(permitTypeId) ? permitTypeId : null, seit, erfahrenAm: ea }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { alert(j.message || j.error || ('Fehler HTTP ' + r.status)); return; }
+        window._fmPermitTypeId = j.permitTypeId ?? permitTypeId;
+        const main = document.getElementById('fmPermitTypeId');
+        if (main) main.value = window._fmPermitTypeId != null ? String(window._fmPermitTypeId) : '';
+        fmClosePermitWechsel();
+        await fmLoadPartnerHistories(editingFamilyMemberId);
+        fmRefreshStatusUi(true);
+        if (typeof qstRecheckNachAenderung === 'function') qstRecheckNachAenderung(selectedEmployeeId);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+function fmOpenErwerbWechsel() {
+    if (!editingFamilyMemberId) { alert('Bitte zuerst speichern, dann den Status ändern.'); return; }
+    const cur = window._fmErwerbStand;
+    const want = cur === false ? 'ja' : 'nein'; // Vorschlag = Gegenteil
+    document.querySelectorAll('input[name="fmErwerbWechsel"]').forEach(r => { r.checked = r.value === want; });
+    document.getElementById('fmErwerbWechselSeit').value = '';
+    document.getElementById('fmErwerbWechselEa').value = _fmHeuteIso();
+    document.getElementById('fmErwerbWechselPanel').style.display = '';
+}
+
+function fmCloseErwerbWechsel() {
+    const p = document.getElementById('fmErwerbWechselPanel');
+    if (p) p.style.display = 'none';
+}
+
+async function fmSaveErwerbWechsel() {
+    if (!selectedEmployeeId || !editingFamilyMemberId) return;
+    const rSel = document.querySelector('input[name="fmErwerbWechsel"]:checked');
+    if (!rSel || (rSel.value !== 'ja' && rSel.value !== 'nein')) { alert('Neuer Status (Ja/Nein) wählen.'); return; }
+    const seit = document.getElementById('fmErwerbWechselSeit')?.value;
+    const ea = document.getElementById('fmErwerbWechselEa')?.value || null;
+    if (!seit) { alert('«Seit» (Wirkung) ist Pflicht.'); return; }
+    if (ea && ea < seit) { alert('«Erfahren am» darf nicht vor «Seit» liegen.'); return; }
+    const erwerbstaetig = rSel.value === 'ja';
+    try {
+        const r = await fetch(`/api/employees/${selectedEmployeeId}/family/${editingFamilyMemberId}/erwerb-status`, {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ erwerbstaetig, seit, erfahrenAm: ea }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { alert(j.message || j.error || ('Fehler HTTP ' + r.status)); return; }
+        window._fmErwerbStand = erwerbstaetig;
+        fmSetErwerb(erwerbstaetig);
+        fmCloseErwerbWechsel();
+        await fmLoadPartnerHistories(editingFamilyMemberId);
+        fmRefreshStatusUi(true);
+        if (typeof qstRecheckNachAenderung === 'function') qstRecheckNachAenderung(selectedEmployeeId);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
 // Bewilligungs-/Erwerbs-Historie im Familien-Modal (Walter 08.10.2026).
 async function fmLoadPartnerHistories(memberId) {
     if (!selectedEmployeeId || !memberId) return;
@@ -8259,11 +8424,19 @@ async function fmLoadPartnerHistories(memberId) {
         ]);
         const pList = rp.ok ? await rp.json() : [];
         const eList = re.ok ? await re.json() : [];
+        window._fmPermitHistCount = pList.length;
+        window._fmErwerbHistCount = eList.length;
+        window._fmPermitHistLatest = pList[0] || null;
+        window._fmErwerbHistLatest = eList[0] || null;
+        if (window._fmPermitHistLatest?.permitTypeId != null)
+            window._fmPermitTypeId = window._fmPermitHistLatest.permitTypeId;
+        if (window._fmErwerbHistLatest && (window._fmErwerbHistLatest.erwerbstaetig === true || window._fmErwerbHistLatest.erwerbstaetig === false))
+            window._fmErwerbStand = window._fmErwerbHistLatest.erwerbstaetig;
         if (pEl) {
             if (!pList.length) { pEl.style.display = 'none'; pEl.innerHTML = ''; }
             else {
                 pEl.style.display = 'block';
-                pEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Bewilligungs-Historie</div>`
+                pEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Bisherige Statusänderungen</div>`
                     + pList.map((h, i) => {
                         const ga = (h.validFrom || '').slice(0, 10);
                         const ea = (h.erfahrenAm || ga || '').slice(0, 10);
@@ -8282,7 +8455,7 @@ async function fmLoadPartnerHistories(memberId) {
         if (eEl) {
             if (!eList.length) { eEl.innerHTML = ''; }
             else {
-                eEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin:2px 0 4px">Erwerbstätig-Historie</div>`
+                eEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin:2px 0 4px">Bisherige Statusänderungen</div>`
                     + eList.map((h, i) => {
                         const ga = (h.validFrom || '').slice(0, 10);
                         const ea = (h.erfahrenAm || ga || '').slice(0, 10);
@@ -8299,6 +8472,7 @@ async function fmLoadPartnerHistories(memberId) {
                     }).join('');
             }
         }
+        fmRefreshStatusUi(true);
     } catch (e) {
         if (pEl) pEl.innerHTML = `<div style="color:#b91c1c;font-size:12px">Historie: ${esc(e.message)}</div>`;
     }
