@@ -8798,45 +8798,75 @@
         /* Walter-Vorgabe 27.05.2026: Familien-Modal nutzt MA-Maske-Look
            (emp-field-grid-3 + emp-section-title). Inputs innerhalb der
            grauen Card werden zur weissen Wert-Box passend gestylt. */
+        /* Einheitliche Feldhöhe (Walter 08.10.2026): Select, Datum, Text gleich. */
         #familyModal .emp-field-grid-3 .fmf-input,
         #familyModal .emp-field-grid-3 .fmf-select,
         #familyModal .emp-field-grid-2 .fmf-input,
         #familyModal .emp-field-grid-2 .fmf-select,
         #familyModal .emp-field-grid   .fmf-input,
-        #familyModal .emp-field-grid   .fmf-select {
+        #familyModal .emp-field-grid   .fmf-select,
+        #familyModal .fmf-field .fmf-input,
+        #familyModal .fmf-field .fmf-select,
+        #familyModal .fmf-field .lqsel-btn,
+        #familyModal .fmf-field .yp-text,
+        #familyModal .fmf-field .yp-field-wrap {
             background: #fff;
             border: 1px solid #e2ddd3;
             border-radius: 9px;
-            padding: 4px 9px;
-            min-height: 27px;
+            padding: 0 10px;
+            height: 36px;
+            min-height: 36px;
+            max-height: 36px;
+            box-sizing: border-box;
             font-size: 13px;
             color: #0f172a;
             font-weight: 500;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
             transition: border-color .12s, box-shadow .12s;
         }
+        #familyModal .fmf-field .lqsel-wrap { width: 100%; display: block; }
+        #familyModal .fmf-field .lqsel-btn {
+            display: flex; align-items: center; width: 100%;
+            padding: 0 10px !important; border-radius: 9px !important;
+        }
+        #familyModal .fmf-field .yp-field-wrap {
+            display: flex; align-items: stretch; padding: 0; gap: 0; overflow: hidden;
+        }
+        #familyModal .fmf-field .yp-field-wrap .yp-text {
+            flex: 1; min-width: 0; border: none !important; box-shadow: none !important;
+            height: 34px; min-height: 34px; max-height: 34px; border-radius: 0;
+        }
+        #familyModal .fmf-field .yp-cal-btn {
+            flex-shrink: 0; width: 34px; height: 34px; border: none; background: transparent;
+            display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+        }
         #familyModal .emp-field-grid-3 .fmf-input:hover,
         #familyModal .emp-field-grid-3 .fmf-select:hover,
         #familyModal .emp-field-grid-2 .fmf-input:hover,
         #familyModal .emp-field-grid-2 .fmf-select:hover,
         #familyModal .emp-field-grid   .fmf-input:hover,
-        #familyModal .emp-field-grid   .fmf-select:hover { border-color: #1a1a1a; box-shadow: 0 2px 4px rgba(60,55,48, 0.15); }
+        #familyModal .emp-field-grid   .fmf-select:hover,
+        #familyModal .fmf-field .lqsel-btn:hover { border-color: #1a1a1a; box-shadow: 0 2px 4px rgba(60,55,48, 0.15); }
         #familyModal .emp-field-grid-3 .fmf-input:focus,
         #familyModal .emp-field-grid-3 .fmf-select:focus,
         #familyModal .emp-field-grid-2 .fmf-input:focus,
         #familyModal .emp-field-grid-2 .fmf-select:focus,
         #familyModal .emp-field-grid   .fmf-input:focus,
-        #familyModal .emp-field-grid   .fmf-select:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(60,55,48, 0.15); }
+        #familyModal .emp-field-grid   .fmf-select:focus,
+        #familyModal .fmf-field .lqsel-btn:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(60,55,48, 0.15); }
         #familyModal .emp-field-grid-3 .fmf-label,
         #familyModal .emp-field-grid-2 .fmf-label,
-        #familyModal .emp-field-grid   .fmf-label {
+        #familyModal .emp-field-grid   .fmf-label,
+        #familyModal .fmf-field > .fmf-label {
             font-size: 9.5px; font-weight: 700; color: #475569;
             text-transform: uppercase; letter-spacing: 0.06em;
             padding-left: 2px; line-height: 1.2;
+            min-height: 14px;
         }
         #familyModal .fmf-checkbox-card {
             background: #fff; border: 1px solid #e2ddd3; border-radius: 9px;
-            padding: 4px 9px; min-height: 27px;
+            padding: 0 10px; height: 36px; min-height: 36px; max-height: 36px;
+            box-sizing: border-box;
             display: flex; align-items: center; gap: 8px;
             font-size: 13px; color: #0f172a;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);

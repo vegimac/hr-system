@@ -6076,10 +6076,12 @@ function fmQstBlocksVisibility(type) {
     // beim Bearbeiten von Alt-Erfassungen).
     const istKind = type === 'Kind';
     ['fmMaidenNameField', 'fmSsnField', 'fmPhoneField',
-     'fmPermitField', 'fmPermitExpiryField', 'fmZemisField'].forEach(id => {
+     'fmPermitField', 'fmPermitSeitField', 'fmPermitErfahrenField', 'fmZemisField'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = istKind ? 'none' : '';
     });
+    const pHist = document.getElementById('fmPermitHistList');
+    if (pHist && istKind) { pHist.style.display = 'none'; }
     // Auslands-Partner-Hinweis hängt am Typ (nur Ehepartner) — mitschalten.
     if (typeof fmUpdateAuslandHint === 'function') fmUpdateAuslandHint();
 }
@@ -7675,7 +7677,7 @@ function openFamilyModal(member) {
     if (_pEa) _pEa.value = _fmHeute;
     const _eSeit = document.getElementById('fmErwerbSeit');
     const _eEa = document.getElementById('fmErwerbErfahrenAm');
-    if (_eSeit) _eSeit.value = toDateInput(member?.stellenantritt) || '';
+    if (_eSeit) _eSeit.value = '';
     if (_eEa) _eEa.value = _fmHeute;
     if (member?.id) fmLoadPartnerHistories(member.id);
     else {
@@ -8264,14 +8266,14 @@ async function fmLoadPartnerHistories(memberId) {
                 pEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Bewilligungs-Historie</div>`
                     + pList.map((h, i) => {
                         const ga = (h.validFrom || '').slice(0, 10);
-                        const ea = (h.erfahrenAm || '').slice(0, 10);
+                        const ea = (h.erfahrenAm || ga || '').slice(0, 10);
                         const eaTxt = ea && ea !== ga
                             ? ` · erfahren ${formatDate(ea)} <span style="color:#c2410c">(versetzt)</span>`
                             : (ea ? ` · erfahren ${formatDate(ea)}` : '');
                         return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 10px;margin-bottom:4px;border-radius:8px;background:${i===0?'#fff':'rgba(255,255,255,0.45)'};box-shadow:0 1px 3px rgba(60,55,48,0.08)">
                             <span style="flex-shrink:0;font-size:10px;font-weight:700;border-radius:999px;padding:1px 8px;${i===0?'color:#166534;background:#dcfce7':'color:#6b6152;background:#ece9e2'}">${i===0?'aktuell':'früher'}</span>
                             <div style="flex:1;min-width:0"><b>${esc(h.permitLabel || h.permitCode || 'CH / keine')}</b>
-                            <span style="color:#8b8b8b"> · ab ${ga ? formatDate(ga) : '–'}${h.validTo ? ' bis ' + formatDate(h.validTo) : ''}${eaTxt}</span></div>
+                            <span style="color:#8b8b8b"> · seit ${ga ? formatDate(ga) : '–'}${eaTxt}</span></div>
                             <button type="button" onclick="fmDeletePermitHist(${memberId},${h.id})" title="Eintrag löschen" style="background:#fff;border:1px dashed #fca5a5;color:#991b1b;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer">🗑</button>
                         </div>`;
                     }).join('');
@@ -8280,19 +8282,18 @@ async function fmLoadPartnerHistories(memberId) {
         if (eEl) {
             if (!eList.length) { eEl.innerHTML = ''; }
             else {
-                eEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin:6px 0 4px">Erwerbs-Historie</div>`
+                eEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin:2px 0 4px">Erwerbstätig-Historie</div>`
                     + eList.map((h, i) => {
                         const ga = (h.validFrom || '').slice(0, 10);
-                        const ea = (h.erfahrenAm || '').slice(0, 10);
+                        const ea = (h.erfahrenAm || ga || '').slice(0, 10);
                         const erw = h.erwerbstaetig === true ? 'Ja' : (h.erwerbstaetig === false ? 'Nein' : '–');
-                        const ag = h.arbeitgeberName ? ` · ${esc(h.arbeitgeberName)}` : '';
                         const eaTxt = ea && ea !== ga
                             ? ` · erfahren ${formatDate(ea)} <span style="color:#c2410c">(versetzt)</span>`
                             : (ea ? ` · erfahren ${formatDate(ea)}` : '');
                         return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 10px;margin-bottom:4px;border-radius:8px;background:${i===0?'#fff':'rgba(255,255,255,0.45)'};box-shadow:0 1px 3px rgba(60,55,48,0.08)">
                             <span style="flex-shrink:0;font-size:10px;font-weight:700;border-radius:999px;padding:1px 8px;${i===0?'color:#166534;background:#dcfce7':'color:#6b6152;background:#ece9e2'}">${i===0?'aktuell':'früher'}</span>
-                            <div style="flex:1;min-width:0"><b>Erwerbstätig: ${erw}</b>${ag}
-                            <span style="color:#8b8b8b"> · ab ${ga ? formatDate(ga) : '–'}${eaTxt}</span></div>
+                            <div style="flex:1;min-width:0"><b>${erw}</b>
+                            <span style="color:#8b8b8b"> · seit ${ga ? formatDate(ga) : '–'}${eaTxt}</span></div>
                             <button type="button" onclick="fmDeleteErwerbHist(${memberId},${h.id})" title="Eintrag löschen" style="background:#fff;border:1px dashed #fca5a5;color:#991b1b;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer">🗑</button>
                         </div>`;
                     }).join('');

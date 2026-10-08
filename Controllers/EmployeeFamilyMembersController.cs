@@ -317,12 +317,11 @@ public class EmployeeFamilyMembersController : ControllerBase
             .Where(h => h.FamilyMemberId == snap.Id)
             .OrderBy(h => h.ValidFrom).ThenBy(h => h.Id)
             .ToListAsync();
+        // Historie nur Bewilligungs-Typ + Seit/Erfahren (Walter 08.10.2026) —
+        // kein «Gültig bis» mehr in der Maske.
         bool hatPermitDaten = snap.PermitTypeId != null || snap.NationalityId != null;
         var letzterP = permitHist.LastOrDefault();
-        bool permitGeaendert = letzterP == null
-            || letzterP.PermitTypeId != snap.PermitTypeId
-            || letzterP.ValidTo != AsDate(snap.PermitExpiryDate);
-        // Seit vom Client; bei Änderung ohne Seit → heute (wie Kinder «neu»).
+        bool permitGeaendert = letzterP == null || letzterP.PermitTypeId != snap.PermitTypeId;
         var permitSeit = dto.PermitSeit ?? DateOnly.FromDateTime(DateTime.Today);
         if (hatPermitDaten && (dto.PermitSeit.HasValue || permitHist.Count == 0 || permitGeaendert))
         {
@@ -332,40 +331,32 @@ public class EmployeeFamilyMembersController : ControllerBase
             if (letzterP != null && letzterP.ValidFrom == permitSeit)
             {
                 letzterP.PermitTypeId = snap.PermitTypeId;
-                letzterP.ValidTo = AsDate(snap.PermitExpiryDate);
                 letzterP.ErfahrenAm = ea;
+                letzterP.ValidTo = null;
             }
             else if (permitGeaendert || dto.PermitSeit.HasValue || permitHist.Count == 0)
             {
-                if (letzterP != null && letzterP.ValidFrom < permitSeit && letzterP.PermitTypeId != null
-                    && (letzterP.ValidTo == null || letzterP.ValidTo >= permitSeit))
-                    letzterP.ValidTo = permitSeit.AddDays(-1);
                 _context.FamilyMemberPermitHistories.Add(new FamilyMemberPermitHistory
                 {
                     FamilyMemberId = snap.Id,
                     PermitTypeId = snap.PermitTypeId,
                     ValidFrom = permitSeit,
                     ErfahrenAm = ea,
-                    ValidTo = AsDate(snap.PermitExpiryDate),
+                    ValidTo = null,
                     Note = permitHist.Count == 0 ? "Ersterfassung" : null,
                     CreatedAt = DateTime.Now,
                 });
             }
         }
 
-        // ── Erwerbstätigkeit ─────────────────────────────────────────────
+        // ── Erwerbstätigkeit: nur Ja/Nein-Wechsel (kein Arbeitgeber) ─────
         var erwerbHist = await _context.FamilyMemberErwerbHistories
             .Where(h => h.FamilyMemberId == snap.Id)
             .OrderBy(h => h.ValidFrom).ThenBy(h => h.Id)
             .ToListAsync();
         var letzterE = erwerbHist.LastOrDefault();
-        bool erwerbGeaendert = letzterE == null
-            || letzterE.Erwerbstaetig != snap.Erwerbstaetig
-            || !string.Equals(letzterE.ArbeitgeberName, snap.ArbeitgeberName, StringComparison.Ordinal)
-            || !string.Equals(letzterE.ArbeitgeberKanton, snap.ArbeitgeberKanton, StringComparison.Ordinal);
-        var erwerbSeit = dto.ErwerbSeit
-            ?? AsDate(snap.Stellenantritt)
-            ?? DateOnly.FromDateTime(DateTime.Today);
+        bool erwerbGeaendert = letzterE == null || letzterE.Erwerbstaetig != snap.Erwerbstaetig;
+        var erwerbSeit = dto.ErwerbSeit ?? DateOnly.FromDateTime(DateTime.Today);
         if (snap.Erwerbstaetig != null && (dto.ErwerbSeit.HasValue || erwerbHist.Count == 0 || erwerbGeaendert))
         {
             var ea = dto.ErwerbErfahrenAm;
@@ -374,12 +365,6 @@ public class EmployeeFamilyMembersController : ControllerBase
             if (letzterE != null && letzterE.ValidFrom == erwerbSeit)
             {
                 letzterE.Erwerbstaetig = snap.Erwerbstaetig;
-                letzterE.ArbeitgeberName = snap.ArbeitgeberName;
-                letzterE.ArbeitgeberStrasse = snap.ArbeitgeberStrasse;
-                letzterE.ArbeitgeberPlz = snap.ArbeitgeberPlz;
-                letzterE.ArbeitgeberOrt = snap.ArbeitgeberOrt;
-                letzterE.ArbeitgeberKanton = snap.ArbeitgeberKanton;
-                letzterE.Stellenantritt = AsDate(snap.Stellenantritt);
                 letzterE.ErfahrenAm = ea;
             }
             else if (erwerbGeaendert || dto.ErwerbSeit.HasValue || erwerbHist.Count == 0)
@@ -388,12 +373,6 @@ public class EmployeeFamilyMembersController : ControllerBase
                 {
                     FamilyMemberId = snap.Id,
                     Erwerbstaetig = snap.Erwerbstaetig,
-                    ArbeitgeberName = snap.ArbeitgeberName,
-                    ArbeitgeberStrasse = snap.ArbeitgeberStrasse,
-                    ArbeitgeberPlz = snap.ArbeitgeberPlz,
-                    ArbeitgeberOrt = snap.ArbeitgeberOrt,
-                    ArbeitgeberKanton = snap.ArbeitgeberKanton,
-                    Stellenantritt = AsDate(snap.Stellenantritt),
                     ValidFrom = erwerbSeit,
                     ErfahrenAm = ea,
                     Note = erwerbHist.Count == 0 ? "Ersterfassung" : null,

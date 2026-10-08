@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261008d">
+    <link rel="stylesheet" href="css/app.css?v=20261008e">
 </head>
 <body>
 
@@ -10487,27 +10487,25 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </span>
             </div>
             <div id="fmOcrInfo" style="font-size:12px;margin:6px 0 2px;min-height:0"></div>
+            <!-- Gültig bis ausgeblendet (Walter 08.10.2026): Historie nur Seit + Erfahren.
+                 Hidden bleibt für OCR/Altbestand. -->
+            <input type="hidden" id="fmPermitExpiry" value="">
             <div class="emp-field-grid-3">
-                <div class="fmf-field" id="fmPermitField" style="grid-column:span 2">
+                <div class="fmf-field" id="fmPermitField">
                     <label class="fmf-label" data-i18n="fam.field.permit">Bewilligung</label>
                     <select class="fmf-select" id="fmPermitTypeId">
                         <option value="" data-i18n="fam.field.permitDefault">– keine / CH-Bürger –</option>
                     </select>
                 </div>
-                <div class="fmf-field" id="fmPermitExpiryField">
-                    <label class="fmf-label" data-i18n="fam.field.validTo">Gültig bis</label>
-                    <input class="fmf-input" id="fmPermitExpiry" type="date">
-                </div>
                 <div class="fmf-field" id="fmPermitSeitField">
-                    <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b">(Wirkung)</span></label>
+                    <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wirkung)</span></label>
                     <input class="fmf-input" id="fmPermitSeit" type="date"
                            title="Ab wann die Bewilligung gilt — für rückwirkende QST (Ehepartner C)">
                 </div>
                 <div class="fmf-field" id="fmPermitErfahrenField">
-                    <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b">(Wissen)</span></label>
+                    <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wissen · leer = Seit)</span></label>
                     <input class="fmf-input" id="fmPermitErfahrenAm" type="date"
                            title="Ab wann wir von der Bewilligung wussten — leer = gleich «Seit»">
-                    <div style="font-size:10.5px;color:#8b8b8b;margin-top:3px;line-height:1.3">leer = gleich «Seit»</div>
                 </div>
                 <div class="fmf-field" id="fmZemisField">
                     <label class="fmf-label" data-i18n="fam.field.zemis">ZEMIS-Nr.</label>
@@ -10650,17 +10648,29 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div class="emp-section-title" id="fmErwerbTitle">Erwerbstätigkeit Ehepartner</div>
                 <!-- Zeile 1 = Erwerbstätig-Frage; CH-Arbeitgeber nur sichtbar,
                      wenn der Partner in der Schweiz wohnt. -->
-                <div style="display:grid;grid-template-columns:auto;gap:6px 10px;margin-bottom:6px">
+                <!-- Historie nur Ja/Nein + Seit/Erfahren (Walter 08.10.2026) —
+                     Arbeitgeber ist Snapshot, keine eigene Historie. -->
+                <div class="emp-field-grid-3" style="margin-bottom:8px">
                     <div class="fmf-field">
                         <label class="fmf-label" title="Zählt auch: Ersatzeinkommen wie Rente, Arbeitslosen- oder Militärentschädigung — und Einkommen im AUSLAND (Tarifbestimmung schweizweit, TaxInfo BE). Beispiel Status S: Ehemann in der Ukraine mit Militärsold = Ja → Tarif C.">Erwerbstätig / Ersatzeinkommen? ⓘ</label>
-                        <div style="display:flex;gap:6px;align-items:center;min-height:28px">
+                        <div style="display:flex;gap:6px;align-items:center;min-height:36px">
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="" checked onchange="fmErwerbChanged()"> –</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="ja" onchange="fmErwerbChanged()"> Ja</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="nein" onchange="fmErwerbChanged()"> Nein</label>
                         </div>
-                        <div style="font-size:10.5px;color:#8b8b8b;line-height:1.3;margin-top:2px">inkl. Rente/Militärsold, auch im Ausland → Tarif C</div>
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wirkung · B/C)</span></label>
+                        <input class="fmf-input" id="fmErwerbSeit" type="date"
+                               title="Ab wann dieser Erwerbs-Stand gilt — für rückwirkende QST B↔C">
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(Wissen · leer = Seit)</span></label>
+                        <input class="fmf-input" id="fmErwerbErfahrenAm" type="date"
+                               title="Ab wann wir vom Erwerbs-Wechsel wussten — leer = gleich «Seit»">
                     </div>
                 </div>
+                <div id="fmErwerbHistList" style="margin-bottom:8px"></div>
                 <!-- CH-Arbeitgeber nur, wenn der Partner in der Schweiz wohnt
                      (Walter 15.09.2026: gleicher Haushalt eines Auslands-MA
                      = ebenfalls Ausland → Felder weg). -->
@@ -10695,22 +10705,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                             <input class="fmf-input" id="fmStellenantritt" type="date">
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:6px">
-                        <div class="fmf-field">
-                            <label class="fmf-label">Seit <span style="font-weight:400;color:#8b8b8b">(Wirkung · Tarif B/C)</span></label>
-                            <input class="fmf-input" id="fmErwerbSeit" type="date"
-                                   title="Ab wann dieser Erwerbs-Stand gilt — für rückwirkende QST B↔C">
-                        </div>
-                        <div class="fmf-field">
-                            <label class="fmf-label">Erfahren am <span style="font-weight:400;color:#8b8b8b">(Wissen)</span></label>
-                            <input class="fmf-input" id="fmErwerbErfahrenAm" type="date"
-                                   title="Ab wann wir vom Erwerbs-Wechsel wussten — leer = gleich «Seit»">
-                            <div style="font-size:10.5px;color:#8b8b8b;margin-top:3px;line-height:1.3">leer = gleich «Seit»</div>
-                        </div>
-                    </div>
                     <div id="fmAgPlzHint" style="font-size:11.5px;margin-top:4px"></div>
                 </div>
-                <div id="fmErwerbHistList" style="margin-top:8px"></div>
                 <!-- Einkommensfrage Konkubinat (Walter 25.08.2026 v2: NACH der
                      Erwerbstätigkeit — erscheint nur bei Typ Konkubinatspartner
                      UND Erwerbstätig = Ja; bei Nein greift automatisch H1). -->
@@ -10898,7 +10894,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261008h"></script>
+<script src="employees.js?v=20261008i"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 
