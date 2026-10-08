@@ -335,8 +335,8 @@ public class DocumentsController : ControllerBase
             return BadRequest("Filiale-Code fehlt. Bitte zuerst eine Filiale wählen.");
 
         // Nur PDF + Bilder (Walter-Vorgabe 01.10.2026, vorher auch Office/CSV/TXT).
-        if (!DokumentUploadRegel.IstErlaubt(file.FileName))
-            return BadRequest(DokumentUploadRegel.Fehler(file.FileName));
+        if (DokumentUploadRegel.Pruefe(file) is { } nichtErlaubt)
+            return BadRequest(nichtErlaubt);
 
         // Mitarbeiter + Typ existieren?
         var empExists = await _db.Employees.AnyAsync(e => e.Id == employeeId);

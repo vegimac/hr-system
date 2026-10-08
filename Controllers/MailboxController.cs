@@ -410,8 +410,8 @@ public class MailboxController : ControllerBase
         if (betreff.Length == 0) return BadRequest(new { error = "Bitte einen Betreff eingeben." });
         if (text.Length == 0 && (file == null || file.Length == 0))
             return BadRequest(new { error = "Bitte einen Text eingeben oder eine Datei anhängen." });
-        if (file != null && file.Length > 0 && !DokumentUploadRegel.IstErlaubt(file.FileName))
-            return BadRequest(DokumentUploadRegel.Fehler(file.FileName));
+        if (DokumentUploadRegel.Pruefe(file) is { } nichtErlaubt)
+            return BadRequest(nichtErlaubt);
 
         var empfaenger = await _db.AppUsers.AsNoTracking()
             .Where(u => ids.Contains(u.Id) && u.IsActive && u.Role != "employee")
@@ -530,8 +530,8 @@ public class MailboxController : ControllerBase
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { error = "Keine Datei hochgeladen." });
-        if (!DokumentUploadRegel.IstErlaubt(file.FileName))
-            return BadRequest(DokumentUploadRegel.Fehler(file.FileName));
+        if (DokumentUploadRegel.Pruefe(file) is { } nichtErlaubt)
+            return BadRequest(nichtErlaubt);
 
         var t = (targetType ?? "BRANCH").ToUpperInvariant();
         int effectiveBranchId;
@@ -706,6 +706,8 @@ public class MailboxController : ControllerBase
         var mt = (file.ContentType ?? "").ToLowerInvariant();
         if (!allowedMimes.Contains(mt))
             return BadRequest(new { error = "Nur Fotos (JPG/PNG/HEIC) oder PDF sind erlaubt." });
+        if (!DokumentUploadRegel.IstPdfOderBild(file))
+            return BadRequest(new { error = "Die Datei ist kein echtes Foto oder PDF. Bitte die Originaldatei hochladen." });
 
         // Aufrufer muss employee-Rolle mit verknüpftem MA sein
         var uid = GetCurrentUserId();

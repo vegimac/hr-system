@@ -120,9 +120,9 @@ public class KandidatenController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(vorname) || string.IsNullOrWhiteSpace(name))
             return BadRequest(new { error = "NAME_FEHLT", message = "Vorname und Name angeben." });
-        var unerlaubt = files?.FirstOrDefault(f => f.Length > 0 && !HrSystem.Services.DokumentUploadRegel.IstErlaubt(f.FileName));
+        var unerlaubt = files?.Select(HrSystem.Services.DokumentUploadRegel.Pruefe).FirstOrDefault(f => f != null);
         if (unerlaubt != null)
-            return BadRequest(HrSystem.Services.DokumentUploadRegel.Fehler(unerlaubt.FileName));
+            return BadRequest(unerlaubt);
         var erlaubt = await ErlaubteFilialenAsync();
         if (!erlaubt.Contains(companyProfileId))
             return StatusCode(403, new { error = "KEINE_FILIALE", message = "Kein Zugriff auf diese Filiale." });
@@ -204,9 +204,9 @@ public class KandidatenController : ControllerBase
             return Conflict(new { error = "BEREITS_ENTSCHIEDEN", message = "HR hat bereits entschieden — Bearbeiten ist nicht mehr möglich." });
         if (string.IsNullOrWhiteSpace(vorname) || string.IsNullOrWhiteSpace(name))
             return BadRequest(new { error = "NAME_FEHLT", message = "Vorname und Name angeben." });
-        var unerlaubt = files?.FirstOrDefault(f => f.Length > 0 && !HrSystem.Services.DokumentUploadRegel.IstErlaubt(f.FileName));
+        var unerlaubt = files?.Select(HrSystem.Services.DokumentUploadRegel.Pruefe).FirstOrDefault(f => f != null);
         if (unerlaubt != null)
-            return BadRequest(HrSystem.Services.DokumentUploadRegel.Fehler(unerlaubt.FileName));
+            return BadRequest(unerlaubt);
 
         DateOnly? eintritt = null;
         if (!string.IsNullOrWhiteSpace(fruehesterEintritt))

@@ -162,8 +162,8 @@ public class CompanyDokumenteController : ControllerBase
             return BadRequest(new { error = "Keine Datei hochgeladen." });
         if (file.Length > 20 * 1024 * 1024)
             return BadRequest(new { error = "Datei zu gross (max. 20 MB)." });
-        if (!DokumentUploadRegel.IstErlaubt(file.FileName))
-            return BadRequest(DokumentUploadRegel.Fehler(file.FileName));
+        if (DokumentUploadRegel.Pruefe(file) is { } nichtErlaubt)
+            return BadRequest(nichtErlaubt);
         if (companyProfileId <= 0)
             return BadRequest(new { error = "companyProfileId fehlt." });
 

@@ -1553,7 +1553,7 @@
             });
             if (!res.ok) {
                 const j = await res.json().catch(() => ({}));
-                errEl.textContent = j.error || j.message || 'Upload fehlgeschlagen.';
+                errEl.textContent = j.message || j.error || 'Upload fehlgeschlagen.';
                 errEl.style.display = 'block';
                 btn.disabled = false;
                 btn.textContent = 'Senden';
