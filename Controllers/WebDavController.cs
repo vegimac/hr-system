@@ -37,6 +37,7 @@ public class WebDavController : ControllerBase
     private readonly AppDbContext _db;
     private readonly string _storagePath;
     private readonly ILogger<WebDavController> _log;
+    private readonly HrSystem.Services.VirenScanner _viren;
 
     private const string F_FILIALEN = "filialen";
     private const string F_HR       = "hr";
@@ -44,10 +45,12 @@ public class WebDavController : ControllerBase
     private const string F_BENUTZER = "benutzer";
     private const string F_MEINE    = "meine-mitteilungen";
 
-    public WebDavController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, ILogger<WebDavController> log)
+    public WebDavController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, ILogger<WebDavController> log,
+                            HrSystem.Services.VirenScanner viren)
     {
         _db = db;
         _log = log;
+        _viren = viren;
         var configured = config["Documents:StoragePath"];
         if (string.IsNullOrWhiteSpace(configured))
             configured = Path.Combine(env.ContentRootPath, "data", "documents");
@@ -409,6 +412,19 @@ public class WebDavController : ControllerBase
         {
             try { System.IO.File.Delete(fullPath); } catch { }
             return BadRequest();
+        }
+
+        HrSystem.Services.ScanErgebnis scan;
+        await using (var lesen = System.IO.File.OpenRead(fullPath))
+            scan = await _viren.PruefeAsync(lesen, HttpContext.RequestAborted);
+        if (scan.Status != HrSystem.Services.ScanStatus.Sauber)
+        {
+            try { System.IO.File.Delete(fullPath); } catch { }
+            if (scan.Status == HrSystem.Services.ScanStatus.NichtBereit)
+                return StatusCode(503);
+            await HrSystem.Services.VirenScanFilter.FundMeldenAsync(_db, VirenFund.QuelleWebDav, fname, scan.Virus!,
+                "/" + string.Join("/", segments), user.Id, user.Username, null, _log);
+            return StatusCode(403);
         }
 
         var doc = new MailboxDocument

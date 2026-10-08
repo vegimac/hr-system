@@ -991,6 +991,44 @@ public class DashboardService
             }
         }
 
+        // ── Virenscanner-Fund (Walter 08.10.2026) ─────────────────────────
+        // Sicherheitsmeldung, deshalb in jeder Filial-Sicht. Bewusst OHNE
+        // EmployeeId: sonst blendet die globale Austritts-Bedingung sie aus.
+        if (Enabled("virus_gefunden"))
+        {
+            var funde = await _db.VirenFunde.AsNoTracking()
+                .Where(f => !f.Erledigt)
+                .OrderByDescending(f => f.GefundenAm)
+                .Take(50)
+                .Select(f => new
+                {
+                    f.GefundenAm, f.Quelle, f.Dateiname, f.Virus, f.Benutzer,
+                    MaName = f.EmployeeId == null ? null
+                        : _db.Employees.Where(e => e.Id == f.EmployeeId).Select(e => e.FirstName + " " + e.LastName).FirstOrDefault(),
+                })
+                .ToListAsync();
+            foreach (var f in funde)
+            {
+                var wo = f.Quelle switch
+                {
+                    VirenFund.QuelleBestand    => "in der Ablage — Datei liegt noch dort",
+                    VirenFund.QuelleEasyAtWork => "aus der easy@work-App — nicht übernommen",
+                    _                          => "beim Hochladen — nicht gespeichert",
+                };
+                var wer = f.MaName ?? f.Benutzer;
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "virus_gefunden",
+                    Severity = SeverityState("virus_gefunden", "critical"),
+                    Title    = "Schadsoftware in einer Datei gefunden",
+                    Subtitle = $"«{f.Dateiname}» · {f.Virus} · {wo}"
+                             + (string.IsNullOrWhiteSpace(wer) ? "" : $" · {wer}"),
+                    DueDate   = f.GefundenAm.Date,
+                    DaysUntil = (f.GefundenAm.Date - now).Days,
+                });
+            }
+        }
+
         // ── Kündigung nach Sperrfrist möglich (Walter 25.07.2026) ─────────
         // Sobald Art. 336c-Sperrfrist bei durchgehender Krankheit/Unfall
         // ausgeschöpft ist → ToDo «Wichtig». Verschwindet bei erfasster

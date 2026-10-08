@@ -1600,7 +1600,7 @@
                         <img src="img/Kommunikation.webp?v=20260816a" alt="" loading="lazy">
                         <span>Kommunikation</span>
                     </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="adminHubShowCat('kontrolle')" title="Warnungen, Aktivitäts-Log, Dokumenten-Audit, Datenaufbewahrung">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="adminHubShowCat('kontrolle')" title="Warnungen, Aktivitäts-Log, Dokumenten-Audit, Datenaufbewahrung, Virenscanner">
                         <img src="img/KontrolleDatenpflege.webp?v=20260816a" alt="" loading="lazy">
                         <span>Kontrolle &amp; Datenpflege</span>
                     </button>
@@ -1805,6 +1805,11 @@
                         <img src="img/kontkat-datenaufbewahrung.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Datenaufbewahrung</div>
                         <div class="admin-card-desc">Stempelzeiten automatisch löschen (Aufbewahrung in Jahren)</div>
+                    </div>
+                        <div class="admin-card admin-only-card" onclick="showPage('virenscanner')">
+                        <img src="img/kontkat-dok-audit.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Virenscanner</div>
+                        <div class="admin-card-desc">Jeder Upload wird geprüft — Status, Funde, bestehende Dokumente nachprüfen (admin)</div>
                     </div>
                     </div>
                 </div>
@@ -6248,6 +6253,41 @@
                     </p>
                 </div>
             </div>
+            <!-- ═══ VIRENSCANNER (Walter-Vorgabe 08.10.2026, admin-only) ═══ -->
+            <div class="page fixhead" id="page-virenscanner">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Virenscanner</h1>
+                    <p class="page-sub">Jede hochgeladene Datei (Posteingang, Dokumente, Kandidaten, Importe, WebDAV, easy@work-HR-Dateien) wird vor dem Speichern mit ClamAV geprüft. Fund ⇒ Upload abgelehnt und hier gemeldet. Läuft der Scanner nicht, werden Uploads abgelehnt, bis er wieder bereit ist.</p>
+                </div></div>
+                <div class="page-body">
+                    <div class="card" style="padding:16px 18px;margin-bottom:16px">
+                        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+                            <div id="vsStatus" style="flex:1;min-width:260px;font-size:13px;color:#3f3f3f">Lade …</div>
+                            <button type="button" class="btn btn-secondary" onclick="vsLoad()">Aktualisieren</button>
+                            <button type="button" class="btn btn-primary" id="vsBestandBtn" onclick="vsBestandStarten()">Bestehende Dokumente prüfen</button>
+                        </div>
+                        <div id="vsBestand" style="margin-top:12px;font-size:13px;color:#646464"></div>
+                    </div>
+                    <div class="card" style="padding:6px 8px 4px;overflow-x:auto">
+                        <div style="display:flex;align-items:center;gap:12px;padding:8px 8px 4px">
+                            <b style="font-size:14px;color:#3f3f3f">Funde</b>
+                            <label style="font-size:12px;color:#646464;display:flex;align-items:center;gap:6px;margin-left:auto">
+                                <input type="checkbox" id="vsAlle" onchange="vsLoadFunde()"> auch erledigte zeigen
+                            </label>
+                        </div>
+                        <table class="as-table">
+                            <thead><tr>
+                                <th>Gefunden am</th><th>Quelle</th><th>Datei</th><th>Schadsoftware</th><th>Ort</th><th>Wer / MA</th><th>Status</th><th></th>
+                            </tr></thead>
+                            <tbody id="vsBody"><tr><td colspan="8" style="color:#6b7280;padding:14px">Lade …</td></tr></tbody>
+                        </table>
+                    </div>
+                    <p style="font-size:12px;color:#6b7280;margin-top:12px;line-height:1.5">
+                        Funde aus dem Upload wurden nie gespeichert. Funde aus der Prüfung bestehender Dokumente liegen noch in der Ablage
+                        (Spalte «Ort») — Datei beim MA bzw. im Posteingang ansehen/löschen und danach hier «Erledigt» setzen.
+                    </p>
+                </div>
+            </div>
             <div class="page fixhead" id="page-audit-log">
                 <div class="page-head"><div>
                     <h1 class="page-title">Aktivitäts-Log</h1>
@@ -10185,7 +10225,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261007b"></script>
+<script src="js/app-core.js?v=20261008a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10198,7 +10238,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/upload-regel.js?v=20261001a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20261004a"></script>
+<script src="js/dashboard.js?v=20261008a"></script>
 <script src="js/session-timeout.js?v=20261007a"></script>
 <script src="js/session-lock.js?v=20260911a"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
@@ -10274,6 +10314,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>
 <script src="js/aktive-sitzungen.js?v=20260904a"></script>
+<script src="js/virenscanner.js?v=20261008a"></script>
 <script src="js/elm-lohnraster.js?v=20260921a"></script>
 <script src="js/lohnschema.js?v=20260819d"></script>
 <script src="js/global-search.js?v=20260901a"></script>

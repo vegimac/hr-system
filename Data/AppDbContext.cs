@@ -151,6 +151,7 @@ public class AppDbContext : DbContext
     public DbSet<MailLog>                   MailLogs                    => Set<MailLog>();
     public DbSet<GruppenMailLog>            GruppenMailLogs             => Set<GruppenMailLog>();
     public DbSet<MailWiedervorlage>         MailWiedervorlagen          => Set<MailWiedervorlage>();
+    public DbSet<VirenFund>                 VirenFunde                  => Set<VirenFund>();
     public DbSet<EasyAtWorkMaSyncLog>       EasyAtWorkMaSyncLogs        => Set<EasyAtWorkMaSyncLog>();
     public DbSet<DvelopSetting>             DvelopSettings              => Set<DvelopSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
@@ -3652,6 +3653,28 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.ClientSetNull);
             entity.HasIndex(e => new { e.Status, e.NaechsterVersuch });
             entity.HasIndex(e => e.GruppenMailLogId);
+        });
+
+        // ── VirenFund — vom Virenscanner gemeldete Dateien (Walter 08.10.2026)
+        modelBuilder.Entity<VirenFund>(entity =>
+        {
+            entity.ToTable("viren_fund");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.GefundenAm).HasColumnName("gefunden_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Quelle).HasColumnName("quelle").HasMaxLength(20);
+            entity.Property(e => e.Dateiname).HasColumnName("dateiname").HasMaxLength(500);
+            entity.Property(e => e.Virus).HasColumnName("virus").HasMaxLength(300);
+            entity.Property(e => e.Ort).HasColumnName("ort").HasMaxLength(1000);
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Benutzer).HasColumnName("benutzer").HasMaxLength(200);
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Erledigt).HasColumnName("erledigt");
+            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErledigtVonUserId).HasColumnName("erledigt_von_user_id");
+            entity.HasIndex(e => new { e.Erledigt, e.GefundenAm });
         });
     }
 }

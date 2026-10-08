@@ -29,16 +29,19 @@ public class EasyAtWorkHrFilesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ILogger<EasyAtWorkHrFilesController> _log;
     private readonly MitteilungPdfService _mitteilungPdf;
+    private readonly VirenScanner _viren;
     private readonly string _storagePath;
 
     public EasyAtWorkHrFilesController(EasyAtWorkClient client, AppDbContext db,
                                        ILogger<EasyAtWorkHrFilesController> log,
                                        MitteilungPdfService mitteilungPdf,
-                                       IConfiguration config, IWebHostEnvironment env)
+                                       IConfiguration config, IWebHostEnvironment env,
+                                       VirenScanner viren)
     {
         _client = client;
         _db = db;
         _log = log;
+        _viren = viren;
         _mitteilungPdf = mitteilungPdf;
         // Gleicher Ablageort wie MailboxController (Documents:StoragePath / data/documents).
         var configured = config["Documents:StoragePath"];
@@ -447,6 +450,41 @@ public class EasyAtWorkHrFilesController : ControllerBase
 
             // Ablegen wie ein Postfach-Upload: mailbox/{filiale}/{guid}{ext}
             var origName = !string.IsNullOrWhiteSpace(attName) ? attName : (!string.IsNullOrWhiteSpace(dlName) ? dlName! : $"easyatwork-{fileId}");
+
+            var scan = await _viren.PruefeAsync(bytes, ct);
+            if (scan.Status == ScanStatus.NichtBereit)
+            {
+                eintraege.Add(new { fileId, attachmentId = attId, dokName, ok = false, status = 503,
+                    message = "Virenscanner nicht bereit — Abruf abgebrochen, bitte später nochmals." });
+                break;
+            }
+            if (scan.Status == ScanStatus.Fund)
+            {
+                await VirenScanFilter.FundMeldenAsync(_db, VirenFund.QuelleEasyAtWork, origName, scan.Virus!,
+                    $"easy@work Datei {fileId} / Anhang {attId}", null, emp.Name, emp.Id, _log);
+                // Als geholt vermerken (ohne Postfach-Eintrag), sonst käme sie bei jedem Abruf wieder.
+                _db.EasyAtWorkHrFileEingaenge.Add(new EasyAtWorkHrFileEingang
+                {
+                    EmployeeId = emp.Id,
+                    EasyAtWorkCustomerId = cid.Value,
+                    EasyAtWorkEmployeeId = emp.EawEmployeeId,
+                    EasyAtWorkFileId = fileId,
+                    EasyAtWorkAttachmentId = attId,
+                    DokumentName = dokName,
+                    DateiName = origName,
+                    MimeType = mime ?? ctype,
+                    FileSizeBytes = size ?? bytes.LongLength,
+                    HochgeladenVonEawUserId = eawUserId,
+                    HochgeladenAm = hochgeladenAm,
+                    MailboxDocumentId = null,
+                    GeholtAm = DateTime.Now,
+                });
+                await _db.SaveChangesAsync(ct);
+                schonSet.Add(attId);
+                eintraege.Add(new { fileId, attachmentId = attId, dokName, ok = false, status = 400,
+                    message = $"Schadsoftware gefunden ({scan.Virus}) — nicht übernommen." });
+                continue;
+            }
             var ext = Path.GetExtension(origName);
             if (string.IsNullOrWhiteSpace(ext) && (mime ?? ctype) == "application/pdf") ext = ".pdf";
             var storageName = Guid.NewGuid().ToString("N") + ext;

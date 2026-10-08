@@ -90,6 +90,7 @@ public class EditLockEndpointAuditTests
         // LohnEditLockService-Bezug im Controller.
         ["EasyAtWorkNeuzugangController"]  = "GF-Einzelimport neuer/aktiver MA (Walter 08.07.2026) — delegiert an EasyAtWorkEmployeeSyncService (derselbe lock-bewusste Schreibpfad wie der Admin-Emp-Sync: Verträge in abgeschlossenen Perioden → SkippedContracts, keine Stempel-/Betrags-Writes); OnlyActive=true fest verdrahtet",
         ["WebAuthnController"]             = "Passkey/WebAuthn-Login (Registrierung + Assertion) — reine Authentifizierung, keine Lohndaten",
+        ["VirenScannerController"]         = "Virenscanner (admin): Fund «erledigt» setzen + Bestands-Scan starten — keine Lohndaten, ändert keine Dokumente",
         ["PostfachSetupController"]        = "Onboarding-/Reset-QR für das MA-Postfach (Token + Passwort-Setzen) — Login-Sachen, keine Lohndaten",
         ["MomentsController"]              = "Moments (persönliche Mitteilungen): Token-Link/Postfach-Notiz + eCall-SMS — keine Lohndaten, kein datum-basiertes Lohn-Objekt",
         ["MomentContentController"]        = "Moments-Vorlagen-Katalog (Typen, Emotionsgrade, Texte) — reine Vorlagen, keine MA-Daten",
