@@ -436,7 +436,19 @@ public class ZwischenverdienistPdfService
     {
         var field = form.GetField(fieldName);
         if (field is null) return;
-        field.SetValue(value);
+        try
+        {
+            field.SetValue(value);
+            return;
+        }
+        catch { /* Opt-Namen versuchen */ }
+
+        // Manche Radios exportieren als «Auswahl1» statt «0» (Frage 10).
+        if (int.TryParse(value, out var idx) && idx >= 0)
+        {
+            try { field.SetValue("Auswahl" + (idx + 1)); }
+            catch { /* Feld bleibt leer */ }
+        }
     }
 
     private static string? FormatNum(decimal? v) =>

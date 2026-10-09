@@ -376,28 +376,32 @@ public class ZwischenverdienistController : ControllerBase
         decimal? feiertagPct  = company.DefaultHolidayPercent;
         decimal? dreizehnPct  = company.DefaultThirteenthSalaryPercent;
 
+        // Beträge wie Lohnzettel: Round05 (5 Rp.), nicht Math.Round(,2)
+        // (Walter 09.10.2026: Sasikaran Feiertag 32.80/Ferien 154.00, nicht 32.82/153.99).
         decimal grundlohn = stundenlohn.HasValue
-            ? Math.Round(totalStunden * stundenlohn.Value, 2)
+            ? PayrollCalculations.Rappen(totalStunden * stundenlohn.Value)
             : monatslohn ?? 0;
 
-        // Ferien-% und Feiertag-% nur auf den effektiven Stunden (Grundlohn =
-        // Stempel + Zeitgutschrift-Absenzen). Ferienbezug-Tage sind nicht
-        // im Grundlohn — deshalb hier die %-Zeilen zeigen (Walter 31.07.2026).
-        decimal? ferienCHF   = ferienPct.HasValue   ? Math.Round(grundlohn * ferienPct.Value   / 100m, 2) : null;
-        decimal? feiertagCHF = feiertagPct.HasValue  ? Math.Round(grundlohn * feiertagPct.Value / 100m, 2) : null;
+        // Ferien-% und Feiertag-% auf dem Grundlohn (wie FLEX-Engine).
+        decimal? ferienCHF   = ferienPct.HasValue
+            ? PayrollCalculations.Round05(grundlohn * ferienPct.Value / 100m) : null;
+        decimal? feiertagCHF = feiertagPct.HasValue
+            ? PayrollCalculations.Round05(grundlohn * feiertagPct.Value / 100m) : null;
 
-        // 13. ML-Basis = Grundlohn + Feiertag + Ferien
-        decimal basis13ml = grundlohn + (feiertagCHF ?? 0) + (ferienCHF ?? 0);
+        // 13. ML-Basis FLEX wie Lohnzettel: Grundlohn + Feiertag (ausbezahlt).
+        // Ferien wandert in den Pott und zählt hier NICHT mit
+        // (Sasikaran: Basis 1'478.70 → 123.20, nicht 1'632.71 → 136.00).
+        decimal basis13ml = grundlohn + (feiertagCHF ?? 0m);
         decimal? dreizehnCHF = dreizehnPct.HasValue
-            ? Math.Round(basis13ml * dreizehnPct.Value / 100m, 2)
-            : null;
+            ? PayrollCalculations.Round05(basis13ml * dreizehnPct.Value / 100m) : null;
 
-        // Taggeldleistungen (Krank/Unfall-Karenz) werden im Total Bruttolohn
-        // mitgezählt, da sie AHV-pflichtiger Lohnersatz sind.
+        // Total Bruttolohn = AHV-pflichtig = Total Lohn auf dem Zettel.
+        // FLEX: Ferien-Pott + Probezeit-13.-ML-Rückstellung sind NICHT AHV
+        // (erst bei Auszahlung) — trotzdem auf dem Formular in den %-Zeilen
+        // ausgewiesen wie «Gerechnet» auf dem Lohnzettel.
+        // AHV-Total = Grundlohn + Feiertag (+ Taggeldleistungen).
         decimal bruttolohnTotal = grundlohn
-            + (ferienCHF   ?? 0)
             + (feiertagCHF ?? 0)
-            + (dreizehnCHF ?? 0)
             + krankUnfallCHF;
 
         // ── Frage 10: Weiterführung des Arbeitsverhältnisses ───────────────
