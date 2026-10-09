@@ -197,10 +197,11 @@ public class ZwischenverdienistPdfService
         SetRight(form, "4.154", FormatChf2(d.BruttolohnTotal));
 
         // ── Seite 2: Frage 10 – Arbeitsverhältnis weitergeführt? ─────────────
-        // Optionsfeld 20: /0 = ja unbefristet, /1 = befristet bis, /2 = nein
-        // Textfeld 98 = befristet-bis (Ziffern ddMMyyyy)
-        // Bei nein: Optionsfeld 30 AG(/0)/AN(/1), Optionsfeld 31 mündlich(/0)/schriftlich(/1),
-        // Textfeld 96 = gekündigt am, Textfeld 97 = gekündigt per.
+        // Optionsfeld 20 (Reihenfolge auf dem Formular, Textfeld 98 neben Zeile 1):
+        //   /0 = befristet bis (+ Textfeld 98)   ← oben
+        //   /1 = ja, unbefristet                 ← Mitte
+        //   /2 = nein (+ Optionsfeld 30/31)      ← unten
+        // Walter 09.10.2026: Mapping war vertauscht → unbefristet landete auf «befristet».
         if (d.ArbeitsverhaeltnisBeendet == true)
         {
             SetRadio(form, "Optionsfeld 20", "2");
@@ -219,13 +220,13 @@ public class ZwischenverdienistPdfService
         }
         else if (d.WeiterbeschaeftigtBis.HasValue)
         {
-            SetRadio(form, "Optionsfeld 20", "1");
+            SetRadio(form, "Optionsfeld 20", "0");
             Set(form, "Textfeld 98", FormatDatumZiffern(d.WeiterbeschaeftigtBis));
         }
         else if (d.WeiterbeschaeftigtUnbefristet == true
               || d.ArbeitsverhaeltnisBeendet == false)
         {
-            SetRadio(form, "Optionsfeld 20", "0");
+            SetRadio(form, "Optionsfeld 20", "1");
         }
 
         // ── Seite 3: Frage 11 – BVG ──────────────────────────────────────────
