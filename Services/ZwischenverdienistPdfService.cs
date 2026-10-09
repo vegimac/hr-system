@@ -186,6 +186,11 @@ public class ZwischenverdienistPdfService
             SetRight(form, "4.146", d.DreizehnterProzentString.TrimEnd('%'));
             SetRight(form, "4.142", FormatChf2(d.DreizehnterCHF));
         }
+        // Probezeit: Bemerkung oberhalb von «13. Monatslohn ist weder…»
+        // (Kontrollkästchen 20 bleibt aus — 13. ist vereinbart, nur noch nicht zahlbar)
+        if (!string.IsNullOrWhiteSpace(d.DreizehnterBemerkung))
+            DrawTextAboveCheckbox(pdf, form, "Kontrollkästchen 20", d.DreizehnterBemerkung!);
+
         // Taggeldleistungen (aus Lohnbeleg: Karenz/Taggeld-Zeilen)
         // 4.144 = CHF-Betrag, 4.145 = "welche?"-Beschreibung
         if (d.TaggeldleistungenCHF.HasValue && d.TaggeldleistungenCHF.Value != 0)
@@ -364,6 +369,58 @@ public class ZwischenverdienistPdfService
     // ── Hilfsmethoden ────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Bemerkung oberhalb eines Kontrollkästchens (rechte Spalte Abschnitt 9).
+    /// </summary>
+    private static void DrawTextAboveCheckbox(
+        PdfDocument pdf, PdfAcroForm form, string checkboxName, string text)
+    {
+        PdfFormField? field = null;
+        try { field = form.GetField(checkboxName); } catch { }
+        if (field is null) return;
+
+        var widgets = field.GetWidgets();
+        if (widgets == null || widgets.Count == 0) return;
+
+        var widget = widgets[0];
+        var rectArr = widget.GetRectangle();
+        if (rectArr == null) return;
+        var rect = rectArr.ToRectangle();
+
+        PdfPage? widgetPage = null;
+        for (int i = 1; i <= pdf.GetNumberOfPages(); i++)
+        {
+            var page = pdf.GetPage(i);
+            foreach (var an in page.GetAnnotations())
+            {
+                if (an.GetPdfObject() == widget.GetPdfObject())
+                {
+                    widgetPage = page;
+                    break;
+                }
+            }
+            if (widgetPage != null) break;
+        }
+        if (widgetPage == null) return;
+
+        try
+        {
+            var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
+            float x = rect.GetLeft();
+            float y = rect.GetTop() + 3f; // knapp oberhalb der Checkbox / des Labels
+            var canvas = new PdfCanvas(widgetPage);
+            canvas.SaveState();
+            canvas.SetFillColor(ColorConstants.BLACK);
+            canvas.BeginText()
+                  .SetFontAndSize(font, 7.5f)
+                  .MoveText(x, y)
+                  .ShowText(text)
+                  .EndText();
+            canvas.RestoreState();
+        }
+        catch { /* Overlay optional */ }
+    }
+
+    /// <summary>
     /// MTP-Aufschlüsselung rechts neben «Anzahl Std.»:
     /// Zeile 1 garantierte Std., Zeile 2 darüber hinaus — Total bleibt im Feld.
     /// </summary>
@@ -530,6 +587,8 @@ public class ZwischenverdienistData
     public decimal? FerienCHF                   { get; set; }
     public string? DreizehnterProzentString     { get; set; }
     public decimal? DreizehnterCHF              { get; set; }
+    /// <summary>z.B. «13. wird erst nach Probezeit ausbezahlt» — Overlay oberhalb Checkbox.</summary>
+    public string? DreizehnterBemerkung         { get; set; }
     public decimal? TaggeldleistungenCHF        { get; set; }
     public string?  TaggeldleistungenWelche     { get; set; }
     /// <summary>Andere Lohnbestandteile (Zulagen, LGAV-Ausnahme, …) — nicht Bonus.</summary>

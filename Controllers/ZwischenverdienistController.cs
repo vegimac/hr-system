@@ -426,6 +426,26 @@ public class ZwischenverdienistController : ControllerBase
         decimal? feiertagPct  = company.DefaultHolidayPercent;
         decimal? dreizehnPct  = company.DefaultThirteenthSalaryPercent;
 
+        // 13. ML Probezeit-Bemerkung (L-GAV Art. 12 Ziff. 2) — gleiche Regel
+        // wie Lohn-Engine: noch in Probezeit am Periodenende → nicht ausbezahlt.
+        string? dreizehnBemerkung = null;
+        if (dreizehnPct.HasValue && dreizehnPct.Value > 0 && employment != null)
+        {
+            DateOnly? probationEnd13 = employment.ProbationEndDate.HasValue
+                ? DateOnly.FromDateTime(employment.ProbationEndDate.Value) : null;
+            var austritt13 = PayrollCalculations.ResolveAustrittDate(
+                employee.ExitDate, employment.ContractEndDate);
+            var (inProbezeit13, _) = PayrollCalculations.ResolveThirteenthProbationStatus(
+                probationEnd13, austritt13, firstDay, lastDay);
+            if (inProbezeit13)
+            {
+                dreizehnBemerkung = "13. wird erst nach Probezeit ausbezahlt";
+                // CHF-Zeile leer/0 lassen (nur Rückstellung) — % bleibt sichtbar
+                if (!dreizehnCHF.HasValue || dreizehnCHF.Value == 0)
+                    dreizehnCHF = 0m;
+            }
+        }
+
         // ── Frage 10: Weiterführung des Arbeitsverhältnisses ───────────────
         // Beendet = Kündigung/Austritt per ≤ Monatsende. Sonst: mit Vertragsende
         // im/nach dem Monat → befristet bis, sonst unbefristet (Walter 09.10.2026).
@@ -549,6 +569,7 @@ public class ZwischenverdienistController : ControllerBase
             FerienCHF              = ferienCHF,
             DreizehnterProzentString = dreizehnPct.HasValue ? dreizehnPct.Value.ToString("G") + "%" : null,
             DreizehnterCHF           = dreizehnCHF,
+            DreizehnterBemerkung     = dreizehnBemerkung,
 
             // Taggeld / Andere / Bonus — aus Lohnbeleg-Zeilen
             TaggeldleistungenCHF           = taggeldCHF,
