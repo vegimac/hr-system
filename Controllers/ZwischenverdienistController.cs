@@ -193,18 +193,21 @@ public class ZwischenverdienistController : ControllerBase
             var days = GetAbsenceDays(abs, firstDay, lastDay);
             if (days.Count == 0) continue;
 
-            // Walter 31.07.2026 (final): Ferienbezug (A / FERIEN / Betriebsferien)
-            // NICHT im Tagesraster — die Ferienentschädigung-% auf den
-            // effektiven Stunden (Stempel + Zeitgutschrift) deckt das ab.
-            // Sonst Doppeldeklaration gegenüber dem RAV.
-            if (typeKey is "FERIEN" or "BETRIEBSFERIEN")
-                continue;
-
+            // ALK-Kürzel inkl. A=Ferien / F=Betriebsferien (Walter 09.10.2026:
+            // gehören ins Tagesraster — Formular-Legende; früher ausgeblendet
+            // wegen «Doppeldeklaration», aber RAV erwartet den Buchstaben).
             if (absenzKuerzel.TryGetValue(typeKey, out var code))
             {
-                if (code is "A" or "F") continue;
                 foreach (int day in days)
                     tagesEintraege[day] = code;
+                continue;
+            }
+            // Fallback ohne DB-Kürzel: bekannte Ferien-Codes
+            if (typeKey is "FERIEN" or "BETRIEBSFERIEN")
+            {
+                var fb = typeKey == "BETRIEBSFERIEN" ? "F" : "A";
+                foreach (int day in days)
+                    tagesEintraege[day] = fb;
                 continue;
             }
 
@@ -241,7 +244,7 @@ public class ZwischenverdienistController : ControllerBase
         //          + darüber hinaus geleistete Stunden (max(0, Ist − Garantie))
         //          Totalfeld = Summe beider (= max(Garantie, Ist))
         //          Ist = Stempel + Absenzen mit Zeitgutschrift (z.B. BEZ_ABSENZ)
-        // Ferienbezug zählt weder als Stunden noch im Raster — die
+        // Ferienbezug: Buchstabe A/F im Raster, aber nie als Ist-Stunden —
         // Ferienentschädigung-% (und Feiertag-%) kommen auf den Grundlohn.
         //
         // WICHTIG (Walter 31.07.2026): Zwischenwerte EXAKT rechnen —
