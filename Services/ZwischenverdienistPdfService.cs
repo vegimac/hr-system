@@ -397,8 +397,8 @@ public class ZwischenverdienistPdfService
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
             const float fontSize = 8f;
             float x = xRect.GetRight() + 4f;
-            // yBelow: knapp unter Formularzeile «13. Monatslohn ist weder…»
-            float y = yBelow ? yRect.GetBottom() - 3f : yRect.GetBottom() + 6f;
+            // yBelow: direkt unter Formularzeile «13. Monatslohn ist weder…»
+            float y = yBelow ? yRect.GetBottom() - 1f : yRect.GetBottom() + 6f;
             float maxWidth = 250f;
 
             var lines = wrap ? WrapText(font, fontSize, text, maxWidth) : new[] { text };
