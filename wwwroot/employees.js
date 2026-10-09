@@ -8355,6 +8355,14 @@ async function fmSavePermitWechsel() {
     if (ea && ea < seit) { alert('«Erfahren am» darf nicht vor «Seit» liegen.'); return; }
     const typRaw = document.getElementById('fmPermitWechselTyp')?.value;
     const permitTypeId = typRaw ? parseInt(typRaw, 10) : null;
+    const typSel = document.getElementById('fmPermitWechselTyp');
+    const neuCode = _permitOptToCode(typSel?.options[typSel.selectedIndex]);
+    const altCode = window._fmPermitHistLatest?.permitCode
+        ?? (window._fmPermitTypeId == null ? null
+            : (document.getElementById('fmPermitTypeId')?.selectedOptions?.[0]
+                ? _permitOptToCode(document.getElementById('fmPermitTypeId').selectedOptions[0])
+                : null));
+    const qstHinweis = qstHinweisBewilligungsWechsel(altCode, neuCode, { partner: true });
     try {
         const r = await fetch(`/api/employees/${selectedEmployeeId}/family/${editingFamilyMemberId}/permit-status`, {
             method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
@@ -8368,6 +8376,7 @@ async function fmSavePermitWechsel() {
         fmClosePermitWechsel();
         await fmLoadPartnerHistories(editingFamilyMemberId);
         fmRefreshStatusUi(true);
+        await qstZeigeFolgeHinweis(qstHinweis);
         if (typeof qstRecheckNachAenderung === 'function') qstRecheckNachAenderung(selectedEmployeeId);
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
@@ -8396,6 +8405,10 @@ async function fmSaveErwerbWechsel() {
     if (!seit) { alert('«Seit» (Wirkung) ist Pflicht.'); return; }
     if (ea && ea < seit) { alert('«Erfahren am» darf nicht vor «Seit» liegen.'); return; }
     const erwerbstaetig = rSel.value === 'ja';
+    const alt = window._fmErwerbStand;
+    const qstHinweis = (alt === true || alt === false)
+        ? qstHinweisErwerbWechsel(alt, erwerbstaetig)
+        : null;
     try {
         const r = await fetch(`/api/employees/${selectedEmployeeId}/family/${editingFamilyMemberId}/erwerb-status`, {
             method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
@@ -8408,6 +8421,7 @@ async function fmSaveErwerbWechsel() {
         fmCloseErwerbWechsel();
         await fmLoadPartnerHistories(editingFamilyMemberId);
         fmRefreshStatusUi(true);
+        await qstZeigeFolgeHinweis(qstHinweis);
         if (typeof qstRecheckNachAenderung === 'function') qstRecheckNachAenderung(selectedEmployeeId);
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
@@ -16623,24 +16637,6 @@ function renderPermitListHtml(entries) {
         ?? list.find(h => _isValidToday(h))
         ?? null;
 
-    // Überlapp-Erkennung (paarweise) — für oranger Hinweis-Banner.
-    // Rückwirkende Korrektur (erfahren erst nach Ende des anderen Eintrags) ist
-    // keine Überlappung: bis dahin galt der andere Eintrag als bekannt.
-    const dates = list.map(h => ({
-        from: h.validFrom ? h.validFrom.slice(0,10) : null,
-        to:   h.validTo   ? h.validTo.slice(0,10)   : '9999-12-31',
-        known: (h.erfahrenAm || h.validFrom || '').slice(0,10)
-    }));
-    let hasOverlap = false;
-    for (let i = 0; i < dates.length && !hasOverlap; i++) {
-        for (let j = i + 1; j < dates.length && !hasOverlap; j++) {
-            const a = dates[i], b = dates[j];
-            if (!(a.from && b.from && a.from <= b.to && b.from <= a.to)) continue;
-            if (a.known > b.to || b.known > a.to) continue;
-            hasOverlap = true;
-        }
-    }
-
     // Sortierung: nach neuer „neueste"-Definition. Höchstes valid_to, dann
     // höchstes valid_from. Offener Eintrag (valid_to NULL) gewinnt als max.
     const sorted = [...list].sort((a, b) => {
@@ -16702,8 +16698,13 @@ function renderPermitListHtml(entries) {
             <div style="flex:1;min-width:0">
                 <div style="font-weight:600;color:#475569;font-size:12.5px">${code}${desc}${aktuellPille}</div>
                 <div style="font-size:11.5px;color:#64748b;margin-top:1px">
-                    ${fromTxt} – ${toTxt}${h.erfahrenAm && _iso(h.erfahrenAm) > _iso(h.validFrom)
-                        ? ` · erfahren ${formatDate(h.erfahrenAm)} <span style="color:#c2410c">(versetzt)</span>` : ''}
+                    ${fromTxt} – ${toTxt}${(() => {
+                        const eaIso = _iso(h.erfahrenAm || h.validFrom);
+                        if (!eaIso) return '';
+                        const spaeter = h.erfahrenAm && _iso(h.erfahrenAm) > _iso(h.validFrom);
+                        return ` · erfahren ${formatDate(eaIso)}${spaeter
+                            ? ' <span style="color:#c2410c">(versetzt)</span>' : ''}`;
+                    })()}
                 </div>
                 ${noteTxt}
             </div>
@@ -16720,23 +16721,14 @@ function renderPermitListHtml(entries) {
         </div>`;
     });   // Array — erste Karte sichtbar, Rest im History-Container (23.08.2026)
 
-    // Walter-Vorgabe 07.06.2026 (final): Überlappungen sind nicht mehr
-    // erlaubt — neue Einträge schliessen den Vorgänger automatisch ab. Wenn
-    // trotzdem eine Überlappung sichtbar ist, sind das Altlasten aus dem
-    // Import → Warnbanner und Hinweis auf manuelle Korrektur.
-    const overlapHint = hasOverlap
-        ? `<div style="margin-bottom:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;color:#92400e;font-size:12px;line-height:1.5">
-               ⚠ <strong>Überlappung erkannt:</strong> Zwei oder mehr Einträge teilen sich einen Zeitraum (vermutlich Import-Altlasten). Bitte den älteren Eintrag bearbeiten und sein Bis-Datum auf den Tag vor dem Beginn der nächsten Bewilligung setzen.
-           </div>`
-        : '';
     // Walter-Vorgabe 23.08.2026: standardmässig NUR die neueste Bewilligung
     // zeigen — die älteren wandern in einen History-Container, den die
     // 🕘-Pille im Titel («History (N)») auf-/zuklappt. Zähler global für
     // renderQuellensteuerTab (baut die Titel-Zeile NACH diesem Aufruf).
+    // Walter 09.10.2026: Überlappung der Gültigkeit ist erlaubt — kein Banner.
     window._permHistCount = Math.max(0, cards.length - 1);
     const restCards = cards.slice(1).join('');
     return `
-        ${overlapHint}
         ${cards[0] || ''}
         ${restCards
             ? `<div id="permHistWrap" style="display:none">${restCards}</div>`
@@ -17009,16 +17001,17 @@ async function openPermitHistoryModal(entryId) {
     // desselben Typs (B → B mit neuem Ablauf), nicht ein Wechsel auf C.
     const aktuelle = !entry ? (_permitHistoryCache || []).find(h => h.isCurrent) : null;
     const defaultPermitTypeId = aktuelle?.permitTypeId ?? null;
-    // Default-ValidFrom: Tag nach dem ValidTo der aktuellsten Bewilligung —
-    // so schliesst die neue nahtlos an. Fallback = heute.
-    let defaultValidFrom = today;
-    if (aktuelle?.validTo) {
-        const d = new Date(aktuelle.validTo);
-        if (!isNaN(d.getTime())) {
-            d.setDate(d.getDate() + 1);
-            defaultValidFrom = d.toISOString().slice(0,10);
-        }
-    }
+    // Walter 09.10.2026: Default = heute (nicht Tag nach altem Bis) —
+    // Überlappung der Gültigkeit ist erlaubt (neu ab 5.10., alt bis 10.10.).
+    const defaultValidFrom = today;
+    const defaultErfahrenAm = today;
+    // Vorheriger Typ für QST-Folgenhinweis (B→C = Befreiung, C→B = Pflicht).
+    window._phfPrevPermitCode = entry
+        ? (entry.permitCode || null)
+        : (aktuelle?.permitCode || null);
+    window._phfPrevPermitTypeId = entry
+        ? (entry.permitTypeId ?? null)
+        : (aktuelle?.permitTypeId ?? null);
 
     const permitOptions = permitTypes
         .filter(p => p.isActive !== false)
@@ -17042,6 +17035,8 @@ async function openPermitHistoryModal(entryId) {
     window._phfPermitCodeMap = {};
     permitTypes.forEach(p => { if (p.code) window._phfPermitCodeMap[p.code.toUpperCase()] = p.id; });
 
+    const eaVal = (entry?.erfahrenAm || entry?.validFrom || defaultErfahrenAm || '').toString().slice(0, 10);
+    const _phfInp = 'width:100%;height:38px;box-sizing:border-box;padding:0 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px;background:#fff';
     modal.innerHTML = `
         <div style="display:flex;gap:14px;align-items:stretch;max-width:1100px;width:100%;max-height:90vh">
         <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px;flex-shrink:0">
@@ -17052,31 +17047,37 @@ async function openPermitHistoryModal(entryId) {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
                 <div style="grid-column:1 / -1">
                     <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.type','Bewilligung')}</label>
-                    <select id="phf-permitType" onchange="phfCheckCTypeHint()" style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                    <select id="phf-permitType" onchange="phfCheckCTypeHint()" style="${_phfInp}">
                         <option value="">${_t('fam.field.permitDefault','— keine (Einbürgerung / CH-Bürger) —')}</option>
                         ${permitOptions}
                     </select>
-                    <!-- Walter-Vorgabe 07.06.2026: bei C-Ausweis-Wechsel
-                         (oder Einbürgerung) Hinweis dass QST nicht mehr nötig ist. -->
+                    <!-- Walter 09.10.2026: QST-Folgenhinweis bei Statuswechsel
+                         (z.B. B→C = Befreiung, C→B = Pflicht wieder). -->
                     <div id="phf-cTypeHint" style="display:none;margin-top:8px;padding:8px 12px;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:6px;color:#065f46;font-size:12px;line-height:1.5"></div>
                 </div>
                 <div>
                     <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.validFrom','Gültig ab')} *</label>
                     <input id="phf-validFrom" type="date" value="${entry?.validFrom ?? defaultValidFrom}"
-                           style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                           style="${_phfInp}">
                 </div>
                 <div>
                     <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">
                         ${_t('permit.field.validTo','Gültig bis')}
                     </label>
                     <input id="phf-validTo" type="date" value="${entry?.validTo ?? entry?.permitExpiryDate ?? ''}"
-                           style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
-                    <div style="font-size:11px;color:#64748b;margin-top:3px">Ablauf-Datum auf dem Ausweis. Leer = aktuell offen.</div>
+                           style="${_phfInp}">
+                    <div style="font-size:11px;color:#64748b;margin-top:3px">Ablauf-Datum auf dem Ausweis. Leer = aktuell offen. Darf mit dem Vorgänger überlappen.</div>
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.erfahrenAm','Erfahren am')}</label>
+                    <input id="phf-erfahrenAm" type="date" value="${eaVal}"
+                           style="${_phfInp}">
+                    <div style="font-size:11px;color:#64748b;margin-top:3px">Ab wann wir die Bewilligung kannten (QST). Leer = Gültig ab.</div>
                 </div>
                 <div style="grid-column:1 / -1">
                     <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">${_t('permit.field.note','Notiz')}</label>
                     <textarea id="phf-note" rows="2"
-                              style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;font-family:inherit">${entry?.note ? esc(entry.note).replace(/&quot;/g,'"') : ''}</textarea>
+                              style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;font-family:inherit;background:#fff">${entry?.note ? esc(entry.note).replace(/&quot;/g,'"') : ''}</textarea>
                 </div>
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0">
@@ -17109,40 +17110,105 @@ async function openPermitHistoryModal(entryId) {
     phfCheckCTypeHint();
 }
 
-// Walter-Vorgabe 07.06.2026: Hinweis im Permit-Modal — wenn der User C
-// auswählt (Niederlassungsbewilligung) und es noch offene QST-Einträge
-// gibt, blenden wir einen grünen Info-Banner ein: „QST nicht mehr nötig".
+/** C / C_EU_EFTA / keine (CH) = QST-befreit; sonst pflichtig. */
+function _permitCodeQstBefreit(code) {
+    if (code == null || code === '') return true; // Einbürgerung / CH
+    const c = String(code).trim().toUpperCase();
+    return c === 'C' || c === 'C_EU_EFTA' || c.startsWith('C ');
+}
+
+function _permitOptToCode(opt) {
+    if (!opt) return null;
+    if (!opt.value) return null; // «keine» = CH
+    const txt = (opt.textContent || '').trim();
+    const m = txt.match(/^(?:Ausweis\s+)?([A-Z0-9_]+)\b/i);
+    return m ? m[1].toUpperCase() : txt.toUpperCase();
+}
+
+/**
+ * Text wenn Bewilligungswechsel die QST-Pflicht ändert (Walter 09.10.2026).
+ * Beispiel Screenshot: B aktuell → C ab 1.10. = Befreiung.
+ * Partner: gleiches Muster; Erwerb Ja↔Nein = Tarif B↔C.
+ */
+function qstHinweisBewilligungsWechsel(altCode, neuCode, { partner = false } = {}) {
+    const altB = _permitCodeQstBefreit(altCode);
+    const neuB = _permitCodeQstBefreit(neuCode);
+    // Gleicher Code / gleiche Kategorie → kein Hinweis (Verlängerung B→B).
+    const altN = altCode == null || altCode === '' ? 'CH' : String(altCode).trim().toUpperCase();
+    const neuN = neuCode == null || neuCode === '' ? 'CH' : String(neuCode).trim().toUpperCase();
+    if (altN === neuN) return null;
+    if (altB === neuB) return null; // z.B. B→L, L→B — beide pflichtig
+    const wer = partner ? 'der Partner' : 'der MA';
+    if (!altB && neuB) {
+        const was = neuN === 'CH' ? 'Einbürgerung / CH-Bürger' : `Ausweis ${neuN}`;
+        return {
+            art: 'befreiung',
+            titel: `${was} — Quellensteuer entfällt`,
+            text: `Mit diesem Statuswechsel ist ${wer} nicht mehr quellensteuerpflichtig. Bitte im QST-Bereich das Ende-Datum der aktuellen Erfassung setzen (Wirkung ab «Gültig ab» / Wissen ab «Erfahren am»).`,
+        };
+    }
+    return {
+        art: 'pflicht',
+        titel: 'Quellensteuerpflicht entsteht wieder',
+        text: `Mit diesem Statuswechsel ist ${wer} wieder QST-pflichtig. Bitte eine neue QST-Erfassung anlegen (Wirkung ab «Gültig ab» / Wissen ab «Erfahren am»).`,
+    };
+}
+
+function qstHinweisErwerbWechsel(altJa, neuJa) {
+    if (altJa === neuJa) return null;
+    if (neuJa) {
+        return {
+            art: 'tarif',
+            titel: 'Partner erwerbstätig — Tarif C',
+            text: 'Erwerbstätigkeit des Partners wechselt auf Ja → typischerweise Tarif C (Doppelverdiener). Bitte QST-Erfassung prüfen bzw. neue Version anlegen.',
+        };
+    }
+    return {
+        art: 'tarif',
+        titel: 'Partner nicht erwerbstätig — Tarif B',
+        text: 'Erwerbstätigkeit des Partners wechselt auf Nein → typischerweise Tarif B (Alleinverdiener). Bitte QST-Erfassung prüfen bzw. neue Version anlegen.',
+    };
+}
+
+async function qstZeigeFolgeHinweis(hinweis) {
+    if (!hinweis) return;
+    const msg = `${hinweis.titel}\n\n${hinweis.text}`;
+    if (typeof liquidConfirm === 'function') {
+        await liquidConfirm(msg, { title: 'Auswirkung auf Quellensteuer', yesLabel: 'Verstanden', hideNo: true });
+    } else {
+        alert(msg);
+    }
+}
+
+// Walter 09.10.2026: Live-Hinweis im Permit-Modal bei QST-relevantem Wechsel.
 function phfCheckCTypeHint() {
     const sel    = document.getElementById('phf-permitType');
     const hintEl = document.getElementById('phf-cTypeHint');
     if (!sel || !hintEl) return;
-    const opt = sel.options[sel.selectedIndex];
-    const txt = (opt?.textContent || '').toUpperCase();
-    const isC = txt.startsWith('C ') || txt.includes('AUSWEIS C') || txt.includes('NIEDERLASSUNG');
-    const isNone = !sel.value; // Einbürgerung
-    if (!isC && !isNone) {
+    const neuCode = _permitOptToCode(sel.options[sel.selectedIndex]);
+    const altCode = window._phfPrevPermitCode;
+    // Beim Bearbeiten derselben Zeile: Vergleich gegen eigenen alten Code
+    // (window._phfPrevPermitCode wurde beim Öffnen gesetzt).
+    const h = qstHinweisBewilligungsWechsel(altCode, neuCode, { partner: false });
+    if (!h) {
         hintEl.style.display = 'none';
         hintEl.innerHTML = '';
         return;
     }
-    // QST-Einträge prüfen — gibt's einen mit ValidTo NULL?
     let qstOffen = false;
-    // _empQstCache existiert evtl. nicht — wir greifen auf den laufenden
-    // QST-Tab zurück (gewohntes Muster) oder akzeptieren undefined.
     try {
-        const cur = (window._empQstCache || []).some(e => !e.validTo);
-        qstOffen = !!cur;
+        qstOffen = (window._empQstCache || []).some(e => !e.validTo);
     } catch { /* egal */ }
-    const titel = isNone
-        ? 'Einbürgerung — Quellensteuer entfällt'
-        : 'C-Ausweis — Quellensteuer entfällt';
-    const body  = isNone
-        ? 'Schweizer Bürger sind nicht mehr quellensteuerpflichtig.'
-        : 'Mit dem C-Ausweis (Niederlassungsbewilligung) entfällt die QST-Pflicht.';
-    const offenHinweis = qstOffen
+    const offenHinweis = (h.art === 'befreiung' && qstOffen)
         ? '<br><strong>Hinweis:</strong> der MA hat noch offene QST-Einträge — bitte im QST-Bereich das Ende-Datum setzen.'
         : '';
-    hintEl.innerHTML = `ℹ <strong>${titel}.</strong> ${body}${offenHinweis}`;
+    const bg = h.art === 'pflicht' ? '#fef3c7' : '#ecfdf5';
+    const bd = h.art === 'pflicht' ? '#fbbf24' : '#6ee7b7';
+    const fg = h.art === 'pflicht' ? '#92400e' : '#065f46';
+    hintEl.style.background = bg;
+    hintEl.style.borderColor = bd;
+    hintEl.style.color = fg;
+    hintEl.innerHTML = `ℹ <strong>${esc(h.titel)}.</strong> ${esc(h.text)}${offenHinweis}`;
     hintEl.style.display = 'block';
 }
 
@@ -17154,10 +17220,14 @@ function closePermitHistoryModal() {
 async function savePermitHistoryEntry(entryId) {
     if (!selectedEmployeeId) return;
     const permitTypeRaw = document.getElementById('phf-permitType').value;
+    const sel = document.getElementById('phf-permitType');
+    const neuCode = _permitOptToCode(sel?.options[sel.selectedIndex]);
+    const erfahrenAm = document.getElementById('phf-erfahrenAm')?.value || null;
     const dto = {
         permitTypeId:     permitTypeRaw ? parseInt(permitTypeRaw) : null,
         validFrom:        document.getElementById('phf-validFrom').value,
         validTo:          document.getElementById('phf-validTo').value || null,
+        erfahrenAm:       erfahrenAm || null,
         note:             document.getElementById('phf-note').value.trim() || null,
         // Gelesener Ausweis-Scan automatisch mitverknüpfen (Walter 23.08.2026,
         // nur beim Neu-Anlegen — bestehende Einträge behalten ihr Doku).
@@ -17170,6 +17240,12 @@ async function savePermitHistoryEntry(entryId) {
     // Pflicht — ausser bei CH-Bürger/Einbürgerung (kein PermitType).
     if (dto.permitTypeId && !dto.validTo) { errEl.textContent = 'Gültig bis (Ablauf-Datum) ist Pflicht.'; return; }
     if (dto.validTo && dto.validTo < dto.validFrom) { errEl.textContent = 'Gültig bis darf nicht vor Gültig ab liegen.'; return; }
+    if (dto.erfahrenAm && dto.erfahrenAm < dto.validFrom) {
+        errEl.textContent = '«Erfahren am» darf nicht vor «Gültig ab» liegen.';
+        return;
+    }
+
+    const qstHinweis = qstHinweisBewilligungsWechsel(window._phfPrevPermitCode, neuCode, { partner: false });
 
     try {
         const url = entryId
@@ -17183,7 +17259,7 @@ async function savePermitHistoryEntry(entryId) {
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             const j = await res.json().catch(() => ({}));
-            errEl.textContent = j.error || ('Fehler beim Speichern (' + res.status + ')');
+            errEl.textContent = j.error || j.message || ('Fehler beim Speichern (' + res.status + ')');
             return;
         }
         closePermitHistoryModal();
@@ -17203,6 +17279,10 @@ async function savePermitHistoryEntry(entryId) {
         if (typeof selectEmployee === 'function') {
             await selectEmployee(selectedEmployeeId);
         }
+        // Walter 09.10.2026: nach Speichern explizit melden, wenn QST betroffen
+        // (Fall B→C wie im Screenshot: Pflicht → Befreiung).
+        await qstZeigeFolgeHinweis(qstHinweis);
+        if (typeof qstRecheckNachAenderung === 'function') qstRecheckNachAenderung(selectedEmployeeId);
     } catch (e) {
         errEl.textContent = 'Verbindungsfehler: ' + e.message;
     }

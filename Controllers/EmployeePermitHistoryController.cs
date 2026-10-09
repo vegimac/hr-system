@@ -101,6 +101,8 @@ public class EmployeePermitHistoryController : ControllerBase
         public int?    PermitTypeId { get; set; }       // NULL = Einbürgerung / keine Bewilligung mehr
         public DateOnly  ValidFrom { get; set; }
         public DateOnly? ValidTo   { get; set; }       // Pflicht bei PermitTypeId != NULL
+        /// <summary>Wissensdatum — ab wann wir die Bewilligung kannten (QST). Leer = Gültig ab.</summary>
+        public DateOnly? ErfahrenAm { get; set; }
         public string?   Note { get; set; }
         // Walter 14.06.2026: optional bei POST/PUT auch das verknüpfte Doku mit setzen.
         public int?      DokumentId { get; set; }
@@ -288,21 +290,13 @@ public class EmployeePermitHistoryController : ControllerBase
             });
         }
 
-        // Walter-Vorgabe 07.06.2026 (final): Beim Anlegen einer neuen Bewilligung
-        // werden ALLE Vorgänger-Einträge automatisch auf neuValidFrom-1 geschlossen,
-        // wenn sie noch in den neuen Zeitraum hineinreichen. Damit gibt es nie
-        // Überlappungen (Datensauberkeit). Greift nur für Einträge, deren
-        // ValidFrom VOR der neuen ValidFrom liegt — historische Nachträge
-        // (älterer Eintrag mit ValidTo vor neuer ValidFrom) bleiben unangetastet.
-        var vorgaenger = await _db.EmployeePermitHistories
-            .Where(h => h.EmployeeId == employeeId
-                     && h.ValidFrom < dto.ValidFrom
-                     && (h.ValidTo == null || h.ValidTo >= dto.ValidFrom))
-            .ToListAsync();
-        foreach (var p in vorgaenger)
-        {
-            p.ValidTo = dto.ValidFrom.AddDays(-1);
-        }
+        // Walter 09.10.2026: Überlappung erlaubt (neuer Ausweis oft schon gültig,
+        // während der alte noch bis zu seinem Ablaufdatum gilt — z.B. alt bis
+        // 10.10., neu ab 5.10.). Vorgänger-ValidTo wird NICHT mehr gekürzt.
+        // QST nimmt den massgebenden Stand über ValidFrom + ErfahrenAm.
+
+        if (dto.ErfahrenAm.HasValue && dto.ErfahrenAm.Value < dto.ValidFrom)
+            return BadRequest(new { error = "«Erfahren am» darf nicht vor «Gültig ab» liegen." });
 
         // Walter 14.06.2026: optional verknüpftes Doku validieren (muss dem MA gehören).
         if (dto.DokumentId.HasValue)
@@ -317,11 +311,11 @@ public class EmployeePermitHistoryController : ControllerBase
             EmployeeId       = employeeId,
             PermitTypeId     = dto.PermitTypeId,
             ValidFrom        = dto.ValidFrom,
-            ErfahrenAm       = DateOnly.FromDateTime(DateTime.Now),
+            ErfahrenAm       = dto.ErfahrenAm,
             ValidTo          = dto.ValidTo,
             Note             = dto.Note,
             DokumentId       = dto.DokumentId,
-            CreatedAt        = DateTime.UtcNow,
+            CreatedAt        = DateTime.Now,
             CreatedByUserId  = GetCurrentUserId()
         };
         _db.EmployeePermitHistories.Add(entry);
@@ -367,18 +361,9 @@ public class EmployeePermitHistoryController : ControllerBase
         if (dto.ValidTo.HasValue && dto.ValidTo.Value < dto.ValidFrom)
             return BadRequest(new { error = "Gültig bis darf nicht vor Gültig ab liegen." });
 
-        // Walter-Vorgabe 07.06.2026 (final): Beim Bearbeiten darf KEINE
-        // Überlappung mit anderen Einträgen entstehen — Datensauberkeit.
-        // Beim Anlegen (POST) wird Auto-Close angewandt; beim Editieren
-        // erwarten wir, dass Walter die Datumsfenster bewusst sauber hält.
-        var overlap = await FindOverlappingAsync(employeeId, dto.ValidFrom, dto.ValidTo, excludeId: entry.Id);
-        if (overlap != null)
-        {
-            return Conflict(new {
-                error = "PERMIT_OVERLAP",
-                message = $"Die Periode {dto.ValidFrom:dd.MM.yyyy}–{(dto.ValidTo?.ToString("dd.MM.yyyy") ?? "offen")} überschneidet sich mit einer anderen Bewilligung ({overlap.ValidFrom:dd.MM.yyyy}–{(overlap.ValidTo?.ToString("dd.MM.yyyy") ?? "offen")}). Bitte das Bis-Datum des älteren Eintrags vor das Von-Datum der nächsten Bewilligung legen."
-            });
-        }
+        // Walter 09.10.2026: Überlappung erlaubt (s. Create) — kein PERMIT_OVERLAP mehr.
+        if (dto.ErfahrenAm.HasValue && dto.ErfahrenAm.Value < dto.ValidFrom)
+            return BadRequest(new { error = "«Erfahren am» darf nicht vor «Gültig ab» liegen." });
 
         // Walter 14.06.2026: Doku-Verknüpfung optional mit-updaten.
         if (dto.DokumentId.HasValue)
@@ -391,6 +376,7 @@ public class EmployeePermitHistoryController : ControllerBase
         entry.PermitTypeId     = dto.PermitTypeId;
         entry.ValidFrom        = dto.ValidFrom;
         entry.ValidTo          = dto.ValidTo;
+        entry.ErfahrenAm       = dto.ErfahrenAm;
         entry.Note             = dto.Note;
         entry.DokumentId       = dto.DokumentId;
 
@@ -428,30 +414,6 @@ public class EmployeePermitHistoryController : ControllerBase
         entry.DokumentId = dto.DokumentId;
         await _db.SaveChangesAsync();
         return Ok();
-    }
-
-    /// <summary>Sucht einen anderen Bewilligungs-Eintrag des MA, dessen
-    /// Zeitfenster sich mit [newFrom..newTo (oder offen)] überschneidet.
-    /// Liefert null wenn kein Konflikt.</summary>
-    private async Task<EmployeePermitHistory?> FindOverlappingAsync(
-        int employeeId, DateOnly newFrom, DateOnly? newTo, int? excludeId)
-    {
-        // Zwei Intervalle [a1..a2] und [b1..b2] überlappen ⇔ a1 ≤ b2 && b1 ≤ a2.
-        // Wir nutzen MaxValue für „offen". DateOnly hat keinen MaxValue → wir
-        // verwenden 9999-12-31 als Surrogat.
-        var max = new DateOnly(9999, 12, 31);
-        var newToEff = newTo ?? max;
-        var others = await _db.EmployeePermitHistories
-            .Where(h => h.EmployeeId == employeeId
-                     && (excludeId == null || h.Id != excludeId.Value))
-            .ToListAsync();
-        foreach (var o in others)
-        {
-            var oTo = o.ValidTo ?? max;
-            if (newFrom <= oTo && o.ValidFrom <= newToEff)
-                return o;
-        }
-        return null;
     }
 
     // ── SMS-Erinnerung bei abgelaufener Bewilligung (Walter 19.07.2026) ──
