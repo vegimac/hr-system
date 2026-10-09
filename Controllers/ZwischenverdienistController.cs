@@ -450,6 +450,16 @@ public class ZwischenverdienistController : ControllerBase
         decimal? feiertagPct  = company.DefaultHolidayPercent;
         decimal? dreizehnPct  = company.DefaultThirteenthSalaryPercent;
 
+        // FIX/FIX-M (Monatslohn/Vollzeit): keine Feiertags-/Ferienzuschläge in % —
+        // Ferien/Feiertag laufen über Tage-Saldo im Monatslohn (Walter 09.10.2026).
+        if (empModel is "FIX" or "FIX-M")
+        {
+            feiertagPct = null;
+            ferienPct = null;
+            feiertagCHF = null;
+            ferienCHF = null;
+        }
+
         // FLEX: Feriengeld im Pott — %-Zeile ≠ Grundlohn×%; RAV-Hinweis mit
         // Monatszahlen aus dem Lohnbeleg (Walter 09.10.2026).
         string? ferienBemerkung = null;
