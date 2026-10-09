@@ -340,6 +340,9 @@ public class ZwischenverdienistController : ControllerBase
         decimal ferienGeldDiesenMonat = 0m;
         decimal ferienGeldBezug = 0m;
         decimal ferienGeldSaldo = 0m;
+        decimal dreizehnDiesenMonat = 0m;
+        decimal dreizehnBezug = 0m;
+        decimal dreizehnSaldo = 0m;
         var andereLabels = new List<string>();
         var taggeldLabels = new List<string>();
 
@@ -377,6 +380,18 @@ public class ZwischenverdienistController : ControllerBase
                 && fgx.TryGetDecimal(out var fgxV)) ferienGeldBezug = fgxV;
             if (slip.TryGetProperty("ferienGeldSaldoNeu", out var fgs)
                 && fgs.TryGetDecimal(out var fgsV)) ferienGeldSaldo = fgsV;
+
+            // 13. ML Saldo (Probezeit-Rückstellung) — gleicher Aufbau wie Ferien
+            if (slip.TryGetProperty("thirteenthAccrualForDisplay", out var t13a)
+                && t13a.TryGetDecimal(out var t13aV) && t13aV != 0)
+                dreizehnDiesenMonat = t13aV;
+            else if (slip.TryGetProperty("thirteenthMonthly", out var t13m)
+                && t13m.TryGetDecimal(out var t13mV))
+                dreizehnDiesenMonat = t13mV;
+            if (slip.TryGetProperty("thirteenthPayout", out var t13p)
+                && t13p.TryGetDecimal(out var t13pV)) dreizehnBezug = t13pV;
+            if (slip.TryGetProperty("thirteenthAccumulated", out var t13s)
+                && t13s.TryGetDecimal(out var t13sV)) dreizehnSaldo = t13sV;
         }
         else
         {
@@ -464,7 +479,11 @@ public class ZwischenverdienistController : ControllerBase
                 probationEnd13, austritt13, firstDay, lastDay);
             if (inProbezeit13)
             {
-                dreizehnBemerkung = "* 13. wird erst nach Probezeit ausbezahlt";
+                static string Chf13(decimal v) =>
+                    v.ToString("0.00", CultureInfo.InvariantCulture);
+                dreizehnBemerkung =
+                    "* 13. wird erst nach Probezeit ausbezahlt.\n"
+                    + $"Diesen Monat {Chf13(dreizehnDiesenMonat)}, Bezug {Chf13(dreizehnBezug)}, Saldo {Chf13(dreizehnSaldo)}.";
                 // CHF-Zeile 0 (nur Rückstellung) — % bleibt sichtbar; * vor Betrag im PDF
                 if (!dreizehnCHF.HasValue || dreizehnCHF.Value == 0)
                     dreizehnCHF = 0m;

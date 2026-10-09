@@ -201,7 +201,7 @@ public class ZwischenverdienistPdfService
         // Kontrollkästchen 20 bleibt aus — 13. ist vereinbart, nur noch nicht zahlbar.
         if (!string.IsNullOrWhiteSpace(d.DreizehnterBemerkung))
             DrawRemarkNearField(pdf, form, "Kontrollkästchen 20", "Kontrollkästchen 20",
-                d.DreizehnterBemerkung!, wrap: false, yBelow: true);
+                d.DreizehnterBemerkung!, wrap: true, yBelow: true);
 
         // Taggeldleistungen (aus Lohnbeleg: Karenz/Taggeld-Zeilen)
         // 4.144 = CHF-Betrag, 4.145 = "welche?"-Beschreibung
