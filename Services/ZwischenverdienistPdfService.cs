@@ -258,16 +258,19 @@ public class ZwischenverdienistPdfService
         }
 
         // ── Seite 3: Frage 11 – BVG ──────────────────────────────────────────
+        // Optionsfeld 22 horizontal: /0=nein (links), /1=ja (rechts) —
+        // AcroForm-Opt heisst Auswahl1/Auswahl2 (wie Frage 10).
         bool bvgJa = !string.IsNullOrWhiteSpace(d.BvgVersicherer) || d.BvgErhoben == true;
-        SetRadio(form, "Optionsfeld 22", bvgJa ? "1" : "0");
+        SetRadio(form, "Optionsfeld 22", bvgJa ? "Auswahl2" : "Auswahl1");
         if (bvgJa)
             Set(form, "1.76", d.BvgVersicherer);
 
         // ── Seite 3: Frage 12 – Kinderzulagen ────────────────────────────────
-        // Optionsfeld 23 vertikal: /0 = ja (oben), /1 = nein (unten)
+        // Optionsfeld 23 vertikal: /0=ja (oben)=Auswahl1, /1=nein (unten)=Auswahl2
         if (d.KinderzulagenAusgerichtet.HasValue)
         {
-            SetRadio(form, "Optionsfeld 23", d.KinderzulagenAusgerichtet.Value ? "0" : "1");
+            SetRadio(form, "Optionsfeld 23",
+                d.KinderzulagenAusgerichtet.Value ? "Auswahl1" : "Auswahl2");
             if (d.KinderzulagenAusgerichtet.Value)
             {
                 if (d.AnzahlKinderzulagen.HasValue)

@@ -119,26 +119,27 @@ public class ZwischenverdienistController : ControllerBase
 
         var company = await _db.CompanyProfiles.FindAsync(companyProfileId);
 
-        // AHV-Kasse/BVG-Versicherer aus den Lohndatenempfängern der Filiale
-        // (Walter 06.08.2026) — neuster gültiger Eintrag; Fallback auf die
-        // Legacy-Freitextfelder am CompanyProfile.
-        var heuteEmpf = DateOnly.FromDateTime(DateTime.Today);
-        async Task<string?> EmpfName(string art) =>
-            await _db.CompanyProfileEmpfaengers.AsNoTracking()
-                .Where(z => z.CompanyProfileId == companyProfileId && z.IsActive
-                         && z.Empfaenger!.Art == art
-                         && (z.GueltigAb == null || z.GueltigAb <= heuteEmpf)
-                         && (z.GueltigBis == null || z.GueltigBis >= heuteEmpf))
-                .OrderByDescending(z => z.GueltigAb)
-                .Select(z => z.Empfaenger!.Bezeichnung)
-                .FirstOrDefaultAsync();
-        var ahvKasseName = await EmpfName("AUSGLEICHSKASSE") ?? company?.AhvKasse;
-        var bvgVersichererName = await EmpfName("BVG") ?? company?.BvgVersicherer;
         if (company is null) return NotFound("Firmenprofil nicht gefunden");
 
         // ── Kalendermonat bestimmen ───────────────────────────────────────
         var firstDay = new DateOnly(year, month, 1);
         var lastDay  = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+
+        // AHV-Kasse/BVG-Versicherer aus den Lohndatenempfängern der Filiale
+        // (Walter 06.08.2026) — Stichtag = Periodenende; Fallback Legacy-Feld.
+        async Task<string?> EmpfName(string art) =>
+            await (
+                from z in _db.CompanyProfileEmpfaengers.AsNoTracking()
+                join e in _db.LohndatenEmpfaengers.AsNoTracking() on z.EmpfaengerId equals e.Id
+                where z.CompanyProfileId == companyProfileId && z.IsActive
+                   && e.Art == art
+                   && (z.GueltigAb == null || z.GueltigAb <= lastDay)
+                   && (z.GueltigBis == null || z.GueltigBis >= firstDay)
+                orderby z.GueltigAb descending
+                select e.Bezeichnung
+            ).FirstOrDefaultAsync();
+        var ahvKasseName = await EmpfName("AUSGLEICHSKASSE") ?? company.AhvKasse;
+        var bvgVersichererName = await EmpfName("BVG") ?? company.BvgVersicherer;
 
         // ── Stempelzeiten (Stunden pro Kalendertag) ───────────────────────
         var timeEntries = await _db.EmployeeTimeEntries
@@ -343,6 +344,9 @@ public class ZwischenverdienistController : ControllerBase
         decimal dreizehnDiesenMonat = 0m;
         decimal dreizehnBezug = 0m;
         decimal dreizehnSaldo = 0m;
+        bool bvgAufLohnbeleg = false;
+        int slipKzCount = 0;
+        int slipAzCount = 0;
         var andereLabels = new List<string>();
         var taggeldLabels = new List<string>();
 
@@ -390,6 +394,9 @@ public class ZwischenverdienistController : ControllerBase
                 dreizehnBezug = t13pV;
             if (TrySlipDecimal(slip, "thirteenthAccumulated", out var t13sV))
                 dreizehnSaldo = t13sV;
+
+            // BVG-/FamZ-Zeilen vom Lohnbeleg (massgebend für Frage 11/12)
+            CountSlipBvgUndFamz(slip, out bvgAufLohnbeleg, out slipKzCount, out slipAzCount);
         }
         else
         {
@@ -520,20 +527,22 @@ public class ZwischenverdienistController : ControllerBase
         }
 
         // ── Frage 12: Kinder-/Ausbildungszulagen im Formular-Monat ──────────
-        // Anzahl Kinder mit aktiver KZ bzw. AZ (GZ/AdoptZ zählen nicht).
-        // Keine Zulage → nein ankreuzen, ohne weiteren Grund (Walter 09.10.2026).
-        var zvAllowances = await _db.FamilyMemberAllowances
-            .AsNoTracking()
-            .Where(a => a.FamilyMember!.EmployeeId == employeeId
-                     && a.ValidFrom <= lastDay
-                     && (a.ValidTo == null || a.ValidTo >= firstDay))
-            .Select(a => a.AllowanceType)
-            .ToListAsync();
+        // Primär Stammdaten; Fallback Lohnbeleg-Zeilen (Walter 09.10.2026 Anita).
+        var zvAllowances = await (
+            from a in _db.FamilyMemberAllowances.AsNoTracking()
+            join fm in _db.EmployeeFamilyMembers.AsNoTracking() on a.FamilyMemberId equals fm.Id
+            where fm.EmployeeId == employeeId
+               && a.ValidFrom <= lastDay
+               && (a.ValidTo == null || a.ValidTo >= firstDay)
+            select a.AllowanceType
+        ).ToListAsync();
         int zvAnzAz = zvAllowances.Count(t =>
             string.Equals(t, "AZ", StringComparison.OrdinalIgnoreCase));
         int zvAnzKz = zvAllowances.Count(t =>
             string.IsNullOrWhiteSpace(t)
             || string.Equals(t, "KZ", StringComparison.OrdinalIgnoreCase));
+        if (zvAnzKz == 0 && slipKzCount > 0) zvAnzKz = slipKzCount;
+        if (zvAnzAz == 0 && slipAzCount > 0) zvAnzAz = slipAzCount;
         bool zvFamzJa = zvAnzKz > 0 || zvAnzAz > 0;
 
         // ── DTO zusammenstellen ───────────────────────────────────────────
@@ -634,15 +643,14 @@ public class ZwischenverdienistController : ControllerBase
 
             // Abschnitt 11–18
             DreizehnterJahresendAuszahlung = dreizehnPct.HasValue ? false : null,
-            // BVG: ja wenn Versicherer hinterlegt, sonst nein
-            // BVG nur wenn Bruttolohn ≥ Koordinationsabzug (sonst keine BVG-Basis).
-            // Ergibt JA/NEIN auf der Frage "Wurden auf dem Lohn Beiträge an die
-            // berufliche Vorsorge erhoben?" — entscheidend ist der EFFEKTIVE Lohn,
-            // nicht ob die Firma generell einen Versicherer hat.
-            BvgErhoben             = bvgKoordinationsabzug > 0
-                                     && bruttolohnTotal > bvgKoordinationsabzug
-                                     && !string.IsNullOrWhiteSpace(bvgVersichererName),
-            BvgVersicherer         = (bvgKoordinationsabzug > 0 && bruttolohnTotal > bvgKoordinationsabzug)
+            // Frage 11 BVG: ja wenn Lohnbeleg BVG abzieht; Name immer aus Filiale
+            // (Lohndatenempfänger), Walter 09.10.2026 Anita Djonlagic.
+            BvgErhoben             = bvgAufLohnbeleg
+                                     || (bvgKoordinationsabzug > 0
+                                         && bruttolohnTotal > bvgKoordinationsabzug
+                                         && !string.IsNullOrWhiteSpace(bvgVersichererName)),
+            BvgVersicherer         = (bvgAufLohnbeleg
+                                     || (bvgKoordinationsabzug > 0 && bruttolohnTotal > bvgKoordinationsabzug))
                                      ? bvgVersichererName : null,
             AhvKasse               = ahvKasseName,
 
@@ -708,6 +716,49 @@ public class ZwischenverdienistController : ControllerBase
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// BVG-Abzug und FamZ-Zeilen aus dem Lohnbeleg zählen (Frage 11/12).
+    /// </summary>
+    private static void CountSlipBvgUndFamz(
+        JsonElement slip, out bool bvgErhoben, out int kzCount, out int azCount)
+    {
+        bvgErhoben = false;
+        kzCount = 0;
+        azCount = 0;
+
+        if (slip.TryGetProperty("abzugLines", out var abz) && abz.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var line in abz.EnumerateArray())
+            {
+                var cat = line.TryGetProperty("categoryCode", out var c) ? (c.GetString() ?? "") : "";
+                var catU = cat.Trim().ToUpperInvariant();
+                if (catU is "BVG" or "BVG_ZUSATZ" || catU.StartsWith("BVG"))
+                {
+                    if (line.TryGetProperty("betrag", out var bt)
+                        && bt.ValueKind == JsonValueKind.Number
+                        && bt.TryGetDecimal(out var b) && Math.Abs(b) >= 0.005m)
+                        bvgErhoben = true;
+                }
+            }
+        }
+
+        if (slip.TryGetProperty("lohnLines", out var lohn) && lohn.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var line in lohn.EnumerateArray())
+            {
+                var bez = line.TryGetProperty("bezeichnung", out var b)
+                    ? (b.GetString() ?? "") : "";
+                var bezU = bez.ToUpperInvariant();
+                if (!line.TryGetProperty("betrag", out var bt)
+                    || bt.ValueKind != JsonValueKind.Number
+                    || !bt.TryGetDecimal(out var betrag) || Math.Abs(betrag) < 0.005m)
+                    continue;
+                if (bezU.Contains("AUSBILDUNGSZULAGE")) azCount++;
+                else if (bezU.Contains("KINDERZULAGE")) kzCount++;
+            }
+        }
+    }
 
     /// <summary>JSON-Zahl lesen; Null/String ohne Crash (Walter-Bug 09.10.2026).</summary>
     private static bool TrySlipDecimal(JsonElement slip, string name, out decimal value)
