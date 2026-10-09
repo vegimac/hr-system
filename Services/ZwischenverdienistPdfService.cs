@@ -186,7 +186,8 @@ public class ZwischenverdienistPdfService
         }
         // FLEX-Pott: Bemerkung rechts, gleiche linke Kante wie 13.-Probezeit-Hinweis
         if (!string.IsNullOrWhiteSpace(d.FerienBemerkung))
-            DrawRemarkNearField(pdf, form, "4.143", "Kontrollkästchen 20", d.FerienBemerkung!, wrap: true);
+            DrawRemarkNearField(pdf, form, "4.143", "Kontrollkästchen 20", d.FerienBemerkung!,
+                wrap: true, fontSize: 7f);
 
         if (d.DreizehnterProzentString is not null)
         {

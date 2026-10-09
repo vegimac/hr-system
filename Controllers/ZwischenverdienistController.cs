@@ -480,7 +480,7 @@ public class ZwischenverdienistController : ControllerBase
                 static string Chf13(decimal v) =>
                     v.ToString("0.00", CultureInfo.InvariantCulture);
                 dreizehnBemerkung =
-                    "* 13. wird erst nach Probezeit ausbezahlt.\n"
+                    "* 13. wird erst nach der Probezeit ausbezahlt.\n"
                     + $"Diesen Monat {Chf13(dreizehnDiesenMonat)}, Bezug {Chf13(dreizehnBezug)}, Saldo {Chf13(dreizehnSaldo)}.";
                 // CHF-Zeile 0 (nur Rückstellung) — % bleibt sichtbar; * vor Betrag im PDF
                 if (!dreizehnCHF.HasValue || dreizehnCHF.Value == 0)
