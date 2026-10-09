@@ -187,7 +187,7 @@ public class ZwischenverdienistPdfService
         // FLEX-Pott: Bemerkung rechts, gleiche linke Kante wie 13.-Probezeit-Hinweis
         if (!string.IsNullOrWhiteSpace(d.FerienBemerkung))
             DrawRemarkNearField(pdf, form, "4.143", "Kontrollkästchen 20", d.FerienBemerkung!,
-                wrap: true, fontSize: 7f);
+                wrap: true, fontSize: 7f, maxWidth: 290f, yShift: -9f);
 
         if (d.DreizehnterProzentString is not null)
         {
@@ -388,7 +388,8 @@ public class ZwischenverdienistPdfService
     private static void DrawRemarkNearField(
         PdfDocument pdf, PdfAcroForm form,
         string yAnchorField, string xAlignField, string text,
-        bool wrap, bool yBelow = false, float fontSize = 8f, float xPad = 4f)
+        bool wrap, bool yBelow = false, float fontSize = 8f, float xPad = 4f,
+        float maxWidth = 250f, float yShift = 0f)
     {
         if (!TryGetFieldRect(pdf, form, yAnchorField, out var yRect, out var page)) return;
         if (!TryGetFieldRect(pdf, form, xAlignField, out var xRect, out _)) return;
@@ -399,8 +400,8 @@ public class ZwischenverdienistPdfService
             float x = xRect.GetRight() + xPad;
             // yBelow: knapp unter Formularzeile «13. Monatslohn ist weder…» —
             // Zeilen NUR nach unten stapeln (sonst überdeckt die 1. Zeile den Text).
-            float y = yBelow ? yRect.GetBottom() - 5f : yRect.GetBottom() + 6f;
-            float maxWidth = 250f;
+            // yShift: negativ = auf der Seite nach unten.
+            float y = (yBelow ? yRect.GetBottom() - 5f : yRect.GetBottom() + 6f) + yShift;
             float lineStep = fontSize + 1.2f;
 
             var lines = BuildRemarkLines(font, fontSize, text, maxWidth, wrap);
