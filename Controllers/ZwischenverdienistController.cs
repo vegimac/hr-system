@@ -439,8 +439,8 @@ public class ZwischenverdienistController : ControllerBase
                 probationEnd13, austritt13, firstDay, lastDay);
             if (inProbezeit13)
             {
-                dreizehnBemerkung = "13. wird erst nach Probezeit ausbezahlt";
-                // CHF-Zeile leer/0 lassen (nur Rückstellung) — % bleibt sichtbar
+                dreizehnBemerkung = "* 13. wird erst nach Probezeit ausbezahlt";
+                // CHF-Zeile 0 (nur Rückstellung) — % bleibt sichtbar; * vor Betrag im PDF
                 if (!dreizehnCHF.HasValue || dreizehnCHF.Value == 0)
                     dreizehnCHF = 0m;
             }

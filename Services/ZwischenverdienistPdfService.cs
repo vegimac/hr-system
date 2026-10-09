@@ -184,7 +184,11 @@ public class ZwischenverdienistPdfService
         if (d.DreizehnterProzentString is not null)
         {
             SetRight(form, "4.146", d.DreizehnterProzentString.TrimEnd('%'));
-            SetRight(form, "4.142", FormatChf2(d.DreizehnterCHF));
+            // Probezeit: «*0.00» — Fussnote zur Bemerkung neben der Checkbox
+            var chf13 = FormatChf2(d.DreizehnterCHF);
+            if (!string.IsNullOrWhiteSpace(d.DreizehnterBemerkung) && chf13 != null)
+                chf13 = "*" + chf13;
+            SetRight(form, "4.142", chf13);
         }
         // Probezeit: Bemerkung oberhalb von «13. Monatslohn ist weder…»
         // (Kontrollkästchen 20 bleibt aus — 13. ist vereinbart, nur noch nicht zahlbar)
@@ -405,13 +409,14 @@ public class ZwischenverdienistPdfService
         try
         {
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
-            float x = rect.GetLeft();
-            float y = rect.GetTop() + 3f; // knapp oberhalb der Checkbox / des Labels
+            // Linksbündig mit dem Label «13. Monatslohn ist weder…» (rechts neben Checkbox)
+            float x = rect.GetRight() + 4f;
+            float y = rect.GetTop() + 4f;
             var canvas = new PdfCanvas(widgetPage);
             canvas.SaveState();
             canvas.SetFillColor(ColorConstants.BLACK);
             canvas.BeginText()
-                  .SetFontAndSize(font, 7.5f)
+                  .SetFontAndSize(font, 9.5f)
                   .MoveText(x, y)
                   .ShowText(text)
                   .EndText();
