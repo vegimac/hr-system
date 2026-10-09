@@ -17,13 +17,16 @@ public class ZwischenverdienistController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ZwischenverdienistPdfService _pdfService;
-    private readonly KtgTagessatzService _ktgService;
+    private readonly PayrollCalculationEngine _calcEngine;
 
-    public ZwischenverdienistController(AppDbContext db, ZwischenverdienistPdfService pdfService, KtgTagessatzService ktgService)
+    public ZwischenverdienistController(
+        AppDbContext db,
+        ZwischenverdienistPdfService pdfService,
+        PayrollCalculationEngine calcEngine)
     {
         _db = db;
         _pdfService = pdfService;
-        _ktgService = ktgService;
+        _calcEngine = calcEngine;
     }
 
     // ── Arbeitslosigkeit CRUD ─────────────────────────────────────────────
@@ -258,13 +261,13 @@ public class ZwischenverdienistController : ControllerBase
             if (!absenzTypByCode.TryGetValue(typeKey, out var typ))
                 continue;
 
-            // Krank/Unfall-Taggeld: Kalendertage im Formular-Monat (Raster-Logik)
+            // Krank/Unfall-Taggeld: Kalendertage (nur noch für Raster; CHF aus Engine)
             var daysForRaster = GetAbsenceDays(abs, firstDay, lastDay);
             int tageRaster = daysForRaster.Count;
 
             var kuerzel = (typ.ZwischenverdienstKuerzel ?? "").ToUpperInvariant();
 
-            // Krank/Unfall (B/C): immer Taggeldleistungen via KTG-Tagessatz
+            // Krank/Unfall (B/C): Buchstabe im Raster
             if (kuerzel == "B" || kuerzel == "C")
             {
                 if (tageRaster > 0) krankUnfallTage += tageRaster;
@@ -318,13 +321,58 @@ public class ZwischenverdienistController : ControllerBase
             totalStunden = Math.Round(stempelStunden, 2);
         }
 
-        // Krank/Unfall-Karenz via KTG-Tagessatz → Feld "Taggeldleistungen"
-        decimal krankUnfallCHF = 0;
-        if (krankUnfallTage > 0)
+        // ── Lohnbeträge 1:1 aus der Lohn-Engine (Walter 09.10.2026) ────────
+        // Zwischenverdienst = dieselben Zahlen wie der Lohnbeleg: Ferien-
+        // Auszahlung (40.1), Bonus, Zulagen, Taggeld — nicht nur %-Schätzung.
+        decimal grundlohn = 0m;
+        decimal? feiertagCHF = null;
+        decimal? ferienCHF = null;
+        decimal? dreizehnCHF = null;
+        decimal? taggeldCHF = null;
+        string? taggeldWelche = null;
+        decimal? andereCHF = null;
+        string? andereWelche = null;
+        decimal? bonusCHF = null;
+        decimal bruttolohnTotal = 0m;
+        var andereLabels = new List<string>();
+        var taggeldLabels = new List<string>();
+
+        var calcResult = await _calcEngine.CalculateAsync(
+            employeeId, year, month, companyProfileId);
+        if (calcResult is OkObjectResult calcOk && calcOk.Value is not null)
         {
-            var ktg = await _ktgService.CalculateAsync(employeeId, companyProfileId);
-            if (ktg?.Tagessatz100 > 0)
-                krankUnfallCHF = Math.Round(krankUnfallTage * ktg.Tagessatz100, 2);
+            var slip = JsonSerializer.SerializeToElement(calcOk.Value);
+            if (slip.TryGetProperty("workedHours", out var whEl)
+                && whEl.TryGetDecimal(out var wh) && wh > 0)
+                totalStunden = wh;
+
+            MapLohnbelegZeilen(
+                slip,
+                out grundlohn,
+                out feiertagCHF,
+                out ferienCHF,
+                out dreizehnCHF,
+                out taggeldCHF,
+                out taggeldLabels,
+                out andereCHF,
+                out andereLabels,
+                out bonusCHF,
+                out bruttolohnTotal);
+
+            if (taggeldLabels.Count > 0)
+                taggeldWelche = string.Join(", ", taggeldLabels.Distinct());
+            if (andereLabels.Count > 0)
+                andereWelche = string.Join(", ", andereLabels.Distinct());
+        }
+        else
+        {
+            // Fallback ohne Engine: nur Stempel × Satz (sollte selten greifen)
+            var fbSatz = employment?.HourlyRate;
+            var fbMonat = employment?.MonthlySalary;
+            grundlohn = fbSatz.HasValue
+                ? PayrollCalculations.Rappen(totalStunden * fbSatz.Value)
+                : fbMonat ?? 0;
+            bruttolohnTotal = grundlohn;
         }
 
         // BVG-Logik: ab welcher monatlichen Lohnschwelle wird BVG abgezogen?
@@ -357,6 +405,7 @@ public class ZwischenverdienistController : ControllerBase
         decimal? stundenlohn  = employment?.HourlyRate;
         decimal? monatslohn   = employment?.MonthlySalary;
         // Ferienprozent: immer aus CompanyProfile berechnen (Alter im Abrechnungsmonat)
+        // — %-Anzeige auf dem Formular; CHF-Beträge kommen aus dem Lohnbeleg.
         decimal? ferienPct = null;
         if (employee.DateOfBirth.HasValue)
         {
@@ -369,40 +418,10 @@ public class ZwischenverdienistController : ControllerBase
         }
         else
         {
-            // Kein Geburtsdatum → Standardwert 5 Wochen
             ferienPct = company.DefaultVacationPercent5Weeks ?? 10.65m;
-}
-        // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
+        }
         decimal? feiertagPct  = company.DefaultHolidayPercent;
         decimal? dreizehnPct  = company.DefaultThirteenthSalaryPercent;
-
-        // Beträge wie Lohnzettel: Round05 (5 Rp.), nicht Math.Round(,2)
-        // (Walter 09.10.2026: Sasikaran Feiertag 32.80/Ferien 154.00, nicht 32.82/153.99).
-        decimal grundlohn = stundenlohn.HasValue
-            ? PayrollCalculations.Rappen(totalStunden * stundenlohn.Value)
-            : monatslohn ?? 0;
-
-        // Ferien-% und Feiertag-% auf dem Grundlohn (wie FLEX-Engine).
-        decimal? ferienCHF   = ferienPct.HasValue
-            ? PayrollCalculations.Round05(grundlohn * ferienPct.Value / 100m) : null;
-        decimal? feiertagCHF = feiertagPct.HasValue
-            ? PayrollCalculations.Round05(grundlohn * feiertagPct.Value / 100m) : null;
-
-        // 13. ML-Basis FLEX wie Lohnzettel: Grundlohn + Feiertag (ausbezahlt).
-        // Ferien wandert in den Pott und zählt hier NICHT mit
-        // (Sasikaran: Basis 1'478.70 → 123.20, nicht 1'632.71 → 136.00).
-        decimal basis13ml = grundlohn + (feiertagCHF ?? 0m);
-        decimal? dreizehnCHF = dreizehnPct.HasValue
-            ? PayrollCalculations.Round05(basis13ml * dreizehnPct.Value / 100m) : null;
-
-        // Total Bruttolohn = AHV-pflichtig = Total Lohn auf dem Zettel.
-        // FLEX: Ferien-Pott + Probezeit-13.-ML-Rückstellung sind NICHT AHV
-        // (erst bei Auszahlung) — trotzdem auf dem Formular in den %-Zeilen
-        // ausgewiesen wie «Gerechnet» auf dem Lohnzettel.
-        // AHV-Total = Grundlohn + Feiertag (+ Taggeldleistungen).
-        decimal bruttolohnTotal = grundlohn
-            + (feiertagCHF ?? 0)
-            + krankUnfallCHF;
 
         // ── Frage 10: Weiterführung des Arbeitsverhältnisses ───────────────
         // Beendet = Kündigung/Austritt per ≤ Monatsende. Sonst: mit Vertragsende
@@ -499,10 +518,10 @@ public class ZwischenverdienistController : ControllerBase
                 ? Math.Round(stundenlohn.Value * feiertagPct.Value / 100m, 2) : null,
             StundenlohnFerienCHF   = stundenlohn.HasValue && ferienPct.HasValue
                 ? Math.Round(stundenlohn.Value * ferienPct.Value / 100m, 2) : null,
+            // 13. ML pro Stunde: Basis = Stundenlohn + Feiertag (ohne Ferien-Pott)
             StundenlohnDreizehnCHF = stundenlohn.HasValue && dreizehnPct.HasValue
                 ? Math.Round((stundenlohn.Value
-                    + Math.Round(stundenlohn.Value * (feiertagPct ?? 0) / 100m, 2)
-                    + Math.Round(stundenlohn.Value * (ferienPct   ?? 0) / 100m, 2))
+                    + Math.Round(stundenlohn.Value * (feiertagPct ?? 0) / 100m, 2))
                     * dreizehnPct.Value / 100m, 2) : null,
             StundenlohnBruttoCHF   = stundenlohn.HasValue
                 ? Math.Round(stundenlohn.Value
@@ -510,8 +529,7 @@ public class ZwischenverdienistController : ControllerBase
                     + (ferienPct.HasValue   ? Math.Round(stundenlohn.Value * ferienPct.Value   / 100m, 2) : 0)
                     + (dreizehnPct.HasValue
                         ? Math.Round((stundenlohn.Value
-                            + Math.Round(stundenlohn.Value * (feiertagPct ?? 0) / 100m, 2)
-                            + Math.Round(stundenlohn.Value * (ferienPct   ?? 0) / 100m, 2))
+                            + Math.Round(stundenlohn.Value * (feiertagPct ?? 0) / 100m, 2))
                             * dreizehnPct.Value / 100m, 2)
                         : 0), 2)
                 : null,
@@ -529,9 +547,12 @@ public class ZwischenverdienistController : ControllerBase
             DreizehnterProzentString = dreizehnPct.HasValue ? dreizehnPct.Value.ToString("G") + "%" : null,
             DreizehnterCHF           = dreizehnCHF,
 
-            // Taggeldleistungen: Karenz-Tagessatz × Krank/Unfall-Tage (KTG-Service)
-            TaggeldleistungenCHF      = krankUnfallCHF > 0 ? krankUnfallCHF : null,
-            TaggeldleistungenWelche   = krankUnfallCHF > 0 ? $"Karenz Krank/Unfall ({krankUnfallTage} Tage)" : null,
+            // Taggeld / Andere / Bonus — aus Lohnbeleg-Zeilen
+            TaggeldleistungenCHF           = taggeldCHF,
+            TaggeldleistungenWelche        = taggeldWelche,
+            AndereLohnbestandteileCHF      = andereCHF,
+            AndereLohnbestandteileWelche   = andereWelche,
+            BonusCHF                       = bonusCHF,
 
             // Abschnitt 11–18
             DreizehnterJahresendAuszahlung = dreizehnPct.HasValue ? false : null,
@@ -610,8 +631,108 @@ public class ZwischenverdienistController : ControllerBase
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    // MapAbsenzCode entfernt — Kürzel-Mapping läuft jetzt DB-driven via
-    // absenz_typ.zwischenverdienst_kuerzel (siehe oben in Lookup-Dictionary).
+    /// <summary>
+    /// Zerlegt den Lohnbeleg (CalculateAsync) in die Felder des Zwischenverdienst-
+    /// Formulars. Nur AUSBEZAHLTE Beträge (betrag) — Pott/Rückstellung (accrued
+    /// ohne betrag) erscheinen nicht im Total, genau wie auf dem Lohnzettel.
+    /// Ferien-Auszahlung 40.1 → Ferien-Zeile; Bonus → Bonus; Rest → Andere.
+    /// </summary>
+    private static void MapLohnbelegZeilen(
+        JsonElement slip,
+        out decimal grundlohn,
+        out decimal? feiertagCHF,
+        out decimal? ferienCHF,
+        out decimal? dreizehnCHF,
+        out decimal? taggeldCHF,
+        out List<string> taggeldLabels,
+        out decimal? andereCHF,
+        out List<string> andereLabels,
+        out decimal? bonusCHF,
+        out decimal bruttolohnTotal)
+    {
+        grundlohn = 0m;
+        decimal feiertag = 0m, ferien = 0m, dreizehn = 0m, taggeld = 0m, andere = 0m;
+        taggeldLabels = new List<string>();
+        andereLabels = new List<string>();
+
+        if (slip.TryGetProperty("lohnLines", out var lines) && lines.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var line in lines.EnumerateArray())
+            {
+                var code = line.TryGetProperty("code", out var c) ? (c.GetString() ?? "") : "";
+                var bez  = line.TryGetProperty("bezeichnung", out var b) ? (b.GetString() ?? "") : "";
+                if (!line.TryGetProperty("betrag", out var betEl) || !betEl.TryGetDecimal(out var betrag))
+                    continue;
+                if (Math.Abs(betrag) < 0.005m) continue;
+
+                var codeU = code.Trim().ToUpperInvariant();
+                var bezU  = bez.ToUpperInvariant();
+
+                if (codeU is "20" or "22" or "10.1" or "55.3" or "55.10")
+                {
+                    grundlohn += betrag;
+                    continue;
+                }
+                if (codeU is "195.4" or "195.2" or "50.1")
+                {
+                    feiertag += betrag;
+                    continue;
+                }
+                if (codeU is "195.1" or "195.3" or "195.5" or "195.6" or "40.1" or "10.2"
+                    || bezU.Contains("FERIENENTSCHÄDIGUNG-AUSZAHLUNG")
+                    || bezU.Contains("FERIEN-GELD")
+                    || bezU.StartsWith("FERIEN AUSBEZAHLT"))
+                {
+                    ferien += betrag;
+                    continue;
+                }
+                if (codeU is "180.1" or "180.3"
+                    || bezU.Contains("13. MONATSLOHN") || bezU.Contains("13. ML"))
+                {
+                    dreizehn += betrag;
+                    continue;
+                }
+                if (codeU.StartsWith("70.") || codeU.StartsWith("60.")
+                    || codeU is "75.1" or "65.1"
+                    || bezU.Contains("KARENZ") || bezU.Contains("TAGGELD")
+                    || bezU.Contains("KRANKHEIT") || bezU.Contains("UNFALL ("))
+                {
+                    taggeld += betrag;
+                    if (!string.IsNullOrWhiteSpace(bez)) taggeldLabels.Add(bez);
+                    continue;
+                }
+                // FamZ / Kinderzulagen: eigene Frage 12, nicht «Andere»
+                if (codeU.StartsWith("301") || codeU.StartsWith("302")
+                    || bezU.Contains("KINDERZULAGE") || bezU.Contains("AUSBILDUNGSZULAGE")
+                    || bezU.Contains("FAMILIENZULAGE"))
+                    continue;
+                // Akonto-Verrechnung / interne Saldi-Umbuchungen: nicht als Lohnbestandteil
+                if (codeU.StartsWith("900") || bezU.Contains("AKONTO") || bezU.Contains("VERRECHNUNG"))
+                    continue;
+
+                // Bonus/Gratifikation + übrige Zulagen → «Andere Lohnbestandteile»
+                // (Walter 09.10.2026: Formular-Zeile Andere, nicht die Bonus-Zeile)
+                andere += betrag;
+                if (!string.IsNullOrWhiteSpace(bez)) andereLabels.Add(bez);
+            }
+        }
+
+        feiertagCHF = Math.Abs(feiertag) >= 0.005m ? feiertag : null;
+        ferienCHF   = Math.Abs(ferien)   >= 0.005m ? ferien   : null;
+        dreizehnCHF = Math.Abs(dreizehn) >= 0.005m ? dreizehn : null;
+        taggeldCHF  = Math.Abs(taggeld)  >= 0.005m ? taggeld  : null;
+        andereCHF   = Math.Abs(andere)   >= 0.005m ? andere   : null;
+        bonusCHF    = null; // Bonus läuft über Andere (4.150), nicht 4.153
+
+        // Total = AHV-pflichtiger Bruttolohn vom Lohnbeleg (svBasisAhv),
+        // Fallback totalLohn — identisch mit «Total Lohn» auf dem Zettel.
+        if (slip.TryGetProperty("svBasisAhv", out var ahvEl) && ahvEl.TryGetDecimal(out var ahv) && ahv > 0)
+            bruttolohnTotal = ahv;
+        else if (slip.TryGetProperty("totalLohn", out var tlEl) && tlEl.TryGetDecimal(out var tl))
+            bruttolohnTotal = tl;
+        else
+            bruttolohnTotal = grundlohn + feiertag + ferien + dreizehn + taggeld + andere;
+    }
 
     /// <summary>EmploymentModel bevorzugt; ContractType als Legacy-Fallback (UTP→FLEX).</summary>
     private static string NormalizeEmploymentModel(Employment? employment)

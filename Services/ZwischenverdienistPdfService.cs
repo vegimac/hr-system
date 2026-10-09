@@ -186,14 +186,24 @@ public class ZwischenverdienistPdfService
             SetRight(form, "4.146", d.DreizehnterProzentString.TrimEnd('%'));
             SetRight(form, "4.142", FormatChf2(d.DreizehnterCHF));
         }
-        // Taggeldleistungen (Krank/Unfall-Karenz via KTG-Tagessatz)
+        // Taggeldleistungen (aus Lohnbeleg: Karenz/Taggeld-Zeilen)
         // 4.144 = CHF-Betrag, 4.145 = "welche?"-Beschreibung
-        if (d.TaggeldleistungenCHF.HasValue && d.TaggeldleistungenCHF.Value > 0)
+        if (d.TaggeldleistungenCHF.HasValue && d.TaggeldleistungenCHF.Value != 0)
         {
             SetRight(form, "4.144", FormatChf2(d.TaggeldleistungenCHF));
             if (!string.IsNullOrEmpty(d.TaggeldleistungenWelche))
                 Set(form, "4.145", d.TaggeldleistungenWelche);  // Text → linksbündig
         }
+        // Andere Lohnbestandteile (Zulagen, LGAV, …) + Bonus
+        // 4.150 = CHF, 4.151 = "welche?", 4.153 = Bonus CHF
+        if (d.AndereLohnbestandteileCHF.HasValue && d.AndereLohnbestandteileCHF.Value != 0)
+        {
+            SetRight(form, "4.150", FormatChf2(d.AndereLohnbestandteileCHF));
+            if (!string.IsNullOrEmpty(d.AndereLohnbestandteileWelche))
+                Set(form, "4.151", d.AndereLohnbestandteileWelche);
+        }
+        if (d.BonusCHF.HasValue && d.BonusCHF.Value != 0)
+            SetRight(form, "4.153", FormatChf2(d.BonusCHF));
         SetRight(form, "4.154", FormatChf2(d.BruttolohnTotal));
 
         // ── Seite 2: Frage 10 – Arbeitsverhältnis weitergeführt? ─────────────
@@ -522,6 +532,11 @@ public class ZwischenverdienistData
     public decimal? DreizehnterCHF              { get; set; }
     public decimal? TaggeldleistungenCHF        { get; set; }
     public string?  TaggeldleistungenWelche     { get; set; }
+    /// <summary>Andere Lohnbestandteile (Zulagen, LGAV-Ausnahme, …) — nicht Bonus.</summary>
+    public decimal? AndereLohnbestandteileCHF   { get; set; }
+    public string?  AndereLohnbestandteileWelche { get; set; }
+    /// <summary>Bonus / Gratifikation (eigene Zeile auf dem Formular).</summary>
+    public decimal? BonusCHF                    { get; set; }
 
     public bool? DreizehnterJahresendAuszahlung { get; set; }
     public bool? BvgErhoben                     { get; set; }
