@@ -179,8 +179,15 @@ public class ZwischenverdienistPdfService
         if (d.FerienprozentString is not null)
         {
             SetRight(form, "4.147", d.FerienprozentString.TrimEnd('%'));
-            SetRight(form, "4.143", FormatChf2(d.FerienCHF));
+            var chfFerien = FormatChf2(d.FerienCHF);
+            if (!string.IsNullOrWhiteSpace(d.FerienBemerkung) && chfFerien != null)
+                chfFerien = "*" + chfFerien;
+            SetRight(form, "4.143", chfFerien);
         }
+        // FLEX-Pott: Bemerkung rechts, gleiche linke Kante wie 13.-Probezeit-Hinweis
+        if (!string.IsNullOrWhiteSpace(d.FerienBemerkung))
+            DrawRemarkNearField(pdf, form, "4.143", "Kontrollkästchen 20", d.FerienBemerkung!, wrap: true);
+
         if (d.DreizehnterProzentString is not null)
         {
             SetRight(form, "4.146", d.DreizehnterProzentString.TrimEnd('%'));
@@ -377,52 +384,103 @@ public class ZwischenverdienistPdfService
     /// </summary>
     private static void DrawTextAboveCheckbox(
         PdfDocument pdf, PdfAcroForm form, string checkboxName, string text)
+        => DrawRemarkNearField(pdf, form, checkboxName, checkboxName, text, wrap: false, yAbove: true);
+
+    /// <summary>
+    /// Kursiv-Bemerkung: X an xAlignField (Label-Spalte), Y an yAnchorField.
+    /// </summary>
+    private static void DrawRemarkNearField(
+        PdfDocument pdf, PdfAcroForm form,
+        string yAnchorField, string xAlignField, string text,
+        bool wrap, bool yAbove = false)
     {
+        if (!TryGetFieldRect(pdf, form, yAnchorField, out var yRect, out var page)) return;
+        if (!TryGetFieldRect(pdf, form, xAlignField, out var xRect, out _)) return;
+
+        try
+        {
+            var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
+            float fontSize = wrap ? 8f : 9.5f;
+            float x = xRect.GetRight() + 4f;
+            float y = yAbove ? yRect.GetTop() + 4f : yRect.GetBottom() + 6f;
+            float maxWidth = 250f;
+
+            var lines = wrap ? WrapText(font, fontSize, text, maxWidth) : new[] { text };
+            var canvas = new PdfCanvas(page);
+            canvas.SaveState();
+            canvas.SetFillColor(ColorConstants.BLACK);
+            float lineY = y + (lines.Length - 1) * (fontSize + 1.5f);
+            foreach (var line in lines)
+            {
+                canvas.BeginText()
+                      .SetFontAndSize(font, fontSize)
+                      .MoveText(x, lineY)
+                      .ShowText(line)
+                      .EndText();
+                lineY -= fontSize + 1.5f;
+            }
+            canvas.RestoreState();
+        }
+        catch { /* Overlay optional */ }
+    }
+
+    private static bool TryGetFieldRect(
+        PdfDocument pdf, PdfAcroForm form, string fieldName,
+        out Rectangle rect, out PdfPage page)
+    {
+        rect = new Rectangle(0, 0);
+        page = pdf.GetPage(1);
         PdfFormField? field = null;
-        try { field = form.GetField(checkboxName); } catch { }
-        if (field is null) return;
+        try { field = form.GetField(fieldName); } catch { }
+        if (field is null) return false;
 
         var widgets = field.GetWidgets();
-        if (widgets == null || widgets.Count == 0) return;
+        if (widgets == null || widgets.Count == 0) return false;
 
         var widget = widgets[0];
         var rectArr = widget.GetRectangle();
-        if (rectArr == null) return;
-        var rect = rectArr.ToRectangle();
+        if (rectArr == null) return false;
+        rect = rectArr.ToRectangle();
 
         PdfPage? widgetPage = null;
         for (int i = 1; i <= pdf.GetNumberOfPages(); i++)
         {
-            var page = pdf.GetPage(i);
-            foreach (var an in page.GetAnnotations())
+            var p = pdf.GetPage(i);
+            foreach (var an in p.GetAnnotations())
             {
                 if (an.GetPdfObject() == widget.GetPdfObject())
                 {
-                    widgetPage = page;
+                    widgetPage = p;
                     break;
                 }
             }
             if (widgetPage != null) break;
         }
-        if (widgetPage == null) return;
+        if (widgetPage == null) return false;
+        page = widgetPage;
+        return true;
+    }
 
-        try
+    private static string[] WrapText(PdfFont font, float fontSize, string text, float maxWidth)
+    {
+        var words = text.Split(' ');
+        var lines = new List<string>();
+        var cur = "";
+        foreach (var w in words)
         {
-            var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
-            // Linksbündig mit dem Label «13. Monatslohn ist weder…» (rechts neben Checkbox)
-            float x = rect.GetRight() + 4f;
-            float y = rect.GetTop() + 4f;
-            var canvas = new PdfCanvas(widgetPage);
-            canvas.SaveState();
-            canvas.SetFillColor(ColorConstants.BLACK);
-            canvas.BeginText()
-                  .SetFontAndSize(font, 9.5f)
-                  .MoveText(x, y)
-                  .ShowText(text)
-                  .EndText();
-            canvas.RestoreState();
+            var trial = string.IsNullOrEmpty(cur) ? w : cur + " " + w;
+            if (font.GetWidth(trial, fontSize) <= maxWidth)
+            {
+                cur = trial;
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(cur)) lines.Add(cur);
+                cur = w;
+            }
         }
-        catch { /* Overlay optional */ }
+        if (!string.IsNullOrEmpty(cur)) lines.Add(cur);
+        return lines.Count > 0 ? lines.ToArray() : new[] { text };
     }
 
     /// <summary>
@@ -590,6 +648,8 @@ public class ZwischenverdienistData
     public decimal? FeiertagsCHF                { get; set; }
     public string? FerienprozentString          { get; set; }
     public decimal? FerienCHF                   { get; set; }
+    /// <summary>FLEX-Pott: Hinweis rechts neben Ferien-Zeile.</summary>
+    public string? FerienBemerkung              { get; set; }
     public string? DreizehnterProzentString     { get; set; }
     public decimal? DreizehnterCHF              { get; set; }
     /// <summary>z.B. «13. wird erst nach Probezeit ausbezahlt» — Overlay oberhalb Checkbox.</summary>

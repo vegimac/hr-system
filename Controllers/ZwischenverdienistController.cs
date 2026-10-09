@@ -426,6 +426,16 @@ public class ZwischenverdienistController : ControllerBase
         decimal? feiertagPct  = company.DefaultHolidayPercent;
         decimal? dreizehnPct  = company.DefaultThirteenthSalaryPercent;
 
+        // FLEX: Feriengeld im Pott — %-Zeile ≠ Grundlohn×%; RAV-Hinweis (Walter 09.10.2026)
+        string? ferienBemerkung = null;
+        if (empModel == "FLEX" && ferienPct.HasValue && ferienPct.Value > 0)
+        {
+            ferienBemerkung =
+                "* Feriengeld wird zurückbehalten und bei bezogenen Ferien ausbezahlt und deklariert.";
+            if (!ferienCHF.HasValue)
+                ferienCHF = 0m;
+        }
+
         // 13. ML Probezeit-Bemerkung (L-GAV Art. 12 Ziff. 2) — gleiche Regel
         // wie Lohn-Engine: noch in Probezeit am Periodenende → nicht ausbezahlt.
         string? dreizehnBemerkung = null;
@@ -567,6 +577,7 @@ public class ZwischenverdienistController : ControllerBase
             FeiertagsCHF           = feiertagCHF,
             FerienprozentString    = ferienPct.HasValue   ? ferienPct.Value.ToString("G")   + "%" : null,
             FerienCHF              = ferienCHF,
+            FerienBemerkung        = ferienBemerkung,
             DreizehnterProzentString = dreizehnPct.HasValue ? dreizehnPct.Value.ToString("G") + "%" : null,
             DreizehnterCHF           = dreizehnCHF,
             DreizehnterBemerkung     = dreizehnBemerkung,
