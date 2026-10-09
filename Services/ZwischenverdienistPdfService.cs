@@ -258,19 +258,20 @@ public class ZwischenverdienistPdfService
         }
 
         // ── Seite 3: Frage 11 – BVG ──────────────────────────────────────────
-        // Optionsfeld 22 horizontal: /0=nein (links), /1=ja (rechts) —
-        // AcroForm-Opt heisst Auswahl1/Auswahl2 (wie Frage 10).
+        // Optionsfeld 22 horizontal: Appearance /0=nein (links), /1=ja (rechts).
+        // SetValue braucht den Appearance-Namen «0»/«1» (nicht Auswahl1/2 —
+        // die lassen beide aus, Walter 09.10.2026).
         bool bvgJa = !string.IsNullOrWhiteSpace(d.BvgVersicherer) || d.BvgErhoben == true;
-        SetRadio(form, "Optionsfeld 22", bvgJa ? "Auswahl2" : "Auswahl1");
+        SetRadio(form, "Optionsfeld 22", bvgJa ? "1" : "0");
         if (bvgJa)
             Set(form, "1.76", d.BvgVersicherer);
 
         // ── Seite 3: Frage 12 – Kinderzulagen ────────────────────────────────
-        // Optionsfeld 23 vertikal: /0=ja (oben)=Auswahl1, /1=nein (unten)=Auswahl2
+        // Optionsfeld 23 vertikal: /0=ja (oben), /1=nein (unten)
         if (d.KinderzulagenAusgerichtet.HasValue)
         {
             SetRadio(form, "Optionsfeld 23",
-                d.KinderzulagenAusgerichtet.Value ? "Auswahl1" : "Auswahl2");
+                d.KinderzulagenAusgerichtet.Value ? "0" : "1");
             if (d.KinderzulagenAusgerichtet.Value)
             {
                 if (d.AnzahlKinderzulagen.HasValue)
@@ -586,18 +587,24 @@ public class ZwischenverdienistPdfService
     {
         var field = form.GetField(fieldName);
         if (field is null) return;
-        try
-        {
-            field.SetValue(value);
-            return;
-        }
-        catch { /* Opt-Namen versuchen */ }
 
-        // Manche Radios exportieren als «Auswahl1» statt «0» (Frage 10).
+        // Appearance-State («0»/«1») und Opt-Export («Auswahl1»/«Auswahl2»)
+        // der Reihe nach versuchen — je nach Feld greift nur eines.
+        var candidates = new List<string> { value };
         if (int.TryParse(value, out var idx) && idx >= 0)
+            candidates.Add("Auswahl" + (idx + 1));
+        else if (value.StartsWith("Auswahl", StringComparison.Ordinal)
+                 && int.TryParse(value.AsSpan("Auswahl".Length), out var n) && n >= 1)
+            candidates.Add((n - 1).ToString());
+
+        foreach (var v in candidates)
         {
-            try { field.SetValue("Auswahl" + (idx + 1)); }
-            catch { /* Feld bleibt leer */ }
+            try
+            {
+                field.SetValue(v);
+                return;
+            }
+            catch { /* nächste Variante */ }
         }
     }
 
