@@ -482,8 +482,9 @@ public class ZwischenverdienistController : ControllerBase
                 ferienCHF = 0m;
         }
 
-        // 13. ML Probezeit-Bemerkung (L-GAV Art. 12 Ziff. 2) — gleiche Regel
-        // wie Lohn-Engine: noch in Probezeit am Periodenende → nicht ausbezahlt.
+        // 13. ML wie FLEX-Pott deklarieren (Walter 09.10.2026): Probezeit ODER
+        // Rückstellung (FIX/FIX-M/MTP, auch FLEX mit Saldo) → * + Diesen Monat/Bezug/Saldo.
+        // FLEX nach Probezeit mit monatlicher Auszahlung ohne Saldo: keine Fussnote.
         string? dreizehnBemerkung = null;
         if (dreizehnPct.HasValue && dreizehnPct.Value > 0 && employment != null)
         {
@@ -493,16 +494,27 @@ public class ZwischenverdienistController : ControllerBase
                 employee.ExitDate, employment.ContractEndDate);
             var (inProbezeit13, _) = PayrollCalculations.ResolveThirteenthProbationStatus(
                 probationEnd13, austritt13, firstDay, lastDay);
-            if (inProbezeit13)
+
+            bool hatPott =
+                dreizehnDiesenMonat > 0.005m || dreizehnSaldo > 0.005m;
+            bool flexMonatlichAusgezahlt =
+                empModel == "FLEX" && !inProbezeit13
+                && dreizehnBezug > 0.005m && dreizehnSaldo <= 0.005m;
+
+            if ((inProbezeit13 || hatPott) && !flexMonatlichAusgezahlt)
             {
                 static string Chf13(decimal v) =>
                     v.ToString("0.00", CultureInfo.InvariantCulture);
+                string kopf = inProbezeit13
+                    ? "* 13. wird erst nach der Probezeit ausbezahlt."
+                    : "* 13. wird zurückbehalten und im Auszahlungsmonat ausbezahlt und deklariert.";
                 dreizehnBemerkung =
-                    "* 13. wird erst nach der Probezeit ausbezahlt.\n"
+                    kopf + "\n"
                     + $"Diesen Monat {Chf13(dreizehnDiesenMonat)}, Bezug {Chf13(dreizehnBezug)}, Saldo {Chf13(dreizehnSaldo)}.";
-                // CHF-Zeile 0 (nur Rückstellung) — % bleibt sichtbar; * vor Betrag im PDF
-                if (!dreizehnCHF.HasValue || dreizehnCHF.Value == 0)
-                    dreizehnCHF = 0m;
+                // CHF = ausbezahlter Bezug bzw. bereits gemappte Zeile (z.B. 13. a/McBonus);
+                // sonst 0 mit * im PDF
+                if (!dreizehnCHF.HasValue)
+                    dreizehnCHF = dreizehnBezug;
             }
         }
 
