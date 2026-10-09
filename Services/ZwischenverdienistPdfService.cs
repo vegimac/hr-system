@@ -201,7 +201,7 @@ public class ZwischenverdienistPdfService
         // Kontrollkästchen 20 bleibt aus — 13. ist vereinbart, nur noch nicht zahlbar.
         if (!string.IsNullOrWhiteSpace(d.DreizehnterBemerkung))
             DrawRemarkNearField(pdf, form, "Kontrollkästchen 20", "Kontrollkästchen 20",
-                d.DreizehnterBemerkung!, wrap: true, yBelow: true);
+                d.DreizehnterBemerkung!, wrap: true, yBelow: true, fontSize: 7f);
 
         // Taggeldleistungen (aus Lohnbeleg: Karenz/Taggeld-Zeilen)
         // 4.144 = CHF-Betrag, 4.145 = "welche?"-Beschreibung
@@ -387,7 +387,7 @@ public class ZwischenverdienistPdfService
     private static void DrawRemarkNearField(
         PdfDocument pdf, PdfAcroForm form,
         string yAnchorField, string xAlignField, string text,
-        bool wrap, bool yBelow = false)
+        bool wrap, bool yBelow = false, float fontSize = 8f)
     {
         if (!TryGetFieldRect(pdf, form, yAnchorField, out var yRect, out var page)) return;
         if (!TryGetFieldRect(pdf, form, xAlignField, out var xRect, out _)) return;
@@ -395,13 +395,12 @@ public class ZwischenverdienistPdfService
         try
         {
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
-            const float fontSize = 8f;
             float x = xRect.GetRight() + 4f;
-            // yBelow: unter Formularzeile «13. Monatslohn ist weder…» —
+            // yBelow: knapp unter Formularzeile «13. Monatslohn ist weder…» —
             // Zeilen NUR nach unten stapeln (sonst überdeckt die 1. Zeile den Text).
-            float y = yBelow ? yRect.GetBottom() - 10f : yRect.GetBottom() + 6f;
+            float y = yBelow ? yRect.GetBottom() - 5f : yRect.GetBottom() + 6f;
             float maxWidth = 250f;
-            float lineStep = fontSize + 1.5f;
+            float lineStep = fontSize + 1.2f;
 
             var lines = BuildRemarkLines(font, fontSize, text, maxWidth, wrap);
             var canvas = new PdfCanvas(page);
