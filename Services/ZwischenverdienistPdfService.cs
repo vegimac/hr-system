@@ -397,23 +397,28 @@ public class ZwischenverdienistPdfService
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
             const float fontSize = 8f;
             float x = xRect.GetRight() + 4f;
-            // yBelow: unter Formularzeile «13. Monatslohn ist weder…» (etwas Luft)
-            float y = yBelow ? yRect.GetBottom() - 8f : yRect.GetBottom() + 6f;
+            // yBelow: unter Formularzeile «13. Monatslohn ist weder…» —
+            // Zeilen NUR nach unten stapeln (sonst überdeckt die 1. Zeile den Text).
+            float y = yBelow ? yRect.GetBottom() - 10f : yRect.GetBottom() + 6f;
             float maxWidth = 250f;
+            float lineStep = fontSize + 1.5f;
 
             var lines = BuildRemarkLines(font, fontSize, text, maxWidth, wrap);
             var canvas = new PdfCanvas(page);
             canvas.SaveState();
             canvas.SetFillColor(ColorConstants.BLACK);
-            float lineY = y + (lines.Length - 1) * (fontSize + 1.5f);
+            // Ferien (neben der Zeile): Block nach oben wachsen lassen.
+            // 13. (unter dem Formulartext): erste Zeile bei y, Rest darunter.
+            float lineY = yBelow ? y : y + (lines.Length - 1) * lineStep;
             foreach (var line in lines)
             {
+                if (string.IsNullOrEmpty(line)) { lineY -= lineStep; continue; }
                 canvas.BeginText()
                       .SetFontAndSize(font, fontSize)
                       .MoveText(x, lineY)
                       .ShowText(line)
                       .EndText();
-                lineY -= fontSize + 1.5f;
+                lineY -= lineStep;
             }
             canvas.RestoreState();
         }
