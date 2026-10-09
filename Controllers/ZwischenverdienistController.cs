@@ -351,8 +351,7 @@ public class ZwischenverdienistController : ControllerBase
         if (calcResult is OkObjectResult calcOk && calcOk.Value is not null)
         {
             var slip = JsonSerializer.SerializeToElement(calcOk.Value);
-            if (slip.TryGetProperty("workedHours", out var whEl)
-                && whEl.TryGetDecimal(out var wh) && wh > 0)
+            if (TrySlipDecimal(slip, "workedHours", out var wh) && wh > 0)
                 totalStunden = wh;
 
             MapLohnbelegZeilen(
@@ -374,24 +373,23 @@ public class ZwischenverdienistController : ControllerBase
                 andereWelche = string.Join(", ", andereLabels.Distinct());
 
             // FLEX-Pott-Zahlen für ZV-Bemerkung (wie Lohnzettel-Saldi)
-            if (slip.TryGetProperty("ferienGeldAccrual", out var fga)
-                && fga.TryGetDecimal(out var fgaV)) ferienGeldDiesenMonat = fgaV;
-            if (slip.TryGetProperty("ferienGeldAuszahlung", out var fgx)
-                && fgx.TryGetDecimal(out var fgxV)) ferienGeldBezug = fgxV;
-            if (slip.TryGetProperty("ferienGeldSaldoNeu", out var fgs)
-                && fgs.TryGetDecimal(out var fgsV)) ferienGeldSaldo = fgsV;
+            if (TrySlipDecimal(slip, "ferienGeldAccrual", out var fgaV))
+                ferienGeldDiesenMonat = fgaV;
+            if (TrySlipDecimal(slip, "ferienGeldAuszahlung", out var fgxV))
+                ferienGeldBezug = fgxV;
+            if (TrySlipDecimal(slip, "ferienGeldSaldoNeu", out var fgsV))
+                ferienGeldSaldo = fgsV;
 
             // 13. ML Saldo (Probezeit-Rückstellung) — gleicher Aufbau wie Ferien
-            if (slip.TryGetProperty("thirteenthAccrualForDisplay", out var t13a)
-                && t13a.TryGetDecimal(out var t13aV) && t13aV != 0)
+            // thirteenthAccrualForDisplay ist oft JSON-null → nie blind TryGetDecimal
+            if (TrySlipDecimal(slip, "thirteenthAccrualForDisplay", out var t13aV) && t13aV != 0)
                 dreizehnDiesenMonat = t13aV;
-            else if (slip.TryGetProperty("thirteenthMonthly", out var t13m)
-                && t13m.TryGetDecimal(out var t13mV))
+            else if (TrySlipDecimal(slip, "thirteenthMonthly", out var t13mV))
                 dreizehnDiesenMonat = t13mV;
-            if (slip.TryGetProperty("thirteenthPayout", out var t13p)
-                && t13p.TryGetDecimal(out var t13pV)) dreizehnBezug = t13pV;
-            if (slip.TryGetProperty("thirteenthAccumulated", out var t13s)
-                && t13s.TryGetDecimal(out var t13sV)) dreizehnSaldo = t13sV;
+            if (TrySlipDecimal(slip, "thirteenthPayout", out var t13pV))
+                dreizehnBezug = t13pV;
+            if (TrySlipDecimal(slip, "thirteenthAccumulated", out var t13sV))
+                dreizehnSaldo = t13sV;
         }
         else
         {
@@ -700,6 +698,19 @@ public class ZwischenverdienistController : ControllerBase
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
+    /// <summary>JSON-Zahl lesen; Null/String ohne Crash (Walter-Bug 09.10.2026).</summary>
+    private static bool TrySlipDecimal(JsonElement slip, string name, out decimal value)
+    {
+        value = 0m;
+        if (!slip.TryGetProperty(name, out var el)) return false;
+        if (el.ValueKind == JsonValueKind.Number && el.TryGetDecimal(out value)) return true;
+        if (el.ValueKind == JsonValueKind.String
+            && decimal.TryParse(el.GetString(), NumberStyles.Number,
+                CultureInfo.InvariantCulture, out value))
+            return true;
+        return false;
+    }
+
     /// <summary>
     /// Zerlegt den Lohnbeleg (CalculateAsync) in die Felder des Zwischenverdienst-
     /// Formulars. Nur AUSBEZAHLTE Beträge (betrag) — Pott/Rückstellung (accrued
@@ -730,7 +741,9 @@ public class ZwischenverdienistController : ControllerBase
             {
                 var code = line.TryGetProperty("code", out var c) ? (c.GetString() ?? "") : "";
                 var bez  = line.TryGetProperty("bezeichnung", out var b) ? (b.GetString() ?? "") : "";
-                if (!line.TryGetProperty("betrag", out var betEl) || !betEl.TryGetDecimal(out var betrag))
+                if (!line.TryGetProperty("betrag", out var betEl)
+                    || betEl.ValueKind != JsonValueKind.Number
+                    || !betEl.TryGetDecimal(out var betrag))
                     continue;
                 if (Math.Abs(betrag) < 0.005m) continue;
 
@@ -795,9 +808,9 @@ public class ZwischenverdienistController : ControllerBase
 
         // Total = AHV-pflichtiger Bruttolohn vom Lohnbeleg (svBasisAhv),
         // Fallback totalLohn — identisch mit «Total Lohn» auf dem Zettel.
-        if (slip.TryGetProperty("svBasisAhv", out var ahvEl) && ahvEl.TryGetDecimal(out var ahv) && ahv > 0)
+        if (TrySlipDecimal(slip, "svBasisAhv", out var ahv) && ahv > 0)
             bruttolohnTotal = ahv;
-        else if (slip.TryGetProperty("totalLohn", out var tlEl) && tlEl.TryGetDecimal(out var tl))
+        else if (TrySlipDecimal(slip, "totalLohn", out var tl))
             bruttolohnTotal = tl;
         else
             bruttolohnTotal = grundlohn + feiertag + ferien + dreizehn + taggeld + andere;
