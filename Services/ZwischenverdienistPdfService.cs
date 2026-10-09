@@ -197,10 +197,11 @@ public class ZwischenverdienistPdfService
                 chf13 = "*" + chf13;
             SetRight(form, "4.142", chf13);
         }
-        // Probezeit: Bemerkung oberhalb von «13. Monatslohn ist weder…»
-        // (Kontrollkästchen 20 bleibt aus — 13. ist vereinbart, nur noch nicht zahlbar)
+        // Probezeit: Bemerkung UNTER «13. Monatslohn ist weder…» (gleiche Schrift wie Ferien)
+        // Kontrollkästchen 20 bleibt aus — 13. ist vereinbart, nur noch nicht zahlbar.
         if (!string.IsNullOrWhiteSpace(d.DreizehnterBemerkung))
-            DrawTextAboveCheckbox(pdf, form, "Kontrollkästchen 20", d.DreizehnterBemerkung!);
+            DrawRemarkNearField(pdf, form, "Kontrollkästchen 20", "Kontrollkästchen 20",
+                d.DreizehnterBemerkung!, wrap: false, yBelow: true);
 
         // Taggeldleistungen (aus Lohnbeleg: Karenz/Taggeld-Zeilen)
         // 4.144 = CHF-Betrag, 4.145 = "welche?"-Beschreibung
@@ -380,19 +381,13 @@ public class ZwischenverdienistPdfService
     // ── Hilfsmethoden ────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Bemerkung oberhalb eines Kontrollkästchens (rechte Spalte Abschnitt 9).
-    /// </summary>
-    private static void DrawTextAboveCheckbox(
-        PdfDocument pdf, PdfAcroForm form, string checkboxName, string text)
-        => DrawRemarkNearField(pdf, form, checkboxName, checkboxName, text, wrap: false, yAbove: true);
-
-    /// <summary>
-    /// Kursiv-Bemerkung: X an xAlignField (Label-Spalte), Y an yAnchorField.
+    /// Kursiv-Bemerkung (8 pt wie Ferien): X an xAlignField (Label-Spalte), Y an yAnchorField.
+    /// yBelow = unter dem Anker (z.B. unter Formulartext «13. Monatslohn ist weder…»).
     /// </summary>
     private static void DrawRemarkNearField(
         PdfDocument pdf, PdfAcroForm form,
         string yAnchorField, string xAlignField, string text,
-        bool wrap, bool yAbove = false)
+        bool wrap, bool yBelow = false)
     {
         if (!TryGetFieldRect(pdf, form, yAnchorField, out var yRect, out var page)) return;
         if (!TryGetFieldRect(pdf, form, xAlignField, out var xRect, out _)) return;
@@ -400,9 +395,10 @@ public class ZwischenverdienistPdfService
         try
         {
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
-            float fontSize = wrap ? 8f : 9.5f;
+            const float fontSize = 8f;
             float x = xRect.GetRight() + 4f;
-            float y = yAbove ? yRect.GetTop() + 4f : yRect.GetBottom() + 6f;
+            // yBelow: unter Checkbox + Formularzeile; sonst auf Höhe der Anker-Zeile
+            float y = yBelow ? yRect.GetBottom() - 11f : yRect.GetBottom() + 6f;
             float maxWidth = 250f;
 
             var lines = wrap ? WrapText(font, fontSize, text, maxWidth) : new[] { text };
