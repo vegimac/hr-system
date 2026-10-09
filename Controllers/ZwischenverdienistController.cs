@@ -431,7 +431,8 @@ public class ZwischenverdienistController : ControllerBase
         if (empModel == "FLEX" && ferienPct.HasValue && ferienPct.Value > 0)
         {
             ferienBemerkung =
-                "* Feriengeld wird zurückbehalten und bei bezogenen Ferien ausbezahlt und deklariert.";
+                "* Feriengeld wird zurückbehalten und bei bezogenen Ferien ausbezahlt und deklariert. "
+                + "Gutschrift (Betrag dieses Monats), Auszahlung, Saldo.";
             if (!ferienCHF.HasValue)
                 ferienCHF = 0m;
         }
