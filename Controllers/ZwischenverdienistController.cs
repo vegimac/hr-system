@@ -337,6 +337,9 @@ public class ZwischenverdienistController : ControllerBase
         string? andereWelche = null;
         decimal? bonusCHF = null;
         decimal bruttolohnTotal = 0m;
+        decimal ferienGeldDiesenMonat = 0m;
+        decimal ferienGeldBezug = 0m;
+        decimal ferienGeldSaldo = 0m;
         var andereLabels = new List<string>();
         var taggeldLabels = new List<string>();
 
@@ -366,6 +369,14 @@ public class ZwischenverdienistController : ControllerBase
                 taggeldWelche = string.Join(", ", taggeldLabels.Distinct());
             if (andereLabels.Count > 0)
                 andereWelche = string.Join(", ", andereLabels.Distinct());
+
+            // FLEX-Pott-Zahlen für ZV-Bemerkung (wie Lohnzettel-Saldi)
+            if (slip.TryGetProperty("ferienGeldAccrual", out var fga)
+                && fga.TryGetDecimal(out var fgaV)) ferienGeldDiesenMonat = fgaV;
+            if (slip.TryGetProperty("ferienGeldAuszahlung", out var fgx)
+                && fgx.TryGetDecimal(out var fgxV)) ferienGeldBezug = fgxV;
+            if (slip.TryGetProperty("ferienGeldSaldoNeu", out var fgs)
+                && fgs.TryGetDecimal(out var fgsV)) ferienGeldSaldo = fgsV;
         }
         else
         {
@@ -426,13 +437,16 @@ public class ZwischenverdienistController : ControllerBase
         decimal? feiertagPct  = company.DefaultHolidayPercent;
         decimal? dreizehnPct  = company.DefaultThirteenthSalaryPercent;
 
-        // FLEX: Feriengeld im Pott — %-Zeile ≠ Grundlohn×%; RAV-Hinweis (Walter 09.10.2026)
+        // FLEX: Feriengeld im Pott — %-Zeile ≠ Grundlohn×%; RAV-Hinweis mit
+        // Monatszahlen aus dem Lohnbeleg (Walter 09.10.2026).
         string? ferienBemerkung = null;
         if (empModel == "FLEX" && ferienPct.HasValue && ferienPct.Value > 0)
         {
+            static string Chf(decimal v) =>
+                v.ToString("0.00", CultureInfo.InvariantCulture);
             ferienBemerkung =
                 "* Feriengeld wird zurückbehalten und bei bezogenen Ferien ausbezahlt und deklariert. "
-                + "Gutschrift (Betrag dieses Monats), Auszahlung, Saldo.";
+                + $"Diesen Monat {Chf(ferienGeldDiesenMonat)}, Bezug {Chf(ferienGeldBezug)}, Saldo {Chf(ferienGeldSaldo)}.";
             if (!ferienCHF.HasValue)
                 ferienCHF = 0m;
         }
