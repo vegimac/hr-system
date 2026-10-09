@@ -95,4 +95,39 @@ public class TimeEntryHoursTests
         };
         Assert.Equal(8m, TimeEntryHours.SumAbsolute(list));
     }
+
+    [Fact]
+    public void SumAbsoluteByDayOfMonth_Summiert_Split_Schichten()
+    {
+        // Sasikaran 02.09.2026: zwei Schichten am selben Tag (1.83 + 2.32).
+        // Früher überschrieb die zweite die erste im Zwischenverdienst-Raster.
+        var list = new[]
+        {
+            new EmployeeTimeEntry
+            {
+                EntryDate = new DateOnly(2026, 9, 2),
+                TimeIn = new DateTime(2026, 9, 2, 11, 15, 0),
+                TimeOut = new DateTime(2026, 9, 2, 13, 5, 0),
+                TotalHours = 1.83m, DurationHours = 1.83m, NightHours = 0,
+            },
+            new EmployeeTimeEntry
+            {
+                EntryDate = new DateOnly(2026, 9, 2),
+                TimeIn = new DateTime(2026, 9, 2, 17, 44, 0),
+                TimeOut = new DateTime(2026, 9, 2, 20, 3, 0),
+                TotalHours = 2.32m, DurationHours = 2.32m, NightHours = 0,
+            },
+            new EmployeeTimeEntry
+            {
+                EntryDate = new DateOnly(2026, 9, 1),
+                TimeIn = new DateTime(2026, 9, 1, 11, 29, 0),
+                TimeOut = new DateTime(2026, 9, 1, 14, 31, 0),
+                TotalHours = 3.02m, DurationHours = 3.02m, NightHours = 0,
+            },
+        };
+        var byDay = TimeEntryHours.SumAbsoluteByDayOfMonth(list);
+        Assert.Equal(3.02m, byDay[1]);
+        Assert.Equal(4.15m, byDay[2]);
+        Assert.Equal(7.17m, TimeEntryHours.SumAbsolute(list));
+    }
 }

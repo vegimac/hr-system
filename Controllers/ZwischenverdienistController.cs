@@ -220,12 +220,14 @@ public class ZwischenverdienistController : ControllerBase
                 tagesEintraege[day] = hStr;
         }
 
-        // Gearbeitete Stunden eintragen (überschreiben Absenzen) — absolut Tag+Nacht
-        foreach (var te in timeEntries)
+        // Gearbeitete Stunden eintragen (überschreiben Absenzen) — absolut Tag+Nacht.
+        // Walter 09.10.2026: mehrere Stempelungen am selben Tag SUMMIEREN
+        // (vorher überschrieb die letzte Schicht die früheren → Split-Schichten
+        // fehlten im Kalenderraster, Total war trotzdem korrekt).
+        foreach (var kv in TimeEntryHours.SumAbsoluteByDayOfMonth(timeEntries))
         {
-            decimal h = TimeEntryHours.AbsoluteHours(te);
-            if (h > 0)
-                tagesEintraege[te.EntryDate.Day] = FormatTagesStunden(h);
+            if (kv.Value > 0)
+                tagesEintraege[kv.Key] = FormatTagesStunden(kv.Value);
         }
 
         // ── Lohnberechnung ────────────────────────────────────────────────

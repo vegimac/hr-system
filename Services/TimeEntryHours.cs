@@ -69,4 +69,25 @@ public static class TimeEntryHours
 
     public static decimal SumAbsolute(IEnumerable<EmployeeTimeEntry> entries)
         => Math.Round(entries.Sum(AbsoluteHours), 2);
+
+    /// <summary>
+    /// Absolute Stunden pro Kalendertag (Day-of-Month 1–31).
+    /// Mehrere Stempelungen am selben Tag werden summiert — sonst geht die
+    /// erste Schicht im Zwischenverdienst-Tagesraster verloren
+    /// (Walter 09.10.2026, Fall Sasikaran Sep: Split-Schichten → 68.57 statt 85.81 im Raster).
+    /// </summary>
+    public static Dictionary<int, decimal> SumAbsoluteByDayOfMonth(IEnumerable<EmployeeTimeEntry> entries)
+    {
+        var byDay = new Dictionary<int, decimal>();
+        foreach (var te in entries)
+        {
+            var h = AbsoluteHours(te);
+            if (h <= 0m) continue;
+            int day = te.EntryDate.Day;
+            byDay[day] = byDay.TryGetValue(day, out var prev) ? prev + h : h;
+        }
+        foreach (var key in byDay.Keys.ToList())
+            byDay[key] = Math.Round(byDay[key], 2);
+        return byDay;
+    }
 }
