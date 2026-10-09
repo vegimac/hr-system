@@ -445,7 +445,7 @@ public class ZwischenverdienistController : ControllerBase
             static string Chf(decimal v) =>
                 v.ToString("0.00", CultureInfo.InvariantCulture);
             ferienBemerkung =
-                "* Feriengeld wird zurückbehalten und bei bezogenen Ferien ausbezahlt und deklariert. "
+                "* Feriengeld wird zurückbehalten und bei bezogenen Ferien ausbezahlt und deklariert.\n"
                 + $"Diesen Monat {Chf(ferienGeldDiesenMonat)}, Bezug {Chf(ferienGeldBezug)}, Saldo {Chf(ferienGeldSaldo)}.";
             if (!ferienCHF.HasValue)
                 ferienCHF = 0m;

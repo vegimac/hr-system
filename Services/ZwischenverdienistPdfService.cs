@@ -397,11 +397,11 @@ public class ZwischenverdienistPdfService
             var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_OBLIQUE);
             const float fontSize = 8f;
             float x = xRect.GetRight() + 4f;
-            // yBelow: direkt unter Formularzeile «13. Monatslohn ist weder…»
-            float y = yBelow ? yRect.GetBottom() - 1f : yRect.GetBottom() + 6f;
+            // yBelow: unter Formularzeile «13. Monatslohn ist weder…» (etwas Luft)
+            float y = yBelow ? yRect.GetBottom() - 8f : yRect.GetBottom() + 6f;
             float maxWidth = 250f;
 
-            var lines = wrap ? WrapText(font, fontSize, text, maxWidth) : new[] { text };
+            var lines = BuildRemarkLines(font, fontSize, text, maxWidth, wrap);
             var canvas = new PdfCanvas(page);
             canvas.SaveState();
             canvas.SetFillColor(ColorConstants.BLACK);
@@ -457,8 +457,22 @@ public class ZwischenverdienistPdfService
         return true;
     }
 
+    private static string[] BuildRemarkLines(
+        PdfFont font, float fontSize, string text, float maxWidth, bool wrap)
+    {
+        var paragraphs = text.Replace("\r\n", "\n").Split('\n');
+        if (!wrap)
+            return paragraphs;
+
+        var lines = new List<string>();
+        foreach (var para in paragraphs)
+            lines.AddRange(WrapText(font, fontSize, para, maxWidth));
+        return lines.Count > 0 ? lines.ToArray() : new[] { text };
+    }
+
     private static string[] WrapText(PdfFont font, float fontSize, string text, float maxWidth)
     {
+        if (string.IsNullOrEmpty(text)) return new[] { "" };
         var words = text.Split(' ');
         var lines = new List<string>();
         var cur = "";
