@@ -19,8 +19,8 @@ namespace HrSystem.Services;
 ///
 /// Feld-Mapping (ermittelt durch Analyse der AP/N-Schlüssel und Seitenposition):
 ///   Seite 1: Personaldaten, Arbeitgeberdaten, Kalenderraster, Fragen 2–5
-///   Seite 2: Fragen 6–9, Bruttolohn-Zusammensetzung
-///   Seite 3: Fragen 10–14 (wird zurzeit nicht automatisch befüllt)
+///   Seite 2: Fragen 6–9, Bruttolohn-Zusammensetzung, Frage 10 (Weiterführung)
+///   Seite 3: Fragen 11–13 (BVG, Kinderzulagen, Beteiligung) + Unterschrift
 /// </summary>
 public class ZwischenverdienistPdfService
 {
@@ -196,6 +196,38 @@ public class ZwischenverdienistPdfService
         }
         SetRight(form, "4.154", FormatChf2(d.BruttolohnTotal));
 
+        // ── Seite 2: Frage 10 – Arbeitsverhältnis weitergeführt? ─────────────
+        // Optionsfeld 20: /0 = ja unbefristet, /1 = befristet bis, /2 = nein
+        // Textfeld 98 = befristet-bis (Ziffern ddMMyyyy)
+        // Bei nein: Optionsfeld 30 AG(/0)/AN(/1), Optionsfeld 31 mündlich(/0)/schriftlich(/1),
+        // Textfeld 96 = gekündigt am, Textfeld 97 = gekündigt per.
+        if (d.ArbeitsverhaeltnisBeendet == true)
+        {
+            SetRadio(form, "Optionsfeld 20", "2");
+            var durch = (d.KuendigungDurch ?? "").Trim().ToUpperInvariant();
+            if (durch is "AG" or "ARBEITGEBER")
+                SetRadio(form, "Optionsfeld 30", "0");
+            else if (durch is "AN" or "ARBEITNEHMER" or "MA")
+                SetRadio(form, "Optionsfeld 30", "1");
+            // GG / unbekannt → Radios leer (Formular hat nur AG/AN)
+            if (d.KuendigungSchriftlich == true)
+                SetRadio(form, "Optionsfeld 31", "1");
+            else if (d.KuendigungSchriftlich == false)
+                SetRadio(form, "Optionsfeld 31", "0");
+            Set(form, "Textfeld 96", FormatDatumZiffern(d.GekuendigtAm));
+            Set(form, "Textfeld 97", FormatDatumZiffern(d.GekuendigtPer));
+        }
+        else if (d.WeiterbeschaeftigtBis.HasValue)
+        {
+            SetRadio(form, "Optionsfeld 20", "1");
+            Set(form, "Textfeld 98", FormatDatumZiffern(d.WeiterbeschaeftigtBis));
+        }
+        else if (d.WeiterbeschaeftigtUnbefristet == true
+              || d.ArbeitsverhaeltnisBeendet == false)
+        {
+            SetRadio(form, "Optionsfeld 20", "0");
+        }
+
         // ── Seite 3: Frage 11 – BVG ──────────────────────────────────────────
         bool bvgJa = !string.IsNullOrWhiteSpace(d.BvgVersicherer) || d.BvgErhoben == true;
         SetRadio(form, "Optionsfeld 22", bvgJa ? "1" : "0");
@@ -203,6 +235,7 @@ public class ZwischenverdienistPdfService
             Set(form, "1.76", d.BvgVersicherer);
 
         // ── Seite 3: Frage 12 – Kinderzulagen ────────────────────────────────
+        // Optionsfeld 23 vertikal: /0 = ja (oben), /1 = nein (unten)
         if (d.KinderzulagenAusgerichtet.HasValue)
         {
             SetRadio(form, "Optionsfeld 23", d.KinderzulagenAusgerichtet.Value ? "0" : "1");
@@ -420,6 +453,10 @@ public class ZwischenverdienistPdfService
     }
 
     private static string? FormatChf2(decimal? v) => FormatChf(v);
+
+    /// <summary>Formular-Datumsfelder ohne Punkte: 09.10.2026 → «09102026».</summary>
+    private static string? FormatDatumZiffern(DateOnly? d)
+        => d.HasValue ? d.Value.ToString("ddMMyyyy", CultureInfo.InvariantCulture) : null;
 }
 
 // ── DTO ───────────────────────────────────────────────────────────────────────
@@ -480,8 +517,19 @@ public class ZwischenverdienistData
     public bool? KinderzulagenAusgerichtet      { get; set; }
     public int? AnzahlKinderzulagen             { get; set; }
     public int? AnzahlAusbildungszulagen        { get; set; }
+
+    /// <summary>Frage 10: true = beendet (nein), false = läuft weiter, null = nicht gesetzt.</summary>
+    public bool? ArbeitsverhaeltnisBeendet      { get; set; }
+    /// <summary>Frage 10: ja, unbefristet (nur wenn nicht beendet und kein Bis-Datum).</summary>
     public bool? WeiterbeschaeftigtUnbefristet  { get; set; }
+    /// <summary>Frage 10: befristet bis — setzt Optionsfeld 20=/1 + Textfeld 98.</summary>
     public DateOnly? WeiterbeschaeftigtBis      { get; set; }
+    /// <summary>Frage 10 bei nein: AG / AN (GG bleibt leer).</summary>
+    public string? KuendigungDurch              { get; set; }
+    public DateOnly? GekuendigtAm               { get; set; }
+    public DateOnly? GekuendigtPer              { get; set; }
+    public bool? KuendigungSchriftlich          { get; set; }
+
     public bool? IstBeteiligt                   { get; set; }
 
     public string? OrtDatum                     { get; set; }

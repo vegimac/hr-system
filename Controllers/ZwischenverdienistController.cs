@@ -400,6 +400,43 @@ public class ZwischenverdienistController : ControllerBase
             + (dreizehnCHF ?? 0)
             + krankUnfallCHF;
 
+        // ── Frage 10: Weiterführung des Arbeitsverhältnisses ───────────────
+        // Beendet = Kündigung/Austritt per ≤ Monatsende. Sonst: mit Vertragsende
+        // im/nach dem Monat → befristet bis, sonst unbefristet (Walter 09.10.2026).
+        static DateOnly? AsDate(DateTime? dt) =>
+            dt.HasValue ? DateOnly.FromDateTime(dt.Value) : null;
+        var zvGekuendigtPer = AsDate(employee.KuendigungPer) ?? AsDate(employee.ExitDate);
+        var zvGekuendigtAm  = AsDate(employee.KuendigungAusgesprochenAm);
+        bool zvBeendet = zvGekuendigtPer.HasValue && zvGekuendigtPer.Value <= lastDay;
+        DateOnly? zvBefristetBis = null;
+        bool zvUnbefristet = false;
+        if (!zvBeendet)
+        {
+            var contractEnd = AsDate(employment?.ContractEndDate);
+            // Befristet nur wenn das Vertragsende noch greift (am/nach Monatsbeginn)
+            if (contractEnd.HasValue && contractEnd.Value >= firstDay)
+                zvBefristetBis = contractEnd;
+            else
+                zvUnbefristet = true;
+        }
+
+        // ── Frage 12: Kinder-/Ausbildungszulagen im Formular-Monat ──────────
+        // Anzahl Kinder mit aktiver KZ bzw. AZ (GZ/AdoptZ zählen nicht).
+        // Keine Zulage → nein ankreuzen, ohne weiteren Grund (Walter 09.10.2026).
+        var zvAllowances = await _db.FamilyMemberAllowances
+            .AsNoTracking()
+            .Where(a => a.FamilyMember!.EmployeeId == employeeId
+                     && a.ValidFrom <= lastDay
+                     && (a.ValidTo == null || a.ValidTo >= firstDay))
+            .Select(a => a.AllowanceType)
+            .ToListAsync();
+        int zvAnzAz = zvAllowances.Count(t =>
+            string.Equals(t, "AZ", StringComparison.OrdinalIgnoreCase));
+        int zvAnzKz = zvAllowances.Count(t =>
+            string.IsNullOrWhiteSpace(t)
+            || string.Equals(t, "KZ", StringComparison.OrdinalIgnoreCase));
+        bool zvFamzJa = zvAnzKz > 0 || zvAnzAz > 0;
+
         // ── DTO zusammenstellen ───────────────────────────────────────────
         string adresse = string.Join(", ", new[]
         {
@@ -505,7 +542,25 @@ public class ZwischenverdienistController : ControllerBase
             BvgVersicherer         = (bvgKoordinationsabzug > 0 && bruttolohnTotal > bvgKoordinationsabzug)
                                      ? bvgVersichererName : null,
             AhvKasse               = ahvKasseName,
-            KinderzulagenAusgerichtet = null,
+
+            // Frage 10 – Arbeitsverhältnis weitergeführt?
+            // Walter 09.10.2026: aus Kündigung/Austritt + Vertragsende ableiten.
+            // Sasikaran-Fall: läuft weiter, kein Vertragsende → «ja, unbefristet».
+            ArbeitsverhaeltnisBeendet     = zvBeendet,
+            WeiterbeschaeftigtUnbefristet = zvUnbefristet,
+            WeiterbeschaeftigtBis         = zvBefristetBis,
+            KuendigungDurch               = zvBeendet ? employee.KuendigungDurch : null,
+            GekuendigtAm                  = zvGekuendigtAm,
+            GekuendigtPer                 = zvGekuendigtPer,
+            KuendigungSchriftlich         = zvBeendet
+                ? (employee.KuendigungDokumentId.HasValue ? true : (bool?)null)
+                : null,
+
+            // Frage 12 – Kinder-/Ausbildungszulagen im Formular-Monat
+            KinderzulagenAusgerichtet  = zvFamzJa,
+            AnzahlKinderzulagen        = zvAnzKz > 0 ? zvAnzKz : null,
+            AnzahlAusbildungszulagen   = zvAnzAz > 0 ? zvAnzAz : null,
+
             IstBeteiligt           = false,
 
             // Arbeitgeber
