@@ -70,7 +70,7 @@ Jede Mirus-Handbuchung, die im Vergleich auffällt, hier mit Herkunft nachtragen
 
 | MA | Was | Beleg | Korrektur | Seit |
 |---|---|---|---|---|
-| Dila Tetaj (750020, Sursee) | OneCrew rechnet QST C1N LU (Jan 2026: 4.15 % = 163.45), Mirus keine. **Mirus richtig:** Ehemann hat seit 2025 den C-Ausweis → MA verheiratet mit C-Inhaber = nicht QST-pflichtig (Walter 10.10.2026) | Mirus-Lohnkonto 2026 Jan–Sep und Dez 2025: keine Zeile «Quellensteuer» | In OneCrew Ehepartner im Familie-Tab mit Bewilligung C (gültig ab) erfassen; QST-Erfassung ab Folgemonat der C-Erteilung beenden | 10.10.2026 |
+| Dila Tetaj (750020, Sursee) | OneCrew rechnet QST C1N LU (Jan 2026: 4.15 % = 163.45), Mirus keine. **Mirus richtig:** Ehemann hat seit 2025 den C-Ausweis → MA verheiratet mit C-Inhaber = nicht QST-pflichtig (Walter 10.10.2026) | Mirus-Lohnkonto 2026 Jan–Sep und Dez 2025: keine Zeile «Quellensteuer» | In OneCrew Ehepartner im Familie-Tab mit Bewilligung C (gültig ab) erfassen; QST-Erfassung ab Folgemonat der C-Erteilung beenden. **Erledigt 10.10.2026** (Ehemann C ab 01.03.2025 erfasst; Speichern scheiterte zuerst an HTTP 500 — JSON-Zyklus Familien-Historie, Fix `1bcbac3`). Jan 2026 neu: keine QST, Netto 3'321.30 — Rest-Differenz zu Mirus (−167.15) nur noch aus den Überstunden (−8.36 Std + Satz) | 10.10.2026 |
 
 ## Nur Code-Unterschied (Betrag gleich)
 
