@@ -63,6 +63,7 @@ Jede Mirus-Handbuchung, die im Vergleich auffällt, hier mit Herkunft nachtragen
 | MA | Monat | Datum | Mirus-Bemerkung | Std | Herkunft | Auswirkung |
 |---|---|---|---|---|---|---|
 | Daniela Nikollaj (750017, Sursee) | Jan 2026 | 01.01. | «Ausgleich Abwesenheiten Januar 2026» | +14.40 | 3 Wochenend-Absenztage (Sa 03., So 04. Ferien, So 18. Krank) × 4.80 — in «Abw.» bereits enthalten → doppelt | 14.40 Std zu viel ausbezahlt (CHF 340.27) — Fall #9 |
+| Dila Tetaj (750020, Sursee, FIX-M 60 %) | Jan 2026 | Fr 23.01. | im Monatsblatt keine (Tag «1.0 FR» = frei, ohne Stempelzeit, «M» manuell) | +8.40 | **offen** — 8.40 = ein Vollzeit-Tag (42 ÷ 5), nicht ihr Tages-Soll (60 % = 5.04). Bemerkung in der Mirus-Erfassungsmaske nachsehen | Mirus Ist 146.65 (gestempelt 138.25 + 8.40) → Diff +35.05, Auszahlung 66.01 Std; OneCrew gestempelt 138.29 → +26.69, Auszahlung 57.65 Std (−8.36 Std) |
 
 ## Nur Code-Unterschied (Betrag gleich)
 
@@ -73,4 +74,6 @@ Jede Mirus-Handbuchung, die im Vergleich auffällt, hier mit Herkunft nachtragen
 ## Offen — von Walter noch nicht entschieden
 
 - Ferien-Tagessatz FLEX: OneCrew = Ferien-Guthaben CHF ÷ Ferientage, Mirus = Durchschnittslohn pro Tag (Langenthal Drive 2026: meist OneCrew tiefer, Teuta höher).
-- Stunden FLEX: OneCrew 0.1–0.25 h/Monat mehr als Mirus (Rundung Stempelzeiten?).
+- Stunden FLEX: OneCrew 0.1–0.25 h/Monat mehr als Mirus (Rundung Stempelzeiten?). Auch FIX-M: Tetaj Jan 2026 OneCrew 138.29 / Mirus 138.25.
+- Stundensatz Überstunden 55.2 FIX/FIX-M (10.10.2026): OneCrew = Monatslohn × 12/365 ÷ (WoStd/7) (365 Tage, wie Tagessatz #6), Mirus = 100 %-Monatslohn ÷ (42 × 52/12) (364 Tage). Tetaj Jan: 23.56 / 23.63, Nikollaj: 23.53 / 23.63 (dort zusätzlich Monatslohn 4'295 / 4'300).
+- BVG bei Krankheit vor Beginn der Wartefrist (10.10.2026, Nikollaj Jan 2026): AU ab 18.01. → OneCrew-Wartefrist erst ab 01.02., die Januar-Krankheitstage laufen auf dem gekürzten Lohn (Basis 1'444.31). Mirus rechnet BVG auf 100 % (Basis 1'844.20 = Brutto + 12 % Karenz-Kürzung − 2'205). Entscheid Walter offen.
