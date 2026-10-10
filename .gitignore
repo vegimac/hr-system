@@ -23,3 +23,6 @@ wwwroot/index.html.backup
 # Python-Cache der Abgleich-Skripte
 __pycache__/
 *.pyc
+
+# Mirus-Lohnkonten (echte Lohndaten — nie committen)
+mirus/
