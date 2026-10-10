@@ -511,8 +511,8 @@ public class ZwischenverdienistController : ControllerBase
                 dreizehnBemerkung =
                     kopf + "\n"
                     + $"Diesen Monat {Chf13(dreizehnDiesenMonat)}, Bezug {Chf13(dreizehnBezug)}, Saldo {Chf13(dreizehnSaldo)}.";
-                // CHF = ausbezahlter Bezug bzw. bereits gemappte Zeile (z.B. 13. a/McBonus);
-                // sonst 0 mit * im PDF
+                // CHF = ausbezahlter Bezug (Haupt-13.); sonst 0 mit * im PDF.
+                // McBonus inkl. 13.-Anteil läuft auf der Bonus-Zeile, nicht hier.
                 if (!dreizehnCHF.HasValue)
                     dreizehnCHF = dreizehnBezug;
             }
@@ -805,7 +805,7 @@ public class ZwischenverdienistController : ControllerBase
         out decimal bruttolohnTotal)
     {
         grundlohn = 0m;
-        decimal feiertag = 0m, ferien = 0m, dreizehn = 0m, taggeld = 0m, andere = 0m;
+        decimal feiertag = 0m, ferien = 0m, dreizehn = 0m, taggeld = 0m, andere = 0m, bonus = 0m;
         taggeldLabels = new List<string>();
         andereLabels = new List<string>();
 
@@ -842,6 +842,16 @@ public class ZwischenverdienistController : ControllerBase
                     ferien += betrag;
                     continue;
                 }
+                // McBonus (200.5) inkl. «13. ML a/McBonus» (1/13) → eine Bonus-Zeile
+                // (Walter 10.10.2026: Gesamtbetrag auf «Bonus / Gratifikation», nicht
+                // split auf 13.-Zeile + Andere)
+                if (codeU is "200.5" or "200.9"
+                    || bezU.Contains("MCBONUS")
+                    || bezU.Contains("13. ML A/MCBONUS"))
+                {
+                    bonus += betrag;
+                    continue;
+                }
                 if (codeU is "180.1" or "180.3"
                     || bezU.Contains("13. MONATSLOHN") || bezU.Contains("13. ML"))
                 {
@@ -866,8 +876,7 @@ public class ZwischenverdienistController : ControllerBase
                 if (codeU.StartsWith("900") || bezU.Contains("AKONTO") || bezU.Contains("VERRECHNUNG"))
                     continue;
 
-                // Bonus/Gratifikation + übrige Zulagen → «Andere Lohnbestandteile»
-                // (Walter 09.10.2026: Formular-Zeile Andere, nicht die Bonus-Zeile)
+                // Übrige Zulagen → «Andere Lohnbestandteile»
                 andere += betrag;
                 if (!string.IsNullOrWhiteSpace(bez)) andereLabels.Add(bez);
             }
@@ -878,7 +887,7 @@ public class ZwischenverdienistController : ControllerBase
         dreizehnCHF = Math.Abs(dreizehn) >= 0.005m ? dreizehn : null;
         taggeldCHF  = Math.Abs(taggeld)  >= 0.005m ? taggeld  : null;
         andereCHF   = Math.Abs(andere)   >= 0.005m ? andere   : null;
-        bonusCHF    = null; // Bonus läuft über Andere (4.150), nicht 4.153
+        bonusCHF    = Math.Abs(bonus)   >= 0.005m ? bonus   : null;
 
         // Total = AHV-pflichtiger Bruttolohn vom Lohnbeleg (svBasisAhv),
         // Fallback totalLohn — identisch mit «Total Lohn» auf dem Zettel.
@@ -887,7 +896,7 @@ public class ZwischenverdienistController : ControllerBase
         else if (TrySlipDecimal(slip, "totalLohn", out var tl))
             bruttolohnTotal = tl;
         else
-            bruttolohnTotal = grundlohn + feiertag + ferien + dreizehn + taggeld + andere;
+            bruttolohnTotal = grundlohn + feiertag + ferien + dreizehn + taggeld + andere + bonus;
     }
 
     /// <summary>EmploymentModel bevorzugt; ContractType als Legacy-Fallback (UTP→FLEX).</summary>
