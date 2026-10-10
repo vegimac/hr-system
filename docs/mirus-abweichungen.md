@@ -66,11 +66,11 @@ Jede Mirus-Handbuchung, die im Vergleich auffällt, hier mit Herkunft nachtragen
 | Daniela Nikollaj (750017, Sursee, FIX-M 80 %) | ab Jan 2026 | Lohnhistorie 01.01.2026 | keine | Monatslohn 3'440 (= 4'300 × 80 %) | **ohne Grundlage**: Vertrag 3'436 (80 % von 4'295), easy@work 3'436 bis 31.03.2026 — nur in Mirus erfasst. L-GAV 2026 erste Stufe laut `fachlogik.md` 4'304 → 3'443.20 wäre Minimum (Mindestlohn-Tabelle prüfen) | +4.00/Mt. ggü. Vertrag |
 | Dila Tetaj (750020, Sursee, FIX-M 60 %) | Jan 2026 | Fr 23.01. | im Monatsblatt keine (Tag «1.0 FR» = frei, ohne Stempelzeit, «M» manuell) | +8.40 | **offen** — 8.40 = ein Vollzeit-Tag (42 ÷ 5), nicht ihr Tages-Soll (60 % = 5.04). Bemerkung in der Mirus-Erfassungsmaske nachsehen | Mirus Ist 146.65 (gestempelt 138.25 + 8.40) → Diff +35.05, Auszahlung 66.01 Std; OneCrew gestempelt 138.29 → +26.69, Auszahlung 57.65 Std (−8.36 Std) |
 
-## Mirus-Fehler mit Folgen ausserhalb des Vergleichs
+## OneCrew-Datenfehler, die der Vergleich aufgedeckt hat
 
-| MA | Was | Beleg | Folge | Seit |
+| MA | Was | Beleg | Korrektur | Seit |
 |---|---|---|---|---|
-| Dila Tetaj (750020, Sursee) | **Keine Quellensteuer abgezogen**, obwohl QST-pflichtig (Walter 10.10.2026). OneCrew rechnet C1N LU (Jan 2026: 4.15 % = 163.45) | Mirus-Lohnkonto 2026 Jan–Sep: keine Zeile «Quellensteuer», Bruttolohn 32'487.00; Dez 2025 ebenfalls ohne | Fehlende QST Jan–Sep grob ~CHF 1'300 (≈ 4 % von 32'487) — Nachmeldung Kanton LU + Rückforderung bei der MA nötig; Arbeitgeber haftet. Seit wann die Pflicht besteht (Eintritt 26.01.2018), offen | 10.10.2026 |
+| Dila Tetaj (750020, Sursee) | OneCrew rechnet QST C1N LU (Jan 2026: 4.15 % = 163.45), Mirus keine. **Mirus richtig:** Ehemann hat seit 2025 den C-Ausweis → MA verheiratet mit C-Inhaber = nicht QST-pflichtig (Walter 10.10.2026) | Mirus-Lohnkonto 2026 Jan–Sep und Dez 2025: keine Zeile «Quellensteuer» | In OneCrew Ehepartner im Familie-Tab mit Bewilligung C (gültig ab) erfassen; QST-Erfassung ab Folgemonat der C-Erteilung beenden | 10.10.2026 |
 
 ## Nur Code-Unterschied (Betrag gleich)
 
