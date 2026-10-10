@@ -18,6 +18,12 @@ public class LohnZulage
     /// <summary>CHF-Betrag (immer positiv gespeichert; ob Zulage oder Abzug bestimmt Lohnposition.Typ)</summary>
     public decimal Betrag { get; set; }
 
+    /// <summary>
+    /// Bei Code 55.2 (Überstunden ohne Zuschlag): auszuzahlende Stunden.
+    /// Engine: Betrag = Std × Stundensatz, Zeitsaldo − Std. Sonst NULL.
+    /// </summary>
+    public decimal? Stunden { get; set; }
+
     /// <summary>Optionale Bemerkung, z.B. "312 km × CHF 0.70"</summary>
     public string? Bemerkung { get; set; }
 

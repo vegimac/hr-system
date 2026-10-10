@@ -1365,15 +1365,31 @@
                 <div id="lohnZulagenForm"
                      style="display:none;width:480px;max-width:100%;background:#fff;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.18);padding:18px 22px">
                     <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:12px">Zulage / Abzug erfassen</div>
-                    <div style="display:grid;grid-template-columns:1fr 130px;gap:10px;margin-bottom:10px">
-                        <div>
-                            <label class="f-label">Lohnposition</label>
-                            <select id="lzLpSel" class="f-input"></select>
+                    <div style="margin-bottom:10px">
+                        <label class="f-label">Lohnposition</label>
+                        <select id="lzLpSel" class="f-input" onchange="lzOnLpChange()"></select>
+                    </div>
+                    <div id="lzUeberstundenBlock" style="display:none;margin-bottom:10px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0">
+                        <div style="font-size:12px;color:#64748b;margin-bottom:8px">Überstunden-Auszahlung 55.2 — Stunden tippen, Betrag und Zeitsaldo werden gerechnet.</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                            <div>
+                                <label class="f-label">Stunden</label>
+                                <input type="number" id="lzStunden" class="f-input" step="0.01" placeholder="0.00" oninput="lzRecalcUeberstunden()">
+                            </div>
+                            <div>
+                                <label class="f-label">Satz CHF</label>
+                                <input type="number" id="lzSatz" class="f-input" step="0.01" readonly style="background:#f1f5f9;color:#475569">
+                            </div>
+                            <div>
+                                <label class="f-label">Betrag CHF</label>
+                                <input type="number" id="lzBetragUeber" class="f-input" step="0.05" readonly style="background:#f1f5f9;color:#475569">
+                            </div>
                         </div>
-                        <div>
-                            <label class="f-label">Betrag CHF</label>
-                            <input type="number" id="lzBetrag" class="f-input" step="0.05" placeholder="0.00 (negativ = Korrektur/Gutschrift)">
-                        </div>
+                        <div id="lzUeberVerfuegbar" style="font-size:12px;color:#64748b;margin-top:8px"></div>
+                    </div>
+                    <div id="lzBetragBlock" style="margin-bottom:10px">
+                        <label class="f-label">Betrag CHF</label>
+                        <input type="number" id="lzBetrag" class="f-input" step="0.05" placeholder="0.00 (negativ = Korrektur/Gutschrift)">
                     </div>
                     <div style="margin-bottom:14px">
                         <label class="f-label">Bemerkung <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
@@ -10357,7 +10373,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260922b"></script>
 <script src="js/contracts-edit.js?v=20261007c"></script>
-<script src="js/payroll.js?v=20261006a"></script>
+<script src="js/payroll.js?v=20261010b"></script>
 <script src="js/elm-meldungen.js?v=20260927i"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20261001a"></script>

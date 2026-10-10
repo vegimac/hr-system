@@ -2467,6 +2467,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Periode).HasColumnName("periode").HasMaxLength(7);
             entity.Property(e => e.LohnpositionId).HasColumnName("lohnposition_id");
             entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Stunden).HasColumnName("stunden").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");

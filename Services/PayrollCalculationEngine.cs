@@ -1809,15 +1809,42 @@ public class PayrollCalculationEngine
         // initialer Vormonat-Saldo. Helper für saubere Filterung.
         bool IsVortrag(LohnZulage z) => z.Lohnposition?.Kategorie == "Saldo-Vortrag";
 
+        // Überstunden-Auszahlung 55.2 mit Stunden (Walter 10.10.2026, Lohnlauf):
+        // Betrag serverseitig aus Std × Satz; Zeitsaldo später um Std kürzen.
+        decimal ueberstundenAuszahlungStunden = 0m;
+        decimal pctUeber = emp.EmploymentPercentage ?? 100m;
+        decimal monthSalUeber = emp.MonthlySalary
+            ?? PayrollCalculations.Rappen((emp.MonthlySalaryFte ?? 0m) * pctUeber / 100m);
+        decimal weeklyUeber = emp.WeeklyHours
+            ?? ((company.NormalWeeklyHours ?? 42m) * pctUeber / 100m);
+        decimal ueberStundenSatz = UeberstundenStundensatz(hourlyRate, monthSalUeber, weeklyUeber);
+
         foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ZULAGE" && !IsVortrag(z)))
         {
             var     lp = z.Lohnposition!;
             if (lp.Code == Code13mlAuszahlen) continue; // Auslöser, kein Betrag
-            decimal b  = PayrollCalculations.Rappen(z.Betrag);
+
+            bool istUeberstundenAusz = lp.Code == "55.2" && z.Stunden.HasValue && z.Stunden.Value != 0m;
+            decimal? ueberAnzahl = null;
+            decimal? ueberBasis  = null;
+            decimal b;
+            if (istUeberstundenAusz)
+            {
+                ueberAnzahl = PayrollCalculations.Rappen(z.Stunden!.Value);
+                ueberBasis  = PayrollCalculations.Rappen(ueberStundenSatz);
+                b = ExitSettlementBetrag(z.Stunden!.Value, ueberStundenSatz);
+            }
+            else
+            {
+                b = PayrollCalculations.Rappen(z.Betrag);
+            }
 
             bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
                         || lp.BvgPflichtig    || lp.QstPflichtig;
             if (!anyFlag) continue; // → geht in zulagenExtraLines
+
+            if (istUeberstundenAusz)
+                ueberstundenAuszahlungStunden += ueberAnzahl!.Value;
 
             if (lp.DreijehnterMlPflichtig && b > 0)
             {
@@ -1839,7 +1866,7 @@ public class PayrollCalculationEngine
                 var svLine = (object)new {
                     bezeichnung = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""),
                     code = lp.Code,
-                    anzahl = (decimal?)null, prozent = (decimal?)null, basis = (decimal?)null, betrag = b
+                    anzahl = ueberAnzahl, prozent = (decimal?)null, basis = ueberBasis, betrag = b
                 };
                 zulagenSvLines.Add(svLine);
                 zulagenSvTotal += b;
@@ -2542,7 +2569,8 @@ public class PayrollCalculationEngine
             // absenzGutschrift = bezahlte Absenzen (Schulung/NACHT_KOMP …),
             // bei MTP OHNE Krank/Unfall/Ferien (Walter 30.05. / 03.08.2026).
             // EXAKT gegen saldoSollExakt — keine Zwischenrundung (Walter 31.07.2026).
-            decimal nettoH         = workedHours + absenzGutschrift - saldoSollExakt + vormonatHourSaldo;
+            decimal nettoH         = workedHours + absenzGutschrift - saldoSollExakt + vormonatHourSaldo
+                                   - ueberstundenAuszahlungStunden;
             // Filial-Schalter «Stunden-Saldo im Lohn verrechnen» (Walter 10.09.2026):
             // aus → keine «MTP + Stunden»-Zeile, Mehrstunden bleiben als Saldo stehen.
             bool stundenSaldoImLohnMtp = company?.StundenSaldoImLohnVerrechnen ?? true;
@@ -3312,6 +3340,8 @@ public class PayrollCalculationEngine
                 new SaldoBlock(
                     VormonatHourSaldo:    vormonatHourSaldo,
                     NeuerHourSaldo:       neuerSaldo,
+                    ZeitsaldoVorUeberstundenAuszahlung: PayrollCalculations.Rappen(nettoH + ueberstundenAuszahlungStunden),
+                    UeberstundenAuszahlungStunden:      ueberstundenAuszahlungStunden,
                     WorkedHours:          workedHours,
                     SollStunden:          saldoSoll,   // Saldo-Soll (nach Zeitgutschrift Krank/Unfall)
                     Mehrstunden:          mehrstundenAus,
@@ -4291,9 +4321,10 @@ public class PayrollCalculationEngine
             decimal sollStundenFix = PayrollCalculations.Rappen(sollStundenFixExakt);
 
             // Ist-/Saldo-Berechnung (wie MTP, aber ohne Payout) — exaktes Soll:
-            //   Netto = Worked + AbsenzGutschrift − Soll + Vormonat-Saldo
+            //   Netto = Worked + AbsenzGutschrift − Soll + Vormonat-Saldo − Überstunden-Ausz. 55.2
             //   → Neuer Saldo (kann positiv oder negativ sein; keine Auszahlung).
-            decimal nettoHFix      = workedHours + absenzGutschrift - sollStundenFixExakt + vormonatHourSaldo;
+            decimal nettoHFix      = workedHours + absenzGutschrift - sollStundenFixExakt + vormonatHourSaldo
+                                   - ueberstundenAuszahlungStunden;
             decimal neuerHourSaldoFix = PayrollCalculations.Rappen(nettoHFix);
 
             decimal neuerNachtSaldoFix = PayrollCalculations.Rappen(vormonatNachtSaldo + nightBonus - nachtKompStunden);
@@ -4629,6 +4660,8 @@ public class PayrollCalculationEngine
                 new SaldoBlock(
                     VormonatHourSaldo:    vormonatHourSaldo,
                     NeuerHourSaldo:       neuerHourSaldoFix,
+                    ZeitsaldoVorUeberstundenAuszahlung: PayrollCalculations.Rappen(nettoHFix + ueberstundenAuszahlungStunden),
+                    UeberstundenAuszahlungStunden:      ueberstundenAuszahlungStunden,
                     WorkedHours:          workedHours,
                     SollStunden:          sollStundenFix,
                     SollStundenVoll:      PayrollCalculations.Rappen(sollStundenFixVollExakt),

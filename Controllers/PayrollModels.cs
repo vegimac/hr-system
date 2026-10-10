@@ -109,7 +109,12 @@ public record SaldoBlock(
     bool IsInProbation = false,
     bool ThirteenthForfeited = false,
     // true = Saldi-Zeile «Rückst. 13. Monatslohn Probezeit» zeigen
-    bool ShowFlexThirteenthSaldo = false
+    bool ShowFlexThirteenthSaldo = false,
+
+    // ── Überstunden-Auszahlung 55.2 (Walter 10.10.2026) ──────────────
+    // Zeitsaldo Monatsende VOR Abzug der 55.2-Stunden (null = Modell ohne Zeitsaldo)
+    decimal? ZeitsaldoVorUeberstundenAuszahlung = null,
+    decimal UeberstundenAuszahlungStunden = 0
 );
 
 // SaveSaldoDto entfernt am 09.06.2026 mit dem /api/payroll/save-Endpoint.

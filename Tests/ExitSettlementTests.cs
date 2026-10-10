@@ -72,6 +72,43 @@ public class ExitSettlementTests
         Assert.Equal(0m, PayrollCalculations.ExitStundensatzAusMonatslohn(4500m, 0m));
     }
 
+    // Überstunden-Auszahlung 55.2 im Lohnlauf (Walter 10.10.2026)
+    [Fact]
+    public void UeberstundenStundensatz_NimmtHourlyRateWennGesetzt()
+    {
+        Assert.Equal(20.40m, PayrollCalculations.UeberstundenStundensatz(20.40m, 4500m, 42m));
+    }
+
+    [Fact]
+    public void UeberstundenStundensatz_FixAusMonatslohnWennKeinHourly()
+    {
+        decimal satz = PayrollCalculations.UeberstundenStundensatz(0m, 4500m, 42m);
+        Assert.Equal(24.6575m, Math.Round(satz, 4));
+        // 66.01 h × 24.66 (Anzeige) — rappengenau wie ExitSettlementBetrag
+        Assert.Equal(1627.81m, PayrollCalculations.ExitSettlementBetrag(66.01m, satz));
+    }
+
+    [Fact]
+    public void UeberstundenStundensatz_PensumKonsistent_GleicherSatz()
+    {
+        // 80 %: Monatslohn und Wochenstunden proportional → gleicher Stundensatz
+        decimal voll = PayrollCalculations.UeberstundenStundensatz(0m, 5000m, 42m);
+        decimal teil = PayrollCalculations.UeberstundenStundensatz(0m, 4000m, 33.6m);
+        Assert.Equal(Math.Round(voll, 4), Math.Round(teil, 4));
+    }
+
+    [Fact]
+    public void UeberstundenAuszahlbar_NurBisPlusSaldo()
+    {
+        // Daniela Jan 2026: Zeitsaldo 11.37 → höchstens 11.37 (nicht Mirus 25.78)
+        Assert.Equal(11.37m, PayrollCalculations.UeberstundenAuszahlbar(11.37m, 0m));
+        // schon 5 Std. in einem anderen 55.2-Eintrag desselben Monats
+        Assert.Equal(6.37m, PayrollCalculations.UeberstundenAuszahlbar(11.37m, 5m));
+        // Minus-Saldo oder bereits alles ausbezahlt → nichts
+        Assert.Equal(0m, PayrollCalculations.UeberstundenAuszahlbar(-8.51m, 0m));
+        Assert.Equal(0m, PayrollCalculations.UeberstundenAuszahlbar(11.37m, 12m));
+    }
+
     [Fact]
     public void ExitTagessatzFix_Kalenderbasis()
     {

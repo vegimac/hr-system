@@ -228,6 +228,9 @@ async function lzLoad() {
             const isAbzug = z.typ === 'ABZUG';
             const bemEsc  = (z.bemerkung ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             const lpBezEsc = (z.lohnpositionBezeichnung ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const stdHint = z.stunden != null && z.stunden !== ''
+                ? `<div style="font-size:11px;color:#64748b">${Number(z.stunden).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})} Std. · Zeitsaldo gekürzt</div>`
+                : '';
             // Betrag als WIRKUNG für den MA zeigen (Walter 21.09.2026): Zulage −20'000 →
             // «− CHF 20'000» rot, Abzug −19'750 → «+ CHF 19'750» grün (Gutschrift). Kein
             // doppeltes Vorzeichen mehr («+ CHF −20'000»). Die Pille zeigt weiter den Typ.
@@ -239,6 +242,7 @@ async function lzLoad() {
                 <span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;${isAbzug ? 'background:#fee2e2;color:#991b1b' : 'background:#dcfce7;color:#166534'}">${isAbzug ? '− Abzug' : '+ Zulage'}</span>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:500;font-size:13px">${lpBezEsc}</div>
+                    ${stdHint}
                     ${bemEsc ? `<div style="font-size:11px;color:#64748b">${bemEsc}</div>` : ''}
                 </div>
                 <div style="font-weight:600;font-size:13px;font-family:monospace;color:${wirkung < 0 ? '#dc2626' : '#059669'}" title="${wirkungTitel}">${wirkung < 0 ? '−' : '+'} CHF ${Math.abs(wirkung).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
@@ -265,20 +269,111 @@ async function lzLoad() {
 function lzEditById(id) {
     const z = (window._lzItems || []).find(x => x.id === id);
     if (!z) return;
-    lzEdit(z.id, z.lohnpositionId, z.betrag, z.bemerkung ?? '');
+    lzEdit(z.id, z.lohnpositionId, z.betrag, z.bemerkung ?? '', z.stunden);
+}
+
+function _lzFillLpSel(selectedId) {
+    const sel = document.getElementById('lzLpSel');
+    sel.innerHTML = '<option value="">— Lohnposition wählen —</option>' +
+        _lzLohnpositionen.map(l =>
+            `<option value="${l.id}" data-code="${l.code}">[${l.code}] ${l.bezeichnung} ${l.typ === 'ABZUG' ? '(−)' : '(+)'}</option>`
+        ).join('');
+    if (selectedId) sel.value = selectedId;
+}
+
+function _lzIsUeberstundenLp() {
+    const sel = document.getElementById('lzLpSel');
+    const opt = sel?.selectedOptions?.[0];
+    return (opt?.dataset?.code || '') === '55.2';
+}
+
+async function lzOnLpChange() {
+    const ueber = document.getElementById('lzUeberstundenBlock');
+    const betragBlock = document.getElementById('lzBetragBlock');
+    if (_lzIsUeberstundenLp()) {
+        ueber.style.display = 'block';
+        betragBlock.style.display = 'none';
+        await lzLoadUeberstundenSatz();
+        lzRecalcUeberstunden();
+        document.getElementById('lzStunden')?.focus();
+    } else {
+        ueber.style.display = 'none';
+        betragBlock.style.display = 'block';
+        const std = document.getElementById('lzStunden');
+        if (std) std.value = '';
+        const satz = document.getElementById('lzSatz');
+        if (satz) satz.value = '';
+        const bu = document.getElementById('lzBetragUeber');
+        if (bu) bu.value = '';
+        const vf = document.getElementById('lzUeberVerfuegbar');
+        if (vf) vf.textContent = '';
+        _lzUeberVerfuegbar = null;
+        _lzUeberFehler = null;
+    }
+}
+
+// Höchstens auszahlbare Stunden (Plus-Saldo), vom Server; null = unbekannt/kein Zeitsaldo
+let _lzUeberVerfuegbar = null;
+let _lzUeberFehler = null;
+
+async function lzLoadUeberstundenSatz() {
+    const satzEl = document.getElementById('lzSatz');
+    _lzUeberVerfuegbar = null;
+    _lzUeberFehler = null;
+    if (!satzEl || !_lzCurrentEmpId || !_lzCurrentYear || !_lzCurrentMonth) return;
+    try {
+        const cid = _lzCurrentCompId ? `&companyProfileId=${_lzCurrentCompId}` : '';
+        const editId = document.getElementById('lzEditId')?.value;
+        const ohne = editId ? `&ohneEintragId=${editId}` : '';
+        const res = await fetch(
+            `/api/lohn-zulagen/ueberstunden-satz?employeeId=${_lzCurrentEmpId}&year=${_lzCurrentYear}&month=${_lzCurrentMonth}${cid}${ohne}`,
+            { headers: ah(), cache: 'no-store' });
+        if (!res.ok) { satzEl.value = ''; return; }
+        const d = await res.json();
+        satzEl.value = Number(d.stundensatz || 0).toFixed(2);
+        _lzUeberFehler = d.verfuegbarFehler || null;
+        _lzUeberVerfuegbar = d.verfuegbarStunden != null ? Number(d.verfuegbarStunden) : null;
+    } catch { satzEl.value = ''; }
+}
+
+function _lzRenderUeberVerfuegbar(std) {
+    const el = document.getElementById('lzUeberVerfuegbar');
+    if (!el) return;
+    if (_lzUeberFehler) {
+        el.style.color = '#b91c1c';
+        el.textContent = _lzUeberFehler;
+        return;
+    }
+    if (_lzUeberVerfuegbar == null) { el.textContent = ''; return; }
+    const zuViel = !isNaN(std) && std > _lzUeberVerfuegbar + 0.0001;
+    el.style.color = zuViel ? '#b91c1c' : '#64748b';
+    el.textContent = zuViel
+        ? `Höchstens ${_lzUeberVerfuegbar.toFixed(2)} Std. auszahlbar — nur bis zum Plus-Saldo, nie ins Minus.`
+        : `Plus-Saldo verfügbar: ${_lzUeberVerfuegbar.toFixed(2)} Std.`;
+}
+
+function lzRecalcUeberstunden() {
+    const std = parseFloat(document.getElementById('lzStunden')?.value || '');
+    const satz = parseFloat(document.getElementById('lzSatz')?.value || '');
+    const out = document.getElementById('lzBetragUeber');
+    _lzRenderUeberVerfuegbar(std);
+    if (!out) return;
+    if (isNaN(std) || isNaN(satz) || std === 0) { out.value = ''; return; }
+    // Wie ExitSettlementBetrag: gerundete Anzeige-Werte × , Resultat 2 Dez.
+    const a = Math.round(std * 100) / 100;
+    const s = Math.round(satz * 100) / 100;
+    out.value = (Math.round(a * s * 100) / 100).toFixed(2);
 }
 
 function lzOpenForm() {
     document.getElementById('lzEditId').value   = '';
     document.getElementById('lzBetrag').value   = '';
     document.getElementById('lzBemerkung').value = '';
-
-    const sel = document.getElementById('lzLpSel');
-    sel.innerHTML = '<option value="">— Lohnposition wählen —</option>' +
-        _lzLohnpositionen.map(l =>
-            `<option value="${l.id}">[${l.code}] ${l.bezeichnung} ${l.typ === 'ABZUG' ? '(−)' : '(+)'}</option>`
-        ).join('');
-    sel.value = '';
+    const std = document.getElementById('lzStunden');
+    if (std) std.value = '';
+    _lzFillLpSel('');
+    document.getElementById('lzUeberstundenBlock').style.display = 'none';
+    document.getElementById('lzBetragBlock').style.display = 'block';
 
     // Walter 19.05.2026: globaler Modal-Overlay statt eingebettetes Form,
     // damit der Akonto-Tab dieselbe Maske nutzen kann.
@@ -288,22 +383,19 @@ function lzOpenForm() {
     document.getElementById('lzLpSel').focus();
 }
 
-function lzEdit(id, lpId, betrag, bem) {
+function lzEdit(id, lpId, betrag, bem, stunden) {
     document.getElementById('lzEditId').value    = id;
     document.getElementById('lzBetrag').value    = betrag;
     document.getElementById('lzBemerkung').value = bem || '';
-
-    const sel = document.getElementById('lzLpSel');
-    sel.innerHTML = '<option value="">— Lohnposition wählen —</option>' +
-        _lzLohnpositionen.map(l =>
-            `<option value="${l.id}">[${l.code}] ${l.bezeichnung} ${l.typ === 'ABZUG' ? '(−)' : '(+)'}</option>`
-        ).join('');
-    sel.value = lpId;
+    const std = document.getElementById('lzStunden');
+    if (std) std.value = (stunden != null && stunden !== '') ? stunden : '';
+    _lzFillLpSel(lpId);
 
     // Panel und Formular sichtbar machen (globaler Modal-Overlay, Walter 19.05.2026)
     const overlay = document.getElementById('lohnZulagenFormOverlay');
     if (overlay) overlay.style.display = 'flex';
     document.getElementById('lohnZulagenForm').style.display  = 'block';
+    lzOnLpChange();
 }
 
 function lzCloseForm() {
@@ -315,32 +407,66 @@ function lzCloseForm() {
 async function lzSave() {
     const id      = document.getElementById('lzEditId').value;
     const lpId    = parseInt(document.getElementById('lzLpSel').value);
-    const betrag  = parseFloat(document.getElementById('lzBetrag').value);
     const bem     = document.getElementById('lzBemerkung').value.trim() || null;
+    const isUeber = _lzIsUeberstundenLp();
 
-    if (!lpId)         { alert('Bitte eine Lohnposition wählen.'); return; }
-    // Negativ erlaubt (Walter 21.09.2026, Swissdec TF11 Juni): Zulage negativ = Korrektur,
-    // Abzug negativ = Gutschrift. Nur 0 ist sinnlos.
-    if (isNaN(betrag) || betrag === 0) { alert('Bitte einen gültigen Betrag eingeben (ungleich 0; negativ = Korrektur/Gutschrift).'); return; }
+    if (!lpId) { alert('Bitte eine Lohnposition wählen.'); return; }
+
+    let betrag, stunden = null;
+    if (isUeber) {
+        stunden = parseFloat(document.getElementById('lzStunden')?.value || '');
+        if (isNaN(stunden) || stunden <= 0) {
+            alert('Bitte die auszuzahlenden Stunden eingeben (grösser als 0).');
+            return;
+        }
+        if (_lzUeberFehler) { alert(_lzUeberFehler); return; }
+        if (_lzUeberVerfuegbar != null && stunden > _lzUeberVerfuegbar + 0.0001) {
+            alert(`Höchstens ${_lzUeberVerfuegbar.toFixed(2)} Std. auszahlbar — Überstunden nur bis zum Plus-Saldo, nie ins Minus.`);
+            return;
+        }
+        lzRecalcUeberstunden();
+        betrag = parseFloat(document.getElementById('lzBetragUeber')?.value || '');
+        if (isNaN(betrag) || betrag === 0) {
+            alert('Betrag konnte nicht gerechnet werden — Stundensatz prüfen.');
+            return;
+        }
+    } else {
+        betrag = parseFloat(document.getElementById('lzBetrag').value);
+        // Negativ erlaubt (Walter 21.09.2026, Swissdec TF11 Juni): Zulage negativ = Korrektur,
+        // Abzug negativ = Gutschrift. Nur 0 ist sinnlos.
+        if (isNaN(betrag) || betrag === 0) {
+            alert('Bitte einen gültigen Betrag eingeben (ungleich 0; negativ = Korrektur/Gutschrift).');
+            return;
+        }
+    }
 
     const periode = `${_lzCurrentYear}-${String(_lzCurrentMonth).padStart(2,'0')}`;
+    const body = { betrag, bemerkung: bem, lohnpositionId: lpId, stunden };
     try {
         let res;
         if (id) {
             res = await fetch(`/api/lohn-zulagen/${id}?companyProfileId=${_lzCurrentCompId || ''}`, {
                 method: 'PUT',
                 headers: { ...ah(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ betrag, bemerkung: bem, lohnpositionId: lpId })
+                body: JSON.stringify(body)
             });
         } else {
             res = await fetch('/api/lohn-zulagen', {
                 method: 'POST',
                 headers: { ...ah(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employeeId: _lzCurrentEmpId, periode, lohnpositionId: lpId, betrag, bemerkung: bem, companyProfileId: _lzCurrentCompId || null })
+                body: JSON.stringify({
+                    employeeId: _lzCurrentEmpId, periode, lohnpositionId: lpId,
+                    betrag, bemerkung: bem, stunden,
+                    companyProfileId: _lzCurrentCompId || null
+                })
             });
         }
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
-        if (!res.ok) { alert('Fehler beim Speichern.'); return; }
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.message || err.title || (typeof err === 'string' ? err : 'Fehler beim Speichern.'));
+            return;
+        }
         lzCloseForm();
         await lzLoad();
         // Lohnabrechnung neu berechnen — sowohl Definitiv-Slip als auch (falls

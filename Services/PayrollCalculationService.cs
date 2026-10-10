@@ -820,6 +820,8 @@ public static class PayrollCalculations
                                         kv => Rappen(kv.Value)),
             vormonatHourSaldo  = saldo.VormonatHourSaldo,
             neuerHourSaldo     = saldo.NeuerHourSaldo,
+            zeitsaldoVorUeberstundenAuszahlung = saldo.ZeitsaldoVorUeberstundenAuszahlung,
+            ueberstundenAuszahlungStunden      = saldo.UeberstundenAuszahlungStunden,
             // Optional: Soll-Berechnungs-Erläuterung (MTP)
             sollStundenVoll        = saldo.SollStundenVoll,
             sollFerienReduktion    = saldo.SollFerienReduktion,
@@ -1320,6 +1322,25 @@ public static class PayrollCalculations
         if (weeklyHours <= 0m) return 0m;
         return monthlySalary * 12m / 365m / (weeklyHours / 7m);
     }
+
+    /// <summary>
+    /// Stundensatz für Überstunden-Auszahlung 55.2 (Lohnlauf-Zulage + Austritt):
+    /// vorhandener Stundenlohn, sonst FIX/FIX-M aus Monatslohn × 12/365 ÷ (WoStd/7).
+    /// Pensum: MonthlySalary und WeeklyHours müssen denselben Anteil tragen.
+    /// </summary>
+    public static decimal UeberstundenStundensatz(
+        decimal hourlyRate, decimal monthlySalary, decimal weeklyHours)
+        => hourlyRate > 0m
+            ? hourlyRate
+            : ExitStundensatzAusMonatslohn(monthlySalary, weeklyHours);
+
+    /// <summary>
+    /// Höchstens auszahlbare Überstunden 55.2 (Walter 10.10.2026): nur der vorhandene
+    /// Plus-Saldo — Zeitsaldo Monatsende vor 55.2 minus übrige 55.2-Stunden desselben Monats.
+    /// Nie ins Minus (kein Vorbezug wie Mirus).
+    /// </summary>
+    public static decimal UeberstundenAuszahlbar(decimal zeitsaldoVorAuszahlung, decimal uebrigeStunden)
+        => Math.Max(0m, Rappen(zeitsaldoVorAuszahlung - uebrigeStunden));
 
     /// <summary>
     /// FIX/FIX-M Ferien-/Feiertag-Tagessatz für die Austritts-Schlussabrechnung:
