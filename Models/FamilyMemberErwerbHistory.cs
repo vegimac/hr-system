@@ -29,5 +29,7 @@ public class FamilyMemberErwerbHistory
     public string? Note { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
+    // Rückverweis nie serialisieren (Endlos-Zyklus, siehe FamilyMemberPermitHistory).
+    [System.Text.Json.Serialization.JsonIgnore]
     public EmployeeFamilyMember? FamilyMember { get; set; }
 }

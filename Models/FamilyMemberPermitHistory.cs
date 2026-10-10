@@ -25,6 +25,9 @@ public class FamilyMemberPermitHistory
     public string? Note { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
+    // Rückverweis nie serialisieren: PUT family/{id} liefert das Mitglied mit
+    // geladener Historie zurück → sonst Endlos-Zyklus (HTTP 500).
+    [System.Text.Json.Serialization.JsonIgnore]
     public EmployeeFamilyMember? FamilyMember { get; set; }
     public PermitType? PermitType { get; set; }
 }
