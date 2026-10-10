@@ -3834,6 +3834,12 @@ public class EasyAtWorkEmployeeSyncService
 
             if (existing == null)
             {
+                var vorgaenger = existingAll.Concat(neuAngelegt)
+                    .Where(e => e.ContractStartDate < startDt)
+                    .OrderByDescending(e => e.ContractStartDate)
+                    .FirstOrDefault();
+                var (fnId, fnTitel) = FunktionFuerNeuenAbschnitt(
+                    active, jobGroupId, jobGroupCode ?? info.JobGroupCode ?? info.JobTitle, vorgaenger);
                 var neu = new Employment
                 {
                     Employee             = emp,
@@ -3845,8 +3851,8 @@ public class EasyAtWorkEmployeeSyncService
                     EmploymentModel      = string.IsNullOrWhiteSpace(info.EmploymentModel) ? "FLEX"    : info.EmploymentModel!,
                     SalaryType           = string.IsNullOrWhiteSpace(info.SalaryType)      ? "hourly" : info.SalaryType!,
                     ContractType         = info.ContractType,
-                    JobGroupId           = jobGroupId,
-                    JobTitle             = jobGroupCode ?? info.JobGroupCode ?? info.JobTitle,
+                    JobGroupId           = fnId,
+                    JobTitle             = fnTitel,
                     EmploymentPercentage = info.EmploymentPercentage,
                     WeeklyHours          = info.WeeklyHours,
                     GuaranteedHoursPerWeek = info.GuaranteedHoursPerWeek,
@@ -3858,10 +3864,7 @@ public class EasyAtWorkEmployeeSyncService
                     EasyAtWorkUpdatedAt  = seg.EasyAtWorkUpdatedAt,
                     EasyAtWorkManualOverride = seg.EasyAtWorkManualOverride,
                 };
-                KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(neu, existingAll.Concat(neuAngelegt)
-                    .Where(e => e.ContractStartDate < startDt)
-                    .OrderByDescending(e => e.ContractStartDate)
-                    .FirstOrDefault());
+                KrankUnfallZeitgutschrift.ArbeitstageUebernehmen(neu, vorgaenger);
                 neuAngelegt.Add(neu);
                 db.Employments.Add(neu);
             }
@@ -4438,6 +4441,21 @@ public class EasyAtWorkEmployeeSyncService
             UpdatedAt = DateTime.UtcNow,
         });
         return true;
+    }
+
+    /// <summary>
+    /// Funktion für einen NEU entstehenden Vertragsabschnitt (Walter-Bug 10.10.2026, Fall
+    /// 750017 Nikollaj): easy@work kennt die Funktion nur ohne Historie. Ein abgelaufener
+    /// Abschnitt (z.B. durch einen nachträglich erfassten Lohnsatz) erbt deshalb die Funktion
+    /// seines Vorgängers; nur laufende/künftige Abschnitte bekommen den heutigen easy-Stand.
+    /// Ohne Vorgänger mit Funktion bleibt der heutige Stand (keine bessere Quelle).
+    /// </summary>
+    public static (int? JobGroupId, string? JobTitle) FunktionFuerNeuenAbschnitt(
+        bool aktiv, int? heuteJobGroupId, string? heuteTitel, Employment? vorgaenger)
+    {
+        if (!aktiv && vorgaenger?.JobGroupId != null)
+            return (vorgaenger.JobGroupId, vorgaenger.JobTitle ?? heuteTitel);
+        return (heuteJobGroupId, heuteTitel);
     }
 
     /// <summary>
