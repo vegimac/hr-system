@@ -29,13 +29,29 @@ const FAMZ_GS_KANTONE = {
 function famzGsKern(daten) {
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
+        // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
+        var dokumente = function () {
+            var liste = [document], i = 0;
+            while (i < liste.length) {
+                Array.prototype.forEach.call(liste[i].querySelectorAll('iframe,frame'), function (f) {
+                    try { if (f.contentDocument && liste.indexOf(f.contentDocument) < 0) liste.push(f.contentDocument); } catch (e) { /* fremde Herkunft */ }
+                });
+                i++;
+            }
+            return liste;
+        };
+        var alle = function (sel) {
+            var out = [];
+            dokumente().forEach(function (d) { out = out.concat(Array.prototype.slice.call(d.querySelectorAll(sel))); });
+            return out;
+        };
         var sichtbar = function (el) {
             var r = el.getBoundingClientRect();
-            return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+            return r.width > 0 && r.height > 0 && el.ownerDocument.defaultView.getComputedStyle(el).visibility !== 'hidden';
         };
         var imPanel = function (el) { return !!(el.closest && el.closest('#' + ID)); };
         var steuerelemente = function () {
-            return Array.prototype.filter.call(document.querySelectorAll('input,select,textarea'), function (el) {
+            return alle('input,select,textarea').filter(function (el) {
                 return !/^(hidden|button|submit|reset|image|file)$/i.test(el.type) && sichtbar(el) && !imPanel(el);
             });
         };
@@ -45,7 +61,7 @@ function famzGsKern(daten) {
             return norm(t);
         };
         var beschriftungen = function () {
-            return Array.prototype.filter.call(document.querySelectorAll('label,span,div,td,th,p,legend,b,strong'), function (el) {
+            return alle('label,span,div,td,th,p,legend,b,strong,h1,h2,h3,h4').filter(function (el) {
                 if (imPanel(el) || !sichtbar(el)) return false;
                 var t = eigenerText(el);
                 return t.length > 0 && t.length < 90;
@@ -53,6 +69,7 @@ function famzGsKern(daten) {
         };
         // Lage-Abstand Beschriftung → Feld: darunter (linksbündig) oder rechts daneben.
         var abstand = function (lab, c) {
+            if (lab.ownerDocument !== c.ownerDocument) return null;
             var r = lab.getBoundingClientRect(), q = c.getBoundingClientRect();
             if (lab.contains(c)) return 1;
             var unten = q.top - r.bottom;
@@ -70,15 +87,15 @@ function famzGsKern(daten) {
             return norm(c.parentElement ? c.parentElement.textContent : '');
         };
         var findeFeld = function (labels, nr) {
-            var alle = beschriftungen();
+            var kandidaten = beschriftungen();
             for (var i = 0; i < labels.length; i++) {
                 var muster = norm(labels[i]);
-                var treffer = alle.filter(function (el) { return eigenerText(el) === muster; });
-                if (!treffer.length) treffer = alle.filter(function (el) { return eigenerText(el).indexOf(muster) === 0; });
+                var treffer = kandidaten.filter(function (el) { return eigenerText(el) === muster; });
+                if (!treffer.length) treffer = kandidaten.filter(function (el) { return eigenerText(el).indexOf(muster) === 0; });
                 var lab = treffer[nr || 0];
                 if (!lab) continue;
                 if (lab.htmlFor) {
-                    var f = document.getElementById(lab.htmlFor);
+                    var f = lab.ownerDocument.getElementById(lab.htmlFor);
                     if (f && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName) && f.type !== 'radio') return { lab: lab, el: f };
                 }
                 var best = null, bestA = 1e9;
@@ -98,24 +115,25 @@ function famzGsKern(daten) {
             return null;
         };
         var setzeWert = function (el, w) {
-            var proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype
-                : el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+            var fenster = el.ownerDocument.defaultView;
+            var proto = el.tagName === 'SELECT' ? fenster.HTMLSelectElement.prototype
+                : el.tagName === 'TEXTAREA' ? fenster.HTMLTextAreaElement.prototype : fenster.HTMLInputElement.prototype;
             el.focus();
             Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, w);
-            ['input', 'change', 'keyup'].forEach(function (t) { el.dispatchEvent(new Event(t, { bubbles: true })); });
+            ['input', 'change', 'keyup'].forEach(function (t) { el.dispatchEvent(new fenster.Event(t, { bubbles: true })); });
             el.blur();
         };
         // Auswahl, deren Beschriftung die Option selbst ist («Familie im gleichen Haushalt
         // lebend», «Es existieren weitere …»): Knopf links daneben oder in der Beschriftung.
         var findeOption = function (labels) {
-            var alle = beschriftungen();
+            var kandidaten = beschriftungen();
             for (var i = 0; i < labels.length; i++) {
                 var muster = norm(labels[i]);
-                var lab = alle.filter(function (el) { return eigenerText(el) === muster; })[0]
-                    || alle.filter(function (el) { return eigenerText(el).indexOf(muster) === 0; })[0];
+                var lab = kandidaten.filter(function (el) { return eigenerText(el) === muster; })[0]
+                    || kandidaten.filter(function (el) { return eigenerText(el).indexOf(muster) === 0; })[0];
                 if (!lab) continue;
                 if (lab.htmlFor) {
-                    var f = document.getElementById(lab.htmlFor);
+                    var f = lab.ownerDocument.getElementById(lab.htmlFor);
                     if (f && /^(radio|checkbox)$/.test(f.type)) return f;
                 }
                 var r = lab.getBoundingClientRect(), best = null, bestA = 1e9;
@@ -204,7 +222,8 @@ function famzGsKern(daten) {
                     ? ' [' + Array.prototype.slice.call(c.options, 0, 12).map(function (o) { return o.text.trim(); }).join(' | ') + ']' : '';
                 zeilen.push((best ? eigenerText(best) : '(ohne Beschriftung)') + ' → ' + art + opt + (c.disabled ? ' (gesperrt)' : ''));
             });
-            return 'GastroSocial-Felder (' + location.pathname + location.search + ')\n' + zeilen.join('\n');
+            return 'GastroSocial-Felder (' + location.pathname + location.search + ', Rahmen: ' + (dokumente().length - 1)
+                + ', iframes: ' + alle('iframe,frame').length + ')\n' + zeilen.join('\n');
         };
 
         var alt = document.getElementById(ID);
