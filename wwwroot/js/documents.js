@@ -3077,6 +3077,7 @@ function dabTitel(o) {
     if (o.key === 'kind_neu_geburtsurkunde') return 'Geburtsurkunde Kind';
     if (o.key === 'absenz_neu') return 'Absenz';
     if (o.key === 'schulung_neu') return 'Schulung / Ausbildung';
+    if (/^familienzulage(_neu)?:/.test(o.key)) return `Familienzulage ${vorPunkt(o.sub)}`.trim();
     if (o.key.startsWith('schulung:')) return `${o.label} ${String(o.sub || '').split(' · ')[0]}`.trim();
     if (o.key.startsWith('absenz:')) return `${o.label} ${o.sub || ''}`.trim();
     if (/^(ausweis_partner|ausweis_kind|geburtsurkunde_kind):/.test(o.key)) return `${o.label} ${vorPunkt(o.sub)}`.trim();
@@ -3244,8 +3245,39 @@ async function dabNachher({ empId, docId, bereit, bemerkung, verknuepft, notifyI
     if (einzig === 'kind_neu') await dokNeuesFamilienmitgliedMitDok(empId, docId, 'Kind', null);
     if (einzig === 'kind_neu_geburtsurkunde') await dokNeuesFamilienmitgliedMitDok(empId, docId, 'Kind', 'geburtsurkunde');
     if (einzig === 'schulung_neu') await dokNeueSchulungMitDok(empId, docId);
+    if (einzig?.startsWith('familienzulage_neu:')) await dokNeueZulageMitDok(empId, docId, Number(einzig.split(':')[1]));
     if (gewaehlt.some(k => k.startsWith('schulung:')) && window.selectedEmployeeId === empId && typeof trLoad === 'function')
         trLoad(empId);
+    if (gewaehlt.some(k => k.startsWith('familienzulage:')) && window.selectedEmployeeId === empId && typeof loadFamilieTab === 'function')
+        loadFamilieTab(empId);
+}
+
+// Familienzulage mit dem soeben abgelegten FAK-Entscheid (Walter 11.10.2026): MA öffnen,
+// Familie-Tab, Zulage-Fenster des Kindes mit dem Entscheid. Hat das Kind schon eine
+// Zulage → «Änderung ab Datum» (bisherige endet am Vortag), sonst neue Zulage.
+async function dokNeueZulageMitDok(empId, docId, memberId) {
+    if (typeof openAllowanceFromCard !== 'function' || !memberId) return;
+    if (window.selectedEmployeeId !== empId) {
+        window.activeEmpId = empId;
+        if (typeof showPage === 'function') showPage('mitarbeiter');
+        for (let i = 0; i < 40 && window.selectedEmployeeId !== empId; i++)
+            await new Promise(r => setTimeout(r, 150));
+        if (window.selectedEmployeeId !== empId && typeof selectEmployee === 'function') await selectEmployee(empId);
+    }
+    if (typeof switchEmpTab === 'function') switchEmpTab('familie');
+    let liste = [];
+    try {
+        const r = await fetch(`/api/family-members/${memberId}/allowances`, { headers: ah(), cache: 'no-store' });
+        if (r.ok) liste = await r.json();
+    } catch { /* ohne Liste: neue Zulage */ }
+    const bisher = liste.length && typeof alHeute === 'function' ? alHeute(liste) : null;
+    if (bisher && typeof alAenderungStarten === 'function') {
+        editingFamilyMemberId = memberId;
+        window._alVerlaufListe = liste;
+        alAenderungStarten(bisher.id, docId);
+    } else {
+        openAllowanceFromCard(memberId, { dokumentId: docId });
+    }
 }
 
 // Neue Schulung mit dem soeben abgelegten Dokument (Walter 01.10.2026): MA öffnen,

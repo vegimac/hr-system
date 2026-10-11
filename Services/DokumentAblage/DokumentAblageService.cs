@@ -70,6 +70,10 @@ public class DokumentAblageService
         new("partner_neu",             "Familie", "Ausweis neue/r Partner/in",  new[] { "spouse" },     Formular: true),
         new("kind_neu",                "Familie", "Ausweis neues Kind",         new[] { "child_id" },   Formular: true),
         new("kind_neu_geburtsurkunde", "Familie", "Geburtsurkunde neues Kind",  new[] { "birth_cert" }, Formular: true),
+        // Familienzulage (Walter 11.10.2026): FAK-Entscheid gehört zu genau einer Zulage
+        // (Historie); «neu / Änderung» öffnet danach das Zulage-Fenster des Kindes.
+        new("familienzulage",          "Familie", "Familienzulage",               new[] { "family_allowance" }, Historie: true),
+        new("familienzulage_neu",      "Familie", "Familienzulage neu / Änderung", new[] { "family_allowance" }, Formular: true),
         // ── Anderes: kurze Liste statt der ganzen Dokumentstruktur ──
         new("anderes:korrespondenz",  "Anderes", "Korrespondenz",               new[] { "andere_korrespondenz" }, Anderes: true),
         new("anderes:arztzeugnis",    "Anderes", "Arztzeugnis (ohne Absenz)",   new[] { "andere_arztzeugnis" }, Anderes: true),
@@ -204,6 +208,26 @@ public class DokumentAblageService
         liste.Add(O("kind_neu", hatKind ? "weiteres Kind · aus dem Ausweis erfassen"
                                         : "noch kein Kind erfasst · wird aus dem Ausweis erfasst"));
         liste.Add(O("kind_neu_geburtsurkunde", "Kind erfassen"));
+
+        // Familienzulagen der Kinder: je Kind die drei jüngsten Einträge + «neu / Änderung».
+        var kinder = familie.Where(m => m.MemberType == "Kind").OrderBy(m => m.DateOfBirth).ToList();
+        var kinderIds = kinder.Select(m => m.Id).ToList();
+        var zulagen = await _db.FamilyMemberAllowances.AsNoTracking()
+            .Where(z => kinderIds.Contains(z.FamilyMemberId))
+            .OrderByDescending(z => z.ValidFrom).ThenByDescending(z => z.Id)
+            .ToListAsync();
+        foreach (var m in kinder)
+        {
+            var name = $"{m.FirstName} {m.LastName}".Trim();
+            foreach (var z in zulagen.Where(z => z.FamilyMemberId == m.Id).Take(3))
+            {
+                var art = z.TarifSatzNr != null ? $"{z.AllowanceType} Satz {z.TarifSatzNr}" : z.AllowanceType ?? "Zulage";
+                liste.Add(O($"familienzulage:{z.Id}",
+                    $"{name} · {art} · {z.ValidFrom:dd.MM.yyyy} – {(z.ValidTo.HasValue ? z.ValidTo.Value.ToString("dd.MM.yyyy") : "offen")}",
+                    z.DokumentId));
+            }
+            liste.Add(O($"familienzulage_neu:{m.Id}", $"{name} · Zulage erfassen oder ab Datum ändern"));
+        }
 
         // Bewilligung nur bei Ausländer/innen; bestehende Einträge = Dokument austauschen.
         if (!istCh)
@@ -421,6 +445,15 @@ public class DokumentAblageService
                     if (art.Schluessel == "geburtsurkunde_kind") m.GeburtsurkundeDokumentId = dokumentId;
                     else m.DokumentId = dokumentId;
                     m.UpdatedAt = jetzt; break;
+                }
+                case "familienzulage":
+                {
+                    var z = await (from a in _db.FamilyMemberAllowances
+                                   join m in _db.EmployeeFamilyMembers on a.FamilyMemberId equals m.Id
+                                   where a.Id == refId && m.EmployeeId == employeeId
+                                   select a).FirstOrDefaultAsync();
+                    if (z == null) return ("Die gewählte Familienzulage gehört nicht zu diesem Mitarbeiter.", verknuepft);
+                    z.DokumentId = dokumentId; z.UpdatedAt = jetzt; break;
                 }
                 case "schulung":
                 {

@@ -91,35 +91,85 @@ function kqvBoxen() {
     return {
         wohnen: document.getElementById('kqvMountWohnen'),
         ausbildung: document.getElementById('kqvMountAusbildung'),
+        zulage: document.getElementById('kqvMountZulage'),
         qst: document.getElementById('fmQstVerlauf'),
     };
 }
 
+/** Abschnitt «Familienzulage» nur bei Kindern. */
+function kqvZulageSichtbarkeit() {
+    const sec = document.getElementById('fmKindZulageSection');
+    if (sec) sec.style.display = document.getElementById('fmMemberType')?.value === 'Kind' ? '' : 'none';
+}
+
+async function kqvZulagenHolen() {
+    try {
+        const r = await fetch(`/api/family-members/${_kqv.memberId}/allowances`, { headers: ah(), cache: 'no-store' });
+        _kqv.zulagen = r.ok ? await r.json() : [];
+    } catch { _kqv.zulagen = []; }
+}
+
+/** Nach Speichern/Löschen im Zulage-Fenster: Abschnitt neu zeichnen, wenn dieses Kind offen ist. */
+async function kqvZulagenNeu(memberId) {
+    if (!_kqv.memberId || _kqv.memberId !== memberId || !_kqv.daten) return;
+    await kqvZulagenHolen();
+    kqvRender();
+}
+
+function kqvZulageOeffnen(id) {
+    const z = (_kqv.zulagen || []).find(x => x.id === id);
+    if (z) openAllowanceFromCard(_kqv.memberId, z);
+}
+
+function kqvZulageAenderung(id) {
+    editingFamilyMemberId = _kqv.memberId;
+    window._alVerlaufListe = _kqv.zulagen || [];
+    alAenderungStarten(id);
+}
+
+async function kqvZulageLoeschen(id) {
+    if (!await liquidConfirm('Diese Zulage wirklich löschen?', { title: 'Löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' })) return;
+    const r = await fetch(`/api/family-members/${_kqv.memberId}/allowances/${id}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) {
+        let msg = `Fehler (HTTP ${r.status})`;
+        try { const j = await r.json(); msg = j.message || j.error || msg; } catch { /* kein JSON */ }
+        kqvFehler(msg);
+        return;
+    }
+    await kqvZulagenNeu(_kqv.memberId);
+    if (typeof loadFamilieTab === 'function') loadFamilieTab(_kqv.empId);
+}
+
 /** Beim Öffnen des Familien-Fensters: Kind laden oder Hinweis für neue Kinder. */
 async function kqvOeffnen(empId, member) {
-    _kqv = { empId, memberId: member?.id ?? null, daten: null, dokumente: null, verlaufOffen: {}, ohneQst: false };
+    _kqv = { empId, memberId: member?.id ?? null, daten: null, dokumente: null, verlaufOffen: {}, ohneQst: false, zulagen: [] };
     const b = kqvBoxen();
     if (!b.qst) return;
     if (empId) kqvQstPflichtLaden(empId);
+    kqvZulageSichtbarkeit();
     if (!member?.id || member.memberType !== 'Kind') {
         if (b.wohnen) b.wohnen.innerHTML = '';
         if (b.ausbildung) b.ausbildung.innerHTML = `<div class="kqv-hinweis">Nach dem Speichern erfassen.</div>`;
+        if (b.zulage) b.zulage.innerHTML = `<div class="kqv-hinweis">Nach dem Speichern erfassen.</div>`;
         b.qst.innerHTML = `<div class="kqv-hinweis">Wird nach dem Speichern gerechnet.</div>`;
         kqvAusbildungSichtbarkeit();
         return;
     }
-    [b.wohnen, b.ausbildung, b.qst].forEach(x => { if (x) x.innerHTML = `<div class="kqv-hinweis">Lade …</div>`; });
+    [b.wohnen, b.ausbildung, b.zulage, b.qst].forEach(x => { if (x) x.innerHTML = `<div class="kqv-hinweis">Lade …</div>`; });
     await kqvLaden();
 }
 
 async function kqvLaden() {
     try {
-        const r = await fetch(`/api/employees/${_kqv.empId}/family/${_kqv.memberId}/qst-verlauf`, { headers: ah(), cache: 'no-store' });
+        const [r] = await Promise.all([
+            fetch(`/api/employees/${_kqv.empId}/family/${_kqv.memberId}/qst-verlauf`, { headers: ah(), cache: 'no-store' }),
+            kqvZulagenHolen(),
+        ]);
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         _kqv.daten = await r.json();
     } catch (e) {
         const b = kqvBoxen();
-        [b.wohnen, b.ausbildung].forEach(x => { if (x) x.innerHTML = ''; });
+        [b.wohnen, b.ausbildung, b.zulage].forEach(x => { if (x) x.innerHTML = ''; });
         b.qst.innerHTML = `<div class="kqv-hinweis" style="color:#991b1b">Verlauf konnte nicht geladen werden (${kqvEsc(e.message)}).</div>`;
         return;
     }
@@ -154,7 +204,7 @@ function kqvDokLink(dokId) {
 
 function kqvRender() {
     // Verwaiste ⋮-Menüs (an body gehängt) vor dem Neuzeichnen entfernen — sonst doppelte IDs.
-    document.querySelectorAll('[id^="kqvA"][id*="Menu-"],[id^="kqvV"][id*="Menu-"],[id^="kqvE"][id*="Menu-"]').forEach(e => e.remove());
+    document.querySelectorAll('[id^="kqvA"][id*="Menu-"],[id^="kqvV"][id*="Menu-"],[id^="kqvE"][id*="Menu-"],[id^="kqvZ"][id*="Menu-"]').forEach(e => e.remove());
     const d = _kqv.daten;
     const b = kqvBoxen();
     if (!b.qst || !d) return;
@@ -185,11 +235,9 @@ function kqvRender() {
             ${kqvMenu('kqvA', x.id, `kqvAusbildungDialog(${x.id})`, `kqvLoeschen('ausbildung',${x.id})`)}
         </div>`;
     };
-    const zulagen = (d.zulagenOhneAusbildung || []).map(z => kqvOhneQst()
-        ? `<div class="kqv-zeile">
-            <div class="kqv-text">Ausbildungszulage ${kqvDatum(z.von)} – ${z.bis ? kqvDatum(z.bis) : 'offen'}${kqvDokLink(z.dokumentId)}</div>
-        </div>`
-        : `<div class="kqv-zeile kqv-gelb">
+    // Ohne QST-Pflicht nichts zu übernehmen — die Zulage steht im Abschnitt «Familienzulage».
+    const zulagen = kqvOhneQst() ? '' : (d.zulagenOhneAusbildung || []).map(z =>
+        `<div class="kqv-zeile kqv-gelb">
             <div class="kqv-text">Ausbildungszulage ${kqvDatum(z.von)} – ${z.bis ? kqvDatum(z.bis) : 'offen'}${kqvDokLink(z.dokumentId)}
                 <div class="kqv-klein">Für die Familienzulage anerkannt — für die QST noch nicht erfasst.</div></div>
             <button type="button" class="kqv-btn" onclick="kqvAusZulage(${z.id})">Als QST-Ausbildung übernehmen</button>
@@ -237,6 +285,23 @@ function kqvRender() {
     const entscheide = ent.zeilen ? `<div><div class="kqv-sub">Entscheid der Steuerverwaltung</div>${ent.zeilen}</div>` : '';
     const entscheidNeu = fuss(neuKnopf('kqvEntscheidDialog()', '+ Entscheid der Steuerverwaltung',
         'Nur wenn die Steuerverwaltung über das Kind entschieden hat'), ent.knopf);
+
+    // ── Familienzulage (Walter 11.10.2026): wie Wohnen & Unterhalt — aktuelle Zeile,
+    // ältere hinter «Verlauf», Änderung über ein Datum. Im Lohn verwendet = 🔒, nicht löschbar.
+    const zl = alSortiert(_kqv.zulagen);
+    const zlHeute = alHeute(zl);
+    const zulZeile = z => alZeileHtml(z, {
+        menu: kqvMenu('kqvZ', z.id, `kqvZulageOeffnen(${z.id})`, z.inLohnVerwendet ? '' : `kqvZulageLoeschen(${z.id})`),
+    });
+    const zul = kqvMitVerlauf('Z', zl, zlHeute, zulZeile);
+    const zulage = `${zul.zeilen || '<div class="kqv-leer">keine erfasst</div>'}${fuss(
+        zlHeute
+            ? neuKnopf(`kqvZulageAenderung(${zlHeute.id})`, '+ Änderung ab Datum',
+                'Die bisherige Zulage endet am Vortag, ab dem neuen Datum gilt die neue (anderer Satz, KZ → AZ, Ende der Lehre …)')
+            : neuKnopf('openAllowanceFromCard(_kqv.memberId, null)', '+ Zulage'),
+        zul.knopf)}`;
+    if (b.zulage) b.zulage.innerHTML = zulage;
+    kqvZulageSichtbarkeit();
 
     if (b.wohnen && b.ausbildung) {
         b.wohnen.innerHTML = wohnen;

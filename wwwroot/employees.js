@@ -6054,7 +6054,7 @@ function fmQstBlocksVisibility(type) {
     // Ausbildung, Quellensteuer. Nationalität, «In der Schweiz lebend» und die
     // Adress-Radios gibt es beim Kind nicht mehr (Wohnadresse im Wohnen-Block).
     const istKind = type === 'Kind';
-    ['fmKindSection', 'fmKindWohnenSection', 'fmKindAusbildungSection', 'fmQstSection'].forEach(id => {
+    ['fmKindSection', 'fmKindWohnenSection', 'fmKindAusbildungSection', 'fmKindZulageSection', 'fmQstSection'].forEach(id => {
         const el = document.getElementById(id);
         const ohneQst = id === 'fmQstSection' && typeof kqvOhneQst === 'function' && kqvOhneQst();
         if (el) el.style.display = istKind && !ohneQst ? '' : 'none';
@@ -8771,10 +8771,20 @@ async function openAllowanceModal(existing, opts) {
         const feld = f.closest('.ma-field');
         if (feld) { feld.style.opacity = gesperrt ? '0.55' : ''; feld.style.pointerEvents = gesperrt ? 'none' : ''; }
     });
-    if (gesperrt && errEl && d.verwendetBis) {
-        const [vy, vm] = String(d.verwendetBis).split('-');
-        errEl.style.color = '#646464';
-        errEl.textContent = `🔒 Im abgeschlossenen Lohn ${vm}.${vy} verwendet — nur noch «Gültig bis», Dokument und Bemerkung änderbar. Ändert sich die Zulage später, oben «+ Änderung ab Datum» wählen.`;
+    const sperre = document.getElementById('alSperreHint');
+    if (sperre) {
+        if (gesperrt) {
+            Object.assign(sperre.style, { display: 'block', background: 'rgba(254,243,199,0.55)', border: '1px solid rgba(146,64,14,0.25)', color: '#78350f' });
+            sperre.innerHTML = `🔒 <b>Im abgeschlossenen Lohn ${alMonat(d.verwendetBis)} verwendet</b> — Zulage, «Gültig ab» und «Erfahren am» sind fest. `
+                + `Änderbar bleiben nur «Gültig bis» (rückwirkend beenden → Rückforderung im Lohnlauf), Beleg und Bemerkung. `
+                + `Ändert sich die Zulage: «+ Änderung ab Datum».`;
+        } else if (d.id) {
+            Object.assign(sperre.style, { display: 'block', background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(60,55,48,0.16)', color: '#646464' });
+            sperre.textContent = 'Noch in keinem definitiv abgeschlossenen Lohn verwendet — alle Felder änderbar.';
+        } else {
+            sperre.style.display = 'none';
+            sperre.textContent = '';
+        }
     }
     alRenderPostenHist(d.posten || []);
 
@@ -8811,15 +8821,59 @@ async function openAllowanceModal(existing, opts) {
  * Kindes, neueste zuoberst. Klick öffnet den Eintrag; «Änderung ab Datum» beendet
  * den gewählten Eintrag am Vortag und erfasst den neuen (Server: …/aenderung).
  */
+const AL_ARTEN = { KZ: 'Kinderzulage', AZ: 'Ausbildungszulage', GZ: 'Geburtszulage', AdoptZ: 'Adoptionszulage', HZ: 'Haushaltszulage', SONSTIGE: 'Sonstige' };
+function alDatum(iso) { const s = String(iso || ''); return s.length >= 10 ? `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}` : ''; }
+function alMonat(ym) { const s = String(ym || ''); return s.length >= 7 ? `${s.slice(5, 7)}.${s.slice(0, 4)}` : ''; }
+function alSortiert(liste) {
+    return [...(liste || [])].sort((a, b) =>
+        String(b.validFrom || '').localeCompare(String(a.validFrom || '')) || ((b.id || 0) - (a.id || 0)));
+}
+/** Heute laufende Zulage, sonst die zuletzt begonnene. */
+function alHeute(liste) {
+    const heute = localIso(new Date());
+    const s = alSortiert(liste);
+    return s.find(a => String(a.validFrom) <= heute && (!a.validTo || String(a.validTo) >= heute)) || s[0] || null;
+}
+
+/** Eine Zulage als Zeile — gleicher Aufbau wie «Wohnen & Unterhalt» (Kind-Fenster und Zulage-Fenster). */
+function alZeileHtml(a, { menu = '', aktiv = false, klick = '' } = {}) {
+    const heute = localIso(new Date());
+    const von = String(a.validFrom || '').slice(0, 10);
+    const bis = String(a.validTo || '').slice(0, 10);
+    const status = bis && bis < heute ? 'beendet' : (von > heute ? 'geplant' : 'läuft');
+    const farbe = status === 'läuft' ? '#166534' : (status === 'geplant' ? '#1d4ed8' : '#8b8b8b');
+    const hatSatz = a.tarifSatzNr != null && a.tarifSatzNr !== '';
+    const art = esc(a.allowanceType || 'Zulage');
+    const was = hatSatz ? `${art} Satz ${a.tarifSatzNr}` : `${art} · CHF ${Number(a.monthlyAmount || 0).toFixed(2)}`;
+    const name = AL_ARTEN[a.allowanceType] ? ` <span class="kqv-grau">(${AL_ARTEN[a.allowanceType]})</span>` : '';
+    const lohn = a.inLohnVerwendet
+        ? ` · <span title="Im abgeschlossenen Lohn verwendet — nur noch «Gültig bis», Beleg und Bemerkung änderbar">🔒 Lohn bis ${alMonat(a.verwendetBis)}</span>`
+        : '';
+    const dok = a.dokumentId
+        ? ` <a href="#" onclick="event.preventDefault();event.stopPropagation();openDirectDoc(${a.dokumentId})" title="Beleg ansehen">📄</a>`
+        : '';
+    const offen = (a.posten || []).filter(p => p.status === 'OFFEN' || p.status === 'VORJAHR').length;
+    const stil = [klick ? 'cursor:pointer' : '',
+                  aktiv ? 'background:rgba(255,255,255,0.55);box-shadow:inset 3px 0 0 #3f3f3f;padding-left:10px;border-radius:6px' : '']
+        .filter(Boolean).join(';');
+    return `<div class="kqv-zeile"${klick ? ` onclick="${klick}" title="Eintrag öffnen"` : ''}${stil ? ` style="${stil}"` : ''}>
+        <div class="kqv-text"><b>${alDatum(von)} – ${bis ? alDatum(bis) : 'offen'}</b> · ${was}${name}
+            · erfahren ${alDatum(a.erfahrenAm || von)} · <span style="color:${farbe}">${status}</span>${lohn}${dok}
+            ${offen ? `<div class="kqv-klein" style="color:#92400e">⚠ ${offen} frühere${offen === 1 ? 'r' : ''} Monat${offen === 1 ? '' : 'e'} offen — Prüffall im Lohnlauf</div>` : ''}
+            ${a.note ? `<div class="kqv-klein">${esc(a.note)}</div>` : ''}
+        </div>${menu}
+    </div>`;
+}
+
 async function alVerlaufLaden(aktivId) {
+    const wrap = document.getElementById('alVerlaufWrap');
     const box = document.getElementById('alVerlauf');
-    if (!box) return;
     window._alVerlaufListe = [];
-    box.style.display = 'none';
+    if (wrap) wrap.style.display = 'none';
+    if (!box || !editingFamilyMemberId) return;
     box.innerHTML = '';
-    if (!editingFamilyMemberId) return;
     try {
-        const res = await fetch(`/api/family-members/${editingFamilyMemberId}/allowances`, { headers: ah() });
+        const res = await fetch(`/api/family-members/${editingFamilyMemberId}/allowances`, { headers: ah(), cache: 'no-store' });
         if (!res.ok) return;
         window._alVerlaufListe = await res.json();
     } catch { return; }
@@ -8827,49 +8881,24 @@ async function alVerlaufLaden(aktivId) {
 }
 
 function alVerlaufRender(aktivId) {
+    const wrap = document.getElementById('alVerlaufWrap');
     const box = document.getElementById('alVerlauf');
-    const liste = [...(window._alVerlaufListe || [])].sort((a, b) =>
-        String(b.validFrom || '').localeCompare(String(a.validFrom || '')) || ((b.id || 0) - (a.id || 0)));
-    if (!box || liste.length === 0) return;
-    const heute = localIso(new Date());
-    const imAenderungsModus = !!window._alVorgaenger;
-    const rows = liste.map(a => {
-        const von = String(a.validFrom || '').slice(0, 10);
-        const bis = String(a.validTo || '').slice(0, 10);
-        const status = bis && bis < heute ? 'beendet' : (von > heute ? 'geplant' : 'läuft');
-        const statusFarbe = status === 'läuft' ? '#166534' : (status === 'geplant' ? '#1d4ed8' : '#8b8b8b');
-        const hatSatz = a.tarifSatzNr != null && a.tarifSatzNr !== '';
-        const art = esc(a.allowanceType || 'Zulage');
-        const was = hatSatz ? `${art} Satz ${a.tarifSatzNr}` : `${art} · CHF ${Number(a.monthlyAmount || 0).toFixed(2)}`;
-        const aktiv = a.id === aktivId;
-        const offen = (a.posten || []).filter(p => p.status === 'OFFEN' || p.status === 'VORJAHR').length;
-        const zeitraum = `${formatDate(von)} – ${bis ? formatDate(bis) : 'offen'}`;
-        const klick = imAenderungsModus ? '' : `onclick="alVerlaufOeffnen(${a.id})"`;
-        return `<div ${klick} title="${imAenderungsModus ? '' : 'Eintrag öffnen'}"
-                style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:10px;
-                       cursor:${imAenderungsModus ? 'default' : 'pointer'};
-                       border:1px solid ${aktiv ? '#3f3f3f' : 'rgba(60,55,48,0.16)'};
-                       background:${aktiv ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)'};
-                       ${status === 'beendet' && !aktiv ? 'opacity:0.7;' : ''}">
-            <span style="min-width:170px;font-variant-numeric:tabular-nums">${zeitraum}</span>
-            <span style="flex:1;font-weight:${aktiv ? 700 : 600}">${a.inLohnVerwendet ? '🔒 ' : ''}${a.dokumentId ? '📄 ' : ''}${was}</span>
-            ${offen ? `<span style="font-size:11px;font-weight:700;color:#92400e" title="Frühere Monate offen — Warnung im Lohnlauf">⚠ ${offen}</span>` : ''}
-            <span style="font-size:11px;color:${statusFarbe};font-weight:600">${status}</span>
-        </div>`;
-    }).join('');
-    const idAktuell = document.getElementById('alId')?.value;
-    const knopf = !imAenderungsModus && idAktuell
-        ? `<button type="button" class="btn btn-outline" style="padding:4px 12px;font-size:12px;border-radius:12px"
-                   onclick="alAenderungStarten(${parseInt(idAktuell, 10)})"
-                   title="Die gewählte Zulage endet am Vortag, ab dem neuen Datum gilt die neue (z.B. anderer Satz oder KZ → AZ).">+ Änderung ab Datum</button>`
+    const liste = alSortiert(window._alVerlaufListe);
+    if (!wrap || !box || liste.length === 0) return;
+    const aenderung = !!window._alVorgaenger;
+    const zeilen = liste.map(a => alZeileHtml(a, {
+        aktiv: a.id === aktivId,
+        klick: aenderung || a.id === aktivId ? '' : `alVerlaufOeffnen(${a.id})`,
+    })).join('');
+    const idAktuell = parseInt(document.getElementById('alId')?.value || '', 10);
+    const knopf = !aenderung && idAktuell
+        ? `<div class="kqv-fuss"><button type="button" class="kqv-btn-neu" onclick="alAenderungStarten(${idAktuell})"
+               title="Die gewählte Zulage endet am Vortag, ab dem neuen Datum gilt die neue (z.B. anderer Satz oder KZ → AZ).">+ Änderung ab Datum</button></div>`
         : '';
-    box.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <div class="emp-section-title" style="margin:0">Verlauf (${liste.length})</div>
-            <span style="margin-left:auto">${knopf}</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#3f3f3f">${rows}</div>`;
-    box.style.display = '';
+    box.innerHTML = zeilen + knopf;
+    const titel = wrap.querySelector('.emp-section-title');
+    if (titel) titel.textContent = liste.length > 1 ? `Verlauf (${liste.length})` : 'Verlauf';
+    wrap.style.display = '';
 }
 
 function alVerlaufOeffnen(id) {
@@ -8877,7 +8906,7 @@ function alVerlaufOeffnen(id) {
     if (e) openAllowanceModal(e);
 }
 
-function alAenderungStarten(id) {
+function alAenderungStarten(id, dokumentId = null) {
     const alt = (window._alVerlaufListe || []).find(a => a.id === id);
     if (!alt) return;
     openAllowanceModal({
@@ -8887,7 +8916,7 @@ function alAenderungStarten(id) {
         allowanceType: alt.allowanceType,
         tarifSatzNr: alt.tarifSatzNr,
         note: alt.note,
-        dokumentId: null,
+        dokumentId,
     }, { vorgaenger: alt });
     setTimeout(() => document.getElementById('alValidFrom')?.focus(), 50);
 }
@@ -8898,18 +8927,18 @@ function alAenderungHinweis() {
     const alt = window._alVorgaenger;
     if (!alt) { el.style.display = 'none'; el.textContent = ''; return; }
     const ab = document.getElementById('alValidFrom')?.value;
-    const seit = formatDate(alt.validFrom);
-    let text = `Bisherige Zulage seit ${seit}: `;
+    const seit = alDatum(alt.validFrom);
+    let text = `Bisherige Zulage ${alt.allowanceType || ''}${alt.tarifSatzNr != null ? ' Satz ' + alt.tarifSatzNr : ''} seit ${seit}: `;
     if (!ab) {
-        text += 'bitte «Gültig ab» der Änderung eingeben — die bisherige endet dann am Vortag. Neuen FAK-Entscheid unten wählen.';
+        text += 'bitte «Gültig ab» der Änderung eingeben — die bisherige endet dann am Vortag. «Erfahren am» = wann der neue Entscheid eingetroffen ist; neuen FAK-Entscheid unten wählen.';
     } else {
         const v = new Date(ab + 'T00:00:00');
         v.setDate(v.getDate() - 1);
         const ende = localIso(v);
         const altBis = String(alt.validTo || '').slice(0, 10);
         text += altBis && altBis < ab
-            ? `endet ohnehin am ${formatDate(altBis)} — sie bleibt unverändert.`
-            : `endet am ${formatDate(ende)}, ab ${formatDate(ab)} gilt die neue.`;
+            ? `endet ohnehin am ${alDatum(altBis)} — sie bleibt unverändert.`
+            : `endet am ${alDatum(ende)}, ab ${alDatum(ab)} gilt die neue.`;
     }
     el.textContent = text;
     el.style.display = '';
@@ -9213,6 +9242,7 @@ async function saveAllowance() {
     const dokumentId = dokRaw === '' ? null : parseInt(dokRaw, 10);
 
     if (!validFrom)        { err.textContent = 'Gültig ab ist Pflicht.';        return; }
+    if (!erfahrenAm)       { err.textContent = '«Erfahren am» ist Pflicht — wann der Entscheid bei uns eingetroffen ist.'; return; }
     if (!Number.isFinite(monthly) || monthly < 0) {
         err.textContent = 'Bitte eine Zulage aus der Liste wählen.'; return;
     }
@@ -9227,7 +9257,7 @@ async function saveAllowance() {
     }
     const vorgaenger = !id ? window._alVorgaenger : null;
     if (vorgaenger && validFrom <= String(vorgaenger.validFrom || '').slice(0, 10)) {
-        err.textContent = `Die Änderung muss nach dem Beginn der bisherigen Zulage (${formatDate(vorgaenger.validFrom)}) liegen.`; return;
+        err.textContent = `Die Änderung muss nach dem Beginn der bisherigen Zulage (${alDatum(vorgaenger.validFrom)}) liegen.`; return;
     }
 
     const payload = {
@@ -9288,6 +9318,7 @@ async function saveAllowance() {
         }
         closeAllowanceModal();
         loadFamilyAllowances(editingFamilyMemberId);
+        if (typeof kqvZulagenNeu === 'function') kqvZulagenNeu(editingFamilyMemberId);
         // Walter 18.05.2026: Familie-Tab neu laden, damit die Inline-Zulagen
         // in der Kind-Card aktualisiert sind.
         if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) {
@@ -9314,6 +9345,7 @@ async function deleteAllowance() {
         }
         closeAllowanceModal();
         loadFamilyAllowances(editingFamilyMemberId);
+        if (typeof kqvZulagenNeu === 'function') kqvZulagenNeu(editingFamilyMemberId);
         if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) {
             loadFamilieTab(selectedEmployeeId);
         }

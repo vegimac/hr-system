@@ -10434,7 +10434,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/qst-modal.js?v=20261011b"></script>
 <script src="js/users.js?v=20260911a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
-<script src="js/documents.js?v=20261003b"></script>
+<script src="js/documents.js?v=20261011a"></script>
 <script src="js/dvelop-import.js?v=20261001a"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260805a"></script>
@@ -10830,6 +10830,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div id="kqvMountAusbildung" class="kqv-box"></div>
             </div>
 
+            <!-- ── Kind: Familienzulage (Walter 11.10.2026, wie Wohnen & Unterhalt) ── -->
+            <div id="fmKindZulageSection" style="display:none">
+                <div class="emp-section-title">Familienzulage</div>
+                <div id="kqvMountZulage" class="kqv-box"></div>
+            </div>
+
             <!-- Walter 18.05.2026: Zulagen-Block aus dem Familienmember-Modal
                  entfernt — Zulagen werden jetzt INLINE pro Kind in der
                  Familie-Tab gerendert (renderFamilieTab + Promise.all). Die
@@ -11049,11 +11055,15 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         <div class="ma-modal-body">
             <input type="hidden" id="alId">
 
-            <div id="alVerlauf" style="display:none;margin-bottom:6px"></div>
+            <div id="alVerlaufWrap" style="display:none;margin-bottom:10px">
+                <div class="emp-section-title">Verlauf</div>
+                <div id="alVerlauf" class="kqv-box"></div>
+            </div>
+            <div id="alSperreHint" style="display:none;font-size:12px;line-height:1.4;border-radius:10px;padding:8px 10px;margin-bottom:8px"></div>
             <div id="alAenderungHint" style="display:none;font-size:12px;color:#3f3f3f;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:8px 10px;margin-bottom:8px;line-height:1.4"></div>
 
             <div class="emp-section-title">Gültigkeit</div>
-            <div class="ma-grid cols-2">
+            <div class="ma-grid cols-3">
                 <div class="ma-field">
                     <div class="ma-field-label">Gültig ab *</div>
                     <input type="date" id="alValidFrom" class="ma-input">
@@ -11063,12 +11073,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <input type="date" id="alValidTo" class="ma-input">
                 </div>
                 <div class="ma-field">
-                    <div class="ma-field-label">Erfahren am</div>
+                    <div class="ma-field-label">Erfahren am *</div>
                     <input type="date" id="alErfahrenAm" class="ma-input"
                            title="Wann OneCrew vom Anspruch erfahren hat. Wird beim Eingeben von «Gültig ab» gleich gesetzt, kann danach geändert werden.">
-                    <div style="font-size:10.5px;color:#8b8b8b;margin-top:4px;line-height:1.35">Vorschlag = «Gültig ab». Ab diesem Monat zahlt der Lohn automatisch; frühere Monate → Warnung im Lohnlauf.</div>
                 </div>
             </div>
+            <div style="font-size:11px;color:#8b8b8b;margin-top:4px;line-height:1.4">«Erfahren am» = wann der Entscheid bei uns eingetroffen ist (Vorschlag: «Gültig ab»). Ab diesem Monat zahlt der Lohn; frühere Monate erscheinen im Lohnlauf als Korrektur zum Prüfen.</div>
 
             <div class="emp-section-title">Zulage</div>
             <div class="ma-grid cols-1">
@@ -11165,8 +11175,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261011m"></script>
-<script src="js/kind-qst-verlauf.js?v=20261011g"></script>
+<script src="employees.js?v=20261011n"></script>
+<script src="js/kind-qst-verlauf.js?v=20261011h"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 

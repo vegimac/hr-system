@@ -27,6 +27,7 @@ Upload-Weg (`openDokUploadModal` ohne Verknüpfen-Knopf) benutzt.
 | Vertrag | ja | Dokument hängt am gewählten Vertragsabschnitt; das alte Dokument bleibt beim alten Vertrag |
 | Familie noch nicht erfasst | – | «Ausweis neue/r Partner/in», «Ausweis neues Kind», «Geburtsurkunde neues Kind» öffnen das Familien-Formular; nach dem Speichern hängt das Dokument am neuen Eintrag |
 | Bank, Absenz | ja | bestehendes Konto/Absenz wählen (Rückfrage, wenn schon ein Beleg da ist) oder neu erfassen |
+| Familienzulage (Walter 11.10.2026) | ja | unter «Familie»: je Kind die drei jüngsten Zulagen (FAK-Entscheid hängt an genau dieser Zulage) und «Familienzulage neu / Änderung» (öffnet das Zulage-Fenster mit dem Entscheid; hat das Kind schon eine Zulage → «Änderung ab Datum»). Feld-Code `family_allowance` → «Lohn / Arbeitszeit › Kinderzulagen» (Start-Schritt Schema-Stand 62) |
 
 - **Mehrfachauswahl:** ein Dokument kann an mehreren Angaben hängen (z.B. ein
   Scan mit Ausweis und AHV-Karte). Formulare (neue Bewilligung/Bank/Absenz),

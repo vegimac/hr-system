@@ -102,6 +102,35 @@ public class DokumentAblageTests
     }
 
     [Fact]
+    public async Task Familienzulage_ist_Ablageziel_und_wird_an_der_Zulage_verknüpft()
+    {
+        var (db, _) = MitMa(nameof(Familienzulage_ist_Ablageziel_und_wird_an_der_Zulage_verknüpft));
+        db.EmployeeFamilyMembers.Add(new EmployeeFamilyMember { Id = 3, EmployeeId = 10, MemberType = "Kind", FirstName = "Lea", LastName = "Muster" });
+        db.EmployeeFamilyMembers.Add(new EmployeeFamilyMember { Id = 4, EmployeeId = 11, MemberType = "Kind", FirstName = "Fremd" });
+        db.FamilyMemberAllowances.Add(new FamilyMemberAllowance { Id = 20, FamilyMemberId = 3, AllowanceType = "AZ", TarifSatzNr = 1, MonthlyAmount = 278m, ValidFrom = new DateOnly(2026, 1, 1), ValidTo = new DateOnly(2026, 7, 31) });
+        db.FamilyMemberAllowances.Add(new FamilyMemberAllowance { Id = 21, FamilyMemberId = 4, AllowanceType = "KZ", MonthlyAmount = 215m, ValidFrom = new DateOnly(2026, 1, 1) });
+        await db.SaveChangesAsync();
+        var service = new DokumentAblageService(db);
+
+        var optionen = (await service.OptionenAsync(10))!;
+        var zulage = optionen.Single(o => o.Key == "familienzulage:20");
+        Assert.Equal("Familie", zulage.Gruppe);
+        Assert.Equal("family_allowance", zulage.Code);
+        Assert.True(zulage.Historie);
+        Assert.Equal("Lea Muster · AZ Satz 1 · 01.01.2026 – 31.07.2026", zulage.Sub);
+        Assert.True(optionen.Single(o => o.Key == "familienzulage_neu:3").Formular);
+        Assert.DoesNotContain(optionen, o => o.Key == "familienzulage:21");
+
+        var (fehler, _) = await service.VerknuepfeAsync(10, 700, new[] { "familienzulage:20" });
+        Assert.Null(fehler);
+        await db.SaveChangesAsync();
+        Assert.Equal(700, (await db.FamilyMemberAllowances.SingleAsync(z => z.Id == 20)).DokumentId);
+
+        var (fremd, _) = await service.VerknuepfeAsync(10, 700, new[] { "familienzulage:21" });
+        Assert.NotNull(fremd);
+    }
+
+    [Fact]
     public async Task Kündigung_ist_Ablageziel_und_wird_verknüpft()
     {
         var (db, ma) = MitMa(nameof(Kündigung_ist_Ablageziel_und_wird_verknüpft));
