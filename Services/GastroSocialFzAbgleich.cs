@@ -99,6 +99,8 @@ public static class GastroSocialFzAbgleich
         public int? FamilyMemberId { get; set; }
         public string? MatchArt { get; set; }
         public string? Hinweis { get; set; }
+        /// <summary>AHV-Nummer des Kindes laut GastroSocial, wenn sie in OneCrew fehlt und gültig ist — «übernehmen».</summary>
+        public string? KindAhvUebernehmen { get; set; }
     }
 
     public class Ergebnis
@@ -293,6 +295,10 @@ public static class GastroSocialFzAbgleich
             gefundeneKinder.Add(g.kind.Id);
             t.FamilyMemberId = g.kind.Id;
             t.Kind = $"{g.kind.Vorname} {g.kind.Nachname}".Trim();
+            if (NormAhv(g.kind.Ahv).Length == 0)
+                t.KindAhvUebernehmen = g.zeilen.Select(z => z.KindAhv)
+                    .Where(a => Elm.ElmPlausibilitaet.AhvPruefzifferStimmt(a ?? ""))
+                    .Select(FormatAhv).FirstOrDefault();
 
             var gsMonate = new Dictionary<DateOnly, decimal>();
             foreach (var z in g.zeilen.Where(z => !z.Einmalig && z.Von != null && z.Bis != null))

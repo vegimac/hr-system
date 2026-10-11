@@ -146,6 +146,30 @@ public class GastroSocialFzAbgleichTests
     }
 
     [Fact]
+    public void Fehlende_Kind_AHV_kann_uebernommen_werden()
+    {
+        var ma = MaMit(Zl(new(2026, 1, 1), null, 225));
+        ma.Kinder[0].Ahv = null;
+        var r = Vergleiche(new[] { Gs(Jan, Dez, 225, kindAhv: "756.9876.5432.17") }, new[] { ma });
+        var t = Assert.Single(r.Passt);
+        Assert.Equal("756.9876.5432.17", t.KindAhvUebernehmen);
+        Assert.Contains("AHV-Nummer des Kindes fehlt", t.Hinweis);
+    }
+
+    [Fact]
+    public void Ungueltige_oder_abweichende_Kind_AHV_wird_nicht_angeboten()
+    {
+        var ohne = MaMit(Zl(new(2026, 1, 1), null, 225));
+        ohne.Kinder[0].Ahv = null;
+        var r1 = Vergleiche(new[] { Gs(Jan, Dez, 225, kindAhv: "756.9876.5432.10") }, new[] { ohne });
+        Assert.Null(Assert.Single(r1.Passt).KindAhvUebernehmen);
+
+        var anders = MaMit(Zl(new(2026, 1, 1), null, 225));
+        var r2 = Vergleiche(new[] { Gs(Jan, Dez, 225, kindAhv: "756.1111.2222.39") }, new[] { anders });
+        Assert.Null(Assert.Single(r2.Passt).KindAhvUebernehmen);
+    }
+
+    [Fact]
     public void Monatsbereiche_werden_zusammengefasst()
     {
         var m = new[] { new DateOnly(2026, 1, 1), new DateOnly(2026, 2, 1), new DateOnly(2026, 5, 1) };

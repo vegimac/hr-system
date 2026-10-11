@@ -125,4 +125,31 @@ public class GastroSocialFzAbgleichController : ControllerBase
         var res = GastroSocialFzAbgleich.Vergleiche(zeilen, alle);
         return Ok(new { filiale = filialName, ergebnis = res });
     }
+
+    public record KindAhvDto(int FamilyMemberId, string? Ahv);
+
+    /// <summary>
+    /// AHV-Nummer des Kindes aus der Bescheinigung übernehmen (Walter 12.10.2026).
+    /// Nur wenn beim Kind noch keine steht — eine abweichende Nummer wird nie überschrieben.
+    /// </summary>
+    [HttpPost("kind-ahv")]
+    public async Task<IActionResult> KindAhvUebernehmen([FromBody] KindAhvDto dto, CancellationToken ct = default)
+    {
+        var ahv = GastroSocialAbgleich.FormatAhv(dto.Ahv);
+        if (ahv == null || !Services.Elm.ElmPlausibilitaet.AhvPruefzifferStimmt(ahv))
+            return BadRequest(new { error = "AHV_UNGUELTIG", message = "AHV-Nummer ungültig (Prüfziffer)." });
+        var kind = await _db.EmployeeFamilyMembers.FirstOrDefaultAsync(f => f.Id == dto.FamilyMemberId, ct);
+        if (kind == null)
+            return NotFound(new { error = "KIND_NICHT_GEFUNDEN", message = "Familienmitglied nicht gefunden." });
+        if (!string.IsNullOrWhiteSpace(kind.SocialSecurityNumber))
+        {
+            if (GastroSocialAbgleich.NormAhv(kind.SocialSecurityNumber) == GastroSocialAbgleich.NormAhv(ahv))
+                return Ok(new { ahv = kind.SocialSecurityNumber });
+            return Conflict(new { error = "AHV_SCHON_ERFASST", message = $"Beim Kind ist bereits eine andere AHV-Nummer erfasst ({kind.SocialSecurityNumber}) — bitte im MA → Familie prüfen." });
+        }
+        kind.SocialSecurityNumber = ahv;
+        kind.UpdatedAt = DateTime.Now;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { ahv });
+    }
 }

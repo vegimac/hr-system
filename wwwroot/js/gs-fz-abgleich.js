@@ -196,7 +196,9 @@ function gsfRenderRows() {
                 const diff = z.gsTotal != null && z.ocTotal != null && Number(z.gsTotal) !== Number(z.ocTotal);
                 return `<tr style="border-top:1px solid #eee">
                     ${td(`<div style="font-weight:600">${esc(z.bezueger || z.oneCrewName || '—')}</div><div style="font-size:11px;color:#94a3b8;font-family:monospace">${esc(z.bezuegerAhv || '')}</div>`)}
-                    ${td(`<div style="font-weight:600">${esc(z.kind || '—')}</div><div style="font-size:11px;color:#94a3b8;font-family:monospace">${esc(z.kindAhv || '')}</div>`)}
+                    ${td(`<div style="font-weight:600">${esc(z.kind || '—')}</div><div style="font-size:11px;color:#94a3b8;font-family:monospace">${esc(z.kindAhv || '')}</div>${z.kindAhvUebernehmen && z.familyMemberId
+                        ? `<button class="dok-menu-btn" style="min-width:auto;padding:2px 8px;font-size:11px;margin-top:4px" onclick="gsfKindAhvUebernehmen('${filter}',${z.familyMemberId})" title="AHV-Nummer von GastroSocial beim Kind in OneCrew eintragen">＋ AHV übernehmen</button>`
+                        : ''}`)}
                     ${td(gsfDate(z.kindGeburt), 'white-space:nowrap')}
                     ${td(z.gastroSocial ? esc(z.gastroSocial) : '<span style="color:#94a3b8">keine</span>', 'font-size:12px')}
                     ${td(z.gsTotal != null && filter !== 'nurOneCrew' ? gsfChf(z.gsTotal) : '—', 'text-align:right;white-space:nowrap')}
@@ -209,6 +211,28 @@ function gsfRenderRows() {
                 </tr>`;
             }).join('')}</tbody>
         </table>`;
+}
+
+async function gsfKindAhvUebernehmen(liste, memberId) {
+    const z = (_gsfData?.[liste] || []).find(x => x.familyMemberId === memberId);
+    if (!z?.kindAhvUebernehmen) return;
+    if (!(await liquidConfirm(`AHV-Nummer ${z.kindAhvUebernehmen} bei ${z.kind || 'diesem Kind'} in OneCrew eintragen?`,
+            { title: 'AHV-Nummer übernehmen', yesLabel: 'Eintragen', noLabel: 'Abbrechen' }))) return;
+    try {
+        const r = await fetch('/api/imports/gastrosocial-fz-abgleich/kind-ahv', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ familyMemberId: memberId, ahv: z.kindAhvUebernehmen })
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { gsfFehler(j.message || j.error || ('Fehler ' + r.status)); return; }
+        z.kindAhvUebernehmen = null;
+        z.hinweis = (z.hinweis || '').split(' · ').filter(h => !h.startsWith('AHV-Nummer des Kindes fehlt')).join(' · ') || null;
+        if (typeof showToast === 'function') showToast(`AHV-Nummer bei ${z.kind || 'Kind'} eingetragen.`, 'success');
+        gsfRenderRows();
+    } catch (e) {
+        gsfFehler('Verbindung fehlgeschlagen: ' + e.message);
+    }
 }
 
 function gsfOpenEmployee(id) {

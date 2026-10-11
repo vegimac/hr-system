@@ -6068,10 +6068,12 @@ function fmQstBlocksVisibility(type) {
         if (typeof kqvAusbildungSichtbarkeit === 'function') kqvAusbildungSichtbarkeit();
     }
     // Walter-Vorgabe 29.08.2026: beim KIND unnötige Felder ausblenden —
-    // Ledigname, AHV-Nummer, Telefon, Bewilligung, Gültig bis, ZEMIS-Nr.
+    // Ledigname, Telefon, Bewilligung, Gültig bis, ZEMIS-Nr.
+    // Die AHV-Nummer bleibt sichtbar (Walter 12.10.2026: Kinder haben eine,
+    // GastroSocial führt die Familienzulage darüber).
     // Verborgene Inputs behalten ihre Werte (kein Datenverlust
     // beim Bearbeiten von Alt-Erfassungen).
-    ['fmMaidenNameField', 'fmSsnField', 'fmPhoneField', 'fmZemisField'].forEach(id => {
+    ['fmMaidenNameField', 'fmPhoneField', 'fmZemisField'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = istKind ? 'none' : '';
     });
