@@ -11919,6 +11919,7 @@ function rowMenuCloseAll() {
         m.style.left = '';
         m.style.right = '';
         m.style.bottom = '';
+        m.style.removeProperty('z-index');
         const orig = m._rowOrigParent;
         if (orig && orig !== m.parentElement && orig.isConnected) {
             orig.appendChild(m);
@@ -11942,6 +11943,8 @@ function rowMenuToggle(event, prefix, id) {
         document.body.appendChild(menu);
     }
     menu.style.position = 'fixed';
+    // Über jedem Fenster (Familien-Fenster z-index 2000; CSS setzt 400 !important).
+    menu.style.setProperty('z-index', '9700', 'important');
     menu.style.right = 'auto';
     menu.style.bottom = 'auto';
     menu.style.left = '-9999px';
