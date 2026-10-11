@@ -1119,7 +1119,7 @@ async function kuGenerate() {
         }
         const blob = await r.blob();
         const cd = r.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename="?([^"]+)"?/);
+        const m = cd.match(/filename="?([^";]+)"?/);
         const fn = m ? m[1] : `Kuendigung_${id}.pdf`;
         if (typeof previewFileModal === 'function') previewFileModal(blob, fn);
         else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, fn);

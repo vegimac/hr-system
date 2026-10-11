@@ -3614,7 +3614,7 @@ async function openNachtEignungPdf(empId) {
         }
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename="?([^"]+)"?/);
+        const m = cd.match(/filename="?([^";]+)"?/);
         const filename = m ? m[1] : `Nachtarbeit_Eignung_${empId}.pdf`;
         if (typeof previewFileModal === 'function') previewFileModal(blob, filename);
         else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);
@@ -3636,7 +3636,7 @@ async function openNachtVerzichtPdf(empId) {
         }
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename="?([^"]+)"?/);
+        const m = cd.match(/filename="?([^";]+)"?/);
         const filename = m ? m[1] : `Nachtarbeit_Verzicht_${empId}.pdf`;
         if (typeof previewFileModal === 'function') previewFileModal(blob, filename);
         else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);
@@ -3659,7 +3659,7 @@ async function openNachtAusnahmePdf(empId) {
         }
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename="?([^"]+)"?/);
+        const m = cd.match(/filename="?([^";]+)"?/);
         const filename = m ? m[1] : `Nachtarbeit_Ausnahme_${empId}.pdf`;
         if (typeof previewFileModal === 'function') previewFileModal(blob, filename);
         else if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, filename);

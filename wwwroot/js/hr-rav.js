@@ -140,7 +140,7 @@ async function zviGeneratePdf() {
         _zviPdfBlobUrl = URL.createObjectURL(blob);
         _zviPdfEmpId   = empId;
         const cd = res.headers.get('Content-Disposition') || '';
-        const m  = /filename="?([^"]+)"?/.exec(cd);
+        const m  = /filename="?([^";]+)"?/.exec(cd);
         _zviPdfFilename = m ? m[1] : `zwischenverdienst-${empId}-${jahr}-${String(monat).padStart(2,'0')}.pdf`;
 
         const opt = sel.options[sel.selectedIndex];

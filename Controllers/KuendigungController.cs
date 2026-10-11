@@ -173,7 +173,7 @@ public class KuendigungController : ControllerBase
         var bytes = _pdf.Generate(data, sigPng);
         // PDF allein speichert nichts am MA (Walter 21.07.2026) —
         // Eintrag «Gekündigt am / per» nur via POST …/eintragen.
-        return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigung.pdf");
+        return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Kuendigung-{kdat:MMyyyy}.pdf");
     }
 
     public class KuendigungEintragenDto

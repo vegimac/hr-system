@@ -1413,7 +1413,7 @@ async function downloadContractPdf() {
         if (!res.ok) { alert('Fehler beim PDF: ' + await res.text()); return; }
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
-        const match = cd.match(/filename="?([^"]+)"?/);
+        const match = cd.match(/filename="?([^";]+)"?/);
         await previewFileModal(blob, match ? match[1] : 'Vertrag.pdf');
         vtInjectSignerSelector(employmentId);
     } catch (err) { alert('Fehler: ' + err.message); }

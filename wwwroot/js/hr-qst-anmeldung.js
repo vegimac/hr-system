@@ -279,7 +279,7 @@ async function qstaActuallyGenerate(empId) {
         _qstaPdfEmpId   = empId;
         // Dateiname aus Content-Disposition holen
         const cd = res.headers.get('Content-Disposition') || '';
-        const m  = /filename="?([^"]+)"?/.exec(cd);
+        const m  = /filename="?([^";]+)"?/.exec(cd);
         _qstaPdfFilename = m ? m[1] : `qst-anmeldung-${empId}.pdf`;
 
         // Modal vorbereiten

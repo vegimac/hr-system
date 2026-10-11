@@ -301,7 +301,7 @@ async function downloadContractPdfById(employeeId, contractId) {
         if (!res.ok) { alert('Fehler beim PDF: ' + await res.text()); return; }
         const blob = await res.blob();
         const cd   = res.headers.get('Content-Disposition') || '';
-        const match = cd.match(/filename="?([^"]+)"?/);
+        const match = cd.match(/filename="?([^";]+)"?/);
         await previewFileModal(blob, match ? match[1] : 'Vertrag.pdf');
         // Unterzeichner-Umschalter (Walter 23.08.2026, global aus contracts-edit.js).
         if (typeof vtInjectSignerSelector === 'function') vtInjectSignerSelector(contractId);
@@ -908,7 +908,7 @@ async function azGenerate() {
         }
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename="?([^"]+)"?/);
+        const m = cd.match(/filename="?([^";]+)"?/);
         document.getElementById('azModal').remove();
         if (_azEntwurf && typeof pbLoadList === 'function') { try { pbLoadList(); } catch (_) {} }
         if (_azEntwurf && typeof showToast === 'function')
