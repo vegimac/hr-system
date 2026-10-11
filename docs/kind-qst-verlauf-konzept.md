@@ -258,6 +258,10 @@ Kein Hinweis ändert selbständig eine QST-Version oder eine Zulage.
   Sorge, erwerbsunfähig), Wohnen & Unterhalt (Verlauf + Wohnadresse mit Land), Ausbildung,
   Quellensteuer (Ergebnis + Entscheide). Siehe `docs/famz-anmeldung-konzept.md`. `qst_deductible_from/until` werden nicht mehr gepflegt
   (Altbestand → QST-Entscheide, Swissdec-Testdaten schreiben Entscheide mit Quelle «SWISSDEC»).
+  Vereinfacht (Walter 11.10.2026: «beim Kind nicht zuviel über QST — nur das Notwendigste»):
+  kein Block «Aufenthalt» beim Kind; Ausbildung erst ab 15 Jahren oder wenn etwas erfasst ist;
+  Unterhalts-Hinweis nur bei «Unterhalt nein»; Quellensteuer = eine Zeile «Zählt für die
+  Kinderziffer» + Warnungen, Entscheide nur, wenn vorhanden (Knopf «+ Entscheid der Steuerverwaltung»).
 - **Ausbildungszulage ohne QST-Ausbildung:** Hinweis an der Karte und im QST-Pflicht-Check,
   im Familien-Fenster Knopf «Als QST-Ausbildung übernehmen» (Zeitraum + Beleg der Zulage).
 

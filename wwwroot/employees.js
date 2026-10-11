@@ -6057,11 +6057,14 @@ function fmQstBlocksVisibility(type) {
         const el = document.getElementById(id);
         if (el) el.style.display = istKind ? '' : 'none';
     });
-    ['fmAufenthaltGrid', 'fmAdresseSection'].forEach(id => {
+    ['fmAufenthaltTitel', 'fmOcrInfo', 'fmAufenthaltGrid', 'fmAdresseSection'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = istKind ? 'none' : '';
     });
-    if (istKind) { fmAeOptionen(); fmKindAdresseSichtbarkeit(); }
+    if (istKind) {
+        fmAeOptionen(); fmKindAdresseSichtbarkeit();
+        if (typeof kqvAusbildungSichtbarkeit === 'function') kqvAusbildungSichtbarkeit();
+    }
     // Walter-Vorgabe 29.08.2026: beim KIND unnötige Felder ausblenden —
     // Ledigname, AHV-Nummer, Telefon, Bewilligung, Gültig bis, ZEMIS-Nr.
     // Verborgene Inputs behalten ihre Werte (kein Datenverlust
@@ -6178,8 +6181,6 @@ function fmAeHinweisAktualisieren() {
     if (sel.value === '') teile.push('Fehlt die Person? Zuerst als «Anderer Elternteil» erfassen — wichtig für die Familienzulagen.');
     if (ae && ae.erwerbstaetig === true && ae.maHatHoeheresEinkommen === false)
         teile.push(`<span style="color:#92400e">⚠ ${esc(name)} verdient mehr — in der Regel bezieht ${esc(name)} die Kinderzulage (Erstanspruch).</span>`);
-    if (ae && ae.memberType === 'Konkubinatspartner')
-        teile.push('Gemeinsames Kind mit dem Konkubinatspartner — für die QST gilt die H1/A0-Einkommensregel.');
     box.innerHTML = teile.join('<br>');
 }
 

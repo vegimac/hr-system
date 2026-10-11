@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261011b">
+    <link rel="stylesheet" href="css/app.css?v=20261011c">
 </head>
 <body>
 
@@ -10496,7 +10496,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
                 <div class="fmf-field">
                     <label class="fmf-label"><span data-i18n="fam.field.dob">Geburtsdatum</span> <span id="fmAgeDisplay" style="font-weight:400;color:#94a3b8;margin-left:6px"></span></label>
-                    <input class="fmf-input" id="fmDateOfBirth" type="date" data-yp="birth" oninput="updateFmAgeDisplay();fmAutoQstFromDob()">
+                    <input class="fmf-input" id="fmDateOfBirth" type="date" data-yp="birth" oninput="updateFmAgeDisplay();fmAutoQstFromDob();if(typeof kqvAusbildungSichtbarkeit==='function')kqvAusbildungSichtbarkeit()">
                 </div>
                 <div class="fmf-field" id="fmSsnField">
                     <label class="fmf-label" data-i18n="fam.field.ahv">AHV-Nummer</label>
@@ -10572,7 +10572,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  Walter-Vorgabe 07.06.2026: Doku-Button neben dem Section-Titel
                  (nur beim Ehepartner sichtbar — `linked_field_code='spouse_permit'`).
                  ID `fmPermitDocBtn` wird in openFamilyModal befüllt. -->
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            <div class="emp-section-title" id="fmAufenthaltTitel" style="display:flex;align-items:center;justify-content:space-between">
                 <span data-i18n="fam.section.permit">Aufenthalt</span>
                 <!-- Walter-Vorgabe 07.06.2026: kein automatischer „Doku"-Lookup
                      mehr — der Upload geht über das normale Dokument-Modal,
@@ -10767,7 +10767,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         </select>
                     </div>
                 </div>
-                <div id="kqvMountWohnen"></div>
+                <div id="kqvMountWohnen" class="kqv-box"></div>
                 <div id="fmKindAdresseBox" style="display:none;margin-top:8px">
                     <label class="fmf-label">Wohnadresse des Kindes <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(mit Land — fürs Formular Familienzulagen)</span></label>
                     <div class="fmf-addr-alt-row">
@@ -10783,7 +10783,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <!-- ── Kind: Ausbildung ── -->
             <div id="fmKindAusbildungSection" style="display:none">
                 <div class="emp-section-title">Ausbildung</div>
-                <div id="kqvMountAusbildung"></div>
+                <div id="kqvMountAusbildung" class="kqv-box"></div>
             </div>
 
             <!-- Walter 18.05.2026: Zulagen-Block aus dem Familienmember-Modal
@@ -10979,7 +10979,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <!-- QST-Verlauf am Kind (Walter 11.10.2026, docs/kind-qst-verlauf-konzept.md):
                  Ergebnis + QST-Entscheide; Ausbildung und Wohnen/Unterhalt stehen
                  in eigenen Blöcken darüber — js/kind-qst-verlauf.js. -->
-            <div id="fmQstVerlauf"></div>
+            <div id="fmQstVerlauf" class="kqv-box"></div>
             </div>
         </div>
         <div class="family-modal-foot">
@@ -11118,8 +11118,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261011h"></script>
-<script src="js/kind-qst-verlauf.js?v=20261011b"></script>
+<script src="employees.js?v=20261011i"></script>
+<script src="js/kind-qst-verlauf.js?v=20261011c"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 

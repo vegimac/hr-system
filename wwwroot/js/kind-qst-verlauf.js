@@ -21,6 +21,29 @@ function kqvFehler(msg) {
 // Seit 11.10.2026 in drei Blöcken der Kind-Maske: «Wohnen & Unterhalt»
 // (#kqvMountWohnen), «Ausbildung» (#kqvMountAusbildung), «Quellensteuer»
 // (#fmQstVerlauf: Ergebnis + Entscheide).
+/** Heute gültige Version «Wohnen & Unterhalt» (sonst die erste). */
+function kqvVerhaeltnisHeute(liste) {
+    if (!liste || !liste.length) return null;
+    const heute = new Date().toISOString().slice(0, 10);
+    return [...liste].filter(v => (v.gueltigAb || '') <= heute)
+        .sort((x, y) => String(y.gueltigAb).localeCompare(String(x.gueltigAb)))[0] || liste[0];
+}
+
+/** Ausbildung erst ab 15 zeigen (Ausbildungszulage ab 16) — oder wenn schon etwas erfasst ist. */
+function kqvAusbildungSichtbarkeit() {
+    const sec = document.getElementById('fmKindAusbildungSection');
+    if (!sec || document.getElementById('fmMemberType')?.value !== 'Kind') return;
+    const d = _kqv.memberId != null && _kqv.memberId === (typeof editingFamilyMemberId !== 'undefined' ? editingFamilyMemberId : null) ? _kqv.daten : null;
+    const erfasst = !!(d && ((d.ausbildungen || []).length || (d.zulagenOhneAusbildung || []).length));
+    const geb = document.getElementById('fmDateOfBirth')?.value;
+    let alter = null;
+    if (geb) {
+        const g = new Date(geb), h = new Date();
+        alter = h.getFullYear() - g.getFullYear() - ((h.getMonth() < g.getMonth() || (h.getMonth() === g.getMonth() && h.getDate() < g.getDate())) ? 1 : 0);
+    }
+    sec.style.display = (erfasst || alter == null || alter >= 15) ? '' : 'none';
+}
+
 function kqvBoxen() {
     return {
         wohnen: document.getElementById('kqvMountWohnen'),
@@ -37,7 +60,8 @@ async function kqvOeffnen(empId, member) {
     if (!member?.id || member.memberType !== 'Kind') {
         if (b.wohnen) b.wohnen.innerHTML = '';
         if (b.ausbildung) b.ausbildung.innerHTML = `<div class="kqv-hinweis">Nach dem Speichern erfassen.</div>`;
-        b.qst.innerHTML = `<div class="kqv-hinweis">Nach dem Speichern: Ergebnis und QST-Entscheide.</div>`;
+        b.qst.innerHTML = `<div class="kqv-hinweis">Wird nach dem Speichern gerechnet.</div>`;
+        kqvAusbildungSichtbarkeit();
         return;
     }
     [b.wohnen, b.ausbildung, b.qst].forEach(x => { if (x) x.innerHTML = `<div class="kqv-hinweis">Lade …</div>`; });
@@ -93,15 +117,15 @@ function kqvRender() {
     const a = d.anzeige || {};
     const f = _kqv.form;
 
+    // Quellensteuer am Kind: nur das Ergebnis in einer Zeile (Walter 11.10.2026 —
+    // Details gehören in die QST-Erfassung, nicht in die Kind-Maske).
     const wirkung = (a.wirkung || []).map(w =>
-        `<div style="color:#166534">${kqvMonat(w.von)} – ${w.bis ? kqvMonat(w.bis) : 'offen'} · ${kqvEsc(w.grund)}</div>`).join('');
+        `<span style="color:#166534">${kqvMonat(w.von)} – ${w.bis ? kqvMonat(w.bis) : 'offen'}</span> <span class="kqv-grau">(${kqvEsc(w.grund)})</span>`).join(' · ');
     const gelb = [...(a.offen || []), ...(a.hinweise || [])].map(t => `<div style="color:#92400e">⚠ ${kqvEsc(t)}</div>`).join('');
-    const kopf = `<div class="kqv-wirkung">
-        <div class="kqv-sub">Zählt für die QST-Kinderziffer</div>
-        ${wirkung || '<div style="color:#8b8b8b">in keinem Monat</div>'}
-        ${a.zaehltHeute === false ? `<div style="color:#8b8b8b">zurzeit nicht · ${kqvEsc(a.grundHeute || '')}</div>` : ''}
+    const kopf = `<div title="Eine Änderung wirkt ab dem Folgemonat (KS 45). Lohnrelevant erst mit einer QST-Erfassung durch HR.">
+        Zählt für die Kinderziffer: ${wirkung || '<span class="kqv-grau">in keinem Monat</span>'}
+        ${a.zaehltHeute === false && wirkung ? `<span class="kqv-grau"> · zurzeit nicht (${kqvEsc(a.grundHeute || '')})</span>` : ''}
         ${gelb}
-        <div class="kqv-klein">Eine Änderung wirkt ab dem Folgemonat (KS 45). Lohnrelevant wird es erst mit einer QST-Erfassung durch HR.</div>
     </div>`;
 
     // ── Ausbildung ──
@@ -128,11 +152,11 @@ function kqvRender() {
     // ── Haushalt & Unterhalt ──
     const verhZeilen = (d.verhaeltnisse || []).map(x => {
         if (f?.typ === 'V' && f.id === x.id) return kqvFormVerhaeltnis(x);
-        const quelle = KQV_QUELLE[x.quelle] ? ` · ${KQV_QUELLE[x.quelle]}` : '';
+        const quelle = KQV_QUELLE[x.quelle] ? ` <span class="kqv-grau">· ${KQV_QUELLE[x.quelle]}</span>` : '';
+        const bem = x.bemerkung && x.quelle !== 'ALTBESTAND' ? `<div class="kqv-klein">${kqvEsc(x.bemerkung)}</div>` : '';
         return `<div class="kqv-zeile">
-            <div class="kqv-text"><b>ab ${kqvDatum(x.gueltigAb)}</b> · im Haushalt ${kqvJaNein(x.imHaushalt)}
-                · Unterhalt zur Hauptsache ${kqvJaNein(x.unterhaltHauptsache)}${quelle}
-                ${x.bemerkung ? `<div class="kqv-klein">${kqvEsc(x.bemerkung)}</div>` : ''}</div>
+            <div class="kqv-text"><b>ab ${kqvDatum(x.gueltigAb)}</b> · im Haushalt: ${kqvJaNein(x.imHaushalt)}
+                · Unterhalt: ${kqvJaNein(x.unterhaltHauptsache)}${quelle}${bem}</div>
             ${kqvMenu('kqvV', x.id, `kqvBearbeiten('V',${x.id})`, (d.verhaeltnisse.length > 1) ? `kqvLoeschen('verhaeltnis',${x.id})` : '')}
         </div>`;
     }).join('');
@@ -154,19 +178,25 @@ function kqvRender() {
         ? (typ === 'A' ? kqvFormAusbildung(null) : typ === 'V' ? kqvFormVerhaeltnis(null) : kqvFormEntscheid(null))
         : `<button type="button" class="kqv-btn-neu" onclick="kqvBearbeiten('${typ}',null)">+ ${label}</button>`;
 
-    const ausbildung = `<div class="kqv-block">${ausbZeilen || '<div class="kqv-leer">keine erfasst</div>'}${zulagen}${neu('A', 'Ausbildung')}</div>`;
-    const wohnen = `<div class="kqv-block">${verhZeilen || '<div class="kqv-leer">keine erfasst</div>'}${neu('V', 'Änderung ab Datum')}
-        <div class="kqv-klein">Ohne Unterhalt zählt das Kind nicht für die QST. Läuft trotzdem eine Familienzulage: Verfügung der Familienausgleichskasse prüfen.</div></div>`;
-    const entscheide = `<div class="kqv-block"><div class="kqv-sub">QST-Entscheid der Steuerverwaltung</div>${entZeilen || '<div class="kqv-leer">keiner — es gilt die Ausbildung</div>'}${neu('E', 'Entscheid')}</div>`;
+    const ausbLeer = '<div class="kqv-leer">keine erfasst — ab 16 gibt es die Ausbildungszulage statt der Kinderzulage: Lehre oder Schule hier erfassen.</div>';
+    const ausbildung = `${ausbZeilen || ausbLeer}${zulagen}${neu('A', 'Ausbildung')}`;
+    const heute = kqvVerhaeltnisHeute(d.verhaeltnisse);
+    const ohneUnterhalt = heute && heute.unterhaltHauptsache === false
+        ? '<div class="kqv-klein" style="color:#92400e">Ohne Unterhalt zählt das Kind nicht für die QST. Läuft trotzdem eine Familienzulage: Verfügung der Familienausgleichskasse prüfen.</div>' : '';
+    const wohnen = `${verhZeilen || '<div class="kqv-leer">keine erfasst</div>'}${ohneUnterhalt}${neu('V', 'Änderung ab Datum')}`;
+    const entscheide = (entZeilen || (f?.typ === 'E'))
+        ? `<div><div class="kqv-sub">Entscheid der Steuerverwaltung</div>${entZeilen}${f?.typ === 'E' && f.id == null ? kqvFormEntscheid(null) : ''}</div>` : '';
+    const entscheidNeu = f?.typ === 'E' ? '' : `<button type="button" class="kqv-btn-neu" onclick="kqvBearbeiten('E',null)" title="Nur wenn die Steuerverwaltung über das Kind entschieden hat">+ Entscheid der Steuerverwaltung</button>`;
 
     if (b.wohnen && b.ausbildung) {
         b.wohnen.innerHTML = wohnen;
         b.ausbildung.innerHTML = ausbildung;
-        b.qst.innerHTML = kopf + entscheide;
+        b.qst.innerHTML = kopf + entscheide + entscheidNeu;
+        kqvAusbildungSichtbarkeit();
     } else {
         b.qst.innerHTML = `${kopf}
-            <div class="kqv-block"><div class="kqv-sub">Ausbildung</div>${ausbildung}</div>
-            <div class="kqv-block"><div class="kqv-sub">Haushalt &amp; Unterhalt</div>${wohnen}</div>${entscheide}`;
+            <div><div class="kqv-sub">Ausbildung</div>${ausbildung}</div>
+            <div><div class="kqv-sub">Haushalt &amp; Unterhalt</div>${wohnen}</div>${entscheide}${entscheidNeu}`;
     }
 
     if (f && _kqv.dokumente && document.getElementById('kqvDok')) kqvDokOptionen(f.dokumentId);

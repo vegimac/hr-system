@@ -13069,24 +13069,24 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         }
 
 /* ── QST-Verlauf am Kind (Familien-Fenster, Walter 11.10.2026) ── */
-#fmQstVerlauf { margin-top: 10px; display: flex; flex-direction: column; gap: 12px; font-size: 12.5px; color: #3f3f3f; }
-#fmQstVerlauf .kqv-hinweis { color: #8b8b8b; font-size: 12px; }
-#fmQstVerlauf .kqv-sub { font-weight: 700; color: #646464; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
-#fmQstVerlauf .kqv-klein { color: #8b8b8b; font-size: 11px; margin-top: 2px; line-height: 1.35; }
-#fmQstVerlauf .kqv-leer { color: #8b8b8b; font-size: 12px; padding: 2px 0 6px; }
-#fmQstVerlauf .kqv-wirkung { line-height: 1.5; }
-#fmQstVerlauf .kqv-zeile { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(60,55,48,0.12); }
-#fmQstVerlauf .kqv-zeile.kqv-gelb { color: #92400e; }
-#fmQstVerlauf .kqv-text { flex: 1; line-height: 1.45; }
-#fmQstVerlauf .kqv-form { padding: 10px 0; border-bottom: 1px solid rgba(60,55,48,0.12); }
-#fmQstVerlauf .kqv-form-knoepfe { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-#fmQstVerlauf .kqv-btn, #fmQstVerlauf .kqv-btn-neu {
+.kqv-box { margin-top: 4px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #3f3f3f; }
+.kqv-box .kqv-hinweis { color: #8b8b8b; font-size: 12px; }
+.kqv-box .kqv-sub { font-weight: 700; color: #646464; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px; }
+.kqv-box .kqv-klein, .kqv-klein { color: #8b8b8b; font-size: 11px; margin-top: 2px; line-height: 1.35; }
+.kqv-box .kqv-leer { color: #8b8b8b; font-size: 12px; }
+.kqv-box .kqv-zeile { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(60,55,48,0.10); }
+.kqv-box .kqv-zeile.kqv-gelb { color: #92400e; }
+.kqv-box .kqv-text { flex: 1; line-height: 1.45; }
+.kqv-box .kqv-grau { color: #8b8b8b; }
+.kqv-box .kqv-fuss { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.kqv-box .kqv-form { padding: 8px 0; border-bottom: 1px solid rgba(60,55,48,0.10); }
+.kqv-box .kqv-form-knoepfe { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.kqv-box .kqv-btn, .kqv-box .kqv-btn-neu {
     background: rgba(255,255,255,0.5); border: 1px solid rgba(60,55,48,0.20); border-radius: 12px;
-    padding: 5px 12px; font-size: 12px; color: #3f3f3f; cursor: pointer; white-space: nowrap;
+    padding: 4px 11px; font-size: 11.5px; color: #3f3f3f; cursor: pointer; white-space: nowrap; align-self: flex-start;
 }
-#fmQstVerlauf .kqv-btn:hover, #fmQstVerlauf .kqv-btn-neu:hover { background: rgba(255,255,255,0.8); }
-#fmQstVerlauf .kqv-btn-neu { margin-top: 6px; }
-#fmQstVerlauf .kqv-btn-primaer { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
-#fmQstVerlauf .kqv-btn-primaer:hover { background: #1a1a1a; }
-body.theme-dark #fmQstVerlauf { color: #e5e5e5; }
-body.theme-dark #fmQstVerlauf .kqv-btn, body.theme-dark #fmQstVerlauf .kqv-btn-neu { background: #334155; color: #e5e5e5; border-color: #475569; }
+.kqv-box .kqv-btn:hover, .kqv-box .kqv-btn-neu:hover { background: rgba(255,255,255,0.8); }
+.kqv-box .kqv-btn-primaer { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
+.kqv-box .kqv-btn-primaer:hover { background: #1a1a1a; }
+body.theme-dark .kqv-box { color: #e5e5e5; }
+body.theme-dark .kqv-box .kqv-btn, body.theme-dark .kqv-box .kqv-btn-neu { background: #334155; color: #e5e5e5; border-color: #475569; }
