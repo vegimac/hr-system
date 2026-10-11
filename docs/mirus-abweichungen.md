@@ -64,12 +64,14 @@ Jede Mirus-Handbuchung, die im Vergleich auffällt, hier mit Herkunft nachtragen
 |---|---|---|---|---|---|---|
 | Daniela Nikollaj (750017, Sursee) | Jan 2026 | 01.01. | «Ausgleich Abwesenheiten Januar 2026» | +14.40 | 3 Wochenend-Absenztage (Sa 03., So 04. Ferien, So 18. Krank) × 4.80 — in «Abw.» bereits enthalten → doppelt | 14.40 Std zu viel ausbezahlt (CHF 340.27) — Fall #9 |
 | Daniela Nikollaj (750017, Sursee, FIX-M 80 %) | ab Jan 2026 | Lohnhistorie 01.01.2026 | keine | Monatslohn 3'440 (= 4'300 × 80 %) | **ohne Grundlage**: Vertrag 3'436 (80 % von 4'295), easy@work 3'436 bis 31.03.2026 — nur in Mirus erfasst. L-GAV 2026 erste Stufe laut `fachlogik.md` 4'304 → 3'443.20 wäre Minimum (Mindestlohn-Tabelle prüfen) | +4.00/Mt. ggü. Vertrag |
+| Zelan Bakr (750058, Sursee, MTP) | Jan 2026 | 01.–30.01. | keine | Krankheit nur 30 Tage erfasst (Monat = 30 Tage), Arztzeugnis deckt 01.–31.01. | −1 Tag | Mirus 30 Taggeld = 2'226.00, richtig 31 = 2'300.20 (−74.20); in OneCrew Krankheit 01.–31.01. erfasst |
 | Dila Tetaj (750020, Sursee, FIX-M 60 %) | Jan 2026 | Fr 23.01. | im Monatsblatt keine (Tag «1.0 FR» = frei, ohne Stempelzeit, «M» manuell) | +8.40 | **offen** — 8.40 = ein Vollzeit-Tag (42 ÷ 5), nicht ihr Tages-Soll (60 % = 5.04). Bemerkung in der Mirus-Erfassungsmaske nachsehen | Mirus Ist 146.65 (gestempelt 138.25 + 8.40) → Diff +35.05, Auszahlung 66.01 Std; OneCrew gestempelt 138.29 → +26.69, Auszahlung 57.65 Std (−8.36 Std) |
 
 ## OneCrew-Datenfehler, die der Vergleich aufgedeckt hat
 
 | MA | Was | Beleg | Korrektur | Seit |
 |---|---|---|---|---|
+| Zelan Bakr (750058, Sursee, MTP) | Ganzer Monat krank: Festlohn 150.57 h × 20.40 = 3'071.63, Korrektur 31 × 99.0857 = 3'071.66 → Rest −0.03 (Brutto 2'300.17, SV-Basis −0.03) | Lohnbeleg Jan 2026 | Korrektur-Tageswert aus dem Festlohn (Anzeige-Stunden × Satz ÷ Tage); deckt die Abwesenheit den Monat, Korrektur = Festlohn (`MtpKorrekturAufFestlohn`) | 11.10.2026 |
 | Valbone Velaj (750052, Sursee, MTP) | 13.-ML-Zeile auf 5 Rp. gerundet (318.70), Saldo rappengenau (+318.69) — Beleg widersprach sich selbst | Lohnbeleg Jan 2026 | MTP-Zeile (Nicht-Auszahlungsmonat + Verfall) rechnet jetzt wie der Saldo rappengenau (wie FIX) | 11.10.2026 |
 | Dila Tetaj (750020, Sursee) | OneCrew rechnet QST C1N LU (Jan 2026: 4.15 % = 163.45), Mirus keine. **Mirus richtig:** Ehemann hat seit 2025 den C-Ausweis → MA verheiratet mit C-Inhaber = nicht QST-pflichtig (Walter 10.10.2026) | Mirus-Lohnkonto 2026 Jan–Sep und Dez 2025: keine Zeile «Quellensteuer» | In OneCrew Ehepartner im Familie-Tab mit Bewilligung C (gültig ab) erfassen; QST-Erfassung ab Folgemonat der C-Erteilung beenden. **Erledigt 10.10.2026** (Ehemann C ab 01.03.2025 erfasst; Speichern scheiterte zuerst an HTTP 500 — JSON-Zyklus Familien-Historie, Fix `1bcbac3`). Jan 2026 neu: keine QST, Netto 3'321.30 — Rest-Differenz zu Mirus (−167.15) nur noch aus den Überstunden (−8.36 Std + Satz) | 10.10.2026 |
 

@@ -2757,9 +2757,22 @@ public class PayrollCalculationEngine
             // läuft voll, pro Kalendertag −Garantie ÷ 7 × Stundenlohn × Krank-%.
             // Ferien/13. ML/Feiertag nach den Häkchen von 75.1 (die Basis sinkt
             // wieder, weil der Tagessatz der 88/80-Zeilen diese Anteile enthält).
-            decimal korrekturTagMtp = guaranteedH / 7m * hourlyRate;
-            decimal krankKorrekturExactMtp = krankBreakdown.Sum(t => t.Prozent / 100m) * korrekturTagMtp;
-            decimal krankKorrekturMtp = PayrollCalculations.Rappen(krankKorrekturExactMtp);
+            // Tageswert aus dem Festlohn, wie er auf dem Beleg steht (Anzeige-Stunden × Satz),
+            // sonst bleibt bei einem ganzen Monat Krank/Unfall ein Rest (Bakr Jan 2026:
+            // 3'071.63 − 31 × 99.0857 = −0.03).
+            decimal korrekturTagMtp = mtpPeriodTage > 0
+                ? sollStundenVoll * hourlyRate / mtpPeriodTage
+                : guaranteedH / 7m * hourlyRate;
+            decimal krankKorrekturExactMtp  = krankBreakdown.Sum(t => t.Prozent / 100m) * korrekturTagMtp;
+            decimal unfallKorrekturExactMtp = unfallBreakdown.Sum(t => t.Prozent / 100m) * korrekturTagMtp;
+            // Krank + Unfall zusammen nie mehr als der Festlohn; deckt die Abwesenheit
+            // jeden Kalendertag, genau der Festlohn.
+            bool monatAbgedecktMtp = mtpFerienTage + mtpUnbezUrlaubTage + mtpEoTage + mtpMilitaerTage
+                                     + mtpKrankTage + mtpUnfallTage >= mtpPeriodTage;
+            var (krankKorrekturMtp, unfallKorrekturMtp, krankKorrFaktorMtp) = PayrollCalculations.MtpKorrekturAufFestlohn(
+                krankKorrekturExactMtp, unfallKorrekturExactMtp, festlohnExact, festlohnArbeitBetrag, monatAbgedecktMtp);
+            krankKorrekturExactMtp  *= krankKorrFaktorMtp;
+            unfallKorrekturExactMtp *= krankKorrFaktorMtp;
             if (krankKorrekturMtp > 0)
             {
                 lohnLines.Add(new {
@@ -2823,9 +2836,7 @@ public class PayrollCalculationEngine
             AddLohnersatz("60.2", unfall88Mtp);
             AddLohnersatz("60.3", unfall80Mtp);
 
-            // Korrektur Unfall 65.1 (Walter 05.10.2026) — wie 75.1.
-            decimal unfallKorrekturExactMtp = unfallBreakdown.Sum(t => t.Prozent / 100m) * korrekturTagMtp;
-            decimal unfallKorrekturMtp = PayrollCalculations.Rappen(unfallKorrekturExactMtp);
+            // Korrektur Unfall 65.1 (Walter 05.10.2026) — wie 75.1, Betrag oben gerechnet.
             if (unfallKorrekturMtp > 0)
             {
                 lohnLines.Add(new {

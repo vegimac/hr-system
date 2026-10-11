@@ -318,11 +318,47 @@ public class KrankUnfallZeitgutschriftTests
     public void MTP_bucht_Korrektur_75_1_und_65_1_pro_Kalendertag()
     {
         var block = MtpBlock();
-        Assert.Contains("decimal korrekturTagMtp = guaranteedH / 7m * hourlyRate;", block);
+        Assert.Contains("? sollStundenVoll * hourlyRate / mtpPeriodTage", block);
+        Assert.Contains("PayrollCalculations.MtpKorrekturAufFestlohn(", block);
         Assert.Contains("code    = \"75.1\"", block);
         Assert.Contains("code    = \"65.1\"", block);
         Assert.Contains("Grundzeile(\"75.1\", -krankKorrekturMtp);", block);
         Assert.Contains("Grundzeile(\"65.1\", -unfallKorrekturMtp);", block);
+    }
+
+    [Fact]
+    public void MTP_ganzer_Monat_krank_Korrektur_gleich_Festlohn()
+    {
+        // Bakr Jan 2026: 34 h, 20.40, 31 Tage krank → Festlohn 150.57 h × 20.40 = 3'071.63
+        decimal festlohnExact = 150.57m * 20.40m;
+        decimal tag = festlohnExact / 31m;
+        var (krank, unfall, _) = PayrollCalculations.MtpKorrekturAufFestlohn(
+            31m * tag, 0m, festlohnExact, 3071.63m, monatAbgedeckt: true);
+        Assert.Equal(3071.63m, krank);
+        Assert.Equal(0m, unfall);
+    }
+
+    [Fact]
+    public void MTP_30_von_31_Tagen_krank_Rest_ist_ein_Tag()
+    {
+        decimal festlohnExact = 150.57m * 20.40m;
+        decimal tag = festlohnExact / 31m;
+        var (krank, _, faktor) = PayrollCalculations.MtpKorrekturAufFestlohn(
+            30m * tag, 0m, festlohnExact, 3071.63m, monatAbgedeckt: false);
+        Assert.Equal(1m, faktor);
+        Assert.Equal(2972.54m, krank);
+        Assert.Equal(99.09m, 3071.63m - krank);
+    }
+
+    [Fact]
+    public void MTP_Krank_und_Unfall_ganzer_Monat_Summe_gleich_Festlohn()
+    {
+        decimal festlohnExact = 120.00m * 21.66m;   // 2'599.20, 30 Tage
+        decimal tag = festlohnExact / 30m;
+        var (krank, unfall, _) = PayrollCalculations.MtpKorrekturAufFestlohn(
+            17m * tag, 13m * tag, festlohnExact, 2599.20m, monatAbgedeckt: true);
+        Assert.Equal(2599.20m, krank + unfall);
+        Assert.Equal(PayrollCalculations.Rappen(13m * tag), unfall);
     }
 
     [Fact]
