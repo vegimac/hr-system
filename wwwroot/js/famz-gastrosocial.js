@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 10;
+        var VERSION = 11;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -253,7 +253,7 @@ function famzGsKern(daten) {
             if (!f) return { s: 'fehlt', t: name + ': Beschriftung nicht gefunden' };
             var el = f.el;
             if (feld.rechts && el) { el = rechtsDaneben(el); f = { lab: f.lab, el: el }; }
-            if (!f.radios && /^(ja|nein|männlich|weiblich)$/i.test(String(werte[0]))) {
+            if (!f.radios && (feld.wahl || /^(ja|nein|männlich|weiblich)$/i.test(String(werte[0])))) {
                 var tk = textKnopf(f.lab, werte);
                 if (tk) {
                     if (tk.an) return { s: 'gleich', t: name + ': schon ' + werte[0] };
@@ -408,7 +408,7 @@ function famzGsKern(daten) {
         var PAUSE = 700, RUHE = 1800;
         var einfuellen = function (idx) {
             var felder = abschnitte[idx].felder || [];
-            var gesetzt = [];
+            var gesetzt = [], nochmals = [];
             Object.keys(status).forEach(function (k) { if (k.indexOf(idx + ':') === 0) delete status[k]; });
             var gang = function (liste, modus, fertig) {
                 var j = 0;
@@ -426,7 +426,9 @@ function famzGsKern(daten) {
                         nurPruefen = false;
                         var key = idx + ':' + k;
                         if (modus === 1) {
-                            if (z) { status[key] = z; if (z.s === 'ok') gesetzt.push(k); }
+                            if (z) { status[key] = z; if (z.s === 'ok') gesetzt.push(k); if (z.s === 'fehlt') nochmals.push(k); }
+                        } else if (z && nochmals.indexOf(k) >= 0) {
+                            status[key] = z;
                         } else if (z && z.s !== 'gleich') {
                             status[key] = modus === 2 && z.s === 'ok' ? { s: 'ok', t: z.t + ' (nachgetragen)' } : z;
                         }
@@ -437,10 +439,11 @@ function famzGsKern(daten) {
             };
             var schluss = function () { laeuft = null; zeichne(); };
             gang(felder.map(function (f, k) { return k; }), 1, function () {
-                if (!gesetzt.length) { schluss(); return; }
+                if (!gesetzt.length && !nochmals.length) { schluss(); return; }
                 laeuft = 'Warte auf das Portal'; zeichne();
                 setTimeout(function () {
-                    gang(gesetzt, 2, function () {
+                    // Felder, die das Portal erst nach einer Antwort zeigt, kommen hier dran.
+                    gang(gesetzt.concat(nochmals).sort(function (a, b) { return a - b; }), 2, function () {
                         laeuft = 'Warte auf das Portal'; zeichne();
                         setTimeout(function () { gang(gesetzt, 3, schluss); }, RUHE);
                     });
@@ -527,6 +530,10 @@ function famzGsPerson(p, rolle) {
           w: famzGsJn(p.angestellt), anzeige: 'Erwerbstätig?' },
         { l: [...wer.map(w => `Verdient der ${w} mehr als das Minimaleinkommen`), ...wer.map(w => `Verdient die ${w}in mehr als das Minimaleinkommen`), 'Verdient'],
           w: famzGsJn(p.einkommenUeberMinimum), anzeige: 'Mehr als Minimaleinkommen?' },
+        { l: ['Wer erzielt das höhere Einkommen'], wahl: true, anzeige: 'Höheres Einkommen',
+          w: p.einkommenHoeher === true ? wer : p.einkommenHoeher === false ? ['Antragsteller', 'Antragstellerin'] : null },
+        { l: ['Selbständig', 'Selbstständig'], w: p.seNe ? (String(p.seNe).toUpperCase() === 'SE' ? 'Ja' : 'Nein') : null,
+          anzeige: 'Selbständig?' },
         ...(p.angestellt && famzGsKantonCode(p.arbeitsortKanton) ? [
             { l: ['Arbeitskanton/-Land', 'Arbeitskanton / -Land', 'Arbeitskanton/Land'], w: ['CH', 'Schweiz'], anzeige: 'Arbeitsland' },
             { l: ['Arbeitskanton/-Land', 'Arbeitskanton / -Land', 'Arbeitskanton/Land'], rechts: true,
