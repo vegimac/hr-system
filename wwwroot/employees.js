@@ -5903,6 +5903,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                         <button class="dok-menu-btn" onclick="famToggleMenu(event, ${m.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="famMenu-${m.id}">
                             <button class="dok-menu-item" onclick="openFamilyModal(${memberJson})">Bearbeiten</button>
+                            ${type === 'Kind' ? `<button class="dok-menu-item" onclick="rowMenuCloseAll();kqvVerhaeltnisDialog(${employeeId}, ${m.id})">Wohnen &amp; Unterhalt ändern</button>` : ''}
                             <button class="dok-menu-item danger" onclick="deleteFamilyMember(${m.id})">Löschen</button>
                         </div>
                     </div>

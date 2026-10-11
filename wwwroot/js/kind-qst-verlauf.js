@@ -151,13 +151,12 @@ function kqvRender() {
 
     // ── Haushalt & Unterhalt ──
     const verhZeilen = (d.verhaeltnisse || []).map(x => {
-        if (f?.typ === 'V' && f.id === x.id) return kqvFormVerhaeltnis(x);
         const quelle = KQV_QUELLE[x.quelle] ? ` <span class="kqv-grau">· ${KQV_QUELLE[x.quelle]}</span>` : '';
         const bem = x.bemerkung && x.quelle !== 'ALTBESTAND' ? `<div class="kqv-klein">${kqvEsc(x.bemerkung)}</div>` : '';
         return `<div class="kqv-zeile">
             <div class="kqv-text"><b>ab ${kqvDatum(x.gueltigAb)}</b> · im Haushalt: ${kqvJaNein(x.imHaushalt)}
                 · Unterhalt: ${kqvJaNein(x.unterhaltHauptsache)}${quelle}${bem}</div>
-            ${kqvMenu('kqvV', x.id, `kqvBearbeiten('V',${x.id})`, (d.verhaeltnisse.length > 1) ? `kqvLoeschen('verhaeltnis',${x.id})` : '')}
+            ${kqvMenu('kqvV', x.id, `kqvVerhaeltnisDialog(_kqv.empId,_kqv.memberId,${x.id})`, (d.verhaeltnisse.length > 1) ? `kqvLoeschen('verhaeltnis',${x.id})` : '')}
         </div>`;
     }).join('');
 
@@ -175,7 +174,7 @@ function kqvRender() {
     }).join('');
 
     const neu = (typ, label) => (f?.typ === typ && f.id == null)
-        ? (typ === 'A' ? kqvFormAusbildung(null) : typ === 'V' ? kqvFormVerhaeltnis(null) : kqvFormEntscheid(null))
+        ? (typ === 'A' ? kqvFormAusbildung(null) : kqvFormEntscheid(null))
         : `<button type="button" class="kqv-btn-neu" onclick="kqvBearbeiten('${typ}',null)">+ ${label}</button>`;
 
     const ausbLeer = '<div class="kqv-leer">keine erfasst — ab 16 gibt es die Ausbildungszulage statt der Kinderzulage: Lehre oder Schule hier erfassen.</div>';
@@ -183,7 +182,8 @@ function kqvRender() {
     const heute = kqvVerhaeltnisHeute(d.verhaeltnisse);
     const ohneUnterhalt = heute && heute.unterhaltHauptsache === false
         ? '<div class="kqv-klein" style="color:#92400e">Ohne Unterhalt zählt das Kind nicht für die QST. Läuft trotzdem eine Familienzulage: Verfügung der Familienausgleichskasse prüfen.</div>' : '';
-    const wohnen = `${verhZeilen || '<div class="kqv-leer">keine erfasst</div>'}${ohneUnterhalt}${neu('V', 'Änderung ab Datum')}`;
+    const wohnen = `${verhZeilen || '<div class="kqv-leer">keine erfasst</div>'}${ohneUnterhalt}
+        <button type="button" class="kqv-btn-neu" onclick="kqvVerhaeltnisDialog(_kqv.empId,_kqv.memberId)">+ Änderung ab Datum</button>`;
     const entscheide = (entZeilen || (f?.typ === 'E'))
         ? `<div><div class="kqv-sub">Entscheid der Steuerverwaltung</div>${entZeilen}${f?.typ === 'E' && f.id == null ? kqvFormEntscheid(null) : ''}</div>` : '';
     const entscheidNeu = f?.typ === 'E' ? '' : `<button type="button" class="kqv-btn-neu" onclick="kqvBearbeiten('E',null)" title="Nur wenn die Steuerverwaltung über das Kind entschieden hat">+ Entscheid der Steuerverwaltung</button>`;
@@ -236,19 +236,6 @@ function kqvFormAusbildung(x) {
         </div>${kqvFormKnoepfe()}</div>`;
 }
 
-function kqvFormVerhaeltnis(x) {
-    return `<div class="kqv-form">
-        <div class="emp-field-grid-3">
-            <div class="fmf-field"><label class="fmf-label">Gültig ab</label><input class="fmf-input" id="kqvAb" type="date" value="${x?.gueltigAb || ''}"></div>
-            <div class="fmf-field"><label class="fmf-label">Im Haushalt des MA</label>${kqvSelect('kqvHaushalt', KQV_JNU, x ? kqvJnuWert(x.imHaushalt) : 'ja')}</div>
-            <div class="fmf-field"><label class="fmf-label">Unterhalt zur Hauptsache</label>${kqvSelect('kqvUnterhalt', KQV_JNU, x ? kqvJnuWert(x.unterhaltHauptsache) : 'ja')}</div>
-            <div class="fmf-field"><label class="fmf-label">Erfahren am</label><input class="fmf-input" id="kqvErfahren" type="date" value="${x?.erfahrenAm || ''}"></div>
-            <div class="fmf-field" style="grid-column:span 2"><label class="fmf-label">Bemerkung</label><input class="fmf-input" id="kqvBemerkung" value="${kqvEsc(x?.bemerkung || '')}"></div>
-        </div>
-        <div class="kqv-klein">Auszug wegen Studium oder Wochenaufenthalt ist kein «nein» — im Zweifel «ungeklärt».</div>
-        ${kqvFormKnoepfe()}</div>`;
-}
-
 function kqvFormEntscheid(x) {
     return `<div class="kqv-form">
         <div class="emp-field-grid-3">
@@ -271,14 +258,90 @@ function kqvDokOptionen(aktuell) {
 }
 
 async function kqvBearbeiten(typ, id) {
-    const liste = typ === 'A' ? _kqv.daten.ausbildungen : typ === 'V' ? _kqv.daten.verhaeltnisse : _kqv.daten.entscheide;
+    const liste = typ === 'A' ? _kqv.daten.ausbildungen : _kqv.daten.entscheide;
     const x = id == null ? null : liste.find(e => e.id === id);
     _kqv.form = { typ, id, dokumentId: x?.dokumentId ?? null };
     kqvRender();
-    if (typ !== 'V') { await kqvDokumente(); kqvDokOptionen(_kqv.form?.dokumentId); }
+    await kqvDokumente(); kqvDokOptionen(_kqv.form?.dokumentId);
 }
 
 function kqvAbbrechen() { _kqv.form = null; kqvRender(); }
+
+// ── Kleines Fenster «Wohnen & Unterhalt ändern» (Walter 11.10.2026) ──
+// Statt Formular mitten in der Kind-Maske: eigener Dialog mit nur diesen Feldern.
+// Aufruf aus der Kind-Maske (Neu/Bearbeiten) und direkt aus dem ⋮ der Kind-Karte.
+async function kqvVerhaeltnisDialog(empId, memberId, eintragId = null) {
+    let daten = (_kqv.memberId === memberId && _kqv.daten) ? _kqv.daten : null;
+    if (!daten) {
+        try {
+            const r = await fetch(`/api/employees/${empId}/family/${memberId}/qst-verlauf`, { headers: ah(), cache: 'no-store' });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            daten = await r.json();
+        } catch (e) { kqvFehler(`Verlauf konnte nicht geladen werden (${e.message}).`); return; }
+    }
+    const x = eintragId == null ? null : (daten.verhaeltnisse || []).find(v => v.id === eintragId);
+    const bisher = x ? null : kqvVerhaeltnisHeute(daten.verhaeltnisse);
+    const pill = 'width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;box-shadow:0 2px 6px rgba(60,55,48,0.13);padding:8px 10px;font-size:13px;color:#3f3f3f';
+    const lab = 'display:block;font-size:11px;font-weight:700;color:#646464;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px';
+    const sel = (id, wert) => `<select id="${id}" style="${pill}">${Object.entries(KQV_JNU)
+        .map(([k, t]) => `<option value="${k}"${k === wert ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+
+    document.getElementById('kqvVhDialog')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'kqvVhDialog';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+    <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);width:min(520px,92vw);padding:20px 22px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f">${x ? 'Wohnen &amp; Unterhalt bearbeiten' : 'Wohnen &amp; Unterhalt ändern'}</div>
+        <div style="font-size:12px;color:#8b8b8b;margin:4px 0 14px">${bisher
+            ? `Bisher: ab ${kqvDatum(bisher.gueltigAb)} · im Haushalt ${kqvJaNein(bisher.imHaushalt)} · Unterhalt ${kqvJaNein(bisher.unterhaltHauptsache)}`
+            : 'Gilt ab dem Datum, bis zur nächsten Änderung.'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div><label style="${lab}">Gültig ab</label><input id="kqvVhAb" type="date" style="${pill}" value="${x?.gueltigAb || ''}"></div>
+            <div><label style="${lab}">Im Haushalt</label>${sel('kqvVhHaushalt', x ? kqvJnuWert(x.imHaushalt) : kqvJnuWert(bisher?.imHaushalt ?? true))}</div>
+            <div><label style="${lab}">Unterhalt</label>${sel('kqvVhUnterhalt', x ? kqvJnuWert(x.unterhaltHauptsache) : kqvJnuWert(bisher?.unterhaltHauptsache ?? true))}</div>
+        </div>
+        <div style="margin-top:12px"><label style="${lab}">Bemerkung <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8b8b8b">(optional)</span></label>
+            <input id="kqvVhBemerkung" type="text" style="${pill}" value="${kqvEsc(x?.bemerkung || '')}"></div>
+        <div style="font-size:11px;color:#8b8b8b;margin-top:10px;line-height:1.4">«Unterhalt» = der MA kommt zur Hauptsache für das Kind auf. Auszug wegen Studium oder Wochenaufenthalt ist kein «nein» — im Zweifel «ungeklärt».</div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+            <button type="button" id="kqvVhNein" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13px;font-weight:700">Abbrechen</button>
+            <button type="button" id="kqvVhJa" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13px;font-weight:700">Speichern</button>
+        </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const zu = () => { wrap.remove(); document.removeEventListener('keydown', onKey, true); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); zu(); } };
+    document.addEventListener('keydown', onKey, true);
+    wrap.addEventListener('mousedown', e => { if (e.target === wrap) zu(); });
+    wrap.querySelector('#kqvVhNein').onclick = zu;
+    wrap.querySelector('#kqvVhJa').onclick = async () => {
+        const ab = document.getElementById('kqvVhAb')?.value;
+        if (!ab) { kqvFehler('Bitte «Gültig ab» erfassen.'); return; }
+        const body = {
+            gueltigAb: ab,
+            imHaushalt: kqvJnuLesen('kqvVhHaushalt'),
+            unterhaltHauptsache: kqvJnuLesen('kqvVhUnterhalt'),
+            erfahrenAm: x?.erfahrenAm || null,
+            bemerkung: document.getElementById('kqvVhBemerkung')?.value || null,
+        };
+        const pfad = x ? `verhaeltnis/${x.id}` : 'verhaeltnis';
+        const r = await fetch(`/api/employees/${empId}/family/${memberId}/${pfad}`,
+            { method: x ? 'PUT' : 'POST', headers: ah(), body: JSON.stringify(body) });
+        if (!r.ok) {
+            let msg = `Fehler (HTTP ${r.status})`;
+            try { const j = await r.json(); msg = j.message || msg; } catch { /* kein JSON */ }
+            kqvFehler(msg);
+            return;
+        }
+        const neu = await r.json();
+        zu();
+        if (_kqv.memberId === memberId) { _kqv.daten = neu; _kqv.form = null; kqvRender(); }
+        if (typeof loadFamilieTab === 'function') loadFamilieTab(empId);
+        if (typeof showToast === 'function') showToast('Wohnen & Unterhalt gespeichert', 'success');
+    };
+    setTimeout(() => document.getElementById('kqvVhAb')?.focus(), 50);
+}
 
 async function kqvSenden(methode, pfad, body) {
     const r = await fetch(`/api/employees/${_kqv.empId}/family/${_kqv.memberId}/${pfad}`,
@@ -307,10 +370,6 @@ async function kqvSpeichern() {
         body = { von: wert('kqvVon'), bis: wert('kqvBis'), art: wert('kqvArt'), endeGrund: wert('kqvEnde'),
             erstausbildung: kqvJnuLesen('kqvErst'), geprueft: wert('kqvGeprueft') !== 'nein',
             dokumentId: dok(), erfahrenAm: wert('kqvErfahren'), bemerkung: wert('kqvBemerkung') };
-    } else if (f.typ === 'V') {
-        pfad = 'verhaeltnis';
-        body = { gueltigAb: wert('kqvAb'), imHaushalt: kqvJnuLesen('kqvHaushalt'),
-            unterhaltHauptsache: kqvJnuLesen('kqvUnterhalt'), erfahrenAm: wert('kqvErfahren'), bemerkung: wert('kqvBemerkung') };
     } else {
         pfad = 'qst-entscheid';
         body = { status: wert('kqvStatus'), von: wert('kqvVon'), bis: wert('kqvBis'), dokumentId: dok(),
