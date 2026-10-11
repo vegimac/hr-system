@@ -39,6 +39,7 @@ public class FamzAnmeldungPdfService
         {
             var form = PdfAcroForm.GetAcroForm(pdf, true);
             form.SetGenerateAppearance(true);
+            Ausrichten(form);
             Fuelle(form, d);
             try { form.FlattenFields(); } catch { /* kein Showstopper */ }
         }
@@ -227,10 +228,47 @@ public class FamzAnmeldungPdfService
         _ => null,
     };
 
-    // Beschriftungen im Formular sind 8 pt. Felder mit «/Arial 0 Tf» (Auto-Grösse)
-    // würden sonst auf Feldhöhe skaliert — Ziffernkästchen (AHV, Abrechnungsnummer)
-    // haben eine feste Grösse im Formular und bleiben unangetastet.
-    const float Schrift = 8f;
+    // Untereinanderliegende Felder beginnen im Formular direkt hinter ihrer
+    // Beschriftung (unterschiedlich weit links). Pro Gruppe wird der linke Rand
+    // auf das am weitesten rechts beginnende Feld gesetzt → Werte bündig.
+    static readonly string[][] BuendigGruppen =
+    {
+        new[] { "Name_Vorname", "Strasse_Nummer", "Kanton", "Nationalität" },
+        new[] { "PLZ_Ort", "Geburtsdatum", "Ausländerausweis" },
+    };
+    static readonly string[][] BuendigGruppenFest =
+    {
+        new[] { "Arbeitgeber Name Betrieb", "Arbeitgeber Adresse", "Arbeitgeber_PLZ_Ort" },
+        new[] { "Erreichbar", "Ab wann" },
+    };
+
+    static void Ausrichten(PdfAcroForm f)
+    {
+        var gruppen = BuendigGruppenFest.ToList();
+        foreach (var suffix in new[] { "", "_2_1", "_2_2" })
+            gruppen.AddRange(BuendigGruppen.Select(g => g.Select(n => n + suffix).ToArray()));
+        foreach (var gruppe in gruppen)
+        {
+            var widgets = gruppe
+                .Select(n => f.GetField(n)?.GetWidgets().FirstOrDefault())
+                .Where(w => w?.GetRectangle() != null)
+                .ToList();
+            if (widgets.Count < 2) continue;
+            var links = widgets.Max(w => w!.GetRectangle().ToRectangle().GetX());
+            foreach (var w in widgets)
+            {
+                var r = w!.GetRectangle().ToRectangle();
+                var rechts = r.GetX() + r.GetWidth();
+                if (rechts - links < 40f) continue;
+                w.SetRectangle(new PdfArray(new iText.Kernel.Geom.Rectangle(links, r.GetY(), rechts - links, r.GetHeight())));
+            }
+        }
+    }
+
+    // Beschriftungen im Formular sind 8 pt, die Werte etwas grösser (Walter 11.10.2026).
+    // Felder mit «/Arial 0 Tf» (Auto-Grösse) würden sonst auf Feldhöhe skaliert —
+    // Ziffernkästchen (AHV, Abrechnungsnummer) haben eine feste Grösse und bleiben unangetastet.
+    const float Schrift = 9.5f;
     const float SchriftMin = 5f;
 
     static void Text(PdfAcroForm f, string feld, string? wert)
