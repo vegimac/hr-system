@@ -194,6 +194,7 @@ public class EditLockEndpointAuditTests
         ,["SwissdecTestmandantController.Schritt4b"] = "Swissdec-Testmandant Schritt 4b — nur Testinstanz, admin, Kunstdaten"
         ,["SwissdecTestmandantController.Schritt5"]  = "Swissdec-Testmandant Schritt 5a–c — nur Testinstanz, admin, Kunstdaten"
         ,["MirusFehlendeMaController"]              = "Mirus «fehlende MA» — POST nur für Datei-Upload (analyze/pdf), reine Auswertung, schreibt nichts"
+        ,["GastroSocialAbgleichController"]         = "AHV-Abgleich GastroSocial — POST nur für Datei-Upload (analyze), reine Auswertung, schreibt nichts"
         ,["EasyAtWorkHrFilesController"]            = "easy@work HR-Dateien (Walter 08.09.2026) — Dokument an MA senden / Dateitypen / Dossier-Eingang, admin; keine Lohndaten"
         ,["MaEasyAtWorkController"]                 = "easy@work-Mitteilung an MA (Walter 08.09.2026) — PDF-Versand über easy@work, keine Lohndaten"
         ,["ArbeitszeitmodellController"]            = "Arbeitszeitmodelle der Rechtseinheit (Walter 27.09.2026) — reine Meldeangabe für Swissdec CompanyWorkingTime; die Lohnrechnung liest sie NICHT"

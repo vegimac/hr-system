@@ -1525,6 +1525,7 @@ function showPage(name) {
     if (name === 'lohn-simulation' && typeof lsimInit === 'function') lsimInit();
     if (name === 'mirus-address-compare') macInit();
     if (name === 'mirus-fehlende-ma' && typeof mfmInit === 'function') mfmInit();
+    if (name === 'gs-ahv-abgleich' && typeof gsaInit === 'function') gsaInit();
     if (name === 'gespraech' && typeof bgsInit === 'function') bgsInit();
     // Vollbild des Gesprächsmodus abräumen, wenn woanders hin navigiert wird (⌘K-Suche etc.)
     if (name !== 'gespraech') document.body.classList.remove('bgs-fullscreen');
@@ -1771,6 +1772,8 @@ function onBranchChange() {
     } else if (currentPageName === 'mirus-fehlende-ma') {
         // Mirus-Abgleich folgt der Sidebar-Filiale — Auswertung neu starten.
         if (typeof mfmInit === 'function') mfmInit();
+    } else if (currentPageName === 'gs-ahv-abgleich') {
+        if (typeof gsaInit === 'function') gsaInit();
     } else if (currentPageName === 'gespraech') {
         // Gesprächsmodus: Übersicht der neuen Filiale — ein offenes Gespräch
         // bleibt gespeichert und ist in seiner Filiale wieder auffindbar.

@@ -2393,12 +2393,14 @@
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('dok-protokoll')">2&nbsp;·&nbsp;Dokument-Upload-Protokoll</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('schulungen-uebersicht')">3&nbsp;·&nbsp;Schulungen</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('mirus-fehlende-ma')">4&nbsp;·&nbsp;Mirus-Abgleich: fehlende MA</button>
+                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-ahv-abgleich')">5&nbsp;·&nbsp;AHV-Abgleich: GastroSocial gemeldete MA</button>
                         </div>
                         <ul style="margin-top:10px">
                             <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
                             <li><b>Dokument-Upload-Protokoll</b> — wer hat wann welches Dokument hochgeladen (+ CSV)</li>
                             <li><b>Schulungen</b> — Stand aller MA (Hygiene, Sicherheit, SRIW, Gastro, Nothelfer, Peak, SECO); erfasst wird im MA</li>
                             <li><b>Mirus-Abgleich</b> — welche aktiven OneCrew-MA der Filiale fehlen in Mirus (Personalexport XLS) + PDF-Erfassungsliste</li>
+                            <li><b>AHV-Abgleich GastroSocial</b> — Liste «Mitarbeitende» aus dem Portal: wer muss abgemeldet werden, wer ist nicht gemeldet</li>
                         </ul>
                     </div>
 
@@ -8545,6 +8547,44 @@
                 <div id="mfmResult" style="margin-top:8px"></div>
             </div>
 
+            <!-- ═══════════════ AHV-ABGLEICH GASTROSOCIAL (HR-Hub → Kontrolle) ═══════════════
+                 Walter 11.10.2026: GastroSocial-Liste «Mitarbeitende» gegen die MA der
+                 Sidebar-Filiale. Read-only. JS: js/gs-ahv-abgleich.js (Prefix gsa). -->
+            <div class="page" id="page-gs-ahv-abgleich">
+                <div class="sticky-page-head">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                        <h1 class="page-title">AHV-Abgleich: GastroSocial gemeldete Mitarbeitende</h1>
+                        <p class="page-sub">Liste «Mitarbeitende» aus dem GastroSocial-Portal hochladen — OneCrew zeigt, wer noch <b>abgemeldet</b> werden muss und wer <b>nicht gemeldet</b> ist. Es werden keine Daten geschrieben.</p>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                    </div>
+                </div>
+                <div id="gsaAlert" style="margin-bottom:12px"></div>
+
+                <div class="card" style="padding:24px">
+                    <div id="gsaBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:flex-end">
+                        <div>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">GastroSocial-Liste «Mitarbeitende» (XLSX / XLS)</label>
+                            <input type="file" id="gsaFileInput" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                   style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                        </div>
+                        <button class="btn btn-primary" id="gsaAnalyzeBtn" onclick="gsaAnalyze()">Vergleichen</button>
+                    </div>
+                    <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
+                        <b>Erwartete Datei:</b> Export aus dem GastroSocial-Portal mit Spalten <code>Name · Vorname · AHV-Nummer · Geburtsdatum · Leistungen · Status</code> (Reihenfolge egal).<br>
+                        <b>Match:</b> AHV-Nummer (über alle Filialen) → Name + Geburtsdatum → Name.<br>
+                        <b>Abmelden</b> = bei GastroSocial «Beschäftigt», in OneCrew in dieser Filiale ausgetreten oder übergetreten. <b>Nicht gemeldet</b> = in OneCrew aktiv mit Lohn, fehlt in der Liste.
+                    </div>
+                </div>
+                </div><!-- /.sticky-page-head -->
+
+                <div id="gsaSummary" style="margin-top:16px"></div>
+                <div id="gsaResult" style="margin-top:8px"></div>
+            </div>
+
             <!-- ═══════════════ MIRUS ADRESS-/KONTAKT-VERGLEICH (Auswertung) ═══════════════
                  Walter 29.07.2026: Doppelspur OneCrew ↔ Mirus. Read-only. -->
             <div class="page" id="page-mirus-address-compare">
@@ -10349,7 +10389,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261011a"></script>
+<script src="js/app-core.js?v=20261011b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10380,6 +10420,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohn-simulation.js?v=20261005b"></script>
 <script src="js/mirus-address-compare.js?v=20260831a"></script>
 <script src="js/mirus-fehlende-ma.js?v=20260903b"></script>
+<script src="js/gs-ahv-abgleich.js?v=20261011a"></script>
 <script src="js/gespraech.js?v=20260913j"></script>
 <script src="js/roster-absence-import.js?v=20261003a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
