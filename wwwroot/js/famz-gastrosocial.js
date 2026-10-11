@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 4;
+        var VERSION = 5;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -342,29 +342,43 @@ const famzGsJn = b => b === true ? 'Ja' : b === false ? 'Nein' : null;
 const famzGsGeschlecht = g => g === 'M' ? ['männlich', 'Mann', 'M'] : g === 'F' ? ['weiblich', 'Frau', 'F', 'W'] : null;
 const famzGsKanton = k => k ? [FAMZ_GS_KANTONE[k] || k, k] : null;
 
-/** Ein Personen-Block (Partner / anderer Elternteil). Beschriftungen sind Annahmen — «Felder melden» korrigiert sie. */
-function famzGsPerson(p) {
+/**
+ * Ein Personen-Block. Portal-Beschriftungen (Seite «Zusätzliche Familienzulage», 11.10.2026):
+ * «Name Ehepartner», «Vorname Ehepartner», «AHV-Nummer», «Geburtsdatum», «Geschlecht»
+ * (männlich/weiblich), «Ist der Ehepartner erwerbstätig?». Die spezifische Beschriftung
+ * steht vorne — sonst träfe «Name» die Kinder-Tabelle.
+ */
+function famzGsPerson(p, rolle) {
     if (!p) return [];
     const n = famzGsNamen(p);
     const po = famzGsPlzOrt(p.plzOrt);
+    const wer = rolle === 'partner' ? ['Ehepartner', 'Lebenspartner', 'Partner'] : ['anderer Elternteil', 'Elternteil'];
+    const mit = (vor, rest = []) => [...wer.map(w => `${vor} ${w}`), ...rest];
     return [
-        { l: ['Name', 'Nachname', 'Familienname'], w: n.name, anzeige: 'Name' },
-        { l: ['Vorname'], w: n.vorname },
+        { l: mit('Name', ['Nachname', 'Familienname']), w: n.name, anzeige: 'Name' },
+        { l: mit('Vorname'), w: n.vorname, anzeige: 'Vorname' },
         { l: ['Geburtsdatum'], w: p.geburtsdatum },
         { l: ['AHV-Nummer', 'Sozialversicherungsnummer', 'AHV-Nr', 'Versichertennummer'], w: p.ahvNummer, anzeige: 'AHV-Nummer' },
         { l: ['Geschlecht'], w: famzGsGeschlecht(p.geschlecht) },
+        { l: [...wer.map(w => `Ist der ${w} erwerbstätig`), ...wer.map(w => `Ist die ${w}in erwerbstätig`), 'Erwerbstätig'],
+          w: famzGsJn(p.angestellt), anzeige: 'Erwerbstätig' },
         { l: ['Zivilstand'], w: p.zivilstand ? (FAMZ_ZIVIL[p.zivilstand] || p.zivilstand) : null },
         { l: ['Nationalität', 'Staatsangehörigkeit'], w: p.nationalitaet, anzeige: 'Nationalität' },
-        { l: ['Strasse'], w: p.strasseNr },
-        { l: ['PLZ'], w: po.plz },
-        { l: ['Ort'], w: po.ort },
-        { l: ['Land'], w: p.kanton ? ['Schweiz', 'CH'] : null },
-        { l: ['Erwerbstätig', 'Angestellt', 'Arbeitnehmend'], w: famzGsJn(p.angestellt), anzeige: 'Erwerbstätig' },
         { l: ['Arbeitgeber', 'Name Arbeitgeber'], w: p.arbeitgeberZeile1, anzeige: 'Arbeitgeber' },
-        { l: ['Arbeitskanton', 'Arbeitsort'], w: famzGsKanton(p.arbeitsortKanton), anzeige: 'Arbeitskanton' },
         { l: ['Arbeitspensum', 'Pensum', 'Beschäftigungsgrad'], w: p.arbeitspensum, anzeige: 'Pensum' },
     ];
 }
+
+/** Kinder-Tabelle im Portal: Name | Vorname | GebDat | m/w | Sorgerecht | Überwiegender Wohnsitz | Beziehung. */
+const FAMZ_GS_ELTERN = {
+    ELTERN: ['Beide Eltern', 'Beide', 'gemeinsam', 'Eltern'],
+    MUTTER: ['Mutter'],
+    VATER: ['Vater'],
+};
+const FAMZ_GS_BEZ = {
+    L: ['Leibl. Kind', 'leiblich'], A: ['Adoptivkind', 'Adopt'], S: ['Stiefkind', 'Stief'],
+    P: ['Pflegekind', 'Pflege'], G: ['Geschwister'], E: ['Enkel', 'Grosskind'],
+};
 
 function famzGsDaten() {
     const f = famzSammeln();
@@ -402,17 +416,20 @@ function famzGsDaten() {
     }];
     if (partner) abschnitte.push({
         titel: '2 · Ehe-/Lebenspartner' + (partner === ae ? ' (= anderer Elternteil)' : ''),
-        felder: famzGsPerson(partner),
+        felder: famzGsPerson(partner, 'partner'),
     });
-    if (ae) abschnitte.push({ titel: '3 · Anderer Elternteil', felder: famzGsPerson(ae) });
+    if (ae) abschnitte.push({ titel: '3 · Anderer Elternteil', felder: famzGsPerson(ae, 'ae') });
     (f.kinder || []).forEach((k, i) => abschnitte.push({
         titel: `4 · Kind ${i + 1}: ${k.vorname || ''}`.trim(),
+        hinweis: 'Nur für ein Kind, das noch nicht in der Liste steht. Danach «Kind zur Liste hinzufügen» klicken.',
         felder: [
-            { l: ['Name', 'Nachname', 'Familienname'], w: k.name, anzeige: 'Name' },
+            { l: ['Name'], w: k.name },
             { l: ['Vorname'], w: k.vorname },
-            { l: ['Geburtsdatum'], w: k.geburtsdatum },
-            { l: ['Geschlecht'], w: famzGsGeschlecht(k.geschlecht) },
-            { l: ['Kindesverhältnis', 'Beziehung', 'Verhältnis'], w: k.beziehung ? [FAMZ_BEZ[k.beziehung] || k.beziehung] : null, anzeige: 'Kindesverhältnis' },
+            { l: ['GebDat', 'Geburtsdatum'], w: k.geburtsdatum, anzeige: 'Geburtsdatum' },
+            { l: ['m/w', 'Geschlecht'], w: k.geschlecht === 'M' ? ['m', 'männlich'] : k.geschlecht === 'F' ? ['w', 'weiblich'] : null, anzeige: 'm/w' },
+            { l: ['Sorgerecht', 'Elterliche Sorge'], w: FAMZ_GS_ELTERN[f.sorge] || null, anzeige: 'Sorgerecht' },
+            { l: ['Überwiegender Wohnsitz', 'Wohnsitz'], w: FAMZ_GS_ELTERN[f.lebenBei] || null, anzeige: 'Wohnsitz' },
+            { l: ['Beziehung', 'Kindesverhältnis'], w: FAMZ_GS_BEZ[k.beziehung] || null, anzeige: 'Beziehung' },
         ],
     }));
     return {
