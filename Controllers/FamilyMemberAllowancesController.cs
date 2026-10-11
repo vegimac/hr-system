@@ -366,6 +366,10 @@ public class FamilyMemberAllowancesController : ControllerBase
         }
 
         _db.FamilyMemberAllowances.Remove(entry);
+        var offenePosten = await _db.FamzKorrekturen
+            .Where(k => k.AllowanceId == id && (k.Status == "OFFEN" || k.Status == "VORJAHR"))
+            .ToListAsync();
+        _db.FamzKorrekturen.RemoveRange(offenePosten);
         await _db.SaveChangesAsync();
         return NoContent();
     }

@@ -1917,7 +1917,7 @@ public class PayrollController : HrControllerBase
             var offeneFamz = await _db.FamzKorrekturen
                 .Where(k => k.EmployeeId == dto.EmployeeId
                          && k.Status == "OFFEN"
-                         && !(k.Jahr == dto.Year && k.Monat == dto.Month))
+                         && k.Jahr * 12 + k.Monat < dto.Year * 12 + dto.Month)
                 .ToListAsync();
             foreach (var k in offeneFamz)
             {

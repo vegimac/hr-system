@@ -114,4 +114,67 @@ public class FamzAnteilTests
         Assert.Equal(8, aug.Monat);
         Assert.Equal(250m, aug.Betrag);
     }
+
+    // Walter 11.10.2026 (Djonlagic): «Erfahren am» vertippt → Nachzahlungs-Posten;
+    // nach der Korrektur auf «Gültig ab» müssen sie weg sein.
+    private static async Task<(AppDbContext Db, FamilyMemberAllowance Kz)> DjonlagicAsync()
+    {
+        var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase("FamzAnteil_" + Guid.NewGuid()).Options);
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = 9, CompanyProfileId = 2, IsActive = true,
+            ContractStartDate = new DateTime(2025, 1, 1)
+        });
+        var kind = new EmployeeFamilyMember { EmployeeId = 9, MemberType = "Kind", FirstName = "Arman" };
+        db.EmployeeFamilyMembers.Add(kind);
+        await db.SaveChangesAsync();
+        var kz = new FamilyMemberAllowance
+        {
+            FamilyMemberId = kind.Id, AllowanceType = "KZ", MonthlyAmount = 260m,
+            ValidFrom = new DateOnly(2025, 1, 1), ValidTo = new DateOnly(2027, 3, 31),
+            ErfahrenAm = new DateOnly(2026, 6, 1)
+        };
+        db.FamilyMemberAllowances.Add(kz);
+        await db.SaveChangesAsync();
+        await new FamzKorrekturService(db).ErzeugeKorrekturenAsync(kz, "Test");
+        Assert.NotEmpty(await db.FamzKorrekturen.ToListAsync());
+        return (db, kz);
+    }
+
+    [Fact]
+    public async Task ErfahrenAm_korrigiert_raeumt_alte_Posten_weg()
+    {
+        var (db, kz) = await DjonlagicAsync();
+        kz.ErfahrenAm = kz.ValidFrom;
+        await db.SaveChangesAsync();
+
+        await new FamzKorrekturService(db).ErzeugeKorrekturenAsync(kz, "Test");
+
+        Assert.Empty(await db.FamzKorrekturen.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Lohnlauf_raeumt_alte_Posten_weg()
+    {
+        var (db, kz) = await DjonlagicAsync();
+        kz.ErfahrenAm = kz.ValidFrom;
+        await db.SaveChangesAsync();
+
+        await new FamzKorrekturService(db).EnsureKorrekturenFuerLohnlaufAsync(9, 2026, 1, "Test");
+
+        Assert.Empty(await db.FamzKorrekturen.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Geloeschte_Zulage_Lohnlauf_raeumt_Posten_weg()
+    {
+        var (db, kz) = await DjonlagicAsync();
+        db.FamilyMemberAllowances.Remove(kz);
+        await db.SaveChangesAsync();
+
+        await new FamzKorrekturService(db).EnsureKorrekturenFuerLohnlaufAsync(9, 2026, 1, "Test");
+
+        Assert.Empty(await db.FamzKorrekturen.ToListAsync());
+    }
 }

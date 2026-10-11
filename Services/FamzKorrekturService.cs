@@ -120,6 +120,16 @@ public class FamzKorrekturService
             .OrderBy(r => r.Year).ThenBy(r => r.Month)
             .ToList();
 
+        // Offene Posten aus einem früheren Stand (z.B. «Erfahren am» vertippt und
+        // korrigiert, Walter 11.10.2026 Djonlagic) für Monate, die jetzt keine
+        // Korrektur mehr brauchen — sonst zahlt der Lohnlauf sie trotzdem aus.
+        var veraltet = (await _db.FamzKorrekturen
+                .Where(k => k.AllowanceId == allowance.Id && (k.Status == "OFFEN" || k.Status == "VORJAHR"))
+                .ToListAsync(ct))
+            .Where(k => !kandidatenMap.ContainsKey((k.Jahr, k.Monat)))
+            .ToList();
+        if (veraltet.Count > 0) _db.FamzKorrekturen.RemoveRange(veraltet);
+
         var postenOut = new List<object>();
         decimal total = 0;
         int vorjahr = 0;
@@ -202,15 +212,33 @@ public class FamzKorrekturService
             join m in _db.EmployeeFamilyMembers on a.FamilyMemberId equals m.Id
             where m.EmployeeId == employeeId
             select a).ToListAsync(ct);
+        var mitOffenenPosten = (await _db.FamzKorrekturen.AsNoTracking()
+                .Where(k => k.EmployeeId == employeeId && (k.Status == "OFFEN" || k.Status == "VORJAHR"))
+                .Select(k => k.AllowanceId).Distinct().ToListAsync(ct))
+            .ToHashSet();
 
         foreach (var a in allowances)
         {
             var bekannt = BekanntAb(a);
-            if (bekannt > periodTo) continue;
             var vonMonat = new DateOnly(a.ValidFrom.Year, a.ValidFrom.Month, 1);
             var bekanntMonat = new DateOnly(bekannt.Year, bekannt.Month, 1);
-            if (vonMonat < bekanntMonat || (bekannt.Year == year && bekannt.Month == month))
+            bool faellig = bekannt <= periodTo
+                && (vonMonat < bekanntMonat || (bekannt.Year == year && bekannt.Month == month));
+            if (faellig || mitOffenenPosten.Contains(a.Id))
                 await ErzeugeKorrekturenAsync(a, erfasstVon, ct);
+        }
+
+        // Posten einer gelöschten Zulage
+        var ids = allowances.Select(a => a.Id).ToHashSet();
+        var verwaist = (await _db.FamzKorrekturen
+                .Where(k => k.EmployeeId == employeeId && (k.Status == "OFFEN" || k.Status == "VORJAHR"))
+                .ToListAsync(ct))
+            .Where(k => !ids.Contains(k.AllowanceId))
+            .ToList();
+        if (verwaist.Count > 0)
+        {
+            _db.FamzKorrekturen.RemoveRange(verwaist);
+            await _db.SaveChangesAsync(ct);
         }
     }
 }

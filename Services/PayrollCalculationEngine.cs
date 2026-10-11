@@ -1547,7 +1547,9 @@ public class PayrollCalculationEngine
         {
             var famzKorr = await _db.FamzKorrekturen
                 .Where(k => !simAktiv && k.EmployeeId == employeeId
-                         && !(k.Jahr == year && k.Monat == month)
+                         // nur vergangene Monate — eine Nachzahlung für einen späteren Monat
+                         // gehört nie in diesen Lohnlauf (Walter 11.10.2026)
+                         && k.Jahr * 12 + k.Monat < year * 12 + month
                          && (k.Status == "OFFEN"
                              || (k.Status == "VERRECHNET"
                                  && existingPeriod != null
