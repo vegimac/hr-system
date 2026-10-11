@@ -76,7 +76,7 @@ public class FamzAnmeldungPdfService
 
         // Arbeitgeber
         Text(f, "Arbeitgeber Name Betrieb", d.AgName);
-        Text(f, "Abrechnungsnummer_AK", d.AgAbrechnungsnummer);
+        Text(f, "Abrechnungsnummer_AK", NurZiffern(d.AgAbrechnungsnummer));
         Text(f, "Arbeitgeber Adresse", d.AgStrasse);
         Text(f, "Arbeitgeber_PLZ_Ort", d.AgPlzOrt);
         Text(f, "Arbeitgeber Beschäftigt von", d.BeschaeftigtVon);
@@ -214,6 +214,13 @@ public class FamzAnmeldungPdfService
         var ziffern = new string((ahv ?? "").Where(char.IsDigit).ToArray());
         if (ziffern.Length == 0) return null;
         return ziffern.Length == 13 && ziffern.StartsWith("756") ? ziffern[3..] : ziffern;
+    }
+
+    /// <summary>«629.0535.00» → «629053500»: die Punkte sind im Kästchenfeld vorgedruckt.</summary>
+    public static string? NurZiffern(string? s)
+    {
+        var ziffern = new string((s ?? "").Where(char.IsDigit).ToArray());
+        return ziffern.Length == 0 ? null : ziffern;
     }
 
     /// <summary>Ja/Nein auf Optionsgruppe «1»/«2»; <paramref name="jaIst2"/> = «Nein» steht vorne.</summary>

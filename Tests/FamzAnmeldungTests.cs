@@ -26,7 +26,7 @@ public class FamzAnmeldungTests
         AbWann = "01.03.2026",
         LeistungBezug = false,
         AgName = "Schaub Restaurants GmbH, Sursee",
-        AgAbrechnungsnummer = "10.123",
+        AgAbrechnungsnummer = "629.0535.00",
         AgStrasse = "Allmendstrasse 1",
         AgPlzOrt = "6210 Sursee",
         BeschaeftigtVon = "01.03.2026",
@@ -88,6 +88,13 @@ public class FamzAnmeldungTests
     [InlineData("", null)]
     public void Ahv_ohne_Laendercode(string ein, string? aus)
         => Assert.Equal(aus, FamzAnmeldungPdfService.OhneLaendercode(ein));
+
+    [Theory]
+    [InlineData("629.0535.00", "629053500")]
+    [InlineData("LU 629.0535.00", "629053500")]
+    [InlineData("", null)]
+    public void Abrechnungsnummer_nur_Ziffern(string ein, string? aus)
+        => Assert.Equal(aus, FamzAnmeldungPdfService.NurZiffern(ein));
 
     [Fact]
     public void Wohnt_bei_Eltern_wenn_beide_im_Haushalt()
