@@ -2394,6 +2394,7 @@
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('schulungen-uebersicht')">3&nbsp;·&nbsp;Schulungen</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('mirus-fehlende-ma')">4&nbsp;·&nbsp;Mirus-Abgleich: fehlende MA</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-ahv-abgleich')">5&nbsp;·&nbsp;AHV-Abgleich: GastroSocial gemeldete MA</button>
+                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-fz-abgleich')">6&nbsp;·&nbsp;FZ-Abgleich: GastroSocial Familienzulagen</button>
                         </div>
                         <ul style="margin-top:10px">
                             <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
@@ -2401,6 +2402,7 @@
                             <li><b>Schulungen</b> — Stand aller MA (Hygiene, Sicherheit, SRIW, Gastro, Nothelfer, Peak, SECO); erfasst wird im MA</li>
                             <li><b>Mirus-Abgleich</b> — welche aktiven OneCrew-MA der Filiale fehlen in Mirus (Personalexport XLS) + PDF-Erfassungsliste</li>
                             <li><b>AHV-Abgleich GastroSocial</b> — Liste «Mitarbeitende» aus dem Portal: wer muss abgemeldet werden, wer ist nicht gemeldet</li>
+                            <li><b>FZ-Abgleich GastroSocial</b> — «Familienzulagenbescheinigung»: zahlt GastroSocial dieselben Monate und Ansätze wie die Zulagen bei den Kindern in OneCrew</li>
                         </ul>
                     </div>
 
@@ -8586,6 +8588,45 @@
                 <div id="gsaResult" style="margin-top:8px"></div>
             </div>
 
+            <!-- ═══════════════ FZ-ABGLEICH GASTROSOCIAL (HR-Hub → Kontrolle) ═══════════════
+                 Walter 12.10.2026: «Familienzulagenbescheinigung» gegen die Zulagen bei den
+                 Kindern der MA der Sidebar-Filiale. Read-only. JS: js/gs-fz-abgleich.js (Prefix gsf). -->
+            <div class="page" id="page-gs-fz-abgleich">
+                <div class="sticky-page-head">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                        <h1 class="page-title">FZ-Abgleich: GastroSocial Familienzulagen</h1>
+                        <p class="page-sub">«Familienzulagenbescheinigung» aus dem GastroSocial-Portal hochladen — OneCrew vergleicht Monat für Monat mit den Zulagen bei den Kindern (MA → Familie). Es werden keine Daten geschrieben.</p>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                    </div>
+                </div>
+                <div id="gsfAlert" style="margin-bottom:12px"></div>
+
+                <div class="card" style="padding:24px">
+                    <div id="gsfBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:flex-end">
+                        <div>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">GastroSocial «Familienzulagenbescheinigung» (XLSX / XLS)</label>
+                            <input type="file" id="gsfFileInput" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                   style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                        </div>
+                        <button class="btn btn-primary" id="gsfAnalyzeBtn" onclick="gsfAnalyze()">Vergleichen</button>
+                    </div>
+                    <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
+                        <b>Erwartete Datei:</b> Export aus dem GastroSocial-Portal mit Spalten <code>Leistung · Bezüger AHV-Nr. · Bezüger Name · Bezüger Vorname · Kind AHV-Nr. · Kind Vorname · GebDat · Von · Bis · Monate · Ansatz · TotalBetrag</code> (Reihenfolge egal).<br>
+                        <b>Match:</b> Bezüger über AHV-Nummer (alle Filialen) → AHV-Nummer des Kindes → Name; Kind über AHV-Nummer → Geburtsdatum + Vorname → Vorname.<br>
+                        <b>Vergleich pro Monat:</b> ein Monat zählt in OneCrew, wenn eine Zulage ihn berührt — Betrag wie im Lohn (FAK-Tarif der Filiale, Satz am Kind).<br>
+                        <b>Fehlt in OneCrew</b> = GastroSocial zahlt, in OneCrew kein Kind bzw. keine Zulage → fehlt im Lohn. <b>Nur in OneCrew</b> = Zulage in OneCrew während eines Vertrags in dieser Filiale, das Kind steht nicht in der Bescheinigung.
+                    </div>
+                </div>
+                </div><!-- /.sticky-page-head -->
+
+                <div id="gsfSummary" style="margin-top:16px"></div>
+                <div id="gsfResult" style="margin-top:8px"></div>
+            </div>
+
             <!-- ═══════════════ MIRUS ADRESS-/KONTAKT-VERGLEICH (Auswertung) ═══════════════
                  Walter 29.07.2026: Doppelspur OneCrew ↔ Mirus. Read-only. -->
             <div class="page" id="page-mirus-address-compare">
@@ -10390,7 +10431,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261011b"></script>
+<script src="js/app-core.js?v=20261012a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10422,6 +10463,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/mirus-address-compare.js?v=20261011a"></script>
 <script src="js/mirus-fehlende-ma.js?v=20261011a"></script>
 <script src="js/gs-ahv-abgleich.js?v=20261011e"></script>
+<script src="js/gs-fz-abgleich.js?v=20261012a"></script>
 <script src="js/gespraech.js?v=20260913j"></script>
 <script src="js/roster-absence-import.js?v=20261003a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>

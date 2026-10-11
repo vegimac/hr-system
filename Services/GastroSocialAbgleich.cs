@@ -366,7 +366,7 @@ public static class GastroSocialAbgleich
         return liste;
     }
 
-    private static string Text(ICell? cell)
+    internal static string Text(ICell? cell)
     {
         if (cell == null) return "";
         return cell.CellType switch
@@ -379,7 +379,7 @@ public static class GastroSocialAbgleich
         };
     }
 
-    private static DateTime? Datum(ICell? cell)
+    internal static DateTime? Datum(ICell? cell)
     {
         if (cell == null) return null;
         try
@@ -422,7 +422,7 @@ public static class GastroSocialAbgleich
         return Ws(sb.ToString());
     }
 
-    private static string NameKey(string? vorname, string? nachname) => NormName(vorname) + "|" + NormName(nachname);
-    private static string Ws(string? s) => Regex.Replace((s ?? "").Trim(), @"\s+", " ");
-    private static string? Leer(string s) => s.Length == 0 ? null : s;
+    internal static string NameKey(string? vorname, string? nachname) => NormName(vorname) + "|" + NormName(nachname);
+    internal static string Ws(string? s) => Regex.Replace((s ?? "").Trim(), @"\s+", " ");
+    internal static string? Leer(string s) => s.Length == 0 ? null : s;
 }
