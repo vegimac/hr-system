@@ -23,6 +23,7 @@ const FAMZ_SPEICHERBAR = {
 };
 function famzSpeicherbar(pfad) {
     const t = pfad.split('.');
+    if (t.length === 1) return pfad === 'sorge' || pfad === 'lebenBei';
     if (t.length === 2 && t[0] === 'antragsteller') return FAMZ_SPEICHERBAR.antragsteller.includes(t[1]);
     if (t.length === 2 && (t[0] === 'andererElternteil' || t[0] === 'partner')) return FAMZ_SPEICHERBAR.eltern.includes(t[1]);
     if (t.length === 3 && t[0] === 'kinder') return FAMZ_SPEICHERBAR.kind.includes(t[2]);
@@ -315,14 +316,19 @@ async function famzInOneCrewSpeichern() {
         try { j = await res.json(); } catch { /* kein JSON */ }
         if (!res.ok) { showToast(j.message || 'Speichern fehlgeschlagen', 'error'); return; }
         const liste = j.gespeichert || [];
-        showToast(liste.length ? `In OneCrew gespeichert: ${liste.join(', ')}` : 'Nichts gespeichert — die Felder sind in OneCrew schon ausgefüllt.',
+        showToast(liste.length ? `In OneCrew gespeichert: ${liste.join(', ')}` : 'Nichts gespeichert — in OneCrew schon ausgefüllt oder nicht eindeutig (bitte in der Familie-Maske ergänzen).',
             liste.length ? 'success' : 'info');
         // Meldungen neu holen, Eingaben im Formular behalten.
         const kinder = (_famzDaten.kinderAuswahl || []).filter(k => k.gewaehlt).map(k => k.id);
         const r = await fetch(`/api/famz-anmeldung/${_famzEmpId}/prefill${kinder.length ? `?kinder=${kinder.join(',')}` : ''}`,
             { headers: ah(), cache: 'no-store' });
-        if (r.ok) _famzDaten = { ...(await r.json()), formular };
-        else _famzDaten.formular = formular;
+        if (r.ok) {
+            const neu = await r.json();
+            // Sorge / wohnt bei: OneCrew rechnet Wert + Bemerkung pro Kind neu.
+            if (felder.includes('sorge')) { formular.sorge = neu.formular?.sorge ?? formular.sorge; formular.sorgeBemerkung = neu.formular?.sorgeBemerkung ?? null; }
+            if (felder.includes('lebenBei')) { formular.lebenBei = neu.formular?.lebenBei ?? formular.lebenBei; formular.lebenBeiBemerkung = neu.formular?.lebenBeiBemerkung ?? null; }
+            _famzDaten = { ...neu, formular };
+        } else _famzDaten.formular = formular;
         _famzStart = {};
         famzRender();
     } catch {

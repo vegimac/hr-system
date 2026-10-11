@@ -34,6 +34,7 @@ public class FamzRueckschreiben
         var t = pfad.Split('.');
         return t.Length switch
         {
+            1 => t[0] is "sorge" or "lebenBei",
             2 when t[0] == "antragsteller" => AntragstellerFelder.Contains(t[1]),
             2 when t[0] is "andererElternteil" or "partner" => ElternteilFelder.Contains(t[1]),
             3 when t[0] == "kinder" && int.TryParse(t[1], out _) => KindFelder.Contains(t[2]),
@@ -63,7 +64,9 @@ public class FamzRueckschreiben
         {
             var t = pfad.Split('.');
             int vorher = gespeichert.Count;
-            if (t[0] == "antragsteller")
+            if (t.Length == 1)
+                KinderGemeinsam(t[0], dto, familie, gespeichert, geaendert);
+            else if (t[0] == "antragsteller")
                 Antragsteller(e, dto.Antragsteller, t[1], gespeichert, fehler);
             else if (t[0] is "andererElternteil" or "partner")
             {
@@ -236,6 +239,44 @@ public class FamzRueckschreiben
                 m.LeistungVon = p.LeistungVon1!.Trim();
                 ok.Add($"{wer}: Leistungen von");
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Formular-Angaben, die für alle Kinder gelten. «sorge» füllt die elterliche Sorge
+    /// jedes Kindes, bei dem sie leer ist. «lebenBei» = beide Eltern verknüpft Kinder
+    /// im Haushalt ohne anderen Elternteil mit dem anderen Elternteil des Formulars —
+    /// nur wenn dieser selbst im Haushalt lebt (sonst widerspräche es «beide Eltern»).
+    /// Mutter/Vater allein ergibt sich aus dem Haushalt und wird nicht gespeichert.
+    /// </summary>
+    static void KinderGemeinsam(string feld, FamzAnmeldungDto dto, List<EmployeeFamilyMember> familie,
+        List<string> ok, HashSet<EmployeeFamilyMember> geaendert)
+    {
+        var kinder = (dto.Kinder ?? new())
+            .Select(k => k.FamilyMemberId is int id ? familie.FirstOrDefault(x => x.Id == id && x.MemberType == "Kind") : null)
+            .Where(k => k != null).Select(k => k!).ToList();
+        if (feld == "sorge")
+        {
+            var s = Leer(dto.Sorge)?.ToUpperInvariant();
+            if (s == null || !HrSystem.Controllers.EmployeeFamilyMembersController.Sorgen.Contains(s)) return;
+            foreach (var k in kinder.Where(k => Leer(k.ElterlicheSorge) == null))
+            {
+                k.ElterlicheSorge = s;
+                geaendert.Add(k);
+                ok.Add($"{k.FirstName}: elterliche Sorge");
+            }
+            return;
+        }
+        if (Leer(dto.LebenBei)?.ToUpperInvariant() != "ELTERN") return;
+        var ae = dto.AndererElternteil?.FamilyMemberId is int aeId
+            ? familie.FirstOrDefault(x => x.Id == aeId && FamzEltern.Contains(x.MemberType)) : null;
+        if (ae == null || !ae.LebtImHaushalt || ae.AlternativeAddressId != null) return;
+        foreach (var k in kinder.Where(k => k.AndererElternteilId == null && k.LebtImHaushalt && k.AlternativeAddressId == null))
+        {
+            k.AndererElternteilId = ae.Id;
+            k.GemeinsamesKindMitPartner = ae.MemberType == "Konkubinatspartner";
+            geaendert.Add(k);
+            ok.Add($"{k.FirstName}: anderer Elternteil {ae.FirstName}");
         }
     }
 

@@ -50,7 +50,10 @@ leer war, ausgefüllt ist (`POST /api/famz-anmeldung/{empId}/in-onecrew-speicher
 ungültiger Wert (AHV-Prüfziffer, Datum, Pensum, Kanton) ⇒ gar nichts gespeichert. Speicherbar:
 MA «Zivilstand seit» + AHV; Elternteil/Ehepartner Geschlecht, Geburtsdatum, AHV, Zivilstand, angestellt
 (mit Erwerbs-Historie «Ersterfassung»), Arbeitsort Kanton, Pensum, verdient mehr, Einkommen > 7'560,
-SE/NE, Ausgleichskasse, Leistungen; Kind Geschlecht, Geburtsdatum, Beziehung. Bewusst NICHT: Name,
+SE/NE, Ausgleichskasse, Leistungen; Kind Geschlecht, Geburtsdatum, Beziehung; «Elterliche Sorge» (füllt
+jedes Kind mit leerer Sorge); «Kinder leben bei: beide Eltern» verknüpft Kinder im Haushalt OHNE anderen
+Elternteil mit dem anderen Elternteil aus Abschnitt 4 — nur wenn dieser selbst im Haushalt lebt
+(Mutter/Vater allein ergibt sich aus dem Haushalt, wird nicht gespeichert). Bewusst NICHT: Name,
 Adresse, Nationalität, Bewilligung, Arbeitgeber-Zeilen (Historie/zusammengesetzt → Familie-Maske).
 Tests `Tests/FamzRueckschreibenTests.cs`.
 

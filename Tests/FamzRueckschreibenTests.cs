@@ -102,6 +102,44 @@ public class FamzRueckschreibenTests
     }
 
     [Fact]
+    public async Task Beide_Eltern_verknuepft_Kind_ohne_Elternteil_und_fuellt_Sorge()
+    {
+        using var db = NewDb();
+        var (ma, saud, alen) = await Anita(db);
+        var arman = new EmployeeFamilyMember { EmployeeId = ma.Id, MemberType = "Kind", FirstName = "Arman", AndererElternteilId = saud.Id, ElterlicheSorge = "ELTERN" };
+        db.EmployeeFamilyMembers.Add(arman);
+        await db.SaveChangesAsync();
+        var dto = Formular(saud.Id, alen.Id);
+        dto.Kinder!.Add(new FamzKindDto { FamilyMemberId = arman.Id });
+        dto.Sorge = "eltern";
+        dto.LebenBei = "ELTERN";
+
+        var r = await new FamzRueckschreiben(db).SpeichernAsync(ma.Id, dto, new[] { "sorge", "lebenBei" });
+
+        Assert.Empty(r.Fehler);
+        Assert.Equal(new[] { "Alen: elterliche Sorge", "Alen: anderer Elternteil Saud" }, r.Gespeichert);
+        Assert.Equal("ELTERN", alen.ElterlicheSorge);
+        Assert.Equal(saud.Id, alen.AndererElternteilId);
+        Assert.False(alen.GemeinsamesKindMitPartner);
+    }
+
+    [Fact]
+    public async Task Beide_Eltern_ohne_Elternteil_im_Haushalt_verknuepft_nichts()
+    {
+        using var db = NewDb();
+        var (ma, saud, alen) = await Anita(db);
+        saud.LebtImHaushalt = false;
+        await db.SaveChangesAsync();
+        var dto = Formular(saud.Id, alen.Id);
+        dto.LebenBei = "ELTERN";
+
+        var r = await new FamzRueckschreiben(db).SpeichernAsync(ma.Id, dto, new[] { "lebenBei" });
+
+        Assert.Empty(r.Gespeichert);
+        Assert.Null(alen.AndererElternteilId);
+    }
+
+    [Fact]
     public async Task Nicht_speicherbare_und_fremde_Felder_werden_ignoriert()
     {
         using var db = NewDb();
