@@ -109,7 +109,8 @@ public class GastroSocialAbgleichController : ControllerBase
             {
                 FzKinderAktiv = fzHeute.Select(a => a.FamilyMemberId).Distinct().Count(),
                 FzText = fzText.Length > 0 ? fzText : null,
-                FzLetztesEnde = fzHeute.Count == 0 ? fz.Where(a => a.ValidTo != null).Max(a => a.ValidTo) : null,
+                FzLetztesEnde = fzHeute.Count == 0 ? fz.Where(a => a.ValidTo != null && a.ValidTo < heuteD).Max(a => a.ValidTo) : null,
+                FzErfasst = fz.Count > 0,
                 Id = e.Id,
                 Nummer = e.EmployeeNumber,
                 Vorname = e.FirstName,

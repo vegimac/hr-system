@@ -68,6 +68,8 @@ public static class GastroSocialAbgleich
         public string? FzText { get; set; }
         /// <summary>Ende der zuletzt abgelaufenen Zulage (wenn heute keine mehr gilt).</summary>
         public DateOnly? FzLetztesEnde { get; set; }
+        /// <summary>Irgendeine Zulage bei einem Kind erfasst (auch abgelaufen oder künftig).</summary>
+        public bool FzErfasst { get; set; }
     }
 
     public static bool HatFz(string? leistungen) =>
@@ -182,7 +184,9 @@ public static class GastroSocialAbgleich
             t.Eintritt = hit.Eintritt;
             t.Austritt = hit.AustrittFiliale;
             t.MatchArt = art;
-            t.OneCrewFz = hit.FzKinderAktiv > 0 ? hit.FzText : null;
+            t.OneCrewFz = hit.FzKinderAktiv > 0 ? hit.FzText
+                : hit.FzLetztesEnde != null ? $"abgelaufen ({hit.FzLetztesEnde:dd.MM.yyyy})"
+                : hit.FzErfasst ? "erfasst, beginnt später" : null;
             var hinweise = new List<string>();
             if (art != "AHV")
                 hinweise.Add(string.IsNullOrWhiteSpace(hit.Ahv)
@@ -270,18 +274,17 @@ public static class GastroSocialAbgleich
     }
 
     /// <summary>
-    /// GastroSocial «FZ» (bezieht Familienzulagen) gegen heute gültige Zulagen bei den Kindern in OneCrew.
+    /// GastroSocial «FZ» (bezieht Familienzulagen) gegen die Zulagen bei den Kindern in OneCrew.
+    /// GastroSocial «FZ» passt zu jeder erfassten Zulage, auch einer abgelaufenen (Walter 12.10.2026);
+    /// umgekehrt meldet nur eine heute laufende Zulage ohne «FZ» bei GastroSocial.
     /// Nur für MA, die in dieser Filiale aktiv sind.
     /// </summary>
     private static void FzVergleich(Ergebnis res, Zeile z, Ma hit, Treffer basis)
     {
         var gsFz = HatFz(z.Leistungen);
-        var ocFz = hit.FzKinderAktiv > 0;
-        if (gsFz == ocFz) return;
+        if (gsFz ? hit.FzErfasst : hit.FzKinderAktiv == 0) return;
         var hinweis = gsFz
-            ? "GastroSocial zahlt FZ, in OneCrew ist bei keinem Kind eine laufende Zulage erfasst"
-              + (hit.FzLetztesEnde != null ? $" (letzte Zulage bis {hit.FzLetztesEnde:dd.MM.yyyy})" : "")
-              + " — Zulage beim Kind erfassen"
+            ? "GastroSocial zahlt FZ, in OneCrew ist bei keinem Kind eine Zulage erfasst — Zulage beim Kind erfassen"
             : $"In OneCrew Zulage erfasst ({hit.FzText}), bei GastroSocial keine FZ — Antrag fehlt oder anderer Elternteil bezieht sie";
         res.FzPruefen.Add(new Treffer
         {
