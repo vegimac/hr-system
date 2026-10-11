@@ -3165,7 +3165,7 @@ public class PayrollCalculationEngine
             decimal? thirteenthPayoutForDisplay   = null;
             if (thirteenthForfeited && thirteenthPct > 0)
             {
-                decimal currentAccrual = Round05(mtp13BasisExact * thirteenthPct / 100m);
+                decimal currentAccrual = PayrollCalculations.Rappen(mtp13BasisExact * thirteenthPct / 100m);
                 decimal forfeitedAmt = PayrollCalculations.Rappen(prevThirteenth + currentAccrual);
                 if (forfeitedAmt > 0)
                 {
@@ -3234,8 +3234,9 @@ public class PayrollCalculationEngine
                 // anzeigen (betrag=0, accrued=currentAccrual) — analog zur
                 // Ferienentschädigung. So sieht der MA monatlich, wie sich der
                 // 13.-ML akkumuliert. Der Betrag wandert über thirteenthPctForSaldo
-                // weiter in den Saldo-Block "Rückst. 13. Monatslohn".
-                decimal currentAccrual = Round05(mtp13BasisExact * thirteenthPct / 100m);
+                // weiter in den Saldo-Block "Rückst. 13. Monatslohn" — dort rappengenau,
+                // die Zeile muss denselben Betrag zeigen.
+                decimal currentAccrual = PayrollCalculations.Rappen(mtp13BasisExact * thirteenthPct / 100m);
                 if (currentAccrual > 0)
                 {
                     lohnLines.Add(new {
