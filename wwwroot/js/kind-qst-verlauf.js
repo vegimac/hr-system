@@ -3,7 +3,26 @@
 // (Versionen ab Datum) und QST-Entscheide. Gerechnet wird nur auf dem Server
 // (Services/KindQstVerlauf.cs) — hier wird nur angezeigt und erfasst.
 
-let _kqv = { empId: null, memberId: null, daten: null, dokumente: null, verlaufOffen: {} };
+let _kqv = { empId: null, memberId: null, daten: null, dokumente: null, verlaufOffen: {}, ohneQst: false };
+
+/** MA heute nicht QST-pflichtig und ohne QST-Erfassung ⇒ QST-Teile im Kind-Fenster weglassen (Walter 11.10.2026). */
+function kqvOhneQst() { return _kqv.ohneQst === true; }
+
+async function kqvQstPflichtLaden(empId) {
+    try {
+        const r = await fetch(`/api/employees/${empId}/qst-pflicht`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok || _kqv.empId !== empId) return;
+        const p = await r.json();
+        _kqv.ohneQst = p.isQstPflichtig === false && p.hasErfassung !== true;
+    } catch { /* im Zweifel anzeigen */ }
+    kqvQstSichtbarkeit();
+}
+
+function kqvQstSichtbarkeit() {
+    const sec = document.getElementById('fmQstSection');
+    if (sec && document.getElementById('fmMemberType')?.value === 'Kind') sec.style.display = kqvOhneQst() ? 'none' : '';
+    if (_kqv.daten) kqvRender();
+}
 
 const KQV_ARTEN = { LEHRE: 'Lehre', SCHULE: 'Schule', STUDIUM: 'Studium', BRUECKE: 'Brückenangebot', ANDERE: 'andere' };
 const KQV_ENDE = { ABSCHLUSS: 'abgeschlossen', ABBRUCH: 'abgebrochen', UNTERBRUCH: 'unterbrochen' };
@@ -78,9 +97,10 @@ function kqvBoxen() {
 
 /** Beim Öffnen des Familien-Fensters: Kind laden oder Hinweis für neue Kinder. */
 async function kqvOeffnen(empId, member) {
-    _kqv = { empId, memberId: member?.id ?? null, daten: null, dokumente: null, verlaufOffen: {} };
+    _kqv = { empId, memberId: member?.id ?? null, daten: null, dokumente: null, verlaufOffen: {}, ohneQst: false };
     const b = kqvBoxen();
     if (!b.qst) return;
+    if (empId) kqvQstPflichtLaden(empId);
     if (!member?.id || member.memberType !== 'Kind') {
         if (b.wohnen) b.wohnen.innerHTML = '';
         if (b.ausbildung) b.ausbildung.innerHTML = `<div class="kqv-hinweis">Nach dem Speichern erfassen.</div>`;
@@ -165,7 +185,11 @@ function kqvRender() {
             ${kqvMenu('kqvA', x.id, `kqvAusbildungDialog(${x.id})`, `kqvLoeschen('ausbildung',${x.id})`)}
         </div>`;
     };
-    const zulagen = (d.zulagenOhneAusbildung || []).map(z => `<div class="kqv-zeile kqv-gelb">
+    const zulagen = (d.zulagenOhneAusbildung || []).map(z => kqvOhneQst()
+        ? `<div class="kqv-zeile">
+            <div class="kqv-text">Ausbildungszulage ${kqvDatum(z.von)} – ${z.bis ? kqvDatum(z.bis) : 'offen'}${kqvDokLink(z.dokumentId)}</div>
+        </div>`
+        : `<div class="kqv-zeile kqv-gelb">
             <div class="kqv-text">Ausbildungszulage ${kqvDatum(z.von)} – ${z.bis ? kqvDatum(z.bis) : 'offen'}${kqvDokLink(z.dokumentId)}
                 <div class="kqv-klein">Für die Familienzulage anerkannt — für die QST noch nicht erfasst.</div></div>
             <button type="button" class="kqv-btn" onclick="kqvAusZulage(${z.id})">Als QST-Ausbildung übernehmen</button>

@@ -6056,7 +6056,8 @@ function fmQstBlocksVisibility(type) {
     const istKind = type === 'Kind';
     ['fmKindSection', 'fmKindWohnenSection', 'fmKindAusbildungSection', 'fmQstSection'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.style.display = istKind ? '' : 'none';
+        const ohneQst = id === 'fmQstSection' && typeof kqvOhneQst === 'function' && kqvOhneQst();
+        if (el) el.style.display = istKind && !ohneQst ? '' : 'none';
     });
     ['fmAufenthaltTitel', 'fmOcrInfo', 'fmAufenthaltGrid', 'fmAdresseSection'].forEach(id => {
         const el = document.getElementById(id);
