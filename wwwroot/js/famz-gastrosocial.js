@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 3;
+        var VERSION = 4;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -251,18 +251,35 @@ function famzGsKern(daten) {
             var b = document.createElement('button');
             b.textContent = ab.titel;
             b.style.cssText = knopf + 'background:#3f3f3f;color:#fff';
+            // Feld für Feld mit kurzer Pause: das Portal reagiert auf jede Eingabe, und
+            // bleibt es irgendwo hängen, zeigt das Fenster, bei welchem Feld.
             b.onclick = function () {
-                var zeilen = (ab.felder || []).map(function (feld) {
-                    try { return fuelle(feld); } catch (e) {
-                        return { s: 'fehlt', t: (feld.anzeige || [].concat(feld.l)[0]) + ': Fehler ' + (e && e.message || e) };
+                var felder = ab.felder || [], zeilen = [], i = 0;
+                var zeige = function (laufend) {
+                    ergebnis.innerHTML = '<div style="font-weight:700;margin-bottom:3px">' + ab.titel.replace(/</g, '&lt;') + '</div>'
+                        + zeilen.map(function (z) {
+                            return '<div style="color:' + farbe[z.s] + '">' + zeichen[z.s] + ' ' + z.t.replace(/</g, '&lt;') + '</div>';
+                        }).join('')
+                        + (laufend ? '<div style="color:#8b8b8b">⏳ ' + laufend.replace(/</g, '&lt;') + ' …</div>'
+                            : ab.hinweis ? '<div style="margin-top:6px;color:#646464">' + ab.hinweis.replace(/</g, '&lt;') + '</div>' : '');
+                };
+                var weiter = function () {
+                    if (i >= felder.length) {
+                        if (!zeilen.length) zeilen.push({ s: 'info', t: 'Nichts zu tun — in OneCrew sind für diesen Schritt keine Werte vorhanden.' });
+                        zeige(null);
+                        return;
                     }
-                }).filter(Boolean);
-                if (!zeilen.length) zeilen = [{ s: 'info', t: 'Nichts zu tun — in OneCrew sind für diesen Schritt keine Werte vorhanden.' }];
-                ergebnis.innerHTML = '<div style="font-weight:700;margin-bottom:3px">' + ab.titel.replace(/</g, '&lt;') + '</div>'
-                    + zeilen.map(function (z) {
-                        return '<div style="color:' + farbe[z.s] + '">' + zeichen[z.s] + ' ' + z.t.replace(/</g, '&lt;') + '</div>';
-                    }).join('')
-                    + (ab.hinweis ? '<div style="margin-top:6px;color:#646464">' + ab.hinweis.replace(/</g, '&lt;') + '</div>' : '');
+                    var feld = felder[i++];
+                    var name = feld.anzeige || [].concat(feld.l)[0] || '';
+                    zeige(name);
+                    setTimeout(function () {
+                        var z;
+                        try { z = fuelle(feld); } catch (e) { z = { s: 'fehlt', t: name + ': Fehler ' + (e && e.message || e) }; }
+                        if (z) zeilen.push(z);
+                        weiter();
+                    }, 150);
+                };
+                weiter();
             };
             p.querySelector('#ocfz-knoepfe').appendChild(b);
         });
