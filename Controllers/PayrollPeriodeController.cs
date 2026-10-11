@@ -284,6 +284,15 @@ public class PayrollPeriodeController : ControllerBase
             k.VerrechnetPeriodeId = null;
             k.VerrechnetAt        = null;
         }
+        var famzZurueck = await _db.FamzKorrekturen
+            .Where(k => k.VerrechnetPeriodeId == id && k.Status == "VERRECHNET")
+            .ToListAsync();
+        foreach (var k in famzZurueck)
+        {
+            k.Status              = "OFFEN";
+            k.VerrechnetPeriodeId = null;
+            k.VerrechnetAt        = null;
+        }
 
         // K3 (Walter 29.08.2026): Darlehens-Raten dieser Periode löschen —
         // der Restsaldo lebt wieder auf, GETILGTE Darlehen zurück auf OFFEN.

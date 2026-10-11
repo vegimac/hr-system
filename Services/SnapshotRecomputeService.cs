@@ -116,6 +116,7 @@ public class SnapshotRecomputeService
                 : ferTageBase;
             node["ferienKuerzungAngewendet"]     = kuerzungAngewendet;
             node["ferienKuerzungAngewendetTage"] = kuerzungAngewendet ? vorschlagTage : 0m;
+            node["famzZahlungen"] = JsonSerializer.SerializeToNode(_calcEngine.LetzteFamzZahlungen, Camel);
             json = node.ToJsonString();
 
             s.Brutto    = gross;

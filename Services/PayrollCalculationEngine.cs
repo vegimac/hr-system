@@ -62,6 +62,16 @@ public class PayrollCalculationEngine
         _sim            = sim ?? new HrSystem.Services.Vorsystem.LohnSimulationKontext();
     }
 
+    /// <summary>Laufende Familienzulagen der letzten Berechnung, pro Eintrag (nach «Lohn zu tief»).</summary>
+    public record FamzZahlung(int AllowanceId, int FamilyMemberId, decimal Betrag);
+
+    /// <summary>
+    /// Wird beim Bestätigen als «famzZahlungen» ins SlipJson geschrieben — daraus liest
+    /// FamzKorrekturService später, was in einem abgeschlossenen Monat bezahlt wurde
+    /// (Rückforderung bei rückwirkendem Ende).
+    /// </summary>
+    public List<FamzZahlung> LetzteFamzZahlungen { get; private set; } = new();
+
     public async Task<IActionResult> CalculateAsync(
         int employeeId, int year, int month, int companyProfileId,
         bool isCorrection = false,
@@ -74,6 +84,7 @@ public class PayrollCalculationEngine
         // Live-Rechnung (Wartung: RefreshSnapshotCodes, SnapshotRecompute).
         bool ignoreFrozenSnapshot = false)
     {
+      LetzteFamzZahlungen = new List<FamzZahlung>();
       if (isCorrection)
           return await CalculateCorrectionAsync(employeeId, year, month, companyProfileId);
 
@@ -1540,20 +1551,21 @@ public class PayrollCalculationEngine
                 Bemerkung      = bemerkung,
                 CreatedAt      = fa.CreatedAt
             });
+            LetzteFamzZahlungen.Add(new FamzZahlung(fa.AllowanceId, fa.FamilyMemberId, betrag));
         }
 
-        // FamZ-Korrekturen (Nachzahlung / Rückforderung) — gleiche Lohnposition
-        // 190.x, Bemerkung mit Monat + Kind (Walter 18.09.2026, Swissdec 3001).
+        // FamZ-Nachzahlungen/-Rückforderungen werden seit 11.10.2026 NICHT mehr
+        // automatisch bezahlt (Walter: «nicht alles im Lohn kann automatisiert
+        // werden») — offene Prüffälle sind eine Warnung im Lohnlauf und werden
+        // bei Bedarf als normale Zulage 190.x übernommen. Hier nur noch Altposten,
+        // die bereits in DIESEM Lohn verrechnet wurden, damit ein bestätigter
+        // Lohn beim Neurechnen gleich bleibt.
+        if (existingPeriod != null)
         {
             var famzKorr = await _db.FamzKorrekturen
                 .Where(k => !simAktiv && k.EmployeeId == employeeId
-                         // nur vergangene Monate — eine Nachzahlung für einen späteren Monat
-                         // gehört nie in diesen Lohnlauf (Walter 11.10.2026)
-                         && k.Jahr * 12 + k.Monat < year * 12 + month
-                         && (k.Status == "OFFEN"
-                             || (k.Status == "VERRECHNET"
-                                 && existingPeriod != null
-                                 && k.VerrechnetPeriodeId == existingPeriod.Id)))
+                         && k.Status == "VERRECHNET"
+                         && k.VerrechnetPeriodeId == existingPeriod.Id)
                 .OrderBy(k => k.Jahr).ThenBy(k => k.Monat)
                 .ToListAsync();
             int korrIdx = 0;
@@ -2247,6 +2259,7 @@ public class PayrollCalculationEngine
             if (famzFakLines.Count == 0) return;
             if (!PayrollCalculations.IsFakMindesteinkommenGesperrt(
                     ahvBasisPeriode, mindesteinkommenMonatThreshold)) return;
+            LetzteFamzZahlungen = LetzteFamzZahlungen.Select(z => z with { Betrag = 0m }).ToList();
 
             foreach (var f in famzFakLines)
             {

@@ -1472,6 +1472,11 @@ public class AppDbContext : DbContext
             entity.Property(e => e.VerrechnetAt).HasColumnName("verrechnet_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by").HasMaxLength(150);
+            entity.Property(e => e.LohnZulageId).HasColumnName("lohn_zulage_id");
+            entity.Property(e => e.ErledigtArt).HasColumnName("erledigt_art").HasMaxLength(20);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErledigtVon).HasColumnName("erledigt_von").HasMaxLength(150);
             entity.HasIndex(e => new { e.EmployeeId, e.Jahr, e.Monat });
             entity.HasIndex(e => e.AllowanceId);
         });

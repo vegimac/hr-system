@@ -1576,6 +1576,7 @@ public class PayrollController : HrControllerBase
 
         var _camelOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         var srvNode = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(okCalc.Value, _camelOpts))!;
+        srvNode["famzZahlungen"] = JsonSerializer.SerializeToNode(_calcEngine.LetzteFamzZahlungen, _camelOpts);
 
         if (srvNode["pausiert"] is { } pausNode && pausNode.GetValueKind() == JsonValueKind.True)
             return Conflict(new { error = "Mitarbeiter ist in diesem Monat über die KTG-Versicherung abgerechnet (Pause) — keine Bestätigung möglich." });
@@ -1593,6 +1594,21 @@ public class PayrollController : HrControllerBase
                 error = "BASEN_DIFFERENZ",
                 message = $"Basen-Kontrolle: Katalog-Flags und Kontrollrechnung weichen um CHF {bdNode.GetValue<decimal>():0.00} ab — Bestätigen gesperrt. Bitte Basen-Kontrolle (Kachel «Lohnraster ELM») prüfen.",
             });
+
+        // Familienzulagen-Warnungen früherer Monate müssen quittiert sein
+        // (als Zulage übernommen oder «nicht nötig», Walter 11.10.2026).
+        if (!dto.IsCorrection)
+        {
+            var famzOffen = await FamzKorrekturService
+                .OffeneWarnungen(_db, dto.EmployeeId, dto.Year, dto.Month)
+                .CountAsync();
+            if (famzOffen > 0)
+                return Conflict(new
+                {
+                    error = "FAMZ_WARNUNG_OFFEN",
+                    message = $"{famzOffen} Familienzulagen-Warnung(en) aus früheren Monaten sind noch offen — unter «Zulagen & Abzüge» als Zulage übernehmen oder als «nicht nötig» quittieren.",
+                });
+        }
 
         // ── Mindestlohn-Sperre (Walter-Vorgabe 20.05.2026) ─────────────────────
         // Liegt der vertragliche Lohn am Periodenende unter dem L-GAV-Mindestlohn,
@@ -1909,19 +1925,6 @@ public class PayrollController : HrControllerBase
             foreach (var k in offeneKorr)
             {
                 k.Status             = "VERRECHNET";
-                k.VerrechnetPeriodeId = dto.PayrollPeriodeId;
-                k.VerrechnetAt        = nowTs;
-            }
-
-            // FamZ-Korrekturen (Nachzahlung/Rückforderung) ebenfalls VERRECHNET.
-            var offeneFamz = await _db.FamzKorrekturen
-                .Where(k => k.EmployeeId == dto.EmployeeId
-                         && k.Status == "OFFEN"
-                         && k.Jahr * 12 + k.Monat < dto.Year * 12 + dto.Month)
-                .ToListAsync();
-            foreach (var k in offeneFamz)
-            {
-                k.Status              = "VERRECHNET";
                 k.VerrechnetPeriodeId = dto.PayrollPeriodeId;
                 k.VerrechnetAt        = nowTs;
             }

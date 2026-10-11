@@ -61,8 +61,59 @@ public class FamilyMemberAllowancesController : ControllerBase
             .Where(a => a.FamilyMemberId == familyMemberId)
             .OrderByDescending(a => a.ValidFrom)
             .ToListAsync();
-        return Ok(entries.Select(a => MapToDto(a, firstAllowed)).ToList());
+        var verwendet = await VerwendetAsync(familyMemberId, entries);
+        var ids = entries.Select(a => a.Id).ToList();
+        var posten = await (from k in _db.FamzKorrekturen.AsNoTracking()
+                            join p in _db.PayrollPerioden.AsNoTracking() on k.VerrechnetPeriodeId equals p.Id into pj
+                            from p in pj.DefaultIfEmpty()
+                            join z in _db.LohnZulagen.AsNoTracking() on k.LohnZulageId equals z.Id into zj
+                            from z in zj.DefaultIfEmpty()
+                            where ids.Contains(k.AllowanceId)
+                            select new { K = k, PJahr = (int?)p.Year, PMonat = (int?)p.Month,
+                                         ZPeriode = z.Periode })
+                           .ToListAsync();
+        return Ok(entries.Select(a => MapToDto(a, firstAllowed,
+            verwendet.TryGetValue(a.Id, out var bis) ? bis : null,
+            posten.Where(x => x.K.AllowanceId == a.Id)
+                  .OrderBy(x => x.K.Jahr).ThenBy(x => x.K.Monat)
+                  .Select(x => (object)new
+                  {
+                      id          = x.K.Id,
+                      jahr        = x.K.Jahr,
+                      monat       = x.K.Monat,
+                      betrag      = x.K.Betrag,
+                      status      = x.K.Status,
+                      erledigtArt = x.K.ErledigtArt,
+                      bemerkung   = x.K.Bemerkung,
+                      erledigtAm  = x.K.ErledigtAm,
+                      erledigtVon = x.K.ErledigtVon,
+                      // Lohn, in dem der Posten bezahlt wurde: übernommene Zulage
+                      // bzw. Altbestand (bis 11.10.2026 automatisch verrechnet)
+                      lohnPeriode = x.ZPeriode
+                          ?? (x.PJahr.HasValue ? $"{x.PJahr:0000}-{x.PMonat:00}" : null)
+                  }).ToList())).ToList());
     }
+
+    private async Task<Dictionary<int, (int Jahr, int Monat)>> VerwendetAsync(
+        int familyMemberId, IReadOnlyCollection<FamilyMemberAllowance> eintraege)
+    {
+        var empId = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(m => m.Id == familyMemberId)
+            .Select(m => (int?)m.EmployeeId)
+            .FirstOrDefaultAsync();
+        return empId is null
+            ? new Dictionary<int, (int, int)>()
+            : await _famzKorrektur.VerwendetBisAsync(empId.Value, eintraege);
+    }
+
+    private static IActionResult Verwendet((int Jahr, int Monat) bis, string was) => new ConflictObjectResult(new
+    {
+        error   = "ZULAGE_VERWENDET",
+        message = $"Diese Zulage ist im abgeschlossenen Lohn {bis.Monat:00}/{bis.Jahr} verwendet — {was} "
+                + "Für eine Änderung ab einem späteren Datum einen neuen Eintrag erfassen; "
+                + "rückwirkend beenden geht über «Gültig bis».",
+        verwendetBis = $"{bis.Jahr:0000}-{bis.Monat:00}"
+    });
 
     /// <summary>
     /// Walter-Vorgabe 28.05.2026: Live-Vorschau des aktuell gültigen Tarif-
@@ -87,6 +138,62 @@ public class FamilyMemberAllowancesController : ControllerBase
             .Distinct()
             .ToListAsync();
         return Ok(ids);
+    }
+
+    /// <summary>
+    /// Laufende und künftige Familienzulagen eines MA für die Anzeige in
+    /// «Wiederkehrende Zulagen &amp; Abzüge» (Walter 11.10.2026). Nur Anzeige —
+    /// geändert wird am Kind; Betrag wie im Lohn aus dem FAK-Tarif der Filiale.
+    /// </summary>
+    [HttpGet("/api/family-allowances/employee/{employeeId:int}/laufend")]
+    public async Task<IActionResult> LaufendFuerMa(int employeeId,
+        [FromServices] FamilienzulagenResolverService resolver)
+    {
+        var anstellung = await _db.Employments.AsNoTracking()
+            .Where(x => x.EmployeeId == employeeId && x.IsActive)
+            .OrderByDescending(x => x.ContractStartDate)
+            .Select(x => new { x.CompanyProfileId, Kanton = x.CompanyProfile != null ? x.CompanyProfile.KantonCode : null })
+            .FirstOrDefaultAsync();
+        DateOnly? ersterOffener = anstellung?.CompanyProfileId is int cp
+            ? await _editLock.GetFirstAllowedDateForContractsAsync(cp)
+            : null;
+        var stichtag = ersterOffener ?? DateOnly.FromDateTime(DateTime.Today);
+        var monatStart = new DateOnly(stichtag.Year, stichtag.Month, 1);
+
+        var eintraege = await (from a in _db.FamilyMemberAllowances.AsNoTracking()
+                               join m in _db.EmployeeFamilyMembers.AsNoTracking() on a.FamilyMemberId equals m.Id
+                               where m.EmployeeId == employeeId
+                                     && (a.ValidTo == null || a.ValidTo >= monatStart)
+                               orderby m.FirstName, a.ValidFrom
+                               select new { A = a, m.FirstName, m.LastName })
+                              .ToListAsync();
+
+        var liste = new List<object>();
+        foreach (var e in eintraege)
+        {
+            var a = e.A;
+            bool einmalig = a.AllowanceType is "GZ" or "AdoptZ";
+            if (einmalig && a.ValidFrom < monatStart) continue;
+            var ab = a.ValidFrom > stichtag ? a.ValidFrom : stichtag;
+            var tarif = await resolver.GetTarifAsync(anstellung?.Kanton, ab);
+            var typ = a.AllowanceType is "AZ" ? "AZ" : einmalig ? a.AllowanceType! : "KZ";
+            var r = FamilienzulagenResolverService.ResolveBySatz(tarif, typ, a.TarifSatzNr);
+            liste.Add(new
+            {
+                allowanceId   = a.Id,
+                familyMemberId = a.FamilyMemberId,
+                kind          = string.Join(" ", new[] { e.FirstName, e.LastName }.Where(s => !string.IsNullOrWhiteSpace(s))),
+                code          = typ == "AZ" ? "190.2" : einmalig ? "190.3" : "190.1",
+                allowanceType = a.AllowanceType,
+                satzLabel     = r.SatzLabel,
+                betrag        = r.Amount ?? a.MonthlyAmount,
+                einmalig,
+                validFrom     = a.ValidFrom.ToString("yyyy-MM-dd"),
+                validTo       = a.ValidTo?.ToString("yyyy-MM-dd"),
+                erfahrenAm    = a.ErfahrenAm?.ToString("yyyy-MM-dd")
+            });
+        }
+        return Ok(liste);
     }
 
     [HttpGet("resolve-preview")]
@@ -231,8 +338,9 @@ public class FamilyMemberAllowancesController : ControllerBase
         if (await UnterhaltspflichtGeprueftAsync(familyMemberId) is IActionResult sperre)
             return sperre;
 
-        // Rückwirkendes «Gültig ab» erlaubt, wenn «Erfahren am» gesetzt ist
-        // (Wissens-Achse → famz_korrektur). Sonst wie bisher Sperre.
+        // «Gültig ab» = Anspruch laut FAK (darf zurückliegen), «Erfahren am» =
+        // ab da bezahlt der Lohn automatisch — frühestens im ersten offenen Monat.
+        // Frühere Monate werden Warnungen im Lohnlauf (famz_korrektur).
         var branchId     = await GetBranchByFamilyMemberAsync(familyMemberId);
         var firstAllowed = branchId.HasValue
             ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value)
@@ -243,7 +351,7 @@ public class FamilyMemberAllowancesController : ControllerBase
         {
             return Conflict(new {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"«Gültig ab {dto.ValidFrom.Value:dd.MM.yyyy}» liegt in einer abgeschlossenen Periode — bitte «Erfahren am» auf frühestens {firstAllowed.Value:dd.MM.yyyy} setzen (Nachzahlung im offenen Monat).",
+                message          = $"«Gültig ab {dto.ValidFrom.Value:dd.MM.yyyy}» liegt in einer abgeschlossenen Periode — bitte «Erfahren am» auf frühestens {firstAllowed.Value:dd.MM.yyyy} setzen. Der Lohn bezahlt ab diesem Monat; frühere Monate erscheinen im Lohnlauf als Warnung.",
                 firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
             });
         }
@@ -298,18 +406,24 @@ public class FamilyMemberAllowancesController : ControllerBase
         var firstAllowedU = branchIdU.HasValue
             ? await _editLock.GetFirstAllowedDateForContractsAsync(branchIdU.Value)
             : null;
-        // Eingefrorene Zulage: ValidFrom/Typ gesperrt, aber ValidTo + ErfahrenAm
-        // bleiben editierbar (Ende + Wissensdatum → Korrekturen).
-        bool eingefroren = firstAllowedU.HasValue && entry.ValidFrom < firstAllowedU.Value;
         var erfahrenAmU = dto.ErfahrenAm ?? dto.ValidFrom!.Value;
         if (erfahrenAmU < dto.ValidFrom!.Value)
             return BadRequest(new { error = "«Erfahren am» darf nicht vor «Gültig ab» liegen." });
 
-        if (eingefroren)
+        // Eingefroren, sobald ein abgeschlossener Lohn den Eintrag verwendet hat
+        // (Walter 11.10.2026): nur noch Gültig bis (Ende, auch rückwirkend →
+        // Rückforderung), Dokument und Bemerkung.
+        var verwendet = await VerwendetAsync(familyMemberId, new[] { entry });
+        if (verwendet.TryGetValue(entry.Id, out var verwendetBis))
         {
-            // Nur Bis + Erfahren + Doku + Note ändern — Betrag/Typ/Von bleiben.
+            bool kernGeaendert = dto.ValidFrom!.Value != entry.ValidFrom
+                || erfahrenAmU != FamzKorrekturService.BekanntAb(entry)
+                || NormalizeAllowanceType(dto.AllowanceType) != entry.AllowanceType
+                || dto.TarifSatzNr != entry.TarifSatzNr;
+            if (kernGeaendert)
+                return Verwendet(verwendetBis, "Zulage, Gültig ab und Erfahren am sind nicht mehr änderbar.");
+
             entry.ValidTo     = dto.ValidTo;
-            entry.ErfahrenAm  = dto.ErfahrenAm;
             entry.Note        = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim();
             var (dokOkF, dokIdF, dokErrF) = await ResolveDokumentIdAsync(familyMemberId, dto.DokumentId);
             if (!dokOkF) return BadRequest(new { error = dokErrF });
@@ -319,9 +433,19 @@ public class FamilyMemberAllowancesController : ControllerBase
             var actorF = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
                          ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             var korrF = await _famzKorrektur.ErzeugeKorrekturenAsync(entry, actorF);
-            return Ok(new { eintrag = MapToDto(entry, firstAllowedU), korrekturen = new {
+            return Ok(new { eintrag = MapToDto(entry, firstAllowedU, verwendetBis), korrekturen = new {
                 anzahl = korrF.Anzahl, totalBetrag = korrF.TotalBetrag, vorjahr = korrF.Vorjahr, posten = korrF.Posten
             }});
+        }
+
+        if (firstAllowedU.HasValue && dto.ValidFrom!.Value < firstAllowedU.Value
+            && erfahrenAmU < firstAllowedU.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"«Gültig ab {dto.ValidFrom.Value:dd.MM.yyyy}» liegt in einer abgeschlossenen Periode — bitte «Erfahren am» auf frühestens {firstAllowedU.Value:dd.MM.yyyy} setzen. Der Lohn bezahlt ab diesem Monat; frühere Monate erscheinen im Lohnlauf als Warnung.",
+                firstAllowedDate = firstAllowedU.Value.ToString("yyyy-MM-dd")
+            });
         }
 
         var (dokOkU, dokIdU, dokErrU) = await ResolveDokumentIdAsync(familyMemberId, dto.DokumentId);
@@ -352,18 +476,9 @@ public class FamilyMemberAllowancesController : ControllerBase
             .FirstOrDefaultAsync(a => a.Id == id && a.FamilyMemberId == familyMemberId);
         if (entry is null) return NotFound();
 
-        var branchIdD     = await GetBranchByFamilyMemberAsync(familyMemberId);
-        var firstAllowedD = branchIdD.HasValue
-            ? await _editLock.GetFirstAllowedDateForContractsAsync(branchIdD.Value)
-            : null;
-        if (firstAllowedD.HasValue && entry.ValidFrom < firstAllowedD.Value)
-        {
-            return Conflict(new {
-                error            = "LOHN_EDIT_LOCKED",
-                message          = $"Diese Zulage (gültig ab {entry.ValidFrom:dd.MM.yyyy}) liegt in einer definitiv abgeschlossenen Lohnperiode und kann nicht gelöscht werden.",
-                firstAllowedDate = firstAllowedD?.ToString("yyyy-MM-dd")
-            });
-        }
+        var verwendet = await VerwendetAsync(familyMemberId, new[] { entry });
+        if (verwendet.TryGetValue(entry.Id, out var verwendetBis))
+            return Verwendet(verwendetBis, "sie kann nicht gelöscht werden.");
 
         _db.FamilyMemberAllowances.Remove(entry);
         var offenePosten = await _db.FamzKorrekturen
@@ -385,7 +500,8 @@ public class FamilyMemberAllowancesController : ControllerBase
         return null;
     }
 
-    private static object MapToDto(FamilyMemberAllowance a, DateOnly? firstAllowed = null) => new
+    private static object MapToDto(FamilyMemberAllowance a, DateOnly? firstAllowed = null,
+        (int Jahr, int Monat)? verwendetBis = null, List<object>? posten = null) => new
     {
         id              = a.Id,
         familyMemberId  = a.FamilyMemberId,
@@ -399,7 +515,10 @@ public class FamilyMemberAllowancesController : ControllerBase
         dokumentId      = a.DokumentId,
         createdAt       = a.CreatedAt,
         updatedAt       = a.UpdatedAt,
-        inLohnVerwendet = firstAllowed.HasValue && a.ValidFrom < firstAllowed.Value
+        inLohnVerwendet = verwendetBis.HasValue,
+        verwendetBis    = verwendetBis.HasValue ? $"{verwendetBis.Value.Jahr:0000}-{verwendetBis.Value.Monat:00}" : null,
+        firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd"),
+        posten          = posten ?? new List<object>()
     };
 
     /// <summary>

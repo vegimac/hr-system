@@ -177,4 +177,106 @@ public class FamzAnteilTests
 
         Assert.Empty(await db.FamzKorrekturen.ToListAsync());
     }
+
+    // Walter 11.10.2026: Nachzahlungen werden nicht mehr automatisch bezahlt — sie sind
+    // Warnungen, die quittiert werden (als Zulage übernommen oder «nicht nötig»).
+
+    [Fact]
+    public async Task Quittierte_Warnung_kommt_nicht_wieder()
+    {
+        var (db, _) = await DjonlagicAsync();
+        foreach (var k in await db.FamzKorrekturen.ToListAsync())
+        {
+            k.Status = "ERLEDIGT";
+            k.ErledigtArt = "NICHT_NOETIG";
+            k.Bemerkung = "schon in Mirus bezahlt";
+        }
+        await db.SaveChangesAsync();
+
+        await new FamzKorrekturService(db).EnsureKorrekturenFuerLohnlaufAsync(9, 2026, 6, "Test");
+
+        Assert.Empty(await FamzKorrekturService.OffeneWarnungen(db, 9, 2026, 6).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Uebernommene_Zulage_geloescht_Warnung_wieder_offen()
+    {
+        var (db, _) = await DjonlagicAsync();
+        var mai = await db.FamzKorrekturen.SingleAsync(k => k.Jahr == 2026 && k.Monat == 5);
+        var zulage = new LohnZulage { EmployeeId = 9, Periode = "2026-06", LohnpositionId = 1, Betrag = mai.Betrag };
+        db.LohnZulagen.Add(zulage);
+        await db.SaveChangesAsync();
+        mai.Status = "ERLEDIGT";
+        mai.ErledigtArt = "UEBERNOMMEN";
+        mai.LohnZulageId = zulage.Id;
+        await db.SaveChangesAsync();
+        var service = new FamzKorrekturService(db);
+
+        await service.EnsureKorrekturenFuerLohnlaufAsync(9, 2026, 6, "Test");
+        Assert.DoesNotContain(await FamzKorrekturService.OffeneWarnungen(db, 9, 2026, 6).ToListAsync(), k => k.Id == mai.Id);
+
+        db.LohnZulagen.Remove(zulage);
+        await db.SaveChangesAsync();
+        await service.EnsureKorrekturenFuerLohnlaufAsync(9, 2026, 6, "Test");
+
+        var wieder = await db.FamzKorrekturen.SingleAsync(k => k.Id == mai.Id);
+        Assert.Equal("OFFEN", wieder.Status);
+        Assert.Null(wieder.LohnZulageId);
+    }
+
+    [Fact]
+    public async Task Warnung_nur_fuer_fruehere_Monate()
+    {
+        var (db, _) = await DjonlagicAsync();
+        var offen = await FamzKorrekturService.OffeneWarnungen(db, 9, 2026, 3).ToListAsync();
+        Assert.All(offen, k => Assert.True(k.Jahr * 12 + k.Monat < 2026 * 12 + 3));
+        Assert.Contains(offen, k => k.Jahr == 2025);
+    }
+
+    [Fact]
+    public async Task Rueckwirkend_beendet_Rueckforderung_aus_bezahltem_Lohn()
+    {
+        var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase("FamzAnteil_" + Guid.NewGuid()).Options);
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = 10, CompanyProfileId = 2, IsActive = true,
+            ContractStartDate = new DateTime(2025, 1, 1)
+        });
+        var kind = new EmployeeFamilyMember { EmployeeId = 10, MemberType = "Kind", FirstName = "Lea" };
+        db.EmployeeFamilyMembers.Add(kind);
+        await db.SaveChangesAsync();
+        var az = new FamilyMemberAllowance
+        {
+            FamilyMemberId = kind.Id, AllowanceType = "AZ", MonthlyAmount = 310m,
+            ValidFrom = new DateOnly(2025, 1, 1), ErfahrenAm = new DateOnly(2025, 1, 1)
+        };
+        db.FamilyMemberAllowances.Add(az);
+        await db.SaveChangesAsync();
+        foreach (var m in new[] { 1, 2 })
+        {
+            var p = new PayrollPeriode
+            {
+                CompanyProfileId = 2, Year = 2026, Month = m, Status = "abgeschlossen",
+                PeriodFrom = new DateOnly(2026, m, 1), PeriodTo = new DateOnly(2026, m, 1).AddMonths(1).AddDays(-1)
+            };
+            db.PayrollPerioden.Add(p);
+            await db.SaveChangesAsync();
+            db.PayrollSnapshots.Add(new PayrollSnapshot
+            {
+                EmployeeId = 10, CompanyProfileId = 2, PayrollPeriodeId = p.Id, Status = "BESTAETIGT",
+                SlipJson = $"{{\"famzZahlungen\":[{{\"allowanceId\":{az.Id},\"familyMemberId\":{kind.Id},\"betrag\":310}}]}}"
+            });
+        }
+        await db.SaveChangesAsync();
+
+        // Lehrabbruch im Januar erst im März erfahren
+        az.ValidTo = new DateOnly(2026, 1, 31);
+        await db.SaveChangesAsync();
+        await new FamzKorrekturService(db).ErzeugeKorrekturenAsync(az, "Test");
+
+        var feb = Assert.Single(await FamzKorrekturService.OffeneWarnungen(db, 10, 2026, 3).ToListAsync());
+        Assert.Equal((2026, 2), (feb.Jahr, feb.Monat));
+        Assert.Equal(-310m, feb.Betrag);
+    }
 }

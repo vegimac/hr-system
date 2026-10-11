@@ -5829,6 +5829,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                         const artShort = a.allowanceType || 'Zulage';
                         const bisShort = a.validTo ? formatDate(a.validTo) : 'offen';
                         const locked = a.inLohnVerwendet === true;
+                        const warnOffen = (a.posten || []).filter(p => p.status === 'OFFEN' || p.status === 'VORJAHR').length;
                         const hasDok = !!a.dokumentId;
                         const von = String(a.validFrom || '').slice(0, 10);
                         const bis = String(a.validTo || '').slice(0, 10);
@@ -5851,6 +5852,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                                 onclick="event.stopPropagation();openAllowanceFromCard(${m.id}, ${aJson})">
                                 ${locked ? '🔒 ' : ''}${hasDok ? '📄 ' : ''}${pillText}
                             </button>
+                            ${warnOffen ? `<span title="${warnOffen} frühere${warnOffen === 1 ? 'r' : ''} Monat${warnOffen === 1 ? '' : 'e'} offen — Warnung im Lohnlauf" style="font-size:11px;font-weight:700;color:#92400e">⚠ ${warnOffen}</span>` : ''}
                             <span class="fam-tile-zulage-zeit" title="${abgelaufen ? 'abgelaufen' : zukunft ? 'künftig' : 'gültig'}">${zeitraum}</span>
                         </div>`;
                     }).join('');
@@ -8650,13 +8652,29 @@ async function openAllowanceModal(existing) {
             subEl.style.display = 'none';
         }
     }
-    document.getElementById('alDeleteBtn').style.display = d.id ? 'inline-block' : 'none';
+    // Im abgeschlossenen Lohn verwendet (Walter 11.10.2026, wie QST): nur noch
+    // Gültig bis, Dokument und Bemerkung; nicht löschbar.
+    const gesperrt = !!d.inLohnVerwendet;
+    document.getElementById('alDeleteBtn').style.display = d.id && !gesperrt ? 'inline-block' : 'none';
+    ['alValidFrom', 'alErfahrenAm', 'alTarifPick'].forEach(fid => {
+        const f = document.getElementById(fid);
+        if (!f) return;
+        f.disabled = gesperrt;
+        const feld = f.closest('.ma-field');
+        if (feld) { feld.style.opacity = gesperrt ? '0.55' : ''; feld.style.pointerEvents = gesperrt ? 'none' : ''; }
+    });
+    if (gesperrt && errEl && d.verwendetBis) {
+        const [vy, vm] = String(d.verwendetBis).split('-');
+        errEl.style.color = '#646464';
+        errEl.textContent = `🔒 Im abgeschlossenen Lohn ${vm}.${vy} verwendet — nur noch «Gültig bis», Dokument und Bemerkung änderbar. Ändert sich die Zulage später, einen neuen Eintrag erfassen.`;
+    }
+    alRenderPostenHist(d.posten || []);
 
-    // «Gültig ab» darf abgeschlossen sein, wenn «Erfahren am» im offenen Monat
-    // liegt (Nachzahlung). ValidFrom nicht mehr hochsetzen.
+    // «Gültig ab» = Anspruch laut FAK (darf zurückliegen); «Erfahren am» = ab da
+    // zahlt der Lohn, frühestens im ersten offenen Monat. Frühere Monate → Warnung.
     const vfInp = document.getElementById('alValidFrom');
     const eaInp = document.getElementById('alErfahrenAm');
-    if (window.lohnEditLock && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
+    if (!gesperrt && window.lohnEditLock && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
         const state = await window.lohnEditLock.loadState(fixedCompanyProfileId, { mode: 'contracts' });
         if (isNew && state.firstAllowedDate && eaInp) {
             if (!eaInp.value || eaInp.value < state.firstAllowedDate)
@@ -8665,7 +8683,7 @@ async function openAllowanceModal(existing) {
         if (isNew && state.firstAllowedDate && errEl && vfInp?.value && vfInp.value < state.firstAllowedDate) {
             errEl.style.color = '#92400e';
             errEl.textContent =
-                `Gültig ab ${window.lohnEditLock.fmtDate(vfInp.value)} ist abgeschlossen — «Erfahren am» steuert die Nachzahlung (${window.lohnEditLock.fmtDate(eaInp?.value || state.firstAllowedDate)}).`;
+                `Gültig ab ${window.lohnEditLock.fmtDate(vfInp.value)} liegt in einem abgeschlossenen Lohn — der Lohn zahlt ab ${window.lohnEditLock.fmtDate(eaInp?.value || state.firstAllowedDate)}, die Monate davor erscheinen im Lohnlauf als Warnung.`;
         }
     }
 
@@ -8896,6 +8914,38 @@ async function alRefreshResolvePreview() {
     hint.innerHTML = `<span style="color:#16a34a">✓ <strong>${amt} CHF/Mt</strong></span> <span style="color:#64748b">· ${esc(opt.label)}, Tarif ${esc(info.kantonCode || '')} gültig ${gAb} – ${gBis}</span><br><span style="color:#94a3b8;font-size:10.5px">Der Lohnlauf holt den Betrag pro Periode aus dieser Systemtabelle — bei Tarif-Wechsel automatisch der neue Wert.</span>`;
 }
 
+/** Verlauf der Familienzulagen-Warnungen dieses Eintrags (offen / übernommen / nicht nötig). */
+function alRenderPostenHist(posten) {
+    const el = document.getElementById('alPostenHist');
+    if (!el) return;
+    if (!posten.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    const chf = n => Number(n || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const lohn = p => p ? `${p.slice(5, 7)}.${p.slice(0, 4)}` : '';
+    const zeilen = posten.map(p => {
+        const mon = `${String(p.monat).padStart(2, '0')}.${p.jahr}`;
+        const art = Number(p.betrag) >= 0 ? 'Nachzahlung' : 'Rückforderung';
+        let status;
+        if (p.status === 'OFFEN' || p.status === 'VORJAHR')
+            status = '<span style="color:#92400e;font-weight:600">⚠ offen — Warnung im Lohnlauf</span>';
+        else if (p.erledigtArt === 'UEBERNOMMEN')
+            status = `✓ als Zulage übernommen${p.lohnPeriode ? ' im Lohn ' + lohn(p.lohnPeriode) : ''}`;
+        else if (p.erledigtArt === 'NICHT_NOETIG')
+            status = `✓ nicht nötig: ${esc(p.bemerkung || '')}`;
+        else if (p.status === 'VERRECHNET')
+            status = `✓ bezahlt${p.lohnPeriode ? ' im Lohn ' + lohn(p.lohnPeriode) : ''}`;
+        else status = esc(p.status || '');
+        const wer = p.erledigtVon ? ` <span style="color:#8b8b8b">· ${esc(p.erledigtVon)}${p.erledigtAm ? ', ' + formatDate(p.erledigtAm) : ''}</span>` : '';
+        return `<div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
+            <span style="min-width:150px">${art} ${mon}</span>
+            <span style="min-width:90px;text-align:right;font-family:ui-monospace,Menlo,monospace">${chf(p.betrag)}</span>
+            <span style="flex:1">${status}${wer}</span>
+        </div>`;
+    }).join('');
+    el.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;letter-spacing:.04em;margin-bottom:4px">FRÜHERE MONATE (WARNUNGEN IM LOHNLAUF)</div>
+        <div style="font-size:12px;color:#3f3f3f">${zeilen}</div>`;
+    el.style.display = '';
+}
+
 function closeAllowanceModal() {
     document.getElementById('allowanceModal').style.display = 'none';
     const panel = document.getElementById('al-docpanel');
@@ -8986,7 +9036,7 @@ async function saveAllowance() {
         if (korr && korr.anzahl > 0) {
             const art = korr.totalBetrag >= 0 ? 'Nachzahlung' : 'Rückforderung';
             err.style.color = '#166534';
-            err.textContent = `${korr.anzahl} Korrektur-Posten (${art} ${Number(korr.totalBetrag).toFixed(2)} CHF) — erscheinen im Lohnlauf.`;
+            err.textContent = `${korr.anzahl} frühere${korr.anzahl === 1 ? 'r' : ''} Monat${korr.anzahl === 1 ? '' : 'e'} (${art} ${Number(korr.totalBetrag).toFixed(2)} CHF) — erscheinen im Lohnlauf als Warnung zum Quittieren.`;
             await new Promise(r => setTimeout(r, 1600));
         }
         closeAllowanceModal();
@@ -9010,7 +9060,11 @@ async function deleteAllowance() {
             method: 'DELETE', headers: ah()
         });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
-        if (!res.ok) { alert('Fehler beim Löschen.'); return; }
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            alert(e.message || 'Fehler beim Löschen.');
+            return;
+        }
         closeAllowanceModal();
         loadFamilyAllowances(editingFamilyMemberId);
         if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) {
@@ -12011,18 +12065,45 @@ async function loadRecurringWagesTab(employeeId) {
     }
 
     try {
-        const res = await fetch(`/api/employee-recurring-wages/${employeeId}`, { headers: ah() });
+        const [res, famRes] = await Promise.all([
+            fetch(`/api/employee-recurring-wages/${employeeId}`, { headers: ah() }),
+            fetch(`/api/family-allowances/employee/${employeeId}/laufend`, { headers: ah(), cache: 'no-store' }),
+        ]);
         if (!res.ok) throw new Error();
         const list = await res.json();
-        renderRecurringWagesList(el, list, employeeId);
+        const famList = famRes.ok ? await famRes.json() : [];
+        renderRecurringWagesList(el, list, employeeId, famList);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
     }
 }
 
-function renderRecurringWagesList(el, list, employeeId) {
+function renderRecurringWagesList(el, list, employeeId, famList = []) {
     const fmtAmount = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const today = new Date().toISOString().slice(0, 10);
+    const escH = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // Familienzulagen aus dem Familie-Tab (Walter 11.10.2026): nur Anzeige, der Lohn
+    // rechnet sie aus dem Eintrag am Kind — geändert wird dort.
+    const famRows = famList.map(f => {
+        const bez = f.einmalig ? 'Geburts-/Adoptionszulage' : (f.allowanceType === 'AZ' ? 'Ausbildungszulage' : 'Kinderzulage');
+        const ab = f.erfahrenAm && f.erfahrenAm > f.validFrom ? f.erfahrenAm : f.validFrom;
+        const abHinweis = ab !== f.validFrom ? `<div style="font-size:11px;color:#94a3b8">Anspruch ab ${fmtDate(f.validFrom)}</div>` : '';
+        return `<tr style="background:rgba(60,55,48,0.03)">
+            <td><span title="Kommt aus dem Familie-Tab" style="color:#16a34a">●</span>
+                <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#ece9e2;color:#646464">aus Familie</span>
+                <span style="font-weight:500">${bez}</span>
+                <span style="color:#94a3b8;font-size:11px;margin-left:4px">[${f.code}]</span>
+                <div style="font-size:11px;color:#64748b">${escH(f.kind)}${f.satzLabel ? ' · ' + escH(f.satzLabel) : ''}</div></td>
+            <td style="font-family:monospace;text-align:right;color:#059669;font-weight:600">+ CHF ${fmtAmount(f.betrag)}</td>
+            <td style="white-space:nowrap">${fmtDate(ab)}${abHinweis}</td>
+            <td style="white-space:nowrap;color:${f.validTo ? '#334155' : '#94a3b8'}">${f.validTo ? fmtDate(f.validTo) : 'offen'}</td>
+            <td style="color:#94a3b8;font-size:12px">Betrag gemäss FAK-Tarif · ändern am Kind</td>
+            <td style="text-align:right;white-space:nowrap">
+                <button class="btn-stamp-edit" title="Im Familie-Tab ändern" onclick="switchEmpTab('familie')">→ Familie</button>
+            </td>
+        </tr>`;
+    }).join('');
 
     // Walter 29.08.2026 (kompakt): abgelaufene Einträge (Gültig-bis < heute)
     // wandern hinter die History-Pille in der Titelzeile; sichtbar bleiben
@@ -12030,7 +12111,8 @@ function renderRecurringWagesList(el, list, employeeId) {
     let rows = '';
     let histRows = '';
     if (!list.length) {
-        rows = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:8px;font-style:italic">Keine wiederkehrenden Einträge</td></tr>`;
+        if (!famRows)
+            rows = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:8px;font-style:italic">Keine wiederkehrenden Einträge</td></tr>`;
     } else {
         list.forEach(r => {
             const isAbzug = r.typ === 'ABZUG';
@@ -12057,10 +12139,11 @@ function renderRecurringWagesList(el, list, employeeId) {
             const abgelaufen = !!r.validTo && r.validTo < today;
             if (abgelaufen) histRows += row; else rows += row;
         });
-        if (!rows) {
+        if (!rows && !famRows) {
             rows = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:8px;font-style:italic">Keine laufenden Einträge — siehe History</td></tr>`;
         }
     }
+    rows = famRows + rows;
 
     const histCount = histRows ? (histRows.match(/<tr>/g) || []).length : 0;
     el.innerHTML = `

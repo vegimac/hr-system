@@ -1,11 +1,11 @@
 namespace HrSystem.Models;
 
 /// <summary>
-/// Familienzulagen-Korrektur (Walter 18.09.2026, analog QST K1):
-/// Ein Posten pro Kind/Zulage und ABGESCHLOSSENEM Monat, wenn «Gültig ab»
-/// vor «Erfahren am» liegt (Nachzahlung) oder die Zulage rückwirkend endet
-/// (Rückforderung). Snapshots bleiben eingefroren; Verrechnung im
-/// Erfahrungsmonat / nächsten offenen Lohnlauf.
+/// Familienzulagen-Prüffall (Walter 18.09.2026, seit 11.10.2026 nur noch Warnung):
+/// Ein Posten pro Kind/Zulage und früherem Monat, wenn «Gültig ab» vor
+/// «Erfahren am» liegt (Nachzahlung) oder die Zulage rückwirkend endet
+/// (Rückforderung). Nicht automatisch bezahlt — der Lohnlauf zeigt eine
+/// Warnung, die quittiert werden muss (als Zulage übernehmen / nicht nötig).
 /// Betrag &gt; 0 = zuwenig bezahlt (Nachzahlung), &lt; 0 = zuviel (Rückforderung).
 /// </summary>
 public class FamzKorrektur
@@ -30,8 +30,19 @@ public class FamzKorrektur
     public string? AllowanceType { get; set; }
     public string? ChildName { get; set; }
 
-    /// <summary>OFFEN → VERRECHNET · VORJAHR = nicht via Lohnlauf.</summary>
+    /// <summary>
+    /// OFFEN = Warnung im Lohnlauf (sperrt «Lohn bestätigen») → ERLEDIGT (quittiert).
+    /// Altbestand: VERRECHNET (bis 11.10.2026 automatisch bezahlt), VORJAHR (seit Stand 59 OFFEN).
+    /// </summary>
     public string Status { get; set; } = "OFFEN";
+
+    /// <summary>UEBERNOMMEN (als Zulage im Lohn erfasst) oder NICHT_NOETIG.</summary>
+    public string? ErledigtArt { get; set; }
+    /// <summary>Die beim Übernehmen angelegte Zulage; wird sie gelöscht, ist die Warnung wieder offen.</summary>
+    public int? LohnZulageId { get; set; }
+    public string? Bemerkung { get; set; }
+    public DateTime? ErledigtAm { get; set; }
+    public string? ErledigtVon { get; set; }
 
     public string Grund { get; set; } = "";
 

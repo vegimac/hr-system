@@ -213,23 +213,26 @@ async function lzLoad() {
     setHtml('<div style="padding:12px 0;color:#94a3b8;font-size:13px">Lade…</div>');
     const periode = `${y}-${String(m).padStart(2,'0')}`;
     try {
-        const [res, faRes] = await Promise.all([
+        const [res, faRes, fzRes] = await Promise.all([
             fetch(`/api/lohn-zulagen/${empId}/${periode}`, { headers: ah() }),
             fetch(`/api/lohn-ferien-auszahlung/${empId}/${y}/${m}`, { headers: ah(), cache: 'no-store' }),
+            fetch(`/api/lohn-famz-korrektur/${empId}/${y}/${m}`, { headers: ah(), cache: 'no-store' }),
         ]);
         const list = res.ok ? await res.json() : [];
         const faList = faRes.ok ? await faRes.json() : [];
+        const fzList = fzRes.ok ? await fzRes.json() : [];
         if (!still()) return;
         // Liste zwischenspeichern, damit lzEditById() die Bemerkung sauber
         // aufgreifen kann — vermeidet Quoting-Probleme mit Sonderzeichen
         // (Anführungszeichen etc.) die im onclick-Attribut brechen würden.
         window._lzItems = list;
         window._lzFaItems = faList;
-        if (!list.length && !faList.length) {
+        window._lzFzItems = fzList;
+        if (!list.length && !faList.length && !fzList.length) {
             setHtml('<div style="padding:14px 0;color:#94a3b8;font-size:13px;font-style:italic">Keine Zulagen/Abzüge für diese Periode</div>');
             return;
         }
-        const rowsHtml = list.map(z => {
+        let rowsHtml = list.map(z => {
             const isAbzug = z.typ === 'ABZUG';
             const bemEsc  = (z.bemerkung ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             const lpBezEsc = (z.lohnpositionBezeichnung ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -260,6 +263,8 @@ async function lzLoad() {
                 </div>
             </div>`;
         }).join('') + faList.map(_lzFaRowHtml).join('');
+        // Warnungen zuoberst — sie sperren «Lohn bestätigen», bis sie quittiert sind.
+        rowsHtml = fzList.map(_lzFzRowHtml).join('') + rowsHtml;
         setHtml(rowsHtml);
     } catch(e) {
         if (!still()) return;
@@ -300,6 +305,91 @@ function _lzFaRowHtml(f) {
             </div>
         </div>
     </div>`;
+}
+
+// ── Familienzulagen-Warnungen (Walter 11.10.2026): Nachzahlung/Rückforderung früherer
+// Monate wird NICHT automatisch bezahlt. Die Warnung muss quittiert werden — «als Zulage
+// übernehmen» legt eine normale Zulage 190.x an (danach frei änderbar/löschbar; gelöscht
+// ⇒ Warnung kommt zurück), «nicht nötig» verlangt eine Bemerkung. Bis dahin ist
+// «Lohn bestätigen» gesperrt (409 FAMZ_WARNUNG_OFFEN).
+const _LZ_FZ_ART = { KZ: 'Kinderzulage', AZ: 'Ausbildungszulage', GZ: 'Geburtszulage', AdoptZ: 'Adoptionszulage' };
+
+function _lzFzRowHtml(k) {
+    const esc_ = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const chf = n => Number(n || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const zul = _LZ_FZ_ART[k.allowanceType] || 'Familienzulage';
+    const betrag = Number(k.betrag);
+    const mon = `${String(k.monat).padStart(2, '0')}.${k.jahr}`;
+    const text = betrag >= 0
+        ? `${zul} ${mon} noch nicht bezahlt`
+        : `${zul} ${mon} bezahlt, Anspruch besteht nicht mehr — Rückforderung prüfen`;
+    const btn = 'border-radius:12px;padding:5px 11px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 10px;margin:6px 0;border-radius:12px;background:rgba(245,158,11,0.10);border:1px solid rgba(217,119,6,0.35)">
+        <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fef3c7;color:#92400e">⚠ FamZ</span>
+        <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px;color:#3f3f3f">${k.childName ? esc_(k.childName) + ': ' : ''}${text}</div>
+            <div style="font-size:11px;color:#8b8b8b">${esc_(k.grund || '')}</div>
+        </div>
+        <div style="font-weight:600;font-size:13px;font-family:monospace;color:${betrag < 0 ? '#dc2626' : '#059669'}">${betrag < 0 ? '−' : '+'} CHF ${chf(Math.abs(betrag))}</div>
+        <button type="button" style="${btn};background:#1a1a1a;color:#fff;border:none" onclick="lzFamzUebernehmen(${k.id})">Als Zulage übernehmen</button>
+        <button type="button" style="${btn};background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35)" onclick="lzFamzQuittieren(${k.id})">Nicht nötig…</button>
+    </div>`;
+}
+
+async function lzFamzUebernehmen(id) {
+    const k = (window._lzFzItems || []).find(x => x.id === id);
+    if (!k) return;
+    const chf = n => Number(n || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (!(await liquidConfirm(`«${k.vorschlag}» über CHF ${chf(k.betrag)} als Zulage in diesen Lohn übernehmen? Betrag und Bemerkung kannst du danach wie bei jeder Zulage ändern.`,
+            { title: 'Als Zulage übernehmen', yesLabel: 'Übernehmen', noLabel: 'Abbrechen' }))) return;
+    const body = { companyProfileId: _lzCurrentCompId || null, year: _lzCurrentYear, month: _lzCurrentMonth };
+    const r = await fetch(`/api/lohn-famz-korrektur/${id}/uebernehmen`, { method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (window.lohnEditLock && await window.lohnEditLock.handleResponse(r)) return;
+    if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || ('Fehler ' + r.status)); return; }
+    await _lzNachFerienAuszahlung();
+    if (typeof showToast === 'function') showToast('✓ Als Zulage übernommen', 'success');
+}
+
+function lzFamzQuittieren(id) {
+    const k = (window._lzFzItems || []).find(x => x.id === id);
+    if (!k) return;
+    const chf = n => Number(n || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc_ = t => String(t ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const y = _lzCurrentYear, m = _lzCurrentMonth;
+
+    document.getElementById('lzFzOverlay')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'lzFzOverlay';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+    <div class="modal" style="max-width:520px;width:94%;padding:22px 24px;border-radius:16px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:2px">Warnung quittieren — nichts übernehmen</div>
+        <div style="font-size:12px;color:#8b8b8b;margin-bottom:10px">${esc_(k.vorschlag)} · CHF ${chf(k.betrag)} · Lohnlauf ${String(m).padStart(2, '0')}.${y}</div>
+        <label style="display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Bemerkung (Pflicht)</label>
+        <input type="text" id="lzFzBem" class="ma-input" placeholder="z.B. schon in Mirus bezahlt">
+        <div id="lzFzStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+            <button id="lzFzAbbr" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button id="lzFzOk" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Quittieren</button>
+        </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const close = () => wrap.remove();
+    wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+    wrap.querySelector('#lzFzAbbr').onclick = close;
+    wrap.querySelector('#lzFzBem').focus();
+    wrap.querySelector('#lzFzOk').onclick = async () => {
+        const st = wrap.querySelector('#lzFzStatus');
+        const bem = wrap.querySelector('#lzFzBem').value.trim();
+        if (!bem) { st.textContent = 'Bitte festhalten, warum nichts nötig ist.'; return; }
+        const body = { companyProfileId: _lzCurrentCompId || null, year: y, month: m, bemerkung: bem };
+        const r = await fetch(`/api/lohn-famz-korrektur/${k.id}/quittieren`, { method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(r)) return;
+        if (!r.ok) { const j = await r.json().catch(() => ({})); st.textContent = j.message || ('Fehler ' + r.status); return; }
+        close();
+        await _lzNachFerienAuszahlung();
+        if (typeof showToast === 'function') showToast('✓ Warnung quittiert', 'success');
+    };
 }
 
 async function _lzNachFerienAuszahlung() {
