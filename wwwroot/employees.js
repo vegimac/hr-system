@@ -8616,13 +8616,7 @@ async function openAllowanceModal(existing) {
     document.getElementById('alValidFrom').value     = d.validFrom ?? '';
     document.getElementById('alValidTo').value       = d.validTo   ?? '';
     const eaEl = document.getElementById('alErfahrenAm');
-    if (eaEl) {
-        if (d.erfahrenAm) eaEl.value = d.erfahrenAm;
-        else if (isNew) {
-            const t = new Date();
-            eaEl.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-        } else eaEl.value = d.validFrom ?? '';
-    }
+    if (eaEl) eaEl.value = d.erfahrenAm || d.validFrom || '';
     document.getElementById('alMonthlyAmount').value = (d.monthlyAmount ?? '0').toString();
     document.getElementById('alAllowanceType').value = d.allowanceType ?? '';
     document.getElementById('alTarifSatzNr').value   = (d.tarifSatzNr ?? '').toString();
@@ -8673,31 +8667,51 @@ async function openAllowanceModal(existing) {
     // «Gültig ab» = Anspruch laut FAK (darf zurückliegen); «Erfahren am» = ab da
     // zahlt der Lohn, frühestens im ersten offenen Monat. Frühere Monate → Warnung.
     const vfInp = document.getElementById('alValidFrom');
-    const eaInp = document.getElementById('alErfahrenAm');
+    window._alFirstAllowed = null;
     if (!gesperrt && window.lohnEditLock && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
         const state = await window.lohnEditLock.loadState(fixedCompanyProfileId, { mode: 'contracts' });
-        if (isNew && state.firstAllowedDate && eaInp) {
-            if (!eaInp.value || eaInp.value < state.firstAllowedDate)
-                eaInp.value = state.firstAllowedDate;
-        }
-        if (isNew && state.firstAllowedDate && errEl && vfInp?.value && vfInp.value < state.firstAllowedDate) {
-            errEl.style.color = '#92400e';
-            errEl.textContent =
-                `Gültig ab ${window.lohnEditLock.fmtDate(vfInp.value)} liegt in einem abgeschlossenen Lohn — der Lohn zahlt ab ${window.lohnEditLock.fmtDate(eaInp?.value || state.firstAllowedDate)}, die Monate davor erscheinen im Lohnlauf als Warnung.`;
-        }
+        window._alFirstAllowed = state.firstAllowedDate || null;
     }
 
     document.getElementById('allowanceModal').style.display = 'flex';
 
-    // ValidFrom-Wechsel → Optionen neu laden (Tarif-Version könnte abweichen).
+    // ValidFrom-Wechsel → «Erfahren am» mitziehen + Optionen neu laden (Tarif-Version könnte abweichen).
     if (vfInp && !vfInp.dataset.alBound) {
-        vfInp.addEventListener('change', () => alLoadTarifOptionsAndPreselect());
+        vfInp.addEventListener('change', () => {
+            alErfahrenNachGueltigAb();
+            alLoadTarifOptionsAndPreselect();
+        });
         vfInp.dataset.alBound = '1';
     }
     await Promise.all([
         alLoadTarifOptionsAndPreselect(),
         alLoadEntscheidDocs(d.dokumentId ?? null)
     ]);
+}
+
+/**
+ * «Erfahren am» folgt «Gültig ab» als Vorschlag (Walter 11.10.2026), danach frei änderbar.
+ * Liegt «Gültig ab» vor dem ersten offenen Lohnmonat, geht der Vorschlag auf diesen
+ * Monat — früher lässt der Server nicht zu.
+ */
+function alErfahrenNachGueltigAb() {
+    const vf = document.getElementById('alValidFrom')?.value;
+    const ea = document.getElementById('alErfahrenAm');
+    const errEl = document.getElementById('alError');
+    if (!vf || !ea || ea.disabled) return;
+    const ersterOffener = window._alFirstAllowed;
+    const vorschlag = ersterOffener && vf < ersterOffener ? ersterOffener : vf;
+    ea.value = vorschlag;
+    ea.dispatchEvent(new Event('change', { bubbles: true }));
+    if (errEl) {
+        if (vorschlag !== vf) {
+            const f = window.lohnEditLock?.fmtDate || (x => x);
+            errEl.style.color = '#92400e';
+            errEl.textContent = `Gültig ab ${f(vf)} liegt vor dem ersten offenen Lohnmonat — «Erfahren am» frühestens ${f(vorschlag)}. Der Lohn zahlt ab dann; Monate davor erscheinen im Lohnlauf als Warnung, sofern OneCrew dort schon Lohnperioden hatte.`;
+        } else {
+            errEl.textContent = '';
+        }
+    }
 }
 
 /** FAK-/Entscheidungsdokumente aus dem MA-Dossier für den Zulage-Picker. */
