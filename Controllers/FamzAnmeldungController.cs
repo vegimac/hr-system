@@ -136,12 +136,13 @@ public class FamzAnmeldungController : ControllerBase
 
         // ── Anderer Elternteil + Ehepartner ──────────────────────────────
         var hinweise = new List<string>();
+        var fehlt = new List<string>();
         var aeIds = ausgewaehlt.Where(k => k.AndererElternteilId.HasValue).Select(k => k.AndererElternteilId!.Value).ToList();
         int? aeId = aeIds.GroupBy(i => i).OrderByDescending(g => g.Count()).Select(g => (int?)g.Key).FirstOrDefault();
         if (aeIds.Distinct().Count() > 1)
             hinweise.Add("Die gewählten Kinder haben verschiedene andere Elternteile — das Formular kennt nur einen. Pro Elternteil ein eigenes Formular erstellen.");
         if (ausgewaehlt.Any(k => k.AndererElternteilId == null && k.GemeinsamesKindMitPartner != false))
-            hinweise.Add("Bei mindestens einem Kind ist der andere Elternteil nicht erfasst (Familie → Kind → «Anderer Elternteil»).");
+            fehlt.Add("Anderer Elternteil nicht erfasst (Familie → Kind → «Anderer Elternteil»)");
         var ae = aeId is int a1 ? familie.FirstOrDefault(m => m.Id == a1) : null;
         var ehepartner = familie
             .Where(m => m.MemberType == "Ehepartner" && m.DateOfDeath == null)
@@ -189,7 +190,7 @@ public class FamzAnmeldungController : ControllerBase
             if (p?.EinkommenHoeher == true)
                 hinweise.Add($"{p.NameVorname} verdient mehr als {e.FirstName} — in der Regel hat {p.NameVorname} den Erstanspruch auf die Kinderzulage. Die Kasse entscheidet; Anmeldung nur einreichen, wenn das geklärt ist.");
             else if (p != null && p.Angestellt == true && p.EinkommenHoeher == null)
-                hinweise.Add($"Bei {p.NameVorname} fehlt «verdient mehr als der MA?» — das entscheidet, wer die Zulage erhält.");
+                fehlt.Add($"{p.NameVorname}: «verdient mehr als der MA?» — entscheidet, wer die Zulage erhält");
 
         // ── Kinder-Zeilen + Sorge / wohnt bei ────────────────────────────
         var kinderDto = new List<FamzKindDto>();
@@ -218,7 +219,9 @@ public class FamzAnmeldungController : ControllerBase
             wohnen.Add((k.FirstName ?? "", WohntBei(k, kae, maGeschlecht)));
 
             if (k.BeziehungZumMa == null)
-                hinweise.Add($"{k.FirstName}: Beziehung zum Kind (leiblich, Stiefkind …) fehlt.");
+                fehlt.Add($"{k.FirstName}: Beziehung zum Kind (leiblich, Stiefkind …)");
+            if (!k.LebtImHaushalt && adr == null)
+                fehlt.Add($"{k.FirstName}: Wohnadresse (lebt nicht beim MA)");
             if (k.KeineUnterhaltspflicht)
                 hinweise.Add($"{k.FirstName}: laut Verlauf heute kein Unterhalt zur Hauptsache — Anspruch mit der Kasse klären.");
             var alter = k.DateOfBirth.HasValue ? AlterAm(DateOnly.FromDateTime(k.DateOfBirth.Value), heute) : (int?)null;
@@ -319,6 +322,7 @@ public class FamzAnmeldungController : ControllerBase
                 hatZulage = zulagenIds.Contains(k.Id),
                 gewaehlt = ausgewaehlt.Any(a => a.Id == k.Id),
             }),
+            fehlt,
             hinweise,
             beilagen = beilagen.Distinct().ToList(),
         });

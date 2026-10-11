@@ -34,7 +34,15 @@ einkommen als der partner, erhält im normalfall der partner das kindergeld.»
 | Sorge / Kinder leben bei | Kind-Angaben; gemischt ⇒ Text in der Bemerkung |
 
 Hinweise (gelb) und Beilagenliste rechnet der Server mit (z.B. Ausländerausweise, Ausbildungsbestätigung
-ab 15/16, Erstanspruch beim Partner).
+ab 15/16, Erstanspruch beim Partner). Was in OneCrew wirklich fehlt (anderer Elternteil, «verdient mehr?»,
+Beziehung zum Kind, Wohnadresse ausserhalb des Haushalts) liefert der Server getrennt als `fehlt` (rot).
+
+**Maske (Walter 11.10.2026):** ov-Look — warme Karte, weisse Feld-Pillen, Abschnitts-Balken, 6er-Raster.
+Kopfzeile = Mitarbeiter | Kinder | Meldungen (rot «Fehlt», gelb Hinweise, Beilagen aufklappbar).
+Leere Pflichtangaben werden rot umrandet (`famzPflicht` in `js/famz-anmeldung.js`, bedingte Felder erst
+wenn die Auslöser-Frage es verlangt, z.B. «Von wem» nur bei «Leistungen: Ja»; AHV/Ausweis des anderen
+Elternteils nur bei Wohnsitz Schweiz = Kanton gesetzt). Ehepartner-Block ohne Eintrag zugeklappt
+(«von Hand ausfüllen»). Der Zähler neben «PDF-Vorschau» sperrt nichts.
 
 ## Kind-Maske (vier Blöcke)
 

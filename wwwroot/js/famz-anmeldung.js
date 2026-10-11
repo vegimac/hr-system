@@ -4,11 +4,13 @@
 //  MA wählen → Kinder wählen → Vorbefüllung aus OneCrew (Familie, Vertrag,
 //  Zivilstand) → alles editierbar → PDF im Vorschaufenster. Persistiert nichts;
 //  fehlende Angaben gehören in die Familie-Maske, nicht hierher.
+//  Rot = Pflichtangabe für die Kasse fehlt (famzPflicht), gelb = Hinweis.
 // ══════════════════════════════════════════════════════════════════════
 let _famzAlleMa = [];
 let _famzEmpId = null;
 let _famzDaten = null;        // Antwort von /prefill (formular wird beim PDF überschrieben)
 let _famzPendingEmpId = null;
+let _famzPartnerOffen = false;
 
 const FAMZ_JN = { '': '–', ja: 'Ja', nein: 'Nein' };
 const FAMZ_ZIVIL = { '': '–', ledig: 'ledig', verheiratet: 'verheiratet', getrennt: 'getrennt', geschieden: 'geschieden',
@@ -26,6 +28,10 @@ async function famzInit() {
     _famzDaten = null;
     const block = document.getElementById('famzFormBlock');
     if (block) block.style.display = 'none';
+    for (const id of ['famzKopfKinder', 'famzKopfMeldungen']) {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    }
     famzRenderMaListe();
     if (_famzPendingEmpId != null) {
         const id = _famzPendingEmpId;
@@ -88,6 +94,7 @@ async function famzLaden(empId, kinderIds) {
         showToast('Vorbefüllung fehlgeschlagen', 'error');
         return;
     }
+    _famzPartnerOffen = !!_famzDaten.formular?.partner;
     famzRender();
 }
 
@@ -97,54 +104,57 @@ async function famzLaden(empId, kinderIds) {
 function famzWert(pfad) {
     return pfad.split('.').reduce((o, k) => (o == null ? undefined : o[k]), _famzDaten?.formular);
 }
+const famzSpan = n => n > 1 ? ` style="grid-column:span ${n}"` : '';
 function famzText(label, pfad, opt = {}) {
     const v = famzWert(pfad);
-    return `<label class="ahv-f"${opt.span ? ` style="grid-column:span ${opt.span}"` : ''}>${label}
+    return `<label class="famz-f" data-feld="${pfad}"${famzSpan(opt.span)}>${label}
         <input data-pfad="${pfad}" data-typ="text" value="${famzEsc(v ?? '')}"${opt.ph ? ` placeholder="${famzEsc(opt.ph)}"` : ''}></label>`;
 }
-function famzSel(label, pfad, werte, opt = {}) {
-    const v = famzWert(pfad) ?? '';
-    return `<label class="ahv-f"${opt.span ? ` style="grid-column:span ${opt.span}"` : ''}>${label}
-        <select data-pfad="${pfad}" data-typ="sel">${Object.entries(werte)
-            .map(([k, t]) => `<option value="${k}"${String(v) === k ? ' selected' : ''}>${famzEsc(t)}</option>`).join('')}</select></label>`;
+function famzOptionen(werte, v) {
+    return Object.entries(werte).map(([k, t]) => `<option value="${k}"${String(v ?? '') === k ? ' selected' : ''}>${famzEsc(t)}</option>`).join('');
 }
-function famzJn(label, pfad) {
+function famzSel(label, pfad, werte, opt = {}) {
+    return `<label class="famz-f" data-feld="${pfad}"${famzSpan(opt.span)}>${label}
+        <select data-pfad="${pfad}" data-typ="sel" onchange="famzPruefen()">${famzOptionen(werte, famzWert(pfad))}</select></label>`;
+}
+function famzJn(label, pfad, opt = {}) {
     const v = famzWert(pfad);
     const w = v === true ? 'ja' : v === false ? 'nein' : '';
-    return `<label class="ahv-f">${label}
-        <select data-pfad="${pfad}" data-typ="jn">${Object.entries(FAMZ_JN)
-            .map(([k, t]) => `<option value="${k}"${w === k ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`;
+    return `<label class="famz-f" data-feld="${pfad}"${famzSpan(opt.span)}>${label}
+        <select data-pfad="${pfad}" data-typ="jn" onchange="famzPruefen()">${famzOptionen(FAMZ_JN, w)}</select></label>`;
 }
-const famzTitel = t => `<div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:18px 0 8px">${t}</div>`;
-const famzRaster = (inhalt, spalten = 3) => `<div style="display:grid;grid-template-columns:repeat(${spalten},1fr);gap:10px 14px">${inhalt}</div>`;
+function famzTitel(text, info = '', knopf = '') {
+    return `<div class="famz-titel">${text}${info}${knopf}</div>`;
+}
+const famzRaster = inhalt => `<div class="famz-raster">${inhalt}</div>`;
 
 function famzPerson(p) {
     return famzText('Name, Vorname', `${p}.nameVorname`, { span: 2 })
         + famzSel('Geschlecht', `${p}.geschlecht`, FAMZ_GESCHLECHT)
-        + famzText('Strasse, Nr.', `${p}.strasseNr`, { span: 2 })
-        + famzText('PLZ, Ort', `${p}.plzOrt`)
-        + famzText('Kanton', `${p}.kanton`)
         + famzText('Geburtsdatum', `${p}.geburtsdatum`, { ph: 'tt.mm.jjjj' })
         + famzText('AHV-Nr.', `${p}.ahvNummer`, { ph: '756.…' })
-        + famzSel('Zivilstand', `${p}.zivilstand`, FAMZ_ZIVIL)
-        + famzText('Zivilstand seit', `${p}.zivilstandSeit`, { ph: 'tt.mm.jjjj' })
         + famzText('Nationalität', `${p}.nationalitaet`)
-        + famzText('Ausländerausweis', `${p}.auslaenderausweis`);
+        + famzText('Strasse, Nr.', `${p}.strasseNr`, { span: 2 })
+        + famzText('PLZ, Ort', `${p}.plzOrt`, { span: 2 })
+        + famzText('Kanton', `${p}.kanton`)
+        + famzText('Ausländerausweis', `${p}.auslaenderausweis`)
+        + famzSel('Zivilstand', `${p}.zivilstand`, FAMZ_ZIVIL)
+        + famzText('Zivilstand seit', `${p}.zivilstandSeit`, { ph: 'tt.mm.jjjj' });
 }
 function famzElternteil(p) {
     return famzPerson(p)
         + famzJn('Angestellt?', `${p}.angestellt`)
-        + famzText('Arbeitgeber (Name, Strasse)', `${p}.arbeitgeberZeile1`, { span: 2 })
+        + famzText('Arbeitgeber (Name, Strasse)', `${p}.arbeitgeberZeile1`, { span: 3 })
         + famzText('Arbeitgeber (PLZ Ort, Telefon)', `${p}.arbeitgeberZeile2`, { span: 2 })
         + famzText('Arbeitsort Kanton', `${p}.arbeitsortKanton`)
-        + famzText('Arbeitspensum %', `${p}.arbeitspensum`)
+        + famzText('Pensum %', `${p}.arbeitspensum`)
         + famzJn('Verdient mehr als MA?', `${p}.einkommenHoeher`)
-        + famzJn('Einkommen über CHF 7\'560/Jahr?', `${p}.einkommenUeberMinimum`)
-        + famzSel('Als SE/NE angemeldet?', `${p}.seNe`, FAMZ_SENE)
+        + famzJn('Einkommen > 7\'560/J.?', `${p}.einkommenUeberMinimum`)
+        + famzSel('SE/NE angemeldet?', `${p}.seNe`, FAMZ_SENE)
         + famzText('Ausgleichskasse', `${p}.ausgleichskasse`, { span: 2 })
-        + famzJn('Bezieht Zulagen / Leistungen?', `${p}.leistungBezug`)
-        + famzText('Von wem (Zeile 1)', `${p}.leistungVon1`)
-        + famzText('Von wem (Zeile 2)', `${p}.leistungVon2`);
+        + famzJn('Bezieht Leistungen?', `${p}.leistungBezug`)
+        + famzText('Von wem', `${p}.leistungVon1`, { span: 2 })
+        + famzText('Von wem (2)', `${p}.leistungVon2`, { span: 2 });
 }
 
 function famzRender() {
@@ -153,49 +163,45 @@ function famzRender() {
     if (!d || !block) return;
     const f = d.formular || {};
 
-    // Kinder-Auswahl (max. 5 pro Formular)
+    // Kopf Mitte: Kinder-Auswahl (max. 5 pro Formular)
     const auswahl = (d.kinderAuswahl || []).map(k => `
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0">
-            <input type="checkbox" class="famz-kind-cb" value="${k.id}"${k.gewaehlt ? ' checked' : ''} style="width:16px;height:16px">
-            ${famzEsc(k.name)} <span style="color:#8b8b8b">${famzEsc(k.geburtsdatum || '')}${k.hatZulage ? ' · Zulage erfasst' : ''}</span>
+        <label class="famz-kind-cb-zeile">
+            <input type="checkbox" class="famz-kind-cb" value="${k.id}"${k.gewaehlt ? ' checked' : ''} style="width:15px;height:15px">
+            ${famzEsc(k.name)} <span>${famzEsc(k.geburtsdatum || '')}${k.hatZulage ? ' · Zulage erfasst' : ''}</span>
         </label>`).join('') || '<div style="color:#8b8b8b;font-size:12.5px">Keine Kinder bis 25 Jahre erfasst.</div>';
-
-    const hinweise = (d.hinweise || []).map(h => `<div>⚠ ${famzEsc(h)}</div>`).join('');
-    const beilagen = (d.beilagen || []).map(b => `<li>${famzEsc(b)}</li>`).join('');
+    const kopfKinder = document.getElementById('famzKopfKinder');
+    if (kopfKinder) kopfKinder.innerHTML = `
+        <div class="famz-kopf-titel">Kinder auf diesem Formular <span style="font-weight:400;color:#8b8b8b">(max. 5)</span></div>
+        ${auswahl}
+        ${(d.kinderAuswahl || []).length ? `<button type="button" class="famz-btn-sek" style="margin-top:6px" onclick="famzKinderNeu()"
+            title="Lädt die Vorbefüllung neu — Änderungen unten gehen dabei verloren">Auswahl übernehmen</button>` : ''}`;
 
     const kinder = (f.kinder || []).map((k, i) => `
         <tr>
-            <td><input data-pfad="kinder.${i}.name" data-typ="text" value="${famzEsc(k.name || '')}"></td>
-            <td><input data-pfad="kinder.${i}.vorname" data-typ="text" value="${famzEsc(k.vorname || '')}"></td>
-            <td><input data-pfad="kinder.${i}.geburtsdatum" data-typ="text" value="${famzEsc(k.geburtsdatum || '')}" style="width:96px"></td>
-            <td><select data-pfad="kinder.${i}.geschlecht" data-typ="sel">${Object.entries(FAMZ_GESCHLECHT).map(([c, t]) => `<option value="${c}"${(k.geschlecht || '') === c ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
-            <td><select data-pfad="kinder.${i}.beziehung" data-typ="sel">${Object.entries(FAMZ_BEZ).map(([c, t]) => `<option value="${c}"${(k.beziehung || '') === c ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
-            <td style="text-align:center"><input type="checkbox" data-pfad="kinder.${i}.erwerbsunfaehig" data-typ="bool"${k.erwerbsunfaehig ? ' checked' : ''} style="width:16px;height:16px"></td>
-            <td><input data-pfad="kinder.${i}.wohnadresse" data-typ="text" value="${famzEsc(k.wohnadresse || '')}" placeholder="nur wenn nicht beim MA"></td>
+            <td data-feld="kinder.${i}.name"><input data-pfad="kinder.${i}.name" data-typ="text" value="${famzEsc(k.name || '')}"></td>
+            <td data-feld="kinder.${i}.vorname"><input data-pfad="kinder.${i}.vorname" data-typ="text" value="${famzEsc(k.vorname || '')}"></td>
+            <td data-feld="kinder.${i}.geburtsdatum" style="width:100px"><input data-pfad="kinder.${i}.geburtsdatum" data-typ="text" value="${famzEsc(k.geburtsdatum || '')}"></td>
+            <td data-feld="kinder.${i}.geschlecht" style="width:110px"><select data-pfad="kinder.${i}.geschlecht" data-typ="sel" onchange="famzPruefen()">${famzOptionen(FAMZ_GESCHLECHT, k.geschlecht)}</select></td>
+            <td data-feld="kinder.${i}.beziehung" style="width:130px"><select data-pfad="kinder.${i}.beziehung" data-typ="sel" onchange="famzPruefen()">${famzOptionen(FAMZ_BEZ, k.beziehung)}</select></td>
+            <td style="text-align:center;width:70px"><input type="checkbox" data-pfad="kinder.${i}.erwerbsunfaehig" data-typ="bool"${k.erwerbsunfaehig ? ' checked' : ''} style="width:15px;height:15px"></td>
+            <td data-feld="kinder.${i}.wohnadresse"><input data-pfad="kinder.${i}.wohnadresse" data-typ="text" value="${famzEsc(k.wohnadresse || '')}" placeholder="nur wenn nicht beim MA"></td>
         </tr>`).join('');
 
-    block.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:6px">
-            <div>
-                <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin-bottom:6px">Kinder auf diesem Formular <span style="font-weight:400;color:#8b8b8b">(max. 5)</span></div>
-                ${auswahl}
-                ${(d.kinderAuswahl || []).length ? `<button type="button" onclick="famzKinderNeu()" style="margin-top:6px;background:rgba(255,255,255,0.6);border:1px solid rgba(60,55,48,0.2);color:#3f3f3f;padding:6px 14px;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer">Auswahl übernehmen</button>
-                <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Lädt die Vorbefüllung neu — Änderungen unten gehen dabei verloren.</div>` : ''}
-            </div>
-            <div>
-                ${hinweise ? `<div style="background:#fef3c7;border:1px solid #fcd34d;color:#92400e;border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.5;margin-bottom:8px">${hinweise}</div>` : ''}
-                ${beilagen ? `<div style="font-size:12.5px;color:#3f3f3f"><b>Beilagen</b><ul style="margin:4px 0 0 18px;padding:0">${beilagen}</ul></div>` : ''}
-            </div>
-        </div>
+    const aeInfo = f.andererElternteil ? ''
+        : '<span class="famz-titel-info rot">nicht erfasst — am besten in Familie → Kind → «Anderer Elternteil» ergänzen</span>';
+    const partnerInfo = f.partner ? '' : '<span class="famz-titel-info">keine/r, oder ist der andere Elternteil</span>';
+    const partnerKnopf = _famzPartnerOffen ? ''
+        : '<button type="button" class="famz-titel-knopf" onclick="famzPartnerOeffnen()">von Hand ausfüllen</button>';
 
+    block.innerHTML = `
         ${famzTitel('1. Antrag')}
         ${famzRaster(
             famzSel('Ich beantrage', 'beantrage', { FAMILIENZULAGE: 'Familienzulage', GEBURTSZULAGE: 'Geburts-/Adoptionszulage', DIFFERENZZULAGE: 'Differenzzulage' })
             + famzSel('Ich bin', 'status', { ARBEITNEHMER: 'Arbeitnehmer/in', SE: 'Selbständig', NE: 'Nichterwerbstätig' })
             + famzText('Ab wann', 'abWann', { ph: 'tt.mm.jjjj' })
-            + famzText('Erreichbar (Telefon / E-Mail)', 'erreichbar', { span: 2 })
+            + famzText('Erreichbar (Telefon / E-Mail)', 'erreichbar', { span: 3 })
             + famzJn('Beziehe ich Leistungen?', 'leistungBezug')
-            + famzText('Leistungen von', 'leistungVon', { span: 3 }))}
+            + famzText('Leistungen von', 'leistungVon', { span: 2 }))}
 
         ${famzTitel('2. Antragsteller/in (Mitarbeiter/in)')}
         ${famzRaster(famzPerson('antragsteller'))}
@@ -208,20 +214,20 @@ function famzRender() {
             + famzText('PLZ, Ort', 'agPlzOrt')
             + famzText('Beschäftigt von', 'beschaeftigtVon', { ph: 'tt.mm.jjjj' })
             + famzText('Beschäftigt bis', 'beschaeftigtBis', { ph: 'leer = unbefristet' })
-            + famzText('Arbeitspensum %', 'arbeitspensum')
+            + famzText('Pensum %', 'arbeitspensum')
             + famzText('Arbeitsort Kanton', 'arbeitsortKanton')
             + famzText('Bruttolohn', 'bruttolohn')
-            + famzJn('Einkommen über CHF 7\'560/Jahr?', 'einkommenUeberMinimum')
+            + famzJn('Einkommen > 7\'560/J.?', 'einkommenUeberMinimum')
             + famzJn('Weitere Arbeitgeber?', 'weitereArbeitgeber')
-            + famzText('Weiterer Arbeitgeber 1', 'weitereAg1')
+            + famzText('Weiterer Arbeitgeber 1', 'weitereAg1', { span: 2 })
             + famzText('Weiterer Arbeitgeber 2', 'weitereAg2')
             + famzText('Höheres Einkommen bei', 'hoeheresEinkommenBei', { span: 2 }))}
 
-        ${famzTitel('4. Anderer Elternteil' + (f.andererElternteil ? '' : ' <span style="font-weight:400;color:#92400e">— nicht erfasst (Familie → Kind → «Anderer Elternteil»)</span>'))}
+        ${famzTitel('4. Anderer Elternteil', aeInfo)}
         ${famzRaster(famzElternteil('andererElternteil'))}
 
-        ${famzTitel('5. Ehepartner/in' + (f.partner ? '' : ' <span style="font-weight:400;color:#8b8b8b">— keine/r, oder ist der andere Elternteil</span>'))}
-        ${famzRaster(famzElternteil('partner'))}
+        ${famzTitel('5. Ehepartner/in', partnerInfo, partnerKnopf)}
+        ${_famzPartnerOffen ? famzRaster(famzElternteil('partner')) : ''}
 
         ${famzTitel('6. Kinder')}
         <div style="overflow-x:auto">
@@ -230,25 +236,119 @@ function famzRender() {
                 <tbody>${kinder || '<tr><td colspan="7" style="color:#8b8b8b">keine Kinder gewählt</td></tr>'}</tbody>
             </table>
         </div>
-        ${famzRaster(
+        <div style="margin-top:6px">${famzRaster(
             famzSel('Elterliche Sorge', 'sorge', FAMZ_ELTERN)
             + famzText('Bemerkung Sorge', 'sorgeBemerkung', { span: 2 })
             + famzSel('Kinder leben bei', 'lebenBei', FAMZ_ELTERN)
-            + famzText('Bemerkung Wohnen', 'lebenBeiBemerkung', { span: 2 }))}
+            + famzText('Bemerkung Wohnen', 'lebenBeiBemerkung', { span: 2 }))}</div>
 
         ${famzTitel('7. Bemerkungen und Unterschrift')}
         ${famzRaster(
             famzText('Bemerkung 1', 'bemerkung1', { span: 3 })
             + famzText('Bemerkung 2', 'bemerkung2', { span: 3 })
-            + famzText('Bemerkung 3', 'bemerkung3', { span: 3 })
-            + famzText('Ort, Datum Antragsteller/in', 'ortDatumAntragsteller')
+            + famzText('Bemerkung 3', 'bemerkung3', { span: 2 })
+            + famzText('Ort, Datum Antragsteller/in', 'ortDatumAntragsteller', { span: 2 })
             + famzText('Ort, Datum Arbeitgeber', 'ortDatumArbeitgeber', { span: 2 }))}
 
-        <div style="display:flex;justify-content:flex-end;margin-top:18px">
-            <button id="famzPdfBtn" onclick="famzPdf()"
-                    style="background:#3f3f3f;color:#fff;border:none;padding:9px 18px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer">PDF-Vorschau</button>
+        <div class="famz-fuss">
+            <span id="famzFussInfo" class="famz-fuss-info"></span>
+            <button id="famzPdfBtn" class="famz-btn-primaer" onclick="famzPdf()">PDF-Vorschau</button>
         </div>`;
     block.style.display = '';
+    if (!block._famzInput) {
+        block.addEventListener('input', () => famzPruefen());
+        block._famzInput = true;
+    }
+    famzPruefen();
+}
+
+/** Ehepartner-Block auf Wunsch einblenden — Eingaben oben bleiben erhalten. */
+function famzPartnerOeffen() {
+    if (!_famzDaten) return;
+    _famzDaten.formular = famzSammeln();
+    _famzPartnerOffen = true;
+    famzRender();
+}
+
+// ── Pflichtangaben (rot) ─────────────────────────────────────────────────
+// Nur was die Kasse wirklich braucht; bedingte Felder erst, wenn ihre
+// Auslöser-Frage es verlangt (z.B. «Leistungen von» nur bei «Ja»).
+function famzFeldWert(pfad) {
+    const el = document.querySelector(`#famzFormBlock [data-pfad="${pfad}"]`);
+    if (!el) return null;
+    return (el.value || '').trim();
+}
+function famzPflicht() {
+    const v = famzFeldWert;
+    const istCh = n => /schweiz|^ch$/i.test(n || '');
+    const liste = [];
+    const add = (...pfade) => liste.push(...pfade);
+
+    add('beantrage', 'status', 'abWann');
+    if (v('leistungBezug') === 'ja') add('leistungVon');
+
+    const a = 'antragsteller';
+    add(`${a}.nameVorname`, `${a}.geschlecht`, `${a}.geburtsdatum`, `${a}.ahvNummer`, `${a}.nationalitaet`,
+        `${a}.strasseNr`, `${a}.plzOrt`, `${a}.zivilstand`);
+    if (v(`${a}.zivilstand`) && v(`${a}.zivilstand`) !== 'ledig') add(`${a}.zivilstandSeit`);
+    if (v(`${a}.nationalitaet`) && !istCh(v(`${a}.nationalitaet`))) add(`${a}.auslaenderausweis`);
+
+    add('agName', 'agAbrechnungsnummer', 'agStrasse', 'agPlzOrt', 'beschaeftigtVon', 'arbeitspensum',
+        'arbeitsortKanton', 'bruttolohn', 'einkommenUeberMinimum', 'weitereArbeitgeber');
+    if (v('weitereArbeitgeber') === 'ja') add('weitereAg1', 'hoeheresEinkommenBei');
+
+    const elternteil = p => {
+        add(`${p}.nameVorname`, `${p}.geschlecht`, `${p}.geburtsdatum`, `${p}.nationalitaet`,
+            `${p}.strasseNr`, `${p}.plzOrt`, `${p}.zivilstand`, `${p}.angestellt`);
+        const wohntInCh = !!v(`${p}.kanton`);
+        if (wohntInCh) add(`${p}.ahvNummer`);
+        if (wohntInCh && v(`${p}.nationalitaet`) && !istCh(v(`${p}.nationalitaet`))) add(`${p}.auslaenderausweis`);
+        if (v(`${p}.angestellt`) === 'ja')
+            add(`${p}.arbeitgeberZeile1`, `${p}.arbeitsortKanton`, `${p}.einkommenHoeher`, `${p}.einkommenUeberMinimum`);
+        if (v(`${p}.angestellt`) === 'nein') add(`${p}.seNe`);
+        if (v(`${p}.leistungBezug`) === 'ja') add(`${p}.leistungVon1`);
+    };
+    elternteil('andererElternteil');
+    if (_famzPartnerOffen) elternteil('partner');
+
+    (_famzDaten?.formular?.kinder || []).forEach((_, i) =>
+        add(`kinder.${i}.name`, `kinder.${i}.vorname`, `kinder.${i}.geburtsdatum`, `kinder.${i}.geschlecht`, `kinder.${i}.beziehung`));
+    add('sorge', 'lebenBei');
+    return liste;
+}
+
+/** Leere Pflichtfelder rot markieren, Meldungen oben + Zähler unten auffrischen. */
+function famzPruefen() {
+    const block = document.getElementById('famzFormBlock');
+    if (!block || !_famzDaten) return;
+    block.querySelectorAll('[data-feld].fehlt').forEach(el => el.classList.remove('fehlt'));
+    let anzahl = 0;
+    for (const pfad of famzPflicht()) {
+        const w = famzFeldWert(pfad);
+        if (w == null || w !== '') continue;
+        block.querySelector(`[data-feld="${pfad}"]`)?.classList.add('fehlt');
+        anzahl++;
+    }
+    // «(Adresse nicht erfasst)» kommt so aus OneCrew — Adresse fehlt wirklich.
+    block.querySelectorAll('input[data-pfad$=".wohnadresse"]').forEach(el => {
+        if (/nicht erfasst/i.test(el.value)) { el.closest('[data-feld]')?.classList.add('fehlt'); anzahl++; }
+    });
+
+    const fuss = document.getElementById('famzFussInfo');
+    if (fuss) fuss.textContent = anzahl ? `${anzahl} ${anzahl === 1 ? 'Angabe fehlt' : 'Angaben fehlen'} (rot)` : '';
+
+    const d = _famzDaten;
+    const fehlt = (d.fehlt || []).map(t => `<div>• ${famzEsc(t)}</div>`).join('');
+    const hinweise = (d.hinweise || []).map(h => `<div>${famzEsc(h)}</div>`).join('');
+    const beilagen = (d.beilagen || []).map(b => `<li>${famzEsc(b)}</li>`).join('');
+    const rot = fehlt || anzahl
+        ? `<div class="famz-box famz-box-rot"><b>Fehlt</b>${fehlt}${anzahl ? `<div>• ${anzahl} rot markierte${anzahl === 1 ? 's Feld' : ' Felder'} im Formular</div>` : ''}</div>`
+        : '';
+    const meld = document.getElementById('famzKopfMeldungen');
+    if (meld) meld.innerHTML = `
+        ${rot}
+        ${hinweise ? `<div class="famz-box famz-box-gelb">${hinweise}</div>` : ''}
+        ${beilagen ? `<details class="famz-beilagen"><summary>Beilagen (${(d.beilagen || []).length})</summary><ul>${beilagen}</ul></details>` : ''}`;
 }
 
 async function famzKinderNeu() {

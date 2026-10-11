@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261011e">
+    <link rel="stylesheet" href="css/app.css?v=20261011f">
 </head>
 <body>
 
@@ -4120,15 +4120,17 @@
                     </div>
                 </div>
                 <div class="page-body">
-                    <div class="card" style="padding:20px;max-width:1080px">
-                        <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
-                            <label style="font-size:13px;font-weight:600;color:#0f172a">Mitarbeiter</label>
-                            <input id="famzEmpSearch" type="search" placeholder="Suchen…" oninput="famzRenderMaListe()"
-                                   style="flex:1;min-width:160px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px">
+                    <div class="card famz-card">
+                        <div class="famz-kopf">
+                            <div>
+                                <div class="famz-kopf-titel">Mitarbeiter</div>
+                                <input id="famzEmpSearch" type="search" placeholder="Suchen…" oninput="famzRenderMaListe()" class="famz-pill">
+                                <select id="famzEmpSelect" size="6" onchange="famzMaGewaehlt()" class="no-liquid famz-pill famz-maliste"></select>
+                            </div>
+                            <div id="famzKopfKinder"></div>
+                            <div id="famzKopfMeldungen"></div>
                         </div>
-                        <select id="famzEmpSelect" size="8" onchange="famzMaGewaehlt()" class="no-liquid"
-                                style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white;font-family:inherit"></select>
-                        <div id="famzFormBlock" style="display:none;margin-top:18px"></div>
+                        <div id="famzFormBlock" style="display:none"></div>
                     </div>
                 </div>
             </div>
@@ -12123,7 +12125,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohn-edit-lock.js?v=20260806a"></script>
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>
 <script src="js/ahv-anmeldung.js?v=20260831a"></script>
-<script src="js/famz-anmeldung.js?v=20261011a"></script>
+<script src="js/famz-anmeldung.js?v=20261011b"></script>
 <script src="js/akis-meldung.js?v=20260831a"></script>
 <script src="js/manager-dienstplan.js?v=20261007b"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
