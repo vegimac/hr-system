@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 11;
+        var VERSION = 12;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -438,16 +438,33 @@ function famzGsKern(daten) {
                 naechstes();
             };
             var schluss = function () { laeuft = null; zeichne(); };
-            gang(felder.map(function (f, k) { return k; }), 1, function () {
+            // Klicks (Auswahlknöpfe, Listen) bauen die Portal-Seite neu auf und löschen dabei
+            // schon getippte Texte — deshalb zuerst alle Klicks, warten, dann die Texte.
+            var klickt = function (feld) {
+                if (feld.art === 'option' || feld.wahl || feld.rechts) return true;
+                try {
+                    var f = findeFeld([].concat(feld.l), feld.nr);
+                    if (f && f.el) return !!f.radios || f.el.tagName === 'SELECT' || /^(radio|checkbox)$/.test(f.el.type);
+                } catch (e) { /* wie Text behandeln */ }
+                return /^(ja|nein|männlich|weiblich)$/i.test(String([].concat(feld.w)[0]));
+            };
+            var zuerst = [], danach = [];
+            felder.forEach(function (feld, k) { (klickt(feld) ? zuerst : danach).push(k); });
+            var reihe = zuerst.concat(danach);
+            var weiter = function () {
                 if (!gesetzt.length && !nochmals.length) { schluss(); return; }
                 laeuft = 'Warte auf das Portal'; zeichne();
                 setTimeout(function () {
                     // Felder, die das Portal erst nach einer Antwort zeigt, kommen hier dran.
-                    gang(gesetzt.concat(nochmals).sort(function (a, b) { return a - b; }), 2, function () {
+                    gang(reihe.filter(function (k) { return gesetzt.indexOf(k) >= 0 || nochmals.indexOf(k) >= 0; }), 2, function () {
                         laeuft = 'Warte auf das Portal'; zeichne();
                         setTimeout(function () { gang(gesetzt, 3, schluss); }, RUHE);
                     });
                 }, RUHE);
+            };
+            gang(zuerst, 1, function () {
+                laeuft = 'Warte auf das Portal'; zeichne();
+                setTimeout(function () { gang(danach, 1, weiter); }, gesetzt.length ? RUHE : 60);
             });
         };
         document.body.appendChild(p);
