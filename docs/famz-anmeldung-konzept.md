@@ -112,4 +112,10 @@ das Lesezeichen bleibt — auch Änderungen am Kern kommen über OneCrew. Neu ei
 Haushalt lebend», «Es existieren weitere Arbeitsverhältnisse») laufen über `art: 'option'`.
 «Felder melden» kopiert die Beschriftungen der Portal-Seite (ohne Werte) für die Zuordnung.
 Schritt 1 (Antrag) nach Screenshot gebaut; Schritte 2–4 sind Annahmen bis zur ersten Feldmeldung.
-Personensuche und «Meldeverfahren» wählt der Benutzer selbst.
+Personensuche wählt der Benutzer selbst.
+
+**Abschreibhilfe (ab Kern v8):** Das Portal zeichnet Teile der Seite nach Server-Rückfragen neu und
+verliert dabei programmatisch gesetzte Werte. Das Fenster zeigt deshalb pro Schritt alle Werte in
+Portal-Reihenfolge mit 📋 (Wert kopieren, im Portal ⌘V); Auswahlfelder stehen als «anklicken» /
+«nicht ankreuzen». «Einfüllen» bleibt als Zusatz (drei Durchgänge: füllen, verlorene Werte
+nachtragen, prüfen) und setzt pro Zeile ✓ / = / ≠ / ✗.

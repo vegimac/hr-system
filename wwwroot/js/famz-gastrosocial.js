@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 7;
+        var VERSION = 8;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -253,101 +253,138 @@ function famzGsKern(daten) {
                 + ', iframes: ' + alle('iframe,frame').length + ')\n' + zeilen.join('\n');
         };
 
+        // ── Fenster: Schritt wählen, Werte mit 📋 (Abschreibhilfe), «Einfüllen» ──
         var alt = document.getElementById(ID);
         if (alt) alt.remove();
+        var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
         var p = document.createElement('div');
         p.id = ID;
-        p.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:2147483647;width:340px;max-height:72vh;overflow:auto;'
+        p.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:2147483647;width:360px;max-height:82vh;overflow:auto;'
             + 'background:linear-gradient(165deg,#eeece4,#dfdcd1);border:1px solid rgba(255,255,255,.7);border-radius:16px;'
             + 'box-shadow:0 18px 50px rgba(60,55,48,.28);padding:14px 16px;font:13px/1.45 -apple-system,Helvetica,Arial,sans-serif;color:#3f3f3f';
-        var knopf = 'border:none;border-radius:10px;padding:7px 11px;margin:3px 4px 3px 0;cursor:pointer;font:600 12.5px -apple-system,Helvetica,Arial,sans-serif;';
-        var html = '<div style="font-weight:800;font-size:14px">OneCrew → GastroSocial <span style="font-weight:400;font-size:11px;color:#8b8b8b">v' + VERSION + '</span></div>'
-            + '<div style="color:#646464;margin:2px 0 8px">' + String(daten.titel || '').replace(/</g, '&lt;') + '</div>'
-            + '<div style="font-size:12px;color:#646464;margin-bottom:4px">Welchen Schritt ausfüllen?</div><div id="ocfz-knoepfe"></div>'
-            + '<div id="ocfz-ergebnis" style="margin-top:8px"></div>'
-            + '<div style="margin-top:10px;border-top:1px solid rgba(60,55,48,.15);padding-top:8px">'
-            + '<button id="ocfz-melden" style="' + knopf + 'background:rgba(255,255,255,.6);color:#3f3f3f;border:1px solid rgba(60,55,48,.2)">Felder melden</button>'
-            + '<button id="ocfz-zu" style="' + knopf + 'background:rgba(255,255,255,.6);color:#3f3f3f;border:1px solid rgba(60,55,48,.2)">Schliessen</button></div>';
-        p.innerHTML = html;
-        document.body.appendChild(p);
+        var knopf = 'border:none;border-radius:10px;padding:6px 10px;margin:3px 4px 3px 0;cursor:pointer;font:600 12px -apple-system,Helvetica,Arial,sans-serif;';
+        var hell = knopf + 'background:rgba(255,255,255,.6);color:#3f3f3f;border:1px solid rgba(60,55,48,.2);';
+        var dunkel = knopf + 'background:#3f3f3f;color:#fff;';
         var farbe = { ok: '#2f6b3a', gleich: '#646464', anders: '#9a5b00', fehlt: '#b42318', info: '#646464' };
         var zeichen = { ok: '✓', gleich: '=', anders: '≠', fehlt: '✗', info: 'ⓘ' };
-        var ergebnis = p.querySelector('#ocfz-ergebnis');
-        (daten.abschnitte || []).forEach(function (ab) {
-            var b = document.createElement('button');
-            b.textContent = ab.titel;
-            b.style.cssText = knopf + 'background:#3f3f3f;color:#fff';
-            // Feld für Feld mit kurzer Pause: das Portal reagiert auf jede Eingabe, und
-            // bleibt es irgendwo hängen, zeigt das Fenster, bei welchem Feld.
-            b.onclick = function () {
-                var felder = ab.felder || [], zeilen = [], i = 0;
-                var zeige = function (laufend) {
-                    ergebnis.innerHTML = '<div style="font-weight:700;margin-bottom:3px">' + ab.titel.replace(/</g, '&lt;') + '</div>'
-                        + zeilen.map(function (z) {
-                            return '<div style="color:' + farbe[z.s] + '">' + zeichen[z.s] + ' ' + z.t.replace(/</g, '&lt;') + '</div>';
-                        }).join('')
-                        + (laufend ? '<div style="color:#8b8b8b">⏳ ' + laufend.replace(/</g, '&lt;') + ' …</div>'
-                            : ab.hinweis ? '<div style="margin-top:6px;color:#646464">' + ab.hinweis.replace(/</g, '&lt;') + '</div>' : '');
-                };
-                // Das Portal fragt nach jeder Eingabe den Server und baut den Abschnitt neu —
-                // was in der Zwischenzeit eingetragen wurde, geht verloren. Darum langsam,
-                // danach ein zweiter Durchgang (trägt Verlorenes nach) und ein Kontrollgang.
-                var PAUSE = 700, RUHE = 1800;
-                var gesetzt = [];
-                var gang = function (liste, modus, fertig) {
-                    var j = 0;
-                    var naechstes = function () {
-                        if (j >= liste.length) { fertig(); return; }
-                        var eintrag = liste[j++];
-                        var feld = eintrag.feld || eintrag;
-                        var name = feld.anzeige || [].concat(feld.l)[0] || '';
-                        zeige((modus === 1 ? '' : modus === 2 ? 'Nachtragen: ' : 'Kontrolle: ') + name);
-                        setTimeout(function () {
-                            var z;
-                            nurPruefen = modus === 3;
-                            try { z = fuelle(feld); } catch (e) { z = { s: 'fehlt', t: name + ': Fehler ' + (e && e.message || e) }; }
-                            nurPruefen = false;
-                            if (modus === 1) {
-                                if (z) { zeilen.push(z); if (z.s === 'ok') gesetzt.push({ feld: feld, zeile: zeilen.length - 1 }); }
-                            } else if (z && z.s !== 'gleich') {
-                                var alt = zeilen[eintrag.zeile];
-                                zeilen[eintrag.zeile] = modus === 2 && z.s === 'ok' ? { s: 'ok', t: alt.t + ' (nachgetragen)' } : z;
-                            }
-                            setTimeout(naechstes, z && z.s === 'ok' ? PAUSE : 60);
-                        }, 60);
-                    };
-                    naechstes();
-                };
-                var schluss = function () {
-                    if (!zeilen.length) zeilen.push({ s: 'info', t: 'Nichts zu tun — in OneCrew sind für diesen Schritt keine Werte vorhanden.' });
-                    zeige(null);
-                };
-                var weiter = function () {
-                    gang(felder, 1, function () {
-                        if (!gesetzt.length) { schluss(); return; }
-                        zeige('Warte auf das Portal');
-                        setTimeout(function () {
-                            gang(gesetzt, 2, function () {
-                                zeige('Warte auf das Portal');
-                                setTimeout(function () { gang(gesetzt, 3, schluss); }, RUHE);
-                            });
-                        }, RUHE);
-                    });
-                };
-                weiter();
-            };
-            p.querySelector('#ocfz-knoepfe').appendChild(b);
-        });
-        p.querySelector('#ocfz-zu').onclick = function () { p.remove(); };
-        p.querySelector('#ocfz-melden').onclick = async function () {
-            var txt = melden();
-            try {
-                await navigator.clipboard.writeText(txt);
-                ergebnis.innerHTML = '<div style="color:#2f6b3a">✓ Feldliste kopiert (ohne Personendaten) — bitte an Walters Agent schicken.</div>';
-            } catch (e) {
-                ergebnis.innerHTML = '<textarea style="width:100%;height:160px;font-size:11px">' + txt.replace(/</g, '&lt;') + '</textarea>';
-            }
+        var abschnitte = daten.abschnitte || [];
+        var aktiv = 0, status = {}, laeuft = null;
+
+        var wertText = function (feld) {
+            if (feld.zeige != null) return String(feld.zeige);
+            var werte = [].concat(feld.w).filter(function (x) { return x != null && String(x).trim() !== ''; });
+            if (!werte.length) return '';
+            if (feld.art === 'option') return werte[0] === true || /^(ja|x|true)$/i.test(String(werte[0])) ? 'anklicken' : 'nicht ankreuzen';
+            return String(werte[0]);
         };
+        var kopieren = function (text, knopfEl) {
+            var gut = function () { knopfEl.textContent = '✓'; setTimeout(function () { knopfEl.textContent = '📋'; }, 1200); };
+            var notweg = function () {
+                var t = document.createElement('textarea');
+                t.value = text; t.style.cssText = 'position:fixed;left:-9999px';
+                document.body.appendChild(t); t.select();
+                try { document.execCommand('copy'); gut(); } catch (e) { /* nichts */ }
+                t.remove();
+            };
+            if (navigator.clipboard) navigator.clipboard.writeText(text).then(gut, notweg); else notweg();
+        };
+        var zeichne = function () {
+            var ab = abschnitte[aktiv] || { felder: [] };
+            var tabs = abschnitte.map(function (x, k) {
+                return '<button data-tab="' + k + '" style="' + (k === aktiv ? dunkel : hell) + '">' + esc(x.titel) + '</button>';
+            }).join('');
+            var zeilen = (ab.felder || []).map(function (feld, k) {
+                var w = wertText(feld);
+                if (!w) return '';
+                var st = status[aktiv + ':' + k];
+                var name = feld.anzeige || [].concat(feld.l)[0] || '';
+                return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(60,55,48,.08)">'
+                    + '<span style="width:14px;color:' + (st ? farbe[st.s] : '#bbb') + '">' + (st ? zeichen[st.s] : '·') + '</span>'
+                    + '<div style="flex:1;min-width:0"><div style="font-size:11px;color:#8b8b8b">' + esc(name) + '</div>'
+                    + '<div style="font-weight:700;word-break:break-word">' + esc(w) + '</div>'
+                    + (st && st.s !== 'ok' && st.s !== 'gleich' ? '<div style="font-size:11px;color:' + farbe[st.s] + '">' + esc(st.t) + '</div>' : '')
+                    + '</div>'
+                    + (feld.art === 'option' ? '' : '<button data-kopie="' + k + '" title="kopieren, dann im Portal ⌘V" style="' + hell + 'margin:0;padding:4px 8px">📋</button>')
+                    + '</div>';
+            }).join('') || '<div style="color:#8b8b8b">Für diesen Schritt hat OneCrew keine Werte.</div>';
+            p.innerHTML = '<div style="font-weight:800;font-size:14px">OneCrew → GastroSocial <span style="font-weight:400;font-size:11px;color:#8b8b8b">v' + VERSION + '</span></div>'
+                + '<div style="color:#646464;margin:2px 0 6px">' + esc(daten.titel) + '</div>'
+                + '<div>' + tabs + '</div>'
+                + '<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px">'
+                + '<button id="ocfz-fuellen" style="' + dunkel + 'margin:0"' + (laeuft ? ' disabled' : '') + '>' + (laeuft ? '⏳ ' + esc(laeuft) : 'Einfüllen') + '</button>'
+                + '<span style="font-size:11.5px;color:#646464">oder mit 📋 kopieren und im Portal ⌘V</span></div>'
+                + zeilen
+                + (ab.hinweis ? '<div style="margin-top:6px;font-size:12px;color:#646464">' + esc(ab.hinweis) + '</div>' : '')
+                + '<div id="ocfz-meldung" style="margin-top:6px"></div>'
+                + '<div style="margin-top:8px;border-top:1px solid rgba(60,55,48,.15);padding-top:6px">'
+                + '<button id="ocfz-melden" style="' + hell + '">Felder melden</button>'
+                + '<button id="ocfz-zu" style="' + hell + '">Schliessen</button></div>';
+            Array.prototype.forEach.call(p.querySelectorAll('[data-tab]'), function (b) {
+                b.onclick = function () { if (!laeuft) { aktiv = +b.getAttribute('data-tab'); zeichne(); } };
+            });
+            Array.prototype.forEach.call(p.querySelectorAll('[data-kopie]'), function (b) {
+                b.onclick = function () { kopieren(wertText(ab.felder[+b.getAttribute('data-kopie')]), b); };
+            });
+            p.querySelector('#ocfz-fuellen').onclick = function () { if (!laeuft) einfuellen(aktiv); };
+            p.querySelector('#ocfz-zu').onclick = function () { p.remove(); };
+            p.querySelector('#ocfz-melden').onclick = async function () {
+                var txt = melden(), ziel = p.querySelector('#ocfz-meldung');
+                try {
+                    await navigator.clipboard.writeText(txt);
+                    ziel.innerHTML = '<div style="color:#2f6b3a">✓ Feldliste kopiert (ohne Personendaten).</div>';
+                } catch (e) {
+                    ziel.innerHTML = '<textarea style="width:100%;height:160px;font-size:11px">' + esc(txt) + '</textarea>';
+                }
+            };
+        };
+
+        // Das Portal fragt nach jeder Eingabe den Server und baut den Abschnitt neu —
+        // was in der Zwischenzeit eingetragen wurde, geht verloren. Darum langsam,
+        // danach ein zweiter Durchgang (trägt Verlorenes nach) und ein Kontrollgang.
+        var PAUSE = 700, RUHE = 1800;
+        var einfuellen = function (idx) {
+            var felder = abschnitte[idx].felder || [];
+            var gesetzt = [];
+            Object.keys(status).forEach(function (k) { if (k.indexOf(idx + ':') === 0) delete status[k]; });
+            var gang = function (liste, modus, fertig) {
+                var j = 0;
+                var naechstes = function () {
+                    if (j >= liste.length) { fertig(); return; }
+                    var k = liste[j++];
+                    var feld = felder[k];
+                    var name = feld.anzeige || [].concat(feld.l)[0] || '';
+                    laeuft = (modus === 1 ? '' : modus === 2 ? 'Nachtragen: ' : 'Kontrolle: ') + name;
+                    zeichne();
+                    setTimeout(function () {
+                        var z;
+                        nurPruefen = modus === 3;
+                        try { z = fuelle(feld); } catch (e) { z = { s: 'fehlt', t: name + ': Fehler ' + (e && e.message || e) }; }
+                        nurPruefen = false;
+                        var key = idx + ':' + k;
+                        if (modus === 1) {
+                            if (z) { status[key] = z; if (z.s === 'ok') gesetzt.push(k); }
+                        } else if (z && z.s !== 'gleich') {
+                            status[key] = modus === 2 && z.s === 'ok' ? { s: 'ok', t: z.t + ' (nachgetragen)' } : z;
+                        }
+                        setTimeout(naechstes, z && z.s === 'ok' ? PAUSE : 60);
+                    }, 60);
+                };
+                naechstes();
+            };
+            var schluss = function () { laeuft = null; zeichne(); };
+            gang(felder.map(function (f, k) { return k; }), 1, function () {
+                if (!gesetzt.length) { schluss(); return; }
+                laeuft = 'Warte auf das Portal'; zeichne();
+                setTimeout(function () {
+                    gang(gesetzt, 2, function () {
+                        laeuft = 'Warte auf das Portal'; zeichne();
+                        setTimeout(function () { gang(gesetzt, 3, schluss); }, RUHE);
+                    });
+                }, RUHE);
+            });
+        };
+        document.body.appendChild(p);
+        zeichne();
 }
 
 /** Lesezeichen: holt die Daten und startet den mitgelieferten Kern (sonst den eingebauten). */
@@ -412,15 +449,15 @@ function famzGsPerson(p, rolle) {
     return [
         { l: mit('Name', ['Nachname', 'Familienname']), w: n.name, anzeige: 'Name' },
         { l: mit('Vorname'), w: n.vorname, anzeige: 'Vorname' },
-        { l: ['Geburtsdatum'], w: p.geburtsdatum },
         { l: ['AHV-Nummer', 'Sozialversicherungsnummer', 'AHV-Nr', 'Versichertennummer'], w: p.ahvNummer, anzeige: 'AHV-Nummer' },
+        { l: ['Geburtsdatum'], w: p.geburtsdatum },
         { l: ['Geschlecht'], w: famzGsGeschlecht(p.geschlecht) },
         { l: [...wer.map(w => `Ist der ${w} erwerbstätig`), ...wer.map(w => `Ist die ${w}in erwerbstätig`), 'Erwerbstätig'],
-          w: famzGsJn(p.angestellt), anzeige: 'Erwerbstätig' },
-        { l: ['Zivilstand'], w: p.zivilstand ? (FAMZ_ZIVIL[p.zivilstand] || p.zivilstand) : null },
-        { l: ['Nationalität', 'Staatsangehörigkeit'], w: p.nationalitaet, anzeige: 'Nationalität' },
+          w: famzGsJn(p.angestellt), anzeige: 'Erwerbstätig?' },
         { l: ['Arbeitgeber', 'Name Arbeitgeber'], w: p.arbeitgeberZeile1, anzeige: 'Arbeitgeber' },
         { l: ['Arbeitspensum', 'Pensum', 'Beschäftigungsgrad'], w: p.arbeitspensum, anzeige: 'Pensum' },
+        { l: ['Zivilstand'], w: p.zivilstand ? (FAMZ_ZIVIL[p.zivilstand] || p.zivilstand) : null },
+        { l: ['Nationalität', 'Staatsangehörigkeit'], w: p.nationalitaet, anzeige: 'Nationalität' },
     ];
 }
 
@@ -452,21 +489,22 @@ function famzGsDaten() {
 
     const abschnitte = [{
         titel: '1 · Antrag',
-        hinweis: 'Person in der Suche oben aus der Trefferliste wählen. «Meldeverfahren» bitte selbst wählen.',
+        hinweis: 'Person in der Suche oben aus der Trefferliste wählen.',
         felder: [
-            { l: ['Name, Geburtsdatum, AHV-Nummer'], w: a.ahvNummer, anzeige: 'Suche', hinweis: 'Person aus der Trefferliste wählen' },
+            { l: ['Name, Geburtsdatum, AHV-Nummer'], w: a.ahvNummer, anzeige: 'Suche (AHV-Nummer)', hinweis: 'Person aus der Trefferliste wählen' },
             { l: ['Personalnummer des Bezügers'], w: ma.employeeNumber, anzeige: 'Personalnummer' },
             { l: ['Zulagen beantragt ab'], w: f.abWann },
-            { l: ['Beschäftigt seit'], w: f.beschaeftigtVon },
-            { l: ['Arbeitskanton'], w: famzGsKanton(f.arbeitsortKanton) },
-            { l: ['Minimallohn erreicht'], w: famzGsJn(f.einkommenUeberMinimum) },
             { l: ['Strasse'], w: a.strasseNr },
+            { l: ['Arbeitskanton'], w: famzGsKanton(f.arbeitsortKanton) },
+            { l: ['Beschäftigt seit'], w: f.beschaeftigtVon },
             { l: ['PLZ'], w: po.plz },
             { l: ['Ort'], w: po.ort },
+            { l: ['Minimallohn erreicht'], w: famzGsJn(f.einkommenUeberMinimum), anzeige: 'Minimallohn erreicht?' },
             { l: ['Land'], w: ['Schweiz', 'CH'] },
+            { l: ['Meldeverfahren'], w: ['Abwicklung durch Arbeitgeber'] },
             { l: ['Es existieren weitere Arbeitsverhältnisse'], w: f.weitereArbeitgeber, art: 'option', anzeige: 'Weitere Arbeitsverhältnisse' },
             { l: ['Zivilstand'], w: a.zivilstand ? (FAMZ_ZIVIL[a.zivilstand] || a.zivilstand) : null },
-            { l: situation ? [situation] : [], w: situation ? true : null, art: 'option', anzeige: 'Familiensituation' },
+            { l: situation ? [situation] : [], w: situation ? true : null, art: 'option', anzeige: situation || 'Familiensituation' },
         ],
     }];
     if (partner) abschnitte.push({
