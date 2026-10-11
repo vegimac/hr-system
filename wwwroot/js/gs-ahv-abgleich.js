@@ -42,12 +42,12 @@ async function gsaAnalyze() {
     document.getElementById('gsaSummary').innerHTML = '';
     document.getElementById('gsaResult').innerHTML = '';
     if (!inp.files || inp.files.length === 0) {
-        showPageAlert('gsaAlert', 'Bitte die GastroSocial-Liste «Mitarbeitende» (XLSX) wählen.', 'error');
+        gsaFehler('Bitte die GastroSocial-Liste «Mitarbeitende» (XLSX) wählen.');
         return;
     }
     const cpId = typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId ? fixedCompanyProfileId : 0;
     if (!cpId) {
-        showPageAlert('gsaAlert', 'Bitte zuerst links eine Filiale wählen.', 'error');
+        gsaFehler('Bitte zuerst links eine Filiale wählen.');
         return;
     }
     const fd = new FormData();
@@ -64,16 +64,28 @@ async function gsaAnalyze() {
         });
         if (!r.ok) {
             const j = await r.json().catch(() => ({}));
-            showPageAlert('gsaAlert', 'Fehler: ' + (j.error || j.message || r.status), 'error');
+            gsaFehler('Fehler vom Server (' + r.status + '): ' + (j.error || j.message || r.statusText));
             return;
         }
         _gsaData = (await r.json()).ergebnis;
-        gsaRender(_gsaData);
     } catch (e) {
-        showPageAlert('gsaAlert', 'Netzwerkfehler: ' + e.message, 'error');
+        gsaFehler('Verbindung fehlgeschlagen: ' + e.message);
+        return;
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Vergleichen'; }
     }
+    try {
+        gsaRender(_gsaData);
+    } catch (e) {
+        gsaFehler('Anzeige fehlgeschlagen: ' + e.message + ' — bitte Seite neu laden (Cmd+Shift+R).');
+    }
+}
+
+/** Fehler bleibt stehen (kein Ausblenden nach 4 s wie showPageAlert). */
+function gsaFehler(msg) {
+    const el = document.getElementById('gsaAlert');
+    if (!el) return;
+    el.innerHTML = `<div style="padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;font-size:13px">${esc(msg)}</div>`;
 }
 
 function gsaTile(n, label, bg, fg) {
