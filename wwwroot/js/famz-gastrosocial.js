@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 8;
+        var VERSION = 9;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -165,6 +165,41 @@ function famzGsKern(daten) {
             }
             return null;
         };
+        // Wie ein Mausklick: manche Portal-Knöpfe reagieren nur auf die ganze Ereignisfolge.
+        var drueck = function (el) {
+            var fenster = el.ownerDocument.defaultView;
+            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
+                var E = /^pointer/.test(t) && fenster.PointerEvent ? fenster.PointerEvent : fenster.MouseEvent;
+                el.dispatchEvent(new E(t, { bubbles: true, cancelable: true, view: fenster }));
+            });
+        };
+        var klickAuf = function (c) {
+            if (!sichtbar(c)) {
+                var z = [c.labels && c.labels[0], c.nextElementSibling, c.closest('label')].filter(function (k) {
+                    return k && sichtbar(k) && k.getBoundingClientRect().width < 400;
+                })[0];
+                if (z) drueck(z);
+            }
+            if (!c.checked) c.click();
+        };
+        // Ja/Nein ohne echtes Auswahlfeld (vom Portal gezeichnet): sichtbaren Text unter der Frage anklicken.
+        var nurText = function (t) { return norm(t).replace(/[^a-z0-9äöüàâéèêîôûç ]/g, '').trim(); };
+        var textKnopf = function (lab, werte) {
+            var r = lab.getBoundingClientRect(), best = null, bestA = 1e9;
+            Array.prototype.forEach.call(lab.ownerDocument.querySelectorAll('label,span,div,button,a,[role=radio]'), function (el) {
+                if (imPanel(el) || !sichtbar(el) || el.contains(lab)) return;
+                var t = nurText(eigenerText(el) || (el.children.length <= 2 ? el.textContent : ''));
+                if (!werte.some(function (w) { return t === nurText(w); })) return;
+                var q = el.getBoundingClientRect(), unten = q.top - r.bottom;
+                var mitte = Math.abs((q.top + q.bottom) / 2 - (r.top + r.bottom) / 2);
+                var a = unten >= -6 && unten < 60 && q.left > r.left - 45 && q.left < r.left + 400 ? unten + (q.left - r.left) / 10
+                    : mitte < 14 && q.left > r.right - 6 && q.left < r.right + 320 ? 60 + q.left - r.right : null;
+                if (a != null && a < bestA) { bestA = a; best = el; }
+            });
+            if (!best) return null;
+            var kreis = best.closest('[role=radio]') || best;
+            return { el: best, an: kreis.getAttribute('aria-checked') === 'true' || /\b(checked|selected|active)\b/.test(String(kreis.className)) };
+        };
         // Kontrollgang: nichts mehr setzen, nur melden, was das Portal wieder gelöscht hat.
         var nurPruefen = false;
         var verloren = function (name) { return { s: 'fehlt', t: name + ': Portal hat den Wert wieder gelöscht — bitte von Hand eintragen' }; };
@@ -181,12 +216,12 @@ function famzGsKern(daten) {
                 if (schon) return { s: 'anders', t: name + ': im Portal ist schon etwas anderes gewählt' };
                 if (!an) return { s: 'gleich', t: name + ': nicht gewählt' };
                 if (nurPruefen) return verloren(name);
-                c.click();
+                klickAuf(c);
                 return { s: 'ok', t: name + ': gewählt' };
             }
             if (c.checked && !an) return { s: 'anders', t: name + ': Portal angekreuzt — OneCrew nein' };
             if (nurPruefen) return verloren(name);
-            c.click();
+            klickAuf(c);
             return { s: 'ok', t: name + ': angekreuzt' };
         };
         var fuelle = function (feld) {
@@ -197,17 +232,25 @@ function famzGsKern(daten) {
             var f = findeFeld([].concat(feld.l), feld.nr);
             if (!f) return { s: 'fehlt', t: name + ': Beschriftung nicht gefunden' };
             var el = f.el;
+            if (!f.radios && /^(ja|nein|männlich|weiblich)$/i.test(String(werte[0]))) {
+                var tk = textKnopf(f.lab, werte);
+                if (tk) {
+                    if (tk.an) return { s: 'gleich', t: name + ': schon ' + werte[0] };
+                    if (nurPruefen) return { s: 'info', t: name + ': ' + werte[0] + ' angeklickt — bitte kurz prüfen' };
+                    drueck(tk.el);
+                    return { s: 'info', klick: true, t: name + ': ' + werte[0] + ' angeklickt — bitte kurz prüfen' };
+                }
+            }
             if (!el) return { s: 'fehlt', t: name + ': kein Eingabefeld gefunden' };
             if (el.disabled || el.readOnly) return { s: 'info', t: name + ': im Portal gesperrt' };
             if (f.radios) {
-                var nurText = function (t) { return norm(t).replace(/[^a-z0-9äöüàâéèêîôûç ]/g, '').trim(); };
                 var r = f.radios.filter(function (c) { return werte.some(function (w) { return nurText(radioText(c)) === nurText(w); }); })[0];
                 if (!r) return { s: 'fehlt', t: name + ': Auswahl «' + werte[0] + '» nicht gefunden' };
                 var schon = f.radios.filter(function (c) { return c.checked; })[0];
                 if (schon && schon !== r) return { s: 'anders', t: name + ': Portal «' + radioText(schon) + '» — OneCrew «' + werte[0] + '»' };
                 if (r.checked) return { s: 'gleich', t: name + ': schon ' + werte[0] };
                 if (nurPruefen) return verloren(name);
-                r.click();
+                klickAuf(r);
                 return { s: 'ok', t: name + ': ' + werte[0] };
             }
             if (el.tagName === 'SELECT') {
@@ -366,7 +409,7 @@ function famzGsKern(daten) {
                         } else if (z && z.s !== 'gleich') {
                             status[key] = modus === 2 && z.s === 'ok' ? { s: 'ok', t: z.t + ' (nachgetragen)' } : z;
                         }
-                        setTimeout(naechstes, z && z.s === 'ok' ? PAUSE : 60);
+                        setTimeout(naechstes, z && (z.s === 'ok' || z.klick) ? PAUSE : 60);
                     }, 60);
                 };
                 naechstes();
