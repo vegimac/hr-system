@@ -102,10 +102,14 @@ Vertragskette), `Tests/KindQstVerlaufTests.cs`.
 OneCrew darf nicht in fremde Seiten schreiben (Browser-Sicherheit). Deshalb `js/famz-gastrosocial.js`:
 «Für GastroSocial kopieren» legt JSON (`onecrew: "famz-gs"`) in die Zwischenablage — inkl. der
 Zuordnung Portal-Beschriftung → Wert pro Schritt (Antrag, Ehe-/Lebenspartner, anderer Elternteil, Kind n).
-Das Lesezeichen «OneCrew einfüllen» (`famzGsEngine`, eingerichtet über «Lesezeichen einrichten»)
+Das Lesezeichen «OneCrew einfüllen» (`famzGsLader`, eingerichtet über «Lesezeichen einrichten»)
+liest nur die Zwischenablage und startet den mitgelieferten Kern (`kern` im JSON = `famzGsKern`);
+die eingebaute Kopie ist Rückfallebene, falls das Portal `new Function` verbietet. Der Kern
 ist eine reine Füll-Maschine: findet Felder über die Beschriftung (darunter/rechts daneben), füllt nur
 leere Felder, meldet Abweichungen (≠) und Nicht-Gefundenes (✗). Zuordnung anpassen = nur OneCrew deployen,
-das Lesezeichen bleibt. Neues Lesezeichen nur nötig, wenn `famzGsEngine` selbst geändert wird.
+das Lesezeichen bleibt — auch Änderungen am Kern kommen über OneCrew. Neu einrichten nur, wenn
+`famzGsLader` selbst geändert wird. Auswahl-Texte ohne Frage-Beschriftung («Familie im gleichen
+Haushalt lebend», «Es existieren weitere Arbeitsverhältnisse») laufen über `art: 'option'`.
 «Felder melden» kopiert die Beschriftungen der Portal-Seite (ohne Werte) für die Zuordnung.
 Schritt 1 (Antrag) nach Screenshot gebaut; Schritte 2–4 sind Annahmen bis zur ersten Feldmeldung.
 Personensuche und «Meldeverfahren» wählt der Benutzer selbst.

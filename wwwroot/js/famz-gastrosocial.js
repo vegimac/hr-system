@@ -21,9 +21,12 @@ const FAMZ_GS_KANTONE = {
     SZ: 'Schwyz', TG: 'Thurgau', TI: 'Tessin', UR: 'Uri', VD: 'Waadt', VS: 'Wallis', ZG: 'Zug', ZH: 'Zürich',
 };
 
-/** Läuft im GastroSocial-Portal (als Lesezeichen) — darf nichts aus OneCrew verwenden. */
-function famzGsEngine() {
-    (async function () {
+/**
+ * Läuft im GastroSocial-Portal — darf nichts aus OneCrew verwenden. Kommt bei jedem
+ * «Für GastroSocial kopieren» frisch mit (Feld «kern»); die im Lesezeichen eingebaute
+ * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
+ */
+function famzGsKern(daten) {
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         var sichtbar = function (el) {
@@ -102,10 +105,55 @@ function famzGsEngine() {
             ['input', 'change', 'keyup'].forEach(function (t) { el.dispatchEvent(new Event(t, { bubbles: true })); });
             el.blur();
         };
+        // Auswahl, deren Beschriftung die Option selbst ist («Familie im gleichen Haushalt
+        // lebend», «Es existieren weitere …»): Knopf links daneben oder in der Beschriftung.
+        var findeOption = function (labels) {
+            var alle = beschriftungen();
+            for (var i = 0; i < labels.length; i++) {
+                var muster = norm(labels[i]);
+                var lab = alle.filter(function (el) { return eigenerText(el) === muster; })[0]
+                    || alle.filter(function (el) { return eigenerText(el).indexOf(muster) === 0; })[0];
+                if (!lab) continue;
+                if (lab.htmlFor) {
+                    var f = document.getElementById(lab.htmlFor);
+                    if (f && /^(radio|checkbox)$/.test(f.type)) return f;
+                }
+                var r = lab.getBoundingClientRect(), best = null, bestA = 1e9;
+                steuerelemente().forEach(function (c) {
+                    if (!/^(radio|checkbox)$/.test(c.type)) return;
+                    var q = c.getBoundingClientRect(), a = null;
+                    if (lab.contains(c) || (lab.parentElement && lab.parentElement.contains(c) && Math.abs(q.top - r.top) < 14 && q.left <= r.left)) a = 0;
+                    else if (Math.abs((q.top + q.bottom) / 2 - (r.top + r.bottom) / 2) < 14 && r.left - q.right > -6 && r.left - q.right < 45) a = r.left - q.right;
+                    if (a != null && a < bestA) { bestA = a; best = c; }
+                });
+                return best || 'ohne';
+            }
+            return null;
+        };
+        var waehle = function (feld, name) {
+            var soll = [].concat(feld.w)[0];
+            var an = soll === true || /^(ja|x|true)$/i.test(String(soll));
+            var c = findeOption([].concat(feld.l));
+            if (!c) return { s: 'fehlt', t: name + ': Beschriftung nicht gefunden' };
+            if (c === 'ohne') return { s: 'fehlt', t: name + ': kein Auswahlknopf gefunden' };
+            if (c.disabled) return { s: 'info', t: name + ': im Portal gesperrt' };
+            if (c.checked === an) return { s: 'gleich', t: name + ': schon ' + (an ? 'gewählt' : 'leer') };
+            if (c.type === 'radio') {
+                var schon = c.name ? steuerelemente().filter(function (x) { return x.type === 'radio' && x.name === c.name && x.checked; })[0] : null;
+                if (schon) return { s: 'anders', t: name + ': im Portal ist schon etwas anderes gewählt' };
+                if (!an) return { s: 'gleich', t: name + ': nicht gewählt' };
+                c.click();
+                return { s: 'ok', t: name + ': gewählt' };
+            }
+            if (c.checked && !an) return { s: 'anders', t: name + ': Portal angekreuzt — OneCrew nein' };
+            c.click();
+            return { s: 'ok', t: name + ': angekreuzt' };
+        };
         var fuelle = function (feld) {
             var werte = [].concat(feld.w).filter(function (x) { return x != null && String(x).trim() !== ''; });
             var name = feld.anzeige || [].concat(feld.l)[0];
             if (!werte.length) return null;
+            if (feld.art === 'option') return waehle(feld, name);
             var f = findeFeld([].concat(feld.l), feld.nr);
             if (!f) return { s: 'fehlt', t: name + ': Beschriftung nicht gefunden' };
             var el = f.el;
@@ -159,17 +207,6 @@ function famzGsEngine() {
             return 'GastroSocial-Felder (' + location.pathname + location.search + ')\n' + zeilen.join('\n');
         };
 
-        var lesen = function (txt) {
-            try { var d = JSON.parse(txt); if (d && d.onecrew === 'famz-gs') return d; } catch (e) { /* kein JSON */ }
-            return null;
-        };
-        var daten = null;
-        try { if (navigator.clipboard) daten = lesen(await navigator.clipboard.readText()); } catch (e) { /* keine Erlaubnis */ }
-        if (!daten) daten = window.__onecrewFamz || null;
-        if (!daten) daten = lesen(prompt('OneCrew-Daten hier einfügen (Cmd+V).\n\nIn OneCrew vorher «Für GastroSocial kopieren» klicken.') || '');
-        if (!daten) { alert('Keine OneCrew-Daten gefunden. In OneCrew zuerst «Für GastroSocial kopieren» klicken.'); return; }
-        window.__onecrewFamz = daten;
-
         var alt = document.getElementById(ID);
         if (alt) alt.remove();
         var p = document.createElement('div');
@@ -214,14 +251,34 @@ function famzGsEngine() {
                 ergebnis.innerHTML = '<textarea style="width:100%;height:160px;font-size:11px">' + txt.replace(/</g, '&lt;') + '</textarea>';
             }
         };
+}
+
+/** Lesezeichen: holt die Daten und startet den mitgelieferten Kern (sonst den eingebauten). */
+function famzGsLader(KERN) {
+    (async function () {
+        var lesen = function (txt) {
+            try { var d = JSON.parse(txt); if (d && d.onecrew === 'famz-gs') return d; } catch (e) { /* kein JSON */ }
+            return null;
+        };
+        var daten = null;
+        try { if (navigator.clipboard) daten = lesen(await navigator.clipboard.readText()); } catch (e) { /* keine Erlaubnis */ }
+        if (!daten) daten = window.__onecrewFamz || null;
+        if (!daten) daten = lesen(prompt('OneCrew-Daten hier einfügen (Cmd+V).\n\nIn OneCrew vorher «Für GastroSocial kopieren» klicken.') || '');
+        if (!daten) { alert('Keine OneCrew-Daten gefunden. In OneCrew zuerst «Für GastroSocial kopieren» klicken.'); return; }
+        window.__onecrewFamz = daten;
+        if (daten.kern) {
+            try { new Function('daten', daten.kern)(daten); return; } catch (e) { /* Seite verbietet das — eingebauter Kern */ }
+        }
+        KERN(daten);
     })();
 }
 
+const famzGsKompakt = fn => fn.toString()
+    .split('\n').map(z => z.trim()).filter(z => z && !z.startsWith('//')).join('\n');
+
 /** javascript:-Adresse für das Lesezeichen. */
 function famzGsLesezeichenUrl() {
-    const code = famzGsEngine.toString()
-        .split('\n').map(z => z.trim()).filter(z => z && !z.startsWith('//')).join('\n');
-    return 'javascript:' + encodeURIComponent('(' + code + ')()');
+    return 'javascript:' + encodeURIComponent(`(${famzGsKompakt(famzGsLader)})(${famzGsKompakt(famzGsKern)})`);
 }
 
 // ── Daten aus der Maske ────────────────────────────────────────────────────
@@ -276,6 +333,11 @@ function famzGsDaten() {
     const verheiratet = ['verheiratet', 'getrennt', 'eingetragene_partnerschaft'].includes(a.zivilstand);
     const ae = f.andererElternteil;
     const partner = f.partner || (verheiratet ? ae : null);
+    // Portal: «Familie im gleichen Haushalt lebend» = MA, anderer Elternteil und Kinder unter einem Dach.
+    const gleicheAdresse = ae && (ae.strasseNr || '').trim() === (a.strasseNr || '').trim()
+        && (ae.plzOrt || '').trim() === (a.plzOrt || '').trim();
+    const situation = !f.lebenBei ? null
+        : f.lebenBei === 'ELTERN' && gleicheAdresse ? 'Familie im gleichen Haushalt lebend' : 'Andere Familiensituation';
 
     const abschnitte = [{
         titel: '1 · Antrag',
@@ -291,6 +353,9 @@ function famzGsDaten() {
             { l: ['PLZ'], w: po.plz },
             { l: ['Ort'], w: po.ort },
             { l: ['Land'], w: ['Schweiz', 'CH'] },
+            { l: ['Es existieren weitere Arbeitsverhältnisse'], w: f.weitereArbeitgeber, art: 'option', anzeige: 'Weitere Arbeitsverhältnisse' },
+            { l: ['Zivilstand'], w: a.zivilstand ? (FAMZ_ZIVIL[a.zivilstand] || a.zivilstand) : null },
+            { l: situation ? [situation] : [], w: situation ? true : null, art: 'option', anzeige: 'Familiensituation' },
         ],
     }];
     if (partner) abschnitte.push({
@@ -310,7 +375,8 @@ function famzGsDaten() {
     }));
     return {
         onecrew: 'famz-gs',
-        v: 1,
+        v: 2,
+        kern: `(${famzGsKompakt(famzGsKern)})(daten);`,
         titel: `${n.vorname} ${n.name}`.trim(),
         abschnitte,
     };
