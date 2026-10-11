@@ -241,6 +241,9 @@ public record QstKindInput(
     DateOnly? ErfahrenAm = null
 );
 
+/// <summary>Abschnitt, in dem ein Kind für die QST-Kinderziffer zählt (Bis null = offen).</summary>
+public record QstKindAbschnitt(DateOnly? Von, DateOnly? Bis, string Grund);
+
 /// <summary>
 /// Konkubinatspartner-Input für die Vorschlag-Logik (Walter 25.08.2026,
 /// docs/konkubinat-qst-konzept.md). NULL-Objekt = kein K-Partner erfasst.
@@ -560,6 +563,48 @@ public static class QstTarifVorschlagLogic
         // Immatrikulation als Beleg hinterlegen) — sonst endet die
         // Kinderziffer automatisch mit 18.
         return k.InErstausbildung;
+    }
+
+    /// <summary>
+    /// Zeiträume, in denen das Kind nach <see cref="IstQstBerechtigt"/> für die
+    /// Kinderziffer zählt — für die Anzeige im Familie-Tab (Walter 11.10.2026).
+    /// <paramref name="azPerioden"/> = Ausbildungszulagen des Kindes (verlängern
+    /// wie das Häkchen «in Erstausbildung», aber nur solange sie laufen).
+    /// Leer = zählt nie. Bis = null ⇒ offen.
+    /// </summary>
+    public static IReadOnlyList<QstKindAbschnitt> QstZeitraeume(
+        QstKindInput k, IEnumerable<(DateOnly Von, DateOnly? Bis)> azPerioden)
+    {
+        if (k.KeineUnterhaltspflicht) return Array.Empty<QstKindAbschnitt>();
+        bool explizit = k.QstDeductibleFrom.HasValue || k.QstDeductibleUntil.HasValue;
+        if (!explizit && !k.DateOfBirth.HasValue) return Array.Empty<QstKindAbschnitt>();
+
+        DateOnly? von = explizit ? (k.QstDeductibleFrom ?? k.DateOfBirth) : k.DateOfBirth;
+        DateOnly? grundEnde = explizit ? k.QstDeductibleUntil : k.DateOfBirth!.Value.AddYears(18);
+        string grund = explizit ? "gepflegter Zeitraum" : "bis 18. Geburtstag";
+
+        if (grundEnde == null) return new[] { new QstKindAbschnitt(von, null, grund) };
+        if (k.InErstausbildung) return new[] { new QstKindAbschnitt(von, null, "Erstausbildung") };
+
+        var liste = new List<QstKindAbschnitt> { new(von, grundEnde, grund) };
+        foreach (var az in azPerioden.OrderBy(p => p.Von))
+        {
+            var letzte = liste[^1];
+            if (letzte.Bis == null) break;
+            if (az.Bis.HasValue && az.Bis.Value <= letzte.Bis.Value) continue;
+            if (von.HasValue && az.Bis.HasValue && az.Bis.Value < von.Value) continue;
+            var start = az.Von > letzte.Bis.Value ? az.Von : letzte.Bis.Value.AddDays(1);
+            if (von.HasValue && start < von.Value) start = von.Value;
+            if (start <= letzte.Bis.Value.AddDays(1))
+                liste[^1] = letzte with
+                {
+                    Bis = az.Bis,
+                    Grund = letzte.Grund.Contains("Ausbildungszulage") ? letzte.Grund : letzte.Grund + " + Ausbildungszulage"
+                };
+            else
+                liste.Add(new QstKindAbschnitt(start, az.Bis, "Ausbildungszulage"));
+        }
+        return liste;
     }
 
     private static string WaehleTarif(string? zivilstand, int kinderImHaushalt, List<string> begruendung,

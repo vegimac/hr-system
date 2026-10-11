@@ -5864,6 +5864,27 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 }
             }
 
+            // Walter 11.10.2026: QST-Zeitraum am Kind (Regel serverseitig,
+            // QstTarifVorschlagLogic.QstZeitraeume).
+            let qstZeitraumLine = '';
+            if (type === 'Kind' && Array.isArray(m.qstZeitraeume) && !m.keineUnterhaltspflicht) {
+                const heuteIso = new Date().toISOString().slice(0, 10);
+                if (m.qstZeitraeume.length === 0) {
+                    qstZeitraumLine = `<div class="fam-tile-qst" style="font-size:11px;color:#991b1b;margin-top:2px">QST: zählt nicht (Geburtsdatum fehlt)</div>`;
+                } else {
+                    const zeilen = m.qstZeitraeume.map(z => {
+                        const von = z.von ? formatDate(z.von) : '…';
+                        const bis = z.bis ? formatDate(z.bis) : 'offen';
+                        const aktiv = (!z.von || z.von <= heuteIso) && (!z.bis || z.bis >= heuteIso);
+                        return `<span style="color:${aktiv ? '#166534' : '#8b8b8b'}" title="${esc(z.grund)}">${von} – ${bis} <span style="opacity:.75">· ${esc(z.grund)}</span></span>`;
+                    }).join('<br>');
+                    const ersteVon = m.qstZeitraeume[0].von;
+                    const gemeldet = m.erfahrenAm && ersteVon && m.erfahrenAm > ersteVon
+                        ? `<br><span style="color:#92400e" title="Erfahren am — erst ab diesem Datum zählt das Kind im Tarifvorschlag">gemeldet ${formatDate(m.erfahrenAm)}</span>` : '';
+                    qstZeitraumLine = `<div class="fam-tile-qst" style="font-size:11px;line-height:1.45;margin-top:2px"><span style="color:#646464;font-weight:600">QST</span> ${zeilen}${gemeldet}</div>`;
+                }
+            }
+
             const tileWide = type === 'Ehepartner' ? ' fam-tile-wide' : '';
             html += `
             <div class="fam-tile${tileWide}" onclick="openFamilyModal(${memberJson})">
@@ -5878,6 +5899,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                     </div>
                 </div>
                 <div class="fam-tile-meta">${meta || '–'}</div>
+                ${qstZeitraumLine}
                 ${(spousePermitBadge || spouseDocBtn || addrBadge)
                     ? `<div class="fam-tile-badges" onclick="event.stopPropagation()">${spousePermitBadge}${spouseDocBtn}${addrBadge}</div>`
                     : ''}

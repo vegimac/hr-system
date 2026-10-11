@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,7 +46,31 @@ public class EmployeeFamilyMembersController : ControllerBase
                 .Where(a => altIds.Contains(a.Id))
                 .ToDictionaryAsync(a => a.Id);
 
-        return Ok(members.Select(m => ProjectMember(m, altAddrs.GetValueOrDefault(m.AlternativeAddressId ?? 0))));
+        var azPerioden = await LadeAzPeriodenAsync(members);
+        return Ok(members.Select(m => ProjectMember(m, altAddrs.GetValueOrDefault(m.AlternativeAddressId ?? 0),
+            QstZeitraeume(m, azPerioden))));
+    }
+
+    async Task<ILookup<int, (DateOnly Von, DateOnly? Bis)>> LadeAzPeriodenAsync(IReadOnlyCollection<EmployeeFamilyMember> members)
+    {
+        var kindIds = members.Where(m => m.MemberType == "Kind").Select(m => m.Id).ToList();
+        if (kindIds.Count == 0) return Array.Empty<(int, DateOnly, DateOnly?)>().ToLookup(x => x.Item1, x => (x.Item2, x.Item3));
+        var az = await _context.FamilyMemberAllowances.AsNoTracking()
+            .Where(a => kindIds.Contains(a.FamilyMemberId) && a.AllowanceType == "AZ")
+            .Select(a => new { a.FamilyMemberId, a.ValidFrom, a.ValidTo })
+            .ToListAsync();
+        return az.ToLookup(a => a.FamilyMemberId, a => (a.ValidFrom, a.ValidTo));
+    }
+
+    /// <summary>QST-Zeiträume nach derselben Regel wie der Tarifvorschlag (nur Kinder).</summary>
+    static IReadOnlyList<QstKindAbschnitt>? QstZeitraeume(EmployeeFamilyMember m, ILookup<int, (DateOnly Von, DateOnly? Bis)> az)
+    {
+        if (m.MemberType != "Kind" || m.DateOfDeath != null) return null;
+        var input = new QstKindInput(
+            AsDate(m.QstDeductibleFrom), AsDate(m.QstDeductibleUntil), AsDate(m.DateOfBirth),
+            m.AlternativeAddressId, m.InErstausbildung, m.LebtImHaushalt, m.GemeinsamesKindMitPartner,
+            m.KeineUnterhaltspflicht, m.ErfahrenAm);
+        return QstTarifVorschlagLogic.QstZeitraeume(input, az[m.Id]);
     }
 
     // GET /api/employees/{employeeId}/family/{id}
@@ -61,14 +86,16 @@ public class EmployeeFamilyMembersController : ControllerBase
         EmployeeAddress? alt = null;
         if (member.AlternativeAddressId.HasValue)
             alt = await _context.EmployeeAddresses.FirstOrDefaultAsync(a => a.Id == member.AlternativeAddressId.Value);
-        return Ok(ProjectMember(member, alt));
+        var azPerioden = await LadeAzPeriodenAsync(new[] { member });
+        return Ok(ProjectMember(member, alt, QstZeitraeume(member, azPerioden)));
     }
 
     /// <summary>
     /// Projektion: Member-Felder (alle) + zusätzlich altAddress mit den
     /// wichtigsten Adress-Feldern für die Anzeige im Frontend.
     /// </summary>
-    private static object ProjectMember(EmployeeFamilyMember m, EmployeeAddress? alt) => new
+    private static object ProjectMember(EmployeeFamilyMember m, EmployeeAddress? alt,
+        IReadOnlyList<QstKindAbschnitt>? qstZeitraeume = null) => new
     {
         m.Id,
         m.EmployeeId,
@@ -117,6 +144,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         m.Stellenantritt,
         m.InErstausbildung,
         m.KeineUnterhaltspflicht,
+        qstZeitraeume,
         // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
         m.MaHatHoeheresEinkommen,
         m.GemeinsamesKindMitPartner,
