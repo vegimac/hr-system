@@ -84,12 +84,20 @@ function gsaTile(n, label, bg, fg) {
 }
 
 function gsaRender(d) {
+    const aa = (d.austrittObwohlAktiv || []).length;
     const ab = (d.abmelden || []).length, ng = (d.nichtGemeldet || []).length;
     const nz = (d.nichtZuordenbar || []).length, ok = (d.gemeldet || []).length;
+    const warnung = aa
+        ? `<div style="margin-bottom:12px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;font-size:13px">
+              ⚠ <b>${aa} MA</b> ${aa === 1 ? 'ist' : 'sind'} bei GastroSocial ausgetreten, in OneCrew aber aktiv — Austritt bei GastroSocial prüfen und rückgängig machen.
+           </div>` : '';
     document.getElementById('gsaSummary').innerHTML = `
+        ${warnung}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
             ${gsaTile(d.gemeldetBeschaeftigt, 'Bei GastroSocial beschäftigt', '#f1f5f9', '#475569')}
+            ${d.gemeldetAusgetreten ? gsaTile(d.gemeldetAusgetreten, 'Bei GastroSocial ausgetreten', '#f1f5f9', '#475569') : ''}
             ${gsaTile(d.oneCrewAktiv, 'OneCrew aktiv', '#ece9e2', '#6b6152')}
+            ${aa ? gsaTile(aa, 'AHV-Austritt, aber aktiv', '#fecaca', '#7f1d1d') : ''}
             ${gsaTile(ab, 'Abmelden', ab ? '#fee2e2' : '#f0fdf4', ab ? '#991b1b' : '#15803d')}
             ${gsaTile(ng, 'Nicht gemeldet', ng ? '#fef3c7' : '#f0fdf4', ng ? '#92400e' : '#15803d')}
             ${gsaTile(nz, 'Nicht zuordenbar', nz ? '#e0e7ff' : '#f0fdf4', nz ? '#3730a3' : '#15803d')}
@@ -98,6 +106,7 @@ function gsaRender(d) {
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px">
             <span style="font-size:12px;color:#64748b;font-weight:600">Ansicht:</span>
             <select id="gsaFilter" onchange="gsaRenderRows()">
+                <option value="austrittObwohlAktiv">⚠ AHV-Austritt, aber in OneCrew aktiv (${aa})</option>
                 <option value="abmelden">Abmelden — bei GastroSocial gemeldet, bei uns ausgetreten (${ab})</option>
                 <option value="nichtGemeldet">Nicht gemeldet — bei uns aktiv, fehlt bei GastroSocial (${ng})</option>
                 <option value="nichtZuordenbar">Nicht zuordenbar — in OneCrew nicht gefunden (${nz})</option>
@@ -107,7 +116,7 @@ function gsaRender(d) {
         </div>`;
     document.getElementById('gsaResult').innerHTML = `<div id="gsaRows"></div>`;
     const sel = document.getElementById('gsaFilter');
-    if (sel) sel.value = ab ? 'abmelden' : ng ? 'nichtGemeldet' : nz ? 'nichtZuordenbar' : 'gemeldet';
+    if (sel) sel.value = aa ? 'austrittObwohlAktiv' : ab ? 'abmelden' : ng ? 'nichtGemeldet' : nz ? 'nichtZuordenbar' : 'gemeldet';
     gsaRenderRows();
 }
 
@@ -119,6 +128,7 @@ function gsaRenderRows() {
     const rows = _gsaData[filter] || [];
     if (!rows.length) {
         const leer = {
+            austrittObwohlAktiv: '✓ Niemand ist bei GastroSocial ausgetreten, der bei uns noch arbeitet.',
             abmelden: '✓ Niemand mehr abzumelden.',
             nichtGemeldet: '✓ Alle aktiven MA mit Lohn sind bei GastroSocial gemeldet.',
             nichtZuordenbar: '✓ Alle Zeilen der Liste sind einem MA zugeordnet.',
@@ -128,6 +138,7 @@ function gsaRenderRows() {
         return;
     }
     const aufgabe = {
+        austrittObwohlAktiv: 'Bei GastroSocial wurde ein Austritt gemeldet, die Person arbeitet laut OneCrew aber noch in dieser Filiale. Austritt bei GastroSocial rückgängig machen — oder in OneCrew den Austritt nachtragen, falls sie wirklich weg ist.',
         abmelden: 'Bei GastroSocial austreten lassen (Austritt melden).',
         nichtGemeldet: 'Bei GastroSocial anmelden (Eintritt melden).',
         nichtZuordenbar: 'Prüfen: arbeitet die Person noch bei uns? Sonst abmelden; sonst AHV-Nummer in OneCrew nachtragen.',
@@ -139,17 +150,24 @@ function gsaRenderRows() {
         ${aufgabe ? `<div style="font-size:12.5px;color:#475569;margin:0 0 8px">${esc(aufgabe)}</div>` : ''}
         <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:rgba(255,255,255,.55);border-radius:12px;overflow:hidden">
             <thead><tr style="background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase">
-                ${th('Name')}${th('AHV-Nummer')}${th('Geb.-Datum')}${th('Leistungen')}${th('Eintritt')}${th('Austritt')}${th('OneCrew')}${th('Hinweis')}
+                ${th('Name')}${th('AHV-Nummer')}${th('Geb.-Datum')}${th('Leistungen')}${th('GastroSocial')}${th('Eintritt')}${th('Austritt')}${th('OneCrew')}${th('Hinweis')}
             </tr></thead>
             <tbody>${rows.map(z => {
                 const fz = (z.leistungen || '').toUpperCase().includes('FZ');
                 const fzHinweis = fz && filter === 'abmelden'
-                    ? '<div style="color:#991b1b;font-weight:600">Bezieht Familienzulagen — auch FZ abmelden</div>' : '';
+                    ? '<div style="color:#991b1b;font-weight:600">Bezieht Familienzulagen — auch FZ abmelden</div>'
+                    : fz && filter === 'austrittObwohlAktiv'
+                    ? '<div style="color:#991b1b;font-weight:600">Familienzulagen prüfen — evtl. mit dem Austritt gestoppt</div>' : '';
+                const aus = /^aus/i.test(z.status || '');
+                const gs = z.status
+                    ? `<span style="color:${aus ? '#991b1b' : '#166534'};font-weight:600">${esc(z.status)}</span>${z.statusaenderung ? `<div style="font-size:11px;color:#64748b">${aus ? 'per ' : 'seit '}${gsaDate(z.statusaenderung)}</div>` : ''}`
+                    : '—';
                 return `<tr style="border-top:1px solid #eee">
                     ${td(esc(z.name || z.oneCrewName || '—'), 'font-weight:600')}
                     ${td(esc(z.ahv || z.oneCrewAhv || '—'), 'font-family:monospace;white-space:nowrap')}
                     ${td(gsaDate(z.geburtsdatum))}
                     ${td(z.leistungen ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${fz ? '#fee2e2' : '#f1f5f9'};color:${fz ? '#991b1b' : '#475569'};font-weight:600">${esc(z.leistungen)}</span>` : '—')}
+                    ${td(gs, 'white-space:nowrap')}
                     ${td(gsaDate(z.eintritt))}
                     ${td(gsaDate(z.austritt))}
                     ${td(z.employeeId

@@ -83,6 +83,16 @@ public class GastroSocialAbgleichController : ControllerBase
             if (e.ExitDate != null && e.ExitDate.Value.Date < heute && (austritt == null || e.ExitDate < austritt))
                 austritt = e.ExitDate;
             var eintrittHier = hier.Where(v => Laeuft(v.ContractEndDate)).Select(v => (DateTime?)v.ContractStartDate).Min();
+            // Nahtlose Vorgänger-Verträge (Start ≤ Ende + 1 Tag) zählen zum selben Eintritt.
+            var kette = eintrittHier;
+            while (kette != null)
+            {
+                var k = kette.Value.Date;
+                var vor = hier.Where(v => v.ContractStartDate.Date < k && v.ContractEndDate != null && v.ContractEndDate.Value.Date >= k.AddDays(-1))
+                    .Select(v => (DateTime?)v.ContractStartDate.Date).Min();
+                if (vor == null) break;
+                kette = vor;
+            }
             return new GastroSocialAbgleich.Ma
             {
                 Id = e.Id,
@@ -92,6 +102,7 @@ public class GastroSocialAbgleichController : ControllerBase
                 Ahv = e.SocialSecurityNumber,
                 Geburtsdatum = e.DateOfBirth,
                 Eintritt = eintrittHier ?? e.EntryDate,
+                EintrittKette = kette,
                 InFiliale = hier.Count > 0,
                 AktivInFiliale = nichtAusgetreten && hier.Any(v => Laeuft(v.ContractEndDate)),
                 OhneLohn = e.IsPayrollExcluded,

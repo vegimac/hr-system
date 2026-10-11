@@ -13,6 +13,8 @@ namespace HrSystem.Services;
 /// GastroSocial-Liste «Mitarbeitende» (Excel aus dem Portal: G · Name · Vorname ·
 /// AHV-Nummer · Personalnummer · Geburtsdatum · Leistungen · Status · Statusänderung)
 /// gegen die OneCrew-MA der Sidebar-Filiale (jede Filiale = eigenes Abrechnungskonto):
+///   • AHV-Austritt, aber aktiv (Warnung) — bei GastroSocial «Ausgetreten», in OneCrew aktiv
+///     (Austritt vor dem jetzigen Eintritt ⇒ «Nicht gemeldet», Wiedereintritt fehlt)
 ///   • Abmelden — bei GastroSocial «Beschäftigt», in OneCrew in dieser Filiale nicht mehr aktiv
 ///   • Nicht gemeldet — in OneCrew aktiv (mit Lohn), in der Liste fehlt sie/er
 ///   • Nicht zuordenbar — Zeile ohne OneCrew-MA
@@ -47,6 +49,8 @@ public static class GastroSocialAbgleich
         public string? Ahv { get; set; }
         public DateTime? Geburtsdatum { get; set; }
         public DateTime? Eintritt { get; set; }
+        /// <summary>Beginn der nahtlosen Vertragskette in dieser Filiale bis zum laufenden Vertrag.</summary>
+        public DateTime? EintrittKette { get; set; }
         /// <summary>Hat (oder hatte) einen Vertrag in der Filiale.</summary>
         public bool InFiliale { get; set; }
         /// <summary>Heute aktiv in der Filiale (laufender Vertrag, kein vergangener Austritt).</summary>
@@ -83,8 +87,11 @@ public static class GastroSocialAbgleich
     {
         public int Zeilen { get; set; }
         public int GemeldetBeschaeftigt { get; set; }
+        public int GemeldetAusgetreten { get; set; }
         public int OneCrewAktiv { get; set; }
         public int OhneLohn { get; set; }
+        /// <summary>Warnung: bei GastroSocial ausgetreten, in OneCrew in dieser Filiale aber aktiv.</summary>
+        public List<Treffer> AustrittObwohlAktiv { get; set; } = new();
         public List<Treffer> Abmelden { get; set; } = new();
         public List<Treffer> NichtGemeldet { get; set; } = new();
         public List<Treffer> NichtZuordenbar { get; set; } = new();
@@ -97,6 +104,7 @@ public static class GastroSocialAbgleich
         {
             Zeilen = zeilen.Count,
             GemeldetBeschaeftigt = zeilen.Count(z => z.Beschaeftigt),
+            GemeldetAusgetreten = zeilen.Count(z => !z.Beschaeftigt),
             OneCrewAktiv = alle.Count(m => m.AktivInFiliale && !m.OhneLohn),
             OhneLohn = alle.Count(m => m.AktivInFiliale && m.OhneLohn),
         };
@@ -108,7 +116,8 @@ public static class GastroSocialAbgleich
         var byName = filiale.ToLookup(m => NameKey(m.Vorname, m.Nachname));
 
         var gemeldeteIds = new HashSet<int>();
-        foreach (var z in zeilen)
+        // «Beschäftigt» zuerst: kommt eine Person zusätzlich mit einer alten «Ausgetreten»-Zeile vor, gilt die aktuelle.
+        foreach (var z in zeilen.OrderBy(z => z.Beschaeftigt ? 0 : 1))
         {
             Ma? hit = null;
             string? art = null;
@@ -126,7 +135,8 @@ public static class GastroSocialAbgleich
                 if (c.Count == 0) c = byNameGeb[NameKey(z.Nachname, z.Vorname) + "|" + geb].ToList();
                 if (c.Count == 1) { hit = c[0]; art = "NAME_GEB"; }
             }
-            if (hit == null)
+            // Name allein nur bei «Beschäftigt»: ein früherer MA mit gleichem Namen gäbe sonst einen falschen Alarm.
+            if (hit == null && z.Beschaeftigt)
             {
                 var c = byName[NameKey(z.Vorname, z.Nachname)].ToList();
                 if (c.Count == 1) { hit = c[0]; art = "NAME"; }
@@ -167,14 +177,32 @@ public static class GastroSocialAbgleich
 
             if (!z.Beschaeftigt)
             {
-                // Bei GastroSocial nicht (mehr) beschäftigt, in OneCrew aktiv → wieder anmelden.
-                if (hit.AktivInFiliale && !hit.OhneLohn)
+                if (gemeldeteIds.Contains(hit.Id) || !hit.AktivInFiliale || hit.OhneLohn) continue;
+                gemeldeteIds.Add(hit.Id);
+                var per = z.Statusaenderung != null ? $" per {z.Statusaenderung:dd.MM.yyyy}" : "";
+                var seit = hit.EintrittKette ?? hit.Eintritt;
+                if (z.Statusaenderung != null && seit != null && z.Statusaenderung.Value.Date < seit.Value.Date)
                 {
-                    hinweise.Insert(0, $"Bei GastroSocial «{z.Status}», in OneCrew aktiv — neu anmelden");
+                    // Früher ausgetreten, danach wieder eingetreten — Wiedereintritt fehlt bei GastroSocial.
+                    hinweise.Insert(0, $"Bei GastroSocial ausgetreten{per}, Wiedereintritt am {seit:dd.MM.yyyy} nicht gemeldet — neu anmelden");
                     t.Hinweis = string.Join(" · ", hinweise);
                     res.NichtGemeldet.Add(t);
-                    gemeldeteIds.Add(hit.Id);
+                    continue;
                 }
+                if (hit.AustrittGeplant != null && z.Statusaenderung?.Date == hit.AustrittGeplant.Value.Date)
+                {
+                    // Austritt im Voraus gemeldet, Datum stimmt mit OneCrew überein.
+                    hinweise.Insert(0, $"Austritt per {hit.AustrittGeplant:dd.MM.yyyy} bereits gemeldet");
+                    t.Hinweis = string.Join(" · ", hinweise);
+                    res.Gemeldet.Add(t);
+                    continue;
+                }
+                hinweise.Insert(0, $"Bei GastroSocial Austritt{per} gemeldet, in OneCrew aktiv"
+                    + (seit != null ? $" seit {seit:dd.MM.yyyy}" : "")
+                    + " — Austritt bei GastroSocial rückgängig machen");
+                if (hit.AustrittGeplant != null) hinweise.Add($"OneCrew-Austritt erst am {hit.AustrittGeplant:dd.MM.yyyy}");
+                t.Hinweis = string.Join(" · ", hinweise);
+                res.AustrittObwohlAktiv.Add(t);
                 continue;
             }
 
@@ -217,6 +245,7 @@ public static class GastroSocialAbgleich
             });
         }
 
+        res.AustrittObwohlAktiv = res.AustrittObwohlAktiv.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.Abmelden = res.Abmelden.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.NichtZuordenbar = res.NichtZuordenbar.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.Gemeldet = res.Gemeldet.OrderBy(t => t.OneCrewName, StringComparer.OrdinalIgnoreCase).ToList();

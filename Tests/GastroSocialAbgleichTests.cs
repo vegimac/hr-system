@@ -92,14 +92,69 @@ public class GastroSocialAbgleichTests
         Assert.Contains("weicht ab", t.Hinweis);
     }
 
+    private static Z Aus(string vor, string name, string? ahv, DateTime per, DateTime? geb = null, string? lst = null)
+        => new() { Nr = 3, Vorname = vor, Nachname = name, Ahv = ahv, Geburtsdatum = geb, Status = "Ausgetreten", Statusaenderung = per, Leistungen = lst };
+
     [Fact]
-    public void Bei_GastroSocial_ausgetreten_aber_aktiv_ist_nicht_gemeldet()
+    public void AHV_Austritt_obwohl_aktiv_ist_Warnung()
+    {
+        var ma = Oc(1, "Anna", "Muster", "756.1234.5678.97");
+        ma.EintrittKette = new DateTime(2024, 3, 1);
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Aus("Anna", "Muster", "756.1234.5678.97", new DateTime(2026, 6, 30), lst: "FZ") },
+            new[] { ma }, Heute);
+        var t = Assert.Single(r.AustrittObwohlAktiv);
+        Assert.Contains("30.06.2026", t.Hinweis);
+        Assert.Contains("01.03.2024", t.Hinweis);
+        Assert.Empty(r.NichtGemeldet);
+        Assert.Empty(r.Gemeldet);
+        Assert.Equal(1, r.GemeldetAusgetreten);
+    }
+
+    [Fact]
+    public void Austritt_vor_Wiedereintritt_ist_nicht_gemeldet()
+    {
+        var ma = Oc(1, "Anna", "Muster", "756.1234.5678.97");
+        ma.EintrittKette = new DateTime(2026, 9, 1);
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Aus("Anna", "Muster", "756.1234.5678.97", new DateTime(2025, 12, 31)) },
+            new[] { ma }, Heute);
+        Assert.Empty(r.AustrittObwohlAktiv);
+        var t = Assert.Single(r.NichtGemeldet);
+        Assert.Contains("Wiedereintritt am 01.09.2026", t.Hinweis);
+    }
+
+    [Fact]
+    public void Austritt_im_Voraus_mit_gleichem_Datum_passt()
+    {
+        var ma = Oc(1, "Anna", "Muster", "756.1234.5678.97");
+        ma.AustrittGeplant = new DateTime(2026, 10, 31);
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Aus("Anna", "Muster", "756.1234.5678.97", new DateTime(2026, 10, 31)) },
+            new[] { ma }, Heute);
+        Assert.Empty(r.AustrittObwohlAktiv);
+        Assert.Single(r.Gemeldet);
+    }
+
+    [Fact]
+    public void Ausgetretene_Altzeile_nur_ueber_Namen_gibt_keinen_Alarm()
     {
         var r = GastroSocialAbgleich.Vergleiche(
-            new[] { Gs("Anna", "Muster", "756.1234.5678.97", status: "Ausgetreten") },
+            new[] { Aus("Anna", "Muster", "756.1111.2222.33", new DateTime(2019, 5, 31)) },
             new[] { Oc(1, "Anna", "Muster", "756.1234.5678.97") }, Heute);
-        var t = Assert.Single(r.NichtGemeldet);
-        Assert.Contains("neu anmelden", t.Hinweis);
-        Assert.Empty(r.Gemeldet);
+        Assert.Empty(r.AustrittObwohlAktiv);
+        Assert.Empty(r.NichtZuordenbar);
+        Assert.Single(r.NichtGemeldet);
+    }
+
+    [Fact]
+    public void Ausgetreten_und_auch_in_OneCrew_weg_passt_still()
+    {
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Aus("Anna", "Muster", "756.1234.5678.97", new DateTime(2025, 8, 31)) },
+            new[] { Oc(1, "Anna", "Muster", "756.1234.5678.97", aktiv: false, austritt: new DateTime(2025, 8, 31)) }, Heute);
+        Assert.Empty(r.AustrittObwohlAktiv);
+        Assert.Empty(r.Abmelden);
+        Assert.Empty(r.NichtGemeldet);
     }
 }
