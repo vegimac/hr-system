@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 5;
+        var VERSION = 6;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -149,6 +149,9 @@ function famzGsKern(daten) {
             }
             return null;
         };
+        // Kontrollgang: nichts mehr setzen, nur melden, was das Portal wieder gelöscht hat.
+        var nurPruefen = false;
+        var verloren = function (name) { return { s: 'fehlt', t: name + ': Portal hat den Wert wieder gelöscht — bitte von Hand eintragen' }; };
         var waehle = function (feld, name) {
             var soll = [].concat(feld.w)[0];
             var an = soll === true || /^(ja|x|true)$/i.test(String(soll));
@@ -161,10 +164,12 @@ function famzGsKern(daten) {
                 var schon = c.name ? steuerelemente().filter(function (x) { return x.type === 'radio' && x.name === c.name && x.checked; })[0] : null;
                 if (schon) return { s: 'anders', t: name + ': im Portal ist schon etwas anderes gewählt' };
                 if (!an) return { s: 'gleich', t: name + ': nicht gewählt' };
+                if (nurPruefen) return verloren(name);
                 c.click();
                 return { s: 'ok', t: name + ': gewählt' };
             }
             if (c.checked && !an) return { s: 'anders', t: name + ': Portal angekreuzt — OneCrew nein' };
+            if (nurPruefen) return verloren(name);
             c.click();
             return { s: 'ok', t: name + ': angekreuzt' };
         };
@@ -183,7 +188,7 @@ function famzGsKern(daten) {
                 if (!r) return { s: 'fehlt', t: name + ': Auswahl «' + werte[0] + '» nicht gefunden' };
                 var schon = f.radios.filter(function (c) { return c.checked; })[0];
                 if (schon && schon !== r) return { s: 'anders', t: name + ': Portal «' + radioText(schon) + '» — OneCrew «' + werte[0] + '»' };
-                if (!r.checked) r.click();
+                if (!r.checked) { if (nurPruefen) return verloren(name); r.click(); }
                 return { s: 'ok', t: name + ': ' + werte[0] };
             }
             if (el.tagName === 'SELECT') {
@@ -197,6 +202,7 @@ function famzGsKern(daten) {
                 var leer = !akt || el.selectedIndex <= 0 && /^(-|–|)$|unbekannt|bitte/i.test(akt.text.trim());
                 if (akt === o) return { s: 'gleich', t: name + ': schon ' + o.text };
                 if (!leer) return { s: 'anders', t: name + ': Portal «' + akt.text + '» — OneCrew «' + o.text + '»' };
+                if (nurPruefen) return verloren(name);
                 setzeWert(el, o.value);
                 return { s: 'ok', t: name + ': ' + o.text };
             }
@@ -204,6 +210,7 @@ function famzGsKern(daten) {
             var ist = (el.value || '').trim();
             if (ist && norm(ist) === norm(w0)) return { s: 'gleich', t: name + ': schon ' + ist };
             if (ist) return { s: 'anders', t: name + ': Portal «' + ist + '» — OneCrew «' + w0 + '»' };
+            if (nurPruefen) return verloren(name);
             setzeWert(el, w0);
             if (feld.hinweis) return { s: 'info', t: name + ': ' + w0 + ' — ' + feld.hinweis };
             if (norm(el.value) !== norm(w0)) return { s: 'anders', t: name + ': eingetragen, Portal zeigt «' + el.value + '» — bitte prüfen' };
@@ -263,21 +270,50 @@ function famzGsKern(daten) {
                         + (laufend ? '<div style="color:#8b8b8b">⏳ ' + laufend.replace(/</g, '&lt;') + ' …</div>'
                             : ab.hinweis ? '<div style="margin-top:6px;color:#646464">' + ab.hinweis.replace(/</g, '&lt;') + '</div>' : '');
                 };
+                // Das Portal fragt nach jeder Eingabe den Server und baut den Abschnitt neu —
+                // was in der Zwischenzeit eingetragen wurde, geht verloren. Darum langsam,
+                // danach ein zweiter Durchgang (trägt Verlorenes nach) und ein Kontrollgang.
+                var PAUSE = 700, RUHE = 1800;
+                var gesetzt = [];
+                var gang = function (liste, modus, fertig) {
+                    var j = 0;
+                    var naechstes = function () {
+                        if (j >= liste.length) { fertig(); return; }
+                        var eintrag = liste[j++];
+                        var feld = eintrag.feld || eintrag;
+                        var name = feld.anzeige || [].concat(feld.l)[0] || '';
+                        zeige((modus === 1 ? '' : modus === 2 ? 'Nachtragen: ' : 'Kontrolle: ') + name);
+                        setTimeout(function () {
+                            var z;
+                            nurPruefen = modus === 3;
+                            try { z = fuelle(feld); } catch (e) { z = { s: 'fehlt', t: name + ': Fehler ' + (e && e.message || e) }; }
+                            nurPruefen = false;
+                            if (modus === 1) {
+                                if (z) { zeilen.push(z); if (z.s === 'ok') gesetzt.push({ feld: feld, zeile: zeilen.length - 1 }); }
+                            } else if (z && z.s !== 'gleich') {
+                                var alt = zeilen[eintrag.zeile];
+                                zeilen[eintrag.zeile] = modus === 2 && z.s === 'ok' ? { s: 'ok', t: alt.t + ' (nachgetragen)' } : z;
+                            }
+                            setTimeout(naechstes, z && z.s === 'ok' ? PAUSE : 60);
+                        }, 60);
+                    };
+                    naechstes();
+                };
+                var schluss = function () {
+                    if (!zeilen.length) zeilen.push({ s: 'info', t: 'Nichts zu tun — in OneCrew sind für diesen Schritt keine Werte vorhanden.' });
+                    zeige(null);
+                };
                 var weiter = function () {
-                    if (i >= felder.length) {
-                        if (!zeilen.length) zeilen.push({ s: 'info', t: 'Nichts zu tun — in OneCrew sind für diesen Schritt keine Werte vorhanden.' });
-                        zeige(null);
-                        return;
-                    }
-                    var feld = felder[i++];
-                    var name = feld.anzeige || [].concat(feld.l)[0] || '';
-                    zeige(name);
-                    setTimeout(function () {
-                        var z;
-                        try { z = fuelle(feld); } catch (e) { z = { s: 'fehlt', t: name + ': Fehler ' + (e && e.message || e) }; }
-                        if (z) zeilen.push(z);
-                        weiter();
-                    }, 150);
+                    gang(felder, 1, function () {
+                        if (!gesetzt.length) { schluss(); return; }
+                        zeige('Warte auf das Portal');
+                        setTimeout(function () {
+                            gang(gesetzt, 2, function () {
+                                zeige('Warte auf das Portal');
+                                setTimeout(function () { gang(gesetzt, 3, schluss); }, RUHE);
+                            });
+                        }, RUHE);
+                    });
                 };
                 weiter();
             };
