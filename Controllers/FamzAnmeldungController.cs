@@ -145,10 +145,14 @@ public class FamzAnmeldungController : ControllerBase
         if (ausgewaehlt.Any(k => k.AndererElternteilId == null && k.GemeinsamesKindMitPartner != false))
             fehlt.Add("Anderer Elternteil nicht erfasst (Familie → Kind → «Anderer Elternteil»)");
         var ae = aeId is int a1 ? familie.FirstOrDefault(m => m.Id == a1) : null;
+        // Aktuelle/r Ehe- oder Lebenspartner/in (Walter 11.10.2026: «wenn neuer
+        // Lebenspartner vorhanden, dann diese Info») — nie der andere Elternteil.
+        // Ehepartner nur, solange die Ehe besteht; Konkubinat immer.
+        bool ehe = zivil is "verheiratet" or "getrennt" or "eingetragene_partnerschaft";
         var ehepartner = familie
-            .Where(m => m.MemberType == "Ehepartner" && m.DateOfDeath == null)
-            .OrderByDescending(m => m.Id).FirstOrDefault();
-        if (ehepartner != null && ae != null && ehepartner.Id == ae.Id) ehepartner = null;
+            .Where(m => m.DateOfDeath == null && m.Id != ae?.Id
+                     && (m.MemberType == "Konkubinatspartner" || (ehe && m.MemberType == "Ehepartner")))
+            .OrderBy(m => m.MemberType == "Ehepartner" ? 0 : 1).ThenByDescending(m => m.Id).FirstOrDefault();
 
         FamzElternteilDto? Elternteil(EmployeeFamilyMember? m)
         {
@@ -187,8 +191,10 @@ public class FamzAnmeldungController : ControllerBase
 
         var aeDto = Elternteil(ae);
         var partnerDto = Elternteil(ehepartner);
+        // Erstanspruch nur beim anderen Elternteil bzw. Ehepartner (Stiefkind) —
+        // ein Lebenspartner ohne Trauschein hat für fremde Kinder keinen Anspruch.
         foreach (var p in new[] { aeDto, partnerDto })
-            if (p?.EinkommenHoeher == true)
+            if (p?.EinkommenHoeher == true && (p == aeDto || ehepartner?.MemberType == "Ehepartner"))
                 hinweise.Add($"{p.NameVorname} verdient mehr als {e.FirstName} — in der Regel hat {p.NameVorname} den Erstanspruch auf die Kinderzulage. Die Kasse entscheidet; Anmeldung nur einreichen, wenn das geklärt ist.");
             else if (p != null && p.Angestellt == true && p.EinkommenHoeher == null)
                 fehlt.Add($"{p.NameVorname}: «verdient mehr als der MA?» — entscheidet, wer die Zulage erhält");

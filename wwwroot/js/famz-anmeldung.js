@@ -208,7 +208,7 @@ function famzRender() {
 
     const aeInfo = f.andererElternteil ? ''
         : '<span class="famz-titel-info rot">nicht erfasst — am besten in Familie → Kind → «Anderer Elternteil» ergänzen</span>';
-    const partnerInfo = f.partner ? '' : '<span class="famz-titel-info">keine/r, oder ist der andere Elternteil</span>';
+    const partnerInfo = f.partner ? '' : '<span class="famz-titel-info">keine/r — oder ist der andere Elternteil</span>';
     const partnerKnopf = _famzPartnerOffen ? ''
         : '<button type="button" class="famz-titel-knopf" onclick="famzPartnerOeffnen()">von Hand ausfüllen</button>';
 
@@ -245,7 +245,7 @@ function famzRender() {
         ${famzTitel('4. Anderer Elternteil', aeInfo)}
         ${famzRaster(famzElternteil('andererElternteil'))}
 
-        ${famzTitel('5. Ehepartner/in', partnerInfo, partnerKnopf)}
+        ${famzTitel('5. Aktuelle/r Ehe- oder Lebenspartner/in', partnerInfo, partnerKnopf)}
         ${_famzPartnerOffen ? famzRaster(famzElternteil('partner')) : ''}
 
         ${famzTitel('6. Kinder')}
@@ -376,14 +376,15 @@ function famzPflicht() {
     if (v('weitereArbeitgeber') === 'ja') add('weitereAg1', 'hoeheresEinkommenBei');
 
     const elternteil = p => {
+        // SE/NE und Leistungsbezug fragt die Kasse immer (Walter 11.10.2026).
         add(`${p}.nameVorname`, `${p}.geschlecht`, `${p}.geburtsdatum`, `${p}.nationalitaet`,
-            `${p}.strasseNr`, `${p}.plzOrt`, `${p}.zivilstand`, `${p}.angestellt`);
+            `${p}.strasseNr`, `${p}.plzOrt`, `${p}.zivilstand`, `${p}.angestellt`,
+            `${p}.einkommenHoeher`, `${p}.einkommenUeberMinimum`, `${p}.seNe`, `${p}.leistungBezug`);
         const wohntInCh = !!v(`${p}.kanton`);
         if (wohntInCh) add(`${p}.ahvNummer`);
         if (wohntInCh && v(`${p}.nationalitaet`) && !istCh(v(`${p}.nationalitaet`))) add(`${p}.auslaenderausweis`);
-        if (v(`${p}.angestellt`) === 'ja')
-            add(`${p}.arbeitgeberZeile1`, `${p}.arbeitsortKanton`, `${p}.einkommenHoeher`, `${p}.einkommenUeberMinimum`);
-        if (v(`${p}.angestellt`) === 'nein') add(`${p}.seNe`);
+        if (v(`${p}.angestellt`) === 'ja') add(`${p}.arbeitgeberZeile1`, `${p}.arbeitsortKanton`, `${p}.arbeitspensum`);
+        if (v(`${p}.seNe`) === 'SE' || v(`${p}.seNe`) === 'NE') add(`${p}.ausgleichskasse`);
         if (v(`${p}.leistungBezug`) === 'ja') add(`${p}.leistungVon1`);
     };
     elternteil('andererElternteil');

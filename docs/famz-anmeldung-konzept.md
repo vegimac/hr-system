@@ -29,7 +29,7 @@ einkommen als der partner, erhält im normalfall der partner das kindergeld.»
 | Weitere Arbeitgeber | Tabelle `weitere_arbeitgeber` (nur Info, wie bisher) |
 | Leistungsbezug | Absenzen heute (Unfall/Krankheit/Mutterschaft) |
 | Anderer Elternteil | am Kind gewählt (`anderer_elternteil_id`), häufigster der gewählten Kinder |
-| Ehepartner/in | jüngster Eintrag Typ Ehepartner, falls nicht derselbe wie der andere Elternteil |
+| Aktuelle/r Ehe-/Lebenspartner/in | nie der andere Elternteil; Ehepartner (nur solange MA verheiratet/getrennt/eingetr. Partnerschaft) vor Konkubinatspartner, jüngster Eintrag (Walter 11.10.2026: «wenn neuer Lebenspartner vorhanden, dann diese Info»). Erstanspruch-Hinweis nur beim anderen Elternteil bzw. Ehepartner |
 | Kinder | Familie: Beziehung, Geschlecht, erwerbsunfähig; Wohnadresse nur wenn nicht im Haushalt |
 | Sorge / Kinder leben bei | Kind-Angaben; gemischt ⇒ Text in der Bemerkung |
 
@@ -41,7 +41,8 @@ Beziehung zum Kind, Wohnadresse ausserhalb des Haushalts) liefert der Server get
 Kopfzeile = Mitarbeiter | Kinder | Meldungen (rot «Fehlt», gelb Hinweise, Beilagen aufklappbar).
 Leere Pflichtangaben werden rot umrandet (`famzPflicht` in `js/famz-anmeldung.js`, bedingte Felder erst
 wenn die Auslöser-Frage es verlangt, z.B. «Von wem» nur bei «Leistungen: Ja»; AHV/Ausweis des anderen
-Elternteils nur bei Wohnsitz Schweiz = Kanton gesetzt). Ehepartner-Block ohne Eintrag zugeklappt
+Elternteils nur bei Wohnsitz Schweiz = Kanton gesetzt). Beim anderen Elternteil und beim Partner sind
+«verdient mehr», «Einkommen > 7'560», SE/NE und Leistungsbezug immer Pflicht, Pensum bei «angestellt». Ehepartner-Block ohne Eintrag zugeklappt
 («von Hand ausfüllen»). Der Zähler neben «PDF-Vorschau» sperrt nichts.
 
 **In OneCrew speichern (Walter 11.10.2026):** Knopf im Fuss erscheint, sobald ein Feld, das beim Laden
