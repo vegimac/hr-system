@@ -30,6 +30,10 @@ public static class GastroSocialFzAbgleich
         public string? BezuegerVorname { get; set; }
         public string? KindAhv { get; set; }
         public string? KindVorname { get; set; }
+        /// <summary>Nur wenn der Export eine Spalte «Kind Name» hat (Bescheinigung 2026: nein).</summary>
+        public string? KindNachname { get; set; }
+        /// <summary>Nur wenn der Export eine Geschlechts-Spalte hat (Bescheinigung 2026: nein).</summary>
+        public string? KindGeschlecht { get; set; }
         public DateTime? KindGeburt { get; set; }
         public DateTime? Von { get; set; }
         public DateTime? Bis { get; set; }
@@ -61,6 +65,8 @@ public static class GastroSocialFzAbgleich
         public string? Nachname { get; set; }
         public string? Ahv { get; set; }
         public DateTime? Geburt { get; set; }
+        /// <summary>«Männlich» / «Weiblich» / «Divers» wie im Familien-Fenster.</summary>
+        public string? Geschlecht { get; set; }
         public List<Zulage> Zulagen { get; set; } = new();
     }
 
@@ -101,6 +107,8 @@ public static class GastroSocialFzAbgleich
         public string? Hinweis { get; set; }
         /// <summary>AHV-Nummer des Kindes laut GastroSocial, wenn sie in OneCrew fehlt und gültig ist — «übernehmen».</summary>
         public string? KindAhvUebernehmen { get; set; }
+        /// <summary>Abweichende/fehlende Angaben zu Kind und Bezüger (AHV, Vorname, Name, Geburtsdatum, Geschlecht).</summary>
+        public List<string> Angaben { get; set; } = new();
     }
 
     public class Ergebnis
@@ -115,6 +123,8 @@ public static class GastroSocialFzAbgleich
         public List<Treffer> NurOneCrew { get; set; } = new();
         public List<Treffer> NichtZuordenbar { get; set; } = new();
         public List<Treffer> Passt { get; set; } = new();
+        /// <summary>Zusätzliche Sicht: Kinder (zugeordnet), bei denen Angaben abweichen oder in OneCrew fehlen.</summary>
+        public List<Treffer> AngabenPruefen { get; set; } = new();
     }
 
     public static IEnumerable<DateOnly> Monate(DateTime von, DateTime bis)
@@ -149,6 +159,58 @@ public static class GastroSocialFzAbgleich
             i = j + 1;
         }
         return string.Join(", ", teile);
+    }
+
+    private static string? GeschlechtNorm(string? g)
+    {
+        var s = (g ?? "").Trim().ToLowerInvariant();
+        if (s.Length == 0) return null;
+        if (s is "m" or "mann" or "male" || s.StartsWith("männ") || s.StartsWith("maenn")) return "männlich";
+        if (s is "w" or "f" or "frau" or "female" || s.StartsWith("weib")) return "weiblich";
+        return s;
+    }
+
+    /// <summary>Angaben zum Kind laut GastroSocial gegen OneCrew — jede Abweichung und jedes fehlende Feld.</summary>
+    public static IEnumerable<string> KindAngaben(Zeile z, Kind k)
+    {
+        var gsAhv = NormAhv(z.KindAhv);
+        if (gsAhv.Length == 13 && NormAhv(k.Ahv) != gsAhv)
+            yield return NormAhv(k.Ahv).Length == 0
+                ? "AHV-Nummer des Kindes fehlt in OneCrew"
+                : $"AHV-Nummer des Kindes: GastroSocial {FormatAhv(z.KindAhv)}, OneCrew {FormatAhv(k.Ahv)}";
+        if (!string.IsNullOrWhiteSpace(z.KindVorname) && NormName(z.KindVorname) != NormName(k.Vorname))
+            yield return string.IsNullOrWhiteSpace(k.Vorname)
+                ? $"Vorname des Kindes fehlt in OneCrew (GastroSocial «{z.KindVorname}»)"
+                : $"Vorname des Kindes: GastroSocial «{z.KindVorname}», OneCrew «{k.Vorname}»";
+        if (!string.IsNullOrWhiteSpace(z.KindNachname) && NormName(z.KindNachname) != NormName(k.Nachname))
+            yield return string.IsNullOrWhiteSpace(k.Nachname)
+                ? $"Name des Kindes fehlt in OneCrew (GastroSocial «{z.KindNachname}»)"
+                : $"Name des Kindes: GastroSocial «{z.KindNachname}», OneCrew «{k.Nachname}»";
+        if (z.KindGeburt != null && k.Geburt?.Date != z.KindGeburt.Value.Date)
+            yield return k.Geburt == null
+                ? $"Geburtsdatum des Kindes fehlt in OneCrew (GastroSocial {z.KindGeburt:dd.MM.yyyy})"
+                : $"Geburtsdatum des Kindes: GastroSocial {z.KindGeburt:dd.MM.yyyy}, OneCrew {k.Geburt:dd.MM.yyyy}";
+        var gsG = GeschlechtNorm(z.KindGeschlecht);
+        var ocG = GeschlechtNorm(k.Geschlecht);
+        if (gsG != null && gsG != ocG)
+            yield return ocG == null
+                ? $"Geschlecht des Kindes fehlt in OneCrew (GastroSocial {gsG})"
+                : $"Geschlecht des Kindes: GastroSocial {gsG}, OneCrew {ocG}";
+        // Spalte «Nat» bewusst nicht: die Nationalität wird beim Kind seit 11.10.2026 nicht mehr erfasst.
+    }
+
+    /// <summary>Bezüger laut GastroSocial gegen den zugeordneten MA (AHV-Nummer, Name, Vorname).</summary>
+    public static IEnumerable<string> BezuegerAngaben(Zeile z, Ma m)
+    {
+        var gsAhv = NormAhv(z.BezuegerAhv);
+        if (gsAhv.Length == 13 && NormAhv(m.Ahv) != gsAhv)
+            yield return NormAhv(m.Ahv).Length == 0
+                ? "AHV-Nummer des MA fehlt in OneCrew"
+                : $"AHV-Nummer des MA: GastroSocial {FormatAhv(z.BezuegerAhv)}, OneCrew {FormatAhv(m.Ahv)}";
+        var gsName = NameKey(z.BezuegerVorname, z.BezuegerName);
+        if (!string.IsNullOrWhiteSpace(z.BezuegerName) && gsName != NameKey(m.Vorname, m.Nachname)
+            && NameKey(z.BezuegerName, z.BezuegerVorname) != NameKey(m.Vorname, m.Nachname))
+            yield return $"Name des MA: GastroSocial «{z.BezuegerVorname} {z.BezuegerName}», OneCrew «{m.Vorname} {m.Nachname}»";
     }
 
     /// <summary>«Ana Marija» = «Anamarija», «Lea» = «Lea Sophie» — gleiche Schreibweise ohne Leerzeichen oder Vorname enthalten.</summary>
@@ -212,10 +274,7 @@ public static class GastroSocialFzAbgleich
                 if (c.Count == 0) c = byName[NameKey(z.BezuegerName, z.BezuegerVorname)].ToList();
                 if (c.Count == 1) { ma = c[0]; art = "NAME"; }
             }
-            if (ma != null && art != "AHV")
-                hinweise.Add(string.IsNullOrWhiteSpace(ma.Ahv)
-                    ? "AHV-Nummer des MA fehlt in OneCrew"
-                    : "AHV-Nummer des MA weicht ab (OneCrew " + FormatAhv(ma.Ahv) + ")");
+            if (ma != null) hinweise.AddRange(BezuegerAngaben(z, ma));
 
             Kind? kind = null;
             if (ma != null)
@@ -231,12 +290,7 @@ public static class GastroSocialFzAbgleich
                     var c = ma.Kinder.Where(k => NormName(k.Vorname) == NormName(z.KindVorname)).ToList();
                     if (c.Count == 1) kind = c[0];
                 }
-                if (kind != null && kAhv.Length == 13 && NormAhv(kind.Ahv) != kAhv)
-                    hinweise.Add(string.IsNullOrWhiteSpace(kind.Ahv)
-                        ? "AHV-Nummer des Kindes fehlt in OneCrew"
-                        : "AHV-Nummer des Kindes weicht ab (OneCrew " + FormatAhv(kind.Ahv) + ")");
-                if (kind?.Geburt != null && z.KindGeburt != null && kind.Geburt.Value.Date != z.KindGeburt.Value.Date)
-                    hinweise.Add($"Geburtsdatum des Kindes weicht ab (OneCrew {kind.Geburt:dd.MM.yyyy})");
+                if (kind != null) hinweise.AddRange(KindAngaben(z, kind));
             }
 
             var key = ma == null ? $"x{z.Nr}"
@@ -272,6 +326,8 @@ public static class GastroSocialFzAbgleich
                 MatchArt = g.art,
             };
             var hinweise = new List<string>(g.hinweise);
+            t.Angaben = new List<string>(g.hinweise);
+            if (t.Angaben.Count > 0 && g.ma != null) res.AngabenPruefen.Add(t);
 
             if (g.ma == null)
             {
@@ -382,6 +438,7 @@ public static class GastroSocialFzAbgleich
         res.NurOneCrew = Sort(res.NurOneCrew);
         res.NichtZuordenbar = Sort(res.NichtZuordenbar);
         res.Passt = Sort(res.Passt);
+        res.AngabenPruefen = Sort(res.AngabenPruefen);
         return res;
     }
 
@@ -424,7 +481,7 @@ public static class GastroSocialFzAbgleich
         int cLst = Sp("Leistung"), cBAhv = Sp("Bezüger AHV-Nr.", "Bezüger AHV-Nr", "Bezüger AHV");
         int cBName = Sp("Bezüger Name"), cBVor = Sp("Bezüger Vorname");
         int cKAhv = Sp("Kind AHV-Nr.", "Kind AHV-Nr", "Kind AHV"), cKVor = Sp("Kind Vorname");
-        int cGeb = Sp("GebDat", "Geburtsdatum", "Kind GebDat"), cVon = Sp("Von"), cBis = Sp("Bis");
+        int cKName = Sp("Kind Name", "Kind Nachname"), cKGes = Sp("Kind Geschlecht", "Geschlecht Kind", "Kind G");        int cGeb = Sp("GebDat", "Geburtsdatum", "Kind GebDat"), cVon = Sp("Von"), cBis = Sp("Bis");
         int cMon = Sp("Monate"), cAns = Sp("Ansatz"), cTot = Sp("TotalBetrag", "Total", "Betrag");
         int cBem = Sp("Bemerkungen", "Bemerkung");
 
@@ -452,7 +509,8 @@ public static class GastroSocialFzAbgleich
                 BezuegerVorname = Leer(Feld(cBVor)),
                 KindAhv = Leer(Feld(cKAhv)),
                 KindVorname = Leer(kVor),
-                KindGeburt = cGeb >= 0 ? Datum(row.GetCell(cGeb)) : null,
+                KindNachname = Leer(Feld(cKName)),
+                KindGeschlecht = Leer(Feld(cKGes)),                KindGeburt = cGeb >= 0 ? Datum(row.GetCell(cGeb)) : null,
                 Von = cVon >= 0 ? Datum(row.GetCell(cVon)) : null,
                 Bis = cBis >= 0 ? Datum(row.GetCell(cBis)) : null,
                 Monate = Zahl(cMon) is decimal mo ? (int)mo : null,

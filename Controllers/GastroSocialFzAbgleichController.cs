@@ -66,7 +66,7 @@ public class GastroSocialFzAbgleichController : ControllerBase
             })
             .ToListAsync(ct);
         var kinder = (await _db.EmployeeFamilyMembers.AsNoTracking()
-                .Select(f => new { f.Id, f.EmployeeId, f.MemberType, f.FirstName, f.LastName, f.SocialSecurityNumber, f.DateOfBirth })
+                .Select(f => new { f.Id, f.EmployeeId, f.MemberType, f.FirstName, f.LastName, f.SocialSecurityNumber, f.DateOfBirth, f.Gender })
                 .ToListAsync(ct))
             .ToLookup(f => f.EmployeeId);
         var zulagen = (await _db.FamilyMemberAllowances.AsNoTracking()
@@ -98,6 +98,7 @@ public class GastroSocialFzAbgleichController : ControllerBase
                     Nachname = f.LastName,
                     Ahv = f.SocialSecurityNumber,
                     Geburt = f.DateOfBirth,
+                    Geschlecht = f.Gender,
                     Zulagen = zulagen[f.Id].Select(a => new GastroSocialFzAbgleich.Zulage
                     {
                         Id = a.Id,

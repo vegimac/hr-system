@@ -129,9 +129,11 @@ function gsfMarkiereKachel(liste) {
     });
 }
 
-function gsfRender(d) {
+/** ansicht: nach einer Korrektur dieselbe Liste wieder zeigen (solange sie nicht leer ist). */
+function gsfRender(d, ansicht) {
     const fe = (d.fehlt || []).length, ab = (d.abweichung || []).length;
     const no = (d.nurOneCrew || []).length, nz = (d.nichtZuordenbar || []).length, ok = (d.passt || []).length;
+    const ap = (d.angabenPruefen || []).length;
     const zeitraum = d.von && d.bis ? `${gsfDate(d.von)} – ${gsfDate(d.bis)}` : '';
     document.getElementById('gsfSummary').innerHTML = `
         ${zeitraum ? `<div style="font-size:12.5px;color:#64748b;margin-bottom:10px">Bescheinigung ${zeitraum} · ${d.zeilen} Zeilen · Total GastroSocial CHF ${gsfChf(d.totalGs)}</div>` : ''}
@@ -141,6 +143,7 @@ function gsfRender(d) {
             ${gsfTile(ab, 'Abweichung', ab ? '#fef3c7' : '#f0fdf4', ab ? '#92400e' : '#15803d', 'abweichung')}
             ${gsfTile(no, 'Nur in OneCrew', no ? '#fce7f3' : '#f0fdf4', no ? '#9d174d' : '#15803d', 'nurOneCrew')}
             ${gsfTile(nz, 'Nicht zuordenbar', nz ? '#e0e7ff' : '#f0fdf4', nz ? '#3730a3' : '#15803d', 'nichtZuordenbar')}
+            ${gsfTile(ap, 'Angaben prüfen', ap ? '#ffedd5' : '#f0fdf4', ap ? '#9a3412' : '#15803d', 'angabenPruefen')}
             ${gsfTile(ok, 'Passt', '#dcfce7', '#166534', 'passt')}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px">
@@ -150,12 +153,14 @@ function gsfRender(d) {
                 <option value="abweichung">Abweichung — Monate oder Ansatz verschieden (${ab})</option>
                 <option value="nurOneCrew">Nur in OneCrew — GastroSocial bescheinigt nichts (${no})</option>
                 <option value="nichtZuordenbar">Nicht zuordenbar — Bezüger in OneCrew nicht gefunden (${nz})</option>
+                <option value="angabenPruefen">Angaben prüfen — AHV, Name, Geburtsdatum … weichen ab (${ap})</option>
                 <option value="passt">Passt (${ok})</option>
             </select>
         </div>`;
     document.getElementById('gsfResult').innerHTML = `<div id="gsfRows"></div>`;
     const sel = document.getElementById('gsfFilter');
-    if (sel) sel.value = fe ? 'fehlt' : ab ? 'abweichung' : no ? 'nurOneCrew' : nz ? 'nichtZuordenbar' : 'passt';
+    if (sel) sel.value = ansicht && (d[ansicht] || []).length ? ansicht
+        : fe ? 'fehlt' : ab ? 'abweichung' : no ? 'nurOneCrew' : nz ? 'nichtZuordenbar' : ap ? 'angabenPruefen' : 'passt';
     gsfRenderRows();
 }
 
@@ -172,6 +177,7 @@ function gsfRenderRows() {
             abweichung: '✓ Monate und Ansätze stimmen überall überein.',
             nurOneCrew: '✓ Keine Zulage in OneCrew, die GastroSocial nicht bescheinigt.',
             nichtZuordenbar: '✓ Alle Bezüger sind einem MA zugeordnet.',
+            angabenPruefen: '✓ AHV-Nummern, Namen und Geburtsdaten stimmen mit GastroSocial überein.',
             passt: 'Keine Einträge.'
         }[filter];
         el.innerHTML = `<div style="padding:28px;text-align:center;color:#15803d;font-size:13.5px">${leer}</div>`;
@@ -182,6 +188,7 @@ function gsfRenderRows() {
         abweichung: 'GastroSocial und OneCrew zahlen nicht dieselben Monate oder nicht denselben Ansatz. Zulage beim Kind prüfen (Gültig ab/bis, Art, Satz).',
         nurOneCrew: 'OneCrew zahlt eine Zulage, GastroSocial bescheinigt für dieses Kind nichts — Antrag fehlt, anderer Elternteil bezieht sie, oder die Zulage in OneCrew beenden.',
         nichtZuordenbar: 'Bezüger in OneCrew nicht gefunden — AHV-Nummer beim MA nachtragen oder prüfen, ob die Person bei uns arbeitet.',
+        angabenPruefen: 'Die Angaben zum Kind oder MA stimmen nicht mit GastroSocial überein oder fehlen in OneCrew. Mit Ausweis/Geburtsurkunde klären: falsch in OneCrew → im MA → Familie korrigieren, falsch bei GastroSocial → dort melden. (Die Bescheinigung enthält vom Kind nur AHV-Nr., Vorname und Geburtsdatum — Nachname und Geschlecht werden nur geprüft, wenn der Export sie mitliefert.)',
         passt: ''
     }[filter];
     const th = t => `<th style="padding:8px 10px;text-align:left">${t}</th>`;
@@ -207,7 +214,9 @@ function gsfRenderRows() {
                     ${td(z.employeeId
                         ? `<button class="dok-menu-btn" style="min-width:auto;padding:3px 9px;font-size:12px" onclick="gsfOpenEmployee(${z.employeeId})">→ ${esc(z.oneCrewName || 'MA')}</button>${z.personalnummer ? ` <span style="font-size:11px;color:#94a3b8;font-family:monospace">${esc(z.personalnummer)}</span>` : ''}`
                         : '—')}
-                    ${td(esc(z.hinweis || ''), 'color:#64748b;font-size:12px')}
+                    ${td(filter === 'angabenPruefen'
+                        ? (z.angaben || []).map(a => `<div style="color:#9a3412">• ${esc(a)}</div>`).join('')
+                        : esc(z.hinweis || ''), 'color:#64748b;font-size:12px')}
                 </tr>`;
             }).join('')}</tbody>
         </table>`;
@@ -226,10 +235,18 @@ async function gsfKindAhvUebernehmen(liste, memberId) {
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) { gsfFehler(j.message || j.error || ('Fehler ' + r.status)); return; }
-        z.kindAhvUebernehmen = null;
-        z.hinweis = (z.hinweis || '').split(' · ').filter(h => !h.startsWith('AHV-Nummer des Kindes fehlt')).join(' · ') || null;
+        const weg = h => !h.startsWith('AHV-Nummer des Kindes fehlt');
+        Object.keys(_gsfData).forEach(k => {
+            if (!Array.isArray(_gsfData[k])) return;
+            _gsfData[k].filter(x => x.familyMemberId === memberId).forEach(x => {
+                x.kindAhvUebernehmen = null;
+                x.hinweis = (x.hinweis || '').split(' · ').filter(weg).join(' · ') || null;
+                x.angaben = (x.angaben || []).filter(weg);
+            });
+        });
+        _gsfData.angabenPruefen = (_gsfData.angabenPruefen || []).filter(x => (x.angaben || []).length > 0);
         if (typeof showToast === 'function') showToast(`AHV-Nummer bei ${z.kind || 'Kind'} eingetragen.`, 'success');
-        gsfRenderRows();
+        gsfRender(_gsfData, liste);
     } catch (e) {
         gsfFehler('Verbindung fehlgeschlagen: ' + e.message);
     }

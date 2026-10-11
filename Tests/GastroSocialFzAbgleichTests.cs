@@ -175,4 +175,68 @@ public class GastroSocialFzAbgleichTests
         var m = new[] { new DateOnly(2026, 1, 1), new DateOnly(2026, 2, 1), new DateOnly(2026, 5, 1) };
         Assert.Equal("01.2026–02.2026, 05.2026", Bereiche(m));
     }
+
+    [Fact]
+    public void Gleiche_Angaben_ergeben_keine_Angaben_Pruefung()
+    {
+        var r = Vergleiche(new[] { Gs(Jan, Dez, 225) }, new[] { MaMit(Zl(new(2026, 1, 1), null, 225)) });
+        Assert.Empty(r.AngabenPruefen);
+        Assert.Empty(Assert.Single(r.Passt).Angaben);
+    }
+
+    [Fact]
+    public void Abweichendes_Geburtsdatum_wird_gemeldet_auch_wenn_Zulage_passt()
+    {
+        var ma = MaMit(Zl(new(2026, 1, 1), null, 225));
+        ma.Kinder[0].Geburt = new DateTime(2015, 3, 10);
+        var r = Vergleiche(new[] { Gs(Jan, Dez, 225) }, new[] { ma });
+        var t = Assert.Single(r.Passt);
+        Assert.Same(t, Assert.Single(r.AngabenPruefen));
+        Assert.Contains("Geburtsdatum des Kindes: GastroSocial 01.03.2015, OneCrew 10.03.2015", t.Angaben);
+    }
+
+    [Fact]
+    public void Fehlendes_Geburtsdatum_und_anderer_Vorname_werden_gemeldet()
+    {
+        var ma = MaMit(Zl(new(2026, 1, 1), null, 225));
+        ma.Kinder[0].Geburt = null;
+        ma.Kinder[0].Vorname = "Leah";
+        var r = Vergleiche(new[] { Gs(Jan, Dez, 225) }, new[] { ma });
+        var t = Assert.Single(r.AngabenPruefen);
+        Assert.Contains("Geburtsdatum des Kindes fehlt in OneCrew (GastroSocial 01.03.2015)", t.Angaben);
+        Assert.Contains("Vorname des Kindes: GastroSocial «Lea», OneCrew «Leah»", t.Angaben);
+    }
+
+    [Fact]
+    public void Nachname_und_Geschlecht_nur_wenn_im_Export()
+    {
+        var ma = MaMit(Zl(new(2026, 1, 1), null, 225));
+        ma.Kinder[0].Geschlecht = "Männlich";
+        var ohne = Vergleiche(new[] { Gs(Jan, Dez, 225) }, new[] { ma });
+        Assert.Empty(ohne.AngabenPruefen);
+
+        var z = Gs(Jan, Dez, 225);
+        z.KindNachname = "Beispiel";
+        z.KindGeschlecht = "W";
+        var t = Assert.Single(Vergleiche(new[] { z }, new[] { ma }).AngabenPruefen);
+        Assert.Contains("Name des Kindes: GastroSocial «Beispiel», OneCrew «Muster»", t.Angaben);
+        Assert.Contains("Geschlecht des Kindes: GastroSocial weiblich, OneCrew männlich", t.Angaben);
+    }
+
+    [Fact]
+    public void Abweichender_Name_des_Bezuegers_wird_gemeldet()
+    {
+        var z = Gs(Jan, Dez, 225);
+        z.BezuegerName = "Muster-Meier";
+        var t = Assert.Single(Vergleiche(new[] { z }, new[] { MaMit(Zl(new(2026, 1, 1), null, 225)) }).AngabenPruefen);
+        Assert.Contains("Name des MA: GastroSocial «Anna Muster-Meier», OneCrew «Anna Muster»", t.Angaben);
+    }
+
+    [Fact]
+    public void Vertauschter_Name_des_Bezuegers_ist_kein_Fehler()
+    {
+        var z = Gs(Jan, Dez, 225);
+        (z.BezuegerName, z.BezuegerVorname) = (z.BezuegerVorname, z.BezuegerName);
+        Assert.Empty(Vergleiche(new[] { z }, new[] { MaMit(Zl(new(2026, 1, 1), null, 225)) }).AngabenPruefen);
+    }
 }
