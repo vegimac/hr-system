@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 9;
+        var VERSION = 10;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -103,6 +103,16 @@ function famzGsKern(daten) {
             if (c.closest('label') && norm(c.closest('label').textContent)) return norm(c.closest('label').textContent);
             return norm(c.parentElement ? c.parentElement.textContent : '');
         };
+        // Zweites Feld derselben Zeile (z.B. «Arbeitskanton/-Land»: Land | Kanton).
+        var rechtsDaneben = function (c) {
+            var r = flaeche(c), best = null, bestA = 1e9;
+            steuerelemente().forEach(function (x) {
+                if (x === c || x.ownerDocument !== c.ownerDocument) return;
+                var q = flaeche(x), d = q.left - r.right;
+                if (Math.abs((q.top + q.bottom) / 2 - (r.top + r.bottom) / 2) < 14 && d > -6 && d < 200 && d < bestA) { bestA = d; best = x; }
+            });
+            return best;
+        };
         var findeFeld = function (labels, nr) {
             var kandidaten = beschriftungen();
             for (var i = 0; i < labels.length; i++) {
@@ -136,6 +146,16 @@ function famzGsKern(daten) {
             var proto = el.tagName === 'SELECT' ? fenster.HTMLSelectElement.prototype
                 : el.tagName === 'TEXTAREA' ? fenster.HTMLTextAreaElement.prototype : fenster.HTMLInputElement.prototype;
             el.focus();
+            // Wie getippt: Datumsfelder mit Eingabemaske nehmen nur echte Eingaben an.
+            if (el.tagName !== 'SELECT') {
+                var getippt = false;
+                try { if (el.select) el.select(); getippt = el.ownerDocument.execCommand('insertText', false, w) && !!el.value; } catch (e) { getippt = false; }
+                if (getippt) {
+                    el.dispatchEvent(new fenster.Event('change', { bubbles: true }));
+                    el.blur();
+                    return;
+                }
+            }
             Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, w);
             ['input', 'change', 'keyup'].forEach(function (t) { el.dispatchEvent(new fenster.Event(t, { bubbles: true })); });
             el.blur();
@@ -232,6 +252,7 @@ function famzGsKern(daten) {
             var f = findeFeld([].concat(feld.l), feld.nr);
             if (!f) return { s: 'fehlt', t: name + ': Beschriftung nicht gefunden' };
             var el = f.el;
+            if (feld.rechts && el) { el = rechtsDaneben(el); f = { lab: f.lab, el: el }; }
             if (!f.radios && /^(ja|nein|männlich|weiblich)$/i.test(String(werte[0]))) {
                 var tk = textKnopf(f.lab, werte);
                 if (tk) {
@@ -476,6 +497,13 @@ function famzGsPlzOrt(s) {
 const famzGsJn = b => b === true ? 'Ja' : b === false ? 'Nein' : null;
 const famzGsGeschlecht = g => g === 'M' ? ['männlich', 'Mann', 'M'] : g === 'F' ? ['weiblich', 'Frau', 'F', 'W'] : null;
 const famzGsKanton = k => k ? [FAMZ_GS_KANTONE[k] || k, k] : null;
+/** «LU», «lu», «Luzern» → «LU»; Ausland/unbekannt → null. */
+function famzGsKantonCode(k) {
+    const t = String(k || '').trim();
+    if (!t) return null;
+    if (FAMZ_GS_KANTONE[t.toUpperCase()]) return t.toUpperCase();
+    return Object.keys(FAMZ_GS_KANTONE).find(c => FAMZ_GS_KANTONE[c].toLowerCase() === t.toLowerCase()) || null;
+}
 
 /**
  * Ein Personen-Block. Portal-Beschriftungen (Seite «Zusätzliche Familienzulage», 11.10.2026):
@@ -497,6 +525,15 @@ function famzGsPerson(p, rolle) {
         { l: ['Geschlecht'], w: famzGsGeschlecht(p.geschlecht) },
         { l: [...wer.map(w => `Ist der ${w} erwerbstätig`), ...wer.map(w => `Ist die ${w}in erwerbstätig`), 'Erwerbstätig'],
           w: famzGsJn(p.angestellt), anzeige: 'Erwerbstätig?' },
+        { l: [...wer.map(w => `Verdient der ${w} mehr als das Minimaleinkommen`), ...wer.map(w => `Verdient die ${w}in mehr als das Minimaleinkommen`), 'Verdient'],
+          w: famzGsJn(p.einkommenUeberMinimum), anzeige: 'Mehr als Minimaleinkommen?' },
+        ...(p.angestellt && famzGsKantonCode(p.arbeitsortKanton) ? [
+            { l: ['Arbeitskanton/-Land', 'Arbeitskanton / -Land', 'Arbeitskanton/Land'], w: ['CH', 'Schweiz'], anzeige: 'Arbeitsland' },
+            { l: ['Arbeitskanton/-Land', 'Arbeitskanton / -Land', 'Arbeitskanton/Land'], rechts: true,
+              w: famzGsKanton(famzGsKantonCode(p.arbeitsortKanton)), anzeige: 'Arbeitskanton' },
+        ] : p.angestellt && p.arbeitsortKanton ? [
+            { l: ['Arbeitskanton/-Land'], w: null, anzeige: 'Arbeitskanton/-Land (von Hand wählen)', zeige: p.arbeitsortKanton },
+        ] : []),
         { l: ['Arbeitgeber', 'Name Arbeitgeber'], w: p.arbeitgeberZeile1, anzeige: 'Arbeitgeber' },
         { l: ['Arbeitspensum', 'Pensum', 'Beschäftigungsgrad'], w: p.arbeitspensum, anzeige: 'Pensum' },
         { l: ['Zivilstand'], w: p.zivilstand ? (FAMZ_ZIVIL[p.zivilstand] || p.zivilstand) : null },
