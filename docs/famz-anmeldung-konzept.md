@@ -44,6 +44,16 @@ wenn die Auslöser-Frage es verlangt, z.B. «Von wem» nur bei «Leistungen: Ja�
 Elternteils nur bei Wohnsitz Schweiz = Kanton gesetzt). Ehepartner-Block ohne Eintrag zugeklappt
 («von Hand ausfüllen»). Der Zähler neben «PDF-Vorschau» sperrt nichts.
 
+**In OneCrew speichern (Walter 11.10.2026):** Knopf im Fuss erscheint, sobald ein Feld, das beim Laden
+leer war, ausgefüllt ist (`POST /api/famz-anmeldung/{empId}/in-onecrew-speichern`, Logik
+`Services/FamzRueckschreiben.cs`). Nur leere OneCrew-Felder werden gefüllt, nie überschrieben; ein
+ungültiger Wert (AHV-Prüfziffer, Datum, Pensum, Kanton) ⇒ gar nichts gespeichert. Speicherbar:
+MA «Zivilstand seit» + AHV; Elternteil/Ehepartner Geschlecht, Geburtsdatum, AHV, Zivilstand, angestellt
+(mit Erwerbs-Historie «Ersterfassung»), Arbeitsort Kanton, Pensum, verdient mehr, Einkommen > 7'560,
+SE/NE, Ausgleichskasse, Leistungen; Kind Geschlecht, Geburtsdatum, Beziehung. Bewusst NICHT: Name,
+Adresse, Nationalität, Bewilligung, Arbeitgeber-Zeilen (Historie/zusammengesetzt → Familie-Maske).
+Tests `Tests/FamzRueckschreibenTests.cs`.
+
 ## Kind-Maske (vier Blöcke)
 
 1. **Kind:** Name, Geburt, Geschlecht, Beziehung (leiblich/Adoptiv/Stief/Pflege/Geschwister/Enkel),

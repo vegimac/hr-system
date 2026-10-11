@@ -11,7 +11,8 @@ namespace HrSystem.Controllers;
 /// GastroSocial «Anmeldung für Familien-/Geburtszulagen» (FOR 0402-dt) —
 /// Walter 11.10.2026, Muster wie die AHV-Anmeldung: GET liefert die
 /// Vorbefüllung aus MA, Familie und Filiale, das Frontend zeigt alles
-/// editierbar, POST erzeugt das PDF. Es wird nichts gespeichert.
+/// editierbar, POST erzeugt das PDF. Gespeichert wird nur über
+/// «In OneCrew speichern» (leere OneCrew-Felder nachtragen, nie überschreiben).
 /// Konzept: docs/famz-anmeldung-konzept.md.
 /// </summary>
 [Authorize(Roles = "admin,superuser,user")]
@@ -343,6 +344,30 @@ public class FamzAnmeldungController : ControllerBase
         { return StatusCode(500, new { error = "TEMPLATE_MISSING", message = ex.Message }); }
 
         return File(bytes, "application/pdf", $"{e.EmployeeNumber}-Anmeldung-Familienzulagen.pdf");
+    }
+
+    public sealed class RueckschreibenDto
+    {
+        public FamzAnmeldungDto? Formular { get; set; }
+        public List<string>? Felder { get; set; }
+    }
+
+    /// <summary>
+    /// Im Formular ergänzte Angaben in OneCrew nachtragen — nur Felder, die in
+    /// OneCrew leer sind (Liste in <see cref="FamzRueckschreiben"/>).
+    /// </summary>
+    [HttpPost("{empId:int}/in-onecrew-speichern")]
+    public async Task<IActionResult> InOneCrewSpeichern(int empId, [FromBody] RueckschreibenDto body)
+    {
+        if (body.Formular == null) return BadRequest(new { error = "FORMULAR_FEHLT", message = "Formular fehlt." });
+        try
+        {
+            var r = await new FamzRueckschreiben(_db).SpeichernAsync(empId, body.Formular, body.Felder ?? new List<string>());
+            if (r.Fehler.Count > 0)
+                return BadRequest(new { error = "UNGUELTIG", message = "Nichts gespeichert: " + string.Join(" ", r.Fehler), fehler = r.Fehler });
+            return Ok(new { gespeichert = r.Gespeichert });
+        }
+        catch (KeyNotFoundException) { return NotFound(new { error = "EMP_NOT_FOUND" }); }
     }
 
     // ── Helfer ───────────────────────────────────────────────────────────

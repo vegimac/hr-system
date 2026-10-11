@@ -11,6 +11,23 @@ let _famzEmpId = null;
 let _famzDaten = null;        // Antwort von /prefill (formular wird beim PDF überschrieben)
 let _famzPendingEmpId = null;
 let _famzPartnerOffen = false;
+let _famzStart = {};          // Feldwerte direkt nach dem Rendern (leer = in OneCrew leer)
+
+// Felder, die «In OneCrew speichern» nachtragen kann — gleiche Liste wie
+// Services/FamzRueckschreiben.cs (nur leere OneCrew-Felder, nie überschreiben).
+const FAMZ_SPEICHERBAR = {
+    antragsteller: ['zivilstandSeit', 'ahvNummer'],
+    eltern: ['geschlecht', 'geburtsdatum', 'ahvNummer', 'zivilstand', 'angestellt', 'arbeitsortKanton', 'arbeitspensum',
+        'einkommenHoeher', 'einkommenUeberMinimum', 'seNe', 'ausgleichskasse', 'leistungBezug', 'leistungVon1'],
+    kind: ['geschlecht', 'geburtsdatum', 'beziehung'],
+};
+function famzSpeicherbar(pfad) {
+    const t = pfad.split('.');
+    if (t.length === 2 && t[0] === 'antragsteller') return FAMZ_SPEICHERBAR.antragsteller.includes(t[1]);
+    if (t.length === 2 && (t[0] === 'andererElternteil' || t[0] === 'partner')) return FAMZ_SPEICHERBAR.eltern.includes(t[1]);
+    if (t.length === 3 && t[0] === 'kinder') return FAMZ_SPEICHERBAR.kind.includes(t[2]);
+    return false;
+}
 
 const FAMZ_JN = { '': '–', ja: 'Ja', nein: 'Nein' };
 const FAMZ_ZIVIL = { '': '–', ledig: 'ledig', verheiratet: 'verheiratet', getrennt: 'getrennt', geschieden: 'geschieden',
@@ -95,6 +112,7 @@ async function famzLaden(empId, kinderIds) {
         return;
     }
     _famzPartnerOffen = !!_famzDaten.formular?.partner;
+    _famzStart = {};
     famzRender();
 }
 
@@ -252,6 +270,7 @@ function famzRender() {
 
         <div class="famz-fuss">
             <span id="famzFussInfo" class="famz-fuss-info"></span>
+            <button id="famzSpeichernBtn" class="famz-btn-sek" style="display:none;padding:8px 16px;font-size:13px" onclick="famzInOneCrewSpeichern()"></button>
             <button id="famzPdfBtn" class="famz-btn-primaer" onclick="famzPdf()">PDF-Vorschau</button>
         </div>`;
     block.style.display = '';
@@ -259,7 +278,60 @@ function famzRender() {
         block.addEventListener('input', () => famzPruefen());
         block._famzInput = true;
     }
+    // Ausgangswert nur beim ersten Erscheinen merken — ein Neu-Rendern (Ehepartner
+    // einblenden) macht schon Eingetragenes nicht zum Ausgangswert.
+    block.querySelectorAll('[data-pfad]').forEach(el => {
+        const p = el.dataset.pfad;
+        if (famzSpeicherbar(p) && !(p in _famzStart)) _famzStart[p] = (el.value || '').trim();
+    });
     famzPruefen();
+}
+
+/** Speicherbare Felder, die beim Laden leer waren und jetzt einen Wert haben. */
+function famzOffeneFelder() {
+    const f = _famzDaten?.formular || {};
+    const hatId = p => {
+        const t = p.split('.');
+        if (t[0] === 'andererElternteil' || t[0] === 'partner') return !!f[t[0]]?.familyMemberId;
+        if (t[0] === 'kinder') return !!f.kinder?.[+t[1]]?.familyMemberId;
+        return true;
+    };
+    return Object.keys(_famzStart).filter(p => _famzStart[p] === '' && (famzFeldWert(p) || '') !== '' && hatId(p));
+}
+
+async function famzInOneCrewSpeichern() {
+    const felder = famzOffeneFelder();
+    if (!_famzEmpId || felder.length === 0) return;
+    const btn = document.getElementById('famzSpeichernBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Speichere…'; }
+    const formular = famzSammeln();
+    try {
+        const res = await fetch(`/api/famz-anmeldung/${_famzEmpId}/in-onecrew-speichern`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ formular, felder }),
+        });
+        let j = {};
+        try { j = await res.json(); } catch { /* kein JSON */ }
+        if (!res.ok) { showToast(j.message || 'Speichern fehlgeschlagen', 'error'); return; }
+        const liste = j.gespeichert || [];
+        showToast(liste.length ? `In OneCrew gespeichert: ${liste.join(', ')}` : 'Nichts gespeichert — die Felder sind in OneCrew schon ausgefüllt.',
+            liste.length ? 'success' : 'info');
+        // Meldungen neu holen, Eingaben im Formular behalten.
+        const kinder = (_famzDaten.kinderAuswahl || []).filter(k => k.gewaehlt).map(k => k.id);
+        const r = await fetch(`/api/famz-anmeldung/${_famzEmpId}/prefill${kinder.length ? `?kinder=${kinder.join(',')}` : ''}`,
+            { headers: ah(), cache: 'no-store' });
+        if (r.ok) _famzDaten = { ...(await r.json()), formular };
+        else _famzDaten.formular = formular;
+        _famzStart = {};
+        famzRender();
+    } catch {
+        showToast('Speichern fehlgeschlagen', 'error');
+    } finally {
+        const b = document.getElementById('famzSpeichernBtn');
+        if (b) b.disabled = false;
+        famzPruefen();
+    }
 }
 
 /** Ehepartner-Block auf Wunsch einblenden — Eingaben oben bleiben erhalten. */
@@ -336,6 +408,14 @@ function famzPruefen() {
 
     const fuss = document.getElementById('famzFussInfo');
     if (fuss) fuss.textContent = anzahl ? `${anzahl} ${anzahl === 1 ? 'Angabe fehlt' : 'Angaben fehlen'} (rot)` : '';
+    const sp = document.getElementById('famzSpeichernBtn');
+    if (sp && !sp.disabled) {
+        const n = famzOffeneFelder().length;
+        sp.style.display = n ? '' : 'none';
+        sp.textContent = `In OneCrew speichern (${n})`;
+        sp.title = 'Trägt die hier ergänzten Angaben in OneCrew nach (nur Felder, die dort leer waren). '
+            + 'Name, Adresse, Nationalität, Bewilligung und Arbeitgeber bitte in der Familie-Maske ändern.';
+    }
 
     const d = _famzDaten;
     const fehlt = (d.fehlt || []).map(t => `<div>• ${famzEsc(t)}</div>`).join('');
