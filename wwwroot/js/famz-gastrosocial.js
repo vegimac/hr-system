@@ -27,6 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
+        var VERSION = 3;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -234,7 +235,7 @@ function famzGsKern(daten) {
             + 'background:linear-gradient(165deg,#eeece4,#dfdcd1);border:1px solid rgba(255,255,255,.7);border-radius:16px;'
             + 'box-shadow:0 18px 50px rgba(60,55,48,.28);padding:14px 16px;font:13px/1.45 -apple-system,Helvetica,Arial,sans-serif;color:#3f3f3f';
         var knopf = 'border:none;border-radius:10px;padding:7px 11px;margin:3px 4px 3px 0;cursor:pointer;font:600 12.5px -apple-system,Helvetica,Arial,sans-serif;';
-        var html = '<div style="font-weight:800;font-size:14px">OneCrew → GastroSocial</div>'
+        var html = '<div style="font-weight:800;font-size:14px">OneCrew → GastroSocial <span style="font-weight:400;font-size:11px;color:#8b8b8b">v' + VERSION + '</span></div>'
             + '<div style="color:#646464;margin:2px 0 8px">' + String(daten.titel || '').replace(/</g, '&lt;') + '</div>'
             + '<div style="font-size:12px;color:#646464;margin-bottom:4px">Welchen Schritt ausfüllen?</div><div id="ocfz-knoepfe"></div>'
             + '<div id="ocfz-ergebnis" style="margin-top:8px"></div>'
@@ -251,7 +252,12 @@ function famzGsKern(daten) {
             b.textContent = ab.titel;
             b.style.cssText = knopf + 'background:#3f3f3f;color:#fff';
             b.onclick = function () {
-                var zeilen = (ab.felder || []).map(fuelle).filter(Boolean);
+                var zeilen = (ab.felder || []).map(function (feld) {
+                    try { return fuelle(feld); } catch (e) {
+                        return { s: 'fehlt', t: (feld.anzeige || [].concat(feld.l)[0]) + ': Fehler ' + (e && e.message || e) };
+                    }
+                }).filter(Boolean);
+                if (!zeilen.length) zeilen = [{ s: 'info', t: 'Nichts zu tun — in OneCrew sind für diesen Schritt keine Werte vorhanden.' }];
                 ergebnis.innerHTML = '<div style="font-weight:700;margin-bottom:3px">' + ab.titel.replace(/</g, '&lt;') + '</div>'
                     + zeilen.map(function (z) {
                         return '<div style="color:' + farbe[z.s] + '">' + zeichen[z.s] + ' ' + z.t.replace(/</g, '&lt;') + '</div>';
