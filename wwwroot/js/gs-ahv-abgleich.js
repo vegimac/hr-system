@@ -88,11 +88,35 @@ function gsaFehler(msg) {
     el.innerHTML = `<div style="padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;font-size:13px">${esc(msg)}</div>`;
 }
 
-function gsaTile(n, label, bg, fg) {
-    return `<div style="background:${bg};border-radius:10px;padding:12px 14px;color:${fg}">
+/** liste gesetzt ⇒ Kachel ist anklickbar und zeigt die Liste darunter. */
+function gsaTile(n, label, bg, fg, liste) {
+    const klick = liste
+        ? ` class="gsa-tile" data-liste="${liste}" role="button" tabindex="0" title="Liste anzeigen"
+             onclick="gsaZeigeListe('${liste}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();gsaZeigeListe('${liste}')}"`
+        : '';
+    return `<div${klick} style="background:${bg};border-radius:10px;padding:12px 14px;color:${fg};border:2px solid transparent;${liste ? 'cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s' : ''}">
         <div style="font-size:24px;font-weight:700">${n ?? 0}</div>
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em">${label}</div>
     </div>`;
+}
+
+function gsaZeigeListe(liste) {
+    const sel = document.getElementById('gsaFilter');
+    if (sel && sel.value !== liste) {
+        sel.value = liste;
+        sel.dispatchEvent(new Event('change'));
+    } else {
+        gsaRenderRows();
+    }
+}
+
+function gsaMarkiereKachel(liste) {
+    document.querySelectorAll('#gsaSummary .gsa-tile').forEach(k => {
+        const an = k.dataset.liste === liste;
+        k.style.borderColor = an ? '#3f3f3f' : 'transparent';
+        k.style.boxShadow = an ? '0 4px 12px rgba(60,55,48,.22)' : 'none';
+        k.style.transform = an ? 'translateY(-2px)' : 'none';
+    });
 }
 
 function gsaRender(d) {
@@ -109,11 +133,11 @@ function gsaRender(d) {
             ${gsaTile(d.gemeldetBeschaeftigt, 'Bei GastroSocial beschäftigt', '#f1f5f9', '#475569')}
             ${d.gemeldetAusgetreten ? gsaTile(d.gemeldetAusgetreten, 'Bei GastroSocial ausgetreten', '#f1f5f9', '#475569') : ''}
             ${gsaTile(d.oneCrewAktiv, 'OneCrew aktiv', '#ece9e2', '#6b6152')}
-            ${aa ? gsaTile(aa, 'AHV-Austritt, aber aktiv', '#fecaca', '#7f1d1d') : ''}
-            ${gsaTile(ab, 'Abmelden', ab ? '#fee2e2' : '#f0fdf4', ab ? '#991b1b' : '#15803d')}
-            ${gsaTile(ng, 'Nicht gemeldet', ng ? '#fef3c7' : '#f0fdf4', ng ? '#92400e' : '#15803d')}
-            ${gsaTile(nz, 'Nicht zuordenbar', nz ? '#e0e7ff' : '#f0fdf4', nz ? '#3730a3' : '#15803d')}
-            ${gsaTile(ok, 'Passt', '#dcfce7', '#166534')}
+            ${aa ? gsaTile(aa, 'AHV-Austritt, aber aktiv', '#fecaca', '#7f1d1d', 'austrittObwohlAktiv') : ''}
+            ${gsaTile(ab, 'Abmelden', ab ? '#fee2e2' : '#f0fdf4', ab ? '#991b1b' : '#15803d', 'abmelden')}
+            ${gsaTile(ng, 'Nicht gemeldet', ng ? '#fef3c7' : '#f0fdf4', ng ? '#92400e' : '#15803d', 'nichtGemeldet')}
+            ${gsaTile(nz, 'Nicht zuordenbar', nz ? '#e0e7ff' : '#f0fdf4', nz ? '#3730a3' : '#15803d', 'nichtZuordenbar')}
+            ${gsaTile(ok, 'Passt', '#dcfce7', '#166534', 'gemeldet')}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px">
             <span style="font-size:12px;color:#64748b;font-weight:600">Ansicht:</span>
@@ -135,6 +159,7 @@ function gsaRender(d) {
 function gsaRenderRows() {
     if (!_gsaData) return;
     const filter = document.getElementById('gsaFilter')?.value || 'abmelden';
+    gsaMarkiereKachel(filter);
     const el = document.getElementById('gsaRows');
     if (!el) return;
     const rows = _gsaData[filter] || [];
