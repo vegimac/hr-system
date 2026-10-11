@@ -330,6 +330,9 @@ public class FamzAnmeldungPdfService
 public class FamzPersonDto
 {
     public string? NameVorname { get; set; }
+    /// <summary>Getrennt für das GastroSocial-Portal (Lesezeichen), das PDF nimmt NameVorname.</summary>
+    public string? Name { get; set; }
+    public string? Vorname { get; set; }
     public string? StrasseNr { get; set; }
     public string? PlzOrt { get; set; }
     public string? Kanton { get; set; }

@@ -165,6 +165,8 @@ public class FamzAnmeldungController : ControllerBase
             {
                 FamilyMemberId = m.Id,
                 NameVorname = Join(" ", m.LastName, m.FirstName),
+                Name = m.LastName,
+                Vorname = m.FirstName,
                 StrasseNr = zuHause ? e.Street : adr?.Street,
                 PlzOrt = zuHause ? Join(" ", e.ZipCode, e.City) : Join(" ", adr?.ZipCode, adr?.City),
                 Kanton = zuHause ? e.CantonCode : adr?.Canton,
@@ -274,6 +276,8 @@ public class FamzAnmeldungController : ControllerBase
             Antragsteller = new FamzPersonDto
             {
                 NameVorname = Join(" ", e.LastName, e.FirstName),
+                Name = e.LastName,
+                Vorname = e.FirstName,
                 StrasseNr = e.Street,
                 PlzOrt = Join(" ", e.ZipCode, e.City),
                 Kanton = e.CantonCode,

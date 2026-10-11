@@ -272,6 +272,10 @@ function famzRender() {
         <div class="famz-fuss">
             <span id="famzFussInfo" class="famz-fuss-info"></span>
             <button id="famzSpeichernBtn" class="famz-btn-sek" style="display:none;padding:8px 16px;font-size:13px" onclick="famzInOneCrewSpeichern()"></button>
+            <button type="button" class="famz-btn-sek" style="padding:8px 12px;font-size:12.5px" onclick="famzGsLesezeichenZeigen()"
+                title="Einmalig: Lesezeichen «OneCrew einfüllen» in Chrome einrichten">Lesezeichen einrichten</button>
+            <button type="button" class="famz-btn-sek" style="padding:8px 16px;font-size:13px" onclick="famzGsKopieren()"
+                title="Daten in die Zwischenablage — danach im GastroSocial-Portal das Lesezeichen klicken">Für GastroSocial kopieren</button>
             <button id="famzPdfBtn" class="famz-btn-primaer" onclick="famzPdf()">PDF-Vorschau</button>
         </div>`;
     block.style.display = '';

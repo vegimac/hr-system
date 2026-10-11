@@ -96,3 +96,16 @@ gilt das Kind als gemeinsam (H1/A0-Regel), sonst nicht. «nicht erfasst / unbeka
 
 Tests: `Tests/FamzAnmeldungTests.cs` (PDF gefüllt + flach, AHV-Kammfeld, Wohnt-bei, Sorge-Zusammenfassung,
 Vertragskette), `Tests/KindQstVerlaufTests.cs`.
+
+## GastroSocial-Portal per Lesezeichen (Walter 11.10.2026)
+
+OneCrew darf nicht in fremde Seiten schreiben (Browser-Sicherheit). Deshalb `js/famz-gastrosocial.js`:
+«Für GastroSocial kopieren» legt JSON (`onecrew: "famz-gs"`) in die Zwischenablage — inkl. der
+Zuordnung Portal-Beschriftung → Wert pro Schritt (Antrag, Ehe-/Lebenspartner, anderer Elternteil, Kind n).
+Das Lesezeichen «OneCrew einfüllen» (`famzGsEngine`, eingerichtet über «Lesezeichen einrichten»)
+ist eine reine Füll-Maschine: findet Felder über die Beschriftung (darunter/rechts daneben), füllt nur
+leere Felder, meldet Abweichungen (≠) und Nicht-Gefundenes (✗). Zuordnung anpassen = nur OneCrew deployen,
+das Lesezeichen bleibt. Neues Lesezeichen nur nötig, wenn `famzGsEngine` selbst geändert wird.
+«Felder melden» kopiert die Beschriftungen der Portal-Seite (ohne Werte) für die Zuordnung.
+Schritt 1 (Antrag) nach Screenshot gebaut; Schritte 2–4 sind Annahmen bis zur ersten Feldmeldung.
+Personensuche und «Meldeverfahren» wählt der Benutzer selbst.
