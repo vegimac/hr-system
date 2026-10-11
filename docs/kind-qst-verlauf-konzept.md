@@ -231,6 +231,15 @@ Kein Hinweis ändert selbständig eine QST-Version oder eine Zulage.
 | Nur Ausbildungszulage, keine QST-Ausbildung | zählt nicht, Hinweis mit Übernahme-Knopf |
 | Übernahme-Knopf | Abschnitt mit Zeitraum + Beleg der Zulage, erst nach Bestätigung |
 
+## Offen (Walter entscheidet)
+
+- **«Erfahren am» im Tarifvorschlag.** Seit 16.09.2026 lässt der Vorschlag ein Kind weg, solange
+  der Stichtag vor «Erfahren am» liegt («Der Lohnlauf kennt eine Änderung erst ab der Meldung»).
+  Vorschlag v2: Der Vorschlag zeigt den tatsächlichen Sachverhalt (das Kind zählt ab dem
+  Folgemonat des Ereignisses), und «Erfahren am» steuert nur die Pendenz «QST-Korrektur
+  prüfen» für bereits abgerechnete Monate. Am Lohn ändert sich dadurch nichts, weil der Lohn
+  ohnehin nur die von HR angelegte QST-Version verwendet.
+
 ## Geklärt (v1 → v2)
 
 - «Erstausbildung» ist der richtige Begriff (KS 45 Ziff. 4.7).
