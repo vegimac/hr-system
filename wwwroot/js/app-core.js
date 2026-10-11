@@ -1474,7 +1474,7 @@ function showPage(name) {
     if (name === 'dashboard') loadDashboard();
     if (name === 'todos' && typeof renderTodosPage === 'function') renderTodosPage();
     if (name === 'fibu') fibuInit();
-    if (name === 'dok-protokoll' && typeof dpInit === 'function') dpInit();
+    if (name === 'dok-protokoll' && typeof dprotInit === 'function') dprotInit();
     if (name === 'vertrags-historie' && typeof vhInit === 'function') vhInit();
     if (name === 'benutzer') loadUsers();
     if (name === 'elm-lohnraster' && typeof elrInit === 'function') elrInit();
@@ -1688,7 +1688,7 @@ function onBranchChange() {
         // Fibu-Bereich folgt der globalen Filial-Auswahl.
         if (typeof fibuInit === 'function') fibuInit();
     } else if (currentPageName === 'dok-protokoll') {
-        if (typeof dpInit === 'function') dpInit();
+        if (typeof dprotInit === 'function') dprotInit();
     } else if (currentPageName === 'kontrolle') {
         // Kontroll-Listen folgen der Sidebar-Filiale (Walter 22.07.2026).
         if (typeof kontrolleRefreshAll === 'function') kontrolleRefreshAll();

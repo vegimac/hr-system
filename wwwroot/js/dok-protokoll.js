@@ -13,16 +13,16 @@
 //     prüft zusätzlich hart über user_branch_access.
 // ══════════════════════════════════════════════════════════════════════
 
-let _dpRows = [];
+let _dprotRows = [];
 
-function dpEsc(s) {
+function dprotEsc(s) {
     if (typeof esc === 'function') return esc(s);
     return String(s ?? '').replace(/[&<>"']/g, c => (
         { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
     ));
 }
 
-function dpInit() {
+function dprotInit() {
     const today = new Date();
     const monthAgo = new Date(today.getTime() - 30 * 86400000);
     const iso = d => d.toISOString().slice(0, 10);
@@ -32,11 +32,11 @@ function dpInit() {
     if (fromEl && !fromEl.value && !nurOffice) fromEl.value = iso(monthAgo);
     if (toEl && !toEl.value && !nurOffice) toEl.value = iso(today);
 
-    dpSyncBranchLabel();
-    dpLoad();
+    dprotSyncBranchLabel();
+    dprotLoad();
 }
 
-function dpSyncBranchLabel() {
+function dprotSyncBranchLabel() {
     const lbl = document.getElementById('dpBranchLabel');
     if (!lbl) return;
     if (!fixedCompanyProfileId) {
@@ -50,7 +50,7 @@ function dpSyncBranchLabel() {
         : 'Alle Filialen';
 }
 
-function dpBuildParams() {
+function dprotBuildParams() {
     const p = new URLSearchParams();
     const from = document.getElementById('dpFrom')?.value;
     const to = document.getElementById('dpTo')?.value;
@@ -69,20 +69,20 @@ function dpBuildParams() {
 
 // «Nur Word/Excel» sucht den ganzen Altbestand — der Zeitraum (Standard:
 // letzte 30 Tage) würde die meisten verstecken, darum wird er geleert.
-function dpTypGewechselt() {
+function dprotTypGewechselt() {
     if (document.getElementById('dpTyp')?.value === 'office') {
         const f = document.getElementById('dpFrom'), t = document.getElementById('dpTo');
         if (f) f.value = '';
         if (t) t.value = '';
     }
-    dpLoad();
+    dprotLoad();
 }
 
-function dpIstOffice(name) {
+function dprotIstOffice(name) {
     return /\.(docx?|odt|rtf|xlsx?|ods|pptx?|odp)$/i.test(name || '');
 }
 
-async function dpInPdf(id) {
+async function dprotInPdf(id) {
     if (!(await liquidConfirm('Das Dokument wird in ein PDF umgewandelt und die Word-/Excel-Datei durch das PDF ersetzt. Verknüpfungen bleiben bestehen.',
             { title: 'In PDF umwandeln', yesLabel: 'Umwandeln', noLabel: 'Abbrechen' }))) return;
     try {
@@ -90,17 +90,17 @@ async function dpInPdf(id) {
         const j = await r.json().catch(() => ({}));
         if (!r.ok) { alert('Umwandlung fehlgeschlagen: ' + (j.message || j.error || 'HTTP ' + r.status)); return; }
         if (typeof showToast === 'function') showToast(`In PDF umgewandelt: «${j.filenameOriginal}»`, 'success');
-        dpLoad();
+        dprotLoad();
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
-async function dpLoad() {
-    dpSyncBranchLabel();
+async function dprotLoad() {
+    dprotSyncBranchLabel();
     const mount = document.getElementById('dpResults');
     const info = document.getElementById('dpInfo');
     if (mount) mount.innerHTML = '<div style="padding:28px;text-align:center;color:#94a3b8">Lade…</div>';
     try {
-        const r = await fetch('/api/documents/upload-protocol?' + dpBuildParams().toString(), { headers: ah() });
+        const r = await fetch('/api/documents/upload-protocol?' + dprotBuildParams().toString(), { headers: ah() });
         if (!r.ok) {
             let msg = 'HTTP ' + r.status;
             try {
@@ -109,19 +109,19 @@ async function dpLoad() {
                 else if (j?.error) msg = j.error;
                 else if (j?.title) msg = j.title + (j.detail ? ': ' + j.detail : '');
             } catch (_) {}
-            if (mount) mount.innerHTML = `<div style="padding:28px;text-align:center;color:#dc2626">${dpEsc(msg)}</div>`;
+            if (mount) mount.innerHTML = `<div style="padding:28px;text-align:center;color:#dc2626">${dprotEsc(msg)}</div>`;
             return;
         }
         const data = await r.json();
-        _dpRows = data.items || [];
-        if (info) info.textContent = `${_dpRows.length} Einträge`;
-        dpRender();
+        _dprotRows = data.items || [];
+        if (info) info.textContent = `${_dprotRows.length} Einträge`;
+        dprotRender();
     } catch (e) {
         if (mount) mount.innerHTML = `<div style="padding:28px;text-align:center;color:#dc2626">Verbindungsfehler: ${esc(e.message)}</div>`;
     }
 }
 
-function dpFmt(iso) {
+function dprotFmt(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
     if (isNaN(d)) return iso;
@@ -131,43 +131,43 @@ function dpFmt(iso) {
     });
 }
 
-function dpFmtSize(n) {
+function dprotFmtSize(n) {
     if (n == null) return '—';
     if (n < 1024) return n + ' B';
     if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
     return (n / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-function dpRender() {
+function dprotRender() {
     const mount = document.getElementById('dpResults');
     if (!mount) return;
-    if (!_dpRows.length) {
+    if (!_dprotRows.length) {
         const nurOffice = document.getElementById('dpTyp')?.value === 'office';
         mount.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8">${nurOffice ? 'Keine Word-/Excel-Dokumente gefunden.' : 'Keine Uploads im gewählten Zeitraum.'}</div>`;
         return;
     }
-    const rows = _dpRows.map(r => {
+    const rows = _dprotRows.map(r => {
         const ma = `${r.firstName || ''} ${r.lastName || ''}`.trim() || '—';
         return `<tr>
-            <td style="white-space:nowrap;color:#64748b;font-size:12.5px">${dpEsc(dpFmt(r.hochgeladenAm))}</td>
-            <td style="font-weight:600">${dpEsc(r.hochgeladenVon || '—')}</td>
+            <td style="white-space:nowrap;color:#64748b;font-size:12.5px">${dprotEsc(dprotFmt(r.hochgeladenAm))}</td>
+            <td style="font-weight:600">${dprotEsc(r.hochgeladenVon || '—')}</td>
             <td>
-                <div style="font-weight:600">${dpEsc(ma)}</div>
-                <div style="font-size:11px;color:#94a3b8">${dpEsc(r.employeeNumber || '')}</div>
+                <div style="font-weight:600">${dprotEsc(ma)}</div>
+                <div style="font-size:11px;color:#94a3b8">${dprotEsc(r.employeeNumber || '')}</div>
             </td>
-            <td><span class="badge b-code" style="font-size:10px">${dpEsc(r.branchCode || '—')}</span></td>
+            <td><span class="badge b-code" style="font-size:10px">${dprotEsc(r.branchCode || '—')}</span></td>
             <td>
-                <div style="font-size:12.5px">${dpEsc(r.kategorie || '')}</div>
-                <div style="font-size:11px;color:#64748b">${dpEsc(r.dokumentTyp || '')}</div>
+                <div style="font-size:12.5px">${dprotEsc(r.kategorie || '')}</div>
+                <div style="font-size:11px;color:#64748b">${dprotEsc(r.dokumentTyp || '')}</div>
             </td>
             <td>
-                <div style="font-size:12.5px;word-break:break-word">${dpEsc(r.filename || '')}</div>
-                <div style="font-size:11px;color:#94a3b8">${dpEsc(dpFmtSize(r.groesseBytes))}${r.bemerkung ? ' · ' + dpEsc(r.bemerkung) : ''}</div>
+                <div style="font-size:12.5px;word-break:break-word">${dprotEsc(r.filename || '')}</div>
+                <div style="font-size:11px;color:#94a3b8">${dprotEsc(dprotFmtSize(r.groesseBytes))}${r.bemerkung ? ' · ' + dprotEsc(r.bemerkung) : ''}</div>
             </td>
             <td style="text-align:right;white-space:nowrap">
                 ${typeof openDirectDoc === 'function' ? `<button class="btn btn-sm btn-outline" onclick="openDirectDoc(${r.id})" title="Dokument ansehen">Ansehen</button>` : ''}
-                ${dpIstOffice(r.filename) ? `<button class="btn btn-sm btn-outline" onclick="dpInPdf(${r.id})" title="Word/Excel durch ein PDF ersetzen">→ PDF</button>` : ''}
-                <button class="btn btn-sm btn-outline" onclick="dpOpenEmployee(${r.employeeId})" title="Mitarbeiter öffnen">MA</button>
+                ${dprotIstOffice(r.filename) ? `<button class="btn btn-sm btn-outline" onclick="dprotInPdf(${r.id})" title="Word/Excel durch ein PDF ersetzen">→ PDF</button>` : ''}
+                <button class="btn btn-sm btn-outline" onclick="dprotOpenEmployee(${r.employeeId})" title="Mitarbeiter öffnen">MA</button>
             </td>
         </tr>`;
     }).join('');
@@ -191,15 +191,15 @@ function dpRender() {
     </div>`;
 }
 
-function dpOpenEmployee(empId) {
+function dprotOpenEmployee(empId) {
     if (!empId) return;
     window.activeEmpId = empId;
     if (typeof showPage === 'function') showPage('mitarbeiter');
 }
 
-async function dpExportCsv() {
+async function dprotExportCsv() {
     try {
-        const p = dpBuildParams();
+        const p = dprotBuildParams();
         p.delete('limit');
         const r = await fetch('/api/documents/upload-protocol/export?' + p.toString(), { headers: ah() });
         if (!r.ok) {
