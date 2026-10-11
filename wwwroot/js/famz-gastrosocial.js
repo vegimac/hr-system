@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 12;
+        var VERSION = 13;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -147,6 +147,25 @@ function famzGsKern(daten) {
                 : el.tagName === 'TEXTAREA' ? fenster.HTMLTextAreaElement.prototype : fenster.HTMLInputElement.prototype;
             el.focus();
             // Wie getippt: Datumsfelder mit Eingabemaske nehmen nur echte Eingaben an.
+            // Datumsmaske «TT.MM.JJJJ»: Zeichen für Zeichen wie auf der Tastatur.
+            if (el.tagName !== 'SELECT' && /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(String(w))) {
+                try {
+                    if (el.select) el.select();
+                    el.ownerDocument.execCommand('delete');
+                    String(w).split('').forEach(function (ch) {
+                        var opt = { key: ch, bubbles: true, cancelable: true };
+                        var frei = el.dispatchEvent(new fenster.KeyboardEvent('keydown', opt));
+                        el.dispatchEvent(new fenster.KeyboardEvent('keypress', opt));
+                        if (frei) el.ownerDocument.execCommand('insertText', false, ch);
+                        el.dispatchEvent(new fenster.KeyboardEvent('keyup', opt));
+                    });
+                } catch (e) { /* unten normal eintragen */ }
+                if ((el.value || '').replace(/\D/g, '') === String(w).replace(/\D/g, '')) {
+                    el.dispatchEvent(new fenster.Event('change', { bubbles: true }));
+                    el.blur();
+                    return;
+                }
+            }
             if (el.tagName !== 'SELECT') {
                 var getippt = false;
                 try { if (el.select) el.select(); getippt = el.ownerDocument.execCommand('insertText', false, w) && !!el.value; } catch (e) { getippt = false; }
