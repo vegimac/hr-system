@@ -5603,14 +5603,15 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         return;
     }
 
-    // Anmeldung Familienzulagen (GastroSocial 0402, Walter 11.10.2026) — nur mit Kindern.
-    const famzBtn = (!isExcluded && members.some(m => m.memberType === 'Kind'))
-        ? `<button type="button" class="btn-emp-add" onclick="famzOpenForEmployee(${employeeId})" title="Formular «Anmeldung Familienzulagen» vorausgefüllt erstellen">📄 Anmeldung Familienzulagen</button>`
-        : '';
+    // Anmeldung Familienzulagen (GastroSocial 0402): Zuhause ist der HR-Hub; der Knopf
+    // neben «Kinder» ist eine Abkürzung zum Testen (Walter 11.10.2026).
+    const famzBtn = isExcluded ? '' : `<button type="button" onclick="famzOpenForEmployee(${employeeId})"
+        title="Formular «Anmeldung Familienzulagen» vorausgefüllt erstellen (wie im HR-Hub)"
+        style="margin-left:12px;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;vertical-align:middle">📄 Anmeldung Familienzulagen</button>`;
     const listHead = `
     <div class="emp-section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between;gap:12px">
         <span>${_t('famTab.listTitle','Familienmitglieder')}</span>
-        <span style="display:inline-flex;gap:8px">${famzBtn}${addBtn}</span>
+        ${addBtn}
     </div>`;
 
     // Gruppieren nach Typ
@@ -5678,7 +5679,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         const cls = famGroupCls[type] || famGroupCls.Sonstige;
         const n = groups[type].length;
         html += `<div class="fam-group ${cls}">`;
-        html += `<div class="emp-section-title fam-group-title">${sectionTitle}${n > 1 ? ` <span class="fam-group-count">${n}</span>` : ''}</div>`;
+        html += `<div class="emp-section-title fam-group-title">${sectionTitle}${n > 1 ? ` <span class="fam-group-count">${n}</span>` : ''}${type === 'Kind' ? famzBtn : ''}</div>`;
         // Walter 18.07.2026: kompakte Kachel-Raster statt vollbreiter
         // Listen + leerer Zulagen-Boxen (war unübersichtlich bei mehreren Kindern).
         html += `<div class="fam-tile-grid">`;
