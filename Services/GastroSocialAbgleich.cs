@@ -62,7 +62,16 @@ public static class GastroSocialAbgleich
         public DateTime? AustrittGeplant { get; set; }
         /// <summary>Andere Filiale mit laufendem Vertrag (Übertritt).</summary>
         public string? AktivInAndererFiliale { get; set; }
+        /// <summary>Familienmitglieder mit heute gültiger Familienzulage in OneCrew.</summary>
+        public int FzKinderAktiv { get; set; }
+        /// <summary>Kurzbeschrieb der heute gültigen Zulagen, z.B. «Lea KZ 215.00».</summary>
+        public string? FzText { get; set; }
+        /// <summary>Ende der zuletzt abgelaufenen Zulage (wenn heute keine mehr gilt).</summary>
+        public DateOnly? FzLetztesEnde { get; set; }
     }
+
+    public static bool HatFz(string? leistungen) =>
+        (leistungen ?? "").Split(';', ',', ' ').Any(x => x.Trim().Equals("FZ", StringComparison.OrdinalIgnoreCase));
 
     public class Treffer
     {
@@ -81,6 +90,8 @@ public static class GastroSocialAbgleich
         public DateTime? Austritt { get; set; }
         public string? MatchArt { get; set; } // AHV | NAME_GEB | NAME
         public string? Hinweis { get; set; }
+        /// <summary>Heute gültige Familienzulagen in OneCrew (Kurzbeschrieb), null = keine.</summary>
+        public string? OneCrewFz { get; set; }
     }
 
     public class Ergebnis
@@ -96,6 +107,8 @@ public static class GastroSocialAbgleich
         public List<Treffer> NichtGemeldet { get; set; } = new();
         public List<Treffer> NichtZuordenbar { get; set; } = new();
         public List<Treffer> Gemeldet { get; set; } = new();
+        /// <summary>Leistungen «FZ» bei GastroSocial ≠ Zulagen bei den Kindern in OneCrew (beide Richtungen).</summary>
+        public List<Treffer> FzPruefen { get; set; } = new();
     }
 
     public static Ergebnis Vergleiche(IReadOnlyList<Zeile> zeilen, IReadOnlyList<Ma> alle, DateTime heute)
@@ -169,6 +182,7 @@ public static class GastroSocialAbgleich
             t.Eintritt = hit.Eintritt;
             t.Austritt = hit.AustrittFiliale;
             t.MatchArt = art;
+            t.OneCrewFz = hit.FzKinderAktiv > 0 ? hit.FzText : null;
             var hinweise = new List<string>();
             if (art != "AHV")
                 hinweise.Add(string.IsNullOrWhiteSpace(hit.Ahv)
@@ -197,6 +211,7 @@ public static class GastroSocialAbgleich
                     res.Gemeldet.Add(t);
                     continue;
                 }
+                FzVergleich(res, z, hit, t);
                 hinweise.Insert(0, $"Bei GastroSocial Austritt{per} gemeldet, in OneCrew aktiv"
                     + (seit != null ? $" seit {seit:dd.MM.yyyy}" : "")
                     + " — Austritt bei GastroSocial rückgängig machen");
@@ -222,6 +237,7 @@ public static class GastroSocialAbgleich
             if (hit.AustrittGeplant != null) hinweise.Add($"Austritt am {hit.AustrittGeplant:dd.MM.yyyy} — danach abmelden");
             t.Hinweis = hinweise.Count > 0 ? string.Join(" · ", hinweise) : null;
             res.Gemeldet.Add(t);
+            if (!hit.OhneLohn) FzVergleich(res, z, hit, t);
         }
 
         foreach (var m in filiale.Where(m => m.AktivInFiliale && !m.OhneLohn && !gemeldeteIds.Contains(m.Id))
@@ -245,11 +261,36 @@ public static class GastroSocialAbgleich
             });
         }
 
+        res.FzPruefen = res.FzPruefen.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.AustrittObwohlAktiv = res.AustrittObwohlAktiv.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.Abmelden = res.Abmelden.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.NichtZuordenbar = res.NichtZuordenbar.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.Gemeldet = res.Gemeldet.OrderBy(t => t.OneCrewName, StringComparer.OrdinalIgnoreCase).ToList();
         return res;
+    }
+
+    /// <summary>
+    /// GastroSocial «FZ» (bezieht Familienzulagen) gegen heute gültige Zulagen bei den Kindern in OneCrew.
+    /// Nur für MA, die in dieser Filiale aktiv sind.
+    /// </summary>
+    private static void FzVergleich(Ergebnis res, Zeile z, Ma hit, Treffer basis)
+    {
+        var gsFz = HatFz(z.Leistungen);
+        var ocFz = hit.FzKinderAktiv > 0;
+        if (gsFz == ocFz) return;
+        var hinweis = gsFz
+            ? "GastroSocial zahlt FZ, in OneCrew ist bei keinem Kind eine laufende Zulage erfasst"
+              + (hit.FzLetztesEnde != null ? $" (letzte Zulage bis {hit.FzLetztesEnde:dd.MM.yyyy})" : "")
+              + " — Zulage beim Kind erfassen"
+            : $"In OneCrew Zulage erfasst ({hit.FzText}), bei GastroSocial keine FZ — Antrag fehlt oder anderer Elternteil bezieht sie";
+        res.FzPruefen.Add(new Treffer
+        {
+            Zeile = basis.Zeile, Name = basis.Name, Ahv = basis.Ahv, Geburtsdatum = basis.Geburtsdatum,
+            Leistungen = basis.Leistungen, Status = basis.Status, Statusaenderung = basis.Statusaenderung,
+            EmployeeId = basis.EmployeeId, OneCrewName = basis.OneCrewName, Personalnummer = basis.Personalnummer,
+            OneCrewAhv = basis.OneCrewAhv, Eintritt = basis.Eintritt, Austritt = basis.Austritt,
+            MatchArt = basis.MatchArt, OneCrewFz = basis.OneCrewFz, Hinweis = hinweis,
+        });
     }
 
     // ─────────────────────────── Excel lesen ───────────────────────────

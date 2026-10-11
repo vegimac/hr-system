@@ -148,6 +148,46 @@ public class GastroSocialAbgleichTests
     }
 
     [Fact]
+    public void FZ_bei_GastroSocial_ohne_Zulage_in_OneCrew_wird_gemeldet()
+    {
+        var ma = Oc(1, "Anna", "Muster", "756.1234.5678.97");
+        ma.FzLetztesEnde = new DateOnly(2026, 7, 31);
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Gs("Anna", "Muster", "756.1234.5678.97", lst: "FZ;EE") },
+            new[] { ma }, Heute);
+        var t = Assert.Single(r.FzPruefen);
+        Assert.Contains("keinem Kind", t.Hinweis);
+        Assert.Contains("31.07.2026", t.Hinweis);
+        Assert.Single(r.Gemeldet);
+    }
+
+    [Fact]
+    public void Zulage_in_OneCrew_ohne_FZ_bei_GastroSocial_wird_gemeldet()
+    {
+        var ma = Oc(1, "Anna", "Muster", "756.1234.5678.97");
+        ma.FzKinderAktiv = 1;
+        ma.FzText = "Lea KZ 215.00";
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Gs("Anna", "Muster", "756.1234.5678.97") },
+            new[] { ma }, Heute);
+        var t = Assert.Single(r.FzPruefen);
+        Assert.Contains("Lea KZ 215.00", t.Hinweis);
+        Assert.Equal("Lea KZ 215.00", r.Gemeldet[0].OneCrewFz);
+    }
+
+    [Fact]
+    public void FZ_auf_beiden_Seiten_passt()
+    {
+        var ma = Oc(1, "Anna", "Muster", "756.1234.5678.97");
+        ma.FzKinderAktiv = 2;
+        ma.FzText = "Lea KZ, Tim AZ";
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Gs("Anna", "Muster", "756.1234.5678.97", lst: "FZ") },
+            new[] { ma }, Heute);
+        Assert.Empty(r.FzPruefen);
+    }
+
+    [Fact]
     public void Ausgetreten_und_auch_in_OneCrew_weg_passt_still()
     {
         var r = GastroSocialAbgleich.Vergleiche(

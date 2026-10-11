@@ -262,7 +262,7 @@ function macRowCard(r) {
 }
 
 function macOpenEmployee(id) {
-    if (typeof window.activeEmpId !== 'undefined') window.activeEmpId = id;
-    if (typeof selectedEmployeeId !== 'undefined') selectedEmployeeId = id;
+    if (typeof dashOpenEmployee === 'function') { dashOpenEmployee(id); return; }
+    window.activeEmpId = id;
     showPage('mitarbeiter');
 }

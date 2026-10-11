@@ -123,6 +123,7 @@ function gsaRender(d) {
     const aa = (d.austrittObwohlAktiv || []).length;
     const ab = (d.abmelden || []).length, ng = (d.nichtGemeldet || []).length;
     const nz = (d.nichtZuordenbar || []).length, ok = (d.gemeldet || []).length;
+    const fz = (d.fzPruefen || []).length;
     const warnung = aa
         ? `<div style="margin-bottom:12px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;font-size:13px">
               ⚠ <b>${aa} MA</b> ${aa === 1 ? 'ist' : 'sind'} bei GastroSocial ausgetreten, in OneCrew aber aktiv — Austritt bei GastroSocial prüfen und rückgängig machen.
@@ -137,6 +138,7 @@ function gsaRender(d) {
             ${gsaTile(ab, 'Abmelden', ab ? '#fee2e2' : '#f0fdf4', ab ? '#991b1b' : '#15803d', 'abmelden')}
             ${gsaTile(ng, 'Nicht gemeldet', ng ? '#fef3c7' : '#f0fdf4', ng ? '#92400e' : '#15803d', 'nichtGemeldet')}
             ${gsaTile(nz, 'Nicht zuordenbar', nz ? '#e0e7ff' : '#f0fdf4', nz ? '#3730a3' : '#15803d', 'nichtZuordenbar')}
+            ${gsaTile(fz, 'FZ prüfen', fz ? '#fce7f3' : '#f0fdf4', fz ? '#9d174d' : '#15803d', 'fzPruefen')}
             ${gsaTile(ok, 'Passt', '#dcfce7', '#166534', 'gemeldet')}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px">
@@ -146,6 +148,7 @@ function gsaRender(d) {
                 <option value="abmelden">Abmelden — bei GastroSocial gemeldet, bei uns ausgetreten (${ab})</option>
                 <option value="nichtGemeldet">Nicht gemeldet — bei uns aktiv, fehlt bei GastroSocial (${ng})</option>
                 <option value="nichtZuordenbar">Nicht zuordenbar — in OneCrew nicht gefunden (${nz})</option>
+                <option value="fzPruefen">FZ prüfen — Familienzulagen GastroSocial ≠ Zulagen bei den Kindern (${fz})</option>
                 <option value="gemeldet">Passt (${ok})</option>
             </select>
             ${d.ohneLohn ? `<span style="font-size:12px;color:#64748b">${d.ohneLohn} MA ohne Lohn (Phantom) nicht verlangt</span>` : ''}
@@ -169,6 +172,7 @@ function gsaRenderRows() {
             abmelden: '✓ Niemand mehr abzumelden.',
             nichtGemeldet: '✓ Alle aktiven MA mit Lohn sind bei GastroSocial gemeldet.',
             nichtZuordenbar: '✓ Alle Zeilen der Liste sind einem MA zugeordnet.',
+            fzPruefen: '✓ Familienzulagen stimmen: wer bei GastroSocial FZ hat, hat in OneCrew eine Zulage beim Kind — und umgekehrt.',
             gemeldet: 'Keine Einträge.'
         }[filter];
         el.innerHTML = `<div style="padding:28px;text-align:center;color:#15803d;font-size:13.5px">${leer}</div>`;
@@ -179,6 +183,7 @@ function gsaRenderRows() {
         abmelden: 'Bei GastroSocial austreten lassen (Austritt melden).',
         nichtGemeldet: 'Bei GastroSocial anmelden (Eintritt melden).',
         nichtZuordenbar: 'Prüfen: arbeitet die Person noch bei uns? Sonst abmelden; sonst AHV-Nummer in OneCrew nachtragen.',
+        fzPruefen: 'Vergleich «Leistungen FZ» bei GastroSocial mit den heute gültigen Zulagen bei den Kindern in OneCrew (MA → Familie). Fehlt die Zulage in OneCrew, wird sie im Lohn nicht ausbezahlt.',
         gemeldet: ''
     }[filter];
     const th = t => `<th style="padding:8px 10px;text-align:left">${t}</th>`;
@@ -187,7 +192,7 @@ function gsaRenderRows() {
         ${aufgabe ? `<div style="font-size:12.5px;color:#475569;margin:0 0 8px">${esc(aufgabe)}</div>` : ''}
         <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:rgba(255,255,255,.55);border-radius:12px;overflow:hidden">
             <thead><tr style="background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase">
-                ${th('Name')}${th('AHV-Nummer')}${th('Geb.-Datum')}${th('Leistungen')}${th('GastroSocial')}${th('Eintritt')}${th('Austritt')}${th('OneCrew')}${th('Hinweis')}
+                ${th('Name')}${th('AHV-Nummer')}${th('Geb.-Datum')}${th('Leistungen GS')}${th('Zulagen OneCrew')}${th('GastroSocial')}${th('Eintritt')}${th('Austritt')}${th('OneCrew')}${th('Hinweis')}
             </tr></thead>
             <tbody>${rows.map(z => {
                 const fz = (z.leistungen || '').toUpperCase().includes('FZ');
@@ -204,6 +209,7 @@ function gsaRenderRows() {
                     ${td(esc(z.ahv || z.oneCrewAhv || '—'), 'font-family:monospace;white-space:nowrap')}
                     ${td(gsaDate(z.geburtsdatum))}
                     ${td(z.leistungen ? `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${fz ? '#fee2e2' : '#f1f5f9'};color:${fz ? '#991b1b' : '#475569'};font-weight:600">${esc(z.leistungen)}</span>` : '—')}
+                    ${td(z.oneCrewFz ? esc(z.oneCrewFz) : (z.employeeId ? '<span style="color:#94a3b8">keine</span>' : '—'), 'font-size:12px')}
                     ${td(gs, 'white-space:nowrap')}
                     ${td(gsaDate(z.eintritt))}
                     ${td(gsaDate(z.austritt))}
@@ -223,7 +229,8 @@ function gsaDate(iso) {
 }
 
 function gsaOpenEmployee(id) {
-    if (typeof window.activeEmpId !== 'undefined') window.activeEmpId = id;
-    if (typeof selectedEmployeeId !== 'undefined') selectedEmployeeId = id;
+    const tab = document.getElementById('gsaFilter')?.value === 'fzPruefen' ? 'familie' : null;
+    if (typeof dashOpenEmployee === 'function') { dashOpenEmployee(id, tab); return; }
+    window.activeEmpId = id;
     showPage('mitarbeiter');
 }

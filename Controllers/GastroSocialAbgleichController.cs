@@ -68,6 +68,14 @@ public class GastroSocialAbgleichController : ControllerBase
             })
             .ToListAsync(ct);
 
+        var heuteD = DateOnly.FromDateTime(heute);
+        var zulagen = (await (
+                from a in _db.FamilyMemberAllowances.AsNoTracking()
+                join f in _db.EmployeeFamilyMembers.AsNoTracking() on a.FamilyMemberId equals f.Id
+                select new { f.EmployeeId, a.FamilyMemberId, f.FirstName, a.AllowanceType, a.MonthlyAmount, a.ValidFrom, a.ValidTo })
+            .ToListAsync(ct))
+            .ToLookup(x => x.EmployeeId);
+
         var alle = emps.Select(e =>
         {
             var hier = e.Vertraege.Where(v => v.CompanyProfileId == companyProfileId).ToList();
@@ -93,8 +101,15 @@ public class GastroSocialAbgleichController : ControllerBase
                 if (vor == null) break;
                 kette = vor;
             }
+            var fz = zulagen[e.Id].ToList();
+            var fzHeute = fz.Where(a => a.ValidFrom <= heuteD && (a.ValidTo == null || a.ValidTo >= heuteD)).ToList();
+            var fzText = string.Join(", ", fzHeute.OrderBy(a => a.FirstName)
+                .Select(a => $"{a.FirstName} {a.AllowanceType ?? "Zulage"}{(a.MonthlyAmount > 0 ? $" {a.MonthlyAmount:0.00}" : "")}".Trim()));
             return new GastroSocialAbgleich.Ma
             {
+                FzKinderAktiv = fzHeute.Select(a => a.FamilyMemberId).Distinct().Count(),
+                FzText = fzText.Length > 0 ? fzText : null,
+                FzLetztesEnde = fzHeute.Count == 0 ? fz.Where(a => a.ValidTo != null).Max(a => a.ValidTo) : null,
                 Id = e.Id,
                 Nummer = e.EmployeeNumber,
                 Vorname = e.FirstName,
