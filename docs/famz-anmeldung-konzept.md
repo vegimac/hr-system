@@ -119,3 +119,9 @@ verliert dabei programmatisch gesetzte Werte. Das Fenster zeigt deshalb pro Schr
 Portal-Reihenfolge mit 📋 (Wert kopieren, im Portal ⌘V); Auswahlfelder stehen als «anklicken» /
 «nicht ankreuzen». «Einfüllen» bleibt als Zusatz (drei Durchgänge: füllen, verlorene Werte
 nachtragen, prüfen) und setzt pro Zeile ✓ / = / ≠ / ✗.
+
+**Stand / Abschluss (Walter 11.10.2026: «reicht so, nicht weiter bauen»):** Kern v13 — zuerst Klicks
+(Auswahlknöpfe/Listen), dann Texte; Datumsfelder Ziffer für Ziffer; gezeichnete Ja/Nein-Knöpfe über
+den sichtbaren Text; später erscheinende Fragen im 2. Durchgang. Bekannte Grenze: Nach der PLZ öffnet
+das Portal «Auswahl Ortschaft» und baut die Seite neu auf — Ortschaft von Hand wählen, dann nochmals
+«Einfüllen» (leere Felder werden nachgefüllt). Eine Automatik dafür wurde bewusst nicht gebaut.

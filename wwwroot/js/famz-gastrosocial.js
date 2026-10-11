@@ -612,7 +612,8 @@ function famzGsDaten() {
 
     const abschnitte = [{
         titel: '1 · Antrag',
-        hinweis: 'Person in der Suche oben aus der Trefferliste wählen.',
+        hinweis: 'Person in der Suche oben aus der Trefferliste wählen und warten, bis das Portal geladen hat. '
+            + 'Erscheint «Auswahl Ortschaft»: Ort anklicken, «Ort übernehmen», dann nochmals «Einfüllen».',
         felder: [
             { l: ['Name, Geburtsdatum, AHV-Nummer'], w: a.ahvNummer, anzeige: 'Suche (AHV-Nummer)', hinweis: 'Person aus der Trefferliste wählen' },
             { l: ['Personalnummer des Bezügers'], w: ma.employeeNumber, anzeige: 'Personalnummer' },
