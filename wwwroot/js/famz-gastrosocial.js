@@ -3,16 +3,12 @@
 //
 // Der Browser lässt OneCrew nicht in eine fremde Seite schreiben. Deshalb:
 //   1. OneCrew legt die Formulardaten als JSON in die Zwischenablage
-//      («Für GastroSocial kopieren»). Darin steht auch, welche Beschriftung
-//      im Portal zu welchem Wert gehört — Anpassungen an der Zuordnung
-//      brauchen also nur ein OneCrew-Deploy, kein neues Lesezeichen.
-//   2. Das Lesezeichen «OneCrew einfüllen» (famzGsEngine) läuft im Portal,
-//      liest die Zwischenablage und füllt die Felder des gerade offenen
-//      Schritts. Felder werden über ihre Beschriftung gefunden (Lage: direkt
-//      darunter oder rechts daneben). Ausgefüllte Portal-Felder werden nie
-//      überschrieben, Abweichungen nur gemeldet.
-//   3. «Felder melden» kopiert die Beschriftungen der aktuellen Portal-Seite
-//      (ohne Werte) — damit wird die Zuordnung für weitere Schritte ergänzt.
+//      («Für GastroSocial kopieren»), inkl. Anzeige-Kern («kern»).
+//   2. Das Lesezeichen «OneCrew einfüllen» (famzGsLader) läuft im Portal, liest die
+//      Zwischenablage und zeigt ein Fenster mit allen Werten pro Schritt in
+//      Portal-Reihenfolge — 📋 kopiert einen Wert, im Portal mit ⌘V einfügen.
+//   Bewusst KEIN automatisches Einfüllen mehr (Walter 11.10.2026): das Portal baut
+//   die Seite nach PLZ, Personensuche usw. neu auf und verwirft gesetzte Werte.
 
 const FAMZ_GS_KANTONE = {
     AG: 'Aargau', AI: 'Appenzell Innerrhoden', AR: 'Appenzell Ausserrhoden', BE: 'Bern', BL: 'Basel-Landschaft',
@@ -27,316 +23,8 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 13;
+        var VERSION = 14;
         var ID = 'onecrew-famz-panel';
-        var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
-        // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
-        var dokumente = function () {
-            var liste = [document], i = 0;
-            while (i < liste.length) {
-                Array.prototype.forEach.call(liste[i].querySelectorAll('iframe,frame'), function (f) {
-                    try { if (f.contentDocument && liste.indexOf(f.contentDocument) < 0) liste.push(f.contentDocument); } catch (e) { /* fremde Herkunft */ }
-                });
-                i++;
-            }
-            return liste;
-        };
-        var alle = function (sel) {
-            var out = [];
-            dokumente().forEach(function (d) { out = out.concat(Array.prototype.slice.call(d.querySelectorAll(sel))); });
-            return out;
-        };
-        var sichtbar = function (el) {
-            var r = el.getBoundingClientRect();
-            return r.width > 0 && r.height > 0 && el.ownerDocument.defaultView.getComputedStyle(el).visibility !== 'hidden';
-        };
-        var imPanel = function (el) { return !!(el.closest && el.closest('#' + ID)); };
-        // Auswahlknöpfe sind im Portal oft nur aufgemalt; das echte Feld ist unsichtbar.
-        // Dann zählt die Lage des gemalten Kreises bzw. der Beschriftung.
-        var ersatz = function (c) {
-            if (!/^(radio|checkbox)$/.test(c.type)) return null;
-            var kandidaten = [];
-            if (c.labels && c.labels.length) kandidaten.push(c.labels[0]);
-            if (c.nextElementSibling) kandidaten.push(c.nextElementSibling);
-            if (c.closest('label')) kandidaten.push(c.closest('label'));
-            if (c.parentElement) kandidaten.push(c.parentElement);
-            return kandidaten.filter(function (k) {
-                var r = k.getBoundingClientRect();
-                return sichtbar(k) && r.height < 40 && r.width < 400;
-            })[0] || null;
-        };
-        var flaeche = function (c) { return (sichtbar(c) ? c : ersatz(c) || c).getBoundingClientRect(); };
-        var steuerelemente = function () {
-            return alle('input,select,textarea').filter(function (el) {
-                return !/^(hidden|button|submit|reset|image|file)$/i.test(el.type) && (sichtbar(el) || ersatz(el)) && !imPanel(el);
-            });
-        };
-        var eigenerText = function (el) {
-            var t = '';
-            el.childNodes.forEach(function (n) { if (n.nodeType === 3) t += n.textContent; });
-            return norm(t);
-        };
-        var beschriftungen = function () {
-            return alle('label,span,div,td,th,p,legend,b,strong,h1,h2,h3,h4').filter(function (el) {
-                if (imPanel(el) || !sichtbar(el)) return false;
-                var t = eigenerText(el);
-                return t.length > 0 && t.length < 90;
-            });
-        };
-        // Lage-Abstand Beschriftung → Feld: darunter (linksbündig) oder rechts daneben.
-        var abstand = function (lab, c) {
-            if (lab.ownerDocument !== c.ownerDocument) return null;
-            var r = lab.getBoundingClientRect(), q = flaeche(c);
-            if (lab.contains(c)) return 1;
-            var unten = q.top - r.bottom;
-            if (unten >= -6 && unten < 48 && Math.abs(q.left - r.left) < 45) return unten + Math.abs(q.left - r.left);
-            var mitte = Math.abs((q.top + q.bottom) / 2 - (r.top + r.bottom) / 2);
-            var rechts = q.left - r.right;
-            if (mitte < 14 && rechts > -6 && rechts < 320) return 60 + rechts;
-            return null;
-        };
-        var radioText = function (c) {
-            if (c.labels && c.labels.length && norm(c.labels[0].textContent)) return norm(c.labels[0].textContent);
-            var n = c.nextSibling;
-            while (n && !n.textContent.trim()) n = n.nextSibling;
-            if (n) return norm(n.textContent);
-            if (c.closest('label') && norm(c.closest('label').textContent)) return norm(c.closest('label').textContent);
-            return norm(c.parentElement ? c.parentElement.textContent : '');
-        };
-        // Zweites Feld derselben Zeile (z.B. «Arbeitskanton/-Land»: Land | Kanton).
-        var rechtsDaneben = function (c) {
-            var r = flaeche(c), best = null, bestA = 1e9;
-            steuerelemente().forEach(function (x) {
-                if (x === c || x.ownerDocument !== c.ownerDocument) return;
-                var q = flaeche(x), d = q.left - r.right;
-                if (Math.abs((q.top + q.bottom) / 2 - (r.top + r.bottom) / 2) < 14 && d > -6 && d < 200 && d < bestA) { bestA = d; best = x; }
-            });
-            return best;
-        };
-        var findeFeld = function (labels, nr) {
-            var kandidaten = beschriftungen();
-            for (var i = 0; i < labels.length; i++) {
-                var muster = norm(labels[i]);
-                var treffer = kandidaten.filter(function (el) { return eigenerText(el) === muster; });
-                if (!treffer.length) treffer = kandidaten.filter(function (el) { return eigenerText(el).indexOf(muster) === 0; });
-                var lab = treffer[nr || 0];
-                if (!lab) continue;
-                if (lab.htmlFor) {
-                    var f = lab.ownerDocument.getElementById(lab.htmlFor);
-                    if (f && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName) && f.type !== 'radio') return { lab: lab, el: f };
-                }
-                var best = null, bestA = 1e9;
-                steuerelemente().forEach(function (c) {
-                    var a = abstand(lab, c);
-                    if (a != null && a < bestA) { bestA = a; best = c; }
-                });
-                if (!best) return { lab: lab, el: null };
-                if (best.type === 'radio') {
-                    var gruppe = steuerelemente().filter(function (c) {
-                        return c.type === 'radio' && (best.name ? c.name === best.name : abstand(lab, c) != null);
-                    });
-                    return { lab: lab, el: best, radios: gruppe };
-                }
-                return { lab: lab, el: best };
-            }
-            return null;
-        };
-        var setzeWert = function (el, w) {
-            var fenster = el.ownerDocument.defaultView;
-            var proto = el.tagName === 'SELECT' ? fenster.HTMLSelectElement.prototype
-                : el.tagName === 'TEXTAREA' ? fenster.HTMLTextAreaElement.prototype : fenster.HTMLInputElement.prototype;
-            el.focus();
-            // Wie getippt: Datumsfelder mit Eingabemaske nehmen nur echte Eingaben an.
-            // Datumsmaske «TT.MM.JJJJ»: Zeichen für Zeichen wie auf der Tastatur.
-            if (el.tagName !== 'SELECT' && /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(String(w))) {
-                try {
-                    if (el.select) el.select();
-                    el.ownerDocument.execCommand('delete');
-                    String(w).split('').forEach(function (ch) {
-                        var opt = { key: ch, bubbles: true, cancelable: true };
-                        var frei = el.dispatchEvent(new fenster.KeyboardEvent('keydown', opt));
-                        el.dispatchEvent(new fenster.KeyboardEvent('keypress', opt));
-                        if (frei) el.ownerDocument.execCommand('insertText', false, ch);
-                        el.dispatchEvent(new fenster.KeyboardEvent('keyup', opt));
-                    });
-                } catch (e) { /* unten normal eintragen */ }
-                if ((el.value || '').replace(/\D/g, '') === String(w).replace(/\D/g, '')) {
-                    el.dispatchEvent(new fenster.Event('change', { bubbles: true }));
-                    el.blur();
-                    return;
-                }
-            }
-            if (el.tagName !== 'SELECT') {
-                var getippt = false;
-                try { if (el.select) el.select(); getippt = el.ownerDocument.execCommand('insertText', false, w) && !!el.value; } catch (e) { getippt = false; }
-                if (getippt) {
-                    el.dispatchEvent(new fenster.Event('change', { bubbles: true }));
-                    el.blur();
-                    return;
-                }
-            }
-            Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, w);
-            ['input', 'change', 'keyup'].forEach(function (t) { el.dispatchEvent(new fenster.Event(t, { bubbles: true })); });
-            el.blur();
-        };
-        // Auswahl, deren Beschriftung die Option selbst ist («Familie im gleichen Haushalt
-        // lebend», «Es existieren weitere …»): Knopf links daneben oder in der Beschriftung.
-        var findeOption = function (labels) {
-            var kandidaten = beschriftungen();
-            for (var i = 0; i < labels.length; i++) {
-                var muster = norm(labels[i]);
-                var lab = kandidaten.filter(function (el) { return eigenerText(el) === muster; })[0]
-                    || kandidaten.filter(function (el) { return eigenerText(el).indexOf(muster) === 0; })[0];
-                if (!lab) continue;
-                if (lab.htmlFor) {
-                    var f = lab.ownerDocument.getElementById(lab.htmlFor);
-                    if (f && /^(radio|checkbox)$/.test(f.type)) return f;
-                }
-                var r = lab.getBoundingClientRect(), best = null, bestA = 1e9;
-                steuerelemente().forEach(function (c) {
-                    if (!/^(radio|checkbox)$/.test(c.type)) return;
-                    var q = flaeche(c), a = null;
-                    if (lab.contains(c) || (lab.parentElement && lab.parentElement.contains(c) && Math.abs(q.top - r.top) < 14 && q.left <= r.left)) a = 0;
-                    else if (Math.abs((q.top + q.bottom) / 2 - (r.top + r.bottom) / 2) < 14 && r.left - q.right > -6 && r.left - q.right < 45) a = r.left - q.right;
-                    if (a != null && a < bestA) { bestA = a; best = c; }
-                });
-                return best || 'ohne';
-            }
-            return null;
-        };
-        // Wie ein Mausklick: manche Portal-Knöpfe reagieren nur auf die ganze Ereignisfolge.
-        var drueck = function (el) {
-            var fenster = el.ownerDocument.defaultView;
-            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function (t) {
-                var E = /^pointer/.test(t) && fenster.PointerEvent ? fenster.PointerEvent : fenster.MouseEvent;
-                el.dispatchEvent(new E(t, { bubbles: true, cancelable: true, view: fenster }));
-            });
-        };
-        var klickAuf = function (c) {
-            if (!sichtbar(c)) {
-                var z = [c.labels && c.labels[0], c.nextElementSibling, c.closest('label')].filter(function (k) {
-                    return k && sichtbar(k) && k.getBoundingClientRect().width < 400;
-                })[0];
-                if (z) drueck(z);
-            }
-            if (!c.checked) c.click();
-        };
-        // Ja/Nein ohne echtes Auswahlfeld (vom Portal gezeichnet): sichtbaren Text unter der Frage anklicken.
-        var nurText = function (t) { return norm(t).replace(/[^a-z0-9äöüàâéèêîôûç ]/g, '').trim(); };
-        var textKnopf = function (lab, werte) {
-            var r = lab.getBoundingClientRect(), best = null, bestA = 1e9;
-            Array.prototype.forEach.call(lab.ownerDocument.querySelectorAll('label,span,div,button,a,[role=radio]'), function (el) {
-                if (imPanel(el) || !sichtbar(el) || el.contains(lab)) return;
-                var t = nurText(eigenerText(el) || (el.children.length <= 2 ? el.textContent : ''));
-                if (!werte.some(function (w) { return t === nurText(w); })) return;
-                var q = el.getBoundingClientRect(), unten = q.top - r.bottom;
-                var mitte = Math.abs((q.top + q.bottom) / 2 - (r.top + r.bottom) / 2);
-                var a = unten >= -6 && unten < 60 && q.left > r.left - 45 && q.left < r.left + 400 ? unten + (q.left - r.left) / 10
-                    : mitte < 14 && q.left > r.right - 6 && q.left < r.right + 320 ? 60 + q.left - r.right : null;
-                if (a != null && a < bestA) { bestA = a; best = el; }
-            });
-            if (!best) return null;
-            var kreis = best.closest('[role=radio]') || best;
-            return { el: best, an: kreis.getAttribute('aria-checked') === 'true' || /\b(checked|selected|active)\b/.test(String(kreis.className)) };
-        };
-        // Kontrollgang: nichts mehr setzen, nur melden, was das Portal wieder gelöscht hat.
-        var nurPruefen = false;
-        var verloren = function (name) { return { s: 'fehlt', t: name + ': Portal hat den Wert wieder gelöscht — bitte von Hand eintragen' }; };
-        var waehle = function (feld, name) {
-            var soll = [].concat(feld.w)[0];
-            var an = soll === true || /^(ja|x|true)$/i.test(String(soll));
-            var c = findeOption([].concat(feld.l));
-            if (!c) return { s: 'fehlt', t: name + ': Beschriftung nicht gefunden' };
-            if (c === 'ohne') return { s: 'fehlt', t: name + ': kein Auswahlknopf gefunden' };
-            if (c.disabled) return { s: 'info', t: name + ': im Portal gesperrt' };
-            if (c.checked === an) return { s: 'gleich', t: name + ': schon ' + (an ? 'gewählt' : 'leer') };
-            if (c.type === 'radio') {
-                var schon = c.name ? steuerelemente().filter(function (x) { return x.type === 'radio' && x.name === c.name && x.checked; })[0] : null;
-                if (schon) return { s: 'anders', t: name + ': im Portal ist schon etwas anderes gewählt' };
-                if (!an) return { s: 'gleich', t: name + ': nicht gewählt' };
-                if (nurPruefen) return verloren(name);
-                klickAuf(c);
-                return { s: 'ok', t: name + ': gewählt' };
-            }
-            if (c.checked && !an) return { s: 'anders', t: name + ': Portal angekreuzt — OneCrew nein' };
-            if (nurPruefen) return verloren(name);
-            klickAuf(c);
-            return { s: 'ok', t: name + ': angekreuzt' };
-        };
-        var fuelle = function (feld) {
-            var werte = [].concat(feld.w).filter(function (x) { return x != null && String(x).trim() !== ''; });
-            var name = feld.anzeige || [].concat(feld.l)[0];
-            if (!werte.length) return null;
-            if (feld.art === 'option') return waehle(feld, name);
-            var f = findeFeld([].concat(feld.l), feld.nr);
-            if (!f) return { s: 'fehlt', t: name + ': Beschriftung nicht gefunden' };
-            var el = f.el;
-            if (feld.rechts && el) { el = rechtsDaneben(el); f = { lab: f.lab, el: el }; }
-            if (!f.radios && (feld.wahl || /^(ja|nein|männlich|weiblich)$/i.test(String(werte[0])))) {
-                var tk = textKnopf(f.lab, werte);
-                if (tk) {
-                    if (tk.an) return { s: 'gleich', t: name + ': schon ' + werte[0] };
-                    if (nurPruefen) return { s: 'info', t: name + ': ' + werte[0] + ' angeklickt — bitte kurz prüfen' };
-                    drueck(tk.el);
-                    return { s: 'info', klick: true, t: name + ': ' + werte[0] + ' angeklickt — bitte kurz prüfen' };
-                }
-            }
-            if (!el) return { s: 'fehlt', t: name + ': kein Eingabefeld gefunden' };
-            if (el.disabled || el.readOnly) return { s: 'info', t: name + ': im Portal gesperrt' };
-            if (f.radios) {
-                var r = f.radios.filter(function (c) { return werte.some(function (w) { return nurText(radioText(c)) === nurText(w); }); })[0];
-                if (!r) return { s: 'fehlt', t: name + ': Auswahl «' + werte[0] + '» nicht gefunden' };
-                var schon = f.radios.filter(function (c) { return c.checked; })[0];
-                if (schon && schon !== r) return { s: 'anders', t: name + ': Portal «' + radioText(schon) + '» — OneCrew «' + werte[0] + '»' };
-                if (r.checked) return { s: 'gleich', t: name + ': schon ' + werte[0] };
-                if (nurPruefen) return verloren(name);
-                klickAuf(r);
-                return { s: 'ok', t: name + ': ' + werte[0] };
-            }
-            if (el.tagName === 'SELECT') {
-                var opts = Array.prototype.slice.call(el.options);
-                var passt = function (o) { return werte.some(function (w) { return norm(o.text) === norm(w) || norm(o.value) === norm(w); }); };
-                var o = opts.filter(passt)[0] || opts.filter(function (o) {
-                    return werte.some(function (w) { return norm(w).length > 2 && norm(o.text).indexOf(norm(w)) === 0; });
-                })[0];
-                if (!o) return { s: 'fehlt', t: name + ': Eintrag «' + werte[0] + '» nicht in der Liste' };
-                var akt = el.options[el.selectedIndex];
-                var leer = !akt || el.selectedIndex <= 0 && /^(-|–|)$|unbekannt|bitte/i.test(akt.text.trim());
-                if (akt === o) return { s: 'gleich', t: name + ': schon ' + o.text };
-                if (!leer) return { s: 'anders', t: name + ': Portal «' + akt.text + '» — OneCrew «' + o.text + '»' };
-                if (nurPruefen) return verloren(name);
-                setzeWert(el, o.value);
-                return { s: 'ok', t: name + ': ' + o.text };
-            }
-            var w0 = String(werte[0]);
-            var ist = (el.value || '').trim();
-            if (ist && norm(ist) === norm(w0)) return { s: 'gleich', t: name + ': schon ' + ist };
-            if (ist) return { s: 'anders', t: name + ': Portal «' + ist + '» — OneCrew «' + w0 + '»' };
-            if (nurPruefen) return verloren(name);
-            setzeWert(el, w0);
-            if (feld.hinweis) return { s: 'info', t: name + ': ' + w0 + ' — ' + feld.hinweis };
-            if (norm(el.value) !== norm(w0)) return { s: 'anders', t: name + ': eingetragen, Portal zeigt «' + el.value + '» — bitte prüfen' };
-            return { s: 'ok', t: name + ': ' + w0 };
-        };
-        var melden = function () {
-            var zeilen = [];
-            steuerelemente().forEach(function (c) {
-                var best = null, bestA = 1e9;
-                beschriftungen().forEach(function (lab) {
-                    if (c.type === 'radio' && lab.contains(c)) return;
-                    var a = abstand(lab, c);
-                    if (a != null && a < bestA) { bestA = a; best = lab; }
-                });
-                var art = c.tagName === 'SELECT' ? 'Liste' : c.type === 'radio' ? 'Auswahl ' + radioText(c) : c.type === 'checkbox' ? 'Häkchen' : 'Text';
-                var opt = c.tagName === 'SELECT'
-                    ? ' [' + Array.prototype.slice.call(c.options, 0, 12).map(function (o) { return o.text.trim(); }).join(' | ') + ']' : '';
-                zeilen.push((best ? eigenerText(best) : '(ohne Beschriftung)') + ' → ' + art + opt + (c.disabled ? ' (gesperrt)' : ''));
-            });
-            return 'GastroSocial-Felder (' + location.pathname + location.search + ', Rahmen: ' + (dokumente().length - 1)
-                + ', iframes: ' + alle('iframe,frame').length + ')\n' + zeilen.join('\n');
-        };
-
-        // ── Fenster: Schritt wählen, Werte mit 📋 (Abschreibhilfe), «Einfüllen» ──
         var alt = document.getElementById(ID);
         if (alt) alt.remove();
         var esc = function (t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
@@ -348,17 +36,20 @@ function famzGsKern(daten) {
         var knopf = 'border:none;border-radius:10px;padding:6px 10px;margin:3px 4px 3px 0;cursor:pointer;font:600 12px -apple-system,Helvetica,Arial,sans-serif;';
         var hell = knopf + 'background:rgba(255,255,255,.6);color:#3f3f3f;border:1px solid rgba(60,55,48,.2);';
         var dunkel = knopf + 'background:#3f3f3f;color:#fff;';
-        var farbe = { ok: '#2f6b3a', gleich: '#646464', anders: '#9a5b00', fehlt: '#b42318', info: '#646464' };
-        var zeichen = { ok: '✓', gleich: '=', anders: '≠', fehlt: '✗', info: 'ⓘ' };
         var abschnitte = daten.abschnitte || [];
-        var aktiv = 0, status = {}, laeuft = null;
+        var aktiv = 0;
 
+        var werteVon = function (feld) { return [].concat(feld.w).filter(function (x) { return x != null && String(x).trim() !== ''; }); };
         var wertText = function (feld) {
             if (feld.zeige != null) return String(feld.zeige);
-            var werte = [].concat(feld.w).filter(function (x) { return x != null && String(x).trim() !== ''; });
+            var werte = werteVon(feld);
             if (!werte.length) return '';
             if (feld.art === 'option') return werte[0] === true || /^(ja|x|true)$/i.test(String(werte[0])) ? 'anklicken' : 'nicht ankreuzen';
             return String(werte[0]);
+        };
+        // Auswahlknöpfe klickt man an — kopieren bringt dort nichts.
+        var nurKlicken = function (feld) {
+            return feld.art === 'option' || feld.wahl || /^(ja|nein|männlich|weiblich)$/i.test(wertText(feld));
         };
         var kopieren = function (text, knopfEl) {
             var gut = function () { knopfEl.textContent = '✓'; setTimeout(function () { knopfEl.textContent = '📋'; }, 1200); };
@@ -379,112 +70,29 @@ function famzGsKern(daten) {
             var zeilen = (ab.felder || []).map(function (feld, k) {
                 var w = wertText(feld);
                 if (!w) return '';
-                var st = status[aktiv + ':' + k];
                 var name = feld.anzeige || [].concat(feld.l)[0] || '';
                 return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(60,55,48,.08)">'
-                    + '<span style="width:14px;color:' + (st ? farbe[st.s] : '#bbb') + '">' + (st ? zeichen[st.s] : '·') + '</span>'
                     + '<div style="flex:1;min-width:0"><div style="font-size:11px;color:#8b8b8b">' + esc(name) + '</div>'
-                    + '<div style="font-weight:700;word-break:break-word">' + esc(w) + '</div>'
-                    + (st && st.s !== 'ok' && st.s !== 'gleich' ? '<div style="font-size:11px;color:' + farbe[st.s] + '">' + esc(st.t) + '</div>' : '')
-                    + '</div>'
-                    + (feld.art === 'option' ? '' : '<button data-kopie="' + k + '" title="kopieren, dann im Portal ⌘V" style="' + hell + 'margin:0;padding:4px 8px">📋</button>')
+                    + '<div style="font-weight:700;word-break:break-word">' + esc(w) + '</div></div>'
+                    + (feld.art === 'option' ? '' : nurKlicken(feld) ? '<span style="font-size:11px;color:#8b8b8b">anklicken</span>'
+                        : '<button data-kopie="' + k + '" title="kopieren, dann im Portal ⌘V" style="' + hell + 'margin:0;padding:4px 8px">📋</button>')
                     + '</div>';
             }).join('') || '<div style="color:#8b8b8b">Für diesen Schritt hat OneCrew keine Werte.</div>';
             p.innerHTML = '<div style="font-weight:800;font-size:14px">OneCrew → GastroSocial <span style="font-weight:400;font-size:11px;color:#8b8b8b">v' + VERSION + '</span></div>'
                 + '<div style="color:#646464;margin:2px 0 6px">' + esc(daten.titel) + '</div>'
                 + '<div>' + tabs + '</div>'
-                + '<div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px">'
-                + '<button id="ocfz-fuellen" style="' + dunkel + 'margin:0"' + (laeuft ? ' disabled' : '') + '>' + (laeuft ? '⏳ ' + esc(laeuft) : 'Einfüllen') + '</button>'
-                + '<span style="font-size:11.5px;color:#646464">oder mit 📋 kopieren und im Portal ⌘V</span></div>'
+                + '<div style="font-size:11.5px;color:#646464;margin:8px 0 4px">📋 klicken, im Portal ins Feld klicken, ⌘V</div>'
                 + zeilen
                 + (ab.hinweis ? '<div style="margin-top:6px;font-size:12px;color:#646464">' + esc(ab.hinweis) + '</div>' : '')
-                + '<div id="ocfz-meldung" style="margin-top:6px"></div>'
                 + '<div style="margin-top:8px;border-top:1px solid rgba(60,55,48,.15);padding-top:6px">'
-                + '<button id="ocfz-melden" style="' + hell + '">Felder melden</button>'
                 + '<button id="ocfz-zu" style="' + hell + '">Schliessen</button></div>';
             Array.prototype.forEach.call(p.querySelectorAll('[data-tab]'), function (b) {
-                b.onclick = function () { if (!laeuft) { aktiv = +b.getAttribute('data-tab'); zeichne(); } };
+                b.onclick = function () { aktiv = +b.getAttribute('data-tab'); zeichne(); };
             });
             Array.prototype.forEach.call(p.querySelectorAll('[data-kopie]'), function (b) {
                 b.onclick = function () { kopieren(wertText(ab.felder[+b.getAttribute('data-kopie')]), b); };
             });
-            p.querySelector('#ocfz-fuellen').onclick = function () { if (!laeuft) einfuellen(aktiv); };
             p.querySelector('#ocfz-zu').onclick = function () { p.remove(); };
-            p.querySelector('#ocfz-melden').onclick = async function () {
-                var txt = melden(), ziel = p.querySelector('#ocfz-meldung');
-                try {
-                    await navigator.clipboard.writeText(txt);
-                    ziel.innerHTML = '<div style="color:#2f6b3a">✓ Feldliste kopiert (ohne Personendaten).</div>';
-                } catch (e) {
-                    ziel.innerHTML = '<textarea style="width:100%;height:160px;font-size:11px">' + esc(txt) + '</textarea>';
-                }
-            };
-        };
-
-        // Das Portal fragt nach jeder Eingabe den Server und baut den Abschnitt neu —
-        // was in der Zwischenzeit eingetragen wurde, geht verloren. Darum langsam,
-        // danach ein zweiter Durchgang (trägt Verlorenes nach) und ein Kontrollgang.
-        var PAUSE = 700, RUHE = 1800;
-        var einfuellen = function (idx) {
-            var felder = abschnitte[idx].felder || [];
-            var gesetzt = [], nochmals = [];
-            Object.keys(status).forEach(function (k) { if (k.indexOf(idx + ':') === 0) delete status[k]; });
-            var gang = function (liste, modus, fertig) {
-                var j = 0;
-                var naechstes = function () {
-                    if (j >= liste.length) { fertig(); return; }
-                    var k = liste[j++];
-                    var feld = felder[k];
-                    var name = feld.anzeige || [].concat(feld.l)[0] || '';
-                    laeuft = (modus === 1 ? '' : modus === 2 ? 'Nachtragen: ' : 'Kontrolle: ') + name;
-                    zeichne();
-                    setTimeout(function () {
-                        var z;
-                        nurPruefen = modus === 3;
-                        try { z = fuelle(feld); } catch (e) { z = { s: 'fehlt', t: name + ': Fehler ' + (e && e.message || e) }; }
-                        nurPruefen = false;
-                        var key = idx + ':' + k;
-                        if (modus === 1) {
-                            if (z) { status[key] = z; if (z.s === 'ok') gesetzt.push(k); if (z.s === 'fehlt') nochmals.push(k); }
-                        } else if (z && nochmals.indexOf(k) >= 0) {
-                            status[key] = z;
-                        } else if (z && z.s !== 'gleich') {
-                            status[key] = modus === 2 && z.s === 'ok' ? { s: 'ok', t: z.t + ' (nachgetragen)' } : z;
-                        }
-                        setTimeout(naechstes, z && (z.s === 'ok' || z.klick) ? PAUSE : 60);
-                    }, 60);
-                };
-                naechstes();
-            };
-            var schluss = function () { laeuft = null; zeichne(); };
-            // Klicks (Auswahlknöpfe, Listen) bauen die Portal-Seite neu auf und löschen dabei
-            // schon getippte Texte — deshalb zuerst alle Klicks, warten, dann die Texte.
-            var klickt = function (feld) {
-                if (feld.art === 'option' || feld.wahl || feld.rechts) return true;
-                try {
-                    var f = findeFeld([].concat(feld.l), feld.nr);
-                    if (f && f.el) return !!f.radios || f.el.tagName === 'SELECT' || /^(radio|checkbox)$/.test(f.el.type);
-                } catch (e) { /* wie Text behandeln */ }
-                return /^(ja|nein|männlich|weiblich)$/i.test(String([].concat(feld.w)[0]));
-            };
-            var zuerst = [], danach = [];
-            felder.forEach(function (feld, k) { (klickt(feld) ? zuerst : danach).push(k); });
-            var reihe = zuerst.concat(danach);
-            var weiter = function () {
-                if (!gesetzt.length && !nochmals.length) { schluss(); return; }
-                laeuft = 'Warte auf das Portal'; zeichne();
-                setTimeout(function () {
-                    // Felder, die das Portal erst nach einer Antwort zeigt, kommen hier dran.
-                    gang(reihe.filter(function (k) { return gesetzt.indexOf(k) >= 0 || nochmals.indexOf(k) >= 0; }), 2, function () {
-                        laeuft = 'Warte auf das Portal'; zeichne();
-                        setTimeout(function () { gang(gesetzt, 3, schluss); }, RUHE);
-                    });
-                }, RUHE);
-            };
-            gang(zuerst, 1, function () {
-                laeuft = 'Warte auf das Portal'; zeichne();
-                setTimeout(function () { gang(danach, 1, weiter); }, gesetzt.length ? RUHE : 60);
-            });
         };
         document.body.appendChild(p);
         zeichne();
@@ -612,8 +220,7 @@ function famzGsDaten() {
 
     const abschnitte = [{
         titel: '1 · Antrag',
-        hinweis: 'Person in der Suche oben aus der Trefferliste wählen und warten, bis das Portal geladen hat. '
-            + 'Erscheint «Auswahl Ortschaft»: Ort anklicken, «Ort übernehmen», dann nochmals «Einfüllen».',
+        hinweis: 'Person in der Suche oben aus der Trefferliste wählen. Erscheint nach der PLZ «Auswahl Ortschaft»: Ort anklicken, «Ort übernehmen».',
         felder: [
             { l: ['Name, Geburtsdatum, AHV-Nummer'], w: a.ahvNummer, anzeige: 'Suche (AHV-Nummer)', hinweis: 'Person aus der Trefferliste wählen' },
             { l: ['Personalnummer des Bezügers'], w: ma.employeeNumber, anzeige: 'Personalnummer' },

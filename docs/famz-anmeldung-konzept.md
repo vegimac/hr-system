@@ -97,31 +97,17 @@ gilt das Kind als gemeinsam (H1/A0-Regel), sonst nicht. «nicht erfasst / unbeka
 Tests: `Tests/FamzAnmeldungTests.cs` (PDF gefüllt + flach, AHV-Kammfeld, Wohnt-bei, Sorge-Zusammenfassung,
 Vertragskette), `Tests/KindQstVerlaufTests.cs`.
 
-## GastroSocial-Portal per Lesezeichen (Walter 11.10.2026)
+## GastroSocial-Portal per Lesezeichen — Abschreibhilfe (Walter 11.10.2026)
 
 OneCrew darf nicht in fremde Seiten schreiben (Browser-Sicherheit). Deshalb `js/famz-gastrosocial.js`:
-«Für GastroSocial kopieren» legt JSON (`onecrew: "famz-gs"`) in die Zwischenablage — inkl. der
-Zuordnung Portal-Beschriftung → Wert pro Schritt (Antrag, Ehe-/Lebenspartner, anderer Elternteil, Kind n).
-Das Lesezeichen «OneCrew einfüllen» (`famzGsLader`, eingerichtet über «Lesezeichen einrichten»)
-liest nur die Zwischenablage und startet den mitgelieferten Kern (`kern` im JSON = `famzGsKern`);
-die eingebaute Kopie ist Rückfallebene, falls das Portal `new Function` verbietet. Der Kern
-ist eine reine Füll-Maschine: findet Felder über die Beschriftung (darunter/rechts daneben), füllt nur
-leere Felder, meldet Abweichungen (≠) und Nicht-Gefundenes (✗). Zuordnung anpassen = nur OneCrew deployen,
-das Lesezeichen bleibt — auch Änderungen am Kern kommen über OneCrew. Neu einrichten nur, wenn
-`famzGsLader` selbst geändert wird. Auswahl-Texte ohne Frage-Beschriftung («Familie im gleichen
-Haushalt lebend», «Es existieren weitere Arbeitsverhältnisse») laufen über `art: 'option'`.
-«Felder melden» kopiert die Beschriftungen der Portal-Seite (ohne Werte) für die Zuordnung.
-Schritt 1 (Antrag) nach Screenshot gebaut; Schritte 2–4 sind Annahmen bis zur ersten Feldmeldung.
-Personensuche wählt der Benutzer selbst.
+«Für GastroSocial kopieren» legt JSON (`onecrew: "famz-gs"`) in die Zwischenablage — Werte pro Schritt
+(Antrag, Ehe-/Lebenspartner, anderer Elternteil, Kind n) in Portal-Reihenfolge, dazu der Anzeige-Kern
+(`kern` = `famzGsKern`). Das Lesezeichen «OneCrew einfüllen» (`famzGsLader`, eingerichtet über
+«Lesezeichen einrichten») liest die Zwischenablage und zeigt im Portal ein Fenster: pro Wert ein 📋
+(kopieren, im Portal ⌘V); Auswahlknöpfe/Optionen stehen als «anklicken». Änderungen am Fenster kommen
+über OneCrew, das Lesezeichen bleibt (neu einrichten nur, wenn `famzGsLader` selbst ändert).
 
-**Abschreibhilfe (ab Kern v8):** Das Portal zeichnet Teile der Seite nach Server-Rückfragen neu und
-verliert dabei programmatisch gesetzte Werte. Das Fenster zeigt deshalb pro Schritt alle Werte in
-Portal-Reihenfolge mit 📋 (Wert kopieren, im Portal ⌘V); Auswahlfelder stehen als «anklicken» /
-«nicht ankreuzen». «Einfüllen» bleibt als Zusatz (drei Durchgänge: füllen, verlorene Werte
-nachtragen, prüfen) und setzt pro Zeile ✓ / = / ≠ / ✗.
-
-**Stand / Abschluss (Walter 11.10.2026: «reicht so, nicht weiter bauen»):** Kern v13 — zuerst Klicks
-(Auswahlknöpfe/Listen), dann Texte; Datumsfelder Ziffer für Ziffer; gezeichnete Ja/Nein-Knöpfe über
-den sichtbaren Text; später erscheinende Fragen im 2. Durchgang. Bekannte Grenze: Nach der PLZ öffnet
-das Portal «Auswahl Ortschaft» und baut die Seite neu auf — Ortschaft von Hand wählen, dann nochmals
-«Einfüllen» (leere Felder werden nachgefüllt). Eine Automatik dafür wurde bewusst nicht gebaut.
+**Bewusst KEIN automatisches Einfüllen** (Walter 11.10.2026, Kern v14): Versuche bis v13 haben gezeigt,
+dass das Portal nach Personensuche, PLZ («Auswahl Ortschaft») und Auswahlknöpfen die Seite neu aufbaut
+und gesetzte Werte verwirft; bei unbekannten Personen sucht es selbst («Versicherter zuordnen»).
+Walter: «wir machen nur das mit den Feldern zu kopieren». Nicht wieder einbauen.
