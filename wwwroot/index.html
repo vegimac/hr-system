@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261011a">
+    <link rel="stylesheet" href="css/app.css?v=20261011b">
 </head>
 <body>
 
@@ -2561,7 +2561,12 @@
                             <li>Quellensteuer: Mutation / Abmeldung</li>
                             <li>Aufenthaltsbewilligungs-Antrag (B/L/G)</li>
                             <li>BVG-Anmeldung / -Abmeldung / Beitragsbefreiung</li>
-                            <li>Familienzulagen-Antrag</li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('famz-anmeldung')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>Anmeldung Familienzulagen</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
                             <li>Mutterschafts- / Vaterschafts-Anmeldung</li>
                             <li>RAV-Arbeitgeberbescheinigung</li>
                             <li class="hr-done" style="cursor:pointer" onclick="showPage('zwischenverdienst')"
@@ -4102,6 +4107,28 @@
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ ANMELDUNG FAMILIENZULAGEN (GastroSocial FOR 0402) ═══════════════ -->
+            <div class="page liquid-mask" id="page-famz-anmeldung">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Anmeldung Familienzulagen</h1>
+                        <p class="page-sub">Formular GastroSocial FOR 0402 — vorausgefüllt aus Familie, Vertrag und Zivilstand, alle Felder editierbar. Fehlende Angaben am besten in der Familie-Maske ergänzen.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="card" style="padding:20px;max-width:1080px">
+                        <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
+                            <label style="font-size:13px;font-weight:600;color:#0f172a">Mitarbeiter</label>
+                            <input id="famzEmpSearch" type="search" placeholder="Suchen…" oninput="famzRenderMaListe()"
+                                   style="flex:1;min-width:160px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px">
+                        </div>
+                        <select id="famzEmpSelect" size="8" onchange="famzMaGewaehlt()" class="no-liquid"
+                                style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white;font-family:inherit"></select>
+                        <div id="famzFormBlock" style="display:none;margin-top:18px"></div>
                     </div>
                 </div>
             </div>
@@ -10320,7 +10347,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261008b"></script>
+<script src="js/app-core.js?v=20261011a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10360,7 +10387,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20261007c"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20261011a"></script>
+<script src="js/qst-modal.js?v=20261011b"></script>
 <script src="js/users.js?v=20260911a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20261003b"></script>
@@ -10435,6 +10462,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                              qst-konzept.md): befreit NIE von der QST (auch mit
                              CH/C) — H1/A0-Logik läuft über gemeinsames Kind. -->
                         <option value="Konkubinatspartner">Konkubinatspartner/in</option>
+                        <!-- Kindsmutter/-vater, der/die nicht (mehr) Partner/in ist
+                             (Walter 11.10.2026, Familienzulagen-Anmeldung). -->
+                        <option value="AndererElternteil">Anderer Elternteil (Kindsmutter/-vater)</option>
                         <option value="Mutter"     data-i18n="fam.value.type.Mutter">Mutter</option>
                         <option value="Vater"      data-i18n="fam.value.type.Vater">Vater</option>
                         <option value="Sonstige"   data-i18n="fam.value.type.Sonstige">Sonstige</option>
@@ -10479,6 +10509,61 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <input class="fmf-input" id="fmPhone" type="tel" placeholder="+41 79 333 44 55"
                            oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">
                 </div>
+                <!-- Zivilstand Partner / anderer Elternteil (Familienzulagen-Anmeldung) -->
+                <div class="fmf-field" id="fmFamilyStatusField">
+                    <label class="fmf-label">Zivilstand</label>
+                    <select class="fmf-select" id="fmFamilyStatus">
+                        <option value="">–</option>
+                        <option value="ledig">ledig</option>
+                        <option value="verheiratet">verheiratet</option>
+                        <option value="getrennt">getrennt</option>
+                        <option value="geschieden">geschieden</option>
+                        <option value="verwitwet">verwitwet</option>
+                        <option value="eingetragene_partnerschaft">eingetragene Partnerschaft</option>
+                        <option value="aufgeloeste_partnerschaft">aufgelöste Partnerschaft</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- ── Kind (Walter 11.10.2026, docs/famz-anmeldung-konzept.md):
+                 Angaben wie im GastroSocial-Formular «Anmeldung Familienzulagen». -->
+            <div id="fmKindSection" style="display:none">
+                <div class="emp-section-title">Kind</div>
+                <div class="emp-field-grid-3">
+                    <div class="fmf-field">
+                        <label class="fmf-label">Beziehung zum MA</label>
+                        <select class="fmf-select" id="fmBeziehung">
+                            <option value="">–</option>
+                            <option value="L">leibliches Kind</option>
+                            <option value="A">Adoptivkind</option>
+                            <option value="S">Stiefkind</option>
+                            <option value="P">Pflegekind</option>
+                            <option value="G">Geschwister</option>
+                            <option value="E">Enkel</option>
+                        </select>
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Anderer Elternteil</label>
+                        <select class="fmf-select" id="fmAndererElternteil" onchange="fmAeHinweisAktualisieren()"></select>
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Elterliche Sorge</label>
+                        <select class="fmf-select" id="fmElterlicheSorge">
+                            <option value="">–</option>
+                            <option value="ELTERN">beide Eltern</option>
+                            <option value="MUTTER">Mutter</option>
+                            <option value="VATER">Vater</option>
+                        </select>
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Erwerbsunfähig</label>
+                        <label class="fmf-checkbox-card" title="Zulage bis 20 möglich — Arztzeugnis als Beleg">
+                            <input type="checkbox" id="fmErwerbsunfaehig">
+                            <span class="fmf-checkbox-text">Ja (Arztzeugnis)</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="fmAeHinweis" class="kqv-klein" style="margin-top:4px"></div>
             </div>
 
             <!-- ── Aufenthalt + Nationalität (analog MA): nur relevant für ──
@@ -10510,7 +10595,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <!-- Gültig bis ausgeblendet (Walter 08.10.2026). Bewilligung = Status
                  für QST, nicht «neuer Ausweis» — Wechsel nur über Status ändern. -->
             <input type="hidden" id="fmPermitExpiry" value="">
-            <div class="emp-field-grid-3">
+            <div class="emp-field-grid-3" id="fmAufenthaltGrid">
                 <div class="fmf-field" id="fmZemisField">
                     <label class="fmf-label" data-i18n="fam.field.zemis">ZEMIS-Nr.</label>
                     <input class="fmf-input" id="fmZemisNumber" type="text" data-i18n-placeholder="ma.placeholder.zemis" placeholder="z.B. 22952410">
@@ -10526,13 +10611,6 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <label class="fmf-checkbox-card">
                         <input type="checkbox" id="fmLivesInSwitzerland" onchange="fmUpdateAuslandHint()">
                         <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
-                    </label>
-                </div>
-                <div class="fmf-field" id="fmKeineUnterhaltField">
-                    <label class="fmf-label">Unterhaltspflicht</label>
-                    <label class="fmf-checkbox-card" title="Kind, für das der/die MA keine Unterhaltspflicht hat — z.B. Stiefkind aus einer früheren Beziehung des Partners oder Kind ohne Sorgerecht. Zählt dann NICHT für die QST-Kinderziffer.">
-                        <input type="checkbox" id="fmKeineUnterhaltspflicht" onchange="fmQstBlocksVisibility()">
-                        <span class="fmf-checkbox-text">keine Unterhaltspflicht</span>
                     </label>
                 </div>
             </div>
@@ -10601,24 +10679,11 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 (erwerbstätig&nbsp;⇒&nbsp;C, nicht erwerbstätig&nbsp;⇒&nbsp;B).
             </div>
 
-            <!-- Gemeinsames Kind mit dem Konkubinatspartner (Walter 25.08.2026,
-                 docs/konkubinat-qst-konzept.md; prominent VOR der Adresse —
-                 Walter: «zu wichtig, um unten versteckt zu sein»): nur sichtbar
-                 bei Typ Kind UND wenn beim MA ein Konkubinatspartner erfasst
-                 ist. Entscheidet, ob die H1/A0-Einkommensregel greift. -->
-            <div id="fmGemKindRow" style="display:none;margin-bottom:12px">
-                <div class="fmf-field">
-                    <label class="fmf-label" style="font-weight:700;color:#3f3f3f">Gemeinsames Kind mit dem Konkubinatspartner?
-                        <span style="font-weight:400;color:#8b8b8b">(nur mit gemeinsamem Kind gilt die H1/A0-Einkommensregel)</span></label>
-                    <div style="display:flex;gap:6px;align-items:center;min-height:28px">
-                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="" checked> –</label>
-                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="ja"> Ja</label>
-                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="nein"> Nein</label>
-                    </div>
-                </div>
-            </div>
+            <!-- «Gemeinsames Kind mit dem Konkubinatspartner?» ist seit 11.10.2026
+                 die Auswahl «Anderer Elternteil» im Kind-Block. -->
 
             <!-- ── Adresse: lebt beim MA oder eigene (Zusatz-)Adresse ────────────── -->
+            <div id="fmAdresseSection">
             <div class="emp-section-title" data-i18n="fam.section.address">Adresse</div>
             <div class="fmf-addr-card">
                 <label class="fmf-radio-row">
@@ -10678,6 +10743,47 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     </div>
                     <div id="fmAddrAltHint" class="fmf-addr-alt-hint"></div>
                 </div>
+            </div>
+            </div>
+
+            <!-- ── Kind: Wohnen & Unterhalt (Verlauf ab Datum) + Wohnadresse ── -->
+            <div id="fmKindWohnenSection" style="display:none">
+                <div class="emp-section-title">Wohnen &amp; Unterhalt</div>
+                <!-- Neues Kind: Startwerte (werden zur ersten Version ab Geburt) -->
+                <div id="fmKindStart" class="emp-field-grid-3" style="display:none">
+                    <div class="fmf-field">
+                        <label class="fmf-label">Lebt im Haushalt des MA</label>
+                        <select class="fmf-select" id="fmKindStartHaushalt" onchange="fmKindAdresseSichtbarkeit()">
+                            <option value="ja">ja</option>
+                            <option value="nein">nein</option>
+                        </select>
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Unterhalt zur Hauptsache durch MA</label>
+                        <select class="fmf-select" id="fmKindStartUnterhalt">
+                            <option value="ja">ja</option>
+                            <option value="nein">nein</option>
+                            <option value="">ungeklärt</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="kqvMountWohnen"></div>
+                <div id="fmKindAdresseBox" style="display:none;margin-top:8px">
+                    <label class="fmf-label">Wohnadresse des Kindes <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(mit Land — fürs Formular Familienzulagen)</span></label>
+                    <div class="fmf-addr-alt-row">
+                        <select id="fmKindAdresseId" class="fmf-select fmf-addr-select">
+                            <option value="">— keine Adresse erfasst —</option>
+                        </select>
+                        <button type="button" class="fmf-addr-add-btn" onclick="openEmployeeAddressModalFromFamily()"
+                                title="Neue Zusatzadresse beim Mitarbeiter anlegen">+ Neue Zusatzadresse</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Kind: Ausbildung ── -->
+            <div id="fmKindAusbildungSection" style="display:none">
+                <div class="emp-section-title">Ausbildung</div>
+                <div id="kqvMountAusbildung"></div>
             </div>
 
             <!-- Walter 18.05.2026: Zulagen-Block aus dem Familienmember-Modal
@@ -10759,7 +10865,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                      (Walter 15.09.2026: gleicher Haushalt eines Auslands-MA
                      = ebenfalls Ausland → Felder weg). -->
                 <div id="fmArbeitgeberFelder">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:6px">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 170px;gap:6px 10px;margin-bottom:6px">
                         <div class="fmf-field">
                             <label class="fmf-label">Arbeitgeber</label>
                             <input class="fmf-input" id="fmArbeitgeberName" type="text" placeholder="Firma / Arbeitgeber">
@@ -10767,6 +10873,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <div class="fmf-field">
                             <label class="fmf-label">Strasse / Nr.</label>
                             <input class="fmf-input" id="fmArbeitgeberStrasse" type="text" placeholder="z.B. Industriestrasse 13">
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label">Telefon Arbeitgeber</label>
+                            <input class="fmf-input" id="fmArbeitgeberTelefon" type="tel" placeholder="062 000 00 00">
                         </div>
                     </div>
                     <div style="display:grid;grid-template-columns:90px 1fr 90px 160px;gap:6px 10px">
@@ -10798,14 +10908,64 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                      bin ja beim K-Partner» — die MA-Perspektive war eine
                      Falle). Gespeichert wird weiterhin ma_hat_hoeheres_
                      einkommen (MA-Perspektive) — fmGet/SetMaEink SPIEGELN. -->
+                <!-- Seit 11.10.2026 für Ehepartner, Konkubinatspartner UND anderen
+                     Elternteil: wer mehr verdient, hat bei den Familienzulagen in
+                     der Regel den Erstanspruch (FamZG Art. 7). -->
                 <div id="fmEinkommenRow" style="display:none;margin-top:10px">
                     <div class="fmf-field">
-                        <label class="fmf-label" style="font-weight:700;color:#3f3f3f">Ist das Einkommen des Konkubinatspartners höher als das des MA?
-                            <span style="font-weight:400;color:#8b8b8b">(bei gemeinsamem Kind: Ja → MA erhält A0 · Nein → MA erhält H1 — nie beide H1)</span></label>
+                        <label class="fmf-label" style="font-weight:700;color:#3f3f3f"><span id="fmEinkommenFrage">Ist das Einkommen des Konkubinatspartners höher als das des MA?</span>
+                            <span id="fmEinkommenQstHint" style="font-weight:400;color:#8b8b8b">(bei gemeinsamem Kind: Ja → MA erhält A0 · Nein → MA erhält H1 — nie beide H1)</span></label>
                         <div style="display:flex;gap:6px;align-items:center;min-height:28px">
-                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="" checked> –</label>
-                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="ja"> Ja</label>
-                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="nein"> Nein</label>
+                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="" checked onchange="fmEinkommenHinweis()"> –</label>
+                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="ja" onchange="fmEinkommenHinweis()"> Ja</label>
+                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="nein" onchange="fmEinkommenHinweis()"> Nein</label>
+                        </div>
+                        <div id="fmEinkommenFamzHint" style="display:none;margin-top:6px;padding:7px 11px;border-radius:10px;background:#fef3c7;border:1px solid #fcd34d;font-size:11.5px;color:#92400e">
+                            Verdient diese Person mehr, erhält in der Regel <b>sie</b> die Kinderzulage (Erstanspruch) — Zulage bei uns nur mit Verfügung der Familienausgleichskasse.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Angaben fürs Formular «Anmeldung Familienzulagen» (GastroSocial 0402) -->
+                <div id="fmFamzPartnerFelder" style="margin-top:12px">
+                    <div class="fmf-label" style="font-weight:700;color:#3f3f3f;margin-bottom:6px">Für die Familienzulagen</div>
+                    <div class="emp-field-grid-3">
+                        <div class="fmf-field" id="fmPensumField">
+                            <label class="fmf-label">Arbeitspensum %</label>
+                            <input class="fmf-input" id="fmArbeitspensum" type="number" min="0" max="100" step="5" placeholder="z.B. 60">
+                        </div>
+                        <div class="fmf-field" id="fmEinkMinField">
+                            <label class="fmf-label" title="Mindesteinkommen für Familienzulagen: CHF 7'560 pro Jahr (CHF 630 pro Monat)">Einkommen über CHF 7'560/Jahr? ⓘ</label>
+                            <div style="display:flex;gap:6px;align-items:center;min-height:36px">
+                                <label class="zst-pill"><input type="radio" name="fmEinkMin" value="" checked> –</label>
+                                <label class="zst-pill"><input type="radio" name="fmEinkMin" value="ja"> Ja</label>
+                                <label class="zst-pill"><input type="radio" name="fmEinkMin" value="nein"> Nein</label>
+                            </div>
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label">Als Selbständig / Nichterwerbstätig angemeldet?</label>
+                            <select class="fmf-select" id="fmSeNe" onchange="fmSeNeSichtbarkeit()">
+                                <option value="">–</option>
+                                <option value="NEIN">nein</option>
+                                <option value="SE">ja, selbständig</option>
+                                <option value="NE">ja, nichterwerbstätig</option>
+                            </select>
+                        </div>
+                        <div class="fmf-field" id="fmSeNeKasseField" style="display:none">
+                            <label class="fmf-label">Ausgleichskasse</label>
+                            <input class="fmf-input" id="fmSeNeKasse" type="text" placeholder="z.B. SVA Aargau">
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label" title="z.B. Familienzulagen anderswo, Arbeitslosen-, IV- oder Unfall-Taggeld">Bezieht Zulagen / Leistungen? ⓘ</label>
+                            <select class="fmf-select" id="fmBeziehtLeistung" onchange="fmSeNeSichtbarkeit()">
+                                <option value="">–</option>
+                                <option value="nein">nein</option>
+                                <option value="ja">ja</option>
+                            </select>
+                        </div>
+                        <div class="fmf-field" id="fmLeistungVonField" style="display:none">
+                            <label class="fmf-label">Von wem?</label>
+                            <input class="fmf-input" id="fmLeistungVon" type="text" placeholder="Kasse / Arbeitgeber / Versicherung">
                         </div>
                     </div>
                 </div>
@@ -10817,15 +10977,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <div id="fmQstSection">
             <div class="emp-section-title" data-i18n="fam.section.qst">Quellensteuer (QST)</div>
             <!-- QST-Verlauf am Kind (Walter 11.10.2026, docs/kind-qst-verlauf-konzept.md):
-                 Ausbildung, Haushalt/Unterhalt, QST-Entscheide — js/kind-qst-verlauf.js. -->
-            <div class="emp-field-grid-3">
-                <div class="fmf-field" id="fmErfahrenAmField">
-                    <label class="fmf-label" data-i18n="fam.field.erfahrenAm">Erfahren am</label>
-                    <input class="fmf-input" id="fmErfahrenAm" type="date"
-                           title="Wann HR vom Kind erfahren hat. Der Vorschlag zeigt trotzdem den echten Zeitraum; frühere Monate meldet die Pendenz «QST-Korrektur prüfen».">
-                    <div style="font-size:10.5px;color:#8b8b8b;margin-top:4px;line-height:1.35">nur Info — der Zeitraum steht unten</div>
-                </div>
-            </div>
+                 Ergebnis + QST-Entscheide; Ausbildung und Wohnen/Unterhalt stehen
+                 in eigenen Blöcken darüber — js/kind-qst-verlauf.js. -->
             <div id="fmQstVerlauf"></div>
             </div>
         </div>
@@ -10965,8 +11118,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261011f"></script>
-<script src="js/kind-qst-verlauf.js?v=20261011a"></script>
+<script src="employees.js?v=20261011g"></script>
+<script src="js/kind-qst-verlauf.js?v=20261011b"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 
@@ -11970,6 +12123,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohn-edit-lock.js?v=20260806a"></script>
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>
 <script src="js/ahv-anmeldung.js?v=20260831a"></script>
+<script src="js/famz-anmeldung.js?v=20261011a"></script>
 <script src="js/akis-meldung.js?v=20260831a"></script>
 <script src="js/manager-dienstplan.js?v=20261007b"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>

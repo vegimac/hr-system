@@ -7,7 +7,7 @@ public class EmployeeFamilyMember
     public int Id { get; set; }
     public int EmployeeId { get; set; }
 
-    public string MemberType { get; set; } = "Kind"; // Kind, Ehepartner, Konkubinatspartner, Mutter, Vater, Sonstige
+    public string MemberType { get; set; } = "Kind"; // Kind, Ehepartner, Konkubinatspartner, AndererElternteil (Kindsmutter/-vater, nicht Partner), Mutter, Vater, Sonstige
     public string? Gender { get; set; }
     public string? FamilyStatus { get; set; }
 
@@ -124,27 +124,66 @@ public class EmployeeFamilyMember
     public bool InErstausbildung { get; set; } = false;
 
     /// <summary>
-    /// Kind, für das der/die MA KEINE Unterhaltspflicht hat (Walter-Vorgabe
-    /// 01.09.2026, Fall Ossenih): typischerweise ein Stiefkind aus einer
-    /// früheren Beziehung des Ehepartners, oder ein Kind ohne Sorgerecht.
-    ///
-    /// Die QST-Kinderziffer knüpft an die Unterhaltspflicht an — «unterhalts-
-    /// pflichtige Kinder» ist auch der Begriff, den die kantonalen
-    /// Wegleitungen und die Lohnsoftware verwenden. Ist dieses Flag gesetzt,
-    /// zählt das Kind NIE für den Tarif, unabhängig von Alter, Abzugszeitraum
-    /// oder Erstausbildung. Deshalb blendet die Maske diese Felder dann aus:
-    /// sie hätten keine Wirkung mehr.
+    /// Nur noch Abbild: «heute kein Unterhalt zur Hauptsache» laut Verlauf am
+    /// Kind (family_member_verhaeltnis), nachgeführt von
+    /// KindQstVerlaufLader.SnapshotNachfuehrenAsync. Seit 11.10.2026 kein
+    /// Häkchen mehr in der Maske und keine Rechenquelle — der QST-Verlauf
+    /// liest die datierten Versionen. Formulare (QST-Anmeldung/-Info) lesen
+    /// das Abbild für «heute».
     /// </summary>
     public bool KeineUnterhaltspflicht { get; set; } = false;
 
     // ── Konkubinats-Logik (Walter-Vorgabe 25.08.2026,
     //    docs/konkubinat-qst-konzept.md) ────────────────────────────────────
     /// <summary>
-    /// Typ Konkubinatspartner: Hat der/die MA das HÖHERE Bruttoeinkommen als
-    /// dieser Partner? Entscheidet bei gemeinsamem Kind im Haushalt H1 (Ja)
-    /// vs. A0 (Nein). NULL = Frage offen (→ konservativ A0 + Warnung).
+    /// Ehepartner, Konkubinatspartner, anderer Elternteil: Hat der/die MA das
+    /// HÖHERE Bruttoeinkommen als diese Person? Konkubinat: H1 (Ja) vs. A0
+    /// (Nein). Familienzulagen: verdient die andere Person mehr, hat sie in der
+    /// Regel den Erstanspruch (FamZG Art. 7). NULL = Frage offen.
     /// </summary>
     public bool? MaHatHoeheresEinkommen { get; set; }
+
+    // ── Familienzulagen-Anmeldung (Walter 11.10.2026, Stand 61,
+    //    docs/famz-anmeldung-konzept.md) ────────────────────────────────────
+    /// <summary>Kind: Beziehung zum MA wie im FAK-Formular — L leiblich, A Adoptiv, S Stief, P Pflege, G Geschwister, E Enkel.</summary>
+    public string? BeziehungZumMa { get; set; }
+
+    /// <summary>Kind: erwerbsunfähig (Zulage bis 20 möglich).</summary>
+    public bool Erwerbsunfaehig { get; set; }
+
+    /// <summary>Kind: elterliche Sorge — ELTERN | MUTTER | VATER (NULL = offen).</summary>
+    public string? ElterlicheSorge { get; set; }
+
+    /// <summary>
+    /// Kind: der andere Elternteil (Familienmitglied desselben MA vom Typ
+    /// Ehepartner, Konkubinatspartner oder AndererElternteil). Ist es der
+    /// Konkubinatspartner, gilt das Kind als gemeinsames Kind (QST H1/A0).
+    /// </summary>
+    public int? AndererElternteilId { get; set; }
+
+    /// <summary>Partner / anderer Elternteil: Arbeitspensum in Prozent.</summary>
+    public decimal? Arbeitspensum { get; set; }
+
+    /// <summary>Partner / anderer Elternteil: Telefon des Arbeitgebers.</summary>
+    public string? ArbeitgeberTelefon { get; set; }
+
+    /// <summary>Partner / anderer Elternteil: Erwerbseinkommen über CHF 7'560 im Jahr? NULL = offen.</summary>
+    public bool? EinkommenUeberMinimum { get; set; }
+
+    /// <summary>Partner / anderer Elternteil: bei einer Ausgleichskasse als SE / NE angemeldet — NEIN | SE | NE (NULL = offen).</summary>
+    public string? SeNeAngemeldet { get; set; }
+
+    /// <summary>Zuständige Ausgleichskasse, wenn SE/NE angemeldet.</summary>
+    public string? SeNeAusgleichskasse { get; set; }
+
+    /// <summary>Partner / anderer Elternteil: bezieht eine Leistung (IV, ALV, UVG, KTG, Mutterschaft)? NULL = offen.</summary>
+    public bool? BeziehtLeistung { get; set; }
+
+    /// <summary>Welche Leistung, von wem.</summary>
+    public string? LeistungVon { get; set; }
+
+    /// <summary>Neues Kind: Startwerte für die erste Verlaufs-Version (nicht gespeichert).</summary>
+    [NotMapped] public bool? StartUnterhalt { get; set; }
 
     /// <summary>
     /// Typ Kind: Gemeinsames Kind mit dem Konkubinatspartner? Nur relevant,

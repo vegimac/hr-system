@@ -15,9 +15,8 @@ public class KindQstVerlaufTests
         KindAusbildung[]? ausb = null,
         KindVerhaeltnis[]? verh = null,
         KindQstEntscheid[]? ents = null,
-        bool keineUnterhaltspflicht = false,
         bool? haushalt = true)
-        => new(geb, keineUnterhaltspflicht,
+        => new(geb,
             ausb ?? Array.Empty<KindAusbildung>(),
             verh ?? Array.Empty<KindVerhaeltnis>(),
             ents ?? Array.Empty<KindQstEntscheid>(),
@@ -155,11 +154,32 @@ public class KindQstVerlaufTests
     }
 
     [Fact]
-    public void Keine_Unterhaltspflicht_zaehlt_nie()
+    public void Ohne_Unterhalt_seit_Geburt_zaehlt_nie()
     {
-        var k = Kind(D(2015, 1, 1), keineUnterhaltspflicht: true);
+        var k = Kind(D(2015, 1, 1), verh: new[] { new KindVerhaeltnis(D(2015, 1, 1), false, false) });
         Assert.False(Zaehlt(k, 2026, 3));
         Assert.Empty(KindQstVerlauf.ElmZeitraeume(k));
+    }
+
+    [Fact]
+    public void Unterhalt_ab_Datum_zaehlt_ab_Folgemonat()
+    {
+        // Stiefkind: zuerst kein Unterhalt, ab 10.04.2026 zur Hauptsache (Verfügung)
+        var k = Kind(D(2015, 1, 1), verh: new[]
+        {
+            new KindVerhaeltnis(D(2015, 1, 1), true, false),
+            new KindVerhaeltnis(D(2026, 4, 10), true, true),
+        });
+        Assert.False(Zaehlt(k, 2026, 4));
+        Assert.True(Zaehlt(k, 2026, 5));
+        Assert.NotEmpty(KindQstVerlauf.ElmZeitraeume(k));
+    }
+
+    [Fact]
+    public void Altbestand_Ausbildung_ohne_Beginn_heisst_unter_18_zuerst()
+    {
+        var k = Kind(D(2010, 1, 1), new[] { new KindAusbildung(null, null, true) });
+        Assert.Equal("unter 18 / Ausbildung", KindQstVerlauf.ImMonat(k, 2026, 3).Grund);
     }
 
     [Fact]

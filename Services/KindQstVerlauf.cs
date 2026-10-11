@@ -15,10 +15,12 @@ public record KindVerhaeltnis(DateOnly GueltigAb, bool? ImHaushalt, bool? Unterh
 /// <summary>QST-Entscheid zum Kind: ANERKANNT / NICHT_ANERKANNT / IN_PRUEFUNG.</summary>
 public record KindQstEntscheid(string Status, DateOnly? Von, DateOnly? Bis);
 
-/// <summary>Alles, was die QST-Kinderziffer eines Kindes bestimmt.</summary>
+/// <summary>
+/// Alles, was die QST-Kinderziffer eines Kindes bestimmt. Unterhalt steht nur
+/// noch im Verlauf (Verhältnis-Versionen), seit 11.10.2026 kein Häkchen mehr.
+/// </summary>
 public record KindQstDaten(
     DateOnly? Geburt,
-    bool KeineUnterhaltspflicht,
     IReadOnlyList<KindAusbildung> Ausbildungen,
     IReadOnlyList<KindVerhaeltnis> Verhaeltnisse,
     IReadOnlyList<KindQstEntscheid> Entscheide,
@@ -78,7 +80,7 @@ public static class KindQstVerlauf
                 if (anschluss)
                 {
                     var bis = l.Bis == null || a.Bis == null ? null : (DateOnly?)(a.Bis > l.Bis ? a.Bis : l.Bis);
-                    liste[^1] = new Abschnitt(l.Von, bis, l.Grund == a.Grund ? l.Grund : l.Grund + " / " + a.Grund,
+                    liste[^1] = new Abschnitt(l.Von, bis, GruendeVerbinden(l.Grund, a.Grund),
                         l.Geprueft && a.Geprueft);
                     continue;
                 }
@@ -86,6 +88,13 @@ public static class KindQstVerlauf
             liste.Add(a);
         }
         return liste;
+    }
+
+    // «unter 18» steht immer vorne, auch wenn ein Abschnitt ohne Beginn (Altbestand) früher sortiert.
+    static string GruendeVerbinden(string a, string b)
+    {
+        var teile = a.Split(" / ").Concat(b.Split(" / ")).Distinct().ToList();
+        return string.Join(" / ", teile.OrderBy(t => t == "unter 18" ? 0 : 1));
     }
 
     static string AusbildungText(KindAusbildung a) => (a.Art ?? "").ToUpperInvariant() switch
@@ -128,9 +137,6 @@ public static class KindQstVerlauf
         var verh = VerhaeltnisImMonat(d, idx);
         bool? haushalt = verh != null ? verh.ImHaushalt : d.HaushaltOhneVersion;
         bool? unterhalt = verh != null ? verh.UnterhaltHauptsache : true;
-
-        if (d.KeineUnterhaltspflicht)
-            return new KindQstMonat(false, haushalt, "keine Unterhaltspflicht", offen);
 
         var entscheid = d.Entscheide
             .Where(e => UmfasstErsten(e.Von, e.Bis, erster))
@@ -212,7 +218,8 @@ public static class KindQstVerlauf
     /// </summary>
     public static IReadOnlyList<(DateOnly Von, DateOnly? Bis)> ElmZeitraeume(KindQstDaten d)
     {
-        if (d.KeineUnterhaltspflicht) return Array.Empty<(DateOnly, DateOnly?)>();
+        if (d.Verhaeltnisse.Count > 0 && d.Verhaeltnisse.All(v => v.UnterhaltHauptsache == false))
+            return Array.Empty<(DateOnly, DateOnly?)>();
         var anerkannt = d.Entscheide.Where(e => e.Status == Anerkannt && e.Von.HasValue)
             .OrderBy(e => e.Von).Select(e => (e.Von!.Value, e.Bis)).ToList();
         if (anerkannt.Count > 0) return anerkannt;

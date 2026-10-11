@@ -225,9 +225,8 @@ public record QstKindInput(
     // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
     // Gemeinsames Kind mit dem Konkubinatspartner? NULL = Frage offen.
     bool?     GemeinsamesKind = null,
-    // Walter-Vorgabe 01.09.2026: keine Unterhaltspflicht (Stiefkind aus
-    // früherer Beziehung des Partners / kein Sorgerecht). Die QST-Kinderziffer
-    // knüpft an die Unterhaltspflicht an — ein solches Kind zählt NIE.
+    // Nur ohne geladenen Verlauf (Alt-Aufrufer/Tests): heute kein Unterhalt
+    // zur Hauptsache → in AlsVerlauf eine Version «Unterhalt nein» ab Geburt.
     bool      KeineUnterhaltspflicht = false,
     // Walter 15.09.2026: ab wann wir vom Kind wussten. Seit 11.10.2026 nur
     // noch Info — der Vorschlag zeigt den Sachverhalt (Konzept QST-Verlauf).
@@ -541,11 +540,12 @@ public static class QstTarifVorschlagLogic
     public static KindQstDaten AlsVerlauf(QstKindInput k)
         => k.Verlauf ?? new KindQstDaten(
             k.DateOfBirth,
-            k.KeineUnterhaltspflicht,
             k.InErstausbildung
                 ? new[] { new KindAusbildung(null, null, true) }
                 : Array.Empty<KindAusbildung>(),
-            Array.Empty<KindVerhaeltnis>(),
+            k.KeineUnterhaltspflicht
+                ? new[] { new KindVerhaeltnis(k.DateOfBirth ?? DateOnly.MinValue, k.LebtImHaushalt ?? (k.AlternativeAddressId == null), false) }
+                : Array.Empty<KindVerhaeltnis>(),
             KindQstVerlauf.EntscheideAusZeitraum(k.DateOfBirth, k.QstDeductibleFrom, k.QstDeductibleUntil, k.InErstausbildung),
             k.LebtImHaushalt ?? (k.AlternativeAddressId == null));
 

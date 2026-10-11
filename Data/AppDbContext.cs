@@ -1324,6 +1324,19 @@ public class AppDbContext : DbContext
             // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
             entity.Property(e => e.MaHatHoeheresEinkommen).HasColumnName("ma_hat_hoeheres_einkommen");
             entity.Property(e => e.GemeinsamesKindMitPartner).HasColumnName("gemeinsames_kind_mit_partner");
+            // Familienzulagen-Anmeldung (Walter 11.10.2026, Stand 61)
+            entity.Property(e => e.BeziehungZumMa).HasColumnName("beziehung_zum_ma").HasMaxLength(2);
+            entity.Property(e => e.Erwerbsunfaehig).HasColumnName("erwerbsunfaehig");
+            entity.Property(e => e.ElterlicheSorge).HasColumnName("elterliche_sorge").HasMaxLength(10);
+            entity.Property(e => e.AndererElternteilId).HasColumnName("anderer_elternteil_id");
+            entity.Property(e => e.Arbeitspensum).HasColumnName("arbeitspensum").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.ArbeitgeberTelefon).HasColumnName("arbeitgeber_telefon").HasMaxLength(50);
+            entity.Property(e => e.EinkommenUeberMinimum).HasColumnName("einkommen_ueber_minimum");
+            entity.Property(e => e.SeNeAngemeldet).HasColumnName("se_ne_angemeldet").HasMaxLength(4);
+            entity.Property(e => e.SeNeAusgleichskasse).HasColumnName("se_ne_ausgleichskasse").HasMaxLength(150);
+            entity.Property(e => e.BeziehtLeistung).HasColumnName("bezieht_leistung");
+            entity.Property(e => e.LeistungVon).HasColumnName("leistung_von").HasMaxLength(150);
+            entity.Ignore(e => e.StartUnterhalt);
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Doku
             // dieses Familienmitglieds (Pass / ID / Bewilligung).
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");

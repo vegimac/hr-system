@@ -71,6 +71,15 @@ public class EmployeeFamilyMembersController : ControllerBase
         var ausbIds = await _context.FamilyMemberAusbildungen.AsNoTracking()
             .Where(a => ids.Contains(a.FamilyMemberId))
             .Select(a => a.FamilyMemberId).Distinct().ToListAsync();
+        var zulageAktiv = await _context.FamilyMemberAllowances.AsNoTracking()
+            .Where(a => ids.Contains(a.FamilyMemberId)
+                     && a.ValidFrom <= heute && (a.ValidTo == null || a.ValidTo >= heute))
+            .Select(a => a.FamilyMemberId).Distinct().ToListAsync();
+        var elternIds = kinder.Where(k => k.AndererElternteilId.HasValue).Select(k => k.AndererElternteilId!.Value).Distinct().ToList();
+        var eltern = elternIds.Count == 0
+            ? new Dictionary<int, EmployeeFamilyMember>()
+            : await _context.EmployeeFamilyMembers.AsNoTracking()
+                .Where(m => elternIds.Contains(m.Id)).ToDictionaryAsync(m => m.Id);
         foreach (var k in kinder)
         {
             var d = verlauf[k.Id];
@@ -80,6 +89,12 @@ public class EmployeeFamilyMembersController : ControllerBase
                 hinweise.Add("Ausbildungszulage läuft, aber keine Ausbildung für die QST erfasst");
             if (monat.ImHaushalt == true && !k.LebtImHaushalt)
                 hinweise.Add("Adresse: nicht im Haushalt — QST-Haushalt noch «ja», Verhältnis prüfen");
+            if (zulageAktiv.Contains(k.Id) && k.KeineUnterhaltspflicht)
+                hinweise.Add("Unterhalt nein — Familienzulage läuft: Verfügung der Familienausgleichskasse prüfen");
+            if (k.AndererElternteilId is int aeId && eltern.TryGetValue(aeId, out var ae)
+                && ae.Erwerbstaetig == true && ae.MaHatHoeheresEinkommen == false)
+                hinweise.Add($"{ae.FirstName} verdient mehr — in der Regel bezieht {ae.FirstName} die Kinderzulage (Erstanspruch)"
+                    + (zulageAktiv.Contains(k.Id) ? ", Verfügung prüfen" : ""));
             result[k.Id] = new
             {
                 wirkung = KindQstVerlauf.Wirkung(d, heute).Select(w => new
@@ -170,6 +185,18 @@ public class EmployeeFamilyMembersController : ControllerBase
         // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
         m.MaHatHoeheresEinkommen,
         m.GemeinsamesKindMitPartner,
+        // Familienzulagen-Anmeldung (Walter 11.10.2026)
+        m.BeziehungZumMa,
+        m.Erwerbsunfaehig,
+        m.ElterlicheSorge,
+        m.AndererElternteilId,
+        m.Arbeitspensum,
+        m.ArbeitgeberTelefon,
+        m.EinkommenUeberMinimum,
+        m.SeNeAngemeldet,
+        m.SeNeAusgleichskasse,
+        m.BeziehtLeistung,
+        m.LeistungVon,
         // Walter-Vorgabe 13.06.2026: Beleg-Doku-FK durchreichen — das Frontend
         // zeigt damit „📄 Doku verknüpft" am Ehepartner-Eintrag und kann den
         // Beleg im Vorschau-Panel öffnen.
@@ -207,6 +234,10 @@ public class EmployeeFamilyMembersController : ControllerBase
         if (member.AlternativeAddressId != null) member.LebtImHaushalt = false;
         if (member.MemberType == "Kind" && !member.ErfahrenAm.HasValue)
             member.ErfahrenAm = DateOnly.FromDateTime(DateTime.Now);
+        if (member.MemberType == "Kind") member.KeineUnterhaltspflicht = member.StartUnterhalt == false;
+
+        var famzFehler = await FamzFelderUebernehmenAsync(employeeId, member, member);
+        if (famzFehler != null) return famzFehler;
 
         _context.EmployeeFamilyMembers.Add(member);
         await _context.SaveChangesAsync();
@@ -248,7 +279,8 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.AlternativeAddressId = await ValidateAlternativeAddressAsync(employeeId, member.AlternativeAddressId);
         // QST-Zeitraum und Erstausbildung pflegt der QST-Verlauf am Kind
         // (Endpunkte …/ausbildung, …/verhaeltnis, …/qst-entscheid) — hier nicht.
-        existing.ErfahrenAm          = member.ErfahrenAm;
+        // «Erfahren am» ist nicht mehr in der Maske: leer lässt den Wert stehen.
+        existing.ErfahrenAm          = member.ErfahrenAm ?? existing.ErfahrenAm;
         existing.PermitTypeId         = member.PermitTypeId;
         existing.PermitExpiryDate     = member.PermitExpiryDate;
         existing.ZemisNumber          = string.IsNullOrWhiteSpace(member.ZemisNumber) ? null : member.ZemisNumber.Trim();
@@ -265,13 +297,20 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.ArbeitgeberOrt       = string.IsNullOrWhiteSpace(member.ArbeitgeberOrt)     ? null : member.ArbeitgeberOrt.Trim();
         existing.ArbeitgeberKanton    = string.IsNullOrWhiteSpace(member.ArbeitgeberKanton)  ? null : member.ArbeitgeberKanton.Trim();
         existing.Stellenantritt       = member.Stellenantritt;
-        existing.KeineUnterhaltspflicht = member.KeineUnterhaltspflicht;
+        // «keine Unterhaltspflicht» ist nur noch Abbild des Verlaufs (SnapshotNachfuehren).
         // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
         existing.MaHatHoeheresEinkommen     = member.MaHatHoeheresEinkommen;
         existing.GemeinsamesKindMitPartner  = member.GemeinsamesKindMitPartner;
+        var famzFehler = await FamzFelderUebernehmenAsync(employeeId, existing, member);
+        if (famzFehler != null) return famzFehler;
         existing.UpdatedAt            = DateTime.Now;
         if (existing.MemberType == "Kind")
+        {
             await KindQstVerlaufLader.ErsteVersionSicherstellenAsync(_context, existing);
+            await _context.SaveChangesAsync();
+            await KindQstVerlaufLader.SnapshotNachfuehrenAsync(_context, existing);
+            if (existing.AlternativeAddressId != null) existing.LebtImHaushalt = false;
+        }
 
         try { await SyncHistoriesAsync(existing, member); }
         catch (InvalidOperationException ex) when (ex.Message == "ERFAHREN_VOR_GUELTIG")
@@ -741,7 +780,7 @@ public class EmployeeFamilyMembersController : ControllerBase
     async Task SyncHistoriesAsync(EmployeeFamilyMember snap, EmployeeFamilyMember dto)
     {
         var typ = (snap.MemberType ?? "").Trim();
-        if (typ is not ("Ehepartner" or "Konkubinatspartner")) return;
+        if (typ is not ("Ehepartner" or "Konkubinatspartner" or "AndererElternteil")) return;
 
         // ── Bewilligung ──────────────────────────────────────────────────
         var permitHist = await _context.FamilyMemberPermitHistories
@@ -811,6 +850,62 @@ public class EmployeeFamilyMembersController : ControllerBase
                 });
             }
         }
+    }
+
+    public static readonly string[] Beziehungen = { "L", "A", "S", "P", "G", "E" };
+    public static readonly string[] Sorgen = { "ELTERN", "MUTTER", "VATER" };
+    public static readonly string[] ElternTypen = { "Ehepartner", "Konkubinatspartner", "AndererElternteil" };
+    static string? Leer(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>
+    /// Felder der Familienzulagen-Anmeldung (Walter 11.10.2026) übernehmen und
+    /// prüfen. Kind: anderer Elternteil muss ein Partner / anderer Elternteil
+    /// desselben MA sein; ist es der Konkubinatspartner, gilt das Kind als
+    /// gemeinsames Kind (QST H1/A0) — sonst nicht.
+    /// </summary>
+    async Task<IActionResult?> FamzFelderUebernehmenAsync(int employeeId, EmployeeFamilyMember ziel, EmployeeFamilyMember dto)
+    {
+        bool kind = ziel.MemberType == "Kind";
+        bool elternteil = ElternTypen.Contains(ziel.MemberType);
+
+        var bez = Leer(dto.BeziehungZumMa)?.ToUpperInvariant();
+        if (bez != null && !Beziehungen.Contains(bez)) return Fehler("Unbekannte Beziehung zum Kind.");
+        var sorge = Leer(dto.ElterlicheSorge)?.ToUpperInvariant();
+        if (sorge != null && !Sorgen.Contains(sorge)) return Fehler("Unbekannte Angabe zur elterlichen Sorge.");
+        ziel.BeziehungZumMa = kind ? bez : null;
+        ziel.ElterlicheSorge = kind ? sorge : null;
+        ziel.Erwerbsunfaehig = kind && dto.Erwerbsunfaehig;
+
+        if (kind && dto.AndererElternteilId is int aeId)
+        {
+            var ae = await _context.EmployeeFamilyMembers.AsNoTracking()
+                .Where(m => m.Id == aeId && m.EmployeeId == employeeId)
+                .Select(m => new { m.MemberType })
+                .FirstOrDefaultAsync();
+            if (ae == null || !ElternTypen.Contains(ae.MemberType))
+                return Fehler("Der andere Elternteil muss ein Partner oder «anderer Elternteil» dieses Mitarbeiters sein.");
+            ziel.AndererElternteilId = aeId;
+            ziel.GemeinsamesKindMitPartner = ae.MemberType == "Konkubinatspartner";
+        }
+        else
+        {
+            // Ohne verknüpften Elternteil: «nicht erfasst» schickt die Maske als
+            // gemeinsames Kind = nein, «offen» als NULL.
+            ziel.AndererElternteilId = null;
+            if (kind) ziel.GemeinsamesKindMitPartner = dto.GemeinsamesKindMitPartner;
+        }
+
+        var se = Leer(dto.SeNeAngemeldet)?.ToUpperInvariant();
+        if (se != null && se is not ("NEIN" or "SE" or "NE")) return Fehler("SE/NE: unbekannter Wert.");
+        if (dto.Arbeitspensum is < 0 or > 100) return Fehler("Arbeitspensum muss zwischen 0 und 100 % liegen.");
+        ziel.Arbeitspensum = elternteil ? dto.Arbeitspensum : null;
+        ziel.ArbeitgeberTelefon = elternteil ? Leer(dto.ArbeitgeberTelefon) : null;
+        ziel.EinkommenUeberMinimum = elternteil ? dto.EinkommenUeberMinimum : null;
+        ziel.SeNeAngemeldet = elternteil ? se : null;
+        ziel.SeNeAusgleichskasse = elternteil && se is "SE" or "NE" ? Leer(dto.SeNeAusgleichskasse) : null;
+        ziel.BeziehtLeistung = elternteil ? dto.BeziehtLeistung : null;
+        ziel.LeistungVon = elternteil && dto.BeziehtLeistung == true ? Leer(dto.LeistungVon) : null;
+        return null;
     }
 
     /// <summary>

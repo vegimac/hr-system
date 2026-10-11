@@ -244,13 +244,19 @@ Kein Hinweis ändert selbständig eine QST-Version oder eine Zulage.
 - **Tabellen:** `family_member_ausbildung`, `family_member_verhaeltnis`, `family_member_qst_entscheid`.
   Endpunkte unter `api/employees/{id}/family/{kindId}/…` (`qst-verlauf`, `ausbildung`,
   `ausbildung/aus-zulage/{zulageId}`, `verhaeltnis`, `qst-entscheid`).
-- **Abweichung:** Der Haken «keine Unterhaltspflicht» bleibt ein dauerhaftes «zählt nie» (gilt
-  auch für die Familienzulagen) — die Unterhalts-Frage in den Verhältnissen ist für Kinder mit
-  Unterhaltspflicht, deren Unterhalt sich ändert (z.B. eigenes Einkommen). Übernommene
-  Verhältnis-Versionen haben Unterhalt = ja.
+- **Unterhalt nur noch im Verlauf (Walter 11.10.2026, Schema-Stand 61):** Das Häkchen
+  «keine Unterhaltspflicht» ist weg. Beim Umstieg wurde es zu Verhältnis-Versionen
+  «Unterhalt zur Hauptsache = nein» (Bemerkung «aus Häkchen …»). Unterhalt kann sich damit ab
+  Datum ändern; ein neues Kind bekommt Haushalt + Unterhalt als Startwerte der ersten Version.
+  **Familienzulagen werden ohne Unterhalt nicht mehr gesperrt** — die Familienausgleichskasse
+  entscheidet; am Kind steht nur der Hinweis «Verfügung prüfen».
 - **Snapshot-Felder bleiben:** `in_erstausbildung` (nachgeführt = heute läuft eine Erstausbildung),
-  `lebt_im_haushalt`, `keine_unterhaltspflicht` lesen weiterhin QST-Infoformular, QST-Anmeldung,
-  Herleitungs-Snapshot und Familienzulagen. `qst_deductible_from/until` werden nicht mehr gepflegt
+  `lebt_im_haushalt` und `keine_unterhaltspflicht` (= Abbild der heute gültigen Verhältnis-Version,
+  nachgeführt von `KindQstVerlaufLader.SnapshotNachfuehrenAsync`) lesen weiterhin
+  QST-Infoformular, QST-Anmeldung und Herleitungs-Snapshot. Nie von Hand setzen.
+- **Maske (Walter 11.10.2026):** Kind in vier Blöcken — Kind (Beziehung, anderer Elternteil,
+  Sorge, erwerbsunfähig), Wohnen & Unterhalt (Verlauf + Wohnadresse mit Land), Ausbildung,
+  Quellensteuer (Ergebnis + Entscheide). Siehe `docs/famz-anmeldung-konzept.md`. `qst_deductible_from/until` werden nicht mehr gepflegt
   (Altbestand → QST-Entscheide, Swissdec-Testdaten schreiben Entscheide mit Quelle «SWISSDEC»).
 - **Ausbildungszulage ohne QST-Ausbildung:** Hinweis an der Karte und im QST-Pflicht-Check,
   im Familien-Fenster Knopf «Als QST-Ausbildung übernehmen» (Zeitraum + Beleg der Zulage).

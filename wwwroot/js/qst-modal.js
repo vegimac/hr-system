@@ -673,8 +673,8 @@ function qstRenderVorschlagBanner() {
 function qstAutoKinderCount(stichtagIso) {
     if (!stichtagIso) return 0;
     const s = stichtagIso.slice(0, 10);
-    return _qstFamilyKinder.filter(k => !k.keineUnterhaltspflicht
-        && (k.qstVerlauf?.wirkung || []).some(w => w.von <= s && (!w.bis || w.bis >= s))).length;
+    return _qstFamilyKinder.filter(k =>
+        (k.qstVerlauf?.wirkung || []).some(w => w.von <= s && (!w.bis || w.bis >= s))).length;
 }
 
 function qstFmtDe(iso) {

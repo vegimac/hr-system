@@ -1,0 +1,76 @@
+# Anmeldung Familienzulagen (GastroSocial FOR 0402) — Walter 11.10.2026
+
+Walter: «alle infos die wir brauchen in der kinder maske einbauen. beim partner auch ergänzen
+was wir brauchen. auch beim ma ist der zivilstand sehr wichtig … dieses formular übernehmen und
+durch onecrew erstellen lassen, so wie wir schon die anmeldung ahv machen.»
+Ergänzung: «einkommen höher ist wichtig bei der familienzulage. hat unser ma ein tieferes
+einkommen als der partner, erhält im normalfall der partner das kindergeld.»
+
+## Was OneCrew macht
+
+- Seite **HR-Hub → Behörden-Korrespondenz → Anmeldung Familienzulagen** (`page-famz-anmeldung`,
+  `js/famz-anmeldung.js`) und Knopf «📄 Anmeldung Familienzulagen» im Familie-Tab (nur mit Kindern).
+- MA wählen → Kinder wählen (max. 5 pro Formular, Vorgabe alle bis 25) → Vorbefüllung → alles
+  editierbar → PDF im Vorschaufenster. Es wird **nichts gespeichert**; fehlende Angaben gehören
+  in die Familie-Maske.
+- Backend: `GET api/famz-anmeldung/{empId}/prefill?kinder=1,2`, `POST …/pdf`
+  (`FamzAnmeldungController`). Das PDF füllt die AcroForm-Felder des Originals
+  `Assets/Forms/FamzAnmeldung_GastroSocial_0402.pdf` und macht sie flach
+  (`FamzAnmeldungPdfService`). Feldnamen/Zustände sind im Service kommentiert.
+
+## Woher die Angaben kommen
+
+| Formular | Quelle |
+|---|---|
+| Antragsteller/in | MA-Stammdaten; Zivilstand + «seit» aus Zivilstand / getrennt seit / Zivilstand-Historie |
+| Arbeitgeber, Abrechnungsnummer | Filiale des aktuellen Vertrags; Nummer = Empfänger FAK, sonst Ausgleichskasse |
+| Beschäftigt von/bis | nahtlose Vertragskette in derselben Filiale |
+| Bruttolohn, Einkommen > 7'560 | Vertrag + mutmasslicher Jahreslohn (`BvgPflichtService.VorschlagAsync`) |
+| Weitere Arbeitgeber | Tabelle `weitere_arbeitgeber` (nur Info, wie bisher) |
+| Leistungsbezug | Absenzen heute (Unfall/Krankheit/Mutterschaft) |
+| Anderer Elternteil | am Kind gewählt (`anderer_elternteil_id`), häufigster der gewählten Kinder |
+| Ehepartner/in | jüngster Eintrag Typ Ehepartner, falls nicht derselbe wie der andere Elternteil |
+| Kinder | Familie: Beziehung, Geschlecht, erwerbsunfähig; Wohnadresse nur wenn nicht im Haushalt |
+| Sorge / Kinder leben bei | Kind-Angaben; gemischt ⇒ Text in der Bemerkung |
+
+Hinweise (gelb) und Beilagenliste rechnet der Server mit (z.B. Ausländerausweise, Ausbildungsbestätigung
+ab 15/16, Erstanspruch beim Partner).
+
+## Kind-Maske (vier Blöcke)
+
+1. **Kind:** Name, Geburt, Geschlecht, Beziehung (leiblich/Adoptiv/Stief/Pflege/Geschwister/Enkel),
+   anderer Elternteil, elterliche Sorge, erwerbsunfähig, Belege.
+2. **Wohnen & Unterhalt:** Verlauf ab Datum (Haushalt, Unterhalt zur Hauptsache) und — wenn nicht im
+   Haushalt — die Wohnadresse (Zusatzadresse des MA, mit Land). Neues Kind: Startwerte.
+3. **Ausbildung:** Abschnitte (QST-Verlauf).
+4. **Quellensteuer:** Ergebnis + QST-Entscheide.
+
+Entfernt beim Kind: Nationalität, «In der Schweiz lebend», Häkchen «keine Unterhaltspflicht»,
+Adress-Radios, «Erfahren am». Bestehende Werte bleiben in der Datenbank.
+
+## Partner / anderer Elternteil
+
+Neuer Familientyp **`AndererElternteil`** (Kindsmutter/-vater, nicht Partner/in). Bei Ehepartner,
+Konkubinatspartner und anderem Elternteil zusätzlich: Zivilstand, Arbeitspensum, Telefon Arbeitgeber,
+Einkommen über CHF 7'560/Jahr, als SE/NE angemeldet (+ Kasse), bezieht Zulagen/Leistungen (+ von wem).
+
+**Erstanspruch:** «Ist das Einkommen … höher als das des MA?» erscheint bei allen drei Typen, sobald die
+Person erwerbstätig ist. Verdient sie mehr, erhält in der Regel **sie** die Kinderzulage (FamZG Art. 7).
+OneCrew zeigt das als Hinweis am Partner, am Kind und im Formular — gesperrt wird nichts, massgebend ist
+die Verfügung der Familienausgleichskasse. Gespeichert bleibt `ma_hat_hoeheres_einkommen`
+(MA-Sicht, Maske fragt aus Partner-Sicht und spiegelt).
+
+**Gemeinsames Kind (QST):** ergibt sich aus dem anderen Elternteil — ist es der Konkubinatspartner,
+gilt das Kind als gemeinsam (H1/A0-Regel), sonst nicht. «nicht erfasst / unbekannt» = nicht gemeinsam,
+«offen» = ungeklärt.
+
+## Datenbank (Schema-Stand 61)
+
+`employee_family_member`: `beziehung_zum_ma`, `erwerbsunfaehig`, `elterliche_sorge`,
+`anderer_elternteil_id` (FK, ON DELETE SET NULL), `arbeitspensum`, `arbeitgeber_telefon`,
+`einkommen_ueber_minimum`, `se_ne_angemeldet`, `se_ne_ausgleichskasse`, `bezieht_leistung`,
+`leistung_von`. Einmal-Migration: Häkchen «keine Unterhaltspflicht» → Verhältnis-Version
+«Unterhalt = nein»; gemeinsame Kinder → anderer Elternteil = Konkubinatspartner.
+
+Tests: `Tests/FamzAnmeldungTests.cs` (PDF gefüllt + flach, AHV-Kammfeld, Wohnt-bei, Sorge-Zusammenfassung,
+Vertragskette), `Tests/KindQstVerlaufTests.cs`.

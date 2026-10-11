@@ -159,6 +159,7 @@ public class EditLockEndpointAuditTests
         ["QstAnmeldungController"]         = "QST-Anmeldung-PDF — read-only",
         ["ZwischenverdienistController"]   = "RAV-Zwischenverdienst — admin/superuser-Formular",
         ["AhvAnmeldungController"]         = "AHV-Anmeldung 318.260 — reines Ausgabe-Formular (POST erzeugt nur PDF, persistiert nichts)",
+        ["FamzAnmeldungController"]        = "Anmeldung Familienzulagen GastroSocial 0402 — reines Ausgabe-Formular (POST erzeugt nur PDF, persistiert nichts)",
         ["ManagerDienstplanController"]    = "Manager-Dienstplan (Schicht-Kürzel pro Tag) — reine Planung, keine Lohndaten",
         ["FeiertageController"]            = "Feiertage global (Dienstplan + Stempel-Berichte) — keine Lohndaten",
         ["ArbeitszeitRegelnController"]    = "Regeln für Stempel-Verstösse (Bericht) — keine Lohndaten",

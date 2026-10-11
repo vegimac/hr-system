@@ -5603,10 +5603,14 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         return;
     }
 
+    // Anmeldung Familienzulagen (GastroSocial 0402, Walter 11.10.2026) — nur mit Kindern.
+    const famzBtn = (!isExcluded && members.some(m => m.memberType === 'Kind'))
+        ? `<button type="button" class="btn-emp-add" onclick="famzOpenForEmployee(${employeeId})" title="Formular «Anmeldung Familienzulagen» vorausgefüllt erstellen">📄 Anmeldung Familienzulagen</button>`
+        : '';
     const listHead = `
     <div class="emp-section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between;gap:12px">
         <span>${_t('famTab.listTitle','Familienmitglieder')}</span>
-        ${addBtn}
+        <span style="display:inline-flex;gap:8px">${famzBtn}${addBtn}</span>
     </div>`;
 
     // Gruppieren nach Typ
@@ -5619,7 +5623,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     // Walter-Bug 25.08.2026: Konkubinatspartner fehlte in der Reihenfolge →
     // Karte verschwand nach dem Typ-Wechsel. Zusätzlich Robustheits-Netz:
     // UNBEKANNTE Typen werden hinten angehängt statt verschluckt.
-    const typeOrder = ['Ehepartner', 'Konkubinatspartner', 'Kind', 'Mutter', 'Vater', 'Sonstige'];
+    const typeOrder = ['Ehepartner', 'Konkubinatspartner', 'AndererElternteil', 'Kind', 'Mutter', 'Vater', 'Sonstige'];
     Object.keys(groups).forEach(t => { if (!typeOrder.includes(t)) typeOrder.push(t); });
     // Walter-Vorgabe 13.06.2026: roter Warnbanner ganz oben, wenn die QST-
     // Befreiung über den Ehepartner läuft und das Beleg-Doku noch nicht am
@@ -5651,6 +5655,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         const isEn = window.i18n && window.i18n.getLang && i18n.getLang() === 'en';
         if (type === 'Kind' && count > 1) return isEn ? 'Children' : 'Kinder';
         if (type === 'Konkubinatspartner') return 'Konkubinatspartner/in';
+        if (type === 'AndererElternteil') return count > 1 ? 'Andere Elternteile' : 'Anderer Elternteil';
         return _t('fam.value.type.' + type, type);
     };
     const yearsLabel = window.i18n && window.i18n.getLang && i18n.getLang() === 'en' ? 'years' : 'Jahre';
@@ -5661,6 +5666,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     const famGroupCls = {
         Ehepartner: 'fam-group-partner',
         Konkubinatspartner: 'fam-group-partner',
+        AndererElternteil: 'fam-group-partner',
         Kind: 'fam-group-kinder',
         Mutter: 'fam-group-eltern',
         Vater: 'fam-group-eltern',
@@ -5752,7 +5758,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             // Walter-Vorgabe 20.08.2026: Kind in Erstausbildung — Kinderziffer
             // läuft über den 18. Geburtstag hinaus (KS 45; Beleg hinterlegen).
             if (type === 'Kind' && m.keineUnterhaltspflicht) {
-                spousePermitBadge += `<span class="fam-tile-badge" style="background:#fee2e2;color:#991b1b" title="Keine Unterhaltspflicht (z.B. Stiefkind aus früherer Beziehung des Partners) — zählt NICHT für die QST-Kinderziffer">⊘ keine Unterhaltspflicht</span>`;
+                spousePermitBadge += `<span class="fam-tile-badge" style="background:#fee2e2;color:#991b1b" title="Heute kein Unterhalt zur Hauptsache durch den MA (Verlauf «Wohnen & Unterhalt») — zählt nicht für die QST-Kinderziffer">⊘ kein Unterhalt</span>`;
             }
             if (type === 'Kind' && m.inErstausbildung && !m.keineUnterhaltspflicht) {
                 spousePermitBadge += `<span class="fam-tile-badge" style="background:#dbeafe;color:#1d4ed8" title="In Erstausbildung — QST-Kinderziffer läuft über 18 hinaus (Lehrvertrag/Immatrikulation als Beleg)">🎓 Erstausbildung</span>`;
@@ -5779,6 +5785,19 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             if (type === 'Konkubinatspartner') {
                 spousePermitBadge += `<span class="fam-tile-badge" style="background:#fce7f3;color:#9d174d" title="Konkubinat — befreit NICHT von der QST (auch mit CH/C); H1/A0 läuft über das gemeinsame Kind">💞 Konkubinat</span>`;
             }
+            if (type === 'AndererElternteil' || type === 'Konkubinatspartner') {
+                if (m.erwerbstaetig === true) {
+                    const agTxt = [m.arbeitgeberName, m.arbeitgeberOrt].filter(Boolean).join(', ');
+                    spousePermitBadge += `<span class="fam-tile-badge" style="background:#dcfce7;color:#166534">💼 erwerbstätig${agTxt ? ' · ' + esc(agTxt) : ''}</span>`;
+                } else if (m.erwerbstaetig === false) {
+                    spousePermitBadge += `<span class="fam-tile-badge">nicht erwerbstätig</span>`;
+                }
+            }
+            // Erstanspruch Familienzulagen (Walter 11.10.2026): verdient der
+            // andere Elternteil mehr, bezieht in der Regel er/sie die Kinderzulage.
+            if (FM_ELTERN_TYPEN.includes(type) && m.erwerbstaetig === true && m.maHatHoeheresEinkommen === false) {
+                spousePermitBadge += `<span class="fam-tile-badge fam-tile-badge-warn" title="Verdient mehr als der MA — in der Regel bezieht diese Person die Kinderzulage (Erstanspruch). Zulage bei uns nur mit Verfügung der Familienausgleichskasse.">⚠ verdient mehr · Erstanspruch Kinderzulage</span>`;
+            }
 
             let addrBadge = '';
             if (m.alternativeAddress) {
@@ -5799,18 +5818,9 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             // Kinder: Zulagen kompakt — KEINE leere gestrichelte Box mehr.
             // Ohne Zulagen nur „+ Zulage"; mit Zulagen eine Chip-Zeile + Detail.
             let kindAllowancesBlock = '';
-            // Ohne Unterhaltspflicht besteht auch kein Zulagen-Anspruch
-            // (Walter 01.09.2026) — der Anspruch nach FamZG haengt am
-            // Unterhalt, genau wie die QST-Kinderziffer. Statt eines
-            // Knopfes, der zu einem Fehler fuehrt, steht hier der Grund.
-            if (type === 'Kind' && m.keineUnterhaltspflicht) {
-                kindAllowancesBlock = `
-                    <div class="fam-tile-foot" onclick="event.stopPropagation()">
-                        <span style="font-size:11px;color:#991b1b" title="Keine Unterhaltspflicht — kein Anspruch auf Familienzulagen fuer dieses Kind">
-                            ⊘ keine Zulagen
-                        </span>
-                    </div>`;
-            } else if (type === 'Kind') {
+            // Seit 11.10.2026 keine Sperre mehr ohne Unterhalt: die Familien-
+            // ausgleichskasse entscheidet (Verfügung) — Hinweis steht in der QST-Zeile.
+            if (type === 'Kind') {
                 const allowances = allowanceMap[m.id] || [];
                 if (allowances.length === 0) {
                     kindAllowancesBlock = `
@@ -5869,7 +5879,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             // offene Punkte und Hinweise gelb.
             let qstZeitraumLine = '';
             const qv = m.qstVerlauf;
-            if (type === 'Kind' && qv && !m.keineUnterhaltspflicht) {
+            if (type === 'Kind' && qv) {
                 const heuteIso = new Date().toISOString().slice(0, 10);
                 const mon = iso => iso ? `${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
                 const zeilen = (qv.wirkung || []).map(w => {
@@ -5945,13 +5955,11 @@ function showFamilyDetailPopup(memberId) {
                     ${row(_t('fam.field.phone','Telefon'),      m.phone || '–')}
                     ${row(_t('fam.field.livesInCh','In der Schweiz lebend'), m.livesInSwitzerland ? (i18n.getLang && i18n.getLang() === 'en' ? 'Yes' : 'Ja') : (i18n.getLang && i18n.getLang() === 'en' ? 'No' : 'Nein'))}
                     ${m.keineUnterhaltspflicht
-                        ? row('Unterhaltspflicht', 'keine — zählt nicht für die QST-Kinderziffer')
+                        ? row('Unterhalt', 'heute kein Unterhalt zur Hauptsache — zählt nicht für die QST-Kinderziffer')
                         : ''}
-                    ${m.keineUnterhaltspflicht || !m.qstVerlauf ? '' :
+                    ${!m.qstVerlauf ? '' :
                       row('QST zählt', (m.qstVerlauf.wirkung || []).map(w =>
                           `${w.von.slice(5, 7)}.${w.von.slice(0, 4)} – ${w.bis ? w.bis.slice(5, 7) + '.' + w.bis.slice(0, 4) : 'offen'} · ${esc(w.grund)}`).join('<br>') || 'zurzeit nicht')}
-                    ${m.keineUnterhaltspflicht ? '' :
-                      row(_t('fam.field.erfahrenAm','Erfahren am'), m.erfahrenAm ? formatDate(m.erfahrenAm) : '–')}
                 </div>
                 <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
                     <button onclick="closeFamilyDetailPopup();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})" style="background:#1a1a1a;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">✎ ${_t('docs.btn.edit','Bearbeiten')}</button>
@@ -6014,6 +6022,7 @@ function fmTypeChanged() {
         lastEl.value = maLast;
     }
     fmQstBlocksVisibility(type);
+    fmRefreshStatusUi(!!editingFamilyMemberId);
 }
 
 // Walter-Vorgabe 20.08.2026: typ-abhängige QST-Blöcke im Familien-Modal —
@@ -6026,45 +6035,36 @@ function fmQstBlocksVisibility(type) {
     // Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
     // Erwerbstätigkeits-Block auch hier sichtbar (freiwillig, angemahnt erst
     // bei gemeinsamem Kind), plus die Einkommensfrage H1/A0.
+    // Anderer Elternteil (Walter 11.10.2026): gleiche Erwerbsfragen wie die
+    // Partner — fürs Formular «Anmeldung Familienzulagen».
+    const elternTyp = FM_ELTERN_TYPEN.includes(type);
     const erwerbSec = document.getElementById('fmErwerbSection');
-    if (erwerbSec) erwerbSec.style.display = (type === 'Ehepartner' || type === 'Konkubinatspartner') ? '' : 'none';
+    if (erwerbSec) erwerbSec.style.display = elternTyp ? '' : 'none';
     const erwerbTitle = document.getElementById('fmErwerbTitle');
     if (erwerbTitle) erwerbTitle.textContent = type === 'Konkubinatspartner'
         ? 'Erwerbstätigkeit Konkubinatspartner/in'
+        : type === 'AndererElternteil' ? 'Erwerbstätigkeit anderer Elternteil'
         : 'Erwerbstätigkeit Ehepartner';
-    // Einkommensfrage erst NACH «Erwerbstätig = Ja» (Walter 25.08.2026 v2) —
-    // bei Nein greift automatisch H1, bei offen ist die Frage noch irrelevant.
-    const einkRow = document.getElementById('fmEinkommenRow');
-    if (einkRow) einkRow.style.display =
-        (type === 'Konkubinatspartner' && fmGetErwerb() === true) ? '' : 'none';
-    // Gemeinsames-Kind-Frage: nur bei Kind UND wenn beim MA ein
-    // Konkubinatspartner erfasst ist.
-    const gemRow = document.getElementById('fmGemKindRow');
-    if (gemRow) {
-        const hatKPartner = (window._familyMembersCache || []).some(m =>
-            m.memberType === 'Konkubinatspartner' && !m.dateOfDeath);
-        gemRow.style.display = (type === 'Kind' && hatKPartner) ? '' : 'none';
-    }
-    // Walter-Vorgabe 20.08.2026: die GANZE QST-Sektion (Abzug ab/bis +
-    // Erstausbildung) gibt es nur bei Kindern — beim Ehepartner & Co. weg.
-    const istKindTyp = type === 'Kind';
-    // «Keine Unterhaltspflicht» ist eine reine Kind-Frage (Walter 01.09.2026).
-    const unterhaltFeld = document.getElementById('fmKeineUnterhaltField');
-    if (unterhaltFeld) unterhaltFeld.style.display = istKindTyp ? '' : 'none';
-
-    // Ohne Unterhaltspflicht zählt das Kind nie für die Kinderziffer — dann
-    // haben Abzugszeitraum und Erstausbildung keine Wirkung mehr und werden
-    // ausgeblendet, statt eine Wahl vorzutäuschen, die nichts bewirkt.
-    const ohneUnterhalt = document.getElementById('fmKeineUnterhaltspflicht')?.checked === true;
-    const qstSec = document.getElementById('fmQstSection');
-    if (qstSec) qstSec.style.display = (istKindTyp && !ohneUnterhalt) ? '' : 'none';
+    const zsFeld = document.getElementById('fmFamilyStatusField');
+    if (zsFeld) zsFeld.style.display = elternTyp ? '' : 'none';
+    fmEinkommenZeile();
+    // Walter 11.10.2026: Kind-Maske in vier Blöcken — Kind, Wohnen & Unterhalt,
+    // Ausbildung, Quellensteuer. Nationalität, «In der Schweiz lebend» und die
+    // Adress-Radios gibt es beim Kind nicht mehr (Wohnadresse im Wohnen-Block).
+    const istKind = type === 'Kind';
+    ['fmKindSection', 'fmKindWohnenSection', 'fmKindAusbildungSection', 'fmQstSection'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = istKind ? '' : 'none';
+    });
+    ['fmAufenthaltGrid', 'fmAdresseSection'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = istKind ? 'none' : '';
+    });
+    if (istKind) { fmAeOptionen(); fmKindAdresseSichtbarkeit(); }
     // Walter-Vorgabe 29.08.2026: beim KIND unnötige Felder ausblenden —
     // Ledigname, AHV-Nummer, Telefon, Bewilligung, Gültig bis, ZEMIS-Nr.
-    // (Nationalität + «In der Schweiz lebend» bleiben). Beim Ehepartner
-    // bleiben alle Felder — dessen Bewilligung ist QST-relevant (C-Ausweis
-    // = Befreiung). Verborgene Inputs behalten ihre Werte (kein Datenverlust
+    // Verborgene Inputs behalten ihre Werte (kein Datenverlust
     // beim Bearbeiten von Alt-Erfassungen).
-    const istKind = type === 'Kind';
     ['fmMaidenNameField', 'fmSsnField', 'fmPhoneField', 'fmZemisField'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = istKind ? 'none' : '';
@@ -6100,33 +6100,119 @@ function fmGetMaEink() {
     const r = document.querySelector('input[name="fmPartnerMehr"]:checked');
     return r?.value === 'ja' ? false : r?.value === 'nein' ? true : null;
 }
-function fmSetGemKind(val) {
+// ── Familienzulagen-Angaben (Walter 11.10.2026, docs/famz-anmeldung-konzept.md) ──
+const FM_ELTERN_TYPEN = ['Ehepartner', 'Konkubinatspartner', 'AndererElternteil'];
+
+function fmPille(name, val) {
     const want = val === true ? 'ja' : val === false ? 'nein' : '';
-    document.querySelectorAll('input[name="fmGemKind"]').forEach(r => { r.checked = (r.value === want); });
+    document.querySelectorAll(`input[name="${name}"]`).forEach(r => { r.checked = (r.value === want); });
 }
-function fmGetGemKind() {
-    const r = document.querySelector('input[name="fmGemKind"]:checked');
+function fmPilleLesen(name) {
+    const r = document.querySelector(`input[name="${name}"]:checked`);
     return r?.value === 'ja' ? true : r?.value === 'nein' ? false : null;
+}
+const fmJn = v => v === true ? 'ja' : v === false ? 'nein' : '';
+const fmJnLesen = id => { const v = document.getElementById(id)?.value; return v === 'ja' ? true : v === 'nein' ? false : null; };
+
+/** Aktueller Erwerbsstand im Formular (Ersterfassung oder gespeicherter Status). */
+function fmErwerbAktuell() {
+    if (document.getElementById('fmErwerbErst')?.style.display !== 'none') return fmGetErwerb();
+    return (window._fmErwerbStand === true || window._fmErwerbStand === false) ? window._fmErwerbStand : fmGetErwerb();
+}
+
+/** «Verdient … mehr als der MA?» — bei allen Eltern-Typen, sobald erwerbstätig. */
+function fmEinkommenZeile() {
+    const typ = document.getElementById('fmMemberType')?.value || '';
+    const row = document.getElementById('fmEinkommenRow');
+    if (!row) return;
+    row.style.display = (FM_ELTERN_TYPEN.includes(typ) && fmErwerbAktuell() === true) ? '' : 'none';
+    const frage = document.getElementById('fmEinkommenFrage');
+    if (frage) frage.textContent = typ === 'Konkubinatspartner'
+        ? 'Ist das Einkommen des Konkubinatspartners höher als das des MA?'
+        : typ === 'AndererElternteil' ? 'Ist das Einkommen des anderen Elternteils höher als das des MA?'
+        : 'Ist das Einkommen des Ehepartners höher als das des MA?';
+    const qst = document.getElementById('fmEinkommenQstHint');
+    if (qst) qst.style.display = typ === 'Konkubinatspartner' ? '' : 'none';
+    fmEinkommenHinweis();
+}
+function fmEinkommenHinweis() {
+    const h = document.getElementById('fmEinkommenFamzHint');
+    if (h) h.style.display = fmGetMaEink() === false ? '' : 'none';
+}
+
+function fmSeNeSichtbarkeit() {
+    const seNe = document.getElementById('fmSeNe')?.value || '';
+    const kasse = document.getElementById('fmSeNeKasseField');
+    if (kasse) kasse.style.display = (seNe === 'SE' || seNe === 'NE') ? '' : 'none';
+    const von = document.getElementById('fmLeistungVonField');
+    if (von) von.style.display = document.getElementById('fmBeziehtLeistung')?.value === 'ja' ? '' : 'none';
+}
+
+/** Auswahl «Anderer Elternteil» am Kind: Partner + andere Elternteile des MA. */
+function fmAeOptionen(aktuell) {
+    const sel = document.getElementById('fmAndererElternteil');
+    if (!sel) return;
+    if (aktuell === undefined) aktuell = sel.dataset.wert ?? '';
+    const eltern = (window._familyMembersCache || [])
+        .filter(m => FM_ELTERN_TYPEN.includes(m.memberType) && m.id !== editingFamilyMemberId)
+        .sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '') || (a.lastName || '').localeCompare(b.lastName || ''));
+    const typText = { Ehepartner: 'Ehepartner/in', Konkubinatspartner: 'Konkubinatspartner/in', AndererElternteil: 'anderer Elternteil' };
+    sel.innerHTML = `<option value="">– offen –</option>`
+        + eltern.map(m => `<option value="${m.id}">${esc(`${m.firstName || ''} ${m.lastName || ''}`.trim() || '–')} · ${typText[m.memberType]}${m.dateOfDeath ? ' · verstorben' : ''}</option>`).join('')
+        + `<option value="0">nicht erfasst / unbekannt</option>`;
+    sel.value = String(aktuell ?? '');
+    if (sel.value !== String(aktuell ?? '')) sel.value = '';
+    sel.dataset.wert = sel.value;
+    fmAeHinweisAktualisieren();
+}
+function fmAeHinweisAktualisieren() {
+    const sel = document.getElementById('fmAndererElternteil');
+    const box = document.getElementById('fmAeHinweis');
+    if (!sel || !box) return;
+    sel.dataset.wert = sel.value;
+    const id = parseInt(sel.value, 10);
+    const ae = id > 0 ? (window._familyMembersCache || []).find(m => m.id === id) : null;
+    const name = ae ? `${ae.firstName || ''} ${ae.lastName || ''}`.trim() : '';
+    const teile = [];
+    if (sel.value === '') teile.push('Fehlt die Person? Zuerst als «Anderer Elternteil» erfassen — wichtig für die Familienzulagen.');
+    if (ae && ae.erwerbstaetig === true && ae.maHatHoeheresEinkommen === false)
+        teile.push(`<span style="color:#92400e">⚠ ${esc(name)} verdient mehr — in der Regel bezieht ${esc(name)} die Kinderzulage (Erstanspruch).</span>`);
+    if (ae && ae.memberType === 'Konkubinatspartner')
+        teile.push('Gemeinsames Kind mit dem Konkubinatspartner — für die QST gilt die H1/A0-Einkommensregel.');
+    box.innerHTML = teile.join('<br>');
+}
+
+/** Lebt das Kind heute im Haushalt? Neu: Startwert; sonst gültige Version aus dem Verlauf. */
+function fmKindImHaushalt() {
+    if (!editingFamilyMemberId) return document.getElementById('fmKindStartHaushalt')?.value !== 'nein';
+    const verh = (typeof _kqv !== 'undefined' && _kqv?.memberId === editingFamilyMemberId && _kqv?.daten?.verhaeltnisse) || null;
+    if (verh && verh.length) {
+        const heute = _fmHeuteIso();
+        const gueltig = [...verh].filter(v => (v.gueltigAb || '') <= heute)
+            .sort((a, b) => String(b.gueltigAb).localeCompare(String(a.gueltigAb)))[0] || verh[0];
+        return gueltig.imHaushalt !== false;
+    }
+    return window._fmKindLebtImHaushalt !== false;
+}
+function fmKindAdresseSichtbarkeit() {
+    // Nur wenn das Kind heute nicht im Haushalt lebt — sonst gilt die Adresse des MA.
+    const box = document.getElementById('fmKindAdresseBox');
+    if (box) box.style.display = fmKindImHaushalt() ? 'none' : '';
 }
 function fmErwerbChanged() {
     // CH-Arbeitgeber-Felder nur bei «Ja» UND Partner in der Schweiz.
     // Im Ausland (inkl. gleicher Haushalt eines Auslands-MA) komplett weg.
     const aktiv = fmGetErwerb() === true;
     ['fmArbeitgeberName', 'fmArbeitgeberStrasse', 'fmArbeitgeberPlz',
-     'fmArbeitgeberOrt', 'fmArbeitgeberKanton', 'fmStellenantritt'].forEach(id => {
+     'fmArbeitgeberOrt', 'fmArbeitgeberKanton', 'fmStellenantritt', 'fmArbeitgeberTelefon'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         el.disabled = !aktiv;
         el.style.opacity = aktiv ? '' : '0.5';
     });
     fmSyncArbeitgeberSichtbarkeit();
-    // Konkubinat (Walter 25.08.2026 v2): Einkommensfrage erst bei
-    // «Erwerbstätig = Ja» einblenden — bei Nein greift automatisch H1.
-    const einkRow = document.getElementById('fmEinkommenRow');
-    if (einkRow) {
-        const istK = (document.getElementById('fmMemberType')?.value || '') === 'Konkubinatspartner';
-        einkRow.style.display = (istK && aktiv) ? '' : 'none';
-    }
+    // Einkommensfrage erst bei «Erwerbstätig = Ja» (Walter 25.08.2026 v2).
+    fmEinkommenZeile();
 }
 
 // Analog für das MA-Edit-Modal — Alter neben dem Geburtsdatum-Input.
@@ -7607,23 +7693,50 @@ async function openFamilyModal(member) {
         _isNewMember
             ? fmIstLandSchweiz(selectedEmployee?.country)
             : (member?.livesInSwitzerland ?? false);
-    // Erfahren am (Kind): neu = heute; Edit = gespeicherter Wert (Swissdec Marc: 1.7.).
-    const _fmEa = document.getElementById('fmErfahrenAm');
-    if (_fmEa) {
-        if (_isNewMember) {
-            const t = new Date();
-            _fmEa.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-        } else {
-            _fmEa.value = toDateInput(member?.erfahrenAm);
-        }
-    }
-
     // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder — Ehepartner-Erwerb +
     // Kind-Erstausbildung (+ typ-abhängige Sichtbarkeit).
     fmSetErwerb(member?.erwerbstaetig ?? null);
-    // Konkubinat (Walter 25.08.2026): Einkommens- + Gemeinsames-Kind-Frage.
+    // Konkubinat (Walter 25.08.2026): Einkommensfrage — seit 11.10.2026 bei
+    // allen Eltern-Typen (Erstanspruch Familienzulagen).
     fmSetMaEink(member?.maHatHoeheresEinkommen ?? null);
-    fmSetGemKind(member?.gemeinsamesKindMitPartner ?? null);
+
+    // Familienzulagen-Angaben (Walter 11.10.2026, docs/famz-anmeldung-konzept.md)
+    const zsSel = document.getElementById('fmFamilyStatus');
+    if (zsSel) {
+        const zs = member?.familyStatus ?? '';
+        // Unbekannter Altwert (Import) bleibt wählbar, sonst würde er beim Speichern gelöscht.
+        if (zs && ![...zsSel.options].some(o => o.value === zs))
+            zsSel.insertAdjacentHTML('beforeend', `<option value="${esc(zs)}">${esc(zs)}</option>`);
+        zsSel.value = zs;
+    }
+    document.getElementById('fmBeziehung').value = member?.beziehungZumMa ?? (_isNewMember ? 'L' : '');
+    document.getElementById('fmElterlicheSorge').value = member?.elterlicheSorge ?? '';
+    document.getElementById('fmErwerbsunfaehig').checked = member?.erwerbsunfaehig === true;
+    {
+        // Anderer Elternteil: gespeichert = Id; «nicht erfasst» = gemeinsamesKind false ohne Id;
+        // neues Kind mit genau einem lebenden Partner/Elternteil → vorschlagen.
+        let ae = member?.andererElternteilId != null ? String(member.andererElternteilId)
+               : (member && member.gemeinsamesKindMitPartner === false) ? '0' : '';
+        if (_isNewMember) {
+            const kandidaten = (window._familyMembersCache || [])
+                .filter(m => FM_ELTERN_TYPEN.includes(m.memberType) && !m.dateOfDeath);
+            if (kandidaten.length === 1) ae = String(kandidaten[0].id);
+        }
+        document.getElementById('fmAndererElternteil').dataset.wert = ae;
+    }
+    document.getElementById('fmArbeitspensum').value = member?.arbeitspensum ?? '';
+    document.getElementById('fmArbeitgeberTelefon').value = member?.arbeitgeberTelefon ?? '';
+    fmPille('fmEinkMin', member?.einkommenUeberMinimum ?? null);
+    document.getElementById('fmSeNe').value = member?.seNeAngemeldet ?? '';
+    document.getElementById('fmSeNeKasse').value = member?.seNeAusgleichskasse ?? '';
+    document.getElementById('fmBeziehtLeistung').value = fmJn(member?.beziehtLeistung ?? null);
+    document.getElementById('fmLeistungVon').value = member?.leistungVon ?? '';
+    fmSeNeSichtbarkeit();
+    document.getElementById('fmKindStartHaushalt').value = 'ja';
+    document.getElementById('fmKindStartUnterhalt').value = 'ja';
+    document.getElementById('fmKindStart').style.display = _isNewMember ? '' : 'none';
+    window._fmKindLebtImHaushalt = member?.lebtImHaushalt;
+
     document.getElementById('fmArbeitgeberName').value    = member?.arbeitgeberName    ?? '';
     document.getElementById('fmArbeitgeberStrasse').value = member?.arbeitgeberStrasse ?? '';
     document.getElementById('fmArbeitgeberPlz').value     = member?.arbeitgeberPlz     ?? '';
@@ -7632,8 +7745,6 @@ async function openFamilyModal(member) {
     document.getElementById('fmStellenantritt').value     = toDateInput(member?.stellenantritt);
     const agHint = document.getElementById('fmAgPlzHint');
     if (agHint) agHint.innerHTML = '';
-    const unterhaltCb = document.getElementById('fmKeineUnterhaltspflicht');
-    if (unterhaltCb) unterhaltCb.checked = member?.keineUnterhaltspflicht ?? false;
     fmQstBlocksVisibility(member?.memberType ?? 'Kind');
     if (typeof kqvOeffnen === 'function') kqvOeffnen(selectedEmployeeId ?? selectedEmployee?.id, member);
 
@@ -7957,6 +8068,7 @@ async function fmRefreshAddressUi(currentAlternativeAddressId, lebtImHaushalt) {
                         [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' '),
                         a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : null,
                     ].filter(Boolean).join(' · ');
+                    opt.textContent = summary || `Adresse ${a.id}`;
                     opt.dataset.country = a.country || '';
                     select.appendChild(opt);
                 });
@@ -7969,6 +8081,13 @@ async function fmRefreshAddressUi(currentAlternativeAddressId, lebtImHaushalt) {
                 hintEl.textContent = '';
             }
         } catch { /* still */ }
+    }
+    // Kind: gleiche Zusatzadressen im Block «Wohnen & Unterhalt» (Walter 11.10.2026).
+    const kindSel = document.getElementById('fmKindAdresseId');
+    if (kindSel && select) {
+        kindSel.innerHTML = select.innerHTML.replace('— Adresse wählen —', '— keine Adresse erfasst —');
+        kindSel.value = currentAlternativeAddressId ? String(currentAlternativeAddressId) : '';
+        fmKindAdresseSichtbarkeit();
     }
 
     // «Lebt beim Ehepartner» (Walter 21.08.2026): nur anbieten, wenn ein
@@ -8055,7 +8174,7 @@ function fmUpdateAuslandHint() {
     const hint = document.getElementById('fmAuslandHint');
     if (!hint) return;
     const typ = document.getElementById('fmMemberType')?.value || '';
-    const istPartner = typ === 'Ehepartner' || typ === 'Konkubinatspartner';
+    const istPartner = FM_ELTERN_TYPEN.includes(typ);
     const inCh = fmPartnerGiltAlsInDerSchweizAusFormular();
     hint.style.display = (istPartner && !inCh) ? '' : 'none';
     fmSyncArbeitgeberSichtbarkeit();
@@ -8098,23 +8217,7 @@ function closeFamilyModal() {
 async function saveFamilyMember() {
     if (!selectedEmployeeId) return;
 
-    // Haken «keine Unterhaltspflicht» neu gesetzt, obwohl schon Zulagen
-    // erfasst sind (Walter 01.09.2026): nicht stillschweigend hinnehmen —
-    // die bestehenden Zulagen waeren damit unberechtigt und muessen von Hand
-    // aufgeraeumt werden. Nur fragen, nicht automatisch loeschen: an Zulagen
-    // haengen Lohnperioden.
-    const ohneUnterhaltNeu = document.getElementById('fmKeineUnterhaltspflicht')?.checked === true;
-    if (ohneUnterhaltNeu && editingFamilyMemberId) {
-        try {
-            const rz = await fetch(`/api/family-members/${editingFamilyMemberId}/allowances`, { headers: ah() });
-            const zl = rz.ok ? await rz.json() : [];
-            if (Array.isArray(zl) && zl.length > 0 && !confirm(
-                `Für dieses Kind sind ${zl.length} Zulage(n) erfasst.\n\n`
-                + 'Ohne Unterhaltspflicht besteht kein Anspruch darauf. Die bestehenden '
-                + 'Einträge werden NICHT automatisch gelöscht — bitte im Zulagen-Tab prüfen '
-                + 'und bereinigen.\n\nTrotzdem speichern?')) return;
-        } catch (_) { /* Zulagen nicht lesbar → Speichern nicht blockieren */ }
-    }
+    const istKindTyp = (document.getElementById('fmMemberType').value || 'Kind') === 'Kind';
 
     // Adress-Modus: "alt" = abweichende Adresse aus den Zusatzadressen des MA;
     // "spouse" (Walter 21.08.2026) = Zusatzadresse des Ehepartners übernehmen;
@@ -8126,10 +8229,18 @@ async function saveFamilyMember() {
     const addrUseAlt = document.getElementById('fmAddrAlt')?.checked;
     const addrUseExtern = document.getElementById('fmAddrExtern')?.checked;
     const addrSelVal = document.getElementById('fmAlternativeAddressId')?.value || '';
-    const alternativeAddressId = addrUseSpouse
+    let alternativeAddressId = addrUseSpouse
         ? Number(window._fmSpouseAltAddrId)
         : (addrUseAlt && addrSelVal) ? parseInt(addrSelVal, 10) : null;
-    const lebtImHaushalt = !(addrUseSpouse || addrUseAlt || addrUseExtern);
+    let lebtImHaushalt = !(addrUseSpouse || addrUseAlt || addrUseExtern);
+    // Kind (Walter 11.10.2026): Haushalt kommt aus dem Verlauf «Wohnen & Unterhalt»
+    // (neu: Startwert), die Wohnadresse aus dem eigenen Feld im selben Block.
+    if (istKindTyp) {
+        lebtImHaushalt = fmKindImHaushalt();
+        const kAdr = document.getElementById('fmKindAdresseId')?.value || '';
+        alternativeAddressId = (!lebtImHaushalt && kAdr) ? parseInt(kAdr, 10) : null;
+    }
+    const aeWahl = document.getElementById('fmAndererElternteil')?.value ?? '';
 
     // Aufenthalt + Nationalität: leer = null. Permit-Type-Id und
     // Nationality-Id sind FK in der DB.
@@ -8158,7 +8269,6 @@ async function saveFamilyMember() {
         livesInSwitzerland:     document.getElementById('fmLivesInSwitzerland').checked,
         alternativeAddressId,
         lebtImHaushalt,
-        erfahrenAm:             document.getElementById('fmErfahrenAm')?.value         || null,
         permitTypeId:           (() => {
             const fromSel = Number.isFinite(permitTypeId) && permitTypeId > 0 ? permitTypeId : null;
             if (document.getElementById('fmPermitErst')?.style.display !== 'none') return fromSel;
@@ -8174,14 +8284,28 @@ async function saveFamilyMember() {
                                         ? window._fmErwerbStand : fmGetErwerb())),
         // Konkubinat (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
         maHatHoeheresEinkommen:     fmGetMaEink(),
-        gemeinsamesKindMitPartner:  fmGetGemKind(),
+        // «nicht erfasst / unbekannt» = kein gemeinsames Kind; «offen» = NULL.
+        gemeinsamesKindMitPartner:  aeWahl === '0' ? false : null,
+        // Familienzulagen-Anmeldung (Walter 11.10.2026)
+        familyStatus:           document.getElementById('fmFamilyStatus')?.value || null,
+        beziehungZumMa:         document.getElementById('fmBeziehung')?.value || null,
+        elterlicheSorge:        document.getElementById('fmElterlicheSorge')?.value || null,
+        erwerbsunfaehig:        document.getElementById('fmErwerbsunfaehig')?.checked === true,
+        andererElternteilId:    parseInt(aeWahl, 10) > 0 ? parseInt(aeWahl, 10) : null,
+        startUnterhalt:         editingFamilyMemberId ? null : fmJnLesen('fmKindStartUnterhalt'),
+        arbeitspensum:          (() => { const v = parseFloat(document.getElementById('fmArbeitspensum')?.value); return Number.isFinite(v) ? v : null; })(),
+        arbeitgeberTelefon:     (document.getElementById('fmArbeitgeberTelefon')?.value || '').trim() || null,
+        einkommenUeberMinimum:  fmPilleLesen('fmEinkMin'),
+        seNeAngemeldet:         document.getElementById('fmSeNe')?.value || null,
+        seNeAusgleichskasse:    (document.getElementById('fmSeNeKasse')?.value || '').trim() || null,
+        beziehtLeistung:        fmJnLesen('fmBeziehtLeistung'),
+        leistungVon:            (document.getElementById('fmLeistungVon')?.value || '').trim() || null,
         arbeitgeberName:        (document.getElementById('fmArbeitgeberName')?.value    || '').trim() || null,
         arbeitgeberStrasse:     (document.getElementById('fmArbeitgeberStrasse')?.value || '').trim() || null,
         arbeitgeberPlz:         (document.getElementById('fmArbeitgeberPlz')?.value     || '').trim() || null,
         arbeitgeberOrt:         (document.getElementById('fmArbeitgeberOrt')?.value     || '').trim() || null,
         arbeitgeberKanton:      (document.getElementById('fmArbeitgeberKanton')?.value  || '').trim().toUpperCase() || null,
         stellenantritt:         document.getElementById('fmStellenantritt')?.value      || null,
-        keineUnterhaltspflicht: document.getElementById('fmKeineUnterhaltspflicht')?.checked ?? false,
         // Historie Seit/Erfahren (Walter 08.10.2026) — leer Seit = kein neuer Hist-Eintrag
         // ausser Ersteintrag (Server). Erfahren leer = gleich Seit.
         // Seit/Erfahren nur bei Ersterfassung (Status-Wechsel hat eigenen Speichern-Knopf).
@@ -8265,7 +8389,7 @@ function _fmHeuteIso() {
 
 function fmRefreshStatusUi(hasMemberId) {
     const typ = document.getElementById('fmMemberType')?.value || '';
-    const partner = typ === 'Ehepartner' || typ === 'Konkubinatspartner';
+    const partner = FM_ELTERN_TYPEN.includes(typ);
     const pErst = document.getElementById('fmPermitErst');
     const pBtn = document.getElementById('fmPermitWechselBtn');
     const eErst = document.getElementById('fmErwerbErst');
@@ -8280,6 +8404,7 @@ function fmRefreshStatusUi(hasMemberId) {
     if (eBtn) eBtn.style.display = (partner && hasMemberId && !needErwerbErst) ? '' : 'none';
     fmUpdatePermitStandText();
     fmUpdateErwerbStandText();
+    fmEinkommenZeile();
 }
 
 function fmUpdatePermitStandText() {
@@ -8576,13 +8701,6 @@ async function loadFamilyAllowances(familyMemberId) {
 // Walter 18.05.2026: direktes Öffnen der Zulagen-Erfassung aus der Familie-
 // Liste — ohne über das Familienmember-Edit-Modal gehen zu müssen.
 function openAllowanceFromCard(familyMemberId, existing) {
-    const kind = (window._familyMembersCache || []).find(m => m.id === familyMemberId);
-    if (kind?.keineUnterhaltspflicht) {
-        alert('Fuer dieses Kind ist «keine Unterhaltspflicht» erfasst.\n\n'
-            + 'Damit besteht kein Anspruch auf Familienzulagen. Wenn das nicht '
-            + 'stimmt, zuerst den Haken beim Kind entfernen.');
-        return;
-    }
     editingFamilyMemberId = familyMemberId;
     openAllowanceModal(existing);
 }

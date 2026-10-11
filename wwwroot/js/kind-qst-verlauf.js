@@ -18,16 +18,29 @@ function kqvFehler(msg) {
     if (typeof showToast === 'function') showToast(msg, 'error'); else alert(msg);
 }
 
+// Seit 11.10.2026 in drei Blöcken der Kind-Maske: «Wohnen & Unterhalt»
+// (#kqvMountWohnen), «Ausbildung» (#kqvMountAusbildung), «Quellensteuer»
+// (#fmQstVerlauf: Ergebnis + Entscheide).
+function kqvBoxen() {
+    return {
+        wohnen: document.getElementById('kqvMountWohnen'),
+        ausbildung: document.getElementById('kqvMountAusbildung'),
+        qst: document.getElementById('fmQstVerlauf'),
+    };
+}
+
 /** Beim Öffnen des Familien-Fensters: Kind laden oder Hinweis für neue Kinder. */
 async function kqvOeffnen(empId, member) {
     _kqv = { empId, memberId: member?.id ?? null, daten: null, form: null, dokumente: null };
-    const box = document.getElementById('fmQstVerlauf');
-    if (!box) return;
+    const b = kqvBoxen();
+    if (!b.qst) return;
     if (!member?.id || member.memberType !== 'Kind') {
-        box.innerHTML = `<div class="kqv-hinweis">Nach dem Speichern hier Ausbildung, Haushalt/Unterhalt und QST-Entscheide erfassen.</div>`;
+        if (b.wohnen) b.wohnen.innerHTML = '';
+        if (b.ausbildung) b.ausbildung.innerHTML = `<div class="kqv-hinweis">Nach dem Speichern erfassen.</div>`;
+        b.qst.innerHTML = `<div class="kqv-hinweis">Nach dem Speichern: Ergebnis und QST-Entscheide.</div>`;
         return;
     }
-    box.innerHTML = `<div class="kqv-hinweis">Lade …</div>`;
+    [b.wohnen, b.ausbildung, b.qst].forEach(x => { if (x) x.innerHTML = `<div class="kqv-hinweis">Lade …</div>`; });
     await kqvLaden();
 }
 
@@ -37,7 +50,9 @@ async function kqvLaden() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         _kqv.daten = await r.json();
     } catch (e) {
-        document.getElementById('fmQstVerlauf').innerHTML = `<div class="kqv-hinweis" style="color:#991b1b">QST-Verlauf konnte nicht geladen werden (${kqvEsc(e.message)}).</div>`;
+        const b = kqvBoxen();
+        [b.wohnen, b.ausbildung].forEach(x => { if (x) x.innerHTML = ''; });
+        b.qst.innerHTML = `<div class="kqv-hinweis" style="color:#991b1b">Verlauf konnte nicht geladen werden (${kqvEsc(e.message)}).</div>`;
         return;
     }
     kqvRender();
@@ -73,8 +88,8 @@ function kqvRender() {
     // Verwaiste ⋮-Menüs (an body gehängt) vor dem Neuzeichnen entfernen — sonst doppelte IDs.
     document.querySelectorAll('[id^="kqvA"][id*="Menu-"],[id^="kqvV"][id*="Menu-"],[id^="kqvE"][id*="Menu-"]').forEach(e => e.remove());
     const d = _kqv.daten;
-    const box = document.getElementById('fmQstVerlauf');
-    if (!box || !d) return;
+    const b = kqvBoxen();
+    if (!b.qst || !d) return;
     const a = d.anzeige || {};
     const f = _kqv.form;
 
@@ -139,12 +154,23 @@ function kqvRender() {
         ? (typ === 'A' ? kqvFormAusbildung(null) : typ === 'V' ? kqvFormVerhaeltnis(null) : kqvFormEntscheid(null))
         : `<button type="button" class="kqv-btn-neu" onclick="kqvBearbeiten('${typ}',null)">+ ${label}</button>`;
 
-    box.innerHTML = `${kopf}
-        <div class="kqv-block"><div class="kqv-sub">Ausbildung</div>${ausbZeilen || '<div class="kqv-leer">keine erfasst</div>'}${zulagen}${neu('A', 'Ausbildung')}</div>
-        <div class="kqv-block"><div class="kqv-sub">Haushalt &amp; Unterhalt</div>${verhZeilen || '<div class="kqv-leer">keine erfasst</div>'}${neu('V', 'Änderung ab Datum')}</div>
-        <div class="kqv-block"><div class="kqv-sub">QST-Entscheid der Steuerverwaltung</div>${entZeilen || '<div class="kqv-leer">keiner — es gilt die Ausbildung</div>'}${neu('E', 'Entscheid')}</div>`;
+    const ausbildung = `<div class="kqv-block">${ausbZeilen || '<div class="kqv-leer">keine erfasst</div>'}${zulagen}${neu('A', 'Ausbildung')}</div>`;
+    const wohnen = `<div class="kqv-block">${verhZeilen || '<div class="kqv-leer">keine erfasst</div>'}${neu('V', 'Änderung ab Datum')}
+        <div class="kqv-klein">Ohne Unterhalt zählt das Kind nicht für die QST. Läuft trotzdem eine Familienzulage: Verfügung der Familienausgleichskasse prüfen.</div></div>`;
+    const entscheide = `<div class="kqv-block"><div class="kqv-sub">QST-Entscheid der Steuerverwaltung</div>${entZeilen || '<div class="kqv-leer">keiner — es gilt die Ausbildung</div>'}${neu('E', 'Entscheid')}</div>`;
+
+    if (b.wohnen && b.ausbildung) {
+        b.wohnen.innerHTML = wohnen;
+        b.ausbildung.innerHTML = ausbildung;
+        b.qst.innerHTML = kopf + entscheide;
+    } else {
+        b.qst.innerHTML = `${kopf}
+            <div class="kqv-block"><div class="kqv-sub">Ausbildung</div>${ausbildung}</div>
+            <div class="kqv-block"><div class="kqv-sub">Haushalt &amp; Unterhalt</div>${wohnen}</div>${entscheide}`;
+    }
 
     if (f && _kqv.dokumente && document.getElementById('kqvDok')) kqvDokOptionen(f.dokumentId);
+    if (typeof fmKindAdresseSichtbarkeit === 'function') fmKindAdresseSichtbarkeit();
 }
 
 function kqvSelect(id, werte, aktuell) {

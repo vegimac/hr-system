@@ -1554,6 +1554,7 @@ function showPage(name) {
     if (name === 'aufforderung-arbeit') aufforderungArbeitInit();
     if (name === 'zwischenverdienst') zviInit();
     if (name === 'ahv-anmeldung') ahvInit();
+    if (name === 'famz-anmeldung' && typeof famzInit === 'function') famzInit();
     if (name === 'akis-meldung' && typeof akisInit === 'function') akisInit();
     if (name === 'manager-dienstplan' && typeof dpInit === 'function') dpInit();
     if (name === 'ferien-planer' && typeof fplInit === 'function') fplInit();
@@ -1740,6 +1741,8 @@ function onBranchChange() {
     } else if (currentPageName === 'ahv-anmeldung') {
         // AHV-Anmeldung folgt dem globalen Filial-Selektor.
         if (typeof ahvInit === 'function') ahvInit();
+    } else if (currentPageName === 'famz-anmeldung') {
+        if (typeof famzRenderMaListe === 'function') famzRenderMaListe();
     } else if (currentPageName === 'akis-meldung') {
         // AKIS-Meldung folgt dem globalen Filial-Selektor.
         if (typeof akisRefresh === 'function') akisRefresh();

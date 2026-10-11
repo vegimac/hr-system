@@ -36,15 +36,16 @@ public static class KindQstVerlaufLader
         IEnumerable<FamilyMemberQstEntscheid> ents)
         => new(
             D(k.DateOfBirth),
-            k.KeineUnterhaltspflicht,
             ausb.Select(a => new KindAusbildung(a.Von, a.Bis, a.Erstausbildung, a.Geprueft, a.Art, a.EndeGrund)).ToList(),
             verh.Select(v => new KindVerhaeltnis(v.GueltigAb, v.ImHaushalt, v.UnterhaltHauptsache)).ToList(),
             ents.Select(e => new KindQstEntscheid(e.Status, e.Von, e.Bis)).ToList(),
             k.LebtImHaushalt);
 
     /// <summary>
-    /// Snapshot am Kind nachführen, den Formulare/Anmeldungen lesen:
-    /// «in Erstausbildung» = heute läuft ein Abschnitt mit Erstausbildung = ja.
+    /// Snapshot am Kind nachführen, den Formulare/Anmeldungen lesen (Stand heute):
+    /// «in Erstausbildung» = heute läuft ein Abschnitt mit Erstausbildung = ja;
+    /// «lebt im Haushalt» und «keine Unterhaltspflicht» = heute geltende
+    /// Verhältnis-Version (ungeklärt lässt den bisherigen Wert stehen).
     /// </summary>
     public static async Task SnapshotNachfuehrenAsync(AppDbContext db, EmployeeFamilyMember kind)
     {
@@ -52,10 +53,25 @@ public static class KindQstVerlaufLader
         var ausb = await db.FamilyMemberAusbildungen.Where(a => a.FamilyMemberId == kind.Id).ToListAsync();
         kind.InErstausbildung = ausb.Any(a => a.Erstausbildung == true
             && (a.Von == null || a.Von <= heute) && (a.Bis == null || a.Bis >= heute));
+        var verh = await db.FamilyMemberVerhaeltnisse.Where(v => v.FamilyMemberId == kind.Id).ToListAsync();
+        var jetzt = VerhaeltnisAm(verh, heute);
+        if (jetzt?.ImHaushalt != null) kind.LebtImHaushalt = jetzt.ImHaushalt.Value;
+        if (jetzt?.UnterhaltHauptsache != null) kind.KeineUnterhaltspflicht = !jetzt.UnterhaltHauptsache.Value;
         kind.UpdatedAt = DateTime.Now;
     }
 
-    /// <summary>Kind ohne Verhältnis-Version: erste Version ab Geburt aus dem Snapshot.</summary>
+    /// <summary>Am Stichtag geltende Version (vor der ersten: die erste).</summary>
+    public static FamilyMemberVerhaeltnis? VerhaeltnisAm(IEnumerable<FamilyMemberVerhaeltnis> verh, DateOnly stichtag)
+    {
+        var sort = verh.OrderBy(v => v.GueltigAb).ThenBy(v => v.Id).ToList();
+        if (sort.Count == 0) return null;
+        return sort.LastOrDefault(v => v.GueltigAb <= stichtag) ?? sort[0];
+    }
+
+    /// <summary>
+    /// Kind ohne Verhältnis-Version: erste Version ab Geburt aus der Erfassung
+    /// (Haushalt = «lebt im Haushalt», Unterhalt = StartUnterhalt, Standard ja).
+    /// </summary>
     public static async Task ErsteVersionSicherstellenAsync(AppDbContext db, EmployeeFamilyMember kind)
     {
         if (kind.MemberType != "Kind") return;
@@ -65,7 +81,7 @@ public static class KindQstVerlaufLader
             FamilyMemberId = kind.Id,
             GueltigAb = D(kind.DateOfBirth) ?? DateOnly.FromDateTime(DateTime.Today),
             ImHaushalt = kind.LebtImHaushalt,
-            UnterhaltHauptsache = true,
+            UnterhaltHauptsache = kind.StartUnterhalt ?? true,
             Quelle = "ERFASSUNG",
             Bemerkung = "Ersterfassung",
             ErfasstAm = DateTime.Now,
