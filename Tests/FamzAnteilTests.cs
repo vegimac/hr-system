@@ -55,11 +55,22 @@ public class FamzAnteilTests
         Assert.Equal(0m, az);
     }
 
+    private static void Perioden(AppDbContext db, int cp, int jahr, params int[] monate)
+    {
+        foreach (var m in monate)
+            db.PayrollPerioden.Add(new PayrollPeriode
+            {
+                CompanyProfileId = cp, Year = jahr, Month = m,
+                PeriodFrom = new DateOnly(jahr, m, 1), PeriodTo = new DateOnly(jahr, m, 1).AddMonths(1).AddDays(-1)
+            });
+    }
+
     [Fact]
-    public async Task Nachzahlung_fuer_Monat_ohne_OneCrew_Lohnlauf()
+    public async Task Nachzahlung_fuer_Monat_ohne_abgeschlossenen_Lohn()
     {
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase("FamzAnteil_" + Guid.NewGuid()).Options);
+        Perioden(db, 58, 2026, 8, 9);
         db.Employments.Add(new Employment
         {
             EmployeeId = 7, CompanyProfileId = 58, IsActive = true,
@@ -88,10 +99,39 @@ public class FamzAnteilTests
     }
 
     [Fact]
+    public async Task Vor_erstem_OneCrew_Lohnmonat_keine_Warnung()
+    {
+        // Walter 11.10.2026 (Djonlagic): OneCrew startet im Januar 2026 — 2025 hat Mirus
+        // abgerechnet, dafür keine Warnung.
+        var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase("FamzAnteil_" + Guid.NewGuid()).Options);
+        Perioden(db, 2, 2026, 1);
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = 11, CompanyProfileId = 2, IsActive = true,
+            ContractStartDate = new DateTime(2025, 11, 1)
+        });
+        var kind = new EmployeeFamilyMember { EmployeeId = 11, MemberType = "Kind", FirstName = "Arman" };
+        db.EmployeeFamilyMembers.Add(kind);
+        await db.SaveChangesAsync();
+        db.FamilyMemberAllowances.Add(new FamilyMemberAllowance
+        {
+            FamilyMemberId = kind.Id, AllowanceType = "KZ", MonthlyAmount = 260m,
+            ValidFrom = new DateOnly(2025, 1, 1), ErfahrenAm = new DateOnly(2026, 1, 7)
+        });
+        await db.SaveChangesAsync();
+
+        await new FamzKorrekturService(db).EnsureKorrekturenFuerLohnlaufAsync(11, 2026, 1, "Test");
+
+        Assert.Empty(await db.FamzKorrekturen.ToListAsync());
+    }
+
+    [Fact]
     public async Task Vor_Eintritt_keine_Nachzahlung()
     {
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase("FamzAnteil_" + Guid.NewGuid()).Options);
+        Perioden(db, 58, 2026, 6, 7, 8, 9);
         db.Employments.Add(new Employment
         {
             EmployeeId = 8, CompanyProfileId = 58, IsActive = true,
@@ -121,6 +161,8 @@ public class FamzAnteilTests
     {
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase("FamzAnteil_" + Guid.NewGuid()).Options);
+        Perioden(db, 2, 2025, 11, 12);
+        Perioden(db, 2, 2026, 1, 2, 3, 4, 5, 6);
         db.Employments.Add(new Employment
         {
             EmployeeId = 9, CompanyProfileId = 2, IsActive = true,

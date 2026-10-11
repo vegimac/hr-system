@@ -99,9 +99,15 @@ public class FamzKorrekturService
                 kandidatenMap[(r.Year, r.Month)] = r.CompanyProfileId;
         }
 
-        // Monate vor Kenntnis ohne abgeschlossenen OneCrew-Lohnlauf (z.B. noch in Mirus
-        // abgerechnet, Walter 04.10.2026 Fomina): auch dort wurde die Zulage nie bezahlt —
-        // Nachzahlung, sofern der MA in dem Monat angestellt war.
+        // Monate vor Kenntnis ohne abgeschlossenen Lohn, aber mit OneCrew-Lohnperiode der
+        // Filiale (z.B. noch offen): Nachzahlung, sofern der MA angestellt war. Monate vor
+        // dem ersten OneCrew-Lohnmonat gehören dem Vorsystem — dort keine Warnung
+        // (Walter 11.10.2026, Djonlagic: Start Januar 2026, kein Posten für 2025).
+        var perioden = (await _db.PayrollPerioden.AsNoTracking()
+                .Select(p => new { p.CompanyProfileId, p.Year, p.Month })
+                .ToListAsync(ct))
+            .Select(p => (p.CompanyProfileId, p.Year, p.Month))
+            .ToHashSet();
         var anstellungen = (await _db.Employments.AsNoTracking()
                 .Where(e => e.EmployeeId == member.EmployeeId)
                 .Select(e => new { e.ContractStartDate, e.ContractEndDate, e.CompanyProfileId })
@@ -121,6 +127,7 @@ public class FamzKorrekturService
                 .OrderByDescending(a => a.Von)
                 .FirstOrDefault();
             if (anst == default) continue;
+            if (!perioden.Contains((anst.Cp, mStart.Year, mStart.Month))) continue;
             kandidatenMap[(mStart.Year, mStart.Month)] = anst.Cp;
         }
 

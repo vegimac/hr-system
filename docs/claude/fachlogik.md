@@ -323,7 +323,7 @@ Der frühere kombinierte Tab „Absenzen Zulagen Abzüge" ist jetzt in zwei sepa
 
 - **30-Tage-Basis wie die Ausgleichskasse:** beginnt oder endet ein Eintrag mitten im Monat, zählt der Monat 30 Tage (14.–31.08. = 17/30; 31. und Februar-Ende = voll), Betrag auf 5 Rp. (AZ 310 → 175.65). Regel: `PayrollCalculations.FamzMonatsAnteil` / `FamzAnteilBetrag`, gilt im Live-Lohnlauf UND in `FamzKorrekturService`.
 - **Nahtloser Wechsel desselben Kindes (KZ → AZ):** der Eintrag, der am Monatsersten gilt, zahlt den ganzen Monat; der neue beginnt im Folgemonat (vorher wurden beide voll bezahlt). Geburts-/Adoptionszulage nie anteilig.
-- **Nachzahlung auch ohne OneCrew-Lohnlauf:** Monate zwischen «Gültig ab» und dem Monat vor «Erfahren am» bekommen einen `famz_korrektur`-Posten, auch wenn dort kein abgeschlossener OneCrew-Lohnlauf liegt (z.B. noch in Mirus abgerechnet) — sofern der MA in dem Monat angestellt war. Tests: `Tests/FamzAnteilTests.cs`.
+- **Nachzahlung nur in OneCrew-Lohnmonaten (Walter 11.10.2026, ersetzt Fomina 04.10.2026):** Monate zwischen «Gültig ab» und dem Monat vor «Erfahren am» bekommen einen `famz_korrektur`-Posten nur, wenn die Filiale für diesen Monat eine OneCrew-Lohnperiode hat (abgeschlossen oder noch offen) und der MA angestellt war. Monate vor dem ersten OneCrew-Lohnmonat hat das Vorsystem (Mirus) abgerechnet — dafür keine Warnung (Djonlagic: Start Januar 2026, kein Posten für 11./12.2025). Tests: `Tests/FamzAnteilTests.cs`.
 
 ### Familienzulagen früherer Monate = Warnung, nie automatisch (Walter 11.10.2026, Schema-Stand 59, ABSOLUT)
 Walter: «nicht alles im Lohn kann automatisiert werden» — «warnung muss quittiert werden».
