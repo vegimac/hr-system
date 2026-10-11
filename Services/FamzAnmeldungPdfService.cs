@@ -1,4 +1,6 @@
 using iText.Forms;
+using iText.IO.Font.Constants;
+using iText.Kernel.Font;
 using iText.Kernel.Pdf;
 
 namespace HrSystem.Services;
@@ -225,11 +227,35 @@ public class FamzAnmeldungPdfService
         _ => null,
     };
 
+    // Beschriftungen im Formular sind 8 pt. Felder mit «/Arial 0 Tf» (Auto-Grösse)
+    // würden sonst auf Feldhöhe skaliert — Ziffernkästchen (AHV, Abrechnungsnummer)
+    // haben eine feste Grösse im Formular und bleiben unangetastet.
+    const float Schrift = 8f;
+    const float SchriftMin = 5f;
+
     static void Text(PdfAcroForm f, string feld, string? wert)
     {
         if (string.IsNullOrWhiteSpace(wert)) return;
         var field = f.GetField(feld);
-        field?.SetValue(wert.Trim());
+        if (field == null) return;
+        var text = wert.Trim();
+        var widget = field.GetWidgets().FirstOrDefault();
+        var da = widget?.GetPdfObject().GetAsString(PdfName.DA)?.ToUnicodeString()
+                 ?? field.GetPdfObject().GetAsString(PdfName.DA)?.ToUnicodeString() ?? "";
+        if (!da.Contains(" 0 Tf"))
+        {
+            field.SetValue(text);
+            return;
+        }
+        var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+        var breite = (widget?.GetRectangle()?.ToRectangle().GetWidth() ?? 0f) - 4f;
+        var groesse = Schrift;
+        while (breite > 0 && groesse > SchriftMin && font.GetWidth(text, groesse) > breite)
+            groesse -= 0.5f;
+        field.SetFontAndSize(font, groesse);
+        field.SetValue(text);
+        field.SetFontAndSize(font, groesse);
+        field.RegenerateField();
     }
 
     static void Radio(PdfAcroForm f, string feld, string? zustand)
