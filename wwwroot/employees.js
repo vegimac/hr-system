@@ -5864,25 +5864,23 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 }
             }
 
-            // Walter 11.10.2026: QST-Zeitraum am Kind (Regel serverseitig,
-            // QstTarifVorschlagLogic.QstZeitraeume).
+            // QST-Verlauf am Kind (Walter 11.10.2026, docs/kind-qst-verlauf-konzept.md):
+            // Monate, in denen das Kind zählt (Regel serverseitig, KindQstVerlauf),
+            // offene Punkte und Hinweise gelb.
             let qstZeitraumLine = '';
-            if (type === 'Kind' && Array.isArray(m.qstZeitraeume) && !m.keineUnterhaltspflicht) {
+            const qv = m.qstVerlauf;
+            if (type === 'Kind' && qv && !m.keineUnterhaltspflicht) {
                 const heuteIso = new Date().toISOString().slice(0, 10);
-                if (m.qstZeitraeume.length === 0) {
-                    qstZeitraumLine = `<div class="fam-tile-qst" style="font-size:11px;color:#991b1b;margin-top:2px">QST: zählt nicht (Geburtsdatum fehlt)</div>`;
-                } else {
-                    const zeilen = m.qstZeitraeume.map(z => {
-                        const von = z.von ? formatDate(z.von) : '…';
-                        const bis = z.bis ? formatDate(z.bis) : 'offen';
-                        const aktiv = (!z.von || z.von <= heuteIso) && (!z.bis || z.bis >= heuteIso);
-                        return `<span style="color:${aktiv ? '#166534' : '#8b8b8b'}" title="${esc(z.grund)}">${von} – ${bis} <span style="opacity:.75">· ${esc(z.grund)}</span></span>`;
-                    }).join('<br>');
-                    const ersteVon = m.qstZeitraeume[0].von;
-                    const gemeldet = m.erfahrenAm && ersteVon && m.erfahrenAm > ersteVon
-                        ? `<br><span style="color:#92400e" title="Erfahren am — erst ab diesem Datum zählt das Kind im Tarifvorschlag">gemeldet ${formatDate(m.erfahrenAm)}</span>` : '';
-                    qstZeitraumLine = `<div class="fam-tile-qst" style="font-size:11px;line-height:1.45;margin-top:2px"><span style="color:#646464;font-weight:600">QST</span> ${zeilen}${gemeldet}</div>`;
-                }
+                const mon = iso => iso ? `${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
+                const zeilen = (qv.wirkung || []).map(w => {
+                    const aktiv = w.von <= heuteIso && (!w.bis || w.bis >= heuteIso);
+                    return `<span style="color:${aktiv ? '#166534' : '#8b8b8b'}">${mon(w.von)} – ${w.bis ? mon(w.bis) : 'offen'} <span style="opacity:.75">· ${esc(w.grund)}</span></span>`;
+                });
+                if (!qv.zaehltHeute)
+                    zeilen.push(`<span style="color:#8b8b8b">zählt zurzeit nicht · ${esc(qv.grundHeute || '')}</span>`);
+                const gelb = [...(qv.offen || []), ...(qv.hinweise || [])]
+                    .map(t => `<span style="color:#92400e">⚠ ${esc(t)}</span>`);
+                qstZeitraumLine = `<div class="fam-tile-qst" style="font-size:11px;line-height:1.45;margin-top:2px"><span style="color:#646464;font-weight:600">QST</span> ${[...zeilen, ...gelb].join('<br>')}</div>`;
             }
 
             const tileWide = type === 'Ehepartner' ? ' fam-tile-wide' : '';
@@ -5949,10 +5947,9 @@ function showFamilyDetailPopup(memberId) {
                     ${m.keineUnterhaltspflicht
                         ? row('Unterhaltspflicht', 'keine — zählt nicht für die QST-Kinderziffer')
                         : ''}
-                    ${m.keineUnterhaltspflicht ? '' :
-                      row(_t('fam.field.qstFrom','QST ab'),     m.qstDeductibleFrom  ? formatDate(m.qstDeductibleFrom)  : '–')}
-                    ${m.keineUnterhaltspflicht ? '' :
-                      row(_t('fam.field.qstUntil','QST bis'),   m.qstDeductibleUntil ? formatDate(m.qstDeductibleUntil) : '–')}
+                    ${m.keineUnterhaltspflicht || !m.qstVerlauf ? '' :
+                      row('QST zählt', (m.qstVerlauf.wirkung || []).map(w =>
+                          `${w.von.slice(5, 7)}.${w.von.slice(0, 4)} – ${w.bis ? w.bis.slice(5, 7) + '.' + w.bis.slice(0, 4) : 'offen'} · ${esc(w.grund)}`).join('<br>') || 'zurzeit nicht')}
                     ${m.keineUnterhaltspflicht ? '' :
                       row(_t('fam.field.erfahrenAm','Erfahren am'), m.erfahrenAm ? formatDate(m.erfahrenAm) : '–')}
                 </div>
@@ -5996,41 +5993,10 @@ function updateFmAgeDisplay() {
     dispEl.textContent = age != null ? `(${age} J.)` : '';
 }
 
-// Walter-Vorgabe 14.06.2026: Wenn der User im Familien-Modal das Geburts-
-// datum eintippt, automatisch:
-//   • QST abzugsberechtigt AB  = Geburtsdatum
-//       IMMER überschreiben — AB ist immer = Geburtsdatum (1:1-Beziehung),
-//       alte fehlerhafte Werte (z.B. „01.01.0002" von einem Tipp-Glitsch)
-//       werden so automatisch korrigiert.
-//   • QST abzugsberechtigt BIS = Geburtsdatum + 18 Jahre (volljährig)
-//       Nur überschreiben wenn das Feld leer war ODER mit dem alten Auto-
-//       Wert (irgend-dob + 18) übereinstimmt — manuelle Verlängerungen
-//       wegen Ausbildung (z.B. bis 25 Jahre) bleiben erhalten.
 function fmAutoQstFromDob() {
-    const dob = document.getElementById('fmDateOfBirth')?.value;
-    if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return;
-    const fromEl  = document.getElementById('fmQstFrom');
-    const untilEl = document.getElementById('fmQstUntil');
-
-    // AB → immer hartes Sync mit Geburtsdatum
-    if (fromEl) fromEl.value = dob;
-
-    // BIS → Geburtsdatum + 18 Jahre, nur wenn leer oder vom Default-Pattern
-    // (also nicht manuell verlängert)
-    if (untilEl) {
-        const [y, m, d] = dob.split('-');
-        const y18 = String(parseInt(y, 10) + 18);
-        const newBis = `${y18}-${m}-${d}`;
-        const curBis = untilEl.value || '';
-        // Heuristik „war noch Auto": bis = irgendein Jahr + dieselbe MM-DD wie
-        // das (möglicherweise alte) Geburtsdatum + 18. Ohne alten dob: wir
-        // überschreiben nur wenn leer ODER wenn der Bis-Tag exakt mit dem
-        // Geburts-Tag übereinstimmt (typisches 18.-Geburtstag-Muster).
-        const dobMmDd = `${m}-${d}`;
-        const bisMmDd = curBis.length >= 10 ? curBis.slice(5, 10) : '';
-        const looksLikeAuto = !curBis || bisMmDd === dobMmDd;
-        if (looksLikeAuto) untilEl.value = newBis;
-    }
+    // Seit 11.10.2026 gibt es kein «QST ab/bis» mehr am Kind — die Minderjährigkeit
+    // rechnet der Server aus dem Geburtsdatum (KindQstVerlauf). Aufruf bleibt im
+    // oninput des Geburtsdatums, darum leer statt entfernt.
 }
 
 // Walter-Vorgabe 28.05.2026: Wenn der User im Familien-Modal den Typ auf
@@ -7635,15 +7601,12 @@ async function openFamilyModal(member) {
     //   • Lebt in Schweiz   → wie das Land des MA (CH = Ja, Ausland = Nein)
     //   • Nationalität      → wie MA (Mutter/Vater)
     //   • Bewilligung       → wie MA (Mutter/Vater)
-    //   • QST ab/bis        → Geburtsdatum bis 18. Geburtstag (siehe fmAutoQstFromDob)
-    // Bei bestehenden Einträgen wird der gespeicherte Wert übernommen.
+        // Bei bestehenden Einträgen wird der gespeicherte Wert übernommen.
     const _isNewMember = !member;
     document.getElementById('fmLivesInSwitzerland').checked =
         _isNewMember
             ? fmIstLandSchweiz(selectedEmployee?.country)
             : (member?.livesInSwitzerland ?? false);
-    document.getElementById('fmQstFrom').value         = toDateInput(member?.qstDeductibleFrom);
-    document.getElementById('fmQstUntil').value        = toDateInput(member?.qstDeductibleUntil);
     // Erfahren am (Kind): neu = heute; Edit = gespeicherter Wert (Swissdec Marc: 1.7.).
     const _fmEa = document.getElementById('fmErfahrenAm');
     if (_fmEa) {
@@ -7669,11 +7632,10 @@ async function openFamilyModal(member) {
     document.getElementById('fmStellenantritt').value     = toDateInput(member?.stellenantritt);
     const agHint = document.getElementById('fmAgPlzHint');
     if (agHint) agHint.innerHTML = '';
-    const erstCb = document.getElementById('fmInErstausbildung');
-    if (erstCb) erstCb.checked = member?.inErstausbildung ?? false;
     const unterhaltCb = document.getElementById('fmKeineUnterhaltspflicht');
     if (unterhaltCb) unterhaltCb.checked = member?.keineUnterhaltspflicht ?? false;
     fmQstBlocksVisibility(member?.memberType ?? 'Kind');
+    if (typeof kqvOeffnen === 'function') kqvOeffnen(selectedEmployeeId ?? selectedEmployee?.id, member);
 
     // ── Aufenthalt + Nationalität: Permit-Types + Nationalitäten füllen
     //    (gleiche Listen wie beim MA-Edit-Modal). Vorausgewählt wird der
@@ -8196,8 +8158,6 @@ async function saveFamilyMember() {
         livesInSwitzerland:     document.getElementById('fmLivesInSwitzerland').checked,
         alternativeAddressId,
         lebtImHaushalt,
-        qstDeductibleFrom:      document.getElementById('fmQstFrom').value            || null,
-        qstDeductibleUntil:     document.getElementById('fmQstUntil').value           || null,
         erfahrenAm:             document.getElementById('fmErfahrenAm')?.value         || null,
         permitTypeId:           (() => {
             const fromSel = Number.isFinite(permitTypeId) && permitTypeId > 0 ? permitTypeId : null;
@@ -8221,7 +8181,6 @@ async function saveFamilyMember() {
         arbeitgeberOrt:         (document.getElementById('fmArbeitgeberOrt')?.value     || '').trim() || null,
         arbeitgeberKanton:      (document.getElementById('fmArbeitgeberKanton')?.value  || '').trim().toUpperCase() || null,
         stellenantritt:         document.getElementById('fmStellenantritt')?.value      || null,
-        inErstausbildung:       document.getElementById('fmInErstausbildung')?.checked ?? false,
         keineUnterhaltspflicht: document.getElementById('fmKeineUnterhaltspflicht')?.checked ?? false,
         // Historie Seit/Erfahren (Walter 08.10.2026) — leer Seit = kein neuer Hist-Eintrag
         // ausser Ersteintrag (Server). Erfahren leer = gleich Seit.
@@ -8276,11 +8235,19 @@ async function saveFamilyMember() {
             return;
         }
         let neuId = null;
-        if (famAfterSave) { try { neuId = (await res.clone().json())?.id ?? null; } catch {} }
+        if (!isEdit) { try { neuId = (await res.clone().json())?.id ?? null; } catch {} }
         window._famAfterSave = null;
         closeFamilyModal();
         if (famAfterSave && neuId) { try { await famAfterSave(neuId); } catch (e) { console.error('famAfterSave', e); } }
         loadFamilieTab(selectedEmployeeId);
+        // Neues Kind: Fenster gleich wieder öffnen, damit Ausbildung/Haushalt/
+        // QST-Entscheid erfasst werden können (QST-Verlauf, Walter 11.10.2026).
+        if (!isEdit && neuId && payload.memberType === 'Kind' && !famAfterSave) {
+            try {
+                const rk = await fetch(`/api/employees/${selectedEmployeeId}/family/${neuId}`, { headers: ah() });
+                if (rk.ok) openFamilyModal(await rk.json());
+            } catch { /* Liste ist schon neu geladen */ }
+        }
         // QST-Prüfroutine (Walter 23.08.2026): Ehepartner/Kind-Änderungen
         // können Tarif + Kinderziffer kippen — sofort melden.
         qstRecheckNachAenderung(selectedEmployeeId);

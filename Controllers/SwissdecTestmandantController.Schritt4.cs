@@ -204,6 +204,10 @@ public partial class SwissdecTestmandantController
                 kind.UpdatedAt = DateTime.Now;
                 if (kind.Id == 0) _db.EmployeeFamilyMembers.Add(kind);
                 await _db.SaveChangesAsync();
+                // QST-Abzug laut Testdaten = QST-Entscheid am Kind (Konzept QST-Verlauf 11.10.2026).
+                await KindQstVerlaufLader.ErsteVersionSicherstellenAsync(_db, kind);
+                await KindQstVerlaufLader.AbzugszeitraumSetzenAsync(_db, kind, von, bis, "SWISSDEC");
+                await _db.SaveChangesAsync();
             }
             if (kinder.Count > 0) felder["Kinder"] = string.Join(" · ", kinder);
             if (V("PersonPartnerLastname") != null)

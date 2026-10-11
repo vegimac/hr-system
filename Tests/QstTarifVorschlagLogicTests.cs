@@ -491,11 +491,13 @@ public class QstTarifVorschlagLogicTests
     // ──────────────────────────────────────────────────────────────────
     // IstQstBerechtigt — Direkter Unit-Test der Frist-Helper-Methode.
     // ──────────────────────────────────────────────────────────────────
+    // Seit 11.10.2026 (QST-Verlauf am Kind) gilt ein Zeitraum monatsweise:
+    // er zählt im Monat, dessen Erster er abdeckt.
     [Fact]
     public void IstQstBerechtigt_ExpliziteFrist_GrenzfaelleAmAnfang()
     {
         var k = new QstKindInput(
-            QstDeductibleFrom:    new DateOnly(2026, 6, 15), // genau Stichtag
+            QstDeductibleFrom:    new DateOnly(2026, 6, 1), // Erster des Stichtag-Monats
             QstDeductibleUntil:   new DateOnly(2030, 1, 1),
             DateOfBirth:          null,
             AlternativeAddressId: null);
@@ -507,7 +509,7 @@ public class QstTarifVorschlagLogicTests
     {
         var k = new QstKindInput(
             QstDeductibleFrom:    new DateOnly(2020, 1, 1),
-            QstDeductibleUntil:   new DateOnly(2026, 6, 14), // 1 Tag vor Stichtag
+            QstDeductibleUntil:   new DateOnly(2026, 5, 31), // Ende Vormonat
             DateOfBirth:          null,
             AlternativeAddressId: null);
         Assert.False(QstTarifVorschlagLogic.IstQstBerechtigt(k, Stichtag));

@@ -261,6 +261,7 @@ public class ElmMonthlyDeclarationBuilder
         var familie = await _db.EmployeeFamilyMembers.AsNoTracking()
             .Where(f => empIds.Contains(f.EmployeeId))
             .ToListAsync(ct);
+        _kindVerlauf = await KindQstVerlaufLader.LadeAsync(_db, familie.Where(f => f.MemberType == "Kind").ToList());
         var wochenAdressen = await _db.EmployeeAddresses.AsNoTracking()
             .Where(a => empIds.Contains(a.EmployeeId) && a.AddressType == "Wochenaufenthalt")
             .ToListAsync(ct);
@@ -947,7 +948,10 @@ public class ElmMonthlyDeclarationBuilder
     /// Personenangaben der QST-Zeile: Konfession, Alleinerziehende und Kinder mit
     /// Anspruchsdauer (Walter 27.09.2026). Null = nichts zu melden.
     /// </summary>
-    private static XElement? QstZusatz(Employee e, EmployeeQuellensteuer? version, List<EmployeeFamilyMember> kinder,
+    // QST-Verlauf der Kinder (Walter 11.10.2026): Abzugszeiträume für <Children>.
+    Dictionary<int, KindQstDaten> _kindVerlauf = new();
+
+    private XElement? QstZusatz(Employee e, EmployeeQuellensteuer? version, List<EmployeeFamilyMember> kinder,
                                        DateTime monatsEnde, XElement? ehepartner = null)
     {
         // Reihenfolge laut XSD: Denomination, SingleParentFamily, MarriagePartner, Children.
@@ -972,15 +976,21 @@ public class ElmMonthlyDeclarationBuilder
         }
         // Nur Kinder, deren Abzug im Meldemonat schon begonnen hat (RefXML Jan 2025:
         // TF22 Bucher, Kind mit Abzug ab 01.03.2026, fehlt).
+        // Zeiträume aus dem QST-Verlauf am Kind (anerkannte Entscheide, sonst
+        // Minderjährigkeit + Erstausbildung — KindQstVerlauf.ElmZeitraeume).
+        var monatsEndeD = DateOnly.FromDateTime(monatsEnde);
         var kinderEl = kinder
-            .Where(k => k.QstDeductibleFrom != null && k.QstDeductibleFrom.Value.Date <= monatsEnde.Date)
             .OrderBy(k => k.DateOfBirth)
-            .Select(k => new XElement(Sd + "Children",
-                new XElement(Sd + "Lastname", (k.LastName ?? e.LastName ?? "").Trim()),
-                new XElement(Sd + "Firstname", (k.FirstName ?? "").Trim()),
-                new XElement(Sd + "DateOfBirth", (k.DateOfBirth ?? k.QstDeductibleFrom!.Value).ToString("yyyy-MM-dd")),
-                new XElement(Sd + "Start", k.QstDeductibleFrom!.Value.ToString("yyyy-MM-dd")),
-                k.QstDeductibleUntil == null ? null : new XElement(Sd + "End", k.QstDeductibleUntil.Value.ToString("yyyy-MM-dd"))))
+            .SelectMany(k => (_kindVerlauf.TryGetValue(k.Id, out var d)
+                    ? KindQstVerlauf.ElmZeitraeume(d)
+                    : KindQstVerlauf.ElmZeitraeume(KindQstVerlaufLader.Baue(k, [], [], [])))
+                .Where(z => z.Von <= monatsEndeD)
+                .Select(z => new XElement(Sd + "Children",
+                    new XElement(Sd + "Lastname", (k.LastName ?? e.LastName ?? "").Trim()),
+                    new XElement(Sd + "Firstname", (k.FirstName ?? "").Trim()),
+                    new XElement(Sd + "DateOfBirth", (k.DateOfBirth.HasValue ? DateOnly.FromDateTime(k.DateOfBirth.Value) : z.Von).ToString("yyyy-MM-dd")),
+                    new XElement(Sd + "Start", z.Von.ToString("yyyy-MM-dd")),
+                    z.Bis == null ? null : new XElement(Sd + "End", z.Bis.Value.ToString("yyyy-MM-dd")))))
             .ToList();
         if (konfession == null && alleinerziehend == null && ehepartner == null && kinderEl.Count == 0) return null;
         return new XElement(Sd + "AdditionalParticulars",

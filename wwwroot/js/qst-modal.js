@@ -9,7 +9,7 @@ let qstCurrentEmployeeId = null;
 let qstCurrentEntryId    = null;
 let qstEmployeeData      = null;
 let qstAllEntries        = [];
-// Walter-Vorgabe 28.05.2026: Cache der MA-Kinder (mit QstDeductibleFrom/Until)
+// Walter-Vorgabe 28.05.2026: Cache der MA-Kinder (mit qstVerlauf vom Server)
 // für den Auto-Zähler unter „Anzahl Kinder".
 let _qstFamilyKinder     = [];
 // Walter-Vorgabe 14.06.2026: Cache des Server-Tarifvorschlags. Der Server
@@ -242,8 +242,7 @@ async function loadQstHistory(employeeId) {
 
 // Walter-Vorgabe 28.05.2026: Lädt die Kinder des MA aus dem Familie-Tab und
 // cached sie für den Auto-Zähler unter „Anzahl Kinder". Pro Kind wertet das
-// Frontend Q-Steuer-Berechtigung (QstDeductibleFrom/Until) am Stichtag des
-// QST-Eintrags aus.
+// Server-Wirkung (qstVerlauf) am Stichtag des QST-Eintrags aus.
 async function loadQstFamilyKinder(employeeId) {
     _qstFamilyKinder = [];
     window._qstKPartner = null;
@@ -667,35 +666,15 @@ function qstRenderVorschlagBanner() {
     qstRenderResultat();
 }
 
-// Wie viele Kinder sind am gewählten Stichtag QST-abzugsberechtigt?
-// Walter-Vorgabe 14.06.2026 (Update): zweistufige Logik:
-//   1) Wenn beim Kind QstDeductibleFrom/Until explizit gepflegt sind →
-//      dieser Zeitraum gilt (Walter's manuelle Pflege bleibt führend).
-//   2) Sonst Fallback: Kind ist abzugsberechtigt zwischen Geburtsdatum und
-//      18. Geburtstag (Schweizer QST-Standard, falls keine Verlängerung
-//      wegen Ausbildung erfasst wurde). So zählen auch frisch importierte
-//      oder neu erfasste Kinder ohne dass Walter erst die QST-Daten
-//      hinterlegen muss.
+// Wie viele Kinder zählen im Monat des Stichtags für die Kinderziffer?
+// Seit 11.10.2026 (QST-Verlauf am Kind) rechnet der Server die Monate
+// (Folgemonatsregel, Ausbildung, Entscheide) und liefert sie pro Kind als
+// qstVerlauf.wirkung — hier wird nur noch nachgeschaut.
 function qstAutoKinderCount(stichtagIso) {
     if (!stichtagIso) return 0;
     const s = stichtagIso.slice(0, 10);
-    return _qstFamilyKinder.filter(k => {
-        const f = (k.qstDeductibleFrom  || '').toString().slice(0, 10);
-        const u = (k.qstDeductibleUntil || '').toString().slice(0, 10);
-        // (1) Explizit gepflegt → Zeitraum greift
-        if (f || u) {
-            if (f && f > s) return false;
-            if (u && u < s) return false;
-            return true;
-        }
-        // (2) Fallback aus Geburtsdatum (Geburt … +18 Jahre)
-        const dob = (k.dateOfBirth || '').toString().slice(0, 10);
-        if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return false;
-        if (dob > s) return false;             // noch nicht geboren
-        const [y, m, d] = dob.split('-');
-        const dob18 = `${parseInt(y, 10) + 18}-${m}-${d}`;
-        return dob18 >= s;                     // unter 18 am Stichtag
-    }).length;
+    return _qstFamilyKinder.filter(k => !k.keineUnterhaltspflicht
+        && (k.qstVerlauf?.wirkung || []).some(w => w.von <= s && (!w.bis || w.bis >= s))).length;
 }
 
 function qstFmtDe(iso) {
@@ -738,12 +717,7 @@ function qstUpdateAutoKinderHint() {
     // Walter-Vorgabe 14.06.2026: Hinweis ob die Auto-Zahl aus expliziten
     // QST-Daten kommt oder aus dem Geburtsdatum-Fallback — Walter sieht so
     // direkt ob er die QST-Daten der Kinder noch pflegen sollte.
-    const allKinderHaveQstData = _qstFamilyKinder.every(k => {
-        const f = (k.qstDeductibleFrom  || '').toString().slice(0, 10);
-        const u = (k.qstDeductibleUntil || '').toString().slice(0, 10);
-        return f || u;
-    });
-    const quelle = allKinderHaveQstData ? 'aus QST-Daten' : 'aus Geburtsdatum';
+    const quelle = 'aus QST-Verlauf der Kinder';
 
     // Walter 12.08.2026: immer zeigen, wie viele Kinder ERFASST sind —
     // zusätzlich zur Zahl der am Stichtag QST-berechtigten.

@@ -50,6 +50,9 @@ public class AppDbContext : DbContext
     public DbSet<FamilyMemberAllowance> FamilyMemberAllowances => Set<FamilyMemberAllowance>();
     public DbSet<FamilyMemberPermitHistory> FamilyMemberPermitHistories => Set<FamilyMemberPermitHistory>();
     public DbSet<FamilyMemberErwerbHistory> FamilyMemberErwerbHistories => Set<FamilyMemberErwerbHistory>();
+    public DbSet<FamilyMemberAusbildung> FamilyMemberAusbildungen => Set<FamilyMemberAusbildung>();
+    public DbSet<FamilyMemberVerhaeltnis> FamilyMemberVerhaeltnisse => Set<FamilyMemberVerhaeltnis>();
+    public DbSet<FamilyMemberQstEntscheid> FamilyMemberQstEntscheide => Set<FamilyMemberQstEntscheid>();
     public DbSet<EmployeeTimeEntry> EmployeeTimeEntries => Set<EmployeeTimeEntry>();
     public DbSet<Absence> Absences => Set<Absence>();
     public DbSet<FerienKuerzungEintrag> FerienKuerzungen => Set<FerienKuerzungEintrag>();
@@ -1355,6 +1358,61 @@ public class AppDbContext : DbContext
                 .HasForeignKey(e => e.FamilyMemberId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── QST-Verlauf am Kind (Walter 11.10.2026, docs/kind-qst-verlauf-konzept.md) ──
+        modelBuilder.Entity<FamilyMemberAusbildung>(entity =>
+        {
+            entity.ToTable("family_member_ausbildung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FamilyMemberId).HasColumnName("family_member_id");
+            entity.Property(e => e.Von).HasColumnName("von").HasColumnType("date");
+            entity.Property(e => e.Bis).HasColumnName("bis").HasColumnType("date");
+            entity.Property(e => e.Art).HasColumnName("art").HasMaxLength(20);
+            entity.Property(e => e.EndeGrund).HasColumnName("ende_grund").HasMaxLength(20);
+            entity.Property(e => e.Erstausbildung).HasColumnName("erstausbildung");
+            entity.Property(e => e.Geprueft).HasColumnName("geprueft");
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.Quelle).HasColumnName("quelle").HasMaxLength(20);
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung").HasMaxLength(500);
+            entity.Property(e => e.ErfasstAm).HasColumnName("erfasst_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von").HasMaxLength(150);
+            entity.HasIndex(e => e.FamilyMemberId);
+        });
+        modelBuilder.Entity<FamilyMemberVerhaeltnis>(entity =>
+        {
+            entity.ToTable("family_member_verhaeltnis");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FamilyMemberId).HasColumnName("family_member_id");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab").HasColumnType("date");
+            entity.Property(e => e.ImHaushalt).HasColumnName("im_haushalt");
+            entity.Property(e => e.UnterhaltHauptsache).HasColumnName("unterhalt_hauptsache");
+            entity.Property(e => e.Quelle).HasColumnName("quelle").HasMaxLength(20);
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung").HasMaxLength(500);
+            entity.Property(e => e.ErfasstAm).HasColumnName("erfasst_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von").HasMaxLength(150);
+            entity.HasIndex(e => e.FamilyMemberId);
+        });
+        modelBuilder.Entity<FamilyMemberQstEntscheid>(entity =>
+        {
+            entity.ToTable("family_member_qst_entscheid");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FamilyMemberId).HasColumnName("family_member_id");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+            entity.Property(e => e.Von).HasColumnName("von").HasColumnType("date");
+            entity.Property(e => e.Bis).HasColumnName("bis").HasColumnType("date");
+            entity.Property(e => e.Grund).HasColumnName("grund").HasMaxLength(500);
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.Quelle).HasColumnName("quelle").HasMaxLength(20);
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
+            entity.Property(e => e.ErfasstAm).HasColumnName("erfasst_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von").HasMaxLength(150);
+            entity.HasIndex(e => e.FamilyMemberId);
         });
 
         // ── FamilyMemberErwerbHistory (Walter 08.10.2026) ──────────────────

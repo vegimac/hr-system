@@ -552,57 +552,88 @@ public class QstPflichtCheckService
             w.Add($"Konfession «{religionLabel}» ist kirchensteuerpflichtig, der Tarif ist aber "
                 + "OHNE Kirchensteuer (…N) — Tarif …Y prüfen.");
 
-        // ── Kinder am Stichtag zählen (Walter-Vorgabe 20.08.2026) ──
-        // Erstausbildung wird zusätzlich aus einer AKTIVEN Ausbildungszulage
-        // (AZ) abgeleitet — wer AZ bekommt, ist belegt in Ausbildung.
+        // ── Kinder im Monat des Stichtags zählen — QST-Verlauf am Kind
+        // (Walter 11.10.2026, docs/kind-qst-verlauf-konzept.md). Die
+        // Ausbildungszulage wird nicht mehr abgeleitet, nur gemeldet.
         var kinderRaw = await _db.EmployeeFamilyMembers.AsNoTracking()
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType == "Kind"
                      && f.DateOfDeath == null)
-            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil,
-                               f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung,
-                               f.LebtImHaushalt, f.GemeinsamesKindMitPartner,
-                               f.KeineUnterhaltspflicht, f.ErfahrenAm })
             .ToListAsync();
-        var kindIds = kinderRaw.Select(f => f.Id).ToList();
-        var azKindIds = kindIds.Count == 0
-            ? new HashSet<int>()
-            : (await _db.FamilyMemberAllowances.AsNoTracking()
-                .Where(a => kindIds.Contains(a.FamilyMemberId)
-                         && a.AllowanceType == "AZ"
-                         && a.ValidFrom <= stichtag
-                         && (a.ValidTo == null || a.ValidTo >= stichtag))
-                .Select(a => a.FamilyMemberId)
-                .ToListAsync()).ToHashSet();
-        var kinderChecked = kinderRaw.Select(f => new
+        var verlauf = await KindQstVerlaufLader.LadeAsync(_db, kinderRaw);
+        var kinderChecked = kinderRaw.Select(f =>
         {
-            // Walter 25.08.2026: expliziter Haushalt-Status statt Adress-Ableitung.
-            f.LebtImHaushalt,
-            f.GemeinsamesKindMitPartner,
-            Berechtigt = QstTarifVorschlagLogic.IstQstBerechtigt(new QstKindInput(
-                f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : null,
-                f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : null,
-                f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : null,
-                f.AlternativeAddressId,
-                f.InErstausbildung || azKindIds.Contains(f.Id),
-                f.LebtImHaushalt,
+            var m = KindQstVerlauf.AmStichtag(verlauf[f.Id], stichtag);
+            return new
+            {
+                f.Id,
+                Name = (f.FirstName ?? "").Trim(),
+                f.DateOfBirth,
+                LebtImHaushalt = m.ImHaushalt == true,
                 f.GemeinsamesKindMitPartner,
-                f.KeineUnterhaltspflicht,
-                f.ErfahrenAm), stichtag)
+                Berechtigt = m.Zaehlt,
+                m.Offen,
+            };
         }).ToList();
         int berechtigtTotal   = kinderChecked.Count(k => k.Berechtigt);
         int berechtigtHaushalt = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt);
 
         // ── Kinderziffer-Abgleich (Walter 20.08.2026): erfasste Ziffer vs.
         // berechnete QST-berechtigte Kinder — reagiert z.B. wenn ein Kind 18
-        // wird und keine Erstausbildung (und keine laufende AZ) erfasst ist.
+        // wird und keine Erstausbildung erfasst ist.
         int sollZiffer = t == "H" ? berechtigtHaushalt : berechtigtTotal;
         if ((t == "B" || t == "C" || t == "H") && erfassung.AnzahlKinder != sollZiffer)
         {
             w.Add(erfassung.AnzahlKinder > sollZiffer
-                ? $"Kinderziffer {erfassung.AnzahlKinder} erfasst, aber nur {sollZiffer} Kind(er) am Stichtag QST-berechtigt — "
-                  + "z.B. Kind 18 geworden ohne Erstausbildung/Ausbildungszulage. Neuen QST-Eintrag mit korrekter Ziffer anlegen."
-                : $"Kinderziffer {erfassung.AnzahlKinder} erfasst, aber {sollZiffer} Kind(er) wären QST-berechtigt — Ziffer prüfen (zu Gunsten des MA).");
+                ? $"Kinderziffer {erfassung.AnzahlKinder} erfasst, aber nur {sollZiffer} Kind(er) im {stichtag:MM.yyyy} QST-berechtigt — "
+                  + "z.B. Kind 18 geworden ohne Erstausbildung. Neuen QST-Eintrag mit korrekter Ziffer anlegen."
+                : $"Kinderziffer {erfassung.AnzahlKinder} erfasst, aber {sollZiffer} Kind(er) wären im {stichtag:MM.yyyy} QST-berechtigt — Ziffer prüfen (zu Gunsten des MA).");
+        }
+
+        // ── QST-Korrektur prüfen (Konzept QST-Verlauf): frühere Monate des
+        // laufenden Jahres, deren gültige QST-Version eine andere Kinderziffer
+        // trägt, als der Verlauf am Kind heute ergibt (z.B. Lehrabbruch erst
+        // später bekannt). Nur Hinweis — korrigiert wird über eine
+        // rückwirkende QST-Version (Korrektur-Posten). Vorjahre: Steuerverwaltung.
+        {
+            var versionen = await _db.EmployeeQuellensteuer.AsNoTracking()
+                .Where(q => q.EmployeeId == employeeId && q.ValidFrom < stichtag)
+                .ToListAsync();
+            var abweichend = new List<string>();
+            for (int mo = 1; mo < stichtag.Month; mo++)
+            {
+                var erster = new DateOnly(stichtag.Year, mo, 1);
+                // Wissensstand heute: eine angelegte rückwirkende Version erledigt den Hinweis.
+                var v = QstVersionWahl.WaehleRueckwirkend(versionen, erster, stichtag);
+                var vt = (v?.TarifCode ?? "").Trim().ToUpperInvariant();
+                if (v == null || !(vt == "B" || vt == "C" || vt == "H")) continue;
+                var monate = kinderRaw.Select(f => KindQstVerlauf.AmStichtag(verlauf[f.Id], erster)).ToList();
+                int soll = vt == "H" ? monate.Count(x => x.Zaehlt && x.ImHaushalt == true) : monate.Count(x => x.Zaehlt);
+                if (soll != v.AnzahlKinder) abweichend.Add($"{erster:MM.yyyy} ({v.TarifCode}{v.AnzahlKinder} → Ziffer {soll})");
+            }
+            if (abweichend.Count > 0)
+                w.Add("QST-Korrektur prüfen: in abgerechneten Monaten passt die Kinderziffer nicht zum Verlauf am Kind — "
+                    + string.Join(", ", abweichend)
+                    + ". Bei Bedarf eine rückwirkende QST-Version anlegen (Korrektur-Posten).");
+        }
+
+        // ── Offene Punkte am Kind (gelb) + Ausbildungszulage ohne QST-Ausbildung ──
+        foreach (var k in kinderChecked)
+            foreach (var o in k.Offen)
+            {
+                if (o == "Haushalt ungeklärt" && (t == "B" || t == "C")) continue;
+                w.Add($"Kind {k.Name}: {o} — im Familie-Tab unter «Quellensteuer» klären.");
+            }
+        if (kinderRaw.Count > 0)
+        {
+            var ids = kinderRaw.Select(f => f.Id).ToList();
+            var azKinder = await _db.FamilyMemberAllowances.AsNoTracking()
+                .Where(a => ids.Contains(a.FamilyMemberId) && a.AllowanceType == "AZ"
+                         && a.ValidFrom <= stichtag && (a.ValidTo == null || a.ValidTo >= stichtag))
+                .Select(a => a.FamilyMemberId).Distinct().ToListAsync();
+            foreach (var k in kinderChecked.Where(k => azKinder.Contains(k.Id) && !k.Berechtigt))
+                w.Add($"Kind {k.Name}: Ausbildungszulage läuft, aber keine Ausbildung für die QST erfasst — "
+                    + "im Familie-Tab prüfen («Als QST-Ausbildung übernehmen»).");
         }
 
         // Konkubinatspartner VOR den A/H-Warnungen laden (Walter 25.08.2026):

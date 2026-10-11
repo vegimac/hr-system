@@ -103,12 +103,15 @@ public class QstTarifVorschlagService
         // NICHT in der SQL-Projektion stehen — Npgsql kann das auf date-Spalten
         // nicht übersetzen («Can only apply TimeOnly.FromDateTime on a
         // timestamp …»). Erst roh laden, dann im Speicher konvertieren.
-        var kinderRaw = await _db.EmployeeFamilyMembers
+        var kinderRaw = await _db.EmployeeFamilyMembers.AsNoTracking()
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType  == "Kind"
                      && f.DateOfDeath == null)
-            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung, f.LebtImHaushalt, f.GemeinsamesKindMitPartner, f.KeineUnterhaltspflicht, f.ErfahrenAm })
             .ToListAsync();
+        // QST-Verlauf am Kind (Walter 11.10.2026) — einzige Quelle für die
+        // Kinderziffer; die Ausbildungszulage wird NICHT mehr abgeleitet
+        // (FamZ und QST getrennt, nur Hinweis).
+        var verlauf = await KindQstVerlaufLader.LadeAsync(_db, kinderRaw);
 
         // Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
         // liefert die Einkommensfrage in die Entscheidtabelle H1/A0.
@@ -133,30 +136,19 @@ public class QstTarifVorschlagService
             .OrderByDescending(f => f.Id)
             .Select(f => f.Erwerbstaetig)
             .FirstOrDefaultAsync();
-        // Walter-Vorgabe 20.08.2026: Erstausbildung zusätzlich aus einer am
-        // Stichtag AKTIVEN Ausbildungszulage (AZ) ableiten — wer AZ bekommt,
-        // ist belegt in Ausbildung (gleiche Logik wie QstPflichtCheckService).
-        var kindIds = kinderRaw.Select(f => f.Id).ToList();
-        var azKindIds = kindIds.Count == 0
-            ? new HashSet<int>()
-            : (await _db.FamilyMemberAllowances.AsNoTracking()
-                .Where(a => kindIds.Contains(a.FamilyMemberId)
-                         && a.AllowanceType == "AZ"
-                         && a.ValidFrom <= stichtag
-                         && (a.ValidTo == null || a.ValidTo >= stichtag))
-                .Select(a => a.FamilyMemberId)
-                .ToListAsync()).ToHashSet();
         var kinder = kinderRaw
             .Select(f => new QstKindInput(
                 f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : (DateOnly?)null,
                 f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : (DateOnly?)null,
                 f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : (DateOnly?)null,
                 f.AlternativeAddressId,
-                f.InErstausbildung || azKindIds.Contains(f.Id),
+                f.InErstausbildung,
                 f.LebtImHaushalt,
                 f.GemeinsamesKindMitPartner,
                 f.KeineUnterhaltspflicht,
-                f.ErfahrenAm
+                f.ErfahrenAm,
+                verlauf[f.Id],
+                $"{f.FirstName}".Trim()
             ))
             .ToList();
 
@@ -237,12 +229,14 @@ public record QstKindInput(
     // früherer Beziehung des Partners / kein Sorgerecht). Die QST-Kinderziffer
     // knüpft an die Unterhaltspflicht an — ein solches Kind zählt NIE.
     bool      KeineUnterhaltspflicht = false,
-    // Walter 15.09.2026: ab wann wir den Kinderabzug kannten. NULL = gleich wie Wirkung.
-    DateOnly? ErfahrenAm = null
+    // Walter 15.09.2026: ab wann wir vom Kind wussten. Seit 11.10.2026 nur
+    // noch Info — der Vorschlag zeigt den Sachverhalt (Konzept QST-Verlauf).
+    DateOnly? ErfahrenAm = null,
+    // QST-Verlauf am Kind (Walter 11.10.2026). NULL = aus den Feldern oben
+    // abgeleitet (Alt-Aufrufer/Tests, siehe AlsVerlauf).
+    KindQstDaten? Verlauf = null,
+    string? Name = null
 );
-
-/// <summary>Abschnitt, in dem ein Kind für die QST-Kinderziffer zählt (Bis null = offen).</summary>
-public record QstKindAbschnitt(DateOnly? Von, DateOnly? Bis, string Grund);
 
 /// <summary>
 /// Konkubinatspartner-Input für die Vorschlag-Logik (Walter 25.08.2026,
@@ -343,13 +337,16 @@ public static class QstTarifVorschlagLogic
         // Konkubinat (Walter 25.08.2026): Haushalts-Kinder nach der Frage
         // «gemeinsames Kind mit dem K-Partner?» klassifizieren.
         int gemeinsamJa = 0, gemeinsamNein = 0, gemeinsamOffen = 0;
+        var offenKind = new List<(string Name, string Punkt)>();
         foreach (var k in kinder)
         {
-            if (!IstQstBerechtigt(k, stichtag)) continue;
+            var monat = KindQstVerlauf.AmStichtag(AlsVerlauf(k), stichtag);
+            foreach (var o in monat.Offen) offenKind.Add((k.Name ?? "Kind", o));
+            if (!monat.Zaehlt) continue;
             berechneteKinderTotal++;
-            // Walter 25.08.2026: expliziter Haushalt-Status massgebend;
-            // Fallback (NULL, alte Aufrufer): AlternativeAddressId == null.
-            if (k.LebtImHaushalt ?? (k.AlternativeAddressId == null))
+            // Haushalt aus der Verhältnis-Version des Monats; ungeklärt zählt
+            // nicht als Haushalt (konservativ, Hinweis unten).
+            if (monat.ImHaushalt == true)
             {
                 kinderImSelbenHaushalt++;
                 if (k.GemeinsamesKind == true) gemeinsamJa++;
@@ -367,6 +364,13 @@ public static class QstTarifVorschlagLogic
 
         // 2) Tarif-Buchstaben
         var tarif = WaehleTarif(zivilstand, kinderImSelbenHaushalt, begruendung, ehepartnerErwerbstaetig);
+
+        // Offene Punkte am Kind (gelb): Haushalt zählt nur ausserhalb von B/C.
+        foreach (var (name, punkt) in offenKind)
+        {
+            if (punkt == "Haushalt ungeklärt" && (tarif == "B" || tarif == "C")) continue;
+            warnings.Add($"Kind {name}: {punkt} — im Familie-Tab unter «Quellensteuer» klären.");
+        }
 
         // 2b) Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
         // greift nur, wenn ein K-Partner erfasst ist UND der Vorschlag H wäre
@@ -522,90 +526,28 @@ public static class QstTarifVorschlagLogic
     }
 
     /// <summary>
-    /// Ist das Kind am Stichtag QST-abzugsberechtigt?
-    /// 0) Keine Unterhaltspflicht → nie (schlägt alles andere).
-    /// 1) Wenn QstDeductibleFrom oder QstDeductibleUntil gesetzt → der
-    ///    explizite Zeitraum gilt.
-    /// 2) Sonst Fallback: Geburtsdatum bis 18. Geburtstag.
-    /// Ohne jegliche Datums-Info → nicht zählen.
+    /// Zählt das Kind im Monat des Stichtags für die Kinderziffer?
+    /// Regel: <see cref="KindQstVerlauf"/> (Folgemonat, Ausbildung, Verhältnisse,
+    /// QST-Entscheide — Walter 11.10.2026).
     /// </summary>
     public static bool IstQstBerechtigt(QstKindInput k, DateOnly stichtag)
-    {
-        // 0) Keine Unterhaltspflicht → zählt NIE (Walter 01.09.2026). Steht
-        //    bewusst VOR allen anderen Prüfungen: Abzugszeitraum, Alter und
-        //    Erstausbildung sind dann ohne Bedeutung.
-        if (k.KeineUnterhaltspflicht) return false;
-
-        // Wissens-Achse: Kind war am Stichtag noch nicht gemeldet.
-        if (k.ErfahrenAm.HasValue && k.ErfahrenAm.Value > stichtag) return false;
-
-        // 1) Explizit gepflegt
-        if (k.QstDeductibleFrom.HasValue || k.QstDeductibleUntil.HasValue)
-        {
-            if (k.QstDeductibleFrom.HasValue  && k.QstDeductibleFrom.Value  > stichtag) return false;
-            // Walter-Vorgabe 20.08.2026: das «bis»-Datum wird beim Erfassen
-            // automatisch auf den 18. Geburtstag vorbefüllt. Steht das Kind in
-            // ERSTausbildung (Flag oder aktive Ausbildungszulage), verlängert
-            // das über ein abgelaufenes «bis» hinaus — sonst müsste HR das
-            // Datum von Hand löschen.
-            if (k.QstDeductibleUntil.HasValue && k.QstDeductibleUntil.Value < stichtag)
-                return k.InErstausbildung;
-            return true;
-        }
-        // 2) Geburtsdatum-Fallback
-        if (!k.DateOfBirth.HasValue) return false;
-        var dob   = k.DateOfBirth.Value;
-        if (dob > stichtag) return false;                    // noch nicht geboren
-        var dob18 = dob.AddYears(18);
-        if (dob18 >= stichtag) return true;                  // unter 18 am Stichtag
-        // Walter-Vorgabe 20.08.2026 (KS 45): ab dem 18. Geburtstag zählt das
-        // Kind nur noch, wenn es in ERSTausbildung steht (Lehrvertrag/
-        // Immatrikulation als Beleg hinterlegen) — sonst endet die
-        // Kinderziffer automatisch mit 18.
-        return k.InErstausbildung;
-    }
+        => KindQstVerlauf.AmStichtag(AlsVerlauf(k), stichtag).Zaehlt;
 
     /// <summary>
-    /// Zeiträume, in denen das Kind nach <see cref="IstQstBerechtigt"/> für die
-    /// Kinderziffer zählt — für die Anzeige im Familie-Tab (Walter 11.10.2026).
-    /// <paramref name="azPerioden"/> = Ausbildungszulagen des Kindes (verlängern
-    /// wie das Häkchen «in Erstausbildung», aber nur solange sie laufen).
-    /// Leer = zählt nie. Bis = null ⇒ offen.
+    /// Verlauf aus dem Input; ohne geladenen Verlauf aus den Kind-Feldern
+    /// abgeleitet wie bei der Umstellung des Altbestands (Häkchen → Abschnitt,
+    /// «QST abzugsberechtigt ab/bis» → Entscheide, Haushalt → ohne Version).
     /// </summary>
-    public static IReadOnlyList<QstKindAbschnitt> QstZeitraeume(
-        QstKindInput k, IEnumerable<(DateOnly Von, DateOnly? Bis)> azPerioden)
-    {
-        if (k.KeineUnterhaltspflicht) return Array.Empty<QstKindAbschnitt>();
-        bool explizit = k.QstDeductibleFrom.HasValue || k.QstDeductibleUntil.HasValue;
-        if (!explizit && !k.DateOfBirth.HasValue) return Array.Empty<QstKindAbschnitt>();
-
-        DateOnly? von = explizit ? (k.QstDeductibleFrom ?? k.DateOfBirth) : k.DateOfBirth;
-        DateOnly? grundEnde = explizit ? k.QstDeductibleUntil : k.DateOfBirth!.Value.AddYears(18);
-        string grund = explizit ? "gepflegter Zeitraum" : "bis 18. Geburtstag";
-
-        if (grundEnde == null) return new[] { new QstKindAbschnitt(von, null, grund) };
-        if (k.InErstausbildung) return new[] { new QstKindAbschnitt(von, null, "Erstausbildung") };
-
-        var liste = new List<QstKindAbschnitt> { new(von, grundEnde, grund) };
-        foreach (var az in azPerioden.OrderBy(p => p.Von))
-        {
-            var letzte = liste[^1];
-            if (letzte.Bis == null) break;
-            if (az.Bis.HasValue && az.Bis.Value <= letzte.Bis.Value) continue;
-            if (von.HasValue && az.Bis.HasValue && az.Bis.Value < von.Value) continue;
-            var start = az.Von > letzte.Bis.Value ? az.Von : letzte.Bis.Value.AddDays(1);
-            if (von.HasValue && start < von.Value) start = von.Value;
-            if (start <= letzte.Bis.Value.AddDays(1))
-                liste[^1] = letzte with
-                {
-                    Bis = az.Bis,
-                    Grund = letzte.Grund.Contains("Ausbildungszulage") ? letzte.Grund : letzte.Grund + " + Ausbildungszulage"
-                };
-            else
-                liste.Add(new QstKindAbschnitt(start, az.Bis, "Ausbildungszulage"));
-        }
-        return liste;
-    }
+    public static KindQstDaten AlsVerlauf(QstKindInput k)
+        => k.Verlauf ?? new KindQstDaten(
+            k.DateOfBirth,
+            k.KeineUnterhaltspflicht,
+            k.InErstausbildung
+                ? new[] { new KindAusbildung(null, null, true) }
+                : Array.Empty<KindAusbildung>(),
+            Array.Empty<KindVerhaeltnis>(),
+            KindQstVerlauf.EntscheideAusZeitraum(k.DateOfBirth, k.QstDeductibleFrom, k.QstDeductibleUntil, k.InErstausbildung),
+            k.LebtImHaushalt ?? (k.AlternativeAddressId == null));
 
     private static string WaehleTarif(string? zivilstand, int kinderImHaushalt, List<string> begruendung,
         bool? ehepartnerErwerbstaetig = null)

@@ -391,6 +391,9 @@ public partial class SwissdecTestmandantController
                     kind.LebtImHaushalt = true; kind.LivesInSwitzerland = emp.Country == "CH"; kind.UpdatedAt = DateTime.Now;
                     if (kind.Id == 0) _db.EmployeeFamilyMembers.Add(kind);
                     await _db.SaveChangesAsync();
+                    await KindQstVerlaufLader.ErsteVersionSicherstellenAsync(_db, kind);
+                    await KindQstVerlaufLader.AbzugszeitraumSetzenAsync(_db, kind, von, bis, "SWISSDEC");
+                    await _db.SaveChangesAsync();
                 }
             }
             if (fam.Count > 0) felder["Familie"] = string.Join(" · ", fam);

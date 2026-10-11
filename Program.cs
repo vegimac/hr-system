@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 59;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vivosystem_lohnkonto Mirus-Lohnkonto (04.10.2026) · 44: simulation_vortrag + simulation_lohn Lohn-Simulation (04.10.2026) · 45: McBonus 205→200.5, Lohnarten 600.5 Korrektur BVG Vorjahr + 950.1 Vorschuss, Raster verknüpft (04.10.2026) · 46: Raster 565.1 → Lohnart 565 Korrektur Quellensteuer (04.10.2026) · 47: ferien_auszahlung Ferien auszahlen ohne Bezug (05.10.2026) · 48: Feiertag bei MTP/FLEX Wirkung KEINE (05.10.2026) · 49: reduziert_saldo FERIEN_TAGE/FEIERTAG_TAGE im Katalog, Engine liest daraus (05.10.2026) · 50: CHECK absenz_typ_reduziert_saldo um FEIERTAG_TAGE erweitert (05.10.2026) · 51: Zeitgutschrift Krank/Unfall — arbeitstage_pro_woche, zeitgutschrift_krank_methode, absence.dienstplan_bis (06.10.2026) · 52: MTP Krank/Unfall Korrektur 75.1/65.1 — Ferien-Basis + Lohnschema MTP (06.10.2026) · 53: company_profile.lektionen_lohn_aktiv Filial-Schalter (07.10.2026) · 54: arbeitszeit_regel_wert + dienstplan_feiertag.sonntagsgleich (07.10.2026) · 55: Feiertage-Altbestand nach Kantonslisten Art. 20a ArG (07.10.2026) · 56: viren_fund + To-do virus_gefunden Virenscanner (08.10.2026) · 57: family_member_permit_history + family_member_erwerb_history (seit/erfahren am für QST) (08.10.2026) · 58: lohn_zulage.stunden — Überstunden-Auszahlung 55.2 im Lohnlauf (10.10.2026) · 59: famz_korrektur als quittierbare Warnung (lohn_zulage_id/erledigt_*/bemerkung) + VORJAHR→OFFEN (11.10.2026)
+const int SchemaStand = 60;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vivosystem_lohnkonto Mirus-Lohnkonto (04.10.2026) · 44: simulation_vortrag + simulation_lohn Lohn-Simulation (04.10.2026) · 45: McBonus 205→200.5, Lohnarten 600.5 Korrektur BVG Vorjahr + 950.1 Vorschuss, Raster verknüpft (04.10.2026) · 46: Raster 565.1 → Lohnart 565 Korrektur Quellensteuer (04.10.2026) · 47: ferien_auszahlung Ferien auszahlen ohne Bezug (05.10.2026) · 48: Feiertag bei MTP/FLEX Wirkung KEINE (05.10.2026) · 49: reduziert_saldo FERIEN_TAGE/FEIERTAG_TAGE im Katalog, Engine liest daraus (05.10.2026) · 50: CHECK absenz_typ_reduziert_saldo um FEIERTAG_TAGE erweitert (05.10.2026) · 51: Zeitgutschrift Krank/Unfall — arbeitstage_pro_woche, zeitgutschrift_krank_methode, absence.dienstplan_bis (06.10.2026) · 52: MTP Krank/Unfall Korrektur 75.1/65.1 — Ferien-Basis + Lohnschema MTP (06.10.2026) · 53: company_profile.lektionen_lohn_aktiv Filial-Schalter (07.10.2026) · 54: arbeitszeit_regel_wert + dienstplan_feiertag.sonntagsgleich (07.10.2026) · 55: Feiertage-Altbestand nach Kantonslisten Art. 20a ArG (07.10.2026) · 56: viren_fund + To-do virus_gefunden Virenscanner (08.10.2026) · 57: family_member_permit_history + family_member_erwerb_history (seit/erfahren am für QST) (08.10.2026) · 58: lohn_zulage.stunden — Überstunden-Auszahlung 55.2 im Lohnlauf (10.10.2026) · 59: famz_korrektur als quittierbare Warnung (lohn_zulage_id/erledigt_*/bemerkung) + VORJAHR→OFFEN (11.10.2026) · 60: QST-Verlauf am Kind — family_member_ausbildung/_verhaeltnis/_qst_entscheid + Altbestand (11.10.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1636,6 +1636,108 @@ using (var scope = app.Services.CreateScope())
         WHERE m.member_type IN ('Ehepartner', 'Konkubinatspartner')
           AND m.erwerbstaetig IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM family_member_erwerb_history h WHERE h.family_member_id = m.id);
+    ");
+
+    // ── QST-Verlauf am Kind (Walter 11.10.2026, Stand 60, docs/kind-qst-verlauf-konzept.md) ──
+    // Ausbildung (Abschnitte) · Verhältnisse (Haushalt/Unterhalt ab Datum) ·
+    // QST-Entscheide. Altbestand: Häkchen → Abschnitt ohne Beginn, nicht geprüft
+    // (kein erfundenes Datum); Haushalt → Version ab Geburt; nicht-standard
+    // «QST abzugsberechtigt von/bis» → Entscheide mit gleichem Verhalten
+    // (KindQstVerlauf.EntscheideAusZeitraum). Platzierung VOR SchemaCheckService.Pruefe.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS family_member_ausbildung (
+            id               serial PRIMARY KEY,
+            family_member_id integer NOT NULL REFERENCES employee_family_member(id) ON DELETE CASCADE,
+            von              date,
+            bis              date,
+            art              varchar(20) NOT NULL DEFAULT 'ANDERE',
+            ende_grund       varchar(20),
+            erstausbildung   boolean,
+            geprueft         boolean NOT NULL DEFAULT true,
+            dokument_id      integer,
+            quelle           varchar(20) NOT NULL DEFAULT 'HAND',
+            erfahren_am      date,
+            bemerkung        varchar(500),
+            erfasst_am       timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP,
+            erfasst_von      varchar(150)
+        );
+        CREATE INDEX IF NOT EXISTS ix_fm_ausbildung_member ON family_member_ausbildung (family_member_id);
+
+        CREATE TABLE IF NOT EXISTS family_member_verhaeltnis (
+            id                   serial PRIMARY KEY,
+            family_member_id     integer NOT NULL REFERENCES employee_family_member(id) ON DELETE CASCADE,
+            gueltig_ab           date NOT NULL,
+            im_haushalt          boolean,
+            unterhalt_hauptsache boolean,
+            quelle               varchar(20) NOT NULL DEFAULT 'HAND',
+            erfahren_am          date,
+            bemerkung            varchar(500),
+            erfasst_am           timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP,
+            erfasst_von          varchar(150)
+        );
+        CREATE INDEX IF NOT EXISTS ix_fm_verhaeltnis_member ON family_member_verhaeltnis (family_member_id);
+
+        CREATE TABLE IF NOT EXISTS family_member_qst_entscheid (
+            id               serial PRIMARY KEY,
+            family_member_id integer NOT NULL REFERENCES employee_family_member(id) ON DELETE CASCADE,
+            status           varchar(20) NOT NULL,
+            von              date,
+            bis              date,
+            grund            varchar(500),
+            dokument_id      integer,
+            quelle           varchar(20) NOT NULL DEFAULT 'HAND',
+            erfahren_am      date,
+            erfasst_am       timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP,
+            erfasst_von      varchar(150)
+        );
+        CREATE INDEX IF NOT EXISTS ix_fm_qst_entscheid_member ON family_member_qst_entscheid (family_member_id);
+
+        INSERT INTO family_member_ausbildung (family_member_id, von, bis, art, erstausbildung, geprueft, quelle, bemerkung)
+        SELECT m.id, NULL, NULL, 'ANDERE', true, false, 'ALTBESTAND',
+               'Häkchen «in Erstausbildung» übernommen — Zeitraum und Beleg nachtragen'
+        FROM employee_family_member m
+        WHERE m.member_type = 'Kind' AND m.in_erstausbildung = true
+          AND NOT EXISTS (SELECT 1 FROM family_member_ausbildung a WHERE a.family_member_id = m.id);
+
+        INSERT INTO family_member_verhaeltnis (family_member_id, gueltig_ab, im_haushalt, unterhalt_hauptsache, quelle, bemerkung)
+        SELECT m.id, COALESCE(m.date_of_birth::date, m.created_at::date, CURRENT_DATE), m.lebt_im_haushalt, true,
+               'ALTBESTAND', 'Stand bei der Umstellung'
+        FROM employee_family_member m
+        WHERE m.member_type = 'Kind'
+          AND NOT EXISTS (SELECT 1 FROM family_member_verhaeltnis v WHERE v.family_member_id = m.id);
+
+        -- Eine Anweisung (CTEs sehen denselben Ausgangsstand), damit die Prüfung
+        -- «noch kein Entscheid» nicht nach dem ersten Insert schon greift.
+        WITH z AS (
+            SELECT m.id, m.date_of_birth::date AS geb, m.qst_deductible_from::date AS v,
+                   m.qst_deductible_until::date AS b, m.in_erstausbildung AS erst
+            FROM employee_family_member m
+            WHERE m.member_type = 'Kind'
+              AND (m.qst_deductible_from IS NOT NULL OR m.qst_deductible_until IS NOT NULL)
+              AND NOT EXISTS (SELECT 1 FROM family_member_qst_entscheid e WHERE e.family_member_id = m.id)
+              AND NOT ((m.qst_deductible_from IS NULL OR m.qst_deductible_from::date = m.date_of_birth::date)
+                   AND (m.qst_deductible_until IS NULL
+                        OR (m.date_of_birth IS NOT NULL
+                            AND m.qst_deductible_until::date = (m.date_of_birth::date + interval '18 years')::date)))
+        ),
+        e1 AS (
+            INSERT INTO family_member_qst_entscheid (family_member_id, status, von, bis, grund, quelle)
+            SELECT id, 'NICHT_ANERKANNT', geb, COALESCE(v, geb) - 1,
+                   'Übernommen aus «QST abzugsberechtigt ab/bis» (vor dem Beginn)', 'ALTBESTAND'
+            FROM z WHERE geb IS NOT NULL AND COALESCE(v, geb) > geb
+            RETURNING 1
+        ),
+        e2 AS (
+            INSERT INTO family_member_qst_entscheid (family_member_id, status, von, bis, grund, quelle)
+            SELECT id, 'ANERKANNT', COALESCE(v, geb), b,
+                   'Übernommen aus «QST abzugsberechtigt ab/bis»', 'ALTBESTAND'
+            FROM z
+            RETURNING 1
+        )
+        INSERT INTO family_member_qst_entscheid (family_member_id, status, von, bis, grund, quelle)
+        SELECT id, 'NICHT_ANERKANNT', b + 1, NULL,
+               'Übernommen aus «QST abzugsberechtigt ab/bis» (nach dem Ende)', 'ALTBESTAND'
+        FROM z WHERE b IS NOT NULL AND NOT erst;
     ");
 
     // ── Lohnposition: QST periodisch/einmalig (Walter 21.09.2026, Schema-Stand 18; Platzierung VOR SchemaCheckService.Pruefe, sonst «fehlende Spalte» — Lehre 21.09.2026) ──

@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261008e">
+    <link rel="stylesheet" href="css/app.css?v=20261011a">
 </head>
 <body>
 
@@ -10360,7 +10360,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20261007c"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260915c"></script>
+<script src="js/qst-modal.js?v=20261011a"></script>
 <script src="js/users.js?v=20260911a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20261003b"></script>
@@ -10816,31 +10816,17 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  Typen ist die ganze Sektion versteckt (fmQstBlocksVisibility). -->
             <div id="fmQstSection">
             <div class="emp-section-title" data-i18n="fam.section.qst">Quellensteuer (QST)</div>
+            <!-- QST-Verlauf am Kind (Walter 11.10.2026, docs/kind-qst-verlauf-konzept.md):
+                 Ausbildung, Haushalt/Unterhalt, QST-Entscheide — js/kind-qst-verlauf.js. -->
             <div class="emp-field-grid-3">
-                <div class="fmf-field">
-                    <label class="fmf-label" data-i18n="fam.field.qstFrom">QST abzugsberechtigt ab</label>
-                    <input class="fmf-input" id="fmQstFrom" type="date">
-                </div>
-                <div class="fmf-field">
-                    <label class="fmf-label" data-i18n="fam.field.qstUntil">QST abzugsberechtigt bis</label>
-                    <input class="fmf-input" id="fmQstUntil" type="date">
-                </div>
                 <div class="fmf-field" id="fmErfahrenAmField">
                     <label class="fmf-label" data-i18n="fam.field.erfahrenAm">Erfahren am</label>
                     <input class="fmf-input" id="fmErfahrenAm" type="date"
-                           title="Ab wann wir vom Kind wussten. Wirkung bleibt «QST ab»; verspätetes Wissen → Tarif erst ab diesem Tag (Zwischenmonate per QST-Korrektur).">
-                    <div style="font-size:10.5px;color:#8b8b8b;margin-top:4px;line-height:1.35">Wissensdatum — leer = gleich «QST ab»</div>
-                </div>
-                <!-- Kind 18+: Erstausbildung verlängert die Kinderziffer (KS 45).
-                     Nur bei MemberType=Kind sichtbar. -->
-                <div class="fmf-field" id="fmErstausbildungField">
-                    <label class="fmf-label">Erstausbildung (ab 18)</label>
-                    <label class="fmf-checkbox-card" title="Kind steht in beruflicher/schulischer ERSTausbildung — Kinderziffer läuft über den 18. Geburtstag hinaus. Beleg (Lehrvertrag/Immatrikulation) im Dokumente-Tab hinterlegen.">
-                        <input type="checkbox" id="fmInErstausbildung">
-                        <span class="fmf-checkbox-text">in Erstausbildung</span>
-                    </label>
+                           title="Wann HR vom Kind erfahren hat. Der Vorschlag zeigt trotzdem den echten Zeitraum; frühere Monate meldet die Pendenz «QST-Korrektur prüfen».">
+                    <div style="font-size:10.5px;color:#8b8b8b;margin-top:4px;line-height:1.35">nur Info — der Zeitraum steht unten</div>
                 </div>
             </div>
+            <div id="fmQstVerlauf"></div>
             </div>
         </div>
         <div class="family-modal-foot">
@@ -10979,7 +10965,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261011d"></script>
+<script src="employees.js?v=20261011e"></script>
+<script src="js/kind-qst-verlauf.js?v=20261011a"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 

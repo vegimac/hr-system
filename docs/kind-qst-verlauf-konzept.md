@@ -231,14 +231,29 @@ Kein Hinweis ändert selbständig eine QST-Version oder eine Zulage.
 | Nur Ausbildungszulage, keine QST-Ausbildung | zählt nicht, Hinweis mit Übernahme-Knopf |
 | Übernahme-Knopf | Abschnitt mit Zeitraum + Beleg der Zulage, erst nach Bestätigung |
 
-## Offen (Walter entscheidet)
+## Umsetzung (gebaut 11.10.2026, Schema-Stand 60)
 
-- **«Erfahren am» im Tarifvorschlag.** Seit 16.09.2026 lässt der Vorschlag ein Kind weg, solange
-  der Stichtag vor «Erfahren am» liegt («Der Lohnlauf kennt eine Änderung erst ab der Meldung»).
-  Vorschlag v2: Der Vorschlag zeigt den tatsächlichen Sachverhalt (das Kind zählt ab dem
-  Folgemonat des Ereignisses), und «Erfahren am» steuert nur die Pendenz «QST-Korrektur
-  prüfen» für bereits abgerechnete Monate. Am Lohn ändert sich dadurch nichts, weil der Lohn
-  ohnehin nur die von HR angelegte QST-Version verwendet.
+- **«Erfahren am»** (vorher offen, Walter 11.10.2026 angenommen): Der Vorschlag zeigt den
+  tatsächlichen Sachverhalt. «Erfahren am» ist nur noch Info; abgerechnete Monate, deren
+  QST-Version nicht zum Verlauf passt, meldet die Warnung «QST-Korrektur prüfen» (erledigt,
+  sobald HR eine rückwirkende QST-Version anlegt).
+- **Eine Regel-Stelle:** `Services/KindQstVerlauf.cs` (rein, Tests `KindQstVerlaufTests`),
+  geladen über `Services/KindQstVerlaufLader.cs`. Benutzt von Tarifvorschlag, QST-Pflicht-Check
+  (Kinderziffer-Wächter, «QST-Korrektur prüfen», offene Punkte), Familie-Karte, QST-Fenster
+  (zählt aus `qstVerlauf.wirkung`) und ELM-Meldung (`ElmZeitraeume`).
+- **Tabellen:** `family_member_ausbildung`, `family_member_verhaeltnis`, `family_member_qst_entscheid`.
+  Endpunkte unter `api/employees/{id}/family/{kindId}/…` (`qst-verlauf`, `ausbildung`,
+  `ausbildung/aus-zulage/{zulageId}`, `verhaeltnis`, `qst-entscheid`).
+- **Abweichung:** Der Haken «keine Unterhaltspflicht» bleibt ein dauerhaftes «zählt nie» (gilt
+  auch für die Familienzulagen) — die Unterhalts-Frage in den Verhältnissen ist für Kinder mit
+  Unterhaltspflicht, deren Unterhalt sich ändert (z.B. eigenes Einkommen). Übernommene
+  Verhältnis-Versionen haben Unterhalt = ja.
+- **Snapshot-Felder bleiben:** `in_erstausbildung` (nachgeführt = heute läuft eine Erstausbildung),
+  `lebt_im_haushalt`, `keine_unterhaltspflicht` lesen weiterhin QST-Infoformular, QST-Anmeldung,
+  Herleitungs-Snapshot und Familienzulagen. `qst_deductible_from/until` werden nicht mehr gepflegt
+  (Altbestand → QST-Entscheide, Swissdec-Testdaten schreiben Entscheide mit Quelle «SWISSDEC»).
+- **Ausbildungszulage ohne QST-Ausbildung:** Hinweis an der Karte und im QST-Pflicht-Check,
+  im Familien-Fenster Knopf «Als QST-Ausbildung übernehmen» (Zeitraum + Beleg der Zulage).
 
 ## Geklärt (v1 → v2)
 
