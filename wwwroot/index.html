@@ -1192,9 +1192,10 @@
 
                             <!-- Zulagen & Abzüge -->
                             <div class="card" id="lohnZulagenPanel" style="display:none;padding:0;overflow:hidden">
-                                <div style="padding:13px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
-                                    <div style="font-weight:600;font-size:13px;color:#475569">Zulagen &amp; Abzüge</div>
-                                    <div style="display:flex;gap:8px">
+                                <div style="padding:13px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px">
+                                    <div style="font-weight:600;font-size:13px;color:#475569;white-space:nowrap">Zulagen &amp; Abzüge</div>
+                                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto">
+                                        <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
                                         <!-- Walter 04.08.2026: Saldo-Korrektur prominent statt im ⋯-Menü -->
                                         <button id="lohnSaldoKorrBtn" class="btn btn-sm btn-outline" style="display:none"
                                                 title="Saldo nachvollziehbar korrigieren (z.B. Abgleich mit Mirus) — Lohnzettel wird neu gerechnet"
@@ -1203,7 +1204,6 @@
                                         <button id="lohnFerienAuszBtn" class="btn btn-sm btn-outline"
                                                 title="Ferien-Guthaben auszahlen, ohne dass Ferien bezogen werden"
                                                 onclick="lzOpenFerienAuszahlung()">🏖 Ferien auszahlen</button>
-                                        <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
                                     </div>
                                 </div>
                                 <!-- Depot-Refund-Hinweis (Korrekturlohn / Austritt) -->
