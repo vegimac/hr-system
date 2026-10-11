@@ -115,7 +115,6 @@ function kqvRender() {
     const b = kqvBoxen();
     if (!b.qst || !d) return;
     const a = d.anzeige || {};
-    const f = _kqv.form;
 
     // Quellensteuer am Kind: nur das Ergebnis in einer Zeile (Walter 11.10.2026 —
     // Details gehören in die QST-Erfassung, nicht in die Kind-Maske).
@@ -130,7 +129,6 @@ function kqvRender() {
 
     // ── Ausbildung ──
     const ausbZeilen = (d.ausbildungen || []).map(x => {
-        if (f?.typ === 'A' && f.id === x.id) return kqvFormAusbildung(x);
         const quelle = KQV_QUELLE[x.quelle] ? ` · ${KQV_QUELLE[x.quelle]}` : '';
         return `<div class="kqv-zeile">
             <div class="kqv-text">
@@ -140,7 +138,7 @@ function kqvRender() {
                 ${x.geprueft ? '' : ' · <span style="color:#92400e">nicht geprüft</span>'}${quelle}${kqvDokLink(x.dokumentId)}
                 ${x.bemerkung ? `<div class="kqv-klein">${kqvEsc(x.bemerkung)}</div>` : ''}
             </div>
-            ${kqvMenu('kqvA', x.id, `kqvBearbeiten('A',${x.id})`, `kqvLoeschen('ausbildung',${x.id})`)}
+            ${kqvMenu('kqvA', x.id, `kqvAusbildungDialog(${x.id})`, `kqvLoeschen('ausbildung',${x.id})`)}
         </div>`;
     }).join('');
     const zulagen = (d.zulagenOhneAusbildung || []).map(z => `<div class="kqv-zeile kqv-gelb">
@@ -162,31 +160,26 @@ function kqvRender() {
 
     // ── QST-Entscheide ──
     const entZeilen = (d.entscheide || []).map(x => {
-        if (f?.typ === 'E' && f.id === x.id) return kqvFormEntscheid(x);
         const farbe = x.status === 'ANERKANNT' ? '#166534' : x.status === 'NICHT_ANERKANNT' ? '#991b1b' : '#92400e';
         const quelle = KQV_QUELLE[x.quelle] ? ` · ${KQV_QUELLE[x.quelle]}` : '';
         return `<div class="kqv-zeile">
             <div class="kqv-text"><b style="color:${farbe}">${KQV_STATUS[x.status] || x.status}</b>
                 · ${kqvDatum(x.von)} – ${x.bis ? kqvDatum(x.bis) : 'offen'}${quelle}${kqvDokLink(x.dokumentId)}
                 ${x.grund ? `<div class="kqv-klein">${kqvEsc(x.grund)}</div>` : ''}</div>
-            ${kqvMenu('kqvE', x.id, `kqvBearbeiten('E',${x.id})`, `kqvLoeschen('qst-entscheid',${x.id})`)}
+            ${kqvMenu('kqvE', x.id, `kqvEntscheidDialog(${x.id})`, `kqvLoeschen('qst-entscheid',${x.id})`)}
         </div>`;
     }).join('');
 
-    const neu = (typ, label) => (f?.typ === typ && f.id == null)
-        ? (typ === 'A' ? kqvFormAusbildung(null) : kqvFormEntscheid(null))
-        : `<button type="button" class="kqv-btn-neu" onclick="kqvBearbeiten('${typ}',null)">+ ${label}</button>`;
-
     const ausbLeer = '<div class="kqv-leer">keine erfasst — ab 16 gibt es die Ausbildungszulage statt der Kinderzulage: Lehre oder Schule hier erfassen.</div>';
-    const ausbildung = `${ausbZeilen || ausbLeer}${zulagen}${neu('A', 'Ausbildung')}`;
+    const ausbildung = `${ausbZeilen || ausbLeer}${zulagen}
+        <button type="button" class="kqv-btn-neu" onclick="kqvAusbildungDialog()">+ Ausbildung</button>`;
     const heute = kqvVerhaeltnisHeute(d.verhaeltnisse);
     const ohneUnterhalt = heute && heute.unterhaltHauptsache === false
         ? '<div class="kqv-klein" style="color:#92400e">Ohne Unterhalt zählt das Kind nicht für die QST. Läuft trotzdem eine Familienzulage: Verfügung der Familienausgleichskasse prüfen.</div>' : '';
     const wohnen = `${verhZeilen || '<div class="kqv-leer">keine erfasst</div>'}${ohneUnterhalt}
         <button type="button" class="kqv-btn-neu" onclick="kqvVerhaeltnisDialog(_kqv.empId,_kqv.memberId)">+ Änderung ab Datum</button>`;
-    const entscheide = (entZeilen || (f?.typ === 'E'))
-        ? `<div><div class="kqv-sub">Entscheid der Steuerverwaltung</div>${entZeilen}${f?.typ === 'E' && f.id == null ? kqvFormEntscheid(null) : ''}</div>` : '';
-    const entscheidNeu = f?.typ === 'E' ? '' : `<button type="button" class="kqv-btn-neu" onclick="kqvBearbeiten('E',null)" title="Nur wenn die Steuerverwaltung über das Kind entschieden hat">+ Entscheid der Steuerverwaltung</button>`;
+    const entscheide = entZeilen ? `<div><div class="kqv-sub">Entscheid der Steuerverwaltung</div>${entZeilen}</div>` : '';
+    const entscheidNeu = `<button type="button" class="kqv-btn-neu" onclick="kqvEntscheidDialog()" title="Nur wenn die Steuerverwaltung über das Kind entschieden hat">+ Entscheid der Steuerverwaltung</button>`;
 
     if (b.wohnen && b.ausbildung) {
         b.wohnen.innerHTML = wohnen;
@@ -199,77 +192,88 @@ function kqvRender() {
             <div><div class="kqv-sub">Haushalt &amp; Unterhalt</div>${wohnen}</div>${entscheide}${entscheidNeu}`;
     }
 
-    if (f && _kqv.dokumente && document.getElementById('kqvDok')) kqvDokOptionen(f.dokumentId);
     if (typeof fmKindAdresseSichtbarkeit === 'function') fmKindAdresseSichtbarkeit();
 }
 
-function kqvSelect(id, werte, aktuell) {
-    return `<select class="fmf-input" id="${id}">${Object.entries(werte)
-        .map(([k, t]) => `<option value="${k}"${String(aktuell ?? '') === k ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
-}
 const KQV_JNU = { '': 'ungeklärt', ja: 'ja', nein: 'nein' };
 const kqvJnuWert = v => v === true ? 'ja' : v === false ? 'nein' : '';
 const kqvJnuLesen = id => { const v = document.getElementById(id)?.value; return v === 'ja' ? true : v === 'nein' ? false : null; };
 
-function kqvFormKnoepfe() {
-    return `<div class="kqv-form-knoepfe">
-        <button type="button" class="kqv-btn" onclick="kqvAbbrechen()">Abbrechen</button>
-        <button type="button" class="kqv-btn kqv-btn-primaer" onclick="kqvSpeichern()">Übernehmen</button>
-    </div>`;
-}
-function kqvDokFeld() {
-    return `<div class="fmf-field"><label class="fmf-label">Beleg</label><select class="fmf-input" id="kqvDok"><option value="">– kein Beleg –</option></select></div>`;
-}
+// ── Kleine Fenster statt Formular mitten in der Kind-Maske (Walter 11.10.2026) ──
+// Wohnen & Unterhalt, Ausbildung und Entscheid der Steuerverwaltung: je ein
+// eigenes Fenster mit nur den nötigen Feldern. «Erfahren am» wird nicht mehr
+// abgefragt — beim Bearbeiten bleibt ein gespeicherter Wert erhalten.
+const KQV_PILL = 'width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;box-shadow:0 2px 6px rgba(60,55,48,0.13);padding:8px 10px;font-size:13px;color:#3f3f3f';
+const KQV_LAB = 'display:block;font-size:11px;font-weight:700;color:#646464;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px';
 
-function kqvFormAusbildung(x) {
-    return `<div class="kqv-form">
-        <div class="emp-field-grid-3">
-            <div class="fmf-field"><label class="fmf-label">Von</label><input class="fmf-input" id="kqvVon" type="date" value="${x?.von || ''}"></div>
-            <div class="fmf-field"><label class="fmf-label">Bis (leer = läuft)</label><input class="fmf-input" id="kqvBis" type="date" value="${x?.bis || ''}"></div>
-            <div class="fmf-field"><label class="fmf-label">Art</label>${kqvSelect('kqvArt', KQV_ARTEN, x?.art || 'LEHRE')}</div>
-            <div class="fmf-field"><label class="fmf-label">Erstausbildung</label>${kqvSelect('kqvErst', KQV_JNU, x ? kqvJnuWert(x.erstausbildung) : 'ja')}</div>
-            <div class="fmf-field"><label class="fmf-label">Ende</label>${kqvSelect('kqvEnde', { '': '–', ...KQV_ENDE }, x?.endeGrund || '')}</div>
-            <div class="fmf-field"><label class="fmf-label">Geprüft</label>${kqvSelect('kqvGeprueft', { ja: 'ja, Beleg gesehen', nein: 'nein' }, x && !x.geprueft ? 'nein' : 'ja')}</div>
-            ${kqvDokFeld()}
-            <div class="fmf-field"><label class="fmf-label">Erfahren am</label><input class="fmf-input" id="kqvErfahren" type="date" value="${x?.erfahrenAm || ''}"></div>
-            <div class="fmf-field"><label class="fmf-label">Bemerkung</label><input class="fmf-input" id="kqvBemerkung" value="${kqvEsc(x?.bemerkung || '')}"></div>
-        </div>${kqvFormKnoepfe()}</div>`;
+function kqvFeld(label, inhalt, extra = '') {
+    return `<div ${extra}><label style="${KQV_LAB}">${label}</label>${inhalt}</div>`;
 }
+function kqvAuswahl(id, werte, aktuell, onchange = '') {
+    return `<select id="${id}" style="${KQV_PILL}"${onchange ? ` onchange="${onchange}"` : ''}>${Object.entries(werte)
+        .map(([k, t]) => `<option value="${k}"${String(aktuell ?? '') === k ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+}
+function kqvDatumFeld(id, wert) { return `<input id="${id}" type="date" style="${KQV_PILL}" value="${wert || ''}">`; }
+function kqvTextFeld(id, wert) { return `<input id="${id}" type="text" style="${KQV_PILL}" value="${kqvEsc(wert || '')}">`; }
+const kqvOptional = '<span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8b8b8b">(optional)</span>';
 
-function kqvFormEntscheid(x) {
-    return `<div class="kqv-form">
-        <div class="emp-field-grid-3">
-            <div class="fmf-field"><label class="fmf-label">Status</label>${kqvSelect('kqvStatus', KQV_STATUS, x?.status || 'ANERKANNT')}</div>
-            <div class="fmf-field"><label class="fmf-label">Von</label><input class="fmf-input" id="kqvVon" type="date" value="${x?.von || ''}"></div>
-            <div class="fmf-field"><label class="fmf-label">Bis (leer = offen)</label><input class="fmf-input" id="kqvBis" type="date" value="${x?.bis || ''}"></div>
-            ${kqvDokFeld()}
-            <div class="fmf-field"><label class="fmf-label">Erfahren am</label><input class="fmf-input" id="kqvErfahren" type="date" value="${x?.erfahrenAm || ''}"></div>
-            <div class="fmf-field"><label class="fmf-label">Grund</label><input class="fmf-input" id="kqvGrund" value="${kqvEsc(x?.grund || '')}"></div>
+/** Öffnet ein kleines Fenster. speichern() liefert true, wenn es zugehen darf. */
+function kqvFenster({ titel, unter, inhalt, hinweis, speichern, fokus }) {
+    document.getElementById('kqvFenster')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'kqvFenster';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+    <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);width:min(540px,92vw);padding:20px 22px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f">${titel}</div>
+        <div style="font-size:12px;color:#8b8b8b;margin:4px 0 14px">${unter || ''}</div>
+        ${inhalt}
+        ${hinweis ? `<div style="font-size:11px;color:#8b8b8b;margin-top:10px;line-height:1.4">${hinweis}</div>` : ''}
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+            <button type="button" data-kqv="nein" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13px;font-weight:700">Abbrechen</button>
+            <button type="button" data-kqv="ja" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13px;font-weight:700">Speichern</button>
         </div>
-        <div class="kqv-klein">Gilt so, wie die Steuerverwaltung datiert hat — ohne Verschiebung auf den Folgemonat.</div>
-        ${kqvFormKnoepfe()}</div>`;
+    </div>`;
+    document.body.appendChild(wrap);
+    const zu = () => { wrap.remove(); document.removeEventListener('keydown', onKey, true); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); zu(); } };
+    document.addEventListener('keydown', onKey, true);
+    wrap.addEventListener('mousedown', e => { if (e.target === wrap) zu(); });
+    wrap.querySelector('[data-kqv="nein"]').onclick = zu;
+    const ja = wrap.querySelector('[data-kqv="ja"]');
+    ja.onclick = async () => {
+        ja.disabled = true;
+        try { if (await speichern()) zu(); } finally { ja.disabled = false; }
+    };
+    if (fokus) setTimeout(() => document.getElementById(fokus)?.focus(), 50);
 }
 
-function kqvDokOptionen(aktuell) {
-    const sel = document.getElementById('kqvDok');
-    if (!sel) return;
-    sel.innerHTML = `<option value="">– kein Beleg –</option>` + (_kqv.dokumente || [])
-        .map(d => `<option value="${d.id}"${d.id === aktuell ? ' selected' : ''}>${kqvEsc(d.text)}</option>`).join('');
+/** Speichert und zeichnet Kind-Maske + Familie-Tab neu. */
+async function kqvSchreiben(empId, memberId, methode, pfad, body, meldung) {
+    const r = await fetch(`/api/employees/${empId}/family/${memberId}/${pfad}`,
+        { method: methode, headers: ah(), body: body ? JSON.stringify(body) : undefined });
+    if (!r.ok) {
+        let msg = `Fehler (HTTP ${r.status})`;
+        try { const j = await r.json(); msg = j.message || msg; } catch { /* kein JSON */ }
+        kqvFehler(msg);
+        return false;
+    }
+    const neu = await r.json();
+    if (_kqv.memberId === memberId) { _kqv.daten = neu; kqvRender(); }
+    if (typeof loadFamilieTab === 'function') loadFamilieTab(empId);
+    if (meldung && typeof showToast === 'function') showToast(meldung, 'success');
+    return true;
 }
 
-async function kqvBearbeiten(typ, id) {
-    const liste = typ === 'A' ? _kqv.daten.ausbildungen : _kqv.daten.entscheide;
-    const x = id == null ? null : liste.find(e => e.id === id);
-    _kqv.form = { typ, id, dokumentId: x?.dokumentId ?? null };
-    kqvRender();
-    await kqvDokumente(); kqvDokOptionen(_kqv.form?.dokumentId);
+async function kqvBelegAuswahl(aktuell) {
+    const dok = await kqvDokumente();
+    return `<select id="kqvFBeleg" style="${KQV_PILL}"><option value="">– kein Beleg –</option>${dok
+        .map(d => `<option value="${d.id}"${d.id === aktuell ? ' selected' : ''}>${kqvEsc(d.text)}</option>`).join('')}</select>`;
 }
+const kqvWert = id => document.getElementById(id)?.value || null;
+const kqvBelegWert = () => { const v = kqvWert('kqvFBeleg'); return v ? parseInt(v, 10) : null; };
 
-function kqvAbbrechen() { _kqv.form = null; kqvRender(); }
-
-// ── Kleines Fenster «Wohnen & Unterhalt ändern» (Walter 11.10.2026) ──
-// Statt Formular mitten in der Kind-Maske: eigener Dialog mit nur diesen Feldern.
-// Aufruf aus der Kind-Maske (Neu/Bearbeiten) und direkt aus dem ⋮ der Kind-Karte.
+/** Wohnen & Unterhalt — auch direkt aus dem ⋮ der Kind-Karte (ohne Kind-Maske). */
 async function kqvVerhaeltnisDialog(empId, memberId, eintragId = null) {
     let daten = (_kqv.memberId === memberId && _kqv.daten) ? _kqv.daten : null;
     if (!daten) {
@@ -281,101 +285,92 @@ async function kqvVerhaeltnisDialog(empId, memberId, eintragId = null) {
     }
     const x = eintragId == null ? null : (daten.verhaeltnisse || []).find(v => v.id === eintragId);
     const bisher = x ? null : kqvVerhaeltnisHeute(daten.verhaeltnisse);
-    const pill = 'width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;box-shadow:0 2px 6px rgba(60,55,48,0.13);padding:8px 10px;font-size:13px;color:#3f3f3f';
-    const lab = 'display:block;font-size:11px;font-weight:700;color:#646464;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px';
-    const sel = (id, wert) => `<select id="${id}" style="${pill}">${Object.entries(KQV_JNU)
-        .map(([k, t]) => `<option value="${k}"${k === wert ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
-
-    document.getElementById('kqvVhDialog')?.remove();
-    const wrap = document.createElement('div');
-    wrap.id = 'kqvVhDialog';
-    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
-    wrap.innerHTML = `
-    <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);width:min(520px,92vw);padding:20px 22px">
-        <div style="font-size:15px;font-weight:800;color:#3f3f3f">${x ? 'Wohnen &amp; Unterhalt bearbeiten' : 'Wohnen &amp; Unterhalt ändern'}</div>
-        <div style="font-size:12px;color:#8b8b8b;margin:4px 0 14px">${bisher
+    kqvFenster({
+        titel: x ? 'Wohnen &amp; Unterhalt bearbeiten' : 'Wohnen &amp; Unterhalt ändern',
+        unter: bisher
             ? `Bisher: ab ${kqvDatum(bisher.gueltigAb)} · im Haushalt ${kqvJaNein(bisher.imHaushalt)} · Unterhalt ${kqvJaNein(bisher.unterhaltHauptsache)}`
-            : 'Gilt ab dem Datum, bis zur nächsten Änderung.'}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div><label style="${lab}">Gültig ab</label><input id="kqvVhAb" type="date" style="${pill}" value="${x?.gueltigAb || ''}"></div>
-            <div><label style="${lab}">Im Haushalt</label>${sel('kqvVhHaushalt', x ? kqvJnuWert(x.imHaushalt) : kqvJnuWert(bisher?.imHaushalt ?? true))}</div>
-            <div><label style="${lab}">Unterhalt</label>${sel('kqvVhUnterhalt', x ? kqvJnuWert(x.unterhaltHauptsache) : kqvJnuWert(bisher?.unterhaltHauptsache ?? true))}</div>
-        </div>
-        <div style="margin-top:12px"><label style="${lab}">Bemerkung <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8b8b8b">(optional)</span></label>
-            <input id="kqvVhBemerkung" type="text" style="${pill}" value="${kqvEsc(x?.bemerkung || '')}"></div>
-        <div style="font-size:11px;color:#8b8b8b;margin-top:10px;line-height:1.4">«Unterhalt» = der MA kommt zur Hauptsache für das Kind auf. Auszug wegen Studium oder Wochenaufenthalt ist kein «nein» — im Zweifel «ungeklärt».</div>
-        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
-            <button type="button" id="kqvVhNein" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13px;font-weight:700">Abbrechen</button>
-            <button type="button" id="kqvVhJa" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13px;font-weight:700">Speichern</button>
-        </div>
-    </div>`;
-    document.body.appendChild(wrap);
-    const zu = () => { wrap.remove(); document.removeEventListener('keydown', onKey, true); };
-    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); zu(); } };
-    document.addEventListener('keydown', onKey, true);
-    wrap.addEventListener('mousedown', e => { if (e.target === wrap) zu(); });
-    wrap.querySelector('#kqvVhNein').onclick = zu;
-    wrap.querySelector('#kqvVhJa').onclick = async () => {
-        const ab = document.getElementById('kqvVhAb')?.value;
-        if (!ab) { kqvFehler('Bitte «Gültig ab» erfassen.'); return; }
-        const body = {
-            gueltigAb: ab,
-            imHaushalt: kqvJnuLesen('kqvVhHaushalt'),
-            unterhaltHauptsache: kqvJnuLesen('kqvVhUnterhalt'),
-            erfahrenAm: x?.erfahrenAm || null,
-            bemerkung: document.getElementById('kqvVhBemerkung')?.value || null,
-        };
-        const pfad = x ? `verhaeltnis/${x.id}` : 'verhaeltnis';
-        const r = await fetch(`/api/employees/${empId}/family/${memberId}/${pfad}`,
-            { method: x ? 'PUT' : 'POST', headers: ah(), body: JSON.stringify(body) });
-        if (!r.ok) {
-            let msg = `Fehler (HTTP ${r.status})`;
-            try { const j = await r.json(); msg = j.message || msg; } catch { /* kein JSON */ }
-            kqvFehler(msg);
-            return;
-        }
-        const neu = await r.json();
-        zu();
-        if (_kqv.memberId === memberId) { _kqv.daten = neu; _kqv.form = null; kqvRender(); }
-        if (typeof loadFamilieTab === 'function') loadFamilieTab(empId);
-        if (typeof showToast === 'function') showToast('Wohnen & Unterhalt gespeichert', 'success');
-    };
-    setTimeout(() => document.getElementById('kqvVhAb')?.focus(), 50);
+            : 'Gilt ab dem Datum, bis zur nächsten Änderung.',
+        inhalt: `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                ${kqvFeld('Gültig ab', kqvDatumFeld('kqvFAb', x?.gueltigAb))}
+                ${kqvFeld('Im Haushalt', kqvAuswahl('kqvFHaushalt', KQV_JNU, x ? kqvJnuWert(x.imHaushalt) : kqvJnuWert(bisher?.imHaushalt ?? true)))}
+                ${kqvFeld('Unterhalt', kqvAuswahl('kqvFUnterhalt', KQV_JNU, x ? kqvJnuWert(x.unterhaltHauptsache) : kqvJnuWert(bisher?.unterhaltHauptsache ?? true)))}
+            </div>
+            ${kqvFeld(`Bemerkung ${kqvOptional}`, kqvTextFeld('kqvFBemerkung', x?.bemerkung), 'style="margin-top:12px"')}`,
+        hinweis: '«Unterhalt» = der MA kommt zur Hauptsache für das Kind auf. Auszug wegen Studium oder Wochenaufenthalt ist kein «nein» — im Zweifel «ungeklärt».',
+        fokus: 'kqvFAb',
+        speichern: async () => {
+            const ab = kqvWert('kqvFAb');
+            if (!ab) { kqvFehler('Bitte «Gültig ab» erfassen.'); return false; }
+            return kqvSchreiben(empId, memberId, x ? 'PUT' : 'POST', x ? `verhaeltnis/${x.id}` : 'verhaeltnis', {
+                gueltigAb: ab, imHaushalt: kqvJnuLesen('kqvFHaushalt'), unterhaltHauptsache: kqvJnuLesen('kqvFUnterhalt'),
+                erfahrenAm: x?.erfahrenAm || null, bemerkung: kqvWert('kqvFBemerkung'),
+            }, 'Wohnen & Unterhalt gespeichert');
+        },
+    });
+}
+
+/** «Ende» nur zeigen, wenn ein Bis-Datum erfasst ist. */
+function kqvEndeSichtbarkeit() {
+    const feld = document.getElementById('kqvFEndeFeld');
+    if (feld) feld.style.visibility = kqvWert('kqvFBis') ? '' : 'hidden';
+}
+
+async function kqvAusbildungDialog(eintragId = null) {
+    const x = eintragId == null ? null : (_kqv.daten?.ausbildungen || []).find(a => a.id === eintragId);
+    const beleg = await kqvBelegAuswahl(x?.dokumentId ?? null);
+    kqvFenster({
+        titel: x ? 'Ausbildung bearbeiten' : 'Ausbildung erfassen',
+        unter: 'Lehre, Schule oder Studium — ab 16 gibt es dafür die Ausbildungszulage.',
+        inhalt: `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                ${kqvFeld('Von', kqvDatumFeld('kqvFVon', x?.von))}
+                ${kqvFeld('Bis <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8b8b8b">(leer = läuft)</span>',
+                    `<input id="kqvFBis" type="date" style="${KQV_PILL}" value="${x?.bis || ''}" onchange="kqvEndeSichtbarkeit()" oninput="kqvEndeSichtbarkeit()">`)}
+                ${kqvFeld('Art', kqvAuswahl('kqvFArt', KQV_ARTEN, x?.art || 'LEHRE'))}
+                ${kqvFeld('Erstausbildung', kqvAuswahl('kqvFErst', KQV_JNU, x ? kqvJnuWert(x.erstausbildung) : 'ja'))}
+                ${kqvFeld('Beleg', beleg, 'style="grid-column:span 2"')}
+                ${kqvFeld('Ende', kqvAuswahl('kqvFEnde', { '': '–', ...KQV_ENDE }, x?.endeGrund || ''), `id="kqvFEndeFeld" style="visibility:${x?.bis ? 'visible' : 'hidden'}"`)}
+                ${kqvFeld(`Bemerkung ${kqvOptional}`, kqvTextFeld('kqvFBemerkung', x?.bemerkung), 'style="grid-column:span 2"')}
+            </div>
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12.5px;color:#3f3f3f;cursor:pointer">
+                <input type="checkbox" id="kqvFGeprueft"${!x || x.geprueft ? ' checked' : ''}> Beleg gesehen (Lehrvertrag, Schulbestätigung …)</label>`,
+        hinweis: 'Für die Quellensteuer zählt nur die Erstausbildung.',
+        fokus: 'kqvFVon',
+        speichern: async () => {
+            const beleg = kqvBelegWert();
+            return kqvSchreiben(_kqv.empId, _kqv.memberId, x ? 'PUT' : 'POST', x ? `ausbildung/${x.id}` : 'ausbildung', {
+                von: kqvWert('kqvFVon'), bis: kqvWert('kqvFBis'), art: kqvWert('kqvFArt'),
+                endeGrund: kqvWert('kqvFBis') ? kqvWert('kqvFEnde') : null,
+                erstausbildung: kqvJnuLesen('kqvFErst'),
+                geprueft: beleg != null || !!document.getElementById('kqvFGeprueft')?.checked,
+                dokumentId: beleg, erfahrenAm: x?.erfahrenAm || null, bemerkung: kqvWert('kqvFBemerkung'),
+            }, 'Ausbildung gespeichert');
+        },
+    });
+}
+
+async function kqvEntscheidDialog(eintragId = null) {
+    const x = eintragId == null ? null : (_kqv.daten?.entscheide || []).find(e => e.id === eintragId);
+    const beleg = await kqvBelegAuswahl(x?.dokumentId ?? null);
+    kqvFenster({
+        titel: x ? 'Entscheid der Steuerverwaltung bearbeiten' : 'Entscheid der Steuerverwaltung',
+        unter: 'Nur erfassen, wenn die Steuerverwaltung über dieses Kind entschieden hat.',
+        inhalt: `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                ${kqvFeld('Entscheid', kqvAuswahl('kqvFStatus', KQV_STATUS, x?.status || 'ANERKANNT'))}
+                ${kqvFeld('Von', kqvDatumFeld('kqvFVon', x?.von))}
+                ${kqvFeld('Bis <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8b8b8b">(leer = offen)</span>', kqvDatumFeld('kqvFBis', x?.bis))}
+                ${kqvFeld('Beleg', beleg, 'style="grid-column:span 3"')}
+                ${kqvFeld(`Grund ${kqvOptional}`, kqvTextFeld('kqvFGrund', x?.grund), 'style="grid-column:span 3"')}
+            </div>`,
+        hinweis: 'Gilt genau so, wie die Steuerverwaltung datiert hat.',
+        speichern: async () => kqvSchreiben(_kqv.empId, _kqv.memberId, x ? 'PUT' : 'POST', x ? `qst-entscheid/${x.id}` : 'qst-entscheid', {
+            status: kqvWert('kqvFStatus'), von: kqvWert('kqvFVon'), bis: kqvWert('kqvFBis'),
+            dokumentId: kqvBelegWert(), erfahrenAm: x?.erfahrenAm || null, grund: kqvWert('kqvFGrund'),
+        }, 'Entscheid gespeichert'),
+    });
 }
 
 async function kqvSenden(methode, pfad, body) {
-    const r = await fetch(`/api/employees/${_kqv.empId}/family/${_kqv.memberId}/${pfad}`,
-        { method: methode, headers: ah(), body: body ? JSON.stringify(body) : undefined });
-    if (!r.ok) {
-        let msg = `Fehler (HTTP ${r.status})`;
-        try { const j = await r.json(); msg = j.message || msg; } catch { /* kein JSON */ }
-        kqvFehler(msg);
-        return false;
-    }
-    _kqv.daten = await r.json();
-    _kqv.form = null;
-    kqvRender();
-    if (typeof loadFamilieTab === 'function') loadFamilieTab(_kqv.empId);
-    return true;
-}
-
-async function kqvSpeichern() {
-    const f = _kqv.form;
-    if (!f) return;
-    const wert = id => document.getElementById(id)?.value || null;
-    const dok = () => { const v = wert('kqvDok'); return v ? parseInt(v, 10) : null; };
-    let pfad, body;
-    if (f.typ === 'A') {
-        pfad = 'ausbildung';
-        body = { von: wert('kqvVon'), bis: wert('kqvBis'), art: wert('kqvArt'), endeGrund: wert('kqvEnde'),
-            erstausbildung: kqvJnuLesen('kqvErst'), geprueft: wert('kqvGeprueft') !== 'nein',
-            dokumentId: dok(), erfahrenAm: wert('kqvErfahren'), bemerkung: wert('kqvBemerkung') };
-    } else {
-        pfad = 'qst-entscheid';
-        body = { status: wert('kqvStatus'), von: wert('kqvVon'), bis: wert('kqvBis'), dokumentId: dok(),
-            erfahrenAm: wert('kqvErfahren'), grund: wert('kqvGrund') };
-    }
-    await kqvSenden(f.id == null ? 'POST' : 'PUT', f.id == null ? pfad : `${pfad}/${f.id}`, body);
+    return kqvSchreiben(_kqv.empId, _kqv.memberId, methode, pfad, body);
 }
 
 async function kqvLoeschen(pfad, id) {

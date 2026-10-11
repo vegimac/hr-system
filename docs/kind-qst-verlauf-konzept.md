@@ -262,9 +262,13 @@ Kein Hinweis ändert selbständig eine QST-Version oder eine Zulage.
   kein Block «Aufenthalt» beim Kind; Ausbildung erst ab 15 Jahren oder wenn etwas erfasst ist;
   Unterhalts-Hinweis nur bei «Unterhalt nein»; Quellensteuer = eine Zeile «Zählt für die
   Kinderziffer» + Warnungen, Entscheide nur, wenn vorhanden (Knopf «+ Entscheid der Steuerverwaltung»).
-  «Wohnen & Unterhalt» ändern/bearbeiten = eigenes kleines Fenster (`kqvVerhaeltnisDialog`:
-  Gültig ab, im Haushalt, Unterhalt, Bemerkung), auch direkt aus dem ⋮ der Kind-Karte —
-  ohne die ganze Kind-Maske. «Erfahren am» wird dort nicht abgefragt (bleibt beim Bearbeiten erhalten).
+  Erfassen/Bearbeiten = je ein eigenes kleines Fenster (`kqvFenster`), kein Formular mehr
+  mitten in der Kind-Maske: «Wohnen & Unterhalt» (`kqvVerhaeltnisDialog`: Gültig ab, im
+  Haushalt, Unterhalt, Bemerkung — auch direkt aus dem ⋮ der Kind-Karte), «Ausbildung»
+  (`kqvAusbildungDialog`: Von, Bis, Art, Erstausbildung, Beleg, Ende nur mit Bis, Bemerkung,
+  Häkchen «Beleg gesehen» = geprüft; mit Beleg immer geprüft) und «Entscheid der
+  Steuerverwaltung» (`kqvEntscheidDialog`: Entscheid, Von, Bis, Beleg, Grund). «Erfahren am»
+  wird nicht mehr abgefragt (bleibt beim Bearbeiten erhalten).
 - **Ausbildungszulage ohne QST-Ausbildung:** Hinweis an der Karte und im QST-Pflicht-Check,
   im Familien-Fenster Knopf «Als QST-Ausbildung übernehmen» (Zeitraum + Beleg der Zulage).
 
