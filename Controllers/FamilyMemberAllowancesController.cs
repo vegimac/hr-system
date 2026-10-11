@@ -441,6 +441,78 @@ public class FamilyMemberAllowancesController : ControllerBase
         }});
     }
 
+    /// <summary>
+    /// «Änderung ab Datum» (Walter 11.10.2026): die bisherige Zulage endet am Vortag,
+    /// die neue beginnt am gewählten Datum — in EINEM SaveChanges, damit nie zwei
+    /// Zulagen gleichzeitig laufen. Die alte bleibt als Verlauf stehen.
+    /// </summary>
+    [HttpPost("{id:int}/aenderung")]
+    public async Task<IActionResult> AenderungAbDatum(int familyMemberId, int id, [FromBody] AllowanceDto dto)
+    {
+        var err = Validate(dto);
+        if (err != null) return BadRequest(new { error = err });
+
+        var alt = await _db.FamilyMemberAllowances
+            .FirstOrDefaultAsync(a => a.Id == id && a.FamilyMemberId == familyMemberId);
+        if (alt is null) return NotFound();
+        var ab = dto.ValidFrom!.Value;
+        if (ab <= alt.ValidFrom)
+            return BadRequest(new { error = $"Die Änderung muss nach dem Beginn der bisherigen Zulage ({alt.ValidFrom:dd.MM.yyyy}) liegen." });
+
+        var branchId     = await GetBranchByFamilyMemberAsync(familyMemberId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value)
+            : null;
+        var erfahrenAm = dto.ErfahrenAm ?? ab;
+        if (erfahrenAm < ab)
+            return BadRequest(new { error = "«Erfahren am» darf nicht vor «Gültig ab» liegen." });
+        if (firstAllowed.HasValue && ab < firstAllowed.Value && erfahrenAm < firstAllowed.Value)
+        {
+            return Conflict(new {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"«Gültig ab {ab:dd.MM.yyyy}» liegt in einer abgeschlossenen Periode — bitte «Erfahren am» auf frühestens {firstAllowed.Value:dd.MM.yyyy} setzen. Der Lohn bezahlt ab diesem Monat; frühere Monate erscheinen im Lohnlauf als Warnung.",
+                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+            });
+        }
+
+        var (dokOk, dokId, dokErr) = await ResolveDokumentIdAsync(familyMemberId, dto.DokumentId);
+        if (!dokOk) return BadRequest(new { error = dokErr });
+
+        bool altBeendet = false;
+        if (alt.ValidTo == null || alt.ValidTo.Value >= ab)
+        {
+            alt.ValidTo   = ab.AddDays(-1);
+            alt.UpdatedAt = DateTime.Now;
+            altBeendet    = true;
+        }
+        var neu = new FamilyMemberAllowance
+        {
+            FamilyMemberId = familyMemberId,
+            ValidFrom      = ab,
+            ValidTo        = dto.ValidTo,
+            ErfahrenAm     = dto.ErfahrenAm,
+            MonthlyAmount  = dto.MonthlyAmount ?? 0m,
+            AllowanceType  = NormalizeAllowanceType(dto.AllowanceType),
+            TarifSatzNr    = dto.TarifSatzNr,
+            Note           = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim(),
+            DokumentId     = dokId,
+            CreatedAt      = DateTime.Now,
+            UpdatedAt      = DateTime.Now
+        };
+        _db.FamilyMemberAllowances.Add(neu);
+        await _db.SaveChangesAsync();
+
+        var actor = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                    ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var korrAlt = altBeendet ? await _famzKorrektur.ErzeugeKorrekturenAsync(alt, actor) : null;
+        var korrNeu = await _famzKorrektur.ErzeugeKorrekturenAsync(neu, actor);
+        return Ok(new { eintrag = MapToDto(neu, firstAllowed), altBeendetPer = altBeendet ? alt.ValidTo?.ToString("yyyy-MM-dd") : null,
+            korrekturen = new {
+                anzahl      = korrNeu.Anzahl + (korrAlt?.Anzahl ?? 0),
+                totalBetrag = korrNeu.TotalBetrag + (korrAlt?.TotalBetrag ?? 0m),
+            }});
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int familyMemberId, int id)
     {

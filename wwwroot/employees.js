@@ -8716,12 +8716,13 @@ function openAllowanceFromCard(familyMemberId, existing) {
 // Cache der zuletzt geladenen Tarif-Optionen pro Stichtag.
 let _alTarifOptionsByDate = { stichtag: '', list: [], tarifInfo: null };
 
-async function openAllowanceModal(existing) {
+async function openAllowanceModal(existing, opts) {
     if (!editingFamilyMemberId) {
         alert('Bitte zuerst das Familienmitglied speichern.');
         return;
     }
     const d = (typeof existing === 'object' && existing !== null) ? existing : {};
+    window._alVorgaenger = opts?.vorgaenger || null;
     const isNew = !d.id;
     document.getElementById('alId').value            = d.id ?? '';
     document.getElementById('alValidFrom').value     = d.validFrom ?? '';
@@ -8737,7 +8738,9 @@ async function openAllowanceModal(existing) {
     document.getElementById('alTarifHint').textContent = '';
     const lblInfo = document.getElementById('alTarifInfoLbl');
     if (lblInfo) lblInfo.textContent = '';
-    document.getElementById('allowanceModalTitle').textContent = d.id ? 'Zulage bearbeiten' : 'Zulage hinzufügen';
+    document.getElementById('allowanceModalTitle').textContent = window._alVorgaenger
+        ? 'Zulage ändern ab Datum'
+        : (d.id ? 'Zulage bearbeiten' : 'Zulage hinzufügen');
     // Kind-Name sichtbar in der Maske (Walter 19.07.2026) — bei mehreren
     // Kindern im FAK-Entscheid sonst unklar, für wen erfasst wird.
     const child = (window._familyMembersCache || []).find(m => m.id === editingFamilyMemberId);
@@ -8771,7 +8774,7 @@ async function openAllowanceModal(existing) {
     if (gesperrt && errEl && d.verwendetBis) {
         const [vy, vm] = String(d.verwendetBis).split('-');
         errEl.style.color = '#646464';
-        errEl.textContent = `🔒 Im abgeschlossenen Lohn ${vm}.${vy} verwendet — nur noch «Gültig bis», Dokument und Bemerkung änderbar. Ändert sich die Zulage später, einen neuen Eintrag erfassen.`;
+        errEl.textContent = `🔒 Im abgeschlossenen Lohn ${vm}.${vy} verwendet — nur noch «Gültig bis», Dokument und Bemerkung änderbar. Ändert sich die Zulage später, oben «+ Änderung ab Datum» wählen.`;
     }
     alRenderPostenHist(d.posten || []);
 
@@ -8791,13 +8794,125 @@ async function openAllowanceModal(existing) {
         vfInp.addEventListener('change', () => {
             alErfahrenNachGueltigAb();
             alLoadTarifOptionsAndPreselect();
+            alAenderungHinweis();
         });
         vfInp.dataset.alBound = '1';
     }
+    alAenderungHinweis();
     await Promise.all([
         alLoadTarifOptionsAndPreselect(),
-        alLoadEntscheidDocs(d.dokumentId ?? null)
+        alLoadEntscheidDocs(d.dokumentId ?? null),
+        alVerlaufLaden(window._alVorgaenger ? window._alVorgaenger.id : (d.id || null))
     ]);
+}
+
+/**
+ * Verlauf im Fenster «Zulage bearbeiten» (Walter 11.10.2026): alle Zulagen dieses
+ * Kindes, neueste zuoberst. Klick öffnet den Eintrag; «Änderung ab Datum» beendet
+ * den gewählten Eintrag am Vortag und erfasst den neuen (Server: …/aenderung).
+ */
+async function alVerlaufLaden(aktivId) {
+    const box = document.getElementById('alVerlauf');
+    if (!box) return;
+    window._alVerlaufListe = [];
+    box.style.display = 'none';
+    box.innerHTML = '';
+    if (!editingFamilyMemberId) return;
+    try {
+        const res = await fetch(`/api/family-members/${editingFamilyMemberId}/allowances`, { headers: ah() });
+        if (!res.ok) return;
+        window._alVerlaufListe = await res.json();
+    } catch { return; }
+    alVerlaufRender(aktivId);
+}
+
+function alVerlaufRender(aktivId) {
+    const box = document.getElementById('alVerlauf');
+    const liste = [...(window._alVerlaufListe || [])].sort((a, b) =>
+        String(b.validFrom || '').localeCompare(String(a.validFrom || '')) || ((b.id || 0) - (a.id || 0)));
+    if (!box || liste.length === 0) return;
+    const heute = localIso(new Date());
+    const imAenderungsModus = !!window._alVorgaenger;
+    const rows = liste.map(a => {
+        const von = String(a.validFrom || '').slice(0, 10);
+        const bis = String(a.validTo || '').slice(0, 10);
+        const status = bis && bis < heute ? 'beendet' : (von > heute ? 'geplant' : 'läuft');
+        const statusFarbe = status === 'läuft' ? '#166534' : (status === 'geplant' ? '#1d4ed8' : '#8b8b8b');
+        const hatSatz = a.tarifSatzNr != null && a.tarifSatzNr !== '';
+        const art = esc(a.allowanceType || 'Zulage');
+        const was = hatSatz ? `${art} Satz ${a.tarifSatzNr}` : `${art} · CHF ${Number(a.monthlyAmount || 0).toFixed(2)}`;
+        const aktiv = a.id === aktivId;
+        const offen = (a.posten || []).filter(p => p.status === 'OFFEN' || p.status === 'VORJAHR').length;
+        const zeitraum = `${formatDate(von)} – ${bis ? formatDate(bis) : 'offen'}`;
+        const klick = imAenderungsModus ? '' : `onclick="alVerlaufOeffnen(${a.id})"`;
+        return `<div ${klick} title="${imAenderungsModus ? '' : 'Eintrag öffnen'}"
+                style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:10px;
+                       cursor:${imAenderungsModus ? 'default' : 'pointer'};
+                       border:1px solid ${aktiv ? '#3f3f3f' : 'rgba(60,55,48,0.16)'};
+                       background:${aktiv ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)'};
+                       ${status === 'beendet' && !aktiv ? 'opacity:0.7;' : ''}">
+            <span style="min-width:170px;font-variant-numeric:tabular-nums">${zeitraum}</span>
+            <span style="flex:1;font-weight:${aktiv ? 700 : 600}">${a.inLohnVerwendet ? '🔒 ' : ''}${a.dokumentId ? '📄 ' : ''}${was}</span>
+            ${offen ? `<span style="font-size:11px;font-weight:700;color:#92400e" title="Frühere Monate offen — Warnung im Lohnlauf">⚠ ${offen}</span>` : ''}
+            <span style="font-size:11px;color:${statusFarbe};font-weight:600">${status}</span>
+        </div>`;
+    }).join('');
+    const idAktuell = document.getElementById('alId')?.value;
+    const knopf = !imAenderungsModus && idAktuell
+        ? `<button type="button" class="btn btn-outline" style="padding:4px 12px;font-size:12px;border-radius:12px"
+                   onclick="alAenderungStarten(${parseInt(idAktuell, 10)})"
+                   title="Die gewählte Zulage endet am Vortag, ab dem neuen Datum gilt die neue (z.B. anderer Satz oder KZ → AZ).">+ Änderung ab Datum</button>`
+        : '';
+    box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div class="emp-section-title" style="margin:0">Verlauf (${liste.length})</div>
+            <span style="margin-left:auto">${knopf}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#3f3f3f">${rows}</div>`;
+    box.style.display = '';
+}
+
+function alVerlaufOeffnen(id) {
+    const e = (window._alVerlaufListe || []).find(a => a.id === id);
+    if (e) openAllowanceModal(e);
+}
+
+function alAenderungStarten(id) {
+    const alt = (window._alVerlaufListe || []).find(a => a.id === id);
+    if (!alt) return;
+    openAllowanceModal({
+        validFrom: '',
+        validTo: alt.validTo || '',
+        monthlyAmount: alt.monthlyAmount,
+        allowanceType: alt.allowanceType,
+        tarifSatzNr: alt.tarifSatzNr,
+        note: alt.note,
+        dokumentId: null,
+    }, { vorgaenger: alt });
+    setTimeout(() => document.getElementById('alValidFrom')?.focus(), 50);
+}
+
+function alAenderungHinweis() {
+    const el = document.getElementById('alAenderungHint');
+    if (!el) return;
+    const alt = window._alVorgaenger;
+    if (!alt) { el.style.display = 'none'; el.textContent = ''; return; }
+    const ab = document.getElementById('alValidFrom')?.value;
+    const seit = formatDate(alt.validFrom);
+    let text = `Bisherige Zulage seit ${seit}: `;
+    if (!ab) {
+        text += 'bitte «Gültig ab» der Änderung eingeben — die bisherige endet dann am Vortag. Neuen FAK-Entscheid unten wählen.';
+    } else {
+        const v = new Date(ab + 'T00:00:00');
+        v.setDate(v.getDate() - 1);
+        const ende = localIso(v);
+        const altBis = String(alt.validTo || '').slice(0, 10);
+        text += altBis && altBis < ab
+            ? `endet ohnehin am ${formatDate(altBis)} — sie bleibt unverändert.`
+            : `endet am ${formatDate(ende)}, ab ${formatDate(ab)} gilt die neue.`;
+    }
+    el.textContent = text;
+    el.style.display = '';
 }
 
 /**
@@ -9073,6 +9188,7 @@ function alRenderPostenHist(posten) {
 
 function closeAllowanceModal() {
     document.getElementById('allowanceModal').style.display = 'none';
+    window._alVorgaenger = null;
     const panel = document.getElementById('al-docpanel');
     if (panel) {
         panel.style.display = 'none';
@@ -9109,6 +9225,10 @@ async function saveAllowance() {
     if (erfahrenAm && erfahrenAm < validFrom) {
         err.textContent = '«Erfahren am» darf nicht vor «Gültig ab» liegen.'; return;
     }
+    const vorgaenger = !id ? window._alVorgaenger : null;
+    if (vorgaenger && validFrom <= String(vorgaenger.validFrom || '').slice(0, 10)) {
+        err.textContent = `Die Änderung muss nach dem Beginn der bisherigen Zulage (${formatDate(vorgaenger.validFrom)}) liegen.`; return;
+    }
 
     const payload = {
         validFrom,
@@ -9124,7 +9244,9 @@ async function saveAllowance() {
     try {
         const url    = id
             ? `/api/family-members/${editingFamilyMemberId}/allowances/${id}`
-            : `/api/family-members/${editingFamilyMemberId}/allowances`;
+            : vorgaenger
+                ? `/api/family-members/${editingFamilyMemberId}/allowances/${vorgaenger.id}/aenderung`
+                : `/api/family-members/${editingFamilyMemberId}/allowances`;
         const method = id ? 'PUT' : 'POST';
         const res    = await fetch(url, {
             method,
