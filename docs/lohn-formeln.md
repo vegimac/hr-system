@@ -113,7 +113,7 @@ Krankheit/Unfall ist AUSGENOMMEN → eigener KtgTagessatzService (Abschnitt 6).
 
 **Ferien auszahlen ohne Bezug (Walter 05.10.2026, Tabelle `ferien_auszahlung`):**
 ```
-Erfasst im MA, Tab «Absenzen» → «Ferien auszahlen». Datum = Lohnlauf-Monat.
+Erfasst im Lohnlauf, «Zulagen & Abzüge» → «Ferien auszahlen». Datum = Lohnlauf-Monat.
 Art TAGE    : Tage = min(Wunsch, Tage-Saldo nach Bezug/Kürzung des Monats)
 Art VORJAHR : Tage = min(Saldo 31.12. Vorjahr − seit 1.1. bezogen/gekürzt/ausbezahlt, Tage-Saldo)
 FLEX/MTP    : CHF = Tage × (Topf CHF ÷ Topf Tage)                    (Code 40.1)

@@ -118,6 +118,7 @@ public class LohnZulagenController : ControllerBase
             employmentPercentage = info.EmploymentPercentage,
             zeitsaldoVorAuszahlung = verf.ZeitsaldoVor,
             verfuegbarStunden = verf.Verfuegbar,
+            bereitsErfasstStunden = verf.BereitsErfasst,
             verfuegbarFehler = verf.Error,
         });
     }
@@ -128,7 +129,7 @@ public class LohnZulagenController : ControllerBase
         int CompanyProfileId);
 
     private sealed record UeberstundenVerfuegbar(
-        decimal? ZeitsaldoVor, decimal? Verfuegbar, string? Error);
+        decimal? ZeitsaldoVor, decimal? Verfuegbar, string? Error, decimal BereitsErfasst = 0m);
 
     /// <summary>
     /// Plus-Saldo, der mit 55.2 noch ausbezahlt werden darf: gleiche Rechnung wie der
@@ -164,7 +165,7 @@ public class LohnZulagenController : ControllerBase
                      && (ohneEintragId == null || z.Id != ohneEintragId.Value))
             .SumAsync(z => z.Stunden ?? 0m);
 
-        return new(zeitsaldoVor, UeberstundenAuszahlbar(zeitsaldoVor, uebrige), null);
+        return new(zeitsaldoVor, UeberstundenAuszahlbar(zeitsaldoVor, uebrige), null, uebrige);
     }
 
     private async Task<UeberstundenSatzInfo?> LoadUeberstundenSatzAsync(
@@ -365,7 +366,9 @@ public class LohnZulagenController : ControllerBase
             if (std > verf.Verfuegbar!.Value)
                 return (0, null,
                     $"Höchstens {verf.Verfuegbar.Value:0.00} Std. auszahlbar — Zeitsaldo vor Auszahlung "
-                    + $"{verf.ZeitsaldoVor!.Value:0.00} Std. Überstunden nur bis zum Plus-Saldo, nie ins Minus.");
+                    + $"{verf.ZeitsaldoVor!.Value:0.00} Std."
+                    + (verf.BereitsErfasst > 0 ? $", davon {verf.BereitsErfasst:0.00} Std. diesen Monat schon erfasst." : ".")
+                    + " Überstunden nur bis zum Plus-Saldo, nie ins Minus.");
 
             return (ExitSettlementBetrag(std, info.Stundensatz), std, null);
         }

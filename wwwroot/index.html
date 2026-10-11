@@ -1199,6 +1199,10 @@
                                         <button id="lohnSaldoKorrBtn" class="btn btn-sm btn-outline" style="display:none"
                                                 title="Saldo nachvollziehbar korrigieren (z.B. Abgleich mit Mirus) — Lohnzettel wird neu gerechnet"
                                                 onclick="lohnOpenSaldoKorrektur()">⚖ Saldo-Korrektur</button>
+                                        <!-- Walter 11.10.2026: Ferien-Auszahlung nur im Lohnlauf (nicht in den Absenzen) -->
+                                        <button id="lohnFerienAuszBtn" class="btn btn-sm btn-outline"
+                                                title="Ferien-Guthaben auszahlen, ohne dass Ferien bezogen werden"
+                                                onclick="lzOpenFerienAuszahlung()">🏖 Ferien auszahlen</button>
                                         <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
                                     </div>
                                 </div>
@@ -10351,7 +10355,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/roster-absence-import.js?v=20261003a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260927a"></script>
+<script src="js/akonto-workflow.js?v=20261011a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
 <script src="js/branches-detail.js?v=20261007c"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
@@ -10373,7 +10377,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260922b"></script>
 <script src="js/contracts-edit.js?v=20261007c"></script>
-<script src="js/payroll.js?v=20261010b"></script>
+<script src="js/payroll.js?v=20261011a"></script>
 <script src="js/elm-meldungen.js?v=20260927i"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20261001a"></script>
@@ -10974,7 +10978,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261009a"></script>
+<script src="employees.js?v=20261011a"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
 
@@ -11037,7 +11041,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <div class="ma-grid cols-3">
                 <div class="ma-field">
                     <div class="ma-field-label">Abwesenheitstyp</div>
-                    <select id="absTypeSelect" class="ma-select" onchange="if(this.value==='FERIEN_KUERZUNG'){closeAbsenceModal();openFerienKuerzungModal(selectedEmployeeId);return;}if(this.value==='FERIEN_AUSZAHLUNG'){closeAbsenceModal();openFerienAuszahlungModal(selectedEmployeeId);return;}renderAbsDayCheckboxes();calcAbsHoursPreview();absFerienfaehigSync()">
+                    <select id="absTypeSelect" class="ma-select" onchange="if(this.value==='FERIEN_KUERZUNG'){closeAbsenceModal();openFerienKuerzungModal(selectedEmployeeId);return;}renderAbsDayCheckboxes();calcAbsHoursPreview();absFerienfaehigSync()">
                         <option value="KRANK">Krankheit</option>
                         <option value="UNFALL">Unfall</option>
                         <option value="SCHULUNG">Schulung / andere Absenz</option>

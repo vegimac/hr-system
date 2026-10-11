@@ -1096,6 +1096,8 @@ function _akWfApplyZulagenLock() {
             btn.style.display = canEdit ? '' : 'none';
         }
     });
+    const faBtn = document.getElementById('lohnFerienAuszBtn');
+    if (faBtn) faBtn.style.display = canEdit ? '' : 'none';
 
     // Pro Zeile: ✏️ und 🗑 togglen
     document.querySelectorAll(

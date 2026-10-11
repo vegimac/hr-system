@@ -213,14 +213,19 @@ async function lzLoad() {
     setHtml('<div style="padding:12px 0;color:#94a3b8;font-size:13px">Lade…</div>');
     const periode = `${y}-${String(m).padStart(2,'0')}`;
     try {
-        const res = await fetch(`/api/lohn-zulagen/${empId}/${periode}`, { headers: ah() });
+        const [res, faRes] = await Promise.all([
+            fetch(`/api/lohn-zulagen/${empId}/${periode}`, { headers: ah() }),
+            fetch(`/api/lohn-ferien-auszahlung/${empId}/${y}/${m}`, { headers: ah(), cache: 'no-store' }),
+        ]);
         const list = res.ok ? await res.json() : [];
+        const faList = faRes.ok ? await faRes.json() : [];
         if (!still()) return;
         // Liste zwischenspeichern, damit lzEditById() die Bemerkung sauber
         // aufgreifen kann — vermeidet Quoting-Probleme mit Sonderzeichen
         // (Anführungszeichen etc.) die im onclick-Attribut brechen würden.
         window._lzItems = list;
-        if (!list.length) {
+        window._lzFaItems = faList;
+        if (!list.length && !faList.length) {
             setHtml('<div style="padding:14px 0;color:#94a3b8;font-size:13px;font-style:italic">Keine Zulagen/Abzüge für diese Periode</div>');
             return;
         }
@@ -254,7 +259,7 @@ async function lzLoad() {
                     </div>
                 </div>
             </div>`;
-        }).join('');
+        }).join('') + faList.map(_lzFaRowHtml).join('');
         setHtml(rowsHtml);
     } catch(e) {
         if (!still()) return;
@@ -270,6 +275,134 @@ function lzEditById(id) {
     const z = (window._lzItems || []).find(x => x.id === id);
     if (!z) return;
     lzEdit(z.id, z.lohnpositionId, z.betrag, z.bemerkung ?? '', z.stunden);
+}
+
+// ── Ferien auszahlen ohne Bezug (Walter 11.10.2026: nur im Lohnlauf, nicht in den
+// Absenzen — dort erfassen die GF die effektiven Abwesenheiten). Tabelle
+// ferien_auszahlung; Betrag rechnet der Lohnzettel (Zeile 40.1, kein Vorbezug).
+function _lzFaRowHtml(f) {
+    const esc_ = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const vorjahr = f.art === 'VORJAHR';
+    const jahr = Number(String(f.datum || '').slice(0, 4));
+    const was = vorjahr ? `Saldo per 31.12.${jahr - 1}` : `${Number(f.tage).toFixed(2)} Tage`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;background:#dcfce7;color:#166534">Ferien</span>
+        <div style="flex:1;min-width:0">
+            <div style="font-weight:500;font-size:13px">Ferien auszahlen (ohne Bezug)</div>
+            <div style="font-size:11px;color:#64748b">${was} · Betrag im Lohnzettel (40.1), höchstens bis zum Ferien-Guthaben</div>
+            ${f.bemerkung ? `<div style="font-size:11px;color:#64748b">${esc_(f.bemerkung)}</div>` : ''}
+        </div>
+        <div class="dok-menu-wrap" style="position:relative;flex-shrink:0">
+            <button type="button" class="dok-menu-btn" onclick="dokToggleMenu(event, 'lzfa-${f.id}')" title="Aktionen">⋮</button>
+            <div class="dok-menu" id="dokMenu-lzfa-${f.id}">
+                <button type="button" class="dok-menu-item" onclick="dokCloseAllMenus();lzOpenFerienAuszahlung(${f.id})">Bearbeiten</button>
+                <button type="button" class="dok-menu-item danger" onclick="dokCloseAllMenus();lzFerienAuszahlungLoeschen(${f.id})">Löschen</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+async function _lzNachFerienAuszahlung() {
+    await lzLoad();
+    loadLohnSlip(_lzCurrentEmpId, _lzCurrentCompId, _lzCurrentYear, _lzCurrentMonth);
+}
+
+async function lzFerienAuszahlungLoeschen(id) {
+    if (!(await liquidConfirm('Diese Ferien-Auszahlung löschen? Tage und Geld bleiben dann im Ferien-Saldo.',
+            { title: 'Ferien-Auszahlung löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
+    const cid = _lzCurrentCompId ? `?companyProfileId=${_lzCurrentCompId}` : '';
+    const r = await fetch(`/api/lohn-ferien-auszahlung/${id}${cid}`, { method: 'DELETE', headers: ah() });
+    if (window.lohnEditLock && await window.lohnEditLock.handleResponse(r)) return;
+    if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || ('Fehler ' + r.status)); return; }
+    await _lzNachFerienAuszahlung();
+}
+
+async function lzOpenFerienAuszahlung(id) {
+    const empId = _lzCurrentEmpId, y = _lzCurrentYear, m = _lzCurrentMonth;
+    if (!empId || !y || !m) return;
+    const eintrag = id ? (window._lzFaItems || []).find(x => x.id === id) : null;
+    const num = n => Number(n || 0).toFixed(2);
+    const chf = n => Number(n || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc_ = t => String(t ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const monat = `${String(m).padStart(2, '0')}.${y}`;
+
+    document.getElementById('lzFaOverlay')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'lzFaOverlay';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    const lbl = 'display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px';
+    const pill = 'display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;border:1px solid rgba(60,55,48,0.20);cursor:pointer;font-size:13px;color:#3f3f3f';
+    wrap.innerHTML = `
+    <div class="modal" style="max-width:520px;width:94%;padding:22px 24px;border-radius:16px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:2px">Ferien auszahlen (ohne Bezug)</div>
+        <div style="font-size:12px;color:#8b8b8b;margin-bottom:10px">Lohnlauf ${monat}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label style="${pill}" id="lzFaArtTageLbl"><input type="radio" name="lzFaArt" value="TAGE"> Anzahl Tage</label>
+            <label style="${pill}" id="lzFaArtVjLbl"><input type="radio" name="lzFaArt" value="VORJAHR"> Saldo per 31.12. Vorjahr</label>
+        </div>
+        <div id="lzFaInfo" style="margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(220,252,231,0.55);border:1px solid rgba(22,101,52,0.25);font-size:12.5px;color:#3f3f3f;line-height:1.55">Lade Saldo …</div>
+        <div id="lzFaTageWrap" style="margin-top:12px"><label style="${lbl}">Tage auszahlen</label>
+             <input type="number" id="lzFaTage" class="ma-input" step="0.01" min="0" value="${eintrag?.tage ?? ''}"></div>
+        <div style="margin-top:10px"><label style="${lbl}">Bemerkung (optional)</label>
+             <input type="text" id="lzFaBem" class="ma-input" value="${esc_(eintrag?.bemerkung || '')}" placeholder="z.B. Restferien 2025 auf Wunsch ausbezahlt"></div>
+        <div id="lzFaStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+            <button id="lzFaAbbr" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button id="lzFaOk" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+        </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const close = () => wrap.remove();
+    wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+    wrap.querySelector('#lzFaAbbr').onclick = close;
+
+    let info = null;
+    const art = () => wrap.querySelector('input[name="lzFaArt"]:checked')?.value || 'TAGE';
+    const zeige = () => {
+        const vj = art() === 'VORJAHR';
+        wrap.querySelector('#lzFaTageWrap').style.display = vj ? 'none' : '';
+        wrap.querySelector('#lzFaArtTageLbl').style.borderColor = vj ? 'rgba(60,55,48,0.20)' : '#3f3f3f';
+        wrap.querySelector('#lzFaArtVjLbl').style.borderColor = vj ? '#3f3f3f' : 'rgba(60,55,48,0.20)';
+        const box = wrap.querySelector('#lzFaInfo');
+        if (!info) { box.textContent = 'Saldo konnte nicht geladen werden.'; return; }
+        const vm = info.vormonat;
+        const vmTxt = vm
+            ? `${vm.quelle === 'VORTRAG' ? 'Saldo-Vortrag' : `Saldo Ende ${vm.periode.slice(5, 7)}.${vm.periode.slice(0, 4)}`}: <b>${num(vm.tage)} Tage</b>${Number(vm.chf) ? ` · Topf <b>CHF ${chf(vm.chf)}</b>` : ''}`
+            : 'Noch kein Ferien-Saldo aus einem Lohnlauf.';
+        const vjTxt = info.vorjahr
+            ? `Saldo per 31.12.${info.vorjahr.jahr}: <b>${num(info.vorjahr.tage)} Tage</b>${Number(info.vorjahr.chf) ? ` · Topf <b>CHF ${chf(info.vorjahr.chf)}</b>` : ''}`
+            : 'Saldo per 31.12. Vorjahr ist nicht bekannt.';
+        box.innerHTML = vj
+            ? `${vjTxt}<br>Ausbezahlt werden Tage und Geld Ende Vorjahr, abzüglich der seit 1.1. bezogenen Tage (die alten Tage gehen zuerst weg). Gedeckelt auf das vorhandene Guthaben.`
+            : `${vmTxt}<br>Das Geld kommt im Verhältnis aus dem Ferien-Topf (Topf ÷ Tage × ausbezahlte Tage), bei FIX Tage × Tagessatz. Nie mehr als vorhanden.`;
+    };
+    try {
+        const cid = _lzCurrentCompId ? `?companyProfileId=${_lzCurrentCompId}` : '';
+        const r = await fetch(`/api/lohn-ferien-auszahlung/${empId}/${y}/${m}/info${cid}`, { headers: ah(), cache: 'no-store' });
+        info = r.ok ? await r.json() : null;
+    } catch { info = null; }
+    wrap.querySelector(`input[name="lzFaArt"][value="${eintrag?.art === 'VORJAHR' ? 'VORJAHR' : 'TAGE'}"]`).checked = true;
+    wrap.querySelectorAll('input[name="lzFaArt"]').forEach(r => r.onchange = zeige);
+    zeige();
+
+    wrap.querySelector('#lzFaOk').onclick = async () => {
+        const st = wrap.querySelector('#lzFaStatus');
+        const a = art();
+        const tage = parseFloat(wrap.querySelector('#lzFaTage').value || '0');
+        if (a === 'TAGE' && !(tage > 0)) { st.textContent = 'Bitte die Anzahl Tage angeben.'; return; }
+        const body = {
+            employeeId: empId, companyProfileId: _lzCurrentCompId || null, year: y, month: m,
+            art: a, tage: a === 'TAGE' ? tage : null,
+            bemerkung: wrap.querySelector('#lzFaBem').value.trim() || null,
+        };
+        const url = eintrag ? `/api/lohn-ferien-auszahlung/${eintrag.id}` : '/api/lohn-ferien-auszahlung';
+        const r = await fetch(url, { method: eintrag ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(r)) return;
+        if (!r.ok) { const j = await r.json().catch(() => ({})); st.textContent = j.message || ('Fehler ' + r.status); return; }
+        close();
+        await _lzNachFerienAuszahlung();
+        if (typeof showToast === 'function') showToast(a === 'VORJAHR' ? '✓ Auszahlung Saldo 31.12. erfasst' : `✓ Ferien-Auszahlung ${num(tage)} Tage erfasst`, 'success');
+    };
 }
 
 function _lzFillLpSel(selectedId) {
@@ -309,17 +442,20 @@ async function lzOnLpChange() {
         if (vf) vf.textContent = '';
         _lzUeberVerfuegbar = null;
         _lzUeberFehler = null;
+        _lzUeberBereits = 0;
     }
 }
 
 // Höchstens auszahlbare Stunden (Plus-Saldo), vom Server; null = unbekannt/kein Zeitsaldo
 let _lzUeberVerfuegbar = null;
 let _lzUeberFehler = null;
+let _lzUeberBereits = 0;
 
 async function lzLoadUeberstundenSatz() {
     const satzEl = document.getElementById('lzSatz');
     _lzUeberVerfuegbar = null;
     _lzUeberFehler = null;
+    _lzUeberBereits = 0;
     if (!satzEl || !_lzCurrentEmpId || !_lzCurrentYear || !_lzCurrentMonth) return;
     try {
         const cid = _lzCurrentCompId ? `&companyProfileId=${_lzCurrentCompId}` : '';
@@ -333,6 +469,7 @@ async function lzLoadUeberstundenSatz() {
         satzEl.value = Number(d.stundensatz || 0).toFixed(2);
         _lzUeberFehler = d.verfuegbarFehler || null;
         _lzUeberVerfuegbar = d.verfuegbarStunden != null ? Number(d.verfuegbarStunden) : null;
+        _lzUeberBereits = Number(d.bereitsErfasstStunden || 0);
     } catch { satzEl.value = ''; }
 }
 
@@ -347,9 +484,11 @@ function _lzRenderUeberVerfuegbar(std) {
     if (_lzUeberVerfuegbar == null) { el.textContent = ''; return; }
     const zuViel = !isNaN(std) && std > _lzUeberVerfuegbar + 0.0001;
     el.style.color = zuViel ? '#b91c1c' : '#64748b';
+    const bereits = _lzUeberBereits > 0
+        ? ` ${_lzUeberBereits.toFixed(2)} Std. sind diesen Monat schon als 55.2 erfasst.` : '';
     el.textContent = zuViel
-        ? `Höchstens ${_lzUeberVerfuegbar.toFixed(2)} Std. auszahlbar — nur bis zum Plus-Saldo, nie ins Minus.`
-        : `Plus-Saldo verfügbar: ${_lzUeberVerfuegbar.toFixed(2)} Std.`;
+        ? `Höchstens ${_lzUeberVerfuegbar.toFixed(2)} Std. auszahlbar — nur bis zum Plus-Saldo, nie ins Minus.${bereits}`
+        : `Plus-Saldo verfügbar: ${_lzUeberVerfuegbar.toFixed(2)} Std.${bereits}`;
 }
 
 function lzRecalcUeberstunden() {
