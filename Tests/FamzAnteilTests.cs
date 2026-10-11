@@ -127,6 +127,41 @@ public class FamzAnteilTests
     }
 
     [Fact]
+    public async Task Nachzahlung_mit_Tarif_des_Monats_nicht_gespeichertem_Betrag()
+    {
+        // AG: KZ 200 bis 2025, 225 ab 2026 — Eintrag 2025 mit 200 erfasst.
+        var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase("FamzAnteil_" + Guid.NewGuid()).Options);
+        db.CompanyProfiles.Add(new CompanyProfile { Id = 3, CompanyName = "Oftringen", KantonCode = "AG" });
+        db.FamilienzulagenTarife.Add(new FamilienzulagenTarif
+        { KantonCode = "AG", ValidFrom = new DateOnly(2008, 1, 1), ValidTo = new DateOnly(2025, 12, 31), KinderzulageSatz1 = 200m, IsActive = true });
+        db.FamilienzulagenTarife.Add(new FamilienzulagenTarif
+        { KantonCode = "AG", ValidFrom = new DateOnly(2026, 1, 1), KinderzulageSatz1 = 225m, IsActive = true });
+        Perioden(db, 3, 2025, 12);
+        Perioden(db, 3, 2026, 1, 2);
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = 12, CompanyProfileId = 3, IsActive = true,
+            ContractStartDate = new DateTime(2025, 1, 1)
+        });
+        var kind = new EmployeeFamilyMember { EmployeeId = 12, MemberType = "Kind", FirstName = "Mia" };
+        db.EmployeeFamilyMembers.Add(kind);
+        await db.SaveChangesAsync();
+        var kz = new FamilyMemberAllowance
+        {
+            FamilyMemberId = kind.Id, AllowanceType = "KZ", TarifSatzNr = 1, MonthlyAmount = 200m,
+            ValidFrom = new DateOnly(2025, 12, 1), ErfahrenAm = new DateOnly(2026, 2, 5)
+        };
+        db.FamilyMemberAllowances.Add(kz);
+        await db.SaveChangesAsync();
+
+        await new FamzKorrekturService(db).ErzeugeKorrekturenAsync(kz, "Test");
+
+        var posten = await db.FamzKorrekturen.OrderBy(k => k.Jahr).ThenBy(k => k.Monat).ToListAsync();
+        Assert.Equal(new[] { 200m, 225m }, posten.Select(k => k.Betrag));
+    }
+
+    [Fact]
     public async Task Vor_Eintritt_keine_Nachzahlung()
     {
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()

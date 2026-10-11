@@ -53,7 +53,26 @@ public class FamzKorrekturService
         var bekannt = BekanntAb(allowance);
         var bekanntMonat = new DateOnly(bekannt.Year, bekannt.Month, 1);
         var laufendesJahr = bekannt.Year;
-        var monatsBetrag = Math.Round(allowance.MonthlyAmount, 2);
+
+        // Betrag wie im Lohn: FAK-Tarif des Filial-Kantons im jeweiligen Monat, Satz vom
+        // Eintrag am Kind. Der gespeicherte Betrag nur, wenn kein Tarif greift (Alt-Einträge).
+        var kantone = await _db.CompanyProfiles.AsNoTracking()
+            .ToDictionaryAsync(c => c.Id, c => c.KantonCode, ct);
+        var tarife = await _db.FamilienzulagenTarife.AsNoTracking()
+            .Where(t => t.IsActive).ToListAsync(ct);
+        string typ = allowance.AllowanceType is "AZ" or "GZ" or "AdoptZ" ? allowance.AllowanceType : "KZ";
+        decimal MonatsBetrag(int cp, DateOnly mStart)
+        {
+            var mEnd = mStart.AddMonths(1).AddDays(-1);
+            var kanton = kantone.TryGetValue(cp, out var k) ? k : null;
+            var tarif = string.IsNullOrWhiteSpace(kanton) ? null : tarife
+                .Where(t => t.KantonCode == kanton && t.ValidFrom <= mEnd && (t.ValidTo == null || t.ValidTo >= mStart))
+                .OrderByDescending(t => t.ValidFrom)
+                .FirstOrDefault();
+            var betrag = FamilienzulagenResolverService.ResolveBySatz(tarif, typ, allowance.TarifSatzNr).Amount
+                         ?? allowance.MonthlyAmount;
+            return Math.Round(betrag, 2);
+        }
 
         var rows = await (from s in _db.PayrollSnapshots.AsNoTracking()
                           join p in _db.PayrollPerioden.AsNoTracking() on s.PayrollPeriodeId equals p.Id
@@ -166,6 +185,7 @@ public class FamzKorrekturService
             bool imFenster = allowance.ValidFrom <= mEnd
                 && (allowance.ValidTo == null || allowance.ValidTo >= mStart);
             bool vorKenntnis = mEnd < bekanntMonat;
+            var monatsBetrag = MonatsBetrag(cp != 0 ? cp : branchId, mStart);
 
             decimal soll = (imFenster && vorKenntnis)
                 ? PayrollCalculations.FamzAnteilBetrag(monatsBetrag,

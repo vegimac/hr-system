@@ -4684,11 +4684,10 @@
                         <h1 class="page-title">Familienzulagen-Tarife</h1>
                         <p class="page-sub">Kantonale FAK-Sätze (Kinder- und Ausbildungszulage). Massgeblich nach <strong>Standort der Filiale</strong>, nicht Wohnort des MA.</p>
                     </div>
-                    <button class="btn btn-primary" onclick="fzOpenForm(null)" style="margin-top:4px">+ Neuer Tarif</button>
                 </div>
                 <div class="page-body">
 
-                    <!-- Filter -->
+                    <!-- Filter + «Neuer Tarif» (Button nicht in Zeile 1 rechts — dort liegt der Sprach-/Theme-Schalter) -->
                     <div class="sticky-section-head" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
                         <select id="fzFilterKanton" onchange="fzRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                             <option value="">Alle Kantone</option>
@@ -4697,6 +4696,7 @@
                             <input type="checkbox" id="fzShowInactive" onchange="fzRender()" style="cursor:pointer"> Inaktive anzeigen
                         </label>
                         <span id="fzInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                        <button class="btn btn-primary" onclick="fzOpenForm(null)">+ Neuer Tarif</button>
                     </div>
 
                     <!-- Tabelle -->
