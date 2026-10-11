@@ -27,7 +27,7 @@ const FAMZ_GS_KANTONE = {
  * Kopie ist nur die Rückfallebene. So wirken Verbesserungen ohne neues Lesezeichen.
  */
 function famzGsKern(daten) {
-        var VERSION = 6;
+        var VERSION = 7;
         var ID = 'onecrew-famz-panel';
         var norm = function (s) { return String(s == null ? '' : s).replace(/[*?:]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase(); };
         // Das Portal kann das Formular in einem eingebetteten Rahmen (iframe) zeigen.
@@ -51,9 +51,24 @@ function famzGsKern(daten) {
             return r.width > 0 && r.height > 0 && el.ownerDocument.defaultView.getComputedStyle(el).visibility !== 'hidden';
         };
         var imPanel = function (el) { return !!(el.closest && el.closest('#' + ID)); };
+        // Auswahlknöpfe sind im Portal oft nur aufgemalt; das echte Feld ist unsichtbar.
+        // Dann zählt die Lage des gemalten Kreises bzw. der Beschriftung.
+        var ersatz = function (c) {
+            if (!/^(radio|checkbox)$/.test(c.type)) return null;
+            var kandidaten = [];
+            if (c.labels && c.labels.length) kandidaten.push(c.labels[0]);
+            if (c.nextElementSibling) kandidaten.push(c.nextElementSibling);
+            if (c.closest('label')) kandidaten.push(c.closest('label'));
+            if (c.parentElement) kandidaten.push(c.parentElement);
+            return kandidaten.filter(function (k) {
+                var r = k.getBoundingClientRect();
+                return sichtbar(k) && r.height < 40 && r.width < 400;
+            })[0] || null;
+        };
+        var flaeche = function (c) { return (sichtbar(c) ? c : ersatz(c) || c).getBoundingClientRect(); };
         var steuerelemente = function () {
             return alle('input,select,textarea').filter(function (el) {
-                return !/^(hidden|button|submit|reset|image|file)$/i.test(el.type) && sichtbar(el) && !imPanel(el);
+                return !/^(hidden|button|submit|reset|image|file)$/i.test(el.type) && (sichtbar(el) || ersatz(el)) && !imPanel(el);
             });
         };
         var eigenerText = function (el) {
@@ -71,7 +86,7 @@ function famzGsKern(daten) {
         // Lage-Abstand Beschriftung → Feld: darunter (linksbündig) oder rechts daneben.
         var abstand = function (lab, c) {
             if (lab.ownerDocument !== c.ownerDocument) return null;
-            var r = lab.getBoundingClientRect(), q = c.getBoundingClientRect();
+            var r = lab.getBoundingClientRect(), q = flaeche(c);
             if (lab.contains(c)) return 1;
             var unten = q.top - r.bottom;
             if (unten >= -6 && unten < 48 && Math.abs(q.left - r.left) < 45) return unten + Math.abs(q.left - r.left);
@@ -81,10 +96,11 @@ function famzGsKern(daten) {
             return null;
         };
         var radioText = function (c) {
-            if (c.labels && c.labels.length) return norm(c.labels[0].textContent);
+            if (c.labels && c.labels.length && norm(c.labels[0].textContent)) return norm(c.labels[0].textContent);
             var n = c.nextSibling;
-            while (n && n.nodeType === 3 && !n.textContent.trim()) n = n.nextSibling;
+            while (n && !n.textContent.trim()) n = n.nextSibling;
             if (n) return norm(n.textContent);
+            if (c.closest('label') && norm(c.closest('label').textContent)) return norm(c.closest('label').textContent);
             return norm(c.parentElement ? c.parentElement.textContent : '');
         };
         var findeFeld = function (labels, nr) {
@@ -140,7 +156,7 @@ function famzGsKern(daten) {
                 var r = lab.getBoundingClientRect(), best = null, bestA = 1e9;
                 steuerelemente().forEach(function (c) {
                     if (!/^(radio|checkbox)$/.test(c.type)) return;
-                    var q = c.getBoundingClientRect(), a = null;
+                    var q = flaeche(c), a = null;
                     if (lab.contains(c) || (lab.parentElement && lab.parentElement.contains(c) && Math.abs(q.top - r.top) < 14 && q.left <= r.left)) a = 0;
                     else if (Math.abs((q.top + q.bottom) / 2 - (r.top + r.bottom) / 2) < 14 && r.left - q.right > -6 && r.left - q.right < 45) a = r.left - q.right;
                     if (a != null && a < bestA) { bestA = a; best = c; }
@@ -184,11 +200,14 @@ function famzGsKern(daten) {
             if (!el) return { s: 'fehlt', t: name + ': kein Eingabefeld gefunden' };
             if (el.disabled || el.readOnly) return { s: 'info', t: name + ': im Portal gesperrt' };
             if (f.radios) {
-                var r = f.radios.filter(function (c) { return werte.some(function (w) { return radioText(c) === norm(w); }); })[0];
+                var nurText = function (t) { return norm(t).replace(/[^a-z0-9äöüàâéèêîôûç ]/g, '').trim(); };
+                var r = f.radios.filter(function (c) { return werte.some(function (w) { return nurText(radioText(c)) === nurText(w); }); })[0];
                 if (!r) return { s: 'fehlt', t: name + ': Auswahl «' + werte[0] + '» nicht gefunden' };
                 var schon = f.radios.filter(function (c) { return c.checked; })[0];
                 if (schon && schon !== r) return { s: 'anders', t: name + ': Portal «' + radioText(schon) + '» — OneCrew «' + werte[0] + '»' };
-                if (!r.checked) { if (nurPruefen) return verloren(name); r.click(); }
+                if (r.checked) return { s: 'gleich', t: name + ': schon ' + werte[0] };
+                if (nurPruefen) return verloren(name);
+                r.click();
                 return { s: 'ok', t: name + ': ' + werte[0] };
             }
             if (el.tagName === 'SELECT') {
@@ -454,7 +473,7 @@ function famzGsDaten() {
         titel: '2 · Ehe-/Lebenspartner' + (partner === ae ? ' (= anderer Elternteil)' : ''),
         felder: famzGsPerson(partner, 'partner'),
     });
-    if (ae) abschnitte.push({ titel: '3 · Anderer Elternteil', felder: famzGsPerson(ae, 'ae') });
+    if (ae && partner !== ae) abschnitte.push({ titel: '3 · Anderer Elternteil', felder: famzGsPerson(ae, 'ae') });
     (f.kinder || []).forEach((k, i) => abschnitte.push({
         titel: `4 · Kind ${i + 1}: ${k.vorname || ''}`.trim(),
         hinweis: 'Nur für ein Kind, das noch nicht in der Liste steht. Danach «Kind zur Liste hinzufügen» klicken.',
