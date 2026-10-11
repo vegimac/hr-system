@@ -3,7 +3,7 @@
 // (Versionen ab Datum) und QST-Entscheide. Gerechnet wird nur auf dem Server
 // (Services/KindQstVerlauf.cs) — hier wird nur angezeigt und erfasst.
 
-let _kqv = { empId: null, memberId: null, daten: null, form: null, dokumente: null };
+let _kqv = { empId: null, memberId: null, daten: null, dokumente: null, verlaufOffen: {} };
 
 const KQV_ARTEN = { LEHRE: 'Lehre', SCHULE: 'Schule', STUDIUM: 'Studium', BRUECKE: 'Brückenangebot', ANDERE: 'andere' };
 const KQV_ENDE = { ABSCHLUSS: 'abgeschlossen', ABBRUCH: 'abgebrochen', UNTERBRUCH: 'unterbrochen' };
@@ -27,6 +27,30 @@ function kqvVerhaeltnisHeute(liste) {
     const heute = new Date().toISOString().slice(0, 10);
     return [...liste].filter(v => (v.gueltigAb || '') <= heute)
         .sort((x, y) => String(y.gueltigAb).localeCompare(String(x.gueltigAb)))[0] || liste[0];
+}
+
+/** Heute laufender Abschnitt (von ≤ heute ≤ bis), sonst der zuletzt begonnene. */
+function kqvZeitraumHeute(liste) {
+    if (!liste || !liste.length) return null;
+    const heute = new Date().toISOString().slice(0, 10);
+    const laufend = liste.find(x => (x.von || '') <= heute && (!x.bis || x.bis >= heute));
+    return laufend || [...liste].sort((x, y) => String(y.von || '').localeCompare(String(x.von || '')))[0];
+}
+
+/** Ein Eintrag: zeigen. Mehrere: nur den aktuellen + Knopf «Verlauf (n)», der alle aufklappt. */
+function kqvMitVerlauf(schluessel, liste, aktuell, zeile) {
+    liste = liste || [];
+    if (liste.length <= 1) return { zeilen: liste.map(zeile).join(''), knopf: '' };
+    const offen = !!_kqv.verlaufOffen?.[schluessel];
+    return {
+        zeilen: offen ? liste.map(zeile).join('') : zeile(aktuell || liste[liste.length - 1]),
+        knopf: `<button type="button" class="kqv-btn-neu kqv-verlauf" onclick="kqvVerlaufUmschalten('${schluessel}')">${offen ? 'Verlauf ausblenden' : `Verlauf (${liste.length})`}</button>`,
+    };
+}
+function kqvVerlaufUmschalten(schluessel) {
+    _kqv.verlaufOffen = _kqv.verlaufOffen || {};
+    _kqv.verlaufOffen[schluessel] = !_kqv.verlaufOffen[schluessel];
+    kqvRender();
 }
 
 /** Ausbildung erst ab 15 zeigen (Ausbildungszulage ab 16) — oder wenn schon etwas erfasst ist. */
@@ -54,7 +78,7 @@ function kqvBoxen() {
 
 /** Beim Öffnen des Familien-Fensters: Kind laden oder Hinweis für neue Kinder. */
 async function kqvOeffnen(empId, member) {
-    _kqv = { empId, memberId: member?.id ?? null, daten: null, form: null, dokumente: null };
+    _kqv = { empId, memberId: member?.id ?? null, daten: null, dokumente: null, verlaufOffen: {} };
     const b = kqvBoxen();
     if (!b.qst) return;
     if (!member?.id || member.memberType !== 'Kind') {
@@ -128,7 +152,7 @@ function kqvRender() {
     </div>`;
 
     // ── Ausbildung ──
-    const ausbZeilen = (d.ausbildungen || []).map(x => {
+    const ausbZeile = x => {
         const quelle = KQV_QUELLE[x.quelle] ? ` · ${KQV_QUELLE[x.quelle]}` : '';
         return `<div class="kqv-zeile">
             <div class="kqv-text">
@@ -140,7 +164,7 @@ function kqvRender() {
             </div>
             ${kqvMenu('kqvA', x.id, `kqvAusbildungDialog(${x.id})`, `kqvLoeschen('ausbildung',${x.id})`)}
         </div>`;
-    }).join('');
+    };
     const zulagen = (d.zulagenOhneAusbildung || []).map(z => `<div class="kqv-zeile kqv-gelb">
             <div class="kqv-text">Ausbildungszulage ${kqvDatum(z.von)} – ${z.bis ? kqvDatum(z.bis) : 'offen'}${kqvDokLink(z.dokumentId)}
                 <div class="kqv-klein">Für die Familienzulage anerkannt — für die QST noch nicht erfasst.</div></div>
@@ -148,7 +172,7 @@ function kqvRender() {
         </div>`).join('');
 
     // ── Haushalt & Unterhalt ──
-    const verhZeilen = (d.verhaeltnisse || []).map(x => {
+    const verhZeile = x => {
         const quelle = KQV_QUELLE[x.quelle] ? ` <span class="kqv-grau">· ${KQV_QUELLE[x.quelle]}</span>` : '';
         const bem = x.bemerkung && x.quelle !== 'ALTBESTAND' ? `<div class="kqv-klein">${kqvEsc(x.bemerkung)}</div>` : '';
         return `<div class="kqv-zeile">
@@ -156,10 +180,10 @@ function kqvRender() {
                 · Unterhalt: ${kqvJaNein(x.unterhaltHauptsache)}${quelle}${bem}</div>
             ${kqvMenu('kqvV', x.id, `kqvVerhaeltnisDialog(_kqv.empId,_kqv.memberId,${x.id})`, (d.verhaeltnisse.length > 1) ? `kqvLoeschen('verhaeltnis',${x.id})` : '')}
         </div>`;
-    }).join('');
+    };
 
     // ── QST-Entscheide ──
-    const entZeilen = (d.entscheide || []).map(x => {
+    const entZeile = x => {
         const farbe = x.status === 'ANERKANNT' ? '#166534' : x.status === 'NICHT_ANERKANNT' ? '#991b1b' : '#92400e';
         const quelle = KQV_QUELLE[x.quelle] ? ` · ${KQV_QUELLE[x.quelle]}` : '';
         return `<div class="kqv-zeile">
@@ -168,18 +192,27 @@ function kqvRender() {
                 ${x.grund ? `<div class="kqv-klein">${kqvEsc(x.grund)}</div>` : ''}</div>
             ${kqvMenu('kqvE', x.id, `kqvEntscheidDialog(${x.id})`, `kqvLoeschen('qst-entscheid',${x.id})`)}
         </div>`;
-    }).join('');
+    };
+
+    // Pro Bereich nur der heute gültige Eintrag; ältere/spätere hinter «Verlauf» (Walter 11.10.2026).
+    const verh = kqvMitVerlauf('V', d.verhaeltnisse, kqvVerhaeltnisHeute(d.verhaeltnisse), verhZeile);
+    const ausb = kqvMitVerlauf('A', d.ausbildungen, kqvZeitraumHeute(d.ausbildungen), ausbZeile);
+    const ent = kqvMitVerlauf('E', d.entscheide, kqvZeitraumHeute(d.entscheide), entZeile);
+
+    const neuKnopf = (onclick, text, titel = '') =>
+        `<button type="button" class="kqv-btn-neu" onclick="${onclick}"${titel ? ` title="${titel}"` : ''}>${text}</button>`;
+    const fuss = (...teile) => `<div class="kqv-fuss">${teile.join('')}</div>`;
 
     const ausbLeer = '<div class="kqv-leer">keine erfasst — ab 16 gibt es die Ausbildungszulage statt der Kinderzulage: Lehre oder Schule hier erfassen.</div>';
-    const ausbildung = `${ausbZeilen || ausbLeer}${zulagen}
-        <button type="button" class="kqv-btn-neu" onclick="kqvAusbildungDialog()">+ Ausbildung</button>`;
+    const ausbildung = `${ausb.zeilen || ausbLeer}${zulagen}${fuss(neuKnopf('kqvAusbildungDialog()', '+ Ausbildung'), ausb.knopf)}`;
     const heute = kqvVerhaeltnisHeute(d.verhaeltnisse);
     const ohneUnterhalt = heute && heute.unterhaltHauptsache === false
         ? '<div class="kqv-klein" style="color:#92400e">Ohne Unterhalt zählt das Kind nicht für die QST. Läuft trotzdem eine Familienzulage: Verfügung der Familienausgleichskasse prüfen.</div>' : '';
-    const wohnen = `${verhZeilen || '<div class="kqv-leer">keine erfasst</div>'}${ohneUnterhalt}
-        <button type="button" class="kqv-btn-neu" onclick="kqvVerhaeltnisDialog(_kqv.empId,_kqv.memberId)">+ Änderung ab Datum</button>`;
-    const entscheide = entZeilen ? `<div><div class="kqv-sub">Entscheid der Steuerverwaltung</div>${entZeilen}</div>` : '';
-    const entscheidNeu = `<button type="button" class="kqv-btn-neu" onclick="kqvEntscheidDialog()" title="Nur wenn die Steuerverwaltung über das Kind entschieden hat">+ Entscheid der Steuerverwaltung</button>`;
+    const wohnen = `${verh.zeilen || '<div class="kqv-leer">keine erfasst</div>'}${ohneUnterhalt}${fuss(
+        neuKnopf('kqvVerhaeltnisDialog(_kqv.empId,_kqv.memberId)', '+ Änderung ab Datum'), verh.knopf)}`;
+    const entscheide = ent.zeilen ? `<div><div class="kqv-sub">Entscheid der Steuerverwaltung</div>${ent.zeilen}</div>` : '';
+    const entscheidNeu = fuss(neuKnopf('kqvEntscheidDialog()', '+ Entscheid der Steuerverwaltung',
+        'Nur wenn die Steuerverwaltung über das Kind entschieden hat'), ent.knopf);
 
     if (b.wohnen && b.ausbildung) {
         b.wohnen.innerHTML = wohnen;

@@ -13086,6 +13086,12 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
     padding: 4px 11px; font-size: 11.5px; color: #3f3f3f; cursor: pointer; white-space: nowrap; align-self: flex-start;
 }
 .kqv-box .kqv-btn:hover, .kqv-box .kqv-btn-neu:hover { background: rgba(255,255,255,0.8); }
+.kqv-box .kqv-verlauf { background: transparent; border-style: dashed; color: #646464; }
+/* Kind-Maske: Wohnen, Ausbildung und Quellensteuer sichtbar voneinander abgegrenzt */
+#fmKindWohnenSection, #fmKindAusbildungSection, #fmQstSection {
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(60,55,48,0.18);
+}
+body.theme-dark #fmKindWohnenSection, body.theme-dark #fmKindAusbildungSection, body.theme-dark #fmQstSection { border-top-color: rgba(255,255,255,0.14); }
 .kqv-box .kqv-btn-primaer { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
 .kqv-box .kqv-btn-primaer:hover { background: #1a1a1a; }
 body.theme-dark .kqv-box { color: #e5e5e5; }

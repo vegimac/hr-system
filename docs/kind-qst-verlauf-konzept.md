@@ -269,6 +269,9 @@ Kein Hinweis ändert selbständig eine QST-Version oder eine Zulage.
   Häkchen «Beleg gesehen» = geprüft; mit Beleg immer geprüft) und «Entscheid der
   Steuerverwaltung» (`kqvEntscheidDialog`: Entscheid, Von, Bis, Beleg, Grund). «Erfahren am»
   wird nicht mehr abgefragt (bleibt beim Bearbeiten erhalten).
+  Pro Bereich steht nur der heute gültige Eintrag; bei mehreren Einträgen klappt
+  «Verlauf (n)» alle auf (`kqvMitVerlauf`). Wohnen, Ausbildung und Quellensteuer sind
+  durch eine Linie getrennt.
 - **Ausbildungszulage ohne QST-Ausbildung:** Hinweis an der Karte und im QST-Pflicht-Check,
   im Familien-Fenster Knopf «Als QST-Ausbildung übernehmen» (Zeitraum + Beleg der Zulage).
 
