@@ -101,10 +101,15 @@ function umUpdateBranchVisibility() {
         hint.textContent = 'Wähle die Filialen, auf die dieser Benutzer Zugang hat.';
     }
 
-    // HR-Team-Toggle für Admins + Buchhaltung + lowuser ausblenden
-    // (für sie irrelevant — lowuser hat eh keinen HR-Bereich).
+    // HR-Team-Toggle für Buchhaltung + lowuser ausblenden (lowuser hat eh keinen
+    // HR-Bereich). Admin sieht ihn (Walter 12.10.2026): Admin sieht das HR-Postfach
+    // zwar immer, aber «HR-Team» in Mitteilungen wählt nur, wer das Häkchen hat.
     const hrGroup = document.getElementById('umIsHrTeam')?.closest('.f-group');
-    if (hrGroup) hrGroup.style.display = (isAdmin || role === 'buchhaltung' || role === 'lowuser') ? 'none' : 'block';
+    if (hrGroup) hrGroup.style.display = (role === 'buchhaltung' || role === 'lowuser') ? 'none' : 'block';
+    const hrHint = document.getElementById('umIsHrTeamHint');
+    if (hrHint) hrHint.textContent = isAdmin
+        ? 'Administrator sieht das HR-Postfach immer. Häkchen setzen, wenn er zum HR-Team gehört — dann wird er bei «HR-Team» in Mitteilungen mit ausgewählt.'
+        : 'Zugriff aufs gemeinsame HR-Postfach (z.B. HR-Verantwortliche, Treuhänder).';
     // Zeugnis-Druckstufe: Admin hat immer «alle» → Feld ausblenden (Walter 06.09.2026).
     const zGroup = document.getElementById('umZeugnisGroup');
     if (zGroup) zGroup.style.display = isAdmin ? 'none' : 'block';
