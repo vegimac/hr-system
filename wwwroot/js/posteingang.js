@@ -307,7 +307,7 @@ async function pbLoadList() {
         docs.sort((a, b) =>
             senderName(a).localeCompare(senderName(b), 'de', { sensitivity: 'base' })
             || String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')));
-        list.innerHTML = docs.map(d => {
+        const einzel = d => {
             const sizeKb = d.fileSizeBytes ? Math.round(d.fileSizeBytes / 1024) : 0;
             const dateStr = new Date(d.uploadedAt).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
             const empInfo = isPersonalInbox
@@ -367,6 +367,68 @@ async function pbLoadList() {
                     <button class="btn btn-danger" style="font-size:12px;padding:6px 12px" onclick="pbDelete(${d.id})" title="Löschen">🗑</button>
                 </div>
             </div>`;
+        };
+        // Mitteilung mit mehreren Dateien (Walter 12.10.2026): EINE Karte, darunter
+        // eine Zeile pro Dokument mit den gewohnten Knöpfen.
+        const gruppeKarte = g => {
+            const d0 = g[0];
+            const dateStr = new Date(d0.uploadedAt).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+            const uploaderInfo = d0.uploader ? _pbEsc(d0.uploader.name?.trim() || d0.uploader.username) : 'Unbekannt';
+            const weiter = d0.weitergeleitetVon ? (d0.weitergeleitetVon.name?.trim() || d0.weitergeleitetVon.username) : null;
+            const weiterInfo = weiter ? `<span style="color:#64748b"> · weitergeleitet von <b style="font-weight:600;color:#475569">${_pbEsc(weiter)}</b></span>` : '';
+            const notifyInfo = d0.notifyUser ? `<span style="color:#a16207;font-size:11px">📧 → ${_pbEsc(d0.notifyUser.name?.trim() || d0.notifyUser.username)}</span>` : '';
+            const text = g.map(x => x.messageBody).find(Boolean);
+            const btn = 'font-size:12px;padding:6px 12px';
+            const zeilen = g.map(d => {
+                const sizeKb = d.fileSizeBytes ? Math.round(d.fileSizeBytes / 1024) : 0;
+                const hasFile = !!d.mimeType || (d.fileSizeBytes > 0);
+                const canAblage = isOps && d.targetType !== 'EMPLOYEE' && hasFile;
+                const istBild = (d.mimeType || '').startsWith('image/');
+                const docJson = _pbEsc(JSON.stringify(d));
+                return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #f1f5f9;flex-wrap:wrap">
+                    ${istBild ? `<img data-pbthumb="${d.id}" onclick="pbOpenPreview(${d.id})" title="Vorschau öffnen" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;flex:none;cursor:pointer">` : '<span style="font-size:16px">📄</span>'}
+                    <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">${_pbEsc(d.bemerkung || d.originalFilename || 'Dokument')}</span>
+                    ${hasFile ? `<span style="font-size:11px;color:#94a3b8">${sizeKb} KB</span>` : ''}
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto">
+                        ${hasFile ? `<button class="btn btn-outline" style="${btn}" onclick="pbDownload(${d.id})">⬇ Download</button>` : ''}
+                        <button class="btn btn-outline" style="${btn}" onclick='pbOpenTransfer(${docJson}, "move")' title="Nur dieses Dokument verschieben">↗ Verschieben</button>
+                        <button class="btn btn-outline" style="${btn}" onclick='pbOpenTransfer(${docJson}, "forward")' title="Nur dieses Dokument weiterleiten">↪ Weiterleiten</button>
+                        ${canAblage ? `<button class="btn btn-success" style="${btn}" onclick='pbOpenMove(${docJson})'>📁 Ablegen</button>` : ''}
+                        <button class="btn btn-danger" style="${btn}" onclick="pbDelete(${d.id})" title="Nur dieses Dokument löschen">🗑</button>
+                    </div>
+                </div>`;
+            }).join('');
+            return `<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px">
+                <div style="display:flex;gap:14px;align-items:flex-start">
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                            <span style="font-weight:600;color:#3f3f3f">💬 ${_pbEsc(d0.originalFilename || 'Mitteilung')}</span>
+                            <span style="font-size:11.5px;color:#64748b;font-weight:600">📎 ${g.length} Dokumente</span>
+                            ${notifyInfo}
+                        </div>
+                        ${text ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${_pbEsc(text)}</div>` : ''}
+                        <div style="font-size:12px;color:#64748b;margin-top:6px">
+                            <span style="font-size:13.5px;font-weight:700;color:#3f3f3f">${uploaderInfo}</span>${weiterInfo} · ${dateStr}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+                        <button class="btn btn-outline" style="${btn}" onclick="pbOpenTransferGruppe('${_pbEsc(d0.gruppe)}', 'move')" title="Alle Dokumente dieser Mitteilung verschieben">↗ Alle verschieben</button>
+                        <button class="btn btn-outline" style="${btn}" onclick="pbOpenTransferGruppe('${_pbEsc(d0.gruppe)}', 'forward')" title="Alle Dokumente dieser Mitteilung weiterleiten">↪ Alle weiterleiten</button>
+                        <button class="btn btn-danger" style="${btn}" onclick="pbDeleteGruppe('${_pbEsc(d0.gruppe)}')" title="Ganze Mitteilung löschen">🗑 Alle</button>
+                    </div>
+                </div>
+                <div style="margin-top:8px">${zeilen}</div>
+            </div>`;
+        };
+        const proGruppe = {};
+        docs.forEach(d => { if (d.gruppe) (proGruppe[d.gruppe] = proGruppe[d.gruppe] || []).push(d); });
+        const gezeigt = new Set();
+        list.innerHTML = docs.map(d => {
+            const g = d.gruppe && proGruppe[d.gruppe].length > 1 ? proGruppe[d.gruppe] : null;
+            if (!g) return einzel(d);
+            if (gezeigt.has(d.gruppe)) return '';
+            gezeigt.add(d.gruppe);
+            return gruppeKarte(g.slice().sort((a, b) => a.id - b.id));
         }).join('');
         pbLoadThumbs();
     } catch (err) {
@@ -864,13 +926,37 @@ async function pbDoMove(e) {
 }
 
 async function pbDelete(id) {
-    if (!confirm('Dokument endgültig löschen?')) return;
+    if (!(await liquidConfirm('Dokument endgültig löschen?', { title: 'Löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
     try {
         const r = await fetch(`/api/mailbox/${id}`, { method: 'DELETE', headers: ah() });
         if (!r.ok) throw new Error(await r.text() || 'HTTP ' + r.status);
         await pbLoadList();
         await pbUpdateBadge();
     } catch (err) { alert('Lösch-Fehler: ' + err.message); }
+}
+
+function _pbGruppeDocs(gruppe) { return (_pbLastDocs || []).filter(x => x.gruppe === gruppe); }
+
+async function pbDeleteGruppe(gruppe) {
+    const g = _pbGruppeDocs(gruppe);
+    if (!g.length) return;
+    if (!(await liquidConfirm(`Mitteilung «${g[0].originalFilename || 'Mitteilung'}» mit allen ${g.length} Dokumenten endgültig löschen?`,
+        { title: 'Mitteilung löschen', yesLabel: 'Alle löschen', noLabel: 'Abbrechen' }))) return;
+    try {
+        for (const d of g) {
+            const r = await fetch(`/api/mailbox/${d.id}`, { method: 'DELETE', headers: ah() });
+            if (!r.ok && r.status !== 404) throw new Error(await r.text() || 'HTTP ' + r.status);
+        }
+    } catch (err) { alert('Lösch-Fehler: ' + err.message); }
+    await pbLoadList();
+    await pbUpdateBadge();
+}
+
+function pbOpenTransferGruppe(gruppe, mode) {
+    const g = _pbGruppeDocs(gruppe);
+    if (!g.length) return;
+    pbOpenTransfer({ ids: g.map(x => x.id), originalFilename: g[0].originalFilename, messageBody: g[0].messageBody,
+        bemerkung: `alle ${g.length} Dokumente` }, mode);
 }
 
 // ── Weiterleiten / Verschieben in anderes Postfach ───────────────────
@@ -932,20 +1018,22 @@ async function pbDoTransfer(mode) {
         employeeId: pf.employeeId ?? null,
     };
     try {
-        const r = await fetch(`/api/mailbox/${_pbTransferDoc.id}/transfer`, {
-            method: 'POST',
-            headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        if (!r.ok) {
-            let msg = 'HTTP ' + r.status;
-            try {
-                const j = await r.json();
-                msg = j.message || j.error || msg;
-            } catch {
-                msg = await r.text() || msg;
+        for (const id of (_pbTransferDoc.ids || [_pbTransferDoc.id])) {
+            const r = await fetch(`/api/mailbox/${id}/transfer`, {
+                method: 'POST',
+                headers: { ...ah(), 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!r.ok) {
+                let msg = 'HTTP ' + r.status;
+                try {
+                    const j = await r.json();
+                    msg = j.message || j.error || msg;
+                } catch {
+                    msg = await r.text() || msg;
+                }
+                throw new Error(msg);
             }
-            throw new Error(msg);
         }
         pbCloseTransfer();
         // Nach Verschieben: ins Ziel-Postfach springen
@@ -1378,7 +1466,7 @@ function mtDateienZeigen() {
             <span style="color:#8b8b8b;font-size:11.5px">${kb(f.size)}</span>
             <button type="button" onclick="mtDateiWeg(${i})" title="Entfernen" style="background:none;border:1px solid rgba(60,55,48,0.2);border-radius:6px;padding:0 7px;cursor:pointer;color:#646464">×</button>
         </div>`).join('')
-        + (_mtDateien.length > 1 ? `<div style="font-size:11.5px;color:#8b8b8b">${_mtDateien.length} Dateien — jede kommt als eigener Eintrag («Betreff (1/${_mtDateien.length})» …), der Text steht beim ersten.</div>` : '');
+        + (_mtDateien.length > 1 ? `<div style="font-size:11.5px;color:#8b8b8b">${_mtDateien.length} Dateien — kommen als eine Mitteilung an; jedes Dokument lässt sich einzeln ablegen.</div>` : '');
 }
 async function mtOpen() {
     document.getElementById('mtAlert').innerHTML = '';

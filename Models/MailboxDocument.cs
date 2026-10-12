@@ -78,4 +78,10 @@ public class MailboxDocument
     /// </summary>
     public int? TargetUserId { get; set; }
     public AppUser? TargetUser { get; set; }
+
+    /// <summary>
+    /// Mitteilung mit mehreren Dateien (Walter 12.10.2026): gleiche Gruppe =
+    /// eine Mitteilung, ein Eintrag pro Datei. NULL = Einzel-Eintrag.
+    /// </summary>
+    public string? Gruppe { get; set; }
 }

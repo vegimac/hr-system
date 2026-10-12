@@ -797,8 +797,9 @@
         <h2 class="pf-up-title" id="msgTitle">Mitteilung</h2>
         <p class="pf-up-sub" id="msgMeta"></p>
         <div class="mb-msg-body" id="msgBody"></div>
+        <div id="msgAnhaenge" style="display:none;flex-direction:column;gap:8px;margin:12px 0 4px"></div>
         <div class="pf-up-actions">
-            <button class="pf-up-btn secondary" style="flex:0 0 auto;padding:12px 14px;color:#8a3b34" onclick="pfDelete(window._msgDocId)" title="Löschen">🗑</button>
+            <button class="pf-up-btn secondary" id="msgDelBtn" style="flex:0 0 auto;padding:12px 14px;color:#8a3b34" onclick="pfDelete(window._msgDocId)" title="Löschen">🗑</button>
             <button class="pf-up-btn secondary" onclick="closeMsg()">Schliessen</button>
             <button class="pf-up-btn primary" id="msgAnhang" style="display:none" onclick="pfOpen(window._msgDocId)">📎 Anhang öffnen</button>
         </div>
@@ -1089,7 +1090,7 @@
     }
     function updateTabCounts() {
         const inEl = document.getElementById('pfTabInCount'), outEl = document.getElementById('pfTabOutCount');
-        const a = (_inboxDocs || []).length, b = (_outboxDocs || []).length;
+        const a = mbNachGruppe(_inboxDocs || []).length, b = mbNachGruppe(_outboxDocs || []).length;
         if (a > 0) { inEl.textContent = a; inEl.style.display = 'inline-block'; } else inEl.style.display = 'none';
         if (b > 0) { outEl.textContent = b; outEl.style.display = 'inline-block'; } else outEl.style.display = 'none';
     }
@@ -1113,17 +1114,19 @@
         }
         docs.sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
         window._pfInbox = docs;
-        el.innerHTML = docs.map(d => {
-            const istText = d.messageBody && String(d.messageBody).trim().length > 0;
+        el.innerHTML = mbNachGruppe(docs).map(g => {
+            const d = g[0];
+            const istText = (d.messageBody && String(d.messageBody).trim().length > 0) || g.length > 1;
             const title = esc(istText ? (d.originalFilename || 'Mitteilung') : ((d.bemerkung || '').trim() || d.originalFilename || 'Dokument'));
-            const sub = esc([fmtDate(d.uploadedAt), d.fileSizeBytes ? fmtSize(d.fileSizeBytes) : ''].filter(Boolean).join(' · '));
+            const groesse = g.reduce((s, x) => s + (x.fileSizeBytes || 0), 0);
+            const sub = esc([fmtDate(d.uploadedAt), groesse ? fmtSize(groesse) : ''].filter(Boolean).join(' · '));
             const from = esc(vonText(d));
-            const hatAnhang = istText && !!d.mimeType;
+            const hatAnhang = g.length > 1 ? `📎 ${g.length} Anhänge` : (istText && !!d.mimeType ? '📎 Anhang' : '');
             return `<a class="pf-doc" href="javascript:void(0)" onclick="${istText ? `pfShowMessage(${d.id})` : `pfOpen(${d.id})`}">
                 <div class="pf-doc-icon"${istText ? ' style="background:#e8e2d8;color:#3f3f3f"' : ''}>${istText ? '💬' : '📄'}</div>
                 <div class="pf-doc-body">
                     <div class="pf-doc-title">${title}</div>
-                    ${from ? `<div class="pf-doc-from">${from}${hatAnhang ? ' · 📎 Anhang' : ''}</div>` : (hatAnhang ? '<div class="pf-doc-from">📎 Anhang</div>' : '')}
+                    ${from ? `<div class="pf-doc-from">${from}${hatAnhang ? ' · ' + hatAnhang : ''}</div>` : (hatAnhang ? `<div class="pf-doc-from">${hatAnhang}</div>` : '')}
                     <div class="pf-doc-sub">${sub}</div>
                 </div>
                 <button type="button" onclick="event.stopPropagation();event.preventDefault();pfDelete(${d.id})" title="Löschen" style="background:none;border:0;padding:6px;color:#b3a99a;font-size:17px;cursor:pointer;flex-shrink:0">🗑</button>
@@ -1131,16 +1134,45 @@
             </a>`;
         }).join('');
     }
-    function pfShowMessage(docId) {
-        const d = (window._pfInbox || []).find(x => x.id === docId);
+    // Mitteilung mit mehreren Dateien (Walter 12.10.2026): gleiche «gruppe» = ein Eintrag.
+    function mbNachGruppe(docs) {
+        const gruppen = [], idx = {};
+        docs.forEach(d => {
+            if (d.gruppe && idx[d.gruppe] != null) { gruppen[idx[d.gruppe]].push(d); return; }
+            if (d.gruppe) idx[d.gruppe] = gruppen.length;
+            gruppen.push([d]);
+        });
+        gruppen.forEach(g => g.sort((a, b) => a.id - b.id));
+        return gruppen;
+    }
+    function mbGruppeVon(docId, liste) {
+        const d = liste.find(x => x.id === docId);
+        if (!d) return [];
+        return d.gruppe ? liste.filter(x => x.gruppe === d.gruppe).sort((a, b) => a.id - b.id) : [d];
+    }
+    function pfShowMessage(docId, quelle) {
+        const ausgang = quelle === 'out';
+        const g = mbGruppeVon(docId, ausgang ? (_outboxDocs || []) : (window._pfInbox || []));
+        const d = g[0];
         if (!d) return;
-        window._msgDocId = docId;
+        window._msgDocId = d.id;
         document.getElementById('msgTitle').textContent = d.originalFilename || 'Mitteilung';
-        document.getElementById('msgMeta').textContent = [vonText(d), fmtDate(d.uploadedAt)].filter(Boolean).join(' · ');
-        document.getElementById('msgBody').textContent = d.messageBody || (d.mimeType ? '(Dokument ohne Text — unten öffnen)' : '');
+        document.getElementById('msgMeta').textContent = [ausgang ? zielText(d) : vonText(d), fmtDate(d.uploadedAt)].filter(Boolean).join(' · ');
+        const text = g.map(x => x.messageBody).find(Boolean);
+        document.getElementById('msgBody').textContent = text || (d.mimeType ? '(Dokument ohne Text — unten öffnen)' : '');
+        document.getElementById('msgDelBtn').style.display = ausgang ? 'none' : '';
         const a = document.getElementById('msgAnhang');
-        a.style.display = d.mimeType ? '' : 'none';
-        a.textContent = '📎 ' + (d.bemerkung || 'Anhang öffnen');
+        const liste = document.getElementById('msgAnhaenge');
+        if (g.length > 1) {
+            a.style.display = 'none';
+            liste.style.display = 'flex';
+            liste.innerHTML = g.map(x => `<button type="button" class="pf-up-btn secondary" style="text-align:left;width:100%" onclick="pfOpen(${x.id})">📎 ${esc(x.bemerkung || 'Anhang')}${x.fileSizeBytes ? ` <span style="color:#8b8b8b;font-size:12px">· ${esc(fmtSize(x.fileSizeBytes))}</span>` : ''}</button>`).join('');
+        } else {
+            liste.style.display = 'none';
+            liste.innerHTML = '';
+            a.style.display = d.mimeType ? '' : 'none';
+            a.textContent = '📎 ' + (d.bemerkung || 'Anhang öffnen');
+        }
         document.getElementById('msgOverlay').style.display = 'flex';
     }
 
@@ -1176,11 +1208,14 @@
             return;
         }
         docs.sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
-        el.innerHTML = docs.map(d => {
+        el.innerHTML = mbNachGruppe(docs).map(g => {
+            const d = g[0];
             const istText = d.messageBody && String(d.messageBody).trim().length > 0;
-            const title = esc(istText ? (d.originalFilename || 'Mitteilung') : ((d.bemerkung || '').trim() || d.originalFilename || 'Dokument'));
-            const sub = esc([fmtDate(d.uploadedAt), d.fileSizeBytes ? fmtSize(d.fileSizeBytes) : ''].filter(Boolean).join(' · '));
-            return `<a class="pf-doc" href="javascript:void(0)" ${(!istText || d.mimeType) ? `onclick="pfOpen(${d.id})"` : ''}>
+            const title = esc(istText || g.length > 1 ? (d.originalFilename || 'Mitteilung') : ((d.bemerkung || '').trim() || d.originalFilename || 'Dokument'));
+            const groesse = g.reduce((s, x) => s + (x.fileSizeBytes || 0), 0);
+            const sub = esc([fmtDate(d.uploadedAt), g.length > 1 ? `${g.length} Anhänge` : '', groesse ? fmtSize(groesse) : ''].filter(Boolean).join(' · '));
+            const klick = g.length > 1 ? `onclick="pfShowMessage(${d.id}, 'out')"` : ((!istText || d.mimeType) ? `onclick="pfOpen(${d.id})"` : '');
+            return `<a class="pf-doc" href="javascript:void(0)" ${klick}>
                 <div class="pf-doc-icon" style="background:#e8e2d8;color:#3f3f3f">📤</div>
                 <div class="pf-doc-body">
                     <div class="pf-doc-title">${title}</div>
@@ -1200,7 +1235,7 @@
     async function pfOpen(docId) {
         const alle = [...(_inboxDocs || []), ...(_outboxDocs || [])];
         const d = alle.find(x => x.id === docId);
-        _viewName = d ? (d.bemerkung && d.mimeType && d.messageBody ? d.bemerkung : (d.originalFilename || 'Dokument')) : 'Dokument';
+        _viewName = d ? (d.bemerkung && d.mimeType && (d.messageBody || d.gruppe) ? d.bemerkung : (d.originalFilename || 'Dokument')) : 'Dokument';
         const body = document.getElementById('viewBody');
         document.getElementById('viewTitle').textContent = _viewName;
         body.innerHTML = '<div class="pf-loading" style="padding:30px">Wird geladen…</div>';
@@ -1286,12 +1321,14 @@
     // Mitteilung / Dokument aus dem eigenen Postfach löschen (Walter 05.09.2026).
     async function pfDelete(docId) {
         if (!docId) return;
-        const d = (_inboxDocs || []).find(x => x.id === docId);
-        const name = d ? (d.originalFilename || 'Mitteilung') : 'Mitteilung';
-        if (!confirm(`«${name}» löschen?`)) return;
+        const g = mbGruppeVon(docId, _inboxDocs || []);
+        const name = g[0] ? (g[0].originalFilename || 'Mitteilung') : 'Mitteilung';
+        if (!confirm(g.length > 1 ? `«${name}» mit allen ${g.length} Anhängen löschen?` : `«${name}» löschen?`)) return;
         try {
-            const r = await fetch('/api/mailbox/' + docId, { method: 'DELETE', headers: ah() });
-            if (!r.ok) { alert('Löschen fehlgeschlagen (Status ' + r.status + ').'); return; }
+            for (const x of (g.length ? g : [{ id: docId }])) {
+                const r = await fetch('/api/mailbox/' + x.id, { method: 'DELETE', headers: ah() });
+                if (!r.ok && r.status !== 404) { alert('Löschen fehlgeschlagen (Status ' + r.status + ').'); return; }
+            }
             closeMsg();
             loadDocs();
         } catch (e) { alert('Verbindungsfehler: ' + e.message); }

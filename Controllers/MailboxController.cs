@@ -131,6 +131,7 @@ public class MailboxController : ControllerBase
                 m.FileSizeBytes,
                 m.Bemerkung,
                 m.MessageBody,
+                m.Gruppe,
                 m.UploadedAt,
                 m.TargetType,
                 m.CompanyProfileId,
@@ -369,6 +370,7 @@ public class MailboxController : ControllerBase
                 m.FileSizeBytes,
                 m.Bemerkung,
                 m.MessageBody,
+                m.Gruppe,
                 m.UploadedAt,
                 m.TargetType,
                 m.CompanyProfileId,
@@ -388,8 +390,11 @@ public class MailboxController : ControllerBase
     // je Empfänger ein Eintrag im persönlichen Benutzer-Postfach. Per Mail
     // geht NUR eine Ankündigung raus (Absender, Betreff, Link auf OneCrew
     // Mobil direkt zur Mitteilung); Inhalt und Anhang bleiben hinter dem Login.
-    // Mehrere Dateien (Walter 12.10.2026): ein Eintrag pro Datei und Empfänger,
-    // «Betreff (1/3)» …; der Text steht im ersten, angekündigt wird einmal.
+    // Mehrere Dateien (Walter 12.10.2026): ein Eintrag pro Datei und Empfänger
+    // (Ablegen/Verschieben bleibt pro Datei möglich), zusammengehalten über
+    // «gruppe» — Postfach und Mobil zeigen sie als EINE Mitteilung. Betreff und
+    // Text stehen an jedem Eintrag, damit nach dem Ablegen einzelner Dateien
+    // nichts verloren geht; angekündigt wird einmal pro Empfänger.
     [HttpPost("mitteilung")]
     [DisableRequestSizeLimit]
     [RequestFormLimits(MultipartBodyLengthLimit = 300_000_000)]
@@ -449,6 +454,7 @@ public class MailboxController : ControllerBase
         foreach (var u in empfaenger)
         {
             int? ersteId = null;
+            var gruppe = teile.Count > 1 ? Guid.NewGuid().ToString("N") : null;
             for (int i = 0; i < teile.Count; i++)
             {
                 var teil = teile[i];
@@ -467,12 +473,13 @@ public class MailboxController : ControllerBase
                     CompanyProfileId = branchId,
                     UploadedBy       = uid.Value,
                     UploadedAt       = DateTime.Now,
-                    OriginalFilename = teile.Count > 1 ? $"{betreff} ({i + 1}/{teile.Count})" : betreff,
+                    OriginalFilename = betreff,
                     StorageFilename  = storage,
                     MimeType         = teil?.File.ContentType,
                     FileSizeBytes    = teil?.File.Length,
                     Bemerkung        = teil?.File.FileName,
-                    MessageBody      = i == 0 && text.Length > 0 ? text : null,
+                    MessageBody      = text.Length > 0 ? text : null,
+                    Gruppe           = gruppe,
                     TargetType       = "USER",
                     TargetUserId     = u.Id,
                     NotifyUserId     = mail ? u.Id : null,
@@ -874,7 +881,9 @@ public class MailboxController : ControllerBase
             EmployeeId       = emp.Id,
             DokumentTypId    = typ.Id,
             BranchCode       = branchCode,
-            FilenameOriginal = doc.OriginalFilename,
+            // Mitteilung mit Anhang: OriginalFilename ist der Betreff, der Dateiname steht in Bemerkung.
+            FilenameOriginal = doc.MessageBody != null && !string.IsNullOrWhiteSpace(doc.Bemerkung)
+                             ? doc.Bemerkung : doc.OriginalFilename,
             FilenameStorage  = newStorageName,
             MimeType         = doc.MimeType ?? "application/octet-stream",
             GroesseBytes     = doc.FileSizeBytes ?? 0,
@@ -1148,6 +1157,7 @@ public class MailboxController : ControllerBase
             FileSizeBytes    = doc.FileSizeBytes,
             Bemerkung        = doc.Bemerkung,
             MessageBody      = doc.MessageBody,
+            Gruppe           = doc.Gruppe,
             EmployeeId       = resolved.EmployeeId,
             TargetType       = resolved.TargetType,
             TargetUserId     = resolved.TargetUserId,

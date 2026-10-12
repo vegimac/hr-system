@@ -2470,6 +2470,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NotifyUserId).HasColumnName("notify_user_id");
             entity.Property(e => e.TargetType).HasColumnName("target_type");
             entity.Property(e => e.TargetUserId).HasColumnName("target_user_id");
+            entity.Property(e => e.Gruppe).HasColumnName("gruppe");
             entity.Property(e => e.WeitergeleitetVon).HasColumnName("weitergeleitet_von");
             entity.Property(e => e.WeitergeleitetAm).HasColumnName("weitergeleitet_am")
                   .HasColumnType("timestamp without time zone");
