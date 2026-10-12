@@ -3,7 +3,7 @@ namespace HrSystem.Services;
 /// <summary>
 /// Freie Sonntage pro Kalenderjahr (Walter-Vorgabe 12.10.2026).
 /// Soll: 12 pro Jahr, solange «Familienbetreuung Ja» mit Beginn gilt, sonst 4 —
-/// anteilig nach Tagen der Anstellung im Zählzeitraum, kaufmännisch gerundet.
+/// anteilig nach Tagen der Anstellung im Zählzeitraum, immer aufgerundet (9,1 → 10).
 /// Während voller Krankheit/Unfall/Militär/Zivilschutz/Mutter-/Vaterschaft entsteht
 /// kein Anspruch (L-GAV-Kommentar Art. 16): diese Tage kürzen das Soll, ein solcher
 /// Sonntag zählt weder als frei noch als belegt. Teilabsenz (&lt; 100 %) = normaler Tag.
@@ -65,7 +65,7 @@ public static class SonntagKontrolle
         bool OhneAnspruch(DateOnly d) => relevant.Any(a => a.OhneAnspruch && a.Von <= d && d <= a.Bis);
         bool Abwesend(DateOnly d) => relevant.Any(a => a.Von <= d && d <= a.Bis);
 
-        decimal soll = 0;
+        int tage4 = 0, tage12 = 0;
         bool mitFamilie = false;
         int frei = 0, nichtFrei = 0, krank = 0, verbleibend = 0;
         for (var d = ab; d <= jahrBis; d = d.AddDays(1))
@@ -76,7 +76,7 @@ public static class SonntagKontrolle
             {
                 bool fam = Familie(d);
                 mitFamilie |= fam;
-                soll += (fam ? ProJahrFamilie : ProJahr) / tageImJahr;
+                if (fam) tage12++; else tage4++;
             }
             if (d.DayOfWeek != DayOfWeek.Sunday) continue;
             if (d <= e.Stichtag)
@@ -88,7 +88,8 @@ public static class SonntagKontrolle
             else if (!Abwesend(d)) verbleibend++;
         }
 
-        int sollRund = (int)Math.Round(soll, MidpointRounding.AwayFromZero);
+        decimal soll = Math.Round((tage4 * ProJahr + tage12 * ProJahrFamilie) / tageImJahr, 6);
+        int sollRund = (int)Math.Ceiling(soll);
         int fehlend = Math.Max(0, sollRund - frei);
         string status = fehlend == 0 ? "ok"
             : fehlend > verbleibend ? "rot"

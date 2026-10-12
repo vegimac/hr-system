@@ -46,14 +46,25 @@ public class SonntagKontrolleTests
     [Fact]
     public void EintrittMitteJahr_Anteilig()
     {
-        Assert.Equal(2, R(Dez31, anstellung: (new DateOnly(2026, 7, 1), null)).Soll);   // 184/365 × 4
+        Assert.Equal(3, R(Dez31, anstellung: (new DateOnly(2026, 7, 1), null)).Soll);   // 184/365 × 4 = 2,02 → auf 3
+    }
+
+    [Fact]
+    public void ImmerAufrunden_GanzesJahrBleibtGenau()
+    {
+        // 21 Tage krank bei 12: 344/365 × 12 = 11,31 → 12 (Walter: 9,1 gibt 10)
+        var r = R(Dez31, familie: (new DateOnly(2020, 1, 1), null),
+            absenzen: [A(new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 21), "KRANK")]);
+        Assert.Equal(11.31m, r.SollGenau);
+        Assert.Equal(12, r.Soll);
+        Assert.Equal(4, R(Dez31).Soll);   // kein Rundungsrest macht aus 4 eine 5
     }
 
     [Fact]
     public void FamilieHalbesJahr_MischSatz()
     {
         var r = R(Dez31, familie: (new DateOnly(2026, 7, 1), null));
-        Assert.Equal(8, r.Soll);   // 181/365 × 4 + 184/365 × 12
+        Assert.Equal(9, r.Soll);   // 181/365 × 4 + 184/365 × 12 = 8,03 → auf 9
         Assert.True(r.MitFamilie);
     }
 
@@ -74,11 +85,11 @@ public class SonntagKontrolleTests
             familie: (new DateOnly(2020, 1, 1), null),
             stempel: Sonntage(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 12)),
             absenzen: [A(Jan1, new DateOnly(2026, 9, 30), "KRANK")]);
-        Assert.Equal(3, r.Soll);                         // 92/365 × 12 = 3.02
+        Assert.Equal(4, r.Soll);                         // 92/365 × 12 = 3,02 → auf 4
         Assert.Equal(Sonntage(Jan1, new DateOnly(2026, 9, 30)).Count(), r.KrankBisher);
         Assert.Equal(0, r.FreiBisher);
         Assert.Equal(2, r.NichtFreiBisher);
-        Assert.NotEqual("rot", r.Status);                // 11 Sonntage bleiben für 3
+        Assert.NotEqual("rot", r.Status);                // 11 Sonntage bleiben für 4
     }
 
     [Fact]
@@ -126,7 +137,7 @@ public class SonntagKontrolleTests
     {
         var r = R(Dez31, datenAb: new DateOnly(2026, 7, 1));
         Assert.Equal(new DateOnly(2026, 7, 1), r.ZaehlAb);
-        Assert.Equal(2, r.Soll);
+        Assert.Equal(3, r.Soll);
         Assert.Equal(Sonntage(new DateOnly(2026, 7, 1), Dez31).Count(), r.FreiBisher);
     }
 
