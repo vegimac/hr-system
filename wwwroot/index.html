@@ -2403,6 +2403,7 @@
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('mirus-fehlende-ma')">4&nbsp;·&nbsp;Mirus-Abgleich: fehlende MA</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-ahv-abgleich')">5&nbsp;·&nbsp;AHV-Abgleich: GastroSocial gemeldete MA</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-fz-abgleich')">6&nbsp;·&nbsp;FZ-Abgleich: GastroSocial Familienzulagen</button>
+                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="kontrolleZuFamilienbetreuung()">7&nbsp;·&nbsp;Familienbetreuung: easy@work gegen Soll</button>
                         </div>
                         <ul style="margin-top:10px">
                             <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
@@ -2411,6 +2412,7 @@
                             <li><b>Mirus-Abgleich</b> — welche aktiven OneCrew-MA der Filiale fehlen in Mirus (Personalexport XLS) + PDF-Erfassungsliste</li>
                             <li><b>AHV-Abgleich GastroSocial</b> — Liste «Mitarbeitende» aus dem Portal: wer muss abgemeldet werden, wer ist nicht gemeldet</li>
                             <li><b>FZ-Abgleich GastroSocial</b> — «Familienzulagenbescheinigung»: zahlt GastroSocial dieselben Monate und Ansätze wie die Zulagen bei den Kindern in OneCrew</li>
+                            <li><b>Familienbetreuung</b> — stimmt das Feld in easy@work mit den Kindern unter 15 im Haushalt überein (+ PDF für GF)</li>
                         </ul>
                     </div>
 
@@ -2983,7 +2985,7 @@
 
                 <!-- Walter-Vorgabe 12.10.2026: Familienbetreuung easy@work gegen Soll
                      (Kinder unter 15 im Haushalt) — PDF für die GF. -->
-                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f">
+                <div class="card" id="kontrolleFbCard" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f;scroll-margin-top:16px">
                     <div style="padding:14px 18px;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
                         <div>
                             <div style="font-size:15px;font-weight:700;color:#3f3f3f">Familienbetreuung · easy@work gegen Soll</div>
@@ -10482,7 +10484,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>
 <script src="js/qst-import.js?v=20260704p"></script>
-<script src="js/kontrolle.js?v=20261012a"></script>
+<script src="js/kontrolle.js?v=20261012b"></script>
 <script src="js/nationen.js?v=20260816a"></script>
 <script src="js/swiss-locations.js?v=20260816a"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>

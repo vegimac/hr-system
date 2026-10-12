@@ -882,6 +882,12 @@ function kontrolleDossierRender() {
 // ══════════════════════════════════════════════════════════════════════
 let _kontrolleFb = null;
 
+/** Einstieg aus dem HR-Bereich: Kontrolle öffnen und zur Karte springen. */
+function kontrolleZuFamilienbetreuung() {
+    showPage('kontrolle');
+    setTimeout(() => document.getElementById('kontrolleFbCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+}
+
 async function kontrolleFbRefresh() {
     const el = document.getElementById('kontrolleFbList');
     if (!el) return;
