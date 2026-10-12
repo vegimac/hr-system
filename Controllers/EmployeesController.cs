@@ -578,6 +578,9 @@ public class EmployeesController : ControllerBase
                   .ToDateTime(TimeOnly.MinValue)
                 : (DateTime?)null,
             nightWorkExamMismatch = employee.NightWorkExamEasyMismatch,
+            employee.Familienbetreuung,
+            employee.FamilienbetreuungVon,
+            employee.FamilienbetreuungBis,
             employee.NightWorkExamDokumentId,
             employee.NightWorkAusnahmeDokumentId,
             // Probezeitgespräch 1/2 (Walter 20.07.2026, Restaurant Admin)

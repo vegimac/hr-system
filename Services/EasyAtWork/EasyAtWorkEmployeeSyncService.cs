@@ -271,6 +271,10 @@ public class EasyAtWorkEmployeeSyncService
         /// <summary>Schwanger aus easy@work: «to» = errechneter Geburtstermin.
         /// Schwangerschaftsbeginn = ET − 280 Tage (PregnancyFristCalculator).</summary>
         public DateOnly? PregnantErrechneterTermin { get; set; }
+        /// <summary>Familienbetreuung (cf_family_charges); null = nicht geladen → nicht anfassen.</summary>
+        public bool? Familienbetreuung { get; set; }
+        public DateOnly? FamilienbetreuungVon { get; set; }
+        public DateOnly? FamilienbetreuungBis { get; set; }
         /// <summary>Alle in easy@work erfassten Funktionen/Positionen (distinct).
         /// Mehr als eine = mehrdeutig → MA wird nicht importiert (Walter 05.07.2026).</summary>
         public List<string> Functions { get; set; } = new();
@@ -292,6 +296,11 @@ public class EasyAtWorkEmployeeSyncService
         public DateOnly? PregnantErrechneterTermin { get; set; }
         /// <summary>«Employeenumber in Payroll system» = «nicht übernehmen» o.ä.</summary>
         public bool NichtUebernehmen { get; set; }
+        /// <summary>false = Abfrage gescheitert → Familienbetreuung NICHT anfassen.</summary>
+        public bool Geladen { get; set; }
+        public bool Familienbetreuung { get; set; }
+        public DateOnly? FamilienbetreuungVon { get; set; }
+        public DateOnly? FamilienbetreuungBis { get; set; }
     }
 
     /// <summary>Vorab PARALLEL geholte easy@work-Detail-Daten pro MA (nur _client-
@@ -893,6 +902,7 @@ public class EasyAtWorkEmployeeSyncService
                 if (!result.UpdatedFields.Contains("Nachtarbeit")) result.UpdatedFields.Add("Nachtarbeit");
             }
         }
+        if (FamilienbetreuungUebernehmen(emp, master)) result.UpdatedFields.Add("Familienbetreuung");
 
         // Austritt / Aktiv aus easy@work (Walter-Vorgabe 05.07.2026): der Einzel-Sync
         // hat den Austritt bisher NIE angefasst → ein stehengebliebenes (stale)
@@ -1483,6 +1493,12 @@ public class EasyAtWorkEmployeeSyncService
             // value=Ja, from=gemeldet am, to=errechneter Geburtstermin.
             data.PregnantMeldedatum = propsInfo.PregnantMeldedatum;
             data.PregnantErrechneterTermin = propsInfo.PregnantErrechneterTermin;
+            if (propsInfo.Geladen)
+            {
+                data.Familienbetreuung = propsInfo.Familienbetreuung;
+                data.FamilienbetreuungVon = propsInfo.FamilienbetreuungVon;
+                data.FamilienbetreuungBis = propsInfo.FamilienbetreuungBis;
+            }
             // Eintritt = «Datum der Betriebszugehörigkeit» (easy@work Custom Field /
             // cf_seniority_date) — Walter 05.07.2026 + Klarstellung 26.07.2026.
             // «Eingestellt seit» (employee.from) ist nur Fallback (Filial-/Anstellungsbeginn).
@@ -2587,6 +2603,7 @@ public class EasyAtWorkEmployeeSyncService
                         emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil!.Value.ToDateTime(TimeOnly.MinValue);
                         emp.NightWorkExamEasyMismatch = master.NightWorkExamEasyMismatch;
                     }
+                    FamilienbetreuungUebernehmen(emp, master);
                     if (string.IsNullOrWhiteSpace(emp.LanguageCode)) emp.LanguageCode = "de";
                     if (string.IsNullOrWhiteSpace(emp.Religion))     emp.Religion     = "keine";
                     if (string.IsNullOrWhiteSpace(emp.CantonCode)) emp.CantonCode = await LookupCantonAsync(emp.ZipCode, ct);
@@ -2632,6 +2649,7 @@ public class EasyAtWorkEmployeeSyncService
                         emp.NightWorkExamValidUntil = master.NightWorkExamValidUntil!.Value.ToDateTime(TimeOnly.MinValue);
                         emp.NightWorkExamEasyMismatch = master.NightWorkExamEasyMismatch;
                     }
+                    FamilienbetreuungUebernehmen(emp, master);
                     if (!string.IsNullOrWhiteSpace(row.NumberChangeTo))
                     {
                         // Nur ein AKTIVER Datensatz darf die Hauptnummer setzen
@@ -5112,6 +5130,10 @@ public class EasyAtWorkEmployeeSyncService
             info.PregnantMeldedatum = melde;
             info.PregnantErrechneterTermin = et;
 
+            (info.Familienbetreuung, info.FamilienbetreuungVon, info.FamilienbetreuungBis) =
+                FamilienbetreuungAusEasy(props, nwToday);
+            info.Geladen = true;
+
             return info;
         }
         catch (Exception ex)
@@ -5119,6 +5141,38 @@ public class EasyAtWorkEmployeeSyncService
             _log.LogDebug(ex, "Properties (Zivilstand/AHV/Nachtarbeit/Seniorität/Schwangerschaft) für easy@work-MA {Id} nicht abrufbar", eawEmployeeId);
             return new PropsInfo();
         }
+    }
+
+    /// <summary>
+    /// Familienbetreuung (easy@work «cf_family_charges», Walter 12.10.2026). Versioniert wie
+    /// die Nachtarbeit: massgebend sind nur Versionen mit Wert Ja — die heute gültige, sonst
+    /// die jüngste (auch abgelaufen). Von/Bis = Zürcher Kalendertag; «to» 00:00 Zürich ist
+    /// der Tag selbst (Beleg 580107: 2026-08-30 22:00 UTC = 31.08.2026).
+    /// </summary>
+    public static (bool Ja, DateOnly? Von, DateOnly? Bis) FamilienbetreuungAusEasy(
+        IEnumerable<EawProperty> props, DateOnly heute)
+    {
+        var p = props
+            .Where(x => string.Equals((x.Key ?? "").Trim(), "cf_family_charges", StringComparison.OrdinalIgnoreCase))
+            .Where(x => (x.Value ?? "").Trim().ToLowerInvariant() is "1" or "true" or "yes" or "ja")
+            .OrderByDescending(x => (x.From ?? DateOnly.MinValue) <= heute && (x.To == null || x.To >= heute) ? 1 : 0)
+            .ThenByDescending(x => x.From ?? DateOnly.MinValue)
+            .FirstOrDefault();
+        return p == null ? (false, null, null) : (true, p.From, p.To);
+    }
+
+    /// <summary>Übernimmt die Familienbetreuung aus easy@work; true = etwas geändert.</summary>
+    private static bool FamilienbetreuungUebernehmen(Employee emp, EmployeeMasterData master)
+    {
+        if (master.Familienbetreuung is not bool ja) return false;
+        var von = master.FamilienbetreuungVon?.ToDateTime(TimeOnly.MinValue);
+        var bis = master.FamilienbetreuungBis?.ToDateTime(TimeOnly.MinValue);
+        if (emp.Familienbetreuung == ja && emp.FamilienbetreuungVon?.Date == von?.Date
+            && emp.FamilienbetreuungBis?.Date == bis?.Date) return false;
+        emp.Familienbetreuung = ja;
+        emp.FamilienbetreuungVon = von;
+        emp.FamilienbetreuungBis = bis;
+        return true;
     }
 
     /// <summary>13-stellige AHV-Nr. (756…) → Format 756.XXXX.XXXX.XX. Sonst roh.</summary>

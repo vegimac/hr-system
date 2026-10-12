@@ -1750,8 +1750,8 @@ function loadUebersichtTab() {
     // Personalien & Adresse (Walter 19.07.2026):
     // Ein gemeinsames 5-Spalten-Raster über Z1–Z3:
     //   Strasse | PLZ | Ort+Kt. | Telefon 2 | AHV
-    //   Briefanrede | Nickname | Sex | Konfession | —
-    //   Zivilstand | seit | Ledigname | Nationalität | ZEMIS
+    //   Z2 eigene Zeile (12.10.2026): Briefanrede | Kurzname | Sex | Konfession | Nationalität | Bewilligung | ZEMIS
+    //   Zivilstand | seit | Ledigname | Familienbetreuung (2 Spalten)
     // Notfallkontakt: Anzeige lebt seit 25.08.2026 (v4) ausschliesslich im
     // MA-Kopf (🆘-Zeile unter dem Eintrittsdatum, Klick = Modal) — die
     // frühere Zusatz-Zeile in der Personalien-Karte ist raus (Walter).
@@ -1800,9 +1800,10 @@ function loadUebersichtTab() {
                         : '<span class="ov-empty">–</span>')}${(emp.ahvNumber ?? emp.socialSecurityNumber) ? directDocButton(emp.ahvKarteDokumentId, 'ahv_karte', 'ahv_card') : ''}</div>
             </div>
 
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
+            <div class="ov-pers-z2">
+            <div class="ov-pf ov-pf-briefanrede"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
             <input id="ov-letterSalutation" class="ov-softin" type="text" value="${esc(emp.letterSalutation)}" oninput="ovDirty()"></div>
-            <div class="ov-pf" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">
+            <div class="ov-pf ov-pf-kurzname" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">
                 <div class="ov-pfl">${_t('ma.field.shortName','Nickname')}</div>
                 <div class="ov-pfv">${esc(emp.shortName) || '<span class="ov-empty">–</span>'}</div>
             </div>
@@ -1820,13 +1821,16 @@ function loadUebersichtTab() {
                 ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
                 ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
             </select></div>
+            <div class="ov-pf ov-pf-nat">
+                <div class="ov-pfl">${_t('ma.field.nationality','Nationalität')}</div>
+                <div class="ov-pfv">${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${directDocButton(emp.idPassDokumentId, 'id_pass', 'passport')}</div>
+            </div>
             ${istCH
-                ? `<div class="ov-pf ov-pf-z2-empty" aria-hidden="true"></div>`
+                ? ''
                 // Walter-Vorgabe 20.08.2026: letzte Bewilligung direkt in der
-                // MA-Maske (freie Zelle über der ZEMIS-Nr.) — read-only Info
-                // aus der jüngsten Permit-History (emp.permitType/Expiry),
-                // Klick springt in den Bewilligungs-Tab.
-                : `<div class="ov-pf" title="Neueste Bewilligung — Klick öffnet den Tab «Bewilligung QST Bank»"
+                // MA-Maske — read-only Info aus der jüngsten Permit-History
+                // (emp.permitType/Expiry), Klick springt in den Bewilligungs-Tab.
+                : `<div class="ov-pf ov-pf-bew" title="Neueste Bewilligung — Klick öffnet den Tab «Bewilligung QST Bank»"
                         style="cursor:pointer" onclick="switchEmpTab('quellensteuer')">
                     <div class="ov-pfl">Bewilligung</div>
                     <div class="ov-pfv">${emp.permitType
@@ -1836,6 +1840,11 @@ function loadUebersichtTab() {
                         ? `<b style="font-size:15px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(60,55,48,0.35)">${esc(emp.permitType.code)}</b>${emp.permitExpiryDate ? `<span style="font-size:11.5px;font-weight:400;color:#8b8b8b"> bis ${formatDate(emp.permitExpiryDate)}</span>` : ''}`
                         : '<span class="ov-empty" style="color:#b91c1c;font-weight:600">– keine erfasst –</span>'}</div>
                 </div>`}
+            ${istCH
+                ? ''
+                : `<div class="ov-pf ov-pf-zemis"><div class="ov-pfl">ZEMIS-Nr.</div>
+            <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" maxlength="14" oninput="ovDirty()"></div>`}
+            </div>
 
             <div class="ov-pf">
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
@@ -1847,14 +1856,23 @@ function loadUebersichtTab() {
             <input id="ov-maritalStatusSince" class="ov-softin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()"></div>
             <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
             <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
-            <div class="ov-pf">
-                <div class="ov-pfl">${_t('ma.field.nationality','Nationalität')}</div>
-                <div class="ov-pfv">${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${directDocButton(emp.idPassDokumentId, 'id_pass', 'passport')}</div>
-            </div>
-            ${istCH
-                ? `<div class="ov-pf ov-pf-zemis-empty" aria-hidden="true"></div>`
-                : `<div class="ov-pf ov-pf-zemis"><div class="ov-pfl">ZEMIS-Nr.</div>
-            <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" maxlength="14" oninput="ovDirty()"></div>`}
+            ${(() => {
+                // Familienbetreuung (Walter 12.10.2026): nur aus easy@work, hier nur Anzeige.
+                const _d = new Date();
+                const heute = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
+                const von = (emp.familienbetreuungVon || '').slice(0, 10);
+                const bis = (emp.familienbetreuungBis || '').slice(0, 10);
+                const dmy = iso => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+                const zeitraum = emp.familienbetreuung && (von || bis)
+                    ? ` <span style="font-size:12.5px;font-weight:400;color:#646464">${von ? dmy(von) : '…'} – ${bis ? dmy(bis) : 'offen'}</span>` : '';
+                const lage = !emp.familienbetreuung ? ''
+                    : (bis && bis < heute) ? ' <span style="font-size:11.5px;font-weight:400;color:#8b8b8b">(abgelaufen)</span>'
+                    : (von && von > heute) ? ' <span style="font-size:11.5px;font-weight:400;color:#8b8b8b">(noch nicht gültig)</span>' : '';
+                return `<div class="ov-pf ov-pf-fb" title="Kommt aus easy@work (Familienbetreuung) — dort pflegen, hier nicht editierbar">
+                    <div class="ov-pfl">Familienbetreuung</div>
+                    <div class="ov-pfv">${emp.familienbetreuung ? 'Ja' : 'Nein'}${zeitraum}${lage}</div>
+                </div>`;
+            })()}
         </div>
         </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);

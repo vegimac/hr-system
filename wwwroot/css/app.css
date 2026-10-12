@@ -4077,6 +4077,30 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-sex {
             max-width: 44px;
         }
+        /* Z2 eigene Zeile über die ganze Breite (Walter 12.10.2026):
+           Briefanrede (schmal) | Kurzname | Sex | Konfession | Nationalität | Bewilligung | ZEMIS */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            column-gap: 12px;
+            row-gap: 15px;
+            align-items: start;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf {
+            min-width: 0;
+            margin-bottom: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-briefanrede { flex: 0 0 140px; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-kurzname { flex: 0 1 110px; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-sex { flex: 0 0 44px; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-konf { flex: 0 0 165px; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-nat { flex: 1 1 150px; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-bew { flex: 0 1 auto; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-zemis { flex: 0 0 150px; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-fb {
+            grid-column: span 2;
+        }
         /* ZEMIS-Nr. — Feld nicht auf Spaltenbreite strecken, aber breit genug
            für das lange Format «017.335.114-6» (Walter 21.08.2026: 118px
            schnitt die letzte Ziffer ab). */

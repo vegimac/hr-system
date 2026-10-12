@@ -177,6 +177,15 @@ public class Employee
     /// </summary>
     public DateTime? NightWorkExamIssued { get; set; }
 
+    /// <summary>
+    /// Familienbetreuung (easy@work «cf_family_charges», Walter 12.10.2026): nur in
+    /// easy@work gepflegt, OneCrew zeigt an. Von/Bis = Zürcher Kalendertag, leer = offen.
+    /// Grundlage der Kontrolle freie Sonntage (12 statt 4).
+    /// </summary>
+    public bool Familienbetreuung { get; set; }
+    public DateTime? FamilienbetreuungVon { get; set; }
+    public DateTime? FamilienbetreuungBis { get; set; }
+
     // ── eID / SSO + Manager-Schulungen (Walter-Vorgabe 14.08.2026) ──────
     /// <summary>eID — externe Mitarbeiter-ID (alle MA, aus Nothelfer-Excel «ID»).</summary>
     public string? Eid { get; set; }

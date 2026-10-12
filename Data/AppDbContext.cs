@@ -297,6 +297,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CAusweisDokumentId).HasColumnName("c_ausweis_dokument_id");
             entity.Property(e => e.NightWorkExamValidUntil).HasColumnName("night_work_exam_valid_until").HasColumnType("date");
             entity.Property(e => e.NightWorkExamIssued).HasColumnName("night_work_exam_issued").HasColumnType("date");
+            entity.Property(e => e.Familienbetreuung).HasColumnName("familienbetreuung").HasDefaultValue(false);
+            entity.Property(e => e.FamilienbetreuungVon).HasColumnName("familienbetreuung_von").HasColumnType("date");
+            entity.Property(e => e.FamilienbetreuungBis).HasColumnName("familienbetreuung_bis").HasColumnType("date");
             entity.Property(e => e.Eid).HasColumnName("eid");
             entity.Property(e => e.Sso).HasColumnName("sso");
             entity.Property(e => e.SchulungNothelferAm).HasColumnName("schulung_nothelfer_am").HasColumnType("date");
