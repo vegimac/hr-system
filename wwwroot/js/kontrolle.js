@@ -942,8 +942,8 @@ function kontrolleFbRender() {
         ${zeilen.length ? `<table style="border-collapse:collapse;margin:0 12px 12px">
             <tr><th style="${th}" colspan="3"></th><th style="${th}" colspan="3">easy@work</th><th style="${th};${soll}" colspan="3">Soll</th><th style="${th}"></th></tr>
             <tr><th style="${th}">MA-Nr.</th><th style="${th}">Vorname</th><th style="${th}">Nachname</th>
-                <th style="${th}">Fam.-Betr.</th><th style="${th}">von</th><th style="${th}">bis</th>
-                <th style="${th};${soll}">Fam.-Betr.</th><th style="${th};${soll}">von</th><th style="${th};${soll}">bis</th>
+                <th style="${th}">Ja/Nein</th><th style="${th}">von</th><th style="${th}">bis</th>
+                <th style="${th};${soll}">Ja/Nein</th><th style="${th};${soll}">von</th><th style="${th};${soll}">bis</th>
                 <th style="${th}">Hinweis</th></tr>
             ${body}</table>`
             : '<div class="emp-placeholder" style="height:80px"><span>Keine Abweichungen ✓</span></div>'}`;

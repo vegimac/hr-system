@@ -39,24 +39,24 @@ public class FamilienbetreuungListePdfService
             doc.Page(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
-                page.Margin(1.5f, Unit.Centimetre);
-                page.DefaultTextStyle(t => t.FontFamily("Arial").FontSize(9f).FontColor(Body));
+                page.Margin(1.2f, Unit.Centimetre);
+                page.DefaultTextStyle(t => t.FontFamily("Arial").FontSize(10f).FontColor(Body));
 
                 page.Header().Column(col =>
                 {
                     col.Item().Row(r =>
                     {
-                        r.RelativeItem().Text("Familienbetreuung – Kontrolle").Bold().FontSize(16f).FontColor(Ink);
-                        r.AutoItem().AlignBottom().Text(d.FilialeTitel).FontSize(10.5f).FontColor(Body);
+                        r.RelativeItem().Text("Familienbetreuung – Kontrolle").Bold().FontSize(18f).FontColor(Ink);
+                        r.AutoItem().AlignBottom().Text(d.FilialeTitel).FontSize(12f).FontColor(Body);
                     });
                     col.Item().PaddingTop(2).Text(
                         $"Stand {DateTime.Now:dd.MM.yyyy} · {d.AnzahlMa} Mitarbeitende, davon {d.AnzahlAbweichungen} mit Abweichung"
                         + (d.NurAbweichungen ? " · gedruckt: nur Abweichungen" : ""))
-                        .FontSize(8f).FontColor(Muted);
+                        .FontSize(9f).FontColor(Muted);
                     col.Item().PaddingTop(3).Text(
                         "Soll: «Ja» bei Kindern unter 15 Jahren im Haushalt — ab Eintritt bzw. Geburt des Kindes bis zum Tag vor dem 15. Geburtstag des jüngsten Kindes (ArG Art. 36). "
                         + "Rot = Wert in easy@work weicht vom Soll ab → bitte in easy@work im Feld «Familienbetreuung» korrigieren.")
-                        .FontSize(8f).FontColor(Body);
+                        .FontSize(9.5f).FontColor(Body);
                     col.Item().PaddingTop(6);
                 });
 
@@ -80,7 +80,7 @@ public class FamilienbetreuungListePdfService
                     {
                         void Gruppe(string s, int span, bool soll = false) => h.Cell().ColumnSpan((uint)span)
                             .PaddingTop(2).PaddingHorizontal(4)
-                            .Text(s.Length == 0 ? " " : s).Bold().FontSize(8f).FontColor(soll ? Muted : Ink);
+                            .Text(s.Length == 0 ? " " : s).Bold().FontSize(9f).FontColor(soll ? Muted : Ink);
                         Gruppe("", 3);
                         Gruppe("easy@work", 3);
                         Gruppe("Soll", 3, soll: true);
@@ -89,14 +89,14 @@ public class FamilienbetreuungListePdfService
                         void Th(string s, bool soll = false) => h.Cell().Background(Soft)
                             .BorderBottom(1f).BorderColor(Ink)
                             .PaddingVertical(3).PaddingHorizontal(3)
-                            .Text(s).Bold().FontSize(8.5f).FontColor(soll ? Muted : Ink);
+                            .Text(s).Bold().FontSize(9.5f).FontColor(soll ? Muted : Ink);
                         Th("MA-Nr.");
                         Th("Vorname");
                         Th("Nachname");
-                        Th("Fam.-Betr.");
+                        Th("Ja/Nein");
                         Th("von");
                         Th("bis");
-                        Th("Fam.-Betr.", true);
+                        Th("Ja/Nein", true);
                         Th("von", true);
                         Th("bis", true);
                         Th("Hinweis");
@@ -109,7 +109,7 @@ public class FamilienbetreuungListePdfService
                             var cell = t.Cell().BorderBottom(0.5f).BorderColor(Line);
                             if (rot) cell = cell.Background(RotHg);
                             var txt = cell.PaddingVertical(2).PaddingHorizontal(3)
-                                .Text(string.IsNullOrEmpty(s) ? " " : s).FontSize(8.5f)
+                                .Text(string.IsNullOrEmpty(s) ? " " : s).FontSize(10f)
                                 .FontColor(rot ? RotTx : soll ? Muted : Body);
                             if (rot) txt.Bold();
                         }
