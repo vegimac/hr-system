@@ -346,7 +346,19 @@ public class MailboxController : ControllerBase
                 u.IsHrTeam
             })
             .ToListAsync();
-        return Ok(users);
+        // Filial-Zugang (Walter 12.10.2026): «HR-Team» im Mitteilungs-Fenster nimmt
+        // nur, wer Zugang zur Sidebar-Filiale hat. null = alle Filialen (admin/superuser).
+        var ids = users.Select(u => u.Id).ToList();
+        var zugang = (await _db.UserBranchAccesses.AsNoTracking()
+                .Where(b => ids.Contains(b.UserId))
+                .Select(b => new { b.UserId, b.CompanyProfileId })
+                .ToListAsync())
+            .ToLookup(b => b.UserId, b => b.CompanyProfileId);
+        return Ok(users.Select(u => new
+        {
+            u.Id, u.name, u.Username, u.Email, u.Role, u.IsHrTeam,
+            filialen = u.Role is "admin" or "superuser" ? null : zugang[u.Id].Distinct().ToList(),
+        }));
     }
 
     /// <summary>

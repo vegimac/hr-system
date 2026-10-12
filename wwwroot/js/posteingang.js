@@ -1475,6 +1475,7 @@ async function mtOpen() {
     document.getElementById('mtFile').value = '';
     _mtDateien = [];
     mtDateienZeigen();
+    mtHrKnopfBeschriften();
     document.getElementById('mtMail').checked = true;
     const box = document.getElementById('mtEmpfaenger');
     box.innerHTML = '<div style="font-size:12px;color:#8b8b8b">Lade …</div>';
@@ -1486,18 +1487,39 @@ async function mtOpen() {
     const rolle = u => u.role === 'user' ? 'GF' : u.role === 'superuser' ? 'HR' : u.role === 'buchhaltung' ? 'Buchhaltung' : u.role === 'admin' ? 'Admin' : (u.role || '');
     box.innerHTML = _mtUsers.length
         ? _mtUsers.map(u => `<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#3f3f3f;cursor:pointer;padding:2px 0">
-                <input type="checkbox" class="mt-emp" value="${u.id}" data-role="${u.role || ''}" data-hr="${u.isHrTeam ? 1 : 0}">
+                <input type="checkbox" class="mt-emp" value="${u.id}" data-role="${u.role || ''}" data-hr="${u.isHrTeam ? 1 : 0}" data-filialen="${u.filialen ? u.filialen.join(',') : 'alle'}">
                 <span>${esc(u.name || u.username)}${u.id === currentUser?.id ? ' (ich)' : ''}</span><span style="font-size:11px;color:#8b8b8b">${rolle(u)}</span></label>`).join('')
         : '<div style="font-size:12px;color:#8b8b8b">Keine Benutzer gefunden.</div>';
 }
 function mtClose() { document.getElementById('mtModal').style.display = 'none'; }
+// «HR-Team» = HR mit Zugang zur Sidebar-Filiale (Walter 12.10.2026): eine Mitteilung
+// aus Oftringen geht nicht an HR, die nur Langenthal Drive betreut.
+function _mtFiliale() {
+    const id = typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null;
+    if (!id) return null;
+    const b = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === id);
+    return { id, name: b ? (b.branchName || b.companyName || 'gewählte Filiale') : 'gewählte Filiale' };
+}
+function _mtHatFiliale(cb, filialeId) {
+    const f = cb.dataset.filialen || 'alle';
+    return f === 'alle' || f.split(',').includes(String(filialeId));
+}
 function mtSelectRole(which) {
+    const fil = _mtFiliale();
     document.querySelectorAll('.mt-emp').forEach(cb => {
         if (which === 'none') cb.checked = false;
         else if (which === 'all') cb.checked = true;
         else if (which === 'user') cb.checked = cb.dataset.role === 'user';
-        else if (which === 'hr') cb.checked = cb.dataset.hr === '1' || cb.dataset.role === 'superuser';
+        else if (which === 'hr') cb.checked = (cb.dataset.hr === '1' || cb.dataset.role === 'superuser')
+            && (!fil || _mtHatFiliale(cb, fil.id));
     });
+}
+function mtHrKnopfBeschriften() {
+    const btn = document.getElementById('mtHrBtn');
+    if (!btn) return;
+    const fil = _mtFiliale();
+    btn.textContent = fil ? `HR-Team ${fil.name}` : 'HR-Team';
+    btn.title = fil ? `Alle HR-Mitglieder mit Zugang zur Filiale ${fil.name} (Filiale links in der Sidebar)` : 'Alle HR-Mitglieder (keine Filiale gewählt)';
 }
 async function mtSend() {
     const al = document.getElementById('mtAlert');
