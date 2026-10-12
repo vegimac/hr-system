@@ -20,6 +20,7 @@ namespace HrSystem.Services;
 ///   • Nicht zuordenbar — Zeile ohne OneCrew-MA
 ///   • Gemeldet — passt (ggf. mit Hinweis, z.B. AHV-Nummer weicht ab)
 /// Match: AHV-Nummer (über alle Filialen) → Name + Geburtsdatum → Name (eindeutig in der Filiale).
+/// Zusätzlich «Angaben prüfen»: AHV-Nr., Vorname, Name, Geschlecht, Geburtsdatum (Walter 12.10.2026).
 /// Reine Auswertung, schreibt nichts.
 /// </summary>
 public static class GastroSocialAbgleich
@@ -48,6 +49,7 @@ public static class GastroSocialAbgleich
         public string? Nachname { get; set; }
         public string? Ahv { get; set; }
         public DateTime? Geburtsdatum { get; set; }
+        public string? Geschlecht { get; set; }
         public DateTime? Eintritt { get; set; }
         /// <summary>Beginn der nahtlosen Vertragskette in dieser Filiale bis zum laufenden Vertrag.</summary>
         public DateTime? EintrittKette { get; set; }
@@ -94,6 +96,8 @@ public static class GastroSocialAbgleich
         public string? Hinweis { get; set; }
         /// <summary>Heute gültige Familienzulagen in OneCrew (Kurzbeschrieb), null = keine.</summary>
         public string? OneCrewFz { get; set; }
+        /// <summary>Abweichende/fehlende Personalien (AHV-Nr., Vorname, Name, Geschlecht, Geburtsdatum).</summary>
+        public List<string> Angaben { get; set; } = new();
     }
 
     public class Ergebnis
@@ -111,6 +115,50 @@ public static class GastroSocialAbgleich
         public List<Treffer> Gemeldet { get; set; } = new();
         /// <summary>Leistungen «FZ» bei GastroSocial ≠ Zulagen bei den Kindern in OneCrew (beide Richtungen).</summary>
         public List<Treffer> FzPruefen { get; set; } = new();
+        /// <summary>Zusätzliche Sicht: zugeordnete MA, deren Personalien von GastroSocial abweichen oder in OneCrew fehlen.</summary>
+        public List<Treffer> AngabenPruefen { get; set; } = new();
+    }
+
+    /// <summary>«w»/«F»/«Weiblich»/«female» → weiblich, «m»/«Männlich»/«male» → männlich.</summary>
+    public static string? GeschlechtNorm(string? g)
+    {
+        var s = (g ?? "").Trim().ToLowerInvariant();
+        if (s.Length == 0) return null;
+        if (s is "f" or "female" or "frau" || s.StartsWith("w")) return "weiblich";
+        if (s is "male" or "mann" or "herr" || s.StartsWith("m")) return "männlich";
+        if (s is "d" or "x" or "other" or "andere" || s.StartsWith("divers")) return "divers";
+        return s;
+    }
+
+    /// <summary>Personalien laut GastroSocial gegen den zugeordneten MA — jede Abweichung und jedes fehlende Feld.</summary>
+    public static List<string> Angaben(Zeile z, Ma m, string? matchArt)
+    {
+        var a = new List<string>();
+        if (matchArt != "AHV")
+            a.Add(string.IsNullOrWhiteSpace(m.Ahv)
+                ? "AHV-Nummer fehlt in OneCrew"
+                : "AHV-Nummer weicht ab (OneCrew " + FormatAhv(m.Ahv) + ")");
+        string gsV = NormName(z.Vorname), gsN = NormName(z.Nachname), ocV = NormName(m.Vorname), ocN = NormName(m.Nachname);
+        if (gsV.Length > 0 && gsN.Length > 0 && gsV != gsN && gsV == ocN && gsN == ocV)
+            a.Add($"Name und Vorname vertauscht (GastroSocial: Name «{z.Nachname}», Vorname «{z.Vorname}»)");
+        else
+        {
+            if (gsV.Length > 0 && gsV != ocV)
+                a.Add(ocV.Length == 0 ? $"Vorname fehlt in OneCrew (GastroSocial «{z.Vorname}»)"
+                    : $"Vorname: GastroSocial «{z.Vorname}», OneCrew «{m.Vorname}»");
+            if (gsN.Length > 0 && gsN != ocN)
+                a.Add(ocN.Length == 0 ? $"Name fehlt in OneCrew (GastroSocial «{z.Nachname}»)"
+                    : $"Name: GastroSocial «{z.Nachname}», OneCrew «{m.Nachname}»");
+        }
+        var gsG = GeschlechtNorm(z.Geschlecht);
+        var ocG = GeschlechtNorm(m.Geschlecht);
+        if (gsG != null && gsG != ocG)
+            a.Add(ocG == null ? $"Geschlecht fehlt in OneCrew (GastroSocial {gsG})"
+                : $"Geschlecht: GastroSocial {gsG}, OneCrew {ocG}");
+        if (z.Geburtsdatum != null && m.Geburtsdatum?.Date != z.Geburtsdatum.Value.Date)
+            a.Add(m.Geburtsdatum == null ? $"Geburtsdatum fehlt in OneCrew (GastroSocial {z.Geburtsdatum:dd.MM.yyyy})"
+                : $"Geburtsdatum: GastroSocial {z.Geburtsdatum:dd.MM.yyyy}, OneCrew {m.Geburtsdatum:dd.MM.yyyy}");
+        return a;
     }
 
     public static Ergebnis Vergleiche(IReadOnlyList<Zeile> zeilen, IReadOnlyList<Ma> alle, DateTime heute)
@@ -187,11 +235,8 @@ public static class GastroSocialAbgleich
             t.OneCrewFz = hit.FzKinderAktiv > 0 ? hit.FzText
                 : hit.FzLetztesEnde != null ? $"abgelaufen ({hit.FzLetztesEnde:dd.MM.yyyy})"
                 : hit.FzErfasst ? "erfasst, beginnt später" : null;
-            var hinweise = new List<string>();
-            if (art != "AHV")
-                hinweise.Add(string.IsNullOrWhiteSpace(hit.Ahv)
-                    ? "AHV-Nummer fehlt in OneCrew"
-                    : "AHV-Nummer weicht ab (OneCrew " + FormatAhv(hit.Ahv) + ")");
+            t.Angaben = Angaben(z, hit, art);
+            var hinweise = new List<string>(t.Angaben);
 
             if (!z.Beschaeftigt)
             {
@@ -265,6 +310,10 @@ public static class GastroSocialAbgleich
             });
         }
 
+        res.AngabenPruefen = res.AustrittObwohlAktiv.Concat(res.Abmelden).Concat(res.NichtGemeldet).Concat(res.Gemeldet)
+            .Where(t => t.EmployeeId != null && t.Angaben.Count > 0)
+            .GroupBy(t => t.EmployeeId).Select(g => g.First())
+            .OrderBy(t => t.OneCrewName, StringComparer.OrdinalIgnoreCase).ToList();
         res.FzPruefen = res.FzPruefen.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.AustrittObwohlAktiv = res.AustrittObwohlAktiv.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
         res.Abmelden = res.Abmelden.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();

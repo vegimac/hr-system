@@ -62,7 +62,7 @@ public class GastroSocialAbgleichController : ControllerBase
             .Where(e => !e.IsHidden)
             .Select(e => new
             {
-                e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.SocialSecurityNumber, e.DateOfBirth,
+                e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.SocialSecurityNumber, e.DateOfBirth, e.Gender,
                 e.EntryDate, e.ExitDate, e.IsActive, e.IsPayrollExcluded,
                 Vertraege = e.Employments.Select(em => new { em.CompanyProfileId, em.ContractStartDate, em.ContractEndDate }).ToList(),
             })
@@ -117,6 +117,7 @@ public class GastroSocialAbgleichController : ControllerBase
                 Nachname = e.LastName,
                 Ahv = e.SocialSecurityNumber,
                 Geburtsdatum = e.DateOfBirth,
+                Geschlecht = e.Gender,
                 Eintritt = eintrittHier ?? e.EntryDate,
                 EintrittKette = kette,
                 InFiliale = hier.Count > 0,

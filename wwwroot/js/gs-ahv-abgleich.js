@@ -124,6 +124,7 @@ function gsaRender(d) {
     const ab = (d.abmelden || []).length, ng = (d.nichtGemeldet || []).length;
     const nz = (d.nichtZuordenbar || []).length, ok = (d.gemeldet || []).length;
     const fz = (d.fzPruefen || []).length;
+    const ap = (d.angabenPruefen || []).length;
     const warnung = aa
         ? `<div style="margin-bottom:12px;padding:10px 14px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;font-size:13px">
               ⚠ <b>${aa} MA</b> ${aa === 1 ? 'ist' : 'sind'} bei GastroSocial ausgetreten, in OneCrew aber aktiv — Austritt bei GastroSocial prüfen und rückgängig machen.
@@ -139,6 +140,7 @@ function gsaRender(d) {
             ${gsaTile(ng, 'Nicht gemeldet', ng ? '#fef3c7' : '#f0fdf4', ng ? '#92400e' : '#15803d', 'nichtGemeldet')}
             ${gsaTile(nz, 'Nicht zuordenbar', nz ? '#e0e7ff' : '#f0fdf4', nz ? '#3730a3' : '#15803d', 'nichtZuordenbar')}
             ${gsaTile(fz, 'FZ prüfen', fz ? '#fce7f3' : '#f0fdf4', fz ? '#9d174d' : '#15803d', 'fzPruefen')}
+            ${gsaTile(ap, 'Angaben prüfen', ap ? '#ffedd5' : '#f0fdf4', ap ? '#9a3412' : '#15803d', 'angabenPruefen')}
             ${gsaTile(ok, 'Passt', '#dcfce7', '#166534', 'gemeldet')}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0 10px">
@@ -149,6 +151,7 @@ function gsaRender(d) {
                 <option value="nichtGemeldet">Nicht gemeldet — bei uns aktiv, fehlt bei GastroSocial (${ng})</option>
                 <option value="nichtZuordenbar">Nicht zuordenbar — in OneCrew nicht gefunden (${nz})</option>
                 <option value="fzPruefen">FZ prüfen — Familienzulagen GastroSocial ≠ Zulagen bei den Kindern (${fz})</option>
+                <option value="angabenPruefen">Angaben prüfen — AHV-Nr., Name, Vorname, Geschlecht, Geb.-Datum weichen ab (${ap})</option>
                 <option value="gemeldet">Passt (${ok})</option>
             </select>
             ${d.ohneLohn ? `<span style="font-size:12px;color:#64748b">${d.ohneLohn} MA ohne Lohn (Phantom) nicht verlangt</span>` : ''}
@@ -173,6 +176,7 @@ function gsaRenderRows() {
             nichtGemeldet: '✓ Alle aktiven MA mit Lohn sind bei GastroSocial gemeldet.',
             nichtZuordenbar: '✓ Alle Zeilen der Liste sind einem MA zugeordnet.',
             fzPruefen: '✓ Familienzulagen stimmen: wer bei GastroSocial FZ hat, hat in OneCrew eine Zulage beim Kind — und umgekehrt.',
+            angabenPruefen: '✓ AHV-Nummer, Name, Vorname, Geschlecht und Geburtsdatum stimmen mit GastroSocial überein.',
             gemeldet: 'Keine Einträge.'
         }[filter];
         el.innerHTML = `<div style="padding:28px;text-align:center;color:#15803d;font-size:13.5px">${leer}</div>`;
@@ -184,6 +188,7 @@ function gsaRenderRows() {
         nichtGemeldet: 'Bei GastroSocial anmelden (Eintritt melden).',
         nichtZuordenbar: 'Prüfen: arbeitet die Person noch bei uns? Sonst abmelden; sonst AHV-Nummer in OneCrew nachtragen.',
         fzPruefen: 'Vergleich «Leistungen FZ» bei GastroSocial mit den heute gültigen Zulagen bei den Kindern in OneCrew (MA → Familie). Fehlt die Zulage in OneCrew, wird sie im Lohn nicht ausbezahlt.',
+        angabenPruefen: 'Die Personalien bei GastroSocial und in OneCrew stimmen nicht überein oder fehlen in OneCrew. Mit Ausweis klären: falsch in OneCrew → beim MA korrigieren (bzw. in easy@work, wenn es von dort kommt), falsch bei GastroSocial → dort melden.',
         gemeldet: ''
     }[filter];
     const th = t => `<th style="padding:8px 10px;text-align:left">${t}</th>`;
@@ -216,7 +221,9 @@ function gsaRenderRows() {
                     ${td(z.employeeId
                         ? `<button class="dok-menu-btn" style="min-width:auto;padding:3px 9px;font-size:12px" onclick="gsaOpenEmployee(${z.employeeId})">→ ${esc(z.oneCrewName || 'MA')}</button>${z.personalnummer ? ` <span style="font-size:11px;color:#94a3b8;font-family:monospace">${esc(z.personalnummer)}</span>` : ''}`
                         : '—')}
-                    ${td(fzHinweis + esc(z.hinweis || ''), 'color:#64748b;font-size:12px')}
+                    ${td(filter === 'angabenPruefen'
+                        ? (z.angaben || []).map(a => `<div style="color:#9a3412">• ${esc(a)}</div>`).join('')
+                        : fzHinweis + esc(z.hinweis || ''), 'color:#64748b;font-size:12px')}
                 </tr>`;
             }).join('')}</tbody>
         </table>`;

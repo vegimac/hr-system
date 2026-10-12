@@ -161,15 +161,6 @@ public static class GastroSocialFzAbgleich
         return string.Join(", ", teile);
     }
 
-    private static string? GeschlechtNorm(string? g)
-    {
-        var s = (g ?? "").Trim().ToLowerInvariant();
-        if (s.Length == 0) return null;
-        if (s is "m" or "mann" or "male" || s.StartsWith("männ") || s.StartsWith("maenn")) return "männlich";
-        if (s is "w" or "f" or "frau" or "female" || s.StartsWith("weib")) return "weiblich";
-        return s;
-    }
-
     /// <summary>Angaben zum Kind laut GastroSocial gegen OneCrew — jede Abweichung und jedes fehlende Feld.</summary>
     public static IEnumerable<string> KindAngaben(Zeile z, Kind k)
     {

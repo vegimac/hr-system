@@ -209,4 +209,64 @@ public class GastroSocialAbgleichTests
         Assert.Empty(r.Abmelden);
         Assert.Empty(r.NichtGemeldet);
     }
+
+    [Fact]
+    public void Gleiche_Personalien_ergeben_keine_Angaben_Pruefung()
+    {
+        var geb = new DateTime(1990, 5, 1);
+        var z = Gs("Anna", "Muster", "756.1234.5678.97", geb);
+        z.Geschlecht = "w";
+        var ma = Oc(1, "Anna", "Muster", "756.1234.5678.97", geb: geb);
+        ma.Geschlecht = "Weiblich";
+        var r = GastroSocialAbgleich.Vergleiche(new[] { z }, new[] { ma }, Heute);
+        Assert.Empty(r.AngabenPruefen);
+        Assert.Null(Assert.Single(r.Gemeldet).Hinweis);
+    }
+
+    [Fact]
+    public void Abweichende_Personalien_werden_einzeln_gemeldet()
+    {
+        var z = Gs("Anna", "Muster", "756.1234.5678.97", new DateTime(1990, 5, 1));
+        z.Geschlecht = "w";
+        var ma = Oc(1, "Ana", "Muster-Meier", "756.1234.5678.97", geb: new DateTime(1990, 1, 5));
+        ma.Geschlecht = "male";
+        var r = GastroSocialAbgleich.Vergleiche(new[] { z }, new[] { ma }, Heute);
+        var t = Assert.Single(r.AngabenPruefen);
+        Assert.Same(t, Assert.Single(r.Gemeldet));
+        Assert.Contains("Vorname: GastroSocial «Anna», OneCrew «Ana»", t.Angaben);
+        Assert.Contains("Name: GastroSocial «Muster», OneCrew «Muster-Meier»", t.Angaben);
+        Assert.Contains("Geschlecht: GastroSocial weiblich, OneCrew männlich", t.Angaben);
+        Assert.Contains("Geburtsdatum: GastroSocial 01.05.1990, OneCrew 05.01.1990", t.Angaben);
+    }
+
+    [Fact]
+    public void Fehlende_Personalien_in_OneCrew_werden_gemeldet()
+    {
+        var z = Gs("Anna", "Muster", "756.1234.5678.97", new DateTime(1990, 5, 1));
+        z.Geschlecht = "m";
+        var r = GastroSocialAbgleich.Vergleiche(new[] { z }, new[] { Oc(1, "Anna", "Muster", null) }, Heute);
+        var t = Assert.Single(r.AngabenPruefen);
+        Assert.Contains("AHV-Nummer fehlt in OneCrew", t.Angaben);
+        Assert.Contains("Geschlecht fehlt in OneCrew (GastroSocial männlich)", t.Angaben);
+        Assert.Contains("Geburtsdatum fehlt in OneCrew (GastroSocial 01.05.1990)", t.Angaben);
+    }
+
+    [Fact]
+    public void Vertauschter_Name_und_Vorname_wird_als_ein_Hinweis_gemeldet()
+    {
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Gs("Muster", "Anna", "756.1234.5678.97") },
+            new[] { Oc(1, "Anna", "Muster", "756.1234.5678.97") }, Heute);
+        var t = Assert.Single(r.AngabenPruefen);
+        Assert.Equal("Name und Vorname vertauscht (GastroSocial: Name «Anna», Vorname «Muster»)", Assert.Single(t.Angaben));
+    }
+
+    [Fact]
+    public void Ausgetreten_und_auch_in_OneCrew_weg_meldet_keine_Angaben()
+    {
+        var r = GastroSocialAbgleich.Vergleiche(
+            new[] { Aus("Anna", "Musterli", "756.1234.5678.97", new DateTime(2025, 8, 31)) },
+            new[] { Oc(1, "Anna", "Muster", "756.1234.5678.97", aktiv: false, austritt: new DateTime(2025, 8, 31)) }, Heute);
+        Assert.Empty(r.AngabenPruefen);
+    }
 }
