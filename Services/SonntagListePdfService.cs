@@ -115,7 +115,7 @@ public class SonntagListePdfService
                             "ok" => ("#ffffff", "#15803d"),
                             _ => ("#ffffff", Body),
                         };
-                        void Td(string s, bool rechts = false, bool status = false)
+                        void Td(string s, bool rechts = false, bool status = false, bool fett = false)
                         {
                             var c = t.Cell().BorderBottom(0.5f).BorderColor(Line);
                             if (status && hg != "#ffffff") c = c.Background(hg);
@@ -123,7 +123,7 @@ public class SonntagListePdfService
                             if (status && !rechts) c = c.PaddingLeft(7);
                             var txt = (rechts ? c.AlignRight() : c).Text(s.Length == 0 ? " " : s).FontSize(10f)
                                 .FontColor(status ? tx : Body);
-                            if (status && z.Status is "rot" or "knapp") txt.Bold();
+                            if (fett || (status && z.Status is "rot" or "knapp")) txt.Bold();
                         }
                         Td(z.EmpNr ?? "");
                         Td(z.Vorname ?? "");
@@ -133,7 +133,7 @@ public class SonntagListePdfService
                         Td(z.Frei.ToString(), true);
                         Td(z.NichtFrei.ToString(), true);
                         Td(z.Krank.ToString(), true);
-                        Td(z.Fehlend.ToString(), true, status: z.Fehlend > 0);
+                        Td(z.Fehlend > 0 ? z.Fehlend.ToString() : "", true, status: z.Fehlend > 0, fett: true);
                         Td(z.Verbleibend.ToString(), true);
                         Td(z.Austritt.HasValue ? z.Austritt.Value.ToString("dd.MM.yyyy") + (z.NurVertragsende ? "*" : "") : "", true);
                         Td(StatusText(z.Status), status: true);

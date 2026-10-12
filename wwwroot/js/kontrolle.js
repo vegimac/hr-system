@@ -1028,7 +1028,7 @@ function kontrolleSoRender() {
             <td style="${td};${r}">${z.frei}</td>
             <td style="${td};${r}">${z.nichtFrei}</td>
             <td style="${td};${r}">${z.krank}</td>
-            <td style="${td};${r};${z.fehlend > 0 && (z.status === 'rot' || z.status === 'knapp') ? st.style : ''}">${z.fehlend}</td>
+            <td style="${td};${r};font-weight:700;${z.fehlend > 0 && (z.status === 'rot' || z.status === 'knapp') ? st.style : ''}">${z.fehlend > 0 ? z.fehlend : ''}</td>
             <td style="${td};${r}">${z.verbleibend}</td>
             <td style="${td};${r}"${z.nurVertragsende ? ' title="Vertragsende, kein Austrittsdatum erfasst"' : ''}>${dmy(z.austritt)}${z.nurVertragsende ? '<span style="color:#8b8b8b">*</span>' : ''}</td>
             <td style="${td};${st.style}">${st.text}</td>
