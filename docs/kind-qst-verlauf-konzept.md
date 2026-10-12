@@ -264,7 +264,7 @@ Kein Hinweis ändert selbständig eine QST-Version oder eine Zulage.
   Kinderziffer» + Warnungen, Entscheide nur, wenn vorhanden (Knopf «+ Entscheid der Steuerverwaltung»).
   Erfassen/Bearbeiten = je ein eigenes kleines Fenster (`kqvFenster`), kein Formular mehr
   mitten in der Kind-Maske: «Wohnen & Unterhalt» (`kqvVerhaeltnisDialog`: Gültig ab, im
-  Haushalt, Unterhalt, Bemerkung — auch direkt aus dem ⋮ der Kind-Karte), «Ausbildung»
+  Haushalt, Unterhalt, Bemerkung), «Ausbildung»
   (`kqvAusbildungDialog`: Von, Bis, Art, Erstausbildung, Beleg, Ende nur mit Bis, Bemerkung,
   Häkchen «Beleg gesehen» = geprüft; mit Beleg immer geprüft) und «Entscheid der
   Steuerverwaltung» (`kqvEntscheidDialog`: Entscheid, Von, Bis, Beleg, Grund). «Erfahren am»

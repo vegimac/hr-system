@@ -395,7 +395,7 @@ async function kqvBelegAuswahl(aktuell) {
 const kqvWert = id => document.getElementById(id)?.value || null;
 const kqvBelegWert = () => { const v = kqvWert('kqvFBeleg'); return v ? parseInt(v, 10) : null; };
 
-/** Wohnen & Unterhalt — auch direkt aus dem ⋮ der Kind-Karte (ohne Kind-Maske). */
+/** Wohnen & Unterhalt — kleines Fenster aus der Kind-Maske. */
 async function kqvVerhaeltnisDialog(empId, memberId, eintragId = null) {
     let daten = (_kqv.memberId === memberId && _kqv.daten) ? _kqv.daten : null;
     if (!daten) {
