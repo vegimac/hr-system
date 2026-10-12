@@ -468,16 +468,18 @@ public class ZwischenverdienistController : ControllerBase
         }
 
         // FLEX: Feriengeld im Pott — %-Zeile ≠ Grundlohn×%; RAV-Hinweis mit
-        // Monatszahlen aus dem Lohnbeleg (Walter 09.10.2026).
+        // Monatszahlen aus dem Lohnbeleg (Walter 09.10.2026). Nur solange ein
+        // Saldo bleibt (Walter 12.10.2026) — bei Saldo 0 steht nur die Auszahlung.
         string? ferienBemerkung = null;
         if (empModel == "FLEX" && ferienPct.HasValue && ferienPct.Value > 0)
         {
             static string Chf(decimal v) =>
                 v.ToString("0.00", CultureInfo.InvariantCulture);
             // Eine Absatzzeile → Wrap auf ca. 2 Zeilen (Walter 09.10.2026)
-            ferienBemerkung =
-                "* Feriengeld wird zurückbehalten und bei bezogenen Ferien ausbezahlt und deklariert. "
-                + $"Diesen Monat {Chf(ferienGeldDiesenMonat)}, Bezug {Chf(ferienGeldBezug)}, Saldo {Chf(ferienGeldSaldo)}.";
+            if (ferienGeldSaldo > 0.005m)
+                ferienBemerkung =
+                    "* Feriengeld wird zurückbehalten und bei bezogenen Ferien ausbezahlt und deklariert. "
+                    + $"Diesen Monat {Chf(ferienGeldDiesenMonat)}, Bezug {Chf(ferienGeldBezug)}, Saldo {Chf(ferienGeldSaldo)}.";
             if (!ferienCHF.HasValue)
                 ferienCHF = 0m;
         }
