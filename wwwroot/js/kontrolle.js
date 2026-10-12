@@ -18,6 +18,7 @@ function kontrolleInit() {
 /** Alle Kontroll-Listen neu laden (globaler Knopf, Walter 22.07.2026). */
 function kontrolleRefreshAll() {
     kontrolleDossierRefresh();
+    kontrolleFbRefresh();
     kontrolleEmployeeRefresh();
     kontrolleSpouseRefresh();
     kontrollePermitRefresh();
@@ -873,6 +874,81 @@ function kontrolleDossierRender() {
         ${zeilen.length
             ? `<table style="border-collapse:collapse;margin:0 12px 12px">${kopf}${body}</table>`
             : '<div class="emp-placeholder" style="height:80px"><span>Alles erledigt ✓</span></div>'}`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Familienbetreuung easy@work gegen Soll (Walter-Vorgabe 12.10.2026)
+// Soll rechnet der Server (Kinder unter 15 im Haushalt, ab Eintritt).
+// ══════════════════════════════════════════════════════════════════════
+let _kontrolleFb = null;
+
+async function kontrolleFbRefresh() {
+    const el = document.getElementById('kontrolleFbList');
+    if (!el) return;
+    const cp = typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null;
+    if (!cp) {
+        _kontrolleFb = null;
+        el.innerHTML = '<div class="emp-placeholder" style="height:90px"><span>Bitte oben links eine Filiale wählen.</span></div>';
+        return;
+    }
+    el.innerHTML = '<div class="emp-placeholder" style="height:90px"><span>Lade Liste…</span></div>';
+    try {
+        const r = await fetch(`/api/kontrolle/familienbetreuung?companyProfileId=${cp}`, { headers: ah() });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.message || ('HTTP ' + r.status)); }
+        _kontrolleFb = await r.json();
+        kontrolleFbRender();
+    } catch (e) {
+        el.innerHTML = `<div style="padding:14px 18px;color:#b91c1c;font-size:13px">Fehler: ${_kEsc(e.message)}</div>`;
+    }
+}
+
+function kontrolleFbRender() {
+    const el = document.getElementById('kontrolleFbList');
+    const d = _kontrolleFb;
+    if (!el || !d) return;
+    const nurAbw = !!document.getElementById('kontrolleFbNurAbw')?.checked;
+    const abw = z => z.abwJa || z.abwVon || z.abwBis;
+    const zeilen = (d.zeilen || []).filter(z => !nurAbw || abw(z));
+    const dmy = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
+    const th = 'padding:6px 10px;font-size:11.5px;font-weight:600;color:#3f3f3f;text-align:left;border-bottom:1px solid rgba(60,55,48,0.2);white-space:nowrap';
+    const td = 'padding:5px 10px;font-size:12.5px;border-bottom:1px solid rgba(60,55,48,0.08);white-space:nowrap';
+    const rot = 'background:#ffc7ce;color:#9c0006;font-weight:700';
+    const soll = 'color:#8b8b8b';
+    const body = zeilen.map(z => {
+        const istBis = z.istJa ? (z.istVon && !z.istBis ? 'offen' : dmy(z.istBis)) : '';
+        return `<tr style="cursor:pointer" onclick="kontrolleOpenEmployee(${z.employeeId})">
+            <td style="${td}">${_kEsc(z.empNr || '')}</td>
+            <td style="${td}">${_kEsc(z.vorname || '')}</td>
+            <td style="${td}">${_kEsc(z.nachname || '')}</td>
+            <td style="${td};${z.abwJa ? rot : ''}">${z.istJa ? 'Ja' : 'Nein'}</td>
+            <td style="${td};${z.abwVon ? rot : ''}">${z.istJa ? dmy(z.istVon) : ''}</td>
+            <td style="${td};${z.abwBis ? rot : ''}">${istBis}</td>
+            <td style="${td};${soll}">${z.sollJa == null ? '?' : (z.sollJa ? 'Ja' : 'Nein')}</td>
+            <td style="${td};${soll}">${z.sollJa ? dmy(z.sollVon) : ''}</td>
+            <td style="${td};${soll}">${z.sollJa ? dmy(z.sollBis) : ''}</td>
+            <td style="${td};color:#646464">${_kEsc(z.hinweis || '')}</td>
+        </tr>`;
+    }).join('');
+    el.innerHTML = `
+        <div style="padding:10px 18px;font-size:12.5px;color:#646464">
+            <b style="color:#3f3f3f">${d.anzahlAbweichungen} von ${d.anzahlMa}</b> mit Abweichung${nurAbw ? ' · angezeigt: nur Abweichungen' : ''}
+        </div>
+        ${zeilen.length ? `<table style="border-collapse:collapse;margin:0 12px 12px">
+            <tr><th style="${th}" colspan="3"></th><th style="${th}" colspan="3">easy@work</th><th style="${th};${soll}" colspan="3">Soll</th><th style="${th}"></th></tr>
+            <tr><th style="${th}">MA-Nr.</th><th style="${th}">Vorname</th><th style="${th}">Nachname</th>
+                <th style="${th}">Fam.-Betr.</th><th style="${th}">von</th><th style="${th}">bis</th>
+                <th style="${th};${soll}">Fam.-Betr.</th><th style="${th};${soll}">von</th><th style="${th};${soll}">bis</th>
+                <th style="${th}">Hinweis</th></tr>
+            ${body}</table>`
+            : '<div class="emp-placeholder" style="height:80px"><span>Keine Abweichungen ✓</span></div>'}`;
+}
+
+function kontrolleFbPdf() {
+    const cp = typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null;
+    if (!cp) { alert('Bitte oben links eine Filiale wählen.'); return; }
+    const nurAbw = !!document.getElementById('kontrolleFbNurAbw')?.checked;
+    previewUrlFetch(`/api/kontrolle/familienbetreuung/pdf?companyProfileId=${cp}&nurAbweichungen=${nurAbw}`,
+        'Familienbetreuung.pdf', ah());
 }
 
 /** Export als CSV (Excel öffnet es direkt) — über den «Speichern unter…»-Helfer. */

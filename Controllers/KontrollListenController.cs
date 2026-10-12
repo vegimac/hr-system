@@ -827,4 +827,102 @@ public class KontrollListenController : ControllerBase
 
         return Ok(result.OrderByDescending(r => ((dynamic)r).maxNaechte6Wochen).ToList());
     }
+
+    /// <summary>
+    /// Familienbetreuung easy@work gegen Soll (Walter-Vorgabe 12.10.2026): aktive MA der
+    /// Filiale inkl. künftiger Eintritte. Soll aus Kindern im Haushalt
+    /// (<see cref="FamilienbetreuungSoll"/>). Keine Kinderdaten in der Antwort ausser
+    /// «jüngstes Kind wird 15 am».
+    /// </summary>
+    [HttpGet("familienbetreuung")]
+    public async Task<IActionResult> Familienbetreuung([FromQuery] int companyProfileId)
+    {
+        var guard = await GuardBranchAsync(companyProfileId);
+        if (guard != null) return guard;
+        var zeilen = await FamilienbetreuungZeilenAsync(companyProfileId);
+        return Ok(new
+        {
+            anzahlMa = zeilen.Count,
+            anzahlAbweichungen = zeilen.Count(z => z.AbwJa || z.AbwVon || z.AbwBis),
+            zeilen = zeilen.Select(z => new
+            {
+                z.EmployeeId, z.EmpNr, z.Vorname, z.Nachname,
+                z.IstJa, istVon = z.IstVon?.ToString("yyyy-MM-dd"), istBis = z.IstBis?.ToString("yyyy-MM-dd"),
+                z.SollJa, sollVon = z.SollVon?.ToString("yyyy-MM-dd"), sollBis = z.SollBis?.ToString("yyyy-MM-dd"),
+                z.AbwJa, z.AbwVon, z.AbwBis, z.Hinweis,
+            }),
+        });
+    }
+
+    /// <summary>PDF für die GF — gleiche Zeilen wie <see cref="Familienbetreuung"/>.</summary>
+    [HttpGet("familienbetreuung/pdf")]
+    public async Task<IActionResult> FamilienbetreuungPdf([FromQuery] int companyProfileId, [FromQuery] bool nurAbweichungen = false)
+    {
+        var guard = await GuardBranchAsync(companyProfileId);
+        if (guard != null) return guard;
+        var cp = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == companyProfileId);
+        if (cp is null) return NotFound(new { error = "FILIALE_NICHT_GEFUNDEN", message = "Filiale nicht gefunden." });
+
+        var alle = await FamilienbetreuungZeilenAsync(companyProfileId);
+        var abw = alle.Count(z => z.AbwJa || z.AbwVon || z.AbwBis);
+        var gedruckt = nurAbweichungen ? alle.Where(z => z.AbwJa || z.AbwVon || z.AbwBis).ToList() : alle;
+        var titel = string.Join(" ", new[] { cp.RestaurantCode, cp.City }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+        if (string.IsNullOrWhiteSpace(titel)) titel = cp.BranchName ?? "";
+
+        var pdf = HttpContext.RequestServices.GetRequiredService<FamilienbetreuungListePdfService>();
+        var bytes = pdf.Generate(new FamilienbetreuungListePdfService.Input(titel, nurAbweichungen, alle.Count, abw,
+            gedruckt.Select(z => new FamilienbetreuungListePdfService.Zeile(
+                z.EmpNr, z.Vorname, z.Nachname, z.IstJa, z.IstVon, z.IstBis,
+                z.SollJa, z.SollVon, z.SollBis, z.AbwJa, z.AbwVon, z.AbwBis, z.Hinweis)).ToList()));
+        return File(bytes, "application/pdf", $"Familienbetreuung_{titel.Replace(' ', '_')}_{DateTime.Today:yyyy-MM-dd}.pdf");
+    }
+
+    private record FbZeile(
+        int EmployeeId, string? EmpNr, string? Vorname, string? Nachname,
+        bool IstJa, DateOnly? IstVon, DateOnly? IstBis,
+        bool? SollJa, DateOnly? SollVon, DateOnly? SollBis,
+        bool AbwJa, bool AbwVon, bool AbwBis, string? Hinweis);
+
+    private async Task<List<FbZeile>> FamilienbetreuungZeilenAsync(int cp)
+    {
+        var heute = DateTime.Today;
+        var stichtag = DateOnly.FromDateTime(heute);
+        var empIds = await _db.Employments.AsNoTracking()
+            .Where(em => em.CompanyProfileId == cp && (em.ContractEndDate == null || em.ContractEndDate >= heute))
+            .Select(em => em.EmployeeId).Distinct().ToListAsync();
+        var emps = await _db.Employees.AsNoTracking()
+            .Where(e => empIds.Contains(e.Id) && e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt")
+                     && (e.ExitDate == null || e.ExitDate >= heute))
+            .ToListAsync();
+        var ids = emps.Select(e => e.Id).ToList();
+        var vertraege = (await _db.Employments.AsNoTracking().Where(v => ids.Contains(v.EmployeeId)).ToListAsync())
+            .ToLookup(v => v.EmployeeId);
+        var kinder = (await _db.EmployeeFamilyMembers.AsNoTracking()
+                .Where(f => ids.Contains(f.EmployeeId) && f.MemberType == "Kind" && f.LebtImHaushalt && f.DateOfDeath == null)
+                .Select(f => new { f.EmployeeId, f.DateOfBirth })
+                .ToListAsync())
+            .ToLookup(f => f.EmployeeId, f => new FamilienbetreuungSoll.Kind(
+                f.DateOfBirth.HasValue ? DateOnly.FromDateTime(f.DateOfBirth.Value) : null));
+
+        static DateOnly? D(DateTime? x) => x.HasValue ? DateOnly.FromDateTime(x.Value) : null;
+        return emps
+            .OrderBy(e => e.FirstName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(e => e.LastName ?? "", StringComparer.OrdinalIgnoreCase)
+            .Select(e =>
+            {
+                var eintritt = Dienstalter.Massgebend(e, vertraege[e.Id], stichtag);
+                var soll = FamilienbetreuungSoll.Berechne(kinder[e.Id], eintritt, stichtag);
+                var (abwJa, abwVon, abwBis) = FamilienbetreuungSoll.Abweichung(
+                    e.Familienbetreuung, D(e.FamilienbetreuungVon), D(e.FamilienbetreuungBis), soll);
+                var hinweis = new List<string>();
+                if (soll.JuengstesKind15Am is DateOnly k15) hinweis.Add($"jüngstes Kind wird 15 am {k15:dd.MM.yyyy}");
+                if (soll.GeburtsdatumFehlt) hinweis.Add("Geburtsdatum Kind fehlt");
+                return new FbZeile(e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
+                    e.Familienbetreuung, D(e.FamilienbetreuungVon), D(e.FamilienbetreuungBis),
+                    soll.Ja, soll.Von, soll.Bis, abwJa, abwVon, abwBis,
+                    hinweis.Count > 0 ? string.Join(" · ", hinweis) : null);
+            })
+            .ToList();
+    }
 }

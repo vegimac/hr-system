@@ -2981,6 +2981,29 @@
                     </div>
                 </div>
 
+                <!-- Walter-Vorgabe 12.10.2026: Familienbetreuung easy@work gegen Soll
+                     (Kinder unter 15 im Haushalt) — PDF für die GF. -->
+                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f">
+                    <div style="padding:14px 18px;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                        <div>
+                            <div style="font-size:15px;font-weight:700;color:#3f3f3f">Familienbetreuung · easy@work gegen Soll</div>
+                            <div style="font-size:12.5px;color:#646464;margin-top:2px">
+                                Soll «Ja» bei Kindern unter 15 im Haushalt — ab Eintritt bzw. Geburt bis zum Tag vor dem 15. Geburtstag des jüngsten Kindes.
+                                <b style="background:#ffc7ce;color:#9c0006;padding:0 4px">Rot</b> = Wert aus easy@work weicht ab → GF korrigiert in easy@work.
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <label style="font-size:12.5px;color:#3f3f3f;display:flex;align-items:center;gap:6px;cursor:pointer">
+                                <input type="checkbox" id="kontrolleFbNurAbw" onchange="kontrolleFbRender()" style="accent-color:#3f3f3f"> nur Abweichungen
+                            </label>
+                            <button type="button" class="btn btn-outline" onclick="kontrolleFbPdf()" style="font-size:12px">📄 PDF für GF</button>
+                        </div>
+                    </div>
+                    <div id="kontrolleFbList" style="padding:0;overflow-x:auto">
+                        <div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>
+                    </div>
+                </div>
+
                 <!-- Walter-Vorgabe 13.06.2026: MA-Ausweis-Sektion ZUERST,
                      Ehegatten-Ausweis darunter. -->
                 <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
@@ -10459,7 +10482,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>
 <script src="js/qst-import.js?v=20260704p"></script>
-<script src="js/kontrolle.js?v=20261001c"></script>
+<script src="js/kontrolle.js?v=20261012a"></script>
 <script src="js/nationen.js?v=20260816a"></script>
 <script src="js/swiss-locations.js?v=20260816a"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
