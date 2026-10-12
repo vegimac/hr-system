@@ -1358,11 +1358,35 @@ function pbCropClose() {
 
 // ════════════════ Mitteilung an Benutzer (Walter 05.09.2026) ════════════════
 let _mtUsers = [];
+let _mtDateien = [];
+async function mtDateienDazu(fileList) {
+    if (!fileList || !fileList.length) return;
+    const geprueft = await uploadDateienPruefen(fileList);
+    geprueft.forEach(f => {
+        if (!_mtDateien.some(x => x.name === f.name && x.size === f.size)) _mtDateien.push(f);
+    });
+    mtDateienZeigen();
+}
+function mtDateiWeg(i) { _mtDateien.splice(i, 1); mtDateienZeigen(); }
+function mtDateienZeigen() {
+    const box = document.getElementById('mtDateiListe');
+    if (!box) return;
+    const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+    box.innerHTML = _mtDateien.map((f, i) => `
+        <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid rgba(60,55,48,0.16);border-radius:8px;padding:5px 10px;font-size:12.5px;color:#3f3f3f">
+            <span>📄</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
+            <span style="color:#8b8b8b;font-size:11.5px">${kb(f.size)}</span>
+            <button type="button" onclick="mtDateiWeg(${i})" title="Entfernen" style="background:none;border:1px solid rgba(60,55,48,0.2);border-radius:6px;padding:0 7px;cursor:pointer;color:#646464">×</button>
+        </div>`).join('')
+        + (_mtDateien.length > 1 ? `<div style="font-size:11.5px;color:#8b8b8b">${_mtDateien.length} Dateien — jede kommt als eigener Eintrag («Betreff (1/${_mtDateien.length})» …), der Text steht beim ersten.</div>` : '');
+}
 async function mtOpen() {
     document.getElementById('mtAlert').innerHTML = '';
     document.getElementById('mtBetreff').value = '';
     document.getElementById('mtText').value = '';
     document.getElementById('mtFile').value = '';
+    _mtDateien = [];
+    mtDateienZeigen();
     document.getElementById('mtMail').checked = true;
     const box = document.getElementById('mtEmpfaenger');
     box.innerHTML = '<div style="font-size:12px;color:#8b8b8b">Lade …</div>';
@@ -1392,17 +1416,16 @@ async function mtSend() {
     const ids = [...document.querySelectorAll('.mt-emp:checked')].map(cb => cb.value);
     const betreff = document.getElementById('mtBetreff').value.trim();
     const text = document.getElementById('mtText').value.trim();
-    const file = document.getElementById('mtFile').files[0];
     const warn = m => `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:10px;font-size:13px;margin-bottom:10px">${esc(m)}</div>`;
     if (!ids.length) { al.innerHTML = warn('Bitte mindestens einen Empfänger wählen.'); return; }
     if (!betreff) { al.innerHTML = warn('Bitte einen Betreff eingeben.'); return; }
-    if (!text && !file) { al.innerHTML = warn('Bitte einen Text eingeben oder eine Datei anhängen.'); return; }
+    if (!text && !_mtDateien.length) { al.innerHTML = warn('Bitte einen Text eingeben oder eine Datei anhängen.'); return; }
     const fd = new FormData();
     fd.append('userIds', ids.join(','));
     fd.append('betreff', betreff);
     fd.append('text', text);
     fd.append('mail', document.getElementById('mtMail').checked ? 'true' : 'false');
-    if (file) fd.append('file', file);
+    _mtDateien.forEach(f => fd.append('files', f));
     const btn = document.getElementById('mtSendBtn');
     btn.disabled = true; btn.textContent = 'Sende…';
     try {
