@@ -1030,6 +1030,7 @@ function kontrolleSoRender() {
             <td style="${td};${r}">${z.krank}</td>
             <td style="${td};${r};${z.fehlend > 0 && (z.status === 'rot' || z.status === 'knapp') ? st.style : ''}">${z.fehlend}</td>
             <td style="${td};${r}">${z.verbleibend}</td>
+            <td style="${td};${r}"${z.nurVertragsende ? ' title="Vertragsende, kein Austrittsdatum erfasst"' : ''}>${dmy(z.austritt)}${z.nurVertragsende ? '<span style="color:#8b8b8b">*</span>' : ''}</td>
             <td style="${td};${st.style}">${st.text}</td>
         </tr>`;
     }).join('');
@@ -1044,8 +1045,9 @@ function kontrolleSoRender() {
             <tr><th style="${th}">MA-Nr.</th><th style="${th}">Vorname</th><th style="${th}">Nachname</th>
                 <th style="${th}">Fam.-Betr.</th><th style="${th};${r}">Soll</th><th style="${th};${r}">frei</th>
                 <th style="${th};${r}">nicht frei</th><th style="${th};${r}">krank/Unfall</th><th style="${th};${r}">fehlen</th><th style="${th};${r}">verbleibend</th>
-                <th style="${th}">Status</th></tr>
-            ${body}</table>`
+                <th style="${th};${r}">Austritt</th><th style="${th}">Status</th></tr>
+            ${body}</table>
+            ${zeilen.some(z => z.nurVertragsende) ? '<div style="margin:0 22px 12px;font-size:11.5px;color:#8b8b8b">* Vertragsende, kein Austrittsdatum erfasst</div>' : ''}`
             : `<div class="emp-placeholder" style="height:80px"><span>${nurKritisch ? 'Niemand knapp ✓' : 'Keine Mitarbeitenden'}</span></div>`}`;
 }
 

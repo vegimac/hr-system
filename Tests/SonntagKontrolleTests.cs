@@ -147,8 +147,8 @@ public class SonntagKontrolleTests
         var zeilen = new List<SonntagListePdfService.Zeile>
         {
             new("1220001", "Aurelio Ruben", "Artiles Santana", true, 12, 3, 30, 8, 9, 11, "knapp"),
-            new("1220002", "Bruno", "Beispiel", false, 4, 0, 41, 0, 4, 2, "rot"),
-            new("1220003", "Carla", "Test", false, 1, 0, 2, 39, 1, 11, "offen"),
+            new("1220002", "Bruno", "Beispiel", false, 4, 0, 41, 0, 4, 2, "rot", new DateOnly(2026, 10, 31)),
+            new("1220003", "Carla", "Test", false, 1, 0, 2, 39, 1, 11, "offen", new DateOnly(2026, 12, 15), true),
         };
         var bytes = new SonntagListePdfService().Generate(
             new("122 Teststadt", 2026, Jan1, false, 3, 1, 1, zeilen));

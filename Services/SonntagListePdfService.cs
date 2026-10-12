@@ -12,7 +12,8 @@ public class SonntagListePdfService
 {
     public record Zeile(
         string? EmpNr, string? Vorname, string? Nachname, bool Familie,
-        int Soll, int Frei, int NichtFrei, int Krank, int Fehlend, int Verbleibend, string Status);
+        int Soll, int Frei, int NichtFrei, int Krank, int Fehlend, int Verbleibend, string Status,
+        DateOnly? Austritt = null, bool NurVertragsende = false);
 
     public record Input(string FilialeTitel, int Jahr, DateOnly? ZaehlAb, bool NurKritisch,
         int AnzahlMa, int AnzahlRot, int AnzahlKnapp, List<Zeile> Zeilen);
@@ -59,7 +60,8 @@ public class SonntagListePdfService
                     col.Item().PaddingTop(3).Text(
                         "Pro Kalenderjahr mindestens 4 freie Sonntage, mit Familienbetreuung (easy@work) 12 — anteilig bei Eintritt/Austritt unter dem Jahr. "
                         + "Während voller Krankheit, Unfall, Militär, Mutter-/Vaterschaft entsteht kein Anspruch: diese Tage kürzen das Soll, solche Sonntage zählen weder frei noch nicht frei. "
-                        + "Frei = an diesem Sonntag kein Stempel und keine Absenz (auch keine Ferien). «Verbleibend» = kommende Sonntage ohne geplante Absenz.")
+                        + "Frei = an diesem Sonntag kein Stempel und keine Absenz (auch keine Ferien). «Verbleibend» = kommende Sonntage ohne geplante Absenz bis Jahresende bzw. Austritt."
+                        + (d.Zeilen.Any(z => z.NurVertragsende) ? " * = Vertragsende, kein Austrittsdatum erfasst." : ""))
                         .FontSize(9.5f).FontColor(Body);
                     col.Item().PaddingTop(6);
                 });
@@ -69,16 +71,17 @@ public class SonntagListePdfService
                     t.ColumnsDefinition(c =>
                     {
                         c.RelativeColumn(1.1f); // MA-Nr
-                        c.RelativeColumn(2.1f); // Vorname
-                        c.RelativeColumn(2.1f); // Nachname
-                        c.RelativeColumn(1.5f); // Familienbetr.
-                        c.RelativeColumn(1.0f); // Soll
-                        c.RelativeColumn(1.2f); // frei bisher
+                        c.RelativeColumn(1.8f); // Vorname
+                        c.RelativeColumn(1.9f); // Nachname
+                        c.RelativeColumn(1.3f); // Familienbetr.
+                        c.RelativeColumn(0.8f); // Soll
+                        c.RelativeColumn(0.9f); // frei bisher
                         c.RelativeColumn(1.3f); // nicht frei
                         c.RelativeColumn(1.6f); // krank/Unfall
                         c.RelativeColumn(1.1f); // fehlen
-                        c.RelativeColumn(1.4f); // verbleibend
-                        c.RelativeColumn(2.6f); // Status
+                        c.RelativeColumn(1.7f); // verbleibend
+                        c.RelativeColumn(1.7f); // Austritt
+                        c.RelativeColumn(3.2f); // Status
                     });
 
                     t.Header(h =>
@@ -99,6 +102,7 @@ public class SonntagListePdfService
                         Th("krank/Unfall", true);
                         Th("fehlen", true);
                         Th("verbleibend", true);
+                        Th("Austritt", true);
                         Th("Status");
                     });
 
@@ -131,6 +135,7 @@ public class SonntagListePdfService
                         Td(z.Krank.ToString(), true);
                         Td(z.Fehlend.ToString(), true, status: z.Fehlend > 0);
                         Td(z.Verbleibend.ToString(), true);
+                        Td(z.Austritt.HasValue ? z.Austritt.Value.ToString("dd.MM.yyyy") + (z.NurVertragsende ? "*" : "") : "", true);
                         Td(StatusText(z.Status), status: true);
                     }
                 });

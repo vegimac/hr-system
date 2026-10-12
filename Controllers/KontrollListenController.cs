@@ -917,13 +917,15 @@ public class KontrollListenController : ControllerBase
         var bytes = pdf.Generate(new SonntagListePdfService.Input(titel, j, zaehlAb, nurKritisch, alle.Count,
             alle.Count(z => z.Status == "rot"), alle.Count(z => z.Status == "knapp"),
             gedruckt.Select(z => new SonntagListePdfService.Zeile(z.EmpNr, z.Vorname, z.Nachname, z.Familie,
-                z.Soll, z.Frei, z.NichtFrei, z.Krank, z.Fehlend, z.Verbleibend, z.Status)).ToList()));
+                z.Soll, z.Frei, z.NichtFrei, z.Krank, z.Fehlend, z.Verbleibend, z.Status,
+                z.Austritt, z.NurVertragsende)).ToList()));
         return File(bytes, "application/pdf", $"Freie_Sonntage_{j}_{titel.Replace(' ', '_')}.pdf");
     }
 
     private record SoZeile(
         int EmployeeId, string? EmpNr, string? Vorname, string? Nachname, bool Familie,
-        int Soll, decimal SollGenau, int Frei, int NichtFrei, int Krank, int Fehlend, int Verbleibend, string Status);
+        int Soll, decimal SollGenau, int Frei, int NichtFrei, int Krank, int Fehlend, int Verbleibend, string Status,
+        DateOnly? Austritt, bool NurVertragsende);
 
     private async Task<(DateOnly? ZaehlAb, List<SoZeile> Zeilen)> SonntagZeilenAsync(int cp, int jahr)
     {
@@ -991,8 +993,12 @@ public class KontrollListenController : ControllerBase
                 var r = SonntagKontrolle.Berechne(new SonntagKontrolle.Eingabe(
                     jahr, stichtag, zaehlAb, abschnitte, fam,
                     stempelTage[e.Id].ToHashSet(), absenzen[e.Id].ToList()));
+                DateOnly? ende = abschnitte.Count > 0 && abschnitte.All(a => a.Bis.HasValue)
+                    ? abschnitte.Max(a => a.Bis) : null;
+                if (ende > jahrBis) ende = null;
                 return new SoZeile(e.Id, e.EmployeeNumber, e.FirstName, e.LastName, r.MitFamilie,
-                    r.Soll, r.SollGenau, r.FreiBisher, r.NichtFreiBisher, r.KrankBisher, r.Fehlend, r.Verbleibend, r.Status);
+                    r.Soll, r.SollGenau, r.FreiBisher, r.NichtFreiBisher, r.KrankBisher, r.Fehlend, r.Verbleibend, r.Status,
+                    ende, ende.HasValue && ende != austritt);
             })
             .ToList();
         return (zaehlAb, zeilen);
