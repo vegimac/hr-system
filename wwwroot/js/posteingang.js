@@ -386,10 +386,11 @@ async function pbLoadList() {
                 const istBild = (d.mimeType || '').startsWith('image/');
                 const docJson = _pbEsc(JSON.stringify(d));
                 return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #f1f5f9;flex-wrap:wrap">
-                    ${istBild ? `<img data-pbthumb="${d.id}" onclick="pbOpenPreview(${d.id})" title="Vorschau öffnen" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;flex:none;cursor:pointer">` : '<span style="font-size:16px">📄</span>'}
+                    ${istBild ? `<img data-pbthumb="${d.id}" onclick="pbOpenPreview(${d.id})" title="Vorschau öffnen" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;flex:none;cursor:pointer">` : `<span style="font-size:16px;cursor:pointer" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">📄</span>`}
                     <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">${_pbEsc(d.bemerkung || d.originalFilename || 'Dokument')}</span>
                     ${hasFile ? `<span style="font-size:11px;color:#94a3b8">${sizeKb} KB</span>` : ''}
                     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto">
+                        ${hasFile ? `<button class="btn btn-outline" style="${btn}" onclick="pbOpenPreview(${d.id})" title="Vorschau öffnen">👁 Ansehen</button>` : ''}
                         ${hasFile ? `<button class="btn btn-outline" style="${btn}" onclick="pbDownload(${d.id})">⬇ Download</button>` : ''}
                         <button class="btn btn-outline" style="${btn}" onclick='pbOpenTransfer(${docJson}, "move")' title="Nur dieses Dokument verschieben">↗ Verschieben</button>
                         <button class="btn btn-outline" style="${btn}" onclick='pbOpenTransfer(${docJson}, "forward")' title="Nur dieses Dokument weiterleiten">↪ Weiterleiten</button>
