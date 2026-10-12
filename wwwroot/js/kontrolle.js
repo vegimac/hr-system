@@ -1026,7 +1026,8 @@ function kontrolleSoRender() {
             <td style="${td}">${z.familie ? 'Ja' : 'Nein'}</td>
             <td style="${td};${r}" title="genau ${String(z.sollGenau).replace('.', ',')}">${z.soll}</td>
             <td style="${td};${r}">${z.frei}</td>
-            <td style="${td};${r}">${z.gearbeitet}</td>
+            <td style="${td};${r}">${z.nichtFrei}</td>
+            <td style="${td};${r}">${z.krank}</td>
             <td style="${td};${r};${z.fehlend > 0 && (z.status === 'rot' || z.status === 'knapp') ? st.style : ''}">${z.fehlend}</td>
             <td style="${td};${r}">${z.verbleibend}</td>
             <td style="${td};${st.style}">${st.text}</td>
@@ -1042,7 +1043,7 @@ function kontrolleSoRender() {
         ${zeilen.length ? `<table style="border-collapse:collapse;margin:0 12px 12px">
             <tr><th style="${th}">MA-Nr.</th><th style="${th}">Vorname</th><th style="${th}">Nachname</th>
                 <th style="${th}">Fam.-Betr.</th><th style="${th};${r}">Soll</th><th style="${th};${r}">frei</th>
-                <th style="${th};${r}">gearbeitet</th><th style="${th};${r}">fehlen</th><th style="${th};${r}">verbleibend</th>
+                <th style="${th};${r}">nicht frei</th><th style="${th};${r}">krank/Unfall</th><th style="${th};${r}">fehlen</th><th style="${th};${r}">verbleibend</th>
                 <th style="${th}">Status</th></tr>
             ${body}</table>`
             : `<div class="emp-placeholder" style="height:80px"><span>${nurKritisch ? 'Niemand knapp ✓' : 'Keine Mitarbeitenden'}</span></div>`}`;

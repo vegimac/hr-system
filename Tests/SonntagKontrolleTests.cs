@@ -5,11 +5,16 @@ namespace HrSystem.Tests;
 
 /// <summary>
 /// Freie Sonntage (Walter 12.10.2026): 4 pro Jahr, mit Familienbetreuung 12,
-/// anteilig; frei = kein Stempel und keine Absenz am Sonntag.
+/// anteilig; frei = kein Stempel und keine Absenz am Sonntag; volle Krankheit/
+/// Unfall u.ä. kürzt das Soll und zählt weder frei noch nicht frei.
 /// </summary>
 public class SonntagKontrolleTests
 {
     static readonly DateOnly Jan1 = new(2026, 1, 1);
+    static readonly DateOnly Dez31 = new(2026, 12, 31);
+
+    static SonntagKontrolle.Absenz A(DateOnly von, DateOnly bis, string typ = "FERIEN", decimal prozent = 100)
+        => new(von, bis, typ, prozent);
 
     static SonntagKontrolle.Ergebnis R(
         DateOnly stichtag,
@@ -17,7 +22,7 @@ public class SonntagKontrolleTests
         (DateOnly, DateOnly?)? anstellung = null,
         (DateOnly, DateOnly?)? familie = null,
         IEnumerable<DateOnly>? stempel = null,
-        IEnumerable<(DateOnly, DateOnly)>? absenzen = null)
+        IEnumerable<SonntagKontrolle.Absenz>? absenzen = null)
         => SonntagKontrolle.Berechne(new SonntagKontrolle.Eingabe(
             2026, stichtag, datenAb ?? Jan1,
             new List<(DateOnly, DateOnly?)> { anstellung ?? (new DateOnly(2020, 1, 1), null) },
@@ -34,34 +39,63 @@ public class SonntagKontrolleTests
     [Fact]
     public void GanzesJahr_Soll4_Familie12()
     {
-        Assert.Equal(4, R(new DateOnly(2026, 12, 31)).Soll);
-        Assert.Equal(12, R(new DateOnly(2026, 12, 31), familie: (new DateOnly(2020, 1, 1), null)).Soll);
+        Assert.Equal(4, R(Dez31).Soll);
+        Assert.Equal(12, R(Dez31, familie: (new DateOnly(2020, 1, 1), null)).Soll);
     }
 
     [Fact]
     public void EintrittMitteJahr_Anteilig()
     {
-        var r = R(new DateOnly(2026, 12, 31), anstellung: (new DateOnly(2026, 7, 1), null));
-        Assert.Equal(2, r.Soll);   // 184/365 × 4 = 2.02
+        Assert.Equal(2, R(Dez31, anstellung: (new DateOnly(2026, 7, 1), null)).Soll);   // 184/365 × 4
     }
 
     [Fact]
     public void FamilieHalbesJahr_MischSatz()
     {
-        var r = R(new DateOnly(2026, 12, 31), familie: (new DateOnly(2026, 7, 1), null));
-        Assert.Equal(8, r.Soll);   // 181/365 × 4 + 184/365 × 12 = 1.98 + 6.05
+        var r = R(Dez31, familie: (new DateOnly(2026, 7, 1), null));
+        Assert.Equal(8, r.Soll);   // 181/365 × 4 + 184/365 × 12
         Assert.True(r.MitFamilie);
     }
 
     [Fact]
-    public void StempelUndAbsenzMachenSonntagUnfrei()
+    public void StempelUndFerienMachenSonntagNichtFrei()
     {
         var alle = Sonntage(Jan1, new DateOnly(2026, 3, 31)).ToList();   // 13 Sonntage
-        var r = R(new DateOnly(2026, 3, 31),
-            stempel: alle.Take(10),
-            absenzen: [(alle[10], alle[10])]);
+        var r = R(new DateOnly(2026, 3, 31), stempel: alle.Take(10), absenzen: [A(alle[10], alle[10])]);
         Assert.Equal(2, r.FreiBisher);
-        Assert.Equal(11, r.GearbeitetBisher);
+        Assert.Equal(11, r.NichtFreiBisher);
+    }
+
+    [Fact]
+    public void FastGanzesJahrKrank_KeinAnspruch_NichtRot()
+    {
+        // Familie, krank 01.01.–30.09., danach jeden Sonntag gearbeitet
+        var r = R(new DateOnly(2026, 10, 12),
+            familie: (new DateOnly(2020, 1, 1), null),
+            stempel: Sonntage(new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 12)),
+            absenzen: [A(Jan1, new DateOnly(2026, 9, 30), "KRANK")]);
+        Assert.Equal(3, r.Soll);                         // 92/365 × 12 = 3.02
+        Assert.Equal(Sonntage(Jan1, new DateOnly(2026, 9, 30)).Count(), r.KrankBisher);
+        Assert.Equal(0, r.FreiBisher);
+        Assert.Equal(2, r.NichtFreiBisher);
+        Assert.NotEqual("rot", r.Status);                // 11 Sonntage bleiben für 3
+    }
+
+    [Fact]
+    public void Teilkrankheit_IstNormalerTag()
+    {
+        var r = R(Dez31, absenzen: [A(Jan1, Dez31, "KRANK", 50)]);
+        Assert.Equal(4, r.Soll);
+        Assert.Equal(0, r.KrankBisher);
+        Assert.Equal(Sonntage(Jan1, Dez31).Count(), r.FreiBisher);
+    }
+
+    [Fact]
+    public void UnfallMilitaerMutterschaft_OhneAnspruch_FerienNicht()
+    {
+        foreach (var typ in new[] { "UNFALL", "MILITAER", "ZIVILSCHUTZ", "MUTTERSCHAFT", "VATERSCHAFT" })
+            Assert.Equal(0, R(Dez31, absenzen: [A(Jan1, Dez31, typ)]).Soll);
+        Assert.Equal(4, R(Dez31, absenzen: [A(Jan1, Dez31, "FERIEN")]).Soll);
     }
 
     [Fact]
@@ -77,24 +111,23 @@ public class SonntagKontrolleTests
         Assert.Equal(2, knapp.Fehlend);
         Assert.Equal(2, knapp.Verbleibend);
 
-        var rot = R(stichtag, stempel: alleBisher);                 // 0 frei, fehlen 4, bleiben 2
-        Assert.Equal("rot", rot.Status);
+        Assert.Equal("rot", R(stichtag, stempel: alleBisher).Status);   // fehlen 4, bleiben 2
     }
 
     [Fact]
     public void GeplanteAbsenzZaehltNichtAlsVerbleibend()
     {
-        var r = R(new DateOnly(2026, 12, 13), absenzen: [(new DateOnly(2026, 12, 20), new DateOnly(2026, 12, 27))]);
+        var r = R(new DateOnly(2026, 12, 13), absenzen: [A(new DateOnly(2026, 12, 20), new DateOnly(2026, 12, 27))]);
         Assert.Equal(0, r.Verbleibend);
     }
 
     [Fact]
     public void ZaehltErstAbErstenStempelMonat()
     {
-        var r = R(new DateOnly(2026, 12, 31), datenAb: new DateOnly(2026, 7, 1));
+        var r = R(Dez31, datenAb: new DateOnly(2026, 7, 1));
         Assert.Equal(new DateOnly(2026, 7, 1), r.ZaehlAb);
         Assert.Equal(2, r.Soll);
-        Assert.Equal(Sonntage(new DateOnly(2026, 7, 1), new DateOnly(2026, 12, 31)).Count(), r.FreiBisher);
+        Assert.Equal(Sonntage(new DateOnly(2026, 7, 1), Dez31).Count(), r.FreiBisher);
     }
 
     [Fact]
@@ -102,13 +135,12 @@ public class SonntagKontrolleTests
     {
         var zeilen = new List<SonntagListePdfService.Zeile>
         {
-            new("1220001", "Aurelio Ruben", "Artiles Santana", true, 12, 3, 38, 9, 11, "knapp"),
-            new("1220002", "Bruno", "Beispiel", false, 4, 0, 41, 4, 2, "rot"),
-            new("1220003", "Carla", "Test", false, 4, 9, 32, 0, 11, "ok"),
-            new("1220004", "Dora", "Muster", false, 2, 1, 10, 1, 11, "offen"),
+            new("1220001", "Aurelio Ruben", "Artiles Santana", true, 12, 3, 30, 8, 9, 11, "knapp"),
+            new("1220002", "Bruno", "Beispiel", false, 4, 0, 41, 0, 4, 2, "rot"),
+            new("1220003", "Carla", "Test", false, 1, 0, 2, 39, 1, 11, "offen"),
         };
         var bytes = new SonntagListePdfService().Generate(
-            new("122 Teststadt", 2026, new DateOnly(2026, 1, 1), false, 4, 1, 1, zeilen));
+            new("122 Teststadt", 2026, Jan1, false, 3, 1, 1, zeilen));
         Assert.True(bytes.Length > 1000);
     }
 

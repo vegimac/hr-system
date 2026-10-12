@@ -917,13 +917,13 @@ public class KontrollListenController : ControllerBase
         var bytes = pdf.Generate(new SonntagListePdfService.Input(titel, j, zaehlAb, nurKritisch, alle.Count,
             alle.Count(z => z.Status == "rot"), alle.Count(z => z.Status == "knapp"),
             gedruckt.Select(z => new SonntagListePdfService.Zeile(z.EmpNr, z.Vorname, z.Nachname, z.Familie,
-                z.Soll, z.Frei, z.Gearbeitet, z.Fehlend, z.Verbleibend, z.Status)).ToList()));
+                z.Soll, z.Frei, z.NichtFrei, z.Krank, z.Fehlend, z.Verbleibend, z.Status)).ToList()));
         return File(bytes, "application/pdf", $"Freie_Sonntage_{j}_{titel.Replace(' ', '_')}.pdf");
     }
 
     private record SoZeile(
         int EmployeeId, string? EmpNr, string? Vorname, string? Nachname, bool Familie,
-        int Soll, decimal SollGenau, int Frei, int Gearbeitet, int Fehlend, int Verbleibend, string Status);
+        int Soll, decimal SollGenau, int Frei, int NichtFrei, int Krank, int Fehlend, int Verbleibend, string Status);
 
     private async Task<(DateOnly? ZaehlAb, List<SoZeile> Zeilen)> SonntagZeilenAsync(int cp, int jahr)
     {
@@ -959,9 +959,9 @@ public class KontrollListenController : ControllerBase
         var stempelTage = stempel.ToLookup(t => t.EmployeeId, t => t.EntryDate);
         var absenzen = (await _db.Absences.AsNoTracking()
                 .Where(a => ids.Contains(a.EmployeeId) && a.DateFrom <= jahrBis && a.DateTo >= jahrVon)
-                .Select(a => new { a.EmployeeId, a.DateFrom, a.DateTo })
+                .Select(a => new { a.EmployeeId, a.DateFrom, a.DateTo, a.AbsenceType, a.Prozent })
                 .ToListAsync())
-            .ToLookup(a => a.EmployeeId, a => (a.DateFrom, a.DateTo));
+            .ToLookup(a => a.EmployeeId, a => new SonntagKontrolle.Absenz(a.DateFrom, a.DateTo, a.AbsenceType ?? "", a.Prozent));
 
         DateOnly? zaehlAb = null;
         if (stempel.Count > 0)
@@ -992,7 +992,7 @@ public class KontrollListenController : ControllerBase
                     jahr, stichtag, zaehlAb, abschnitte, fam,
                     stempelTage[e.Id].ToHashSet(), absenzen[e.Id].ToList()));
                 return new SoZeile(e.Id, e.EmployeeNumber, e.FirstName, e.LastName, r.MitFamilie,
-                    r.Soll, r.SollGenau, r.FreiBisher, r.GearbeitetBisher, r.Fehlend, r.Verbleibend, r.Status);
+                    r.Soll, r.SollGenau, r.FreiBisher, r.NichtFreiBisher, r.KrankBisher, r.Fehlend, r.Verbleibend, r.Status);
             })
             .ToList();
         return (zaehlAb, zeilen);

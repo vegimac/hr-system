@@ -12,7 +12,7 @@ public class SonntagListePdfService
 {
     public record Zeile(
         string? EmpNr, string? Vorname, string? Nachname, bool Familie,
-        int Soll, int Frei, int Gearbeitet, int Fehlend, int Verbleibend, string Status);
+        int Soll, int Frei, int NichtFrei, int Krank, int Fehlend, int Verbleibend, string Status);
 
     public record Input(string FilialeTitel, int Jahr, DateOnly? ZaehlAb, bool NurKritisch,
         int AnzahlMa, int AnzahlRot, int AnzahlKnapp, List<Zeile> Zeilen);
@@ -58,6 +58,7 @@ public class SonntagListePdfService
                         .FontSize(9f).FontColor(Muted);
                     col.Item().PaddingTop(3).Text(
                         "Pro Kalenderjahr mindestens 4 freie Sonntage, mit Familienbetreuung (easy@work) 12 — anteilig bei Eintritt/Austritt unter dem Jahr. "
+                        + "Während voller Krankheit, Unfall, Militär, Mutter-/Vaterschaft entsteht kein Anspruch: diese Tage kürzen das Soll, solche Sonntage zählen weder frei noch nicht frei. "
                         + "Frei = an diesem Sonntag kein Stempel und keine Absenz (auch keine Ferien). «Verbleibend» = kommende Sonntage ohne geplante Absenz.")
                         .FontSize(9.5f).FontColor(Body);
                     col.Item().PaddingTop(6);
@@ -73,7 +74,8 @@ public class SonntagListePdfService
                         c.RelativeColumn(1.5f); // Familienbetr.
                         c.RelativeColumn(1.0f); // Soll
                         c.RelativeColumn(1.2f); // frei bisher
-                        c.RelativeColumn(1.4f); // gearbeitet
+                        c.RelativeColumn(1.3f); // nicht frei
+                        c.RelativeColumn(1.6f); // krank/Unfall
                         c.RelativeColumn(1.1f); // fehlen
                         c.RelativeColumn(1.4f); // verbleibend
                         c.RelativeColumn(2.6f); // Status
@@ -93,7 +95,8 @@ public class SonntagListePdfService
                         Th("Fam.-Betr.");
                         Th("Soll", true);
                         Th("frei", true);
-                        Th("gearbeitet", true);
+                        Th("nicht frei", true);
+                        Th("krank/Unfall", true);
                         Th("fehlen", true);
                         Th("verbleibend", true);
                         Th("Status");
@@ -124,7 +127,8 @@ public class SonntagListePdfService
                         Td(z.Familie ? "Ja" : "Nein");
                         Td(z.Soll.ToString(), true);
                         Td(z.Frei.ToString(), true);
-                        Td(z.Gearbeitet.ToString(), true);
+                        Td(z.NichtFrei.ToString(), true);
+                        Td(z.Krank.ToString(), true);
                         Td(z.Fehlend.ToString(), true, status: z.Fehlend > 0);
                         Td(z.Verbleibend.ToString(), true);
                         Td(StatusText(z.Status), status: true);
