@@ -4578,6 +4578,17 @@ public class EasyAtWorkEmployeeSyncService
                             data.EntryDate?.ToString("yyyy-MM-dd"));
         Add("Austritt",    co?.ExitDate?.ToString("yyyy-MM-dd"),
                             data.ExitDate?.ToString("yyyy-MM-dd"));
+        // Familienbetreuung: nur Anzeige in der Vorschau, geschrieben wird über
+        // FamilienbetreuungUebernehmen (ApplyDiffs kennt das Feld bewusst nicht).
+        if (data.Familienbetreuung is bool fbJa)
+        {
+            static string Fb(bool ja, DateTime? von, DateTime? bis) => !ja ? "Nein"
+                : $"Ja {(von.HasValue ? von.Value.ToString("dd.MM.yyyy") : "…")} – {(bis.HasValue ? bis.Value.ToString("dd.MM.yyyy") : "offen")}";
+            AddNullable("Familienbetreuung",
+                co == null ? null : Fb(co.Familienbetreuung, co.FamilienbetreuungVon, co.FamilienbetreuungBis),
+                Fb(fbJa, data.FamilienbetreuungVon?.ToDateTime(TimeOnly.MinValue), data.FamilienbetreuungBis?.ToDateTime(TimeOnly.MinValue)),
+                mayClear: true);
+        }
         return diffs;
     }
 

@@ -494,7 +494,8 @@ let _eawRunNowTimer = null;
 async function eawRunNow() {
     const btn = document.getElementById('eawRunNowBtn');
     const st  = document.getElementById('eawRunNowStatus');
-    if (!confirm('Nachtlauf jetzt starten?\n\nMA-Stammdaten und Stempelzeiten aller Filialen werden aus easy@work synchronisiert – genau wie um 05:00.')) return;
+    if (!await liquidConfirm('MA-Stammdaten und Stempelzeiten aller Filialen werden aus easy@work synchronisiert – genau wie um 05:00.',
+        { title: 'Nachtlauf jetzt starten?', yesLabel: 'Starten', noLabel: 'Abbrechen' })) return;
     btn.disabled = true;
     st.textContent = '⏳ Lauf gestartet…';
     try {

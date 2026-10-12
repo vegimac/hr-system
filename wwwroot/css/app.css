@@ -4081,23 +4081,28 @@
            Briefanrede (schmal) | Kurzname | Sex | Konfession | Nationalität | Bewilligung | ZEMIS */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 {
             grid-column: 1 / -1;
-            display: flex;
-            flex-wrap: wrap;
-            column-gap: 12px;
-            row-gap: 15px;
+            display: grid;
+            grid-template-columns:
+                minmax(150px, 1.35fr)  /* Briefanrede */
+                minmax(80px, 0.8fr)    /* Kurzname */
+                44px                   /* Sex */
+                minmax(140px, 1.1fr)   /* Konfession */
+                minmax(150px, 1.35fr)  /* Nationalität */
+                minmax(120px, 1fr)     /* Bewilligung */
+                150px;                 /* ZEMIS */
+            column-gap: 14px;
             align-items: start;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf {
             min-width: 0;
             margin-bottom: 0;
+            max-width: none;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-briefanrede { flex: 0 0 140px; }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-kurzname { flex: 0 1 110px; }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-sex { flex: 0 0 44px; }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-konf { flex: 0 0 165px; }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-nat { flex: 1 1 150px; }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-bew { flex: 0 1 auto; }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf-zemis { flex: 0 0 150px; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 .ov-pfv {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-fb {
             grid-column: span 2;
         }
