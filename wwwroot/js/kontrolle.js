@@ -19,6 +19,7 @@ function kontrolleInit() {
 function kontrolleRefreshAll() {
     kontrolleDossierRefresh();
     kontrolleFbRefresh();
+    kontrolleSoRefresh();
     kontrolleEmployeeRefresh();
     kontrolleSpouseRefresh();
     kontrollePermitRefresh();
@@ -955,6 +956,104 @@ function kontrolleFbPdf() {
     const nurAbw = !!document.getElementById('kontrolleFbNurAbw')?.checked;
     previewUrlFetch(`/api/kontrolle/familienbetreuung/pdf?companyProfileId=${cp}&nurAbweichungen=${nurAbw}`,
         'Familienbetreuung.pdf', ah());
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Freie Sonntage (Walter-Vorgabe 12.10.2026) — Rechnung auf dem Server
+// (SonntagKontrolle): 4 pro Jahr, mit Familienbetreuung 12, anteilig.
+// ══════════════════════════════════════════════════════════════════════
+let _kontrolleSo = null;
+const _kontrolleSoStatus = {
+    ok:          { text: 'erreicht',               style: 'color:#15803d;font-weight:600' },
+    offen:       { text: 'offen',                  style: 'color:#3f3f3f' },
+    knapp:       { text: 'knapp',                  style: 'background:#ffeb9c;color:#7a5c00;font-weight:700' },
+    rot:         { text: 'nicht mehr erreichbar',  style: 'background:#ffc7ce;color:#9c0006;font-weight:700' },
+    keine_daten: { text: 'keine Stempeldaten',     style: 'color:#8b8b8b' },
+};
+
+function kontrolleZuSonntage() {
+    showPage('kontrolle');
+    setTimeout(() => document.getElementById('kontrolleSoCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+}
+
+function _kontrolleSoJahr() {
+    const sel = document.getElementById('kontrolleSoJahr');
+    const jetzt = new Date().getFullYear();
+    if (sel && !sel.options.length) {
+        sel.innerHTML = [jetzt, jetzt - 1].map(j => `<option value="${j}">${j}</option>`).join('');
+        sel.value = String(jetzt);
+    }
+    return sel?.value || String(jetzt);
+}
+
+async function kontrolleSoRefresh() {
+    const el = document.getElementById('kontrolleSoList');
+    if (!el) return;
+    const jahr = _kontrolleSoJahr();
+    const cp = typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null;
+    if (!cp) {
+        _kontrolleSo = null;
+        el.innerHTML = '<div class="emp-placeholder" style="height:90px"><span>Bitte oben links eine Filiale wählen.</span></div>';
+        return;
+    }
+    el.innerHTML = '<div class="emp-placeholder" style="height:90px"><span>Lade Liste…</span></div>';
+    try {
+        const r = await fetch(`/api/kontrolle/sonntage?companyProfileId=${cp}&jahr=${jahr}`, { headers: ah() });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.message || ('HTTP ' + r.status)); }
+        _kontrolleSo = await r.json();
+        kontrolleSoRender();
+    } catch (e) {
+        el.innerHTML = `<div style="padding:14px 18px;color:#b91c1c;font-size:13px">Fehler: ${_kEsc(e.message)}</div>`;
+    }
+}
+
+function kontrolleSoRender() {
+    const el = document.getElementById('kontrolleSoList');
+    const d = _kontrolleSo;
+    if (!el || !d) return;
+    const nurKritisch = !!document.getElementById('kontrolleSoNurKritisch')?.checked;
+    const zeilen = (d.zeilen || []).filter(z => !nurKritisch || z.status === 'rot' || z.status === 'knapp');
+    const dmy = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
+    const th = 'padding:6px 10px;font-size:11.5px;font-weight:600;color:#3f3f3f;text-align:left;border-bottom:1px solid rgba(60,55,48,0.2);white-space:nowrap';
+    const td = 'padding:5px 10px;font-size:12.5px;border-bottom:1px solid rgba(60,55,48,0.08);white-space:nowrap';
+    const r = 'text-align:right';
+    const body = zeilen.map(z => {
+        const st = _kontrolleSoStatus[z.status] || _kontrolleSoStatus.offen;
+        return `<tr style="cursor:pointer" onclick="kontrolleOpenEmployee(${z.employeeId})">
+            <td style="${td}">${_kEsc(z.empNr || '')}</td>
+            <td style="${td}">${_kEsc(z.vorname || '')}</td>
+            <td style="${td}">${_kEsc(z.nachname || '')}</td>
+            <td style="${td}">${z.familie ? 'Ja' : 'Nein'}</td>
+            <td style="${td};${r}" title="genau ${String(z.sollGenau).replace('.', ',')}">${z.soll}</td>
+            <td style="${td};${r}">${z.frei}</td>
+            <td style="${td};${r}">${z.gearbeitet}</td>
+            <td style="${td};${r};${z.fehlend > 0 && (z.status === 'rot' || z.status === 'knapp') ? st.style : ''}">${z.fehlend}</td>
+            <td style="${td};${r}">${z.verbleibend}</td>
+            <td style="${td};${st.style}">${st.text}</td>
+        </tr>`;
+    }).join('');
+    el.innerHTML = `
+        <div style="padding:10px 18px;font-size:12.5px;color:#646464">
+            <b style="color:#3f3f3f">${d.anzahlMa}</b> Mitarbeitende ·
+            <b style="color:#9c0006">${d.anzahlRot}</b> nicht mehr erreichbar ·
+            <b style="color:#7a5c00">${d.anzahlKnapp}</b> knapp
+            ${d.zaehlAb ? ` · gezählt ab <b>${dmy(d.zaehlAb)}</b> (erste Stempeldaten)` : ' · <span style="color:#b91c1c">keine Stempeldaten in diesem Jahr</span>'}
+        </div>
+        ${zeilen.length ? `<table style="border-collapse:collapse;margin:0 12px 12px">
+            <tr><th style="${th}">MA-Nr.</th><th style="${th}">Vorname</th><th style="${th}">Nachname</th>
+                <th style="${th}">Fam.-Betr.</th><th style="${th};${r}">Soll</th><th style="${th};${r}">frei</th>
+                <th style="${th};${r}">gearbeitet</th><th style="${th};${r}">fehlen</th><th style="${th};${r}">verbleibend</th>
+                <th style="${th}">Status</th></tr>
+            ${body}</table>`
+            : `<div class="emp-placeholder" style="height:80px"><span>${nurKritisch ? 'Niemand knapp ✓' : 'Keine Mitarbeitenden'}</span></div>`}`;
+}
+
+function kontrolleSoPdf() {
+    const cp = typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null;
+    if (!cp) { alert('Bitte oben links eine Filiale wählen.'); return; }
+    const nurKritisch = !!document.getElementById('kontrolleSoNurKritisch')?.checked;
+    previewUrlFetch(`/api/kontrolle/sonntage/pdf?companyProfileId=${cp}&jahr=${_kontrolleSoJahr()}&nurKritisch=${nurKritisch}`,
+        'Freie_Sonntage.pdf', ah());
 }
 
 /** Export als CSV (Excel öffnet es direkt) — über den «Speichern unter…»-Helfer. */

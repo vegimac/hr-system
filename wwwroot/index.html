@@ -2404,6 +2404,7 @@
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-ahv-abgleich')">5&nbsp;·&nbsp;AHV-Abgleich: GastroSocial gemeldete MA</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-fz-abgleich')">6&nbsp;·&nbsp;FZ-Abgleich: GastroSocial Familienzulagen</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="kontrolleZuFamilienbetreuung()">7&nbsp;·&nbsp;Familienbetreuung: easy@work gegen Soll</button>
+                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="kontrolleZuSonntage()">8&nbsp;·&nbsp;Freie Sonntage (4 / 12 pro Jahr)</button>
                         </div>
                         <ul style="margin-top:10px">
                             <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
@@ -2413,6 +2414,7 @@
                             <li><b>AHV-Abgleich GastroSocial</b> — Liste «Mitarbeitende» aus dem Portal: wer muss abgemeldet werden, wer ist nicht gemeldet</li>
                             <li><b>FZ-Abgleich GastroSocial</b> — «Familienzulagenbescheinigung»: zahlt GastroSocial dieselben Monate und Ansätze wie die Zulagen bei den Kindern in OneCrew</li>
                             <li><b>Familienbetreuung</b> — stimmt das Feld in easy@work mit den Kindern unter 15 im Haushalt überein (+ PDF für GF)</li>
+                            <li><b>Freie Sonntage</b> — hat jeder MA seine 4 (mit Familienbetreuung 12) freien Sonntage im Jahr bzw. reicht es noch (+ PDF für GF)</li>
                         </ul>
                     </div>
 
@@ -3002,6 +3004,32 @@
                         </div>
                     </div>
                     <div id="kontrolleFbList" style="padding:0;overflow-x:auto">
+                        <div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>
+                    </div>
+                </div>
+
+                <!-- Walter-Vorgabe 12.10.2026: freie Sonntage pro Jahr (4, mit
+                     Familienbetreuung 12, anteilig) — PDF für die GF. -->
+                <div class="card" id="kontrolleSoCard" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f;scroll-margin-top:16px">
+                    <div style="padding:14px 18px;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                        <div>
+                            <div style="font-size:15px;font-weight:700;color:#3f3f3f">Freie Sonntage</div>
+                            <div style="font-size:12.5px;color:#646464;margin-top:2px">
+                                Pro Kalenderjahr mindestens 4 freie Sonntage, mit Familienbetreuung 12 — anteilig bei Eintritt/Austritt.
+                                Frei = kein Stempel und keine Absenz am Sonntag. Stempel aller Filialen zählen.
+                                <b style="background:#ffeb9c;color:#7a5c00;padding:0 4px">knapp</b> = weniger als 4 Sonntage Spielraum ·
+                                <b style="background:#ffc7ce;color:#9c0006;padding:0 4px">rot</b> = nicht mehr erreichbar.
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select id="kontrolleSoJahr" onchange="kontrolleSoRefresh()" style="font-size:12.5px"></select>
+                            <label style="font-size:12.5px;color:#3f3f3f;display:flex;align-items:center;gap:6px;cursor:pointer">
+                                <input type="checkbox" id="kontrolleSoNurKritisch" onchange="kontrolleSoRender()" style="accent-color:#3f3f3f"> nur knapp / rot
+                            </label>
+                            <button type="button" class="btn btn-outline" onclick="kontrolleSoPdf()" style="font-size:12px">📄 PDF für GF</button>
+                        </div>
+                    </div>
+                    <div id="kontrolleSoList" style="padding:0;overflow-x:auto">
                         <div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>
                     </div>
                 </div>
@@ -10484,7 +10512,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>
 <script src="js/qst-import.js?v=20260704p"></script>
-<script src="js/kontrolle.js?v=20261012c"></script>
+<script src="js/kontrolle.js?v=20261012d"></script>
 <script src="js/nationen.js?v=20260816a"></script>
 <script src="js/swiss-locations.js?v=20260816a"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>

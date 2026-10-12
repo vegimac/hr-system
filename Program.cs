@@ -202,6 +202,7 @@ builder.Services.AddScoped<BewerbungsbogenPdfService>();
 builder.Services.AddScoped<QstInfoFormularPdfService>();
 builder.Services.AddScoped<NotfallListePdfService>();
 builder.Services.AddScoped<FamilienbetreuungListePdfService>();   // Kontrolle Familienbetreuung (12.10.2026)
+builder.Services.AddScoped<SonntagListePdfService>();              // Kontrolle freie Sonntage (12.10.2026)
 builder.Services.AddScoped<DokumentStrukturPdfService>();
 builder.Services.AddScoped<MtpStundenPdfService>();
 builder.Services.AddScoped<StempelBerichtPdfService>();

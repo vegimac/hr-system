@@ -877,6 +877,127 @@ public class KontrollListenController : ControllerBase
         return File(bytes, "application/pdf", $"Familienbetreuung_{titel.Replace(' ', '_')}_{DateTime.Today:yyyy-MM-dd}.pdf");
     }
 
+    /// <summary>
+    /// Freie Sonntage pro Kalenderjahr (Walter-Vorgabe 12.10.2026): 12 mit
+    /// Familienbetreuung, sonst 4, anteilig — Regel <see cref="SonntagKontrolle"/>.
+    /// Stempel und Absenzen aller Filialen des MA zählen.
+    /// </summary>
+    [HttpGet("sonntage")]
+    public async Task<IActionResult> Sonntage([FromQuery] int companyProfileId, [FromQuery] int? jahr = null)
+    {
+        var guard = await GuardBranchAsync(companyProfileId);
+        if (guard != null) return guard;
+        var (zaehlAb, zeilen) = await SonntagZeilenAsync(companyProfileId, jahr ?? DateTime.Today.Year);
+        return Ok(new
+        {
+            jahr = jahr ?? DateTime.Today.Year,
+            zaehlAb = zaehlAb?.ToString("yyyy-MM-dd"),
+            anzahlMa = zeilen.Count,
+            anzahlRot = zeilen.Count(z => z.Status == "rot"),
+            anzahlKnapp = zeilen.Count(z => z.Status == "knapp"),
+            zeilen,
+        });
+    }
+
+    [HttpGet("sonntage/pdf")]
+    public async Task<IActionResult> SonntagePdf([FromQuery] int companyProfileId, [FromQuery] int? jahr = null, [FromQuery] bool nurKritisch = false)
+    {
+        var guard = await GuardBranchAsync(companyProfileId);
+        if (guard != null) return guard;
+        var cp = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == companyProfileId);
+        if (cp is null) return NotFound(new { error = "FILIALE_NICHT_GEFUNDEN", message = "Filiale nicht gefunden." });
+
+        var j = jahr ?? DateTime.Today.Year;
+        var (zaehlAb, alle) = await SonntagZeilenAsync(companyProfileId, j);
+        var gedruckt = nurKritisch ? alle.Where(z => z.Status is "rot" or "knapp").ToList() : alle;
+        var titel = string.Join(" ", new[] { cp.RestaurantCode, cp.City }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+        if (string.IsNullOrWhiteSpace(titel)) titel = cp.BranchName ?? "";
+
+        var pdf = HttpContext.RequestServices.GetRequiredService<SonntagListePdfService>();
+        var bytes = pdf.Generate(new SonntagListePdfService.Input(titel, j, zaehlAb, nurKritisch, alle.Count,
+            alle.Count(z => z.Status == "rot"), alle.Count(z => z.Status == "knapp"),
+            gedruckt.Select(z => new SonntagListePdfService.Zeile(z.EmpNr, z.Vorname, z.Nachname, z.Familie,
+                z.Soll, z.Frei, z.Gearbeitet, z.Fehlend, z.Verbleibend, z.Status)).ToList()));
+        return File(bytes, "application/pdf", $"Freie_Sonntage_{j}_{titel.Replace(' ', '_')}.pdf");
+    }
+
+    private record SoZeile(
+        int EmployeeId, string? EmpNr, string? Vorname, string? Nachname, bool Familie,
+        int Soll, decimal SollGenau, int Frei, int Gearbeitet, int Fehlend, int Verbleibend, string Status);
+
+    private async Task<(DateOnly? ZaehlAb, List<SoZeile> Zeilen)> SonntagZeilenAsync(int cp, int jahr)
+    {
+        var jahrVon = new DateOnly(jahr, 1, 1);
+        var jahrBis = new DateOnly(jahr, 12, 31);
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        var stichtag = heute < jahrBis ? heute : jahrBis;
+        var bezug = stichtag.ToDateTime(TimeOnly.MinValue);
+        var jahrEnde = jahrBis.ToDateTime(TimeOnly.MinValue);
+
+        var empIds = await _db.Employments.AsNoTracking()
+            .Where(em => em.CompanyProfileId == cp && em.ContractStartDate <= jahrEnde
+                      && (em.ContractEndDate == null || em.ContractEndDate >= bezug))
+            .Select(em => em.EmployeeId).Distinct().ToListAsync();
+        var emps = await _db.Employees.AsNoTracking()
+            .Where(e => empIds.Contains(e.Id) && !e.IsHidden && !e.IsPayrollExcluded
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt")
+                     && (e.ExitDate == null || e.ExitDate >= bezug))
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.ExitDate,
+                               e.Familienbetreuung, e.FamilienbetreuungVon, e.FamilienbetreuungBis })
+            .ToListAsync();
+        var ids = emps.Select(e => e.Id).ToList();
+
+        var anstellungen = (await _db.Employments.AsNoTracking()
+                .Where(v => ids.Contains(v.EmployeeId))
+                .Select(v => new { v.EmployeeId, v.ContractStartDate, v.ContractEndDate })
+                .ToListAsync())
+            .ToLookup(v => v.EmployeeId);
+        var stempel = (await _db.EmployeeTimeEntries.AsNoTracking()
+                .Where(t => ids.Contains(t.EmployeeId) && t.EntryDate >= jahrVon && t.EntryDate <= jahrBis)
+                .Select(t => new { t.EmployeeId, t.EntryDate })
+                .ToListAsync());
+        var stempelTage = stempel.ToLookup(t => t.EmployeeId, t => t.EntryDate);
+        var absenzen = (await _db.Absences.AsNoTracking()
+                .Where(a => ids.Contains(a.EmployeeId) && a.DateFrom <= jahrBis && a.DateTo >= jahrVon)
+                .Select(a => new { a.EmployeeId, a.DateFrom, a.DateTo })
+                .ToListAsync())
+            .ToLookup(a => a.EmployeeId, a => (a.DateFrom, a.DateTo));
+
+        DateOnly? zaehlAb = null;
+        if (stempel.Count > 0)
+        {
+            var erster = stempel.Min(t => t.EntryDate);
+            zaehlAb = new DateOnly(erster.Year, erster.Month, 1);
+        }
+
+        static DateOnly? D(DateTime? x) => x.HasValue ? DateOnly.FromDateTime(x.Value) : null;
+        var zeilen = emps
+            .OrderBy(e => e.FirstName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(e => e.LastName ?? "", StringComparer.OrdinalIgnoreCase)
+            .Select(e =>
+            {
+                var austritt = D(e.ExitDate);
+                var abschnitte = anstellungen[e.Id]
+                    .Select(v =>
+                    {
+                        var bis = D(v.ContractEndDate);
+                        if (austritt.HasValue && (bis == null || bis > austritt)) bis = austritt;
+                        return (Von: DateOnly.FromDateTime(v.ContractStartDate), Bis: bis);
+                    })
+                    .ToList();
+                (DateOnly, DateOnly?)? fam = e.Familienbetreuung && e.FamilienbetreuungVon.HasValue
+                    ? (DateOnly.FromDateTime(e.FamilienbetreuungVon.Value), D(e.FamilienbetreuungBis))
+                    : null;
+                var r = SonntagKontrolle.Berechne(new SonntagKontrolle.Eingabe(
+                    jahr, stichtag, zaehlAb, abschnitte, fam,
+                    stempelTage[e.Id].ToHashSet(), absenzen[e.Id].ToList()));
+                return new SoZeile(e.Id, e.EmployeeNumber, e.FirstName, e.LastName, r.MitFamilie,
+                    r.Soll, r.SollGenau, r.FreiBisher, r.GearbeitetBisher, r.Fehlend, r.Verbleibend, r.Status);
+            })
+            .ToList();
+        return (zaehlAb, zeilen);
+    }
+
     private record FbZeile(
         int EmployeeId, string? EmpNr, string? Vorname, string? Nachname,
         bool IstJa, DateOnly? IstVon, DateOnly? IstBis,
