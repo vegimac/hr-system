@@ -64,16 +64,16 @@ public class FamilienbetreuungListePdfService
                 {
                     t.ColumnsDefinition(c =>
                     {
-                        c.RelativeColumn(1.4f); // MA-Nr
-                        c.RelativeColumn(2.4f); // Vorname
-                        c.RelativeColumn(2.4f); // Nachname
-                        c.RelativeColumn(1.3f); // easy Ja/Nein
-                        c.RelativeColumn(1.6f); // easy von
-                        c.RelativeColumn(1.6f); // easy bis
-                        c.RelativeColumn(1.3f); // Soll Ja/Nein
-                        c.RelativeColumn(1.6f); // Soll von
-                        c.RelativeColumn(1.6f); // Soll bis
-                        c.RelativeColumn(3.6f); // Hinweis
+                        c.RelativeColumn(1.05f); // MA-Nr
+                        c.RelativeColumn(2.0f);  // Vorname
+                        c.RelativeColumn(2.0f);  // Nachname
+                        c.RelativeColumn(1.1f);  // easy Ja/Nein
+                        c.RelativeColumn(1.35f); // easy von
+                        c.RelativeColumn(1.35f); // easy bis
+                        c.RelativeColumn(1.1f);  // Soll Ja/Nein
+                        c.RelativeColumn(1.35f); // Soll von
+                        c.RelativeColumn(1.35f); // Soll bis
+                        c.RelativeColumn(4.6f);  // Hinweis — eine Zeile
                     });
 
                     t.Header(h =>
@@ -88,7 +88,7 @@ public class FamilienbetreuungListePdfService
 
                         void Th(string s, bool soll = false) => h.Cell().Background(Soft)
                             .BorderBottom(1f).BorderColor(Ink)
-                            .PaddingVertical(4).PaddingHorizontal(4)
+                            .PaddingVertical(3).PaddingHorizontal(3)
                             .Text(s).Bold().FontSize(8.5f).FontColor(soll ? Muted : Ink);
                         Th("MA-Nr.");
                         Th("Vorname");
@@ -108,8 +108,8 @@ public class FamilienbetreuungListePdfService
                         {
                             var cell = t.Cell().BorderBottom(0.5f).BorderColor(Line);
                             if (rot) cell = cell.Background(RotHg);
-                            var txt = cell.PaddingVertical(3).PaddingHorizontal(4)
-                                .Text(string.IsNullOrEmpty(s) ? " " : s).FontSize(9f)
+                            var txt = cell.PaddingVertical(2).PaddingHorizontal(3)
+                                .Text(string.IsNullOrEmpty(s) ? " " : s).FontSize(8.5f)
                                 .FontColor(rot ? RotTx : soll ? Muted : Body);
                             if (rot) txt.Bold();
                         }
