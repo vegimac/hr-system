@@ -541,7 +541,7 @@ function dashTodoOnClick(a) {
             case 'permit_missing':      return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
             case 'gastrosocial_anmeldung_fehlt':
-            case 'gastrosocial_abmeldung_fehlt': return `onclick="dashOpenAkis('${String(a.dueDate || '').slice(0, 10)}')"`;
+            case 'gastrosocial_abmeldung_fehlt': return `onclick="dashOpenAkis()"`;
             case 'kuendigung_sperrfrist_ende': return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'ferienkuerzung_moeglich':    return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'erlaubnis_hauptarbeitgeber_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
@@ -566,16 +566,8 @@ function dashTodoOnClick(a) {
     return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
 }
 
-/** AKIS-Seite mit dem Monat des Ein-/Austritts öffnen (GastroSocial-To-dos, Walter 13.10.2026). */
-function dashOpenAkis(iso) {
-    const m = /^(\d{4})-(\d{2})/.exec(iso || '');
-    if (m) {
-        const j = +m[1], mo = +m[2];
-        const ende = new Date(j, mo, 0).getDate();
-        const f = document.getElementById('akisFrom'), t = document.getElementById('akisTo');
-        if (f) f.value = `${m[1]}-${m[2]}-01`;
-        if (t) t.value = `${m[1]}-${m[2]}-${String(ende).padStart(2, '0')}`;
-    }
+/** AKIS-Seite öffnen (GastroSocial-To-dos, Walter 13.10.2026) — sie zeigt alle offenen Meldungen. */
+function dashOpenAkis() {
     showPage('akis-meldung');
 }
 

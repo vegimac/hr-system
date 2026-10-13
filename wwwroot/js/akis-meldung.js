@@ -8,26 +8,16 @@
 
 const AKIS_PORTAL_URL = 'https://www.akisnet.ch/ak046/'; // GastroSocial (AK 046)
 
+// Keine Datumswahl (Walter 13.10.2026): immer alle noch nicht gemeldeten
+// Ein-/Austritte seit Start der Meldungs-Kontrolle, auch künftige.
 function akisInit() {
-    // Default-Zeitraum: aktueller Monat.
-    const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    const to   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const f = document.getElementById('akisFrom');
-    const t = document.getElementById('akisTo');
-    if (f && !f.value) f.value = iso(from);
-    if (t && !t.value) t.value = iso(to);
     akisRefresh();
 }
 
 function _akisParams() {
     const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
-    const from = document.getElementById('akisFrom')?.value;
-    const to   = document.getElementById('akisTo')?.value;
     if (!cid) { showToast('Bitte oben links eine Filiale wählen.', 'error'); return null; }
-    if (!from || !to) { showToast('Bitte Zeitraum wählen.', 'error'); return null; }
-    return `companyProfileId=${cid}&from=${from}&to=${to}`;
+    return `companyProfileId=${cid}`;
 }
 
 async function akisRefresh() {
@@ -48,8 +38,7 @@ async function akisRefresh() {
                <button class="dok-menu-btn" style="min-width:auto;padding:1px 7px;font-size:11px;margin-left:4px" title="Rückgängig"
                        onclick="akisMeldungZurueck(${r.gemeldet.id})">↩</button>`
             : `<button class="akis-gemeldet-btn" onclick="akisGemeldet('${art}', [${r.employeeId}], ['${r.datumIso}'], this)">✓ gemeldet</button>`;
-        const tbl = (rows, art) => rows.length
-            ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        const tabelle = (rows, art) => `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
                 ${rows.map(r => `<tr style="border-bottom:1px solid rgba(60,55,48,0.08)">
                     <td style="padding:5px 8px;font-variant-numeric:tabular-nums">${esc(r.ahv) || '<span style="color:#b45309">— fehlt —</span>'}</td>
                     <td style="padding:5px 8px;font-weight:600">${esc(r.vorname)} ${esc(r.name)}</td>
@@ -59,17 +48,23 @@ async function akisRefresh() {
                     ${art === 'ANMELDUNG' ? `<td style="padding:5px 8px">${esc(r.sprache)}</td>` : ''}
                     <td style="padding:5px 8px;text-align:right">${status(r, art)}</td>
                 </tr>`).join('')}
-               </table>`
-            : '<div style="color:#8b8b8b;padding:8px 0 14px;font-size:12px;font-style:italic">keine</div>';
+               </table>`;
+        // Offene oben; bereits Gemeldete aufklappbar darunter.
+        const tbl = (rows, art) => {
+            const offen = rows.filter(r => !r.gemeldet), erledigt = rows.filter(r => r.gemeldet);
+            return (offen.length ? tabelle(offen, art)
+                    : '<div style="color:#166534;padding:8px 0 10px;font-size:12.5px">✓ nichts offen</div>')
+                + (erledigt.length ? `<details style="margin:6px 0 4px"><summary style="cursor:pointer;font-size:12px;color:#8b8b8b">✓ ${erledigt.length} bereits gemeldet</summary>${tabelle(erledigt, art)}</details>` : '');
+        };
         const alleKnopf = (rows, art) => {
-            const offen = rows.filter(r => !r.gemeldet);
+            const offen = rows.filter(r => !r.gemeldet && r.ahv);
             return offen.length
                 ? `<button class="akis-gemeldet-btn alle" onclick="akisAlleGemeldet('${art}', this)">✓ Im AKISnet gemeldet (${offen.length})</button>`
                 : (rows.length ? '<span style="font-size:11.5px;color:#166534;font-weight:600">✓ alle gemeldet</span>' : '');
         };
         const kopf = (titel, rows, art, zusatz) => `
             <div style="display:flex;align-items:center;gap:10px;margin:18px 0 4px">
-                <div style="font-size:13px;font-weight:700;color:#3f3f3f">${titel} (${rows.length})${zusatz || ''}</div>
+                <div style="font-size:13px;font-weight:700;color:#3f3f3f">${titel} — offen ${rows.filter(r => !r.gemeldet).length}${zusatz || ''}</div>
                 <span style="flex:1"></span>${alleKnopf(rows, art)}
             </div>`;
         const warn = (rows, was) => rows.length
@@ -78,15 +73,15 @@ async function akisRefresh() {
                 ${rows.map(r => `${esc(r.vorname)} ${esc(r.name)}`).join(', ')}</div>`
             : '';
         el.innerHTML = `
-            ${kopf('Anmeldungen', d.anmeldungen, 'ANMELDUNG')}
-            ${warn(d.anmeldungenOhneAhv, 'Eintritt(e)')}
+            ${kopf('Anmeldungen', d.anmeldungen.concat(d.anmeldungenOhneAhv || []), 'ANMELDUNG')}
+            ${warn((d.anmeldungenOhneAhv || []).filter(r => !r.gemeldet), 'Eintritt(e)')}
             ${tbl(d.anmeldungen.concat(d.anmeldungenOhneAhv || []), 'ANMELDUNG')}
-            ${kopf('Abmeldungen', d.abmeldungen, 'ABMELDUNG', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— nur MA mit erfasstem Austritt</span>')}
-            ${warn(d.abmeldungenOhneAhv, 'Austritt(e)')}
+            ${kopf('Abmeldungen', d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— nur MA mit erfasstem Austritt</span>')}
+            ${warn((d.abmeldungenOhneAhv || []).filter(r => !r.gemeldet), 'Austritt(e)')}
             ${tbl(d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG')}
             ${(d.befristetOffen || []).length ? `
             <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:14px;font-size:12px;color:#92400e">
-                <b>${d.befristetOffen.length} befristete(r) Vertrag/Verträge enden im Zeitraum ohne erfassten Austritt</b> — verlängern oder Austritt erfassen (erst dann erscheinen sie als Abmeldung):<br>
+                <b>${d.befristetOffen.length} befristete(r) Vertrag/Verträge enden bald (oder endeten kürzlich) ohne erfassten Austritt</b> — verlängern oder Austritt erfassen (erst dann erscheinen sie als Abmeldung):<br>
                 ${d.befristetOffen.map(r => `${esc(r.vorname)} ${esc(r.name)} (per ${esc(r.datum)})`).join(' · ')}
             </div>` : ''}`;
     } catch (_) {
@@ -157,6 +152,11 @@ const _akisBlobs = {};   // typ → { blob, name, url }
 async function akisDownload(typ, btn) {
     const p = _akisParams();
     if (!p) return;
+    const liste = typ === 'anmeldung' ? _akisDaten?.anmeldungen : _akisDaten?.abmeldungen;
+    if (liste && !liste.some(r => !r.gemeldet)) {
+        showToast(`Keine offenen ${typ === 'anmeldung' ? 'Anmeldungen' : 'Abmeldungen'} mit AHV-Nummer — nichts zu exportieren.`, 'info');
+        return;
+    }
     if (btn) btn.disabled = true;
     try {
         const res = await fetch(`/api/akis-export/${typ}?` + p, { headers: ah() });

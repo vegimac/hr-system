@@ -4066,22 +4066,16 @@
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">An-/Abmeldung Ausgleichskasse (AKIS)</h1>
-                        <p class="page-sub">GastroSocial-Sammelmeldungen: OneCrew erzeugt die AKISnet-Upload-Excel aus den Ein- und Austritten der gewählten Filiale — Hochladen erfolgt im Portal.</p>
+                        <p class="page-sub">GastroSocial-Sammelmeldungen: alle Ein- und Austritte der gewählten Filiale, die noch nicht als gemeldet vermerkt sind. Die Excel enthält nur diese — Hochladen erfolgt im Portal.</p>
                     </div>
                 </div>
                 <div class="page-body">
                     <div class="card" style="padding:20px;max-width:900px">
-                        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
-                            <label style="font-size:12px;font-weight:600;color:#64748b">Von
-                                <input id="akisFrom" type="date" onchange="akisRefresh()" style="display:block;margin-top:4px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
-                            </label>
-                            <label style="font-size:12px;font-weight:600;color:#64748b">Bis
-                                <input id="akisTo" type="date" onchange="akisRefresh()" style="display:block;margin-top:4px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
-                            </label>
+                        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+                            <button onclick="akisOpenPortal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">🌐 AKISnet öffnen</button>
                             <span style="flex:1"></span>
                             <button onclick="akisDownload('anmeldung', this)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">⬇ Anmelde-Excel</button>
                             <button onclick="akisDownload('abmeldung', this)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">⬇ Abmelde-Excel</button>
-                            <button onclick="akisOpenPortal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">🌐 AKISnet öffnen</button>
                         </div>
                         <div id="akisFiles" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"></div>
                         <div id="akisPreview"></div>
@@ -10515,7 +10509,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/upload-regel.js?v=20261001a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20261013a"></script>
+<script src="js/dashboard.js?v=20261013b"></script>
 <script src="js/session-timeout.js?v=20261007a"></script>
 <script src="js/session-lock.js?v=20260911a"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
@@ -12298,7 +12292,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/ahv-anmeldung.js?v=20260831a"></script>
 <script src="js/famz-anmeldung.js?v=20261011g"></script>
 <script src="js/famz-gastrosocial.js?v=20261011p"></script>
-<script src="js/akis-meldung.js?v=20261013a"></script>
+<script src="js/akis-meldung.js?v=20261013b"></script>
 <script src="js/manager-dienstplan.js?v=20261013b"></script>
 <script src="js/organigramm.js?v=20261013o"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>

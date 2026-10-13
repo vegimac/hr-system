@@ -48,11 +48,11 @@ public class AkisExportController : ControllerBase
             .Select(e => new GastroSocialMeldungRegel.Vertrag(e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate))
             .ToListAsync();
         DateOnly von = DateOnly.FromDateTime(from), bis = DateOnly.FromDateTime(to);
-        // frühester Anmelde-relevanter Start im Zeitraum
+        // Jede Anmeldung einzeln (Wiedereintritt im selben Jahr = zweite Zeile).
         var kandidaten = GastroSocialMeldungRegel.Anmeldungen(vertraege)
             .Where(e => e.Datum >= von && e.Datum <= bis)
-            .GroupBy(e => e.EmployeeId)
-            .ToDictionary(g => g.Key, g => g.Min(e => e.Datum).ToDateTime(TimeOnly.MinValue));
+            .Select(e => (e.EmployeeId, e.Datum.ToDateTime(TimeOnly.MinValue)))
+            .ToList();
         return await LoadRowsAsync(kandidaten);
     }
 
@@ -80,12 +80,12 @@ public class AkisExportController : ControllerBase
             .ToListAsync())
             .ToLookup(v => v.EmployeeId);
 
-        var kandidaten = new Dictionary<int, DateTime>();
+        var kandidaten = new List<(int, DateTime)>();
         foreach (var e in exitEmps)
         {
             var ab = GastroSocialMeldungRegel.AbmeldungVon(e.Id, e.ExitDate, alleVertraege[e.Id]);
             if (ab != null && ab.CompanyProfileId == cpId)
-                kandidaten[e.Id] = e.ExitDate!.Value;
+                kandidaten.Add((e.Id, e.ExitDate!.Value));
         }
         return await LoadRowsAsync(kandidaten);
     }
@@ -126,16 +126,16 @@ public class AkisExportController : ControllerBase
             .Select(e => e.Id)
             .ToListAsync();
         var gefiltert = kandidaten.Where(k => ohneExit.Contains(k.Key))
-            .ToDictionary(k => k.Key, k => k.Value);
+            .Select(k => (k.Key, k.Value)).ToList();
         var (rows, ohneAhv) = await LoadRowsAsync(gefiltert);
         return rows.Concat(ohneAhv)
             .OrderBy(r => r.Vorname, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private async Task<(List<Row> rows, List<Row> ohneAhv)> LoadRowsAsync(Dictionary<int, DateTime> kandidaten)
+    private async Task<(List<Row> rows, List<Row> ohneAhv)> LoadRowsAsync(List<(int EmpId, DateTime Datum)> kandidaten)
     {
         if (kandidaten.Count == 0) return (new List<Row>(), new List<Row>());
-        var ids = kandidaten.Keys.ToList();
+        var ids = kandidaten.Select(k => k.EmpId).Distinct().ToList();
         var people = await _db.Employees.AsNoTracking()
             .Where(e => ids.Contains(e.Id) && !e.IsPayrollExcluded && !e.IsHidden)
             .Select(e => new
@@ -146,20 +146,23 @@ public class AkisExportController : ControllerBase
             .ToListAsync();
 
         var rows = new List<Row>();
-        foreach (var p in people)
+        var personen = people.ToDictionary(p => p.Id);
+        foreach (var (empId, datum) in kandidaten)
         {
+            if (!personen.TryGetValue(empId, out var p)) continue;
             rows.Add(new Row(
                 p.Id,
                 string.IsNullOrWhiteSpace(p.SocialSecurityNumber) ? null : p.SocialSecurityNumber.Trim(),
                 p.LastName ?? "", p.FirstName ?? "",
                 p.DateOfBirth,
                 MapGeschlecht(p.Gender, p.Salutation),
-                kandidaten[p.Id],
+                datum,
                 MapSprache(p.LanguageCode)));
         }
         // Sortierung Vorname (Projekt-Konvention)
         rows = rows.OrderBy(r => r.Vorname, StringComparer.OrdinalIgnoreCase)
-                   .ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
+                   .ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+                   .ThenBy(r => r.Datum).ToList();
         return (rows.Where(r => r.Ahv != null).ToList(),
                 rows.Where(r => r.Ahv == null).ToList());
     }
@@ -184,32 +187,45 @@ public class AkisExportController : ControllerBase
             _           => "D",
         };
 
+    // ── Zeitraum (Walter 13.10.2026: keine Datumswahl mehr) ─────────────
+    // Gezeigt wird alles ab dem Start der Meldungs-Kontrolle (wie das To-do),
+    // auch schon erfasste künftige Ein-/Austritte. Von/Bis nur noch optional.
+    private static (DateTime von, DateTime bis) Zeitraum(DateTime? from, DateTime? to) =>
+        ((from ?? GastroSocialMeldungRegel.ToDoAb.ToDateTime(TimeOnly.MinValue)).Date,
+         (to ?? new DateTime(2099, 12, 31)).Date);
+
+    private async Task<List<GastroSocialMeldung>> MeldungenAsync(int cpId) =>
+        await _db.GastroSocialMeldungen.AsNoTracking()
+            .Where(m => m.CompanyProfileId == cpId)
+            .ToListAsync();
+
+    /// <summary>Gemerkte Meldung, die diese Zeile abdeckt (±31 Tage), sonst null.</summary>
+    private static GastroSocialMeldung? Gemeldet(Row r, int cpId, string art, List<GastroSocialMeldung> meldungen)
+    {
+        var treffer = GastroSocialMeldungRegel.Passende(
+            new GastroSocialMeldungRegel.Ereignis(r.EmployeeId, cpId, art, DateOnly.FromDateTime(r.Datum)),
+            meldungen.Select(m => new GastroSocialMeldungRegel.Meldung(m.EmployeeId, m.CompanyProfileId, m.Art, m.Stichtag)));
+        return treffer == null ? null
+            : meldungen.First(x => x.EmployeeId == treffer.EmployeeId && x.Art == treffer.Art && x.Stichtag == treffer.Stichtag);
+    }
+
     // ── Vorschau (JSON für die UI) ─────────────────────────────────────
 
     [HttpGet("preview")]
     public async Task<IActionResult> Preview(
-        [FromQuery] int companyProfileId, [FromQuery] DateTime from, [FromQuery] DateTime to)
+        [FromQuery] int companyProfileId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
-        var (an, anOhne) = await AnmeldungenAsync(companyProfileId, from.Date, to.Date);
-        var (ab, abOhne) = await AbmeldungenAsync(companyProfileId, from.Date, to.Date);
-        var befristet = await BefristetOffenAsync(companyProfileId, from.Date, to.Date);
+        var (von, bis) = Zeitraum(from, to);
+        var (an, anOhne) = await AnmeldungenAsync(companyProfileId, von, bis);
+        var (ab, abOhne) = await AbmeldungenAsync(companyProfileId, von, bis);
+        // Befristungen: ohne Zeitraum nur, was bald endet oder kürzlich endete.
+        var befristet = await BefristetOffenAsync(companyProfileId,
+            from?.Date ?? DateTime.Today.AddDays(-31), to?.Date ?? DateTime.Today.AddDays(60));
         // Gemerkte Meldungen (Walter 13.10.2026): pro Zeile «gemeldet am … von …».
-        var meldungen = await _db.GastroSocialMeldungen.AsNoTracking()
-            .Where(m => m.CompanyProfileId == companyProfileId)
-            .ToListAsync();
-        var regelMeldungen = meldungen
-            .Select(m => new GastroSocialMeldungRegel.Meldung(m.EmployeeId, m.CompanyProfileId, m.Art, m.Stichtag)).ToList();
+        var meldungen = await MeldungenAsync(companyProfileId);
         object Map(Row r, string? art)
         {
-            GastroSocialMeldung? m = null;
-            if (art != null)
-            {
-                var treffer = GastroSocialMeldungRegel.Passende(
-                    new GastroSocialMeldungRegel.Ereignis(r.EmployeeId, companyProfileId, art, DateOnly.FromDateTime(r.Datum)),
-                    regelMeldungen);
-                if (treffer != null)
-                    m = meldungen.First(x => x.EmployeeId == treffer.EmployeeId && x.Art == treffer.Art && x.Stichtag == treffer.Stichtag);
-            }
+            var m = art == null ? null : Gemeldet(r, companyProfileId, art, meldungen);
             return new
             {
                 r.EmployeeId, ahv = r.Ahv, name = r.Name, vorname = r.Vorname,
@@ -243,9 +259,13 @@ public class AkisExportController : ControllerBase
 
     [HttpGet("anmeldung")]
     public async Task<IActionResult> AnmeldungXlsx(
-        [FromQuery] int companyProfileId, [FromQuery] DateTime from, [FromQuery] DateTime to)
+        [FromQuery] int companyProfileId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
-        var (rows, _) = await AnmeldungenAsync(companyProfileId, from.Date, to.Date);
+        var (von, bis) = Zeitraum(from, to);
+        var (alle, _) = await AnmeldungenAsync(companyProfileId, von, bis);
+        // Nur, was noch nicht als gemeldet vermerkt ist.
+        var meldungen = await MeldungenAsync(companyProfileId);
+        var rows = alle.Where(r => Gemeldet(r, companyProfileId, GastroSocialMeldungRegel.Anmeldung, meldungen) == null).ToList();
         var bytes = FillTemplate("Akis_AnmeldungMitarbeitende.xlsx", ws =>
         {
             int r = 7; // 0-basiert → Zeile 8
@@ -264,14 +284,17 @@ public class AkisExportController : ControllerBase
         });
         return File(bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"AnmeldungMitarbeitende_{from:yyyyMMdd}-{to:yyyyMMdd}.xlsx");
+            $"AnmeldungMitarbeitende_{DateTime.Today:yyyyMMdd}.xlsx");
     }
 
     [HttpGet("abmeldung")]
     public async Task<IActionResult> AbmeldungXlsx(
-        [FromQuery] int companyProfileId, [FromQuery] DateTime from, [FromQuery] DateTime to)
+        [FromQuery] int companyProfileId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
-        var (rows, _) = await AbmeldungenAsync(companyProfileId, from.Date, to.Date);
+        var (von, bis) = Zeitraum(from, to);
+        var (alle, _) = await AbmeldungenAsync(companyProfileId, von, bis);
+        var meldungen = await MeldungenAsync(companyProfileId);
+        var rows = alle.Where(r => Gemeldet(r, companyProfileId, GastroSocialMeldungRegel.Abmeldung, meldungen) == null).ToList();
         var bytes = FillTemplate("Akis_AbmeldungMitarbeitende.xlsx", ws =>
         {
             int r = 7;
@@ -286,7 +309,7 @@ public class AkisExportController : ControllerBase
         });
         return File(bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"AbmeldungMitarbeitende_{from:yyyyMMdd}-{to:yyyyMMdd}.xlsx");
+            $"AbmeldungMitarbeitende_{DateTime.Today:yyyyMMdd}.xlsx");
     }
 
     private byte[] FillTemplate(string templateFile, Action<NPOI.SS.UserModel.ISheet> fill)
