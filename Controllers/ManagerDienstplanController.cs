@@ -153,7 +153,7 @@ public class ManagerDienstplanController : ControllerBase
         return Ok(new
         {
             year, month,
-            stellen = stellen.Select(s => new { s.Id, s.Titel, s.Name, s.Beschreibung, s.Art, s.SortOrder, s.Farbe }),
+            stellen = stellen.Select(s => new { s.Id, s.Titel, s.Name, s.Beschreibung, s.Art, s.SortOrder, s.Farbe, s.Grau }),
             farben,
             gfBezeichnung = gfBez ?? "Geschäftsführung",
             filialen = reihenfolge.Select(id => new
@@ -169,13 +169,13 @@ public class ManagerDienstplanController : ControllerBase
         });
     }
 
-    public sealed record OrganigrammStelleDto(string? Titel, string? Name, string? Beschreibung, string? Art, string? Farbe);
+    public sealed record OrganigrammStelleDto(string? Titel, string? Name, string? Beschreibung, string? Art, string? Farbe, string? Grau);
     public sealed record OrganigrammSpeichernDto(List<OrganigrammStelleDto>? Stellen, Dictionary<string, string?>? Farben, string? GfBezeichnung);
 
     private const string OrganigrammGfBezeichnung = "GF_BEZEICHNUNG";
 
     // FILIALE/MANAGER = Darstellung «Farbig», SW_* = Graustufen der Darstellung «Neutral».
-    private static readonly string[] OrganigrammStufen = { "FILIALE", "MANAGER", "SW_LINIE", "SW_STAB", "SW_FILIALE", "SW_MANAGER" };
+    private static readonly string[] OrganigrammStufen = { "FILIALE", "MANAGER", "SW_FILIALE", "SW_MANAGER" };
 
     private static string? NurFarbe(string? f)
         => f != null && System.Text.RegularExpressions.Regex.IsMatch(f.Trim(), "^#[0-9a-fA-F]{6}$")
@@ -204,6 +204,7 @@ public class ManagerDienstplanController : ControllerBase
                 Art = s.Art is "STAB" or "STAB_R" ? s.Art : "LINIE",
                 SortOrder = neu.Count,
                 Farbe = NurFarbe(s.Farbe),
+                Grau = NurFarbe(s.Grau),
                 GeaendertAm = DateTime.Now,
             });
         }

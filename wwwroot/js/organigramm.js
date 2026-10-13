@@ -12,7 +12,7 @@ let _orgEdit = null;   // { stellen:[{titel,name,beschreibung,art,farbe}], farbe
 const ORG_MONATE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const ORG_STANDARD = { LINIE: '#3f3f3f', STAB: '#ffffff', FILIALE: '#e7e4db', MANAGER: '#ffffff' };
 // Graustufen der Vorlage «Neutral» (nur Anzeige im Regler; nicht gesetzt = Vorlage unverändert).
-const ORG_SW_STANDARD = { SW_LINIE: '#262626', SW_STAB: '#eeeeee', SW_FILIALE: '#f8f8f8', SW_MANAGER: '#efefef' };
+const ORG_SW_STANDARD = { LINIE: '#262626', STAB: '#eeeeee', SW_FILIALE: '#f8f8f8', SW_MANAGER: '#efefef' };
 const _orgGlas = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f';
 const _orgKohle = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer';
 const _orgInp = 'background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f;box-shadow:0 2px 6px rgba(60,55,48,0.13),inset 0 1px 0 rgba(255,255,255,0.9);min-width:0';
@@ -172,8 +172,7 @@ function _orgNamen(filialen) {
 function _orgIstStab(s) { return s.art === 'STAB' || s.art === 'STAB_R'; }
 
 // Neutral: gewählte Graustufe ⇒ Klasse (Schrift hell/dunkel) + Stil; nichts gewählt ⇒ Vorlage.
-function _orgSw(farben, stufe, rand) {
-    const hex = farben && farben[stufe];
+function _orgSw(hex, rand) {
     if (!hex) return { cls: '', stil: '' };
     return { cls: _orgHell(hex) ? ' dpo-sw-hell' : ' dpo-sw-dunkel', stil: ` style="background:${hex};background-image:none${rand ? ';border-color:rgba(0,0,0,0.08)' : ''}"` };
 }
@@ -184,7 +183,7 @@ function _orgHtml(d, modus) {
     const farbig = (modus || _orgModus) === 'farbig';
     const box = (s, zusatz) => {
         const art = _orgIstStab(s) ? 'dpo-stb' : 'dpo-lin';
-        const sw = farbig ? null : _orgSw(d.farben, _orgIstStab(s) ? 'SW_STAB' : 'SW_LINIE');
+        const sw = farbig ? null : _orgSw(s.grau);
         const stil = farbig ? ` style="${_orgFlaeche(_orgStelleFarbe(s))}"` : sw.stil;
         return `<div class="dpo-box ${art}${farbig ? '' : sw.cls} ${zusatz || ''}"${stil}><div class="dpo-txt">${s.titel ? `<div class="dpo-titel">${esc(s.titel)}</div>` : ''}<div class="dpo-name">${esc(s.name)}</div>${s.beschreibung ? `<div class="dpo-beschr">${esc(s.beschreibung)}</div>` : ''}</div></div>`;
     };
@@ -222,8 +221,8 @@ function _orgHtml(d, modus) {
     if (!d.filialen.length) html += '<div class="dpo-leer">Keine FIX-M-Verträge in diesem Monat</div>';
 
     if (!farbig) {
-        const swKarte = _orgSw(d.farben, 'SW_FILIALE');
-        const swPerson = _orgSw(d.farben, 'SW_MANAGER', true);
+        const swKarte = _orgSw(d.farben && d.farben.SW_FILIALE);
+        const swPerson = _orgSw(d.farben && d.farben.SW_MANAGER, true);
         html += '<div class="dpo-fil-row">' + d.filialen.map(f => {
             const gf = f.personen.filter(p => p.istGf);
             const mgr = f.personen.filter(p => !p.istGf);
@@ -378,12 +377,12 @@ function _orgDruckHtml(daten, modus) {
 // ── Stellen & Farben bearbeiten (Seitenleiste mit Live-Vorschau) ─────────
 function orgBearbeiten() {
     if (!_orgData) return;
-    const stellen = (_orgData.stellen || []).map(s => ({ titel: s.titel, name: s.name, beschreibung: s.beschreibung || '', art: s.art, farbe: s.farbe || null }));
+    const stellen = (_orgData.stellen || []).map(s => ({ titel: s.titel, name: s.name, beschreibung: s.beschreibung || '', art: s.art, farbe: s.farbe || null, grau: s.grau || null }));
     _orgEdit = {
         stellen: stellen.length ? stellen : [
-            { titel: 'Lizenznehmer', name: '', beschreibung: '', art: 'LINIE', farbe: null },
-            { titel: 'Supervisor', name: '', beschreibung: '', art: 'LINIE', farbe: null },
-            { titel: 'HR', name: '', beschreibung: '', art: 'STAB', farbe: null },
+            { titel: 'Lizenznehmer', name: '', beschreibung: '', art: 'LINIE', farbe: null, grau: null },
+            { titel: 'Supervisor', name: '', beschreibung: '', art: 'LINIE', farbe: null, grau: null },
+            { titel: 'HR', name: '', beschreibung: '', art: 'STAB', farbe: null, grau: null },
         ],
         farben: { ...(_orgData.farben || {}) },
         gfBezeichnung: _orgData.gfBezeichnung == null ? 'Geschäftsführung' : _orgData.gfBezeichnung,
@@ -404,7 +403,7 @@ function orgBearbeiten() {
         <div style="font-size:12px;color:#646464;margin-bottom:8px">Die Farben gelten für die Darstellung «Farbig».</div>
         <div id="orgEditStufen"></div>
         <div style="font-size:14px;font-weight:700;color:#3f3f3f;margin:18px 0 2px">Graustufen «Neutral»</div>
-        <div style="font-size:12px;color:#646464;margin-bottom:8px">Links dunkel, rechts hell. Gelten für die Darstellung «Neutral»; die Schrift wird automatisch weiss oder schwarz.</div>
+        <div style="font-size:12px;color:#646464;margin-bottom:8px">Links dunkel, rechts hell. Die oberen Stellen haben ihren Regler oben in der eigenen Zeile. Die Schrift wird automatisch weiss oder schwarz.</div>
         <div id="orgEditGrau"></div>
         <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
             <button onclick="orgFarbenStandard()" style="${_orgGlas}">Farben &amp; Graustufen auf Standard</button>
@@ -437,6 +436,7 @@ function _orgEditRender() {
                 <button onclick="orgStelleSchieben(${i},1)" title="Nach unten" style="${knopf}"${i === n - 1 ? ' disabled' : ''}>↓</button>
                 <button onclick="orgStelleWeg(${i})" title="Entfernen" style="${knopf};color:#991b1b">✕</button>
             </div>
+            ${_orgGrauZeile(`s${i}`, 'Graustufe «Neutral»', s.grau || ORG_SW_STANDARD[_orgIstStab(s) ? 'STAB' : 'LINIE'], `orgStelleGrau(${i},this.value)`)}
         </div>`).join('') || '<div style="font-size:12.5px;color:#8b8b8b;margin-bottom:8px">Keine Stellen.</div>';
     const zeile = (stufe, text) => `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
@@ -444,27 +444,33 @@ function _orgEditRender() {
             <span style="font-size:13px;color:#3f3f3f">${text}</span>
         </div>`;
     stufen.innerHTML = zeile('FILIALE', 'Filiale mit Geschäftsführer/in') + zeile('MANAGER', 'Manager');
-    const grau = (stufe, text) => {
-        const hex = _orgEdit.farben[stufe] || ORG_SW_STANDARD[stufe];
-        return `<div style="display:grid;grid-template-columns:34px 1fr 150px;align-items:center;gap:10px;margin-bottom:8px">
-            <span id="orgGrauMuster_${stufe}" style="width:34px;height:24px;border-radius:7px;background:${hex};border:1px solid rgba(60,55,48,0.22)"></span>
-            <span style="font-size:13px;color:#3f3f3f">${text}</span>
-            <input type="range" min="0" max="100" value="${_orgGrauWert(hex)}" title="Graustufe" oninput="orgGrauSetzen('${stufe}',this.value)" style="width:100%;accent-color:#3f3f3f">
-        </div>`;
-    };
+    const grau = (stufe, text) => _orgGrauZeile(stufe, text, _orgEdit.farben[stufe] || ORG_SW_STANDARD[stufe], `orgGrauSetzen('${stufe}',this.value)`);
     const g = document.getElementById('orgEditGrau');
-    if (g) g.innerHTML = grau('SW_LINIE', 'Stellen «Linie»') + grau('SW_STAB', 'Stellen «Stab»') + grau('SW_FILIALE', 'Filiale mit Geschäftsführer/in') + grau('SW_MANAGER', 'Manager');
+    if (g) g.innerHTML = grau('SW_FILIALE', 'Filiale mit Geschäftsführer/in') + grau('SW_MANAGER', 'Manager');
 }
 
+function _orgGrauZeile(id, text, hex, aktion) {
+    return `<div style="grid-column:1/-1;display:grid;grid-template-columns:34px 1fr 150px;align-items:center;gap:10px;margin-bottom:8px">
+        <span id="orgGrauMuster_${id}" style="width:34px;height:24px;border-radius:7px;background:${hex};border:1px solid rgba(60,55,48,0.22)"></span>
+        <span style="font-size:13px;color:#3f3f3f">${text}</span>
+        <input type="range" min="0" max="100" value="${_orgGrauWert(hex)}" title="Graustufe: links dunkel, rechts hell" oninput="${aktion}" style="width:100%;accent-color:#3f3f3f">
+    </div>`;
+}
+function _orgGrauMuster(id, hex) { const m = document.getElementById('orgGrauMuster_' + id); if (m) m.style.background = hex; }
 function orgGrauSetzen(stufe, wert) {
     const hex = _orgGrauHex(Number(wert));
     _orgEdit.farben[stufe] = hex;
-    const m = document.getElementById('orgGrauMuster_' + stufe);
-    if (m) m.style.background = hex;
+    _orgGrauMuster(stufe, hex);
+    _orgAnzeigen();
+}
+function orgStelleGrau(i, wert) {
+    const hex = _orgGrauHex(Number(wert));
+    _orgEdit.stellen[i].grau = hex;
+    _orgGrauMuster('s' + i, hex);
     _orgAnzeigen();
 }
 
-function orgStelleDazu() { _orgEdit.stellen.push({ titel: '', name: '', beschreibung: '', art: 'LINIE', farbe: null }); _orgEditRender(); _orgAnzeigen(); }
+function orgStelleDazu() { _orgEdit.stellen.push({ titel: '', name: '', beschreibung: '', art: 'LINIE', farbe: null, grau: null }); _orgEditRender(); _orgAnzeigen(); }
 function orgStelleWeg(i) { _orgEdit.stellen.splice(i, 1); _orgEditRender(); _orgAnzeigen(); }
 function orgStelleSchieben(i, d) {
     const j = i + d;
@@ -473,7 +479,7 @@ function orgStelleSchieben(i, d) {
     _orgEditRender(); _orgAnzeigen();
 }
 function orgFarbenStandard() {
-    _orgEdit.stellen.forEach(s => { s.farbe = null; });
+    _orgEdit.stellen.forEach(s => { s.farbe = null; s.grau = null; });
     _orgEdit.farben = {};
     _orgEditRender(); _orgAnzeigen();
 }

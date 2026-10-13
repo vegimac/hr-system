@@ -241,6 +241,8 @@ public class OrganigrammStelle
     public int SortOrder { get; set; }
     /// <summary>Hintergrundfarbe #rrggbb · leer = Standard (Linie Kohle, Stab weiss)</summary>
     public string? Farbe { get; set; }
+    /// <summary>Graustufe #rrggbb für «Neutral»; NULL = Vorlage.</summary>
+    public string? Grau { get; set; }
     public DateTime GeaendertAm { get; set; } = DateTime.Now;
 }
 
