@@ -44,11 +44,11 @@ const ORG_CSS = `
 .dpo-col{position:relative;display:flex;flex-direction:column;align-items:center}
 
 /* ── Neutral = Vorlage ── */
-.dpo.n{--lc:#c4c4c4;--lw:1px;--sh:34px;--ug:14px;--ue:24px;--uw:30px;padding:34px 34px 34px;color:#1c1c1c;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,sans-serif}
+.dpo.n{--lc:#c4c4c4;--lw:1px;--sh:34px;--ug:calc(14px * var(--dz, 1));--ue:24px;--uw:30px;padding:34px 34px 34px;color:#1c1c1c;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,sans-serif}
 .dpo.n .dpo-logo{position:absolute;left:12px;top:8px;width:118px;height:92px;overflow:hidden}
 .dpo.n .dpo-logo img{height:92px;width:auto;display:block}
-.dpo.n .dpo-v1{height:20px}
-.dpo.n .dpo-v2{height:18px}
+.dpo.n .dpo-v1{height:calc(20px * var(--dz, 1))}
+.dpo.n .dpo-v2{height:calc(18px * var(--dz, 1))}
 .dpo.n .dpo-box{border-radius:6px;padding:11px 22px 11px 42px}
 .dpo.n .dpo-txt{border-left:1px solid #c8c8c8;padding:1px 0 1px 12px}
 .dpo.n .dpo-titel{font-size:7.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:500}
@@ -64,20 +64,20 @@ const ORG_CSS = `
 .dpo.n .dpo-stb .dpo-name{font-size:14.5px;color:#1c1c1c}
 .dpo.n .dpo-stb .dpo-beschr{color:#444}
 .dpo.n .dpo-fil-row{margin-top:0}
-.dpo.n .dpo-col{padding:18px 8px 0}
+.dpo.n .dpo-col{padding:calc(18px * var(--dz, 1)) 8px 0}
 .dpo.n .dpo-col::before{content:'';position:absolute;top:0;left:0;right:0;border-top:var(--lw) solid var(--lc)}
 .dpo.n .dpo-col:first-child::before{left:50%}
 .dpo.n .dpo-col:last-child::before{right:50%}
 .dpo.n .dpo-col:only-child::before{display:none}
-.dpo.n .dpo-col::after{content:'';position:absolute;top:0;left:50%;height:18px;border-left:var(--lw) solid var(--lc)}
+.dpo.n .dpo-col::after{content:'';position:absolute;top:0;left:50%;height:calc(18px * var(--dz, 1));border-left:var(--lw) solid var(--lc)}
 .dpo.n .dpo-karte{min-width:150px;box-sizing:border-box;background:#f8f8f8;border-radius:6px;padding:14px 11px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.06),0 4px 14px rgba(0,0,0,0.06)}
 .dpo.n .dpo-k-name{font-size:14.5px;font-weight:700;color:#1a1a1a;padding-left:3px}
-.dpo.n .dpo-k-gf{margin:8px 0 0 12px;border-left:1px solid #c4c4c4;padding:1px 0 1px 10px}
+.dpo.n .dpo-k-gf{margin:calc(8px * var(--dzi, 1)) 0 0 12px;border-left:1px solid #c4c4c4;padding:1px 0 1px 10px}
 .dpo.n .dpo-k-gf small{display:block;font-size:8.5px;color:#555;margin-top:3px;line-height:1.35;white-space:nowrap}
 .dpo.n .dpo-k-gf b{display:block;font-size:12.5px;font-weight:700;color:#1a1a1a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dpo.n .dpo-k-gf b.offen{font-style:italic;font-weight:500;color:#777}
-.dpo.n .dpo-k-liste{display:flex;flex-direction:column;gap:6px;margin-top:14px}
-.dpo.n .dpo-k-p{background:#efefef;border:1px solid #e7e7e7;border-radius:4px;padding:6px 11px;font-size:12.5px;font-weight:600;color:#1a1a1a}
+.dpo.n .dpo-k-liste{display:flex;flex-direction:column;gap:calc(6px * var(--dzi, 1));margin-top:calc(14px * var(--dzi, 1))}
+.dpo.n .dpo-k-p{background:#efefef;border:1px solid #e7e7e7;border-radius:4px;padding:calc(6px * var(--dzi, 1)) 11px;font-size:12.5px;font-weight:600;color:#1a1a1a}
 
 /* ── Farbig ── */
 .dpo.f{--lc:${ORG_LINIE};--lw:2px;--sh:30px;--ug:12px;--ue:24px;--uw:36px;padding:16px 28px 30px;color:#3f3f3f;letter-spacing:-.005em}
@@ -324,9 +324,11 @@ function orgDrucken() {
     // @page margin 0 ⇒ der Browser druckt keine Kopf-/Fusszeile (Datum, about:blank); Rand kommt vom body.
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Organigramm ${ORG_MONATE[daten.month - 1]} ${daten.year}</title>
         <style>@page{size:A4 landscape;margin:0}html,body{margin:0}body{padding:10mm;background:${farbig ? '#fff' : '#f7f7f7'};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-        h1{font-size:13px;font-weight:600;color:#8b8b8b;margin:0 0 6px;text-align:right}#o{width:277mm;height:${farbig ? 180 : 190}mm;overflow:hidden}${ORG_CSS}</style></head>
+        h1{font-size:13px;font-weight:600;color:#8b8b8b;margin:0 0 6px;text-align:right}#o{width:277mm;height:${farbig ? 180 : 190}mm;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center}${ORG_CSS}</style></head>
         <body>${farbig ? `<h1>Organigramm · Stand ${ORG_MONATE[daten.month - 1]} ${daten.year}</h1>` : ''}<div id="o">${_orgHtml(daten, _orgModus)}</div>
-        <script>window.onload=function(){var o=document.getElementById('o'),b=o.firstElementChild,s=Math.min(1,o.clientWidth/b.scrollWidth,o.clientHeight/b.scrollHeight);if(s<1){b.style.zoom=s;}setTimeout(function(){window.print();},150);};<\/script></body></html>`);
+        <script>window.onload=function(){var o=document.getElementById('o'),b=o.firstElementChild,sw=Math.min(1,o.clientWidth/b.scrollWidth);
+        if(b.classList.contains('n')){for(var dz=1;dz<2;dz+=0.05){if(b.scrollHeight*sw>=o.clientHeight*0.85)break;b.style.setProperty('--dz',dz+0.05);b.style.setProperty('--dzi',1+(dz+0.05-1)*0.5);}}
+        var s=Math.min(1,o.clientWidth/b.scrollWidth,o.clientHeight/b.scrollHeight);if(s<1){b.style.zoom=s;}setTimeout(function(){window.print();},150);};<\/script></body></html>`);
     w.document.close();
 }
 
