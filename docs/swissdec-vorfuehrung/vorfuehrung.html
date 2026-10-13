@@ -51,7 +51,7 @@
 <!-- ═════════════════════════════ DECKBLATT ═════════════════════════════ -->
 <section>
   <div class="kopf"><h1>Swissdec Foundation-Test<br>Handbuch für den Termin mit itserv</h1>
-    <div class="rechts">OneCrew · Schaub Restaurants GmbH<br>ELM 6.0 · Testinstanz test.onecrew.ch<br>Stand 02.10.2026</div></div>
+    <div class="rechts">OneCrew · Schaub Restaurants GmbH<br>ELM 6.0 · Testinstanz test.onecrew.ch<br>Stand 13.10.2026</div></div>
 
   <div class="worum"><b class="t">Worum es bei diesem Test geht</b>
     Lohnprogramme schicken Lohndaten elektronisch an AHV, Versicherungen und Steuerämter. Dazwischen steht eine
@@ -61,7 +61,7 @@
 
   <table>
     <tr><th style="width:40mm">Stand</th><td><b>87 von 90 Prüfungen erledigt</b> (im Swissdec-Werkzeug auf «Success»). Die Expertin bestätigt sie im Termin.</td></tr>
-    <tr><th>Noch offen</th><td><b>F07_04</b> (3 Prüfungen): «registered» lässt sich im Test-Empfänger nicht auslösen (Probe 13.10.2026: direkt «verified»). Das klärt die Expertin (letzte Seite).</td></tr>
+    <tr><th>Noch offen</th><td><b>F07_04</b> (3 Prüfungen): <b>Konnten wir selbst nicht testen — die Antwort «registered» lässt sich im Test-Empfänger nicht auslösen. Die Expertin kann sie vielleicht auslösen.</b> Erklärung und Ablauf auf der Seite F07.</td></tr>
     <tr><th>Wichtigstes Datum</th><td>Das Test-Zertifikat («SUA-Zertifikat») läuft am <b>23.10.2026</b> ab (neu ausgestellt 13.10.2026). Termin am besten vorher, sonst F07_06 neu durchspielen.</td></tr>
   </table>
 
@@ -359,7 +359,7 @@ WHERE id = 94
     <tr><td><b>F07_01</b></td><td>RegisterVerification (Standard)</td><td><span class="knopf">Registrieren</span></td><td>Quittung mit Antragsnummer, Key und Passwort.</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_02</b></td><td>SwissdecFault</td><td><span class="knopf">Registrieren</span></td><td class="rot">«✗ Registrierung abgewiesen — 3800 …». Kein neuer Fall gespeichert.</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_03</b></td><td>RegisterProcessing, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span></td><td>«Status: processing — Anfrage in Bearbeitung.»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_04</b> <span class="offen">offen</span></td><td><b>Expertin fragen</b> — im Receiver gibt es keine Einstellung dafür</td><td><span class="knopf">Status abfragen</span></td><td>«Status: registered — registriert, nächster Schritt folgt.»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_04</b> <span class="offen">offen</span></td><td><b>Selbst nicht testbar — Expertin fragen</b> (Kasten nächste Seite)</td><td><span class="knopf">Status abfragen</span></td><td>«Status: registered — registriert, nächster Schritt folgt.»</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_05</b></td><td>RegisterRejected, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span></td><td class="rot">«Status: rejected — Anfrage abgelehnt.»</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_06</b></td><td>RegisterVerification, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span> (Passwort kommt mit) → <span class="knopf">Signieren</span></td><td>«SUA-Zertifikat ausgestellt und gespeichert, gültig bis …».</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_07</b></td><td>Nichts</td><td><span class="knopf">Erneuern</span> → <span class="knopf">danach CheckInterop mit neuem Zertifikat</span></td><td>«SUA-Zertifikat erneuert», danach «Anfrage doppelt signiert (ERP + SUA)».</td><td><span class="box"></span></td></tr>
@@ -369,9 +369,30 @@ WHERE id = 94
   <div class="hinweis"><b>Ganz wichtig:</b> Jedes «Registrieren» startet einen neuen Antrag. Wer F07_02, 03 oder 05 vorführt, macht am Schluss
   <b>F07_06 nochmals ganz</b> (RegisterVerification → Registrieren → Status abfragen → Signieren). Sonst ist danach kein gültiger Ausweis mehr da.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="id">F07_04</span><span class="titel">Was du zum offenen Punkt sagst</span></div>
-    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Den Zustand ‹registered› konnten wir nicht erzeugen. Der Test-Empfänger bietet nur Processing, Verification und Rejected. Bei Processing kommt beim zweiten Abfragen direkt Verified, auch mit 25 Sekunden Verzögerung. Ebenso nach dem Signieren. OneCrew kann ‹registered› anzeigen. Können Sie den Empfänger dafür einstellen?»</span></div>
-    <div class="z"><span class="lab">Falls ja</span><span>Expertin stellt ein → <span class="knopf">Status abfragen</span> → es muss «Status: registered — registriert, nächster Schritt folgt.» erscheinen. Danach F07_06 nochmals ganz durchspielen.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="id">F07_04</span><span class="titel">Der offene Punkt — in einfachen Worten</span><span class="offen">offen</span></div>
+    <div class="z"><span class="lab">Worum es geht</span><span>Nach dem Antrag fragt OneCrew immer wieder beim Versicherer nach: «Wie weit seid ihr?» Der Versicherer antwortet mit einem Stand:
+      <table style="margin:1mm 0">
+        <tr><th>Antwort</th><th>heisst</th><th>Prüfpunkt</th><th>Stand</th></tr>
+        <tr><td>processing</td><td>in Bearbeitung</td><td>F07_03</td><td class="gruen">getestet ✓</td></tr>
+        <tr><td><b>registered</b></td><td><b>angemeldet, Prüfung folgt</b></td><td><b>F07_04</b></td><td class="rot">nicht testbar</td></tr>
+        <tr><td>rejected</td><td>abgelehnt</td><td>F07_05</td><td class="gruen">getestet ✓</td></tr>
+        <tr><td>verified</td><td>geprüft, Passwort kommt</td><td>F07_06</td><td class="gruen">getestet ✓</td></tr>
+      </table>
+      Swissdec will sehen, dass OneCrew <b>jeden</b> dieser Stände richtig anzeigt.</span></div>
+    <div class="hinweis" style="margin:1.5mm 0"><b>Das konnten wir selbst nicht testen: Der Test-Empfänger schickt die Antwort «registered» nie.
+      Keine seiner fünf Einstellungen löst sie aus. Die Expertin kann den Server beeinflussen — sie kann «registered» vielleicht auslösen.</b>
+      <span class="klein">Probiert am 13.10.2026: RegisterVerification → sofort «verified». RegisterProcessing → zuerst «processing», beim zweiten Abfragen «verified».
+      Mit 25 Sekunden Verzögerung genau gleich, nur langsamer. Nach dem Signieren → wieder «verified».</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Bei F07_04 brauchen wir die Antwort ‹registered›. Im Test-Empfänger gibt es nur Processing, Verification und Rejected. Bei Processing kommt beim zweiten Abfragen direkt Verified, auch mit Verzögerung. Können Sie ‹registered› auf Ihrer Seite auslösen, oder wie sollen wir F07_04 machen?»</span></div>
+    <div class="z"><span class="lab">Sie löst es aus</span><ol>
+      <li>Sie stellt den Server ein und sagt «bereit».</li>
+      <li><span class="knopf">Registrieren</span> (F07_01) → «Register erfolgreich».</li>
+      <li><span class="knopf">Status abfragen</span> (F07_04) → es muss stehen: <b>«Status: registered — registriert, nächster Schritt folgt.»</b> Bildschirmfoto machen, F07_04 auf «Bestanden».</li>
+      <li>Danach <b>F07_06 nochmals ganz</b>: Receiver auf RegisterVerification → <span class="knopf">Status abfragen</span> → «verified», Passwort steht automatisch drin → <span class="knopf">Signieren</span> → «SUA-Zertifikat ausgestellt».</li>
+      <li>Im Quality Tool nachsehen, ob F07_04 grün ist.</li></ol></div>
+    <div class="z"><span class="lab">Sie sagt «nicht nötig»</span><span>Bitte sie, F07_04 im Quality Tool als erledigt zu markieren. Ihre Aussage wörtlich ins Notizfeld bei F07_04 schreiben. «Bestanden» erst setzen, wenn sie das ausdrücklich sagt.</span></div>
+    <div class="z"><span class="lab">Sie will etwas anderes probieren</span><span>Machen, was sie sagt. Bildschirmfotos bzw. die Antwort (schwarzes Feld) in den Chat schicken — dann sagen wir dir, ob OneCrew richtig reagiert.</span></div>
+    <div class="z"><span class="lab">Etwas Unerwartetes</span><span>Bildschirmfoto machen und sagen: <span class="sag">«Das schauen wir an und melden uns.»</span></span></div></div>
 </section>
 
 <!-- ═════════════════════════════ F08 ═════════════════════════════ -->
