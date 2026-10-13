@@ -122,6 +122,19 @@ function pageBack() {
     showPage(ziel);
 }
 
+// Zurück oben rechts (Walter 13.10.2026): löst den unsichtbaren .seite-zurueck-Knopf der
+// aktuellen Seite aus (bei mehreren den in der sichtbaren Ansicht), sonst System-/Entwicklungs-Übersicht.
+function globalZurueck() {
+    const page = document.getElementById('page-' + currentPageName);
+    const knoepfe = [...(page?.querySelectorAll('.seite-zurueck') || [])];
+    const inSicht = k => { for (let e = k.parentElement; e && e !== page; e = e.parentElement) if (getComputedStyle(e).display === 'none') return false; return true; };
+    const k = knoepfe.find(inSicht) || knoepfe[0];
+    if (k) { k.click(); return; }
+    if (_devSubPages.includes(currentPageName)) showPage('entwicklung');
+    else if (_adminSubPages.includes(currentPageName)) showPage('admin-hub');
+    else pageBack();
+}
+
 // Contract page state
 let fixedCompanyProfileId = null;
 let selectedCompanyProfile = null;
@@ -1398,49 +1411,11 @@ function applyAdminBreadcrumb(name) {
     // Gleiches Muster fuer die Entwicklungs-Unterseiten, Ziel ist dort aber
     // «entwicklung» statt «admin-hub».
     const showDevBack = _devSubPages.includes(name) && currentUser?.role === 'admin';
-    // Walter 16.08.2026: der «← System»-Button oben rechts ist WEG —
-    // es gibt nur noch den Standard-«Zurück»-Button in der Seite.
-    btn.style.display = 'none';
-    // Walter-Vorgabe 16.08.2026: zusaetzlich ein IMMER GLEICHER Zurueck-
-    // Button IN der Seite (unterhalb der obersten Zeile, links) — der
-    // langSwitcher-Button oben rechts bleibt, aber die Sub-Pages bekommen
-    // einen sichtbaren Standard-Button als erstes Element der Page.
+    // Walter 13.10.2026: Zurück IMMER oben rechts (dieser Knopf), nie mehr in der Seite —
+    // ersetzt den Knopf neben dem Titel vom 16.08.2026.
     document.querySelectorAll('.sys-back-row').forEach(el => el.remove());
-    if (showDevBack) {
-        const page = document.getElementById('page-' + name);
-        const html = '<button type="button" class="sys-back-btn" onclick="showPage(\'entwicklung\')">' +
-            '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>' +
-            ' Zur\u00fcck</button>';
-        const title = page?.querySelector('.page-title');
-        if (title) {
-            const wrap = document.createElement('span');
-            wrap.className = 'sys-back-row sys-back-next-to-title';
-            wrap.innerHTML = html;
-            title.appendChild(wrap);
-        }
-        return;
-    }
-    if (showAdminBack) {
-        const page = document.getElementById('page-' + name);
-        // Walter 16.08.2026 final: der Zurueck-Button sitzt IMMER direkt
-        // rechts neben dem Haupttitel der Seite (Fallback: Seitenanfang).
-        const html = '<button type="button" class="sys-back-btn" onclick="showPage(\'admin-hub\')">' +
-            '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>' +
-            ' Zur\u00fcck</button>';
-        const title = page?.querySelector('.page-title');
-        if (title) {
-            const wrap = document.createElement('span');
-            wrap.className = 'sys-back-row sys-back-next-to-title';
-            wrap.innerHTML = html;
-            title.appendChild(wrap);
-        } else if (page) {
-            const row = document.createElement('div');
-            row.className = 'sys-back-row';
-            row.style.padding = '14px 32px 0';
-            row.innerHTML = html;
-            page.insertBefore(row, page.firstChild);
-        }
-    }
+    const eigener = document.querySelector(`#page-${name} .seite-zurueck`);
+    btn.style.display = (eigener || showAdminBack || showDevBack) ? 'inline-flex' : 'none';
 }
 
 function showPage(name) {

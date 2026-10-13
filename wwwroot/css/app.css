@@ -11912,6 +11912,9 @@ body.sys-bg:not(.theme-dark) .page.fixhead .lp-row:hover td { background: rgba(2
    Sitzt als eigene Zeile UNTER dem obersten Band (nie oben rechts — dort ist
    der langSwitcher reserviert). Liquid-Glas-Pill, Kohle-Text. */
 /* Zurueck-Button rechts neben dem Haupttitel (Walter 16.08.2026 final) */
+/* Seiten-Zurück nur noch oben rechts (#backToAdminBtn, Walter 13.10.2026) — die Knöpfe in den
+   Seiten liefern nur noch das Ziel (globalZurueck). */
+.page .seite-zurueck { display: none !important; }
 .sys-back-next-to-title {
     display: inline-flex;
     vertical-align: middle;

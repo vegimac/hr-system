@@ -11,15 +11,45 @@ let _kontrolleEmployeeCache = [];
 let _kontrollePermitCache   = [];
 let _kontrolleNachtCache    = [];
 
+// Die Seite zeigt immer nur EINE Auswertung (Walter 13.10.2026): «luecken» = Checkliste + fehlende
+// Ausweise/Bewilligungen/Nachtarbeit, «fb» = Familienbetreuung, «so» = freie Sonntage.
+// Abschnitte tragen data-kontr; ohne Wahl (To-do «Kontrollliste» u.a.) gilt «luecken».
+const KONTROLLE_ANSICHTEN = {
+    luecken: { titel: '⚠ Lücken in Personalakten', farbe: '#991b1b', sub: 'Proaktive Lücken-Erkennung in den Personalakten — HR sieht hier, wo Dokumente oder Daten fehlen.' },
+    fb:      { titel: 'Familienbetreuung · easy@work gegen Soll', farbe: '#3f3f3f', sub: 'Familienbetreuung aus easy@work gegen das Soll aus den Kinderdaten — PDF für die GF.' },
+    so:      { titel: 'Freie Sonntage', farbe: '#3f3f3f', sub: 'Freie Sonntage pro Kalenderjahr (4, mit Familienbetreuung 12) — PDF für die GF.' },
+};
+let _kontrolleAnsicht = 'luecken';
+let _kontrolleAnsichtNeu = null;
+
+function kontrolleOeffnen(ansicht) {
+    _kontrolleAnsichtNeu = KONTROLLE_ANSICHTEN[ansicht] ? ansicht : 'luecken';
+    showPage('kontrolle');
+}
+
+function _kontrolleAnsichtAnwenden() {
+    const a = KONTROLLE_ANSICHTEN[_kontrolleAnsicht];
+    document.querySelectorAll('#page-kontrolle [data-kontr]').forEach(el => {
+        el.style.display = el.dataset.kontr === _kontrolleAnsicht ? '' : 'none';
+    });
+    const t = document.getElementById('kontrolleTitel');
+    if (t) { t.textContent = a.titel; t.style.color = a.farbe; }
+    const sub = document.getElementById('kontrolleSub');
+    if (sub) sub.textContent = a.sub;
+}
+
 function kontrolleInit() {
+    _kontrolleAnsicht = _kontrolleAnsichtNeu || 'luecken';
+    _kontrolleAnsichtNeu = null;
+    _kontrolleAnsichtAnwenden();
     kontrolleRefreshAll();
 }
 
-/** Alle Kontroll-Listen neu laden (globaler Knopf, Walter 22.07.2026). */
+/** Kontroll-Listen der gezeigten Auswertung neu laden (globaler Knopf, Walter 22.07.2026). */
 function kontrolleRefreshAll() {
+    if (_kontrolleAnsicht === 'fb') { kontrolleFbRefresh(); return; }
+    if (_kontrolleAnsicht === 'so') { kontrolleSoRefresh(); return; }
     kontrolleDossierRefresh();
-    kontrolleFbRefresh();
-    kontrolleSoRefresh();
     kontrolleEmployeeRefresh();
     kontrolleSpouseRefresh();
     kontrollePermitRefresh();
@@ -884,10 +914,7 @@ function kontrolleDossierRender() {
 let _kontrolleFb = null;
 
 /** Einstieg aus dem HR-Bereich: Kontrolle öffnen und zur Karte springen. */
-function kontrolleZuFamilienbetreuung() {
-    showPage('kontrolle');
-    setTimeout(() => document.getElementById('kontrolleFbCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
-}
+function kontrolleZuFamilienbetreuung() { kontrolleOeffnen('fb'); }
 
 async function kontrolleFbRefresh() {
     const el = document.getElementById('kontrolleFbList');
@@ -971,10 +998,7 @@ const _kontrolleSoStatus = {
     keine_daten: { text: 'keine Stempeldaten',     style: 'color:#8b8b8b' },
 };
 
-function kontrolleZuSonntage() {
-    showPage('kontrolle');
-    setTimeout(() => document.getElementById('kontrolleSoCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
-}
+function kontrolleZuSonntage() { kontrolleOeffnen('so'); }
 
 function _kontrolleSoJahr() {
     const sel = document.getElementById('kontrolleSoJahr');

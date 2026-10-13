@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261013d">
+    <link rel="stylesheet" href="css/app.css?v=20261013e">
 </head>
 <body>
 
@@ -201,11 +201,14 @@
                  showPage() schaltet die Sichtbarkeit automatisch. -->
             <!-- Walter-Vorgabe 07.06.2026: Zurück-Button in App-Primärfarbe,
                  damit er sich klar vom Sprach-/Theme-Widget abhebt. -->
-            <button id="backToAdminBtn" onclick="showPage('admin-hub')" title="Zurück zu System"
+            <!-- Walter 13.10.2026: EINZIGER Seiten-Zurück-Knopf, immer hier oben rechts.
+                 Die Knöpfe .seite-zurueck in den Seiten sind unsichtbar und liefern nur das Ziel
+                 (globalZurueck in app-core.js). -->
+            <button id="backToAdminBtn" onclick="globalZurueck()" title="Zurück"
                     style="display:none;background:#3f3f3f;border:none;cursor:pointer;padding:5px 13px;border-radius:10px;align-items:center;gap:6px;font-size:12.5px;color:#fff;font-weight:600;box-shadow:0 5px 14px rgba(60,55,48,0.18)"
                     onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='#3f3f3f'">
                 <span style="font-size:14px">←</span>
-                <span>System</span>
+                <span>Zurück</span>
             </button>
             <!-- easy@work-Sync des gewaehlten MA (Walter 17.07.2026): fix oben
                  in Zeile 1, links vor Lupe + Fragezeichen. Sichtbar nur auf der
@@ -1022,7 +1025,7 @@
                         <h1 class="page-title" data-i18n="vt.newPageTitle">Vertrag erfassen / bearbeiten</h1>
                         <p class="page-sub" data-i18n="vt.newPageSub">Mitarbeiter wählen, Daten anpassen, Vertrag erstellen oder bearbeiten</p>
                     </div>
-                    <button class="btn btn-outline" onclick="showPage('vertraege')" style="font-size:13px;padding:6px 14px" data-i18n="vt.backToList">← Zurück zur Liste</button>
+                    <button class="seite-zurueck btn btn-outline" onclick="showPage('vertraege')" style="font-size:13px;padding:6px 14px" data-i18n="vt.backToList">← Zurück zur Liste</button>
                 </div>
                 <div class="page-body">
                     <div id="contractWrap"></div>
@@ -1533,7 +1536,7 @@
                         </g>
                     </svg>
 
-                    <button type="button" class="todo-back" onclick="showPage('dashboard')" title="Zurück">&#8592; zur&uuml;ck</button>
+                    <button type="button" class="seite-zurueck todo-back" onclick="showPage('dashboard')" title="Zurück">&#8592; zur&uuml;ck</button>
                     <button type="button" class="todo-pdf" onclick="todosPrintPdf()" title="To-do-Liste als PDF sichern / drucken">&#128424; PDF</button>
                     <!-- Walter 23.09.2026: Sprung zur Kontrollliste (Dossier-Übersicht pro Filiale) -->
                     <button type="button" class="todo-kontroll" onclick="showPage('kontrolle')"
@@ -2115,7 +2118,7 @@
                             <p class="page-sub">Wer hat wann welches Dokument in die MA-Akte hochgeladen — für Buchhaltung / Bommer + Partner</p>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
-                            <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                            <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
                         </div>
                     </div>
                     <div class="fh-toolbar" style="gap:12px">
@@ -2385,37 +2388,37 @@
                          (Walter 13.10.2026, v3). CSS .kontr-menu / .kontr-kachel in app.css. -->
                     <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap">
                     <div class="ra-tile-row kontr-menu">
-                        <button type="button" class="ra-tile kontr-kachel" onclick="showPage('kontrolle')">
+                        <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleOeffnen('luecken')">
                             <img src="img/kontr-luecken.webp?v=20261013a" alt="" loading="lazy">
-                            <span>1&nbsp;·&nbsp;Lücken in Personalakten</span>
+                            <span>Lücken in Personalakten</span>
                         </button>
                         <button type="button" class="ra-tile kontr-kachel" onclick="showPage('dok-protokoll')">
                             <img src="img/kontr-dok-protokoll.webp?v=20261013a" alt="" loading="lazy">
-                            <span>2&nbsp;·&nbsp;Dokument-Upload-Protokoll</span>
+                            <span>Dokument-Upload-Protokoll</span>
                         </button>
                         <button type="button" class="ra-tile kontr-kachel" onclick="showPage('schulungen-uebersicht')">
                             <img src="img/kontr-schulungen.webp?v=20261013a" alt="" loading="lazy">
-                            <span>3&nbsp;·&nbsp;Schulungen</span>
+                            <span>Schulungen</span>
                         </button>
                         <button type="button" class="ra-tile kontr-kachel" onclick="showPage('mirus-fehlende-ma')">
                             <img src="img/kontr-mirus.webp?v=20261013a" alt="" loading="lazy">
-                            <span>4&nbsp;·&nbsp;Mirus-Abgleich: fehlende MA</span>
+                            <span>Mirus-Abgleich: fehlende MA</span>
                         </button>
                         <button type="button" class="ra-tile kontr-kachel" onclick="showPage('gs-ahv-abgleich')">
                             <img src="img/kontr-ahv.webp?v=20261013a" alt="" loading="lazy">
-                            <span>5&nbsp;·&nbsp;AHV-Abgleich: GastroSocial gemeldete MA</span>
+                            <span>AHV-Abgleich: GastroSocial gemeldete MA</span>
                         </button>
                         <button type="button" class="ra-tile kontr-kachel" onclick="showPage('gs-fz-abgleich')">
                             <img src="img/kontr-fz.webp?v=20261013a" alt="" loading="lazy">
-                            <span>6&nbsp;·&nbsp;FZ-Abgleich: GastroSocial Familienzulagen</span>
+                            <span>FZ-Abgleich: GastroSocial Familienzulagen</span>
                         </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleZuFamilienbetreuung()">
+                        <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleOeffnen('fb')">
                             <img src="img/kontr-familienbetreuung.webp?v=20261013a" alt="" loading="lazy">
-                            <span>7&nbsp;·&nbsp;Familienbetreuung: easy@work gegen Soll</span>
+                            <span>Familienbetreuung: easy@work gegen Soll</span>
                         </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleZuSonntage()">
+                        <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleOeffnen('so')">
                             <img src="img/kontr-sonntage.webp?v=20261013a" alt="" loading="lazy">
-                            <span>8&nbsp;·&nbsp;Freie Sonntage (4&nbsp;/&nbsp;12 pro&nbsp;Jahr)</span>
+                            <span>Freie Sonntage (4&nbsp;/&nbsp;12 pro&nbsp;Jahr)</span>
                         </button>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px;flex:1 1 340px;min-width:0">
@@ -2953,13 +2956,13 @@
             <div class="page" id="page-kontrolle">
                 <div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
                     <div>
-                        <h1 class="page-title" style="color:#991b1b">⚠ Kontrolle</h1>
-                        <p class="page-sub">Proaktive Lücken-Erkennung in den Personalakten — HR sieht hier, wo Dokumente oder Daten fehlen.</p>
+                        <h1 class="page-title" id="kontrolleTitel" style="color:#991b1b">⚠ Kontrolle</h1>
+                        <p class="page-sub" id="kontrolleSub">Proaktive Lücken-Erkennung in den Personalakten — HR sieht hier, wo Dokumente oder Daten fehlen.</p>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
-                        <button type="button" class="btn btn-outline" onclick="kontrolleExportExcel()" style="font-size:12px">📊 Excel</button>
-                        <button type="button" class="btn btn-outline" onclick="kontrolleExportPdf()" style="font-size:12px">📄 PDF</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" class="btn btn-outline" data-kontr="luecken" onclick="kontrolleExportExcel()" style="font-size:12px">📊 Excel</button>
+                        <button type="button" class="btn btn-outline" data-kontr="luecken" onclick="kontrolleExportPdf()" style="font-size:12px">📄 PDF</button>
                         <button type="button" class="btn btn-outline" onclick="kontrolleRefreshAll()" style="font-size:12px">↻ Aktualisieren</button>
                     </div>
                 </div>
@@ -2967,7 +2970,7 @@
 
                 <!-- Walter-Vorgabe 23.09.2026: Dossier-Übersicht pro Filiale —
                      «erledigt» = kein offener Punkt auf der To-do-Liste. -->
-                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f">
+                <div class="card" data-kontr="luecken" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f">
                     <div style="padding:14px 18px;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
                         <div>
                             <div style="font-size:15px;font-weight:700;color:#3f3f3f">Checkliste Personaladministration · aktive Mitarbeitende</div>
@@ -2991,7 +2994,7 @@
 
                 <!-- Walter-Vorgabe 12.10.2026: Familienbetreuung easy@work gegen Soll
                      (Kinder unter 15 im Haushalt) — PDF für die GF. -->
-                <div class="card" id="kontrolleFbCard" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f;scroll-margin-top:16px">
+                <div class="card" data-kontr="fb" id="kontrolleFbCard" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f;scroll-margin-top:16px">
                     <div style="padding:14px 18px;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
                         <div>
                             <div style="font-size:15px;font-weight:700;color:#3f3f3f">Familienbetreuung · easy@work gegen Soll</div>
@@ -3014,7 +3017,7 @@
 
                 <!-- Walter-Vorgabe 12.10.2026: freie Sonntage pro Jahr (4, mit
                      Familienbetreuung 12, anteilig) — PDF für die GF. -->
-                <div class="card" id="kontrolleSoCard" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f;scroll-margin-top:16px">
+                <div class="card" data-kontr="so" id="kontrolleSoCard" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f;scroll-margin-top:16px">
                     <div style="padding:14px 18px;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
                         <div>
                             <div style="font-size:15px;font-weight:700;color:#3f3f3f">Freie Sonntage</div>
@@ -3041,7 +3044,7 @@
 
                 <!-- Walter-Vorgabe 13.06.2026: MA-Ausweis-Sektion ZUERST,
                      Ehegatten-Ausweis darunter. -->
-                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
+                <div class="card" data-kontr="luecken" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
                         <div style="font-size:15px;font-weight:700;color:#991b1b">Ausweis Mitarbeiter fehlt</div>
                         <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
@@ -3055,7 +3058,7 @@
                     </div>
                 </div>
 
-                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
+                <div class="card" data-kontr="luecken" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
                         <div style="font-size:15px;font-weight:700;color:#991b1b">Ausweis Ehegatte fehlt</div>
                         <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
@@ -3070,7 +3073,7 @@
 
                 <!-- Walter-Vorgabe 13.06.2026: dritte Sektion „Bewilligungen
                      laufen ab" — analog Dashboard-Card permit_expiring. -->
-                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
+                <div class="card" data-kontr="luecken" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
                         <div style="font-size:15px;font-weight:700;color:#991b1b">Bewilligungen laufen ab</div>
                         <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
@@ -3086,7 +3089,7 @@
                 <!-- Walter-Vorgabe 22.06.2026 (ArGV1 Art. 30): vierte Sektion „Nachtarbeit-
                      Nachweise fehlen" — MA mit >18 Nächten in einem 6-Wochen-Fenster ohne
                      vollständige Nachweise. Logik analog Dashboard night_work_exam_fehlt. -->
-                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
+                <div class="card" data-kontr="luecken" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
                     <div style="padding:14px 18px;border-bottom:1px solid #fee2e2;background:#fef2f2">
                         <div style="font-size:15px;font-weight:700;color:#991b1b">Nachtarbeit-Nachweise fehlen</div>
                         <div style="font-size:12.5px;color:#7f1d1d;margin-top:2px">
@@ -3101,7 +3104,7 @@
                 </div>
 
                 <!-- Walter 22.07.2026: Upload-Protokoll unter Kontrolle erreichbar -->
-                <div class="card" style="padding:14px 18px;margin-top:14px;cursor:pointer;border-left:4px solid #64748b"
+                <div class="card" data-kontr="protokoll" style="padding:14px 18px;margin-top:14px;cursor:pointer;border-left:4px solid #64748b"
                      onclick="showPage('dok-protokoll')">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
                         <div>
@@ -3114,7 +3117,7 @@
                     </div>
                 </div>
 
-                <div style="margin-top:18px;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;color:#64748b;line-height:1.55">
+                <div data-kontr="luecken" style="margin-top:18px;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12.5px;color:#64748b;line-height:1.55">
                     <b>Hinweis:</b> Damit der Dokumenten-Status korrekt erkannt wird, muss in der
                     <a href="#" onclick="event.preventDefault();showPage('dokumentstruktur')" style="color:#6b7280">Dokument-Struktur</a>
                     ein Typ (z.B. „Ausweis Ehegatte") mit Verknüpfung <code>Ehegatte (Familie)</code> existieren.
@@ -3134,7 +3137,7 @@
                     <div class="kd-day" style="padding:20px;max-width:760px">
                         <!-- «← Zurück» wie überall oben rechts (Walter 12.08.2026) -->
                         <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
-                            <button onclick="pageBack()"
+                            <button class="seite-zurueck" onclick="pageBack()"
                                     style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
                         </div>
                         <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">Mitarbeiter wählen</div>
@@ -3165,7 +3168,7 @@
                     <div class="kd-day" style="padding:20px;max-width:760px">
                         <!-- «← Zurück» wie immer oben rechts (Walter 12.08.2026) -->
                         <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
-                            <button onclick="pageBack()"
+                            <button class="seite-zurueck" onclick="pageBack()"
                                     style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
                         </div>
                         <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">1. Mitarbeiter wählen</div>
@@ -3245,7 +3248,7 @@
                     <div class="kd-day" style="padding:20px;max-width:760px">
                         <!-- «← Zurück» wie immer oben rechts (Walter 12.08.2026) -->
                         <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
-                            <button onclick="pageBack()"
+                            <button class="seite-zurueck" onclick="pageBack()"
                                     style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
                         </div>
                         <!-- Schritt 1: Mitarbeiter -->
@@ -3520,7 +3523,7 @@
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">Manager-Dienstplan
-                        <span class="sys-back-next-to-title"><button type="button" class="sys-back-btn" onclick="pageBack()">
+                        <span class="sys-back-next-to-title"><button type="button" class="seite-zurueck sys-back-btn" onclick="pageBack()">
                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                             Zurück</button></span></h1>
                         <p class="page-sub">FIX-M-Manager aller Filialen — Zelle anklicken, dann Kürzel direkt tippen (F/M/S/-/SK/IV/P). Pfeiltasten/Enter springen weiter, Backspace löscht, Leertaste rotiert durch die Kürzel. Absenzen kommen automatisch aus dem System und sind gesperrt.</p>
@@ -3560,7 +3563,7 @@
                     <div id="fplMonatTitel" style="font-size:15px;font-weight:700;color:#3f3f3f;min-width:150px;text-align:center"></div>
                     <button onclick="fplShift(1)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;color:#3f3f3f">›</button>
                     <span style="flex:1"></span>
-                    <button onclick="showPage('manager-dienstplan')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">← Zurück zum Dienstplan</button>
+                    <button class="seite-zurueck" onclick="showPage('manager-dienstplan')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">← Zurück zum Dienstplan</button>
                 </div>
                 <div class="page-body">
                     <div id="fplGrid"></div>
@@ -3752,7 +3755,7 @@
                         <p class="page-sub">Gesprächsmodus — eine Frage pro Bildschirm, jede Antwort wird sofort gespeichert. Abbrechen und später weitermachen ist jederzeit möglich.</p>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
-                        <button type="button" class="btn btn-outline" onclick="showPage('mcadmin')" style="font-size:12px">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('mcadmin')" style="font-size:12px">← Zurück</button>
                     </div>
                 </div>
                 <div class="page-body">
@@ -3990,7 +3993,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-                        <button type="button" class="szb-glas" onclick="showPage('mcadmin')" style="align-self:center">← Zurück</button>
+                        <button type="button" class="seite-zurueck szb-glas" onclick="showPage('mcadmin')" style="align-self:center">← Zurück</button>
                         <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Von</div><input type="date" id="szvFrom" class="ma-input" onchange="szvLoad()"></div>
                         <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Bis</div><input type="date" id="szvTo" class="ma-input" onchange="szvLoad()"></div>
                         <div class="szb-schnell">
@@ -4015,7 +4018,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-                        <button type="button" class="szb-glas" onclick="showPage('mcadmin')" style="align-self:center">← Zurück</button>
+                        <button type="button" class="seite-zurueck szb-glas" onclick="showPage('mcadmin')" style="align-self:center">← Zurück</button>
                         <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Von</div><input type="date" id="szkFrom" class="ma-input" onchange="szkLoad()"></div>
                         <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Bis</div><input type="date" id="szkTo" class="ma-input" onchange="szkLoad()"></div>
                         <div class="szb-schnell">
@@ -4040,7 +4043,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-                        <button type="button" class="szb-glas" onclick="showPage('hr-hub')" style="align-self:center">← Zurück</button>
+                        <button type="button" class="seite-zurueck szb-glas" onclick="showPage('hr-hub')" style="align-self:center">← Zurück</button>
                         <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Von</div><input type="date" id="szfFrom" class="ma-input" onchange="szfLoad()"></div>
                         <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Bis</div><input type="date" id="szfTo" class="ma-input" onchange="szfLoad()"></div>
                         <div class="szb-schnell">
@@ -4527,7 +4530,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
-                        <button type="button" class="btn btn-outline" onclick="showPage('admin-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('admin-hub')" style="font-size:12px">← Zurück</button>
                         <span style="flex:1"></span>
                         <button type="button" class="btn-primary" onclick="hsOpenModal()">+ Hauptsitz erfassen</button>
                     </div>
@@ -5773,7 +5776,7 @@
                         <button class="btn-primary" onclick="sollLoad()">🔄 Laden</button>
                         <!-- «← Zurück» rechts oberhalb des PDF-Knopfs (Walter 12.08.2026) -->
                         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-                            <button onclick="pageBack()"
+                            <button class="seite-zurueck" onclick="pageBack()"
                                     style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:4px 13px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button>
                             <button type="button" class="btn btn-outline" onclick="sollPdf()" title="Liste als PDF (A4 quer)">📄 PDF</button>
                         </div>
@@ -5799,7 +5802,7 @@
                         <button class="btn-primary" onclick="ferLoad()">🔄 Laden</button>
                         <!-- «← Zurück» rechts oberhalb des PDF-Knopfs (Walter 12.08.2026) -->
                         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-                            <button onclick="pageBack()"
+                            <button class="seite-zurueck" onclick="pageBack()"
                                     style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:4px 13px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button>
                             <button type="button" class="btn btn-outline" onclick="ferPdf()" title="Liste als PDF (A4 quer)">📄 PDF</button>
                         </div>
@@ -5814,7 +5817,7 @@
             <div class="page fixhead" id="page-lse">
                 <div class="page-head"><div>
                     <h1 class="page-title" style="display:flex;align-items:center;gap:18px">BFS Lohnstrukturerhebung
-                        <button onclick="pageBack()"
+                        <button class="seite-zurueck" onclick="pageBack()"
                                 style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px 14px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button></h1>
                     <p class="page-sub">Lohnstrukturerhebung (LSE) — automatisch aus den bestehenden OneCrew-Daten. Referenzmonat Oktober. Fehlende BFS-Angaben werden markiert und direkt hier ergänzt.</p>
                 </div></div>
@@ -5842,7 +5845,7 @@
             <div class="page fixhead" id="page-absenz-kalender">
                 <div class="page-head"><div>
                     <h1 class="page-title">Absenzen &amp; Ferien — Kalender
-                        <span class="sys-back-next-to-title"><button type="button" class="sys-back-btn" onclick="pageBack()">
+                        <span class="sys-back-next-to-title"><button type="button" class="seite-zurueck sys-back-btn" onclick="pageBack()">
                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                             Zurück</button></span>
                     </h1>
@@ -5859,7 +5862,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
                         <button class="btn-primary" onclick="alterLoad()">🔄 Aktualisieren</button>
                         <button onclick="alterPdf()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(60,55,48,0.18)">📄 PDF (A4 hoch)</button>
                         <span style="font-size:12px;color:#8b8b8b">Stichtag = heute · immer über alle Filialen (unabhängig vom Sidebar-Filter)</span>
@@ -5875,7 +5878,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
                         <div class="ma-field" style="min-width:140px">
                             <div class="ma-field-label">Von</div>
                             <input type="date" id="flukFrom" class="ma-input" onchange="flukLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
@@ -6350,7 +6353,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
                         <div class="ma-field" style="min-width:140px">
                             <div class="ma-field-label">Von</div>
                             <input type="date" id="mtpwFrom" class="ma-input" onchange="mtpwLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
@@ -6374,7 +6377,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
                         <div class="ma-field" style="min-width:140px">
                             <div class="ma-field-label">Von</div>
                             <input type="date" id="wsFrom" class="ma-input" onchange="wsLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
@@ -6404,7 +6407,7 @@
                 </div></div>
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
                         <div class="ma-field" style="min-width:140px">
                             <div class="ma-field-label">Von</div>
                             <input type="date" id="esFrom" class="ma-input" onchange="esLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
@@ -8272,7 +8275,7 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Absenzen aus Dienstplan
-                        <span class="sys-back-next-to-title"><button type="button" class="sys-back-btn" onclick="pageBack()">
+                        <span class="sys-back-next-to-title"><button type="button" class="seite-zurueck sys-back-btn" onclick="pageBack()">
                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                             Zurück</button></span></h1>
                         <p class="page-sub">Dienstplan-XLS hochladen — das System erkennt Ferien-, Krankheits- und Unfall-Codes, fasst zusammenhängende Tage zu Absenzen zusammen und ordnet sie den Mitarbeitenden zu.</p>
@@ -8334,7 +8337,7 @@
                         <!-- «← Zurück» direkt neben dem Titel (Walter 12.08.2026:
                              nicht ganz rechts aussen, sondern nah bei der Info) -->
                         <h1 class="page-title" style="display:flex;align-items:center;gap:18px">Absenz-Auswertung
-                            <button onclick="pageBack()"
+                            <button class="seite-zurueck" onclick="pageBack()"
                                     style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px 14px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button></h1>
                         <p class="page-sub">Krankheit, Unfall und Mutter-/Vaterschaftsurlaub pro Mitarbeiter:in — pro Filiale oder filialübergreifend als Top-Liste, sortiert nach Gesamt-Ausfalltagen.</p>
                     </div>
@@ -8588,7 +8591,7 @@
                         <p class="page-sub">Mirus-Personalexport hochladen — OneCrew zeigt, welche <b>aktiven</b> Mitarbeitenden der gewählten Filiale in Mirus noch fehlen, mit allen Angaben zum Erfassen. Es werden keine Daten geschrieben.</p>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
                     </div>
                 </div>
                 <div id="mfmAlert" style="margin-bottom:12px"></div>
@@ -8626,7 +8629,8 @@
                         <p class="page-sub">Liste «Mitarbeitende» aus dem GastroSocial-Portal hochladen — OneCrew zeigt, wer noch <b>abgemeldet</b> werden muss und wer <b>nicht gemeldet</b> ist. Es werden keine Daten geschrieben.</p>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" onclick="akisOpenPortal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">🌐 AKISnet öffnen</button>
                     </div>
                 </div>
                 <div id="gsaAlert" style="margin-bottom:12px"></div>
@@ -8665,7 +8669,8 @@
                         <p class="page-sub">«Familienzulagenbescheinigung» aus dem GastroSocial-Portal hochladen — OneCrew vergleicht Monat für Monat mit den Zulagen bei den Kindern (MA → Familie). Es werden keine Daten geschrieben.</p>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
-                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                        <button type="button" onclick="akisOpenPortal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">🌐 AKISnet öffnen</button>
                     </div>
                 </div>
                 <div id="gsfAlert" style="margin-bottom:12px"></div>
@@ -10497,7 +10502,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261012b"></script>
+<script src="js/app-core.js?v=20261013a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10517,7 +10522,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>
 <script src="js/qst-import.js?v=20260704p"></script>
-<script src="js/kontrolle.js?v=20261012g"></script>
+<script src="js/kontrolle.js?v=20261013a"></script>
 <script src="js/nationen.js?v=20260816a"></script>
 <script src="js/swiss-locations.js?v=20260816a"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
