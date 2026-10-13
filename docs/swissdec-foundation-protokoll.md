@@ -14,6 +14,8 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 > mit Kommentar: auch der Dialog-Typ «Complete» (02.10.) lief durch (Finished, keine Notification
 > mit Error) — Auslösen muss itserv zeigen. Einzig offen: F07_04 (3 Zeilen, «Registered» hat im
 > Test-Empfänger keine Einstellung). Handbuch für den Termin: `docs/swissdec-vorfuehrung/`.
+> **13.10.2026: F07_04 mit der Expertin (itserv) geklärt** — Receiver gemeinsam umgestellt, von ihr
+> als in Ordnung bestätigt (Abschnitt «F07_04» unten).
 > Die Tabelle unten ist der Stand vom 24.09.2026.
 
 Die Zahlen der Übersicht sind **Einzelprüfungen** (Zeilen im Werkzeug inkl. TOOL_SETTING /
@@ -1117,6 +1119,12 @@ das verschlüsselte XML. Seither:
   OneCrew zeigt das rot und überschreibt den gespeicherten Fall NICHT (richtig).
 - Die Anzeige für «registered» ist gebaut (`ElmSuaService.StateMeldung`: «registriert, nächster
   Schritt folgt»). **Bleibt für itserv:** wie stellt man den Receiver auf «registered»?
+
+**✅ Geklärt 13.10.2026 mit der Expertin (itserv):** Sie hat den Receiver zusammen mit Walter
+umgestellt und den Punkt als in Ordnung bestätigt. Einstellung danach (Screenshot Walter):
+ELM 6.x, Zeile «Reference Receiver · AHV-AVS · 046.000» aktiv, RegisterOrganizationAuthentication
+= «RegisterVerification» (übrige Listen: DeclareResult / SubscribeAndSuccess). Am Code wurde nichts
+geändert; im Kommunikations-Test ist F07_04 als bestanden vorbelegt.
 
 ### F06_01 — Plausibilitätsprüfung im Transmitter (02.10.2026)
 
