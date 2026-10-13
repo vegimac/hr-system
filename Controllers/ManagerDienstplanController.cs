@@ -221,7 +221,7 @@ public class ManagerDienstplanController : ControllerBase
         {
             var wert = dto.GfBezeichnung.Trim();
             if (wert.Length > 160)
-                return BadRequest(new { error = "ZU_LANG", message = "Bezeichnung über dem GF-Namen max. 160 Zeichen." });
+                return BadRequest(new { error = "ZU_LANG", message = "Text unter dem GF-Namen max. 160 Zeichen." });
             var alt = await _db.OrganigrammEinstellungen.FirstOrDefaultAsync(e => e.Schluessel == OrganigrammGfBezeichnung);
             if (alt != null) alt.Wert = wert;
             else _db.OrganigrammEinstellungen.Add(new OrganigrammEinstellung { Schluessel = OrganigrammGfBezeichnung, Wert = wert });

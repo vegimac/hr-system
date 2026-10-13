@@ -244,7 +244,7 @@ public class OrganigrammStelle
     public DateTime GeaendertAm { get; set; } = DateTime.Now;
 }
 
-/// <summary>Organigramm-Einstellung (Schlüssel/Wert), z.B. GF_BEZEICHNUNG = Text über dem GF-Namen ("" = weglassen).</summary>
+/// <summary>Organigramm-Einstellung (Schlüssel/Wert), z.B. GF_BEZEICHNUNG = Text unter dem GF-Namen ("" = weglassen).</summary>
 public class OrganigrammEinstellung
 {
     public string Schluessel { get; set; } = "";
