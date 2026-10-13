@@ -11,6 +11,8 @@ let _orgEdit = null;   // { stellen:[{titel,name,beschreibung,art,farbe}], farbe
 
 const ORG_MONATE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const ORG_STANDARD = { LINIE: '#3f3f3f', STAB: '#ffffff', FILIALE: '#e7e4db', MANAGER: '#ffffff' };
+// Graustufen der Vorlage «Neutral» (nur Anzeige im Regler; nicht gesetzt = Vorlage unverändert).
+const ORG_SW_STANDARD = { SW_LINIE: '#262626', SW_STAB: '#eeeeee', SW_FILIALE: '#f8f8f8', SW_MANAGER: '#efefef' };
 const _orgGlas = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f';
 const _orgKohle = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer';
 const _orgInp = 'background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f;box-shadow:0 2px 6px rgba(60,55,48,0.13),inset 0 1px 0 rgba(255,255,255,0.9);min-width:0';
@@ -78,6 +80,14 @@ const ORG_CSS = `
 .dpo.n .dpo-k-gf b.offen{font-style:italic;font-weight:500;color:#777}
 .dpo.n .dpo-k-liste{display:flex;flex-direction:column;gap:calc(6px * var(--dzi, 1));margin-top:calc(14px * var(--dzi, 1))}
 .dpo.n .dpo-k-p{background:#efefef;border:1px solid #e7e7e7;border-radius:4px;padding:calc(6px * var(--dzi, 1)) 11px;font-size:12.5px;font-weight:600;color:#1a1a1a}
+/* Graustufe frei gewählt: Schrift richtet sich nach hell/dunkel */
+.dpo.n .dpo-sw-hell .dpo-name,.dpo.n .dpo-sw-hell.dpo-k-p,.dpo.n .dpo-sw-hell .dpo-k-name,.dpo.n .dpo-sw-hell .dpo-k-gf b{color:#1c1c1c}
+.dpo.n .dpo-sw-hell .dpo-titel{color:#333}
+.dpo.n .dpo-sw-hell .dpo-beschr,.dpo.n .dpo-sw-hell .dpo-k-gf small{color:#444}
+.dpo.n .dpo-sw-hell .dpo-txt,.dpo.n .dpo-sw-hell .dpo-k-gf{border-left-color:#c4c4c4}
+.dpo.n .dpo-sw-dunkel .dpo-name,.dpo.n .dpo-sw-dunkel.dpo-k-p,.dpo.n .dpo-sw-dunkel .dpo-k-name,.dpo.n .dpo-sw-dunkel .dpo-k-gf b{color:#fff}
+.dpo.n .dpo-sw-dunkel .dpo-titel,.dpo.n .dpo-sw-dunkel .dpo-beschr,.dpo.n .dpo-sw-dunkel .dpo-k-gf small{color:rgba(255,255,255,0.86)}
+.dpo.n .dpo-sw-dunkel .dpo-txt,.dpo.n .dpo-sw-dunkel .dpo-k-gf{border-left-color:rgba(255,255,255,0.38)}
 
 /* ── Farbig ── */
 .dpo.f{--lc:${ORG_LINIE};--lw:2px;--sh:30px;--ug:calc(12px * var(--dz, 1));--ue:24px;--uw:36px;padding:16px 28px 30px;color:#3f3f3f;letter-spacing:-.005em}
@@ -119,7 +129,8 @@ const ORG_CSS = `
 const ORG_DRUCK_CSS = `
 .dpo .dpo-box,.dpo .dpo-karte,.dpo .dpo-team,.dpo .dpo-k-p{box-shadow:none!important}
 .dpo.f .dpo-person{box-shadow:none!important;border:1px solid rgba(60,55,48,0.12)}
-.dpo.n .dpo-lin{border:1px solid #1a1a1a;background:#242424!important}
+.dpo.n .dpo-lin{border:1px solid rgba(0,0,0,0.25)}
+.dpo.n .dpo-lin:not([style]){border-color:#1a1a1a;background:#242424!important}
 .dpo.f .dpo-box,.dpo.f .dpo-team-kopf{background-image:none!important}
 .dpo.n .dpo-stb{border:1px solid #dcdcdc}
 .dpo.n .dpo-karte{border:1px solid #dedede}
@@ -160,12 +171,22 @@ function _orgNamen(filialen) {
 
 function _orgIstStab(s) { return s.art === 'STAB' || s.art === 'STAB_R'; }
 
+// Neutral: gewählte Graustufe ⇒ Klasse (Schrift hell/dunkel) + Stil; nichts gewählt ⇒ Vorlage.
+function _orgSw(farben, stufe, rand) {
+    const hex = farben && farben[stufe];
+    if (!hex) return { cls: '', stil: '' };
+    return { cls: _orgHell(hex) ? ' dpo-sw-hell' : ' dpo-sw-dunkel', stil: ` style="background:${hex};background-image:none${rand ? ';border-color:rgba(0,0,0,0.08)' : ''}"` };
+}
+function _orgGrauHex(wert) { const h = Math.round(Math.max(0, Math.min(100, wert)) * 2.55).toString(16).padStart(2, '0'); return `#${h}${h}${h}`; }
+function _orgGrauWert(hex) { return Math.round(_orgRgb(hex)[0] / 2.55); }
+
 function _orgHtml(d, modus) {
     const farbig = (modus || _orgModus) === 'farbig';
     const box = (s, zusatz) => {
         const art = _orgIstStab(s) ? 'dpo-stb' : 'dpo-lin';
-        const stil = farbig ? ` style="${_orgFlaeche(_orgStelleFarbe(s))}"` : '';
-        return `<div class="dpo-box ${art} ${zusatz || ''}"${stil}><div class="dpo-txt">${s.titel ? `<div class="dpo-titel">${esc(s.titel)}</div>` : ''}<div class="dpo-name">${esc(s.name)}</div>${s.beschreibung ? `<div class="dpo-beschr">${esc(s.beschreibung)}</div>` : ''}</div></div>`;
+        const sw = farbig ? null : _orgSw(d.farben, _orgIstStab(s) ? 'SW_STAB' : 'SW_LINIE');
+        const stil = farbig ? ` style="${_orgFlaeche(_orgStelleFarbe(s))}"` : sw.stil;
+        return `<div class="dpo-box ${art}${farbig ? '' : sw.cls} ${zusatz || ''}"${stil}><div class="dpo-txt">${s.titel ? `<div class="dpo-titel">${esc(s.titel)}</div>` : ''}<div class="dpo-name">${esc(s.name)}</div>${s.beschreibung ? `<div class="dpo-beschr">${esc(s.beschreibung)}</div>` : ''}</div></div>`;
     };
     // Mehrere Stab-Stellen auf derselben Seite: die erste hängt an der Hauptlinie, jede weitere gestrichelt an der darüber.
     const kette = (items, i, seite) => {
@@ -201,15 +222,17 @@ function _orgHtml(d, modus) {
     if (!d.filialen.length) html += '<div class="dpo-leer">Keine FIX-M-Verträge in diesem Monat</div>';
 
     if (!farbig) {
+        const swKarte = _orgSw(d.farben, 'SW_FILIALE');
+        const swPerson = _orgSw(d.farben, 'SW_MANAGER', true);
         html += '<div class="dpo-fil-row">' + d.filialen.map(f => {
             const gf = f.personen.filter(p => p.istGf);
             const mgr = f.personen.filter(p => !p.istGf);
             const gfHtml = gf.length
                 ? gf.map(p => `<div class="dpo-k-gf" title="${esc(voll(p))}"><b>${esc(name(p))}</b>${gfLabel}</div>`).join('')
                 : `<div class="dpo-k-gf"><b class="offen">GF offen</b>${gfLabel}</div>`;
-            return `<div class="dpo-col"><div class="dpo-karte">
+            return `<div class="dpo-col"><div class="dpo-karte${swKarte.cls}"${swKarte.stil}>
                 <div class="dpo-k-name">${esc(f.name)}</div>${gfHtml}
-                ${mgr.length ? `<div class="dpo-k-liste">${mgr.map(p => `<div class="dpo-k-p" title="${esc(voll(p))}">${esc(name(p))}</div>`).join('')}</div>` : ''}
+                ${mgr.length ? `<div class="dpo-k-liste">${mgr.map(p => `<div class="dpo-k-p${swPerson.cls}"${swPerson.stil} title="${esc(voll(p))}">${esc(name(p))}</div>`).join('')}</div>` : ''}
             </div></div>`;
         }).join('') + '</div></div>';
         return html;
@@ -380,8 +403,11 @@ function orgBearbeiten() {
         <div style="font-size:14px;font-weight:700;color:#3f3f3f;margin:18px 0 2px">Farben der Stufen darunter</div>
         <div style="font-size:12px;color:#646464;margin-bottom:8px">Die Farben gelten für die Darstellung «Farbig».</div>
         <div id="orgEditStufen"></div>
+        <div style="font-size:14px;font-weight:700;color:#3f3f3f;margin:18px 0 2px">Graustufen «Neutral»</div>
+        <div style="font-size:12px;color:#646464;margin-bottom:8px">Links dunkel, rechts hell. Gelten für die Darstellung «Neutral»; die Schrift wird automatisch weiss oder schwarz.</div>
+        <div id="orgEditGrau"></div>
         <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
-            <button onclick="orgFarbenStandard()" style="${_orgGlas}">Farben auf Standard</button>
+            <button onclick="orgFarbenStandard()" style="${_orgGlas}">Farben &amp; Graustufen auf Standard</button>
             <span style="flex:1"></span>
             <button onclick="orgBearbeitenAbbrechen()" style="${_orgGlas}">Abbrechen</button>
             <button id="orgSpeichernBtn" onclick="orgSpeichern()" style="${_orgKohle}">Speichern</button>
@@ -418,6 +444,24 @@ function _orgEditRender() {
             <span style="font-size:13px;color:#3f3f3f">${text}</span>
         </div>`;
     stufen.innerHTML = zeile('FILIALE', 'Filiale mit Geschäftsführer/in') + zeile('MANAGER', 'Manager');
+    const grau = (stufe, text) => {
+        const hex = _orgEdit.farben[stufe] || ORG_SW_STANDARD[stufe];
+        return `<div style="display:grid;grid-template-columns:34px 1fr 150px;align-items:center;gap:10px;margin-bottom:8px">
+            <span id="orgGrauMuster_${stufe}" style="width:34px;height:24px;border-radius:7px;background:${hex};border:1px solid rgba(60,55,48,0.22)"></span>
+            <span style="font-size:13px;color:#3f3f3f">${text}</span>
+            <input type="range" min="0" max="100" value="${_orgGrauWert(hex)}" title="Graustufe" oninput="orgGrauSetzen('${stufe}',this.value)" style="width:100%;accent-color:#3f3f3f">
+        </div>`;
+    };
+    const g = document.getElementById('orgEditGrau');
+    if (g) g.innerHTML = grau('SW_LINIE', 'Stellen «Linie»') + grau('SW_STAB', 'Stellen «Stab»') + grau('SW_FILIALE', 'Filiale mit Geschäftsführer/in') + grau('SW_MANAGER', 'Manager');
+}
+
+function orgGrauSetzen(stufe, wert) {
+    const hex = _orgGrauHex(Number(wert));
+    _orgEdit.farben[stufe] = hex;
+    const m = document.getElementById('orgGrauMuster_' + stufe);
+    if (m) m.style.background = hex;
+    _orgAnzeigen();
 }
 
 function orgStelleDazu() { _orgEdit.stellen.push({ titel: '', name: '', beschreibung: '', art: 'LINIE', farbe: null }); _orgEditRender(); _orgAnzeigen(); }

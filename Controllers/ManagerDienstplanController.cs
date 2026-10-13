@@ -174,7 +174,8 @@ public class ManagerDienstplanController : ControllerBase
 
     private const string OrganigrammGfBezeichnung = "GF_BEZEICHNUNG";
 
-    private static readonly string[] OrganigrammStufen = { "FILIALE", "MANAGER" };
+    // FILIALE/MANAGER = Darstellung «Farbig», SW_* = Graustufen der Darstellung «Neutral».
+    private static readonly string[] OrganigrammStufen = { "FILIALE", "MANAGER", "SW_LINIE", "SW_STAB", "SW_FILIALE", "SW_MANAGER" };
 
     private static string? NurFarbe(string? f)
         => f != null && System.Text.RegularExpressions.Regex.IsMatch(f.Trim(), "^#[0-9a-fA-F]{6}$")
