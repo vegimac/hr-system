@@ -115,6 +115,17 @@ const ORG_CSS = `
 .org-farbe::-moz-color-swatch{border:1px solid rgba(60,55,48,0.15);border-radius:6px}
 `;
 
+// Druck: weiche Schatten landen im PDF als Bild-Masken und erscheinen in Vorschau/Acrobat als graue Blöcke ⇒ feine Ränder statt Schatten.
+const ORG_DRUCK_CSS = `
+.dpo .dpo-box,.dpo .dpo-karte,.dpo .dpo-team,.dpo .dpo-k-p{box-shadow:none!important}
+.dpo.n .dpo-lin{border:1px solid #1a1a1a;background:#242424!important}
+.dpo.f .dpo-box,.dpo.f .dpo-team-kopf{background-image:none!important}
+.dpo.n .dpo-stb{border:1px solid #dcdcdc}
+.dpo.n .dpo-karte{border:1px solid #dedede}
+.dpo.n .dpo-k-p{border-color:#e2e2e2}
+.dpo.f .dpo-box,.dpo.f .dpo-team{border:1px solid rgba(60,55,48,0.22)}
+`;
+
 function _orgRgb(hex) {
     const m = /^#([0-9a-f]{6})$/i.exec(hex || '');
     const n = m ? parseInt(m[1], 16) : 0x3f3f3f;
@@ -131,7 +142,7 @@ function _orgMisch(hex, weiss) {
 function _orgRgba(hex, a) { const [r, g, b] = _orgRgb(hex); return `rgba(${r},${g},${b},${a})`; }
 // Fläche: Verlauf von leicht aufgehellt zur Farbe, Schatten in der eigenen Farbe.
 function _orgFlaeche(hex) {
-    return `background:linear-gradient(135deg,${_orgMisch(hex, 0.22)} 0%,${hex} 75%);color:${_orgSchrift(hex)};box-shadow:0 1px 2px rgba(60,55,48,0.10),0 10px 24px ${_orgRgba(_orgHell(hex) ? '#3c3730' : hex, _orgHell(hex) ? 0.12 : 0.30)}`;
+    return `background-color:${hex};background-image:linear-gradient(135deg,${_orgMisch(hex, 0.22)} 0%,${hex} 75%);color:${_orgSchrift(hex)};box-shadow:0 1px 2px rgba(60,55,48,0.10),0 10px 24px ${_orgRgba(_orgHell(hex) ? '#3c3730' : hex, _orgHell(hex) ? 0.12 : 0.30)}`;
 }
 function _orgStelleFarbe(s) { return s.farbe || (_orgIstStab(s) ? ORG_STANDARD.STAB : ORG_STANDARD.LINIE); }
 function _orgStufenFarbe(farben, stufe) { return (farben && farben[stufe]) || ORG_STANDARD[stufe]; }
@@ -215,7 +226,7 @@ function _orgHtml(d, modus) {
             : `<div class="dpo-gf dpo-offen"><b>GF offen</b>${gfLabel}</div>`;
         return `<div class="dpo-col">
             <div class="dpo-team" style="box-shadow:0 1px 2px rgba(60,55,48,0.08),0 12px 28px ${_orgRgba(_orgHell(filHex) ? '#3c3730' : filHex, _orgHell(filHex) ? 0.12 : 0.22)}">
-                <div class="dpo-team-kopf" style="background:linear-gradient(135deg,${_orgMisch(filHex, 0.22)} 0%,${filHex} 80%);color:${_orgSchrift(filHex)}">
+                <div class="dpo-team-kopf" style="background-color:${filHex};background-image:linear-gradient(135deg,${_orgMisch(filHex, 0.22)} 0%,${filHex} 80%);color:${_orgSchrift(filHex)}">
                     <div class="dpo-team-zeile"><span class="dpo-team-name">${esc(f.name)}</span><span class="dpo-zahl" style="${zahlStil}" title="Manager">${mgr.length}</span></div>
                     ${gfHtml}
                 </div>
@@ -324,7 +335,7 @@ function orgDrucken() {
     // @page margin 0 ⇒ der Browser druckt keine Kopf-/Fusszeile (Datum, about:blank); Rand kommt vom body.
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Organigramm ${ORG_MONATE[daten.month - 1]} ${daten.year}</title>
         <style>@page{size:A4 landscape;margin:0}html,body{margin:0}body{padding:10mm;background:${farbig ? '#fff' : '#f7f7f7'};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-        h1{font-size:13px;font-weight:600;color:#8b8b8b;margin:0 0 6px;text-align:right}#o{width:277mm;height:${farbig ? 180 : 190}mm;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center}${ORG_CSS}</style></head>
+        h1{font-size:13px;font-weight:600;color:#8b8b8b;margin:0 0 6px;text-align:right}#o{width:277mm;height:${farbig ? 180 : 190}mm;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center}${ORG_CSS}${ORG_DRUCK_CSS}</style></head>
         <body>${farbig ? `<h1>Organigramm · Stand ${ORG_MONATE[daten.month - 1]} ${daten.year}</h1>` : ''}<div id="o">${_orgHtml(daten, _orgModus)}</div>
         <script>window.onload=function(){var o=document.getElementById('o'),b=o.firstElementChild,sw=Math.min(1,o.clientWidth/b.scrollWidth);
         if(b.classList.contains('n')){for(var dz=1;dz<2;dz+=0.05){if(b.scrollHeight*sw>=o.clientHeight*0.85)break;b.style.setProperty('--dz',dz+0.05);b.style.setProperty('--dzi',1+(dz+0.05-1)*0.5);}}
