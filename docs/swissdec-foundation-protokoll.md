@@ -14,8 +14,8 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 > mit Kommentar: auch der Dialog-Typ «Complete» (02.10.) lief durch (Finished, keine Notification
 > mit Error) — Auslösen muss itserv zeigen. Einzig offen: F07_04 (3 Zeilen, «Registered» hat im
 > Test-Empfänger keine Einstellung). Handbuch für den Termin: `docs/swissdec-vorfuehrung/`.
-> **13.10.2026: F07_04 mit der Expertin (itserv) geklärt** — Receiver gemeinsam umgestellt, von ihr
-> als in Ordnung bestätigt (Abschnitt «F07_04» unten).
+> **13.10.2026: F07_04** — Expertin (itserv) hat den Punkt als in Ordnung bezeichnet; «registered»
+> liess sich auch in der Probe danach nicht erzeugen (Abschnitt «F07_04» unten).
 > Die Tabelle unten ist der Stand vom 24.09.2026.
 
 Die Zahlen der Übersicht sind **Einzelprüfungen** (Zeilen im Werkzeug inkl. TOOL_SETTING /
@@ -1120,11 +1120,19 @@ das verschlüsselte XML. Seither:
 - Die Anzeige für «registered» ist gebaut (`ElmSuaService.StateMeldung`: «registriert, nächster
   Schritt folgt»). **Bleibt für itserv:** wie stellt man den Receiver auf «registered»?
 
-**✅ Geklärt 13.10.2026 mit der Expertin (itserv):** Sie hat den Receiver zusammen mit Walter
-umgestellt und den Punkt als in Ordnung bestätigt. Einstellung danach (Screenshot Walter):
-ELM 6.x, Zeile «Reference Receiver · AHV-AVS · 046.000» aktiv, RegisterOrganizationAuthentication
-= «RegisterVerification» (übrige Listen: DeclareResult / SubscribeAndSuccess). Am Code wurde nichts
-geändert; im Kommunikations-Test ist F07_04 als bestanden vorbelegt.
+**13.10.2026 — Expertin (itserv):** Sie hat mit Walter den Receiver angeschaut und F07_04 als in
+Ordnung bezeichnet. Probe direkt danach (Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und
+AHV-AVS · 046.000 je «RegisterVerification», übrige Listen DeclareResult / SubscribeAndSuccess):
+
+- 14:41:07 Registrieren → Success von 1234, Implementierung `Refapps Reference Implementation ::
+  RegisterVerification`, CertificateRequestID `18de173fd35e9fdde`, WS-Security gültig,
+  SignatureConfirmation passt.
+- 14:45:08 Status abfragen → **verified**, Einmalpasswort über Code 9998 (Plausibility).
+- **Ergebnis:** «registered» ist mit dem Test-Empfänger weiterhin nicht auslösbar. Die Zeile
+  AHV-AVS wirkt auf die Registrierung nicht — SUA kennt nur UVG-LAA / UVGZ-LAAC / KTG-AMC / BVG-LPP
+  (`ElmSuaService.Domains`), registriert wird bei 1234.
+- F07_04 steht damit auf der Aussage der Expertin; OneCrew zeigt «registered» an
+  (`ElmSuaService.StateMeldung`), belegt ist das nur durch den Code, nicht durch eine Antwort.
 
 ### F06_01 — Plausibilitätsprüfung im Transmitter (02.10.2026)
 
