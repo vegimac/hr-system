@@ -216,7 +216,7 @@ function _orgHtml(d, modus) {
 
     const filHex = _orgStufenFarbe(d.farben, 'FILIALE');
     const mgrHex = _orgStufenFarbe(d.farben, 'MANAGER');
-    const mgrZeile = _orgHell(mgrHex) ? `background:rgba(60,55,48,0.04);color:#3f3f3f` : `background:${mgrHex};color:${_orgSchrift(mgrHex)}`;
+    const mgrZeile = `background:${mgrHex};color:${_orgSchrift(mgrHex)};box-shadow:inset 0 0 0 1px rgba(60,55,48,0.10)`;
     const zahlStil = _orgHell(filHex) ? 'background:rgba(60,55,48,0.10)' : 'background:rgba(255,255,255,0.22)';
     html += '<div class="dpo-fil-row">' + d.filialen.map(f => {
         const gf = f.personen.filter(p => p.istGf);
