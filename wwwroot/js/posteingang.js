@@ -7,6 +7,8 @@ let _pbTaxonomy      = [];     // hierarchisch (Kategorie → Typen)
 let _pbAllEmployees  = [];
 let _pbExpandedCats  = new Set();
 let _pbSelectedTypId = null;
+// Lesbarkeit (Walter 13.10.2026): Zeilenlänge begrenzt, sonst laufen Absätze über die ganze Bildschirmbreite.
+const PB_MT_TEXT_STIL = 'font-size:15px;line-height:1.6;color:#1e293b;margin-top:8px;white-space:pre-wrap;max-width:85ch';
 
 // Dateiname, Mitteilung und Bemerkung kommen vom Absender (auch MA) — vor jedem
 // innerHTML bzw. Attribut maskieren.
@@ -331,7 +333,7 @@ async function pbLoadList() {
             // Walter 23.09.2026: auch Mitteilungen MIT Anhang — nur reine Text-Mitteilungen nicht.
             const canAblage = isOps && d.targetType !== 'EMPLOYEE' && hasFile;
             const previewBtn = d.messageBody
-                ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>${hasFile ? ` <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:12.5px" onclick="pbOpenPreview(${d.id})">📎 ${_pbEsc(d.bemerkung || 'Anhang')}</span>` : ''}`
+                ? `<span style="font-weight:600;color:#3f3f3f;font-size:15.5px">💬 ${title}</span>${hasFile ? ` <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:12.5px" onclick="pbOpenPreview(${d.id})">📎 ${_pbEsc(d.bemerkung || 'Anhang')}</span>` : ''}`
                 : `<span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${title}</span>`;
             const docJson = _pbEsc(JSON.stringify(d));
             // Zeugnis-Entwurf für HR (Walter 06.09.2026): Eintrag trägt die Entwurf-ID
@@ -346,7 +348,7 @@ async function pbLoadList() {
                         ${hasFile ? `<span style="font-size:11px;color:#94a3b8">${sizeKb} KB</span>` : ''}
                         ${notifyInfo}
                     </div>
-                    ${d.messageBody ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${pbMitteilungHtml(d.messageBody)}</div>` : ''}
+                    ${d.messageBody ? `<div style="${PB_MT_TEXT_STIL}">${pbMitteilungHtml(d.messageBody)}</div>` : ''}
                     ${d.bemerkung && !(d.messageBody && hasFile) ? `<div style="font-size:13px;color:#475569;margin-top:4px">${_pbEsc(d.bemerkung)}</div>` : ''}
                     <div style="font-size:12px;color:#64748b;margin-top:6px">
                         <!-- Absender GROSS zuerst (Walter-Vorgabe 13.07.2026) -->
@@ -400,11 +402,11 @@ async function pbLoadList() {
                 <div style="display:flex;gap:14px;align-items:flex-start">
                     <div style="flex:1;min-width:0">
                         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                            <span style="font-weight:600;color:#3f3f3f">💬 ${_pbEsc(d0.originalFilename || 'Mitteilung')}</span>
+                            <span style="font-weight:600;color:#3f3f3f;font-size:15.5px">💬 ${_pbEsc(d0.originalFilename || 'Mitteilung')}</span>
                             <span style="font-size:11.5px;color:#64748b;font-weight:600">📎 ${g.length} Dokumente</span>
                             ${notifyInfo}
                         </div>
-                        ${text ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${pbMitteilungHtml(text)}</div>` : ''}
+                        ${text ? `<div style="${PB_MT_TEXT_STIL}">${pbMitteilungHtml(text)}</div>` : ''}
                         <div style="font-size:12px;color:#64748b;margin-top:6px">
                             <span style="font-size:13.5px;font-weight:700;color:#3f3f3f">${uploaderInfo}</span>${weiterInfo} · ${dateStr}
                         </div>
@@ -1484,7 +1486,7 @@ function pbZitatKurz(zitat) {
     return `↩ Antwort auf${betreff ? ` «${betreff.trim()}»` : ''}${von ? ` von ${von.trim()}` : ''}`;
 }
 function pbZitatHtml(zitat) {
-    return `<details style="margin-top:6px;font-size:11.5px;color:#8b8b8b;white-space:normal">
+    return `<details style="margin-top:8px;font-size:13px;line-height:1.5;color:#8b8b8b;white-space:normal">
         <summary style="cursor:pointer;list-style-position:inside">${_pbEsc(pbZitatKurz(zitat))}</summary>
         <div style="margin-top:4px;border-left:3px solid rgba(60,55,48,0.22);padding:2px 0 2px 10px;white-space:pre-wrap">${_pbEsc(zitat)}</div>
     </details>`;
