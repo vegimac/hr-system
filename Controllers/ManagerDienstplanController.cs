@@ -142,10 +142,16 @@ public class ManagerDienstplanController : ControllerBase
         var reihenfolge = zeilen.Where(z => z.CompanyProfileId.HasValue)
             .Select(z => z.CompanyProfileId!.Value).Distinct().ToList();
         var farben = await _db.OrganigrammFarben.AsNoTracking().ToDictionaryAsync(f => f.Stufe, f => f.Farbe);
+        // Kurzname aus dem MA-Stamm (Walter 13.10.2026) — leer ⇒ Anzeige wie bisher.
+        var maIds = zeilen.Select(z => z.EmployeeId).Distinct().ToList();
+        var kurznamen = await _db.Employees.AsNoTracking()
+            .Where(e => maIds.Contains(e.Id) && e.ShortName != null && e.ShortName != "")
+            .Select(e => new { e.Id, e.ShortName })
+            .ToDictionaryAsync(e => e.Id, e => e.ShortName!.Trim());
         return Ok(new
         {
             year, month,
-            stellen = stellen.Select(s => new { s.Id, s.Titel, s.Name, s.Art, s.SortOrder, s.Farbe }),
+            stellen = stellen.Select(s => new { s.Id, s.Titel, s.Name, s.Beschreibung, s.Art, s.SortOrder, s.Farbe }),
             farben,
             filialen = reihenfolge.Select(id => new
             {
@@ -154,12 +160,13 @@ public class ManagerDienstplanController : ControllerBase
                 personen = zeilen.Where(z => z.CompanyProfileId == id).Select(z => new
                 {
                     employeeId = z.EmployeeId, vorname = z.Vorname, nachname = z.Nachname, istGf = z.IstGf,
+                    kurzname = kurznamen.TryGetValue(z.EmployeeId, out var k) && k.Length > 0 ? k : null,
                 }),
             }),
         });
     }
 
-    public sealed record OrganigrammStelleDto(string? Titel, string? Name, string? Art, string? Farbe);
+    public sealed record OrganigrammStelleDto(string? Titel, string? Name, string? Beschreibung, string? Art, string? Farbe);
     public sealed record OrganigrammSpeichernDto(List<OrganigrammStelleDto>? Stellen, Dictionary<string, string?>? Farben);
 
     private static readonly string[] OrganigrammStufen = { "FILIALE", "MANAGER" };
@@ -179,13 +186,15 @@ public class ManagerDienstplanController : ControllerBase
         {
             var titel = (s.Titel ?? "").Trim();
             var name = (s.Name ?? "").Trim();
+            var beschreibung = (s.Beschreibung ?? "").Trim();
             if (titel.Length == 0 && name.Length == 0) continue;
-            if (titel.Length > 80 || name.Length > 120)
-                return BadRequest(new { error = "ZU_LANG", message = "Titel max. 80, Name max. 120 Zeichen." });
+            if (titel.Length > 80 || name.Length > 120 || beschreibung.Length > 160)
+                return BadRequest(new { error = "ZU_LANG", message = "Titel max. 80, Name max. 120, Beschreibung max. 160 Zeichen." });
             neu.Add(new OrganigrammStelle
             {
                 Titel = titel,
                 Name = name,
+                Beschreibung = beschreibung,
                 Art = s.Art is "STAB" or "STAB_R" ? s.Art : "LINIE",
                 SortOrder = neu.Count,
                 Farbe = NurFarbe(s.Farbe),

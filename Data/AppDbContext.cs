@@ -2451,6 +2451,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Art).HasColumnName("art");
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.Farbe).HasColumnName("farbe");
+            entity.Property(e => e.Beschreibung).HasColumnName("beschreibung");
             entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am")
                   .HasColumnType("timestamp without time zone");
         });

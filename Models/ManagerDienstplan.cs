@@ -234,6 +234,8 @@ public class OrganigrammStelle
     public int Id { get; set; }
     public string Titel { get; set; } = "";
     public string Name { get; set; } = "";
+    /// <summary>Zweite Zeile unter dem Namen. NULL = nie gespeichert (Startwert darf gesetzt werden), "" = bewusst leer.</summary>
+    public string? Beschreibung { get; set; }
     /// <summary>LINIE = in der Kette oben (untereinander) · STAB = seitlich links · STAB_R = seitlich rechts (an der Linie unter der Linien-Stelle davor)</summary>
     public string Art { get; set; } = "LINIE";
     public int SortOrder { get; set; }
