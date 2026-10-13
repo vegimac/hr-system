@@ -127,6 +127,67 @@ public class ManagerDienstplanController : ControllerBase
         }
     }
 
+    // ── Organigramm (Walter 13.10.2026) ──────────────────────────────────
+    // Gleiche Auswahl wie das Grid: FIX-M mit laufendem Vertrag im Monat,
+    // Heimatfiliale = Filiale dieses Vertrags, GF = Job-Gruppe REST_MANAGER.
+    // Die oberen Stellen (Lizenznehmer, Supervisor, HR …) pflegt man von Hand.
+    [HttpGet("organigramm")]
+    public async Task<IActionResult> GetOrganigramm([FromQuery] int year, [FromQuery] int month)
+    {
+        if (year < 2020 || year > 2100 || month < 1 || month > 12)
+            return BadRequest(new { error = "PERIODE_UNGUELTIG" });
+        var (zeilen, filialen, _, _, _) = await BuildMonthDataAsync(year, month);
+        var stellen = await _db.OrganigrammStellen.AsNoTracking()
+            .OrderBy(s => s.SortOrder).ThenBy(s => s.Id).ToListAsync();
+        var reihenfolge = zeilen.Where(z => z.CompanyProfileId.HasValue)
+            .Select(z => z.CompanyProfileId!.Value).Distinct().ToList();
+        return Ok(new
+        {
+            year, month,
+            stellen = stellen.Select(s => new { s.Id, s.Titel, s.Name, s.Art, s.SortOrder }),
+            filialen = reihenfolge.Select(id => new
+            {
+                id,
+                name = filialen.FirstOrDefault(f => f.Id == id)?.Name ?? $"Filiale {id}",
+                personen = zeilen.Where(z => z.CompanyProfileId == id).Select(z => new
+                {
+                    employeeId = z.EmployeeId, vorname = z.Vorname, nachname = z.Nachname, istGf = z.IstGf,
+                }),
+            }),
+        });
+    }
+
+    public sealed record OrganigrammStelleDto(string? Titel, string? Name, string? Art);
+
+    /// <summary>Obere Stellen als ganze Liste speichern (Reihenfolge = Listenreihenfolge).</summary>
+    [HttpPut("organigramm/stellen")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> PutOrganigrammStellen([FromBody] List<OrganigrammStelleDto> liste)
+    {
+        liste ??= new();
+        var neu = new List<OrganigrammStelle>();
+        foreach (var s in liste)
+        {
+            var titel = (s.Titel ?? "").Trim();
+            var name = (s.Name ?? "").Trim();
+            if (titel.Length == 0 && name.Length == 0) continue;
+            if (titel.Length > 80 || name.Length > 120)
+                return BadRequest(new { error = "ZU_LANG", message = "Titel max. 80, Name max. 120 Zeichen." });
+            neu.Add(new OrganigrammStelle
+            {
+                Titel = titel,
+                Name = name,
+                Art = s.Art == "STAB" ? "STAB" : "LINIE",
+                SortOrder = neu.Count,
+                GeaendertAm = DateTime.Now,
+            });
+        }
+        _db.OrganigrammStellen.RemoveRange(await _db.OrganigrammStellen.ToListAsync());
+        _db.OrganigrammStellen.AddRange(neu);
+        await _db.SaveChangesAsync();
+        return Ok(new { anzahl = neu.Count });
+    }
+
     private async Task<(List<DpZeileInfo> zeilen, List<DpFilialeInfo> filialen, List<DpCodeInfo> codes,
                        List<DpFeiertagInfo> feiertage, List<DpSchulferienInfo> schulferien)>
         BuildMonthDataAsync(int year, int month)

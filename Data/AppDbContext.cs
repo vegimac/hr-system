@@ -133,6 +133,7 @@ public class AppDbContext : DbContext
     public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
     public DbSet<ArbeitszeitRegelWert>      ArbeitszeitRegelWerte       => Set<ArbeitszeitRegelWert>();
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
+    public DbSet<OrganigrammStelle>         OrganigrammStellen          => Set<OrganigrammStelle>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
     public DbSet<InterviewTermin>           InterviewTermine            => Set<InterviewTermin>();
     public DbSet<HrInterviewTermin>         HrInterviewTermine          => Set<HrInterviewTermin>();
@@ -2438,6 +2439,18 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => e.FensterId);
+        });
+        modelBuilder.Entity<OrganigrammStelle>(entity =>
+        {
+            entity.ToTable("organigramm_stelle");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Titel).HasColumnName("titel");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.Art).HasColumnName("art");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am")
+                  .HasColumnType("timestamp without time zone");
         });
         modelBuilder.Entity<BranchSchulferien>(entity =>
         {

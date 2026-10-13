@@ -226,6 +226,21 @@ public class BranchSchulferien
 }
 
 /// <summary>
+/// Obere Stellen im Organigramm (Walter 13.10.2026): Lizenznehmer, Supervisor,
+/// HR … — von Hand gepflegt. Filialen + Manager darunter kommen aus den Verträgen.
+/// </summary>
+public class OrganigrammStelle
+{
+    public int Id { get; set; }
+    public string Titel { get; set; } = "";
+    public string Name { get; set; } = "";
+    /// <summary>LINIE = in der Kette oben (untereinander) · STAB = seitlich an der Linie (z.B. HR)</summary>
+    public string Art { get; set; } = "LINIE";
+    public int SortOrder { get; set; }
+    public DateTime GeaendertAm { get; set; } = DateTime.Now;
+}
+
+/// <summary>
 /// Ferienplaner für FIX-M-Manager (Walter-Vorgabe 14.08.2026): der GF plant
 /// Wunsch-Ferien als Balken (GEPLANT = orange, verschiebbar). «Definitiv
 /// setzen» erzeugt die echte Ferien-Absenz (AbsenceId) — der Balken wird
