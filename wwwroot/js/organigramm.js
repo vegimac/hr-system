@@ -118,6 +118,7 @@ const ORG_CSS = `
 // Druck: weiche Schatten landen im PDF als Bild-Masken und erscheinen in Vorschau/Acrobat als graue Blöcke ⇒ feine Ränder statt Schatten.
 const ORG_DRUCK_CSS = `
 .dpo .dpo-box,.dpo .dpo-karte,.dpo .dpo-team,.dpo .dpo-k-p{box-shadow:none!important}
+.dpo.f .dpo-person{box-shadow:none!important;border:1px solid rgba(60,55,48,0.12)}
 .dpo.n .dpo-lin{border:1px solid #1a1a1a;background:#242424!important}
 .dpo.f .dpo-box,.dpo.f .dpo-team-kopf{background-image:none!important}
 .dpo.n .dpo-stb{border:1px solid #dcdcdc}
