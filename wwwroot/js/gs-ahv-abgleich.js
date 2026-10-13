@@ -136,6 +136,9 @@ function gsaRender(d) {
            </div>` : '';
     document.getElementById('gsaSummary').innerHTML = `
         ${warnung}
+        ${d.mitAusgetretenen ? '' : `<div style="margin-bottom:12px;padding:10px 14px;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;color:#92400e;font-size:13px">
+            ⚠ Diese Liste enthält <b>nur Beschäftigte</b>. Für die Abmeldungen (und Ein-/Austritte innerhalb des Jahres) im GastroSocial-Portal die Liste <b>inklusive Ausgetretene</b> exportieren und nochmals hochladen.
+        </div>`}
         <div id="gsaUebernahmeBar">${gsaUebernahmeHtml()}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
             ${gsaTile(d.gemeldetBeschaeftigt, 'Bei GastroSocial beschäftigt', '#f1f5f9', '#475569')}

@@ -105,6 +105,8 @@ public static class GastroSocialAbgleich
         public int Zeilen { get; set; }
         public int GemeldetBeschaeftigt { get; set; }
         public int GemeldetAusgetreten { get; set; }
+        /// <summary>Liste enthält Zeilen «Ausgetreten» — sonst wurde im Portal nur «Beschäftigt» exportiert.</summary>
+        public bool MitAusgetretenen { get; set; }
         public int OneCrewAktiv { get; set; }
         public int OhneLohn { get; set; }
         /// <summary>Warnung: bei GastroSocial ausgetreten, in OneCrew in dieser Filiale aber aktiv.</summary>
@@ -173,6 +175,7 @@ public static class GastroSocialAbgleich
             Zeilen = zeilen.Count,
             GemeldetBeschaeftigt = zeilen.Count(z => z.Beschaeftigt),
             GemeldetAusgetreten = zeilen.Count(z => !z.Beschaeftigt),
+            MitAusgetretenen = zeilen.Any(z => (z.Status ?? "").Trim().StartsWith("ausgetr", StringComparison.OrdinalIgnoreCase)),
             OneCrewAktiv = alle.Count(m => m.AktivInFiliale && !m.OhneLohn),
             OhneLohn = alle.Count(m => m.AktivInFiliale && m.OhneLohn),
         };
