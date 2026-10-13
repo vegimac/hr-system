@@ -61,7 +61,7 @@
 
   <table>
     <tr><th style="width:40mm">Stand</th><td><b>87 von 90 Prüfungen erledigt</b> (im Swissdec-Werkzeug auf «Success»). Die Expertin bestätigt sie im Termin.</td></tr>
-    <tr><th>F07_04</th><td>«registered» lässt sich im Test-Empfänger nicht auslösen (Probe 13.10.2026: direkt «verified»). Die Expertin hat den Punkt am <b>13.10.2026</b> als in Ordnung bezeichnet.</td></tr>
+    <tr><th>Noch offen</th><td><b>F07_04</b> (3 Prüfungen): «registered» lässt sich im Test-Empfänger nicht auslösen (Probe 13.10.2026: direkt «verified»). Das klärt die Expertin (letzte Seite).</td></tr>
     <tr><th>Wichtigstes Datum</th><td>Das Test-Zertifikat («SUA-Zertifikat») läuft am <b>23.10.2026</b> ab (neu ausgestellt 13.10.2026). Termin am besten vorher, sonst F07_06 neu durchspielen.</td></tr>
   </table>
 
@@ -346,7 +346,7 @@ WHERE id = 94
 
 <!-- ═════════════════════════════ F07 ═════════════════════════════ -->
 <section class="kapitel">
-  <div class="kopf"><h2>F07 — Firmenausweis (SUA-Zertifikat)</h2><div class="rechts">20 Prüfungen · F07_04 laut Expertin ok<br>Reiter «F07» · Proben 29.09. und 13.10.2026</div></div>
+  <div class="kopf"><h2>F07 — Firmenausweis (SUA-Zertifikat)</h2><div class="rechts">20 Prüfungen · 17 erledigt · F07_04 offen<br>Reiter «F07» · Proben 29.09. und 13.10.2026</div></div>
   <div class="worum"><b class="t">Worum es geht</b>
     Die Firma beantragt ihren elektronischen Ausweis. Ablauf wie beim Pass: <b>Antrag stellen</b> → <b>Stand abfragen</b> («in Bearbeitung», «geprüft»,
     «abgelehnt») → mit dem erhaltenen <b>Passwort ausstellen lassen</b> → später <b>verlängern</b>.</div>
@@ -359,7 +359,7 @@ WHERE id = 94
     <tr><td><b>F07_01</b></td><td>RegisterVerification (Standard)</td><td><span class="knopf">Registrieren</span></td><td>Quittung mit Antragsnummer, Key und Passwort.</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_02</b></td><td>SwissdecFault</td><td><span class="knopf">Registrieren</span></td><td class="rot">«✗ Registrierung abgewiesen — 3800 …». Kein neuer Fall gespeichert.</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_03</b></td><td>RegisterProcessing, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span></td><td>«Status: processing — Anfrage in Bearbeitung.»</td><td><span class="box"></span></td></tr>
-    <tr><td><b>F07_04</b></td><td>Keine Einstellung dafür im Test-Empfänger — laut Expertin 13.10.2026 in Ordnung</td><td><span class="knopf">Status abfragen</span></td><td>«Status: registered — registriert, nächster Schritt folgt.»</td><td><span class="box"></span></td></tr>
+    <tr><td><b>F07_04</b> <span class="offen">offen</span></td><td><b>Expertin fragen</b> — im Receiver gibt es keine Einstellung dafür</td><td><span class="knopf">Status abfragen</span></td><td>«Status: registered — registriert, nächster Schritt folgt.»</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_05</b></td><td>RegisterRejected, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span></td><td class="rot">«Status: rejected — Anfrage abgelehnt.»</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_06</b></td><td>RegisterVerification, damit neu <span class="knopf">Registrieren</span></td><td><span class="knopf">Status abfragen</span> (Passwort kommt mit) → <span class="knopf">Signieren</span></td><td>«SUA-Zertifikat ausgestellt und gespeichert, gültig bis …».</td><td><span class="box"></span></td></tr>
     <tr><td><b>F07_07</b></td><td>Nichts</td><td><span class="knopf">Erneuern</span> → <span class="knopf">danach CheckInterop mit neuem Zertifikat</span></td><td>«SUA-Zertifikat erneuert», danach «Anfrage doppelt signiert (ERP + SUA)».</td><td><span class="box"></span></td></tr>
@@ -369,8 +369,9 @@ WHERE id = 94
   <div class="hinweis"><b>Ganz wichtig:</b> Jedes «Registrieren» startet einen neuen Antrag. Wer F07_02, 03 oder 05 vorführt, macht am Schluss
   <b>F07_06 nochmals ganz</b> (RegisterVerification → Registrieren → Status abfragen → Signieren). Sonst ist danach kein gültiger Ausweis mehr da.</div>
 
-  <div class="pp"><div class="pp-kopf"><span class="id">F07_04</span><span class="titel">Geklärt am 13.10.2026</span><span class="ok">erledigt</span></div>
-    <div class="z"><span class="lab">Was war</span><span>Für «registered» gibt es im Test-Empfänger keine eigene Einstellung. Die Expertin hat den Punkt am 13.10.2026 als in Ordnung bezeichnet. Probe direkt danach: Registrieren bei UVG-LAA · 1234 («RegisterVerification») → Status abfragen → direkt «verified». Die Zeile AHV-AVS wirkt auf die Registrierung nicht.</span></div></div>
+  <div class="pp"><div class="pp-kopf"><span class="id">F07_04</span><span class="titel">Was du zum offenen Punkt sagst</span></div>
+    <div class="z"><span class="lab">Du sagst</span><span class="sag">«Den Zustand ‹registered› konnten wir nicht erzeugen. Der Test-Empfänger bietet nur Processing, Verification und Rejected. Bei Processing kommt beim zweiten Abfragen direkt Verified, auch mit 25 Sekunden Verzögerung. Ebenso nach dem Signieren. OneCrew kann ‹registered› anzeigen. Können Sie den Empfänger dafür einstellen?»</span></div>
+    <div class="z"><span class="lab">Falls ja</span><span>Expertin stellt ein → <span class="knopf">Status abfragen</span> → es muss «Status: registered — registriert, nächster Schritt folgt.» erscheinen. Danach F07_06 nochmals ganz durchspielen.</span></div></div>
 </section>
 
 <!-- ═════════════════════════════ F08 ═════════════════════════════ -->
@@ -413,7 +414,7 @@ WHERE id = 94
 
   <table>
     <tr><th style="width:8mm">#</th><th style="width:78mm">Frage (zum Vorlesen)</th><th>Antwort</th></tr>
-    <tr><td>1</td><td><b>F07_04:</b> «Wie stellt man den Test-Empfänger ein, damit beim Status-Abfragen ‹registered› zurückkommt? Wir sehen nur Processing, Verification und Rejected.»</td><td>13.10.2026: Expertin bezeichnet den Punkt als in Ordnung. Probe danach: weiterhin direkt «verified».</td></tr>
+    <tr><td>1</td><td><b>F07_04:</b> «Wie stellt man den Test-Empfänger ein, damit beim Status-Abfragen ‹registered› zurückkommt? Wir sehen nur Processing, Verification und Rejected.»</td><td><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div></td></tr>
     <tr><td>2</td><td><b>F08_06:</b> «Wie erzeugt man eine Rückfrage mit Error? Alle Dialog-Typen wurden ohne Fehler angenommen.»</td><td><div class="notiz"></div><div class="notiz"></div><div class="notiz"></div></td></tr>
     <tr><td>3</td><td><b>F06_01:</b> «Ist es in Ordnung, dass OneCrew die Plausibilität selbst vor dem Senden prüft, weil der Test-Distributor das nicht tut?»</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>
     <tr><td>4</td><td><b>Wie weiter:</b> «Was ist nach dem Foundation-Test der nächste Schritt zur Zertifizierung, und bis wann?»</td><td><div class="notiz"></div><div class="notiz"></div></td></tr>

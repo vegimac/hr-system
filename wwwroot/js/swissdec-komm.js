@@ -179,7 +179,7 @@ const KOMM_KATALOG = [
     { id: 'F07_04', titel: 'Synchronize → Registered', typ: 'TOOL · SYNC · UI',
       werkzeug: 'Keine passende Einstellung: Der Refapps Receiver bietet nur Processing / Verification / Rejected.', aktionen: [{ label: 'Status abfragen', art: 'status' }],
       erwartet: '«Status: registered — registriert, nächster Schritt folgt.»',
-      hinweis: 'Probe 13.10.2026 (UVG-LAA · 1234 auf «RegisterVerification»): Status abfragen liefert direkt «verified». Die Einstellung bei AHV-AVS · 046.000 wirkt auf die Registrierung nicht (SUA nur UVG/UVGZ/KTG/BVG). Expertin itserv hat F07_04 am 13.10.2026 als in Ordnung bezeichnet.' },
+      hinweis: 'Offen, Frage an itserv. Proben 13.10.2026 (UVG-LAA · 1234): «RegisterVerification» → direkt verified; «RegisterProcessing» → processing, nächste Abfrage verified; mit Delay 25 s gleich, nur langsamer. Die Zeile AHV-AVS · 046.000 wirkt auf die Registrierung nicht (SUA nur UVG/UVGZ/KTG/BVG).' },
     { id: 'F07_05', titel: 'Synchronize → Rejected', typ: 'TOOL · SYNC · UI',
       werkzeug: `${_kSuaEmpf} «RegisterRejected».`, aktionen: [{ label: 'Status abfragen', art: 'status' }],
       erwartet: '«Status: rejected — Anfrage abgelehnt.» in Rot.',

@@ -14,8 +14,8 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 > mit Kommentar: auch der Dialog-Typ «Complete» (02.10.) lief durch (Finished, keine Notification
 > mit Error) — Auslösen muss itserv zeigen. Einzig offen: F07_04 (3 Zeilen, «Registered» hat im
 > Test-Empfänger keine Einstellung). Handbuch für den Termin: `docs/swissdec-vorfuehrung/`.
-> **13.10.2026: F07_04** — Expertin (itserv) hat den Punkt als in Ordnung bezeichnet; «registered»
-> liess sich auch in der Probe danach nicht erzeugen (Abschnitt «F07_04» unten).
+> **13.10.2026: F07_04 weiterhin offen** — «registered» liess sich auch in der Probe vom 13.10.
+> nicht erzeugen (Abschnitt «F07_04» unten).
 > Die Tabelle unten ist der Stand vom 24.09.2026.
 
 Die Zahlen der Übersicht sind **Einzelprüfungen** (Zeilen im Werkzeug inkl. TOOL_SETTING /
@@ -1120,9 +1120,9 @@ das verschlüsselte XML. Seither:
 - Die Anzeige für «registered» ist gebaut (`ElmSuaService.StateMeldung`: «registriert, nächster
   Schritt folgt»). **Bleibt für itserv:** wie stellt man den Receiver auf «registered»?
 
-**13.10.2026 — Expertin (itserv):** Sie hat mit Walter den Receiver angeschaut und F07_04 als in
-Ordnung bezeichnet. Probe direkt danach (Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und
-AHV-AVS · 046.000 je «RegisterVerification», übrige Listen DeclareResult / SubscribeAndSuccess):
+**Probe 13.10.2026** (nach einem Termin mit der Expertin; bestätigt hat sie F07_04 nicht).
+Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und AHV-AVS · 046.000 je
+«RegisterVerification», übrige Listen DeclareResult / SubscribeAndSuccess:
 
 - 14:41:07 Registrieren → Success von 1234, Implementierung `Refapps Reference Implementation ::
   RegisterVerification`, CertificateRequestID `18de173fd35e9fdde`, WS-Security gültig,
@@ -1133,8 +1133,28 @@ AHV-AVS · 046.000 je «RegisterVerification», übrige Listen DeclareResult / S
 - **Ergebnis:** «registered» ist mit dem Test-Empfänger weiterhin nicht auslösbar. Die Zeile
   AHV-AVS wirkt auf die Registrierung nicht — SUA kennt nur UVG-LAA / UVGZ-LAAC / KTG-AMC / BVG-LPP
   (`ElmSuaService.Domains`), registriert wird bei 1234.
-- F07_04 steht damit auf der Aussage der Expertin; OneCrew zeigt «registered» an
-  (`ElmSuaService.StateMeldung`), belegt ist das nur durch den Code, nicht durch eine Antwort.
+**Proben mit Walter, 13.10.2026 nachmittags** (UVG-LAA · 1234 auf «RegisterProcessing»):
+
+| Zeit | Delay | Aktion | Ergebnis |
+|---|---|---|---|
+| 14:56:30 | 0 | Registrieren | Success, CertificateRequestID `18de1816b7deb1af2` |
+| 14:57:13 | 0 | Status abfragen | processing |
+| 14:57:55 | 0 | Status abfragen (ReceivedState processing) | **verified**, 9998 Einmalpasswort — ohne Umstellen |
+| 15:01:12 | 25 s | Registrieren | Success nach 28 s |
+| 15:02:22 | 25 s | Status abfragen | processing nach 26 s |
+| 15:03:39 | 25 s | Status abfragen | **verified** nach 27 s, 9998 Einmalpasswort |
+
+- Bei «RegisterProcessing» schaltet der Receiver von selbst weiter: erste Abfrage processing,
+  zweite verified. Die frühere Annahme «wertet die Einstellung bei jeder Abfrage neu aus» war
+  nur die halbe Wahrheit.
+- Ein Delay unter der Abbruchgrenze (~32 s) verzögert nur, ein Zwischenzustand entsteht nicht.
+- Die Register-Antwort vom Typ «Processing» (WorkingStateGroup) hätte keine Zugangsdaten — dann
+  gäbe es keinen Fall zum Abfragen. Über eine Verzögerung bei der Registrierung führt also kein
+  Weg zu «registered».
+- **Damit sind alle Einstellungen des Test-Empfängers durch.** F07_04 bleibt offen und ist eine
+  Frage an itserv: Wie stellt man den Receiver ein, damit «registered» zurückkommt?
+  OneCrew zeigt «registered» an (`ElmSuaService.StateMeldung`), belegt ist das nur durch den
+  Code, nicht durch eine Antwort.
 
 ### F06_01 — Plausibilitätsprüfung im Transmitter (02.10.2026)
 
