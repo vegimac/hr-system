@@ -77,7 +77,7 @@ const ORG_CSS = `
 .dpo.n .dpo-k-gf b{display:block;font-size:12.5px;font-weight:700;color:#1a1a1a;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dpo.n .dpo-k-gf b.offen{font-style:italic;font-weight:500;color:#777}
 .dpo.n .dpo-k-liste{display:flex;flex-direction:column;gap:6px;margin-top:14px}
-.dpo.n .dpo-k-p{background:#efefef;border:1px solid #e7e7e7;border-radius:4px;padding:5px 11px;font-size:11.5px;color:#333}
+.dpo.n .dpo-k-p{background:#efefef;border:1px solid #e7e7e7;border-radius:4px;padding:6px 11px;font-size:12.5px;font-weight:600;color:#1a1a1a}
 
 /* ── Farbig ── */
 .dpo.f{--lc:${ORG_LINIE};--lw:2px;--sh:30px;--ug:12px;--ue:24px;--uw:36px;padding:16px 28px 30px;color:#3f3f3f;letter-spacing:-.005em}
