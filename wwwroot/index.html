@@ -2379,45 +2379,54 @@
                     </div>
                 </div>
                 <div class="hr-hub-group" id="hrHubGrp-kontrolle" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
-
-
-                    <!-- Walter-Vorgabe 07.06.2026: Kontroll-Listen — proaktive
-                         Lücken-Erkennung. Card BEWUSST in Rot, damit HR sie sieht.
-                         Walter 22.07.2026: Dokument-Upload-Protokoll aus FIBU hierher
-                         (Menü wie Kündigung/Zeugnisse). -->
-                    <div class="hr-card" style="opacity:1;background:#fef2f2;border-color:#fca5a5">
-                        <div class="hr-card-head">
-                            <div class="hr-card-icon" style="background:#fee2e2;color:#991b1b">
-                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4.5L18 22l-6-4-6 4 1.5-8.5L2 9h7z" fill="currentColor" stroke="none" opacity="0.15"/><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
-                            </div>
-                            <div>
-                                <div class="hr-card-title" style="color:#991b1b">Kontrolle</div>
-                                <div class="hr-card-status" style="color:#991b1b">⚠ Lücken &amp; Doku-Protokoll</div>
-                            </div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('kontrolle')">1&nbsp;·&nbsp;Lücken in Personalakten</button>
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('dok-protokoll')">2&nbsp;·&nbsp;Dokument-Upload-Protokoll</button>
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('schulungen-uebersicht')">3&nbsp;·&nbsp;Schulungen</button>
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('mirus-fehlende-ma')">4&nbsp;·&nbsp;Mirus-Abgleich: fehlende MA</button>
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-ahv-abgleich')">5&nbsp;·&nbsp;AHV-Abgleich: GastroSocial gemeldete MA</button>
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('gs-fz-abgleich')">6&nbsp;·&nbsp;FZ-Abgleich: GastroSocial Familienzulagen</button>
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="kontrolleZuFamilienbetreuung()">7&nbsp;·&nbsp;Familienbetreuung: easy@work gegen Soll</button>
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="kontrolleZuSonntage()">8&nbsp;·&nbsp;Freie Sonntage (4 / 12 pro Jahr)</button>
-                        </div>
-                        <!-- Walter 13.10.2026: nur Erinnerung, nicht anklickbar — ganz schwach, ohne Aufzählungspunkte -->
-                        <ul style="margin-top:14px;list-style:none;padding-left:0;opacity:0.4;font-size:12px;display:flex;flex-direction:column;gap:4px">
-                            <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
-                            <li><b>Dokument-Upload-Protokoll</b> — wer hat wann welches Dokument hochgeladen (+ CSV)</li>
-                            <li><b>Schulungen</b> — Stand aller MA (Hygiene, Sicherheit, SRIW, Gastro, Nothelfer, Peak, SECO); erfasst wird im MA</li>
-                            <li><b>Mirus-Abgleich</b> — welche aktiven OneCrew-MA der Filiale fehlen in Mirus (Personalexport XLS) + PDF-Erfassungsliste</li>
-                            <li><b>AHV-Abgleich GastroSocial</b> — Liste «Mitarbeitende» aus dem Portal: wer muss abgemeldet werden, wer ist nicht gemeldet</li>
-                            <li><b>FZ-Abgleich GastroSocial</b> — «Familienzulagenbescheinigung»: zahlt GastroSocial dieselben Monate und Ansätze wie die Zulagen bei den Kindern in OneCrew</li>
-                            <li><b>Familienbetreuung</b> — stimmt das Feld in easy@work mit den Kindern unter 15 im Haushalt überein (+ PDF für GF)</li>
-                            <li><b>Freie Sonntage</b> — hat jeder MA seine 4 (mit Familienbetreuung 12) freien Sonntage im Jahr bzw. reicht es noch (+ PDF für GF)</li>
-                        </ul>
+                    <!-- Kontroll-Listen als Icon-Kacheln (Walter 13.10.2026), normale ra-tile-Grösse
+                         = etwas kleiner als die Kategorie-Kacheln oben. -->
+                    <div class="ra-tile-row" style="margin-top:18px;margin-bottom:10px">
+                    <button type="button" class="ra-tile" onclick="showPage('kontrolle')" title="Fehlende Angaben und Belege pro MA, u.a. Ausweis Ehegatte bei QST">
+                        <img src="img/kontr-luecken.webp?v=20261013a" alt="" loading="lazy">
+                        <span>Lücken in Personalakten</span>
+                    </button>
+                    <button type="button" class="ra-tile" onclick="showPage('dok-protokoll')" title="Wer hat wann welches Dokument hochgeladen (+ CSV)">
+                        <img src="img/kontr-dok-protokoll.webp?v=20261013a" alt="" loading="lazy">
+                        <span>Upload-Protokoll</span>
+                    </button>
+                    <button type="button" class="ra-tile" onclick="showPage('schulungen-uebersicht')" title="Stand aller MA (Hygiene, Sicherheit, SRIW, Gastro, Nothelfer, Peak, SECO)">
+                        <img src="img/kontr-schulungen.webp?v=20261013a" alt="" loading="lazy">
+                        <span>Schulungen</span>
+                    </button>
+                    <button type="button" class="ra-tile" onclick="showPage('mirus-fehlende-ma')" title="Welche aktiven OneCrew-MA der Filiale fehlen in Mirus">
+                        <img src="img/kontr-mirus.webp?v=20261013a" alt="" loading="lazy">
+                        <span>Mirus: fehlende MA</span>
+                    </button>
+                    <button type="button" class="ra-tile" onclick="showPage('gs-ahv-abgleich')" title="Wer muss abgemeldet werden, wer ist nicht gemeldet">
+                        <img src="img/kontr-ahv.webp?v=20261013a" alt="" loading="lazy">
+                        <span>AHV-Abgleich GastroSocial</span>
+                    </button>
+                    <button type="button" class="ra-tile" onclick="showPage('gs-fz-abgleich')" title="Zahlt GastroSocial dieselben Monate und Ansätze wie OneCrew">
+                        <img src="img/kontr-fz.webp?v=20261013a" alt="" loading="lazy">
+                        <span>FZ-Abgleich GastroSocial</span>
+                    </button>
+                    <button type="button" class="ra-tile" onclick="kontrolleZuFamilienbetreuung()" title="easy@work gegen Soll (Kinder unter 15 im Haushalt)">
+                        <img src="img/kontr-familienbetreuung.webp?v=20261013a" alt="" loading="lazy">
+                        <span>Familien&shy;betreuung</span>
+                    </button>
+                    <button type="button" class="ra-tile" onclick="kontrolleZuSonntage()" title="4 / 12 freie Sonntage pro Jahr">
+                        <img src="img/kontr-sonntage.webp?v=20261013a" alt="" loading="lazy">
+                        <span>Freie Sonntage</span>
+                    </button>
                     </div>
+                    <!-- Walter 13.10.2026: nur Erinnerung, nicht anklickbar — ganz schwach, ohne Aufzählungspunkte -->
+                    <ul style="margin:0 0 4px;list-style:none;padding-left:2px;opacity:0.4;font-size:12px;color:#475569;line-height:1.55;display:flex;flex-direction:column;gap:3px">
+                        <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
+                        <li><b>Dokument-Upload-Protokoll</b> — wer hat wann welches Dokument hochgeladen (+ CSV)</li>
+                        <li><b>Schulungen</b> — Stand aller MA (Hygiene, Sicherheit, SRIW, Gastro, Nothelfer, Peak, SECO); erfasst wird im MA</li>
+                        <li><b>Mirus-Abgleich</b> — welche aktiven OneCrew-MA der Filiale fehlen in Mirus (Personalexport XLS) + PDF-Erfassungsliste</li>
+                        <li><b>AHV-Abgleich GastroSocial</b> — Liste «Mitarbeitende» aus dem Portal: wer muss abgemeldet werden, wer ist nicht gemeldet</li>
+                        <li><b>FZ-Abgleich GastroSocial</b> — «Familienzulagenbescheinigung»: zahlt GastroSocial dieselben Monate und Ansätze wie die Zulagen bei den Kindern in OneCrew</li>
+                        <li><b>Familienbetreuung</b> — stimmt das Feld in easy@work mit den Kindern unter 15 im Haushalt überein (+ PDF für GF)</li>
+                        <li><b>Freie Sonntage</b> — hat jeder MA seine 4 (mit Familienbetreuung 12) freien Sonntage im Jahr bzw. reicht es noch (+ PDF für GF)</li>
+                    </ul>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
 
 
                     <div class="hr-card hr-plan">
