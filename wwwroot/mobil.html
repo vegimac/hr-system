@@ -872,7 +872,7 @@
         <div class="pf-up-section">
             <label class="pf-up-label">Mitteilung</label>
             <textarea id="mtText" class="pf-up-input" rows="4" style="resize:vertical"></textarea>
-            <div id="mtZitat" class="mb-zitat" style="display:none;margin-top:8px;max-height:140px;overflow-y:auto"></div>
+            <div id="mtZitat" style="display:none;max-height:180px;overflow-y:auto"></div>
         </div>
         <div class="pf-up-section">
             <label class="pf-up-label">Anhang <span style="color:var(--muted);font-weight:400">(optional)</span></label>
@@ -1455,12 +1455,17 @@
     // Antworten (Walter 13.10.2026) — gleiche Zitat-Marke wie im Posteingang (posteingang.js).
     const MT_ZITAT_MARKE = '——— Ursprüngliche Mitteilung ———';
     let _mtAntwort = null;
+    function mbZitatHtml(zitat) {
+        const von = (/^Von:\s*(.+)$/m.exec(zitat) || [])[1] || '';
+        const betreff = (/^Betreff:\s*(.*)$/m.exec(zitat) || [])[1] || '';
+        const kurz = `↩ Antwort auf${betreff ? ` «${betreff.trim()}»` : ''}${von ? ` von ${von.trim()}` : ''}`;
+        return `<details style="margin-top:10px;font-size:12.5px;color:#8b8b8b;white-space:normal"><summary style="cursor:pointer">${esc(kurz)}</summary><div class="mb-zitat" style="margin-top:6px">${esc(zitat)}</div></details>`;
+    }
     function mbMitteilungHtml(text) {
         const s = String(text || '');
         const i = s.indexOf(MT_ZITAT_MARKE);
         if (i < 0) return esc(s);
-        return esc(s.slice(0, i).replace(/\s+$/, ''))
-            + `<div class="mb-zitat" style="margin-top:10px">${esc(s.slice(i + MT_ZITAT_MARKE.length).replace(/^\s+/, ''))}</div>`;
+        return esc(s.slice(0, i).replace(/\s+$/, '')) + mbZitatHtml(s.slice(i + MT_ZITAT_MARKE.length).replace(/^\s+/, ''));
     }
     async function mtAntworten(docId) {
         let v;
@@ -1486,7 +1491,7 @@
         _mtAntwort = antwort && antwort.zitat ? antwort : null;
         document.getElementById('mtTitel').textContent = _mtAntwort ? '↩ Antworten' : 'Mitteilung senden';
         const zitatBox = document.getElementById('mtZitat');
-        zitatBox.textContent = _mtAntwort ? _mtAntwort.zitat.slice(MT_ZITAT_MARKE.length).trim() : '';
+        zitatBox.innerHTML = _mtAntwort ? mbZitatHtml(_mtAntwort.zitat.slice(MT_ZITAT_MARKE.length).trim()) : '';
         zitatBox.style.display = _mtAntwort ? '' : 'none';
         const alleBtn = document.getElementById('mtAntwortAlleBtn');
         alleBtn.style.display = _mtAntwort && _mtAntwort.alle.length > 1 ? '' : 'none';

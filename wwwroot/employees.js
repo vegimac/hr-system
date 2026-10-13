@@ -11400,8 +11400,9 @@ async function openAbsenceModal(existing, opts) {
     window._absUserTouchedDays = false;
     window._absContinuationHint = '';
     window._absDienstplanBis = existing?.dienstplanBis ? String(existing.dienstplanBis).slice(0, 10) : '';
-    // Neue Absenz: «Dienstplan bekannt bis» folgt dem Bis-Datum, bis man es von Hand ändert (Walter 06.10.2026).
-    window._absPlanAuto = isNewAbs;
+    // «Dienstplan bekannt bis» folgt dem Bis-Datum, bis man es von Hand ändert (Walter 06.10.2026) —
+    // seit 13.10.2026 auch beim Bearbeiten einer Absenz ohne eingetragenes Datum.
+    window._absPlanAuto = isNewAbs || !window._absDienstplanBis;
 
     // Neue Krank/Unfall direkt im Anschluss an Vormonat → Mo–Fr erzwingen
     // (Sa/So frei), analog Import-Fix Walter 26.07.2026. Bei FIX/MTP zählt

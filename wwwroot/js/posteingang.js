@@ -300,13 +300,9 @@ async function pbLoadList() {
         const isOps = typeof isOpsRole === 'function' ? isOpsRole()
             : (currentUser?.role === 'admin' || currentUser?.role === 'superuser' || currentUser?.role === 'user');
         const isPersonalInbox = pf.type === 'USER';
-        // Sortierung nach ABSENDER (Walter-Vorgabe 13.07.2026), innerhalb
-        // desselben Absenders neueste zuerst — so bleiben z.B. alle
-        // Genius-Scan-Uploads einer Person beisammen.
-        const senderName = d => (d.uploader ? (d.uploader.name?.trim() || d.uploader.username || '') : 'Unbekannt');
+        // Neueste zuerst (Walter-Vorgabe 13.10.2026, ersetzt «nach Absender» vom 13.07.2026).
         docs.sort((a, b) =>
-            senderName(a).localeCompare(senderName(b), 'de', { sensitivity: 'base' })
-            || String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')));
+            String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')) || (b.id - a.id));
         const einzel = d => {
             const sizeKb = d.fileSizeBytes ? Math.round(d.fileSizeBytes / 1024) : 0;
             const dateStr = new Date(d.uploadedAt).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
@@ -1481,15 +1477,26 @@ function _mtDatumZeit(iso) {
     const p = n => String(n).padStart(2, '0');
     return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-// Text einer Mitteilung als HTML; ein angehängtes Zitat erscheint blass mit Strich links.
+// Zitat → kurze Zeile «Antwort auf «Betreff» von X · Datum»; der Originaltext bleibt zugeklappt.
+function pbZitatKurz(zitat) {
+    const von = (/^Von:\s*(.+)$/m.exec(zitat) || [])[1] || '';
+    const betreff = (/^Betreff:\s*(.*)$/m.exec(zitat) || [])[1] || '';
+    return `↩ Antwort auf${betreff ? ` «${betreff.trim()}»` : ''}${von ? ` von ${von.trim()}` : ''}`;
+}
+function pbZitatHtml(zitat) {
+    return `<details style="margin-top:6px;font-size:11.5px;color:#8b8b8b;white-space:normal">
+        <summary style="cursor:pointer;list-style-position:inside">${_pbEsc(pbZitatKurz(zitat))}</summary>
+        <div style="margin-top:4px;border-left:3px solid rgba(60,55,48,0.22);padding:2px 0 2px 10px;white-space:pre-wrap">${_pbEsc(zitat)}</div>
+    </details>`;
+}
+// Text einer Mitteilung als HTML; ein angehängtes Zitat erscheint nur als kleine Antwort-Zeile.
 function pbMitteilungHtml(text) {
     const s = String(text || '');
     const i = s.indexOf(MT_ZITAT_MARKE);
     if (i < 0) return _pbEsc(s);
     const vorne = s.slice(0, i).replace(/\s+$/, '');
     const zitat = s.slice(i + MT_ZITAT_MARKE.length).replace(/^\s+/, '');
-    return _pbEsc(vorne)
-        + `<div style="margin-top:8px;border-left:3px solid rgba(60,55,48,0.22);padding:2px 0 2px 10px;color:#8b8b8b;font-size:12px">${_pbEsc(zitat)}</div>`;
+    return _pbEsc(vorne) + pbZitatHtml(zitat);
 }
 // Antworten nur an aktive OneCrew-Benutzer (nicht an MA-Postfach-Logins) und nicht an sich selbst.
 function pbKannAntworten(d) {
@@ -1516,7 +1523,7 @@ async function mtOpen(antwort = null) {
     _mtAntwort = antwort && antwort.zitat ? antwort : null;
     document.getElementById('mtTitel').textContent = _mtAntwort ? '↩ Antworten' : '✉ Mitteilung an Benutzer';
     const zitatBox = document.getElementById('mtZitat');
-    zitatBox.textContent = _mtAntwort ? _mtAntwort.zitat.slice(MT_ZITAT_MARKE.length).trim() : '';
+    zitatBox.innerHTML = _mtAntwort ? pbZitatHtml(_mtAntwort.zitat.slice(MT_ZITAT_MARKE.length).trim()) : '';
     zitatBox.style.display = _mtAntwort ? '' : 'none';
     const alleBtn = document.getElementById('mtAntwortAlleBtn');
     alleBtn.style.display = _mtAntwort && _mtAntwort.alle.length > 1 ? '' : 'none';
