@@ -142,6 +142,8 @@ public class ManagerDienstplanController : ControllerBase
         var reihenfolge = zeilen.Where(z => z.CompanyProfileId.HasValue)
             .Select(z => z.CompanyProfileId!.Value).Distinct().ToList();
         var farben = await _db.OrganigrammFarben.AsNoTracking().ToDictionaryAsync(f => f.Stufe, f => f.Farbe);
+        var gfBez = await _db.OrganigrammEinstellungen.AsNoTracking()
+            .Where(e => e.Schluessel == OrganigrammGfBezeichnung).Select(e => e.Wert).FirstOrDefaultAsync();
         // Kurzname aus dem MA-Stamm (Walter 13.10.2026) — leer ⇒ Anzeige wie bisher.
         var maIds = zeilen.Select(z => z.EmployeeId).Distinct().ToList();
         var kurznamen = await _db.Employees.AsNoTracking()
@@ -153,6 +155,7 @@ public class ManagerDienstplanController : ControllerBase
             year, month,
             stellen = stellen.Select(s => new { s.Id, s.Titel, s.Name, s.Beschreibung, s.Art, s.SortOrder, s.Farbe }),
             farben,
+            gfBezeichnung = gfBez ?? "Geschäftsführung",
             filialen = reihenfolge.Select(id => new
             {
                 id,
@@ -167,7 +170,9 @@ public class ManagerDienstplanController : ControllerBase
     }
 
     public sealed record OrganigrammStelleDto(string? Titel, string? Name, string? Beschreibung, string? Art, string? Farbe);
-    public sealed record OrganigrammSpeichernDto(List<OrganigrammStelleDto>? Stellen, Dictionary<string, string?>? Farben);
+    public sealed record OrganigrammSpeichernDto(List<OrganigrammStelleDto>? Stellen, Dictionary<string, string?>? Farben, string? GfBezeichnung);
+
+    private const string OrganigrammGfBezeichnung = "GF_BEZEICHNUNG";
 
     private static readonly string[] OrganigrammStufen = { "FILIALE", "MANAGER" };
 
@@ -211,6 +216,15 @@ public class ManagerDienstplanController : ControllerBase
             if (farbe == null) { if (alt != null) _db.OrganigrammFarben.Remove(alt); }
             else if (alt != null) alt.Farbe = farbe;
             else _db.OrganigrammFarben.Add(new OrganigrammFarbe { Stufe = stufe, Farbe = farbe });
+        }
+        if (dto?.GfBezeichnung != null)
+        {
+            var wert = dto.GfBezeichnung.Trim();
+            if (wert.Length > 160)
+                return BadRequest(new { error = "ZU_LANG", message = "Bezeichnung über dem GF-Namen max. 160 Zeichen." });
+            var alt = await _db.OrganigrammEinstellungen.FirstOrDefaultAsync(e => e.Schluessel == OrganigrammGfBezeichnung);
+            if (alt != null) alt.Wert = wert;
+            else _db.OrganigrammEinstellungen.Add(new OrganigrammEinstellung { Schluessel = OrganigrammGfBezeichnung, Wert = wert });
         }
         await _db.SaveChangesAsync();
         return Ok(new { anzahl = neu.Count });

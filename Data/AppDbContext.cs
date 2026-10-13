@@ -135,6 +135,7 @@ public class AppDbContext : DbContext
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<OrganigrammStelle>         OrganigrammStellen          => Set<OrganigrammStelle>();
     public DbSet<OrganigrammFarbe>          OrganigrammFarben           => Set<OrganigrammFarbe>();
+    public DbSet<OrganigrammEinstellung>    OrganigrammEinstellungen    => Set<OrganigrammEinstellung>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
     public DbSet<InterviewTermin>           InterviewTermine            => Set<InterviewTermin>();
     public DbSet<HrInterviewTermin>         HrInterviewTermine          => Set<HrInterviewTermin>();
@@ -2461,6 +2462,13 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Stufe);
             entity.Property(e => e.Stufe).HasColumnName("stufe");
             entity.Property(e => e.Farbe).HasColumnName("farbe");
+        });
+        modelBuilder.Entity<OrganigrammEinstellung>(entity =>
+        {
+            entity.ToTable("organigramm_einstellung");
+            entity.HasKey(e => e.Schluessel);
+            entity.Property(e => e.Schluessel).HasColumnName("schluessel");
+            entity.Property(e => e.Wert).HasColumnName("wert");
         });
         modelBuilder.Entity<BranchSchulferien>(entity =>
         {

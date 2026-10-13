@@ -44,24 +44,24 @@ const ORG_CSS = `
 .dpo-col{position:relative;display:flex;flex-direction:column;align-items:center}
 
 /* ── Neutral = Vorlage ── */
-.dpo.n{--lc:#c4c4c4;--lw:1px;--sh:44px;--ug:19px;--ue:32px;--uw:40px;padding:34px 34px 34px;color:#1c1c1c;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,sans-serif}
+.dpo.n{--lc:#c4c4c4;--lw:1px;--sh:34px;--ug:14px;--ue:24px;--uw:30px;padding:34px 34px 34px;color:#1c1c1c;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Roboto,sans-serif}
 .dpo.n .dpo-logo{position:absolute;left:12px;top:8px;width:118px;height:92px;overflow:hidden}
 .dpo.n .dpo-logo img{height:92px;width:auto;display:block}
-.dpo.n .dpo-v1{height:27px}
+.dpo.n .dpo-v1{height:20px}
 .dpo.n .dpo-v2{height:18px}
-.dpo.n .dpo-box{border-radius:7px;padding:15px 30px 15px 58px}
-.dpo.n .dpo-txt{border-left:1px solid #c8c8c8;padding:2px 0 2px 16px}
-.dpo.n .dpo-titel{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:500}
-.dpo.n .dpo-name{font-weight:600;line-height:1.15;margin-top:3px}
-.dpo.n .dpo-beschr{font-size:10.5px;margin-top:5px}
-.dpo.n .dpo-lin{min-width:300px;background:linear-gradient(180deg,#2c2c2c 0%,#1f1f1f 100%);color:#fff;box-shadow:0 2px 4px rgba(0,0,0,0.10),0 10px 26px rgba(0,0,0,0.16)}
+.dpo.n .dpo-box{border-radius:6px;padding:11px 22px 11px 42px}
+.dpo.n .dpo-txt{border-left:1px solid #c8c8c8;padding:1px 0 1px 12px}
+.dpo.n .dpo-titel{font-size:7.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:500}
+.dpo.n .dpo-name{font-weight:600;line-height:1.15;margin-top:2px}
+.dpo.n .dpo-beschr{font-size:8.5px;margin-top:4px}
+.dpo.n .dpo-lin{min-width:225px;background:linear-gradient(180deg,#2c2c2c 0%,#1f1f1f 100%);color:#fff;box-shadow:0 2px 4px rgba(0,0,0,0.10),0 10px 26px rgba(0,0,0,0.16)}
 .dpo.n .dpo-lin .dpo-txt{border-left-color:rgba(255,255,255,0.38)}
 .dpo.n .dpo-lin .dpo-titel,.dpo.n .dpo-lin .dpo-beschr{color:rgba(255,255,255,0.86)}
-.dpo.n .dpo-lin .dpo-name{font-size:23px}
-.dpo.n .dpo-stb{min-width:262px;background:#eeeeee;box-shadow:0 1px 2px rgba(0,0,0,0.05),0 6px 18px rgba(0,0,0,0.05)}
-.dpo.n .dpo-unter .dpo-stb{min-width:238px}
+.dpo.n .dpo-lin .dpo-name{font-size:17px}
+.dpo.n .dpo-stb{min-width:196px;background:#eeeeee;box-shadow:0 1px 2px rgba(0,0,0,0.05),0 6px 18px rgba(0,0,0,0.05)}
+.dpo.n .dpo-unter .dpo-stb{min-width:178px}
 .dpo.n .dpo-stb .dpo-titel{color:#333}
-.dpo.n .dpo-stb .dpo-name{font-size:19px;color:#1c1c1c}
+.dpo.n .dpo-stb .dpo-name{font-size:14.5px;color:#1c1c1c}
 .dpo.n .dpo-stb .dpo-beschr{color:#444}
 .dpo.n .dpo-fil-row{margin-top:0}
 .dpo.n .dpo-col{padding:18px 8px 0}
@@ -163,6 +163,8 @@ function _orgHtml(d, modus) {
     };
     const name = _orgNamen(d.filialen);
     const voll = p => `${p.vorname || ''} ${p.nachname || ''}`.trim();
+    const gfBez = d.gfBezeichnung == null ? 'Geschäftsführung' : d.gfBezeichnung;
+    const gfLabel = gfBez ? `<small>${esc(gfBez)}</small>` : '';
     // Stab-Stellen hängen an der Linie unter der Linien-Stelle, die in der Liste davor steht.
     const gruppen = [];
     d.stellen.forEach(s => {
@@ -191,8 +193,8 @@ function _orgHtml(d, modus) {
             const gf = f.personen.filter(p => p.istGf);
             const mgr = f.personen.filter(p => !p.istGf);
             const gfHtml = gf.length
-                ? gf.map(p => `<div class="dpo-k-gf" title="${esc(voll(p))}"><small>Geschäftsführung</small><b>${esc(name(p))}</b></div>`).join('')
-                : '<div class="dpo-k-gf"><small>Geschäftsführung</small><b class="offen">offen</b></div>';
+                ? gf.map(p => `<div class="dpo-k-gf" title="${esc(voll(p))}">${gfLabel}<b>${esc(name(p))}</b></div>`).join('')
+                : `<div class="dpo-k-gf">${gfLabel}<b class="offen">GF offen</b></div>`;
             return `<div class="dpo-col"><div class="dpo-karte">
                 <div class="dpo-k-name">${esc(f.name)}</div>${gfHtml}
                 ${mgr.length ? `<div class="dpo-k-liste">${mgr.map(p => `<div class="dpo-k-p" title="${esc(voll(p))}">${esc(name(p))}</div>`).join('')}</div>` : ''}
@@ -209,8 +211,8 @@ function _orgHtml(d, modus) {
         const gf = f.personen.filter(p => p.istGf);
         const mgr = f.personen.filter(p => !p.istGf);
         const gfHtml = gf.length
-            ? gf.map(p => `<div class="dpo-gf" title="${esc(voll(p))} — Geschäftsführer/in"><small>Geschäftsführung</small><b>${esc(name(p))}</b></div>`).join('')
-            : '<div class="dpo-gf dpo-offen"><small>Geschäftsführung</small><b>offen</b></div>';
+            ? gf.map(p => `<div class="dpo-gf" title="${esc(voll(p))} — Geschäftsführer/in">${gfLabel}<b>${esc(name(p))}</b></div>`).join('')
+            : `<div class="dpo-gf dpo-offen">${gfLabel}<b>GF offen</b></div>`;
         return `<div class="dpo-col">
             <div class="dpo-team" style="box-shadow:0 1px 2px rgba(60,55,48,0.08),0 12px 28px ${_orgRgba(_orgHell(filHex) ? '#3c3730' : filHex, _orgHell(filHex) ? 0.12 : 0.22)}">
                 <div class="dpo-team-kopf" style="background:linear-gradient(135deg,${_orgMisch(filHex, 0.22)} 0%,${filHex} 80%);color:${_orgSchrift(filHex)}">
@@ -294,7 +296,7 @@ function _orgAnzeigen() {
         ? '#f6f3ee radial-gradient(rgba(60,55,48,0.10) 1px,transparent 1.2px) 0 0/18px 18px'
         : '#f7f7f7';
     if (!_orgData) return;
-    el.innerHTML = _orgHtml(_orgEdit ? { ..._orgData, stellen: _orgEdit.stellen, farben: _orgEdit.farben } : _orgData);
+    el.innerHTML = _orgHtml(_orgEdit ? { ..._orgData, stellen: _orgEdit.stellen, farben: _orgEdit.farben, gfBezeichnung: _orgEdit.gfBezeichnung } : _orgData);
 }
 
 async function orgLaden() {
@@ -315,7 +317,7 @@ async function orgLaden() {
 
 function orgDrucken() {
     if (!_orgData) return;
-    const daten = _orgEdit ? { ..._orgData, stellen: _orgEdit.stellen, farben: _orgEdit.farben } : _orgData;
+    const daten = _orgEdit ? { ..._orgData, stellen: _orgEdit.stellen, farben: _orgEdit.farben, gfBezeichnung: _orgEdit.gfBezeichnung } : _orgData;
     const farbig = _orgModus === 'farbig';
     const w = window.open('', '_blank');
     if (!w) { alert('Bitte Pop-ups für OneCrew erlauben, damit gedruckt werden kann.'); return; }
@@ -339,6 +341,7 @@ function orgBearbeiten() {
             { titel: 'HR', name: '', beschreibung: '', art: 'STAB', farbe: null },
         ],
         farben: { ...(_orgData.farben || {}) },
+        gfBezeichnung: _orgData.gfBezeichnung == null ? 'Geschäftsführung' : _orgData.gfBezeichnung,
     };
     const btn = document.getElementById('orgEditBtn');
     if (btn) btn.style.display = 'none';
@@ -349,6 +352,9 @@ function orgBearbeiten() {
         <div style="font-size:12px;color:#646464;margin-bottom:10px">«Linie» steht untereinander über den Filialen. «Stab links/rechts» hängt seitlich an der Linie, direkt unter der Linien-Stelle, die in der Liste darüber steht — mehrere auf derselben Seite kommen untereinander. Leere Zeilen werden nicht gespeichert.</div>
         <div id="orgEditListe"></div>
         <button onclick="orgStelleDazu()" style="${_orgGlas};margin-top:4px">+ Stelle</button>
+        <div style="font-size:14px;font-weight:700;color:#3f3f3f;margin:18px 0 2px">Text über dem GF-Namen</div>
+        <div style="font-size:12px;color:#646464;margin-bottom:8px">Gilt für alle Filialen. Leer lassen = Zeile weglassen.</div>
+        <input id="orgGfBez" value="${esc(_orgEdit.gfBezeichnung)}" placeholder="leer = keine Zeile" maxlength="160" oninput="_orgEdit.gfBezeichnung=this.value;_orgAnzeigen()" style="${_orgInp};width:100%;box-sizing:border-box">
         <div style="font-size:14px;font-weight:700;color:#3f3f3f;margin:18px 0 2px">Farben der Stufen darunter</div>
         <div style="font-size:12px;color:#646464;margin-bottom:8px">Die Farben gelten für die Darstellung «Farbig».</div>
         <div id="orgEditStufen"></div>
@@ -420,7 +426,7 @@ async function orgSpeichern() {
     try {
         const r = await fetch('/api/manager-dienstplan/organigramm/stellen', {
             method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stellen: _orgEdit.stellen, farben: _orgEdit.farben }),
+            body: JSON.stringify({ stellen: _orgEdit.stellen, farben: _orgEdit.farben, gfBezeichnung: _orgEdit.gfBezeichnung }),
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) { alert(j.message || j.error || ('Fehler ' + r.status)); return; }

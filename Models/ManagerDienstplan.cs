@@ -244,6 +244,13 @@ public class OrganigrammStelle
     public DateTime GeaendertAm { get; set; } = DateTime.Now;
 }
 
+/// <summary>Organigramm-Einstellung (Schlüssel/Wert), z.B. GF_BEZEICHNUNG = Text über dem GF-Namen ("" = weglassen).</summary>
+public class OrganigrammEinstellung
+{
+    public string Schluessel { get; set; } = "";
+    public string Wert { get; set; } = "";
+}
+
 /// <summary>Farbe einer Organigramm-Stufe ohne eigene Stelle: FILIALE (Filiale + GF) · MANAGER.</summary>
 public class OrganigrammFarbe
 {
