@@ -24,7 +24,7 @@ Stand aller Mitarbeitenden der gewählten Filiale: Hygiene, Sicherheit, SRIW, No
 | **Fluktuation** | Eintritte und Austritte im Zeitraum, Gründe |
 | **Austritts-Feedback** | Anonyme Antworten der Exit-Umfrage |
 | **Ø Wochenstunden** | Durchschnittlich gestempelte Stunden pro MA und Woche, Zeitraum frei — Sidebar-Filiale oder alle. Ein-/Austritt im Zeitraum wird fair berücksichtigt. |
-| **Organigramm** | Oben die von Hand gepflegten Stellen (Lizenznehmer, Supervisor als Linie, HR seitlich als Stab), darunter jede Filiale mit Geschäftsführer/in und den Managern aus den FIX-M-Verträgen des gewählten Monats (‹ › wechselt den Monat). «✎ Stellen & Farben»: Stellen erfassen und pro Stufe eine Farbe wählen (jede obere Stelle, Filiale, Manager), mit Live-Vorschau. Druck A4 quer. |
+| **Organigramm** | Oben die von Hand gepflegten Stellen (Lizenznehmer, Supervisor als Linie, HR seitlich als Stab links oder rechts), darunter jede Filiale mit Geschäftsführer/in und den Managern aus den FIX-M-Verträgen des gewählten Monats (‹ › wechselt den Monat). «✎ Stellen & Farben»: Stellen erfassen und pro Stufe eine Farbe wählen (jede obere Stelle, Filiale, Manager), mit Live-Vorschau. Druck A4 quer. |
 | **MTP-Stunden-Kontrolle** | Garantie vs. Ist pro Woche **inkl. angerechneter Absenzen** (Ferien/Krank nach Lohn-Logik). Grün = Garantie erreicht, rot = darunter; Spalte «Saldo aktuell» wie in der MA-Maske; 🤰/🍼-Markierung; sortiert nach grösstem Minus; PDF A4 quer. |
 | **Absenz-Auswertung** | Krankheit, Unfall, Mutterschaft … mit Detail und Export |
 

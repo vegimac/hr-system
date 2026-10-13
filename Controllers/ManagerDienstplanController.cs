@@ -186,7 +186,7 @@ public class ManagerDienstplanController : ControllerBase
             {
                 Titel = titel,
                 Name = name,
-                Art = s.Art == "STAB" ? "STAB" : "LINIE",
+                Art = s.Art is "STAB" or "STAB_R" ? s.Art : "LINIE",
                 SortOrder = neu.Count,
                 Farbe = NurFarbe(s.Farbe),
                 GeaendertAm = DateTime.Now,

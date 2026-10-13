@@ -234,7 +234,7 @@ public class OrganigrammStelle
     public int Id { get; set; }
     public string Titel { get; set; } = "";
     public string Name { get; set; } = "";
-    /// <summary>LINIE = in der Kette oben (untereinander) · STAB = seitlich an der Linie (z.B. HR)</summary>
+    /// <summary>LINIE = in der Kette oben (untereinander) · STAB = seitlich links · STAB_R = seitlich rechts (an der Linie unter der Linien-Stelle davor)</summary>
     public string Art { get; set; } = "LINIE";
     public int SortOrder { get; set; }
     /// <summary>Hintergrundfarbe #rrggbb · leer = Standard (Linie Kohle, Stab weiss)</summary>

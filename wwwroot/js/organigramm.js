@@ -24,6 +24,7 @@ const ORG_CSS = `
 .dpo-stab-row{display:grid;grid-template-columns:1fr 2px 1fr;align-self:stretch}
 .dpo-stab-row>.dpo-linie-mitte{background:rgba(60,55,48,0.35)}
 .dpo-stab-links{display:flex;flex-direction:column;align-items:flex-end;gap:10px;padding:10px 0}
+.dpo-stab-rechts{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:10px 0}
 .dpo-stab-item{display:flex;align-items:center}
 .dpo-h{width:28px;height:2px;background:rgba(60,55,48,0.35)}
 .dpo-leer{font-size:12.5px;color:#8b8b8b;border:1px dashed rgba(60,55,48,0.3);border-radius:12px;padding:10px 18px}
@@ -62,7 +63,7 @@ function _orgStil(hex, verlauf) {
         : hex;
     return `background:${bg};color:${_orgSchrift(hex)}`;
 }
-function _orgStelleFarbe(s) { return s.farbe || (s.art === 'STAB' ? ORG_STANDARD.STAB : ORG_STANDARD.LINIE); }
+function _orgStelleFarbe(s) { return s.farbe || (_orgIstStab(s) ? ORG_STANDARD.STAB : ORG_STANDARD.LINIE); }
 function _orgStufenFarbe(farben, stufe) { return (farben && farben[stufe]) || ORG_STANDARD[stufe]; }
 
 function _orgNamen(filialen) {
@@ -74,21 +75,34 @@ function _orgNamen(filialen) {
     };
 }
 
+function _orgIstStab(s) { return s.art === 'STAB' || s.art === 'STAB_R'; }
+
 function _orgHtml(d) {
-    const linie = d.stellen.filter(s => s.art !== 'STAB');
-    const stab = d.stellen.filter(s => s.art === 'STAB');
     const box = s => `<div class="dpo-box" style="${_orgStil(_orgStelleFarbe(s), true)}">${s.titel ? `<div class="dpo-titel">${esc(s.titel)}</div>` : ''}<div class="dpo-name">${esc(s.name)}</div></div>`;
     const filStil = _orgStil(_orgStufenFarbe(d.farben, 'FILIALE'), true);
     const mgrStil = _orgStil(_orgStufenFarbe(d.farben, 'MANAGER'), false);
     const name = _orgNamen(d.filialen);
     const voll = p => `${p.vorname || ''} ${p.nachname || ''}`.trim();
+    // Stab-Stellen hängen an der Linie unter der Linien-Stelle, die in der Liste davor steht.
+    const gruppen = [];
+    d.stellen.forEach(s => {
+        if (!_orgIstStab(s) || !gruppen.length) gruppen.push({ linie: _orgIstStab(s) ? null : s, stab: [] });
+        if (_orgIstStab(s)) gruppen[gruppen.length - 1].stab.push(s);
+    });
     let html = '<div class="dpo">';
-    if (!linie.length && !stab.length)
+    if (!gruppen.length)
         html += '<div class="dpo-leer">Obere Stellen (Lizenznehmer, Supervisor, HR …) noch nicht erfasst</div><div class="dpo-v"></div>';
-    linie.forEach(s => { html += box(s) + '<div class="dpo-v"></div>'; });
-    if (stab.length) {
-        html += `<div class="dpo-stab-row"><div class="dpo-stab-links">${stab.map(s => `<div class="dpo-stab-item">${box(s)}<div class="dpo-h"></div></div>`).join('')}</div><div class="dpo-linie-mitte"></div><div></div></div><div class="dpo-v"></div>`;
-    }
+    gruppen.forEach(g => {
+        if (g.linie) html += box(g.linie) + '<div class="dpo-v"></div>';
+        if (!g.stab.length) return;
+        const links = g.stab.filter(s => s.art !== 'STAB_R');
+        const rechts = g.stab.filter(s => s.art === 'STAB_R');
+        html += `<div class="dpo-stab-row">
+            <div class="dpo-stab-links">${links.map(s => `<div class="dpo-stab-item">${box(s)}<div class="dpo-h"></div></div>`).join('')}</div>
+            <div class="dpo-linie-mitte"></div>
+            <div class="dpo-stab-rechts">${rechts.map(s => `<div class="dpo-stab-item"><div class="dpo-h"></div>${box(s)}</div>`).join('')}</div>
+        </div><div class="dpo-v"></div>`;
+    });
     if (!d.filialen.length) html += '<div class="dpo-leer">Keine FIX-M-Verträge in diesem Monat</div>';
     html += '<div class="dpo-fil-row">' + d.filialen.map(f => {
         const gf = f.personen.filter(p => p.istGf);
@@ -203,7 +217,7 @@ function orgBearbeiten() {
     p.style.display = '';
     p.innerHTML = `
         <div style="font-size:14px;font-weight:700;color:#3f3f3f;margin-bottom:4px">Obere Stellen</div>
-        <div style="font-size:12px;color:#646464;margin-bottom:10px">«Linie» steht untereinander über den Filialen (z.B. Lizenznehmer → Supervisor), «Stab» hängt seitlich an der Linie (z.B. HR). Leere Zeilen werden nicht gespeichert.</div>
+        <div style="font-size:12px;color:#646464;margin-bottom:10px">«Linie» steht untereinander über den Filialen. «Stab links/rechts» hängt seitlich an der Linie, direkt unter der Linien-Stelle, die in der Liste darüber steht — mehrere auf derselben Seite kommen untereinander. Leere Zeilen werden nicht gespeichert.</div>
         <div id="orgEditListe"></div>
         <button onclick="orgStelleDazu()" style="${_orgGlas};margin-top:4px">+ Stelle</button>
         <div style="font-size:14px;font-weight:700;color:#3f3f3f;margin:18px 0 8px">Farben der Stufen darunter</div>
@@ -229,8 +243,9 @@ function _orgEditRender() {
             <input value="${esc(s.name)}" placeholder="Name" maxlength="120" oninput="_orgEdit.stellen[${i}].name=this.value;_orgAnzeigen()" style="${_orgInp}">
             <div style="grid-column:1/-1;display:flex;gap:6px;align-items:center">
                 <select onchange="_orgEdit.stellen[${i}].art=this.value;_orgEditRender();_orgAnzeigen()" style="${_orgInp};flex:1">
-                    <option value="LINIE"${s.art !== 'STAB' ? ' selected' : ''}>Linie</option>
-                    <option value="STAB"${s.art === 'STAB' ? ' selected' : ''}>Stab (seitlich)</option>
+                    <option value="LINIE"${!_orgIstStab(s) ? ' selected' : ''}>Linie</option>
+                    <option value="STAB"${s.art === 'STAB' ? ' selected' : ''}>Stab links</option>
+                    <option value="STAB_R"${s.art === 'STAB_R' ? ' selected' : ''}>Stab rechts</option>
                 </select>
                 <input type="color" class="org-farbe" title="Farbe dieser Stelle" value="${_orgStelleFarbe(s)}" oninput="_orgEdit.stellen[${i}].farbe=this.value;_orgAnzeigen()">
                 <button onclick="orgStelleSchieben(${i},-1)" title="Nach oben" style="${knopf}"${i === 0 ? ' disabled' : ''}>↑</button>
