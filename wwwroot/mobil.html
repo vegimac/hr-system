@@ -736,6 +736,7 @@
         .mb-sel { width:100%; padding:11px 12px; border:1.5px solid #d8d2c8; border-radius:12px; background:#faf8f5; font-size:15px; color:#1a1a1a; font-family:inherit; }
         .mb-sel:focus { outline:none; border-color:#1a1a1a; }
         .mb-msg-body { white-space:pre-wrap; font-size:15px; line-height:1.55; color:#1a1a1a; margin:10px 0 16px; }
+        .mb-zitat { white-space:pre-wrap; border-left:3px solid #d8d2c8; padding:2px 0 2px 10px; color:#8b8b8b; font-size:13px; line-height:1.45; }
     </style>
 </head>
 <body>
@@ -801,6 +802,7 @@
         <div class="pf-up-actions">
             <button class="pf-up-btn secondary" id="msgDelBtn" style="flex:0 0 auto;padding:12px 14px;color:#8a3b34" onclick="pfDelete(window._msgDocId)" title="Löschen">🗑</button>
             <button class="pf-up-btn secondary" onclick="closeMsg()">Schliessen</button>
+            <button class="pf-up-btn secondary" id="msgAntwortBtn" style="display:none" onclick="mtAntworten(window._msgDocId)">↩ Antworten</button>
             <button class="pf-up-btn primary" id="msgAnhang" style="display:none" onclick="pfOpen(window._msgDocId)">📎 Anhang öffnen</button>
         </div>
     </div>
@@ -850,12 +852,13 @@
 <div id="mtOverlay" class="pf-up-overlay" onclick="if (event.target === this) mtClose()">
     <div class="pf-up-card">
         <div class="pf-up-handle"></div>
-        <h2 class="pf-up-title">Mitteilung senden</h2>
+        <h2 class="pf-up-title" id="mtTitel">Mitteilung senden</h2>
         <p class="pf-up-sub">An einen oder mehrere OneCrew-Benutzer. Sie bekommen per Mail nur eine Ankündigung mit Link.</p>
         <div id="mtError" class="pf-up-error"></div>
         <div class="pf-up-section">
             <label class="pf-up-label">An wen?</label>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+                <button type="button" class="pf-up-btn secondary" id="mtAntwortAlleBtn" style="display:none;padding:6px 10px;font-size:12px" onclick="mtSelectRole('antwortAlle')">alle der Mitteilung</button>
                 <button type="button" class="pf-up-btn secondary" style="padding:6px 10px;font-size:12px" onclick="mtSelectRole('user')">alle GF</button>
                 <button type="button" class="pf-up-btn secondary" style="padding:6px 10px;font-size:12px" onclick="mtSelectRole('hr')">HR-Team</button>
                 <button type="button" class="pf-up-btn secondary" style="padding:6px 10px;font-size:12px" onclick="mtSelectRole('none')">keine</button>
@@ -869,6 +872,7 @@
         <div class="pf-up-section">
             <label class="pf-up-label">Mitteilung</label>
             <textarea id="mtText" class="pf-up-input" rows="4" style="resize:vertical"></textarea>
+            <div id="mtZitat" class="mb-zitat" style="display:none;margin-top:8px;max-height:140px;overflow-y:auto"></div>
         </div>
         <div class="pf-up-section">
             <label class="pf-up-label">Anhang <span style="color:var(--muted);font-weight:400">(optional)</span></label>
@@ -1159,8 +1163,10 @@
         document.getElementById('msgTitle').textContent = d.originalFilename || 'Mitteilung';
         document.getElementById('msgMeta').textContent = [ausgang ? zielText(d) : vonText(d), fmtDate(d.uploadedAt)].filter(Boolean).join(' · ');
         const text = g.map(x => x.messageBody).find(Boolean);
-        document.getElementById('msgBody').textContent = text || (d.mimeType ? '(Dokument ohne Text — unten öffnen)' : '');
+        document.getElementById('msgBody').innerHTML = text ? mbMitteilungHtml(text) : esc(d.mimeType ? '(Dokument ohne Text — unten öffnen)' : '');
         document.getElementById('msgDelBtn').style.display = ausgang ? 'none' : '';
+        document.getElementById('msgAntwortBtn').style.display =
+            !ausgang && d.uploader?.antwortbar && d.uploader.id !== currentUser?.id ? '' : 'none';
         const a = document.getElementById('msgAnhang');
         const liste = document.getElementById('msgAnhaenge');
         if (g.length > 1) {
@@ -1446,9 +1452,46 @@
 
     // ── Mitteilung an Benutzer ─────────────────────────────────────────
     let _mtFile = null;
-    async function mtOpen() {
+    // Antworten (Walter 13.10.2026) — gleiche Zitat-Marke wie im Posteingang (posteingang.js).
+    const MT_ZITAT_MARKE = '——— Ursprüngliche Mitteilung ———';
+    let _mtAntwort = null;
+    function mbMitteilungHtml(text) {
+        const s = String(text || '');
+        const i = s.indexOf(MT_ZITAT_MARKE);
+        if (i < 0) return esc(s);
+        return esc(s.slice(0, i).replace(/\s+$/, ''))
+            + `<div class="mb-zitat" style="margin-top:10px">${esc(s.slice(i + MT_ZITAT_MARKE.length).replace(/^\s+/, ''))}</div>`;
+    }
+    async function mtAntworten(docId) {
+        let v;
+        try {
+            const r = await fetch(`/api/mailbox/${docId}/antwort-vorlage`, { headers: ah() });
+            v = await r.json().catch(() => ({}));
+            if (!r.ok) { alert(v.message || v.error || ('Fehler ' + r.status)); return; }
+        } catch (e) { alert('Verbindungsfehler: ' + e.message); return; }
+        const p = n => String(n).padStart(2, '0');
+        const dt = new Date(v.datum);
+        const wann = isNaN(dt) ? '' : `${p(dt.getDate())}.${p(dt.getMonth() + 1)}.${dt.getFullYear()} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
+        const betreff = String(v.betreff || '').trim();
+        closeMsg();
+        await mtOpen({
+            zitat: `${MT_ZITAT_MARKE}\nVon: ${v.absender.name} · ${wann}\nBetreff: ${betreff}` + (v.text ? `\n\n${String(v.text).trim()}` : ''),
+            absenderId: v.absender.id,
+            alle: (v.alleEmpfaenger || []).map(Number),
+            betreff: (/^(AW|RE|Antwort):/i.test(betreff) ? betreff : `AW: ${betreff}`).slice(0, 120),
+        });
+    }
+    async function mtOpen(antwort = null) {
         _mtFile = null;
-        document.getElementById('mtBetreff').value = '';
+        _mtAntwort = antwort && antwort.zitat ? antwort : null;
+        document.getElementById('mtTitel').textContent = _mtAntwort ? '↩ Antworten' : 'Mitteilung senden';
+        const zitatBox = document.getElementById('mtZitat');
+        zitatBox.textContent = _mtAntwort ? _mtAntwort.zitat.slice(MT_ZITAT_MARKE.length).trim() : '';
+        zitatBox.style.display = _mtAntwort ? '' : 'none';
+        const alleBtn = document.getElementById('mtAntwortAlleBtn');
+        alleBtn.style.display = _mtAntwort && _mtAntwort.alle.length > 1 ? '' : 'none';
+        if (_mtAntwort) alleBtn.textContent = `alle der Mitteilung (${_mtAntwort.alle.length})`;
+        document.getElementById('mtBetreff').value = _mtAntwort ? _mtAntwort.betreff : '';
         document.getElementById('mtText').value = '';
         document.getElementById('mtFileName').textContent = '';
         document.getElementById('mtError').style.display = 'none';
@@ -1465,11 +1508,14 @@
                     <input type="checkbox" class="mt-emp" value="${u.id}" data-role="${esc(u.role || '')}" data-hr="${u.isHrTeam ? 1 : 0}" style="width:18px;height:18px">
                     <span style="flex:1">${esc(u.name || u.username)}${u.id === currentUser?.id ? ' (ich)' : ''}</span><span style="font-size:11px;color:#6b6b6b">${esc(rolle(u))}</span></label>`).join('')
             : '<div style="font-size:12px;color:#6b6b6b">Keine Benutzer gefunden.</div>';
+        if (_mtAntwort)
+            document.querySelectorAll('.mt-emp').forEach(cb => { cb.checked = Number(cb.value) === _mtAntwort.absenderId; });
     }
-    function mtClose() { document.getElementById('mtOverlay').style.display = 'none'; }
+    function mtClose() { document.getElementById('mtOverlay').style.display = 'none'; _mtAntwort = null; }
     function mtSelectRole(which) {
         document.querySelectorAll('.mt-emp').forEach(cb => {
             if (which === 'none') cb.checked = false;
+            else if (which === 'antwortAlle') cb.checked = !!_mtAntwort && _mtAntwort.alle.includes(Number(cb.value));
             else if (which === 'user') cb.checked = cb.dataset.role === 'user';
             else if (which === 'hr') cb.checked = cb.dataset.hr === '1';
         });
@@ -1489,9 +1535,11 @@
         const zeig = m => { err.textContent = m; err.style.display = 'block'; };
         if (!ids.length) { zeig('Bitte mindestens einen Empfänger wählen.'); return; }
         if (!betreff) { zeig('Bitte einen Betreff eingeben.'); return; }
+        if (_mtAntwort && !text) { zeig('Bitte eine Antwort schreiben.'); return; }
         if (!text && !_mtFile) { zeig('Bitte einen Text eingeben oder etwas anhängen.'); return; }
         const fd = new FormData();
-        fd.append('userIds', ids.join(',')); fd.append('betreff', betreff); fd.append('text', text); fd.append('mail', 'true');
+        fd.append('userIds', ids.join(',')); fd.append('betreff', betreff);
+        fd.append('text', _mtAntwort ? `${text}\n\n${_mtAntwort.zitat}` : text); fd.append('mail', 'true');
         if (_mtFile) fd.append('file', _mtFile);
         const btn = document.getElementById('mtSendBtn'); btn.disabled = true; btn.textContent = 'Sende…';
         try {

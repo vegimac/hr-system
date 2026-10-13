@@ -350,7 +350,7 @@ async function pbLoadList() {
                         ${hasFile ? `<span style="font-size:11px;color:#94a3b8">${sizeKb} KB</span>` : ''}
                         ${notifyInfo}
                     </div>
-                    ${d.messageBody ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${_pbEsc(d.messageBody)}</div>` : ''}
+                    ${d.messageBody ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${pbMitteilungHtml(d.messageBody)}</div>` : ''}
                     ${d.bemerkung && !(d.messageBody && hasFile) ? `<div style="font-size:13px;color:#475569;margin-top:4px">${_pbEsc(d.bemerkung)}</div>` : ''}
                     <div style="font-size:12px;color:#64748b;margin-top:6px">
                         <!-- Absender GROSS zuerst (Walter-Vorgabe 13.07.2026) -->
@@ -360,6 +360,7 @@ async function pbLoadList() {
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
                     ${zeugnisEntwurfId ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px" onclick="pbOpenZeugnisEntwurf(${zeugnisEntwurfId})">📄 Entwurf öffnen</button>` : ''}
+                    ${pbKannAntworten(d) ? `<button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="pbAntworten(${d.id})" title="Antwort an ${_pbEsc(uploaderInfo)} — die Mitteilung wird zitiert">↩ Antworten</button>` : ''}
                     ${hasFile ? `<button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="pbDownload(${d.id})">⬇ Download</button>` : ''}
                     <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson}, "move")' title="In anderes Postfach verschieben">↗ Verschieben</button>
                     <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson}, "forward")' title="Kopie in anderes Postfach">↪ Weiterleiten</button>
@@ -407,12 +408,13 @@ async function pbLoadList() {
                             <span style="font-size:11.5px;color:#64748b;font-weight:600">📎 ${g.length} Dokumente</span>
                             ${notifyInfo}
                         </div>
-                        ${text ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${_pbEsc(text)}</div>` : ''}
+                        ${text ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${pbMitteilungHtml(text)}</div>` : ''}
                         <div style="font-size:12px;color:#64748b;margin-top:6px">
                             <span style="font-size:13.5px;font-weight:700;color:#3f3f3f">${uploaderInfo}</span>${weiterInfo} · ${dateStr}
                         </div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+                        ${pbKannAntworten(d0) ? `<button class="btn btn-outline" style="${btn}" onclick="pbAntworten(${d0.id})" title="Antwort an ${_pbEsc(uploaderInfo)} — die Mitteilung wird zitiert">↩ Antworten</button>` : ''}
                         <button class="btn btn-outline" style="${btn}" onclick="pbOpenTransferGruppe('${_pbEsc(d0.gruppe)}', 'move')" title="Alle Dokumente dieser Mitteilung verschieben">↗ Alle verschieben</button>
                         <button class="btn btn-outline" style="${btn}" onclick="pbOpenTransferGruppe('${_pbEsc(d0.gruppe)}', 'forward')" title="Alle Dokumente dieser Mitteilung weiterleiten">↪ Alle weiterleiten</button>
                         <button class="btn btn-danger" style="${btn}" onclick="pbDeleteGruppe('${_pbEsc(d0.gruppe)}')" title="Ganze Mitteilung löschen">🗑 Alle</button>
@@ -1469,9 +1471,58 @@ function mtDateienZeigen() {
         </div>`).join('')
         + (_mtDateien.length > 1 ? `<div style="font-size:11.5px;color:#8b8b8b">${_mtDateien.length} Dateien — kommen als eine Mitteilung an; jedes Dokument lässt sich einzeln ablegen.</div>` : '');
 }
-async function mtOpen() {
+// Antworten (Walter 13.10.2026): das Zitat hängt am Text der Antwort, damit der
+// Bezug auch bleibt, wenn das Original gelöscht wird — und auf Mobil sichtbar ist.
+const MT_ZITAT_MARKE = '——— Ursprüngliche Mitteilung ———';
+let _mtAntwort = null;
+function _mtDatumZeit(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const p = n => String(n).padStart(2, '0');
+    return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+// Text einer Mitteilung als HTML; ein angehängtes Zitat erscheint blass mit Strich links.
+function pbMitteilungHtml(text) {
+    const s = String(text || '');
+    const i = s.indexOf(MT_ZITAT_MARKE);
+    if (i < 0) return _pbEsc(s);
+    const vorne = s.slice(0, i).replace(/\s+$/, '');
+    const zitat = s.slice(i + MT_ZITAT_MARKE.length).replace(/^\s+/, '');
+    return _pbEsc(vorne)
+        + `<div style="margin-top:8px;border-left:3px solid rgba(60,55,48,0.22);padding:2px 0 2px 10px;color:#8b8b8b;font-size:12px">${_pbEsc(zitat)}</div>`;
+}
+// Antworten nur an aktive OneCrew-Benutzer (nicht an MA-Postfach-Logins) und nicht an sich selbst.
+function pbKannAntworten(d) {
+    return !!(d && d.uploader && d.uploader.antwortbar && d.uploader.id !== currentUser?.id);
+}
+async function pbAntworten(docId) {
+    let v;
+    try {
+        const r = await fetch(`/api/mailbox/${docId}/antwort-vorlage`, { headers: ah() });
+        v = await r.json().catch(() => ({}));
+        if (!r.ok) { alert(v.message || v.error || ('Fehler ' + r.status)); return; }
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); return; }
+    const betreff = String(v.betreff || '').trim();
+    const zitat = `${MT_ZITAT_MARKE}\nVon: ${v.absender.name} · ${_mtDatumZeit(v.datum)}\nBetreff: ${betreff}`
+        + (v.text ? `\n\n${String(v.text).trim()}` : '');
+    await mtOpen({
+        zitat,
+        absenderId: v.absender.id,
+        alle: (v.alleEmpfaenger || []).map(Number),
+        betreff: (/^(AW|RE|Antwort):/i.test(betreff) ? betreff : `AW: ${betreff}`).slice(0, 120),
+    });
+}
+async function mtOpen(antwort = null) {
+    _mtAntwort = antwort && antwort.zitat ? antwort : null;
+    document.getElementById('mtTitel').textContent = _mtAntwort ? '↩ Antworten' : '✉ Mitteilung an Benutzer';
+    const zitatBox = document.getElementById('mtZitat');
+    zitatBox.textContent = _mtAntwort ? _mtAntwort.zitat.slice(MT_ZITAT_MARKE.length).trim() : '';
+    zitatBox.style.display = _mtAntwort ? '' : 'none';
+    const alleBtn = document.getElementById('mtAntwortAlleBtn');
+    alleBtn.style.display = _mtAntwort && _mtAntwort.alle.length > 1 ? '' : 'none';
+    if (_mtAntwort) alleBtn.textContent = `alle der Mitteilung (${_mtAntwort.alle.length})`;
     document.getElementById('mtAlert').innerHTML = '';
-    document.getElementById('mtBetreff').value = '';
+    document.getElementById('mtBetreff').value = _mtAntwort ? _mtAntwort.betreff : '';
     document.getElementById('mtText').value = '';
     document.getElementById('mtFile').value = '';
     _mtDateien = [];
@@ -1492,8 +1543,12 @@ async function mtOpen() {
                 <input type="checkbox" class="mt-emp" value="${u.id}" data-role="${u.role || ''}" data-hr="${u.isHrTeam ? 1 : 0}" data-filialen="${u.filialen ? u.filialen.join(',') : 'alle'}">
                 <span>${esc(u.name || u.username)}${u.id === currentUser?.id ? ' (ich)' : ''}</span><span style="font-size:11px;color:#8b8b8b">${rolle(u)}</span></label>`).join('')
         : '<div style="font-size:12px;color:#8b8b8b">Keine Benutzer gefunden.</div>';
+    if (_mtAntwort) {
+        document.querySelectorAll('.mt-emp').forEach(cb => { cb.checked = Number(cb.value) === _mtAntwort.absenderId; });
+        document.getElementById('mtText').focus();
+    }
 }
-function mtClose() { document.getElementById('mtModal').style.display = 'none'; }
+function mtClose() { document.getElementById('mtModal').style.display = 'none'; _mtAntwort = null; }
 // «HR-Team» = HR mit Zugang zur Sidebar-Filiale (Walter 12.10.2026): eine Mitteilung
 // aus Oftringen geht nicht an HR, die nur Langenthal Drive betreut.
 function _mtFiliale() {
@@ -1511,6 +1566,7 @@ function mtSelectRole(which) {
     document.querySelectorAll('.mt-emp').forEach(cb => {
         if (which === 'none') cb.checked = false;
         else if (which === 'all') cb.checked = true;
+        else if (which === 'antwortAlle') cb.checked = !!_mtAntwort && _mtAntwort.alle.includes(Number(cb.value));
         else if (which === 'user') cb.checked = cb.dataset.role === 'user';
         else if (which === 'hr') cb.checked = cb.dataset.hr === '1' && (!fil || _mtHatFiliale(cb, fil.id));
     });
@@ -1530,11 +1586,12 @@ async function mtSend() {
     const warn = m => `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:10px;font-size:13px;margin-bottom:10px">${esc(m)}</div>`;
     if (!ids.length) { al.innerHTML = warn('Bitte mindestens einen Empfänger wählen.'); return; }
     if (!betreff) { al.innerHTML = warn('Bitte einen Betreff eingeben.'); return; }
+    if (_mtAntwort && !text) { al.innerHTML = warn('Bitte eine Antwort schreiben.'); return; }
     if (!text && !_mtDateien.length) { al.innerHTML = warn('Bitte einen Text eingeben oder eine Datei anhängen.'); return; }
     const fd = new FormData();
     fd.append('userIds', ids.join(','));
     fd.append('betreff', betreff);
-    fd.append('text', text);
+    fd.append('text', _mtAntwort ? `${text}\n\n${_mtAntwort.zitat}` : text);
     fd.append('mail', document.getElementById('mtMail').checked ? 'true' : 'false');
     _mtDateien.forEach(f => fd.append('files', f));
     const btn = document.getElementById('mtSendBtn');

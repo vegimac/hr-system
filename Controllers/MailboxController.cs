@@ -140,7 +140,8 @@ public class MailboxController : ControllerBase
                     m.CompanyProfile.Id, m.CompanyProfile.RestaurantCode,
                     name = m.CompanyProfile.BranchName ?? m.CompanyProfile.CompanyName
                 },
-                Uploader   = m.Uploader == null ? null : new { m.Uploader.Id, name = ((m.Uploader.FirstName ?? "") + " " + (m.Uploader.LastName ?? "")).Trim(), m.Uploader.Username },
+                Uploader   = m.Uploader == null ? null : new { m.Uploader.Id, name = ((m.Uploader.FirstName ?? "") + " " + (m.Uploader.LastName ?? "")).Trim(), m.Uploader.Username,
+                    antwortbar = m.Uploader.IsActive && m.Uploader.Role != "employee" },
                 m.WeitergeleitetAm,
                 WeitergeleitetVon = m.WeitergeleitetVonUser == null ? null : new { m.WeitergeleitetVonUser.Id, name = ((m.WeitergeleitetVonUser.FirstName ?? "") + " " + (m.WeitergeleitetVonUser.LastName ?? "")).Trim(), m.WeitergeleitetVonUser.Username },
                 Employee   = m.Employee == null ? null : new { m.Employee.Id, name = ((m.Employee.FirstName ?? "") + " " + (m.Employee.LastName ?? "")).Trim(), m.Employee.EmployeeNumber },
@@ -395,6 +396,58 @@ public class MailboxController : ControllerBase
             })
             .ToListAsync();
         return Ok(docs);
+    }
+
+    /// <summary>
+    /// Antworten auf eine Mitteilung (Walter 13.10.2026): Absender, übrige
+    /// Empfänger derselben Sendung und der Originaltext für das Zitat.
+    /// Eine Sendung an mehrere Benutzer ist je Empfänger ein Eintrag —
+    /// zusammengehörig = gleicher Absender, gleicher Betreff, innert 2 Minuten.
+    /// </summary>
+    [HttpGet("{id}/antwort-vorlage")]
+    public async Task<IActionResult> AntwortVorlage(int id)
+    {
+        var uid = GetCurrentUserId();
+        if (uid is null) return Unauthorized();
+        var doc = await _db.MailboxDocuments.AsNoTracking()
+            .Include(m => m.Uploader)
+            .FirstOrDefaultAsync(m => m.Id == id);
+        if (doc == null) return NotFound(new { error = "Mitteilung nicht gefunden." });
+        if (!await UserCanViewDocumentAsync(doc)) return Forbid();
+        if (doc.Uploader == null || !doc.Uploader.IsActive || doc.Uploader.Role == "employee")
+            return BadRequest(new { error = "ABSENDER_KEIN_BENUTZER",
+                message = "Der Absender ist kein aktiver OneCrew-Benutzer — eine Antwort ist hier nicht möglich." });
+
+        var von = doc.UploadedAt.AddMinutes(-2);
+        var bis = doc.UploadedAt.AddMinutes(2);
+        var weitere = doc.TargetType == "USER"
+            ? await _db.MailboxDocuments.AsNoTracking()
+                .Where(m => m.TargetType == "USER" && m.TargetUserId != null
+                         && m.UploadedBy == doc.UploadedBy
+                         && m.OriginalFilename == doc.OriginalFilename
+                         && m.UploadedAt >= von && m.UploadedAt <= bis)
+                .Select(m => m.TargetUserId!.Value)
+                .Distinct()
+                .ToListAsync()
+            : new List<int>();
+        var gruppeText = doc.MessageBody;
+        if (string.IsNullOrWhiteSpace(gruppeText) && doc.Gruppe != null)
+            gruppeText = await _db.MailboxDocuments.AsNoTracking()
+                .Where(m => m.Gruppe == doc.Gruppe && m.MessageBody != null)
+                .Select(m => m.MessageBody).FirstOrDefaultAsync();
+
+        return Ok(new
+        {
+            betreff = doc.OriginalFilename,
+            datum = doc.UploadedAt,
+            text = gruppeText,
+            absender = new
+            {
+                id = doc.Uploader.Id,
+                name = ((doc.Uploader.FirstName ?? "") + " " + (doc.Uploader.LastName ?? "")).Trim() is { Length: > 0 } n ? n : doc.Uploader.Username,
+            },
+            alleEmpfaenger = weitere.Append(doc.Uploader.Id).Where(x => x != uid.Value).Distinct().ToList(),
+        });
     }
 
     // ── POST: Mitteilung an Benutzer (Walter 05.09.2026) ─────────────────
