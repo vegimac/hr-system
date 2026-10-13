@@ -2381,6 +2381,8 @@
                 <div class="hr-hub-group" id="hrHubGrp-kontrolle" style="display:none">
                     <!-- Kontroll-Listen als senkrechtes Menü mit Sketch-Icons (Walter 13.10.2026):
                          v2: je eine Glas-Kachel mit Icon + Titel, ohne Beschreibung. CSS .kontr-menu in app.css. -->
+                    <!-- Menü links, Planungs-Karten rechts daneben (Walter 13.10.2026) -->
+                    <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap">
                     <div class="kontr-menu">
                         <button type="button" class="kontr-menu-item" onclick="showPage('kontrolle')">
                             <img src="img/kontr-luecken.webp?v=20261013a" alt="" loading="lazy">
@@ -2415,7 +2417,7 @@
                             <span class="kontr-menu-titel">8&nbsp;·&nbsp;Freie Sonntage (4 / 12 pro Jahr)</span>
                         </button>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px;flex:1 1 340px;min-width:0">
 
 
                     <div class="hr-card hr-plan">
@@ -2464,6 +2466,7 @@
                             <li>Wiedereingliederungsplan</li>
                             <li>Übersicht aktive Fälle (Dashboard-Widget)</li>
                         </ul>
+                    </div>
                     </div>
                     </div>
                 </div>
