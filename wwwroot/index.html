@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261013b">
+    <link rel="stylesheet" href="css/app.css?v=20261013c">
 </head>
 <body>
 
@@ -11284,7 +11284,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261013a"></script>
+<script src="employees.js?v=20261013b"></script>
 <script src="js/kind-qst-verlauf.js?v=20261012a"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
@@ -11360,13 +11360,15 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
                 <div class="ma-field">
                     <div class="ma-field-label">Von</div>
-                    <input type="date" id="absDateFrom" class="ma-input" oninput="syncAbsDateTo();renderAbsDayCheckboxes();calcAbsHoursPreview()">
+                    <input type="date" id="absDateFrom" class="ma-input" oninput="syncAbsDateTo();renderAbsDayCheckboxes();calcAbsHoursPreview();absCalRender()">
                 </div>
                 <div class="ma-field">
                     <div class="ma-field-label">Bis</div>
-                    <input type="date" id="absDateTo" class="ma-input" oninput="renderAbsDayCheckboxes();calcAbsHoursPreview()">
+                    <input type="date" id="absDateTo" class="ma-input" oninput="renderAbsDayCheckboxes();calcAbsHoursPreview();absCalRender()">
                 </div>
             </div>
+            <!-- Zeitraum im Kalender markieren (Walter 13.10.2026): 1. Klick Von, 2. Klick Bis. -->
+            <div id="absRangeCal" class="abs-cal"></div>
 
             <!-- Tagesauswahl (von JS dynamisch befüllt) -->
             <div id="absDayCheckboxes" style="margin-bottom:6px"></div>

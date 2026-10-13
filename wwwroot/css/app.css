@@ -8572,6 +8572,33 @@
         .abs-day-quick button:hover { background:#f1f5f9; border-color:#94a3b8; }
         .abs-day-name  { font-size:12px; font-weight:600; color:#1e293b; }
         .abs-day-date  { font-size:11px; color:#64748b; }
+        /* Zeitraum-Kalender im Absenz-Fenster (Walter 13.10.2026) */
+        .abs-cal { margin:2px 0 14px; padding:10px 14px 12px; border-radius:14px;
+            background:rgba(255,255,255,0.38); border:1px solid rgba(255,255,255,0.62);
+            box-shadow:0 2px 10px rgba(60,55,48,0.10); }
+        .abs-cal-kopf { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+        .abs-cal-status { flex:1; text-align:center; font-size:12.5px; color:#646464; font-weight:600; }
+        .abs-cal-nav { width:30px; height:30px; border-radius:10px; border:1px solid rgba(60,55,48,0.18);
+            background:rgba(255,255,255,0.7); color:#3f3f3f; font-size:17px; line-height:1; cursor:pointer; }
+        .abs-cal-nav:hover { background:#fff; }
+        .abs-cal-monate { display:flex; gap:24px; flex-wrap:wrap; justify-content:center; }
+        .abs-cal-monat { flex:1 1 240px; max-width:320px; }
+        .abs-cal-titel { text-align:center; font-size:13px; font-weight:700; color:#3f3f3f; margin-bottom:4px; }
+        .abs-cal-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:2px 0; }
+        .abs-cal-wt { text-align:center; font-size:10.5px; font-weight:700; color:#8b8b8b; padding:2px 0 4px; }
+        .abs-cal-tag { height:30px; border:none; background:transparent; font-size:12.5px; color:#3f3f3f;
+            cursor:pointer; border-radius:8px; font-variant-numeric:tabular-nums; }
+        .abs-cal-tag.we { color:#8b8b8b; }
+        .abs-cal-tag:hover { background:rgba(60,55,48,0.10); }
+        .abs-cal-tag.heute { box-shadow:inset 0 0 0 1.5px rgba(60,55,48,0.35); }
+        .abs-cal-tag.in, .abs-cal-tag.vorschau { background:rgba(107,97,82,0.18); border-radius:0; }
+        .abs-cal-tag.start, .abs-cal-tag.ende { background:#6b6152; color:#fff; font-weight:700; }
+        .abs-cal-tag.start { border-radius:8px 0 0 8px; }
+        .abs-cal-tag.ende { border-radius:0 8px 8px 0; }
+        .abs-cal-tag.start.ende { border-radius:8px; }
+        body.theme-dark .abs-cal { background:rgba(30,41,59,0.55); border-color:rgba(255,255,255,0.08); }
+        body.theme-dark .abs-cal-tag, body.theme-dark .abs-cal-titel, body.theme-dark .abs-cal-nav { color:#e2e8f0; }
+        body.theme-dark .abs-cal-nav { background:#334155; }
         .abs-day-item input { display:none; }
         /* Mini-Header-Zeile mit Wochentag-Buchstaben (Mo Di Mi Do Fr Sa So) */
         .abs-day-grid-head {

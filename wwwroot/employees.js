@@ -11416,6 +11416,93 @@ async function openAbsenceModal(existing, opts) {
     if (dayBox) dayBox.innerHTML = '';
     renderAbsDayCheckboxes();
     calcAbsHoursPreview();
+    window._absCalAnker = null;
+    window._absCalMonat = null;
+    absCalRender();
+}
+
+// ── Zeitraum im Kalender markieren (Walter 13.10.2026) ──────────────────
+// Zwei Monate nebeneinander. 1. Klick = Von (und Bis), 2. Klick = Bis;
+// liegt der 2. Klick vor dem ersten, werden die beiden getauscht.
+window._absCalAnker = null;   // ISO des ersten Klicks, solange der zweite fehlt
+window._absCalMonat = null;   // erster gezeigter Monat als Date (1. des Monats)
+function _absCalIso(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function absCalRender() {
+    const box = document.getElementById('absRangeCal');
+    if (!box) return;
+    const from = document.getElementById('absDateFrom').value;
+    const to = document.getElementById('absDateTo').value;
+    const ref = from ? new Date(from + 'T00:00:00') : new Date();
+    let m = window._absCalMonat;
+    const imBild = mo => m && (mo.getFullYear() * 12 + mo.getMonth()) - (m.getFullYear() * 12 + m.getMonth());
+    if (!m || (from && !window._absCalAnker && ![0, 1].includes(imBild(ref)))) {
+        m = new Date(ref.getFullYear(), ref.getMonth(), 1);
+        window._absCalMonat = m;
+    }
+    const heute = _absCalIso(new Date());
+    const monat = (start) => {
+        const kopf = start.toLocaleDateString('de-CH', { month: 'long', year: 'numeric' });
+        let html = `<div class="abs-cal-monat"><div class="abs-cal-titel">${kopf}</div><div class="abs-cal-grid">`
+            + ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(t => `<div class="abs-cal-wt">${t}</div>`).join('');
+        const leer = (start.getDay() + 6) % 7;
+        for (let i = 0; i < leer; i++) html += '<div></div>';
+        const tage = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+        for (let t = 1; t <= tage; t++) {
+            const d = new Date(start.getFullYear(), start.getMonth(), t);
+            const iso = _absCalIso(d);
+            const cls = ['abs-cal-tag'];
+            if (d.getDay() === 0 || d.getDay() === 6) cls.push('we');
+            if (iso === heute) cls.push('heute');
+            if (from && to && iso >= from && iso <= to) cls.push('in');
+            if (iso === from) cls.push('start');
+            if (iso === to) cls.push('ende');
+            html += `<button type="button" class="${cls.join(' ')}" data-iso="${iso}" onclick="absCalKlick('${iso}')" onmouseenter="absCalHover('${iso}')">${t}</button>`;
+        }
+        return html + '</div></div>';
+    };
+    const n = from && to && from <= to
+        ? Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 86400000) + 1 : 0;
+    const fmt = iso => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+    const status = window._absCalAnker
+        ? `Von ${fmt(window._absCalAnker)} — jetzt den letzten Tag anklicken`
+        : (n ? `${fmt(from)} – ${fmt(to)} · ${n} Kalendertag${n === 1 ? '' : 'e'}` : 'Ersten Tag anklicken, dann den letzten');
+    box.innerHTML = `<div class="abs-cal-kopf">
+            <button type="button" class="abs-cal-nav" onclick="absCalBlaettern(-1)" title="Früher">‹</button>
+            <span class="abs-cal-status">${status}</span>
+            <button type="button" class="abs-cal-nav" onclick="absCalBlaettern(1)" title="Später">›</button>
+        </div>
+        <div class="abs-cal-monate" onmouseleave="absCalHover(null)">${monat(m)}${monat(new Date(m.getFullYear(), m.getMonth() + 1, 1))}</div>`;
+}
+function absCalBlaettern(delta) {
+    const m = window._absCalMonat || new Date();
+    window._absCalMonat = new Date(m.getFullYear(), m.getMonth() + delta, 1);
+    absCalRender();
+}
+function absCalHover(iso) {
+    const a = window._absCalAnker;
+    document.querySelectorAll('#absRangeCal .abs-cal-tag').forEach(b => {
+        const x = b.dataset.iso;
+        b.classList.toggle('vorschau', !!(a && iso && x >= (a < iso ? a : iso) && x <= (a < iso ? iso : a)));
+    });
+}
+function absCalKlick(iso) {
+    const fromEl = document.getElementById('absDateFrom');
+    const toEl = document.getElementById('absDateTo');
+    const a = window._absCalAnker;
+    if (!a) {
+        fromEl.value = iso;
+        toEl.value = iso;
+        window._absCalAnker = iso;
+    } else {
+        fromEl.value = a < iso ? a : iso;
+        toEl.value = a < iso ? iso : a;
+        window._absCalAnker = null;
+    }
+    renderAbsDayCheckboxes();
+    calcAbsHoursPreview();
+    absCalRender();
 }
 
 /** Fortlaufende AU: Absenz endet am Vortag von dateFrom → Mo–Fr vorwählen. */
@@ -11480,6 +11567,7 @@ function closeAbsenceModal() {
     window._absContinuationHint = '';
     window._absDienstplanBis = '';
     window._absPlanAuto = false;
+    window._absCalAnker = null;
 }
 
 // Wenn Von-Datum geändert wird: Bis-Datum automatisch auf dasselbe Datum
