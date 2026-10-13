@@ -10091,31 +10091,12 @@ body.theme-dark .ra-tile img[src*="bewerbungsbogen.webp"] { filter: brightness(1
 /* Aufforderung-Icon 1:1 — ebenfalls nicht invertieren (Walter 30.07.2026). */
 body.theme-dark .ra-tile img[src*="Aufforderung.webp"] { filter: brightness(1.45) contrast(1.15); }
 
-/* HR-Hub Kontrolle: senkrechtes Menü, je eine Glas-Kachel mit Icon + Titel
-   (Walter 13.10.2026, v2 — Look wie .ra-tile, aber quer). */
-.kontr-menu { display: flex; flex-direction: column; gap: 10px; margin: 18px 0 6px; width: 470px; max-width: 100%; }
-.kontr-menu-item {
-    display: flex; align-items: center; gap: 14px; width: 100%;
-    padding: 6px 18px 6px 8px; box-sizing: border-box;
-    border: 1px solid rgba(255,255,255,0.68); border-radius: 18px;
-    background: rgba(255,255,255,0.36);
-    box-shadow: 0 10px 30px rgba(70,64,55,0.12), inset 0 1px 1px rgba(255,255,255,0.86);
-    backdrop-filter: blur(24px) saturate(132%);
-    -webkit-backdrop-filter: blur(24px) saturate(132%);
-    cursor: pointer; text-align: left; font: inherit;
-    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
-}
-.kontr-menu-item:hover, .kontr-menu-item:focus-visible {
-    transform: translateY(-2px);
-    background: rgba(255,255,255,0.58);
-    box-shadow: 0 16px 40px rgba(70,64,55,0.2), inset 0 1px 1px rgba(255,255,255,0.9);
-}
-.kontr-menu-item img { width: 72px; height: 72px; flex: 0 0 72px; object-fit: contain; }
-.kontr-menu-titel { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 650; color: #3f3f3f; line-height: 1.25; }
-body.theme-dark .kontr-menu-item { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.14); }
-body.theme-dark .kontr-menu-item:hover { background: rgba(255,255,255,0.14); }
-body.theme-dark .kontr-menu-item img { filter: invert(1) hue-rotate(180deg) brightness(1.7) contrast(1.3); }
-body.theme-dark .kontr-menu-titel { color: #e5e2db; }
+/* HR-Hub Kontrolle: Kacheln wie die Kategorien darüber (146×177), Titel in der Kachel
+   unter dem Icon — bis 3 Zeilen, weil die Titel länger sind (Walter 13.10.2026, v3). */
+.kontr-menu { flex: 1 1 100%; margin: 18px 0 6px; }
+.ra-tile.kontr-kachel { width: 146px; height: 177px; min-height: 177px; max-height: 177px; font-size: 12px; }
+.ra-tile.kontr-kachel img { width: 108px; height: 108px; flex: 0 0 108px; }
+.ra-tile.kontr-kachel > span { min-height: calc(3 * 1.15em); max-height: calc(3 * 1.15em); }
 
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
