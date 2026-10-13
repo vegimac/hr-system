@@ -441,9 +441,39 @@
         return dt ? isoOf(dt) : null;
     }
 
+    // Fehler sichtbar unter dem Feld (Walter 13.10.2026) — der Tooltip allein fiel nicht auf.
+    let _ypBlase = null, _ypBlaseFeld = null, _ypBlaseTimer = null;
+    function blaseWeg() {
+        if (_ypBlase) _ypBlase.style.display = 'none';
+        _ypBlaseFeld = null;
+        clearTimeout(_ypBlaseTimer);
+    }
+    function blaseZeigen(tx, text) {
+        const r = tx.getBoundingClientRect();
+        if (!r.width) return;
+        if (!_ypBlase) {
+            _ypBlase = document.createElement('div');
+            _ypBlase.id = 'ypFehlerBlase';
+            _ypBlase.style.cssText = 'position:fixed;z-index:100000;max-width:320px;padding:6px 10px;border-radius:9px;'
+                + 'background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:12.5px;font-weight:600;line-height:1.35;'
+                + 'box-shadow:0 6px 18px rgba(60,55,48,0.18);pointer-events:none;display:none';
+            document.body.appendChild(_ypBlase);
+            window.addEventListener('scroll', blaseWeg, true);
+            window.addEventListener('resize', blaseWeg);
+        }
+        _ypBlase.textContent = text;
+        _ypBlase.style.left = Math.max(8, r.left) + 'px';
+        _ypBlase.style.top = (r.bottom + 6) + 'px';
+        _ypBlase.style.display = 'block';
+        _ypBlaseFeld = tx;
+        clearTimeout(_ypBlaseTimer);
+        _ypBlaseTimer = setTimeout(blaseWeg, 6000);
+    }
     function setzeFehler(tx, text) {
         tx.classList.toggle('yp-invalid', !!text);
         if (text) tx.title = text; else tx.title = tx._ypTitle || '';
+        if (text) blaseZeigen(tx, text);
+        else if (_ypBlaseFeld === tx) blaseWeg();
     }
 
     function nativeSetzen(native, iso) {
@@ -526,6 +556,7 @@
         }).observe(native, { attributes: true, attributeFilter: ['class', 'style', 'disabled', 'readonly', 'required', 'placeholder', 'value'] });
 
         tx.addEventListener('focus', () => setTimeout(() => { if (document.activeElement === tx) tx.select(); }, 0));
+        tx.addEventListener('input', () => { if (_ypBlaseFeld === tx) blaseWeg(); });
         tx.addEventListener('change', () => textUebernehmen(native));
         tx.addEventListener('blur', () => textUebernehmen(native));
         tx.addEventListener('keydown', (ev) => {

@@ -11760,7 +11760,7 @@ async function _absZgRaster(box, days, from, to) {
     const atText = at.toLocaleString('de-CH', { maximumFractionDigits: 1 });
     let html = `<div class="abs-day-label">Dienstplan bekannt bis</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-            <input type="date" id="absDienstplanBis" class="ma-input" style="max-width:170px" min="${from}" max="${to}" value="${plan}" onchange="_absZgPlanSetzen(this.value)">
+            <input type="date" id="absDienstplanBis" class="ma-input" style="max-width:170px" min="${from}" value="${plan}" onchange="_absZgPlanSetzen(this.value)">
             <div class="abs-day-quick" style="margin:0">
                 <button type="button" onclick="_absZgPlanSetzen('${to}', true)">Plan deckt ganze Absenz</button>
                 <button type="button" onclick="_absZgPlanSetzen('')">Kein Dienstplan</button>
