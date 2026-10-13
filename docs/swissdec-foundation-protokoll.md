@@ -1128,6 +1128,8 @@ AHV-AVS · 046.000 je «RegisterVerification», übrige Listen DeclareResult / S
   RegisterVerification`, CertificateRequestID `18de173fd35e9fdde`, WS-Security gültig,
   SignatureConfirmation passt.
 - 14:45:08 Status abfragen → **verified**, Einmalpasswort über Code 9998 (Plausibility).
+- 14:47:19 Signieren (F07_06) → SUA-Zertifikat ausgestellt und gespeichert, **gültig bis
+  23.10.2026 14:47** (CSR mit ORG_ID, PEM-Feld als binärer CSR/DER), WS-Security gültig.
 - **Ergebnis:** «registered» ist mit dem Test-Empfänger weiterhin nicht auslösbar. Die Zeile
   AHV-AVS wirkt auf die Registrierung nicht — SUA kennt nur UVG-LAA / UVGZ-LAAC / KTG-AMC / BVG-LPP
   (`ElmSuaService.Domains`), registriert wird bei 1234.
