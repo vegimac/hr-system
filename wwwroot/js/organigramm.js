@@ -70,10 +70,10 @@ const ORG_CSS = `
 .dpo.n .dpo-col:last-child::before{right:50%}
 .dpo.n .dpo-col:only-child::before{display:none}
 .dpo.n .dpo-col::after{content:'';position:absolute;top:0;left:50%;height:18px;border-left:var(--lw) solid var(--lc)}
-.dpo.n .dpo-karte{width:150px;box-sizing:border-box;background:#f8f8f8;border-radius:6px;padding:14px 11px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.06),0 4px 14px rgba(0,0,0,0.06)}
+.dpo.n .dpo-karte{min-width:150px;box-sizing:border-box;background:#f8f8f8;border-radius:6px;padding:14px 11px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.06),0 4px 14px rgba(0,0,0,0.06)}
 .dpo.n .dpo-k-name{font-size:14.5px;font-weight:700;color:#1a1a1a;padding-left:3px}
-.dpo.n .dpo-k-gf{margin:8px 0 0 16px;border-left:1px solid #c4c4c4;padding:1px 0 1px 11px}
-.dpo.n .dpo-k-gf small{display:block;font-size:8.5px;color:#555;margin-top:3px;line-height:1.35}
+.dpo.n .dpo-k-gf{margin:8px 0 0 12px;border-left:1px solid #c4c4c4;padding:1px 0 1px 10px}
+.dpo.n .dpo-k-gf small{display:block;font-size:8.5px;color:#555;margin-top:3px;line-height:1.35;white-space:nowrap}
 .dpo.n .dpo-k-gf b{display:block;font-size:12.5px;font-weight:700;color:#1a1a1a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dpo.n .dpo-k-gf b.offen{font-style:italic;font-weight:500;color:#777}
 .dpo.n .dpo-k-liste{display:flex;flex-direction:column;gap:6px;margin-top:14px}
@@ -96,13 +96,13 @@ const ORG_CSS = `
 .dpo.f .dpo-col:first-child::after,.dpo.f .dpo-col:last-child::after{display:none}
 .dpo.f .dpo-col:only-child::before{display:none}
 .dpo.f .dpo-col:only-child::after{display:block}
-.dpo.f .dpo-team{width:168px;border-radius:18px;overflow:hidden;background:rgba(255,255,255,0.92);border:1px solid rgba(60,55,48,0.10);transition:transform .15s ease,box-shadow .15s ease}
+.dpo.f .dpo-team{min-width:168px;border-radius:18px;overflow:hidden;background:rgba(255,255,255,0.92);border:1px solid rgba(60,55,48,0.10);transition:transform .15s ease,box-shadow .15s ease}
 .dpo.f .dpo-team-kopf{padding:10px 12px 11px}
 .dpo.f .dpo-team-zeile{display:flex;align-items:center;justify-content:space-between;gap:6px}
 .dpo.f .dpo-team-name{font-size:14px;font-weight:700;line-height:1.2}
 .dpo.f .dpo-zahl{font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 7px;flex:none}
 .dpo.f .dpo-gf{margin-top:8px;min-width:0}
-.dpo.f .dpo-gf small{display:block;font-size:10px;font-weight:500;opacity:.8;margin-top:2px;line-height:1.35}
+.dpo.f .dpo-gf small{display:block;font-size:10px;font-weight:500;opacity:.8;margin-top:2px;line-height:1.35;white-space:nowrap}
 .dpo.f .dpo-gf b{display:block;font-size:13px;font-weight:650;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dpo.f .dpo-offen b{font-style:italic;opacity:.75}
 .dpo.f .dpo-team-liste{padding:8px 8px 9px;display:flex;flex-direction:column;gap:4px}
