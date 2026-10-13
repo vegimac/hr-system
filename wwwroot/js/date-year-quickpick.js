@@ -410,6 +410,19 @@
         if (m) { const dt = gueltig(+m[1], +m[2] - 1, +m[3]); return dt ? isoOf(dt) : null; }
         let d, mo, y;
         if (/^\d+$/.test(s)) {
+            // 4 Ziffern: TTMM (1110 = 11.10.); sind die letzten zwei kein Monat, T M JJ (1126 = 1.1.26).
+            // 5 Ziffern: T MM JJ oder TT M JJ — nur wenn genau eine Lesart ein gültiges Datum ist.
+            // Ausser bei Geburtsdaten nur Jahre ±5 um heute, damit ein Vertipper nicht still 2013 wird.
+            const jahrOk = dt => dt && (geburt || Math.abs(dt.getFullYear() - heute.getFullYear()) <= 5) ? dt : null;
+            if (s.length === 4 && +s.slice(2, 4) > 12) {
+                const dt = jahrOk(gueltig(jahr4(+s.slice(2, 4), geburt), +s[1] - 1, +s[0]));
+                return dt ? isoOf(dt) : null;
+            }
+            if (s.length === 5) {
+                const a = jahrOk(gueltig(jahr4(+s.slice(3, 5), geburt), +s.slice(1, 3) - 1, +s[0]));
+                const c = jahrOk(gueltig(jahr4(+s.slice(3, 5), geburt), +s[2] - 1, +s.slice(0, 2)));
+                return a && !c ? isoOf(a) : c && !a ? isoOf(c) : null;
+            }
             if (s.length <= 2) { d = +s; mo = b.getMonth() + 1; y = b.getFullYear(); }
             else if (s.length === 4) { d = +s.slice(0, 2); mo = +s.slice(2, 4); y = heute.getFullYear(); }
             else if (s.length === 6) { d = +s.slice(0, 2); mo = +s.slice(2, 4); y = jahr4(+s.slice(4, 6), geburt); }
@@ -450,7 +463,7 @@
         const aktuell = _valDesc.get.call(native);
         if (raw === fmtCh(aktuell)) { setzeFehler(tx, ''); return true; }
         const iso = parseEingabe(raw, aktuell, isBirthField(native));
-        if (iso === null) { setzeFehler(tx, 'Datum nicht erkannt — z.B. 2.9.26, 020926, h (heute), +7'); return false; }
+        if (iso === null) { setzeFehler(tx, 'Datum nicht erkannt — z.B. 2.9.26, 020926, 1126, h (heute), +7'); return false; }
         if (iso && native.min && iso < native.min) { setzeFehler(tx, `Frühestens ${fmtCh(native.min)}`); return false; }
         if (iso && native.max && iso > native.max) { setzeFehler(tx, `Spätestens ${fmtCh(native.max)}`); return false; }
         nativeSetzen(native, iso);
@@ -488,7 +501,7 @@
         tx.type = 'text';
         tx.autocomplete = 'off';
         tx.spellcheck = false;
-        tx._ypTitle = native.title || 'Tippen: 2.9.26 · 020926 · 2.9. · h = heute · +7 / −1 · ↑↓ = Tag';
+        tx._ypTitle = native.title || 'Tippen: 2.9.26 · 020926 · 1126 · 2.9. · h = heute · +7 / −1 · ↑↓ = Tag';
         tx.title = tx._ypTitle;
         native._ypText = tx;
         native.parentElement.insertBefore(tx, native);
