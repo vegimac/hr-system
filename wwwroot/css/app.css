@@ -13264,3 +13264,13 @@ body.theme-dark #familyModal .emp-section-title {
     border-radius: 10px !important;
     padding: 7px 12px !important;
 }
+
+/* AKIS-Seite: «gemeldet» merken (Walter 13.10.2026) */
+.akis-gemeldet-btn {
+    background: rgba(255,255,255,0.55); border: 1px solid rgba(60,55,48,0.20); color: #3f3f3f;
+    border-radius: 999px; padding: 3px 11px; font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.akis-gemeldet-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(60,55,48,0.14); }
+.akis-gemeldet-btn.alle { background: #3f3f3f; color: #fff; border-color: #3f3f3f; border-radius: 12px; padding: 6px 14px; font-size: 12.5px; }
+.akis-gemeldet-btn:disabled { opacity: .5; cursor: default; }

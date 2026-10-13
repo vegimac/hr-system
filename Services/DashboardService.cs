@@ -1699,6 +1699,70 @@ public class DashboardService
             }
         }
 
+        // ── GastroSocial An-/Abmeldung fehlt (Walter 13.10.2026) ───────────
+        // Jeder Eintritt (pro Filiale = eigenes Konto) braucht eine Anmeldung, jeder erfasste
+        // Austritt eine Abmeldung. Gemeldet = Knopf auf der AKIS-Seite oder übernommen aus dem
+        // AHV-Abgleich. Ab Eintritts-/Austrittsdatum, Altbestand vor 2026 bleibt still.
+        // Regel: GastroSocialMeldungRegel. Austretende: siehe keepCats unten.
+        if (Enabled("gastrosocial_anmeldung_fehlt") || Enabled("gastrosocial_abmeldung_fehlt"))
+        {
+            var gsMa = await _db.Employees.AsNoTracking()
+                .Where(e => !e.IsHidden && !e.IsPayrollExcluded)
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.ExitDate })
+                .ToListAsync();
+            var gsIds = gsMa.Select(e => e.Id).ToHashSet();
+            var gsVertraege = (await _db.Employments.AsNoTracking()
+                    .Where(v => v.CompanyProfileId != null)
+                    .Select(v => new GastroSocialMeldungRegel.Vertrag(v.EmployeeId, v.CompanyProfileId, v.ContractStartDate, v.ContractEndDate))
+                    .ToListAsync())
+                .Where(v => gsIds.Contains(v.EmployeeId)).ToList();
+            var gsProMa = gsVertraege.ToLookup(v => v.EmployeeId);
+            var gsEreignisse = new List<GastroSocialMeldungRegel.Ereignis>();
+            if (Enabled("gastrosocial_anmeldung_fehlt"))
+                gsEreignisse.AddRange(GastroSocialMeldungRegel.Anmeldungen(gsVertraege));
+            if (Enabled("gastrosocial_abmeldung_fehlt"))
+                foreach (var e in gsMa)
+                    if (GastroSocialMeldungRegel.AbmeldungVon(e.Id, e.ExitDate, gsProMa[e.Id]) is { } ab)
+                        gsEreignisse.Add(ab);
+            if (companyProfileId.HasValue)
+                gsEreignisse = gsEreignisse.Where(e => e.CompanyProfileId == companyProfileId.Value).ToList();
+            var gsMeldungen = (await _db.GastroSocialMeldungen.AsNoTracking()
+                    .Select(m => new { m.EmployeeId, m.CompanyProfileId, m.Art, m.Stichtag })
+                    .ToListAsync())
+                .Select(m => new GastroSocialMeldungRegel.Meldung(m.EmployeeId, m.CompanyProfileId, m.Art, m.Stichtag))
+                .ToList();
+            var gsOffen = GastroSocialMeldungRegel.Offen(gsEreignisse, gsMeldungen, today);
+            if (gsOffen.Count > 0)
+            {
+                var gsFilialen = await _db.CompanyProfiles.AsNoTracking()
+                    .Select(c => new { c.Id, c.RestaurantCode, c.City, c.BranchName })
+                    .ToDictionaryAsync(c => c.Id);
+                var gsMaById = gsMa.ToDictionary(e => e.Id);
+                foreach (var o in gsOffen)
+                {
+                    var ma = gsMaById[o.EmployeeId];
+                    var name = $"{ma.FirstName} {ma.LastName}".Trim();
+                    var fil = gsFilialen.TryGetValue(o.CompanyProfileId, out var f)
+                        ? $"{f.RestaurantCode} {(string.IsNullOrWhiteSpace(f.BranchName) ? f.City : f.BranchName)}".Trim() : "";
+                    bool an = o.Art == GastroSocialMeldungRegel.Anmeldung;
+                    var cat = an ? "gastrosocial_anmeldung_fehlt" : "gastrosocial_abmeldung_fehlt";
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = cat,
+                        Severity = SeverityState(cat, "warning"),
+                        Title    = an ? "GastroSocial-Anmeldung fehlt" : "GastroSocial-Abmeldung fehlt",
+                        Subtitle = $"{name} · Personalnr. {ma.EmployeeNumber} · {(an ? "Eintritt" : "Austritt")} am {o.Datum:dd.MM.yyyy}"
+                                 + (fil.Length > 0 ? $" · {fil}" : ""),
+                        DueDate        = o.Datum.ToDateTime(TimeOnly.MinValue),
+                        DaysUntil      = o.Datum.DayNumber - today.DayNumber,
+                        EmployeeId     = ma.Id,
+                        EmployeeNumber = ma.EmployeeNumber,
+                        EmployeeName   = name
+                    });
+                }
+            }
+        }
+
         // ── 3c.v) Umzugsdatum bestätigen (Walter 08.08.2026) ───────────────
         // easy@work hat eine neue Adresse mit PLZ/Ort-Wechsel geliefert —
         // Walter muss das echte Umzugsdatum bestätigen (erst dann läuft die
@@ -2579,7 +2643,9 @@ public class DashboardService
             var keepCats = new HashSet<string> { "contract_end", "exit_pending_active", "kuendigung_ablauf", "kuendigung_sperrfrist_ende",
                                                  "arbeitszeugnis_fehlt", "austritt_unvollstaendig", "austritt_datum_mismatch",
                                                  // Walter 23.09.2026: Kürzung ändert die Restferien-Auszahlung beim Austritt
-                                                 "ferienkuerzung_moeglich" };
+                                                 "ferienkuerzung_moeglich",
+                                                 // Walter 13.10.2026: An-/Abmeldung GastroSocial gilt auch für Ausgetretene
+                                                 "gastrosocial_anmeldung_fehlt", "gastrosocial_abmeldung_fehlt" };
             var filterIds = alerts
                 .Where(a => a.EmployeeId.HasValue && !keepCats.Contains(a.Category))
                 .Select(a => a.EmployeeId!.Value).Distinct().ToList();

@@ -9,7 +9,8 @@ namespace HrSystem.Controllers;
 /// <summary>
 /// HR-Hub → Kontrolle → «AHV-Abgleich GastroSocial» (Walter 11.10.2026).
 /// Liste «Mitarbeitende» aus dem GastroSocial-Portal gegen die MA der Sidebar-Filiale.
-/// Logik: <see cref="GastroSocialAbgleich"/>. Schreibt nichts.
+/// Logik: <see cref="GastroSocialAbgleich"/>. Schreibt nichts — die Übernahme der
+/// An-/Abmeldungen läuft über <see cref="GastroSocialMeldungController"/>.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -130,6 +131,35 @@ public class GastroSocialAbgleichController : ControllerBase
         }).ToList();
 
         var res = GastroSocialAbgleich.Vergleiche(zeilen, alle, heute);
-        return Ok(new { filiale = FilialName(companyProfileId), ergebnis = res });
+
+        // Altbestand (Walter 13.10.2026): was die Liste als gemeldet bestätigt und in OneCrew
+        // noch nicht vermerkt ist — gespeichert erst mit «Ergebnis übernehmen».
+        var ids = res.Zuordnungen.Select(z => z.EmployeeId).Distinct().ToList();
+        var ereignisse = await GastroSocialMeldungController.EreignisseAsync(_db, companyProfileId, ids);
+        var bestehend = (await _db.GastroSocialMeldungen.AsNoTracking()
+                .Where(m => m.CompanyProfileId == companyProfileId && ids.Contains(m.EmployeeId))
+                .Select(m => new { m.EmployeeId, m.CompanyProfileId, m.Art, m.Stichtag })
+                .ToListAsync(ct))
+            .Select(m => new GastroSocialMeldungRegel.Meldung(m.EmployeeId, m.CompanyProfileId, m.Art, m.Stichtag))
+            .ToList();
+        var proMa = ereignisse.ToLookup(e => e.EmployeeId);
+        var namen = emps.ToDictionary(e => e.Id, e => $"{e.FirstName} {e.LastName}".Trim());
+        var uebernahme = res.Zuordnungen
+            .SelectMany(z => GastroSocialMeldungRegel.BestaetigtDurchListe(
+                z.Beschaeftigt, z.Statusaenderung, proMa[z.EmployeeId].ToList(), heuteD))
+            .Distinct()
+            .Where(e => GastroSocialMeldungRegel.Passende(e, bestehend) == null)
+            .OrderBy(e => namen.GetValueOrDefault(e.EmployeeId) ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(e => e.Datum)
+            .Select(e => new
+            {
+                e.EmployeeId,
+                name = namen.GetValueOrDefault(e.EmployeeId),
+                art = e.Art,
+                datum = e.Datum.ToString("yyyy-MM-dd"),
+            })
+            .ToList();
+
+        return Ok(new { filiale = FilialName(companyProfileId), ergebnis = res, uebernahme });
     }
 }

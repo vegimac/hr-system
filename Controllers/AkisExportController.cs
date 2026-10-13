@@ -1,4 +1,6 @@
 using HrSystem.Data;
+using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -41,27 +43,16 @@ public class AkisExportController : ControllerBase
     private async Task<(List<Row> rows, List<Row> ohneAhv)> AnmeldungenAsync(
         int cpId, DateTime from, DateTime to)
     {
-        var emps = await _db.Employments.AsNoTracking()
+        var vertraege = await _db.Employments.AsNoTracking()
             .Where(e => e.CompanyProfileId == cpId)
-            .Select(e => new { e.EmployeeId, e.ContractStartDate, e.ContractEndDate })
+            .Select(e => new GastroSocialMeldungRegel.Vertrag(e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate))
             .ToListAsync();
-        var byEmp = emps.GroupBy(e => e.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
-
-        var kandidaten = new Dictionary<int, DateTime>();
-        foreach (var (empId, list) in byEmp)
-        {
-            foreach (var c in list.Where(c => c.ContractStartDate >= from && c.ContractStartDate <= to))
-            {
-                var vortag = c.ContractStartDate.AddDays(-1);
-                bool liefSchon = list.Any(o => o != c
-                    && o.ContractStartDate <= vortag
-                    && (o.ContractEndDate == null || o.ContractEndDate >= vortag));
-                if (liefSchon) continue;
-                // frühester Anmelde-relevanter Start im Zeitraum
-                if (!kandidaten.TryGetValue(empId, out var d) || c.ContractStartDate < d)
-                    kandidaten[empId] = c.ContractStartDate;
-            }
-        }
+        DateOnly von = DateOnly.FromDateTime(from), bis = DateOnly.FromDateTime(to);
+        // frühester Anmelde-relevanter Start im Zeitraum
+        var kandidaten = GastroSocialMeldungRegel.Anmeldungen(vertraege)
+            .Where(e => e.Datum >= von && e.Datum <= bis)
+            .GroupBy(e => e.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.Min(e => e.Datum).ToDateTime(TimeOnly.MinValue));
         return await LoadRowsAsync(kandidaten);
     }
 
@@ -83,22 +74,17 @@ public class AkisExportController : ControllerBase
         if (exitEmps.Count == 0) return (new List<Row>(), new List<Row>());
 
         var ids = exitEmps.Select(e => e.Id).ToList();
-        var alleVertraege = await _db.Employments.AsNoTracking()
+        var alleVertraege = (await _db.Employments.AsNoTracking()
             .Where(e => ids.Contains(e.EmployeeId) && e.CompanyProfileId != null)
-            .Select(e => new { e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate })
-            .ToListAsync();
+            .Select(e => new GastroSocialMeldungRegel.Vertrag(e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate))
+            .ToListAsync())
+            .ToLookup(v => v.EmployeeId);
 
         var kandidaten = new Dictionary<int, DateTime>();
         foreach (var e in exitEmps)
         {
-            var vs = alleVertraege.Where(v => v.EmployeeId == e.Id).ToList();
-            if (vs.Count == 0) continue;
-            // letzter Vertrag = offenes Ende zuerst, sonst spätestes Ende
-            var letzter = vs.OrderByDescending(v => v.ContractEndDate == null)
-                            .ThenByDescending(v => v.ContractEndDate)
-                            .ThenByDescending(v => v.ContractStartDate)
-                            .First();
-            if (letzter.CompanyProfileId == cpId)
+            var ab = GastroSocialMeldungRegel.AbmeldungVon(e.Id, e.ExitDate, alleVertraege[e.Id]);
+            if (ab != null && ab.CompanyProfileId == cpId)
                 kandidaten[e.Id] = e.ExitDate!.Value;
         }
         return await LoadRowsAsync(kandidaten);
@@ -207,22 +193,49 @@ public class AkisExportController : ControllerBase
         var (an, anOhne) = await AnmeldungenAsync(companyProfileId, from.Date, to.Date);
         var (ab, abOhne) = await AbmeldungenAsync(companyProfileId, from.Date, to.Date);
         var befristet = await BefristetOffenAsync(companyProfileId, from.Date, to.Date);
-        object Map(Row r) => new
+        // Gemerkte Meldungen (Walter 13.10.2026): pro Zeile «gemeldet am … von …».
+        var meldungen = await _db.GastroSocialMeldungen.AsNoTracking()
+            .Where(m => m.CompanyProfileId == companyProfileId)
+            .ToListAsync();
+        var regelMeldungen = meldungen
+            .Select(m => new GastroSocialMeldungRegel.Meldung(m.EmployeeId, m.CompanyProfileId, m.Art, m.Stichtag)).ToList();
+        object Map(Row r, string? art)
         {
-            r.EmployeeId, ahv = r.Ahv, name = r.Name, vorname = r.Vorname,
-            gebDat = r.GebDat?.ToString("dd.MM.yyyy"),
-            geschlecht = r.Geschlecht,
-            datum = r.Datum.ToString("dd.MM.yyyy"),
-            sprache = r.Sprache,
-        };
+            GastroSocialMeldung? m = null;
+            if (art != null)
+            {
+                var treffer = GastroSocialMeldungRegel.Passende(
+                    new GastroSocialMeldungRegel.Ereignis(r.EmployeeId, companyProfileId, art, DateOnly.FromDateTime(r.Datum)),
+                    regelMeldungen);
+                if (treffer != null)
+                    m = meldungen.First(x => x.EmployeeId == treffer.EmployeeId && x.Art == treffer.Art && x.Stichtag == treffer.Stichtag);
+            }
+            return new
+            {
+                r.EmployeeId, ahv = r.Ahv, name = r.Name, vorname = r.Vorname,
+                gebDat = r.GebDat?.ToString("dd.MM.yyyy"),
+                geschlecht = r.Geschlecht,
+                datum = r.Datum.ToString("dd.MM.yyyy"),
+                datumIso = r.Datum.ToString("yyyy-MM-dd"),
+                sprache = r.Sprache,
+                gemeldet = m == null ? null : new
+                {
+                    m.Id, quelle = m.Quelle,
+                    am = m.ErfasstAm.ToString("dd.MM.yyyy"),
+                    von = m.ErfasstVon,
+                    stichtag = m.Stichtag.ToString("dd.MM.yyyy"),
+                },
+            };
+        }
+        const string AN = GastroSocialMeldungRegel.Anmeldung, AB = GastroSocialMeldungRegel.Abmeldung;
         return Ok(new
         {
-            anmeldungen = an.Select(Map),
-            anmeldungenOhneAhv = anOhne.Select(Map),   // → zuerst AHV-Anmeldung 318.260!
-            abmeldungen = ab.Select(Map),
-            abmeldungenOhneAhv = abOhne.Select(Map),
+            anmeldungen = an.Select(r => Map(r, AN)),
+            anmeldungenOhneAhv = anOhne.Select(r => Map(r, AN)),   // → zuerst AHV-Anmeldung 318.260!
+            abmeldungen = ab.Select(r => Map(r, AB)),
+            abmeldungenOhneAhv = abOhne.Select(r => Map(r, AB)),
             // Befristungen ohne erfassten Austritt: verlängern oder Austritt erfassen?
-            befristetOffen = befristet.Select(Map),
+            befristetOffen = befristet.Select(r => Map(r, null)),
         });
     }
 

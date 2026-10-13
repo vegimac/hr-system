@@ -6,6 +6,8 @@
 // wer ist nicht gemeldet. Nur Auswertung. Backend: /api/imports/gastrosocial-abgleich
 // ══════════════════════════════════════════════════════════════════════
 let _gsaData = null;
+// An-/Abmeldungen, die die Liste bestätigt und OneCrew noch nicht vermerkt hat (Walter 13.10.2026).
+let _gsaUebernahme = [];
 
 function gsaInit() {
     ['gsaAlert', 'gsaSummary', 'gsaResult'].forEach(id => {
@@ -15,6 +17,7 @@ function gsaInit() {
     const inp = document.getElementById('gsaFileInput');
     if (inp) inp.value = '';
     _gsaData = null;
+    _gsaUebernahme = [];
     gsaUpdateBranchBanner();
 }
 
@@ -67,7 +70,9 @@ async function gsaAnalyze() {
             gsaFehler('Fehler vom Server (' + r.status + '): ' + (j.error || j.message || r.statusText));
             return;
         }
-        _gsaData = (await r.json()).ergebnis;
+        const antwort = await r.json();
+        _gsaData = antwort.ergebnis;
+        _gsaUebernahme = antwort.uebernahme || [];
     } catch (e) {
         gsaFehler('Verbindung fehlgeschlagen: ' + e.message);
         return;
@@ -131,6 +136,7 @@ function gsaRender(d) {
            </div>` : '';
     document.getElementById('gsaSummary').innerHTML = `
         ${warnung}
+        <div id="gsaUebernahmeBar">${gsaUebernahmeHtml()}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
             ${gsaTile(d.gemeldetBeschaeftigt, 'Bei GastroSocial beschäftigt', '#f1f5f9', '#475569')}
             ${d.gemeldetAusgetreten ? gsaTile(d.gemeldetAusgetreten, 'Bei GastroSocial ausgetreten', '#f1f5f9', '#475569') : ''}
@@ -227,6 +233,55 @@ function gsaRenderRows() {
                 </tr>`;
             }).join('')}</tbody>
         </table>`;
+}
+
+function gsaUebernahmeHtml() {
+    const n = _gsaUebernahme.length;
+    if (!n) return '';
+    const an = _gsaUebernahme.filter(x => x.art === 'ANMELDUNG').length;
+    const ab = n - an;
+    const teile = [an ? `${an} Anmeldung${an === 1 ? '' : 'en'}` : '', ab ? `${ab} Abmeldung${ab === 1 ? '' : 'en'}` : ''].filter(Boolean).join(' und ');
+    return `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;font-size:12.5px;color:#3f3f3f">
+        <span style="flex:1;min-width:240px">Laut dieser Liste sind <b>${teile}</b> bei GastroSocial schon gemacht, in OneCrew aber noch nicht vermerkt.
+            <span style="color:#8b8b8b">Übernehmen beruhigt die To-dos «GastroSocial-Anmeldung/-Abmeldung fehlt».</span></span>
+        <button onclick="gsaUebernahmeZeigen()" style="background:rgba(255,255,255,0.6);border:1px solid rgba(60,55,48,0.2);color:#3f3f3f;border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Liste ansehen</button>
+        <button id="gsaUebernahmeBtn" onclick="gsaUebernehmen()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer">Ergebnis übernehmen (${n})</button>
+    </div>`;
+}
+
+function gsaUebernahmeZeigen() {
+    const zeilen = _gsaUebernahme.map(x => `${x.name} — ${x.art === 'ANMELDUNG' ? 'Eintritt' : 'Austritt'} ${gsaDate(x.datum)}`).join('\n');
+    liquidConfirm(zeilen, { title: 'Wird als gemeldet vermerkt', yesLabel: 'Übernehmen', noLabel: 'Schliessen' })
+        .then(ok => { if (ok) gsaUebernehmen(true); });
+}
+
+async function gsaUebernehmen(bestaetigt) {
+    const cpId = typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId ? fixedCompanyProfileId : 0;
+    if (!cpId || !_gsaUebernahme.length) return;
+    const ok = bestaetigt || await liquidConfirm(`${_gsaUebernahme.length} An-/Abmeldungen als «bei GastroSocial gemeldet» vermerken?`,
+        { title: 'Ergebnis übernehmen', yesLabel: 'Übernehmen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    const btn = document.getElementById('gsaUebernahmeBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch('/api/gastrosocial-meldung/abgleich-uebernehmen', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + (typeof authToken !== 'undefined' ? authToken : localStorage.hrToken), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                companyProfileId: cpId,
+                eintraege: _gsaUebernahme.map(x => ({ employeeId: x.employeeId, art: x.art, datum: x.datum })),
+            }),
+        });
+        if (!r.ok) { gsaFehler('Übernehmen fehlgeschlagen (' + r.status + ').'); return; }
+        const j = await r.json();
+        _gsaUebernahme = [];
+        const bar = document.getElementById('gsaUebernahmeBar');
+        if (bar) bar.innerHTML = `<div style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;font-size:12.5px;color:#166534">✓ ${j.neu} An-/Abmeldungen als gemeldet vermerkt.</div>`;
+    } catch (e) {
+        gsaFehler('Verbindung fehlgeschlagen: ' + e.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 function gsaDate(iso) {

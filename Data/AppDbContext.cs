@@ -160,6 +160,7 @@ public class AppDbContext : DbContext
     public DbSet<GruppenMailLog>            GruppenMailLogs             => Set<GruppenMailLog>();
     public DbSet<MailWiedervorlage>         MailWiedervorlagen          => Set<MailWiedervorlage>();
     public DbSet<VirenFund>                 VirenFunde                  => Set<VirenFund>();
+    public DbSet<GastroSocialMeldung>       GastroSocialMeldungen       => Set<GastroSocialMeldung>();
     public DbSet<EasyAtWorkMaSyncLog>       EasyAtWorkMaSyncLogs        => Set<EasyAtWorkMaSyncLog>();
     public DbSet<DvelopSetting>             DvelopSettings              => Set<DvelopSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
@@ -3839,6 +3840,24 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.ErledigtVonUserId).HasColumnName("erledigt_von_user_id");
             entity.HasIndex(e => new { e.Erledigt, e.GefundenAm });
+        });
+
+        // ── GastroSocialMeldung — gemerkte An-/Abmeldungen Ausgleichskasse (Walter 13.10.2026)
+        modelBuilder.Entity<GastroSocialMeldung>(entity =>
+        {
+            entity.ToTable("gastrosocial_meldung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Art).HasColumnName("art").HasMaxLength(10);
+            entity.Property(e => e.Stichtag).HasColumnName("stichtag").HasColumnType("date");
+            entity.Property(e => e.Quelle).HasColumnName("quelle").HasMaxLength(10);
+            entity.Property(e => e.ErfasstAm).HasColumnName("erfasst_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErfasstVonUserId).HasColumnName("erfasst_von_user_id");
+            entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von").HasMaxLength(200);
+            entity.HasIndex(e => new { e.EmployeeId, e.CompanyProfileId, e.Art, e.Stichtag }).IsUnique();
         });
     }
 }

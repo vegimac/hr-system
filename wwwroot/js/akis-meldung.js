@@ -40,8 +40,15 @@ async function akisRefresh() {
         const res = await fetch('/api/akis-export/preview?' + p, { headers: ah(), cache: 'no-store' });
         if (!res.ok) { el.innerHTML = '<div style="color:#991b1b;padding:14px;font-size:12.5px">Laden fehlgeschlagen.</div>'; return; }
         const d = await res.json();
+        _akisDaten = d;
         const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-        const tbl = (rows, withEintritt) => rows.length
+        const status = (r, art) => r.gemeldet
+            ? `<span title="${r.gemeldet.quelle === 'ABGLEICH' ? 'aus dem AHV-Abgleich übernommen' : 'im AKISnet gemeldet'}${r.gemeldet.von ? ' · ' + esc(r.gemeldet.von) : ''}"
+                     style="color:#166534;font-weight:600;white-space:nowrap">✓ gemeldet ${esc(r.gemeldet.am)}</span>
+               <button class="dok-menu-btn" style="min-width:auto;padding:1px 7px;font-size:11px;margin-left:4px" title="Rückgängig"
+                       onclick="akisMeldungZurueck(${r.gemeldet.id})">↩</button>`
+            : `<button class="akis-gemeldet-btn" onclick="akisGemeldet('${art}', [${r.employeeId}], ['${r.datumIso}'], this)">✓ gemeldet</button>`;
+        const tbl = (rows, art) => rows.length
             ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
                 ${rows.map(r => `<tr style="border-bottom:1px solid rgba(60,55,48,0.08)">
                     <td style="padding:5px 8px;font-variant-numeric:tabular-nums">${esc(r.ahv) || '<span style="color:#b45309">— fehlt —</span>'}</td>
@@ -49,22 +56,34 @@ async function akisRefresh() {
                     <td style="padding:5px 8px">${esc(r.gebDat) || ''}</td>
                     <td style="padding:5px 8px">${esc(r.geschlecht) || ''}</td>
                     <td style="padding:5px 8px;font-weight:600">${esc(r.datum)}</td>
-                    ${withEintritt ? `<td style="padding:5px 8px">${esc(r.sprache)}</td>` : ''}
+                    ${art === 'ANMELDUNG' ? `<td style="padding:5px 8px">${esc(r.sprache)}</td>` : ''}
+                    <td style="padding:5px 8px;text-align:right">${status(r, art)}</td>
                 </tr>`).join('')}
                </table>`
             : '<div style="color:#8b8b8b;padding:8px 0 14px;font-size:12px;font-style:italic">keine</div>';
+        const alleKnopf = (rows, art) => {
+            const offen = rows.filter(r => !r.gemeldet);
+            return offen.length
+                ? `<button class="akis-gemeldet-btn alle" onclick="akisAlleGemeldet('${art}', this)">✓ Im AKISnet gemeldet (${offen.length})</button>`
+                : (rows.length ? '<span style="font-size:11.5px;color:#166534;font-weight:600">✓ alle gemeldet</span>' : '');
+        };
+        const kopf = (titel, rows, art, zusatz) => `
+            <div style="display:flex;align-items:center;gap:10px;margin:18px 0 4px">
+                <div style="font-size:13px;font-weight:700;color:#3f3f3f">${titel} (${rows.length})${zusatz || ''}</div>
+                <span style="flex:1"></span>${alleKnopf(rows, art)}
+            </div>`;
         const warn = (rows, was) => rows.length
             ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin:6px 0 12px;font-size:12px;color:#991b1b">
                 ⚠ ${rows.length} ${was} ohne AHV-Nummer — zuerst per «AHV-Anmeldung (Versicherungsausweis)» melden, sie fehlen in der Excel:
                 ${rows.map(r => `${esc(r.vorname)} ${esc(r.name)}`).join(', ')}</div>`
             : '';
         el.innerHTML = `
-            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:14px 0 4px">Anmeldungen (${d.anmeldungen.length})</div>
+            ${kopf('Anmeldungen', d.anmeldungen, 'ANMELDUNG')}
             ${warn(d.anmeldungenOhneAhv, 'Eintritt(e)')}
-            ${tbl(d.anmeldungen, true)}
-            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:18px 0 4px">Abmeldungen (${d.abmeldungen.length}) <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— nur MA mit erfasstem Austritt</span></div>
+            ${tbl(d.anmeldungen.concat(d.anmeldungenOhneAhv || []), 'ANMELDUNG')}
+            ${kopf('Abmeldungen', d.abmeldungen, 'ABMELDUNG', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— nur MA mit erfasstem Austritt</span>')}
             ${warn(d.abmeldungenOhneAhv, 'Austritt(e)')}
-            ${tbl(d.abmeldungen, false)}
+            ${tbl(d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG')}
             ${(d.befristetOffen || []).length ? `
             <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:14px;font-size:12px;color:#92400e">
                 <b>${d.befristetOffen.length} befristete(r) Vertrag/Verträge enden im Zeitraum ohne erfassten Austritt</b> — verlängern oder Austritt erfassen (erst dann erscheinen sie als Abmeldung):<br>
@@ -72,6 +91,61 @@ async function akisRefresh() {
             </div>` : ''}`;
     } catch (_) {
         el.innerHTML = '<div style="color:#991b1b;padding:14px;font-size:12.5px">Verbindungsfehler.</div>';
+    }
+}
+
+// Gemeldet merken (Walter 13.10.2026): nach dem Hochladen im AKISnet hier
+// bestätigen — sonst bleibt das To-do «GastroSocial-Anmeldung/-Abmeldung fehlt».
+let _akisDaten = null;
+
+async function akisGemeldet(art, empIds, daten, btn) {
+    const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
+    if (!cid) { showToast('Bitte oben links eine Filiale wählen.', 'error'); return; }
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch('/api/gastrosocial-meldung/gemeldet', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                companyProfileId: cid, art,
+                eintraege: empIds.map((id, i) => ({ employeeId: id, datum: daten[i] })),
+            }),
+        });
+        if (!res.ok) { showToast('Speichern fehlgeschlagen (HTTP ' + res.status + ').', 'error'); return; }
+        const r = await res.json();
+        showToast(`${r.neu} als gemeldet vermerkt.`, 'success');
+        await akisRefresh();
+    } catch (_) {
+        showToast('Verbindungsfehler.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+/** Alle noch offenen Zeilen MIT AHV-Nummer (= Inhalt der Excel) einer Liste. */
+async function akisAlleGemeldet(art, btn) {
+    const rows = ((art === 'ANMELDUNG' ? _akisDaten?.anmeldungen : _akisDaten?.abmeldungen) || []).filter(r => !r.gemeldet);
+    if (!rows.length) return;
+    const was = art === 'ANMELDUNG' ? 'Anmeldungen' : 'Abmeldungen';
+    const ok = await liquidConfirm(`${rows.length} ${was} als «im AKISnet gemeldet» vermerken?\n\n${rows.map(r => `${r.vorname} ${r.name} (${r.datum})`).join('\n')}`,
+        { title: 'Im AKISnet gemeldet', yesLabel: 'Ja, gemeldet', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    await akisGemeldet(art, rows.map(r => r.employeeId), rows.map(r => r.datumIso), btn);
+}
+
+async function akisMeldungZurueck(id) {
+    const alle = [].concat(_akisDaten?.anmeldungen || [], _akisDaten?.anmeldungenOhneAhv || [],
+                           _akisDaten?.abmeldungen || [], _akisDaten?.abmeldungenOhneAhv || []);
+    const r = alle.find(x => x.gemeldet?.id === id);
+    const ok = await liquidConfirm(`Vermerk «gemeldet» bei ${r ? r.vorname + ' ' + r.name : 'diesem MA'} entfernen?`,
+        { title: 'Rückgängig', yesLabel: 'Entfernen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    try {
+        const res = await fetch('/api/gastrosocial-meldung/' + id, { method: 'DELETE', headers: ah() });
+        if (!res.ok) { showToast('Entfernen fehlgeschlagen (HTTP ' + res.status + ').', 'error'); return; }
+        await akisRefresh();
+    } catch (_) {
+        showToast('Verbindungsfehler.', 'error');
     }
 }
 

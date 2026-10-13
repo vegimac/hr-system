@@ -117,7 +117,12 @@ public static class GastroSocialAbgleich
         public List<Treffer> FzPruefen { get; set; } = new();
         /// <summary>Zusätzliche Sicht: zugeordnete MA, deren Personalien von GastroSocial abweichen oder in OneCrew fehlen.</summary>
         public List<Treffer> AngabenPruefen { get; set; } = new();
+        /// <summary>Jede zugeordnete Listenzeile (für «Ergebnis übernehmen» der An-/Abmeldungen).</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public List<Zuordnung> Zuordnungen { get; set; } = new();
     }
+
+    public sealed record Zuordnung(int EmployeeId, bool Beschaeftigt, DateTime? Statusaenderung);
 
     /// <summary>«w»/«F»/«Weiblich»/«female» → weiblich, «m»/«Männlich»/«male» → männlich.</summary>
     public static string? GeschlechtNorm(string? g)
@@ -225,6 +230,7 @@ public static class GastroSocialAbgleich
                 continue;
             }
 
+            res.Zuordnungen.Add(new Zuordnung(hit.Id, z.Beschaeftigt, z.Statusaenderung));
             t.EmployeeId = hit.Id;
             t.OneCrewName = $"{hit.Vorname} {hit.Nachname}".Trim();
             t.Personalnummer = hit.Nummer;

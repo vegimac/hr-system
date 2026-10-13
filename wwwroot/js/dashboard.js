@@ -98,6 +98,8 @@ const DASH_CATEGORY_META = {
     email_unzustellbar: { label: 'E-Mail nicht zustellbar', icon: '📮', color: '#b91c1c' },
     email_wiedervorlage_aufgegeben: { label: 'E-Mail nach Wiederholungen aufgegeben', icon: '📮', color: '#b91c1c' },
     virus_gefunden:         { label: 'Schadsoftware gefunden', icon: '🦠', color: '#b91c1c' },
+    gastrosocial_anmeldung_fehlt: { label: 'GastroSocial-Anmeldung fehlt', icon: '🏛', color: '#92400e' },
+    gastrosocial_abmeldung_fehlt: { label: 'GastroSocial-Abmeldung fehlt', icon: '🏛', color: '#92400e' },
     austritt_datum_mismatch: { label: 'Austrittsdatum stimmt nicht überein', icon: '📆', color: '#b45309' },
     contract_end_weitergearbeitet: { label: 'Nach Vertragsende weitergearbeitet', icon: '⏰', color: '#991b1b' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
@@ -538,6 +540,8 @@ function dashTodoOnClick(a) {
             case 'permit_expiring':
             case 'permit_missing':      return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
+            case 'gastrosocial_anmeldung_fehlt':
+            case 'gastrosocial_abmeldung_fehlt': return `onclick="dashOpenAkis('${String(a.dueDate || '').slice(0, 10)}')"`;
             case 'kuendigung_sperrfrist_ende': return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'ferienkuerzung_moeglich':    return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'erlaubnis_hauptarbeitgeber_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
@@ -560,6 +564,19 @@ function dashTodoOnClick(a) {
     if (a.category === 'virus_gefunden') return `onclick="showPage('virenscanner')"`;
     if (a.category === 'audit_log_stumm') return `onclick="showPage('audit-log')"`;
     return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
+}
+
+/** AKIS-Seite mit dem Monat des Ein-/Austritts öffnen (GastroSocial-To-dos, Walter 13.10.2026). */
+function dashOpenAkis(iso) {
+    const m = /^(\d{4})-(\d{2})/.exec(iso || '');
+    if (m) {
+        const j = +m[1], mo = +m[2];
+        const ende = new Date(j, mo, 0).getDate();
+        const f = document.getElementById('akisFrom'), t = document.getElementById('akisTo');
+        if (f) f.value = `${m[1]}-${m[2]}-01`;
+        if (t) t.value = `${m[1]}-${m[2]}-${String(ende).padStart(2, '0')}`;
+    }
+    showPage('akis-meldung');
 }
 
 /** Wochentag kurz + Datum (z.B. «Fr, 31.07.2026») — Probezeit-Todos. */
