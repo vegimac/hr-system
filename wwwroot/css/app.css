@@ -11856,6 +11856,19 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
 }
 .ra-tile.admin-hub-cat.active > span,
 .ra-tile.entw-hub-cat.active > span { font-weight: 800; }
+/* Nicht gewählte Kategorien zurücknehmen, gewählte hervorheben (Walter 13.10.2026).
+   Greift nur, wenn in der Reihe eine Kachel aktiv ist; Hover zeigt die Kachel wieder voll. */
+.ra-tile-row:has(> .admin-hub-cat.active) > .admin-hub-cat:not(.active),
+.ra-tile-row:has(> .entw-hub-cat.active) > .entw-hub-cat:not(.active) {
+    opacity: 0.45;
+    filter: grayscale(0.6);
+    box-shadow: 0 6px 18px rgba(70,64,55,0.08), inset 0 1px 1px rgba(255,255,255,0.6);
+    transition: opacity .18s ease, filter .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.ra-tile-row:has(> .admin-hub-cat.active) > .admin-hub-cat:not(.active):hover,
+.ra-tile-row:has(> .entw-hub-cat.active) > .entw-hub-cat:not(.active):hover { opacity: 0.9; filter: none; }
+.ra-tile.admin-hub-cat.active,
+.ra-tile.entw-hub-cat.active { transform: translateY(-3px); box-shadow: 0 20px 44px rgba(60,55,48,0.32); }
 body.theme-dark .ra-tile.admin-hub-cat.active,
 body.theme-dark .ra-tile.entw-hub-cat.active {
     background: rgba(255,255,255,0.16);
