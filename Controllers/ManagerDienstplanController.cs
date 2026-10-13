@@ -141,10 +141,12 @@ public class ManagerDienstplanController : ControllerBase
             .OrderBy(s => s.SortOrder).ThenBy(s => s.Id).ToListAsync();
         var reihenfolge = zeilen.Where(z => z.CompanyProfileId.HasValue)
             .Select(z => z.CompanyProfileId!.Value).Distinct().ToList();
+        var farben = await _db.OrganigrammFarben.AsNoTracking().ToDictionaryAsync(f => f.Stufe, f => f.Farbe);
         return Ok(new
         {
             year, month,
-            stellen = stellen.Select(s => new { s.Id, s.Titel, s.Name, s.Art, s.SortOrder }),
+            stellen = stellen.Select(s => new { s.Id, s.Titel, s.Name, s.Art, s.SortOrder, s.Farbe }),
+            farben,
             filialen = reihenfolge.Select(id => new
             {
                 id,
@@ -157,14 +159,21 @@ public class ManagerDienstplanController : ControllerBase
         });
     }
 
-    public sealed record OrganigrammStelleDto(string? Titel, string? Name, string? Art);
+    public sealed record OrganigrammStelleDto(string? Titel, string? Name, string? Art, string? Farbe);
+    public sealed record OrganigrammSpeichernDto(List<OrganigrammStelleDto>? Stellen, Dictionary<string, string?>? Farben);
 
-    /// <summary>Obere Stellen als ganze Liste speichern (Reihenfolge = Listenreihenfolge).</summary>
+    private static readonly string[] OrganigrammStufen = { "FILIALE", "MANAGER" };
+
+    private static string? NurFarbe(string? f)
+        => f != null && System.Text.RegularExpressions.Regex.IsMatch(f.Trim(), "^#[0-9a-fA-F]{6}$")
+            ? f.Trim().ToLowerInvariant() : null;
+
+    /// <summary>Obere Stellen als ganze Liste speichern (Reihenfolge = Listenreihenfolge) + Stufen-Farben.</summary>
     [HttpPut("organigramm/stellen")]
     [Authorize(Roles = "admin,superuser")]
-    public async Task<IActionResult> PutOrganigrammStellen([FromBody] List<OrganigrammStelleDto> liste)
+    public async Task<IActionResult> PutOrganigrammStellen([FromBody] OrganigrammSpeichernDto dto)
     {
-        liste ??= new();
+        var liste = dto?.Stellen ?? new();
         var neu = new List<OrganigrammStelle>();
         foreach (var s in liste)
         {
@@ -179,11 +188,21 @@ public class ManagerDienstplanController : ControllerBase
                 Name = name,
                 Art = s.Art == "STAB" ? "STAB" : "LINIE",
                 SortOrder = neu.Count,
+                Farbe = NurFarbe(s.Farbe),
                 GeaendertAm = DateTime.Now,
             });
         }
         _db.OrganigrammStellen.RemoveRange(await _db.OrganigrammStellen.ToListAsync());
         _db.OrganigrammStellen.AddRange(neu);
+        var bisher = await _db.OrganigrammFarben.ToDictionaryAsync(f => f.Stufe);
+        foreach (var stufe in OrganigrammStufen)
+        {
+            var farbe = dto?.Farben != null && dto.Farben.TryGetValue(stufe, out var f) ? NurFarbe(f) : null;
+            bisher.TryGetValue(stufe, out var alt);
+            if (farbe == null) { if (alt != null) _db.OrganigrammFarben.Remove(alt); }
+            else if (alt != null) alt.Farbe = farbe;
+            else _db.OrganigrammFarben.Add(new OrganigrammFarbe { Stufe = stufe, Farbe = farbe });
+        }
         await _db.SaveChangesAsync();
         return Ok(new { anzahl = neu.Count });
     }

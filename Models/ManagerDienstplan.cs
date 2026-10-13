@@ -237,7 +237,16 @@ public class OrganigrammStelle
     /// <summary>LINIE = in der Kette oben (untereinander) · STAB = seitlich an der Linie (z.B. HR)</summary>
     public string Art { get; set; } = "LINIE";
     public int SortOrder { get; set; }
+    /// <summary>Hintergrundfarbe #rrggbb · leer = Standard (Linie Kohle, Stab weiss)</summary>
+    public string? Farbe { get; set; }
     public DateTime GeaendertAm { get; set; } = DateTime.Now;
+}
+
+/// <summary>Farbe einer Organigramm-Stufe ohne eigene Stelle: FILIALE (Filiale + GF) · MANAGER.</summary>
+public class OrganigrammFarbe
+{
+    public string Stufe { get; set; } = "";
+    public string Farbe { get; set; } = "";
 }
 
 /// <summary>

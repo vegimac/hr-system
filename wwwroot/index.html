@@ -2704,7 +2704,7 @@
                             </div>
                             <div>
                                 <div class="hr-card-title" data-i18n="hr.card.reporting">Auswertungen / Reporting</div>
-                                <div class="hr-card-status" style="color:#15803d">6 Reports verfügbar — Zeile anklicken</div>
+                                <div class="hr-card-status" style="color:#15803d">7 Reports verfügbar — Zeile anklicken</div>
                             </div>
                         </div>
                         <ul>
@@ -2714,6 +2714,7 @@
                             <li style="cursor:pointer" onclick="showPage('wochenstunden-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Ø Wochenstunden</b>: gestempelte Stunden pro MA, Zeitraum frei — Sidebar-Filiale oder alle <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li style="cursor:pointer" onclick="showPage('mtp-stunden-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>MTP-Stunden-Kontrolle</b>: Garantie vs. Ist pro Woche inkl. Absenzen — Sidebar-Filiale <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li style="cursor:pointer" onclick="showPage('stempel-filialvergleich')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Stempelzeiten alle Filialen</b>: Korrekturen und Arbeitszeit-Verstösse pro 100 Stempel, Verlauf und Übersicht, Zeitraum frei <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
+                            <li style="cursor:pointer" onclick="orgOpen()" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Organigramm</b>: Lizenznehmer, Supervisor, HR, darunter Filialen mit GF und Managern aus den FIX-M-Verträgen — Farben pro Stufe, Druck A4 quer <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li class="hr-idea"><b>Personalbestand</b>: FTE / Headcount pro Filiale</li>
                             <li class="hr-idea">Verteilung Vertragstyp (FIX / MTP / FLEX)</li>
                             <li class="hr-idea">Eintritte / Austritte pro Monat (Trendlinie)</li>
@@ -3535,7 +3536,6 @@
                     <span style="flex:1"></span>
                     <button onclick="fplOpenFromDp()" class="liquid-role-el" data-liquid-roles="admin,user" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🏖 Ferienplaner</button>
                     <button onclick="msOpenAlle()" class="liquid-role-el" data-liquid-roles="admin,superuser" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulungen</button>
-                    <button onclick="dpOrgOpen()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🏢 Organigramm</button>
                     <button onclick="dpOpenSchulferien()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulferien</button>
                     <button onclick="dpOpenFeiertage()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎉 Feiertage</button>
                     <!-- Excel-Einmal-Import: UI entfernt (Walter 09.08.2026, Migration erledigt).
@@ -12295,7 +12295,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/famz-anmeldung.js?v=20261011g"></script>
 <script src="js/famz-gastrosocial.js?v=20261011p"></script>
 <script src="js/akis-meldung.js?v=20260831a"></script>
-<script src="js/manager-dienstplan.js?v=20261013a"></script>
+<script src="js/manager-dienstplan.js?v=20261013b"></script>
+<script src="js/organigramm.js?v=20261013a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
 <script src="js/manager-schulungen.js?v=20261001b"></script>
 <script src="js/schulungen.js?v=20261001c"></script>

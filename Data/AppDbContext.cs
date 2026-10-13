@@ -134,6 +134,7 @@ public class AppDbContext : DbContext
     public DbSet<ArbeitszeitRegelWert>      ArbeitszeitRegelWerte       => Set<ArbeitszeitRegelWert>();
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<OrganigrammStelle>         OrganigrammStellen          => Set<OrganigrammStelle>();
+    public DbSet<OrganigrammFarbe>          OrganigrammFarben           => Set<OrganigrammFarbe>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
     public DbSet<InterviewTermin>           InterviewTermine            => Set<InterviewTermin>();
     public DbSet<HrInterviewTermin>         HrInterviewTermine          => Set<HrInterviewTermin>();
@@ -2449,8 +2450,16 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Name).HasColumnName("name");
             entity.Property(e => e.Art).HasColumnName("art");
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.Farbe).HasColumnName("farbe");
             entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am")
                   .HasColumnType("timestamp without time zone");
+        });
+        modelBuilder.Entity<OrganigrammFarbe>(entity =>
+        {
+            entity.ToTable("organigramm_farbe");
+            entity.HasKey(e => e.Stufe);
+            entity.Property(e => e.Stufe).HasColumnName("stufe");
+            entity.Property(e => e.Farbe).HasColumnName("farbe");
         });
         modelBuilder.Entity<BranchSchulferien>(entity =>
         {
