@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261013g">
+    <link rel="stylesheet" href="css/app.css?v=20261014a">
 </head>
 <body>
 
@@ -1639,7 +1639,7 @@
                     </button>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-lohn" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('perioden')">
                         <img src="img/lohnkat-perioden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohnperioden</div>
@@ -1718,7 +1718,7 @@
                     </div>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-filialen" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('hauptsitze')">
                         <img src="img/hauptsitz-karte.webp?v=20260829c" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Hauptsitze</div>
@@ -1737,7 +1737,7 @@
                     </div>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-kataloge" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('aerzte')">
                         <img src="img/vvkat-aerzte.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Ärzte</div>
@@ -1771,7 +1771,7 @@
                     </div>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-komm" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('smtp-settings')">
                         <img src="img/kommkat-email.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">E-Mail-Versand</div>
@@ -1800,7 +1800,7 @@
                     </div>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-kontrolle" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <!-- Warnungen aus «Verzeichnisse & Vorgaben» hierher
                              verschoben (Walter-Vorgabe 23.08.2026): Pflege der
                              Dashboard-Warnungen gehört zur Kontrolle/Datenpflege. -->
@@ -2408,14 +2408,6 @@
                             <img src="img/kontr-mirus.webp?v=20261013a" alt="" loading="lazy">
                             <span>Mirus-Abgleich: fehlende MA</span>
                         </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="showPage('gs-ahv-abgleich')">
-                            <img src="img/kontr-ahv.webp?v=20261013a" alt="" loading="lazy">
-                            <span>AHV-Abgleich: GastroSocial gemeldete MA</span>
-                        </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="showPage('gs-fz-abgleich')">
-                            <img src="img/kontr-fz.webp?v=20261013a" alt="" loading="lazy">
-                            <span>FZ-Abgleich: GastroSocial Familienzulagen</span>
-                        </button>
                         <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleOeffnen('fb')">
                             <img src="img/kontr-familienbetreuung.webp?v=20261013a" alt="" loading="lazy">
                             <span>Familienbetreuung: easy@work gegen Soll</span>
@@ -2613,66 +2605,35 @@
                     </div>
                     </div>
                 </div>
-                <!-- Walter 14.10.2026: eigener Bereich GastroSocial (Ausgleichskasse, FAK, BVG).
-                     Die Einträge bleiben zusätzlich in Behörden-Korrespondenz bzw. Kontrolle. -->
+                <!-- Walter 14.10.2026: eigener Bereich GastroSocial (Ausgleichskasse, FAK, BVG),
+                     Kacheln wie in der Systemsteuerung. AKIS / AHV- / FZ-Anmeldung stehen zusätzlich
+                     in Behörden-Korrespondenz; die zwei Abgleiche sind aus «Kontrolle» hierher gezogen. -->
                 <div class="hr-hub-group" id="hrHubGrp-gastrosocial" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
-                    <div class="hr-card" style="opacity:1">
-                        <div class="hr-card-head">
-                            <div class="hr-card-icon" style="background:#e3edf7;color:#1f5f99">
-                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
-                            </div>
-                            <div>
-                                <div class="hr-card-title">Meldungen an GastroSocial</div>
-                                <div class="hr-card-status">AHV-Ausgleichskasse, Familienausgleichskasse, Pensionskasse</div>
-                            </div>
-                        </div>
-                        <ul>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('akis-meldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>An-/Abmeldung Ausgleichskasse (AKIS)</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('ahv-anmeldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>AHV-Anmeldung (Versicherungsausweis)</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('famz-anmeldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>Anmeldung Familienzulagen</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
-                            <li>BVG-Anmeldung / -Abmeldung / Beitragsbefreiung</li>
-                        </ul>
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <div class="admin-card" onclick="showPage('akis-meldung')">
+                        <img src="img/vvkat-behoerden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">An-/Abmeldung Ausgleichskasse (AKIS)</div>
+                        <div class="admin-card-desc">Ein- und Austritte für AKISnet, offene oben, gemeldete abhaken</div>
                     </div>
-                    <div class="hr-card" style="opacity:1">
-                        <div class="hr-card-head">
-                            <div class="hr-card-icon" style="background:#e3edf7;color:#1f5f99">
-                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>
-                            </div>
-                            <div>
-                                <div class="hr-card-title">Abgleich mit GastroSocial</div>
-                                <div class="hr-card-status">Listen von GastroSocial gegen OneCrew prüfen</div>
-                            </div>
-                        </div>
-                        <ul>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('gs-ahv-abgleich')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>AHV-Abgleich: gemeldete MA</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('gs-fz-abgleich')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>FZ-Abgleich: Familienzulagen</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
-                        </ul>
+                        <div class="admin-card" onclick="showPage('ahv-anmeldung')">
+                        <img src="img/in.webp?v=20261014a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">AHV-Anmeldung (Versicherungsausweis)</div>
+                        <div class="admin-card-desc">Formular 318.260 für MA ohne AHV-Nummer</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('famz-anmeldung')">
+                        <img src="img/lohnkat-fz-tarife.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Anmeldung Familienzulagen</div>
+                        <div class="admin-card-desc">Antrag Familienzulagen an die Familienausgleichskasse</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('gs-ahv-abgleich')">
+                        <img src="img/kontr-ahv.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">AHV-Abgleich: gemeldete MA</div>
+                        <div class="admin-card-desc">GastroSocial-Liste der gemeldeten MA gegen OneCrew prüfen</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('gs-fz-abgleich')">
+                        <img src="img/kontr-fz.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">FZ-Abgleich: Familienzulagen</div>
+                        <div class="admin-card-desc">GastroSocial-Liste der Familienzulagen gegen OneCrew prüfen</div>
                     </div>
                     </div>
                 </div>
@@ -5991,7 +5952,7 @@
                     </button>
                 </div>
                 <div class="entw-hub-group" id="entwHubGrp-begruessung" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('programmbegruessung')">
                         <img src="img/entwkat-begruessung.svg?v=20260904a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Programmbegrüssung</div>
@@ -6000,7 +5961,7 @@
                     </div>
                 </div>
                 <div class="entw-hub-group" id="entwHubGrp-swissdec" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('swissdec-kommunikation')">
                         <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
                             <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block">
@@ -6017,7 +5978,7 @@
                     </div>
                 </div>
                 <div class="entw-hub-group" id="entwHubGrp-import" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('easyatwork')">
                         <img src="img/impkat-easyatwork.webp?v=20260816e" alt="" loading="lazy" style="width:110px;height:72px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">easy@work API</div>
@@ -8912,7 +8873,7 @@
                     </div>
                 </div>
 
-                <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:20px;max-width:1360px">
+                <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:20px;max-width:1360px">
                     <div class="admin-card" onclick="showPage('banken')">
                         <img src="img/glokat-banken.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Banken</div>

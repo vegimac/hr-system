@@ -12548,6 +12548,28 @@ body.theme-dark .admin-card img {
 .admin-card img[src*="lohnkat-lohnschema"] { width: 140px !important; height: 140px !important; }
 .admin-card img[src*="vvkat-absenz-typen"] { width: 140px !important; height: 140px !important; }
 
+/* Kachel-Raster wie in der Systemsteuerung, ca. 30 % kleiner (Walter 14.10.2026):
+   gilt für alle Raster mit Klasse .admin-card-grid (System, Entwicklung, Globale Daten,
+   HR → GastroSocial). Feste Spaltenbreite statt 4 gestreckter Spalten. */
+.admin-card-grid { grid-template-columns: repeat(auto-fill, 230px) !important; gap: 12px !important; }
+.admin-card-grid .admin-card { padding: 14px; gap: 6px; }
+.admin-card-grid .admin-card img { width: 73px !important; height: 73px !important; margin-bottom: 4px !important; }
+.admin-card-grid .admin-card img[src*="lohnraster-elm"] { width: 109px !important; height: 109px !important; }
+.admin-card-grid .admin-card img[src*="lohnkat-lohnschema"],
+.admin-card-grid .admin-card img[src*="vvkat-absenz-typen"] { width: 98px !important; height: 98px !important; }
+.admin-card-grid .admin-card-title { font-size: 13px; }
+.admin-card-grid .admin-card-desc { display: none; }
+body:not(.theme-dark) .admin-card-grid .admin-card {
+    background: rgba(255,255,255,0.52);
+    border: 1px solid rgba(255,255,255,0.68);
+    box-shadow: 0 10px 30px rgba(60,55,48,0.10), inset 0 1px 1px rgba(255,255,255,0.8);
+}
+body:not(.theme-dark) .admin-card-grid .admin-card:hover {
+    background: rgba(255,255,255,0.78);
+    border-color: #3f3f3f;
+    box-shadow: 0 14px 34px rgba(60,55,48,0.18);
+}
+
 /* ── Abgeleitete (nicht klickbare) Checkbox-Pillen klar erkennbar (Walter 19.08.2026):
    gestrichelter Rand wie die Doku-Chips + gedämpft — z.B. «Kirchensteuer aus
    Konfession» im QST-Modal. Klickbare Pillen bleiben mit durchgezogenem Rand. ── */
