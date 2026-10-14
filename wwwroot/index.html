@@ -2275,6 +2275,10 @@
                         <img src="img/hrkat-ausw.webp?v=20260816a" alt="" loading="lazy">
                         <span>Auswertungen &amp; Exporte</span>
                     </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="gastrosocial" onclick="hrHubShowCat('gastrosocial')" title="GastroSocial: AHV-An-/Abmeldung, Familienzulagen, BVG, Abgleiche">
+                        <img src="img/hrkat-gastrosocial.webp?v=20261014a" alt="" loading="lazy">
+                        <span>GastroSocial</span>
+                    </button>
                 </div>
                 <div class="hr-hub-group" id="hrHubGrp-onb" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
@@ -2602,6 +2606,69 @@
                             <li class="hr-done" style="cursor:pointer" onclick="showPage('ahv-anmeldung')"
                                 onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
                                 <b><u>AHV-Anmeldung (Versicherungsausweis)</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
+                        </ul>
+                    </div>
+                    </div>
+                </div>
+                <!-- Walter 14.10.2026: eigener Bereich GastroSocial (Ausgleichskasse, FAK, BVG).
+                     Die Einträge bleiben zusätzlich in Behörden-Korrespondenz bzw. Kontrolle. -->
+                <div class="hr-hub-group" id="hrHubGrp-gastrosocial" style="display:none">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
+                    <div class="hr-card" style="opacity:1">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#e3edf7;color:#1f5f99">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title">Meldungen an GastroSocial</div>
+                                <div class="hr-card-status">AHV-Ausgleichskasse, Familienausgleichskasse, Pensionskasse</div>
+                            </div>
+                        </div>
+                        <ul>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('akis-meldung')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>An-/Abmeldung Ausgleichskasse (AKIS)</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('ahv-anmeldung')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>AHV-Anmeldung (Versicherungsausweis)</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('famz-anmeldung')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>Anmeldung Familienzulagen</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
+                            <li>BVG-Anmeldung / -Abmeldung / Beitragsbefreiung</li>
+                        </ul>
+                    </div>
+                    <div class="hr-card" style="opacity:1">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#e3edf7;color:#1f5f99">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title">Abgleich mit GastroSocial</div>
+                                <div class="hr-card-status">Listen von GastroSocial gegen OneCrew prüfen</div>
+                            </div>
+                        </div>
+                        <ul>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('gs-ahv-abgleich')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>AHV-Abgleich: gemeldete MA</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('gs-fz-abgleich')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>FZ-Abgleich: Familienzulagen</u></b>
                                 <span style="color:#15803d">✓ vorhanden</span>
                                 <span style="color:#94a3b8;font-size:11px">— öffnen</span>
                             </li>
