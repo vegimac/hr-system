@@ -122,6 +122,20 @@ function pageBack() {
     showPage(ziel);
 }
 
+// Übersicht, die auf die Seite verlinkt (Walter 14.10.2026): Unterseiten von Globale Daten,
+// «Neue Filiale importieren» oder Entwicklung gehen eine Ebene zurück, nicht in die Systemsteuerung.
+// Reihenfolge = spezifischste Übersicht zuerst.
+const _uebersichten = ['globale-daten', 'filial-onboarding', 'mcadmin', 'entwicklung', 'hr-hub', 'admin-hub'];
+function _elternUebersicht(name) {
+    const link = `showPage('${name}')`;
+    for (const hub of _uebersichten) {
+        if (hub === name) continue;
+        const p = document.getElementById('page-' + hub);
+        if (p && [...p.querySelectorAll('[onclick]')].some(el => el.getAttribute('onclick').includes(link))) return hub;
+    }
+    return null;
+}
+
 // Zurück oben rechts (Walter 13.10.2026): löst den unsichtbaren .seite-zurueck-Knopf der
 // aktuellen Seite aus (bei mehreren den in der sichtbaren Ansicht), sonst System-/Entwicklungs-Übersicht.
 function globalZurueck() {
@@ -130,6 +144,8 @@ function globalZurueck() {
     const inSicht = k => { for (let e = k.parentElement; e && e !== page; e = e.parentElement) if (getComputedStyle(e).display === 'none') return false; return true; };
     const k = knoepfe.find(inSicht) || knoepfe[0];
     if (k) { k.click(); return; }
+    const eltern = _elternUebersicht(currentPageName);
+    if (eltern) { showPage(eltern); return; }
     if (_devSubPages.includes(currentPageName)) showPage('entwicklung');
     else if (_adminSubPages.includes(currentPageName)) showPage('admin-hub');
     else pageBack();
