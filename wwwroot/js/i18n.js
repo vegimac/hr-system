@@ -1011,8 +1011,6 @@ window.i18n = (function () {
         'hr.pageTitle':              { de: 'HR-Bereich',              en: 'HR area' },
         'hr.pageSub':                { de: 'Korrespondenz, Behörden, Auswertungen — alles rund um Personalführung',
                                         en: 'Correspondence, authorities, reporting — everything HR-related' },
-        'hr.mockup':                 { de: '🚧 Mock-up — alles in Planung. Welcher Bereich brennt am meisten? Sag\'s, dann bauen wir den als nächsten Schritt konkret.',
-                                        en: '🚧 Mock-up — everything still in planning. Which area is most urgent? Say the word and we\'ll build it next.' },
         'hr.status.active':          { de: '✓ aktiv — Vorabkontrolle, DTA, Abschluss',
                                         en: '✓ active — preview, DTA, close' },
         'hr.status.draft':           { de: 'Entwurf — alle 2 Jahre, nächste 2026',

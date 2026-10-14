@@ -2558,12 +2558,6 @@
                             </div>
                         </div>
                         <ul>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('akis-meldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>An-/Abmeldung Ausgleichskasse (AKIS)</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
                             <li class="hr-done" style="cursor:pointer" onclick="showPage('qst-anmeldung')"
                                 onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
                                 <b><u data-i18n="qsta.pageTitle">Quellensteuer-Anmeldung</u></b>
@@ -2579,12 +2573,6 @@
                             <li>Quellensteuer: Mutation / Abmeldung</li>
                             <li>Aufenthaltsbewilligungs-Antrag (B/L/G)</li>
                             <li>BVG-Anmeldung / -Abmeldung / Beitragsbefreiung</li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('famz-anmeldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>Anmeldung Familienzulagen</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
                             <li>Mutterschafts- / Vaterschafts-Anmeldung</li>
                             <li>RAV-Arbeitgeberbescheinigung</li>
                             <li class="hr-done" style="cursor:pointer" onclick="showPage('zwischenverdienst')"
@@ -2595,19 +2583,13 @@
                             </li>
                             <li>L-GAV-Anmeldung Arbeitgeber</li>
                             <li>IV-Schadenmeldung / Wiedereingliederung</li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('ahv-anmeldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>AHV-Anmeldung (Versicherungsausweis)</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
                         </ul>
                     </div>
                     </div>
                 </div>
                 <!-- Walter 14.10.2026: eigener Bereich GastroSocial (Ausgleichskasse, FAK, BVG),
-                     Kacheln wie in der Systemsteuerung. AKIS / AHV- / FZ-Anmeldung stehen zusätzlich
-                     in Behörden-Korrespondenz; die zwei Abgleiche sind aus «Kontrolle» hierher gezogen. -->
+                     Kacheln wie in der Systemsteuerung. AKIS / AHV- / FZ-Anmeldung sind aus der
+                     Behörden-Korrespondenz, die zwei Abgleiche aus «Kontrolle» hierher gezogen. -->
                 <div class="hr-hub-group" id="hrHubGrp-gastrosocial" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('akis-meldung')">
@@ -2757,10 +2739,6 @@
                         </ul>
                     </div>
                     </div>
-                </div>
-
-                <div style="margin-top:24px;padding:16px;background:#fef3c7;border-radius:10px;color:#854d0e;font-size:13px;line-height:1.5" data-i18n="hr.mockup">
-                    🚧 <b>Mock-up — alles in Planung.</b> Welcher Bereich brennt am meisten? Sag's, dann bauen wir den als nächsten Schritt konkret.
                 </div>
             </div>
 
@@ -10632,7 +10610,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohnschema.js?v=20260819d"></script>
 <script src="js/global-search.js?v=20260901a"></script>
 <script src="js/help-panel.js?v=20261008a"></script>
-<script src="js/i18n.js?v=20260923b"></script>
+<script src="js/i18n.js?v=20261014a"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
     <div class="family-modal-box">
