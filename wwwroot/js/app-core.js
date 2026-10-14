@@ -139,6 +139,15 @@ function _elternUebersicht(name) {
 // Zurück oben rechts (Walter 13.10.2026): löst den unsichtbaren .seite-zurueck-Knopf der
 // aktuellen Seite aus (bei mehreren den in der sichtbaren Ansicht), sonst System-/Entwicklungs-Übersicht.
 function globalZurueck() {
+    // Rücksprung aus einer Liste in den MA (z.B. AKIS → Mitarbeiter, Walter 14.10.2026):
+    // zurück zur Liste, und deren eigenes Zurück zeigt wieder dorthin, wo man vorher war.
+    const rs = window._ruecksprung;
+    if (rs && rs.seite === currentPageName) {
+        window._ruecksprung = null;
+        showPage(rs.ziel);
+        window._prevPageName = rs.vorher;
+        return;
+    }
     const page = document.getElementById('page-' + currentPageName);
     const knoepfe = [...(page?.querySelectorAll('.seite-zurueck') || [])];
     const inSicht = k => { for (let e = k.parentElement; e && e !== page; e = e.parentElement) if (getComputedStyle(e).display === 'none') return false; return true; };
@@ -1431,13 +1440,15 @@ function applyAdminBreadcrumb(name) {
     // ersetzt den Knopf neben dem Titel vom 16.08.2026.
     document.querySelectorAll('.sys-back-row').forEach(el => el.remove());
     const eigener = document.querySelector(`#page-${name} .seite-zurueck`);
-    btn.style.display = (eigener || showAdminBack || showDevBack) ? 'inline-flex' : 'none';
+    const ruecksprung = window._ruecksprung?.seite === name;
+    btn.style.display = (eigener || showAdminBack || showDevBack || ruecksprung) ? 'inline-flex' : 'none';
 }
 
 function showPage(name) {
     // Seiten-Historie (Walter 12.08.2026): für «← Zurück»-Buttons auf den
     // Dokument-Erfassungsmasken (pageBack unten).
     if (currentPageName && currentPageName !== name) window._prevPageName = currentPageName;
+    if (window._ruecksprung && window._ruecksprung.seite !== name) window._ruecksprung = null;
     currentPageName = name;
     updateDashboardShellState(name);
     // easy@work-Sync-Pill im langSwitcher: nur auf der Mitarbeiter-Seite

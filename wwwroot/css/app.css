@@ -13285,3 +13285,7 @@ body.theme-dark #familyModal .emp-section-title {
 .akis-gemeldet-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(60,55,48,0.14); }
 .akis-gemeldet-btn.alle { background: #3f3f3f; color: #fff; border-color: #3f3f3f; border-radius: 12px; padding: 6px 14px; font-size: 12.5px; }
 .akis-gemeldet-btn:disabled { opacity: .5; cursor: default; }
+.akis-haken { width: 15px; height: 15px; accent-color: #3f3f3f; cursor: pointer; vertical-align: middle; }
+.akis-haken:disabled { cursor: not-allowed; opacity: .4; }
+.akis-ma-link { color: inherit; text-decoration: none; border-bottom: 1px dotted rgba(60,55,48,0.45); }
+.akis-ma-link:hover { color: #1a1a1a; border-bottom-style: solid; }

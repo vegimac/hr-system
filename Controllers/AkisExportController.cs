@@ -259,13 +259,15 @@ public class AkisExportController : ControllerBase
 
     [HttpGet("anmeldung")]
     public async Task<IActionResult> AnmeldungXlsx(
-        [FromQuery] int companyProfileId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        [FromQuery] int companyProfileId, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] string? auswahl)
     {
         var (von, bis) = Zeitraum(from, to);
         var (alle, _) = await AnmeldungenAsync(companyProfileId, von, bis);
-        // Nur, was noch nicht als gemeldet vermerkt ist.
+        // Nur, was noch nicht als gemeldet vermerkt ist — und ggf. nur die angekreuzten Zeilen.
         var meldungen = await MeldungenAsync(companyProfileId);
-        var rows = alle.Where(r => Gemeldet(r, companyProfileId, GastroSocialMeldungRegel.Anmeldung, meldungen) == null).ToList();
+        var gewaehlt = Auswahl(auswahl);
+        var rows = alle.Where(r => Gemeldet(r, companyProfileId, GastroSocialMeldungRegel.Anmeldung, meldungen) == null && gewaehlt(r)).ToList();
         var bytes = FillTemplate("Akis_AnmeldungMitarbeitende.xlsx", ws =>
         {
             int r = 7; // 0-basiert → Zeile 8
@@ -289,12 +291,14 @@ public class AkisExportController : ControllerBase
 
     [HttpGet("abmeldung")]
     public async Task<IActionResult> AbmeldungXlsx(
-        [FromQuery] int companyProfileId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        [FromQuery] int companyProfileId, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] string? auswahl)
     {
         var (von, bis) = Zeitraum(from, to);
         var (alle, _) = await AbmeldungenAsync(companyProfileId, von, bis);
         var meldungen = await MeldungenAsync(companyProfileId);
-        var rows = alle.Where(r => Gemeldet(r, companyProfileId, GastroSocialMeldungRegel.Abmeldung, meldungen) == null).ToList();
+        var gewaehlt = Auswahl(auswahl);
+        var rows = alle.Where(r => Gemeldet(r, companyProfileId, GastroSocialMeldungRegel.Abmeldung, meldungen) == null && gewaehlt(r)).ToList();
         var bytes = FillTemplate("Akis_AbmeldungMitarbeitende.xlsx", ws =>
         {
             int r = 7;
@@ -310,6 +314,17 @@ public class AkisExportController : ControllerBase
         return File(bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"AbmeldungMitarbeitende_{DateTime.Today:yyyyMMdd}.xlsx");
+    }
+
+    /// <summary>
+    /// Angekreuzte Zeilen (Walter 14.10.2026): «empId_yyyy-MM-dd» kommagetrennt.
+    /// Fehlt der Parameter, gehen alle offenen Zeilen in die Excel.
+    /// </summary>
+    private static Func<Row, bool> Auswahl(string? auswahl)
+    {
+        if (auswahl == null) return _ => true;
+        var set = auswahl.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet();
+        return r => set.Contains($"{r.EmployeeId}_{r.Datum:yyyy-MM-dd}");
     }
 
     private byte[] FillTemplate(string templateFile, Action<NPOI.SS.UserModel.ISheet> fill)
