@@ -10091,13 +10091,6 @@ body.theme-dark .ra-tile img[src*="bewerbungsbogen.webp"] { filter: brightness(1
 /* Aufforderung-Icon 1:1 — ebenfalls nicht invertieren (Walter 30.07.2026). */
 body.theme-dark .ra-tile img[src*="Aufforderung.webp"] { filter: brightness(1.45) contrast(1.15); }
 
-/* HR-Hub Kontrolle: Kacheln wie die Kategorien darüber (146×177), Titel in der Kachel
-   unter dem Icon — bis 3 Zeilen, weil die Titel länger sind (Walter 13.10.2026, v3). */
-.kontr-menu { flex: 1 1 100%; margin: 18px 0 6px; }
-.ra-tile.kontr-kachel { width: 146px; height: 177px; min-height: 177px; max-height: 177px; font-size: 12px; }
-.ra-tile.kontr-kachel img { width: 108px; height: 108px; flex: 0 0 108px; }
-.ra-tile.kontr-kachel > span { min-height: calc(3 * 1.15em); max-height: calc(3 * 1.15em); }
-
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
         #todosPrintArea .tp-head h1 { font-size: 22px; margin: 0; font-weight: 800; letter-spacing: 0.3px; }
@@ -11856,23 +11849,19 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
 }
 .ra-tile.admin-hub-cat.active > span,
 .ra-tile.entw-hub-cat.active > span { font-weight: 800; }
-/* Nicht gewählte Kategorien zurücknehmen, gewählte hervorheben (Walter 13.10.2026).
-   Greift nur, wenn in der Reihe eine Kachel aktiv ist; Hover zeigt die Kachel wieder voll. */
-.ra-tile-row:has(> .admin-hub-cat.active) > .admin-hub-cat:not(.active),
-.ra-tile-row:has(> .entw-hub-cat.active) > .entw-hub-cat:not(.active) {
-    opacity: 0.45;
-    filter: grayscale(0.6);
-    box-shadow: 0 6px 18px rgba(70,64,55,0.08), inset 0 1px 1px rgba(255,255,255,0.6);
-    transition: opacity .18s ease, filter .18s ease, transform .18s ease, box-shadow .18s ease;
-}
-.ra-tile-row:has(> .admin-hub-cat.active) > .admin-hub-cat:not(.active):hover,
-.ra-tile-row:has(> .entw-hub-cat.active) > .entw-hub-cat:not(.active):hover { opacity: 0.9; filter: none; }
+/* Gewählte Kategorie mit markantem Rand, die übrigen bleiben voll sichtbar
+   (Walter 14.10.2026 — das Abschwächen vom 13.10. ist wieder raus). */
 .ra-tile.admin-hub-cat.active,
-.ra-tile.entw-hub-cat.active { transform: translateY(-3px); box-shadow: 0 20px 44px rgba(60,55,48,0.32); }
+.ra-tile.entw-hub-cat.active {
+    border: 3px solid #1a1a1a;
+    transform: translateY(-3px);
+    box-shadow: 0 0 0 4px rgba(26,26,26,0.10), 0 20px 44px rgba(60,55,48,0.32);
+}
 body.theme-dark .ra-tile.admin-hub-cat.active,
 body.theme-dark .ra-tile.entw-hub-cat.active {
     background: rgba(255,255,255,0.16);
-    border-color: #e5e2db;
+    border-color: #f5f3ee;
+    box-shadow: 0 0 0 4px rgba(245,243,238,0.18), 0 20px 44px rgba(0,0,0,0.4);
 }
 
 /* Systembereich: warmes Off-White statt kaltem Grau (Walter 16.08.2026).

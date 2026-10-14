@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261014a">
+    <link rel="stylesheet" href="css/app.css?v=20261014b">
 </head>
 <body>
 
@@ -2388,34 +2388,34 @@
                     </div>
                 </div>
                 <div class="hr-hub-group" id="hrHubGrp-kontrolle" style="display:none">
-                    <!-- Kontroll-Listen als Kacheln wie die Kategorien oben, Titel in der Kachel
-                         (Walter 13.10.2026, v3). CSS .kontr-menu / .kontr-kachel in app.css. -->
+                    <!-- Kontroll-Listen als Kacheln wie in der Systemsteuerung (Walter 14.10.2026,
+                         ersetzt die grossen .kontr-kachel vom 13.10.). -->
                     <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap">
-                    <div class="ra-tile-row kontr-menu">
-                        <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleOeffnen('luecken')">
-                            <img src="img/kontr-luecken.webp?v=20261013a" alt="" loading="lazy">
-                            <span>Lücken in Personalakten</span>
-                        </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="showPage('dok-protokoll')">
-                            <img src="img/kontr-dok-protokoll.webp?v=20261013a" alt="" loading="lazy">
-                            <span>Dokument-Upload-Protokoll</span>
-                        </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="showPage('schulungen-uebersicht')">
-                            <img src="img/kontr-schulungen.webp?v=20261013a" alt="" loading="lazy">
-                            <span>Schulungen</span>
-                        </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="showPage('mirus-fehlende-ma')">
-                            <img src="img/kontr-mirus.webp?v=20261013a" alt="" loading="lazy">
-                            <span>Mirus-Abgleich: fehlende MA</span>
-                        </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleOeffnen('fb')">
-                            <img src="img/kontr-familienbetreuung.webp?v=20261013a" alt="" loading="lazy">
-                            <span>Familienbetreuung: easy@work gegen Soll</span>
-                        </button>
-                        <button type="button" class="ra-tile kontr-kachel" onclick="kontrolleOeffnen('so')">
-                            <img src="img/kontr-sonntage.webp?v=20261013a" alt="" loading="lazy">
-                            <span>Freie Sonntage (4&nbsp;/&nbsp;12 pro&nbsp;Jahr)</span>
-                        </button>
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px;flex:1 1 100%">
+                        <div class="admin-card" onclick="kontrolleOeffnen('luecken')">
+                        <img src="img/kontr-luecken.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Lücken in Personalakten</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('dok-protokoll')">
+                        <img src="img/kontr-dok-protokoll.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Dokument-Upload-Protokoll</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('schulungen-uebersicht')">
+                        <img src="img/kontr-schulungen.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Schulungen</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('mirus-fehlende-ma')">
+                        <img src="img/kontr-mirus.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Mirus-Abgleich: fehlende MA</div>
+                    </div>
+                        <div class="admin-card" onclick="kontrolleOeffnen('fb')">
+                        <img src="img/kontr-familienbetreuung.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Familienbetreuung: easy@work gegen Soll</div>
+                    </div>
+                        <div class="admin-card" onclick="kontrolleOeffnen('so')">
+                        <img src="img/kontr-sonntage.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Freie Sonntage (4&nbsp;/&nbsp;12 pro&nbsp;Jahr)</div>
+                    </div>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px;flex:1 1 340px;min-width:0">
 
