@@ -152,6 +152,9 @@ DELETE FROM app_setting
 DELETE FROM user_branch_access;
 DELETE FROM app_user WHERE email <> 'walter.schaub@gmail.com';
 UPDATE app_user SET is_hr_team = true WHERE email = 'walter.schaub@gmail.com';
+-- Das Kataloge-TRUNCATE leert app_user mit. Der Erst-Admin entsteht im Start-SQL,
+-- das nur läuft, wenn schema_stand älter ist → Stand vergessen, Start-SQL läuft in 8/8 erneut.
+DELETE FROM schema_stand;
 SQL
 echo "   verbleibende app_setting-Schlüssel:"
 psql -tA "$TEST_URL" -c "SELECT '   · ' || key FROM app_setting ORDER BY key"
