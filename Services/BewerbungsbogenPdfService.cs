@@ -405,10 +405,10 @@ public class BewerbungsbogenPdfService
 
             // ── Ergänzende Angaben
             col.Item().PaddingTop(12).Element(e => SectionHead(e, "Ergänzende Angaben", null));
-            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
+            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Bankname", "Bankadresse"));
             col.Item().PaddingTop(9).Row(r =>
             {
-                r.RelativeItem().Element(f => LabeledLine(f, "Bankadresse"));
+                r.RelativeItem().Element(f => LabeledLine(f, "Kontonummer / IBAN"));
                 r.ConstantItem(16);
                 r.AutoItem().AlignBottom().PaddingBottom(2)
                     .Text("Schuhgrösse").FontSize(8.5f).Bold().FontColor(Ink);
