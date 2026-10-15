@@ -83,7 +83,8 @@ function elmzZeichnen() {
         : `Noch ${sua.restTage} Tag${sua.restTage === 1 ? '' : 'e'} gültig`;
 
     let knopf;
-    if (reg.laufend) knopf = '';
+    // Ein laufender neuer Antrag sperrt das Erneuern nur, wenn der Antrag des Zertifikats unbekannt ist.
+    if (reg.laufend && !(sua.antragBekannt && sua.aktion === 'erneuern')) knopf = '';
     else if (sua.aktion === 'erneuern')
         knopf = `<button type="button" class="btn btn-primary" onclick="elmzErneuern()" ${_elmzBusy ? 'disabled' : ''}>Zertifikat erneuern</button>`;
     else if (sua.aktion === 'neu_registrieren')

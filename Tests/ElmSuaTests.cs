@@ -166,6 +166,60 @@ public class ElmSuaTests
         }
     }
 
+    // ── Antrag des Zertifikats (Walter 15.10.2026: Erneuern lief gegen einen neueren Antrag) ──
+
+    [Fact]
+    public void NeuerAntrag_UeberschreibtAntragDesZertifikatsNicht()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "elm-fall-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var store = new ElmZertifikatStore(new MiniConfig(tmp));
+            var zert = new ElmSuaFall { CertificateRequestId = "A", Abgeschlossen = true };
+            store.SpeichereFall(zert);
+            store.SpeichereZertifikatFall(zert);
+
+            store.SpeichereFall(new ElmSuaFall { CertificateRequestId = "B", LetzterState = "verified" });
+            Assert.Equal("A", store.LadeZertifikatFall()!.CertificateRequestId);
+
+            zert.Erneuerungen = 1;
+            store.SpeichereZertifikatFall(zert);
+            Assert.Equal("B", store.LadeFall()!.CertificateRequestId);
+            Assert.Equal(1, store.LadeZertifikatFall()!.Erneuerungen);
+            Assert.True(ElmZertifikatStore.AntragLaufend(store.LadeFall(), store.LadeZertifikatFall()));
+        }
+        finally
+        {
+            try { Directory.Delete(tmp, true); } catch { /* temp */ }
+        }
+    }
+
+    [Fact]
+    public void AntragLaufend_NurWennErKeinZertifikatHat()
+    {
+        var a = new ElmSuaFall { CertificateRequestId = "A", Abgeschlossen = true };
+        var b = new ElmSuaFall { CertificateRequestId = "B" };
+        Assert.False(ElmZertifikatStore.AntragLaufend(null, a));
+        Assert.False(ElmZertifikatStore.AntragLaufend(a, a));
+        Assert.True(ElmZertifikatStore.AntragLaufend(b, a));
+        Assert.True(ElmZertifikatStore.AntragLaufend(b, null));
+        var altesZertifikat = new ElmSuaFall { CertificateRequestId = "C" };
+        Assert.False(ElmZertifikatStore.AntragLaufend(altesZertifikat, altesZertifikat));
+    }
+
+    [Fact]
+    public void GehoertZumZertifikat_OhneEigeneKopie()
+    {
+        var ab = new DateTime(2026, 10, 15, 14, 55, 0);
+        Assert.True(ElmZertifikatStore.GehoertZumZertifikat(new ElmSuaFall { Abgeschlossen = true }, ab));
+        Assert.True(ElmZertifikatStore.GehoertZumZertifikat(new ElmSuaFall { RegistriertAm = ab.AddHours(-1) }, ab));
+        // Fall Test-Instanz 15.10.2026: später begonnener, nie signierter Antrag.
+        Assert.False(ElmZertifikatStore.GehoertZumZertifikat(new ElmSuaFall { LetzterState = "verified" }, ab));
+        Assert.False(ElmZertifikatStore.GehoertZumZertifikat(new ElmSuaFall { RegistriertAm = ab.AddMinutes(4) }, ab));
+        Assert.False(ElmZertifikatStore.GehoertZumZertifikat(new ElmSuaFall { Abgeschlossen = true }, null));
+    }
+
     /// <summary>Nur CertStoragePath — ohne Memory-Config-Paket.</summary>
     private sealed class MiniConfig : Microsoft.Extensions.Configuration.IConfiguration
     {

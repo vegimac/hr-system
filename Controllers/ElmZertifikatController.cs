@@ -35,7 +35,7 @@ public class ElmZertifikatController : ControllerBase
     [HttpPost("erneuern")]
     public async Task<IActionResult> Erneuern(CancellationToken ct)
     {
-        var fall = _store.LadeFall();
+        var fall = _store.LadeZertifikatFall() ?? _store.LadeFall();
         if (fall == null)
             return BadRequest(new { error = "KEIN_FALL", message = "Es gibt noch keine Registrierung — zuerst «Neu registrieren»." });
         var vorher = SuaBis();
@@ -167,15 +167,15 @@ public class ElmZertifikatController : ControllerBase
     {
         var jetzt = DateTime.Now;
         var fall = _store.LadeFall();
+        var zertFall = _store.LadeZertifikatFall();
         X509Certificate2? sua = null, erp = null;
         try { sua = _store.LadeSua(); } catch { /* unlesbar = keines */ }
         try { erp = _store.LadeErp(); } catch { /* dito */ }
 
         var l = ElmZertifikatLaufzeit.Beurteile(sua?.NotBefore, sua?.NotAfter, sua?.HasPrivateKey == true,
-            fall?.Erneuerungen ?? 0, jetzt);
+            zertFall?.Erneuerungen ?? 0, jetzt);
 
-        var laufend = fall != null && !fall.Abgeschlossen
-            && (sua == null || (fall.RegistriertAm is DateTime reg && reg > sua.NotBefore));
+        var laufend = ElmZertifikatStore.AntragLaufend(fall, zertFall);
 
         var hs = await _db.Hauptsitze.AsNoTracking().Where(h => h.IsActive).OrderBy(h => h.Id).FirstOrDefaultAsync(ct);
         var ziel = ElmEndpunkte.FindeNachUrl(ZielUrl(fall)) ?? ElmEndpunkte.Standard();
@@ -204,9 +204,10 @@ public class ElmZertifikatController : ControllerBase
                 maxErneuerungen = ElmZertifikatLaufzeit.MaxErneuerungen,
                 l.ErneuernErlaubt,
                 aussteller = sua?.GetNameInfo(X509NameType.SimpleName, true),
+                antragBekannt = zertFall != null,
             },
             erp = erpTeil,
-            auto = new { letzterVersuch = fall?.AutoVersuchAm, fehler = fall?.AutoFehler },
+            auto = new { letzterVersuch = zertFall?.AutoVersuchAm, fehler = zertFall?.AutoFehler },
             registrierung = new
             {
                 laufend,

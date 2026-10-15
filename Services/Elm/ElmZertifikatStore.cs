@@ -378,6 +378,72 @@ public class ElmZertifikatStore
         if (File.Exists(p)) File.Delete(p);
     }
 
+    // ── Antrag des installierten Zertifikats (Walter 15.10.2026) ────────────
+    // Erneuern geht nur über den Antrag, aus dem das Zertifikat stammt (CertificateRequestID +
+    // Credentials). Ein neuer Antrag überschreibt sua-fall.json — darum eine eigene Kopie, sonst
+    // läuft «Erneuern» gegen einen Antrag ohne Zertifikat und Swissdec schickt nur den Brief neu.
+
+    private const string ZertifikatFallDatei = "sua-fall-zertifikat.json";
+
+    /// <summary>
+    /// Antrag des installierten Zertifikats. Ohne eigene Kopie (Stand vor 15.10.2026) gilt der
+    /// gespeicherte Antrag, wenn er abgeschlossen ist; sonst ist der Antrag unbekannt (NULL).
+    /// </summary>
+    public ElmSuaFall? LadeZertifikatFall()
+    {
+        var p = Path.Combine(_root, ZertifikatFallDatei);
+        if (File.Exists(p))
+        {
+            try { return JsonSerializer.Deserialize<ElmSuaFall>(File.ReadAllText(p)); }
+            catch { return null; }
+        }
+        var fall = LadeFall();
+        return fall != null && GehoertZumZertifikat(fall, SuaGueltigAb()) ? fall : null;
+    }
+
+    /// <summary>
+    /// Vor einem neuen Antrag: den bisherigen Antrag als Antrag des Zertifikats sichern, falls er
+    /// dazu gehört und es dafür noch keine eigene Kopie gibt.
+    /// </summary>
+    public void SichereZertifikatFall()
+    {
+        if (File.Exists(Path.Combine(_root, ZertifikatFallDatei))) return;
+        var suaAb = SuaGueltigAb();
+        if (suaAb != null && LadeFall() is { } bisher && GehoertZumZertifikat(bisher, suaAb))
+            SpeichereZertifikatFall(bisher);
+    }
+
+    /// <summary>
+    /// Ohne eigene Kopie: gehört der gespeicherte Antrag zum installierten Zertifikat? Ja, wenn er
+    /// abgeschlossen ist oder vor dem Zertifikat registriert wurde (Stand vor «Abgeschlossen»).
+    /// </summary>
+    public static bool GehoertZumZertifikat(ElmSuaFall fall, DateTime? suaGueltigAb)
+        => suaGueltigAb != null
+           && (fall.Abgeschlossen || (fall.RegistriertAm is DateTime reg && reg < suaGueltigAb));
+
+    /// <summary>Läuft ein Antrag, der (noch) kein Zertifikat hat?</summary>
+    public static bool AntragLaufend(ElmSuaFall? fall, ElmSuaFall? zertifikatFall)
+        => fall != null && !fall.Abgeschlossen
+           && fall.CertificateRequestId != zertifikatFall?.CertificateRequestId;
+
+    private DateTime? SuaGueltigAb()
+    {
+        try { using var z = LadeSua(); return z?.NotBefore; }
+        catch { return null; }
+    }
+
+    /// <summary>Speichert den Antrag des Zertifikats; ist er zugleich der laufende Antrag, auch diesen.</summary>
+    public void SpeichereZertifikatFall(ElmSuaFall fall)
+    {
+        Directory.CreateDirectory(_root);
+        var p = Path.Combine(_root, ZertifikatFallDatei);
+        File.WriteAllText(p, JsonSerializer.Serialize(fall, new JsonSerializerOptions { WriteIndented = true }));
+        VersucheRechte600(p);
+        var haupt = LadeFall();
+        if (haupt == null || haupt.CertificateRequestId == fall.CertificateRequestId)
+            SpeichereFall(fall);
+    }
+
     // ── Foundation-Stand je Prüfpunkt (Walter 29.09.2026) ────────────────────
     // Bewusst Datei statt DB: gehört zur Testinfrastruktur wie Zertifikate und Fall.
 

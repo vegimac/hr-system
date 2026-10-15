@@ -45,7 +45,7 @@ public class ElmZertifikatAutoErneuerung : BackgroundService
     private async Task DurchgangAsync(IServiceProvider sp, CancellationToken ct)
     {
         var store = sp.GetRequiredService<ElmZertifikatStore>();
-        var fall = store.LadeFall();
+        var fall = store.LadeZertifikatFall();
         if (fall == null) return;
 
         DateTime? vorher;
@@ -60,7 +60,7 @@ public class ElmZertifikatAutoErneuerung : BackgroundService
         if (fall.AutoVersuchAm?.Date == DateTime.Today) return;
 
         fall.AutoVersuchAm = DateTime.Now;
-        store.SpeichereFall(fall);
+        store.SpeichereZertifikatFall(fall);
 
         var url = ElmEndpunkte.IstSicher(fall.Url) ? fall.Url! : ElmEndpunkte.Standard().Url;
         string? fehler;
@@ -73,10 +73,10 @@ public class ElmZertifikatAutoErneuerung : BackgroundService
         catch (InvalidOperationException ex) { fehler = ex.Message; }
         catch (HttpRequestException ex) { fehler = "Swissdec nicht erreichbar: " + ex.Message; }
 
-        var aktuell = store.LadeFall() ?? fall;
+        var aktuell = store.LadeZertifikatFall() ?? fall;
         aktuell.AutoVersuchAm = fall.AutoVersuchAm;
         aktuell.AutoFehler = fehler;
-        store.SpeichereFall(aktuell);
+        store.SpeichereZertifikatFall(aktuell);
 
         if (fehler == null)
             _log.LogInformation("[SUA-Erneuerung] Zertifikat automatisch erneuert ({Url}).", url);

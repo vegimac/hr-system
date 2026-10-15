@@ -256,6 +256,7 @@ public class ElmSuaService
                 CustomerIdentity = dto.CustomerIdentity, ContractIdentity = dto.ContractIdentity,
                 UpdatedAt = DateTime.Now,
             };
+            _store.SichereZertifikatFall();
             _store.SpeichereFall(fall);
             meldung = "Register erfolgreich — CertificateRequestID und Credentials gespeichert. Als Nächstes «Status abfragen».";
         }
@@ -292,8 +293,18 @@ public class ElmSuaService
     {
         var erp = _store.LadeErp()
             ?? throw new InvalidOperationException("ERP-Zertifikat fehlt.");
-        var fall = _store.LadeFall()
-            ?? throw new InvalidOperationException("Kein laufender SUA-Fall — zuerst «Registrieren».");
+        // Erneuern über den Antrag des installierten Zertifikats — nicht über einen später
+        // begonnenen Antrag, der noch kein Zertifikat hat.
+        var fall = renew
+            ? _store.LadeZertifikatFall() ?? throw new InvalidOperationException(
+                "Das Zertifikat stammt aus einem früheren Antrag, den OneCrew nicht mehr kennt — Erneuern geht darum nicht. "
+                + "Bitte den laufenden Antrag abschliessen (Passwort eingeben); das neue Zertifikat lässt sich danach wieder erneuern.")
+            : _store.LadeFall() ?? throw new InvalidOperationException("Kein laufender SUA-Fall — zuerst «Registrieren».");
+        void Speichern(bool zertifikatNeu)
+        {
+            if (renew || zertifikatNeu) _store.SpeichereZertifikatFall(fall);
+            else _store.SpeichereFall(fall);
+        }
 
         ElmCsrVariante? variante = null;
         XElement? signBlock = null;
@@ -395,7 +406,7 @@ public class ElmSuaService
             if (ElmTransmitterClient.DeuteSicherheitsFault(call) is { } nachVersuch)
             {
                 csrKey?.Dispose();
-                _store.SpeichereFall(fall);
+                Speichern(false);
                 return new SuaErgebnis(call, fall.LetzterState, nachVersuch.Meldung, fall, _store.HatSuaZertifikat())
                 { Meldungen = LiesMeldungen(call.AntwortVerworfen ? null : call.ResponseXml, call.AntwortVerworfen ? null : call.FaultCode) };
             }
@@ -430,8 +441,10 @@ public class ElmSuaService
             meldung = string.IsNullOrWhiteSpace(meldung) ? text : meldung + " · " + text;
         }
 
+        var zertifikatNeu = false;
         if (geparst.ZertifikatPem != null && csrKey != null && variante != null)
         {
+            zertifikatNeu = true;
             var pemText = PemAusBase64(geparst.ZertifikatPem);
             _store.SpeichereSua(pemText, csrKey);
             // dieselbe Variante beim Erneuern
@@ -451,8 +464,17 @@ public class ElmSuaService
             if (versuche.Count > 1)
                 meldung += " · CSR-Versuche: " + string.Join(" · ", versuche);
         }
+        else if (renew)
+        {
+            // Ohne Zertifikat in der Antwort hilft «bereit zum Signieren» nicht weiter.
+            var grund = geparst.Fehler ?? call.FaultText
+                ?? (meldungen.Abgewiesen ? string.Join(": ", new[] { meldungen.DescriptionCode, meldungen.Description }
+                        .Where(s => !string.IsNullOrWhiteSpace(s))) : null)
+                ?? (geparst.State != null ? $"der Antrag steht bei Swissdec auf «{geparst.State}»" : null);
+            meldung = "Swissdec hat kein neues Zertifikat geliefert" + (string.IsNullOrWhiteSpace(grund) ? "." : $" — {grund}.");
+        }
 
-        _store.SpeichereFall(fall);
+        Speichern(zertifikatNeu);
         return new SuaErgebnis(call, geparst.State, meldung, fall, _store.HatSuaZertifikat())
         { Meldungen = meldungen };
     }

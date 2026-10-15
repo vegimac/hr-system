@@ -1242,6 +1242,14 @@ Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und AHV-AVS · 046.000 
   die im Verlauf einer Monats-/Jahresmeldung stehen; Key/Password der Freigabe werden in der
   Download-Kopie durch `***` ersetzt, die Archivdatei auf dem Server bleibt unverändert, die
   Meldung selbst enthält keine Zugangsdaten und bleibt Byte für Byte gleich. Tests `ElmVerbindungTests`.
+- **Erneuern über den Antrag des Zertifikats** (15.10.2026): Auf der Testinstanz lief «Zertifikat
+  erneuern» gegen einen später begonnenen, nie signierten Antrag (Register aus den
+  Zertifizierungstests hatte `sua-fall.json` überschrieben) — Swissdec antwortete nur mit
+  «verified» + Passwort-Brief, ohne Zertifikat. Seither liegt der Antrag des installierten
+  Zertifikats in `sua-fall-zertifikat.json`; RenewCertificate und die automatische Erneuerung nehmen
+  nur ihn, ein neuer Antrag lässt ihn stehen. Ist er unbekannt (Altbestand), sagt «Erneuern» das
+  klar und die Karte zeigt den laufenden Antrag zum Abschliessen. Liefert Swissdec beim Erneuern
+  kein Zertifikat, steht der Grund in der Meldung (nicht mehr «bereit zum Signieren»). Tests in `ElmSuaTests`.
 
 ---
 

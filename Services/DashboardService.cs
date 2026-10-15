@@ -1039,19 +1039,20 @@ public class DashboardService
         if (_elmStore != null && Enabled("elm_zertifikat"))
         {
             var fall = _elmStore.LadeFall();
+            var zertFall = _elmStore.LadeZertifikatFall();
             System.Security.Cryptography.X509Certificates.X509Certificate2? sua = null;
             try { sua = _elmStore.LadeSua(); } catch { /* unlesbar = keines */ }
             if (sua != null || fall != null)
             {
                 var l = HrSystem.Services.Elm.ElmZertifikatLaufzeit.Beurteile(sua?.NotBefore, sua?.NotAfter,
-                    sua?.HasPrivateKey == true, fall?.Erneuerungen ?? 0, DateTime.Now);
+                    sua?.HasPrivateKey == true, zertFall?.Erneuerungen ?? 0, DateTime.Now);
                 sua?.Dispose();
-                var laufendeRegistrierung = fall is { Abgeschlossen: false, RegistriertAm: not null };
+                var laufendeRegistrierung = HrSystem.Services.Elm.ElmZertifikatStore.AntragLaufend(fall, zertFall);
                 string? titel = null, text = l.Text;
-                if (!string.IsNullOrWhiteSpace(fall?.AutoFehler))
+                if (!string.IsNullOrWhiteSpace(zertFall?.AutoFehler))
                 {
                     titel = "Swissdec-Zertifikat: automatische Erneuerung gescheitert";
-                    text = fall!.AutoFehler + " · " + l.Text;
+                    text = zertFall!.AutoFehler + " · " + l.Text;
                 }
                 else if (l.Stufe != HrSystem.Services.Elm.ElmZertifikatLaufzeit.Ok && !(laufendeRegistrierung && l.GueltigBis == null))
                 {
@@ -1064,7 +1065,7 @@ public class DashboardService
                     alerts.Add(new DashboardAlert
                     {
                         Category  = "elm_zertifikat",
-                        Severity  = l.Stufe == HrSystem.Services.Elm.ElmZertifikatLaufzeit.Rot || fall?.AutoFehler != null ? "critical" : "warning",
+                        Severity  = l.Stufe == HrSystem.Services.Elm.ElmZertifikatLaufzeit.Rot || zertFall?.AutoFehler != null ? "critical" : "warning",
                         Title     = titel,
                         Subtitle  = text,
                         DueDate   = l.GueltigBis?.Date,
