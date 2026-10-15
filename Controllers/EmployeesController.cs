@@ -3,6 +3,7 @@ using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
 using HrSystem.Services.EasyAtWork;
+using HrSystem.Services.Personaldaten;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -721,8 +722,13 @@ public class EmployeesController : ControllerBase
         // Kanton + Land aus PLZ ableiten, falls nicht mitgeliefert.
         await EnrichAddressFromZipAsync(employee);
 
+        var pd = new PersonaldatenAuswertung(_context);
+        var (pdFehler, pdOffen) = await pd.NeueBeimSpeichernAsync(employee, null, HttpContext.RequestAborted);
+        if (PersonaldatenAntwort(pdFehler, pdOffen, out var pdBestaetigt) is IActionResult pdStop) return pdStop;
+
         _context.Employees.Add(employee);
         await _context.SaveChangesAsync();
+        await PersonaldatenBestaetigungMerkenAsync(pd, employee, pdBestaetigt);
 
         // Auto-Postfach für jeden neu angelegten MA. Falls die Hauptfiliale
         // (Employment) zu diesem Zeitpunkt noch nicht erfasst ist, wird der
@@ -1031,7 +1037,14 @@ public class EmployeesController : ControllerBase
         if (dto.LgavPflichtig.HasValue)        employee.LgavPflichtig        = dto.LgavPflichtig.Value;
         if (dto.TeilzeitUnter8hWoche.HasValue) employee.TeilzeitUnter8hWoche = dto.TeilzeitUnter8hWoche.Value;
 
+        // Personaldaten-Plausibilität (Walter 15.10.2026): nur was diese Änderung neu falsch macht.
+        var pd = new PersonaldatenAuswertung(_context);
+        var pdVorher = (Employee)_context.Entry(employee).OriginalValues.ToObject();
+        var (pdFehler, pdOffen) = await pd.NeueBeimSpeichernAsync(employee, pdVorher, HttpContext.RequestAborted);
+        if (PersonaldatenAntwort(pdFehler, pdOffen, out var pdBestaetigt) is IActionResult pdStop) return pdStop;
+
         await _context.SaveChangesAsync();
+        await PersonaldatenBestaetigungMerkenAsync(pd, employee, pdBestaetigt);
 
         // Postfach-Login mit Aktiv-Status synchronisieren (idempotent).
         // Greift jetzt nur noch wenn Walter den Haken bewusst geändert hat —
@@ -1044,6 +1057,78 @@ public class EmployeesController : ControllerBase
             await _qstKonfessionSync.TrySyncAsync(employee.Id, employee.Religion);
 
         return Ok(employee);
+    }
+
+    /// <summary>
+    /// 400 bei Fehlern, 409 bei offenen Rückfragen, die der Browser nicht im Kopf
+    /// «X-Personaldaten-Bestaetigt» mitgeschickt hat; sonst null (speichern).
+    /// </summary>
+    private IActionResult? PersonaldatenAntwort(List<PdBefund> fehler, List<PdBefund> offen, out List<PdBefund> bestaetigt)
+    {
+        bestaetigt = new();
+        if (fehler.Count > 0)
+            return BadRequest(new
+            {
+                error = "PERSONALDATEN_UNGUELTIG",
+                message = "Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(fehler),
+                befunde = fehler,
+            });
+        var kopf = PersonaldatenAuswertung.SchluesselAusKopf(Request.Headers["X-Personaldaten-Bestaetigt"].ToString());
+        var nochOffen = offen.Where(b => !kopf.Contains(b.Schluessel)).ToList();
+        if (nochOffen.Count > 0)
+            return Conflict(new
+            {
+                error = "PERSONALDATEN_BESTAETIGEN",
+                message = "Bitte bestätigen: " + PersonaldatenPruefung.Zusammenfassung(nochOffen),
+                befunde = nochOffen,
+            });
+        bestaetigt = offen;
+        return null;
+    }
+
+    private async Task PersonaldatenBestaetigungMerkenAsync(PersonaldatenAuswertung pd, Employee e, List<PdBefund> bestaetigt)
+    {
+        if (bestaetigt.Count == 0) return;
+        var von = await pd.BenutzerNameAsync(CurrentUserId(), HttpContext.RequestAborted);
+        foreach (var b in bestaetigt)
+            await pd.BestaetigenAsync(e.Id, e.EasyAtWorkEmployeeId, b.Code, b.Wert, von, HttpContext.RequestAborted);
+    }
+
+    private int? CurrentUserId()
+        => int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var v) ? v : null;
+
+    // GET /api/employees/{id}/personaldaten-pruefung — offene Befunde für die Karte in der MA-Maske.
+    [HttpGet("{id:int}/personaldaten-pruefung")]
+    public async Task<IActionResult> GetPersonaldatenPruefung(int id, CancellationToken ct)
+    {
+        if (!await _context.Employees.AnyAsync(e => e.Id == id, ct)) return NotFound();
+        var befunde = await new PersonaldatenAuswertung(_context).BefundeAsync(new[] { id }, ct);
+        var liste = befunde.GetValueOrDefault(id) ?? new List<PdBefund>();
+        return Ok(new
+        {
+            befunde = liste.Select(b => new
+            {
+                b.Code, b.Feld, b.Text, b.Wert,
+                stufe = b.Stufe == PdStufe.Fehler ? "fehler" : "bestaetigen",
+            }),
+        });
+    }
+
+    public record PersonaldatenBestaetigenDto(string Code, string Wert);
+
+    // POST /api/employees/{id}/personaldaten-bestaetigen — «Stimmt so» für genau diesen Wert.
+    [HttpPost("{id:int}/personaldaten-bestaetigen")]
+    public async Task<IActionResult> PersonaldatenBestaetigen(int id, [FromBody] PersonaldatenBestaetigenDto dto, CancellationToken ct)
+    {
+        var e = await _context.Employees.AsNoTracking()
+            .Where(x => x.Id == id).Select(x => new { x.Id, x.EasyAtWorkEmployeeId }).FirstOrDefaultAsync(ct);
+        if (e == null) return NotFound();
+        if (dto == null || !Services.Personaldaten.PersonaldatenPruefung.BestaetigbareCodes.Contains(dto.Code ?? ""))
+            return BadRequest(new { error = "NICHT_BESTAETIGBAR", message = "Diese Angabe muss korrigiert werden (in easy@work bzw. in der Maske)." });
+        var pd = new PersonaldatenAuswertung(_context);
+        await pd.BestaetigenAsync(e.Id, e.EasyAtWorkEmployeeId, dto.Code!, dto.Wert ?? "",
+            await pd.BenutzerNameAsync(CurrentUserId(), ct), ct);
+        return Ok(new { ok = true });
     }
 
     // GET /api/employees/{id}/deactivate-check

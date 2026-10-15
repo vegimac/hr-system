@@ -546,6 +546,7 @@ body.import-contract-mode .api-contract-card .row-actions { margin-top: 8px; }
 <script src="js/file-preview.js?v=20261012a"></script>
 <script src="js/date-year-quickpick.js?v=20261013b"></script>
 <script src="js/liquid-select.js?v=20261004a"></script>
+<script src="js/personaldaten.js?v=20261015a"></script>
 <script>
 // ── AUTH ──────────────────────────────────────────────
 // Token from URL param (passed from index.html) or localStorage
@@ -1094,20 +1095,20 @@ async function importPreviewEasyEmployee(eawEmployeeId) {
         let existingContracts = [];
 
         if (employeeId) {
-            const upd = await fetch(`/api/employees/${employeeId}`, {
+            const upd = await pdFetch(`/api/employees/${employeeId}`, {
                 method: 'PUT',
                 headers: ah(),
                 body: JSON.stringify(payload)
             });
-            if (!upd.ok) throw new Error('Mitarbeiter aktualisieren: ' + await upd.text());
+            if (!upd.ok) throw new Error('Mitarbeiter aktualisieren: ' + await pdFehlertext(upd));
             await maybeCreateBankAccountFromCsv(employeeId, row);
         } else {
-            const cre = await fetch('/api/employees', {
+            const cre = await pdFetch('/api/employees', {
                 method: 'POST',
                 headers: ah(),
                 body: JSON.stringify(payload)
             });
-            if (!cre.ok) throw new Error('Mitarbeiter anlegen: ' + await cre.text());
+            if (!cre.ok) throw new Error('Mitarbeiter anlegen: ' + await pdFehlertext(cre));
             const created = await cre.json();
             employeeId = created.id;
             await maybeCreateBankAccountFromCsv(employeeId, row);
@@ -3333,7 +3334,7 @@ async function saveNewPhantom(idx) {
     alertEl.innerHTML = '';
     try {
         const payload = buildPersonPayload(row);
-        const res = await fetch('/api/employees', {
+        const res = await pdFetch('/api/employees', {
             method: 'POST', headers: ah(), body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error(await res.text());
@@ -4203,10 +4204,10 @@ async function saveNewEmployee(idx) {
     try {
         // 1. Neuen Mitarbeiter anlegen
         const personPayload = buildPersonPayload(row);
-        const empRes = await fetch('/api/employees', {
+        const empRes = await pdFetch('/api/employees', {
             method: 'POST', headers: ah(), body: JSON.stringify(personPayload)
         });
-        if (!empRes.ok) throw new Error('Mitarbeiter anlegen: ' + await empRes.text());
+        if (!empRes.ok) throw new Error('Mitarbeiter anlegen: ' + await pdFehlertext(empRes));
         const newEmp = await empRes.json();
         const empId = newEmp.id;
 
@@ -4265,9 +4266,10 @@ async function saveContractChange(idx, employeeId) {
     try {
         // 1. Personaldaten updaten
         const personPayload = buildPersonPayload(row);
-        await fetch(`/api/employees/${employeeId}`, {
+        const persRes = await pdFetch(`/api/employees/${employeeId}`, {
             method: 'PUT', headers: ah(), body: JSON.stringify(personPayload)
         });
+        if (!persRes.ok) throw new Error('Mitarbeiter aktualisieren: ' + await pdFehlertext(persRes));
 
         // 2. Vertrag erstellen oder bei gleicher easy@work-Startzeile den vorhandenen Vertrag aktualisieren
         const contractPayload = buildContractPayload(idx, employeeId, row);
@@ -4299,7 +4301,7 @@ async function runAllNew() {
     for (let i = 0; i < parsedRows.length; i++) {
         if (rowStates[i]?.status !== 'new' || rowStates[i]?.done) continue;
         try {
-            const res = await fetch('/api/employees', {
+            const res = await pdFetch('/api/employees', {
                 method: 'POST', headers: ah(), body: JSON.stringify(buildPersonPayload(parsedRows[i]))
             });
             if (res.ok) {
@@ -4446,7 +4448,7 @@ async function runAutoImportAll() {
 
         try {
             const payload = buildPersonPayload(r.row);
-            const res = await fetch('/api/employees', {
+            const res = await pdFetch('/api/employees', {
                 method: 'POST', headers: ah(), body: JSON.stringify(payload)
             });
             if (!res.ok) throw new Error(await res.text());
@@ -4514,7 +4516,7 @@ async function runAutoImportAll() {
             const cityCheck = resolveCityForImport(get(r.row, 'Postleitzahl'), get(r.row, 'Stadt'));
             if (cityCheck.error) throw new Error(cityCheck.error);
             const payload = buildPersonPayload(r.row);
-            const res = await fetch(`/api/employees/${r.state.employeeId}`, {
+            const res = await pdFetch(`/api/employees/${r.state.employeeId}`, {
                 method: 'PUT', headers: ah(), body: JSON.stringify(payload)
             });
             if (!res.ok) {
@@ -4581,7 +4583,7 @@ async function runAll() {
         const empId = rowStates[i].employeeId;
         try {
             const payload = buildPersonPayload(row);
-            const res = await fetch(`/api/employees/${empId}`, {
+            const res = await pdFetch(`/api/employees/${empId}`, {
                 method: 'PUT', headers: ah(), body: JSON.stringify(payload)
             });
             if (res.ok) {

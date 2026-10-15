@@ -1191,7 +1191,17 @@ Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und AHV-AVS · 046.000 
   nicht übernommen. Anzeige (Interop, SUA, Übermittlung): «✗ Antwort abgelehnt (WS-Security)»,
   direkt darunter der Signaturbefund, der Fault nur grau durchgestrichen. Test
   `Fault_MitUngueltigerSignatur_MeldetZuerstSignatur`.
-- **F06_01 beanstandet:** laut Walter ein Problem auf Seite Swissdec, bei uns nichts zu ändern.
+- **F06_01 beanstandet:** «PlausiRules noch nicht vollständig abgefangen». Laut Experte muss
+  das HR-System die Personaldaten schon bei der Erfassung prüfen, nicht erst die fertige Meldung.
+  **Gebaut 15.10.2026 (Schema-Stand 75):** eine Prüfregel `Services/Personaldaten/PersonaldatenPruefung.cs`
+  für easy@work-Import (alle Wege), Speichern im MA (POST/PUT), Familie und IBAN, dazu das
+  To-do `personaldaten_pruefen` und die Karte in der MA-Übersicht. Geprüft: Alter < 16 / > 70
+  (nur mit Bestätigung), Geburtsdatum, Datumsfolge Geburt/Eintritt/Austritt, Geschlecht,
+  Nationalität, AHV-Prüfziffer + doppelte AHV, doppelte Person, Telefon (libphonenumber),
+  E-Mail (Format + Tippfehler bei bekannten Anbietern), Land/PLZ/Ort (CH gegen das
+  PLZ-Verzeichnis, Ausland Format je Land), Bewilligung ↔ Nationalität/Wohnsitz, Namen,
+  Familie (AHV, Geburtsdaten, Kind > 25), IBAN-Prüfziffer. Fehler werden nie übernommen,
+  Rückfragen nur mit gespeicherter Bestätigung. Tests `Tests/PersonaldatenPruefungTests.cs`.
 - **Gesamteindruck:** Aufbau zu technisch. Swissdec will eine fertige Anwendung sehen, die
   sendet, empfängt, Fehler meldet und Korrekturen zurücksendet — F01–F08 sollen im normalen
   Ablauf erfüllt sein, nicht als Prüfpunkt-Knöpfe. Entscheid Walter: die neue Schnittstelle

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.Personaldaten;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Services.EasyAtWork;
@@ -138,6 +139,8 @@ public class EasyAtWorkEmployeeSyncService
         public int?     ReentryEmployeeId         { get; set; }
         public string?  ReentryEmployeeNumber     { get; set; }
         public int?     ReentryNewEawId           { get; set; }   // die NEUE eaw-ID, die als Alias gesichert würde
+        /// <summary>Personaldaten, die erst nach «Bist du sicher?» übernommen werden (z.B. Alter unter 16).</summary>
+        public List<PdBefund> Bestaetigen         { get; set; } = new();
         /// <summary>„wird angelegt" / „wird nachgeholt" / „existiert" — nur beim Massenimport.</summary>
         public string?  EmploymentInfo            { get; set; }
 
@@ -224,6 +227,8 @@ public class EasyAtWorkEmployeeSyncService
         /// Löschen — kein Auto-Delete (Walter 27.07.2026).
         /// </summary>
         public List<OrphanedPregnancyInfo> OrphanedPregnancies { get; set; } = new();
+        /// <summary>Personaldaten, die erst nach «Bist du sicher?» übernommen werden.</summary>
+        public List<PdBefund> Bestaetigen { get; set; } = new();
     }
 
     public sealed class OrphanedPregnancyInfo
@@ -782,6 +787,24 @@ public class EasyAtWorkEmployeeSyncService
         {
             result.Errors.Add($"{master.Functions.Count} Funktionen gefunden: {string.Join(", ", master.Functions)} — mehrdeutig, MA wird nicht importiert/angepasst. Bitte in easy@work auf eine Funktion reduzieren.");
             return result;
+        }
+
+        // Personaldaten-Plausibilität (Walter 15.10.2026) — wie im Massenimport.
+        if (!emp.IsPayrollExcluded)
+        {
+            var pdK = await PersonaldatenKontextAsync(ct);
+            var (pdFehler, pdOffen) = PersonaldatenNeu(pdK, master, emp.Id > 0 ? emp : null, null, eaw.Id);
+            if (pdFehler.Count > 0)
+            {
+                result.Errors.Add("Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(pdFehler) + " — bitte in easy@work korrigieren, nichts übernommen.");
+                return result;
+            }
+            if (pdOffen.Count > 0)
+            {
+                result.Bestaetigen = pdOffen;
+                result.Errors.Add("Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(pdOffen) + " — Bestätigung nötig, nichts übernommen.");
+                return result;
+            }
         }
 
         void SetString(string label, string? current, string? next, Action<string?> set, bool allowNull = true, bool exactCase = false)
@@ -1711,6 +1734,8 @@ public class EasyAtWorkEmployeeSyncService
         var natByCode = await _db.Nationalities.AsNoTracking()
             .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
 
+        var pd = await PersonaldatenKontextAsync(ct);
+
         // Kader-Funktionsgruppen (is_kader, z.B. REST_MANAGER, ASST_1/2,
         // SHIFT_LEADER_*) — für die FIX→FIX-M-Erkennung in der Vorschau
         // (Walter 08.07.2026): Manager-Funktionen sind IMMER FIX-M.
@@ -2014,6 +2039,27 @@ public class EasyAtWorkEmployeeSyncService
                 row.Reason = vertragsFehler;
                 res.Rows.Add(row); res.CountConflict++;
                 continue;
+            }
+
+            // Personaldaten-Plausibilität (Walter 15.10.2026, Swissdec F06_01):
+            // nur was der Import NEU falsch machen würde, hält die Zeile an —
+            // bestehende Mängel meldet das To-do «personaldaten_pruefen».
+            if ((co == null || diffs.Any(d => d.WillSet)) && co?.IsPayrollExcluded != true)
+            {
+                int? wiedereintrittId = null;
+                if (co == null && eaw.BirthDate.HasValue
+                    && byNameDob.TryGetValue(NameDobKey(eaw.FirstName, eaw.LastName, eaw.BirthDate.Value), out var reCand))
+                    wiedereintrittId = reCand.Id;
+                var (pdFehler, pdOffen) = PersonaldatenNeu(pd, master, co, wiedereintrittId, eaw.Id);
+                if (pdFehler.Count > 0 || pdOffen.Count > 0)
+                {
+                    row.Status = "CONFLICT";
+                    row.Reason = "Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(pdFehler.Concat(pdOffen).ToList())
+                               + (pdFehler.Count > 0 ? " — bitte in easy@work korrigieren." : " — Bestätigung nötig.");
+                    row.Bestaetigen = pdFehler.Count == 0 ? pdOffen : new List<PdBefund>();
+                    res.Rows.Add(row); res.CountConflict++;
+                    continue;
+                }
             }
 
             if (co == null)
@@ -4781,6 +4827,101 @@ public class EasyAtWorkEmployeeSyncService
     private static string NameDobKey(string? firstName, string? lastName, DateOnly dateOfBirth)
         => NameDobKey(firstName, lastName, dateOfBirth.ToDateTime(TimeOnly.MinValue));
 
+    // ── Personaldaten-Plausibilität (Walter 15.10.2026, Swissdec F06_01) ──────
+    private sealed class PersonaldatenKontext
+    {
+        public required PersonaldatenDuplikate Duplikate { get; init; }
+        public required Dictionary<int, string> Nationalitaeten { get; init; }
+        public required Dictionary<int, string> Bewilligungen { get; init; }
+        public required List<PersonaldatenBestaetigung> Bestaetigt { get; init; }
+        public HashSet<string>? ChPlz { get; init; }
+        public DateOnly Heute { get; init; }
+    }
+
+    private async Task<PersonaldatenKontext> PersonaldatenKontextAsync(CancellationToken ct)
+    {
+        var a = new PersonaldatenAuswertung(_db);
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        return new PersonaldatenKontext
+        {
+            Duplikate = await a.DuplikateAsync(ct),
+            Nationalitaeten = await a.NationalitaetenAsync(ct),
+            Bewilligungen = await a.BewilligungenAsync(null, heute, ct),
+            Bestaetigt = await _db.PersonaldatenBestaetigungen.AsNoTracking().ToListAsync(ct),
+            ChPlz = await a.ChPlzAsync(ct),
+            Heute = heute,
+        };
+    }
+
+    /// <summary>
+    /// Person, wie sie nach dem Import dastünde: easy@work-Wert, wo easy einen liefert,
+    /// sonst der bisherige (leere easy-Felder gelten nicht als «falsch gemacht»).
+    /// </summary>
+    private static PdPerson PersonNachImport(EmployeeMasterData m, Employee? alt, PersonaldatenKontext k)
+    {
+        static string? S(string? neu, string? bisher) => string.IsNullOrWhiteSpace(neu) ? bisher : neu;
+        var (altCode, altUnbekannt) = alt != null
+            ? PersonaldatenAuswertung.Nationalitaet(alt, k.Nationalitaeten)
+            : (null, null);
+        string? natCode, natUnbekannt;
+        if (string.IsNullOrWhiteSpace(m.Nationality)) (natCode, natUnbekannt) = (altCode, altUnbekannt);
+        else if (m.NationalityId != null) (natCode, natUnbekannt) = (m.Nationality!.Trim().ToUpperInvariant(), null);
+        else (natCode, natUnbekannt) = (null, m.Nationality!.Trim());
+
+        return new PdPerson
+        {
+            Vorname = S(m.FirstName, alt?.FirstName),
+            Nachname = S(m.LastName, alt?.LastName),
+            Geburt = m.DateOfBirth ?? (alt?.DateOfBirth is DateTime g ? DateOnly.FromDateTime(g) : null),
+            Geschlecht = S(m.Gender, alt?.Gender),
+            NationalitaetCode = natCode,
+            NationalitaetUnbekannt = natUnbekannt,
+            Ahv = S(m.Ahv, alt?.SocialSecurityNumber),
+            Telefon = S(m.Phone, alt?.PhoneMobile),
+            Telefon2 = alt?.Phone2,
+            Email = S(m.Email, alt?.Email),
+            Land = S(m.Country, alt?.Country),
+            Plz = S(m.ZipCode, alt?.ZipCode),
+            Ort = S(m.City, alt?.City),
+            Strasse = S(m.Street, alt?.Street),
+            Eintritt = m.EntryDate ?? (alt?.EntryDate is DateTime ein ? DateOnly.FromDateTime(ein) : null),
+            Austritt = m.ExitDate ?? (alt?.ExitDate is DateTime aus ? DateOnly.FromDateTime(aus) : null),
+            BewilligungCode = alt != null ? k.Bewilligungen.GetValueOrDefault(alt.Id) : null,
+        };
+    }
+
+    /// <summary>
+    /// Was der Import neu falsch machen würde: Fehler (nie übernehmen) und noch nicht
+    /// bestätigte Rückfragen. Doppelte Person bei neuem MA übernimmt die
+    /// Wiedereintritts-Erkennung — hier nur die doppelte AHV-Nummer.
+    /// </summary>
+    private static (List<PdBefund> Fehler, List<PdBefund> Offen) PersonaldatenNeu(
+        PersonaldatenKontext k, EmployeeMasterData m, Employee? alt, int? wiedereintrittId, int eawId)
+    {
+        var neuP = PersonNachImport(m, alt, k);
+        var neu = PersonaldatenPruefung.Pruefe(neuP, k.Heute, null, k.ChPlz);
+        neu.AddRange(k.Duplikate.Pruefe(alt?.Id ?? wiedereintrittId, neuP.Ahv, neuP.Vorname, neuP.Nachname, neuP.Geburt)
+            .Where(b => alt != null || b.Code == "AHV_DOPPELT"));
+
+        List<PdBefund> befunde = neu;
+        if (alt != null)
+        {
+            var (c, u) = PersonaldatenAuswertung.Nationalitaet(alt, k.Nationalitaeten);
+            var altP = PersonaldatenAuswertung.AusEmployee(alt, c, u, k.Bewilligungen.GetValueOrDefault(alt.Id));
+            var vorher = PersonaldatenPruefung.Pruefe(altP, k.Heute, null, k.ChPlz);
+            vorher.AddRange(k.Duplikate.Pruefe(alt.Id, altP.Ahv, altP.Vorname, altP.Nachname, altP.Geburt));
+            befunde = PersonaldatenPruefung.NurNeue(neu, vorher);
+        }
+
+        var ok = k.Bestaetigt
+            .Where(b => b.EasyAtWorkEmployeeId == eawId || (alt != null && b.EmployeeId == alt.Id))
+            .Select(b => b.Code + "|" + b.Wert)
+            .ToHashSet();
+        var fehler = befunde.Where(b => b.Stufe == PdStufe.Fehler).ToList();
+        var offen = PersonaldatenPruefung.OhneBestaetigte(befunde.Where(b => b.Stufe == PdStufe.Bestaetigen), ok);
+        return (fehler, offen);
+    }
+
     /// <summary>
     /// Offensichtlich eine andere Person? Vorname UND Nachname weichen ab und das
     /// Geburtsdatum bestätigt nicht (Walter-Bug 03.10.2026: Pelagia Pantouveri wurde
@@ -5389,6 +5530,7 @@ public class EasyAtWorkEmployeeSyncService
         if (string.IsNullOrWhiteSpace(phone)) return null;
         var digits = new string(phone.Where(char.IsDigit).ToArray());
         if (digits.Length == 0) return null;
+        if (PersonaldatenPruefung.TelefonFormatiert(phone) is string gueltig) return gueltig;
         if (digits.StartsWith("00")) digits = digits[2..];
         if (digits.StartsWith("0"))  digits = "41" + digits[1..];
         if (!digits.StartsWith("41") && digits.Length == 9) digits = "41" + digits;

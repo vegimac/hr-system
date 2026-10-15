@@ -1773,6 +1773,45 @@ public class DashboardService
             }
         }
 
+        // ── Personaldaten unplausibel (Walter 15.10.2026, Swissdec F06_01) ──
+        // Dieselbe Prüfung wie Import und Speichern (PersonaldatenPruefung), hier
+        // für den Bestand. Ein To-do pro MA mit allen offenen Befunden; bestätigte
+        // («Stimmt so») fallen weg. Reichweite wie zivilstand_fehlt.
+        if (Enabled("personaldaten_pruefen"))
+        {
+            var pdQ = _db.Employees.AsNoTracking()
+                .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
+                         && e.Employments.Any(em =>
+                                em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today));
+            if (companyProfileId.HasValue)
+                pdQ = pdQ.Where(e => e.Employments.Any(em =>
+                    em.CompanyProfileId == companyProfileId.Value
+                    && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+            var pdMa = await pdQ.Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber }).ToListAsync();
+            if (pdMa.Count > 0)
+            {
+                var befunde = await new HrSystem.Services.Personaldaten.PersonaldatenAuswertung(_db)
+                    .BefundeAsync(pdMa.Select(e => e.Id).ToList(), CancellationToken.None);
+                foreach (var e in pdMa)
+                {
+                    if (!befunde.TryGetValue(e.Id, out var liste)) continue;
+                    var pdName = $"{e.FirstName} {e.LastName}".Trim();
+                    var fehler = liste.Any(b => b.Stufe == HrSystem.Services.Personaldaten.PdStufe.Fehler);
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "personaldaten_pruefen",
+                        Severity = SeverityState("personaldaten_pruefen", "warning"),
+                        Title    = fehler ? "Personaldaten unplausibel" : "Personaldaten bestätigen",
+                        Subtitle = $"{pdName} · Personalnr. {e.EmployeeNumber} · "
+                                 + HrSystem.Services.Personaldaten.PersonaldatenPruefung.Zusammenfassung(liste),
+                        EmployeeId     = e.Id,
+                        EmployeeNumber = e.EmployeeNumber,
+                        EmployeeName   = pdName
+                    });
+                }
+            }
+        }
+
         // ── GastroSocial An-/Abmeldung fehlt (Walter 13.10.2026) ───────────
         // Jeder Eintritt (pro Filiale = eigenes Konto) braucht eine Anmeldung, jeder erfasste
         // Austritt eine Abmeldung. Gemeldet = Knopf auf der AKIS-Seite oder übernommen aus dem

@@ -1642,7 +1642,12 @@ public class EasyAtWorkController : ControllerBase
         }
         var res = await _empSync.SyncSingleCoworkEmployeeAsync(employeeId, dto?.CompanyProfileId, ct);
         if (!res.Success && res.Errors.Count > 0)
-            return BadRequest(new { error = "EAW_SINGLE_SYNC_INVALID", message = string.Join("\n", res.Errors), res.Errors, res.Notes });
+            return BadRequest(new
+            {
+                error = res.Bestaetigen.Count > 0 ? "PERSONALDATEN_BESTAETIGEN" : "EAW_SINGLE_SYNC_INVALID",
+                message = string.Join("\n", res.Errors), res.Errors, res.Notes,
+                befunde = res.Bestaetigen,
+            });
         return Ok(res);
     }
 

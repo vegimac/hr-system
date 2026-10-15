@@ -1,6 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.Personaldaten;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -224,6 +225,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         member.EmployeeId = employeeId;
         member.CreatedAt = DateTime.Now;
         member.UpdatedAt = DateTime.Now;
+        if (await FamilieUngueltigAsync(employeeId, member, null) is IActionResult pdStop) return pdStop;
 
         // AlternativeAddressId nur akzeptieren, wenn die Zusatzadresse
         // tatsächlich zum gleichen MA gehört (Schutz vor Cross-MA-IDs).
@@ -253,6 +255,34 @@ public class EmployeeFamilyMembersController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { employeeId, id = member.Id }, member);
     }
 
+    /// <summary>
+    /// Personaldaten-Plausibilität Familie (Walter 15.10.2026): ungültige AHV-Nummer oder
+    /// unmögliches Geburtsdatum nicht speichern — nur was die Eingabe neu falsch macht.
+    /// </summary>
+    private async Task<IActionResult?> FamilieUngueltigAsync(int employeeId, EmployeeFamilyMember neu, EmployeeFamilyMember? alt)
+    {
+        var maGeb = await _context.Employees.AsNoTracking()
+            .Where(e => e.Id == employeeId).Select(e => e.DateOfBirth).FirstOrDefaultAsync();
+        DateOnly? maGeburt = maGeb is DateTime mg ? DateOnly.FromDateTime(mg) : null;
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        static PdFamilie F(EmployeeFamilyMember m) => new()
+        {
+            Art = m.MemberType,
+            Vorname = m.FirstName,
+            Geburt = m.DateOfBirth is DateTime g ? DateOnly.FromDateTime(g) : null,
+            Ahv = m.SocialSecurityNumber,
+        };
+        var neuB = PersonaldatenPruefung.PruefeFamilie(F(neu), maGeburt, heute).Where(b => b.Stufe == PdStufe.Fehler);
+        var altB = alt != null ? PersonaldatenPruefung.PruefeFamilie(F(alt), maGeburt, heute) : null;
+        var neue = PersonaldatenPruefung.NurNeue(neuB, altB);
+        return neue.Count == 0 ? null : BadRequest(new
+        {
+            error = "PERSONALDATEN_UNGUELTIG",
+            message = PersonaldatenPruefung.Zusammenfassung(neue),
+            befunde = neue,
+        });
+    }
+
     // PUT /api/employees/{employeeId}/family/{id}
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int employeeId, int id, EmployeeFamilyMember member)
@@ -261,6 +291,7 @@ public class EmployeeFamilyMembersController : ControllerBase
             .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeId == employeeId);
 
         if (existing == null) return NotFound();
+        if (await FamilieUngueltigAsync(employeeId, member, existing) is IActionResult pdStop) return pdStop;
 
         existing.MemberType           = member.MemberType;
         existing.Gender               = member.Gender;

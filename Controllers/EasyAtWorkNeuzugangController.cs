@@ -1,6 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Services;
 using HrSystem.Services.EasyAtWork;
+using HrSystem.Services.Personaldaten;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -100,8 +101,22 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             .ThenBy(r => r.FirstName).ThenBy(r => r.LastName)
             .ToList();
 
-        var conflicts = res.Rows.Where(r => r.Status == "CONFLICT")
+        var conflicts = res.Rows.Where(r => r.Status == "CONFLICT" && r.Bestaetigen.Count == 0)
             .Select(r => $"{r.FirstName} {r.LastName} ({r.Number}): {r.Reason}".Trim())
+            .ToList();
+
+        // Personaldaten, die nur nach «Bist du sicher?» übernommen werden (Walter 15.10.2026).
+        var bestaetigen = res.Rows.Where(r => r.Status == "CONFLICT" && r.Bestaetigen.Count > 0)
+            .OrderBy(r => r.FirstName).ThenBy(r => r.LastName)
+            .Select(r => new
+            {
+                r.Number,
+                r.FirstName,
+                r.LastName,
+                eawEmployeeId = r.EawEmployeeId,
+                employeeId = r.CoworkEmployeeId,
+                befunde = r.Bestaetigen.Select(b => new { b.Code, b.Text, b.Wert }).ToList(),
+            })
             .ToList();
 
         var seq = await BuildNumberSequenceInfoAsync(dto.CompanyProfileId, ct);
@@ -113,6 +128,7 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             countUpdate = res.CountUpdate,
             countVertragFehlt = rows.Count(r => r.vertragFehlt),
             conflicts,
+            bestaetigen,
             phantomSkipped = res.CountPhantomSkipped,
             notes = res.Notes,
             numberSequence = seq,
@@ -180,6 +196,27 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             notes = res.Notes,
             numberSequenceWarning,
         });
+    }
+
+    public record BestaetigenDto(int CompanyProfileId, int EawEmployeeId, int? EmployeeId, List<BefundDto> Befunde);
+    public record BefundDto(string Code, string Wert);
+
+    /// <summary>«Bist du sicher?» beantwortet — gilt für genau diesen Wert; ändert er sich, fragt der Import neu.</summary>
+    [HttpPost("bestaetigen")]
+    public async Task<IActionResult> Bestaetigen([FromBody] BestaetigenDto dto, CancellationToken ct)
+    {
+        if (dto == null || dto.CompanyProfileId <= 0 || dto.EawEmployeeId <= 0 || dto.Befunde == null || dto.Befunde.Count == 0)
+            return BadRequest(new { error = "Angaben unvollständig." });
+        if (!await CanAccessBranchAsync(dto.CompanyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        if (dto.Befunde.Any(b => !PersonaldatenPruefung.BestaetigbareCodes.Contains(b.Code ?? "")))
+            return BadRequest(new { error = "NICHT_BESTAETIGBAR", message = "Diese Angabe muss in easy@work korrigiert werden." });
+
+        var a = new PersonaldatenAuswertung(_db);
+        var von = await a.BenutzerNameAsync(GetCurrentUserId(), ct);
+        foreach (var b in dto.Befunde)
+            await a.BestaetigenAsync(dto.EmployeeId, dto.EawEmployeeId, b.Code, b.Wert ?? "", von, ct);
+        return Ok(new { ok = true });
     }
 
     private async Task<NumberSequenceInfo> BuildNumberSequenceInfoAsync(int companyProfileId, CancellationToken ct)

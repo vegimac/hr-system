@@ -2042,7 +2042,9 @@ function loadUebersichtTab() {
     // Personalien · Anstellung|Nachtarbeit · Verträge|Saldi · Weitere Adressen
     el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
-        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div><div class="ov-addr-full">${kAddr}</div>`}</div>`;
+        : `<div id="pdKarte" class="ov-full" style="display:none"></div><div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div><div class="ov-addr-full">${kAddr}</div>`}</div>`;
+    if (!emp.isPayrollExcluded && typeof pdKarteLaden === 'function')
+        pdKarteLaden(emp.id);
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
         loadEmployeeAddressesTab(emp.id);
     if (!emp.isPayrollExcluded) {
@@ -2500,6 +2502,19 @@ async function easyworkSyncSelectedEmployee(empId) {
         });
         const data = await res.json().catch(() => ({}));
         ocLoadingOverlay(false);
+        if (!res.ok && data.error === 'PERSONALDATEN_BESTAETIGEN' && (data.befunde || []).length
+            && typeof pdFrage === 'function') {
+            if (!await pdFrage(data.befunde, _syncName)) return;
+            for (const b of data.befunde) {
+                const rb = await fetch(`/api/employees/${empId}/personaldaten-bestaetigen`, {
+                    method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: b.code, wert: b.wert || '' }),
+                });
+                if (!rb.ok) { alert('Bestätigung nicht gespeichert: ' + await pdFehlertext(rb)); return; }
+            }
+            setTimeout(() => easyworkSyncSelectedEmployee(empId), 0);
+            return;
+        }
         if (!res.ok || data.success === false) {
             const errors = data.errors && data.errors.length ? data.errors : [data.message || data.error || 'easy@work-Abgleich fehlgeschlagen.'];
             const notes = (data.notes && data.notes.length) ? '\n\nHinweise:\n' + data.notes.map(n => '• ' + n).join('\n') : '';
@@ -7563,7 +7578,7 @@ async function saveEmpEdit() {
 
         // Nur Stammdaten speichern – Vertragsdaten werden im Modul Vertrag bearbeitet
         const requests = [
-            fetch(`/api/employees/${selectedEmployeeId}`, {
+            (typeof pdFetch === 'function' ? pdFetch : fetch)(`/api/employees/${selectedEmployeeId}`, {
                 method: 'PUT',
                 headers: { ...ah(), 'Content-Type': 'application/json' },
                 body: JSON.stringify(empPayload)
@@ -15375,10 +15390,11 @@ async function saveBankAccount() {
     if (!from) { alert('"Gültig ab"-Datum ist erforderlich.'); return; }
     if (to && to < from) { alert('"Gültig bis" muss nach "Gültig ab" liegen.'); return; }
 
-    // IBAN-Validierung vor dem Speichern (mit Confirm falls ungültig)
+    // IBAN-Prüfziffer: der Server lehnt eine ungültige neue IBAN ab (Walter 15.10.2026) —
+    // hier nur früher sagen, ohne «Trotzdem speichern».
     if (typeof validateIban === 'function') {
         const r = validateIban(iban, 'IBAN');
-        if (!r.valid && !(await liquidConfirm(`Die IBAN scheint ungültig:\n${r.error}\n\nTrotzdem speichern?`))) return;
+        if (!r.valid) { alert(`Die IBAN ist ungültig:\n${r.error}`); return; }
     }
 
     // Sicherheits-Check: Bemerkung wie „Lohnzahlung Iksarenko Maryna 756.5352.1067.16"
@@ -16339,8 +16355,10 @@ async function empImportFromEasyApi() {
         const rows = j.rows || [];
         _empEasyNumberSeq = j.numberSequence || null;
         if (!rows.length) {
-            body.innerHTML = `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px;font-size:13px">✓ Alles aktuell — keine neuen MA und keine Änderungen bei aktiven MA.</div>`
-                + _empEasyNotes(j);
+            body.innerHTML = ((j.bestaetigen || []).length
+                    ? ''
+                    : `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px;font-size:13px">✓ Alles aktuell — keine neuen MA und keine Änderungen bei aktiven MA.</div>`)
+                + _empEasyNotes(j, cpId);
             return;
         }
         body.innerHTML = `
@@ -16381,7 +16399,7 @@ async function empImportFromEasyApi() {
                 <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d8b8b8;background:#fff;border-radius:999px;padding:3px 10px;font-weight:600">Trotzdem importieren</span>
                 <span style="color:#646464">Nummer in easy@work geblockt oder Lücke wird gefüllt — freie Nummer trotz Reihenfolge übernehmen</span>
             </label>
-            ${_empEasyNotes(j)}`;
+            ${_empEasyNotes(j, cpId)}`;
         foot.innerHTML = `
             <button onclick="document.getElementById('empEasyImportModal').style.display='none'"
                     style="padding:9px 16px;border:1px solid rgba(139,139,139,0.35);border-radius:12px;background:rgba(255,255,255,0.5);cursor:pointer;font-size:13px;color:#646464">Abbrechen</button>
@@ -16442,8 +16460,8 @@ function _empEasyValidateNewSequence(newNumbers) {
     return { ok: false, message, lueckeMoeglich };
 }
 
-function _empEasyNotes(j) {
-    let html = '';
+function _empEasyNotes(j, cpId) {
+    let html = typeof pdNeuzugangHtml === 'function' ? pdNeuzugangHtml(j, cpId) : '';
     // «MA ohne Lohn» (Supervisor) werden nie importiert — das aber SAGEN,
     // nicht stillschweigend weglassen (Walter 01.09.2026).
     if (j.phantomSkipped > 0)

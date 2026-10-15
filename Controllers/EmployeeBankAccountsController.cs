@@ -203,7 +203,7 @@ public class EmployeeBankAccountsController : ControllerBase
             });
         }
 
-        var err = Validate(dto);
+        var err = Validate(dto, entry.Iban);
         if (err != null) return BadRequest(new { message = err });
 
         entry.Iban                 = NormalizeIban(dto.Iban)!;
@@ -258,10 +258,12 @@ public class EmployeeBankAccountsController : ControllerBase
     // ── Helpers ────────────────────────────────────────────────────────────
     private static readonly string[] _aufteilungTypen = { "VOLL", "FIXBETRAG", "PROZENT", "NETTO_ABZUEGLICH" };
 
-    private static string? Validate(EmployeeBankAccountDto dto)
+    private static string? Validate(EmployeeBankAccountDto dto, string? bisherigeIban = null)
     {
         if (dto.EmployeeId <= 0) return "EmployeeId fehlt.";
         if (string.IsNullOrWhiteSpace(dto.Iban)) return "IBAN ist erforderlich.";
+        if (!Services.Personaldaten.PersonaldatenPruefung.IbanGueltig(dto.Iban) && NormalizeIban(dto.Iban) != bisherigeIban)
+            return $"IBAN «{dto.Iban.Trim()}» ist ungültig (Prüfziffer stimmt nicht).";
         if (string.IsNullOrWhiteSpace(dto.ValidFrom)) return "'Gültig ab' ist erforderlich.";
         if (!DateOnly.TryParse(dto.ValidFrom, out var from)) return "'Gültig ab' ungültig.";
         if (!string.IsNullOrWhiteSpace(dto.ValidTo))

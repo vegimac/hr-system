@@ -161,6 +161,7 @@ public class AppDbContext : DbContext
     public DbSet<MailWiedervorlage>         MailWiedervorlagen          => Set<MailWiedervorlage>();
     public DbSet<VirenFund>                 VirenFunde                  => Set<VirenFund>();
     public DbSet<GastroSocialMeldung>       GastroSocialMeldungen       => Set<GastroSocialMeldung>();
+    public DbSet<PersonaldatenBestaetigung> PersonaldatenBestaetigungen => Set<PersonaldatenBestaetigung>();
     public DbSet<EasyAtWorkMaSyncLog>       EasyAtWorkMaSyncLogs        => Set<EasyAtWorkMaSyncLog>();
     public DbSet<DvelopSetting>             DvelopSettings              => Set<DvelopSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
@@ -3601,6 +3602,21 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+        });
+
+        // ── Bestätigte Befunde der Personaldaten-Prüfung (Walter 15.10.2026) ──
+        modelBuilder.Entity<PersonaldatenBestaetigung>(entity =>
+        {
+            entity.ToTable("personaldaten_bestaetigung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.EasyAtWorkEmployeeId).HasColumnName("easyatwork_employee_id");
+            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.Wert).HasColumnName("wert");
+            entity.Property(e => e.BestaetigtVon).HasColumnName("bestaetigt_von");
+            entity.Property(e => e.BestaetigtAm).HasColumnName("bestaetigt_am")
+                  .HasColumnType("timestamp without time zone");
         });
 
         // ── MailBounce — Rückläufer aus dem bounce@-Postfach (Walter 01.09.2026) ──
