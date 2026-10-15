@@ -59,6 +59,7 @@ das Quality Tool.
 | Lauf 1, 27.09.2026 23:58 | 18d94c5daae72ae5f | Egli rot, SalaryTotals rot, catchAll gelb |
 | Lauf 2, 28.09.2026 18:50 / 18:54 | 18d98a25524f26049 / 18d98a5d74817bd22 | zusätzlich Aebi BVG rot (neue Referenz) |
 | Lauf 2, 28.09.2026 19:48 (nach Korrektur K1 + K2) | **18d98d51b4a008876** | **nur noch F1** (Egli + SalaryTotals) |
+| Lauf 3, 15.10.2026 ~22:45 — **erste Sendung direkt aus OneCrew** (ohne Refapps) | (siehe ELM-Liste) | nur noch F1 (Egli A0Y/36.05 statt A0N/34.00 + Summe LU); Testinstanz noch mit Daten vor 28.09 → nach Neuaufbau der Muster AG (Egli A0N) sollte F1 wegfallen |
 
 Endstand (Sendung 19:48):
 
