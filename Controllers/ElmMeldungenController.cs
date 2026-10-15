@@ -96,6 +96,32 @@ public class ElmMeldungenController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { error = "ANTWORTEN", message = ex.Message }); }
     }
 
+    // ── Verbindung + Archiv ──────────────────────────────────────────────────
+
+    [HttpGet("verbindung")]
+    public IActionResult Verbindung() => Ok(new { ziel = _dienst.Ziel.Name, letzte = _dienst.LetzteVerbindung() });
+
+    /// <summary>Ping + Testnachricht — nur auf Knopfdruck (Richtlinien: Ping nie automatisieren).</summary>
+    [HttpPost("verbindung/pruefen")]
+    public async Task<IActionResult> VerbindungPruefen(CancellationToken ct)
+    {
+        try
+        {
+            var von = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+            return Ok(new { ziel = _dienst.Ziel.Name, letzte = await _dienst.VerbindungPruefenAsync(von, ct) });
+        }
+        catch (InvalidOperationException ex) { return Conflict(new { error = "VERBINDUNG", message = ex.Message }); }
+    }
+
+    [HttpGet("archiv/{name}")]
+    public IActionResult ArchivDatei(string name)
+    {
+        var inhalt = _dienst.ArchivDatei(name);
+        return inhalt == null
+            ? NotFound(new { error = "NICHT_GEFUNDEN", message = "Archivdatei nicht gefunden." })
+            : File(System.Text.Encoding.UTF8.GetBytes(inhalt), "application/xml", name);
+    }
+
     // ── Stand ────────────────────────────────────────────────────────────────
 
     private object Stand()
@@ -108,6 +134,9 @@ public class ElmMeldungenController : ControllerBase
             meldungen = _dienst.Liste().Select(Projektion),
         };
     }
+
+    /// <summary>Verlauf je Meldung in der Liste — die automatische Abfrage schreibt stündlich eine Zeile.</summary>
+    private const int VerlaufMax = 200;
 
     private static object Projektion(ElmVorgang v)
     {
@@ -123,6 +152,13 @@ public class ElmMeldungenController : ControllerBase
             fertig = v.JobFinished && v.Adressaten.All(ElmMeldungAnzeige.Erledigt),
             ersetzbar = ElmMeldungAnzeige.Ersetzbar(v),
             letzteAbfrage = new[] { v.LetzteStatusAbfrage }.Concat(v.Adressaten.Select(a => a.LetzteSynchronisierung)).Max(),
+            gesendeteMeldung = v.Protokoll.FirstOrDefault(p => p.Schritt == "declare")?.ArchivAnfrage,
+            verlauf = v.Protokoll.OrderByDescending(p => p.Zeit).Take(VerlaufMax).Select(p => new
+            {
+                p.Zeit, schritt = ElmVerbindung.Schritt(p.Schritt), p.Text,
+                anfrage = p.ArchivAnfrage, antwort = p.ArchivAntwort,
+            }),
+            verlaufAnzahl = v.Protokoll.Count,
             empfaenger = v.Adressaten.Select(a =>
             {
                 var e = ElmMeldungAnzeige.Empfaenger(a);

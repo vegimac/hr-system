@@ -10,6 +10,7 @@ let _elmmErsatz = null;        // Meldung, die ersetzt wird
 let _elmmBusy = false;
 let _elmmMeldung = null;       // { ok, text } über der Liste
 let _elmmOffen = new Set();
+let _elmmVerlaufOffen = new Set();
 let _elmmAeltere = false;
 let _elmmZert = false;
 let _elmmTimer = null;
@@ -48,8 +49,77 @@ function elmmInit() {
     _elmmVorschau = null;
     _elmmErsatz = null;
     _elmmMeldung = null;
+    _elmvFehler = null;
     elmmSendenZeichnen();
     elmmLaden();
+    elmvLaden();
+}
+
+// ── Verbindung (drei Ampeln, nur auf Knopfdruck) ──────────────────────────
+
+let _elmv = null;              // { ziel, letzte }
+let _elmvBusy = false;
+let _elmvFehler = null;
+
+async function elmvLaden() {
+    try {
+        const r = await fetch('/api/elm/meldungen/verbindung', { headers: ah(), cache: 'no-store' });
+        if (!r.ok) throw new Error('Fehler ' + r.status);
+        _elmv = await r.json();
+    } catch (e) {
+        _elmvFehler = e.message;
+    }
+    elmvZeichnen();
+}
+
+async function elmvPruefen() {
+    if (_elmvBusy) return;
+    _elmvBusy = true;
+    _elmvFehler = null;
+    elmvZeichnen();
+    try {
+        const r = await fetch('/api/elm/meldungen/verbindung/pruefen', { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || 'Fehler ' + r.status);
+        _elmv = j;
+    } catch (e) {
+        _elmvFehler = e.message === 'Failed to fetch' ? 'Server nicht erreichbar.' : e.message;
+    } finally {
+        _elmvBusy = false;
+        elmvZeichnen();
+    }
+}
+
+function _elmvKachel(titel, a) {
+    const f = _ELMM_STUFE[a?.stufe] || _ELMM_STUFE.grau;
+    return `<div style="flex:1 1 240px;padding:12px 14px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.35)">
+        <div style="display:flex;align-items:center;gap:8px">
+            <span style="width:12px;height:12px;border-radius:50%;background:${f.punkt};flex:0 0 12px"></span>
+            <b style="color:#3f3f3f;font-size:13px">${titel}</b></div>
+        <div style="margin-top:6px;font-size:13px;color:${a ? f.text : '#8b8b8b'}">${_elmzEsc(a?.text || 'Noch nicht geprüft.')}</div>
+        ${a?.tipp ? `<div style="margin-top:4px;font-size:12px;color:#646464">${_elmzEsc(a.tipp)}</div>` : ''}
+        ${a?.detail ? `<details style="margin-top:4px;font-size:11px;color:#8b8b8b"><summary style="cursor:pointer">Technisch</summary>${_elmzEsc(a.detail)}</details>` : ''}
+    </div>`;
+}
+
+function elmvZeichnen() {
+    const box = document.getElementById('elmvVerbindung');
+    if (!box) return;
+    const l = _elmv?.letzte;
+    box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="font-size:12px;color:#8b8b8b;text-transform:uppercase;letter-spacing:.04em">Verbindung zu Swissdec</div>
+            <span style="font-size:12px;color:#8b8b8b">${_elmzEsc(_elmv?.ziel || '')}</span>
+            <span style="font-size:12px;color:#8b8b8b;margin-left:auto">${l ? 'Zuletzt geprüft ' + _elmmDatum(l.geprueftAm) + (l.geprueftVon ? ' von ' + _elmzEsc(l.geprueftVon) : '') : 'Noch nie geprüft'}</span>
+            <button type="button" class="btn btn-secondary" onclick="elmvPruefen()" ${_elmvBusy ? 'disabled' : ''}>${_elmvBusy ? 'Prüfe …' : 'Verbindung prüfen'}</button>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+            ${_elmvKachel('Swissdec erreichbar', l?.erreichbar)}
+            ${_elmvKachel('Uhrzeit', l?.uhrzeit)}
+            ${_elmvKachel('Sichere Übermittlung', l?.sicher)}
+        </div>
+        ${_elmvFehler ? _elmmBox(false, _elmzEsc(_elmvFehler)) : ''}
+        <div style="margin-top:8px;font-size:12px;color:#8b8b8b">Swissdec erlaubt diesen Test nur von Hand — OneCrew prüft die Verbindung nie selbständig.</div>`;
 }
 
 async function elmmLaden() {
@@ -330,14 +400,51 @@ function _elmmMeldungHtml(m, mi) {
         </summary>
         <div style="padding:0 14px 14px">
             ${m.empfaenger.map((e, ei) => _elmmEmpfaengerHtml(m, mi, e, ei)).join('')}
+            ${_elmmVerlaufHtml(m)}
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
                 <span style="font-size:12px;color:#8b8b8b">${m.letzteAbfrage ? 'Zuletzt abgefragt ' + _elmmDatum(m.letzteAbfrage) : ''}</span>
                 <span style="margin-left:auto"></span>
+                ${m.gesendeteMeldung ? `<button type="button" class="btn btn-secondary" onclick="elmmArchivSpeichern('${_elmzEsc(m.gesendeteMeldung)}')">Gesendete Meldung herunterladen</button>` : ''}
                 ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmmErsetzen('${_elmzEsc(m.id)}')">Korrigierte Meldung senden</button>` : ''}
                 ${m.fertig ? '' : `<button type="button" class="btn btn-secondary" onclick="elmmAbfragen('${_elmzEsc(m.id)}')" ${_elmmBusy ? 'disabled' : ''}>Stand jetzt abfragen</button>`}
             </div>
         </div>
     </details>`;
+}
+
+/** Archiv der Meldung: jeder Schritt mit der gesendeten Anfrage und der Antwort von Swissdec. */
+function _elmmVerlaufHtml(m) {
+    const v = m.verlauf || [];
+    if (!v.length) return '';
+    const knopf = (name, text) => name
+        ? `<a href="#" onclick="elmmArchivSpeichern('${_elmzEsc(name)}');return false" style="color:#3f3f3f;white-space:nowrap">${text}</a>` : '';
+    const zeilen = v.map(p => `<tr>
+        <td style="padding:4px 10px 4px 0;white-space:nowrap;color:#646464">${_elmmDatum(p.zeit)}</td>
+        <td style="padding:4px 10px 4px 0;white-space:nowrap;color:#3f3f3f;font-weight:600">${_elmzEsc(p.schritt)}</td>
+        <td style="padding:4px 10px 4px 0;color:#646464">${_elmzEsc(p.text)}</td>
+        <td style="padding:4px 0;white-space:nowrap">${knopf(p.anfrage, 'Gesendet')}${p.anfrage && p.antwort ? ' · ' : ''}${knopf(p.antwort, 'Antwort')}</td></tr>`).join('');
+    const mehr = m.verlaufAnzahl > v.length ? `<div style="font-size:11px;color:#8b8b8b;margin-top:4px">Die neuesten ${v.length} von ${m.verlaufAnzahl} Schritten.</div>` : '';
+    return `<details data-id="${_elmzEsc(m.id)}" ${_elmmVerlaufOffen.has(m.id) ? 'open' : ''}
+        ontoggle="this.open ? _elmmVerlaufOffen.add(this.dataset.id) : _elmmVerlaufOffen.delete(this.dataset.id)"
+        style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(60,55,48,0.10)">
+        <summary style="cursor:pointer;font-size:13px;color:#646464">Verlauf und Archiv (${m.verlaufAnzahl})
+            <span style="color:#8b8b8b">— jede gesendete Nachricht und jede Antwort von Swissdec, so wie sie übermittelt wurde</span></summary>
+        <div style="overflow-x:auto;margin-top:6px"><table style="border-collapse:collapse;font-size:12px;width:100%">${zeilen}</table></div>${mehr}
+    </details>`;
+}
+
+async function elmmArchivSpeichern(name) {
+    try {
+        const r = await fetch(`/api/elm/meldungen/archiv/${encodeURIComponent(name)}`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            throw new Error(j.message || 'Fehler ' + r.status);
+        }
+        await saveBlobAsk(await r.blob(), name);
+    } catch (e) {
+        _elmmMeldung = { ok: false, text: e.message };
+        elmmListeZeichnen();
+    }
 }
 
 function _elmmOffenMerken(el) {

@@ -400,6 +400,26 @@ public class ElmZertifikatStore
         VersucheRechte600(p);
     }
 
+    // ── Letzte Verbindungsprüfung der Seite Lohnmeldungen (Walter 15.10.2026) ──
+
+    private const string VerbindungDatei = "verbindung-stand.json";
+
+    public ElmVerbindungStand? LadeVerbindung()
+    {
+        var p = Path.Combine(_root, VerbindungDatei);
+        if (!File.Exists(p)) return null;
+        try { return JsonSerializer.Deserialize<ElmVerbindungStand>(File.ReadAllText(p)); }
+        catch { return null; }
+    }
+
+    public void SpeichereVerbindung(ElmVerbindungStand stand)
+    {
+        Directory.CreateDirectory(_root);
+        var p = Path.Combine(_root, VerbindungDatei);
+        File.WriteAllText(p, JsonSerializer.Serialize(stand, new JsonSerializerOptions { WriteIndented = true }));
+        VersucheRechte600(p);
+    }
+
     // ── Archiv lesen (Foundation F04_01_2: Archiv-Dateien im ERP prüfen) ─────
 
     private static readonly Regex ArchivName = new(@"^[0-9]{8}-[0-9]{6}-[A-Za-z0-9_\-]+\.xml$");

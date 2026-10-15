@@ -1222,6 +1222,26 @@ Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und AHV-AVS · 046.000 
   10 Minuten nach dem Senden alle 20 s nach (UC002: ≥ 10 s). Wartet ein Empfänger auf den
   Benutzer ⇒ To-do `elm_meldung` (Schema-Stand 74, nur Admin). Key/Password des Jobs verlassen
   den Server nie (ausser im Freigabe-Link des Empfängers). Tests `ElmMeldungAnzeigeTests`.
+  - **Nur-Info-Nachrichten** (Anhang D.2.5): eine DialogMessage ohne Eingabefeld wird nicht
+    beantwortet, nur quittiert — Anzeige «nur zur Kenntnis», die Automatik quittiert nach 10 Min.
+  - **Hängender Empfänger:** schickt ein Empfänger dieselbe Mitteilung trotz Quittung ab dem
+    3. Mal wieder (Refapps-Statistik-Empfänger, Simple Message), meldet OneCrew «Empfänger geht
+    nicht weiter … beim Empfänger nachfragen» (orange + To-do) und fragt wieder nur stündlich.
+  - **Tests aus der Zertifizierung** (Vorgänge ohne gespeicherte Adresse, vor 15.10.2026) stehen
+    grau in einer eigenen, zugeklappten Gruppe und werden nicht mehr abgefragt.
+- **Verbindung und Archiv** (Etappe 3, 15.10.2026): Karte «Verbindung zu Swissdec» mit drei
+  Ampeln — **Swissdec erreichbar** (Ping, F01_02), **Uhrzeit** (Zeitvergleich aus der Antwort,
+  rot ab 60 s, F01_03), **Sichere Übermittlung** (CheckInteroperability: Signatur, Verschlüsselung,
+  nachgerechnete Testrechnung, F02/F03 — gleiche Prüfung wie `ElmBereitschaft.Interop`). **Nur
+  auf Knopfdruck** (Ping nie automatisieren), höchstens alle 30 s, die Testnachricht nur nach
+  erfolgreichem Ping; der letzte Stand liegt in `verbindung-stand.json` und wird beim Öffnen
+  gezeigt. Regeln rein in `ElmVerbindung`, Endpunkte `GET/POST api/elm/meldungen/verbindung[/pruefen]`.
+  **Archiv je Meldung (F04):** «Verlauf und Archiv» zeigt jeden Schritt (Gesendet, Stand abgefragt,
+  Nachrichten abgeholt) mit der signierten Anfrage und der Antwort zum Herunterladen, dazu
+  «Gesendete Meldung herunterladen». `GET api/elm/meldungen/archiv/{name}` liefert nur Dateien,
+  die im Verlauf einer Monats-/Jahresmeldung stehen; Key/Password der Freigabe werden in der
+  Download-Kopie durch `***` ersetzt, die Archivdatei auf dem Server bleibt unverändert, die
+  Meldung selbst enthält keine Zugangsdaten und bleibt Byte für Byte gleich. Tests `ElmVerbindungTests`.
 
 ---
 

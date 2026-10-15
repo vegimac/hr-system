@@ -12,10 +12,17 @@ public class ElmMeldungenService
     private readonly ElmUebermittlungService _dienst;
     private readonly IConfiguration _cfg;
 
-    public ElmMeldungenService(ElmUebermittlungService dienst, IConfiguration cfg)
+    private readonly ElmTransmitterClient _client;
+    private readonly ElmZertifikatStore _store;
+    private static readonly SemaphoreSlim VerbindungSperre = new(1, 1);
+
+    public ElmMeldungenService(ElmUebermittlungService dienst, IConfiguration cfg,
+        ElmTransmitterClient client, ElmZertifikatStore store)
     {
         _dienst = dienst;
         _cfg = cfg;
+        _client = client;
+        _store = store;
     }
 
     public ElmEndpunkte.Ziel Ziel => ElmEndpunkte.Standard();
@@ -92,6 +99,63 @@ public class ElmMeldungenService
             if (r.Uebertragungsfehler) fehler.Add(ElmMeldungAnzeige.EmpfaengerName(a.Domain, a.Identification, a.InstitutionName) + ": " + r.Meldung);
         }
         return new(fehler.Count == 0, fehler.Count == 0 ? null : string.Join(" · ", fehler));
+    }
+
+    // ── Verbindung (drei Ampeln) ─────────────────────────────────────────────
+
+    public ElmVerbindungStand? LetzteVerbindung() => _store.LadeVerbindung();
+
+    /// <summary>
+    /// Ping, dann CheckInteroperability gegen das Standard-Ziel — nur auf Knopfdruck. Die
+    /// Testnachricht geht nur raus, wenn Swissdec auf den Ping geantwortet hat.
+    /// </summary>
+    public async Task<ElmVerbindungStand> VerbindungPruefenAsync(string? von, CancellationToken ct)
+    {
+        if (!await VerbindungSperre.WaitAsync(0))
+            throw new InvalidOperationException("Die Verbindung wird gerade geprüft — bitte einen Moment warten.");
+        try
+        {
+            var warten = ElmVerbindung.WartenSekunden(_store.LadeVerbindung(), DateTime.Now);
+            if (warten > 0)
+                throw new InvalidOperationException($"Bitte {warten} Sekunden warten bis zur nächsten Prüfung.");
+
+            var ziel = Ziel;
+            var ping = await _client.PingAsync(ziel.Url, 0, ct);
+            System.Security.Cryptography.X509Certificates.X509Certificate2? erp = null;
+            try { erp = _store.LadeErp(); } catch { /* unten als fehlend gemeldet */ }
+            var zertifikatDa = erp?.HasPrivateKey == true;
+            var suaDa = _store.LadeSuaZumSignieren() != null;
+            ElmTransmitterClient.ElmCallResult? interop = null;
+            if (ping.Ok && zertifikatDa)
+                interop = await _client.CheckInteroperabilityAsync(ziel.Url, 0.01m, 0, ct);
+
+            var stand = new ElmVerbindungStand
+            {
+                GeprueftAm = DateTime.Now,
+                Ziel = ziel.Name,
+                GeprueftVon = von,
+                Erreichbar = ElmVerbindung.Erreichbar(ping),
+                Uhrzeit = ElmVerbindung.Uhrzeit(ping, interop),
+                Sicher = ElmVerbindung.Sicher(interop, zertifikatDa, suaDa, ping.Ok),
+            };
+            _store.SpeichereVerbindung(stand);
+            return stand;
+        }
+        finally { VerbindungSperre.Release(); }
+    }
+
+    // ── Archiv je Meldung ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Archivdatei einer Lohnmeldung zum Herunterladen — nur Dateien, die im Verlauf einer
+    /// Monats-/Jahresmeldung stehen; Zugangsdaten der Freigabe ausgeblendet. NULL = nicht erlaubt/fehlt.
+    /// </summary>
+    public string? ArchivDatei(string name)
+    {
+        var erlaubt = Liste().Any(v => v.Protokoll.Any(p => p.ArchivAnfrage == name || p.ArchivAntwort == name));
+        if (!erlaubt) return null;
+        var inhalt = _store.LeseArchiv(name);
+        return inhalt == null ? null : ElmVerbindung.OhneZugangsdaten(inhalt);
     }
 
     public Task<ElmUebermittlungService.Ergebnis> AntwortenAsync(string id, string addresseeId, string storyId,
