@@ -13289,3 +13289,38 @@ body.theme-dark #familyModal .emp-section-title {
 .akis-haken:disabled { cursor: not-allowed; opacity: .4; }
 .akis-ma-link { color: inherit; text-decoration: none; border-bottom: 1px dotted rgba(60,55,48,0.45); }
 .akis-ma-link:hover { color: #1a1a1a; border-bottom-style: solid; }
+
+/* ── Arbeitsmuster (McAdmin, Walter 15.10.2026, js/stempel-muster.js) ── */
+.szm-kopf { font-size:13px; color:#646464; margin:0 0 12px; }
+.szm-layout { display:grid; grid-template-columns:minmax(0, auto) minmax(260px, 340px); gap:22px; align-items:start; }
+.szm-raster { border-collapse:separate; border-spacing:3px; }
+.szm-raster thead th { font-size:12px; font-weight:600; color:#3f3f3f; padding:4px 0; min-width:62px; text-align:center; }
+.szm-raster .szm-std { height:26px; padding:0 8px 0 0; line-height:26px; font-size:11.5px; font-weight:500; color:#8b8b8b; text-align:right; padding-right:8px; white-space:nowrap; }
+.szm-zelle { height:26px; padding:0; line-height:26px; border-radius:7px; text-align:center; font-size:12px; font-weight:600; cursor:pointer; transition:transform .12s, box-shadow .12s; }
+.szm-zelle:hover { transform:translateY(-1px); box-shadow:0 3px 8px rgba(60,55,48,0.22); }
+.szm-zelle.aktiv { outline:3px solid #1a1a1a; outline-offset:1px; }
+.szm-legende { font-size:12px; color:#8b8b8b; margin:8px 0 0; }
+.szm-legende a { color:#3f3f3f; }
+.szm-detail { position:sticky; top:70px; background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.62); border-radius:16px; padding:16px; box-shadow:0 8px 24px rgba(60,55,48,0.14); }
+.szm-detail-leer { font-size:12.5px; color:#8b8b8b; }
+.szm-detail-titel { font-size:15px; font-weight:700; color:#1a1a1a; }
+.szm-detail-sub { font-size:12px; color:#8b8b8b; margin-top:2px; }
+.szm-detail-sub:last-of-type { margin-bottom:10px; }
+.szm-ma { display:grid; grid-template-columns:minmax(0, 1fr) 90px 38px; gap:8px; align-items:center; padding:5px 6px; border-radius:8px; cursor:pointer; font-size:12.5px; }
+.szm-ma:hover, .szm-ma.aktiv { background:rgba(63,63,63,0.08); }
+.szm-ma-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#3f3f3f; }
+.szm-ma-wert { text-align:right; font-weight:600; color:#3f3f3f; }
+.szm-balken { height:7px; border-radius:4px; background:rgba(60,55,48,0.10); overflow:hidden; }
+.szm-balken span { display:block; height:100%; background:#3f3f3f; border-radius:4px; }
+.szm-titel { font-size:14px; font-weight:700; color:#1a1a1a; margin:26px 0 8px; }
+.szm-liste { width:100%; border-collapse:collapse; font-size:12.5px; }
+.szm-liste th { position:sticky; top:0; background:#f6f3ee; text-align:left; font-size:11.5px; font-weight:600; color:#646464; padding:6px 8px; border-bottom:1px solid rgba(60,55,48,0.15); }
+.szm-liste td { padding:6px 8px; border-bottom:1px solid rgba(60,55,48,0.08); color:#3f3f3f; }
+.szm-liste tbody tr { cursor:pointer; }
+.szm-liste tbody tr:hover { background:rgba(63,63,63,0.05); }
+.szm-liste tbody tr.aktiv { background:rgba(63,63,63,0.11); }
+.szm-nr { color:#8b8b8b; font-size:11.5px; font-weight:400; }
+@media (max-width: 1100px) { .szm-layout { grid-template-columns:1fr; } .szm-detail { position:static; } }
+body.theme-dark .szm-detail { background:rgba(30,30,30,0.6); border-color:rgba(255,255,255,0.08); }
+body.theme-dark .szm-liste th { background:#1e1e1e; color:#bbb; }
+body.theme-dark .szm-raster thead th, body.theme-dark .szm-liste td, body.theme-dark .szm-ma-name, body.theme-dark .szm-ma-wert, body.theme-dark .szm-detail-titel, body.theme-dark .szm-titel { color:#e5e5e5; }

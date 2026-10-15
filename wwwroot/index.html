@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261014c">
+    <link rel="stylesheet" href="css/app.css?v=20261015a">
 </head>
 <body>
 
@@ -3839,6 +3839,12 @@
                             <img src="img/stempel-verstoesse.png?v=20261007a" alt="" loading="lazy">
                             <span>Arbeitszeit<br>Verstösse</span>
                         </button>
+                        <!-- Arbeitsmuster (Walter 15.10.2026): wer arbeitet an welchem Wochentag
+                             zu welcher Stunde — Wochenraster für die Dienstplanung. -->
+                        <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin,superuser,user" onclick="showPage('stempel-muster')" title="Arbeitsmuster — wer arbeitet an welchem Wochentag zu welcher Zeit (aus den Stempelzeiten, für die Dienstplanung)">
+                            <img src="img/stempel-muster.svg?v=20261015a" alt="" loading="lazy">
+                            <span>Arbeits-<br>muster</span>
+                        </button>
                     </div>
                     <div class="ra-tile-row">
                         <!-- Arbeitszeugnis / Verwarnung / Aufhebungsvertrag als eigene
@@ -4021,6 +4027,28 @@
                         </div>
                     </div>
                     <div id="szvResult"></div>
+                </div>
+            </div>
+            <div class="page fixhead" id="page-stempel-muster">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Arbeitsmuster</h1>
+                    <p class="page-sub">Wer arbeitet an welchem Wochentag zu welcher Zeit — aus den Stempelzeiten, für die Dienstplanung · Filiale aus der Sidebar.</p>
+                </div></div>
+                <div class="page-body">
+                    <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+                        <button type="button" class="seite-zurueck szb-glas" onclick="showPage('mcadmin')" style="align-self:center">← Zurück</button>
+                        <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Von</div><input type="date" id="szmFrom" class="ma-input" onchange="szmLoad()"></div>
+                        <div class="ma-field" style="min-width:140px"><div class="ma-field-label">Bis</div><input type="date" id="szmTo" class="ma-input" onchange="szmLoad()"></div>
+                        <div class="szb-schnell">
+                            <button type="button" onclick="szmZeitraum('drei')">Letzte 3 Monate</button>
+                            <button type="button" onclick="szmZeitraum('vormonat')">Vormonat</button>
+                            <button type="button" onclick="szmZeitraum('jahr')">Dieses Jahr</button>
+                        </div>
+                        <div style="margin-left:auto;display:flex;gap:8px;align-self:center">
+                            <button type="button" class="szb-kohle" onclick="szmLoad()">Aktualisieren</button>
+                        </div>
+                    </div>
+                    <div id="szmResult"></div>
                 </div>
             </div>
             <div class="page fixhead" id="page-stempel-korrekturen">
@@ -10514,7 +10542,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261014b"></script>
+<script src="js/app-core.js?v=20261015a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10595,6 +10623,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
 <script src="js/stempel-berichte.js?v=20261008e"></script>
+<script src="js/stempel-muster.js?v=20261015a"></script>
 <script src="js/swissdec.js?v=20260930c"></script>
 <script src="js/swissdec-komm.js?v=20261013c"></script>
 <script src="js/swissdec-uebermittlung.js?v=20261002b"></script>

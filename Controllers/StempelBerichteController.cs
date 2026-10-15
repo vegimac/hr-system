@@ -56,6 +56,55 @@ public class StempelBerichteController : HrControllerBase
         return File(bytes, "application/pdf", $"Stempel-Korrekturen_{daten!.Von:yyyy-MM-dd}_{daten.Bis:yyyy-MM-dd}.pdf");
     }
 
+    /// <summary>
+    /// Arbeitsmuster für die Dienstplanung (Walter 15.10.2026): wer arbeitet an welchem
+    /// Wochentag zu welcher Stunde, aus den Stempeln DIESER Filiale. Standard = letzte 3 Monate bis gestern.
+    /// </summary>
+    [HttpGet("stempel-muster")]
+    public async Task<IActionResult> Muster([FromQuery] int companyProfileId, [FromQuery] string? from, [FromQuery] string? to)
+    {
+        var gestern = DateOnly.FromDateTime(DateTime.Today).AddDays(-1);
+        var (fehler, r) = await RahmenAsync(companyProfileId,
+            from ?? gestern.AddMonths(-3).AddDays(1).ToString("yyyy-MM-dd"),
+            to ?? gestern.ToString("yyyy-MM-dd"));
+        if (fehler != null) return fehler;
+
+        var stempel = (await _db.EmployeeTimeEntries.AsNoTracking()
+                .Where(t => t.SourceCompanyProfileId == r!.Cp && t.TimeOut != null
+                         && t.EntryDate >= r.Von.AddDays(-1) && t.EntryDate <= r.Bis)
+                .Select(t => new { t.EmployeeId, t.TimeIn, t.TimeOut })
+                .ToListAsync())
+            .Select(t => new ArbeitsMuster.Stempel(t.EmployeeId, t.TimeIn, t.TimeOut!.Value))
+            .ToList();
+        var ma = await MitarbeiterAsync(stempel.Select(s => s.EmployeeId));
+        var ergebnis = ArbeitsMuster.Rechne(stempel.Where(s => ma.ContainsKey(s.EmployeeId)), r!.Von, r.Bis);
+        var proMa = ergebnis.Mitarbeiter.ToDictionary(m => m.EmployeeId);
+
+        return Ok(new
+        {
+            filiale = r.Filiale,
+            von = r.Von.ToString("yyyy-MM-dd"),
+            bis = r.Bis.ToString("yyyy-MM-dd"),
+            wochentagAnzahl = ergebnis.WochentagAnzahl,
+            raster = ergebnis.Raster.Select(tag => tag.Select(z => new
+            {
+                besetzung = z.Besetzung,
+                ma = z.Mitarbeiter.Select(m => new { id = m.EmployeeId, anteil = m.Anteil }),
+            })),
+            mitarbeiter = NachVorname(ma.Values.Where(m => proMa.ContainsKey(m.Id))).Select(m => new
+            {
+                id = m.Id,
+                nummer = m.Nummer,
+                vorname = m.Vorname,
+                nachname = m.Nachname,
+                stunden = proMa[m.Id].Stunden,
+                stundenProWoche = proMa[m.Id].StundenProWoche,
+                stundenProWochentag = proMa[m.Id].StundenProWochentag,
+                hauptzeiten = proMa[m.Id].Hauptzeiten,
+            }),
+        });
+    }
+
     // ── gemeinsame Vorbereitung ──────────────────────────────────────────
 
     record Rahmen(int Cp, string Filiale, DateOnly Von, DateOnly Bis, List<int> VertragIds);

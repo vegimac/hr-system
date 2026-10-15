@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280">
+    <!-- Kohle-Skizzen-Icon Arbeitsmuster (Walter 15.10.2026)
+         Stil wie notfall-kontakte.svg: wacklige Doppelstriche, rau gefuellte Felder.
+         Wochenraster (Tage x Stunden) mit dunklen Stoss-Zeiten + kleine Uhr. -->
+    <g fill="none" stroke="#4a4a4a" stroke-linecap="round" stroke-linejoin="round">
+
+        <!-- Rasterblatt, leicht schraeg, doppelt nachgezogen -->
+        <path d="M40 58 C38 112 39 172 42 232 C98 236 152 235 204 232 C207 172 206 114 203 60 C150 55 94 55 40 58 Z"
+              stroke-width="6"/>
+        <path d="M46 64 C44 114 45 170 47 226 C100 229 150 229 198 226 C200 170 199 116 197 66"
+              stroke-width="2.5" opacity="0.45"/>
+
+        <!-- Kopfzeile (Wochentage) -->
+        <path d="M42 86 C96 84 150 84 204 86" stroke-width="5"/>
+        <path d="M58 72 L66 72 M86 72 L94 72 M114 72 L122 72 M142 72 L150 72 M170 72 L178 72" stroke-width="4"/>
+
+        <!-- Spalten- und Zeilenlinien, wacklig -->
+        <path d="M76 86 C75 136 76 186 77 232 M104 86 C103 136 104 186 105 232 M132 86 C131 136 132 186 133 233 M160 86 C159 136 160 186 161 233"
+              stroke-width="2.5" opacity="0.6"/>
+        <path d="M42 122 C96 120 150 120 204 122 M42 158 C96 156 150 156 205 158 M42 194 C96 192 150 192 205 194"
+              stroke-width="2.5" opacity="0.6"/>
+
+        <!-- Gefuellte Felder = viel Betrieb (Mittag + Abend Ende Woche) -->
+        <path d="M80 90 C90 89 98 89 101 91 C102 100 102 110 101 118 C92 119 86 119 80 118 Z" fill="#4a4a4a" stroke-width="2"/>
+        <path d="M108 90 C118 89 126 89 129 91 C130 100 130 110 129 118 C120 119 114 119 108 118 Z" fill="#4a4a4a" stroke-width="2"/>
+        <path d="M136 162 C146 161 154 161 157 163 C158 172 158 182 157 190 C148 191 142 191 136 190 Z" fill="#4a4a4a" stroke-width="2"/>
+        <path d="M164 162 C176 161 186 161 199 163 C200 172 200 182 199 190 C186 191 176 191 164 190 Z" fill="#4a4a4a" stroke-width="2"/>
+        <path d="M164 126 C176 125 186 125 199 127 C200 136 200 146 199 154 C186 155 176 155 164 154 Z" fill="#7a7a7a" stroke-width="2"/>
+
+        <!-- Schraffur = mittel -->
+        <path d="M52 128 L68 152 M60 126 L72 144 M48 138 L62 156" stroke-width="2.5" opacity="0.7"/>
+        <path d="M110 198 L126 224 M118 197 L130 216 M106 208 L118 226" stroke-width="2.5" opacity="0.7"/>
+
+        <!-- Uhr unten rechts, rau umrandet, ueberlappt das Blatt -->
+        <path d="M206 168 C226 164 246 176 250 196 C254 218 240 238 218 242 C196 246 176 232 174 210 C172 190 186 172 206 168 Z"
+              fill="#f4f2ec" stroke-width="6"/>
+        <path d="M210 175 C228 174 243 188 244 206" stroke-width="2" opacity="0.45"/>
+        <path d="M212 186 C212 194 212 200 213 206 C220 209 226 212 231 216" stroke-width="5"/>
+    </g>
+</svg>

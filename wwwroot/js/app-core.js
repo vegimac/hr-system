@@ -1582,6 +1582,7 @@ function showPage(name) {
     if (name === 'mtp-stunden-report' && typeof mtpwInit === 'function') mtpwInit();
     if (name === 'stempel-verstoesse' && typeof szvInit === 'function') szvInit();
     if (name === 'stempel-korrekturen' && typeof szkInit === 'function') szkInit();
+    if (name === 'stempel-muster' && typeof szmInit === 'function') szmInit();
     if (name === 'stempel-filialvergleich' && typeof szfInit === 'function') szfInit();
     if (name === 'swissdec' && typeof swissdecInit === 'function') swissdecInit();
     if (name === 'swissdec-kommunikation' && typeof kommInit === 'function') kommInit();
@@ -1811,6 +1812,8 @@ function onBranchChange() {
         if (typeof szvLoad === 'function') szvLoad();
     } else if (currentPageName === 'stempel-korrekturen') {
         if (typeof szkLoad === 'function') szkLoad();
+    } else if (currentPageName === 'stempel-muster') {
+        if (typeof szmLoad === 'function') szmLoad();
     }
 
     // Mirus-Digest-Vorschau folgt der Sidebar-Filiale (Walter 23.07.2026).
