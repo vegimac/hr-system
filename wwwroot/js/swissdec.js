@@ -307,7 +307,7 @@ function _elmScBlock(sb, security) {
 function _elmFaultHinweis(j) {
     const blob = ((j.faultCode || '') + ' ' + (j.faultText || '') + ' ' + (j.responseXml || '')
         + ' ' + (j.security?.meldung || '')).toLowerCase();
-    if (/non-certified|descriptioncode>\s*100|fault 100/.test(blob)
+    if (/non-certified|descriptioncode>\s*100\s*<|fault 100\b/.test(blob)
         || (j.security && /non-certified|Empfängerzertifikat|All Transmitters/i.test(j.security.meldung || ''))) {
         const gemischt = /not been signed|not signed/.test(blob);
         if (gemischt) {

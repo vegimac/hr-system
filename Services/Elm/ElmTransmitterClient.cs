@@ -317,6 +317,21 @@ public class ElmTransmitterClient
                 .FirstOrDefault(e => namen.Contains(e.Name.LocalName) && !e.HasElements)?.Value.Trim();
             var code = Wert("faultcode", "Value");
             var text = Wert("faultstring", "Text");
+
+            // Swissdec-Fault (Force Errors → «Throw Swissdec Fault»): faultstring ist nur
+            // «See below for details», der Grund steht in detail/SalaryDeclarationFault.
+            var sd = ElmUebermittlungXml.LiesFault(doc);
+            if (sd != null)
+            {
+                if (!string.IsNullOrWhiteSpace(sd.Code))
+                    code = code == null ? sd.Code : $"{code} · {sd.Code}";
+                var hinweise = string.Join(" · ", sd.Hinweise.Select(h =>
+                    string.Join(" ", new[] { h.Code, h.Stufe != null ? $"({h.Stufe})" : null }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)))
+                    + (string.IsNullOrWhiteSpace(h.Text) ? "" : ": " + h.Text)));
+                text = hinweise.Length > 0 ? hinweise : ElmUebermittlungXml.FaultText(sd.Code);
+            }
+
             if (code == null && text == null) return r;
             return r with { FaultCode = code, FaultText = text };
         }

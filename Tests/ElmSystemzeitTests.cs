@@ -139,6 +139,44 @@ public class ElmSystemzeitTests
         Assert.Equal("missing signature", r.FaultText);
     }
 
+    // Antwort der RefApps auf «Throw Swissdec Fault» (15.10.2026): faultstring sagt nur
+    // «See below for details», der Grund steht im SalaryDeclarationFault.
+    [Fact]
+    public void Fault_SwissdecFault_ZeigtCodeUndHinweis()
+    {
+        const string xml = """
+            <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+              <soap:Body>
+                <soap:Fault>
+                  <faultcode>soap:Client</faultcode>
+                  <faultstring>See below for details</faultstring>
+                  <detail>
+                    <ns6:SalaryDeclarationFault xmlns="urn:ch:swissdec:basis:v1:20260306:components"
+                        xmlns:ns6="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+                      <ResponseContext><RequestID>n/a</RequestID></ResponseContext>
+                      <Fault>
+                        <Code>NOT_plausible</Code>
+                        <Error>
+                          <Notification>
+                            <QualityLevel>Validity</QualityLevel>
+                            <DescriptionCode>1000</DescriptionCode>
+                            <Description>Configured exception from RefApps</Description>
+                          </Notification>
+                        </Error>
+                      </Fault>
+                    </ns6:SalaryDeclarationFault>
+                  </detail>
+                </soap:Fault>
+              </soap:Body>
+            </soap:Envelope>
+            """;
+        var r = ElmTransmitterClient.MitFault(
+            new ElmTransmitterClient.ElmCallResult(false, 500, 900, "<req/>", xml, "HTTP 500"));
+        Assert.Equal("soap:Client · NOT_plausible", r.FaultCode);
+        Assert.Equal("1000 (Validity): Configured exception from RefApps", r.FaultText);
+        Assert.Null(ElmTransmitterClient.DeuteSicherheitsFault(r));
+    }
+
     // ── Simulierter Zeitversatz (Walter-Idee 24.09.2026) ─────────────────
     // Der Versatz verstellt die GESENDETE Zeit und die Vergleichsbasis, damit sich
     // das Programm wie mit einer falsch gehenden Serveruhr verhält — sonst liesse
