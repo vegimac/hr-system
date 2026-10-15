@@ -1873,6 +1873,8 @@ function loadUebersichtTab() {
                     <div class="ov-pfv">${emp.familienbetreuung ? 'Ja' : 'Nein'}${zeitraum}${lage}</div>
                 </div>`;
             })()}
+            <div class="ov-pf ov-pf-schuh"><div class="ov-pfl">Schuhgrösse</div>
+            <input id="ov-schuhgroesse" class="ov-softin" type="text" inputmode="decimal" value="${esc(emp.schuhgroesse)}" placeholder="z.B. 42" maxlength="10" oninput="ovDirty()"></div>
         </div>
         </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
@@ -7535,6 +7537,8 @@ async function saveEmpEdit() {
         separatedSince:        null,
         religion:              formVal('ef-religion', 'ov-religion') || null,
         letterSalutation:      (formVal('ef-letterSalutation', 'ov-letterSalutation') || '').trim() || null,
+        // Schuhgrösse nur aus der Übersicht: null = nicht ändern, '' = löschen.
+        schuhgroesse:          document.getElementById('ov-schuhgroesse') ? document.getElementById('ov-schuhgroesse').value.trim() : null,
         placeOfOrigin:         placeOfOriginEl ? (placeOfOriginEl.value?.trim() || null) : (emp.placeOfOrigin || null),
     };
     const religionBefore = emp.religion || '';

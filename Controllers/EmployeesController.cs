@@ -640,6 +640,7 @@ public class EmployeesController : ControllerBase
             employee.SeparatedSince,
             employee.Religion,
             employee.LetterSalutation,
+            employee.Schuhgroesse,
             employee.PlaceOfOrigin,
 
             // ── Adresse (werden u.a. im QST-Modal angezeigt) ─────────────
@@ -886,6 +887,7 @@ public class EmployeesController : ControllerBase
             religionInPayload = true;
         }
         if (dto.LetterSalutation is not null) employee.LetterSalutation = dto.LetterSalutation == "" ? null : dto.LetterSalutation;
+        if (dto.Schuhgroesse    is not null) employee.Schuhgroesse    = string.IsNullOrWhiteSpace(dto.Schuhgroesse) ? null : dto.Schuhgroesse.Trim();
         if (dto.PlaceOfOrigin   is not null) employee.PlaceOfOrigin   = dto.PlaceOfOrigin   == "" ? null : dto.PlaceOfOrigin;
 
         // ── "Kein Lohn"-Flag setzen ──────────────────────────────────────
@@ -2495,6 +2497,8 @@ public class EmployeeUpdateDto
     public DateOnly? SeparatedSince        { get; set; }
     public string?   Religion              { get; set; }
     public string?   LetterSalutation      { get; set; }
+    /// <summary>Schuhgrösse — null = nicht ändern, "" = löschen.</summary>
+    public string?   Schuhgroesse          { get; set; }
     public string?   PlaceOfOrigin         { get; set; }
 
     // "Kein Lohn"-Flag — nur durch admin/superuser setzbar.

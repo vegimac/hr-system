@@ -392,6 +392,10 @@ public class Employee
     [Column("letter_salutation")]
     public string? LetterSalutation { get; set; }
 
+    /// <summary>Schuhgrösse (Walter 15.10.2026), Freitext z.B. «42» oder «38.5».</summary>
+    [Column("schuhgroesse")]
+    public string? Schuhgroesse { get; set; }
+
     /// <summary>Heimatort (für Schweizer Bürger). Auf Lohnausweis bei
     /// Schweizer-Nationalität anstelle Wohnort möglich.</summary>
     [Column("place_of_origin")]

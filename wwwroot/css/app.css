@@ -4103,8 +4103,13 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-fb {
-            grid-column: span 2;
+        /* Familienbetreuung 1 Spalte (darf umbrechen), daneben Schuhgrösse (Walter 15.10.2026) */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-fb .ov-pfv {
+            white-space: normal;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-schuh .ov-softin {
+            width: 90px;
+            max-width: 90px;
         }
         /* ZEMIS-Nr. — Feld nicht auf Spaltenbreite strecken, aber breit genug
            für das lange Format «017.335.114-6» (Walter 21.08.2026: 118px

@@ -345,6 +345,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SeparatedSince).HasColumnName("separated_since").HasColumnType("date");
             entity.Property(e => e.Religion).HasColumnName("religion").HasMaxLength(40);
             entity.Property(e => e.LetterSalutation).HasColumnName("letter_salutation").HasMaxLength(200);
+            entity.Property(e => e.Schuhgroesse).HasColumnName("schuhgroesse").HasMaxLength(10);
             entity.Property(e => e.PlaceOfOrigin).HasColumnName("place_of_origin").HasMaxLength(150);
             entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId);
             entity.HasOne(e => e.NationalityRef).WithMany().HasForeignKey(e => e.NationalityId);
