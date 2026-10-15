@@ -123,7 +123,37 @@ public class ElmMeldungAnzeigeTests
         a.LetzteSynchronisierung = Jetzt.AddMinutes(-11);
         Assert.Contains(a, ElmMeldungAnzeige.SyncFaellig(Vorgang(true, a), Jetzt));
         a.Stories[0].Quittiert = true;
+        a.State = "Finished";
         Assert.DoesNotContain(a, ElmMeldungAnzeige.SyncFaellig(Vorgang(true, a), Jetzt));
+    }
+
+    [Fact]
+    public void Automatik_FragtNachQuittungBaldNach_WennEmpfaengerNochWartet()
+    {
+        // Nachricht quittiert, Empfänger meldet trotzdem noch DialogMessagePending ⇒ nach 10 Min. wieder.
+        var a = Rueckfrage(mitFrage: false);
+        a.Stories[0].Quittiert = true;
+        a.LetzteSynchronisierung = Jetzt.AddMinutes(-11);
+        Assert.Contains(a, ElmMeldungAnzeige.SyncFaellig(Vorgang(true, a), Jetzt));
+
+        // Offene Frage: wartet auf den Benutzer, nicht auf uns ⇒ normaler Abstand.
+        var frage = Rueckfrage(mitFrage: true);
+        frage.Stories[0].Quittiert = true;
+        frage.LetzteSynchronisierung = Jetzt.AddMinutes(-11);
+        Assert.DoesNotContain(frage, ElmMeldungAnzeige.SyncFaellig(Vorgang(true, frage), Jetzt));
+    }
+
+    [Fact]
+    public void Zertifizierungstest_OhneAdresse_GrauStattInBearbeitung()
+    {
+        var v = Vorgang(true, Adr("Success", "Processing"));
+        v.Url = null;
+        var st = ElmMeldungAnzeige.Meldung(v);
+        Assert.Equal("grau", st.Stufe);
+        Assert.False(st.AktionNoetig);
+
+        v.Adressaten[0] = Adr("Success", "Finished");
+        Assert.Equal("ok", ElmMeldungAnzeige.Meldung(v).Stufe);
     }
 
     [Fact]
@@ -140,7 +170,8 @@ public class ElmMeldungAnzeigeTests
     [Fact]
     public void Automatik_Sync_NurOffeneMitCredentials_OderNochZuQuittieren()
     {
-        var offen = Adr("Success", "DialogMessagePending");
+        var offen = Rueckfrage(mitFrage: true);
+        offen.Stories[0].Quittiert = true;
         var fertig = Adr("Success", "Finished");
         var fertigMitQuittung = Adr("Success", "Finished");
         fertigMitQuittung.Stories.Add(new ElmStoryEmpfangen { StoryId = "s1", Art = "AHV-AVS-Quittance" });

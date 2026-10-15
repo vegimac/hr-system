@@ -69,11 +69,19 @@ public static class ElmMeldungAnzeige
         catch { return true; }
     }
 
+    /// <summary>
+    /// Gesendet vor der Benutzerseite (ohne gespeicherte Adresse): Prüfpunkt-Fälle aus der Zertifizierung,
+    /// oft mit absichtlich gestörtem Empfänger. Die Automatik fragt sie nicht nach — sie bleiben stehen.
+    /// </summary>
+    public static bool Zertifizierungstest(ElmVorgang v) => v.Url == null;
+
     /// <summary>Ampel einer Meldung: rot vor «Handlung nötig» vor «läuft» vor grün.</summary>
     public static Stand Meldung(ElmVorgang v)
     {
         var teile = v.Adressaten.Select(Empfaenger).ToList();
         if (teile.Count == 0) return new(Grau, "Keine Empfänger", false);
+        if (Zertifizierungstest(v) && !(v.JobFinished && v.Adressaten.All(Erledigt)))
+            return new(Grau, "Test aus der Zertifizierung — wird nicht mehr abgefragt", false);
         var rot = teile.Count(t => t.Stufe == Rot);
         if (rot > 0) return new(Rot, rot == 1 ? "1 Empfänger hat nicht angenommen" : $"{rot} Empfänger haben nicht angenommen", true);
         var warn = teile.Count(t => t.Stufe == Warn);
@@ -149,7 +157,15 @@ public static class ElmMeldungAnzeige
                                        && !string.IsNullOrEmpty(a.Key) && !string.IsNullOrEmpty(a.Password)
                                        && (!Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0)
                                        && (a.LetzteSynchronisierung is not DateTime t
-                                           || jetzt - t >= (ElmUebermittlungXml.ZuQuittieren(a).Count > 0 ? AutoQuittungAbstand : AutoSyncAbstand)))
+                                           || jetzt - t >= (WartetAufQuittung(a) ? AutoQuittungAbstand : AutoSyncAbstand)))
             .ToList();
     }
+
+    /// <summary>
+    /// Der Empfänger wartet auf unsere Bestätigung: Nachricht noch unquittiert, oder quittiert, aber der
+    /// Empfänger meldet weiter DialogMessagePending ohne offene Frage (er geht erst beim nächsten Abfragen weiter).
+    /// </summary>
+    private static bool WartetAufQuittung(ElmVorgangAdressat a)
+        => ElmUebermittlungXml.ZuQuittieren(a).Count > 0
+           || a.State == "DialogMessagePending" && !OffeneRueckfrage(a);
 }

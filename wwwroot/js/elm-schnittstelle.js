@@ -11,6 +11,7 @@ let _elmmBusy = false;
 let _elmmMeldung = null;       // { ok, text } über der Liste
 let _elmmOffen = new Set();
 let _elmmAeltere = false;
+let _elmmZert = false;
 let _elmmTimer = null;
 
 const _ELMM_MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -287,8 +288,9 @@ function elmmListeZeichnen() {
     const el = document.getElementById('elmmListe');
     if (!el || !_elmm) return;
     const alle = (_elmm.meldungen || []).map((m, mi) => ({ m, mi }));
-    const offen = alle.filter(x => !x.m.fertig);
-    const fertig = alle.filter(x => x.m.fertig);
+    const offen = alle.filter(x => !x.m.fertig && !x.m.zertifizierung);
+    const fertig = alle.filter(x => x.m.fertig && !x.m.zertifizierung);
+    const zert = alle.filter(x => x.m.zertifizierung);
     const meldung = _elmmMeldung
         ? `<div style="margin:4px 0 10px;padding:10px 12px;border-radius:10px;font-size:13px;
               background:${_elmmMeldung.ok ? _ELMM_STUFE.laeuft.grund : _ELMM_STUFE.rot.grund};
@@ -306,7 +308,11 @@ function elmmListeZeichnen() {
         + (offen.length ? offen.map(zeilen).join('') : '<div style="font-size:13px;color:#8b8b8b;margin-bottom:8px">Keine offenen Meldungen.</div>')
         + (fertig.length ? `<details ${_elmmAeltere ? 'open' : ''} ontoggle="_elmmAeltere=this.open" style="margin-top:10px">
               <summary style="cursor:pointer;font-size:13px;color:#646464">Abgeschlossene Meldungen (${fertig.length})</summary>
-              <div style="margin-top:8px">${fertig.map(zeilen).join('')}</div></details>` : '');
+              <div style="margin-top:8px">${fertig.map(zeilen).join('')}</div></details>` : '')
+        + (zert.length ? `<details ${_elmmZert ? 'open' : ''} ontoggle="_elmmZert=this.open" style="margin-top:10px">
+              <summary style="cursor:pointer;font-size:13px;color:#646464">Tests aus der Zertifizierung (${zert.length})
+                <span style="color:#8b8b8b">— werden nicht mehr automatisch abgefragt</span></summary>
+              <div style="margin-top:8px">${zert.map(zeilen).join('')}</div></details>` : '');
 }
 
 function _elmmMeldungHtml(m, mi) {

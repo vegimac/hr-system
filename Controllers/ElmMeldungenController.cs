@@ -118,6 +118,7 @@ public class ElmMeldungenController : ControllerBase
             v.Id, v.Art, jahr, monat, v.Gesendet, v.TestCase,
             titel = v.Art == "annual" ? $"Jahresmeldung {jahr}" : monat != null ? $"Monatsmeldung {monat:00}.{jahr}" : v.Titel,
             ersatz = v.Substitution != null,
+            zertifizierung = ElmMeldungAnzeige.Zertifizierungstest(v),
             stufe = st.Stufe, text = st.Text, aktionNoetig = st.AktionNoetig,
             fertig = v.JobFinished && v.Adressaten.All(ElmMeldungAnzeige.Erledigt),
             ersetzbar = ElmMeldungAnzeige.Ersetzbar(v),
