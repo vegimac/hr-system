@@ -632,5 +632,7 @@ function elmqZeichnen() {
         <div style="padding:0 14px 12px">${m.faelle.map(fall).join('')}</div>
     </details>`).join('');
     box.innerHTML = kopf + stand + (_elmqFehler ? _elmmBox(false, _elmzEsc(_elmqFehler)) : '')
-        + (monate || '<div style="margin-top:10px;font-size:13px;color:#8b8b8b">Noch keine Meldung im laufenden Lauf.</div>');
+        + (monate || `<div style="margin-top:10px;font-size:13px;color:#646464">${b.punkte > 0
+            ? 'Keine Abweichung in den bisher gesendeten Monaten. Swissdec listet nur Differenzen — ein Monat ohne Eintrag ist erledigt oder noch nicht gesendet.'
+            : 'Noch keine Meldung im laufenden Lauf.'}</div>`);
 }
