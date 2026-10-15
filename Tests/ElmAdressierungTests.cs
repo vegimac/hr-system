@@ -14,13 +14,19 @@ namespace HrSystem.Tests;
 public class ElmAdressierungTests
 {
     [Fact]
-    public void NurZweiFesteZiele_MitHttpsAdressen()
+    public void NurFesteZiele_MitHttpsAdressen()
     {
-        Assert.Equal(2, ElmEndpunkte.Alle.Count);
+        Assert.Equal(3, ElmEndpunkte.Alle.Count);
         Assert.All(ElmEndpunkte.Alle, z => Assert.StartsWith("https://", z.Url));
         Assert.Contains(ElmEndpunkte.Alle, z => z.Schluessel == "test" && z.IstTest);
         Assert.Contains(ElmEndpunkte.Alle, z => z.Schluessel == "prod" && !z.IstTest);
+        Assert.Contains(ElmEndpunkte.Alle, z => z.Schluessel == "qualitytool" && z.IstTest);
+        Assert.Single(ElmEndpunkte.Alle, z => !z.IstTest);
     }
+
+    [Fact]
+    public void Standard_IstNieDasQualityTool()
+        => Assert.NotEqual("qualitytool", ElmEndpunkte.Standard().Schluessel);
 
     [Theory]
     [InlineData("test")]
@@ -42,6 +48,7 @@ public class ElmAdressierungTests
     [InlineData("https://test.swissdec.ch/refapps/stable/receiver/services/elm/SalaryDeclaration/V6", "test")]
     [InlineData(" https://test.swissdec.ch/refapps/stable/receiver/services/elm/SalaryDeclaration/V6/ ", "test")]
     [InlineData("https://distributor.swissdec.ch/services/elm/SalaryDeclaration/V6", "prod")]
+    [InlineData("https://test.swissdec.ch/qualitytool/stable/domain-analyzer/services/elm/SalaryDeclaration/V6", "qualitytool")]
     public void HinterlegteAdresse_WirdAlsZielErkannt(string url, string schluessel)
         => Assert.Equal(schluessel, ElmEndpunkte.FindeNachUrl(url)?.Schluessel);
 

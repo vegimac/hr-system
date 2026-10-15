@@ -219,6 +219,7 @@ builder.Services.AddScoped<HrSystem.Services.Elm.ElmAnnualDeclarationBuilder>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmMonthlyDeclarationBuilder>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmUebermittlungService>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmMeldungenService>();
+builder.Services.AddScoped<HrSystem.Services.Elm.QualityToolClient>();
 builder.Services.AddHostedService<HrSystem.Services.Elm.ElmMeldungenAutoAbfrage>();       // Stand gesendeter Lohnmeldungen abholen (15.10.2026)
 builder.Services.AddScoped<AuswertungenReportPdfService>();
 builder.Services.AddScoped<ProbezeitberichtPdfService>();

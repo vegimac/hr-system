@@ -11,7 +11,23 @@ Für die Zertifizierung und für Rückfragen von Swissdec.
   Benutzer `schaub`, Rundungstoleranz Personen und Totale **CHF 0.00**.
 - **Nur Kunstdaten** der Testinstanz test.onecrew.ch — nie produktive Daten.
 
-## Ablauf einer Sendung
+## Ablauf einer Sendung — direkt aus OneCrew (ab 15.10.2026)
+
+Seit dem Foundation-Test sendet OneCrew selbst (signiert mit ERP- und SUA-Zertifikat):
+
+1. test.onecrew.ch → System → Lohn → **«Lohnmeldungen (ELM)»** → «Meldung senden»: Monat wählen,
+   **«Senden an: Swissdec Quality Tool (Lohntest)»**, «Prüfen», «An Swissdec senden».
+   Adresse fest in `ElmEndpunkte.QualityToolUrl`; das Ziel gibt es nur auf der Testinstanz.
+2. Karte **«Lohntest — Swissdec Quality Tool»** auf derselben Seite: «Bericht holen» zeigt Punktzahl
+   und je Monat/Testfall jede Abweichung (Feld, Soll Swissdec, OneCrew; XPath im Tooltip).
+   «Sendungen zurücksetzen» löscht die Sendungen des Laufs (Referenz bleibt), «Neuer Lauf»
+   archiviert den laufenden und lädt die aktuelle deutsche Referenz (Toleranz 0.00).
+3. Technik: REST-Schnittstelle des Quality Tools (`docs/swissdec/qualitytool-openapi.json`),
+   `QualityToolClient` / `QualityToolBericht` / `ElmQualityToolController` (admin, nur Testinstanz).
+   API-Schlüssel nur auf dem Testserver: `Swissdec__QualityToolApiKey` in `/etc/hr-system/test.env`
+   (eingetragen 15.10.2026, aus dem Swissdec-Profil «API-Schlüssel Quality Tool»). Nie an den Browser.
+
+## Ablauf einer Sendung — alter Weg über den Refapps Transmitter (bis 15.10.2026)
 
 1. OneCrew (test.onecrew.ch) → Kachel **«ELM-Meldungen»** → Monat wählen → «Meldung erzeugen»
    → «XML herunterladen» (`DeclareMonthlySalary_JJJJ-MM.xml`). Ein Monat ist nur wählbar, wenn

@@ -14,6 +14,7 @@ let _elmmVerlaufOffen = new Set();
 let _elmmAeltere = false;
 let _elmmZert = false;
 let _elmmTimer = null;
+let _elmmZielWahl = null;      // Testinstanz: Refapps Receiver oder Quality Tool
 
 const _ELMM_MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
@@ -53,6 +54,7 @@ function elmmInit() {
     elmmSendenZeichnen();
     elmmLaden();
     elmvLaden();
+    elmqLaden();
 }
 
 // ── Verbindung (drei Ampeln, nur auf Knopfdruck) ──────────────────────────
@@ -132,6 +134,7 @@ async function elmmLaden() {
         if (el) el.innerHTML = `<div style="color:#991b1b">${_elmzEsc(e.message)}</div>`;
         return;
     }
+    if ((_elmm.ziele || []).length > 1 && !document.getElementById('elmmZiel')) elmmSendenZeichnen();
     elmmListeZeichnen();
     _elmmPlanen();
 }
@@ -148,6 +151,8 @@ function elmmSendenZeichnen() {
     const jahr = e ? e.jahr : (document.getElementById('elmmJahr')?.value || (heute.getMonth() === 0 ? heute.getFullYear() - 1 : heute.getFullYear()));
     const monat = e ? e.monat : (document.getElementById('elmmMonat')?.value || vorMonat);
     const gesperrt = e ? 'disabled' : '';
+    const ziele = _elmm?.ziele || [];
+    const zielWahl = ziele.some(z => z.schluessel === _elmmZielWahl) ? _elmmZielWahl : ziele[0]?.schluessel;
     const feld = 'padding:9px 12px;font-size:13px;color:#3f3f3f;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;'
         + 'box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)';
 
@@ -170,6 +175,10 @@ function elmmSendenZeichnen() {
             <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464">Jahr
                 <input id="elmmJahr" type="number" min="2020" max="2100" value="${_elmzEsc(String(jahr))}" ${gesperrt}
                        onchange="_elmmVorschau=null;elmmVorschauZeichnen()" style="${feld};width:110px"></label>
+            ${!e && ziele.length > 1 ? `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464">Senden an
+                <select id="elmmZiel" onchange="_elmmZielWahl=this.value;elmmVorschauZeichnen()">
+                    ${ziele.map(z => `<option value="${_elmzEsc(z.schluessel)}" ${z.schluessel === zielWahl ? 'selected' : ''}>${_elmzEsc(z.name)}</option>`).join('')}
+                </select></label>` : ''}
             <button type="button" class="btn btn-secondary" onclick="elmmPruefen()" ${_elmmBusy ? 'disabled' : ''}>Prüfen</button>
         </div>
         <div id="elmmVorschau"></div>`;
@@ -248,11 +257,12 @@ function elmmVorschauZeichnen() {
 async function elmmSenden() {
     const v = _elmmVorschau;
     if (!v || _elmmBusy) return;
+    const ziel = _elmmErsatz ? null : _elmmZielAktuell();
     const frage = _elmmErsatz
         ? `${v.titel} als Ersatz für die Meldung vom ${_elmmDatum(_elmmErsatz.gesendet)} senden?`
-        : `${v.titel} an ${v.empfaenger.length} Empfänger senden?`;
+        : `${v.titel} an ${v.empfaenger.length} Empfänger senden?` + (ziel ? `\n\nZiel: ${ziel.name}` : '');
     if (!(await liquidConfirm(frage, { title: 'Meldung senden', yesLabel: 'Senden', noLabel: 'Abbrechen' }))) return;
-    const body = Object.assign({}, v.auswahl, { ersetztId: _elmmErsatz?.id || null });
+    const body = Object.assign({}, v.auswahl, { ersetztId: _elmmErsatz?.id || null, ziel: ziel?.schluessel || null });
     const j = await _elmmPost('senden', body, 'Meldung wird gesendet …');
     if (j?.ok) {
         _elmmVorschau = null;
@@ -264,6 +274,14 @@ async function elmmSenden() {
         _elmmMeldung = { ok: false, text: (j.meldung || '') + ' — ' + j.hinweise.join(' · ') };
         elmmListeZeichnen();
     }
+}
+
+/** Gewähltes Ziel, wenn es mehr als eines gibt (nur Testinstanz) — sonst null, der Server nimmt den Standard. */
+function _elmmZielAktuell() {
+    const ziele = _elmm?.ziele || [];
+    if (ziele.length < 2) return null;
+    const wahl = document.getElementById('elmmZiel')?.value || _elmmZielWahl;
+    return ziele.find(z => z.schluessel === wahl) || ziele[0];
 }
 
 function elmmErsetzen(id) {
@@ -394,7 +412,8 @@ function _elmmMeldungHtml(m, mi) {
             <span style="width:10px;height:10px;border-radius:50%;background:${f.punkt};flex:0 0 10px"></span>
             <b style="color:#3f3f3f;font-size:14px">${_elmzEsc(m.titel)}</b>
             ${m.ersatz ? '<span style="font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid rgba(60,55,48,0.25);color:#646464">Ersatzmeldung</span>' : ''}
-            ${m.testCase ? '<span style="font-size:11px;color:#8b8b8b">Test</span>' : ''}
+            ${m.qualityTool ? '<span style="font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid rgba(60,55,48,0.25);color:#646464">Quality Tool</span>'
+                : m.testCase ? '<span style="font-size:11px;color:#8b8b8b">Test</span>' : ''}
             <span style="font-size:12px;color:#8b8b8b">gesendet ${_elmmDatum(m.gesendet)}</span>
             <span style="margin-left:auto">${_elmmPille(m.stufe, m.text)}</span>
         </summary>
@@ -498,4 +517,119 @@ function _elmmNachrichtHtml(m, mi, e, ei, n, ni) {
         ${d.beschreibung ? `<div style="font-size:13px;color:#646464;margin-top:2px">${_elmzEsc(d.beschreibung)}</div>` : ''}
         ${d.absaetze.map(absatz).join('')}${fuss}
     </div>`;
+}
+
+// ── Lohntest im Swissdec Quality Tool (nur Testinstanz, Walter 15.10.2026) ─────
+// Bericht über die Quality-Tool-Schnittstelle (ElmQualityToolController). Das Quality Tool listet nur
+// Abweichungen: Soll = Referenz der Muster AG, OneCrew = unsere gesendete Meldung. Der API-Schlüssel
+// bleibt auf dem Server.
+
+let _elmq = null;              // Bericht
+let _elmqStatus = null;        // { verfuegbar, nichtBereit, monitoringId }
+let _elmqBusy = false;
+let _elmqFehler = null;
+let _elmqOffen = new Set();
+
+function _elmqMonat(seq) {
+    const m = /^(\d{4})-(\d{2})$/.exec(seq || '');
+    return m ? `${_ELMM_MONATE[+m[2] - 1]} ${m[1]}` : (seq || '');
+}
+
+function _elmqTeil(t) {
+    return { MonthlySalary: 'Monatsmeldung', YearlyRetrospective: 'Jahresmeldung', YearlyProspective: 'Vorausmeldung' }[t] || t || '';
+}
+
+async function elmqLaden() {
+    const box = document.getElementById('elmqBericht');
+    if (!box) return;
+    try {
+        const r = await fetch('/api/elm/qualitytool/status', { headers: ah(), cache: 'no-store' });
+        _elmqStatus = r.ok ? await r.json() : null;
+    } catch (_) { _elmqStatus = null; }
+    box.style.display = _elmqStatus?.verfuegbar ? '' : 'none';
+    if (!_elmqStatus?.verfuegbar) return;
+    if (_elmqStatus.nichtBereit) { _elmqFehler = _elmqStatus.nichtBereit; elmqZeichnen(); return; }
+    await _elmqAufruf('GET', 'bericht');
+}
+
+async function _elmqAufruf(methode, pfad) {
+    if (_elmqBusy) return;
+    _elmqBusy = true;
+    _elmqFehler = null;
+    elmqZeichnen();
+    try {
+        const r = await fetch('/api/elm/qualitytool/' + pfad, { method: methode, headers: ah(), cache: 'no-store' });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || 'Fehler ' + r.status);
+        _elmq = j;
+    } catch (e) {
+        _elmqFehler = e.message === 'Failed to fetch' ? 'Server nicht erreichbar.' : e.message;
+    } finally {
+        _elmqBusy = false;
+        elmqZeichnen();
+    }
+}
+
+async function elmqZuruecksetzen() {
+    if (!(await liquidConfirm('Alle bisher gesendeten Meldungen im laufenden Quality-Tool-Lauf löschen?\n\nDie Referenz der Muster AG bleibt geladen — danach die Monate neu senden.',
+        { title: 'Sendungen zurücksetzen', yesLabel: 'Zurücksetzen', noLabel: 'Abbrechen' }))) return;
+    await _elmqAufruf('POST', 'sendungen-zuruecksetzen');
+}
+
+async function elmqNeuerLauf() {
+    if (!(await liquidConfirm('Den laufenden Lauf archivieren und einen neuen mit der aktuellen Referenz der Muster AG starten?\n\nDer alte Lauf bleibt im Quality Tool unter den archivierten Läufen einsehbar. Rundungstoleranz 0.00.',
+        { title: 'Neuer Lauf', yesLabel: 'Neuen Lauf starten', noLabel: 'Abbrechen' }))) return;
+    await _elmqAufruf('POST', 'neuer-lauf');
+}
+
+function _elmqOffenMerken(el) {
+    if (el.open) _elmqOffen.add(el.dataset.seq); else _elmqOffen.delete(el.dataset.seq);
+}
+
+function elmqZeichnen() {
+    const box = document.getElementById('elmqBericht');
+    if (!box || !_elmqStatus?.verfuegbar) return;
+    const b = _elmq;
+    const knopf = (text, fn, primaer) => `<button type="button" class="btn ${primaer ? 'btn-primary' : 'btn-secondary'}" onclick="${fn}()"
+        ${_elmqBusy || _elmqStatus.nichtBereit ? 'disabled' : ''}>${text}</button>`;
+    const kopf = `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="font-size:12px;color:#8b8b8b;text-transform:uppercase;letter-spacing:.04em">Lohntest — Swissdec Quality Tool</div>
+            ${_elmqStatus.monitoringId ? `<span style="font-size:12px;color:#8b8b8b">MonitoringID ${_elmzEsc(_elmqStatus.monitoringId)}</span>` : ''}
+            <span style="margin-left:auto"></span>
+            ${knopf('Sendungen zurücksetzen', 'elmqZuruecksetzen')}
+            ${knopf('Neuer Lauf', 'elmqNeuerLauf')}
+            ${knopf(_elmqBusy ? 'Lade …' : 'Bericht holen', 'elmqLaden', true)}
+        </div>
+        <div style="margin-top:6px;font-size:12px;color:#8b8b8b">Monatsmeldungen der Muster AG oben mit «Senden an: Swissdec Quality Tool» schicken.
+            Das Quality Tool zeigt nur Abweichungen — ein Monat ohne Eintrag stimmt oder ist noch nicht gesendet.</div>`;
+    if (!b) {
+        box.innerHTML = kopf + (_elmqFehler ? _elmmBox(false, _elmzEsc(_elmqFehler)) : `<div style="margin-top:10px;font-size:13px;color:#646464">${_elmqBusy ? 'Bericht wird geholt …' : ''}</div>`);
+        return;
+    }
+    const stand = `<div style="display:flex;gap:16px;align-items:baseline;flex-wrap:wrap;margin-top:12px">
+        <div><span style="font-size:26px;font-weight:700;color:#3f3f3f">${Number(b.punkte || 0).toLocaleString('de-CH', { maximumFractionDigits: 1 })} %</span>
+            <span style="font-size:12px;color:#8b8b8b;margin-left:4px">Punktzahl des Laufs</span></div>
+        <div>${b.anzahl ? _elmmPille('rot', `${b.anzahl} Abweichung${b.anzahl === 1 ? '' : 'en'}`) : _elmmPille('ok', 'Keine Abweichung')}</div>
+    </div>`;
+    const zeile = a => `<tr title="${_elmzEsc(a.pfad)}">
+        <td style="padding:4px 10px 4px 0;color:#3f3f3f">${_elmzEsc(a.feld)}${a.art !== 'Wert' ? ` <span style="color:#92400e">(${_elmzEsc(a.art)})</span>` : ''}</td>
+        <td style="padding:4px 10px 4px 0;text-align:right;white-space:nowrap;color:#166534">${_elmzEsc(a.soll ?? '–')}</td>
+        <td style="padding:4px 0;text-align:right;white-space:nowrap;color:#991b1b;font-weight:600">${_elmzEsc(a.ist ?? '–')}</td></tr>`;
+    const fall = f => `<div style="margin-top:8px">
+        <div style="font-weight:600;color:#3f3f3f;font-size:13px">${_elmzEsc(f.name)}</div>
+        <table style="border-collapse:collapse;font-size:12px;width:100%;margin-top:2px">
+            <tr style="color:#8b8b8b"><td style="padding:2px 10px 2px 0">Feld</td><td style="padding:2px 10px 2px 0;text-align:right">Soll (Swissdec)</td><td style="padding:2px 0;text-align:right">OneCrew</td></tr>
+            ${f.abweichungen.map(zeile).join('')}</table></div>`;
+    const monate = (b.monate || []).map(m => `<details data-seq="${_elmzEsc(m.sequenz + '|' + m.teilprozess)}" ${_elmqOffen.has(m.sequenz + '|' + m.teilprozess) ? 'open' : ''}
+            ontoggle="_elmqOffenMerken(this)" style="margin-top:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.35)">
+        <summary style="cursor:pointer;list-style:none;padding:10px 14px;display:flex;align-items:center;gap:12px">
+            <b style="color:#3f3f3f;font-size:14px">${_elmzEsc(_elmqMonat(m.sequenz))}</b>
+            <span style="font-size:12px;color:#8b8b8b">${_elmzEsc(_elmqTeil(m.teilprozess))}</span>
+            <span style="margin-left:auto">${m.anzahl ? _elmmPille('rot', `${m.anzahl} Abweichung${m.anzahl === 1 ? '' : 'en'}`) : _elmmPille('ok', 'Stimmt')}</span>
+        </summary>
+        <div style="padding:0 14px 12px">${m.faelle.map(fall).join('')}</div>
+    </details>`).join('');
+    box.innerHTML = kopf + stand + (_elmqFehler ? _elmmBox(false, _elmzEsc(_elmqFehler)) : '')
+        + (monate || '<div style="margin-top:10px;font-size:13px;color:#8b8b8b">Noch keine Meldung im laufenden Lauf.</div>');
 }

@@ -22,13 +22,34 @@ public static class ElmEndpunkte
     /// <summary>Produktiver Distributor — nimmt ohne Transmitter-Zertifikat nur den Ping an.</summary>
     public const string ProdUrl = "https://distributor.swissdec.ch/services/elm/SalaryDeclaration/V6";
 
+    /// <summary>
+    /// Quality Tool der Testinfrastruktur — Lohntest (Calculation Test): vergleicht jede Meldung mit der
+    /// Referenz der Muster AG. Adresse aus dem Quality Tool («Your current Interface ELM V6», Walter 27.09.2026).
+    /// </summary>
+    public const string QualityToolUrl = "https://test.swissdec.ch/qualitytool/stable/domain-analyzer/services/elm/SalaryDeclaration/V6";
+
+    /// <summary>REST-Schnittstelle des Quality Tools (Bericht, neuer Lauf) — nicht für Meldungen.</summary>
+    public const string QualityToolApiUrl = "https://test.swissdec.ch/qualitytool/stable/api/elm/v6/runs/";
+
     public record Ziel(string Schluessel, string Name, string Url, bool IstTest);
 
     public static readonly IReadOnlyList<Ziel> Alle = new List<Ziel>
     {
-        new("test", "Refapps Receiver (Testinfrastruktur)", TestUrl, true),
-        new("prod", "Produktiver Distributor",              ProdUrl, false),
+        new("test",        "Refapps Receiver (Testinfrastruktur)", TestUrl,        true),
+        new("prod",        "Produktiver Distributor",              ProdUrl,        false),
+        new("qualitytool", "Swissdec Quality Tool (Lohntest)",     QualityToolUrl, true),
     };
+
+    /// <summary>Testinstanz (INSTANCE_LABEL gesetzt) — nur dort gibt es Testziele und das Quality Tool.</summary>
+    public static bool IstTestinstanz()
+        => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INSTANCE_LABEL"));
+
+    /// <summary>
+    /// Ziele, unter denen der Benutzer beim Senden einer Lohnmeldung wählen darf: auf der Testinstanz
+    /// Refapps Receiver (Standard) und Quality Tool, auf der Produktion nur der Distributor.
+    /// </summary>
+    public static IReadOnlyList<Ziel> MeldungsZiele()
+        => IstTestinstanz() ? new[] { Alle[0], Alle[2] } : new[] { Alle[1] };
 
     /// <summary>
     /// Nur verschlüsselte Adressen sind zulässig (Foundation-Test F02_01 «Transportsicherheit»,
@@ -49,7 +70,7 @@ public static class ElmEndpunkte
     /// spricht die Swissdec-Testinfrastruktur an, die Produktion den produktiven Distributor.
     /// </summary>
     public static Ziel Standard()
-        => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INSTANCE_LABEL")) ? Alle[1] : Alle[0];
+        => IstTestinstanz() ? Alle[0] : Alle[1];
 
     /// <summary>Eingetragene Adresse → hinterlegtes Ziel, wenn sie genau eines davon ist.</summary>
     public static Ziel? FindeNachUrl(string? url)

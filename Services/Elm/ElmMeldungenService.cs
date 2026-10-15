@@ -28,9 +28,21 @@ public class ElmMeldungenService
     public ElmEndpunkte.Ziel Ziel => ElmEndpunkte.Standard();
 
     /// <summary>Grund, warum hier (noch) nicht gesendet werden darf — NULL = erlaubt.</summary>
-    public string? SendenGesperrt()
-        => Ziel.IstTest || _cfg.GetValue<bool>("Swissdec:ProduktivSenden") ? null
+    public string? SendenGesperrt(ElmEndpunkte.Ziel? ziel = null)
+        => (ziel ?? Ziel).IstTest || _cfg.GetValue<bool>("Swissdec:ProduktivSenden") ? null
            : "Echte Lohnmeldungen an Swissdec sind noch nicht freigegeben (Parallelbetrieb mit Mirus).";
+
+    /// <summary>
+    /// Ziel einer neuen Meldung: nur aus <see cref="ElmEndpunkte.MeldungsZiele"/>, leer = das erste davon.
+    /// Eine Ersatzmeldung geht immer dorthin, wo die ersetzte Meldung hinging.
+    /// </summary>
+    public static ElmEndpunkte.Ziel ZielFuerNeue(string? schluessel)
+    {
+        var erlaubt = ElmEndpunkte.MeldungsZiele();
+        if (string.IsNullOrWhiteSpace(schluessel)) return erlaubt[0];
+        return erlaubt.FirstOrDefault(z => string.Equals(z.Schluessel, schluessel.Trim(), StringComparison.OrdinalIgnoreCase))
+               ?? throw new InvalidOperationException("Dieses Ziel ist hier nicht erlaubt.");
+    }
 
     public static string UrlVon(ElmVorgang v) => ElmEndpunkte.IstSicher(v.Url) ? v.Url! : ElmEndpunkte.Standard().Url;
 
@@ -43,9 +55,12 @@ public class ElmMeldungenService
     public Task<ElmUebermittlungService.Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct)
         => _dienst.VorschauAsync(art, jahr, monat, ct);
 
-    public async Task<ElmUebermittlungService.Ergebnis> SendenAsync(string art, int jahr, int? monat, string? ersetztId, CancellationToken ct)
+    public async Task<ElmUebermittlungService.Ergebnis> SendenAsync(string art, int jahr, int? monat, string? ersetztId,
+        string? zielSchluessel, CancellationToken ct)
     {
-        if (SendenGesperrt() is { } grund) throw new InvalidOperationException(grund);
+        var ziel = string.IsNullOrWhiteSpace(ersetztId) ? ZielFuerNeue(zielSchluessel)
+            : ElmEndpunkte.FindeNachUrl(UrlVon(Finde(ersetztId))) ?? Ziel;
+        if (SendenGesperrt(ziel) is { } grund) throw new InvalidOperationException(grund);
         string? substitution = null;
         if (!string.IsNullOrWhiteSpace(ersetztId))
         {
@@ -57,9 +72,9 @@ public class ElmMeldungenService
                 throw new InvalidOperationException("Die Ersatzmeldung muss dieselbe Meldung (Art und Zeitraum) betreffen.");
             substitution = ElmMeldungAnzeige.DeclarationId(alt);
         }
-        return await _dienst.DeclareAsync(Ziel.Url, new ElmUebermittlungService.DeclareOptionen(
+        return await _dienst.DeclareAsync(ziel.Url, new ElmUebermittlungService.DeclareOptionen(
             art, jahr, art == "monthly" ? monat : null,
-            TestCase: Ziel.IstTest, Substitution: substitution, Adressaten: null, DoppeltSignieren: true), ct);
+            TestCase: ziel.IstTest, Substitution: substitution, Adressaten: null, DoppeltSignieren: true), ct);
     }
 
     public record Abfrage(bool Ok, string? Fehler);

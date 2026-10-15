@@ -46,7 +46,7 @@ public class ElmMeldungenController : ControllerBase
         catch (Exception ex) { return BadRequest(new { error = "VORSCHAU", message = ex.GetBaseException().Message }); }
     }
 
-    public record SendenBody(string? Art, int Jahr, int? Monat, string? ErsetztId);
+    public record SendenBody(string? Art, int Jahr, int? Monat, string? ErsetztId, string? Ziel);
 
     [HttpPost("senden")]
     public async Task<IActionResult> Senden([FromBody] SendenBody dto, CancellationToken ct)
@@ -54,7 +54,7 @@ public class ElmMeldungenController : ControllerBase
         var art = dto.Art == "annual" ? "annual" : "monthly";
         try
         {
-            var r = await _dienst.SendenAsync(art, dto.Jahr, dto.Monat, dto.ErsetztId, ct);
+            var r = await _dienst.SendenAsync(art, dto.Jahr, dto.Monat, dto.ErsetztId, dto.Ziel, ct);
             return Ok(new
             {
                 ok = r.Ok,
@@ -130,6 +130,7 @@ public class ElmMeldungenController : ControllerBase
         return new
         {
             ziel = new { z.Name, z.IstTest },
+            ziele = ElmEndpunkte.MeldungsZiele().Select(x => new { x.Schluessel, x.Name }),
             sendenGesperrt = _dienst.SendenGesperrt(),
             meldungen = _dienst.Liste().Select(Projektion),
         };
@@ -145,6 +146,7 @@ public class ElmMeldungenController : ControllerBase
         return new
         {
             v.Id, v.Art, jahr, monat, v.Gesendet, v.TestCase,
+            qualityTool = v.Url == ElmEndpunkte.QualityToolUrl,
             titel = v.Art == "annual" ? $"Jahresmeldung {jahr}" : monat != null ? $"Monatsmeldung {monat:00}.{jahr}" : v.Titel,
             ersatz = v.Substitution != null,
             zertifizierung = ElmMeldungAnzeige.Zertifizierungstest(v),

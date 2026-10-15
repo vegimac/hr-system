@@ -262,6 +262,9 @@ hochgeladen: `https://test.swissdec.ch/qualitytool/stable/domain-analyzer/servic
 («Your current Interface ELM V6»). Solange es kein Transmitter-Zertifikat gibt, lädt Walter das XML
 im RefApps-Transmitter hoch; direktes Senden kommt mit F02/F07 und dann nur an die Adresse, die der
 Super-Admin in `ElmEndpunkte` festgelegt hat.
+**Seit 15.10.2026 (Foundation abgeschlossen):** direktes Senden aus «Lohnmeldungen (ELM)» mit
+«Senden an: Swissdec Quality Tool» (nur Testinstanz, `ElmEndpunkte.QualityToolUrl`), Bericht über die
+Quality-Tool-REST-Schnittstelle in derselben Seite. Ablauf: `docs/swissdec-qualitytool-protokoll.md`.
 
 **Gebaut:**
 

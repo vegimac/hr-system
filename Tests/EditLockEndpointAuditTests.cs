@@ -188,6 +188,7 @@ public class EditLockEndpointAuditTests
         ["ElmController"]                          = "Swissdec ELM E1–E3 (Walter 27./28.08.2026): Ping/CheckInteroperability (externe Test-Calls) + elm_stammdaten (Katalog Rechtseinheit, kein MA-Lohn)"
         ,["ElmMeldungenController"]                 = "Swissdec Lohnmeldungen senden/verfolgen (Walter 15.10.2026) — Übermittlung, schreibt keinen Lohn"
         ,["ElmZertifikatController"]                = "Swissdec SUA-Zertifikat erneuern/registrieren (Walter 15.10.2026) — Zertifikat-Dateien, kein MA-Lohn"
+        ,["ElmQualityToolController"]               = "Swissdec Quality Tool Lohntest-Bericht/neuer Lauf (Walter 15.10.2026) — nur Testinstanz, schreibt nichts in OneCrew"
         ,["HauptsitzController"]                    = "Hauptsitz/Rechtseinheiten-Katalog (Walter 29.08.2026) — Stammdaten, kein MA-Lohn"
         ,["SwissdecTestmandantController"]          = "Swissdec-Testmandant Muster AG (Walter 07.09.2026) — nur Testinstanz (INSTANCE_LABEL, sonst 403), admin; legt Kunstdaten der Testfälle an, keine echten Lohnläufe"
         ,["SwissdecTestmandantController.Schritt2"]  = "Swissdec-Testmandant Schritt 2 — nur Testinstanz, admin, Kunstdaten"
