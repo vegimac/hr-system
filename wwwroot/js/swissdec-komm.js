@@ -551,7 +551,7 @@ async function kommArchivLaden() {
             }
         };
         el.innerHTML = zusammen + `<table class="komm-archiv"><thead><tr>
-                <th>Zeit</th><th>Nachricht</th><th>Signaturen</th><th>verschlüsselt</th><th>SignatureConfirmation</th></tr></thead><tbody>`
+                <th>Zeit</th><th>Nachricht</th><th>Signaturen</th><th>verschlüsselt</th><th>SignatureConfirmation</th><th></th></tr></thead><tbody>`
             + liste.map(d => {
                 const art = d.name.replace(/^\d{8}-\d{6}-/, '').replace(/\.xml$/, '');
                 const istAntwort = /-response$/.test(art);
@@ -561,7 +561,9 @@ async function kommArchivLaden() {
                     <td>${d.signaturen || '<span class="komm-rot">keine</span>'}</td>
                     <td>${d.nichtEntschluesselbar ? '<span class="komm-klein">nicht entschlüsselbar (Probe F02_03)</span>'
                         : d.verschluesselt ? '<span class="komm-rot">ja</span>' : 'nein'}</td>
-                    <td>${istAntwort ? scZelle(d) : ''}</td></tr>`;
+                    <td>${istAntwort ? scZelle(d) : ''}</td>
+                    <td><button type="button" class="komm-btn-sekundaer ueb-klein" title="Datei herunterladen"
+                        onclick="event.stopPropagation(); kommArchivSpeichern('${esc(d.name)}')">⤓</button></td></tr>`;
             }).join('') + '</tbody></table>';
     } catch (e) { el.innerHTML = `<span class="komm-rot">${esc(e.message)}</span>`; }
 }
@@ -580,9 +582,21 @@ async function kommArchivZeigen(name, zeile) {
             // nur Anzeige: Einrückung für die Lesbarkeit, Datei bleibt unverändert
             schoen = text.replace(/>\s*</g, '>\n<');
         } catch (_) { /* roh anzeigen */ }
-        el.innerHTML = `<div class="komm-schritt-titel" style="margin-bottom:6px">${esc(name)}</div>
+        el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div class="komm-schritt-titel">${esc(name)}</div>
+                <button type="button" class="komm-btn-sekundaer ueb-klein" style="margin-left:auto"
+                    onclick="kommArchivSpeichern('${esc(name)}')">Herunterladen</button></div>
             <pre class="komm-xml">${esc(schoen)}</pre>`;
     } catch (e) { el.innerHTML = `<span class="komm-rot">${esc(e.message)}</span>`; }
+}
+
+/** Archivdatei unverändert speichern (Byte für Byte wie archiviert — Signaturen bleiben prüfbar). */
+async function kommArchivSpeichern(name) {
+    try {
+        const r = await fetch(`/api/elm/archiv/${encodeURIComponent(name)}`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) { alert('Archivdatei nicht gefunden.'); return; }
+        await saveBlobAsk(await r.blob(), name);
+    } catch (e) { alert(e.message); }
 }
 
 // ── Bereitschafts-Check vor dem Termin ───────────────────────────────────
