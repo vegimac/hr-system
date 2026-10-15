@@ -1545,7 +1545,7 @@ async function mtOpen(antwort = null) {
         const r = await fetch('/api/mailbox/user-recipients?includeSelf=true', { headers: ah() });
         _mtUsers = r.ok ? await r.json() : [];
     } catch (_) { _mtUsers = []; }
-    const rolle = u => [u.role === 'user' ? 'GF' : u.role === 'superuser' ? 'Superuser' : u.role === 'buchhaltung' ? 'Buchhaltung' : u.role === 'admin' ? 'Admin' : (u.role || ''),
+    const rolle = u => [u.role === 'user' ? (u.isHrTeam ? '' : 'GF') : u.role === 'superuser' ? 'Superuser' : u.role === 'buchhaltung' ? 'Buchhaltung' : u.role === 'admin' ? 'Admin' : (u.role || ''),
         u.isHrTeam ? 'HR-Team' : ''].filter(Boolean).join(' · ');
     box.innerHTML = _mtUsers.length
         ? _mtUsers.map(u => `<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#3f3f3f;cursor:pointer;padding:2px 0">
@@ -1576,7 +1576,7 @@ function mtSelectRole(which) {
         if (which === 'none') cb.checked = false;
         else if (which === 'all') cb.checked = true;
         else if (which === 'antwortAlle') cb.checked = !!_mtAntwort && _mtAntwort.alle.includes(Number(cb.value));
-        else if (which === 'user') cb.checked = cb.dataset.role === 'user';
+        else if (which === 'user') cb.checked = cb.dataset.role === 'user' && cb.dataset.hr !== '1';
         else if (which === 'hr') cb.checked = cb.dataset.hr === '1' && (!fil || _mtHatFiliale(cb, fil.id));
     });
 }
