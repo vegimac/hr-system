@@ -69,6 +69,7 @@ public class GespraechUebernahmeService
         if (emp.MaritalStatusSince == null && DO("zivilstand_seit") != null) { emp.MaritalStatusSince = DO("zivilstand_seit"); felder++; log.Add("Zivilstand seit"); }
         Set("AHV-Nummer", emp.SocialSecurityNumber, AhvNorm(S("ahv")), v => emp.SocialSecurityNumber = v);
         Set("Konfession", emp.Religion, KonfessionCode(S("konfession")), v => emp.Religion = v);
+        Set("Schuhgrösse", emp.Schuhgroesse, S("schuhgroesse") is { Length: <= 10 } sg ? sg : null, v => emp.Schuhgroesse = v);
         Set("Anrede", emp.Salutation, S("geschlecht") == "Weiblich" ? "Frau" : (S("geschlecht") == "Männlich" ? "Herr" : null), v => emp.Salutation = v);
 
         // Nationalität: Name aus dem Gespräch → nationality-Tabelle

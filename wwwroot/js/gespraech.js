@@ -193,6 +193,7 @@ const GS_STEPS = [
       fields: [
           { k: 'pensum', l: 'Gewünschtes Pensum (%)', t: 'number', min: 0, max: 100 },
           { k: 'eintritt', l: 'Frühester Eintritt', t: 'date' },
+          { k: 'schuhgroesse', l: 'Schuhgrösse', t: 'text', ph: 'z.B. 42' },
           { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Onboarding-Tag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
           { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
           { k: 'eintritt_vereinbart', l: 'Arbeitsbeginn', t: 'date',
@@ -775,6 +776,7 @@ function bgsRenderSummary() {
     add('Bewilligung', a.bewilligung ? a.bewilligung + (a.bewilligung_bis ? ' bis ' + bgsFmtD(a.bewilligung_bis) : '') : '');
     add('Sprachen', ['Deutsch: ' + (a.sprache_deutsch || '—'), a.sprache_andere ? a.sprache_andere + ': ' + (a.sprache_andere_niveau || '—') : ''].filter(Boolean).join(' · '));
     add('Pensum / frühester Eintritt', [a.pensum ? a.pensum + ' %' : '', a.eintritt ? bgsFmtD(a.eintritt) : ''].filter(Boolean).join(' · '));
+    add('Schuhgrösse', a.schuhgroesse);
     add('Verfügbarkeit', GS_TAGE.map(([k, l]) => (a[`verf_${k}_von`] || a[`verf_${k}_bis`]) ? `${l.slice(0, 2)} ${a[`verf_${k}_von`] || '?'}–${a[`verf_${k}_bis`] || '?'}` : '').filter(Boolean).join(' · '));
     add('Wünsche / Einschränkungen', a.verf_bemerkung);
     add('Gesundheit / Allergien', yn(a.krankheit) + (a.krankheit_welche ? ' — ' + a.krankheit_welche : ''));

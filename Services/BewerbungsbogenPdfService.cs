@@ -405,8 +405,8 @@ public class BewerbungsbogenPdfService
 
             // ── Ergänzende Angaben
             col.Item().PaddingTop(12).Element(e => SectionHead(e, "Ergänzende Angaben", null));
-            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Krankenkasse", "Bank"));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Kontonummer / IBAN", "Bankadresse"));
+            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Bankadresse", "Schuhgrösse"));
 
             // Willkommenstag (Walter 31.08.2026) — Termine aus den HR-Daten;
             // ohne Termine fällt der Block weg.
