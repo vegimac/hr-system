@@ -30,11 +30,14 @@ public class DashboardService
     private readonly AppDbContext _db;
     private readonly QstPflichtCheckService _qstCheck;
     private readonly SperrfristService _sperrfrist;
-    public DashboardService(AppDbContext db, QstPflichtCheckService qstCheck, SperrfristService sperrfrist)
+    private readonly HrSystem.Services.Elm.ElmZertifikatStore? _elmStore;
+    public DashboardService(AppDbContext db, QstPflichtCheckService qstCheck, SperrfristService sperrfrist,
+        HrSystem.Services.Elm.ElmZertifikatStore? elmStore = null)
     {
         _db = db;
         _qstCheck = qstCheck;
         _sperrfrist = sperrfrist;
+        _elmStore = elmStore;
     }
 
     public class DashboardAlert
@@ -1026,6 +1029,48 @@ public class DashboardService
                     DueDate   = f.GefundenAm.Date,
                     DaysUntil = (f.GefundenAm.Date - now).Days,
                 });
+            }
+        }
+
+        // ── Swissdec SUA-Zertifikat (Walter 15.10.2026) ───────────────────
+        // Nur wenn es eines gibt oder eine Registrierung begonnen wurde — eine Firma ohne
+        // ELM soll keine Meldung sehen. Ohne EmployeeId (globale Austritts-Bedingung).
+        // DashboardController blendet die Karte für Nicht-Admins aus.
+        if (_elmStore != null && Enabled("elm_zertifikat"))
+        {
+            var fall = _elmStore.LadeFall();
+            System.Security.Cryptography.X509Certificates.X509Certificate2? sua = null;
+            try { sua = _elmStore.LadeSua(); } catch { /* unlesbar = keines */ }
+            if (sua != null || fall != null)
+            {
+                var l = HrSystem.Services.Elm.ElmZertifikatLaufzeit.Beurteile(sua?.NotBefore, sua?.NotAfter,
+                    sua?.HasPrivateKey == true, fall?.Erneuerungen ?? 0, DateTime.Now);
+                sua?.Dispose();
+                var laufendeRegistrierung = fall is { Abgeschlossen: false, RegistriertAm: not null };
+                string? titel = null, text = l.Text;
+                if (!string.IsNullOrWhiteSpace(fall?.AutoFehler))
+                {
+                    titel = "Swissdec-Zertifikat: automatische Erneuerung gescheitert";
+                    text = fall!.AutoFehler + " · " + l.Text;
+                }
+                else if (l.Stufe != HrSystem.Services.Elm.ElmZertifikatLaufzeit.Ok && !(laufendeRegistrierung && l.GueltigBis == null))
+                {
+                    titel = l.GueltigBis == null ? "Swissdec-Zertifikat fehlt"
+                          : l.RestTage < 0 ? "Swissdec-Zertifikat abgelaufen"
+                          : "Swissdec-Zertifikat läuft ab";
+                }
+                if (titel != null)
+                {
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category  = "elm_zertifikat",
+                        Severity  = l.Stufe == HrSystem.Services.Elm.ElmZertifikatLaufzeit.Rot || fall?.AutoFehler != null ? "critical" : "warning",
+                        Title     = titel,
+                        Subtitle  = text,
+                        DueDate   = l.GueltigBis?.Date,
+                        DaysUntil = l.RestTage,
+                    });
+                }
             }
         }
 

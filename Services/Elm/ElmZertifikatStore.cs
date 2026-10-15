@@ -611,6 +611,32 @@ public class ElmSuaFall
     /// </summary>
     public List<string> ErhalteneStoryIds { get; set; } = new();
 
+    /// <summary>
+    /// Erneuerungen seit dem letzten Signieren mit Registrierungspasswort — höchstens
+    /// <see cref="ElmZertifikatLaufzeit.MaxErneuerungen"/> (Richtlinie C.3.1).
+    /// </summary>
+    public int Erneuerungen { get; set; }
+
+    /// <summary>Adresse, unter der dieser Fall registriert wurde — Erneuern und Automatik gehen dorthin.</summary>
+    public string? Url { get; set; }
+
+    /// <summary>Zeitpunkt der Registrierung (NULL = Fall von vor dem 15.10.2026).</summary>
+    public DateTime? RegistriertAm { get; set; }
+    /// <summary>Aus diesem Fall wurde ein Zertifikat ausgestellt — die Registrierung ist fertig.</summary>
+    public bool Abgeschlossen { get; set; }
+
+    /// <summary>Registrierungsdaten, damit die neue Registrierung nach Ablauf vorbefüllt ist.</summary>
+    public string? Zip { get; set; }
+    public string? City { get; set; }
+    public string? InsuranceName { get; set; }
+    public string? CustomerIdentity { get; set; }
+    public string? ContractIdentity { get; set; }
+
+    /// <summary>Letzter Versuch der automatischen Erneuerung (höchstens einer pro Tag).</summary>
+    public DateTime? AutoVersuchAm { get; set; }
+    /// <summary>Gescheiterte automatische Erneuerung — NULL, sobald sie (oder eine von Hand) klappt.</summary>
+    public string? AutoFehler { get; set; }
+
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 }
 

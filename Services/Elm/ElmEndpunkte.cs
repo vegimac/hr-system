@@ -44,6 +44,13 @@ public static class ElmEndpunkte
         => Alle.FirstOrDefault(z => string.Equals(z.Schluessel, (schluessel ?? "").Trim(),
                                                   StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Ziel für Benutzer-Aktionen ohne Adresswahl (Zertifikat erneuern, Automatik): die Testinstanz
+    /// spricht die Swissdec-Testinfrastruktur an, die Produktion den produktiven Distributor.
+    /// </summary>
+    public static Ziel Standard()
+        => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INSTANCE_LABEL")) ? Alle[1] : Alle[0];
+
     /// <summary>Eingetragene Adresse → hinterlegtes Ziel, wenn sie genau eines davon ist.</summary>
     public static Ziel? FindeNachUrl(string? url)
     {

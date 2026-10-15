@@ -1650,6 +1650,11 @@
                         <div class="admin-card-title">ELM-Meldungen</div>
                         <div class="admin-card-desc">Monatsmeldung Quellensteuer + Statistik erzeugen und prüfen</div>
                     </div>
+                        <div class="admin-card admin-only-card" onclick="showPage('elm-schnittstelle')">
+                        <img src="img/lohnkat-perioden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Lohnmeldungen (ELM)</div>
+                        <div class="admin-card-desc">Swissdec-Zertifikat: Laufzeit, Warnung vor Ablauf, erneuern (admin)</div>
+                    </div>
                         <div class="admin-card" onclick="showPage('sv-saetze')">
                         <img src="img/lohnkat-sv-saetze.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">SV-Sätze</div>
@@ -6490,6 +6495,19 @@
                 </div>
             </div>
             <!-- ═══ VIRENSCANNER (Walter-Vorgabe 08.10.2026, admin-only) ═══ -->
+            <div class="page fixhead" id="page-elm-schnittstelle">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Lohnmeldungen (ELM)</h1>
+                    <p class="page-sub">Verbindung zu Swissdec für die Lohnmeldungen an AHV, Steuerämter, Versicherungen und Statistik.</p>
+                </div></div>
+                <div class="page-body">
+                    <div class="card" id="elmzZertifikat" style="max-width:1100px;padding:20px 24px;border:1px solid rgba(60,55,48,0.14);
+                                background-image:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%)">
+                        <div style="color:#6b7280">Lade …</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="page fixhead" id="page-virenscanner">
                 <div class="page-head"><div>
                     <h1 class="page-title">Virenscanner</h1>
@@ -10542,7 +10560,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261015a"></script>
+<script src="js/app-core.js?v=20261015b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10555,7 +10573,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/upload-regel.js?v=20261001a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20261013b"></script>
+<script src="js/dashboard.js?v=20261015a"></script>
 <script src="js/session-timeout.js?v=20261007a"></script>
 <script src="js/session-lock.js?v=20260911a"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
@@ -10635,6 +10653,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/audit-log.js?v=20260816c"></script>
 <script src="js/aktive-sitzungen.js?v=20260904a"></script>
 <script src="js/virenscanner.js?v=20261008a"></script>
+<script src="js/elm-zertifikat.js?v=20261015a"></script>
 <script src="js/elm-lohnraster.js?v=20260921a"></script>
 <script src="js/lohnschema.js?v=20260819d"></script>
 <script src="js/global-search.js?v=20260901a"></script>

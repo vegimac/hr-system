@@ -1196,6 +1196,16 @@ Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und AHV-AVS · 046.000 
   sendet, empfängt, Fehler meldet und Korrekturen zurücksendet — F01–F08 sollen im normalen
   Ablauf erfüllt sein, nicht als Prüfpunkt-Knöpfe. Entscheid Walter: die neue Schnittstelle
   ersetzt die Seite «Kommunikations-Test», der Prüfkatalog wandert in eine versteckte Ansicht.
+- **Zertifikat erneuern als Benutzer** (ausdrücklich nachgefragt): Seite System → Lohn →
+  «Lohnmeldungen (ELM)» (`page-elm-schnittstelle`, `js/elm-zertifikat.js`,
+  `ElmZertifikatController`, Rolle admin — Zieladresse wählt weiter nur der Superadmin).
+  Zeigt Restlaufzeit mit Ampel, Knopf «Zertifikat erneuern»; abgelaufen ⇒ derselbe Knopf führt
+  durch die neue Registrierung (Angaben → Swissdec prüft → Passwort aus dem Brief). Regeln
+  `ElmZertifikatLaufzeit` (C.2.3/C.3.1): Erneuern frühestens 60 Tage vor Ablauf, höchstens
+  3× hintereinander, abgelaufen ⇒ nur neu registrieren; Schwellen skaliert nach Laufzeit
+  (1 Jahr: Warnung 60 / Automatik 30 / Rot 14 Tage; RefApps-Testzertifikat ≈10 Tage: 5 / 2 / 1).
+  `ElmZertifikatAutoErneuerung` erneuert automatisch (höchstens 1 Versuch/Tag), Fehler →
+  To-do `elm_zertifikat` (Schema-Stand 73, nur Admin). Tests `ElmZertifikatLaufzeitTests`.
 
 ---
 

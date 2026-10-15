@@ -250,6 +250,10 @@ public class ElmSuaService
                 AlsTestfall = dto.AlsTestfall,
                 Domain = domain,
                 LetzterState = null,
+                Url = url,
+                RegistriertAm = DateTime.Now,
+                Zip = dto.Zip, City = dto.City, InsuranceName = dto.InsuranceName,
+                CustomerIdentity = dto.CustomerIdentity, ContractIdentity = dto.ContractIdentity,
                 UpdatedAt = DateTime.Now,
             };
             _store.SpeichereFall(fall);
@@ -305,6 +309,10 @@ public class ElmSuaService
             suaFuerRenew = _store.LadeSuaZumSignieren()
                 ?? throw new InvalidOperationException(
                     "Erneuern geht nur mit einem vorhandenen SUA-Zertifikat samt Schlüssel — die Anfrage muss doppelt signiert sein (ERP + SUA).");
+            var laufzeit = ElmZertifikatLaufzeit.Beurteile(suaFuerRenew.NotBefore, suaFuerRenew.NotAfter,
+                true, fall.Erneuerungen, DateTime.Now);
+            if (ElmZertifikatLaufzeit.ErneuernGesperrt(laufzeit) is { } gesperrt)
+                throw new InvalidOperationException(gesperrt);
             // Erneuern mit der Variante, die bei der Ausstellung angenommen wurde.
             variante = ElmCsrVariante.Angenommen(fall);
             (signBlock, csrKey) = BaueRenewBlock(fall.Subject, variante.OhneSt, variante.OhneOrgId,
@@ -430,6 +438,10 @@ public class ElmSuaService
             fall.CsrOhneStateOrProvince = variante.OhneSt;
             fall.CsrOhneOrgId = variante.OhneOrgId;
             fall.CsrPemAlsDer = variante.PemAlsDer;
+            fall.Erneuerungen = renew ? fall.Erneuerungen + 1 : 0;
+            fall.Url = url;
+            fall.Abgeschlossen = true;
+            fall.AutoFehler = null;
             // «verified — bereit zum Signieren» passt nicht mehr, sobald das Zertifikat da ist.
             string bis = "";
             try { bis = $", gültig bis {X509Certificate2.CreateFromPem(pemText).NotAfter:dd.MM.yyyy HH:mm}"; }

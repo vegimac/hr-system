@@ -45,9 +45,9 @@ public class DashboardController : ControllerBase
     public async Task<IActionResult> Get([FromQuery] int? companyProfileId)
     {
         var data = await _svc.BuildAsync(companyProfileId);
-        // Aktivitäts-Log ist admin-only — Stille-Warnung nicht an GF/HR zeigen.
+        // Aktivitäts-Log und Swissdec-Zertifikat sind admin-only — nicht an GF/HR zeigen.
         if (!User.IsInRole("admin"))
-            data.Alerts.RemoveAll(a => a.Category == "audit_log_stumm");
+            data.Alerts.RemoveAll(a => a.Category is "audit_log_stumm" or "elm_zertifikat");
         return Ok(data);
     }
 }

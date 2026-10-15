@@ -98,6 +98,7 @@ const DASH_CATEGORY_META = {
     email_unzustellbar: { label: 'E-Mail nicht zustellbar', icon: '📮', color: '#b91c1c' },
     email_wiedervorlage_aufgegeben: { label: 'E-Mail nach Wiederholungen aufgegeben', icon: '📮', color: '#b91c1c' },
     virus_gefunden:         { label: 'Schadsoftware gefunden', icon: '🦠', color: '#b91c1c' },
+    elm_zertifikat:         { label: 'Swissdec-Zertifikat', icon: '🔐', color: '#b45309' },
     gastrosocial_anmeldung_fehlt: { label: 'GastroSocial-Anmeldung fehlt', icon: '🏛', color: '#92400e' },
     gastrosocial_abmeldung_fehlt: { label: 'GastroSocial-Abmeldung fehlt', icon: '🏛', color: '#92400e' },
     austritt_datum_mismatch: { label: 'Austrittsdatum stimmt nicht überein', icon: '📆', color: '#b45309' },
@@ -562,6 +563,7 @@ function dashTodoOnClick(a) {
         }
     }
     if (a.category === 'virus_gefunden') return `onclick="showPage('virenscanner')"`;
+    if (a.category === 'elm_zertifikat') return `onclick="showPage('elm-schnittstelle')"`;
     if (a.category === 'audit_log_stumm') return `onclick="showPage('audit-log')"`;
     return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
 }
