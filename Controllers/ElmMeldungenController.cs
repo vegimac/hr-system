@@ -137,7 +137,7 @@ public class ElmMeldungenController : ControllerBase
                     freigabeBis = freigabe ? a.Completion!.Ablauf : null,
                     nachrichten = a.Stories.Select(s => new
                     {
-                        s.StoryId, s.Empfangen, s.Beantwortet,
+                        s.StoryId, s.Empfangen, s.Beantwortet, s.Quittiert,
                         art = ElmMeldungAnzeige.NachrichtArt(s.Art),
                         dialog = s.Art == "DialogMessage" ? LiesDialog(s.Xml) : null,
                         s.Xml,

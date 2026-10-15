@@ -372,7 +372,10 @@ function _elmmNachrichtHtml(m, mi, e, ei, n, ni) {
             ${_uebDialogFeld(`elmmDlg-${mi}-${ei}-${ni}-${p.id}`, p, n.beantwortet)}
             ${p.problem ? `<span style="color:#991b1b">${_elmzEsc(p.problem)}</span>` : ''}</label>`;
     };
-    const fuss = !d.beantwortbar ? '<div style="font-size:12px;color:#8b8b8b;margin-top:6px">Zur Kenntnis.</div>'
+    const fuss = !d.beantwortbar
+        ? (n.quittiert
+            ? '<div style="font-size:12px;color:#166534;margin-top:6px">✓ Nur zur Kenntnis — Empfang bestätigt.</div>'
+            : '<div style="font-size:12px;color:#8b8b8b;margin-top:6px">Nur zur Kenntnis, keine Antwort nötig — OneCrew bestätigt den Empfang beim nächsten Abfragen selbst.</div>')
         : n.beantwortet ? '<div style="font-size:12px;color:#166534;margin-top:6px">✓ Beantwortet.</div>'
         : `<div style="display:flex;justify-content:flex-end;margin-top:10px">
               <button type="button" class="btn btn-primary" onclick="elmmAntworten(${mi}, ${ei}, ${ni})" ${_elmmBusy ? 'disabled' : ''}>Antwort senden</button></div>`;

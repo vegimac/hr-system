@@ -15,6 +15,8 @@ public static class ElmMeldungAnzeige
     public static readonly TimeSpan AutoStatusAbstand = TimeSpan.FromMinutes(30);
     /// <summary>Synchronisieren offener Fälle (Quittungen, Rückfragen) — automatisch höchstens so oft.</summary>
     public static readonly TimeSpan AutoSyncAbstand = TimeSpan.FromMinutes(60);
+    /// <summary>Liegt eine empfangene Nachricht noch unquittiert da, schneller: der Empfänger wartet darauf.</summary>
+    public static readonly TimeSpan AutoQuittungAbstand = TimeSpan.FromMinutes(10);
     /// <summary>Ältere Meldungen fragt die Automatik nicht mehr nach (nur noch per Knopf).</summary>
     public const int AutoHoechstensTage = 90;
 
@@ -43,12 +45,28 @@ public static class ElmMeldungAnzeige
             "Finished" => new(Ok, "Abgeschlossen", false),
             "Accepted" => new(Ok, "Angenommen", false),
             "Rejected" => new(Rot, "Vom Empfänger abgelehnt", true),
-            "DialogMessagePending" => new(Warn, "Rückfrage vom Empfänger — bitte beantworten", true),
+            "DialogMessagePending" => OffeneRueckfrage(a)
+                ? new(Warn, "Rückfrage vom Empfänger — bitte beantworten", true)
+                : new(Laeuft, "Nachricht vom Empfänger erhalten — OneCrew bestätigt den Empfang selbst", false),
             "CompletionReleaseMissing" => new(Warn, "Freigabe beim Empfänger fehlt — «Beim Empfänger freigeben»", true),
             "Processing" => new(Laeuft, "In Bearbeitung beim Empfänger", false),
             null => new(Laeuft, "Angekommen, Ergebnis folgt", false),
             _ => new(Laeuft, a.State, false),
         };
+    }
+
+    /// <summary>
+    /// Wartet eine Rückfrage mit Eingabefeldern auf Antwort? Nachrichten ohne Felder sind nur zur
+    /// Kenntnis und werden quittiert (Anhang D.2.5). Unlesbares XML zählt als offen — lieber einmal
+    /// zu viel nachsehen lassen.
+    /// </summary>
+    public static bool OffeneRueckfrage(ElmVorgangAdressat a)
+        => a.Stories.Any(s => s.Art == "DialogMessage" && !s.Beantwortet && Beantwortbar(s.Xml));
+
+    private static bool Beantwortbar(string xml)
+    {
+        try { return ElmDialog.Lies(System.Xml.Linq.XElement.Parse(xml)).Beantwortbar; }
+        catch { return true; }
     }
 
     /// <summary>Ampel einer Meldung: rot vor «Handlung nötig» vor «läuft» vor grün.</summary>
@@ -130,7 +148,8 @@ public static class ElmMeldungAnzeige
         return v.Adressaten.Where(a => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId)
                                        && !string.IsNullOrEmpty(a.Key) && !string.IsNullOrEmpty(a.Password)
                                        && (!Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0)
-                                       && (a.LetzteSynchronisierung is not DateTime t || jetzt - t >= AutoSyncAbstand))
+                                       && (a.LetzteSynchronisierung is not DateTime t
+                                           || jetzt - t >= (ElmUebermittlungXml.ZuQuittieren(a).Count > 0 ? AutoQuittungAbstand : AutoSyncAbstand)))
             .ToList();
     }
 }

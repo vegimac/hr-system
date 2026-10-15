@@ -19,6 +19,29 @@ public class ElmMeldungAnzeigeTests
         Key = credentials ? "k" : null, Password = credentials ? "p" : null,
     };
 
+    private static string DialogXml(bool mitFrage) => $"""
+        <sdc:DialogMessage xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                           xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components">
+          <ep:Creation>2026-10-15T15:37:00.000+02:00</ep:Creation>
+          <ep:StoryID>DM-1</ep:StoryID>
+          <ep:StandardDialogID>0000.0001.0001-001</ep:StandardDialogID>
+          <ep:Title>Dialog Simple Message</ep:Title>
+          <ep:Paragraph>
+            <ep:ID>1</ep:ID>
+            <ep:Label>This has to be confirmed</ep:Label>
+            {(mitFrage ? "<ep:Answer><ep:String/></ep:Answer>" : "<ep:Value><ep:String>Info</ep:String></ep:Value>")}
+          </ep:Paragraph>
+        </sdc:DialogMessage>
+        """;
+
+    /// <summary>Empfänger im Zustand DialogMessagePending mit einer Rückfrage (mit oder ohne Eingabefeld).</summary>
+    private static ElmVorgangAdressat Rueckfrage(bool mitFrage = true)
+    {
+        var a = Adr("Success", "DialogMessagePending");
+        a.Stories.Add(new ElmStoryEmpfangen { StoryId = "DM-1", Art = "DialogMessage", Xml = DialogXml(mitFrage) });
+        return a;
+    }
+
     private static ElmVorgang Vorgang(bool fertig, params ElmVorgangAdressat[] a) => new()
     {
         Art = "monthly", Titel = "Monatsmeldung 01.2025 · TestCase", JobKey = "job", JobFinished = fertig,
@@ -31,7 +54,7 @@ public class ElmMeldungAnzeigeTests
     [InlineData("Ignored", null, "grau")]
     [InlineData("Success", null, "laeuft")]
     [InlineData("Success", "Finished", "ok")]
-    [InlineData("Success", "DialogMessagePending", "warn")]
+    [InlineData("Success", "DialogMessagePending", "laeuft")]
     [InlineData("Success", "CompletionReleaseMissing", "warn")]
     [InlineData("Success", "Rejected", "rot")]
     public void Empfaenger_Stufe(string zustand, string? state, string stufe)
@@ -40,8 +63,8 @@ public class ElmMeldungAnzeigeTests
     [Fact]
     public void Meldung_RotVorWarnVorLaeuft()
     {
-        Assert.Equal("rot", ElmMeldungAnzeige.Meldung(Vorgang(true, Adr("Success", "DialogMessagePending"), Adr("Error"))).Stufe);
-        Assert.Equal("warn", ElmMeldungAnzeige.Meldung(Vorgang(true, Adr("Success", "DialogMessagePending"), Adr("Success"))).Stufe);
+        Assert.Equal("rot", ElmMeldungAnzeige.Meldung(Vorgang(true, Rueckfrage(), Adr("Error"))).Stufe);
+        Assert.Equal("warn", ElmMeldungAnzeige.Meldung(Vorgang(true, Rueckfrage(), Adr("Success"))).Stufe);
         Assert.Equal("laeuft", ElmMeldungAnzeige.Meldung(Vorgang(true, Adr("Success", "Finished"), Adr("Success"))).Stufe);
         Assert.Equal("ok", ElmMeldungAnzeige.Meldung(Vorgang(true, Adr("Success", "Finished"), Adr("Ignored"))).Stufe);
     }
@@ -74,6 +97,33 @@ public class ElmMeldungAnzeigeTests
         Assert.True(ElmMeldungAnzeige.StatusFaellig(v, Jetzt));
         v.Gesendet = Jetzt.AddDays(-91);
         Assert.False(ElmMeldungAnzeige.StatusFaellig(v, Jetzt));
+    }
+
+    [Fact]
+    public void Rueckfrage_NurMitEingabefeld_VerlangtAntwort()
+    {
+        var mitFrage = ElmMeldungAnzeige.Empfaenger(Rueckfrage(mitFrage: true));
+        Assert.Equal("warn", mitFrage.Stufe);
+        Assert.True(mitFrage.AktionNoetig);
+
+        // SimpleMessage ohne Answer-Element: nur anzeigen und quittieren (Anhang D.2.5).
+        var nurInfo = ElmMeldungAnzeige.Empfaenger(Rueckfrage(mitFrage: false));
+        Assert.Equal("laeuft", nurInfo.Stufe);
+        Assert.False(nurInfo.AktionNoetig);
+
+        var beantwortet = Rueckfrage(mitFrage: true);
+        beantwortet.Stories[0].Beantwortet = true;
+        Assert.False(ElmMeldungAnzeige.Empfaenger(beantwortet).AktionNoetig);
+    }
+
+    [Fact]
+    public void Automatik_QuittiertEmpfangeneNachrichtNach10Minuten()
+    {
+        var a = Rueckfrage(mitFrage: false);
+        a.LetzteSynchronisierung = Jetzt.AddMinutes(-11);
+        Assert.Contains(a, ElmMeldungAnzeige.SyncFaellig(Vorgang(true, a), Jetzt));
+        a.Stories[0].Quittiert = true;
+        Assert.DoesNotContain(a, ElmMeldungAnzeige.SyncFaellig(Vorgang(true, a), Jetzt));
     }
 
     [Fact]
