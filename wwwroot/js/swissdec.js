@@ -245,39 +245,22 @@ async function _elmCall(pfad, label, opt = {}) {
         // Hat WS-Security die Antwort abgelehnt, zählt ihr Inhalt nicht (F02_03–F02_08, F02_11).
         // Einzige Ausnahme: ein Fault, dem nur die Signatur fehlt — den verlangt Swissdec
         // angezeigt (F02_10), mit der Warnung darüber.
-        const hatFault = !!(j.faultCode || j.faultText);
-        const abgelehnt = !!(j.security && !j.security.ok);
-        const inhaltVerworfen = abgelehnt && !(hatFault && j.security.art === 'SignaturFehlt');
+        const inhaltVerworfen = !!j.antwortVerworfen;
         const okBadge = inhaltVerworfen
             ? `<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-weight:700">✗ Antwort abgelehnt (WS-Security)</span>`
             : j.ok
             ? `<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:8px;font-weight:700">✓ Antwort erhalten</span>`
             : `<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-weight:700">✗ ${esc(j.error || 'fehlgeschlagen')}</span>`;
-        // Grund im Klartext, wenn der Empfänger den Aufruf mit einem SOAP-Fault
-        // abweist (HTTP 500) — «Client.security» statt nur «HTTP 500».
-        const faultBlock = !hatFault ? ''
-            : inhaltVerworfen
-            ? `<div style="background:rgba(255,255,255,0.45);border:1px dashed rgba(60,55,48,0.25);color:#8b8b8b;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px">
-                   Fault zurückgewiesen — Inhalt nicht vertrauenswürdig, wird nicht übernommen:
-                   <span style="text-decoration:line-through">${esc([j.faultCode, j.faultText].filter(Boolean).join(' · '))}</span>
-               </div>`
-            : `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
-                   <b>Abgewiesen${j.faultCode ? ' — ' + esc(j.faultCode) : ''}</b>
-                   ${j.faultText ? `<div style="margin-top:3px">${esc(j.faultText)}</div>` : ''}
-                   ${_elmFaultHinweis(j)}
-               </div>`;
-        const secBlock = j.security
-            ? `<div style="background:${j.security.ok ? '#e7f0e7' : '#fef2f2'};border:1px solid ${j.security.ok ? '#b8ccb8' : '#fecaca'};color:${j.security.ok ? '#3f5540' : '#991b1b'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
-                 <b>WS-Security:</b> ${esc(j.security.meldung || '')}</div>`
-            : '';
+        const secBlock = _elmSecBlock(j.security);
         out.innerHTML = `
             ${zielZeile}
             <div style="margin-bottom:8px">${okBadge}
                 <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms${j.doppeltSigniert ? ' · Anfrage doppelt signiert (ERP + SUA)' : ''}</span></div>
+            ${inhaltVerworfen ? secBlock : ''}
             ${_elmTlsBlock(j)}
-            ${secBlock}
+            ${inhaltVerworfen ? '' : secBlock}
             ${_elmScBlock(j.signaturBestaetigung, j.security)}
-            ${faultBlock}
+            ${_elmFaultBlock(j)}
             ${_elmInteropBlock(antwort, j)}
             ${_elmZeitBlock(j)}
             ${j.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
@@ -301,6 +284,31 @@ function _elmScBlock(sb, security) {
     const ok = sb.ok === true;
     return `<div style="background:${ok ? '#e7f0e7' : '#fef2f2'};border:1px solid ${ok ? '#b8ccb8' : '#fecaca'};color:${ok ? '#3f5540' : '#991b1b'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
              <b>SignatureConfirmation:</b> ${ok ? '✓ ' : '✗ '}${esc(sb.meldung || '')}</div>`;
+}
+
+function _elmSecBlock(security) {
+    if (!security) return '';
+    return `<div style="background:${security.ok ? '#e7f0e7' : '#fef2f2'};border:1px solid ${security.ok ? '#b8ccb8' : '#fecaca'};color:${security.ok ? '#3f5540' : '#991b1b'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+             <b>WS-Security:</b> ${esc(security.meldung || '')}</div>`;
+}
+
+/**
+ * Fault des Empfängers. Hat unsere Prüfung die Antwort verworfen (F02_03–F02_08, F02_11),
+ * ist auch der Fault nicht vertrauenswürdig: nur grau durchgestrichen, nie als Ablehnung.
+ */
+function _elmFaultBlock(j) {
+    if (!(j.faultCode || j.faultText)) return '';
+    if (j.antwortVerworfen) {
+        return `<div style="background:rgba(255,255,255,0.45);border:1px dashed rgba(60,55,48,0.25);color:#8b8b8b;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px">
+                   Fault zurückgewiesen — Inhalt nicht vertrauenswürdig, wird nicht übernommen:
+                   <span style="text-decoration:line-through">${esc([j.faultCode, j.faultText].filter(Boolean).join(' · '))}</span>
+               </div>`;
+    }
+    return `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+               <b>Abgewiesen${j.faultCode ? ' — ' + esc(j.faultCode) : ''}</b>
+               ${j.faultText ? `<div style="margin-top:3px">${esc(j.faultText)}</div>` : ''}
+               ${_elmFaultHinweis(j)}
+           </div>`;
 }
 
 /** Fault-Hinweise — Code 100 mischt oft zwei Ursachen in einem Satz. */
@@ -753,7 +761,8 @@ function _suaZeigeErgebnis(j, outId) {
     // DescriptionCode und Beschreibung. Vorher stand da nur «Abgewiesen», und der
     // Grund (z.B. 2052 = Antrag nicht plausibel) lag im Roh-XML vergraben.
     const zeilen = j.meldungen || [];
-    const schlecht = !!(e.faultCode || e.faultText || j.abgewiesen);
+    const schlecht = !!(e.faultCode || e.faultText || j.abgewiesen || e.antwortVerworfen
+        || (e.security && !e.security.ok));
     const kopf = [j.code, j.descriptionCode].filter(Boolean).join(' · ');
     const meldeBlock = (zeilen.length || kopf)
         ? `<div style="background:${schlecht ? '#fef2f2' : '#eef2f7'};border:1px solid ${schlecht ? '#fecaca' : '#cbd5e1'};
@@ -790,32 +799,27 @@ function _suaZeigeErgebnis(j, outId) {
         diffSekunden: e.diffSekunden, distributorZeit: e.distributorZeit,
         lokaleZeit: e.lokaleZeit, zeitAbweichung: e.zeitAbweichung, versatzSekunden: e.versatzSekunden,
         security: e.security, doppeltSigniert: e.doppeltSigniert,
-        signaturBestaetigung: e.signaturBestaetigung,
+        signaturBestaetigung: e.signaturBestaetigung, antwortVerworfen: e.antwortVerworfen,
     };
     out.innerHTML = meldeBlock + meldung + state;
     // TLS/Fault/XML darunter anhängen
     const tmp = document.createElement('div');
     out.appendChild(tmp);
     // schreibe in tmp wie _elmCall
-    const sec = fake.security
-        ? `<div style="background:${fake.security.ok ? '#e7f0e7' : '#fef2f2'};border:1px solid ${fake.security.ok ? '#b8ccb8' : '#fecaca'};color:${fake.security.ok ? '#3f5540' : '#991b1b'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
-             <b>WS-Security:</b> ${esc(fake.security.meldung || '')}</div>`
-        : '';
-    const okBadge = fake.ok
+    const verworfen = !!fake.antwortVerworfen;
+    const sec = _elmSecBlock(fake.security);
+    const okBadge = verworfen
+        ? `<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-weight:700">✗ Antwort abgelehnt (WS-Security)</span>`
+        : fake.ok
         ? `<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:8px;font-weight:700">✓ Antwort</span>`
         : `<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-weight:700">✗ ${esc(fake.error || 'fehlgeschlagen')}</span>`;
-    const faultBlock = (fake.faultCode || fake.faultText)
-        ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
-               <b>Abgewiesen${fake.faultCode ? ' — ' + esc(fake.faultCode) : ''}</b>
-               ${fake.faultText ? `<div style="margin-top:3px">${esc(fake.faultText)}</div>` : ''}
-               ${_elmFaultHinweis(fake)}
-           </div>` : '';
     tmp.innerHTML = `<div style="margin-bottom:8px">${okBadge}
             <span style="color:#64748b;margin-left:8px">HTTP ${fake.httpStatus || '—'} · ${fake.dauerMs || '—'} ms${fake.doppeltSigniert ? ' · Anfrage doppelt signiert (ERP + SUA)' : ''}</span></div>
+        ${verworfen ? sec : ''}
         ${_elmTlsBlock(fake)}
-        ${sec}
+        ${verworfen ? '' : sec}
         ${_elmScBlock(fake.signaturBestaetigung, fake.security)}
-        ${faultBlock}
+        ${_elmFaultBlock(fake)}
         ${fake.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
             <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.responseXml)}</pre>` : ''}
         ${fake.klartextAnfrage ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Gesendete Anfrage (lesbar, vor der Verschlüsselung)${fake.archivAnfrage ? ' · Archiv ' + esc(fake.archivAnfrage) : ''}</summary>

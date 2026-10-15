@@ -1180,6 +1180,23 @@ Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und AHV-AVS · 046.000 
 - Für die Prüfung: Test-MA in `hr_system_test` kurz auf Alter ≥ 100 oder falsche Prüfziffer
   setzen, Vorschau + Senden zeigen, danach zurücksetzen.
 
+### Zertifizierung 15.10.2026 — Beanstandungen
+
+- **F02_11 beanstandet:** Der Signaturfehler muss die erste und einzige Meldung sein, vor dem
+  SOAP-Fault. Ursache: beim echten Senden (`ElmUebermittlungService.SendeAsync`) wurde der
+  Fault VOR der eigenen Signaturprüfung ausgewertet → oben «Abgewiesen — …»; SUA-Register/
+  -Synchronize prüften die eigene Sicherheitsprüfung gar nicht. **Korrigiert:**
+  `ElmCallResult.AntwortVerworfen` (eigene Prüfung gescheitert) geht überall zuerst;
+  `DeuteSicherheitsFault` liefert dann den eigenen Befund, Fault-Inhalt und Meldungen werden
+  nicht übernommen. Anzeige (Interop, SUA, Übermittlung): «✗ Antwort abgelehnt (WS-Security)»,
+  direkt darunter der Signaturbefund, der Fault nur grau durchgestrichen. Test
+  `Fault_MitUngueltigerSignatur_MeldetZuerstSignatur`.
+- **F06_01 beanstandet:** laut Walter ein Problem auf Seite Swissdec, bei uns nichts zu ändern.
+- **Gesamteindruck:** Aufbau zu technisch. Swissdec will eine fertige Anwendung sehen, die
+  sendet, empfängt, Fehler meldet und Korrekturen zurücksendet — F01–F08 sollen im normalen
+  Ablauf erfüllt sein, nicht als Prüfpunkt-Knöpfe. Entscheid Walter: die neue Schnittstelle
+  ersetzt die Seite «Kommunikations-Test», der Prüfkatalog wandert in eine versteckte Ansicht.
+
 ---
 
 ## Vollständiger Katalog (Walter 24.09.2026 aus dem Werkzeug)

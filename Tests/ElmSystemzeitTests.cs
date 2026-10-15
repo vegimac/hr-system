@@ -177,6 +177,23 @@ public class ElmSystemzeitTests
         Assert.Null(ElmTransmitterClient.DeuteSicherheitsFault(r));
     }
 
+    // F02_11 (Zertifizierung 15.10.2026): Fault mit verfälschter Signatur — der Signaturfehler
+    // ist die Meldung, nicht der Fault-Text (auch wenn dieser selbst nach Sicherheit klingt).
+    [Fact]
+    public void Fault_MitUngueltigerSignatur_MeldetZuerstSignatur()
+    {
+        var r = new ElmTransmitterClient.ElmCallResult(false, 500, 900, "<req/>", "<x/>", "HTTP 500")
+        {
+            FaultCode = "soap:Client",
+            FaultText = "The message has not been signed",
+            Security = new ElmWsSecurity.PruefErgebnis(ElmWsSecurity.Befund.SignaturUngueltig, "Die Signatur der Antwort ist ungültig"),
+            AntwortVerworfen = true,
+        };
+        var d = ElmTransmitterClient.DeuteSicherheitsFault(r);
+        Assert.NotNull(d);
+        Assert.Equal(ElmWsSecurity.Befund.SignaturUngueltig, d!.Befund);
+    }
+
     // ── Simulierter Zeitversatz (Walter-Idee 24.09.2026) ─────────────────
     // Der Versatz verstellt die GESENDETE Zeit und die Vergleichsbasis, damit sich
     // das Programm wie mit einer falsch gehenden Serveruhr verhält — sonst liesse

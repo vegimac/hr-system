@@ -228,7 +228,7 @@ public class ElmSuaService
         {
             return new SuaErgebnis(call, null, abgewiesen.Meldung, _store.LadeFall(),
                 _store.HatSuaZertifikat())
-            { Meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode) };
+            { Meldungen = LiesMeldungen(call.AntwortVerworfen ? null : call.ResponseXml, call.AntwortVerworfen ? null : call.FaultCode) };
         }
         var (requestId, key, password) = ParseRegisterAntwort(call.ResponseXml);
         var meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode);
@@ -352,7 +352,7 @@ public class ElmSuaService
         {
             return new SuaErgebnis(call, fall.LetzterState, abgewiesen.Meldung, fall,
                 _store.HatSuaZertifikat())
-            { Meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode) };
+            { Meldungen = LiesMeldungen(call.AntwortVerworfen ? null : call.ResponseXml, call.AntwortVerworfen ? null : call.FaultCode) };
         }
 
         var meldungen = LiesMeldungen(call.ResponseXml, call.FaultCode);
@@ -384,6 +384,13 @@ public class ElmSuaService
                 versuche.Add($"{variante.Text}: kein {CodeNichtPlausibel}");
             else
                 versuche.Add("alle CSR-Varianten abgewiesen — nicht nochmals senden, CSR an Swissdec schicken");
+            if (ElmTransmitterClient.DeuteSicherheitsFault(call) is { } nachVersuch)
+            {
+                csrKey?.Dispose();
+                _store.SpeichereFall(fall);
+                return new SuaErgebnis(call, fall.LetzterState, nachVersuch.Meldung, fall, _store.HatSuaZertifikat())
+                { Meldungen = LiesMeldungen(call.AntwortVerworfen ? null : call.ResponseXml, call.AntwortVerworfen ? null : call.FaultCode) };
+            }
         }
 
         var geparst = ParseSynchronizeAntwort(call.ResponseXml);

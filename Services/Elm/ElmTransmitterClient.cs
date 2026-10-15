@@ -112,6 +112,14 @@ public class ElmTransmitterClient
         /// <summary>WS-Security-Prüfung der Antwort (F02 / F07); NULL = nicht geprüft.</summary>
         public ElmWsSecurity.PruefErgebnis? Security { get; init; }
 
+        /// <summary>
+        /// Unsere eigene Prüfung der Antwort ist gescheitert (Signatur ungültig/fehlt,
+        /// Zertifikat fremd, nicht entschlüsselbar). Dann zählt NICHTS aus der Antwort —
+        /// auch kein Fault: Swissdec verlangt den Sicherheitsfehler als erste und einzige
+        /// Meldung (F02_11, Zertifizierung 15.10.2026).
+        /// </summary>
+        public bool AntwortVerworfen { get; init; }
+
         /// <summary>Anfrage trug zwei Signaturen (ERP + SUA) — Foundation F07_07/F07_08.</summary>
         public bool DoppeltSigniert { get; init; }
 
@@ -201,10 +209,13 @@ public class ElmTransmitterClient
 
             // Empfängerzertifikat nur aus einer geprüften Antwort lernen — sonst würde eine
             // fremd signierte Antwort (F02_08) das Verschlüsselungsziel umbiegen.
-            if (pruef.Ok) _store.UebernehmeEmpfaengerAusAntwort(antw);
-
-            var deutung = DeuteSicherheitsFault(r);
-            if (deutung != null) pruef = deutung;
+            var verworfen = !pruef.Ok;
+            if (pruef.Ok)
+            {
+                _store.UebernehmeEmpfaengerAusAntwort(antw);
+                var deutung = DeuteSicherheitsFault(r);
+                if (deutung != null) pruef = deutung;
+            }
 
             var klartext = antw.OuterXml;
             // F04: Archiv = signierter Klartext OHNE Pretty-Print (XDocument.ToString
@@ -215,7 +226,7 @@ public class ElmTransmitterClient
             catch { anzeige = klartext; }
             return r with
             {
-                ResponseXml = anzeige, Security = pruef, ArchivAntwort = archivAntwort,
+                ResponseXml = anzeige, Security = pruef, AntwortVerworfen = verworfen, ArchivAntwort = archivAntwort,
                 SignaturBestaetigung = ElmSignaturBestaetigung.Pruefe(signierteAnfrage, klartext),
             };
         }
@@ -238,10 +249,13 @@ public class ElmTransmitterClient
     ///
     /// Darum jetzt: drei belegbare Fälle, und sonst NICHTS — dann bleibt der Fault-Text
     /// des Empfängers stehen, statt durch eine Vermutung ersetzt zu werden.
-    /// Gibt NULL zurück, wenn sich nichts sicher sagen lässt.
+    /// Gibt NULL zurück, wenn sich nichts sicher sagen lässt. Ist die Antwort selbst
+    /// verworfen (<see cref="ElmCallResult.AntwortVerworfen"/>), kommt unser eigener
+    /// Befund zurück — er geht jedem Fault vor (F02_11).
     /// </summary>
     public static ElmWsSecurity.PruefErgebnis? DeuteSicherheitsFault(ElmCallResult r)
     {
+        if (r.AntwortVerworfen && r.Security != null) return r.Security;
         var text = ((r.FaultCode ?? "") + " " + (r.FaultText ?? "")).ToLowerInvariant();
         if (text.Trim().Length == 0) return null;
 

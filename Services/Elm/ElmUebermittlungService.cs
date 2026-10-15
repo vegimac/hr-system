@@ -472,6 +472,9 @@ public class ElmUebermittlungService
         if (doppelt && sua == null)
             warn.Add("Kein SUA-Zertifikat mit Schlüssel — nur mit dem ERP-Zertifikat signiert.");
 
+        if (call.AntwortVerworfen)
+            return new Gesendet(call, null, LiesKopf(null), "WS-Security: " + call.Security!.Meldung, null, new(), warn);
+
         XDocument? doc = null;
         try { if (!string.IsNullOrWhiteSpace(call.ResponseXml)) doc = XDocument.Parse(call.ResponseXml); }
         catch { /* unten als unlesbar gemeldet */ }
