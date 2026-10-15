@@ -618,7 +618,8 @@ function elmqZeichnen() {
         <td style="padding:4px 0;text-align:right;white-space:nowrap;color:#991b1b;font-weight:600">${_elmzEsc(a.ist ?? '–')}</td></tr>`;
     const fall = f => `<div style="margin-top:8px">
         <div style="font-weight:600;color:#3f3f3f;font-size:13px">${_elmzEsc(f.name)}</div>
-        <table style="border-collapse:collapse;font-size:12px;width:100%;margin-top:2px">
+        <table style="border-collapse:collapse;font-size:12px;width:100%;margin-top:2px;table-layout:fixed">
+            <colgroup><col><col style="width:170px"><col style="width:170px"></colgroup>
             <tr style="color:#8b8b8b"><td style="padding:2px 10px 2px 0">Feld</td><td style="padding:2px 10px 2px 0;text-align:right">Soll (Swissdec)</td><td style="padding:2px 0;text-align:right">OneCrew</td></tr>
             ${f.abweichungen.map(zeile).join('')}</table></div>`;
     const monate = (b.monate || []).map(m => `<details data-seq="${_elmzEsc(m.sequenz + '|' + m.teilprozess)}" ${_elmqOffen.has(m.sequenz + '|' + m.teilprozess) ? 'open' : ''}
