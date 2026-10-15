@@ -193,7 +193,7 @@ const GS_STEPS = [
       fields: [
           { k: 'pensum', l: 'Gewünschtes Pensum (%)', t: 'number', min: 0, max: 100 },
           { k: 'eintritt', l: 'Frühester Eintritt', t: 'date' },
-          { k: 'schuhgroesse', l: 'Schuhgrösse', t: 'text', ph: 'z.B. 42' },
+          { k: 'schuhgroesse', l: 'Schuhgrösse', t: 'text', ph: 'z.B. 42', kurz: true, max: 10 },
           { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Onboarding-Tag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
           { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
           { k: 'eintritt_vereinbart', l: 'Arbeitsbeginn', t: 'date',
@@ -691,7 +691,7 @@ function bgsRenderField(f) {
     const hint = f.hint ? `<div class="bgs-fhint">${esc(f.hint)}</div>` : (f.hintFn ? `<div class="bgs-fhint">${esc(f.hintFn(_bgsAnswers) || '')}</div>` : '');
     switch (f.t) {
         case 'text':
-            return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" type="text" value="${esc(v)}" placeholder="${esc(f.ph || '')}" autocomplete="off">${hint}</div>`;
+            return `<div class="bgs-field">${label}<input class="bgs-input${f.kurz ? ' bgs-input-short' : ''}" id="bgsf_${f.k}" data-key="${f.k}" type="text" value="${esc(v)}" placeholder="${esc(f.ph || '')}" ${f.max ? `maxlength="${f.max}"` : ''} autocomplete="off">${hint}</div>`;
         case 'tel':
             return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" data-tel="1" type="tel" inputmode="tel" value="${esc(bgsTelFormat(v))}" placeholder="${esc(f.ph || '079 123 45 67')}" autocomplete="off"><div class="bgs-fhint" id="bgsTelHint_${f.k}">${bgsTelHint(v)}</div></div>`;
         case 'email':
