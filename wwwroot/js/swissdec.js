@@ -57,6 +57,7 @@ async function tmSchritt(nr, vorschau) {
         if (!(await liquidConfirm(msg, opts))) return;
     }
     out.innerHTML = '⏳ …';
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
     try {
         const qs = [];
         // 5b hat eigene Filterfelder in seiner Zeile (Walter 08.09.2026); 4a/4c nutzen die oberen.
