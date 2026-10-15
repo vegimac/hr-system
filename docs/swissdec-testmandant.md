@@ -15,6 +15,13 @@ weiteren Zugänge.
 | `testcase_differences_export.csv` | 647 Mutationen entlang der Zeitachse (Austritte, Stunden, QST-Code-Wechsel, Umzüge, Zivilstand, Bewilligung, Nachzahlungen) |
 | `wagetypes_export.csv` | 65 Referenz-Lohnarten (1000er-Schema) × Monate 2024-11 bis 2026-02 pro Testfall |
 
+**Datenstand 15.10.2026 = Export «showcase_csv_exports_2.0.9»** (ersetzt 28.09.2026). Inhaltlich geändert
+nur: FAK Zug entfällt, Arbeitsort ZG rechnet über FAK LU (`CompanyWorkplaceZGFAKSolution` = «LU»;
+`FAKSolution` heisst jetzt überall Kantonskürzel statt Kassenname — Schritt 2 ordnet die Kasse danach
+den Filialen zu); TF16 Aebi Rektifikat neu als Häkchen `PersonTAXRectificate` + Umzugskosten 2000 im
+Januar 2025 raus, Februar wieder rein; TF40 Farine zusätzlicher QST-Wechsel per 01.10.2025. Personen und
+Lohnarten wertgleich (nur Zahlen ohne «.0»).
+
 Soll-Ausgabe bisher nur für **Januar 2025** vorhanden (DeclareMonthlySalary QST BE/VD/TI + Statistik, von Walter am 07.09. geliefert). Bei Swissdec nachfragen, ob alle Monate/Jahresmeldungen exportierbar sind.
 
 ## Schritt 0 — Reset der Testinstanz (`Scripts/testmandant-reset.sh`)

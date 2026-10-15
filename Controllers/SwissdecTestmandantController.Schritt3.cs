@@ -102,7 +102,11 @@ public partial class SwissdecTestmandantController
             var geburt = Dz(T25(P("RateBirthAllowance")));
             if (r0to11 == null && r0to15 == null && r16to25 == null)
             {
-                hinweise.Add($"FAK {kt}: keine Ansätze in der CSV" + (T25(P("IKV")) is { } ikv ? $" — IKV über Kanton {ikv}: Abrechnung/Ansätze nach {ikv}? Klären wir mit den Testfällen." : "."));
+                var loesung = T25($"CompanyWorkplace{kt}FAKSolution");
+                hinweise.Add($"FAK {kt}: keine Ansätze in der CSV"
+                    + (T25(P("IKV")) is { } ikv ? $" — IKV über Kanton {ikv}: Abrechnung/Ansätze nach {ikv}? Klären wir mit den Testfällen."
+                       : loesung != null && loesung.Length == 2 && !loesung.Equals(kt, StringComparison.OrdinalIgnoreCase)
+                           ? $" — Arbeitsort {kt} rechnet über die FAK {loesung.ToUpperInvariant()} ab (Testdaten)." : "."));
                 continue;
             }
             var kz1 = r0to11 ?? r0to15;

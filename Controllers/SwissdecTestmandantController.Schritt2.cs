@@ -80,17 +80,24 @@ public partial class SwissdecTestmandantController
             specs.Add(new EmpfSpec("FAK", spidaFak + " Familienausgleichskasse", "FAK", null, T24("CompanyFAKCAFSpidaBranchNumber"),
                 null, null, null, null, null, T24("CompanyFAKCAFSpidaCustomerNumber"), null, null, bis2024, null,
                 "Swissdec-Testdaten 2024 (bis Kassenwechsel 31.12.2024)"));
-        foreach (var kt in new[] { "LU", "BE", "VD", "TI", "AG", "ZG" })
+        var fakKantone = new[] { "LU", "BE", "VD", "TI", "AG", "ZG" };
+        foreach (var kt in fakKantone)
         {
             var name = T25($"CompanyFAKCAF{kt}Name");
             if (name == null) continue;
+            // Arbeitsorte, deren «FAKSolution» auf diese Kasse zeigt (Testdaten 2.0.9: ZG → LU)
+            var orte = new List<string> { kt };
+            orte.AddRange(fakKantone.Where(w => w != kt
+                && string.Equals(T25($"CompanyWorkplace{w}FAKSolution"), kt, StringComparison.OrdinalIgnoreCase)));
+            if (orte.Count > 1)
+                hinweise.Add($"FAK {kt} gilt auch für Arbeitsort {string.Join(", ", orte.Skip(1))} (Testdaten: FAKSolution = {kt}).");
             var ikv  = T25($"CompanyFAKCAF{kt}IKV");
             var ika  = T25($"CompanyFAKCAF{kt}IntercantonalAgreement");
             var bem  = ikv != null ? $"IKV: Abrechnung über Kanton {ikv} (Testdaten)"
                      : ika != null ? "Interkantonale Vereinbarung (Testdaten: x)" : null;
             specs.Add(new EmpfSpec("FAK", name, "FAK", T25($"CompanyFAKCAF{kt}WorkplaceCanton") ?? kt, T25($"CompanyFAKCAF{kt}BranchNumber"),
                 null, null, null, null, null, T25($"CompanyFAKCAF{kt}CustomerNumber"), null,
-                kassenwechsel ? ab2025 : null, null, new[] { kt }, bem));
+                kassenwechsel ? ab2025 : null, null, orte.ToArray(), bem));
         }
         hinweise.Add("FAK-Ansätze (Kinder-/Ausbildungs-/Geburtszulagen je Kanton) und die IKV-Regel (ZG über LU, TI) sind Tarife — kommen im Tarif-Schritt, nicht hier.");
 

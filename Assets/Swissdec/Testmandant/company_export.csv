@@ -21,7 +21,7 @@ CompanyWorkplaceLUCity,Luzern,Luzern,Luzern
 CompanyWorkplaceLUCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
 CompanyWorkplaceLUCanton,LU,LU,LU
 CompanyWorkplaceLUMunicipalityID,1061,1061,1061
-CompanyWorkplaceLUFAKSolution,Spida,Familienausgleichskassen Kanton Luzern,Familienausgleichskassen Kanton Luzern
+CompanyWorkplaceLUFAKSolution,Spida,LU,LU
 CompanyWorkplaceBE,,,
 CompanyWorkplaceBEWorkplaceID,#BE,#BE,#BE
 CompanyWorkplaceBEBUR-REE-Number,A89058593,A89058593,A89058593
@@ -32,7 +32,7 @@ CompanyWorkplaceBECity,Bern,Bern,Bern
 CompanyWorkplaceBECountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
 CompanyWorkplaceBECanton,BE,BE,BE
 CompanyWorkplaceBEMunicipalityID,351,351,351
-CompanyWorkplaceBEFAKSolution,Spida,Familienausgleichskasse Kanton Bern,Familienausgleichskasse Kanton Bern
+CompanyWorkplaceBEFAKSolution,Spida,BE,BE
 CompanyWorkplaceVD,,,
 CompanyWorkplaceVDWorkplaceID,,#VD,#VD
 CompanyWorkplaceVDBUR-REE-Number,,A89058588,A89058588
@@ -43,7 +43,7 @@ CompanyWorkplaceVDCity,,Vevey,Vevey
 CompanyWorkplaceVDCountry,,SWITZERLAND,SWITZERLAND
 CompanyWorkplaceVDCanton,,VD,VD
 CompanyWorkplaceVDMunicipalityID,,5890,5890
-CompanyWorkplaceVDFAKSolution,,Caisse cantonale vaudoise de compensation,Caisse cantonale vaudoise de compensation
+CompanyWorkplaceVDFAKSolution,,VD,VD
 CompanyWorkplaceTI,,,
 CompanyWorkplaceTIWorkplaceID,,#TI,#TI
 CompanyWorkplaceTIBUR-REE-Number,,A92978114,A92978114
@@ -54,7 +54,7 @@ CompanyWorkplaceTICity,,Bellinzona,Bellinzona
 CompanyWorkplaceTICountry,,SWITZERLAND,SWITZERLAND
 CompanyWorkplaceTICanton,,TI,TI
 CompanyWorkplaceTIMunicipalityID,,5002,5002
-CompanyWorkplaceTIFAKSolution,,Istituto delle assicurazioni sociali,Istituto delle assicurazioni sociali
+CompanyWorkplaceTIFAKSolution,,TI,TI
 CompanyWorkplaceAG,,,
 CompanyWorkplaceAGWorkplaceID,,#AG,#AG
 CompanyWorkplaceAGBUR-REE-Number,,A12054926,A12054926
@@ -65,7 +65,7 @@ CompanyWorkplaceAGCity,,Gansingen,Gansingen
 CompanyWorkplaceAGCountry,,SWITZERLAND,SWITZERLAND
 CompanyWorkplaceAGCanton,,AG,AG
 CompanyWorkplaceAGMunicipalityID,,4164,4164
-CompanyWorkplaceAGFAKSolution,,Familienausgleichskasse Kanton Aargau,Familienausgleichskasse Kanton Aargau
+CompanyWorkplaceAGFAKSolution,,AG,AG
 CompanyWorkplaceZG,,,
 CompanyWorkplaceZGWorkplaceID,,#ZG,
 CompanyWorkplaceZGBUR-REE-Number,,A38197423,
@@ -76,7 +76,7 @@ CompanyWorkplaceZGCity,,Zug,
 CompanyWorkplaceZGCountry,,SWITZERLAND,
 CompanyWorkplaceZGCanton,,ZG,
 CompanyWorkplaceZGMunicipalityID,,1711,
-CompanyWorkplaceZGFAKSolution,,Familienausgleichskasse Kanton Zug,
+CompanyWorkplaceZGFAKSolution,,LU,
 CompanyWorkingTimeModel1,,,
 CompanyWorkingTimeModel1CompanyWorkingTimeID,#CompanyWorkingTime1,#CompanyWorkingTime1,#CompanyWorkingTime1
 CompanyWorkingTimeModel1Description,Standard,Standard,Standard
@@ -197,13 +197,6 @@ CompanyFAKCAFAGInstitutionID,,#FAK_AG_SVA,#FAK_AG_SVA
 CompanyFAKCAFAGIntercantonalAgreement,,,
 CompanyFAKCAFAGRate0to15,,215,225
 CompanyFAKCAFAGRate16to25,,268,278
-CompanyFAKCAFZG,,,
-CompanyFAKCAFZGName,,AK Zug,AK Zug
-CompanyFAKCAFZGBranchNumber,,009,009
-CompanyFAKCAFZGCustomerNumber,,100-3146.90,100-3146.90
-CompanyFAKCAFZGWorkplaceCanton,,ZG,ZG
-CompanyFAKCAFZGInstitutionID,,#FAK_ZG_KK,#FAK_ZG_KK
-CompanyFAKCAFZGIKV,,LU,LU
 CompanyUVGLAA,,,
 CompanyUVGLAAInsuranceID,S1000,S1000,S1000
 CompanyUVGLAACustomerIdentity,12577.2 ,12577.2 ,12577.2 
