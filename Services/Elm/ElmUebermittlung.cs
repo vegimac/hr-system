@@ -47,6 +47,12 @@ public class ElmVorgang
     public string Firmenname { get; set; } = "";
     public List<ElmVorgangAdressat> Adressaten { get; set; } = new();
     public List<ElmProtokollZeile> Protokoll { get; set; } = new();
+
+    /// <summary>Adresse, an die gesendet wurde — Status/Synchronize gehen dorthin (NULL = vor 15.10.2026).</summary>
+    public string? Url { get; set; }
+    /// <summary>Lohnjahr/-monat der Meldung — für die Ersatzmeldung (NULL = vor 15.10.2026, dann aus dem Titel).</summary>
+    public int? Jahr { get; set; }
+    public int? Monat { get; set; }
 }
 
 public class ElmProtokollZeile

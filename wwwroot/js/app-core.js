@@ -1548,7 +1548,7 @@ function showPage(name) {
     if (name === 'audit-log') alInit();
     if (name === 'aktive-sitzungen') asInit();
     if (name === 'virenscanner') vsInit();
-    if (name === 'elm-schnittstelle') elmzInit();
+    if (name === 'elm-schnittstelle') { elmzInit(); elmmInit(); }
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'moments') momInit();

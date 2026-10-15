@@ -47,7 +47,7 @@ public class DashboardController : ControllerBase
         var data = await _svc.BuildAsync(companyProfileId);
         // Aktivitäts-Log und Swissdec-Zertifikat sind admin-only — nicht an GF/HR zeigen.
         if (!User.IsInRole("admin"))
-            data.Alerts.RemoveAll(a => a.Category is "audit_log_stumm" or "elm_zertifikat");
+            data.Alerts.RemoveAll(a => a.Category is "audit_log_stumm" or "elm_zertifikat" or "elm_meldung");
         return Ok(data);
     }
 }

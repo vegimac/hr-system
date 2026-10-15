@@ -1206,6 +1206,22 @@ Receiver-Einstellungen laut Screenshots: UVG-LAA · 1234 und AHV-AVS · 046.000 
   (1 Jahr: Warnung 60 / Automatik 30 / Rot 14 Tage; RefApps-Testzertifikat ≈10 Tage: 5 / 2 / 1).
   `ElmZertifikatAutoErneuerung` erneuert automatisch (höchstens 1 Versuch/Tag), Fehler →
   To-do `elm_zertifikat` (Schema-Stand 73, nur Admin). Tests `ElmZertifikatLaufzeitTests`.
+- **Meldungen senden und verfolgen** (Etappe 1 der fertigen Schnittstelle, 15.10.2026): auf
+  derselben Seite die Karten «Meldung senden» und «Meldungen» (`js/elm-schnittstelle.js`,
+  `ElmMeldungenController`, `ElmMeldungenService`, Anzeige-Regeln rein in `ElmMeldungAnzeige`).
+  Ablauf für den Benutzer: Monat/Jahr wählen → «Prüfen» (Empfänger + Plausibilitäts- und
+  XSD-Fehler in Alltagssprache) → «Senden». Danach je Empfänger Ampel + Text; Rückfragen
+  (DialogMessage) direkt beantworten; «Freigabe fehlt» (CompletionReleaseMissing) öffnet den
+  Freigabe-Link des Empfängers; «Korrigierte Meldung senden» schickt eine Ersatzmeldung mit der
+  DeclarationID der alten (Substitution). Ziel = `ElmEndpunkte.Standard()` (Testinstanz →
+  RefApps mit TestCase, sonst Distributor); **produktives Senden gesperrt**, solange
+  `Swissdec:ProduktivSenden` nicht gesetzt ist (Parallelbetrieb Mirus). Abfrage automatisch:
+  `ElmMeldungenAutoAbfrage` (alle 10 Min geprüft; Status höchstens alle 30 Min, Synchronize
+  höchstens alle 60 Min, bis 90 Tage nach dem Senden; nur Meldungen mit gespeicherter Adresse,
+  d.h. ab 15.10.2026 — die alten Prüfpunkt-Fälle bleiben in Ruhe); die Seite fragt in den ersten
+  10 Minuten nach dem Senden alle 20 s nach (UC002: ≥ 10 s). Wartet ein Empfänger auf den
+  Benutzer ⇒ To-do `elm_meldung` (Schema-Stand 74, nur Admin). Key/Password des Jobs verlassen
+  den Server nie (ausser im Freigabe-Link des Empfängers). Tests `ElmMeldungAnzeigeTests`.
 
 ---
 

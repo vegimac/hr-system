@@ -1074,6 +1074,34 @@ public class DashboardService
             }
         }
 
+        // ── Lohnmeldung wartet auf den Benutzer (Walter 15.10.2026) ───────
+        // Rückfrage, Freigabe beim Empfänger oder Ablehnung. Nur Meldungen mit gespeicherter
+        // Adresse (ab 15.10.2026) und höchstens 90 Tage alt; admin-only (DashboardController).
+        if (_elmStore != null && Enabled("elm_meldung"))
+        {
+            foreach (var v in _elmStore.LadeUebermittlungen().Vorgaenge
+                         .Where(v => v.Art is "monthly" or "annual" && v.Url != null
+                                     && (DateTime.Now - v.Gesendet).TotalDays <= HrSystem.Services.Elm.ElmMeldungAnzeige.AutoHoechstensTage))
+            {
+                var st = HrSystem.Services.Elm.ElmMeldungAnzeige.Meldung(v);
+                if (!st.AktionNoetig) continue;
+                var (jahr, monat) = HrSystem.Services.Elm.ElmMeldungAnzeige.Periode(v);
+                var titel = v.Art == "annual" ? $"Jahresmeldung {jahr}" : $"Monatsmeldung {monat:00}.{jahr}";
+                alerts.Add(new DashboardAlert
+                {
+                    Category  = "elm_meldung",
+                    Severity  = st.Stufe == HrSystem.Services.Elm.ElmMeldungAnzeige.Rot ? "critical" : "warning",
+                    Title     = $"Lohnmeldung {titel}: {st.Text}",
+                    Subtitle  = string.Join(" · ", v.Adressaten
+                        .Select(a => (a, e: HrSystem.Services.Elm.ElmMeldungAnzeige.Empfaenger(a)))
+                        .Where(x => x.e.AktionNoetig)
+                        .Select(x => HrSystem.Services.Elm.ElmMeldungAnzeige.EmpfaengerName(x.a.Domain, x.a.Identification, x.a.InstitutionName) + ": " + x.e.Text)),
+                    DueDate   = v.Gesendet.Date,
+                    DaysUntil = (v.Gesendet.Date - DateTime.Today).Days,
+                });
+            }
+        }
+
         // ── Kündigung nach Sperrfrist möglich (Walter 25.07.2026) ─────────
         // Sobald Art. 336c-Sperrfrist bei durchgehender Krankheit/Unfall
         // ausgeschöpft ist → ToDo «Wichtig». Verschwindet bei erfasster

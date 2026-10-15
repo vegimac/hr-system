@@ -63,6 +63,8 @@ public class ElmUebermittlungService
         public List<Hinweis> Hinweise { get; init; } = new();
         public string? FaultCode { get; init; }
         public List<string> Warnungen { get; init; } = new();
+        /// <summary>Übertragung gescheitert (WS-Security, Fault, keine Antwort) — nicht bloss ein Empfänger mit Fehler.</summary>
+        public bool Uebertragungsfehler { get; init; }
     }
 
     public record DeclareOptionen(
@@ -157,7 +159,7 @@ public class ElmUebermittlungService
         {
             _store.SpeichereUebermittlungen(stand);
             return new Ergebnis(false, s.Abbruch ?? "Antwort ohne JobKey — Antwort-XML prüfen.", null, s.Call)
-            { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = warn };
+            { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = warn, Uebertragungsfehler = true };
         }
 
         var v = new ElmVorgang
@@ -172,6 +174,9 @@ public class ElmUebermittlungService
             JobKey = jobKey,
             Uid = vorlage.Uid,
             Firmenname = vorlage.Firmenname,
+            Url = url,
+            Jahr = o.Jahr,
+            Monat = art == "monthly" ? o.Monat : null,
             Adressaten = gewaehlt.Select(a => new ElmVorgangAdressat
             {
                 AddresseeId = a.AddresseeId,
@@ -219,7 +224,7 @@ public class ElmUebermittlungService
         {
             v.Protokoll.Add(Zeile("status", s.Abbruch, requestId, s.Call));
             _store.SpeichereUebermittlungen(stand);
-            return new Ergebnis(false, s.Abbruch, v, s.Call) { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = s.Warnungen };
+            return new Ergebnis(false, s.Abbruch, v, s.Call) { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = s.Warnungen, Uebertragungsfehler = true };
         }
 
         var st = LiesStatus(s.Body);
@@ -315,6 +320,7 @@ public class ElmUebermittlungService
             ? BaueSynchronizeSubscribe(v, a, quittieren, abmelden, kontext)
             : BaueSynchronizeDeclare(v, a, quittieren, kontext);
         foreach (var g in a.Ausstehend) g.Gesendet++;
+        a.LetzteSynchronisierung = DateTime.Now;
         var s = await SendeAsync(url, anfrage, v.Art switch
         {
             "subscribe" => "sync-subscribe",
@@ -326,7 +332,7 @@ public class ElmUebermittlungService
         {
             v.Protokoll.Add(Zeile("sync", $"{a.Identification}: {s.Abbruch}", requestId, s.Call));
             _store.SpeichereUebermittlungen(stand);
-            return new Ergebnis(false, s.Abbruch, v, s.Call) { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = warn };
+            return new Ergebnis(false, s.Abbruch, v, s.Call) { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = warn, Uebertragungsfehler = true };
         }
 
         var sync = LiesSynchronize(s.Body);
