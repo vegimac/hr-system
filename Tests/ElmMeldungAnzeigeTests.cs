@@ -144,6 +144,24 @@ public class ElmMeldungAnzeigeTests
     }
 
     [Fact]
+    public void Empfaenger_SchicktMitteilungImmerWieder_Haengt()
+    {
+        // Refapps-Testempfänger «Statistic» 15.10.2026: SimpleMessage 14× erneut, State bleibt DialogMessagePending.
+        var a = Rueckfrage(mitFrage: false);
+        a.Stories[0].Empfangszaehler = 14;
+        var st = ElmMeldungAnzeige.Empfaenger(a);
+        Assert.Equal("warn", st.Stufe);
+        Assert.True(st.AktionNoetig);
+        Assert.Contains("14×", st.Text);
+
+        // Kein Dauerverkehr: nur noch im normalen Stundenabstand nachfragen.
+        a.LetzteSynchronisierung = Jetzt.AddMinutes(-11);
+        Assert.DoesNotContain(a, ElmMeldungAnzeige.SyncFaellig(Vorgang(true, a), Jetzt));
+        a.LetzteSynchronisierung = Jetzt.AddMinutes(-61);
+        Assert.Contains(a, ElmMeldungAnzeige.SyncFaellig(Vorgang(true, a), Jetzt));
+    }
+
+    [Fact]
     public void Zertifizierungstest_OhneAdresse_GrauStattInBearbeitung()
     {
         var v = Vorgang(true, Adr("Success", "Processing"));

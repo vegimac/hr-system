@@ -47,7 +47,9 @@ public static class ElmMeldungAnzeige
             "Rejected" => new(Rot, "Vom Empfänger abgelehnt", true),
             "DialogMessagePending" => OffeneRueckfrage(a)
                 ? new(Warn, "Rückfrage vom Empfänger — bitte beantworten", true)
-                : new(Laeuft, "Nachricht vom Empfänger erhalten — OneCrew bestätigt den Empfang selbst", false),
+                : Haengt(a)
+                    ? new(Warn, $"Empfänger geht nicht weiter, obwohl OneCrew die Mitteilung schon {Wiederholungen(a)}× bestätigt hat — beim Empfänger nachfragen", true)
+                    : new(Laeuft, "Nachricht vom Empfänger erhalten — OneCrew bestätigt den Empfang selbst", false),
             "CompletionReleaseMissing" => new(Warn, "Freigabe beim Empfänger fehlt — «Beim Empfänger freigeben»", true),
             "Processing" => new(Laeuft, "In Bearbeitung beim Empfänger", false),
             null => new(Laeuft, "Angekommen, Ergebnis folgt", false),
@@ -62,6 +64,19 @@ public static class ElmMeldungAnzeige
     /// </summary>
     public static bool OffeneRueckfrage(ElmVorgangAdressat a)
         => a.Stories.Any(s => s.Art == "DialogMessage" && !s.Beantwortet && Beantwortbar(s.Xml));
+
+    /// <summary>Ab so vielen Empfängen derselben Mitteilung gilt der Empfänger als hängend.</summary>
+    public const int HaengtAbEmpfang = 3;
+
+    /// <summary>
+    /// Der Empfänger schickt dieselbe Mitteilung trotz Quittung immer wieder und bleibt auf DialogMessagePending
+    /// (so verhält sich der Refapps-Testempfänger mit «Random Dialog»). Weiter bestätigen bringt nichts mehr.
+    /// </summary>
+    public static bool Haengt(ElmVorgangAdressat a)
+        => a.State == "DialogMessagePending" && Wiederholungen(a) >= HaengtAbEmpfang;
+
+    private static int Wiederholungen(ElmVorgangAdressat a)
+        => a.Stories.Where(s => s.Art == "DialogMessage").Select(s => s.Empfangszaehler).DefaultIfEmpty(0).Max();
 
     private static bool Beantwortbar(string xml)
     {
@@ -166,6 +181,7 @@ public static class ElmMeldungAnzeige
     /// Empfänger meldet weiter DialogMessagePending ohne offene Frage (er geht erst beim nächsten Abfragen weiter).
     /// </summary>
     private static bool WartetAufQuittung(ElmVorgangAdressat a)
-        => ElmUebermittlungXml.ZuQuittieren(a).Count > 0
-           || a.State == "DialogMessagePending" && !OffeneRueckfrage(a);
+        => !Haengt(a)
+           && (ElmUebermittlungXml.ZuQuittieren(a).Count > 0
+               || a.State == "DialogMessagePending" && !OffeneRueckfrage(a));
 }
