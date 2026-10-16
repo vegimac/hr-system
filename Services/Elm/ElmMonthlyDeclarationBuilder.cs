@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.Personaldaten;
 using Microsoft.EntityFrameworkCore;
 using static HrSystem.Services.Elm.ElmGemeinsam;
 // ZivilstandHistorieService / WohnortHistorieService (Stichtag Monatsende)
@@ -620,6 +621,7 @@ public class ElmMonthlyDeclarationBuilder
         var kontaktName = (stamm.Hauptsitz?.KontaktName ?? "").Trim();
         var kontaktMail = (stamm.Hauptsitz?.KontaktEmail ?? "").Trim();
         var kontaktTel  = (stamm.Hauptsitz?.KontaktTelefon ?? "").Trim();
+        var kontaktMobil = (stamm.Hauptsitz?.KontaktMobil ?? "").Trim();
         if (kontaktName.Length == 0)
         {
             var admin = await _db.AppUsers.AsNoTracking()
@@ -632,6 +634,14 @@ public class ElmMonthlyDeclarationBuilder
                    + "Erfassung: System → Hauptsitze → Kontaktperson für Lohnmeldungen.");
         }
         if (kontaktName.Length == 0) kontaktName = stamm.Firmenname;
+
+        // Swissdec Regel 042: BFS verlangt E-Mail der Kontaktperson.
+        if (statZeilen > 0 && kontaktMail.Length == 0)
+            warn.Add("BFS-Übermittlung: Kontaktperson ohne E-Mail — Distributor lehnt ab (Regel 042). "
+                   + "Bitte am Hauptsitz unter «Kontaktperson für Lohnmeldungen» eine E-Mail erfassen.");
+
+        var telXml = PersonaldatenPruefung.TelefonFuerSwissdec(kontaktTel) ?? (kontaktTel.Length > 0 ? kontaktTel : null);
+        var mobilXml = PersonaldatenPruefung.TelefonFuerSwissdec(kontaktMobil);
 
         var jetzt = DateTime.Now;
         var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null),
@@ -660,10 +670,14 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "ContactPerson",
                         new XElement(Sd + "Name", kontaktName),
                         kontaktMail.Length == 0 ? null : new XElement(Sd + "EmailAddress", kontaktMail),
-                        kontaktTel.Length == 0 ? null : new XElement(Sd + "PhoneNumber", kontaktTel)))));
+                        telXml == null ? null : new XElement(Sd + "PhoneNumber", telXml),
+                        mobilXml == null ? null : new XElement(Sd + "MobilePhoneNumber", mobilXml)))));
 
         var xml = doc.Declaration + Environment.NewLine + doc.ToString();
         var xsdFehler = _validator.Validate(xml);
+        // Harte Sperre vor BFS-Versand: fehlende Kontakt-E-Mail = Fehler, nicht nur Warnung.
+        if (statZeilen > 0 && kontaktMail.Length == 0)
+            xsdFehler.Add("BFS verlangt E-Mail der Kontaktperson (Regel 042) — bitte am Hauptsitz erfassen.");
         return new BuildResult(xml, personen.Count, qstZeilen, statZeilen, warn, xsdFehler);
     }
 

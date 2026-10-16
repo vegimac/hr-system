@@ -110,6 +110,7 @@ public static class ElmGemeinsam
         List<CompanyProfile> Filialen,
         CompanyProfile Haupt,
         string Uid,
+        bool UidUnbekannt,
         string Firmenname,
         string? SitzZusatzName1,
         string? SitzZusatzName2,
@@ -156,8 +157,12 @@ public static class ElmGemeinsam
         }
 
         var st = await db.ElmStammdaten.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
-        var uid = (hs?.Uid ?? st?.Uid ?? haupt.UidBfs ?? haupt.UidNummer ?? "").Trim().ToUpperInvariant();
-        if (!ElmStammdatenPruefung.UidBfsGueltig(uid))
+        var uidUnbekannt = hs?.UidUnbekannt == true
+            || ElmStammdatenPruefung.IstUidUnbekannt(hs?.Uid);
+        var uid = uidUnbekannt
+            ? ""
+            : (hs?.Uid ?? st?.Uid ?? haupt.UidBfs ?? haupt.UidNummer ?? "").Trim().ToUpperInvariant();
+        if (!uidUnbekannt && !ElmStammdatenPruefung.UidBfsGueltig(uid))
         {
             var grund = string.IsNullOrWhiteSpace(uid) ? "fehlt"
                 : ElmStammdatenPruefung.UidBfsFehler(uid)?.Contains("Prüfziffer") == true ? "Prüfziffer falsch"
@@ -165,17 +170,24 @@ public static class ElmGemeinsam
             warn.Add($"UID {grund} («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (Hauptsitz-Verwaltung: UID erfassen).");
             uid = "CHE-123.123.123";
         }
+        if (uidUnbekannt)
+            warn.Add("UID-BFS als «unbekannt» gemeldet (XML Unknown) — nur Ausnahme, Swissdec 4.2.");
 
         var gemeindeNr = new Dictionary<int, int>();
         foreach (var b in filialen)
         {
-            // BUR-/REE-Nummer mit Prüfziffer kontrollieren, bevor sie in die Meldung geht.
+            // BUR oder InHouseID (Swissdec 4.2.2 choice) — BUR mit Prüfziffer prüfen.
             var burRoh = (b.BurNummer ?? "").Trim();
+            var inHouse = (b.InHouseId ?? "").Trim();
+            if (burRoh.Length > 0 && inHouse.Length > 0)
+                warn.Add($"Filiale «{b.FullDisplayName}»: BUR und InHouseID sind gesetzt — gemeldet wird die BUR (InHouseID nur ohne BUR).");
             if (burRoh.Length > 0 && !ElmStammdatenPruefung.BurNummerGueltig(burRoh))
                 warn.Add($"Filiale «{b.FullDisplayName}»: BUR-Nummer «{burRoh}» ist ungültig "
                        + (ElmStammdatenPruefung.BurFormatOkPruefzifferFalsch(burRoh)
                           ? "(Prüfziffer stimmt nicht)" : "(Format: ein Buchstabe, acht Ziffern)")
                        + " — sie wird NICHT gemeldet, bitte in den Stammdaten korrigieren.");
+            if (burRoh.Length == 0 && inHouse.Length == 0)
+                warn.Add($"Filiale «{b.FullDisplayName}»: weder BUR-Nummer noch InHouseID — BFS lehnt ohne eines davon ab.");
 
             if (b.BfsGemeindeNr is > 0) { gemeindeNr[b.Id] = b.BfsGemeindeNr.Value; continue; }
             var plz = (b.ZipCode ?? "").Trim(); var ort = (b.City ?? "").Trim().ToLowerInvariant();
@@ -206,7 +218,7 @@ public static class ElmGemeinsam
             ? hs!.Strasse!.Trim()
             : StrasseMitNr(haupt.Street, haupt.HouseNumber);
         return new RechtseinheitStamm(
-            hs, filialen, haupt, uid,
+            hs, filialen, haupt, uid, uidUnbekannt,
             (hs?.Name ?? haupt.CompanyName ?? "").Trim(),
             NormLeer(hs?.ZusatzAbteilung),
             NormLeer(hs?.ZusatzAbteilung2),
@@ -265,12 +277,13 @@ public static class ElmGemeinsam
                 new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(s.SitzPlz) ? "0000" : s.SitzPlz),
                 new XElement(C + "City", string.IsNullOrWhiteSpace(s.SitzOrt) ? "Unbekannt" : s.SitzOrt),
                 new XElement(C + "Country", LandName(s.SitzLand))),
-            new XElement(C + "UID-BFS", new XElement(Ep + "UID", s.Uid)),
+            s.UidUnbekannt
+                ? new XElement(C + "UID-BFS", new XElement(Ep + "Unknown"))
+                : new XElement(C + "UID-BFS", new XElement(Ep + "UID", s.Uid)),
+            BaueDelegate(s.Hauptsitz),
             s.Filialen.Select(b => new XElement(C + "Workplace",
                 new XAttribute("workplaceID", WpId(b)),
-                ElmStammdatenPruefung.BurNummerGueltig(b.BurNummer)
-                    ? new XElement(C + "BUR-REE-Number", b.BurNummer!.Trim().ToUpperInvariant())
-                    : null,
+                WorkplaceIdentifikation(b),
                 // AddressExtended: ComplementaryLine, Street, Locality, ZIP, City, Country, Canton, MunicipalityID
                 new XElement(C + "AddressExtended",
                     string.IsNullOrWhiteSpace(b.BranchName) ? null : new XElement(C + "ComplementaryLine", b.BranchName!.Trim()),
@@ -282,6 +295,54 @@ public static class ElmGemeinsam
                     string.IsNullOrWhiteSpace(b.KantonCode) ? null : new XElement(C + "Canton", b.KantonCode!.Trim().ToUpperInvariant()),
                     s.GemeindeNr.TryGetValue(b.Id, out var g) ? new XElement(C + "MunicipalityID", g) : null))),
             arbeitszeitmodelle);
+
+    /// <summary>BUR hat Vorrang; sonst InHouseID (choice im XSD).</summary>
+    static XElement? WorkplaceIdentifikation(CompanyProfile b)
+    {
+        if (ElmStammdatenPruefung.BurNummerGueltig(b.BurNummer))
+            return new XElement(C + "BUR-REE-Number", b.BurNummer!.Trim().ToUpperInvariant());
+        var ih = (b.InHouseId ?? "").Trim();
+        return ih.Length > 0 ? new XElement(C + "InHouseID", ih) : null;
+    }
+
+    /// <summary>Optionaler Stellvertreter (Treuhand) — nur wenn Name + PLZ/Ort gesetzt.</summary>
+    static XElement? BaueDelegate(Hauptsitz? hs)
+    {
+        if (hs == null || string.IsNullOrWhiteSpace(hs.StellvertreterName)) return null;
+        var plz = (hs.StellvertreterPlz ?? "").Trim();
+        var ort = (hs.StellvertreterOrt ?? "").Trim();
+        if (plz.Length == 0 || ort.Length == 0) return null;
+
+        var uid = (hs.StellvertreterUid ?? "").Trim().ToUpperInvariant();
+        if (!ElmStammdatenPruefung.UidBfsGueltig(uid)) return null; // XSD verlangt echte UID
+
+        XElement? owner = null;
+        var inh = (hs.StellvertreterInhaber ?? "").Trim();
+        if (inh.Length > 0)
+        {
+            var sp = inh.IndexOf(' ');
+            var vor = sp > 0 ? inh[..sp].Trim() : inh;
+            var nach = sp > 0 ? inh[(sp + 1)..].Trim() : inh;
+            if (vor.Length == 0) vor = "—";
+            if (nach.Length == 0) nach = vor;
+            owner = new XElement(C + "Owner",
+                new XElement(C + "Firstname", vor),
+                new XElement(C + "Lastname", nach));
+        }
+
+        return new XElement(C + "Delegate",
+            new XElement(C + "Name", new XElement(C + "HR-RC-Name", hs.StellvertreterName.Trim())),
+            owner,
+            new XElement(C + "Address",
+                string.IsNullOrWhiteSpace(hs.StellvertreterAdressZusatz) ? null : new XElement(C + "ComplementaryLine", hs.StellvertreterAdressZusatz.Trim()),
+                string.IsNullOrWhiteSpace(hs.StellvertreterStrasse) ? null : new XElement(C + "Street", hs.StellvertreterStrasse.Trim()),
+                string.IsNullOrWhiteSpace(hs.StellvertreterPostfach) ? null : new XElement(C + "Postbox", hs.StellvertreterPostfach.Trim()),
+                string.IsNullOrWhiteSpace(hs.StellvertreterLokalitaet) ? null : new XElement(C + "Locality", hs.StellvertreterLokalitaet.Trim()),
+                new XElement(C + "ZIP-Code", plz),
+                new XElement(C + "City", ort),
+                new XElement(C + "Country", LandName(hs.StellvertreterLand))),
+            new XElement(C + "UID-BFS", uid));
+    }
 
     /// <summary>
     /// Bewilligungsart → Swissdec <c>ResidenceCategory</c>. Nur für Ausländer;

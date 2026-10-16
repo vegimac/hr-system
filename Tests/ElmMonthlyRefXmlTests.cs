@@ -120,7 +120,7 @@ public class ElmMonatsArbeitsorteTests
         {
             Filiale(1, "LU"), Filiale(2, "BE"), Filiale(3, "VD"), Filiale(4, "TI"), Filiale(5, "AG"), Filiale(6, "ZG"),
         };
-        return new ElmGemeinsam.RechtseinheitStamm(null, filialen, filialen[0], "CHE-999.999.996",
+        return new ElmGemeinsam.RechtseinheitStamm(null, filialen, filialen[0], "CHE-999.999.996", false,
             "Muster AG", null, null, null, "Bahnhofstrasse 1", null, null, "6003", "Luzern", "CH", null,
             new Dictionary<int, int>());
     }
@@ -141,6 +141,51 @@ public class ElmMonatsArbeitsorteTests
     {
         var stamm = ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(MusterAg(), new HashSet<int> { 6, 2 });
         Assert.Equal(new[] { 2, 6 }, stamm.Filialen.Select(b => b.Id));
+    }
+
+    [Fact]
+    public void UidUnbekannt_im_Xml_als_Unknown()
+    {
+        var stamm = MusterAg() with { UidUnbekannt = true, Uid = "" };
+        var xml = ElmGemeinsam.CompanyDescription(stamm, Array.Empty<System.Xml.Linq.XElement>());
+        var uid = xml.Elements().First(e => e.Name.LocalName == "UID-BFS");
+        Assert.Contains(uid.Elements(), e => e.Name.LocalName == "Unknown");
+        Assert.DoesNotContain(uid.Elements(), e => e.Name.LocalName == "UID");
+    }
+
+    [Fact]
+    public void Workplace_InHouseID_wenn_keine_BUR()
+    {
+        var f = Filiale(1, "BE");
+        f.BurNummer = null;
+        f.InHouseId = "100_10";
+        var stamm = MusterAg() with { Filialen = new List<HrSystem.Models.CompanyProfile> { f }, Haupt = f };
+        var xml = ElmGemeinsam.CompanyDescription(stamm, Array.Empty<System.Xml.Linq.XElement>());
+        var wp = xml.Elements().First(e => e.Name.LocalName == "Workplace");
+        Assert.Equal("100_10", wp.Elements().First(e => e.Name.LocalName == "InHouseID").Value);
+        Assert.DoesNotContain(wp.Elements(), e => e.Name.LocalName == "BUR-REE-Number");
+    }
+
+    [Fact]
+    public void Delegate_mit_UID_im_Xml()
+    {
+        var hs = new HrSystem.Models.Hauptsitz
+        {
+            Name = "Muster AG",
+            StellvertreterName = "Treuhand Muster",
+            StellvertreterPlz = "3000",
+            StellvertreterOrt = "Bern",
+            StellvertreterLand = "CH",
+            StellvertreterUid = "CHE-999.999.996",
+            StellvertreterInhaber = "Anna Beispiel"
+        };
+        var stamm = MusterAg() with { Hauptsitz = hs };
+        var xml = ElmGemeinsam.CompanyDescription(stamm, Array.Empty<System.Xml.Linq.XElement>());
+        var del = xml.Elements().First(e => e.Name.LocalName == "Delegate");
+        Assert.Equal("CHE-999.999.996", del.Elements().First(e => e.Name.LocalName == "UID-BFS").Value);
+        Assert.Equal("Treuhand Muster",
+            del.Elements().First(e => e.Name.LocalName == "Name")
+                .Elements().First(e => e.Name.LocalName == "HR-RC-Name").Value);
     }
 
     [Fact]
@@ -319,6 +364,14 @@ public class ElmUidPruefzifferTests
     [InlineData("CHE-109.322.551")]  // bekannt gültig
     public void EchteUidsGehenDurch(string uid)
         => Assert.True(ElmStammdatenPruefung.UidBfsGueltig(uid));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("UNKNOWN")]
+    [InlineData("unbekannt")]
+    public void UidBfs_unbekannt_oder_leer_ist_kein_Fehler(string? uid)
+        => Assert.Null(ElmStammdatenPruefung.UidBfsFehler(uid));
 
     [Theory]
     [InlineData("CHE-999.999.997")]  // Expected der Swissdec-Vorgabe

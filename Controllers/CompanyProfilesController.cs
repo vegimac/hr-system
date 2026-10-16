@@ -297,6 +297,7 @@ public class CompanyProfilesController : ControllerBase
         if (ElmStammdatenPruefung.UidBfsFehler(dto.UidNummer) is string uidFehler)
             return BadRequest(new { error = "UID_UNGUELTIG", message = uidFehler });
         profile.BurNummer      = string.IsNullOrWhiteSpace(dto.BurNummer)      ? null : dto.BurNummer.Trim().ToUpperInvariant();
+        profile.InHouseId      = string.IsNullOrWhiteSpace(dto.InHouseId)      ? null : dto.InHouseId.Trim();
         profile.UidNummer      = string.IsNullOrWhiteSpace(dto.UidNummer)      ? null : dto.UidNummer.Trim().ToUpperInvariant();
         // uid_bfs = dieselbe Nummer (LSE/Swissdec-Lesepfad); leer mitlöschen
         profile.UidBfs         = profile.UidNummer;
@@ -462,6 +463,7 @@ public class CompanyProfilesController : ControllerBase
         string?  Phone,
         string?  Email,
         string?  BurNummer,
+        string?  InHouseId,
         string?  UidNummer,
         int?     BfsGemeindeNr,
         int?     HauptsitzId,

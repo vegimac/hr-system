@@ -76,6 +76,12 @@ public class CompanyProfile
     /// <summary>BUR-Nummer der örtlichen Einheit (BFS-Betriebsregister,
     /// 8 Zeichen) — für die LSE-Spalte AR «burNr» (Walter 13.08.2026).</summary>
     public string? BurNr { get; set; }
+
+    /// <summary>
+    /// Unternehmensinterne Arbeitsort-ID (Swissdec <c>InHouseID</c>) — Alternative
+    /// zur BUR-Nummer, nur nach Absprache mit dem BFS (Walter 16.10.2026).
+    /// </summary>
+    public string? InHouseId { get; set; }
     /// <summary>Zuordnung zur Rechtseinheit (Hauptsitz-Verwaltung, Walter 29.08.2026).</summary>
     public int? HauptsitzId { get; set; }
 

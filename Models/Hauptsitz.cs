@@ -47,6 +47,24 @@ public class Hauptsitz
     public string? KontaktName { get; set; }
     public string? KontaktEmail { get; set; }
     public string? KontaktTelefon { get; set; }
+    /// <summary>Mobil — speichern international («+41 79…»), XML national («079…»).</summary>
+    public string? KontaktMobil { get; set; }
+
+    /// <summary>UID-BFS unbekannt → XML <c>UID-BFS/Unknown</c> (Ausnahme, Swissdec 4.2).</summary>
+    public bool UidUnbekannt { get; set; }
+
+    // Stellvertreter / Treuhand (Swissdec 4.2.4 Delegate) — optional.
+    public string? StellvertreterName { get; set; }
+    public string? StellvertreterInhaber { get; set; }
+    public string? StellvertreterAdressZusatz { get; set; }
+    public string? StellvertreterStrasse { get; set; }
+    public string? StellvertreterPostfach { get; set; }
+    public string? StellvertreterLokalitaet { get; set; }
+    public string? StellvertreterPlz { get; set; }
+    public string? StellvertreterOrt { get; set; }
+    public string? StellvertreterLand { get; set; }
+    public string? StellvertreterUid { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     // ── Vertragsregeln der Rechtseinheit (Walter-Vorgabe 01.09.2026) ──────

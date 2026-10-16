@@ -53,16 +53,27 @@ public static class ElmStammdatenPruefung
         return pruef == (z[8] - '0');
     }
 
+    /// <summary>Sentinel für UID-BFS «unbekannt» (XML <c>Unknown</c>), Speichern/UI.</summary>
+    public const string UidUnbekanntWert = "UNKNOWN";
+
+    /// <summary>Ist der Wert die bewusste «unbekannt»-Wahl (nicht eine CHE-Nummer)?</summary>
+    public static bool IstUidUnbekannt(string? uid)
+    {
+        var u = (uid ?? "").Trim().ToUpperInvariant();
+        return u is "UNKNOWN" or "UNBEKANNT" or "UNK";
+    }
+
     /// <summary>
-    /// Fehlermeldung zur UID, oder null wenn leer/gültig.
-    /// Leer ist erlaubt (noch nicht erfasst); «unbekannt» kommt später als eigener Wert.
+    /// Fehlermeldung zur UID, oder null wenn leer/gültig/unbekannt.
+    /// Leer = noch nicht erfasst; «UNKNOWN» = Swissdec-Ausnahme Unknown.
     /// </summary>
     public static string? UidBfsFehler(string? uid)
     {
         if (string.IsNullOrWhiteSpace(uid)) return null;
+        if (IstUidUnbekannt(uid)) return null;
         var u = uid.Trim().ToUpperInvariant();
         if (!Regex.IsMatch(u, @"^CHE-\d{3}\.\d{3}\.\d{3}$"))
-            return "UID bitte im Format CHE-XXX.XXX.XXX erfassen.";
+            return "UID bitte im Format CHE-XXX.XXX.XXX erfassen (oder «unbekannt»).";
         if (!UidBfsGueltig(u))
             return $"UID «{u}» ist ungültig (Prüfziffer stimmt nicht).";
         return null;

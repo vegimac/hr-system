@@ -706,48 +706,6 @@ function renderBanks() {
         </tr>`).join('');
 }
 
-async function importBanksFromFile(inputEl) {
-    const f = inputEl.files?.[0];
-    if (!f) return;
-    const mode = confirm(
-        `CSV-Datei "${f.name}" importieren.\n\n` +
-        `OK  = REPLACE (komplette Tabelle überschreiben)\n` +
-        `Abbrechen = MERGE (nur neue IIDs hinzufügen, bestehende aktualisieren)`
-    ) ? 'replace' : 'merge';
-    const fd = new FormData();
-    fd.append('file', f);
-    const alertEl = document.getElementById('banksAlert');
-    if (alertEl) { alertEl.style.display = 'block'; alertEl.style.color = '#64748b'; alertEl.textContent = 'Import läuft…'; }
-    try {
-        // Nur Authorization-Header setzen — Content-Type kommt vom Browser
-        // mit der korrekten multipart-boundary. ah() würde application/json
-        // mitschicken und der Server antwortet dann 415 Unsupported Media Type.
-        const authOnly = {};
-        const h = ah();
-        if (h && h.Authorization) authOnly.Authorization = h.Authorization;
-        const res = await fetch(`/api/banks/import?replace=${mode === 'replace'}`, {
-            method: 'POST',
-            headers: authOnly,
-            body: fd
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({ message: res.statusText }));
-            throw new Error(err.message || 'Import fehlgeschlagen');
-        }
-        const r = await res.json();
-        if (alertEl) {
-            alertEl.style.color = '#15803d';
-            alertEl.textContent = r.mode === 'merge'
-                ? `✓ Import (Merge): ${r.added} neu, ${r.updated} aktualisiert (total ${r.total}).`
-                : `✓ Import (Replace): ${r.total} Einträge eingelesen.`;
-        }
-        inputEl.value = '';
-        loadBanks();
-    } catch(e) {
-        if (alertEl) { alertEl.style.color = '#dc2626'; alertEl.textContent = '✗ ' + e.message; }
-    }
-}
-
 async function deleteBank(iid) {
     if (!confirm(`Bank-Eintrag ${iid} löschen?`)) return;
     try {

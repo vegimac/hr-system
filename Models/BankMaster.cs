@@ -3,7 +3,7 @@ namespace HrSystem.Models;
 /// <summary>
 /// Schweizer Bank-Stammdaten (SIX Interbank Clearing Bank-Master-Liste).
 /// Pro Institut-ID (IID, Stellen 5–9 einer CH/LI-IBAN) ein Eintrag.
-/// Wird per CSV-Upload über Admin-UI aktualisiert.
+/// Wird von der SIX Bank Master API aktualisiert (Nachtlauf / «Von SIX»).
 /// </summary>
 public class BankMaster
 {
@@ -14,5 +14,5 @@ public class BankMaster
     public string?  Ort        { get; set; }
     public string?  Strasse    { get; set; }
     public string?  Plz        { get; set; }
-    public DateTime ImportedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ImportedAt { get; set; } = DateTime.Now;
 }

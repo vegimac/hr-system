@@ -6,12 +6,12 @@ namespace HrSystem.Services;
 
 /// <summary>
 /// Schlägt Schweizer Bankdaten anhand der Institut-ID (IID) einer IBAN nach.
-/// Daten kommen aus der Tabelle bank_master (wird über Admin-UI importiert).
+/// Daten kommen aus der Tabelle bank_master (Nacht-Sync / manuell von SIX).
 /// Der Service hält einen In-Memory Cache; bei Bedarf via <see cref="Reload"/>
-/// neu befüllen (z. B. nach CSV-Import).
+/// neu befüllen (z. B. nach SIX-Sync).
 ///
 /// Erstbefüllung: wenn bank_master leer ist und Data/bank_master.csv
-/// existiert, wird die CSV als Initial-Seed in die DB geschrieben.
+/// existiert, wird die CSV einmal als Seed geschrieben (danach SIX).
 ///
 /// Lookup selbst bleibt offline (bank_master). Optional: SIX-IBAN-Prüfung
 /// über <c>/api/banks/validate-iban</c> (dann geht die IBAN an SIX).
@@ -115,14 +115,14 @@ public class BankLookupService
         string path = Path.Combine(_env.ContentRootPath, "Data", "bank_master.csv");
         if (!File.Exists(path))
         {
-            _logger.LogWarning("bank_master.csv für Initial-Seed nicht gefunden ({Path}). Tabelle bleibt leer — per Admin-UI importieren.", path);
+            _logger.LogWarning("bank_master.csv für Initial-Seed nicht gefunden ({Path}). Tabelle bleibt leer — «Von SIX aktualisieren» oder Nachtlauf.", path);
             return;
         }
 
         try
         {
             int count = 0;
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             foreach (var (line, i) in File.ReadLines(path).Select((l, i) => (l, i)))
             {
                 if (i == 0) continue;

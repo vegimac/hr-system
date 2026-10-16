@@ -768,6 +768,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LohnausweisPos21VerpflegungMonat).HasColumnName("lohnausweis_pos_2_1_verpflegung_monat").HasColumnType("numeric(10,2)");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.BurNummer).HasColumnName("bur_nummer").HasMaxLength(20);
+            entity.Property(e => e.InHouseId).HasColumnName("in_house_id").HasMaxLength(50);
             entity.Property(e => e.UidNummer).HasColumnName("uid_nummer").HasMaxLength(20);
             entity.Property(e => e.BranchenCode).HasColumnName("branchen_code").HasMaxLength(10);
             entity.Property(e => e.AhvKasse).HasColumnName("ahv_kasse").HasMaxLength(100);
@@ -1031,6 +1032,18 @@ public class AppDbContext : DbContext
             entity.Property(e => e.KontaktName).HasColumnName("kontakt_name").HasMaxLength(200);
             entity.Property(e => e.KontaktEmail).HasColumnName("kontakt_email").HasMaxLength(200);
             entity.Property(e => e.KontaktTelefon).HasColumnName("kontakt_telefon").HasMaxLength(60);
+            entity.Property(e => e.KontaktMobil).HasColumnName("kontakt_mobil").HasMaxLength(60);
+            entity.Property(e => e.UidUnbekannt).HasColumnName("uid_unbekannt");
+            entity.Property(e => e.StellvertreterName).HasColumnName("stellvertreter_name").HasMaxLength(200);
+            entity.Property(e => e.StellvertreterInhaber).HasColumnName("stellvertreter_inhaber").HasMaxLength(200);
+            entity.Property(e => e.StellvertreterAdressZusatz).HasColumnName("stellvertreter_adress_zusatz").HasMaxLength(200);
+            entity.Property(e => e.StellvertreterStrasse).HasColumnName("stellvertreter_strasse").HasMaxLength(200);
+            entity.Property(e => e.StellvertreterPostfach).HasColumnName("stellvertreter_postfach").HasMaxLength(80);
+            entity.Property(e => e.StellvertreterLokalitaet).HasColumnName("stellvertreter_lokalitaet").HasMaxLength(120);
+            entity.Property(e => e.StellvertreterPlz).HasColumnName("stellvertreter_plz").HasMaxLength(15);
+            entity.Property(e => e.StellvertreterOrt).HasColumnName("stellvertreter_ort").HasMaxLength(120);
+            entity.Property(e => e.StellvertreterLand).HasColumnName("stellvertreter_land").HasMaxLength(2);
+            entity.Property(e => e.StellvertreterUid).HasColumnName("stellvertreter_uid").HasMaxLength(20);
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.FixPensenErlaubt).HasColumnName("fix_pensen_erlaubt").HasMaxLength(200);
             entity.Property(e => e.FlexStundenMax).HasColumnName("flex_stunden_max").HasColumnType("numeric(5,2)");

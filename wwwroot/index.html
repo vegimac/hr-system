@@ -9186,10 +9186,6 @@
                         <button type="button" id="banksSixSyncBtn" onclick="banksSyncFromSix()"
                                 title="Jetzt von SIX Bank Master API aktualisieren"
                                 style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.12)">↻ Von SIX aktualisieren</button>
-                        <label style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.12);margin:0">
-                            📥 CSV
-                            <input type="file" id="bankImportFile" accept=".csv,.txt" style="display:none" onchange="importBanksFromFile(this)">
-                        </label>
                         <button type="button" class="btn btn-primary" onclick="openBankEditModal(null)"
                                 style="padding:9px 14px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-size:13px;font-weight:600;cursor:pointer">+ Neuer Eintrag</button>
                     </div>
@@ -9216,7 +9212,7 @@
 
                 <p style="margin-top:14px;font-size:12px;color:#94a3b8;line-height:1.5">
                     Quelle: <a href="https://apiportal.six-group.com/apis/swiss-bank-master-api-ch-v3" target="_blank" rel="noopener" style="color:#3f3f3f">SIX Bank Master API v3</a>
-                    · Fallback CSV: <code>iid;bic;name;ort;strasse;plz</code>
+                    · Nachtlauf 05:30 oder manuell «Von SIX aktualisieren»
                 </p>
                 </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
             </div>
@@ -9711,6 +9707,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Betriebsangaben</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
                     <div><label class="f-label">BUR-Nummer</label><input id="stmBurNummer" class="f-input" placeholder="A89058593" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Ein Buchstabe + 8 Ziffern"><div class="f-hint" style="margin-top:2px">z.B. A89058593 — Prüfziffer beim Verlassen des Feldes</div></div>
+                    <div><label class="f-label">InHouseID <span style="font-weight:400;color:#8b8b8b">(statt BUR)</span></label><input id="stmInHouseId" class="f-input" placeholder="100_10" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"><div class="f-hint" style="margin-top:2px">Nur nach Absprache mit dem BFS — Alternative zur BUR</div></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
                     <div><label class="f-label">UID-Nummer</label><input id="stmUidNummer" class="f-input" placeholder="CHE-XXX.XXX.XXX" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="CHE-123.456.789"><div class="f-hint" style="margin-top:2px">CHE-999.999.997 wird abgelehnt — Prüfung beim Verlassen des Feldes</div></div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">
@@ -9850,54 +9849,77 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 </div>
 
 <!-- ═══════════════ FILIAL-BANKVERBINDUNG MODAL (Auftraggeber-Konto DTA) ══════ -->
-<div id="companyBankModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
-    <div style="background:#fff;border-radius:14px;width:560px;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
-        <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between">
-            <span id="companyBankModalTitle" style="font-weight:700;font-size:16px;color:#1e293b">Bankverbindung der Filiale</span>
-            <button onclick="closeCompanyBankModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;padding:4px 8px;border-radius:6px">✕</button>
+<!-- ov-Eingabemasken-Standard: ma-modal-box (wie MA-Bankverbindung). -->
+<div id="companyBankModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:flex-start;justify-content:center;z-index:2000;overflow-y:auto;padding:40px 16px;">
+    <div class="ma-modal-box narrow" style="margin:auto">
+        <div class="ma-modal-head">
+            <div class="ma-modal-title" id="companyBankModalTitle">Bankverbindung hinzufügen</div>
+            <button class="ma-modal-close" onclick="closeCompanyBankModal()" type="button">✕</button>
         </div>
-        <div style="padding:20px 24px;display:flex;flex-direction:column;gap:12px">
+        <div class="ma-modal-body">
             <input type="hidden" id="companyBankBranchId">
             <input type="hidden" id="companyBankEditId">
-            <div style="font-size:12px;color:#64748b;line-height:1.5;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:10px 12px">
-                Diese Bankverbindung wird beim Lohnlauf-DTA als <b>Auftraggeber-Konto</b> verwendet — die Sammelzahlung an alle MA-Banken läuft von hier raus. BIC und Bankname werden bei einer CH-IBAN automatisch ergänzt. Bei Bankenwechsel: alten Eintrag mit „Gültig bis" abschliessen, neuen ab Wechseldatum anlegen.
+            <p style="font-size:12px;color:#646464;line-height:1.5;margin:0 0 14px">
+                Beim Lohnlauf-DTA das <strong>Auftraggeber-Konto</strong> — Sammelzahlung an alle MA-Banken läuft von hier.
+                BIC und Bankname werden bei CH-IBAN automatisch ergänzt.
+                Bankenwechsel: alten Eintrag mit «Gültig bis» abschliessen, neuen ab Wechseldatum anlegen.
+            </p>
+
+            <div class="emp-section-title">IBAN &amp; Bank</div>
+            <div class="ma-grid">
+                <div class="ma-field" style="grid-column:span 2">
+                    <div class="ma-field-label">IBAN *</div>
+                    <input type="text" id="companyBankIban" class="ma-input"
+                           style="font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:0.3px"
+                           placeholder="CH75 0900 0000 4600 0470 9"
+                           oninput="validateCompanyBankIban(this)">
+                    <div id="companyBankIbanHint" style="font-size:11px;margin-top:4px;min-height:14px"></div>
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">BIC</div>
+                    <input type="text" id="companyBankBic" class="ma-input"
+                           style="font-family:ui-monospace,Menlo,Consolas,monospace">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Bankname</div>
+                    <input type="text" id="companyBankName" class="ma-input">
+                </div>
             </div>
-            <label style="font-size:12px;font-weight:600;color:#374151">IBAN *
-                <input id="companyBankIban" class="form-control"
-                       style="margin-top:4px;font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:0.3px"
-                       placeholder="CH75 0900 0000 4600 0470 9"
-                       oninput="validateCompanyBankIban(this)">
-                <div id="companyBankIbanHint" style="font-size:11px;margin-top:4px;min-height:14px"></div>
-            </label>
-            <div style="display:grid;grid-template-columns:200px 1fr;gap:12px">
-                <label style="font-size:12px;font-weight:600;color:#374151">BIC
-                    <input id="companyBankBic" class="form-control" style="margin-top:4px;font-family:ui-monospace,Menlo,Consolas,monospace">
-                </label>
-                <label style="font-size:12px;font-weight:600;color:#374151">Bankname
-                    <input id="companyBankName" class="form-control" style="margin-top:4px">
-                </label>
+
+            <div class="emp-section-title">Gültigkeit</div>
+            <div class="ma-grid">
+                <div class="ma-field" style="grid-column:span 2;display:flex;align-items:center;gap:8px;flex-direction:row">
+                    <input type="checkbox" id="companyBankIsMain" style="width:16px;height:16px;margin:0">
+                    <label for="companyBankIsMain" style="font-size:13px;cursor:pointer;color:#3f3f3f;font-weight:500">
+                        Hauptbank
+                        <span style="color:#8b8b8b;font-weight:400;font-size:11.5px"> · Standard für Lohn-Auszahlung (pro Filiale max. eine)</span>
+                    </label>
+                </div>
+                <div class="ma-field" style="grid-column:span 2">
+                    <div class="ma-field-label">Gültig ab *</div>
+                    <input type="date" id="companyBankValidFrom" class="ma-input">
+                </div>
+                <div class="ma-field" style="grid-column:span 2">
+                    <div class="ma-field-label">Gültig bis <span class="opt">(leer = offen)</span></div>
+                    <input type="date" id="companyBankValidTo" class="ma-input">
+                </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <label style="font-size:12px;font-weight:600;color:#374151">Gültig ab *
-                    <input type="date" id="companyBankValidFrom" class="form-control" style="margin-top:4px">
-                </label>
-                <label style="font-size:12px;font-weight:600;color:#374151">Gültig bis <span style="color:#94a3b8;font-weight:400">(leer = offen)</span>
-                    <input type="date" id="companyBankValidTo" class="form-control" style="margin-top:4px">
-                </label>
+
+            <div class="emp-section-title">Zusatz</div>
+            <div class="ma-grid cols-1">
+                <div class="ma-field">
+                    <div class="ma-field-label">Bemerkung <span class="opt">(optional)</span></div>
+                    <input type="text" id="companyBankBemerkung" class="ma-input"
+                           placeholder="z.B. Lohnkonto Raiffeisen Sursee">
+                </div>
             </div>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#0f172a">
-                <input type="checkbox" id="companyBankIsMain" style="width:16px;height:16px">
-                <b>Hauptbank</b> <span style="color:#94a3b8;font-weight:400;font-size:11.5px">(Standard für Lohn-Auszahlung — pro Filiale max. eine zur gleichen Zeit)</span>
-            </label>
-            <label style="font-size:12px;font-weight:600;color:#374151">Bemerkung <span style="color:#94a3b8;font-weight:400">(optional)</span>
-                <input id="companyBankBemerkung" class="form-control" style="margin-top:4px" placeholder="z.B. „Lohnkonto bei Raiffeisen Sursee, alte PostFinance bis 31.12.2025"">
-            </label>
         </div>
-        <div style="padding:16px 24px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:10px">
-            <button id="companyBankDeleteBtn" class="btn btn-outline" style="color:#dc2626;border-color:#fecaca;display:none" onclick="deleteCompanyBank()">Löschen</button>
+        <div class="ma-modal-foot" style="justify-content:space-between">
+            <button type="button" id="companyBankDeleteBtn" class="btn btn-outline"
+                    style="color:#b91c1c;display:none" onclick="deleteCompanyBank()">Löschen</button>
             <div style="display:flex;gap:10px;margin-left:auto">
-                <button class="btn btn-outline" onclick="closeCompanyBankModal()">Abbrechen</button>
-                <button class="btn btn-primary" onclick="saveCompanyBank()">Speichern</button>
+                <button type="button" class="btn btn-outline" onclick="closeCompanyBankModal()">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="saveCompanyBank()">Speichern</button>
             </div>
         </div>
     </div>
@@ -10626,7 +10648,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-workflow.js?v=20261011a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
 <script src="js/swiss-uid.js?v=20261016f"></script>
-<script src="js/branches-detail.js?v=20261016e"></script>
+<script src="js/branches-detail.js?v=20261016f"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20261011b"></script>
@@ -10672,7 +10694,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/swissdec.js?v=20261015c"></script>
 <script src="js/swissdec-komm.js?v=20261015a"></script>
 <script src="js/swissdec-uebermittlung.js?v=20261002b"></script>
-<script src="js/hauptsitze.js?v=20261016g"></script>
+<script src="js/hauptsitze.js?v=20261016h"></script>
 <script src="js/arbeitszeit-regeln.js?v=20261007d"></script>
 <script src="js/feiertage.js?v=20261007a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>

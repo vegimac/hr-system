@@ -276,9 +276,20 @@ public static class PersonaldatenPruefung
 
     /// <summary>
     /// Gültige Nummer → international formatiert («+41 79 409 43 33»), sonst NULL.
-    /// Ohne Vorwahl gilt die Schweiz; «0041…», «+49…» und «4179…» werden erkannt.
+    /// Speichern / UI: immer dieses Format (Walter). Ohne Vorwahl gilt die Schweiz;
+    /// «0041…», «+49…» und «4179…» werden erkannt.
     /// </summary>
     public static string? TelefonFormatiert(string? roh)
+        => TelefonParsed(roh) is { } n ? Tel.Format(n, PhoneNumberFormat.INTERNATIONAL) : null;
+
+    /// <summary>
+    /// Swissdec/ELM: nationales CH-Format («079 409 43 33» bzw. «041 218 65 32»).
+    /// Speichern bleibt international; nur die Meldung wandelt um (RefXML ContactPerson).
+    /// </summary>
+    public static string? TelefonFuerSwissdec(string? roh)
+        => TelefonParsed(roh) is { } n ? Tel.Format(n, PhoneNumberFormat.NATIONAL) : null;
+
+    static PhoneNumber? TelefonParsed(string? roh)
     {
         if (string.IsNullOrWhiteSpace(roh)) return null;
         foreach (var kandidat in TelefonKandidaten(roh.Trim()))
@@ -286,7 +297,7 @@ public static class PersonaldatenPruefung
             try
             {
                 var n = Tel.Parse(kandidat, "CH");
-                if (Tel.IsValidNumber(n)) return Tel.Format(n, PhoneNumberFormat.INTERNATIONAL);
+                if (Tel.IsValidNumber(n)) return n;
             }
             catch (NumberParseException) { /* nächster Kandidat */ }
         }

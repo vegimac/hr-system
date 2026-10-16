@@ -108,6 +108,11 @@ public class PersonaldatenPruefungTests
         Assert.Equal("+41 79 409 43 33", PersonaldatenPruefung.TelefonFormatiert("0794094333"));
         Assert.Equal("+41 79 409 43 33", PersonaldatenPruefung.TelefonFormatiert("+41 79 409 43 33"));
         Assert.Null(PersonaldatenPruefung.TelefonFormatiert("079 409 43"));
+        // Swissdec: national (079… / 041…), Speichern bleibt +41…
+        Assert.Equal("079 409 43 33", PersonaldatenPruefung.TelefonFuerSwissdec("+41 79 409 43 33"));
+        Assert.Equal("079 409 43 33", PersonaldatenPruefung.TelefonFuerSwissdec("0794094333"));
+        Assert.Equal("041 218 65 32", PersonaldatenPruefung.TelefonFuerSwissdec("+41 41 218 65 32"));
+        Assert.Null(PersonaldatenPruefung.TelefonFuerSwissdec("079 409 43"));
     }
 
     [Theory]

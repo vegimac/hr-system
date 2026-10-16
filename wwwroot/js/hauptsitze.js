@@ -160,9 +160,9 @@ async function azmLoeschen(id) {
 
 // ── Modal (ov-Standard: class="modal" bekommt den Greige-Verlauf) ──────
 function _hsEnsureModal() {
-    // Layout v4: Swissdec 4.2 Adresse (Land-Dropdown, Gemeindenummer, Zusatz/Postfach)
+    // Layout v5: + Kontakt-Mobil, UID unbekannt, Stellvertreter (Swissdec 4.1/4.2)
     const existing = document.getElementById('hsModal');
-    if (existing && existing.dataset.hsLayout !== '4') existing.remove();
+    if (existing && existing.dataset.hsLayout !== '5') existing.remove();
     if (document.getElementById('hsModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -171,14 +171,23 @@ function _hsEnsureModal() {
         : `<select id="hsLand" style="${inp}"><option value="CH" selected>SWITZERLAND</option></select>`;
     const div = document.createElement('div');
     div.id = 'hsModal';
-    div.dataset.hsLayout = '4';
+    div.dataset.hsLayout = '5';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
     <div class="modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(780px,96vw);max-height:92vh;overflow:auto;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:24px 28px">
         <div id="hsModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Hauptsitz erfassen</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
             <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<span class="pflicht-stern">*</span><input id="hsName" placeholder="z.B. Muster AG" style="${inp}"></label>
-            <label style="${lbl};grid-column:span 2">UID-BFS<input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Format CHE-123.456.789 — Prüfziffer beim Verlassen des Feldes.</span></label>
+            <label style="${lbl};grid-column:span 2">UID-BFS
+                <div style="display:flex;gap:10px;align-items:center;margin-top:3px">
+                    <input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};margin-top:0;flex:1;font-family:ui-monospace,Menlo,monospace">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:#3f3f3f;white-space:nowrap;cursor:pointer">
+                        <input type="checkbox" id="hsUidUnbekannt" style="width:15px;height:15px;margin:0" onchange="hsUidUnbekanntToggle()">
+                        unbekannt
+                    </label>
+                </div>
+                <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Format CHE-123.456.789 — Prüfziffer beim Verlassen. «unbekannt» nur Ausnahme (XML Unknown).</span>
+            </label>
             <label style="${lbl};grid-column:span 2">Zusatzzeile (Abteilung / Filialbezeichnung)<input id="hsZusatz1" placeholder="optional" style="${inp}"></label>
             <label style="${lbl};grid-column:span 2">Zusatzzeile 2 (Abteilung / Filiale)<input id="hsZusatz2" placeholder="optional" style="${inp}"></label>
             <label style="${lbl};grid-column:span 2">Zusatzzeile Postadresse<input id="hsAdressZusatz" placeholder="optional" style="${inp}"></label>
@@ -244,9 +253,30 @@ function _hsEnsureModal() {
                 erste Admin-Benutzer gemeldet.
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
-                <label style="${lbl};grid-column:span 2">Name<input id="hsKontaktName" placeholder="Vorname Nachname" style="${inp}"></label>
-                <label style="${lbl}">E-Mail<input id="hsKontaktEmail" type="email" style="${inp}"></label>
-                <label style="${lbl}">Telefon<input id="hsKontaktTel" placeholder="041 218 65 32" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">Name<input id="hsKontaktName" placeholder="Hans Muster" style="${inp}"></label>
+                <label style="${lbl}">E-Mail<span class="pflicht-stern" title="Pflicht für BFS">*</span><input id="hsKontaktEmail" type="email" placeholder="hans.muster@suva.ch" style="${inp}"></label>
+                <label style="${lbl}">Telefon<span class="pflicht-stern">*</span><input id="hsKontaktTel" placeholder="+41 44 444 44 44" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">Mobil<input id="hsKontaktMobil" placeholder="+41 79 409 43 33" style="${inp}">
+                    <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Speichern international (+41 …); im Swissdec-XML national (079 …).</span>
+                </label>
+            </div>
+        </div>
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(60,55,48,0.15)">
+            <div style="font-size:13px;font-weight:700;color:#3f3f3f">Stellvertreter (Treuhand)</div>
+            <div style="font-size:11.5px;color:#8b8b8b;margin:4px 0 12px;line-height:1.55">
+                Optional — z.B. Treuhandbüro, das Meldungen im Auftrag übermittelt (Swissdec Delegate).
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+                <label style="${lbl};grid-column:span 2">Name<input id="hsSvName" placeholder="Treuhand Muster AG" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">Firmeninhaber<input id="hsSvInhaber" placeholder="Vorname Nachname" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">Zusatzzeile Postadresse<input id="hsSvAdressZusatz" style="${inp}"></label>
+                <label style="${lbl}">Strasse / Nr.<input id="hsSvStrasse" style="${inp}"></label>
+                <label style="${lbl}">Postfach<input id="hsSvPostfach" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">Lokalität<input id="hsSvLokalitaet" style="${inp}"></label>
+                <label style="${lbl}">PLZ<input id="hsSvPlz" maxlength="4" style="${inp}"></label>
+                <label style="${lbl}">Ort<input id="hsSvOrt" style="${inp}"></label>
+                <label style="${lbl}">Land${(window.SwissUid && SwissUid.landSelectHtml) ? SwissUid.landSelectHtml('hsSvLand', 'CH', inp) : `<select id="hsSvLand" style="${inp}"><option value="CH">SWITZERLAND</option></select>`}</label>
+                <label style="${lbl}">UID-BFS<input id="hsSvUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"></label>
             </div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
@@ -270,6 +300,9 @@ function hsOpenModal(id) {
     document.getElementById('hsModalTitle').textContent = h ? 'Hauptsitz bearbeiten' : 'Hauptsitz erfassen';
     const set = (fid, v) => { const el = document.getElementById(fid); if (el) { el.value = v ?? ''; if (window.SwissUid) SwissUid.feldFehlerLoeschen(el); } };
     set('hsName', h?.name); set('hsUid', h?.uid);
+    const unk = document.getElementById('hsUidUnbekannt');
+    if (unk) unk.checked = !!h?.uidUnbekannt;
+    hsUidUnbekanntToggle();
     set('hsZusatz1', h?.zusatzAbteilung); set('hsZusatz2', h?.zusatzAbteilung2);
     set('hsAdressZusatz', h?.adressZusatz);
     set('hsStrasse', h?.strasse); set('hsPostfach', h?.postfach); set('hsLokalitaet', h?.lokalitaet);
@@ -279,10 +312,27 @@ function hsOpenModal(id) {
     else set('hsLand', h?.land || 'CH');
     set('hsFixPensen', h?.fixPensenErlaubt); set('hsFlexMax', h?.flexStundenMax);
     set('hsMtpMin', h?.mtpStundenMin);       set('hsMtpMax', h?.mtpStundenMax);
-    set('hsKontaktName', h?.kontaktName); set('hsKontaktEmail', h?.kontaktEmail); set('hsKontaktTel', h?.kontaktTelefon);
+    set('hsKontaktName', h?.kontaktName); set('hsKontaktEmail', h?.kontaktEmail);
+    set('hsKontaktTel', h?.kontaktTelefon); set('hsKontaktMobil', h?.kontaktMobil);
+    set('hsSvName', h?.stellvertreterName); set('hsSvInhaber', h?.stellvertreterInhaber);
+    set('hsSvAdressZusatz', h?.stellvertreterAdressZusatz);
+    set('hsSvStrasse', h?.stellvertreterStrasse); set('hsSvPostfach', h?.stellvertreterPostfach);
+    set('hsSvLokalitaet', h?.stellvertreterLokalitaet);
+    set('hsSvPlz', h?.stellvertreterPlz); set('hsSvOrt', h?.stellvertreterOrt);
+    if (window.SwissUid) SwissUid.landSelectFuellen('hsSvLand', h?.stellvertreterLand || 'CH');
+    else set('hsSvLand', h?.stellvertreterLand || 'CH');
+    set('hsSvUid', h?.stellvertreterUid);
     document.getElementById('hsModal').style.display = 'block';
     const plzEl = document.getElementById('hsPlz');
     if (plzEl && typeof plzEl._swissUidPruefen === 'function') plzEl._swissUidPruefen();
+}
+
+function hsUidUnbekanntToggle() {
+    const unk = document.getElementById('hsUidUnbekannt')?.checked;
+    const uid = document.getElementById('hsUid');
+    if (!uid) return;
+    uid.disabled = !!unk;
+    if (unk) { uid.value = ''; if (window.SwissUid) SwissUid.feldFehlerLoeschen(uid); }
 }
 
 function hsCloseModal() {
@@ -295,8 +345,9 @@ async function hsSave() {
     const num = (fid) => { const v = val(fid); return v == null ? null : Number(v); };
     const bfsRaw = val('hsBfs');
     const bfsN = bfsRaw ? parseInt(bfsRaw, 10) : null;
+    const uidUnbekannt = !!document.getElementById('hsUidUnbekannt')?.checked;
     const dto = {
-        name: val('hsName'), uid: val('hsUid'),
+        name: val('hsName'), uid: uidUnbekannt ? null : val('hsUid'), uidUnbekannt,
         zusatzAbteilung: val('hsZusatz1'), zusatzAbteilung2: val('hsZusatz2'),
         adressZusatz: val('hsAdressZusatz'),
         strasse: val('hsStrasse'), postfach: val('hsPostfach'), lokalitaet: val('hsLokalitaet'),
@@ -311,6 +362,17 @@ async function hsSave() {
         kontaktName:    val('hsKontaktName'),
         kontaktEmail:   val('hsKontaktEmail'),
         kontaktTelefon: val('hsKontaktTel'),
+        kontaktMobil:   val('hsKontaktMobil'),
+        stellvertreterName: val('hsSvName'),
+        stellvertreterInhaber: val('hsSvInhaber'),
+        stellvertreterAdressZusatz: val('hsSvAdressZusatz'),
+        stellvertreterStrasse: val('hsSvStrasse'),
+        stellvertreterPostfach: val('hsSvPostfach'),
+        stellvertreterLokalitaet: val('hsSvLokalitaet'),
+        stellvertreterPlz: val('hsSvPlz'),
+        stellvertreterOrt: val('hsSvOrt'),
+        stellvertreterLand: val('hsSvLand') || 'CH',
+        stellvertreterUid: val('hsSvUid'),
     };
     if (!dto.plz || !dto.ort) {
         showToast('PLZ und Ort sind Pflicht.', 'error');

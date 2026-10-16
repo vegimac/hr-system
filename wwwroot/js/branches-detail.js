@@ -1271,6 +1271,7 @@ async function openStmModal(id) {
         const stmWl = document.getElementById('stmWorkLocation');
         if (stmWl) stmWl.value = b.workLocation || '';
         document.getElementById('stmBurNummer').value      = b.burNummer      || '';
+        const stmIh = document.getElementById('stmInHouseId'); if (stmIh) stmIh.value = b.inHouseId || '';
         document.getElementById('stmUidNummer').value      = b.uidNummer      || '';
         const stmBfs = document.getElementById('stmBfsGemeindeNr'); if (stmBfs) stmBfs.value = b.bfsGemeindeNr ?? '';
         document.getElementById('stmBranchenCode').value   = b.branchenCode   || '';
@@ -1467,6 +1468,7 @@ async function saveStm() {
         email:          trimOrNull('stmEmail'),
         workLocation:   trimOrNull('stmWorkLocation'),
         burNummer:      trimOrNull('stmBurNummer'),
+        inHouseId:      trimOrNull('stmInHouseId'),
         uidNummer:      trimOrNull('stmUidNummer'),
         bfsGemeindeNr:  (() => { const v = (document.getElementById('stmBfsGemeindeNr')?.value || '').trim(); const n = parseInt(v, 10); return Number.isFinite(n) && n > 0 ? n : null; })(),
         hauptsitzId:    (() => { const v = document.getElementById('stmHauptsitz')?.value; return v ? parseInt(v, 10) : null; })(),
