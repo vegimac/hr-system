@@ -62,8 +62,9 @@ public class QualityToolBerichtTests
         Assert.Equal("Wert", qst.Art);
         Assert.Equal("34.00", qst.Soll);
         Assert.Equal("36.05", qst.Ist);
-        Assert.Equal("TaxAtSourceSalary › Current › Quellensteuer", qst.Feld);
-        Assert.Equal("Current › TaxAtSourceCategory › QST-Code", egli.Abweichungen[1].Feld);
+        Assert.Equal("Quellensteuer-Zeile › Laufender Monat › Quellensteuer-Betrag", qst.Feld);
+        Assert.Equal("Laufender Monat › QST-Kategorie › QST-Code", egli.Abweichungen[1].Feld);
+        Assert.Contains("Betrag weicht ab", qst.Klartext);
     }
 
     [Fact]
@@ -75,10 +76,24 @@ public class QualityToolBerichtTests
         var a = uebrig.Abweichungen.Single();
         Assert.Equal("Element zu viel", a.Art);
         Assert.Null(a.Soll);
-        Assert.Equal("SporadicBenefits", a.Ist);
+        Assert.Equal("Aperiodische Leistungen", a.Ist);
         Assert.Contains("Person[23]", a.Pfad);
-        Assert.Equal("TaxAtSourceSalary › Current › Aperiodische Leistungen", a.Feld);
+        Assert.Equal("Quellensteuer-Zeile › Laufender Monat › Aperiodische Leistungen", a.Feld);
+        Assert.Contains("erwartet es nicht", a.Klartext);
     }
+
+    [Theory]
+    [InlineData(
+        "/DeclareMonthlySalary[1]/Staff[1]/Person[1]/StatisticSalaries[1]/StatisticSalary[1]/AnnualValues[1]/Earnings13th[1]/text()[1]",
+        "Statistik › Jahreswerte › 13. Monatslohn")]
+    [InlineData(
+        "/…/TaxAtSourceSalaries[1]/TaxAtSourceSalary[1]/AdditionalParticulars[1]/MarriagePartner[1]",
+        "Quellensteuer-Zeile › Zusatzangaben › Ehepartner")]
+    [InlineData(
+        "/…/TaxAtSourceSalary[1]/Current[1]/DeclarationCategory[1]",
+        "Quellensteuer-Zeile › Laufender Monat › An-/Abmeldung")]
+    public void Feld_uebersetzt_typische_QT_Pfade(string xpath, string erwartet)
+        => Assert.Equal(erwartet, QualityToolBericht.Feld(xpath));
 
     [Fact]
     public void Leere_Antwort_ergibt_leeren_Bericht()

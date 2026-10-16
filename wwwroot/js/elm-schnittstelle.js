@@ -612,15 +612,25 @@ function elmqZeichnen() {
             <span style="font-size:12px;color:#8b8b8b;margin-left:4px">Punktzahl des Laufs</span></div>
         <div>${b.anzahl ? _elmmPille('rot', `${b.anzahl} Abweichung${b.anzahl === 1 ? '' : 'en'}`) : _elmmPille('ok', 'Keine Abweichung')}</div>
     </div>`;
-    const zeile = a => `<tr title="${_elmzEsc(a.pfad)}">
-        <td style="padding:4px 10px 4px 0;color:#3f3f3f">${_elmzEsc(a.feld)}${a.art !== 'Wert' ? ` <span style="color:#92400e">(${_elmzEsc(a.art)})</span>` : ''}</td>
-        <td style="padding:4px 10px 4px 0;text-align:right;white-space:nowrap;color:#166534">${_elmzEsc(a.soll ?? '–')}</td>
-        <td style="padding:4px 0;text-align:right;white-space:nowrap;color:#991b1b;font-weight:600">${_elmzEsc(a.ist ?? '–')}</td></tr>`;
-    const fall = f => `<div style="margin-top:8px">
+    const zeile = a => {
+        const artHinweis = a.art === 'Element fehlt' ? 'fehlt bei uns'
+            : a.art === 'Element zu viel' ? 'haben wir zu viel'
+            : a.art === 'Anzahl Elemente' ? 'Anzahl anders'
+            : a.art === 'Element anders' ? 'Element anders'
+            : null;
+        return `<tr title="${_elmzEsc(a.pfad)}">
+        <td style="padding:6px 10px 6px 0;color:#3f3f3f;vertical-align:top">
+            <div style="font-weight:600">${_elmzEsc(a.feld)}${artHinweis ? ` <span style="font-weight:500;color:#92400e">(${_elmzEsc(artHinweis)})</span>` : ''}</div>
+            ${a.klartext ? `<div style="font-size:11.5px;color:#646464;margin-top:2px;line-height:1.35">${_elmzEsc(a.klartext)}</div>` : ''}
+        </td>
+        <td style="padding:6px 10px 6px 0;text-align:right;white-space:nowrap;color:#166534;vertical-align:top">${_elmzEsc(a.soll ?? '–')}</td>
+        <td style="padding:6px 0;text-align:right;white-space:nowrap;color:#991b1b;font-weight:600;vertical-align:top">${_elmzEsc(a.ist ?? '–')}</td></tr>`;
+    };
+    const fall = f => `<div style="margin-top:10px">
         <div style="font-weight:600;color:#3f3f3f;font-size:13px">${_elmzEsc(f.name)}</div>
-        <table style="border-collapse:collapse;font-size:12px;width:100%;margin-top:2px;table-layout:fixed">
-            <colgroup><col><col style="width:170px"><col style="width:170px"></colgroup>
-            <tr style="color:#8b8b8b"><td style="padding:2px 10px 2px 0">Feld</td><td style="padding:2px 10px 2px 0;text-align:right">Soll (Swissdec)</td><td style="padding:2px 0;text-align:right">OneCrew</td></tr>
+        <table style="border-collapse:collapse;font-size:12px;width:100%;margin-top:4px;table-layout:fixed">
+            <colgroup><col><col style="width:150px"><col style="width:150px"></colgroup>
+            <tr style="color:#8b8b8b"><td style="padding:2px 10px 2px 0">Was stimmt nicht</td><td style="padding:2px 10px 2px 0;text-align:right">Swissdec erwartet</td><td style="padding:2px 0;text-align:right">OneCrew hat</td></tr>
             ${f.abweichungen.map(zeile).join('')}</table></div>`;
     const monate = (b.monate || []).map(m => `<details data-seq="${_elmzEsc(m.sequenz + '|' + m.teilprozess)}" ${_elmqOffen.has(m.sequenz + '|' + m.teilprozess) ? 'open' : ''}
             ontoggle="_elmqOffenMerken(this)" style="margin-top:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.35)">

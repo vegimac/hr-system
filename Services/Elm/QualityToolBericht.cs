@@ -12,8 +12,10 @@ namespace HrSystem.Services.Elm;
 /// </summary>
 public static class QualityToolBericht
 {
+    /// <param name="Feld">Kurzer Pfad auf Deutsch (z.B. «Statistik › Monatswerte › Bruttolohn»).</param>
+    /// <param name="Klartext">Ein Satz, was die Abweichung bedeutet.</param>
     public record Abweichung(string Feld, string? Soll, string? Ist, string Art, string Pfad,
-        string? DeclarationId, string? Gesendet);
+        string? DeclarationId, string? Gesendet, string? Klartext = null);
     public record Fall(string Id, string Name, string Typ, List<Abweichung> Abweichungen);
     public record Monat(string Sequenz, string Teilprozess, List<Fall> Faelle)
     {
@@ -68,26 +70,33 @@ public static class QualityToolBericht
             "child_nodelist_length" => "Anzahl Elemente",
             _ => "Wert",
         };
-        if (x.Type == "child_lookup")
+        if (x.Type is "child_lookup" or "child_nodelist_length")
         {
-            soll = ElementName(soll);
-            ist = ElementName(ist);
+            soll = Bezeichner(soll);
+            ist = Bezeichner(ist);
         }
-        return new Abweichung(Feld(pfad), soll, ist, art, pfad, x.DeclarationID, x.RequestTs);
+        var feld = Feld(pfad);
+        return new Abweichung(feld, soll, ist, art, pfad, x.DeclarationID, x.RequestTs,
+            Klartext(art, feld, soll, ist));
     }
 
     /// <summary>Das Quality Tool schreibt fehlende Werte als Text «null».</summary>
     private static string? Wert(string? s) => string.IsNullOrEmpty(s) || s == "null" ? null : s;
 
-    /// <summary>«{urn:…}SporadicBenefits» → «SporadicBenefits».</summary>
-    private static string? ElementName(string? s)
-        => s == null ? null : s.Contains('}') ? s[(s.LastIndexOf('}') + 1)..] : s;
+    /// <summary>«{urn:…}MarriagePartner» → «Ehepartner» (deutscher Anzeigename).</summary>
+    private static string? Bezeichner(string? s)
+    {
+        if (s == null) return null;
+        var name = s.Contains('}') ? s[(s.LastIndexOf('}') + 1)..] : s;
+        return Deutsch.TryGetValue(name, out var d) ? d : name;
+    }
 
     private static readonly Regex Index = new(@"\[\d+\]", RegexOptions.Compiled);
 
     /// <summary>
-    /// Lesbares Feld aus dem XPath: die letzten drei Elemente ohne Positionen, das letzte übersetzt.
-    /// «…/TaxAtSourceSalary[1]/Current[1]/TaxAtSource[1]/text()[1]» → «TaxAtSourceSalary › Current › Quellensteuer».
+    /// Lesbarer Pfad aus dem XPath: die letzten drei Elemente ohne Positionen, alle auf Deutsch.
+    /// «…/StatisticSalary[1]/AnnualValues[1]/Earnings13th[1]/text()[1]»
+    /// → «Statistik › Jahreswerte › 13. Monatslohn».
     /// </summary>
     public static string Feld(string? xpath)
     {
@@ -95,28 +104,127 @@ public static class QualityToolBericht
         var teile = Index.Replace(xpath, "").Split('/', StringSplitOptions.RemoveEmptyEntries)
             .Where(t => t != "text()").ToList();
         if (teile.Count == 0) return xpath;
-        var letzte = teile.TakeLast(3).ToList();
-        letzte[^1] = Deutsch.TryGetValue(letzte[^1], out var d) ? d : letzte[^1];
-        return string.Join(" › ", letzte);
+        return string.Join(" › ", teile.TakeLast(3).Select(Name));
     }
 
-    private static readonly Dictionary<string, string> Deutsch = new()
+    private static string Name(string english)
+        => Deutsch.TryGetValue(english, out var d) ? d : english;
+
+    /// <summary>Ein Satz für Walter: was die Abweichung praktisch heisst.</summary>
+    public static string? Klartext(string art, string feld, string? soll, string? ist)
     {
-        ["TaxAtSource"] = "Quellensteuer",
+        return art switch
+        {
+            "Element fehlt" => $"Bei uns fehlt «{ist ?? "dieses Element"}» — Swissdec erwartet es unter «{feld}».",
+            "Element zu viel" => $"Wir haben «{soll ?? ist ?? "dieses Element"}» gemeldet — Swissdec erwartet es nicht.",
+            "Element anders" => $"Element weicht ab: Swissdec «{soll ?? "–"}», OneCrew «{ist ?? "–"}».",
+            "Anzahl Elemente" => $"Anzahl Unterpunkte unter «{feld}»: Swissdec {soll ?? "–"}, OneCrew {ist ?? "–"} (oft fehlt oder ist etwas zu viel).",
+            "Wert" when IstBetrag(soll) || IstBetrag(ist)
+                => $"Betrag weicht ab: Swissdec {soll ?? "–"}, OneCrew {ist ?? "–"}.",
+            "Wert" => $"Wert weicht ab: Swissdec «{soll ?? "–"}», OneCrew «{ist ?? "–"}».",
+            _ => null,
+        };
+    }
+
+    private static bool IstBetrag(string? s)
+        => s != null && Regex.IsMatch(s, @"^-?\d+([.,]\d+)?$");
+
+    private static readonly Dictionary<string, string> Deutsch = new(StringComparer.Ordinal)
+    {
+        // Blöcke
+        ["TaxAtSourceSalaries"] = "Quellensteuer",
+        ["TaxAtSourceSalary"] = "Quellensteuer-Zeile",
+        ["StatisticSalaries"] = "Statistik",
+        ["StatisticSalary"] = "Statistik",
+        ["AdditionalParticulars"] = "Zusatzangaben",
+        ["MonthlyValues"] = "Monatswerte",
+        ["AnnualValues"] = "Jahreswerte",
+        ["Current"] = "Laufender Monat",
+        ["Old"] = "Korrektur alt",
+        ["New"] = "Korrektur neu",
+        ["Particulars"] = "Personalien",
+        ["Addresses"] = "Adressen",
+        ["Address"] = "Adresse",
+        ["Work"] = "Anstellung",
+        ["WorkingTime"] = "Arbeitszeit",
+        ["KindOfWagePayment"] = "Lohnart",
+        ["SalaryTotals"] = "Summen",
+        ["TaxAtSourceTotals"] = "QST-Summen",
+        ["TotalMonth"] = "Monatssumme",
+        ["OtherActivities"] = "Weitere Erwerbstätigkeit",
+        ["Residence"] = "Wohnsitz",
+        ["KindOfResidence"] = "Art des Wohnsitzes",
+        ["TaxAtSourceCategory"] = "QST-Kategorie",
+        ["DeclarationCategory"] = "An-/Abmeldung",
+        ["Entry"] = "Eintritt",
+        ["Withdrawal"] = "Austritt",
+        ["Mutation"] = "Mutation",
+        ["Children"] = "Kinder",
+        ["MarriagePartner"] = "Ehepartner",
+        ["SingleParentFamily"] = "Alleinerziehend",
+        ["CivilStatus"] = "Zivilstand",
+        ["Denomination"] = "Konfession",
+        // Beträge / Codes
+        ["TaxAtSource"] = "Quellensteuer-Betrag",
         ["TotalTaxAtSource"] = "Total Quellensteuer",
         ["TaxAtSourceCode"] = "QST-Code",
         ["TaxableEarning"] = "QST-pflichtiger Lohn",
         ["AscertainedTaxableEarning"] = "Satzbestimmender Lohn",
         ["HourlyOrLessonSalary"] = "Stunden-/Lektionenlohn",
-        ["SocialContributions"] = "Sozialbeiträge",
+        ["SocialContributions"] = "Sozialbeiträge (AHV/ALV/NBU)",
         ["FamilyIncomeSupplement"] = "Familienzulagen",
         ["GrossSalary"] = "Bruttolohn",
+        ["GrossBaseSalaryAndRegularAllowance"] = "Bruttolohn + regelmässige Zulagen",
+        ["Allowances"] = "Zulagen",
+        ["PaymentsByThird"] = "Drittleistungen (Taggelder)",
+        ["BVG-LPP-RegularContribution"] = "BVG-Beitrag",
+        ["ShortTimeWorkCompensation"] = "Kurzarbeitsentschädigung",
+        ["Earnings13th"] = "13. Monatslohn",
+        ["Overtime"] = "Überstunden",
+        ["SporadicBenefits"] = "Aperiodische Leistungen",
+        ["FringeBenefits"] = "Naturalleistungen",
+        ["CapitalPayment"] = "Kapitalleistung",
+        ["OtherBenefits"] = "Übrige Leistungen",
         ["AHV-ALV-Income"] = "AHV-Lohn",
         ["ALV-Income"] = "ALV-Lohn",
         ["WorkedHours"] = "Arbeitsstunden",
         ["ActivityRate"] = "Beschäftigungsgrad",
         ["WeeklyHours"] = "Wochenstunden",
-        ["SporadicBenefits"] = "Aperiodische Leistungen",
+        ["Period"] = "Zeitraum",
+        ["from"] = "von",
+        ["until"] = "bis",
+        ["ValidAsOf"] = "Gültig ab",
+        ["Reason"] = "Grund",
+        ["Status"] = "Status",
+        ["ZIP-Code"] = "PLZ",
+        ["City"] = "Ort",
+        ["Street"] = "Strasse",
+        ["Country"] = "Land",
+        ["ResidenceCanton"] = "Wohnkanton",
+        ["MunicipalityID"] = "BFS-Gemeindenummer",
+        ["WorkMunicipalityID"] = "Arbeitsgemeinde (BFS)",
+        ["TaxAtSourceCanton"] = "QST-Kanton",
+        ["TaxAtSourceMunicipalityID"] = "QST-Gemeinde",
+        ["CantonCH"] = "Kanton CH",
+        ["AbroadCountry"] = "Wohnsitzstaat",
+        ["Weekly"] = "Wochenaufenthalt",
+        ["Daily"] = "Tägliche Rückkehr",
+        ["Education"] = "Ausbildung",
+        ["Position"] = "Stellung",
+        ["JobTitle"] = "Berufsbezeichnung",
+        ["LeaveEntitlement"] = "Ferienanspruch (Tage)",
+        ["EntryDate"] = "Eintrittsdatum",
+        ["WithdrawalDate"] = "Austrittsdatum",
+        ["ResidenceCategory"] = "Aufenthaltsbewilligung",
+        ["SV-AS-Number"] = "AHV-Nummer",
+        ["EmployeeNumber"] = "Personalnummer",
+        ["Lastname"] = "Nachname",
+        ["Firstname"] = "Vorname",
+        ["DateOfBirth"] = "Geburtsdatum",
+        ["Sex"] = "Geschlecht",
+        ["Nationality"] = "Nationalität",
+        ["LanguageCode"] = "Sprache",
+        ["CurrentMonth"] = "Meldemonat",
     };
 
     /// <summary>«14» → Name «TF14 Egli Anna»; Summen-Fälle behalten ihren Namen.</summary>
