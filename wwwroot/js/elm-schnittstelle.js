@@ -15,6 +15,7 @@ let _elmmAeltere = false;
 let _elmmZert = false;
 let _elmmTimer = null;
 let _elmmZielWahl = null;      // Testinstanz: Refapps Receiver oder Quality Tool
+let _elmmProgressIv = null;    // Fortschrittsanzeige wie easy@work (Spinner + Sekunden)
 
 const _ELMM_MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
@@ -34,6 +35,59 @@ function _elmmDatum(iso, mitZeit = true) {
     const t = `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
     return mitZeit ? `${t} ${p(d.getHours())}:${p(d.getMinutes())}` : t;
 }
+
+/** Fortschrittsbalken wie easy@work: Spinner, Phase, Sekunden, pulsierender Balken. */
+function _elmmProgressHtml(label, t0) {
+    const s = Math.round((Date.now() - t0) / 1000);
+    return `<div style="font-size:13px;color:#475569;padding:12px 14px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:12px;max-width:560px">
+        <div style="display:flex;align-items:center;gap:10px">
+            <span class="import-spinner" style="width:16px;height:16px"></span>
+            <span>${_elmzEsc(label)} <strong style="color:#3f3f3f">${s}s</strong></span>
+        </div>
+        <div style="background:#e7e1d8;border-radius:99px;height:10px;overflow:hidden;margin-top:10px">
+            <div style="background:#b8ab93;height:100%;width:40%;border-radius:99px;animation:elmmProgressPulse 1.2s ease-in-out infinite"></div>
+        </div>
+        <div style="font-size:11.5px;color:#8b8b8b;margin-top:8px">Bitte warten — OneCrew arbeitet. Die Seite nicht schliessen.</div>
+    </div>`;
+}
+
+function _elmmStopProgress() {
+    if (_elmmProgressIv) { clearInterval(_elmmProgressIv); _elmmProgressIv = null; }
+    const box = document.getElementById('elmmFortschritt');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
+/** Zeigt die Fortschrittsanzeige zwischen «Senden» und «Meldungen». Rückgabe = stop(). */
+function _elmmStartProgress(label) {
+    _elmmStopProgress();
+    let box = document.getElementById('elmmFortschritt');
+    if (!box) {
+        const liste = document.getElementById('elmmListe');
+        if (!liste || !liste.parentNode) return () => {};
+        box = document.createElement('div');
+        box.id = 'elmmFortschritt';
+        box.style.cssText = 'max-width:1100px;margin-top:12px';
+        liste.parentNode.insertBefore(box, liste);
+    }
+    const t0 = Date.now();
+    const render = () => {
+        box.style.display = '';
+        box.innerHTML = _elmmProgressHtml(label, t0);
+    };
+    render();
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    _elmmProgressIv = setInterval(render, 500);
+    return () => _elmmStopProgress();
+}
+
+// Puls-Balken einmalig in die Seite hängen (wie easy-Spinner schon in app.css)
+(function () {
+    if (document.getElementById('elmmProgressStyle')) return;
+    const s = document.createElement('style');
+    s.id = 'elmmProgressStyle';
+    s.textContent = '@keyframes elmmProgressPulse{0%{transform:translateX(-20%);opacity:.55}50%{transform:translateX(160%);opacity:1}100%{transform:translateX(280%);opacity:.55}}';
+    document.head.appendChild(s);
+})();
 
 function _elmmPille(stufe, text) {
     const f = _ELMM_STUFE[stufe] || _ELMM_STUFE.grau;
@@ -206,7 +260,12 @@ async function elmmPruefen() {
     const a = _elmmAuswahl();
     const el = document.getElementById('elmmVorschau');
     if (!a.jahr) { if (el) el.innerHTML = _elmmBox(false, 'Bitte ein Jahr angeben.'); return; }
-    if (el) el.innerHTML = '<div style="margin-top:12px;font-size:13px;color:#646464">Meldung wird aufgebaut und geprüft …</div>';
+    if (_elmmBusy) return;
+    _elmmBusy = true;
+    const pruefenBtn = document.querySelector('#elmmSenden button[onclick="elmmPruefen()"]');
+    if (pruefenBtn) pruefenBtn.disabled = true;
+    if (el) el.innerHTML = '';
+    const stop = _elmmStartProgress('Meldung wird aufgebaut und geprüft …');
     try {
         const q = new URLSearchParams({ art: a.art, jahr: String(a.jahr) });
         if (a.monat) q.set('monat', String(a.monat));
@@ -216,10 +275,16 @@ async function elmmPruefen() {
         _elmmVorschau = Object.assign(j, { auswahl: a });
     } catch (e) {
         _elmmVorschau = null;
+        stop();
+        _elmmBusy = false;
         if (el) el.innerHTML = _elmmBox(false, _elmzEsc(e.message));
+        if (pruefenBtn) pruefenBtn.disabled = false;
         return;
     }
+    stop();
+    _elmmBusy = false;
     elmmVorschauZeichnen();
+    if (pruefenBtn) pruefenBtn.disabled = false;
 }
 
 function elmmVorschauZeichnen() {
@@ -305,8 +370,11 @@ function elmmErsatzAbbrechen() {
 async function _elmmPost(pfad, body, warteText) {
     if (_elmmBusy) return null;
     _elmmBusy = true;
-    _elmmMeldung = { ok: true, text: warteText };
+    _elmmMeldung = null;
     elmmListeZeichnen();
+    elmmVorschauZeichnen();
+    elmmSendenZeichnen();
+    const stop = _elmmStartProgress(warteText || 'OneCrew arbeitet …');
     try {
         const r = await fetch('/api/elm/meldungen/' + pfad, { method: 'POST', headers: ah(), body: JSON.stringify(body || {}) });
         const j = await r.json().catch(() => ({}));
@@ -318,9 +386,11 @@ async function _elmmPost(pfad, body, warteText) {
         _elmmMeldung = { ok: false, text: 'Server nicht erreichbar.' };
         return null;
     } finally {
+        stop();
         _elmmBusy = false;
         elmmListeZeichnen();
         elmmVorschauZeichnen();
+        elmmSendenZeichnen();
     }
 }
 
@@ -557,6 +627,11 @@ async function _elmqAufruf(methode, pfad) {
     _elmqBusy = true;
     _elmqFehler = null;
     elmqZeichnen();
+    const label = pfad === 'bericht' ? 'Bericht wird beim Quality Tool geholt …'
+        : pfad === 'neuer-lauf' ? 'Neuer Lauf wird gestartet …'
+        : pfad === 'sendungen-zuruecksetzen' ? 'Sendungen werden zurückgesetzt …'
+        : 'Quality Tool …';
+    const stop = _elmmStartProgress(label);
     try {
         const r = await fetch('/api/elm/qualitytool/' + pfad, { method: methode, headers: ah(), cache: 'no-store' });
         const j = await r.json().catch(() => ({}));
@@ -565,6 +640,7 @@ async function _elmqAufruf(methode, pfad) {
     } catch (e) {
         _elmqFehler = e.message === 'Failed to fetch' ? 'Server nicht erreichbar.' : e.message;
     } finally {
+        stop();
         _elmqBusy = false;
         elmqZeichnen();
     }
