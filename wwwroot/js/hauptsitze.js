@@ -173,15 +173,21 @@ function _hsEnsureModal() {
             <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<span class="pflicht-stern">*</span><input id="hsName" placeholder="z.B. Schaub Restaurants GmbH" style="${inp}"></label>
             <label style="${lbl};grid-column:span 2">UID-BFS<input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Format CHE-123.456.789 — Prüfziffer beim Verlassen des Feldes (CHE-999.999.997 wird abgelehnt).</span></label>
             <label style="${lbl};grid-column:span 2">Strasse <span style="font-weight:400;color:#8b8b8b">(optional — alternativ Postfach)</span><input id="hsStrasse" style="${inp}"></label>
-            <label style="${lbl}">PLZ / Ort
-                <div style="display:flex;gap:8px">
-                    <input id="hsPlz" inputmode="numeric" maxlength="4" placeholder="6003" style="${inp};width:80px;flex:none"
-                           data-swiss-plz data-swiss-ort="hsOrt" data-swiss-kanton="hsKanton" data-swiss-hint="hsPlzHint">
-                    <input id="hsOrt" placeholder="Luzern" style="${inp}">
+            <div style="grid-column:span 2">
+                <div style="display:grid;grid-template-columns:80px 1fr 72px;gap:8px;align-items:end">
+                    <label style="${lbl}">PLZ
+                        <input id="hsPlz" inputmode="numeric" maxlength="4" placeholder="6003" style="${inp}"
+                               data-swiss-plz data-swiss-ort="hsOrt" data-swiss-kanton="hsKanton" data-swiss-hint="hsPlzHint">
+                    </label>
+                    <label style="${lbl}">Ort
+                        <input id="hsOrt" placeholder="Luzern" style="${inp}">
+                    </label>
+                    <label style="${lbl}">Kanton
+                        <input id="hsKanton" placeholder="LU" maxlength="2" style="${inp}">
+                    </label>
                 </div>
-                <div id="hsPlzHint" class="f-hint" style="margin-top:3px;min-height:14px"></div>
-            </label>
-            <label style="${lbl}">Kanton<input id="hsKanton" placeholder="LU" maxlength="2" style="${inp};width:80px"></label>
+                <div id="hsPlzHint" class="f-hint" style="margin-top:3px;min-height:14px;font-size:11px;font-weight:400"></div>
+            </div>
             <label style="${lbl};grid-column:span 2">Bemerkung<input id="hsBem" placeholder="optional" style="${inp}"></label>
         </div>
 
