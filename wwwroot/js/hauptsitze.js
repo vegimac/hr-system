@@ -107,8 +107,15 @@ function azmRender(hauptsitzId) {
                     <span style="color:#8b8b8b">· ${m.mitarbeiter} MA</span>
                     ${m.isActive ? '' : '<span style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:0 7px;font-size:11px">inaktiv</span>'}
                     <span style="flex:1"></span>
-                    <button onclick="azmBearbeiten(${m.id})" style="background:none;border:none;color:#646464;cursor:pointer;font-size:12px;text-decoration:underline">bearbeiten</button>
-                    ${m.mitarbeiter === 0 ? `<button onclick="azmLoeschen(${m.id})" style="background:none;border:none;color:#b91c1c;cursor:pointer;font-size:12px;text-decoration:underline">löschen</button>` : ''}
+                    <div style="position:relative;display:inline-block">
+                        <button type="button" class="dok-menu-btn" onclick="dokToggleMenu(event, 'azm-${m.id}')" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="dokMenu-azm-${m.id}">
+                            <button type="button" class="dok-menu-item" onclick="dokCloseAllMenus();azmBearbeiten(${m.id})">Bearbeiten</button>
+                            ${m.mitarbeiter === 0
+                                ? `<button type="button" class="dok-menu-item danger" onclick="dokCloseAllMenus();azmLoeschen(${m.id})">Löschen</button>`
+                                : ''}
+                        </div>
+                    </div>
                 </div>`).join('')}`;
 }
 
