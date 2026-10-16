@@ -10260,6 +10260,7 @@ function _abEnsureModal() {
         </div>
     </div>`;
     document.body.appendChild(div);
+    if (window.SwissUid) SwissUid.plzAdresseUeberall(div);
 }
 
 let _abEmpId = null;
@@ -15184,6 +15185,7 @@ function openWeitererAgModal(employeeId, ag) {
         </div>
     </div>`;
     document.body.appendChild(wrap);
+    if (window.SwissUid) SwissUid.plzAdresseUeberall(wrap);
     const close = () => wrap.remove();
     wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
     wrap.querySelector('#waAbbr').onclick = close;
@@ -15776,6 +15778,7 @@ function openEmployeeAddressModal(existing) {
         </div>
     </div>`;
     modal.style.display = 'flex';
+    if (window.SwissUid) SwissUid.plzAdresseUeberall(modal);
 }
 
 function closeEmployeeAddressModal() {

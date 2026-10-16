@@ -106,6 +106,7 @@ function openNewBranchModal() {
       </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+    if (window.SwissUid) SwissUid.plzAdresseUeberall(document.getElementById('newBranchModal'));
 }
 
 function closeNewBranchModal() {
@@ -1312,10 +1313,11 @@ async function openStmModal(id) {
         document.getElementById('stmPlzHint').innerHTML    = '';
         stmToggleGavName();
         stmBindPruefungen();
-        ['stmBurNummer', 'stmUidNummer'].forEach(id => {
+        ['stmBurNummer', 'stmUidNummer', 'stmZipCode', 'stmCity'].forEach(id => {
             const el = document.getElementById(id);
             if (el && window.SwissUid) SwissUid.feldFehlerLoeschen(el);
         });
+        if (window.SwissUid) SwissUid.plzAdresseUeberall(document.getElementById('stmDatenModal'));
     } catch { /* leere Felder anzeigen */ }
     document.getElementById('stmDatenModal').style.display = 'flex';
 }
@@ -1488,8 +1490,8 @@ async function saveStm() {
     };
 
     stmBindPruefungen();
-    if (window.SwissUid && !SwissUid.felderPruefen(document.getElementById('stmDatenModal'))) {
-        alert('Bitte die markierten Felder korrigieren (BUR/UID).');
+    if (window.SwissUid && !(await SwissUid.felderPruefen(document.getElementById('stmDatenModal')))) {
+        alert('Bitte die markierten Felder korrigieren (BUR/UID/PLZ/Ort).');
         return;
     }
     try {
@@ -2656,6 +2658,7 @@ function cpEmpfEnsureModal() {
     if (window.SwissUid) {
         SwissUid.feldPruefungBinden('cpEmpfBez', { art: 'pflicht', label: 'Bezeichnung' });
         SwissUid.feldPruefungBinden('cpEmpfUid', { art: 'uid' });
+        SwissUid.plzAdresseUeberall(div);
     }
 }
 
@@ -2746,7 +2749,7 @@ async function cpEmpfSave() {
         postfach: val('cpEmpfPostfach'), plz: val('cpEmpfPlz'), ort: val('cpEmpfOrt'),
         kantonCode: val('cpEmpfKanton'), supportEmail: val('cpEmpfMail'),
     };
-    if (window.SwissUid && !SwissUid.felderPruefen(document.getElementById('cpEmpfModal'))) {
+    if (window.SwissUid && !(await SwissUid.felderPruefen(document.getElementById('cpEmpfModal')))) {
         showToast('Bitte die markierten Felder korrigieren.', 'error');
         return;
     }

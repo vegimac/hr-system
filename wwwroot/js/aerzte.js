@@ -132,6 +132,7 @@ function _azEnsureModal() {
         </div>
     </div>`;
     document.body.appendChild(div);
+    if (window.SwissUid) SwissUid.plzAdresseUeberall(div);
 }
 
 let _azDokEmpId = null;

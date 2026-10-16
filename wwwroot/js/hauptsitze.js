@@ -172,12 +172,14 @@ function _hsEnsureModal() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
             <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<span class="pflicht-stern">*</span><input id="hsName" placeholder="z.B. Schaub Restaurants GmbH" style="${inp}"></label>
             <label style="${lbl};grid-column:span 2">UID-BFS<input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Format CHE-123.456.789 — Prüfziffer beim Verlassen des Feldes (CHE-999.999.997 wird abgelehnt).</span></label>
-            <label style="${lbl};grid-column:span 2">Strasse<input id="hsStrasse" style="${inp}"></label>
+            <label style="${lbl};grid-column:span 2">Strasse <span style="font-weight:400;color:#8b8b8b">(optional — alternativ Postfach)</span><input id="hsStrasse" style="${inp}"></label>
             <label style="${lbl}">PLZ / Ort
                 <div style="display:flex;gap:8px">
-                    <input id="hsPlz" style="${inp};width:80px;flex:none">
-                    <input id="hsOrt" style="${inp}">
+                    <input id="hsPlz" inputmode="numeric" maxlength="4" placeholder="6003" style="${inp};width:80px;flex:none"
+                           data-swiss-plz data-swiss-ort="hsOrt" data-swiss-kanton="hsKanton" data-swiss-hint="hsPlzHint">
+                    <input id="hsOrt" placeholder="Luzern" style="${inp}">
                 </div>
+                <div id="hsPlzHint" class="f-hint" style="margin-top:3px;min-height:14px"></div>
             </label>
             <label style="${lbl}">Kanton<input id="hsKanton" placeholder="LU" maxlength="2" style="${inp};width:80px"></label>
             <label style="${lbl};grid-column:span 2">Bemerkung<input id="hsBem" placeholder="optional" style="${inp}"></label>
@@ -232,6 +234,7 @@ function _hsEnsureModal() {
     if (window.SwissUid) {
         SwissUid.feldPruefungBinden('hsName', { art: 'pflicht', label: 'Firmenname' });
         SwissUid.feldPruefungBinden('hsUid', { art: 'uid' });
+        SwissUid.plzAdresseUeberall(div);
     }
 }
 
@@ -247,6 +250,9 @@ function hsOpenModal(id) {
     set('hsMtpMin', h?.mtpStundenMin);       set('hsMtpMax', h?.mtpStundenMax);
     set('hsKontaktName', h?.kontaktName); set('hsKontaktEmail', h?.kontaktEmail); set('hsKontaktTel', h?.kontaktTelefon);
     document.getElementById('hsModal').style.display = 'block';
+    // Bestehende Abweichungen (z.B. PLZ 4800 + Ort Luzern) sofort markieren
+    const plzEl = document.getElementById('hsPlz');
+    if (plzEl && typeof plzEl._swissUidPruefen === 'function') plzEl._swissUidPruefen();
 }
 
 function hsCloseModal() {
@@ -276,7 +282,7 @@ async function hsSave() {
         return;
     }
     const modal = document.getElementById('hsModal');
-    if (window.SwissUid && !SwissUid.felderPruefen(modal)) {
+    if (window.SwissUid && !(await SwissUid.felderPruefen(modal))) {
         showToast('Bitte die markierten Felder korrigieren.', 'error');
         return;
     }
