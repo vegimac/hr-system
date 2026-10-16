@@ -274,7 +274,11 @@ public partial class SwissdecTestmandantController
                         e.BvgEintrittsgrund = V("PersonBVGLPPEntryReason");
                         e.BvgVollArbeitsfaehig = V("PersonBVGLPPFullyFitForWorkEntry") == null ? null : V("PersonBVGLPPFullyFitForWorkEntry") == "FullyFitForWork";
                         e.BvgBasisManuell = Dez(V("PersonBVGLPPManuallyBase"));
-                        if (bvgBisher != null) { e.BeitragFixAn = bvgBisher.BeitragFixAn; e.BeitragFixAg = bvgBisher.BeitragFixAg; }
+                        // Muster AG: BVG-Beitrag nur über Lohnart 5050 (Fix). Ohne 5050
+                        // explizit 0 — sonst greift die %-Lösung (TF34 Rinaldi Jan = 0, nicht 175).
+                        // Null bliebe «Prozent» (Produktion / easy@work). Schritt 5b überschreibt.
+                        e.BeitragFixAn = bvgBisher?.BeitragFixAn ?? 0m;
+                        e.BeitragFixAg = bvgBisher?.BeitragFixAg ?? 0m;
                     }
                     _db.EmployeeVersicherungCodes.Add(e);
                 }

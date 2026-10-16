@@ -390,18 +390,21 @@ public partial class SwissdecTestmandantController
                 {
                     var p = await _db.EmployeeFamilyMembers.FirstOrDefaultAsync(m => m.EmployeeId == emp.Id && m.MemberType == "Ehepartner")
                          ?? new EmployeeFamilyMember { EmployeeId = emp.Id, MemberType = "Ehepartner", CreatedAt = DateTime.Now };
-                    if (Hat("PersonPartnerFirstname")) p.FirstName = V("PersonPartnerFirstname");
-                    if (Hat("PersonPartnerLastname")) p.LastName = V("PersonPartnerLastname");
-                    if (Hat("PersonPartnerDateOfBirth")) p.DateOfBirth = Datum(V("PersonPartnerDateOfBirth"))?.ToDateTime(TimeOnly.MinValue);
-                    if (Hat("PersonPartnerSVASNumber")) p.SocialSecurityNumber = V("PersonPartnerSVASNumber") == "unknown" ? null : V("PersonPartnerSVASNumber");
-                    if (Hat("PersonPartnerResidenceCantonCH") || Hat("PersonPartnerCountry") || Hat("PersonPartnerResidenceAbroadCountry"))
+                    // Leere Neu-Werte nicht als Löschung (Dez-Export TF24 Utzinger räumt
+                    // sonst Julie vor dem Januar-Resend — MarriagePartner fehlt).
+                    if (V("PersonPartnerFirstname") is { } pfn) p.FirstName = pfn;
+                    if (V("PersonPartnerLastname") is { } pln) p.LastName = pln;
+                    if (Datum(V("PersonPartnerDateOfBirth")) is { } pdob) p.DateOfBirth = pdob.ToDateTime(TimeOnly.MinValue);
+                    if (Hat("PersonPartnerSVASNumber") && V("PersonPartnerSVASNumber") is { } psv)
+                        p.SocialSecurityNumber = psv == "unknown" ? null : psv;
+                    if (V("PersonPartnerResidenceCantonCH") != null || V("PersonPartnerCountry") != null || V("PersonPartnerResidenceAbroadCountry") != null)
                         p.LivesInSwitzerland = V("PersonPartnerResidenceCantonCH") != null || LandCode(V("PersonPartnerCountry")) == "CH";
-                    if (Hat("PersonPartnerStreet") || Hat("PersonPartnerCity"))
+                    if (V("PersonPartnerStreet") != null || V("PersonPartnerCity") != null || V("PersonPartnerZIPCode") != null)
                         await SetzePartnerAdresseAsync(emp, p, V("PersonPartnerStreet"), NummerOhneKomma(V("PersonPartnerZIPCode")), V("PersonPartnerCity"),
                             LandCode(V("PersonPartnerCountry")) ?? V("PersonPartnerResidenceAbroadCountry"), V("PersonPartnerResidenceCantonCH"));
-                    if (Hat("PersonPartnerStartActivity"))
+                    if (Datum(V("PersonPartnerStartActivity")) is { } pstart)
                     {
-                        p.Erwerbstaetig = true; p.Stellenantritt = Datum(V("PersonPartnerStartActivity"))?.ToDateTime(TimeOnly.MinValue);
+                        p.Erwerbstaetig = true; p.Stellenantritt = pstart.ToDateTime(TimeOnly.MinValue);
                         var pw = V("PersonPartnerWorkplace"); if (pw != null) { p.ArbeitgeberOrt = pw.Length > 2 ? pw : null; p.ArbeitgeberKanton = pw.Length == 2 ? pw : p.ArbeitgeberKanton; }
                     }
                     p.Gender = emp.Gender == "female" ? "male" : emp.Gender == "male" ? "female" : p.Gender;

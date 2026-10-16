@@ -405,12 +405,19 @@ public class ElmMonthlyDeclarationBuilder
                     gemeldeteFilialen.Add(filialId);
                 }
 
+                // An-/Abmeldung QST: gleiches Eintrittsdatum wie im Work-Block
+                // (Vertragskette), nicht nur employee.entry_date — sonst fehlt
+                // DeclarationCategory, wenn EntryDate leer ist (QT Jan TF40/41).
+                var qstEintritt = anstellung?.Start ?? em?.ContractStartDate ?? e.EntryDate;
+                var qstAustritt = austritt ?? (e.ExitDate is DateTime xd
+                    && xd >= monatsAnfang && xd <= monatsEnde ? xd : null);
                 var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen,
                                        familie.Where(k => k.EmployeeId == e.Id && k.MemberType == "Kind").ToList(),
                                        stamm, monatStr, monatsAnfang, warn,
                                        wochenAdressen.Where(a => a.EmployeeId == e.Id)
                                            .OrderByDescending(a => a.ValidFrom).FirstOrDefault(),
-                                       qstAperiodisch, partner, partnerAdresse, adresseAm);
+                                       qstAperiodisch, partner, partnerAdresse, adresseAm,
+                                       qstEintritt, qstAustritt);
                 if (qst != null)
                 {
                     gemeldeteFilialen.Add(filialId);
@@ -894,7 +901,8 @@ public class ElmMonthlyDeclarationBuilder
         RechtseinheitStamm stamm, string monatStr, DateTime monatsAnfang, List<string> warn,
         EmployeeAddress? wochenAdresse = null, IReadOnlySet<string>? aperiodischeCodes = null,
         EmployeeFamilyMember? partner = null, EmployeeAddress? partnerAdresse = null,
-        PersonAdresseAm? wohnAmStichtag = null)
+        PersonAdresseAm? wohnAmStichtag = null,
+        DateTime? eintrittAm = null, DateTime? austrittAm = null)
     {
         if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
         JsonElement? qstZeile = null;
@@ -929,15 +937,17 @@ public class ElmMonthlyDeclarationBuilder
             version?.Wohnsitzstaat,
             version?.IsWochenaufenthalter == true, wochenAdresse);
 
-        // Ein- und Austritt melden, wenn sie in diesen Monat fallen
+        // Ein- und Austritt melden, wenn sie in diesen Monat fallen (wie Work-Block).
         XElement? declaration = null;
         var monatsEnde = monatsAnfang.AddMonths(1).AddDays(-1);
-        if (e.EntryDate is DateTime ed && ed >= monatsAnfang && ed <= monatsEnde)
+        var eintritt = eintrittAm ?? e.EntryDate;
+        var austrittDekl = austrittAm ?? e.ExitDate;
+        if (eintritt is DateTime ed && ed >= monatsAnfang && ed <= monatsEnde)
             declaration = new XElement(Sd + "DeclarationCategory",
                 new XElement(Sd + "Entry",
                     new XElement(Sd + "ValidAsOf", ed.ToString("yyyy-MM-dd")),
                     new XElement(Sd + "Reason", "entryCompany")));
-        else if (e.ExitDate is DateTime xd && xd >= monatsAnfang && xd <= monatsEnde)
+        else if (austrittDekl is DateTime xd && xd >= monatsAnfang && xd <= monatsEnde)
             declaration = new XElement(Sd + "DeclarationCategory",
                 new XElement(Sd + "Withdrawal",
                     new XElement(Sd + "ValidAsOf", xd.ToString("yyyy-MM-dd")),
