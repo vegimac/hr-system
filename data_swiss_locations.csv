@@ -1729,7 +1729,7 @@ plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel
 3944;Unterbäch VS;Unterbäch;6201;VS
 3945;Gampel;Gampel-Bratsch;6118;VS
 3945;Niedergampel;Gampel-Bratsch;6118;VS
-3946;Gruben;Turtmann-Unterems;6119;VS
+3946;Gruben;Oberems;6112;VS
 3946;Turtmann;Turtmann-Unterems;6119;VS
 3947;Ergisch;Ergisch;6104;VS
 3948;Oberems;Oberems;6112;VS
@@ -3162,7 +3162,7 @@ plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel
 7503;Samedan;Samedan;3786;GR
 7504;Pontresina;Pontresina;3784;GR
 7505;Celerina/Schlarigna;Celerina/Schlarigna;3782;GR
-7512;Champfèr;St. Moritz;3787;GR
+7512;Champfèr;Silvaplana;3790;GR
 7513;Silvaplana;Silvaplana;3790;GR
 7513;Silvaplana-Surlej;Silvaplana;3790;GR
 7514;Fex;Sils im Engadin/Segl;3789;GR
@@ -3987,19 +3987,19 @@ plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel
 9479;Gretschins;Wartau;3276;SG
 9479;Malans SG;Wartau;3276;SG
 9479;Oberschan;Wartau;3276;SG
-9485;Nendeln;Eschen;7007;
-9486;Schaanwald;Mauren;7008;
-9487;Gamprin-Bendern;Gamprin;7009;
-9488;Schellenberg;Schellenberg;7011;
-9490;Vaduz;Vaduz;7001;
-9491;Ruggell;Ruggell;7010;
-9492;Eschen;Eschen;7007;
-9493;Mauren FL;Mauren;7008;
-9494;Schaan;Schaan;7005;
-9495;Triesen;Triesen;7002;
-9496;Balzers;Balzers;7003;
-9497;Triesenberg;Triesenberg;7004;
-9498;Planken;Planken;7006;
+9485;Nendeln;Eschen;7007;FL
+9486;Schaanwald;Mauren;7008;FL
+9487;Gamprin-Bendern;Gamprin;7009;FL
+9488;Schellenberg;Schellenberg;7011;FL
+9490;Vaduz;Vaduz;7001;FL
+9491;Ruggell;Ruggell;7010;FL
+9492;Eschen;Eschen;7007;FL
+9493;Mauren FL;Mauren;7008;FL
+9494;Schaan;Schaan;7005;FL
+9495;Triesen;Triesen;7002;FL
+9496;Balzers;Balzers;7003;FL
+9497;Triesenberg;Triesenberg;7004;FL
+9498;Planken;Planken;7006;FL
 9500;Wil SG;Wil (SG);3427;SG
 9502;Braunau;Braunau;4723;TG
 9503;Lanterswil;Bussnang;4921;TG

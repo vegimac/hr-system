@@ -8973,12 +8973,15 @@
                 <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
                     <div>
                         <h1 class="page-title">PLZ / Gemeinden</h1>
-                        <p class="page-sub">Amtliches Ortschaftenverzeichnis (AMTOVZ): PLZ, Ortschaft, politische Gemeinde, BFS-Gemeindenummer, Kanton. Quelle für Adress-Lookup und Swissdec MunicipalityID.</p>
+                        <p class="page-sub">Amtliches Ortschaftenverzeichnis (AMTOVZ): PLZ, Ortschaft, politische Gemeinde, BFS-Gemeindenummer, Kanton. Quelle für Adress-Lookup und Swissdec MunicipalityID. Offizielle CSV von swisstopo hier hochladen (auch <code style="font-size:12px">AMTOVZ_CSV_LV95.csv</code>).</p>
                     </div>
                     <div id="locAdminActions" style="display:none;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end;align-items:center">
+                        <a id="locDownloadLink" href="https://www.swisstopo.admin.ch/de/amtliches-ortschaftenverzeichnis#Download" target="_blank" rel="noopener"
+                           title="Offizielle AMTOVZ-CSV bei swisstopo herunterladen"
+                           style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;text-decoration:none;box-shadow:0 2px 8px rgba(60,55,48,0.12)">⬇ AMTOVZ herunterladen</a>
                         <input type="file" id="locImportFile" accept=".csv,.txt,text/csv" style="display:none" onchange="locImportFileChosen(this)">
                         <button type="button" id="locImportBtn" onclick="document.getElementById('locImportFile').click()"
-                                title="Neue AMTOVZ-CSV hochladen und Verzeichnis ersetzen"
+                                title="AMTOVZ-CSV (swisstopo) hochladen und Verzeichnis ersetzen"
                                 style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.12)">⬆ CSV aktualisieren</button>
                         <button type="button" id="locReimportBtn" onclick="locReimport(true)"
                                 title="Tabelle aus data_swiss_locations.csv neu laden (AMTOVZ)"
@@ -10615,7 +10618,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/qst-import.js?v=20260704p"></script>
 <script src="js/kontrolle.js?v=20261013a"></script>
 <script src="js/nationen.js?v=20260816a"></script>
-<script src="js/swiss-locations.js?v=20261016a"></script>
+<script src="js/swiss-locations.js?v=20261016c"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
 <script src="js/stammdaten-import.js?v=20260704p"></script>
 <script src="js/saldo-vortrag-import.js?v=20261005a"></script>

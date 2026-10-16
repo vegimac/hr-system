@@ -37,4 +37,25 @@ public class SwissLocationReimportTests
         Assert.Contains(rows, r => r.Plz4 == "4922" && r.Ortschaftsname == "Bützberg"
             && r.Gemeindename == "Thunstetten");
     }
+
+    [Fact]
+    public void Amtovz_swisstopo_format_picks_highest_adressenanteil()
+    {
+        // Offizielles Format ab Jan 2026 (Ortschaftsname;PLZ4;…;Adressenanteil;…)
+        var lines = new[]
+        {
+            "Ortschaftsname;PLZ4;Zusatzziffer;ZIP_ID;Gemeindename;BFS-Nr;Kantonskürzel;Adressenanteil;E;N;Sprache;Validity",
+            "Lausanne;1015;00;150;Chavannes-près-Renens;5627;VD;7.586 %;1;1;fr;2008-07-01",
+            "Lausanne;1015;00;150;Ecublens (VD);5635;VD;84.138 %;1;1;fr;2008-07-01",
+            "Lausanne;1015;00;150;Saint-Sulpice (VD);5648;VD;8.276 %;1;1;fr;2008-07-01",
+            "Bützberg;4922;00;1;Thunstetten;450;BE;100 %;1;1;de;2008-07-01",
+        };
+        var rows = SwissLocationReimportService.ParseCsvLines(lines);
+        Assert.Equal(2, rows.Count);
+        var lausanne = Assert.Single(rows, r => r.Plz4 == "1015");
+        Assert.Equal("Ecublens (VD)", lausanne.Gemeindename);
+        Assert.Equal(5635, lausanne.BfsNr);
+        Assert.Contains(rows, r => r.Plz4 == "4922" && r.Ortschaftsname == "Bützberg"
+            && r.Gemeindename == "Thunstetten" && r.BfsNr == 450);
+    }
 }

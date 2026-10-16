@@ -277,7 +277,7 @@ async function locImportFileChosen(input) {
     if (!file) return;
     const ok = await (typeof liquidConfirm === 'function'
         ? liquidConfirm(
-            `Verzeichnis komplett aus «${file.name}» ersetzen?\n\nFormat: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel\nManuelle Einträge gehen verloren.`,
+            `Verzeichnis komplett aus «${file.name}» ersetzen?\n\nAkzeptiert: offizielles AMTOVZ (swisstopo) oder OneCrew-CSV.\nBei mehreren Gemeinden pro Ortschaft zählt der höchste Adressenanteil.\nManuelle Einträge gehen verloren.`,
             { title: 'CSV aktualisieren', yesLabel: 'Importieren', noLabel: 'Abbrechen' })
         : Promise.resolve(confirm('Verzeichnis aus CSV ersetzen?')));
     if (!ok) return;

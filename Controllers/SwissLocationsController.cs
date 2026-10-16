@@ -314,7 +314,7 @@ public class SwissLocationsController : ControllerBase
         var name = file.FileName ?? "";
         if (!name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
             && !name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = "FORMAT", message = "Bitte eine CSV-Datei wählen (AMTOVZ)." });
+            return BadRequest(new { error = "FORMAT", message = "Bitte eine CSV-Datei wählen (AMTOVZ von swisstopo oder OneCrew-Format)." });
 
         var contentRoot = HttpContext.RequestServices
             .GetRequiredService<IWebHostEnvironment>().ContentRootPath;

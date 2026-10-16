@@ -64,20 +64,51 @@ public static class SwissLocationReimportService
         return null;
     }
 
-    public static List<SwissLocation> ParseCsv(string path)
-        => ParseCsvLines(File.ReadAllLines(path));
+    /// <summary>Offizielle swisstopo-Download-Seite (AMTOVZ CSV) — Walter 16.10.2026.</summary>
+    public const string AmtovzDownloadUrl =
+        "https://www.swisstopo.admin.ch/de/amtliches-ortschaftenverzeichnis#Download";
 
-    /// <summary>CSV aus Upload (UTF-8, Semikolon: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel).</summary>
+    public static List<SwissLocation> ParseCsv(string path)
+    {
+        var raw = File.ReadAllText(path);
+        // BOM entfernen
+        if (raw.Length > 0 && raw[0] == '\uFEFF') raw = raw[1..];
+        var lines = raw.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+        return ParseCsvLines(lines);
+    }
+
+    /// <summary>
+    /// CSV aus Upload oder Repo. Zwei Formate:
+    /// <list type="bullet">
+    /// <item>OneCrew: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel</item>
+    /// <item>swisstopo AMTOVZ: Ortschaftsname;PLZ4;…;Gemeindename;BFS-Nr;Kantonskürzel;Adressenanteil;…</item>
+    /// </list>
+    /// Bei mehreren Gemeinden pro Ortschaft (AMTOVZ) gewinnt der höchste Adressenanteil.
+    /// </summary>
     public static List<SwissLocation> ParseCsvLines(IReadOnlyList<string> lines)
+    {
+        if (lines.Count == 0) return new List<SwissLocation>();
+        var header = (lines[0] ?? "").Trim().TrimStart('\uFEFF');
+        // AMTOVZ (swisstopo): beginnt mit Ortschaftsname;PLZ4;…;BFS-Nr;Kantonskürzel
+        // OneCrew: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel
+        // Nicht über «plz4»/«bfs» matchen — sonst greift AMTOVZ fälschlich auf OneCrew.
+        if (header.StartsWith("Ortschaftsname", StringComparison.OrdinalIgnoreCase)
+            || header.Contains("Adressenanteil", StringComparison.OrdinalIgnoreCase)
+            || header.Contains("Kantonskürzel", StringComparison.OrdinalIgnoreCase)
+            || header.Contains("BFS-Nr", StringComparison.OrdinalIgnoreCase))
+            return ParseAmtovzLines(lines);
+        return ParseOneCrewLines(lines);
+    }
+
+    static List<SwissLocation> ParseOneCrewLines(IReadOnlyList<string> lines)
     {
         var list = new List<SwissLocation>(lines.Count);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         for (var i = 0; i < lines.Count; i++)
         {
-            var line = lines[i].Trim();
+            var line = lines[i].Trim().TrimStart('\uFEFF');
             if (line.Length == 0) continue;
-            // Header
             if (i == 0 && line.StartsWith("plz4", StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -110,6 +141,69 @@ public static class SwissLocationReimportService
     }
 
     /// <summary>
+    /// Offizielles AMTOVZ (swisstopo), Stand ab Jan 2026 inkl. ZIP_ID / Adressenanteil.
+    /// </summary>
+    static List<SwissLocation> ParseAmtovzLines(IReadOnlyList<string> lines)
+    {
+        // Header: Ortschaftsname;PLZ4;Zusatzziffer;ZIP_ID;Gemeindename;BFS-Nr;Kantonskürzel;Adressenanteil;…
+        var best = new Dictionary<string, (SwissLocation Loc, decimal Anteil)>(StringComparer.OrdinalIgnoreCase);
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i].Trim().TrimStart('\uFEFF');
+            if (line.Length == 0) continue;
+            if (i == 0 && line.StartsWith("Ortschaftsname", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var parts = line.Split(';');
+            if (parts.Length < 7) continue;
+
+            var ort = parts[0].Trim().Trim('"');
+            var plz = parts[1].Trim().Trim('"');
+            var gem = parts[4].Trim().Trim('"');
+            if (plz.Length < 4 || ort.Length == 0) continue;
+            if (!int.TryParse(parts[5].Trim().Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out var bfs))
+                continue;
+            var kt = parts[6].Trim().Trim('"').ToUpperInvariant();
+            // Liechtenstein: AMTOVZ liefert oft leeres Kantonskürzel (BFS 7001–7011).
+            if (kt.Length == 0 && bfs is >= 7001 and <= 7011) kt = "FL";
+            if (kt.Length != 2) continue;
+            if (string.IsNullOrWhiteSpace(gem)) gem = ort;
+
+            var anteil = 0m;
+            if (parts.Length > 7)
+            {
+                var raw = parts[7].Trim().Trim('"').Replace("%", "").Replace(',', '.').Trim();
+                decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out anteil);
+            }
+
+            var key = plz + "|" + ort;
+            var loc = new SwissLocation
+            {
+                Plz4 = plz,
+                Ortschaftsname = ort,
+                Gemeindename = gem,
+                BfsNr = bfs,
+                Kantonskuerzel = kt
+            };
+            if (!best.TryGetValue(key, out var prev) || anteil > prev.Anteil)
+                best[key] = (loc, anteil);
+        }
+
+        return best.Values.Select(v => v.Loc).OrderBy(l => l.Plz4).ThenBy(l => l.Ortschaftsname).ToList();
+    }
+
+    /// <summary>Schreibt den OneCrew-CSV-Stand (für Repo / «Mitgelieferte CSV»).</summary>
+    public static string ToOneCrewCsv(IEnumerable<SwissLocation> rows)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel");
+        foreach (var r in rows.OrderBy(x => x.Plz4).ThenBy(x => x.Ortschaftsname))
+            sb.AppendLine($"{r.Plz4};{r.Ortschaftsname};{r.Gemeindename};{r.BfsNr};{r.Kantonskuerzel}");
+        return sb.ToString();
+    }
+
+    /// <summary>
     /// Truncate + Neu-Insert aus der mitgelieferten AMTOVZ-CSV.
     /// </summary>
     public static async Task<(int Count, string CsvPath)> ReimportAsync(
@@ -134,17 +228,20 @@ public static class SwissLocationReimportService
     {
         using var reader = new StreamReader(csvStream, detectEncodingFromByteOrderMarks: true);
         var text = await reader.ReadToEndAsync(ct);
+        if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
         var lines = text.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
         var rows = ParseCsvLines(lines);
         if (rows.Count < 1000)
             throw new InvalidOperationException(
-                $"CSV liefert nur {rows.Count} Zeilen — Abbruch (erwartet ~4000). Format: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel");
+                $"CSV liefert nur {rows.Count} Zeilen — Abbruch (erwartet ~4000). "
+                + "Akzeptiert: OneCrew-CSV oder offizielles AMTOVZ (swisstopo).");
 
         string? savedAs = null;
         if (!string.IsNullOrWhiteSpace(contentRoot))
         {
+            // Immer im OneCrew-Format speichern — egal ob AMTOVZ oder vereinfacht hochgeladen.
             savedAs = Path.Combine(contentRoot, CsvFileName);
-            await File.WriteAllTextAsync(savedAs, text, ct);
+            await File.WriteAllTextAsync(savedAs, ToOneCrewCsv(rows), ct);
         }
 
         await ReplaceAllAsync(db, rows, savedAs ?? "(Upload)", ct);
