@@ -152,19 +152,28 @@
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     }
 
+    /** «Bern 1» / «Lausanne 25» → Basis ohne Post-Zusatzziffer. */
+    function _ortBasis(s) {
+        return _ortNorm(s).replace(/\s+\d+$/, '');
+    }
+
     function _ortName(loc) {
         const n = loc.ortschaftsname || loc.gemeindename || '';
         return (typeof w.stripCityCantonSuffix === 'function') ? w.stripCityCantonSuffix(n) : n;
     }
 
-    /** Exakter Ortschaftsname (nach Normierung) — «Luzer» ≠ «Luzern». */
+    /** Ortschaft passt: exakt oder Basis (Bern ↔ Bern 1). «Luzer» ≠ «Luzern». */
     function _ortPasst(ort, loc) {
         const o = _ortNorm(ort);
         if (!o) return false;
+        const oBasis = _ortBasis(ort);
         const namen = [_ortName(loc), loc.gemeindename, loc.ortschaftsname]
             .filter(Boolean)
-            .map(n => _ortNorm((typeof w.stripCityCantonSuffix === 'function') ? w.stripCityCantonSuffix(n) : n));
-        return namen.some(n => n === o);
+            .map(n => {
+                const raw = (typeof w.stripCityCantonSuffix === 'function') ? w.stripCityCantonSuffix(n) : n;
+                return { voll: _ortNorm(raw), basis: _ortBasis(raw) };
+            });
+        return namen.some(n => n.voll === o || n.basis === oBasis);
     }
 
     async function _locsFuer(plz) {
