@@ -154,7 +154,9 @@ public partial class SwissdecTestmandantController
                 vertrag.VierzehnterMonatslohn = V("PersonContractMonthly14th") != null || V("PersonContractHourly14th") != null;
                 vertrag.JobTitle = V("PersonJobTitle");
                 vertrag.EducationLevelCode = edu;
-                vertrag.EmploymentPercentage = modell == "FIX" ? (pensum ?? 100m) : null;
+                // Pensum auch bei FLEX/Lektionen (TF15 Degelo: 50 % + 10.5 Wochenlektionen —
+                // sonst meldet ELM ActivityRate 100, RefXML erwartet 50).
+                vertrag.EmploymentPercentage = pensum ?? (modell == "FIX" ? 100m : null);
                 vertrag.WeeklyHours = wochenStd;
                 vertrag.HourlyRate = modell == "FLEX" ? stdSatz : null;
                 vertrag.LessonRate = (wochenLekt != null || V("PersonNumberOfLessons") != null) ? lektSatz : null;
