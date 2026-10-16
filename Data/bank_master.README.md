@@ -1,40 +1,31 @@
-# Bank-Master-Datei
+# Bank-Master
 
-`bank_master.csv` wird beim Server-Start vom `BankLookupService` in den Speicher
-geladen und liefert aus einer IBAN (über die Institut-ID) die Bankdaten.
+`bank_master` speichert den Schweizer Bankenstamm (IID → Name, BIC, Ort, …).
 
-## Format
+## Automatisch (empfohlen)
 
-Spaltengetrennt mit `;` (Semikolon), UTF-8, erste Zeile = Header:
+OneCrew holt den Stamm **täglich um 05:30** (Europe/Zurich) von der öffentlichen
+[SIX Bank Master API v3](https://apiportal.six-group.com/apis/swiss-bank-master-api-ch-v3)
+(`GET …/bankmaster`) — **ohne API-Schlüssel**. Manuell: System → Verzeichnisse → Banken → «Von SIX aktualisieren».
+
+Abschalten: `SixBankMaster:Enabled=false` in der Konfiguration.
+
+IBAN-Prüfung gegen SIX: `GET /api/banks/validate-iban?iban=…` (IBAN geht an SIX).
+Lokaler Lookup ohne Netz: `GET /api/banks/lookup?iban=…`.
+
+MA-Bankverbindungen speichern BIC/Name am Konto — ein Sync ändert bestehende
+MA-Daten nicht.
+
+## Manuell / Fallback
+
+CSV-Upload (Semikolon, Header):
 
 ```
 iid;bic;name;ort;strasse;plz
 ```
 
-- **iid** — 5-stellige Institut-ID (Stellen 5–9 einer CH/LI-IBAN)
-- **bic** — SWIFT/BIC-Code (optional, leer lassen wenn unbekannt)
-- **name** — Banknname
-- **ort** — Stadt
-- **strasse** — Hauptsitz-Strasse (optional)
-- **plz** — Postleitzahl (optional)
+Oder Initial-Seed `Data/bank_master.csv` wenn die Tabelle leer ist.
 
-## Offizielle Datenquelle
+## QR-IBAN
 
-SIX Interbank Clearing pflegt die authoritative Liste aller Schweizer Banken:
-
-https://www.six-group.com/interbank-clearing/de/home/bank-master-data/download-bc-bank-master.html
-
-Von dort monatlich die aktuelle CSV herunterladen und in das Format oben
-konvertieren. Die SIX-Datei heisst typischerweise `bcbankenstamm_cur.txt`
-(semikolongetrennt, mit mehr Spalten). Nur die relevanten Spalten
-übernehmen und als `bank_master.csv` ersetzen.
-
-## QR-IBAN-Einträge
-
-QR-IBANs haben IIDs im Bereich 30000–31999. Der Lookup findet beide
-Varianten (normale IBAN-IID und QR-IBAN-IID), weil beide in derselben
-CSV stehen. Die SIX-Liste enthält ebenfalls beide.
-
-## Nach Update
-
-Server-Neustart genügt; die Datei wird einmal pro Prozesslaufzeit geladen.
+IIDs 30000–31999 stehen in derselben Liste (QR-IID).

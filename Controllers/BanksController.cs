@@ -2,6 +2,7 @@ using System.Text;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.Six;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,24 +10,33 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Bank-Stammdaten-Verwaltung. Daten werden lokal in bank_master gehalten
-/// und über Admin-UI per CSV aktualisiert. Keine externen Lookups — keine
-/// IBAN verlässt den Server.
+/// Bank-Stammdaten: lokal in bank_master (Nacht-Sync aus SIX Bank Master API).
+/// Lookup bleibt lokal; IBAN-Prüfung gegen SIX optional (validate-iban).
+/// MA-Bankverbindungen speichern BIC/Name selbst — Sync ändert sie nicht.
 /// </summary>
 [Authorize]
 [ApiController]
 [Route("api/banks")]
 public class BanksController : ControllerBase
 {
-    private readonly AppDbContext       _db;
-    private readonly BankLookupService  _svc;
-    public BanksController(AppDbContext db, BankLookupService svc)
+    private readonly AppDbContext _db;
+    private readonly BankLookupService _svc;
+    private readonly SixBankMasterSyncService _sixSync;
+    private readonly SixBankMasterClient _sixClient;
+
+    public BanksController(
+        AppDbContext db,
+        BankLookupService svc,
+        SixBankMasterSyncService sixSync,
+        SixBankMasterClient sixClient)
     {
-        _db  = db;
+        _db = db;
         _svc = svc;
+        _sixSync = sixSync;
+        _sixClient = sixClient;
     }
 
-    // GET /api/banks/lookup?iban=CH75...
+    // GET /api/banks/lookup?iban=CH75...  — lokal aus bank_master
     [HttpGet("lookup")]
     public IActionResult Lookup([FromQuery] string? iban)
     {
@@ -40,6 +50,97 @@ public class BanksController : ControllerBase
             strasse = info.Strasse,
             plz     = info.Plz
         });
+    }
+
+    /// <summary>
+    /// IBAN bei SIX prüfen + lokale Bankdaten. IBAN geht an SIX (öffentliche API).
+    /// </summary>
+    [HttpGet("validate-iban")]
+    public async Task<IActionResult> ValidateIban([FromQuery] string? iban, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(iban))
+            return BadRequest(new { error = "IBAN_FEHLT", message = "IBAN fehlt." });
+
+        var clean = new string(iban.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
+        var local = _svc.LookupByIban(clean);
+
+        SixIbanResponse six;
+        try
+        {
+            six = await _sixClient.ValidateIbanAsync(clean, ct);
+        }
+        catch (Exception ex)
+        {
+            return Ok(new {
+                iban = clean,
+                sixOk = false,
+                sixResult = "ERROR",
+                sixError = ex.Message,
+                iid = local?.Iid,
+                bank = local is null ? null : new {
+                    local.Iid, local.Bic, local.Name, local.Ort, local.Strasse, local.Plz
+                }
+            });
+        }
+
+        var result = (six.ValidationResult ?? "").Trim().ToUpperInvariant();
+        var sixOk = result is "OK" or "VALID";
+        if (local is null && six.Iid is > 0)
+            local = _svc.LookupByIid(six.Iid.Value.ToString());
+
+        return Ok(new {
+            iban = clean,
+            sixOk,
+            sixResult = six.ValidationResult,
+            iid = six.Iid?.ToString() ?? local?.Iid,
+            bank = local is null ? null : new {
+                local.Iid, local.Bic, local.Name, local.Ort, local.Strasse, local.Plz
+            }
+        });
+    }
+
+    /// <summary>Status des letzten SIX-Syncs (Nacht / manuell).</summary>
+    [HttpGet("six-status")]
+    [Authorize(Roles = "admin")]
+    public IActionResult SixStatus()
+    {
+        var e = _sixSync.LetztesErgebnis;
+        return Ok(new {
+            laeuft = _sixSync.LaeuftGerade,
+            letzterStart = _sixSync.LetzterStart,
+            letztesEnde = _sixSync.LetztesEnde,
+            ausloeser = _sixSync.LetzterAusloeser,
+            ok = e?.Ok,
+            anzahl = e?.Anzahl,
+            validOn = e?.ValidOn?.ToString("yyyy-MM-dd"),
+            fertigAm = e?.FertigAm,
+            fehler = e?.Fehler
+        });
+    }
+
+    /// <summary>Bankenstamm jetzt von SIX holen (ersetzt bank_master).</summary>
+    [HttpPost("sync-from-six")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> SyncFromSix(CancellationToken ct)
+    {
+        if (_sixSync.LaeuftGerade)
+            return Conflict(new { error = "LAEUFT", message = "Sync läuft bereits." });
+        try
+        {
+            var erg = await _sixSync.SyncAsync("manuell", ct);
+            return Ok(new {
+                ok = true,
+                anzahl = erg.Anzahl,
+                validOn = erg.ValidOn?.ToString("yyyy-MM-dd"),
+                fertigAm = erg.FertigAm,
+                message = $"✓ {erg.Anzahl:N0} Banken von SIX übernommen"
+                    + (erg.ValidOn is { } v ? $" (gültig ab {v:dd.MM.yyyy})." : ".")
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "SIX_SYNC", message = ex.Message });
+        }
     }
 
     // GET /api/banks?q=post

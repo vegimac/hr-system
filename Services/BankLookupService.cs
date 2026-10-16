@@ -13,7 +13,8 @@ namespace HrSystem.Services;
 /// Erstbefüllung: wenn bank_master leer ist und Data/bank_master.csv
 /// existiert, wird die CSV als Initial-Seed in die DB geschrieben.
 ///
-/// Bewusst offline / lokal: keine IBAN verlässt den Server.
+/// Lookup selbst bleibt offline (bank_master). Optional: SIX-IBAN-Prüfung
+/// über <c>/api/banks/validate-iban</c> (dann geht die IBAN an SIX).
 /// </summary>
 public class BankLookupService
 {
@@ -60,11 +61,24 @@ public class BankLookupService
         // (z.B. "778" für Luzerner Kantonalbank, "9000" für PostFinance).
         // Daher 5-stellig zuerst probieren (Filial-Match wie "77813" Sursee),
         // dann progressiv führende Nullen entfernen.
-        var iidRaw = clean.Substring(4, 5);
-        if (_byIid.TryGetValue(iidRaw, out var info)) return info;
-        var iidTrimmed = iidRaw.TrimStart('0');
-        if (iidTrimmed.Length > 0 && iidTrimmed != iidRaw &&
-            _byIid.TryGetValue(iidTrimmed, out info)) return info;
+        return LookupByIid(clean.Substring(4, 5));
+    }
+
+    /// <summary>IID → BankInfo (mit/ohne führende Nullen).</summary>
+    public BankInfo? LookupByIid(string? iid)
+    {
+        EnsureInitialized();
+        if (string.IsNullOrWhiteSpace(iid)) return null;
+        var raw = iid.Trim();
+        if (_byIid.TryGetValue(raw, out var info)) return info;
+        var trimmed = raw.TrimStart('0');
+        if (trimmed.Length > 0 && trimmed != raw && _byIid.TryGetValue(trimmed, out info))
+            return info;
+        if (raw.Length < 5)
+        {
+            var padded = raw.PadLeft(5, '0');
+            if (_byIid.TryGetValue(padded, out info)) return info;
+        }
         return null;
     }
 

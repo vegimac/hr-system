@@ -1635,19 +1635,9 @@ async function validateCompanyBankIban(inputEl) {
         hint.textContent = `✓ Gültige IBAN${r.country ? ' (' + r.country + ')' : ''}`;
         hint.style.color = '#16a34a';
         inputEl.style.borderColor = '#86efac';
-        if (r.country === 'CH' || r.country === 'LI') {
-            try {
-                const res = await fetch(`/api/banks/lookup?iban=${encodeURIComponent(val)}`, { headers: ah() });
-                if (res.ok) {
-                    const b = await res.json();
-                    hint.textContent += ` — ${b.name}${b.ort ? ', ' + b.ort : ''}`;
-                    const bicEl  = document.getElementById('companyBankBic');
-                    const nameEl = document.getElementById('companyBankName');
-                    if (bicEl  && !bicEl.value.trim()  && b.bic)  bicEl.value  = b.bic;
-                    if (nameEl && !nameEl.value.trim() && b.name) nameEl.value = b.name;
-                }
-            } catch {}
-        }
+        if ((r.country === 'CH' || r.country === 'LI') && typeof lookupBankForIban === 'function')
+            lookupBankForIban(val, hint, 'companyBankBic', 'companyBankName');
+
     } else {
         hint.textContent = '✗ ' + (r.message || 'Ungültige IBAN');
         hint.style.color = '#dc2626';

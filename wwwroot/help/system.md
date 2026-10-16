@@ -25,7 +25,7 @@ Die Seite ist in **sechs Hauptkategorie-Kacheln** gegliedert: **Lohn-Stammdaten*
 | **Mutterschafts-Regeln** | Gesetzliche Fristen (ArG/OR) |
 | **Dokument-Struktur** | Kategorien und Dokumenttypen; ausdrucken über «Drucken» |
 | **Dokumenten-Audit** | Verdächtige Dateinamen (falsche Filiale?) |
-| **Banken** | Schweizer Bank-Stammdaten (SIX IID-Liste) |
+| **Banken** | SIX Bank Master API (Nacht 05:30 + Knopf); IBAN-Prüfung optional über SIX |
 | **Nationen** | ISO-3166-Codes, Alternativ-Code (Mirus) |
 | **PLZ / Gemeinden** | Ortschaften + BFS-Gemeindenummer (AMTOVZ) |
 | **Aktivitäts-Log** | Wer hat was geändert — [Audit](#audit) |

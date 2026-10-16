@@ -9177,21 +9177,26 @@
 
             <!-- ═══════════════ BANKEN ═══════════════ -->
             <div class="page liquid-mask fixhead" id="page-banken">
-                <div class="page-header">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
                     <div>
                         <h1 class="page-title">Banken</h1>
-                        <p class="page-sub">Schweizer Bank-Stammdaten (IID-Liste der SIX Interbank Clearing)</p>
+                        <p class="page-sub">Schweizer Bank-Stammdaten — täglich 05:30 automatisch von der SIX Bank Master API. MA-Konten behalten ihre gespeicherten BIC/Namen.</p>
                     </div>
-                    <div style="display:flex;gap:8px">
-                        <label class="btn btn-outline" style="cursor:pointer;margin:0">
-                            📥 CSV importieren
+                    <div id="banksAdminActions" style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" id="banksSixSyncBtn" onclick="banksSyncFromSix()"
+                                title="Jetzt von SIX Bank Master API aktualisieren"
+                                style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.12)">↻ Von SIX aktualisieren</button>
+                        <label style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.12);margin:0">
+                            📥 CSV
                             <input type="file" id="bankImportFile" accept=".csv,.txt" style="display:none" onchange="importBanksFromFile(this)">
                         </label>
-                        <button class="btn btn-primary" onclick="openBankEditModal(null)">+ Neuer Eintrag</button>
+                        <button type="button" class="btn btn-primary" onclick="openBankEditModal(null)"
+                                style="padding:9px 14px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-size:13px;font-weight:600;cursor:pointer">+ Neuer Eintrag</button>
                     </div>
                 </div>
                 <div class="page-body">
 
+                <div id="banksSixStatus" style="font-size:12.5px;color:#8b8b8b;margin-bottom:10px"></div>
                 <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
                     <input type="text" id="banksSearch" placeholder="Suchen (IID, Name, BIC, Ort)…" oninput="loadBanks()"
                            class="f-input" style="max-width:320px">
@@ -9210,9 +9215,8 @@
                 </div>
 
                 <p style="margin-top:14px;font-size:12px;color:#94a3b8;line-height:1.5">
-                    Aktuelle Liste hier herunterladen:
-                    <a href="https://www.six-group.com/interbank-clearing/de/home/bank-master-data/download-bc-bank-master.html" target="_blank" style="color:#3f3f3f">SIX Interbank Clearing Bank Master</a>.
-                    Import-Format: Semikolon-getrennt mit Header <code>iid;bic;name;ort;strasse;plz</code>.
+                    Quelle: <a href="https://apiportal.six-group.com/apis/swiss-bank-master-api-ch-v3" target="_blank" rel="noopener" style="color:#3f3f3f">SIX Bank Master API v3</a>
+                    · Fallback CSV: <code>iid;bic;name;ort;strasse;plz</code>
                 </p>
                 </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
             </div>
@@ -10622,7 +10626,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-workflow.js?v=20261011a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
 <script src="js/swiss-uid.js?v=20261016f"></script>
-<script src="js/branches-detail.js?v=20261016d"></script>
+<script src="js/branches-detail.js?v=20261016e"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20261011b"></script>
@@ -10648,7 +10652,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20261012a"></script>
 <script src="js/payroll-perioden.js?v=20261003b"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20261016a"></script>
+<script src="js/admin-settings.js?v=20261016b"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261007a"></script>
@@ -11373,7 +11377,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261016d"></script>
+<script src="employees.js?v=20261016e"></script>
 <script src="js/kind-qst-verlauf.js?v=20261012a"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>

@@ -538,22 +538,42 @@ function validateIbanField(inputEl, hintId, label) {
     }
 }
 
-// Ruft /api/banks/lookup auf, füllt BIC + Bankname wenn diese Felder leer sind,
-// und hängt den Banknamen an den Hint.
-async function lookupBankForIban(iban, hintEl) {
+// Lokal + SIX: /api/banks/validate-iban (nach MOD-97). Debounce gegen Tipp-Spam.
+let _ibanSixTimer = null;
+function lookupBankForIban(iban, hintEl, bicId, nameId) {
+    clearTimeout(_ibanSixTimer);
+    _ibanSixTimer = setTimeout(() => lookupBankForIbanNow(iban, hintEl, bicId || 'beBic', nameId || 'beBankName'), 450);
+}
+
+async function lookupBankForIbanNow(iban, hintEl, bicId, nameId) {
     try {
-        const res = await fetch(`/api/banks/lookup?iban=${encodeURIComponent(iban)}`, { headers: ah() });
-        if (!res.ok) return;   // unbekannte IID — kein Hinweis, damit's nicht stört
-        const b = await res.json();
-        // Hint ergänzen (ohne grünen Haken zu verlieren)
-        const prefix = hintEl.textContent;
-        hintEl.textContent = `${prefix} — ${b.name}${b.ort ? ', ' + b.ort : ''}`;
-        // BIC + Bankname automatisch füllen, aber nur wenn noch leer
-        const bicEl  = document.getElementById('beBic');
-        const nameEl = document.getElementById('beBankName');
-        if (bicEl  && !bicEl.value.trim()  && b.bic)  bicEl.value  = b.bic;
-        if (nameEl && !nameEl.value.trim() && b.name) nameEl.value = b.name;
-    } catch { /* stillschweigend: Lookup ist nur Bonus, Validierung läuft weiter */ }
+        const res = await fetch(`/api/banks/validate-iban?iban=${encodeURIComponent(iban)}`, { headers: ah() });
+        if (!res.ok) return;
+        const j = await res.json();
+        const prefix = (hintEl.textContent || '').split(' — ')[0].split(' · ')[0];
+        const bank = j.bank;
+        if (bank?.name) {
+            hintEl.textContent = `${prefix} — ${bank.name}${bank.ort ? ', ' + bank.ort : ''}`;
+            const bicEl  = document.getElementById(bicId);
+            const nameEl = document.getElementById(nameId);
+            if (bicEl  && !bicEl.value.trim()  && bank.bic)  bicEl.value  = bank.bic;
+            if (nameEl && !nameEl.value.trim() && bank.name) nameEl.value = bank.name;
+        }
+        if (j.sixResult && j.sixOk === false && j.sixResult !== 'ERROR') {
+            hintEl.textContent = (hintEl.textContent || prefix)
+                + ` · SIX: ${_eSixIban(j.sixResult)}`;
+            hintEl.style.color = '#b45309';
+        } else if (j.sixOk) {
+            hintEl.textContent = (hintEl.textContent || prefix) + ' · SIX: ok';
+        }
+    } catch { /* Lookup/SIX nur Bonus */ }
+}
+
+function _eSixIban(code) {
+    const c = (code || '').toUpperCase();
+    if (c === 'INVALID_CHECKSUM') return 'Prüfziffer ungültig';
+    if (c === 'INVALID_IID') return 'Bank-IID unbekannt';
+    return code;
 }
 
 // ══════════════════════════════════════════════
@@ -572,6 +592,7 @@ async function loadBanks() {
     if (!tbody) return;
     const q = (document.getElementById('banksSearch')?.value ?? '').trim();
     tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#94a3b8">Lade…</td></tr>';
+    banksLoadSixStatus();
     try {
         // Suche backend-seitig wenn Walter etwas eingibt, sonst gefüllte
         // Default-Liste. Filterung/Sortierung dann clientseitig im Cache.
@@ -584,6 +605,51 @@ async function loadBanks() {
         renderBanks();
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="7" style="color:#dc2626;padding:14px">Fehler: ${e.message}</td></tr>`;
+    }
+}
+
+async function banksLoadSixStatus() {
+    const el = document.getElementById('banksSixStatus');
+    if (!el || currentUser?.role !== 'admin') { if (el) el.textContent = ''; return; }
+    try {
+        const r = await fetch('/api/banks/six-status', { headers: ah() });
+        if (!r.ok) return;
+        const s = await r.json();
+        if (s.laeuft) { el.textContent = 'SIX-Sync läuft…'; return; }
+        if (!s.fertigAm && !s.anzahl) {
+            el.textContent = 'Noch kein SIX-Sync — «Von SIX aktualisieren» oder warten bis 05:30.';
+            return;
+        }
+        const am = s.fertigAm ? new Date(s.fertigAm).toLocaleString('de-CH') : '—';
+        const valid = s.validOn ? ` · gültig ab ${s.validOn.split('-').reverse().join('.')}` : '';
+        el.textContent = s.ok
+            ? `Letzter SIX-Sync: ${am} · ${(s.anzahl ?? 0).toLocaleString('de-CH')} Banken${valid} · ${s.ausloeser || ''}`
+            : `Letzter SIX-Sync fehlgeschlagen (${am}): ${s.fehler || 'unbekannt'}`;
+        el.style.color = s.ok ? '#8b8b8b' : '#b91c1c';
+    } catch { /* ignore */ }
+}
+
+async function banksSyncFromSix() {
+    const ok = await (typeof liquidConfirm === 'function'
+        ? liquidConfirm(
+            'Bankenstamm jetzt von der SIX Bank Master API laden und lokal ersetzen?\n\nBestehende MA-Bankverbindungen (gespeicherte BIC/Namen) bleiben unverändert.',
+            { title: 'Von SIX aktualisieren', yesLabel: 'Aktualisieren', noLabel: 'Abbrechen' })
+        : Promise.resolve(confirm('Von SIX aktualisieren?')));
+    if (!ok) return;
+    const btn = document.getElementById('banksSixSyncBtn');
+    const alertEl = document.getElementById('banksAlert');
+    if (btn) { btn.disabled = true; btn.textContent = 'Lädt von SIX…'; }
+    if (alertEl) { alertEl.style.display = 'block'; alertEl.style.color = '#92400e'; alertEl.textContent = 'SIX Bank Master wird abgerufen…'; }
+    try {
+        const r = await fetch('/api/banks/sync-from-six', { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || j.error || r.status);
+        if (alertEl) { alertEl.style.color = '#166534'; alertEl.textContent = j.message || '✓ Fertig.'; }
+        await loadBanks();
+    } catch (e) {
+        if (alertEl) { alertEl.style.display = 'block'; alertEl.style.color = '#b91c1c'; alertEl.textContent = 'Fehler: ' + e.message; }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '↻ Von SIX aktualisieren'; }
     }
 }
 

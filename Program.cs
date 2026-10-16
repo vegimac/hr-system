@@ -258,8 +258,21 @@ builder.Services.AddScoped<QstKonfessionSyncService>();
 // FAK-Tarif-Auflösung: pro Periode Kinderzulagen-Betrag aus Tarif + Alter (Walter 28.05.2026)
 builder.Services.AddScoped<FamilienzulagenResolverService>();
 builder.Services.AddScoped<WageAdjustmentService>();
-// Bank-Lookup: IBAN → Bank-Stammdaten aus Data/bank_master.csv (SIX-Liste)
+// Bank-Lookup: IBAN → Bank-Stammdaten aus bank_master (Nacht-Sync SIX API)
 builder.Services.AddSingleton<BankLookupService>();
+builder.Services.AddHttpClient(HrSystem.Services.Six.SixBankMasterClient.HttpClientName, c =>
+{
+    c.BaseAddress = new Uri(
+        builder.Configuration["SixBankMaster:BaseUrl"]
+        ?? HrSystem.Services.Six.SixBankMasterClient.DefaultBaseUrl);
+    if (!c.BaseAddress.AbsoluteUri.EndsWith('/'))
+        c.BaseAddress = new Uri(c.BaseAddress.AbsoluteUri.TrimEnd('/') + "/");
+    c.Timeout = TimeSpan.FromMinutes(2);
+    c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+});
+builder.Services.AddSingleton<HrSystem.Services.Six.SixBankMasterClient>();
+builder.Services.AddSingleton<HrSystem.Services.Six.SixBankMasterSyncService>();
+builder.Services.AddHostedService<HrSystem.Services.Six.SixBankMasterBackgroundService>();
 // MA-Postfach: Login-Account-Verwaltung pro Mitarbeiter
 builder.Services.AddScoped<EmployeePostfachService>();
 // AES-Helper für verschlüsselte Secrets in der DB (z.B. SMTP-Passwort)

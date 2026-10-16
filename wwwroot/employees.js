@@ -15370,17 +15370,8 @@ async function validateIbanFieldMa(inputEl) {
         hint.style.color = '#16a34a';
         inputEl.style.borderColor = '#86efac';
         if (r.country === 'CH' || r.country === 'LI') {
-            try {
-                const res = await fetch(`/api/banks/lookup?iban=${encodeURIComponent(val)}`, { headers: ah() });
-                if (res.ok) {
-                    const b = await res.json();
-                    hint.textContent += ` — ${b.name}${b.ort ? ', ' + b.ort : ''}`;
-                    const bicEl  = document.getElementById('baBic');
-                    const nameEl = document.getElementById('baBankName');
-                    if (bicEl  && !bicEl.value.trim()  && b.bic)  bicEl.value  = b.bic;
-                    if (nameEl && !nameEl.value.trim() && b.name) nameEl.value = b.name;
-                }
-            } catch {}
+            if (typeof lookupBankForIban === 'function')
+                lookupBankForIban(val, hint, 'baBic', 'baBankName');
         }
     } else {
         hint.textContent = '✗ ' + r.error;
