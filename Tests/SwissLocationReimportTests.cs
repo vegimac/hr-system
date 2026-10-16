@@ -39,6 +39,28 @@ public class SwissLocationReimportTests
     }
 
     [Fact]
+    public async Task Zip_with_csv_inside_is_opened()
+    {
+        var csv = "plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel\n"
+                + string.Join('\n', Enumerable.Range(1000, 1200)
+                    .Select(i => $"{i};Ort{i};Gem{i};{i};ZH"));
+        using var zipMs = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(zipMs, System.IO.Compression.ZipArchiveMode.Create, true))
+        {
+            var e = zip.CreateEntry("ortschaftenverzeichnis_plz_2056.csv");
+            await using var w = new StreamWriter(e.Open());
+            await w.WriteAsync(csv);
+        }
+        zipMs.Position = 0;
+        await using var opened = await SwissLocationReimportService.OpenCsvStreamFromUploadAsync(
+            zipMs, "ortschaftenverzeichnis_plz_2056.csv.zip");
+        using var r = new StreamReader(opened);
+        var text = await r.ReadToEndAsync();
+        Assert.Contains("plz4;ortschaftsname", text);
+        Assert.Contains("Ort2199", text);
+    }
+
+    [Fact]
     public void Amtovz_swisstopo_format_picks_highest_adressenanteil()
     {
         // Offizielles Format ab Jan 2026 (Ortschaftsname;PLZ4;…;Adressenanteil;…)

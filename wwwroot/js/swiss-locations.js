@@ -16,8 +16,12 @@ async function locInit() {
     document.getElementById('locAlert').innerHTML = '';
     document.getElementById('locSearch').value = '';
     document.getElementById('locList').innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    const isAdmin = currentUser?.role === 'admin';
     const adminBar = document.getElementById('locAdminActions');
-    if (adminBar) adminBar.style.display = currentUser?.role === 'admin' ? 'flex' : 'none';
+    if (adminBar) adminBar.style.display = isAdmin ? 'flex' : 'none';
+    const zone = document.getElementById('locImportZoneWrap');
+    if (zone) zone.style.display = isAdmin ? '' : 'none';
+    locBindDropzone();
     try {
         const r = await fetch('/api/swiss-locations/admin', { headers: ah() });
         if (!r.ok) {
@@ -30,6 +34,21 @@ async function locInit() {
     } catch (e) {
         document.getElementById('locList').innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler: ' + _e(e.message) + '</span></div>';
     }
+}
+
+let _locDropBound = false;
+function locBindDropzone() {
+    const dz = document.getElementById('locDropzone');
+    if (!dz || _locDropBound) return;
+    _locDropBound = true;
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.classList.remove('dragover');
+        const f = e.dataTransfer?.files?.[0];
+        if (f) locImportFile(f);
+    });
 }
 
 function locSearch() {
@@ -270,24 +289,35 @@ async function locReimport(force) {
     }
 }
 
-/// Walter 16.10.2026: neue AMTOVZ-CSV hochladen (ersetzt swiss_location komplett).
-async function locImportFileChosen(input) {
+/// Walter 16.10.2026 / 16.10.2026: AMTOVZ CSV oder ZIP (ohne Entpacken) hochladen.
+function locImportFileChosen(input) {
     const file = input?.files?.[0];
     input.value = '';
+    if (file) locImportFile(file);
+}
+
+async function locImportFile(file) {
     if (!file) return;
+    const n = (file.name || '').toLowerCase();
+    if (!n.endsWith('.csv') && !n.endsWith('.txt') && !n.endsWith('.zip')) {
+        showPageAlert('locAlert', 'Bitte eine CSV- oder ZIP-Datei wählen (swisstopo AMTOVZ).', 'error');
+        return;
+    }
     const ok = await (typeof liquidConfirm === 'function'
         ? liquidConfirm(
-            `Verzeichnis komplett aus «${file.name}» ersetzen?\n\nAkzeptiert: offizielles AMTOVZ (swisstopo) oder OneCrew-CSV.\nBei mehreren Gemeinden pro Ortschaft zählt der höchste Adressenanteil.\nManuelle Einträge gehen verloren.`,
-            { title: 'CSV aktualisieren', yesLabel: 'Importieren', noLabel: 'Abbrechen' })
-        : Promise.resolve(confirm('Verzeichnis aus CSV ersetzen?')));
+            `Verzeichnis komplett aus «${file.name}» ersetzen?\n\nCSV oder ZIP (ZIP wird automatisch entpackt).\nBei mehreren Gemeinden pro Ortschaft zählt der höchste Adressenanteil.\nManuelle Einträge gehen verloren.`,
+            { title: 'AMTOVZ aktualisieren', yesLabel: 'Importieren', noLabel: 'Abbrechen' })
+        : Promise.resolve(confirm('Verzeichnis ersetzen?')));
     if (!ok) return;
 
-    const btn = document.getElementById('locImportBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Importiert…'; }
+    const dz = document.getElementById('locDropzone');
+    const txt = document.getElementById('locDropzoneText');
+    const prev = txt?.innerHTML;
+    if (txt) txt.innerHTML = `<div class="dok-upload-dropzone-file">${_e(file.name)}</div><small>Import läuft…</small>`;
+    if (dz) dz.style.pointerEvents = 'none';
     try {
         const fd = new FormData();
         fd.append('file', file);
-        // Kein Content-Type: application/json — Browser setzt multipart boundary.
         const r = await fetch('/api/swiss-locations/admin/import', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${authToken}` },
@@ -303,6 +333,7 @@ async function locImportFileChosen(input) {
     } catch (e) {
         showPageAlert('locAlert', 'Verbindungsfehler: ' + e.message, 'error');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '⬆ CSV aktualisieren'; }
+        if (txt && prev) txt.innerHTML = prev;
+        if (dz) dz.style.pointerEvents = '';
     }
 }

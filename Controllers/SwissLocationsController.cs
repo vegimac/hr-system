@@ -298,36 +298,37 @@ public class SwissLocationsController : ControllerBase
     }
 
     /// <summary>
-    /// Walter 16.10.2026: AMTOVZ-CSV hochladen und Verzeichnis ersetzen
-    /// (Aktualisierung neben Behörden unter Verzeichnisse &amp; Vorgaben).
-    /// Format: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel
+    /// Walter 16.10.2026: AMTOVZ hochladen (CSV oder ZIP) und Verzeichnis ersetzen.
+    /// ZIP: swisstopo-Download — CSV wird serverseitig entpackt.
     /// </summary>
     [HttpPost("admin/import")]
     [Authorize(Roles = "admin")]
-    [RequestSizeLimit(20 * 1024 * 1024)]
+    [RequestSizeLimit(40 * 1024 * 1024)]
     public async Task<IActionResult> ImportUpload(IFormFile file, CancellationToken ct)
     {
         if (file is null || file.Length == 0)
             return BadRequest(new { error = "KEINE_DATEI", message = "Keine Datei übermittelt." });
-        if (file.Length > 20 * 1024 * 1024)
-            return BadRequest(new { error = "ZU_GROSS", message = "Datei zu gross (max. 20 MB)." });
+        if (file.Length > 40 * 1024 * 1024)
+            return BadRequest(new { error = "ZU_GROSS", message = "Datei zu gross (max. 40 MB)." });
         var name = file.FileName ?? "";
-        if (!name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
-            && !name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = "FORMAT", message = "Bitte eine CSV-Datei wählen (AMTOVZ von swisstopo oder OneCrew-Format)." });
+        var okExt = name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+        if (!okExt)
+            return BadRequest(new { error = "FORMAT", message = "Bitte CSV oder ZIP (swisstopo AMTOVZ) wählen." });
 
         var contentRoot = HttpContext.RequestServices
             .GetRequiredService<IWebHostEnvironment>().ContentRootPath;
         try
         {
             await using var stream = file.OpenReadStream();
-            var (count, savedAs) = await SwissLocationReimportService.ImportUploadAsync(
-                _db, stream, contentRoot, ct);
+            var (count, savedAs, quelle) = await SwissLocationReimportService.ImportUploadAsync(
+                _db, stream, name, contentRoot, ct);
             return Ok(new {
                 imported = true,
                 count,
                 savedAs,
-                message = $"Aktualisiert: {count} Ortschaften (BFS-Gemeindenummern) aus «{file.FileName}»."
+                message = $"Aktualisiert: {count} Ortschaften (BFS-Gemeindenummern) aus «{quelle}»."
             });
         }
         catch (Exception ex)

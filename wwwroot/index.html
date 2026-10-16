@@ -8979,10 +8979,6 @@
                         <a id="locDownloadLink" href="https://www.swisstopo.admin.ch/de/amtliches-ortschaftenverzeichnis#Download" target="_blank" rel="noopener"
                            title="Offizielle AMTOVZ-CSV bei swisstopo herunterladen"
                            style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;text-decoration:none;box-shadow:0 2px 8px rgba(60,55,48,0.12)">⬇ AMTOVZ herunterladen</a>
-                        <input type="file" id="locImportFile" accept=".csv,.txt,text/csv" style="display:none" onchange="locImportFileChosen(this)">
-                        <button type="button" id="locImportBtn" onclick="document.getElementById('locImportFile').click()"
-                                title="AMTOVZ-CSV (swisstopo) hochladen und Verzeichnis ersetzen"
-                                style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.12)">⬆ CSV aktualisieren</button>
                         <button type="button" id="locReimportBtn" onclick="locReimport(true)"
                                 title="Tabelle aus data_swiss_locations.csv neu laden (AMTOVZ)"
                                 style="padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.62);background:rgba(255,255,255,0.45);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.12)">↻ Mitgelieferte CSV laden</button>
@@ -8991,6 +8987,18 @@
                     </div>
                 </div>
                 <div id="locAlert" style="margin-bottom:12px"></div>
+                <div id="locImportZoneWrap" style="display:none;margin-top:8px;max-width:720px">
+                    <input type="file" id="locImportFile" accept=".csv,.txt,.zip,text/csv,application/zip" style="display:none" onchange="locImportFileChosen(this)">
+                    <div class="dok-upload-dropzone" id="locDropzone" role="button" tabindex="0"
+                         title="CSV oder ZIP (swisstopo) — Klick oder Datei hierher ziehen"
+                         onclick="document.getElementById('locImportFile').click()"
+                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('locImportFile').click();}">
+                        <div class="dok-upload-dropzone-text" id="locDropzoneText">
+                            AMTOVZ aktualisieren: <strong>CSV oder ZIP</strong> hierher ziehen oder anklicken<br>
+                            <span style="font-size:12px;color:#8b8b8b">ZIP muss nicht entpackt werden — die CSV wird automatisch gelesen.</span>
+                        </div>
+                    </div>
+                </div>
                 <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
                     <input type="text" id="locSearch" placeholder="Suchen (PLZ, Ortschaft, Gemeinde, BFS-Nr, Kanton)…"
                            oninput="locSearch()"
@@ -10618,7 +10626,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/qst-import.js?v=20260704p"></script>
 <script src="js/kontrolle.js?v=20261013a"></script>
 <script src="js/nationen.js?v=20260816a"></script>
-<script src="js/swiss-locations.js?v=20261016c"></script>
+<script src="js/swiss-locations.js?v=20261016d"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
 <script src="js/stammdaten-import.js?v=20260704p"></script>
 <script src="js/saldo-vortrag-import.js?v=20261005a"></script>

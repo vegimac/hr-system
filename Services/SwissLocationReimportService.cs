@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Compression;
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -219,13 +220,14 @@ public static class SwissLocationReimportService
     }
 
     /// <summary>
-    /// Truncate + Neu-Insert aus einem hochgeladenen AMTOVZ-CSV (Aktualisierung).
-    /// Speichert die Datei zusätzlich als <c>data_swiss_locations.csv</c> im ContentRoot,
-    /// damit «AMTOVZ neu laden» denselben Stand trifft (bis zum nächsten Deploy).
+    /// Truncate + Neu-Insert aus Upload (CSV oder ZIP mit CSV darin).
+    /// Speichert zusätzlich als <c>data_swiss_locations.csv</c> im ContentRoot.
     /// </summary>
-    public static async Task<(int Count, string SavedAs)> ImportUploadAsync(
-        AppDbContext db, Stream csvStream, string? contentRoot = null, CancellationToken ct = default)
+    public static async Task<(int Count, string SavedAs, string Quelle)> ImportUploadAsync(
+        AppDbContext db, Stream uploadStream, string? fileName = null,
+        string? contentRoot = null, CancellationToken ct = default)
     {
+        await using var csvStream = await OpenCsvStreamFromUploadAsync(uploadStream, fileName, ct);
         using var reader = new StreamReader(csvStream, detectEncodingFromByteOrderMarks: true);
         var text = await reader.ReadToEndAsync(ct);
         if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
@@ -234,18 +236,69 @@ public static class SwissLocationReimportService
         if (rows.Count < 1000)
             throw new InvalidOperationException(
                 $"CSV liefert nur {rows.Count} Zeilen — Abbruch (erwartet ~4000). "
-                + "Akzeptiert: OneCrew-CSV oder offizielles AMTOVZ (swisstopo).");
+                + "Akzeptiert: OneCrew-CSV, offizielles AMTOVZ (swisstopo) oder ZIP mit CSV darin.");
 
         string? savedAs = null;
         if (!string.IsNullOrWhiteSpace(contentRoot))
         {
-            // Immer im OneCrew-Format speichern — egal ob AMTOVZ oder vereinfacht hochgeladen.
             savedAs = Path.Combine(contentRoot, CsvFileName);
             await File.WriteAllTextAsync(savedAs, ToOneCrewCsv(rows), ct);
         }
 
-        await ReplaceAllAsync(db, rows, savedAs ?? "(Upload)", ct);
-        return (rows.Count, savedAs ?? "(nur DB)");
+        var quelle = string.IsNullOrWhiteSpace(fileName) ? "(Upload)" : fileName.Trim();
+        await ReplaceAllAsync(db, rows, savedAs ?? quelle, ct);
+        return (rows.Count, savedAs ?? "(nur DB)", quelle);
+    }
+
+    /// <summary>
+    /// CSV direkt oder erste passende CSV aus einem ZIP (swisstopo-Download).
+    /// </summary>
+    public static async Task<Stream> OpenCsvStreamFromUploadAsync(
+        Stream uploadStream, string? fileName, CancellationToken ct = default)
+    {
+        var name = fileName ?? "";
+        // Seekbare Kopie — ZipArchive braucht Position 0; IFormFile-Streams sind oft nicht seekbar.
+        var ms = new MemoryStream();
+        await uploadStream.CopyToAsync(ms, ct);
+        ms.Position = 0;
+
+        var isZip = name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+        if (!isZip && ms.Length >= 4)
+        {
+            var head = new byte[4];
+            _ = ms.Read(head, 0, 4);
+            ms.Position = 0;
+            isZip = head[0] == 0x50 && head[1] == 0x4B && head[2] == 0x03 && head[3] == 0x04;
+        }
+        if (!isZip)
+            return ms;
+
+        using var zip = new ZipArchive(ms, ZipArchiveMode.Read, leaveOpen: false);
+        var entry = PickCsvEntry(zip)
+            ?? throw new InvalidOperationException(
+                "Im ZIP steckt keine CSV. Bitte das swisstopo-Paket «…ortschaftenverzeichnis…csv.zip» oder eine .csv wählen.");
+
+        var outMs = new MemoryStream();
+        await using (var es = entry.Open())
+            await es.CopyToAsync(outMs, ct);
+        outMs.Position = 0;
+        return outMs;
+    }
+
+    static ZipArchiveEntry? PickCsvEntry(ZipArchive zip)
+    {
+        var csvs = zip.Entries
+            .Where(e => !string.IsNullOrEmpty(e.Name)
+                        && e.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+                        && e.Length > 0)
+            .ToList();
+        if (csvs.Count == 0) return null;
+        // Bevorzugt offizielle Namen (AMTOVZ / ortschaftenverzeichnis).
+        return csvs.FirstOrDefault(e =>
+                   e.Name.Contains("AMTOVZ", StringComparison.OrdinalIgnoreCase)
+                   || e.Name.Contains("ortschaftenverzeichnis", StringComparison.OrdinalIgnoreCase)
+                   || e.Name.Contains("ortschaft", StringComparison.OrdinalIgnoreCase))
+               ?? csvs[0];
     }
 
     static async Task ReplaceAllAsync(
