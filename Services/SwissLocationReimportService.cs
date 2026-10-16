@@ -65,12 +65,15 @@ public static class SwissLocationReimportService
     }
 
     public static List<SwissLocation> ParseCsv(string path)
+        => ParseCsvLines(File.ReadAllLines(path));
+
+    /// <summary>CSV aus Upload (UTF-8, Semikolon: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel).</summary>
+    public static List<SwissLocation> ParseCsvLines(IReadOnlyList<string> lines)
     {
-        var lines = File.ReadAllLines(path);
-        var list = new List<SwissLocation>(lines.Length);
+        var list = new List<SwissLocation>(lines.Count);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        for (var i = 0; i < lines.Length; i++)
+        for (var i = 0; i < lines.Count; i++)
         {
             var line = lines[i].Trim();
             if (line.Length == 0) continue;
@@ -81,13 +84,13 @@ public static class SwissLocationReimportService
             var parts = line.Split(';');
             if (parts.Length < 5) continue;
 
-            var plz = parts[0].Trim();
-            var ort = parts[1].Trim();
-            var gem = parts[2].Trim();
+            var plz = parts[0].Trim().Trim('"');
+            var ort = parts[1].Trim().Trim('"');
+            var gem = parts[2].Trim().Trim('"');
             if (plz.Length < 4 || ort.Length == 0) continue;
-            if (!int.TryParse(parts[3].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var bfs))
+            if (!int.TryParse(parts[3].Trim().Trim('"'), NumberStyles.Integer, CultureInfo.InvariantCulture, out var bfs))
                 continue;
-            var kt = parts[4].Trim().ToUpperInvariant();
+            var kt = parts[4].Trim().Trim('"').ToUpperInvariant();
             if (kt.Length != 2) continue;
             if (string.IsNullOrWhiteSpace(gem)) gem = ort;
 
@@ -107,7 +110,7 @@ public static class SwissLocationReimportService
     }
 
     /// <summary>
-    /// Truncate + Neu-Insert aus CSV. Stellt Unique-Index (plz, ortschaft) sicher.
+    /// Truncate + Neu-Insert aus der mitgelieferten AMTOVZ-CSV.
     /// </summary>
     public static async Task<(int Count, string CsvPath)> ReimportAsync(
         AppDbContext db, string? contentRoot = null, CancellationToken ct = default)
@@ -117,9 +120,43 @@ public static class SwissLocationReimportService
                 $"«{CsvFileName}» nicht gefunden (weder neben der DLL noch im ContentRoot).");
 
         var rows = ParseCsv(path);
+        await ReplaceAllAsync(db, rows, path, ct);
+        return (rows.Count, path);
+    }
+
+    /// <summary>
+    /// Truncate + Neu-Insert aus einem hochgeladenen AMTOVZ-CSV (Aktualisierung).
+    /// Speichert die Datei zusätzlich als <c>data_swiss_locations.csv</c> im ContentRoot,
+    /// damit «AMTOVZ neu laden» denselben Stand trifft (bis zum nächsten Deploy).
+    /// </summary>
+    public static async Task<(int Count, string SavedAs)> ImportUploadAsync(
+        AppDbContext db, Stream csvStream, string? contentRoot = null, CancellationToken ct = default)
+    {
+        using var reader = new StreamReader(csvStream, detectEncodingFromByteOrderMarks: true);
+        var text = await reader.ReadToEndAsync(ct);
+        var lines = text.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+        var rows = ParseCsvLines(lines);
         if (rows.Count < 1000)
             throw new InvalidOperationException(
-                $"CSV «{path}» liefert nur {rows.Count} Zeilen — Abbruch (erwartet ~4000).");
+                $"CSV liefert nur {rows.Count} Zeilen — Abbruch (erwartet ~4000). Format: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel");
+
+        string? savedAs = null;
+        if (!string.IsNullOrWhiteSpace(contentRoot))
+        {
+            savedAs = Path.Combine(contentRoot, CsvFileName);
+            await File.WriteAllTextAsync(savedAs, text, ct);
+        }
+
+        await ReplaceAllAsync(db, rows, savedAs ?? "(Upload)", ct);
+        return (rows.Count, savedAs ?? "(nur DB)");
+    }
+
+    static async Task ReplaceAllAsync(
+        AppDbContext db, List<SwissLocation> rows, string sourceLabel, CancellationToken ct)
+    {
+        if (rows.Count < 1000)
+            throw new InvalidOperationException(
+                $"CSV «{sourceLabel}» liefert nur {rows.Count} Zeilen — Abbruch (erwartet ~4000).");
 
         // Schema-Härtung vor Truncate (idempotent).
         await db.Database.ExecuteSqlRawAsync(@"
@@ -133,7 +170,6 @@ public static class SwissLocationReimportService
         await db.Database.ExecuteSqlRawAsync(
             "TRUNCATE TABLE swiss_location RESTART IDENTITY;", ct);
 
-        // Batches — 4k Zeilen, kein COPY nötig.
         const int batch = 500;
         for (var i = 0; i < rows.Count; i += batch)
         {
@@ -149,8 +185,6 @@ public static class SwissLocationReimportService
             CREATE INDEX IF NOT EXISTS idx_swiss_location_plz
                 ON swiss_location (plz4);
         ", ct);
-
-        return (rows.Count, path);
     }
 
     /// <summary>

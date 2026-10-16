@@ -16,8 +16,8 @@ async function locInit() {
     document.getElementById('locAlert').innerHTML = '';
     document.getElementById('locSearch').value = '';
     document.getElementById('locList').innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
-    const reBtn = document.getElementById('locReimportBtn');
-    if (reBtn) reBtn.style.display = currentUser?.role === 'admin' ? '' : 'none';
+    const adminBar = document.getElementById('locAdminActions');
+    if (adminBar) adminBar.style.display = currentUser?.role === 'admin' ? 'flex' : 'none';
     try {
         const r = await fetch('/api/swiss-locations/admin', { headers: ah() });
         if (!r.ok) {
@@ -238,12 +238,13 @@ async function locDelete(id) {
     }
 }
 
-/// Walter 29.07.2026: AMTOVZ aus CSV neu laden (repariert z.B. Thörigen≠3360).
+/// Walter 29.07.2026: AMTOVZ aus mitgelieferter CSV neu laden (repariert z.B. Thörigen≠3360).
 async function locReimport(force) {
     const ok = await (typeof liquidConfirm === 'function'
         ? liquidConfirm(force
-            ? 'PLZ-/Ortschaftsverzeichnis komplett aus AMTOVZ-CSV neu laden? Bestehende manuelle Einträge gehen verloren.'
-            : 'Verzeichnis nur neu laden, wenn der alte/falsche Stand erkannt wird. Fortfahren?')
+            ? 'PLZ-/Ortschaftsverzeichnis komplett aus der mitgelieferten AMTOVZ-CSV neu laden? Bestehende manuelle Einträge gehen verloren.'
+            : 'Verzeichnis nur neu laden, wenn der alte/falsche Stand erkannt wird. Fortfahren?',
+            { title: 'AMTOVZ neu laden', yesLabel: 'Neu laden', noLabel: 'Abbrechen' })
         : Promise.resolve(confirm('PLZ-/Ortschaftsverzeichnis neu laden?')));
     if (!ok) return;
 
@@ -265,6 +266,43 @@ async function locReimport(force) {
     } catch (e) {
         showPageAlert('locAlert', 'Verbindungsfehler: ' + e.message, 'error');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '↻ AMTOVZ neu laden'; }
+        if (btn) { btn.disabled = false; btn.textContent = '↻ Mitgelieferte CSV laden'; }
+    }
+}
+
+/// Walter 16.10.2026: neue AMTOVZ-CSV hochladen (ersetzt swiss_location komplett).
+async function locImportFileChosen(input) {
+    const file = input?.files?.[0];
+    input.value = '';
+    if (!file) return;
+    const ok = await (typeof liquidConfirm === 'function'
+        ? liquidConfirm(
+            `Verzeichnis komplett aus «${file.name}» ersetzen?\n\nFormat: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel\nManuelle Einträge gehen verloren.`,
+            { title: 'CSV aktualisieren', yesLabel: 'Importieren', noLabel: 'Abbrechen' })
+        : Promise.resolve(confirm('Verzeichnis aus CSV ersetzen?')));
+    if (!ok) return;
+
+    const btn = document.getElementById('locImportBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Importiert…'; }
+    try {
+        const fd = new FormData();
+        fd.append('file', file);
+        // Kein Content-Type: application/json — Browser setzt multipart boundary.
+        const r = await fetch('/api/swiss-locations/admin/import', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: fd
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            showPageAlert('locAlert', 'Fehler: ' + (j.message || j.error || r.status), 'error');
+            return;
+        }
+        showPageAlert('locAlert', '✓ ' + (j.message || 'Fertig.'), 'success');
+        await locInit();
+    } catch (e) {
+        showPageAlert('locAlert', 'Verbindungsfehler: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '⬆ CSV aktualisieren'; }
     }
 }

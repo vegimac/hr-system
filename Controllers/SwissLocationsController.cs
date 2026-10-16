@@ -297,6 +297,45 @@ public class SwissLocationsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Walter 16.10.2026: AMTOVZ-CSV hochladen und Verzeichnis ersetzen
+    /// (Aktualisierung neben Behörden unter Verzeichnisse &amp; Vorgaben).
+    /// Format: plz4;ortschaftsname;gemeindename;bfs_nr;kantonskuerzel
+    /// </summary>
+    [HttpPost("admin/import")]
+    [Authorize(Roles = "admin")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<IActionResult> ImportUpload(IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "KEINE_DATEI", message = "Keine Datei übermittelt." });
+        if (file.Length > 20 * 1024 * 1024)
+            return BadRequest(new { error = "ZU_GROSS", message = "Datei zu gross (max. 20 MB)." });
+        var name = file.FileName ?? "";
+        if (!name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+            && !name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "FORMAT", message = "Bitte eine CSV-Datei wählen (AMTOVZ)." });
+
+        var contentRoot = HttpContext.RequestServices
+            .GetRequiredService<IWebHostEnvironment>().ContentRootPath;
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var (count, savedAs) = await SwissLocationReimportService.ImportUploadAsync(
+                _db, stream, contentRoot, ct);
+            return Ok(new {
+                imported = true,
+                count,
+                savedAs,
+                message = $"Aktualisiert: {count} Ortschaften (BFS-Gemeindenummern) aus «{file.FileName}»."
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "IMPORT_FAILED", message = ex.Message });
+        }
+    }
+
     public class ReimportDto
     {
         public bool Force { get; set; }
