@@ -601,15 +601,15 @@ function elmqZeichnen() {
             ${knopf('Neuer Lauf', 'elmqNeuerLauf')}
             ${knopf(_elmqBusy ? 'Lade …' : 'Bericht holen', 'elmqLaden', true)}
         </div>
-        <div style="margin-top:6px;font-size:12px;color:#8b8b8b">Monatsmeldungen der Muster AG oben mit «Senden an: Swissdec Quality Tool» schicken.
-            Das Quality Tool zeigt nur Abweichungen — ein Monat ohne Eintrag stimmt oder ist noch nicht gesendet.</div>`;
+        <div style="margin-top:6px;font-size:12px;color:#8b8b8b">Monatsmeldungen oben an «Swissdec Quality Tool» senden, dann «Bericht holen».
+            Unten siehst du <b>jeden gesendeten Monat einzeln</b> — Swissdec listet nur Differenzen; «Stimmt» = gesendet und keine Abweichung.</div>`;
     if (!b) {
         box.innerHTML = kopf + (_elmqFehler ? _elmmBox(false, _elmzEsc(_elmqFehler)) : `<div style="margin-top:10px;font-size:13px;color:#646464">${_elmqBusy ? 'Bericht wird geholt …' : ''}</div>`);
         return;
     }
     const stand = `<div style="display:flex;gap:16px;align-items:baseline;flex-wrap:wrap;margin-top:12px">
         <div><span style="font-size:26px;font-weight:700;color:#3f3f3f">${Number(b.punkte || 0).toLocaleString('de-CH', { maximumFractionDigits: 1 })} %</span>
-            <span style="font-size:12px;color:#8b8b8b;margin-left:4px">Punktzahl des Laufs</span></div>
+            <span style="font-size:12px;color:#8b8b8b;margin-left:4px">Punktzahl des Laufs (Swissdec)</span></div>
         <div>${b.anzahl ? _elmmPille('rot', `${b.anzahl} Abweichung${b.anzahl === 1 ? '' : 'en'}`) : _elmmPille('ok', 'Keine Abweichung')}</div>
     </div>`;
     const zeile = a => {
@@ -631,18 +631,39 @@ function elmqZeichnen() {
         <table style="border-collapse:collapse;font-size:12px;width:100%;margin-top:4px;table-layout:fixed">
             <colgroup><col><col style="width:150px"><col style="width:150px"></colgroup>
             <tr style="color:#8b8b8b"><td style="padding:2px 10px 2px 0">Was stimmt nicht</td><td style="padding:2px 10px 2px 0;text-align:right">Swissdec erwartet</td><td style="padding:2px 0;text-align:right">OneCrew hat</td></tr>
-            ${f.abweichungen.map(zeile).join('')}</table></div>`;
-    const monate = (b.monate || []).map(m => `<details data-seq="${_elmzEsc(m.sequenz + '|' + m.teilprozess)}" ${_elmqOffen.has(m.sequenz + '|' + m.teilprozess) ? 'open' : ''}
+            ${(f.abweichungen || []).map(zeile).join('')}</table></div>`;
+    const pille = u => u.status === 'rot' ? _elmmPille('rot', u.text)
+        : u.status === 'ok' ? _elmmPille('ok', u.text)
+        : u.status === 'warn' ? _elmmPille('warn', u.text)
+        : _elmmPille('grau', u.text);
+    // Monat für Monat (gesendet + QT) — nicht nur die Monate mit Fehlern
+    const liste = (b.uebersicht && b.uebersicht.length) ? b.uebersicht : (b.monate || []).map(m => ({
+        sequenz: m.sequenz, teilprozess: m.teilprozess, status: m.anzahl ? 'rot' : 'ok',
+        text: m.anzahl ? `${m.anzahl} Abweichung${m.anzahl === 1 ? '' : 'en'}` : 'Stimmt',
+        anzahl: m.anzahl, faelle: m.faelle,
+    }));
+    const monate = liste.map(u => {
+        const key = (u.sequenz || '') + '|' + (u.teilprozess || '');
+        const hatDetails = u.status === 'rot' && (u.faelle || []).length;
+        if (!hatDetails) {
+            return `<div data-seq="${_elmzEsc(key)}" style="margin-top:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.35);padding:10px 14px;display:flex;align-items:center;gap:12px">
+                <b style="color:#3f3f3f;font-size:14px">${_elmzEsc(_elmqMonat(u.sequenz))}</b>
+                <span style="font-size:12px;color:#8b8b8b">${_elmzEsc(_elmqTeil(u.teilprozess))}</span>
+                <span style="margin-left:auto">${pille(u)}</span>
+            </div>`;
+        }
+        return `<details data-seq="${_elmzEsc(key)}" ${_elmqOffen.has(key) ? 'open' : ''}
             ontoggle="_elmqOffenMerken(this)" style="margin-top:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.35)">
         <summary style="cursor:pointer;list-style:none;padding:10px 14px;display:flex;align-items:center;gap:12px">
-            <b style="color:#3f3f3f;font-size:14px">${_elmzEsc(_elmqMonat(m.sequenz))}</b>
-            <span style="font-size:12px;color:#8b8b8b">${_elmzEsc(_elmqTeil(m.teilprozess))}</span>
-            <span style="margin-left:auto">${m.anzahl ? _elmmPille('rot', `${m.anzahl} Abweichung${m.anzahl === 1 ? '' : 'en'}`) : _elmmPille('ok', 'Stimmt')}</span>
+            <b style="color:#3f3f3f;font-size:14px">${_elmzEsc(_elmqMonat(u.sequenz))}</b>
+            <span style="font-size:12px;color:#8b8b8b">${_elmzEsc(_elmqTeil(u.teilprozess))}</span>
+            <span style="margin-left:auto">${pille(u)}</span>
         </summary>
-        <div style="padding:0 14px 12px">${m.faelle.map(fall).join('')}</div>
-    </details>`).join('');
+        <div style="padding:0 14px 12px">${(u.faelle || []).map(fall).join('')}</div>
+    </details>`;
+    }).join('');
     box.innerHTML = kopf + stand + (_elmqFehler ? _elmmBox(false, _elmzEsc(_elmqFehler)) : '')
         + (monate || `<div style="margin-top:10px;font-size:13px;color:#646464">${b.punkte > 0
-            ? 'Keine Abweichung in den bisher gesendeten Monaten. Swissdec listet nur Differenzen — ein Monat ohne Eintrag ist erledigt oder noch nicht gesendet.'
+            ? 'Noch kein Monat an das Quality Tool gesendet — oben Monat wählen und senden, dann «Bericht holen».'
             : 'Noch keine Meldung im laufenden Lauf.'}</div>`);
 }

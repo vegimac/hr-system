@@ -104,6 +104,48 @@ public class QualityToolBerichtTests
     }
 
     [Fact]
+    public void Uebersicht_zeigt_jeden_gesendeten_Monat_auch_ohne_Abweichung()
+    {
+        var b = QualityToolBericht.Lies(Beispiel); // Abweichungen in 2024-11 und 2025-01
+        var sendungen = new[]
+        {
+            new ElmVorgang
+            {
+                Art = "monthly", Jahr = 2024, Monat = 11, Titel = "Monatsmeldung 11.2024",
+                Url = ElmEndpunkte.QualityToolUrl, JobFinished = true,
+                Adressaten = { new ElmVorgangAdressat { Zustand = "Success", State = "Finished" } },
+            },
+            new ElmVorgang
+            {
+                Art = "monthly", Jahr = 2024, Monat = 12, Titel = "Monatsmeldung 12.2024",
+                Url = ElmEndpunkte.QualityToolUrl, JobFinished = true,
+                Adressaten = { new ElmVorgangAdressat { Zustand = "Success", State = "Finished" } },
+            },
+            new ElmVorgang
+            {
+                Art = "monthly", Jahr = 2025, Monat = 2, Titel = "Monatsmeldung 02.2025",
+                Url = ElmEndpunkte.QualityToolUrl, JobFinished = true,
+                Adressaten =
+                {
+                    new ElmVorgangAdressat
+                    {
+                        Zustand = "Success", State = "CompletionReleaseMissing",
+                        Completion = new ElmCompletionInfo { AufrufUrl = "https://x" },
+                    },
+                },
+            },
+        };
+        var u = QualityToolBericht.Uebersicht(b, sendungen);
+        // Bericht hat 2024-11 + 2025-01; Sendungen zusätzlich 2024-12 + 2025-02
+        Assert.Equal(new[] { "2024-11", "2024-12", "2025-01", "2025-02" }, u.Select(x => x.Sequenz));
+        Assert.Equal("rot", u[0].Status);   // Nov: Abweichungen im Bericht
+        Assert.Equal("ok", u[1].Status);    // Dez: gesendet, keine Abweichung → Stimmt
+        Assert.Equal("rot", u[2].Status);   // Jan: Abweichungen im Bericht (sticht Dialog)
+        Assert.Equal("warn", u[3].Status);  // Feb: Dialog/Freigabe offen, noch keine QT-Abweichung
+        Assert.Contains("wartet", u[3].Text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Quality_Tool_ist_auf_der_Produktion_kein_Meldungsziel()
     {
         if (ElmEndpunkte.IstTestinstanz()) return;

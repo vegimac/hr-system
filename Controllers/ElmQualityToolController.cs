@@ -15,8 +15,13 @@ namespace HrSystem.Controllers;
 public class ElmQualityToolController : ControllerBase
 {
     private readonly QualityToolClient _qt;
+    private readonly ElmUebermittlungService _ueber;
 
-    public ElmQualityToolController(QualityToolClient qt) => _qt = qt;
+    public ElmQualityToolController(QualityToolClient qt, ElmUebermittlungService ueber)
+    {
+        _qt = qt;
+        _ueber = ueber;
+    }
 
     [HttpGet("status")]
     public IActionResult Status()
@@ -36,20 +41,34 @@ public class ElmQualityToolController : ControllerBase
         try
         {
             var b = await aufruf();
+            var uebersicht = QualityToolBericht.Uebersicht(b, _ueber.Liste());
             return Ok(new
             {
                 b.MonitoringId, punkte = b.Punkte, b.Meldung, anzahl = b.Anzahl,
+                // Monat für Monat: Stimmt / Abweichungen / Dialog offen / nicht gesendet
+                // (Walter 16.10.2026 — Punktzahl allein reicht nicht).
+                uebersicht = uebersicht.Select(u => new
+                {
+                    u.Sequenz, u.Teilprozess, u.Status, u.Text, anzahl = u.Anzahl,
+                    faelle = u.Bericht?.Faelle.Select(FallDto),
+                }),
+                // Rohbericht (Monate nur mit Abweichungen) — für alte Aufrufer / Diagnose
                 monate = b.Monate.Select(m => new
                 {
                     m.Sequenz, m.Teilprozess, anzahl = m.Anzahl,
-                    faelle = m.Faelle.Select(f => new
-                    {
-                        f.Id, f.Name,
-                        abweichungen = f.Abweichungen.Select(a => new { a.Feld, a.Soll, a.Ist, a.Art, a.Pfad, a.Gesendet }),
-                    }),
+                    faelle = m.Faelle.Select(FallDto),
                 }),
             });
         }
         catch (InvalidOperationException ex) { return BadRequest(new { error = "QUALITYTOOL", message = ex.Message }); }
     }
+
+    private static object FallDto(QualityToolBericht.Fall f) => new
+    {
+        f.Id, f.Name,
+        abweichungen = f.Abweichungen.Select(a => new
+        {
+            a.Feld, a.Soll, a.Ist, a.Art, a.Pfad, a.Gesendet, a.Klartext,
+        }),
+    };
 }

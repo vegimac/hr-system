@@ -26,6 +26,67 @@ public static class QualityToolBericht
         public int Anzahl => Monate.Sum(m => m.Anzahl);
     }
 
+    /// <summary>
+    /// Ein Monat im Lauf — aus QT-Bericht und unseren Sendungen zusammengebaut
+    /// (Walter 16.10.2026: Punktzahl allein sagt nicht, welcher Monat noch offen ist).
+    /// </summary>
+    /// <param name="Status">ok = keine Abweichung (QT listet nur Differenzen), rot = Abweichungen,
+    /// warn = Dialog/Freigabe bei uns offen, grau = noch nicht an QT gesendet.</param>
+    public record MonatStand(string Sequenz, string Teilprozess, string Status, string Text,
+        int Anzahl, Monat? Bericht);
+
+    /// <summary>
+    /// Alle Monate, die wir an das Quality Tool gesendet haben, plus Monate mit Abweichungen
+    /// aus dem Bericht. Gesendet ohne Eintrag im Bericht → «Stimmt».
+    /// </summary>
+    public static List<MonatStand> Uebersicht(Bericht bericht, IEnumerable<ElmVorgang> qtSendungen)
+    {
+        var abw = bericht.Monate
+            .Where(m => m.Teilprozess is "" or "MonthlySalary")
+            .GroupBy(m => m.Sequenz, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        // Pro Periode die jüngste QT-Sendung (Ersatz schlägt die ältere).
+        var gesendet = new Dictionary<string, ElmVorgang>(StringComparer.Ordinal);
+        foreach (var v in qtSendungen
+                     .Where(v => v.Art == "monthly" && v.Url != null
+                                 && v.Url.Contains("qualitytool", StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(v => v.Gesendet))
+        {
+            var (jahr, monat) = ElmMeldungAnzeige.Periode(v);
+            if (jahr == null || monat == null) continue;
+            gesendet[$"{jahr.Value:D4}-{monat.Value:D2}"] = v;
+        }
+
+        var keys = gesendet.Keys.Union(abw.Keys).OrderBy(k => k, StringComparer.Ordinal).ToList();
+        var liste = new List<MonatStand>();
+        foreach (var seq in keys)
+        {
+            abw.TryGetValue(seq, out var mon);
+            gesendet.TryGetValue(seq, out var vorgang);
+            var anzahl = mon?.Anzahl ?? 0;
+            if (anzahl > 0)
+            {
+                liste.Add(new MonatStand(seq, mon!.Teilprozess, "rot",
+                    anzahl == 1 ? "1 Abweichung" : $"{anzahl} Abweichungen", anzahl, mon));
+                continue;
+            }
+            if (vorgang == null)
+            {
+                liste.Add(new MonatStand(seq, "MonthlySalary", "grau", "Noch nicht gesendet", 0, null));
+                continue;
+            }
+            var stand = ElmMeldungAnzeige.Meldung(vorgang);
+            if (stand.Stufe is ElmMeldungAnzeige.Warn or ElmMeldungAnzeige.Rot)
+            {
+                liste.Add(new MonatStand(seq, "MonthlySalary", "warn", stand.Text, 0, null));
+                continue;
+            }
+            liste.Add(new MonatStand(seq, "MonthlySalary", "ok", "Stimmt", 0, null));
+        }
+        return liste;
+    }
+
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
 
     private record RReport(string? MonitoringId, double? Score, string? ApiMessage, List<RSequence>? Sequences);
