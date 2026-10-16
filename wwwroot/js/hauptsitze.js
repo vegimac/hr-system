@@ -167,9 +167,9 @@ async function azmLoeschen(id) {
 
 // ── Modal (ov-Standard: class="modal" bekommt den Greige-Verlauf) ──────
 function _hsEnsureModal() {
-    // Layout v9: BFS-Gemeindenummer nur aus Ortschaftsverzeichnis (read-only)
+    // Layout v10: Stellvertreter PLZ/Ort-Prüfung wie Hauptdaten
     const existing = document.getElementById('hsModal');
-    if (existing && existing.dataset.hsLayout !== '9') existing.remove();
+    if (existing && existing.dataset.hsLayout !== '10') existing.remove();
     if (document.getElementById('hsModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;font-weight:700;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -184,7 +184,7 @@ function _hsEnsureModal() {
         : `<select id="hsSvLand" style="${inp}"><option value="CH">SWITZERLAND</option></select>`;
     const div = document.createElement('div');
     div.id = 'hsModal';
-    div.dataset.hsLayout = '9';
+    div.dataset.hsLayout = '10';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
     <div class="modal" style="position:absolute;top:4vh;left:50%;transform:translateX(-50%);width:min(820px,96vw);height:min(92vh,780px);display:flex;flex-direction:column;overflow:hidden;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:0;box-sizing:border-box">
@@ -270,8 +270,18 @@ function _hsEnsureModal() {
                 <label style="${lbl}">Strasse / Nr.<input id="hsSvStrasse" style="${inp}"></label>
                 <label style="${lbl}">Postfach<input id="hsSvPostfach" style="${inp}"></label>
                 <label style="${lbl};grid-column:span 2">Lokalität<input id="hsSvLokalitaet" style="${inp}"></label>
-                <label style="${lbl}">PLZ<input id="hsSvPlz" maxlength="4" style="${inp}"></label>
-                <label style="${lbl}">Ort<input id="hsSvOrt" style="${inp}"></label>
+                <div style="grid-column:span 2">
+                    <div style="display:grid;grid-template-columns:100px minmax(0,1fr);gap:10px;align-items:start">
+                        <label style="${lbl}">PLZ
+                            <input id="hsSvPlz" inputmode="numeric" maxlength="4" placeholder="3000" style="${inp}"
+                                   data-swiss-plz data-swiss-ort="hsSvOrt" data-swiss-hint="hsSvPlzHint" data-swiss-land="hsSvLand">
+                        </label>
+                        <label style="${lbl}">Ort
+                            <input id="hsSvOrt" placeholder="Bern" style="${inp}">
+                        </label>
+                    </div>
+                    <div id="hsSvPlzHint" class="f-hint" style="margin-top:6px;min-height:16px;font-size:12px;font-weight:400;line-height:1.4"></div>
+                </div>
                 <label style="${lbl}">Land${svLandSel}</label>
                 <label style="${lbl}">UID-BFS<input id="hsSvUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"></label>
             </div>

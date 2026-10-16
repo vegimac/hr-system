@@ -354,6 +354,7 @@
         const scope = root || document;
         const paare = [
             { plz: 'hsPlz', ort: 'hsOrt', kanton: 'hsKanton', bfs: 'hsBfs', hint: 'hsPlzHint', pflicht: true },
+            { plz: 'hsSvPlz', ort: 'hsSvOrt', hint: 'hsSvPlzHint', land: 'hsSvLand' },
             { plz: 'stmZipCode', ort: 'stmCity', kanton: 'stmKantonCode', bfs: 'stmBfsGemeindeNr', hint: 'stmPlzHint', pflicht: true },
             { plz: 'cpEmpfPlz', ort: 'cpEmpfOrt', kanton: 'cpEmpfKanton', hint: 'cpEmpfPlzHint' },
             { plz: 'bePlz', ort: 'beOrt', hint: 'bePlzHint' },
