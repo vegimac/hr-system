@@ -1260,9 +1260,12 @@ async function openStmModal(id) {
         document.getElementById('stmRestaurantCode').value = b.restaurantCode || '';
         document.getElementById('stmStreet').value         = b.street         || '';
         document.getElementById('stmHouseNumber').value    = b.houseNumber    || '';
+        const stmPf = document.getElementById('stmPostfach'); if (stmPf) stmPf.value = b.postfach || '';
+        const stmLok = document.getElementById('stmLokalitaet'); if (stmLok) stmLok.value = b.lokalitaet || '';
         document.getElementById('stmZipCode').value        = b.zipCode        || '';
         document.getElementById('stmCity').value           = b.city           || '';
         document.getElementById('stmKantonCode').value     = (b.kantonCode || '').toUpperCase();
+        if (window.SwissUid) SwissUid.landSelectFuellen('stmCountry', b.country || 'CH');
         document.getElementById('stmPhone').value          = b.phone          || '';
         document.getElementById('stmEmail').value          = b.email          || '';
         const stmWl = document.getElementById('stmWorkLocation');
@@ -1443,14 +1446,22 @@ async function saveStm() {
     };
     const kanton = (document.getElementById('stmKantonCode').value || '').trim().toUpperCase() || null;
 
+    const zip = trimOrNull('stmZipCode');
+    const city = trimOrNull('stmCity');
+    if (!trimOrNull('stmCompanyName')) { alert('Firmenname ist Pflicht.'); return; }
+    if (!zip || !city) { alert('PLZ und Ort sind Pflicht.'); return; }
+
     const payload = {
         companyName:    trimOrNull('stmCompanyName'),
         branchName:     trimOrNull('stmBranchName'),
         restaurantCode: trimOrNull('stmRestaurantCode'),
         street:         trimOrNull('stmStreet'),
         houseNumber:    trimOrNull('stmHouseNumber'),
-        zipCode:        trimOrNull('stmZipCode'),
-        city:           trimOrNull('stmCity'),
+        postfach:       trimOrNull('stmPostfach'),
+        lokalitaet:     trimOrNull('stmLokalitaet'),
+        zipCode:        zip,
+        city:           city,
+        country:        (document.getElementById('stmCountry')?.value || 'CH').trim().toUpperCase() || 'CH',
         kantonCode:     kanton,
         phone:          trimOrNull('stmPhone'),
         email:          trimOrNull('stmEmail'),

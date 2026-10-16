@@ -160,39 +160,54 @@ async function azmLoeschen(id) {
 
 // ── Modal (ov-Standard: class="modal" bekommt den Greige-Verlauf) ──────
 function _hsEnsureModal() {
-    // Altes schmales Modal ohne Platz für PLZ-Fehler neu aufbauen
+    // Layout v4: Swissdec 4.2 Adresse (Land-Dropdown, Gemeindenummer, Zusatz/Postfach)
     const existing = document.getElementById('hsModal');
-    if (existing && existing.dataset.hsLayout !== '3') existing.remove();
+    if (existing && existing.dataset.hsLayout !== '4') existing.remove();
     if (document.getElementById('hsModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
+    const landSel = (window.SwissUid && SwissUid.landSelectHtml)
+        ? SwissUid.landSelectHtml('hsLand', 'CH', inp)
+        : `<select id="hsLand" style="${inp}"><option value="CH" selected>SWITZERLAND</option></select>`;
     const div = document.createElement('div');
     div.id = 'hsModal';
-    div.dataset.hsLayout = '3';
+    div.dataset.hsLayout = '4';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div class="modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(760px,96vw);max-height:92vh;overflow:auto;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:24px 28px">
+    <div class="modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(780px,96vw);max-height:92vh;overflow:auto;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:24px 28px">
         <div id="hsModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Hauptsitz erfassen</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
-            <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<span class="pflicht-stern">*</span><input id="hsName" placeholder="z.B. Schaub Restaurants GmbH" style="${inp}"></label>
-            <label style="${lbl};grid-column:span 2">UID-BFS<input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Format CHE-123.456.789 — Prüfziffer beim Verlassen des Feldes (CHE-999.999.997 wird abgelehnt).</span></label>
-            <label style="${lbl};grid-column:span 2">Strasse <span style="font-weight:400;color:#8b8b8b">(optional — alternativ Postfach)</span><input id="hsStrasse" style="${inp}"></label>
+            <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<span class="pflicht-stern">*</span><input id="hsName" placeholder="z.B. Muster AG" style="${inp}"></label>
+            <label style="${lbl};grid-column:span 2">UID-BFS<input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Format CHE-123.456.789 — Prüfziffer beim Verlassen des Feldes.</span></label>
+            <label style="${lbl};grid-column:span 2">Zusatzzeile (Abteilung / Filialbezeichnung)<input id="hsZusatz1" placeholder="optional" style="${inp}"></label>
+            <label style="${lbl};grid-column:span 2">Zusatzzeile 2 (Abteilung / Filiale)<input id="hsZusatz2" placeholder="optional" style="${inp}"></label>
+            <label style="${lbl};grid-column:span 2">Zusatzzeile Postadresse<input id="hsAdressZusatz" placeholder="optional" style="${inp}"></label>
+            <label style="${lbl}">Strasse / Nr. <span style="font-weight:400;color:#8b8b8b">(optional)</span><input id="hsStrasse" placeholder="Bahnhofstrasse 1" style="${inp}"></label>
+            <label style="${lbl}">Postfach <span style="font-weight:400;color:#8b8b8b">(alternativ zur Strasse)</span><input id="hsPostfach" style="${inp}"></label>
+            <label style="${lbl};grid-column:span 2">Lokalität (Region / Provinz)<input id="hsLokalitaet" placeholder="optional" style="${inp}"></label>
             <div style="grid-column:span 2">
-                <div style="display:grid;grid-template-columns:100px minmax(0,1fr) 100px;gap:10px;align-items:start">
-                    <label style="${lbl}">PLZ
+                <div style="display:grid;grid-template-columns:100px minmax(0,1fr) 90px 1fr;gap:10px;align-items:start">
+                    <label style="${lbl}">PLZ<span class="pflicht-stern">*</span>
                         <input id="hsPlz" inputmode="numeric" maxlength="4" placeholder="6003" style="${inp}"
-                               data-swiss-plz data-swiss-ort="hsOrt" data-swiss-kanton="hsKanton" data-swiss-hint="hsPlzHint">
+                               data-swiss-plz data-swiss-ort="hsOrt" data-swiss-kanton="hsKanton" data-swiss-bfs="hsBfs" data-swiss-hint="hsPlzHint" data-swiss-pflicht="1">
                     </label>
-                    <label style="${lbl}">Ort
+                    <label style="${lbl}">Ort<span class="pflicht-stern">*</span>
                         <input id="hsOrt" placeholder="Luzern" style="${inp}">
                     </label>
                     <label style="${lbl}">Kanton
                         <input id="hsKanton" placeholder="LU" maxlength="2" style="${inp}">
                     </label>
+                    <label style="${lbl}">Land<span class="pflicht-stern">*</span>
+                        ${landSel}
+                    </label>
                 </div>
                 <div id="hsPlzHint" class="f-hint" style="margin-top:6px;min-height:16px;font-size:12px;font-weight:400;line-height:1.4"></div>
             </div>
-            <label style="${lbl};grid-column:span 2">Bemerkung<input id="hsBem" placeholder="optional" style="${inp}"></label>
+            <label style="${lbl}">BFS-Gemeindenummer
+                <input id="hsBfs" type="number" min="1" max="9999" placeholder="z.B. 1061" style="${inp};font-family:ui-monospace,Menlo,monospace">
+                <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Für Lohnausweis-Verteilung bei ResidenceCanton EX — wird nicht im Firmenadresse-XML gemeldet.</span>
+            </label>
+            <label style="${lbl}">Interne Bemerkung<input id="hsBem" placeholder="optional" style="${inp}"></label>
         </div>
 
         <!-- Vertragsregeln der Rechtseinheit (Walter 01.09.2026). Der
@@ -254,13 +269,18 @@ function hsOpenModal(id) {
     const h = id ? _hsList.find(x => x.id === id) : null;
     document.getElementById('hsModalTitle').textContent = h ? 'Hauptsitz bearbeiten' : 'Hauptsitz erfassen';
     const set = (fid, v) => { const el = document.getElementById(fid); if (el) { el.value = v ?? ''; if (window.SwissUid) SwissUid.feldFehlerLoeschen(el); } };
-    set('hsName', h?.name); set('hsUid', h?.uid); set('hsStrasse', h?.strasse);
-    set('hsPlz', h?.plz); set('hsOrt', h?.ort); set('hsKanton', h?.kantonCode); set('hsBem', h?.bemerkung);
+    set('hsName', h?.name); set('hsUid', h?.uid);
+    set('hsZusatz1', h?.zusatzAbteilung); set('hsZusatz2', h?.zusatzAbteilung2);
+    set('hsAdressZusatz', h?.adressZusatz);
+    set('hsStrasse', h?.strasse); set('hsPostfach', h?.postfach); set('hsLokalitaet', h?.lokalitaet);
+    set('hsPlz', h?.plz); set('hsOrt', h?.ort); set('hsKanton', h?.kantonCode);
+    set('hsBfs', h?.bfsGemeindeNr); set('hsBem', h?.bemerkung);
+    if (window.SwissUid) SwissUid.landSelectFuellen('hsLand', h?.land || 'CH');
+    else set('hsLand', h?.land || 'CH');
     set('hsFixPensen', h?.fixPensenErlaubt); set('hsFlexMax', h?.flexStundenMax);
     set('hsMtpMin', h?.mtpStundenMin);       set('hsMtpMax', h?.mtpStundenMax);
     set('hsKontaktName', h?.kontaktName); set('hsKontaktEmail', h?.kontaktEmail); set('hsKontaktTel', h?.kontaktTelefon);
     document.getElementById('hsModal').style.display = 'block';
-    // Bestehende Abweichungen (z.B. PLZ 4800 + Ort Luzern) sofort markieren
     const plzEl = document.getElementById('hsPlz');
     if (plzEl && typeof plzEl._swissUidPruefen === 'function') plzEl._swissUidPruefen();
 }
@@ -273,9 +293,16 @@ function hsCloseModal() {
 async function hsSave() {
     const val = (fid) => document.getElementById(fid)?.value?.trim() || null;
     const num = (fid) => { const v = val(fid); return v == null ? null : Number(v); };
+    const bfsRaw = val('hsBfs');
+    const bfsN = bfsRaw ? parseInt(bfsRaw, 10) : null;
     const dto = {
-        name: val('hsName'), uid: val('hsUid'), strasse: val('hsStrasse'),
+        name: val('hsName'), uid: val('hsUid'),
+        zusatzAbteilung: val('hsZusatz1'), zusatzAbteilung2: val('hsZusatz2'),
+        adressZusatz: val('hsAdressZusatz'),
+        strasse: val('hsStrasse'), postfach: val('hsPostfach'), lokalitaet: val('hsLokalitaet'),
         plz: val('hsPlz'), ort: val('hsOrt'), kantonCode: val('hsKanton'),
+        land: val('hsLand') || 'CH',
+        bfsGemeindeNr: Number.isFinite(bfsN) && bfsN > 0 ? bfsN : null,
         bemerkung: val('hsBem'), isActive: true,
         fixPensenErlaubt: val('hsFixPensen'),
         flexStundenMax: num('hsFlexMax'),
@@ -285,6 +312,10 @@ async function hsSave() {
         kontaktEmail:   val('hsKontaktEmail'),
         kontaktTelefon: val('hsKontaktTel'),
     };
+    if (!dto.plz || !dto.ort) {
+        showToast('PLZ und Ort sind Pflicht.', 'error');
+        return;
+    }
     // Untergrenze über Obergrenze waere eine Regel, die nie jemand erfuellen kann.
     if (dto.mtpStundenMin != null && dto.mtpStundenMax != null
         && dto.mtpStundenMin > dto.mtpStundenMax) {

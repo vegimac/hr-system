@@ -114,7 +114,12 @@ public partial class SwissdecTestmandantController : ControllerBase
             hs ??= new Hauptsitz { CreatedAt = DateTime.Now };
             hs.Name = firmaName; hs.Uid = uid;
             hs.Strasse = T25("CompanyStreet"); hs.Plz = T25("CompanyZIPCode"); hs.Ort = T25("CompanyCity");
-            hs.KantonCode = T25("CompanyWorkplaceLUCanton"); hs.IsActive = true; hs.UpdatedAt = DateTime.Now;
+            hs.KantonCode = T25("CompanyWorkplaceLUCanton");
+            hs.Land = "CH";
+            // Gemeindenummer vom LU-Workplace (Sitz) — für Lohnausweis EX, nicht im Firmenadresse-XML
+            if (int.TryParse(T25("CompanyWorkplaceLUMunicipalityID"), out var hsBfs) && hsBfs > 0)
+                hs.BfsGemeindeNr = hsBfs;
+            hs.IsActive = true; hs.UpdatedAt = DateTime.Now;
             hs.Bemerkung = "Swissdec-Testmandant (offizielle Testdaten) — Kontakt: " + T25("CompanyContactPerson");
             if (hs.Id == 0) _db.Hauptsitze.Add(hs);
             await _db.SaveChangesAsync();

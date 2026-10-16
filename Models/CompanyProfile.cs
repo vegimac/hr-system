@@ -16,8 +16,13 @@ public class CompanyProfile
 
     public string? Street { get; set; }
     public string? HouseNumber { get; set; }
+    /// <summary>Postfach — ERP-Feld (Swissdec 4.2); Workplace-XML hat kein Postbox.</summary>
+    public string? Postfach { get; set; }
+    /// <summary>Lokalität (Region / Provinz) — ELM AddressExtended/Locality.</summary>
+    public string? Lokalitaet { get; set; }
     public string? ZipCode { get; set; }
     public string? City { get; set; }
+    /// <summary>ISO-2 (CH); im XML englisch GROSS (SWITZERLAND).</summary>
     public string? Country { get; set; }
 
     /// <summary>

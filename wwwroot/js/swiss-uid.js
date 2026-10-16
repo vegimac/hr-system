@@ -353,8 +353,8 @@
     function plzAdresseUeberall(root) {
         const scope = root || document;
         const paare = [
-            { plz: 'hsPlz', ort: 'hsOrt', kanton: 'hsKanton', hint: 'hsPlzHint' },
-            { plz: 'stmZipCode', ort: 'stmCity', kanton: 'stmKantonCode', bfs: 'stmBfsGemeindeNr', hint: 'stmPlzHint' },
+            { plz: 'hsPlz', ort: 'hsOrt', kanton: 'hsKanton', bfs: 'hsBfs', hint: 'hsPlzHint', pflicht: true },
+            { plz: 'stmZipCode', ort: 'stmCity', kanton: 'stmKantonCode', bfs: 'stmBfsGemeindeNr', hint: 'stmPlzHint', pflicht: true },
             { plz: 'cpEmpfPlz', ort: 'cpEmpfOrt', kanton: 'cpEmpfKanton', hint: 'cpEmpfPlzHint' },
             { plz: 'bePlz', ort: 'beOrt', hint: 'bePlzHint' },
             { plz: 'nbZip', ort: 'nbCity' },
@@ -388,6 +388,46 @@
         });
     }
 
+    /** Land-Dropdown: Anzeige englisch GROSS (SWITZERLAND), Wert = ISO-2. */
+    const _LAND_ISO = [
+        'CH','DE','AT','FR','IT','LI','BE','NL','LU','ES','PT','GB','IE','DK','SE','NO','FI',
+        'PL','CZ','SK','HU','SI','HR','RO','BG','GR','TR','US','CA','AU','NZ','JP','CN','IN',
+        'BR','AR','MX','ZA','AE','SA','RU','UA','RS','BA','MK','AL','XK','MD','GE','AM','AZ',
+        'IL','EG','MA','TN','DZ','NG','KE','TH','VN','KR','TW','HK','SG','MY','ID','PH',
+    ];
+
+    function landNameEn(iso) {
+        const c = String(iso || '').trim().toUpperCase();
+        if (!c) return '';
+        if (c === 'CH') return 'SWITZERLAND';
+        try {
+            const n = new Intl.DisplayNames(['en'], { type: 'region' }).of(c);
+            return n ? n.toUpperCase() : c;
+        } catch { return c; }
+    }
+
+    function landSelectHtml(id, selectedIso, style) {
+        const sel = (selectedIso || 'CH').toUpperCase();
+        const st = style || '';
+        const opts = _LAND_ISO.map(c => {
+            const lab = landNameEn(c);
+            return `<option value="${c}"${c === sel ? ' selected' : ''}>${lab}</option>`;
+        }).join('');
+        return `<select id="${id}" style="${st}">${opts}</select>`;
+    }
+
+    function landSelectFuellen(selectOrId, selectedIso) {
+        const el = typeof selectOrId === 'string' ? document.getElementById(selectOrId) : selectOrId;
+        if (!el) return;
+        const sel = (selectedIso || 'CH').toUpperCase();
+        if (!el.options.length) {
+            el.innerHTML = _LAND_ISO.map(c =>
+                `<option value="${c}">${landNameEn(c)}</option>`).join('');
+        }
+        if ([...el.options].some(o => o.value === sel)) el.value = sel;
+        else el.value = 'CH';
+    }
+
     w.SwissUid = {
         uidBfsGueltig, uidBfsFehler,
         burNummerGueltig, burNummerFehler,
@@ -395,6 +435,7 @@
         feldFehlerSetzen, feldFehlerLoeschen,
         feldPruefungBinden, felderPruefen,
         plzAdresseBinden, plzAdresseUeberall,
+        landNameEn, landSelectHtml, landSelectFuellen,
     };
 
     if (document.readyState === 'loading')

@@ -233,7 +233,14 @@ public class CompanyProfilesController : ControllerBase
         var profile = await _context.CompanyProfiles.FindAsync(id);
         if (profile is null) return NotFound();
 
-        // Adresse
+        // Adresse — Name/PLZ/Ort Pflicht (Swissdec 4.2)
+        if (string.IsNullOrWhiteSpace(dto.CompanyName) && string.IsNullOrWhiteSpace(profile.CompanyName))
+            return BadRequest(new { error = "NAME_FEHLT", message = "Firmenname ist Pflicht." });
+        if (string.IsNullOrWhiteSpace(dto.ZipCode))
+            return BadRequest(new { error = "PLZ_FEHLT", message = "PLZ ist Pflicht (Swissdec 4.2)." });
+        if (string.IsNullOrWhiteSpace(dto.City))
+            return BadRequest(new { error = "ORT_FEHLT", message = "Ort ist Pflicht (Swissdec 4.2)." });
+
         profile.CompanyName    = string.IsNullOrWhiteSpace(dto.CompanyName)    ? profile.CompanyName : dto.CompanyName.Trim();
         profile.BranchName     = string.IsNullOrWhiteSpace(dto.BranchName)     ? null : dto.BranchName.Trim();
         profile.RestaurantCode = string.IsNullOrWhiteSpace(dto.RestaurantCode) ? null : dto.RestaurantCode.Trim();
@@ -255,9 +262,14 @@ public class CompanyProfilesController : ControllerBase
         profile.PersonalnummerStellen = pnPraefix.Length == 0 ? null : dto.PersonalnummerStellen;
         profile.Street         = string.IsNullOrWhiteSpace(dto.Street)         ? null : dto.Street.Trim();
         profile.HouseNumber    = string.IsNullOrWhiteSpace(dto.HouseNumber)    ? null : dto.HouseNumber.Trim();
-        profile.ZipCode        = string.IsNullOrWhiteSpace(dto.ZipCode)        ? null : dto.ZipCode.Trim();
-        profile.City           = string.IsNullOrWhiteSpace(dto.City)           ? null : dto.City.Trim();
-        profile.Country        = string.IsNullOrWhiteSpace(dto.Country)        ? null : dto.Country.Trim();
+        profile.Postfach       = string.IsNullOrWhiteSpace(dto.Postfach)       ? null : dto.Postfach.Trim();
+        profile.Lokalitaet     = string.IsNullOrWhiteSpace(dto.Lokalitaet)     ? null : dto.Lokalitaet.Trim();
+        profile.ZipCode        = dto.ZipCode.Trim();
+        profile.City           = dto.City.Trim();
+        var landIso = ElmGemeinsam.LandCodeIso(dto.Country) ?? (string.IsNullOrWhiteSpace(dto.Country) ? "CH" : null);
+        if (landIso == null)
+            return BadRequest(new { error = "LAND_UNGUELTIG", message = "Land bitte aus der Liste wählen (ISO-2)." });
+        profile.Country        = landIso;
         // Arbeitsort im Vertragstext («im Restaurant in X») — leer = Fallback
         // auf den Ort (ContractPdfBuilder, Walter 05.08.2026).
         profile.WorkLocation   = string.IsNullOrWhiteSpace(dto.WorkLocation)   ? null : dto.WorkLocation.Trim();
@@ -440,6 +452,8 @@ public class CompanyProfilesController : ControllerBase
         string?  RestaurantCode,
         string?  Street,
         string?  HouseNumber,
+        string?  Postfach,
+        string?  Lokalitaet,
         string?  ZipCode,
         string?  City,
         string?  Country,

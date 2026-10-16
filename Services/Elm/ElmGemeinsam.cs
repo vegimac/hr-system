@@ -111,9 +111,16 @@ public static class ElmGemeinsam
         CompanyProfile Haupt,
         string Uid,
         string Firmenname,
+        string? SitzZusatzName1,
+        string? SitzZusatzName2,
+        string? SitzAdressZusatz,
         string SitzStrasse,
+        string? SitzPostfach,
+        string? SitzLokalitaet,
         string SitzPlz,
         string SitzOrt,
+        string SitzLand,
+        int? SitzBfsGemeindeNr,
         Dictionary<int, int> GemeindeNr);
 
     /// <summary>
@@ -195,14 +202,26 @@ public static class ElmGemeinsam
                        + $"(zu dieser PLZ: {string.Join(", ", treffer.Select(t2 => t2.Ortschaftsname).Distinct().Take(3))}) — bitte in den Stammdaten korrigieren.");
         }
 
+        var sitzStrasse = !string.IsNullOrWhiteSpace(hs?.Strasse)
+            ? hs!.Strasse!.Trim()
+            : StrasseMitNr(haupt.Street, haupt.HouseNumber);
         return new RechtseinheitStamm(
             hs, filialen, haupt, uid,
             (hs?.Name ?? haupt.CompanyName ?? "").Trim(),
-            !string.IsNullOrWhiteSpace(hs?.Strasse) ? hs!.Strasse!.Trim() : StrasseMitNr(haupt.Street, haupt.HouseNumber),
-            !string.IsNullOrWhiteSpace(hs?.Plz)     ? hs!.Plz!.Trim()     : (haupt.ZipCode ?? "").Trim(),
-            !string.IsNullOrWhiteSpace(hs?.Ort)     ? hs!.Ort!.Trim()     : (haupt.City ?? "").Trim(),
+            NormLeer(hs?.ZusatzAbteilung),
+            NormLeer(hs?.ZusatzAbteilung2),
+            NormLeer(hs?.AdressZusatz),
+            sitzStrasse,
+            NormLeer(hs?.Postfach) ?? NormLeer(haupt.Postfach),
+            NormLeer(hs?.Lokalitaet) ?? NormLeer(haupt.Lokalitaet),
+            !string.IsNullOrWhiteSpace(hs?.Plz) ? hs!.Plz!.Trim() : (haupt.ZipCode ?? "").Trim(),
+            !string.IsNullOrWhiteSpace(hs?.Ort) ? hs!.Ort!.Trim() : (haupt.City ?? "").Trim(),
+            LandCodeIso(hs?.Land) ?? LandCodeIso(haupt.Country) ?? "CH",
+            hs?.BfsGemeindeNr is > 0 ? hs.BfsGemeindeNr : null,
             gemeindeNr);
     }
+
+    static string? NormLeer(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     /// <summary>
     /// Meldungskopf (RequestContext) — identisch für Jahres- und Monatsmeldung.
@@ -233,25 +252,33 @@ public static class ElmGemeinsam
     /// </summary>
     public static XElement CompanyDescription(RechtseinheitStamm s, IEnumerable<XElement> arbeitszeitmodelle)
         => new(Sd + "CompanyDescription",
-            new XElement(C + "Name", new XElement(C + "HR-RC-Name", s.Firmenname)),
+            new XElement(C + "Name",
+                new XElement(C + "HR-RC-Name", s.Firmenname),
+                string.IsNullOrWhiteSpace(s.SitzZusatzName1) ? null : new XElement(C + "ComplementaryLine", s.SitzZusatzName1),
+                string.IsNullOrWhiteSpace(s.SitzZusatzName2) ? null : new XElement(C + "ComplementaryLine", s.SitzZusatzName2)),
+            // AddressType: ComplementaryLine, Street, Postbox, Locality, ZIP, City, Country
             new XElement(C + "Address",
+                string.IsNullOrWhiteSpace(s.SitzAdressZusatz) ? null : new XElement(C + "ComplementaryLine", s.SitzAdressZusatz),
                 string.IsNullOrWhiteSpace(s.SitzStrasse) ? null : new XElement(C + "Street", s.SitzStrasse),
+                string.IsNullOrWhiteSpace(s.SitzPostfach) ? null : new XElement(C + "Postbox", s.SitzPostfach),
+                string.IsNullOrWhiteSpace(s.SitzLokalitaet) ? null : new XElement(C + "Locality", s.SitzLokalitaet),
                 new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(s.SitzPlz) ? "0000" : s.SitzPlz),
                 new XElement(C + "City", string.IsNullOrWhiteSpace(s.SitzOrt) ? "Unbekannt" : s.SitzOrt),
-                new XElement(C + "Country", "SWITZERLAND")),
+                new XElement(C + "Country", LandName(s.SitzLand))),
             new XElement(C + "UID-BFS", new XElement(Ep + "UID", s.Uid)),
             s.Filialen.Select(b => new XElement(C + "Workplace",
                 new XAttribute("workplaceID", WpId(b)),
                 ElmStammdatenPruefung.BurNummerGueltig(b.BurNummer)
                     ? new XElement(C + "BUR-REE-Number", b.BurNummer!.Trim().ToUpperInvariant())
                     : null,
-                // Reihenfolge laut XSD: ComplementaryLine, Street, ZIP, City, Country, Canton, MunicipalityID
+                // AddressExtended: ComplementaryLine, Street, Locality, ZIP, City, Country, Canton, MunicipalityID
                 new XElement(C + "AddressExtended",
                     string.IsNullOrWhiteSpace(b.BranchName) ? null : new XElement(C + "ComplementaryLine", b.BranchName!.Trim()),
                     string.IsNullOrWhiteSpace(StrasseMitNr(b.Street, b.HouseNumber)) ? null : new XElement(C + "Street", StrasseMitNr(b.Street, b.HouseNumber)),
+                    string.IsNullOrWhiteSpace(b.Lokalitaet) ? null : new XElement(C + "Locality", b.Lokalitaet!.Trim()),
                     new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(b.ZipCode) ? "0000" : b.ZipCode!.Trim()),
                     new XElement(C + "City", string.IsNullOrWhiteSpace(b.City) ? "Unbekannt" : b.City!.Trim()),
-                    new XElement(C + "Country", "SWITZERLAND"),
+                    new XElement(C + "Country", LandName(b.Country)),
                     string.IsNullOrWhiteSpace(b.KantonCode) ? null : new XElement(C + "Canton", b.KantonCode!.Trim().ToUpperInvariant()),
                     s.GemeindeNr.TryGetValue(b.Id, out var g) ? new XElement(C + "MunicipalityID", g) : null))),
             arbeitszeitmodelle);

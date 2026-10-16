@@ -17,10 +17,24 @@ public class Hauptsitz
     /// <summary>UID des Hauptsitzes (CHE-XXX.XXX.XXX) — Meldungskopf.</summary>
     public string? Uid { get; set; }
 
+    /// <summary>Zusatzzeile am Firmennamen (Abteilung / Filialbezeichnung) — ELM Name/ComplementaryLine.</summary>
+    public string? ZusatzAbteilung { get; set; }
+    /// <summary>Zweite Zusatzzeile am Firmennamen (optional).</summary>
+    public string? ZusatzAbteilung2 { get; set; }
+    /// <summary>Zusatzzeile der Postadresse — ELM Address/ComplementaryLine.</summary>
+    public string? AdressZusatz { get; set; }
     public string? Strasse { get; set; }
+    /// <summary>Postfach — alternativ zur Strasse (Swissdec 4.2).</summary>
+    public string? Postfach { get; set; }
+    /// <summary>Lokalität (Region / Provinz).</summary>
+    public string? Lokalitaet { get; set; }
     public string? Plz { get; set; }
     public string? Ort { get; set; }
     public string? KantonCode { get; set; }
+    /// <summary>Land als ISO-2 (CH); im XML immer englisch GROSS (SWITZERLAND).</summary>
+    public string? Land { get; set; } = "CH";
+    /// <summary>BFS-Gemeindenummer des Sitzes — für Lohnausweis-Verteilung bei ResidenceCanton EX (nicht im Company-Address-XML).</summary>
+    public int? BfsGemeindeNr { get; set; }
 
     public string? Bemerkung { get; set; }
 

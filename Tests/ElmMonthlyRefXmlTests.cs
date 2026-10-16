@@ -121,7 +121,8 @@ public class ElmMonatsArbeitsorteTests
             Filiale(1, "LU"), Filiale(2, "BE"), Filiale(3, "VD"), Filiale(4, "TI"), Filiale(5, "AG"), Filiale(6, "ZG"),
         };
         return new ElmGemeinsam.RechtseinheitStamm(null, filialen, filialen[0], "CHE-999.999.996",
-            "Muster AG", "Bahnhofstrasse 1", "6003", "Luzern", new Dictionary<int, int>());
+            "Muster AG", null, null, null, "Bahnhofstrasse 1", null, null, "6003", "Luzern", "CH", null,
+            new Dictionary<int, int>());
     }
 
     [Fact]

@@ -722,6 +722,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HauptsitzId).HasColumnName("hauptsitz_id");
             entity.Property(e => e.Street).HasColumnName("street");
             entity.Property(e => e.HouseNumber).HasColumnName("house_number");
+            entity.Property(e => e.Postfach).HasColumnName("postfach").HasMaxLength(80);
+            entity.Property(e => e.Lokalitaet).HasColumnName("lokalitaet").HasMaxLength(120);
             entity.Property(e => e.ZipCode).HasColumnName("zip_code");
             entity.Property(e => e.City).HasColumnName("city");
             entity.Property(e => e.Country).HasColumnName("country");
@@ -1014,10 +1016,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200);
             entity.Property(e => e.Uid).HasColumnName("uid").HasMaxLength(20);
+            entity.Property(e => e.ZusatzAbteilung).HasColumnName("zusatz_abteilung").HasMaxLength(200);
+            entity.Property(e => e.ZusatzAbteilung2).HasColumnName("zusatz_abteilung2").HasMaxLength(200);
+            entity.Property(e => e.AdressZusatz).HasColumnName("adress_zusatz").HasMaxLength(200);
             entity.Property(e => e.Strasse).HasColumnName("strasse").HasMaxLength(200);
+            entity.Property(e => e.Postfach).HasColumnName("postfach").HasMaxLength(80);
+            entity.Property(e => e.Lokalitaet).HasColumnName("lokalitaet").HasMaxLength(120);
             entity.Property(e => e.Plz).HasColumnName("plz").HasMaxLength(15);
             entity.Property(e => e.Ort).HasColumnName("ort").HasMaxLength(120);
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
+            entity.Property(e => e.Land).HasColumnName("land").HasMaxLength(2);
+            entity.Property(e => e.BfsGemeindeNr).HasColumnName("bfs_gemeinde_nr");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.KontaktName).HasColumnName("kontakt_name").HasMaxLength(200);
             entity.Property(e => e.KontaktEmail).HasColumnName("kontakt_email").HasMaxLength(200);
