@@ -4708,6 +4708,7 @@ public class EasyAtWorkEmployeeSyncService
         {
             EmployeeId = emp.Id,
             Plz = neuPlz, Ort = neuOrt, KantonCode = emp.CantonCode?.Trim(),
+            Land = emp.Country?.Trim(),
             Strasse = emp.Street?.Trim(),       // Walter 20.08.2026: Strasse mit-historisieren
             GueltigAb = DateOnly.FromDateTime(DateTime.Today),
             DatumOffen = true,

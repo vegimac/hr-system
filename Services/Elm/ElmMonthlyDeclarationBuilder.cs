@@ -4,6 +4,7 @@ using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using static HrSystem.Services.Elm.ElmGemeinsam;
+// ZivilstandHistorieService / WohnortHistorieService (Stichtag Monatsende)
 
 namespace HrSystem.Services.Elm;
 
@@ -282,19 +283,30 @@ public class ElmMonthlyDeclarationBuilder
         var versionById = qstVersionen.ToDictionary(v => v.Id);
         var korrTotal = new Dictionary<string, SortedDictionary<string, (decimal Basis, decimal Steuer)>>(StringComparer.Ordinal);
 
+        // Zivilstand + Wohnort zum Meldemonat (Walter 16.10.2026): nie den heutigen
+        // Endstand — sonst erscheinen Heirat und Umzug Monate zu früh (Jan 2025 QT).
+        var zivilHist = await _db.EmployeeZivilstandHistories.AsNoTracking()
+            .Where(h => empIds.Contains(h.EmployeeId))
+            .ToListAsync(ct);
+        var wohnHist = await _db.EmployeeWohnortHistories.AsNoTracking()
+            .Where(h => empIds.Contains(h.EmployeeId))
+            .ToListAsync(ct);
+
         // Wohngemeinde der Personen: die Statistik verlangt die BFS-Nummer in der
         // Adresse. OneCrew führt sie am MA nicht — sie wird über die PLZ aus dem
         // Ortschaftsverzeichnis abgeleitet, wie bei den Filialen.
-        var plzListe = emps.Select(e2 => (e2.ZipCode ?? "").Trim()).Where(z => z.Length == 4).Distinct().ToList();
+        var plzListe = emps.Select(e2 => (e2.ZipCode ?? "").Trim())
+            .Concat(wohnHist.Select(h => (h.Plz ?? "").Trim()))
+            .Where(z => z.Length == 4).Distinct().ToList();
         var orte = await _db.SwissLocations.AsNoTracking()
             .Where(l => plzListe.Contains(l.Plz4))
             .Select(l => new { l.Plz4, l.BfsNr, l.Ortschaftsname, l.Gemeindename })
             .ToListAsync(ct);
-        int? WohnGemeinde(Employee e2)
+        int? WohnGemeinde(string? plzRoh, string? ortRoh)
         {
-            var plz = (e2.ZipCode ?? "").Trim();
+            var plz = (plzRoh ?? "").Trim();
             if (plz.Length != 4) return null;
-            var ort = (e2.City ?? "").Trim().ToLowerInvariant();
+            var ort = (ortRoh ?? "").Trim().ToLowerInvariant();
             var kand = orte.Where(o => o.Plz4 == plz).ToList();
             var best = kand.FirstOrDefault(o => (o.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(ort)
                                              || (o.Gemeindename ?? "").ToLowerInvariant() == ort)?.BfsNr;
@@ -305,6 +317,7 @@ public class ElmMonthlyDeclarationBuilder
 
         var monatsAnfang = new DateTime(year, month, 1);
         var monatsEnde = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+        var monatsEndeTag = DateOnly.FromDateTime(monatsEnde);
         var monatStr = $"{year:0000}-{month:00}";
 
         var personen = new List<XElement>();
@@ -341,6 +354,12 @@ public class ElmMonthlyDeclarationBuilder
                 .Where(f => f.EmployeeId == e.Id && f.MemberType == "Ehepartner" && f.DateOfDeath == null)
                 .OrderByDescending(f => f.Id).FirstOrDefault();
             var partnerAdresse = partner?.AlternativeAddressId is int paId && partnerAdressen.TryGetValue(paId, out var pa) ? pa : null;
+            var (zivAm, zivSeitAm, _) = ZivilstandHistorieService.Am(
+                zivilHist.Where(h => h.EmployeeId == e.Id), monatsEndeTag, e.MaritalStatus, e.MaritalStatusSince);
+            var wohnAm = WohnortHistorieService.Am(
+                wohnHist.Where(h => h.EmployeeId == e.Id), monatsEndeTag,
+                e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
+            var adresseAm = new PersonAdresseAm(wohnAm.Strasse, wohnAm.Plz, wohnAm.Ort, wohnAm.Land, wohnAm.KantonCode);
 
             foreach (var s in g.OrderBy(x => x.PayrollPeriodeId))
             {
@@ -391,7 +410,7 @@ public class ElmMonthlyDeclarationBuilder
                                        stamm, monatStr, monatsAnfang, warn,
                                        wochenAdressen.Where(a => a.EmployeeId == e.Id)
                                            .OrderByDescending(a => a.ValidFrom).FirstOrDefault(),
-                                       qstAperiodisch, partner, partnerAdresse);
+                                       qstAperiodisch, partner, partnerAdresse, adresseAm);
                 if (qst != null)
                 {
                     gemeldeteFilialen.Add(filialId);
@@ -468,7 +487,8 @@ public class ElmMonthlyDeclarationBuilder
             modell ??= modelle.FirstOrDefault();   // Rueckfall: Standardmodell der Rechtseinheit
 
             var person = new XElement(Sd + "Person",
-                Particulars(e, warn, WohnGemeinde(e), permitAmEnde),
+                Particulars(e, warn, WohnGemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde,
+                    zivAm, zivSeitAm, adresseAm),
                 new XElement(C + "Work",
                     new XAttribute("workID", WorkId(e)),
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
@@ -873,7 +893,8 @@ public class ElmMonthlyDeclarationBuilder
         List<EmployeeQuellensteuer> versionen, List<EmployeeFamilyMember> kinder,
         RechtseinheitStamm stamm, string monatStr, DateTime monatsAnfang, List<string> warn,
         EmployeeAddress? wochenAdresse = null, IReadOnlySet<string>? aperiodischeCodes = null,
-        EmployeeFamilyMember? partner = null, EmployeeAddress? partnerAdresse = null)
+        EmployeeFamilyMember? partner = null, EmployeeAddress? partnerAdresse = null,
+        PersonAdresseAm? wohnAmStichtag = null)
     {
         if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
         JsonElement? qstZeile = null;
@@ -902,7 +923,10 @@ public class ElmMonthlyDeclarationBuilder
             return null;
         }
 
-        var residence = QstResidence(e.CantonCode, e.Country, version?.Wohnsitzstaat,
+        var residence = QstResidence(
+            wohnAmStichtag?.Canton ?? e.CantonCode,
+            wohnAmStichtag?.Country ?? e.Country,
+            version?.Wohnsitzstaat,
             version?.IsWochenaufenthalter == true, wochenAdresse);
 
         // Ein- und Austritt melden, wenn sie in diesen Monat fallen

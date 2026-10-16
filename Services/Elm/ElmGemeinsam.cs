@@ -272,14 +272,22 @@ public static class ElmGemeinsam
         return c.EndsWith("_EU_EFTA", StringComparison.Ordinal) ? c[..^"_EU_EFTA".Length] : c;
     }
 
+    /// <summary>Adresse zum Melde-Stichtag (Monatsmeldung); null = heutiger MA-Stand.</summary>
+    public record PersonAdresseAm(string? Street, string? Zip, string? City, string? Country, string? Canton);
+
     /// <summary>
     /// Personalien. <paramref name="wohnGemeindeNr"/> setzt die BFS-Gemeindenummer der
     /// Wohnadresse — die Monatsmeldung (Statistik) braucht sie, die Jahresmeldung nicht.
     /// </summary>
     /// <param name="bewilligungAmStichtag">Bewilligung, die im Meldemonat galt (Monatsmeldung);
     /// null = die heutige am MA.</param>
+    /// <param name="zivilstandAmStichtag">Zivilstand im Meldemonat (Historie); null = heutiger Stand.</param>
+    /// <param name="zivilstandSeit">Gültig-ab des Zivilstands zum Stichtag.</param>
+    /// <param name="adresseAmStichtag">Wohnadresse im Meldemonat (Historie); null = heutige Adresse.</param>
     public static XElement Particulars(Employee e, List<string> warn, int? wohnGemeindeNr = null,
-                                       PermitType? bewilligungAmStichtag = null)
+                                       PermitType? bewilligungAmStichtag = null,
+                                       string? zivilstandAmStichtag = null, DateOnly? zivilstandSeit = null,
+                                       PersonAdresseAm? adresseAmStichtag = null)
     {
         var svDigits = Regex.Replace(e.SocialSecurityNumber ?? "", @"\D", "");
         XElement svEl;
@@ -304,30 +312,42 @@ public static class ElmGemeinsam
             natCode = "CH";
         }
 
-        var zip = string.IsNullOrWhiteSpace(e.ZipCode) ? "0000" : e.ZipCode!.Trim();
-        var city = string.IsNullOrWhiteSpace(e.City) ? "Unbekannt" : e.City!.Trim();
+        var street = adresseAmStichtag?.Street ?? e.Street;
+        var zipRoh = adresseAmStichtag != null ? adresseAmStichtag.Zip : e.ZipCode;
+        var cityRoh = adresseAmStichtag != null ? adresseAmStichtag.City : e.City;
+        var landRoh = adresseAmStichtag != null ? adresseAmStichtag.Country : e.Country;
+        var kantonRoh = adresseAmStichtag != null ? adresseAmStichtag.Canton : e.CantonCode;
+
+        var zip = string.IsNullOrWhiteSpace(zipRoh) ? "0000" : zipRoh!.Trim();
+        var city = string.IsNullOrWhiteSpace(cityRoh) ? "Unbekannt" : cityRoh!.Trim();
         if (zip == "0000" || city == "Unbekannt")
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Adresse unvollständig — Platzhalter eingesetzt.");
 
-        var landCh = string.IsNullOrWhiteSpace(e.Country) || e.Country!.Trim().ToUpperInvariant() == "CH";
-        var canton = (e.CantonCode ?? "").ToUpperInvariant();
-        if (!landCh)
+        var landU = (landRoh ?? "").Trim().ToUpperInvariant();
+        var landCh = landU.Length == 0 || landU is "CH" or "CHE" or "SCHWEIZ" or "SWITZERLAND";
+        var canton = (kantonRoh ?? "").ToUpperInvariant();
+        if (!landCh || canton == "EX")
+        {
+            landCh = false;
             canton = "EX";
+        }
         else if (!Regex.IsMatch(canton, "^[A-Z]{2}$"))
         {
             canton = "LU";
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Wohnkanton fehlt — als {canton} gemeldet.");
         }
 
-        var civilEl = new XElement(C + "CivilStatus", new XElement(C + "Status", MapCivilStatus(e.MaritalStatus)));
-        if (e.MaritalStatusSince != null)
-            civilEl.Add(new XElement(C + "ValidAsOf", e.MaritalStatusSince.Value.ToString("yyyy-MM-dd")));
+        var zivil = zivilstandAmStichtag ?? e.MaritalStatus;
+        var zivilSeit = zivilstandAmStichtag != null ? zivilstandSeit : e.MaritalStatusSince;
+        var civilEl = new XElement(C + "CivilStatus", new XElement(C + "Status", MapCivilStatus(zivil)));
+        if (zivilSeit != null)
+            civilEl.Add(new XElement(C + "ValidAsOf", zivilSeit.Value.ToString("yyyy-MM-dd")));
 
         var adresse = new XElement(C + "Address",
-            string.IsNullOrWhiteSpace(e.Street) ? null : new XElement(C + "Street", e.Street.Trim()),
+            string.IsNullOrWhiteSpace(street) ? null : new XElement(C + "Street", street.Trim()),
             new XElement(C + "ZIP-Code", zip),
             new XElement(C + "City", city),
-            new XElement(C + "Country", LandName(e.Country)),
+            new XElement(C + "Country", LandName(landRoh)),
             new XElement(C + "ResidenceCanton", canton),
             landCh && wohnGemeindeNr is > 0 ? new XElement(C + "MunicipalityID", wohnGemeindeNr!.Value) : null);
 

@@ -23,6 +23,12 @@ public class EmployeeWohnortHistory
     public string? KantonCode { get; set; }
 
     /// <summary>
+    /// ISO-Land (CH, DE, IT …). Ohne Land kann die ELM-Monatsmeldung Adressen
+    /// im Ausland nicht zum Stichtag rekonstruieren (Walter 16.10.2026).
+    /// </summary>
+    public string? Land { get; set; }
+
+    /// <summary>
     /// Walter-Vorgabe 20.08.2026: auch die genaue STRASSE festhalten —
     /// wenig Daten, aber wertvoll bei späteren Behörden-Rückfragen
     /// (Betreibungsamt/RAV/Steueramt: «wo wohnte X am Stichtag?»).

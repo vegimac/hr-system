@@ -189,6 +189,11 @@ public partial class SwissdecTestmandantController
             var rows = auswahl.Where(m => m.Fall == fall && m.Monat == mon).ToList();
             var w = rows.GroupBy(r => r.Tag).ToDictionary(g => g.Key, g => g.Last().Neu?.Trim(), StringComparer.OrdinalIgnoreCase);
             string? V(string k) => w.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v) && v != "None" ? v : null;
+            string? Alt(string k)
+            {
+                var r = rows.LastOrDefault(x => string.Equals(x.Tag, k, StringComparison.OrdinalIgnoreCase));
+                return r != null && !string.IsNullOrWhiteSpace(r.Alt) && r.Alt != "None" ? r.Alt.Trim() : null;
+            }
             bool Hat(string k) => w.ContainsKey(k);
             // Wert aus dem Grunddatensatz des Testfalls (Stand Eintritt), wenn die Mutation ihn
             // nicht mitbringt und es auch keinen bestehenden Eintrag gibt.
@@ -290,16 +295,52 @@ public partial class SwissdecTestmandantController
                 stamm.Add($"Umzug → {str}, {plz} {ort} ({land}{(kt != null ? " " + kt : "")}) ab {tag1:dd.MM.yyyy}");
                 if (!vorschau)
                 {
-                    if (!await _db.EmployeeWohnortHistories.AnyAsync(h => h.EmployeeId == emp.Id))
-                        _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory { EmployeeId = emp.Id, Plz = emp.ZipCode, Ort = emp.City, Strasse = emp.Street, KantonCode = emp.CantonCode, GueltigAb = null, Bemerkung = "Stand Eintritt (Swissdec-Testdaten)", CreatedAt = DateTime.Now });
+                    // Stand vor dem Umzug = CSV-Alt (nicht aktueller MA — nach erstem Lauf
+                    // ist emp schon am neuen Ort). Land ist Pflicht für ELM-Stichtag Ausland.
+                    var eintritt = await _db.EmployeeWohnortHistories
+                        .FirstOrDefaultAsync(h => h.EmployeeId == emp.Id && h.GueltigAb == null);
+                    if (eintritt == null && !await _db.EmployeeWohnortHistories.AnyAsync(h => h.EmployeeId == emp.Id))
+                    {
+                        var altLand = LandCode(Alt("PersonCountry")) ?? emp.Country;
+                        var altPlz = NummerOhneKomma(Alt("PersonZIPCode")) ?? emp.ZipCode;
+                        var altOrt = Alt("PersonCity") ?? emp.City;
+                        var altStr = Alt("PersonStreet") ?? emp.Street;
+                        var altKt = altLand == "CH" ? (Alt("PersonResidenceCanton") ?? emp.CantonCode) : null;
+                        if (altKt == "EX") altKt = null;
+                        _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory
+                        {
+                            EmployeeId = emp.Id, Plz = altPlz, Ort = altOrt, Strasse = altStr,
+                            KantonCode = altKt, Land = altLand, GueltigAb = null,
+                            Bemerkung = "Stand Eintritt (Swissdec-Testdaten)", CreatedAt = DateTime.Now
+                        });
+                    }
+                    else if (eintritt != null && string.IsNullOrWhiteSpace(eintritt.Land))
+                    {
+                        var altLand = LandCode(Alt("PersonCountry"));
+                        if (altLand != null)
+                        {
+                            eintritt.Land = altLand;
+                            if (altLand != "CH")
+                            {
+                                if (NummerOhneKomma(Alt("PersonZIPCode")) is { } ap) eintritt.Plz = ap;
+                                if (Alt("PersonCity") is { } ao) eintritt.Ort = ao;
+                                if (Alt("PersonStreet") is { } astr) eintritt.Strasse = astr;
+                                eintritt.KantonCode = null;
+                            }
+                        }
+                    }
                     // Umzug = QST (Walter 16.09.2026, TF25 Lehmann): existiert schon
                     // ein Eintrag im Zielkanton (TAS-Datum oder manuell 1.5.), keinen
                     // zweiten am CSV-Adress-Tag (1.4.) anlegen — sonst würde die
                     // Korrektur beim nächsten 4c wieder überschrieben.
                     var schonZiel = !string.IsNullOrWhiteSpace(kt) && await _db.EmployeeWohnortHistories
                         .AnyAsync(h => h.EmployeeId == emp.Id && h.KantonCode == kt && h.GueltigAb != null);
-                    if (!schonZiel && !await _db.EmployeeWohnortHistories.AnyAsync(h => h.EmployeeId == emp.Id && h.GueltigAb == tag1))
-                        _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory { EmployeeId = emp.Id, Plz = plz, Ort = ort, Strasse = str, KantonCode = kt, GueltigAb = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
+                    var mutBestehend = await _db.EmployeeWohnortHistories
+                        .FirstOrDefaultAsync(h => h.EmployeeId == emp.Id && h.GueltigAb == tag1);
+                    if (mutBestehend != null && string.IsNullOrWhiteSpace(mutBestehend.Land))
+                        mutBestehend.Land = land;
+                    else if (!schonZiel && mutBestehend == null)
+                        _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory { EmployeeId = emp.Id, Plz = plz, Ort = ort, Strasse = str, KantonCode = kt, Land = land, GueltigAb = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
                     emp.Street = str; emp.ZipCode = plz; emp.City = ort; emp.Country = land; emp.CantonCode = kt;
                 }
             }

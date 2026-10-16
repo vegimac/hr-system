@@ -66,20 +66,31 @@ public class ZivilstandHistorieService
     {
         var hist = await _db.EmployeeZivilstandHistories.AsNoTracking()
             .Where(h => h.EmployeeId == employeeId)
-            .OrderBy(h => h.GueltigAb == null ? 0 : 1).ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
             .ToListAsync();
-        EmployeeZivilstandHistory? treffer = null;
-        foreach (var h in hist)
-        {
-            // Wirkung und Wissen: verspätet erfahrener Zivilstand zählt erst ab Erfahren am.
-            var bekannt = h.ErfahrenAm ?? h.GueltigAb;
-            if (bekannt == null || bekannt <= stichtag) treffer = h;
-        }
-        // Stichtag vor dem ältesten datierten Eintrag → ältester bekannter Stand
-        if (treffer == null && hist.Count > 0) treffer = hist[0];
-        if (treffer != null) return (treffer.Zivilstand, treffer.GueltigAb, true);
         var e = await _db.Employees.AsNoTracking().Where(x => x.Id == employeeId)
             .Select(x => new { x.MaritalStatus, x.MaritalStatusSince }).FirstOrDefaultAsync();
-        return (e?.MaritalStatus, e?.MaritalStatusSince, false);
+        return Am(hist, stichtag, e?.MaritalStatus, e?.MaritalStatusSince);
+    }
+
+    /// <summary>Rein: Historie-Liste zum Stichtag auflösen (für ELM-Monatsmeldung / Tests).</summary>
+    public static (string? Zivilstand, DateOnly? Seit, bool AusHistorie) Am(
+        IEnumerable<EmployeeZivilstandHistory> hist, DateOnly stichtag,
+        string? fallbackZivilstand, DateOnly? fallbackSeit)
+    {
+        var sortiert = hist
+            .OrderBy(h => h.GueltigAb == null ? 0 : 1).ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
+            .ToList();
+        EmployeeZivilstandHistory? treffer = null;
+        foreach (var h in sortiert)
+        {
+            // Wie Bewilligung: gilt erst ab Gültig-ab UND erst wenn HR es weiss (Erfahren am).
+            var giltAb = h.GueltigAb;
+            var bekannt = h.ErfahrenAm ?? h.GueltigAb;
+            if ((giltAb == null || giltAb <= stichtag) && (bekannt == null || bekannt <= stichtag))
+                treffer = h;
+        }
+        if (treffer == null && sortiert.Count > 0) treffer = sortiert[0];
+        if (treffer != null) return (treffer.Zivilstand, treffer.GueltigAb, true);
+        return (fallbackZivilstand, fallbackSeit, false);
     }
 }

@@ -303,6 +303,12 @@ stillschweigend weglassen wäre der schlimmere Fehler.
 
 Keine Werte aus der Referenz abgeschrieben oder hart codiert.
 
+**Stichtag Zivilstand + Wohnort (16.10.2026):** Die Monatsmeldung nimmt Zivilstand und
+Wohnadresse aus der Historie am **Monatsende** (`ZivilstandHistorieService.Am` /
+`WohnortHistorieService.Am` → `Particulars`), nicht den heutigen MA-Stand. QT Jan 2025 hatte
+sonst schon Heirat/Umzug gemeldet, die erst später wirkten. `employee_wohnort_history.land`
+(Schema-Stand 76) speichert das Land für Ausland-Adressen. Tests: `ElmStichtagHistorieTests`.
+
 
 ## ELM-Monatsmeldung November 2024 — deckungsgleich (27.09.2026)
 
