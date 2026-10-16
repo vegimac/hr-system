@@ -160,14 +160,13 @@ async function azmLoeschen(id) {
 
 // ── Modal (ov-Standard: class="modal" bekommt den Greige-Verlauf) ──────
 function _hsEnsureModal() {
-    // Layout v6: Reiter Hauptdaten / Kontakt / Stellvertreter / Vertragsregeln
+    // Layout v7: feste Höhe — Titel/Reiter bleiben oben, Speichern/Verwerfen unten
     const existing = document.getElementById('hsModal');
-    if (existing && existing.dataset.hsLayout !== '6') existing.remove();
+    if (existing && existing.dataset.hsLayout !== '7') existing.remove();
     if (document.getElementById('hsModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
     const tabBtn = 'border:1px solid rgba(60,55,48,0.20);background:transparent;border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600;color:#646464;cursor:pointer;font-family:inherit';
-    const footBtn = 'display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid rgba(60,55,48,0.12)';
     const btnSec = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;color:#3f3f3f;cursor:pointer;font-family:inherit';
     const btnPri = 'background:#3f3f3f;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit';
     const landSel = (window.SwissUid && SwissUid.landSelectHtml)
@@ -176,25 +175,22 @@ function _hsEnsureModal() {
     const svLandSel = (window.SwissUid && SwissUid.landSelectHtml)
         ? SwissUid.landSelectHtml('hsSvLand', 'CH', inp)
         : `<select id="hsSvLand" style="${inp}"><option value="CH">SWITZERLAND</option></select>`;
-    const aktionen = (suffix) => `
-        <div style="${footBtn}">
-            <button type="button" onclick="hsCloseModal()" style="${btnSec}">Verwerfen</button>
-            <button type="button" id="hsSaveBtn${suffix}" onclick="hsSave()" style="${btnPri}">Speichern</button>
-        </div>`;
     const div = document.createElement('div');
     div.id = 'hsModal';
-    div.dataset.hsLayout = '6';
+    div.dataset.hsLayout = '7';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div class="modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(820px,96vw);max-height:92vh;overflow:auto;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 26px 20px">
-        <div id="hsModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:12px">Hauptsitz erfassen</div>
-        <div id="hsTabBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
-            <button type="button" class="hs-tab-btn" data-hs-tab="hauptdaten" onclick="hsSwitchTab('hauptdaten')" style="${tabBtn}">Hauptdaten</button>
-            <button type="button" class="hs-tab-btn" data-hs-tab="kontakt" onclick="hsSwitchTab('kontakt')" style="${tabBtn}">Kontaktperson</button>
-            <button type="button" class="hs-tab-btn" data-hs-tab="stellvertreter" onclick="hsSwitchTab('stellvertreter')" style="${tabBtn}">Stellvertreter</button>
-            <button type="button" class="hs-tab-btn" data-hs-tab="vertraege" onclick="hsSwitchTab('vertraege')" style="${tabBtn}">Vertragsregeln</button>
+    <div class="modal" style="position:absolute;top:4vh;left:50%;transform:translateX(-50%);width:min(820px,96vw);height:min(92vh,780px);display:flex;flex-direction:column;overflow:hidden;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:0;box-sizing:border-box">
+        <div style="flex:0 0 auto;padding:22px 26px 0">
+            <div id="hsModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:12px">Hauptsitz erfassen</div>
+            <div id="hsTabBar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+                <button type="button" class="hs-tab-btn" data-hs-tab="hauptdaten" onclick="hsSwitchTab('hauptdaten')" style="${tabBtn}">Hauptdaten</button>
+                <button type="button" class="hs-tab-btn" data-hs-tab="kontakt" onclick="hsSwitchTab('kontakt')" style="${tabBtn}">Kontaktperson</button>
+                <button type="button" class="hs-tab-btn" data-hs-tab="stellvertreter" onclick="hsSwitchTab('stellvertreter')" style="${tabBtn}">Stellvertreter</button>
+                <button type="button" class="hs-tab-btn" data-hs-tab="vertraege" onclick="hsSwitchTab('vertraege')" style="${tabBtn}">Vertragsregeln</button>
+            </div>
         </div>
-
+        <div id="hsTabBody" style="flex:1 1 auto;min-height:0;overflow:auto;padding:0 26px">
         <div class="hs-tab-pane" data-hs-pane="hauptdaten">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
                 <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<span class="pflicht-stern">*</span><input id="hsName" placeholder="z.B. Muster AG" style="${inp}"></label>
@@ -238,7 +234,6 @@ function _hsEnsureModal() {
                 </label>
                 <label style="${lbl}">Interne Bemerkung<input id="hsBem" placeholder="optional" style="${inp}"></label>
             </div>
-            ${aktionen('H')}
         </div>
 
         <div class="hs-tab-pane" data-hs-pane="kontakt" style="display:none">
@@ -255,7 +250,6 @@ function _hsEnsureModal() {
                     <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Speichern international (+41 …); im Swissdec-XML national (079 …).</span>
                 </label>
             </div>
-            ${aktionen('K')}
         </div>
 
         <div class="hs-tab-pane" data-hs-pane="stellvertreter" style="display:none">
@@ -274,7 +268,6 @@ function _hsEnsureModal() {
                 <label style="${lbl}">Land${svLandSel}</label>
                 <label style="${lbl}">UID-BFS<input id="hsSvUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"></label>
             </div>
-            ${aktionen('S')}
         </div>
 
         <div class="hs-tab-pane" data-hs-pane="vertraege" style="display:none">
@@ -296,7 +289,11 @@ function _hsEnsureModal() {
                     </div>
                 </label>
             </div>
-            ${aktionen('V')}
+        </div>
+        </div>
+        <div style="flex:0 0 auto;display:flex;gap:10px;justify-content:flex-end;padding:14px 26px 20px;border-top:1px solid rgba(60,55,48,0.12)">
+            <button type="button" onclick="hsCloseModal()" style="${btnSec}">Verwerfen</button>
+            <button type="button" id="hsSaveBtn" onclick="hsSave()" style="${btnPri}">Speichern</button>
         </div>
     </div>`;
     div.addEventListener('click', (e) => { if (e.target === div) hsCloseModal(); });
