@@ -89,34 +89,49 @@ function azmRender(hauptsitzId) {
     const zeit = (m) => m.wochenstunden && m.wochenlektionen
         ? `${Number(m.wochenstunden).toFixed(2)} h + ${Number(m.wochenlektionen).toFixed(2)} Lekt./Wo`
         : m.wochenlektionen ? `${Number(m.wochenlektionen).toFixed(2)} Lektionen/Wo`
-        : m.wochenstunden ? `${Number(m.wochenstunden).toFixed(2)} h/Wo` : '⚠ keine Zeit erfasst';
+        : m.wochenstunden ? `${Number(m.wochenstunden).toFixed(2)} h/Wo` : 'keine Zeit erfasst';
+    const pill = 'display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:8px 10px 8px 12px;margin:0';
     el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-            <span style="font-weight:600;color:#646464;font-size:12.5px">Arbeitszeitmodelle (Swissdec)</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            <div>
+                <div style="font-weight:700;color:#3f3f3f;font-size:13px">Arbeitszeitmodelle</div>
+                <div style="font-size:11.5px;color:#8b8b8b;margin-top:1px">Swissdec CompanyWorkingTime · Zuordnung am MA</div>
+            </div>
             <span style="flex:1"></span>
-            <button onclick="azmNeu(${hauptsitzId})" style="background:rgba(255,255,255,0.6);border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:3px 11px;font-size:12px;font-weight:600;color:#3f3f3f;cursor:pointer">+ Modell</button>
+            <button type="button" onclick="azmNeu(${hauptsitzId})"
+                style="background:#3f3f3f;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit">+ Modell</button>
         </div>
         ${liste.length === 0
-            ? '<div style="font-size:12px;color:#8b8b8b">Keines erfasst — die Meldung nimmt dann ein Standardmodell aus den Wochenstunden der Filiale.</div>'
-            : liste.map(m => `
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;padding:3px 0">
-                    <span style="background:#fff;border:1px solid rgba(60,55,48,0.14);border-radius:8px;padding:1px 8px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${esc(m.kennungOderId)}</span>
-                    <b>${esc(m.bezeichnung)}</b>
-                    <span style="color:${m.meldefaehig ? '#646464' : '#b91c1c'}">${zeit(m)}</span>
-                    ${m.ferientageProJahr ? `<span style="color:#8b8b8b">· ${Number(m.ferientageProJahr).toFixed(0)} Ferientage</span>` : ''}
-                    <span style="color:#8b8b8b">· ${m.mitarbeiter} MA</span>
-                    ${m.isActive ? '' : '<span style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:0 7px;font-size:11px">inaktiv</span>'}
-                    <span style="flex:1"></span>
-                    <div style="position:relative;display:inline-block">
+            ? `<div style="${pill};width:100%;box-sizing:border-box;font-size:12.5px;color:#8b8b8b;line-height:1.45">
+                Noch keines erfasst — die Meldung nimmt ein Standardmodell aus den Wochenstunden der Filiale.
+               </div>`
+            : `<div style="display:flex;flex-direction:column;gap:6px">${liste.map(m => {
+                const belegt = (m.mitarbeiter || 0) > 0;
+                const zeitFarbe = m.meldefaehig ? '#646464' : '#b91c1c';
+                return `
+                <div style="${pill}">
+                    <span style="background:#f3f1ec;border:1px solid rgba(60,55,48,0.10);border-radius:8px;padding:2px 8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#646464;flex:0 0 auto">${esc(m.kennungOderId)}</span>
+                    <div style="min-width:0;flex:1 1 auto">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                            <span style="font-weight:700;font-size:13px;color:#3f3f3f">${esc(m.bezeichnung)}</span>
+                            ${m.isActive ? '' : '<span style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:0 7px;font-size:11px;font-weight:600">inaktiv</span>'}
+                        </div>
+                        <div style="font-size:12px;margin-top:2px;color:${zeitFarbe}">
+                            ${zeit(m)}${m.ferientageProJahr ? ` · ${Number(m.ferientageProJahr).toFixed(0)} Ferientage` : ''}
+                            · <span style="color:#8b8b8b">${m.mitarbeiter} MA</span>
+                        </div>
+                    </div>
+                    <div style="position:relative;display:inline-block;flex:0 0 auto">
                         <button type="button" class="dok-menu-btn" onclick="dokToggleMenu(event, 'azm-${m.id}')" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="dokMenu-azm-${m.id}">
                             <button type="button" class="dok-menu-item" onclick="dokCloseAllMenus();azmBearbeiten(${m.id})">Bearbeiten</button>
-                            ${m.mitarbeiter === 0
-                                ? `<button type="button" class="dok-menu-item danger" onclick="dokCloseAllMenus();azmLoeschen(${m.id})">Löschen</button>`
-                                : ''}
+                            ${belegt
+                                ? `<div class="dok-menu-locked" title="Zuerst MA auf ein anderes Modell umstellen">Löschen · ${m.mitarbeiter} MA verwenden es</div>`
+                                : `<button type="button" class="dok-menu-item danger" onclick="dokCloseAllMenus();azmLoeschen(${m.id})">Löschen</button>`}
                         </div>
                     </div>
-                </div>`).join('')}`;
+                </div>`;
+            }).join('')}</div>`}`;
 }
 
 async function azmNeu(hauptsitzId) {
