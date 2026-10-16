@@ -127,6 +127,7 @@ public class HauptsitzController : ControllerBase
         h.Plz = plz; h.Ort = ort;
         h.KantonCode = Norm(dto.KantonCode)?.ToUpperInvariant();
         h.Land = land;
+        // BFS kommt aus dem Ortschaftsverzeichnis (PLZ/Ort) — dto nur Fallback.
         h.BfsGemeindeNr = dto.BfsGemeindeNr is > 0 ? dto.BfsGemeindeNr : null;
         h.Bemerkung = Norm(dto.Bemerkung);
         h.FixPensenErlaubt = NormPensen(dto.FixPensenErlaubt);
@@ -196,11 +197,34 @@ public class HauptsitzController : ControllerBase
         return null;
     }
 
+    /// <summary>BFS-Gemeindenummer aus swiss_location (PLZ + Ort) — nie von Hand tippen.</summary>
+    async Task<int?> BfsAusVerzeichnisAsync(string? plz, string? ort, string land)
+    {
+        if (!string.Equals(land, "CH", StringComparison.OrdinalIgnoreCase)) return null;
+        var p = (plz ?? "").Trim();
+        if (p.Length != 4) return null;
+        var o = (ort ?? "").Trim().ToLowerInvariant();
+        var treffer = await _db.SwissLocations.AsNoTracking()
+            .Where(l => l.Plz4 == p)
+            .Select(l => new { l.BfsNr, l.Ortschaftsname, l.Gemeindename })
+            .ToListAsync();
+        if (treffer.Count == 0) return null;
+        var nrs = treffer.Select(t => t.BfsNr).Distinct().ToList();
+        if (nrs.Count == 1) return nrs[0];
+        if (o.Length == 0) return null;
+        return treffer.FirstOrDefault(t =>
+                   (t.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(o)
+                   || (t.Gemeindename ?? "").ToLowerInvariant() == o)?.BfsNr;
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] HauptsitzDto dto)
     {
         if (Validieren(dto, out var name, out var plz, out var ort, out var uid, out var uidUnbekannt, out var land) is { } err)
             return err;
+
+        var bfs = await BfsAusVerzeichnisAsync(plz, ort, land) ?? (dto.BfsGemeindeNr is > 0 ? dto.BfsGemeindeNr : null);
+        dto = dto with { BfsGemeindeNr = bfs };
 
         var h = new Hauptsitz { IsActive = dto.IsActive ?? true };
         ApplyDto(h, dto, name, plz, ort, uid, uidUnbekannt, land);
@@ -217,6 +241,9 @@ public class HauptsitzController : ControllerBase
 
         if (Validieren(dto, out var name, out var plz, out var ort, out var uid, out var uidUnbekannt, out var land) is { } err)
             return err;
+
+        var bfs = await BfsAusVerzeichnisAsync(plz, ort, land) ?? (dto.BfsGemeindeNr is > 0 ? dto.BfsGemeindeNr : null);
+        dto = dto with { BfsGemeindeNr = bfs };
 
         ApplyDto(h, dto, name, plz, ort, uid, uidUnbekannt, land);
         h.UpdatedAt = DateTime.Now;

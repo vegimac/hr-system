@@ -167,9 +167,9 @@ async function azmLoeschen(id) {
 
 // ── Modal (ov-Standard: class="modal" bekommt den Greige-Verlauf) ──────
 function _hsEnsureModal() {
-    // Layout v8: Eingabewerte fett wie Land-Select (SWITZERLAND)
+    // Layout v9: BFS-Gemeindenummer nur aus Ortschaftsverzeichnis (read-only)
     const existing = document.getElementById('hsModal');
-    if (existing && existing.dataset.hsLayout !== '8') existing.remove();
+    if (existing && existing.dataset.hsLayout !== '9') existing.remove();
     if (document.getElementById('hsModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;font-weight:700;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -184,7 +184,7 @@ function _hsEnsureModal() {
         : `<select id="hsSvLand" style="${inp}"><option value="CH">SWITZERLAND</option></select>`;
     const div = document.createElement('div');
     div.id = 'hsModal';
-    div.dataset.hsLayout = '8';
+    div.dataset.hsLayout = '9';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
     <div class="modal" style="position:absolute;top:4vh;left:50%;transform:translateX(-50%);width:min(820px,96vw);height:min(92vh,780px);display:flex;flex-direction:column;overflow:hidden;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:0;box-sizing:border-box">
@@ -236,8 +236,8 @@ function _hsEnsureModal() {
                     <div id="hsPlzHint" class="f-hint" style="margin-top:6px;min-height:16px;font-size:12px;font-weight:400;line-height:1.4"></div>
                 </div>
                 <label style="${lbl}">BFS-Gemeindenummer
-                    <input id="hsBfs" type="number" min="1" max="9999" placeholder="z.B. 1061" style="${inp};font-family:ui-monospace,Menlo,monospace">
-                    <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Für Lohnausweis-Verteilung bei ResidenceCanton EX — wird nicht im Firmenadresse-XML gemeldet.</span>
+                    <input id="hsBfs" type="number" min="1" max="9999" readonly placeholder="aus PLZ/Ort" style="${inp};font-family:ui-monospace,Menlo,monospace;background:#f3f1ec;color:#3f3f3f;cursor:default">
+                    <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Automatisch aus dem Ortschaftsverzeichnis (PLZ/Ort) — nicht editierbar.</span>
                 </label>
                 <label style="${lbl}">Interne Bemerkung<input id="hsBem" placeholder="optional" style="${inp}"></label>
             </div>
@@ -346,7 +346,7 @@ function hsOpenModal(id) {
     set('hsAdressZusatz', h?.adressZusatz);
     set('hsStrasse', h?.strasse); set('hsPostfach', h?.postfach); set('hsLokalitaet', h?.lokalitaet);
     set('hsPlz', h?.plz); set('hsOrt', h?.ort); set('hsKanton', h?.kantonCode);
-    set('hsBfs', h?.bfsGemeindeNr); set('hsBem', h?.bemerkung);
+    set('hsBfs', ''); set('hsBem', h?.bemerkung);
     if (window.SwissUid) SwissUid.landSelectFuellen('hsLand', h?.land || 'CH');
     else set('hsLand', h?.land || 'CH');
     set('hsFixPensen', h?.fixPensenErlaubt); set('hsFlexMax', h?.flexStundenMax);
@@ -365,6 +365,33 @@ function hsOpenModal(id) {
     document.getElementById('hsModal').style.display = 'block';
     const plzEl = document.getElementById('hsPlz');
     if (plzEl && typeof plzEl._swissUidPruefen === 'function') plzEl._swissUidPruefen();
+    hsBfsAusVerzeichnis(h?.bfsGemeindeNr);
+}
+
+/** BFS-Gemeindenummer nur aus swiss_location (PLZ + Ort) — Feld ist read-only. */
+async function hsBfsAusVerzeichnis(fallback) {
+    const bfsEl = document.getElementById('hsBfs');
+    if (!bfsEl) return;
+    const plz = (document.getElementById('hsPlz')?.value || '').trim();
+    const ort = (document.getElementById('hsOrt')?.value || '').trim().toLowerCase();
+    if (plz.length !== 4) {
+        bfsEl.value = fallback > 0 ? fallback : '';
+        return;
+    }
+    try {
+        const res = await fetch(`/api/swiss-locations/by-plz?plz=${encodeURIComponent(plz)}`, { headers: ah() });
+        if (!res.ok) { bfsEl.value = fallback > 0 ? fallback : ''; return; }
+        const locs = await res.json();
+        const nrs = [...new Set(locs.map(l => l.bfsNr).filter(Boolean))];
+        if (nrs.length === 1) { bfsEl.value = nrs[0]; return; }
+        const treffer = locs.find(l =>
+            (l.ortschaftsname || '').toLowerCase().startsWith(ort)
+            || (l.gemeindename || '').toLowerCase() === ort);
+        if (treffer?.bfsNr) { bfsEl.value = treffer.bfsNr; return; }
+        bfsEl.value = fallback > 0 ? fallback : '';
+    } catch {
+        bfsEl.value = fallback > 0 ? fallback : '';
+    }
 }
 
 function hsUidUnbekanntToggle() {
