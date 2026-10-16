@@ -160,21 +160,25 @@ async function azmLoeschen(id) {
 
 // ── Modal (ov-Standard: class="modal" bekommt den Greige-Verlauf) ──────
 function _hsEnsureModal() {
+    // Altes schmales Modal ohne Platz für PLZ-Fehler neu aufbauen
+    const existing = document.getElementById('hsModal');
+    if (existing && existing.dataset.hsLayout !== '3') existing.remove();
     if (document.getElementById('hsModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
     const div = document.createElement('div');
     div.id = 'hsModal';
+    div.dataset.hsLayout = '3';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div class="modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,94vw);max-height:92vh;overflow:auto;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+    <div class="modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(760px,96vw);max-height:92vh;overflow:auto;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:24px 28px">
         <div id="hsModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Hauptsitz erfassen</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
             <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<span class="pflicht-stern">*</span><input id="hsName" placeholder="z.B. Schaub Restaurants GmbH" style="${inp}"></label>
             <label style="${lbl};grid-column:span 2">UID-BFS<input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Format CHE-123.456.789 — Prüfziffer beim Verlassen des Feldes (CHE-999.999.997 wird abgelehnt).</span></label>
             <label style="${lbl};grid-column:span 2">Strasse <span style="font-weight:400;color:#8b8b8b">(optional — alternativ Postfach)</span><input id="hsStrasse" style="${inp}"></label>
             <div style="grid-column:span 2">
-                <div style="display:grid;grid-template-columns:80px 1fr 72px;gap:8px;align-items:end">
+                <div style="display:grid;grid-template-columns:100px minmax(0,1fr) 100px;gap:10px;align-items:start">
                     <label style="${lbl}">PLZ
                         <input id="hsPlz" inputmode="numeric" maxlength="4" placeholder="6003" style="${inp}"
                                data-swiss-plz data-swiss-ort="hsOrt" data-swiss-kanton="hsKanton" data-swiss-hint="hsPlzHint">
@@ -186,7 +190,7 @@ function _hsEnsureModal() {
                         <input id="hsKanton" placeholder="LU" maxlength="2" style="${inp}">
                     </label>
                 </div>
-                <div id="hsPlzHint" class="f-hint" style="margin-top:3px;min-height:14px;font-size:11px;font-weight:400"></div>
+                <div id="hsPlzHint" class="f-hint" style="margin-top:6px;min-height:16px;font-size:12px;font-weight:400;line-height:1.4"></div>
             </div>
             <label style="${lbl};grid-column:span 2">Bemerkung<input id="hsBem" placeholder="optional" style="${inp}"></label>
         </div>

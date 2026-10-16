@@ -203,11 +203,42 @@
         if (!plzEl.getAttribute('maxlength')) plzEl.setAttribute('maxlength', '4');
         if (!plzEl.getAttribute('inputmode')) plzEl.setAttribute('inputmode', 'numeric');
 
+        function _adrRandReset() {
+            feldFehlerLoeschen(plzEl);
+            feldFehlerLoeschen(ortEl);
+            if (kantonEl) feldFehlerLoeschen(kantonEl);
+            plzEl.classList.remove('feld-ungueltig');
+            ortEl.classList.remove('feld-ungueltig');
+            if (kantonEl) kantonEl.classList.remove('feld-ungueltig');
+        }
+
+        /** Lange Adressfehler unter die ganze Zeile (hint), nicht in die schmale Kanton-Spalte. */
+        function _adrFehler(ziel, msg) {
+            _adrRandReset();
+            if (!msg) return;
+            if (ziel) {
+                ziel.classList.add('feld-ungueltig');
+                ziel.setAttribute('aria-invalid', 'true');
+            }
+            if (hintEl) {
+                hintEl.dataset.swissAdrErr = '1';
+                hintEl.style.color = '#b91c1c';
+                hintEl.textContent = msg;
+            } else if (ziel) {
+                feldFehlerSetzen(ziel, msg);
+            }
+        }
+
+        function _adrHintOk() {
+            if (!hintEl || hintEl.dataset.swissAdrErr !== '1') return;
+            delete hintEl.dataset.swissAdrErr;
+            hintEl.style.color = '';
+            hintEl.textContent = '';
+        }
+
         async function lookup() {
             if (!_istCHLand(landEl)) {
-                feldFehlerLoeschen(plzEl);
-                feldFehlerLoeschen(ortEl);
-                if (kantonEl) feldFehlerLoeschen(kantonEl);
+                _adrRandReset();
                 return true;
             }
             if (typeof w.validateZip === 'function') w.validateZip(plzEl);
@@ -224,9 +255,7 @@
 
         async function pruefen() {
             if (!_istCHLand(landEl)) {
-                feldFehlerLoeschen(plzEl);
-                feldFehlerLoeschen(ortEl);
-                if (kantonEl) feldFehlerLoeschen(kantonEl);
+                _adrRandReset();
                 return true;
             }
             const plz = plzEl.value.trim();
@@ -234,57 +263,54 @@
             const kt = kantonEl ? (kantonEl.value || '').trim().toUpperCase() : '';
 
             if (!plz && !ort) {
-                feldFehlerLoeschen(plzEl);
-                feldFehlerLoeschen(ortEl);
-                if (kantonEl) feldFehlerLoeschen(kantonEl);
+                _adrRandReset();
                 if (pflicht) {
-                    feldFehlerSetzen(plzEl, 'PLZ ist Pflicht.');
-                    feldFehlerSetzen(ortEl, 'Ort ist Pflicht.');
+                    _adrFehler(plzEl, 'PLZ und Ort sind Pflicht.');
+                    if (ortEl) ortEl.classList.add('feld-ungueltig');
                     return false;
                 }
                 return true;
             }
             if (plz && !/^\d{4}$/.test(plz)) {
-                feldFehlerSetzen(plzEl, 'PLZ muss 4 Ziffern haben.');
+                _adrFehler(plzEl, 'PLZ muss 4 Ziffern haben.');
                 return false;
             }
             if (!plz && ort) {
-                feldFehlerSetzen(plzEl, 'PLZ fehlt zur Ortschaft.');
+                _adrFehler(plzEl, 'PLZ fehlt zur Ortschaft.');
                 return false;
             }
 
             const locs = await _locsFuer(plz);
             if (!locs.length) {
-                feldFehlerSetzen(plzEl, `PLZ ${plz} nicht im Ortschaftsverzeichnis — Ort bitte prüfen.`);
+                _adrFehler(plzEl, `PLZ ${plz} nicht im Ortschaftsverzeichnis — Ort bitte prüfen.`);
                 return false;
             }
-            feldFehlerLoeschen(plzEl);
 
             if (!ort) {
                 if (pflicht) {
-                    feldFehlerSetzen(ortEl, 'Ort ist Pflicht.');
+                    _adrFehler(ortEl, 'Ort ist Pflicht.');
                     return false;
                 }
-                feldFehlerLoeschen(ortEl);
+                _adrRandReset();
                 return true;
             }
             if (!locs.some(l => _ortPasst(ort, l))) {
                 const bsp = locs.slice(0, 3).map(l => _ortName(l)).filter(Boolean).join(', ');
-                feldFehlerSetzen(ortEl, `Ort «${ort}» passt nicht zu PLZ ${plz}` + (bsp ? ` (z.B. ${bsp})` : '') + '.');
+                _adrFehler(ortEl, `Ort «${ort}» passt nicht zu PLZ ${plz}` + (bsp ? ` (z.B. ${bsp})` : '') + '.');
                 return false;
             }
-            feldFehlerLoeschen(ortEl);
 
             if (kantonEl && kt) {
                 const passend = locs.filter(l => _ortPasst(ort, l));
                 if (passend.length && !passend.some(l => (l.kantonskuerzel || '').toUpperCase() === kt)) {
                     const soll = passend[0].kantonskuerzel || '?';
-                    feldFehlerSetzen(kantonEl.tagName === 'SELECT' ? ortEl : kantonEl,
-                        `Kanton ${kt} passt nicht zu ${ort} / PLZ ${plz} (erwartet ${soll}).`);
+                    const ziel = kantonEl.tagName === 'SELECT' ? ortEl : kantonEl;
+                    _adrFehler(ziel, `Kanton ${kt} passt nicht zu ${ort} / PLZ ${plz} (erwartet ${soll}).`);
                     return false;
                 }
-                if (kantonEl.tagName !== 'SELECT') feldFehlerLoeschen(kantonEl);
             }
+            _adrRandReset();
+            _adrHintOk();
             return true;
         }
 
