@@ -139,7 +139,9 @@ public static class ElmStatistikCodes
         // Schicht-, Pikett-, Nacht- und Sonntagszulagen (RefXML Jan 2025: TF02 Schichtzulage 90 → Allowances)
         1070 or 1071 or 1072 or 1073 => Topf.Zulagen,
         1160 or 1161 or 1162 or 1163 or 1168 => Topf.Bruttolohn,
-        1500 => Topf.Bruttolohn,                     // Verwaltungsratshonorar
+        // Verwaltungsratshonorar: LSE SporadicBenefits (RefXML Feb TF40 Farine:
+        // Brutto 4'000, Sporadic 20'300 = 20'000 Sonderzulage + 300 VR).
+        1500 => Topf.Unregelmaessig,
         // Überstunden und Überzeit
         1061 or 1065 or 1067 => Topf.Ueberstunden,
         // 13. und 14. Monatslohn
@@ -152,8 +154,12 @@ public static class ElmStatistikCodes
         >= 1900 and <= 1969 => Topf.Naturalleistungen,
         // Vom Arbeitgeber übernommene Beiträge
         >= 1970 and <= 1989 => Topf.Uebrige,
-        // Kurzarbeit / Schlechtwetter
-        2060 or 2065 or 2075 => Topf.Kurzarbeit,
+        // Kurzarbeit / Schlechtwetter (2070 = ALV-Entschädigung KA — TF02 Paganini Feb:
+        // 3'000+2'200+200 = 5'400 Kurzarbeit, nicht Drittleistungen)
+        2060 or 2065 or 2070 or 2075 => Topf.Kurzarbeit,
+        // Korrektur Taggelder: storniert Brutto/SV, gehört nicht in PaymentsByThird
+        // (RefXML Feb TF10 Ganz: EO 1'000 + MDK 800 = 1'800 Drittleistungen, 2050 −1'800 nicht abgezogen)
+        2050 => Topf.Keiner,
         // Ersatzeinkünfte über den Arbeitgeber
         >= 2000 and <= 2099 => Topf.Drittleistungen,
         // Familienzulagen

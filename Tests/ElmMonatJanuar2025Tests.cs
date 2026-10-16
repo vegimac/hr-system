@@ -59,6 +59,55 @@ public class ElmMonatJanuar2025Tests
     public void Schichtzulage_ist_Zulage()   // TF02 Paganini: 1070 = 90 → Allowances
         => Assert.Equal(ElmStatistikCodes.Topf.Zulagen, ElmStatistikCodes.TopfFuer(1070));
 
+    [Fact]
+    public void Alv_Entschaedigung_ist_Kurzarbeit()  // TF02 Paganini Feb: 2070 → ShortTimeWork
+        => Assert.Equal(ElmStatistikCodes.Topf.Kurzarbeit, ElmStatistikCodes.TopfFuer(2070));
+
+    [Fact]
+    public void Verwaltungsratshonorar_ist_aperiodisch()  // TF40 Farine Feb: 1500 → SporadicBenefits
+        => Assert.Equal(ElmStatistikCodes.Topf.Unregelmaessig, ElmStatistikCodes.TopfFuer(1500));
+
+    [Fact]
+    public void Korrektur_Taggelder_nicht_in_Drittleistungen()  // TF10 Ganz Feb: 2050 ≠ PaymentsByThird
+        => Assert.Equal(ElmStatistikCodes.Topf.Keiner, ElmStatistikCodes.TopfFuer(2050));
+
+    [Fact]
+    public void Eo_Taggeld_ist_Drittleistung()
+        => Assert.Equal(ElmStatistikCodes.Topf.Drittleistungen, ElmStatistikCodes.TopfFuer(2000));
+
+    [Theory]
+    [InlineData("aufgeloeste_partnerschaft_verschollen", "partnershipDissolvedByDeclarationOfLost")]
+    [InlineData("partnershipDissolvedByDeclarationOfLost", "partnershipDissolvedByDeclarationOfLost")]
+    [InlineData("aufgeloeste_partnerschaft", "partnershipDissolvedByLaw")]
+    public void Zivilstand_aufgeloeste_Partnerschaft(string intern, string swissdec)
+        => Assert.Equal(swissdec, ElmGemeinsam.MapCivilStatus(intern));
+
+    [Theory]
+    [InlineData("christ_katholisch", "christianCatholic")]
+    [InlineData("christkatholisch", "christianCatholic")]
+    [InlineData("christianCatholic", "christianCatholic")]
+    [InlineData("roemisch_katholisch", "romanCatholic")]
+    public void Konfession_christkatholisch_nicht_roemisch(string intern, string swissdec)
+        => Assert.Equal(swissdec, ElmMonthlyDeclarationBuilder.MapKonfession(intern));
+
+    [Fact]
+    public void Arbeitszeit_Wochenlektionen_ist_Steady()  // TF15 Degelo Feb
+    {
+        var wt = ElmGemeinsam.WorkingTime(new Employment
+        {
+            EmploymentModel = "FLEX",
+            WeeklyLessons = 10.5m,
+            EmploymentPercentage = 50m,
+        }, 42m);
+        Assert.Equal("Steady", wt.Name.LocalName);
+        Assert.Equal("10.50", wt.Element(ElmGemeinsam.C + "WeeklyLessons")?.Value);
+        Assert.Equal("50.00", wt.Element(ElmGemeinsam.C + "ActivityRate")?.Value);
+    }
+
+    [Fact]
+    public void Ferientage_bei_Ferien_im_Ansatz()  // TF15 Degelo: Vacation 0 % → 20 Tage
+        => Assert.Equal(20m, ElmStatistikCodes.Ferientage(false, 4, null));
+
     [Theory]
     [InlineData("B_EU_EFTA", "annual-B")]
     [InlineData("C_EU_EFTA", "settled-C")]
@@ -139,13 +188,25 @@ public class ElmMonatJanuar2025Tests
         var e = new Employee { FirstName = "Jan", LastName = "Utzinger", Street = "Via Lugano 40", ZipCode = "6500", City = "Bellinzona", Country = "CH", CantonCode = "TI" };
         var p = new EmployeeFamilyMember { MemberType = "Ehepartner", FirstName = "Julie", LastName = "Utzinger", DateOfBirth = new DateTime(1983, 7, 7),
                                            SocialSecurityNumber = "7566549907826", Erwerbstaetig = true, ArbeitgeberKanton = "TI", Stellenantritt = new DateTime(2025, 9, 20) };
-        var mp = ElmMonthlyDeclarationBuilder.Ehepartner(e, p, null, new List<string>())!;
+        var mp = ElmMonthlyDeclarationBuilder.Ehepartner(e, p, null, new List<string>(), new DateOnly(2025, 10, 31))!;
         Assert.Equal("756.6549.9078.26", mp.Element(ElmGemeinsam.Sd + "Social-InsuranceIdentification")?.Element(ElmGemeinsam.C + "SV-AS-Number")?.Value);
         Assert.Equal("Via Lugano 40", mp.Element(ElmGemeinsam.Sd + "Address")?.Element(ElmGemeinsam.C + "Street")?.Value);
         Assert.Equal("TI", mp.Element(ElmGemeinsam.Sd + "Residence")?.Element(ElmGemeinsam.Sd + "CantonCH")?.Value);
         var w = mp.Element(ElmGemeinsam.Sd + "WorkOrCompensatory");
         Assert.Equal("TI", w?.Element(ElmGemeinsam.Sd + "Workplace")?.Value);
         Assert.Equal("2025-09-20", w?.Element(ElmGemeinsam.Sd + "Start")?.Value);
+    }
+
+    [Fact]
+    public void Ehepartner_WorkOrCompensatory_erst_ab_Stellenantritt()
+    {
+        // TF24 Jan 2025: Partner-Job erst ab 20.09.2025 — im Januar kein WorkOrCompensatory
+        // (sonst QT «Anzahl 7 statt 6» + «WorkOrCompensatory zu viel»).
+        var e = new Employee { FirstName = "Jan", LastName = "Utzinger", Street = "Via Lugano 40", ZipCode = "6500", City = "Bellinzona", Country = "CH", CantonCode = "TI" };
+        var p = new EmployeeFamilyMember { MemberType = "Ehepartner", FirstName = "Julie", LastName = "Utzinger", DateOfBirth = new DateTime(1983, 7, 7),
+                                           SocialSecurityNumber = "7566549907826", Erwerbstaetig = true, ArbeitgeberKanton = "TI", Stellenantritt = new DateTime(2025, 9, 20) };
+        var mp = ElmMonthlyDeclarationBuilder.Ehepartner(e, p, null, new List<string>(), new DateOnly(2025, 1, 31))!;
+        Assert.Null(mp.Element(ElmGemeinsam.Sd + "WorkOrCompensatory"));
     }
 
     [Fact]

@@ -32,6 +32,13 @@ public class EmployeePermitHistory
     public string?   Note { get; set; }
 
     /// <summary>
+    /// Vermerk auf dem Ausweis (Walter 16.10.2026): «Erwerbstätigkeitsaufnahme und
+    /// -beendigung sowie Stellenwechsel sind meldepflichtig.» — bei Austritt und
+    /// Filialwechsel Meldung an die Migrationsbehörde nötig (Flüchtlinge B/F/S u.ä.).
+    /// </summary>
+    public bool ErwerbMeldepflichtig { get; set; }
+
+    /// <summary>
     /// Walter-Vorgabe 14.06.2026: optionaler FK auf das Bewilligungs-PDF/Scan
     /// in employee_dokument. Pro Bewilligungs-Eintrag ein Dokument — z.B. bei
     /// B→C-Wechsel bleibt das alte B-Doku am alten History-Eintrag verknüpft,

@@ -1113,6 +1113,29 @@ public class DocumentsController : ControllerBase
         return null;
     }
 
+    /// <summary>
+    /// Ausweis-Vermerk «Erwerbstätigkeitsaufnahme und -beendigung sowie Stellenwechsel
+    /// sind meldepflichtig.» (Walter 16.10.2026). OCR-tolerant für typische Lesefehler.
+    /// </summary>
+    private static bool ParseErwerbMeldepflichtig(string txt)
+    {
+        if (string.IsNullOrWhiteSpace(txt)) return false;
+        // Kern: meldepflichtig + Stellenwechsel (bzw. OCR-Varianten).
+        if (Regex.IsMatch(txt, @"stellen\s*wechsel", RegexOptions.IgnoreCase)
+            && Regex.IsMatch(txt, @"melde\s*pflichtig", RegexOptions.IgnoreCase))
+            return true;
+        // Alternative Formulierungen auf älteren/anderen Ausweisen.
+        if (Regex.IsMatch(txt, @"Erwerbstätigkeitsaufnahme", RegexOptions.IgnoreCase)
+            && Regex.IsMatch(txt, @"melde\s*pflichtig", RegexOptions.IgnoreCase))
+            return true;
+        if (Regex.IsMatch(txt,
+                @"Aufnahme\s+und\s+Beendigung\s+der\s+Erwerbstätigkeit",
+                RegexOptions.IgnoreCase)
+            && Regex.IsMatch(txt, @"melde", RegexOptions.IgnoreCase))
+            return true;
+        return false;
+    }
+
     /// <summary>Bewilligungs-Typ aus OCR-Text: «CHE L …» (Kartenkopf, auch
     /// OCR-Doppler «CHE LL») oder «Ausweis B». BEWUSST kein Standalone-
     /// Buchstabe mehr — zu rauschanfällig (Walter-Bug 12.07.2026: falsches N).</summary>
@@ -1542,6 +1565,9 @@ public class DocumentsController : ControllerBase
                 issued = best;
             }
 
+            var erwerbMeldepflichtig = ParseErwerbMeldepflichtig(text)
+                                     || ParseErwerbMeldepflichtig(mrzText);
+
             timing["total"] = swTotal.ElapsedMilliseconds;
             HttpContext.RequestServices.GetRequiredService<ILogger<DocumentsController>>()
                 .LogInformation("OCR Ausweis Dok {Id}: {Timing}", id, string.Join(", ", timing.Select(kv => $"{kv.Key}={kv.Value}ms")));
@@ -1551,6 +1577,7 @@ public class DocumentsController : ControllerBase
                 validUntil = validUntil?.ToString("yyyy-MM-dd"),
                 issued = issued?.ToString("yyyy-MM-dd"),
                 zemisNr,
+                erwerbMeldepflichtig,
                 mrzGelesen = mrzText.Length > 0,
                 person = ParseMrzPerson(mrzText, text),
                 timing,

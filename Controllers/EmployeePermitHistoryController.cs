@@ -87,6 +87,8 @@ public class EmployeePermitHistoryController : ControllerBase
         public DateOnly? ValidTo   { get; set; }   // = behördliches Ablauf-Datum auf dem Ausweis
         public DateOnly? ErfahrenAm { get; set; }
         public string?   Note { get; set; }
+        /// <summary>Ausweis-Vermerk: Erwerb/Stellenwechsel meldepflichtig.</summary>
+        public bool      ErwerbMeldepflichtig { get; set; }
         // Walter 14.06.2026: Verknüpftes Bewilligungs-PDF.
         public int?      DokumentId { get; set; }
         public string?   DokumentName { get; set; }
@@ -104,6 +106,7 @@ public class EmployeePermitHistoryController : ControllerBase
         /// <summary>Wissensdatum — ab wann wir die Bewilligung kannten (QST). Leer = Gültig ab.</summary>
         public DateOnly? ErfahrenAm { get; set; }
         public string?   Note { get; set; }
+        public bool      ErwerbMeldepflichtig { get; set; }
         // Walter 14.06.2026: optional bei POST/PUT auch das verknüpfte Doku mit setzen.
         public int?      DokumentId { get; set; }
     }
@@ -225,9 +228,10 @@ public class EmployeePermitHistoryController : ControllerBase
             PermitDescription = h.PermitType?.Description,
             ValidFrom         = h.ValidFrom,
             ValidTo           = h.ValidTo,
-            ErfahrenAm        = h.ErfahrenAm,
-            Note              = h.Note,
-            DokumentId        = h.DokumentId,
+            ErfahrenAm           = h.ErfahrenAm,
+            Note                 = h.Note,
+            ErwerbMeldepflichtig = h.ErwerbMeldepflichtig,
+            DokumentId           = h.DokumentId,
             DokumentName      = h.DokumentId.HasValue
                                   && dokNames.TryGetValue(h.DokumentId.Value, out var nm)
                                   ? nm : null,
@@ -308,15 +312,16 @@ public class EmployeePermitHistoryController : ControllerBase
 
         var entry = new EmployeePermitHistory
         {
-            EmployeeId       = employeeId,
-            PermitTypeId     = dto.PermitTypeId,
-            ValidFrom        = dto.ValidFrom,
-            ErfahrenAm       = dto.ErfahrenAm,
-            ValidTo          = dto.ValidTo,
-            Note             = dto.Note,
-            DokumentId       = dto.DokumentId,
-            CreatedAt        = DateTime.Now,
-            CreatedByUserId  = GetCurrentUserId()
+            EmployeeId           = employeeId,
+            PermitTypeId         = dto.PermitTypeId,
+            ValidFrom            = dto.ValidFrom,
+            ErfahrenAm           = dto.ErfahrenAm,
+            ValidTo              = dto.ValidTo,
+            Note                 = dto.Note,
+            ErwerbMeldepflichtig = dto.ErwerbMeldepflichtig,
+            DokumentId           = dto.DokumentId,
+            CreatedAt            = DateTime.Now,
+            CreatedByUserId      = GetCurrentUserId()
         };
         _db.EmployeePermitHistories.Add(entry);
         await _db.SaveChangesAsync();
@@ -373,12 +378,13 @@ public class EmployeePermitHistoryController : ControllerBase
             if (!dokOk) return BadRequest(new { error = "Verknüpftes Dokument gehört nicht zu diesem MA." });
         }
 
-        entry.PermitTypeId     = dto.PermitTypeId;
-        entry.ValidFrom        = dto.ValidFrom;
-        entry.ValidTo          = dto.ValidTo;
-        entry.ErfahrenAm       = dto.ErfahrenAm;
-        entry.Note             = dto.Note;
-        entry.DokumentId       = dto.DokumentId;
+        entry.PermitTypeId         = dto.PermitTypeId;
+        entry.ValidFrom            = dto.ValidFrom;
+        entry.ValidTo              = dto.ValidTo;
+        entry.ErfahrenAm           = dto.ErfahrenAm;
+        entry.Note                 = dto.Note;
+        entry.ErwerbMeldepflichtig = dto.ErwerbMeldepflichtig;
+        entry.DokumentId           = dto.DokumentId;
 
         await _db.SaveChangesAsync();
         await SyncEmployeeFromHistoryAsync(employeeId);

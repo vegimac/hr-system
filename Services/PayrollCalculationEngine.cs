@@ -1688,12 +1688,18 @@ public class PayrollCalculationEngine
             codeAmountsAnzeige[code] = (codeAmountsAnzeige.TryGetValue(code, out var a) ? a : 0m)
                                      + (amtAnzeige ?? amtExact);
         }
-        decimal SumByFlag(Func<Lohnposition, bool> selector)
+        decimal SumByFlag(Func<Lohnposition, bool> selector, bool feiertagBasis = false)
         {
             decimal sum = 0;
             foreach (var kv in codeAmounts)
+            {
+                // Karenz/Taggeld: Feiertag-% nur über «Feiertagentschädigung auf Lohnersatz»
+                // (AddLohnersatz), nie hier — sonst 4 % auf Versicherungstaggeld-Zulagen
+                // (TF01 Herz: 1500 × 4 % = +60 in GrossBase / 13. ML).
+                if (feiertagBasis && IstLohnersatzCode(kv.Key)) continue;
                 if (lohnposByCode.TryGetValue(kv.Key, out var lp) && selector(lp))
                     sum += kv.Value;
+            }
             return sum;
         }
         /// <summary>Dieselbe Flag-Summe aus den Beleg-Beträgen — nur für die Anzeige.</summary>
@@ -2930,7 +2936,7 @@ public class PayrollCalculationEngine
             //   → nur Zusatzstunden (10.4) hat ZaehltAlsBasisFerien=true
             // Zusätzlich tragen alle Zulagen bei, deren Lohnart die Flags trägt.
             // Flag-Summen = exakte Produkte (nicht Zeilen-CHF)
-            decimal feiertagBasisExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag);
+            decimal feiertagBasisExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag, feiertagBasis: true);
             decimal ferienBasisExact   = SumByFlag(lp => lp.ZaehltAlsBasisFerien)
                 + (tagessatzMitFerienMtp ? 0m : LohnersatzNachFlag(lp => lp.ZaehltAlsBasisFerien, ohneKatalog: false));
             decimal ferienEntExact     = ferienBasisExact * vacationPct / 100m;
@@ -3542,7 +3548,7 @@ public class PayrollCalculationEngine
             AddAmount("20", lohnExact, lohnBrutto);
             AddAmount("55.10", nachtKompExact + nachtAuszSchluss, nachtKompBrutto + nachtAuszSchluss);
             AddAmount("50.1", feiertagAuszExact, feiertagAusz);
-            decimal feiertagBasisUtpExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag);
+            decimal feiertagBasisUtpExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag, feiertagBasis: true);
             decimal feiertagEntExact      = feiertagBasisUtpExact * holidayPct / 100m;
             decimal feiertagEnt           = Round05(feiertagEntExact);   // 5 Rappen (Walter 09.09.2026)
 
@@ -4862,6 +4868,14 @@ public class PayrollCalculationEngine
         => kettenBeginn.AddMonths(2) > periodTo;
 
     /// <summary>
+    /// Karenz/Taggeld-Codes: Feiertag-% nur über «Feiertagentschädigung auf Lohnersatz»,
+    /// nie über die normale Feiertag-Basis (sonst 4 % auf Versicherungstaggeld-Zulagen
+    /// 2030/2035 — TF01 Herz Jan +60 Brutto / +5 13. ML).
+    /// </summary>
+    public static bool IstLohnersatzCode(string? code) =>
+        code is "60.1" or "60.2" or "60.3" or "70.1" or "70.2";
+
+    /// <summary>
     /// Berechnet den Quellensteuer-Abzug aus dem Tarif-Service und gibt eine
     /// synthetische DeductionRule zurück (Type = "fixed", Rate = CHF-Betrag positiv).
     /// Gibt null zurück wenn kein Tarif gefunden oder Betrag = 0.
@@ -5431,7 +5445,7 @@ public class PayrollCalculationEngine
                 bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
                             || lp.BvgPflichtig || lp.QstPflichtig;
                 string bez = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : "");
-                if (lp.ZaehltAlsBasisFeiertag) feiertagBasisExact += b;
+                if (lp.ZaehltAlsBasisFeiertag && !IstLohnersatzCode(lp.Code)) feiertagBasisExact += b;
                 if (lp.ZaehltAlsBasisFerien)   ferienBasisKorrExact += b;
                 if (lp.ZaehltAlsBasis13ml)     basis13KorrExact += b;
                 if (anyFlag)

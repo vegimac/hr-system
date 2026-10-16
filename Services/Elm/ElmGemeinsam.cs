@@ -72,14 +72,25 @@ public static class ElmGemeinsam
 
     public static string MapCivilStatus(string? ms)
     {
-        var s = (ms ?? "").ToLowerInvariant();
-        if (s.Contains("verheiratet")) return "married";
-        if (s.Contains("getrennt")) return "separated";
-        if (s.Contains("geschieden")) return "divorced";
-        if (s.Contains("verwitwet")) return "widowed";
-        if (s.Contains("aufgel")) return "partnershipDissolvedByLaw";
-        if (s.Contains("partnerschaft")) return "registeredPartnership";
-        if (s.Contains("ledig") || s.Contains("konkubinat")) return "single";   // Konkubinat ist kein Zivilstand
+        var s = (ms ?? "").Trim();
+        var low = s.ToLowerInvariant();
+        // Swissdec-Codes 1:1 (Testmandant speichert sie so, oder nach MapZivilstand-Rückweg)
+        if (low is "partnershipdissolvedbydeclarationoflost") return "partnershipDissolvedByDeclarationOfLost";
+        if (low is "partnershipdissolvedbydeath") return "partnershipDissolvedByDeath";
+        if (low is "partnershipdissolvedbylaw") return "partnershipDissolvedByLaw";
+        if (low is "registeredpartnership") return "registeredPartnership";
+        if (low.Contains("verheiratet")) return "married";
+        if (low.Contains("getrennt")) return "separated";
+        if (low.Contains("geschieden")) return "divorced";
+        if (low.Contains("verwitwet")) return "widowed";
+        // Aufgelöste Partnerschaft: drei Swissdec-Varianten (TF12 Casanova = Verschollenenerklärung)
+        if (low.Contains("verschollen") || low.Contains("declarationoflost"))
+            return "partnershipDissolvedByDeclarationOfLost";
+        if (low.Contains("aufgeloeste_partnerschaft_tod") || (low.Contains("aufgel") && low.Contains("tod")))
+            return "partnershipDissolvedByDeath";
+        if (low.Contains("aufgel")) return "partnershipDissolvedByLaw";
+        if (low.Contains("partnerschaft")) return "registeredPartnership";
+        if (low.Contains("ledig") || low.Contains("konkubinat")) return "single";   // Konkubinat ist kein Zivilstand
         return "unknown";
     }
 
@@ -398,6 +409,11 @@ public static class ElmGemeinsam
         if (art.Contains("NoTimeConstraint", StringComparison.OrdinalIgnoreCase) || art == "administrativeBoard")
             return new XElement(C + "Unsteady");
         var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
+        // Lektionenvertrag: Steady mit Wochenlektionen (RefXML Feb TF15 Degelo 10.50 / 50 %)
+        if (em?.WeeklyLessons is decimal wl && wl > 0m)
+            return new XElement(C + "Steady",
+                new XElement(C + "WeeklyLessons", Amt(wl)),
+                new XElement(C + "ActivityRate", Amt(em.EmploymentPercentage ?? 100m)));
         if ((model == "FIX" || model == "FIX-M") && em != null)
         {
             var pct = em.EmploymentPercentage ?? 100m;

@@ -692,7 +692,7 @@ public class ElmMonthlyDeclarationBuilder
             new XAttribute("addresseeIDRef", "#BFS"),
             new XAttribute("workIDRef", WorkId(e)),
             new XElement(Sd + "CurrentMonth", monatStr),
-            BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn),
+            BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn, lohnartByCode),
             KindOfWagePayment(em, filiale, slip, lohnartByCode),
             new XElement(Sd + "MonthlyValues",
                 new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(Wert(ElmStatistikCodes.Topf.Bruttolohn))),
@@ -785,25 +785,33 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "Contractual13th", dreizehnter),
                     vierzehnter));
 
-        // Ferien- und Feiertagsprozent: der Satz, den der Lohnlauf tatsächlich angewendet hat
-        // (Lohnart 1160/1161 im Lohnzettel; RefXML Jan 2025 TF02 Paganini 13.04 % ab 50).
-        // Ohne solche Zeile gilt die Ferienwoche aus dem Lohnzettel, dann die der Filiale.
-        var wochen = Num(slip, "vacationWeeks") is > 0m and var vw ? vw : filiale.DefaultVacationWeeks ?? 5;
-        var ferienProzent = ProzentAusLohnzeile(slip, lohnartByCode, 1160)
-            ?? (wochen >= 6 ? filiale.DefaultVacationPercent6Weeks ?? 13.04m : filiale.DefaultVacationPercent5Weeks ?? 10.65m);
-        var feiertagProzent = ProzentAusLohnzeile(slip, lohnartByCode, 1161) ?? filiale.DefaultHolidayPercent ?? 4m;
+        // Ferien-/Feiertagsprozent nur aus dem Lohnzettel (1160/1161). Ohne Zeile = 0 —
+        // Filial-Default wäre falsch bei Lektionenlohn mit Ferien im Ansatz (TF15 Degelo
+        // RefXML Feb: Vacation 0 / PublicHoliday 0, nicht 8.33 / 4).
+        var ferienProzent = ProzentAusLohnzeile(slip, lohnartByCode, 1160) ?? 0m;
+        var feiertagProzent = ProzentAusLohnzeile(slip, lohnartByCode, 1161) ?? 0m;
         var stundenansatz = em?.HourlyRate ?? 0m;
         var lektionenansatz = em?.LessonRate ?? stundenansatz;
 
         var stunden = Num(slip, "workedHours");
         var lektionen = Lektionen(slip, lohnartByCode, em?.LessonRate);
-        XElement gearbeitet = lektionen <= 0m
-            ? new XElement(Sd + "TotalHoursOfWork", Amt(stunden))
-            : stunden <= 0m
-                ? new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen))
-                : new XElement(Sd + "TotalHoursAndLessonsOfWork",
-                    new XElement(Sd + "TotalHoursOfWork", Amt(stunden)),
-                    new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen)));
+        // RefXML Feb: Degelo (nur Wochenlektionen) → TotalLessonsOfWork;
+        // Paganini (Stunden- + Lektionenansatz) → TotalHoursAndLessonsOfWork auch bei 0 Lektionen.
+        XElement gearbeitet;
+        if (em?.WeeklyLessons is > 0m)
+            gearbeitet = new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen));
+        else if (em?.LessonRate is > 0m)
+            gearbeitet = new XElement(Sd + "TotalHoursAndLessonsOfWork",
+                new XElement(Sd + "TotalHoursOfWork", Amt(stunden)),
+                new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen)));
+        else if (lektionen > 0m && stunden > 0m)
+            gearbeitet = new XElement(Sd + "TotalHoursAndLessonsOfWork",
+                new XElement(Sd + "TotalHoursOfWork", Amt(stunden)),
+                new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen)));
+        else if (lektionen > 0m)
+            gearbeitet = new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen));
+        else
+            gearbeitet = new XElement(Sd + "TotalHoursOfWork", Amt(stunden));
 
         return new XElement(Sd + "KindOfWagePayment",
             new XElement(Sd + "Hourly",
@@ -861,7 +869,8 @@ public class ElmMonthlyDeclarationBuilder
     /// </summary>
     private XElement BaueStatistikStammdaten(
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
-        EmployeeLse? lse, List<LseCodeMapping> stellungMapping, List<string> warn)
+        EmployeeLse? lse, List<LseCodeMapping> stellungMapping, List<string> warn,
+        IReadOnlyDictionary<string, string>? lohnartByCode = null)
     {
         var ausbildungCode = lse?.Education;
         if (!ElmStatistikCodes.AusbildungErfasst(ausbildungCode))
@@ -877,8 +886,13 @@ public class ElmMonthlyDeclarationBuilder
                    + "— gemeldet wird «ohne Kaderfunktion» (LSE-Zuordnung Funktion → Stellung).");
 
         var stundenlohn = (em?.EmploymentModel?.ToUpperInvariant() ?? "") is not ("FIX" or "FIX-M" or "MTP");
+        // Ferien-% und Ferientage nie zusammen (Richtlinien). Nur wenn der Lohnzettel
+        // wirklich 1160 führt, sind die Tage 0 — sonst Tage (TF15 Degelo Vacation 0 → 20 Tage).
+        var ferienPct = lohnartByCode != null
+            ? (ProzentAusLohnzeile(slip, lohnartByCode, 1160) ?? 0m)
+            : 0m;
         var ferienwochen = (filiale.DefaultVacationWeeks ?? 5) >= 6 ? 6 : 5;
-        var tage = ElmStatistikCodes.Ferientage(stundenlohn, ferienwochen, lse?.LeaveEntitlementDays);
+        var tage = ElmStatistikCodes.Ferientage(stundenlohn && ferienPct > 0m, ferienwochen, lse?.LeaveEntitlementDays);
         // Verwaltungsrat hat keinen Ferienanspruch (RefXML Jan 2025: TF39 Hasler 0).
         if ((em?.SwissdecVertragsart ?? "").Trim() == "administrativeBoard" && lse?.LeaveEntitlementDays == null)
             tage = 0m;
@@ -955,7 +969,7 @@ public class ElmMonthlyDeclarationBuilder
 
         var aperiodisch = aperiodischeCodes == null ? 0m : SummeCodes(slip, aperiodischeCodes);
         var ehepartner = TarifMitEhepartner(code)
-            ? Ehepartner(e, partner, partnerAdresse, warn)
+            ? Ehepartner(e, partner, partnerAdresse, warn, DateOnly.FromDateTime(monatsEnde))
             : null;
 
         var x = new XElement(Sd + "TaxAtSourceSalary",
@@ -1116,9 +1130,11 @@ public class ElmMonthlyDeclarationBuilder
     /// Ehepartner laut Schema (MarriagePartnerType): AHV-Nummer oder «unknown», Name,
     /// Geburtsdatum, Adresse (eigene Adresse, sonst die des MA), Wohnsitz und — wenn
     /// erwerbstätig mit bekanntem Stellenantritt — Arbeitsort-Kanton (EX im Ausland).
+    /// WorkOrCompensatory nur, wenn der Stellenantritt am Stichtag (Monatsende) schon
+    /// gilt — sonst meldet Jan TF24 Utzinger den Partner-Job von Sept. mit (QT: 7 statt 6).
     /// Null + Hinweis, wenn kein Ehepartner erfasst ist.
     /// </summary>
-    public static XElement? Ehepartner(Employee e, EmployeeFamilyMember? p, EmployeeAddress? eigeneAdresse, List<string> warn)
+    public static XElement? Ehepartner(Employee e, EmployeeFamilyMember? p, EmployeeAddress? eigeneAdresse, List<string> warn, DateOnly? stichtag = null)
     {
         if (p == null)
         {
@@ -1151,12 +1167,14 @@ public class ElmMonthlyDeclarationBuilder
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Wohnkanton des Ehepartners fehlt — bitte an der Partner-Adresse erfassen.");
 
         XElement? arbeit = null;
-        if (p.Erwerbstaetig == true && p.Stellenantritt != null)
+        var antritt = p.Stellenantritt.HasValue ? DateOnly.FromDateTime(p.Stellenantritt.Value) : (DateOnly?)null;
+        var antrittGilt = antritt.HasValue && (stichtag == null || antritt.Value <= stichtag.Value);
+        if (p.Erwerbstaetig == true && antrittGilt)
         {
             var akt = (p.ArbeitgeberKanton ?? "").Trim().ToUpperInvariant();
             arbeit = new XElement(Sd + "WorkOrCompensatory",
                 new XElement(Sd + "Workplace", akt.Length == 2 ? akt : "EX"),
-                new XElement(Sd + "Start", p.Stellenantritt.Value.ToString("yyyy-MM-dd")));
+                new XElement(Sd + "Start", antritt!.Value.ToString("yyyy-MM-dd")));
         }
 
         return new XElement(Sd + "MarriagePartner",
@@ -1282,9 +1300,17 @@ public class ElmMonthlyDeclarationBuilder
     /// </summary>
     public static string? MapKonfession(string? religion)
     {
-        var r = (religion ?? "").ToLowerInvariant();
-        if (r.Length == 0) return null;
-        if (r.Contains("christkath") || r.Contains("altkath")) return "christianCatholic";
+        var raw = (religion ?? "").Trim();
+        if (raw.Length == 0) return null;
+        // Swissdec-Codes 1:1 (falls schon so gespeichert)
+        if (raw is "christianCatholic" or "romanCatholic" or "reformedEvangelical"
+            or "jewishCommunity" or "otherOrNone")
+            return raw;
+        var r = raw.ToLowerInvariant();
+        // «christ_katholisch» (Unterstrich aus Schritt4) vor dem generischen «katholisch»
+        // — sonst landet TF25 Lehmann als romanCatholic statt christianCatholic.
+        if (r.Contains("christkath") || r.Contains("christ_kath") || r.Contains("altkath") || r.Contains("alt_kath"))
+            return "christianCatholic";
         if (r.Contains("roem") || r.Contains("röm") || r.Contains("katholisch")) return "romanCatholic";
         if (r.Contains("reformiert") || r.Contains("evang") || r.Contains("protest")) return "reformedEvangelical";
         if (r.Contains("jued") || r.Contains("jüd") || r.Contains("israel")) return "jewishCommunity";

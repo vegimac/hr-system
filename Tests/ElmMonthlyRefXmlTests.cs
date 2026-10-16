@@ -256,6 +256,7 @@ public class ElmKonfessionTests
     [InlineData("reformiert", "reformedEvangelical")]
     [InlineData("evangelisch-reformiert", "reformedEvangelical")]
     [InlineData("christkatholisch", "christianCatholic")]
+    [InlineData("christ_katholisch", "christianCatholic")]
     [InlineData("juedisch", "jewishCommunity")]
     [InlineData("konfessionslos", "otherOrNone")]
     public void BekannteKonfessionen(string quelle, string erwartet)

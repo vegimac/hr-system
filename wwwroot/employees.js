@@ -17001,6 +17001,10 @@ function renderPermitListHtml(entries) {
         const code      = h.permitCode || (h.permitTypeId ? 'Typ ' + h.permitTypeId : '<span style="color:#94a3b8">— keine —</span>');
         const desc      = h.permitDescription ? ' <span style="color:#94a3b8;font-size:11px">— ' + esc(h.permitDescription) + '</span>' : '';
         const noteTxt   = h.note ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(h.note)}</div>` : '';
+        // Walter 16.10.2026: Meldepflicht rechts neben den Aktionen, keine Extra-Zeile.
+        const meldeBadge = h.erwerbMeldepflichtig
+            ? `<span style="flex-shrink:0;max-width:11em;text-align:right;font-size:10.5px;line-height:1.25;color:#9a3412;font-weight:700" title="Erwerbstätigkeitsaufnahme und -beendigung sowie Stellenwechsel sind meldepflichtig.">Meldepflichtig</span>`
+            : '';
         const isExpired = _isExpired(h);
         // Abgelaufen schlägt immer — nie grün/AKTUELL trotz isCurrent=true.
         const isCur     = !isExpired && cur && h.id === cur.id;
@@ -17057,6 +17061,7 @@ function renderPermitListHtml(entries) {
                 </div>
                 ${noteTxt}
             </div>
+            ${meldeBadge}
             ${dokBtn}
             ${smsBtn}
             ${isAdmin ? `
@@ -17428,6 +17433,17 @@ async function openPermitHistoryModal(entryId) {
                     <textarea id="phf-note" rows="2"
                               style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;font-family:inherit;background:#fff">${entry?.note ? esc(entry.note).replace(/&quot;/g,'"') : ''}</textarea>
                 </div>
+                <div style="grid-column:1 / -1">
+                    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid rgba(60,55,48,0.20);border-radius:10px;background:rgba(255,255,255,0.35)">
+                        <input type="checkbox" id="phf-erwerbMeldepflichtig"
+                               ${entry?.erwerbMeldepflichtig ? 'checked' : ''}
+                               style="margin-top:2px;flex-shrink:0;width:16px;height:16px;accent-color:#3f3f3f">
+                        <span style="font-size:12.5px;color:#3f3f3f;line-height:1.45">
+                            Erwerbstätigkeitsaufnahme und -beendigung sowie Stellenwechsel sind meldepflichtig.
+                            <span style="display:block;font-size:11px;color:#64748b;margin-top:3px">Bei Austritt und Filialwechsel Meldung an die Migrationsbehörde.</span>
+                        </span>
+                    </label>
+                </div>
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0">
                 <button onclick="closePermitHistoryModal()"
@@ -17578,6 +17594,7 @@ async function savePermitHistoryEntry(entryId) {
         validTo:          document.getElementById('phf-validTo').value || null,
         erfahrenAm:       erfahrenAm || null,
         note:             document.getElementById('phf-note').value.trim() || null,
+        erwerbMeldepflichtig: !!document.getElementById('phf-erwerbMeldepflichtig')?.checked,
         // Gelesener Ausweis-Scan automatisch mitverknüpfen (Walter 23.08.2026,
         // nur beim Neu-Anlegen — bestehende Einträge behalten ihr Doku).
         dokumentId:       !entryId && window._phfOcrDocId ? window._phfOcrDocId : null
@@ -18036,6 +18053,11 @@ async function phfOcrPermit(docId) {
             const inp = document.getElementById('phf-validTo');
             if (inp) inp.value = j.validUntil;
             parts.push('gültig bis ' + fmtIso(j.validUntil) + (j.mrzGelesen ? ' (MRZ ✓)' : ''));
+        }
+        if (j.erwerbMeldepflichtig) {
+            const cb = document.getElementById('phf-erwerbMeldepflichtig');
+            if (cb) cb.checked = true;
+            parts.push('Meldepflicht Erwerb/Stellenwechsel');
         }
         // ZEMIS-Nr (MRZ Zeile 1) direkt am MA speichern — Personen-Stammdatum
         // (Walter 12.07.2026), unabhängig von der Bewilligungs-Version.

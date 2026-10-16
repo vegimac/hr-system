@@ -472,7 +472,9 @@ public partial class SwissdecTestmandantController
     {
         "single" => "ledig", "married" => "verheiratet", "divorced" => "geschieden", "separated" => "getrennt",
         "widowed" => "verwitwet", "registeredPartnership" => "eingetragene_partnerschaft",
-        "partnershipDissolvedByLaw" or "partnershipDissolvedByDeath" or "partnershipDissolvedByDeclarationOfLost" => "aufgeloeste_partnerschaft",
+        "partnershipDissolvedByLaw" => "aufgeloeste_partnerschaft",
+        "partnershipDissolvedByDeath" => "aufgeloeste_partnerschaft_tod",
+        "partnershipDissolvedByDeclarationOfLost" => "aufgeloeste_partnerschaft_verschollen",
         _ => null,
     };
 
