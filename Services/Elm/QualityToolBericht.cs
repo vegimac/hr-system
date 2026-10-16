@@ -32,8 +32,9 @@ public static class QualityToolBericht
     /// </summary>
     /// <param name="Status">ok = keine Abweichung (QT listet nur Differenzen), rot = Abweichungen,
     /// warn = Dialog/Freigabe bei uns offen, grau = noch nicht an QT gesendet.</param>
+    /// <param name="GesendetAm">Zeitpunkt unserer letzten QT-Sendung für diesen Monat (lokal).</param>
     public record MonatStand(string Sequenz, string Teilprozess, string Status, string Text,
-        int Anzahl, Monat? Bericht);
+        int Anzahl, Monat? Bericht, DateTime? GesendetAm);
 
     /// <summary>
     /// Alle Monate, die wir an das Quality Tool gesendet haben, plus Monate mit Abweichungen
@@ -64,25 +65,26 @@ public static class QualityToolBericht
         {
             abw.TryGetValue(seq, out var mon);
             gesendet.TryGetValue(seq, out var vorgang);
+            var wann = vorgang?.Gesendet;
             var anzahl = mon?.Anzahl ?? 0;
             if (anzahl > 0)
             {
                 liste.Add(new MonatStand(seq, mon!.Teilprozess, "rot",
-                    anzahl == 1 ? "1 Abweichung" : $"{anzahl} Abweichungen", anzahl, mon));
+                    anzahl == 1 ? "1 Abweichung" : $"{anzahl} Abweichungen", anzahl, mon, wann));
                 continue;
             }
             if (vorgang == null)
             {
-                liste.Add(new MonatStand(seq, "MonthlySalary", "grau", "Noch nicht gesendet", 0, null));
+                liste.Add(new MonatStand(seq, "MonthlySalary", "grau", "Noch nicht gesendet", 0, null, null));
                 continue;
             }
             var stand = ElmMeldungAnzeige.Meldung(vorgang);
             if (stand.Stufe is ElmMeldungAnzeige.Warn or ElmMeldungAnzeige.Rot)
             {
-                liste.Add(new MonatStand(seq, "MonthlySalary", "warn", stand.Text, 0, null));
+                liste.Add(new MonatStand(seq, "MonthlySalary", "warn", stand.Text, 0, null, wann));
                 continue;
             }
-            liste.Add(new MonatStand(seq, "MonthlySalary", "ok", "Stimmt", 0, null));
+            liste.Add(new MonatStand(seq, "MonthlySalary", "ok", "Stimmt", 0, null, wann));
         }
         return liste;
     }

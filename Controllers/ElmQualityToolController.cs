@@ -45,11 +45,14 @@ public class ElmQualityToolController : ControllerBase
             return Ok(new
             {
                 b.MonitoringId, punkte = b.Punkte, b.Meldung, anzahl = b.Anzahl,
+                // Zeitpunkt dieses Abrufs (lokal) — «Bericht geholt um …»
+                geholtAm = DateTime.Now,
                 // Monat für Monat: Stimmt / Abweichungen / Dialog offen / nicht gesendet
                 // (Walter 16.10.2026 — Punktzahl allein reicht nicht).
                 uebersicht = uebersicht.Select(u => new
                 {
                     u.Sequenz, u.Teilprozess, u.Status, u.Text, anzahl = u.Anzahl,
+                    gesendetAm = u.GesendetAm,
                     faelle = u.Bericht?.Faelle.Select(FallDto),
                 }),
                 // Rohbericht (Monate nur mit Abweichungen) — für alte Aufrufer / Diagnose

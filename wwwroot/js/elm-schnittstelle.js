@@ -611,6 +611,7 @@ function elmqZeichnen() {
         <div><span style="font-size:26px;font-weight:700;color:#3f3f3f">${Number(b.punkte || 0).toLocaleString('de-CH', { maximumFractionDigits: 1 })} %</span>
             <span style="font-size:12px;color:#8b8b8b;margin-left:4px">Punktzahl des Laufs (Swissdec)</span></div>
         <div>${b.anzahl ? _elmmPille('rot', `${b.anzahl} Abweichung${b.anzahl === 1 ? '' : 'en'}`) : _elmmPille('ok', 'Keine Abweichung')}</div>
+        ${b.geholtAm ? `<div style="font-size:12px;color:#8b8b8b;margin-left:auto">Bericht geholt ${_elmmDatum(b.geholtAm)}</div>` : ''}
     </div>`;
     const zeile = a => {
         const artHinweis = a.art === 'Element fehlt' ? 'fehlt bei uns'
@@ -644,19 +645,24 @@ function elmqZeichnen() {
     }));
     const monate = liste.map(u => {
         const key = (u.sequenz || '') + '|' + (u.teilprozess || '');
+        const wann = u.gesendetAm
+            ? `<span style="font-size:12px;color:#8b8b8b">gesendet ${_elmmDatum(u.gesendetAm)}</span>`
+            : '';
         const hatDetails = u.status === 'rot' && (u.faelle || []).length;
         if (!hatDetails) {
-            return `<div data-seq="${_elmzEsc(key)}" style="margin-top:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.35);padding:10px 14px;display:flex;align-items:center;gap:12px">
+            return `<div data-seq="${_elmzEsc(key)}" style="margin-top:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.35);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                 <b style="color:#3f3f3f;font-size:14px">${_elmzEsc(_elmqMonat(u.sequenz))}</b>
                 <span style="font-size:12px;color:#8b8b8b">${_elmzEsc(_elmqTeil(u.teilprozess))}</span>
+                ${wann}
                 <span style="margin-left:auto">${pille(u)}</span>
             </div>`;
         }
         return `<details data-seq="${_elmzEsc(key)}" ${_elmqOffen.has(key) ? 'open' : ''}
             ontoggle="_elmqOffenMerken(this)" style="margin-top:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.35)">
-        <summary style="cursor:pointer;list-style:none;padding:10px 14px;display:flex;align-items:center;gap:12px">
+        <summary style="cursor:pointer;list-style:none;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <b style="color:#3f3f3f;font-size:14px">${_elmzEsc(_elmqMonat(u.sequenz))}</b>
             <span style="font-size:12px;color:#8b8b8b">${_elmzEsc(_elmqTeil(u.teilprozess))}</span>
+            ${wann}
             <span style="margin-left:auto">${pille(u)}</span>
         </summary>
         <div style="padding:0 14px 12px">${(u.faelle || []).map(fall).join('')}</div>

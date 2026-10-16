@@ -143,6 +143,8 @@ public class QualityToolBerichtTests
         Assert.Equal("rot", u[2].Status);   // Jan: Abweichungen im Bericht (sticht Dialog)
         Assert.Equal("warn", u[3].Status);  // Feb: Dialog/Freigabe offen, noch keine QT-Abweichung
         Assert.Contains("wartet", u[3].Text, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(u[1].GesendetAm);   // Dez: Sendezeit aus unserem Vorgang
+        Assert.NotNull(u[3].GesendetAm);
     }
 
     [Fact]
