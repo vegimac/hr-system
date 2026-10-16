@@ -1625,7 +1625,7 @@
                         <img src="img/Filialen.webp?v=20260816a" alt="" loading="lazy">
                         <span>Filialen &amp; Benutzer</span>
                     </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Ärzte, Behörden, PLZ/Gemeinden, Mutterschaft, Globale Daten, Dokumente, Schulungen">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Ärzte, Behörden, PLZ/Gemeinden, Banken, Nationen, Mutterschaft, Dokumente, Schulungen">
                         <img src="img/Verzeichnisse-Vorgaben.webp?v=20260816a" alt="" loading="lazy">
                         <span>Verzeichnisse &amp; Vorgaben</span>
                     </button>
@@ -1758,15 +1758,20 @@
                         <div class="admin-card-title">PLZ / Gemeinden</div>
                         <div class="admin-card-desc">Ortschaften + BFS-Gemeindenummer — Ansicht &amp; AMTOVZ-Import</div>
                     </div>
+                        <div class="admin-card" onclick="showPage('banken')">
+                        <img src="img/glokat-banken.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Banken</div>
+                        <div class="admin-card-desc">Schweizer Bank-Stammdaten (SIX IID-Liste) — Name, BIC, BC-Nummer</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('nationen')">
+                        <img src="img/glokat-nationen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Nationen</div>
+                        <div class="admin-card-desc">ISO-3166-Codes, Alternativ-Code (z.B. Mirus «XZ»), Aktiv-Status</div>
+                    </div>
                         <div class="admin-card" onclick="showPage('pregnancy-rules')">
                         <img src="img/vvkat-pregnancy.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Mutterschafts-Regeln</div>
                         <div class="admin-card-desc">Gesetzliche Fristen bei Schwangerschaft (ArG/ArGV/OR)</div>
-                    </div>
-                        <div class="admin-card" onclick="showPage('globale-daten')">
-                        <img src="img/vvkat-globale-daten.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Globale Daten</div>
-                        <div class="admin-card-desc">Banken (SIX-Liste) + Nationen</div>
                     </div>
                         <div class="admin-card" onclick="showPage('dokumentstruktur')">
                         <img src="img/vvkat-dokumentstruktur.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -8913,35 +8918,8 @@
                 </div>
             </div>
 
-            <!-- ═══════════════ GLOBALE DATEN (Sub-Hub) ═══════════════ -->
-            <!-- Walter-Vorgabe 07.06.2026: Sub-Hub für filialübergreifende
-                 Stammdaten — aktuell Banken (SIX-Liste) + Nationen. -->
-            <div class="page liquid-mask" id="page-globale-daten">
-                <div class="page-header">
-                    <div>
-                        <h1 class="page-title">Globale Daten</h1>
-                        <p class="page-sub">Stammdaten, die filialübergreifend gelten.</p>
-                    </div>
-                </div>
-
-                <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:20px;max-width:1360px">
-                    <div class="admin-card" onclick="showPage('banken')">
-                        <img src="img/glokat-banken.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Banken</div>
-                        <div class="admin-card-desc">Schweizer Bank-Stammdaten (SIX IID-Liste) — Name, BIC, BC-Nummer.</div>
-                    </div>
-                    <div class="admin-card" onclick="showPage('nationen')">
-                        <img src="img/glokat-nationen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Nationen</div>
-                        <div class="admin-card-desc">ISO-3166-Codes mit optionalem Alternativ-Code (z.B. Mirus „XZ" für Kosovo) und Aktiv-Status.</div>
-                    </div>
-                    <div class="admin-card" onclick="showPage('swiss-locations')">
-                        <img src="img/vvkat-gemeinden.webp?v=20261016a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">PLZ / Gemeinden</div>
-                        <div class="admin-card-desc">Schweizer Ortschaftsverzeichnis (PLZ + Gemeinde + BFS-Nr. + Kanton). Quelle: amtliches Verzeichnis der Post.</div>
-                    </div>
-                </div>
-            </div>
+            <!-- Globale Daten (Sub-Hub) entfernt 16.10.2026 — Banken/Nationen/PLZ
+                 liegen direkt unter Verzeichnisse & Vorgaben. Alte Links → Redirect. -->
 
             <!-- ═══════════════ NATIONEN ═══════════════ -->
             <div class="page liquid-mask" id="page-nationen">
@@ -10603,7 +10581,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261015c"></script>
+<script src="js/app-core.js?v=20261016a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>

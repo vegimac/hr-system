@@ -125,7 +125,8 @@ function pageBack() {
 // Übersicht, die auf die Seite verlinkt (Walter 14.10.2026): Unterseiten von Globale Daten,
 // «Neue Filiale importieren» oder Entwicklung gehen eine Ebene zurück, nicht in die Systemsteuerung.
 // Reihenfolge = spezifischste Übersicht zuerst.
-const _uebersichten = ['globale-daten', 'filial-onboarding', 'mcadmin', 'entwicklung', 'hr-hub', 'admin-hub'];
+// «globale-daten» entfernt 16.10.2026 — Banken/Nationen/PLZ direkt unter Verzeichnisse.
+const _uebersichten = ['filial-onboarding', 'mcadmin', 'entwicklung', 'hr-hub', 'admin-hub'];
 function _elternUebersicht(name) {
     const link = `showPage('${name}')`;
     for (const hub of _uebersichten) {
@@ -1408,7 +1409,7 @@ function roleName(r) {
 // Mapping: Unterseiten → in Sidebar als "admin-hub" markieren, damit der
 // Systemeinstellungen-Eintrag aktiv bleibt wenn man in einem Admin-Bereich ist.
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
-                         'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log','aktive-sitzungen','virenscanner',
+                         'qst-tarife','fz-tarife','absenz-typen','behoerden','banken','nationen','swiss-locations','audit-log','aktive-sitzungen','virenscanner',
                          'perioden','elm-meldungen','elm-schnittstelle','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-lohnkonto-import','lohn-simulation','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','schulung-typen','feiertage','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
@@ -1445,6 +1446,12 @@ function applyAdminBreadcrumb(name) {
 }
 
 function showPage(name) {
+    // Walter 16.10.2026: alter Sub-Hub «Globale Daten» → Verzeichnisse & Vorgaben.
+    if (name === 'globale-daten') {
+        showPage('admin-hub');
+        if (typeof adminHubShowCat === 'function') adminHubShowCat('kataloge');
+        return;
+    }
     // Seiten-Historie (Walter 12.08.2026): für «← Zurück»-Buttons auf den
     // Dokument-Erfassungsmasken (pageBack unten).
     if (currentPageName && currentPageName !== name) window._prevPageName = currentPageName;

@@ -25,7 +25,9 @@ Die Seite ist in **sechs Hauptkategorie-Kacheln** gegliedert: **Lohn-Stammdaten*
 | **Mutterschafts-Regeln** | Gesetzliche Fristen (ArG/OR) |
 | **Dokument-Struktur** | Kategorien und Dokumenttypen; ausdrucken über «Drucken» |
 | **Dokumenten-Audit** | Verdächtige Dateinamen (falsche Filiale?) |
-| **Globale Daten** | Banken, Nationen, PLZ/Gemeinden |
+| **Banken** | Schweizer Bank-Stammdaten (SIX IID-Liste) |
+| **Nationen** | ISO-3166-Codes, Alternativ-Code (Mirus) |
+| **PLZ / Gemeinden** | Ortschaften + BFS-Gemeindenummer (AMTOVZ) |
 | **Aktivitäts-Log** | Wer hat was geändert — [Audit](#audit) |
 | **easy@work API** | Verbindung, Syncs, Diagnose — [easy@work](#easyatwork) |
 | **d.velop Import** | Alte Personalakten (CSV+ZIP) |
