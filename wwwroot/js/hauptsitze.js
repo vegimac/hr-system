@@ -160,11 +160,11 @@ async function azmLoeschen(id) {
 
 // ── Modal (ov-Standard: class="modal" bekommt den Greige-Verlauf) ──────
 function _hsEnsureModal() {
-    // Layout v7: feste Höhe — Titel/Reiter bleiben oben, Speichern/Verwerfen unten
+    // Layout v8: Eingabewerte fett wie Land-Select (SWITZERLAND)
     const existing = document.getElementById('hsModal');
-    if (existing && existing.dataset.hsLayout !== '7') existing.remove();
+    if (existing && existing.dataset.hsLayout !== '8') existing.remove();
     if (document.getElementById('hsModal')) return;
-    const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
+    const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;font-weight:700;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
     const tabBtn = 'border:1px solid rgba(60,55,48,0.20);background:transparent;border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600;color:#646464;cursor:pointer;font-family:inherit';
     const btnSec = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;color:#3f3f3f;cursor:pointer;font-family:inherit';
@@ -177,7 +177,7 @@ function _hsEnsureModal() {
         : `<select id="hsSvLand" style="${inp}"><option value="CH">SWITZERLAND</option></select>`;
     const div = document.createElement('div');
     div.id = 'hsModal';
-    div.dataset.hsLayout = '7';
+    div.dataset.hsLayout = '8';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
     <div class="modal" style="position:absolute;top:4vh;left:50%;transform:translateX(-50%);width:min(820px,96vw);height:min(92vh,780px);display:flex;flex-direction:column;overflow:hidden;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:0;box-sizing:border-box">
