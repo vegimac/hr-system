@@ -157,11 +157,14 @@
         return (typeof w.stripCityCantonSuffix === 'function') ? w.stripCityCantonSuffix(n) : n;
     }
 
+    /** Exakter Ortschaftsname (nach Normierung) — «Luzer» ≠ «Luzern». */
     function _ortPasst(ort, loc) {
         const o = _ortNorm(ort);
         if (!o) return false;
-        const namen = [_ortName(loc), loc.gemeindename].filter(Boolean).map(_ortNorm);
-        return namen.some(n => n === o || n.startsWith(o) || o.startsWith(n));
+        const namen = [_ortName(loc), loc.gemeindename, loc.ortschaftsname]
+            .filter(Boolean)
+            .map(n => _ortNorm((typeof w.stripCityCantonSuffix === 'function') ? w.stripCityCantonSuffix(n) : n));
+        return namen.some(n => n === o);
     }
 
     async function _locsFuer(plz) {
@@ -322,6 +325,12 @@
         plzEl.addEventListener('blur', () => { lookup(); });
         ortEl.addEventListener('input', () => {
             if (typeof w.validateCity === 'function') w.validateCity(ortEl);
+            // Grünes «✓ Ort» vom PLZ-Lookup gilt nicht mehr, sobald der Ort geändert wird
+            if (hintEl && hintEl.dataset.swissAdrErr !== '1') {
+                hintEl.innerHTML = '';
+                hintEl.textContent = '';
+                hintEl.style.color = '';
+            }
             if (ortEl.classList.contains('feld-ungueltig')) pruefen();
         });
         ortEl.addEventListener('blur', () => { pruefen(); });
