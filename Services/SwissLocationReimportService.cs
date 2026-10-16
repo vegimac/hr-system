@@ -219,41 +219,46 @@ public static class SwissLocationReimportService
         return (rows.Count, path);
     }
 
+    public sealed record ImportErgebnis(int Count, string SavedAs, string Quelle, bool FromZip, string? CsvImZip);
+
     /// <summary>
     /// Truncate + Neu-Insert aus Upload (CSV oder ZIP mit CSV darin).
     /// Speichert zusätzlich als <c>data_swiss_locations.csv</c> im ContentRoot.
     /// </summary>
-    public static async Task<(int Count, string SavedAs, string Quelle)> ImportUploadAsync(
+    public static async Task<ImportErgebnis> ImportUploadAsync(
         AppDbContext db, Stream uploadStream, string? fileName = null,
         string? contentRoot = null, CancellationToken ct = default)
     {
-        await using var csvStream = await OpenCsvStreamFromUploadAsync(uploadStream, fileName, ct);
-        using var reader = new StreamReader(csvStream, detectEncodingFromByteOrderMarks: true);
-        var text = await reader.ReadToEndAsync(ct);
-        if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
-        var lines = text.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
-        var rows = ParseCsvLines(lines);
-        if (rows.Count < 1000)
-            throw new InvalidOperationException(
-                $"CSV liefert nur {rows.Count} Zeilen — Abbruch (erwartet ~4000). "
-                + "Akzeptiert: OneCrew-CSV, offizielles AMTOVZ (swisstopo) oder ZIP mit CSV darin.");
-
-        string? savedAs = null;
-        if (!string.IsNullOrWhiteSpace(contentRoot))
+        var (csvStream, fromZip, csvImZip) = await OpenCsvStreamFromUploadAsync(uploadStream, fileName, ct);
+        await using (csvStream)
         {
-            savedAs = Path.Combine(contentRoot, CsvFileName);
-            await File.WriteAllTextAsync(savedAs, ToOneCrewCsv(rows), ct);
-        }
+            using var reader = new StreamReader(csvStream, detectEncodingFromByteOrderMarks: true);
+            var text = await reader.ReadToEndAsync(ct);
+            if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
+            var lines = text.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+            var rows = ParseCsvLines(lines);
+            if (rows.Count < 1000)
+                throw new InvalidOperationException(
+                    $"CSV liefert nur {rows.Count} Zeilen — Abbruch (erwartet ~4000). "
+                    + "Akzeptiert: OneCrew-CSV, offizielles AMTOVZ (swisstopo) oder ZIP mit CSV darin.");
 
-        var quelle = string.IsNullOrWhiteSpace(fileName) ? "(Upload)" : fileName.Trim();
-        await ReplaceAllAsync(db, rows, savedAs ?? quelle, ct);
-        return (rows.Count, savedAs ?? "(nur DB)", quelle);
+            string? savedAs = null;
+            if (!string.IsNullOrWhiteSpace(contentRoot))
+            {
+                savedAs = Path.Combine(contentRoot, CsvFileName);
+                await File.WriteAllTextAsync(savedAs, ToOneCrewCsv(rows), ct);
+            }
+
+            var quelle = string.IsNullOrWhiteSpace(fileName) ? "(Upload)" : fileName.Trim();
+            await ReplaceAllAsync(db, rows, savedAs ?? quelle, ct);
+            return new ImportErgebnis(rows.Count, savedAs ?? "(nur DB)", quelle, fromZip, csvImZip);
+        }
     }
 
     /// <summary>
     /// CSV direkt oder erste passende CSV aus einem ZIP (swisstopo-Download).
     /// </summary>
-    public static async Task<Stream> OpenCsvStreamFromUploadAsync(
+    public static async Task<(Stream Stream, bool FromZip, string? CsvImZip)> OpenCsvStreamFromUploadAsync(
         Stream uploadStream, string? fileName, CancellationToken ct = default)
     {
         var name = fileName ?? "";
@@ -271,18 +276,19 @@ public static class SwissLocationReimportService
             isZip = head[0] == 0x50 && head[1] == 0x4B && head[2] == 0x03 && head[3] == 0x04;
         }
         if (!isZip)
-            return ms;
+            return (ms, false, null);
 
         using var zip = new ZipArchive(ms, ZipArchiveMode.Read, leaveOpen: false);
         var entry = PickCsvEntry(zip)
             ?? throw new InvalidOperationException(
                 "Im ZIP steckt keine CSV. Bitte das swisstopo-Paket «…ortschaftenverzeichnis…csv.zip» oder eine .csv wählen.");
 
+        var csvName = entry.Name;
         var outMs = new MemoryStream();
         await using (var es = entry.Open())
             await es.CopyToAsync(outMs, ct);
         outMs.Position = 0;
-        return outMs;
+        return (outMs, true, csvName);
     }
 
     static ZipArchiveEntry? PickCsvEntry(ZipArchive zip)

@@ -12,8 +12,9 @@ let _locSortState = { key: 'plz4', dir: 'asc' };
 let _locSearchTimer = null;
 const _LOC_RENDER_LIMIT = 500;  // DOM-Grenze — bei >500 Treffern Hinweis
 
-async function locInit() {
-    document.getElementById('locAlert').innerHTML = '';
+async function locInit(opts) {
+    // opts.keepAlert — Erfolgsmeldung nach Import nicht löschen
+    if (!opts?.keepAlert) document.getElementById('locAlert').innerHTML = '';
     document.getElementById('locSearch').value = '';
     document.getElementById('locList').innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
     const isAdmin = currentUser?.role === 'admin';
@@ -34,6 +35,30 @@ async function locInit() {
     } catch (e) {
         document.getElementById('locList').innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler: ' + _e(e.message) + '</span></div>';
     }
+}
+
+function locStatus(html, type) {
+    const el = document.getElementById('locAlert');
+    if (!el) return;
+    const bg = type === 'success' ? '#ecfdf5' : type === 'error' ? '#fef2f2' : type === 'info' ? '#fffbeb' : '#f8fafc';
+    const bd = type === 'success' ? '#86efac' : type === 'error' ? '#fca5a5' : type === 'info' ? '#fbbf24' : '#e2e8f0';
+    const fg = type === 'success' ? '#166534' : type === 'error' ? '#991b1b' : type === 'info' ? '#92400e' : '#3f3f3f';
+    el.innerHTML = `<div style="margin-bottom:12px;padding:12px 14px;border-radius:10px;border:1px solid ${bd};background:${bg};color:${fg};font-size:13.5px;line-height:1.45">${html}</div>`;
+}
+
+function locDropProgress(fileName, steps, activeIdx) {
+    const txt = document.getElementById('locDropzoneText');
+    if (!txt) return;
+    const rows = steps.map((s, i) => {
+        let mark = '○';
+        if (i < activeIdx) mark = '✓';
+        else if (i === activeIdx) mark = '…';
+        const weight = i === activeIdx ? '600' : '400';
+        const color = i < activeIdx ? '#166534' : i === activeIdx ? '#3f3f3f' : '#8b8b8b';
+        return `<div style="font-weight:${weight};color:${color};margin:2px 0">${mark} ${_e(s)}</div>`;
+    }).join('');
+    txt.innerHTML = `<div class="dok-upload-dropzone-file">${_e(fileName)}</div>
+        <div style="text-align:left;display:inline-block;margin-top:8px;font-size:12.5px">${rows}</div>`;
 }
 
 let _locDropBound = false;
@@ -299,8 +324,9 @@ function locImportFileChosen(input) {
 async function locImportFile(file) {
     if (!file) return;
     const n = (file.name || '').toLowerCase();
-    if (!n.endsWith('.csv') && !n.endsWith('.txt') && !n.endsWith('.zip')) {
-        showPageAlert('locAlert', 'Bitte eine CSV- oder ZIP-Datei wählen (swisstopo AMTOVZ).', 'error');
+    const isZip = n.endsWith('.zip');
+    if (!n.endsWith('.csv') && !n.endsWith('.txt') && !isZip) {
+        locStatus('Bitte eine CSV- oder ZIP-Datei wählen (swisstopo AMTOVZ).', 'error');
         return;
     }
     const ok = await (typeof liquidConfirm === 'function'
@@ -312,10 +338,16 @@ async function locImportFile(file) {
 
     const dz = document.getElementById('locDropzone');
     const txt = document.getElementById('locDropzoneText');
-    const prev = txt?.innerHTML;
-    if (txt) txt.innerHTML = `<div class="dok-upload-dropzone-file">${_e(file.name)}</div><small>Import läuft…</small>`;
+    const prevHtml = txt?.innerHTML;
+    const steps = isZip
+        ? ['Datei empfangen', 'ZIP öffnen und CSV suchen', 'Ortschaften einlesen & Verzeichnis ersetzen', 'Liste neu laden']
+        : ['Datei empfangen', 'CSV einlesen & Verzeichnis ersetzen', 'Liste neu laden'];
     if (dz) dz.style.pointerEvents = 'none';
+    locDropProgress(file.name, steps, 0);
+    locStatus(`Import gestartet: <strong>${_e(file.name)}</strong> (${isZip ? 'ZIP' : 'CSV'})…`, 'info');
+
     try {
+        locDropProgress(file.name, steps, isZip ? 1 : 1);
         const fd = new FormData();
         fd.append('file', file);
         const r = await fetch('/api/swiss-locations/admin/import', {
@@ -325,15 +357,30 @@ async function locImportFile(file) {
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) {
-            showPageAlert('locAlert', 'Fehler: ' + (j.message || j.error || r.status), 'error');
+            locDropProgress(file.name, steps, -1);
+            locStatus(`<strong>Fehler:</strong> ${_e(j.message || j.error || String(r.status))}`, 'error');
             return;
         }
-        showPageAlert('locAlert', '✓ ' + (j.message || 'Fertig.'), 'success');
-        await locInit();
+        locDropProgress(file.name, steps, steps.length - 1);
+        await locInit({ keepAlert: true });
+        const anzahl = (j.count != null) ? Number(j.count).toLocaleString('de-CH') : '?';
+        const zipTeil = j.fromZip
+            ? `<br>ZIP entpackt → CSV «${_e(j.csvImZip || '…')}» gelesen.`
+            : '';
+        locStatus(
+            `<strong>✓ Import erfolgreich</strong><br>`
+            + `${anzahl} Ortschaften übernommen aus «${_e(file.name)}».${zipTeil}<br>`
+            + `<span style="font-size:12px;opacity:.85">${_e(j.message || '')}</span>`,
+            'success'
+        );
+        if (txt) {
+            txt.innerHTML = `<div style="color:#166534;font-weight:600">✓ Fertig — ${anzahl} Ortschaften</div>`
+                + `<div style="font-size:12px;color:#8b8b8b;margin-top:4px">Nächste Aktualisierung: CSV oder ZIP hierher ziehen</div>`;
+        }
     } catch (e) {
-        showPageAlert('locAlert', 'Verbindungsfehler: ' + e.message, 'error');
+        locStatus(`<strong>Verbindungsfehler:</strong> ${_e(e.message)}`, 'error');
+        if (txt && prevHtml) txt.innerHTML = prevHtml;
     } finally {
-        if (txt && prev) txt.innerHTML = prev;
         if (dz) dz.style.pointerEvents = '';
     }
 }

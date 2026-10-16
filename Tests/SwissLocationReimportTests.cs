@@ -52,12 +52,17 @@ public class SwissLocationReimportTests
             await w.WriteAsync(csv);
         }
         zipMs.Position = 0;
-        await using var opened = await SwissLocationReimportService.OpenCsvStreamFromUploadAsync(
+        var (opened, fromZip, csvName) = await SwissLocationReimportService.OpenCsvStreamFromUploadAsync(
             zipMs, "ortschaftenverzeichnis_plz_2056.csv.zip");
-        using var r = new StreamReader(opened);
-        var text = await r.ReadToEndAsync();
-        Assert.Contains("plz4;ortschaftsname", text);
-        Assert.Contains("Ort2199", text);
+        await using (opened)
+        {
+            Assert.True(fromZip);
+            Assert.Equal("ortschaftenverzeichnis_plz_2056.csv", csvName);
+            using var r = new StreamReader(opened);
+            var text = await r.ReadToEndAsync();
+            Assert.Contains("plz4;ortschaftsname", text);
+            Assert.Contains("Ort2199", text);
+        }
     }
 
     [Fact]

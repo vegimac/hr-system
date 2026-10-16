@@ -322,13 +322,18 @@ public class SwissLocationsController : ControllerBase
         try
         {
             await using var stream = file.OpenReadStream();
-            var (count, savedAs, quelle) = await SwissLocationReimportService.ImportUploadAsync(
+            var erg = await SwissLocationReimportService.ImportUploadAsync(
                 _db, stream, name, contentRoot, ct);
+            var zipHinweis = erg.FromZip && !string.IsNullOrEmpty(erg.CsvImZip)
+                ? $" ZIP geöffnet, CSV «{erg.CsvImZip}» gelesen."
+                : "";
             return Ok(new {
                 imported = true,
-                count,
-                savedAs,
-                message = $"Aktualisiert: {count} Ortschaften (BFS-Gemeindenummern) aus «{quelle}»."
+                count = erg.Count,
+                savedAs = erg.SavedAs,
+                fromZip = erg.FromZip,
+                csvImZip = erg.CsvImZip,
+                message = $"Erfolgreich aktualisiert: {erg.Count:N0} Ortschaften aus «{erg.Quelle}».{zipHinweis}"
             });
         }
         catch (Exception ex)
