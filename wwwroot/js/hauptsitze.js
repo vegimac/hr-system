@@ -170,8 +170,8 @@ function _hsEnsureModal() {
     <div class="modal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,94vw);max-height:92vh;overflow:auto;border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
         <div id="hsModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Hauptsitz erfassen</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
-            <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<input id="hsName" placeholder="z.B. Schaub Restaurants GmbH" style="${inp}"></label>
-            <label style="${lbl};grid-column:span 2">UID<input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"></label>
+            <label style="${lbl};grid-column:span 2">Firmenname (Rechtseinheit)<span class="pflicht-stern">*</span><input id="hsName" placeholder="z.B. Schaub Restaurants GmbH" style="${inp}"></label>
+            <label style="${lbl};grid-column:span 2">UID-BFS<input id="hsUid" placeholder="CHE-XXX.XXX.XXX" style="${inp};font-family:ui-monospace,Menlo,monospace"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Format CHE-123.456.789 — Prüfziffer beim Verlassen des Feldes (CHE-999.999.997 wird abgelehnt).</span></label>
             <label style="${lbl};grid-column:span 2">Strasse<input id="hsStrasse" style="${inp}"></label>
             <label style="${lbl}">PLZ / Ort
                 <div style="display:flex;gap:8px">
@@ -229,6 +229,10 @@ function _hsEnsureModal() {
     </div>`;
     div.addEventListener('click', (e) => { if (e.target === div) hsCloseModal(); });
     document.body.appendChild(div);
+    if (window.SwissUid) {
+        SwissUid.feldPruefungBinden('hsName', { art: 'pflicht', label: 'Firmenname' });
+        SwissUid.feldPruefungBinden('hsUid', { art: 'uid' });
+    }
 }
 
 function hsOpenModal(id) {
@@ -236,7 +240,7 @@ function hsOpenModal(id) {
     _hsEditId = id || null;
     const h = id ? _hsList.find(x => x.id === id) : null;
     document.getElementById('hsModalTitle').textContent = h ? 'Hauptsitz bearbeiten' : 'Hauptsitz erfassen';
-    const set = (fid, v) => { const el = document.getElementById(fid); if (el) el.value = v ?? ''; };
+    const set = (fid, v) => { const el = document.getElementById(fid); if (el) { el.value = v ?? ''; if (window.SwissUid) SwissUid.feldFehlerLoeschen(el); } };
     set('hsName', h?.name); set('hsUid', h?.uid); set('hsStrasse', h?.strasse);
     set('hsPlz', h?.plz); set('hsOrt', h?.ort); set('hsKanton', h?.kantonCode); set('hsBem', h?.bemerkung);
     set('hsFixPensen', h?.fixPensenErlaubt); set('hsFlexMax', h?.flexStundenMax);
@@ -269,6 +273,11 @@ async function hsSave() {
     if (dto.mtpStundenMin != null && dto.mtpStundenMax != null
         && dto.mtpStundenMin > dto.mtpStundenMax) {
         showToast('MTP: die Untergrenze darf nicht groesser als die Obergrenze sein.', 'error');
+        return;
+    }
+    const modal = document.getElementById('hsModal');
+    if (window.SwissUid && !SwissUid.felderPruefen(modal)) {
+        showToast('Bitte die markierten Felder korrigieren.', 'error');
         return;
     }
     if (!dto.name) { showToast('Bitte den Firmennamen angeben.', 'error'); return; }

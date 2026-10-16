@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261015b">
+    <link rel="stylesheet" href="css/app.css?v=20261016a">
 </head>
 <body>
 
@@ -9598,7 +9598,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <section>
                 <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Bezeichnung</div>
                 <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:10px">
-                    <div><label class="f-label">Firma</label><input id="stmCompanyName" class="f-input"></div>
+                    <div><label class="f-label">Firma</label><input id="stmCompanyName" class="f-input" placeholder="Firmenname der Filiale"></div>
                     <div><label class="f-label">Filiale (Anzeigename)</label><input id="stmBranchName" class="f-input" placeholder="z.B. Sursee"></div>
                     <div><label class="f-label">Code</label><input id="stmRestaurantCode" class="f-input" style="text-align:center;font-variant-numeric:tabular-nums"></div>
                 </div>
@@ -9688,8 +9688,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <section>
                 <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Betriebsangaben</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
-                    <div><label class="f-label">BUR-Nummer</label><input id="stmBurNummer" class="f-input" placeholder="A89058593" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Ein Buchstabe + 8 Ziffern, Prüfziffer wird geprüft"><div class="f-hint" style="margin-top:2px">z.B. A89058593 — Prüfziffer wird beim Speichern geprüft</div></div>
-                    <div><label class="f-label">UID-Nummer</label><input id="stmUidNummer" class="f-input" placeholder="CHE-XXX.XXX.XXX" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="CHE-123.456.789, Prüfziffer wird geprüft"><div class="f-hint" style="margin-top:2px">CHE-999.999.997 wird abgelehnt (Prüfziffer)</div></div>
+                    <div><label class="f-label">BUR-Nummer</label><input id="stmBurNummer" class="f-input" placeholder="A89058593" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Ein Buchstabe + 8 Ziffern"><div class="f-hint" style="margin-top:2px">z.B. A89058593 — Prüfziffer beim Verlassen des Feldes</div></div>
+                    <div><label class="f-label">UID-Nummer</label><input id="stmUidNummer" class="f-input" placeholder="CHE-XXX.XXX.XXX" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="CHE-123.456.789"><div class="f-hint" style="margin-top:2px">CHE-999.999.997 wird abgelehnt — Prüfung beim Verlassen des Feldes</div></div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
                     <div><label class="f-label">BFS-Gemeindenummer <span style="font-weight:400;color:#8b8b8b">(Swissdec)</span></label><input id="stmBfsGemeindeNr" class="f-input" type="number" min="1" max="9999" placeholder="z.B. 1061" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></div>
@@ -10610,7 +10610,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20261011a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20261007c"></script>
+<script src="js/swiss-uid.js?v=20261016a"></script>
+<script src="js/branches-detail.js?v=20261016a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20261011b"></script>
@@ -10656,7 +10657,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/swissdec.js?v=20261015c"></script>
 <script src="js/swissdec-komm.js?v=20261015a"></script>
 <script src="js/swissdec-uebermittlung.js?v=20261002b"></script>
-<script src="js/hauptsitze.js?v=20261016a"></script>
+<script src="js/hauptsitze.js?v=20261016b"></script>
 <script src="js/arbeitszeit-regeln.js?v=20261007d"></script>
 <script src="js/feiertage.js?v=20261007a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>

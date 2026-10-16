@@ -149,10 +149,13 @@ public static class ElmGemeinsam
         }
 
         var st = await db.ElmStammdaten.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
-        var uid = (hs?.Uid ?? st?.Uid ?? haupt.UidBfs ?? haupt.UidNummer ?? "").Trim();
-        if (!Regex.IsMatch(uid, @"^CHE-\d{3}\.\d{3}\.\d{3}$"))
+        var uid = (hs?.Uid ?? st?.Uid ?? haupt.UidBfs ?? haupt.UidNummer ?? "").Trim().ToUpperInvariant();
+        if (!ElmStammdatenPruefung.UidBfsGueltig(uid))
         {
-            warn.Add($"UID fehlt/ungültig («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (Hauptsitz-Verwaltung: UID erfassen).");
+            var grund = string.IsNullOrWhiteSpace(uid) ? "fehlt"
+                : ElmStammdatenPruefung.UidBfsFehler(uid)?.Contains("Prüfziffer") == true ? "Prüfziffer falsch"
+                : "Format ungültig";
+            warn.Add($"UID {grund} («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (Hauptsitz-Verwaltung: UID erfassen).");
             uid = "CHE-123.123.123";
         }
 

@@ -1,9 +1,10 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
+using HrSystem.Services.Elm;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using HrSystem.Services;
 
 namespace HrSystem.Controllers;
 
@@ -199,7 +200,9 @@ public class CompanyProfilesController : ControllerBase
         var profile = await _context.CompanyProfiles.FindAsync(id);
         if (profile is null) return NotFound();
 
-        profile.BurNummer      = dto.BurNummer;
+        if (ElmStammdatenPruefung.BurNummerFehler(dto.BurNummer) is string burFehler)
+            return BadRequest(new { error = "BUR_UNGUELTIG", message = burFehler });
+        profile.BurNummer      = string.IsNullOrWhiteSpace(dto.BurNummer) ? null : dto.BurNummer.Trim().ToUpperInvariant();
         profile.BranchenCode   = dto.BranchenCode;
         profile.AhvKasse       = dto.AhvKasse;
         profile.BvgVersicherer = dto.BvgVersicherer;
@@ -276,9 +279,15 @@ public class CompanyProfilesController : ControllerBase
         profile.Phone = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim();
         profile.Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim();
 
-        // ALV / Sozialversicherungen / GAV
-        profile.BurNummer      = string.IsNullOrWhiteSpace(dto.BurNummer)      ? null : dto.BurNummer.Trim();
-        profile.UidNummer      = string.IsNullOrWhiteSpace(dto.UidNummer)      ? null : dto.UidNummer.Trim();
+        // ALV / Sozialversicherungen / GAV — BUR + UID mit Prüfziffer (Swissdec 4.2)
+        if (ElmStammdatenPruefung.BurNummerFehler(dto.BurNummer) is string burFehler)
+            return BadRequest(new { error = "BUR_UNGUELTIG", message = burFehler });
+        if (ElmStammdatenPruefung.UidBfsFehler(dto.UidNummer) is string uidFehler)
+            return BadRequest(new { error = "UID_UNGUELTIG", message = uidFehler });
+        profile.BurNummer      = string.IsNullOrWhiteSpace(dto.BurNummer)      ? null : dto.BurNummer.Trim().ToUpperInvariant();
+        profile.UidNummer      = string.IsNullOrWhiteSpace(dto.UidNummer)      ? null : dto.UidNummer.Trim().ToUpperInvariant();
+        // uid_bfs = dieselbe Nummer (LSE/Swissdec-Lesepfad); leer mitlöschen
+        profile.UidBfs         = profile.UidNummer;
         profile.BfsGemeindeNr  = dto.BfsGemeindeNr; // BFS-Gemeindenummer (Swissdec, Walter 07.09.2026)
         profile.HauptsitzId    = dto.HauptsitzId; // Zuordnung Rechtseinheit (Walter 29.08.2026)
         profile.BranchenCode   = string.IsNullOrWhiteSpace(dto.BranchenCode)   ? null : dto.BranchenCode.Trim();

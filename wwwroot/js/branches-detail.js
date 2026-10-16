@@ -1311,8 +1311,20 @@ async function openStmModal(id) {
         }
         document.getElementById('stmPlzHint').innerHTML    = '';
         stmToggleGavName();
+        stmBindPruefungen();
+        ['stmBurNummer', 'stmUidNummer'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && window.SwissUid) SwissUid.feldFehlerLoeschen(el);
+        });
     } catch { /* leere Felder anzeigen */ }
     document.getElementById('stmDatenModal').style.display = 'flex';
+}
+
+/** BUR/UID: Fehler beim Verlassen des Feldes (Walter 16.10.2026). */
+function stmBindPruefungen() {
+    if (!window.SwissUid) return;
+    SwissUid.feldPruefungBinden('stmBurNummer', { art: 'bur' });
+    SwissUid.feldPruefungBinden('stmUidNummer', { art: 'uid' });
 }
 
 // ── Nummernkreis: Muster und Bereich live anzeigen (Walter 02.09.2026) ──
@@ -1475,6 +1487,11 @@ async function saveStm() {
         })(),
     };
 
+    stmBindPruefungen();
+    if (window.SwissUid && !SwissUid.felderPruefen(document.getElementById('stmDatenModal'))) {
+        alert('Bitte die markierten Felder korrigieren (BUR/UID).');
+        return;
+    }
     try {
         const res = await fetch(`/api/companyprofiles/${stmModalBranchId}/stammdaten`, {
             method: 'PATCH',
@@ -2597,10 +2614,10 @@ function cpEmpfEnsureModal() {
                 <label style="${lbl}">Art
                     <select id="cpEmpfArt" onchange="cpEmpfUpdateLabels()" style="${inp}">${CP_EMPF_ARTEN.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
                 </label>
-                <label style="${lbl}">Bezeichnung<input id="cpEmpfBez" style="${inp}"></label>
+                <label style="${lbl}">Bezeichnung<span class="pflicht-stern">*</span><input id="cpEmpfBez" style="${inp}"></label>
                 <label style="${lbl}">Zusatz<input id="cpEmpfZusatz" style="${inp}"></label>
                 <label style="${lbl}"><span id="cpEmpfLblKassenNr">Nummer der Kasse</span><input id="cpEmpfKassenNr" style="${inp}"></label>
-                <label style="${lbl};grid-column:span 2">UID-Nummer <span style="font-weight:400;color:#8b8b8b">(für Swissdec-Meldungen)</span><input id="cpEmpfUid" placeholder="CHE-XXX.XXX.XXX" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">UID-Nummer <span style="font-weight:400;color:#8b8b8b">(für Swissdec-Meldungen)</span><input id="cpEmpfUid" placeholder="CHE-XXX.XXX.XXX" style="${inp}"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Prüfziffer beim Verlassen des Feldes</span></label>
                 <label style="${lbl};grid-column:span 2">Strasse<input id="cpEmpfStrasse" style="${inp}"></label>
                 <label style="${lbl}">Postfach<input id="cpEmpfPostfach" style="${inp}"></label>
                 <label style="${lbl}">PLZ / Ort
@@ -2636,6 +2653,10 @@ function cpEmpfEnsureModal() {
     </div>`;
     div.addEventListener('click', (e) => { if (e.target === div) cpEmpfCloseModal(); });
     document.body.appendChild(div);
+    if (window.SwissUid) {
+        SwissUid.feldPruefungBinden('cpEmpfBez', { art: 'pflicht', label: 'Bezeichnung' });
+        SwissUid.feldPruefungBinden('cpEmpfUid', { art: 'uid' });
+    }
 }
 
 let _cpEmpfEditId = null;   // Zuordnungs-Id beim Bearbeiten, null = neu
@@ -2691,7 +2712,12 @@ function cpEmpfPickChanged() {
 
 // readonly=false → Felder editierbar (zentrale Änderung wird mitgespeichert)
 function cpEmpfFillKatalog(k, isNew) {
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+    const set = (id, v) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = v ?? '';
+        if (window.SwissUid) SwissUid.feldFehlerLoeschen(el);
+    };
     set('cpEmpfArt', k.art || 'ANDERE');
     set('cpEmpfBez', k.bezeichnung);
     set('cpEmpfZusatz', k.zusatz);
@@ -2720,6 +2746,10 @@ async function cpEmpfSave() {
         postfach: val('cpEmpfPostfach'), plz: val('cpEmpfPlz'), ort: val('cpEmpfOrt'),
         kantonCode: val('cpEmpfKanton'), supportEmail: val('cpEmpfMail'),
     };
+    if (window.SwissUid && !SwissUid.felderPruefen(document.getElementById('cpEmpfModal'))) {
+        showToast('Bitte die markierten Felder korrigieren.', 'error');
+        return;
+    }
     if (!katalogBody.bezeichnung) { showToast('Bezeichnung fehlt.', 'error'); return; }
     // Unbekannte PLZ lernen (Walter 06.08.2026): hat der User Ort zu einer
     // PLZ eingetragen, die das Ortschaftsverzeichnis nicht kennt (Postfach-

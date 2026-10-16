@@ -309,6 +309,42 @@ public class ElmBurPruefzifferTests
 }
 
 /// <summary>
+/// UID-BFS-Prüfziffer (Swissdec Expected: CHE-999.999.996 ok, CHE-999.999.997 Fehler).
+/// </summary>
+public class ElmUidPruefzifferTests
+{
+    [Theory]
+    [InlineData("CHE-999.999.996")]  // Muster AG / Swissdec-Test
+    [InlineData("CHE-109.322.551")]  // bekannt gültig
+    public void EchteUidsGehenDurch(string uid)
+        => Assert.True(ElmStammdatenPruefung.UidBfsGueltig(uid));
+
+    [Theory]
+    [InlineData("CHE-999.999.997")]  // Expected der Swissdec-Vorgabe
+    [InlineData("CHE-123.456.789")]
+    [InlineData("CHE-123.123.123")]
+    public void FalschePruefzifferFaelltDurch(string uid)
+    {
+        Assert.False(ElmStammdatenPruefung.UidBfsGueltig(uid));
+        Assert.Contains("Prüfziffer", ElmStammdatenPruefung.UidBfsFehler(uid)!);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    [InlineData("CHE999999996")]
+    [InlineData("999.999.996")]
+    public void LeerOderFalschesFormat(string? uid)
+    {
+        Assert.False(ElmStammdatenPruefung.UidBfsGueltig(uid));
+        if (string.IsNullOrWhiteSpace(uid))
+            Assert.Null(ElmStammdatenPruefung.UidBfsFehler(uid));
+        else
+            Assert.Contains("Format", ElmStammdatenPruefung.UidBfsFehler(uid)!);
+    }
+}
+
+/// <summary>
 /// MonitoringID im Meldungskopf (Walter 27.09.2026). Auf den Swissdec-Testsystemen
 /// zwingend, auf der Produktion muss sie fehlen. Sie steht als LETZTES Element im
 /// RequestContext — in JEDER Meldung (Monat, Jahr, EMA).

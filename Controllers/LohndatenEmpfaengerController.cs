@@ -47,7 +47,8 @@ public class LohndatenEmpfaengerController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.Bezeichnung))
             return BadRequest(new { error = "BEZEICHNUNG_FEHLT" });
         var e = new LohndatenEmpfaenger();
-        Apply(e, dto);
+        if (Apply(e, dto) is string fehler)
+            return BadRequest(new { error = "UID_UNGUELTIG", message = fehler });
         _db.LohndatenEmpfaengers.Add(e);
         await _db.SaveChangesAsync();
         return Ok(new { e.Id });
@@ -58,7 +59,8 @@ public class LohndatenEmpfaengerController : ControllerBase
     {
         var e = await _db.LohndatenEmpfaengers.FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
-        Apply(e, dto);
+        if (Apply(e, dto) is string fehler)
+            return BadRequest(new { error = "UID_UNGUELTIG", message = fehler });
         e.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { e.Id });
@@ -83,12 +85,16 @@ public class LohndatenEmpfaengerController : ControllerBase
         return Ok(new { deleted = true });
     }
 
-    private static void Apply(LohndatenEmpfaenger e, LohndatenEmpfaengerDto dto)
+    /// <returns>Fehlermeldung oder null bei Erfolg.</returns>
+    private static string? Apply(LohndatenEmpfaenger e, LohndatenEmpfaengerDto dto)
     {
         e.Art          = string.IsNullOrWhiteSpace(dto.Art) ? "ANDERE" : dto.Art.Trim().ToUpperInvariant();
         e.Bezeichnung  = (dto.Bezeichnung ?? "").Trim();
         e.Zusatz       = Norm(dto.Zusatz);
-        e.UidNummer    = Norm(dto.UidNummer);
+        var uid = Norm(dto.UidNummer)?.ToUpperInvariant();
+        if (HrSystem.Services.Elm.ElmStammdatenPruefung.UidBfsFehler(uid) is string uidFehler)
+            return uidFehler;
+        e.UidNummer    = uid;
         e.Strasse      = Norm(dto.Strasse);
         e.Postfach     = Norm(dto.Postfach);
         e.Plz          = Norm(dto.Plz);
@@ -98,6 +104,7 @@ public class LohndatenEmpfaengerController : ControllerBase
         e.SupportEmail = Norm(dto.SupportEmail);
         e.Bemerkung    = Norm(dto.Bemerkung);
         if (dto.IsActive.HasValue) e.IsActive = dto.IsActive.Value;
+        return null;
     }
 
     private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

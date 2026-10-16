@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.Elm;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,10 +31,7 @@ public class HauptsitzController : ControllerBase
 
     private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-    private static string? UidError(string? uid) =>
-        uid != null && !System.Text.RegularExpressions.Regex.IsMatch(uid, @"^CHE-\d{3}\.\d{3}\.\d{3}$")
-            ? "UID bitte im Format CHE-XXX.XXX.XXX erfassen."
-            : null;
+    private static string? UidError(string? uid) => ElmStammdatenPruefung.UidBfsFehler(uid);
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -69,7 +67,7 @@ public class HauptsitzController : ControllerBase
         var name = Norm(dto.Name);
         if (name == null)
             return BadRequest(new { error = "NAME_FEHLT", message = "Bitte den Firmennamen der Rechtseinheit angeben." });
-        var uid = Norm(dto.Uid);
+        var uid = Norm(dto.Uid)?.ToUpperInvariant();
         if (UidError(uid) is string err)
             return BadRequest(new { error = "UID_INVALID", message = err });
 
@@ -102,7 +100,7 @@ public class HauptsitzController : ControllerBase
         var name = Norm(dto.Name);
         if (name == null)
             return BadRequest(new { error = "NAME_FEHLT", message = "Bitte den Firmennamen der Rechtseinheit angeben." });
-        var uid = Norm(dto.Uid);
+        var uid = Norm(dto.Uid)?.ToUpperInvariant();
         if (UidError(uid) is string err)
             return BadRequest(new { error = "UID_INVALID", message = err });
 

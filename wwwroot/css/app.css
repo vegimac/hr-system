@@ -12227,6 +12227,33 @@ body:not(.theme-dark) .dok-menu-item:hover { background: #f4f0e8 !important; }
 #svFormPanel label { color: #3f3f3f !important; }
 #svFormPanel #svFormHint { background: rgba(255, 255, 255, 0.55) !important; }
 
+/* Pflichtfeld-Stern + Feldfehler bei blur (UID/BUR/Firmenname, Walter 16.10.2026).
+   Spezifität bewusst höher als ov-Masken-«weisse Pille», sonst greift der Fehler-Rand nicht. */
+.pflicht-stern { color: #b45309; font-weight: 700; margin-left: 2px; }
+.feld-fehler-text {
+    display: none;
+    color: #b42318;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.35;
+    margin-top: 4px;
+}
+.f-input.feld-ungueltig,
+body:not(.theme-dark) .modal input.feld-ungueltig,
+body:not(.theme-dark) .modal .f-input.feld-ungueltig,
+input.feld-ungueltig {
+    border: 1px solid #c45c5c !important;
+    box-shadow: 0 0 0 2px rgba(185, 70, 70, 0.22), 0 2px 6px rgba(60, 55, 48, 0.10) !important;
+}
+body.theme-dark .f-input.feld-ungueltig,
+body.theme-dark .modal input.feld-ungueltig,
+body.theme-dark input.feld-ungueltig {
+    border-color: #f87171 !important;
+    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25) !important;
+}
+body.theme-dark .feld-fehler-text { color: #fca5a5; }
+body.theme-dark .pflicht-stern { color: #fbbf24; }
+
 /* ── ov-Eingabemasken-STANDARD (Walter 18.08.2026): Eingabemaske = warme Karte,
    Felder = weisse Pillen mit Schatten. Zentral für die generische .modal-Klasse;
    die MA-/Familien-/Interview-Masken tragen den Look bereits über eigene Klassen.
