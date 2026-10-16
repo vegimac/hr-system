@@ -500,18 +500,22 @@ function applyEmpFilter() {
             }
             // ── Heimatfiliale-Prinzip (Walter-Vorgabe 05.08.2026) ────────────
             // Das Dossier wohnt dort, wo der MA ARBEITET: beim Filialwechsel
-            // zieht die GANZE Akte (inkl. alter Verträge/History) in die neue
-            // Filiale um; die alte Filiale zeigt den MA NICHT mehr (auch nicht
-            // unter «Alle» — Fall Mirjete Velijaj 104→230). Beim Austritt
-            // bleibt das Dossier in der LETZTEN Filiale. MA mit PARALLELEN
-            // laufenden/zukünftigen Verträgen in mehreren Filialen erscheinen
-            // in allen diesen Filialen.
+            // zieht die GANZE Akte in die neue Filiale; die alte Filiale zeigt
+            // ihn unter Inaktiv/Alle als «Übertritt» (20.08.2026 Gazale).
+            // Beim Austritt bleibt die Heimat = LETZTE Filiale — frühere
+            // Filialen bleiben trotzdem als «Übertritt → letzte» sichtbar
+            // (Walter 16.10.2026, TF12 Casanova LU→BE: sonst verschwindet er
+            // in LU komplett, obwohl Verträge Feb–Sep dort liegen).
+            // Parallel laufende/zukünftige Verträge: in allen diesen Filialen.
             const withCp = emps.filter(v => v.companyProfileId);
             if (!withCp.length) return false;
             const laeuft = v => _empContractActiveOn(v, today)
                 || (v.contractStartDate && new Date(v.contractStartDate) > today
                     && (!v.contractEndDate || new Date(v.contractEndDate) >= today));
             const activeCpids = [...new Set(withCp.filter(laeuft).map(v => Number(v.companyProfileId)))];
+            const filialeLabel = b => b
+                ? `${(b.restaurantCode || '').replace(/^0+/, '')} ${b.city || b.branchName || ''}`.trim()
+                : 'andere Filiale';
             if (activeCpids.length) {
                 // Hier aktiv → sichtbar (Status-Filter entscheidet unten).
                 if (activeCpids.includes(cpid)) return true;
@@ -522,16 +526,19 @@ function applyEmpFilter() {
                 if (!withCp.some(v => Number(v.companyProfileId) === cpid)) return false;
                 const zielB = (typeof allBranches !== 'undefined' ? allBranches : [])
                     .find(b => activeCpids.includes(Number(b.id)));
-                e._branchUebertritt = zielB
-                    ? `${(zielB.restaurantCode || '').replace(/^0+/, '')} ${zielB.city || zielB.branchName || ''}`.trim()
-                    : 'andere Filiale';
+                e._branchUebertritt = filialeLabel(zielB);
                 return true;
             }
-            // Nirgends aktiv → Heimat = Filiale des zuletzt beendeten Vertrags.
+            // Nirgends aktiv → Heimat = Filiale des zuletzt beendeten Vertrags;
+            // frühere Filialen mit Vertrag bleiben als Übertritt sichtbar.
             const letzte = withCp.slice().sort((a, b) =>
                 String(b.contractEndDate || b.contractStartDate || '')
                     .localeCompare(String(a.contractEndDate || a.contractStartDate || '')))[0];
-            if (Number(letzte.companyProfileId) !== cpid) return false;
+            if (Number(letzte.companyProfileId) === cpid) return true;
+            if (!withCp.some(v => Number(v.companyProfileId) === cpid)) return false;
+            const zielB = (typeof allBranches !== 'undefined' ? allBranches : [])
+                .find(b => Number(b.id) === Number(letzte.companyProfileId));
+            e._branchUebertritt = filialeLabel(zielB);
             return true;
         });
     }
