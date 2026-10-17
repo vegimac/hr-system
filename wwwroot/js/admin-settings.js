@@ -1408,7 +1408,7 @@ async function loadLohnpositionen() {
         lpRender();
     } catch {
         document.getElementById('lpTableBody').innerHTML =
-            '<tr><td colspan="15" style="padding:24px;text-align:center;color:#ef4444">Ladefehler</td></tr>';
+            '<tr><td colspan="16" style="padding:24px;text-align:center;color:#ef4444">Ladefehler</td></tr>';
     }
 }
 
@@ -1417,20 +1417,35 @@ function lpRender() {
     if (!tbody) return;
     const kat      = document.getElementById('lpFilterKat')?.value  ?? '';
     const typ      = document.getElementById('lpFilterTyp')?.value  ?? '';
+    const swiss    = document.getElementById('lpFilterSwissdec')?.value ?? '';
     const showInac = document.getElementById('lpShowInactive')?.checked ?? false;
+    const hinweis  = document.getElementById('lpFilterHinweis');
 
     const chk = v => v
         ? '<span style="color:#16a34a;font-size:15px">✓</span>'
         : '<span style="color:#dc2626;font-size:13px;opacity:.6">–</span>';
 
+    const hatSwissdec = l => !!(l.swissdecLohnart && String(l.swissdecLohnart).trim());
+
+    // Zähler über den aktiven Bestand (ohne Kategorie/Typ), damit die Lücke sichtbar bleibt
+    const aktiv = lpData.filter(l => showInac || l.isActive);
+    const ohneSwiss = aktiv.filter(l => !hatSwissdec(l)).length;
+    if (hinweis) {
+        hinweis.textContent = ohneSwiss > 0
+            ? `${ohneSwiss} aktiv ohne Swissdec-Zuordnung`
+            : (aktiv.length ? 'alle aktiven mit Swissdec' : '');
+        hinweis.style.color = ohneSwiss > 0 ? '#b45309' : '#8b8b8b';
+    }
+
     const rows = lpData.filter(l =>
         (showInac || l.isActive) &&
         (kat === '' || l.kategorie === kat) &&
-        (typ === '' || l.typ === typ)
+        (typ === '' || l.typ === typ) &&
+        (swiss === '' || (swiss === 'mit' ? hatSwissdec(l) : !hatSwissdec(l)))
     );
 
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="15" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="16" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
         return;
     }
 
@@ -1461,7 +1476,10 @@ function lpRender() {
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-left:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasisFeiertag)}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28)">${chk(l.zaehltAlsBasisFerien)}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-right:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasis13ml)}</td>
-            <td style="padding:10px 14px;text-align:center;font-family:monospace;font-size:12px;color:#6366f1">${l.lohnausweisCode || '—'}</td>
+            <td style="padding:10px 14px;text-align:center;font-family:monospace;font-size:12px;color:#6366f1" title="Lohnausweis / Statistik">${l.lohnausweisCode || '—'}</td>
+            <td style="padding:10px 14px;text-align:center" title="Swissdec-Lohnart">${hatSwissdec(l)
+                ? `<span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#36513a;font-weight:600">${String(l.swissdecLohnart).trim()}</span>`
+                : '<span style="color:#b45309;font-size:12px;font-weight:600">fehlt</span>'}</td>
             <td style="padding:10px 14px;text-align:center">${tbadge}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">
                 <div style="position:relative;display:inline-block">

@@ -7507,8 +7507,9 @@
         #page-lohnpositionen .lp-c-fei,
         #page-lohnpositionen .lp-c-fer,
         #page-lohnpositionen .lp-c-ml { width: 4.5%; }
-        #page-lohnpositionen .lp-c-la { width: 7%; }
-        #page-lohnpositionen .lp-c-typ { width: 8%; }
+        #page-lohnpositionen .lp-c-la { width: 5%; }
+        #page-lohnpositionen .lp-c-sd { width: 7%; }
+        #page-lohnpositionen .lp-c-typ { width: 7%; }
         #page-lohnpositionen .lp-c-act { width: 5%; }
         #page-lohnpositionen .fh-table-head thead th.lp-th-green {
             color: #166534;
