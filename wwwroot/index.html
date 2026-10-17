@@ -6704,11 +6704,8 @@
                     <p class="page-sub">Aktiver Lohnarten-Katalog — SV-Häkchen und Zuordnung zur Swissdec-Lohnart (ELM). Filter «ohne Swissdec» zeigt Lücken für die Meldung.</p>
                 </div>
                 </div>
-                <!-- Aktions-Button in der 2. Zeile, nicht oben rechts (dort verdeckt ihn #langSwitcher — Walter 21.09.2026) -->
+                <!-- Aktions-Buttons rechts in der Toolbar (nicht oben rechts — #langSwitcher; Walter 21.09.2026) -->
                 <div class="fh-toolbar">
-                    <button class="btn-primary" onclick="lpOpenForm(null)" style="order:99;margin-left:auto">+ Neue Position</button>
-                    <button type="button" class="btn-secondary" onclick="lpSwissdecVorschlaegeAnwenden()"
-                            title="Leere Swissdec-Felder aus der festen OneCrew→Swissdec-Tabelle füllen (überschreibt nichts Bestehendes)">Swissdec-Vorschläge füllen</button>
                     <select id="lpFilterKat" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                         <option value="">Alle Kategorien</option>
                         <option value="Festlohn">Festlohn</option>
@@ -6737,6 +6734,12 @@
                         <input type="checkbox" id="lpShowInactive" onchange="lpRender()"> Inaktive anzeigen
                     </label>
                     <span id="lpFilterHinweis" style="font-size:12.5px;color:#8b8b8b;align-self:center"></span>
+                    <div style="order:99;margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <button type="button" class="btn-secondary" onclick="lpSwissdecVorschlaegeAnwenden()"
+                                style="padding:8px 14px;border-radius:12px;font-weight:600"
+                                title="Leere Swissdec-Felder aus der festen OneCrew→Swissdec-Tabelle füllen (überschreibt nichts Bestehendes)">Swissdec-Vorschläge füllen</button>
+                        <button class="btn-primary" onclick="lpOpenForm(null)" style="padding:8px 14px">+ Neue Position</button>
+                    </div>
                 </div>
                 <div class="fh-cols-head-wrap">
                     <table class="fh-table fh-table-head" aria-hidden="true">
