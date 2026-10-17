@@ -452,11 +452,18 @@ Auto-Import auseinander:
 ## Brief-Layout (alle Briefe an MA/Ärzte, Walter 07.09.2026)
 - Adressblock wie im Arbeitszeugnis: `Height(40)` Abstandhalter + `PaddingTop(16)` (bzw. EINSCHREIBEN-Zeile + 3) → C5-Fensterzone. **Datumszeile eine Textzeile (14 pt) tiefer als vorher, der nachfolgende Betreff rückt NICHT mit** (Datum-Padding +14, Betreff-Padding −14). Umgesetzt in Arbeitszeugnis (`padDatum`/`padTitel`), Kündigung (Bestätigung, Aufhebung, Rückzug/Nichtig, AG-Kündigung), Mutterschaft (Arzt-Schreiben, Urlaub, Vereinbarung), Aufforderung zur Arbeit. Neue Briefe gleich aufbauen.
 
-## Lohndaten-Empfänger: Filial-Zuordnung mit Gültig ab / bis (Walter 07.09.2026)
+## Lohndaten-Empfänger: Filial-Zuordnung mit Gültig ab / bis (Walter 07.09.2026, UI 17.10.2026)
 
-- Katalog `lohndaten_empfaenger` (zentral: Art, Name, UID, Adresse, Kassen-/Versicherernummer, Kanton) +
+- Katalog `lohndaten_empfaenger` (zentral: Art, Name, UID, Adresse, Kassen-/Versicherernummer, Kanton, Support-E-Mail) +
   Zuordnung `company_profile_empfaenger` pro Filiale (Mitglied-/Kundennummer, Sub-/Vertragsnummer,
   gültig ab, gültig bis, Bemerkung).
+- **UI (Walter 17.10.2026):** Stammdaten nur unter System → Verzeichnisse & Vorgaben → **Lohndaten-Empfänger**
+  (`page-lohndaten-empfaenger`, `js/lohndaten-empfaenger.js`). Filiale → Tab «Lohndaten Empfänger» wählt aus dem
+  Verzeichnis und erfasst nur die Filialfelder (kein Anlegen/Ändern der Stammdaten aus der Filiale).
+- Swissdec-Empfängerliste (Distributor, Stand 01.10.2026): Vers.-Nr./AK-Nr. → `kassennummer`, Name → `bezeichnung`,
+  UID → `uid_nummer`, Support-Mail → `support_email`, Kanton (Steuern) → `kanton_code`. Eine Institution mit
+  mehreren Domänen (AHV+FAK, UVG+KTG) = **mehrere Katalogzeilen** (eine pro `art`). ELM/KLE/SUA-Fähigkeitsflags
+  und Statistik (BFS) sind noch nicht modelliert — optional später.
 - **«Gültig bis» bleibt normalerweise offen** (NULL = gilt weiterhin). Ein neuer Satz derselben Art
   (bei QST/FAK/Lohnausweis: derselbe Kanton) mit «Gültig ab» beendet die offenen Vorgänger automatisch
   am **Neubeginn − 1 Tag** (`CompanyProfileEmpfaengerController.SchliesseVorgaengerAsync`).

@@ -335,6 +335,7 @@ public class ElmBurPruefzifferTests
     [Theory]
     [InlineData("A38197421")]   // Zug aus den Testdaten — Prüfziffer falsch
     [InlineData("A92978100")]
+    [InlineData("A89058592")]   // Swissdec S01_01_04 Expected: Fehler statt A89058593
     public void FalschePruefzifferFaelltDurch(string bur)
     {
         Assert.False(ElmStammdatenPruefung.BurNummerGueltig(bur));

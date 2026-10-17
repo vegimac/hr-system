@@ -466,6 +466,28 @@ public class ElmZertifikatStore
         VersucheRechte600(p);
     }
 
+    // ── Systemtest-Stand je Prüfpunkt (Walter 17.10.2026) ─────────────────────
+    // Gleicher Aufbau wie Foundation: Datei neben den Zertifikaten, kein DB.
+
+    private const string SystemtestDatei = "systemtest-stand.json";
+
+    public Dictionary<string, ElmFoundationEintrag> LadeSystemtestStand()
+    {
+        var p = Path.Combine(_root, SystemtestDatei);
+        if (!File.Exists(p)) return new();
+        try { return JsonSerializer.Deserialize<Dictionary<string, ElmFoundationEintrag>>(File.ReadAllText(p)) ?? new(); }
+        catch { return new(); }
+    }
+
+    public void SpeichereSystemtestEintrag(string id, ElmFoundationEintrag eintrag)
+    {
+        var stand = LadeSystemtestStand();
+        stand[id] = eintrag;
+        var p = Path.Combine(_root, SystemtestDatei);
+        File.WriteAllText(p, JsonSerializer.Serialize(stand, new JsonSerializerOptions { WriteIndented = true }));
+        VersucheRechte600(p);
+    }
+
     // ── Letzte Verbindungsprüfung der Seite Lohnmeldungen (Walter 15.10.2026) ──
 
     private const string VerbindungDatei = "verbindung-stand.json";

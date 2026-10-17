@@ -1052,6 +1052,60 @@ public class ElmController : ControllerBase
         return Ok(alt);
     }
 
+    // ── Systemtest ERP + Tech: Katalog + Stand (Walter 17.10.2026) ────────────
+    // Oberfläche analog Kommunikations-Test; Katalog aus Quality-Tool-Runs 24364/26667.
+
+    private static readonly Regex SystemtestId = new(
+        @"^(S_ELM_V6_\d{2}_\d{2}_\d{2}|ST_ELM_V6_\d{2}_\d{2}(_\d+)?)$");
+
+    [HttpGet("systemtest/katalog")]
+    public async Task<IActionResult> SystemtestKatalog([FromServices] IWebHostEnvironment env)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var pfade = new[]
+        {
+            Path.Combine(env.WebRootPath, "data", "swissdec-systemtest-katalog.json"),
+            Path.Combine(env.ContentRootPath, "docs", "swissdec-systemtest-katalog.json"),
+            Path.Combine(env.ContentRootPath, "wwwroot", "data", "swissdec-systemtest-katalog.json"),
+        };
+        foreach (var p in pfade)
+        {
+            if (!System.IO.File.Exists(p)) continue;
+            var json = await System.IO.File.ReadAllTextAsync(p);
+            return Content(json, "application/json");
+        }
+        return NotFound(new { error = "KATALOG_FEHLT", message = "swissdec-systemtest-katalog.json nicht gefunden." });
+    }
+
+    [HttpGet("systemtest/stand")]
+    public async Task<IActionResult> SystemtestStand()
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        return Ok(_store.LadeSystemtestStand());
+    }
+
+    [HttpPut("systemtest/stand/{id}")]
+    public async Task<IActionResult> SystemtestStandSetzen(string id, [FromBody] ElmFoundationDto dto)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        if (!SystemtestId.IsMatch(id ?? ""))
+            return BadRequest(new { error = "ID_UNGUELTIG", message = "Prüfpunkt-ID S_ELM_V6_… oder ST_ELM_V6_… erwartet." });
+        var alt = _store.LadeSystemtestStand().GetValueOrDefault(id!) ?? new ElmFoundationEintrag();
+        var status = (dto.Status ?? alt.Status).Trim().ToLowerInvariant();
+        if (status is not ("ok" or "fehler" or "offen"))
+            return BadRequest(new { error = "STATUS_UNGUELTIG", message = "Status «ok», «fehler» oder «offen»." });
+        alt.Status = status;
+        if (dto.Notiz != null) alt.Notiz = dto.Notiz.Trim().Length == 0 ? null : dto.Notiz.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.LetzterVersuch))
+        {
+            alt.LetzterVersuch = dto.LetzterVersuch.Trim();
+            alt.LetzterVersuchAm = DateTime.Now;
+        }
+        alt.GeaendertAm = DateTime.Now;
+        _store.SpeichereSystemtestEintrag(id!, alt);
+        return Ok(alt);
+    }
+
     /// <summary>
     /// Bereitschafts-Check vor dem Foundation-Termin: Zertifikate, MonitoringID, Archiv,
     /// dann ein Ping und ein CheckInterop gegen das gewählte Ziel. Nur auf Knopfdruck.

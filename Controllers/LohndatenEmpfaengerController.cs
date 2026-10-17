@@ -7,11 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Lohndatenempfänger (Walter-Vorgabe 06.08.2026, Mirus-Vorbild):
-/// zentraler Empfänger-Katalog + Zuordnung pro Filiale mit Mitglied-/
-/// Subnummer. Gepflegt aus dem Filial-Tab «Empfänger» (kein eigener
-/// Systemsteuerungs-Punkt — beim Zuordnen kann ein neuer Empfänger
-/// gleich miterfasst werden).
+/// Lohndatenempfänger (Walter-Vorgabe 06.08.2026, UI getrennt 17.10.2026):
+/// zentraler Katalog unter System → Verzeichnisse → Lohndaten-Empfänger;
+/// Filiale ordnet nur zu und erfasst Mitglied-/SSL-Nummer + Gültigkeit.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]

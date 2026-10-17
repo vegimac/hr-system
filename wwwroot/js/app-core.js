@@ -1412,12 +1412,12 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','banken','nationen','swiss-locations','audit-log','aktive-sitzungen','virenscanner',
                          'perioden','elm-meldungen','elm-schnittstelle','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-lohnkonto-import','lohn-simulation','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','schulung-typen','feiertage','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','lohndaten-empfaenger','schulung-typen','feiertage','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
 
 // Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
 // Sidebar-Eintrag «Entwicklung» aktiv und bekommen denselben Zurueck-Button
 // wie die System-Unterseiten — nur eben zurueck nach «entwicklung».
-const _devSubPages = ['swissdec', 'swissdec-kommunikation', 'programmbegruessung'];
+const _devSubPages = ['swissdec', 'swissdec-kommunikation', 'swissdec-systemtest', 'programmbegruessung'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
@@ -1504,6 +1504,7 @@ function showPage(name) {
     if (name === 'fz-tarife') fzLoad();
     if (name === 'mitarbeiter') loadMitarbeiterList();
     if (name === 'aerzte' && typeof aerzteInit === 'function') aerzteInit();
+    if (name === 'lohndaten-empfaenger' && typeof leInit === 'function') leInit();
     if (name === 'lohn') {
         // initLohnPage ist async (befüllt Periode-Selects). Modus wird DANACH
         // automatisch je nach Status der Periode gewählt (Walter 16.05.2026 /
@@ -1594,6 +1595,7 @@ function showPage(name) {
     if (name === 'stempel-filialvergleich' && typeof szfInit === 'function') szfInit();
     if (name === 'swissdec' && typeof swissdecInit === 'function') swissdecInit();
     if (name === 'swissdec-kommunikation' && typeof kommInit === 'function') kommInit();
+    if (name === 'swissdec-systemtest' && typeof stInit === 'function') stInit();
     if (name === 'programmbegruessung' && typeof pbgInit === 'function') pbgInit();
     if (name === 'exit-survey-report' && typeof esInit === 'function') esInit();
     if (name === 'absenz-kalender') akalInit();

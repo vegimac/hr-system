@@ -290,15 +290,20 @@ function renderFilialenDetail(b) {
                 ${fField('E-Mail',          b.email)}
                 ${fField('Arbeitsort (Vertrag)', b.workLocation || `<span style="color:#8b8b8b">– (Fallback: ${b.city || 'Ort'})</span>`)}
                 ${fField('BUR-Nummer',      b.burNummer)}
+                ${fField('InHouseID',       b.inHouseId || '<span style="color:#8b8b8b">– (nur wenn keine BUR)</span>')}
                 ${fField('UID-Nummer',      b.uidNummer)}
                 ${fField('Branchen-Code',   b.branchenCode)}
                 ${fField('BFS-Gemeinde-Nr. (Swissdec)', b.bfsGemeindeNr)}
-                <!-- AHV-Kasse/BVG-Versicherer aus den Lohndatenempfängern
-                     abgeleitet (Walter 06.08.2026) — keine Freitextfelder mehr.
+                <!-- AHV/FAK/BVG aus den Lohndatenempfängern abgeleitet
+                     (Walter 06.08.2026; FAK sichtbar für Swissdec S01_01_04).
                      Wird nach dem Render async aus den Zuordnungen gefüllt. -->
                 <div class="emp-field">
                     <div class="emp-field-label">AHV-Kasse <span style="font-weight:400;color:#b8b2a7">(aus Lohndaten Empfänger)</span></div>
                     <div class="emp-field-value" style="font-size:14px;color:#0f172a" id="stmDerivedAhvKasse-${b.id}">–</div>
+                </div>
+                <div class="emp-field">
+                    <div class="emp-field-label">Familienausgleichskasse <span style="font-weight:400;color:#b8b2a7">(aus Lohndaten Empfänger)</span></div>
+                    <div class="emp-field-value" style="font-size:14px;color:#0f172a" id="stmDerivedFak-${b.id}">–</div>
                 </div>
                 <div class="emp-field">
                     <div class="emp-field-label">BVG-Versicherer <span style="font-weight:400;color:#b8b2a7">(aus Lohndaten Empfänger)</span></div>
@@ -643,16 +648,18 @@ function renderFilialenDetail(b) {
                  sticky Kopfzeile oben — kein zweiter Button hier unten nötig. -->
         </div>
 
-        <!-- TAB: Lohndatenempfänger (Walter-Vorgabe 06.08.2026, Mirus-Vorbild) —
-             zentrale Empfänger-Stammdaten + filial-spezifische Mitglied-/
-             Subnummer. Empfänger werden beim Zuordnen direkt miterfasst
-             (kein eigener Systemsteuerungs-Punkt). -->
+        <!-- TAB: Lohndatenempfänger — Filiale wählt aus dem zentralen Verzeichnis
+             (System → Verzeichnisse → Lohndaten-Empfänger) und erfasst nur
+             Mitglied/SSL + Gültigkeit (Walter 17.10.2026). -->
         <div class="emp-tab-content" id="fil-tab-f-empf">
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
                 Lohndatenempfänger
-                <button onclick="cpEmpfOpenModal(null)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 16px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.18)">+ Hinzufügen</button>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <button type="button" onclick="showPage('lohndaten-empfaenger')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Verzeichnis</button>
+                    <button type="button" onclick="cpEmpfOpenModal(null)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 16px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.18)">+ Zuordnen</button>
+                </div>
             </div>
-            <div style="font-size:12px;color:#8b8b8b;margin:4px 0 12px">Kassen, Versicherungen und Steuerverwaltungen, an die Lohndaten dieser Filiale gemeldet werden. Adresse und Kassennummer sind zentral erfasst (gelten für alle Filialen); Mitglied- und Subnummer gehören zu dieser Filiale.</div>
+            <div style="font-size:12px;color:#8b8b8b;margin:4px 0 12px">Empfänger aus dem Verzeichnis wählen und die Nummern dieser Filiale erfassen (Mitglied/SSL, Sub/Buchungskreis, Gültigkeit). Stammdaten (Name, Adresse, Kassennummer) werden zentral gepflegt.</div>
             <div id="cpEmpfList"><div style="color:#8b8b8b;padding:16px;text-align:center;font-size:12px">Wird geladen…</div></div>
         </div>
 
@@ -2499,11 +2506,10 @@ function cpEmpfFieldLabels(art) {
              phMitglied: 'z.B. 629.0714.00' };
 }
 
-function cpEmpfUpdateLabels() {
-    const art = document.getElementById('cpEmpfArt')?.value || '';
+function cpEmpfUpdateLabels(artOpt) {
+    const art = artOpt || document.getElementById('cpEmpfArt')?.value || '';
     const L = cpEmpfFieldLabels(art);
     const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-    set('cpEmpfLblKassenNr', L.kasse);
     set('cpEmpfLblMitglied', L.mitglied);
     set('cpEmpfLblSub', L.sub);
     const mi = document.getElementById('cpEmpfMitglied');
@@ -2595,8 +2601,12 @@ function cpEmpfRowHtml(z) {
     </div>`;
 }
 
-// ── Modal (dynamisch, Liquid-Glass) ────────────────────────────────────
+// ── Modal Filiale: nur Auswahl + Filialfelder (Walter 17.10.2026) ───────
+// Stammdaten leben unter Verzeichnisse → Lohndaten-Empfänger.
 function cpEmpfEnsureModal() {
+    // Altes Modal mit editierbaren Stammdaten nach Deploy neu aufbauen.
+    const existing = document.getElementById('cpEmpfModal');
+    if (existing && !document.getElementById('cpEmpfStammInfo')) existing.remove();
     if (document.getElementById('cpEmpfModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -2604,40 +2614,19 @@ function cpEmpfEnsureModal() {
     div.id = 'cpEmpfModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(680px,94vw);max-height:92vh;overflow:auto;background:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
-        <div id="cpEmpfModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Empfänger hinzufügen</div>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,94vw);max-height:92vh;overflow:auto;background:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+        <div id="cpEmpfModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Empfänger zuordnen</div>
 
-        <div id="cpEmpfPickBlock" style="margin-bottom:14px">
-            <label style="${lbl}">Empfänger
+        <div id="cpEmpfPickBlock" style="margin-bottom:12px">
+            <label style="${lbl}">Empfänger aus Verzeichnis
                 <select id="cpEmpfPick" onchange="cpEmpfPickChanged()" style="${inp}"></select>
             </label>
-        </div>
-
-        <div id="cpEmpfKatalogBlock" style="margin-bottom:16px">
-            <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Empfänger-Stammdaten <span style="font-weight:400;color:#8b8b8b">(zentral — gelten für alle Filialen)</span></div>
-            <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px 12px">
-                <label style="${lbl}">Art
-                    <select id="cpEmpfArt" onchange="cpEmpfUpdateLabels()" style="${inp}">${CP_EMPF_ARTEN.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
-                </label>
-                <label style="${lbl}">Bezeichnung<span class="pflicht-stern">*</span><input id="cpEmpfBez" style="${inp}"></label>
-                <label style="${lbl}">Zusatz<input id="cpEmpfZusatz" style="${inp}"></label>
-                <label style="${lbl}"><span id="cpEmpfLblKassenNr">Nummer der Kasse</span><input id="cpEmpfKassenNr" style="${inp}"></label>
-                <label style="${lbl};grid-column:span 2">UID-Nummer <span style="font-weight:400;color:#8b8b8b">(für Swissdec-Meldungen)</span><input id="cpEmpfUid" placeholder="CHE-XXX.XXX.XXX" style="${inp}"><span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Prüfziffer beim Verlassen des Feldes</span></label>
-                <label style="${lbl};grid-column:span 2">Strasse<input id="cpEmpfStrasse" style="${inp}"></label>
-                <label style="${lbl}">Postfach<input id="cpEmpfPostfach" style="${inp}"></label>
-                <label style="${lbl}">PLZ / Ort
-                    <div style="display:flex;gap:8px">
-                        <input id="cpEmpfPlz" oninput="cpEmpfPlzLookup()"
-                               onkeydown="if(event.key==='Enter'){event.preventDefault();cpEmpfPlzLookup();document.getElementById('cpEmpfOrt')?.focus();}"
-                               style="${inp};width:80px;flex:none">
-                        <input id="cpEmpfOrt" style="${inp}">
-                    </div>
-                    <div id="cpEmpfPlzHint" style="font-size:11px;font-weight:400;margin-top:3px;min-height:14px"></div>
-                </label>
-                <label style="${lbl}">Kanton (bei QST)<input id="cpEmpfKanton" placeholder="AG, BE, …" maxlength="2" style="${inp}"></label>
-                <label style="${lbl}">Support-E-Mail<input id="cpEmpfMail" style="${inp}"></label>
+            <div style="font-size:11.5px;color:#8b8b8b;margin-top:6px">Nicht dabei?
+                <a href="#" onclick="cpEmpfCloseModal();showPage('lohndaten-empfaenger');return false;" style="color:#3f3f3f;font-weight:600">Im Verzeichnis anlegen →</a>
             </div>
         </div>
+
+        <div id="cpEmpfStammInfo" style="margin-bottom:16px;padding:10px 12px;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:12px;font-size:12.5px;color:#3f3f3f;line-height:1.45"></div>
 
         <div>
             <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Angaben dieser Filiale</div>
@@ -2652,20 +2641,36 @@ function cpEmpfEnsureModal() {
         </div>
 
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
-            <button onclick="cpEmpfCloseModal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Abbrechen</button>
-            <button id="cpEmpfSaveBtn" onclick="cpEmpfSave()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.2)">Speichern</button>
+            <button type="button" onclick="cpEmpfCloseModal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Abbrechen</button>
+            <button type="button" id="cpEmpfSaveBtn" onclick="cpEmpfSave()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.2)">Speichern</button>
         </div>
     </div>`;
     div.addEventListener('click', (e) => { if (e.target === div) cpEmpfCloseModal(); });
     document.body.appendChild(div);
-    if (window.SwissUid) {
-        SwissUid.feldPruefungBinden('cpEmpfBez', { art: 'pflicht', label: 'Bezeichnung' });
-        SwissUid.feldPruefungBinden('cpEmpfUid', { art: 'uid' });
-        SwissUid.plzAdresseUeberall(div);
-    }
 }
 
 let _cpEmpfEditId = null;   // Zuordnungs-Id beim Bearbeiten, null = neu
+
+function cpEmpfShowStamm(k) {
+    const box = document.getElementById('cpEmpfStammInfo');
+    if (!box) return;
+    if (!k) {
+        box.innerHTML = '<span style="color:#8b8b8b">Bitte einen Empfänger wählen.</span>';
+        return;
+    }
+    const adr = [k.strasse, k.postfach, [k.plz, k.ort].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+    const meta = [
+        k.kassennummer ? `Nr. ${cdokEsc(k.kassennummer)}` : null,
+        k.uidNummer ? cdokEsc(k.uidNummer) : null,
+        k.kantonCode ? cdokEsc(k.kantonCode) : null,
+        k.supportEmail ? cdokEsc(k.supportEmail) : null,
+    ].filter(Boolean).join(' · ');
+    box.innerHTML = `<div style="font-weight:600">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${cdokEsc(k.zusatz)}</span>` : ''}</div>`
+        + `<div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">${cdokEsc(adr) || 'keine Adresse'}</div>`
+        + (meta ? `<div style="font-size:11.5px;color:#646464;margin-top:3px">${meta}</div>` : '')
+        + `<div style="font-size:11px;margin-top:6px"><a href="#" onclick="cpEmpfCloseModal();showPage('lohndaten-empfaenger');return false;" style="color:#3f3f3f;font-weight:600">Stammdaten im Verzeichnis bearbeiten →</a></div>`;
+    cpEmpfUpdateLabels(k.art);
+}
 
 function cpEmpfOpenModal(zuordnungId) {
     cpEmpfEnsureModal();
@@ -2676,27 +2681,29 @@ function cpEmpfOpenModal(zuordnungId) {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
 
     if (zuordnungId == null) {
-        // NEU: Auswahl bestehender Empfänger (ohne bereits zugeordnete) + «Neu erfassen»
-        title.textContent = 'Empfänger hinzufügen';
+        title.textContent = 'Empfänger zuordnen';
         document.getElementById('cpEmpfPickBlock').style.display = '';
-        const zugeordnet = new Set(_cpEmpfCache.map(z => z.empfaengerId));
-        const frei = _cpEmpfKatalog.filter(k => !zugeordnet.has(k.id));
-        pick.innerHTML = '<option value="NEW">+ Neuen Empfänger erfassen…</option>'
-            + frei.map(k => `<option value="${k.id}">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.kantonCode ? ' (' + cdokEsc(k.kantonCode) + ')' : ''}</option>`).join('');
-        pick.value = frei.length ? String(frei[0].id) : 'NEW';
+        const katalog = (_cpEmpfKatalog || []).filter(k => k.isActive !== false);
+        if (!katalog.length) {
+            pick.innerHTML = '<option value="">— Verzeichnis ist leer —</option>';
+            cpEmpfShowStamm(null);
+        } else {
+            pick.innerHTML = '<option value="">— bitte wählen —</option>'
+                + katalog.map(k => `<option value="${k.id}">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.kantonCode ? ' (' + cdokEsc(k.kantonCode) + ')' : ''}</option>`).join('');
+            pick.value = '';
+            cpEmpfShowStamm(null);
+        }
         ['cpEmpfMitglied','cpEmpfSub','cpEmpfBem','cpEmpfGueltigAb','cpEmpfGueltigBis'].forEach(id => set(id, ''));
-        cpEmpfPickChanged();
     } else {
-        // BEARBEITEN: Zuordnung + zentrale Stammdaten in einem Formular
         const z = _cpEmpfCache.find(x => x.id === zuordnungId);
         if (!z) return;
-        title.textContent = 'Empfänger bearbeiten';
+        title.textContent = 'Zuordnung bearbeiten';
         document.getElementById('cpEmpfPickBlock').style.display = 'none';
-        cpEmpfFillKatalog({
+        cpEmpfShowStamm({
             art: z.art, bezeichnung: z.bezeichnung, zusatz: z.zusatz,
             kassennummer: z.kassennummer, uidNummer: z.uidNummer, strasse: z.strasse, postfach: z.postfach,
             plz: z.plz, ort: z.ort, kantonCode: z.kantonCode, supportEmail: z.supportEmail,
-        }, false);
+        });
         set('cpEmpfMitglied', z.mitgliednummer);
         set('cpEmpfSub', z.subnummer);
         set('cpEmpfBem', z.bemerkung);
@@ -2708,34 +2715,8 @@ function cpEmpfOpenModal(zuordnungId) {
 
 function cpEmpfPickChanged() {
     const v = document.getElementById('cpEmpfPick')?.value;
-    if (v === 'NEW') {
-        cpEmpfFillKatalog({ art: 'AUSGLEICHSKASSE' }, true);
-    } else {
-        const k = _cpEmpfKatalog.find(x => String(x.id) === v);
-        if (k) cpEmpfFillKatalog(k, false);
-    }
-}
-
-// readonly=false → Felder editierbar (zentrale Änderung wird mitgespeichert)
-function cpEmpfFillKatalog(k, isNew) {
-    const set = (id, v) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.value = v ?? '';
-        if (window.SwissUid) SwissUid.feldFehlerLoeschen(el);
-    };
-    set('cpEmpfArt', k.art || 'ANDERE');
-    set('cpEmpfBez', k.bezeichnung);
-    set('cpEmpfZusatz', k.zusatz);
-    set('cpEmpfKassenNr', k.kassennummer);
-    set('cpEmpfUid', k.uidNummer);
-    set('cpEmpfStrasse', k.strasse);
-    set('cpEmpfPostfach', k.postfach);
-    set('cpEmpfPlz', k.plz);
-    set('cpEmpfOrt', k.ort);
-    set('cpEmpfKanton', k.kantonCode);
-    set('cpEmpfMail', k.supportEmail);
-    cpEmpfUpdateLabels();
+    const k = _cpEmpfKatalog.find(x => String(x.id) === v);
+    cpEmpfShowStamm(k || null);
 }
 
 function cpEmpfCloseModal() {
@@ -2746,27 +2727,6 @@ function cpEmpfCloseModal() {
 async function cpEmpfSave() {
     const val = (id) => document.getElementById(id)?.value?.trim() || null;
     const btn = document.getElementById('cpEmpfSaveBtn');
-    const katalogBody = {
-        art: val('cpEmpfArt'), bezeichnung: val('cpEmpfBez'), zusatz: val('cpEmpfZusatz'),
-        kassennummer: val('cpEmpfKassenNr'), uidNummer: val('cpEmpfUid'), strasse: val('cpEmpfStrasse'),
-        postfach: val('cpEmpfPostfach'), plz: val('cpEmpfPlz'), ort: val('cpEmpfOrt'),
-        kantonCode: val('cpEmpfKanton'), supportEmail: val('cpEmpfMail'),
-    };
-    if (window.SwissUid && !(await SwissUid.felderPruefen(document.getElementById('cpEmpfModal')))) {
-        showToast('Bitte die markierten Felder korrigieren.', 'error');
-        return;
-    }
-    if (!katalogBody.bezeichnung) { showToast('Bezeichnung fehlt.', 'error'); return; }
-    // Unbekannte PLZ lernen (Walter 06.08.2026): hat der User Ort zu einer
-    // PLZ eingetragen, die das Ortschaftsverzeichnis nicht kennt (Postfach-
-    // PLZ wie 5001), merkt sich das System die Kombination — best-effort,
-    // der Endpoint lernt nur komplett unbekannte PLZ.
-    if (katalogBody.plz && /^\d{4}$/.test(katalogBody.plz) && katalogBody.ort) {
-        fetch('/api/swiss-locations/learn', {
-            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plz: katalogBody.plz, ort: katalogBody.ort, kanton: katalogBody.kantonCode }),
-        }).catch(() => {});
-    }
     const zuordnungFields = {
         mitgliednummer: val('cpEmpfMitglied'),
         subnummer: val('cpEmpfSub'),
@@ -2780,24 +2740,9 @@ async function cpEmpfSave() {
     if (btn) btn.disabled = true;
     try {
         if (_cpEmpfEditId == null) {
-            // Neu: ggf. Katalog-Empfänger anlegen, dann Zuordnung
             const pickVal = document.getElementById('cpEmpfPick')?.value;
-            let empfId;
-            if (pickVal === 'NEW') {
-                const r = await fetch('/api/lohndaten-empfaenger', {
-                    method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify(katalogBody),
-                });
-                if (!r.ok) { showToast('Empfänger anlegen fehlgeschlagen.', 'error'); return; }
-                empfId = (await r.json()).id;
-            } else {
-                empfId = parseInt(pickVal, 10);
-                // Zentrale Stammdaten wurden evtl. angepasst → mitspeichern
-                await fetch('/api/lohndaten-empfaenger/' + empfId, {
-                    method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify(katalogBody),
-                });
-            }
+            const empfId = parseInt(pickVal, 10);
+            if (!empfId) { showToast('Bitte einen Empfänger aus dem Verzeichnis wählen.', 'error'); return; }
             const r2 = await fetch(`/api/companyprofiles/${_cpEmpfBranchId}/empfaenger`, {
                 method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
                 body: JSON.stringify({ empfaengerId: empfId, ...zuordnungFields }),
@@ -2817,20 +2762,13 @@ async function cpEmpfSave() {
                     showToast('Bisheriger Satz beendet: ' + j.vorgaengerGeschlossen.join(', '), 'info');
             } catch (_) {}
         } else {
-            // Bearbeiten: zentrale Stammdaten + Zuordnung parallel speichern
             const z = _cpEmpfCache.find(x => x.id === _cpEmpfEditId);
             if (!z) return;
-            const [r1, r2] = await Promise.all([
-                fetch('/api/lohndaten-empfaenger/' + z.empfaengerId, {
-                    method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify(katalogBody),
-                }),
-                fetch(`/api/companyprofiles/${_cpEmpfBranchId}/empfaenger/${z.id}`, {
-                    method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ empfaengerId: z.empfaengerId, ...zuordnungFields }),
-                }),
-            ]);
-            if (!r1.ok || !r2.ok) { showToast('Speichern fehlgeschlagen.', 'error'); return; }
+            const r2 = await fetch(`/api/companyprofiles/${_cpEmpfBranchId}/empfaenger/${z.id}`, {
+                method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empfaengerId: z.empfaengerId, ...zuordnungFields }),
+            });
+            if (!r2.ok) { showToast('Speichern fehlgeschlagen.', 'error'); return; }
         }
         cpEmpfCloseModal();
         showToast('Gespeichert.', 'success');
@@ -2893,6 +2831,7 @@ async function stmFillDerivedKassen(branchId) {
             if (el) el.textContent = z ? z.bezeichnung : '–';
         };
         set('stmDerivedAhvKasse-' + branchId, pick('AUSGLEICHSKASSE'));
+        set('stmDerivedFak-' + branchId, pick('FAK'));
         set('stmDerivedBvg-' + branchId, pick('BVG'));
     } catch (_) { /* Anzeige bleibt «–» */ }
 }
