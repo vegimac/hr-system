@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Swissdec Systemtest — Handbuch (ERP + Tech)</title>
+<style>
+  @page { size: A4; margin: 11mm 13mm 11mm 13mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 9.7pt; line-height: 1.36; color: #2f2f2f; margin: 0; }
+  h1 { font-size: 20pt; margin: 0 0 2mm; color: #1a1a1a; }
+  h2 { font-size: 15pt; margin: 0; color: #1a1a1a; }
+  h3 { font-size: 11pt; margin: 4mm 0 1.5mm; color: #3f3f3f; }
+  p { margin: 1.4mm 0; }
+  .kapitel { page-break-before: always; }
+  .kopf { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #3f3f3f; padding-bottom: 1.5mm; margin-bottom: 3mm; }
+  .kopf .rechts { font-size: 9pt; color: #646464; text-align: right; }
+  .worum { background: #f3f2ee; border-radius: 6px; padding: 2mm 3.2mm; margin: 0 0 2.5mm; }
+  .worum b.t { display: block; font-size: 9pt; color: #646464; text-transform: uppercase; letter-spacing: .04em; margin-bottom: .8mm; }
+  .pp { border: 1px solid #d6d0c4; border-radius: 6px; padding: 1.8mm 3mm; margin: 2mm 0; break-inside: avoid; background: #fbfaf7; }
+  .pp-kopf { display: flex; align-items: baseline; gap: 2.5mm; margin-bottom: 1.2mm; flex-wrap: wrap; }
+  .pp-kopf .id { font-family: Menlo, monospace; font-weight: 700; font-size: 9.6pt; }
+  .pp-kopf .titel { font-weight: 700; flex: 1; min-width: 40mm; }
+  .box { display: inline-block; width: 3.8mm; height: 3.8mm; border: 1.3px solid #3f3f3f; border-radius: 1px; vertical-align: -0.7mm; margin-right: 1mm; }
+  .ok { font-size: 8.4pt; font-weight: 700; padding: .3mm 2mm; border-radius: 3mm; white-space: nowrap; background: #e3eee3; color: #36513a; border: 1px solid #b8ccb8; }
+  .offen { font-size: 8.4pt; font-weight: 700; padding: .3mm 2mm; border-radius: 3mm; white-space: nowrap; background: #fdf1dc; color: #7c5a10; border: 1px solid #f3d9a4; }
+  .z { display: grid; grid-template-columns: 32mm 1fr; gap: 2mm; margin: .8mm 0; }
+  .z > .lab { color: #646464; font-weight: 700; }
+  .sag { background: #eef1ea; border-left: 3px solid #6f8f6a; padding: 1mm 2.5mm; border-radius: 0 4px 4px 0; font-style: italic; }
+  code, .mono { font-family: Menlo, monospace; font-size: 8.6pt; background: #efece5; padding: 0 1mm; border-radius: 1mm; }
+  .knopf { display: inline-block; font-weight: 700; border: 1px solid #3f3f3f; border-radius: 2.4mm; padding: 0 1.9mm; font-size: 9pt; white-space: nowrap; }
+  .hinweis { border-left: 3px solid #d9a441; background: #fdf6e7; padding: 1.8mm 3mm; margin: 2.5mm 0; break-inside: avoid; }
+  .info { border-left: 3px solid #6b7280; background: #f3f2ee; padding: 1.8mm 3mm; margin: 2.5mm 0; break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 1.5mm 0; }
+  th, td { border: 1px solid #d6d0c4; padding: .9mm 2mm; text-align: left; vertical-align: top; }
+  th { background: #efece5; font-size: 9.2pt; }
+  .klein { font-size: 8.8pt; color: #646464; }
+  .check { padding-left: 0; }
+  .check li { list-style: none; margin: 1.4mm 0; }
+  .wb td:first-child { font-weight: 700; width: 42mm; }
+  .dir { font-size: 8.2pt; color: #8b8b8b; }
+
+</style>
+</head>
+<body>
+
+<!-- DECKBLATT -->
+<section>
+  <div class="kopf"><h1>Swissdec Systemtest<br>Handbuch für die Prüfung (ERP + Tech)</h1>
+    <div class="rechts">OneCrew · Muster AG · ELM 6.0<br>Testinstanz test.onecrew.ch<br>Stand 17.10.2026</div></div>
+
+  <div class="worum"><b class="t">Worum es bei diesem Test geht</b>
+    Anders als der <b>Foundation-Test</b> (Verbindung, Siegel, Zertifikate) prüft der <b>Systemtest</b>,
+    ob OneCrew Firmendaten, Empfänger und Personen <b>richtig abbildet</b> und in der Lohnmeldung
+    korrekt meldet. Die Expertin (itserv / Swissdec) geht die Liste im Quality Tool durch —
+    du zeigst jeweils die Maske in OneCrew und ggf. das XML.
+    <b>Foundation-Handbuch:</b> <span class="mono">docs/swissdec-vorfuehrung/vorfuehrung.html</span></div>
+
+  <table>
+    <tr><th style="width:40mm">ERP (Run 24364)</th><td><b>123</b> Prüfpunkte · gebaut <b>7</b> · vorhanden <b>86</b> · offen <b>30</b></td></tr>
+    <tr><th>Tech (Run 26667)</th><td><b>20</b> Fälle (Gates im QT teils höher) — oft Überlappung mit Foundation / ELM-Cockpit</td></tr>
+    <tr><th>Digital begleiten</th><td>Entwicklung → Swissdec → <b>Systemtest</b> — gleiche Punkte, Sprungknopf in die Maske, Bewertung speichern</td></tr>
+    <tr><th>Katalog</th><td><span class="mono">docs/swissdec-systemtest-katalog.json</span> · dieses HTML neu erzeugen: <span class="mono">python3 Scripts/swissdec-systemtest-handbuch.py</span></td></tr>
+  </table>
+
+  <h3>Drei Grundregeln</h3>
+  <ol>
+    <li><b>Immer test.onecrew.ch</b> (Muster AG) — nie Produktivdaten.</li>
+    <li><b>Punkt für Punkt:</b> «Wo» öffnen → «So handhabt OneCrew» zeigen → mit «Du prüfst» abhaken.</li>
+    <li><b>Grün nur wenn es stimmt.</b> Fehlt die Handhabung noch («offen»), ehrlich sagen und notieren — nichts schönreden.</li>
+  </ol>
+
+  <h3>So ist jeder Prüfpunkt aufgebaut</h3>
+  <table>
+    <tr><th style="width:40mm">Wo in OneCrew</th><td>Menüpfad zur Maske (gleicher Sprung wie in der Systemtest-Seite).</td></tr>
+    <tr><th>So handhabt OneCrew</th><td>Wie wir es gebaut haben — Felder, Regeln, XML-Verhalten.</td></tr>
+    <tr><th>Du prüfst</th><td>Was Swissdec erwartet (Kurzfassung aus dem Katalog).</td></tr>
+    <tr><th>Häkchen</th><td>Stimmt → Checkbox; Bewertung auch in der Systemtest-Seite setzen.</td></tr>
+  </table>
+</section>
+
+<!-- VORBEREITUNG -->
+<section class="kapitel">
+  <div class="kopf"><h2>Vorbereitung und Ablauf</h2><div class="rechts">vor der Prüfung · ca. 10 Minuten</div></div>
+
+  <h3>Vorher erledigen</h3>
+  <ul class="check">
+    <li><span class="box"></span><b>test.onecrew.ch</b> · Cmd+Shift+R · Zoom 100&nbsp;% (Cmd+0).</li>
+    <li><span class="box"></span>Entwicklung → Swissdec → <b>Systemtest</b> öffnen (digitale Checkliste parallel zu diesem Handbuch).</li>
+    <li><span class="box"></span>Quality Tool offen (Systemtest ERP / Tech).</li>
+    <li><span class="box"></span>Bei XML-Punkten: Lohn → <b>ELM-Meldungen</b> bzw. Swissdec → Jahresmeldung AHV bereit.</li>
+    <li><span class="box"></span>Dieses Handbuch ausgedruckt oder auf zweitem Bildschirm.</li>
+  </ul>
+
+  <h3>Empfohlene Reihenfolge</h3>
+  <ol>
+    <li><b>S01</b> Unternehmen (Hauptsitz, Arbeitsorte, FAK-Nullmeldung, Arbeitszeit) — oft zuerst.</li>
+    <li><b>S02</b> Empfänger (AHV, FAK, Versicherungen, QST).</li>
+    <li><b>S03</b> Personendaten (grosser Block).</li>
+    <li><b>S04 / S05</b> Prozesse und Cockpit.</li>
+    <li><b>Tech</b> nur was nicht schon im Foundation-Test durch ist.</li>
+  </ol>
+
+  <div class="hinweis"><b>FAK-Nullmeldung (S01_01_05):</b> Filiale → Tab «Lohndaten Empfänger», Art FAK, von/bis setzen.
+    Dann Swissdec → Jahresmeldung AHV → XML: nur gültig zugeordnete FAKs unter <span class="mono">Addressees</span> /
+    <span class="mono">FAK-CAF</span> — auch ohne Personen an der Filiale. Abgelaufene fehlen.</div>
+
+  <div class="info"><b>Wenn die Expertin das XML sehen will:</b> Jahres- oder Monatsmeldung erzeugen → herunterladen /
+    anzeigen → nach <span class="mono">#FAK-</span>, Kassennummer oder Workplace suchen. Belege auch unter ELM-Meldungen → Protokoll.</div>
+</section>
+
+<!-- WÖRTERBUCH -->
+<section class="kapitel">
+  <div class="kopf"><h2>Kleines Wörterbuch (Systemtest)</h2><div class="rechts">zusätzlich zum Foundation-Wörterbuch</div></div>
+  <table class="wb">
+    <tr><th>Wort</th><th>Bedeutet einfach</th></tr>
+    <tr><td>FAK</td><td>Familienausgleichskasse — rechnet die <b>Familienzulagen</b> ab.</td></tr>
+    <tr><td>Nullmeldung FAK</td><td>Kasse steht in der Meldung, auch wenn an der Filiale <b>niemand</b> Lohn/Zulagen hat — solange die Filiale dort angemeldet ist (von/bis).</td></tr>
+    <tr><td>Workplace / Arbeitsort</td><td>Bei uns eine <b>Filiale</b>.</td></tr>
+    <tr><td>Hauptsitz</td><td>Rechtseinheit (UID, Sitzadresse) — Kopf der Meldung.</td></tr>
+    <tr><td>Lohndaten-Empfänger</td><td>Katalog der Kassen/Versicherer/Steuerämter; Filiale bekommt nur die Zuordnung + Mitgliednummer + von/bis.</td></tr>
+    <tr><td>von / bis</td><td>Gültigkeit der Zuordnung Empfänger ↔ Filiale. Abgelaufen = nicht mehr in der Meldung.</td></tr>
+    <tr><td>Job / Addressees</td><td>Adressliste im XML: wer die Meldung bekommen soll.</td></tr>
+    <tr><td>ProcessByDistributor</td><td>true = Poststelle soll an diesen Empfänger verteilen; false = nicht.</td></tr>
+    <tr><td>DeclareAnnualSalary</td><td>Jahresmeldung (u.a. AHV + FAK-Adressierung).</td></tr>
+    <tr><td>DeclareMonthlySalary</td><td>Monatsmeldung (u.a. QST, Statistik).</td></tr>
+    <tr><td>EMA</td><td>Ein-/Austrittsmeldung an Empfänger (z.B. FAK).</td></tr>
+    <tr><td>vorhanden / gebaut / offen</td><td>Status bei uns: Maske da · fachlich verdrahtet · noch zu bauen.</td></tr>
+  </table>
+</section>
+
+<section class="kapitel">
+  <div class="kopf"><h2>S01 — Unternehmen</h2>
+    <div class="rechts">15 Prüfpunkte · 7 gebaut<br>Reiter «S01» in Systemtest</div></div>
+  <div class="worum"><b class="t">Worum es geht</b> Firmenstammdaten: Hauptsitz, Arbeitsorte (Filialen), Arbeitszeit, Stellvertreter — und welche Empfänger (z.B. FAK) überhaupt in die Meldung dürfen.</div>
+  <h3>01_01 · Unternehmensstammdaten</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_01_01</span><span class="titel">Name und Adresse des Unternehmens</span><span class="ok">gebaut</span> <span class="dir">Direktive 4.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>OneCrew: Hauptsitz-Maske (Reiter Hauptdaten) — Name, Zusatzzeilen, Strasse/Postfach, Lokalität, PLZ/Ort/Kanton, Land aus Dropdown (XML: SWITZERLAND), BFS aus Ortschaftsverzeichnis. Speichern ohne Name/PLZ/Ort abgelehnt. (Hauptsitz Hauptdaten; Land=SWITZERLAND; BFS read-only; PLZ 3000 Bern 1 (SchemaStand 80).)</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Folgende Adresse muss erfasst werden: Muster AG Bahnhofstrasse 1 6003 Luzern SWITZERLAND - Prüfen ob die Adresse ohne Name des Unternehmens, Postleitzahl oder Ort gespeichert werden kann. - Prüfen ob das Land korrekt im XML abgefüllt wird. Es muss immer der ausgeschriebene Englische Begriff in Grossbuchstaben abgefüllt werden. Die Auswahl vom Land muss via…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_01_02</span><span class="titel">Allgemeine Kontaktperson für Rückfragen zu Übermittlungen</span><span class="ok">gebaut</span> <span class="dir">Direktive 4.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Kontaktperson am Hauptsitz (Name, E-Mail, Telefon, Mobil). Speichern +41…, ELM-XML national 079…. BFS-Regel 042: E-Mail Pflicht vor Übermittlung. (Reiter Kontaktperson; TelefonFuerSwissdec.)</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Folgende Angaben müssen erfasst werden: Hans Muster hans.muster@suva.ch 044 444 44 44 079 999 99 99 - Prüfen ob die Angaben erfasst werden können. - Sicherstellen, dass vor oder bei der Übermittlung ans BFS geprüft wird, ob bei der Kontaktperson eine E-Mail Adresse hinterlegt wurde.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_01_03</span><span class="titel">UID-BFS</span><span class="ok">gebaut</span> <span class="dir">Direktive 4.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>OneCrew Hauptsitz: UID-BFS mit Prüfziffer (CHE-999.999.996 ok, CHE-999.999.997 Fehler). Häkchen «unbekannt» → ELM UID-BFS/Unknown. EHRA entfällt. (UidBfsFehler / UidUnbekannt; ElmUidPruefzifferTests.)</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Folgende UID-BFS muss erfasst werden: CHE-999.999.996 - Prüfen das &quot;unbekannt&quot; ausgewählt werden kann - Prüfen ob beim Speichern der UID-BFS &quot;CHE-999.999.997&quot; eine Fehlermeldung angezeigt wird</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_01_04</span><span class="titel">Arbeitsort</span><span class="ok">gebaut</span> <span class="dir">Direktive 4.2.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen → Stammdaten der Filiale (Arbeitsort)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Arbeitsorte = Filialen (Workplace). Muster AG: Werkhof/Büro Zeughausgasse 9, 3011 Bern, BUR A89058593, BFS 351 (AMTOVZ). PLZ→Ort/Kanton/BFS aus Ortschaftsverzeichnis, Ort danach manuell überschreibbar. Speichern ohne PLZ/Ort abgelehnt. BUR A89058592 → Prüfziffer-Fehler. Alternative InHouseID (z.B. 100_10) statt BUR. FAK über Tab «Lohndaten Empfänger» (Art FAK) → Stammdaten zeigt Zuordnung. XML: WorkplaceIdentification BUR-REE oder InHouseID + MunicipalityID. (Filiale Stammdaten + InHouseID; FAK/InHouseID in Stammdaten-Ansicht 17.10.2026.)</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Folgender Arbeitsort muss erfasst werden: Werkhof/Büro Zeughausgasse 9 3011 Bern SWITZERLAND A89058593 - Prüfen ob die Postleitzahl, der Ort und die dazugehörige Gemeindenummer (351) im System plausibilisiert werden und die Adresse mit einem offiziellen Register abgeglichen wird. Es ist wichtig, dass der Ort auch nach der erfolgten Zuweisung noch manuell…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_01_05</span><span class="titel">Adressierung von Empfängern - Nullmeldung FAK</span><span class="ok">gebaut</span> <span class="dir">Direktive 8.2.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec (Admin-Bereich) · lohndaten-empfaenger: System → Verzeichnisse &amp; Vorgaben → Lohndaten-Empfänger</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>FAK-Zuordnung Filiale → Tab «Lohndaten Empfänger» (Art FAK). Jahres-XML (DeclareAnnualSalary): Job/Institutions/Totals nur für FAKs mit gültiger Zuordnung am 31.12. an einem Workplace der Rechtseinheit — auch ohne Personen dort (Nullmeldung, Totals 0.00). Abgelaufene/nicht zugewiesene Kassen fehlen. ProcessByDistributor=true. Logik ElmFakAdressierung. Monatsmeldung hat noch keine FAK-Domäne. (FAK-Nullmeldung Jahres-XML 17.10.2026 (ElmFakAdressierung + ElmAnnualDeclarationBuilder).)</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Sicherstellen, dass das Konzept der Nullmeldungen verstanden wurde und die Adressierung im ERP-System dahingehend angepasst wurde, dass nur noch die Empfänger im Job aufgeführt werden, für die auch eine Übermittlung verteilt werden soll. Diese Logik kann auch über das Element &quot;ProcessByDistributor&quot;…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_01_06</span><span class="titel">Wöchentliche Unternehmensarbeitszeit</span><span class="ok">gebaut</span> <span class="dir">Direktive 4.2.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Mehrere Arbeitszeitmodelle am Hauptsitz. Format HH.MM; Löschen gesperrt wenn in Nutzung. ELM CompanyWorkingTime. (AZM-UI 16.10.2026.)</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die verschiedenen Kombinationen und Formate können erfasst werden - Prüfen ob mehrere Arbeitszeitmodelle erfasst werden können. - Prüfen ob die Formatvorgaben eingehalten werden (00.00). - Prüfen was passiert, wenn die Elemente leer gelassen oder mit 0.00 befüllt werden. In diesen Fällen darf eine Übermittlung via ELM nicht zugelassen werden. - Prüfen ob…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_06</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_01_07</span><span class="titel">Angaben zum Stellvertreter z.B. Treuhandbüro</span><span class="ok">gebaut</span> <span class="dir">Direktive 4.2.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Delegate am Hauptsitz: Name, Adresse, UID-BFS (optional Owner). Keine Kontaktfelder (XSD). Kontakt = ContactPerson. (Reiter Stellvertreter.)</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Prüfen ob die Angaben zum Stellvertreter im ERP-System hinterlegt werden könenn.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_07</span></span></div>
+  </div>  <h3>01_02 · Lohnarten &amp; Domänen-Flags</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_02_01</span><span class="titel">Lohnartenverwaltung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 5.0</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohnarten (Lohnpositionen)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Lohnarten» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Klare Definition der Lohnartensteuerung für den Bereich Versicherung. - Prüfen ob für sämtliche Lohnarten die Steuerung zur pflichtigkeit bzgl. Versicherungen vorhanden ist. - Prüfen ob die Lohnarten als positive oder negative Lohnarten im Lohnartenstamm ausgewiesen sind.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_02_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_02_02</span><span class="titel">BVG</span><span class="ok">vorhanden</span> <span class="dir">Direktive 5.0</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohnarten (Lohnpositionen)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Lohnarten» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Klare Definition der Lohnartensteuerung für den Bereich BVG. - Prüfen ob Lohnarten der rückwirkenden oder voraussichtlichen Betrachtung zugeordnet werden können. - Prüfen ob einer Lohnart ein Faktor zugewiesen werden kann oder wie die Aufrechnung im ERP-System erfolgt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_02_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_02_03</span><span class="titel">Lohnausweis</span><span class="ok">vorhanden</span> <span class="dir">Direktive 5.0</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohnarten (Lohnpositionen)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Lohnarten» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Klare Definition der Lohnartensteuerung für den Bereich Lohnausweis. - Prüfen ob eine Lohnart einer Lohnausweis-Ziffer zugeordnet werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_02_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_02_04</span><span class="titel">Quellensteuer</span><span class="ok">vorhanden</span> <span class="dir">Direktive 5.0</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohnarten (Lohnpositionen)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Lohnarten» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Klare Definition der Lohnartensteuerung für den Bereich Quellensteuer. - Prüfen ob einer Lohnart die Periodizität der Quellensteuer zugewiesen werden kann. - Prüfen ob einer Lohnart der Quellensteuer-Charakter hinterlegt werden kann. Hinweis: Wenn der ERP-Hersteller andere Formulierungen für die Steuerungen verwendet, ist dies für den Testfall okay.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_02_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_02_05</span><span class="titel">Bereich Statistik</span><span class="ok">vorhanden</span> <span class="dir">Direktive 5.0</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohnarten (Lohnpositionen)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Lohnarten» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Klare Definition der Lohnartensteuerung für den Bereich Statistik. - Prüfen ob die Lohnarten den korrekten Statistikbasen (Monthly/Annual) zugeordnet werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_02_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_02_06</span><span class="titel">Lohnartenstamm</span><span class="ok">vorhanden</span> <span class="dir">Direktive 5.1.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohnarten (Lohnpositionen)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Lohnarten» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Darstellung und Export - Prüfen ob der Lohnartenstamm in geeigneter Form dargestellt und als Excel exportiert werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_02_06</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_02_07</span><span class="titel">Löschen von Lohnarten</span><span class="ok">vorhanden</span> <span class="dir">Direktive 5.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohnarten (Lohnpositionen)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Lohnarten» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Anhand von folgendem Beispiel prüfen, ob bereits verwendete Lohnarten gelöscht werden können: - Verarbeitung Zahltag November 2021 mit Lohnart Monatslohn - Die Lohnart Monatslohn löschen - Fehlermeldung prüfen (Löschen der Lohnart nicht möglich oder ähnliche Reaktion) Falls Lohnarten generell nicht gelöscht werden können, gilt der Test als bestanden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_02_07</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_02_08</span><span class="titel">Rückwirkende Lohnartenmutation</span><span class="ok">vorhanden</span> <span class="dir">Direktive 5.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohnarten (Lohnpositionen)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Lohnarten» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Anhand vom Beispiel aus Testfall 12 prüfen, ob bereits verwendete Lohnarten mutiert werden können: - Die Lohnart &quot;Monatslohn&quot; mutieren und von der AHV-pflichtigkeit ausnehmen. - Fehlermeldung prüfen (Mutation der Lohnart nicht möglich oder ähnliche Reaktion) Falls die Lohnart generell nicht mutiert werden kann, gilt der Test bestanden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_02_08</span></span></div>
+  </div></section>
+<section class="kapitel">
+  <div class="kopf"><h2>S02 — Angaben zu Datenempfängern</h2>
+    <div class="rechts">25 Prüfpunkte · 0 gebaut<br>Reiter «S02» in Systemtest</div></div>
+  <div class="worum"><b class="t">Worum es geht</b> Datenempfänger: Ausgleichskasse, FAK, UVG/UVGZ, KTG, BVG, Statistik, Quellensteuer — Nummern und Zuordnung pro Filiale.</div>
+  <h3>02_01 · AHV / ALV</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_01</span><span class="titel">Angaben zur AHV-Ausgleichskasse</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente &quot;Nummer der Ausgleichskasse&quot;, &quot;Mitgliednummer&quot; und &quot;Subnummer&quot; müssen im ERP-System vorhanden sein und identisch benannt werden. - Anhand vom Beispiel &quot;000.003&quot; prüfen ob die Nummer der Ausgleichskasse plausibilisiert wird. Der erste Block (im…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_01_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_02</span><span class="titel">Beginn und Ende der AHV-Beitragspflicht</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Angaben zur Beitragspflicht werden im ERP-System zentral geführt. - Prüfen ob die drei Angaben zur Beitragspflicht in der AHV vorhanden sind. - Prüfen ob im ERP-System mit Übergangslösungen wie bei AHV21 umgegangen werden kann. Im Berechnungstest wird dieser Fall nicht geprüft.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_01_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_03</span><span class="titel">AHV-Grundlagen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Angaben zur AHV-Freigrenze und zu AHV-Arbeitnehmer-Beiträgen werden im ERP-System zentral geführt. - Prüfen ob die Werte korrekt hinterlegt sind - Prüfen ob der Beitragssatz mit 4 Nachkommastellen dargestellt wird. Ein ERP-Hersteller muss mit 4 Nachkommastellen umgehen können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_01_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_04</span><span class="titel">ALV/ALVZ-Grundlagen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die ALV/ALVZ-Grundlagen werden im ERP-System zentral geführt. - Prüfen ob die ALV-Höchstlöhne und die ALV-Beiträge korrekt hinterlegt sind. Die Beiträge müssen mit 4 Nachkommastellen dargestellt werden. - Prüfen ob die ALVZ-Höchstlöhne, wie auch die ALVZ-Beiträge im Falle von einer erneuten Einführung, im ERP- System hinterlegt werden können. Die Beiträge…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_01_04</span></span></div>
+  </div>  <h3>02_02 · Familienausgleichskasse</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_02_01</span><span class="titel">Angaben zur Familienausgleichskasse</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.2.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente &quot;Nummer der Familienausgleichskasse&quot;, &quot;Mitgliednummer&quot; und &quot;Subnummer&quot; müssen im ERP-System vorhanden sein und identisch benannt werden. - Anhand vom Beispiel &quot;000.003&quot; prüfen ob die Nummer der Familienausgleichskasse plausibilisiert wird. Der erste…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_02_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_02_02</span><span class="titel">Interkantonale Vereinbarungen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.2.4.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfung ob bei einer kantonalen Familienausgleichskasse eine interkantonale Vereinbarung hinterlegt werden kann. Ziel davon ist es, die Adressierung dieser Familienausgleichskasse in der Übermittlung an eine andere Familienausgleichskasse umzuleiten.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_02_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_02_03</span><span class="titel">FAK-Grundlagen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.2.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Folgende Elemente müssen geprüft werden: - Prüfung ob im ERP-System eine Familienausgleichskasse abgebildet werden kann. - Prüfen ob im ERP-System die Erkennung von kantonalen, wie auch Verbandsausgleichskassen automatisiert wurde. Dies kann auch mündlich bestätigt werden, da dies im Berechnungstest geprüft wird. - Prüfung ob mehrere…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_02_03</span></span></div>
+  </div>  <h3>02_03 · UVG</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_03_01</span><span class="titel">Angaben zur UVG-Versicherung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.3.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente &quot;Versicherernummer&quot;, &quot;Kundennummer&quot; und &quot;Vertrags-/Subnummer&quot; müssen im ERP-System vorhanden sein und identisch benannt werden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_03_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_03_02</span><span class="titel">Angaben zum UVG-Versicherer</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - UID-BFS: Prüfen ob &quot;unbekannt&quot; ausgewählt werden kann und anhand der UID-BFS &quot;CHE-999.999.997&quot; prüfen, ob eine Fehlermeldung bei einer invaliden Nummer angezeigt wird. - Prüfen ob die zwei Elemente &quot;Name&quot; und &quot;Gültig-ab-Datum&quot; erfasst werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_03_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_03_03</span><span class="titel">Mehrere UVG-Versicherer</span><span class="offen">offen</span> <span class="dir">Direktive 8.3.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Der Anwendungsfall von öffentlichen Verwaltungen wird wie folgt geprüft: - Prüfen ob in der Benutzeroberfläche mehrere UVG-Versicherer erfasst und unterschiedlichen Personen zugewiesen werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_03_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_03_04</span><span class="titel">Angaben zur UVG-Versicherungslösungen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.3.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die erste Stelle vom UVG-Code auf Buchstaben beschränkt ist. (A-Z) - Prüfen ob eine UVG-Versicherungslösung mit einer Beschreibung versehen werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_03_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_03_05</span><span class="titel">UVG Grundlagen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.3.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Höchstlöhne im System hinterlegt sind. - Prüfen ob die Beitragssätze pro Versicherungslösung erfasst werden können. - Prüfen ob die Beitragssätze mit 4 Nachkommastellen erfasst werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_03_05</span></span></div>
+  </div>  <h3>02_04 · UVGZ</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_04_01</span><span class="titel">Angaben zur UVGZ-Versicherung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.4.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente &quot;Versicherungsname&quot;, &quot;Versicherernummer&quot;, &quot;Kundennummer&quot; und &quot;Vertragsnummer&quot; müssen im ERP-System vorhanden sein und identisch benannt werden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_04_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_04_02</span><span class="titel">Angaben zur UVGZ-Versicherungslösung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.4.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob für die erste Stelle der UVGZ-Codes ausschliesslich Buchstaben (A-Z) und Ziffern (0-9) erfasst werden können. - Prüfen ob eine UVGZ-Versicherungslösung mit einer Beschreibung versehen werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_04_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_04_03</span><span class="titel">UVGZ-Grundlagen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.4.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Höchstlöhne im System hinterlegt sind. - Prüfen ob die Obergrenze (300&#x27;000) im System hinterlegt werden kann. - Prüfen ob die Beitragssätze pro Versicherungslösung erfasst werden können. - Prüfen ob die Beitragssätze mit 4 Nachkommastellen erfasst werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_04_03</span></span></div>
+  </div>  <h3>02_05 · KTG</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_05_01</span><span class="titel">Angaben zur KTG-Versicherung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.5.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente &quot;Versicherungsname&quot;, &quot;Versicherernummer&quot;, &quot;Kundennummer&quot; und &quot;Vertragsnummer&quot; müssen im ERP-System vorhanden sein und identisch benannt werden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_05_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_05_02</span><span class="titel">Angaben zur KTG-Versicherungslösung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.5.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob für die erste Stelle der KTG-Codes ausschliesslich Buchstaben (A-Z) und Ziffern (0-9) erfasst werden können. - Prüfen ob eine KTG-Versicherungslösung mit einer Beschreibung versehen werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_05_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_05_03</span><span class="titel">KTG-Grundlagen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.5.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Höchstlöhne im System hinterlegt werden können. - Prüfen ob zwischen UVG-Höchstlöhnen und vertraglich definierten Höchstlöhnen unterschieden werden kann. - Prüfen ob die Beitragssätze pro Versicherungslösung erfasst werden können. - Prüfen ob die Beitragssätze mit 4 Nachkommastellen erfasst…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_05_03</span></span></div>
+  </div>  <h3>02_06 · BVG</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_06_01</span><span class="titel">Angaben zur BVG-Versicherung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.6.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente &quot;Versicherernummer&quot;, &quot;Kundennummer&quot; und &quot;Vertragsnummer&quot; müssen im ERP-System vorhanden sein und identisch benannt werden. - Prüfen ob im ERP-System mehrere BVG-Versicherer hinterlegt werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_06_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_06_02</span><span class="titel">Angaben zum BVG-Versicherer</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - UID-BFS: Prüfen ob &quot;unbekannt&quot; ausgewählt werden kann und anhand der UID-BFS &quot;CHE-999.999.997&quot; prüfen, ob eine Fehlermeldung bei einer invaliden Nummer angezeigt wird. - Prüfen ob die zwei Elemente &quot;Name&quot; und &quot;Gültig-ab-Datum&quot; erfasst werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_06_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_06_03</span><span class="titel">Angaben zur BVG-Versicherungslösung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.6.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob BVG-Codes mit maximal 32 Stellen erfasst werden können. - Prüfen ob eine BVG-Versicherungslösung mit einer Beschreibung versehen werden kann. - Prüfen ob im ERP-System pro BVG-Versicherungslösung eine eigene Lohnartensteuerung unterstützt wird.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_06_03</span></span></div>
+  </div>  <h3>02_07 · BFS / Statistik</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_07_01</span><span class="titel">Angaben zum Bundesamt für Statistik (BFS)</span><span class="ok">vorhanden</span> <span class="dir">Direktive 12.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob ein Buchungskreis strukturiert auf Ebene vom Unternehmen erfasst werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_07_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_07_02</span><span class="titel">Unternehmensübergreifende Angaben zur Lohnvereinbarung (Auswahl)</span><span class="ok">vorhanden</span> <span class="dir">Direktive 12.2.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: Die Auswahl der gültigen Lohnvereinbarung muss folgende Elemente beinhalten: - Gesamtarbeitsvertrag eines Verbands - Gesamtarbeitsvertrag einer Firma oder einer öffentlichen Verwaltung - Kollektive Lohnvereinbarung ausserhalb eines Gesamtarbeitsvertrags - Einzelarbeitsvertrag</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_07_02</span></span></div>
+  </div>  <h3>02_08 · Quellensteuer-Empfänger</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_08_01</span><span class="titel">Angaben zur Quellensteuer (pro Kanton)</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Es muss ein neuer Kanton auf Basis einer strukturierten Liste hinzugefügt werden können - Pro Kanton muss eine SSL-Nummer hinterlegt werden können - Pro Kanton muss ein Buchungskreis hinterlegt werden können. Der Buchungskreis kann nur einmal auf einem Kanton hinterlegt werden. Eine Unterteilung innerhalb…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_08_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_08_02</span><span class="titel">QST-Tarifcodes</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.5</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Sicherstellen, dass die QST-Tarifcodes anhand der von der ESTV publizierten Tariftabellen eingelesen werden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_08_02</span></span></div>
+  </div></section>
+<section class="kapitel">
+  <div class="kopf"><h2>S03 — Personendaten</h2>
+    <div class="rechts">59 Prüfpunkte · 0 gebaut<br>Reiter «S03» in Systemtest</div></div>
+  <div class="worum"><b class="t">Worum es geht</b> Personendaten: Stammdaten, Verträge, Versicherungen, Lohnausweis, Statistik, Quellensteuer, Grenzgänger.</div>
+  <h3>03_01 · Person / Stammdaten</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_01</span><span class="titel">Angaben zur Person</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob eine Person mit identischen Persondendaten mehrfach im ERP-System erfasst werden kann. Wenn nein, gilt der Test als bestanden. - Falls ja, gilt es zu prüfen, ob der Anwender zum Zeitpunkt der Übermittlung auf die Anforderung der Eindeutigkeit einer Person im ERP-System hingewiesen wird.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_02</span><span class="titel">AHV-Nummer</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Folgende AHV-Nummer muss erfasst werden: 756.7865.5342.46 - Prüfen ob &quot;unbekannt&quot; ausgewählt werden kann. - Prüfen ob invalide AHV-Nummern gespeichert werden können (Bsp: 756.7865.4342.46)</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_03</span><span class="titel">Personalnummer</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Die Personalnummer muss vom System automatisiert vergeben werden - Falls eine Person das Unternehmen verlässt und zu einem späteren Zeitpunkt wieder in das Unternehmen eintritt, muss die gleiche Personalnummer verwendet werden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_04</span><span class="titel">Name, Vorname und Geschlechtscode</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Folgende Kombination aus Vor- , Nachname und Geschlechtscode muss erfasst werden: Felix Müller, M - Prüfen ob die Geschlechtscodes M und F erfasst werden können</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_05</span><span class="titel">Geburtsdatum</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob ein Geburtsdatum grösser als aktuelles Tagesdatum erfasst werden kann (darf nicht möglich sein)</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_06</span><span class="titel">Staatsangehörigkeit</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die ISO 3166 Liste in der ERP-Lösung hinterlegt wurde. - Prüfen ob 11 (unbekannt) und 12 (staatenlos) ausgewählt werden kann</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_06</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_07</span><span class="titel">Sprachcode</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die vier möglichen Sprachcodes hinterlegt werden können: DE, FR, IT, EN</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_07</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_08</span><span class="titel">Aufenthaltskategorie</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob die möglichen Kategorien ausgewählt werden können: - Kurzaufenthalter (L) - Jahresaufenthalter (B) - Niedergelassene (C) - Aufenthaltsbewilligung mit Erwerbstätigkeit (Ci) - Grenzgänger (G) - Asylsuchender (N) - Schutzbedürftige (S) - Vorläufig Aufgenommene (F) - Meldeverfahren für kurzfristige…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_08</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_09</span><span class="titel">Zivilstand mit Gültig-ab-Datum</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob die möglichen Zivilstände im ERP-System ausgewählt werden können und ob ein Gültig-ab-Datum hinterlegt werden kann: - ledig - verheiratet - geschieden - verwittwet - getrennt - eingetragene Partnerschaft - gerichtlich aufgelöste Partnerschaft - durch Tod aufgelöste Partnerschaft - durch…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_09</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_10</span><span class="titel">Angaben zu den Kindern</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.3.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob Kinder mit folgenden Angaben in der ERP-Lösung erfasst werden können: - Vorname des Kindes - Name des Kindes - Geburtsdatum des Kindes - Beginn des Anspruchs auf Kinderabzug - Ende des Anspruchs auf Kinderabzug Prüfen ob in der ERP-Lösung eine Fehlermeldung erscheint, wenn auf einem Kind ein…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_10</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_11</span><span class="titel">Adresse der Mitarbeitenden</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob Wohnadressen für Mitarbeitende mit folgenden Angaben erfasst werden können: - Strasse und Hausnummer - Postfach - Zusätzliche Informaton zur Lokalität - Postleitzahl - Ort - Land (Englisch in Grossbuchstaben bsp. SWITZERLAND) - Zweistelliger ISO-Ländercode, falls Adresse im Ausland - Wohnkanton…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_11</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_12</span><span class="titel">E-Mail und Telefonnummer des Mitarbeitenden</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob folgende Angaben auf einem Mitarbeitenden erfasst werden können: - E-Mail - Telefonnummer - Mobilnummer</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_12</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_01_13</span><span class="titel">Arbeitsort</span><span class="ok">vorhanden</span> <span class="dir">Direktive 4.2.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob einer Person ein Arbeitsort zugewiesen werden kann. - Sicherstellen, dass mit dieser Auswahl auch die zuständige Familienausgleichskasse zugeordnet wird, die auf dem Arbeitsort hinterlegt ist.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_01_13</span></span></div>
+  </div>  <h3>03_02 · Arbeitsverträge</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_02_01</span><span class="titel">Arbeitsverträge</span><span class="ok">vorhanden</span> <span class="dir">Direktive 4.2.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Verträge</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Verträge» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob im ERP-System ein Vertrag erfasst werden kann und ob folgende Angaben auf dem Vertrag hinterlegt werden können: - Wahl des Arbeitszeitmodells aus der Liste der im Unternehmen erfassten Arbeitszeitmodelle - Arbeitsverhältnis (regelmässig/unregelmässig) inkl. Folgeangaben - Eintritts- und…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_02_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_02_02</span><span class="titel">Arbeitsverträge - Wahl des Arbeitszeitmodells</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Verträge</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Verträge» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene vom Vertrag bei einer Person ein Arbeitszeitmodell aus der Liste der unternehmensübergreifend hinterlegten Arbeitszeitmodelle ausgewählt werden kann. - Prüfen ob ein vom unternehmensübergreifenden Modell abweichendes Arbeitszeitmodell hinterlegt werden kann. - Prüfen ob das Format der…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_02_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_02_03</span><span class="titel">Arbeitsverträge - Arbeitsverhältnis (regelmässig/unregelmässig) inkl.</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.4.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Verträge</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Verträge» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Information &quot;Regelmässig/Unregelmässig&quot; im ERP-System auf Ebene vom Vertrag erfasst werden kann. - Prüfen ob ein Beschäftigungsgrad bei regelmässig angestellten Personen hinterlegt werden kann. - Sicherstellen, dass anhand vom Beschäftigungsgrad die für den Vertrag zu übermittelnde…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_02_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_02_04</span><span class="titel">Arbeitsverträge - Ein- und Austrittsdaten</span><span class="ok">vorhanden</span> <span class="dir">Direktive 7.4.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Verträge</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Verträge» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob ein Eintritt / Austritt erfasst werden kann - Prüfen ob sichergestellt ist, dass ein Austritt nicht vor einem Eintritt erfasst werden kann - Prüfen ob ein Wiedereintritt erfasst werden kann, ohne dass eine Person erneut erfasst werden muss.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_02_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_02_05</span><span class="titel">Arbeitsverträge - Im Unternehmen ausgeübter Beruf</span><span class="ok">vorhanden</span> <span class="dir">Direktive 12.3.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Verträge</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Verträge» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob ein im Unternehmen ausgeübter Beruf im ERP-System als Freitext erfasst werden kann. Es ist wichtig, dass dieses Element direkt auf einem Vertrag erfasst wird.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_02_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_02_06</span><span class="titel">Arbeitsverträge - Vertraglicher 13. Monatslohn</span><span class="ok">vorhanden</span> <span class="dir">Direktive 12.5</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Verträge</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Verträge» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene vom Vertrag bei einer Person ein 13. Monatslohn wie auch weitere Monatslöhne hinterlegt werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_02_06</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_02_07</span><span class="titel">Arbeitsverträge - Erkennung der Art der Lohnzahlung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 12.5</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Verträge</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Verträge» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Arten der Lohnzahlung korrekt zugeteilt werden und die zusätzlichen Angaben erfasst werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_02_07</span></span></div>
+  </div>  <h3>03_03 · AHV/ALV Sonderfälle</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_03_01</span><span class="titel">AHV/ALV Sonderfall</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec (Admin-Bereich)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Swissdec Lohn-Test» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person im ERP-System die Information AHV/ALV Sonderfall hinterlegt werden kann. - Prüfen ob eine als AHV/ALV Sonderfall markierte Person von der AHV/ALV-Beitragspflicht ausgenommen wird.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_03_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_03_02</span><span class="titel">Verzicht auf den Freibetrag</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec (Admin-Bereich)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Swissdec Lohn-Test» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person im ERP-System die Information &quot;Verzichtet auf den Freibetrag&quot; hinterlegt werden kann. - Sicherstellen, dass die Funktion nur dann ausgewählt werden kann, wenn die betroffene Person im Rentenalter ist.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_03_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_03_03</span><span class="titel">Verwandtschaftsgrad zum Inhaber (Landwirtschaft)</span><span class="offen">offen</span> <span class="dir">Direktive 8.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec (Admin-Bereich)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene vom Unternehmen hinterlegt werden kann, dass es sich um einen Landwirtschaftsbetrieb handelt. - Prüfen ob für Landwirtschaftsbetriebe auf Ebene der Person eine der beschriebenen Auswahlmöglichkeiten hinterlegt werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_03_03</span></span></div>
+  </div>  <h3>03_04 · Versicherungszuweisung MA</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_04_01</span><span class="titel">Zuweisung UVG-Versicherungsdaten</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.3.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob einer Person eine UVG-Versicherung zugewiesen werden kann. - Prüfen ob einer Person ein UVG-Code zugewiesen werden kann. - Prüfen ob die erste Stelle auf den auf Stufe Unternehmen hinterlegten Betriebsteilen basiert. - Prüfen ob die zweite Stelle auf die Ziffern 0, 1, 2, 3 beschränkt ist. Die…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_04_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_04_02</span><span class="titel">Zuweisung UVGZ-Versicherungsdaten</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.4.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob einer Person eine UVGZ-Versicherungslösung via UVGZ-Code zugewiesen werden kann. - Prüfen ob einer Person mehrere paralelle UVGZ-Versicherungslösungen via UVGZ-Codes zugeordnet werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_04_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_04_03</span><span class="titel">Zuweisung KTG-Versicherungsdaten</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.5.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob einer Person eine KTG-Versicherungslösung via KTG-Code zugewiesen werden kann. - Prüfen ob einer Person mehrere paralelle KTG-Versicherungslösungen via KTG-Codes zugeordnet werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_04_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_04_04</span><span class="titel">Zuweisung BVG-Versicherungsdaten</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.6.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob einer Person eine BVG-Versicherungslösung via BVG-Code zugewiesen werden kann. - Prüfen ob einer Person mehrere paralelle BVG-Versicherungslösungen via BVG-Codes zugeordnet werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_04_04</span></span></div>
+  </div>  <h3>03_05 · Lohnausweis-Angaben</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_01</span><span class="titel">Lohn oder Rente</span><span class="ok">vorhanden</span> <span class="dir">Direktive 9.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · Lohnausweis» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person zwischen Lohnausweis und Rentenbescheinigung unterschieden werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_02</span><span class="titel">Ziffer F - Unentgeltliche Beförderung zwischen Wohn- und Arbeitsort</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person die Ziffer F ausgewählt werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_03</span><span class="titel">Ziffer G: Kantinenverpflegung / Lunch-Checks</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person die Ziffer G ausgewählt werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_04</span><span class="titel">Ziffer 14: Weitere nicht bewertete Gehaltsnebenleistungen</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person ein Text für weitere nicht bewertete Gehaltsnebenleistungen erfasst werden kann. - Prüfen ob die Angabe zu weiteren nicht bewerteten Gehaltsnebenleistungen auch für das ganze Unternehmen hinterlegt werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_05</span><span class="titel">Standardbemerkungen - ExpatriateRuling genehmigt durch die</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person das durch die kantonale Steuerverwaltung genehmigte ExpatriateRuling samt Datum und Kanton hinterlegt werden kann. - Prüfen ob das durch die kantonale Steuerverwaltung genehmigte ExpatriateRuling samt Datum und Kanton auch für das gesamte Unternehmen hinterlegt werden kann.…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_06</span><span class="titel">Standardbemerkungen - Privatanteil Geschäftswagen</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person die Optionen &quot;Arbeitnehmer übernimmt einen minimalen Anteil (0.9% des Kaufpreises am Geschäftswagen&quot; und &quot;Arbeitnehmer übernimmt beträchtliche Kosten vom Geschäftswagen&quot; hinterlegt werden können. - Prüfen ob die zwei Möglichkeiten auch für das gesamte Unternehmen hinterlegt…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_06</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_07</span><span class="titel">Spesenreglement - Spesenreglement genehmigt durch die Steuerverwaltung</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person das durch die kantonale Steuerverwaltung genehmigte Spesenreglement samt Datum und Kanton hinterlegt werden kann. - Prüfen ob das durch die kantonale Steuerverwaltung genehmigte Spesenreglement samt Datum und Kanton auch für das gesamte Unternehmen hinterlegt werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_07</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_08</span><span class="titel">Spesenreglement - Ziffer 13.1.1 - RZ 52</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person die Information, dass die Bedingungen von RZ52 eingehalten wurde, hinterlegt werden kann. - Prüfen ob die Angabe, dass die Bedingungen von RZ52 eingehalten wurde, auch für das ganze Unternehmen hinterlegt werden kann. - Falls kein Viewgen: Prüfen ob das Kreuz gemäss RZ52 auf…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_08</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_09</span><span class="titel">Standardbemerkungen - Gesamtzahl der Lohnausweise</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob im Falle von mehreren Lohnausweisen für die selbe Person innerhalb von einem Kalenderjahr die Gesamtzahl der Lohnausweise automatisiert auf dem Lohnausweis ergänzt wird. - Prüfen das im Standardfall (nur 1 Lohnausweis) der Hinweis zur Gesamtzahl der Lohnausweise in Ziffer 15 nicht abgedruckt…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_09</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_10</span><span class="titel">Standardbemerkungen - Mitarbeiterbeteiligungen Verkehrswert genehmigt</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person der durch die kantonale Steuerverwaltung genehmigte Verkehrswert der Mitarbeiterbeteiligungen samt Datum und Kanton hinterlegt werden kann. - Prüfen ob der durch die kantonale Steuerverwaltung genehmigte Verkehrswert der Mitarbeiterbeteiligungen samt Datum und Kanton auch…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_10</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_11</span><span class="titel">Standardbemerkungen - Mitarbeiterbeteiligungen noch ohne steuerbare</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person die Standardbemerkung &quot;Mitarbeiterbeteiligungen noch ohne steuerbare Einkommen&quot; hinterlegt werden kann. - Prüfen ob eine oder auch mehrere Optionen der vier definierten Gründe ausgewählt werden können. - Prüfen ob die Standardbemerkung &quot;Mitarbeiterbeteiligungen noch ohne…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_11</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_12</span><span class="titel">Standardbemerkungen - Besoldungsnachgenuss</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person der Besoldungsnachgenuss ausgewählt werden und die begünstigte Person mit sämtlichen Angaben hinterlegt werden kann. - Falls kein Viewgen: Prüfen ob die Standardbemerkung auf dem Lohnausweis abgedruckt wird. (Konsolidiert prüfen nachdem alle Standardbemerkungen im ERP-System…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_12</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_13</span><span class="titel">Standardbemerkungen - Kinderzulagen direkt durch Aus-gleichskasse</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person die Standardbemerkung &quot;Kinderzulagen direkt durch Ausgleichskasse bezahlt&quot; hinterlegt werden kann. - Falls kein Viewgen: Prüfen ob die Standardbemerkung auf dem Lohnausweis abgedruckt wird. (Konsolidiert prüfen nachdem alle Standardbemerkungen im ERP-System geprüft wurden.)</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_13</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_14</span><span class="titel">Standardbemerkungen - Umzugskosten</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person die Standardbemerkung &quot;Berufsbedingte Umzugskosten, die der Arbeitgeber begleicht&quot; mitsamt einem Betrag hinterlegt werden kann. - Falls kein Viewgen: Prüfen ob die Standardbemerkung auf dem Lohnausweis abgedruckt wird. (Konsolidiert prüfen nachdem alle Standardbemerkungen im…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_14</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_15</span><span class="titel">Individuelle Kontaktpersonen</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob unternehmensübergreifend eine Kontaktperson für den Lohnausweis mit den spezifizierten Angaben im ERP-System hinterlegt werden kann. - Falls kein Viewgen: Prüfen ob die Kontaktperson auf dem Lohnausweis abgedruckt wird.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_15</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_05_16</span><span class="titel">Standardbemerkungen - Abrechnungsbeleg für Quellensteuerpflichtige</span><span class="offen">offen</span> <span class="dir">Direktive 9.2.3.1.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Standardbemerkung für Quellensteuerpflichtige automatisiert vom ERP-System im Lohnausweis abgefüllt wird. - Prüfen ob die Sprache den übrigen Texten auf dem Lohnausweis entspricht - Falls kein Viewgen: Prüfen ob die Standardbemerkung auf dem Lohnausweis abgedruckt wird. (Konsolidiert prüfen…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_05_16</span></span></div>
+  </div>  <h3>03_06 · Statistik MA</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_06_01</span><span class="titel">Ausbildung des Arbeitnehmers</span><span class="ok">vorhanden</span> <span class="dir">Direktive 12.3.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob alle Ausbildungsarten ausgewählt werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_06_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_06_02</span><span class="titel">Berufliche Stellung des Arbeitnehmers</span><span class="ok">vorhanden</span> <span class="dir">Direktive 12.3.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob alle Möglichkeiten für die berufliche Stellung ausgewählt werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_06_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_06_03</span><span class="titel">Kennzeichnung von erweiterten Merkmalen auf Ebene vom Arbeitnehmer für</span><span class="offen">offen</span> <span class="dir">Direktive 12.3.5</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob ein Arbeitnehmer als &quot;verliehenes Personal&quot; gekennzeichnet werden kann. - Prüfen ob ein Arbeitnehmer als &quot;Stammpersonal in öffentlichen Verwaltungen&quot; gekennzeichnet werden kann. - Prüfen ob auf dem Arbeitnehmer ein flexibles Feld für das Profiling verfügbar ist.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_06_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_06_04</span><span class="titel">Ferienanspruch</span><span class="ok">vorhanden</span> <span class="dir">Direktive 12.3.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Ferien manuell hinterlegt werden können oder ob eine automatisierte Ermittlung aufgrund von Umsystemen (bsp. Zeiterfassungssysteme) möglich ist. - Prüfen ob dem ERP-Hersteller die Verbindung zwischen der Anzahl Ferientage und den vertraglichen Ferienentschädigungen für die Domäne Statistik…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_06_04</span></span></div>
+  </div>  <h3>03_07 · Quellensteuer MA</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_01</span><span class="titel">Konfession (Quellensteuer)</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.3.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob auf Ebene der Person oder auch direkt bei der erstmaligen Übermittlung einer Person an die zuständige KSTV die Konfession ausgewählt werden kann und ob alle Möglichkeiten im ERP-System abgebildet sind.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_02</span><span class="titel">Weiterer Arbeitgeber oder Ersatzeinkünfte</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.6.4.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob im Falle von weiteren Arbeitgebern oder Ersatzeinkünften die erforderlichen drei Angaben im ERP- System hinterlegt werden können. - Prüfen ob bei Auswahl &quot;Kumulierter Gesamtbeschäftigungsgrad (in%) bei allen weiteren Arbeitgebern bekannt&quot; der kumulierte Gesamtbeschäftigungsgrad (in %) bei allen…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_03</span><span class="titel">Halbfamilie</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.3.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Angaben zur familiären Situation (Konkubinat/Kein Konkubinat) und die Folgeangaben im ERP- System auf einer qsP hinterlegt werden können, die den Tarifcode H, P oder U zugewiesen hat.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_04</span><span class="titel">Bestimmung von QST-Kanton und Gemeinde</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob bei einer Adesse der qsP in der Schweiz die Adresse vom Wohnort für die Ermittlung vom QST- Kanton berücksichtigt wird. - Prüfen ob im Falle von einem Wohnsitz im Ausland hinterlegt werden kann, ob die qsP täglich an den Wohnort im Ausland zurückkehrt oder über eine Wochenaufenthaltsadresse in…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_05</span><span class="titel">Angaben zum Ehepartner</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.3.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Partnerdaten im ERP-System vollständig erfasst werden können. - Prüfen ob im ERP-System eine logische Verbindung zwischen dem Zivilstand einer qsP und der Verpflichtung die Partnerdaten zu erfassen existiert. - Prüfen ob im ERP-System hinterlegt werden kann, ob ein Ehepartner…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_06</span><span class="titel">Angaben zu den Kindern</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.3.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob im ERP-System die Angaben zu Kindern für die Quellensteuer komplett erfasst werden können. - Prüfen ob im ERP-System die Angaben zu den Kindern anhand vom QST-Tarifcode validiert werden. Sobald ein QST-Tarifcode mit Kindern bei einer qsP hinterlegt wird, müssen auch die Angaben zu den Kindern…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_06</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_07</span><span class="titel">QST-Tarif</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.5</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die zwei Arten von QST-Tarifen im ERP-System ausgewählt werden können. - Prüfen ob der QST-Code vom System vorgeschlagen wird oder ob die Angabe manuell durch den Anwender erfasst werden muss und zusätzlich den Ablauf im ERP-System in ein paar Sätzen in den Kommentaren beschreiben. - Prüfen ob…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_07</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_08</span><span class="titel">Speziell bewilligter QST-Tarifcode</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.5.1.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob im ERP-System erfasst werden kann, dass es sich beim übermittelten QST-Code um einen speziell bewilligten QST-Tarifcode handelt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_08</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_07_09</span><span class="titel">Anzahl Arbeitstage CH</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.6.3.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Mitarbeiter · QST» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob im ERP-System die Anzahl Arbeitstage in der Schweiz hinterlegt werden kann. - Prüfen ob im ERP-System als Default Wert automatisch 20 Tage (20/20 Tage) hinterlegt wird.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_07_09</span></span></div>
+  </div>  <h3>03_08 · Grenzgänger</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_08_01</span><span class="titel">Grenzgängermeldung Italien</span><span class="offen">offen</span> <span class="dir">Direktive 11.5</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob im ERP-System eine Person als vom Datenaustausch mit Italien betroffene Person markiert werden kann. - Prüfen ob die zusätzlichen Angaben im ERP-System für vom Datenaustausch mit Italien betroffene Personen hinterlegt werden können und ob die Felder im ERP-System zu Pflichtfeldern werden, sobald…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_08_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_08_02</span><span class="titel">Grenzgängermeldung SFN</span><span class="offen">offen</span> <span class="dir">Direktive 11.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Prüfen ob die Abhängigkeit zum QST-Tarifcode SFN klar ist und die Übermittlung separat zu den weiteren Grengzängermeldungen ausgelöst werden kann.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_08_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S03_08_03</span><span class="titel">Grenzgängermeldung Frankreich</span><span class="offen">offen</span> <span class="dir">Direktive 11.4</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Personal → Mitarbeiter (Detail je nach Prüfpunkt)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Sicherstellen, dass er spezifizierte Personenkreis automatisiert erkannt wird. - Prüfen ob der Anteil Telearbeit in Prozent im ERP-System für die Grenzgängermeldung Frankreich hinterlegt werden kann und ob das neue Element im ERP-System zu einem Pflichtfeld wird, sobald die Person entsprechend erkannt…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_03_08_03</span></span></div>
+  </div></section>
+<section class="kapitel">
+  <div class="kopf"><h2>S04 — Prozessuale Testfälle</h2>
+    <div class="rechts">13 Prüfpunkte · 0 gebaut<br>Reiter «S04» in Systemtest</div></div>
+  <div class="worum"><b class="t">Worum es geht</b> Abläufe: Ein-/Austrittsmeldungen (EMA), Korrekturen, Historisierung, QST Ein-/Austritt.</div>
+  <h3>04_01 · EMA-Meldungen</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_01_01</span><span class="titel">EMA-Meldungen Domäne AHV</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.9</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die AHV EMA-Meldungen automatisiert erstellt werden. - Prüfen ob die vorbereiteten EMA-Meldungen vom Anwender zur Übermittlung freigegeben werden können. - Prüfen ob die Angaben in der EMA-Meldung an das Eintritts- wie auch das Austrittsdatum gekoppelt sind. Hinweis: Im Systemtest muss…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_01_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_01_02</span><span class="titel">EMA-Meldungen Domäne FAK</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.2.7</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die FAK EMA-Meldungen automatisiert und mit der korrekten Begründung erstellt werden. - Prüfen ob die vorbereiteten EMA-Meldungen vom Anwender zur Übermittlung freigegeben werden können. - Prüfen ob die Angaben in der EMA-Meldung an das Eintritts-, Austritts- oder das Datum vom Arbeitsortwechsel…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_01_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_01_03</span><span class="titel">EMA-Meldungen Domäne BVG</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.6.8</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die BVG EMA-Meldungen automatisiert und mit der korrekten Begründung erstellt werden. - Prüfen ob die vorbereiteten EMA-Meldungen vom Anwender zur Übermittlung freigegeben werden können. - Prüfen ob die Angaben in der EMA-Meldung an die korrekten Daten vom Auslöser gebunden sind. Hinweis: Im…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_01_03</span></span></div>
+  </div>  <h3>04_02 · Lohnausweis DocID / Korrektur</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_02_01</span><span class="titel">Umgang mit der DocID auf dem Lohnausweis</span><span class="offen">offen</span> <span class="dir">Direktive 9.1.5</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Sicherstellen, dass der Begriff UUID klar ist und vom ERP-Hersteller entsprechend umgesetzt wurde. - Prüfen ob im ERP-System ein Lohnausweis als Entwurf angezeigt werden kann und ob die DocID in diesem Fall mit den drei Begriffen «Entwurf – Brouillon – Bozza» befüllt wird. - Prüfen ob im ERP-System ein…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_02_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_02_02</span><span class="titel">Korrektur von Lohnausweisen</span><span class="offen">offen</span> <span class="dir">Direktive 9.1.6</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Prüfen ob im ERP-System ein einzelner Lohnausweis korrigiert und als Rektifikat erneut übermittelt werden kann. - Prüfen ob beim Rektifikat eine neue DocID vergeben wurde und in Ziffer 15 auf die korrekte DocID vom zu korrigierenden Lohnausweis verwiesen wird. - Prüfen ob eine Ersatzmeldung für das gesamte…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_02_02</span></span></div>
+  </div>  <h3>04_03 · QST Ein-/Austritt</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_03_01</span><span class="titel">Eintritt, Mutation, Austritt in der Quellensteuer</span><span class="ok">vorhanden</span> <span class="dir">Direktive 10.7</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Sicherstellen, dass die EMA-Gründe samt Gültigkeitsdatum im ERP-System automatisiert erkannt werden und kein manueller Input von einem Anwender notwendig ist. (Das XML muss nicht geprüft werden, dieser Teil folgt im Berechnungstest) - Sicherstellen, dass der Umstand, dass QST-Mutationen immer per Folgemonat…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_03_01</span></span></div>
+  </div>  <h3>04_04 · Korrekturen &amp; Historisierung</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_04_01</span><span class="titel">Rückwirkende Korrekturen nach der Lohnverarbeitung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.7.7</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Beschreibung des Ablaufs</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_04_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_04_02</span><span class="titel">Jahresendverarbeitung</span><span class="offen">offen</span> <span class="dir">Direktive 8.7.7.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Beschreibung des Ablaufs</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_04_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_04_03</span><span class="titel">Nachzahlung fürs Vorjahr</span><span class="offen">offen</span> <span class="dir">Direktive 8.7.5.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Beschreibung des Ablaufs</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_04_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_04_04</span><span class="titel">Nachzahlung nach Austritt im Vorjahr</span><span class="offen">offen</span> <span class="dir">Direktive 8.7.5.2</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Prüfen ob im Falle einer Nachzahlung nach Austritt im Vorjahr die AHV-/ALV-Beitragssätze des Austrittsjahres verwendet werden. - Prüfen ob bei einer Quellensteuer Korrektur (Old/New) je nach Charakter (RL 9.6.5) die QST-Tarifcodes, wie auch die generellen Verhältnisse des Austrittsmonats oder des…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_04_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_04_05</span><span class="titel">Datenhaltung und Historisierung</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.7.6</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Sicherstellen, dass bereits abgeschlossene Jahre jederzeit aufgerufen und ausgedruckt werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_04_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_04_06</span><span class="titel">Historisierung von Firmen- und Personendaten</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.7.6</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Sicherstellen, dass Vorgaben zur Historisierung eingehalten werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_04_06</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S04_04_07</span><span class="titel">Mehrere Zahltagsverarbeitungen</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Korrekte Berechnung</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_04_04_07</span></span></div>
+  </div></section>
+<section class="kapitel">
+  <div class="kopf"><h2>S05 — Cockpit Testfälle</h2>
+    <div class="rechts">11 Prüfpunkte · 0 gebaut<br>Reiter «S05» in Systemtest</div></div>
+  <div class="worum"><b class="t">Worum es geht</b> Cockpit: Jahres- und Monatsmeldung vorbereiten und senden, SUA/Konfiguration.</div>
+  <h3>05_01 · Cockpit Jahresmeldung</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_01_01</span><span class="titel">Cockpit Jahresmeldung - Generell</span><span class="ok">vorhanden</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob die Adressierung der einzelnen Übermittlungen klar ausgezeichnet wird. Der Anwender muss zu jedem Zeitpunkt wissen, an wen seine Daten übermittelt werden. - Prüfen ob sämtliche Domänen der Jahresmeldung im ERP-System übermittelt werden können. - Prüfen ob die Aufbereitung der Daten für die…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_01_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_01_02</span><span class="titel">Cockpit Jahresmeldung - Aktualisieren</span><span class="ok">vorhanden</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob im ERP-System eine &quot;Aktualisieren&quot; Funktion eingebaut wurde. - Prüfen ob die &quot;Aktualisieren&quot; Funktion sämtliche technischen Prozesse aktualisiert. Es dürfen im ERP-System keine Funktionen zum abholen vom Status (GetStatus) oder zur manuellen Synchronisierung visualisiert werden. Sämtliche…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_01_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_01_03</span><span class="titel">Cockpit Jahresmeldung - Testmeldungen</span><span class="ok">vorhanden</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob im ERP-System die Möglichkeit eine Übermittlung als &quot;Testmeldung&quot; zu markieren umgesetzt wurde. - Prüfen ob die Funktion analog der Spezifikation im Anhang x benannt wurde.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_01_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_01_04</span><span class="titel">Cockpit Jahresmeldung - &quot;Freigabe im Portal gewünscht&quot;</span><span class="offen">offen</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob im ERP-System die Möglichkeit eine Übermittlung an die Versicherungsdomänen mit der Information &quot;Freigabe im Portal gewünscht&quot; zu kennzeichnen, umgesetzt wurde. - Prüfen ob die Funktion analog der Spezifikation im Anhang x benannt wurde.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_01_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_01_05</span><span class="titel">Cockpit Jahresmeldung - Mitteilungsübersicht</span><span class="offen">offen</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob die Mitteilungen der letzten Übermittlung direkt nach dem Klick auf Übermitteln angezeigt werden. Dies kann in der gleichen Benutzeroberfläche dargestellt werden oder auch via PopUp oder ähnlichen Funktionalitäten sichergestellt werden. - Prüfen ob die vorgegebenen Angaben im ERP-System in…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_01_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_01_06</span><span class="titel">Cockpit Jahresmeldung - Mitteilungshistorie</span><span class="offen">offen</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob in der Mitteilungshistorie vergangene Übermittlungen angezeigt werden können. - Prüfen ob der Informationsgehalt identisch ist, wie in der Mitteilungsübersicht. - Prüfen ob aus der Mitteilungshistorie heraus direkt Ersatzmeldungen vorgenommen werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_01_06</span></span></div>
+  </div>  <h3>05_02 · Cockpit Monatsmeldung</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_02_01</span><span class="titel">Cockpit Monatsmeldung - Generell</span><span class="ok">vorhanden</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob die Adressierung der einzelnen Übermittlungen klar ausgezeichnet wird. Der Anwender muss zu jedem Zeitpunkt wissen, an wen seine Daten übermittelt werden. - Prüfen ob sämtliche Domänen der Monatsmeldung im ERP-System übermittelt werden können. - Prüfen ob im ERP-System für die Domäne…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_02_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_02_02</span><span class="titel">Cockpit Monatsmeldung - Weitere Tests</span><span class="ok">vorhanden</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob die erwähnten Funktionalitäten identisch umgesetzt wurden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_02_02</span></span></div>
+  </div>  <h3>05_03 · Cockpit SUA / Konfiguration</h3>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_03_01</span><span class="titel">Cockpit SUA - Generell</span><span class="ok">vorhanden</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen und im Systemtest notieren, wo im ERP-System die &quot;Konfiguration&quot; der SUA- und Anmeldeprozesse integriert wrude. - Prüfen ob eine allgemeine Beschreibung zu SUA und dem Zweck im ERP-System visualisiert wird. Es ist wichtig, dass in der Beschreibung darauf eingegangen wird, dass nur ein…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_03_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_03_02</span><span class="titel">Cockpit - Konfigurationsseite</span><span class="ok">vorhanden</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob der SUA-Prozess massentauglich ins ERP-System integriert wurde. Dazu gehört wie bei den Jahres- und Monatsmeldung die Vorgabe, dass die Technik für die Anwender nicht sichtbar sein darf und der Prozess soweit beschrieben wird, dass er vom Benutzer selbständig durchgeführt werden kann. -…</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_03_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S05_03_03</span><span class="titel">Cockpit - Aufgabenhandling</span><span class="offen">offen</span> <span class="dir">Direktive Showcase</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob im ERP-System Aufgaben visualisiert werden können. - Prüfen wie im ERP-System die Aufgaben &quot;aktualisiert&quot; werden können. - Prüfen ob die integrierte Aufgabenübersicht aus Sicht Swissdec massentauglich ins ERP-System integriert wurde.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_05_03_03</span></span></div>
+  </div></section>
+<section class="kapitel">
+  <div class="kopf"><h2>Tech-Systemtest</h2>
+    <div class="rechts">20 Fälle · Reiter T01–T06<br>Überlappung Foundation / ELM-Cockpit</div></div>
+  <div class="worum"><b class="t">Worum es geht</b>
+    Technische Gates (Senden, Sync, Completion, Dialog). Vieles ist schon im Foundation-Test oder im ELM-Cockpit gezeigt —
+    hier nur die Punkte, die itserv noch separat abhaken will.</div>
+  <h3>T01 · Lohnmeldung</h3>  <p class="klein">Tech-Gates zur Lohnmeldung (Senden, Faults, Adressierung).</p>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T01_01</span><span class="titel">Jahresmeldung übermitteln</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Der Übermittlungsprozess kann ausgelöst werden. Der Status der Übermittlung wird dem Benutzer dargestellt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_01_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T01_02</span><span class="titel">Jahresmeldung mit SwissdecFault</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Fehlermeldung wird dem Benutzer klar verständlich dargestellt. Die Meldung wird zurückgewiesen.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_01_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T01_03</span><span class="titel">Monatsmeldung übermitteln</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Der Übermittlungsprozess kann ausgelöst werden. Der Status der Übermittlung wird dem Benutzer dargestellt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_01_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T01_04</span><span class="titel">Monatsmeldung mit SwissdecFault</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Fehlermeldung wird dem Benutzer klar verständlich dargestellt. Die Meldung wird zurückgewiesen.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_01_04</span></span></div>
+  </div>  <h3>T02 · Synchronisierung</h3>  <p class="klein">Synchronisieren: Antworten abholen und quittieren.</p>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T02_01</span><span class="titel">Synchronisierung – Accepted</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die erfolgreiche Rückmeldung wird dem Benutzer angezeigt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_02_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T02_02</span><span class="titel">Synchronisierung – CompletionReleaseIsMissing</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Antwort &lt;CompletionReleaseIsMissing&gt; wird dem Benutzer deutlich dargestellt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_02_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T02_03</span><span class="titel">Synchronisierung – DialogMessage</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Antwort &lt;Processing&gt; wird dem Benutzer dargestellt. Falls vorhanden, wird der Zeitpunkt der Verfügbarkeit der Daten angezeigt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_02_03</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T02_04</span><span class="titel">Synchronisierung – Processing</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Der Status der Übermittlung wird dargestellt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_02_04</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T02_05</span><span class="titel">Synchronisierung – Finished</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Der Abschluss des Falls wird dargestellt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_02_05</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T02_06</span><span class="titel">Synchronisierung – Rejected</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Rückweisung des Falls ist klar ersichtlich.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_02_06</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T02_07</span><span class="titel">Synchronisierung – SwissdecFault</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Fehlermeldung wird dargestellt. Für den Benutzer ist klar ersichtlich, wie das weitere Vorgehen ist.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_02_07</span></span></div>
+  </div>  <h3>T03 · Completion</h3>  <p class="klein">Completion: Freigabe-Link beim Empfänger.</p>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T03_01</span><span class="titel">Completion durchführen</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Completion kann erfolgreich durchgeführt werden. Die Felder für Key und Passwort sind vorbefüllt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_03_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T03_02</span><span class="titel">Completion mit zusätzlichen Parametern</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Completion kann erfolgreich durchgeführt werden. Die Felder für Key und Passwort sind vorbefüllt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_03_02</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T03_03</span><span class="titel">Completion mit maximaler Länge</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Completion kann erfolgreich durchgeführt werden. Die Felder für Key und Passwort sind vorbefüllt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_03_03</span></span></div>
+  </div>  <h3>T04 · Lohnausweis / Barcode</h3>  <p class="klein">Lohnausweis / Barcode.</p>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T04_01</span><span class="titel">Lohnausweis mit Viewgen</span><span class="offen">offen</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec (Admin-Bereich)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Der Lohnausweis kann generiert werden und die Viewgen-Version ist in der Fusszeile ersichtlich.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_04_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T04_02</span><span class="titel">Eigener Lohnausweis und Barcode</span><span class="offen">offen</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec (Admin-Bereich)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die Barcodes können alle ausgelesen werden und der Fachexperte bestätigt die Gültigkeit der Inhalte.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_04_02</span></span></div>
+  </div>  <h3>T05 · DialogMessage ELM</h3>  <p class="klein">DialogMessage (Rückfragen).</p>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T05_01</span><span class="titel">Standard-Dialog</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec → Kommunikations-Test (Foundation)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («Kommunikations-Test») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Die verschiedenen Felder der Standardmeldung müssen korrekt dargestellt werden können.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_05_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T05_02</span><span class="titel">BESTA-Dialog</span><span class="offen">offen</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec → Kommunikations-Test (Foundation)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Noch nicht dokumentiert — Maske öffnen und mit der Swissdec-Beschreibung abgleichen.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Der Dialog kann korrekt dargestellt, ausgefüllt und beantwortet werden.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_05_02</span></span></div>
+  </div>  <h3>T06 · Warnung / Information</h3>  <p class="klein">Warnungen und Informationen.</p>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T06_01</span><span class="titel">Warnungen und Informationen anzeigen</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Alle Warnungen und Informationen werden angezeigt.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_06_01</span></span></div>
+  </div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">T06_02</span><span class="titel">Ungültige AccountingPeriod</span><span class="ok">vorhanden</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Lohn → ELM-Meldungen (Cockpit)</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.</span></div>
+    <div class="z"><span class="lab">Du prüfst</span><span>Eine ungültige AccountingPeriod wird vom System als ungültig erkannt und entsprechend zurückgewiesen.</span></div>
+    <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_06_02</span></span></div>
+  </div></section>
+<section class="kapitel">
+  <div class="kopf"><h2>Notizen vom Termin</h2><div class="rechts">17.10.2026</div></div>
+  <p class="klein">Antworten der Expertin, offene Punkte, nächste Schritte.</p>
+  <div style="border-bottom:1px solid #bbb;height:8mm;margin:2mm 0"></div>
+  <div style="border-bottom:1px solid #bbb;height:8mm;margin:2mm 0"></div>
+  <div style="border-bottom:1px solid #bbb;height:8mm;margin:2mm 0"></div>
+  <div style="border-bottom:1px solid #bbb;height:8mm;margin:2mm 0"></div>
+  <div style="border-bottom:1px solid #bbb;height:8mm;margin:2mm 0"></div>
+  <div style="border-bottom:1px solid #bbb;height:8mm;margin:2mm 0"></div>
+  <p class="klein">Quellen: Katalog <span class="mono">docs/swissdec-systemtest-katalog.json</span> ·
+    Protokoll <span class="mono">docs/swissdec-systemtest-protokoll.md</span> ·
+    Foundation <span class="mono">docs/swissdec-vorfuehrung/vorfuehrung.html</span></p>
+</section>
+
+</body>
+</html>

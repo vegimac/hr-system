@@ -331,8 +331,10 @@ für November 2024, dann Monat für Monat weiter bis 2026-02.
 
 **Systemtest ERP + Tech (Walter 16./17.10.2026):** Katalog und Stand wie Foundation —
 `docs/swissdec-systemtest-protokoll.md` + Maschinenkatalog `docs/swissdec-systemtest-katalog.json`
-(aus QT-Runs 24364 ERP / 26667 Tech). Calculation bleibt im Quality-Tool-Protokoll;
-Foundation im Foundation-Protokoll.
+(aus QT-Runs 24364 ERP / 26667 Tech). **Prüf-Handbuch** (itserv-Stil, Punkt für Punkt):
+`docs/swissdec-vorfuehrung/systemtest-handbuch.html` — erzeugen mit
+`python3 Scripts/swissdec-systemtest-handbuch.py`. Calculation bleibt im Quality-Tool-Protokoll;
+Foundation im Foundation-Protokoll (`docs/swissdec-vorfuehrung/vorfuehrung.html`).
 
 **Quality Tool 28.09.2026 (neuer Lauf, Referenz von Swissdec aktualisiert):** Die lokalen
 `SWISSCEC/RefXML/*` (Stand 09./10.09.) sind damit VERALTET. Befund November 2024:

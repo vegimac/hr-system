@@ -56,6 +56,14 @@ Quellen (Walter 16.10.2026):
 
 ## Oberfläche in OneCrew
 
+### Handbuch für die Prüfung (itserv-Stil, 17.10.2026)
+
+Druckbares Punkt-für-Punkt-Handbuch (Wo in OneCrew · So handhabt OneCrew · Du prüfst), analog Foundation:
+
+- **HTML:** `docs/swissdec-vorfuehrung/systemtest-handbuch.html` (Browser öffnen → Drucken)
+- **Neu erzeugen** nach Katalog-Änderung: `python3 Scripts/swissdec-systemtest-handbuch.py`
+- Foundation bleibt: `docs/swissdec-vorfuehrung/vorfuehrung.html`
+
 ### Wegleitung Systemtest (wie Foundation, 17.10.2026)
 
 Entwicklung → Swissdec → **Systemtest** (`page-swissdec-systemtest`, `js/swissdec-systemtest.js`).
