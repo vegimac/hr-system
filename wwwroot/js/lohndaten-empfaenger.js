@@ -21,6 +21,7 @@ const LE_ARTEN = [
 
 let _leListe = [];
 let _leFilterArt = '';
+let _leFilterZug = false; // nur Filial-zugeordnete anzeigen
 let _leEditId = null;
 
 function leArtLabel(code) {
@@ -47,17 +48,34 @@ async function leInit() {
     }
 }
 
+function leGefiltert() {
+    return _leListe.filter(e => {
+        if (_leFilterArt && e.art !== _leFilterArt) return false;
+        if (_leFilterZug && !(e.zuordnungen > 0)) return false;
+        return true;
+    });
+}
+
 function leRenderFilter() {
     const bar = document.getElementById('leFilterBar');
     if (!bar) return;
     const counts = {};
-    for (const e of _leListe) counts[e.art] = (counts[e.art] || 0) + 1;
-    const pill = (art, label, n) => {
-        const aktiv = _leFilterArt === art;
-        return `<button type="button" onclick="leSetFilter('${art}')" style="border:1px solid ${aktiv ? '#3f3f3f' : 'rgba(60,55,48,0.20)'};background:${aktiv ? '#3f3f3f' : 'transparent'};color:${aktiv ? '#fff' : '#3f3f3f'};border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">${leEsc(label)}${n != null ? ` · ${n}` : ''}</button>`;
-    };
-    bar.innerHTML = pill('', 'Alle', _leListe.length)
-        + LE_ARTEN.filter(([c]) => counts[c]).map(([c, l]) => pill(c, l, counts[c])).join('');
+    let nZug = 0;
+    for (const e of _leListe) {
+        counts[e.art] = (counts[e.art] || 0) + 1;
+        if (e.zuordnungen > 0) nZug++;
+    }
+    const pill = (onclick, aktiv, label, n) =>
+        `<button type="button" onclick="${onclick}" style="border:1px solid ${aktiv ? '#3f3f3f' : 'rgba(60,55,48,0.20)'};background:${aktiv ? '#3f3f3f' : 'transparent'};color:${aktiv ? '#fff' : '#3f3f3f'};border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">${leEsc(label)}${n != null ? ` · ${n}` : ''}</button>`;
+    // «Zugeordnet» ist Zusatzfilter (kombinierbar mit Art)
+    bar.innerHTML = pill("leSetFilter('')", !_leFilterArt, 'Alle', _leListe.length)
+        + pill('leToggleZug()', _leFilterZug, 'Zugeordnet', nZug)
+        + LE_ARTEN.filter(([c]) => counts[c]).map(([c, l]) => {
+            const n = _leFilterZug
+                ? _leListe.filter(e => e.art === c && e.zuordnungen > 0).length
+                : counts[c];
+            return pill(`leSetFilter('${c}')`, _leFilterArt === c, l, n);
+        }).join('');
 }
 
 function leSetFilter(art) {
@@ -66,14 +84,21 @@ function leSetFilter(art) {
     leRender();
 }
 
+function leToggleZug() {
+    _leFilterZug = !_leFilterZug;
+    leRenderFilter();
+    leRender();
+}
+
 function leRender() {
     const el = document.getElementById('leList');
     if (!el) return;
-    const list = _leFilterArt ? _leListe.filter(e => e.art === _leFilterArt) : _leListe;
+    const list = leGefiltert();
     if (!list.length) {
-        el.innerHTML = '<div style="padding:24px;color:#8b8b8b">Noch keine Empfänger'
+        el.innerHTML = '<div style="padding:24px;color:#8b8b8b">Keine Empfänger'
+            + (_leFilterZug ? ' mit Filial-Zuordnung' : '')
             + (_leFilterArt ? ' in dieser Art' : '')
-            + ' — Swissdec-Logo oben rechts: Liste laden und übernehmen.</div>';
+            + '.</div>';
         return;
     }
     const byArt = {};
