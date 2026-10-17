@@ -13365,7 +13365,7 @@ body.theme-dark .szm-raster thead th, body.theme-dark .szm-liste td, body.theme-
     overflow: hidden;
     border: 1px solid rgba(60, 55, 48, 0.14);
     box-shadow: 0 8px 24px rgba(60, 55, 48, 0.12);
-    background: #111;
+    background: #fff;
 }
 .le-hub-karte img {
     display: block;
