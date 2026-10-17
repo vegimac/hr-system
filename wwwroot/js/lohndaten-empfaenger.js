@@ -2,8 +2,8 @@
 // lohndaten-empfaenger.js — Zentraler Empfänger-Katalog (Walter 17.10.2026)
 //
 // System → Verzeichnisse & Vorgaben → Lohndaten-Empfänger.
-// Stammdaten (Art, Name, UID, Adresse, Kassennummer, Support) einmal hier;
-// Filiale wählt nur noch zu und erfasst Mitglied/SSL + Gültigkeit.
+// Stammdaten = nur Swissdec-Import (nicht editierbar/löschbar).
+// Filiale wählt zu und erfasst Mitglied/SSL + Gültigkeit.
 // API: /api/lohndaten-empfaenger
 // ══════════════════════════════════════════════════════════════════════
 
@@ -73,7 +73,7 @@ function leRender() {
     if (!list.length) {
         el.innerHTML = '<div style="padding:24px;color:#8b8b8b">Noch keine Empfänger'
             + (_leFilterArt ? ' in dieser Art' : '')
-            + ' — «+ Neuer Empfänger» oben rechts.</div>';
+            + ' — Swissdec-Logo oben rechts: Liste laden und übernehmen.</div>';
         return;
     }
     const byArt = {};
@@ -100,15 +100,6 @@ function leRender() {
                     <div style="font-weight:600;color:#3f3f3f">${leEsc(e.bezeichnung)}${e.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${leEsc(e.zusatz)}</span>` : ''}${e.isActive ? '' : ' <span style="font-size:10.5px;color:#8b8b8b">(inaktiv)</span>'}</div>
                     <div style="font-size:11.5px;color:#8b8b8b;margin-top:2px">${leEsc(adr) || '–'}</div>
                     <div style="font-size:11.5px;color:#646464;margin-top:2px">${meta}</div>
-                </td>
-                <td style="padding:9px 10px;text-align:right;width:48px;vertical-align:top">
-                    <div class="dok-menu-wrap" style="display:inline-block">
-                        <button class="dok-menu-btn" onclick="leToggleMenu(event, ${e.id})" title="Aktionen">⋮</button>
-                        <div class="dok-menu" id="leMenu-${e.id}">
-                            <button class="dok-menu-item" onclick="leOpenEdit(${e.id})">Bearbeiten</button>
-                            <button class="dok-menu-item danger" onclick="leDelete(${e.id})">Löschen</button>
-                        </div>
-                    </div>
                 </td>
             </tr>`;
         }

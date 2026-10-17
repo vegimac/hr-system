@@ -7,9 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Lohndatenempfänger (Walter-Vorgabe 06.08.2026, UI getrennt 17.10.2026):
-/// zentraler Katalog unter System → Verzeichnisse → Lohndaten-Empfänger;
-/// Filiale ordnet nur zu und erfasst Mitglied-/SSL-Nummer + Gültigkeit.
+/// Lohndatenempfänger (Walter-Vorgabe 06.08.2026, UI getrennt 17.10.2026,
+/// Swissdec-only 17.10.2026): Katalog nur lesen + Swissdec-Import;
+/// Filiale ordnet zu und erfasst Mitglied-/SSL-Nummer + Gültigkeit.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -19,7 +19,13 @@ public class LohndatenEmpfaengerController : ControllerBase
     private readonly AppDbContext _db;
     public LohndatenEmpfaengerController(AppDbContext db) => _db = db;
 
-    // ── Katalog ───────────────────────────────────────────────────────────
+    static readonly object SwissdecOnly = new
+    {
+        error = "SWISSDEC_ONLY",
+        message = "Empfänger-Stammdaten kommen nur aus der Swissdec-Empfängerliste — bitte über den Swissdec-Button aktualisieren.",
+    };
+
+    // ── Katalog (nur lesen) ───────────────────────────────────────────────
 
     /// <summary>Alle Empfänger (Katalog), inkl. Anzahl Zuordnungen.</summary>
     [HttpGet]
@@ -39,73 +45,15 @@ public class LohndatenEmpfaengerController : ControllerBase
         return Ok(list);
     }
 
+    // Handpflege gesperrt (Walter 17.10.2026) — einzige Schreibquelle = Swissdec-Import.
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] LohndatenEmpfaengerDto dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.Bezeichnung))
-            return BadRequest(new { error = "BEZEICHNUNG_FEHLT" });
-        var e = new LohndatenEmpfaenger();
-        if (Apply(e, dto) is string fehler)
-            return BadRequest(new { error = "UID_UNGUELTIG", message = fehler });
-        _db.LohndatenEmpfaengers.Add(e);
-        await _db.SaveChangesAsync();
-        return Ok(new { e.Id });
-    }
+    public IActionResult Create() => Conflict(SwissdecOnly);
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] LohndatenEmpfaengerDto dto)
-    {
-        var e = await _db.LohndatenEmpfaengers.FirstOrDefaultAsync(x => x.Id == id);
-        if (e == null) return NotFound();
-        if (Apply(e, dto) is string fehler)
-            return BadRequest(new { error = "UID_UNGUELTIG", message = fehler });
-        e.UpdatedAt = DateTime.Now;
-        await _db.SaveChangesAsync();
-        return Ok(new { e.Id });
-    }
+    public IActionResult Update(int id) => Conflict(SwissdecOnly);
 
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id, [FromQuery] bool force = false)
-    {
-        var e = await _db.LohndatenEmpfaengers
-            .Include(x => x.Zuordnungen)
-            .FirstOrDefaultAsync(x => x.Id == id);
-        if (e == null) return NotFound();
-        if (e.Zuordnungen.Count > 0 && !force)
-            return Conflict(new
-            {
-                error = "EMPFAENGER_IN_VERWENDUNG",
-                message = $"Empfänger «{e.Bezeichnung}» ist {e.Zuordnungen.Count} Filiale(n) zugeordnet.",
-                zuordnungen = e.Zuordnungen.Count,
-            });
-        _db.LohndatenEmpfaengers.Remove(e); // Cascade löscht Zuordnungen
-        await _db.SaveChangesAsync();
-        return Ok(new { deleted = true });
-    }
-
-    /// <returns>Fehlermeldung oder null bei Erfolg.</returns>
-    private static string? Apply(LohndatenEmpfaenger e, LohndatenEmpfaengerDto dto)
-    {
-        e.Art          = string.IsNullOrWhiteSpace(dto.Art) ? "ANDERE" : dto.Art.Trim().ToUpperInvariant();
-        e.Bezeichnung  = (dto.Bezeichnung ?? "").Trim();
-        e.Zusatz       = Norm(dto.Zusatz);
-        var uid = Norm(dto.UidNummer)?.ToUpperInvariant();
-        if (HrSystem.Services.Elm.ElmStammdatenPruefung.UidBfsFehler(uid) is string uidFehler)
-            return uidFehler;
-        e.UidNummer    = uid;
-        e.Strasse      = Norm(dto.Strasse);
-        e.Postfach     = Norm(dto.Postfach);
-        e.Plz          = Norm(dto.Plz);
-        e.Ort          = Norm(dto.Ort);
-        e.KantonCode   = Norm(dto.KantonCode)?.ToUpperInvariant();
-        e.Kassennummer = Norm(dto.Kassennummer);
-        e.SupportEmail = Norm(dto.SupportEmail);
-        e.Bemerkung    = Norm(dto.Bemerkung);
-        if (dto.IsActive.HasValue) e.IsActive = dto.IsActive.Value;
-        return null;
-    }
-
-    private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    public IActionResult Delete(int id) => Conflict(SwissdecOnly);
 
     // ── Swissdec Empfängerliste (Walter 17.10.2026) ───────────────────────
     // Quelle: https://www.swissdec.ch/data-receiver — monatlich aktualisieren.

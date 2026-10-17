@@ -2622,7 +2622,7 @@ function cpEmpfEnsureModal() {
                 <select id="cpEmpfPick" onchange="cpEmpfPickChanged()" style="${inp}"></select>
             </label>
             <div style="font-size:11.5px;color:#8b8b8b;margin-top:6px">Nicht dabei?
-                <a href="#" onclick="cpEmpfCloseModal();showPage('lohndaten-empfaenger');return false;" style="color:#3f3f3f;font-weight:600">Im Verzeichnis anlegen →</a>
+                <a href="#" onclick="cpEmpfCloseModal();showPage('lohndaten-empfaenger');return false;" style="color:#3f3f3f;font-weight:600">Swissdec-Liste aktualisieren →</a>
             </div>
         </div>
 
@@ -2668,7 +2668,7 @@ function cpEmpfShowStamm(k) {
     box.innerHTML = `<div style="font-weight:600">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${cdokEsc(k.zusatz)}</span>` : ''}</div>`
         + `<div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">${cdokEsc(adr) || 'keine Adresse'}</div>`
         + (meta ? `<div style="font-size:11.5px;color:#646464;margin-top:3px">${meta}</div>` : '')
-        + `<div style="font-size:11px;margin-top:6px"><a href="#" onclick="cpEmpfCloseModal();showPage('lohndaten-empfaenger');return false;" style="color:#3f3f3f;font-weight:600">Stammdaten im Verzeichnis bearbeiten →</a></div>`;
+        + `<div style="font-size:11px;margin-top:6px;color:#8b8b8b">Stammdaten nur über Swissdec-Import (Verzeichnis).</div>`;
     cpEmpfUpdateLabels(k.art);
 }
 

@@ -459,11 +459,12 @@ Auto-Import auseinander:
   gültig ab, gültig bis, Bemerkung).
 - **UI (Walter 17.10.2026):** Stammdaten nur unter System → Verzeichnisse & Vorgaben → **Lohndaten-Empfänger**
   (`page-lohndaten-empfaenger`, `js/lohndaten-empfaenger.js`). Filiale → Tab «Lohndaten Empfänger» wählt aus dem
-  Verzeichnis und erfasst nur die Filialfelder (kein Anlegen/Ändern der Stammdaten aus der Filiale).
-- **Swissdec-Import (monatlich):** Button mit swissdec-Logo → XLSX von
-  [data-receiver](https://www.swissdec.ch/data-receiver) laden (`GET …/swissdec-xlsx`) oder Datei wählen,
-  Vorschau neu/Korrektur (`POST …/swissdec-import?dryRun=true`), dann übernehmen. Parser
-  `Services/Elm/SwissdecEmpfaengerListe.cs`. Match-Schlüssel Art + Kassennummer (bei QST = Kanton).
+  Verzeichnis und erfasst nur die Filialfelder.
+- **Swissdec = einzige Stammdaten-Quelle (Walter 17.10.2026):** kein manuelles Anlegen/Bearbeiten/Löschen
+  (UI ohne Menü/+Neu; API POST/PUT/DELETE → 409 `SWISSDEC_ONLY`). Monatlich: Logo-Button lädt XLSX von
+  [data-receiver](https://www.swissdec.ch/data-receiver) (`GET …/swissdec-xlsx`), Vorschau
+  (`POST …/swissdec-import?dryRun=true`), dann übernehmen. Parser `Services/Elm/SwissdecEmpfaengerListe.cs`.
+  Match-Schlüssel Art + Kassennummer (bei QST = Kanton).
   Adresse/Bemerkung bestehender Zeilen bleiben; Filial-Zuordnungen unberührt.
 - Swissdec-Empfängerliste: Vers.-Nr./AK-Nr. → `kassennummer`, Name → `bezeichnung`,
   UID → `uid_nummer`, Support-Mail → `support_email`, Kanton (Steuern) → `kanton_code`. Eine Institution mit
