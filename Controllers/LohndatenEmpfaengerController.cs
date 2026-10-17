@@ -180,8 +180,17 @@ public class LohndatenEmpfaengerController : ControllerBase
         if (liste.Count == 0)
             return BadRequest(new { error = "LEER", message = "Keine Empfängerzeilen gefunden — stimmt das Sheet «Endempfänger»?" });
 
-        var bestand = await _db.LohndatenEmpfaengers.ToListAsync();
-        var diffs = HrSystem.Services.Elm.SwissdecEmpfaengerListe.Vergleichen(liste, bestand);
+        List<HrSystem.Services.Elm.SwissdecEmpfaengerListe.Diff> diffs;
+        List<LohndatenEmpfaenger> bestand;
+        try
+        {
+            bestand = await _db.LohndatenEmpfaengers.ToListAsync();
+            diffs = HrSystem.Services.Elm.SwissdecEmpfaengerListe.Vergleichen(liste, bestand);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "VERGLEICH", message = "Vergleich fehlgeschlagen: " + ex.Message });
+        }
 
         if (dryRun)
         {

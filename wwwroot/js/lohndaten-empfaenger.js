@@ -414,14 +414,21 @@ async function leSwissPreview() {
     const prev = document.getElementById('leSwissPreview');
     if (prev) prev.innerHTML = '<div style="color:#8b8b8b">Vergleiche…</div>';
     const fd = new FormData();
-    fd.append('file', _leSwissFile);
+    // Feldname «file» = Parameter SwissdecImport(IFormFile? file)
+    fd.append('file', _leSwissFile, _leSwissFile.name || 'Empfaengerliste.xlsx');
     try {
+        // Kein Content-Type aus ah() — Browser muss multipart boundary setzen
         const r = await fetch('/api/lohndaten-empfaenger/swissdec-import?dryRun=true', {
-            method: 'POST', headers: ah(), body: fd,
+            method: 'POST',
+            headers: { Authorization: `Bearer ${authToken}` },
+            body: fd,
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) {
-            if (prev) prev.innerHTML = `<div style="color:#b91c1c">${leEsc(j.message || 'Vorschau fehlgeschlagen')}</div>`;
+            const msg = j.message || j.error || (r.status === 403
+                ? 'Nur Admin darf die Swissdec-Liste importieren.'
+                : `Vorschau fehlgeschlagen (HTTP ${r.status})`);
+            if (prev) prev.innerHTML = `<div style="color:#b91c1c">${leEsc(msg)}</div>`;
             return;
         }
         _leSwissDiffs = j;
@@ -475,15 +482,22 @@ async function leSwissCommit() {
         { title: 'Swissdec-Liste übernehmen', yesLabel: 'Übernehmen', noLabel: 'Abbrechen' });
     if (!ok) return;
     const fd = new FormData();
-    fd.append('file', _leSwissFile);
+    fd.append('file', _leSwissFile, _leSwissFile.name || 'Empfaengerliste.xlsx');
     const btn = document.getElementById('leSwissCommitBtn');
     if (btn) btn.disabled = true;
     try {
         const r = await fetch('/api/lohndaten-empfaenger/swissdec-import?dryRun=false', {
-            method: 'POST', headers: ah(), body: fd,
+            method: 'POST',
+            headers: { Authorization: `Bearer ${authToken}` },
+            body: fd,
         });
         const j = await r.json().catch(() => ({}));
-        if (!r.ok) { showToast(j.message || 'Übernahme fehlgeschlagen.', 'error'); return; }
+        if (!r.ok) {
+            showToast(j.message || j.error || (r.status === 403
+                ? 'Nur Admin darf importieren.'
+                : `Übernahme fehlgeschlagen (HTTP ${r.status})`), 'error');
+            return;
+        }
         showToast(j.message || 'Übernommen.', 'success');
         leSwissClose();
         await leInit();

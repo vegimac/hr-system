@@ -158,13 +158,16 @@ public static class SwissdecEmpfaengerListe
 
     public static List<Diff> Vergleichen(IEnumerable<Zeile> liste, IEnumerable<Models.LohndatenEmpfaenger> bestand)
     {
-        var map = bestand.ToDictionary(e => Key(e.Art, e.Kassennummer ?? e.KantonCode), e => e, StringComparer.OrdinalIgnoreCase);
+        // Dubletten im Bestand (gleicher Art+Nr) → erste behalten, kein Crash
+        var map = bestand
+            .GroupBy(e => Key(e.Art, e.Kassennummer ?? e.KantonCode), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var diffs = new List<Diff>();
         var gesehen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var z in liste)
         {
-            var k = Key(z.Art, z.Kassennummer);
+            var k = Key(z.Art, z.Kassennummer ?? z.KantonCode);
             gesehen.Add(k);
             if (!map.TryGetValue(k, out var alt))
             {
