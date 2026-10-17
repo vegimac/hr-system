@@ -106,6 +106,129 @@ public class LohndatenEmpfaengerController : ControllerBase
     }
 
     private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    // ── Swissdec Empfängerliste (Walter 17.10.2026) ───────────────────────
+    // Quelle: https://www.swissdec.ch/data-receiver — monatlich aktualisieren.
+
+    /// <summary>Proxy-Download der aktuellen XLSX (CORS/Redirects umgehen).</summary>
+    [Authorize(Roles = "admin")]
+    [HttpGet("swissdec-xlsx")]
+    public async Task<IActionResult> SwissdecXlsxDownload([FromServices] IHttpClientFactory httpFactory)
+    {
+        try
+        {
+            var client = httpFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCrew/1.0 (+https://onecrew.ch)");
+            using var resp = await client.GetAsync(HrSystem.Services.Elm.SwissdecEmpfaengerListe.DownloadUrl);
+            if (!resp.IsSuccessStatusCode)
+                return StatusCode((int)resp.StatusCode, new { error = "DOWNLOAD_FEHLER", message = "Swissdec-Datei nicht erreichbar." });
+            var bytes = await resp.Content.ReadAsByteArrayAsync();
+            var name = $"Swissdec_Empfaengerliste_{DateTime.Now:yyyy-MM-dd}.xlsx";
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(502, new { error = "DOWNLOAD_FEHLER", message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Vorschau oder Übernahme der Swissdec-XLSX.
+    /// dryRun=true (Default): nur Diff. dryRun=false: neu anlegen + geänderte Stammdaten korrigieren.
+    /// Adresse/Bemerkung der bestehenden Zeilen bleiben unangetastet.
+    /// </summary>
+    [Authorize(Roles = "admin")]
+    [HttpPost("swissdec-import")]
+    [RequestSizeLimit(20_000_000)]
+    public async Task<IActionResult> SwissdecImport(IFormFile? file, [FromQuery] bool dryRun = true)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "DATEI_FEHLT", message = "Bitte die Swissdec-Empfängerliste (.xlsx) hochladen." });
+        if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
+            && !file.FileName.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "FORMAT", message = "Nur .xlsx-Dateien." });
+
+        List<HrSystem.Services.Elm.SwissdecEmpfaengerListe.Zeile> liste;
+        try
+        {
+            await using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            ms.Position = 0;
+            liste = HrSystem.Services.Elm.SwissdecEmpfaengerListe.Parse(ms);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "PARSE", message = "Excel konnte nicht gelesen werden: " + ex.Message });
+        }
+        if (liste.Count == 0)
+            return BadRequest(new { error = "LEER", message = "Keine Empfängerzeilen gefunden — stimmt das Sheet «Endempfänger»?" });
+
+        var bestand = await _db.LohndatenEmpfaengers.ToListAsync();
+        var diffs = HrSystem.Services.Elm.SwissdecEmpfaengerListe.Vergleichen(liste, bestand);
+
+        if (dryRun)
+        {
+            return Ok(new
+            {
+                dryRun = true,
+                quelle = HrSystem.Services.Elm.SwissdecEmpfaengerListe.InfoUrl,
+                total = diffs.Count,
+                neu = diffs.Count(d => d.Status == "neu"),
+                aenderung = diffs.Count(d => d.Status == "aenderung"),
+                gleich = diffs.Count(d => d.Status == "gleich"),
+                diffs = diffs.Where(d => d.Status != "gleich").Select(d => new
+                {
+                    d.Status, d.Art, d.Bezeichnung, d.Kassennummer, d.UidNummer,
+                    d.KantonCode, d.SupportEmail, d.BestehendId, d.AenderungText,
+                }),
+            });
+        }
+
+        var neu = 0;
+        var geaendert = 0;
+        foreach (var d in diffs.Where(x => x.Status is "neu" or "aenderung"))
+        {
+            if (d.Status == "neu")
+            {
+                _db.LohndatenEmpfaengers.Add(new LohndatenEmpfaenger
+                {
+                    Art = d.Art,
+                    Bezeichnung = d.Bezeichnung,
+                    Kassennummer = d.Kassennummer,
+                    UidNummer = d.UidNummer,
+                    KantonCode = d.KantonCode,
+                    SupportEmail = d.SupportEmail,
+                    Bemerkung = "Swissdec Empfängerliste",
+                    IsActive = true,
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
+                });
+                neu++;
+            }
+            else if (d.BestehendId is int id)
+            {
+                var e = bestand.FirstOrDefault(x => x.Id == id);
+                if (e == null) continue;
+                e.Bezeichnung = d.Bezeichnung;
+                if (!string.IsNullOrWhiteSpace(d.UidNummer)) e.UidNummer = d.UidNummer;
+                if (!string.IsNullOrWhiteSpace(d.SupportEmail)) e.SupportEmail = d.SupportEmail;
+                if (!string.IsNullOrWhiteSpace(d.KantonCode)) e.KantonCode = d.KantonCode;
+                if (!string.IsNullOrWhiteSpace(d.Kassennummer)) e.Kassennummer = d.Kassennummer;
+                e.UpdatedAt = DateTime.Now;
+                geaendert++;
+            }
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new
+        {
+            dryRun = false,
+            neu,
+            aenderung = geaendert,
+            gleich = diffs.Count(d => d.Status == "gleich"),
+            message = $"{neu} neu, {geaendert} korrigiert.",
+        });
+    }
 }
 
 /// <summary>Zuordnungen Empfänger ↔ Filiale (Mitglied-/Subnummer pro Filiale).</summary>

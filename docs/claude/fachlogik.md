@@ -460,10 +460,15 @@ Auto-Import auseinander:
 - **UI (Walter 17.10.2026):** Stammdaten nur unter System → Verzeichnisse & Vorgaben → **Lohndaten-Empfänger**
   (`page-lohndaten-empfaenger`, `js/lohndaten-empfaenger.js`). Filiale → Tab «Lohndaten Empfänger» wählt aus dem
   Verzeichnis und erfasst nur die Filialfelder (kein Anlegen/Ändern der Stammdaten aus der Filiale).
-- Swissdec-Empfängerliste (Distributor, Stand 01.10.2026): Vers.-Nr./AK-Nr. → `kassennummer`, Name → `bezeichnung`,
+- **Swissdec-Import (monatlich):** Button mit swissdec-Logo → XLSX von
+  [data-receiver](https://www.swissdec.ch/data-receiver) laden (`GET …/swissdec-xlsx`) oder Datei wählen,
+  Vorschau neu/Korrektur (`POST …/swissdec-import?dryRun=true`), dann übernehmen. Parser
+  `Services/Elm/SwissdecEmpfaengerListe.cs`. Match-Schlüssel Art + Kassennummer (bei QST = Kanton).
+  Adresse/Bemerkung bestehender Zeilen bleiben; Filial-Zuordnungen unberührt.
+- Swissdec-Empfängerliste: Vers.-Nr./AK-Nr. → `kassennummer`, Name → `bezeichnung`,
   UID → `uid_nummer`, Support-Mail → `support_email`, Kanton (Steuern) → `kanton_code`. Eine Institution mit
-  mehreren Domänen (AHV+FAK, UVG+KTG) = **mehrere Katalogzeilen** (eine pro `art`). ELM/KLE/SUA-Fähigkeitsflags
-  und Statistik (BFS) sind noch nicht modelliert — optional später.
+  mehreren Domänen (AHV+FAK, UVG+KTG) = **mehrere Katalogzeilen** (eine pro `art`). ELM/KLE/SUA-Flags
+  bewusst nicht gespeichert.
 - **«Gültig bis» bleibt normalerweise offen** (NULL = gilt weiterhin). Ein neuer Satz derselben Art
   (bei QST/FAK/Lohnausweis: derselbe Kanton) mit «Gültig ab» beendet die offenen Vorgänger automatisch
   am **Neubeginn − 1 Tag** (`CompanyProfileEmpfaengerController.SchliesseVorgaengerAsync`).

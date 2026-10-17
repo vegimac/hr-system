@@ -297,3 +297,177 @@ async function leDelete(id) {
         await leInit();
     } catch (_) { showToast('Verbindungsfehler.', 'error'); }
 }
+
+// ── Swissdec Empfängerliste (monatlich, Walter 17.10.2026) ─────────────
+let _leSwissFile = null;
+let _leSwissDiffs = null;
+
+function leSwissdecImport() {
+    leSwissEnsureModal();
+    _leSwissFile = null;
+    _leSwissDiffs = null;
+    const fileInp = document.getElementById('leSwissFile');
+    if (fileInp) fileInp.value = '';
+    const prev = document.getElementById('leSwissPreview');
+    if (prev) prev.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px">1) Liste laden · 2) Datei wählen oder hier ablegen · 3) Vorschau prüfen · 4) Übernehmen</div>';
+    const btn = document.getElementById('leSwissCommitBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.45'; }
+    document.getElementById('leSwissModal').style.display = 'block';
+}
+
+function leSwissEnsureModal() {
+    if (document.getElementById('leSwissModal')) return;
+    const div = document.createElement('div');
+    div.id = 'leSwissModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:330;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
+    div.innerHTML = `
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(720px,94vw);max-height:92vh;overflow:auto;background:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <img src="img/swissdec-logo.png?v=20261017b" alt="swissdec" style="height:32px;width:auto">
+            <div>
+                <div style="font-size:15px;font-weight:700;color:#3f3f3f">Empfängerliste aktualisieren</div>
+                <div style="font-size:12px;color:#8b8b8b">Quelle: swissdec.ch/data-receiver — empfohlen monatlich</div>
+            </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+            <button type="button" onclick="leSwissDownload()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">XLSX herunterladen</button>
+            <a href="https://www.swissdec.ch/data-receiver" target="_blank" rel="noopener" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;text-decoration:none">Seite öffnen</a>
+            <label style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#3f3f3f;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">
+                Datei wählen…
+                <input id="leSwissFile" type="file" accept=".xlsx,.xlsm" style="display:none" onchange="leSwissFileChosen(this)">
+            </label>
+        </div>
+        <div id="leSwissDrop" ondragover="event.preventDefault();this.style.borderColor='#3f3f3f'" ondragleave="this.style.borderColor='rgba(60,55,48,0.20)'" ondrop="leSwissDrop(event)"
+             style="border:1.5px dashed rgba(60,55,48,0.20);border-radius:12px;padding:18px;text-align:center;font-size:12.5px;color:#8b8b8b;margin-bottom:12px;background:rgba(255,255,255,0.35)">
+            Excel hier ablegen (Empfaengerliste.xlsx)
+        </div>
+        <div id="leSwissPreview" style="max-height:42vh;overflow:auto;font-size:12.5px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+            <button type="button" onclick="leSwissClose()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Schliessen</button>
+            <button type="button" id="leSwissCommitBtn" disabled onclick="leSwissCommit()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;opacity:0.45;box-shadow:0 2px 8px rgba(60,55,48,0.2)">Korrekturen übernehmen</button>
+        </div>
+    </div>`;
+    div.addEventListener('click', (e) => { if (e.target === div) leSwissClose(); });
+    document.body.appendChild(div);
+}
+
+function leSwissClose() {
+    const m = document.getElementById('leSwissModal');
+    if (m) m.style.display = 'none';
+}
+
+async function leSwissDownload() {
+    try {
+        const r = await fetch('/api/lohndaten-empfaenger/swissdec-xlsx', { headers: ah() });
+        if (!r.ok) {
+            let msg = 'Download fehlgeschlagen.';
+            try { const j = await r.json(); if (j.message) msg = j.message; } catch (_) {}
+            showToast(msg, 'error');
+            window.open('https://www.swissdec.ch/data-receiver', '_blank');
+            return;
+        }
+        const blob = await r.blob();
+        const name = (r.headers.get('Content-Disposition') || '').match(/filename="?([^";]+)"?/)?.[1]
+            || `Swissdec_Empfaengerliste_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, name);
+        else {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = name; a.click();
+        }
+        _leSwissFile = new File([blob], name, { type: blob.type });
+        await leSwissPreview();
+    } catch (e) {
+        showToast('Download fehlgeschlagen — bitte Datei von swissdec.ch laden.', 'error');
+    }
+}
+
+function leSwissFileChosen(inp) {
+    const f = inp?.files?.[0];
+    if (!f) return;
+    _leSwissFile = f;
+    leSwissPreview();
+}
+
+function leSwissDrop(ev) {
+    ev.preventDefault();
+    const zone = document.getElementById('leSwissDrop');
+    if (zone) zone.style.borderColor = 'rgba(60,55,48,0.20)';
+    const f = ev.dataTransfer?.files?.[0];
+    if (!f) return;
+    _leSwissFile = f;
+    leSwissPreview();
+}
+
+async function leSwissPreview() {
+    if (!_leSwissFile) return;
+    const prev = document.getElementById('leSwissPreview');
+    if (prev) prev.innerHTML = '<div style="color:#8b8b8b">Vergleiche…</div>';
+    const fd = new FormData();
+    fd.append('file', _leSwissFile);
+    try {
+        const r = await fetch('/api/lohndaten-empfaenger/swissdec-import?dryRun=true', {
+            method: 'POST', headers: ah(), body: fd,
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            if (prev) prev.innerHTML = `<div style="color:#b91c1c">${leEsc(j.message || 'Vorschau fehlgeschlagen')}</div>`;
+            return;
+        }
+        _leSwissDiffs = j;
+        const rows = (j.diffs || []);
+        let html = `<div style="margin-bottom:8px;color:#3f3f3f"><b>${j.neu || 0}</b> neu · <b>${j.aenderung || 0}</b> Korrektur · ${j.gleich || 0} unverändert</div>`;
+        if (!rows.length) {
+            html += '<div style="color:#16a34a">Alles aktuell — nichts zu übernehmen.</div>';
+        } else {
+            html += `<table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:#8b8b8b;font-size:11px;text-transform:uppercase">
+                <th style="padding:4px 6px">Status</th><th style="padding:4px 6px">Art</th><th style="padding:4px 6px">Empfänger</th><th style="padding:4px 6px">Nr.</th><th style="padding:4px 6px">Änderung</th>
+            </tr></thead><tbody>`;
+            for (const d of rows.slice(0, 200)) {
+                const st = d.status === 'neu'
+                    ? '<span style="color:#16a34a;font-weight:700">neu</span>'
+                    : '<span style="color:#b45309;font-weight:700">Korrektur</span>';
+                html += `<tr style="border-top:1px solid rgba(60,55,48,0.10)">
+                    <td style="padding:5px 6px">${st}</td>
+                    <td style="padding:5px 6px">${leEsc(leArtLabel(d.art))}</td>
+                    <td style="padding:5px 6px;font-weight:600">${leEsc(d.bezeichnung)}</td>
+                    <td style="padding:5px 6px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${leEsc(d.kassennummer || '')}</td>
+                    <td style="padding:5px 6px;color:#646464;font-size:11.5px">${leEsc(d.aenderungText || '—')}</td>
+                </tr>`;
+            }
+            html += '</tbody></table>';
+            if (rows.length > 200) html += `<div style="margin-top:6px;color:#8b8b8b">… und ${rows.length - 200} weitere</div>`;
+        }
+        if (prev) prev.innerHTML = html;
+        const btn = document.getElementById('leSwissCommitBtn');
+        const can = (j.neu || 0) + (j.aenderung || 0) > 0;
+        if (btn) { btn.disabled = !can; btn.style.opacity = can ? '1' : '0.45'; }
+    } catch (_) {
+        if (prev) prev.innerHTML = '<div style="color:#b91c1c">Verbindungsfehler.</div>';
+    }
+}
+
+async function leSwissCommit() {
+    if (!_leSwissFile) return;
+    const ok = await liquidConfirm(
+        `${_leSwissDiffs?.neu || 0} neue Empfänger anlegen und ${_leSwissDiffs?.aenderung || 0} Stammdaten korrigieren? Filial-Nummern bleiben unberührt.`,
+        { title: 'Swissdec-Liste übernehmen', yesLabel: 'Übernehmen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    const fd = new FormData();
+    fd.append('file', _leSwissFile);
+    const btn = document.getElementById('leSwissCommitBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch('/api/lohndaten-empfaenger/swissdec-import?dryRun=false', {
+            method: 'POST', headers: ah(), body: fd,
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { showToast(j.message || 'Übernahme fehlgeschlagen.', 'error'); return; }
+        showToast(j.message || 'Übernommen.', 'success');
+        leSwissClose();
+        await leInit();
+    } catch (_) {
+        showToast('Verbindungsfehler.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
