@@ -1412,6 +1412,38 @@ async function loadLohnpositionen() {
     }
 }
 
+/** Leere Swissdec-Zuordnungen aus fester Tabelle füllen (Walter 17.10.2026). */
+async function lpSwissdecVorschlaegeAnwenden() {
+    const ok = await liquidConfirm(
+        'Leere Swissdec-Felder aus der festen Zuordnungstabelle füllen?\n\nBereits gesetzte Zuordnungen bleiben unverändert.',
+        { title: 'Swissdec-Vorschläge', yesLabel: 'Füllen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    try {
+        const res = await fetch('/api/lohnpositionen/swissdec-zuordnung-anwenden?nurLeere=true', {
+            method: 'POST', headers: ah()
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showPageAlert('lpAlert', j.message || j.error || 'Fehler beim Füllen.', 'err');
+            return;
+        }
+        const g = j.gesetzt ?? 0;
+        const o = j.ohneVorschlag ?? 0;
+        showPageAlert('lpAlert',
+            g > 0
+                ? `${g} Swissdec-Zuordnung(en) gesetzt` + (o > 0 ? ` · ${o} Position(en) ohne Vorschlag (manuell)` : '') + '.'
+                : (o > 0
+                    ? `Nichts zu füllen — ${o} Position(en) ohne Vorschlag bleiben «fehlt» (manuell zuordnen).`
+                    : 'Alle bekannten Vorschläge waren schon gesetzt.'),
+            g > 0 ? 'ok' : 'warn');
+        await loadLohnpositionen();
+        const sel = document.getElementById('lpFilterSwissdec');
+        if (sel && (j.ohneVorschlag ?? 0) > 0) { sel.value = 'ohne'; lpRender(); }
+    } catch {
+        showPageAlert('lpAlert', 'Verbindungsfehler.', 'err');
+    }
+}
+
 function lpRender() {
     const tbody    = document.getElementById('lpTableBody');
     if (!tbody) return;

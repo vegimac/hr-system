@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -41,8 +42,83 @@ public class LohnpositionController : ControllerBase
     // Auswahlliste «Swissdec-Lohnart» im Dialog (Walter 08.09.2026).
     [HttpGet("swissdec-lohnarten")]
     public IActionResult SwissdecLohnarten()
-        => Ok(HrSystem.Services.SwissdecLohnartenKatalog.Alle
+        => Ok(SwissdecLohnartenKatalog.Alle
             .Select(l => new { l.Code, l.Bezeichnung, l.Kategorie, l.Typ, l.Ahv, l.Uvg, l.Uvgz, l.Ktg, l.Bvg, l.Qst, l.Ml13, l.Lohnausweis, l.FibuKonto }));
+
+    // GET api/lohnpositionen/swissdec-zuordnung — feste OneCrew→Swissdec-Tabelle + Ist-Stand (Walter 17.10.2026).
+    [HttpGet("swissdec-zuordnung")]
+    public async Task<IActionResult> SwissdecZuordnung()
+    {
+        var positionen = await _db.Lohnpositionen.AsNoTracking()
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Code)
+            .ToListAsync();
+        var katalog = SwissdecLohnartenKatalog.Alle.ToDictionary(k => k.Code, k => k.Bezeichnung);
+        var zeilen = positionen.Select(p =>
+        {
+            var vorschlag = SwissdecLohnartZuordnung.FuerOneCrewCode(p.Code);
+            var ist = string.IsNullOrWhiteSpace(p.SwissdecLohnart) ? null : p.SwissdecLohnart.Trim();
+            return new
+            {
+                p.Id,
+                oneCrewCode = p.Code,
+                oneCrewBezeichnung = p.Bezeichnung,
+                swissdecIst = ist,
+                swissdecIstBez = ist != null && katalog.TryGetValue(ist, out var ib) ? ib : null,
+                swissdecVorschlag = vorschlag,
+                swissdecVorschlagBez = vorschlag != null && katalog.TryGetValue(vorschlag, out var vb) ? vb : null,
+                status = ist == null
+                    ? (vorschlag != null ? "leer_mit_vorschlag" : "leer_ohne_vorschlag")
+                    : (vorschlag != null && !string.Equals(ist, vorschlag, StringComparison.OrdinalIgnoreCase)
+                        ? "abweichend"
+                        : "ok")
+            };
+        }).ToList();
+        return Ok(new
+        {
+            zuordnungstabelle = SwissdecLohnartZuordnung.AlsListe()
+                .Select(z => new
+                {
+                    oneCrewCode = z.OneCrew,
+                    swissdecCode = z.Swissdec,
+                    swissdecBez = katalog.TryGetValue(z.Swissdec, out var b) ? b : null
+                }),
+            positionen = zeilen,
+            zusammenfassung = new
+            {
+                total = zeilen.Count,
+                ok = zeilen.Count(z => z.status == "ok"),
+                leerMitVorschlag = zeilen.Count(z => z.status == "leer_mit_vorschlag"),
+                leerOhneVorschlag = zeilen.Count(z => z.status == "leer_ohne_vorschlag"),
+                abweichend = zeilen.Count(z => z.status == "abweichend")
+            }
+        });
+    }
+
+    // POST api/lohnpositionen/swissdec-zuordnung-anwenden — leere Felder aus Vorschlag füllen (Walter 17.10.2026).
+    // nurLeere=true (Default): überschreibt nie eine vorhandene Swissdec-Lohnart.
+    [HttpPost("swissdec-zuordnung-anwenden")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> SwissdecZuordnungAnwenden([FromQuery] bool nurLeere = true)
+    {
+        var positionen = await _db.Lohnpositionen.Where(p => p.IsActive).ToListAsync();
+        int gesetzt = 0, uebersprungen = 0, ohneVorschlag = 0;
+        var details = new List<object>();
+        foreach (var p in positionen)
+        {
+            var vorschlag = SwissdecLohnartZuordnung.FuerOneCrewCode(p.Code);
+            if (vorschlag == null) { ohneVorschlag++; continue; }
+            if (nurLeere && !string.IsNullOrWhiteSpace(p.SwissdecLohnart)) { uebersprungen++; continue; }
+            if (string.Equals(p.SwissdecLohnart?.Trim(), vorschlag, StringComparison.OrdinalIgnoreCase))
+            { uebersprungen++; continue; }
+            var alt = p.SwissdecLohnart;
+            p.SwissdecLohnart = vorschlag;
+            gesetzt++;
+            details.Add(new { p.Code, p.Bezeichnung, vorher = alt, nachher = vorschlag });
+        }
+        if (gesetzt > 0) await _db.SaveChangesAsync();
+        return Ok(new { gesetzt, uebersprungen, ohneVorschlag, details });
+    }
 
     // GET – einzelne Position
     [HttpGet("{id:int}")]

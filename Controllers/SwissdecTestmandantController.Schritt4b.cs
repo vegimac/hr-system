@@ -32,26 +32,6 @@ public partial class SwissdecTestmandantController
     [HttpPost("schritt4b/anlegen")]
     public async Task<IActionResult> Schritt4bAnlegen() => await Schritt4b(vorschau: false);
 
-    /// <summary>
-    /// OneCrew-Code → Swissdec-Lohnart für alles, was der Lohnlauf selbst rechnet.
-    /// Mehrere OneCrew-Codes dürfen auf dieselbe Swissdec-Lohnart zeigen.
-    /// Nur angewendet, wenn die Position existiert UND noch keine Swissdec-Lohnart hat.
-    /// </summary>
-    private static readonly (string OneCrew, string Swissdec)[] EngineZuordnung =
-    {
-        ("10.1", "1000"), ("10.2", "1000"), ("10.3", "1000"), ("10.4", "1000"),   // Festlohn (+ Ferien/Feiertage/Zusatzstd.)
-        ("20", "1005"), ("20.1", "1005"), ("20.2", "1005"), ("20.3", "1005"), ("22", "1005"), ("55.3", "1005"), // Stundenlohn
-        ("55.1", "1061"), ("55.2", "1065"),                                        // Überstunden 25 % / ohne Zuschlag
-        ("40.1", "1160"), ("50.1", "1161"),                                        // ausbezahlte Ferien-/Feiertage
-        ("60.3", "2030"), ("70.2", "2035"),                                        // Versicherungstaggeld UVG / KTG
-        ("65.1", "2050"), ("65.2", "2050"), ("75.1", "2050"), ("75.2", "2050"),    // Korrektur Taggelder
-        ("180.1", "1200"), ("180.2", "1200"),                                      // 13. Monatslohn
-        ("190.1", "3000"), ("190.3", "3034"),                                      // Kinderzulage / Geburtszulage
-        ("195.1", "1160"), ("195.3", "1160"), ("195.5", "1160"), ("195.6", "1160"), // Ferienentschädigung FLEX/MTP
-        ("195.2", "1161"), ("195.4", "1161"),                                      // Feiertagentschädigung FLEX/MTP
-        ("200.1", "6070"), ("200.5", "1210"), ("200.11", "1230"), ("200.20", "3034"), ("200.50", "1910"), ("200.60", "1900"),
-    };
-
     private async Task<IActionResult> Schritt4b(bool vorschau)
     {
         if (!IstTestinstanz())
@@ -97,7 +77,8 @@ public partial class SwissdecTestmandantController
             }
 
             // 2) OneCrew rechnet selbst → Swissdec-Lohnart an bestehenden Positionen eintragen
-            var ziele = EngineZuordnung.Where(z => z.Swissdec == code).Select(z => z.OneCrew).ToHashSet();
+            var ziele = SwissdecLohnartZuordnung.NachOneCrewCode
+                .Where(z => z.Value == code).Select(z => z.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var kandidaten = positionen.Where(p => p.IsActive && ziele.Contains(p.Code) && string.IsNullOrEmpty(p.SwissdecLohnart)).ToList();
             if (kandidaten.Count > 0)
             {
