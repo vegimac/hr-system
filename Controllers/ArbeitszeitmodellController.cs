@@ -52,10 +52,8 @@ public class ArbeitszeitmodellController : ControllerBase
     {
         if (dto.HauptsitzId is not > 0)
             return BadRequest(new { error = "HAUPTSITZ_FEHLT", message = "Bitte die Rechtseinheit angeben." });
-        if (string.IsNullOrWhiteSpace(dto.Bezeichnung))
-            return BadRequest(new { error = "BEZEICHNUNG_FEHLT", message = "Bitte eine Bezeichnung angeben (z.B. «Standard»)." });
-        if (dto.Wochenstunden is not > 0m && dto.Wochenlektionen is not > 0m)
-            return BadRequest(new { error = "ZEIT_FEHLT", message = "Wochenstunden oder Wochenlektionen angeben — Swissdec verlangt einen der beiden Werte." });
+        var fehler = await PruefeModellAsync(dto, ausschlussId: null);
+        if (fehler != null) return fehler;
 
         var m = new Arbeitszeitmodell
         {
@@ -79,9 +77,11 @@ public class ArbeitszeitmodellController : ControllerBase
     {
         var m = await _db.Arbeitszeitmodelle.FirstOrDefaultAsync(x => x.Id == id);
         if (m == null) return NotFound();
-        if (dto.Wochenstunden is not > 0m && dto.Wochenlektionen is not > 0m)
-            return BadRequest(new { error = "ZEIT_FEHLT", message = "Wochenstunden oder Wochenlektionen angeben — Swissdec verlangt einen der beiden Werte." });
-        if (!string.IsNullOrWhiteSpace(dto.Bezeichnung)) m.Bezeichnung = dto.Bezeichnung!.Trim();
+        // Hauptsitz bleibt am bestehenden Modell — Wechsel der Rechtseinheit nicht erlaubt.
+        dto = dto with { HauptsitzId = m.HauptsitzId };
+        var fehler = await PruefeModellAsync(dto, ausschlussId: id);
+        if (fehler != null) return fehler;
+        m.Bezeichnung = dto.Bezeichnung!.Trim();
         m.Kennung = string.IsNullOrWhiteSpace(dto.Kennung) ? null : dto.Kennung!.Trim();
         m.Wochenstunden = dto.Wochenstunden;
         m.Wochenlektionen = dto.Wochenlektionen;
@@ -90,6 +90,36 @@ public class ArbeitszeitmodellController : ControllerBase
         m.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { m.Id });
+    }
+
+    /// <summary>
+    /// Bezeichnung eindeutig pro Hauptsitz; Wochenstunden/Lektionen max. 50;
+    /// mind. einer der beiden Zeitwerte &gt; 0. Kein von/bis am Modell —
+    /// das gilt nur an der MA-Zuordnung (Gültig-ab).
+    /// </summary>
+    async Task<IActionResult?> PruefeModellAsync(ModellDto dto, int? ausschlussId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Bezeichnung))
+            return BadRequest(new { error = "BEZEICHNUNG_FEHLT", message = "Bitte eine Bezeichnung angeben (z.B. «Standard»)." });
+        var bez = dto.Bezeichnung.Trim();
+        if (dto.Wochenstunden is > 50m)
+            return BadRequest(new { error = "STUNDEN_MAX", message = "Wochenstunden höchstens 50." });
+        if (dto.Wochenlektionen is > 50m)
+            return BadRequest(new { error = "LEKTIONEN_MAX", message = "Wochenlektionen höchstens 50." });
+        if (dto.Wochenstunden is < 0m || dto.Wochenlektionen is < 0m)
+            return BadRequest(new { error = "ZEIT_NEGATIV", message = "Stunden und Lektionen dürfen nicht negativ sein." });
+        if (dto.Wochenstunden is not > 0m && dto.Wochenlektionen is not > 0m)
+            return BadRequest(new { error = "ZEIT_FEHLT", message = "Wochenstunden oder Wochenlektionen angeben — Swissdec verlangt einen der beiden Werte." });
+
+        var hsId = dto.HauptsitzId!.Value;
+        var namen = await _db.Arbeitszeitmodelle.AsNoTracking()
+            .Where(x => x.HauptsitzId == hsId && x.Id != (ausschlussId ?? 0))
+            .Select(x => x.Bezeichnung)
+            .ToListAsync();
+        if (namen.Any(n => string.Equals(n, bez, StringComparison.OrdinalIgnoreCase)))
+            return Conflict(new { error = "BEZEICHNUNG_DOPPELT",
+                message = $"Die Bezeichnung «{bez}» gibt es an diesem Hauptsitz schon — bitte eine andere wählen." });
+        return null;
     }
 
     /// <summary>

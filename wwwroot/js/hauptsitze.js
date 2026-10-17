@@ -134,32 +134,134 @@ function azmRender(hauptsitzId) {
             }).join('')}</div>`}`;
 }
 
-async function azmNeu(hauptsitzId) {
-    const bez = prompt('Bezeichnung des Arbeitszeitmodells (z.B. «Standard», «Lager»):');
-    if (!bez) return;
-    const std = prompt('Wochenstunden (leer lassen, wenn nur Lektionen):', '42');
-    const lek = prompt('Wochenlektionen (leer lassen, wenn nur Stunden):', '');
-    await azmSpeichern(null, {
-        hauptsitzId, bezeichnung: bez,
-        wochenstunden: std ? Number(std) : null,
-        wochenlektionen: lek ? Number(lek) : null,
-        isActive: true
-    });
+let _azmEditId = null;
+let _azmEditHsId = null;
+
+function _azmEnsureModal() {
+    if (document.getElementById('azmModal')) return;
+    const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;font-weight:700;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
+    const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
+    const btnSec = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;color:#3f3f3f;cursor:pointer;font-family:inherit';
+    const btnPri = 'background:#3f3f3f;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit';
+    const div = document.createElement('div');
+    div.id = 'azmModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:330;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
+    div.onclick = (e) => { if (e.target === div) azmModalSchliessen(); };
+    div.innerHTML = `
+    <div class="modal" style="position:absolute;top:8vh;left:50%;transform:translateX(-50%);width:min(480px,94vw);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px 18px;box-sizing:border-box" onclick="event.stopPropagation()">
+        <div id="azmModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:6px">Arbeitszeitmodell</div>
+        <div style="font-size:11.5px;color:#8b8b8b;line-height:1.45;margin-bottom:14px">
+            Swissdec CompanyWorkingTime · Bezeichnung eindeutig · Stunden oder Lektionen (max. 50).
+            Kein von/bis hier — Gültig-ab steht bei der Zuordnung am Mitarbeiter.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+            <label style="${lbl};grid-column:span 2">Bezeichnung<span class="pflicht-stern">*</span>
+                <input id="azmBez" placeholder="z.B. Standard, Lager, Lehrpersonen" maxlength="80" style="${inp}">
+            </label>
+            <label style="${lbl}">Wochenstunden
+                <input id="azmStd" type="number" min="0" max="50" step="0.01" placeholder="z.B. 42" style="${inp}">
+            </label>
+            <label style="${lbl}">Wochenlektionen
+                <input id="azmLek" type="number" min="0" max="50" step="0.01" placeholder="optional" style="${inp}">
+            </label>
+            <label style="${lbl};grid-column:span 2">Ferientage pro Jahr
+                <input id="azmFerien" type="number" min="0" max="365" step="0.5" placeholder="optional" style="${inp}">
+            </label>
+            <label style="grid-column:span 2;display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:#3f3f3f;cursor:pointer;margin-top:2px">
+                <input type="checkbox" id="azmAktiv" checked style="width:15px;height:15px;margin:0"> aktiv
+            </label>
+        </div>
+        <div id="azmModalFehler" style="display:none;margin-top:10px;font-size:12.5px;color:#b91c1c;line-height:1.4"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+            <button type="button" onclick="azmModalSchliessen()" style="${btnSec}">Abbrechen</button>
+            <button type="button" onclick="azmModalSpeichern()" style="${btnPri}">Speichern</button>
+        </div>
+    </div>`;
+    document.body.appendChild(div);
 }
 
-async function azmBearbeiten(id) {
+function azmModalSchliessen() {
+    const m = document.getElementById('azmModal');
+    if (m) m.style.display = 'none';
+    _azmEditId = null;
+    _azmEditHsId = null;
+}
+
+function azmNeu(hauptsitzId) {
+    _azmEnsureModal();
+    _azmEditId = null;
+    _azmEditHsId = hauptsitzId;
+    document.getElementById('azmModalTitle').textContent = 'Arbeitszeitmodell erfassen';
+    document.getElementById('azmBez').value = '';
+    document.getElementById('azmStd').value = '42';
+    document.getElementById('azmLek').value = '';
+    document.getElementById('azmFerien').value = '';
+    document.getElementById('azmAktiv').checked = true;
+    document.getElementById('azmModalFehler').style.display = 'none';
+    document.getElementById('azmModal').style.display = 'block';
+    setTimeout(() => document.getElementById('azmBez')?.focus(), 50);
+}
+
+function azmBearbeiten(id) {
     const m = _azmAlle.find(x => x.id === id);
     if (!m) return;
-    const bez = prompt('Bezeichnung:', m.bezeichnung);
-    if (bez === null) return;
-    const std = prompt('Wochenstunden:', m.wochenstunden ?? '');
-    const lek = prompt('Wochenlektionen:', m.wochenlektionen ?? '');
-    await azmSpeichern(id, {
-        hauptsitzId: m.hauptsitzId, kennung: m.kennung, bezeichnung: bez,
-        wochenstunden: std ? Number(std) : null,
-        wochenlektionen: lek ? Number(lek) : null,
-        ferientageProJahr: m.ferientageProJahr, isActive: m.isActive
-    });
+    _azmEnsureModal();
+    _azmEditId = id;
+    _azmEditHsId = m.hauptsitzId;
+    document.getElementById('azmModalTitle').textContent = 'Arbeitszeitmodell bearbeiten';
+    document.getElementById('azmBez').value = m.bezeichnung || '';
+    document.getElementById('azmStd').value = m.wochenstunden != null ? Number(m.wochenstunden) : '';
+    document.getElementById('azmLek').value = m.wochenlektionen != null ? Number(m.wochenlektionen) : '';
+    document.getElementById('azmFerien').value = m.ferientageProJahr != null ? Number(m.ferientageProJahr) : '';
+    document.getElementById('azmAktiv').checked = m.isActive !== false;
+    document.getElementById('azmModalFehler').style.display = 'none';
+    document.getElementById('azmModal').style.display = 'block';
+    setTimeout(() => document.getElementById('azmBez')?.focus(), 50);
+}
+
+function azmModalFehler(text) {
+    const el = document.getElementById('azmModalFehler');
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.display = text ? 'block' : 'none';
+}
+
+async function azmModalSpeichern() {
+    const bez = (document.getElementById('azmBez')?.value || '').trim();
+    const stdRaw = (document.getElementById('azmStd')?.value || '').trim();
+    const lekRaw = (document.getElementById('azmLek')?.value || '').trim();
+    const ferRaw = (document.getElementById('azmFerien')?.value || '').trim();
+    const std = stdRaw === '' ? null : Number(stdRaw);
+    const lek = lekRaw === '' ? null : Number(lekRaw);
+    const fer = ferRaw === '' ? null : Number(ferRaw);
+
+    if (!bez) { azmModalFehler('Bitte eine Bezeichnung angeben.'); return; }
+    const doppel = _azmAlle.some(x =>
+        x.hauptsitzId === _azmEditHsId
+        && x.id !== _azmEditId
+        && (x.bezeichnung || '').trim().toLowerCase() === bez.toLowerCase());
+    if (doppel) { azmModalFehler(`Die Bezeichnung «${bez}» gibt es an diesem Hauptsitz schon.`); return; }
+    if (std != null && (Number.isNaN(std) || std < 0 || std > 50)) {
+        azmModalFehler('Wochenstunden: Zahl zwischen 0 und 50.'); return;
+    }
+    if (lek != null && (Number.isNaN(lek) || lek < 0 || lek > 50)) {
+        azmModalFehler('Wochenlektionen: Zahl zwischen 0 und 50.'); return;
+    }
+    if (!(std > 0) && !(lek > 0)) {
+        azmModalFehler('Wochenstunden oder Wochenlektionen angeben (mind. einer der beiden > 0).'); return;
+    }
+
+    const bestehend = _azmEditId ? _azmAlle.find(x => x.id === _azmEditId) : null;
+    const dto = {
+        hauptsitzId: _azmEditHsId,
+        kennung: bestehend?.kennung ?? null,
+        bezeichnung: bez,
+        wochenstunden: std > 0 ? std : null,
+        wochenlektionen: lek > 0 ? lek : null,
+        ferientageProJahr: fer != null && !Number.isNaN(fer) && fer >= 0 ? fer : null,
+        isActive: !!document.getElementById('azmAktiv')?.checked
+    };
+    await azmSpeichern(_azmEditId, dto);
 }
 
 async function azmSpeichern(id, dto) {
@@ -167,7 +269,12 @@ async function azmSpeichern(id, dto) {
         method: id ? 'PUT' : 'POST', headers: ah(), body: JSON.stringify(dto)
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen', 'error'); return; }
+    if (!r.ok) {
+        azmModalFehler(j.message || j.error || 'Speichern fehlgeschlagen');
+        showToast(j.message || j.error || 'Speichern fehlgeschlagen', 'error');
+        return;
+    }
+    azmModalSchliessen();
     await azmLaden(); hsRender();
     showToast('Arbeitszeitmodell gespeichert', 'success');
 }
