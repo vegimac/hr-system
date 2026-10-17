@@ -309,10 +309,12 @@ function leSwissdecImport() {
     const fileInp = document.getElementById('leSwissFile');
     if (fileInp) fileInp.value = '';
     const prev = document.getElementById('leSwissPreview');
-    if (prev) prev.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px">1) Liste laden · 2) Datei wählen oder hier ablegen · 3) Vorschau prüfen · 4) Übernehmen</div>';
+    if (prev) prev.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px">Lade aktuelle Liste von swissdec.ch…</div>';
     const btn = document.getElementById('leSwissCommitBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.45'; }
     document.getElementById('leSwissModal').style.display = 'block';
+    // Ein Klick: Download + Vorschau (manuelle Datei bleibt Fallback)
+    leSwissDownload({ skipSaveDialog: true });
 }
 
 function leSwissEnsureModal() {
@@ -356,28 +358,37 @@ function leSwissClose() {
     if (m) m.style.display = 'none';
 }
 
-async function leSwissDownload() {
+async function leSwissDownload(opts) {
+    const skipSave = !!(opts && opts.skipSaveDialog);
+    const prev = document.getElementById('leSwissPreview');
     try {
+        if (prev) prev.innerHTML = '<div style="color:#8b8b8b">Lade XLSX von swissdec.ch…</div>';
         const r = await fetch('/api/lohndaten-empfaenger/swissdec-xlsx', { headers: ah() });
         if (!r.ok) {
             let msg = 'Download fehlgeschlagen.';
             try { const j = await r.json(); if (j.message) msg = j.message; } catch (_) {}
             showToast(msg, 'error');
-            window.open('https://www.swissdec.ch/data-receiver', '_blank');
+            if (prev) prev.innerHTML = `<div style="color:#b91c1c">${leEsc(msg)}</div>
+                <div style="margin-top:8px;color:#646464;font-size:12.5px">Bitte «Datei wählen» oder die XLSX von
+                <a href="https://www.swissdec.ch/data-receiver" target="_blank" rel="noopener" style="color:#3f3f3f;font-weight:600">swissdec.ch/data-receiver</a> ablegen.</div>`;
             return;
         }
         const blob = await r.blob();
         const name = (r.headers.get('Content-Disposition') || '').match(/filename="?([^";]+)"?/)?.[1]
             || `Swissdec_Empfaengerliste_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, name);
-        else {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob); a.download = name; a.click();
+        // Speichern-unter nur auf expliziten Knopf — beim Auto-Start stört der Dialog
+        if (!skipSave) {
+            if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, name);
+            else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob); a.download = name; a.click();
+            }
         }
-        _leSwissFile = new File([blob], name, { type: blob.type });
+        _leSwissFile = new File([blob], name, { type: blob.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         await leSwissPreview();
     } catch (e) {
         showToast('Download fehlgeschlagen — bitte Datei von swissdec.ch laden.', 'error');
+        if (prev) prev.innerHTML = '<div style="color:#b91c1c">Download fehlgeschlagen — Datei manuell wählen.</div>';
     }
 }
 
@@ -415,7 +426,12 @@ async function leSwissPreview() {
         }
         _leSwissDiffs = j;
         const rows = (j.diffs || []);
-        let html = `<div style="margin-bottom:8px;color:#3f3f3f"><b>${j.neu || 0}</b> neu · <b>${j.aenderung || 0}</b> Korrektur · ${j.gleich || 0} unverändert</div>`;
+        const byArt = {};
+        for (const d of rows) byArt[d.art] = (byArt[d.art] || 0) + 1;
+        const artSum = Object.keys(byArt).sort().map(a => `${leArtLabel(a)}: ${byArt[a]}`).join(' · ');
+        let html = `<div style="margin-bottom:8px;color:#3f3f3f"><b>${j.neu || 0}</b> neu · <b>${j.aenderung || 0}</b> Korrektur · ${j.gleich || 0} unverändert
+            <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Swissdec-Liste: ${j.total ?? rows.length + (j.gleich || 0)} Empfängerzeilen${artSum ? ` — davon offen: ${leEsc(artSum)}` : ''}</div>
+            </div>`;
         if (!rows.length) {
             html += '<div style="color:#16a34a">Alles aktuell — nichts zu übernehmen.</div>';
         } else {
@@ -430,7 +446,7 @@ async function leSwissPreview() {
                     <td style="padding:5px 6px">${st}</td>
                     <td style="padding:5px 6px">${leEsc(leArtLabel(d.art))}</td>
                     <td style="padding:5px 6px;font-weight:600">${leEsc(d.bezeichnung)}</td>
-                    <td style="padding:5px 6px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${leEsc(d.kassennummer || '')}</td>
+                    <td style="padding:5px 6px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${leEsc(d.kassennummer || d.kantonCode || '')}</td>
                     <td style="padding:5px 6px;color:#646464;font-size:11.5px">${leEsc(d.aenderungText || '—')}</td>
                 </tr>`;
             }
@@ -440,7 +456,13 @@ async function leSwissPreview() {
         if (prev) prev.innerHTML = html;
         const btn = document.getElementById('leSwissCommitBtn');
         const can = (j.neu || 0) + (j.aenderung || 0) > 0;
-        if (btn) { btn.disabled = !can; btn.style.opacity = can ? '1' : '0.45'; }
+        if (btn) {
+            btn.disabled = !can;
+            btn.style.opacity = can ? '1' : '0.45';
+            btn.textContent = can
+                ? `${j.neu || 0} neu / ${j.aenderung || 0} Korrekturen übernehmen`
+                : 'Nichts zu übernehmen';
+        }
     } catch (_) {
         if (prev) prev.innerHTML = '<div style="color:#b91c1c">Verbindungsfehler.</div>';
     }

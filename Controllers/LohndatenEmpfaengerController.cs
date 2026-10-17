@@ -119,11 +119,27 @@ public class LohndatenEmpfaengerController : ControllerBase
         {
             var client = httpFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(60);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("OneCrew/1.0 (+https://onecrew.ch)");
+            // Swissdec liefert 403 ohne Browser-UA + Referer (Stand 17.10.2026).
+            client.DefaultRequestHeaders.UserAgent.Clear();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Referrer = new Uri(HrSystem.Services.Elm.SwissdecEmpfaengerListe.InfoUrl);
+            client.DefaultRequestHeaders.Accept.ParseAdd(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*");
             using var resp = await client.GetAsync(HrSystem.Services.Elm.SwissdecEmpfaengerListe.DownloadUrl);
             if (!resp.IsSuccessStatusCode)
-                return StatusCode((int)resp.StatusCode, new { error = "DOWNLOAD_FEHLER", message = "Swissdec-Datei nicht erreichbar." });
+                return StatusCode((int)resp.StatusCode, new
+                {
+                    error = "DOWNLOAD_FEHLER",
+                    message = "Swissdec-Datei nicht erreichbar — bitte XLSX manuell von swissdec.ch/data-receiver laden.",
+                });
             var bytes = await resp.Content.ReadAsByteArrayAsync();
+            if (bytes.Length < 100 || bytes[0] != (byte)'P' || bytes[1] != (byte)'K')
+                return StatusCode(502, new
+                {
+                    error = "DOWNLOAD_FEHLER",
+                    message = "Antwort war keine Excel-Datei — bitte manuell von swissdec.ch laden.",
+                });
             var name = $"Swissdec_Empfaengerliste_{DateTime.Now:yyyy-MM-dd}.xlsx";
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name);
         }
