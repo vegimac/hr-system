@@ -202,6 +202,19 @@ public class ElmAnnualDeclarationBuilder
             totalAlv += PayrollCalculations.Round05(x.Alv);
         }
 
+        // ── FAK Nullmeldung (S_ELM_V6_01_01_05 / Direktive 8.2.4) ─────────
+        // Alle FAKs, die einem Workplace der Rechtseinheit am Stichtag
+        // zugeordnet sind — auch ohne Personen an diesem Ort. Alte/abgelaufene
+        // und nicht zugewiesene Kassen bleiben draussen.
+        var workplaceIds = branches.Select(b => b.Id).ToHashSet();
+        var kantonByFiliale = branches.ToDictionary(b => b.Id, b => b.KantonCode);
+        var faks = ElmFakAdressierung.AusZuordnungen(
+            empf, workplaceIds, stichtagZuord, id => kantonByFiliale.GetValueOrDefault(id));
+        foreach (var f in faks.Where(x => x.Kantone.Count == 0))
+            warn.Add($"FAK {f.Kassennummer} ({f.Bezeichnung}): kein Kanton an Filiale/Empfänger — Totals mit EX.");
+        if (faks.Count > 0)
+            warn.Add($"FAK Nullmeldung: {faks.Count} Kasse(n) im Job (zugeordnete Arbeitsorte, auch ohne Personen).");
+
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─
         var companyName = stamm.Firmenname;
         var companyDescription = CompanyDescription(stamm, new[]
@@ -210,6 +223,46 @@ public class ElmAnnualDeclarationBuilder
                 new XAttribute("companyWorkingTimeID", "#cwt1"),
                 new XElement(C + "WeeklyHours", Amt(main.NormalWeeklyHours ?? 42m)))
         });
+
+        var jobAddressees = new List<XElement>
+        {
+            new(Sdc + "Addressee",
+                new XAttribute("addresseeID", "#ahv"),
+                new XElement(Ep + "AddresseeIdentification", akKasse),
+                new XElement(Ep + "ProcessByDistributor", "true"))
+        };
+        jobAddressees.AddRange(faks.Select(ElmFakAdressierung.JobAddressee));
+
+        var institutions = new List<XElement>
+        {
+            new(Sd + "AHV-AVS",
+                new XAttribute("addresseeIDRef", "#ahv"),
+                new XElement(Sd + "AK-CC-CustomerNumber", akAbrechnung),
+                InsuranceBlock("UVG-LAA-Insurance", uvgE?.Bezeichnung, uvgE?.UidNummer, st?.UvgVersichertSeit,
+                    "UVG-Meldung folgt in Aufbau-Etappe E5"),
+                InsuranceBlock("BVG-LPP-Insurance", bvgE?.Bezeichnung, bvgE?.UidNummer, st?.BvgVersichertSeit,
+                    "BVG-Meldung folgt in Aufbau-Etappe E5"))
+        };
+        institutions.AddRange(faks.Select(ElmFakAdressierung.Institution));
+
+        var salaryTotals = new List<XElement>
+        {
+            new(Sd + "AHV-AVS-Totals",
+                new XAttribute("addresseeIDRef", "#ahv"),
+                new XElement(Sd + "Total-AHV-AVS-Incomes", Amt(totalAhv)),
+                new XElement(Sd + "Total-AHV-AVS-Open", "0.00"),
+                new XElement(Sd + "Total-ALV-AC-Incomes", Amt(totalAlv)),
+                new XElement(Sd + "Total-ALVZ-ACS-Incomes", "0.00"),
+                new XElement(Sd + "Total-ALV-AC-Open", "0.00"))
+        };
+        salaryTotals.AddRange(faks.Select(ElmFakAdressierung.TotalsNull));
+
+        var counters = new List<XElement>
+        {
+            new(Sd + "NumberOf-AHV-AVS-Salary-Tags", persons.Count)
+        };
+        if (faks.Count > 0)
+            counters.Add(new XElement(Sd + "NumberOf-FAK-CAF-Salary-Tags", 0));
 
         // ── Gesamtdokument ────────────────────────────────────────────────
         var now = DateTime.Now;
@@ -222,35 +275,16 @@ public class ElmAnnualDeclarationBuilder
                 new XAttribute(XNamespace.Xmlns + "c", C),
                 RequestContext(companyName, now, _einstellungen),
                 new XElement(Sdc + "Job",
-                    new XElement(Sdc + "Addressees",
-                        new XElement(Sdc + "Addressee",
-                            new XAttribute("addresseeID", "#ahv"),
-                            new XElement(Ep + "AddresseeIdentification", akKasse),
-                            new XElement(Ep + "ProcessByDistributor", "true"))),
+                    new XElement(Sdc + "Addressees", jobAddressees),
                     // Übungs-/Testmeldung — nie als Produktivmeldung werten:
                     new XElement(Sdc + "TestCase")),
                 new XElement(Sd + "AnnualSalaryDeclaration",
                     new XAttribute("schemaVersion", "0.0"),
                     companyDescription,
                     new XElement(Sd + "Staff", persons),
-                    new XElement(Sd + "Institutions",
-                        new XElement(Sd + "AHV-AVS",
-                            new XAttribute("addresseeIDRef", "#ahv"),
-                            new XElement(Sd + "AK-CC-CustomerNumber", akAbrechnung),
-                            InsuranceBlock("UVG-LAA-Insurance", uvgE?.Bezeichnung, uvgE?.UidNummer, st?.UvgVersichertSeit,
-                                "UVG-Meldung folgt in Aufbau-Etappe E5"),
-                            InsuranceBlock("BVG-LPP-Insurance", bvgE?.Bezeichnung, bvgE?.UidNummer, st?.BvgVersichertSeit,
-                                "BVG-Meldung folgt in Aufbau-Etappe E5"))),
-                    new XElement(Sd + "SalaryTotals",
-                        new XElement(Sd + "AHV-AVS-Totals",
-                            new XAttribute("addresseeIDRef", "#ahv"),
-                            new XElement(Sd + "Total-AHV-AVS-Incomes", Amt(totalAhv)),
-                            new XElement(Sd + "Total-AHV-AVS-Open", "0.00"),
-                            new XElement(Sd + "Total-ALV-AC-Incomes", Amt(totalAlv)),
-                            new XElement(Sd + "Total-ALVZ-ACS-Incomes", "0.00"),
-                            new XElement(Sd + "Total-ALV-AC-Open", "0.00"))),
-                    new XElement(Sd + "SalaryCounters",
-                        new XElement(Sd + "NumberOf-AHV-AVS-Salary-Tags", persons.Count)),
+                    new XElement(Sd + "Institutions", institutions),
+                    new XElement(Sd + "SalaryTotals", salaryTotals),
+                    new XElement(Sd + "SalaryCounters", counters),
                     new XElement(Sd + "GeneralSalaryDeclarationDescription",
                         new XElement(Sd + "CreationDate", now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
                         new XElement(Sd + "AccountingPeriod", year)))));

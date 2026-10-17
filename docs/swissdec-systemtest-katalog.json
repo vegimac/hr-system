@@ -163,17 +163,22 @@
       "erwartet": "Das ERP-System muss wie folgt geprüft werden: - Sicherstellen, dass das Konzept der Nullmeldungen verstanden wurde und die Adressierung im ERP-System dahingehend angepasst wurde, dass nur noch die Empfänger im Job aufgeführt werden, für die auch eine Übermittlung verteilt werden soll. Diese Logik kann auch über das Element \"ProcessByDistributor\" (true/false) gesteuert werden.",
       "hintergrund": "Bis und mit ELMv5 stand es ERP-Herstellern frei, im <Job> in der Vergangenheit verwendete Empfänger stehen zu lassen, auch wenn dieser Institution in der effektiven Übermittlung keine Personen zugeordnet wurden. Der Grund dafür lag darin, dass die gesamte Adressierungslogik auf Ebene der Person basierte und die Daten nur dann an die im <Job> erwähnten Institutionen verteilt wurden, wenn ihr auch Personen zugeordnet waren. Da wir nun für die Domäne FAK die Daten auch ohne vorhandene Personen verteilen, ist es sehr wichtig, dass ERP- Hersteller nur die effektiv in der Übermittlung vorhandenen Institutionen im Element <Job> auflisten. Dieser Umstand wird in der Zertifizierung von ELMv6 für alle Domänen aktiv geprüft.",
       "direktive": "8.2.4",
-      "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «Hauptsitze» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "stand": "gebaut",
+      "kommentarQt": "FAK-Zuordnung Filiale → Tab «Lohndaten Empfänger» (Art FAK). Jahres-XML (DeclareAnnualSalary): Job/Institutions/Totals nur für FAKs mit gültiger Zuordnung am 31.12. an einem Workplace der Rechtseinheit — auch ohne Personen dort (Nullmeldung, Totals 0.00). Abgelaufene/nicht zugewiesene Kassen fehlen. ProcessByDistributor=true. Logik ElmFakAdressierung. Monatsmeldung hat noch keine FAK-Domäne.",
+      "notiz": "FAK-Nullmeldung Jahres-XML 17.10.2026 (ElmFakAdressierung + ElmAnnualDeclarationBuilder).",
       "gebaut": true,
-      "seite": "hauptsitze",
-      "seiteLabel": "Hauptsitze",
+      "seite": "swissdec",
+      "seiteLabel": "Swissdec",
       "aktionen": [
         {
-          "label": "Öffnen: Hauptsitze",
+          "label": "Öffnen: Swissdec",
           "art": "seite",
-          "seite": "hauptsitze"
+          "seite": "swissdec"
+        },
+        {
+          "label": "Lohndaten-Empfänger",
+          "art": "seite",
+          "seite": "lohndaten-empfaenger"
         }
       ]
     },

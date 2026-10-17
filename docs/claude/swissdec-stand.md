@@ -271,6 +271,7 @@ Quality-Tool-REST-Schnittstelle in derselben Seite. Ablauf: `docs/swissdec-quali
 | Baustein | Inhalt |
 |---|---|
 | `Services/Elm/ElmGemeinsam.cs` | Namensräume, Kopf (RequestContext), Firmenbeschreibung mit Workplaces, Personalien, Arbeitszeit-Block, `LadeRechtseinheitAsync`. **Jahres- und Monatsmeldung teilen diese Teile** — der Jahresbaustein schrumpfte dadurch von 469 auf 278 Zeilen. |
+| `Services/Elm/ElmFakAdressierung.cs` | **S_ELM_V6_01_01_05 Nullmeldung FAK** (17.10.2026): Job/Institutions/Totals nur FAKs mit gültiger Filial-Zuordnung am Stichtag — auch ohne Personen dort; abgelaufene/nicht zugewiesene raus. Eingebunden in `ElmAnnualDeclarationBuilder` (Jahres-XML). |
 | `Services/Elm/ElmMonthlyDeclarationBuilder.cs` | `DeclareMonthlySalary` aus den **definitiv abgeschlossenen** Lohnzetteln eines Monats über alle Filialen. Ist eine Filiale nicht abgeschlossen → Abbruch mit Klartext, keine halbe Meldung. Empfänger nur, wer Daten bekommt (Nullmeldungs-Regel). `<TestCase/>` gesetzt. |
 | `Services/Elm/ElmXmlVergleich.cs` | Feld-für-Feld-Vergleich gegen eine Referenz, Personen über die **Personalnummer** zugeordnet (die Referenz sortiert anders). Bewusste Abweichungen (A5) werden markiert, nicht gezählt. Bericht als Markdown. |
 | `GET /api/elm/monthly/{jahr}/{monat}` | XML + XSD-Prüfung + Vergleich + Bericht (admin, superuser). |

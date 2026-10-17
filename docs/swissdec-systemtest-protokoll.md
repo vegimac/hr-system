@@ -150,13 +150,20 @@ Arbeitsorte = Filialen (Workplace). Muster AG: Werkhof/Büro Zeughausgasse 9, 30
 **Notiz:** Filiale Stammdaten + InHouseID; FAK/InHouseID in Stammdaten-Ansicht 17.10.2026.
 
 
-#### S_ELM_V6_01_01_05 Adressierung von Empfängern - Nullmeldung FAK ⬜ offen
+#### S_ELM_V6_01_01_05 Adressierung von Empfängern - Nullmeldung FAK 🔧 gebaut
 
 **Directive** 8.2.4
 
 **Beschreibung:** Adressierung von Empfängern - Nullmeldung FAK In der Domäne FAK werden mit ELMv6 sämtliche Familienausgleichskassen adressiert, die einem Arbeitsort zugewiesen sind. Dies ist im Gegensatz zu ELMv5 auch dann der Fall, wenn einem Arbeitsort keine Personen zugewiesen sind. Ein ERP-Hersteller muss sicherstellen, dass im XML nur die Institutionen adressiert werden, die auch eine Übermittlung erhalten sollten. Stand heute wird eine Übermittlung ohne Personen ausschliesslich für die Domäne FAK verteilt…
 
 **Erwartet:** Das ERP-System muss wie folgt geprüft werden: - Sicherstellen, dass das Konzept der Nullmeldungen verstanden wurde und die Adressierung im ERP-System dahingehend angepasst wurde, dass nur noch die Empfänger im Job aufgeführt werden, für die auch eine Übermittlung verteilt werden soll. Diese Logik kann auch über das Element "ProcessByDistributor" (true/false) gesteuert werden.
+
+**Kommentar fürs Quality Tool:**
+```
+FAK-Zuordnung Filiale → Tab «Lohndaten Empfänger» (Art FAK). Jahres-XML (DeclareAnnualSalary): Job/Institutions/Totals nur für FAKs mit gültiger Zuordnung am 31.12. an einem Workplace der Rechtseinheit — auch ohne Personen dort (Nullmeldung, Totals 0.00). Abgelaufene/nicht zugewiesene Kassen fehlen. ProcessByDistributor=true. Logik ElmFakAdressierung. Monatsmeldung hat noch keine FAK-Domäne.
+```
+
+**Notiz:** FAK-Nullmeldung Jahres-XML 17.10.2026 (ElmFakAdressierung + ElmAnnualDeclarationBuilder).
 
 
 #### S_ELM_V6_01_01_06 Wöchentliche Unternehmensarbeitszeit 🔧 gebaut
