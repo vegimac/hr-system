@@ -80,38 +80,44 @@ function leRender() {
     for (const e of list) {
         (byArt[e.art] ||= []).push(e);
     }
+    const th = 'padding:4px 8px;text-align:left;font-size:10.5px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(60,55,48,0.12);white-space:nowrap';
+    const td = 'padding:6px 8px;vertical-align:middle;border-top:1px solid rgba(139,139,139,0.14);font-size:12.5px;color:#3f3f3f';
     let html = '';
     for (const [code, label] of LE_ARTEN) {
         const items = byArt[code];
         if (!items?.length) continue;
-        html += `<div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px;padding:0 4px">${leEsc(label)}</div>`;
-        html += `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px"><tbody>`;
+        items.sort((a, b) => (a.bezeichnung || '').localeCompare(b.bezeichnung || '', 'de')
+            || (a.kassennummer || '').localeCompare(b.kassennummer || '', 'de'));
+        html += `<div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px;padding:0 4px">${leEsc(label)}</div>`;
+        html += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:2px"><thead><tr>
+            <th style="${th};width:38%">Name</th>
+            <th style="${th};width:12%">Nr.</th>
+            <th style="${th};width:7%">Kt.</th>
+            <th style="${th};width:26%">E-Mail</th>
+            <th style="${th};width:17%">Zuordnung</th>
+        </tr></thead><tbody>`;
         for (const e of items) {
-            const adr = [e.strasse, e.postfach, [e.plz, e.ort].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
-            const meta = [
-                e.kassennummer ? `Nr. ${leEsc(e.kassennummer)}` : null,
-                e.uidNummer ? leEsc(e.uidNummer) : null,
-                e.kantonCode ? `<span style="border:1px solid rgba(60,55,48,0.18);border-radius:6px;padding:1px 6px;font-size:11px;font-weight:600">${leEsc(e.kantonCode)}</span>` : null,
-                e.supportEmail ? leEsc(e.supportEmail) : null,
-                (e.zuordnungen > 0) ? `${e.zuordnungen} Filiale(n)` : '<span style="color:#b45309">nicht zugeordnet</span>',
-            ].filter(Boolean).join(' · ');
-            html += `<tr style="border-top:1px solid rgba(139,139,139,0.18);${e.isActive ? '' : 'opacity:0.5'}">
-                <td style="padding:9px 10px;min-width:0">
-                    <div style="font-weight:600;color:#3f3f3f">${leEsc(e.bezeichnung)}${e.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${leEsc(e.zusatz)}</span>` : ''}${e.isActive ? '' : ' <span style="font-size:10.5px;color:#8b8b8b">(inaktiv)</span>'}</div>
-                    <div style="font-size:11.5px;color:#8b8b8b;margin-top:2px">${leEsc(adr) || '–'}</div>
-                    <div style="font-size:11.5px;color:#646464;margin-top:2px">${meta}</div>
-                </td>
+            const name = `${leEsc(e.bezeichnung)}${e.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${leEsc(e.zusatz)}</span>` : ''}${e.isActive ? '' : ' <span style="font-size:10.5px;color:#8b8b8b">(inaktiv)</span>'}`;
+            const tip = [e.strasse, e.postfach, [e.plz, e.ort].filter(Boolean).join(' '), e.uidNummer].filter(Boolean).join(', ');
+            const zuord = (e.zuordnungen > 0)
+                ? `${e.zuordnungen} Filiale(n)`
+                : '<span style="color:#b45309">nicht zugeordnet</span>';
+            html += `<tr style="${e.isActive ? '' : 'opacity:0.5'}"${tip ? ` title="${leEsc(tip)}"` : ''}>
+                <td style="${td};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</td>
+                <td style="${td};font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:nowrap">${leEsc(e.kassennummer || '–')}</td>
+                <td style="${td};white-space:nowrap">${e.kantonCode ? leEsc(e.kantonCode) : '–'}</td>
+                <td style="${td};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#646464">${leEsc(e.supportEmail || '–')}</td>
+                <td style="${td};white-space:nowrap">${zuord}</td>
             </tr>`;
         }
         html += `</tbody></table>`;
     }
-    // Unbekannte Arten
     const known = new Set(LE_ARTEN.map(a => a[0]));
     const rest = list.filter(e => !known.has(e.art));
     if (rest.length) {
-        html += `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin:14px 0 6px">WEITERE</div>`;
+        html += `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin:12px 0 4px">WEITERE</div>`;
         for (const e of rest) {
-            html += `<div style="padding:8px 10px;border-top:1px solid rgba(139,139,139,0.18)">${leEsc(e.bezeichnung)} (${leEsc(e.art)})</div>`;
+            html += `<div style="padding:6px 8px;border-top:1px solid rgba(139,139,139,0.14);font-size:12.5px">${leEsc(e.bezeichnung)} (${leEsc(e.art)})</div>`;
         }
     }
     el.innerHTML = html;
