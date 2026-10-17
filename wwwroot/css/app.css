@@ -13356,3 +13356,24 @@ body.theme-dark #familyModal .emp-section-title {
 body.theme-dark .szm-detail { background:rgba(30,30,30,0.6); border-color:rgba(255,255,255,0.08); }
 body.theme-dark .szm-liste th { background:#1e1e1e; color:#bbb; }
 body.theme-dark .szm-raster thead th, body.theme-dark .szm-liste td, body.theme-dark .szm-ma-name, body.theme-dark .szm-ma-wert, body.theme-dark .szm-detail-titel, body.theme-dark .szm-titel { color:#e5e5e5; }
+
+/* Lohndaten-Empfänger Hub-Grafik (OneCrew → Empfänger, Walter 17.10.2026) */
+.le-hub-karte {
+    max-width: 640px;
+    margin: 0 auto 16px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(60, 55, 48, 0.14);
+    box-shadow: 0 8px 24px rgba(60, 55, 48, 0.12);
+    background: #111;
+}
+.le-hub-karte img {
+    display: block;
+    width: 100%;
+    height: auto;
+    vertical-align: top;
+}
+body.theme-dark .le-hub-karte {
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
