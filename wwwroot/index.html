@@ -1617,7 +1617,7 @@
                      Walter 31.08.2026: «Import & Schnittstellen» ist in den Bereich
                      Entwicklung umgezogen (page-entwicklung / entwHubGrp-import). -->
                 <div class="ra-tile-row" id="adminHubCats" style="margin-top:12px;margin-bottom:0">
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Lohnraster Mirus, Swissdec-Lohnarten, Basen-Kontrolle, Lohnschema, Absenz-Typen">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Mirus Lohnraster für Migration, Swissdec-Lohnarten, Basen-Kontrolle, Lohnschema, Absenz-Typen">
                         <img src="img/lohn-stammdaten.webp?v=20260816b" alt="" loading="lazy">
                         <span>Lohn-Stammdaten</span>
                     </button>
@@ -1692,8 +1692,8 @@
                     </div>
                         <div class="admin-card" onclick="showPage('elm-lohnraster')">
                         <img src="img/lohnkat-lohnraster-elm.webp?v=20261001a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Lohnraster Mirus (Referenz)</div>
-                        <div class="admin-card-desc">Mirus-/McDonald's-Raster als Vorlage — Positionen mit OneCrew-Lohnpositionen verknüpfen (Migration)</div>
+                        <div class="admin-card-title">Mirus Lohnraster für Migration</div>
+                        <div class="admin-card-desc">Altes Mirus-/McDonald's-Raster → mit OneCrew-Lohnpositionen verknüpfen (nur Migration, nicht Swissdec)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('swissdec-lohnarten')">
                         <img src="img/lohnkat-lohnpositionen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -1872,8 +1872,8 @@
             <div class="page liquid-mask fixhead" id="page-elm-lohnraster">
                 <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
-                    <h1 class="page-title">Lohnraster Mirus (Referenz)</h1>
-                    <p class="page-sub">Das Mirus-/McDonald's-Lohnraster (309 Positionen) als Vorlage für die Migration — nicht der Swissdec-Katalog. Häkchen ✓ = diese Position hat ein Gegenstück in OneCrew; Häkchen setzen legt eine OneCrew-Lohnposition an, «mit bestehender verknüpfen…» ordnet eine vorhandene zu, Häkchen entfernen löst nur die Zuordnung (löscht nichts).</p>
+                    <h1 class="page-title">Mirus Lohnraster für Migration</h1>
+                    <p class="page-sub">Altes Mirus-/McDonald's-Lohnraster als Hilfsmittel für die Migration — nicht der Swissdec-Katalog und nicht der laufende Lohn. Häkchen ✓ = Gegenstück in OneCrew; Häkchen setzen legt eine Lohnposition an, «mit bestehender verknüpfen…» ordnet zu, Häkchen entfernen löst nur die Zuordnung (löscht nichts).</p>
                 </div></div>
                 <div class="fh-toolbar">
                     <select id="elrTyp" onchange="elrRender()" style="padding:7px 10px;border-radius:8px;font-size:13px">
@@ -10693,7 +10693,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/saldo-vortrag-import.js?v=20261005a"></script>
 <script src="js/saldo-vortrag-import-stunden.js?v=20261005a"></script>
 <script src="js/mirus-lohnkonto-import.js?v=20261004a"></script>
-<script src="js/lohn-simulation.js?v=20261005b"></script>
+<script src="js/lohn-simulation.js?v=20261017a"></script>
 <script src="js/mirus-address-compare.js?v=20261011a"></script>
 <script src="js/mirus-fehlende-ma.js?v=20261011a"></script>
 <script src="js/gs-ahv-abgleich.js?v=20261013b"></script>
@@ -10725,7 +10725,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20261011a"></script>
 <script src="js/contracts-edit.js?v=20261011a"></script>
-<script src="js/payroll.js?v=20261011b"></script>
+<script src="js/payroll.js?v=20261017a"></script>
 <script src="js/elm-meldungen.js?v=20260927i"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20261012a"></script>

@@ -152,7 +152,7 @@ async function lsimRechnen() {
             const e = await r.json();
             const fehler = (e.fehler || []).map(f => `<li>${_lsimEsc(f)}</li>`).join('');
             const ohneLp = (e.codesOhneLohnposition || []).length
-                ? `<div style="color:#b45309;margin-left:22px">Nicht übernommen, keine OneCrew-Lohnart zu Mirus-Code ${e.codesOhneLohnposition.map(_lsimEsc).join(', ')} — im «Lohnraster Mirus (Referenz)» verknüpfen</div>` : '';
+                ? `<div style="color:#b45309;margin-left:22px">Nicht übernommen, keine OneCrew-Lohnart zu Mirus-Code ${e.codesOhneLohnposition.map(_lsimEsc).join(', ')} — im «Mirus Lohnraster für Migration» verknüpfen</div>` : '';
             zeilen.push(`<div style="margin:3px 0">${e.mitFehler ? '⚠' : '✓'} <b>${_LSIM_MONATE[monat - 1]}</b>: ${e.gerechnet} von ${e.mitarbeiter} MA gerechnet${e.mitFehler ? `, <span style="color:#b45309">${e.mitFehler} nicht rechenbar</span>` : ''}
                 ${fehler ? `<details style="margin-left:22px"><summary style="cursor:pointer;color:#64748b">Welche?</summary><ul style="margin:4px 0">${fehler}</ul></details>` : ''}
                 ${ohneLp}</div>`);

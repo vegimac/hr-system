@@ -2211,7 +2211,7 @@ function renderLohnSlip(s, targetEl) {
     // Differenz zur verdrahteten Kontrollrechnung → roter Riegel (Confirm blockt
     // serverseitig mit 409 BASEN_DIFFERENZ).
     const _basenBanner = (s.basenDiffMax != null && Number(s.basenDiffMax) > 0.05)
-        ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">⚠ Basen-Kontrolle: Differenz CHF ${Number(s.basenDiffMax).toFixed(2)} zwischen Katalog-Flags und Kontrollrechnung — Bestätigen gesperrt.<div style="font-weight:400;margin-top:2px">Prüfen unter Lohn-Stammdaten → Lohnraster (ELM) → Basen-Kontrolle.</div></div>`
+        ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">⚠ Basen-Kontrolle: Differenz CHF ${Number(s.basenDiffMax).toFixed(2)} zwischen Katalog-Flags und Kontrollrechnung — Bestätigen gesperrt.<div style="font-weight:400;margin-top:2px">Prüfen unter Lohn-Stammdaten → Basen-Kontrolle.</div></div>`
         : '';
     // Helfer: "Gerechnet" — Wert wenn vorhanden und ungleich Betrag, sonst leer
     const renderAccrued = (l) => {
