@@ -2604,9 +2604,9 @@ function cpEmpfRowHtml(z) {
 // ── Modal Filiale: nur Auswahl + Filialfelder (Walter 17.10.2026) ───────
 // Stammdaten leben unter Verzeichnisse → Lohndaten-Empfänger.
 function cpEmpfEnsureModal() {
-    // Altes Modal mit editierbaren Stammdaten nach Deploy neu aufbauen.
+    // Altes Modal ohne Art-Vorfilter nach Deploy neu aufbauen.
     const existing = document.getElementById('cpEmpfModal');
-    if (existing && !document.getElementById('cpEmpfStammInfo')) existing.remove();
+    if (existing && !document.getElementById('cpEmpfArtFilter')) existing.remove();
     if (document.getElementById('cpEmpfModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -2618,7 +2618,10 @@ function cpEmpfEnsureModal() {
         <div id="cpEmpfModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Empfänger zuordnen</div>
 
         <div id="cpEmpfPickBlock" style="margin-bottom:12px">
-            <label style="${lbl}">Empfänger aus Verzeichnis
+            <label style="${lbl}">Art
+                <select id="cpEmpfArtFilter" onchange="cpEmpfFillPick()" style="${inp}"></select>
+            </label>
+            <label style="${lbl};margin-top:10px">Empfänger aus Verzeichnis
                 <select id="cpEmpfPick" onchange="cpEmpfPickChanged()" style="${inp}"></select>
             </label>
             <div style="font-size:11.5px;color:#8b8b8b;margin-top:6px">Nicht dabei?
@@ -2683,16 +2686,8 @@ function cpEmpfOpenModal(zuordnungId) {
     if (zuordnungId == null) {
         title.textContent = 'Empfänger zuordnen';
         document.getElementById('cpEmpfPickBlock').style.display = '';
-        const katalog = (_cpEmpfKatalog || []).filter(k => k.isActive !== false);
-        if (!katalog.length) {
-            pick.innerHTML = '<option value="">— Verzeichnis ist leer —</option>';
-            cpEmpfShowStamm(null);
-        } else {
-            pick.innerHTML = '<option value="">— bitte wählen —</option>'
-                + katalog.map(k => `<option value="${k.id}">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.kantonCode ? ' (' + cdokEsc(k.kantonCode) + ')' : ''}</option>`).join('');
-            pick.value = '';
-            cpEmpfShowStamm(null);
-        }
+        cpEmpfFillArtFilter();
+        cpEmpfFillPick();
         ['cpEmpfMitglied','cpEmpfSub','cpEmpfBem','cpEmpfGueltigAb','cpEmpfGueltigBis'].forEach(id => set(id, ''));
     } else {
         const z = _cpEmpfCache.find(x => x.id === zuordnungId);
@@ -2711,6 +2706,48 @@ function cpEmpfOpenModal(zuordnungId) {
         set('cpEmpfGueltigBis', z.gueltigBis ? String(z.gueltigBis).slice(0, 10) : '');
     }
     modal.style.display = 'block';
+}
+
+function cpEmpfFillArtFilter() {
+    const sel = document.getElementById('cpEmpfArtFilter');
+    if (!sel) return;
+    const aktiv = (_cpEmpfKatalog || []).filter(k => k.isActive !== false);
+    const counts = {};
+    for (const k of aktiv) counts[k.art] = (counts[k.art] || 0) + 1;
+    const prev = sel.value;
+    sel.innerHTML = CP_EMPF_ARTEN
+        .filter(([c]) => counts[c])
+        .map(([c, l]) => `<option value="${c}">${cdokEsc(l)} · ${counts[c]}</option>`)
+        .join('');
+    if (prev && counts[prev]) sel.value = prev;
+    else if (!sel.value && sel.options.length) sel.selectedIndex = 0;
+}
+
+function cpEmpfFillPick() {
+    const pick = document.getElementById('cpEmpfPick');
+    const artSel = document.getElementById('cpEmpfArtFilter');
+    if (!pick) return;
+    const art = artSel?.value || '';
+    let katalog = (_cpEmpfKatalog || []).filter(k => k.isActive !== false);
+    if (art) katalog = katalog.filter(k => k.art === art);
+    katalog.sort((a, b) => (a.bezeichnung || '').localeCompare(b.bezeichnung || '', 'de')
+        || (a.kassennummer || '').localeCompare(b.kassennummer || '', 'de'));
+    if (!katalog.length) {
+        pick.innerHTML = art
+            ? '<option value="">— keine Empfänger dieser Art —</option>'
+            : '<option value="">— Verzeichnis ist leer —</option>';
+        cpEmpfShowStamm(null);
+        return;
+    }
+    pick.innerHTML = '<option value="">— bitte wählen —</option>'
+        + katalog.map(k => {
+            const nr = k.kassennummer ? ` · ${cdokEsc(k.kassennummer)}` : '';
+            const kt = k.kantonCode ? ` (${cdokEsc(k.kantonCode)})` : '';
+            return `<option value="${k.id}">${cdokEsc(k.bezeichnung)}${nr}${kt}</option>`;
+        }).join('');
+    pick.value = '';
+    cpEmpfShowStamm(null);
+    if (art) cpEmpfUpdateLabels(art);
 }
 
 function cpEmpfPickChanged() {
