@@ -1819,6 +1819,44 @@
             transform: translateY(-1px);
         }
 
+        /* easy@work sync — schmal unter «Dunkel», nur MA-Übersicht (Walter 18.10.2026) */
+        #lsEmpSyncBtn.ls-emp-sync {
+            position: fixed;
+            top: 62px;
+            right: 18px;
+            z-index: 1490;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(60,55,48,.16);
+            background: rgba(255,255,255,.94);
+            box-shadow: 0 6px 16px rgba(60,55,48,.12);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: inherit;
+            color: #15803d;
+            line-height: 1;
+        }
+        #lsEmpSyncBtn.ls-emp-sync img {
+            width: 14px; height: 14px; object-fit: contain; display: block;
+        }
+        #lsEmpSyncBtn.ls-emp-sync:hover {
+            background: #fff;
+            border-color: rgba(22,101,52,.35);
+        }
+        #lsEmpSyncBtn.ls-emp-sync:disabled {
+            opacity: .65; cursor: wait;
+        }
+        body.theme-dark #lsEmpSyncBtn.ls-emp-sync {
+            background: rgba(40,54,72,.88);
+            border-color: rgba(130,190,255,.28);
+            color: #86efac;
+            box-shadow: 0 8px 20px rgba(0,0,0,.28);
+        }
+
         /* ── MAIN CONTENT ──────────────────────────────────────── */
         .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: #f8fafc; }
         .page-head {

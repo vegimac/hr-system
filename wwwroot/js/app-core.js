@@ -1458,11 +1458,8 @@ function showPage(name) {
     if (window._ruecksprung && window._ruecksprung.seite !== name) window._ruecksprung = null;
     currentPageName = name;
     updateDashboardShellState(name);
-    // easy@work-Sync-Pill im langSwitcher: nur auf der Mitarbeiter-Seite
-    // mit gewaehltem MA (Walter 17.07.2026; Flag aus employees.js).
-    const lsSync = document.getElementById('lsEmpSyncBtn');
-    if (lsSync) lsSync.style.display =
-        (name === 'mitarbeiter' && window.selectedEmployeeId && window._lsEmpSyncAllowed) ? 'inline-flex' : 'none';
+    // easy@work-Sync: nur MA-Übersicht, unter «Dunkel» (Walter 18.10.2026).
+    if (typeof updateLsEmpSyncBtn === 'function') updateLsEmpSyncBtn();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('page-' + name)?.classList.add('active');

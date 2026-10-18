@@ -615,6 +615,7 @@ function applyEmpFilter() {
         selectedEmployeeId = null;
         window.selectedEmployeeId = null;
         selectedEmployee   = null;
+        updateLsEmpSyncBtn();
         const panel = document.getElementById('empDetailPanel');
         if (panel) {
             panel.innerHTML = '<div class="emp-no-selection" style="height:100%"><span>Mitarbeiter auswählen</span></div>';
@@ -1400,7 +1401,7 @@ function renderEmployeeDetail(emp) {
             <div id="empHeaderActions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-content:flex-start;min-width:0">
                 <!-- Walter 17.07.2026: alle Aktions-Buttons in den Tab
                      «Restaurant Admin» verschoben (_raTilesHtml); easy@work-
-                     Sync sitzt global oben im langSwitcher (#lsEmpSyncBtn).
+                     Sync sitzt unter «Dunkel» (#lsEmpSyncBtn, nur Übersicht).
                      Hier bleibt nur das Inline-Speichern; startEmpEdit()
                      ersetzt den Inhalt durch Speichern/Abbrechen. -->
                 <button id="empInlineSaveBtn" class="emp-inline-save" onclick="saveEmpEdit()" style="display:none">Speichern</button>
@@ -1695,10 +1696,20 @@ function renderEmployeeDetail(emp) {
     // easy@work-Sync-Button oben im langSwitcher (Walter 17.07.2026):
     // sichtbar sobald ein MA gewaehlt ist und die Rolle es erlaubt.
     window._lsEmpSyncAllowed = ['admin','superuser','buchhaltung','user'].includes(currentUser?.role);
-    const _lsBtn = document.getElementById('lsEmpSyncBtn');
-    if (_lsBtn) _lsBtn.style.display = window._lsEmpSyncAllowed ? 'inline-flex' : 'none';
-
     switchEmpTab(activeEmpTab || 'uebersicht');
+    updateLsEmpSyncBtn();
+}
+
+/** easy@work-Sync-Knopf: nur Übersicht + gewählter MA, unter «Dunkel» (Walter 18.10.2026). */
+function updateLsEmpSyncBtn() {
+    const btn = document.getElementById('lsEmpSyncBtn');
+    if (!btn) return;
+    const aufUebersicht = (typeof activeEmpTab === 'undefined' || activeEmpTab === 'uebersicht');
+    const ok = (typeof currentPageName === 'undefined' || currentPageName === 'mitarbeiter')
+        && window.selectedEmployeeId
+        && window._lsEmpSyncAllowed
+        && aufUebersicht;
+    btn.style.display = ok ? 'inline-flex' : 'none';
 }
 
 // ═══════════ TAB «UEBERSICHT» (Etappe 2, Walter 17.07.2026) ═══════════
@@ -2488,14 +2499,19 @@ async function easyworkSyncSelectedEmployee(empId) {
     if (!empId) return;
     // Spinner auf dem Button zeigen, der tatsaechlich existiert: der alte
     // Header-Button (btnEmpEasyworkSync) ist seit 17.07.2026 entfernt —
-    // die Pill oben im langSwitcher (#lsEmpSyncBtn) uebernimmt.
+    // Schmaler Knopf unter «Dunkel» (#lsEmpSyncBtn) übernimmt die Anzeige.
     const btn = document.getElementById('btnEmpEasyworkSync')
         || document.getElementById('lsEmpSyncBtn');
     const oldHtml = btn?.innerHTML;
     // Laufender Sync sichtbar machen (Walter-Vorgabe 13.07.2026): drehender
     // Spinner im Button, solange die API-Calls laufen (kann einige Sekunden
     // dauern — Verträge, Properties, Verfügbarkeit).
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="eaw-spin"></span> synchronisiere…'; }
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = btn.id === 'lsEmpSyncBtn'
+            ? '<span class="eaw-spin"></span><span>…</span>'
+            : '<span class="eaw-spin"></span> synchronisiere…';
+    }
     // Ladekarte als Overlay (Walter 08.09.2026) — gleiche Optik wie beim Neuzugang.
     const _syncName = (typeof selectedEmployee !== 'undefined' && selectedEmployee && selectedEmployee.id === empId)
         ? `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''}`.trim() : '';
@@ -2636,6 +2652,7 @@ function switchEmpTab(tab) {
         b.classList.toggle('stempel-noscroll', tab === 'stempelzeiten');
         b.classList.toggle('abs-noscroll', tab === 'absenzen');
     });
+    updateLsEmpSyncBtn();
     // Header-Actions (Inline-Speichern) — Übersicht speichert über ov-savebtn
     // in den Karten; andere Tabs haben eigene Edit-Buttons.
     const headerActions = document.getElementById('empHeaderActions');

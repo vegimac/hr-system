@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261017d">
+    <link rel="stylesheet" href="css/app.css?v=20261018a">
 </head>
 <body>
 
@@ -210,15 +210,6 @@
                 <span style="font-size:14px">←</span>
                 <span>Zurück</span>
             </button>
-            <!-- easy@work-Sync des gewaehlten MA (Walter 17.07.2026): fix oben
-                 in Zeile 1, links vor Lupe + Fragezeichen. Sichtbar nur auf der
-                 Mitarbeiter-Seite mit gewaehltem MA (showPage + employees.js). -->
-            <button id="lsEmpSyncBtn" title="Aktualisiert easy@work-Felder des gewählten Mitarbeiters aus der API"
-                    onclick="lsEmpSyncClick()"
-                    style="display:none;background:#fff;border:1px solid #e2e8f0;cursor:pointer;padding:5px 11px;border-radius:10px;align-items:center;gap:6px;font-size:12.5px;color:#3f3f3f;font-weight:600">
-                <img src="img/easyatwork-icon.webp?v=20260628a" alt="easy@work" style="width:16px;height:16px;object-fit:contain">
-                <span>easy@work sync</span>
-            </button>
             <!-- Walter-Vorgabe 27.05.2026: Globale Suche (Cmd-K) + Hilfe-Button
                  im selben Floating-Widget wie Sprache + Theme. -->
             <button onclick="gsOpen()" title="Suchen (⌘K / Ctrl-K)"
@@ -254,6 +245,14 @@
                 <span class="tt-label">Dunkel</span>
             </button>
         </div>
+        <!-- easy@work-Sync (Walter 18.10.2026): schmal (@ + sync), nur MA-Übersicht,
+             fix unter «Dunkel» — nicht in der Sprachzeile. -->
+        <button type="button" id="lsEmpSyncBtn" class="ls-emp-sync"
+                title="easy@work-Felder des gewählten Mitarbeiters aktualisieren"
+                onclick="lsEmpSyncClick()" style="display:none" aria-label="easy@work sync">
+            <img src="img/easyatwork-icon.webp?v=20260628a" alt="" width="14" height="14">
+            <span>sync</span>
+        </button>
 
         <!-- SIDEBAR -->
         <aside class="sidebar">
@@ -10678,7 +10677,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261017b"></script>
+<script src="js/app-core.js?v=20261018a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -11471,7 +11470,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261016e"></script>
+<script src="employees.js?v=20261018a"></script>
 <script src="js/kind-qst-verlauf.js?v=20261012a"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>
