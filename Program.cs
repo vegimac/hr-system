@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 80;  // 80: PLZ 3000 Bern 1 im Ortschaftsverzeichnis · 79: Swissdec 4.1/4.2 Kontakt-Mobil, UID unbekannt, Stellvertreter, Workplace-InHouseID · 78: Hauptsitz/Filiale Adresse Swissdec 4.2 · 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vivosystem_lohnkonto Mirus-Lohnkonto (04.10.2026) · 44: simulation_vortrag + simulation_lohn Lohn-Simulation (04.10.2026) · 45: McBonus 205→200.5, Lohnarten 600.5 Korrektur BVG Vorjahr + 950.1 Vorschuss, Raster verknüpft (04.10.2026) · 46: Raster 565.1 → Lohnart 565 Korrektur Quellensteuer (04.10.2026) · 47: ferien_auszahlung Ferien auszahlen ohne Bezug (05.10.2026) · 48: Feiertag bei MTP/FLEX Wirkung KEINE (05.10.2026) · 49: reduziert_saldo FERIEN_TAGE/FEIERTAG_TAGE im Katalog, Engine liest daraus (05.10.2026) · 50: CHECK absenz_typ_reduziert_saldo um FEIERTAG_TAGE erweitert (05.10.2026) · 51: Zeitgutschrift Krank/Unfall — arbeitstage_pro_woche, zeitgutschrift_krank_methode, absence.dienstplan_bis (06.10.2026) · 52: MTP Krank/Unfall Korrektur 75.1/65.1 — Ferien-Basis + Lohnschema MTP (06.10.2026) · 53: company_profile.lektionen_lohn_aktiv Filial-Schalter (07.10.2026) · 54: arbeitszeit_regel_wert + dienstplan_feiertag.sonntagsgleich (07.10.2026) · 55: Feiertage-Altbestand nach Kantonslisten Art. 20a ArG (07.10.2026) · 56: viren_fund + To-do virus_gefunden Virenscanner (08.10.2026) · 57: family_member_permit_history + family_member_erwerb_history (seit/erfahren am für QST) (08.10.2026) · 58: lohn_zulage.stunden — Überstunden-Auszahlung 55.2 im Lohnlauf (10.10.2026) · 59: famz_korrektur als quittierbare Warnung (lohn_zulage_id/erledigt_*/bemerkung) + VORJAHR→OFFEN (11.10.2026) · 60: QST-Verlauf am Kind — family_member_ausbildung/_verhaeltnis/_qst_entscheid + Altbestand (11.10.2026) · 61: Familienzulagen-Anmeldung — Kind Beziehung/Sorge/anderer Elternteil, Partner Pensum/SE-NE/Leistung, «keine Unterhaltspflicht» → Verlauf (11.10.2026) · 62: Ablage «Familienzulage» — family_allowance → Typ Kinderzulagen (11.10.2026) · 63: mailbox_document.gruppe — Mitteilung mit mehreren Dateien (12.10.2026) · 64: employee.familienbetreuung/_von/_bis aus easy@work (12.10.2026) · 65: organigramm_stelle (13.10.2026) · 66: Organigramm-Farben (13.10.2026) · 67: Organigramm-Beschreibung (13.10.2026) · 68: organigramm_einstellung (13.10.2026) · 69: organigramm_stelle.grau (13.10.2026) · 70: gastrosocial_meldung + To-dos An-/Abmeldung fehlt (13.10.2026) · 71: To-do-Anleitung GastroSocial ohne Zeitraum (13.10.2026) · 72: employee.schuhgroesse (15.10.2026) · 73: To-do elm_zertifikat (15.10.2026) · 74: To-do elm_meldung (15.10.2026) · 75: personaldaten_bestaetigung + To-do personaldaten_pruefen (15.10.2026) · 76: employee_wohnort_history.land für ELM-Stichtag Ausland (16.10.2026) · 77: employee_permit_history.erwerb_meldepflichtig + Feiertag-Häkchen Karenz/Taggeld (16.10.2026)
+const int SchemaStand = 81;  // 81: Mirus-Altlohnarten 565/565.1/565.2, 200.900/200.901, 55.11/55.12 deaktivieren (QST→qst_korrektur, Nacht→55.10) · 80: PLZ 3000 Bern 1 im Ortschaftsverzeichnis · 79: Swissdec 4.1/4.2 Kontakt-Mobil, UID unbekannt, Stellvertreter, Workplace-InHouseID · 78: Hauptsitz/Filiale Adresse Swissdec 4.2 · 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vivosystem_lohnkonto Mirus-Lohnkonto (04.10.2026) · 44: simulation_vortrag + simulation_lohn Lohn-Simulation (04.10.2026) · 45: McBonus 205→200.5, Lohnarten 600.5 Korrektur BVG Vorjahr + 950.1 Vorschuss, Raster verknüpft (04.10.2026) · 46: Raster 565.1 → Lohnart 565 Korrektur Quellensteuer (04.10.2026) · 47: ferien_auszahlung Ferien auszahlen ohne Bezug (05.10.2026) · 48: Feiertag bei MTP/FLEX Wirkung KEINE (05.10.2026) · 49: reduziert_saldo FERIEN_TAGE/FEIERTAG_TAGE im Katalog, Engine liest daraus (05.10.2026) · 50: CHECK absenz_typ_reduziert_saldo um FEIERTAG_TAGE erweitert (05.10.2026) · 51: Zeitgutschrift Krank/Unfall — arbeitstage_pro_woche, zeitgutschrift_krank_methode, absence.dienstplan_bis (06.10.2026) · 52: MTP Krank/Unfall Korrektur 75.1/65.1 — Ferien-Basis + Lohnschema MTP (06.10.2026) · 53: company_profile.lektionen_lohn_aktiv Filial-Schalter (07.10.2026) · 54: arbeitszeit_regel_wert + dienstplan_feiertag.sonntagsgleich (07.10.2026) · 55: Feiertage-Altbestand nach Kantonslisten Art. 20a ArG (07.10.2026) · 56: viren_fund + To-do virus_gefunden Virenscanner (08.10.2026) · 57: family_member_permit_history + family_member_erwerb_history (seit/erfahren am für QST) (08.10.2026) · 58: lohn_zulage.stunden — Überstunden-Auszahlung 55.2 im Lohnlauf (10.10.2026) · 59: famz_korrektur als quittierbare Warnung (lohn_zulage_id/erledigt_*/bemerkung) + VORJAHR→OFFEN (11.10.2026) · 60: QST-Verlauf am Kind — family_member_ausbildung/_verhaeltnis/_qst_entscheid + Altbestand (11.10.2026) · 61: Familienzulagen-Anmeldung — Kind Beziehung/Sorge/anderer Elternteil, Partner Pensum/SE-NE/Leistung, «keine Unterhaltspflicht» → Verlauf (11.10.2026) · 62: Ablage «Familienzulage» — family_allowance → Typ Kinderzulagen (11.10.2026) · 63: mailbox_document.gruppe — Mitteilung mit mehreren Dateien (12.10.2026) · 64: employee.familienbetreuung/_von/_bis aus easy@work (12.10.2026) · 65: organigramm_stelle (13.10.2026) · 66: Organigramm-Farben (13.10.2026) · 67: Organigramm-Beschreibung (13.10.2026) · 68: organigramm_einstellung (13.10.2026) · 69: organigramm_stelle.grau (13.10.2026) · 70: gastrosocial_meldung + To-dos An-/Abmeldung fehlt (13.10.2026) · 71: To-do-Anleitung GastroSocial ohne Zeitraum (13.10.2026) · 72: employee.schuhgroesse (15.10.2026) · 73: To-do elm_zertifikat (15.10.2026) · 74: To-do elm_meldung (15.10.2026) · 75: personaldaten_bestaetigung + To-do personaldaten_pruefen (15.10.2026) · 76: employee_wohnort_history.land für ELM-Stichtag Ausland (16.10.2026) · 77: employee_permit_history.erwerb_meldepflichtig + Feiertag-Häkchen Karenz/Taggeld (16.10.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3706,8 +3706,8 @@ using (var scope = app.Services.CreateScope())
             ('55.1',  'Überstunden 25%',              'Überstunden',  'ZULAGE', true,  true,  true,  true,  true,  'P',      55,  true),
             ('55.2',  'Überstunden ohne Zuschlag',    'Überstunden',  'ZULAGE', true,  true,  true,  true,  true,  'P',      56,  true),
             ('55.3',  'MTP Mehrstunden',               'Überstunden',  'ZULAGE', true,  true,  true,  true,  true,  'P',      57,  true),
-            ('55.11', 'Nachtstunden 25% (00–05)',      'Überstunden',  'ZULAGE', true,  true,  true,  true,  true,  'P',      58,  true),
-            ('55.12', 'Nachtstunden 50% (00–05)',      'Überstunden',  'ZULAGE', true,  true,  true,  true,  true,  'P',      59,  true),
+            ('55.11', 'Nachtstunden 25% (00–05)',      'Überstunden',  'ZULAGE', true,  true,  true,  true,  true,  'P',      58,  false),
+            ('55.12', 'Nachtstunden 50% (00–05)',      'Überstunden',  'ZULAGE', true,  true,  true,  true,  true,  'P',      59,  false),
             -- ── UVG / KTG Taggelder ───────────────────────────────────────
             ('60.1',  'UVG Karenzentschädigung',      'Taggelder',    'ZULAGE', true,  true,  true,  true,  true,  'I',      60,  true),
             ('60.3',  'UVG Taggeld',                  'Taggelder',    'ZULAGE', false, false, false, true,  true,  'Y',      63,  true),
@@ -3873,15 +3873,16 @@ using (var scope = app.Services.CreateScope())
         SELECT
             '565', 'Korrektur Quellensteuer', 'Abzüge', 'ABZUG',
             false, false, false, false, false,
-            NULL, 565, true,
+            NULL, 565, false,
             true, true
         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '565');
 
+        -- is_active bewusst nicht mehr erzwingen: Stand 81 stellt 565 dauerhaft auf inaktiv
+        -- (QST-Korrektur läuft über qst_korrektur, nicht über diese Mirus-Lohnart).
         UPDATE lohnposition
            SET bezeichnung = 'Korrektur Quellensteuer',
                kategorie   = 'Abzüge',
                typ         = 'ABZUG',
-               is_active   = true,
                ahv_alv_pflichtig = false,
                nbuv_pflichtig    = false,
                ktg_pflichtig     = false,
@@ -3889,8 +3890,7 @@ using (var scope = app.Services.CreateScope())
                qst_pflichtig     = false
          WHERE code = '565'
            AND (bezeichnung IS DISTINCT FROM 'Korrektur Quellensteuer'
-                OR typ IS DISTINCT FROM 'ABZUG'
-                OR is_active IS NOT TRUE);
+                OR typ IS DISTINCT FROM 'ABZUG');
 
         INSERT INTO lohn_konto_mapping
             (position, sub_position, fibukonto, gegenkonto, kostenstelle_nr, kostenstelle_name,
@@ -5439,10 +5439,11 @@ using (var scope = app.Services.CreateScope())
            AND r.verwendet_lohnposition_id IS NULL
            AND NOT EXISTS (SELECT 1 FROM elm_lohnraster x WHERE x.verwendet_lohnposition_id = lp.id);
 
+        -- Link auch bei inaktiver 565 behalten (Historie/Simulation); Auswahl im Katalog ist trotzdem zu.
         UPDATE elm_lohnraster r
            SET verwendet_lohnposition_id = lp.id
           FROM lohnposition lp
-         WHERE r.code = '565.1' AND lp.code = '565' AND lp.is_active = true
+         WHERE r.code = '565.1' AND lp.code = '565'
            AND r.verwendet_lohnposition_id IS NULL
            AND NOT EXISTS (SELECT 1 FROM elm_lohnraster x WHERE x.verwendet_lohnposition_id = lp.id);
     ");
@@ -6284,6 +6285,22 @@ using (var scope = app.Services.CreateScope())
         var ft = HrSystem.Services.FeiertagAltbestand.KantonslistenAnwendenAsync(db).GetAwaiter().GetResult();
         startLog.LogInformation("Feiertage nach Kantonslisten: {S} wie Sonntag, {A} nationale Einträge auf Kantone verteilt ({N} neu){G}",
             ft.Sonntagsgleich, ft.Aufgeteilt, ft.KantonNeu, ft.Grund != null ? " — " + ft.Grund : "");
+    }
+
+    // ── Stand 81: Mirus-Altlohnarten wegstellen (nicht löschen) ───────────
+    // Ampel Schritt 2 (Walter 18.10.2026): QST-Korrektur = qst_korrektur (nie 565*),
+    // Nacht = 55.10 Zeitgutschrift (nie 55.11/55.12 Geld), 13.-ML-Vortrag 200.900/901
+    // war Mirus-technisch — OneCrew hat Pott + Fibu. Beide DBs via Deploy.
+    if (dbStand < 81)
+    {
+        var nAlt = db.Database.ExecuteSqlRaw(@"
+            UPDATE lohnposition
+               SET is_active = false
+             WHERE code IN ('565', '565.1', '565.2', '200.900', '200.901', '55.11', '55.12')
+               AND is_active = true;
+        ");
+        startLog.LogInformation(
+            "Stand 81: {N} Mirus-Altlohnart(en) deaktiviert (565*/200.900/200.901/55.11/55.12)", nAlt);
     }
 
     // Stand speichern — erst NACH erfolgreichem Durchlauf. Bricht der Block ab,

@@ -19,6 +19,8 @@ public static class SwissdecLohnartZuordnung
             ["22"] = "1005", ["55.3"] = "1005",
             // Überstunden / Nacht
             ["55.1"] = "1061", ["55.2"] = "1065",
+            // 55.11/55.12: Mirus-Geld-Nachtzuschlag — Katalog seit Stand 81 inaktiv;
+            // Mapping bleibt für Alt-Snapshots. Neu: nur 55.10 (Zeitgutschrift).
             ["55.10"] = "1076", ["55.11"] = "1076", ["55.12"] = "1076",
             // ausbezahlte Ferien-/Feiertage
             ["40.1"] = "1160", ["50.1"] = "1161",
