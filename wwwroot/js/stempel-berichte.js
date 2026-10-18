@@ -9,7 +9,7 @@
 
 const _SZ_FARBE = {
     PAUSE: '#d97706', BLOCK: '#ea580c', NACHT_9H: '#4f46e5', PRAESENZ: '#0e7490',
-    WOCHE_50H: '#be123c', RUHETAGE: '#7c3aed', NAECHTE: '#1e3a8a', JUGEND: '#db2777', SONNTAG_JUGEND: '#9d174d', RUHEZEIT: '#0f766e', GANZER_RUHETAG: '#6d28d9', SIEBEN_TAGE: '#b91c1c',
+    WOCHE_50H: '#be123c', RUHETAGE: '#7c3aed', NAECHTE: '#1e3a8a', JUGEND: '#db2777', SONNTAG_JUGEND: '#9d174d', RUHEZEIT: '#0f766e', GANZER_RUHETAG: '#6d28d9', SIEBEN_TAGE: '#b91c1c', MUTTER: '#86198f',
     ZEIT: '#b45309', MANUELL: '#4f46e5', BEARBEITET: '#6b7280', KOMMENTAR: '#0e7490'
 };
 const _SZK_ART = { ZEIT: 'Zeit korrigiert', MANUELL: 'Von Hand erfasst', BEARBEITET: 'Bearbeitet', KOMMENTAR: 'Nur Kommentar' };
@@ -127,13 +127,37 @@ async function szvLoad() {
 
 function szvFilter(art) { _szvFilter = _szvFilter === art ? null : art; szvRender(); }
 
-// Tagesband 05:00 → 05:00: Stempel als Balken, Nacht 23–6 schraffiert.
-function _szvBand(stempel) {
+// Tagesband 05:00 → 05:00: Stempel als Balken, Nachtfenster der Filiale schraffiert.
+function _szvParseHhmm(s, fallbackMin) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec((s || '').trim());
+    if (!m) return fallbackMin;
+    return (+m[1]) * 60 + (+m[2]);
+}
+function _szvNachtSegmente(vonMin, bisMin) {
+    const band0 = 5 * 60, band1 = 29 * 60;
+    const segs = [];
+    const add = (a, b) => {
+        const von = Math.max(a, band0), bis = Math.min(b, band1);
+        if (bis > von) segs.push([von, bis]);
+    };
+    if (vonMin < bisMin) {
+        add(vonMin, bisMin);
+        add(vonMin + 1440, bisMin + 1440);
+    } else if (vonMin > bisMin) {
+        add(0, bisMin);
+        add(vonMin, 1440);
+        add(1440, 1440 + bisMin);
+    }
+    return segs;
+}
+function _szvBand(stempel, nachtVon, nachtBis) {
     const start = 5 * 60, breite = 24 * 60;
     const pos = m => Math.max(0, Math.min(100, (m - start) / breite * 100));
     const balken = stempel.map(s =>
         `<div class="szb-bar" style="left:${pos(s.einMin)}%;width:${Math.max(0.4, pos(s.ausMin) - pos(s.einMin))}%" title="${s.ein}–${s.aus}"></div>`).join('');
-    const nacht = `<div class="szb-nacht" style="left:${pos(23 * 60)}%;width:${pos(30 * 60) - pos(23 * 60)}%"></div>`;
+    const nVon = _szvParseHhmm(nachtVon, 0), nBis = _szvParseHhmm(nachtBis, 7 * 60);
+    const nacht = _szvNachtSegmente(nVon, nBis).map(([a, b]) =>
+        `<div class="szb-nacht" style="left:${pos(a)}%;width:${pos(b) - pos(a)}%"></div>`).join('');
     const ticks = [6, 9, 12, 15, 18, 21, 24, 27].map(h =>
         `<span style="left:${pos(h * 60)}%">${String(h % 24).padStart(2, '0')}</span>`).join('');
     return `<div class="szb-band">${nacht}${balken}</div><div class="szb-ticks">${ticks}</div>`;
@@ -188,7 +212,7 @@ function szvRender() {
             const tag = v.von === v.bis
                 ? `<b>${_szWt(v.von)}</b><span>${_szDatum(v.von)}</span>`
                 : `<b>${_SZV_SPANNE[v.art] || 'Woche'}</b><span>${_szDatum(v.von).slice(0, 6)} – ${_szDatum(v.bis)}</span>`;
-            const bild = v.art === 'NAECHTE' ? '' : (v.von === v.bis ? _szvBand(v.stempel) : _szvWoche(v));
+            const bild = v.art === 'NAECHTE' ? '' : (v.von === v.bis ? _szvBand(v.stempel, d.nachtVon, d.nachtBis) : _szvWoche(v));
             const zeiten = (v.von === v.bis || v.art === 'RUHEZEIT') && v.stempel.length
                 ? `<div class="szb-zeiten">${v.stempel.map(s => `${v.von === v.bis ? '' : _szWt(s.tag) + ' '}${s.ein}–${s.aus}`).join(' · ')}</div>` : '';
             html += `<div class="szb-zeile" style="--f:${_SZ_FARBE[v.art]}">

@@ -179,13 +179,26 @@ public class StempelBerichteController : HrControllerBase
 
         var ladeVon = r.Von.AddDays(-14);
         var ladeBis = r.Bis.AddDays(7);
-        var stempel = (await _db.EmployeeTimeEntries.AsNoTracking()
+        var stempelRoh = await _db.EmployeeTimeEntries.AsNoTracking()
                 .Where(t => ids.Contains(t.EmployeeId) && t.TimeOut != null
                          && t.EntryDate >= ladeVon && t.EntryDate <= ladeBis)
-                .Select(t => new { t.EmployeeId, t.EntryDate, t.TimeIn, t.TimeOut })
+                .Select(t => new { t.EmployeeId, t.EntryDate, t.TimeIn, t.TimeOut, t.SourceCompanyProfileId })
+                .ToListAsync();
+        var nachtCpIds = stempelRoh.Where(t => t.SourceCompanyProfileId != null)
+            .Select(t => t.SourceCompanyProfileId!.Value).Distinct().ToList();
+        var nachtFenster = (await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => nachtCpIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.NightStartTime, c.NightEndTime })
                 .ToListAsync())
+            .ToDictionary(c => c.Id, c => FilialNachtfenster.Aus(c.NightStartTime, c.NightEndTime));
+        var stempel = stempelRoh
             .GroupBy(t => t.EmployeeId)
-            .ToDictionary(g => g.Key, g => g.Select(t => new V.Stempel(t.EntryDate, t.TimeIn, t.TimeOut!.Value)).ToList());
+            .ToDictionary(g => g.Key, g => g.Select(t =>
+            {
+                var (nVon, nBis) = t.SourceCompanyProfileId is int cpId && nachtFenster.TryGetValue(cpId, out var f)
+                    ? f : FilialNachtfenster.Aus(null, null);
+                return new V.Stempel(t.EntryDate, t.TimeIn, t.TimeOut!.Value, nVon, nBis);
+            }).ToList());
 
         var nachtVon = r.Von.AddDays(-V.NaechteFensterTage);
         var naechte = (await _db.EmployeeTimeEntries.AsNoTracking()
@@ -206,9 +219,19 @@ public class StempelBerichteController : HrControllerBase
                 e.NightWorkExamValidUntil.HasValue ? DateOnly.FromDateTime(e.NightWorkExamValidUntil.Value) : null,
                 e.NightWorkAusnahmeDokumentId.HasValue));
 
+        var schwanger = (await _db.EmployeePregnancies.AsNoTracking()
+                .Where(p => ids.Contains(p.EmployeeId) && p.IsActive)
+                .Select(p => new { p.EmployeeId, p.Meldedatum, p.ErrechneterTermin, p.Geburtsdatum })
+                .ToListAsync())
+            .GroupBy(p => p.EmployeeId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<V.Schwangerschaft>)g
+                .Select(p => new V.Schwangerschaft(p.Meldedatum, p.ErrechneterTermin, p.Geburtsdatum)).ToList());
+
         var einst = await ArbeitszeitEinstellungenLader.FuerFilialeAsync(_db, r.Cp);
-        var kanton = await _db.CompanyProfiles.AsNoTracking().Where(c => c.Id == r.Cp)
-            .Select(c => c.KantonCode).FirstOrDefaultAsync();
+        var filialNacht = await _db.CompanyProfiles.AsNoTracking().Where(c => c.Id == r.Cp)
+            .Select(c => new { c.KantonCode, c.NightStartTime, c.NightEndTime }).FirstOrDefaultAsync();
+        var (berichtNachtVon, berichtNachtBis) = FilialNachtfenster.Aus(filialNacht?.NightStartTime, filialNacht?.NightEndTime);
+        var kanton = filialNacht?.KantonCode;
         var sonntagsgleich = (await _db.DienstplanFeiertage.AsNoTracking()
                 .Where(f => f.Datum >= r.Von && f.Datum <= r.Bis).ToListAsync())
             .Where(f => FeiertagVorschlag.GiltFuer(f, r.Cp, kanton?.Trim()) && FeiertagVorschlag.IstSonntagsgleich(f))
@@ -221,7 +244,8 @@ public class StempelBerichteController : HrControllerBase
             var person = new V.Person(m.Id, m.Geburt,
                 stempel.TryGetValue(m.Id, out var st) ? st : new List<V.Stempel>(),
                 naechte.TryGetValue(m.Id, out var n) ? n : Array.Empty<DateOnly>(),
-                nachweise.GetValueOrDefault(m.Id));
+                nachweise.GetValueOrDefault(m.Id),
+                schwanger.GetValueOrDefault(m.Id));
             var liste = V.Pruefe(person, r.Von, r.Bis, einst, sonntagsgleich);
             if (liste.Count == 0) continue;
             gruppen.Add(new StempelVerstossMa(m.Id, m.Nummer, m.Vorname, m.Nachname,
@@ -235,7 +259,9 @@ public class StempelBerichteController : HrControllerBase
                 gruppen.Sum(g => g.Verstoesse.Count(v => v.Art == a))))
             .ToList();
         var aus = V.Reihenfolge.Where(a => !einst.IstAktiv(a)).Select(a => V.Titel(a, einst)).ToList();
-        return (null, new StempelVerstoesseDaten(r.Filiale, r.Von, r.Bis, ids.Count, proArt, gruppen, aus));
+        static string Hhmm(TimeSpan t) => $"{(int)t.TotalHours:00}:{t.Minutes:00}";
+        return (null, new StempelVerstoesseDaten(r.Filiale, r.Von, r.Bis, ids.Count, proArt, gruppen, aus,
+            Hhmm(berichtNachtVon), Hhmm(berichtNachtBis)));
     }
 
     static StempelZeit ZeileVon(V.Stempel s)

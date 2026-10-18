@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Services.EasyAtWork;
@@ -61,13 +62,6 @@ public class EasyAtWorkTimepunchSyncService
         var src = utc.Kind == DateTimeKind.Utc ? utc : DateTime.SpecifyKind(utc, DateTimeKind.Utc);
         var local = TimeZoneInfo.ConvertTimeFromUtc(src, SwissTz);
         return DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
-    }
-
-    /// <summary>"HH:mm" -> TimeSpan; bei Parse-Fehler Default.</summary>
-    private static TimeSpan ParseHhmm(string? s, TimeSpan fallback)
-    {
-        if (TimeSpan.TryParse(s, out var ts)) return ts;
-        return fallback;
     }
 
     /// <summary>
@@ -1008,8 +1002,8 @@ public class EasyAtWorkTimepunchSyncService
         // 5) Nachtfenster der Filiale.
         var cp = await _db.CompanyProfiles.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == mapping.CompanyProfileId, ct);
-        var nightStart = ParseHhmm(cp?.NightStartTime, new TimeSpan(0, 0, 0));
-        var nightEnd   = ParseHhmm(cp?.NightEndTime,   new TimeSpan(7, 0, 0));
+        var nightStart = FilialNachtfenster.Beginn(cp?.NightStartTime);
+        var nightEnd   = FilialNachtfenster.Ende(cp?.NightEndTime);
 
         // 6) Vorhandene DB-Stempel: per easy@work-ID (Update/Delete, TRACKED) +
         //    Lokalzeit-Key (Dedup für Inserts ohne ID-Match).
@@ -1437,8 +1431,8 @@ public class EasyAtWorkTimepunchSyncService
         // Nachtfenster aus CompanyProfile lesen (Default 00:00-07:00).
         var cp = await _db.CompanyProfiles.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == req.CompanyProfileId, ct);
-        var nightStart = ParseHhmm(cp?.NightStartTime, new TimeSpan(0, 0, 0));
-        var nightEnd   = ParseHhmm(cp?.NightEndTime,   new TimeSpan(7, 0, 0));
+        var nightStart = FilialNachtfenster.Beginn(cp?.NightStartTime);
+        var nightEnd   = FilialNachtfenster.Ende(cp?.NightEndTime);
 
         // Stichtag für diesen MANUELLEN Lauf: Standard 1.1.2025, beim einmaligen
         // Tief-Import überschrieben (Walter-Vorgabe 21.06.2026). Der tägliche

@@ -65,9 +65,26 @@ public class ArbeitszeitVerstoesseTests
     [Fact]
     public void Nachtarbeit_ueber_9_Stunden_und_Praesenz_ueber_10()
     {
+        // Fenster 00:00–07:00 (Default): 21:00–01:30 schneidet 00:00–01:30 → Nacht.
         var v = Pruefe(Erwachsen, S(Mo, "15:00", "20:00"), S(Mo, "21:00", "01:30", 1));
         Assert.Contains(v, x => x.Art == V.NachtTag && x.Ist == 570);
         Assert.Contains(v, x => x.Art == V.Praesenz && x.Grenze == 600);
+    }
+
+    [Fact]
+    public void Filialfenster_00_07_frueh_ist_Nacht_spaetabend_nicht()
+    {
+        var frueh = S(Mo, "06:30", "07:00");
+        Assert.True(V.MinutenImFenster(frueh.Ein, frueh.Aus, frueh.NachtVon, frueh.NachtBis) > 0);
+
+        var v = Pruefe(Erwachsen, S(Mo, "06:30", "16:40"));
+        Assert.Contains(v, x => x.Art == V.NachtTag && x.Ist == 610);
+        Assert.Contains(v, x => x.Art == V.Praesenz && x.Grenze == 600);
+
+        Assert.Equal(0, V.MinutenImFenster(
+            S(Mo, "23:10", "23:50").Ein, S(Mo, "23:10", "23:50").Aus,
+            FilialNachtfenster.Beginn(null), FilialNachtfenster.Ende(null)));
+        Assert.Empty(Pruefe(Erwachsen, S(Mo, "23:10", "23:50")));
     }
 
     [Fact]
@@ -75,8 +92,59 @@ public class ArbeitszeitVerstoesseTests
     {
         var v = Pruefe(Erwachsen, S(Mo, "07:00", "11:00"), S(Mo, "17:00", "20:30"));
         Assert.DoesNotContain(v, x => x.Art == V.Praesenz);
+        // 18:00–22:30 liegt ausserhalb 00:00–07:00 → keine Nacht, Präsenzgrenze 14 Std.
         v = Pruefe(Erwachsen, S(Mo, "07:00", "11:00"), S(Mo, "18:00", "22:30"));
         Assert.Contains(v, x => x.Art == V.Praesenz && x.Grenze == 840);
+        Assert.DoesNotContain(v, x => x.Art == V.NachtTag);
+    }
+
+    [Fact]
+    public void Andere_Filiale_22_05_hat_eigenes_Nachtfenster()
+    {
+        var (von, bis) = FilialNachtfenster.Aus("22:00", "05:00");
+        var spaet = new V.Stempel(Mo,
+            Mo.ToDateTime(TimeOnly.MinValue) + TimeSpan.Parse("23:10"),
+            Mo.ToDateTime(TimeOnly.MinValue) + TimeSpan.Parse("23:50"), von, bis);
+        Assert.True(V.MinutenImFenster(spaet.Ein, spaet.Aus, spaet.NachtVon, spaet.NachtBis) > 0);
+
+        var frueh = new V.Stempel(Mo,
+            Mo.ToDateTime(TimeOnly.MinValue) + TimeSpan.Parse("06:30"),
+            Mo.ToDateTime(TimeOnly.MinValue) + TimeSpan.Parse("07:00"), von, bis);
+        Assert.Equal(0, V.MinutenImFenster(frueh.Ein, frueh.Aus, frueh.NachtVon, frueh.NachtBis));
+
+        var v = V.Pruefe(new V.Person(1, Erwachsen, new[]
+        {
+            new V.Stempel(Mo,
+                Mo.ToDateTime(TimeOnly.MinValue) + TimeSpan.Parse("12:00"),
+                Mo.ToDateTime(TimeOnly.MinValue) + TimeSpan.Parse("23:50"), von, bis),
+        }, Array.Empty<DateOnly>()), Mo, Mo.AddDays(6));
+        Assert.Contains(v, x => x.Art == V.NachtTag);
+        Assert.Contains(v, x => x.Art == V.Praesenz && x.Grenze == 600);
+    }
+
+    [Fact]
+    public void Stempel_ohne_Filiale_faellt_auf_00_07()
+    {
+        var s = new V.Stempel(Mo,
+            Mo.ToDateTime(TimeOnly.MinValue) + TimeSpan.Parse("23:10"),
+            Mo.ToDateTime(TimeOnly.MinValue) + TimeSpan.Parse("23:50"));
+        Assert.Equal(FilialNachtfenster.Beginn(null), s.NachtVon);
+        Assert.Equal(FilialNachtfenster.Ende(null), s.NachtBis);
+        Assert.Equal(0, V.MinutenImFenster(s.Ein, s.Aus, s.NachtVon, s.NachtBis));
+    }
+
+    [Fact]
+    public void Katalog_nacht_von_bis_werden_ignoriert()
+    {
+        Assert.Null(ArbeitszeitRegelKatalog.Finde(V.NachtTag)!.Parameter
+            .FirstOrDefault(p => p.Schluessel is "nacht_von" or "nacht_bis"));
+        var e = ArbeitszeitEinstellungen.Aufloesen(
+            new[] { W(V.NachtTag, "nacht_von", 22), W(V.NachtTag, "nacht_bis", 5), W(V.NachtTag, "max_std", 8) },
+            Array.Empty<HrSystem.Models.ArbeitszeitRegelWert>());
+        Assert.Equal(8, e.Wert(V.NachtTag, "max_std"));
+        // 23:10 bleibt ohne Filialfenster 22–5 keine Nacht (Default 00–07).
+        Assert.DoesNotContain(V.Pruefe(new V.Person(1, Erwachsen, new[] { S(Mo, "23:10", "23:50") }, Array.Empty<DateOnly>()), Mo, Mo, e),
+            x => x.Art == V.NachtTag);
     }
 
     [Fact]
@@ -343,5 +411,109 @@ public class ArbeitszeitVerstoesseTests
         var nw = new V.NachtNachweis(true, Mo.AddDays(-100), Mo.AddDays(400), false);
         var n = Assert.Single(V.Pruefe(new V.Person(1, Erwachsen, Array.Empty<V.Stempel>(), ZwanzigNaechte, nw), Mo, Mo.AddDays(6)));
         Assert.EndsWith("Ausnahmeregelung fehlt.", n.Text);
+    }
+
+    // Mutterschutz. Mo = 02.03.2026 liegt vor dem 4. Monat und vor dem Abendverbot.
+    static V.Schwangerschaft Frueh => new(Mo.AddDays(-30), Mo.AddDays(200), null);
+
+    // 4. Monat = 5 Monate vor dem Termin. Mo ist der erste Tag, das Abendverbot liegt später.
+    static V.Schwangerschaft ImViertenMonat => new(Mo.AddMonths(-3), Mo.AddMonths(5), null);
+
+    static List<V.Verstoss> MutterVon(V.Schwangerschaft s, params V.Stempel[] st) =>
+        V.Pruefe(new V.Person(1, Erwachsen, st, Array.Empty<DateOnly>(), null, new[] { s }), Mo, Mo.AddDays(6))
+            .Where(x => x.Art == V.Mutter).ToList();
+
+    [Fact]
+    public void Schwangerschaft_genau_9_Stunden_ist_erlaubt()
+    {
+        Assert.DoesNotContain(MutterVon(Frueh, S(Mo, "08:00", "17:00")), x => x.Recht == "ArGV 1 Art. 60");
+    }
+
+    [Fact]
+    public void Schwangerschaft_ueber_9_Stunden()
+    {
+        var v = Assert.Single(MutterVon(Frueh, S(Mo, "08:00", "17:01")));
+        Assert.Equal("ArGV 1 Art. 60", v.Recht);
+        Assert.Equal(541, v.Ist);
+        Assert.Equal(540, v.Grenze);
+    }
+
+    [Fact]
+    public void Vor_der_Meldung_gilt_der_Mutterschutz_nicht()
+    {
+        var s = Frueh with { Gemeldet = Mo.AddDays(1) };
+        Assert.Empty(MutterVon(s, S(Mo, "08:00", "18:00")));
+    }
+
+    [Fact]
+    public void Abendverbot_acht_Wochen_vor_dem_Termin()
+    {
+        var s = new V.Schwangerschaft(Mo.AddDays(-200), Mo.AddDays(56), null);
+        var v = Assert.Single(MutterVon(s, S(Mo, "19:00", "20:30")));
+        Assert.Equal("ArG Art. 35a Abs. 4", v.Recht);
+        Assert.Equal(30, v.Ist);
+
+        Assert.Empty(MutterVon(s, S(Mo, "18:00", "20:00")));
+        var davor = s with { Termin = Mo.AddDays(57) };
+        Assert.Empty(MutterVon(davor, S(Mo, "19:00", "21:00")));
+    }
+
+    [Fact]
+    public void Vierter_Monat_Kurzpause_alle_zwei_Stunden()
+    {
+        var s = ImViertenMonat;
+        Assert.Equal(Mo, s.Termin.AddMonths(-5));
+        Assert.True(s.Termin.AddDays(-56) > Mo.AddDays(6));
+
+        var zuLang = Assert.Single(MutterVon(s, S(Mo, "08:00", "10:30")));
+        Assert.Equal("ArGV 1 Art. 61", zuLang.Recht);
+        Assert.Equal(150, zuLang.Ist);
+
+        Assert.Empty(MutterVon(s, S(Mo, "08:00", "10:00")));
+        Assert.Empty(MutterVon(s, S(Mo, "08:00", "09:30"), S(Mo, "09:40", "11:00")));
+        var zuKurz = Assert.Single(MutterVon(s, S(Mo, "08:00", "09:30"), S(Mo, "09:39", "11:00")));
+        Assert.Equal(180, zuKurz.Ist);
+        Assert.Contains("08:00", zuKurz.Text);
+    }
+
+    [Fact]
+    public void Vierter_Monat_braucht_12_Stunden_Ruhe()
+    {
+        var s = ImViertenMonat;
+        var v = Assert.Single(MutterVon(s, S(Mo, "22:00", "23:00"), S(Mo.AddDays(1), "10:00", "12:00")));
+        Assert.Equal(11 * 60, v.Ist);
+        Assert.Equal(12 * 60, v.Grenze);
+        Assert.DoesNotContain(
+            V.Pruefe(new V.Person(1, Erwachsen, new[] { S(Mo, "22:00", "23:00"), S(Mo.AddDays(1), "10:00", "12:00") }, Array.Empty<DateOnly>(), null, new[] { s }), Mo, Mo.AddDays(6)),
+            x => x.Art == V.Ruhezeit);
+
+        Assert.Empty(MutterVon(s, S(Mo, "20:00", "22:00"), S(Mo.AddDays(1), "10:00", "12:00")));
+    }
+
+    [Fact]
+    public void Nach_der_Geburt_acht_Wochen_keine_Arbeit()
+    {
+        var geboren = Mo.AddDays(-1);
+        var s = new V.Schwangerschaft(geboren.AddDays(-200), geboren.AddDays(-20), geboren);
+        var v = Assert.Single(MutterVon(s, S(Mo, "10:00", "12:00")));
+        Assert.Equal("ArG Art. 35a Abs. 3", v.Recht);
+
+        var amTag = s with { Geburt = Mo };
+        var amGeburtstag = MutterVon(amTag, S(Mo, "08:00", "18:00"));
+        Assert.Contains(amGeburtstag, x => x.Recht == "ArGV 1 Art. 60");
+        Assert.DoesNotContain(amGeburtstag, x => x.Recht == "ArG Art. 35a Abs. 3");
+
+        var danach = s with { Geburt = Mo.AddDays(-57) };
+        Assert.Empty(MutterVon(danach, S(Mo, "08:00", "18:00")));
+    }
+
+    [Fact]
+    public void Mutterschutz_ausgeschaltet_meldet_nichts()
+    {
+        var e = ArbeitszeitEinstellungen.Aufloesen(
+            new[] { W(V.Mutter, ArbeitszeitRegelKatalog.Aktiv, 0) }, Array.Empty<HrSystem.Models.ArbeitszeitRegelWert>());
+        Assert.DoesNotContain(V.Pruefe(
+            new V.Person(1, Erwachsen, new[] { S(Mo, "08:00", "18:00") }, Array.Empty<DateOnly>(), null, new[] { Frueh }),
+            Mo, Mo.AddDays(6), e), x => x.Art == V.Mutter);
     }
 }

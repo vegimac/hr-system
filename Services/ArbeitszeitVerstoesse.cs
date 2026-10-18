@@ -25,19 +25,31 @@ public static class ArbeitszeitVerstoesse
     public const string Naechte = "NAECHTE";
     public const string Jugend = "JUGEND";
     public const string SonntagJugend = "SONNTAG_JUGEND";
+    public const string Mutter = "MUTTER";
 
-    public static readonly string[] Reihenfolge = { Pause, Block, NachtTag, Praesenz, Woche, Ruhezeit, GanzerRuhetag, Ruhetage, SiebenTage, Naechte, Jugend, SonntagJugend };
+    public static readonly string[] Reihenfolge = { Pause, Block, NachtTag, Praesenz, Woche, Ruhezeit, GanzerRuhetag, Ruhetage, SiebenTage, Naechte, Jugend, SonntagJugend, Mutter };
 
     static readonly string[] Wt = { "So", "Mo", "Di", "Mi", "Do", "Fr", "Sa" };
     static string Zeitpunkt(DateTime t) => $"{Wt[(int)t.DayOfWeek]} {t:dd.MM. HH:mm}";
 
-    public record Stempel(DateOnly Tag, DateTime Ein, DateTime Aus)
+    /// <summary>
+    /// Ein Stempel in Lokalzeit. NachtVon/NachtBis = Fenster der Stempel-Filiale
+    /// (<see cref="FilialNachtfenster"/>), nicht Art. 10 ArG 23–6.
+    /// </summary>
+    public record Stempel(DateOnly Tag, DateTime Ein, DateTime Aus, TimeSpan NachtVon, TimeSpan NachtBis)
     {
+        public Stempel(DateOnly tag, DateTime ein, DateTime aus)
+            : this(tag, ein, aus, FilialNachtfenster.Beginn(null), FilialNachtfenster.Ende(null)) { }
+
         public int Minuten => (int)Math.Round((Aus - Ein).TotalMinutes);
     }
 
     public record Person(int EmployeeId, DateTime? Geburt, IReadOnlyList<Stempel> Stempel,
-                         IReadOnlyCollection<DateOnly> NachtTage, NachtNachweis? Nachweis = null);
+                         IReadOnlyCollection<DateOnly> NachtTage, NachtNachweis? Nachweis = null,
+                         IReadOnlyList<Schwangerschaft>? Schwangerschaften = null);
+
+    /// <summary>Erfasste Schwangerschaft. Fristen wie in den Mutterschafts-Regeln, vom errechneten Termin rückwärts.</summary>
+    public record Schwangerschaft(DateOnly Gemeldet, DateOnly Termin, DateOnly? Geburt);
 
     /// <summary>Unterlagen Nachtarbeit wie im Dashboard: Arztzeugnis als Dokument + Ausnahmeregelung.
     /// Gültig ab = Ausstellung, bis = gerechnetes Ende (leer = ohne Ende).</summary>
@@ -88,7 +100,7 @@ public static class ArbeitszeitVerstoesse
                    + $"mehr als {H(W("ab3_std"))} → {W("pause3_min"):0} Min. Pause (davon {W("am_stueck_min"):0} am Stück). "
                    + $"Unterbrüche unter {W("zaehlt_ab_min"):0} Min. zählen nicht.",
             Block => $"Vor und nach einer Pause höchstens {H(W("max_std"))} am Stück arbeiten.",
-            NachtTag => $"Wer zwischen {Uhr(W("nacht_von"))} und {Uhr(W("nacht_bis"))} Uhr arbeitet, darf an diesem Tag höchstens {H(W("max_std"))} arbeiten.",
+            NachtTag => $"Wer im Nachtfenster der Stempel-Filiale arbeitet (Filiale → Einstellungen → Arbeitszeit), darf an diesem Tag höchstens {H(W("max_std"))} arbeiten.",
             Praesenz => $"Erster Stempel bis letzter Stempel inkl. Pausen: höchstens {H(W("max_std"))}, mit Nachtarbeit {H(W("max_nacht_std"))}, Jugendliche {H(W("max_jugend_std"))}.",
             Woche => $"Höchstens {H(W("max_std"))} pro Woche (Montag–Sonntag).",
             Ruhetage => $"Mindestens {W("min_tage"):0} Ruhetage pro Woche (Montag–Sonntag). Ein Tag ist frei, wenn an ihm keine Schicht beginnt. "
@@ -102,6 +114,11 @@ public static class ArbeitszeitVerstoesse
             SonntagJugend => W("sonntage") != 0
                 ? "Unter 18: keine Arbeit an Sonntagen und an Feiertagen, die dem Sonntag gleichgestellt sind (Samstag 23 Uhr bis Sonntag 23 Uhr). Ausnahmen wie Lehre oder Bewilligung sind nicht geprüft."
                 : "Unter 18: keine Arbeit an Feiertagen, die dem Sonntag gleichgestellt sind (Vortag 23 Uhr bis 23 Uhr). Ausnahmen wie Lehre oder Bewilligung sind nicht geprüft.",
+            Mutter => $"Ab der Meldung bis zur Geburt höchstens {H(W("max_std"))} Arbeit pro Tag, ohne erfasstes Geburtsdatum bis zum errechneten Termin. "
+                    + $"Ab dem 4. Monat (5 Monate vor dem errechneten Termin, bis zum Termin): mindestens {H(W("ruhe_std"))} Ruhe und alle {H(W("block_std"))} eine Kurzpause von {W("kurzpause_min"):0} Minuten. "
+                    + $"Ab {W("wochen_vor"):0} Wochen vor dem errechneten Termin keine Arbeit zwischen {Uhr(W("abend_von"))} und {Uhr(W("abend_bis"))} Uhr. "
+                    + $"Sobald das Geburtsdatum erfasst ist: {W("verbot_wochen"):0} Wochen danach keine Arbeit. "
+                    + "Nicht geprüft: höchstens 4 Stunden stehen, die vereinbarte tägliche Arbeitszeit und ob nach dem Arbeitsverbot noch gestillt wird.",
             _ => "",
         };
     }
@@ -128,6 +145,7 @@ public static class ArbeitszeitVerstoesse
         }
 
         if (e.IstAktiv(Ruhezeit)) res.AddRange(PruefeRuhezeit(p, von, bis, gueltig, e));
+        if (e.IstAktiv(Mutter)) res.AddRange(PruefeMutterRuhe(p, von, bis, gueltig, e));
         if (e.IstAktiv(SiebenTage)) res.AddRange(PruefeSiebenTage(p, von, bis, gueltig, e));
 
         if (e.IstAktiv(Naechte)) res.AddRange(PruefeNaechte(p, von, bis));
@@ -185,16 +203,20 @@ public static class ArbeitszeitVerstoesse
             }
         }
 
-        decimal nVon = e.Wert(NachtTag, "nacht_von"), nBis = e.Wert(NachtTag, "nacht_bis");
-        bool nacht = st.Any(s => MinutenImFenster(s.Ein, s.Aus, nVon, nBis) > 0);
+        bool IstNacht(Stempel s) => MinutenImFenster(s.Ein, s.Aus, s.NachtVon, s.NachtBis) > 0;
+        bool nacht = st.Any(IstNacht);
         int? alter = p.Geburt.HasValue ? MindestlohnAlter.Alter(p.Geburt.Value, tag.ToDateTime(TimeOnly.MinValue)) : null;
         bool jugend = alter is < 18;
 
         int nachtMax = e.Minuten(NachtTag, "max_std");
         if (e.IstAktiv(NachtTag) && nacht && gearbeitet > nachtMax)
+        {
+            var fenster = string.Join(" / ", st.Where(IstNacht)
+                .Select(s => $"{UhrZeit(s.NachtVon)}–{UhrZeit(s.NachtBis)}").Distinct());
             yield return new(p.EmployeeId, NachtTag, tag, tag,
-                $"{Dauer(gearbeitet)} gearbeitet mit Nachtarbeit ({Uhr(nVon)}–{Uhr(nBis)} Uhr) — erlaubt sind höchstens {Dauer(nachtMax)}.",
+                $"{Dauer(gearbeitet)} gearbeitet mit Nachtarbeit ({fenster} Uhr) — erlaubt sind höchstens {Dauer(nachtMax)}.",
                 gearbeitet, nachtMax, Recht(NachtTag), st);
+        }
 
         int praesenz = (int)Math.Round((st.Max(s => s.Aus) - st[0].Ein).TotalMinutes);
         int praesenzMax = jugend ? e.Minuten(Praesenz, "max_jugend_std")
@@ -219,6 +241,113 @@ public static class ArbeitszeitVerstoesse
                 yield return new(p.EmployeeId, Jugend, tag, tag,
                     $"{alter} Jahre: " + string.Join(", ", teile) + ". Ausnahmen (Lehre, Bewilligung) sind nicht geprüft.",
                     gearbeitet, tagMax, Recht(Jugend), st);
+        }
+
+        if (e.IstAktiv(Mutter))
+            foreach (var v in PruefeMutterTag(p, tag, st, gearbeitet, e))
+                yield return v;
+    }
+
+    /// <summary>Schwangerschaft, die an diesem Tag gilt: ab Meldung, nach der Geburt noch für die Dauer des Arbeitsverbots.</summary>
+    static Schwangerschaft? SchwangerschaftAm(Person p, DateOnly tag, int verbotTage) =>
+        p.Schwangerschaften?
+            .Where(s => s.Gemeldet <= tag && (s.Geburt == null || tag <= s.Geburt.Value.AddDays(verbotTage)))
+            .OrderByDescending(s => s.Gemeldet)
+            .FirstOrDefault();
+
+    /// <summary>Ende der Schwangerschaft in den Fristen: Geburtsdatum, ohne Erfassung der errechnete Termin.</summary>
+    static DateOnly EndeSchwangerschaft(Schwangerschaft s) => s.Geburt ?? s.Termin;
+
+    static bool NochSchwanger(Schwangerschaft s, DateOnly tag) => tag <= EndeSchwangerschaft(s);
+
+    /// <summary>4. Monat wie pregnancy_rule «RUHEZEIT_KURZ»: 5 Monate vor dem Termin bis zum Termin.</summary>
+    static bool ImViertenMonat(Schwangerschaft s, DateOnly tag) =>
+        tag >= s.Termin.AddMonths(-5) && tag <= s.Termin && tag >= s.Gemeldet && NochSchwanger(s, tag);
+
+    static IEnumerable<Verstoss> PruefeMutterTag(Person p, DateOnly tag, List<Stempel> st, int gearbeitet, ArbeitszeitEinstellungen e)
+    {
+        int verbotTage = (int)Math.Round(e.Wert(Mutter, "verbot_wochen") * 7);
+        var s = SchwangerschaftAm(p, tag, verbotTage);
+        if (s?.Geburt is DateOnly geboren && tag > geboren && tag <= geboren.AddDays(verbotTage))
+        {
+            yield return new(p.EmployeeId, Mutter, tag, tag,
+                $"{Dauer(gearbeitet)} gearbeitet — absolutes Beschäftigungsverbot bis {geboren.AddDays(verbotTage):dd.MM.yyyy} (geboren am {geboren:dd.MM.yyyy}).",
+                gearbeitet, 0, "ArG Art. 35a Abs. 3", st);
+            yield break;
+        }
+        if (s == null || !NochSchwanger(s, tag)) yield break;
+
+        int max = e.Minuten(Mutter, "max_std");
+        if (gearbeitet > max)
+            yield return new(p.EmployeeId, Mutter, tag, tag,
+                $"{Dauer(gearbeitet)} gearbeitet — während der Schwangerschaft höchstens {Dauer(max)} pro Tag.",
+                gearbeitet, max, "ArGV 1 Art. 60", st);
+
+        int vorTage = (int)Math.Round(e.Wert(Mutter, "wochen_vor") * 7);
+        var abendAb = s.Termin.AddDays(-vorTage);
+        decimal abendVon = e.Wert(Mutter, "abend_von"), abendBis = e.Wert(Mutter, "abend_bis");
+        if (tag >= abendAb && tag <= s.Termin && NochSchwanger(s, tag))
+        {
+            int imFenster = st.Sum(x => MinutenImFenster(x.Ein, x.Aus, abendVon, abendBis));
+            if (imFenster > 0)
+                yield return new(p.EmployeeId, Mutter, tag, tag,
+                    $"{Dauer(imFenster)} zwischen {Uhr(abendVon)} und {Uhr(abendBis)} Uhr gearbeitet — ab {abendAb:dd.MM.yyyy} "
+                    + $"({e.Wert(Mutter, "wochen_vor"):0} Wochen vor dem errechneten Termin {s.Termin:dd.MM.yyyy}) bis zum Termin ist das verboten.",
+                    imFenster, 0, "ArG Art. 35a Abs. 4", st);
+        }
+
+        if (!ImViertenMonat(s, tag)) yield break;
+        var monat4 = s.Termin.AddMonths(-5);
+        int kurz = (int)e.Wert(Mutter, "kurzpause_min");
+        int blockMax = e.Minuten(Mutter, "block_std");
+        var lang = Arbeitsbloecke(st, kurz).Where(b => (b.Bis - b.Von).TotalMinutes > blockMax).ToList();
+        if (lang.Count == 0) yield break;
+        var b = lang.OrderByDescending(x => x.Bis - x.Von).First();
+        int min = (int)Math.Round((b.Bis - b.Von).TotalMinutes);
+        yield return new(p.EmployeeId, Mutter, tag, tag,
+            $"{b.Von:HH:mm}–{b.Bis:HH:mm} ({Dauer(min)}) ohne Kurzpause — ab dem 4. Monat ({monat4:dd.MM.yyyy}) alle {Dauer(blockMax)} mindestens {kurz} Minuten, zusätzlich zur normalen Pause.",
+            min, blockMax, "ArGV 1 Art. 61", st);
+    }
+
+    static List<(DateTime Von, DateTime Bis)> Arbeitsbloecke(List<Stempel> st, int lueckeAb)
+    {
+        var bloecke = new List<(DateTime Von, DateTime Bis)>();
+        var cur = (Von: st[0].Ein, Bis: st[0].Aus);
+        for (int i = 1; i < st.Count; i++)
+        {
+            int luecke = (int)Math.Round((st[i].Ein - cur.Bis).TotalMinutes);
+            if (luecke >= lueckeAb)
+            {
+                bloecke.Add(cur);
+                cur = (st[i].Ein, st[i].Aus);
+            }
+            else if (st[i].Aus > cur.Bis) cur.Bis = st[i].Aus;
+        }
+        bloecke.Add(cur);
+        return bloecke;
+    }
+
+    static IEnumerable<Verstoss> PruefeMutterRuhe(Person p, DateOnly von, DateOnly bis, List<Stempel> alle, ArbeitszeitEinstellungen e)
+    {
+        if (p.Schwangerschaften == null || p.Schwangerschaften.Count == 0) yield break;
+        int verbotTage = (int)Math.Round(e.Wert(Mutter, "verbot_wochen") * 7);
+        int ruhe = e.Minuten(Mutter, "ruhe_std");
+        var tage = Arbeitstage(alle);
+        for (int i = 0; i + 1 < tage.Count; i++)
+        {
+            var a = tage[i];
+            var b = tage[i + 1];
+            if (a.Tag < von || a.Tag > bis) continue;
+            int frei = (int)Math.Round((b.Beginn - a.Ende).TotalMinutes);
+            if (frei <= 0 || frei >= ruhe) continue;
+            var s = SchwangerschaftAm(p, a.Tag, verbotTage) ?? SchwangerschaftAm(p, b.Tag, verbotTage);
+            if (s == null) continue;
+            if (s.Geburt is DateOnly g && b.Tag > g) continue;
+            var monat4 = s.Termin.AddMonths(-5);
+            if (!ImViertenMonat(s, a.Tag) && !ImViertenMonat(s, b.Tag)) continue;
+            yield return new(p.EmployeeId, Mutter, a.Tag, b.Tag,
+                $"Schluss {Zeitpunkt(a.Ende)}, wieder Beginn {Zeitpunkt(b.Beginn)} — nur {Dauer(frei)} Ruhezeit. Ab dem 4. Schwangerschaftsmonat ({monat4:dd.MM.yyyy}) sind {Dauer(ruhe)} vorgeschrieben.",
+                frei, ruhe, "ArGV 1 Art. 61", a.Stempel.Concat(b.Stempel).ToList());
         }
     }
 
@@ -461,6 +590,10 @@ public static class ArbeitszeitVerstoesse
 
     static string Recht(string art) => ArbeitszeitRegelKatalog.Finde(art)?.Recht ?? "";
 
+    /// <summary>Minuten im Fenster von–bis (über Mitternacht, wenn von ≥ bis; sonst am selben Tag).</summary>
+    public static int MinutenImFenster(DateTime ein, DateTime aus, TimeSpan von, TimeSpan bis) =>
+        MinutenImFenster(ein, aus, (decimal)von.TotalHours, (decimal)bis.TotalHours);
+
     /// <summary>Minuten im Fenster vonStd–bisStd (über Mitternacht, wenn vonStd ≥ bisStd).</summary>
     public static int MinutenImFenster(DateTime ein, DateTime aus, decimal vonStd, decimal bisStd)
     {
@@ -474,8 +607,7 @@ public static class ArbeitszeitVerstoesse
         return (int)Math.Round(sum);
     }
 
-    /// <summary>Minuten im gesetzlichen Nachtfenster 23–6 Uhr (Art. 10 ArG).</summary>
-    public static int NachtMinuten(DateTime ein, DateTime aus) => MinutenImFenster(ein, aus, 23, 6);
+    static string UhrZeit(TimeSpan t) => $"{(int)t.TotalHours}:{t.Minutes:00}";
 
     static double Ueberlappung(DateTime a1, DateTime a2, DateTime b1, DateTime b2)
     {

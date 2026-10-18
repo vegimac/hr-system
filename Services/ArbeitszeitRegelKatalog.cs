@@ -53,8 +53,6 @@ public static class ArbeitszeitRegelKatalog
         new(ArbeitszeitVerstoesse.NachtTag, "Nachtarbeit über 9 Std.", "Art. 17a ArG", new Parameter[]
         {
             new("max_std", "Höchstens pro Tag mit Nachtarbeit", "Std.", 9, 1, 24),
-            new("nacht_von", "Nacht beginnt um", "Uhr", 23, 0, 24),
-            new("nacht_bis", "Nacht endet um", "Uhr", 6, 0, 24),
         }),
         new(ArbeitszeitVerstoesse.Praesenz, "Präsenzzeit zu lang", "Art. 10 / 17a / 31 ArG", new Parameter[]
         {
@@ -101,6 +99,17 @@ public static class ArbeitszeitRegelKatalog
         new(ArbeitszeitVerstoesse.SonntagJugend, "Jugendliche am Sonntag/Feiertag", "Art. 31 Abs. 4 ArG", new Parameter[]
         {
             new("sonntage", "Auch normale Sonntage prüfen", "ja/nein", 1, 0, 1),
+        }),
+        new(ArbeitszeitVerstoesse.Mutter, "Mutterschutz", "ArG Art. 35a · ArGV 1 Art. 60 / 61", new Parameter[]
+        {
+            new("max_std", "Höchstens Arbeit pro Tag", "Std.", 9, 1, 24),
+            new("ruhe_std", "Ab dem 4. Monat mindestens Ruhe", "Std.", 12, 1, 24),
+            new("block_std", "Ab dem 4. Monat Kurzpause alle", "Std.", 2, 0.5m, 12),
+            new("kurzpause_min", "Kurzpause mindestens", "Min.", 10, 1, 120),
+            new("wochen_vor", "Abendverbot, Wochen vor dem Termin", "Wochen", 8, 0, 40),
+            new("abend_von", "Abendverbot ab", "Uhr", 20, 0, 24),
+            new("abend_bis", "Abendverbot bis", "Uhr", 6, 0, 24),
+            new("verbot_wochen", "Nach der Geburt keine Arbeit für", "Wochen", 8, 0, 40),
         }),
     };
 

@@ -13,7 +13,8 @@ public record StempelVerstossMa(int EmployeeId, string? Nummer, string? Vorname,
 public record StempelVerstossArt(string Art, string Titel, string Regel, int Anzahl);
 public record StempelVerstoesseDaten(string Filiale, DateOnly Von, DateOnly Bis, int AnzahlMa,
                                      List<StempelVerstossArt> ProArt, List<StempelVerstossMa> Mitarbeiter,
-                                     List<string> Ausgeschaltet);
+                                     List<string> Ausgeschaltet,
+                                     string NachtVon = "00:00", string NachtBis = "07:00");
 
 public record StempelKorrekturZeile(int Id, DateOnly Tag, string Ein, string? Aus, string? VorherEin, string? VorherAus,
                                     string Art, string? Von, DateTime? Am, string? Kommentar, string? Protokoll);
@@ -52,6 +53,7 @@ public class StempelBerichtPdfService
         [ArbeitszeitVerstoesse.Ruhezeit] = "#0f766e",
         [ArbeitszeitVerstoesse.GanzerRuhetag] = "#6d28d9",
         [ArbeitszeitVerstoesse.SiebenTage] = "#b91c1c",
+        [ArbeitszeitVerstoesse.Mutter] = "#86198f",
         ["ZEIT"]       = "#b45309",
         ["MANUELL"]    = "#4f46e5",
         ["BEARBEITET"] = "#6b7280",
