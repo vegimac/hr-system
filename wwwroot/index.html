@@ -1640,10 +1640,26 @@
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-lohn" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <!-- Reihe 1 (Walter 18.10.2026): Perioden · Lohnpositionen · Lohnschema · Kontoplan -->
                         <div class="admin-card" onclick="showPage('perioden')">
                         <img src="img/lohnkat-perioden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohnperioden</div>
                         <div class="admin-card-desc">Abrechnungsperioden verwalten und abschliessen</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('lohnpositionen')">
+                        <img src="img/lohnkat-lohnpositionen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">OneCrew Lohnpositionen</div>
+                        <div class="admin-card-desc">Lohnarten, SV-Flags, Lohnausweis-Codes</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('lohnschema')">
+                        <img src="img/lohnkat-lohnschema.webp?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Lohnschema</div>
+                        <div class="admin-card-desc">Standard-Lohnblatt pro Vertragsmodell (FLEX/MTP/FIX/FIX-M)</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('kontoplan')">
+                        <img src="img/lohnkat-kontoplan.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Kontoplan (Fibu)</div>
+                        <div class="admin-card-desc">Lohnart→Konten-Mapping für Fibu-Journal / Abacus</div>
                     </div>
                         <div class="admin-card" onclick="showPage('elm-meldungen')">
                         <img src="img/lohnkat-perioden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -1665,11 +1681,6 @@
                         <div class="admin-card-title">Mindestlöhne</div>
                         <div class="admin-card-desc">L-GAV Mindestlöhne nach Funktion, Modell und Ausbildung</div>
                     </div>
-                        <div class="admin-card" onclick="showPage('lohnpositionen')">
-                        <img src="img/lohnkat-lohnpositionen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">OneCrew Lohnpositionen</div>
-                        <div class="admin-card-desc">Lohnarten, SV-Flags, Lohnausweis-Codes</div>
-                    </div>
                         <div class="admin-card" onclick="showPage('qst-tarife')">
                         <img src="img/lohnkat-qst-tarife.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">QST Tarife</div>
@@ -1685,11 +1696,6 @@
                         <div class="admin-card-title">Saldi-Vortrag</div>
                         <div class="admin-card-desc">Einmalige Migration vom Alt-System — Zeit/Ferien/13. ML pro MA</div>
                     </div>
-                        <div class="admin-card" onclick="showPage('kontoplan')">
-                        <img src="img/lohnkat-kontoplan.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Kontoplan (Fibu)</div>
-                        <div class="admin-card-desc">Lohnart→Konten-Mapping für Fibu-Journal / Abacus</div>
-                    </div>
                         <div class="admin-card" onclick="showPage('elm-lohnraster')">
                         <img src="img/lohnkat-lohnraster-elm.webp?v=20261001a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Mirus Lohnraster für Migration</div>
@@ -1704,11 +1710,6 @@
                         <img src="img/lohnkat-kontoplan.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Basen-Kontrolle</div>
                         <div class="admin-card-desc">SV-Basen aus Lohnarten-Flags nachrechnen und mit der Engine vergleichen (Filiale + Periode)</div>
-                    </div>
-                        <div class="admin-card" onclick="showPage('lohnschema')">
-                        <img src="img/lohnkat-lohnschema.webp?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Lohnschema</div>
-                        <div class="admin-card-desc">Standard-Lohnblatt pro Vertragsmodell (FLEX/MTP/FIX/FIX-M)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('absenz-typen')">
                         <img src="img/vvkat-absenz-typen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
