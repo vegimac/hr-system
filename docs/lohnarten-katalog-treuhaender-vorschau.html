@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Sollkatalog Swissdec + Fibu (Kontoplan Ist)</title>
+<style>
+  @page { size: A4 landscape; margin: 6mm; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 8.5px; color: #1a1a1a; max-width: 1200px; margin: 8px auto; padding: 0 8px; line-height: 1.25; }
+  h1 { font-size: 14px; margin: 0 0 2px; }
+  h2 { font-size: 11px; margin: 12px 0 4px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }
+  .meta { color: #555; margin-bottom: 6px; }
+  .hinweis { background: #f6f3ee; border: 1px solid #e0dcd4; border-radius: 6px; padding: 6px 8px; margin: 6px 0 8px; }
+  .mtp-box {
+    background: linear-gradient(165deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #d97706;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0 14px;
+  }
+  .mtp-box h2 { margin: 0 0 6px; font-size: 12px; border: none; color: #92400e; }
+  .mtp-box table { margin: 6px 0 0; background: #fffbeb; }
+  .mtp-box th { background: #b45309; }
+  .legende { display: flex; gap: 12px; flex-wrap: wrap; margin: 4px 0 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 10px; }
+  th, td { border: 1px solid #ddd; padding: 2px 4px; text-align: left; vertical-align: top; }
+  th { background: #3f3f3f; color: #fff; font-weight: 600; }
+  td.oc { font-weight: 800; font-size: 10px; background: #f8f7f4; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .fibu { width: 100%; border-collapse: collapse; margin: 0; }
+  .fibu td { border: none; border-bottom: 1px solid #eee; padding: 1px 3px; }
+  .fibu tr:last-child td { border-bottom: none; }
+  .kst { color: #57534e; }
+  .mirus-list { margin: 0; padding: 0; list-style: none; }
+  .mirus-list li { margin: 1px 0; padding: 1px 4px; border-radius: 3px; }
+  .keep { background: #dcfce7; color: #14532d; border: 1px solid #86efac; }
+  .drop { background: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
+  .open { background: #fef9c3; color: #713f12; border: 1px solid #fde047; }
+  .none { color: #78716c; font-style: italic; }
+  .mwst { color: #78716c; font-size: 7.5px; }
+  @media print {
+    body { margin: 0; max-width: none; }
+    .noprint { display: none; }
+    .keep, .drop, .open, td.oc { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<p class="noprint" style="background:#eef;padding:6px 10px;border-radius:6px">
+  Fibu = euer Kontoplan (Ist) · OneCrew-Nr. = Swissdec · Mirus nur Referenz · Cmd+P
+</p>
+
+<h1>Soll: OneCrew = Swissdec · Fibu wie Kontoplan</h1>
+<p class="meta">
+  Fibu-Zeilen 1:1 aus dem Kontoplan (Kostenstellen 100/200/300/400).
+  Unsere Lohnart-Nr. ist Swissdec — der Kontoplan hängt heute noch an alten Positionsgruppen; Zuordnung unten.
+</p>
+
+<div class="hinweis">
+  <strong>Grün</strong> = Mirus-Äquivalent behalten · <strong>Rot</strong> = inaktiviert / nicht übernehmen ·
+  MWST wie im Kontoplan (oft 1067/200 bei Aufwand).
+</div>
+
+<div class="mtp-box">
+  <h2>⚠ MTP — bewusst anders als bei Mirus</h2>
+  <p style="margin:0 0 6px">
+    <strong>Mirus:</strong> MTP wurde wie FIX gebucht (KSt 100 → Aufwand <strong>4000</strong>). Unschön:
+    MTP ist fachlich ein <em>FLEX mit garantierten Wochenstunden</em>.
+  </p>
+  <p style="margin:0 0 6px">
+    <strong>13. ML:</strong> Rückstellung gibt es nicht nur bei FIX/MTP —
+    auch <strong>FLEX in der Probezeit</strong> bildet einen 13.-ML-Pott (RST).
+    Danach Auszahlung nach Regel. Fibu-Konten für Crew Fix/Flex sind dieselben
+    (2017 / 4010→2017).
+  </p>
+  <p style="margin:0 0 6px">
+    <strong>OneCrew-Soll für MTP:</strong> Brutto-Aufwand wie Flex (<strong>4001</strong>),
+    nicht mehr wie Fix (4000). 13.-ML-RST bleibt — wie bei FLEX (Probezeit) und FIX.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Modell</th>
+        <th>Fachlich</th>
+        <th>Fibu Aufwand (Soll)</th>
+        <th>13. ML Rückstellung</th>
+        <th>RST-Konten (Kontoplan)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>FLEX</strong></td>
+        <td>Stundenlohn</td>
+        <td class="num">4001 (KSt 200 Crew Flex)</td>
+        <td><strong>ja in der Probezeit</strong> (Pott), danach Auszahlung nach Regel</td>
+        <td class="num">2017→1920 · Bildung 4010→2017</td>
+      </tr>
+      <tr style="background:#fef3c7">
+        <td><strong>MTP</strong></td>
+        <td>wie Flex + Garantie-Stunden</td>
+        <td class="num"><strong>4001 (KSt 200)</strong> — neu, nicht mehr 4000</td>
+        <td><strong>ja</strong> (Pott / RST — analog FLEX-Probezeit / laufender Aufbau)</td>
+        <td class="num">gleich: 2017 / 4010→2017</td>
+      </tr>
+      <tr>
+        <td><strong>FIX</strong></td>
+        <td>Monatslohn Crew</td>
+        <td class="num">4000 (KSt 100 Crew Fix)</td>
+        <td>ja — RST</td>
+        <td class="num">2017 / 4010→2017</td>
+      </tr>
+      <tr>
+        <td><strong>FIX-M</strong></td>
+        <td>Management</td>
+        <td class="num">4055 (KSt 300)</td>
+        <td>ja — RST</td>
+        <td class="num">2016 / 4057→2016</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="none" style="margin:6px 0 0">
+    Heute im Code noch MTP→100/4000 (Mirus-Alt). Soll nach Freigabe: MTP→200/4001.
+  </p>
+</div>
+
+<div class="legende">
+  <span class="keep" style="padding:1px 6px;border-radius:3px">behalten</span>
+  <span class="drop" style="padding:1px 6px;border-radius:3px">inaktiv / weg</span>
+  <span class="open" style="padding:1px 6px;border-radius:3px">offen</span>
+</div>
+
+<h2>A. Lohnarten</h2>
+<table>
+<thead>
+<tr>
+  <th>OneCrew<br>= Swissdec</th>
+  <th>Bezeichnung</th>
+  <th>Swissdec-<br>Meldung</th>
+  <th>Fibu (Kontoplan Ist — alle KSt)</th>
+  <th>Mirus nur Referenz</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+  <td class="oc">1000</td>
+  <td>Festlohn<br><span class="none">Fibu-Gruppe heute: Pos. 10 Bruttolohn</span></td>
+  <td class="oc">1000</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100 Crew Fix</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">MWST 1067/200</td></tr>
+      <tr><td class="kst">200 Crew Flex</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">MWST 1067/200</td></tr>
+      <tr><td class="kst">300 Management</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">MWST 1067/200</td></tr>
+      <tr><td class="kst">400 Gerant</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">MWST 1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 10.1 Festlohn</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1001</td>
+  <td>Festlohn bezogene Ferien<br><span class="none">Fibu wie Pos. 10</span></td>
+  <td class="oc">1001</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 10.2 Festlohn Ferien</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1002</td>
+  <td>Festlohn bezogene Feiertage<br><span class="none">Fibu wie Pos. 10</span></td>
+  <td class="oc">1002</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 10.3 Festlohn für Feiertage</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1005</td>
+  <td>Stundenlohn<br><span class="none">Fibu wie Pos. 10 Bruttolohn</span></td>
+  <td class="oc">1005</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100 Crew Fix</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200 Crew Flex</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="open">Raster ohne «Stundenlohn» — klären</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1025</td>
+  <td>Zusatzstunden MTP<br><span class="none">Fibu-Gruppe heute: Pos. 55 Überstunden/Nacht</span></td>
+  <td class="oc">1025</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100 Crew Fix</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200 Crew Flex</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list">
+    <li class="keep">früher 55.3 Mehrstunden MTP</li>
+    <li class="keep">früher 10.4 Zusatzstd.</li>
+  </ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1061</td>
+  <td>Überstunden 25 %<br><span class="none">Fibu: Pos. 55</span></td>
+  <td class="oc">1061</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 55.1</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1065</td>
+  <td>Überstunden ohne Zuschlag<br><span class="none">Fibu: Pos. 55</span></td>
+  <td class="oc">1065</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 55.2</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1076</td>
+  <td>Nacht Zeitgutschrift<br><span class="none">kein Geld → keine Fibu-Zeile; Geld-Zuschläge weg</span></td>
+  <td class="oc">1076</td>
+  <td class="none">— (nur Zeit/Saldo)</td>
+  <td><ul class="mirus-list">
+    <li class="keep">früher 55.10 Kompensation Nachtarbeit</li>
+    <li class="drop">früher 55.11 / 55.12 Geld — inaktiviert</li>
+  </ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1162</td>
+  <td>Ausbezahlte Ferientage<br><span class="none">Fibu: Pos. 40</span></td>
+  <td class="oc">1162</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100 Crew Fix</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200 Crew Flex</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 40.1</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1161</td>
+  <td>Feiertag % / ausbezahlt<br><span class="none">Fibu: Pos. 50 bzw. 195.2/4/6</span></td>
+  <td class="oc">1161</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100 (Pos. 50 / 195)</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list">
+    <li class="keep">früher 50.1 Ausbezahlte Feiertage</li>
+    <li class="keep">früher 195.2 / 195.4</li>
+  </ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1160</td>
+  <td>Ferienentschädigung %<br><span class="none">Fibu: Pos. 195 Sub 1/3/5</span></td>
+  <td class="oc">1160</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list">
+    <li class="keep">früher 195.1 / 195.5 / 195.6</li>
+    <li class="open">früher 195.3 Bedeutung klären</li>
+  </ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1200</td>
+  <td>13. Monatslohn<br><span class="none">Fibu: Pos. 180 Auszahlung</span></td>
+  <td class="oc">1200</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100 Crew Fix</td><td class="num">2017</td><td class="num">1920</td><td></td></tr>
+      <tr><td class="kst">200 Crew Flex</td><td class="num">2017</td><td class="num">1920</td><td></td></tr>
+      <tr><td class="kst">300 Management</td><td class="num">2016</td><td class="num">1920</td><td></td></tr>
+      <tr><td class="kst">400 Gerant</td><td class="num">2016</td><td class="num">1920</td><td></td></tr>
+    </table>
+    <div class="none">RST-Bildung separat Pos. 2010 (4010/4057 → 2017/2016)</div>
+  </td>
+  <td><ul class="mirus-list">
+    <li class="keep">früher 180.1</li>
+    <li class="drop">früher 180 Dublette</li>
+    <li class="drop">früher 200.900 / 200.901 — inaktiviert</li>
+  </ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1210</td>
+  <td>McBonus<br><span class="none">Fibu: Pos. 200 Sub 5 Bonus</span></td>
+  <td class="oc">1210</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 200.5 McBonus</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1300</td>
+  <td>Unfall Karenz<br><span class="none">Fibu: Pos. 60 Sub 1–2</span></td>
+  <td class="oc">1300</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100 Sub1/2</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list">
+    <li class="keep">früher 60.1 / 60.2</li>
+  </ul></td>
+</tr>
+
+<tr>
+  <td class="oc">2030</td>
+  <td>Unfall Taggeld 80 %<br><span class="none">Fibu: Pos. 60 Sub 3</span></td>
+  <td class="oc">2030</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle KSt</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 60.3</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">1301</td>
+  <td>Krankheit Karenz<br><span class="none">Fibu: Pos. 70 Sub 1</span></td>
+  <td class="oc">1301</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 70.1</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">2035</td>
+  <td>Krankheit Taggeld 80 %<br><span class="none">Fibu: Pos. 70 Sub 2</span></td>
+  <td class="oc">2035</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle KSt</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 70.2</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">2050</td>
+  <td>Korrekturen Taggelder<br><span class="none">Fibu: Pos. 65 / 75 / 85 / 95 / 125</span></td>
+  <td class="oc">2050</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">Karenz-Korr. (65.1 / 75.1)</td><td class="num">4000/4001/4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+      <tr><td class="kst">Vers.-Korr. (65.2 / 75.2)</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
+      <tr><td class="kst">EO-Korr. Militär/Zivil/Mutter (85/95/125)</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list">
+    <li class="keep">früher 65.1/65.2/75.1/75.2/85.1/95.1/125.x</li>
+    <li class="drop">früher 75 ABZUG-Dublette</li>
+  </ul></td>
+</tr>
+
+<tr>
+  <td class="oc">2000</td>
+  <td>Militär / Zivilschutz<br><span class="none">Fibu: Pos. 80 / 90</span></td>
+  <td class="oc">2000</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">EO-Entschädigung (80.3 / 90.3) alle</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
+      <tr><td class="kst">Lohnfortzahlung 20%/8% (80.4/5, 90.4)</td><td class="num">4000/4001/4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 80.x / 90.x</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">2040</td>
+  <td>Mutterschaft / Vaterschaft EO<br><span class="none">Fibu: Pos. 120</span></td>
+  <td class="oc">2040</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 120.1 / 120.2</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">3000</td>
+  <td>Kinderzulage<br><span class="none">Fibu: Pos. 190</span></td>
+  <td class="oc">3000</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle</td><td class="num">2071</td><td class="num">1920</td><td></td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 190.1 Familienzulagen</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">3010</td>
+  <td>Ausbildungszulage<br><span class="none">Fibu: Pos. 190</span></td>
+  <td class="oc">3010</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle</td><td class="num">2071</td><td class="num">1920</td><td></td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 190.2</li></ul></td>
+</tr>
+
+<tr>
+  <td class="oc">3034</td>
+  <td>Geburtszulage<br><span class="none">Fibu: Pos. 200 Sub 20</span></td>
+  <td class="oc">3034</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle</td><td class="num">2071</td><td class="num">1920</td><td></td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="open">früher 190.3 / 200.20</li></ul></td>
+</tr>
+
+</tbody>
+</table>
+
+<h2>B. Betrieb — Beleg + Fibu, keine Swissdec-Meldung · keine Mirus-Nr. als Code</h2>
+<table>
+<thead>
+<tr>
+  <th>OneCrew-Kennung</th>
+  <th>Bezeichnung</th>
+  <th>Swissdec</th>
+  <th>Fibu (Kontoplan Ist)</th>
+  <th>Mirus nur Referenz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td class="oc">LGAV</td>
+  <td>LGAV-Beitrag</td>
+  <td class="none">—</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle (Pos. 600 Sub 24/25)</td><td class="num">1920</td><td class="num">2023</td><td class="mwst">MWST 2065/311 · 8.1%</td></tr>
+      <tr><td class="kst">Korrektur (Sub 26)</td><td class="num">1920</td><td class="num">2023</td><td class="mwst">2065/311 · 8.1%</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 600.24 / 600.25 / 600.26</li></ul></td>
+</tr>
+<tr>
+  <td class="oc">DEPOT</td>
+  <td>Uniformen-Depot</td>
+  <td class="none">—</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle (Pos. 600 Sub 32)</td><td class="num">1920</td><td class="num">2021</td><td class="mwst">2065/311 · 8.1%</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 600.32</li></ul></td>
+</tr>
+<tr>
+  <td class="oc">VORSCHUSS</td>
+  <td>Vorschuss</td>
+  <td class="none">—</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle (Pos. 950)</td><td class="num">1920</td><td class="num">2050</td><td></td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 950.1</li></ul></td>
+</tr>
+<tr>
+  <td class="oc">BVG-KORR</td>
+  <td>Korrektur BVG Vorjahr</td>
+  <td class="none">—</td>
+  <td>
+    <table class="fibu">
+      <tr><td class="kst">alle (Pos. 600 Sub 5)</td><td class="num">1920</td><td class="num">2080</td><td class="mwst">2065/311 · 8.1%</td></tr>
+    </table>
+  </td>
+  <td><ul class="mirus-list"><li class="keep">früher 600.5</li></ul></td>
+</tr>
+</tbody>
+</table>
+
+<h2>C. SV / QST — nicht als Lohnart-Nummer (Fibu zur Info)</h2>
+<table>
+<thead><tr><th>Thema</th><th>Fibu Soll</th><th>Fibu Haben</th><th>Hinweis</th></tr></thead>
+<tbody>
+<tr><td>AHV/IV/EO AN · AG</td><td class="num">1920 · 4062</td><td class="num">2070</td><td class="none">Kontoplan Pos. 500 — SV-Sätze, keine Swissdec-Lohnart-Nr.</td></tr>
+<tr><td>ALV AN · AG</td><td class="num">1920 · 4062</td><td class="num">2070</td><td class="none">Pos. 510</td></tr>
+<tr><td>KTG AN · AG</td><td class="num">1920 · 4061</td><td class="num">2090</td><td class="none">Pos. 530</td></tr>
+<tr><td>NBU AN · BU AG</td><td class="num">1920 · 4061</td><td class="num">2090</td><td class="none">Pos. 540</td></tr>
+<tr><td>BVG AN · AG</td><td class="num">1920 · 4060</td><td class="num">2080</td><td class="none">Pos. 550</td></tr>
+<tr><td>QST</td><td class="num">1920</td><td class="num">2010</td><td class="none">Pos. 560 · Korrektur Pos. 565 → QST-Modul</td></tr>
+<tr><td>Nettolohn / Akonto / Vorschuss-Auszahlung</td><td class="num">1920</td><td class="num">2050</td><td class="none">Pos. 1050 / 1060</td></tr>
+</tbody>
+</table>
+
+<p style="margin-top:12px;border:1px solid #ddd;border-radius:6px;padding:8px">
+  Treuhänder: ________________________ Datum: ________ &nbsp;
+  Freigabe: ☐ ja · ☐ Korrekturen: _______________
+</p>
+</body>
+</html>
