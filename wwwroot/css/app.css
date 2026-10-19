@@ -12618,18 +12618,10 @@ body.theme-dark .admin-card img {
 .admin-card-grid .admin-card img[src*="lohnraster-elm"] { width: 109px !important; height: 109px !important; }
 .admin-card-grid .admin-card img[src*="lohnkat-lohnschema"],
 .admin-card-grid .admin-card img[src*="vvkat-absenz-typen"] { width: 98px !important; height: 98px !important; }
-/* Entwicklung → Lohn: Kachel-Raster unverändert (230px), nur die Grafik füllt
-   die Karte — kein grösseres Card-Layout (Walter 19.10.2026). */
-.admin-card-grid .admin-card:has(img[src*="entwkat-lohn-formeln"]),
-.admin-card-grid .admin-card:has(img[src*="entwkat-lohn-engine"]) {
-    padding: 8px 10px 12px !important;
-}
+/* Entwicklung → Lohn: gleiche Kachelhöhe wie Import & Schnittstellen (Walter 19.10.2026).
+   Icon-Mass = Standard-Raster (73px), nur Kontrast für die hellen Skizzen. */
 .admin-card-grid .admin-card img[src*="entwkat-lohn-formeln"],
 .admin-card-grid .admin-card img[src*="entwkat-lohn-engine"] {
-    width: 198px !important;
-    height: 198px !important;
-    max-width: 100% !important;
-    margin: 0 auto 4px !important;
     filter: contrast(1.28) brightness(0.86) saturate(1.05);
 }
 body.theme-dark .admin-card-grid .admin-card img[src*="entwkat-lohn-formeln"],
