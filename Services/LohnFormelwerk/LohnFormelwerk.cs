@@ -90,13 +90,13 @@ public static class LohnFormelwerk
             SchemaArt: "automatisch", SwissdecCode: LohnCodes.Ml13),
 
         new(StundenlohnBetrag, "Stundenlohn-Betrag",
-            "Round05(Stunden × Stundenlohn)",
-            "Stempelzeiten; Vertrag.HourlyWage",
+            "Rappen(Stunden × Stundenlohn) — FLEX Ist; MTP Garantie + Mehrstunden (beide 1005)",
+            "Stempelzeiten; Vertrag.HourlyWage / Garantie",
             "PayrollCalculationEngine (FLEX/MTP-Zweig)",
             SchemaArt: "automatisch", SwissdecCode: LohnCodes.Stundenlohn),
 
         new(FestlohnMonat, "Festlohn Monat",
-            "Monatslohn (ggf. Pro-Rata Ein-/Austritt)",
+            "Monatslohn (ggf. Pro-Rata Ein-/Austritt) — nur FIX/FIX-M, nie MTP",
             "Vertrag.MonthlyWage; Periodenanteil",
             "PayrollCalculationEngine (FIX-Zweig)",
             SchemaArt: "automatisch", SwissdecCode: LohnCodes.Festlohn),

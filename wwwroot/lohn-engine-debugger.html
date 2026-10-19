@@ -132,8 +132,8 @@ const EX = {
   },
   mtpGarantie: {
     title: 'MTP Garantie / Mehrstunden',
-    why: 'Garantierte Wochenstunden vs. Ist-Stempel.',
-    box: 'Unter Soll: Festlohn-Logik / Garantie. Über Soll: Mehrstunden → 1005.'
+    why: 'Garantierte Wochenstunden vs. Ist — beides Swissdec 1005 (Stundenlöhner, nie 1000).',
+    box: 'Unter Soll: Garantie-Stunden × Satz → 1005. Über Soll: Mehrstunden → 1005.'
   },
   ferienZuwachs: {
     title: 'Ferien-% → Topf',
@@ -419,24 +419,26 @@ const MODELS = {
 
   MTP: {
     title: 'MTP',
-    meta: 'Garantie-Stunden · Ferien → Topf · 13. ML immer Topf',
-    callout: '🟡 Ferien → Topf + Pott bei Bezug. 🟠 13. ML → Topf bis Raster/180.3. Mehrstunden = 1005.',
+    meta: 'Garantie + Mehrstunden = 1005 · Ferien → Topf · 13. ML immer Topf',
+    callout: 'Stundenlöhner: Garantie und Mehrstunden = Swissdec 1005 (nie 1000 Festlohn). 🟡 Ferien → Topf. 🟠 13. ML → Topf bis Raster/180.3.',
     tree: [
       {
         id: 'brutto', label: 'Ausbezahlt Brutto (Beleg)', tag: 'Σ', tagClass: 'f', amt: '…', amtClass: 'pos',
         kids: [
           {
-            id: 'mtpGarantie', label: 'Garantie / Festanteil', tag: 'MTP', tagClass: 'i', amt: '…', amtClass: 'pos',
+            id: 'l1005g', label: 'Stundenlohn Garantie', tag: '1005', tagClass: 'c', amt: '…', amtClass: 'pos',
+            formula: 'SollStd (nach Ferien/UU/EO) × Stundenlohn',
             leaves: [
               { t: 'Garantierte Std./Woche', v: 'Vertrag' },
-              { t: 'Unter Soll', v: 'Garantie greift' }
+              { t: 'Soll', v: 'WoStd ÷ 7 × Periodentage' },
+              { t: 'Flags', v: 'AHV … · FER · 13.ML' }
             ]
           },
           {
-            id: 'l1005', label: 'Stundenlohn / Mehrstunden', tag: '1005', tagClass: 'c', amt: '…', amtClass: 'pos',
+            id: 'l1005m', label: 'Stundenlohn Mehrstunden', tag: '1005', tagClass: 'c', amt: '…', amtClass: 'pos',
             formula: 'ExtraStd × Stundenlohn',
             leaves: [
-              { t: 'Ist &gt; Garantie', v: 'Mehrstunden' },
+              { t: 'Ist &gt; Soll', v: 'Mehrstunden' },
               { t: 'Flags', v: 'AHV … · FER · 13.ML' }
             ]
           }
@@ -447,16 +449,16 @@ const MODELS = {
         formula: 'Basis × Ferien%',
         pot: 'Wie FLEX: Vor + Zuwachs − Bezug = neu (CHF + Tage)',
         leaves: [
-          { t: 'Basis', v: 'FER-Häkchen auf Stundenlohn-Zeilen' },
+          { t: 'Basis', v: 'FER-Häkchen auf 1005-Zeilen' },
           { t: 'Beleg ausbezahlt', v: '0 ohne Bezug' }
         ]
       },
       {
-        id: 'ferienBezug', label: 'Ferienbezug → Topf leeren', tag: 'Pott', tagClass: 'p', amt: 'Auszahlung', amtClass: 'pot',
-        pot: 'Pott CHF / Pott Tage × Tage · Cap = Pott',
+        id: 'ferienBezug', label: 'Ferienbezug → Topf leeren', tag: '1160', tagClass: 'p', amt: 'Auszahlung', amtClass: 'pot',
+        pot: 'Pott CHF / Pott Tage × Tage · Cap = Pott · Code 1160 (nie 1000)',
         leaves: [
-          { t: 'Auszahlung', v: 'aus Topf auf Beleg' },
-          { t: 'MTP-Hinweis', v: 'Garantie/Festanteil kann mit Ferientagen korrelieren' }
+          { t: 'Auszahlung', v: '1160 aus Topf auf Beleg' },
+          { t: 'Soll-Kürzung', v: 'Ferientage kürzen die Garantie-Stunden' }
         ]
       },
       {
@@ -475,11 +477,11 @@ const MODELS = {
         leaves: [{ t: 'Filiale %', v: 'wie FLEX' }]
       },
       blockAhvBasis([
-        { t: 'ausbezahlte 1005 / Garantie', v: 'AHV✓' },
+        { t: 'ausbezahlte 1005 (Garantie + Mehr)', v: 'AHV✓' },
         { t: '13. ML nur wenn ausbezahlt', v: 'sonst nur Topf' },
-        { t: 'Ferien nur bei Bezug', v: '—' }
+        { t: 'Ferien 1160 nur bei Bezug', v: '—' }
       ]),
-      blockAbzuege('ausbezahlte MTP-Zeilen'),
+      blockAbzuege('ausbezahlte MTP-Zeilen (1005 + 1160 + …)'),
       {
         id: 'saldoBlock', label: 'Saldi-Block auf dem Beleg', tag: 'Beleg', tagClass: 'i', amt: 'Ferien + 13. + Stunden', amtClass: 'pot',
         leaves: [

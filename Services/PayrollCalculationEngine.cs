@@ -2616,43 +2616,45 @@ public class PayrollCalculationEngine
             decimal feiertagAusz  = PayrollCalculations.Rappen(feiertagExact);
 
             // Basis für Minimum-Lohn-Kontrolle = Stundenlohn
-            // Walter-Vorgabe 30.05.2026: Festlohn-Zeile auch dann zeigen, wenn der
+            // Walter-Vorgabe 30.05.2026: Garantie-Zeile auch dann zeigen, wenn der
             // Betrag 0 ist (z.B. ganzer Monat krank). Sonst fehlt die nachvollziehbare
             // Aufschlüsselung „Soll − Ferien − Krank − Unfall" und der Lohnzettel
             // wirkt unvollständig.
-            bool zeigeFestlohnZeile = festlohnArbeitBetrag > 0
+            // Code = 1005 Stundenlohn (nicht 1000 Festlohn) — MTP ist Stundenlöhner
+            // (Walter 19.10.2026); Garantie und Mehrstunden beide 1005.
+            bool zeigeGarantieZeile = festlohnArbeitBetrag > 0
                 || (mtpFerienTage == 0 && mtpKrankTage == 0 && mtpUnfallTage == 0)
                 || sollStundenVoll > 0;
-            if (zeigeFestlohnZeile)
+            if (zeigeGarantieZeile)
             {
                 // Label dynamisch erweitern: Soll, dann pro Absenz-Typ eine
                 // Minus-Komponente (Ferien / Krank / Unfall) — nur wenn > 0.
-                string mtpFestlohnLabel;
+                string mtpGarantieLabel;
                 if (isShortPeriod) {
                     string reasonTxt = (shortReasonStart && shortReasonEnd)
                         ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy} / Austritt {periodTo:dd.MM.yyyy}"
                         : shortReasonStart
                             ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
                             : $"Austritt {periodTo:dd.MM.yyyy}";
-                    mtpFestlohnLabel = $"{LabelFor(LohnCodes.Festlohn, "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
+                    mtpGarantieLabel = $"{LabelFor(LohnCodes.MtpGarantiestunden, "Stundenlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
                 } else if (mtpFerienTage > 0 || mtpUnbezUrlaubTage > 0 || mtpEoTage > 0 || mtpMilitaerTage > 0) {
                     // Walter-Vorgabe 30.05.2026: nur Stunden im Label, keine CHF.
                     // Soll-Stunden minus Stunden-Äquivalente pro Absenz-Typ.
-                    // Krank/Unfall stehen nicht hier (Festlohn läuft voll), sondern
-                    // in 75.1/65.1 und im Saldo-Soll der Zeile «MTP + Stunden».
+                    // Krank/Unfall stehen nicht hier (Garantie läuft voll), sondern
+                    // in 2050 und im Saldo-Soll der Zeile «MTP + Stunden».
                     var teile = new List<string> { $"{sollStundenVoll:0.00}h Soll" };
                     if (ferienStundenAequivalent  > 0) teile.Add($"− {ferienStundenAequivalent:0.00}h Ferien");
                     if (unbezUrlaubStundenAequivalent > 0) teile.Add($"− {unbezUrlaubStundenAequivalent:0.00}h Unbez. Urlaub");
                     // EO: 1/7-Kalender wie Ferien (kein Dienstplan während Mutterschaft)
                     if (eoStundenAequivalent > 0) teile.Add($"− {eoStundenAequivalent:0.00}h Mutter-/Vaterschaft");
                     if (militaerStundenAequivalent > 0) teile.Add($"− {militaerStundenAequivalent:0.00}h Militär/Zivilschutz");
-                    mtpFestlohnLabel = $"{LabelFor(LohnCodes.Festlohn, "Festlohn")} ({string.Join(" ", teile)})";
+                    mtpGarantieLabel = $"{LabelFor(LohnCodes.MtpGarantiestunden, "Stundenlohn")} ({string.Join(" ", teile)})";
                 } else {
-                    mtpFestlohnLabel = LabelFor(LohnCodes.Festlohn, "Festlohn");
+                    mtpGarantieLabel = LabelFor(LohnCodes.MtpGarantiestunden, "Stundenlohn");
                 }
                 lohnLines.Add(new {
-                    bezeichnung = mtpFestlohnLabel,
-                    code    = LohnCodes.Festlohn,
+                    bezeichnung = mtpGarantieLabel,
+                    code    = LohnCodes.MtpGarantiestunden,
                     anzahl  = (decimal?)festlohnArbeitStunden,
                     prozent = (decimal?)null,
                     basis   = (decimal?)hourlyRate,
@@ -2660,8 +2662,8 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)festlohnArbeitBetrag
                 });
                 totalLohn += festlohnArbeitBetrag;
-                AddAmount(LohnCodes.Festlohn, festlohnExact, festlohnArbeitBetrag);
-                Grundzeile(LohnCodes.Festlohn, festlohnArbeitBetrag);
+                AddAmount(LohnCodes.MtpGarantiestunden, festlohnExact, festlohnArbeitBetrag);
+                Grundzeile(LohnCodes.MtpGarantiestunden, festlohnArbeitBetrag);
             }
 
             // Walter-Vorgabe 01.08.2026: Unbezahlter Urlaub auch auf dem
@@ -2942,8 +2944,8 @@ public class PayrollCalculationEngine
             }
 
             // MTP: Feiertag-/Ferien-Basis aus Lohnpositions-Flags
-            //   → Festlohn (10.1) + Zusatzstunden (10.4) haben ZaehltAlsBasisFeiertag=true
-            //   → nur Zusatzstunden (10.4) hat ZaehltAlsBasisFerien=true
+            //   → Garantie + Mehrstunden beide Swissdec 1005 (Stundenlohn);
+            //     Flags auf 1005 steuern Ferien-/Feiertag-/13.-ML-Basis (OneCrew: auf allem).
             // Zusätzlich tragen alle Zulagen bei, deren Lohnart die Flags trägt.
             // Flag-Summen = exakte Produkte (nicht Zeilen-CHF)
             decimal feiertagBasisExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag, feiertagBasis: true);
@@ -3025,13 +3027,15 @@ public class PayrollCalculationEngine
                 // Walter-Vorgabe 26.05.2026: Label knapp und knackig — Tage ×
                 // Ø Tagessatz; bei Pott-Cap zusätzlich „max <PottCHF>". Pott-
                 // Logik (Tagessatz = Pott CHF / Pott Tage) siehe CLAUDE.md.
+                // Code 1160 (wie FLEX), nie 1000 Festlohn — MTP ist Stundenlöhner
+                // (Walter 19.10.2026).
                 bool _capped = mtpFerienAuszahlungExact + 0.005m < mtpAvgTagessatz * mtpFerienTage;
                 string _labelExtra = _capped
                     ? $"({PayrollCalculations.Rappen(mtpFerienTage)} × {mtpAvgTagessatz:F2}, max {mtpFerienAuszahlungBetrag:F2})"
                     : $"({PayrollCalculations.Rappen(mtpFerienTage)} × {mtpAvgTagessatz:F2})";
                 lohnLines.Add(new {
-                    bezeichnung = $"{LabelFor(LohnCodes.FestlohnFerien, "Festlohn bezogene Ferien")} {_labelExtra}",
-                    code    = LohnCodes.FestlohnFerien,
+                    bezeichnung = $"{LabelFor(LohnCodes.FerienFlexTopf, "Ferienentschädigung")} {_labelExtra}",
+                    code    = LohnCodes.FerienFlexTopf,
                     anzahl  = (decimal?)PayrollCalculations.Rappen(mtpFerienTage),
                     prozent = (decimal?)null,
                     basis   = (decimal?)null,
@@ -3039,8 +3043,8 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)mtpFerienAuszahlungBetrag
                 });
                 totalLohn += mtpFerienAuszahlungBetrag;
-                AddAmount(LohnCodes.FestlohnFerien, mtpFerienAuszahlungExact, mtpFerienAuszahlungBetrag);
-                Grundzeile(LohnCodes.FestlohnFerien, mtpFerienAuszahlungBetrag);
+                AddAmount(LohnCodes.FerienFlexTopf, mtpFerienAuszahlungExact, mtpFerienAuszahlungBetrag);
+                Grundzeile(LohnCodes.FerienFlexTopf, mtpFerienAuszahlungBetrag);
             }
 
             // Ferien-Geld-Saldo neu: Pott − Auszahlung (exakt, dann Schluss-Rundung)

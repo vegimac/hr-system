@@ -10,7 +10,7 @@ Beim Mirus-Vergleich (Parallelbetrieb, Lohn-Simulation) werden diese Punkte als 
 |---|---|---|---|---|
 | 1 | Rundung Anzahl × Satz (Stundenlohn, Taggeld, Nacht-/Zeitsaldo) | rappengenau | auf 5 Rp. (6.12 → 6.10) | 04.10.2026 |
 | 2 | 13. ML FLEX/MTP | Basis × 8.33 % | 1/12 → ±5 Rp. | 09.09.2026 |
-| 3 | **MTP** | Festlohn pro rata Kalendertage; Ferien-/Feiertagsentschädigung und 13. ML auf allem; Ferien aus dem Pott mit Soll-Kürzung | Festlohn 52/12; Entschädigungen nur auf Plusstunden; «Festlohn für bezogene Ferien» mit negativem Saldo | 04.10.2026 («hier macht Mirus Mist») |
+| 3 | **MTP** | Garantie pro rata Kalendertage als **1005 Stundenlohn** (nie 1000); Ferien-/Feiertagsentschädigung und 13. ML auf allem; Ferien aus dem Pott (1160) mit Soll-Kürzung | «1000 Festlohn» 52/12; Entschädigungen nur auf Plusstunden; «Festlohn für bezogene Ferien» mit negativem Saldo | 04.10.2026 («hier macht Mirus Mist»); Code 1005 statt 1000: 19.10.2026 |
 | 4 | Ferien-Vorbezug | keiner — Auszahlung höchstens bis Pott | Ferien-CHF-Saldo läuft ins Minus. **Feriensaldi im Parallelvergleich daher nur grob prüfen** (Walter 05.10.2026: «Mirus macht hier total wirres Zeugs» — ab 1.1.2027 gibt es keinen negativen Topf mehr) | 06.08.2026 |
 | 5 | **McBonus** (200.5, oranges Häkchen) | Total inkl. 13. ML, Teilung 12/13 + 1/13 | 200.5 + 200.9 (13.-Anteil 8.33 % vom Total) → Zeilen anders, Brutto/Netto gleich | 17.09.2026 / 04.10.2026 |
 | 6 | Tagessatz FIX/FIX-M (Teilmonat, bezogene Ferien/Feiertage) | Monatslohn × 12 ÷ 365 | Monatslohn ÷ 30 → Aufteilung 10.1/10.2/10.3 anders, Brutto gleich | TAGESSATZ365 (Walter-Entscheid) |

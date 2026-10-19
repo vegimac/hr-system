@@ -32,6 +32,9 @@ public class LohnFormelwerkTests
     public void LohnCodes_SwissdecUndMirus()
     {
         Assert.Equal("1000", LohnCodes.Festlohn);
+        Assert.Equal("1005", LohnCodes.Stundenlohn);
+        Assert.Equal(LohnCodes.Stundenlohn, LohnCodes.MtpGarantiestunden);
+        Assert.Equal(LohnCodes.Stundenlohn, LohnCodes.MtpMehrstunden);
         Assert.Equal("1076", LohnCodes.NachtKompensation);
         Assert.Equal("1166", LohnCodes.FerienFixGeld);
         Assert.Equal("1168", LohnCodes.FerienAustritt);

@@ -53,26 +53,25 @@ Grundlohn      = gestempelte Stunden × HourlyRate            (Code 20/22)
 Nachtzuschlag  = Nachtstunden gemäss Filial-Nachtfenster     (Saldo, Anzeige alle Modelle)
 ```
 
-**MTP-Festlohn (pro-rata, Walter 30.05.2026):**
+**MTP-Stundenlohn (pro-rata, Walter 30.05.2026; Code 1005 seit 19.10.2026):**
 ```
 Soll-Stunden   = garantierte WoStd / 7 × Periodentage        (31 Tage > 28 Tage!)
-Festlohn 10.1  = Soll-Stunden × HourlyRate
-Mehrstunden    = gestempelt über Soll → Code 55.3 (MTP-Zusatzstunden)
+Garantie 1005  = Soll-Stunden × HourlyRate                  (Swissdec Stundenlohn, nie 1000)
+Mehrstunden    = gestempelt über Soll → ebenfalls 1005
 ```
 Vom Soll werden abgezogen (nur Stunden, Lohnersatz separat):
-- **Ferien:** `WoStd / 7` pro Ferien-KALENDERtag (Sa+So zählen mit)
+- **Ferien:** `WoStd / 7` pro Ferien-KALENDERtag (Sa+So zählen mit); Auszahlung aus Pott = 1160
 - **Unbezahlter Urlaub / EO Mutter-/Vaterschaft / Militär:** nur wenn der Katalog
   «Soll reduzieren» verlangt (`wirkung_mtp`); Divisor aus dem Katalog, Default 1/7
-- **Cap:** Festlohn nie < 0 (`Math.Max(0, …)`) — bei voll abgedeckter Periode 0.00
-- **Krank/Unfall kürzen den Festlohn NICHT** (Walter 05.10.2026) — siehe unten.
+- **Cap:** Garantie nie < 0 (`Math.Max(0, …)`) — bei voll abgedeckter Periode 0.00
+- **Krank/Unfall kürzen die Garantie NICHT** (Walter 05.10.2026) — siehe unten.
 
 **MTP Krankheit/Unfall (Walter 05.10.2026, ersetzt die Festlohn-Kürzung vom 30.05.2026):**
 Geld zählt nach Kalendertagen, Zeit nach der Zeitgutschrift.
 ```
-Festlohn 10.1   = Lohn-Soll × HourlyRate                 (Lohn-Soll ohne Krank/Unfall-Abzug)
-Korrektur 75.1  = − Σ Krank-Kalendertage × Krank-%  × WoStd/7 × HourlyRate
-Korrektur 65.1  = − Σ Unfall-Kalendertage × Unfall-% × WoStd/7 × HourlyRate
-Karenz/Taggeld  = 88 % / 80 % × KTG-Tagessatz pro Kalendertag     (70.1/70.2 · 60.2/60.3)
+Garantie 1005   = Lohn-Soll × HourlyRate                 (Lohn-Soll ohne Krank/Unfall-Abzug)
+Korrektur 2050  = − Σ Krank-/Unfall-Kalendertage × % × WoStd/7 × HourlyRate
+Karenz/Taggeld  = 88 % / 80 % × KTG-Tagessatz pro Kalendertag     (1301/2035 · 1300/2030)
 Saldo-Soll      = Lohn-Soll − Zeitgutschrift Krank − Zeitgutschrift Unfall   (ohne Cap)
 Stunden-Saldo   = Ist + Absenz-Gutschrift − Saldo-Soll + Vormonat
 ```

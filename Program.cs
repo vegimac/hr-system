@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 89;  // 89: Mirus-Altcodes (65/75.x, *.y ausser Betrieb/Auslöser) inaktiv → 2050 · 88: Swissdec-Stamm…
+const int SchemaStand = 90;  // 90: MTP Garantie 1005 (nicht 1000) · 89: Mirus-Altcodes inaktiv → 2050 · 88: Swissdec-Stamm…
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6945,6 +6945,39 @@ using (var scope = app.Services.CreateScope())
                AND code ~ '^[0-9]{{4,5}}\.';
         ");
         startLog.LogInformation("Stand 89: Mirus-Altcodes 65/75.x + Punkt-/Kurz-Nr. inaktiv; Korrektur = 2050");
+    }
+
+    // ── Stand 90: MTP = Stundenlohn 1005, nicht Festlohn 1000 (Walter 19.10.2026) ─
+    // Lohnschema MTP: 1000 → 1005 (Engine schreibt Garantie + Mehrstunden bereits als 1005).
+    if (dbStand < 90)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+            SELECT s.modell, kanon.id, s.art, MIN(s.sort_order)
+              FROM vertragsmodell_lohnschema s
+              JOIN lohnposition alt ON alt.id = s.lohnposition_id AND alt.code = '1000'
+              JOIN lohnposition kanon ON kanon.code = '1005' AND kanon.is_active = true
+             WHERE s.modell = 'MTP'
+               AND NOT EXISTS (
+                   SELECT 1 FROM vertragsmodell_lohnschema x
+                    WHERE x.modell = s.modell AND x.lohnposition_id = kanon.id AND x.art = s.art)
+             GROUP BY s.modell, kanon.id, s.art;
+
+            DELETE FROM vertragsmodell_lohnschema s
+             USING lohnposition alt
+             WHERE s.lohnposition_id = alt.id
+               AND s.modell = 'MTP'
+               AND alt.code = '1000';
+
+            INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+            SELECT 'MTP', lp.id, 'automatisch', 10
+              FROM lohnposition lp
+             WHERE lp.code = '1005' AND lp.is_active = true
+               AND NOT EXISTS (
+                   SELECT 1 FROM vertragsmodell_lohnschema x
+                    WHERE x.modell = 'MTP' AND x.lohnposition_id = lp.id AND x.art = 'automatisch');
+        ");
+        startLog.LogInformation("Stand 90: MTP-Schema 1000→1005 Stundenlohn");
     }
 
     // Stand speichern — erst NACH erfolgreichem Durchlauf. Bricht der Block ab,

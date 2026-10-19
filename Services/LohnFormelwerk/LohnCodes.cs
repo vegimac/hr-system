@@ -8,8 +8,8 @@ namespace HrSystem.Services.LohnFormelwerk;
 public static class LohnCodes
 {
     // ── Lohn (Swissdec) ──────────────────────────────────────────────────
-    public const string Festlohn = "1000";              // inkl. Ferien-/Feiertag-Anteil + Zusatz 10.4
-    public const string Stundenlohn = "1005";           // inkl. Umsatzlohn / MTP-Mehrstunden
+    public const string Festlohn = "1000";              // nur FIX/FIX-M (Monatslohn)
+    public const string Stundenlohn = "1005";           // FLEX + MTP (Garantie und Mehrstunden)
     public const string Ueberstunden25 = "1061";
     public const string UeberstundenOhneZuschlag = "1065";
     public const string NachtKompensation = "1076";
@@ -89,6 +89,9 @@ public static class LohnCodes
     public const string StundenlohnUmsatz2 = Stundenlohn;
     public const string StundenlohnUmsatz3 = Stundenlohn;
     public const string StundenlohnAlt = Stundenlohn;
+    /// <summary>MTP Garantie-Stunden (Soll) — Swissdec 1005, nie 1000 Festlohn (Walter 19.10.2026).</summary>
+    public const string MtpGarantiestunden = Stundenlohn;
+    /// <summary>MTP Mehrstunden über Soll — Swissdec 1005.</summary>
     public const string MtpMehrstunden = Stundenlohn;
     public const string FerienAccrual = FerienFlexTopf;
     public const string Ml13Alt = Ml13;
