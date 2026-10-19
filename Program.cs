@@ -6851,9 +6851,10 @@ using (var scope = app.Services.CreateScope())
              WHERE code IN ('901','902','903','904','905','906');
 
             -- Alle echten Swissdec-Positionen: swissdec_lohnart = code
+            -- ACHTUNG: Regex-Klammern fuer ExecuteSqlRaw verdoppeln (sonst FormatException).
             UPDATE lohnposition SET swissdec_lohnart = code
              WHERE is_active = true
-               AND code ~ '^[0-9]{4,5}$'
+               AND code ~ '^[0-9]{{4,5}}$'
                AND code NOT IN ('901','902','903','904','905','906');
         ");
         startLog.LogInformation("Stand 88: nur Swissdec-Stamm; Betrieb/Vortrag/Auslöser intern; 120→5100, 600.5→5212");
