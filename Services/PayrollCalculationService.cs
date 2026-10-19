@@ -1,3 +1,4 @@
+using HrSystem.Services.LohnFormelwerk;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -213,7 +214,7 @@ public static class PayrollCalculations
                 lohnLines.Add(new
                 {
                     bezeichnung = $"Ferienentschädigung-Auszahlung ({tageGenommen:F1} Tage)",
-                    code        = "40.1",
+                    code        = LohnCodes.FerienFlexTopf,
                     anzahl      = (decimal?)tageGenommen,
                     prozent     = (decimal?)null,
                     basis       = (decimal?)null,
@@ -534,6 +535,8 @@ public static class PayrollCalculations
                 // Kategorie (AHV/ALV/NBUV/KTG/BVG/QST). Der Journal-Generator
                 // verlinkt darüber zum Kontoplan — kein Text-Matching.
                 categoryCode = d.CategoryCode,
+                // Swissdec-Nr. auf dem Beleg (Walter 19.10.2026) — parallel zur Kategorie.
+                code = LohnCodes.SwissdecFuerSvKategorie(d.CategoryCode),
                 // Prozent: zuerst DisplayRatePercent (z.B. QST mit Tarif-Satz),
                 // sonst die echte Rate bei Type=percent, sonst null.
                 prozent     = d.DisplayRatePercent
@@ -571,6 +574,7 @@ public static class PayrollCalculations
             {
                 bezeichnung  = qstKorrekturLabel ?? "Quellensteuer-Korrektur aus Vormonaten",
                 categoryCode = "QST_KORR",
+                code         = LohnCodes.QstKorr,
                 prozent      = (decimal?)null,
                 basis        = (decimal?)null,
                 satzBasis    = (decimal?)null,
@@ -1169,10 +1173,10 @@ public static class PayrollCalculations
     /// rechnet. 180.2 ist 14. ML, nicht wiederverwenden. Fibu bucht den
     /// RST-Abbau weiter über die 180.1-Zeile «Saldo-Auszahlung» (Kontoplan 180).
     /// </summary>
-    public const string Code13mlAuszahlen = "180.3";
+    public const string Code13mlAuszahlen = LohnCodes.Ml13Auszahlen; // Mirus-Auslöser 180.3 (ELM → 1200)
 
     /// <summary>Lohnposition der 13.-ML-Zeilen (laufend, Saldo-Auszahlung, Rückstellung).</summary>
-    public const string Code13ml = "180.1";
+    public const string Code13ml = LohnCodes.Ml13;
 
     /// <summary>
     /// Bestimmt ob in diesem Monat der angesammelte 13.-ML-Saldo ausbezahlt wird.
@@ -1436,7 +1440,7 @@ public static class PayrollCalculations
             string? code = null;
             if (line.TryGetProperty("code", out var c) || line.TryGetProperty("Code", out c))
                 code = c.ValueKind == JsonValueKind.String ? c.GetString() : null;
-            if (code != "180.1") continue;
+            if (code != LohnCodes.Ml13) continue;
             if ((TryJsonDecimal(line, "basis", out var basis) || TryJsonDecimal(line, "Basis", out basis))
                 && basis != 0m)
                 return basis;

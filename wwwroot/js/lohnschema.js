@@ -1,9 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════
-//  LOHNSCHEMA PRO VERTRAGSMODELL (Walter-Vorgabe 17.08.2026, Phase 2 des
-//  Konzepts docs/lohnschema-vertragsmodelle.docx)
-//  Standard-Lohnblatt pro Modell (FLEX/MTP/FIX/FIX-M + «Alle Modelle»).
-//  Reine Stammdaten/Anzeige — die Rechen-Engine liest das Schema nicht
-//  (Steuerung = Phase 3, erst nach längerem Grün der Basen-Kontrolle).
+//  LOHNSCHEMA PRO VERTRAGSMODELL (Walter 17.08.2026 / Endstand 19.10.2026)
+//  Swissdec-Nr. führend. Engine liest via LohnSchemaSteuerung.
 // ══════════════════════════════════════════════════════════════════════
 let _lsAll = [];
 let _lsLohnpos = [];
@@ -72,9 +69,10 @@ function lsRender() {
     };
     const zeile = (e, editable) => `
         <tr class="ls-row ls-a-${e.art}">
-            <td style="font-family:monospace;font-weight:600;color:#3f3f3f">${_lsEsc(e.code)}</td>
-            <td style="color:#3f3f3f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_lsEsc(e.bezeichnung)}">${_lsEsc(e.bezeichnung)}
-                ${e.typ === 'ABZUG' ? '<span style="color:#8a6437;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}</td>
+            <td style="font-family:ui-monospace,Menlo,monospace;font-weight:700;color:#3f3f3f" title="Swissdec">${_lsEsc(e.code)}</td>
+            <td style="color:#3f3f3f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_lsEsc(e.bezeichnung)}${e.mirusCode ? ' · früher ' + e.mirusCode : ''}">${_lsEsc(e.bezeichnung)}
+                ${e.typ === 'ABZUG' ? '<span style="color:#8a6437;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}
+                ${e.mirusCode ? `<span style="color:#a8a29a;font-size:10.5px;font-family:ui-monospace,Menlo,monospace;margin-left:6px">${_lsEsc(e.mirusCode)}</span>` : ''}</td>
             <td>
                 ${editable
                     ? `<select onchange="lsChangeArt(${e.id}, this)">
@@ -95,7 +93,7 @@ function lsRender() {
     // (table-layout:fixed, identische %-Spalten), die Spalten fluchten also.
     const theadHtml = `
         <thead><tr>
-            <th style="text-align:left;padding:4px 8px;width:7%">Code</th>
+            <th style="text-align:left;padding:4px 8px;width:7%" title="Swissdec-Nr.">Nr.</th>
             <th style="text-align:left;padding:4px 10px;width:32%">Lohnposition</th>
             <th style="text-align:left;padding:4px 8px;width:21%">Art</th>
             <th class="elr-c" style="width:5.5%">AHV</th><th class="elr-c" style="width:5.5%">NBU</th>
@@ -140,8 +138,8 @@ function lsRender() {
                 ${table(rowsAlle, true)}
             </div>
         </div>
-        <p style="color:#b0aca3;font-size:11.5px;margin-top:14px">Das Schema ist Dokumentation der Engine-Realität (verifiziert durch die Basen-Kontrolle) —
-        es steuert die Berechnung nicht. Eine Änderung hier ändert keinen Lohn.</p>`;
+        <p style="color:#b0aca3;font-size:11.5px;margin-top:14px">Nummern = Swissdec-Stamm. Die Engine liest, welche Position für welches Modell und wann fällig ist.
+        Graue Kleinzahl = frühere Mirus-Nr. (nur Parallelvergleich).</p>`;
 }
 
 async function lsChangeArt(id, sel) {
@@ -195,7 +193,10 @@ function lsAddDialog() {
     document.getElementById('lsAddTitle').textContent = `Position zum Schema ${_lsModell} hinzufügen`;
     const sel = document.getElementById('lsAddPos');
     const sorted = [..._lsLohnpos].sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
-    sel.innerHTML = sorted.map(l => `<option value="${l.id}">${_lsEsc(l.code)} — ${_lsEsc(l.bezeichnung)}</option>`).join('');
+    sel.innerHTML = sorted.map(l => {
+        const m = l.mirusCode ? ` · früher ${l.mirusCode}` : '';
+        return `<option value="${l.id}">${_lsEsc(l.code)} — ${_lsEsc(l.bezeichnung)}${_lsEsc(m)}</option>`;
+    }).join('');
     m.style.display = 'block';
 }
 

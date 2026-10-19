@@ -1,24 +1,17 @@
-# Lohnarten-Sollkatalog — Swissdec + Fibu
+# Lohnarten-Sollkatalog — alle Swissdec-Positionen
 
-**Stand:** 18.10.2026 · **Druck:** `docs/lohnarten-katalog-treuhaender-vorschau.html`
+**Stand:** 19.10.2026 · **PDF:** `docs/lohnarten-katalog-treuhaender.pdf`
 
-## Regeln
+- **172 Zeilen** = kompletter Swissdec-Musterstamm, sortiert nach Nr.
+- **Neu = Swissdec-Nr.** · **Alt = Mirus** (Spalte «Mirus früher»)
+- Fibu-Konten für Abacus bleiben (4000 / 4001 / 4055 / 1920 …)
+- Grau = nicht verwendet · **Rot = Frage an den Treuhänder**
 
-1. **OneCrew-Nr. = Swissdec-Nr.** — kein Mirus-Code als unsere Nummer.  
-2. **Fibu** = Lohnposition × Vertragsmodell (kein separates Kostenstellen-Stamm).  
-3. Mirus nur Übersetzung (grün/rot).  
-4. Betrieb (LGAV, Depot, …): Kennung ohne Swissdec-Meldung.
+## Fragen an den Treuhänder (offen, rot im PDF)
 
-## MTP — speziell (Abweichung von Mirus)
+1. **MTP → Aufwand 4001?** (Mirus: MTP wie FIX auf 4000)
+2. **Nacht-Kompensation → Swissdec 1076?** Beleg separat, bezahltes Frei, Fibu wie Bruttolohn; FIX/FIX-M: Monatslohn − Tage + Nachtkomp (Brutto ±0)
+3. **Ferien → 1160 / 1166 / 1168?** FLEX/MTP Topf · FIX/FIX-M: Monatslohn − Ferientage + Feriengeld (Brutto ±0) · Austritt 1168
+4. **13. ML-RST auch FLEX in der Probezeit?** Crew 2017 / Mgmt 2016
 
-| | Mirus / Code heute | OneCrew-Soll |
-|---|---|---|
-| Aufwand Brutto | wie FIX → **4000** (KSt 100) | wie **FLEX** → **4001** (KSt 200) |
-| Fachlich | — | Flex + garantierte Wochenstunden |
-| 13. ML | — | **RST/Pott ja** — wie FLEX **in der Probezeit** (und FIX durchgängig) |
-| RST-Konten | — | Crew Flex/Fix gleich: **2017→1920**, Bildung **4010→2017** |
-
-FLEX bildet in der Probezeit ebenfalls eine 13.-ML-Rückstellung; danach Auszahlung nach Regel.  
-FIX bleibt Aufwand 4000 · FIX-M 4055 / 13. ML 2016.
-
-Vollständige Lohnarten-Tabelle: HTML-Vorschau.
+Entschieden (keine Frage): Lohnart-Nummerierung = Swissdec; Treuhänder arbeitet mit Abacus-Konten.

@@ -3334,6 +3334,8 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(20);
+            entity.Property(e => e.MirusCode).HasColumnName("mirus_code").HasMaxLength(20);
+            entity.Property(e => e.FormelId).HasColumnName("formel_id").HasMaxLength(40);
             entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(150);
             entity.Property(e => e.Kategorie).HasColumnName("kategorie").HasMaxLength(80);
             entity.Property(e => e.Typ).HasColumnName("typ").HasMaxLength(10).HasDefaultValue("ZULAGE");

@@ -1,13 +1,18 @@
 # OneCrew — Lohn-Formelwerk (Referenz)
 
-**Stand 18.08.2026 · Schritt 1 der Phase 3 (Walter-Vorgabe: Formeln bleiben im Code, hier sauber dokumentiert).**
-Dieses Dokument beschreibt JEDE Rechenformel des Lohnlaufs: was gerechnet wird, wie, und wo im Code.
-Was hier steht, ist die Referenz — weicht der Code ab, ist eines von beidem ein Bug.
+**Stand 19.10.2026 · Swissdec-Stamm + zentrale Registry.**
+**Eine Wahrheit im Code:** `Services/LohnFormelwerk/LohnFormelwerk.cs` (Registry + typisierte Aufrufe).
+Entwicklung → Lohn-Formeln liest dieselbe Liste (`GET /api/lohn-formeln`). Inventar Alt→Swissdec:
+`LohnFormelInventar` / `LohnCodes` / `LohnCodeAlias`. Dieses Markdown bleibt die Lesefassung —
+weicht der Registry-Text ab, Registry gewinnt.
+
+Lohnpositions-`code` = Swissdec (1000, 1005, 1076 …); `mirus_code` nur Parallelvergleich/Kontoplan.
+Lohnschema steuert welche Position wann (`LohnSchemaSteuerung`).
 
 **Daten vs. Code (Grundprinzip):**
 *Daten* steuern WAS auf dem Lohnblatt erscheint und WOHIN es zählt: Lohnpositions-Katalog
 (SV-Flags AHV/NBU/KTG/BVG/QST/13.ML), Lohnschema pro Vertragsmodell, Absenz-Typ-Matrix, SV-Sätze,
-Mindestlöhne, FZ-Tarife. *Code* rechnet WIE: alle Formeln unten. Die Basen-Kontrolle
+Mindestlöhne, FZ-Tarife. *Code* rechnet WIE: Formelwerk unten. Die Basen-Kontrolle
 (`SchattenBasenService`, Kachel «Lohnraster ELM») beweist laufend, dass Flags und Engine dieselben
 SV-Basen ergeben.
 
@@ -17,7 +22,8 @@ SV-Basen ergeben.
 
 | Datei | Verantwortung |
 |---|---|
-| `Services/PayrollCalculationEngine.cs` | Orchestrierung: Daten laden, FLEX/MTP/FIX-Zweige, EO, Dezember-Ausgleich |
+| `Services/LohnFormelwerk/*` | Registry, LohnCodes (Swissdec), Alias Mirus↔Swissdec, Schema-Steuerung |
+| `Services/PayrollCalculationEngine.cs` | Orchestrierung: Schema → Positionen → Formelwerk; FLEX/MTP/FIX |
 | `Services/PayrollCalculationService.cs` | Reine statische Rechen-Helfer (`BuildResult` = SV/QST-Engine, `CalcFerienGeld`, `Round05` …) |
 | `Services/KtgTagessatzService.cs` | KTG/UVG-Tagessatz (Krankheit/Unfall/EO-Basis) |
 | `Services/FerienAuszahlungService.cs` | Ferien-Pott-Auszahlung im Akonto |
@@ -254,7 +260,7 @@ Korrektur (läuft über den 13.-Saldo).
 EO-Taggeld = min(Tagessatz100 × 0.80, 220.00) × KALENDERtage   (120.1 Mutter / 120.2 Vater)
              (Art. 16f EOG: 80 %, Deckel CHF 220/Tag, 7 Taggelder/Woche)
 MTP       : Soll-Kürzung (Divisor aus Absenz-Typ-Katalog, Default 1/7) — KEINE Korrektur-Zeile
-FIX/FIX-M : negative Korrektur 125.1/125.2 = voller Tagessatz × Tage (Monatslohn läuft weiter)
+FIX/FIX-M : negative Korrektur Swissdec **2050** (Mirus 125.x) = voller Tagessatz × Tage (Monatslohn läuft weiter)
 FLEX      : keine Kürzung (kein Soll)
 ```
 EO-Absenzen sind im Stunden-Verteiler NEUTRAL (wie unbezahlter Urlaub) — sonst Doppelzahlung.

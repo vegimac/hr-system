@@ -2,552 +2,1420 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Sollkatalog Swissdec + Fibu (Kontoplan Ist)</title>
+<title>Lohnarten-Sollkatalog — alle Swissdec-Positionen + OneCrew</title>
 <style>
-  @page { size: A4 landscape; margin: 6mm; }
-  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 8.5px; color: #1a1a1a; max-width: 1200px; margin: 8px auto; padding: 0 8px; line-height: 1.25; }
-  h1 { font-size: 14px; margin: 0 0 2px; }
-  h2 { font-size: 11px; margin: 12px 0 4px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }
-  .meta { color: #555; margin-bottom: 6px; }
-  .hinweis { background: #f6f3ee; border: 1px solid #e0dcd4; border-radius: 6px; padding: 6px 8px; margin: 6px 0 8px; }
-  .mtp-box {
-    background: linear-gradient(165deg, #fef3c7 0%, #fde68a 100%);
-    border: 2px solid #d97706;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin: 10px 0 14px;
+  @page { size: A4 landscape; margin: 7mm 6mm 9mm 6mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 7.5px; color: #1c1917; margin: 0; padding: 6px; line-height: 1.25; background: #fff;
   }
-  .mtp-box h2 { margin: 0 0 6px; font-size: 12px; border: none; color: #92400e; }
-  .mtp-box table { margin: 6px 0 0; background: #fffbeb; }
-  .mtp-box th { background: #b45309; }
-  .legende { display: flex; gap: 12px; flex-wrap: wrap; margin: 4px 0 8px; }
-  table { width: 100%; border-collapse: collapse; margin: 0 0 10px; }
-  th, td { border: 1px solid #ddd; padding: 2px 4px; text-align: left; vertical-align: top; }
-  th { background: #3f3f3f; color: #fff; font-weight: 600; }
-  td.oc { font-weight: 800; font-size: 10px; background: #f8f7f4; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .fibu { width: 100%; border-collapse: collapse; margin: 0; }
-  .fibu td { border: none; border-bottom: 1px solid #eee; padding: 1px 3px; }
-  .fibu tr:last-child td { border-bottom: none; }
-  .kst { color: #57534e; }
+  .deckblatt {
+    display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;
+    margin: 0 0 8px; padding: 10px 12px; border-radius: 10px;
+    background: linear-gradient(135deg, #1c1917 0%, #44403c 55%, #57534e 100%); color: #fafaf9;
+  }
+  .deckblatt .brand { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.75; margin: 0 0 3px; }
+  .deckblatt h1 { font-size: 16px; margin: 0; font-weight: 700; color: #fff; }
+  .deckblatt .sub { margin: 3px 0 0; font-size: 8.5px; opacity: 0.9; max-width: 60em; }
+  .deckblatt .meta-box {
+    text-align: right; font-size: 8px; line-height: 1.4; white-space: nowrap;
+    padding: 7px 9px; border-radius: 8px; background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+  .hinweis {
+    background: #f5f5f4; border: 1px solid #e7e5e4; border-radius: 8px;
+    padding: 6px 9px; margin: 0 0 8px; font-size: 7.5px;
+  }
+  .mtp-box {
+    background: linear-gradient(165deg, #fffbeb 0%, #fef3c7 100%);
+    border: 2px solid #d97706; border-radius: 10px; padding: 8px 10px; margin: 0 0 10px;
+    break-inside: avoid; page-break-inside: avoid;
+  }
+  .mtp-box h2 { margin: 0 0 4px; font-size: 11px; color: #92400e; }
+  .mtp-box p { margin: 0 0 4px; }
+  .legende { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 6px; align-items: center; }
+  .legende .lab { color: #78716c; font-size: 7px; text-transform: uppercase; letter-spacing: 0.04em; }
+  h2 {
+    font-size: 10px; margin: 10px 0 4px; padding: 2px 0 2px 7px;
+    border-left: 3px solid #1c1917; border-bottom: 1px solid #e7e5e4;
+  }
+  table.kat { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 8px; }
+  table.kat col.c-sd { width: 4.2%; }
+  table.kat col.c-sdb { width: 13%; }
+  table.kat col.c-wir { width: 14%; }
+  table.kat col.c-mir { width: 17%; }
+  table.kat col.c-fibu { width: 51.8%; }
+  /* Abschnitt B: flach, Hinweis breit lesbar */
+  table.kat-betrieb col.c-b-ken { width: 9%; }
+  table.kat-betrieb col.c-b-bez { width: 14%; }
+  table.kat-betrieb col.c-b-mir { width: 20%; }
+  table.kat-betrieb col.c-b-soll { width: 7%; }
+  table.kat-betrieb col.c-b-haben { width: 7%; }
+  table.kat-betrieb col.c-b-mwst { width: 12%; }
+  table.kat-betrieb col.c-b-hin { width: 31%; }
+  table.kat-betrieb td.alt { font-size: 8px; line-height: 1.35; color: #44403c; }
+  table.kat-betrieb td.num { font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  th, td { border: 1px solid #d6d3d1; padding: 2px 3px; text-align: left; vertical-align: top; }
+  th { background: #292524; color: #fff; font-weight: 600; font-size: 7px; }
+  td.nr { font-weight: 800; font-size: 9px; background: #fafaf9; font-variant-numeric: tabular-nums; text-align: center; }
+  td.bez { font-weight: 600; font-size: 7.5px; }
+  td.sd { color: #1c1917; font-size: 7.5px; font-weight: 600; }
+  .sd-kat { color: #78716c; font-weight: 400; font-style: italic; font-size: 6.5px; }
+  .none { color: #a8a29e; font-style: italic; font-weight: 400; }
+  tr.unused { background: #fafaf9; }
+  tr.unused td { padding: 1px 3px; }
+  tr.unused td.nr { color: #a8a29e; }
+  tr.unused .mirus-list li { margin: 0; padding: 0; border: none; background: none; }
+  tr.ours { background: #fff; }
   .mirus-list { margin: 0; padding: 0; list-style: none; }
-  .mirus-list li { margin: 1px 0; padding: 1px 4px; border-radius: 3px; }
+  .mirus-list li { margin: 2px 0; padding: 2px 5px; border-radius: 3px; line-height: 1.3; }
+  td.mirus-cell { font-size: 7.5px; }
   .keep { background: #dcfce7; color: #14532d; border: 1px solid #86efac; }
   .drop { background: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
   .open { background: #fef9c3; color: #713f12; border: 1px solid #fde047; }
-  .none { color: #78716c; font-style: italic; }
-  .mwst { color: #78716c; font-size: 7.5px; }
+  .fibu { width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed; }
+  .fibu col.c-mod { width: 9%; }
+  .fibu col.c-soll { width: 7%; }
+  .fibu col.c-haben { width: 7%; }
+  .fibu col.c-mwst { width: 11%; }
+  .fibu col.c-mirusf { width: 66%; }
+  .fibu thead th {
+    background: #e7e5e4; color: #44403c; border: 1px solid #d6d3d1;
+    padding: 1px 3px; font-size: 6px; font-weight: 700; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .fibu thead th:nth-child(2), .fibu thead th:nth-child(3), .fibu thead th:nth-child(4) { text-align: center; }
+  .fibu td { border: 1px solid #e7e5e4; padding: 2px 4px; vertical-align: middle; font-size: 7px; }
+  .fibu td.mod { font-weight: 700; color: #1c1917; text-align: left; white-space: nowrap; }
+  .fibu td.num { font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; color: #1c1917; white-space: nowrap; }
+  .fibu td.mw { color: #57534e; text-align: center; font-size: 6.5px; white-space: nowrap; }
+  .fibu td.alt { color: #44403c; font-size: 7.5px; line-height: 1.35; text-align: left; vertical-align: top; }
+  .fibu tr.neu td.alt { color: #b45309; font-weight: 600; }
+  .tag-neu {
+    display: inline-block; background: #fef3c7; color: #92400e;
+    border: 1px solid #f59e0b; border-radius: 3px; padding: 0 3px; font-size: 6px;
+  }
+  .tag-frage {
+    display: inline-block; background: #fecaca; color: #7f1d1d;
+    border: 1px solid #ef4444; border-radius: 3px; padding: 0 4px; font-size: 6.5px; font-weight: 700;
+  }
+  .frage-box {
+    background: linear-gradient(165deg, #fef2f2 0%, #fee2e2 100%);
+    border: 2px solid #dc2626; border-radius: 10px; padding: 8px 10px; margin: 0 0 10px;
+    break-inside: avoid; page-break-inside: avoid; color: #7f1d1d;
+  }
+  .frage-box h2 { margin: 0 0 5px; font-size: 11px; color: #991b1b; }
+  .frage-box ol { margin: 0; padding-left: 16px; }
+  .frage-box li { margin: 0 0 4px; font-size: 8px; line-height: 1.35; }
+  .frage-box li strong { color: #991b1b; }
+  tr.frage { background: #fef2f2; }
+  tr.frage > td.nr { background: #fecaca; color: #991b1b; }
+  tr.frage > td { border-color: #fca5a5; }
+  .fibu tr.frage-zeile td.alt { color: #991b1b; font-weight: 600; }
+  .freigabe {
+    margin-top: 10px; border: 1px solid #d6d3d1; border-radius: 10px;
+    padding: 10px 12px; background: #fafaf9; break-inside: avoid; page-break-inside: avoid;
+  }
+  .freigabe h2 { margin: 0 0 6px; border: none; padding: 0; }
+  .freigabe .zeilen { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
+  .freigabe .feld { min-width: 160px; border-bottom: 1px solid #a8a29e; padding-bottom: 2px; color: #78716c; }
+  .fuss { margin-top: 8px; font-size: 7px; color: #a8a29e; text-align: right; }
+  .noprint { background: #eef; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; }
   @media print {
-    body { margin: 0; max-width: none; }
-    .noprint { display: none; }
-    .keep, .drop, .open, td.oc { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { padding: 0; }
+    .noprint { display: none !important; }
+    .deckblatt, .mtp-box, .frage-box, .keep, .drop, .open, td.nr, th, .hinweis, .freigabe,
+    .fibu thead th, .tag-neu, .tag-frage, tr.unused, tr.frage, tr.frage > td.nr {
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
   }
 </style>
 </head>
 <body>
-<p class="noprint" style="background:#eef;padding:6px 10px;border-radius:6px">
-  Fibu = euer Kontoplan (Ist) · OneCrew-Nr. = Swissdec · Mirus nur Referenz · Cmd+P
-</p>
+<p class="noprint">PDF: <code>docs/lohnarten-katalog-treuhaender.pdf</code> · Quelle Swissdec-Musterstamm (172 Positionen)</p>
 
-<h1>Soll: OneCrew = Swissdec · Fibu wie Kontoplan</h1>
-<p class="meta">
-  Fibu-Zeilen 1:1 aus dem Kontoplan (Kostenstellen 100/200/300/400).
-  Unsere Lohnart-Nr. ist Swissdec — der Kontoplan hängt heute noch an alten Positionsgruppen; Zuordnung unten.
-</p>
-
-<div class="hinweis">
-  <strong>Grün</strong> = Mirus-Äquivalent behalten · <strong>Rot</strong> = inaktiviert / nicht übernehmen ·
-  MWST wie im Kontoplan (oft 1067/200 bei Aufwand).
+<div class="deckblatt">
+  <div>
+    <p class="brand">Schaub Restaurants GmbH · OneCrew Lohn</p>
+    <h1>Lohnarten-Sollkatalog — alle Swissdec-Positionen</h1>
+    <p class="sub">
+      Sortiert nach Swissdec-Nr. · <strong>172 Zeilen</strong> aus dem Musterstamm ·
+      daneben unsere Bezeichnung, Mirus früher und Fibu neu (nur wo wir die Nr. nutzen).
+      Grau = Swissdec-Position, die wir nicht verwenden.
+    </p>
+  </div>
+  <div class="meta-box">
+    <strong>Zur Freigabe Treuhänder</strong>
+    Stand 19.10.2026<br>
+    Swissdec ELM 6.0 · Abacus-Konten bleiben<br>
+    Querformat A4 · <span style="color:#fecaca">Fragen in Rot</span>
+  </div>
 </div>
 
-<div class="mtp-box">
-  <h2>⚠ MTP — bewusst anders als bei Mirus</h2>
-  <p style="margin:0 0 6px">
-    <strong>Mirus:</strong> MTP wurde wie FIX gebucht (KSt 100 → Aufwand <strong>4000</strong>). Unschön:
-    MTP ist fachlich ein <em>FLEX mit garantierten Wochenstunden</em>.
-  </p>
-  <p style="margin:0 0 6px">
-    <strong>13. ML:</strong> Rückstellung gibt es nicht nur bei FIX/MTP —
-    auch <strong>FLEX in der Probezeit</strong> bildet einen 13.-ML-Pott (RST).
-    Danach Auszahlung nach Regel. Fibu-Konten für Crew Fix/Flex sind dieselben
-    (2017 / 4010→2017).
-  </p>
-  <p style="margin:0 0 6px">
-    <strong>OneCrew-Soll für MTP:</strong> Brutto-Aufwand wie Flex (<strong>4001</strong>),
-    nicht mehr wie Fix (4000). 13.-ML-RST bleibt — wie bei FLEX (Probezeit) und FIX.
-  </p>
-  <table>
-    <thead>
-      <tr>
-        <th>Modell</th>
-        <th>Fachlich</th>
-        <th>Fibu Aufwand (Soll)</th>
-        <th>13. ML Rückstellung</th>
-        <th>RST-Konten (Kontoplan)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>FLEX</strong></td>
-        <td>Stundenlohn</td>
-        <td class="num">4001 (KSt 200 Crew Flex)</td>
-        <td><strong>ja in der Probezeit</strong> (Pott), danach Auszahlung nach Regel</td>
-        <td class="num">2017→1920 · Bildung 4010→2017</td>
-      </tr>
-      <tr style="background:#fef3c7">
-        <td><strong>MTP</strong></td>
-        <td>wie Flex + Garantie-Stunden</td>
-        <td class="num"><strong>4001 (KSt 200)</strong> — neu, nicht mehr 4000</td>
-        <td><strong>ja</strong> (Pott / RST — analog FLEX-Probezeit / laufender Aufbau)</td>
-        <td class="num">gleich: 2017 / 4010→2017</td>
-      </tr>
-      <tr>
-        <td><strong>FIX</strong></td>
-        <td>Monatslohn Crew</td>
-        <td class="num">4000 (KSt 100 Crew Fix)</td>
-        <td>ja — RST</td>
-        <td class="num">2017 / 4010→2017</td>
-      </tr>
-      <tr>
-        <td><strong>FIX-M</strong></td>
-        <td>Management</td>
-        <td class="num">4055 (KSt 300)</td>
-        <td>ja — RST</td>
-        <td class="num">2016 / 4057→2016</td>
-      </tr>
-    </tbody>
-  </table>
-  <p class="none" style="margin:6px 0 0">
-    Heute im Code noch MTP→100/4000 (Mirus-Alt). Soll nach Freigabe: MTP→200/4001.
-  </p>
+<div class="hinweis">
+  <strong>Lesen:</strong> Jede Zeile = eine Swissdec-Lohnart.
+  <strong>Neu = Swissdec-Nr.</strong> (unsere künftige Lohnart) · <strong>Alt = Mirus</strong> (Spalte «Mirus früher»).
+  Fibu-Konten für Abacus bleiben: FLEX/MTP → <strong>4001</strong> · FIX → <strong>4000</strong> · FIX-M → <strong>4055</strong> · Durchlauf <strong>1920</strong>.
+  Nummerierung der Lohnarten: Treuhänder arbeitet mit Abacus — Swissdec-Nummern sind uns egal, solange die Konten stimmen.
+</div>
+
+<div class="frage-box">
+  <h2>Fragen an den Treuhänder (bitte bestätigen oder korrigieren)</h2>
+  <ol>
+    <li><strong>MTP → Aufwand 4001?</strong> Mirus buchte MTP wie FIX auf <strong>4000</strong>.
+      Wir wollen MTP wie FLEX auf <strong>4001</strong> (garantierte Stunden = Stundenlohn-Logik). Passt das für Abacus?</li>
+    <li><strong>Nacht-Kompensation → Swissdec 1076?</strong> 10 %-Nacht = Zulage, abgegolten mit bezahltem Frei (nicht bar).
+      Beleg separat, Fibu wie Bruttolohn (4000/4001/4055 an 1920).
+      FIX/FIX-M: Monatslohn − Tage + Nachtkomp (Brutto ±0), analog Ferien. Ok?</li>
+    <li><strong>Ferien → 1160 / 1166 / 1168?</strong>
+      <strong>1160</strong> FLEX/MTP Ferien-% + Topf ·
+      <strong>1166</strong> FIX/FIX-M: Monatslohn − Ferientage + Feriengeld (Brutto ±0) ·
+      <strong>1168</strong> Ferien-Saldo Austritt. Fibu wie in den roten Zeilen. Ok?</li>
+    <li><strong>13. ML-RST auch FLEX in der Probezeit?</strong> Crew <strong>2017</strong> / Mgmt <strong>2016</strong>
+      (wie Mirus bei FIX/MTP). Zusätzlich FLEX während Probezeit. Ok?</li>
+  </ol>
 </div>
 
 <div class="legende">
-  <span class="keep" style="padding:1px 6px;border-radius:3px">behalten</span>
-  <span class="drop" style="padding:1px 6px;border-radius:3px">inaktiv / weg</span>
-  <span class="open" style="padding:1px 6px;border-radius:3px">offen</span>
+  <span class="lab">Mirus</span>
+  <span class="keep" style="padding:1px 5px;border-radius:3px">behalten</span>
+  <span class="drop" style="padding:1px 5px;border-radius:3px">inaktiv</span>
+  <span class="lab" style="margin-left:8px">Zeile</span>
+  <span style="padding:1px 5px;border-radius:3px;background:#fff;border:1px solid #d6d3d1">bei uns</span>
+  <span style="padding:1px 5px;border-radius:3px;background:#fafaf9;border:1px solid #d6d3d1;color:#a8a29e">nicht verwendet</span>
+  <span class="tag-neu">neu ≠ Mirus</span>
+  <span class="tag-frage">Frage Treuhänder</span>
 </div>
 
-<h2>A. Lohnarten</h2>
-<table>
+<h2>A. Swissdec-Musterlohnarten (komplett, nach Nr.)</h2>
+<table class="kat">
+<colgroup>
+  <col class="c-sd"><col class="c-sdb"><col class="c-wir"><col class="c-mir"><col class="c-fibu">
+</colgroup>
 <thead>
 <tr>
-  <th>OneCrew<br>= Swissdec</th>
-  <th>Bezeichnung</th>
-  <th>Swissdec-<br>Meldung</th>
-  <th>Fibu (Kontoplan Ist — alle KSt)</th>
-  <th>Mirus nur Referenz</th>
+  <th>Swissdec<br>Nr.</th>
+  <th>Swissdec Bezeichnung</th>
+  <th>Bezeichnung wir<br>(wenn genutzt)</th>
+  <th>Mirus früher<br>Nr. + Bezeichnung</th>
+  <th>Fibu neu<br>
+    <span style="font-weight:500;opacity:.85">Soll, Haben, MWST schmal · Hinweis in einem Satz</span>
+  </th>
 </tr>
 </thead>
 <tbody>
-
-<tr>
-  <td class="oc">1000</td>
-  <td>Festlohn<br><span class="none">Fibu-Gruppe heute: Pos. 10 Bruttolohn</span></td>
-  <td class="oc">1000</td>
+<tr class="ours">
+  <td class="nr">1000</td>
+  <td class="sd">Monatslohn<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez">Festlohn (inkl. bez. Ferien/Feiertage / Zusatz 10.4)</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">10.1 Festlohn</li><li class="keep">10.2 Festlohn bezogene Ferien</li><li class="keep">10.3 Festlohn bezogene Feiertage</li><li class="keep">10.4 Zusatzstunden</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4001</td></tr><tr class="neu"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">Frage 1</span> MTP → 4001 (Mirus: 4000) — bitte bestätigen</td></tr><tr><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4000</td></tr><tr><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4055</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">1001</td>
+  <td class="sd">Lohnkorrektur<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">1005</td>
+  <td class="sd">Stundenlohn<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez">Stundenlohn / Zusatzstunden MTP</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">20 Stundenlohn</li><li class="keep">20.1 Umsatzlohn 1 (= Stundenlohn)</li><li class="keep">20.2 Umsatzlohn 2 (= Stundenlohn)</li><li class="keep">20.3 Umsatzlohn 3 (= Stundenlohn)</li><li class="keep">22 Stundenlohn</li><li class="keep">55.3 Mehrstunden MTP</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4001</td></tr><tr class="neu"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">Frage 1</span> MTP → 4001 (Mirus: 4000) — bitte bestätigen</td></tr><tr><td class="mod">FIX</td><td class="num">—</td><td class="num">—</td><td class="mw">nicht typisch</td><td class="alt">Gibt es nicht: Festlohn steht auf 1000</td></tr><tr><td class="mod">FIX-M</td><td class="num">—</td><td class="num">—</td><td class="mw">nicht typisch</td><td class="alt">Gibt es nicht: Festlohn steht auf 1000</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">1006</td>
+  <td class="sd">Lektionenlohn<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1010</td>
+  <td class="sd">Honorare<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1015</td>
+  <td class="sd">Aushilfslohn<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1016</td>
+  <td class="sd">Heimarbeitlohn<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1017</td>
+  <td class="sd">Reinigungslohn<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1018</td>
+  <td class="sd">Akkordlohn<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1020</td>
+  <td class="sd">Absenzentschädigung<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1021</td>
+  <td class="sd">Behörde- und Kommissionsmitglieder<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1030</td>
+  <td class="sd">Dienstalterszulage<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1031</td>
+  <td class="sd">Funktionszulage<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1032</td>
+  <td class="sd">Stellvertretungszulage<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1033</td>
+  <td class="sd">Ortszulage<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1034</td>
+  <td class="sd">Teuerungszulage<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1040</td>
+  <td class="sd">Familienteuerungszulage<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1050</td>
+  <td class="sd">Wohnungszulage<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1055</td>
+  <td class="sd">Wegentschädigung<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1056</td>
+  <td class="sd">Versetzungszulage<br><span class="sd-kat">Lohn</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1060</td>
+  <td class="sd">Mehrarbeit<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">1061</td>
+  <td class="sd">Ueberstunden 125%<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez">Überstunden 25 %</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">55.1 Überstunden 25 %</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4001</td></tr><tr class="neu"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">Frage 1</span> MTP → 4001 (Mirus: 4000) — bitte bestätigen</td></tr><tr><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4000</td></tr><tr><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4055</td></tr></tbody></table></td>
+</tr><tr class="ours">
+  <td class="nr">1065</td>
+  <td class="sd">Ueberzeit<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez">Überstunden ohne Zuschlag</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">55.2 Überstunden ohne Zuschlag</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4001</td></tr><tr class="neu"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">Frage 1</span> MTP → 4001 (Mirus: 4000) — bitte bestätigen</td></tr><tr><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4000</td></tr><tr><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4055</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">1067</td>
+  <td class="sd">Ueberzeit nach Austritt<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1070</td>
+  <td class="sd">Schichtzulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1071</td>
+  <td class="sd">Pikettentschädigung<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1072</td>
+  <td class="sd">Einsatzzulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1073</td>
+  <td class="sd">Sonntagszulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1074</td>
+  <td class="sd">Inkonvenienzzulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1075</td>
+  <td class="sd">Nachtdienstzulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours frage">
+  <td class="nr">1076</td>
+  <td class="sd">Nachtzulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez">Nacht-Kompensation<br><span class="tag-frage">Frage 2</span><br><span class="none">10 % → bezahltes Frei; Beleg separat</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">55.10 Kompensation Nachtarbeit (Zeit → Wert als 1076)</li><li class="drop">55.11 / 55.12 Nachtzuschlag Geld — inaktiviert</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody>
+        <tr class="frage-zeile"><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> Komp-Zeile = 1076, Wert = bezahltes Frei (nicht bar)</td></tr>
+        <tr class="frage-zeile"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> gleich wie FLEX</td></tr>
+        <tr class="frage-zeile"><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> Monatslohn − Tage + Nachtkomp (Brutto ±0)</td></tr>
+        <tr class="frage-zeile"><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> gleich wie FIX, Aufwand 4055</td></tr>
+      </tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">1100</td>
+  <td class="sd">Baustellenzulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1101</td>
+  <td class="sd">Erschwerniszulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1102</td>
+  <td class="sd">Schmutzzulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1103</td>
+  <td class="sd">Staubzulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1104</td>
+  <td class="sd">Untertagarbeit-Zulage<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1110</td>
+  <td class="sd">Vortriebsprämie<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1111</td>
+  <td class="sd">Durchschlagsprämie<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1112</td>
+  <td class="sd">Durchhalteprämie<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1130</td>
+  <td class="sd">Antrittsprämie<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1131</td>
+  <td class="sd">Nichtantrittsentschädigung<br><span class="sd-kat">Zulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours frage">
+  <td class="nr">1160</td>
+  <td class="sd">Ferienvergütung Stundenlohn<br><span class="sd-kat">Ferien/Feiertag</span></td>
+  <td class="bez">Ferien-% FLEX/MTP + Topf-Leerung<br><span class="tag-frage">Frage 3</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">195.1 / 195.3 / 195.5 / 195.6 Ferien-%</li><li class="keep">40.1 Topf-Leerung FLEX/MTP</li></ul></td>
   <td>
+    <div class="none" style="margin-bottom:3px">Nur FLEX/MTP — FIX/FIX-M siehe <strong>1166</strong>, Austritt siehe <strong>1168</strong>.</div>
     <table class="fibu">
-      <tr><td class="kst">100 Crew Fix</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">MWST 1067/200</td></tr>
-      <tr><td class="kst">200 Crew Flex</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">MWST 1067/200</td></tr>
-      <tr><td class="kst">300 Management</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">MWST 1067/200</td></tr>
-      <tr><td class="kst">400 Gerant</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">MWST 1067/200</td></tr>
-    </table>
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody>
+        <tr class="frage-zeile"><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> Ferien-% und Topf-Leerung auf 1160</td></tr>
+        <tr class="frage-zeile"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> Topf wie FLEX · Mirus buchte 4000</td></tr>
+        <tr><td class="mod">FIX</td><td class="num none">—</td><td class="num none">—</td><td class="mw"></td><td class="alt">Festlohn: Feriengeld steht auf 1166</td></tr>
+        <tr><td class="mod">FIX-M</td><td class="num none">—</td><td class="num none">—</td><td class="mw"></td><td class="alt">Festlohn: Feriengeld steht auf 1166</td></tr>
+      </tbody></table>
   </td>
-  <td><ul class="mirus-list"><li class="keep">früher 10.1 Festlohn</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1001</td>
-  <td>Festlohn bezogene Ferien<br><span class="none">Fibu wie Pos. 10</span></td>
-  <td class="oc">1001</td>
+</tr><tr class="ours">
+  <td class="nr">1161</td>
+  <td class="sd">Feiertagsentschädigung Stundenlohn<br><span class="sd-kat">Ferien/Feiertag</span></td>
+  <td class="bez">Feiertag % / ausbezahlt</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">195.2 Feiertag-%</li><li class="keep">195.4 Feiertag-%</li><li class="keep">50.1 Ausbezahlte Feiertage</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4001</td></tr><tr class="neu"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">Frage 1</span> MTP → 4001 (Mirus: 4000) — bitte bestätigen</td></tr><tr><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4000</td></tr><tr><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4055</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">1162</td>
+  <td class="sd">Ferienvergütung Lektionenlohn<br><span class="sd-kat">Ferien/Feiertag</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1163</td>
+  <td class="sd">Feiertagsentschädigung Lektionenlohn<br><span class="sd-kat">Ferien/Feiertag</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours frage">
+  <td class="nr">1166</td>
+  <td class="sd">Ferienauszahlung<br><span class="sd-kat">Ferien/Feiertag</span></td>
+  <td class="bez">Feriengeld FIX/FIX-M<br><span class="tag-frage">Frage 3</span><br><span class="none">Monatslohn − Ferientage + Feriengeld (Brutto ±0)</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">40.1 Ausbezahlte Ferientage (FIX/FIX-M, nicht Austritt)</li></ul></td>
   <td>
+    <div class="none" style="margin-bottom:3px">Nur FIX/FIX-M — FLEX/MTP siehe <strong>1160</strong>, Austritt siehe <strong>1168</strong>.</div>
     <table class="fibu">
-      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody>
+        <tr><td class="mod">FLEX</td><td class="num none">—</td><td class="num none">—</td><td class="mw"></td><td class="alt">Stundenlohn: Ferien stehen auf 1160</td></tr>
+        <tr><td class="mod">MTP</td><td class="num none">—</td><td class="num none">—</td><td class="mw"></td><td class="alt">Stundenlohn: Ferien stehen auf 1160</td></tr>
+        <tr class="frage-zeile"><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> Monatslohn − Ferientage + Feriengeld (Brutto ±0)</td></tr>
+        <tr class="frage-zeile"><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> gleich wie FIX, Aufwand 4055</td></tr>
+      </tbody></table>
   </td>
-  <td><ul class="mirus-list"><li class="keep">früher 10.2 Festlohn Ferien</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1002</td>
-  <td>Festlohn bezogene Feiertage<br><span class="none">Fibu wie Pos. 10</span></td>
-  <td class="oc">1002</td>
+</tr><tr class="ours frage">
+  <td class="nr">1168</td>
+  <td class="sd">Ferienauszahlung nach Austritt<br><span class="sd-kat">Ferien/Feiertag</span></td>
+  <td class="bez">Ferien-Saldo Austritt<br><span class="tag-frage">Frage 3</span><br><span class="none">Schlussabrechnung</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">40.1 Ferien bei Austritt (alle Modelle)</li></ul></td>
   <td>
+    <div class="none" style="margin-bottom:3px">Alle Modelle — Ferien-Teil der Schlussabrechnung (neben 13. ML, Feiertag, Stunden).</div>
     <table class="fibu">
-      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody>
+        <tr class="frage-zeile"><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> Ferien-Saldo Austritt (mit anderen Schluss-Saldi)</td></tr>
+        <tr class="frage-zeile"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> wie FLEX · Mirus buchte 4000</td></tr>
+        <tr class="frage-zeile"><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> Ferien-Saldo Austritt auf 1168</td></tr>
+        <tr class="frage-zeile"><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">?</span> gleich wie FIX, Aufwand 4055</td></tr>
+      </tbody></table>
   </td>
-  <td><ul class="mirus-list"><li class="keep">früher 10.3 Festlohn für Feiertage</li></ul></td>
+</tr><tr class="ours frage">
+  <td class="nr">1200</td>
+  <td class="sd">13. Monatslohn<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez">13. Monatslohn<br><span class="tag-frage">Frage 4</span> <span class="none">(FLEX Probezeit RST)</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">180.1 13. Monatslohn</li><li class="keep">180.2 13. Monatslohn</li><li class="keep">180.3 13. Monatslohn</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">2017</td><td class="num">1920</td><td class="mw">—</td><td class="alt"><span class="tag-frage">Frage 4</span> FLEX nur in der Probezeit, RST 2017 — bitte bestätigen</td></tr><tr><td class="mod">MTP</td><td class="num">2017</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Auflösung der Rückstellung 2017</td></tr><tr><td class="mod">FIX</td><td class="num">2017</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Auflösung der Rückstellung 2017</td></tr><tr><td class="mod">FIX-M</td><td class="num">2016</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Management-Rückstellung 2016</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">1201</td>
+  <td class="sd">13. Monatslohn Stundenlohn<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1202</td>
+  <td class="sd">13. Monatslohn Lektionenlohn<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1203</td>
+  <td class="sd">Gratifikation<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1204</td>
+  <td class="sd">Weihnachtszulage<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1205</td>
+  <td class="sd">14. Monatslohn<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1209</td>
+  <td class="sd">Bonuszahlung Vorjahr<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">1210</td>
+  <td class="sd">Bonuszahlung<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez">McBonus</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">200.5 McBonus</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4001</td></tr><tr class="neu"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">Frage 1</span> MTP → 4001 (Mirus: 4000) — bitte bestätigen</td></tr><tr><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4000</td></tr><tr><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4055</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">1211</td>
+  <td class="sd">Gewinnbeteiligung<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1212</td>
+  <td class="sd">Sonderzulage<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1213</td>
+  <td class="sd">Erfolgsprämie<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1214</td>
+  <td class="sd">Leistungsprämie<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1215</td>
+  <td class="sd">Anerkennungsprämie<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1216</td>
+  <td class="sd">Verbesserungsvorschläge<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1217</td>
+  <td class="sd">Umsatzprämie<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1218</td>
+  <td class="sd">Provision<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1219</td>
+  <td class="sd">Präsenzprämie<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">1230</td>
+  <td class="sd">Dienstaltersgeschenke<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">gemappt: 200.11</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">200.11 Diverse</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1231</td>
+  <td class="sd">Jubiläumsgeschenke<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1232</td>
+  <td class="sd">Treueprämie<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1250</td>
+  <td class="sd">Schadenverhütungsprämie<br><span class="sd-kat">Sonderzahlungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">1300</td>
+  <td class="sd">Lohn bei Unfall Stundenlohn<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez">Unfall Karenz</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">60.1 Unfall Karenz</li><li class="keep">60.2 Unfall Karenz</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4001</td></tr><tr class="neu"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">Frage 1</span> MTP → 4001 (Mirus: 4000) — bitte bestätigen</td></tr><tr><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4000</td></tr><tr><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4055</td></tr></tbody></table></td>
+</tr><tr class="ours">
+  <td class="nr">1301</td>
+  <td class="sd">Lohn bei Krankheit Stundenlohn<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez">Krankheit Karenz</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">70.1 Krankheit Karenz</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">FLEX</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4001</td></tr><tr class="neu"><td class="mod">MTP</td><td class="num">4001</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt"><span class="tag-frage">Frage 1</span> MTP → 4001 (Mirus: 4000) — bitte bestätigen</td></tr><tr><td class="mod">FIX</td><td class="num">4000</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4000</td></tr><tr><td class="mod">FIX-M</td><td class="num">4055</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Gleich wie Mirus: Aufwand 4055</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">1302</td>
+  <td class="sd">Lohn bei Militärdienst/Zivilschutz Stundenlohn<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1303</td>
+  <td class="sd">Lohn bei Aus- und Weiterbildung Stundenlohn<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1304</td>
+  <td class="sd">Lohn bei Unfall Lektionenlohn<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1305</td>
+  <td class="sd">Lohn bei Krankheit Lektionenlohn<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1306</td>
+  <td class="sd">Lohn bei Militärdienst/Zivilschutz Lektionenlohn<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1307</td>
+  <td class="sd">Lohn bei Aus- und Weiterbildung Lektionenlohn<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1400</td>
+  <td class="sd">Abgangsentschädigung (AHV-frei)<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1401</td>
+  <td class="sd">Abgangsentschädigung (AHV-pflichtig)<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1410</td>
+  <td class="sd">Kapitalleistung mit Vorsorgecharakter<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1411</td>
+  <td class="sd">Kapitalleistung (AHV-pflichtig)<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1420</td>
+  <td class="sd">Lohnnachgenuss<br><span class="sd-kat">Austritt/Kapital</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1500</td>
+  <td class="sd">Verwaltungsratshonorar<br><span class="sd-kat">Honorare</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1501</td>
+  <td class="sd">Verwaltungsratsentschädigung<br><span class="sd-kat">Honorare</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1503</td>
+  <td class="sd">Sitzungsgelder VR<br><span class="sd-kat">Honorare</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1510</td>
+  <td class="sd">Tantiemen VR<br><span class="sd-kat">Honorare</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">1900</td>
+  <td class="sd">Gratisverpflegung<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">gemappt: 200.60</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">200.60 Diverse</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1901</td>
+  <td class="sd">Gratisunterkunft Zimmer<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1902</td>
+  <td class="sd">Gratiswohnung<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">1910</td>
+  <td class="sd">Privatanteil Geschäftswagen<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">gemappt: 200.50</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">200.50 Diverse</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1920</td>
+  <td class="sd">Trinkgeld (AHV-pflichtig)<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1950</td>
+  <td class="sd">Verbilligung Mietwohnung<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1953</td>
+  <td class="sd">Naturalleistungen Expatriates<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1955</td>
+  <td class="sd">Geldwerter Vorteil<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1960</td>
+  <td class="sd">Steuerbare Beteiligungsrechte<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1961</td>
+  <td class="sd">Arbeitnehmeraktien<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1962</td>
+  <td class="sd">Mitarbeiteroptionen<br><span class="sd-kat">Naturallohn/Beteiligungen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1971</td>
+  <td class="sd">Vom AG übern. AN-Anteil KTG<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1972</td>
+  <td class="sd">Vom AG übern. AN-Anteil BVG<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1973</td>
+  <td class="sd">Vom AG übern. AN-Anteil Einkauf BVG<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1974</td>
+  <td class="sd">Vom AG übern. AN-Anteil Krankenkas.<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1975</td>
+  <td class="sd">Vom AG übern. AN-Anteil NBUV<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1976</td>
+  <td class="sd">Vom AG übern. AN-Anteil UVGZ<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1977</td>
+  <td class="sd">Vom AG übern. Säule 3 b<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1978</td>
+  <td class="sd">Vom AG übern. Säule 3 a<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1979</td>
+  <td class="sd">Vom Arbeitgeber übern. Quellensteuern<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">1980</td>
+  <td class="sd">Weiterbildung (Lohnausweis)<br><span class="sd-kat">Geldwerte Vorteile</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">2000</td>
+  <td class="sd">EO-Taggeld<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez">Militär / Zivilschutz</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">80.1 Militär</li><li class="keep">80.2 Militär</li><li class="keep">80.3 Militär EO</li><li class="keep">90.1 Zivilschutz</li><li class="keep">90.2 Zivilschutz</li><li class="keep">90.3 Zivilschutz EO</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">alle</td><td class="num">2014</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2014, nicht Aufwand</td></tr></tbody></table></td>
+</tr><tr class="ours">
+  <td class="nr">2001</td>
+  <td class="sd">Mutterschaftsentschädigung<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez">Mutterschaft EO</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">120.1 Mutterschaft</li><li class="keep">120.2 Mutterschaft</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">alle</td><td class="num">2014</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2014, nicht Aufwand</td></tr></tbody></table></td>
+</tr><tr class="ours">
+  <td class="nr">2002</td>
+  <td class="sd">Vaterschaftsentschädigung<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez">Vaterschaft EO</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">VATERSCHAFT Vaterschaft EO</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">alle</td><td class="num">2014</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2014, nicht Aufwand</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">2005</td>
+  <td class="sd">Militärdienstkasse (MDK)<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2010</td>
+  <td class="sd">Militärergänzungskasse (MEK)<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2015</td>
+  <td class="sd">Parifonds<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2020</td>
+  <td class="sd">MV-Taggeld<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2021</td>
+  <td class="sd">MV-Rente<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2022</td>
+  <td class="sd">MV-Teilrente<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2025</td>
+  <td class="sd">IV-Taggeld<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2026</td>
+  <td class="sd">IV-Rente<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2027</td>
+  <td class="sd">IV-Teilrente<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">2030</td>
+  <td class="sd">Unfall-Taggeld<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez">Unfall Taggeld 80 %</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">60.3 Unfall Taggeld 80 %</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">alle</td><td class="num">2014</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2014, nicht Aufwand</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">2031</td>
+  <td class="sd">Unfall-Rente<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2032</td>
+  <td class="sd">Unfall-Teilrente<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">2035</td>
+  <td class="sd">Kranken-Taggeld<br><span class="sd-kat">Taggelder</span></td>
+  <td class="bez">Krankheit Taggeld 80 %</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">70.2 Krankheit Taggeld 80 %</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">alle</td><td class="num">2014</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2014, nicht Aufwand</td></tr></tbody></table></td>
+</tr><tr class="ours">
+  <td class="nr">2050</td>
+  <td class="sd">Korrektur Taggelder<br><span class="sd-kat">Kurzarbeit/Korrekturen</span></td>
+  <td class="bez">Korrekturen Taggelder</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">125.1 Korrektur Mutterschaft</li><li class="keep">125.2 Korrektur Mutterschaft</li><li class="keep">65.1 Korrektur UVG</li><li class="keep">65.2 Korrektur UVG</li><li class="keep">75.1 Korrektur KTG</li><li class="keep">75.2 Korrektur KTG</li><li class="keep">85.1 Korrektur Militär</li><li class="keep">95.1 Korrektur Zivilschutz</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">Karenz-Korr.</td><td class="num">4000/01/55</td><td class="num">1920</td><td class="mw">1067/200</td><td class="alt">Korrektur auf demselben Konto wie das Taggeld</td></tr><tr><td class="mod">Vers.-Korr.</td><td class="num">2014</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2014, nicht Aufwand</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">2060</td>
+  <td class="sd">Lohnabzug KA/SW (ML)<br><span class="sd-kat">Kurzarbeit/Korrekturen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2065</td>
+  <td class="sd">Lohnausfall KA/SW (SL)<br><span class="sd-kat">Kurzarbeit/Korrekturen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2070</td>
+  <td class="sd">ALV-Entschädigung<br><span class="sd-kat">Kurzarbeit/Korrekturen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">2075</td>
+  <td class="sd">Karenztag KA/SW<br><span class="sd-kat">Kurzarbeit/Korrekturen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">3000</td>
+  <td class="sd">Kinderzulage<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez">Kinderzulage</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">190.1 Kinderzulage</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">alle</td><td class="num">2071</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2071</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">3001</td>
+  <td class="sd">Kinderzulage Nachzahlung<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">3010</td>
+  <td class="sd">Ausbildungszulage<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez">Ausbildungszulage</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">190.2 Ausbildungszulage</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">alle</td><td class="num">2071</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2071</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">3011</td>
+  <td class="sd">Ausbildungszulage Nachzahlung<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">3030</td>
+  <td class="sd">Familienzulage<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">3031</td>
+  <td class="sd">Familienzulage Nachzahlung<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">3032</td>
+  <td class="sd">Haushaltszulage<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">3033</td>
+  <td class="sd">Haushaltszulage Nachzahlung<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">3034</td>
+  <td class="sd">Geburtszulage<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez">Geburtszulage</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">190.3 Geburtszulage</li><li class="keep">200.20 Geburtszulage</li></ul></td>
+  <td><table class="fibu">
+      <colgroup><col class="c-mod"><col class="c-soll"><col class="c-haben"><col class="c-mwst"><col class="c-mirusf"></colgroup>
+      <thead><tr><th>Modell</th><th>Soll</th><th>Haben</th><th>MWST</th><th>Hinweis</th></tr></thead>
+      <tbody><tr><td class="mod">alle</td><td class="num">2071</td><td class="num">1920</td><td class="mw">—</td><td class="alt">Gleich wie Mirus: Durchlaufkonto 2071</td></tr></tbody></table></td>
+</tr><tr class="unused">
+  <td class="nr">3035</td>
+  <td class="sd">Heiratszulage<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">3036</td>
+  <td class="sd">Betreuungszulage<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">3037</td>
+  <td class="sd">Betreuungszulage Nachzahlung<br><span class="sd-kat">Familienzulagen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">4900</td>
+  <td class="sd">Netto/Brutto Aufrechnung<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">5010</td>
+  <td class="sd">AHV-Beitrag<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez">AHV/IV/EO AN</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">5010</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">5012</td>
+  <td class="sd">ALV-Beitrag<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez">ALV AN</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">5012</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">5014</td>
+  <td class="sd">ALVZ-Beitrag<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">gemappt: 5014</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">5014</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">5020</td>
+  <td class="sd">NBUV-Beitrag<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">gemappt: 5020</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">5020</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5030</td>
+  <td class="sd">UVGZ-Beitrag 11<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5032</td>
+  <td class="sd">UVGZ-Beitrag 12<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5034</td>
+  <td class="sd">UVGZ-Beitrag 21<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5036</td>
+  <td class="sd">UVGZ-Beitrag 22<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5040</td>
+  <td class="sd">KTG-Beitrag 11<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5042</td>
+  <td class="sd">KTG-Beitrag 12<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5044</td>
+  <td class="sd">KTG-Beitrag 21<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5046</td>
+  <td class="sd">KTG-Beitrag 22<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">5050</td>
+  <td class="sd">BVG-Beitrag<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez">BVG-Beitrag</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">5050</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5052</td>
+  <td class="sd">BVG-Einkaufs-Beiträge<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5062</td>
+  <td class="sd">QST-Betrag A1N<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5064</td>
+  <td class="sd">QST-Betrag A2N<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5150</td>
+  <td class="sd">Abzug Privatanteil Geschäftwagen<br><span class="sd-kat">Abzüge</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5200</td>
+  <td class="sd">Ausgleich Naturalleistungen<br><span class="sd-kat">Ausgleich/Netto</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5210</td>
+  <td class="sd">Ausgleich geldwerte Vorteile<br><span class="sd-kat">Ausgleich/Netto</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5212</td>
+  <td class="sd">Ausgleich BVG-Beiträge AG<br><span class="sd-kat">Ausgleich/Netto</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">5214</td>
+  <td class="sd">Ausgleich BVG Einkauf AG<br><span class="sd-kat">Ausgleich/Netto</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6000</td>
+  <td class="sd">Reisespesen<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6001</td>
+  <td class="sd">Autospesen<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6002</td>
+  <td class="sd">Verpflegungsspesen<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6010</td>
+  <td class="sd">Uebernachtungsspesen<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6020</td>
+  <td class="sd">Effektive Spesen Expatriates<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6030</td>
+  <td class="sd">Uebrige effektive Spesen<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6035</td>
+  <td class="sd">Pauschale Berufskosten Expatriates<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6040</td>
+  <td class="sd">Pauschale Repräsentationsspesen<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6050</td>
+  <td class="sd">Pauschale Autospesen<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="unused">
+  <td class="nr">6060</td>
+  <td class="sd">Pauschalspesen Expatriates<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">— nicht verwendet</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="none">—</li></ul></td>
+  <td><span class="none">—</span></td>
+</tr><tr class="ours">
+  <td class="nr">6070</td>
+  <td class="sd">Uebrige Pauschalspesen<br><span class="sd-kat">Spesen</span></td>
+  <td class="bez"><span class="none">gemappt: 200.1</span></td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">200.1 Diverse</li></ul></td>
+  <td><span class="none">—</span></td>
 </tr>
-
-<tr>
-  <td class="oc">1005</td>
-  <td>Stundenlohn<br><span class="none">Fibu wie Pos. 10 Bruttolohn</span></td>
-  <td class="oc">1005</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100 Crew Fix</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200 Crew Flex</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="open">Raster ohne «Stundenlohn» — klären</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1025</td>
-  <td>Zusatzstunden MTP<br><span class="none">Fibu-Gruppe heute: Pos. 55 Überstunden/Nacht</span></td>
-  <td class="oc">1025</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100 Crew Fix</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200 Crew Flex</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list">
-    <li class="keep">früher 55.3 Mehrstunden MTP</li>
-    <li class="keep">früher 10.4 Zusatzstd.</li>
-  </ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1061</td>
-  <td>Überstunden 25 %<br><span class="none">Fibu: Pos. 55</span></td>
-  <td class="oc">1061</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 55.1</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1065</td>
-  <td>Überstunden ohne Zuschlag<br><span class="none">Fibu: Pos. 55</span></td>
-  <td class="oc">1065</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 55.2</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1076</td>
-  <td>Nacht Zeitgutschrift<br><span class="none">kein Geld → keine Fibu-Zeile; Geld-Zuschläge weg</span></td>
-  <td class="oc">1076</td>
-  <td class="none">— (nur Zeit/Saldo)</td>
-  <td><ul class="mirus-list">
-    <li class="keep">früher 55.10 Kompensation Nachtarbeit</li>
-    <li class="drop">früher 55.11 / 55.12 Geld — inaktiviert</li>
-  </ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1162</td>
-  <td>Ausbezahlte Ferientage<br><span class="none">Fibu: Pos. 40</span></td>
-  <td class="oc">1162</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100 Crew Fix</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200 Crew Flex</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 40.1</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1161</td>
-  <td>Feiertag % / ausbezahlt<br><span class="none">Fibu: Pos. 50 bzw. 195.2/4/6</span></td>
-  <td class="oc">1161</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100 (Pos. 50 / 195)</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list">
-    <li class="keep">früher 50.1 Ausbezahlte Feiertage</li>
-    <li class="keep">früher 195.2 / 195.4</li>
-  </ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1160</td>
-  <td>Ferienentschädigung %<br><span class="none">Fibu: Pos. 195 Sub 1/3/5</span></td>
-  <td class="oc">1160</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list">
-    <li class="keep">früher 195.1 / 195.5 / 195.6</li>
-    <li class="open">früher 195.3 Bedeutung klären</li>
-  </ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1200</td>
-  <td>13. Monatslohn<br><span class="none">Fibu: Pos. 180 Auszahlung</span></td>
-  <td class="oc">1200</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100 Crew Fix</td><td class="num">2017</td><td class="num">1920</td><td></td></tr>
-      <tr><td class="kst">200 Crew Flex</td><td class="num">2017</td><td class="num">1920</td><td></td></tr>
-      <tr><td class="kst">300 Management</td><td class="num">2016</td><td class="num">1920</td><td></td></tr>
-      <tr><td class="kst">400 Gerant</td><td class="num">2016</td><td class="num">1920</td><td></td></tr>
-    </table>
-    <div class="none">RST-Bildung separat Pos. 2010 (4010/4057 → 2017/2016)</div>
-  </td>
-  <td><ul class="mirus-list">
-    <li class="keep">früher 180.1</li>
-    <li class="drop">früher 180 Dublette</li>
-    <li class="drop">früher 200.900 / 200.901 — inaktiviert</li>
-  </ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1210</td>
-  <td>McBonus<br><span class="none">Fibu: Pos. 200 Sub 5 Bonus</span></td>
-  <td class="oc">1210</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 200.5 McBonus</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1300</td>
-  <td>Unfall Karenz<br><span class="none">Fibu: Pos. 60 Sub 1–2</span></td>
-  <td class="oc">1300</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100 Sub1/2</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list">
-    <li class="keep">früher 60.1 / 60.2</li>
-  </ul></td>
-</tr>
-
-<tr>
-  <td class="oc">2030</td>
-  <td>Unfall Taggeld 80 %<br><span class="none">Fibu: Pos. 60 Sub 3</span></td>
-  <td class="oc">2030</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle KSt</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 60.3</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">1301</td>
-  <td>Krankheit Karenz<br><span class="none">Fibu: Pos. 70 Sub 1</span></td>
-  <td class="oc">1301</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">100</td><td class="num">4000</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">200</td><td class="num">4001</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">300 / 400</td><td class="num">4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 70.1</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">2035</td>
-  <td>Krankheit Taggeld 80 %<br><span class="none">Fibu: Pos. 70 Sub 2</span></td>
-  <td class="oc">2035</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle KSt</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 70.2</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">2050</td>
-  <td>Korrekturen Taggelder<br><span class="none">Fibu: Pos. 65 / 75 / 85 / 95 / 125</span></td>
-  <td class="oc">2050</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">Karenz-Korr. (65.1 / 75.1)</td><td class="num">4000/4001/4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-      <tr><td class="kst">Vers.-Korr. (65.2 / 75.2)</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
-      <tr><td class="kst">EO-Korr. Militär/Zivil/Mutter (85/95/125)</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list">
-    <li class="keep">früher 65.1/65.2/75.1/75.2/85.1/95.1/125.x</li>
-    <li class="drop">früher 75 ABZUG-Dublette</li>
-  </ul></td>
-</tr>
-
-<tr>
-  <td class="oc">2000</td>
-  <td>Militär / Zivilschutz<br><span class="none">Fibu: Pos. 80 / 90</span></td>
-  <td class="oc">2000</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">EO-Entschädigung (80.3 / 90.3) alle</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
-      <tr><td class="kst">Lohnfortzahlung 20%/8% (80.4/5, 90.4)</td><td class="num">4000/4001/4055</td><td class="num">1920</td><td class="mwst">1067/200</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 80.x / 90.x</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">2040</td>
-  <td>Mutterschaft / Vaterschaft EO<br><span class="none">Fibu: Pos. 120</span></td>
-  <td class="oc">2040</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle</td><td class="num">2014</td><td class="num">1920</td><td></td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 120.1 / 120.2</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">3000</td>
-  <td>Kinderzulage<br><span class="none">Fibu: Pos. 190</span></td>
-  <td class="oc">3000</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle</td><td class="num">2071</td><td class="num">1920</td><td></td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 190.1 Familienzulagen</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">3010</td>
-  <td>Ausbildungszulage<br><span class="none">Fibu: Pos. 190</span></td>
-  <td class="oc">3010</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle</td><td class="num">2071</td><td class="num">1920</td><td></td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 190.2</li></ul></td>
-</tr>
-
-<tr>
-  <td class="oc">3034</td>
-  <td>Geburtszulage<br><span class="none">Fibu: Pos. 200 Sub 20</span></td>
-  <td class="oc">3034</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle</td><td class="num">2071</td><td class="num">1920</td><td></td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="open">früher 190.3 / 200.20</li></ul></td>
-</tr>
-
 </tbody>
 </table>
 
-<h2>B. Betrieb — Beleg + Fibu, keine Swissdec-Meldung · keine Mirus-Nr. als Code</h2>
-<table>
+
+<h2>B. Betrieb — keine Swissdec-Lohnart (nur bei uns)</h2>
+<p class="none" style="margin:0 0 4px">Keine Swissdec-Nr. · Fibu flach (Soll / Haben / MWST / Hinweis), damit der Hinweis lesbar bleibt.</p>
+<table class="kat kat-betrieb">
+<colgroup>
+  <col class="c-b-ken"><col class="c-b-bez"><col class="c-b-mir">
+  <col class="c-b-soll"><col class="c-b-haben"><col class="c-b-mwst"><col class="c-b-hin">
+</colgroup>
 <thead>
 <tr>
-  <th>OneCrew-Kennung</th>
-  <th>Bezeichnung</th>
-  <th>Swissdec</th>
-  <th>Fibu (Kontoplan Ist)</th>
-  <th>Mirus nur Referenz</th>
+  <th>Kennung</th>
+  <th>Bezeichnung wir</th>
+  <th>Mirus früher</th>
+  <th>Soll</th>
+  <th>Haben</th>
+  <th>MWST</th>
+  <th>Hinweis</th>
 </tr>
 </thead>
 <tbody>
-<tr>
-  <td class="oc">LGAV</td>
-  <td>LGAV-Beitrag</td>
-  <td class="none">—</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle (Pos. 600 Sub 24/25)</td><td class="num">1920</td><td class="num">2023</td><td class="mwst">MWST 2065/311 · 8.1%</td></tr>
-      <tr><td class="kst">Korrektur (Sub 26)</td><td class="num">1920</td><td class="num">2023</td><td class="mwst">2065/311 · 8.1%</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 600.24 / 600.25 / 600.26</li></ul></td>
+<tr class="ours">
+  <td class="nr">LGAV</td>
+  <td class="bez">LGAV-Beitrag</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">600.24 / 25 / 26 LGAV-Beitrag</li></ul></td>
+  <td class="num">1920</td>
+  <td class="num">2023</td>
+  <td class="num" style="font-size:7px">2065/311 · 8.1%</td>
+  <td class="alt">Gleich wie Mirus: 1920 an 2023, MWST 8.1 %</td>
 </tr>
-<tr>
-  <td class="oc">DEPOT</td>
-  <td>Uniformen-Depot</td>
-  <td class="none">—</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle (Pos. 600 Sub 32)</td><td class="num">1920</td><td class="num">2021</td><td class="mwst">2065/311 · 8.1%</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 600.32</li></ul></td>
+<tr class="ours">
+  <td class="nr">DEPOT</td>
+  <td class="bez">Uniformen-Depot</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">600.32 Uniformen-Depot</li></ul></td>
+  <td class="num">1920</td>
+  <td class="num">2021</td>
+  <td class="num" style="font-size:7px">2065/311 · 8.1%</td>
+  <td class="alt">Gleich wie Mirus: 1920 an 2021, MWST 8.1 %</td>
 </tr>
-<tr>
-  <td class="oc">VORSCHUSS</td>
-  <td>Vorschuss</td>
+<tr class="ours">
+  <td class="nr">VORSCHUSS</td>
+  <td class="bez">Vorschuss</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">950.1 Vorschuss</li></ul></td>
+  <td class="num">1920</td>
+  <td class="num">2050</td>
   <td class="none">—</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle (Pos. 950)</td><td class="num">1920</td><td class="num">2050</td><td></td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 950.1</li></ul></td>
+  <td class="alt">Gleich wie Mirus: 1920 an 2050, ohne MWST</td>
 </tr>
-<tr>
-  <td class="oc">BVG-KORR</td>
-  <td>Korrektur BVG Vorjahr</td>
-  <td class="none">—</td>
-  <td>
-    <table class="fibu">
-      <tr><td class="kst">alle (Pos. 600 Sub 5)</td><td class="num">1920</td><td class="num">2080</td><td class="mwst">2065/311 · 8.1%</td></tr>
-    </table>
-  </td>
-  <td><ul class="mirus-list"><li class="keep">früher 600.5</li></ul></td>
+<tr class="ours">
+  <td class="nr">BVG-KORR</td>
+  <td class="bez">Korrektur BVG Vorjahr</td>
+  <td class="mirus-cell"><ul class="mirus-list"><li class="keep">600.5 Korrektur BVG Vorjahr</li></ul></td>
+  <td class="num">1920</td>
+  <td class="num">2080</td>
+  <td class="num" style="font-size:7px">2065/311 · 8.1%</td>
+  <td class="alt">Gleich wie Mirus: 1920 an 2080, MWST 8.1 %</td>
 </tr>
 </tbody>
 </table>
 
-<h2>C. SV / QST — nicht als Lohnart-Nummer (Fibu zur Info)</h2>
-<table>
-<thead><tr><th>Thema</th><th>Fibu Soll</th><th>Fibu Haben</th><th>Hinweis</th></tr></thead>
-<tbody>
-<tr><td>AHV/IV/EO AN · AG</td><td class="num">1920 · 4062</td><td class="num">2070</td><td class="none">Kontoplan Pos. 500 — SV-Sätze, keine Swissdec-Lohnart-Nr.</td></tr>
-<tr><td>ALV AN · AG</td><td class="num">1920 · 4062</td><td class="num">2070</td><td class="none">Pos. 510</td></tr>
-<tr><td>KTG AN · AG</td><td class="num">1920 · 4061</td><td class="num">2090</td><td class="none">Pos. 530</td></tr>
-<tr><td>NBU AN · BU AG</td><td class="num">1920 · 4061</td><td class="num">2090</td><td class="none">Pos. 540</td></tr>
-<tr><td>BVG AN · AG</td><td class="num">1920 · 4060</td><td class="num">2080</td><td class="none">Pos. 550</td></tr>
-<tr><td>QST</td><td class="num">1920</td><td class="num">2010</td><td class="none">Pos. 560 · Korrektur Pos. 565 → QST-Modul</td></tr>
-<tr><td>Nettolohn / Akonto / Vorschuss-Auszahlung</td><td class="num">1920</td><td class="num">2050</td><td class="none">Pos. 1050 / 1060</td></tr>
-</tbody>
-</table>
 
-<p style="margin-top:12px;border:1px solid #ddd;border-radius:6px;padding:8px">
-  Treuhänder: ________________________ Datum: ________ &nbsp;
-  Freigabe: ☐ ja · ☐ Korrekturen: _______________
-</p>
+<div class="freigabe">
+  <h2>Freigabe Treuhänder</h2>
+  <p style="margin:0">
+    Bitte die <strong style="color:#991b1b">vier roten Fragen</strong> oben beantworten
+    (MTP→4001, Nacht 1076, Ferien 1160/1166/1168, 13.-ML-RST FLEX-Probezeit).
+    Übrige Zeilen = Swissdec-Stamm; Abacus-Konten wie angegeben, soweit «Gleich wie Mirus».
+  </p>
+  <div class="zeilen">
+    <div class="feld">Treuhänder / Firma</div>
+    <div class="feld">Name</div>
+    <div class="feld">Datum</div>
+  </div>
+  <div class="zeilen">
+    <div class="feld">☐ freigegeben</div>
+    <div class="feld" style="min-width:280px">☐ Korrekturen: …</div>
+    <div class="feld">Unterschrift</div>
+  </div>
+</div>
+<p class="fuss">OneCrew · Schaub Restaurants GmbH · Diskussionsgrundlage · Quelle: Swissdec Wage_Types / SwissdecLohnarten.json</p>
 </body>
 </html>

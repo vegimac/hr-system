@@ -1,6 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -136,12 +137,21 @@ public class LohnpositionController : ControllerBase
     {
         dto.Id        = 0;
         dto.IsActive  = true;
-        // Server-Default (Cursor-Review 22.09.2026): einmalige Swissdec-Codes / Kategorie Bonus sind
-        // nie «QST im Monat» — unabhängig davon, was das Formular schickt.
+        dto.Code      = (dto.Code ?? "").Trim();
+        dto.MirusCode = string.IsNullOrWhiteSpace(dto.MirusCode) ? null : dto.MirusCode.Trim();
+        dto.FormelId  = string.IsNullOrWhiteSpace(dto.FormelId) ? null : dto.FormelId.Trim();
+        if (!LohnCodes.IstSwissdecStammNr(dto.Code) && !LohnCodes.IstInternOhneSwissdec(dto.Code)
+            && !string.Equals(dto.Code, "180.3", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "CODE_NICHT_SWISSDEC",
+                message = "Nur Swissdec-Stammnummern oder bekannte Betrieb-/Vortrag-Codes (600.24, 901–906, 180.3 …)." });
+        // code = Swissdec-Stamm; swissdec_lohnart = vierstelliger ELM-Kopf (leer bei Betrieb)
+        dto.SwissdecLohnart = LohnCodes.IstInternOhneSwissdec(dto.Code)
+            ? null
+            : SwissdecKopf(dto.Code, dto.SwissdecLohnart);
         if (Lohnposition.SwissdecEinmalig(dto.SwissdecLohnart)
             || string.Equals(dto.Kategorie, "Bonus", StringComparison.OrdinalIgnoreCase))
             dto.QstPeriodisch = false;
-        dto.CreatedAt = DateTime.UtcNow;
+        dto.CreatedAt = DateTime.Now;
         _db.Lohnpositionen.Add(dto);
         await _db.SaveChangesAsync();
         return Ok(dto);
@@ -155,7 +165,13 @@ public class LohnpositionController : ControllerBase
         var item = await _db.Lohnpositionen.FindAsync(id);
         if (item is null) return NotFound();
 
-        item.Code            = dto.Code;
+        item.Code            = (dto.Code ?? "").Trim();
+        if (!LohnCodes.IstSwissdecStammNr(item.Code) && !LohnCodes.IstInternOhneSwissdec(item.Code)
+            && !string.Equals(item.Code, "180.3", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "CODE_NICHT_SWISSDEC",
+                message = "Nur Swissdec-Stammnummern oder bekannte Betrieb-/Vortrag-Codes (600.24, 901–906, 180.3 …)." });
+        item.MirusCode       = string.IsNullOrWhiteSpace(dto.MirusCode) ? null : dto.MirusCode.Trim();
+        item.FormelId        = string.IsNullOrWhiteSpace(dto.FormelId) ? null : dto.FormelId.Trim();
         item.Bezeichnung     = dto.Bezeichnung;
         item.Kategorie       = dto.Kategorie;
         item.Typ             = dto.Typ;
@@ -170,12 +186,26 @@ public class LohnpositionController : ControllerBase
         item.ZaehltAlsBasisFerien   = dto.ZaehltAlsBasisFerien;
         item.ZaehltAlsBasis13ml     = dto.ZaehltAlsBasis13ml;
         item.LohnausweisCode = dto.LohnausweisCode;
-        item.SwissdecLohnart = string.IsNullOrWhiteSpace(dto.SwissdecLohnart) ? null : dto.SwissdecLohnart.Trim();
+        item.SwissdecLohnart = LohnCodes.IstInternOhneSwissdec(item.Code)
+            ? null
+            : SwissdecKopf(item.Code, dto.SwissdecLohnart);
         item.SortOrder       = dto.SortOrder;
         item.IsActive        = dto.IsActive;
 
         await _db.SaveChangesAsync();
         return Ok(item);
+    }
+
+    /// <summary>ELM-Viersteller aus Positions-Code (1000.2 → 1000).</summary>
+    static string? SwissdecKopf(string? code, string? explizit)
+    {
+        if (!string.IsNullOrWhiteSpace(explizit))
+        {
+            var e = explizit.Trim();
+            return e.Length >= 4 ? e[..Math.Min(4, e.Length)] : e;
+        }
+        var k = LohnCodes.SwissdecVon(code);
+        return string.IsNullOrEmpty(k) ? null : k;
     }
 
     // DELETE – soft-delete (nur Admin)

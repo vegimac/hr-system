@@ -552,13 +552,14 @@ public class FibuJournalService
                         }
                         else if (!string.IsNullOrEmpty(code))
                         {
-                            // Lohnpos-Abzug (z.B. LGAV "600.24") → Position.SubPos.
+                            // Lohnpos-Abzug → Kontoplan über Mirus-Schlüssel
+                            // (Swissdec-Code 600.24 bleibt; nach Umbau ggf. via mirus_code).
                             // Walter Aug 2026: positiver Slip-Betrag = Rückerstattung
                             // (Uniformen-Depot) → Konten tauschen (2021→1920).
-                            var parts = code!.Split('.');
-                            if (int.TryParse(parts[0], out var pos))
+                            var mirus = HrSystem.Services.LohnFormelwerk.LohnCodes.MirusFuer(code) ?? code!;
+                            var (pos, sub) = HrSystem.Services.LohnFormelwerk.LohnCodes.KontoplanSchluessel(mirus);
+                            if (pos > 0)
                             {
-                                int? sub = parts.Length > 1 && int.TryParse(parts[1], out var sp) ? sp : (int?)null;
                                 var m = FindAn1920(pos, sub);
                                 if (m != null)
                                 {

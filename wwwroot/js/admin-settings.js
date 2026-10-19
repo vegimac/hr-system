@@ -1444,12 +1444,28 @@ async function lpSwissdecVorschlaegeAnwenden() {
     }
 }
 
+function lpIstSwissdecNr(code) {
+    const c = String(code || '').trim();
+    return /^[0-9]{4,5}$/.test(c) && !['901','902','903','904','905','906'].includes(c);
+}
+function lpIstBetrieb(l) {
+    const c = String(l.code || '').trim();
+    const k = (l.kategorie || '').toLowerCase();
+    return k === 'betrieb' || k === 'auslöser' || k === 'ausloeser'
+        || c === '600.24' || c === '600.32' || c === '950.1' || c === '180.3'
+        || c.startsWith('600.') || c.startsWith('950.');
+}
+function lpIstVortrag(l) {
+    const c = String(l.code || '').trim();
+    return (l.kategorie || '') === 'Saldo-Vortrag' || ['901','902','903','904','905','906'].includes(c);
+}
+
 function lpRender() {
     const tbody    = document.getElementById('lpTableBody');
     if (!tbody) return;
+    const bereich  = document.getElementById('lpFilterBereich')?.value ?? 'swissdec';
     const kat      = document.getElementById('lpFilterKat')?.value  ?? '';
     const typ      = document.getElementById('lpFilterTyp')?.value  ?? '';
-    const swiss    = document.getElementById('lpFilterSwissdec')?.value ?? '';
     const showInac = document.getElementById('lpShowInactive')?.checked ?? false;
     const hinweis  = document.getElementById('lpFilterHinweis');
 
@@ -1457,24 +1473,23 @@ function lpRender() {
         ? '<span style="color:#16a34a;font-size:15px">✓</span>'
         : '<span style="color:#dc2626;font-size:13px;opacity:.6">–</span>';
 
-    const hatSwissdec = l => !!(l.swissdecLohnart && String(l.swissdecLohnart).trim());
+    const rows = lpData.filter(l => {
+        if (!(showInac || l.isActive)) return false;
+        if (kat && l.kategorie !== kat) return false;
+        if (typ && l.typ !== typ) return false;
+        if (bereich === 'swissdec') return lpIstSwissdecNr(l.code) && !lpIstVortrag(l) && !lpIstBetrieb(l);
+        if (bereich === 'betrieb') return lpIstBetrieb(l);
+        if (bereich === 'vortrag') return lpIstVortrag(l);
+        return true;
+    }).sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
 
-    // Zähler über den aktiven Bestand (ohne Kategorie/Typ), damit die Lücke sichtbar bleibt
-    const aktiv = lpData.filter(l => showInac || l.isActive);
-    const ohneSwiss = aktiv.filter(l => !hatSwissdec(l)).length;
     if (hinweis) {
-        hinweis.textContent = ohneSwiss > 0
-            ? `${ohneSwiss} aktiv ohne Swissdec-Zuordnung`
-            : (aktiv.length ? 'alle aktiven mit Swissdec' : '');
-        hinweis.style.color = ohneSwiss > 0 ? '#b45309' : '#8b8b8b';
+        const label = bereich === 'swissdec' ? 'Swissdec'
+            : bereich === 'betrieb' ? 'Betrieb intern'
+            : bereich === 'vortrag' ? 'Vortrag intern' : 'gesamt';
+        hinweis.textContent = rows.length ? `${rows.length} Positionen · ${label}` : '';
+        hinweis.style.color = '#8b8b8b';
     }
-
-    const rows = lpData.filter(l =>
-        (showInac || l.isActive) &&
-        (kat === '' || l.kategorie === kat) &&
-        (typ === '' || l.typ === typ) &&
-        (swiss === '' || (swiss === 'mit' ? hatSwissdec(l) : !hatSwissdec(l)))
-    );
 
     if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="16" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
@@ -1495,8 +1510,10 @@ function lpRender() {
         const tbadge = l.typ === 'ABZUG'
             ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ABZUG</span>'
             : '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ZULAGE</span>';
+        const mirus = (l.mirusCode && String(l.mirusCode).trim()) || '';
+        const nrTitle = lpIstSwissdecNr(l.code) ? 'Swissdec' : (lpIstVortrag(l) ? 'Saldo-Vortrag (intern)' : 'Betrieb (intern, kein Swissdec)');
         return `<tr class="lp-row" style="${bg}border-bottom:1px solid rgba(60,55,48,0.08)">
-            <td style="padding:10px 14px;font-weight:600;font-family:monospace;color:#6b6152">${l.code}</td>
+            <td style="padding:10px 14px;font-weight:700;font-family:ui-monospace,Menlo,monospace;color:#3f3f3f;font-size:13px" title="${nrTitle}">${l.code}</td>
             <td style="padding:10px 14px">${l.bezeichnung}</td>
             <td style="padding:10px 14px"><span style="background:${kbg};color:#374151;padding:2px 8px;border-radius:8px;font-size:12px">${l.kategorie || '—'}</span></td>
             <td style="padding:10px 14px;text-align:center">${chk(l.ahvAlvPflichtig)}</td>
@@ -1509,9 +1526,7 @@ function lpRender() {
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28)">${chk(l.zaehltAlsBasisFerien)}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-right:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasis13ml)}</td>
             <td style="padding:10px 14px;text-align:center;font-family:monospace;font-size:12px;color:#6366f1" title="Lohnausweis / Statistik">${l.lohnausweisCode || '—'}</td>
-            <td style="padding:10px 14px;text-align:center" title="Swissdec-Lohnart">${hatSwissdec(l)
-                ? `<span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#36513a;font-weight:600">${String(l.swissdecLohnart).trim()}</span>`
-                : '<span style="color:#b45309;font-size:12px;font-weight:600">fehlt</span>'}</td>
+            <td style="padding:10px 8px;text-align:center;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#a8a29a" title="Frühere Mirus-Nr. (Parallelvergleich)">${mirus || '—'}</td>
             <td style="padding:10px 14px;text-align:center">${tbadge}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">
                 <div style="position:relative;display:inline-block">
@@ -1541,28 +1556,33 @@ function lpSuggestBasisFlags(code, kategorie, typ) {
 
     // Direkte Code-Zuordnung (wie in der Migration)
     const byCode = {
+        // Swissdec-Stamm (+ Suffix) und Mirus-Alias (Übergang)
+        '1000':  { feiertag: true,  ferien: false, ml13: true  },
+        '1005':  { feiertag: true,  ferien: true,  ml13: true  },
+        '1076':  { feiertag: false, ferien: false, ml13: true  },
+        '1160':  { feiertag: false, ferien: false, ml13: false },
+        '1161':  { feiertag: false, ferien: false, ml13: false },
+        '1166':  { feiertag: false, ferien: false, ml13: true  },
+        '1168':  { feiertag: false, ferien: false, ml13: true  },
+        '1200':  { feiertag: false, ferien: false, ml13: false },
+        '180.3': { feiertag: false, ferien: false, ml13: false },
+        '1300':  { feiertag: true,  ferien: false, ml13: true  },
+        '1301':  { feiertag: true,  ferien: false, ml13: true  },
+        '2000':  { feiertag: false, ferien: false, ml13: true  },
+        '2001':  { feiertag: false, ferien: false, ml13: true  },
+        '2002':  { feiertag: false, ferien: false, ml13: true  },
+        '2030':  { feiertag: true,  ferien: false, ml13: false },
+        '2035':  { feiertag: true,  ferien: false, ml13: false },
+        '2050':  { feiertag: true,  ferien: false, ml13: true  },
         '10.1':  { feiertag: true,  ferien: false, ml13: true  },
         '10.2':  { feiertag: false, ferien: false, ml13: true  },
         '10.3':  { feiertag: false, ferien: false, ml13: true  },
         '10.4':  { feiertag: true,  ferien: true,  ml13: true  },
+        '20':    { feiertag: true,  ferien: true,  ml13: true  },
         '20.1':  { feiertag: true,  ferien: true,  ml13: true  },
-        '20.2':  { feiertag: false, ferien: false, ml13: true  },
-        '20.3':  { feiertag: false, ferien: true,  ml13: true  },
-        // Feiertag=true: Basis für «Feiertagentschädigung auf Lohnersatz» (nicht
-        // für die normale Feiertag-%-Zeile — Engine schliesst diese Codes dort aus).
-        '60.1':  { feiertag: true,  ferien: false, ml13: true  },
-        '60.2':  { feiertag: true,  ferien: false, ml13: true  },
-        '60.3':  { feiertag: true,  ferien: false, ml13: false },
-        '65.1':  { feiertag: true,  ferien: false, ml13: true  },
-        '65.2':  { feiertag: true,  ferien: false, ml13: false },
         '70.1':  { feiertag: true,  ferien: false, ml13: true  },
         '70.2':  { feiertag: true,  ferien: false, ml13: false },
-        '75.1':  { feiertag: true,  ferien: false, ml13: true  },
-        '75.2':  { feiertag: true,  ferien: false, ml13: false },
         '180.1': { feiertag: false, ferien: false, ml13: false },
-        '180.3': { feiertag: false, ferien: false, ml13: false },
-        '200.1': { feiertag: false, ferien: false, ml13: false },
-        '200.5': { feiertag: false, ferien: false, ml13: true  },
     };
     if (byCode[c]) return byCode[c];
 
@@ -1602,11 +1622,13 @@ function lpOpenForm(id) {
     document.getElementById('lpDrawerTitle').textContent = d ? `Position ${d.code} bearbeiten` : 'Neue Lohnposition';
     document.getElementById('lpId').value             = d?.id ?? '';
     document.getElementById('lpCode').value           = d?.code ?? '';
+    document.getElementById('lpMirus').value          = d?.mirusCode ?? '';
     document.getElementById('lpBezeichnung').value    = d?.bezeichnung ?? '';
     document.getElementById('lpKategorie').value      = d?.kategorie ?? '';
     document.getElementById('lpTyp').value            = d?.typ ?? 'ZULAGE';
     document.getElementById('lpLaCode').value         = d?.lohnausweisCode ?? '';
-    document.getElementById('lpSwissdec').value       = d?.swissdecLohnart ?? '';
+    // swissdec_lohnart wird serverseitig aus der Nr. abgeleitet — Hidden nur für QST-Vorschlag
+    document.getElementById('lpSwissdec').value       = d?.swissdecLohnart || (d?.code || '').split('.')[0] || '';
     lpLadeSwissdecListe();
     document.getElementById('lpSortOrder').value      = d?.sortOrder ?? 99;
     document.getElementById('lpIsActive').checked     = d?.isActive ?? true;
@@ -1647,13 +1669,16 @@ async function lpSave(e) {
     const errEl = document.getElementById('lpFormErr');
     errEl.style.display = 'none';
     const id  = document.getElementById('lpId').value;
+    const code = document.getElementById('lpCode').value.trim();
     const dto = {
-        code:            document.getElementById('lpCode').value.trim(),
+        code,
+        mirusCode:       document.getElementById('lpMirus').value.trim() || null,
         bezeichnung:     document.getElementById('lpBezeichnung').value.trim(),
         kategorie:       document.getElementById('lpKategorie').value.trim(),
         typ:             document.getElementById('lpTyp').value,
         lohnausweisCode: document.getElementById('lpLaCode').value.trim() || null,
-        swissdecLohnart: document.getElementById('lpSwissdec').value.trim() || null,
+        // ELM-Viersteller aus der Swissdec-Nr. (Server setzt dasselbe)
+        swissdecLohnart: (code.split('.')[0] || '').slice(0, 4) || null,
         sortOrder:       parseInt(document.getElementById('lpSortOrder').value) || 99,
         isActive:        document.getElementById('lpIsActive').checked,
         ahvAlvPflichtig: document.getElementById('lpAhv').checked,
@@ -2847,7 +2872,10 @@ function lpSwissdecEinmalig(code) {
 function lpQstPeriodischVorschlag() {
     const cb = document.getElementById('lpQstPeriodisch');
     if (!cb || cb.dataset.manuell === '1') return;
-    const code = document.getElementById('lpSwissdec')?.value || '';
+    const raw = document.getElementById('lpCode')?.value || '';
+    const code = raw.split('.')[0] || '';
+    const hid = document.getElementById('lpSwissdec');
+    if (hid) hid.value = code;
     const kat  = (document.getElementById('lpKategorie')?.value || '').trim().toLowerCase();
     cb.checked = !(lpSwissdecEinmalig(code) || kat === 'bonus');
 }

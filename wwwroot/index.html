@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261018a">
+    <link rel="stylesheet" href="css/app.css?v=20261019c">
 </head>
 <body>
 
@@ -1647,13 +1647,13 @@
                     </div>
                         <div class="admin-card" onclick="showPage('lohnpositionen')">
                         <img src="img/lohnkat-lohnpositionen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">OneCrew Lohnpositionen</div>
-                        <div class="admin-card-desc">Lohnarten, SV-Flags, Lohnausweis-Codes</div>
+                        <div class="admin-card-title">Swissdec Lohnpositionen</div>
+                        <div class="admin-card-desc">Swissdec-Nr., SV-Häkchen, Basen — Mirus nur als Stütze</div>
                     </div>
                         <div class="admin-card" onclick="showPage('lohnschema')">
                         <img src="img/lohnkat-lohnschema.webp?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohnschema</div>
-                        <div class="admin-card-desc">Standard-Lohnblatt pro Vertragsmodell (FLEX/MTP/FIX/FIX-M)</div>
+                        <div class="admin-card-desc">Welche Position wann — FLEX / MTP / FIX / FIX-M (Engine liest mit)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('kontoplan')">
                         <img src="img/lohnkat-kontoplan.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -1941,7 +1941,7 @@
                 <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
                     <h1 class="page-title">Lohnschema</h1>
-                    <p class="page-sub">Standard-Lohnblatt pro Vertragsmodell — welche Lohnpositionen gehören zu FLEX, MTP, FIX und FIX-M und wann erscheinen sie. Reine Dokumentation der Engine-Realität; die Berechnung liest das Schema nicht.</p>
+                    <p class="page-sub">Pro Vertragsmodell (FLEX, MTP, FIX, FIX-M): welche Swissdec-Lohnpositionen wann erscheinen (monatlich, Saldo, Ereignis, Austritt). Die Engine liest dieses Schema.</p>
                 </div></div>
                 </div>
                 <div class="page-body fh-body" style="overflow:auto !important">
@@ -6002,6 +6002,10 @@
                         <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy">
                         <span>Swissdec</span>
                     </button>
+                    <button type="button" class="ra-tile entw-hub-cat" data-cat="lohn" onclick="entwHubShowCat('lohn')" title="Lohn-Formelwerk — Registry, Swissdec-Codes">
+                        <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy">
+                        <span>Lohn</span>
+                    </button>
                     <button type="button" class="ra-tile entw-hub-cat" data-cat="import" onclick="entwHubShowCat('import')" title="easy@work API, Filial-Import, Archiv, Daten-Fix">
                         <img src="img/Import-schnittstellen.webp?v=20260816b" alt="" loading="lazy">
                         <span>Import &amp; Schnittstellen</span>
@@ -6010,6 +6014,15 @@
                         <img src="img/entwkat-begruessung.svg?v=20260904a" alt="" loading="lazy">
                         <span>Programm-<br>begrüssung</span>
                     </button>
+                </div>
+                <div class="entw-hub-group" id="entwHubGrp-lohn" style="display:none">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <div class="admin-card" onclick="showPage('lohn-formeln')">
+                        <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Lohn-Formeln</div>
+                        <div class="admin-card-desc">Zentrale Formel-Registry (read-only) — dieselben Einträge wie der Lohn-Code. Swissdec-Stamm, Mirus-Alias, Schema-Art.</div>
+                    </div>
+                    </div>
                 </div>
                 <div class="entw-hub-group" id="entwHubGrp-begruessung" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
@@ -6064,6 +6077,24 @@
                         <div class="admin-card-title">Daten-Fix</div>
                         <div class="admin-card-desc">Admin-Korrekturen — z.B. Personalnummer nach easy@work-Änderung</div>
                     </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="page" id="page-lohn-formeln">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Lohn-Formeln</h1>
+                    <p class="page-sub">Formelwerk aus dem Code — nicht editierbar. Parameter (Ferien-%, SV, Nachtfenster) bleiben in den Stammdaten.</p>
+                </div></div>
+                <div class="page-body">
+                    <p id="lohnFormelnHinweis" style="font-size:13px;color:#646464;margin:0 0 14px;max-width:960px"></p>
+                    <div class="card" style="padding:16px 18px;margin-bottom:18px;max-width:1200px">
+                        <div style="font-weight:700;font-size:14px;margin-bottom:10px">Registry</div>
+                        <div id="lohnFormelnBody"></div>
+                    </div>
+                    <div class="card" style="padding:16px 18px;max-width:1200px">
+                        <div style="font-weight:700;font-size:14px;margin-bottom:10px">Inventar Alt → Swissdec</div>
+                        <div id="lohnFormelnInventar"></div>
                     </div>
                 </div>
             </div>
@@ -6700,12 +6731,18 @@
             <div class="page liquid-mask fixhead" id="page-lohnpositionen">
                 <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
-                    <h1 class="page-title">OneCrew Lohnpositionen</h1>
-                    <p class="page-sub">Aktiver Lohnarten-Katalog — SV-Häkchen und Zuordnung zur Swissdec-Lohnart (ELM). Filter «ohne Swissdec» zeigt Lücken für die Meldung.</p>
+                    <h1 class="page-title">Swissdec Lohnpositionen</h1>
+                    <p class="page-sub">Nur echte Swissdec-Nummern (Showcase-Stamm). Mirus nur in «früher» (Parallelvergleich). Betrieb (LGAV/Depot) und Saldo-Vorträge sind intern — kein Fake-Swissdec.</p>
                 </div>
                 </div>
                 <!-- Aktions-Buttons rechts in der Toolbar (nicht oben rechts — #langSwitcher; Walter 21.09.2026) -->
                 <div class="fh-toolbar">
+                    <select id="lpFilterBereich" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                        <option value="swissdec">Swissdec-Stamm</option>
+                        <option value="betrieb">Betrieb / Auslöser (intern)</option>
+                        <option value="vortrag">Saldo-Vortrag (intern)</option>
+                        <option value="alle">Alles</option>
+                    </select>
                     <select id="lpFilterKat" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                         <option value="">Alle Kategorien</option>
                         <option value="Festlohn">Festlohn</option>
@@ -6717,6 +6754,9 @@
                         <option value="Ferienentsch.">Ferienentschädigung</option>
                         <option value="Bonus">Bonus</option>
                         <option value="Spesen">Spesen</option>
+                        <option value="SV-Abzug">SV-Abzug</option>
+                        <option value="Betrieb">Betrieb</option>
+                        <option value="Saldo-Vortrag">Saldo-Vortrag</option>
                         <option value="Abzüge">Abzüge</option>
                     </select>
                     <select id="lpFilterTyp" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
@@ -6724,20 +6764,11 @@
                         <option value="ZULAGE">Nur Zulagen</option>
                         <option value="ABZUG">Nur Abzüge</option>
                     </select>
-                    <select id="lpFilterSwissdec" onchange="lpRender()" title="Zuordnung Feld «Swissdec-Lohnart»"
-                            style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
-                        <option value="">Swissdec: alle</option>
-                        <option value="mit">mit Swissdec-Zuordnung</option>
-                        <option value="ohne">ohne Swissdec-Zuordnung</option>
-                    </select>
                     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#64748b">
                         <input type="checkbox" id="lpShowInactive" onchange="lpRender()"> Inaktive anzeigen
                     </label>
                     <span id="lpFilterHinweis" style="font-size:12.5px;color:#8b8b8b;align-self:center"></span>
                     <div style="order:99;margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                        <button type="button" class="btn-secondary" onclick="lpSwissdecVorschlaegeAnwenden()"
-                                style="padding:8px 14px;border-radius:12px;font-weight:600"
-                                title="Leere Swissdec-Felder aus der festen OneCrew→Swissdec-Tabelle füllen (überschreibt nichts Bestehendes)">Swissdec-Vorschläge füllen</button>
                         <button class="btn-primary" onclick="lpOpenForm(null)" style="padding:8px 14px">+ Neue Position</button>
                     </div>
                 </div>
@@ -6747,10 +6778,10 @@
                             <col class="lp-c-code"><col class="lp-c-name"><col class="lp-c-kat">
                             <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag">
                             <col class="lp-c-fei"><col class="lp-c-fer"><col class="lp-c-ml">
-                            <col class="lp-c-la"><col class="lp-c-sd"><col class="lp-c-typ"><col class="lp-c-act">
+                            <col class="lp-c-la"><col class="lp-c-mirus"><col class="lp-c-typ"><col class="lp-c-act">
                         </colgroup>
                         <thead><tr>
-                            <th>Code</th><th>Bezeichnung</th><th>Kategorie</th>
+                            <th title="Swissdec-Lohnartennummer">Nr.</th><th>Bezeichnung</th><th>Kategorie</th>
                             <th class="fh-th-center" title="AHV/ALV">AHV</th>
                             <th class="fh-th-center" title="NBUV">NBU</th>
                             <th class="fh-th-center" title="KTG">KTG</th>
@@ -6761,7 +6792,7 @@
                             <th class="fh-th-center lp-th-green" title="Basis für Ferienentschädigung">FER</th>
                             <th class="fh-th-center lp-th-green lp-th-green-r" title="Basis für 13. Monatslohn">13.ML</th>
                             <th class="fh-th-center" title="Lohnausweis / Statistik">LA</th>
-                            <th class="fh-th-center" title="Swissdec-Lohnart (ELM)">Swissdec</th>
+                            <th class="fh-th-center" title="Frühere Mirus-Nummer (nur Parallelvergleich)">früher</th>
                             <th class="fh-th-center">Typ</th>
                             <th></th>
                         </tr></thead>
@@ -6777,7 +6808,7 @@
                                     <col class="lp-c-code"><col class="lp-c-name"><col class="lp-c-kat">
                                     <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag">
                                     <col class="lp-c-fei"><col class="lp-c-fer"><col class="lp-c-ml">
-                                    <col class="lp-c-la"><col class="lp-c-sd"><col class="lp-c-typ"><col class="lp-c-act">
+                                    <col class="lp-c-la"><col class="lp-c-mirus"><col class="lp-c-typ"><col class="lp-c-act">
                                 </colgroup>
                                 <tbody id="lpTableBody">
                                     <tr><td colspan="16" style="padding:32px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>
@@ -6800,9 +6831,12 @@
 
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                                 <div>
-                                    <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Code *</label>
-                                    <input id="lpCode" required maxlength="20" placeholder="z.B. 10.1"
-                                        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+                                    <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Swissdec-Nr. *</label>
+                                    <input id="lpCode" required maxlength="20" list="lpSwissdecListe" placeholder="z.B. 1000"
+                                        oninput="lpQstPeriodischVorschlag()"
+                                        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:ui-monospace,Menlo,monospace;outline:none">
+                                    <datalist id="lpSwissdecListe"></datalist>
+                                    <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Musterlohnartenstamm (ELM) — führende Nummer</div>
                                 </div>
                                 <div>
                                     <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Typ</label>
@@ -6831,11 +6865,11 @@
                                         style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
                                 </div>
                             </div>
-                            <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Swissdec-Lohnart <span style="font-weight:400;color:#94a3b8">(Musterlohnartenstamm, z.B. 1005 Stundenlohn, 1161 Feiertagsentschädigung)</span></label>
-                                <input id="lpSwissdec" maxlength="10" list="lpSwissdecListe" oninput="lpQstPeriodischVorschlag()" placeholder="leer = nicht zugeordnet"
-                                    style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
-                                <datalist id="lpSwissdecListe"></datalist>
+                            <div style="background:rgba(60,55,48,0.04);border-radius:10px;padding:10px 12px">
+                                <label style="display:block;font-size:11.5px;font-weight:600;color:#8b8b8b;margin-bottom:4px">Früher (Mirus) — nur Parallelvergleich</label>
+                                <input id="lpMirus" maxlength="20" placeholder="z.B. 10.1 — leer lassen wenn neu"
+                                    style="width:100%;padding:7px 10px;border:1px solid rgba(60,55,48,0.12);border-radius:8px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace;outline:none;background:#fff;color:#646464">
+                                <input type="hidden" id="lpSwissdec" value="">
                             </div>
 
                             <!-- SV-Raster -->
@@ -10677,7 +10711,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261018a"></script>
+<script src="js/app-core.js?v=20261019a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10732,6 +10766,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/funktion-reko.js?v=20260922d"></script>
 <script src="js/vertrags-historie.js?v=20260922d"></script>
 <script src="js/programmbegruessung.js?v=20260904a"></script>
+<script src="js/lohn-formeln.js?v=20261019a"></script>
 <script src="js/moments.js?v=20260813a"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
@@ -10744,7 +10779,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20261012a"></script>
 <script src="js/payroll-perioden.js?v=20261003b"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20261017b"></script>
+<script src="js/admin-settings.js?v=20261019e"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261007a"></script>
@@ -10776,7 +10811,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/elm-zertifikat.js?v=20261015b"></script>
 <script src="js/elm-schnittstelle.js?v=20261016d"></script>
 <script src="js/elm-lohnraster.js?v=20260921a"></script>
-<script src="js/lohnschema.js?v=20260819d"></script>
+<script src="js/lohnschema.js?v=20261019c"></script>
 <script src="js/global-search.js?v=20260901a"></script>
 <script src="js/help-panel.js?v=20261008a"></script>
 <script src="js/i18n.js?v=20261014a"></script>

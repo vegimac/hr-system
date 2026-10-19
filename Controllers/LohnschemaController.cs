@@ -9,8 +9,8 @@ namespace HrSystem.Controllers;
 /// <summary>
 /// Lohnschema pro Vertragsmodell (Walter-Vorgabe 17.08.2026): Standard-
 /// Lohnblatt — welche Lohnpositionen gehören zu welchem Vertragsmodell.
-/// Reine Stammdaten/Anzeige (Phase 2) — die Rechen-Engine liest das Schema
-/// nicht. Reiner Katalog ohne Lohnlauf-Datumsbezug → EditLock-whitelisted.
+/// Engine liest das Schema via LohnSchemaSteuerung (Walter 19.10.2026).
+/// Codes = Swissdec-Stamm. EditLock-whitelisted.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -38,6 +38,8 @@ public class LohnschemaController : ControllerBase
                 e.Id, e.Modell, e.Art, e.SortOrder, e.Bemerkung,
                 lohnpositionId = e.LohnpositionId,
                 code           = e.Lohnposition!.Code,
+                mirusCode      = e.Lohnposition!.MirusCode,
+                swissdecLohnart = e.Lohnposition!.SwissdecLohnart,
                 bezeichnung    = e.Lohnposition!.Bezeichnung,
                 kategorie      = e.Lohnposition!.Kategorie,
                 typ            = e.Lohnposition!.Typ,

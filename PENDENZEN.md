@@ -97,3 +97,35 @@ Pendent (später umzusetzen):
    Arbeitszeit-/Freitage-Auswertung.
 3. Optional: „FR" im Importer als bekannten, bewusst übersprungenen Code führen
    (neutrale Info statt „Code unbekannt").
+
+---
+
+## Nacht-Kompensation → Swissdec 1076 (Walter 18.10.2026, Stand 82)
+
+**Erledigt im Stamm:** Code `1076` (ex 55.10), Formel `NachtKomp10` / `NachtFixSplit`.
+FLEX/MTP schreiben 1076; FIX: −Festlohn +1076 (Brutto ±0).
+
+**Noch offen:** RefXML-Monate 1:1 gegen Belege prüfen; Feintuning Tag vs. Stunden
+beim FIX-Split falls Mirus-Parallelvergleich abweicht.
+
+---
+
+## Ferien Swissdec 1160 / 1166 / 1168 (Walter 18.10.2026, Stand 82)
+
+| Fall | Swissdec | Stand |
+|---|---|---|
+| FLEX/MTP Ferien-% + Topf | **1160** / 1160.195 | umgestellt |
+| FIX/FIX-M Feriengeld | **1166** | Engine schreibt 1166 |
+| Austritt Ferien-Saldo | **1168** | Engine schreibt 1168 |
+
+**Noch offen:** RefXML 1:1; Treuhänder-PDF Endstand.
+
+---
+
+## Zertifizierung Teil 1 — erst nach Formelwerk-Endstand (Walter 19.10.2026)
+
+Zert Teil 1 bewusst **verschoben**, bis Swissdec-Stamm + Formelwerk + Schema (Stand 84: streng Treuhand-Nummern)
+(Stand 82) für die Zert-Monate grün sind (Regel zertifizierung-endstand).
+Kein «nur für Swissdec»-Sonderpfad. Checkliste: RefXML Jan–… 1:1, dann Zert.
+
+---

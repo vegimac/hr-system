@@ -1417,7 +1417,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
 // Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
 // Sidebar-Eintrag «Entwicklung» aktiv und bekommen denselben Zurueck-Button
 // wie die System-Unterseiten — nur eben zurueck nach «entwicklung».
-const _devSubPages = ['swissdec', 'swissdec-kommunikation', 'swissdec-systemtest', 'programmbegruessung'];
+const _devSubPages = ['swissdec', 'swissdec-kommunikation', 'swissdec-systemtest', 'programmbegruessung', 'lohn-formeln'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.

@@ -34,10 +34,16 @@ public static class SwissdecLohnartZuordnung
             ["85.1"] = "2050",
             ["90.1"] = "2000", ["90.2"] = "2000", ["90.3"] = "2000",
             ["95.1"] = "2050",
-            // Mutterschaft / Vaterschaft
-            ["120.1"] = "2001", ["120.2"] = "2001",
+            // Mutterschaft / Vaterschaft (Treuhand: 2001 / 2002; Korrektur → 2050)
+            ["120.1"] = "2001", ["120.2"] = "2002",
             ["125.1"] = "2050", ["125.2"] = "2050",
             ["VATERSCHAFT"] = "2002",
+            ["2001"] = "2001", ["2002"] = "2002", ["2000"] = "2000", ["2050"] = "2050",
+            // SV-Abzüge
+            ["103"] = "5010", ["104"] = "5012", ["107"] = "5042",
+            ["110"] = "5020", ["111"] = "5050",
+            ["5010"] = "5010", ["5012"] = "5012", ["5014"] = "5014",
+            ["5020"] = "5020", ["5030"] = "5030", ["5042"] = "5042", ["5050"] = "5050",
             // 13. Monatslohn
             ["180.1"] = "1200", ["180.2"] = "1200", ["180.3"] = "1200",
             // Familienzulagen
@@ -56,7 +62,19 @@ public static class SwissdecLohnartZuordnung
     public static string? FuerOneCrewCode(string? code)
     {
         if (string.IsNullOrWhiteSpace(code)) return null;
-        return NachOneCrewCode.TryGetValue(code.Trim(), out var s) ? s : null;
+        var c = code.Trim();
+        // Neu: code ist bereits Swissdec (ggf. mit Suffix) — vierstelligen Kopf liefern
+        if (c.Length >= 4 && char.IsDigit(c[0]) && !c.Contains('.') && c.Length == 4)
+            return c;
+        if (NachOneCrewCode.TryGetValue(c, out var s)) return s;
+        // Swissdec mit Suffix (1000.2 → 1000) oder bereits gemappt
+        var swiss = LohnFormelwerk.LohnCodes.SwissdecVon(c);
+        if (!string.IsNullOrEmpty(swiss) && swiss.Length == 4) return swiss;
+        // Mirus-Alias → Swissdec
+        var norm = LohnFormelwerk.LohnCodeAlias.Normiere(c);
+        if (!string.Equals(norm, c, StringComparison.OrdinalIgnoreCase))
+            return LohnFormelwerk.LohnCodes.SwissdecVon(norm) is { Length: >= 4 } sw ? sw : norm;
+        return null;
     }
 
     public static IReadOnlyList<(string OneCrew, string Swissdec)> AlsListe()

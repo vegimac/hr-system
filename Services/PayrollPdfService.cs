@@ -182,7 +182,7 @@ public class PayrollPdfService
                 decimal totalLohn = 0;
                 foreach (var line in lohnLines.Value.EnumerateArray())
                 {
-                    var bez   = GetString(line, "bezeichnung");
+                    var bez   = BezeichungMitSwissdec(line);
                     var anz   = GetDecimal(line, "anzahl");
                     var proz  = GetDecimal(line, "prozent");
                     var basis = GetDecimal(line, "basis");
@@ -213,7 +213,7 @@ public class PayrollPdfService
                 t.Cell().ColumnSpan(6).PaddingTop(8).Text("Abzüge").Bold().FontSize(9.5f);
                 foreach (var line in abzugLines.Value.EnumerateArray())
                 {
-                    var bez   = GetString(line, "bezeichnung");
+                    var bez   = BezeichungMitSwissdec(line);
                     var proz  = GetDecimal(line, "prozent");
                     var basis = GetDecimal(line, "basis");
                     var betr  = GetDecimal(line, "betrag");
@@ -614,6 +614,19 @@ public class PayrollPdfService
     }
 
     // ─── JSON Helpers ────────────────────────────────────────────────
+    /// <summary>Bezeichnung mit Swissdec-Nr. davor (Walter 19.10.2026), z.B. «1005  Stundenlohn».</summary>
+    private static string BezeichungMitSwissdec(JsonElement line)
+    {
+        var bez = GetString(line, "bezeichnung") ?? "";
+        var code = GetString(line, "code");
+        if (string.IsNullOrWhiteSpace(code)) return bez;
+        // Schon mit Nr. prefixiert → nicht doppelt
+        if (bez.StartsWith(code + " ", StringComparison.Ordinal)
+            || bez.StartsWith(code + "\u00a0", StringComparison.Ordinal))
+            return bez;
+        return string.IsNullOrEmpty(bez) ? code : $"{code}  {bez}";
+    }
+
     private static string GetString(JsonElement el, string prop) =>
         el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String
             ? (v.GetString() ?? "") : "";

@@ -4,9 +4,7 @@ namespace HrSystem.Models;
 /// Lohnschema pro Vertragsmodell (Walter-Vorgabe 17.08.2026, Phase 2 des
 /// Konzepts docs/lohnschema-vertragsmodelle.docx): Standard-Lohnblatt —
 /// welche Lohnpositionen gehören zu welchem Vertragsmodell und wann
-/// erscheinen sie. REINE STAMMDATEN/ANZEIGE — die Rechen-Engine liest das
-/// Schema (noch) nicht; Steuerung ist Phase 3 (nach längerem Grün-Lauf der
-/// Basen-Kontrolle).
+/// erscheinen sie. Engine lädt sie via LohnSchemaSteuerung (Walter 19.10.2026).
 /// Modell: FLEX | MTP | FIX | FIX-M | ALLE (gilt für jedes Modell).
 /// Art:    automatisch (jeden Monat) | saldo (automatisch in den Saldo/Pott)
 ///         | ereignis (Krankheit, Ferienbezug …) | austritt | manuell.

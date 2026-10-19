@@ -8,10 +8,17 @@ namespace HrSystem.Models;
 public class Lohnposition
 {
     public int     Id              { get; set; }
-    public string  Code            { get; set; } = "";      // z.B. "10.1", "55.1", "195.2"
+    /// <summary>Primärschlüssel-Code = Swissdec-Treuhand-Nr. (1000, 1005, 2002 …); Betrieb/Auslöser: 600.x / 180.3.</summary>
+    public string  Code            { get; set; } = "";
     public string  Bezeichnung     { get; set; } = "";      // z.B. "Festlohn", "Überstunden 25%"
     public string  Kategorie       { get; set; } = "";      // z.B. "Festlohn", "Überstunden", "Spesen"
     public string  Typ             { get; set; } = "ZULAGE"; // ZULAGE (+) | ABZUG (-)
+
+    /// <summary>Mirus-Altcode nur für Parallelvergleich / Kontoplan-Parse (Walter 19.10.2026).</summary>
+    public string? MirusCode       { get; set; }
+
+    /// <summary>Formelwerk-Id (siehe Services/LohnFormelwerk), null = keine Formel / manuell.</summary>
+    public string? FormelId        { get; set; }
 
     // SV-Steuerung (Raster-Flags)
     public bool    AhvAlvPflichtig { get; set; } = true;   // AHV / IV / EO + ALV

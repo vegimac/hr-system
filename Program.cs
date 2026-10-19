@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 81;  // 81: Mirus-Altlohnarten 565/565.1/565.2, 200.900/200.901, 55.11/55.12 deaktivieren (QST→qst_korrektur, Nacht→55.10) · 80: PLZ 3000 Bern 1 im Ortschaftsverzeichnis · 79: Swissdec 4.1/4.2 Kontakt-Mobil, UID unbekannt, Stellvertreter, Workplace-InHouseID · 78: Hauptsitz/Filiale Adresse Swissdec 4.2 · 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026) · 31: employee.kuendigung_dokument_id (25.09.2026) · 32: Zivilstand-Historie «ledig» bereinigen (25.09.2026) · 33: payroll_snapshot.sv_basis_nbuv/-_ktg für die Höchstlohn-Aufrollung (26.09.2026) · 34: arbeitszeitmodell + employee_arbeitszeitmodell + employee_lse.leave_entitlement_days für die ELM-Monatsmeldung (27.09.2026) · 35: employment.swissdec_vertragsart + jahreslohn_ohne_zeitbindung für die Lohnstatistik (27.09.2026) · 36: hauptsitz.kontakt_* für die ELM-Kontaktperson (27.09.2026) · 37: employee_quellensteuer.sorgerecht_code für SingleParentFamily (27.09.2026) · 38: employment.vierzehnter_monatslohn + permit_type MV90/MV120/ANDERE (28.09.2026) · 39: schulung_typ + employee_schulung, drei generische Schulungs-Warnungen (01.10.2026) · 40: Gastro-Ausbildung aus den Schulungen entfernt (kommt aus easy@work, nur Mindestlohn-Check) (01.10.2026) · 41: dokument_typ_zusatz_code, mehrere Ablage-Angaben pro Dokument-Typ (03.10.2026) · 42: employee_bvg_pflicht + To-do bvg_pflicht_pruefen (04.10.2026) · 43: vivosystem_lohnkonto Mirus-Lohnkonto (04.10.2026) · 44: simulation_vortrag + simulation_lohn Lohn-Simulation (04.10.2026) · 45: McBonus 205→200.5, Lohnarten 600.5 Korrektur BVG Vorjahr + 950.1 Vorschuss, Raster verknüpft (04.10.2026) · 46: Raster 565.1 → Lohnart 565 Korrektur Quellensteuer (04.10.2026) · 47: ferien_auszahlung Ferien auszahlen ohne Bezug (05.10.2026) · 48: Feiertag bei MTP/FLEX Wirkung KEINE (05.10.2026) · 49: reduziert_saldo FERIEN_TAGE/FEIERTAG_TAGE im Katalog, Engine liest daraus (05.10.2026) · 50: CHECK absenz_typ_reduziert_saldo um FEIERTAG_TAGE erweitert (05.10.2026) · 51: Zeitgutschrift Krank/Unfall — arbeitstage_pro_woche, zeitgutschrift_krank_methode, absence.dienstplan_bis (06.10.2026) · 52: MTP Krank/Unfall Korrektur 75.1/65.1 — Ferien-Basis + Lohnschema MTP (06.10.2026) · 53: company_profile.lektionen_lohn_aktiv Filial-Schalter (07.10.2026) · 54: arbeitszeit_regel_wert + dienstplan_feiertag.sonntagsgleich (07.10.2026) · 55: Feiertage-Altbestand nach Kantonslisten Art. 20a ArG (07.10.2026) · 56: viren_fund + To-do virus_gefunden Virenscanner (08.10.2026) · 57: family_member_permit_history + family_member_erwerb_history (seit/erfahren am für QST) (08.10.2026) · 58: lohn_zulage.stunden — Überstunden-Auszahlung 55.2 im Lohnlauf (10.10.2026) · 59: famz_korrektur als quittierbare Warnung (lohn_zulage_id/erledigt_*/bemerkung) + VORJAHR→OFFEN (11.10.2026) · 60: QST-Verlauf am Kind — family_member_ausbildung/_verhaeltnis/_qst_entscheid + Altbestand (11.10.2026) · 61: Familienzulagen-Anmeldung — Kind Beziehung/Sorge/anderer Elternteil, Partner Pensum/SE-NE/Leistung, «keine Unterhaltspflicht» → Verlauf (11.10.2026) · 62: Ablage «Familienzulage» — family_allowance → Typ Kinderzulagen (11.10.2026) · 63: mailbox_document.gruppe — Mitteilung mit mehreren Dateien (12.10.2026) · 64: employee.familienbetreuung/_von/_bis aus easy@work (12.10.2026) · 65: organigramm_stelle (13.10.2026) · 66: Organigramm-Farben (13.10.2026) · 67: Organigramm-Beschreibung (13.10.2026) · 68: organigramm_einstellung (13.10.2026) · 69: organigramm_stelle.grau (13.10.2026) · 70: gastrosocial_meldung + To-dos An-/Abmeldung fehlt (13.10.2026) · 71: To-do-Anleitung GastroSocial ohne Zeitraum (13.10.2026) · 72: employee.schuhgroesse (15.10.2026) · 73: To-do elm_zertifikat (15.10.2026) · 74: To-do elm_meldung (15.10.2026) · 75: personaldaten_bestaetigung + To-do personaldaten_pruefen (15.10.2026) · 76: employee_wohnort_history.land für ELM-Stichtag Ausland (16.10.2026) · 77: employee_permit_history.erwerb_meldepflichtig + Feiertag-Häkchen Karenz/Taggeld (16.10.2026)
+const int SchemaStand = 88;  // 88: nur Swissdec aktiv; Betrieb/Vortrag intern; 180.3→1200, 120→5100, 600.5→5212 · 87: SV 5010…
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -244,6 +244,7 @@ builder.Services.AddScoped<LgavBeitragService>();
 builder.Services.AddScoped<UniformDepotService>();
 builder.Services.AddScoped<HrSystem.Services.Vorsystem.LohnSimulationKontext>();
 builder.Services.AddScoped<HrSystem.Services.Vorsystem.LohnSimulationService>();
+builder.Services.AddScoped<HrSystem.Services.LohnFormelwerk.LohnSchemaSteuerung>();
 builder.Services.AddScoped<PayrollCalculationEngine>();
 // Snapshot-Neuberechnung (hält offene Perioden frisch — Walter-Vorgabe 22.05.2026).
 builder.Services.AddScoped<SnapshotRecomputeService>();
@@ -1289,6 +1290,9 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE UNIQUE INDEX IF NOT EXISTS ux_emp_qst_arbeitstage ON employee_qst_arbeitstage (employee_id, year, month);
         ALTER TABLE IF EXISTS lohnposition ADD COLUMN IF NOT EXISTS swissdec_lohnart varchar(10);
+        ALTER TABLE IF EXISTS lohnposition ADD COLUMN IF NOT EXISTS mirus_code varchar(20);
+        ALTER TABLE IF EXISTS lohnposition ADD COLUMN IF NOT EXISTS formel_id varchar(40);
+        CREATE INDEX IF NOT EXISTS ix_lohnposition_mirus_code ON lohnposition (mirus_code);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS lesson_rate numeric(10,2);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS weekly_lessons numeric(6,2);
         -- Swissdec CategoryPredefined (MEN/MEY, HEN/HEY, NON/NOY, SFN) — Wissen, kein ESTV-Buchstabe
@@ -5384,26 +5388,26 @@ using (var scope = app.Services.CreateScope())
         WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema LIMIT 1);
     ");
 
-    // ── EO Mutterschaft/Vaterschaft (Walter-Entscheid 17.08.2026, «1a / keine
-    // Aufstockung / Vaterschaft mit»): Lohnpositionen 120.1/120.2 (EO-Taggeld)
-    // + 125.1/125.2 (Korrektur Festlohn-Modelle) aus dem Raster-Archiv anlegen
-    // (QST-Pflicht = AHV-Pflicht, bekannter Raster-Attribut-Fall) und als
-    // «bei Ereignis» ins Lohnschema ALLER Modelle aufnehmen. Idempotent.
+    // ── EO Mutterschaft/Vaterschaft (Walter 17.08.2026; Codes Treuhand 19.10.2026):
+    // Swissdec 2001 / 2002 (+ Korrektur 2050). Mirus 120.x/125.x nur noch Alias.
+    // Idempotent — legt fehlende Treuhand-Zeilen an, reaktiviert keine Mirus-Nummern.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO lohnposition
-            (code, bezeichnung, kategorie, typ,
+            (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
              ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig,
-             qst_pflichtig, zaehlt_als_basis_13ml, sort_order, is_active)
-        SELECT r.code, r.bezeichnung, COALESCE(r.gruppe, ''), 'ZULAGE',
-               COALESCE(r.ahv, true), COALESCE(r.uvg, true), COALESCE(r.ktg, true), COALESCE(r.bvg, true),
-               COALESCE(r.ahv, true), COALESCE(r.ml13, false), 99, true
-        FROM elm_lohnraster r
-        WHERE r.code IN ('120.1', '120.2', '125.1', '125.2')
-          AND NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = r.code AND lp.is_active = true);
+             qst_pflichtig, zaehlt_als_basis_13ml, sort_order, is_active, created_at)
+        SELECT v.code, v.mirus, v.bez, 'EO', 'ZULAGE', v.code,
+               true, true, true, true, true, true, v.so, true, LOCALTIMESTAMP
+        FROM (VALUES
+            ('2001', '120.1', 'Mutterschaftsentschädigung EO', 40),
+            ('2002', '120.2', 'Vaterschaftsentschädigung EO', 50),
+            ('2050', '75.1',  'Korrektur Taggelder', 60)
+        ) AS v(code, mirus, bez, so)
+        WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
 
         INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
         SELECT 'ALLE', lp.id, 'ereignis', v.so
-        FROM (VALUES ('120.1', 40), ('120.2', 50), ('125.1', 60), ('125.2', 70)) AS v(code, so)
+        FROM (VALUES ('2001', 40), ('2002', 50), ('2050', 60)) AS v(code, so)
         JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
         WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema x
                           WHERE x.modell = 'ALLE' AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
@@ -5468,6 +5472,10 @@ using (var scope = app.Services.CreateScope())
                true, true,
                181, true, CURRENT_TIMESTAMP
          WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '180.3');
+        UPDATE lohnposition
+           SET mirus_code = COALESCE(mirus_code, '180.3'),
+               swissdec_lohnart = COALESCE(swissdec_lohnart, '1200')
+         WHERE code = '180.3';
 
         INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
         SELECT v.modell, lp.id, v.art, v.sort_order
@@ -5606,27 +5614,25 @@ using (var scope = app.Services.CreateScope())
         db.SaveChanges();
     }
 
-    // ── Militär / Zivildienst / Zivilschutz nach L-GAV Art. 28 (Walter-Entscheid
-    // 19.08.2026): Stufen 100 % (Tag 1–25 im Arbeitsjahr) / 88 % (bis Berner
-    // Skala) / EO 80 % — Lohnpositionen 80.1–80.3 + 85.1 (Militär) und
-    // 90.1–90.3 + 95.1 (Zivilschutz) aus dem Raster-Archiv (QST = AHV-Regel),
-    // dazu «bei Ereignis» im Lohnschema ALLER Modelle. Idempotent.
+    // ── Militär / Zivildienst / Zivilschutz nach L-GAV Art. 28 (Walter 19.08.2026;
+    // Codes Treuhand 19.10.2026): Swissdec 2000 (EO-Taggeld) + 2050 (Korrektur).
+    // Mirus 80.x/90.x/85.1/95.1 nur Alias — NIE neu seeden (UNIQUE, wenn inaktiv).
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO lohnposition
-            (code, bezeichnung, kategorie, typ,
+            (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
              ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig,
-             qst_pflichtig, zaehlt_als_basis_13ml, sort_order, is_active)
-        SELECT r.code, r.bezeichnung, COALESCE(r.gruppe, ''), 'ZULAGE',
-               COALESCE(r.ahv, true), COALESCE(r.uvg, false), COALESCE(r.ktg, true), COALESCE(r.bvg, true),
-               COALESCE(r.ahv, true), COALESCE(r.ml13, false), 99, true
-        FROM elm_lohnraster r
-        WHERE r.code IN ('80.1', '80.2', '80.3', '85.1', '90.1', '90.2', '90.3', '95.1')
-          AND NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = r.code AND lp.is_active = true);
+             qst_pflichtig, zaehlt_als_basis_13ml, sort_order, is_active, created_at)
+        SELECT v.code, v.mirus, v.bez, 'EO', 'ZULAGE', v.code,
+               true, false, true, true, true, true, v.so, true, LOCALTIMESTAMP
+        FROM (VALUES
+            ('2000', '80.1', 'EO-Taggeld Militär / Zivilschutz', 42),
+            ('2050', '75.1', 'Korrektur Taggelder', 70)
+        ) AS v(code, mirus, bez, so)
+        WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
 
         INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
         SELECT 'ALLE', lp.id, 'ereignis', v.so
-        FROM (VALUES ('80.1', 80), ('80.2', 81), ('80.3', 82), ('85.1', 83),
-                     ('90.1', 84), ('90.2', 85), ('90.3', 86), ('95.1', 87)) AS v(code, so)
+        FROM (VALUES ('2000', 42), ('2050', 70)) AS v(code, so)
         JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
         WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema x
                           WHERE x.modell = 'ALLE' AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
@@ -6301,6 +6307,556 @@ using (var scope = app.Services.CreateScope())
         ");
         startLog.LogInformation(
             "Stand 81: {N} Mirus-Altlohnart(en) deaktiviert (565*/200.900/200.901/55.11/55.12)", nAlt);
+    }
+
+    // ── Stand 82: Swissdec-Stamm als code, Mirus nur Alias (Walter 19.10.2026) ──
+    if (dbStand < 82)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE lohnposition SET mirus_code = code WHERE mirus_code IS NULL OR mirus_code = '';
+            -- temporär umbenennen (UNIQUE code), dann auf Swissdec
+            UPDATE lohnposition SET code = 'tmp_' || code WHERE code NOT LIKE 'tmp_%'
+              AND code IN (
+                '10.1','10.2','10.3','10.4','20','20.1','20.2','20.3','22','55.3',
+                '55.1','55.2','55.10','40.1','195.1','195.2','195.3','195.4','195.5','195.6',
+                '50.1','180.1','180.2','180.3','200.5','200.1','190.1','190.2','190.3',
+                '70.1','70.2','60.1','60.2','60.3','75.1','75.2','65.1','65.2',
+                '80.1','80.2','80.3','90.1','90.2','90.3','120.1','120.2'
+              );
+            UPDATE lohnposition SET code = '1000',   swissdec_lohnart = '1000', formel_id = 'FestlohnMonat'     WHERE code = 'tmp_10.1';
+            UPDATE lohnposition SET code = '1000.2', swissdec_lohnart = '1000', formel_id = 'FerienFixSplit'    WHERE code = 'tmp_10.2';
+            UPDATE lohnposition SET code = '1000.3', swissdec_lohnart = '1000', formel_id = 'FestlohnMonat'     WHERE code = 'tmp_10.3';
+            UPDATE lohnposition SET code = '1000.4', swissdec_lohnart = '1000', formel_id = 'Zusatzstunden'     WHERE code = 'tmp_10.4';
+            UPDATE lohnposition SET code = '1005',   swissdec_lohnart = '1005', formel_id = 'StundenlohnBetrag' WHERE code = 'tmp_20';
+            UPDATE lohnposition SET code = '1005.1', swissdec_lohnart = '1005', formel_id = 'StundenlohnBetrag' WHERE code = 'tmp_20.1';
+            UPDATE lohnposition SET code = '1005.2', swissdec_lohnart = '1005', formel_id = 'StundenlohnBetrag' WHERE code = 'tmp_20.2';
+            UPDATE lohnposition SET code = '1005.3', swissdec_lohnart = '1005', formel_id = 'StundenlohnBetrag' WHERE code = 'tmp_20.3';
+            UPDATE lohnposition SET code = '1005.22',swissdec_lohnart = '1005', formel_id = 'StundenlohnBetrag' WHERE code = 'tmp_22';
+            UPDATE lohnposition SET code = '1005.3m',swissdec_lohnart = '1005', formel_id = 'StundenlohnBetrag' WHERE code = 'tmp_55.3';
+            UPDATE lohnposition SET code = '1061',   swissdec_lohnart = '1061', formel_id = 'Ueberstunden25'    WHERE code = 'tmp_55.1';
+            UPDATE lohnposition SET code = '1065',   swissdec_lohnart = '1065', formel_id = 'StundenlohnBetrag' WHERE code = 'tmp_55.2';
+            UPDATE lohnposition SET code = '1076',   swissdec_lohnart = '1076', formel_id = 'NachtKomp10'       WHERE code = 'tmp_55.10';
+            UPDATE lohnposition SET code = '1160',   swissdec_lohnart = '1160', formel_id = 'FerienGeldFlex'    WHERE code = 'tmp_40.1';
+            UPDATE lohnposition SET code = '1160.195',swissdec_lohnart= '1160', formel_id = 'FerienGeldFlex'    WHERE code = 'tmp_195.1';
+            UPDATE lohnposition SET code = '1160.195b',swissdec_lohnart='1160', formel_id = 'FerienGeldFlex'    WHERE code = 'tmp_195.3';
+            UPDATE lohnposition SET code = '1160.195c',swissdec_lohnart='1160', formel_id = 'FerienGeldFlex'    WHERE code = 'tmp_195.5';
+            UPDATE lohnposition SET code = '1160.195d',swissdec_lohnart='1160', formel_id = 'FerienGeldFlex'    WHERE code = 'tmp_195.6';
+            UPDATE lohnposition SET code = '1161',   swissdec_lohnart = '1161', formel_id = 'FeiertagGeldFlex'  WHERE code = 'tmp_195.2';
+            UPDATE lohnposition SET code = '1161.4', swissdec_lohnart = '1161', formel_id = 'FeiertagGeldFlex'  WHERE code = 'tmp_195.4';
+            UPDATE lohnposition SET code = '1161.50',swissdec_lohnart = '1161', formel_id = 'FeiertagGeldFlex'  WHERE code = 'tmp_50.1';
+            UPDATE lohnposition SET code = '1200',   swissdec_lohnart = '1200', formel_id = 'Ml13GeldFlex'      WHERE code = 'tmp_180.1';
+            UPDATE lohnposition SET code = '1200.2', swissdec_lohnart = '1200', formel_id = 'Ml13GeldFlex'      WHERE code = 'tmp_180.2';
+            UPDATE lohnposition SET code = '1200.3', swissdec_lohnart = '1200', formel_id = 'Ml13GeldFlex'      WHERE code = 'tmp_180.3';
+            UPDATE lohnposition SET code = '1210',   swissdec_lohnart = '1210' WHERE code = 'tmp_200.5';
+            UPDATE lohnposition SET code = '6070',   swissdec_lohnart = '6070' WHERE code = 'tmp_200.1';
+            UPDATE lohnposition SET code = '3000',   swissdec_lohnart = '3000' WHERE code = 'tmp_190.1';
+            UPDATE lohnposition SET code = '3010',   swissdec_lohnart = '3010' WHERE code = 'tmp_190.2';
+            UPDATE lohnposition SET code = '3034',   swissdec_lohnart = '3034' WHERE code = 'tmp_190.3';
+            UPDATE lohnposition SET code = '1301',   swissdec_lohnart = '1301', formel_id = 'KrankKarenz100' WHERE code = 'tmp_70.1';
+            UPDATE lohnposition SET code = '2035',   swissdec_lohnart = '2035', formel_id = 'Ktg80'          WHERE code = 'tmp_70.2';
+            UPDATE lohnposition SET code = '1300',   swissdec_lohnart = '1300', formel_id = 'UnfallKarenz100' WHERE code = 'tmp_60.2';
+            UPDATE lohnposition SET code = '1300.1', swissdec_lohnart = '1300', formel_id = 'UnfallKarenz100' WHERE code = 'tmp_60.1';
+            UPDATE lohnposition SET code = '2030',   swissdec_lohnart = '2030', formel_id = 'Uvg80' WHERE code = 'tmp_60.3';
+            UPDATE lohnposition SET code = '2050.75',swissdec_lohnart = '2050', formel_id = 'KorrKtg75' WHERE code = 'tmp_75.1';
+            UPDATE lohnposition SET code = '2050.75b',swissdec_lohnart= '2050', formel_id = 'KorrKtg75' WHERE code = 'tmp_75.2';
+            UPDATE lohnposition SET code = '2050.65',swissdec_lohnart = '2050', formel_id = 'KorrUvg65' WHERE code = 'tmp_65.1';
+            UPDATE lohnposition SET code = '2050.65b',swissdec_lohnart= '2050', formel_id = 'KorrUvg65' WHERE code = 'tmp_65.2';
+            UPDATE lohnposition SET code = '2000.80',swissdec_lohnart = '2000' WHERE code = 'tmp_80.1';
+            UPDATE lohnposition SET code = '2000.81',swissdec_lohnart = '2000' WHERE code = 'tmp_80.2';
+            UPDATE lohnposition SET code = '2000.82',swissdec_lohnart = '2000' WHERE code = 'tmp_80.3';
+            UPDATE lohnposition SET code = '2000.90',swissdec_lohnart = '2000' WHERE code = 'tmp_90.1';
+            UPDATE lohnposition SET code = '2000.91',swissdec_lohnart = '2000' WHERE code = 'tmp_90.2';
+            UPDATE lohnposition SET code = '2000.92',swissdec_lohnart = '2000' WHERE code = 'tmp_90.3';
+            UPDATE lohnposition SET code = '2001',   swissdec_lohnart = '2001' WHERE code = 'tmp_120.1';
+            UPDATE lohnposition SET code = '2001.2', swissdec_lohnart = '2001' WHERE code = 'tmp_120.2';
+            -- Rest tmp_ falls Kollision: zurück auf mirus
+            UPDATE lohnposition SET code = mirus_code WHERE code LIKE 'tmp_%' AND mirus_code IS NOT NULL;
+            -- Neu: 1166 / 1168 (FIX-Ferien-Split / Austritt)
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart, formel_id,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml, sort_order, is_active, created_at)
+            SELECT '1166', '40.1', 'Ferienentschädigung FIX', 'Ferien', 'ZULAGE', '1166', 'FerienFixSplit',
+                true, true, true, true, true, false, false, false, 40, true, LOCALTIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM lohnposition WHERE code = '1166');
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart, formel_id,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml, sort_order, is_active, created_at)
+            SELECT '1168', '40.1', 'Ferienauszahlung Austritt', 'Ferien', 'ZULAGE', '1168', 'FerienFixSplit',
+                true, true, true, true, true, false, false, false, 41, true, LOCALTIMESTAMP
+            WHERE NOT EXISTS (SELECT 1 FROM lohnposition WHERE code = '1168');
+            -- Vertragstyp-Codes nachziehen
+            UPDATE vertragstyp_lohnposition SET lohnposition_code = lp.code
+              FROM lohnposition lp WHERE lp.mirus_code = vertragstyp_lohnposition.lohnposition_code
+                AND vertragstyp_lohnposition.lohnposition_code IS DISTINCT FROM lp.code;
+            -- MTP Mehrstunden → Aufwandkonto 4001 (Kontoplan-Brücke)
+            UPDATE lohn_konto_mapping SET fibukonto = '4001'
+              WHERE position = 55 AND sub_position = 3 AND (fibukonto IS NULL OR fibukonto IN ('4000','4055',''));
+        ");
+        startLog.LogInformation("Stand 82: Lohnpositionen auf Swissdec-Codes umgestellt, mirus_code gesetzt, 1166/1168 + MTP 4001");
+    }
+
+    // ── Stand 83: Lohnschema FIX/FIX-M um 1166 / 1168 / 1076 ergänzen ─────
+    if (dbStand < 83)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+            SELECT v.modell, lp.id, v.art, v.sort_order
+            FROM (VALUES
+                ('FIX',   '1166', 'ereignis',  25),
+                ('FIX',   '1168', 'austritt', 125),
+                ('FIX',   '1076', 'automatisch', 15),
+                ('FIX-M', '1166', 'ereignis',  25),
+                ('FIX-M', '1168', 'austritt', 125),
+                ('FIX-M', '1076', 'automatisch', 15),
+                ('FLEX',  '1076', 'automatisch', 20),
+                ('MTP',   '1076', 'automatisch', 25),
+                ('FLEX',  '1160', 'saldo',       40),
+                ('MTP',   '1160', 'austritt',   140)
+            ) AS v(modell, code, art, sort_order)
+            JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
+            WHERE NOT EXISTS (
+                SELECT 1 FROM vertragsmodell_lohnschema x
+                WHERE x.modell = v.modell AND x.lohnposition_id = lp.id AND x.art = v.art
+            );
+        ");
+        startLog.LogInformation("Stand 83: Lohnschema um Swissdec 1076/1160/1166/1168 ergänzt");
+    }
+
+    // ── Stand 84: streng Treuhand — keine erfundenen Swissdec-Suffixe ─────
+    // Walter 19.10.2026. UNIQUE (modell,lohnposition_id,art) + (vertragstyp,code):
+    // Schema-Altzeilen löschen statt umhängen (sonst 23505 Unique-Violation).
+    if (dbStand < 84)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TEMP TABLE _sd84_map (alt text PRIMARY KEY, kanon text NOT NULL);
+            INSERT INTO _sd84_map (alt, kanon) VALUES
+                ('2001.2','2002'),
+                ('125.1','2050'),('125.2','2050'),
+                ('65.1','2050'),('65.2','2050'),('75.1','2050'),('75.2','2050'),
+                ('85.1','2050'),('95.1','2050'),
+                ('1200.2','1200'),('1200.3','180.3');
+            INSERT INTO _sd84_map (alt, kanon)
+            SELECT lp.code, v.kanon
+              FROM lohnposition lp
+              CROSS JOIN LATERAL (
+                SELECT CASE
+                  WHEN lp.code LIKE '1000.%' THEN '1000'
+                  WHEN lp.code LIKE '1005.%' THEN '1005'
+                  WHEN lp.code LIKE '1160.%' THEN '1160'
+                  WHEN lp.code LIKE '1161.%' THEN '1161'
+                  WHEN lp.code LIKE '1300.%' THEN '1300'
+                  WHEN lp.code LIKE '2000.%' THEN '2000'
+                  WHEN lp.code LIKE '2050.%' THEN '2050'
+                  ELSE NULL END AS kanon
+              ) v
+             WHERE v.kanon IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM _sd84_map m WHERE m.alt = lp.code);
+
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml, sort_order, is_active, created_at)
+            SELECT v.code, v.mirus, v.bez, v.kat, 'ZULAGE', v.sd,
+                   true, v.nbuv, true, true, true, false, v.ft, true, v.so, true, LOCALTIMESTAMP
+            FROM (VALUES
+                ('2002', '120.2', 'Vaterschaftsentschädigung EO', 'EO', '2002', true,  false, 50),
+                ('2050', '75.1',  'Korrektur Taggelder',          'Korrekturen', '2050', true, true, 60),
+                ('2000', '80.1',  'EO-Taggeld Militär / Zivilschutz', 'EO', '2000', false, false, 40),
+                ('2001', '120.1', 'Mutterschaftsentschädigung EO', 'EO', '2001', true,  false, 40),
+                ('180.3','180.3', '13. Monatslohn auszahlen',      '13. ML', '1200', false, false, 181)
+            ) AS v(code, mirus, bez, kat, sd, nbuv, ft, so)
+            WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
+
+            UPDATE lohnposition SET bezeichnung = COALESCE(src.bezeichnung, lohnposition.bezeichnung),
+                                    mirus_code = COALESCE(lohnposition.mirus_code, src.mirus_code),
+                                    swissdec_lohnart = '2002', is_active = true
+              FROM lohnposition src
+             WHERE lohnposition.code = '2002' AND src.code = '2001.2';
+
+            DELETE FROM vertragsmodell_lohnschema s
+             USING lohnposition alt
+             WHERE s.lohnposition_id = alt.id
+               AND EXISTS (SELECT 1 FROM _sd84_map m WHERE m.alt = alt.code);
+
+            UPDATE lohn_zulage z
+               SET lohnposition_id = kanon.id
+              FROM lohnposition alt
+              JOIN _sd84_map m ON m.alt = alt.code
+              JOIN lohnposition kanon ON kanon.code = m.kanon
+             WHERE z.lohnposition_id = alt.id AND kanon.id <> alt.id;
+
+            DELETE FROM vertragstyp_lohnposition v
+             USING _sd84_map m
+             WHERE v.lohnposition_code = m.alt
+               AND EXISTS (
+                   SELECT 1 FROM vertragstyp_lohnposition x
+                    WHERE x.vertragstyp_code = v.vertragstyp_code
+                      AND x.lohnposition_code = m.kanon);
+            UPDATE vertragstyp_lohnposition v
+               SET lohnposition_code = m.kanon
+              FROM _sd84_map m
+             WHERE v.lohnposition_code = m.alt;
+
+            UPDATE lohnposition
+               SET code = '180.3', swissdec_lohnart = '1200', mirus_code = '180.3',
+                   bezeichnung = CASE WHEN bezeichnung ILIKE '%auszahl%' THEN bezeichnung
+                                      ELSE '13. Monatslohn auszahlen' END
+             WHERE code = '1200.3'
+               AND NOT EXISTS (SELECT 1 FROM lohnposition x WHERE x.code = '180.3');
+
+            UPDATE lohnposition SET is_active = false
+             WHERE is_active = true
+               AND EXISTS (SELECT 1 FROM _sd84_map m WHERE m.alt = code);
+
+            INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+            SELECT v.modell, lp.id, v.art, v.sort_order
+            FROM (VALUES
+                ('FIX','2001','ereignis',50),('FIX-M','2001','ereignis',50),('MTP','2001','ereignis',50),('FLEX','2001','ereignis',50),
+                ('FIX','2002','ereignis',52),('FIX-M','2002','ereignis',52),('MTP','2002','ereignis',52),('FLEX','2002','ereignis',52),
+                ('FIX','2050','ereignis',70),('FIX-M','2050','ereignis',70),('MTP','2050','ereignis',70),('FLEX','2050','ereignis',70),
+                ('FIX','180.3','ereignis',45),('FIX-M','180.3','ereignis',45),('MTP','180.3','ereignis',75),('FLEX','180.3','ereignis',65)
+            ) AS v(modell, code, art, sort_order)
+            JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
+            WHERE NOT EXISTS (
+                SELECT 1 FROM vertragsmodell_lohnschema x
+                WHERE x.modell = v.modell AND x.lohnposition_id = lp.id AND x.art = v.art
+            );
+
+            DROP TABLE IF EXISTS _sd84_map;
+        ");
+        startLog.LogInformation("Stand 84: Treuhand-only Lohnpositions-Codes (2002/2050/…, Auslöser 180.3)");
+    }
+
+    // ── Stand 85: Rest-Mirus → Treuhand (80.x/90.x → 2000, …) ─────────────
+    // Nach Stand 82/84 blieben Militär/Zivilschutz oft als 80.1… sichtbar
+    // (UNIQUE-Abbruch / unvollständige Map). Jetzt vollständige Alias-Liste.
+    // Bleibt Mirus-Nr. (kein Swissdec in Treuhand): 180.3 Auslöser, 600.x/950.x,
+    // 110.1 Unbezahlt, SV-Abzug 103/104/…
+    if (dbStand < 85)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TEMP TABLE _sd85_map (alt text PRIMARY KEY, kanon text NOT NULL);
+            INSERT INTO _sd85_map (alt, kanon) VALUES
+                -- Militär / Zivilschutz → EO-Taggeld 2000
+                ('80.1','2000'),('80.2','2000'),('80.3','2000'),
+                ('90.1','2000'),('90.2','2000'),('90.3','2000'),
+                ('2000.80','2000'),('2000.81','2000'),('2000.82','2000'),
+                ('2000.90','2000'),('2000.91','2000'),('2000.92','2000'),
+                -- Korrekturen → 2050
+                ('65.1','2050'),('65.2','2050'),('75.1','2050'),('75.2','2050'),
+                ('85.1','2050'),('95.1','2050'),('125.1','2050'),('125.2','2050'),
+                ('2050.75','2050'),('2050.75b','2050'),('2050.65','2050'),('2050.65b','2050'),
+                -- EO Mutter/Vater
+                ('120.1','2001'),('120.2','2002'),('2001.2','2002'),
+                -- Festlohn / Stunden / Nacht / Ferien / 13. ML
+                ('10.1','1000'),('10.2','1000'),('10.3','1000'),('10.4','1000'),
+                ('1000.2','1000'),('1000.3','1000'),('1000.4','1000'),
+                ('20','1005'),('20.1','1005'),('20.2','1005'),('20.3','1005'),
+                ('22','1005'),('55.3','1005'),
+                ('1005.1','1005'),('1005.2','1005'),('1005.3','1005'),
+                ('1005.22','1005'),('1005.3m','1005'),
+                ('55.1','1061'),('55.2','1065'),('55.10','1076'),('55.11','1076'),('55.12','1076'),
+                ('40.1','1160'),('195.1','1160'),('195.3','1160'),('195.5','1160'),('195.6','1160'),
+                ('1160.195','1160'),('1160.195b','1160'),('1160.195c','1160'),('1160.195d','1160'),
+                ('195.2','1161'),('195.4','1161'),('50.1','1161'),
+                ('1161.4','1161'),('1161.50','1161'),
+                ('180.1','1200'),('180.2','1200'),('1200.2','1200'),
+                ('70.1','1301'),('70.2','2035'),
+                ('60.1','1300'),('60.2','1300'),('60.3','2030'),('1300.1','1300'),
+                ('190.1','3000'),('190.2','3010'),('190.3','3034'),
+                ('200.5','1210'),('200.1','6070');
+
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml,
+                sort_order, is_active, created_at)
+            SELECT '2000', '80.1', 'EO-Taggeld Militär / Zivilschutz', 'EO', 'ZULAGE', '2000',
+                   true, false, true, true, true, false, false, true, 40, true, LOCALTIMESTAMP
+             WHERE NOT EXISTS (SELECT 1 FROM lohnposition WHERE code = '2000');
+            UPDATE lohnposition SET is_active = true, swissdec_lohnart = '2000',
+                   mirus_code = COALESCE(mirus_code, '80.1')
+             WHERE code = '2000';
+
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml,
+                sort_order, is_active, created_at)
+            SELECT v.code, v.mirus, v.bez, v.kat, 'ZULAGE', v.code,
+                   true, true, true, true, true, false, false, true, v.so, true, LOCALTIMESTAMP
+            FROM (VALUES
+                ('2001','120.1','Mutterschaftsentschädigung EO','EO',40),
+                ('2002','120.2','Vaterschaftsentschädigung EO','EO',50),
+                ('2050','75.1','Korrektur Taggelder','Korrekturen',60)
+            ) AS v(code, mirus, bez, kat, so)
+            WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
+
+            -- Schema: Alt weg (UNIQUE)
+            DELETE FROM vertragsmodell_lohnschema s
+             USING lohnposition alt
+             WHERE s.lohnposition_id = alt.id
+               AND EXISTS (SELECT 1 FROM _sd85_map m WHERE m.alt = alt.code);
+
+            UPDATE lohn_zulage z SET lohnposition_id = kanon.id
+              FROM lohnposition alt
+              JOIN _sd85_map m ON m.alt = alt.code
+              JOIN lohnposition kanon ON kanon.code = m.kanon
+             WHERE z.lohnposition_id = alt.id AND kanon.id <> alt.id;
+
+            DELETE FROM vertragstyp_lohnposition v
+             USING _sd85_map m
+             WHERE v.lohnposition_code = m.alt
+               AND EXISTS (
+                   SELECT 1 FROM vertragstyp_lohnposition x
+                    WHERE x.vertragstyp_code = v.vertragstyp_code
+                      AND x.lohnposition_code = m.kanon);
+            UPDATE vertragstyp_lohnposition v SET lohnposition_code = m.kanon
+              FROM _sd85_map m WHERE v.lohnposition_code = m.alt;
+
+            -- mirus_code sichern, dann deaktivieren
+            UPDATE lohnposition lp SET mirus_code = COALESCE(lp.mirus_code, m.alt)
+              FROM _sd85_map m WHERE lp.code = m.alt;
+            UPDATE lohnposition SET is_active = false
+             WHERE is_active = true
+               AND EXISTS (SELECT 1 FROM _sd85_map m WHERE m.alt = code);
+
+            -- Schema Treuhand-Ereignis inkl. 2000 + ALLE
+            INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+            SELECT v.modell, lp.id, 'ereignis', v.so
+            FROM (VALUES
+                ('FIX','2000',42),('FIX-M','2000',42),('MTP','2000',42),('FLEX','2000',42),('ALLE','2000',42),
+                ('FIX','2001',50),('FIX-M','2001',50),('MTP','2001',50),('FLEX','2001',50),('ALLE','2001',50),
+                ('FIX','2002',52),('FIX-M','2002',52),('MTP','2002',52),('FLEX','2002',52),('ALLE','2002',52),
+                ('FIX','2050',70),('FIX-M','2050',70),('MTP','2050',70),('FLEX','2050',70),('ALLE','2050',70)
+            ) AS v(modell, code, so)
+            JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
+            WHERE NOT EXISTS (
+                SELECT 1 FROM vertragsmodell_lohnschema x
+                WHERE x.modell = v.modell AND x.lohnposition_id = lp.id AND x.art = 'ereignis'
+            );
+
+            DROP TABLE IF EXISTS _sd85_map;
+        ");
+        startLog.LogInformation("Stand 85: Rest-Mirus auf Treuhand (80.x/90.x→2000, …)");
+    }
+
+    // ── Stand 86: Schritt 1 Rest-Liste (Walter 19.10.2026) ────────────────
+    // Nur drei klare Treuhand-Fälle: 75→2050, 180→1200, 200→6070.
+    // Kanonische Zeilen müssen schon existieren (Stand 82–85).
+    if (dbStand < 86)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TEMP TABLE _sd86_map (alt text PRIMARY KEY, kanon text NOT NULL);
+            INSERT INTO _sd86_map (alt, kanon) VALUES
+                ('75',  '2050'),
+                ('180', '1200'),
+                ('200', '6070');
+
+            -- Schema: Alt weg (UNIQUE)
+            DELETE FROM vertragsmodell_lohnschema s
+             USING lohnposition alt
+             WHERE s.lohnposition_id = alt.id
+               AND EXISTS (SELECT 1 FROM _sd86_map m WHERE m.alt = alt.code);
+
+            UPDATE lohn_zulage z SET lohnposition_id = kanon.id
+              FROM lohnposition alt
+              JOIN _sd86_map m ON m.alt = alt.code
+              JOIN lohnposition kanon ON kanon.code = m.kanon AND kanon.is_active = true
+             WHERE z.lohnposition_id = alt.id AND kanon.id <> alt.id;
+
+            DELETE FROM vertragstyp_lohnposition v
+             USING _sd86_map m
+             WHERE v.lohnposition_code = m.alt
+               AND EXISTS (
+                   SELECT 1 FROM vertragstyp_lohnposition x
+                    WHERE x.vertragstyp_code = v.vertragstyp_code
+                      AND x.lohnposition_code = m.kanon);
+            UPDATE vertragstyp_lohnposition v SET lohnposition_code = m.kanon
+              FROM _sd86_map m WHERE v.lohnposition_code = m.alt;
+
+            UPDATE lohnposition lp SET mirus_code = COALESCE(lp.mirus_code, m.alt)
+              FROM _sd86_map m WHERE lp.code = m.alt;
+            UPDATE lohnposition SET is_active = false
+             WHERE is_active = true
+               AND EXISTS (SELECT 1 FROM _sd86_map m WHERE m.alt = code);
+
+            -- Kanon: mirus_code ergänzen falls leer
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '75')  WHERE code = '2050';
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '180') WHERE code = '1200';
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '200') WHERE code = '6070';
+
+            DROP TABLE IF EXISTS _sd86_map;
+        ");
+        startLog.LogInformation("Stand 86: Schritt 1 — 75→2050, 180→1200, 200→6070");
+    }
+
+    // ── Stand 87: SV-Abzüge auf Swissdec (Walter 19.10.2026) ──────────────
+    // Stamm-Kurz-Nr. → Treuhand: 103→5010, 104→5012, 107→5042, 110→5020, 111→5050.
+    // Plus Aufräumen 65.x/75.x → 2050. QST 120 und BVG-Pläne 130/131 bleiben intern
+    // (Treuhand hat nur tarif-spezifische QST / einen BVG-Beitrag 5050).
+    if (dbStand < 87)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TEMP TABLE _sd87_map (alt text PRIMARY KEY, kanon text NOT NULL);
+            INSERT INTO _sd87_map (alt, kanon) VALUES
+                ('103','5010'),
+                ('104','5012'),
+                ('107','5042'),
+                ('110','5020'),
+                ('111','5050'),
+                ('65.1','2050'),('65.2','2050'),
+                ('75.1','2050'),('75.2','2050');
+
+            -- Kanon anlegen falls fehlend (Bezeichnung von Alt übernehmen)
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml,
+                sort_order, is_active, created_at)
+            SELECT m.kanon, m.alt, COALESCE(alt.bezeichnung, m.kanon), COALESCE(alt.kategorie, 'SV-Abzug'),
+                   COALESCE(alt.typ, 'ABZUG'), m.kanon,
+                   COALESCE(alt.ahv_alv_pflichtig, false), COALESCE(alt.nbuv_pflichtig, false),
+                   COALESCE(alt.ktg_pflichtig, false), COALESCE(alt.bvg_pflichtig, false),
+                   COALESCE(alt.qst_pflichtig, false),
+                   false, false, false,
+                   COALESCE(alt.sort_order, 500), true, LOCALTIMESTAMP
+              FROM _sd87_map m
+              LEFT JOIN lohnposition alt ON alt.code = m.alt
+             WHERE NOT EXISTS (SELECT 1 FROM lohnposition x WHERE x.code = m.kanon);
+
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml,
+                sort_order, is_active, created_at)
+            SELECT v.code, v.mirus, v.bez, 'SV-Abzug', 'ABZUG', v.code,
+                   false, false, false, false, false, false, false, false, v.so, true, LOCALTIMESTAMP
+            FROM (VALUES
+                ('5014', '5014', 'ALVZ-Beitrag', 514),
+                ('5030', '5030', 'UVGZ-Beitrag 11', 530)
+            ) AS v(code, mirus, bez, so)
+            WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
+
+            UPDATE lohnposition SET is_active = true, swissdec_lohnart = code
+             WHERE code IN ('5010','5012','5014','5020','5030','5042','5050','2050');
+
+            DELETE FROM vertragsmodell_lohnschema s
+             USING lohnposition alt
+             WHERE s.lohnposition_id = alt.id
+               AND EXISTS (SELECT 1 FROM _sd87_map m WHERE m.alt = alt.code);
+
+            UPDATE lohn_zulage z SET lohnposition_id = kanon.id
+              FROM lohnposition alt
+              JOIN _sd87_map m ON m.alt = alt.code
+              JOIN lohnposition kanon ON kanon.code = m.kanon AND kanon.is_active = true
+             WHERE z.lohnposition_id = alt.id AND kanon.id <> alt.id;
+
+            DELETE FROM vertragstyp_lohnposition v
+             USING _sd87_map m
+             WHERE v.lohnposition_code = m.alt
+               AND EXISTS (
+                   SELECT 1 FROM vertragstyp_lohnposition x
+                    WHERE x.vertragstyp_code = v.vertragstyp_code
+                      AND x.lohnposition_code = m.kanon);
+            UPDATE vertragstyp_lohnposition v SET lohnposition_code = m.kanon
+              FROM _sd87_map m WHERE v.lohnposition_code = m.alt;
+
+            UPDATE lohnposition lp SET mirus_code = COALESCE(lp.mirus_code, m.alt)
+              FROM _sd87_map m WHERE lp.code = m.alt;
+            UPDATE lohnposition SET is_active = false
+             WHERE is_active = true
+               AND EXISTS (SELECT 1 FROM _sd87_map m WHERE m.alt = code);
+
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '103') WHERE code = '5010';
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '104') WHERE code = '5012';
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '107') WHERE code = '5042';
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '110') WHERE code = '5020';
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '111') WHERE code = '5050';
+
+            DROP TABLE IF EXISTS _sd87_map;
+        ");
+        startLog.LogInformation("Stand 87: SV-Abzüge auf Swissdec 5010/5012/5020/5042/5050 (+5014/5030)");
+    }
+
+    // ── Stand 88: Nur Swissdec-Stamm aktiv (Walter 19.10.2026) ────────────
+    // Fake-Nr. weg: 110.1/115/120/130/131/180.3/210. QST→5100, BVG-Korrektur→5212.
+    // Betrieb (600.24/32, 950.1) + Vortrag (901–906) bleiben aktiv, aber ohne
+    // swissdec_lohnart (UI-Sektion intern). 13.-ML-Auslöser = 1200 + mirus 180.3.
+    if (dbStand < 88)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            -- QST / QST-Korrektur / BVG-Ausgleich als Swissdec-Positionen
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml,
+                sort_order, is_active, created_at)
+            SELECT v.code, v.mirus, v.bez, v.kat, 'ABZUG', v.code,
+                   false, false, false, false, false, false, false, false, v.so, true, LOCALTIMESTAMP
+            FROM (VALUES
+                ('5100', '120',  'QST-Betrag Total',              'SV-Abzug', 560),
+                ('5102', '565',  'QST-Betrag Korrektur',          'SV-Abzug', 562),
+                ('5212', '600.5','Ausgleich BVG-Beiträge AG',     'SV-Abzug', 555)
+            ) AS v(code, mirus, bez, kat, so)
+            WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
+
+            UPDATE lohnposition SET is_active = true, swissdec_lohnart = code,
+                   mirus_code = COALESCE(mirus_code, '120')
+             WHERE code = '5100';
+            UPDATE lohnposition SET is_active = true, swissdec_lohnart = code,
+                   mirus_code = COALESCE(mirus_code, '565')
+             WHERE code = '5102';
+            UPDATE lohnposition SET is_active = true, swissdec_lohnart = code,
+                   mirus_code = COALESCE(mirus_code, '600.5'),
+                   bezeichnung = CASE WHEN bezeichnung ILIKE '%bvg%' THEN bezeichnung
+                                      ELSE 'Ausgleich BVG-Beiträge AG' END
+             WHERE code = '5212';
+
+            -- 1200 bleibt die ELM-Zeile; 180.3 bleibt aktiver Auslöser (UI: Betrieb/intern)
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, '180.1'),
+                   swissdec_lohnart = '1200', is_active = true
+             WHERE code = '1200';
+            UPDATE lohnposition SET is_active = true, kategorie = 'Auslöser',
+                   swissdec_lohnart = '1200', mirus_code = '180.3',
+                   bezeichnung = '13. Monatslohn auszahlen'
+             WHERE code = '180.3';
+
+            INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+            SELECT v.modell, lp.id, 'ereignis', v.so
+            FROM (VALUES
+                ('FIX', 45), ('FIX-M', 45), ('MTP', 75), ('FLEX', 65)
+            ) AS v(modell, so)
+            JOIN lohnposition lp ON lp.code = '180.3' AND lp.is_active = true
+            WHERE NOT EXISTS (
+                SELECT 1 FROM vertragsmodell_lohnschema x
+                WHERE x.modell = v.modell AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
+
+            -- BVG-Korrektur 600.5 → 5212
+            UPDATE lohn_zulage z SET lohnposition_id = kanon.id
+              FROM lohnposition alt
+              JOIN lohnposition kanon ON kanon.code = '5212' AND kanon.is_active = true
+             WHERE z.lohnposition_id = alt.id AND alt.code = '600.5' AND kanon.id <> alt.id;
+            DELETE FROM vertragsmodell_lohnschema s
+             USING lohnposition alt
+             WHERE s.lohnposition_id = alt.id AND alt.code = '600.5';
+
+            -- Fake-/Alt-Codes deaktivieren (bleiben in DB für Historie)
+            UPDATE lohnposition SET is_active = false
+             WHERE code IN ('110.1','115','120','130','131','210','600.5')
+               AND is_active = true;
+
+            -- Betrieb + Vortrag + Auslöser: aktiv, aber kein Swissdec-Label als Nr.
+            UPDATE lohnposition
+               SET kategorie = 'Betrieb', swissdec_lohnart = NULL,
+                   mirus_code = COALESCE(mirus_code, code)
+             WHERE code IN ('600.24','600.32','950.1');
+            UPDATE lohnposition
+               SET kategorie = 'Saldo-Vortrag', swissdec_lohnart = NULL,
+                   mirus_code = COALESCE(mirus_code, code)
+             WHERE code IN ('901','902','903','904','905','906');
+
+            -- Alle echten Swissdec-Positionen: swissdec_lohnart = code
+            UPDATE lohnposition SET swissdec_lohnart = code
+             WHERE is_active = true
+               AND code ~ '^[0-9]{4,5}$'
+               AND code NOT IN ('901','902','903','904','905','906');
+        ");
+        startLog.LogInformation("Stand 88: nur Swissdec-Stamm; Betrieb/Vortrag/Auslöser intern; 120→5100, 600.5→5212");
     }
 
     // Stand speichern — erst NACH erfolgreichem Durchlauf. Bricht der Block ab,
