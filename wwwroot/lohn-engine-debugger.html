@@ -133,7 +133,7 @@ const EX = {
   mtpGarantie: {
     title: 'MTP Garantie / Mehrstunden',
     why: 'Garantierte Wochenstunden vs. Ist-Stempel.',
-    box: 'Unter Soll: Festlohn-Logik / Garantie. Über Soll: Mehrstunden → 1005 (Aufwand oft 4001).'
+    box: 'Unter Soll: Festlohn-Logik / Garantie. Über Soll: Mehrstunden → 1005.'
   },
   ferienZuwachs: {
     title: 'Ferien-% → Topf',
@@ -437,7 +437,6 @@ const MODELS = {
             formula: 'ExtraStd × Stundenlohn',
             leaves: [
               { t: 'Ist &gt; Garantie', v: 'Mehrstunden' },
-              { t: 'Fibu oft', v: 'Aufwand 4001' },
               { t: 'Flags', v: 'AHV … · FER · 13.ML' }
             ]
           }
