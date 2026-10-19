@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>OneCrew Lohn-Engine · Detail-Rechnung</title>
+<style>
+  :root {
+    --bg: #141416; --ink: #f2f0ea; --muted: #9a9690; --card: #1e1e22;
+    --hover: #2a2a30; --green: #7dcea0; --red: #e8958a; --blue: #8eb4e0;
+    --yellow: #e0c070; --purple: #b5a8e0; --pot: #e0b060;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); min-height: 100vh;
+    padding: 22px 26px 50px;
+  }
+  .badge { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 22px; font-weight: 700; margin: 6px 0 4px; }
+  .sub { color: var(--muted); font-size: 13.5px; max-width: 840px; line-height: 1.45; margin-bottom: 14px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab {
+    border: 1px solid #444; background: #252528; color: #bbb;
+    border-radius: 10px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .tab.on { background: #f0eee8; color: #141416; border-color: #f0eee8; }
+  .layout { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; max-width: 1140px; }
+  @media (max-width: 920px) { .layout { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--card); border: 1px solid #2e2e32; border-radius: 14px; padding: 14px 16px;
+  }
+  .panel h2 {
+    margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); font-weight: 700;
+  }
+  .meta { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .meta b { color: var(--ink); }
+  .callout {
+    background: #252218; border: 1px solid #5a4a28; border-radius: 10px;
+    padding: 10px 12px; font-size: 12.5px; color: #dcc890; margin-bottom: 12px; line-height: 1.4;
+  }
+
+  .tree { font-size: 13.5px; }
+  .node { border-radius: 10px; margin: 4px 0; }
+  .node-h {
+    display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center;
+    padding: 8px 10px; border-radius: 10px; cursor: pointer; user-select: none;
+  }
+  .node-h:hover { background: var(--hover); }
+  .node.open > .node-h { background: #2a2a30; }
+  .tw { color: var(--muted); font-size: 11px; width: 18px; text-align: center; }
+  .nl { line-height: 1.3; }
+  .tag {
+    display: inline-block; font-size: 10px; font-family: ui-monospace, Menlo, monospace;
+    padding: 1px 6px; border-radius: 5px; margin-right: 6px;
+  }
+  .tag.c { background: #3a3558; color: var(--purple); }
+  .tag.f { background: #2a4032; color: var(--green); }
+  .tag.p { background: #4a3a20; color: var(--pot); }
+  .tag.i { background: #2a3548; color: var(--blue); }
+  .amt { font-variant-numeric: tabular-nums; font-family: ui-monospace, Menlo, monospace; font-weight: 650; white-space: nowrap; }
+  .amt.pos { color: var(--green); }
+  .amt.neg { color: var(--red); }
+  .amt.neu { color: var(--yellow); }
+  .amt.pot { color: var(--pot); }
+  .kids { margin-left: 18px; padding-left: 10px; border-left: 1px solid #333; display: none; }
+  .node.open > .kids { display: block; }
+  .leaf {
+    padding: 5px 10px 5px 28px; color: var(--muted); font-size: 12.5px;
+    display: grid; grid-template-columns: 1fr auto; gap: 8px;
+  }
+  .formula { margin-top: 2px; font-size: 12px; color: var(--blue); font-family: ui-monospace, Menlo, monospace; }
+  .pot-bar {
+    margin: 6px 28px 8px; padding: 10px 12px; border-radius: 10px;
+    background: linear-gradient(90deg, #3a3018, #2a2818);
+    border: 1px dashed #7a6535; font-size: 12.5px; color: #e0c890; line-height: 1.45;
+  }
+  .pot-bar strong { color: var(--pot); }
+  .explain h3 { margin: 0 0 6px; font-size: 16px; }
+  .explain .why { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .explain .box {
+    background: #252528; border-radius: 10px; padding: 12px; margin-bottom: 10px;
+    border: 1px solid #333; font-size: 13px; line-height: 1.5;
+  }
+  .explain code { color: var(--yellow); font-size: 12.5px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="badge">Entwicklung · Engine-Debugger Skizze</div>
+<h1>Berechnungsbaum · Töpfe sichtbar</h1>
+<p class="sub">
+  Ferien-Geld geht in den <strong>Topf</strong> und wird beim Ferienbezug nach Pott-Formel geleert.
+  13. ML: bei <strong>FLEX nach Probezeit</strong> monatlich auszahlen; in der <strong>Probezeit</strong> sowie bei
+  <strong>MTP / FIX / FIX-M</strong> in den Topf.
+</p>
+
+<div class="tabs" id="tabs">
+  <button type="button" class="tab on" data-m="FLEX">FLEX (nach Probezeit)</button>
+  <button type="button" class="tab" data-m="FLEX_PZ">FLEX Probezeit</button>
+  <button type="button" class="tab" data-m="MTP">MTP</button>
+  <button type="button" class="tab" data-m="FIX">FIX / FIX-M</button>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <h2 id="treeTitle">Berechnungsbaum</h2>
+    <div class="meta" id="meta"></div>
+    <div class="callout" id="callout"></div>
+    <div class="tree" id="tree"></div>
+    <p class="hint">▶ aufklappen · Klick → Erklärung rechts</p>
+  </div>
+  <div class="panel explain" id="explain"></div>
+</div>
+
+<script>
+const EX = {
+  brutto: {
+    title: 'Bruttolohn',
+    why: 'Summe der ausbezahlten Lohnzeilen dieses Monats (nicht der Topf-Zuwachs, wenn er nur saldo-wirksam ist).',
+    box: 'Zeilen mit Betrag &gt; 0 auf dem Beleg. Topf-Zuwachs kann parallel nur im Saldo landen.'
+  },
+  l1005: {
+    title: 'Stundenlohn 1005',
+    why: 'FLEX/MTP-Grundlohn.',
+    box: '<code>Satz × bezahlte Stunden</code><br>Flags steuern, ob der Betrag in Ferien-/13.-Basis und SV fliesst.'
+  },
+  l1000: {
+    title: 'Festlohn 1000',
+    why: 'FIX/FIX-M-Grundlohn.',
+    box: 'Monatslohn (ggf. anteilig / Ferien-Split mit 1166).'
+  },
+  ferienZuwachs: {
+    title: 'Ferien-Zuwachs → Topf',
+    why: 'Jeden Monat: % auf die FER-Basis. Das Geld geht in den Ferien-CHF-Topf — nicht «Ferien genommen».',
+    box: `<code>Zuwachs = Round05(Basis × Filiale.Ferien%)</code><br>
+          Code <strong>1160</strong> (Anzeige/Zuwachs)<br>
+          <strong>Topf CHF neu</strong> = Vormonat + Zuwachs − Auszahlung<br>
+          <strong>Topf Tage neu</strong> = Vormonat + Accrual − bezogene Tage`
+  },
+  ferienBezug: {
+    title: 'Ferienbezug → Topf leeren',
+    why: 'Wenn Ferientage bezogen werden: Auszahlung aus dem Pott, gecappt (kein Vorbezug).',
+    box: `<strong>OneCrew-Formel (FLEX/MTP):</strong><br>
+          <code>Pott CHF  = Vormonat-Geld + Zuwachs Monat</code><br>
+          <code>Pott Tage = Vormonat-Tage + Accrual Monat</code><br>
+          <code>Tagessatz = Pott CHF / Pott Tage</code><br>
+          <code>Auszahlung = min(bezogene Tage × Tagessatz, Pott CHF)</code><br>
+          Topf danach: Pott − Auszahlung. Bewusst kein Minus-Saldo (anders als Mirus).`
+  },
+  ml13Flex: {
+    title: '13. ML · FLEX nach Probezeit',
+    why: 'Kein Topf — monatlich ausbezahlt (Code 1200).',
+    box: '<code>Basis × 8.33%</code> → Betrag auf dem Beleg diesen Monat.<br>Saldo 13. ML bleibt 0 (bzw. wird nicht geführt).'
+  },
+  ml13Pz: {
+    title: '13. ML · FLEX Probezeit → Topf',
+    why: 'In der Probezeit wird der 13. ML angesammelt (Rückstellung). Verfall möglich wenn Probezeit endet ohne Anspruch.',
+    box: '<code>Zuwachs = Basis × 8.33%</code> → in den <strong>13.-Topf</strong> (Saldo).<br>Auf dem Beleg oft «Rückstellung», Auszahlung 0.<br>Nach Probezeit: monatlich auszahlen (siehe FLEX).'
+  },
+  ml13Topf: {
+    title: '13. ML · MTP / FIX / FIX-M → Topf',
+    why: 'Immer ansammeln. Auszahlung nur im Raster-Monat (z.B. Dez) oder per Auslöser 180.3.',
+    box: 'Zuwachs monatlich in den Topf.<br>Auszahlung: Pott + Monat → Belegzeile 1200, Topf → 0.<br>FIX: Zuwachs über Jahres-1/12-Logik (Engine).'
+  },
+  ahvB: {
+    title: 'AHV-Basis',
+    why: 'Summe Zeilen mit AHV-Häkchen (inkl. ausbezahltes Ferien-/13.-Geld).',
+    box: 'Nur ausbezahlte Beträge. Reiner Topf-Zuwachs ohne Auszahlung zählt nicht als ausbezahlt — SV auf Auszahlung (Fachregel).'
+  },
+  ahv: {
+    title: 'AHV 5010',
+    why: 'Basis × Satz.',
+    box: '<code>AHV-Basis × 5.3%</code> → Code 5010'
+  },
+  netto: {
+    title: 'Netto',
+    why: 'Brutto − Abzüge.',
+    box: 'Danach Auszahlung / Saldi-Block auf dem Beleg.'
+  },
+  saldoBlock: {
+    title: 'Saldi auf dem Beleg',
+    why: 'Hier siehst du die Töpfe: Vormonat | Zuwachs | Bezug | neu.',
+    box: 'Ferien Geld + Tage · Feiertag · 13. ML · Nacht · Stunden (modellabhängig).'
+  }
+};
+
+const MODELS = {
+  FLEX: {
+    title: 'FLEX · nach Probezeit',
+    meta: 'Stundenlohn · Ferien in den Topf · 13. ML monatlich auszahlen',
+    callout: '🟡 Ferien-% → Topf · bei Bezug Pott-Formel. 🟢 13. ML → direkt auszahlen (kein Topf).',
+    tree: [
+      {
+        id: 'brutto', label: 'Ausbezahlt Brutto (Beleg)', tag: 'Σ', tagClass: 'f', amt: '2’458.20+', amtClass: 'pos',
+        kids: [
+          {
+            id: 'l1005', label: 'Stundenlohn', tag: '1005', tagClass: 'c', amt: '2’458.20', amtClass: 'pos',
+            formula: '20.40 × 120.50',
+            leaves: [
+              { t: 'Vertrag.HourlyWage', v: '20.40' },
+              { t: 'Stempel bezahlt', v: '120.50 Std' }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'ferienZuwachs', label: 'Ferien-% → Topf (nicht «Ferien genommen»)', tag: '1160', tagClass: 'p', amt: '+261.80', amtClass: 'pot',
+        formula: '2’458.20 × 10.65%',
+        pot: 'Topf Ferien-CHF: 77.55 Vor + 261.80 Zuwachs − 0 Bezug = <strong>339.35</strong> · Tage analog',
+        leaves: [
+          { t: 'Basis (FER-Häkchen)', v: '2’458.20' },
+          { t: 'Filiale Ferien%', v: '10.65%' },
+          { t: 'Wirkung', v: 'Saldo / Beleg-Saldi — Auszahlung 0 wenn kein Bezug' }
+        ]
+      },
+      {
+        id: 'ferienBezug', label: 'Wenn Ferien bezogen → Topf anbrechen', tag: 'Pott', tagClass: 'p', amt: 'Auszahlung', amtClass: 'pot',
+        pot: 'Pott CHF / Pott Tage = Tagessatz · × bezogene Tage · Cap = Pott (kein Minus)',
+        leaves: [
+          { t: 'Beispiel 6 Tage', v: 'Pott 1000 / 10 Tage = 100/Tag → 600 aus Topf' },
+          { t: 'Topf danach', v: '400 CHF · 4 Tage' }
+        ]
+      },
+      {
+        id: 'ml13Flex', label: '13. ML → direkt auszahlen', tag: '1200', tagClass: 'c', amt: '+204.80', amtClass: 'pos',
+        formula: 'Basis × 8.33% → Beleg diesen Monat',
+        leaves: [
+          { t: 'Kein 13.-Topf', v: 'nach Probezeit' },
+          { t: 'Beleg', v: 'Zeile 1200 mit Betrag' }
+        ]
+      },
+      {
+        id: 'ahvB', label: 'AHV-Basis (ausbezahlte Zeilen mit Flag)', tag: 'Flags', tagClass: 'f', amt: '…', amtClass: 'neu',
+        leaves: [{ t: '1005 + ausbezahltes 13. ML + Ferien-Auszahlung', v: 'nicht der reine Topf-Zuwachs' }]
+      },
+      {
+        id: 'ahv', label: 'AHV-Abzug', tag: '5010', tagClass: 'c', amt: '−…', amtClass: 'neg',
+        formula: 'Basis × 5.3%'
+      },
+      {
+        id: 'saldoBlock', label: 'Saldi-Block auf dem Beleg', tag: 'Beleg', tagClass: 'i', amt: 'Töpfe', amtClass: 'pot',
+        leaves: [
+          { t: 'Ferien Geld / Tage', v: 'Vor | + | − | neu' },
+          { t: '13. ML', v: 'kein stehender Topf (FLEX nach PZ)' }
+        ]
+      },
+      { id: 'netto', label: 'Netto / Auszahlung', tag: 'Beleg', tagClass: 'i', amt: '…', amtClass: 'pos' }
+    ]
+  },
+
+  FLEX_PZ: {
+    title: 'FLEX · in der Probezeit',
+    meta: 'Ferien weiter Topf · 13. ML jetzt auch Topf (Rückstellung)',
+    callout: '🟡 Ferien-% → Topf. 🟠 13. ML → Topf / Rückstellung (nicht auszahlen). Verfall möglich.',
+    tree: [
+      {
+        id: 'l1005', label: 'Stundenlohn', tag: '1005', tagClass: 'c', amt: '2’458.20', amtClass: 'pos',
+        formula: '20.40 × 120.50'
+      },
+      {
+        id: 'ferienZuwachs', label: 'Ferien-% → Topf', tag: '1160', tagClass: 'p', amt: '+261.80', amtClass: 'pot',
+        formula: 'Basis × Ferien%',
+        pot: 'Gleich wie nach Probezeit: Topf füllen, bei Bezug Pott-Formel'
+      },
+      {
+        id: 'ml13Pz', label: '13. ML → Topf (Probezeit)', tag: '1200', tagClass: 'p', amt: '+204.80 → Topf', amtClass: 'pot',
+        formula: 'Basis × 8.33% · Auszahlung 0',
+        pot: '13.-Topf: Vor + Zuwachs = neu · auf Beleg oft «Rückstellung» · bei Abbruch Probezeit Verfall möglich',
+        leaves: [
+          { t: 'Beleg ausbezahlt', v: '0.00' },
+          { t: 'Saldo 13. ML neu', v: 'Vormonat + 204.80' }
+        ]
+      },
+      {
+        id: 'ferienBezug', label: 'Ferienbezug', tag: 'Pott', tagClass: 'p', amt: 'wie FLEX', amtClass: 'pot',
+        leaves: [{ t: 'Pott-Formel', v: 'unverändert' }]
+      },
+      { id: 'saldoBlock', label: 'Saldi-Block', tag: 'Beleg', tagClass: 'i', amt: 'Ferien + 13. Topf', amtClass: 'pot' }
+    ]
+  },
+
+  MTP: {
+    title: 'MTP',
+    meta: 'Stundenlohn · Ferien-Topf · 13. ML immer Topf',
+    callout: '🟡 Ferien → Topf + Pott bei Bezug. 🟠 13. ML → Topf, Auszahlung nur Raster/180.3.',
+    tree: [
+      {
+        id: 'l1005', label: 'Stundenlohn / Mehrstunden', tag: '1005', tagClass: 'c', amt: '…', amtClass: 'pos',
+        leaves: [{ t: 'Garantie vs. Ist', v: 'Engine MTP-Zweig' }]
+      },
+      {
+        id: 'ferienZuwachs', label: 'Ferien-% → Topf', tag: '1160', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
+        pot: 'Wie FLEX: Vormonat + Zuwachs; Bezug = Pott CHF/Tage'
+      },
+      {
+        id: 'ferienBezug', label: 'Ferienbezug → Topf leeren', tag: 'Pott', tagClass: 'p', amt: 'Auszahlung', amtClass: 'pot',
+        formula: 'Pott CHF / Pott Tage × Tage (Cap)',
+        leaves: [{ t: 'MTP extra', v: 'Festlohn-Anteil um Ferientage kürzen möglich' }]
+      },
+      {
+        id: 'ml13Topf', label: '13. ML → Topf', tag: '1200', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
+        pot: 'Monatlich ansammeln · Auszahlung z.B. Dezember oder Auslöser «13. ML auszahlen» (180.3)',
+        leaves: [
+          { t: 'Beleg Monat ohne Raster', v: 'Zuwachs / Saldo, oft 0 ausbezahlt' },
+          { t: 'Auszahlungsmonat', v: 'Pott + Monat → 1200, Topf → 0' }
+        ]
+      },
+      { id: 'saldoBlock', label: 'Saldi-Block', tag: 'Beleg', tagClass: 'i', amt: 'Ferien + 13. + Stunden', amtClass: 'pot' }
+    ]
+  },
+
+  FIX: {
+    title: 'FIX / FIX-M',
+    meta: 'Festlohn · Ferien oft Split/Tage · 13. ML Topf',
+    callout: 'FIX: Ferien-Tage-Saldo + ggf. 1166-Split. 13. ML → Topf bis Auszahlungsmonat.',
+    tree: [
+      {
+        id: 'l1000', label: 'Festlohn', tag: '1000', tagClass: 'c', amt: '3’800.00', amtClass: 'pos',
+        leaves: [{ t: 'ggf. Kürzung Ferientage', v: 'Split mit 1166' }]
+      },
+      {
+        id: 'ferienBezug', label: 'Ferien (FIX)', tag: '1166', tagClass: 'c', amt: 'Split / Tage', amtClass: 'neu',
+        leaves: [
+          { t: 'Bezogen', v: 'Tage × Tagessatz → 1166, 1000 gekürzt (Brutto ±0)' },
+          { t: 'Saldo', v: 'Ferien-Tage Vor | + | − | neu' }
+        ]
+      },
+      {
+        id: 'ml13Topf', label: '13. ML → Topf', tag: '1200', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
+        pot: 'FIX: Zuwachs über Jahresbasis 1/12 (Engine). Auszahlung Raster oder 180.3.',
+        leaves: [
+          { t: 'Monat ohne Auszahlung', v: 'nur Saldo wächst' },
+          { t: 'Auszahlung', v: 'Topf leeren → Beleg 1200' }
+        ]
+      },
+      { id: 'saldoBlock', label: 'Saldi-Block', tag: 'Beleg', tagClass: 'i', amt: 'Tage + 13. Topf + Nacht + Stunden', amtClass: 'pot' }
+    ]
+  }
+};
+
+function money(a, cls) {
+  return `<span class="amt ${cls || ''}">${a}</span>`;
+}
+
+function renderNode(n) {
+  const has = (n.kids && n.kids.length) || (n.leaves && n.leaves.length) || n.formula || n.pot;
+  let inner = '';
+  if (n.formula) inner += `<div class="leaf"><span class="formula">${n.formula}</span><span></span></div>`;
+  if (n.pot) inner += `<div class="pot-bar">🍯 ${n.pot}</div>`;
+  if (n.leaves) n.leaves.forEach(l => {
+    inner += `<div class="leaf"><span>${l.t}</span><span>${l.v}</span></div>`;
+  });
+  if (n.kids) n.kids.forEach(c => { inner += renderNode(c); });
+  return `<div class="node open" data-id="${n.id}">
+    <div class="node-h" data-id="${n.id}">
+      <span class="tw">${has ? '▼' : '·'}</span>
+      <div class="nl"><span class="tag ${n.tagClass}">${n.tag}</span>${n.label}</div>
+      ${money(n.amt, n.amtClass)}
+    </div>
+    ${has ? `<div class="kids">${inner}</div>` : ''}
+  </div>`;
+}
+
+function explain(id) {
+  const e = EX[id] || { title: id, why: '', box: '—' };
+  document.getElementById('explain').innerHTML = `
+    <h3>${e.title}</h3>
+    <div class="why">${e.why}</div>
+    <div class="box">${e.box}</div>
+    <div class="hint">Später live aus Calculate — mit echten Saldi Vor/+/−/neu.</div>
+  `;
+}
+
+function paint(m) {
+  const p = MODELS[m];
+  document.getElementById('treeTitle').textContent = 'Berechnungsbaum · ' + p.title;
+  document.getElementById('meta').innerHTML = p.meta;
+  document.getElementById('callout').textContent = p.callout;
+  document.getElementById('tree').innerHTML = p.tree.map(renderNode).join('');
+  explain(p.tree[0].id);
+}
+
+document.getElementById('tree').addEventListener('click', ev => {
+  const h = ev.target.closest('.node-h');
+  if (!h) return;
+  const node = h.closest('.node');
+  if (node.querySelector(':scope > .kids')) {
+    node.classList.toggle('open');
+    const tw = h.querySelector('.tw');
+    if (tw && tw.textContent !== '·') tw.textContent = node.classList.contains('open') ? '▼' : '▶';
+  }
+  explain(h.dataset.id);
+});
+
+document.querySelectorAll('#tabs .tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('#tabs .tab').forEach(x => x.classList.remove('on'));
+    t.classList.add('on');
+    paint(t.dataset.m);
+  };
+});
+paint('FLEX');
+</script>
+</body>
+</html>

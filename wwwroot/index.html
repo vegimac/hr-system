@@ -1616,7 +1616,7 @@
                      Walter 31.08.2026: «Import & Schnittstellen» ist in den Bereich
                      Entwicklung umgezogen (page-entwicklung / entwHubGrp-import). -->
                 <div class="ra-tile-row" id="adminHubCats" style="margin-top:12px;margin-bottom:0">
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Mirus Lohnraster für Migration, Swissdec-Lohnarten, Basen-Kontrolle, Lohnschema, Absenz-Typen">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Mirus Lohnraster für Migration, Swissdec-Lohnarten, Basen-Kontrolle, Absenz-Typen">
                         <img src="img/lohn-stammdaten.webp?v=20260816b" alt="" loading="lazy">
                         <span>Lohn-Stammdaten</span>
                     </button>
@@ -1639,7 +1639,8 @@
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-lohn" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
-                        <!-- Reihe 1 (Walter 18.10.2026): Perioden · Lohnpositionen · Lohnschema · Kontoplan -->
+                        <!-- Reihe 1: Perioden · Lohnpositionen · Kontoplan
+                             Lohnschema-Kachel ausgeblendet 19.10.2026 (Rechnung ohne Schema) -->
                         <div class="admin-card" onclick="showPage('perioden')">
                         <img src="img/lohnkat-perioden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohnperioden</div>
@@ -1649,11 +1650,6 @@
                         <img src="img/lohnkat-lohnpositionen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Swissdec Lohnpositionen</div>
                         <div class="admin-card-desc">Swissdec-Nr., SV-Häkchen, Basen — Mirus nur als Stütze</div>
-                    </div>
-                        <div class="admin-card" onclick="showPage('lohnschema')">
-                        <img src="img/lohnkat-lohnschema.webp?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Lohnschema</div>
-                        <div class="admin-card-desc">Welche Position wann — FLEX / MTP / FIX / FIX-M (Engine liest mit)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('kontoplan')">
                         <img src="img/lohnkat-kontoplan.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -1941,7 +1937,7 @@
                 <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
                     <h1 class="page-title">Lohnschema</h1>
-                    <p class="page-sub">Pro Vertragsmodell (FLEX, MTP, FIX, FIX-M): welche Swissdec-Lohnpositionen wann erscheinen (monatlich, Saldo, Ereignis, Austritt). Die Engine liest dieses Schema.</p>
+                    <p class="page-sub">Übersicht pro Vertragsmodell (FLEX, MTP, FIX, FIX-M) — welche Swissdec-Positionen wofür gedacht sind. Die Lohnrechnung steuert das <strong>nicht</strong>: Engine + Häkchen am Stamm (AHV, …).</p>
                 </div></div>
                 </div>
                 <div class="page-body fh-body" style="overflow:auto !important">
@@ -6002,8 +5998,8 @@
                         <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy">
                         <span>Swissdec</span>
                     </button>
-                    <button type="button" class="ra-tile entw-hub-cat" data-cat="lohn" onclick="entwHubShowCat('lohn')" title="Lohn-Formelwerk — Registry, Swissdec-Codes">
-                        <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy">
+                    <button type="button" class="ra-tile entw-hub-cat" data-cat="lohn" onclick="entwHubShowCat('lohn')" title="Lohn-Formelwerk und Engine-Debugger">
+                        <img src="img/entwkat-lohn.webp?v=20261019a" alt="" loading="lazy">
                         <span>Lohn</span>
                     </button>
                     <button type="button" class="ra-tile entw-hub-cat" data-cat="import" onclick="entwHubShowCat('import')" title="easy@work API, Filial-Import, Archiv, Daten-Fix">
@@ -6018,9 +6014,14 @@
                 <div class="entw-hub-group" id="entwHubGrp-lohn" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('lohn-formeln')">
-                        <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/entwkat-lohn-formeln.webp?v=20261019a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohn-Formeln</div>
-                        <div class="admin-card-desc">Zentrale Formel-Registry (read-only) — dieselben Einträge wie der Lohn-Code. Swissdec-Stamm, Mirus-Alias, Schema-Art.</div>
+                        <div class="admin-card-desc">Zentrale Formel-Registry (read-only) — dieselben Einträge wie der Lohn-Code. Swissdec, Parameter, Art.</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('lohn-engine')">
+                        <img src="img/entwkat-lohn-engine.webp?v=20261019a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Lohn Engine</div>
+                        <div class="admin-card-desc">Berechnungsbaum mit Töpfen — wie die Engine rechnet (FLEX/MTP/FIX), transparente Abbildung zum Code.</div>
                     </div>
                     </div>
                 </div>
@@ -6084,18 +6085,24 @@
             <div class="page" id="page-lohn-formeln">
                 <div class="page-head"><div>
                     <h1 class="page-title">Lohn-Formeln</h1>
-                    <p class="page-sub">Formelwerk aus dem Code — nicht editierbar. Parameter (Ferien-%, SV, Nachtfenster) bleiben in den Stammdaten.</p>
+                    <p class="page-sub">Formelwerk aus dem Code — nicht editierbar. Parameter (Ferien-%, SV, Nachtfenster) bleiben in den Stammdaten. Rechnung als Baum/Töpfe: Lohn Engine.</p>
                 </div></div>
                 <div class="page-body">
                     <p id="lohnFormelnHinweis" style="font-size:13px;color:#646464;margin:0 0 14px;max-width:960px"></p>
-                    <div class="card" style="padding:16px 18px;margin-bottom:18px;max-width:1200px">
+                    <div class="card" style="padding:16px 18px;max-width:1200px">
                         <div style="font-weight:700;font-size:14px;margin-bottom:10px">Registry</div>
                         <div id="lohnFormelnBody"></div>
                     </div>
-                    <div class="card" style="padding:16px 18px;max-width:1200px">
-                        <div style="font-weight:700;font-size:14px;margin-bottom:10px">Inventar Alt → Swissdec</div>
-                        <div id="lohnFormelnInventar"></div>
-                    </div>
+                </div>
+            </div>
+
+            <div class="page" id="page-lohn-engine">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Lohn Engine</h1>
+                    <p class="page-sub">Wie die Engine rechnet — Baum, Flags, Ferien- und 13.-Topf je Vertragsmodell. Skizze; später Live-Zahlen aus /calculate.</p>
+                </div></div>
+                <div class="page-body" style="padding:0;height:calc(100vh - 120px);min-height:520px">
+                    <iframe src="lohn-engine-debugger.html?v=20261019a" title="Lohn-Engine Debugger" style="width:100%;height:100%;border:0;border-radius:14px;background:#0f1115"></iframe>
                 </div>
             </div>
 
@@ -10766,7 +10773,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/funktion-reko.js?v=20260922d"></script>
 <script src="js/vertrags-historie.js?v=20260922d"></script>
 <script src="js/programmbegruessung.js?v=20260904a"></script>
-<script src="js/lohn-formeln.js?v=20261019a"></script>
+<script src="js/lohn-formeln.js?v=20261019b"></script>
 <script src="js/moments.js?v=20260813a"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
@@ -10811,7 +10818,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/elm-zertifikat.js?v=20261015b"></script>
 <script src="js/elm-schnittstelle.js?v=20261016d"></script>
 <script src="js/elm-lohnraster.js?v=20260921a"></script>
-<script src="js/lohnschema.js?v=20261019c"></script>
+<script src="js/lohnschema.js?v=20261019f"></script>
 <script src="js/global-search.js?v=20260901a"></script>
 <script src="js/help-panel.js?v=20261008a"></script>
 <script src="js/i18n.js?v=20261014a"></script>

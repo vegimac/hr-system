@@ -54,11 +54,13 @@ public class LohnFormelwerkTests
     }
 
     [Fact]
-    public void Inventar_DecktFestlohnUndNacht()
+    public void Registry_HatSwissdecOhneMirusFeld()
     {
-        Assert.Contains(LohnFormelInventar.Alle, z => z.SwissdecCode == LohnCodes.Festlohn);
-        Assert.Contains(LohnFormelInventar.Alle, z => z.SwissdecCode == LohnCodes.NachtKompensation);
-        Assert.Contains(LohnFormelInventar.Alle, z => z.SwissdecCode == LohnCodes.FerienFixGeld);
+        var fest = LohnFormelwerk.Finde(LohnFormelwerk.FestlohnMonat);
+        Assert.NotNull(fest);
+        Assert.Equal(LohnCodes.Festlohn, fest!.SwissdecCode);
+        Assert.Contains(LohnFormelwerk.Alle, f => f.SwissdecCode == LohnCodes.NachtKompensation);
+        Assert.Contains(LohnFormelwerk.Alle, f => f.SwissdecCode == LohnCodes.FerienFixGeld);
     }
 
     [Fact]

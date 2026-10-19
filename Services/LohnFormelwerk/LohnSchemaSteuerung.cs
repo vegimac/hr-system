@@ -5,9 +5,8 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Services.LohnFormelwerk;
 
 /// <summary>
-/// Etappe 3 — Engine liest das Lohnschema (welche Position wann).
-/// Fehlt ein Schema-Eintrag, erscheint die Zeile nicht (ausser Systemzeilen SV/QST).
-/// Walter 19.10.2026.
+/// Lohnschema-API / UI-Übersicht. Die Lohn-Engine nutzt dieses Schema nicht mehr
+/// (Walter 19.10.2026) — Rechnung fest im Code, Steuerung über Positions-Flags.
 /// </summary>
 public sealed class LohnSchemaSteuerung
 {

@@ -2,12 +2,13 @@
 
 **Stand 19.10.2026 · Swissdec-Stamm + zentrale Registry.**
 **Eine Wahrheit im Code:** `Services/LohnFormelwerk/LohnFormelwerk.cs` (Registry + typisierte Aufrufe).
-Entwicklung → Lohn-Formeln liest dieselbe Liste (`GET /api/lohn-formeln`). Inventar Alt→Swissdec:
-`LohnFormelInventar` / `LohnCodes` / `LohnCodeAlias`. Dieses Markdown bleibt die Lesefassung —
+Entwicklung → Lohn-Formeln liest dieselbe Liste (`GET /api/lohn-formeln`) — **ohne Mirus**,
+nur Id / Formel / Parameter / Swissdec / Art. Rechnung als Baum/Töpfe:
+`docs/lohn-engine-karte-skizze.html` (später Live-Debugger). Dieses Markdown bleibt die Lesefassung —
 weicht der Registry-Text ab, Registry gewinnt.
 
-Lohnpositions-`code` = Swissdec (1000, 1005, 1076 …); `mirus_code` nur Parallelvergleich/Kontoplan.
-Lohnschema steuert welche Position wann (`LohnSchemaSteuerung`).
+Lohnpositions-`code` = Swissdec (1000, 1005, 1076 …); `mirus_code` nur Parallelvergleich/Kontoplan
+(`LohnCodeAlias`).
 
 **Daten vs. Code (Grundprinzip):**
 *Daten* steuern WAS auf dem Lohnblatt erscheint und WOHIN es zählt: Lohnpositions-Katalog

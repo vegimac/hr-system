@@ -22,23 +22,12 @@ public class LohnFormelnController : ControllerBase
             f.CodeAnker,
             f.SchemaArt,
             f.SwissdecCode,
-            f.MirusCode,
-        }).ToList();
-
-        var inventar = LohnFormelInventar.Alle.Select(z => new
-        {
-            z.AlterCode,
-            z.SwissdecCode,
-            z.FormelId,
-            z.SchemaArt,
-            z.Bemerkung,
         }).ToList();
 
         return Ok(new
         {
             formeln,
-            inventar,
-            hinweis = "Formeln sind Code — nicht in der UI editierbar. Parameter (Ferien-%, SV-Sätze, Nachtfenster) bleiben in den Stammdaten.",
+            hinweis = "Formeln sind Code — nicht in der UI editierbar. Parameter (Ferien-%, SV-Sätze, Nachtfenster) bleiben in den Stammdaten. Abbildung der Rechnung: Engine-Debugger (Baum/Töpfe).",
         });
     }
 

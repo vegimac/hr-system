@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════
-//  LOHNSCHEMA PRO VERTRAGSMODELL (Walter 17.08.2026 / Endstand 19.10.2026)
-//  Swissdec-Nr. führend. Engine liest via LohnSchemaSteuerung.
+//  LOHNSCHEMA PRO VERTRAGSMODELL (Walter 17.08.2026 / 19.10.2026)
+//  Swissdec-Nr. führend. Nur Übersicht — Engine rechnet ohne Schema.
 // ══════════════════════════════════════════════════════════════════════
 let _lsAll = [];
 let _lsLohnpos = [];
@@ -138,7 +138,7 @@ function lsRender() {
                 ${table(rowsAlle, true)}
             </div>
         </div>
-        <p style="color:#b0aca3;font-size:11.5px;margin-top:14px">Nummern = Swissdec-Stamm. Die Engine liest, welche Position für welches Modell und wann fällig ist.
+        <p style="color:#b0aca3;font-size:11.5px;margin-top:14px">Nummern = Swissdec-Stamm. Übersicht nur — die Lohnrechnung steuert das Schema nicht (Engine + Häkchen am Stamm).
         Graue Kleinzahl = frühere Mirus-Nr. (nur Parallelvergleich).</p>`;
 }
 

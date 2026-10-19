@@ -9,7 +9,8 @@ namespace HrSystem.Controllers;
 /// <summary>
 /// Lohnschema pro Vertragsmodell (Walter-Vorgabe 17.08.2026): Standard-
 /// Lohnblatt — welche Lohnpositionen gehören zu welchem Vertragsmodell.
-/// Engine liest das Schema via LohnSchemaSteuerung (Walter 19.10.2026).
+/// Übersicht pro Modell (Dokumentation). Die Rechnung liest das Schema nicht
+/// (Walter 19.10.2026) — Engine + Lohnpositions-Flags.
 /// Codes = Swissdec-Stamm. EditLock-whitelisted.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]

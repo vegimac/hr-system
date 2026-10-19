@@ -1,0 +1,28 @@
+---
+description: Lohn-Engine bleibt im Code verdrahtet; jede Änderung muss in der Baum-/Topf-Darstellung nachgeführt werden (volle Transparenz).
+globs: Services/PayrollCalculation*.cs,Services/LohnFormelwerk/**,Controllers/Payroll*.cs,docs/lohn-engine-karte-skizze.html,docs/lohn-formeln.md,wwwroot/js/lohn*
+alwaysApply: false
+---
+
+# Lohn-Engine = Code + transparente Abbildung (Walter 19.10.2026)
+
+Die Engine bleibt **fest im Code** verdrahtet (keine Formel-Konfiguration pro Lohnposition). Akzeptiert, solange **volle Transparenz** besteht.
+
+## Pflicht bei jeder Engine-Änderung
+
+Wer Rechenlogik, Töpfe, Flags, Modell-Zweige (FLEX/MTP/FIX/FIX-M) oder Auszahlungsregeln ändert:
+
+1. Code in `PayrollCalculationEngine` / `PayrollCalculations` / verwandte Services anpassen
+2. **Darstellung nachführen** — Skizze `docs/lohn-engine-karte-skizze.html` (Baum + Ferien-Topf + 13.-Topf je Modell); später der Live-Engine-Debugger
+3. Bei Formeln auch `docs/lohn-formeln.md`, wenn dort die Regel steht
+
+## Was die Darstellung zeigen muss
+
+- Rechnung als aufklappbarer Baum (Zeile → Formel → Quellen → Flags)
+- **Ferien:** Zuwachs → Topf; Bezug → Pott-Formel (CHF/Tage, Cap, kein Vorbezug)
+- **13. ML:** FLEX nach Probezeit direkt auszahlen; FLEX Probezeit + MTP/FIX/FIX-M → Topf
+
+## Verboten
+
+- Engine-Logik ändern und die Baum-/Topf-Abbildung «später» nachziehen
+- Formeln ins UI/Lohnschema auslagern «damit es konfigurierbar wird» — Transparenz ersetzt das

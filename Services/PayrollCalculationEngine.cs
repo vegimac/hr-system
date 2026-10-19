@@ -37,7 +37,6 @@ public class PayrollCalculationEngine
     private readonly QstKorrekturService _qstKorrektur;
     private readonly FamzKorrekturService _famzKorrektur;
     private readonly HrSystem.Services.Vorsystem.LohnSimulationKontext _sim;
-    private readonly LohnSchemaSteuerung _schema;
 
     public PayrollCalculationEngine(
         AppDbContext db,
@@ -50,7 +49,6 @@ public class PayrollCalculationEngine
         QstPflichtCheckService qstCheck,
         QstKorrekturService qstKorrektur,
         FamzKorrekturService famzKorrektur,
-        LohnSchemaSteuerung schema,
         HrSystem.Services.Vorsystem.LohnSimulationKontext? sim = null)
     {
         _db             = db;
@@ -63,7 +61,6 @@ public class PayrollCalculationEngine
         _qstCheck       = qstCheck;
         _qstKorrektur   = qstKorrektur;
         _famzKorrektur  = famzKorrektur;
-        _schema         = schema;
         _sim            = sim ?? new HrSystem.Services.Vorsystem.LohnSimulationKontext();
     }
 
@@ -1673,7 +1670,6 @@ public class PayrollCalculationEngine
         // in `lohnposition` trägt (ZaehltAlsBasisFeiertag, -Ferien, -13ml).
         // Ersetzt die frühere hart verdrahtete Zuordnung
         // (z. B. "feiertagBasis = festlohn + mtpBasis" im MTP-Modell).
-        await _schema.LadenAsync();
         var lohnposListe = await _db.Lohnpositionen.Where(l => l.IsActive).ToListAsync();
         // Swissdec-Code + Mirus-Alias → dieselbe Position (Alt-Snapshots / LabelFor)
         var lohnposByCode = new Dictionary<string, Lohnposition>(StringComparer.OrdinalIgnoreCase);
@@ -1694,16 +1690,7 @@ public class PayrollCalculationEngine
         // Basis stand auf 4'774.02 statt 4'774.05, weil die Ferienentschädigung
         // mit 354.025 statt der ausbezahlten 354.05 einfloss).
         var codeAmountsAnzeige = new Dictionary<string, decimal>();
-        // Schema geladen — FaelligeCodes für optionale Zeilen (Nacht/Ferien-Split).
-        // Strenge Sperre in AddAmount erst wenn Schema je Modell vollständig gepflegt
-        // (sonst bricht Altbestand). IstErlaubt: kein Schema für Modell → true.
-        var schemaAutomatisch = _schema.FaelligeCodes(empModelCode, "automatisch");
-        var schemaSaldo = _schema.FaelligeCodes(empModelCode, "saldo");
-        _ = _schema.FaelligeCodes(empModelCode, "ereignis");
-        bool SchemaKennt(string code, IReadOnlyCollection<string> set) =>
-            set.Count == 0 || set.Contains(code) || set.Contains(LohnCodeAlias.Normiere(code))
-            || _schema.IstErlaubt(empModelCode, "automatisch", code);
-
+        // Lohnschema steuert die Rechnung nicht (Walter 19.10.2026) — Codes fest in der Engine.
         void AddAmount(string code, decimal amtExact, decimal? amtAnzeige = null)
         {
             if (string.IsNullOrEmpty(code) || amtExact == 0) return;
@@ -4151,10 +4138,8 @@ public class PayrollCalculationEngine
 
             if (ferienBetragFix > 0)
             {
-                // Swissdec 1166 (Walter 19.10.2026): FIX-Ferien-Split — Geld auf 1166,
-                // gekürzter Festlohn bleibt auf 1000 (festlohnArbeitFix oben).
-                string ferienCodeFix = SchemaKennt(LohnCodes.FerienFixGeld, schemaSaldo)
-                    ? LohnCodes.FerienFixGeld : LohnCodes.FestlohnFerien;
+                // Swissdec 1166: FIX-Ferien-Split — Geld auf 1166, gekürzter Festlohn auf 1000.
+                string ferienCodeFix = LohnCodes.FerienFixGeld;
                 lohnLines.Add(new {
                     bezeichnung = LabelFor(ferienCodeFix, "Ferienentschädigung FIX"),
                     code    = ferienCodeFix,
@@ -4390,7 +4375,7 @@ public class PayrollCalculationEngine
             decimal neuerNachtSaldoFix = PayrollCalculations.Rappen(vormonatNachtSaldo + nightBonus - nachtKompStunden);
 
             // Nacht FIX Split 1076 (Brutto ±0): −Festlohn +1076 (Walter 19.10.2026)
-            if (nachtKompStunden > 0 && SchemaKennt(LohnCodes.NachtKompensation, schemaAutomatisch))
+            if (nachtKompStunden > 0)
             {
                 decimal nachtSatz = hourlyRate > 0 ? hourlyRate
                     : ExitStundensatzAusMonatslohn(monthSalaryFull, weeklySoll);
@@ -4429,8 +4414,7 @@ public class PayrollCalculationEngine
             // Ferien auszahlen ohne Bezug (Walter 05.10.2026): FIX — Swissdec 1166.
             foreach (var z in FerienAuszahlungRechnung.ZeilenFix(ferienAuszahlungTage, fixTagessatz))
             {
-                string c1166 = SchemaKennt(LohnCodes.FerienFixGeld, schemaSaldo)
-                    ? LohnCodes.FerienFixGeld : LohnCodes.FerienFlexTopf;
+                string c1166 = LohnCodes.FerienFixGeld;
                 lohnLines.Add(new {
                     bezeichnung = FerienAuszahlungRechnung.Bezeichnung(z, LabelFor(c1166, "Ferien-Auszahlung"), year - 1),
                     code    = c1166,
@@ -4515,9 +4499,8 @@ public class PayrollCalculationEngine
                 if (ferientageAuszahlenFix && ferienTageAnzeige != 0m && fixTagessatz > 0)
                 {
                     decimal ferienBetrag = ExitSettlementBetrag(ferienTageSaldoNeu, fixTagessatz);
-                    // Swissdec 1168 Austritt (Walter 19.10.2026)
-                    string c1168 = SchemaKennt(LohnCodes.FerienAustritt, schemaSaldo)
-                        ? LohnCodes.FerienAustritt : LohnCodes.FerienFlexTopf;
+                    // Swissdec 1168 Austritt
+                    string c1168 = LohnCodes.FerienAustritt;
                     lohnLines.Add(new {
                         bezeichnung = ferienTageAnzeige > 0
                             ? $"Ferien-Tage Auszahlung ({SchlussSuffix()})"

@@ -8,8 +8,7 @@ public sealed record LohnFormelDefinition(
     string ParameterQuellen,
     string CodeAnker,
     string? SchemaArt = null,
-    string? SwissdecCode = null,
-    string? MirusCode = null
+    string? SwissdecCode = null
 );
 
 /// <summary>Ergebnis einer reinen Formelberechnung.</summary>
