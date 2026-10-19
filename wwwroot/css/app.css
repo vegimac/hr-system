@@ -12618,13 +12618,19 @@ body.theme-dark .admin-card img {
 .admin-card-grid .admin-card img[src*="lohnraster-elm"] { width: 109px !important; height: 109px !important; }
 .admin-card-grid .admin-card img[src*="lohnkat-lohnschema"],
 .admin-card-grid .admin-card img[src*="vvkat-absenz-typen"] { width: 98px !important; height: 98px !important; }
-/* Entwicklung → Lohn: Formeln + Engine — Skizzen brauchen Fläche + Kontrast (Walter 19.10.2026) */
+/* Entwicklung → Lohn: Kachel-Raster unverändert (230px), nur die Grafik füllt
+   die Karte — kein grösseres Card-Layout (Walter 19.10.2026). */
+.admin-card-grid .admin-card:has(img[src*="entwkat-lohn-formeln"]),
+.admin-card-grid .admin-card:has(img[src*="entwkat-lohn-engine"]) {
+    padding: 8px 10px 12px !important;
+}
 .admin-card-grid .admin-card img[src*="entwkat-lohn-formeln"],
 .admin-card-grid .admin-card img[src*="entwkat-lohn-engine"] {
-    width: 148px !important;
-    height: 148px !important;
-    margin-bottom: 8px !important;
-    filter: contrast(1.25) brightness(0.88) saturate(1.05);
+    width: 198px !important;
+    height: 198px !important;
+    max-width: 100% !important;
+    margin: 0 auto 4px !important;
+    filter: contrast(1.28) brightness(0.86) saturate(1.05);
 }
 body.theme-dark .admin-card-grid .admin-card img[src*="entwkat-lohn-formeln"],
 body.theme-dark .admin-card-grid .admin-card img[src*="entwkat-lohn-engine"] {
