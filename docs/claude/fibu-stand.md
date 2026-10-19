@@ -21,3 +21,14 @@ Ziel: aus dem abgeschlossenen Lohnlauf ein Fibu-Journal erzeugen (wie der heutig
   - **Daten-Brücken (beim Bau zu lösen):** SV-Abzüge stehen im `SlipJson` nur per `bezeichnung` (kein stabiler Code) → Mapping per Namens-Substring ODER Engine erweitern um `CategoryCode` in die Slip-Zeile. RST Ferien/Feiertag liegen als **Tage**-Saldo (FIX/MTP), Mirus bucht in **CHF** → Umrechnung Tage×Tagessatz nötig (13. ML + FLEX-Feriengeld liegen bereits in CHF vor).
 - **E3 (später):** eigentliches Abacus-Export-Format (Format noch offen — Walter klärt, was Abacus frisst).
 - **13. ML auszahlen 180.3 (Walter 17.09.2026):** Die Lohnart ist nur Auslöser (Betrag 0, nicht in `lohnLines`). Die Engine schreibt weiterhin 180.1 «akt. Monat» (Aufwand) + «Saldo-Auszahlung» / «Nachzahlung nach Probezeit». Fibu v3 (`ExtractBruttoUmgliederung` / `Find13MlAuszahlung`) bucht den RST-Abbau **nur** aus diesen zwei Prefixen → Kontoplan **Position 180** S 2017 Crew / 2016 Management H 1920. **Kein neues Kontoplan-Mapping.** Code 180.3 in einer Slip-Zeile wird übersprungen. Test: `Ml13_Ausloeser1803_ZaehltNicht_SaldoAuszahlungWieDezember`.
+
+## Ohne Kostenstellen — Modell aus Vertrag (Walter 19.10.2026, Schema-Stand 91)
+
+Abacus braucht nur Fibu-Konten. Die frühere Kostenstelle (100/200/300) war ein Doppel der Vertrags-Modelle und wird nicht mehr gepflegt.
+
+- **Gruppe:** `Services/FibuModell.cs` — MTP+FIX → `CREW` (Soll 4000), FLEX → `FLEX` (4001), FIX-M → `MGMT` (4055).
+- **Tabelle `lohn_konto_mapping`:** neue Spalten `lohnart_code` (Swissdec) + `modell` (CREW/FLEX/MGMT). `kostenstelle_nr` bleibt als Lesefallback für Altzeilen.
+- **Journal:** `FibuJournalService` lookupt über Modell (+ Legacy-KSt-Fallback), nicht mehr über KSt-UI.
+- **UI:** Systemeinstellungen → Kontoplan filtert nach Modell (nicht Kostenstelle); Spalten Lohnart / Modell / Soll / Gegen.
+- **Tests:** `Tests/FibuModellTests.cs`.
+- **Noch offen (später):** Brutto-Zeilen 1:1 aus Swissdec-Lohnarten statt Sammel-Pos 10 — Mapping-Brücke über `lohnart_code` ist vorbereitet.

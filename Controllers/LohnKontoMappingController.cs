@@ -7,14 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 // ============================================================================
-// Kontoplan / Lohnart→Konten-Mapping (Walter-Vorgabe 22.05.2026).
-// Pflegt die Tabelle lohn_konto_mapping (übernommen aus dem Mirus/McD-CH-
-// Buchungsschema). Schlüssel: Position × SubPos × Kostenstelle → Soll/Gegenkonto.
-// Treibt den Fibu-Journal-Generator (Etappe 2) und später den Abacus-Export.
-//
-// Lohn-Edit-Lock: NICHT relevant — Katalog/Stammdaten, kein MA-Lohn. Eine
-// Konto-Korrektur verändert keine abgeschlossene Abrechnung. Im Audit-Test
-// EditLockEndpointAuditTests whitelisted.
+// Kontoplan / Lohnart→Konten-Mapping.
+// Seit Walter 19.10.2026: Swissdec-Lohnart × Vertrags-Modell (CREW/FLEX/MGMT)
+// → Soll/Gegen/MWST. Keine Kostenstellen-Pflege (Abacus nur Konten).
 // ============================================================================
 [ApiController]
 [Route("api/lohn-konto-mapping")]
@@ -24,15 +19,17 @@ public class LohnKontoMappingController : ControllerBase
     private readonly AppDbContext _db;
     public LohnKontoMappingController(AppDbContext db) => _db = db;
 
-    // GET /api/lohn-konto-mapping  → alle aktiven Mappings, sortiert.
-    // Optional ?konto=4000 oder ?kst=100 filtern.
+    // GET /api/lohn-konto-mapping  — optional ?konto=4000 &modell=CREW
     [HttpGet]
-    public async Task<IActionResult> Get([FromQuery] string? konto, [FromQuery] string? kst)
+    public async Task<IActionResult> Get([FromQuery] string? konto, [FromQuery] string? modell, [FromQuery] string? kst)
     {
         var q = _db.LohnKontoMappings.Where(m => m.IsActive);
         if (!string.IsNullOrWhiteSpace(konto))
             q = q.Where(m => m.Fibukonto == konto || m.Gegenkonto == konto);
-        if (!string.IsNullOrWhiteSpace(kst))
+        if (!string.IsNullOrWhiteSpace(modell))
+            q = q.Where(m => m.Modell == modell);
+        // Legacy-Filter (alte Bookmarks)
+        else if (!string.IsNullOrWhiteSpace(kst))
             q = q.Where(m => m.KostenstelleNr == kst);
 
         var rows = await q
@@ -40,6 +37,7 @@ public class LohnKontoMappingController : ControllerBase
             .Select(m => new
             {
                 m.Id, m.Position, m.SubPosition,
+                m.LohnartCode, m.Modell,
                 m.Fibukonto, m.Gegenkonto,
                 m.KostenstelleNr, m.KostenstelleName,
                 m.Bezeichnung, m.IsVormonat, m.SortOrder,
@@ -49,7 +47,6 @@ public class LohnKontoMappingController : ControllerBase
         return Ok(rows);
     }
 
-    // GET /api/lohn-konto-mapping/konten  → distinkte Kontoliste (für Übersicht/Validierung).
     [HttpGet("konten")]
     public async Task<IActionResult> Konten()
     {
@@ -63,11 +60,6 @@ public class LohnKontoMappingController : ControllerBase
         string Fibukonto, string Gegenkonto, string? Bezeichnung,
         string? MwstKonto = null, string? MwstCode = null, decimal? MwstProzent = null);
 
-    // PUT /api/lohn-konto-mapping/{id}  → Konto-Korrektur (Konten + Text +
-    // MWST-Konfiguration für den Abacus-Export; Schlüsselfelder Position/
-    // SubPos/Kostenstelle bleiben fix). MWST: BEIDE Felder gesetzt = Buchung
-    // bekommt TaxAccount/TaxData im AbaConnect-XML; beide leer = keine
-    // Steuerfelder; nur eines gesetzt = 400.
     [Authorize(Roles = "admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] MappingEditDto dto)

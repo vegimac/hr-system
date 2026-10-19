@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 90;  // 90: MTP Garantie 1005 (nicht 1000) · 89: Mirus-Altcodes inaktiv → 2050 · 88: Swissdec-Stamm…
+const int SchemaStand = 91;  // 91: Fibu ohne KSt — Modell + lohnart_code · 90: MTP 1005 · 89: Altcodes…
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6977,6 +6977,38 @@ using (var scope = app.Services.CreateScope())
                     WHERE x.modell = 'MTP' AND x.lohnposition_id = lp.id AND x.art = 'automatisch');
         ");
         startLog.LogInformation("Stand 90: MTP-Schema 1000→1005 Stundenlohn");
+    }
+
+    // ── Stand 91: Fibu ohne Kostenstellen (Walter 19.10.2026) ─────────────
+    // lohnart_code (Swissdec) + modell (CREW/FLEX/MGMT) aus Vertrag;
+    // kostenstelle_nr bleibt als Legacy-Fallback, UI zeigt Modell.
+    if (dbStand < 91)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE lohn_konto_mapping
+                ADD COLUMN IF NOT EXISTS lohnart_code varchar(20),
+                ADD COLUMN IF NOT EXISTS modell varchar(10);
+
+            UPDATE lohn_konto_mapping SET modell = CASE kostenstelle_nr
+                WHEN '200' THEN 'FLEX'
+                WHEN '300' THEN 'MGMT'
+                WHEN '400' THEN 'MGMT'
+                WHEN '100' THEN 'CREW'
+                ELSE modell END
+             WHERE modell IS NULL AND kostenstelle_nr IS NOT NULL;
+
+            -- häufige Mirus-Pos → Swissdec (Brutto bleibt Pos 10 für alle Modelle)
+            UPDATE lohn_konto_mapping SET lohnart_code = v.code
+              FROM (VALUES
+                (10, '1000'), (20, '1005'), (55, '1061'), (40, '1160'),
+                (180, '1200'), (190, '3000'), (195, '1161'),
+                (500, '5010'), (510, '5012'), (530, '5042'), (540, '5020'),
+                (550, '5050'), (560, '5100'), (600, '600.24'),
+                (1060, '2050'), (1090, '950.1'), (2010, '1200'), (4070, '1160')
+              ) AS v(pos, code)
+             WHERE position = v.pos AND (lohnart_code IS NULL OR lohnart_code = '');
+        ");
+        startLog.LogInformation("Stand 91: Fibu-Kontoplan Modell + Swissdec-lohnart_code (ohne KSt-Pflege)");
     }
 
     // Stand speichern — erst NACH erfolgreichem Durchlauf. Bricht der Block ab,

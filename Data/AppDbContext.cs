@@ -1838,6 +1838,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Position).HasColumnName("position");
             entity.Property(e => e.SubPosition).HasColumnName("sub_position");
+            entity.Property(e => e.LohnartCode).HasColumnName("lohnart_code").HasMaxLength(20);
+            entity.Property(e => e.Modell).HasColumnName("modell").HasMaxLength(10);
             entity.Property(e => e.Fibukonto).HasColumnName("fibukonto").HasMaxLength(10);
             entity.Property(e => e.Gegenkonto).HasColumnName("gegenkonto").HasMaxLength(10);
             entity.Property(e => e.KostenstelleNr).HasColumnName("kostenstelle_nr").HasMaxLength(10);

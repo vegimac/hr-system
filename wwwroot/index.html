@@ -5406,17 +5406,16 @@
                 <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
                     <h1 class="page-title">Kontoplan (Fibu)</h1>
-                    <p class="page-sub">Lohnart→Konten-Mapping aus dem Mirus/McD-Buchungsschema — Grundlage für Fibu-Journal und Abacus-Export</p>
+                    <p class="page-sub">Swissdec-Lohnart × Vertrags-Modell → Soll/Haben/MWST — Grundlage für Fibu-Journal und Abacus-Export (keine Kostenstellen; Abacus nur Konten)</p>
                 </div></div>
                 <div class="fh-toolbar" style="gap:14px">
-                    <input type="text" id="kpSearch" oninput="kpRender()" placeholder="Suchen (Konto, Position, Text)…" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
-                    <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Kostenstelle
-                        <select id="kpKstFilter" onchange="kpRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                    <input type="text" id="kpSearch" oninput="kpRender()" placeholder="Suchen (Lohnart, Konto, Text)…" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                    <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Modell
+                        <select id="kpModellFilter" onchange="kpRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                             <option value="">alle</option>
-                            <option value="100">100 Crew Fix (MTP/FIX)</option>
-                            <option value="200">200 Crew Flex (FLEX)</option>
-                            <option value="300">300 Management</option>
-                            <option value="400">400 Gerant</option>
+                            <option value="CREW">Crew / MTP (FIX+MTP)</option>
+                            <option value="FLEX">Flex</option>
+                            <option value="MGMT">Management (FIX-M)</option>
                         </select>
                     </label>
                     <span id="kpInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
@@ -5428,7 +5427,7 @@
                             <col class="kp-c-soll"><col class="kp-c-gegen"><col class="kp-c-typ"><col class="kp-c-act">
                         </colgroup>
                         <thead><tr>
-                            <th>SubPos</th><th>Kostenstelle</th><th>Bezeichnung</th>
+                            <th>Lohnart</th><th>Modell</th><th>Bezeichnung</th>
                             <th>Soll</th><th>Gegen</th><th>Typ</th><th class="fh-th-right">Aktion</th>
                         </tr></thead>
                     </table>
@@ -10793,7 +10792,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261007a"></script>
-<script src="js/kontoplan.js?v=20260805a"></script>
+<script src="js/kontoplan.js?v=20261019a"></script>
 <script src="js/warning-config.js?v=20261001b"></script>
 <script src="js/easyatwork.js?v=20261012a"></script>
 <script src="js/eaw-stempel-automat.js?v=20261007a"></script>

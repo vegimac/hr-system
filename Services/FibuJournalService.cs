@@ -14,26 +14,14 @@ namespace HrSystem.Services;
 /// Betrag/Text) — wie der heutige Mirus-Fibujournal-Export.
 ///
 /// Verlinkung NUR über stabile Codes → Kontoplan (lohn_konto_mapping), kein
-/// Text-Matching:
-///   • Bruttolohn  → Kontoplan Position 10  × Kostenstelle (Modell)
-///   • SV/QST-Abzug→ Snapshot-SlipJson abzugLines[].categoryCode → SV.fibu_position
-///                   (AHV→500, ALV→510, KTG→530, NBU→540, BVG→550, BVG-Zusatz→590,
-///                    QST→560) → Kontoplan AN-Zeile (Soll 1920)
-///   • SV-AG-Beitrag→ abzugLines[].agBetrag (von der ENGINE pro Zeile mit der
-///                    korrekten alters-/modellgestaffelten Stufe gerechnet, z.B. BVG)
-///                    → Kontoplan AG-Zeile (Soll 4060/4061/4062 / Gegen 2070/2080/2090).
-///                    Berührt 1920 NICHT. agBetrag erscheint erst in NEU gerechneten
-///                    Snapshots → für Alt-Perioden „♻️ Snapshots neu berechnen".
-///   • FAK         → SV-Satz Code "FAK" (nur AG, Rate 0 + rate_employer), läuft auf
-///                    der AHV-Basis → Position 501 (Soll 4062 / Gegen 2070). Wird beim
-///                    Verarbeiten der AHV-Zeile mitgebucht (FAK hat keine AN-Zeile).
-///   • LGAV/Lohnpos→ abzugLines[].code (z.B. "600.24") → Kontoplan Position+SubPos
-///   • Nettolohn   → Kontoplan Position 1060
-///   • RST 13. ML  → PayrollSaldo.ThirteenthMonthMonthly → Kontoplan Position 2010 × KSt
-///   • RST Ferien/Feiertage → monatlicher Netto-Zuwachs (Accrual − Bezug) aus dem
-///                   SlipJson; FIX/FIX-M Tage × Tagessatz (Monatslohn×12/364, 7-Tage-
-///                   Basis), UTP/MTP Ferien als CHF (Ferien-Geld). Kontoplan 4070.20
-///                   (Ferien) / 4070.30 (Feiertag): Aufwand 4000/4001/4055 ↔ RST 2019.
+/// Text-Matching. Seit Walter 19.10.2026: Modell aus Vertrag (CREW/FLEX/MGMT),
+/// keine Kostenstellen-Pflege — Abacus bekommt nur Soll/Haben:
+///   • Bruttolohn  → Kontoplan Position 10 × Modell (CREW→4000, FLEX→4001, MGMT→4055)
+///   • SV/QST-Abzug→ abzugLines[].categoryCode → SV.fibu_position → AN (Soll 1920)
+///   • SV-AG / FAK → AG-Zeilen (406x / 207x…), berührt 1920 nicht
+///   • LGAV/Lohnpos→ abzugLines[].code → Position+SubPos
+///   • Nettolohn   → Position 1060
+///   • RST 13. ML / Ferien/Feiertag → Position 2010 / 4070 × Modell
 ///   • v3 Brutto-Umgliederung (Walter-Vorgabe 04.08.2026, Mirus-Deckungsgleichheit):
 ///     drei Anteile stecken im snapshot.Brutto, sind aber KEIN echter Personal-
 ///     aufwand des Monats — sie werden aus der 400x-Aufwand-Buchung herausgelöst
@@ -87,15 +75,8 @@ public class FibuJournalService
     private static readonly string[] MonatsNamen =
         { "Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember" };
 
-    // Modell → Kostenstelle (Walter-Vorgabe 22.05.2026): FIX ist IMMER Crew.
-    private static string KstFor(string? model) => (model ?? "").ToUpperInvariant() switch
-    {
-        "FLEX"   => "200",
-        "MTP"   => "100",
-        "FIX"   => "100",
-        "FIX-M" => "300",
-        _       => "100"
-    };
+    // Modell-Gruppe aus Vertrag (Walter 19.10.2026) — ersetzt Kostenstelle.
+    private static string ModellFor(string? model) => FibuModell.Gruppe(model);
 
     // ── v3: Brutto-Umgliederung (Walter-Vorgabe 04.08.2026) ────────────────
     // Statische, seiteneffektfreie Extraktion der Umgliederungs-Summen aus den
@@ -312,59 +293,44 @@ public class FibuJournalService
         var uvgTaggeldNamen = await _db.Lohnpositionen
             .Where(l => l.Code == "60.2").Select(l => l.Bezeichnung).ToListAsync();
 
-        // Kontoplan-Lookups -----------------------------------------------------
-        LohnKontoMapping? FindByPosKst(int pos, string? kst) =>
-            maps.FirstOrDefault(m => m.Position == pos && m.KostenstelleNr == kst)
-            ?? maps.FirstOrDefault(m => m.Position == pos && m.KostenstelleNr == null)
+        // Kontoplan-Lookups: Modell CREW/FLEX/MGMT (Walter 19.10.2026).
+        // Legacy-Kostenstelle nur Fallback, falls modell noch leer.
+        bool MatchModell(LohnKontoMapping m, string? modell)
+        {
+            if (string.IsNullOrEmpty(modell))
+                return string.IsNullOrEmpty(m.Modell) && string.IsNullOrEmpty(m.KostenstelleNr);
+            if (m.Modell == modell) return true;
+            var leg = FibuModell.LegacyKostenstelle(modell);
+            return leg != null && m.KostenstelleNr == leg;
+        }
+        LohnKontoMapping? FindByPosModell(int pos, string? modell) =>
+            maps.FirstOrDefault(m => m.Position == pos && MatchModell(m, modell))
+            ?? maps.FirstOrDefault(m => m.Position == pos && string.IsNullOrEmpty(m.Modell) && string.IsNullOrEmpty(m.KostenstelleNr))
             ?? maps.FirstOrDefault(m => m.Position == pos);
-        // SV-AN-Buchung = Zeile mit Soll 1920.
         LohnKontoMapping? FindAn1920(int pos, int? sub) =>
             maps.FirstOrDefault(m => m.Position == pos && m.Fibukonto == "1920" && (sub == null || m.SubPosition == sub))
             ?? maps.FirstOrDefault(m => m.Position == pos && m.Fibukonto == "1920");
-        // SV-AG-Buchung = Zeile mit Soll-Aufwand 4060/4061/4062 (Gegen Verbindlichkeit
-        // 2080/2090/2070). Berührt 1920 NICHT.
         LohnKontoMapping? FindAg(int pos) =>
             maps.FirstOrDefault(m => m.Position == pos
                 && (m.Fibukonto == "4060" || m.Fibukonto == "4061" || m.Fibukonto == "4062"));
-        // RST-Bildungs-Zeile (aktueller Monat) für Ferien/Feiertage: Position 4070,
-        // SubPos 20=Ferien / 30=Feiertag, is_vormonat=false → Soll Aufwand (4000/
-        // 4001/4055) / Gegen RST-Konto (2019). Fibukonto = Aufwand, Gegenkonto = RST.
-        LohnKontoMapping? FindRstBuild(int sub, string? kst) =>
-            maps.FirstOrDefault(m => m.Position == 4070 && m.SubPosition == sub && m.KostenstelleNr == kst && !m.IsVormonat)
+        LohnKontoMapping? FindRstBuild(int sub, string? modell) =>
+            maps.FirstOrDefault(m => m.Position == 4070 && m.SubPosition == sub && MatchModell(m, modell) && !m.IsVormonat)
             ?? maps.FirstOrDefault(m => m.Position == 4070 && m.SubPosition == sub && !m.IsVormonat);
-        // v3-Lookups (Walter-Vorgabe 04.08.2026) ------------------------------
-        // Familienzulagen → Mirus-Position 190 (S 2071 / H 1920); Fallback die
-        // Nachzahlungs-Zeile 200.190.
         LohnKontoMapping? FindFamz() =>
             maps.FirstOrDefault(m => m.Position == 190 && m.Gegenkonto == "1920")
             ?? maps.FirstOrDefault(m => m.Position == 200 && m.SubPosition == 190 && m.Gegenkonto == "1920");
-        // Vers.-Entschädigung (Taggeld) = die 2014-Zeile der Position (Mirus:
-        // KTG 70.2, UVG 60.3 — Engine-Code 60.2 wird bewusst auf die 2014-Zeile
-        // der Position 60 gemappt, egal welche SubPos der Seed führt).
-        LohnKontoMapping? FindVersEntsch(int pos, string? kst) =>
-            maps.FirstOrDefault(m => m.Position == pos && m.Fibukonto == "2014" && m.KostenstelleNr == kst)
+        LohnKontoMapping? FindVersEntsch(int pos, string? modell) =>
+            maps.FirstOrDefault(m => m.Position == pos && m.Fibukonto == "2014" && MatchModell(m, modell))
             ?? maps.FirstOrDefault(m => m.Position == pos && m.Fibukonto == "2014");
-        // 13.-ML-Auszahlung aus dem Saldo → Position 180 (S 2017 Crew /
-        // 2016 Management+Gerant, H 1920) × Kostenstelle.
-        // 180.3 ist nur Auslöser (nicht in lohnLines); RST-Abbau kommt von
-        // 180.1 «Saldo-Auszahlung» / «Nachzahlung nach Probezeit».
-        LohnKontoMapping? Find13MlAuszahlung(string? kst) =>
-            maps.FirstOrDefault(m => m.Position == 180 && m.KostenstelleNr == kst && m.Gegenkonto == "1920")
+        LohnKontoMapping? Find13MlAuszahlung(string? modell) =>
+            maps.FirstOrDefault(m => m.Position == 180 && MatchModell(m, modell) && m.Gegenkonto == "1920")
             ?? maps.FirstOrDefault(m => m.Position == 180 && m.Gegenkonto == "1920");
-        // RST-13-Bildung/-Verfall (Position 2010) × Kostenstelle. Der Mirus-
-        // Kontoplan kennt KEINE 2010-Zeile für KSt 200 (Crew Flex zahlt den 13.
-        // monatlich aus) — der FLEX-PROBEZEIT-Pot braucht sie aber. Fallback
-        // daher KSt-korrekt auf die RST-Seite: Crew (100/200) → 2017-Zeile,
-        // Management/Gerant (300/400) → 2016-Zeile. NIE blind die erste
-        // 2010-Zeile nehmen (könnte die Management-Zeile sein → falsche Konten).
-        LohnKontoMapping? Find13MlRst(string? kst) =>
-            maps.FirstOrDefault(m => m.Position == 2010 && m.KostenstelleNr == kst)
-            ?? (kst is "300" or "400"
+        LohnKontoMapping? Find13MlRst(string? modell) =>
+            maps.FirstOrDefault(m => m.Position == 2010 && MatchModell(m, modell))
+            ?? (modell == FibuModell.Mgmt
                 ? maps.FirstOrDefault(m => m.Position == 2010 && m.Gegenkonto == "2016")
                 : maps.FirstOrDefault(m => m.Position == 2010 && m.Gegenkonto == "2017"));
-        string KstName(string kst) =>
-            maps.FirstOrDefault(m => m.KostenstelleNr == kst && m.KostenstelleName != null)?.KostenstelleName
-            ?? ("KSt " + kst);
+        string ModellLabel(string? modell) => FibuModell.Bezeichnung(modell);
 
         // Aggregation: Schlüssel (Soll|Gegen|Bezeichnung) → Summe.
         var acc = new Dictionary<string, JournalLine>();
@@ -388,7 +354,7 @@ public class FibuJournalService
         foreach (var s in snapshots)
         {
             modelByEmp.TryGetValue(s.EmployeeId, out var model);
-            var kst = KstFor(model);
+            var modell = ModellFor(model);
 
             // v3 (Walter-Vorgabe 04.08.2026): Durchlauf-/RST-Anteile aus den
             // lohnLines extrahieren, BEVOR der Brutto-Aufwand gebucht wird.
@@ -411,7 +377,7 @@ public class FibuJournalService
             decimal bruttoAufwand = Math.Round(s.Brutto - umgl.AufwandAbzug, 2);
             if (bruttoAufwand != 0)
             {
-                var m = FindByPosKst(10, kst);
+                var m = FindByPosModell(10, modell);
                 if (m != null)
                 {
                     if (bruttoAufwand > 0) Add(m.Fibukonto, m.Gegenkonto, m.Bezeichnung, bruttoAufwand);
@@ -435,19 +401,19 @@ public class FibuJournalService
             //     Personalaufwand — die zahlt der AG selbst.
             if (umgl.KtgTaggeld != 0)
             {
-                var mk = FindVersEntsch(70, kst);
+                var mk = FindVersEntsch(70, modell);
                 var (soll, gegen, bez) = mk != null
                     ? (mk.Fibukonto, mk.Gegenkonto, mk.Bezeichnung)
-                    : ("2014", "1920", "Vers.-Entsch. KTG " + KstName(kst));
+                    : ("2014", "1920", "Vers.-Entsch. KTG " + ModellLabel(modell));
                 if (umgl.KtgTaggeld > 0) Add(soll, gegen, bez, umgl.KtgTaggeld);
                 else                     Add(gegen, soll, bez + " Korrektur", -umgl.KtgTaggeld);
             }
             if (umgl.UvgTaggeld != 0)
             {
-                var mu = FindVersEntsch(60, kst);
+                var mu = FindVersEntsch(60, modell);
                 var (soll, gegen, bez) = mu != null
                     ? (mu.Fibukonto, mu.Gegenkonto, mu.Bezeichnung)
-                    : ("2014", "1920", "Vers.-Entsch. UVG " + KstName(kst));
+                    : ("2014", "1920", "Vers.-Entsch. UVG " + ModellLabel(modell));
                 if (umgl.UvgTaggeld > 0) Add(soll, gegen, bez, umgl.UvgTaggeld);
                 else                     Add(gegen, soll, bez + " Korrektur", -umgl.UvgTaggeld);
             }
@@ -459,10 +425,10 @@ public class FibuJournalService
             //     gebildet (ThirteenthMonthMonthly ist im Auszahlungsmonat 0).
             if (umgl.Ml13Auszahlung != 0)
             {
-                var m13 = Find13MlAuszahlung(kst);
+                var m13 = Find13MlAuszahlung(modell);
                 var (soll, gegen, bez) = m13 != null
                     ? (m13.Fibukonto, m13.Gegenkonto, m13.Bezeichnung)
-                    : (kst is "300" or "400" ? "2016" : "2017", "1920", "Auszahlung 13. ML " + KstName(kst));
+                    : (modell == FibuModell.Mgmt ? "2016" : "2017", "1920", "Auszahlung 13. ML " + ModellLabel(modell));
                 if (umgl.Ml13Auszahlung > 0) Add(soll, gegen, bez, umgl.Ml13Auszahlung);
                 else                         Add(gegen, soll, bez + " Korrektur", -umgl.Ml13Auszahlung);
             }
@@ -473,9 +439,9 @@ public class FibuJournalService
             //     RST-Bildungszeile (Position 2010). Berührt 1920 NICHT.
             if (umgl.Ml13Verfall > 0)
             {
-                var mr = Find13MlRst(kst);
+                var mr = Find13MlRst(modell);
                 if (mr != null)
-                    Add(mr.Gegenkonto, mr.Fibukonto, "Auflösung 13. ML Verfall Probezeit " + KstName(kst), umgl.Ml13Verfall);
+                    Add(mr.Gegenkonto, mr.Fibukonto, "Auflösung 13. ML Verfall Probezeit " + ModellLabel(modell), umgl.Ml13Verfall);
             }
 
             // 2) Abzüge aus dem SlipJson (SV/QST per categoryCode, LGAV/Lohnpos per code).
@@ -607,11 +573,12 @@ public class FibuJournalService
                 ferienRst = Math.Round(ferienRst, 2);
                 if (ferienRst != 0)
                 {
-                    var m = FindRstBuild(20, kst);
+                    var m = FindRstBuild(20, modell);
                     if (m != null)
                     {
-                        if (ferienRst > 0) Add(m.Fibukonto, m.Gegenkonto, "RST Ferien " + (m.KostenstelleName ?? kst), ferienRst);
-                        else               Add(m.Gegenkonto, m.Fibukonto, "RST Ferien Auflösung " + (m.KostenstelleName ?? kst), -ferienRst);
+                        var lab = ModellLabel(modell);
+                        if (ferienRst > 0) Add(m.Fibukonto, m.Gegenkonto, "RST Ferien " + lab, ferienRst);
+                        else               Add(m.Gegenkonto, m.Fibukonto, "RST Ferien Auflösung " + lab, -ferienRst);
                     }
                 }
 
@@ -619,11 +586,12 @@ public class FibuJournalService
                 decimal feiertagRst = Math.Round((SlipDec("feiertagTageAccrual") - SlipDec("feiertagTageGenommen")) * tagessatz, 2);
                 if (feiertagRst != 0)
                 {
-                    var m = FindRstBuild(30, kst);
+                    var m = FindRstBuild(30, modell);
                     if (m != null)
                     {
-                        if (feiertagRst > 0) Add(m.Fibukonto, m.Gegenkonto, "RST Feiertage " + (m.KostenstelleName ?? kst), feiertagRst);
-                        else                 Add(m.Gegenkonto, m.Fibukonto, "RST Feiertage Auflösung " + (m.KostenstelleName ?? kst), -feiertagRst);
+                        var lab = ModellLabel(modell);
+                        if (feiertagRst > 0) Add(m.Fibukonto, m.Gegenkonto, "RST Feiertage " + lab, feiertagRst);
+                        else                 Add(m.Gegenkonto, m.Fibukonto, "RST Feiertage Auflösung " + lab, -feiertagRst);
                     }
                 }
             }
@@ -639,21 +607,20 @@ public class FibuJournalService
             // 3) Nettolohn → Position 1060.
             if (s.Netto != 0)
             {
-                var m = FindByPosKst(1060, null);
+                var m = FindByPosModell(1060, null);
                 if (m != null) Add(m.Fibukonto, m.Gegenkonto, m.Bezeichnung, s.Netto);
             }
 
-            // 4) RST 13. ML (aktueller Monat) → Position 2010 × Kostenstelle.
-            //    Für FLEX (Probezeit-Pot, KSt 200 ohne eigene Mirus-Zeile) fällt
-            //    Find13MlRst auf die Crew-2017-Konten zurück — dann mit eigener
-            //    Bezeichnung «RST 13. ML Crew Flex» statt dem Crew-Fix-Label,
-            //    damit die Zeile im Journal von Crew Fix unterscheidbar bleibt.
+            // 4) RST 13. ML (aktueller Monat) → Position 2010 × Modell.
+            //    FLEX-Probezeit-Pot fällt auf Crew-2017 zurück — Label «Crew Flex».
             if (saldoByEmp.TryGetValue(s.EmployeeId, out var sal) && sal.ThirteenthMonthMonthly != 0)
             {
-                var m = Find13MlRst(kst);
+                var m = Find13MlRst(modell);
                 if (m != null)
                 {
-                    var bez = m.KostenstelleNr == kst ? m.Bezeichnung : "RST 13. ML " + KstName(kst);
+                    var bez = m.Modell == modell || FibuModell.LegacyKostenstelle(modell) == m.KostenstelleNr
+                        ? m.Bezeichnung
+                        : "RST 13. ML " + ModellLabel(modell);
                     Add(m.Fibukonto, m.Gegenkonto, bez, sal.ThirteenthMonthMonthly);
                 }
             }

@@ -8,11 +8,11 @@ Sidebar **FIBU** → Filiale kommt aus dem globalen Sidebar-Selektor, Jahr/Monat
 
 ## Fibu-Journal
 
-Erzeugt aus dem **definitiv abgeschlossenen** Lohnlauf die Buchungszeilen: Bruttolohn nach Kostenstelle, SV-/QST-Abzüge, Arbeitgeber-Beiträge (AHV/ALV/FAK, BVG, NBU/KTG), LGAV, Rückstellungen Ferien/Feiertage/13. ML und Nettolohn.
+Erzeugt aus dem **definitiv abgeschlossenen** Lohnlauf die Buchungszeilen: Bruttolohn nach Vertrags-Modell, SV-/QST-Abzüge, Arbeitgeber-Beiträge (AHV/ALV/FAK, BVG, NBU/KTG), LGAV, Rückstellungen Ferien/Feiertage/13. ML und Nettolohn.
 
-- **Kostenstellen:** 100 Crew Fix (MTP/FIX) · 200 Crew Flex (FLEX) · 300 Management (FIX-M).
+- **Modell → Aufwandskonto:** CREW (MTP/FIX) → 4000 · FLEX → 4001 · Management (FIX-M) → 4055. Keine Kostenstellen — Abacus bekommt nur Fibu-Konten.
 - **Konto 1920** ist das Lohn-Durchlaufkonto — es muss auf **0** aufgehen. Weist das Journal eine Differenz aus, stimmen Slip-Abzüge und eingefrorenes Netto nicht überein → Hinweise am Ende des Journals lesen.
-- Die Konten-Zuordnung pflegst du (als Admin) in **Systemeinstellungen → Kontoplan (Fibu)**.
+- Die Konten-Zuordnung pflegst du (als Admin) in **Systemeinstellungen → Kontoplan (Fibu)** (Swissdec-Lohnart × Modell → Soll/Haben).
 
 ## Buchhaltungs-Saldo-Liste
 
