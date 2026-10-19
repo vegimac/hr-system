@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 88;  // 88: nur Swissdec aktiv; Betrieb/Vortrag intern; 180.3→1200, 120→5100, 600.5→5212 · 87: SV 5010…
+const int SchemaStand = 89;  // 89: Mirus-Altcodes (65/75.x, *.y ausser Betrieb/Auslöser) inaktiv → 2050 · 88: Swissdec-Stamm…
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6858,6 +6858,93 @@ using (var scope = app.Services.CreateScope())
                AND code NOT IN ('901','902','903','904','905','906');
         ");
         startLog.LogInformation("Stand 88: nur Swissdec-Stamm; Betrieb/Vortrag/Auslöser intern; 120→5100, 600.5→5212");
+    }
+
+    // ── Stand 89: Mirus-Altcodes endgültig inaktiv (Walter 19.10.2026) ─────
+    // 65.1/65.2/75.1/75.2 → Swissdec 2050. Alle übrigen Codes mit Punkt
+    // (1000.2, 1160.195, 2050.65 …) und Kurz-Nr. 1–3 Ziffern deaktivieren.
+    // Bleiben aktiv: reine Swissdec-Nr., Betrieb 600.24/32/950.1, Vortrag 901–906,
+    // Auslöser 180.3.
+    if (dbStand < 89)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            INSERT INTO lohnposition (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+                ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+                zaehlt_als_basis_ferien, zaehlt_als_basis_feiertag, zaehlt_als_basis_13ml,
+                sort_order, is_active, created_at)
+            SELECT '2050', '75.1', 'Korrektur Taggelder', 'Korrekturen', 'ZULAGE', '2050',
+                   true, true, true, true, true, true, false, false, 60, true, LOCALTIMESTAMP
+             WHERE NOT EXISTS (SELECT 1 FROM lohnposition WHERE code = '2050');
+
+            UPDATE lohnposition SET
+                is_active = true,
+                swissdec_lohnart = '2050',
+                kategorie = COALESCE(NULLIF(kategorie, ''), 'Korrekturen'),
+                bezeichnung = CASE WHEN bezeichnung ILIKE '%korrektur%' THEN bezeichnung
+                                   ELSE 'Korrektur Taggelder' END,
+                ahv_alv_pflichtig = true,
+                nbuv_pflichtig = true,
+                ktg_pflichtig = true,
+                bvg_pflichtig = true,
+                qst_pflichtig = true,
+                zaehlt_als_basis_ferien = true,
+                mirus_code = COALESCE(mirus_code, '75.1')
+             WHERE code = '2050';
+
+            UPDATE lohn_zulage z SET lohnposition_id = kanon.id
+              FROM lohnposition alt
+              JOIN lohnposition kanon ON kanon.code = '2050' AND kanon.is_active = true
+             WHERE z.lohnposition_id = alt.id
+               AND alt.code IN ('65.1','65.2','75.1','75.2')
+               AND kanon.id <> alt.id;
+
+            INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+            SELECT s.modell, kanon.id, s.art, MIN(s.sort_order)
+              FROM vertragsmodell_lohnschema s
+              JOIN lohnposition alt ON alt.id = s.lohnposition_id
+              JOIN lohnposition kanon ON kanon.code = '2050' AND kanon.is_active = true
+             WHERE alt.code IN ('65.1','65.2','75.1','75.2')
+               AND NOT EXISTS (
+                   SELECT 1 FROM vertragsmodell_lohnschema x
+                    WHERE x.modell = s.modell AND x.lohnposition_id = kanon.id AND x.art = s.art)
+             GROUP BY s.modell, kanon.id, s.art;
+
+            DELETE FROM vertragsmodell_lohnschema s
+             USING lohnposition alt
+             WHERE s.lohnposition_id = alt.id
+               AND alt.code IN ('65.1','65.2','75.1','75.2');
+
+            DELETE FROM vertragstyp_lohnposition v
+             WHERE v.lohnposition_code IN ('65.1','65.2','75.1','75.2')
+               AND EXISTS (
+                   SELECT 1 FROM vertragstyp_lohnposition x
+                    WHERE x.vertragstyp_code = v.vertragstyp_code
+                      AND x.lohnposition_code = '2050');
+            UPDATE vertragstyp_lohnposition
+               SET lohnposition_code = '2050'
+             WHERE lohnposition_code IN ('65.1','65.2','75.1','75.2');
+
+            UPDATE lohnposition SET mirus_code = COALESCE(mirus_code, code), is_active = false
+             WHERE is_active = true
+               AND code IN ('65.1','65.2','75.1','75.2');
+
+            -- Punkt-Codes ausser Betrieb + Auslöser 180.3
+            UPDATE lohnposition SET is_active = false
+             WHERE is_active = true
+               AND position('.' in code) > 0
+               AND code NOT IN ('600.24','600.32','950.1','180.3');
+
+            -- reine Kurz-Nr. (Mirus 103, 20, …)
+            UPDATE lohnposition SET is_active = false
+             WHERE is_active = true
+               AND code ~ '^[0-9]{{1,3}}$';
+
+            -- Swissdec-ähnliche Suffix-Reste (1000.2, 1160.195, 2050.65) — falls noch aktiv
+            UPDATE lohnposition SET is_active = false
+             WHERE is_active = true
+               AND code ~ '^[0-9]{{4,5}}\.';
+        ");
+        startLog.LogInformation("Stand 89: Mirus-Altcodes 65/75.x + Punkt-/Kurz-Nr. inaktiv; Korrektur = 2050");
     }
 
     // Stand speichern — erst NACH erfolgreichem Durchlauf. Bricht der Block ab,
