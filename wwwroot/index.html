@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261019c">
+    <link rel="stylesheet" href="css/app.css?v=20261019d">
 </head>
 <body>
 
@@ -5987,6 +5987,7 @@
                  admin-card-Karten. Auswahl merkt sich localStorage, wie im
                  System-Hub (entwHubShowCat in app-core.js). -->
             <div class="page" id="page-entwicklung">
+                <button type="button" class="seite-zurueck" onclick="showPage('dashboard')" hidden aria-hidden="true">← Zurück</button>
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">Entwicklung</h1>
@@ -6014,12 +6015,12 @@
                 <div class="entw-hub-group" id="entwHubGrp-lohn" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('lohn-formeln')">
-                        <img src="img/entwkat-lohn-formeln.webp?v=20261019a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/entwkat-lohn-formeln.webp?v=20261019b" alt="" loading="lazy" style="width:148px;height:148px;object-fit:contain;display:block;margin-bottom:8px">
                         <div class="admin-card-title">Lohn-Formeln</div>
                         <div class="admin-card-desc">Zentrale Formel-Registry (read-only) — dieselben Einträge wie der Lohn-Code. Swissdec, Parameter, Art.</div>
                     </div>
                         <div class="admin-card" onclick="showPage('lohn-engine')">
-                        <img src="img/entwkat-lohn-engine.webp?v=20261019a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/entwkat-lohn-engine.webp?v=20261019b" alt="" loading="lazy" style="width:148px;height:148px;object-fit:contain;display:block;margin-bottom:8px">
                         <div class="admin-card-title">Lohn Engine</div>
                         <div class="admin-card-desc">Berechnungsbaum mit Töpfen — wie die Engine rechnet (FLEX/MTP/FIX), transparente Abbildung zum Code.</div>
                     </div>
@@ -6083,6 +6084,7 @@
             </div>
 
             <div class="page" id="page-lohn-formeln">
+                <button type="button" class="seite-zurueck" onclick="showPage('entwicklung');entwHubShowCat('lohn')" hidden aria-hidden="true">← Zurück</button>
                 <div class="page-head"><div>
                     <h1 class="page-title">Lohn-Formeln</h1>
                     <p class="page-sub">Formelwerk aus dem Code — nicht editierbar. Parameter (Ferien-%, SV, Nachtfenster) bleiben in den Stammdaten. Rechnung als Baum/Töpfe: Lohn Engine.</p>
@@ -6097,6 +6099,7 @@
             </div>
 
             <div class="page" id="page-lohn-engine">
+                <button type="button" class="seite-zurueck" onclick="showPage('entwicklung');entwHubShowCat('lohn')" hidden aria-hidden="true">← Zurück</button>
                 <div class="page-head"><div>
                     <h1 class="page-title">Lohn Engine</h1>
                     <p class="page-sub">Wie die Engine rechnet — Baum, Flags, Ferien- und 13.-Topf je Vertragsmodell. Skizze; später Live-Zahlen aus /calculate.</p>
