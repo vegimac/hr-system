@@ -5669,10 +5669,9 @@ using (var scope = app.Services.CreateScope())
          WHERE code = 'FEIERTAG' AND reduziert_saldo IS NULL;
     ");
 
-    // MTP Krankheit/Unfall wie FIX (Walter 05.10.2026): Festlohn voll + Korrektur
-    // 75.1/65.1. Der MTP-Tagessatz der 88/80-Zeilen enthält die Ferien, darum
-    // zählt die Korrektur auch in die Ferien-Basis (wie 10.1). Läuft genau einmal
-    // (Stand 52) — danach gilt, was im Katalog steht.
+    // Historisch Stand 52: MTP-Korrektur 75.1/65.1 in Ferien-Basis (Walter 05.10.2026).
+    // Seit 19.10.2026 rechnet MTP Krank/Unfall wie FLEX (keine Korrektur-Zeile);
+    // dieser Seed bleibt für Alt-Deployments idempotent.
     if (dbStand < 52)
         db.Database.ExecuteSqlRaw(@"
             UPDATE lohnposition SET zaehlt_als_basis_ferien = true

@@ -83,19 +83,17 @@ MTP-Absenzen und Importe bleiben ohne Datum (1/7).
 
 ## Geld (MTP)
 
-Die Zeitgutschrift ist nur die Zeitseite. Das Geld läuft pro Kalendertag:
+Seit Walter 19.10.2026 wie FLEX (Stundenlöhner), nicht mehr wie FIX:
 
-- FIX/FIX-M: wie bisher Korrektur 75.x/65.x und Taggeld.
-- MTP (seit Schema-Stand 52 wie FIX): Festlohn läuft voll, Korrektur 75.1/65.1 = Garantie ÷ 7 ×
-  Stundenlohn × Krank-% pro Kalendertag, dazu Karenz 88 % / Taggeld 80 %. Die Zeitgutschrift kürzt
-  nur das Saldo-Soll (Minus wird nachgeholt, Plus über 55.3 bezahlt). Formeln: `docs/lohn-formeln.md`,
-  Abschnitt «MTP Krankheit/Unfall». Der MTP-Stundenbericht zählt mit derselben Regel.
+- FIX/FIX-M: Korrektur 2050 + Taggeld (Monatslohn läuft weiter).
+- MTP: Garantie (1005) wird um die Zeitgutschrift gekürzt — keine Korrektur 2050. Karenz 88 % /
+  Taggeld 80 % wie FLEX. **Besonderheit Tagessatz:** Regel A = Garantie, Regel B = Garantie +
+  Ø Mehrstunden (`KtgTagessatzService`); FLEX = 17 h bzw. Ø AHV. Formeln: `docs/lohn-formeln.md`.
 
 ## Swissdec
 
-Die Zeitgutschrift selbst nicht — Stunden-Saldi gehen nicht in die Lohnmeldung. Das MTP-Geldmodell
-(75.1/65.1) ändert Lohnzeilen nur bei MTP mit Krankheit/Unfall; hat die Muster AG solche Monate,
-müssen sie nach dem Deploy neu gerechnet und gegen RefXML geprüft werden.
+Die Zeitgutschrift selbst nicht — Stunden-Saldi gehen nicht in die Lohnmeldung. MTP-Belege mit
+Krankheit/Unfall nach dem Modellwechsel neu rechnen.
 
 ## Tests
 

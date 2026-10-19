@@ -1124,30 +1124,6 @@ public static class PayrollCalculations
         => Math.Round(wert, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>
-    /// MTP-Korrektur Krank (75.1) / Unfall (65.1): zusammen nie mehr als der Festlohn;
-    /// deckt die Abwesenheit jeden Kalendertag, genau der Festlohn (Rest beim grösseren
-    /// Posten). Liefert die gerundeten Beträge und den Faktor, mit dem die exakten
-    /// Werte gekürzt wurden (1 = unverändert).
-    /// </summary>
-    public static (decimal Krank, decimal Unfall, decimal Faktor) MtpKorrekturAufFestlohn(
-        decimal krankExact, decimal unfallExact, decimal festlohnExact, decimal festlohnBetrag, bool monatAbgedeckt)
-    {
-        decimal summe = krankExact + unfallExact;
-        if (summe <= 0 || (!monatAbgedeckt && summe <= festlohnExact))
-            return (Rappen(krankExact), Rappen(unfallExact), 1m);
-
-        decimal faktor = festlohnExact / summe;
-        decimal krank = krankExact * faktor, unfall = unfallExact * faktor;
-        if (krank >= unfall)
-        {
-            decimal u = Rappen(unfall);
-            return (festlohnBetrag - u, u, faktor);
-        }
-        decimal k = Rappen(krank);
-        return (k, festlohnBetrag - k, faktor);
-    }
-
-    /// <summary>
     /// FAK-Mindesteinkommen-Sperre (Familienzulagen nur ab kantonalem
     /// Mindesterwerbseinkommen, z.B. 630/Mt. = 7'560/Jahr ÷ 12).
     ///

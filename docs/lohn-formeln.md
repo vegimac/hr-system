@@ -64,26 +64,23 @@ Vom Soll werden abgezogen (nur Stunden, Lohnersatz separat):
 - **Unbezahlter Urlaub / EO Mutter-/Vaterschaft / Militär:** nur wenn der Katalog
   «Soll reduzieren» verlangt (`wirkung_mtp`); Divisor aus dem Katalog, Default 1/7
 - **Cap:** Garantie nie < 0 (`Math.Max(0, …)`) — bei voll abgedeckter Periode 0.00
-- **Krank/Unfall kürzen die Garantie NICHT** (Walter 05.10.2026) — siehe unten.
+- **Krank/Unfall kürzen die Garantie** (Walter 19.10.2026, wie FLEX) — siehe unten.
 
-**MTP Krankheit/Unfall (Walter 05.10.2026, ersetzt die Festlohn-Kürzung vom 30.05.2026):**
-Geld zählt nach Kalendertagen, Zeit nach der Zeitgutschrift.
+**MTP Krankheit/Unfall wie FLEX (Walter 19.10.2026; Tagessatz bleibt MTP-speziell):**
+Keine Korrektur 2050. Garantie (1005) um Zeitgutschrift gekürzt; Karenz/Taggeld wie FLEX.
+Unterschied nur beim Tagessatz (`KtgTagessatzService`):
 ```
-Garantie 1005   = Lohn-Soll × HourlyRate                 (Lohn-Soll ohne Krank/Unfall-Abzug)
-Korrektur 2050  = − Σ Krank-/Unfall-Kalendertage × % × WoStd/7 × HourlyRate
+Garantie 1005   = max(0, Lohn-Soll − Zeitgutschrift Krank/Unfall) × HourlyRate
 Karenz/Taggeld  = 88 % / 80 % × KTG-Tagessatz pro Kalendertag     (1301/2035 · 1300/2030)
-Saldo-Soll      = Lohn-Soll − Zeitgutschrift Krank − Zeitgutschrift Unfall   (ohne Cap)
+Saldo-Soll      = Lohn-Soll − Zeitgutschrift (ohne Cap unter 0 → Plusstunden möglich)
 Stunden-Saldo   = Ist + Absenz-Gutschrift − Saldo-Soll + Vormonat
+Tagessatz MTP   : Regel A = Garantie × StdLohn_brutto × 52/365
+                  Regel B = Garantie-Anteil + Ø Mehrstunden (FLEX: 17 h bzw. Ø AHV)
 ```
 - Zeitgutschrift = `Services/KrankUnfallZeitgutschrift.cs` (Methode der Filiale, «Dienstplan
-  bis», Arbeitstage pro Woche — `docs/zeitgutschrift-krank-unfall-konzept.md`). Wirkung MTP
-  «neutral» im Katalog = keine Zeitgutschrift (das Geld läuft trotzdem).
-- Minusstunden werden nicht vom Lohn abgezogen (Nachholen), Plusstunden über 55.3 bezahlt.
-- 75.1/65.1 tragen das Häkchen «Basis Ferien» (Schema-Stand 52): der KTG-Tagessatz der
-  88/80-Zeilen enthält Ferien und 13. ML, darum muss die Korrektur diese Anteile aus der
-  Basis wieder herausnehmen — sonst gäbe es Ferien doppelt.
-- Ganzer Monat krank: Festlohn = Korrektur (beide `WoStd/7 × Periodentage`), es bleibt
-  nur Karenz/Taggeld.
+  bis» — `docs/zeitgutschrift-krank-unfall-konzept.md`). Wirkung MTP «neutral» = keine
+  Zeitgutschrift und kein Lohnersatz.
+- Minusstunden werden nicht vom Lohn abgezogen (Nachholen), Plusstunden über 1005.
 
 **Anzeige 100 %:** Vertrags-Card «Garantiert/Monat» = `WoStd × HourlyRate × 52/12`
 (nur Anzeige/Vertragstext — NICHT Periodenlohn).
@@ -191,7 +188,7 @@ Orange (DreijehnterMlPflichtig, McBonus): Betrag enthält den 13. schon (12/13+1
 «Das was wir heute zertifizieren muss dem Endstand unseres Programmes entsprechen.»
 Jede Zeile auf dem Lohnzettel zählt nach den Häkchen IHRER Lohnposition — auch die
 Grundzeilen (Stundenlohn 20, Festlohn 10.1/10.2/10.3, Feiertag/Ferien 195.x, Karenz,
-Korrekturen 75.1/65.1, MTP 55.3, Nacht 55.10) und die Austritts-Auszahlungen
+FIX-Korrektur 2050, MTP Mehrstunden 1005, Nacht 1076) und die Austritts-Auszahlungen
 (55.10 Nacht-Saldo, 55.2 Zeitsaldo, 40.1 Ferien, 50.1 Feiertage):
 ```
 SV-Basis X = Summe aller Zeilen − Zeilen, deren Lohnposition Häkchen X NICHT hat
@@ -246,11 +243,9 @@ Korrektur (läuft über den 13.-Saldo).
   mit Häkchen in die 13.-Basis). «Feiertag» auf 70.x/60.x = Basis der Feiertagentschädigung
   auf Lohnersatz (fehlt die Lohnposition: zählt).
 - Gezahlt wird auf **Kalendertagen** (Versicherung zahlt auch Sa+So).
-- **MTP:** Korrektur-Modell wie FIX (Walter 05.10.2026) — Festlohn läuft, Korrektur 75.1/65.1
-  = WoStd/7 × HourlyRate pro Kalendertag; die Zeitgutschrift wirkt nur aufs Saldo-Soll
-  (Abschnitt 2, «MTP Krankheit/Unfall»).
-- **FIX/FIX-M:** Korrektur-Modell — Monatslohn läuft weiter, Korrektur Codes 75.1 (Krank) /
-  65.1 (Unfall) negativ, Taggeld positiv.
+- **MTP:** wie FLEX (Walter 19.10.2026) — Garantie 1005 um Zeitgutschrift gekürzt, keine
+  Korrektur 2050; Tagessatz = Garantie (+ Ø Mehrstunden bei Regel B). Abschnitt 2.
+- **FIX/FIX-M:** Korrektur-Modell — Monatslohn läuft weiter, Korrektur 2050 negativ, Taggeld positiv.
 - Karenz-Tage gemäss Filial-Konfiguration (`KarenzService`); Taggeld 80 % ist zugleich
   der Meldebetrag an die Versicherung.
 

@@ -273,9 +273,9 @@ public class KrankUnfallZeitgutschriftTests
         Assert.Equal(20.4m, KrankUnfallZeitgutschrift.Stunden(a, emp, filiale));
     }
 
-    // ── MTP-Geldmodell (Quelltext-Wächter, Muster FeiertagLohnersatzTests) ──
-    // Festlohn läuft voll, Korrektur 75.1/65.1 = Garantie ÷ 7 × Stundenlohn pro
-    // Kalendertag, die Zeitgutschrift kürzt nur das Saldo-Soll.
+    // ── MTP-Geldmodell (Quelltext-Wächter) ──
+    // Wie FLEX: Garantie (1005) um Zeitgutschrift gekürzt, keine Korrektur 2050.
+    // Tagessatz bleibt MTP-speziell (Garantie + Mehrstunden bei Regel B).
 
     private static string Quelle(string relPfad)
     {
@@ -288,86 +288,45 @@ public class KrankUnfallZeitgutschriftTests
     private static string MtpBlock()
     {
         var src = Quelle("Services/PayrollCalculationEngine.cs");
-        int von = src.IndexOf("// ── MTP Krank/Unfall (Walter 05.10.2026", StringComparison.Ordinal);
+        int von = src.IndexOf("// ── MTP Krank/Unfall wie FLEX (Walter 19.10.2026)", StringComparison.Ordinal);
         int bis = src.IndexOf("// ── Feiertagentschädigung auf Lohnersatz", von, StringComparison.Ordinal);
         Assert.True(von > 0 && bis > von, "MTP-Block nicht gefunden");
         return src[von..bis];
     }
 
     [Fact]
-    public void MTP_Festlohn_wird_nicht_um_Krank_Unfall_gekuerzt()
+    public void MTP_Garantie_wird_um_Krank_Unfall_Zeitgutschrift_gekuerzt()
     {
         var block = MtpBlock();
-        int s = block.IndexOf("decimal sollStundenExakt = sollStundenVollExakt", StringComparison.Ordinal);
+        int s = block.IndexOf("decimal sollVorCap = sollStundenVollExakt", StringComparison.Ordinal);
+        Assert.True(s > 0, "sollVorCap fehlt");
         string lohnSoll = block[s..block.IndexOf(';', s)];
-        Assert.DoesNotContain("krank", lohnSoll, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("unfall", lohnSoll, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("guaranteedH / 5m", block);
+        Assert.Contains("krankStundenAequivalent", lohnSoll);
+        Assert.Contains("unfallStundenAequivalent", lohnSoll);
+        Assert.DoesNotContain("MtpKorrekturAufFestlohn", block);
+        Assert.DoesNotContain("LohnCodes.KorrKtg", block);
+        Assert.DoesNotContain("LohnCodes.KorrUvg", block);
     }
 
     [Fact]
-    public void MTP_Saldo_rechnet_gegen_Soll_nach_Zeitgutschrift()
+    public void MTP_Saldo_gleich_Soll_nach_Zeitgutschrift_ohne_Cap_unter_Null()
     {
         var block = MtpBlock();
-        Assert.Contains("saldoSollExakt = sollStundenExakt - krankStundenAequivalent - unfallStundenAequivalent", block);
+        Assert.Contains("decimal saldoSollExakt = sollVorCap;", block);
+        Assert.Contains("sollStundenExakt = sollVorCap < 0m ? 0m : sollVorCap", block);
         Assert.Contains("nettoH         = workedHours + absenzGutschrift - saldoSollExakt", block);
         Assert.Contains("KrankUnfallZeitgutschrift.Tage(x, emp, company, periodFrom, periodTo)", block);
     }
 
     [Fact]
-    public void MTP_bucht_Korrektur_75_1_und_65_1_pro_Kalendertag()
+    public void MTP_Taggeld_ueber_AddLohnersatz_ohne_Korrekturzeile()
     {
         var block = MtpBlock();
-        Assert.Contains("? sollStundenVoll * hourlyRate / mtpPeriodTage", block);
-        Assert.Contains("PayrollCalculations.MtpKorrekturAufFestlohn(", block);
-        Assert.Contains("code    = \"75.1\"", block);
-        Assert.Contains("code    = \"65.1\"", block);
-        Assert.Contains("Grundzeile(\"75.1\", -krankKorrekturMtp);", block);
-        Assert.Contains("Grundzeile(\"65.1\", -unfallKorrekturMtp);", block);
-    }
-
-    [Fact]
-    public void MTP_ganzer_Monat_krank_Korrektur_gleich_Festlohn()
-    {
-        // Bakr Jan 2026: 34 h, 20.40, 31 Tage krank → Festlohn 150.57 h × 20.40 = 3'071.63
-        decimal festlohnExact = 150.57m * 20.40m;
-        decimal tag = festlohnExact / 31m;
-        var (krank, unfall, _) = PayrollCalculations.MtpKorrekturAufFestlohn(
-            31m * tag, 0m, festlohnExact, 3071.63m, monatAbgedeckt: true);
-        Assert.Equal(3071.63m, krank);
-        Assert.Equal(0m, unfall);
-    }
-
-    [Fact]
-    public void MTP_30_von_31_Tagen_krank_Rest_ist_ein_Tag()
-    {
-        decimal festlohnExact = 150.57m * 20.40m;
-        decimal tag = festlohnExact / 31m;
-        var (krank, _, faktor) = PayrollCalculations.MtpKorrekturAufFestlohn(
-            30m * tag, 0m, festlohnExact, 3071.63m, monatAbgedeckt: false);
-        Assert.Equal(1m, faktor);
-        Assert.Equal(2972.54m, krank);
-        Assert.Equal(99.09m, 3071.63m - krank);
-    }
-
-    [Fact]
-    public void MTP_Krank_und_Unfall_ganzer_Monat_Summe_gleich_Festlohn()
-    {
-        decimal festlohnExact = 120.00m * 21.66m;   // 2'599.20, 30 Tage
-        decimal tag = festlohnExact / 30m;
-        var (krank, unfall, _) = PayrollCalculations.MtpKorrekturAufFestlohn(
-            17m * tag, 13m * tag, festlohnExact, 2599.20m, monatAbgedeckt: true);
-        Assert.Equal(2599.20m, krank + unfall);
-        Assert.Equal(PayrollCalculations.Rappen(13m * tag), unfall);
-    }
-
-    [Fact]
-    public void Katalog_75_1_65_1_zaehlt_in_Ferien_Basis()
-    {
-        var program = Quelle("Program.cs");
-        Assert.Matches(@"const int SchemaStand = (5[2-9]|[6-9]\d|\d{3});", program);
-        Assert.Contains("if (dbStand < 52)", program);
-        Assert.Contains("UPDATE lohnposition SET zaehlt_als_basis_ferien = true\n             WHERE code IN ('75.1', '65.1')",
-            program.Replace("\r\n", "\n"));
+        Assert.Contains("AddLohnersatz(LohnCodes.KrankKarenz, krank88Mtp)", block);
+        Assert.Contains("AddLohnersatz(LohnCodes.KrankTaggeld, krank80Mtp)", block);
+        Assert.Contains("AddLohnersatz(LohnCodes.UnfallKarenz, unfall88Mtp)", block);
+        Assert.Contains("AddLohnersatz(LohnCodes.UnfallTaggeld, unfall80Mtp)", block);
+        Assert.DoesNotContain("Korrektur Krankheit", block);
+        Assert.DoesNotContain("Korrektur Unfall", block);
     }
 }
