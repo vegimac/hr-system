@@ -91,9 +91,8 @@
 <div class="badge">Entwicklung · Engine-Debugger Skizze</div>
 <h1>Berechnungsbaum · Töpfe sichtbar</h1>
 <p class="sub">
-  Ferien-Geld geht in den <strong>Topf</strong> und wird beim Ferienbezug nach Pott-Formel geleert.
-  13. ML: bei <strong>FLEX nach Probezeit</strong> monatlich auszahlen; in der <strong>Probezeit</strong> sowie bei
-  <strong>MTP / FIX / FIX-M</strong> in den Topf.
+  Alle Modelle in gleicher Tiefe: Brutto → Ferien-Topf (füllen/leeren) → 13. ML → Basen (Flags) → Abzüge → Saldi → Netto.
+  Zahlen illustrativ — später live aus <code>/api/payroll/calculate</code>.
 </p>
 
 <div class="tabs" id="tabs">
@@ -117,225 +116,464 @@
 <script>
 const EX = {
   brutto: {
-    title: 'Bruttolohn',
-    why: 'Summe der ausbezahlten Lohnzeilen dieses Monats (nicht der Topf-Zuwachs, wenn er nur saldo-wirksam ist).',
-    box: 'Zeilen mit Betrag &gt; 0 auf dem Beleg. Topf-Zuwachs kann parallel nur im Saldo landen.'
+    title: 'Ausbezahlt Brutto',
+    why: 'Summe der Belegzeilen mit Betrag &gt; 0 diesen Monat — nicht der reine Topf-Zuwachs.',
+    box: 'Topf-Zuwachs kann parallel nur im Saldo landen. SV und Netto basieren auf ausbezahlten Beträgen.'
   },
   l1005: {
     title: 'Stundenlohn 1005',
-    why: 'FLEX/MTP-Grundlohn.',
-    box: '<code>Satz × bezahlte Stunden</code><br>Flags steuern, ob der Betrag in Ferien-/13.-Basis und SV fliesst.'
+    why: 'FLEX/MTP-Grundlohn aus Vertrag × Stempel.',
+    box: '<code>Round05(Stunden × HourlyWage)</code><br>Flags (AHV NBU KTG BVG QST · FER · 13.ML) steuern Basen.'
   },
   l1000: {
     title: 'Festlohn 1000',
-    why: 'FIX/FIX-M-Grundlohn.',
-    box: 'Monatslohn (ggf. anteilig / Ferien-Split mit 1166).'
+    why: 'FIX/FIX-M Monatslohn (ggf. Pro-Rata Ein-/Austritt).',
+    box: 'Bei Ferienbezug oft Split mit 1166 (Brutto ±0). Tagessatz = Monatslohn ÷ 21.7.'
+  },
+  mtpGarantie: {
+    title: 'MTP Garantie / Mehrstunden',
+    why: 'Garantierte Wochenstunden vs. Ist-Stempel.',
+    box: 'Unter Soll: Festlohn-Logik / Garantie. Über Soll: Mehrstunden → 1005 (Aufwand oft 4001).'
   },
   ferienZuwachs: {
-    title: 'Ferien-Zuwachs → Topf',
-    why: 'Jeden Monat: % auf die FER-Basis. Das Geld geht in den Ferien-CHF-Topf — nicht «Ferien genommen».',
-    box: `<code>Zuwachs = Round05(Basis × Filiale.Ferien%)</code><br>
-          Code <strong>1160</strong> (Anzeige/Zuwachs)<br>
+    title: 'Ferien-% → Topf',
+    why: 'Jeden Monat: % auf die FER-Basis. Füllt den Ferien-CHF-/Tage-Topf — nicht «Ferien genommen».',
+    box: `<code>Zuwachs = Round05(Basis × Filiale.Ferien%)</code> · Code <strong>1160</strong><br>
           <strong>Topf CHF neu</strong> = Vormonat + Zuwachs − Auszahlung<br>
           <strong>Topf Tage neu</strong> = Vormonat + Accrual − bezogene Tage`
   },
   ferienBezug: {
     title: 'Ferienbezug → Topf leeren',
-    why: 'Wenn Ferientage bezogen werden: Auszahlung aus dem Pott, gecappt (kein Vorbezug).',
-    box: `<strong>OneCrew-Formel (FLEX/MTP):</strong><br>
-          <code>Pott CHF  = Vormonat-Geld + Zuwachs Monat</code><br>
+    why: 'Pott-Formel, Cap = Topf (kein Vorbezug — bewusste Mirus-Abweichung).',
+    box: `<code>Pott CHF  = Vormonat-Geld + Zuwachs Monat</code><br>
           <code>Pott Tage = Vormonat-Tage + Accrual Monat</code><br>
           <code>Tagessatz = Pott CHF / Pott Tage</code><br>
-          <code>Auszahlung = min(bezogene Tage × Tagessatz, Pott CHF)</code><br>
-          Topf danach: Pott − Auszahlung. Bewusst kein Minus-Saldo (anders als Mirus).`
+          <code>Auszahlung = min(bezogene Tage × Tagessatz, Pott CHF)</code>`
+  },
+  ferienFix: {
+    title: 'Ferien FIX (1166-Split)',
+    why: 'Festlohn läuft; bezogene Ferien = Split Brutto ±0 + Tage-Saldo.',
+    box: '<code>−Tagessatz × Ferientage</code> auf 1000 · <code>+Ferienlohn</code> 1166<br>Saldo: Ferien-Tage Vor | Accrual | Bezug | neu.'
+  },
+  feiertag: {
+    title: 'Feiertag-%',
+    why: 'FLEX/MTP: % auf FEI-Basis (Code 1161). FIX: oft Tage-Saldo / Kürzung.',
+    box: '<code>Round05(Basis × Filiale.Feiertag%)</code> — modellabhängig Auszahlung oder Saldo.'
   },
   ml13Flex: {
     title: '13. ML · FLEX nach Probezeit',
-    why: 'Kein Topf — monatlich ausbezahlt (Code 1200).',
-    box: '<code>Basis × 8.33%</code> → Betrag auf dem Beleg diesen Monat.<br>Saldo 13. ML bleibt 0 (bzw. wird nicht geführt).'
+    why: 'Kein Topf — monatlich ausbezahlt (1200).',
+    box: '<code>Round05(Basis × 8.33%)</code> → Beleg diesen Monat. Saldo 13. ML wird nicht geführt.'
   },
   ml13Pz: {
     title: '13. ML · FLEX Probezeit → Topf',
-    why: 'In der Probezeit wird der 13. ML angesammelt (Rückstellung). Verfall möglich wenn Probezeit endet ohne Anspruch.',
-    box: '<code>Zuwachs = Basis × 8.33%</code> → in den <strong>13.-Topf</strong> (Saldo).<br>Auf dem Beleg oft «Rückstellung», Auszahlung 0.<br>Nach Probezeit: monatlich auszahlen (siehe FLEX).'
+    why: 'Rückstellung. Verfall möglich bei Abbruch ohne Anspruch.',
+    box: '<code>Zuwachs = Basis × 8.33%</code> → 13.-Topf. Beleg ausbezahlt oft 0.<br>Nach Probezeit: Umschalten auf monatlich auszahlen.'
   },
   ml13Topf: {
     title: '13. ML · MTP / FIX / FIX-M → Topf',
-    why: 'Immer ansammeln. Auszahlung nur im Raster-Monat (z.B. Dez) oder per Auslöser 180.3.',
-    box: 'Zuwachs monatlich in den Topf.<br>Auszahlung: Pott + Monat → Belegzeile 1200, Topf → 0.<br>FIX: Zuwachs über Jahres-1/12-Logik (Engine).'
+    why: 'Immer ansammeln. Auszahlung nur Raster-Monat oder Auslöser 180.3.',
+    box: 'Zuwachs → Topf. Auszahlung: Pott + Monat → 1200, Topf → 0.<br>FIX: oft Jahres-1/12-Logik in der Engine.'
   },
   ahvB: {
-    title: 'AHV-Basis',
-    why: 'Summe Zeilen mit AHV-Häkchen (inkl. ausbezahltes Ferien-/13.-Geld).',
-    box: 'Nur ausbezahlte Beträge. Reiner Topf-Zuwachs ohne Auszahlung zählt nicht als ausbezahlt — SV auf Auszahlung (Fachregel).'
+    title: 'AHV-Basis (Flags)',
+    why: 'Summe Zeilen mit AHV-Häkchen — nur Ausbezahltes.',
+    box: 'Reiner Topf-Zuwachs ohne Auszahlung zählt nicht. Gleiches Muster für NBU/KTG/BVG/QST-Basen.'
+  },
+  nbuB: {
+    title: 'NBU-Basis',
+    why: 'Wie AHV, mit NBU-Häkchen; Höchstlohn 12’350/Mt. (Jahresausgleich im Dez).',
+    box: 'Cap über <code>max_base_monthly</code> · Dezember-Aufrollverfahren.'
+  },
+  abzuege: {
+    title: 'Abzüge',
+    why: 'SV + QST + weitere Abzüge auf den Basen.',
+    box: '5010 AHV · 5012 ALV · 5020 NBU · 5042 KTG · 5050 BVG · 5100 QST — je nach Flags und Person.'
   },
   ahv: {
-    title: 'AHV 5010',
-    why: 'Basis × Satz.',
-    box: '<code>AHV-Basis × 5.3%</code> → Code 5010'
+    title: 'AHV / IV / EO 5010',
+    why: 'Basis × AN-Satz.',
+    box: '<code>AHV-Basis × 5.3%</code> (illustrativ)'
+  },
+  alv: {
+    title: 'ALV 5012',
+    why: 'Basis bis Höchstlohn × Satz.',
+    box: '<code>min(Basis, 12’350) × ALV%</code>'
   },
   netto: {
-    title: 'Netto',
-    why: 'Brutto − Abzüge.',
-    box: 'Danach Auszahlung / Saldi-Block auf dem Beleg.'
+    title: 'Netto / Auszahlung',
+    why: 'Brutto − Abzüge (± Akonto-Verrechnung).',
+    box: 'Danach DTA / Beleg. Saldi-Block separat darunter.'
   },
   saldoBlock: {
     title: 'Saldi auf dem Beleg',
-    why: 'Hier siehst du die Töpfe: Vormonat | Zuwachs | Bezug | neu.',
-    box: 'Ferien Geld + Tage · Feiertag · 13. ML · Nacht · Stunden (modellabhängig).'
+    why: 'Töpfe sichtbar: Vor | Zuwachs | Bezug/Auszahlung | neu.',
+    box: 'Ferien Geld+Tage · Feiertag · 13. ML · Nacht · Stunden — modellabhängig.'
   }
 };
+
+/** Gemeinsame Tiefen-Blöcke (gleiche Struktur in allen Modellen). */
+function blockAbzuege(ahvBasisLabel) {
+  return {
+    id: 'abzuege', label: 'Abzüge', tag: 'Σ', tagClass: 'f', amt: '−…', amtClass: 'neg',
+    kids: [
+      {
+        id: 'ahv', label: 'AHV / IV / EO', tag: '5010', tagClass: 'c', amt: '−…', amtClass: 'neg',
+        formula: 'AHV-Basis × 5.3%',
+        leaves: [
+          { t: 'Basis', v: ahvBasisLabel },
+          { t: 'Satz AN', v: '5.3 % (illustrativ)' }
+        ]
+      },
+      {
+        id: 'alv', label: 'ALV (+ ggf. ALVZ)', tag: '5012', tagClass: 'c', amt: '−…', amtClass: 'neg',
+        formula: 'min(Basis, 12’350) × ALV%',
+        leaves: [
+          { t: 'Höchstlohn/Mt.', v: '12’350' },
+          { t: 'Dezember', v: 'Jahresausgleich wenn nötig' }
+        ]
+      },
+      {
+        id: 'nbuB', label: 'NBU / KTG / BVG / QST', tag: 'SV', tagClass: 'f', amt: '−…', amtClass: 'neg',
+        leaves: [
+          { t: '5020 NBU', v: 'Basis × Satz (Cap wie ALV)' },
+          { t: '5042 KTG', v: 'laut Filiale / Person' },
+          { t: '5050 BVG', v: 'Koord.lohn · Min/Max · Pflicht' },
+          { t: '5100 QST', v: 'Tarif × satzbestimmendes Brutto' }
+        ]
+      }
+    ]
+  };
+}
+
+function blockAhvBasis(detailLeaves) {
+  return {
+    id: 'ahvB', label: 'Basen aus Flags (AHV zuerst)', tag: 'Flags', tagClass: 'f', amt: '…', amtClass: 'neu',
+    leaves: detailLeaves,
+    kids: [
+      {
+        id: 'nbuB', label: 'gleiche Logik für NBU / KTG / BVG / QST', tag: 'Basen', tagClass: 'f', amt: '…', amtClass: 'neu',
+        leaves: [
+          { t: 'Quelle', v: 'Häkchen der Lohnposition' },
+          { t: 'Kontrolle', v: 'SchattenBasen / Katalog-Flags' }
+        ]
+      }
+    ]
+  };
+}
 
 const MODELS = {
   FLEX: {
     title: 'FLEX · nach Probezeit',
-    meta: 'Stundenlohn · Ferien in den Topf · 13. ML monatlich auszahlen',
-    callout: '🟡 Ferien-% → Topf · bei Bezug Pott-Formel. 🟢 13. ML → direkt auszahlen (kein Topf).',
+    meta: 'Stundenlohn · Ferien → Topf · 13. ML monatlich auszahlen',
+    callout: '🟡 Ferien-% → Topf · Bezug = Pott-Formel. 🟢 13. ML → direkt auszahlen (kein Topf).',
     tree: [
       {
-        id: 'brutto', label: 'Ausbezahlt Brutto (Beleg)', tag: 'Σ', tagClass: 'f', amt: '2’458.20+', amtClass: 'pos',
+        id: 'brutto', label: 'Ausbezahlt Brutto (Beleg)', tag: 'Σ', tagClass: 'f', amt: '2’663.00', amtClass: 'pos',
         kids: [
           {
             id: 'l1005', label: 'Stundenlohn', tag: '1005', tagClass: 'c', amt: '2’458.20', amtClass: 'pos',
             formula: '20.40 × 120.50',
             leaves: [
               { t: 'Vertrag.HourlyWage', v: '20.40' },
-              { t: 'Stempel bezahlt', v: '120.50 Std' }
+              { t: 'Stempel bezahlt', v: '120.50 Std' },
+              { t: 'Flags', v: 'AHV NBU KTG BVG QST · FER · 13.ML' }
             ]
+          },
+          {
+            id: 'ml13Flex', label: '13. ML (dieser Monat)', tag: '1200', tagClass: 'c', amt: '+204.80', amtClass: 'pos',
+            formula: 'Basis × 8.33%',
+            leaves: [
+              { t: 'Basis (13.ML-Häkchen)', v: '2’458.20' },
+              { t: 'Kein 13.-Topf', v: 'nach Probezeit' }
+            ]
+          },
+          {
+            id: 'ferienBezug', label: 'Ferien-Auszahlung (falls Bezug)', tag: '1160', tagClass: 'p', amt: '0 / aus Topf', amtClass: 'pot',
+            leaves: [{ t: 'nur wenn Tage bezogen', v: 'sonst 0 auf Beleg' }]
           }
         ]
       },
       {
-        id: 'ferienZuwachs', label: 'Ferien-% → Topf (nicht «Ferien genommen»)', tag: '1160', tagClass: 'p', amt: '+261.80', amtClass: 'pot',
+        id: 'ferienZuwachs', label: 'Ferien-% → Topf (nicht «genommen»)', tag: '1160', tagClass: 'p', amt: '+261.80', amtClass: 'pot',
         formula: '2’458.20 × 10.65%',
         pot: 'Topf Ferien-CHF: 77.55 Vor + 261.80 Zuwachs − 0 Bezug = <strong>339.35</strong> · Tage analog',
         leaves: [
           { t: 'Basis (FER-Häkchen)', v: '2’458.20' },
           { t: 'Filiale Ferien%', v: '10.65%' },
-          { t: 'Wirkung', v: 'Saldo / Beleg-Saldi — Auszahlung 0 wenn kein Bezug' }
+          { t: 'Beleg ausbezahlt', v: '0.00 (nur Saldo wächst)' }
         ]
       },
       {
         id: 'ferienBezug', label: 'Wenn Ferien bezogen → Topf anbrechen', tag: 'Pott', tagClass: 'p', amt: 'Auszahlung', amtClass: 'pot',
-        pot: 'Pott CHF / Pott Tage = Tagessatz · × bezogene Tage · Cap = Pott (kein Minus)',
+        pot: 'Tagessatz = Pott CHF / Pott Tage · × Tage · Cap = Pott (kein Minus)',
         leaves: [
-          { t: 'Beispiel 6 Tage', v: 'Pott 1000 / 10 Tage = 100/Tag → 600 aus Topf' },
+          { t: 'Beispiel 6 Tage', v: 'Pott 1000 / 10 = 100/Tag → 600' },
           { t: 'Topf danach', v: '400 CHF · 4 Tage' }
         ]
       },
       {
-        id: 'ml13Flex', label: '13. ML → direkt auszahlen', tag: '1200', tagClass: 'c', amt: '+204.80', amtClass: 'pos',
-        formula: 'Basis × 8.33% → Beleg diesen Monat',
+        id: 'feiertag', label: 'Feiertag-% (Beispiel)', tag: '1161', tagClass: 'c', amt: 'klein / 0', amtClass: 'neu',
+        formula: 'Basis × Feiertag%',
         leaves: [
-          { t: 'Kein 13.-Topf', v: 'nach Probezeit' },
-          { t: 'Beleg', v: 'Zeile 1200 mit Betrag' }
+          { t: 'Filiale Feiertag%', v: 'z.B. 2.27%' },
+          { t: 'Flags', v: 'wie Katalog' }
         ]
       },
-      {
-        id: 'ahvB', label: 'AHV-Basis (ausbezahlte Zeilen mit Flag)', tag: 'Flags', tagClass: 'f', amt: '…', amtClass: 'neu',
-        leaves: [{ t: '1005 + ausbezahltes 13. ML + Ferien-Auszahlung', v: 'nicht der reine Topf-Zuwachs' }]
-      },
-      {
-        id: 'ahv', label: 'AHV-Abzug', tag: '5010', tagClass: 'c', amt: '−…', amtClass: 'neg',
-        formula: 'Basis × 5.3%'
-      },
+      blockAhvBasis([
+        { t: 'aus 1005', v: '2’458.20 (AHV✓)' },
+        { t: 'aus 1200', v: '204.80 (AHV✓)' },
+        { t: 'nicht: reiner Ferien-Zuwachs', v: 'ohne Auszahlung' }
+      ]),
+      blockAbzuege('1005 + 1200 + Ferien-Auszahlung'),
       {
         id: 'saldoBlock', label: 'Saldi-Block auf dem Beleg', tag: 'Beleg', tagClass: 'i', amt: 'Töpfe', amtClass: 'pot',
         leaves: [
-          { t: 'Ferien Geld / Tage', v: 'Vor | + | − | neu' },
-          { t: '13. ML', v: 'kein stehender Topf (FLEX nach PZ)' }
+          { t: 'Ferien Geld', v: 'Vor | + Zuwachs | − Bezug | neu' },
+          { t: 'Ferien Tage', v: 'Vor | + Accrual | − Bezug | neu' },
+          { t: '13. ML', v: 'kein stehender Topf' },
+          { t: 'Nacht / Stunden', v: 'falls geführt' }
         ]
       },
-      { id: 'netto', label: 'Netto / Auszahlung', tag: 'Beleg', tagClass: 'i', amt: '…', amtClass: 'pos' }
+      { id: 'netto', label: 'Netto / Auszahlung', tag: 'Beleg', tagClass: 'i', amt: '…', amtClass: 'pos',
+        formula: 'Brutto − Abzüge',
+        leaves: [{ t: '± Akonto', v: 'falls verrechnet' }] }
     ]
   },
 
   FLEX_PZ: {
     title: 'FLEX · in der Probezeit',
-    meta: 'Ferien weiter Topf · 13. ML jetzt auch Topf (Rückstellung)',
+    meta: 'Stundenlohn · Ferien → Topf · 13. ML → Topf (Rückstellung)',
     callout: '🟡 Ferien-% → Topf. 🟠 13. ML → Topf / Rückstellung (nicht auszahlen). Verfall möglich.',
     tree: [
       {
-        id: 'l1005', label: 'Stundenlohn', tag: '1005', tagClass: 'c', amt: '2’458.20', amtClass: 'pos',
-        formula: '20.40 × 120.50'
+        id: 'brutto', label: 'Ausbezahlt Brutto (Beleg)', tag: 'Σ', tagClass: 'f', amt: '2’458.20', amtClass: 'pos',
+        kids: [
+          {
+            id: 'l1005', label: 'Stundenlohn', tag: '1005', tagClass: 'c', amt: '2’458.20', amtClass: 'pos',
+            formula: '20.40 × 120.50',
+            leaves: [
+              { t: 'Vertrag.HourlyWage', v: '20.40' },
+              { t: 'Stempel bezahlt', v: '120.50 Std' },
+              { t: 'Flags', v: 'AHV NBU KTG BVG QST · FER · 13.ML' }
+            ]
+          },
+          {
+            id: 'ml13Pz', label: '13. ML (Rückstellung, nicht ausbezahlt)', tag: '1200', tagClass: 'p', amt: '0.00 Beleg', amtClass: 'pot',
+            leaves: [{ t: 'Zuwachs nur im Saldo', v: '+204.80 → Topf' }]
+          }
+        ]
       },
       {
         id: 'ferienZuwachs', label: 'Ferien-% → Topf', tag: '1160', tagClass: 'p', amt: '+261.80', amtClass: 'pot',
-        formula: 'Basis × Ferien%',
-        pot: 'Gleich wie nach Probezeit: Topf füllen, bei Bezug Pott-Formel'
+        formula: '2’458.20 × 10.65%',
+        pot: 'Topf Ferien: Vor + 261.80 − Bezug = neu · gleiches Muster wie nach Probezeit',
+        leaves: [
+          { t: 'Basis (FER)', v: '2’458.20' },
+          { t: 'Beleg ausbezahlt', v: '0.00' }
+        ]
+      },
+      {
+        id: 'ferienBezug', label: 'Wenn Ferien bezogen → Topf anbrechen', tag: 'Pott', tagClass: 'p', amt: 'Auszahlung', amtClass: 'pot',
+        pot: 'Pott CHF / Pott Tage × Tage · Cap = Pott (kein Minus)',
+        leaves: [
+          { t: 'Formel', v: 'identisch FLEX nach PZ' },
+          { t: 'Beispiel', v: '6 Tage aus Topf' }
+        ]
       },
       {
         id: 'ml13Pz', label: '13. ML → Topf (Probezeit)', tag: '1200', tagClass: 'p', amt: '+204.80 → Topf', amtClass: 'pot',
         formula: 'Basis × 8.33% · Auszahlung 0',
-        pot: '13.-Topf: Vor + Zuwachs = neu · auf Beleg oft «Rückstellung» · bei Abbruch Probezeit Verfall möglich',
+        pot: '13.-Topf: Vor + Zuwachs = neu · Beleg oft «Rückstellung» · Abbruch Probezeit → Verfall möglich',
         leaves: [
+          { t: 'Basis (13.ML-Häkchen)', v: '2’458.20' },
           { t: 'Beleg ausbezahlt', v: '0.00' },
-          { t: 'Saldo 13. ML neu', v: 'Vormonat + 204.80' }
+          { t: 'Saldo 13. ML neu', v: 'Vormonat + 204.80' },
+          { t: 'Nach Probezeit', v: 'Umschalten: monatlich auszahlen' }
         ]
       },
       {
-        id: 'ferienBezug', label: 'Ferienbezug', tag: 'Pott', tagClass: 'p', amt: 'wie FLEX', amtClass: 'pot',
-        leaves: [{ t: 'Pott-Formel', v: 'unverändert' }]
+        id: 'feiertag', label: 'Feiertag-% (Beispiel)', tag: '1161', tagClass: 'c', amt: 'klein / 0', amtClass: 'neu',
+        formula: 'Basis × Feiertag%',
+        leaves: [{ t: 'wie FLEX nach PZ', v: 'Filiale %' }]
       },
-      { id: 'saldoBlock', label: 'Saldi-Block', tag: 'Beleg', tagClass: 'i', amt: 'Ferien + 13. Topf', amtClass: 'pot' }
+      blockAhvBasis([
+        { t: 'aus 1005', v: '2’458.20 (AHV✓)' },
+        { t: 'nicht: 13.-Topf-Zuwachs', v: 'noch nicht ausbezahlt' },
+        { t: 'nicht: Ferien-Zuwachs ohne Bezug', v: '—' }
+      ]),
+      blockAbzuege('nur ausbezahlte Zeilen (hier v.a. 1005)'),
+      {
+        id: 'saldoBlock', label: 'Saldi-Block auf dem Beleg', tag: 'Beleg', tagClass: 'i', amt: 'Ferien + 13. Topf', amtClass: 'pot',
+        leaves: [
+          { t: 'Ferien Geld / Tage', v: 'Vor | + | − | neu' },
+          { t: '13. ML Topf', v: 'Vor | + Zuwachs | − 0 | neu' },
+          { t: 'Hinweis', v: 'Rückstellung sichtbar' }
+        ]
+      },
+      { id: 'netto', label: 'Netto / Auszahlung', tag: 'Beleg', tagClass: 'i', amt: '…', amtClass: 'pos',
+        formula: 'Brutto − Abzüge',
+        leaves: [{ t: 'ohne 13. ML Bargeld', v: 'noch im Topf' }] }
     ]
   },
 
   MTP: {
     title: 'MTP',
-    meta: 'Stundenlohn · Ferien-Topf · 13. ML immer Topf',
-    callout: '🟡 Ferien → Topf + Pott bei Bezug. 🟠 13. ML → Topf, Auszahlung nur Raster/180.3.',
+    meta: 'Garantie-Stunden · Ferien → Topf · 13. ML immer Topf',
+    callout: '🟡 Ferien → Topf + Pott bei Bezug. 🟠 13. ML → Topf bis Raster/180.3. Mehrstunden = 1005.',
     tree: [
       {
-        id: 'l1005', label: 'Stundenlohn / Mehrstunden', tag: '1005', tagClass: 'c', amt: '…', amtClass: 'pos',
-        leaves: [{ t: 'Garantie vs. Ist', v: 'Engine MTP-Zweig' }]
+        id: 'brutto', label: 'Ausbezahlt Brutto (Beleg)', tag: 'Σ', tagClass: 'f', amt: '…', amtClass: 'pos',
+        kids: [
+          {
+            id: 'mtpGarantie', label: 'Garantie / Festanteil', tag: 'MTP', tagClass: 'i', amt: '…', amtClass: 'pos',
+            leaves: [
+              { t: 'Garantierte Std./Woche', v: 'Vertrag' },
+              { t: 'Unter Soll', v: 'Garantie greift' }
+            ]
+          },
+          {
+            id: 'l1005', label: 'Stundenlohn / Mehrstunden', tag: '1005', tagClass: 'c', amt: '…', amtClass: 'pos',
+            formula: 'ExtraStd × Stundenlohn',
+            leaves: [
+              { t: 'Ist &gt; Garantie', v: 'Mehrstunden' },
+              { t: 'Fibu oft', v: 'Aufwand 4001' },
+              { t: 'Flags', v: 'AHV … · FER · 13.ML' }
+            ]
+          }
+        ]
       },
       {
         id: 'ferienZuwachs', label: 'Ferien-% → Topf', tag: '1160', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
-        pot: 'Wie FLEX: Vormonat + Zuwachs; Bezug = Pott CHF/Tage'
+        formula: 'Basis × Ferien%',
+        pot: 'Wie FLEX: Vor + Zuwachs − Bezug = neu (CHF + Tage)',
+        leaves: [
+          { t: 'Basis', v: 'FER-Häkchen auf Stundenlohn-Zeilen' },
+          { t: 'Beleg ausbezahlt', v: '0 ohne Bezug' }
+        ]
       },
       {
         id: 'ferienBezug', label: 'Ferienbezug → Topf leeren', tag: 'Pott', tagClass: 'p', amt: 'Auszahlung', amtClass: 'pot',
-        formula: 'Pott CHF / Pott Tage × Tage (Cap)',
-        leaves: [{ t: 'MTP extra', v: 'Festlohn-Anteil um Ferientage kürzen möglich' }]
+        pot: 'Pott CHF / Pott Tage × Tage · Cap = Pott',
+        leaves: [
+          { t: 'Auszahlung', v: 'aus Topf auf Beleg' },
+          { t: 'MTP-Hinweis', v: 'Garantie/Festanteil kann mit Ferientagen korrelieren' }
+        ]
       },
       {
         id: 'ml13Topf', label: '13. ML → Topf', tag: '1200', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
-        pot: 'Monatlich ansammeln · Auszahlung z.B. Dezember oder Auslöser «13. ML auszahlen» (180.3)',
+        formula: 'Basis × 8.33%',
+        pot: 'Monatlich ansammeln · Auszahlung: Raster-Monat oder Auslöser 180.3 → 1200, Topf → 0',
         leaves: [
-          { t: 'Beleg Monat ohne Raster', v: 'Zuwachs / Saldo, oft 0 ausbezahlt' },
-          { t: 'Auszahlungsmonat', v: 'Pott + Monat → 1200, Topf → 0' }
+          { t: 'Monat ohne Raster', v: 'Beleg oft 0 · Saldo wächst' },
+          { t: 'Auszahlungsmonat', v: 'Pott + Monat → 1200' },
+          { t: 'Auslöser', v: '180.3 «13. ML auszahlen»' }
         ]
       },
-      { id: 'saldoBlock', label: 'Saldi-Block', tag: 'Beleg', tagClass: 'i', amt: 'Ferien + 13. + Stunden', amtClass: 'pot' }
+      {
+        id: 'feiertag', label: 'Feiertag-%', tag: '1161', tagClass: 'c', amt: 'Zuwachs / Auszahlung', amtClass: 'neu',
+        formula: 'Basis × Feiertag%',
+        leaves: [{ t: 'Filiale %', v: 'wie FLEX' }]
+      },
+      blockAhvBasis([
+        { t: 'ausbezahlte 1005 / Garantie', v: 'AHV✓' },
+        { t: '13. ML nur wenn ausbezahlt', v: 'sonst nur Topf' },
+        { t: 'Ferien nur bei Bezug', v: '—' }
+      ]),
+      blockAbzuege('ausbezahlte MTP-Zeilen'),
+      {
+        id: 'saldoBlock', label: 'Saldi-Block auf dem Beleg', tag: 'Beleg', tagClass: 'i', amt: 'Ferien + 13. + Stunden', amtClass: 'pot',
+        leaves: [
+          { t: 'Ferien Geld / Tage', v: 'Vor | + | − | neu' },
+          { t: '13. ML Topf', v: 'Vor | + | − Auszahlung | neu' },
+          { t: 'Stunden-Saldo', v: 'Garantie vs. Ist' }
+        ]
+      },
+      { id: 'netto', label: 'Netto / Auszahlung', tag: 'Beleg', tagClass: 'i', amt: '…', amtClass: 'pos',
+        formula: 'Brutto − Abzüge',
+        leaves: [{ t: '± Akonto', v: 'falls' }] }
     ]
   },
 
   FIX: {
     title: 'FIX / FIX-M',
-    meta: 'Festlohn · Ferien oft Split/Tage · 13. ML Topf',
-    callout: 'FIX: Ferien-Tage-Saldo + ggf. 1166-Split. 13. ML → Topf bis Auszahlungsmonat.',
+    meta: 'Festlohn · Ferien Split/Tage · 13. ML Topf',
+    callout: 'FIX: Ferien-Tage-Saldo + ggf. 1166-Split (Brutto ±0). 13. ML → Topf bis Auszahlungsmonat.',
     tree: [
       {
-        id: 'l1000', label: 'Festlohn', tag: '1000', tagClass: 'c', amt: '3’800.00', amtClass: 'pos',
-        leaves: [{ t: 'ggf. Kürzung Ferientage', v: 'Split mit 1166' }]
+        id: 'brutto', label: 'Ausbezahlt Brutto (Beleg)', tag: 'Σ', tagClass: 'f', amt: '3’800.00', amtClass: 'pos',
+        kids: [
+          {
+            id: 'l1000', label: 'Festlohn', tag: '1000', tagClass: 'c', amt: '3’800.00', amtClass: 'pos',
+            formula: 'Monatslohn (ggf. Pro-Rata)',
+            leaves: [
+              { t: 'Vertrag.MonthlyWage', v: '3’800.00' },
+              { t: 'Tagessatz', v: '3800 ÷ 21.7' },
+              { t: 'Flags', v: 'AHV … · oft FER/13 im Tagessatz-Kontext' }
+            ]
+          },
+          {
+            id: 'ferienFix', label: 'Ferien-Split (wenn bezogen)', tag: '1166', tagClass: 'c', amt: '±0 Brutto', amtClass: 'neu',
+            leaves: [
+              { t: '− auf 1000', v: 'Tage × Tagessatz' },
+              { t: '+ 1166', v: 'gleicher Betrag' }
+            ]
+          }
+        ]
       },
       {
-        id: 'ferienBezug', label: 'Ferien (FIX)', tag: '1166', tagClass: 'c', amt: 'Split / Tage', amtClass: 'neu',
+        id: 'ferienFix', label: 'Ferien (FIX) — Tage + Split', tag: '1166', tagClass: 'c', amt: 'Split / Tage', amtClass: 'neu',
+        formula: '−Tagessatz×Tage (1000) + Ferienlohn (1166)',
+        pot: 'Kein CHF-%-Topf wie FLEX — <strong>Tage-Saldo</strong>: Vor | + Accrual | − Bezug | neu',
         leaves: [
-          { t: 'Bezogen', v: 'Tage × Tagessatz → 1166, 1000 gekürzt (Brutto ±0)' },
-          { t: 'Saldo', v: 'Ferien-Tage Vor | + | − | neu' }
+          { t: 'Accrual Monat', v: 'altersabhängig / Pensum' },
+          { t: 'Bezug', v: 'Absenz FERIEN' },
+          { t: 'Austritt', v: 'ggf. 1168 Auszahlung' }
         ]
       },
       {
         id: 'ml13Topf', label: '13. ML → Topf', tag: '1200', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
-        pot: 'FIX: Zuwachs über Jahresbasis 1/12 (Engine). Auszahlung Raster oder 180.3.',
+        formula: 'Jahres-1/12 bzw. Basis × % (Engine)',
+        pot: 'Zuwachs → Topf. Auszahlung Raster oder 180.3 → Beleg 1200, Topf → 0',
         leaves: [
           { t: 'Monat ohne Auszahlung', v: 'nur Saldo wächst' },
-          { t: 'Auszahlung', v: 'Topf leeren → Beleg 1200' }
+          { t: 'Auszahlungsmonat', v: 'Pott + Monat → 1200' },
+          { t: 'FIX-M', v: 'gleiche Topf-Logik' }
         ]
       },
-      { id: 'saldoBlock', label: 'Saldi-Block', tag: 'Beleg', tagClass: 'i', amt: 'Tage + 13. Topf + Nacht + Stunden', amtClass: 'pot' }
+      {
+        id: 'feiertag', label: 'Feiertag (FIX)', tag: 'Tage', tagClass: 'i', amt: 'Saldo / Kürzung', amtClass: 'neu',
+        leaves: [
+          { t: 'Feiertags-Saldo', v: 'z.B. 6 Tage/Jahr' },
+          { t: 'Bezug', v: 'Kürzung Festlohn analog Regel' }
+        ]
+      },
+      {
+        id: 'l1005', label: 'Zusatzstunden / Überstunden (falls)', tag: '1000.4 / 1061', tagClass: 'c', amt: '…', amtClass: 'pos',
+        formula: 'ExtraStd × Satz (× 1.25 bei 25 %)',
+        leaves: [
+          { t: 'Zusatzstunden', v: 'Ist − Soll' },
+          { t: 'Überstunden 25 %', v: '1061' }
+        ]
+      },
+      blockAhvBasis([
+        { t: 'aus 1000 (nach Split)', v: 'AHV✓' },
+        { t: 'aus 1166', v: 'AHV✓ wenn Flag' },
+        { t: '13. ML nur wenn ausbezahlt', v: 'sonst Topf' }
+      ]),
+      blockAbzuege('Festlohn ± Split + ausbezahltes 13. ML'),
+      {
+        id: 'saldoBlock', label: 'Saldi-Block auf dem Beleg', tag: 'Beleg', tagClass: 'i', amt: 'Tage + 13. Topf + Nacht + Std', amtClass: 'pot',
+        leaves: [
+          { t: 'Ferien-Tage', v: 'Vor | + | − | neu' },
+          { t: '13. ML Topf', v: 'Vor | + | − | neu' },
+          { t: 'Nacht / Stunden', v: 'falls' },
+          { t: 'Feiertag-Tage', v: 'falls' }
+        ]
+      },
+      { id: 'netto', label: 'Netto / Auszahlung', tag: 'Beleg', tagClass: 'i', amt: '…', amtClass: 'pos',
+        formula: 'Brutto − Abzüge',
+        leaves: [{ t: '± Akonto', v: 'falls' }] }
     ]
   }
 };
