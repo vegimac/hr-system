@@ -49,10 +49,20 @@ public class GastroSocialMeldungTests
             new R.Vertrag(1, 10, D(2025, 1, 1), D(2026, 4, 30)),
             new R.Vertrag(1, 20, D(2026, 5, 1), D(2026, 9, 30)),
         };
-        var ab = R.AbmeldungVon(1, D(2026, 9, 30), v);
+        var ab = R.AbmeldungVon(1, D(2026, 9, 30), D(2026, 9, 30), v);
         Assert.NotNull(ab);
         Assert.Equal(20, ab!.CompanyProfileId);
-        Assert.Null(R.AbmeldungVon(1, null, v));
+        Assert.Null(R.AbmeldungVon(1, null, D(2026, 9, 30), v));
+    }
+
+    [Fact]
+    public void Abmeldung_braucht_KuendigungPer_befristeter_Vertrag_zaehlt_nicht()
+    {
+        var v = new[] { new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 10, 31)) };
+        Assert.Null(R.AbmeldungVon(1, D(2026, 10, 31), null, v));
+        var ab = R.AbmeldungVon(1, D(2026, 10, 31), D(2026, 10, 31), v);
+        Assert.NotNull(ab);
+        Assert.Equal(O(2026, 10, 31), ab!.Datum);
     }
 
     [Fact]

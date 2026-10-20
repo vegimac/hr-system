@@ -8,8 +8,9 @@
 
 const AKIS_PORTAL_URL = 'https://www.akisnet.ch/ak046/'; // GastroSocial (AK 046)
 
-// Keine Datumswahl (Walter 13.10.2026): immer alle noch nicht gemeldeten
-// Ein-/Austritte seit Start der Meldungs-Kontrolle, auch künftige.
+// Keine Datumswahl (Walter 13.10.2026): Anmeldungen inkl. künftiger Eintritte.
+// Abmeldungen erst am Tag nach dem Austritt, und nur mit «Kündigung per»
+// (Walter 20.10.2026 — befristete Verträge haben oft trotzdem ein Austrittsdatum).
 function akisInit() {
     akisRefresh();
 }
@@ -101,7 +102,7 @@ function _akisRender(d) {
         ${kopf('Anmeldungen', d.anmeldungen.concat(d.anmeldungenOhneAhv || []), 'ANMELDUNG')}
         ${warn((d.anmeldungenOhneAhv || []).filter(r => !r.gemeldet), 'Eintritt(e)')}
         ${tbl(d.anmeldungen.concat(d.anmeldungenOhneAhv || []), 'ANMELDUNG')}
-        ${kopf('Abmeldungen', d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— nur MA mit erfasstem Austritt</span>')}
+        ${kopf('Abmeldungen', d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— erst nach dem Austritt, nur mit Kündigung per</span>')}
         ${warn((d.abmeldungenOhneAhv || []).filter(r => !r.gemeldet), 'Austritt(e)')}
         ${tbl(d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG')}
         ${(d.befristetOffen || []).length ? `

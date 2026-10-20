@@ -57,19 +57,25 @@ public class AkisExportController : ControllerBase
     }
 
     /// <summary>
-    /// Abmeldung NUR bei ERFASSTEM Austritt (Employee.ExitDate im Zeitraum) —
-    /// ein blosses Ende eines befristeten Vertrags ist KEINE Abmeldung
-    /// (Walter 06.08.2026: Verlängerung ist oft nur noch nicht erfasst).
+    /// Abmeldung nur, wenn der Austritt schon vorbei ist (Austritt 31.10. erscheint ab 1.11.)
+    /// und «Gekündigt per» gesetzt ist. Ein befristeter Vertrag hat oft trotzdem ein
+    /// Austrittsdatum — ohne Kündigung per ist das keine Abmeldung (Walter 20.10.2026).
     /// Filial-Zuordnung: der letzte Vertrag des MA (über alle Filialen) muss
     /// in dieser Filiale liegen.
     /// </summary>
     private async Task<(List<Row> rows, List<Row> ohneAhv)> AbmeldungenAsync(
         int cpId, DateTime from, DateTime to)
     {
+        // Tag des Austritts zählt noch nicht: am 31.10. arbeitet der MA, ab 1.11. ist er weg.
+        var letzterTag = DateTime.Today.AddDays(-1);
+        if (to.Date < letzterTag) letzterTag = to.Date;
+        if (from.Date > letzterTag) return (new List<Row>(), new List<Row>());
+
         var exitEmps = await _db.Employees.AsNoTracking()
             .Where(e => !e.IsHidden && !e.IsPayrollExcluded
-                     && e.ExitDate != null && e.ExitDate >= from && e.ExitDate <= to)
-            .Select(e => new { e.Id, e.ExitDate })
+                     && e.ExitDate != null && e.KuendigungPer != null
+                     && e.ExitDate >= from && e.ExitDate <= letzterTag)
+            .Select(e => new { e.Id, e.ExitDate, e.KuendigungPer })
             .ToListAsync();
         if (exitEmps.Count == 0) return (new List<Row>(), new List<Row>());
 
@@ -83,7 +89,7 @@ public class AkisExportController : ControllerBase
         var kandidaten = new List<(int, DateTime)>();
         foreach (var e in exitEmps)
         {
-            var ab = GastroSocialMeldungRegel.AbmeldungVon(e.Id, e.ExitDate, alleVertraege[e.Id]);
+            var ab = GastroSocialMeldungRegel.AbmeldungVon(e.Id, e.ExitDate, e.KuendigungPer, alleVertraege[e.Id]);
             if (ab != null && ab.CompanyProfileId == cpId)
                 kandidaten.Add((e.Id, e.ExitDate!.Value));
         }

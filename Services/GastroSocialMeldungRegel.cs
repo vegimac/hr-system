@@ -6,9 +6,10 @@ namespace HrSystem.Services;
 ///
 /// Anmeldung = Vertrag in der Filiale beginnt, und am Vortag lief dort kein anderer Vertrag
 ///             (nahtlose Vertragsanpassung = keine neue Anmeldung; Filialwechsel = Ab- + Anmeldung).
-/// Abmeldung = erfasster Austritt (Employee.ExitDate); zuständig ist die Filiale des letzten Vertrags.
-///             Ein blosses Ende eines befristeten Vertrags ist KEINE Abmeldung (Verlängerung oft nur
-///             noch nicht erfasst).
+/// Abmeldung = erfasster Austritt (Employee.ExitDate) UND gesetztes «Gekündigt per».
+///             Ein befristeter Vertrag trägt oft trotzdem ein Austrittsdatum — ohne Kündigung per
+///             ist das keine Abmeldung. Zuständig ist die Filiale des letzten Vertrags.
+///             Auf der AKIS-Liste erscheint die Zeile erst am Tag nach dem Austritt.
 /// Erledigt  = in <c>gastrosocial_meldung</c> steht für MA, Filiale und Art eine Meldung, deren
 ///             Stichtag höchstens <see cref="ToleranzTage"/> vom Ereignis abweicht (kleine Korrekturen
 ///             am Eintritts-/Austrittsdatum heben die Meldung nicht auf).
@@ -48,10 +49,13 @@ public static class GastroSocialMeldungRegel
         return res;
     }
 
-    /// <summary>Abmelde-Ereignis eines MA: Austrittsdatum, Filiale des letzten Vertrags. Null = keins.</summary>
-    public static Ereignis? AbmeldungVon(int employeeId, DateTime? austritt, IEnumerable<Vertrag> vertraegeDesMa)
+    /// <summary>
+    /// Abmelde-Ereignis eines MA: Austrittsdatum, Filiale des letzten Vertrags. Null = keins.
+    /// Ohne «Gekündigt per» gibt es keine Abmeldung — befristete Verträge haben oft trotzdem ein Austrittsdatum.
+    /// </summary>
+    public static Ereignis? AbmeldungVon(int employeeId, DateTime? austritt, DateTime? gekuendigtPer, IEnumerable<Vertrag> vertraegeDesMa)
     {
-        if (austritt == null) return null;
+        if (austritt == null || gekuendigtPer == null) return null;
         var letzter = vertraegeDesMa.Where(v => v.EmployeeId == employeeId && v.CompanyProfileId != null)
             .OrderByDescending(v => v.Ende == null)
             .ThenByDescending(v => v.Ende)

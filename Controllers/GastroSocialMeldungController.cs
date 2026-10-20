@@ -102,13 +102,13 @@ public class GastroSocialMeldungController : HrControllerBase
             .ToListAsync();
         var austritte = await db.Employees.AsNoTracking()
             .Where(e => empIds.Contains(e.Id) && e.ExitDate != null)
-            .Select(e => new { e.Id, e.ExitDate })
+            .Select(e => new { e.Id, e.ExitDate, e.KuendigungPer })
             .ToListAsync();
         var proMa = vertraege.ToLookup(v => v.EmployeeId);
         var res = GastroSocialMeldungRegel.Anmeldungen(vertraege).Where(e => e.CompanyProfileId == cpId).ToList();
         foreach (var a in austritte)
         {
-            var ab = GastroSocialMeldungRegel.AbmeldungVon(a.Id, a.ExitDate, proMa[a.Id]);
+            var ab = GastroSocialMeldungRegel.AbmeldungVon(a.Id, a.ExitDate, a.KuendigungPer, proMa[a.Id]);
             if (ab != null && ab.CompanyProfileId == cpId) res.Add(ab);
         }
         return res;
