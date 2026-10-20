@@ -138,8 +138,10 @@ function wcRender() {
 
     tbody.innerHTML = _wcRows.map((c, i) => {
         const dateBased = !!c.isDateBased;
+        const nachlauf = c.category === 'gastrosocial_abmeldung_fehlt';
         const warnCell = dateBased
-            ? `<input type="number" min="0" value="${c.warnDays == null ? '' : c.warnDays}"
+            ? `<input type="number" ${nachlauf ? '' : 'min="0"'} value="${c.warnDays == null ? '' : c.warnDays}"
+                   title="${nachlauf ? 'Minus = Tage nach dem Austritt. −3: Austritt 31.10., Warnung ab 3.11.' : 'Tage vorher'}"
                    onchange="wcSet(${i},'warnDays',this.value)" style="${WC_INP}">`
             : '<span style="color:#b8b0a4;font-size:11px">—</span>';
         const escCell = dateBased
@@ -191,7 +193,9 @@ function wcSet(idx, field, value) {
         c.enabled = !!value;
     } else if (field === 'warnDays' || field === 'escalateDays') {
         const s = String(value).trim();
-        c[field] = (s === '') ? null : Math.max(0, parseInt(s, 10) || 0);
+        const n = parseInt(s, 10);
+        const minus = field === 'warnDays' && c.category === 'gastrosocial_abmeldung_fehlt';
+        c[field] = (s === '' || Number.isNaN(n)) ? null : (minus ? n : Math.max(0, n));
     } else if (field === 'warnColor') {
         c.warnColor = value || 'none';
     } else if (field === 'severityEscalated') {

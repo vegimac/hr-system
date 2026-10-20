@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 94;  // 94: falsche Swissdec-Nummern auf Mirus-Buchungen weg · 93: Gerant-KSt 400 weg
+const int SchemaStand = 95;  // 95: AHV-Abmeldung warnt erst nach dem Austritt · 94: falsche Swissdec-Nummern weg
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2557,6 +2557,21 @@ using (var scope = app.Services.CreateScope())
              WHERE position IN (10, 55, 190, 195, 1060, 1090, 2010, 4070);
         ");
         startLog.LogInformation("Stand 94: Kontoplan — Swissdec-Nummer nur noch auf echten Lohnarten");
+    }
+
+    // Stand 95: AHV-Abmeldung erst, wenn der Austritt vorbei ist.
+    // Vorlauf −1 = ab dem Folgetag; −3 = Austritt 31.10., Warnung ab 3.11.
+    // Nur solange das Feld noch zu ist — eine später geänderte Zahl bleibt.
+    if (dbStand < 95)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE dashboard_warning_config
+               SET is_date_based = TRUE,
+                   warn_days = COALESCE(warn_days, -1)
+             WHERE category = 'gastrosocial_abmeldung_fehlt'
+               AND is_date_based = FALSE;
+        ");
+        startLog.LogInformation("Stand 95: AHV-Abmeldung warnt erst nach dem Austritt");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

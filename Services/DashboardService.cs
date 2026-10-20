@@ -1815,7 +1815,8 @@ public class DashboardService
         // ── GastroSocial An-/Abmeldung fehlt (Walter 13.10.2026) ───────────
         // Jeder Eintritt (pro Filiale = eigenes Konto) braucht eine Anmeldung, jeder erfasste
         // Austritt eine Abmeldung. Gemeldet = Knopf auf der AKIS-Seite oder übernommen aus dem
-        // AHV-Abgleich. Ab Eintritts-/Austrittsdatum, Altbestand vor 2026 bleibt still.
+        // AHV-Abgleich. Anmeldung ab dem Eintrittstag. Abmeldung erst nach dem Austritt
+        // (Vorlauf −3 = Austritt 31.10., Warnung ab 3.11.). Altbestand vor 2026 bleibt still.
         // Regel: GastroSocialMeldungRegel. Austretende: siehe keepCats unten.
         if (Enabled("gastrosocial_anmeldung_fehlt") || Enabled("gastrosocial_abmeldung_fehlt"))
         {
@@ -1844,7 +1845,9 @@ public class DashboardService
                     .ToListAsync())
                 .Select(m => new GastroSocialMeldungRegel.Meldung(m.EmployeeId, m.CompanyProfileId, m.Art, m.Stichtag))
                 .ToList();
-            var gsOffen = GastroSocialMeldungRegel.Offen(gsEreignisse, gsMeldungen, today);
+            var abNach = GastroSocialMeldungRegel.AbmeldungNachTagen(
+                warnCfg.TryGetValue("gastrosocial_abmeldung_fehlt", out var gsWarn) ? gsWarn.WarnDays : null);
+            var gsOffen = GastroSocialMeldungRegel.Offen(gsEreignisse, gsMeldungen, today, abNach);
             if (gsOffen.Count > 0)
             {
                 var gsFilialen = await _db.CompanyProfiles.AsNoTracking()

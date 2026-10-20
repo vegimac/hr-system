@@ -83,6 +83,30 @@ public class GastroSocialMeldungTests
     }
 
     [Fact]
+    public void Abmeldung_erst_wenn_der_Austritt_vorbei_ist()
+    {
+        var ab = new R.Ereignis(1, 10, R.Abmeldung, O(2026, 10, 31));
+        var keine = Array.Empty<R.Meldung>();
+        Assert.False(R.Faellig(ab, O(2026, 10, 20), 1));
+        Assert.False(R.Faellig(ab, O(2026, 10, 31), 1));
+        Assert.True(R.Faellig(ab, O(2026, 11, 1), 1));
+        Assert.Empty(R.Offen(new[] { ab }, keine, O(2026, 10, 31), R.AbmeldungNachTagen(null)));
+        Assert.Single(R.Offen(new[] { ab }, keine, O(2026, 11, 1), R.AbmeldungNachTagen(-1)));
+    }
+
+    [Fact]
+    public void Abmeldung_minus_drei_Tage_warnt_ab_dem_dritten_Tag_danach()
+    {
+        var ab = new R.Ereignis(1, 10, R.Abmeldung, O(2026, 10, 31));
+        var keine = Array.Empty<R.Meldung>();
+        Assert.Equal(3, R.AbmeldungNachTagen(-3));
+        Assert.False(R.Faellig(ab, O(2026, 11, 2), 3));
+        Assert.True(R.Faellig(ab, O(2026, 11, 3), 3));
+        Assert.Empty(R.Offen(new[] { ab }, keine, O(2026, 11, 2), 3));
+        Assert.Equal(O(2026, 10, 31), R.Offen(new[] { ab }, keine, O(2026, 11, 3), 3)[0].Datum);
+    }
+
+    [Fact]
     public void Liste_Beschaeftigt_bestaetigt_Anmeldungen_bis_heute()
     {
         var heute = O(2026, 10, 13);

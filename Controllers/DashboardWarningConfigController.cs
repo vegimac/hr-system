@@ -99,10 +99,10 @@ public class DashboardWarningConfigController : ControllerBase
                     message = $"Ungültige Warnfarbe «{u.WarnColor}» (erlaubt: none/red/red_overdue)."
                 });
             u.WarnColor = color;
-            if (u.WarnDays.HasValue && u.WarnDays.Value < 0)
+            if (u.WarnDays.HasValue && u.WarnDays.Value < -366)
                 return BadRequest(new {
                     error = "INVALID_DAYS",
-                    message = "Vorlauf (Tage) darf nicht negativ sein."
+                    message = "Vorlauf darf nicht unter −366 Tagen liegen."
                 });
             if (u.EscalateDays.HasValue && u.EscalateDays.Value < 0)
                 return BadRequest(new {
@@ -125,6 +125,11 @@ public class DashboardWarningConfigController : ControllerBase
         foreach (var u in updates)
         {
             if (!byId.TryGetValue(u.Id, out var row)) continue;
+            if (u.WarnDays is < 0 && row.Category != "gastrosocial_abmeldung_fehlt")
+                return BadRequest(new {
+                    error = "INVALID_DAYS",
+                    message = "Vorlauf (Tage) darf nicht negativ sein. Nur bei der AHV-Abmeldung: −3 heisst drei Tage nach dem Austritt."
+                });
             row.Enabled           = u.Enabled;
             row.WarnDays          = u.WarnDays;
             row.EscalateDays      = u.EscalateDays;

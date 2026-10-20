@@ -91,9 +91,27 @@ public static class GastroSocialMeldungRegel
     }
 
     /// <summary>
-    /// Fehlende Meldungen für das To-do: Ereignisse ab <see cref="ToDoAb"/> bis heute ohne passende Meldung.
+    /// Fehlende Meldungen für das To-do. Anmeldung ab dem Eintrittstag.
+    /// Abmeldung erst, wenn der Austritt vorbei ist: <paramref name="abmeldungNachTagen"/>
+    /// Tage danach (1 = ab dem Folgetag; 3 = Austritt 31.10., Warnung ab 3.11.).
     /// </summary>
-    public static List<Ereignis> Offen(IEnumerable<Ereignis> ereignisse, IReadOnlyList<Meldung> meldungen, DateOnly heute) =>
-        ereignisse.Where(e => e.Datum >= ToDoAb && e.Datum <= heute && Passende(e, meldungen) == null)
+    public static List<Ereignis> Offen(IEnumerable<Ereignis> ereignisse, IReadOnlyList<Meldung> meldungen, DateOnly heute,
+        int abmeldungNachTagen = 1) =>
+        ereignisse.Where(e => e.Datum >= ToDoAb && Passende(e, meldungen) == null && Faellig(e, heute, abmeldungNachTagen))
                   .OrderBy(e => e.Datum).ToList();
+
+    /// <summary>Ab wann eine fehlende Meldung in die Warnung darf.</summary>
+    public static bool Faellig(Ereignis e, DateOnly heute, int abmeldungNachTagen)
+    {
+        if (e.Art != Abmeldung) return e.Datum <= heute;
+        var nach = abmeldungNachTagen < 1 ? 1 : abmeldungNachTagen;
+        return heute >= e.Datum.AddDays(nach);
+    }
+
+    /// <summary>
+    /// Vorlauf der Warnung «Abmeldung fehlt». Minus heisst Tage nach dem Austritt
+    /// (−3 → Austritt 31.10., Warnung ab 3.11.). Leer oder positiv = ab dem Folgetag.
+    /// </summary>
+    public static int AbmeldungNachTagen(int? warnDays) =>
+        warnDays is < 0 ? -warnDays.Value : 1;
 }
