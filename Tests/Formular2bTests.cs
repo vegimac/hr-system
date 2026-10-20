@@ -1,3 +1,4 @@
+using HrSystem.Services;
 using HrSystem.Services.Meldepflicht;
 using iText.Forms;
 using iText.Kernel.Pdf;
@@ -14,6 +15,13 @@ public class Formular2bTests
     [InlineData("BE", "meldeverfahren.midi@be.ch")]
     public void Behoerde_Nach_Arbeitsort(string kanton, string erwartet)
         => Assert.Equal(erwartet, MigrationsamtAdressen.Fuer(kanton)[0]);
+
+    [Theory]
+    [InlineData("Schichtkoordinator/in ab 7. Monat", true, "Schichtkoordinatorin ab 7. Monat")]
+    [InlineData("Schichtkoordinator/in ab 7. Monat", false, "Schichtkoordinator ab 7. Monat")]
+    [InlineData("Restaurant Manager/in", true, "Restaurant Managerin")]
+    public void Funktion_Wie_Im_Vertrag_Mit_Geschlecht(string roh, bool weiblich, string erwartet)
+        => Assert.Equal(erwartet, Funktionsbezeichnung.Geschlecht(roh, weiblich));
 
     [Fact]
     public void Unbekannter_Kanton_Hat_Keine_Adresse()

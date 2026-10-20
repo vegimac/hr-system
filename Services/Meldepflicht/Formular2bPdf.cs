@@ -46,15 +46,12 @@ public static class Formular2bPdf
         Radio(form, "Group4", "Auswahl5"); // L-GAV: Ja
 
         if (d.Stundenlohn)
-        {
             Radio(form, "Group5", "Auswahl11");
-            Text(form, "Bruttolohn", d.Lohn);
-        }
+        else if (d.Dreizehnter)
+            Radio(form, "Group5", "Auswahl10"); // monatlich (13 Monatslöhne)
         else
-        {
-            Radio(form, "Group5", "Auswahl9"); // monatlich, 13 Monatslöhne
-            Text(form, "Bruttolohn", d.Lohn);
-        }
+            Radio(form, "Group5", "Auswahl9"); // monatlich (12 Monatslöhne)
+        Text(form, "Bruttolohn", d.Lohn);
         Text(form, "Beschaeftigunsgrad", d.Pensum);
         Text(form, "Stunden", d.Wochenstunden);
         Text(form, "Minuten", d.Wochenminuten);
@@ -122,6 +119,8 @@ public sealed class Formular2bDaten
     public string? Arbeitsort { get; init; }
     public string? Kanton { get; init; }
     public bool Stundenlohn { get; init; }
+    /// <summary>Monatslohn mit 13. Monatslohn (L-GAV). Sonst 12 Monatslöhne.</summary>
+    public bool Dreizehnter { get; init; } = true;
     public string? Lohn { get; init; }
     public string? Pensum { get; init; }
     public string? Wochenstunden { get; init; }

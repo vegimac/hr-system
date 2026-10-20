@@ -93,6 +93,7 @@ public class MeldepflichtMeldungController : ControllerBase
         var stichtag = datum.ToDateTime(TimeOnly.MinValue);
         var vertrag = await _db.Employments.AsNoTracking()
             .Include(e => e.CompanyProfile)
+            .Include(e => e.JobGroup)
             .Where(e => e.EmployeeId == employeeId
                      && e.ContractStartDate <= stichtag
                      && (e.ContractEndDate == null || e.ContractEndDate >= stichtag))
@@ -100,6 +101,7 @@ public class MeldepflichtMeldungController : ControllerBase
             .FirstOrDefaultAsync()
             ?? await _db.Employments.AsNoTracking()
                 .Include(e => e.CompanyProfile)
+                .Include(e => e.JobGroup)
                 .Where(e => e.EmployeeId == employeeId)
                 .OrderByDescending(e => e.ContractStartDate)
                 .FirstOrDefaultAsync();
@@ -138,11 +140,12 @@ public class MeldepflichtMeldungController : ControllerBase
             Uid = uidNr,
             KontaktName = user?.DisplayName,
             KontaktTelefon = filiale?.Phone,
-            KontaktEmail = user?.Email ?? filiale?.Email,
-            Taetigkeit = string.IsNullOrWhiteSpace(vertrag?.JobTitle) ? "Mitarbeit Gastronomie" : vertrag!.JobTitle,
+            KontaktEmail = filiale?.Email,
+            Taetigkeit = await TaetigkeitAsync(vertrag, Weiblich(ma.Gender)),
             Arbeitsort = Join(" ", filiale?.City, filiale?.KantonCode == null ? null : $"({filiale.KantonCode})"),
             Kanton = kanton,
             Stundenlohn = stundenlohn,
+            Dreizehnter = vertrag?.ThirteenthSalary != false,
             Lohn = lohn.HasValue ? lohn.Value.ToString("N2", CultureInfo.GetCultureInfo("de-CH")) : null,
             Pensum = vertrag?.EmploymentPercentage?.ToString("0.##", CultureInfo.InvariantCulture),
             Wochenstunden = vertrag?.WeeklyHours.HasValue == true ? stunden.ToString() : null,
@@ -197,6 +200,22 @@ Schaub Restaurants GmbH";
             an = string.Join(", ", ziele),
             umgeleitet = !scharf
         });
+    }
+
+    async Task<string> TaetigkeitAsync(Models.Employment? vertrag, bool? weiblich)
+    {
+        var code = string.IsNullOrWhiteSpace(vertrag?.JobTitle) ? vertrag?.JobGroupCode : vertrag!.JobTitle;
+        string? anzeige = null;
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            var key = code.Trim() + ".NAME";
+            anzeige = await _db.AppTexts.AsNoTracking()
+                .Where(t => t.Module == "JOB_GROUP" && t.TextKey == key && t.LanguageCode == "de" && t.IsActive)
+                .Select(t => t.Content)
+                .FirstOrDefaultAsync();
+        }
+        var text = Funktionsbezeichnung.Geschlecht(anzeige ?? code, weiblich);
+        return string.IsNullOrWhiteSpace(text) ? "Mitarbeit Gastronomie" : text;
     }
 
     static string? Join(string trenner, params string?[] teile)

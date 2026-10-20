@@ -23,6 +23,17 @@ public static class ContractPdfBuilder
             .FirstOrDefaultAsync();
     }
 
+    private static bool? Weiblich(string? gender, string? anrede)
+    {
+        var s = (gender ?? "").Trim().ToLowerInvariant();
+        if (s is "f" or "w" or "1" or "female" or "frau" or "weiblich") return true;
+        if (s is "m" or "0" or "male" or "mann" or "herr" or "männlich") return false;
+        var a = (anrede ?? "").Trim().ToLowerInvariant();
+        if (a is "frau" or "fräulein") return true;
+        if (a is "herr") return false;
+        return null;
+    }
+
     private static string GetSalaryType(string? m) =>
         ((m ?? "").ToUpperInvariant() is "FIX" or "FIX-M") ? "monthly" : "hourly";
 
@@ -96,7 +107,8 @@ public static class ContractPdfBuilder
         }
 
         var salaryType = employment.SalaryType ?? GetSalaryType(employment.EmploymentModel);
-        var jobTitleDisplay = await GetJobTitleDisplayName(db, employment.JobTitle, "de") ?? employment.JobTitle ?? "";
+        var jobTitleRoh = await GetJobTitleDisplayName(db, employment.JobTitle, "de") ?? employment.JobTitle ?? "";
+        var jobTitleDisplay = Funktionsbezeichnung.Geschlecht(jobTitleRoh, Weiblich(employee.Gender, employee.Salutation));
 
         // ── Verfügbarkeit für Seite 3 (Walter-Vorgabe 09.07.2026) ────────────
         // Die Beilage zeigt den JETZT geltenden Stand: Referenz = heute (bei
