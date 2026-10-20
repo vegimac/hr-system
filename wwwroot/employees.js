@@ -17021,6 +17021,10 @@ function renderPermitListHtml(entries) {
         const code      = h.permitCode || (h.permitTypeId ? 'Typ ' + h.permitTypeId : '<span style="color:#94a3b8">— keine —</span>');
         const desc      = h.permitDescription ? ' <span style="color:#94a3b8;font-size:11px">— ' + esc(h.permitDescription) + '</span>' : '';
         const noteTxt   = h.note ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(h.note)}</div>` : '';
+        const isExpired = _isExpired(h);
+        // Abgelaufen schlägt immer — nie grün/AKTUELL trotz isCurrent=true.
+        // Vor dem Melde-Badge: der Badge liest isCur, und const gilt erst danach.
+        const isCur     = !isExpired && cur && h.id === cur.id;
         // Walter 16.10.2026: Meldepflicht rechts neben den Aktionen, keine Extra-Zeile.
         const meldeBadge = h.erwerbMeldepflichtig
             ? `<span style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
@@ -17032,9 +17036,6 @@ function renderPermitListHtml(entries) {
                 <span id="meldepflichtStand" style="font-size:10.5px;color:#64748b;text-align:right;max-width:16em"></span>` : ''}
                </span>`
             : '';
-        const isExpired = _isExpired(h);
-        // Abgelaufen schlägt immer — nie grün/AKTUELL trotz isCurrent=true.
-        const isCur     = !isExpired && cur && h.id === cur.id;
         const rowStyle  = isExpired
             ? 'padding:8px 12px;border:1.5px solid #fca5a5;border-radius:6px;background:#fef2f2;margin-bottom:5px;display:flex;align-items:center;gap:12px'
             : isCur
