@@ -16979,6 +16979,8 @@ async function loadPermitHistory(employeeId) {
 // ist die kanonische Implementation und wird vom QST-Tab direkt aufgerufen.
 function renderPermitListHtml(entries) {
     const list = entries || [];
+    if (list.some(h => h.erwerbMeldepflichtig) && selectedEmployeeId)
+        queueMicrotask(() => meldepflichtStandLaden(selectedEmployeeId));
     if (list.length === 0) {
         return `<div style="padding:12px;color:#94a3b8;font-style:italic;font-size:12.5px">Keine Bewilligung erfasst.</div>`;
     }
@@ -17021,7 +17023,14 @@ function renderPermitListHtml(entries) {
         const noteTxt   = h.note ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(h.note)}</div>` : '';
         // Walter 16.10.2026: Meldepflicht rechts neben den Aktionen, keine Extra-Zeile.
         const meldeBadge = h.erwerbMeldepflichtig
-            ? `<span style="flex-shrink:0;max-width:11em;text-align:right;font-size:10.5px;line-height:1.25;color:#9a3412;font-weight:700" title="Erwerbstätigkeitsaufnahme und -beendigung sowie Stellenwechsel sind meldepflichtig.">Meldepflichtig</span>`
+            ? `<span style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                <span style="max-width:11em;text-align:right;font-size:10.5px;line-height:1.25;color:#9a3412;font-weight:700" title="Erwerbstätigkeitsaufnahme und -beendigung sowie Stellenwechsel sind meldepflichtig.">Meldepflichtig</span>
+                ${isCur ? `<span style="display:flex;gap:4px">
+                  <button type="button" class="emp-contract-btn" title="Formular 2b: Beendigung an die kantonale Behörde — nur auf Klick" onclick="meldepflichtSenden(${selectedEmployeeId}, 'beendigung')">Abmeldung</button>
+                  <button type="button" class="emp-contract-btn" title="Formular 2b: Aufnahme an die kantonale Behörde — nur auf Klick" onclick="meldepflichtSenden(${selectedEmployeeId}, 'aufnahme')">Anmeldung</button>
+                </span>
+                <span id="meldepflichtStand" style="font-size:10.5px;color:#64748b;text-align:right;max-width:16em"></span>` : ''}
+               </span>`
             : '';
         const isExpired = _isExpired(h);
         // Abgelaufen schlägt immer — nie grün/AKTUELL trotz isCurrent=true.
@@ -17185,6 +17194,43 @@ async function permitExpiredSendSms(employeeId, historyId) {
 }
 
 // E-Mail bei abgelaufener Bewilligung (Walter 03.09.2026) — Vorschau, Rückfrage, Versand.
+async function meldepflichtStandLaden(employeeId) {
+    const ziel = document.getElementById('meldepflichtStand');
+    if (!ziel || !employeeId) return;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/meldepflicht-meldung`, { headers: ah() });
+        if (!res.ok) return;
+        const s = await res.json();
+        if (!s.gesendet && !s.am) { ziel.textContent = 'noch keine Meldung'; return; }
+        const am = s.am ? new Date(s.am).toLocaleString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        if (s.ruecklaeufer) ziel.textContent = `Rückläufer: ${s.ruecklaeufer}`;
+        else if (!s.gesendet) ziel.textContent = s.fehler || 'Versand fehlgeschlagen';
+        else if (s.umgeleitet) ziel.textContent = `Test an ${s.umgeleitet} · ${am}`;
+        else ziel.textContent = `gesendet an ${s.an} · ${am}`;
+    } catch { /* Stand ist nur Anzeige */ }
+}
+
+async function meldepflichtSenden(employeeId, art) {
+    const beendigung = art === 'beendigung';
+    const austritt = selectedEmployee?.exitDate || selectedEmployee?.kuendigungPer;
+    const datumTxt = austritt ? new Date(austritt).toLocaleDateString('de-CH') : '';
+    const frage = beendigung
+        ? `Formular 2b zur Beendigung${datumTxt ? ' per ' + datumTxt : ''} an die kantonale Behörde senden?`
+        : 'Formular 2b zur Aufnahme der Tätigkeit an die kantonale Behörde senden?';
+    if (!await liquidConfirm(frage, { title: 'Meldepflicht', yesLabel: 'Senden', noLabel: 'Abbrechen' })) return;
+    const body = { art, datum: beendigung && austritt ? String(austritt).slice(0, 10) : null };
+    const res = await fetch(`/api/employees/${employeeId}/meldepflicht-meldung`, {
+        method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.error || `Versand fehlgeschlagen (${res.status})`); return; }
+    alert(data.umgeleitet
+        ? `Nicht scharf: die Meldung ging an deine Test-Adresse, nicht an ${data.an} (${data.kanton}).`
+        : `Gesendet an ${data.an} (${data.kanton}).`);
+    meldepflichtStandLaden(employeeId);
+}
+
 async function permitExpiredSendEmail(employeeId, historyId) {
     if (!employeeId || !historyId) return;
     const box = document.querySelector('.emp-tab-content.active .permitSmsBox')

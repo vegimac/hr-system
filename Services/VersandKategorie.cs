@@ -39,6 +39,8 @@ public enum VersandKategorie
     Dritte = 8,
     /// <summary>Mitteilung/Dokument ins easy@work-Dossier des MA (Walter 08.09.2026).</summary>
     EasyAtWork = 9,
+    /// <summary>Formular 2b an die kantonale Migrationsbehörde (Walter 20.10.2026). Nur auf Knopf.</summary>
+    Meldepflicht = 10,
 }
 
 /// <summary>Stammdaten der Kategorien — Reihenfolge und Texte fürs UI.</summary>
@@ -87,6 +89,9 @@ public static class VersandKategorien
         // die Mitteilung geht nur an die Test-Personalnummer (Systemsteuerung).
         new(VersandKategorie.EasyAtWork,  "EASYATWORK",   "easy@work-Mitteilung",
             "Mitteilung/Dokument ins easy@work-Dossier mit App-Benachrichtigung", "alle MA einer Selektion", false, false, false, true),
+        // Walter 20.10.2026: Formular 2b. Standard nicht scharf → Test-Adresse.
+        new(VersandKategorie.Meldepflicht, "MELDEPFLICHT", "Meldepflicht Migrationsamt",
+            "Formular 2b (Ausweis B/S/F) an die kantonale Behörde, nur auf Knopf", "Migrationsamt am Arbeitsort", true, false, false),
     };
 
     private static readonly Dictionary<VersandKategorie, VersandKategorieInfo> ByEnum =
