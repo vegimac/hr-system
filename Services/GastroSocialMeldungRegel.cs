@@ -118,4 +118,45 @@ public static class GastroSocialMeldungRegel
     /// </summary>
     public static int AbmeldungNachTagen(int? warnDays) =>
         warnDays is < 0 ? -warnDays.Value : 1;
+
+    /// <summary>Text neben der AHV-Nummer. Erledigt = der geschriebene Vermerk deckt das Ereignis.</summary>
+    public sealed record Anzeige(string Text, bool Erledigt);
+
+    /// <summary>
+    /// Status für die MA-Maske, dieselbe Regel wie AKIS und To-do.
+    /// Aktiv (Austritt leer oder noch nicht vorbei): letzte Anmeldung der Filiale, in der heute ein Vertrag läuft.
+    /// Ausgetreten: Abmeldung, sobald Austritt und «Gekündigt per» gesetzt sind. Ohne Kündigung per
+    /// gibt es keine Abmeldung (befristeter Vertrag) und deshalb auch keinen Text.
+    /// </summary>
+    public static Anzeige? AnzeigeFuerMaske(
+        int employeeId, DateTime? austritt, DateTime? gekuendigtPer,
+        IEnumerable<Vertrag> vertraege, IEnumerable<Meldung> meldungen, DateOnly heute)
+    {
+        var liste = vertraege.Where(v => v.EmployeeId == employeeId).ToList();
+        bool ausgetreten = austritt != null && DateOnly.FromDateTime(austritt.Value) < heute;
+        if (ausgetreten)
+        {
+            var ab = AbmeldungVon(employeeId, austritt, gekuendigtPer, liste);
+            if (ab == null) return null;
+            bool weg = Passende(ab, meldungen) != null;
+            return new Anzeige(weg ? "abgemeldet" : "Abmeldung fehlt", weg);
+        }
+
+        var heuteDt = heute.ToDateTime(TimeOnly.MinValue);
+        var laufend = liste
+            .Where(v => v.CompanyProfileId != null && v.Start.Date <= heuteDt && (v.Ende == null || v.Ende.Value.Date >= heuteDt))
+            .OrderByDescending(v => v.Start)
+            .FirstOrDefault()
+            ?? liste.Where(v => v.CompanyProfileId != null).OrderByDescending(v => v.Start).FirstOrDefault();
+        if (laufend == null) return null;
+
+        var an = Anmeldungen(liste)
+            .Where(e => e.CompanyProfileId == laufend.CompanyProfileId)
+            .OrderByDescending(e => e.Datum)
+            .ToList();
+        var massgebend = an.FirstOrDefault(e => e.Datum <= heute) ?? an.FirstOrDefault();
+        if (massgebend == null) return null;
+        bool da = Passende(massgebend, meldungen) != null;
+        return new Anzeige(da ? "angemeldet" : "Anmeldung fehlt", da);
+    }
 }

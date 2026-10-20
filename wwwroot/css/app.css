@@ -4826,6 +4826,14 @@
             letter-spacing: 0.04em; text-transform: uppercase;
             margin-bottom: 2px;
         }
+        .ov-ahv-kasse {
+            margin-left: 6px; font-size: 10px; font-weight: 650;
+            letter-spacing: 0; text-transform: none;
+        }
+        .ov-ahv-kasse.ok { color: #15803d; }
+        .ov-ahv-kasse.fehl { color: #b91c1c; }
+        body.theme-dark .ov-ahv-kasse.ok { color: #86efac; }
+        body.theme-dark .ov-ahv-kasse.fehl { color: #fca5a5; }
         .ov-pfv {
             font-size: 14.5px; font-weight: 650; color: #0a0a0a;
             white-space: nowrap;

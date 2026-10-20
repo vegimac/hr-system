@@ -1718,6 +1718,13 @@ function updateLsEmpSyncBtn() {
 // Sprung-Pfeil in ihren Fach-Tab — bearbeitet wird NUR dort. Daten kommen
 // aus dem bereits geladenen selectedEmployee; nur die Dokumente werden
 // nachgeladen (bestehender Endpoint by-employee).
+function _ahvKasseHtml(emp) {
+    const k = emp && emp.ahvKasse;
+    if (!k || !k.text) return '';
+    const cls = k.erledigt ? 'ok' : 'fehl';
+    return `<span class="ov-ahv-kasse ${cls}">${esc(k.text)}</span>`;
+}
+
 function _ovCard(title, jumpTab, jumpTitle, bodyHtml, extraHeader = '') {
     const jump = jumpTab
         ? `<button class="ov-jump" title="${jumpTitle}" onclick="switchEmpTab('${jumpTab}')">→</button>`
@@ -1810,7 +1817,7 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefon 2</div>
             <input id="ov-phone2" class="ov-softin" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div>
             <div class="ov-pf ov-pf-ahv">
-                <div class="ov-pfl">AHV-Nr.</div>
+                <div class="ov-pfl">AHV-Nr.${_ahvKasseHtml(emp)}</div>
                 <div class="ov-pfv">${esc(emp.ahvNumber ?? emp.socialSecurityNumber)
                     || (typeof ahvQuickPdf === 'function' ? `<button type="button" onclick="ahvQuickPdf(${emp.id})"
                             title="AHV-Anmeldung 318.260 vorbefüllt öffnen (Versicherungsausweis bestellen)"

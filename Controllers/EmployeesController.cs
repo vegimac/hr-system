@@ -520,6 +520,21 @@ public class EmployeesController : ControllerBase
             }
         }
 
+        // Ausgleichskasse: derselbe Vermerk, den AKIS und der AHV-Abgleich schreiben
+        // (Walter 20.10.2026). Steht klein neben «AHV-Nr.».
+        var kassenMeldungen = (await _context.GastroSocialMeldungen.AsNoTracking()
+                .Where(m => m.EmployeeId == employee.Id)
+                .Select(m => new { m.CompanyProfileId, m.Art, m.Stichtag })
+                .ToListAsync())
+            .Select(m => new GastroSocialMeldungRegel.Meldung(employee.Id, m.CompanyProfileId, m.Art, m.Stichtag))
+            .ToList();
+        var kassenVertraege = employee.Employments
+            .Select(em => new GastroSocialMeldungRegel.Vertrag(employee.Id, em.CompanyProfileId, em.ContractStartDate, em.ContractEndDate))
+            .ToList();
+        var ahvKasse = GastroSocialMeldungRegel.AnzeigeFuerMaske(
+            employee.Id, employee.ExitDate, employee.KuendigungPer,
+            kassenVertraege, kassenMeldungen, DateOnly.FromDateTime(DateTime.Today));
+
         // Flache Felder des aktiven Vertrags direkt in die Antwort einbauen
         // damit das bestehende UI (emp.employmentModel, emp.employmentPercentage usw.)
         // ohne Änderung weiter funktioniert
@@ -636,6 +651,7 @@ public class EmployeesController : ControllerBase
             employee.QstBefreiungGueltigAb,
             employee.QstBefreiungGueltigBis,
             employee.SocialSecurityNumber,
+            ahvKasse = ahvKasse == null ? null : new { text = ahvKasse.Text, erledigt = ahvKasse.Erledigt },
             employee.MaritalStatus,
             employee.MaritalStatusSince,
             employee.SeparatedSince,

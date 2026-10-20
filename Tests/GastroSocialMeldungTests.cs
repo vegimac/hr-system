@@ -117,6 +117,41 @@ public class GastroSocialMeldungTests
     }
 
     [Fact]
+    public void Maske_aktiv_zeigt_angemeldet_nur_mit_Vermerk()
+    {
+        var v = new[] { new R.Vertrag(1, 10, D(2026, 2, 1), null) };
+        var heute = O(2026, 10, 20);
+        var fehlt = R.AnzeigeFuerMaske(1, null, null, v, Array.Empty<R.Meldung>(), heute);
+        Assert.Equal("Anmeldung fehlt", fehlt!.Text);
+        Assert.False(fehlt.Erledigt);
+
+        var da = R.AnzeigeFuerMaske(1, null, null, v,
+            new[] { new R.Meldung(1, 10, R.Anmeldung, O(2026, 2, 1)) }, heute);
+        Assert.Equal("angemeldet", da!.Text);
+        Assert.True(da.Erledigt);
+    }
+
+    [Fact]
+    public void Maske_ausgetreten_zeigt_Abmeldung_und_befristet_bleibt_leer()
+    {
+        var v = new[] { new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 7, 31)) };
+        var heute = O(2026, 10, 20);
+        Assert.Null(R.AnzeigeFuerMaske(1, D(2026, 7, 31), null, v, Array.Empty<R.Meldung>(), heute));
+
+        var fehlt = R.AnzeigeFuerMaske(1, D(2026, 7, 31), D(2026, 7, 31), v, Array.Empty<R.Meldung>(), heute);
+        Assert.Equal("Abmeldung fehlt", fehlt!.Text);
+
+        var weg = R.AnzeigeFuerMaske(1, D(2026, 7, 31), D(2026, 7, 31), v,
+            new[] { new R.Meldung(1, 10, R.Abmeldung, O(2026, 7, 31)) }, heute);
+        Assert.Equal("abgemeldet", weg!.Text);
+        Assert.True(weg.Erledigt);
+
+        // Austritt liegt noch vor uns → weiter die Anmeldung.
+        var nochDa = R.AnzeigeFuerMaske(1, D(2026, 10, 31), D(2026, 10, 31), v, Array.Empty<R.Meldung>(), heute);
+        Assert.Equal("Anmeldung fehlt", nochDa!.Text);
+    }
+
+    [Fact]
     public void Liste_Beschaeftigt_bestaetigt_Anmeldungen_bis_heute()
     {
         var heute = O(2026, 10, 13);
