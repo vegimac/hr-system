@@ -24,7 +24,11 @@ async function kpInit() {
 }
 
 function kpGruppeKey(m) {
-    return m.lohnartCode || String(m.position);
+    return String(m.position);
+}
+
+function kpHatLohnart(m) {
+    return /^\d{4}$/.test(String(m.lohnartCode || '')) || /^\d+\.\d+$/.test(String(m.lohnartCode || ''));
 }
 
 function kpOhneModell(text) {
@@ -46,12 +50,13 @@ function kpModellName(modell) {
 }
 
 // Zeilen, die sich nur im Aufwandskonto des Vertrags unterscheiden, werden eine.
+// Das Konto 4000/4001/4055 kann auf der Soll- oder auf der Habenseite stehen
+// (Rückstellung Vormonat bucht 2019 an 4000).
 function kpZusammenziehen(liste) {
     const buckets = new Map();
     liste.forEach(m => {
         const key = [
             m.subPosition ?? '',
-            m.gegenkonto || '',
             m.mwstKonto || '',
             m.mwstCode || '',
             m.isVormonat ? '1' : '0'
@@ -61,9 +66,13 @@ function kpZusammenziehen(liste) {
     });
     return [...buckets.values()].map(zeilen => {
         const modelle = [...new Set(zeilen.map(m => m.modell).filter(Boolean))];
-        const vomVertrag = modelle.length >= 2 && zeilen.every(m =>
-            !m.modell || KP_SOLL_VERTRAG[m.modell] === m.fibukonto);
-        return { zeilen, vomVertrag };
+        const sollVomVertrag = modelle.length >= 2
+            && zeilen.every(m => !m.modell || KP_SOLL_VERTRAG[m.modell] === m.fibukonto)
+            && new Set(zeilen.map(m => m.gegenkonto)).size === 1;
+        const habenVomVertrag = modelle.length >= 2
+            && zeilen.every(m => !m.modell || KP_SOLL_VERTRAG[m.modell] === m.gegenkonto)
+            && new Set(zeilen.map(m => m.fibukonto)).size === 1;
+        return { zeilen, sollVomVertrag, habenVomVertrag };
     });
 }
 
@@ -91,53 +100,65 @@ function kpRender() {
     rows.forEach(m => { (groups[kpGruppeKey(m)] ||= []).push(m); });
 
     const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    let body = '';
-    let anzahl = 0;
-    Object.keys(groups).sort((a, b) => {
+    const sortKeys = keys => keys.sort((a, b) => {
         const na = Number(a), nb = Number(b);
         if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
         return String(a).localeCompare(String(b), 'de');
-    }).forEach(key => {
-        const first = groups[key][0];
-        const titel = first.lohnartCode
-            ? `Lohnart ${esc(first.lohnartCode)}`
-            : `Pos. ${esc(first.position)}`;
-        body += `<tr><td colspan="6" style="background:#f1f5f9;padding:8px 12px;font-weight:700;font-size:12.5px;color:#334155;border-top:1px solid #e2e8f0">${titel}</td></tr>`;
-        kpZusammenziehen(groups[key]).forEach(block => {
-            anzahl++;
-            const m = block.zeilen[0];
-            const ids = block.zeilen.map(z => z.id).join(',');
-            const nr = `${esc(m.lohnartCode || m.position)}${m.subPosition != null ? '.' + m.subPosition : ''}`;
-            let bez = kpOhneModell(m.bezeichnung);
-            let soll;
-            if (block.vomVertrag) {
-                soll = `<span class="kp-soll" title="Crew 4000 · Flex 4001 · Management 4055 — kommt vom Vertrag">vom Vertrag</span>`;
-            } else {
-                const name = kpModellName(m.modell);
-                if (name && block.zeilen.length === 1) bez = `${bez} · ${name}`;
-                soll = `<span class="kp-soll">${esc(m.fibukonto)}</span>`;
-            }
-            const vorm = m.isVormonat ? '<span style="color:#b45309;font-size:10.5px;font-weight:600">Vormonat</span>' : '';
-            const pz = (m.mwstProzent != null && Number(m.mwstProzent) > 0) ? ` · ${Number(m.mwstProzent)}%` : '';
-            const mwst = m.mwstKonto
-                ? `<span style="background:#ecfdf5;color:#047857;padding:1px 7px;border-radius:7px;font-size:10.5px;font-weight:600;white-space:nowrap" title="Abacus TaxAccount/TaxCode">MWST ${esc(m.mwstKonto)} / ${esc(m.mwstCode)}${pz}</span>`
-                : '';
-            body += `<tr data-ids="${ids}" data-vertrag="${block.vomVertrag ? '1' : '0'}" style="border-top:1px solid #f1f5f9">
-                <td style="padding:6px 10px;color:#64748b;font-family:monospace">${nr}</td>
-                <td style="padding:6px 10px"><span class="kp-bez">${esc(bez)}</span></td>
-                <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#166534">${soll}</td>
-                <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#b91c1c"><span class="kp-gegen">${esc(m.gegenkonto)}</span></td>
-                <td class="kp-extra" style="padding:6px 10px">${vorm}${vorm && mwst ? ' ' : ''}${mwst}</td>
-                <td style="padding:6px 10px;text-align:right">
-                    <div style="position:relative;display:inline-block">
-                        <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'kp-${m.id}')" title="Aktionen">⋮</button>
-                        <div class="dok-menu" id="dokMenu-kp-${m.id}">
-                            <button class="dok-menu-item" onclick="dokCloseAllMenus();kpEdit('${ids}')">Bearbeiten</button>
-                        </div>
+    });
+    const lohnKeys = sortKeys(Object.keys(groups).filter(k => groups[k].some(kpHatLohnart)));
+    const buchKeys = sortKeys(Object.keys(groups).filter(k => !groups[k].some(kpHatLohnart)));
+
+    let body = '';
+    let anzahl = 0;
+    function abschnitt(titel) {
+        body += `<tr><td colspan="6" style="background:#e7e4db;padding:10px 12px;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#57534e">${titel}</td></tr>`;
+    }
+    function zeile(block) {
+        anzahl++;
+        const m = block.zeilen[0];
+        const ids = block.zeilen.map(z => z.id).join(',');
+        const lohnart = kpHatLohnart(m) ? esc(m.lohnartCode) : '';
+        let bez = kpOhneModell(m.bezeichnung);
+        const kontoVertrag = `<span title="Crew 4000 · Flex 4001 · Management 4055 — kommt vom Vertrag">vom Vertrag</span>`;
+        let soll = `<span class="kp-soll">${esc(m.fibukonto)}</span>`;
+        let gegen = `<span class="kp-gegen">${esc(m.gegenkonto)}</span>`;
+        if (block.sollVomVertrag) soll = `<span class="kp-soll">${kontoVertrag}</span>`;
+        else if (block.habenVomVertrag) gegen = `<span class="kp-gegen">${kontoVertrag}</span>`;
+        else {
+            const name = kpModellName(m.modell);
+            if (name && block.zeilen.length === 1) bez = `${bez} · ${name}`;
+        }
+        const vorm = m.isVormonat ? '<span style="color:#b45309;font-size:10.5px;font-weight:600">Vormonat</span>' : '';
+        const pz = (m.mwstProzent != null && Number(m.mwstProzent) > 0) ? ` · ${Number(m.mwstProzent)}%` : '';
+        const mwst = m.mwstKonto
+            ? `<span style="background:#ecfdf5;color:#047857;padding:1px 7px;border-radius:7px;font-size:10.5px;font-weight:600;white-space:nowrap" title="Abacus TaxAccount/TaxCode">MWST ${esc(m.mwstKonto)} / ${esc(m.mwstCode)}${pz}</span>`
+            : '';
+        const seite = block.sollVomVertrag ? 'soll' : (block.habenVomVertrag ? 'haben' : '');
+        body += `<tr data-ids="${ids}" data-vertrag="${seite ? '1' : '0'}" data-seite="${seite}" style="border-top:1px solid #f1f5f9">
+            <td style="padding:6px 10px;color:#64748b;font-family:monospace">${lohnart}</td>
+            <td style="padding:6px 10px"><span class="kp-bez">${esc(bez)}</span></td>
+            <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#166534">${soll}</td>
+            <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#b91c1c">${gegen}</td>
+            <td class="kp-extra" style="padding:6px 10px">${vorm}${vorm && mwst ? ' ' : ''}${mwst}</td>
+            <td style="padding:6px 10px;text-align:right">
+                <div style="position:relative;display:inline-block">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'kp-${m.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-kp-${m.id}">
+                        <button class="dok-menu-item" onclick="dokCloseAllMenus();kpEdit('${ids}')">Bearbeiten</button>
                     </div>
-                </td>
-            </tr>`;
-        });
+                </div>
+            </td>
+        </tr>`;
+    }
+    if (lohnKeys.length) abschnitt('Lohnarten');
+    lohnKeys.forEach(key => {
+        const first = groups[key].find(kpHatLohnart) || groups[key][0];
+        body += `<tr><td colspan="6" style="background:#f1f5f9;padding:8px 12px;font-weight:700;font-size:12.5px;color:#334155;border-top:1px solid #e2e8f0">Lohnart ${esc(first.lohnartCode)}</td></tr>`;
+        kpZusammenziehen(groups[key]).forEach(zeile);
+    });
+    if (buchKeys.length) abschnitt('Buchungen, keine Lohnart');
+    buchKeys.forEach(key => {
+        kpZusammenziehen(groups[key]).forEach(zeile);
     });
     const info = document.getElementById('kpInfo');
     if (info) info.textContent = `${anzahl} Buchungen`;
@@ -149,14 +170,17 @@ function kpEdit(idsCsv) {
     const m = _kpRows.find(x => x.id === ids[0]);
     const row = document.querySelector(`#kpTableBody tr[data-ids="${idsCsv}"]`);
     if (!m || !row) return;
-    const vomVertrag = row.getAttribute('data-vertrag') === '1';
+    const seite = row.getAttribute('data-seite') || '';
     const esc = s => String(s ?? '').replace(/"/g,'&quot;');
-    const bez = vomVertrag ? kpOhneModell(m.bezeichnung) : m.bezeichnung;
-    if (!vomVertrag) {
+    const bez = seite ? kpOhneModell(m.bezeichnung) : m.bezeichnung;
+    if (seite !== 'soll') {
         const soll = row.querySelector('.kp-soll');
         if (soll) soll.innerHTML = `<input id="kpSoll_${ids[0]}" value="${esc(m.fibukonto)}" style="width:60px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
     }
-    row.querySelector('.kp-gegen').innerHTML = `<input id="kpGegen_${ids[0]}" value="${esc(m.gegenkonto)}" style="width:60px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
+    if (seite !== 'haben') {
+        const gegen = row.querySelector('.kp-gegen');
+        if (gegen) gegen.innerHTML = `<input id="kpGegen_${ids[0]}" value="${esc(m.gegenkonto)}" style="width:60px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
+    }
     const extra = row.querySelector('.kp-extra');
     if (extra) {
         extra.innerHTML = `<input id="kpBez_${ids[0]}" value="${esc(bez)}" style="width:180px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-size:12px" placeholder="Bezeichnung">
@@ -167,14 +191,15 @@ function kpEdit(idsCsv) {
 
 async function kpSave(idsCsv) {
     const ids = String(idsCsv).split(',').map(Number);
-    const gegenkonto = document.getElementById(`kpGegen_${ids[0]}`)?.value?.trim();
+    const gegenEingabe = document.getElementById(`kpGegen_${ids[0]}`)?.value?.trim();
     const bezeichnung = document.getElementById(`kpBez_${ids[0]}`)?.value?.trim();
     const sollEingabe = document.getElementById(`kpSoll_${ids[0]}`)?.value?.trim();
-    if (!gegenkonto || !bezeichnung) return;
+    if (!bezeichnung) return;
     for (const id of ids) {
         const m = _kpRows.find(x => x.id === id);
         if (!m) continue;
         const fibukonto = sollEingabe || m.fibukonto;
+        const gegenkonto = gegenEingabe || m.gegenkonto;
         const r = await fetch(`/api/lohn-konto-mapping/${id}`, {
             method: 'PUT',
             headers: { ...ah(), 'Content-Type': 'application/json' },

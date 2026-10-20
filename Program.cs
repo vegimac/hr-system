@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 93;  // 93: Gerant-KSt 400 aus Kontoplan · 92: Fibu-Spalten vor Schema-Check · 91: Modell + lohnart_code
+const int SchemaStand = 94;  // 94: falsche Swissdec-Nummern auf Mirus-Buchungen weg · 93: Gerant-KSt 400 weg
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2544,6 +2544,19 @@ using (var scope = app.Services.CreateScope())
                       AND m.gegenkonto = g.gegenkonto);
         ");
         startLog.LogInformation("Stand 93: Kontoplan ohne Gerant-Kostenstelle");
+    }
+
+    // Stand 94: diese Mirus-Positionen sind Buchungen, keine Swissdec-Lohnart.
+    // 4070 als «1160» hat die Rückstellung unter die Ferien-Lohnart gemischt,
+    // 1060 als «2050» den Nettolohn mit der Korrektur-Lohnart.
+    if (dbStand < 94)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE lohn_konto_mapping
+               SET lohnart_code = NULL
+             WHERE position IN (10, 55, 190, 195, 1060, 1090, 2010, 4070);
+        ");
+        startLog.LogInformation("Stand 94: Kontoplan — Swissdec-Nummer nur noch auf echten Lohnarten");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
