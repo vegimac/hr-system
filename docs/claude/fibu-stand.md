@@ -22,7 +22,7 @@ Ziel: aus dem abgeschlossenen Lohnlauf ein Fibu-Journal erzeugen (wie der heutig
 - **E3 (später):** eigentliches Abacus-Export-Format (Format noch offen — Walter klärt, was Abacus frisst).
 - **13. ML auszahlen 180.3 (Walter 17.09.2026):** Die Lohnart ist nur Auslöser (Betrag 0, nicht in `lohnLines`). Die Engine schreibt weiterhin 180.1 «akt. Monat» (Aufwand) + «Saldo-Auszahlung» / «Nachzahlung nach Probezeit». Fibu v3 (`ExtractBruttoUmgliederung` / `Find13MlAuszahlung`) bucht den RST-Abbau **nur** aus diesen zwei Prefixen → Kontoplan **Position 180** S 2017 Crew / 2016 Management H 1920. **Kein neues Kontoplan-Mapping.** Code 180.3 in einer Slip-Zeile wird übersprungen. Test: `Ml13_Ausloeser1803_ZaehltNicht_SaldoAuszahlungWieDezember`.
 
-## Ohne Kostenstellen — Modell aus Vertrag (Walter 19.10.2026, Schema-Stand 91)
+## Ohne Kostenstellen — Modell aus Vertrag (Walter 19.10.2026, Schema-Stand 91/92)
 
 Abacus braucht nur Fibu-Konten. Die frühere Kostenstelle (100/200/300) war ein Doppel der Vertrags-Modelle und wird nicht mehr gepflegt.
 
