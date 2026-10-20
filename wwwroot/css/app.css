@@ -13435,3 +13435,47 @@ body.theme-dark .le-hub-karte {
     border-color: rgba(255, 255, 255, 0.08);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
+
+/* Familienzulage aus Mitteilung */
+.fzm-layout { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.05fr); gap: 16px; align-items: start; }
+.fzm-drop {
+    border: 1px dashed rgba(60, 55, 48, 0.28);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.45);
+    padding: 16px;
+    text-align: center;
+    color: #646464;
+    font-size: 13px;
+}
+.fzm-drop { position: relative; }
+.fzm-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.fzm-einlesen, .fzm-speichern, .fzm-oeffnen {
+    background: #3f3f3f; color: #fff; border: none; border-radius: 12px;
+    padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.fzm-einlesen:disabled, .fzm-speichern:disabled { opacity: 0.6; cursor: default; }
+.fzm-pdf { width: 100%; height: 72vh; border: 1px solid rgba(60, 55, 48, 0.12); border-radius: 12px; background: #fff; }
+.fzm-ma { font-size: 15px; font-weight: 650; color: #3f3f3f; margin-bottom: 10px; }
+.fzm-ma span { font-weight: 500; color: #8b8b8b; font-size: 13px; margin-left: 8px; }
+.fzm-zeile {
+    display: grid; grid-template-columns: 22px 92px 1fr; gap: 8px; align-items: start;
+    padding: 10px 12px; margin-bottom: 8px; border-radius: 12px;
+    background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(60, 55, 48, 0.1);
+    font-size: 13px; color: #3f3f3f; cursor: pointer;
+}
+.fzm-zeile b { font-size: 12px; letter-spacing: 0.02em; }
+.fzm-neu b { color: #3f3f3f; }
+.fzm-aendern b { color: #92400e; }
+.fzm-beenden b { color: #9a3412; }
+.fzm-nichts b, .fzm-unklar b { color: #8b8b8b; }
+.fzm-unklar { cursor: default; }
+.fzm-hinweis {
+    background: #f6f3ee; border: 1px solid rgba(60, 55, 48, 0.12); border-radius: 12px;
+    padding: 10px 12px; margin-bottom: 10px; font-size: 13px; color: #6b6152;
+}
+.fzm-ok { font-size: 13.5px; color: #3f3f3f; line-height: 1.55; }
+.fzm-aktionen { display: flex; justify-content: flex-end; margin-top: 12px; }
+.fzm-leer { display: inline-block; width: 16px; }
+@media (max-width: 900px) { .fzm-layout { grid-template-columns: 1fr; } .fzm-pdf { height: 50vh; } }
+body.theme-dark .fzm-drop, body.theme-dark .fzm-zeile, body.theme-dark .fzm-pdf { background: rgba(255,255,255,0.06); color: #e7e5e4; }
+body.theme-dark .fzm-ma, body.theme-dark .fzm-ok { color: #e7e5e4; }

@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261020k">
+    <link rel="stylesheet" href="css/app.css?v=20261020l">
 </head>
 <body>
 
@@ -2634,6 +2634,11 @@
                         <img src="img/kontr-fz.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">FZ-Abgleich: Familienzulagen</div>
                         <div class="admin-card-desc">GastroSocial-Liste der Familienzulagen gegen OneCrew prüfen</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('famz-mitteilung')">
+                        <img src="img/lohnkat-fz-tarife.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Familienzulage aus Mitteilung</div>
+                        <div class="admin-card-desc">Entscheid oder Verfallanzeige einlesen, prüfen und am Kind speichern</div>
                     </div>
                     </div>
                 </div>
@@ -8912,6 +8917,29 @@
                 <div id="gsfResult" style="margin-top:8px"></div>
             </div>
 
+            <div class="page" id="page-famz-mitteilung">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                        <h1 class="page-title">Familienzulage aus Mitteilung</h1>
+                        <p class="page-sub">Eine neue GastroSocial-Mitteilung einlesen. Der Vorschlag zeigt neu, ändern oder beenden. Gespeichert wird erst nach der Bestätigung, der Beleg hängt dann am Eintrag. Der Satz kommt aus dem Tarif der Filiale am Gültig-ab.</p>
+                    </div>
+                    <div style="margin-left:auto;margin-top:58px">
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                    </div>
+                </div>
+                <div class="fzm-layout">
+                    <div class="card" style="padding:18px">
+                        <div class="fzm-drop" ondragover="event.preventDefault()" ondrop="fzmDrop(event)">
+                            <label for="fzmFile" id="fzmDateiName" style="cursor:pointer;display:block;margin-bottom:12px">PDF hierher ziehen oder auswählen</label>
+                            <input id="fzmFile" type="file" accept="application/pdf,.pdf" onchange="fzmDateiGewaehlt(this.files && this.files[0])">
+                            <button type="button" class="fzm-einlesen" id="fzmEinlesenBtn" onclick="fzmEinlesen()">Einlesen</button>
+                        </div>
+                        <div id="fzmVorschau" style="margin-top:16px"></div>
+                    </div>
+                    <iframe id="fzmPdf" class="fzm-pdf" title="Mitteilung"></iframe>
+                </div>
+            </div>
+
             <!-- ═══════════════ MIRUS ADRESS-/KONTAKT-VERGLEICH (Auswertung) ═══════════════
                  Walter 29.07.2026: Doppelspur OneCrew ↔ Mirus. Read-only. -->
             <div class="page" id="page-mirus-address-compare">
@@ -10743,7 +10771,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261020i"></script>
+<script src="js/app-core.js?v=20261020l"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10777,6 +10805,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/mirus-fehlende-ma.js?v=20261011a"></script>
 <script src="js/gs-ahv-abgleich.js?v=20261013b"></script>
 <script src="js/gs-fz-abgleich.js?v=20261012c"></script>
+<script src="js/famz-mitteilung.js?v=20261020a"></script>
 <script src="js/gespraech.js?v=20261015b"></script>
 <script src="js/roster-absence-import.js?v=20261003a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>

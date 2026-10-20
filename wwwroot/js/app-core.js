@@ -1534,6 +1534,7 @@ function showPage(name) {
     if (name === 'mirus-fehlende-ma' && typeof mfmInit === 'function') mfmInit();
     if (name === 'gs-ahv-abgleich' && typeof gsaInit === 'function') gsaInit();
     if (name === 'gs-fz-abgleich' && typeof gsfInit === 'function') gsfInit();
+    if (name === 'famz-mitteilung' && typeof fzmInit === 'function') fzmInit();
     if (name === 'gespraech' && typeof bgsInit === 'function') bgsInit();
     // Vollbild des Gesprächsmodus abräumen, wenn woanders hin navigiert wird (⌘K-Suche etc.)
     if (name !== 'gespraech') document.body.classList.remove('bgs-fullscreen');
