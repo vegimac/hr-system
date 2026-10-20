@@ -3070,6 +3070,7 @@ function dabToggle(key, an) {
 // Titel-Vorschlag pro Ziel, z.B. «Bewilligung B», «Krankheit 01.09.26 – 05.09.26», «Ausweis Kind Lea Muster».
 function dabTitel(o) {
     const vorPunkt = s => String(s || '').split(' · ')[0];
+    if (o.key === 'ahv_anmeldung') return 'Anmeldebestätigung AHV';
     if (o.key.startsWith('bewilligung')) return o.key === 'bewilligung_neu' ? 'Bewilligung' : 'Bewilligung ' + vorPunkt(o.sub);
     if (o.key.startsWith('bank')) return 'Bankbeleg';
     if (o.key === 'partner_neu') return 'Ausweis Partner/in';

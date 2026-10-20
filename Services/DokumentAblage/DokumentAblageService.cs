@@ -43,6 +43,9 @@ public class DokumentAblageService
         // ── Mitarbeiter/in (ohne Historie → ersetzen) ──
         new("ausweis",              "Mitarbeiter/in", "Ausweis",                       new[] { "passport", "id_card" }),
         new("ahv_karte",            "Mitarbeiter/in", "AHV-Karte",                     new[] { "ahv_card" }),
+        // Bestätigung der Versichertenanmeldung: gleicher Typ «AHV» (Persönliche Angaben),
+        // aber kein Ersatz der AHV-Karte — nur ein Dokument mit diesem Titel.
+        new("ahv_anmeldung",        "Mitarbeiter/in", "Anmeldebestätigung AHV",        new[] { "ahv_card" }, Anderes: true),
         new("geburtsurkunde",       "Mitarbeiter/in", "Geburtsurkunde",                new[] { "birth_cert" }),
         new("zivilstand",           "Mitarbeiter/in", "Zivilstandsdokument",           new[] { "marriage_cert" }),
         new("foto",                 "Mitarbeiter/in", "Mitarbeiterfoto",               new[] { "employee_photo" }, Formular: true, NurBild: true),
@@ -153,6 +156,7 @@ public class DokumentAblageService
 
         liste.Add(O("ausweis", "Pass oder ID", emp.IdPassDokumentId));
         liste.Add(O("ahv_karte", null, emp.AhvKarteDokumentId));
+        liste.Add(O("ahv_anmeldung"));
         liste.Add(O("geburtsurkunde", null, emp.GeburtsurkundeDokumentId));
         liste.Add(O("zivilstand", "Ehe, Scheidung, Partnerschaft", emp.ZivilstandDokumentId));
         liste.Add(O("foto", "Ausschnitt wählen", emp.FotoDokumentId));
@@ -251,7 +255,7 @@ public class DokumentAblageService
                 $"{s.Datum:dd.MM.yyyy}" + (s.Art == "FRED" ? " · in FRED" : s.DokumentId == null ? " · ohne Nachweis" : ""),
                 s.DokumentId, s.Name));
 
-        foreach (var a in Arten.Where(a => a.Anderes))
+        foreach (var a in Arten.Where(a => a.Anderes && liste.All(o => o.Key != a.Schluessel)))
             liste.Add(O(a.Schluessel));
         return liste;
     }

@@ -2399,6 +2399,8 @@
                             <button type="button" class="kz-menu-item" onclick="zdOpen('rueckzug')">7&nbsp;·&nbsp;Kündigungsrückzug</button>
                             <button type="button" class="kz-menu-item" onclick="zdOpen('bestaetigung')">8&nbsp;·&nbsp;Kündigungsbestätigung</button>
                             <button type="button" class="kz-menu-item" onclick="zdOpen('aufhebung')">9&nbsp;·&nbsp;Aufhebungsvereinbarung</button>
+                            <button type="button" class="kz-menu-item" onclick="meldepflichtHubOpen('aufnahme')">10&nbsp;·&nbsp;Meldepflicht Anmeldung</button>
+                            <button type="button" class="kz-menu-item" onclick="meldepflichtHubOpen('beendigung')">11&nbsp;·&nbsp;Meldepflicht Abmeldung</button>
                         </div>
                     </div>
                     </div>
@@ -3144,6 +3146,35 @@
                     <b>Hinweis:</b> Damit der Dokumenten-Status korrekt erkannt wird, muss in der
                     <a href="#" onclick="event.preventDefault();showPage('dokumentstruktur')" style="color:#6b7280">Dokument-Struktur</a>
                     ein Typ (z.B. „Ausweis Ehegatte") mit Verknüpfung <code>Ehegatte (Familie)</code> existieren.
+                </div>
+            </div>
+
+            <!-- Formular 2b Meldepflicht (Walter 20.10.2026): aus der Bewilligung
+                 in den HR-Hub Offboarding. MA wählen, dann Rückfrage, dann Mail. -->
+            <div class="page liquid-mask" id="page-meldepflicht">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title" id="mpTitle">Meldepflicht Abmeldung</h1>
+                        <p class="page-sub" id="mpSub">Mitarbeiter wählen — die Mail geht erst nach der Rückfrage raus.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="kd-day" style="padding:20px;max-width:760px">
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+                            <button class="seite-zurueck" onclick="pageBack()"
+                                    style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
+                        </div>
+                        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">Mitarbeiter wählen</div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+                            <select id="mpEmpFilter" onchange="mpRenderEmpList()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;background:white">
+                                <option value="active">Nur Aktive</option>
+                                <option value="inactive">Nur Inaktive</option>
+                                <option value="all">Alle</option>
+                            </select>
+                            <input id="mpEmpSearch" oninput="mpRenderEmpList()" placeholder="Suche Name / Nr." style="flex:1;min-width:160px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px">
+                        </div>
+                        <select id="mpEmpSelect" onchange="mpOnEmpChange()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;background:white"></select>
+                    </div>
                 </div>
             </div>
 
@@ -10712,7 +10743,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261019a"></script>
+<script src="js/app-core.js?v=20261020i"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10759,7 +10790,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/qst-modal.js?v=20261011b"></script>
 <script src="js/users.js?v=20261012a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
-<script src="js/documents.js?v=20261011a"></script>
+<script src="js/documents.js?v=20261020j"></script>
 <script src="js/dvelop-import.js?v=20261001a"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260805a"></script>
@@ -11506,7 +11537,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20261020d"></script>
+<script src="employees.js?v=20261020i"></script>
 <script src="js/kind-qst-verlauf.js?v=20261012a"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 <script src="js/bvg-pflicht.js?v=20261004a"></script>

@@ -1747,6 +1747,8 @@ function onBranchChange() {
     } else if (currentPageName === 'zeugnis-doc') {
         // Dokument-Seite (Zeugnisse/Verwarnung) folgt dem Filial-Selektor.
         if (typeof zdRenderEmpList === 'function') zdRenderEmpList();
+    } else if (currentPageName === 'meldepflicht') {
+        if (typeof mpRenderEmpList === 'function') mpRenderEmpList();
     } else if (currentPageName === 'zwischenverdienst') {
         // RAV-Zwischenverdienst folgt dem globalen Filial-Selektor.
         zviInit();

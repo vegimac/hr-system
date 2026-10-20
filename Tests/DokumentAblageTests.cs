@@ -46,6 +46,11 @@ public class DokumentAblageTests
 
         var keys = (await new DokumentAblageService(db).OptionenAsync(10))!.Select(o => o.Key).ToList();
 
+        var anmeldung = (await new DokumentAblageService(db).OptionenAsync(10))!.Single(o => o.Key == "ahv_anmeldung");
+        Assert.Equal("ahv_card", anmeldung.Code);
+        Assert.True(anmeldung.Anderes);
+        Assert.Equal("Anmeldebestätigung AHV", anmeldung.Label);
+        Assert.Contains("ahv_anmeldung", keys);
         Assert.Contains("bank:1", keys);
         Assert.DoesNotContain("bank:2", keys);          // abgelaufenes Konto
         Assert.Contains("vertrag:5", keys);

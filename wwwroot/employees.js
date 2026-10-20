@@ -17029,11 +17029,7 @@ function renderPermitListHtml(entries) {
         const meldeBadge = h.erwerbMeldepflichtig
             ? `<span style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
                 <span style="max-width:11em;text-align:right;font-size:10.5px;line-height:1.25;color:#9a3412;font-weight:700" title="Erwerbstätigkeitsaufnahme und -beendigung sowie Stellenwechsel sind meldepflichtig.">Meldepflichtig</span>
-                ${isCur ? `<span style="display:flex;gap:4px">
-                  <button type="button" class="emp-contract-btn" title="Formular 2b: Beendigung an die kantonale Behörde — nur auf Klick" onclick="meldepflichtSenden(${selectedEmployeeId}, 'beendigung')">Abmeldung</button>
-                  <button type="button" class="emp-contract-btn" title="Formular 2b: Aufnahme an die kantonale Behörde — nur auf Klick" onclick="meldepflichtSenden(${selectedEmployeeId}, 'aufnahme')">Anmeldung</button>
-                </span>
-                <span id="meldepflichtStand" style="font-size:10.5px;color:#64748b;text-align:right;max-width:16em"></span>` : ''}
+                ${isCur ? `<span id="meldepflichtStand" style="font-size:10.5px;color:#64748b;text-align:right;max-width:16em"></span>` : ''}
                </span>`
             : '';
         const rowStyle  = isExpired
@@ -17211,13 +17207,61 @@ async function meldepflichtStandLaden(employeeId) {
     } catch { /* Stand ist nur Anzeige */ }
 }
 
+let _mpArt = 'beendigung';
+
+async function meldepflichtHubOpen(art) {
+    _mpArt = art === 'aufnahme' ? 'aufnahme' : 'beendigung';
+    const t = document.getElementById('mpTitle');
+    if (t) t.textContent = _mpArt === 'aufnahme' ? 'Meldepflicht Anmeldung' : 'Meldepflicht Abmeldung';
+    const sub = document.getElementById('mpSub');
+    if (sub) sub.textContent = _mpArt === 'aufnahme'
+        ? 'Formular 2b: Aufnahme der Erwerbstätigkeit. Mitarbeiter wählen — die Mail geht erst nach der Rückfrage raus.'
+        : 'Formular 2b: Beendigung der Erwerbstätigkeit. Mitarbeiter wählen — die Mail geht erst nach der Rückfrage raus.';
+    const filter = document.getElementById('mpEmpFilter');
+    if (filter) filter.value = _mpArt === 'aufnahme' ? 'active' : 'all';
+    const search = document.getElementById('mpEmpSearch');
+    if (search) search.value = '';
+    showPage('meldepflicht');
+    const sel = document.getElementById('mpEmpSelect');
+    if (sel) sel.value = '';
+    try { _mpEmployees = await loadEmployeeLookup(); } catch { _mpEmployees = []; }
+    if (typeof _renderEmpPicker === 'function') _renderEmpPicker('mpEmpFilter', 'mpEmpSearch', 'mpEmpSelect', _mpEmployees);
+}
+
+let _mpEmployees = [];
+
+function mpRenderEmpList() {
+    if (typeof _renderEmpPicker === 'function') _renderEmpPicker('mpEmpFilter', 'mpEmpSearch', 'mpEmpSelect', _mpEmployees);
+}
+
+function mpOnEmpChange() {
+    const id = +(document.getElementById('mpEmpSelect')?.value || 0);
+    if (!id) return;
+    meldepflichtSenden(id, _mpArt);
+}
+
 async function meldepflichtSenden(employeeId, art) {
     const beendigung = art === 'beendigung';
-    const austritt = selectedEmployee?.exitDate || selectedEmployee?.kuendigungPer;
+    let austritt = null;
+    let name = '';
+    if (selectedEmployee && Number(selectedEmployee.id) === Number(employeeId)) {
+        austritt = selectedEmployee.exitDate || selectedEmployee.kuendigungPer;
+        name = `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''}`.trim();
+    } else {
+        try {
+            const r = await fetch(`/api/employees/${employeeId}`, { headers: ah() });
+            if (r.ok) {
+                const e = await r.json();
+                austritt = e.exitDate || e.kuendigungPer;
+                name = `${e.firstName || ''} ${e.lastName || ''}`.trim();
+            }
+        } catch { /* Datum nimmt der Server */ }
+    }
     const datumTxt = austritt ? new Date(austritt).toLocaleDateString('de-CH') : '';
+    const wer = name ? ` für ${name}` : '';
     const frage = beendigung
-        ? `Formular 2b zur Beendigung${datumTxt ? ' per ' + datumTxt : ''} an die kantonale Behörde senden?`
-        : 'Formular 2b zur Aufnahme der Tätigkeit an die kantonale Behörde senden?';
+        ? `Formular 2b zur Beendigung${wer}${datumTxt ? ' per ' + datumTxt : ''} an die kantonale Behörde senden?`
+        : `Formular 2b zur Aufnahme der Tätigkeit${wer} an die kantonale Behörde senden?`;
     if (!await liquidConfirm(frage, { title: 'Meldepflicht', yesLabel: 'Senden', noLabel: 'Abbrechen' })) return;
     const body = { art, datum: beendigung && austritt ? String(austritt).slice(0, 10) : null };
     const res = await fetch(`/api/employees/${employeeId}/meldepflicht-meldung`, {
