@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 92;  // 92: Stand-91-Spalten VOR Schema-Check · 91: Fibu Modell + lohnart_code · 90: MTP 1005…
+const int SchemaStand = 93;  // 93: Gerant-KSt 400 aus Kontoplan · 92: Fibu-Spalten vor Schema-Check · 91: Modell + lohnart_code
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2523,6 +2523,27 @@ using (var scope = app.Services.CreateScope())
              WHERE position = v.pos AND (lohnart_code IS NULL OR lohnart_code = '');
         ");
         startLog.LogInformation("Stand 92: Fibu lohnart_code + modell vor Schema-Check");
+    }
+
+    // Stand 93: Kostenstelle Gerant (400) ist dieselbe Buchung wie Management (300).
+    // Abacus bekommt nur Konten; das Aufwandskonto kommt vom Vertrag.
+    if (dbStand < 93)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE lohn_konto_mapping AS g
+               SET is_active = false
+             WHERE g.kostenstelle_nr = '400'
+               AND g.is_active = true
+               AND EXISTS (
+                   SELECT 1 FROM lohn_konto_mapping m
+                    WHERE m.kostenstelle_nr = '300'
+                      AND m.is_active = true
+                      AND m.position = g.position
+                      AND m.sub_position IS NOT DISTINCT FROM g.sub_position
+                      AND m.fibukonto = g.fibukonto
+                      AND m.gegenkonto = g.gegenkonto);
+        ");
+        startLog.LogInformation("Stand 93: Kontoplan ohne Gerant-Kostenstelle");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

@@ -5406,28 +5406,20 @@
                 <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
                     <h1 class="page-title">Kontoplan (Fibu)</h1>
-                    <p class="page-sub">Swissdec-Lohnart × Vertrags-Modell → Soll/Haben/MWST — Grundlage für Fibu-Journal und Abacus-Export (keine Kostenstellen; Abacus nur Konten)</p>
+                    <p class="page-sub">Lohnart → Soll und Haben. Das Aufwandskonto kommt vom Vertrag (Crew 4000, Flex 4001, Management 4055) — keine Kostenstellen.</p>
                 </div></div>
                 <div class="fh-toolbar" style="gap:14px">
                     <input type="text" id="kpSearch" oninput="kpRender()" placeholder="Suchen (Lohnart, Konto, Text)…" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
-                    <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px">Modell
-                        <select id="kpModellFilter" onchange="kpRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
-                            <option value="">alle</option>
-                            <option value="CREW">Crew / MTP (FIX+MTP)</option>
-                            <option value="FLEX">Flex</option>
-                            <option value="MGMT">Management (FIX-M)</option>
-                        </select>
-                    </label>
                     <span id="kpInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
                 </div>
                 <div class="fh-cols-head-wrap">
                     <table class="fh-table fh-table-head" aria-hidden="true">
                         <colgroup>
-                            <col class="kp-c-sub"><col class="kp-c-kst"><col class="kp-c-bez">
+                            <col class="kp-c-sub"><col class="kp-c-bez">
                             <col class="kp-c-soll"><col class="kp-c-gegen"><col class="kp-c-typ"><col class="kp-c-act">
                         </colgroup>
                         <thead><tr>
-                            <th>Lohnart</th><th>Modell</th><th>Bezeichnung</th>
+                            <th>Lohnart</th><th>Bezeichnung</th>
                             <th>Soll</th><th>Gegen</th><th>Typ</th><th class="fh-th-right">Aktion</th>
                         </tr></thead>
                     </table>
@@ -5438,11 +5430,11 @@
                         <div class="fh-list-scroll">
                             <table class="fh-table fh-table-body">
                                 <colgroup>
-                                    <col class="kp-c-sub"><col class="kp-c-kst"><col class="kp-c-bez">
+                                    <col class="kp-c-sub"><col class="kp-c-bez">
                                     <col class="kp-c-soll"><col class="kp-c-gegen"><col class="kp-c-typ"><col class="kp-c-act">
                                 </colgroup>
                                 <tbody id="kpTableBody">
-                                    <tr><td colspan="7" style="padding:24px;color:#94a3b8;font-size:13px;text-align:center">Lade Kontoplan…</td></tr>
+                                    <tr><td colspan="6" style="padding:24px;color:#94a3b8;font-size:13px;text-align:center">Lade Kontoplan…</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -10792,7 +10784,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20261007a"></script>
-<script src="js/kontoplan.js?v=20261019a"></script>
+<script src="js/kontoplan.js?v=20261020a"></script>
 <script src="js/warning-config.js?v=20261001b"></script>
 <script src="js/easyatwork.js?v=20261012a"></script>
 <script src="js/eaw-stempel-automat.js?v=20261007a"></script>
