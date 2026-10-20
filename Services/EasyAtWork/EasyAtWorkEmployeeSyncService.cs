@@ -3836,6 +3836,41 @@ public class EasyAtWorkEmployeeSyncService
                         vorhanden.IsActive = false;
                         cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): offener Vertrag ab {seg.Start:dd.MM.yyyy} per {seg.End.Value:dd.MM.yyyy} abgeschlossen (Austritt in easy@work {eawTo.Value:dd.MM.yyyy}).");
                     }
+                    // Laufender Vertrag, in OneCrew zu früh geschlossen (Walter 20.10.2026).
+                    // Ein gelöschter Ein-Tages-Lohnsatz hatte das Ende auf den Starttag gesetzt.
+                    // Der Beginn liegt vor 2026, der Vertrag läuft in easy aber weiter und es gibt
+                    // keinen Austritt — dann wird nur dieses Ende wieder geöffnet und der aktuelle
+                    // Lohn übernommen. Abgeschlossene Alt-Abschnitte bleiben unangetastet.
+                    bool easyLaeuft = !seg.End.HasValue || seg.End.Value >= today;
+                    bool keinAustritt = !eawTo.HasValue || eawTo.Value >= today;
+                    bool zuFruehZu = vorhanden.ContractEndDate.HasValue
+                        && (!seg.End.HasValue
+                            || DateOnly.FromDateTime(vorhanden.ContractEndDate.Value) < seg.End.Value);
+                    if (easyLaeuft && keinAustritt && zuFruehZu && !vorhanden.EasyAtWorkManualOverride)
+                    {
+                        vorhanden.ContractEndDate = endDt;
+                        vorhanden.IsActive = active;
+                        vorhanden.EasyAtWorkPayRateId = seg.EasyAtWorkPayRateId;
+                        if (info.HourlyRate.HasValue)
+                        {
+                            vorhanden.HourlyRate = info.HourlyRate;
+                            vorhanden.MonthlySalary = null;
+                            vorhanden.MonthlySalaryFte = null;
+                            vorhanden.SalaryType = "hourly";
+                        }
+                        else if (info.MonthlySalary.HasValue || info.MonthlySalaryFte.HasValue)
+                        {
+                            if (info.MonthlySalary.HasValue) vorhanden.MonthlySalary = info.MonthlySalary;
+                            if (info.MonthlySalaryFte.HasValue) vorhanden.MonthlySalaryFte = info.MonthlySalaryFte;
+                            vorhanden.HourlyRate = null;
+                            vorhanden.SalaryType = "monthly";
+                        }
+                        if (info.GuaranteedHoursPerWeek.HasValue)
+                            vorhanden.GuaranteedHoursPerWeek = info.GuaranteedHoursPerWeek;
+                        if (!string.IsNullOrWhiteSpace(info.EmploymentModel))
+                            vorhanden.EmploymentModel = info.EmploymentModel!;
+                        cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): Vertrag ab {seg.Start:dd.MM.yyyy} war zu früh geschlossen und läuft in easy@work weiter — Ende wieder geöffnet.");
+                    }
                     continue;
                 }
             }

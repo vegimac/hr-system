@@ -253,6 +253,46 @@ public class EasyAtWorkLohnNachtragTests
     }
 
     [Fact]
+    public async Task GeloeschterEinTagesTarif_OeffnetDenLaufendenVertragWieder()
+    {
+        // Vertrag ab 1.2.2025 offen, der falsche Tarif 1.2.–1.2. ist gelöscht.
+        // Übrig ist der Stundenlohn ab 1.1.2026. Der Sync darf das Ende nicht
+        // stehen lassen, nur weil der Beginn vor 2026 liegt.
+        using var db = NewDb();
+        var emp = await SeedAsync(db);
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = emp.Id, CompanyProfileId = 1,
+            ContractStartDate = new DateTime(2025, 2, 1), ContractEndDate = new DateTime(2025, 2, 1),
+            EmploymentModel = "MTP", SalaryType = "hourly", HourlyRate = 21.50m,
+            GuaranteedHoursPerWeek = 34m, IsActive = false, EasyAtWorkContractId = 9001,
+        });
+        await db.SaveChangesAsync();
+
+        var c = new List<EawContract>
+        {
+            new() { Id = 9001, AmountType = "week", Amount = 34m, FromRaw = "2025-01-31 23:00:00" },
+        };
+        var r = new List<EawPayRate>
+        {
+            new() { Id = 9002, Type = "hour", Rate = 21.66m, FromRaw = "2025-12-31 23:00:00" },
+        };
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, new DateOnly(2026, 10, 20));
+        var notes = new List<string>();
+        await EasyAtWorkEmployeeSyncService.SyncEmploymentTimelineAsync(
+            db, emp, 1, tl, null, "HOST_CT", null,
+            cleanupNotes: notes, historieStichtag: EasyAtWorkEmployeeSyncService.HistorieStichtag);
+        await db.SaveChangesAsync();
+
+        var v = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
+        Assert.Null(v.ContractEndDate);
+        Assert.True(v.IsActive);
+        Assert.Equal(21.66m, v.HourlyRate);
+        Assert.Equal(34m, v.GuaranteedHoursPerWeek);
+        Assert.Contains(notes, n => n.Contains("wieder geöffnet"));
+    }
+
+    [Fact]
     public async Task OffenerAltvertrag_OhneAustrittInEasy_BleibtOffen()
     {
         // Läuft die Person in easy weiter (kein «Eingestellt bis»), bleibt der
