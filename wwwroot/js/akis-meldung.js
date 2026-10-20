@@ -234,9 +234,12 @@ async function akisDownload(typ, btn) {
         const cd = res.headers.get('Content-Disposition') || '';
         const name = cdFilename(cd, `${typ}Mitarbeitende.xlsx`);
         if (_akisBlobs[typ]?.url) URL.revokeObjectURL(_akisBlobs[typ].url);
-        _akisBlobs[typ] = { blob, name, url: URL.createObjectURL(blob) };
+        // data:-Adresse, nicht blob: — nur die kann Chrome beim Fallenlassen in ein
+        // anderes Fenster (AKISnet) als echte Datei nachladen.
+        const dataUrl = await _akisAlsDataUrl(blob);
+        _akisBlobs[typ] = { blob, name, url: URL.createObjectURL(blob), dataUrl };
         akisRenderFiles();
-        showToast('Excel bereit — Chip in den AKISnet-Tab ziehen oder speichern.', 'success');
+        showToast('Excel bereit — Chip direkt ins AKISnet-Fenster ziehen.', 'success');
     } catch (_) {
         showToast('Verbindungsfehler beim Export.', 'error');
     } finally {
@@ -250,28 +253,43 @@ function akisRenderFiles() {
     const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     el.innerHTML = Object.entries(_akisBlobs).map(([typ, f]) => `
         <div draggable="true" ondragstart="akisDragStart(event, '${typ}')"
-             title="Auf den Schreibtisch ziehen (Chrome legt die Datei dort ab), dann vom Schreibtisch in die AKISnet-Upload-Zone — Browser erlauben keinen Datei-Drag direkt zwischen zwei Fenstern"
+             title="Chip mit der Maus ins AKISnet-Fenster ziehen und auf die Upload-Fläche fallen lassen (Chrome)"
              style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.55);border:1px dashed rgba(60,55,48,0.35);border-radius:12px;padding:10px 14px;cursor:grab;user-select:none">
             <span style="font-size:20px">📄</span>
             <span style="font-size:12.5px;font-weight:600;color:#3f3f3f">${esc(f.name)}<br>
-                <span style="font-weight:400;color:#8b8b8b;font-size:11px">auf den Schreibtisch ziehen → von dort ins AKISnet</span></span>
+                <span style="font-weight:400;color:#8b8b8b;font-size:11px">direkt ins AKISnet-Fenster ziehen</span></span>
             <button onclick="saveBlobAsk(_akisBlobs['${typ}'].blob, _akisBlobs['${typ}'].name)"
                     title="Speichern unter…"
                     style="background:transparent;border:1px solid rgba(60,55,48,0.18);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:#646464">💾</button>
         </div>`).join('');
 }
 
+function _akisAlsDataUrl(blob) {
+    const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const datei = blob.type === mime ? blob : new Blob([blob], { type: mime });
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || ''));
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(datei);
+    });
+}
+
 function akisDragStart(e, typ) {
     const f = _akisBlobs[typ];
     if (!f) return;
     const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    try {
-        // Echte Datei in den Drag legen — Drop-Zonen (AKISnet) sehen sie als File.
-        e.dataTransfer.items.add(new File([f.blob], f.name, { type: mime }));
-    } catch (_) { /* ältere Browser */ }
-    // Fallback: Drag auf Desktop/Finder (Chrome-Konvention).
-    try { e.dataTransfer.setData('DownloadURL', `${mime}:${f.name}:${f.url}`); } catch (_) {}
+    const name = String(f.name || 'Mitarbeitende.xlsx').replace(/[:\\/]/g, '_');
     e.dataTransfer.effectAllowed = 'copy';
+    try {
+        e.dataTransfer.items.add(new File([f.blob], name, { type: mime }));
+    } catch (_) { /* ältere Browser */ }
+    // Chrome: DownloadURL macht aus dem Zug eine echte Datei, auch im anderen Fenster.
+    // blob:-Adressen gelten nur in OneCrew und kommen im AKISnet leer an — darum data:.
+    const url = f.dataUrl || f.url;
+    if (url) {
+        try { e.dataTransfer.setData('DownloadURL', `${mime}:${name}:${url}`); } catch (_) {}
+    }
 }
 
 function akisOpenPortal() {
