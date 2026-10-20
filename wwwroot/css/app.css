@@ -13439,6 +13439,7 @@ body.theme-dark .le-hub-karte {
 /* Familienzulage aus Mitteilung */
 .fzm-layout { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.05fr); gap: 16px; align-items: start; }
 .fzm-drop {
+    position: relative;
     border: 1px dashed rgba(60, 55, 48, 0.28);
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.45);
@@ -13446,9 +13447,20 @@ body.theme-dark .le-hub-karte {
     text-align: center;
     color: #646464;
     font-size: 13px;
+    cursor: pointer;
 }
-.fzm-drop { position: relative; }
 .fzm-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.fzm-drop-aktionen { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.fzm-suchen {
+    background: rgba(255, 255, 255, 0.7);
+    color: #3f3f3f;
+    border: 1px solid rgba(60, 55, 48, 0.18);
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
 .fzm-einlesen, .fzm-speichern, .fzm-oeffnen {
     background: #3f3f3f; color: #fff; border: none; border-radius: 12px;
     padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;

@@ -32,6 +32,12 @@ function fzmDateiGewaehlt(file) {
     if (v) v.innerHTML = '';
 }
 
+function fzmDateiSuchen(ev) {
+    if (ev && ev.target && ev.target.closest && ev.target.closest('button')) return;
+    const inp = document.getElementById('fzmFile');
+    if (inp) inp.click();
+}
+
 function fzmDrop(ev) {
     ev.preventDefault();
     const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];

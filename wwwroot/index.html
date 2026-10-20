@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261020l">
+    <link rel="stylesheet" href="css/app.css?v=20261020m">
 </head>
 <body>
 
@@ -8929,10 +8929,13 @@
                 </div>
                 <div class="fzm-layout">
                     <div class="card" style="padding:18px">
-                        <div class="fzm-drop" ondragover="event.preventDefault()" ondrop="fzmDrop(event)">
-                            <label for="fzmFile" id="fzmDateiName" style="cursor:pointer;display:block;margin-bottom:12px">PDF hierher ziehen oder auswählen</label>
+                        <div class="fzm-drop" onclick="fzmDateiSuchen(event)" ondragover="event.preventDefault()" ondrop="fzmDrop(event)">
+                            <div id="fzmDateiName">PDF hierher ziehen oder auswählen</div>
+                            <div class="fzm-drop-aktionen">
+                                <button type="button" class="fzm-suchen" onclick="event.stopPropagation(); fzmDateiSuchen()">Datei suchen</button>
+                                <button type="button" class="fzm-einlesen" id="fzmEinlesenBtn" onclick="event.stopPropagation(); fzmEinlesen()">Einlesen</button>
+                            </div>
                             <input id="fzmFile" type="file" accept="application/pdf,.pdf" onchange="fzmDateiGewaehlt(this.files && this.files[0])">
-                            <button type="button" class="fzm-einlesen" id="fzmEinlesenBtn" onclick="fzmEinlesen()">Einlesen</button>
                         </div>
                         <div id="fzmVorschau" style="margin-top:16px"></div>
                     </div>
@@ -10805,7 +10808,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/mirus-fehlende-ma.js?v=20261011a"></script>
 <script src="js/gs-ahv-abgleich.js?v=20261013b"></script>
 <script src="js/gs-fz-abgleich.js?v=20261012c"></script>
-<script src="js/famz-mitteilung.js?v=20261020a"></script>
+<script src="js/famz-mitteilung.js?v=20261020b"></script>
 <script src="js/gespraech.js?v=20261015b"></script>
 <script src="js/roster-absence-import.js?v=20261003a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
