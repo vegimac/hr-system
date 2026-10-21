@@ -7,10 +7,10 @@ using iText.Kernel.Pdf.Canvas.Parser;
 namespace HrSystem.Services;
 
 /// <summary>
-/// Eine einzelne GastroSocial-Mitteilung (Entscheid oder Verfallanzeige).
+/// Eine einzelne GastroSocial-Mitteilung (Entscheid, Verfallanzeige oder Wegfallanzeige).
 /// Kein Firmen-Import: ein PDF, die Kinder darauf, sonst nichts.
 /// </summary>
-public enum FamzMitteilungArt { Unbekannt, Entscheid, Verfall }
+public enum FamzMitteilungArt { Unbekannt, Entscheid, Verfall, Wegfall }
 
 public sealed record FamzMitteilung(
     FamzMitteilungArt Art,
@@ -20,7 +20,9 @@ public sealed record FamzMitteilung(
     string? Vorname,
     string? FakKanton,
     IReadOnlyList<FamzMitteilungKind> Kinder,
-    string? Fehler);
+    string? Fehler,
+    DateOnly? Anspruchsende = null,
+    string? Beendigungsgrund = null);
 
 public sealed record FamzMitteilungKind(
     string Vorname,
@@ -33,8 +35,9 @@ public sealed record FamzMitteilungKind(
     decimal? Betrag);
 
 /// <summary>
-/// Liest den Text eines Familienzulagen-Entscheids oder einer Verfallanzeige.
+/// Liest den Text eines Familienzulagen-Entscheids, einer Verfallanzeige oder Wegfallanzeige.
 /// Die Ziffer neben der Zulage ist der Beendigungsgrund, nicht der Tarif-Satz.
+/// Wegfallanzeige («Anderer Bezüger») nennt keine Kinder — Anspruchsende gilt für alle Zulagen des MA.
 /// </summary>
 public static partial class FamzMitteilungLeser
 {
@@ -54,12 +57,15 @@ public static partial class FamzMitteilungLeser
         if (string.IsNullOrWhiteSpace(text))
             return Leer(FamzMitteilungArt.Unbekannt, "Das PDF enthält keinen Text.");
 
-        var art = text.Contains("Verfallanzeige", StringComparison.OrdinalIgnoreCase)
-            ? FamzMitteilungArt.Verfall
-            : text.Contains("Familienzulagen", StringComparison.OrdinalIgnoreCase)
-              && text.Contains("Entscheid", StringComparison.OrdinalIgnoreCase)
-                ? FamzMitteilungArt.Entscheid
-                : FamzMitteilungArt.Unbekannt;
+        // Wegfall vor Verfall: Titel «Wegfallanzeige» enthält kein «Verfall».
+        var art = text.Contains("Wegfallanzeige", StringComparison.OrdinalIgnoreCase)
+            ? FamzMitteilungArt.Wegfall
+            : text.Contains("Verfallanzeige", StringComparison.OrdinalIgnoreCase)
+                ? FamzMitteilungArt.Verfall
+                : text.Contains("Familienzulagen", StringComparison.OrdinalIgnoreCase)
+                  && text.Contains("Entscheid", StringComparison.OrdinalIgnoreCase)
+                    ? FamzMitteilungArt.Entscheid
+                    : FamzMitteilungArt.Unbekannt;
 
         var brief = Datum(DatumRx().Match(text).Groups[1].Value);
         var ahv = AhvDerBerechtigten(text);
@@ -69,14 +75,23 @@ public static partial class FamzMitteilungLeser
 
         if (art == FamzMitteilungArt.Unbekannt)
             return new FamzMitteilung(art, brief, ahv, nachname, vorname, fakKanton, [],
-                "Das ist kein Familienzulagen-Entscheid und keine Verfallanzeige.");
+                "Das ist kein Familienzulagen-Entscheid, keine Verfallanzeige und keine Wegfallanzeige.");
 
         var kern = Kern(text);
+        if (art == FamzMitteilungArt.Wegfall)
+        {
+            var (ende, grund) = WegfallEnde(kern);
+            string? fehler = null;
+            if (ahv == null) fehler = "Keine AHV-Nummer auf der Mitteilung.";
+            else if (ende == null) fehler = "Kein Anspruchsende auf der Wegfallanzeige.";
+            return new FamzMitteilung(art, brief, ahv, nachname, vorname, fakKanton, [], fehler, ende, grund);
+        }
+
         var kinder = art == FamzMitteilungArt.Verfall ? Verfall(kern) : Entscheid(kern);
-        string? fehler = null;
-        if (ahv == null) fehler = "Keine AHV-Nummer auf der Mitteilung.";
-        else if (kinder.Count == 0) fehler = "Keine Kindzeile auf der Mitteilung.";
-        return new FamzMitteilung(art, brief, ahv, nachname, vorname, fakKanton, kinder, fehler);
+        string? fehlerKind = null;
+        if (ahv == null) fehlerKind = "Keine AHV-Nummer auf der Mitteilung.";
+        else if (kinder.Count == 0) fehlerKind = "Keine Kindzeile auf der Mitteilung.";
+        return new FamzMitteilung(art, brief, ahv, nachname, vorname, fakKanton, kinder, fehlerKind);
     }
 
     public static string? Ahv(string? raw)
@@ -134,6 +149,7 @@ public static partial class FamzMitteilungLeser
         var rest = text[start..];
         var ende = rest.IndexOf("Kind", StringComparison.OrdinalIgnoreCase);
         if (ende < 0) ende = rest.IndexOf("Der Zulagenanspruch", StringComparison.OrdinalIgnoreCase);
+        if (ende < 0) ende = rest.IndexOf("Für folgende Person", StringComparison.OrdinalIgnoreCase);
         if (ende > 0) rest = rest[..ende];
         return rest;
     }
@@ -145,6 +161,35 @@ public static partial class FamzMitteilungLeser
         var m = NameKommaRx().Match(rest);
         if (!m.Success) return (null, null);
         return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim());
+    }
+
+    /// <summary>
+    /// Anspruchsende + Begründung. Primär «Zahlungen per … eingestellt», sonst Tabellenzeile.
+    /// </summary>
+    static (DateOnly? Ende, string? Grund) WegfallEnde(string text)
+    {
+        DateOnly? ende = null;
+        string? grund = null;
+        var per = EingestelltRx().Match(text);
+        if (per.Success) ende = Datum(per.Groups[1].Value);
+
+        var zeile = WegfallZeileRx().Match(text);
+        if (zeile.Success)
+        {
+            ende ??= Datum(zeile.Groups["ende"].Value);
+            grund = zeile.Groups["grund"].Value.Trim();
+            if (grund.Length < 3) grund = null;
+        }
+        if (grund == null)
+        {
+            var g = BegruendungRx().Match(text);
+            if (g.Success)
+            {
+                grund = g.Groups[1].Value.Trim();
+                if (grund.Length < 3) grund = null;
+            }
+        }
+        return (ende, grund);
     }
 
     static List<FamzMitteilungKind> Entscheid(string text)
@@ -221,4 +266,21 @@ public static partial class FamzMitteilungLeser
         @"(?<name>[A-ZÄÖÜÀ-Ý][\p{L}'’\-]+)\s+(?<geb>\d{2}\.\d{2}\.\d{2,4})\s+(?<ende>\d{2}\.\d{2}\.\d{4})\s+(?<grund>[^\r\n]{3,80})",
         RegexOptions.CultureInvariant)]
     private static partial Regex VerfallRx();
+
+    [GeneratedRegex(@"per\s+(\d{2}\.\d{2}\.\d{4})\s+eingestellt",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex EingestelltRx();
+
+    /// <summary>
+    /// Tabellenzeile: AHV · Name, Vorname · Anspruchsende · Begründung
+    /// (Sithiravel Wegfallanzeige 20.10.2026).
+    /// </summary>
+    [GeneratedRegex(
+        @"756[\s.]*\d{4}[\s.]*\d{4}[\s.]*\d{2}\s+[A-ZÄÖÜÀ-Ý][\p{L}'’\-]+\s*,\s+[A-ZÄÖÜÀ-Ý][\p{L}'’\-]+\s+(?<ende>\d{2}\.\d{2}\.\d{4})\s+(?<grund>[^\r\n]{3,80})",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex WegfallZeileRx();
+
+    [GeneratedRegex(@"Begründung\s*\r?\n[^\r\n]*?(Anderer Bezüger|[^\r\n]{3,60})",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex BegruendungRx();
 }

@@ -55,6 +55,25 @@ public class FamzMitteilungTests
         """;
 
     /// <summary>
+    /// Sithiravel Wegfallanzeige 20.10.2026: anderer Elternteil ab 01.09. — keine Kindzeile,
+    /// Anspruchsende gilt für alle laufenden Zulagen des MA.
+    /// </summary>
+    const string SithiravelWegfall = """
+        Abrech.-Nr.: AG 808.0121.00
+        Datum: 20.10.2026
+        Wegfallanzeige
+        Berechtigte(r): Sithiravel, Nimalneethan Massg. Gesetz: FAK AG
+        AHV-Nummer: 756.1040.2800.41 / 3'137'386 Gültig ab: 01.01.2026
+        Begünstigte(r): Schaub Restaurants GmbH Nationalität: LK
+        Für folgende Person wurden die Zahlungen per 31.08.2026 eingestellt:
+        Begünstigter AHV-Nummer Name, Vorname Anspruchsende Begründung
+        756.1040.2800.41 Sithiravel, Nimalneethan 31.08.2026 Anderer Bezüger
+        Ab dem 01.09.2026 werden die Familienzulagen vom anderen Elternteil bezogen.
+        Wir bitten um Kenntnisnahme.
+        Wichtige Hinweise
+        """;
+
+    /// <summary>
     /// Direktauszahlung: oben links steht die AHV des Kindes («AHVNr.»), die der
     /// Berechtigten erst bei «AHV-Nummer:» — nicht die Kind-Nummer als MA nehmen.
     /// </summary>
@@ -139,6 +158,48 @@ public class FamzMitteilungTests
         Assert.Equal(new DateOnly(2026, 7, 31), d.Bis);
         Assert.Contains("Ausbildungsende", d.GrundText);
         Assert.Null(d.Betrag);
+    }
+
+    [Fact]
+    public void Wegfallanzeige_liest_Anspruchsende_ohne_Kindzeile()
+    {
+        var m = FamzMitteilungLeser.Lies(SithiravelWegfall);
+        Assert.Equal(FamzMitteilungArt.Wegfall, m.Art);
+        Assert.Equal(new DateOnly(2026, 10, 20), m.Briefdatum);
+        Assert.Equal("756.1040.2800.41", m.Ahv);
+        Assert.Equal("Sithiravel", m.Nachname);
+        Assert.Equal("Nimalneethan", m.Vorname);
+        Assert.Equal("AG", m.FakKanton);
+        Assert.Empty(m.Kinder);
+        Assert.Equal(new DateOnly(2026, 8, 31), m.Anspruchsende);
+        Assert.Equal("Anderer Bezüger", m.Beendigungsgrund);
+        Assert.Null(m.Fehler);
+    }
+
+    [Fact]
+    public void Wegfall_beendet_alle_laufenden_Zulagen()
+    {
+        var m = FamzMitteilungLeser.Lies(SithiravelWegfall);
+        var alt = new FamzZulage(9, "KZ", 2, new DateOnly(2025, 1, 1), new DateOnly(2036, 4, 30), false, false);
+        var v = FamzMitteilungVorschlag.Erstelle(m, KontextWegfall(m, "AG", "Hendschiken",
+            Kind("Adithya Nivan", new DateOnly(2020, 4, 25), alt)));
+        var z = Assert.Single(v.Zeilen);
+        Assert.Equal(FamzMitteilungVorschlag.Beenden, z.Aktion);
+        Assert.Equal(FamzMitteilungVorschlag.ModusEnde, z.Modus);
+        Assert.Equal(new DateOnly(2026, 8, 31), z.Bis);
+        Assert.Equal(9, z.AllowanceId);
+        Assert.Contains("Anderer Bezüger", z.Text);
+        Assert.Contains("31.08.2026", z.Text);
+    }
+
+    [Fact]
+    public void Wegfall_auf_schon_beendete_Zulage_aendert_nichts()
+    {
+        var m = FamzMitteilungLeser.Lies(SithiravelWegfall);
+        var alt = new FamzZulage(9, "KZ", 2, new DateOnly(2025, 1, 1), new DateOnly(2026, 8, 31), false, false);
+        var v = FamzMitteilungVorschlag.Erstelle(m, KontextWegfall(m, "AG", "Hendschiken",
+            Kind("Adithya Nivan", new DateOnly(2020, 4, 25), alt)));
+        Assert.Equal(FamzMitteilungVorschlag.Nichts, Assert.Single(v.Zeilen).Aktion);
     }
 
     [Fact]
@@ -318,6 +379,19 @@ public class FamzMitteilungTests
         Assert.Equal(new DateOnly(2026, 7, 31), Assert.Single(verfall.Kinder).Bis);
     }
 
+    [Fact]
+    public void Echte_Wegfallanzeige_Sithiravel()
+    {
+        var pfad = "/Users/Walter/Downloads/15202600069523.pdf";
+        if (!File.Exists(pfad)) return;
+        var m = FamzMitteilungLeser.Lies(FamzMitteilungLeser.TextAusPdf(File.ReadAllBytes(pfad)));
+        Assert.Equal(FamzMitteilungArt.Wegfall, m.Art);
+        Assert.Equal("756.1040.2800.41", m.Ahv);
+        Assert.Equal(new DateOnly(2026, 8, 31), m.Anspruchsende);
+        Assert.Equal("Anderer Bezüger", m.Beendigungsgrund);
+        Assert.Empty(m.Kinder);
+    }
+
     static FamzKind Kind(string vorname, DateOnly geburt, params FamzZulage[] zulagen) =>
         new(vorname.GetHashCode(), vorname, geburt, zulagen);
 
@@ -327,6 +401,9 @@ public class FamzMitteilungTests
             .Select(t => Tarif(t, kanton, filiale)).ToList();
         return new FamzKontext(1, m.Vorname, m.Nachname, filiale, kanton, false, null, kinder, tage);
     }
+
+    static FamzKontext KontextWegfall(FamzMitteilung m, string kanton, string filiale, params FamzKind[] kinder) =>
+        new(1, m.Vorname, m.Nachname, filiale, kanton, false, null, kinder, []);
 
     static FamzKontext Kontext(FamzMitteilung m, TarifAmTag tarif, params FamzKind[] kinder) =>
         new(1, m.Vorname, m.Nachname, tarif.Filiale, tarif.Kanton, false, null, kinder, [tarif]);

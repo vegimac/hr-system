@@ -1,4 +1,4 @@
-// Eine neue GastroSocial-Mitteilung (Entscheid oder Verfallanzeige).
+// Eine neue GastroSocial-Mitteilung (Entscheid, Verfall- oder Wegfallanzeige).
 // Vorschlag, Bestätigung, dann Zulage speichern und den Beleg am Eintrag ablegen.
 let _fzmFile = null;
 let _fzmUrl = null;

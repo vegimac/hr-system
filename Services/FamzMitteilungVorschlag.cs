@@ -22,20 +22,91 @@ public static class FamzMitteilungVorschlag
 
     public static FamzVorschlag Erstelle(FamzMitteilung m, FamzKontext k)
     {
-        if (m.Art == FamzMitteilungArt.Unbekannt || m.Kinder.Count == 0)
+        if (m.Art == FamzMitteilungArt.Unbekannt)
+            return new FamzVorschlag(m, k, []);
+        if (m.Art == FamzMitteilungArt.Wegfall)
+            return new FamzVorschlag(m, k, WegfallAlle(m, k));
+        if (m.Kinder.Count == 0)
             return new FamzVorschlag(m, k, []);
 
         var zeilen = new List<FamzZeile>();
         foreach (var kind in m.Kinder)
             zeilen.Add(m.Art == FamzMitteilungArt.Verfall ? Verfall(m, kind, k) : Entscheid(m, kind, k));
+        return new FamzVorschlag(m, k, Eindeutig(zeilen));
+    }
+
+    /// <summary>
+    /// Wegfallanzeige nennt keine Kinder — alle laufenden Zulagen des MA enden am Anspruchsende
+    /// (z.B. «Anderer Bezüger», anderer Elternteil bezieht ab Folgemonat).
+    /// </summary>
+    static List<FamzZeile> WegfallAlle(FamzMitteilung m, FamzKontext k)
+    {
+        if (m.Anspruchsende == null)
+            return [HinweisZeile("Kein Anspruchsende auf der Wegfallanzeige.")];
+        var ende = m.Anspruchsende.Value;
+        var grund = string.IsNullOrWhiteSpace(m.Beendigungsgrund) ? "" : $" ({m.Beendigungsgrund})";
+        if (k.Kinder.Count == 0)
+            return [HinweisZeile($"Keine Kinder in der Familie — Zulage per {D(ende)} nicht beendet.")];
+
+        var zeilen = new List<FamzZeile>();
+        foreach (var wer in k.Kinder)
+        {
+            var pseudo = new FamzMitteilungKind(wer.Vorname, wer.Geburt, null, ende, null, null, m.Beendigungsgrund, null);
+            var laufend = wer.Zulagen
+                .Where(z => z.Von <= ende && (z.Bis == null || z.Bis.Value >= ende))
+                .OrderByDescending(z => z.Von)
+                .ToList();
+            if (laufend.Count > 1)
+            {
+                zeilen.Add(UnklarZeile(pseudo, $"{wer.Vorname}: mehrere Zulagen laufen am {D(ende)}."));
+                continue;
+            }
+            if (laufend.Count == 1)
+            {
+                var z = laufend[0];
+                if (z.Bis == ende)
+                {
+                    zeilen.Add(Zeile(Nichts, true, ModusBeleg, pseudo, wer.Id, z.Id, null, null, ende, null,
+                        $"{wer.Vorname}: endet schon am {D(ende)}{grund}. Beleg kann an den Eintrag."));
+                    continue;
+                }
+                var bisher = z.HatBeleg ? " Der bisherige Beleg bleibt im Dossier." : "";
+                zeilen.Add(Zeile(Beenden, true, ModusEnde, pseudo, wer.Id, z.Id, null, z.Von, ende, null,
+                    $"{wer.Vorname}: beenden per {D(ende)}{grund}.{bisher}"));
+                continue;
+            }
+
+            var letzte = wer.Zulagen.OrderByDescending(z => z.Von).FirstOrDefault();
+            if (letzte == null) continue;
+            if (letzte.Bis == ende)
+            {
+                zeilen.Add(Zeile(Nichts, true, ModusBeleg, pseudo, wer.Id, letzte.Id, null, null, ende, null,
+                    $"{wer.Vorname}: endet schon am {D(ende)}{grund}. Beleg kann an den Eintrag."));
+                continue;
+            }
+            var bisTxt = letzte.Bis == null ? "ohne Ende" : $"am {D(letzte.Bis)}";
+            zeilen.Add(UnklarZeile(pseudo,
+                $"{wer.Vorname}: die letzte Zulage endet {bisTxt}, die Wegfallanzeige nennt {D(ende)}."));
+        }
+
+        if (zeilen.Count == 0)
+            return [HinweisZeile($"Keine Zulage zum Beenden per {D(ende)}{grund}.")];
+        return Eindeutig(zeilen);
+    }
+
+    static List<FamzZeile> Eindeutig(List<FamzZeile> zeilen)
+    {
         var gesehen = new HashSet<string>(StringComparer.Ordinal);
         for (var i = 0; i < zeilen.Count; i++)
         {
             if (!gesehen.Add(zeilen[i].Schluessel))
                 zeilen[i] = zeilen[i] with { Schluessel = zeilen[i].Schluessel + "-" + i };
         }
-        return new FamzVorschlag(m, k, zeilen);
+        return zeilen;
     }
+
+    static FamzZeile HinweisZeile(string text) =>
+        new("hinweis", Unklar, false, "", default, text, null, null, "", null, null, null, null, null, null);
 
     static FamzZeile Entscheid(FamzMitteilung m, FamzMitteilungKind kind, FamzKontext k)
     {

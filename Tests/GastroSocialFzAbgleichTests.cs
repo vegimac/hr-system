@@ -178,6 +178,27 @@ public class GastroSocialFzAbgleichTests
     /// Direktauszahlung: Bescheinigung hat Von/Bis, aber keinen Ansatz (Islamaj) —
     /// nicht als «Ansatz 0 vs. OneCrew» melden, wenn der Zeitraum in OneCrew gedeckt ist.
     /// </summary>
+    /// <summary>
+    /// GastroSocial «Miljana», OneCrew «Milijana» — gleiches Geburtsdatum, Zulage vorhanden:
+    /// nicht «Kind fehlt», sondern Match (+ ggf. Angaben prüfen wegen Schreibweise).
+    /// </summary>
+    [Fact]
+    public void Vorname_Tippfehler_ein_Buchstabe_findet_das_Kind()
+    {
+        var ma = MaMit(Zl(new(2026, 1, 1), new(2026, 7, 31), 278m, "AZ"));
+        ma.Kinder[0].Vorname = "Milijana";
+        ma.Kinder[0].Geburt = new DateTime(2007, 3, 30);
+        ma.Kinder[0].Ahv = null;
+        var z = Gs(Jan, new DateTime(2026, 7, 31), 278m, kindAhv: null, kind: "Miljana");
+        z.KindGeburt = new DateTime(2007, 3, 30);
+        var r = Vergleiche(new[] { z }, new[] { ma });
+        Assert.Empty(r.Fehlt);
+        Assert.Empty(r.NichtZuordenbar);
+        var t = Assert.Single(r.Passt);
+        Assert.Contains("Milijana", t.Kind);
+        Assert.Contains(r.AngabenPruefen, x => x.FamilyMemberId == t.FamilyMemberId);
+    }
+
     [Fact]
     public void Pendenzen_Pdf_enthaelt_offene_Punkte()
     {

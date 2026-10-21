@@ -205,13 +205,38 @@ public static class GastroSocialFzAbgleich
             yield return $"Name des MA: GastroSocial «{z.BezuegerVorname} {z.BezuegerName}», OneCrew «{m.Vorname} {m.Nachname}»";
     }
 
-    /// <summary>«Ana Marija» = «Anamarija», «Lea» = «Lea Sophie» — gleiche Schreibweise ohne Leerzeichen oder Vorname enthalten.</summary>
+    /// <summary>
+    /// «Ana Marija» = «Anamarija», «Lea» = «Lea Sophie»; ein Tippfehler-Buchstabe
+    /// («Miljana» / «Milijana») zählt auch als Treffer.
+    /// </summary>
     private static bool VornamePasst(string? a, string? b)
     {
         var x = NormName(a).Replace(" ", "");
         var y = NormName(b).Replace(" ", "");
         if (x.Length == 0 || y.Length == 0) return x.Length == 0;
-        return x == y || x.StartsWith(y) || y.StartsWith(x);
+        if (x == y || x.StartsWith(y) || y.StartsWith(x)) return true;
+        return EditDistanz(x, y) <= 1;
+    }
+
+    /// <summary>Levenshtein, klein gehalten (Vornamen).</summary>
+    static int EditDistanz(string a, string b)
+    {
+        if (a == b) return 0;
+        if (a.Length == 0) return b.Length;
+        if (b.Length == 0) return a.Length;
+        var prev = Enumerable.Range(0, b.Length + 1).ToArray();
+        for (var i = 0; i < a.Length; i++)
+        {
+            var cur = new int[b.Length + 1];
+            cur[0] = i + 1;
+            for (var j = 0; j < b.Length; j++)
+            {
+                var cost = a[i] == b[j] ? 0 : 1;
+                cur[j + 1] = Math.Min(Math.Min(cur[j] + 1, prev[j + 1] + 1), prev[j] + cost);
+            }
+            prev = cur;
+        }
+        return prev[b.Length];
     }
 
     private static string Chf(decimal b) => b.ToString("#,##0.00", CultureInfo.InvariantCulture).Replace(",", "'");

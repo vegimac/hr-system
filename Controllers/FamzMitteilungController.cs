@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Eine neue GastroSocial-Mitteilung (Entscheid oder Verfallanzeige) einlesen,
+/// Eine neue GastroSocial-Mitteilung (Entscheid, Verfall- oder Wegfallanzeige) einlesen,
 /// den Vorschlag zeigen und erst nach Bestätigung speichern. Der Beleg hängt
 /// danach am Zulagen-Eintrag. Nicht für den ganzen Bestand.
 /// </summary>
@@ -400,7 +400,7 @@ public class FamzMitteilungController : ControllerBase
 
         var von = zeilen.Select(z => z.Von).Where(d => d != null).Select(d => d!.Value).DefaultIfEmpty().Min();
         var bisWerte = zeilen.Where(z => z.Bis != null).Select(z => z.Bis!.Value).ToList();
-        var art = v.Mitteilung.Art == FamzMitteilungArt.Verfall ? "Verfallanzeige" : "Entscheid";
+        var art = ArtLabel(v.Mitteilung.Art);
         var brief = v.Mitteilung.Briefdatum?.ToString("dd.MM.yyyy");
         var doc = new EmployeeDokument
         {
@@ -542,6 +542,14 @@ public class FamzMitteilungController : ControllerBase
             })
         };
     }
+
+    static string ArtLabel(FamzMitteilungArt art) => art switch
+    {
+        FamzMitteilungArt.Verfall => "Verfallanzeige",
+        FamzMitteilungArt.Wegfall => "Wegfallanzeige",
+        FamzMitteilungArt.Entscheid => "Entscheid",
+        _ => "Mitteilung"
+    };
 
     static string Sicher(string? code)
     {
