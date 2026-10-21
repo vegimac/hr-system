@@ -31,4 +31,4 @@ Abacus braucht nur Fibu-Konten. Die frühere Kostenstelle (100/200/300) war ein 
 - **Journal:** `FibuJournalService` lookupt über Modell (+ Legacy-KSt-Fallback), nicht mehr über KSt-UI.
 - **UI:** Systemeinstellungen → Kontoplan filtert nach Modell (nicht Kostenstelle); Spalten Lohnart / Modell / Soll / Gegen.
 - **Tests:** `Tests/FibuModellTests.cs`.
-- **Noch offen (später):** Brutto-Zeilen 1:1 aus Swissdec-Lohnarten statt Sammel-Pos 10 — Mapping-Brücke über `lohnart_code` ist vorbereitet.
+- **Katalog = Lohnpositionen (Walter 21.10.2026, Schema-Stand 96):** System → Kontoplan zeigt jede aktive Lohnposition mit ihrer Nummer (`Services/FibuKatalog.cs`). Aufwand «vom Vertrag» bucht das Journal weiter gesammelt als Bruttolohn (Position 10). Eigene Konten: Taggelder 2014, Familienzulagen 2071, Spesen 4095, Abzüge 1920 an 2070/2080/2090/2010, L-GAV 2023, Depot 2021. `lohnart_code` sitzt nur noch auf genau dieser Zeile (nicht mehr pauschal auf der ganzen Mirus-Position). Nettolohn, RST und Akonto bleiben Buchungen ohne Lohnart.

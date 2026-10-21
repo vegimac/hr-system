@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,50 @@ public class LohnKontoMappingController : ControllerBase
             })
             .ToListAsync();
         return Ok(rows);
+    }
+
+    /// <summary>
+    /// Eine Zeile pro aktiver Lohnposition, mit den Konten aus <see cref="FibuKatalog"/>.
+    /// Die Liste ist damit dieselbe wie unter Lohnpositionen.
+    /// </summary>
+    [HttpGet("nach-lohnart")]
+    public async Task<IActionResult> NachLohnart()
+    {
+        var positionen = await _db.Lohnpositionen.AsNoTracking()
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Code)
+            .Select(p => new { p.Code, p.Bezeichnung })
+            .ToListAsync();
+        var maps = await _db.LohnKontoMappings.AsNoTracking()
+            .Where(m => m.IsActive)
+            .Select(m => new { m.Id, m.Position, m.SubPosition, m.Fibukonto })
+            .ToListAsync();
+
+        var zeilen = positionen.Select(p =>
+        {
+            var k = FibuKatalog.Fuer(p.Code);
+            var ohne = FibuKatalog.OhneBuchung(p.Code);
+            var ids = k is { MapPosition: int pos } konto
+                ? maps.Where(m => m.Position == pos
+                        && (konto.MapSub == null || m.SubPosition == konto.MapSub)
+                        && (konto.MapFibukonto == null || m.Fibukonto == konto.MapFibukonto))
+                    .Select(m => m.Id).ToList()
+                : new List<int>();
+            return new
+            {
+                p.Code,
+                p.Bezeichnung,
+                soll = k?.Soll,
+                haben = k?.Haben,
+                agSoll = k?.AgSoll,
+                agHaben = k?.AgHaben,
+                hinweis = k?.Hinweis,
+                ohneBuchung = ohne,
+                zugeordnet = k != null || ohne,
+                ids
+            };
+        }).ToList();
+        return Ok(zeilen);
     }
 
     [HttpGet("konten")]

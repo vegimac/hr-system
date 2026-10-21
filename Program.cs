@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 95;  // 95: AHV-Abmeldung warnt erst nach dem Austritt · 94: falsche Swissdec-Nummern weg
+const int SchemaStand = 96;  // 96: Kontoplan-Nummer = Lohnposition · 95: AHV-Abmeldung warnt erst nach dem Austritt · 94: falsche Swissdec-Nummern weg
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2572,6 +2572,49 @@ using (var scope = app.Services.CreateScope())
                AND is_date_based = FALSE;
         ");
         startLog.LogInformation("Stand 95: AHV-Abmeldung warnt erst nach dem Austritt");
+    }
+
+    // Stand 96: lohnart_code nur noch auf der Zeile, die zu dieser Lohnposition gehört.
+    // Vorher trug jede Mirus-Position eine Nummer (600 komplett = 600.24, 4070 = 1160).
+    if (dbStand < 96)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE lohn_konto_mapping SET lohnart_code = NULL;
+
+            UPDATE lohn_konto_mapping SET lohnart_code = '1210'
+             WHERE position = 200 AND sub_position = 5 AND fibukonto IN ('4000','4001','4055');
+            UPDATE lohn_konto_mapping SET lohnart_code = '2030'
+             WHERE position = 60 AND sub_position = 3 AND fibukonto = '2014';
+            UPDATE lohn_konto_mapping SET lohnart_code = '2035'
+             WHERE position = 70 AND sub_position = 2 AND fibukonto = '2014';
+            UPDATE lohn_konto_mapping SET lohnart_code = '2000'
+             WHERE position = 80 AND sub_position = 3 AND fibukonto = '2014';
+            UPDATE lohn_konto_mapping SET lohnart_code = '2001'
+             WHERE position = 120 AND fibukonto = '2014';
+            UPDATE lohn_konto_mapping SET lohnart_code = '3000'
+             WHERE position = 190 AND fibukonto = '2071';
+            UPDATE lohn_konto_mapping SET lohnart_code = '3034'
+             WHERE position = 200 AND sub_position = 20 AND fibukonto = '2071';
+            UPDATE lohn_konto_mapping SET lohnart_code = '6070'
+             WHERE position = 200 AND sub_position = 1 AND fibukonto = '4095';
+            UPDATE lohn_konto_mapping SET lohnart_code = '180.3'
+             WHERE position = 180 AND gegenkonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5010' WHERE position = 500 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5012' WHERE position = 510 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5014' WHERE position = 511 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5020' WHERE position = 540 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5030' WHERE position = 541 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5042' WHERE position = 530 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5050' WHERE position = 550 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5100' WHERE position = 560 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5102' WHERE position = 565 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '5212'
+             WHERE position = 600 AND sub_position = 5 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '600.24' WHERE position = 600 AND sub_position = 24;
+            UPDATE lohn_konto_mapping SET lohnart_code = '600.32' WHERE position = 600 AND sub_position = 32;
+            UPDATE lohn_konto_mapping SET lohnart_code = '950.1' WHERE position = 950 AND fibukonto = '1920';
+        ");
+        startLog.LogInformation("Stand 96: Kontoplan-Nummer entspricht der Lohnposition");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

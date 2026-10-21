@@ -4,6 +4,10 @@
 // (z.B. 13. ML Management 2016 / Crew 2017), bleibt eine eigene Zeile.
 
 let _kpRows = [];
+let _kpArten = [];
+
+// Journal-Zeilen ohne Lohnposition: Nettolohn, Rückstellungen, Akonto, Übertrag.
+const KP_BUCHUNG = new Set(['1010', '1050', '1060', '1080', '2010', '4070']);
 
 const KP_SOLL_VERTRAG = { CREW: '4000', FLEX: '4001', MGMT: '4055' };
 
@@ -11,12 +15,17 @@ async function kpInit() {
     const tbody = document.getElementById('kpTableBody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;color:#94a3b8;font-size:13px;text-align:center">Lade Kontoplan…</td></tr>';
     try {
-        const r = await fetch('/api/lohn-konto-mapping', { headers: ah() });
-        if (!r.ok) {
-            if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;color:#dc2626;font-size:13px">Konnte Kontoplan nicht laden (HTTP ${r.status}).</td></tr>`;
+        const [r, a] = await Promise.all([
+            fetch('/api/lohn-konto-mapping', { headers: ah() }),
+            fetch('/api/lohn-konto-mapping/nach-lohnart', { headers: ah() })
+        ]);
+        if (!r.ok || !a.ok) {
+            const status = !r.ok ? r.status : a.status;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;color:#dc2626;font-size:13px">Konnte Kontoplan nicht laden (HTTP ${status}).</td></tr>`;
             return;
         }
         _kpRows = await r.json() || [];
+        _kpArten = await a.json() || [];
         kpRender();
     } catch (e) {
         if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="padding:24px;color:#dc2626;font-size:13px">Verbindungsfehler: ${e.message}</td></tr>`;
@@ -81,17 +90,26 @@ function kpRender() {
     if (!tbody) return;
     const q = (document.getElementById('kpSearch')?.value || '').toLowerCase().trim();
 
-    let rows = _kpRows;
-    if (q) rows = rows.filter(m =>
-        String(m.position).includes(q) ||
-        (m.lohnartCode || '').toLowerCase().includes(q) ||
-        (m.fibukonto || '').toLowerCase().includes(q) ||
-        (m.gegenkonto || '').toLowerCase().includes(q) ||
-        (m.bezeichnung || '').toLowerCase().includes(q));
+    let arten = _kpArten;
+    let rows = _kpRows.filter(m => KP_BUCHUNG.has(String(m.position)));
+    if (q) {
+        arten = arten.filter(m =>
+            (m.code || '').toLowerCase().includes(q) ||
+            (m.bezeichnung || '').toLowerCase().includes(q) ||
+            (m.soll || '').toLowerCase().includes(q) ||
+            (m.haben || '').toLowerCase().includes(q) ||
+            (m.hinweis || '').toLowerCase().includes(q));
+        rows = rows.filter(m =>
+            String(m.position).includes(q) ||
+            (m.lohnartCode || '').toLowerCase().includes(q) ||
+            (m.fibukonto || '').toLowerCase().includes(q) ||
+            (m.gegenkonto || '').toLowerCase().includes(q) ||
+            (m.bezeichnung || '').toLowerCase().includes(q));
+    }
 
-    if (!rows.length) {
+    if (!arten.length && !rows.length) {
         const info = document.getElementById('kpInfo');
-        if (info) info.textContent = '0 Buchungen';
+        if (info) info.textContent = '0 Lohnpositionen';
         tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;color:#94a3b8;font-size:13px;text-align:center">Keine Einträge.</td></tr>';
         return;
     }
@@ -105,13 +123,32 @@ function kpRender() {
         if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
         return String(a).localeCompare(String(b), 'de');
     });
-    const lohnKeys = sortKeys(Object.keys(groups).filter(k => groups[k].some(kpHatLohnart)));
-    const buchKeys = sortKeys(Object.keys(groups).filter(k => !groups[k].some(kpHatLohnart)));
+    const buchKeys = sortKeys(Object.keys(groups));
 
     let body = '';
     let anzahl = 0;
     function abschnitt(titel) {
         body += `<tr><td colspan="6" style="background:#e7e4db;padding:10px 12px;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#57534e">${titel}</td></tr>`;
+    }
+    function artZeile(m) {
+        anzahl++;
+        const soll = m.ohneBuchung
+            ? '—'
+            : (m.soll === 'VERTRAG'
+                ? '<span title="Crew 4000 · Flex 4001 · Management 4055">vom Vertrag</span>'
+                : (m.zugeordnet ? esc(m.soll) : '<span style="color:#b91c1c">offen</span>'));
+        const haben = m.ohneBuchung ? '—' : (m.haben ? esc(m.haben) : '');
+        const ag = (m.agSoll && m.agHaben) ? `AG ${esc(m.agSoll)} / ${esc(m.agHaben)}` : '';
+        const hinweis = m.ohneBuchung ? 'keine Buchung' : (m.hinweis || '');
+        const extra = [ag, esc(hinweis)].filter(Boolean).join(' · ');
+        body += `<tr data-art="${esc(m.code)}" style="border-top:1px solid #f1f5f9">
+            <td style="padding:6px 10px;color:#64748b;font-family:monospace">${esc(m.code)}</td>
+            <td style="padding:6px 10px"><span class="kp-bez">${esc(m.bezeichnung)}</span></td>
+            <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#166534"><span class="kp-soll">${soll}</span></td>
+            <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#b91c1c"><span class="kp-gegen">${haben}</span></td>
+            <td class="kp-extra" style="padding:6px 10px;font-size:12px;color:#78716c">${extra}</td>
+            <td style="padding:6px 10px"></td>
+        </tr>`;
     }
     function zeile(block) {
         anzahl++;
@@ -150,25 +187,26 @@ function kpRender() {
             </td>
         </tr>`;
     }
-    if (lohnKeys.length) abschnitt('Lohnarten');
-    lohnKeys.forEach(key => {
-        const first = groups[key].find(kpHatLohnart) || groups[key][0];
-        body += `<tr><td colspan="6" style="background:#f1f5f9;padding:8px 12px;font-weight:700;font-size:12.5px;color:#334155;border-top:1px solid #e2e8f0">Lohnart ${esc(first.lohnartCode)}</td></tr>`;
-        kpZusammenziehen(groups[key]).forEach(zeile);
-    });
-    if (buchKeys.length) abschnitt('Buchungen, keine Lohnart');
+    if (arten.length) abschnitt('Lohnpositionen');
+    arten.forEach(artZeile);
+    if (buchKeys.length) abschnitt('Buchungen, keine Lohnposition');
     buchKeys.forEach(key => {
         kpZusammenziehen(groups[key]).forEach(zeile);
     });
     const info = document.getElementById('kpInfo');
-    if (info) info.textContent = `${anzahl} Buchungen`;
+    const offen = arten.filter(m => !m.zugeordnet).length;
+    if (info) info.textContent = offen
+        ? `${arten.length} Lohnpositionen · ${offen} ohne Konto`
+        : `${arten.length} Lohnpositionen`;
     tbody.innerHTML = body;
 }
 
-function kpEdit(idsCsv) {
+function kpEdit(idsCsv, artCode) {
     const ids = String(idsCsv).split(',').map(Number);
     const m = _kpRows.find(x => x.id === ids[0]);
-    const row = document.querySelector(`#kpTableBody tr[data-ids="${idsCsv}"]`);
+    const row = artCode
+        ? document.querySelector(`#kpTableBody tr[data-art="${artCode}"]`)
+        : document.querySelector(`#kpTableBody tr[data-ids="${idsCsv}"]`);
     if (!m || !row) return;
     const seite = row.getAttribute('data-seite') || '';
     const esc = s => String(s ?? '').replace(/"/g,'&quot;');

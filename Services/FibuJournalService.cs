@@ -285,13 +285,14 @@ public class FibuJournalService
         // (DB, inkl. inaktiver Versionen) + fixe Engine-Fallbacks (Alt-Snapshots).
         var famzNamen = await _db.Lohnpositionen
             .Where(l => l.Kategorie == "Familienzulagen"
+                     || l.Code == "3000" || l.Code == "3010" || l.Code == "3034"
                      || l.Code == "190.1" || l.Code == "190.2" || l.Code == "190.3")
             .Select(l => l.Bezeichnung)
             .ToListAsync();
         var ktgTaggeldNamen = await _db.Lohnpositionen
-            .Where(l => l.Code == "70.2").Select(l => l.Bezeichnung).ToListAsync();
+            .Where(l => l.Code == "2035" || l.Code == "70.2").Select(l => l.Bezeichnung).ToListAsync();
         var uvgTaggeldNamen = await _db.Lohnpositionen
-            .Where(l => l.Code == "60.2").Select(l => l.Bezeichnung).ToListAsync();
+            .Where(l => l.Code == "2030" || l.Code == "60.3" || l.Code == "60.2").Select(l => l.Bezeichnung).ToListAsync();
 
         // Kontoplan-Lookups: Modell CREW/FLEX/MGMT (Walter 19.10.2026).
         // Legacy-Kostenstelle nur Fallback, falls modell noch leer.
