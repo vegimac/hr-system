@@ -185,7 +185,7 @@ function gsfRenderRows() {
     }
     const aufgabe = {
         fehlt: 'GastroSocial zahlt für dieses Kind, in OneCrew fehlt das Kind oder die Zulage in diesen Monaten — im Lohn wird sie nicht ausbezahlt. Kind/Zulage im MA → Familie erfassen.',
-        abweichung: 'Beginn, Ende oder Ansatz weichen ab. Zulage beim Kind prüfen (Gültig ab/bis, Art, Satz). Anteilige Teilmonate (wie die Ausgleichskasse) sind kein Alarm.',
+        abweichung: 'Beginn, Ende oder Ansatz weichen ab. Zulage beim Kind prüfen (Gültig ab/bis, Art, Satz). Anteilige Teilmonate und Direktauszahlung (Ansatz leer) sind kein Alarm.',
         nurOneCrew: 'OneCrew zahlt eine Zulage, GastroSocial bescheinigt für dieses Kind nichts — Antrag fehlt, anderer Elternteil bezieht sie, oder die Zulage in OneCrew beenden.',
         nichtZuordenbar: 'Bezüger in OneCrew nicht gefunden — AHV-Nummer beim MA nachtragen oder prüfen, ob die Person bei uns arbeitet.',
         angabenPruefen: 'Die Angaben zum Kind oder MA stimmen nicht mit GastroSocial überein oder fehlen in OneCrew. Mit Ausweis/Geburtsurkunde klären: falsch in OneCrew → im MA → Familie korrigieren, falsch bei GastroSocial → dort melden. (Die Bescheinigung enthält vom Kind nur AHV-Nr., Vorname und Geburtsdatum — Nachname und Geschlecht werden nur geprüft, wenn der Export sie mitliefert.)',

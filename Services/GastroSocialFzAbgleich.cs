@@ -12,7 +12,7 @@ namespace HrSystem.Services;
 /// GastroSocial «Familienzulagenbescheinigung» (Excel: Leistung · Bezüger AHV-Nr. · Bezüger Name/Vorname ·
 /// Kind AHV-Nr. · Kind Vorname · GebDat · Von · Bis · Monate · Ansatz · TotalBetrag) gegen die Zulagen
 /// bei den Kindern in OneCrew (MA → Familie). Kontrolle = Beginn/Ende und Ansatz; Teilmonate wie im
-/// Lohn (30-Tage-Anteil) — kein Alarm wegen anteiligem ersten/letzten Monat:
+/// Lohn (30-Tage-Anteil); Direktauszahlung (Ansatz leer) = nur Zeitraum, kein Ansatz-Alarm:
 ///   • Fehlt in OneCrew — GastroSocial zahlt, in OneCrew kein Kind / keine Zulage in diesen Monaten
 ///   • Abweichung — Beginn/Ende oder Ansatz unterscheiden sich
 ///   • Nur in OneCrew — Zulage in OneCrew (Vertragsmonate dieser Filiale), Kind fehlt in der Bescheinigung
@@ -314,7 +314,8 @@ public static class GastroSocialFzAbgleich
                 GastroSocial = string.Join("; ", g.zeilen.OrderBy(z => z.Von).Select(z =>
                     (z.Einmalig ? (z.Leistung ?? "Geburtszulage") + " · " : "")
                     + $"{z.Von:dd.MM.yyyy}–{z.Bis:dd.MM.yyyy}"
-                    + (z.Monate is > 0 && z.Ansatz != null ? $" · {z.Monate} × {Chf(z.Ansatz.Value)}" : ""))),
+                    + (z.Ansatz != null && z.Monate is > 0 ? $" · {z.Monate} × {Chf(z.Ansatz.Value)}"
+                        : z.Ansatz == null && !z.Einmalig ? " · Direktauszahlung" : ""))),
                 GsTotal = g.zeilen.Sum(z => z.Total ?? 0m),
                 MatchArt = g.art,
             };
@@ -349,10 +350,17 @@ public static class GastroSocialFzAbgleich
                     .Where(a => Elm.ElmPlausibilitaet.AhvPruefzifferStimmt(a ?? ""))
                     .Select(FormatAhv).FirstOrDefault();
 
-            var gsMonate = new Dictionary<DateOnly, decimal>();
+            // Ansatz null = Direktauszahlung (Bescheinigung ohne AG-Betrag, Fall Islamaj) —
+            // Monat zählt nur für Beginn/Ende, nicht als Ansatz 0.00 gegen OneCrew.
+            var gsMonate = new Dictionary<DateOnly, decimal?>();
             foreach (var z in g.zeilen.Where(z => !z.Einmalig && z.Von != null && z.Bis != null))
                 foreach (var m in Monate(z.Von!.Value, z.Bis!.Value))
-                    gsMonate[m] = (gsMonate.TryGetValue(m, out var b) ? b : 0m) + (z.Ansatz ?? 0m);
+                {
+                    if (z.Ansatz is decimal ansatz)
+                        gsMonate[m] = (gsMonate.TryGetValue(m, out var b) && b != null ? b.Value : 0m) + ansatz;
+                    else if (!gsMonate.ContainsKey(m))
+                        gsMonate[m] = null;
+                }
             var ocMonate = new Dictionary<DateOnly, decimal>();
             if (res.Von != null && res.Bis != null)
                 foreach (var m in Monate(res.Von.Value, res.Bis.Value))
@@ -368,7 +376,9 @@ public static class GastroSocialFzAbgleich
 
             var fehlen = gsMonate.Keys.Where(m => !ocMonate.ContainsKey(m)).ToList();
             var zuviel = ocMonate.Keys.Where(m => !gsMonate.ContainsKey(m)).ToList();
-            var betrag = gsMonate.Keys.Where(m => ocMonate.TryGetValue(m, out var b) && b != gsMonate[m]).ToList();
+            var betrag = gsMonate.Keys
+                .Where(m => gsMonate[m] is decimal gs && ocMonate.TryGetValue(m, out var oc) && oc != gs)
+                .ToList();
             var einmaligFehlt = g.zeilen.Any(z => z.Einmalig) && !g.kind.Zulagen.Any(z => z.Einmalig);
 
             if (gsMonate.Count > 0 && fehlen.Count == gsMonate.Count && zuviel.Count == 0)
@@ -381,7 +391,7 @@ public static class GastroSocialFzAbgleich
             var abw = new List<string>();
             if (fehlen.Count > 0) abw.Add($"in OneCrew fehlt {Bereiche(fehlen)}");
             if (zuviel.Count > 0) abw.Add($"OneCrew zahlt zusätzlich {Bereiche(zuviel)}, GastroSocial nicht");
-            foreach (var grp in betrag.GroupBy(m => (gsMonate[m], ocMonate[m])))
+            foreach (var grp in betrag.GroupBy(m => (gsMonate[m]!.Value, ocMonate[m])))
                 abw.Add($"Ansatz {Bereiche(grp)}: GastroSocial {Chf(grp.Key.Item1)}, OneCrew {Chf(grp.Key.Item2)}");
             if (einmaligFehlt) abw.Add("Geburts-/Adoptionszulage fehlt in OneCrew");
             if (abw.Count > 0)
@@ -391,6 +401,8 @@ public static class GastroSocialFzAbgleich
                 res.Abweichung.Add(t);
                 continue;
             }
+            if (g.zeilen.Any(z => !z.Einmalig && z.Ansatz == null))
+                hinweise.Insert(0, "Direktauszahlung: GastroSocial ohne Ansatz — nur Zeitraum geprüft");
             t.Hinweis = hinweise.Count > 0 ? string.Join(" · ", hinweise) : null;
             res.Passt.Add(t);
         }

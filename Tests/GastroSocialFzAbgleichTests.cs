@@ -174,6 +174,27 @@ public class GastroSocialFzAbgleichTests
         Assert.Equal(1415.65m, t.GsTotal);
     }
 
+    /// <summary>
+    /// Direktauszahlung: Bescheinigung hat Von/Bis, aber keinen Ansatz (Islamaj) —
+    /// nicht als «Ansatz 0 vs. OneCrew» melden, wenn der Zeitraum in OneCrew gedeckt ist.
+    /// </summary>
+    [Fact]
+    public void Direktauszahlung_ohne_Ansatz_nur_Zeitraum()
+    {
+        var z = Gs(Jan, new DateTime(2026, 7, 31), 0m, kind: "Sevime");
+        z.Ansatz = null;
+        z.Total = null;
+        z.KindGeburt = new DateTime(2006, 8, 30);
+        var ma = MaMit(Zl(new(2025, 7, 1), new(2026, 7, 31), 268m, "AZ"));
+        ma.Kinder[0].Vorname = "Sevime";
+        ma.Kinder[0].Geburt = new DateTime(2006, 8, 30);
+        var r = Vergleiche(new[] { z }, new[] { ma });
+        Assert.Empty(r.Abweichung);
+        Assert.Empty(r.Fehlt);
+        var t = Assert.Single(r.Passt);
+        Assert.Contains("Direktauszahlung", t.Hinweis);
+    }
+
     [Fact]
     public void Fehlende_Kind_AHV_kann_uebernommen_werden()
     {
