@@ -15,6 +15,7 @@ public static class FamzMitteilungVorschlag
 
     public const string ModusNeu = "neu";
     public const string ModusTeilen = "teilen";
+    public const string ModusErsetzen = "ersetzen"; // erneuter Entscheid beginnt früher → alte Zulage weg, neue anlegen
     public const string ModusSetzen = "setzen";
     public const string ModusEnde = "ende";
     public const string ModusBeleg = "beleg";
@@ -98,8 +99,13 @@ public static class FamzMitteilungVorschlag
                 $"{kind.Vorname}: ändern auf {zeit}.");
         }
 
-        return UnklarZeile(kind,
-            $"{kind.Vorname}: eine Zulage beginnt erst am {D(alt.Von)}, der Entscheid gilt schon ab {D(kind.Von)}.");
+        // Erneuter Entscheid beginnt früher als die vorhandene Zulage (z.B. Islamaj:
+        // Eintrag ab 01.02.2026, Entscheid ab 01.07.2025) → alte beenden, neu anlegen.
+        if (alt.Verwendet)
+            return UnklarZeile(kind,
+                $"{kind.Vorname}: Zulage ab {D(alt.Von)} ist schon im Lohn. Der Entscheid gilt ab {D(kind.Von)} — bitte von Hand prüfen.");
+        return Zeile(Aendern, true, ModusErsetzen, kind, wer.Id, alt.Id, satz, kind.Von, kind.Bis, erfahren,
+            $"{kind.Vorname}: bisherige Zulage ab {D(alt.Von)} beenden, neu {zeit}.");
     }
 
     static FamzZeile Verfall(FamzMitteilung m, FamzMitteilungKind kind, FamzKontext k)

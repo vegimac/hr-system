@@ -141,6 +141,25 @@ public class FamzMitteilungController : ControllerBase
                         gespeichert.Add(z.Text);
                         break;
                     }
+                    case FamzMitteilungVorschlag.ModusErsetzen:
+                    {
+                        // Erneuter Entscheid mit früherem Beginn: alte Zulage entfernen (noch nicht
+                        // im Lohn), neuen Eintrag mit den Daten des Entscheids anlegen.
+                        var alt = await _db.FamilyMemberAllowances
+                            .FirstOrDefaultAsync(a => a.Id == z.AllowanceId && a.FamilyMemberId == z.FamilyMemberId);
+                        if (alt == null || z.Von == null || z.Bis == null || z.Von.Value >= alt.ValidFrom)
+                            return Conflict(new { error = "GEAENDERT", message = "Die bisherige Zulage hat sich geändert. Bitte nochmals einlesen." });
+                        var benutzt = await _korrektur.VerwendetBisAsync(emp.Id, new[] { alt });
+                        if (benutzt.ContainsKey(alt.Id))
+                            return Conflict(new { error = "SCHON_IM_LOHN", message = "Die bisherige Zulage ist schon im Lohn — bitte von Hand prüfen." });
+                        _db.FamilyMemberAllowances.Remove(alt);
+                        var neu = NeueZulage(z);
+                        _db.FamilyMemberAllowances.Add(neu);
+                        belegen.Add(neu);
+                        korrigieren.Add(neu);
+                        gespeichert.Add(z.Text);
+                        break;
+                    }
                     case FamzMitteilungVorschlag.ModusSetzen:
                     {
                         var alt = await _db.FamilyMemberAllowances

@@ -213,6 +213,43 @@ public class FamzMitteilungTests
         Assert.Equal(new DateOnly(2026, 8, 1), z.Von);
     }
 
+    /// <summary>
+    /// Erneuter Entscheid beginnt früher als der vorhandene Eintrag (Islamaj: Zulage ab
+    /// 01.02.2026, Entscheid ab 01.07.2025) → alte beenden, neu anlegen — nicht «Unklar».
+    /// </summary>
+    [Fact]
+    public void Erneuter_Entscheid_mit_frueherem_Beginn_ersetzt_die_Zulage()
+    {
+        var m = FamzMitteilungLeser.Lies(IslamajDirekt);
+        var alt = new FamzZulage(7, "AZ", 1, new DateOnly(2026, 2, 1), new DateOnly(2026, 7, 31), false, false);
+        var tarif = new TarifAmTag(new DateOnly(2025, 7, 1), "LU", "Sursee", "122", 1, null,
+            [new SatzOption("AZ", 1, 268m, "Ausbildungszulage Satz 1")]);
+        var v = FamzMitteilungVorschlag.Erstelle(m, Kontext(m, tarif, Kind("Sevime", new DateOnly(2006, 8, 30), alt)));
+        var z = Assert.Single(v.Zeilen);
+        Assert.Equal(FamzMitteilungVorschlag.Aendern, z.Aktion);
+        Assert.Equal(FamzMitteilungVorschlag.ModusErsetzen, z.Modus);
+        Assert.Equal(7, z.AllowanceId);
+        Assert.Equal(new DateOnly(2025, 7, 1), z.Von);
+        Assert.Equal(new DateOnly(2026, 7, 31), z.Bis);
+        Assert.Equal(268m, z.Betrag);
+        Assert.Contains("beenden", z.Text);
+        Assert.Contains("01.02.2026", z.Text);
+    }
+
+    [Fact]
+    public void Erneuter_Entscheid_schon_im_Lohn_bleibt_unklar()
+    {
+        var m = FamzMitteilungLeser.Lies(IslamajDirekt);
+        var alt = new FamzZulage(7, "AZ", 1, new DateOnly(2026, 2, 1), new DateOnly(2026, 7, 31), true, false);
+        var tarif = new TarifAmTag(new DateOnly(2025, 7, 1), "LU", "Sursee", "122", 1, null,
+            [new SatzOption("AZ", 1, 268m, "Ausbildungszulage Satz 1")]);
+        var v = FamzMitteilungVorschlag.Erstelle(m, Kontext(m, tarif, Kind("Sevime", new DateOnly(2006, 8, 30), alt)));
+        var z = Assert.Single(v.Zeilen);
+        Assert.Equal(FamzMitteilungVorschlag.Unklar, z.Aktion);
+        Assert.False(z.Waehlbar);
+        Assert.Contains("schon im Lohn", z.Text);
+    }
+
     [Fact]
     public void Verfall_beendet_die_laufende_Zulage()
     {
