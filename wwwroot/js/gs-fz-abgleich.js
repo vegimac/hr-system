@@ -7,6 +7,8 @@
 // Backend: /api/imports/gastrosocial-fz-abgleich
 // ══════════════════════════════════════════════════════════════════════
 let _gsfData = null;
+let _gsfFile = null;
+let _gsfFiliale = '';
 
 function gsfInit() {
     ['gsfAlert', 'gsfSummary', 'gsfResult'].forEach(id => {
@@ -16,6 +18,8 @@ function gsfInit() {
     const inp = document.getElementById('gsfFileInput');
     if (inp) inp.value = '';
     _gsfData = null;
+    _gsfFile = null;
+    _gsfFiliale = '';
     gsfUpdateBranchBanner();
 }
 
@@ -49,8 +53,9 @@ async function gsfAnalyze() {
         gsfFehler('Bitte zuerst links eine Filiale wählen.');
         return;
     }
+    _gsfFile = inp.files[0];
     const fd = new FormData();
-    fd.append('file', inp.files[0]);
+    fd.append('file', _gsfFile);
     fd.append('companyProfileId', String(cpId));
 
     const btn = document.getElementById('gsfAnalyzeBtn');
@@ -66,7 +71,9 @@ async function gsfAnalyze() {
             gsfFehler('Fehler vom Server (' + r.status + '): ' + (j.error || j.message || r.statusText));
             return;
         }
-        _gsfData = (await r.json()).ergebnis;
+        const j = await r.json();
+        _gsfData = j.ergebnis;
+        _gsfFiliale = j.filiale || '';
     } catch (e) {
         gsfFehler('Verbindung fehlgeschlagen: ' + e.message);
         return;
@@ -77,6 +84,46 @@ async function gsfAnalyze() {
         gsfRender(_gsfData);
     } catch (e) {
         gsfFehler('Anzeige fehlgeschlagen: ' + e.message + ' — bitte Seite neu laden (Cmd+Shift+R).');
+    }
+}
+
+/** PDF der offenen Pendenzen (ohne «Passt») — Checkbox zum Abhaken. */
+async function gsfPdf() {
+    if (!_gsfFile || !_gsfData) {
+        gsfFehler('Bitte zuerst die Bescheinigung vergleichen.');
+        return;
+    }
+    const cpId = typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId ? fixedCompanyProfileId : 0;
+    if (!cpId) {
+        gsfFehler('Bitte zuerst links eine Filiale wählen.');
+        return;
+    }
+    const fd = new FormData();
+    fd.append('file', _gsfFile);
+    fd.append('companyProfileId', String(cpId));
+    const btn = document.getElementById('gsfPdfBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ PDF…'; }
+    try {
+        const r = await fetch('/api/imports/gastrosocial-fz-abgleich/pdf', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + (typeof authToken !== 'undefined' ? authToken : localStorage.hrToken) },
+            body: fd
+        });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            gsfFehler('PDF fehlgeschlagen: ' + (j.error || j.message || r.status));
+            return;
+        }
+        const blob = await r.blob();
+        const cd = r.headers.get('Content-Disposition') || '';
+        const fn = (typeof cdFilename === 'function' ? cdFilename(cd, null) : null)
+            || `FZ-Abgleich-Pendenzen-${(_gsfFiliale || 'Filiale').replace(/\s+/g, '-')}.pdf`;
+        if (typeof previewFileModal === 'function') await previewFileModal(blob, fn);
+        else if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, fn);
+    } catch (e) {
+        gsfFehler('Verbindung fehlgeschlagen: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '📄 Pendenzen-PDF'; }
     }
 }
 
@@ -156,6 +203,9 @@ function gsfRender(d, ansicht) {
                 <option value="angabenPruefen">Angaben prüfen — AHV, Name, Geburtsdatum … weichen ab (${ap})</option>
                 <option value="passt">Passt (${ok})</option>
             </select>
+            <button type="button" id="gsfPdfBtn" onclick="gsfPdf()"
+                    style="margin-left:auto;padding:8px 14px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;font-size:13px;font-weight:600;cursor:pointer"
+                    title="Offene Pendenzen als PDF (Checkbox zum Abhaken)">📄 Pendenzen-PDF</button>
         </div>`;
     document.getElementById('gsfResult').innerHTML = `<div id="gsfRows"></div>`;
     const sel = document.getElementById('gsfFilter');

@@ -9,7 +9,8 @@ namespace HrSystem.Controllers;
 /// <summary>
 /// HR-Hub → Kontrolle → «FZ-Abgleich GastroSocial» (Walter 12.10.2026).
 /// «Familienzulagenbescheinigung» aus dem GastroSocial-Portal gegen die Zulagen bei den Kindern
-/// der MA der Sidebar-Filiale. Logik: <see cref="GastroSocialFzAbgleich"/>. Schreibt nichts.
+/// der MA der Sidebar-Filiale. Logik: <see cref="GastroSocialFzAbgleich"/>. Schreibt nichts
+/// (ausser kind-ahv). PDF = offene Pendenzen zum Abarbeiten (Walter 21.10.2026).
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -25,17 +26,66 @@ public class GastroSocialFzAbgleichController : ControllerBase
         [FromForm] int companyProfileId = 0,
         CancellationToken ct = default)
     {
+        var (err, filiale, ergebnis) = await AuswertenAsync(file, companyProfileId, ct);
+        if (err != null) return err;
+        return Ok(new { filiale, ergebnis });
+    }
+
+    /// <summary>PDF der offenen Pendenzen (ohne «Passt») — Checkbox zum Abhaken.</summary>
+    [HttpPost("pdf")]
+    public async Task<IActionResult> Pdf(
+        [FromForm] IFormFile file,
+        [FromForm] int companyProfileId = 0,
+        CancellationToken ct = default)
+    {
+        var (err, filiale, ergebnis) = await AuswertenAsync(file, companyProfileId, ct);
+        if (err != null) return err;
+        var bytes = new GastroSocialFzAbgleichPdfService().Generate(filiale!, ergebnis!);
+        var name = $"FZ-Abgleich-Pendenzen-{(filiale ?? "Filiale").Replace(' ', '-')}-{DateTime.Now:yyyy-MM-dd}.pdf";
+        return File(bytes, "application/pdf", name);
+    }
+
+    public record KindAhvDto(int FamilyMemberId, string? Ahv);
+
+    /// <summary>
+    /// AHV-Nummer des Kindes aus der Bescheinigung übernehmen (Walter 12.10.2026).
+    /// Nur wenn beim Kind noch keine steht — eine abweichende Nummer wird nie überschrieben.
+    /// </summary>
+    [HttpPost("kind-ahv")]
+    public async Task<IActionResult> KindAhvUebernehmen([FromBody] KindAhvDto dto, CancellationToken ct = default)
+    {
+        var ahv = GastroSocialAbgleich.FormatAhv(dto.Ahv);
+        if (ahv == null || !Services.Elm.ElmPlausibilitaet.AhvPruefzifferStimmt(ahv))
+            return BadRequest(new { error = "AHV_UNGUELTIG", message = "AHV-Nummer ungültig (Prüfziffer)." });
+        var kind = await _db.EmployeeFamilyMembers.FirstOrDefaultAsync(f => f.Id == dto.FamilyMemberId, ct);
+        if (kind == null)
+            return NotFound(new { error = "KIND_NICHT_GEFUNDEN", message = "Familienmitglied nicht gefunden." });
+        if (!string.IsNullOrWhiteSpace(kind.SocialSecurityNumber))
+        {
+            if (GastroSocialAbgleich.NormAhv(kind.SocialSecurityNumber) == GastroSocialAbgleich.NormAhv(ahv))
+                return Ok(new { ahv = kind.SocialSecurityNumber });
+            return Conflict(new { error = "AHV_SCHON_ERFASST", message = $"Beim Kind ist bereits eine andere AHV-Nummer erfasst ({kind.SocialSecurityNumber}) — bitte im MA → Familie prüfen." });
+        }
+        kind.SocialSecurityNumber = ahv;
+        kind.UpdatedAt = DateTime.Now;
+        await _db.SaveChangesAsync(ct);
+        return Ok(new { ahv });
+    }
+
+    async Task<(IActionResult? Error, string? Filiale, GastroSocialFzAbgleich.Ergebnis? Ergebnis)> AuswertenAsync(
+        IFormFile? file, int companyProfileId, CancellationToken ct)
+    {
         if (file == null || file.Length == 0)
-            return BadRequest(new { error = "Datei fehlt." });
+            return (BadRequest(new { error = "Datei fehlt." }), null, null);
         if (companyProfileId <= 0)
-            return BadRequest(new { error = "Bitte zuerst links eine Filiale wählen." });
+            return (BadRequest(new { error = "Bitte zuerst links eine Filiale wählen." }), null, null);
 
         var branch = await _db.CompanyProfiles.AsNoTracking()
             .Where(c => c.Id == companyProfileId)
             .Select(c => new { c.Id, c.RestaurantCode, c.City, c.BranchName, c.KantonCode })
             .FirstOrDefaultAsync(ct);
         if (branch == null)
-            return BadRequest(new { error = "Filiale nicht gefunden." });
+            return (BadRequest(new { error = "Filiale nicht gefunden." }), null, null);
         var filialName = !string.IsNullOrWhiteSpace(branch.BranchName) ? branch.BranchName! : branch.City ?? "";
         if (!string.IsNullOrWhiteSpace(branch.RestaurantCode)) filialName = $"{branch.RestaurantCode} {filialName}".Trim();
 
@@ -47,10 +97,10 @@ public class GastroSocialFzAbgleichController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = $"Datei konnte nicht gelesen werden: {ex.Message}" });
+            return (BadRequest(new { error = $"Datei konnte nicht gelesen werden: {ex.Message}" }), null, null);
         }
         if (zeilen.Count == 0)
-            return BadRequest(new { error = "Keine Datenzeilen gefunden. Erwartet: GastroSocial «Familienzulagenbescheinigung» mit Spalten «Bezüger AHV-Nr.», «Kind Vorname», «Von», «Bis», «Ansatz»." });
+            return (BadRequest(new { error = "Keine Datenzeilen gefunden. Erwartet: GastroSocial «Familienzulagenbescheinigung» mit Spalten «Bezüger AHV-Nr.», «Kind Vorname», «Von», «Bis», «Ansatz»." }), null, null);
 
         var von = zeilen.Where(z => z.Von != null).Select(z => z.Von!.Value).DefaultIfEmpty(DateTime.Today).Min();
         var bis = zeilen.Where(z => z.Bis != null).Select(z => z.Bis!.Value).DefaultIfEmpty(DateTime.Today).Max();
@@ -74,7 +124,6 @@ public class GastroSocialFzAbgleichController : ControllerBase
                 .ToListAsync(ct))
             .ToLookup(a => a.FamilyMemberId);
 
-        // Betrag wie im Lohn: FAK-Tarif des Filial-Kantons im Monat, Satz vom Eintrag; sonst gespeicherter Betrag.
         var tarife = string.IsNullOrWhiteSpace(branch.KantonCode)
             ? new List<Models.FamilienzulagenTarif>()
             : await _db.FamilienzulagenTarife.AsNoTracking()
@@ -125,8 +174,6 @@ public class GastroSocialFzAbgleichController : ControllerBase
                                 betraege[m] = Math.Round(betrag, 2);
                                 continue;
                             }
-                            // Wie im Lohn (FamzMonatsAnteil): Teilmonat 30-Tage-Basis —
-                            // sonst Alarm «Ansatz 175.65 vs 310» obwohl beides stimmt (Fomina).
                             var anteil = PayrollCalculations.FamzMonatsAnteil(m, a.ValidFrom, a.ValidTo, vorgaenger, nachfolger);
                             if (anteil <= 0m) continue;
                             betraege[m] = PayrollCalculations.FamzAnteilBetrag(betrag, anteil);
@@ -144,34 +191,6 @@ public class GastroSocialFzAbgleichController : ControllerBase
                 }).ToList(),
         }).ToList();
 
-        var res = GastroSocialFzAbgleich.Vergleiche(zeilen, alle);
-        return Ok(new { filiale = filialName, ergebnis = res });
-    }
-
-    public record KindAhvDto(int FamilyMemberId, string? Ahv);
-
-    /// <summary>
-    /// AHV-Nummer des Kindes aus der Bescheinigung übernehmen (Walter 12.10.2026).
-    /// Nur wenn beim Kind noch keine steht — eine abweichende Nummer wird nie überschrieben.
-    /// </summary>
-    [HttpPost("kind-ahv")]
-    public async Task<IActionResult> KindAhvUebernehmen([FromBody] KindAhvDto dto, CancellationToken ct = default)
-    {
-        var ahv = GastroSocialAbgleich.FormatAhv(dto.Ahv);
-        if (ahv == null || !Services.Elm.ElmPlausibilitaet.AhvPruefzifferStimmt(ahv))
-            return BadRequest(new { error = "AHV_UNGUELTIG", message = "AHV-Nummer ungültig (Prüfziffer)." });
-        var kind = await _db.EmployeeFamilyMembers.FirstOrDefaultAsync(f => f.Id == dto.FamilyMemberId, ct);
-        if (kind == null)
-            return NotFound(new { error = "KIND_NICHT_GEFUNDEN", message = "Familienmitglied nicht gefunden." });
-        if (!string.IsNullOrWhiteSpace(kind.SocialSecurityNumber))
-        {
-            if (GastroSocialAbgleich.NormAhv(kind.SocialSecurityNumber) == GastroSocialAbgleich.NormAhv(ahv))
-                return Ok(new { ahv = kind.SocialSecurityNumber });
-            return Conflict(new { error = "AHV_SCHON_ERFASST", message = $"Beim Kind ist bereits eine andere AHV-Nummer erfasst ({kind.SocialSecurityNumber}) — bitte im MA → Familie prüfen." });
-        }
-        kind.SocialSecurityNumber = ahv;
-        kind.UpdatedAt = DateTime.Now;
-        await _db.SaveChangesAsync(ct);
-        return Ok(new { ahv });
+        return (null, filialName, GastroSocialFzAbgleich.Vergleiche(zeilen, alle));
     }
 }

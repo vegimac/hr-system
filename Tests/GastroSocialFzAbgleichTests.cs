@@ -179,6 +179,17 @@ public class GastroSocialFzAbgleichTests
     /// nicht als «Ansatz 0 vs. OneCrew» melden, wenn der Zeitraum in OneCrew gedeckt ist.
     /// </summary>
     [Fact]
+    public void Pendenzen_Pdf_enthaelt_offene_Punkte()
+    {
+        var r = Vergleiche(new[] { Gs(Jan, Dez, 225) }, new[] { MaMit() });
+        Assert.NotEmpty(r.Fehlt);
+        var pdf = new GastroSocialFzAbgleichPdfService().Generate("058 Oftringen", r);
+        Assert.True(pdf.Length > 500);
+        Assert.Equal('%', (char)pdf[0]);
+        Assert.Equal('P', (char)pdf[1]);
+    }
+
+    [Fact]
     public void Direktauszahlung_ohne_Ansatz_nur_Zeitraum()
     {
         var z = Gs(Jan, new DateTime(2026, 7, 31), 0m, kind: "Sevime");
