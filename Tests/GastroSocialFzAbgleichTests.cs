@@ -21,11 +21,17 @@ public class GastroSocialFzAbgleichTests
         };
     }
 
-    private static Zulage Zl(DateOnly von, DateOnly? bis, decimal betrag, string typ = "KZ")
+    private static Zulage Zl(DateOnly von, DateOnly? bis, decimal betrag, string typ = "KZ",
+        bool vorgaenger = false, bool nachfolger = false, int id = 1)
     {
-        var z = new Zulage { Id = 1, Typ = typ, Satz = 1, Von = von, Bis = bis };
+        var z = new Zulage { Id = id, Typ = typ, Satz = 1, Von = von, Bis = bis };
         foreach (var m in Monate(new DateTime(2026, 1, 1), new DateTime(2026, 12, 31)))
-            if (von <= m.AddMonths(1).AddDays(-1) && (bis == null || bis >= m)) z.Betraege[m] = betrag;
+        {
+            if (von > m.AddMonths(1).AddDays(-1) || (bis != null && bis < m)) continue;
+            var anteil = PayrollCalculations.FamzMonatsAnteil(m, von, bis, vorgaenger, nachfolger);
+            if (anteil <= 0m) continue;
+            z.Betraege[m] = PayrollCalculations.FamzAnteilBetrag(betrag, anteil);
+        }
         return z;
     }
 
@@ -136,13 +142,36 @@ public class GastroSocialFzAbgleichTests
     [Fact]
     public void Wechsel_KZ_zu_AZ_im_Jahr_zwei_Zeilen_ein_Kind()
     {
-        var kz = Zl(new(2026, 1, 1), new(2026, 2, 28), 225);
-        var az = Zl(new(2026, 3, 1), null, 278, "AZ");
-        az.Id = 2;
+        var kz = Zl(new(2026, 1, 1), new(2026, 2, 28), 225, nachfolger: true);
+        var az = Zl(new(2026, 3, 1), null, 278, "AZ", vorgaenger: true, id: 2);
         var r = Vergleiche(new[] { Gs(Jan, new DateTime(2026, 2, 28), 225), Gs(new DateTime(2026, 3, 1), Dez, 278) },
             new[] { MaMit(kz, az) });
         Assert.Equal(1, r.Kinder);
         Assert.Single(r.Passt);
+    }
+
+    /// <summary>
+    /// Fall Fomina: AZ ab 14.08. → GastroSocial schreibt August anteilig 175.65, OneCrew speichert
+    /// den vollen Satz 310. Mit FamzMonatsAnteil (17/30) muss der Abgleich «passt» sagen.
+    /// </summary>
+    [Fact]
+    public void Teilmonat_wie_Ausgleichskasse_kein_Alarm()
+    {
+        var gs = new[]
+        {
+            Gs(new DateTime(2026, 8, 14), new DateTime(2026, 8, 31), 175.65m, kind: "Amaliia"),
+            Gs(new DateTime(2026, 9, 1), Dez, 310m, kind: "Amaliia"),
+        };
+        foreach (var z in gs) { z.KindGeburt = new DateTime(2009, 8, 20); z.KindAhv = AhvKind; }
+        var ma = MaMit(Zl(new(2026, 8, 14), new(2027, 9, 30), 310m, "AZ"));
+        ma.Kinder[0].Vorname = "Amaliia";
+        ma.Kinder[0].Geburt = new DateTime(2009, 8, 20);
+        var r = Vergleiche(gs, new[] { ma });
+        Assert.Empty(r.Abweichung);
+        Assert.Empty(r.Fehlt);
+        var t = Assert.Single(r.Passt);
+        Assert.Equal(1415.65m, t.OcTotal);
+        Assert.Equal(1415.65m, t.GsTotal);
     }
 
     [Fact]

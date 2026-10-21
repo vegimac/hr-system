@@ -31,7 +31,7 @@ function gsfUpdateBranchBanner() {
         el.style.color = '#92400e';
         return;
     }
-    el.innerHTML = `Filiale: <b>${esc(b.restaurantCode || '')} ${esc(b.city || b.name || '')}</b> — bitte die Familienzulagenbescheinigung <b>dieser</b> Filiale hochladen.`;
+    el.innerHTML = `Filiale: <b>${esc(b.restaurantCode || '')} ${esc(b.city || b.name || '')}</b> — in AKISnet: <b>FZ AK → FZ-Bescheinigung anzeigen</b>, Excel dieser Filiale hochladen (nicht die Mitarbeitenden-Liste).`;
     el.style.background = '#f6f3ee';
     el.style.borderColor = '#e5e0d6';
     el.style.color = '#6b6152';
@@ -41,7 +41,7 @@ async function gsfAnalyze() {
     const inp = document.getElementById('gsfFileInput');
     ['gsfAlert', 'gsfSummary', 'gsfResult'].forEach(id => { document.getElementById(id).innerHTML = ''; });
     if (!inp.files || inp.files.length === 0) {
-        gsfFehler('Bitte die GastroSocial «Familienzulagenbescheinigung» (XLSX) wählen.');
+        gsfFehler('Bitte die Excel aus AKISnet «FZ-Bescheinigung anzeigen» wählen (nicht die Mitarbeitenden-Liste).');
         return;
     }
     const cpId = typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId ? fixedCompanyProfileId : 0;
@@ -150,7 +150,7 @@ function gsfRender(d, ansicht) {
             <span style="font-size:12px;color:#64748b;font-weight:600">Ansicht:</span>
             <select id="gsfFilter" onchange="gsfRenderRows()">
                 <option value="fehlt">Fehlt in OneCrew — GastroSocial zahlt, OneCrew nicht (${fe})</option>
-                <option value="abweichung">Abweichung — Monate oder Ansatz verschieden (${ab})</option>
+                <option value="abweichung">Abweichung — Beginn/Ende oder Ansatz verschieden (${ab})</option>
                 <option value="nurOneCrew">Nur in OneCrew — GastroSocial bescheinigt nichts (${no})</option>
                 <option value="nichtZuordenbar">Nicht zuordenbar — Bezüger in OneCrew nicht gefunden (${nz})</option>
                 <option value="angabenPruefen">Angaben prüfen — AHV, Name, Geburtsdatum … weichen ab (${ap})</option>
@@ -174,7 +174,7 @@ function gsfRenderRows() {
     if (!rows.length) {
         const leer = {
             fehlt: '✓ Für jedes Kind, für das GastroSocial zahlt, ist in OneCrew eine Zulage erfasst.',
-            abweichung: '✓ Monate und Ansätze stimmen überall überein.',
+            abweichung: '✓ Beginn, Ende und Ansatz stimmen überall überein.',
             nurOneCrew: '✓ Keine Zulage in OneCrew, die GastroSocial nicht bescheinigt.',
             nichtZuordenbar: '✓ Alle Bezüger sind einem MA zugeordnet.',
             angabenPruefen: '✓ AHV-Nummern, Namen und Geburtsdaten stimmen mit GastroSocial überein.',
@@ -185,7 +185,7 @@ function gsfRenderRows() {
     }
     const aufgabe = {
         fehlt: 'GastroSocial zahlt für dieses Kind, in OneCrew fehlt das Kind oder die Zulage in diesen Monaten — im Lohn wird sie nicht ausbezahlt. Kind/Zulage im MA → Familie erfassen.',
-        abweichung: 'GastroSocial und OneCrew zahlen nicht dieselben Monate oder nicht denselben Ansatz. Zulage beim Kind prüfen (Gültig ab/bis, Art, Satz).',
+        abweichung: 'Beginn, Ende oder Ansatz weichen ab. Zulage beim Kind prüfen (Gültig ab/bis, Art, Satz). Anteilige Teilmonate (wie die Ausgleichskasse) sind kein Alarm.',
         nurOneCrew: 'OneCrew zahlt eine Zulage, GastroSocial bescheinigt für dieses Kind nichts — Antrag fehlt, anderer Elternteil bezieht sie, oder die Zulage in OneCrew beenden.',
         nichtZuordenbar: 'Bezüger in OneCrew nicht gefunden — AHV-Nummer beim MA nachtragen oder prüfen, ob die Person bei uns arbeitet.',
         angabenPruefen: 'Die Angaben zum Kind oder MA stimmen nicht mit GastroSocial überein oder fehlen in OneCrew. Mit Ausweis/Geburtsurkunde klären: falsch in OneCrew → im MA → Familie korrigieren, falsch bei GastroSocial → dort melden. (Die Bescheinigung enthält vom Kind nur AHV-Nr., Vorname und Geburtsdatum — Nachname und Geschlecht werden nur geprüft, wenn der Export sie mitliefert.)',

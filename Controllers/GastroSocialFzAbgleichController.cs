@@ -99,26 +99,47 @@ public class GastroSocialFzAbgleichController : ControllerBase
                     Ahv = f.SocialSecurityNumber,
                     Geburt = f.DateOfBirth,
                     Geschlecht = f.Gender,
-                    Zulagen = zulagen[f.Id].Select(a => new GastroSocialFzAbgleich.Zulage
+                    Zulagen = zulagen[f.Id].Select(a =>
                     {
-                        Id = a.Id,
-                        Typ = a.AllowanceType,
-                        Satz = a.TarifSatzNr,
-                        Von = a.ValidFrom,
-                        Bis = a.ValidTo,
-                        Betraege = monate
-                            .Where(m => a.ValidFrom <= m.AddMonths(1).AddDays(-1) && (a.ValidTo == null || a.ValidTo >= m))
-                            .ToDictionary(m => m, m =>
+                        static bool Laufend(string? typ) =>
+                            !string.Equals(typ, "GZ", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(typ, "AdoptZ", StringComparison.OrdinalIgnoreCase);
+                        var geschwister = zulagen[f.Id];
+                        bool vorgaenger = geschwister.Any(o => o.Id != a.Id && Laufend(o.AllowanceType)
+                            && o.ValidTo == a.ValidFrom.AddDays(-1));
+                        bool nachfolger = a.ValidTo.HasValue && geschwister.Any(o => o.Id != a.Id && Laufend(o.AllowanceType)
+                            && o.ValidFrom == a.ValidTo.Value.AddDays(1));
+                        var betraege = new Dictionary<DateOnly, decimal>();
+                        foreach (var m in monate)
+                        {
+                            if (a.ValidFrom > m.AddMonths(1).AddDays(-1) || (a.ValidTo != null && a.ValidTo < m)) continue;
+                            var ende = m.AddMonths(1).AddDays(-1);
+                            var tarif = tarife.Where(t => t.ValidFrom <= ende && (t.ValidTo == null || t.ValidTo >= m))
+                                .OrderByDescending(t => t.ValidFrom).FirstOrDefault();
+                            var typ = a.AllowanceType;
+                            if (string.IsNullOrWhiteSpace(typ))
+                                typ = f.DateOfBirth != null && f.DateOfBirth.Value.AddYears(16) <= ende.ToDateTime(TimeOnly.MinValue) ? "AZ" : "KZ";
+                            var betrag = FamilienzulagenResolverService.ResolveBySatz(tarif, typ, a.TarifSatzNr).Amount ?? a.MonthlyAmount;
+                            if (!Laufend(typ))
                             {
-                                var ende = m.AddMonths(1).AddDays(-1);
-                                var tarif = tarife.Where(t => t.ValidFrom <= ende && (t.ValidTo == null || t.ValidTo >= m))
-                                    .OrderByDescending(t => t.ValidFrom).FirstOrDefault();
-                                var typ = a.AllowanceType;
-                                if (string.IsNullOrWhiteSpace(typ))
-                                    typ = f.DateOfBirth != null && f.DateOfBirth.Value.AddYears(16) <= ende.ToDateTime(TimeOnly.MinValue) ? "AZ" : "KZ";
-                                var betrag = FamilienzulagenResolverService.ResolveBySatz(tarif, typ, a.TarifSatzNr).Amount ?? a.MonthlyAmount;
-                                return Math.Round(betrag, 2);
-                            }),
+                                betraege[m] = Math.Round(betrag, 2);
+                                continue;
+                            }
+                            // Wie im Lohn (FamzMonatsAnteil): Teilmonat 30-Tage-Basis —
+                            // sonst Alarm «Ansatz 175.65 vs 310» obwohl beides stimmt (Fomina).
+                            var anteil = PayrollCalculations.FamzMonatsAnteil(m, a.ValidFrom, a.ValidTo, vorgaenger, nachfolger);
+                            if (anteil <= 0m) continue;
+                            betraege[m] = PayrollCalculations.FamzAnteilBetrag(betrag, anteil);
+                        }
+                        return new GastroSocialFzAbgleich.Zulage
+                        {
+                            Id = a.Id,
+                            Typ = a.AllowanceType,
+                            Satz = a.TarifSatzNr,
+                            Von = a.ValidFrom,
+                            Bis = a.ValidTo,
+                            Betraege = betraege,
+                        };
                     }).ToList(),
                 }).ToList(),
         }).ToList();

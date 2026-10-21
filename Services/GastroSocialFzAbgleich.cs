@@ -11,9 +11,10 @@ namespace HrSystem.Services;
 ///
 /// GastroSocial «Familienzulagenbescheinigung» (Excel: Leistung · Bezüger AHV-Nr. · Bezüger Name/Vorname ·
 /// Kind AHV-Nr. · Kind Vorname · GebDat · Von · Bis · Monate · Ansatz · TotalBetrag) gegen die Zulagen
-/// bei den Kindern in OneCrew (MA → Familie), Monat für Monat:
+/// bei den Kindern in OneCrew (MA → Familie). Kontrolle = Beginn/Ende und Ansatz; Teilmonate wie im
+/// Lohn (30-Tage-Anteil) — kein Alarm wegen anteiligem ersten/letzten Monat:
 ///   • Fehlt in OneCrew — GastroSocial zahlt, in OneCrew kein Kind / keine Zulage in diesen Monaten
-///   • Abweichung — Monate oder Ansatz unterscheiden sich
+///   • Abweichung — Beginn/Ende oder Ansatz unterscheiden sich
 ///   • Nur in OneCrew — Zulage in OneCrew (Vertragsmonate dieser Filiale), Kind fehlt in der Bescheinigung
 ///   • Nicht zuordenbar — Bezüger in OneCrew nicht gefunden
 ///   • Passt
@@ -219,8 +220,9 @@ public static class GastroSocialFzAbgleich
     {
         var art = z.Satz != null ? $"{z.Typ} Satz {z.Satz}" : z.Typ ?? "Zulage";
         var bis = z.Bis != null ? $"{z.Bis:dd.MM.yyyy}" : "offen";
-        var betrag = z.Betraege.Values.Where(b => b > 0).Distinct().ToList();
-        return $"{art} · {z.Von:dd.MM.yyyy}–{bis}" + (betrag.Count == 1 ? $" · {Chf(betrag[0])}" : "");
+        // Anzeige = voller Monatsansatz (Max), nicht der anteilige Teilmonat.
+        var voll = z.Betraege.Values.Where(b => b > 0).DefaultIfEmpty(0m).Max();
+        return $"{art} · {z.Von:dd.MM.yyyy}–{bis}" + (voll > 0 ? $" · {Chf(voll)}" : "");
     }
 
     public static Ergebnis Vergleiche(IReadOnlyList<Zeile> zeilen, IReadOnlyList<Ma> alle)

@@ -8885,7 +8885,7 @@
                 <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
                     <div>
                         <h1 class="page-title">FZ-Abgleich: GastroSocial Familienzulagen</h1>
-                        <p class="page-sub">«Familienzulagenbescheinigung» aus dem GastroSocial-Portal hochladen — OneCrew vergleicht Monat für Monat mit den Zulagen bei den Kindern (MA → Familie). Es werden keine Daten geschrieben.</p>
+                        <p class="page-sub">Bescheinigung aus AKISnet hochladen — OneCrew vergleicht Monat für Monat mit den Zulagen bei den Kindern. Es werden keine Daten geschrieben.</p>
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
                         <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
@@ -8898,17 +8898,22 @@
                     <div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:flex-end">
                         <button type="button" onclick="akisOpenPortal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">🌐 AKISnet öffnen</button>
                         <div>
-                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">GastroSocial «Familienzulagenbescheinigung» (XLSX / XLS)</label>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Excel der FZ-Bescheinigung (XLSX / XLS)</label>
                             <input type="file" id="gsfFileInput" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                    style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
                         </div>
                         <button class="btn btn-primary" id="gsfAnalyzeBtn" onclick="gsfAnalyze()">Vergleichen</button>
                     </div>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
-                        <b>Erwartete Datei:</b> Export aus dem GastroSocial-Portal mit Spalten <code>Leistung · Bezüger AHV-Nr. · Bezüger Name · Bezüger Vorname · Kind AHV-Nr. · Kind Vorname · GebDat · Von · Bis · Monate · Ansatz · TotalBetrag</code> (Reihenfolge egal).<br>
-                        <b>Match:</b> Bezüger über AHV-Nummer (alle Filialen) → AHV-Nummer des Kindes → Name; Kind über AHV-Nummer → Geburtsdatum + Vorname → Vorname.<br>
-                        <b>Vergleich pro Monat:</b> ein Monat zählt in OneCrew, wenn eine Zulage ihn berührt — Betrag wie im Lohn (FAK-Tarif der Filiale, Satz am Kind).<br>
-                        <b>Fehlt in OneCrew</b> = GastroSocial zahlt, in OneCrew kein Kind bzw. keine Zulage → fehlt im Lohn. <b>Nur in OneCrew</b> = Zulage in OneCrew während eines Vertrags in dieser Filiale, das Kind steht nicht in der Bescheinigung.
+                        <b>So holst du die Datei in AKISnet:</b><br>
+                        1. Mit dem Konto <b>dieser Filiale</b> anmelden (jede Filiale = eigenes GastroSocial-Konto).<br>
+                        2. Links: <b>FZ AK · Familienzulagen</b> → <b>FZ-Bescheinigung anzeigen</b> (nicht «AK-Mitarbeitende» — das ist nur die MA-Liste).<br>
+                        3. Es erscheint die Liste «FZ Bescheinigung» mit Bezüger, Kind, Von/Bis, Ansatz, TotalBetrag.<br>
+                        4. Oben rechts über das Menü <b>⋮</b> als Excel herunterladen, hier hochladen und «Vergleichen».<br>
+                        <span style="display:block;margin-top:8px"><b>Erwartete Spalten</b> (Reihenfolge egal): <code>Leistung · Bezüger AHV-Nr. · Bezüger Name · Bezüger Vorname · Kind AHV-Nr. · Kind Vorname · GebDat · Von · Bis · Monate · Ansatz · TotalBetrag</code></span>
+                        <span style="display:block;margin-top:6px"><b>Match:</b> Bezüger über AHV → Kind-AHV → Name; Kind über AHV → Geburtsdatum + Vorname → Vorname.<br>
+                        <b>Vergleich:</b> Monat für Monat, Betrag wie im Lohn (FAK-Tarif der Filiale, Satz am Kind).<br>
+                        <b>Fehlt in OneCrew</b> = GastroSocial zahlt, in OneCrew kein Kind/keine Zulage. <b>Nur in OneCrew</b> = Zulage in dieser Filiale, Kind fehlt in der Bescheinigung.</span>
                     </div>
                 </div>
                 </div><!-- /.sticky-page-head -->
@@ -10803,7 +10808,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/mirus-address-compare.js?v=20261011a"></script>
 <script src="js/mirus-fehlende-ma.js?v=20261011a"></script>
 <script src="js/gs-ahv-abgleich.js?v=20261013b"></script>
-<script src="js/gs-fz-abgleich.js?v=20261012c"></script>
+<script src="js/gs-fz-abgleich.js?v=20261021b"></script>
 <script src="js/famz-mitteilung.js?v=20261020b"></script>
 <script src="js/gespraech.js?v=20261015b"></script>
 <script src="js/roster-absence-import.js?v=20261003a"></script>
