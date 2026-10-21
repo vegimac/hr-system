@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 96;  // 96: Kontoplan-Nummer = Lohnposition · 95: AHV-Abmeldung warnt erst nach dem Austritt · 94: falsche Swissdec-Nummern weg
+const int SchemaStand = 97;  // 97: Mirus-Raster → Swissdec verknüpfen · 96: Kontoplan = Lohnposition · 95: AHV-Abmeldung nach Austritt
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2615,6 +2615,48 @@ using (var scope = app.Services.CreateScope())
             UPDATE lohn_konto_mapping SET lohnart_code = '950.1' WHERE position = 950 AND fibukonto = '1920';
         ");
         startLog.LogInformation("Stand 96: Kontoplan-Nummer entspricht der Lohnposition");
+    }
+
+    // Stand 97: verwendete Mirus-Lohnarten → Swissdec (Walter 21.10.2026).
+    // Mehrere Mirus-Zeilen dürfen auf dieselbe Swissdec-Position zeigen.
+    // Korrektur-Reste 65/75 → inaktiv (bereits unter 2050).
+    if (dbStand < 97)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE lohnposition SET is_active = false
+             WHERE code IN ('65.1','65.2','75.1','75.2') AND is_active = true;
+
+            CREATE TEMP TABLE _mirus_sd (mirus text PRIMARY KEY, swiss text NOT NULL);
+            INSERT INTO _mirus_sd (mirus, swiss) VALUES
+                ('10.1','1000'),('10.2','1000'),('10.3','1000'),('10.4','1000'),('10.5','1000'),
+                ('20','1005'),('20.1','1005'),('20.2','1005'),('20.3','1005'),('22','1005'),('55.3','1005'),
+                ('55.1','1061'),('55.2','1065'),('55.10','1076'),('55.11','1076'),('55.12','1076'),
+                ('40.1','1160'),('195.1','1160'),('195.3','1160'),('195.5','1160'),('195.6','1160'),
+                ('50.1','1161'),('195.2','1161'),('195.4','1161'),
+                ('180.1','1200'),('180.2','1200'),('180.3','180.3'),('200.10','1200'),
+                ('200.5','1210'),('200.1','6070'),
+                ('190.1','3000'),('190.2','3000'),('200.190','3000'),('190.3','3034'),
+                ('70.1','1301'),('70.2','2035'),
+                ('60.1','1300'),('60.2','1300'),('60.3','2030'),
+                ('65.1','2050'),('65.2','2050'),('75.1','2050'),('75.2','2050'),
+                ('85.1','2050'),('95.1','2050'),('125.1','2050'),('125.2','2050'),
+                ('80.1','2000'),('80.2','2000'),('80.3','2000'),
+                ('90.1','2000'),('90.2','2000'),('90.3','2000'),
+                ('120.1','2001'),('120.2','2002'),
+                ('103','5010'),('104','5012'),('107','5042'),('110','5020'),('111','5050'),
+                ('565','5102'),('565.1','5102'),('565.2','5102'),
+                ('600.5','5212'),
+                ('600.24','600.24'),('600.32','600.32'),('950.1','950.1');
+
+            UPDATE elm_lohnraster e
+               SET verwendet_lohnposition_id = lp.id
+              FROM _mirus_sd m
+              JOIN lohnposition lp ON lp.code = m.swiss AND lp.is_active = true
+             WHERE e.code = m.mirus;
+
+            DROP TABLE IF EXISTS _mirus_sd;
+        ");
+        startLog.LogInformation("Stand 97: Mirus-Raster auf Swissdec verknüpft, 65/75 inaktiv");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

@@ -1,9 +1,8 @@
 // ══════════════════════════════════════════════════════════════════════
-//  ELM-LOHNRASTER-PICKLIST (Walter-Vorgabe 17.08.2026)
-//  Dauerhaftes Archiv aller 309 Raster-Positionen (Lohnarten, SV-Abzuege,
-//  Absenzarten). Pro Lohnart kann per Klick eine OneCrew-Lohnposition
-//  erzeugt («Uebernehmen») oder eine bestehende zugeordnet werden
-//  («Verknuepfen»). Nichts wird automatisch aktiv.
+//  Mirus-Lohnraster für Migration (Walter 21.10.2026)
+//  Links Mirus-Code, rechts die Swissdec-Lohnposition in OneCrew.
+//  Mehrere Mirus-Zeilen → dieselbe Swissdec-Nr. erlaubt.
+//  «Übernehmen» legt keine Mirus-Nummer an, nur Verknüpfung.
 // ══════════════════════════════════════════════════════════════════════
 let _elrAll = [];
 let _elrLohnpos = [];
@@ -78,12 +77,21 @@ function elrRender() {
                      ${e.verwendetLohnpositionId ? 'checked' : ''}
                      onclick="event.stopPropagation(); elrToggle(${e.id}, this)">`
                 : '<span style="color:#d6d2ca">·</span>';
-            const status = e.verwendetLohnpositionId
-                ? `<span style="color:#166534;font-weight:600">${_elrEsc(e.verwendetCode)}</span> <span style="color:#8b8b8b;font-size:11.5px">${_elrEsc(e.verwendetBezeichnung || '')}</span>`
-                : (e.typ === 'LOHNART'
-                    ? `<a href="javascript:void(0)" onclick="event.stopPropagation(); elrVerknuepfenDialog(${e.id})"
-                          style="color:#8b8b8b;font-size:11.5px;text-decoration:underline dotted" title="Bestehende OneCrew-Lohnposition mit anderem Code zuordnen">mit bestehender verknüpfen…</a>`
-                    : '<span style="color:#b0aca3">—</span>');
+            let status;
+            if (e.verwendetLohnpositionId) {
+                const tot = e.verwendetAktiv === false
+                    ? ' <span style="color:#b91c1c;font-size:11px">(inaktiv)</span>'
+                    : '';
+                status = `<span style="color:#166534;font-weight:600">${_elrEsc(e.verwendetCode)}</span> <span style="color:#8b8b8b;font-size:11.5px">${_elrEsc(e.verwendetBezeichnung || '')}</span>${tot}`;
+            } else if (e.typ === 'LOHNART' || e.typ === 'ABSENZ' || e.typ === 'SV_ABZUG') {
+                const ziel = e.swissdecZiel
+                    ? `<span style="color:#a8a29e;font-size:11px;margin-right:6px">→ ${_elrEsc(e.swissdecZiel)}</span>`
+                    : '';
+                status = `${ziel}<a href="javascript:void(0)" onclick="event.stopPropagation(); elrVerknuepfenDialog(${e.id})"
+                          style="color:#8b8b8b;font-size:11.5px;text-decoration:underline dotted" title="Bestehende Swissdec-Lohnposition zuordnen">mit bestehender verknüpfen…</a>`;
+            } else {
+                status = '<span style="color:#b0aca3">—</span>';
+            }
             return `<tr style="border-bottom:1px solid rgba(60,55,48,0.08);${e.inaktiv ? 'opacity:.5' : ''}">
                 <td style="padding:4px 0;text-align:center">${checkbox}</td>
                 <td style="padding:4px 12px;font-family:monospace;font-weight:600;color:#3f3f3f;cursor:pointer" onclick="elrDetail(${e.id})" title="Details anzeigen">${_elrEsc(e.code)}</td>
@@ -114,28 +122,26 @@ async function elrToggle(id, cb) {
 
 async function elrUebernehmen(id) {
     const e = _elrAll.find(x => x.id === id);
+    const ziel = e.swissdecZiel || 'Swissdec';
     const ok = await liquidConfirm(
-        `Lohnart «${e.code} ${e.bezeichnung}» in OneCrew übernehmen? `
-        + `Sie wird als Lohnposition angelegt (Flags + Lohnausweisfeld aus dem Raster) — `
-        + `existiert der Code schon, wird die bestehende Position verknüpft.`,
-        { title: 'Lohnart übernehmen', yesLabel: 'Übernehmen', noLabel: 'Abbrechen' });
+        `Mirus «${e.code} ${e.bezeichnung}» mit Swissdec-Lohnposition «${ziel}» verknüpfen? `
+        + `Es wird keine neue Lohnart angelegt.`,
+        { title: 'Mit Swissdec verknüpfen', yesLabel: 'Verknüpfen', noLabel: 'Abbrechen' });
     if (!ok) return;
     const r = await fetch(`/api/elm-lohnraster/${id}/uebernehmen`, { method: 'POST', headers: ah() });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Fehler', 'error'); return; }
-    showToast(j.verknuepft
-        ? `Mit bestehender Lohnposition ${j.code} verknüpft.`
-        : `Lohnposition ${j.code} angelegt.`, 'success');
+    showToast(`Mit ${j.code} verknüpft.`, 'success');
     elrInit();
 }
 
 function elrVerknuepfenDialog(id) {
     const e = _elrAll.find(x => x.id === id);
     if (!e) return;
-    const belegte = new Set(_elrAll.filter(x => x.verwendetLohnpositionId).map(x => x.verwendetLohnpositionId));
-    const kandidaten = _elrLohnpos.filter(l => !belegte.has(l.id))
+    // Mehrere Mirus → dieselbe Swissdec erlaubt; nur aktive Positionen anbieten.
+    const kandidaten = _elrLohnpos.filter(l => l.isActive !== false)
         .sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
-    if (!kandidaten.length) { showToast('Keine freie OneCrew-Lohnposition zum Verknüpfen vorhanden.', 'info'); return; }
+    if (!kandidaten.length) { showToast('Keine aktive OneCrew-Lohnposition vorhanden.', 'info'); return; }
 
     let m = document.getElementById('elrVerknModal');
     if (!m) {
@@ -144,7 +150,7 @@ function elrVerknuepfenDialog(id) {
         m.style.cssText = 'display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.5)';
         m.innerHTML = `<div style="position:absolute;top:120px;left:50%;transform:translateX(-50%);width:480px;background:#faf8f5;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.35);padding:18px 22px">
             <b id="elrVerknTitle" style="font-size:14px;color:#3f3f3f;display:block;margin-bottom:4px"></b>
-            <p style="font-size:12px;color:#8b8b8b;margin:0 0 12px">Bestehende OneCrew-Lohnposition (anderer Code) diesem Raster-Eintrag zuordnen — es wird nichts neu angelegt.</p>
+            <p style="font-size:12px;color:#8b8b8b;margin:0 0 12px">Swissdec-Lohnposition zuordnen. Mehrere Mirus-Zeilen dürfen dieselbe Nr. teilen — es wird nichts neu angelegt.</p>
             <select id="elrVerknSelect" style="width:100%;padding:8px 10px;border-radius:8px;font-size:13px"></select>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
                 <button onclick="document.getElementById('elrVerknModal').style.display='none'"

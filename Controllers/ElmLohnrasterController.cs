@@ -1,5 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,12 +9,10 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// ELM-Lohnraster-PickList (Walter-Vorgabe 17.08.2026): read-only-Referenz-
-/// katalog aller 309 Raster-Positionen. «Uebernehmen» legt aus einem Eintrag
-/// eine OneCrew-Lohnposition an und verlinkt sie; «Verknuepfen» ordnet eine
-/// BESTEHENDE Lohnposition zu (Alias, ohne Neuanlage); «Loesen» hebt die
-/// Verknuepfung auf (loescht die Lohnposition NICHT).
-/// Reiner Katalog ohne Lohnlauf-Datumsbezug — im EditLock-Audit whitelisted.
+/// Mirus-Lohnraster für die Migration (Walter 21.10.2026):
+/// links Mirus-Code, rechts die Swissdec-Lohnposition in OneCrew.
+/// Mehrere Mirus-Zeilen dürfen auf dieselbe Swissdec-Nr. zeigen.
+/// «Übernehmen» legt keine Mirus-Nummer mehr an — nur Verknüpfung.
 /// </summary>
 [Authorize(Roles = "admin")]
 [ApiController]
@@ -22,49 +22,44 @@ public class ElmLohnrasterController : ControllerBase
     private readonly AppDbContext _db;
     public ElmLohnrasterController(AppDbContext db) { _db = db; }
 
+    /// <summary>Mirus-Code → OneCrew-Code (Swissdec oder Betrieb/Vortrag).</summary>
+    static string? ZielCode(string? mirus)
+    {
+        if (string.IsNullOrWhiteSpace(mirus)) return null;
+        var c = mirus.Trim();
+        if (LohnCodeAlias.MirusNachSwissdec.TryGetValue(c, out var swiss)) return swiss;
+        var via = SwissdecLohnartZuordnung.FuerOneCrewCode(c);
+        if (!string.IsNullOrEmpty(via)) return via;
+        // Betrieb / Vortrag: Code ist schon der OneCrew-Code
+        if (LohnCodes.IstInternOhneSwissdec(c)) return c;
+        return null;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        // Auto-Match (Walter-Vorgabe 17.08.2026): bestehende OneCrew-Lohnpositionen
-        // mit identischem Code werden beim Laden automatisch verknuepft, damit die
-        // Liste sofort zeigt, was schon im Lohn drin ist (Haekchen statt «—»).
-        // Idempotent: nur unverlinkte Eintraege, nur exakte Code-Gleichheit,
-        // nur wenn die Lohnposition nicht schon einem anderen Eintrag zugeordnet ist.
-        // ACHTUNG: nur Code-Gleichheit reicht NICHT — die OneCrew-Codes wurden bei
-        // der Migration vereinfacht und dieselbe Nummer kann etwas ANDERES bedeuten
-        // (OneCrew 60.2 = Unfall-Taggeld 80% vs. Raster 60.2 = Taggeld Karenz 88%).
-        // Darum verlangt der Auto-Match Code UND Kategorie/Gruppe (normalisiert).
-        // Alles andere laeuft ueber die manuelle Verknuepfung bzw. das einmalige
-        // Mapping-SQL (migrations-archive/link_elm_lohnraster_legacy.sql).
-        static string Norm(string? s) =>
-            new string((s ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+        // Unverlinkte Mirus-Zeilen an die passende Swissdec-Position hängen
+        // (mehrere Mirus → eine Swissdec erlaubt).
         var unverlinkt = await _db.ElmLohnraster
             .Where(e => e.VerwendetLohnpositionId == null)
             .ToListAsync();
         if (unverlinkt.Count > 0)
         {
-            var lohnposList = await _db.Lohnpositionen
-                .Select(l => new { l.Id, l.Code, l.Kategorie })
+            var lohnpos = await _db.Lohnpositionen.AsNoTracking()
+                .Where(l => l.IsActive)
+                .Select(l => new { l.Id, l.Code })
                 .ToListAsync();
-            var lohnposByCode = lohnposList
-                .GroupBy(l => l.Code)
-                .ToDictionary(g => g.Key, g => g.First());
-            var schonBelegt = await _db.ElmLohnraster
-                .Where(e => e.VerwendetLohnpositionId != null)
-                .Select(e => e.VerwendetLohnpositionId!.Value)
-                .ToListAsync();
-            var belegtSet = new HashSet<int>(schonBelegt);
+            var byCode = lohnpos
+                .GroupBy(l => l.Code, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
             var geaendert = false;
             foreach (var e in unverlinkt)
             {
-                if (lohnposByCode.TryGetValue(e.Code, out var lp)
-                    && !belegtSet.Contains(lp.Id)
-                    && Norm(lp.Kategorie) == Norm(e.Gruppe))
-                {
-                    e.VerwendetLohnpositionId = lp.Id;
-                    belegtSet.Add(lp.Id);
-                    geaendert = true;
-                }
+                var ziel = ZielCode(e.Code);
+                if (ziel == null) continue;
+                if (!byCode.TryGetValue(ziel, out var lpId)) continue;
+                e.VerwendetLohnpositionId = lpId;
+                geaendert = true;
             }
             if (geaendert) await _db.SaveChangesAsync();
         }
@@ -85,68 +80,45 @@ public class ElmLohnrasterController : ControllerBase
                 verwendetLohnpositionId = e.VerwendetLohnpositionId,
                 verwendetCode = e.VerwendetLohnposition?.Code,
                 verwendetBezeichnung = e.VerwendetLohnposition?.Bezeichnung,
+                verwendetAktiv = e.VerwendetLohnposition?.IsActive ?? false,
+                swissdecZiel = ZielCode(e.Code),
             }));
     }
 
-    /// <summary>Legt aus dem Raster-Eintrag eine neue Lohnposition an + verlinkt.</summary>
+    /// <summary>
+    /// Verknüpft die Mirus-Zeile mit der Swissdec-Lohnposition.
+    /// Legt keine neue Lohnart mit Mirus-Nummer an.
+    /// </summary>
     [HttpPost("{id}/uebernehmen")]
     public async Task<IActionResult> Uebernehmen(int id)
     {
         var e = await _db.ElmLohnraster.FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound();
         if (e.VerwendetLohnpositionId != null)
-            return Conflict(new { error = "SCHON_VERWENDET", message = "Diese Position ist bereits in OneCrew übernommen." });
-        if (e.Typ != "LOHNART")
-            return BadRequest(new { error = "NUR_LOHNARTEN", message = "Nur Lohnarten können als Lohnposition übernommen werden — SV-Abzüge/Absenzarten werden über SV-Sätze bzw. Absenz-Typen gepflegt." });
-        // Existiert der Code schon als Lohnposition → direkt verknuepfen statt Fehler
-        // (Haekchen-Semantik: «ist in OneCrew» — egal ob neu angelegt oder schon da).
-        var vorhanden = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == e.Code);
-        if (vorhanden != null)
-        {
-            var anderweitigBelegt = await _db.ElmLohnraster
-                .AnyAsync(x => x.VerwendetLohnpositionId == vorhanden.Id && x.Id != id);
-            if (anderweitigBelegt)
-                return Conflict(new { error = "LOHNPOSITION_BELEGT", message = $"Lohnposition «{e.Code}» ist bereits einem anderen Raster-Eintrag zugeordnet." });
-            e.VerwendetLohnpositionId = vorhanden.Id;
-            await _db.SaveChangesAsync();
-            return Ok(new { lohnpositionId = vorhanden.Id, code = vorhanden.Code, verknuepft = true });
-        }
+            return Conflict(new { error = "SCHON_VERWENDET", message = "Diese Position ist bereits verknüpft." });
+        if (e.Typ != "LOHNART" && e.Typ != "ABSENZ" && e.Typ != "SV_ABZUG")
+            return BadRequest(new { error = "NUR_LOHNARTEN", message = "Nur Lohnarten, Betrieb und Vorträge können verknüpft werden." });
 
-        // Lohnausweisfeld «9.  Beiträge …» → Kurzcode «9»
-        string? laFeld = null;
-        if (!string.IsNullOrWhiteSpace(e.Lohnausweisfeld))
-            laFeld = e.Lohnausweisfeld.Split('.')[0].Trim();
+        var ziel = ZielCode(e.Code);
+        if (string.IsNullOrEmpty(ziel))
+            return BadRequest(new { error = "KEINE_SWISSDEC", message = $"Für Mirus «{e.Code}» gibt es keine Swissdec-Zuordnung — bitte von Hand verknüpfen oder weglassen." });
 
-        var lp = new Lohnposition
-        {
-            Code            = e.Code,
-            Bezeichnung     = e.Bezeichnung,
-            Kategorie       = e.Gruppe ?? "",
-            Typ             = e.Steuerung == "Negativ" ? "ABZUG" : "ZULAGE",
-            AhvAlvPflichtig = e.Ahv  ?? true,
-            NbuvPflichtig   = e.Uvg  ?? true,
-            KtgPflichtig    = e.Ktg  ?? true,
-            BvgPflichtig    = e.Bvg  ?? true,
-            // ACHTUNG (Walter-Erkenntnis 17.08.2026, Basen-Kontrolle Juli):
-            // das Raster-Attribut «qstpfl» ist im Export durchgängig LEER und
-            // «Periodische Lohnart (QST)» beschreibt nur die Periodizität,
-            // NICHT die Pflicht. QST-Pflicht folgt in der Praxis der AHV-
-            // Pflicht (steuerbar was AHV-pflichtig ist; Spesen etc. beide frei).
-            QstPflichtig    = e.Ahv ?? true,
-            ZaehltAlsBasis13ml = e.Ml13 ?? false,
-            Lohnausweisfeld = laFeld,
-            IsActive        = true,
-        };
-        _db.Lohnpositionen.Add(lp);
-        await _db.SaveChangesAsync();
+        var lp = await _db.Lohnpositionen
+            .Where(l => l.Code == ziel && l.IsActive)
+            .OrderBy(l => l.Id)
+            .FirstOrDefaultAsync()
+            ?? await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == ziel);
+        if (lp == null)
+            return BadRequest(new { error = "SWISSDEC_FEHLT", message = $"Swissdec-Lohnposition «{ziel}» fehlt in OneCrew — zuerst unter Lohnpositionen anlegen." });
+
         e.VerwendetLohnpositionId = lp.Id;
         await _db.SaveChangesAsync();
-        return Ok(new { lohnpositionId = lp.Id, code = lp.Code });
+        return Ok(new { lohnpositionId = lp.Id, code = lp.Code, verknuepft = true });
     }
 
     public class VerknuepfenDto { public int LohnpositionId { get; set; } }
 
-    /// <summary>Ordnet eine BESTEHENDE Lohnposition zu (kein Neuanlegen).</summary>
+    /// <summary>Ordnet eine bestehende Lohnposition zu (mehrere Mirus → eine Swissdec erlaubt).</summary>
     [HttpPost("{id}/verknuepfen")]
     public async Task<IActionResult> Verknuepfen(int id, [FromBody] VerknuepfenDto dto)
     {
@@ -154,12 +126,9 @@ public class ElmLohnrasterController : ControllerBase
         if (e == null) return NotFound();
         var lp = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Id == dto.LohnpositionId);
         if (lp == null) return NotFound(new { error = "LOHNPOSITION_FEHLT" });
-        var belegt = await _db.ElmLohnraster.AnyAsync(x => x.VerwendetLohnpositionId == lp.Id && x.Id != id);
-        if (belegt)
-            return Conflict(new { error = "LOHNPOSITION_BELEGT", message = "Diese Lohnposition ist bereits einem anderen Raster-Eintrag zugeordnet." });
         e.VerwendetLohnpositionId = lp.Id;
         await _db.SaveChangesAsync();
-        return Ok();
+        return Ok(new { code = lp.Code });
     }
 
     [HttpPost("{id}/loesen")]
