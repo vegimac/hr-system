@@ -15,7 +15,7 @@ public static class FamzMitteilungVorschlag
 
     public const string ModusNeu = "neu";
     public const string ModusTeilen = "teilen";
-    public const string ModusErsetzen = "ersetzen"; // erneuter Entscheid beginnt früher → alte Zulage weg, neue anlegen
+    public const string ModusErsetzen = "ersetzen"; // erneuter Entscheid beginnt früher → alte beenden (Verlauf), neue anlegen
     public const string ModusSetzen = "setzen";
     public const string ModusEnde = "ende";
     public const string ModusBeleg = "beleg";

@@ -234,6 +234,7 @@ public class FamzMitteilungTests
         Assert.Equal(268m, z.Betrag);
         Assert.Contains("beenden", z.Text);
         Assert.Contains("01.02.2026", z.Text);
+        // Speichern: alte Zulage bleibt im Verlauf (ValidTo = Vortag des alten Beginns), wird nicht gelöscht.
     }
 
     [Fact]

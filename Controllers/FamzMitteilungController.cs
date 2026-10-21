@@ -143,8 +143,9 @@ public class FamzMitteilungController : ControllerBase
                     }
                     case FamzMitteilungVorschlag.ModusErsetzen:
                     {
-                        // Erneuter Entscheid mit früherem Beginn: alte Zulage entfernen (noch nicht
-                        // im Lohn), neuen Eintrag mit den Daten des Entscheids anlegen.
+                        // Erneuter Entscheid mit früherem Beginn: alte Zulage beenden (im Verlauf
+                        // sichtbar), neuen Eintrag anlegen — nicht löschen (Walter 21.10.2026).
+                        // Ende = Tag vor dem alten Beginn, damit keine Überlappung mit dem neuen.
                         var alt = await _db.FamilyMemberAllowances
                             .FirstOrDefaultAsync(a => a.Id == z.AllowanceId && a.FamilyMemberId == z.FamilyMemberId);
                         if (alt == null || z.Von == null || z.Bis == null || z.Von.Value >= alt.ValidFrom)
@@ -152,7 +153,8 @@ public class FamzMitteilungController : ControllerBase
                         var benutzt = await _korrektur.VerwendetBisAsync(emp.Id, new[] { alt });
                         if (benutzt.ContainsKey(alt.Id))
                             return Conflict(new { error = "SCHON_IM_LOHN", message = "Die bisherige Zulage ist schon im Lohn — bitte von Hand prüfen." });
-                        _db.FamilyMemberAllowances.Remove(alt);
+                        alt.ValidTo = alt.ValidFrom.AddDays(-1);
+                        alt.UpdatedAt = DateTime.Now;
                         var neu = NeueZulage(z);
                         _db.FamilyMemberAllowances.Add(neu);
                         belegen.Add(neu);
