@@ -62,7 +62,7 @@ public static partial class FamzMitteilungLeser
                 : FamzMitteilungArt.Unbekannt;
 
         var brief = Datum(DatumRx().Match(text).Groups[1].Value);
-        var ahv = Ahv(AhvRx().Match(text).Value);
+        var ahv = AhvDerBerechtigten(text);
         var fak = FakRx().Match(text);
         var fakKanton = fak.Success ? fak.Groups[1].Value.ToUpperInvariant() : null;
         var (nachname, vorname) = Berechtigte(text);
@@ -108,14 +108,40 @@ public static partial class FamzMitteilungLeser
         return cut > 0 ? text[..cut] : text;
     }
 
-    static (string? Nachname, string? Vorname) Berechtigte(string text)
+    /// <summary>
+    /// AHV der Berechtigten (MA), nicht die erste Nummer auf dem Blatt.
+    /// Bei Direktauszahlung steht oben links oft die AHV des Kindes («AHVNr.») —
+    /// die des MA folgt erst bei «Berechtigte» / «AHV-Nummer:» (Fall Islamaj).
+    /// </summary>
+    public static string? AhvDerBerechtigten(string text)
+    {
+        var block = BerechtigteBlock(text);
+        if (block != null)
+        {
+            var imBlock = AhvRx().Match(block);
+            if (imBlock.Success) return Ahv(imBlock.Value);
+        }
+        // «AHV-Nummer:» = Berechtigte; Kopf «AHVNr.» bewusst nicht (Kind bei Direktauszahlung).
+        var label = AhvNummerLabelRx().Match(text);
+        if (label.Success) return Ahv(label.Groups[1].Value);
+        return Ahv(AhvRx().Match(text).Value);
+    }
+
+    static string? BerechtigteBlock(string text)
     {
         var start = text.IndexOf("Berechtigte", StringComparison.OrdinalIgnoreCase);
-        if (start < 0) return (null, null);
+        if (start < 0) return null;
         var rest = text[start..];
         var ende = rest.IndexOf("Kind", StringComparison.OrdinalIgnoreCase);
         if (ende < 0) ende = rest.IndexOf("Der Zulagenanspruch", StringComparison.OrdinalIgnoreCase);
         if (ende > 0) rest = rest[..ende];
+        return rest;
+    }
+
+    static (string? Nachname, string? Vorname) Berechtigte(string text)
+    {
+        var rest = BerechtigteBlock(text);
+        if (rest == null) return (null, null);
         var m = NameKommaRx().Match(rest);
         if (!m.Success) return (null, null);
         return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim());
@@ -175,6 +201,10 @@ public static partial class FamzMitteilungLeser
 
     [GeneratedRegex(@"756[\s.]*\d{4}[\s.]*\d{4}[\s.]*\d{2}", RegexOptions.CultureInvariant)]
     private static partial Regex AhvRx();
+
+    [GeneratedRegex(@"AHV[\s\-]*Nummer\s*:\s*(756[\s.]*\d{4}[\s.]*\d{4}[\s.]*\d{2})",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex AhvNummerLabelRx();
 
     [GeneratedRegex(@"FAK\s+([A-Za-z]{2})", RegexOptions.CultureInvariant)]
     private static partial Regex FakRx();

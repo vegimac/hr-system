@@ -54,6 +54,24 @@ public class FamzMitteilungTests
         Wir bitten Sie daher, die Zahlung der Familienzulagen per obgenanntem Datum einzustellen.
         """;
 
+    /// <summary>
+    /// Direktauszahlung: oben links steht die AHV des Kindes («AHVNr.»), die der
+    /// Berechtigten erst bei «AHV-Nummer:» — nicht die Kind-Nummer als MA nehmen.
+    /// </summary>
+    const string IslamajDirekt = """
+        AHVNr. 756.4747.2853.88
+        Datum: 01.07.2025
+        Familienzulagen: Entscheid (Direktauszahlung monatlich ab 01.07.2025)
+        Berechtigte(r): Islamaj, Samire
+        AHV-Nummer: 756.5230.7859.65 / 4'290'733
+        Arbeitgeber: Schaub Restaurants GmbH
+        Massg. Gesetz: FAK LU
+        Kind Geburtsdatum Gültig ab Gültig bis Zulagenart Beend.-grund Domizil-Staat monatliche Zulage
+        Sevime 30.08.06 01.07.25 31.07.26 AZ 3 CH 268.00
+        Anspruch für 1 Kind 01.07.25 bis auf weiteres 268.00
+        Wichtige Hinweise
+        """;
+
     [Fact]
     public void Entscheid_liest_Kinder_und_nicht_die_Legende()
     {
@@ -76,11 +94,30 @@ public class FamzMitteilungTests
     }
 
     [Fact]
+    public void Direktauszahlung_nimmt_AHV_der_Berechtigten_nicht_des_Kindes()
+    {
+        var m = FamzMitteilungLeser.Lies(IslamajDirekt);
+        Assert.Equal(FamzMitteilungArt.Entscheid, m.Art);
+        Assert.Equal("756.5230.7859.65", m.Ahv);
+        Assert.NotEqual("756.4747.2853.88", m.Ahv);
+        Assert.Equal("Islamaj", m.Nachname);
+        Assert.Equal("Samire", m.Vorname);
+        var k = Assert.Single(m.Kinder);
+        Assert.Equal("Sevime", k.Vorname);
+        Assert.Equal(new DateOnly(2006, 8, 30), k.Geburt);
+        Assert.Equal(new DateOnly(2025, 7, 1), k.Von);
+        Assert.Equal(new DateOnly(2026, 7, 31), k.Bis);
+        Assert.Equal("AZ", k.Zulagenart);
+        Assert.Equal(268m, k.Betrag);
+    }
+
+    [Fact]
     public void Ausbildungszulage_Grund_3_ist_nicht_der_Satz()
     {
         var m = FamzMitteilungLeser.Lies(DenisAz);
         Assert.Equal("Velaj", m.Nachname);
         Assert.Equal("Valbone", m.Vorname);
+        Assert.Equal("756.7027.2234.83", m.Ahv);
         var d = Assert.Single(m.Kinder);
         Assert.Equal(new DateOnly(2005, 5, 4), d.Geburt);
         Assert.Equal(new DateOnly(2026, 8, 1), d.Von);
