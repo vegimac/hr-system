@@ -5914,15 +5914,16 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                         const zukunft = von && von > heute;
                         const aJson = JSON.stringify(a).replace(/"/g, '&quot;');
                         const zeitraum = `${kurz(a.validFrom)} – ${a.validTo ? kurz(a.validTo) : 'offen'}`;
-                        // Walter 04.09.2026: nur den Satz zeigen, nicht den Betrag —
-                        // der Lohn holt den Betrag aus dem jeweils gültigen FZ-Tarif
-                        // (Tarifwechsel greifen automatisch). Alt-Einträge ohne Satz
-                        // rechnen mit dem fixen Betrag → den zeigen wir weiterhin.
+                        // Walter 21.10.2026: Betrag wieder auf der Pille — Lohn holt
+                        // weiterhin den FZ-Tarif; Anzeige = erfasster Monatsbetrag.
                         const hatSatz = a.tarifSatzNr != null && a.tarifSatzNr !== '';
-                        const pillText = hatSatz ? `${esc(artShort)} Satz ${a.tarifSatzNr}` : `${esc(artShort)} · ${Number(a.monthlyAmount).toFixed(0)}`;
+                        const betragTxt = Number(a.monthlyAmount || 0).toFixed(2);
+                        const pillText = hatSatz
+                            ? `${esc(artShort)} Satz ${a.tarifSatzNr} · ${betragTxt}`
+                            : `${esc(artShort)} · ${betragTxt}`;
                         const betragHint = hatSatz
-                            ? 'Betrag gemäss FZ-Tarif des Kantons (erfasst mit CHF ' + Number(a.monthlyAmount).toFixed(2) + ')'
-                            : 'fixer Betrag CHF ' + Number(a.monthlyAmount).toFixed(2) + ' — kein Tarif-Satz hinterlegt';
+                            ? 'Betrag gemäss FZ-Tarif des Kantons (erfasst mit CHF ' + betragTxt + ')'
+                            : 'fixer Betrag CHF ' + betragTxt + ' — kein Tarif-Satz hinterlegt';
                         return `<div class="fam-tile-zulage-row${abgelaufen ? ' is-past' : ''}${zukunft ? ' is-future' : ''}">
                             <button type="button" class="fam-tile-chip${locked ? ' is-locked' : ''}${hatSatz ? '' : ' is-fixed'}"
                                 title="${esc(artShort)} · ${betragHint} · bis ${bisShort}${hasDok ? ' · mit Entscheid-Doku' : ''}${locked ? ' · in Lohn verwendet' : ''}"
@@ -8913,7 +8914,8 @@ function alZeileHtml(a, { menu = '', aktiv = false, klick = '' } = {}) {
     const farbe = status === 'läuft' ? '#166534' : (status === 'geplant' ? '#1d4ed8' : '#8b8b8b');
     const hatSatz = a.tarifSatzNr != null && a.tarifSatzNr !== '';
     const art = esc(a.allowanceType || 'Zulage');
-    const was = hatSatz ? `${art} Satz ${a.tarifSatzNr}` : `${art} · CHF ${Number(a.monthlyAmount || 0).toFixed(2)}`;
+    const betrag = Number(a.monthlyAmount || 0).toFixed(2);
+    const was = hatSatz ? `${art} Satz ${a.tarifSatzNr} · ${betrag}` : `${art} · ${betrag}`;
     const name = AL_ARTEN[a.allowanceType] ? ` <span class="kqv-grau">(${AL_ARTEN[a.allowanceType]})</span>` : '';
     const lohn = a.inLohnVerwendet
         ? ` · <span title="Im abgeschlossenen Lohn verwendet — nur noch «Gültig bis», Beleg und Bemerkung änderbar">🔒 Lohn bis ${alMonat(a.verwendetBis)}</span>`
