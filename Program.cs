@@ -7192,7 +7192,7 @@ app.Use(async (context, next) =>
     // Fremde CDNs (cdnjs, Google Fonts) entfernt — SheetJS/pdf.js/Inter liegen lokal.
     // 'unsafe-inline' bleibt vorerst (viele onclick=…); ohne Refactor würde die App knallen.
     // Report-Only parallel: strengere Script-Regel nur melden, nichts blockieren.
-    const cspEnforce =
+    var cspEnforce =
         "default-src 'self'; " +
         "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; " +
         "worker-src 'self' blob: data:; " +
