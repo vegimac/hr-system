@@ -7188,30 +7188,43 @@ app.Use(async (context, next) =>
     // HSTS: vom Browser nur über HTTPS beachtet, daher unbedingt setzen (nginx
     // terminiert TLS und proxyt HTTP an Kestrel — Request.IsHttps wäre hier false).
     h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
-    // Walter-Vorgabe 13.06.2026: CSP — erschwert XSS-Angriffe deutlich.
-    //   • default-src 'self'                 — alles standardmäßig nur von eigener Domain
-    //   • script-src 'self' 'unsafe-inline' + cdnjs (SheetJS/xlsx) + 'wasm-unsafe-eval'
-    //     (Scanbot Web SDK / WebAssembly — ohne wasm-unsafe-eval scheitert Worker-Init)
-    //   • worker-src 'self' blob: data:      — Scanbot WASM-Worker (blob:-URLs)
-    //   • style-src 'self' 'unsafe-inline' + Google Fonts CSS
-    //   • font-src  'self' + Google Fonts Files
-    //   • img-src   'self' + data: + blob: (Foto-Preview, Doku-Vorschau)
-    //   • media-src 'self' blob:             — Kamera-Stream für Dokument-Scan
-    //   • frame-src 'self' + blob:           — PDF-Vorschau im <iframe> mit
-    //                                          URL.createObjectURL(blob) → blob:https://…
-    //   • connect-src 'self'                 — API-Calls nur an eigene Domain
-    // Wenn nach Deploy etwas im Browser nicht mehr lädt → F12 Console zeigt
-    // welche Direktive blockt → hier nachschärfen.
-    h["Content-Security-Policy"] =
+    // CSP (Walter 13.06.2026, verschärft 22.10.2026 nach Mozilla Observatory):
+    // Fremde CDNs (cdnjs, Google Fonts) entfernt — SheetJS/pdf.js/Inter liegen lokal.
+    // 'unsafe-inline' bleibt vorerst (viele onclick=…); ohne Refactor würde die App knallen.
+    // Report-Only parallel: strengere Script-Regel nur melden, nichts blockieren.
+    const cspEnforce =
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com; " +
+        "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; " +
         "worker-src 'self' blob: data:; " +
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-        "font-src 'self' https://fonts.gstatic.com; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "font-src 'self'; " +
         "img-src 'self' data: blob:; " +
         "media-src 'self' blob:; " +
         "frame-src 'self' blob:; " +
-        "connect-src 'self'";
+        "connect-src 'self'; " +
+        "base-uri 'self'; " +
+        "object-src 'none'; " +
+        "frame-ancestors 'self'; " +
+        "form-action 'self'";
+    h["Content-Security-Policy"] = cspEnforce;
+    // Strenger nur beobachten (ohne unsafe-inline / ohne wasm) — Console zeigt
+    // Violations; App bleibt unverändert. Später Inline-Handler-Refactor.
+    h["Content-Security-Policy-Report-Only"] =
+        "default-src 'self'; " +
+        "script-src 'self'; " +
+        "worker-src 'self' blob: data:; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "font-src 'self'; " +
+        "img-src 'self' data: blob:; " +
+        "media-src 'self' blob:; " +
+        "frame-src 'self' blob:; " +
+        "connect-src 'self'; " +
+        "base-uri 'self'; " +
+        "object-src 'none'; " +
+        "frame-ancestors 'self'; " +
+        "form-action 'self'";
+    // Isoliert Fenster von Cross-Origin-Openern; allow-popups = Fenster öffnen bleibt ok.
+    h["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups";
     await next();
 });
 
