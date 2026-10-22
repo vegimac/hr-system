@@ -30,15 +30,20 @@ public sealed record SignaturUpdateErgebnis(
 /// </summary>
 public sealed class VirenScanner
 {
-    private const int Block = 64 * 1024;
+    private const int Block = 256 * 1024;
     private static readonly TimeSpan Zeitlimit = TimeSpan.FromMinutes(3);
     private static readonly TimeSpan UpdateZeitlimit = TimeSpan.FromMinutes(10);
     private static readonly SemaphoreSlim UpdateSperre = new(1, 1);
+    /// <summary>Gleichzeitige clamd-Verbindungen gesamt (Bestand + Uploads). Bestand nutzt max. 3.</summary>
+    private static readonly SemaphoreSlim ClamdSperren = new(4, 4);
 
     private readonly string _socket;
     private readonly string _datenbank;
     private readonly string _updateBefehl;
     private readonly ILogger<VirenScanner> _log;
+    private int _contScanProbiert;
+    private int _contScanOk;
+    private int _contScanNein;
 
     public bool Pflicht { get; }
 
@@ -57,34 +62,57 @@ public sealed class VirenScanner
     public Task<ScanErgebnis> PruefeAsync(byte[] daten, CancellationToken ct = default)
         => PruefeAsync(new MemoryStream(daten, writable: false), ct);
 
-    public async Task<ScanErgebnis> PruefeAsync(Stream daten, CancellationToken ct = default)
+    /// <summary>
+    /// Bestands-Scan: zuerst CONTSCAN (clamd liest die Datei selbst — deutlich schneller),
+    /// bei Zugriffsfehler Fallback auf INSTREAM. Nach ein paar Fehlschlägen nur noch Stream
+    /// (clamd darf die Ablage oft nicht lesen).
+    /// </summary>
+    public async Task<ScanErgebnis> PruefePfadOderStreamAsync(string pfad, CancellationToken ct = default)
     {
         if (!Pflicht) return ScanErgebnis.Sauber;
-        using var zeit = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        zeit.CancelAfter(Zeitlimit);
+
+        // Wenn CONTSCAN mehrfach scheitert (Rechte), nicht ewig weiterprobieren.
+        var nurStream = Volatile.Read(ref _contScanNein) >= 8 && Volatile.Read(ref _contScanOk) == 0;
+        if (!nurStream)
+        {
+            Interlocked.Increment(ref _contScanProbiert);
+            var cont = await ContScanAsync(pfad, ct);
+            if (cont.Status != ScanStatus.NichtBereit
+                || (cont.Fehler != null && !IstZugriffsOderPfadFehler(cont.Fehler)))
+            {
+                if (cont.Status != ScanStatus.NichtBereit)
+                    Interlocked.Increment(ref _contScanOk);
+                return cont;
+            }
+            Interlocked.Increment(ref _contScanNein);
+        }
+
+        await using var fs = File.OpenRead(pfad);
+        return await PruefeAsync(fs, ct);
+    }
+
+    private static bool IstZugriffsOderPfadFehler(string fehler)
+    {
+        var f = fehler.ToLowerInvariant();
+        return f.Contains("access denied") || f.Contains("permission") || f.Contains("can't open")
+            || f.Contains("no such file") || f.Contains("lstat") || f.Contains("stat failed")
+            || f.Contains("forbidden");
+    }
+
+    private async Task<ScanErgebnis> ContScanAsync(string pfad, CancellationToken ct)
+    {
+        await ClamdSperren.WaitAsync(ct);
         try
         {
+            using var zeit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            zeit.CancelAfter(Zeitlimit);
             using var sock = await VerbindenAsync(zeit.Token);
             await using var ns = new NetworkStream(sock, ownsSocket: false);
-            await ns.WriteAsync(Encoding.ASCII.GetBytes("zINSTREAM\0"), zeit.Token);
-
-            var puffer = new byte[Block];
-            var laenge = new byte[4];
-            int n;
-            while ((n = await daten.ReadAsync(puffer, zeit.Token)) > 0)
-            {
-                BinaryPrimitives.WriteUInt32BigEndian(laenge, (uint)n);
-                await ns.WriteAsync(laenge, zeit.Token);
-                await ns.WriteAsync(puffer.AsMemory(0, n), zeit.Token);
-            }
-            BinaryPrimitives.WriteUInt32BigEndian(laenge, 0);
-            await ns.WriteAsync(laenge, zeit.Token);
-
+            // Absoluter Pfad; zCONTSCAN = rekursiv, für einzelne Datei ok.
+            var cmd = "zCONTSCAN " + Path.GetFullPath(pfad) + "\0";
+            await ns.WriteAsync(Encoding.UTF8.GetBytes(cmd), zeit.Token);
             var antwort = await LiesAntwortAsync(ns, zeit.Token);
-            var erg = Auswerten(antwort);
-            if (erg.Status == ScanStatus.NichtBereit)
-                _log.LogWarning("Virenscanner meldet Fehler: {Antwort}", antwort);
-            return erg;
+            return AuswertenPfadAntwort(antwort);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -92,8 +120,76 @@ public sealed class VirenScanner
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Virenscanner nicht erreichbar ({Socket})", _socket);
             return new ScanErgebnis(ScanStatus.NichtBereit, Fehler: ex.Message);
+        }
+        finally
+        {
+            ClamdSperren.Release();
+        }
+    }
+
+    /// <summary>CONTSCAN-Antwort: «/pfad: OK» oder «/pfad: Name FOUND» oder ERROR.</summary>
+    public static ScanErgebnis AuswertenPfadAntwort(string? antwort)
+    {
+        var a = (antwort ?? "").Trim('\0', ' ', '\n', '\r');
+        if (a.Length == 0)
+            return new ScanErgebnis(ScanStatus.NichtBereit, Fehler: "keine Antwort vom Virenscanner");
+        if (a.EndsWith(" FOUND", StringComparison.Ordinal))
+        {
+            var trenner = a.LastIndexOf(": ", StringComparison.Ordinal);
+            var virus = trenner >= 0 ? a[(trenner + 2)..^" FOUND".Length] : a;
+            return new ScanErgebnis(ScanStatus.Fund, Virus: virus.Length > 0 ? virus : "unbekannt");
+        }
+        if (a.EndsWith(": OK", StringComparison.Ordinal) || a == "OK")
+            return ScanErgebnis.Sauber;
+        return new ScanErgebnis(ScanStatus.NichtBereit, Fehler: a);
+    }
+
+    public async Task<ScanErgebnis> PruefeAsync(Stream daten, CancellationToken ct = default)
+    {
+        if (!Pflicht) return ScanErgebnis.Sauber;
+        await ClamdSperren.WaitAsync(ct);
+        try
+        {
+            using var zeit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            zeit.CancelAfter(Zeitlimit);
+            try
+            {
+                using var sock = await VerbindenAsync(zeit.Token);
+                await using var ns = new NetworkStream(sock, ownsSocket: false);
+                await ns.WriteAsync(Encoding.ASCII.GetBytes("zINSTREAM\0"), zeit.Token);
+
+                var puffer = new byte[Block];
+                var laenge = new byte[4];
+                int n;
+                while ((n = await daten.ReadAsync(puffer, zeit.Token)) > 0)
+                {
+                    BinaryPrimitives.WriteUInt32BigEndian(laenge, (uint)n);
+                    await ns.WriteAsync(laenge, zeit.Token);
+                    await ns.WriteAsync(puffer.AsMemory(0, n), zeit.Token);
+                }
+                BinaryPrimitives.WriteUInt32BigEndian(laenge, 0);
+                await ns.WriteAsync(laenge, zeit.Token);
+
+                var antwort = await LiesAntwortAsync(ns, zeit.Token);
+                var erg = Auswerten(antwort);
+                if (erg.Status == ScanStatus.NichtBereit)
+                    _log.LogWarning("Virenscanner meldet Fehler: {Antwort}", antwort);
+                return erg;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Virenscanner nicht erreichbar ({Socket})", _socket);
+                return new ScanErgebnis(ScanStatus.NichtBereit, Fehler: ex.Message);
+            }
+        }
+        finally
+        {
+            ClamdSperren.Release();
         }
     }
 

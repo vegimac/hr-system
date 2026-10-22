@@ -9,9 +9,15 @@ namespace HrSystem.Services;
 /// 08.10.2026. Läuft im Hintergrund, nur einer gleichzeitig; Fortschritt über <see cref="Stand"/>.
 /// Funde werden gemeldet, die Datei bleibt liegen (ein Admin prüft und löscht sie).
 /// Ist der Scanner unterwegs nicht mehr bereit, bricht der Durchlauf ab statt Dateien zu überspringen.
+/// Parallelität (Walter 22.10.2026): mehrere Dateien gleichzeitig an clamd — sonst dauert
+/// ein Bestand mit 10k+ Dateien viele Stunden (strikt nacheinander).
 /// </summary>
 public sealed class VirenBestandScan
 {
+    /// <summary>Gleichzeitige Prüfungen im Bestands-Scan. 1 Slot bleibt für Live-Uploads frei
+    /// (siehe <see cref="VirenScanner"/>-Gesamtlimit).</summary>
+    private const int Parallel = 3;
+
     private readonly IServiceScopeFactory _scopes;
     private readonly VirenScanner _scanner;
     private readonly ILogger<VirenBestandScan> _log;
@@ -36,11 +42,24 @@ public sealed class VirenBestandScan
     public object Stand()
     {
         lock (_sperre)
+        {
+            var sekunden = _gestartetAm.HasValue
+                ? Math.Max(1, (int)((_beendetAm ?? DateTime.Now) - _gestartetAm.Value).TotalSeconds)
+                : 0;
+            var proSek = sekunden > 0 && _geprueft > 0 ? Math.Round(_geprueft / (double)sekunden, 1) : 0;
+            int? etaSek = null;
+            if (_laeuft && proSek > 0 && _gesamt > _geprueft)
+                etaSek = (int)Math.Ceiling((_gesamt - _geprueft) / proSek);
+
             return new
             {
                 laeuft = _laeuft, gestartetAm = _gestartetAm, beendetAm = _beendetAm, gestartetVon = _gestartetVon,
                 gesamt = _gesamt, geprueft = _geprueft, funde = _funde, unlesbar = _unlesbar, fehler = _fehler,
+                dateienProSekunde = proSek,
+                etaSekunden = etaSek,
+                parallel = Parallel,
             };
+        }
     }
 
     public bool Starten(string? von)
@@ -61,39 +80,67 @@ public sealed class VirenBestandScan
 
     private async Task LaufAsync()
     {
+        using var abbruch = new CancellationTokenSource();
         try
         {
             var dateien = Directory.Exists(_root)
                 ? Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories).ToList()
                 : new List<string>();
             lock (_sperre) _gesamt = dateien.Count;
-            _log.LogInformation("Viren-Bestandsscan gestartet: {N} Dateien unter {Root}", dateien.Count, _root);
+            _log.LogInformation("Viren-Bestandsscan gestartet: {N} Dateien unter {Root}, parallel={P}",
+                dateien.Count, _root, Parallel);
 
-            foreach (var pfad in dateien)
+            var opts = new ParallelOptions
             {
-                ScanErgebnis erg;
-                try
-                {
-                    await using var fs = File.OpenRead(pfad);
-                    erg = await _scanner.PruefeAsync(fs);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    lock (_sperre) { _unlesbar++; _geprueft++; }
-                    continue;
-                }
+                MaxDegreeOfParallelism = Parallel,
+                CancellationToken = abbruch.Token,
+            };
 
-                if (erg.Status == ScanStatus.NichtBereit)
+            try
+            {
+                await Parallel.ForEachAsync(dateien, opts, async (pfad, ct) =>
                 {
-                    lock (_sperre) _fehler = $"Abgebrochen: Virenscanner nicht bereit ({erg.Fehler}). Bitte später neu starten.";
-                    break;
-                }
-                if (erg.Status == ScanStatus.Fund)
-                {
-                    await FundSpeichernAsync(pfad, erg.Virus!);
-                    lock (_sperre) _funde++;
-                }
-                lock (_sperre) _geprueft++;
+                    ScanErgebnis erg;
+                    try
+                    {
+                        // Pfad-Scan (CONTSCAN), falls clamd die Datei lesen darf — sonst Stream.
+                        erg = await _scanner.PruefePfadOderStreamAsync(pfad, ct);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        lock (_sperre) { _unlesbar++; _geprueft++; }
+                        return;
+                    }
+
+                    if (erg.Status == ScanStatus.NichtBereit)
+                    {
+                        lock (_sperre)
+                        {
+                            if (_fehler == null)
+                                _fehler = $"Abgebrochen: Virenscanner nicht bereit ({erg.Fehler}). Bitte später neu starten.";
+                        }
+                        try { abbruch.Cancel(); } catch { /* ignore */ }
+                        return;
+                    }
+                    if (erg.Status == ScanStatus.Fund)
+                    {
+                        try { await FundSpeichernAsync(pfad, erg.Virus!); }
+                        catch (Exception ex)
+                        {
+                            _log.LogWarning(ex, "Fund speichern fehlgeschlagen ({Pfad})", pfad);
+                        }
+                        lock (_sperre) _funde++;
+                    }
+                    lock (_sperre) _geprueft++;
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                // Abbruch wegen NichtBereit — Fehlertext schon gesetzt.
             }
         }
         catch (Exception ex)

@@ -62,8 +62,19 @@ async function vsLoadStatus() {
         if (bel) {
             if (b.laeuft) {
                 const pct = b.gesamt ? Math.floor(b.geprueft * 100 / b.gesamt) : 0;
+                const tempo = b.dateienProSekunde
+                    ? ` · ca. ${b.dateienProSekunde} Datei${b.dateienProSekunde === 1 ? '' : 'en'}/s`
+                    : '';
+                let eta = '';
+                if (b.etaSekunden != null && b.etaSekunden > 0) {
+                    const m = Math.floor(b.etaSekunden / 60);
+                    const s = b.etaSekunden % 60;
+                    eta = m > 0 ? ` · noch ca. ${m} Min.` : ` · noch ca. ${s} Sek.`;
+                }
                 bel.innerHTML = `Prüfung bestehender Dokumente läuft: <b>${b.geprueft} / ${b.gesamt}</b> (${pct} %) · ${b.funde} Fund${b.funde === 1 ? '' : 'e'}`
-                    + (b.unlesbar ? ` · ${b.unlesbar} nicht lesbar` : '');
+                    + (b.unlesbar ? ` · ${b.unlesbar} nicht lesbar` : '')
+                    + tempo + eta
+                    + (b.parallel ? ` · ${b.parallel}× parallel` : '');
             } else if (b.gestartetAm) {
                 const ok = !b.fehler;
                 bel.innerHTML = `Letzte Prüfung bestehender Dokumente: ${_vsDatum(b.gestartetAm)}${b.gestartetVon ? ' von ' + _vsEsc(b.gestartetVon) : ''}`

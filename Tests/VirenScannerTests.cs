@@ -67,4 +67,10 @@ public class VirenScannerTests
         Assert.False(erg.Ok);
         Assert.Equal("KEIN_SCANNER", erg.Error);
     }
+
+    [Theory]
+    [InlineData("/var/data/doc.pdf: OK", ScanStatus.Sauber)]
+    [InlineData("/var/data/doc.pdf: Win.Test.EICAR FOUND", ScanStatus.Fund)]
+    public void ContScan_Antwort(string antwort, ScanStatus erwartet)
+        => Assert.Equal(erwartet, VirenScanner.AuswertenPfadAntwort(antwort).Status);
 }
