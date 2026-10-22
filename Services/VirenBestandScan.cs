@@ -15,8 +15,9 @@ namespace HrSystem.Services;
 public sealed class VirenBestandScan
 {
     /// <summary>Gleichzeitige Prüfungen im Bestands-Scan. 1 Slot bleibt für Live-Uploads frei
-    /// (siehe <see cref="VirenScanner"/>-Gesamtlimit).</summary>
-    private const int Parallel = 3;
+    /// (siehe <see cref="VirenScanner"/>-Gesamtlimit). Nicht «Parallel» nennen — sonst
+    /// verdeckt die Konstante <c>System.Threading.Tasks.Parallel</c>.</summary>
+    private const int MaxGleichzeitig = 3;
 
     private readonly IServiceScopeFactory _scopes;
     private readonly VirenScanner _scanner;
@@ -57,7 +58,7 @@ public sealed class VirenBestandScan
                 gesamt = _gesamt, geprueft = _geprueft, funde = _funde, unlesbar = _unlesbar, fehler = _fehler,
                 dateienProSekunde = proSek,
                 etaSekunden = etaSek,
-                parallel = Parallel,
+                parallel = MaxGleichzeitig,
             };
         }
     }
@@ -88,17 +89,17 @@ public sealed class VirenBestandScan
                 : new List<string>();
             lock (_sperre) _gesamt = dateien.Count;
             _log.LogInformation("Viren-Bestandsscan gestartet: {N} Dateien unter {Root}, parallel={P}",
-                dateien.Count, _root, Parallel);
+                dateien.Count, _root, MaxGleichzeitig);
 
             var opts = new ParallelOptions
             {
-                MaxDegreeOfParallelism = Parallel,
+                MaxDegreeOfParallelism = MaxGleichzeitig,
                 CancellationToken = abbruch.Token,
             };
 
             try
             {
-                await Parallel.ForEachAsync(dateien, opts, async (pfad, ct) =>
+                await System.Threading.Tasks.Parallel.ForEachAsync(dateien, opts, async (pfad, ct) =>
                 {
                     ScanErgebnis erg;
                     try
