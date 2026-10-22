@@ -7412,13 +7412,14 @@
             border-collapse: collapse;
             font-size: 13.5px;
         }
-        #page-benutzer .um-c-user { width: 22%; }
-        #page-benutzer .um-c-email { width: 18%; }
-        #page-benutzer .um-c-role { width: 12%; }
-        #page-benutzer .um-c-branch { width: 12%; }
-        #page-benutzer .um-c-status { width: 9%; }
-        #page-benutzer .um-c-created { width: 10%; }
-        #page-benutzer .um-c-login { width: 12%; }
+        #page-benutzer .um-c-user { width: 20%; }
+        #page-benutzer .um-c-email { width: 16%; }
+        #page-benutzer .um-c-role { width: 11%; }
+        #page-benutzer .um-c-branch { width: 11%; }
+        #page-benutzer .um-c-status { width: 8%; }
+        #page-benutzer .um-c-2fa { width: 9%; }
+        #page-benutzer .um-c-created { width: 9%; }
+        #page-benutzer .um-c-login { width: 11%; }
         #page-benutzer .um-c-actions { width: 5%; }
         #page-benutzer .um-table-head thead th {
             position: static !important;

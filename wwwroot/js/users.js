@@ -16,7 +16,7 @@ async function loadUsers() {
     const mirusBtn = document.getElementById('mirusDigestPreviewBtn');
     if (mirusBtn) mirusBtn.style.display = (currentUser?.role === 'admin') ? '' : 'none';
     const tbody = document.getElementById('userTbody');
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:28px;color:#94a3b8">Lade...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:#94a3b8">Lade...</td></tr>`;
     try {
         const res = await fetch('/api/users', { headers: ah() });
         const users = await res.json();
@@ -46,6 +46,12 @@ async function loadUsers() {
             const llt = u.lastLoginAt
                 ? new Date(u.lastLoginAt).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
                 : '<span style="color:#94a3b8">—</span>';
+            // 2FA: Pflicht + eingerichtet / Pflicht noch offen / aus.
+            const totpBadge = !u.totpRequired
+                ? '<span class="badge" style="background:#f1f5f9;color:#64748b" title="Zweite Prüfung nicht verlangt">Aus</span>'
+                : u.totpEingerichtetAm
+                    ? `<span class="badge b-active" title="Authenticator eingerichtet am ${new Date(u.totpEingerichtetAm).toLocaleDateString('de-CH')}">Aktiv</span>`
+                    : '<span class="badge" style="background:#fef3c7;color:#92400e" title="Häkchen gesetzt — App noch nicht eingerichtet">Offen</span>';
             // Walter-Vorgabe 14.06.2026: ⋮-Menü statt direkter Bearbeiten/Löschen-
             // Buttons — Standard für alle Tabellen-Aktionen. Wiederverwendung
             // von dok-menu-btn + dokToggleMenu/dokCloseAllMenus aus documents.js.
@@ -76,13 +82,14 @@ async function loadUsers() {
                 <td><span class="badge ${rc}">${rLabel}</span></td>
                 <td>${bText}</td>
                 <td><span class="badge ${u.isActive ? 'b-active' : 'b-inactive'}">${u.isActive ? 'Aktiv' : 'Inaktiv'}</span></td>
+                <td>${totpBadge}</td>
                 <td style="color:#94a3b8;font-size:12px">${dt}</td>
                 <td style="color:#475569;font-size:12px">${llt}</td>
                 <td>${menuHtml}</td>
             </tr>`;
         });
     } catch {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:28px;color:#dc2626">Fehler beim Laden.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:#dc2626">Fehler beim Laden.</td></tr>`;
     }
 }
 
