@@ -7233,9 +7233,10 @@ app.Use(async (context, next) =>
 // Die Dateien liegen direkt im wwwroot-Root und werden von UseStaticFiles bedient;
 // keine Host-Weiche mehr nötig.
 
-// Hilfe (/help/*.md) und die Lohn-Engine-Skizze sind HR-Unterlagen.
+// Hilfe, Lohn-Engine-Skizze, Import und die Programm-Skripte sind HR-Unterlagen.
 // UseStaticFiles läuft vor der Anmeldung — diese Pfade deshalb hier abfangen.
-// Die App schickt das Token mit (Hilfe-Panel, Engine-iframe). Ohne Token: 401.
+// Skript-Tags schicken das Token als Cookie hr_modul, fetch als Bearer. Ohne Token: 401.
+// Offen bleiben nur Anmeldung (app-core, WebAuthn) und die kleinen Importer-Helfer.
 app.Use(async (ctx, next) =>
 {
     if (!StatikZugang.IstGeschuetzt(ctx.Request.Path))
@@ -7244,7 +7245,8 @@ app.Use(async (ctx, next) =>
         return;
     }
 
-    var principal = StatikZugang.Principal(ctx.Request.Headers.Authorization.ToString(), jwtSecret);
+    ctx.Request.Cookies.TryGetValue("hr_modul", out var modulCookie);
+    var principal = StatikZugang.PrincipalAus(ctx.Request.Headers.Authorization.ToString(), modulCookie, jwtSecret);
     var erlaubt = principal != null && StatikZugang.RollePasst(principal);
     if (erlaubt && principal != null)
     {

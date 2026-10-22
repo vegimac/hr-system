@@ -1,5 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
@@ -18,6 +20,7 @@ namespace HrSystem.Controllers;
 /// Siehe AKONTO-LOHN-PLAN.md, Abschnitt 4.1.
 /// </summary>
 [ApiController]
+[Authorize(Roles = StatikZugang.HrAppRollen)]
 [Route("api/akonto-termine")]
 public class AkontoTerminController : ControllerBase
 {

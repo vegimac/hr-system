@@ -96,6 +96,7 @@
         }
         try { authToken = null; } catch (_) {}
         try { localStorage.removeItem('hrToken'); } catch (_) {}
+        try { if (typeof modulCookieLoeschen === 'function') modulCookieLoeschen(); } catch (_) {}
         el.querySelector('#sessionLockWho').textContent = `${cu.firstName || cu.username || ''} — gesperrt nach Inaktivität`;
         el.querySelector('#sessionLockEmail').value = cu.email || '';
         el.querySelector('#sessionLockPw').value = '';
@@ -172,6 +173,7 @@
         }
         authToken = data.token;
         try { localStorage.setItem('hrToken', data.token); } catch (_) {}
+        try { if (typeof modulCookieSync === 'function') modulCookieSync(); } catch (_) {}
         cu.sessionStartedAt = data.sessionStartedAt;
         cu.loginAt = data.loginAt;
         cu.hardEndAt = data.hardEndAt;

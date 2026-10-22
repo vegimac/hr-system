@@ -1112,7 +1112,11 @@ function pbClosePreview() {
 }
 
 // Beim App-Start einmal Badge aktualisieren
-window.addEventListener('DOMContentLoaded', () => setTimeout(pbUpdateBadge, 1500));
+function pbBadgeBeimStart() { setTimeout(pbUpdateBadge, 1500); }
+if (document.readyState === 'loading')
+    window.addEventListener('DOMContentLoaded', pbBadgeBeimStart);
+else
+    pbBadgeBeimStart();
 
 
 // ═══════════════════════════════════════════════════════════════════════

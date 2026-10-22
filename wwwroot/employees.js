@@ -14691,6 +14691,10 @@ function renderOvSaldiHtml(s, stRow, mode) {
 async function loadOvSaldi(employeeId) {
     const el = document.getElementById('ovSaldiContent');
     if (!el || !employeeId) return;
+    if (typeof currentUser !== 'undefined' && currentUser?.role === 'lowuser') {
+        el.innerHTML = '<div class="ov-saldi-msg">Lohnübersicht ist für diese Rolle nicht verfügbar.</div>';
+        return;
+    }
 
     const gen = (window._ovSaldiLoadGen = (window._ovSaldiLoadGen || 0) + 1);
     el.innerHTML = _ovSaldiSkeletonHtml();
@@ -14749,6 +14753,10 @@ async function loadKtgTab(employeeId) {
     // Nur noch Absenzen-Sidebar (Übersicht = Saldi-Tabelle).
     const side = document.getElementById('ktgTagessatzSidebar');
     if (!side || !employeeId) return;
+    if (typeof currentUser !== 'undefined' && currentUser?.role === 'lowuser') {
+        side.innerHTML = '<div style="padding:16px;color:#8b8b8b;font-size:13px">Nicht verfügbar für diese Rolle.</div>';
+        return;
+    }
 
     const gen = (window._ktgLoadGen = (window._ktgLoadGen || 0) + 1);
     side.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>';

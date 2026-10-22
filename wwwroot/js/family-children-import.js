@@ -12,10 +12,14 @@ let _fciImportFile = null;
 // Beim Aufruf der Page: Beginn-Datum-Feld auf heute vorausfüllen, damit der
 // User in 99% der Fälle (Stichtag-Import) nichts mehr eintippen muss.
 // (Walter-Vorgabe 13.05.2026: das Feld bleibt — aber mit sinnvollem Default.)
-document.addEventListener('DOMContentLoaded', () => {
+function fciBeginnVorfuellen() {
     const fld = document.getElementById('fciImportValidFrom');
     if (fld && !fld.value) fld.value = new Date().toISOString().slice(0, 10);
-});
+}
+if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', fciBeginnVorfuellen);
+else
+    fciBeginnVorfuellen();
 
 async function fciImportPreview() {
     const inp = document.getElementById('fciImportFileInput');

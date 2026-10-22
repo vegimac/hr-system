@@ -27,7 +27,7 @@ namespace HrSystem.Controllers;
 /// der Hook für den Iso20022PainService steht in `Auszahlen`, aktuell aber
 /// nur als TODO. Bis dahin stösst HR die Bank-Zahlung manuell an.
 /// </summary>
-[Authorize]
+[Authorize(Roles = StatikZugang.HrAppRollen)]
 [ApiController]
 [Route("api/akonto/workflow")]
 public class AkontoWorkflowController : HrControllerBase

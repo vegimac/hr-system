@@ -106,6 +106,7 @@ let authToken = localStorage.getItem('hrToken');
             localStorage.removeItem('hrTokenAdmin');
             localStorage.removeItem('hrImpersonating');
             localStorage.removeItem('hrLastAlive');
+            try { modulCookieLoeschen(); } catch (_) {}
         }
     } catch (_) { /* localStorage gesperrt */ }
 })();
@@ -231,6 +232,7 @@ async function loginTokenUebernehmen(data, email, password) {
     // Backoffice-User bleiben in der vollen App, MA werden auf eine
     // schlanke Mobile-Seite umgeleitet wo sie nur ihre Lohnzettel sehen.
     if (data.user?.role === 'employee') {
+        modulCookieLoeschen();
         window.location.href = 'postfach.html';
         return;
     }
@@ -415,7 +417,7 @@ async function faceIdLogin() {
         authToken = data.token;
         localStorage.setItem('hrToken', authToken);
         currentUser = data.user || null;
-        if (data.user && data.user.role === 'employee') { window.location.href = 'postfach.html'; return; }
+        if (data.user && data.user.role === 'employee') { modulCookieLoeschen(); window.location.href = 'postfach.html'; return; }
         await checkAuth();   // Backoffice: currentUser vollständig laden
         // Pflicht-Passwortwechsel (Walter 11.09.2026) auch nach Face ID.
         if (currentUser?.mustChangePassword) { _loginPwMerken = null; pwChangeSchrittZeigen(); return; }
@@ -484,7 +486,7 @@ async function impersonateUser() {
         if (document.getElementById('impPassword')) document.getElementById('impPassword').value = '';
         // Mitarbeiter-Rolle → schlanke Postfach-Ansicht (wie echter MA-Login).
         // Der Balken wird dort ebenfalls gezeichnet (pfRenderImpersonationBanner).
-        if (me.role === 'employee') { window.location.href = 'postfach.html'; return; }
+        if (me.role === 'employee') { modulCookieLoeschen(); window.location.href = 'postfach.html'; return; }
         location.reload();
     } catch {
         if (err) { err.textContent = 'Verbindungsfehler.'; err.style.display = 'block'; }
@@ -567,6 +569,7 @@ async function checkAuth() {
             // anderes — während man längst mit den eigenen Rechten arbeitet.
             authToken = null;
             localStorage.removeItem('hrToken');
+            try { modulCookieLoeschen(); } catch (_) {}
             clearImpersonationStorage();
             return false;
         }
@@ -648,6 +651,7 @@ function doLogout() {
     } catch (_) {}
     authToken = null; currentUser = null;
     localStorage.removeItem('hrToken');
+    try { modulCookieLoeschen(); } catch (_) {}
     // Impersonation-/Testmodus-Reste miträumen, sonst hängt der Balken.
     localStorage.removeItem('hrTokenAdmin');
     localStorage.removeItem('hrImpersonating');
@@ -1090,6 +1094,7 @@ async function saveRetentionYears() {
             alerting = true;
             authToken = null;
             try { localStorage.removeItem('hrToken'); } catch {}
+            try { modulCookieLoeschen(); } catch (_) {}
             // Walter 31.08.2026: Auch den Testmodus-Zustand wegraeumen. Sonst
             // zeigt der Balken nach dem Neu-Anmelden weiter die Testperson,
             // waehrend die App mit dem eigenen Konto laeuft.
@@ -1147,12 +1152,51 @@ function openImportTool(mode) {
 // ══════════════════════════════════════════════
 // STARTUP
 // ══════════════════════════════════════════════
+// Programm-Skripte (Lohn, HR, Swissdec, …) lädt der Browser erst nach der
+// Anmeldung. Das Cookie schickt das Token bei <script src> mit — der
+// Authorization-Header geht bei Skript-Tags nicht.
+function modulCookieSync() {
+    let t = '';
+    try { t = localStorage.getItem('hrToken') || ''; } catch (_) {}
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    if (!t) {
+        document.cookie = 'hr_modul=; Path=/; Max-Age=0; SameSite=Lax' + secure;
+        return;
+    }
+    document.cookie = 'hr_modul=' + encodeURIComponent(t) + '; Path=/; Max-Age=50400; SameSite=Lax' + secure;
+}
+function modulCookieLoeschen() {
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = 'hr_modul=; Path=/; Max-Age=0; SameSite=Lax' + secure;
+}
+let _modulePromise = null;
+function moduleLaden() {
+    if (_modulePromise) return _modulePromise;
+    modulCookieSync();
+    const tags = [...document.querySelectorAll('script[data-modul]')];
+    _modulePromise = (async () => {
+        for (const tag of tags) {
+            const src = tag.getAttribute('data-modul');
+            if (!src) continue;
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = () => resolve();
+                s.onerror = () => reject(new Error(src));
+                document.body.appendChild(s);
+            });
+        }
+    })().catch(err => { _modulePromise = null; throw err; });
+    return _modulePromise;
+}
+
 async function init() {
     const ok = await checkAuth();
     if (ok) {
         // MA-Postfach-Accounts haben eine eigene Mobile-Seite — niemals die
         // Backoffice-App zeigen, auch nicht beim Auto-Re-Login via Token.
         if (currentUser?.role === 'employee') {
+            modulCookieLoeschen();
             window.location.href = 'postfach.html';
             return;
         }
@@ -1164,6 +1208,21 @@ async function init() {
 }
 
 async function startApp() {
+    const lad = document.getElementById('loginError');
+    if (lad && document.getElementById('loginScreen')?.style.display !== 'none') {
+        lad.style.display = 'block';
+        lad.textContent = 'Programm wird geladen …';
+    }
+    try {
+        await moduleLaden();
+    } catch (_) {
+        if (lad) {
+            lad.style.display = 'block';
+            lad.textContent = 'Das Programm konnte nicht geladen werden. Bitte die Seite neu laden.';
+        }
+        return;
+    }
+    if (lad && lad.textContent === 'Programm wird geladen …') lad.style.display = 'none';
     // Anmeldemaske weg, App zeigen (Walter 31.08.2026: dieser Block war beim
     // Umbau des Testmodus versehentlich mit entfernt worden — ohne ihn blieb
     // nach der Anmeldung der Login-Bildschirm stehen).

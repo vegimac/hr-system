@@ -14,7 +14,7 @@ namespace HrSystem.Controllers;
 ///   • Vorbedingungen-Check (Validate)
 ///   • (Phase 4) DTA-Generierung + finalisieren
 /// </summary>
-[Authorize]
+[Authorize(Roles = StatikZugang.HrAppRollen)]
 [ApiController]
 [Route("api/lohnlauf")]
 public class LohnlaufController : ControllerBase

@@ -13,6 +13,7 @@ namespace HrSystem.Controllers;
 
 [ApiController]
 [Route("api/payroll")]
+[Authorize(Roles = StatikZugang.HrAppRollen)]
 public class PayrollController : HrControllerBase
 {
     // GetCurrentUserId() + CanAccessBranchAsync() leben jetzt in HrControllerBase.

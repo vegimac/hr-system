@@ -16,12 +16,28 @@ public class StatikZugangTests
     [InlineData("/help", true)]
     [InlineData("/HELP/rollen.md", true)]
     [InlineData("/lohn-engine-debugger.html", true)]
-    [InlineData("/js/payroll.js", false)]
+    [InlineData("/js/payroll.js", true)]
+    [InlineData("/js/app-core.js", false)]
+    [InlineData("/js/webauthn.js", false)]
+    [InlineData("/js/personaldaten.js", false)]
+    [InlineData("/employees.js", true)]
+    [InlineData("/import.html", true)]
+    [InlineData("/lib/xlsx/xlsx.full.min.js", false)]
     [InlineData("/helpful", false)]
     [InlineData("/index.html", false)]
     public void Pfad_nur_hilfe_und_engine_skizze(string pfad, bool geschuetzt)
     {
         Assert.Equal(geschuetzt, StatikZugang.IstGeschuetzt(pfad));
+    }
+
+    [Fact]
+    public void Cookie_gilt_wie_bearer()
+    {
+        var token = Token("admin");
+        var ausCookie = StatikZugang.PrincipalAus(null, token, Secret);
+        Assert.NotNull(ausCookie);
+        Assert.True(StatikZugang.RollePasst(ausCookie!));
+        Assert.Null(StatikZugang.PrincipalAus(null, null, Secret));
     }
 
     [Fact]

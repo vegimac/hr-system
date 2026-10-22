@@ -134,6 +134,7 @@
             if (!j || !j.token) return;
             authToken = j.token;
             try { localStorage.setItem('hrToken', j.token); } catch (_) {}
+            try { if (typeof modulCookieSync === 'function') modulCookieSync(); } catch (_) {}
             const issued = j.sessionStartedAt ? new Date(j.sessionStartedAt).getTime() : t;
             tokenIssuedMs = isNaN(issued) ? t : issued;
             const maxMin = parseInt(j.maxSessionMinutes, 10) || Math.round((maxEndMs - tokenIssuedMs) / 60000);
