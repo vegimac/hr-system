@@ -14,7 +14,9 @@ async function ahvInit() {
     catch { _ahvAllEmployees = []; }
     _ahvSelectedEmpId = null;
     const form = document.getElementById('ahvFormBlock');
+    const leer = document.getElementById('ahvFormLeer');
     if (form) form.style.display = 'none';
+    if (leer) leer.style.display = '';
     ahvRenderEmpList();
     // Deep-Link: MA aus dem Personalien-Tab direkt vorselektieren.
     if (_ahvPendingEmpId != null) {
@@ -146,7 +148,9 @@ async function ahvSelectEmpById(empId) {
         if (bk) bk.checked = d.beilageAusweiskopie !== false;
 
         const form = document.getElementById('ahvFormBlock');
+        const leer = document.getElementById('ahvFormLeer');
         if (form) form.style.display = '';
+        if (leer) leer.style.display = 'none';
     } catch (e) {
         showToast('Vorbefüllung fehlgeschlagen', 'error');
     }

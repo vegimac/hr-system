@@ -11591,13 +11591,84 @@ body.theme-dark .ra-tile img[src*="Aufforderung.webp"] { filter: brightness(1.45
             color: #1a1a1a !important;
         }
 
-/* ── AHV-Anmeldung 318.260 (Walter 06.08.2026) ─────────────────────── */
-.ahv-f { display:block; font-size:12px; font-weight:600; color:#64748b; }
-.ahv-f input:not([type=checkbox]), .ahv-f select {
-    display:block; width:100%; margin-top:4px; padding:7px 10px;
-    border:1px solid #e2e8f0; border-radius:7px; font-size:13px;
-    background:#fff; box-sizing:border-box; font-family:inherit; color:#0f172a;
+/* ── AHV-Anmeldung 318.260 (Walter 06.08.2026, Look 22.10.2026 wie Famz) ─ */
+#page-ahv-anmeldung .ahv-card {
+    max-width: 1180px; padding: 12px 14px 14px !important;
+    border: 1px solid transparent !important; border-radius: 18px !important;
+    background: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+    box-shadow: 0 6px 22px rgba(60,55,48,0.14) !important;
 }
+.ahv-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 14px; align-items: start; }
+.ahv-ma { min-width: 0; }
+.ahv-kopf-titel { font-size: 12px; font-weight: 700; color: #3f3f3f; margin-bottom: 6px; }
+.ahv-main { min-width: 0; }
+.ahv-leer {
+    font-size: 13px; color: #8b8b8b; padding: 28px 12px; text-align: center;
+    background: rgba(255,255,255,0.35); border-radius: 12px; border: 1px dashed rgba(60,55,48,0.18);
+}
+#page-ahv-anmeldung .ahv-pill:not(.ahv-maliste),
+#page-ahv-anmeldung .ahv-f > input:not([type=checkbox]),
+#page-ahv-anmeldung .ahv-f .lqsel-btn {
+    display: block; width: 100%; box-sizing: border-box;
+    background: #fff !important;
+    border: 1px solid rgba(255,255,255,0.95) !important;
+    border-radius: 9px !important;
+    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    padding: 4px 9px !important; min-height: 28px; height: 28px;
+    font-size: 12.5px !important; font-weight: 500 !important; color: #1a1a1a !important;
+    font-family: inherit;
+}
+#page-ahv-anmeldung .ahv-f .lqsel-btn { display: flex; align-items: center; }
+#page-ahv-anmeldung .ahv-f .lqsel-wrap { display: block; width: 100%; margin-top: 2px; }
+#page-ahv-anmeldung .ahv-maliste {
+    display: block; width: 100%; box-sizing: border-box;
+    background: #fff !important;
+    border: 1px solid rgba(255,255,255,0.95) !important;
+    border-radius: 9px !important;
+    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    height: auto !important; max-height: calc(100vh - 220px); margin-top: 6px;
+    padding: 4px 6px !important; overflow: auto;
+    font-size: 12.5px !important; font-family: inherit; color: #1a1a1a;
+}
+#page-ahv-anmeldung .ahv-maliste option { padding: 3px 4px; border-radius: 5px; }
+.ahv-titel {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(90,80,65,0.10); border-radius: 10px;
+    padding: 4px 12px; margin: 0 0 6px;
+    font-size: 12.5px; font-weight: 700; color: #3f3f3f;
+}
+.ahv-titel + .ahv-raster + .ahv-titel { margin-top: 10px; }
+.ahv-titel-info { font-weight: 500; color: #8b8b8b; font-size: 11.5px; }
+.ahv-raster { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px 8px; }
+.ahv-f { display: block; min-width: 0; font-size: 10.5px; font-weight: 700; color: #8b8b8b; letter-spacing: 0.02em; }
+.ahv-f > input, .ahv-f > select, .ahv-f > .lqsel-wrap { margin-top: 2px; }
+.ahv-span2 { grid-column: span 2; }
+.ahv-span3 { grid-column: span 3; }
+.ahv-check {
+    display: flex; align-items: flex-end; padding-bottom: 4px;
+    font-size: 12px; font-weight: 600; color: #3f3f3f;
+}
+.ahv-check span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.ahv-check input { width: 15px; height: 15px; margin: 0; }
+.ahv-fuss {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-top: 12px; flex-wrap: wrap;
+}
+.ahv-beilage { font-size: 12.5px; color: #3f3f3f; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ahv-beilage input { width: 15px; height: 15px; margin: 0; }
+.ahv-btn-primaer {
+    background: #3f3f3f; color: #fff; border: none; padding: 8px 18px; border-radius: 12px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.ahv-btn-primaer:hover { background: #1a1a1a; }
+.ahv-btn-primaer:disabled { opacity: 0.55; cursor: wait; }
+@media (max-width: 900px) {
+    .ahv-layout { grid-template-columns: 1fr; }
+    .ahv-raster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    #page-ahv-anmeldung .ahv-maliste { max-height: 160px; }
+}
+body.theme-dark #page-ahv-anmeldung .ahv-card { background: rgba(255,255,255,0.04) !important; }
+body.theme-dark .ahv-titel { background: rgba(255,255,255,0.08); color: #e2e8f0; }
 
 /* ── Anmeldung Familienzulagen (Walter 11.10.2026): ov-Maske — warme Karte,
    weisse Feld-Pillen, Abschnitts-Balken, kompaktes 6er-Raster. Rot = fehlt

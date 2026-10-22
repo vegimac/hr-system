@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20261021a">
+    <link rel="stylesheet" href="css/app.css?v=20261022a">
 </head>
 <body>
 
@@ -4182,90 +4182,79 @@
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">AHV-Anmeldung (Versicherungsausweis)</h1>
-                        <p class="page-sub">Amtliches Formular 318.260 — für Mitarbeiter ohne AHV-Nummer. Vorausgefüllt aus den Stammdaten, alle Felder editierbar.</p>
+                        <p class="page-sub">Formular 318.260 — MA ohne AHV-Nummer. Aus Stammdaten vorausgefüllt, alle Felder editierbar.</p>
                     </div>
                 </div>
                 <div class="page-body">
-                    <div class="card" style="padding:20px;max-width:860px">
-                        <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
-                            <label style="font-size:13px;font-weight:600;color:#0f172a">Mitarbeiter</label>
-                            <input id="ahvEmpSearch" type="search" placeholder="Suchen…" oninput="ahvRenderEmpList()"
-                                   style="flex:1;min-width:160px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px">
-                        </div>
-                        <select id="ahvEmpSelect" size="8" onchange="ahvSelectEmp()" class="no-liquid"
-                                style="width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white;font-family:inherit"></select>
+                    <div class="card ahv-card" id="ahvCard">
+                        <div class="ahv-layout">
+                            <aside class="ahv-ma">
+                                <div class="ahv-kopf-titel">Mitarbeiter</div>
+                                <input id="ahvEmpSearch" type="search" placeholder="Suchen…" oninput="ahvRenderEmpList()" class="ahv-pill">
+                                <select id="ahvEmpSelect" size="12" onchange="ahvSelectEmp()" class="no-liquid ahv-pill ahv-maliste"></select>
+                            </aside>
+                            <div class="ahv-main">
+                                <div id="ahvFormLeer" class="ahv-leer">Links einen Mitarbeiter wählen — dann erscheint das Formular auf einer Seite.</div>
+                                <div id="ahvFormBlock" style="display:none">
+                                    <div class="ahv-titel">1. Personalien</div>
+                                    <div class="ahv-raster">
+                                        <label class="ahv-f ahv-span2">Wohnsitzland<input id="ahvWohnsitzland" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-check"><span><input id="ahvGrenzgaenger" type="checkbox"> Grenzgänger/in</span></label>
+                                        <label class="ahv-f">1.1 Name<input id="ahvName" class="ahv-pill"></label>
+                                        <label class="ahv-f">1.2 Ledigname<input id="ahvLedigname" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span2">1.3 Vornamen<input id="ahvVornamen" class="ahv-pill" placeholder="Rufname GROSS"></label>
+                                        <label class="ahv-f">1.4 Geburt<input id="ahvGeburtsdatum" class="ahv-pill" placeholder="tt.mm.jjjj"></label>
+                                        <label class="ahv-f">1.5 AHV-Nr.<input id="ahvNummer" class="ahv-pill" placeholder="756…"></label>
+                                        <label class="ahv-f">1.6 Geschlecht
+                                            <select id="ahvGeschlecht" class="ahv-pill">
+                                                <option value="">—</option>
+                                                <option value="F">weiblich</option>
+                                                <option value="M">männlich</option>
+                                            </select>
+                                        </label>
+                                        <label class="ahv-f ahv-span2">1.7 Strasse<input id="ahvStrasse" class="ahv-pill"></label>
+                                        <label class="ahv-f">Nr.<input id="ahvHausNr" class="ahv-pill"></label>
+                                        <label class="ahv-f">PLZ<input id="ahvPlz" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span2">Ort<input id="ahvOrt" class="ahv-pill"></label>
+                                        <label class="ahv-f">Telefon<input id="ahvTelefon" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span2">E-Mail<input id="ahvEmail" class="ahv-pill"></label>
+                                        <label class="ahv-f">1.8 Staat<input id="ahvStaat" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span3">1.9 Geburtsort / -staat<input id="ahvGeburtsort" class="ahv-pill"></label>
+                                    </div>
 
-                        <div id="ahvFormBlock" style="display:none;margin-top:18px">
-                            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin-bottom:8px">1. Personalien</div>
-                            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px">
-                                <label class="ahv-f">Wohnsitzland<input id="ahvWohnsitzland"></label>
-                                <label class="ahv-f" style="display:flex;align-items:flex-end;gap:8px;padding-bottom:6px">
-                                    <input id="ahvGrenzgaenger" type="checkbox" style="width:16px;height:16px"> Grenzgänger/in
-                                </label>
-                                <span></span>
-                                <label class="ahv-f">1.1 Name<input id="ahvName"></label>
-                                <label class="ahv-f">1.2 Ledigname<input id="ahvLedigname"></label>
-                                <label class="ahv-f">1.3 Vornamen (Rufname GROSS)<input id="ahvVornamen"></label>
-                                <label class="ahv-f">1.4 Geburtsdatum<input id="ahvGeburtsdatum" placeholder="tt.mm.jjjj"></label>
-                                <label class="ahv-f">1.5 AHV-Nr. falls bekannt<input id="ahvNummer" placeholder="756…"></label>
-                                <label class="ahv-f">1.6 Geschlecht
-                                    <select id="ahvGeschlecht">
-                                        <option value="">—</option>
-                                        <option value="F">weiblich</option>
-                                        <option value="M">männlich</option>
-                                    </select>
-                                </label>
-                                <label class="ahv-f" style="grid-column:span 2">1.7 Strasse<input id="ahvStrasse"></label>
-                                <label class="ahv-f">Nr.<input id="ahvHausNr"></label>
-                                <label class="ahv-f">PLZ<input id="ahvPlz"></label>
-                                <label class="ahv-f" style="grid-column:span 2">Ort<input id="ahvOrt"></label>
-                                <label class="ahv-f">Telefon / Mobile<input id="ahvTelefon"></label>
-                                <label class="ahv-f" style="grid-column:span 2">E-Mail<input id="ahvEmail"></label>
-                                <label class="ahv-f">1.8 Staatsangehörigkeit<input id="ahvStaat"></label>
-                                <label class="ahv-f" style="grid-column:span 2">1.9 Geburtsort / Geburtsstaat<input id="ahvGeburtsort"></label>
-                            </div>
+                                    <div class="ahv-titel">2. Eltern <span class="ahv-titel-info">meist von Hand — OneCrew kennt sie nicht</span></div>
+                                    <div class="ahv-raster">
+                                        <label class="ahv-f ahv-span3">2.1 Mutter Name<input id="ahvMutterName" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span3">2.2 Mutter Vornamen<input id="ahvMutterVornamen" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span3">2.3 Vater Name<input id="ahvVaterName" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span3">2.4 Vater Vornamen<input id="ahvVaterVornamen" class="ahv-pill"></label>
+                                    </div>
 
-                            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:16px 0 8px">2. Personalien der Eltern</div>
-                            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px 14px">
-                                <label class="ahv-f">2.1 Name der Mutter (Ledigname)<input id="ahvMutterName"></label>
-                                <label class="ahv-f">2.2 Vornamen der Mutter (Rufname GROSS)<input id="ahvMutterVornamen"></label>
-                                <label class="ahv-f">2.3 Name des Vaters (Ledigname)<input id="ahvVaterName"></label>
-                                <label class="ahv-f">2.4 Vornamen des Vaters (Rufname GROSS)<input id="ahvVaterVornamen"></label>
-                            </div>
+                                    <div class="ahv-titel">3. Grund · 4. Arbeitgeber</div>
+                                    <div class="ahv-raster">
+                                        <label class="ahv-f ahv-span2">Grund
+                                            <select id="ahvGrund" class="ahv-pill">
+                                                <option value="ZUZUG">Zuzug aus dem Ausland</option>
+                                                <option value="GRENZGAENGER">Grenzgänger</option>
+                                                <option value="AENDERUNG">Änderung der Personalien</option>
+                                                <option value="ANDERE">Andere</option>
+                                            </select>
+                                        </label>
+                                        <label class="ahv-f ahv-span2">Ergänzung<input id="ahvGrundText" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span3">Firmenname<input id="ahvFirma" class="ahv-pill"></label>
+                                        <label class="ahv-f">Abr.-Nr.<input id="ahvAbrNr" class="ahv-pill"></label>
+                                        <label class="ahv-f ahv-span2">Strasse<input id="ahvFirmaStrasse" class="ahv-pill"></label>
+                                        <label class="ahv-f">Nr.<input id="ahvFirmaHausNr" class="ahv-pill"></label>
+                                        <label class="ahv-f">PLZ<input id="ahvFirmaPlz" class="ahv-pill"></label>
+                                        <label class="ahv-f">Ort<input id="ahvFirmaOrt" class="ahv-pill"></label>
+                                        <label class="ahv-f">Stellenantritt<input id="ahvStellenantritt" class="ahv-pill" placeholder="tt.mm.jjjj"></label>
+                                    </div>
 
-                            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:16px 0 8px">3. Grund der Anmeldung</div>
-                            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px 14px">
-                                <label class="ahv-f">Grund
-                                    <select id="ahvGrund">
-                                        <option value="ZUZUG">Zuzug aus dem Ausland</option>
-                                        <option value="GRENZGAENGER">Grenzgänger</option>
-                                        <option value="AENDERUNG">Änderung der Personalien</option>
-                                        <option value="ANDERE">Andere</option>
-                                    </select>
-                                </label>
-                                <label class="ahv-f">Ergänzung (bei «Andere»)<input id="ahvGrundText"></label>
-                            </div>
-
-                            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:16px 0 8px">4. Arbeitgeber</div>
-                            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px">
-                                <label class="ahv-f" style="grid-column:span 2">Firmenname<input id="ahvFirma"></label>
-                                <label class="ahv-f">Abrechnungsnummer<input id="ahvAbrNr"></label>
-                                <label class="ahv-f" style="grid-column:span 2">Strasse<input id="ahvFirmaStrasse"></label>
-                                <label class="ahv-f">Hausnummer<input id="ahvFirmaHausNr"></label>
-                                <label class="ahv-f">PLZ<input id="ahvFirmaPlz"></label>
-                                <label class="ahv-f">Ort<input id="ahvFirmaOrt"></label>
-                                <label class="ahv-f">Stellenantritt<input id="ahvStellenantritt" placeholder="tt.mm.jjjj"></label>
-                            </div>
-
-                            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;flex-wrap:wrap;gap:10px">
-                                <label style="font-size:12.5px;color:#475569;display:flex;align-items:center;gap:8px">
-                                    <input id="ahvBeilage" type="checkbox" checked style="width:16px;height:16px">
-                                    Beilage: Kopie des Personalausweises
-                                </label>
-                                <button id="ahvPdfBtn" onclick="ahvGeneratePdf()"
-                                        style="background:#3f3f3f;color:#fff;border:none;padding:9px 18px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer">
-                                    PDF-Vorschau
-                                </button>
+                                    <div class="ahv-fuss">
+                                        <label class="ahv-beilage"><input id="ahvBeilage" type="checkbox" checked> Beilage: Kopie Personalausweis</label>
+                                        <button type="button" id="ahvPdfBtn" class="ahv-btn-primaer" onclick="ahvGeneratePdf()">PDF-Vorschau</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -12576,7 +12565,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/hr-rav.js?v=20261011a"></script>
 <script src="js/lohn-edit-lock.js?v=20260806a"></script>
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>
-<script src="js/ahv-anmeldung.js?v=20260831a"></script>
+<script src="js/ahv-anmeldung.js?v=20261022a"></script>
 <script src="js/famz-anmeldung.js?v=20261011g"></script>
 <script src="js/famz-gastrosocial.js?v=20261011p"></script>
 <script src="js/akis-meldung.js?v=20261020h"></script>
