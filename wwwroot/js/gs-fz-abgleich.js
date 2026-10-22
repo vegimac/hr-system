@@ -242,12 +242,13 @@ function gsfRenderRows() {
         passt: ''
     }[filter];
     const th = (t, st = '') => `<th style="padding:8px 6px;text-align:left;${st}">${t}</th>`;
-    const td = (v, st = '') => `<td style="padding:8px 6px;vertical-align:top;${st}">${v}</td>`;
+    const td = (v, st = '', attrs = '') => `<td ${attrs} style="padding:8px 6px;vertical-align:top;${st}">${v}</td>`;
     const maZelle = z => z.employeeId
         ? `<button type="button" class="dok-menu-btn" style="min-width:auto;padding:5px 10px;font-size:13px;font-weight:600;cursor:pointer"
                 onclick="gsfOpenEmployee(${z.employeeId})" title="Mitarbeiter öffnen">${esc(z.oneCrewName || 'MA')}</button>
             ${z.personalnummer ? `<div style="font-size:11.5px;color:#94a3b8;font-family:monospace;margin-top:3px">${esc(z.personalnummer)}</div>` : ''}`
         : '<span style="color:#94a3b8">—</span>';
+    const gruppen = gsfGruppenNachMa(rows);
     el.innerHTML = `
         ${aufgabe ? `<div style="font-size:13.5px;color:#475569;margin:0 0 10px;line-height:1.45">${esc(aufgabe)}</div>` : ''}
         <table style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:14px;background:rgba(255,255,255,.55);border-radius:12px;overflow:hidden">
@@ -258,11 +259,16 @@ function gsfRenderRows() {
             <thead><tr style="background:#f8fafc;color:#64748b;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em">
                 ${th('MA')}${th('Bezüger')}${th('Kind')}${th('Geb.')}${th('GastroSocial')}${th('Total GS', 'text-align:right')}${th('Zulagen OneCrew')}${th('Total OC', 'text-align:right')}${th('Hinweis')}
             </tr></thead>
-            <tbody>${rows.map(z => {
+            <tbody>${gruppen.map(g => g.kinder.map((z, i) => {
                 const diff = z.gsTotal != null && z.ocTotal != null && Number(z.gsTotal) !== Number(z.ocTotal);
+                const span = g.kinder.length > 1 ? `rowspan="${g.kinder.length}"` : '';
+                const maBez = i === 0
+                    ? `${td(maZelle(z), 'border-right:1px solid rgba(60,55,48,.06)', span)}
+                       ${td(`<div style="font-weight:600">${esc(z.bezueger || z.oneCrewName || '—')}</div><div style="font-size:11.5px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.bezuegerAhv || '')}</div>`,
+                           'border-right:1px solid rgba(60,55,48,.06)', span)}`
+                    : '';
                 return `<tr style="border-top:1px solid #eee">
-                    ${td(maZelle(z))}
-                    ${td(`<div style="font-weight:600">${esc(z.bezueger || z.oneCrewName || '—')}</div><div style="font-size:11.5px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.bezuegerAhv || '')}</div>`)}
+                    ${maBez}
                     ${td(`<div style="font-weight:600">${esc(z.kind || '—')}</div><div style="font-size:11.5px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.kindAhv || '')}</div>${z.kindAhvUebernehmen && z.familyMemberId
                         ? `<button class="dok-menu-btn" style="min-width:auto;padding:3px 8px;font-size:12px;margin-top:5px" onclick="gsfKindAhvUebernehmen('${filter}',${z.familyMemberId})" title="AHV-Nummer von GastroSocial beim Kind in OneCrew eintragen">＋ AHV übernehmen</button>`
                         : ''}`)}
@@ -275,8 +281,24 @@ function gsfRenderRows() {
                         ? (z.angaben || []).map(a => `<div style="color:#9a3412;margin-bottom:3px">• ${esc(a)}</div>`).join('')
                         : esc(z.hinweis || ''), 'color:#64748b;font-size:13px;line-height:1.4')}
                 </tr>`;
-            }).join('')}</tbody>
+            }).join('')).join('')}</tbody>
         </table>`;
+}
+
+/** Geschwister unter demselben MA/Bezüger zusammenfassen (Reihenfolge beibehalten). */
+function gsfGruppenNachMa(rows) {
+    const map = new Map();
+    const order = [];
+    rows.forEach(z => {
+        const key = z.employeeId != null ? 'e:' + z.employeeId
+            : (z.bezuegerAhv ? 'a:' + z.bezuegerAhv : 'r:' + order.length);
+        if (!map.has(key)) {
+            map.set(key, { kinder: [] });
+            order.push(key);
+        }
+        map.get(key).kinder.push(z);
+    });
+    return order.map(k => map.get(k));
 }
 
 /** Mehrere Zeiträume (getrennt mit «;») untereinander, neuestes Datum oben. */
