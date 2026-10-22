@@ -142,8 +142,6 @@ public class FamzAnmeldungController : ControllerBase
         int? aeId = aeIds.GroupBy(i => i).OrderByDescending(g => g.Count()).Select(g => (int?)g.Key).FirstOrDefault();
         if (aeIds.Distinct().Count() > 1)
             hinweise.Add("Die gewählten Kinder haben verschiedene andere Elternteile — das Formular kennt nur einen. Pro Elternteil ein eigenes Formular erstellen.");
-        if (ausgewaehlt.Any(k => k.AndererElternteilId == null && k.GemeinsamesKindMitPartner != false))
-            fehlt.Add("Anderer Elternteil nicht erfasst (Familie → Kind → «Anderer Elternteil»)");
         var ae = aeId is int a1 ? familie.FirstOrDefault(m => m.Id == a1) : null;
         // Aktuelle/r Ehe- oder Lebenspartner/in (Walter 11.10.2026: «wenn neuer
         // Lebenspartner vorhanden, dann diese Info») — nie der andere Elternteil.
@@ -154,6 +152,19 @@ public class FamzAnmeldungController : ControllerBase
                      && (m.MemberType == "Konkubinatspartner" || (ehe && m.MemberType == "Ehepartner")))
             .OrderBy(m => m.MemberType == "Ehepartner" ? 0 : 1).ThenByDescending(m => m.Id).FirstOrDefault();
 
+        // Walter 22.10.2026: Ist am Kind noch kein «anderer Elternteil» verknüpft,
+        // aber Ehe-/Konkubinatspartner erfasst → Partner als anderen Elternteil
+        // ins Formular übernehmen (alles was wir haben). Abschnitt 5 bleibt dann leer
+        // («ist der andere Elternteil»), bis jemand einen weiteren Partner von Hand öffnet.
+        if (ae == null && ehepartner != null)
+        {
+            ae = ehepartner;
+            ehepartner = null;
+            hinweise.Add("Als anderer Elternteil der Ehe-/Lebenspartner aus der Familie übernommen — am Kind unter «Anderer Elternteil» verknüpfen, damit es dauerhaft stimmt.");
+        }
+        else if (ae == null && ausgewaehlt.Any(k => k.AndererElternteilId == null && k.GemeinsamesKindMitPartner != false))
+            fehlt.Add("Anderer Elternteil nicht erfasst (Familie → Kind → «Anderer Elternteil»)");
+
         FamzElternteilDto? Elternteil(EmployeeFamilyMember? m)
         {
             if (m == null) return null;
@@ -161,6 +172,16 @@ public class FamzAnmeldungController : ControllerBase
             bool zuHause = m.LebtImHaushalt && adr == null;
             var zs = (m.FamilyStatus ?? "").Trim().ToLowerInvariant();
             if (zs.Length == 0 && m.MemberType == "Ehepartner") zs = zivil is "getrennt" ? "getrennt" : "verheiratet";
+            // Alles mitnehmen, was erfasst ist — auch wenn «Erwerbstätig» noch nicht gesetzt ist.
+            bool hatAg = !string.IsNullOrWhiteSpace(m.ArbeitgeberName)
+                      || !string.IsNullOrWhiteSpace(m.ArbeitgeberStrasse)
+                      || !string.IsNullOrWhiteSpace(m.ArbeitgeberPlz)
+                      || !string.IsNullOrWhiteSpace(m.ArbeitgeberOrt)
+                      || !string.IsNullOrWhiteSpace(m.ArbeitgeberTelefon)
+                      || !string.IsNullOrWhiteSpace(m.ArbeitgeberKanton)
+                      || m.Arbeitspensum.HasValue;
+            bool? angestellt = m.Erwerbstaetig ?? (hatAg ? true : null);
+            bool agZeigen = angestellt != false && (angestellt == true || hatAg);
             return new FamzElternteilDto
             {
                 FamilyMemberId = m.Id,
@@ -177,13 +198,13 @@ public class FamzAnmeldungController : ControllerBase
                 ZivilstandSeit = m.MemberType == "Ehepartner" && zs == zivil ? Dt(zivilSeit) : null,
                 Nationalitaet = NatName(m.NationalityRef),
                 Auslaenderausweis = IstCh(m.NationalityRef) ? null : m.PermitType?.Code,
-                Angestellt = m.Erwerbstaetig,
-                ArbeitgeberZeile1 = m.Erwerbstaetig == true ? Join(", ", m.ArbeitgeberName, m.ArbeitgeberStrasse) : null,
-                ArbeitgeberZeile2 = m.Erwerbstaetig == true ? Join(", ", Join(" ", m.ArbeitgeberPlz, m.ArbeitgeberOrt), m.ArbeitgeberTelefon) : null,
-                ArbeitsortKanton = m.Erwerbstaetig == true ? m.ArbeitgeberKanton : null,
-                Arbeitspensum = m.Erwerbstaetig == true && m.Arbeitspensum.HasValue ? $"{m.Arbeitspensum.Value:0.##}" : null,
+                Angestellt = angestellt,
+                ArbeitgeberZeile1 = agZeigen ? Join(", ", m.ArbeitgeberName, m.ArbeitgeberStrasse) : null,
+                ArbeitgeberZeile2 = agZeigen ? Join(", ", Join(" ", m.ArbeitgeberPlz, m.ArbeitgeberOrt), m.ArbeitgeberTelefon) : null,
+                ArbeitsortKanton = agZeigen ? m.ArbeitgeberKanton : null,
+                Arbeitspensum = agZeigen && m.Arbeitspensum.HasValue ? $"{m.Arbeitspensum.Value:0.##}" : null,
                 EinkommenHoeher = m.MaHatHoeheresEinkommen.HasValue ? !m.MaHatHoeheresEinkommen.Value : null,
-                EinkommenUeberMinimum = m.Erwerbstaetig == false ? false : m.EinkommenUeberMinimum,
+                EinkommenUeberMinimum = angestellt == false ? false : m.EinkommenUeberMinimum,
                 SeNe = m.SeNeAngemeldet,
                 Ausgleichskasse = m.SeNeAusgleichskasse,
                 LeistungBezug = m.BeziehtLeistung,

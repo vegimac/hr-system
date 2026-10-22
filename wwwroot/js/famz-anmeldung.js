@@ -206,7 +206,8 @@ function famzRender() {
             <td data-feld="kinder.${i}.wohnadresse"><input data-pfad="kinder.${i}.wohnadresse" data-typ="text" value="${famzEsc(k.wohnadresse || '')}" placeholder="nur wenn nicht beim MA"></td>
         </tr>`).join('');
 
-    const aeInfo = f.andererElternteil ? ''
+    const aeInfo = f.andererElternteil
+        ? (f.partner ? '' : '<span class="famz-titel-info">aus Familie übernommen — am Kind unter «Anderer Elternteil» verknüpfen</span>')
         : '<span class="famz-titel-info rot">nicht erfasst — am besten in Familie → Kind → «Anderer Elternteil» ergänzen</span>';
     const partnerInfo = f.partner ? '' : '<span class="famz-titel-info">keine/r — oder ist der andere Elternteil</span>';
     const partnerKnopf = _famzPartnerOffen ? ''
