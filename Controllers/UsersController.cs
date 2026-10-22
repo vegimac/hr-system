@@ -205,10 +205,11 @@ public class UsersController : ControllerBase
         if (await _context.AppUsers.AnyAsync(u => u.Email == req.Email))
             return BadRequest(new { message = "Diese E-Mail ist bereits vergeben." });
 
-        // «Entwicklung» nur vom Super-Admin (siehe AreasMitEntwicklungsSchutz).
+        // «Entwicklung» + 2FA-Ausnahme nur vom Super-Admin.
         var callerIdCreate = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var callerSuperCreate = await CallerIstSuperAdminAsync(callerIdCreate);
         var areasCreate = AreasMitEntwicklungsSchutz(
-            req.AllowedAreas, await CallerIstSuperAdminAsync(callerIdCreate), null);
+            req.AllowedAreas, callerSuperCreate, null);
 
         var user = new AppUser
         {
@@ -227,13 +228,13 @@ public class UsersController : ControllerBase
             IdleTimeoutMinutes = req.IdleTimeoutMinutes,
             MaxSessionMinutes  = req.MaxSessionMinutes,
             AllowedAreas = JoinAreas(areasCreate),
-            // Zweite Prüfung (Walter 11.09.2026): nur das Häkchen — QR/Secret
-            // richtet der Benutzer beim ersten Login selbst ein.
-            TotpRequired = req.TotpRequired ?? false,
+            // Zweite Prüfung (Walter 22.10.2026): Standard für jeden neuen Benutzer.
+            // Nur Super-Admin darf beim Anlegen auf «aus» stellen (z.B. Treuhänder).
+            TotpRequired = callerSuperCreate ? (req.TotpRequired ?? true) : true,
             // Initial-Passwort vom Admin → beim ersten Login neues Passwort setzen
             // (abwählbar über das Häkchen im Modal).
             MustChangePassword = req.MustChangePassword ?? true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.Now
         };
 
         _context.AppUsers.Add(user);
@@ -311,11 +312,11 @@ public class UsersController : ControllerBase
         user.AllowedAreas       = JoinAreas(
             AreasMitEntwicklungsSchutz(req.AllowedAreas, callerIsSuper, user.AllowedAreas));
 
-        // Zweite Prüfung (Walter 11.09.2026): Häkchen pro Benutzer. Beim
-        // Abwählen bleibt ein vorhandenes Secret stehen (erneutes Anhaken =
-        // weiter mit demselben Authenticator-Eintrag); Zurücksetzen ist ein
-        // eigener Admin-Knopf (POST {id}/totp-reset).
-        user.TotpRequired = req.TotpRequired ?? false;
+        // Zweite Prüfung (Walter 22.10.2026): nur Super-Admin darf das Häkchen
+        // ändern. Andere Rollen behalten den bestehenden Wert (Standard = an).
+        // Beim Abwählen bleibt ein vorhandenes Secret stehen; Reset = POST totp-reset.
+        if (callerIsSuper)
+            user.TotpRequired = req.TotpRequired ?? true;
 
         // Passwort-Pflichtwechsel: neues Admin-Passwort → automatisch true,
         // sonst das Häkchen aus dem Modal (null = unverändert lassen).

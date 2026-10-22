@@ -230,6 +230,7 @@ function openUserModal(userId = null) {
             document.getElementById('umMustChangePw').checked = !!u.mustChangePassword;
             document.getElementById('umTotpRequired').checked = !!u.totpRequired;
             umTotpStatusZeigen(u.totpEingerichtetAm);
+            umTotpHakenRechte();
             umSyncMustChangePw();
             const ids = u.branches?.map(b => b.id) || [];
             document.querySelectorAll('#umBranches input[type=checkbox]').forEach(cb => {
@@ -253,10 +254,11 @@ function openUserModal(userId = null) {
         document.getElementById('umMirusDigest').checked = false;
         document.getElementById('umIdleTimeout').value = '';
         document.getElementById('umMaxSession').value  = '';
-        // Neuer Benutzer: Initial-Passwort → Wechsel beim ersten Login (abwählbar).
+        // Neuer Benutzer: Passwortwechsel + 2FA Pflicht (Walter 22.10.2026).
         document.getElementById('umMustChangePw').checked = true;
-        document.getElementById('umTotpRequired').checked = false;
+        document.getElementById('umTotpRequired').checked = true;
         umTotpStatusZeigen(null);
+        umTotpHakenRechte();
         umSyncMustChangePw();
         umSetAreas(null);   // neuer User: Standard-Bereiche, Entwicklung opt-in
         umUpdateBranchVisibility();
@@ -267,9 +269,23 @@ function openUserModal(userId = null) {
 
 function closeUserModal() { document.getElementById('userModalBg').classList.remove('open'); editingUserId = null; }
 
-// ── Zweite Prüfung / Authenticator (Walter 11.09.2026) ────────────────
-// Status read-only + Reset-Knopf (nur admin, nur bestehende Benutzer).
-// Bewusst KEIN QR/Secret im Admin — das richtet der Benutzer selbst ein.
+// ── Zweite Prüfung / Authenticator (Walter 11.09.2026 / 22.10.2026) ──
+// Häkchen nur Super-Admin; Reset-Knopf nur admin. Kein QR/Secret im Admin.
+function umTotpHakenRechte() {
+    const cb = document.getElementById('umTotpRequired');
+    const label = document.getElementById('umTotpLabel');
+    const hint = document.getElementById('umTotpHint');
+    if (!cb) return;
+    const superAdmin = typeof currentUser !== 'undefined' && currentUser?.isSuperAdmin === true;
+    cb.disabled = !superAdmin;
+    if (label) label.style.cursor = superAdmin ? 'pointer' : 'default';
+    if (hint) {
+        hint.textContent = superAdmin
+            ? 'Nach dem Passwort ein 6-stelliger Code vom Handy (Microsoft/Google Authenticator). QR-Code richtet der Benutzer beim nächsten Login selbst ein. Pflicht für alle — Ausnahme nur hier abwählbar (z.B. Treuhänder).'
+            : 'Pflicht für alle Benutzer. Der QR-Code erscheint beim nächsten Login. Nur der Super-Admin kann die Zweite Prüfung abwählen.';
+    }
+}
+
 function umTotpStatusZeigen(eingerichtetAm) {
     const st  = document.getElementById('umTotpStatus');
     const btn = document.getElementById('umTotpResetBtn');

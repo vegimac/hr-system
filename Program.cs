@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 97;  // 97: Mirus-Raster → Swissdec verknüpfen · 96: Kontoplan = Lohnposition · 95: AHV-Abmeldung nach Austritt
+const int SchemaStand = 98;  // 98: 2FA Pflicht für alle HR-Benutzer · 97: Mirus→Swissdec · 96: Kontoplan = Lohnposition
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2657,6 +2657,19 @@ using (var scope = app.Services.CreateScope())
             DROP TABLE IF EXISTS _mirus_sd;
         ");
         startLog.LogInformation("Stand 97: Mirus-Raster auf Swissdec verknüpft, 65/75 inaktiv");
+    }
+
+    // Stand 98: Zweite Prüfung (2FA) für alle Backoffice-Benutzer (Walter 22.10.2026).
+    // Ausnahme nur noch per Super-Admin am Benutzer. MA-Postfach bleibt ohne.
+    if (dbStand < 98)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE app_user
+               SET totp_required = true
+             WHERE totp_required = false
+               AND role <> 'employee';
+        ");
+        startLog.LogInformation("Stand 98: 2FA (totp_required) für alle HR-Benutzer gesetzt");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

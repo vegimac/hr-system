@@ -10647,16 +10647,15 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
             </div>
 
-            <!-- ── ZWEITE PRÜFUNG / Authenticator-App (Walter 11.09.2026) ─────
-                 Pro Benutzer, nicht pro Rolle. Der QR-Code erscheint NUR beim
-                 Benutzer selbst nach dem ersten richtigen Passwort — hier gibt
-                 es bewusst keinen QR, kein Secret, nichts zum Verschicken. -->
+            <!-- ── ZWEITE PRÜFUNG / Authenticator-App (Walter 11.09.2026,
+                 Pflicht 22.10.2026): Standard für jeden Benutzer. Häkchen nur
+                 noch Super-Admin (Ausnahme Treuhänder o.ä.). -->
             <div class="f-group">
-                <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer" id="umTotpLabel">
                     <input type="checkbox" id="umTotpRequired" style="width:18px;height:18px;cursor:pointer">
                     <span>Zweite Prüfung (Authenticator-App)</span>
                 </label>
-                <div class="f-hint" style="margin-top:2px">Nach dem Passwort zusätzlich ein 6-stelliger Code vom Handy (Microsoft Authenticator oder Google Authenticator). Den QR-Code richtet der Benutzer beim nächsten Login selbst ein — nichts verschicken. Für geteilte Büro-PCs mit gespeichertem Passwort; Treuhänder ohne Häkchen lassen.</div>
+                <div class="f-hint" style="margin-top:2px" id="umTotpHint">Nach dem Passwort ein 6-stelliger Code vom Handy (Microsoft/Google Authenticator). QR-Code richtet der Benutzer beim nächsten Login selbst ein. Pflicht für alle — Ausnahme nur durch Super-Admin abwählbar.</div>
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px">
                     <span class="f-hint" id="umTotpStatus" style="margin:0"></span>
                     <button type="button" class="btn btn-outline" id="umTotpResetBtn" style="display:none;padding:4px 12px;font-size:12px" onclick="umTotpReset()">Zweite Prüfung zurücksetzen</button>
@@ -10810,7 +10809,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20261011b"></script>
-<script src="js/users.js?v=20261022a"></script>
+<script src="js/users.js?v=20261022b"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20261020j"></script>
 <script src="js/dvelop-import.js?v=20261001a"></script>
