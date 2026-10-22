@@ -1721,7 +1721,7 @@ function updateLsEmpSyncBtn() {
 function _ahvKasseHtml(emp) {
     const k = emp && emp.ahvKasse;
     if (!k || !k.text) return '';
-    const cls = k.erledigt ? 'ok' : 'fehl';
+    const cls = k.text === 'abgemeldet' ? 'weg' : (k.erledigt ? 'ok' : 'fehl');
     return `<span class="ov-ahv-kasse ${cls}">${esc(k.text)}</span>`;
 }
 
