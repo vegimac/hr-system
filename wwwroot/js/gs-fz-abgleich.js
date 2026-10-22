@@ -241,35 +241,57 @@ function gsfRenderRows() {
         angabenPruefen: 'Die Angaben zum Kind oder MA stimmen nicht mit GastroSocial überein oder fehlen in OneCrew. Mit Ausweis/Geburtsurkunde klären: falsch in OneCrew → im MA → Familie korrigieren, falsch bei GastroSocial → dort melden. (Die Bescheinigung enthält vom Kind nur AHV-Nr., Vorname und Geburtsdatum — Nachname und Geschlecht werden nur geprüft, wenn der Export sie mitliefert.)',
         passt: ''
     }[filter];
-    const th = t => `<th style="padding:8px 10px;text-align:left">${t}</th>`;
-    const td = (v, st = '') => `<td style="padding:7px 10px;${st}">${v}</td>`;
+    const th = (t, st = '') => `<th style="padding:10px 12px;text-align:left;${st}">${t}</th>`;
+    const td = (v, st = '') => `<td style="padding:10px 12px;vertical-align:top;${st}">${v}</td>`;
     el.innerHTML = `
-        ${aufgabe ? `<div style="font-size:12.5px;color:#475569;margin:0 0 8px">${esc(aufgabe)}</div>` : ''}
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:rgba(255,255,255,.55);border-radius:12px;overflow:hidden">
-            <thead><tr style="background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase">
-                ${th('Bezüger')}${th('Kind')}${th('Geb.-Datum')}${th('GastroSocial')}${th('Total GS')}${th('Zulagen OneCrew')}${th('Total OneCrew')}${th('OneCrew')}${th('Hinweis')}
+        ${aufgabe ? `<div style="font-size:13.5px;color:#475569;margin:0 0 10px;line-height:1.45">${esc(aufgabe)}</div>` : ''}
+        <table style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:14px;background:rgba(255,255,255,.55);border-radius:12px;overflow:hidden">
+            <colgroup>
+                <col style="width:13%"><col style="width:12%"><col style="width:8%">
+                <col style="width:22%"><col style="width:7%"><col style="width:16%">
+                <col style="width:7%"><col style="width:8%"><col style="width:7%">
+            </colgroup>
+            <thead><tr style="background:#f8fafc;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.02em">
+                ${th('Bezüger')}${th('Kind')}${th('Geb.-Datum')}${th('GastroSocial')}${th('Total GS', 'text-align:right')}${th('Zulagen OneCrew')}${th('Total OneCrew', 'text-align:right')}${th('OneCrew')}${th('Hinweis')}
             </tr></thead>
             <tbody>${rows.map(z => {
                 const diff = z.gsTotal != null && z.ocTotal != null && Number(z.gsTotal) !== Number(z.ocTotal);
                 return `<tr style="border-top:1px solid #eee">
-                    ${td(`<div style="font-weight:600">${esc(z.bezueger || z.oneCrewName || '—')}</div><div style="font-size:11px;color:#94a3b8;font-family:monospace">${esc(z.bezuegerAhv || '')}</div>`)}
-                    ${td(`<div style="font-weight:600">${esc(z.kind || '—')}</div><div style="font-size:11px;color:#94a3b8;font-family:monospace">${esc(z.kindAhv || '')}</div>${z.kindAhvUebernehmen && z.familyMemberId
-                        ? `<button class="dok-menu-btn" style="min-width:auto;padding:2px 8px;font-size:11px;margin-top:4px" onclick="gsfKindAhvUebernehmen('${filter}',${z.familyMemberId})" title="AHV-Nummer von GastroSocial beim Kind in OneCrew eintragen">＋ AHV übernehmen</button>`
+                    ${td(`<div style="font-weight:600">${esc(z.bezueger || z.oneCrewName || '—')}</div><div style="font-size:12px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.bezuegerAhv || '')}</div>`)}
+                    ${td(`<div style="font-weight:600">${esc(z.kind || '—')}</div><div style="font-size:12px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.kindAhv || '')}</div>${z.kindAhvUebernehmen && z.familyMemberId
+                        ? `<button class="dok-menu-btn" style="min-width:auto;padding:3px 9px;font-size:12px;margin-top:6px" onclick="gsfKindAhvUebernehmen('${filter}',${z.familyMemberId})" title="AHV-Nummer von GastroSocial beim Kind in OneCrew eintragen">＋ AHV übernehmen</button>`
                         : ''}`)}
                     ${td(gsfDate(z.kindGeburt), 'white-space:nowrap')}
-                    ${td(z.gastroSocial ? esc(z.gastroSocial) : '<span style="color:#94a3b8">keine</span>', 'font-size:12px')}
-                    ${td(z.gsTotal != null && filter !== 'nurOneCrew' ? gsfChf(z.gsTotal) : '—', 'text-align:right;white-space:nowrap')}
-                    ${td(z.oneCrew ? esc(z.oneCrew) : (z.employeeId ? '<span style="color:#94a3b8">keine</span>' : '—'), 'font-size:12px')}
-                    ${td(z.ocTotal != null ? gsfChf(z.ocTotal) : '—', `text-align:right;white-space:nowrap;${diff ? 'color:#991b1b;font-weight:600' : ''}`)}
+                    ${td(gsfZeitraeumeHtml(z.gastroSocial))}
+                    ${td(z.gsTotal != null && filter !== 'nurOneCrew' ? gsfChf(z.gsTotal) : '—', 'text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums')}
+                    ${td(z.oneCrew ? gsfZeitraeumeHtml(z.oneCrew) : (z.employeeId ? '<span style="color:#94a3b8">keine</span>' : '—'))}
+                    ${td(z.ocTotal != null ? gsfChf(z.ocTotal) : '—', `text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;${diff ? 'color:#991b1b;font-weight:600' : ''}`)}
                     ${td(z.employeeId
-                        ? `<button class="dok-menu-btn" style="min-width:auto;padding:3px 9px;font-size:12px" onclick="gsfOpenEmployee(${z.employeeId})">→ ${esc(z.oneCrewName || 'MA')}</button>${z.personalnummer ? ` <span style="font-size:11px;color:#94a3b8;font-family:monospace">${esc(z.personalnummer)}</span>` : ''}`
+                        ? `<button class="dok-menu-btn" style="min-width:auto;padding:4px 10px;font-size:13px" onclick="gsfOpenEmployee(${z.employeeId})">→ ${esc(z.oneCrewName || 'MA')}</button>${z.personalnummer ? `<div style="font-size:12px;color:#94a3b8;font-family:monospace;margin-top:4px">${esc(z.personalnummer)}</div>` : ''}`
                         : '—')}
                     ${td(filter === 'angabenPruefen'
-                        ? (z.angaben || []).map(a => `<div style="color:#9a3412">• ${esc(a)}</div>`).join('')
-                        : esc(z.hinweis || ''), 'color:#64748b;font-size:12px')}
+                        ? (z.angaben || []).map(a => `<div style="color:#9a3412;margin-bottom:3px">• ${esc(a)}</div>`).join('')
+                        : esc(z.hinweis || ''), 'color:#64748b;font-size:13px;line-height:1.4')}
                 </tr>`;
             }).join('')}</tbody>
         </table>`;
+}
+
+/** Mehrere Zeiträume (getrennt mit «;») untereinander, neuestes Datum oben. */
+function gsfZeitraeumeHtml(text) {
+    if (!text) return '<span style="color:#94a3b8">keine</span>';
+    const teile = String(text).split(/\s*;\s*/).map(s => s.trim()).filter(Boolean);
+    if (teile.length === 0) return '<span style="color:#94a3b8">keine</span>';
+    if (teile.length === 1) return `<div style="line-height:1.45">${esc(teile[0])}</div>`;
+    const sorted = teile.slice().sort((a, b) => gsfZeitStartMs(b) - gsfZeitStartMs(a));
+    return `<div style="display:flex;flex-direction:column;gap:4px;line-height:1.4">${sorted.map((t, i) =>
+        `<div style="padding:2px 0${i < sorted.length - 1 ? ';border-bottom:1px solid rgba(60,55,48,.08)' : ''}">${esc(t)}</div>`).join('')}</div>`;
+}
+
+function gsfZeitStartMs(s) {
+    const m = String(s).match(/(\d{2})\.(\d{2})\.(\d{4})/);
+    if (!m) return 0;
+    return Date.UTC(+m[3], +m[2] - 1, +m[1]);
 }
 
 async function gsfKindAhvUebernehmen(liste, memberId) {
