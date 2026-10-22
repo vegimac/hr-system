@@ -5,8 +5,8 @@
 //
 // Markdown-Render: minimal genug fuer Headlines, Listen, Code, Bold,
 // Italic, Links und Tabellen — KEIN Volltext-Marked-Loader (extern).
-// Saemtliche Inhalte liegen als statische .md-Files unter wwwroot/help/
-// und koennen vom Admin direkt im Server bearbeitet werden.
+// Inhalte liegen als .md unter wwwroot/help/ und werden nur mit HR-Anmeldung
+// ausgeliefert (StatikZugang). Der Admin kann die Dateien auf dem Server bearbeiten.
 
 // Rollenbasierte Kapitel (Walter-Vorgabe 07.07.2026): jedes Kapitel trägt
 // eine `roles`-Liste — der Benutzer sieht NUR die Kapitel der Programmteile,
@@ -330,9 +330,17 @@ async function helpLoad(slug) {
     if (!cont) return;
     cont.innerHTML = '<div style="color:#94a3b8">Lade …</div>';
     try {
-        // KEIN Bearer-Token noetig — die .md-Files liegen unter wwwroot/help/
-        // und werden via UseStaticFiles ausgeliefert (public).
-        const r = await fetch('/help/' + slug + '.md', { cache: 'no-store' });
+        // Hilfe liegt unter /help/, der Server gibt sie nur mit HR-Anmeldung her.
+        const headers = {};
+        try {
+            const t = localStorage.getItem('hrToken');
+            if (t) headers.Authorization = 'Bearer ' + t;
+        } catch (_) {}
+        const r = await fetch('/help/' + slug + '.md', { cache: 'no-store', headers });
+        if (r.status === 401) {
+            cont.innerHTML = '<div style="color:#dc2626">Bitte neu anmelden.</div>';
+            return;
+        }
         if (!r.ok) {
             cont.innerHTML = `<div style="color:#dc2626">Seite „${helpEsc(slug)}" nicht gefunden (HTTP ${r.status}).</div>`;
             return;

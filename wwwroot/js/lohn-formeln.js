@@ -36,11 +36,30 @@ function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+let _lohnEngineGeladen = false;
+async function lohnEngineLaden() {
+  if (_lohnEngineGeladen) return;
+  const frame = document.getElementById('lohnEngineFrame');
+  if (!frame) return;
+  const t = localStorage.getItem('hrToken');
+  if (!t) return;
+  try {
+    const r = await fetch('/lohn-engine-debugger.html', {
+      headers: { Authorization: 'Bearer ' + t },
+      cache: 'no-store'
+    });
+    if (!r.ok) return;
+    frame.srcdoc = await r.text();
+    _lohnEngineGeladen = true;
+  } catch (_) { /* Seite bleibt leer */ }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const orig = window.showPage;
   if (typeof orig !== 'function') return;
   window.showPage = function (name) {
     orig.apply(this, arguments);
     if (name === 'lohn-formeln') loadLohnFormeln();
+    if (name === 'lohn-engine') lohnEngineLaden();
   };
 });

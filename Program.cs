@@ -7233,11 +7233,41 @@ app.Use(async (context, next) =>
 // Die Dateien liegen direkt im wwwroot-Root und werden von UseStaticFiles bedient;
 // keine Host-Weiche mehr nötig.
 
+// Hilfe (/help/*.md) und die Lohn-Engine-Skizze sind HR-Unterlagen.
+// UseStaticFiles läuft vor der Anmeldung — diese Pfade deshalb hier abfangen.
+// Die App schickt das Token mit (Hilfe-Panel, Engine-iframe). Ohne Token: 401.
+app.Use(async (ctx, next) =>
+{
+    if (!StatikZugang.IstGeschuetzt(ctx.Request.Path))
+    {
+        await next();
+        return;
+    }
+
+    var principal = StatikZugang.Principal(ctx.Request.Headers.Authorization.ToString(), jwtSecret);
+    var erlaubt = principal != null && StatikZugang.RollePasst(principal);
+    if (erlaubt && principal != null)
+    {
+        var reg = ctx.RequestServices.GetRequiredService<SessionRegistry>();
+        var db  = ctx.RequestServices.GetRequiredService<AppDbContext>();
+        if (reg.IstGesperrt(principal, db)) erlaubt = false;
+    }
+    if (!erlaubt)
+    {
+        ctx.Response.StatusCode = 401;
+        ctx.Response.ContentType = "text/plain; charset=utf-8";
+        await ctx.Response.WriteAsync("Anmeldung erforderlich.");
+        return;
+    }
+    await next();
+});
+
 // Statische Dateien / Startseite
 app.UseDefaultFiles();
 // Walter-Vorgabe 27.05.2026: .md-Files (Hilfe-Texte unter wwwroot/help/)
 // muessen mit text/markdown ausgeliefert werden, sonst meldet der Browser
 // "Datei zum Download" statt im Helper-Panel anzuzeigen.
+// Seit 22.10.2026 nur noch mit HR-Anmeldung (StatikZugang, oben).
 var mdMime = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
 mdMime.Mappings[".md"] = "text/markdown; charset=utf-8";
 // Scanbot Web SDK (WASM + Worker) — korrekte MIME, sonst laden die Engine-Files nicht.
