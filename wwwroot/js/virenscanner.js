@@ -165,3 +165,24 @@ async function vsBestandStarten() {
         showToast(e.message || String(e), 'error');
     }
 }
+
+// Signaturen jetzt aktualisieren (freshclam auf dem Server) — Walter 22.10.2026.
+// Der frühere Knopf «Aktualisieren» lud nur den Status neu und wirkte deshalb tot.
+async function vsSignaturenAktualisieren() {
+    const btn = document.getElementById('vsSigBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Aktualisiere …'; }
+    try {
+        const r = await fetch('/api/viren-scanner/signaturen-aktualisieren', { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            showToast(j.message || `Fehler ${r.status}`, 'error');
+            return;
+        }
+        showToast(j.message || 'Signaturen aktualisiert.', 'success');
+        await vsLoadStatus();
+    } catch (e) {
+        showToast(e.message || String(e), 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Signaturen aktualisieren'; }
+    }
+}

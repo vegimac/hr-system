@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net.Sockets;
 using System.Text;
@@ -12,6 +13,14 @@ public sealed record ScanErgebnis(ScanStatus Status, string? Virus = null, strin
     public static readonly ScanErgebnis Sauber = new(ScanStatus.Sauber);
 }
 
+/// <summary>Ergebnis einer manuellen Signatur-Aktualisierung (freshclam).</summary>
+public sealed record SignaturUpdateErgebnis(
+    bool Ok,
+    string Meldung,
+    DateTime? Stand = null,
+    int? Version = null,
+    string? Error = null);
+
 /// <summary>
 /// Virenprüfung über den ClamAV-Dienst (clamd) auf dem Server (Walter-Vorgabe 08.10.2026).
 /// Die Datei geht über den lokalen Unix-Socket an clamd (INSTREAM) — sie verlässt den Server nicht.
@@ -23,9 +32,12 @@ public sealed class VirenScanner
 {
     private const int Block = 64 * 1024;
     private static readonly TimeSpan Zeitlimit = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan UpdateZeitlimit = TimeSpan.FromMinutes(10);
+    private static readonly SemaphoreSlim UpdateSperre = new(1, 1);
 
     private readonly string _socket;
     private readonly string _datenbank;
+    private readonly string _updateBefehl;
     private readonly ILogger<VirenScanner> _log;
 
     public bool Pflicht { get; }
@@ -35,6 +47,10 @@ public sealed class VirenScanner
         _log = log;
         _socket = config["VirenScanner:Socket"] is { Length: > 0 } s ? s : "/var/run/clamav/clamd.ctl";
         _datenbank = config["VirenScanner:Datenbank"] is { Length: > 0 } d ? d : "/var/lib/clamav";
+        // Standard: Hilfsskript per sudo (schreibt als root in /var/lib/clamav).
+        _updateBefehl = config["VirenScanner:UpdateBefehl"] is { Length: > 0 } u
+            ? u
+            : "sudo -n /usr/local/sbin/hr-clamav-update";
         Pflicht = config.GetValue<bool?>("VirenScanner:Pflicht") ?? OperatingSystem.IsLinux();
     }
 
@@ -147,6 +163,108 @@ public sealed class VirenScanner
         catch
         {
             return (null, null);
+        }
+    }
+
+    /// <summary>
+    /// Signaturen jetzt aktualisieren (Walter 22.10.2026): ruft <c>hr-clamav-update</c>
+    /// (freshclam) auf. Nur auf dem Server sinnvoll; lokal ohne ClamAV → klare Meldung.
+    /// </summary>
+    public async Task<SignaturUpdateErgebnis> SignaturenAktualisierenAsync(CancellationToken ct = default)
+    {
+        if (!Pflicht)
+            return new(false, "Auf diesem Rechner läuft kein Virenscanner — Signaturen werden nur auf dem Server aktualisiert.",
+                Error: "KEIN_SCANNER");
+
+        if (!await UpdateSperre.WaitAsync(0, ct))
+            return new(false, "Eine Aktualisierung läuft bereits — bitte kurz warten.", Error: "LAEUFT_SCHON");
+
+        try
+        {
+            using var zeit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            zeit.CancelAfter(UpdateZeitlimit);
+
+            var teile = _updateBefehl.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (teile.Length == 0)
+                return new(false, "Kein Update-Befehl konfiguriert (VirenScanner:UpdateBefehl).", Error: "KONFIG");
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = teile[0],
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            for (var i = 1; i < teile.Length; i++)
+                psi.ArgumentList.Add(teile[i]);
+
+            using var proc = new Process { StartInfo = psi };
+            try
+            {
+                if (!proc.Start())
+                    return new(false, "Aktualisierung konnte nicht gestartet werden.", Error: "START");
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "Signatur-Update Start fehlgeschlagen ({Befehl})", _updateBefehl);
+                return new(false, $"Aktualisierung fehlgeschlagen: {ex.Message}", Error: "START");
+            }
+
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync(zeit.Token);
+            var stderrTask = proc.StandardError.ReadToEndAsync(zeit.Token);
+            try
+            {
+                await proc.WaitForExitAsync(zeit.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                try { proc.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                return new(false, "Aktualisierung abgebrochen (Zeitlimit).", Error: "TIMEOUT");
+            }
+
+            var stdout = (await stdoutTask).Trim();
+            var stderr = (await stderrTask).Trim();
+            var ausgabe = string.Join("\n", new[] { stdout, stderr }.Where(s => s.Length > 0));
+            var (stand, version) = Signaturen();
+
+            if (proc.ExitCode != 0)
+            {
+                var setupFehlt = ausgabe.Contains("password is required", StringComparison.OrdinalIgnoreCase)
+                    || ausgabe.Contains("a terminal is required", StringComparison.OrdinalIgnoreCase)
+                    || ausgabe.Contains("no password was provided", StringComparison.OrdinalIgnoreCase)
+                    || ausgabe.Contains("command not found", StringComparison.OrdinalIgnoreCase)
+                    || ausgabe.Contains("unable to locate", StringComparison.OrdinalIgnoreCase)
+                    || (proc.ExitCode == 1 && ausgabe.Length == 0 && _updateBefehl.Contains("sudo", StringComparison.Ordinal))
+                    || (_updateBefehl.Contains("hr-clamav-update", StringComparison.Ordinal)
+                        && !File.Exists("/usr/local/sbin/hr-clamav-update"));
+                if (setupFehlt)
+                {
+                    _log.LogWarning("Signatur-Update: Hilfsskript/sudo fehlt (Exit {Code}): {Out}", proc.ExitCode, ausgabe);
+                    return new(false,
+                        "Signatur-Update ist auf dem Server noch nicht freigeschaltet. Einmal als root installieren: "
+                        + "sudo install -m 755 …/server/hr-clamav-update /usr/local/sbin/hr-clamav-update && "
+                        + "sudo install -m 440 …/server/hr-clamav-update.sudoers /etc/sudoers.d/hr-clamav-update",
+                        stand, version, "SETUP_FEHLT");
+                }
+
+                _log.LogWarning("Signatur-Update Exit {Code}: {Out}", proc.ExitCode, ausgabe);
+                var kurz = ausgabe.Length > 400 ? ausgabe[..400] + "…" : ausgabe;
+                return new(false,
+                    string.IsNullOrEmpty(kurz) ? $"Aktualisierung fehlgeschlagen (Exit {proc.ExitCode})." : kurz,
+                    stand, version, "FEHLER");
+            }
+
+            _log.LogInformation("Signatur-Update ok — Stand {Stand} Version {Version}", stand, version);
+            var msg = stand != null
+                ? $"Signaturen aktualisiert — Stand {stand:dd.MM.yyyy HH:mm}"
+                  + (version != null ? $" (Version {version})" : "") + "."
+                : "Signatur-Update abgeschlossen.";
+            return new(true, msg, stand, version);
+        }
+        finally
+        {
+            UpdateSperre.Release();
         }
     }
 

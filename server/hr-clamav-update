@@ -1,0 +1,37 @@
+#!/bin/bash
+# Einmalige ClamAV-Signatur-Aktualisierung für OneCrew (Walter 22.10.2026).
+# Wird vom Admin-Knopf «Signaturen aktualisieren» per sudo -n aufgerufen.
+# Stoppt kurz den freshclam-Daemon (Sperre), läuft freshclam, startet ihn wieder.
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+gestoppt=0
+if systemctl is-active --quiet clamav-freshclam 2>/dev/null; then
+  systemctl stop clamav-freshclam
+  gestoppt=1
+fi
+
+cleanup() {
+  if [ "$gestoppt" = 1 ]; then
+    systemctl start clamav-freshclam >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+# Lock-Datei des Daemons freigeben lassen
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if [ ! -e /var/lib/clamav/freshclam.pid ] && [ ! -e /run/lock/freshclam ] && [ ! -e /var/lock/freshclam ]; then
+    break
+  fi
+  sleep 1
+done
+
+# 0 = ok (auch «already up to date»), 40 = keine neuere Version — beides Erfolg
+set +e
+/usr/bin/freshclam --stdout --foreground
+code=$?
+set -e
+if [ "$code" -eq 0 ] || [ "$code" -eq 40 ]; then
+  exit 0
+fi
+exit "$code"

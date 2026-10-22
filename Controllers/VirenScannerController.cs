@@ -77,4 +77,33 @@ public class VirenScannerController : ControllerBase
             return Conflict(new { error = "LAEUFT_SCHON", message = "Der Durchlauf läuft bereits." });
         return Ok(_bestand.Stand());
     }
+
+    /// <summary>ClamAV-Signaturen jetzt aktualisieren (freshclam) — Walter 22.10.2026.</summary>
+    [HttpPost("signaturen-aktualisieren")]
+    public async Task<IActionResult> SignaturenAktualisieren(CancellationToken ct)
+    {
+        var erg = await _scanner.SignaturenAktualisierenAsync(ct);
+        if (!erg.Ok)
+        {
+            var code = erg.Error switch
+            {
+                "KEIN_SCANNER" or "LAEUFT_SCHON" => StatusCodes.Status409Conflict,
+                "SETUP_FEHLT" => StatusCodes.Status501NotImplemented,
+                _ => StatusCodes.Status500InternalServerError,
+            };
+            return StatusCode(code, new
+            {
+                error = erg.Error ?? "FEHLER",
+                message = erg.Meldung,
+                signaturenStand = erg.Stand,
+                signaturenVersion = erg.Version,
+            });
+        }
+        return Ok(new
+        {
+            message = erg.Meldung,
+            signaturenStand = erg.Stand,
+            signaturenVersion = erg.Version,
+        });
+    }
 }

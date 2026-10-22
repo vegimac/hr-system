@@ -1,0 +1,7 @@
+# Einmal auf dem Server installieren (Walter 22.10.2026):
+#   sudo install -m 755 server/hr-clamav-update /usr/local/sbin/hr-clamav-update
+#   sudo install -m 440 server/hr-clamav-update.sudoers /etc/sudoers.d/hr-clamav-update
+#   sudo visudo -cf /etc/sudoers.d/hr-clamav-update
+#
+# Damit darf der App-User (www-data) den Knopf «Signaturen aktualisieren» ausführen.
+www-data ALL=(root) NOPASSWD: /usr/local/sbin/hr-clamav-update

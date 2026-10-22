@@ -52,4 +52,19 @@ public class VirenScannerTests
         Assert.Equal(ScanStatus.NichtBereit, erg.Status);
         Assert.False(await scanner.PingAsync());
     }
+
+    [Fact]
+    public async Task Signatur_Update_ohne_Pflicht_meldet_klar()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["VirenScanner:Pflicht"] = "false",
+        }).Build();
+        var scanner = new VirenScanner(config, NullLogger<VirenScanner>.Instance);
+
+        var erg = await scanner.SignaturenAktualisierenAsync();
+
+        Assert.False(erg.Ok);
+        Assert.Equal("KEIN_SCANNER", erg.Error);
+    }
 }
