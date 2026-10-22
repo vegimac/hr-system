@@ -241,34 +241,36 @@ function gsfRenderRows() {
         angabenPruefen: 'Die Angaben zum Kind oder MA stimmen nicht mit GastroSocial überein oder fehlen in OneCrew. Mit Ausweis/Geburtsurkunde klären: falsch in OneCrew → im MA → Familie korrigieren, falsch bei GastroSocial → dort melden. (Die Bescheinigung enthält vom Kind nur AHV-Nr., Vorname und Geburtsdatum — Nachname und Geschlecht werden nur geprüft, wenn der Export sie mitliefert.)',
         passt: ''
     }[filter];
-    const th = (t, st = '') => `<th style="padding:10px 12px;text-align:left;${st}">${t}</th>`;
-    const td = (v, st = '') => `<td style="padding:10px 12px;vertical-align:top;${st}">${v}</td>`;
+    const th = (t, st = '') => `<th style="padding:8px 6px;text-align:left;${st}">${t}</th>`;
+    const td = (v, st = '') => `<td style="padding:8px 6px;vertical-align:top;${st}">${v}</td>`;
+    const maZelle = z => z.employeeId
+        ? `<button type="button" class="dok-menu-btn" style="min-width:auto;padding:5px 10px;font-size:13px;font-weight:600;cursor:pointer"
+                onclick="gsfOpenEmployee(${z.employeeId})" title="Mitarbeiter öffnen">${esc(z.oneCrewName || 'MA')}</button>
+            ${z.personalnummer ? `<div style="font-size:11.5px;color:#94a3b8;font-family:monospace;margin-top:3px">${esc(z.personalnummer)}</div>` : ''}`
+        : '<span style="color:#94a3b8">—</span>';
     el.innerHTML = `
         ${aufgabe ? `<div style="font-size:13.5px;color:#475569;margin:0 0 10px;line-height:1.45">${esc(aufgabe)}</div>` : ''}
         <table style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:14px;background:rgba(255,255,255,.55);border-radius:12px;overflow:hidden">
             <colgroup>
-                <col style="width:13%"><col style="width:12%"><col style="width:8%">
-                <col style="width:22%"><col style="width:7%"><col style="width:16%">
-                <col style="width:7%"><col style="width:8%"><col style="width:7%">
+                <col style="width:11%"><col style="width:11%"><col style="width:10%"><col style="width:7%">
+                <col style="width:18%"><col style="width:6%"><col style="width:13%"><col style="width:6%"><col style="width:18%">
             </colgroup>
-            <thead><tr style="background:#f8fafc;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.02em">
-                ${th('Bezüger')}${th('Kind')}${th('Geb.-Datum')}${th('GastroSocial')}${th('Total GS', 'text-align:right')}${th('Zulagen OneCrew')}${th('Total OneCrew', 'text-align:right')}${th('OneCrew')}${th('Hinweis')}
+            <thead><tr style="background:#f8fafc;color:#64748b;font-size:11.5px;text-transform:uppercase;letter-spacing:.02em">
+                ${th('MA')}${th('Bezüger')}${th('Kind')}${th('Geb.')}${th('GastroSocial')}${th('Total GS', 'text-align:right')}${th('Zulagen OneCrew')}${th('Total OC', 'text-align:right')}${th('Hinweis')}
             </tr></thead>
             <tbody>${rows.map(z => {
                 const diff = z.gsTotal != null && z.ocTotal != null && Number(z.gsTotal) !== Number(z.ocTotal);
                 return `<tr style="border-top:1px solid #eee">
-                    ${td(`<div style="font-weight:600">${esc(z.bezueger || z.oneCrewName || '—')}</div><div style="font-size:12px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.bezuegerAhv || '')}</div>`)}
-                    ${td(`<div style="font-weight:600">${esc(z.kind || '—')}</div><div style="font-size:12px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.kindAhv || '')}</div>${z.kindAhvUebernehmen && z.familyMemberId
-                        ? `<button class="dok-menu-btn" style="min-width:auto;padding:3px 9px;font-size:12px;margin-top:6px" onclick="gsfKindAhvUebernehmen('${filter}',${z.familyMemberId})" title="AHV-Nummer von GastroSocial beim Kind in OneCrew eintragen">＋ AHV übernehmen</button>`
+                    ${td(maZelle(z))}
+                    ${td(`<div style="font-weight:600">${esc(z.bezueger || z.oneCrewName || '—')}</div><div style="font-size:11.5px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.bezuegerAhv || '')}</div>`)}
+                    ${td(`<div style="font-weight:600">${esc(z.kind || '—')}</div><div style="font-size:11.5px;color:#94a3b8;font-family:monospace;margin-top:2px">${esc(z.kindAhv || '')}</div>${z.kindAhvUebernehmen && z.familyMemberId
+                        ? `<button class="dok-menu-btn" style="min-width:auto;padding:3px 8px;font-size:12px;margin-top:5px" onclick="gsfKindAhvUebernehmen('${filter}',${z.familyMemberId})" title="AHV-Nummer von GastroSocial beim Kind in OneCrew eintragen">＋ AHV übernehmen</button>`
                         : ''}`)}
                     ${td(gsfDate(z.kindGeburt), 'white-space:nowrap')}
                     ${td(gsfZeitraeumeHtml(z.gastroSocial))}
                     ${td(z.gsTotal != null && filter !== 'nurOneCrew' ? gsfChf(z.gsTotal) : '—', 'text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums')}
                     ${td(z.oneCrew ? gsfZeitraeumeHtml(z.oneCrew) : (z.employeeId ? '<span style="color:#94a3b8">keine</span>' : '—'))}
                     ${td(z.ocTotal != null ? gsfChf(z.ocTotal) : '—', `text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;${diff ? 'color:#991b1b;font-weight:600' : ''}`)}
-                    ${td(z.employeeId
-                        ? `<button class="dok-menu-btn" style="min-width:auto;padding:4px 10px;font-size:13px" onclick="gsfOpenEmployee(${z.employeeId})">→ ${esc(z.oneCrewName || 'MA')}</button>${z.personalnummer ? `<div style="font-size:12px;color:#94a3b8;font-family:monospace;margin-top:4px">${esc(z.personalnummer)}</div>` : ''}`
-                        : '—')}
                     ${td(filter === 'angabenPruefen'
                         ? (z.angaben || []).map(a => `<div style="color:#9a3412;margin-bottom:3px">• ${esc(a)}</div>`).join('')
                         : esc(z.hinweis || ''), 'color:#64748b;font-size:13px;line-height:1.4')}
