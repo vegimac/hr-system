@@ -17241,14 +17241,22 @@ async function meldepflichtHubOpen(art) {
     showPage('meldepflicht');
     const sel = document.getElementById('mpEmpSelect');
     if (sel) sel.value = '';
-    try { _mpEmployees = await loadEmployeeLookup(); } catch { _mpEmployees = []; }
-    if (typeof _renderEmpPicker === 'function') _renderEmpPicker('mpEmpFilter', 'mpEmpSearch', 'mpEmpSelect', _mpEmployees);
+    try {
+        const [alle, idsRes] = await Promise.all([
+            loadEmployeeLookup(),
+            fetch('/api/employees/meldepflichtig', { headers: ah() })
+        ]);
+        const ids = idsRes.ok ? await idsRes.json() : [];
+        const mitPflicht = new Set((Array.isArray(ids) ? ids : []).map(Number));
+        _mpEmployees = (alle || []).filter(e => mitPflicht.has(Number(e.id)));
+    } catch { _mpEmployees = []; }
+    if (typeof _renderEmpPicker === 'function') _renderEmpPicker('mpEmpFilter', 'mpEmpSearch', 'mpEmpSelect', _mpEmployees, 'Keine Mitarbeitenden mit Meldepflicht');
 }
 
 let _mpEmployees = [];
 
 function mpRenderEmpList() {
-    if (typeof _renderEmpPicker === 'function') _renderEmpPicker('mpEmpFilter', 'mpEmpSearch', 'mpEmpSelect', _mpEmployees);
+    if (typeof _renderEmpPicker === 'function') _renderEmpPicker('mpEmpFilter', 'mpEmpSearch', 'mpEmpSelect', _mpEmployees, 'Keine Mitarbeitenden mit Meldepflicht');
 }
 
 function mpOnEmpChange() {

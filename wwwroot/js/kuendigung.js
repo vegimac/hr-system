@@ -30,7 +30,7 @@ function kuRenderEmpList() {
 // Aufforderungs-Seite (Filial-Regel + Vorname-Sortierung identisch).
 // sourceList: optional — sonst _kuAllEmployees (Walter 30.07.2026: Aufforderung
 // hat eigene Liste; vorher blieb der Picker leer).
-function _renderEmpPicker(filterId, searchId, selectId, sourceList) {
+function _renderEmpPicker(filterId, searchId, selectId, sourceList, leerHinweis) {
     const sel = document.getElementById(selectId);
     if (!sel) return;
     const filter = document.getElementById(filterId)?.value || 'active';
@@ -103,7 +103,10 @@ function _renderEmpPicker(filterId, searchId, selectId, sourceList) {
                     <span style="margin-left:auto;font-size:12px;color:#8b8b8b">${escapeHtml(e.employeeNumber || '')}</span>
                 </div>`;
     }).join('');
-    box.innerHTML = rows || `<div style="padding:12px 14px;font-size:13px;color:#8b8b8b">Keine Treffer${search ? ` für «${escapeHtml(search)}»` : ''} — Filter «Alle» prüfen.</div>`;
+    const leer = leerHinweis
+        ? `${leerHinweis}${search ? ` für «${escapeHtml(search)}»` : ''}`
+        : `Keine Treffer${search ? ` für «${escapeHtml(search)}»` : ''} — Filter «Alle» prüfen.`;
+    box.innerHTML = rows || `<div style="padding:12px 14px;font-size:13px;color:#8b8b8b">${leer}</div>`;
     if (list.length > MAX)
         box.innerHTML += `<div style="padding:8px 14px;font-size:12px;color:#8b8b8b">… ${list.length - MAX} weitere — bitte Suche eingrenzen.</div>`;
     // Wenn die aktuelle Auswahl rausgefiltert wurde, Details ausblenden.

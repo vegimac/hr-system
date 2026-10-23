@@ -330,6 +330,27 @@ public class EmployeesController : ControllerBase
         return Ok(employees);
     }
 
+    /// <summary>
+    /// Mitarbeitende mit Vermerk «meldepflichtig» auf einer Bewilligung
+    /// (Walter 23.10.2026). Dieselbe Filial-Schranke wie lookup-full.
+    /// </summary>
+    [HttpGet("meldepflichtig")]
+    public async Task<IActionResult> GetMeldepflichtig()
+    {
+        var isAdmin = IsAdminUser();
+        var allowed = await GetAllowedBranchIdsAsync();
+        var q = _context.EmployeePermitHistories.AsNoTracking()
+            .Where(h => h.ErwerbMeldepflichtig
+                     && h.Employee != null
+                     && !h.Employee.IsHidden
+                     && (isAdmin || !h.Employee.IsPayrollExcluded));
+        if (allowed != null)
+            q = q.Where(h => h.Employee!.Employments.Any(em =>
+                em.CompanyProfileId != null && allowed.Contains(em.CompanyProfileId.Value)));
+        var ids = await q.Select(h => h.EmployeeId).Distinct().ToListAsync();
+        return Ok(ids);
+    }
+
     [HttpGet("lookup/company/{companyId:int}")]
     public async Task<IActionResult> GetEmployeesForCompany(int companyId)
     {
