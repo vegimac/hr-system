@@ -1637,7 +1637,7 @@
                         <span>Kontrolle &amp; Datenpflege</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="briefe" onclick="adminHubShowCat('briefe')" title="Briefverwaltung — Austrittsbrief">
-                        <img src="img/briefverwaltung.webp?v=20261023a" alt="" loading="lazy">
+                        <img src="img/briefverwaltung.webp?v=20261023d" alt="" loading="lazy">
                         <span>Briefverwaltung</span>
                     </button>
                 </div>
@@ -1869,20 +1869,81 @@
                 <div class="admin-hub-group" id="adminHubGrp-briefe" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('austrittsbrief')">
-                        <img src="img/briefverwaltung.webp?v=20261023a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/briefverwaltung.webp?v=20261023d" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Austrittsbrief</div>
-                        <div class="admin-card-desc">Schreiben zum Austritt eines Mitarbeitenden</div>
+                        <div class="admin-card-desc">Text des Briefs. Frankatur über die Briefpost</div>
                     </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Austrittsbrief: Lauftext hier, Frankatur über die Briefpost (WebStamp). -->
             <div class="page liquid-mask" id="page-austrittsbrief">
+                <style>
+                    #page-austrittsbrief .bv-card{padding:20px;max-width:980px;margin-top:16px;border-radius:16px;background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);box-shadow:0 4px 18px rgba(60,55,48,0.14)}
+                    #page-austrittsbrief .bv-h{font-size:14.5px;font-weight:700;color:#3f3f3f;margin-bottom:6px}
+                    #page-austrittsbrief .bv-sub{font-size:12.5px;color:#646464;margin-bottom:14px;line-height:1.45}
+                    #page-austrittsbrief label.bv-l{font-size:12.5px;font-weight:600;color:#646464;display:block;margin-bottom:4px}
+                    #page-austrittsbrief .bv-in{width:100%;padding:9px 12px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13.5px;background:#fff;box-sizing:border-box;font-family:inherit;color:#3f3f3f;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)}
+                    #page-austrittsbrief textarea.bv-in{min-height:220px;line-height:1.45;resize:vertical}
+                    #page-austrittsbrief .bv-btn{padding:9px 18px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;cursor:pointer;font-size:13px;font-weight:600}
+                    #page-austrittsbrief .bv-btn2{padding:9px 16px;border:1px solid rgba(60,55,48,0.22);border-radius:12px;background:rgba(255,255,255,0.55);cursor:pointer;font-size:13px;color:#3f3f3f;font-weight:600}
+                    #page-austrittsbrief .bv-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+                    #page-austrittsbrief .bv-chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+                    #page-austrittsbrief .bv-chip{border:1px solid rgba(60,55,48,0.20);background:transparent;border-radius:999px;padding:4px 10px;font-size:12px;color:#3f3f3f;cursor:pointer}
+                    #page-austrittsbrief .bv-ok{font-size:13px;color:#166534}
+                    #page-austrittsbrief .bv-err{font-size:13px;color:#b91c1c}
+                    #page-austrittsbrief .bv-warn{font-size:12.5px;color:#92400e;margin-top:6px}
+                    body.theme-dark #page-austrittsbrief .bv-card{background:rgba(255,255,255,0.06);box-shadow:none;border:1px solid rgba(255,255,255,0.12)}
+                    body.theme-dark #page-austrittsbrief .bv-h,
+                    body.theme-dark #page-austrittsbrief .bv-chip{color:#f2f2f2}
+                    body.theme-dark #page-austrittsbrief .bv-sub,
+                    body.theme-dark #page-austrittsbrief label.bv-l{color:#c8c8c8}
+                    body.theme-dark #page-austrittsbrief .bv-btn2{background:rgba(255,255,255,0.08);color:#f2f2f2}
+                </style>
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Austrittsbrief</h1>
-                        <p class="page-sub">Erster Brief in der Briefverwaltung. Schreiben an den Mitarbeitenden zum Austritt.</p>
+                        <p class="page-sub">Der Text liegt hier. Gruss, Firmenname und dein Name setzt der Brief selbst. Frankiert wird er über die Briefpost.</p>
                     </div>
+                </div>
+
+                <div class="bv-card" style="margin-top:0">
+                    <div class="bv-h">Text</div>
+                    <div class="bv-sub">Platzhalter werden beim Erstellen eingesetzt. Eine Leerzeile beginnt einen neuen Absatz. Speichern merkt den Text für das nächste Mal.</div>
+                    <label class="bv-l" for="abBetreff">Betreff</label>
+                    <input id="abBetreff" class="bv-in" type="text" maxlength="200">
+                    <label class="bv-l" for="abText" style="margin-top:12px">Text</label>
+                    <div id="abChips" class="bv-chips"></div>
+                    <textarea id="abText" class="bv-in"></textarea>
+                    <div class="bv-row" style="margin-top:12px">
+                        <button type="button" class="bv-btn" onclick="abSpeichern()">Text speichern</button>
+                        <span id="abSaveMsg" style="font-size:12.5px;color:#646464"></span>
+                    </div>
+                </div>
+
+                <div class="bv-card">
+                    <div class="bv-h">Brief erstellen</div>
+                    <div class="bv-sub">Die Liste folgt der Filiale links und zeigt auch Ausgetretene. Produkt und Couvert-Fenster kommen aus der Briefpost.</div>
+                    <div class="bv-row" style="margin-bottom:8px">
+                        <select id="abEmpFilter" onchange="abRenderEmp()">
+                            <option value="all" selected>Alle</option>
+                            <option value="active">Nur Aktive</option>
+                            <option value="inactive">Nur Inaktive</option>
+                        </select>
+                        <input id="abEmpSearch" class="bv-in" oninput="abRenderEmp()" placeholder="Name oder Personalnummer" style="flex:1;min-width:180px">
+                    </div>
+                    <select id="abEmpSelect" class="no-liquid" onchange="abEmpGewaehlt()"></select>
+                    <div id="abEmpInfo" style="margin-top:8px;font-size:13px;font-weight:650;color:#3f3f3f"></div>
+                    <div class="bv-row" style="margin-top:14px">
+                        <button type="button" class="bv-btn" onclick="abPdf()">PDF ansehen</button>
+                        <span id="abPostAktionen" class="bv-row">
+                            <button type="button" class="bv-btn2" onclick="abVorschau()">Frankatur-Vorschau</button>
+                            <button type="button" class="bv-btn" onclick="abSenden()">Frankatur bestellen</button>
+                        </span>
+                    </div>
+                    <div id="abPostHinweis" class="bv-sub" style="display:none;margin-top:10px;margin-bottom:0">Frankieren geht über die Briefpost und ist der Administration vorbehalten. Die PDF-Vorschau kannst du hier ansehen.</div>
+                    <div id="abResult" style="margin-top:12px"></div>
                 </div>
             </div>
 
@@ -10785,7 +10846,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261023a"></script>
+<script src="js/app-core.js?v=20261023e"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -12623,6 +12684,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/ma-sync-fehler.js?v=20260901a"></script>
 <script type="text/plain" data-modul="js/ecall-settings.js?v=20260901a"></script>
 <script type="text/plain" data-modul="js/briefpost.js?v=20261023a"></script>
+<script type="text/plain" data-modul="js/brief-verwaltung.js?v=20261023a"></script>
 <script type="text/plain" data-modul="js/bfs-lse.js?v=20260704p"></script>
 <script>init();</script>
 </body>

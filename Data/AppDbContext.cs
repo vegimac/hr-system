@@ -154,6 +154,7 @@ public class AppDbContext : DbContext
     public DbSet<MailBounce>                MailBounces                 => Set<MailBounce>();
     public DbSet<EcallSetting>              EcallSettings               => Set<EcallSetting>();
     public DbSet<WebStampSetting>           WebStampSettings            => Set<WebStampSetting>();
+    public DbSet<BriefVorlage>              BriefVorlagen               => Set<BriefVorlage>();
     public DbSet<WebStampAuftrag>           WebStampAuftraege           => Set<WebStampAuftrag>();
     public DbSet<VersandKategorieSetting>   VersandKategorien           => Set<VersandKategorieSetting>();
     public DbSet<MailLog>                   MailLogs                    => Set<MailLog>();
@@ -3741,6 +3742,21 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Preis).HasColumnName("preis").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Meldung).HasColumnName("meldung");
             entity.Property(e => e.BriefPdf).HasColumnName("brief_pdf");
+        });
+
+        // ── Briefvorlage — Lauftext der Briefverwaltung (Walter 23.10.2026) ─
+        modelBuilder.Entity<BriefVorlage>(entity =>
+        {
+            entity.ToTable("brief_vorlage");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(40);
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(120);
+            entity.Property(e => e.Betreff).HasColumnName("betreff").HasMaxLength(200);
+            entity.Property(e => e.Text).HasColumnName("text");
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am")
+                  .HasColumnType("timestamp without time zone");
         });
 
         // ── VersandKategorieSetting — Freigabe-Matrix Mail/SMS ────────────

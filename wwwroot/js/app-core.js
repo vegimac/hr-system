@@ -1659,6 +1659,7 @@ function showPage(name) {
     if (name === 'smtp-settings') smtpLoad();
     if (name === 'ecall') ecallLoad();
     if (name === 'briefpost' && typeof wstLoad === 'function') wstLoad();
+    if (name === 'austrittsbrief' && typeof abInit === 'function') abInit();
     if (name === 'lse-export')   lseInit();
 
     // fixhead-Seiten: Versatz für sticky Spaltentitel messen (Walter 22.07.2026).
@@ -1746,6 +1747,8 @@ function onBranchChange() {
 
     if (currentPageName === 'mitarbeiter') {
         loadMitarbeiterList();
+    } else if (currentPageName === 'austrittsbrief') {
+        if (typeof abRenderEmp === 'function') abRenderEmp();
     } else if (currentPageName === 'schulungen-uebersicht') {
         if (typeof schulungUebersichtInit === 'function') schulungUebersichtInit();
     } else if (currentPageName === 'vertraege') {

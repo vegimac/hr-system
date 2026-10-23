@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 98;  // 98: 2FA Pflicht für alle HR-Benutzer · 97: Mirus→Swissdec · 96: Kontoplan = Lohnposition
+const int SchemaStand = 99;  // 99: Briefvorlage Austrittsbrief · 98: 2FA Pflicht für alle HR-Benutzer · 97: Mirus→Swissdec
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2670,6 +2670,36 @@ using (var scope = app.Services.CreateScope())
                AND role <> 'employee';
         ");
         startLog.LogInformation("Stand 98: 2FA (totp_required) für alle HR-Benutzer gesetzt");
+    }
+
+    // Stand 99: Lauftext der Briefverwaltung. Der Gruss steht nicht im Text,
+    // den setzt der PDF-Brief. Platzhalter bleiben im C#-Parameter, nicht im SQL.
+    if (dbStand < 99)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS brief_vorlage (
+                id           serial PRIMARY KEY,
+                code         varchar(40)  NOT NULL,
+                name         varchar(120) NOT NULL,
+                betreff      varchar(200) NOT NULL DEFAULT '',
+                text         text         NOT NULL DEFAULT '',
+                geaendert_am timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_brief_vorlage_code ON brief_vorlage (code);
+        ");
+        if (!db.BriefVorlagen.Any(v => v.Code == BriefVorlageText.AustrittCode))
+        {
+            db.BriefVorlagen.Add(new BriefVorlage
+            {
+                Code = BriefVorlageText.AustrittCode,
+                Name = BriefVorlageText.AustrittName,
+                Betreff = BriefVorlageText.AustrittBetreff,
+                Text = BriefVorlageText.AustrittText,
+                GeaendertAm = DateTime.Now,
+            });
+            db.SaveChanges();
+        }
+        startLog.LogInformation("Stand 99: Briefvorlage Austrittsbrief angelegt");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
