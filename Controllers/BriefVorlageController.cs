@@ -40,6 +40,28 @@ public class BriefVorlageController : ControllerBase
         public int EmployeeId { get; set; }
         public string? Betreff { get; set; }
         public string? Text { get; set; }
+        /// <summary>App-User aus dem HR-Team. Leer = der angemeldete Benutzer.</summary>
+        public int? UnterzeichnerId { get; set; }
+    }
+
+    /// <summary>Aktive Personen mit Häkchen HR-Team, plus der angemeldete Benutzer.</summary>
+    [HttpGet("unterzeichner")]
+    public async Task<IActionResult> Unterzeichner()
+    {
+        var ich = AktuelleUserId();
+        var users = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.IsActive && (u.IsHrTeam || u.Id == ich))
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username })
+            .ToListAsync();
+        var personen = users
+            .Select(u =>
+            {
+                var name = $"{u.FirstName} {u.LastName}".Trim();
+                return new { id = u.Id, name = name.Length > 0 ? name : (u.Username ?? "") };
+            })
+            .OrderBy(u => u.name, StringComparer.Create(new System.Globalization.CultureInfo("de-CH"), true))
+            .ToList();
+        return Ok(new { vorgabe = ich > 0 ? ich : (int?)null, personen });
     }
 
     [HttpGet("austritt")]
@@ -188,7 +210,8 @@ public class BriefVorlageController : ControllerBase
         else if (produkt is not > 0)
             grund = "Unter Briefpost ist noch kein Produkt gespeichert.";
 
-        var absender = await AbsenderNameAsync();
+        var (absender, unterzeichnerFehler) = await UnterzeichnerAsync(dto.UnterzeichnerId);
+        if (unterzeichnerFehler != null) return (null, unterzeichnerFehler);
         var daten = new WebStampBriefPdfService.BriefDaten(
             filiale != null ? AbsenderZeilen(filiale) : new List<string>(),
             WebStampController.AdressZeilen(ma),
@@ -202,12 +225,29 @@ public class BriefVorlageController : ControllerBase
         return (new Bau(ma.Id, filiale?.Id, ma.EmployeeNumber ?? "", produkt, grund == null, grund, hinweise, daten), null);
     }
 
-    private async Task<string> AbsenderNameAsync()
+    private int AktuelleUserId()
     {
         var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!int.TryParse(idStr, out var userId)) return "";
-        var user = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
-        return $"{user?.FirstName} {user?.LastName}".Trim();
+        return int.TryParse(idStr, out var id) ? id : 0;
+    }
+
+    private async Task<(string Name, IActionResult? Fehler)> UnterzeichnerAsync(int? gewaehlt)
+    {
+        var ich = AktuelleUserId();
+        var id = gewaehlt is > 0 ? gewaehlt.Value : ich;
+        if (id <= 0)
+            return ("", BadRequest(new { error = "UNTERZEICHNER", message = "Bitte einen Unterzeichner aus dem HR-Team wählen." }));
+
+        var user = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.Id == id && u.IsActive)
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username, u.IsHrTeam })
+            .FirstOrDefaultAsync();
+        if (user == null || (!user.IsHrTeam && user.Id != ich))
+            return ("", BadRequest(new { error = "UNTERZEICHNER", message = "Der Unterzeichner muss aus dem HR-Team sein." }));
+
+        var name = $"{user.FirstName} {user.LastName}".Trim();
+        if (name.Length == 0) name = user.Username ?? "";
+        return (name, null);
     }
 
     /// <summary>Gleiche Zeilen wie der Brief der Briefpost, damit Vorschau und Frankatur dasselbe Couvert ergeben.</summary>

@@ -124,11 +124,10 @@ public class WebStampBriefPdfService
                         erster = false;
                     }
 
-                    col.Item().PaddingTop(26).Text("Freundliche Grüsse");
                     if (d.AbsenderZeilen.Count > 0)
-                        col.Item().PaddingTop(2).Text(d.AbsenderZeilen[0]).Bold();
+                        col.Item().PaddingTop(8).Text(d.AbsenderZeilen[0]).Bold();
                     if (!string.IsNullOrWhiteSpace(d.AbsenderName))
-                        col.Item().PaddingTop(10).Text(d.AbsenderName!.Trim());
+                        col.Item().PaddingTop(22).Text(d.AbsenderName!.Trim());
                 });
 
                 page.Footer().AlignCenter().Text(t =>
@@ -221,12 +220,11 @@ public class WebStampBriefPdfService
             Absatz(datumZeile, font, 10.5f, 14f, 10f);
             Absatz(d.Betreff.Trim(), fett, 12.5f, 16f, 8f);
             foreach (var a in absaetze) Absatz(a, font, 10.5f, 14f, 6f);
-            y -= 10f;
-            Absatz("Freundliche Grüsse", font, 10.5f, 14f, 2f);
+            y -= 4f;
             if (d.AbsenderZeilen.Count > 0) Absatz(d.AbsenderZeilen[0], fett, 10.5f, 14f, 0f);
             if (!string.IsNullOrWhiteSpace(d.AbsenderName))
             {
-                y -= 8f;
+                y -= 18f;
                 Absatz(d.AbsenderName!.Trim(), font, 10.5f, 14f, 0f);
             }
         }

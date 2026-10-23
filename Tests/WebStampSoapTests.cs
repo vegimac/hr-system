@@ -258,7 +258,8 @@ public class WebStampSoapTests
         "Arbeitszeugnis",
         "Guten Tag Frau Muster\n\n" +
         "Anbei erhalten Sie Ihr Arbeitszeugnis für Ihre Tätigkeit in der Filiale Lenzburg.\n\n" +
-        "Wir danken Ihnen für Ihren Einsatz bei uns und wünschen Ihnen für die Zukunft alles Gute.",
+        "Wir danken Ihnen für Ihren Einsatz bei uns und wünschen Ihnen für die Zukunft alles Gute.\n\n" +
+        "Freundliche Grüsse",
         "Walter Schaub", false);
 
     private static string VerzeichnisMitProjekt()

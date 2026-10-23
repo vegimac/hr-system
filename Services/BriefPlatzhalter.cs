@@ -34,7 +34,7 @@ public static class BriefPlatzhalter
     }
 }
 
-/// <summary>Starttext der mitgelieferten Briefe. Der Gruss kommt aus dem PDF, nicht aus dem Text.</summary>
+/// <summary>Starttext der mitgelieferten Briefe. Die Grussformel steht im Text, nicht im PDF.</summary>
 public static class BriefVorlageText
 {
     public const string AustrittCode = "AUSTRITT";
@@ -44,5 +44,6 @@ public static class BriefVorlageText
         "{{anrede}}\n\n" +
         "wir bestätigen dir deinen Austritt per {{austrittsdatum}}.\n\n" +
         "Deine Funktion war {{funktion}}, deine Filiale {{filiale}}, deine Personalnummer {{personalnummer}}.\n\n" +
-        "Bitte gib Uniform, Schlüssel und Badge bis zum letzten Arbeitstag ab.";
+        "Bitte gib Uniform, Schlüssel und Badge bis zum letzten Arbeitstag ab.\n\n" +
+        "Freundliche Grüsse";
 }

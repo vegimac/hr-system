@@ -17,6 +17,23 @@ async function abInit() {
     try { _abEmployees = await loadEmployeeLookup(); }
     catch { _abEmployees = []; }
     abRenderEmp();
+    abUnterzeichnerLaden();
+}
+
+async function abUnterzeichnerLaden() {
+    const sel = document.getElementById('abUnterzeichner');
+    if (!sel) return;
+    const vorher = sel.value;
+    try {
+        const r = await fetch('/api/brief-vorlagen/unterzeichner', { headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) return;
+        const liste = j.personen || [];
+        sel.innerHTML = liste.map(p => `<option value="${p.id}">${abEsc(p.name)}</option>`).join('');
+        const ziel = vorher || String(j.vorgabe || currentUser?.id || '');
+        if (ziel && [...sel.options].some(o => o.value === ziel)) sel.value = ziel;
+        if (typeof sel._lqRefresh === 'function') sel._lqRefresh();
+    } catch { /* Liste bleibt leer, der Server nimmt dann den angemeldeten Benutzer. */ }
 }
 
 async function abVorlageLaden() {
@@ -72,7 +89,8 @@ function abRoh() {
     const text = document.getElementById('abText')?.value || '';
     if (!employeeId) { abMeldung('Bitte einen Mitarbeitenden wählen.', true); return null; }
     if (!betreff) { abMeldung('Bitte einen Betreff eingeben.', true); return null; }
-    return { employeeId, betreff, text };
+    const unterzeichnerId = parseInt(document.getElementById('abUnterzeichner')?.value || '0', 10) || null;
+    return { employeeId, betreff, text, unterzeichnerId };
 }
 
 async function abSpeichern() {

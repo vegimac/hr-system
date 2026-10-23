@@ -32,10 +32,10 @@ public class BriefPlatzhalterTests
     }
 
     [Fact]
-    public void Standardtext_wiederholt_den_Gruss_nicht_und_kennt_seine_Platzhalter()
+    public void Standardtext_enthaelt_die_Grussformel_und_kennt_seine_Platzhalter()
     {
         var roh = BriefVorlageText.AustrittBetreff + "\n" + BriefVorlageText.AustrittText;
-        Assert.DoesNotContain("Freundliche Grüsse", roh);
+        Assert.Contains("Freundliche Grüsse", roh);
         var keys = Regex.Matches(roh, @"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
             .Select(m => m.Groups[1].Value);
         foreach (var key in keys)

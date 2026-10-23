@@ -1904,7 +1904,7 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Austrittsbrief</h1>
-                        <p class="page-sub">Der Text liegt hier. Gruss, Firmenname und dein Name setzt der Brief selbst. Frankiert wird er über die Briefpost.</p>
+                        <p class="page-sub">Der Text liegt hier, inklusive Grussformel. Den Unterzeichner wählst du aus dem HR-Team. Frankiert wird er über die Briefpost.</p>
                     </div>
                 </div>
 
@@ -1935,6 +1935,10 @@
                     </div>
                     <select id="abEmpSelect" class="no-liquid" onchange="abEmpGewaehlt()"></select>
                     <div id="abEmpInfo" style="margin-top:8px;font-size:13px;font-weight:650;color:#3f3f3f"></div>
+                    <div style="max-width:420px;margin-top:14px">
+                        <label class="bv-l" for="abUnterzeichner">Unterzeichner</label>
+                        <select id="abUnterzeichner"></select>
+                    </div>
                     <div class="bv-row" style="margin-top:14px">
                         <button type="button" class="bv-btn" onclick="abPdf()">PDF ansehen</button>
                         <span id="abPostAktionen" class="bv-row">
@@ -12684,7 +12688,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/ma-sync-fehler.js?v=20260901a"></script>
 <script type="text/plain" data-modul="js/ecall-settings.js?v=20260901a"></script>
 <script type="text/plain" data-modul="js/briefpost.js?v=20261023a"></script>
-<script type="text/plain" data-modul="js/brief-verwaltung.js?v=20261023a"></script>
+<script type="text/plain" data-modul="js/brief-verwaltung.js?v=20261023b"></script>
 <script type="text/plain" data-modul="js/bfs-lse.js?v=20260704p"></script>
 <script>init();</script>
 </body>

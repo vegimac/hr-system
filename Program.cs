@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 99;  // 99: Briefvorlage Austrittsbrief · 98: 2FA Pflicht für alle HR-Benutzer · 97: Mirus→Swissdec
+const int SchemaStand = 100;  // 100: Grussformel im Brieftext · 99: Briefvorlage Austrittsbrief · 98: 2FA Pflicht für alle HR-Benutzer
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2700,6 +2700,25 @@ using (var scope = app.Services.CreateScope())
             db.SaveChanges();
         }
         startLog.LogInformation("Stand 99: Briefvorlage Austrittsbrief angelegt");
+    }
+
+    // Stand 100: die Grussformel steht im Text, der PDF-Brief hängt sie nicht mehr an.
+    // Nur der unveränderte Starttext wird ergänzt. Ein selbst geschriebener Brief bleibt.
+    if (dbStand < 100)
+    {
+        const string startOhneGruss =
+            "{{anrede}}\n\n" +
+            "wir bestätigen dir deinen Austritt per {{austrittsdatum}}.\n\n" +
+            "Deine Funktion war {{funktion}}, deine Filiale {{filiale}}, deine Personalnummer {{personalnummer}}.\n\n" +
+            "Bitte gib Uniform, Schlüssel und Badge bis zum letzten Arbeitstag ab.";
+        var vorlage = db.BriefVorlagen.FirstOrDefault(v => v.Code == BriefVorlageText.AustrittCode);
+        if (vorlage != null && vorlage.Text.Trim() == startOhneGruss)
+        {
+            vorlage.Text = BriefVorlageText.AustrittText;
+            vorlage.GeaendertAm = DateTime.Now;
+            db.SaveChanges();
+            startLog.LogInformation("Stand 100: Grussformel in den Starttext des Austrittsbriefs übernommen");
+        }
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
