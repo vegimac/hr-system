@@ -2,6 +2,8 @@ using System.Xml.Linq;
 using HrSystem.Controllers;
 using HrSystem.Models;
 using HrSystem.Services.WebStamp;
+using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Canvas.Parser;
 using Xunit;
 
 namespace HrSystem.Tests;
@@ -47,27 +49,59 @@ public class WebStampSoapTests
         Assert.Null(id.Element("password"));
     }
 
+    private static readonly WebStampAnschrift Empfaenger = new(null, null, "Frau", "Anna", "Muster", "Hauptstrasse 1", "6000", "Luzern", "CH");
+    private static readonly WebStampAnschrift Absender = new("Schaub Restaurants GmbH", null, null, null, null, "Brauereiweg 7", "5600", "Lenzburg", "CH");
+
     [Fact]
-    public void Brief_setzt_Druckservice_Dokument_und_kuerzt_Referenz_und_Notiz()
+    public void Frankatur_ist_Selbstdruck_ohne_Dokument_und_kuerzt_Referenz()
     {
-        var pdf = new byte[] { 1, 2, 3, 4 };
-        var xml = WebStampSoap.Brief("new_order_preview", Z,
-            new WebStampSoap.BriefAuftrag(4711, pdf, new string('R', 80), new string('N', 80)));
+        var xml = WebStampSoap.Frankatur("new_order_preview", Z,
+            new WebStampSoap.FrankaturAuftrag(4711, 128, Empfaenger, Absender, new string('R', 80), new string('N', 80)));
         var args = XDocument.Parse(xml).Descendants(WebStampSoap.Ns + "new_order_preview").Single().Element("args")!;
         Assert.Equal("4711", args.Element("product")!.Value);
-        Assert.Equal("true", args.Element("printservice")!.Value);
+        Assert.Equal("false", args.Element("printservice")!.Value);
         Assert.Equal("pdf", args.Element("file_type")!.Value);
-        Assert.Equal("false", args.Element("single")!.Value);
-        Assert.Equal(pdf, Convert.FromBase64String(args.Element("document")!.Value));
+        Assert.Equal("true", args.Element("single")!.Value);
+        Assert.Equal("128", args.Element("media")!.Value);
+        Assert.Null(args.Element("document"));
+        Assert.Equal("Anna", args.Element("a_addresses")!.Element("item")!.Element("firstname")!.Value);
+        Assert.Equal("6000", args.Element("a_addresses")!.Element("item")!.Element("zip")!.Value);
+        Assert.Equal("Lenzburg", args.Element("sender")!.Element("city")!.Value);
         Assert.Equal(WebStampSoap.MaxReferenz, args.Element("reference")!.Value.Length);
         Assert.Equal(WebStampSoap.MaxNotiz, args.Element("order_comment")!.Value.Length);
     }
 
     [Fact]
-    public void Brief_nimmt_nur_die_beiden_Bestellmethoden()
+    public void Frankatur_nimmt_nur_die_beiden_Bestellmethoden()
     {
         Assert.Throws<ArgumentException>(() =>
-            WebStampSoap.Brief("copy_order_by_id", Z, new WebStampSoap.BriefAuftrag(1, new byte[1])));
+            WebStampSoap.Frankatur("copy_order_by_id", Z, new WebStampSoap.FrankaturAuftrag(1, 1, Empfaenger, Absender)));
+    }
+
+    [Fact]
+    public void Freie_Adresse_liest_Name_Strasse_und_Plz_Ort()
+    {
+        var a = WebStampAnschrift.AusZeilen(new[] { "Frau", "Anna Muster", "Hauptstrasse 1", "6000 Luzern" });
+        Assert.NotNull(a);
+        Assert.Equal("Frau", a!.Titel);
+        Assert.Equal("Anna", a.Vorname);
+        Assert.Equal("Muster", a.Nachname);
+        Assert.Equal("Hauptstrasse 1", a.Strasse);
+        Assert.Equal("6000", a.Plz);
+        Assert.Equal("Luzern", a.Ort);
+    }
+
+    [Fact]
+    public void Fenster_links_bevorzugt_die_Vorlage_mit_C4()
+    {
+        var medien = new[]
+        {
+            new WebStampSoap.Medium(150, "C5, C5/6 - Fenster links", 3),
+            new WebStampSoap.Medium(128, "C4, C5, C5/6 - Fenster links", 3),
+            new WebStampSoap.Medium(129, "C4, C5, C5/6 - Fenster rechts", 3),
+        };
+        Assert.Equal(128, WebStampSoap.FensterMedium(medien, rechts: false));
+        Assert.Equal(129, WebStampSoap.FensterMedium(medien, rechts: true));
     }
 
     [Fact]
@@ -195,5 +229,51 @@ public class WebStampSoapTests
             "Luzern", new DateOnly(2026, 9, 24), "Testbrief", "Absatz eins.\n\nAbsatz zwei.", "Walter Schaub", false));
         Assert.True(pdf.Length > 1000);
         Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+    }
+
+    [Fact]
+    public void Begleitbrief_Arbeitszeugnis_auf_Frankaturseite()
+    {
+        var wurzel = VerzeichnisMitProjekt();
+        var frankatur = Path.Combine(wurzel, ".tmp", "webstamp-testseite.pdf");
+        var quelle = File.Exists(frankatur) ? File.ReadAllBytes(frankatur) : LeereA4();
+        var pdf = new WebStampBriefPdfService().SchreibeAufFrankatur(quelle, BegleitbriefArbeitszeugnis());
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+
+        using var doc = new PdfDocument(new PdfReader(new MemoryStream(pdf)));
+        var text = PdfTextExtractor.GetTextFromPage(doc.GetFirstPage());
+        Assert.Contains("Arbeitszeugnis", text);
+        Assert.Contains("Lenzburg, 23.10.2026", text);
+        Assert.Contains("Freundliche Grüsse", text);
+        Assert.Contains("Walter Schaub", text);
+
+        if (File.Exists(frankatur))
+            File.WriteAllBytes(Path.Combine(wurzel, ".tmp", "webstamp-arbeitszeugnis.pdf"), pdf);
+    }
+
+    private static WebStampBriefPdfService.BriefDaten BegleitbriefArbeitszeugnis() => new(
+        new[] { "Schaub Restaurants GmbH", "Filiale Lenzburg", "Brauereiweg 7", "5600 Lenzburg" },
+        new[] { "Frau", "Anna Muster", "Hauptstrasse 1", "6000 Luzern" },
+        "Lenzburg", new DateOnly(2026, 10, 23),
+        "Arbeitszeugnis",
+        "Guten Tag Frau Muster\n\n" +
+        "Anbei erhalten Sie Ihr Arbeitszeugnis für Ihre Tätigkeit in der Filiale Lenzburg.\n\n" +
+        "Wir danken Ihnen für Ihren Einsatz bei uns und wünschen Ihnen für die Zukunft alles Gute.",
+        "Walter Schaub", false);
+
+    private static string VerzeichnisMitProjekt()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "hr-system.csproj")))
+            dir = dir.Parent;
+        return dir?.FullName ?? AppContext.BaseDirectory;
+    }
+
+    private static byte[] LeereA4()
+    {
+        using var ms = new MemoryStream();
+        using (var pdf = new PdfDocument(new PdfWriter(ms)))
+            pdf.AddNewPage(iText.Kernel.Geom.PageSize.A4);
+        return ms.ToArray();
     }
 }

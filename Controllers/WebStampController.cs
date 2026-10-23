@@ -13,10 +13,9 @@ namespace HrSystem.Controllers;
 /// Briefpost über den Webservice WebStamp der Schweizerischen Post
 /// (Walter 24.09.2026, System → Kommunikation → «Briefpost (WebStamp)»).
 ///
-/// OneCrew erstellt den Brief als PDF (Adresse im Sichtfenster), die Post
-/// frankiert, druckt, couvertiert und verschickt ihn (Druck- und Versandservice:
-/// <c>printservice = true</c> + <c>document</c>). Kosten laut Post: Porto +
-/// CHF 0.20 pro Seite + CHF 0.20 pro Brief.
+/// OneCrew erstellt den Brief. Die Post setzt nur die Frankatur auf eine
+/// A4-Seite fürs Fenstercouvert (printservice = false); den Text schreibt
+/// OneCrew darunter, gedruckt wird der Brief bei uns. Kosten: das Porto.
 ///
 /// TESTPHASE: Bestellungen nur gegen die Testumgebung der Post
 /// (<see cref="WebStampEndpunkte.BestellungErlaubt"/>). Die kostenlose Vorschau
@@ -255,7 +254,14 @@ public class WebStampController : ControllerBase
         public bool? FensterRechts { get; set; }
     }
 
-    private record Brief(byte[] Pdf, List<string> Empfaenger, int? EmployeeId, string Betreff);
+    private record Brief(
+        byte[] Pdf,
+        List<string> Empfaenger,
+        WebStampAnschrift? EmpfaengerAnschrift,
+        WebStampAnschrift? AbsenderAnschrift,
+        int? EmployeeId,
+        string Betreff,
+        WebStampBriefPdfService.BriefDaten Daten);
 
     private async Task<(Brief? B, IActionResult? Fehler)> BaueBriefAsync(BriefDto dto, bool fensterRechtsStandard)
     {
@@ -264,6 +270,7 @@ public class WebStampController : ControllerBase
             return (null, BadRequest(new { error = "BETREFF", message = "Bitte einen Betreff eingeben." }));
 
         List<string> empfaenger;
+        WebStampAnschrift? empfaengerAnschrift;
         CompanyProfile? filiale = null;
         if (dto.EmployeeId is int empId)
         {
@@ -273,6 +280,7 @@ public class WebStampController : ControllerBase
                 return (null, BadRequest(new { error = "ADRESSE_UNVOLLSTAENDIG",
                     message = $"Bei {e.FirstName} {e.LastName} fehlen Strasse, PLZ oder Ort." }));
             empfaenger = AdressZeilen(e);
+            empfaengerAnschrift = WebStampAnschrift.AusMitarbeiter(e);
             if (dto.FilialeId == null)
             {
                 // Absender = Filiale der jüngsten Anstellung.
@@ -287,14 +295,15 @@ public class WebStampController : ControllerBase
         {
             empfaenger = (dto.Adresse ?? "").Replace("\r\n", "\n").Split('\n')
                 .Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
-            if (empfaenger.Count < 3)
+            empfaengerAnschrift = WebStampAnschrift.AusZeilen(empfaenger);
+            if (empfaengerAnschrift == null)
                 return (null, BadRequest(new { error = "ADRESSE", message =
                     "Bitte einen Mitarbeiter wählen oder eine Adresse mit mindestens 3 Zeilen eingeben (Name, Strasse, PLZ Ort)." }));
         }
         if (dto.FilialeId is int fId)
             filiale = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == fId);
 
-        var pdf = _pdf.Generate(new WebStampBriefPdfService.BriefDaten(
+        var daten = new WebStampBriefPdfService.BriefDaten(
             filiale != null ? AbsenderZeilen(filiale) : new List<string>(),
             empfaenger,
             filiale?.City,
@@ -302,8 +311,11 @@ public class WebStampController : ControllerBase
             betreff,
             dto.Text ?? "",
             dto.AbsenderName,
-            dto.FensterRechts ?? fensterRechtsStandard));
-        return (new Brief(pdf, empfaenger, dto.EmployeeId, betreff), null);
+            dto.FensterRechts ?? fensterRechtsStandard);
+        var pdf = _pdf.Generate(daten);
+        return (new Brief(pdf, empfaenger, empfaengerAnschrift,
+            filiale == null ? null : WebStampAnschrift.AusFiliale(filiale),
+            dto.EmployeeId, betreff, daten), null);
     }
 
     /// <summary>Nur das PDF — zum Anschauen, ohne die Post zu fragen.</summary>
@@ -321,7 +333,7 @@ public class WebStampController : ControllerBase
     public Task<IActionResult> BriefVorschau([FromBody] BriefDto dto, CancellationToken ct)
         => BriefAnPostAsync(dto, bestellen: false, ct);
 
-    /// <summary>Bestellung: die Post druckt und verschickt (Testphase: nur Testumgebung).</summary>
+    /// <summary>Bestellung der Frankatur (Testphase: nur Testumgebung). Gedruckt wird der Brief bei uns.</summary>
     [HttpPost("brief/senden")]
     public Task<IActionResult> BriefSenden([FromBody] BriefDto dto, CancellationToken ct)
         => BriefAnPostAsync(dto, bestellen: true, ct);
@@ -340,11 +352,24 @@ public class WebStampController : ControllerBase
 
         var (b, bFehler) = await BaueBriefAsync(dto, s!.FensterRechts);
         if (bFehler != null) return bFehler;
+        if (b!.EmpfaengerAnschrift == null)
+            return BadRequest(new { error = "ADRESSE", message = "Die Empfängeradresse ist unvollständig." });
+        if (b.AbsenderAnschrift == null)
+            return BadRequest(new { error = "ABSENDER", message =
+                "Bitte eine Absender-Filiale mit Strasse, PLZ und Ort wählen." });
+
+        var medienAntwort = await _client.RufeAsync(WebStampEndpunkte.Url(s.Umgebung), "get_medias",
+            WebStampSoap.Medien(z!), ct);
+        if (!medienAntwort.Ok) return Ok(Fehlerbild(medienAntwort));
+        var medium = WebStampSoap.FensterMedium(WebStampSoap.LiesMedien(medienAntwort.Resultat!), b.Daten.FensterRechts);
+        if (medium == null)
+            return Ok(new { ok = false, fehler = "Die Post hat keine Druckvorlage fürs Fenstercouvert geliefert." });
 
         var methode = bestellen ? "new_order" : "new_order_preview";
-        var referenz = $"OC-{b!.EmployeeId?.ToString() ?? "X"}-{DateTime.Now:yyyyMMddHHmmss}";
-        var envelope = WebStampSoap.Brief(methode, z!,
-            new WebStampSoap.BriefAuftrag(produkt.Value, b.Pdf, referenz, "OneCrew " + b.Betreff));
+        var referenz = $"OC-{b.EmployeeId?.ToString() ?? "X"}-{DateTime.Now:yyyyMMddHHmmss}";
+        var envelope = WebStampSoap.Frankatur(methode, z!,
+            new WebStampSoap.FrankaturAuftrag(produkt.Value, medium.Value, b.EmpfaengerAnschrift, b.AbsenderAnschrift,
+                referenz, "OneCrew " + b.Betreff));
         var a = await _client.RufeAsync(WebStampEndpunkte.Url(s.Umgebung), methode, envelope, ct);
 
         WebStampSoap.Auftrag? auftrag = a.Ok ? WebStampSoap.LiesAuftrag(a.Resultat!) : null;
@@ -368,12 +393,20 @@ public class WebStampController : ControllerBase
                 : $"{a.Fault?.FehlerNummer} {a.Fehler}".Trim(),
             BriefPdf = bestellen && a.Ok ? b.Pdf : null,
         };
+        byte[]? druck = null;
+        if (a.Ok && auftrag?.Druckdaten != null)
+        {
+            druck = _pdf.SchreibeAufFrankatur(auftrag.Druckdaten, b.Daten);
+            if (bestellen) log.BriefPdf = druck;
+        }
         _db.WebStampAuftraege.Add(log);
         await _db.SaveChangesAsync(ct);
 
         if (!a.Ok) return Ok(new { ok = false, auftragId = log.Id, fehler = a.Fehler,
                                    fehlerNummer = a.Fault?.FehlerNummer, requestId = a.Fault?.RequestId,
                                    dauerMs = a.DauerMs });
+        if (druck == null)
+            return Ok(new { ok = false, auftragId = log.Id, fehler = "Die Post hat keine Frankatur-Seite geliefert." });
         return Ok(new
         {
             ok = true,
@@ -389,8 +422,8 @@ public class WebStampController : ControllerBase
             sendungen = auftrag.Sendungen,
             nachrichten = auftrag.Nachrichten,
             frankiervermerke = auftrag.Frankiervermerke,
-            // Vorschau: die Post gibt den Brief mit eingesetzter Frankatur zur Kontrolle zurück.
-            druckPdf = auftrag.Druckdaten != null ? Convert.ToBase64String(auftrag.Druckdaten) : null,
+            // Frankatur der Post, darunter unser Brieftext — das Blatt zum Selberdrucken.
+            druckPdf = Convert.ToBase64String(druck),
         });
     }
 

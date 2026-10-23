@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  BRIEFPOST (WebStamp) — System → Kommunikation (Walter 24.09.2026)
-//  OneCrew erstellt den Brief als PDF, die Post frankiert, druckt und
-//  verschickt ihn (Druck- und Versandservice). Backend: WebStampController.
-//  TESTPHASE: «An die Post senden» nur gegen die Testumgebung der Post.
+//  Die Post setzt nur die Frankatur auf eine A4-Seite. OneCrew schreibt den
+//  Brieftext darunter, gedruckt wird bei uns. Backend: WebStampController.
+//  TESTPHASE: «Frankatur bestellen» nur gegen die Testumgebung der Post.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const _wstEsc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -44,7 +44,7 @@ function _wstSendenFreigabe(erlaubt) {
     const hint = document.getElementById('wstSendenHinweis');
     btn.disabled = !erlaubt;
     hint.textContent = erlaubt
-        ? 'Testumgebung: die Post nimmt die Bestellung entgegen, druckt und verschickt aber nichts.'
+        ? 'Testumgebung: die Frankatur ist mit TEST gestempelt und nicht gültig. Du druckst den Brief selbst.'
         : 'Testphase: Senden ist nur mit der Testumgebung möglich. Der Echtbetrieb wird nach der Abnahme durch die Post freigeschaltet.';
 }
 
@@ -213,8 +213,8 @@ async function wstPdf() {
 function wstVorschau() { _wstAnPost(false); }
 
 async function wstSenden() {
-    const ok = await liquidConfirm('Brief jetzt an die Post senden? Die Post frankiert, druckt und verschickt ihn.',
-        { title: 'Briefpost', yesLabel: 'Ja, senden', noLabel: 'Abbrechen' });
+    const ok = await liquidConfirm('Frankatur jetzt bestellen? Du druckst den Brief danach selbst.',
+        { title: 'Briefpost', yesLabel: 'Frankatur bestellen', noLabel: 'Abbrechen' });
     if (ok) _wstAnPost(true);
 }
 
@@ -263,7 +263,7 @@ function _wstAuftragHtml(j, bestellen) {
             + '</tbody></table>';
 
     if (j.druckPdf)
-        html += `<div style="margin-top:10px"><button type="button" class="wst-btn2" onclick="wstDruckPdf()">📄 Brief mit Frankatur ansehen (von der Post)</button></div>`;
+        html += `<div style="margin-top:10px"><button type="button" class="wst-btn2" onclick="wstDruckPdf()">📄 Brief zum Drucken ansehen</button></div>`;
     return html;
 }
 

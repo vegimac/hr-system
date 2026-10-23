@@ -1,3 +1,10 @@
+using iText.IO.Font.Constants;
+using iText.IO.Image;
+using iText.Kernel.Colors;
+using iText.Kernel.Font;
+using iText.Kernel.Geom;
+using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Canvas;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -43,7 +50,7 @@ public class WebStampBriefPdfService
 
     private static byte[]? LadeBanner()
     {
-        var pfad = Path.Combine(AppContext.BaseDirectory, "Assets", "letterhead_banner.png");
+        var pfad = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "letterhead_banner.png");
         return File.Exists(pfad) ? File.ReadAllBytes(pfad) : null;
     }
 
@@ -134,5 +141,116 @@ public class WebStampBriefPdfService
                 });
             });
         }).GeneratePdf();
+    }
+
+    /// <summary>
+    /// Setzt den Briefkopf in den freien Streifen über der Absenderzeile und
+    /// schreibt Datum, Betreff und Text unter das Fenstercouvert. Absender,
+    /// Marke und Empfängeradresse bleiben, wie die Post sie gesetzt hat.
+    /// </summary>
+    public byte[] SchreibeAufFrankatur(byte[] frankaturPdf, BriefDaten d)
+    {
+        var absaetze = (d.Text ?? "").Replace("\r\n", "\n")
+            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
+            .Select(a => a.Replace("\n", " ").Trim()).Where(a => a.Length > 0).ToList();
+        var datumZeile = string.IsNullOrWhiteSpace(d.Ort)
+            ? d.Datum.ToString("dd.MM.yyyy")
+            : $"{d.Ort!.Trim()}, {d.Datum:dd.MM.yyyy}";
+
+        using var reader = new PdfReader(new MemoryStream(frankaturPdf));
+        using var ms = new MemoryStream();
+        using var writer = new PdfWriter(ms);
+        using (var pdf = new PdfDocument(reader, writer))
+        {
+            var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+            var fett = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+            var seite = pdf.GetFirstPage();
+            var stift = new PdfCanvas(seite);
+            var farbe = new DeviceRgb(26, 26, 26);
+            float Mm(float mm) => mm * 72f / 25.4f;
+            var x = Mm(RandLinks);
+            var unten = Mm(RandUnten);
+            var y = seite.GetPageSize().GetHeight() - Mm(FensterObenMm + FensterHoeheMm + 8);
+            var breite = seite.GetPageSize().GetWidth() - x - Mm(RandRechts);
+
+            void NeueSeite()
+            {
+                seite = pdf.AddNewPage(iText.Kernel.Geom.PageSize.A4);
+                stift = new PdfCanvas(seite);
+                y = seite.GetPageSize().GetHeight() - Mm(20);
+                breite = seite.GetPageSize().GetWidth() - x - Mm(RandRechts);
+            }
+
+            void Absatz(string text, PdfFont f, float groesse, float zeile, float danach)
+            {
+                var rest = FuerHelvetica(text);
+                while (rest.Length > 0)
+                {
+                    if (y < unten + groesse) NeueSeite();
+                    var n = Passend(rest, f, groesse, breite);
+                    var stueck = rest[..n].TrimEnd();
+                    stift.BeginText()
+                        .SetFontAndSize(f, groesse)
+                        .SetFillColor(farbe)
+                        .MoveText(x, y)
+                        .ShowText(stueck)
+                        .EndText();
+                    rest = rest[n..].TrimStart();
+                    y -= zeile;
+                }
+                y -= danach;
+            }
+
+            if (BannerBytes != null)
+            {
+                var bild = ImageDataFactory.Create(BannerBytes);
+                var kastenBreite = breite;
+                var kastenHoehe = kastenBreite * bild.GetHeight() / bild.GetWidth();
+                // Die Absenderzeilen der Post beginnen bei 18 mm. Der Kopf bleibt darüber.
+                var maxHoehe = Mm(14);
+                if (kastenHoehe > maxHoehe)
+                {
+                    kastenHoehe = maxHoehe;
+                    kastenBreite = kastenHoehe * bild.GetWidth() / bild.GetHeight();
+                }
+                var oben = seite.GetPageSize().GetHeight() - Mm(2);
+                stift.AddImageFittedIntoRectangle(bild,
+                    new Rectangle(x, oben - kastenHoehe, kastenBreite, kastenHoehe), false);
+            }
+
+            Absatz(datumZeile, font, 10.5f, 14f, 10f);
+            Absatz(d.Betreff.Trim(), fett, 12.5f, 16f, 8f);
+            foreach (var a in absaetze) Absatz(a, font, 10.5f, 14f, 6f);
+            y -= 10f;
+            Absatz("Freundliche Grüsse", font, 10.5f, 14f, 2f);
+            if (d.AbsenderZeilen.Count > 0) Absatz(d.AbsenderZeilen[0], fett, 10.5f, 14f, 0f);
+            if (!string.IsNullOrWhiteSpace(d.AbsenderName))
+            {
+                y -= 8f;
+                Absatz(d.AbsenderName!.Trim(), font, 10.5f, 14f, 0f);
+            }
+        }
+        return ms.ToArray();
+    }
+
+    private static int Passend(string text, PdfFont font, float groesse, float breite)
+    {
+        if (font.GetWidth(text, groesse) <= breite) return text.Length;
+        var n = text.Length;
+        while (n > 1 && font.GetWidth(text[..n], groesse) > breite) n--;
+        var leer = text.LastIndexOf(' ', Math.Max(0, n - 1));
+        return leer > 0 ? leer + 1 : Math.Max(1, n);
+    }
+
+    /// <summary>Helvetica (WinAnsi) kennt kein Zeichen über Latin-1.</summary>
+    private static string FuerHelvetica(string text)
+    {
+        var ziel = new char[text.Length];
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            ziel[i] = c is '\n' or '\r' or '\t' ? ' ' : c <= 0xFF ? c : '?';
+        }
+        return new string(ziel);
     }
 }

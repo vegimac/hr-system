@@ -62,19 +62,25 @@ public static class WebStampSoap
 
     public static string KundenDaten(Zugang z) => Envelope("get_customer_data", Identifikation(z));
 
-    /// <summary>Produkte für Geschäftskunden; mit gültigem Login liefert die Post das Sortiment des Kunden.</summary>
-    public static string Produkte(Zugang z) =>
-        Envelope("get_products", Identifikation(z), new XElement("customer_type", "gk"));
+    /// <summary>
+    /// Sortiment des angemeldeten Kontos. Kein customer_type: das Testkonto der Post
+    /// ist ein Privatkunden-Sortiment, «gk» lieferte dort eine leere Liste.
+    /// </summary>
+    public static string Produkte(Zugang z) => Envelope("get_products", Identifikation(z));
+
+    public static string Medien(Zugang z) => Envelope("get_medias", Identifikation(z));
 
     /// <summary>
-    /// Ein Brief für den Druck- und Versandservice: die Post sucht die Empfängeradresse
-    /// im Sichtfenster des PDFs, setzt die Frankatur ein, druckt, couvertiert und
-    /// verschickt (<c>printservice = true</c> + <c>document</c>).
+    /// Selbstdruck (Walter 23.10.2026): die Post liefert die Frankatur auf einer
+    /// A4-Seite fürs Fenstercouvert. Den Brieftext schreibt OneCrew darunter,
+    /// gedruckt wird bei uns. printservice bleibt false.
     /// </summary>
-    public record BriefAuftrag(int Produkt, byte[] Pdf, string? Referenz = null, string? Notiz = null);
+    public record FrankaturAuftrag(
+        int Produkt, int Medium, WebStampAnschrift Empfaenger, WebStampAnschrift Absender,
+        string? Referenz = null, string? Notiz = null);
 
-    /// <param name="methode"><c>new_order_preview</c> (kostenlos) oder <c>new_order</c> (bestellt).</param>
-    public static string Brief(string methode, Zugang z, BriefAuftrag a)
+    /// <param name="methode">new_order_preview (kostenlos) oder new_order (bestellt).</param>
+    public static string Frankatur(string methode, Zugang z, FrankaturAuftrag a)
     {
         if (methode != "new_order_preview" && methode != "new_order")
             throw new ArgumentException("Nur new_order_preview oder new_order.", nameof(methode));
@@ -82,16 +88,55 @@ public static class WebStampSoap
         {
             Identifikation(z),
             new XElement("product", a.Produkt),
-            new XElement("single", "false"),
+            new XElement("single", "true"),
             new XElement("file_type", "pdf"),
-            new XElement("printservice", "true"),
-            new XElement("document", Convert.ToBase64String(a.Pdf)),
+            new XElement("media", a.Medium),
+            new XElement("printservice", "false"),
+            new XElement("a_addresses", AnschriftElement("item", a.Empfaenger)),
+            AnschriftElement("sender", a.Absender),
         };
         var referenz = Kuerzen(a.Referenz, MaxReferenz);
         if (referenz != null) inhalt.Add(new XElement("reference", referenz));
         var notiz = Kuerzen(a.Notiz, MaxNotiz);
         if (notiz != null) inhalt.Add(new XElement("order_comment", notiz));
         return Envelope(methode, inhalt.ToArray());
+    }
+
+    public static XElement AnschriftElement(string name, WebStampAnschrift a)
+    {
+        var e = new XElement(name);
+        void Optional(string feld, string? wert)
+        {
+            if (!string.IsNullOrWhiteSpace(wert)) e.Add(new XElement(feld, wert.Trim()));
+        }
+        Optional("organization", a.Organisation);
+        Optional("company_addition", a.Zusatz);
+        Optional("title", a.Titel);
+        Optional("firstname", a.Vorname);
+        Optional("lastname", a.Nachname);
+        e.Add(new XElement("street", a.Strasse));
+        e.Add(new XElement("zip", a.Plz));
+        e.Add(new XElement("city", a.Ort));
+        Optional("country", a.Land);
+        return e;
+    }
+
+    public record Medium(int Nummer, string Name, int Typ);
+
+    public static List<Medium> LiesMedien(XElement r) =>
+        r.Elements("item").Select(m => new Medium(
+            Int(Kind(m, "number")) ?? 0, Kind(m, "name") ?? "", Int(Kind(m, "type")) ?? 0))
+         .Where(m => m.Nummer > 0).ToList();
+
+    /// <summary>Druckvorlage «Briefe für Fenstercouvert» (Typ 3), bevorzugt mit C4.</summary>
+    public static int? FensterMedium(IEnumerable<Medium> medien, bool rechts)
+    {
+        var wort = rechts ? "fenster rechts" : "fenster links";
+        var treffer = medien.Where(m => m.Typ == 3
+            && m.Name.Contains(wort, StringComparison.OrdinalIgnoreCase)).ToList();
+        var c4 = treffer.FirstOrDefault(m => m.Name.Contains("C4", StringComparison.OrdinalIgnoreCase));
+        if (c4 != null) return c4.Nummer;
+        return treffer.FirstOrDefault()?.Nummer;
     }
 
     private static string? Kuerzen(string? s, int max)

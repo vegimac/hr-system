@@ -4,47 +4,30 @@ Stand 24.09.2026 · System → Kommunikation → **Briefpost (WebStamp)**
 
 ## Was es macht
 
-OneCrew erstellt einen Brief als PDF (Adresse im Couvert-Sichtfenster). Über den
-**Webservice WebStamp** (SOAP V6) geht das PDF an die Post; mit dem
-**Druck- und Versandservice** (`printservice = true` + `document`) frankiert,
-druckt, couvertiert und verschickt die Post den Brief. Kein Drucker, kein Couvert,
-kein Gang zum Briefkasten.
+OneCrew erstellt den Brief. Die Post setzt nur die **Frankatur** auf eine A4-Seite
+fürs Fenstercouvert (`printservice = false`, Vorlage «Fenster links/rechts»).
+OneCrew schreibt Datum, Betreff und Text darunter. Gedruckt wird der Brief bei uns.
 
-Kosten laut Post: Porto + CHF 0.20 pro gedruckte Seite + CHF 0.20 pro Brief.
-Bis 15.00 Uhr (Mo–Fr) übermittelt → gleichentags gedruckt und verschickt.
-PDF-Regeln der Post: kein Scan, keine Absenderadresse als Grafik, max. 16 Seiten
-pro Empfänger.
+Kosten: das Porto. Kein Druck- und Versandservice (keine CHF 0.20 pro Seite und Brief).
 
 ## Stand: Testphase
 
 - **Bestellen (`new_order`) nur gegen die Testumgebung** — Sperre in
   `WebStampEndpunkte.BestellungErlaubt`. Die kostenlose Vorschau
   (`new_order_preview`) geht in beiden Umgebungen.
-- Einschreiben: Der Druckservice gilt laut Post nur für Briefe **ohne Barcode**
-  (A-/B-Post, Ausland). Einschreiben (Barcode) wäre nur mit Selbstdruck möglich —
-  bei der Post nachfragen.
+- Einschreiben (Barcode, Sendungsnummer) ist noch nicht angebunden.
 
-## Zweiter Weg: Selbstdruck (Walter 05.10.2026, noch nicht gebaut)
+## Selbstdruck (Walter 23.10.2026)
 
-Walter will Briefe auch bei uns drucken: OneCrew bestellt nur die Frankatur und setzt
-sie selbst in den Brief. Nötig für **Einschreiben** (Kündigung) — Produkt mit
-`barcode = true`, Sendungsnummer kommt als `tracking_number` zurück, Rückschein über
-`return_code`. Im Antrag an die Post (Application-ID) so angegeben: Selbstdruck als
-Standard, Druck- und Versandservice für normale A-/B-Post.
+Das ist der Weg. Die Post liefert die Seite mit Absender, Marke und Empfängeradresse
+(`printservice = false`, `single = true`, `file_type = pdf`, Vorlage aus `get_medias`,
+Fenster links oder rechts). OneCrew setzt den Briefkopf darüber und schreibt den Brief
+darunter (`WebStampBriefPdfService.SchreibeAufFrankatur`). Einschreiben (Barcode,
+Sendungsnummer, Rückschein) ist noch nicht angebunden.
 
-Bausteine laut Schnittstellenbeschreibung (`docs/webstamp/wsws-v6-schnittstelle.md`):
-- `new_order` mit `printservice = false`, `a_addresses` (Empfänger), `sender`.
-- Variante Bild: `single = false`, `file_type = png` (oder pdf), `print_zone = 1`
-  (Frankierzone) → pro Stamp `print_data` + `image_width_mm`/`image_height_mm`;
-  OneCrew setzt das Bild über der Adresse ins Fenster.
-- Variante Medium: `custom_media` (`type = letter`, A4, `franking_x/y`,
-  `recipient_x/y`) mit `single = true`, `file_type = pdf` → die Post liefert eine
-  A4-Seite mit Frankatur und Adresse an unseren Fenster-Massen.
-- Vorher immer `new_order_preview` (kostenlos).
-- In der Testumgebung klären: welche Variante, ob Einschreiben im Selbstdruck mit
-  unserem Fenster-Brief geht (oder Etikette nötig ist), Druckmedium-IDs (`get_medias`).
-- Echtbetrieb verlangt laut Post ein **Abnahmeprotokoll** und einen
-  **Integrationsvertrag**. Erst danach die Sperre per Code-Änderung aufheben.
+Vorher immer `new_order_preview` (kostenlos). Echtbetrieb verlangt laut Post ein
+**Abnahmeprotokoll** und einen **Integrationsvertrag**. Erst danach die Sperre per
+Code-Änderung aufheben.
 
 ## Zugang (vom Kunden zu beschaffen)
 
