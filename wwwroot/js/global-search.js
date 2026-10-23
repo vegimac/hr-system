@@ -25,6 +25,7 @@ const GS_PAGES = [
     { title: 'Benutzerverwaltung',       page: 'users',             tags: 'user, rollen, passwort' },
     { title: 'System',                   page: 'admin-hub',         tags: 'admin, einstellungen, system, systemeinstellungen' },
     { title: 'Moments-Texte',            page: 'moment-texte',      tags: 'moments, vorlagen, sms, bewilligung, vertrag, texte' },
+    { title: 'Austrittsbrief',           page: 'austrittsbrief',    tags: 'briefverwaltung, brief, austritt, schreiben' },
     { title: 'SMS (eCall)',              page: 'ecall',             tags: 'sms, ecall, twilio, handy' },
     { title: 'SV-Sätze',                 page: 'sv-saetze',         tags: 'sv, ahv, alv, nbu, bvg, sozialversicherung' },
     { title: 'Mindestlöhne',             page: 'mindestloehne',     tags: 'lgav, gastronomie, mindestlohn' },

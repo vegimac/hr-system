@@ -167,6 +167,7 @@ function helpContextLabel(ctx) {
         'daten-fix': 'Daten-Fix',
         'moments': 'Moments',
         'moment-texte': 'Moments-Texte',
+        'austrittsbrief': 'Austrittsbrief',
         'fibu': 'Buchhaltung (Fibu)',
         'ecall': 'SMS (eCall)',
         'auswertungen': 'Auswertungen',
