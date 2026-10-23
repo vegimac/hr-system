@@ -60,7 +60,7 @@ public class WebStampBriefPdfService
         string? Ort,
         DateOnly Datum,
         string Betreff,
-        string Text,                            // Absätze durch Leerzeilen getrennt
+        string Text,                            // Zeilenumbrüche bleiben, auch leere Zeilen
         string? AbsenderName,
         bool FensterRechts);
 
@@ -68,9 +68,6 @@ public class WebStampBriefPdfService
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
-        var absaetze = (d.Text ?? "").Replace("\r\n", "\n")
-            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
-            .Select(a => a.Trim()).Where(a => a.Length > 0).ToList();
         var datumZeile = string.IsNullOrWhiteSpace(d.Ort)
             ? d.Datum.ToString("dd.MM.yyyy")
             : $"{d.Ort!.Trim()}, {d.Datum:dd.MM.yyyy}";
@@ -117,11 +114,17 @@ public class WebStampBriefPdfService
                     col.Item().PaddingTop(8, Unit.Millimetre).Text(datumZeile);
                     col.Item().PaddingTop(12).Text(d.Betreff.Trim()).Bold().FontSize(12.5f);
 
-                    var erster = true;
-                    foreach (var a in absaetze)
+                    var zeilen = Zeilen(d.Text);
+                    if (zeilen.Length > 0)
                     {
-                        col.Item().PaddingTop(erster ? 14 : 10).Text(a);
-                        erster = false;
+                        col.Item().PaddingTop(14).Text(t =>
+                        {
+                            foreach (var zeile in zeilen)
+                            {
+                                if (string.IsNullOrWhiteSpace(zeile)) t.EmptyLine();
+                                else t.Line(zeile.Trim());
+                            }
+                        });
                     }
                 });
 
@@ -144,9 +147,7 @@ public class WebStampBriefPdfService
     /// </summary>
     public byte[] SchreibeAufFrankatur(byte[] frankaturPdf, BriefDaten d)
     {
-        var absaetze = (d.Text ?? "").Replace("\r\n", "\n")
-            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
-            .Select(a => a.Replace("\n", " ").Trim()).Where(a => a.Length > 0).ToList();
+        var zeilen = Zeilen(d.Text);
         var datumZeile = string.IsNullOrWhiteSpace(d.Ort)
             ? d.Datum.ToString("dd.MM.yyyy")
             : $"{d.Ort!.Trim()}, {d.Datum:dd.MM.yyyy}";
@@ -214,10 +215,23 @@ public class WebStampBriefPdfService
 
             Absatz(datumZeile, font, 10.5f, 14f, 10f);
             Absatz(d.Betreff.Trim(), fett, 12.5f, 16f, 8f);
-            foreach (var a in absaetze) Absatz(a, font, 10.5f, 14f, 6f);
+            foreach (var zeile in zeilen)
+            {
+                if (string.IsNullOrWhiteSpace(zeile))
+                {
+                    if (y < unten + 14f) NeueSeite();
+                    else y -= 14f;
+                    continue;
+                }
+                Absatz(zeile.Trim(), font, 10.5f, 14f, 0f);
+            }
         }
         return ms.ToArray();
     }
+
+    /// <summary>Jede eingegebene Zeile, auch eine leere, bleibt eine Zeile.</summary>
+    private static string[] Zeilen(string? text)
+        => (text ?? "").Replace("\r\n", "\n").Split('\n');
 
     private static int Passend(string text, PdfFont font, float groesse, float breite)
     {
