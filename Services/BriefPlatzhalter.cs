@@ -18,6 +18,8 @@ public static class BriefPlatzhalter
         ("austrittsdatum", "Austrittsdatum"),
         ("funktion", "Funktion"),
         ("filiale", "Filiale"),
+        ("firma", "Firma"),
+        ("unterzeichner", "Unterzeichner"),
         ("ort", "Ort der Filiale"),
         ("datum", "Heutiges Datum"),
     };

@@ -123,11 +123,6 @@ public class WebStampBriefPdfService
                         col.Item().PaddingTop(erster ? 14 : 10).Text(a);
                         erster = false;
                     }
-
-                    if (d.AbsenderZeilen.Count > 0)
-                        col.Item().PaddingTop(8).Text(d.AbsenderZeilen[0]).Bold();
-                    if (!string.IsNullOrWhiteSpace(d.AbsenderName))
-                        col.Item().PaddingTop(22).Text(d.AbsenderName!.Trim());
                 });
 
                 page.Footer().AlignCenter().Text(t =>
@@ -220,13 +215,6 @@ public class WebStampBriefPdfService
             Absatz(datumZeile, font, 10.5f, 14f, 10f);
             Absatz(d.Betreff.Trim(), fett, 12.5f, 16f, 8f);
             foreach (var a in absaetze) Absatz(a, font, 10.5f, 14f, 6f);
-            y -= 4f;
-            if (d.AbsenderZeilen.Count > 0) Absatz(d.AbsenderZeilen[0], fett, 10.5f, 14f, 0f);
-            if (!string.IsNullOrWhiteSpace(d.AbsenderName))
-            {
-                y -= 18f;
-                Absatz(d.AbsenderName!.Trim(), font, 10.5f, 14f, 0f);
-            }
         }
         return ms.ToArray();
     }

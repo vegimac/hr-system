@@ -190,6 +190,7 @@ public class BriefVorlageController : ControllerBase
             ["austrittsdatum"] = austrittText,
             ["funktion"] = funktion,
             ["filiale"] = filialeName,
+            ["firma"] = (filiale?.CompanyName ?? "").Trim(),
             ["ort"] = ort,
             ["datum"] = DateTime.Now.ToString("dd.MM.yyyy"),
         };
@@ -212,6 +213,10 @@ public class BriefVorlageController : ControllerBase
 
         var (absender, unterzeichnerFehler) = await UnterzeichnerAsync(dto.UnterzeichnerId);
         if (unterzeichnerFehler != null) return (null, unterzeichnerFehler);
+        werte["unterzeichner"] = absender;
+        if (!(dto.Text ?? "").Contains("{{unterzeichner}}", StringComparison.OrdinalIgnoreCase)
+            && !rohBetreff.Contains("{{unterzeichner}}", StringComparison.OrdinalIgnoreCase))
+            hinweise.Add("{{unterzeichner}} steht nicht im Text. Der gewählte Name erscheint dann nicht auf dem Brief.");
         var daten = new WebStampBriefPdfService.BriefDaten(
             filiale != null ? AbsenderZeilen(filiale) : new List<string>(),
             WebStampController.AdressZeilen(ma),
@@ -219,7 +224,7 @@ public class BriefVorlageController : ControllerBase
             DateOnly.FromDateTime(DateTime.Now),
             BriefPlatzhalter.FuegeEin(rohBetreff, werte),
             BriefPlatzhalter.FuegeEin(dto.Text, werte),
-            string.IsNullOrWhiteSpace(absender) ? null : absender,
+            null,
             fensterRechts);
 
         return (new Bau(ma.Id, filiale?.Id, ma.EmployeeNumber ?? "", produkt, grund == null, grund, hinweise, daten), null);
