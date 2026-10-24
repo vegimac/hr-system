@@ -81,6 +81,16 @@ public static class LohnCodes
     public const string VortragFerienGeld = "905";
     public const string Vortrag13Ml = "906";
 
+    /// <summary>901–906. Der Lohn erkennt den Vortrag an der Nummer, nicht an einem Text.</summary>
+    public static readonly string[] VortragCodes =
+    [
+        VortragZeit, VortragFeiertag, VortragFerienTage,
+        VortragNacht, VortragFerienGeld, Vortrag13Ml,
+    ];
+
+    public static bool IstSaldoVortrag(string? code)
+        => !string.IsNullOrWhiteSpace(code) && VortragCodes.Contains(code.Trim());
+
     // ── Legacy-Aliase (gleiche Swissdec-Nr., nur Lesbarkeit im Code) ─────
     public const string FestlohnFerien = Festlohn;
     public const string FestlohnFeiertag = Festlohn;

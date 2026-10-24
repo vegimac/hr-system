@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -115,10 +116,12 @@ public class SaldoVortragController : ControllerBase
     [HttpGet("{employeeId}")]
     public async Task<IActionResult> Get(int employeeId)
     {
+        var vortragCodes = LohnCodes.VortragCodes;
         var entries = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
             .Where(z => z.EmployeeId == employeeId
-                     && z.Lohnposition!.Kategorie == "Saldo-Vortrag")
+                     && z.Lohnposition != null
+                     && vortragCodes.Contains(z.Lohnposition.Code))
             .ToListAsync();
 
         if (entries.Count == 0)
@@ -194,8 +197,9 @@ public class SaldoVortragController : ControllerBase
         var employmentModel = (activeEmployment?.EmploymentModel ?? "").ToUpperInvariant();
 
         // Vortrag-Lohnpositionen laden (per Code-Map)
+        var vortragCodes = LohnCodes.VortragCodes;
         var lps = await _db.Lohnpositionen
-            .Where(l => AllCodes.Contains(l.Code) && l.Kategorie == "Saldo-Vortrag")
+            .Where(l => vortragCodes.Contains(l.Code))
             .ToDictionaryAsync(l => l.Code, l => l);
 
         if (lps.Count != AllCodes.Length)
@@ -214,10 +218,12 @@ public class SaldoVortragController : ControllerBase
         };
 
         // Bestehende Vortrag-Einträge des MA holen (egal in welcher Periode)
+        var vortragEintraege = LohnCodes.VortragCodes;
         var existing = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
             .Where(z => z.EmployeeId == employeeId
-                     && z.Lohnposition!.Kategorie == "Saldo-Vortrag")
+                     && z.Lohnposition != null
+                     && vortragEintraege.Contains(z.Lohnposition.Code))
             .ToListAsync();
 
         foreach (var (code, lp) in lps)
@@ -350,8 +356,11 @@ public class SaldoVortragController : ControllerBase
         }
 
         // ── Lohnposition per Code ──
+        if (!LohnCodes.IstSaldoVortrag(dto.Code))
+            return Problem($"Vortrag-Lohnposition «{dto.Code}» fehlt in der DB. " +
+                           "Bitte add_saldo_vortrag.sql ausführen.", statusCode: 500);
         var lp = await _db.Lohnpositionen
-            .FirstOrDefaultAsync(l => l.Code == dto.Code && l.Kategorie == "Saldo-Vortrag");
+            .FirstOrDefaultAsync(l => l.Code == dto.Code);
         if (lp == null)
             return Problem($"Vortrag-Lohnposition «{dto.Code}» fehlt in der DB. " +
                            "Bitte add_saldo_vortrag.sql ausführen.", statusCode: 500);
@@ -438,10 +447,12 @@ public class SaldoVortragController : ControllerBase
     [HttpDelete("{employeeId}")]
     public async Task<IActionResult> Delete(int employeeId)
     {
+        var vortragCodes = LohnCodes.VortragCodes;
         var entries = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
             .Where(z => z.EmployeeId == employeeId
-                     && z.Lohnposition!.Kategorie == "Saldo-Vortrag")
+                     && z.Lohnposition != null
+                     && vortragCodes.Contains(z.Lohnposition.Code))
             .ToListAsync();
 
         if (entries.Count == 0)
@@ -528,9 +539,10 @@ public class SaldoVortragController : ControllerBase
             .ToListAsync();
 
         // Vortrag-Status pro MA in einem Schwung holen
+        var vortragCodes = LohnCodes.VortragCodes;
         var vortragMap = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
-            .Where(z => z.Lohnposition!.Kategorie == "Saldo-Vortrag")
+            .Where(z => z.Lohnposition != null && vortragCodes.Contains(z.Lohnposition.Code))
             .GroupBy(z => z.EmployeeId)
             .Select(g => new {
                 EmployeeId = g.Key,

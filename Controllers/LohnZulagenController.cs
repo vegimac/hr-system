@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -67,10 +68,11 @@ public class LohnZulagenController : ControllerBase
     [HttpGet("lohn-zulag-typen")]
     public async Task<IActionResult> GetZulagTypen()
     {
+        var vortragCodes = LohnCodes.VortragCodes;
         var list = await _db.Lohnpositionen
             .Where(l => l.IsActive
                      && (l.Typ == "ZULAGE" || l.Typ == "ABZUG")
-                     && l.Kategorie != "Saldo-Vortrag")
+                     && !vortragCodes.Contains(l.Code))
             .OrderBy(l => l.SortOrder)
             .ThenBy(l => l.Code)
             .Select(l => new
@@ -208,7 +210,7 @@ public class LohnZulagenController : ControllerBase
     // ═══════════════════════════════════════════════════════
 
     /// <summary>Alle Einträge eines Mitarbeiters für eine Periode (YYYY-MM).
-    /// Saldo-Vortrag-Einträge (Codes 901–906, Kategorie "Saldo-Vortrag")
+    /// Saldo-Vortrag-Einträge (Codes 901–906)
     /// werden hier ausgefiltert — sie werden über den separaten
     /// SaldoVortragController verwaltet und sollen nicht doppelt in der
     /// Lohn-Page-Zulagen-Liste auftauchen, wo sie irrtümlich als
@@ -216,11 +218,13 @@ public class LohnZulagenController : ControllerBase
     [HttpGet("lohn-zulagen/{employeeId}/{periode}")]
     public async Task<IActionResult> GetZulagen(int employeeId, string periode)
     {
+        var vortragCodes = LohnCodes.VortragCodes;
         var list = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
             .Where(z => z.EmployeeId == employeeId
                      && z.Periode    == periode
-                     && z.Lohnposition!.Kategorie != "Saldo-Vortrag")
+                     && z.Lohnposition != null
+                     && !vortragCodes.Contains(z.Lohnposition.Code))
             .OrderBy(z => z.Lohnposition!.SortOrder)
             .ThenBy(z => z.CreatedAt)
             .Select(z => new

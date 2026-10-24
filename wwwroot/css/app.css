@@ -7553,8 +7553,7 @@
         #page-sv-saetze .sv-c-act { width: 3.5%; }
 
         #page-lohnpositionen .lp-c-code { width: 6%; }
-        #page-lohnpositionen .lp-c-name { width: 24%; }
-        #page-lohnpositionen .lp-c-kat { width: 13%; }
+        #page-lohnpositionen .lp-c-name { width: 37%; }
         #page-lohnpositionen .lp-c-flag { width: 3.2%; }
         #page-lohnpositionen .lp-c-qst { width: 6.5%; }
         #page-lohnpositionen .lp-c-fei,
@@ -7565,6 +7564,7 @@
         #page-lohnpositionen .lp-c-mirus { width: 6.5%; }
         #page-lohnpositionen .lp-c-typ { width: 9%; }
         #page-lohnpositionen .lp-c-act { width: 4.8%; }
+        #page-lohnpositionen .fh-table-head thead th { padding-left: 14px; padding-right: 14px; overflow: hidden; }
         #page-lohnpositionen .fh-table-head thead th.fh-th-center { padding-left: 2px; padding-right: 2px; }
         #page-lohnpositionen .fh-table-body td.lp-td-tight { padding: 8px 2px; text-align: center; }
         #page-lohnpositionen .fh-table-head thead th.lp-th-green {
@@ -13653,7 +13653,7 @@ body.theme-dark .fzm-ma, body.theme-dark .fzm-ok { color: #e7e5e4; }
     align-items: end;
 }
 .lp-felder-oben { grid-template-columns: 140px 170px minmax(0, 1fr); }
-.lp-felder-unten { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 160px 110px; margin-top: 8px; }
+.lp-felder-unten { grid-template-columns: minmax(0, 1fr) 160px 110px; margin-top: 8px; }
 .lp-lbl {
     display: block;
     margin-bottom: 4px;

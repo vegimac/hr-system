@@ -106,7 +106,7 @@ public partial class SwissdecTestmandantController
             if (positionen.Any(p => p.Code == lpCode && p.IsActive)) lpCode = code + ".sd";
             var lp = new Lohnposition
             {
-                Code = lpCode, Bezeichnung = k.Bezeichnung, Kategorie = k.Kategorie, Typ = k.Typ,
+                Code = lpCode, Bezeichnung = k.Bezeichnung, Typ = k.Typ,
                 AhvAlvPflichtig = k.Ahv, NbuvPflichtig = k.Uvg, KtgPflichtig = k.Ktg, BvgPflichtig = k.Bvg, QstPflichtig = k.Qst,
                 ZaehltAlsBasis13ml = k.Ml13, LohnausweisCode = k.Lohnausweis.Length > 0 ? k.Lohnausweis : null,
                 SwissdecLohnart = code, QstPeriodisch = !Lohnposition.SwissdecEinmalig(code),

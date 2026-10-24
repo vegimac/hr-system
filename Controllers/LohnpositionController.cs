@@ -148,8 +148,7 @@ public class LohnpositionController : ControllerBase
         dto.SwissdecLohnart = LohnCodes.IstInternOhneSwissdec(dto.Code)
             ? null
             : SwissdecKopf(dto.Code, dto.SwissdecLohnart);
-        if (Lohnposition.SwissdecEinmalig(dto.SwissdecLohnart)
-            || string.Equals(dto.Kategorie, "Bonus", StringComparison.OrdinalIgnoreCase))
+        if (Lohnposition.SwissdecEinmalig(dto.SwissdecLohnart))
             dto.QstPeriodisch = false;
         dto.CreatedAt = DateTime.Now;
         _db.Lohnpositionen.Add(dto);
@@ -173,7 +172,6 @@ public class LohnpositionController : ControllerBase
         item.MirusCode       = string.IsNullOrWhiteSpace(dto.MirusCode) ? null : dto.MirusCode.Trim();
         item.FormelId        = string.IsNullOrWhiteSpace(dto.FormelId) ? null : dto.FormelId.Trim();
         item.Bezeichnung     = dto.Bezeichnung;
-        item.Kategorie       = dto.Kategorie;
         item.Typ             = dto.Typ;
         item.AhvAlvPflichtig = dto.AhvAlvPflichtig;
         item.NbuvPflichtig   = dto.NbuvPflichtig;

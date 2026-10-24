@@ -765,6 +765,7 @@ public class PayrollCalculationEngine
         // Neuberechnung der Migrations-Periode greifen die Vortrag-Werte
         // erneut, da prevSaldo weiterhin null ist.
         var aktuellePeriode = $"{year}-{month:D2}";
+        var vortragCodes = LohnCodes.VortragCodes;
         var vortragLookup = prevSaldo == null
             ? (simAktiv
                 ? new Dictionary<string, decimal>(_sim.Vortrag)
@@ -772,7 +773,8 @@ public class PayrollCalculationEngine
                 .Include(z => z.Lohnposition)
                 .Where(z => z.EmployeeId == employeeId
                          && z.Periode == aktuellePeriode
-                         && z.Lohnposition!.Kategorie == "Saldo-Vortrag")
+                         && z.Lohnposition != null
+                         && vortragCodes.Contains(z.Lohnposition.Code))
                 .ToDictionaryAsync(z => z.Lohnposition!.Code, z => z.Betrag))
             : new Dictionary<string, decimal>();
         if (vortragLookup.Count > 0)
@@ -1829,12 +1831,9 @@ public class PayrollCalculationEngine
         // Modell-Zweigs auf der echten AHV-Basis (ApplyFamilienzulagenSperre).
         var famzFakLines = new List<(object Line, decimal Betrag, string Code, string BezGesperrt)>();
 
-        // Saldo-Vortrag-Lohnpositionen (Codes 901-906, Kategorie "Saldo-Vortrag")
-        // werden im Lohnzettel separat als Saldo-Initialwerte behandelt — sie
-        // fliessen weder in den Bruttolohn noch in die "Weitere Zahlungen"
-        // Sektion ein. Stattdessen erscheinen sie in der Saldi-Übersicht als
-        // initialer Vormonat-Saldo. Helper für saubere Filterung.
-        bool IsVortrag(LohnZulage z) => z.Lohnposition?.Kategorie == "Saldo-Vortrag";
+        // Saldo-Vortrag (901–906) wird im Lohnzettel als Saldo-Anfang behandelt.
+        // Er fliesst nicht in den Bruttolohn und nicht in «Weitere Zahlungen».
+        bool IsVortrag(LohnZulage z) => LohnCodes.IstSaldoVortrag(z.Lohnposition?.Code);
 
         // Überstunden-Auszahlung 55.2 mit Stunden (Walter 10.10.2026, Lohnlauf):
         // Betrag serverseitig aus Std × Satz; Zeitsaldo später um Std kürzen.
@@ -5407,10 +5406,11 @@ public class PayrollCalculationEngine
 
             // Kein LGAV / kein 1.-Lohn-Depot-Charge bei Korrektur (nur Refund möglich).
             string periodeStr = $"{year:D4}-{month:D2}";
+            var vortragCodes = LohnCodes.VortragCodes;
             var zulagen = await _db.LohnZulagen
                 .Include(z => z.Lohnposition)
                 .Where(z => z.EmployeeId == employeeId && z.Periode == periodeStr)
-                .Where(z => z.Lohnposition != null && z.Lohnposition.Kategorie != "Saldo-Vortrag")
+                .Where(z => z.Lohnposition != null && !vortragCodes.Contains(z.Lohnposition.Code))
                 .OrderBy(z => z.Lohnposition!.SortOrder)
                 .ThenBy(z => z.CreatedAt)
                 .ToListAsync();

@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Services;
@@ -436,19 +437,15 @@ public class AkontoLaufService
         //    via /api/lohn-zulagen. ZULAGE addiert zum Brutto (geht in SV-Basis),
         //    ABZUG wird nach Netto verrechnet (NICHT SV-pflichtig, z.B. LGAV).
         //
-        // Walter-Vorgabe 30.05.2026: Saldo-Vortrags-Lohnpositionen (Codes 901–906,
-        // Kategorie "Saldo-Vortrag") werden NICHT als Brutto-Zulage gezählt — sie
-        // sind reine Migrations-Einträge die nur die Saldi aufbauen (Ferien-Geld,
-        // 13. ML, Stunden-Saldo, Nacht-Saldo, Ferien-Tage-Saldo). Im Definitivlauf
-        // läuft das gleich (PayrollCalculationEngine schließt Kategorie =
-        // "Saldo-Vortrag" über IsVortrag aus). Vorher hat der Akonto-Lauf diese
-        // Vorträge fälschlich addiert → Brutto-Schätzung zu hoch → Über-Akonto.
+        // Walter-Vorgabe 30.05.2026: Saldo-Vortrag (901–906) zählt nicht als
+        // Brutto-Zulage. Die Zeilen bauen nur die Saldi auf (Ferien-Geld, 13. ML,
+        // Stunden, Nacht, Ferien-Tage). Im Definitivlauf gleich, über die Nummer.
         decimal zulagenSum = 0m;
         decimal manuelleAbzuege = 0m;
         foreach (var z in manualZulagen)
         {
             if (z.Lohnposition == null) continue;
-            if (z.Lohnposition.Kategorie == "Saldo-Vortrag") continue;  // nicht ins Brutto
+            if (LohnCodes.IstSaldoVortrag(z.Lohnposition.Code)) continue;  // nicht ins Brutto
             if (z.Lohnposition.Typ == "ZULAGE")
                 zulagenSum += z.Betrag;
             else if (z.Lohnposition.Typ == "ABZUG")

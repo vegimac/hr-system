@@ -1,6 +1,7 @@
 using System.Globalization;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,8 +26,8 @@ namespace HrSystem.Controllers;
 /// hätte den Lock; hier ist es ein einmaliger Migrations-Lauf in einer
 /// offenen Periode.
 ///
-/// Mechanik: pro MA werden 905 + 906 als LohnZulage-Eintrag mit
-/// Kategorie="Saldo-Vortrag" angelegt/aktualisiert — die anderen
+/// Mechanik: pro MA werden 905 + 906 als LohnZulage-Eintrag angelegt
+/// oder aktualisiert — die anderen
 /// Vortrag-Codes (901-904) bleiben UNANGETASTET (anders als
 /// SaldoVortragController.Upsert, der alle 6 Felder auf einmal setzt).
 /// Vertragsmodell-Relevanz (Walter-Vorgabe): 905 nur für UTP/MTP,
@@ -206,7 +207,7 @@ public class SaldoVortragImportController : ControllerBase
 
         // Vortrag-Lohnpositionen 905 (Ferien-Geld CHF) + 906 (13. ML CHF) laden.
         var lps = await _db.Lohnpositionen.AsNoTracking()
-            .Where(l => l.Kategorie == "Saldo-Vortrag" && (l.Code == "905" || l.Code == "906"))
+            .Where(l => l.Code == LohnCodes.VortragFerienGeld || l.Code == LohnCodes.Vortrag13Ml)
             .ToDictionaryAsync(l => l.Code, l => l);
 
         if (!lps.ContainsKey("905") || !lps.ContainsKey("906"))
@@ -237,8 +238,8 @@ public class SaldoVortragImportController : ControllerBase
         var existing = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
             .Where(z => empIds.Contains(z.EmployeeId)
-                     && z.Lohnposition!.Kategorie == "Saldo-Vortrag"
-                     && (z.Lohnposition.Code == "905" || z.Lohnposition.Code == "906"))
+                     && (z.Lohnposition!.Code == LohnCodes.VortragFerienGeld
+                         || z.Lohnposition.Code == LohnCodes.Vortrag13Ml))
             .ToListAsync();
 
         int created = 0, updated = 0, skipped = 0;
@@ -569,14 +570,6 @@ public class SaldoVortragImportController : ControllerBase
         Dictionary<string, Lohnposition> lps;
         try
         {
-            // Kategorie per SQL — kein Tracking von lohnposition (sonst kann
-            // ein timestamptz-created_at beim SaveChanges mitreinrutschen).
-            await _db.Database.ExecuteSqlRawAsync(@"
-                UPDATE lohnposition
-                   SET kategorie = 'Saldo-Vortrag'
-                 WHERE code IN ('901','902','903','904')
-                   AND COALESCE(kategorie, '') <> 'Saldo-Vortrag'");
-
             // Belt-and-suspenders: lohn_zulage-Spalten auf without time zone
             // (falls Startup-Migration noch nicht gegriffen hat).
             await _db.Database.ExecuteSqlRawAsync(@"

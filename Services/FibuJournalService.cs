@@ -284,8 +284,7 @@ public class FibuJournalService
         // tragen KEINE Codes, daher Matching über die Lohnposition-Bezeichnungen
         // (DB, inkl. inaktiver Versionen) + fixe Engine-Fallbacks (Alt-Snapshots).
         var famzNamen = await _db.Lohnpositionen
-            .Where(l => l.Kategorie == "Familienzulagen"
-                     || l.Code == "3000" || l.Code == "3010" || l.Code == "3034"
+            .Where(l => l.Code == "3000" || l.Code == "3010" || l.Code == "3034"
                      || l.Code == "190.1" || l.Code == "190.2" || l.Code == "190.3")
             .Select(l => l.Bezeichnung)
             .ToListAsync();

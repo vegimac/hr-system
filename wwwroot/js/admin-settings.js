@@ -1408,7 +1408,7 @@ async function loadLohnpositionen() {
         lpRender();
     } catch {
         document.getElementById('lpTableBody').innerHTML =
-            '<tr><td colspan="16" style="padding:24px;text-align:center;color:#ef4444">Ladefehler</td></tr>';
+            '<tr><td colspan="15" style="padding:24px;text-align:center;color:#ef4444">Ladefehler</td></tr>';
     }
 }
 
@@ -1450,21 +1450,18 @@ function lpIstSwissdecNr(code) {
 }
 function lpIstBetrieb(l) {
     const c = String(l.code || '').trim();
-    const k = (l.kategorie || '').toLowerCase();
-    return k === 'betrieb' || k === 'auslöser' || k === 'ausloeser'
-        || c === '600.24' || c === '600.32' || c === '950.1' || c === '180.3'
+    return c === '600.24' || c === '600.32' || c === '950.1' || c === '180.3'
         || c.startsWith('600.') || c.startsWith('950.');
 }
 function lpIstVortrag(l) {
     const c = String(l.code || '').trim();
-    return (l.kategorie || '') === 'Saldo-Vortrag' || ['901','902','903','904','905','906'].includes(c);
+    return ['901','902','903','904','905','906'].includes(c);
 }
 
 function lpRender() {
     const tbody    = document.getElementById('lpTableBody');
     if (!tbody) return;
     const bereich  = document.getElementById('lpFilterBereich')?.value ?? 'swissdec';
-    const kat      = document.getElementById('lpFilterKat')?.value  ?? '';
     const typ      = document.getElementById('lpFilterTyp')?.value  ?? '';
     const showInac = document.getElementById('lpShowInactive')?.checked ?? false;
     const hinweis  = document.getElementById('lpFilterHinweis');
@@ -1475,7 +1472,6 @@ function lpRender() {
 
     const rows = lpData.filter(l => {
         if (!(showInac || l.isActive)) return false;
-        if (kat && l.kategorie !== kat) return false;
         if (typ && l.typ !== typ) return false;
         if (bereich === 'swissdec') return lpIstSwissdecNr(l.code) && !lpIstVortrag(l) && !lpIstBetrieb(l);
         if (bereich === 'betrieb') return lpIstBetrieb(l);
@@ -1492,21 +1488,12 @@ function lpRender() {
     }
 
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="16" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
         return;
     }
 
-    const katColor = {
-        'Festlohn':       '#ece9e2', 'Stundenlohn':   '#efece5',
-        'Überstunden':    '#fef9c3', 'Taggelder':     '#fce7f3',
-        '13. ML':         '#dcfce7', 'Familienzulagen':'#ede9fe',
-        'Ferienentsch.':  '#ffedd5', 'Bonus':         '#d1fae5',
-        'Spesen':         '#f1f5f9', 'Abzüge':        '#fee2e2',
-    };
-
     tbody.innerHTML = rows.map(l => {
         const bg   = l.isActive ? '' : 'opacity:.45;';
-        const kbg  = katColor[l.kategorie] ?? '#f8fafc';
         const tbadge = l.typ === 'ABZUG'
             ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ABZUG</span>'
             : '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ZULAGE</span>';
@@ -1515,7 +1502,6 @@ function lpRender() {
         return `<tr class="lp-row" style="${bg}border-bottom:1px solid rgba(60,55,48,0.08)">
             <td style="padding:10px 14px;font-weight:700;font-family:ui-monospace,Menlo,monospace;color:#3f3f3f;font-size:13px" title="${nrTitle}">${l.code}</td>
             <td style="padding:10px 14px">${l.bezeichnung}</td>
-            <td style="padding:10px 14px"><span style="background:${kbg};color:#374151;padding:2px 8px;border-radius:8px;font-size:12px">${l.kategorie || '—'}</span></td>
             <td class="lp-td-tight">${chk(l.ahvAlvPflichtig)}</td>
             <td class="lp-td-tight">${chk(l.nbuvPflichtig)}</td>
             <td class="lp-td-tight">${chk(l.ktgPflichtig)}</td>
@@ -1548,7 +1534,7 @@ function lpRender() {
 // sinnvolle Werte übernehmen; beim Bearbeiten bestehender Positionen
 // werden natürlich die gespeicherten DB-Werte angezeigt.
 // ------------------------------------------------------------------
-function lpSuggestBasisFlags(code, kategorie, typ) {
+function lpSuggestBasisFlags(code, typ) {
     // Abzüge haben grundsätzlich keine Basis-Wirkung
     if (typ === 'ABZUG') return { feiertag: false, ferien: false, ml13: false };
 
@@ -1586,23 +1572,14 @@ function lpSuggestBasisFlags(code, kategorie, typ) {
     };
     if (byCode[c]) return byCode[c];
 
-    // Kategorie-Fallback
-    const byKategorie = {
-        'Überstunden':      { feiertag: false, ferien: false, ml13: true  },
-        'Familienzulagen':  { feiertag: false, ferien: false, ml13: false },
-        'Ferienentsch.':    { feiertag: false, ferien: false, ml13: false },
-    };
-    if (byKategorie[kategorie]) return byKategorie[kategorie];
-
-    // Default für Unbekanntes: konservativ
+    // Unbekannte Nummer: nichts ankreuzen, der Admin setzt die Häkchen.
     return { feiertag: false, ferien: false, ml13: false };
 }
 
 function lpApplyBasisSuggestion(showFeedback) {
     const code      = document.getElementById('lpCode').value;
-    const kategorie = document.getElementById('lpKategorie').value;
     const typ       = document.getElementById('lpTyp').value;
-    const s = lpSuggestBasisFlags(code, kategorie, typ);
+    const s = lpSuggestBasisFlags(code, typ);
     document.getElementById('lpBasisFeiertag').checked = s.feiertag;
     document.getElementById('lpBasisFerien').checked   = s.ferien;
     document.getElementById('lpBasis13ml').checked     = s.ml13;
@@ -1624,7 +1601,6 @@ function lpOpenForm(id) {
     document.getElementById('lpCode').value           = d?.code ?? '';
     document.getElementById('lpMirus').value          = d?.mirusCode ?? '';
     document.getElementById('lpBezeichnung').value    = d?.bezeichnung ?? '';
-    document.getElementById('lpKategorie').value      = d?.kategorie ?? '';
     document.getElementById('lpTyp').value            = d?.typ ?? 'ZULAGE';
     document.getElementById('lpLaCode').value         = d?.lohnausweisCode ?? '';
     // swissdec_lohnart wird serverseitig aus der Nr. abgeleitet — Hidden nur für QST-Vorschlag
@@ -1638,8 +1614,8 @@ function lpOpenForm(id) {
     document.getElementById('lpBvg').checked          = d?.bvgPflichtig ?? true;
     document.getElementById('lpQst').checked          = d?.qstPflichtig ?? true;
     document.getElementById('lpQstPeriodisch').checked = d?.qstPeriodisch ?? true;
-    // Neue Position: «QST Monat» aus Swissdec-Code / Kategorie ableiten (Cursor-Review 22.09.2026:
-    // Default «ja» wäre bei einer Geburtszulage/Bonus im Kurzmonat falsch hochgerechnet).
+    // Neue Position: «QST Monat» aus der Swissdec-Nummer ableiten.
+    // Default «ja» wäre bei einer einmaligen Lohnart im Kurzmonat falsch hochgerechnet.
     if (!d) lpQstPeriodischVorschlag();
     document.getElementById('lpDreijehnter').checked  = d?.dreijehnterMlPflichtig ?? false;
 
@@ -1674,7 +1650,6 @@ async function lpSave(e) {
         code,
         mirusCode:       document.getElementById('lpMirus').value.trim() || null,
         bezeichnung:     document.getElementById('lpBezeichnung').value.trim(),
-        kategorie:       document.getElementById('lpKategorie').value.trim(),
         typ:             document.getElementById('lpTyp').value,
         lohnausweisCode: document.getElementById('lpLaCode').value.trim() || null,
         // ELM-Viersteller aus der Swissdec-Nr. (Server setzt dasselbe)
@@ -2437,7 +2412,6 @@ function vtRender() {
             <td style="padding:10px 14px;text-align:center;color:#64748b;font-variant-numeric:tabular-nums">${c.sortOrder ?? 99}</td>
             <td style="padding:10px 14px;font-family:ui-monospace,Consolas,monospace;font-weight:600;color:#0f172a">${escapeHtml(c.lohnpositionCode)}</td>
             <td style="padding:10px 14px;color:#1e293b">${escapeHtml(c.lohnpositionBezeichnung)}</td>
-            <td style="padding:10px 14px;color:#64748b;font-size:12.5px">${escapeHtml(c.lohnpositionKategorie ?? '')}</td>
             <td style="padding:10px 14px;text-align:center">${typBadge(c.lohnpositionTyp)}</td>
             <td style="padding:10px 14px;text-align:right;font-variant-numeric:tabular-nums;color:#0f172a">${rateStr}</td>
             <td style="padding:10px 14px;font-size:12.5px;max-width:260px">${bemerkung}</td>
@@ -2876,8 +2850,7 @@ function lpQstPeriodischVorschlag() {
     const code = raw.split('.')[0] || '';
     const hid = document.getElementById('lpSwissdec');
     if (hid) hid.value = code;
-    const kat  = (document.getElementById('lpKategorie')?.value || '').trim().toLowerCase();
-    cb.checked = !(lpSwissdecEinmalig(code) || kat === 'bonus');
+    cb.checked = !lpSwissdecEinmalig(code);
 }
 let _lpSwissdecKatalog = null;
 async function lpLadeSwissdecListe() {

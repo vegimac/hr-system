@@ -11,7 +11,6 @@ public class Lohnposition
     /// <summary>Primärschlüssel-Code = Swissdec-Treuhand-Nr. (1000, 1005, 2002 …); Betrieb/Auslöser: 600.x / 180.3.</summary>
     public string  Code            { get; set; } = "";
     public string  Bezeichnung     { get; set; } = "";      // z.B. "Festlohn", "Überstunden 25%"
-    public string  Kategorie       { get; set; } = "";      // z.B. "Festlohn", "Überstunden", "Spesen"
     public string  Typ             { get; set; } = "ZULAGE"; // ZULAGE (+) | ABZUG (-)
 
     /// <summary>Mirus-Altcode nur für Parallelvergleich / Kontoplan-Parse (Walter 19.10.2026).</summary>

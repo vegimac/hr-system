@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 100;  // 100: Grussformel im Brieftext · 99: Briefvorlage Austrittsbrief · 98: 2FA Pflicht für alle HR-Benutzer
+const int SchemaStand = 101;  // 101: Lohnart ohne Kategorie · 100: Grussformel im Brieftext
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1878,8 +1878,8 @@ using (var scope = app.Services.CreateScope())
 
     // ── Lohnposition: QST periodisch/einmalig (Walter 21.09.2026, Schema-Stand 18; Platzierung VOR SchemaCheckService.Pruefe, sonst «fehlende Spalte» — Lehre 21.09.2026) ──
     // Vorher fest im Code (nur Kinder-/Ausbildungs-/Haushaltszulage periodisch).
-    // Seed EINMALIG: Swissdec-Codes nach Lohnposition.SwissdecEinmalig + OneCrew-Kategorie
-    // «Bonus»; alles andere periodisch. Guard: nur wenn die Spalte neu ist (Sentinel-
+    // Seed EINMALIG: Swissdec-Codes nach Lohnposition.SwissdecEinmalig, alles andere
+    // periodisch. Guard: nur wenn die Spalte neu ist (Sentinel-
     // Spalte qst_periodisch_seed fehlt) — User-Änderungen im UI bleiben danach unberührt.
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS qst_periodisch BOOLEAN NOT NULL DEFAULT true;
@@ -1896,8 +1896,7 @@ using (var scope = app.Services.CreateScope())
         if (seedNoetig)
         {
             foreach (var lp in db.Lohnpositionen.ToList())
-                lp.QstPeriodisch = !(Lohnposition.SwissdecEinmalig(lp.SwissdecLohnart)
-                                     || string.Equals(lp.Kategorie, "Bonus", StringComparison.OrdinalIgnoreCase));
+                lp.QstPeriodisch = !Lohnposition.SwissdecEinmalig(lp.SwissdecLohnart);
             db.SaveChanges();
             db.Database.ExecuteSqlRaw("ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS qst_periodisch_seed BOOLEAN NOT NULL DEFAULT true;");
         }
@@ -7204,6 +7203,14 @@ using (var scope = app.Services.CreateScope())
                     WHERE x.modell = 'MTP' AND x.lohnposition_id = lp.id AND x.art = 'automatisch');
         ");
         startLog.LogInformation("Stand 90: MTP-Schema 1000→1005 Stundenlohn");
+    }
+
+    // Stand 101: Kategorie an der Lohnart weg. Vortrag, Betrieb und Familienzulage
+    // hängen an der Nummer. Steht nach allen Inserts, die die Spalte noch schreiben.
+    if (dbStand < 101)
+    {
+        db.Database.ExecuteSqlRaw("ALTER TABLE lohnposition DROP COLUMN IF EXISTS kategorie;");
+        startLog.LogInformation("Stand 101: lohnposition.kategorie entfernt");
     }
 
     // Stand 91-SQL steht oben, unmittelbar vor SchemaCheckService.Pruefe (Stand 92).

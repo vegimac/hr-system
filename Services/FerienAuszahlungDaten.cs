@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Services;
@@ -20,8 +21,8 @@ public static class FerienAuszahlungDaten
         var januar = $"{year}-01";
         var vortrag = await db.LohnZulagen.AsNoTracking()
             .Where(z => z.EmployeeId == employeeId && z.Periode == januar
-                     && z.Lohnposition!.Kategorie == "Saldo-Vortrag"
-                     && (z.Lohnposition.Code == "903" || z.Lohnposition.Code == "905"))
+                     && (z.Lohnposition!.Code == LohnCodes.VortragFerienTage
+                         || z.Lohnposition.Code == LohnCodes.VortragFerienGeld))
             .Select(z => new { z.Lohnposition!.Code, z.Betrag })
             .ToListAsync();
         if (vortrag.Count == 0) return null;

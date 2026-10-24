@@ -42,7 +42,6 @@ public class LohnschemaController : ControllerBase
                 mirusCode      = e.Lohnposition!.MirusCode,
                 swissdecLohnart = e.Lohnposition!.SwissdecLohnart,
                 bezeichnung    = e.Lohnposition!.Bezeichnung,
-                kategorie      = e.Lohnposition!.Kategorie,
                 typ            = e.Lohnposition!.Typ,
                 ahv            = e.Lohnposition!.AhvAlvPflichtig,
                 nbuv           = e.Lohnposition!.NbuvPflichtig,

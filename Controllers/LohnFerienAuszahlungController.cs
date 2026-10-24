@@ -1,6 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -78,8 +79,8 @@ public class LohnFerienAuszahlungController : ControllerBase
             var periode = $"{year}-{month:D2}";
             var vortrag = await _db.LohnZulagen.AsNoTracking()
                 .Where(z => z.EmployeeId == employeeId && z.Periode == periode
-                         && z.Lohnposition!.Kategorie == "Saldo-Vortrag"
-                         && (z.Lohnposition.Code == "903" || z.Lohnposition.Code == "905"))
+                         && (z.Lohnposition!.Code == LohnCodes.VortragFerienTage
+                             || z.Lohnposition.Code == LohnCodes.VortragFerienGeld))
                 .Select(z => new { z.Lohnposition!.Code, z.Betrag })
                 .ToListAsync();
             if (vortrag.Count > 0)

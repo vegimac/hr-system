@@ -50,6 +50,10 @@ public class MirusSwissdecZuordnungTests
         Assert.Equal("1161", LohnCodeAlias.Normiere("1161.50"));
         Assert.False(LohnCodes.IstSwissdecStammNr("1000.2"));
         Assert.True(LohnCodes.IstSwissdecStammNr("1000"));
+        Assert.True(LohnCodes.IstSaldoVortrag("901"));
+        Assert.True(LohnCodes.IstSaldoVortrag("906"));
+        Assert.False(LohnCodes.IstSaldoVortrag("1000"));
+        Assert.False(LohnCodes.IstSaldoVortrag("600.24"));
     }
 
     [Fact]

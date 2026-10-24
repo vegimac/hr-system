@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -964,8 +965,7 @@ public class PayrollController : HrControllerBase
         var vortrag904Raw = await _db.LohnZulagen.AsNoTracking()
             .Where(z => empIds.Contains(z.EmployeeId)
                      && z.Lohnposition != null
-                     && z.Lohnposition.Code == "904"
-                     && z.Lohnposition.Kategorie == "Saldo-Vortrag")
+                     && z.Lohnposition.Code == LohnCodes.VortragNacht)
             .Select(z => new { z.EmployeeId, z.Periode, z.Betrag })
             .ToListAsync();
         // Pro MA: jüngster Vortrag mit Periode ≤ Stichtag-Monat.
