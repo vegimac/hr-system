@@ -115,11 +115,12 @@ function leRender() {
             || (a.kassennummer || '').localeCompare(b.kassennummer || '', 'de'));
         html += `<div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px;padding:0 4px">${leEsc(label)}</div>`;
         html += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:2px"><thead><tr>
-            <th style="${th};width:38%">Name</th>
+            <th style="${th};width:36%">Name</th>
             <th style="${th};width:12%">Nr.</th>
             <th style="${th};width:7%">Kt.</th>
-            <th style="${th};width:26%">E-Mail</th>
-            <th style="${th};width:17%">Zuordnung</th>
+            <th style="${th};width:24%">E-Mail</th>
+            <th style="${th};width:15%">Zuordnung</th>
+            <th style="${th};width:6%"></th>
         </tr></thead><tbody>`;
         for (const e of items) {
             const name = `${leEsc(e.bezeichnung)}${e.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${leEsc(e.zusatz)}</span>` : ''}${e.isActive ? '' : ' <span style="font-size:10.5px;color:#8b8b8b">(inaktiv)</span>'}`;
@@ -133,6 +134,14 @@ function leRender() {
                 <td style="${td};white-space:nowrap">${e.kantonCode ? leEsc(e.kantonCode) : '–'}</td>
                 <td style="${td};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#646464">${leEsc(e.supportEmail || '–')}</td>
                 <td style="${td};white-space:nowrap">${zuord}</td>
+                <td style="${td};text-align:right;overflow:visible">
+                    <div style="position:relative;display:inline-block">
+                        <button type="button" class="dok-menu-btn" onclick="leToggleMenu(event, ${e.id})" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="leMenu-${e.id}">
+                            <button type="button" class="dok-menu-item" onclick="dokCloseAllMenus();leOpenEdit(${e.id})">Bearbeiten</button>
+                        </div>
+                    </div>
+                </td>
             </tr>`;
         }
         html += `</tbody></table>`;
@@ -169,11 +178,11 @@ function leEnsureModal() {
         <div id="leModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Empfänger erfassen</div>
         <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px 12px">
             <label style="${lbl}">Art
-                <select id="leArt" style="${inp}">${LE_ARTEN.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
+                <select id="leArt" onchange="leKasseLabelSetzen()" style="${inp}">${LE_ARTEN.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
             </label>
             <label style="${lbl}">Bezeichnung<span class="pflicht-stern">*</span><input id="leBez" style="${inp}"></label>
             <label style="${lbl}">Zusatz<input id="leZusatz" style="${inp}"></label>
-            <label style="${lbl}">Nummer der Kasse / Vers.-Nr.<input id="leKassenNr" placeholder="z.B. 046.000 oder S122" style="${inp}"></label>
+            <label style="${lbl}"><span id="leKassenLbl">Nummer der Kasse / Vers.-Nr.</span><input id="leKassenNr" placeholder="z.B. 003.000" style="${inp}" onblur="leKassePruefen()"><div id="leKassenFehler" style="font-size:12px;color:#9b2c2c;font-weight:600;margin-top:4px;display:none"></div></label>
             <label style="${lbl};grid-column:span 2">UID-Nummer <span style="font-weight:400;color:#8b8b8b">(Swissdec)</span>
                 <input id="leUid" placeholder="CHE-XXX.XXX.XXX" style="${inp}">
                 <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Prüfziffer beim Verlassen des Feldes</span>
@@ -228,6 +237,34 @@ function leOpenNew() {
     document.getElementById('leModal').style.display = 'block';
 }
 
+function leKasseFehler(art, nummer) {
+    if (art !== 'AUSGLEICHSKASSE') return '';
+    const t = (nummer || '').trim();
+    if (!t) return '';
+    const erster = t.split('.')[0];
+    const n = parseInt(erster, 10);
+    if (!/^\d+$/.test(erster) || !(n > 0))
+        return 'Nummer der Ausgleichskasse: der erste Block muss grösser als 0 sein (nicht «000.003»).';
+    return '';
+}
+
+function leKasseLabelSetzen() {
+    const art = document.getElementById('leArt')?.value || '';
+    const lbl = document.getElementById('leKassenLbl');
+    if (lbl) lbl.textContent = art === 'AUSGLEICHSKASSE' ? 'Nummer der Ausgleichskasse' : 'Nummer der Kasse / Vers.-Nr.';
+    leKassePruefen();
+}
+
+function leKassePruefen() {
+    const box = document.getElementById('leKassenFehler');
+    const msg = leKasseFehler(document.getElementById('leArt')?.value, document.getElementById('leKassenNr')?.value);
+    if (box) {
+        box.style.display = msg ? 'block' : 'none';
+        box.textContent = msg;
+    }
+    return msg;
+}
+
 function leOpenEdit(id) {
     const e = _leListe.find(x => x.id === id);
     if (!e) return;
@@ -248,6 +285,7 @@ function leOpenEdit(id) {
     set('leMail', e.supportEmail);
     set('leBem', e.bemerkung);
     const akt = document.getElementById('leAktiv'); if (akt) akt.checked = e.isActive !== false;
+    leKasseLabelSetzen();
     document.getElementById('leModal').style.display = 'block';
 }
 
@@ -271,6 +309,8 @@ async function leSave() {
         showToast('Bitte die markierten Felder korrigieren.', 'error');
         return;
     }
+    const kasseMsg = leKassePruefen();
+    if (kasseMsg) { showToast(kasseMsg, 'error'); return; }
     if (!body.bezeichnung) { showToast('Bezeichnung fehlt.', 'error'); return; }
     if (btn) btn.disabled = true;
     try {
