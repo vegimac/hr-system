@@ -57,6 +57,14 @@ public class MirusSwissdecZuordnungTests
     }
 
     [Fact]
+    public void Beleg_nimmt_Swissdec_statt_Mirus()
+    {
+        Assert.Equal("1000", LohnCodes.SwissdecVon("10.1"));
+        Assert.Equal("3000", LohnCodes.SwissdecVon("190.1"));
+        Assert.Equal("1000", LohnCodes.SwissdecVon("1000"));
+    }
+
+    [Fact]
     public void SwissdecZuordnung_stimmt_mit_Alias_ueberein()
     {
         foreach (var (mirus, swiss) in new[]
