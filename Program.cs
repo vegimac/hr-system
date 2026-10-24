@@ -7285,9 +7285,7 @@ using (var scope = app.Services.CreateScope())
             db.Database.ExecuteSqlRaw(
                 "UPDATE vertragstyp_lohnposition SET lohnposition_code = {0} WHERE lohnposition_code = {1}",
                 swiss, alt.Code);
-            db.Database.ExecuteSqlRaw(
-                "UPDATE lohn_zulag_typ SET lohnposition_code = {0} WHERE lohnposition_code = {1}",
-                swiss, alt.Code);
+            // lohn_zulag_typ gibt es nicht mehr (Schema-Check: durch Lohnposition ersetzt).
         }
     }
 
