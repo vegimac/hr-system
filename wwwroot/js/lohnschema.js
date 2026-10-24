@@ -70,9 +70,8 @@ function lsRender() {
     const zeile = (e, editable) => `
         <tr class="ls-row ls-a-${e.art}">
             <td style="font-family:ui-monospace,Menlo,monospace;font-weight:700;color:#3f3f3f" title="Swissdec">${_lsEsc(e.code)}</td>
-            <td style="color:#3f3f3f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_lsEsc(e.bezeichnung)}${e.mirusCode ? ' · früher ' + e.mirusCode : ''}">${_lsEsc(e.bezeichnung)}
-                ${e.typ === 'ABZUG' ? '<span style="color:#8a6437;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}
-                ${e.mirusCode ? `<span style="color:#a8a29a;font-size:10.5px;font-family:ui-monospace,Menlo,monospace;margin-left:6px">${_lsEsc(e.mirusCode)}</span>` : ''}</td>
+            <td style="color:#3f3f3f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_lsEsc(e.bezeichnung)}">${_lsEsc(e.bezeichnung)}
+                ${e.typ === 'ABZUG' ? '<span style="color:#8a6437;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}</td>
             <td>
                 ${editable
                     ? `<select onchange="lsChangeArt(${e.id}, this)">
@@ -139,7 +138,7 @@ function lsRender() {
             </div>
         </div>
         <p style="color:#b0aca3;font-size:11.5px;margin-top:14px">Nummern = Swissdec-Stamm. Übersicht nur — die Lohnrechnung steuert das Schema nicht (Engine + Häkchen am Stamm).
-        Graue Kleinzahl = frühere Mirus-Nr. (nur Parallelvergleich).</p>`;
+        Die frühere Mirus-Nr. steht an der Lohnart unter «früher» und im Mirus-Abgleich.</p>`;
 }
 
 async function lsChangeArt(id, sel) {
@@ -192,11 +191,11 @@ function lsAddDialog() {
     }
     document.getElementById('lsAddTitle').textContent = `Position zum Schema ${_lsModell} hinzufügen`;
     const sel = document.getElementById('lsAddPos');
-    const sorted = [..._lsLohnpos].sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
-    sel.innerHTML = sorted.map(l => {
-        const m = l.mirusCode ? ` · früher ${l.mirusCode}` : '';
-        return `<option value="${l.id}">${_lsEsc(l.code)} — ${_lsEsc(l.bezeichnung)}${_lsEsc(m)}</option>`;
-    }).join('');
+    const sorted = [..._lsLohnpos].filter(l => l.isActive !== false)
+        .sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
+    sel.innerHTML = sorted.map(l =>
+        `<option value="${l.id}">${_lsEsc(l.code)} — ${_lsEsc(l.bezeichnung)}</option>`
+    ).join('');
     m.style.display = 'block';
 }
 

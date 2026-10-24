@@ -1669,12 +1669,13 @@ public class PayrollCalculationEngine
         // in `lohnposition` trägt (ZaehltAlsBasisFeiertag, -Ferien, -13ml).
         // Ersetzt die frühere hart verdrahtete Zuordnung
         // (z. B. "feiertagBasis = festlohn + mtpBasis" im MTP-Modell).
-        var lohnposListe = await _db.Lohnpositionen.Where(l => l.IsActive).ToListAsync();
-        // Swissdec-Code + Mirus-Alias → dieselbe Position (Alt-Snapshots / LabelFor)
+        var lohnposListe = await _db.Lohnpositionen.ToListAsync();
+        // Aktive Zeile gewinnt. Eine deaktivierte Mirus-Nummer bleibt Fallback,
+        // damit eine alte Buchung ihre Häkchen behält.
         var lohnposByCode = new Dictionary<string, Lohnposition>(StringComparer.OrdinalIgnoreCase);
-        foreach (var lp in lohnposListe)
+        foreach (var lp in lohnposListe.OrderBy(l => l.IsActive ? 0 : 1))
         {
-            lohnposByCode[lp.Code] = lp;
+            lohnposByCode.TryAdd(lp.Code, lp);
             if (!string.IsNullOrWhiteSpace(lp.MirusCode))
                 lohnposByCode.TryAdd(lp.MirusCode!, lp);
         }

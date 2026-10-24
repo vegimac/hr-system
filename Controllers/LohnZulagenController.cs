@@ -162,7 +162,7 @@ public class LohnZulagenController : ControllerBase
         decimal uebrige = await _db.LohnZulagen
             .Where(z => z.EmployeeId == employeeId
                      && z.Periode == periode
-                     && z.Lohnposition!.Code == "55.2"
+                     && (z.Lohnposition!.Code == "1065" || z.Lohnposition!.Code == "55.2")
                      && z.Stunden != null
                      && (ohneEintragId == null || z.Id != ohneEintragId.Value))
             .SumAsync(z => z.Stunden ?? 0m);
@@ -349,7 +349,7 @@ public class LohnZulagenController : ControllerBase
         Lohnposition lp, int employeeId, string periode, int? companyProfileId,
         decimal betrag, decimal? stunden, int? ohneEintragId = null)
     {
-        if (lp.Code == "55.2" && stunden.HasValue)
+        if ((lp.Code == "1065" || lp.Code == "55.2") && stunden.HasValue)
         {
             if (stunden.Value <= 0m)
                 return (0, null, "Stunden müssen grösser als 0 sein.");

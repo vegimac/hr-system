@@ -29,7 +29,9 @@ public class LohnschemaController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] string? modell = null)
     {
-        var q = _db.LohnschemaEintraege.AsNoTracking().Include(e => e.Lohnposition).AsQueryable();
+        var q = _db.LohnschemaEintraege.AsNoTracking()
+            .Where(e => e.Lohnposition != null && e.Lohnposition.IsActive)
+            .AsQueryable();
         if (!string.IsNullOrWhiteSpace(modell))
             q = q.Where(e => e.Modell == modell || e.Modell == "ALLE");
         var rows = await q

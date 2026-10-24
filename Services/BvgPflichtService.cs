@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.LohnFormelwerk;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Services;
@@ -146,11 +147,19 @@ public class BvgPflichtService
             {
                 var code = z.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.String ? (c.GetString() ?? "").Trim() : "";
                 decimal betrag = z.TryGetProperty("betrag", out var b) && b.ValueKind == JsonValueKind.Number && b.TryGetDecimal(out var d) ? d : 0m;
-                if (code.StartsWith("180.")) dreizehnter += betrag;
-                else if (KrankUnfallCodes.Contains(code) && betrag != 0) krank = true;
+                if (code.StartsWith("180.", StringComparison.Ordinal) || code == "1200") dreizehnter += betrag;
+                else if (betrag != 0 && IstKrankUnfall(code)) krank = true;
             }
             return (dreizehnter, krank);
         }
         catch (JsonException) { return (0m, false); }
+    }
+
+    /// <summary>Alte Mirus-Nr. und die Swissdec-Nr. derselben Lohnart.</summary>
+    private static bool IstKrankUnfall(string code)
+    {
+        if (KrankUnfallCodes.Contains(code)) return true;
+        var swiss = LohnCodes.SwissdecVon(code);
+        return swiss is "1300" or "1301" or "2030" or "2035" or "2050";
     }
 }

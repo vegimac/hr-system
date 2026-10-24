@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 102;  // 102: UVG, UVGZ, QST-Charakter, BVG-Betrachtung, Statistik an der Lohnart · 101: ohne Kategorie
+const int SchemaStand = 103;  // 103: Mirus-Nummern aus der Auswahl · 102: UVG, UVGZ, QST, BVG-Betrachtung, Statistik
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3971,7 +3971,9 @@ using (var scope = app.Services.CreateScope())
             ON lohnposition (code) WHERE is_active = true;
     ");
 
-    // Seed: McDonald's Lohnraster-Positionen (wird nur eingespielt wenn Tabelle leer)
+    // Seed: McDonald's Lohnraster-Positionen (nur leere Tabelle, nur solange
+    // die Spalte kategorie noch existiert — Stand 101 hat sie entfernt).
+    if (dbStand < 101)
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO lohnposition
             (code, bezeichnung, kategorie, typ,
@@ -4106,8 +4108,8 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE lohnposition
         ADD COLUMN IF NOT EXISTS dreijehnter_ml_pflichtig BOOLEAN NOT NULL DEFAULT false;
     ");
-    // Seed: McBonus-Positionen auf dreijehnter_ml_pflichtig = true setzen
-    // (Kategorie 'Bonus' oder Bezeichnung enthält 'Bonus'/'Prämie')
+    // McBonus: 13. ML an (nur solange kategorie existiert, Stand < 101).
+    if (dbStand < 101)
     db.Database.ExecuteSqlRaw(@"
         UPDATE lohnposition
         SET    dreijehnter_ml_pflichtig = true
@@ -4115,9 +4117,10 @@ using (var scope = app.Services.CreateScope())
            AND dreijehnter_ml_pflichtig = false;
     ");
 
-    // ── Saldo-Vortrag Lohnpositionen 901–906 (idempotent) ───────────────
+    // ── Saldo-Vortrag Lohnpositionen 901–906 (idempotent, Stand < 101) ──
     // Braucht Monatsblatt-/CHF-Import + Saldi-Vortrag-Seite. Fehlende Codes
     // führten beim Import zu HTTP 500 «Position fehlt».
+    if (dbStand < 101)
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO lohnposition
             (code, bezeichnung, kategorie, typ,
@@ -4151,12 +4154,12 @@ using (var scope = app.Services.CreateScope())
     // Nicht SV-/QST-pflichtig (der Betrag IST schon die Steuerkorrektur).
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO lohnposition
-            (code, bezeichnung, kategorie, typ,
+            (code, bezeichnung, typ,
              ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
              lohnausweis_code, sort_order, is_active,
              nicht_drucken_wenn_null, nicht_im_vertrag_drucken)
         SELECT
-            '565', 'Korrektur Quellensteuer', 'Abzüge', 'ABZUG',
+            '565', 'Korrektur Quellensteuer', 'ABZUG',
             false, false, false, false, false,
             NULL, 565, false,
             true, true
@@ -4166,7 +4169,6 @@ using (var scope = app.Services.CreateScope())
         -- (QST-Korrektur läuft über qst_korrektur, nicht über diese Mirus-Lohnart).
         UPDATE lohnposition
            SET bezeichnung = 'Korrektur Quellensteuer',
-               kategorie   = 'Abzüge',
                typ         = 'ABZUG',
                ahv_alv_pflichtig = false,
                nbuv_pflichtig    = false,
@@ -4215,12 +4217,12 @@ using (var scope = app.Services.CreateScope())
             ON employee_uniform_depot (employee_id);
 
         INSERT INTO lohnposition
-            (code, bezeichnung, kategorie, typ,
+            (code, bezeichnung, typ,
              ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
              lohnausweis_code, sort_order, is_active,
              nicht_drucken_wenn_null, nicht_im_vertrag_drucken)
         SELECT
-            '600.32', 'Uniformen-Depot', 'Abzüge', 'ABZUG',
+            '600.32', 'Uniformen-Depot', 'ABZUG',
             false, false, false, false, false,
             NULL, 632, true,
             true, true
@@ -4228,7 +4230,6 @@ using (var scope = app.Services.CreateScope())
 
         UPDATE lohnposition
            SET bezeichnung = 'Uniformen-Depot',
-               kategorie   = 'Abzüge',
                typ         = 'ABZUG',
                is_active   = true,
                ahv_alv_pflichtig = false,
@@ -4275,57 +4276,10 @@ using (var scope = app.Services.CreateScope())
            );
     ");
 
-    // ── Korrektur UVG/KTG Lohnpositionen (Mirus 65.1/65.2/75.1/75.2) ─────
-    // Walter Aug 2026: SWICA-Nachzahlung (z.B. Qazimi CHF 344) als eigene
-    // Lohnarten mit SV-Flags + Feiertags-Basis. Altes «65»/«75» (ABZUG
-    // Festlohn-Kürzung FIX) bleibt unangetastet.
-    db.Database.ExecuteSqlRaw(@"
-        INSERT INTO lohnposition (
-            code, bezeichnung, kategorie, typ,
-            ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
-            lohnausweis_code, dreijehnter_ml_pflichtig,
-            zaehlt_als_basis_feiertag, zaehlt_als_basis_ferien, zaehlt_als_basis_13ml,
-            lohnausweisfeld, lohnausweis_kreuz, statistik_code,
-            nicht_drucken_wenn_null, nicht_im_vertrag_drucken,
-            bvg_auf_100_rechnen, position_13ml, zaehlt_fuer_tagessatz,
-            sort_order, is_active, created_at
-        )
-        SELECT v.code, v.bezeichnung, v.kategorie, 'ZULAGE',
-               v.ahv, v.nbuv, v.ktg, v.bvg, v.qst,
-               v.la_code, false,
-               true, false, v.ml13,
-               '1', false, v.stat,
-               true, true,
-               true, 0, true,
-               v.sort_order, true, CURRENT_TIMESTAMP
-          FROM (VALUES
-            ('65.1', 'Korrektur UVG Taggeld Karenz AHV pflichtig', 'Korrektur Unfall',
-             true,  true,  true,  true, true,  'I', true,  'I', 66),
-            ('65.2', 'Korrektur UVG Taggeld Versicherung',         'Korrektur Unfall',
-             false, false, false, true, true,  'Y', false, '0', 67),
-            ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit',
-             true,  true,  true,  true, true,  'I', true,  'I', 76),
-            ('75.2', 'Korrektur KTG Taggeld Versicherung',         'Korrektur Krankheit',
-             false, false, false, true, true,  'Y', false, '0', 77)
-          ) AS v(code, bezeichnung, kategorie, ahv, nbuv, ktg, bvg, qst, la_code, ml13, stat, sort_order)
-         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
-
-        -- Bestehende Zeilen: nur Name/Kategorie/Sortierung pflegen —
-        -- SV-/Basis-Flags bewusst NICHT überschreiben (Walter kann sie in der UI anpassen).
-        UPDATE lohnposition AS lp
-           SET bezeichnung = v.bezeichnung,
-               kategorie   = v.kategorie,
-               typ         = 'ZULAGE',
-               sort_order  = v.sort_order,
-               is_active   = true
-          FROM (VALUES
-            ('65.1', 'Korrektur UVG Taggeld Karenz AHV pflichtig', 'Korrektur Unfall', 66),
-            ('65.2', 'Korrektur UVG Taggeld Versicherung',         'Korrektur Unfall', 67),
-            ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit', 76),
-            ('75.2', 'Korrektur KTG Taggeld Versicherung',         'Korrektur Krankheit', 77)
-          ) AS v(code, bezeichnung, kategorie, sort_order)
-         WHERE lp.code = v.code;
-    ");
+    // Mirus 65.1/65.2/75.1/75.2 werden nicht mehr angelegt und nicht mehr
+    // reaktiviert. Die Korrektur ist Swissdec 2050; die alte Nummer steht
+    // in mirus_code (Parallelvergleich). Der frühere Seed hat sie bei jedem
+    // Schema-Update wieder auf aktiv gesetzt (Walter 24.10.2026).
 
     // ── Lohnposition: ZaehltAlsBasis13ml-Default für Standard-Positionen ──
     // Damit der 13.-ML-Akkumulator die regulären Lohnarten (Festlohn,
@@ -5674,10 +5628,10 @@ using (var scope = app.Services.CreateScope())
     // Idempotent — legt fehlende Treuhand-Zeilen an, reaktiviert keine Mirus-Nummern.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO lohnposition
-            (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+            (code, mirus_code, bezeichnung, typ, swissdec_lohnart,
              ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig,
              qst_pflichtig, zaehlt_als_basis_13ml, sort_order, is_active, created_at)
-        SELECT v.code, v.mirus, v.bez, 'EO', 'ZULAGE', v.code,
+        SELECT v.code, v.mirus, v.bez, 'ZULAGE', v.code,
                true, true, true, true, true, true, v.so, true, LOCALTIMESTAMP
         FROM (VALUES
             ('2001', '120.1', 'Mutterschaftsentschädigung EO', 40),
@@ -5700,14 +5654,14 @@ using (var scope = app.Services.CreateScope())
     // obwohl der Kontoplan sie kennt. Mirus-Lohnkonto + Lohn-Simulation brauchen sie.
     db.Database.ExecuteSqlRaw(@"
         UPDATE lohnposition SET code = '200.5'
-         WHERE code = '205' AND kategorie = 'Bonus'
+         WHERE code = '205'
            AND NOT EXISTS (SELECT 1 FROM lohnposition x WHERE x.code = '200.5');
 
         INSERT INTO lohnposition
-            (code, bezeichnung, kategorie, typ,
+            (code, bezeichnung, typ,
              ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
              lohnausweisfeld, sort_order, is_active, nicht_drucken_wenn_null, nicht_im_vertrag_drucken)
-        SELECT v.code, v.bezeichnung, 'Abzüge', 'ABZUG',
+        SELECT v.code, v.bezeichnung, 'ABZUG',
                false, false, false, false, false,
                v.feld, v.so, true, true, true
         FROM (VALUES
@@ -5739,14 +5693,14 @@ using (var scope = app.Services.CreateScope())
     // RST-Abbau 2017/2016. 180.2 ist 14. ML — Code nicht wiederverwenden.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO lohnposition (
-            code, bezeichnung, kategorie, typ,
+            code, bezeichnung, typ,
             ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
             lohnausweis_code, dreijehnter_ml_pflichtig,
             zaehlt_als_basis_feiertag, zaehlt_als_basis_ferien, zaehlt_als_basis_13ml,
             nicht_drucken_wenn_null, nicht_im_vertrag_drucken,
             sort_order, is_active, created_at
         )
-        SELECT '180.3', '13. Monatslohn auszahlen', '13. ML', 'ZULAGE',
+        SELECT '180.3', '13. Monatslohn auszahlen', 'ZULAGE',
                false, false, false, false, false,
                NULL, false,
                false, false, false,
@@ -5900,10 +5854,10 @@ using (var scope = app.Services.CreateScope())
     // Mirus 80.x/90.x/85.1/95.1 nur Alias — NIE neu seeden (UNIQUE, wenn inaktiv).
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO lohnposition
-            (code, mirus_code, bezeichnung, kategorie, typ, swissdec_lohnart,
+            (code, mirus_code, bezeichnung, typ, swissdec_lohnart,
              ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig,
              qst_pflichtig, zaehlt_als_basis_13ml, sort_order, is_active, created_at)
-        SELECT v.code, v.mirus, v.bez, 'EO', 'ZULAGE', v.code,
+        SELECT v.code, v.mirus, v.bez, 'ZULAGE', v.code,
                true, false, true, true, true, true, v.so, true, LOCALTIMESTAMP
         FROM (VALUES
             ('2000', '80.1', 'EO-Taggeld Militär / Zivilschutz', 42),
@@ -7268,7 +7222,74 @@ using (var scope = app.Services.CreateScope())
         startLog.LogInformation("Stand 101: lohnposition.kategorie entfernt");
     }
 
-    // Stand 91-SQL steht oben, unmittelbar vor SchemaCheckService.Pruefe (Stand 92).
+    // Stand 103: Mirus-Nummern aus der Auswahl. Die Zeile bleibt, mirus_code
+    // für den Parallelvergleich. Swissdec-Stamm, Betrieb (600.24/600.32/950.1),
+    // Vortrag 901–906 und der Auslöser 180.3 bleiben. Buchungen wandern auf
+    // die aktive Swissdec-Zeile, wenn es sie gibt.
+    if (dbStand < 103)
+    {
+        var nMirus = db.Database.ExecuteSqlRaw(@"
+            UPDATE lohnposition
+               SET mirus_code = COALESCE(NULLIF(TRIM(mirus_code), ''), code),
+                   is_active = false
+             WHERE is_active = true
+               AND code !~ '^[0-9]{{4,5}}$'
+               AND code NOT IN ('600.24','600.32','950.1','901','902','903','904','905','906','180.3');
+        ");
+        startLog.LogInformation("Stand 103: {N} Mirus-Nummern aus der Auswahl genommen", nMirus);
+
+        var alle = db.Lohnpositionen.AsNoTracking()
+            .Select(p => new { p.Id, p.Code, p.IsActive })
+            .ToList();
+        var ziel = alle.Where(p => p.IsActive)
+            .GroupBy(p => p.Code, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var alt in alle.Where(p => !p.IsActive))
+        {
+            var swiss = HrSystem.Services.LohnFormelwerk.LohnCodeAlias.Normiere(alt.Code);
+            if (string.IsNullOrEmpty(swiss)
+                || string.Equals(swiss, alt.Code, StringComparison.OrdinalIgnoreCase)
+                || !HrSystem.Services.LohnFormelwerk.LohnCodes.IstSwissdecStammNr(swiss)
+                || !ziel.TryGetValue(swiss, out var zielId)
+                || zielId == alt.Id)
+                continue;
+            db.Database.ExecuteSqlRaw(@"
+                DELETE FROM vertragsmodell_lohnschema s
+                 USING vertragsmodell_lohnschema x
+                 WHERE s.lohnposition_id = {0}
+                   AND x.lohnposition_id = {1}
+                   AND s.modell = x.modell
+                   AND s.art = x.art", alt.Id, zielId);
+            db.Database.ExecuteSqlRaw(
+                "UPDATE vertragsmodell_lohnschema SET lohnposition_id = {0} WHERE lohnposition_id = {1}",
+                zielId, alt.Id);
+            db.Database.ExecuteSqlRaw(
+                "UPDATE lohn_zulage SET lohnposition_id = {0} WHERE lohnposition_id = {1}",
+                zielId, alt.Id);
+            db.Database.ExecuteSqlRaw(
+                "UPDATE employee_recurring_wage SET lohnposition_id = {0} WHERE lohnposition_id = {1}",
+                zielId, alt.Id);
+            db.Database.ExecuteSqlRaw(@"
+                UPDATE elm_lohnraster r
+                   SET verwendet_lohnposition_id = {0}
+                 WHERE r.verwendet_lohnposition_id = {1}
+                   AND NOT EXISTS (
+                       SELECT 1 FROM elm_lohnraster x WHERE x.verwendet_lohnposition_id = {0})",
+                zielId, alt.Id);
+            db.Database.ExecuteSqlRaw(@"
+                DELETE FROM vertragstyp_lohnposition a
+                 USING vertragstyp_lohnposition x
+                 WHERE a.lohnposition_code = {1}
+                   AND x.lohnposition_code = {0}
+                   AND a.vertragstyp_code = x.vertragstyp_code", swiss, alt.Code);
+            db.Database.ExecuteSqlRaw(
+                "UPDATE vertragstyp_lohnposition SET lohnposition_code = {0} WHERE lohnposition_code = {1}",
+                swiss, alt.Code);
+            db.Database.ExecuteSqlRaw(
+                "UPDATE lohn_zulag_typ SET lohnposition_code = {0} WHERE lohnposition_code = {1}",
+                swiss, alt.Code);
+        }
+    }
 
     // Stand speichern — erst NACH erfolgreichem Durchlauf. Bricht der Block ab,
     // bleibt der alte Stand stehen und der nächste Start versucht es erneut

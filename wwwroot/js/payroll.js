@@ -505,7 +505,8 @@ function _lzFillLpSel(selectedId) {
 function _lzIsUeberstundenLp() {
     const sel = document.getElementById('lzLpSel');
     const opt = sel?.selectedOptions?.[0];
-    return (opt?.dataset?.code || '') === '55.2';
+    const code = opt?.dataset?.code || '';
+    return code === '1065' || code === '55.2';
 }
 
 async function lzOnLpChange() {
@@ -573,7 +574,7 @@ function _lzRenderUeberVerfuegbar(std) {
     const zuViel = !isNaN(std) && std > _lzUeberVerfuegbar + 0.0001;
     el.style.color = zuViel ? '#b91c1c' : '#64748b';
     const bereits = _lzUeberBereits > 0
-        ? ` ${_lzUeberBereits.toFixed(2)} Std. sind diesen Monat schon als 55.2 erfasst.` : '';
+        ? ` ${_lzUeberBereits.toFixed(2)} Std. sind diesen Monat schon als 1065 erfasst.` : '';
     el.textContent = zuViel
         ? `Höchstens ${_lzUeberVerfuegbar.toFixed(2)} Std. auszahlbar — nur bis zum Plus-Saldo, nie ins Minus.${bereits}`
         : `Plus-Saldo verfügbar: ${_lzUeberVerfuegbar.toFixed(2)} Std.${bereits}`;

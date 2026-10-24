@@ -213,6 +213,11 @@ public class BvgPflichtTests
         var (dreizehnter, krank) = BvgPflichtService.LeseSlip(slip);
         Assert.Equal(124.95m, dreizehnter);
         Assert.True(krank);
+
+        const string neu = """{"lohnLines":[{"code":"1000","betrag":1500.00},{"code":"1200","betrag":124.95},{"code":"2035","betrag":300.00}]}""";
+        var (dreizehnterNeu, krankNeu) = BvgPflichtService.LeseSlip(neu);
+        Assert.Equal(124.95m, dreizehnterNeu);
+        Assert.True(krankNeu);
     }
 
     [Fact]
