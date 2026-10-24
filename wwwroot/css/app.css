@@ -7552,6 +7552,163 @@
         #page-sv-saetze .sv-c-status { width: 5%; }
         #page-sv-saetze .sv-c-act { width: 3.5%; }
 
+        /* SV-Sätze: links die AHV-Beitragspflicht, rechts die Satzliste. */
+        #page-sv-saetze .fh-body.sv-split {
+            flex-direction: row;
+            align-items: stretch;
+            gap: 14px;
+            padding: 12px 14px 14px !important;
+        }
+        #page-sv-saetze .ahv-pflicht {
+            flex: 0 0 372px;
+            width: 372px;
+            margin: 0;
+            padding: 16px 16px 14px;
+            overflow: auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+            border: 1px solid rgba(255,255,255,0.62);
+            box-shadow: 0 8px 24px rgba(60,55,48,0.12);
+        }
+        #page-sv-saetze .ahv-pflicht-head h2 {
+            margin: 0 0 4px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #3f3f3f;
+        }
+        #page-sv-saetze .ahv-pflicht-head p,
+        #page-sv-saetze .ahv-pflicht-hinweis {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #6f6a5f;
+        }
+        #page-sv-saetze .ahv-pflicht label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 650;
+            color: #3f3f3f;
+        }
+        #page-sv-saetze .ahv-pflicht input {
+            width: 100%;
+            box-sizing: border-box;
+            background: #fff;
+            border: 1px solid rgba(255,255,255,0.95);
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);
+            padding: 8px 10px;
+            font-size: 15px;
+            font-weight: 650;
+            color: #3f3f3f;
+        }
+        #page-sv-saetze .ahv-pflicht-uebergang {
+            margin-top: 4px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(60,55,48,0.14);
+        }
+        #page-sv-saetze .ahv-pflicht-uebergang-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        #page-sv-saetze .ahv-pflicht-uebergang h3 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: #3f3f3f;
+        }
+        #page-sv-saetze .ahv-zeile,
+        #page-sv-saetze .ahv-weg {
+            background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(60,55,48,0.2);
+            border-radius: 10px;
+            color: #3f3f3f;
+            font-size: 12px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        #page-sv-saetze .ahv-pflicht-uebergang table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        #page-sv-saetze .ahv-pflicht-uebergang th {
+            position: static !important;
+            top: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            text-align: left;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #6f6a5f;
+            padding: 0 4px 4px 0;
+        }
+        #page-sv-saetze .ahv-pflicht-uebergang td { padding: 0 4px 6px 0; }
+        #page-sv-saetze .ahv-pflicht-uebergang input {
+            font-size: 13px;
+            padding: 6px 6px;
+            font-weight: 600;
+        }
+        #page-sv-saetze .ahv-pflicht-hinweis { margin-top: 4px; }
+        #page-sv-saetze .ahv-pflicht-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: auto;
+            padding-top: 8px;
+        }
+        #page-sv-saetze #ahvPflichtErr {
+            font-size: 12px;
+            color: #9b2c2c;
+            font-weight: 650;
+            line-height: 1.35;
+        }
+        #page-sv-saetze .ahv-pflicht-save {
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 9px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+        #page-sv-saetze .ahv-pflicht-save:disabled { opacity: 0.45; cursor: default; }
+        #page-sv-saetze .sv-main {
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        #page-sv-saetze .sv-main .fh-cols-head-wrap { margin: 0; }
+        #page-sv-saetze .sv-extra {
+            flex: 0 1 auto;
+            max-height: 32%;
+            overflow: auto;
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+        }
+        body.theme-dark #page-sv-saetze .ahv-pflicht-head h2,
+        body.theme-dark #page-sv-saetze .ahv-pflicht-uebergang h3,
+        body.theme-dark #page-sv-saetze .ahv-pflicht label { color: #f3f0ea; }
+        body.theme-dark #page-sv-saetze .ahv-pflicht-head p,
+        body.theme-dark #page-sv-saetze .ahv-pflicht-hinweis,
+        body.theme-dark #page-sv-saetze .ahv-pflicht-uebergang th { color: #c8c2b6; }
+
         #page-lohnpositionen .lp-c-code { width: 6%; }
         #page-lohnpositionen .lp-c-name { width: 30%; }
         #page-lohnpositionen .lp-c-flag { width: 3.2%; }

@@ -1874,24 +1874,12 @@ public static class PayrollCalculations
     }
 
     /// <summary>
-    /// Referenzalter in Monaten nach AHV 21.
-    /// Männer: immer 780 (65 Jahre).
-    /// Frauen: gestaffelt nach Jahrgang (Übergangsgeneration 1961–1963).
-    /// Ab Jahrgang 1964: 780 (65 Jahre) für alle.
+    /// Referenzalter in Monaten. Ohne Stand gilt das Gesetz (Männer 65,
+    /// Frauen bis 1960: 64, 1961–1963 gestaffelt, ab 1964: 65).
+    /// Der Kasten bei den SV-Sätzen liefert den Stand, den der Lohnlauf liest.
     /// </summary>
-    public static int GetReferenzalterMonate(string? gender, int birthYear)
-    {
-        if (!IstWeiblich(gender))
-            return 65 * 12;
-        return birthYear switch
-        {
-            <= 1960 => 64 * 12,
-            1961    => 64 * 12 + 3,
-            1962    => 64 * 12 + 6,
-            1963    => 64 * 12 + 9,
-            _       => 65 * 12,
-        };
-    }
+    public static int GetReferenzalterMonate(string? gender, int birthYear, AhvBeitragspflichtStand? stand = null)
+        => (stand ?? AhvBeitragspflichtStand.Gesetzlich).ReferenzalterMonate(gender, birthYear);
 
     /// <summary>
     /// Prüft, ob für den Lohnmonat (year, month) die Beitragspflicht-Änderung nach
@@ -1904,9 +1892,9 @@ public static class PayrollCalculations
     /// Beispiel: Frau Jg. 1962, geboren März → Referenzalter 64J+6M = September
     /// 2026. September noch normal SV; ab Oktober 2026 AHV-Freibetrag, ALV/BVG weg.
     /// </summary>
-    public static bool HatReferenzalterErreicht(string? gender, DateTime dateOfBirth, int year, int month)
+    public static bool HatReferenzalterErreicht(string? gender, DateTime dateOfBirth, int year, int month, AhvBeitragspflichtStand? stand = null)
     {
-        int refMonate = GetReferenzalterMonate(gender, dateOfBirth.Year);
+        int refMonate = GetReferenzalterMonate(gender, dateOfBirth.Year, stand);
         int geburtsMonatAbsolut   = dateOfBirth.Year * 12 + dateOfBirth.Month;
         int referenzMonatAbsolut  = geburtsMonatAbsolut + refMonate;
         int aktuellerMonatAbsolut = year * 12 + month;
@@ -1928,5 +1916,22 @@ public static class PayrollCalculations
         if (alterKalenderjahr >= 65)
             return 64;
         return alterKalenderjahr;
+    }
+
+    /// <summary>
+    /// Alter-von/bis der Satzzeile. Bei der AHV-Zeile mit oberer Grenze (18–64)
+    /// ist die untere Grenze der zentrale Beginn, nicht das Alter-von der Zeile.
+    /// Die Zeile ab 65 (Freibetrag) und alle anderen Versicherungen bleiben an ihrer Spalte.
+    /// </summary>
+    public static bool PasstSvAlter(DeductionRule r, int? effectiveAge, AhvBeitragspflichtStand? ahv)
+    {
+        int? min = r.MinAge;
+        if (ahv != null
+            && effectiveAge != null
+            && r.MaxAge != null
+            && string.Equals(r.CategoryCode, "AHV", StringComparison.OrdinalIgnoreCase))
+            min = ahv.Beginn;
+        return (min == null || effectiveAge == null || effectiveAge >= min)
+            && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge);
     }
 }

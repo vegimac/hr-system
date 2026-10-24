@@ -1782,8 +1782,92 @@ async function loadSvSaetze() {
             }
         } catch {}
         svRender();
+        ahvPflichtLaden();
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="13" style="color:#dc2626;padding:12px">Verbindungsfehler: ${e.message}</td></tr>`;
+    }
+}
+
+function ahvPflichtDarf() {
+    return typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+}
+
+function ahvUebergangZeile(z) {
+    const body = document.getElementById('ahvUebergangBody');
+    if (!body) return;
+    const tr = document.createElement('tr');
+    const feld = (cls, val) => `<td><input class="${cls}" type="number" value="${val == null ? '' : val}" ${ahvPflichtDarf() ? '' : 'disabled'}></td>`;
+    tr.innerHTML = feld('ahv-von', z?.von) + feld('ahv-bis', z?.bis) + feld('ahv-jahre', z?.jahre) + feld('ahv-monate', z?.monate)
+        + `<td>${ahvPflichtDarf() ? '<button type="button" class="ahv-weg" title="Zeile entfernen">×</button>' : ''}</td>`;
+    tr.querySelector('.ahv-weg')?.addEventListener('click', () => tr.remove());
+    body.appendChild(tr);
+}
+
+async function ahvPflichtLaden() {
+    const body = document.getElementById('ahvUebergangBody');
+    if (!body) return;
+    const darf = ahvPflichtDarf();
+    ['ahvBeginn', 'ahvEndeMaenner', 'ahvEndeFrauen'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !darf;
+    });
+    const save = document.getElementById('ahvPflichtSave');
+    const zeile = document.querySelector('#ahvPflichtKarte .ahv-zeile');
+    if (save) save.style.display = darf ? '' : 'none';
+    if (zeile) zeile.style.display = darf ? '' : 'none';
+    try {
+        const res = await fetch('/api/ahv-beitragspflicht', { headers: ah() });
+        if (!res.ok) return;
+        const j = await res.json();
+        document.getElementById('ahvBeginn').value = j.beginn ?? '';
+        document.getElementById('ahvEndeMaenner').value = j.endeMaenner ?? '';
+        document.getElementById('ahvEndeFrauen').value = j.endeFrauen ?? '';
+        body.innerHTML = '';
+        (j.uebergaenge || []).forEach(ahvUebergangZeile);
+    } catch {}
+}
+
+function ahvZahl(tr, cls) {
+    const v = tr.querySelector('.' + cls)?.value?.trim();
+    if (!v) return null;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : null;
+}
+
+async function ahvPflichtSpeichern() {
+    const err = document.getElementById('ahvPflichtErr');
+    if (err) err.textContent = '';
+    const num = id => parseInt(document.getElementById(id)?.value, 10);
+    const uebergaenge = [...document.querySelectorAll('#ahvUebergangBody tr')].map(tr => ({
+        von: ahvZahl(tr, 'ahv-von'),
+        bis: ahvZahl(tr, 'ahv-bis'),
+        jahre: ahvZahl(tr, 'ahv-jahre'),
+        monate: ahvZahl(tr, 'ahv-monate') ?? 0,
+    })).filter(z => z.jahre != null);
+    const btn = document.getElementById('ahvPflichtSave');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch('/api/ahv-beitragspflicht', {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                beginn: num('ahvBeginn'),
+                endeMaenner: num('ahvEndeMaenner'),
+                endeFrauen: num('ahvEndeFrauen'),
+                uebergaenge,
+            }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            if (err) err.textContent = j.message || 'Speichern fehlgeschlagen.';
+            return;
+        }
+        showToast('AHV-Beitragspflicht gespeichert', 'success');
+        ahvPflichtLaden();
+    } catch (e) {
+        if (err) err.textContent = e.message;
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 let svKontoByPos = {};

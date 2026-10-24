@@ -91,6 +91,8 @@ public class AppDbContext : DbContext
     public DbSet<AbsenzTyp> AbsenzTypen => Set<AbsenzTyp>();
     public DbSet<EmployeeArbeitslosigkeit> EmployeeArbeitslosigkeiten => Set<EmployeeArbeitslosigkeit>();
     public DbSet<SocialInsuranceRate> SocialInsuranceRates => Set<SocialInsuranceRate>();
+    public DbSet<AhvBeitragspflicht> AhvBeitragspflichten => Set<AhvBeitragspflicht>();
+    public DbSet<AhvBeitragspflichtUebergang> AhvBeitragspflichtUebergaenge => Set<AhvBeitragspflichtUebergang>();
     public DbSet<Lohnposition> Lohnpositionen => Set<Lohnposition>();
     public DbSet<VertragstypLohnposition> VertragstypLohnpositionen => Set<VertragstypLohnposition>();
     public DbSet<PayrollPeriode>        PayrollPerioden        => Set<PayrollPeriode>();
@@ -3328,6 +3330,29 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+        });
+
+        modelBuilder.Entity<AhvBeitragspflicht>(entity =>
+        {
+            entity.ToTable("ahv_beitragspflicht");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(e => e.BeginnAlter).HasColumnName("beginn_alter");
+            entity.Property(e => e.EndeMaenner).HasColumnName("ende_maenner");
+            entity.Property(e => e.EndeFrauen).HasColumnName("ende_frauen");
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am")
+                  .HasColumnType("timestamp without time zone");
+        });
+
+        modelBuilder.Entity<AhvBeitragspflichtUebergang>(entity =>
+        {
+            entity.ToTable("ahv_beitragspflicht_uebergang");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.JahrgangVon).HasColumnName("jahrgang_von");
+            entity.Property(e => e.JahrgangBis).HasColumnName("jahrgang_bis");
+            entity.Property(e => e.Jahre).HasColumnName("jahre");
+            entity.Property(e => e.Monate).HasColumnName("monate");
         });
 
         // ── Lohnposition ──────────────────────────────────────────────────

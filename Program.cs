@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 104;  // 104: BVG-Steuerung aus dem Swissdec-Stamm · 103: Mirus-Nummern aus der Auswahl
+const int SchemaStand = 105;  // 105: AHV-Beitragspflicht zentral · 104: BVG-Steuerung aus dem Swissdec-Stamm
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2780,6 +2780,42 @@ using (var scope = app.Services.CreateScope())
                     "UPDATE lohnposition SET statistik_jahr = {0} WHERE id = {1}", t.ToString(), lp.Id);
         }
         startLog.LogInformation("Stand 102: UVG, UVGZ, QST-Charakter, BVG-Betrachtung und Statistik an der Lohnart");
+    }
+
+    // Stand 105: Beginn und Ende der AHV-Beitragspflicht, plus AHV-21-Übergänge.
+    // Der Lohnlauf liest diese Zeilen. Die Alter-Spalte der SV-Sätze bleibt die Zeilenwahl.
+    if (dbStand < 105)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS ahv_beitragspflicht (
+                id            integer PRIMARY KEY,
+                beginn_alter  integer NOT NULL,
+                ende_maenner  integer NOT NULL,
+                ende_frauen   integer NOT NULL,
+                geaendert_am  timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP
+            );
+            INSERT INTO ahv_beitragspflicht (id, beginn_alter, ende_maenner, ende_frauen)
+            SELECT 1, 18, 65, 65
+            WHERE NOT EXISTS (SELECT 1 FROM ahv_beitragspflicht);
+
+            CREATE TABLE IF NOT EXISTS ahv_beitragspflicht_uebergang (
+                id            serial PRIMARY KEY,
+                jahrgang_von  integer NULL,
+                jahrgang_bis  integer NULL,
+                jahre         integer NOT NULL,
+                monate        integer NOT NULL
+            );
+            INSERT INTO ahv_beitragspflicht_uebergang (jahrgang_von, jahrgang_bis, jahre, monate)
+            SELECT v.von, v.bis, v.jahre, v.monate
+            FROM (VALUES
+                (NULL::integer, 1960, 64, 0),
+                (1961, 1961, 64, 3),
+                (1962, 1962, 64, 6),
+                (1963, 1963, 64, 9)
+            ) AS v(von, bis, jahre, monate)
+            WHERE NOT EXISTS (SELECT 1 FROM ahv_beitragspflicht_uebergang);
+        ");
+        startLog.LogInformation("Stand 105: AHV-Beitragspflicht 18/65/65 und Übergänge AHV 21");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

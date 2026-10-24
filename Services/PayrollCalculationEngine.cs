@@ -74,6 +74,21 @@ public class PayrollCalculationEngine
     /// </summary>
     public List<FamzZahlung> LetzteFamzZahlungen { get; private set; } = new();
 
+    private AhvBeitragspflichtStand? _ahvPflicht;
+
+    private async Task<AhvBeitragspflichtStand> AhvPflichtAsync()
+    {
+        if (_ahvPflicht != null) return _ahvPflicht;
+        var kopf = await _db.AhvBeitragspflichten.AsNoTracking().FirstOrDefaultAsync(a => a.Id == 1);
+        if (kopf == null) return _ahvPflicht = AhvBeitragspflichtStand.Gesetzlich;
+        var rows = await _db.AhvBeitragspflichtUebergaenge.AsNoTracking()
+            .OrderBy(u => u.JahrgangVon ?? int.MinValue)
+            .ToListAsync();
+        return _ahvPflicht = new AhvBeitragspflichtStand(
+            kopf.BeginnAlter, kopf.EndeMaenner, kopf.EndeFrauen,
+            rows.Select(u => new AhvUebergang(u.JahrgangVon, u.JahrgangBis, u.Jahre, u.Monate)).ToList());
+    }
+
     public async Task<IActionResult> CalculateAsync(
         int employeeId, int year, int month, int companyProfileId,
         bool isCorrection = false,
@@ -165,10 +180,11 @@ public class PayrollCalculationEngine
         decimal? ahvFreibetragYtd = null;
         int ahvFreibetragMonateBisher = 0;
         string? ahvFreibetragMonateText = null;
+        var ahvPflicht = await AhvPflichtAsync();
         if (employee.DateOfBirth.HasValue)
         {
             var freibetragMonate = ytdSnapshots
-                .Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, year, x.Month))
+                .Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, year, x.Month, ahvPflicht))
                 .ToList();
             ahvFreibetragYtd = freibetragMonate.Sum(x => x.SvBasisAhv);
             ahvFreibetragMonateBisher = freibetragMonate.Select(x => x.Month).Distinct().Count();
@@ -523,7 +539,7 @@ public class PayrollCalculationEngine
         //   gesetzt hat, fallen sie trotzdem weg.
         bool ueberReferenzalter = employee.DateOfBirth.HasValue
             && PayrollCalculations.HatReferenzalterErreicht(
-                employee.Gender, employee.DateOfBirth.Value, year, month);
+                employee.Gender, employee.DateOfBirth.Value, year, month, ahvPflicht);
         int? effectiveAge = PayrollCalculations.EffectiveAgeFuerSvSaetze(employeeAge, ueberReferenzalter);
 
         // ── Quellensteuer-Pflicht (Walter-Vorgabe 09.06.2026) ──────────────────
@@ -677,8 +693,7 @@ public class PayrollCalculationEngine
         // Referenzalter; ALV/BVG/BVG_ZUSATZ werden ab Referenzalter zusätzlich
         // hart ausgeschlossen (Doppelsicherung gegen DB-Fehlkonfiguration).
         var deductions = allRules
-            .Where(r => (r.MinAge == null || effectiveAge == null || effectiveAge >= r.MinAge)
-                     && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge)
+            .Where(r => PayrollCalculations.PasstSvAlter(r, effectiveAge, ahvPflicht)
                      && (!r.OnlyQuellensteuer || isQuellensteuer)
                      // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): NULL = alle;
                      // «F»/«M»-Zeilen greifen nur beim passenden Geschlecht.
@@ -5606,6 +5621,7 @@ public class PayrollCalculationEngine
             // bringt KEINEN zusätzlichen Monat (ahvFreibetragKeinNeuerMonat).
             decimal? ahvFbYtd = null; int ahvFbMonateBisher = 0; string? ahvFbText = null;
             Func<string?, List<decimal>>? ytdBasenJeArt = null;
+            var ahvPflicht = await AhvPflichtAsync();
             if (nachzahlungNachAustritt)
             {
                 // Beschäftigungsmonate im Austrittsjahr (Teilmonate anteilig) — die Nachzahlung
@@ -5642,7 +5658,7 @@ public class PayrollCalculationEngine
                 if (employee.DateOfBirth.HasValue)
                 {
                     var fbMonate = snapsAustritt
-                        .Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, svYear, x.Month))
+                        .Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, svYear, x.Month, ahvPflicht))
                         .ToList();
                     if (fbMonate.Count > 0)
                     {
@@ -5660,7 +5676,7 @@ public class PayrollCalculationEngine
                     join p2 in _db.PayrollPerioden on s2.PayrollPeriodeId equals p2.Id
                     where s2.EmployeeId == employeeId && p2.Year == year && p2.Month < month && s2.Status != "STORNIERT"
                     select new { p2.Month, s2.SvBasisAhv }).ToListAsync();
-                var fbMonate = ytdKorr.Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, year, x.Month)).ToList();
+                var fbMonate = ytdKorr.Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, year, x.Month, ahvPflicht)).ToList();
                 ahvFbYtd = fbMonate.Sum(x => x.SvBasisAhv);
                 ahvFbMonateBisher = fbMonate.Select(x => x.Month).Distinct().Count();
                 ahvFbText = PayrollCalculations.MonateAlsText(fbMonate.Select(x => x.Month).Distinct().Append(month).OrderBy(m => m).ToList());
@@ -5671,7 +5687,7 @@ public class PayrollCalculationEngine
                 ? svYear - employee.DateOfBirth.Value.Year : null;
             bool ueberRef = employee.DateOfBirth.HasValue
                 && PayrollCalculations.HatReferenzalterErreicht(
-                    employee.Gender, employee.DateOfBirth.Value, svYear, svMonth);
+                    employee.Gender, employee.DateOfBirth.Value, svYear, svMonth, ahvPflicht);
             int? effectiveAge = PayrollCalculations.EffectiveAgeFuerSvSaetze(employeeAge, ueberRef);
 
             var globalRates = await _db.SocialInsuranceRates
@@ -5708,8 +5724,7 @@ public class PayrollCalculationEngine
 
             string? empModelCode = emp.EmploymentModel;
             var deductions = allRules
-                .Where(r => (r.MinAge == null || effectiveAge == null || effectiveAge >= r.MinAge)
-                         && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge)
+                .Where(r => PayrollCalculations.PasstSvAlter(r, effectiveAge, ahvPflicht)
                          && !r.OnlyQuellensteuer
                          && GenderMatches(r.Gender, employee.Gender, employee.Salutation)
                          && (r.EmploymentModelCode == null
