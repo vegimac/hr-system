@@ -1516,16 +1516,16 @@ function lpRender() {
             <td style="padding:10px 14px;font-weight:700;font-family:ui-monospace,Menlo,monospace;color:#3f3f3f;font-size:13px" title="${nrTitle}">${l.code}</td>
             <td style="padding:10px 14px">${l.bezeichnung}</td>
             <td style="padding:10px 14px"><span style="background:${kbg};color:#374151;padding:2px 8px;border-radius:8px;font-size:12px">${l.kategorie || '—'}</span></td>
-            <td style="padding:10px 14px;text-align:center">${chk(l.ahvAlvPflichtig)}</td>
-            <td style="padding:10px 14px;text-align:center">${chk(l.nbuvPflichtig)}</td>
-            <td style="padding:10px 14px;text-align:center">${chk(l.ktgPflichtig)}</td>
-            <td style="padding:10px 14px;text-align:center">${chk(l.bvgPflichtig)}</td>
-            <td style="padding:10px 14px;text-align:center">${chk(l.qstPflichtig)}</td>
-            <td style="padding:10px 14px;text-align:center" title="${l.qstPeriodisch ? 'QST im Monat' : 'QST kumuliert seit Jahresbeginn'}">${l.qstPflichtig ? chk(l.qstPeriodisch) : '<span style="color:#cbd5e1">·</span>'}</td>
-            <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-left:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasisFeiertag)}</td>
-            <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28)">${chk(l.zaehltAlsBasisFerien)}</td>
-            <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-right:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasis13ml)}</td>
-            <td style="padding:10px 14px;text-align:center;font-family:monospace;font-size:12px;color:#6366f1" title="Lohnausweis / Statistik">${l.lohnausweisCode || '—'}</td>
+            <td class="lp-td-tight">${chk(l.ahvAlvPflichtig)}</td>
+            <td class="lp-td-tight">${chk(l.nbuvPflichtig)}</td>
+            <td class="lp-td-tight">${chk(l.ktgPflichtig)}</td>
+            <td class="lp-td-tight">${chk(l.bvgPflichtig)}</td>
+            <td class="lp-td-tight">${chk(l.qstPflichtig)}</td>
+            <td class="lp-td-tight" title="${l.qstPeriodisch ? 'QST im Monat' : 'QST kumuliert seit Jahresbeginn'}">${l.qstPflichtig ? chk(l.qstPeriodisch) : '<span style="color:#cbd5e1">·</span>'}</td>
+            <td class="lp-td-tight" style="background:rgba(187,247,208,0.28);border-left:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasisFeiertag)}</td>
+            <td class="lp-td-tight" style="background:rgba(187,247,208,0.28)">${chk(l.zaehltAlsBasisFerien)}</td>
+            <td class="lp-td-tight" style="background:rgba(187,247,208,0.28);border-right:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasis13ml)}</td>
+            <td class="lp-td-tight" style="font-family:monospace;font-size:12px;color:#6366f1" title="Lohnausweis / Statistik">${l.lohnausweisCode || '—'}</td>
             <td style="padding:10px 8px;text-align:center;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#a8a29a" title="Frühere Mirus-Nr. (Parallelvergleich)">${mirus || '—'}</td>
             <td style="padding:10px 14px;text-align:center">${tbadge}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">

@@ -7552,18 +7552,21 @@
         #page-sv-saetze .sv-c-status { width: 5%; }
         #page-sv-saetze .sv-c-act { width: 3.5%; }
 
-        #page-lohnpositionen .lp-c-code { width: 7%; }
-        #page-lohnpositionen .lp-c-name { width: 12%; }
-        #page-lohnpositionen .lp-c-kat { width: 8.5%; }
-        #page-lohnpositionen .lp-c-flag { width: 4.5%; }
+        #page-lohnpositionen .lp-c-code { width: 6%; }
+        #page-lohnpositionen .lp-c-name { width: 24%; }
+        #page-lohnpositionen .lp-c-kat { width: 13%; }
+        #page-lohnpositionen .lp-c-flag { width: 3.2%; }
+        #page-lohnpositionen .lp-c-qst { width: 6.5%; }
         #page-lohnpositionen .lp-c-fei,
-        #page-lohnpositionen .lp-c-fer,
-        #page-lohnpositionen .lp-c-ml { width: 4.5%; }
-        #page-lohnpositionen .lp-c-la { width: 5%; }
+        #page-lohnpositionen .lp-c-fer { width: 3.2%; }
+        #page-lohnpositionen .lp-c-ml { width: 4.2%; }
+        #page-lohnpositionen .lp-c-la { width: 3.6%; }
         #page-lohnpositionen .lp-c-sd { width: 7%; }
-        #page-lohnpositionen .lp-c-mirus { width: 7%; }
-        #page-lohnpositionen .lp-c-typ { width: 7%; }
-        #page-lohnpositionen .lp-c-act { width: 5%; }
+        #page-lohnpositionen .lp-c-mirus { width: 6.5%; }
+        #page-lohnpositionen .lp-c-typ { width: 9%; }
+        #page-lohnpositionen .lp-c-act { width: 4.8%; }
+        #page-lohnpositionen .fh-table-head thead th.fh-th-center { padding-left: 2px; padding-right: 2px; }
+        #page-lohnpositionen .fh-table-body td.lp-td-tight { padding: 8px 2px; text-align: center; }
         #page-lohnpositionen .fh-table-head thead th.lp-th-green {
             color: #166534;
             background: #f0fdf4 !important;
