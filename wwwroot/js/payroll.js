@@ -246,21 +246,19 @@ async function lzLoad() {
             const wirkungTitel = Number(z.betrag) < 0
                 ? (isAbzug ? 'Negativer Abzug = Gutschrift' : 'Negative Zulage = Korrektur')
                 : '';
-            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9">
-                <span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;${isAbzug ? 'background:#fee2e2;color:#991b1b' : 'background:#dcfce7;color:#166534'}">${isAbzug ? '− Abzug' : '+ Zulage'}</span>
-                <div style="flex:1;min-width:0">
-                    <div style="font-weight:500;font-size:13px">${lpBezEsc}</div>
-                    ${stdHint}
-                    ${bemEsc ? `<div style="font-size:11px;color:#64748b">${bemEsc}</div>` : ''}
-                </div>
-                <div style="font-weight:600;font-size:13px;font-family:monospace;color:${wirkung < 0 ? '#dc2626' : '#059669'}" title="${wirkungTitel}">${wirkung < 0 ? '−' : '+'} CHF ${Math.abs(wirkung).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-                <div class="dok-menu-wrap" style="position:relative;flex-shrink:0">
+            const neben = `${stdHint}${bemEsc ? `<div class="lz-bem">${bemEsc}</div>` : ''}`;
+            return `<div class="lz-zeile">
+                <span class="lz-pill" style="${isAbzug ? 'background:#fee2e2;color:#991b1b' : 'background:#dcfce7;color:#166534'}">${isAbzug ? '− Abzug' : '+ Zulage'}</span>
+                <div class="lz-name">${lpBezEsc}</div>
+                <div class="dok-menu-wrap lz-menu">
                     <button type="button" class="dok-menu-btn" onclick="dokToggleMenu(event, 'lz-${z.id}')" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="dokMenu-lz-${z.id}">
                         <button type="button" class="dok-menu-item" onclick="dokCloseAllMenus();lzEditById(${z.id})">Bearbeiten</button>
                         <button type="button" class="dok-menu-item danger" onclick="dokCloseAllMenus();lzDelete(${z.id})">Löschen</button>
                     </div>
                 </div>
+                ${neben ? `<div class="lz-neben">${neben}</div>` : ''}
+                <div class="lz-betrag" style="color:${wirkung < 0 ? '#dc2626' : '#059669'}" title="${wirkungTitel}">${wirkung < 0 ? '−' : '+'} CHF ${Math.abs(wirkung).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
             </div>`;
         }).join('') + faList.map(_lzFaRowHtml).join('');
         // Warnungen zuoberst — sie sperren «Lohn bestätigen», bis sie quittiert sind.

@@ -13847,3 +13847,50 @@ body.theme-dark .lp-btn-glas {
     .lp-felder-oben, .lp-felder-unten { grid-template-columns: 1fr 1fr; }
     .lp-sec-row { grid-template-columns: 1fr; }
 }
+
+/* Zulage im Lohnlauf: die mittlere Spalte ist 340px. Name und Bemerkung
+   bekommen die Breite, der Betrag steht in einer eigenen Zeile rechts. */
+.lz-zeile {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: start;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+.lz-pill {
+    grid-column: 1;
+    grid-row: 1;
+    margin-top: 1px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.lz-name {
+    grid-column: 2;
+    grid-row: 1;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.35;
+    overflow-wrap: break-word;
+}
+.lz-zeile .lz-menu { grid-column: 3; grid-row: 1; }
+.lz-neben { grid-column: 2 / 4; min-width: 0; }
+.lz-bem {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.lz-betrag {
+    grid-column: 2 / 4;
+    justify-self: end;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    line-height: 1.35;
+}
