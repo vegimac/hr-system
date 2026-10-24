@@ -5,6 +5,8 @@ using HrSystem.Services.LohnFormelwerk;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 
 namespace HrSystem.Controllers;
 
@@ -24,6 +26,9 @@ public class LohnpositionController : ControllerBase
             .OrderBy(l => l.SortOrder)
             .ThenBy(l => l.Code)
             .ToListAsync();
+        var verwendet = await VerwendeteCodesAsync();
+        foreach (var item in items)
+            item.InLohnVerwendet = verwendet.Contains(item.Code);
         return Ok(items);
     }
 
@@ -103,6 +108,7 @@ public class LohnpositionController : ControllerBase
     public async Task<IActionResult> SwissdecZuordnungAnwenden([FromQuery] bool nurLeere = true)
     {
         var positionen = await _db.Lohnpositionen.Where(p => p.IsActive).ToListAsync();
+        var verwendet = await VerwendeteCodesAsync();
         int gesetzt = 0, uebersprungen = 0, ohneVorschlag = 0;
         var details = new List<object>();
         foreach (var p in positionen)
@@ -110,6 +116,7 @@ public class LohnpositionController : ControllerBase
             var vorschlag = SwissdecLohnartZuordnung.FuerOneCrewCode(p.Code);
             if (vorschlag == null) { ohneVorschlag++; continue; }
             if (nurLeere && !string.IsNullOrWhiteSpace(p.SwissdecLohnart)) { uebersprungen++; continue; }
+            if (verwendet.Contains(p.Code)) { uebersprungen++; continue; }
             if (string.Equals(p.SwissdecLohnart?.Trim(), vorschlag, StringComparison.OrdinalIgnoreCase))
             { uebersprungen++; continue; }
             var alt = p.SwissdecLohnart;
@@ -127,6 +134,7 @@ public class LohnpositionController : ControllerBase
     {
         var item = await _db.Lohnpositionen.FindAsync(id);
         if (item is null) return NotFound();
+        item.InLohnVerwendet = (await VerwendeteCodesAsync()).Contains(item.Code);
         return Ok(item);
     }
 
@@ -149,7 +157,15 @@ public class LohnpositionController : ControllerBase
             ? null
             : SwissdecKopf(dto.Code, dto.SwissdecLohnart);
         if (Lohnposition.SwissdecEinmalig(dto.SwissdecLohnart))
+        {
             dto.QstPeriodisch = false;
+            dto.QstCharakter = LohnartSteuerung.QstJaehrlich;
+        }
+        else if (string.IsNullOrWhiteSpace(dto.QstCharakter))
+            dto.QstCharakter = dto.QstPeriodisch ? LohnartSteuerung.QstMonatlich : LohnartSteuerung.QstJaehrlich;
+        if (string.IsNullOrWhiteSpace(dto.BvgBetrachtung))
+            dto.BvgBetrachtung = LohnartSteuerung.BvgRueckwirkend;
+        if (dto.BvgFaktor <= 0) dto.BvgFaktor = 1m;
         dto.CreatedAt = DateTime.Now;
         _db.Lohnpositionen.Add(dto);
         await _db.SaveChangesAsync();
@@ -164,21 +180,60 @@ public class LohnpositionController : ControllerBase
         var item = await _db.Lohnpositionen.FindAsync(id);
         if (item is null) return NotFound();
 
-        item.Code            = (dto.Code ?? "").Trim();
-        if (!LohnCodes.IstSwissdecStammNr(item.Code) && !LohnCodes.IstInternOhneSwissdec(item.Code)
-            && !string.Equals(item.Code, "180.3", StringComparison.OrdinalIgnoreCase))
+        var neuerCode = (dto.Code ?? "").Trim();
+        if (!LohnCodes.IstSwissdecStammNr(neuerCode) && !LohnCodes.IstInternOhneSwissdec(neuerCode)
+            && !string.Equals(neuerCode, "180.3", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { error = "CODE_NICHT_SWISSDEC",
                 message = "Nur Swissdec-Stammnummern oder bekannte Betrieb-/Vortrag-Codes (600.24, 901–906, 180.3 …)." });
+        var probe = new Lohnposition
+        {
+            Code = neuerCode,
+            Typ = dto.Typ,
+            AhvAlvPflichtig = dto.AhvAlvPflichtig,
+            NbuvPflichtig = dto.NbuvPflichtig,
+            UvgPflichtig = dto.UvgPflichtig,
+            UvgzPflichtig = dto.UvgzPflichtig,
+            KtgPflichtig = dto.KtgPflichtig,
+            BvgPflichtig = dto.BvgPflichtig,
+            QstPflichtig = dto.QstPflichtig,
+            QstPeriodisch = dto.QstPeriodisch,
+            QstCharakter = dto.QstCharakter,
+            BvgBetrachtung = dto.BvgBetrachtung,
+            BvgFaktor = dto.BvgFaktor,
+            StatistikMonat = dto.StatistikMonat,
+            StatistikJahr = dto.StatistikJahr,
+            DreijehnterMlPflichtig = dto.DreijehnterMlPflichtig,
+            ZaehltAlsBasisFeiertag = dto.ZaehltAlsBasisFeiertag,
+            ZaehltAlsBasisFerien = dto.ZaehltAlsBasisFerien,
+            ZaehltAlsBasis13ml = dto.ZaehltAlsBasis13ml,
+            LohnausweisCode = dto.LohnausweisCode,
+            SwissdecLohnart = LohnCodes.IstInternOhneSwissdec(neuerCode)
+                ? null
+                : SwissdecKopf(neuerCode, dto.SwissdecLohnart),
+            IsActive = dto.IsActive,
+        };
+        if ((await VerwendeteCodesAsync()).Contains(item.Code)
+            && LohnartSperre.SteuerungGeaendert(item, probe))
+            return Conflict(new { error = LohnartSperre.Fehler, message = LohnartSperre.MeldungAendern(item.Code, item.Bezeichnung) });
+
+        item.Code            = neuerCode;
         item.MirusCode       = string.IsNullOrWhiteSpace(dto.MirusCode) ? null : dto.MirusCode.Trim();
         item.FormelId        = string.IsNullOrWhiteSpace(dto.FormelId) ? null : dto.FormelId.Trim();
         item.Bezeichnung     = dto.Bezeichnung;
         item.Typ             = dto.Typ;
         item.AhvAlvPflichtig = dto.AhvAlvPflichtig;
         item.NbuvPflichtig   = dto.NbuvPflichtig;
+        item.UvgPflichtig    = dto.UvgPflichtig;
+        item.UvgzPflichtig   = dto.UvgzPflichtig;
         item.KtgPflichtig    = dto.KtgPflichtig;
         item.BvgPflichtig    = dto.BvgPflichtig;
         item.QstPflichtig           = dto.QstPflichtig;
         item.QstPeriodisch          = dto.QstPeriodisch;
+        item.QstCharakter           = string.IsNullOrWhiteSpace(dto.QstCharakter) ? LohnartSteuerung.QstMonatlich : dto.QstCharakter.Trim();
+        item.BvgBetrachtung         = string.IsNullOrWhiteSpace(dto.BvgBetrachtung) ? LohnartSteuerung.BvgRueckwirkend : dto.BvgBetrachtung.Trim();
+        item.BvgFaktor              = dto.BvgFaktor <= 0 ? 1m : dto.BvgFaktor;
+        item.StatistikMonat         = string.IsNullOrWhiteSpace(dto.StatistikMonat) ? null : dto.StatistikMonat.Trim();
+        item.StatistikJahr          = string.IsNullOrWhiteSpace(dto.StatistikJahr) ? null : dto.StatistikJahr.Trim();
         item.DreijehnterMlPflichtig = dto.DreijehnterMlPflichtig;
         item.ZaehltAlsBasisFeiertag = dto.ZaehltAlsBasisFeiertag;
         item.ZaehltAlsBasisFerien   = dto.ZaehltAlsBasisFerien;
@@ -194,6 +249,31 @@ public class LohnpositionController : ControllerBase
         return Ok(item);
     }
 
+    /// <summary>
+    /// Codes, die auf einem gespeicherten Lohnzettel stehen.
+    /// Vorschau ohne Snapshot zählt nicht.
+    /// </summary>
+    async Task<HashSet<string>> VerwendeteCodesAsync()
+    {
+        var codes = await _db.Database.SqlQueryRaw<string>("""
+            SELECT DISTINCT code AS "Value" FROM (
+                SELECT elem->>'code' AS code
+                  FROM payroll_snapshot s,
+                       jsonb_array_elements(
+                           CASE WHEN jsonb_typeof(s.slip_json->'lohnLines') = 'array'
+                                THEN s.slip_json->'lohnLines' ELSE '[]'::jsonb END) elem
+                UNION
+                SELECT elem->>'code'
+                  FROM payroll_snapshot s,
+                       jsonb_array_elements(
+                           CASE WHEN jsonb_typeof(s.slip_json->'zulagenExtraLines') = 'array'
+                                THEN s.slip_json->'zulagenExtraLines' ELSE '[]'::jsonb END) elem
+            ) q
+            WHERE code IS NOT NULL AND code <> ''
+            """).ToListAsync();
+        return codes.ToHashSet(StringComparer.Ordinal);
+    }
+
     /// <summary>ELM-Viersteller aus Positions-Code (1000.2 → 1000).</summary>
     static string? SwissdecKopf(string? code, string? explizit)
     {
@@ -206,6 +286,68 @@ public class LohnpositionController : ControllerBase
         return string.IsNullOrEmpty(k) ? null : k;
     }
 
+    /// <summary>Lohnartenstamm als Excel. Keine Vorschau — der Browser fragt «Speichern unter».</summary>
+    [HttpGet("export")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> Export()
+    {
+        var items = await _db.Lohnpositionen.OrderBy(l => l.Code).ToListAsync();
+        var verwendet = await VerwendeteCodesAsync();
+        var wb = new XSSFWorkbook();
+        var sheet = wb.CreateSheet("Lohnarten");
+        var bold = wb.CreateFont();
+        bold.IsBold = true;
+        var hdr = wb.CreateCellStyle();
+        hdr.SetFont(bold);
+        hdr.FillForegroundColor = IndexedColors.Grey25Percent.Index;
+        hdr.FillPattern = FillPattern.SolidForeground;
+        var headers = new[]
+        {
+            "Nr", "Bezeichnung", "Typ", "AHV", "UVG", "NBU", "UVGZ", "KTG", "BVG",
+            "BVG-Betrachtung", "BVG-Faktor", "QST", "QST periodisch", "QST-Charakter",
+            "Lohnausweis", "Statistik Monat", "Statistik Jahr", "früher", "aktiv", "im Lohn"
+        };
+        var hr = sheet.CreateRow(0);
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var c = hr.CreateCell(i);
+            c.SetCellValue(headers[i]);
+            c.CellStyle = hdr;
+        }
+        static string Ja(bool v) => v ? "ja" : "nein";
+        for (int i = 0; i < items.Count; i++)
+        {
+            var l = items[i];
+            var row = sheet.CreateRow(i + 1);
+            var col = 0;
+            row.CreateCell(col++).SetCellValue(l.Code);
+            row.CreateCell(col++).SetCellValue(l.Bezeichnung);
+            row.CreateCell(col++).SetCellValue(l.Typ == "ABZUG" ? "Abzug" : "Zulage");
+            row.CreateCell(col++).SetCellValue(Ja(l.AhvAlvPflichtig));
+            row.CreateCell(col++).SetCellValue(Ja(l.UvgPflichtig));
+            row.CreateCell(col++).SetCellValue(Ja(l.NbuvPflichtig));
+            row.CreateCell(col++).SetCellValue(Ja(l.UvgzPflichtig));
+            row.CreateCell(col++).SetCellValue(Ja(l.KtgPflichtig));
+            row.CreateCell(col++).SetCellValue(Ja(l.BvgPflichtig));
+            row.CreateCell(col++).SetCellValue(l.BvgBetrachtung == LohnartSteuerung.BvgVoraussichtlich ? "voraussichtlich" : "rückwirkend");
+            row.CreateCell(col++).SetCellValue((double)l.BvgFaktor);
+            row.CreateCell(col++).SetCellValue(Ja(l.QstPflichtig));
+            row.CreateCell(col++).SetCellValue(Ja(l.QstPeriodisch));
+            row.CreateCell(col++).SetCellValue(l.QstCharakter == LohnartSteuerung.QstJaehrlich ? "jährlich" : "monatlich");
+            row.CreateCell(col++).SetCellValue(l.LohnausweisCode ?? "");
+            row.CreateCell(col++).SetCellValue(l.StatistikMonat ?? "");
+            row.CreateCell(col++).SetCellValue(l.StatistikJahr ?? "");
+            row.CreateCell(col++).SetCellValue(l.MirusCode ?? "");
+            row.CreateCell(col++).SetCellValue(Ja(l.IsActive));
+            row.CreateCell(col++).SetCellValue(verwendet.Contains(l.Code) ? "ja" : "nein");
+        }
+        for (int i = 0; i < headers.Length; i++) sheet.AutoSizeColumn(i);
+        using var ms = new MemoryStream();
+        wb.Write(ms);
+        var name = $"Lohnartenstamm_{DateTime.Now:yyyy-MM-dd}.xlsx";
+        return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name);
+    }
+
     // DELETE – soft-delete (nur Admin)
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "admin")]
@@ -213,6 +355,8 @@ public class LohnpositionController : ControllerBase
     {
         var item = await _db.Lohnpositionen.FindAsync(id);
         if (item is null) return NotFound();
+        if ((await VerwendeteCodesAsync()).Contains(item.Code))
+            return Conflict(new { error = LohnartSperre.Fehler, message = LohnartSperre.MeldungLoeschen(item.Code, item.Bezeichnung) });
         item.IsActive = false;
         await _db.SaveChangesAsync();
         return NoContent();

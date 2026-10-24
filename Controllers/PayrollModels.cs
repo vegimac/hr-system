@@ -22,7 +22,15 @@ public record SvBases(
     decimal Ktg,   // Krankentaggeldversicherung
     decimal Bvg,   // Pensionskasse (vor Koordinationsabzug)
     decimal Qst    // Quellensteuer-Basis
-);
+)
+{
+    /// <summary>UVG-Lohn. Leer = derselbe Wert wie NBU (ältere Aufrufe und gleicher Startbestand).</summary>
+    public decimal? Uvg { get; init; }
+    /// <summary>UVGZ-Lohn. Leer = derselbe Wert wie NBU.</summary>
+    public decimal? Uvgz { get; init; }
+    public decimal UvgBasis => Uvg ?? Nbuv;
+    public decimal UvgzBasis => Uvgz ?? Nbuv;
+}
 
 /// <summary>
 /// Alle Saldo-relevanten Werte für BuildResult gebündelt:

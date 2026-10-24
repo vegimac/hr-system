@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace HrSystem.Models;
 
 /// <summary>
@@ -22,6 +24,10 @@ public class Lohnposition
     // SV-Steuerung (Raster-Flags)
     public bool    AhvAlvPflichtig { get; set; } = true;   // AHV / IV / EO + ALV
     public bool    NbuvPflichtig   { get; set; } = true;   // Nichtberufsunfallversicherung
+    /// <summary>UVG (Berufsunfall). Startwert = NBU, damit der UVG-Lohn gleich bleibt.</summary>
+    public bool    UvgPflichtig    { get; set; } = true;
+    /// <summary>UVG-Zusatz. Startwert = NBU, der Zusatz rechnet heute auf demselben Lohn.</summary>
+    public bool    UvgzPflichtig   { get; set; } = true;
     public bool    KtgPflichtig    { get; set; } = true;   // Krankentaggeldversicherung
     public bool    BvgPflichtig    { get; set; } = true;   // Berufliche Vorsorge (BVG)
     public bool    QstPflichtig    { get; set; } = true;   // Quellensteuer-pflichtig
@@ -122,6 +128,24 @@ public class Lohnposition
     /// </summary>
     public bool QstPeriodisch { get; set; } = true;
 
+    /// <summary>
+    /// QST-Charakter: «monatlich» oder «jaehrlich». Seed folgt der Periodizität,
+    /// deshalb bleibt der Lohn gleich, bis jemand die beiden Steuerungen trennt.
+    /// </summary>
+    public string QstCharakter { get; set; } = "monatlich";
+
+    /// <summary>«rueckwirkend» = ausbezahlter Lohn. «voraussichtlich» = Monatsbetrag × Faktor.</summary>
+    public string BvgBetrachtung { get; set; } = "rueckwirkend";
+
+    /// <summary>Faktor der voraussichtlichen BVG-Betrachtung, z.B. 13 für den Monatslohn inkl. 13. ML.</summary>
+    public decimal BvgFaktor { get; set; } = 1m;
+
+    /// <summary>Statistik-Topf der Monatswerte (Bruttolohn, Zulagen, …). Leer = keine Monatsbasis.</summary>
+    public string? StatistikMonat { get; set; }
+
+    /// <summary>Statistik-Topf der Jahreswerte (Überstunden, 13. ML, …). Leer = keine Jahresbasis.</summary>
+    public string? StatistikJahr { get; set; }
+
     /// <summary>Swissdec-Lohnarten, die einmalig (aperiodisch) sind — Seed + Vorschlag in 4b.</summary>
     public static bool SwissdecEinmalig(string? code)
     {
@@ -137,4 +161,8 @@ public class Lohnposition
     public int     SortOrder       { get; set; } = 99;
     public bool    IsActive        { get; set; } = true;
     public DateTime CreatedAt      { get; set; } = DateTime.Now;
+
+    /// <summary>Steht auf einem gespeicherten Lohnzettel. Nicht in der Datenbank.</summary>
+    [NotMapped]
+    public bool InLohnVerwendet { get; set; }
 }

@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services.Personaldaten;
+using HrSystem.Services;
 using Microsoft.EntityFrameworkCore;
 using static HrSystem.Services.Elm.ElmGemeinsam;
 // ZivilstandHistorieService / WohnortHistorieService (Stichtag Monatsende)
@@ -105,7 +106,8 @@ public class ElmMonthlyDeclarationBuilder
     /// <paramref name="warn"/> = null für Vormonate, damit Hinweise nicht mehrfach erscheinen.
     /// </summary>
     public static Dictionary<ElmStatistikCodes.Topf, decimal> Toepfe(
-        JsonElement slip, IReadOnlyDictionary<string, string> lohnartByCode, List<string>? warn)
+        JsonElement slip, IReadOnlyDictionary<string, string> lohnartByCode, List<string>? warn,
+        IReadOnlyDictionary<int, ElmStatistikCodes.Topf?>? gespeichert = null)
     {
         var topf = new Dictionary<ElmStatistikCodes.Topf, decimal>();
         void Buche(ElmStatistikCodes.Topf t, decimal betrag)
@@ -126,7 +128,11 @@ public class ElmMonthlyDeclarationBuilder
                         + "(Lohnpositionen → Swissdec-Lohnart setzen).");
                 continue;
             }
-            var ziel = ElmStatistikCodes.TopfFuer(lohnart);
+            ElmStatistikCodes.Topf? ziel = null;
+            if (gespeichert != null && gespeichert.TryGetValue(lohnart, out var hinterlegt))
+                ziel = hinterlegt;
+            else
+                ziel = ElmStatistikCodes.TopfFuer(lohnart);
             if (ziel == null)
             {
                 Buche(ElmStatistikCodes.Topf.Bruttolohn, betrag);
@@ -187,12 +193,26 @@ public class ElmMonthlyDeclarationBuilder
         // Lohnposition (Walter 27.09.2026). Der Code der Lohnposition ist unser
         // eigener; massgebend ist die Lohnart des Musterlohnartenstamms.
         var positionen = await _db.Lohnpositionen.AsNoTracking()
-            .Select(l => new { l.Code, l.SwissdecLohnart, l.QstPflichtig, l.QstPeriodisch })
+            .Select(l => new { l.Code, l.SwissdecLohnart, l.QstPflichtig, l.QstPeriodisch, l.QstCharakter, l.StatistikMonat, l.StatistikJahr })
             .ToListAsync(ct);
         var lohnartByCode = positionen
             .GroupBy(x => x.Code)
             .ToDictionary(g => g.Key, g => (g.First().SwissdecLohnart ?? "").Trim());
-        var qstAperiodisch = AperiodischeQstCodes(positionen.Select(p => (p.Code, p.SwissdecLohnart, p.QstPflichtig, p.QstPeriodisch)));
+        var statistikByLohnart = new Dictionary<int, ElmStatistikCodes.Topf?>();
+        foreach (var p in positionen)
+        {
+            var topf = ElmStatistikCodes.Gespeichert(p.StatistikMonat, p.StatistikJahr);
+            if (topf == null) continue;
+            var nrText = string.IsNullOrWhiteSpace(p.SwissdecLohnart) ? p.Code : p.SwissdecLohnart;
+            if (!int.TryParse((nrText ?? "").Trim(), out var nr)) continue;
+            statistikByLohnart[nr] = topf;
+        }
+        var qstCharakter = positionen
+            .GroupBy(x => x.Code)
+            .ToDictionary(g => g.Key, g => g.First().QstCharakter ?? "");
+        var qstAperiodisch = AperiodischeQstCodes(
+            positionen.Select(p => (p.Code, p.SwissdecLohnart, p.QstPflichtig, p.QstPeriodisch)),
+            qstCharakter);
 
         var empIds = snaps.Select(s => s.EmployeeId).Distinct().ToList();
         var emps = await _db.Employees.AsNoTracking()
@@ -384,7 +404,7 @@ public class ElmMonthlyDeclarationBuilder
                     ?? employments.Where(m => m.EmployeeId == e.Id)
                            .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
 
-                var jahresToepfe = Toepfe(slip, lohnartByCode, null);
+                var jahresToepfe = Toepfe(slip, lohnartByCode, null, statistikByLohnart);
                 foreach (var vor in vorSnaps.Where(v => v.EmployeeId == e.Id))
                 {
                     var vp = vorPeriodeById[vor.PayrollPeriodeId];
@@ -393,7 +413,7 @@ public class ElmMonthlyDeclarationBuilder
                     JsonElement vorSlip;
                     try { vorSlip = JsonDocument.Parse(vor.SlipJson).RootElement; }
                     catch (JsonException) { continue; }
-                    foreach (var (t, b) in Toepfe(vorSlip, lohnartByCode, null))
+                    foreach (var (t, b) in Toepfe(vorSlip, lohnartByCode, null, statistikByLohnart))
                         jahresToepfe[t] = (jahresToepfe.TryGetValue(t, out var v0) ? v0 : 0m) + b;
                 }
 
@@ -401,7 +421,7 @@ public class ElmMonthlyDeclarationBuilder
                 if (imMonatAngestellt)
                 {
                     statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, lohnartByCode, lse, stellungMapping,
-                                                           monatStr, periodeVon, periodeBis, jahresToepfe, warn));
+                                                           monatStr, periodeVon, periodeBis, jahresToepfe, warn, statistikByLohnart));
                     statZeilen++;
                     gemeldeteFilialen.Add(filialId);
                 }
@@ -693,9 +713,10 @@ public class ElmMonthlyDeclarationBuilder
         Dictionary<string, string> lohnartByCode, EmployeeLse? lse,
         List<LseCodeMapping> stellungMapping, string monatStr,
         DateTime periodeVon, DateTime periodeBis,
-        Dictionary<ElmStatistikCodes.Topf, decimal> jahresToepfe, List<string> warn)
+        Dictionary<ElmStatistikCodes.Topf, decimal> jahresToepfe, List<string> warn,
+        IReadOnlyDictionary<int, ElmStatistikCodes.Topf?> statistikByLohnart)
     {
-        var topf = Toepfe(slip, lohnartByCode, warn);
+        var topf = Toepfe(slip, lohnartByCode, warn, statistikByLohnart);
         decimal Wert(ElmStatistikCodes.Topf t) => topf.TryGetValue(t, out var v) ? v : 0m;
         decimal Jahr(ElmStatistikCodes.Topf t) => jahresToepfe.TryGetValue(t, out var v) ? v : 0m;
 
@@ -1073,12 +1094,18 @@ public class ElmMonthlyDeclarationBuilder
     /// Kap. 10.6.1). Beleg Quality Tool Jan 2025 TF30 Müller MEY: 1960 5'500 ohne SporadicBenefits.
     /// </summary>
     public static HashSet<string> AperiodischeQstCodes(
-        IEnumerable<(string Code, string? SwissdecLohnart, bool QstPflichtig, bool QstPeriodisch)> positionen)
+        IEnumerable<(string Code, string? SwissdecLohnart, bool QstPflichtig, bool QstPeriodisch)> positionen,
+        IReadOnlyDictionary<string, string>? charakterByCode = null)
     {
         var set = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in positionen)
         {
-            if (!p.QstPflichtig || p.QstPeriodisch) continue;
+            var periodisch = p.QstPeriodisch;
+            if (charakterByCode != null && charakterByCode.TryGetValue(p.Code, out var charakter)
+                && !string.IsNullOrWhiteSpace(charakter))
+                periodisch = LohnartSteuerung.ImPeriodischenQstTopf(
+                    new Lohnposition { QstPeriodisch = p.QstPeriodisch, QstCharakter = charakter });
+            if (!p.QstPflichtig || periodisch) continue;
             var la = int.TryParse((p.SwissdecLohnart ?? "").Trim(), out var n) ? n
                    : int.TryParse(p.Code, out var n2) ? n2 : 0;
             if (ElmStatistikCodes.TopfFuer(la) == ElmStatistikCodes.Topf.Dreizehnter) continue;

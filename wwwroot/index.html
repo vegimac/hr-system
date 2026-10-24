@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261024c">
+    <link rel="stylesheet" href="css/app.css?v=20261024e">
 </head>
 <body>
 
@@ -6866,6 +6866,7 @@
                     </label>
                     <span id="lpFilterHinweis" style="font-size:12.5px;color:#8b8b8b;align-self:center"></span>
                     <div style="order:99;margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <button type="button" class="lp-btn-glas" onclick="lpExport()" style="padding:8px 14px">Excel</button>
                         <button class="btn-primary" onclick="lpOpenForm(null)" style="padding:8px 14px">+ Neue Position</button>
                     </div>
                 </div>
@@ -6873,14 +6874,16 @@
                     <table class="fh-table fh-table-head" aria-hidden="true">
                         <colgroup>
                             <col class="lp-c-code"><col class="lp-c-name">
-                            <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-qst">
+                            <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-qst">
                             <col class="lp-c-fei"><col class="lp-c-fer"><col class="lp-c-ml">
                             <col class="lp-c-la"><col class="lp-c-mirus"><col class="lp-c-typ"><col class="lp-c-act">
                         </colgroup>
                         <thead><tr>
                             <th title="Swissdec-Lohnartennummer">Nr.</th><th>Bezeichnung</th>
                             <th class="fh-th-center" title="AHV/ALV">AHV</th>
+                            <th class="fh-th-center" title="UVG Berufsunfall">UVG</th>
                             <th class="fh-th-center" title="NBUV">NBU</th>
+                            <th class="fh-th-center" title="UVG-Zusatz">UVGZ</th>
                             <th class="fh-th-center" title="KTG">KTG</th>
                             <th class="fh-th-center" title="BVG">BVG</th>
                             <th class="fh-th-center" title="Quellensteuer">QST</th>
@@ -6903,12 +6906,12 @@
                             <table class="fh-table fh-table-body">
                                 <colgroup>
                                     <col class="lp-c-code"><col class="lp-c-name">
-                                    <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-qst">
+                                    <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-qst">
                                     <col class="lp-c-fei"><col class="lp-c-fer"><col class="lp-c-ml">
                                     <col class="lp-c-la"><col class="lp-c-mirus"><col class="lp-c-typ"><col class="lp-c-act">
                                 </colgroup>
                                 <tbody id="lpTableBody">
-                                    <tr><td colspan="15" style="padding:32px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>
+                                    <tr><td colspan="17" style="padding:32px;text-align:center;color:#94a3b8">Wird geladen…</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -6923,6 +6926,7 @@
                             <h2 id="lpDrawerTitle">Neue Lohnposition</h2>
                             <button type="button" class="lp-mask-x" onclick="lpCloseForm()" aria-label="Schliessen">&times;</button>
                         </div>
+                        <p id="lpSperrHinweis" class="lp-sperr" style="display:none"></p>
                         <form id="lpForm" onsubmit="lpSave(event)">
                             <input type="hidden" id="lpId">
                             <input type="hidden" id="lpSwissdec" value="">
@@ -6967,12 +6971,14 @@
                                     <div class="lp-sec-hd">Versicherung</div>
                                     <div class="lp-pills">
                                         <label class="lp-pill"><input type="checkbox" id="lpAhv"><span>AHV / ALV / IV / EO</span></label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpUvg"><span>UVG</span></label>
                                         <label class="lp-pill"><input type="checkbox" id="lpNbuv"><span>NBUV</span></label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpUvgz"><span>UVGZ</span></label>
                                         <label class="lp-pill"><input type="checkbox" id="lpKtg"><span>KTG</span></label>
                                         <label class="lp-pill"><input type="checkbox" id="lpBvg"><span>BVG</span></label>
                                         <label class="lp-pill"><input type="checkbox" id="lpQst"><span>Quellensteuer</span></label>
                                         <label class="lp-pill" title="Gesetzt = monatlich: im Kurzmonat hochrechnen, CH-Tage des Monats. Nicht gesetzt (Bonus, Gratifikation, Abgang, Beteiligung): satzbestimmend 1:1, CH-Tage seit Jahresbeginn.">
-                                            <input type="checkbox" id="lpQstPeriodisch" onchange="this.dataset.manuell='1'">
+                                            <input type="checkbox" id="lpQstPeriodisch" onchange="lpQstPaar('periodisch')">
                                             <span>QST im Monat</span>
                                         </label>
                                     </div>
@@ -6980,7 +6986,7 @@
                                 <section class="lp-sec">
                                     <div class="lp-sec-hd">
                                         <span>Lohnbasen</span>
-                                        <button type="button" class="lp-btn-glas lp-btn-klein" onclick="lpApplyBasisSuggestion(true)">Vorschlag</button>
+                                        <button type="button" class="lp-btn-glas lp-btn-klein" id="lpBasisVorschlag" onclick="lpApplyBasisSuggestion(true)">Vorschlag</button>
                                     </div>
                                     <div class="lp-pills">
                                         <label class="lp-pill" title="Betrag wird automatisch aufgeteilt: 12/13 Basis + 1/13 Rückstellung (8.33 %). Beide Zeilen erscheinen auf dem Lohnzettel.">
@@ -6993,6 +6999,54 @@
                                     </div>
                                 </section>
                             </div>
+
+                            <div class="lp-felder lp-felder-steuer">
+                                <div>
+                                    <label class="lp-lbl" for="lpQstCharakter">QST-Charakter</label>
+                                    <select id="lpQstCharakter" onchange="lpQstPaar('charakter')">
+                                        <option value="monatlich">monatlich</option>
+                                        <option value="jaehrlich">jährlich</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="lp-lbl" for="lpBvgBetrachtung">BVG-Betrachtung</label>
+                                    <select id="lpBvgBetrachtung">
+                                        <option value="rueckwirkend">rückwirkend</option>
+                                        <option value="voraussichtlich">voraussichtlich</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="lp-lbl" for="lpBvgFaktor">BVG-Faktor</label>
+                                    <input id="lpBvgFaktor" type="number" min="0.01" max="99" step="0.01" value="1"
+                                        title="Voraussichtlich: Monatsbetrag mal Faktor. Der Monatsabzug bleibt der BVG-pflichtige Lohn dieses Monats.">
+                                </div>
+                                <div>
+                                    <label class="lp-lbl" for="lpStatistikMonat">Statistik Monat</label>
+                                    <select id="lpStatistikMonat">
+                                        <option value="">keine</option>
+                                        <option value="Bruttolohn">Bruttolohn</option>
+                                        <option value="Zulagen">Zulagen</option>
+                                        <option value="Familienzulagen">Familienzulagen</option>
+                                        <option value="Drittleistungen">Drittleistungen</option>
+                                        <option value="Kurzarbeit">Kurzarbeit</option>
+                                        <option value="Keiner">nicht melden</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="lp-lbl" for="lpStatistikJahr">Statistik Jahr</label>
+                                    <select id="lpStatistikJahr">
+                                        <option value="">keine</option>
+                                        <option value="Ueberstunden">Überstunden</option>
+                                        <option value="Dreizehnter">13. Monatslohn</option>
+                                        <option value="Unregelmaessig">unregelmässig</option>
+                                        <option value="Naturalleistungen">Naturalleistungen</option>
+                                        <option value="Kapitalleistung">Kapitalleistung</option>
+                                        <option value="Uebrige">übrige</option>
+                                        <option value="Keiner">nicht melden</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <p class="lp-hinweis">Rückwirkend nimmt den ausbezahlten BVG-Lohn. Voraussichtlich rechnet Monatsbetrag × Faktor für den mutmasslichen Jahreslohn. Der Abzug im Monat bleibt der BVG-pflichtige Lohn dieses Monats.</p>
 
                             <div class="lp-mask-ft">
                                 <label class="lp-pill lp-pill-aktiv"><input type="checkbox" id="lpIsActive" checked><span>Aktiv</span></label>
@@ -10849,7 +10903,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261024c"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261024e"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>

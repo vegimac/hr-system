@@ -347,7 +347,9 @@ public static class PayrollCalculations
                 _ => d.CategoryCode switch   // "gross"
                 {
                     "AHV" or "ALV" or "ALVZ" => svBases.Ahv,
-                    "NBUV" or "BUV" or "UVGZ" => svBases.Nbuv,   // UVG-Zusatz rechnet auf dem UVG-Lohn
+                    "NBUV" => svBases.Nbuv,
+                    "BUV"  => svBases.UvgBasis,
+                    "UVGZ" => svBases.UvgzBasis,
                     "KTG"          => svBases.Ktg,
                     "BVG"          => svBases.Bvg,
                     // Walter-Vorgabe 28.05.2026: QST muss die QST-Basis (inkl.

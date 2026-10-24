@@ -171,6 +171,33 @@ public static class ElmStatistikCodes
         _ => null,
     };
 
+    public static bool IstMonat(Topf t)
+        => t is Topf.Bruttolohn or Topf.Zulagen or Topf.Familienzulagen or Topf.Drittleistungen or Topf.Kurzarbeit;
+
+    public static bool IstJahr(Topf t)
+        => t is Topf.Ueberstunden or Topf.Dreizehnter or Topf.Unregelmaessig
+            or Topf.Naturalleistungen or Topf.Kapitalleistung or Topf.Uebrige;
+
+    public static Topf? AusText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        return Enum.TryParse<Topf>(text.Trim(), ignoreCase: true, out var t) ? t : null;
+    }
+
+    /// <summary>
+    /// An der Lohnart gespeicherter Topf. null = die Nummer entscheidet
+    /// (<see cref="TopfFuer"/>). «Keiner» heisst ausdrücklich nicht melden.
+    /// </summary>
+    public static Topf? Gespeichert(string? monat, string? jahr)
+    {
+        var m = AusText(monat);
+        var j = AusText(jahr);
+        if (m == Topf.Keiner || j == Topf.Keiner) return Topf.Keiner;
+        if (m is Topf monatlich && IstMonat(monatlich)) return monatlich;
+        if (j is Topf jaehrlich && IstJahr(jaehrlich)) return jaehrlich;
+        return m ?? j;
+    }
+
     /// <summary>
     /// Ferienanspruch in Tagen pro Jahr für die Statistik.
     /// <para>

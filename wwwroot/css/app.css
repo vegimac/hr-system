@@ -7553,7 +7553,7 @@
         #page-sv-saetze .sv-c-act { width: 3.5%; }
 
         #page-lohnpositionen .lp-c-code { width: 6%; }
-        #page-lohnpositionen .lp-c-name { width: 37%; }
+        #page-lohnpositionen .lp-c-name { width: 30%; }
         #page-lohnpositionen .lp-c-flag { width: 3.2%; }
         #page-lohnpositionen .lp-c-qst { width: 6.5%; }
         #page-lohnpositionen .lp-c-fei,
@@ -13654,6 +13654,8 @@ body.theme-dark .fzm-ma, body.theme-dark .fzm-ok { color: #e7e5e4; }
 }
 .lp-felder-oben { grid-template-columns: 140px 170px minmax(0, 1fr); }
 .lp-felder-unten { grid-template-columns: minmax(0, 1fr) 160px 110px; margin-top: 8px; }
+.lp-felder-steuer { grid-template-columns: 1.1fr 1.2fr 90px 1.1fr 1.1fr; margin-top: 12px; }
+.lp-hinweis { margin: 8px 0 0; font-size: 12px; line-height: 1.35; color: #8b8b8b; }
 .lp-lbl {
     display: block;
     margin-bottom: 4px;
@@ -13739,6 +13741,36 @@ body.theme-dark .fzm-ma, body.theme-dark .fzm-ok { color: #e7e5e4; }
     margin-top: 14px;
 }
 .lp-pill-aktiv { flex: 0 0 auto; }
+.lp-sperr {
+    margin: 0 22px 4px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.45);
+    color: #646464;
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+.lp-im-lohn {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 7px;
+    border-radius: 9px;
+    background: rgba(60,55,48,0.08);
+    color: #646464;
+    font-size: 11px;
+    font-weight: 600;
+    vertical-align: 1px;
+}
+#lpForm[data-gesperrt="1"] .lp-pills,
+#lpForm[data-gesperrt="1"] .lp-felder-steuer,
+#lpForm[data-gesperrt="1"] #lpCode,
+#lpForm[data-gesperrt="1"] .lp-felder-oben > div:nth-child(2),
+#lpForm[data-gesperrt="1"] #lpLaCode,
+#lpForm[data-gesperrt="1"] .lp-pill-aktiv,
+#lpForm[data-gesperrt="1"] #lpBasisVorschlag {
+    opacity: 0.55;
+    pointer-events: none;
+}
 .lp-form-err {
     flex: 1;
     padding: 7px 12px;

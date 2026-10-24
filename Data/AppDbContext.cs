@@ -3343,6 +3343,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Typ).HasColumnName("typ").HasMaxLength(10).HasDefaultValue("ZULAGE");
             entity.Property(e => e.AhvAlvPflichtig).HasColumnName("ahv_alv_pflichtig").HasDefaultValue(true);
             entity.Property(e => e.NbuvPflichtig).HasColumnName("nbuv_pflichtig").HasDefaultValue(true);
+            entity.Property(e => e.UvgPflichtig).HasColumnName("uvg_pflichtig").HasDefaultValue(true);
+            entity.Property(e => e.UvgzPflichtig).HasColumnName("uvgz_pflichtig").HasDefaultValue(true);
             entity.Property(e => e.KtgPflichtig).HasColumnName("ktg_pflichtig").HasDefaultValue(true);
             entity.Property(e => e.BvgPflichtig).HasColumnName("bvg_pflichtig").HasDefaultValue(true);
             entity.Property(e => e.QstPflichtig).HasColumnName("qst_pflichtig").HasDefaultValue(true);
@@ -3362,6 +3364,11 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Position13ml).HasColumnName("position_13ml").HasDefaultValue(0);
             entity.Property(e => e.ZaehltFuerTagessatz).HasColumnName("zaehlt_fuer_tagessatz").HasDefaultValue(true);
             entity.Property(e => e.QstPeriodisch).HasColumnName("qst_periodisch").HasDefaultValue(true);
+            entity.Property(e => e.QstCharakter).HasColumnName("qst_charakter").HasMaxLength(20).HasDefaultValue("monatlich");
+            entity.Property(e => e.BvgBetrachtung).HasColumnName("bvg_betrachtung").HasMaxLength(20).HasDefaultValue("rueckwirkend");
+            entity.Property(e => e.BvgFaktor).HasColumnName("bvg_faktor").HasColumnType("numeric(6,2)").HasDefaultValue(1m);
+            entity.Property(e => e.StatistikMonat).HasColumnName("statistik_monat").HasMaxLength(40);
+            entity.Property(e => e.StatistikJahr).HasColumnName("statistik_jahr").HasMaxLength(40);
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");

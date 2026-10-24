@@ -1731,14 +1731,14 @@ public class PayrollCalculationEngine
         // Fallback `fallbackBvg`/`fallbackQst` wird verwendet, wenn die
         // Lohnposition (noch) nicht angelegt ist — so bleibt das Verhalten
         // identisch zum bisherigen hardcoded Default.
-        (bool ahv, bool nbuv, bool ktg, bool bvg, bool qst) LpFlagsOr(string code,
+        (bool ahv, bool nbuv, bool ktg, bool bvg, bool qst, bool uvg, bool uvgz) LpFlagsOr(string code,
             bool fallbackAhv = false, bool fallbackNbuv = false, bool fallbackKtg = false,
             bool fallbackBvg = false, bool fallbackQst = false)
         {
             if (lohnposByCode.TryGetValue(code, out var lp) && lp != null)
                 return (lp.AhvAlvPflichtig, lp.NbuvPflichtig, lp.KtgPflichtig,
-                        lp.BvgPflichtig, lp.QstPflichtig);
-            return (fallbackAhv, fallbackNbuv, fallbackKtg, fallbackBvg, fallbackQst);
+                        lp.BvgPflichtig, lp.QstPflichtig, lp.UvgPflichtig, lp.UvgzPflichtig);
+            return (fallbackAhv, fallbackNbuv, fallbackKtg, fallbackBvg, fallbackQst, fallbackNbuv, fallbackNbuv);
         }
         // Lohnposition-Bezeichnung aus dem Katalog holen (mit Fallback).
         // Damit erscheint auf dem Lohnzettel der Name den der Admin in der
@@ -1755,6 +1755,7 @@ public class PayrollCalculationEngine
         decimal zulagenSvTotal = 0;
         // Per-SV-Typ Zulage-Deltas (für separate SV-Basen)
         decimal deltaAhv = 0, deltaNbuv = 0, deltaKtg = 0, deltaBvg = 0, deltaQst = 0;
+        decimal deltaUvg = 0, deltaUvgz = 0;
         // QST-pflichtige PERIODISCHE Zulagen (Kinder-/Ausbildungs-/Haushaltszulage):
         // werden im Kurzmonat satzbestimmend wie der Monatslohn auf 30 Tage
         // hochgerechnet (Swissdec: «hochgerechnet werden die abgerechneten
@@ -1790,7 +1791,7 @@ public class PayrollCalculationEngine
         {
             var f = LpFlagsOr(code, true, true, true, true, true);
             if (f.ahv)  deltaAhv  += betrag;
-            if (f.nbuv) deltaNbuv += betrag;
+            LohnartSteuerung.UnfallDazu(f.nbuv, f.uvg, f.uvgz, betrag, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
             if (f.ktg)  deltaKtg  += betrag;
             if (f.bvg)  deltaBvg  += betrag;
             if (f.qst)  deltaQst  += betrag;
@@ -1802,7 +1803,11 @@ public class PayrollCalculationEngine
             mainLohn + deltaNbuv + dreizehnter - NichtPflichtig(lp => lp.NbuvPflichtig,   dreizehnter),
             mainLohn + deltaKtg  + dreizehnter - NichtPflichtig(lp => lp.KtgPflichtig,    dreizehnter),
             mainLohn + deltaBvg  + dreizehnter - NichtPflichtig(lp => lp.BvgPflichtig,    dreizehnter),
-            mainLohn + deltaQst  + dreizehnter - NichtPflichtig(lp => lp.QstPflichtig,    dreizehnter));
+            mainLohn + deltaQst  + dreizehnter - NichtPflichtig(lp => lp.QstPflichtig,    dreizehnter))
+        {
+            Uvg = mainLohn + deltaUvg + dreizehnter - NichtPflichtig(lp => lp.UvgPflichtig, dreizehnter),
+            Uvgz = mainLohn + deltaUvgz + dreizehnter - NichtPflichtig(lp => lp.UvgzPflichtig, dreizehnter),
+        };
 
         // ── Lohnersatz (Karenz 88 % / Taggeld 80 %) als eigene Spur ────────
         // Nicht in codeAmounts: Ihre Häkchen Feiertag/Ferien/13. ML wirken nur,
@@ -1865,8 +1870,8 @@ public class PayrollCalculationEngine
                 b = PayrollCalculations.Rappen(z.Betrag);
             }
 
-            bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
-                        || lp.BvgPflichtig    || lp.QstPflichtig;
+            bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.UvgPflichtig || lp.UvgzPflichtig
+                        || lp.KtgPflichtig || lp.BvgPflichtig || lp.QstPflichtig;
             if (!anyFlag) continue; // → geht in zulagenExtraLines
 
             if (istUeberstundenAusz)
@@ -1911,7 +1916,7 @@ public class PayrollCalculationEngine
             }
 
             if (lp.AhvAlvPflichtig) deltaAhv  += b;
-            if (lp.NbuvPflichtig)   deltaNbuv += b;
+            LohnartSteuerung.UnfallDazu(lp.NbuvPflichtig, lp.UvgPflichtig, lp.UvgzPflichtig, b, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
             if (lp.KtgPflichtig)    deltaKtg  += b;
             if (lp.BvgPflichtig)    deltaBvg  += b;
             if (lp.QstPflichtig)    deltaQst  += b;
@@ -2041,7 +2046,7 @@ public class PayrollCalculationEngine
                         // Flag-getrieben — Fallback «alles pflichtig», falls die
                         // Lohnposition (noch) nicht im Katalog ist.
                         if (lpEo?.AhvAlvPflichtig ?? true) deltaAhv  += betrag;
-                        if (lpEo?.NbuvPflichtig   ?? true) deltaNbuv += betrag;
+                        LohnartSteuerung.UnfallDazu(lpEo?.NbuvPflichtig ?? true, lpEo?.UvgPflichtig ?? true, lpEo?.UvgzPflichtig ?? true, betrag, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                         if (lpEo?.KtgPflichtig    ?? true) deltaKtg  += betrag;
                         if (lpEo?.BvgPflichtig    ?? true) deltaBvg  += betrag;
                         if (lpEo?.QstPflichtig    ?? true) deltaQst  += betrag;
@@ -2139,7 +2144,7 @@ public class PayrollCalculationEngine
                             zulagenSvTotal += betrag;
                             if (lpM?.AhvAlvPflichtig ?? true)  deltaAhv  += betrag;
                             // Militär-/EO-Taggelder sind UVG-FREI — Fallback bewusst nein.
-                            if (lpM?.NbuvPflichtig   ?? false) deltaNbuv += betrag;
+                            LohnartSteuerung.UnfallDazu(lpM?.NbuvPflichtig ?? false, lpM?.UvgPflichtig ?? false, lpM?.UvgzPflichtig ?? false, betrag, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                             if (lpM?.KtgPflichtig    ?? true)  deltaKtg  += betrag;
                             if (lpM?.BvgPflichtig    ?? true)  deltaBvg  += betrag;
                             if (lpM?.QstPflichtig    ?? true)  deltaQst  += betrag;
@@ -3240,7 +3245,7 @@ public class PayrollCalculationEngine
                 totalLohn += krank80Mtp;
                 var f = LpFlagsOr(LohnCodes.KrankTaggeld, fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += krank80Mtp;
-                if (f.nbuv) deltaNbuv += krank80Mtp;
+                LohnartSteuerung.UnfallDazu(f.nbuv, f.uvg, f.uvgz, krank80Mtp, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                 if (f.ktg)  deltaKtg  += krank80Mtp;
                 if (f.bvg)  deltaBvg  += krank80Mtp;
                 if (f.qst)  deltaQst  += krank80Mtp;
@@ -3261,7 +3266,7 @@ public class PayrollCalculationEngine
                 totalLohn += unfall80Mtp;
                 var f = LpFlagsOr(LohnCodes.UnfallTaggeld, fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += unfall80Mtp;
-                if (f.nbuv) deltaNbuv += unfall80Mtp;
+                LohnartSteuerung.UnfallDazu(f.nbuv, f.uvg, f.uvgz, unfall80Mtp, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                 if (f.ktg)  deltaKtg  += unfall80Mtp;
                 if (f.bvg)  deltaBvg  += unfall80Mtp;
                 if (f.qst)  deltaQst  += unfall80Mtp;
@@ -3885,7 +3890,7 @@ public class PayrollCalculationEngine
                 totalLohn += krank80Utp;
                 var f = LpFlagsOr(LohnCodes.KrankTaggeld, fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += krank80Utp;
-                if (f.nbuv) deltaNbuv += krank80Utp;
+                LohnartSteuerung.UnfallDazu(f.nbuv, f.uvg, f.uvgz, krank80Utp, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                 if (f.ktg)  deltaKtg  += krank80Utp;
                 if (f.bvg)  deltaBvg  += krank80Utp;
                 if (f.qst)  deltaQst  += krank80Utp;
@@ -3919,7 +3924,7 @@ public class PayrollCalculationEngine
                 totalLohn += unfall80Utp;
                 var f = LpFlagsOr(LohnCodes.UnfallTaggeld, fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += unfall80Utp;
-                if (f.nbuv) deltaNbuv += unfall80Utp;
+                LohnartSteuerung.UnfallDazu(f.nbuv, f.uvg, f.uvgz, unfall80Utp, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                 if (f.ktg)  deltaKtg  += unfall80Utp;
                 if (f.bvg)  deltaBvg  += unfall80Utp;
                 if (f.qst)  deltaQst  += unfall80Utp;
@@ -4606,7 +4611,7 @@ public class PayrollCalculationEngine
                 totalLohn += krank80Fix;
                 var f = LpFlagsOr(LohnCodes.KrankTaggeld, fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += krank80Fix;
-                if (f.nbuv) deltaNbuv += krank80Fix;
+                LohnartSteuerung.UnfallDazu(f.nbuv, f.uvg, f.uvgz, krank80Fix, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                 if (f.ktg)  deltaKtg  += krank80Fix;
                 if (f.bvg)  deltaBvg  += krank80Fix;
                 if (f.qst)  deltaQst  += krank80Fix;
@@ -4627,7 +4632,7 @@ public class PayrollCalculationEngine
                 totalLohn += unfall80Fix;
                 var f = LpFlagsOr(LohnCodes.UnfallTaggeld, fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += unfall80Fix;
-                if (f.nbuv) deltaNbuv += unfall80Fix;
+                LohnartSteuerung.UnfallDazu(f.nbuv, f.uvg, f.uvgz, unfall80Fix, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                 if (f.ktg)  deltaKtg  += unfall80Fix;
                 if (f.bvg)  deltaBvg  += unfall80Fix;
                 if (f.qst)  deltaQst  += unfall80Fix;
@@ -5418,6 +5423,7 @@ public class PayrollCalculationEngine
             var zulagenSvLines = new List<object>();
             decimal zulagenSvTotal = 0;
             decimal deltaAhv = 0, deltaNbuv = 0, deltaKtg = 0, deltaBvg = 0, deltaQst = 0;
+            decimal deltaUvg = 0, deltaUvgz = 0;
             decimal deltaQstEinmalig = 0;   // aperiodischer Anteil (Jahresmodell: ÷ 12 statt annualisiert)
             var zulagenExtraLines = new List<object>();
             decimal zulagenExtraTotal = 0;
@@ -5433,8 +5439,8 @@ public class PayrollCalculationEngine
             {
                 decimal b = PayrollCalculations.Rappen(z.Betrag);
                 var lp = z.Lohnposition!;
-                bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
-                            || lp.BvgPflichtig || lp.QstPflichtig;
+                bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.UvgPflichtig || lp.UvgzPflichtig
+                            || lp.KtgPflichtig || lp.BvgPflichtig || lp.QstPflichtig;
                 string bez = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : "");
                 if (lp.ZaehltAlsBasisFeiertag && !IstLohnersatzCode(lp.Code)) feiertagBasisExact += b;
                 if (lp.ZaehltAlsBasisFerien)   ferienBasisKorrExact += b;
@@ -5449,7 +5455,7 @@ public class PayrollCalculationEngine
                     });
                     zulagenSvTotal += b;
                     if (lp.AhvAlvPflichtig) deltaAhv  += b;
-                    if (lp.NbuvPflichtig)   deltaNbuv += b;
+                    LohnartSteuerung.UnfallDazu(lp.NbuvPflichtig, lp.UvgPflichtig, lp.UvgzPflichtig, b, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                     if (lp.KtgPflichtig)    deltaKtg  += b;
                     if (lp.BvgPflichtig)    deltaBvg  += b;
                     if (lp.QstPflichtig)    deltaQst  += b;
@@ -5535,7 +5541,9 @@ public class PayrollCalculationEngine
                 totalLohn += betrag;
                 var lpK = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == code && l.IsActive);
                 if (lpK?.AhvAlvPflichtig ?? true) deltaAhv  += betrag;
-                if (lpK?.NbuvPflichtig   ?? true) deltaNbuv += betrag;
+                if (lpK?.NbuvPflichtig ?? true) deltaNbuv += betrag;
+                if (lpK?.UvgPflichtig ?? true) deltaUvg += betrag;
+                if (lpK?.UvgzPflichtig ?? true) deltaUvgz += betrag;
                 if (lpK?.KtgPflichtig    ?? true) deltaKtg  += betrag;
                 if (lpK?.BvgPflichtig    ?? true) deltaBvg  += betrag;
                 if (lpK?.QstPflichtig    ?? true)
@@ -5726,7 +5734,11 @@ public class PayrollCalculationEngine
                     if (!eigen.SequenceEqual(ytdAustrittsjahr)) r.YtdBasenEigen = eigen;
                 }
 
-            var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst);
+            var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst)
+            {
+                Uvg = deltaUvg,
+                Uvgz = deltaUvgz,
+            };
 
             // ── Quellensteuer auf dem Korrekturlohn (Claude 21.09.2026, Swissdec TF41) ──
             // Eine Nachzahlung nach Austritt (Dienstaltersgeschenk, Bonus) ist QST-pflichtig
@@ -5971,7 +5983,7 @@ public class PayrollCalculationEngine
     /// Verhältnis des Monats) — Flag <see cref="Lohnposition.QstPeriodisch"/> statt fester
     /// Code-Liste (bis 21.09.2026 nur 3000/3010/3030 bzw. 190.1/190.2).
     /// </summary>
-    private static bool IstPeriodischeZulage(Lohnposition lp) => lp.QstPeriodisch;   // Flag an der Lohnart (Walter 21.09.2026)
+    private static bool IstPeriodischeZulage(Lohnposition lp) => LohnartSteuerung.ImPeriodischenQstTopf(lp);
 
     /// <summary>
     /// Anteiliger Monatslohn im Teilmonat nach Filial-Methode (Walter 09.09.2026).

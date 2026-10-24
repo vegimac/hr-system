@@ -1488,7 +1488,7 @@ function lpRender() {
     }
 
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="15" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="17" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
         return;
     }
 
@@ -1501,9 +1501,11 @@ function lpRender() {
         const nrTitle = lpIstSwissdecNr(l.code) ? 'Swissdec' : (lpIstVortrag(l) ? 'Saldo-Vortrag (intern)' : 'Betrieb (intern, kein Swissdec)');
         return `<tr class="lp-row" style="${bg}border-bottom:1px solid rgba(60,55,48,0.08)">
             <td style="padding:10px 14px;font-weight:700;font-family:ui-monospace,Menlo,monospace;color:#3f3f3f;font-size:13px" title="${nrTitle}">${l.code}</td>
-            <td style="padding:10px 14px">${l.bezeichnung}</td>
+            <td style="padding:10px 14px">${l.bezeichnung}${l.inLohnVerwendet ? ' <span class="lp-im-lohn" title="In einem Lohnlauf verwendet. Steuerung und Löschen sind gesperrt.">im Lohn</span>' : ''}</td>
             <td class="lp-td-tight">${chk(l.ahvAlvPflichtig)}</td>
+            <td class="lp-td-tight">${chk(l.uvgPflichtig)}</td>
             <td class="lp-td-tight">${chk(l.nbuvPflichtig)}</td>
+            <td class="lp-td-tight">${chk(l.uvgzPflichtig)}</td>
             <td class="lp-td-tight">${chk(l.ktgPflichtig)}</td>
             <td class="lp-td-tight">${chk(l.bvgPflichtig)}</td>
             <td class="lp-td-tight">${chk(l.qstPflichtig)}</td>
@@ -1609,13 +1611,28 @@ function lpOpenForm(id) {
     document.getElementById('lpSortOrder').value      = d?.sortOrder ?? 99;
     document.getElementById('lpIsActive').checked     = d?.isActive ?? true;
     document.getElementById('lpAhv').checked          = d?.ahvAlvPflichtig ?? true;
+    document.getElementById('lpUvg').checked          = d?.uvgPflichtig ?? d?.nbuvPflichtig ?? true;
     document.getElementById('lpNbuv').checked         = d?.nbuvPflichtig ?? true;
+    document.getElementById('lpUvgz').checked         = d?.uvgzPflichtig ?? d?.nbuvPflichtig ?? true;
     document.getElementById('lpKtg').checked          = d?.ktgPflichtig ?? true;
     document.getElementById('lpBvg').checked          = d?.bvgPflichtig ?? true;
     document.getElementById('lpQst').checked          = d?.qstPflichtig ?? true;
     document.getElementById('lpQstPeriodisch').checked = d?.qstPeriodisch ?? true;
+    const qstChar = document.getElementById('lpQstCharakter');
+    if (qstChar) qstChar.value = d?.qstCharakter || ((d?.qstPeriodisch ?? true) ? 'monatlich' : 'jaehrlich');
+    const bvgB = document.getElementById('lpBvgBetrachtung');
+    if (bvgB) bvgB.value = d?.bvgBetrachtung || 'rueckwirkend';
+    const bvgF = document.getElementById('lpBvgFaktor');
+    if (bvgF) bvgF.value = d?.bvgFaktor ?? 1;
+    const stM = document.getElementById('lpStatistikMonat');
+    if (stM) stM.value = d?.statistikMonat || '';
+    const stJ = document.getElementById('lpStatistikJahr');
+    if (stJ) stJ.value = d?.statistikJahr || '';
     // Neue Position: «QST Monat» aus der Swissdec-Nummer ableiten.
     // Default «ja» wäre bei einer einmaligen Lohnart im Kurzmonat falsch hochgerechnet.
+    const qstCb = document.getElementById('lpQstPeriodisch');
+    if (qstCb) delete qstCb.dataset.manuell;
+    if (qstChar) delete qstChar.dataset.manuell;
     if (!d) lpQstPeriodischVorschlag();
     document.getElementById('lpDreijehnter').checked  = d?.dreijehnterMlPflichtig ?? false;
 
@@ -1633,7 +1650,22 @@ function lpOpenForm(id) {
     }
 
     document.getElementById('lpFormErr').style.display = 'none';
+    lpSperreAnwenden(!!d?.inLohnVerwendet);
     document.getElementById('lpDrawer').style.display  = 'flex';
+}
+
+function lpSperreAnwenden(gesperrt) {
+    const form = document.getElementById('lpForm');
+    if (form) form.dataset.gesperrt = gesperrt ? '1' : '';
+    const hinweis = document.getElementById('lpSperrHinweis');
+    if (hinweis) {
+        hinweis.style.display = gesperrt ? '' : 'none';
+        hinweis.textContent = gesperrt
+            ? 'Diese Lohnart wurde bereits in einem Lohnlauf verwendet. Versicherung, Quellensteuer, BVG-Betrachtung, Statistik, Lohnausweis und Lohnbasen bleiben. Bezeichnung, frühere Mirus-Nummer und Sortierung kannst du noch ändern.'
+            : '';
+    }
+    ['lpCode','lpTyp','lpLaCode','lpIsActive','lpAhv','lpUvg','lpNbuv','lpUvgz','lpKtg','lpBvg','lpQst','lpQstPeriodisch','lpQstCharakter','lpBvgBetrachtung','lpBvgFaktor','lpStatistikMonat','lpStatistikJahr','lpDreijehnter','lpBasisFeiertag','lpBasisFerien','lpBasis13ml','lpBasisVorschlag']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = gesperrt; });
 }
 
 function lpCloseForm() {
@@ -1657,11 +1689,18 @@ async function lpSave(e) {
         sortOrder:       parseInt(document.getElementById('lpSortOrder').value) || 99,
         isActive:        document.getElementById('lpIsActive').checked,
         ahvAlvPflichtig: document.getElementById('lpAhv').checked,
+        uvgPflichtig:    document.getElementById('lpUvg').checked,
         nbuvPflichtig:   document.getElementById('lpNbuv').checked,
+        uvgzPflichtig:   document.getElementById('lpUvgz').checked,
         ktgPflichtig:    document.getElementById('lpKtg').checked,
         bvgPflichtig:    document.getElementById('lpBvg').checked,
         qstPflichtig:           document.getElementById('lpQst').checked,
         qstPeriodisch:          document.getElementById('lpQstPeriodisch').checked,
+        qstCharakter:           document.getElementById('lpQstCharakter').value,
+        bvgBetrachtung:         document.getElementById('lpBvgBetrachtung').value,
+        bvgFaktor:              parseFloat(document.getElementById('lpBvgFaktor').value) || 1,
+        statistikMonat:         document.getElementById('lpStatistikMonat').value || null,
+        statistikJahr:          document.getElementById('lpStatistikJahr').value || null,
         dreijehnterMlPflichtig: document.getElementById('lpDreijehnter').checked,
         zaehltAlsBasisFeiertag: document.getElementById('lpBasisFeiertag').checked,
         zaehltAlsBasisFerien:   document.getElementById('lpBasisFerien').checked,
@@ -1684,11 +1723,15 @@ async function lpSave(e) {
 }
 
 async function lpDelete(id, name, code) {
-    if (!confirm(`Lohnposition «${code} – ${name}» deaktivieren?`)) return;
+    const ok = await liquidConfirm(`Lohnart «${code} – ${name}» löschen?`, {
+        title: 'Lohnart löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen'
+    });
+    if (!ok) return;
     try {
         const res = await fetch(`/api/lohnpositionen/${id}`, { method: 'DELETE', headers: ah() });
-        if (res.ok) { showPageAlert('lpAlert', `Position ${code} deaktiviert.`, 'ok'); loadLohnpositionen(); }
-        else showPageAlert('lpAlert', 'Fehler beim Löschen.', 'err');
+        if (res.ok) { showPageAlert('lpAlert', `Lohnart ${code} gelöscht.`, 'ok'); loadLohnpositionen(); return; }
+        const d = await res.json().catch(() => ({}));
+        showPageAlert('lpAlert', d.message || 'Löschen ist nicht möglich.', 'err');
     } catch { showPageAlert('lpAlert', 'Verbindungsfehler.', 'err'); }
 }
 
@@ -2851,6 +2894,40 @@ function lpQstPeriodischVorschlag() {
     const hid = document.getElementById('lpSwissdec');
     if (hid) hid.value = code;
     cb.checked = !lpSwissdecEinmalig(code);
+    const ch = document.getElementById('lpQstCharakter');
+    if (ch && ch.dataset.manuell !== '1') ch.value = cb.checked ? 'monatlich' : 'jaehrlich';
+}
+function lpQstPaar(von) {
+    const p = document.getElementById('lpQstPeriodisch');
+    const c = document.getElementById('lpQstCharakter');
+    if (!p || !c) return;
+    if (von === 'periodisch') {
+        p.dataset.manuell = '1';
+        c.dataset.manuell = '';
+        c.value = p.checked ? 'monatlich' : 'jaehrlich';
+    } else {
+        c.dataset.manuell = '1';
+        p.dataset.manuell = '1';
+        p.checked = c.value !== 'jaehrlich';
+    }
+}
+async function lpExport() {
+    try {
+        const res = await fetch('/api/lohnpositionen/export', { headers: ah() });
+        if (!res.ok) {
+            const box = document.getElementById('lpAlert');
+            if (box) box.textContent = 'Excel konnte nicht erstellt werden.';
+            return;
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const m = /filename=\"?([^\";]+)\"?/i.exec(cd);
+        const name = m ? m[1] : 'Lohnartenstamm.xlsx';
+        saveBlobAsk(blob, name);
+    } catch (e) {
+        const box = document.getElementById('lpAlert');
+        if (box) box.textContent = 'Excel konnte nicht erstellt werden.';
+    }
 }
 let _lpSwissdecKatalog = null;
 async function lpLadeSwissdecListe() {

@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 101;  // 101: Lohnart ohne Kategorie · 100: Grussformel im Brieftext
+const int SchemaStand = 102;  // 102: UVG, UVGZ, QST-Charakter, BVG-Betrachtung, Statistik an der Lohnart · 101: ohne Kategorie
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2718,6 +2718,61 @@ using (var scope = app.Services.CreateScope())
             db.SaveChanges();
             startLog.LogInformation("Stand 100: Grussformel in den Starttext des Austrittsbriefs übernommen");
         }
+    }
+
+    // Stand 102: UVG und UVGZ starten gleich wie NBU, QST-Charakter folgt der
+    // Periodizität, BVG bleibt rückwirkend. So ändert sich kein Lohnrappen.
+    if (dbStand < 102)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS uvg_pflichtig boolean;
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS uvgz_pflichtig boolean;
+            UPDATE lohnposition SET uvg_pflichtig = nbuv_pflichtig WHERE uvg_pflichtig IS NULL;
+            UPDATE lohnposition SET uvgz_pflichtig = nbuv_pflichtig WHERE uvgz_pflichtig IS NULL;
+            ALTER TABLE lohnposition ALTER COLUMN uvg_pflichtig SET DEFAULT true;
+            ALTER TABLE lohnposition ALTER COLUMN uvgz_pflichtig SET DEFAULT true;
+            ALTER TABLE lohnposition ALTER COLUMN uvg_pflichtig SET NOT NULL;
+            ALTER TABLE lohnposition ALTER COLUMN uvgz_pflichtig SET NOT NULL;
+
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS qst_charakter text;
+            UPDATE lohnposition SET qst_charakter = CASE WHEN qst_periodisch THEN 'monatlich' ELSE 'jaehrlich' END
+             WHERE qst_charakter IS NULL OR btrim(qst_charakter) = '';
+            ALTER TABLE lohnposition ALTER COLUMN qst_charakter SET DEFAULT 'monatlich';
+            ALTER TABLE lohnposition ALTER COLUMN qst_charakter SET NOT NULL;
+
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS bvg_betrachtung text;
+            UPDATE lohnposition SET bvg_betrachtung = 'rueckwirkend' WHERE bvg_betrachtung IS NULL OR btrim(bvg_betrachtung) = '';
+            ALTER TABLE lohnposition ALTER COLUMN bvg_betrachtung SET DEFAULT 'rueckwirkend';
+            ALTER TABLE lohnposition ALTER COLUMN bvg_betrachtung SET NOT NULL;
+
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS bvg_faktor numeric(6,2);
+            UPDATE lohnposition SET bvg_faktor = CASE WHEN code IN ('1000','1005','1006') THEN 13 ELSE 1 END
+             WHERE bvg_faktor IS NULL;
+            ALTER TABLE lohnposition ALTER COLUMN bvg_faktor SET DEFAULT 1;
+            ALTER TABLE lohnposition ALTER COLUMN bvg_faktor SET NOT NULL;
+
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS statistik_monat text;
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS statistik_jahr text;
+        ");
+        var statistikZeilen = db.Lohnpositionen.AsNoTracking()
+            .Select(l => new { l.Id, l.Code, l.SwissdecLohnart, l.StatistikMonat, l.StatistikJahr })
+            .ToList();
+        foreach (var lp in statistikZeilen)
+        {
+            if (!string.IsNullOrWhiteSpace(lp.StatistikMonat) || !string.IsNullOrWhiteSpace(lp.StatistikJahr))
+                continue;
+            var nrText = string.IsNullOrWhiteSpace(lp.SwissdecLohnart) ? lp.Code : lp.SwissdecLohnart;
+            if (!int.TryParse((nrText ?? "").Trim(), out var nr)) continue;
+            var topf = HrSystem.Services.Elm.ElmStatistikCodes.TopfFuer(nr);
+            if (topf is not { } t || t == HrSystem.Services.Elm.ElmStatistikCodes.Topf.Keiner) continue;
+            if (HrSystem.Services.Elm.ElmStatistikCodes.IstMonat(t))
+                db.Database.ExecuteSqlRaw(
+                    "UPDATE lohnposition SET statistik_monat = {0} WHERE id = {1}", t.ToString(), lp.Id);
+            else if (HrSystem.Services.Elm.ElmStatistikCodes.IstJahr(t))
+                db.Database.ExecuteSqlRaw(
+                    "UPDATE lohnposition SET statistik_jahr = {0} WHERE id = {1}", t.ToString(), lp.Id);
+        }
+        startLog.LogInformation("Stand 102: UVG, UVGZ, QST-Charakter, BVG-Betrachtung und Statistik an der Lohnart");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
