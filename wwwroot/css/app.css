@@ -13595,3 +13595,220 @@ body.theme-dark .le-hub-karte {
 }
 body.theme-dark .fzm-drop, body.theme-dark .fzm-zeile, body.theme-dark .fzm-pdf { background: rgba(255,255,255,0.06); color: #e7e5e4; }
 body.theme-dark .fzm-ma, body.theme-dark .fzm-ok { color: #e7e5e4; }
+
+/* ── Lohnart anlegen/bearbeiten: zentrierte Karte, ov-Standard, ohne Scrollen ── */
+#lpDrawer.lp-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 2600;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 24px;
+}
+.lp-mask-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(60, 55, 48, 0.28);
+}
+.lp-mask-card {
+    position: relative;
+    width: min(980px, 100%);
+    border-radius: 22px;
+    background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+    box-shadow: 0 24px 60px rgba(60, 55, 48, 0.22);
+    padding: 16px 22px 14px;
+    color: #3f3f3f;
+}
+.lp-mask-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.lp-mask-hd h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #3f3f3f;
+}
+.lp-mask-x {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #8b8b8b;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+.lp-mask-x:hover { background: rgba(255, 255, 255, 0.45); color: #3f3f3f; }
+.lp-felder {
+    display: grid;
+    gap: 8px 12px;
+    align-items: end;
+}
+.lp-felder-oben { grid-template-columns: 140px 170px minmax(0, 1fr); }
+.lp-felder-unten { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 160px 110px; margin-top: 8px; }
+.lp-lbl {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11.5px;
+    font-weight: 650;
+    color: #646464;
+}
+.lp-mask-card input:not([type="checkbox"]):not([type="radio"]),
+.lp-mask-card select,
+.lp-mask-card .lqsel-btn {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    font-size: 13.5px;
+    font-family: inherit;
+    color: #3f3f3f;
+    background: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    outline: none;
+}
+#lpCode, #lpMirus { font-family: ui-monospace, Menlo, monospace; }
+.lp-sec-row {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 18px;
+    margin-top: 14px;
+}
+.lp-sec-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #646464;
+}
+.lp-pills {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.lp-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    margin: 0;
+    padding: 7px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(60, 55, 48, 0.20);
+    background: transparent;
+    color: #3f3f3f;
+    font-size: 13px;
+    cursor: pointer;
+}
+.lp-pill:has(input:checked) {
+    border-color: #3f3f3f;
+    background: rgba(255, 255, 255, 0.38);
+    box-shadow: inset 0 0 0 1px #3f3f3f;
+}
+.lp-pill input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: #3f3f3f;
+    flex-shrink: 0;
+}
+.lp-pill em {
+    font-style: normal;
+    font-weight: 500;
+    color: #8b8b8b;
+    margin-left: 4px;
+}
+.lp-mask-ft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+}
+.lp-pill-aktiv { flex: 0 0 auto; }
+.lp-form-err {
+    flex: 1;
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: rgba(220, 38, 38, 0.08);
+    color: #b91c1c;
+    font-size: 12.5px;
+}
+.lp-mask-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+}
+.lp-btn-kohle, .lp-btn-glas {
+    border-radius: 12px;
+    padding: 9px 18px;
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+.lp-btn-kohle {
+    background: #3f3f3f;
+    color: #fff;
+    border: none;
+    box-shadow: 0 5px 14px rgba(60, 55, 48, 0.16);
+}
+.lp-btn-kohle:hover { background: #1a1a1a; }
+.lp-btn-glas {
+    background: rgba(255, 255, 255, 0.45);
+    color: #3f3f3f;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+}
+.lp-btn-glas:hover { background: rgba(255, 255, 255, 0.7); }
+.lp-btn-klein { padding: 4px 10px; font-size: 12px; font-weight: 650; border-radius: 10px; }
+body.theme-dark .lp-mask-backdrop { background: rgba(0, 8, 20, 0.55); }
+body.theme-dark .lp-mask-card {
+    background-image: var(--dlg-fill-strong), var(--dlg-rim);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    border: 1px solid transparent;
+    color: var(--dlg-text);
+    box-shadow: var(--dlg-shadow), 0 28px 70px rgba(0, 10, 40, 0.5);
+}
+body.theme-dark .lp-mask-hd h2,
+body.theme-dark .lp-lbl,
+body.theme-dark .lp-sec-hd,
+body.theme-dark .lp-pill { color: var(--dlg-text); }
+body.theme-dark .lp-mask-x { color: var(--dlg-text-muted); }
+body.theme-dark .lp-mask-card input:not([type="checkbox"]):not([type="radio"]),
+body.theme-dark .lp-mask-card select,
+body.theme-dark .lp-mask-card .lqsel-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--dlg-text);
+    border-color: var(--dlg-glass-border);
+    box-shadow: none;
+}
+body.theme-dark .lp-pill {
+    border-color: var(--dlg-glass-border);
+    background: transparent;
+}
+body.theme-dark .lp-pill:has(input:checked) {
+    border-color: rgba(235, 248, 255, 0.7);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(235, 248, 255, 0.55);
+}
+body.theme-dark .lp-pill em { color: var(--dlg-text-muted); }
+body.theme-dark .lp-btn-glas {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--dlg-text);
+    border-color: var(--dlg-glass-border);
+}
+@media (max-width: 860px) {
+    .lp-felder-oben, .lp-felder-unten { grid-template-columns: 1fr 1fr; }
+    .lp-sec-row { grid-template-columns: 1fr; }
+}

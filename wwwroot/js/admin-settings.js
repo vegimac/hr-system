@@ -1657,7 +1657,7 @@ function lpOpenForm(id) {
     }
 
     document.getElementById('lpFormErr').style.display = 'none';
-    document.getElementById('lpDrawer').style.display  = 'block';
+    document.getElementById('lpDrawer').style.display  = 'flex';
 }
 
 function lpCloseForm() {

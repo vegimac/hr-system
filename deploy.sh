@@ -47,7 +47,9 @@ rm -rf ./publish
 dotnet publish hr-system.csproj -c Release -r linux-x64 --self-contained false -o ./publish
 
 echo "── 2/4 Tar packen ──"
-tar -czf "$TARBALL" -C ./publish .
+# macOS tar packt sonst Apple-Attribute mit. Das füllt die Platte und bricht mit
+# «Could not pack extended attributes» ab (Walter 23.10.2026).
+COPYFILE_DISABLE=1 tar -czf "$TARBALL" -C ./publish .
 SIZE=$(du -h "$TARBALL" | cut -f1)
 echo "    $TARBALL ($SIZE)"
 

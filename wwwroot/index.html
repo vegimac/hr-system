@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261022d">
+    <link rel="stylesheet" href="css/app.css?v=20261024a">
 </head>
 <body>
 
@@ -6931,147 +6931,97 @@
                     </div>
                 </div>
 
-                <!-- Drawer: Position bearbeiten/anlegen -->
-                <div id="lpDrawer" style="display:none;position:fixed;inset:0;z-index:200">
-                    <div onclick="lpCloseForm()" style="position:absolute;inset:0;background:rgba(0,0,0,0.35)"></div>
-                    <div style="position:absolute;right:0;top:0;bottom:0;width:420px;background:white;overflow-y:auto;box-shadow:-8px 0 32px rgba(0,0,0,0.15)">
-                        <div style="padding:20px 24px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between">
-                            <h2 id="lpDrawerTitle" style="font-size:16px;font-weight:700">Neue Lohnposition</h2>
-                            <button onclick="lpCloseForm()" style="border:none;background:none;cursor:pointer;font-size:20px;color:#64748b;line-height:1">&times;</button>
+                <!-- Lohnart anlegen/bearbeiten: zentrierte Karte, alles ohne Scrollen -->
+                <div id="lpDrawer" class="lp-mask" style="display:none">
+                    <div class="lp-mask-backdrop" onclick="lpCloseForm()"></div>
+                    <div class="lp-mask-card" role="dialog" aria-labelledby="lpDrawerTitle">
+                        <div class="lp-mask-hd">
+                            <h2 id="lpDrawerTitle">Neue Lohnposition</h2>
+                            <button type="button" class="lp-mask-x" onclick="lpCloseForm()" aria-label="Schliessen">&times;</button>
                         </div>
-                        <form id="lpForm" onsubmit="lpSave(event)" style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+                        <form id="lpForm" onsubmit="lpSave(event)">
                             <input type="hidden" id="lpId">
+                            <input type="hidden" id="lpSwissdec" value="">
 
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                            <div class="lp-felder lp-felder-oben">
                                 <div>
-                                    <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Swissdec-Nr. *</label>
-                                    <input id="lpCode" required maxlength="20" list="lpSwissdecListe" placeholder="z.B. 1000"
-                                        oninput="lpQstPeriodischVorschlag()"
-                                        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:ui-monospace,Menlo,monospace;outline:none">
+                                    <label class="lp-lbl" for="lpCode">Swissdec-Nr. *</label>
+                                    <input id="lpCode" required maxlength="20" list="lpSwissdecListe" placeholder="1000"
+                                        title="Musterlohnartenstamm (ELM) — führende Nummer"
+                                        oninput="lpQstPeriodischVorschlag()">
                                     <datalist id="lpSwissdecListe"></datalist>
-                                    <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Musterlohnartenstamm (ELM) — führende Nummer</div>
                                 </div>
                                 <div>
-                                    <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Typ</label>
-                                    <select id="lpTyp" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:white">
-                                        <option value="ZULAGE">ZULAGE (+)</option>
-                                        <option value="ABZUG">ABZUG (−)</option>
+                                    <label class="lp-lbl" for="lpTyp">Typ</label>
+                                    <select id="lpTyp">
+                                        <option value="ZULAGE">Zulage (+)</option>
+                                        <option value="ABZUG">Abzug (−)</option>
                                     </select>
                                 </div>
-                            </div>
-
-                            <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Bezeichnung *</label>
-                                <input id="lpBezeichnung" required maxlength="150" placeholder="z.B. Festlohn"
-                                    style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
-                            </div>
-
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                                 <div>
-                                    <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Kategorie</label>
-                                    <input id="lpKategorie" maxlength="80" placeholder="z.B. Festlohn"
-                                        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none" oninput="lpQstPeriodischVorschlag()">
+                                    <label class="lp-lbl" for="lpBezeichnung">Bezeichnung *</label>
+                                    <input id="lpBezeichnung" required maxlength="150" placeholder="z.B. Festlohn">
+                                </div>
+                            </div>
+                            <div class="lp-felder lp-felder-unten">
+                                <div>
+                                    <label class="lp-lbl" for="lpKategorie">Kategorie</label>
+                                    <input id="lpKategorie" maxlength="80" placeholder="z.B. Festlohn" oninput="lpQstPeriodischVorschlag()">
                                 </div>
                                 <div>
-                                    <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Lohnausweis-Code</label>
-                                    <input id="lpLaCode" maxlength="20" placeholder="z.B. I, P, Y, K, O, 13.2.3"
-                                        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+                                    <label class="lp-lbl" for="lpLaCode">Lohnausweis</label>
+                                    <input id="lpLaCode" maxlength="20" placeholder="I, P, Y, 13.2.3">
                                 </div>
-                            </div>
-                            <div style="background:rgba(60,55,48,0.04);border-radius:10px;padding:10px 12px">
-                                <label style="display:block;font-size:11.5px;font-weight:600;color:#8b8b8b;margin-bottom:4px">Früher (Mirus) — nur Parallelvergleich</label>
-                                <input id="lpMirus" maxlength="20" placeholder="z.B. 10.1 — leer lassen wenn neu"
-                                    style="width:100%;padding:7px 10px;border:1px solid rgba(60,55,48,0.12);border-radius:8px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace;outline:none;background:#fff;color:#646464">
-                                <input type="hidden" id="lpSwissdec" value="">
-                            </div>
-
-                            <!-- SV-Raster -->
-                            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px">
-                                <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.05em">SV-Raster (Sozialversicherungspflicht)</div>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpAhv" style="width:15px;height:15px;accent-color:#3f3f3f">
-                                        <span>AHV / ALV / IV / EO</span>
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpNbuv" style="width:15px;height:15px;accent-color:#3f3f3f">
-                                        <span>NBUV (Nichtberufsunfall)</span>
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpKtg" style="width:15px;height:15px;accent-color:#3f3f3f">
-                                        <span>KTG (Krankentaggeld)</span>
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpBvg" style="width:15px;height:15px;accent-color:#3f3f3f">
-                                        <span>BVG (Pensionskasse)</span>
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpQst" style="width:15px;height:15px;accent-color:#3f3f3f">
-                                        <span>Quellensteuer</span>
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px" title="Gesetzt = Lohnart läuft monatlich (Lohn, Zulagen, Kinderzulage): im Kurzmonat/Nebenerwerb auf den Monat hochrechnen, bei Wohnsitz Ausland CH-Tage des Monats. Nicht gesetzt (Bonus, Gratifikation, Abgangsentschädigung, Beteiligung, Geburtszulage): satzbestimmend 1:1, CH-Tage kumuliert seit Jahresbeginn.">
-                                        <input type="checkbox" id="lpQstPeriodisch" style="width:15px;height:15px;accent-color:#3f3f3f" onchange="this.dataset.manuell='1'">
-                                        <span>QST im Monat (sonst kumuliert seit Jahresbeginn)</span>
-                                    </label>
+                                <div>
+                                    <label class="lp-lbl" for="lpMirus">Früher (Mirus)</label>
+                                    <input id="lpMirus" maxlength="20" placeholder="leer = neu" title="Nur für den Parallelvergleich">
+                                </div>
+                                <div>
+                                    <label class="lp-lbl" for="lpSortOrder">Sortierung</label>
+                                    <input id="lpSortOrder" type="number" min="0" max="9999" value="99">
                                 </div>
                             </div>
 
-                            <!-- 13. Monatslohn -->
-                            <div style="border:1px solid #fde68a;border-radius:10px;padding:14px;background:#fffbeb">
-                                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
-                                    <input type="checkbox" id="lpDreijehnter" style="width:15px;height:15px;accent-color:#d97706;margin-top:1px;flex-shrink:0">
-                                    <div>
-                                        <div style="font-size:13px;font-weight:600;color:#92400e">13. Monatslohn-pflichtig</div>
-                                        <div style="font-size:11px;color:#a16207;margin-top:3px">Betrag wird automatisch aufgeteilt: 12/13 Basis + 1/13 Rückstellung (8.33%). Beide Zeilen erscheinen auf dem Lohnzettel.</div>
+                            <div class="lp-sec-row">
+                                <section class="lp-sec">
+                                    <div class="lp-sec-hd">Versicherung</div>
+                                    <div class="lp-pills">
+                                        <label class="lp-pill"><input type="checkbox" id="lpAhv"><span>AHV / ALV / IV / EO</span></label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpNbuv"><span>NBUV</span></label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpKtg"><span>KTG</span></label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpBvg"><span>BVG</span></label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpQst"><span>Quellensteuer</span></label>
+                                        <label class="lp-pill" title="Gesetzt = monatlich: im Kurzmonat hochrechnen, CH-Tage des Monats. Nicht gesetzt (Bonus, Gratifikation, Abgang, Beteiligung): satzbestimmend 1:1, CH-Tage seit Jahresbeginn.">
+                                            <input type="checkbox" id="lpQstPeriodisch" onchange="this.dataset.manuell='1'">
+                                            <span>QST im Monat</span>
+                                        </label>
                                     </div>
-                                </label>
+                                </section>
+                                <section class="lp-sec">
+                                    <div class="lp-sec-hd">
+                                        <span>Lohnbasen</span>
+                                        <button type="button" class="lp-btn-glas lp-btn-klein" onclick="lpApplyBasisSuggestion(true)">Vorschlag</button>
+                                    </div>
+                                    <div class="lp-pills">
+                                        <label class="lp-pill" title="Betrag wird automatisch aufgeteilt: 12/13 Basis + 1/13 Rückstellung (8.33 %). Beide Zeilen erscheinen auf dem Lohnzettel.">
+                                            <input type="checkbox" id="lpDreijehnter">
+                                            <span>13. Monatslohn <em>12/13 + 1/13</em></span>
+                                        </label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpBasisFeiertag"><span>Feiertag</span></label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpBasisFerien"><span>Ferien</span></label>
+                                        <label class="lp-pill"><input type="checkbox" id="lpBasis13ml"><span>Basis 13. ML</span></label>
+                                    </div>
+                                </section>
                             </div>
 
-                            <!-- Bemessungsbasis-Flags -->
-                            <div style="border:1px solid #86efac;border-radius:10px;padding:14px;background:#f0fdf4">
-                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                                    <div style="font-size:13px;font-weight:700;color:#166534">Bemessungsbasis</div>
-                                    <button type="button" onclick="lpApplyBasisSuggestion(true)"
-                                            style="border:1px solid #86efac;background:white;color:#166534;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer">
-                                        📋 Vorschlag übernehmen
-                                    </button>
-                                </div>
-                                <div style="font-size:11px;color:#15803d;margin-bottom:10px">Zählt dieser Betrag zur Bemessungsgrundlage der genannten Entschädigungen?</div>
-                                <div style="display:flex;flex-direction:column;gap:6px">
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpBasisFeiertag" style="width:15px;height:15px;accent-color:#16a34a">
-                                        <span>Basis für Feiertagsentschädigung</span>
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpBasisFerien" style="width:15px;height:15px;accent-color:#16a34a">
-                                        <span>Basis für Ferienentschädigung</span>
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpBasis13ml" style="width:15px;height:15px;accent-color:#16a34a">
-                                        <span>Basis für 13. Monatslohn</span>
-                                    </label>
+                            <div class="lp-mask-ft">
+                                <label class="lp-pill lp-pill-aktiv"><input type="checkbox" id="lpIsActive" checked><span>Aktiv</span></label>
+                                <div id="lpFormErr" class="lp-form-err" style="display:none"></div>
+                                <div class="lp-mask-actions">
+                                    <button type="button" class="lp-btn-glas" onclick="lpCloseForm()">Abbrechen</button>
+                                    <button type="submit" class="lp-btn-kohle">Speichern</button>
                                 </div>
                             </div>
-
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                                <div>
-                                    <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Sortierung</label>
-                                    <input id="lpSortOrder" type="number" min="0" max="9999" value="99"
-                                        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
-                                </div>
-                                <div style="display:flex;align-items:flex-end;padding-bottom:2px">
-                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-                                        <input type="checkbox" id="lpIsActive" checked style="width:15px;height:15px;accent-color:#3f3f3f">
-                                        <span>Aktiv</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div style="display:flex;gap:10px;margin-top:4px">
-                                <button type="submit" class="btn-primary" style="flex:1">Speichern</button>
-                                <button type="button" onclick="lpCloseForm()" style="flex:1;padding:9px 16px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;background:white">Abbrechen</button>
-                            </div>
-                            <div id="lpFormErr" style="display:none;margin-top:4px;padding:8px 12px;background:#fef2f2;border-radius:6px;font-size:12px;color:#dc2626"></div>
                         </form>
                     </div>
                 </div>
@@ -10919,7 +10869,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261019e"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261024a"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>
