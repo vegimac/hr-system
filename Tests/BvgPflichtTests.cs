@@ -34,11 +34,13 @@ public class BvgPflichtTests
         EntryThresholdYearly = Schwelle, IsActive = true, BvgVersichert = versichert,
     };
 
-    private static decimal BvgAbzug(decimal bvgBasis, bool? versichert)
+    private static decimal BvgAbzug(decimal bvgBasis, bool? versichert, decimal? jahresVor = null)
     {
+        var regel = Bvg(versichert);
+        regel.BvgJahreslohnVoraussichtlich = jahresVor;
         var anon = PayrollCalculations.BuildResult(
             Emp(), Contract(), Company(), 2026, 2, new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28),
-            new List<object>(), new List<object>(), new List<DeductionRule> { Bvg(versichert) }, 0m,
+            new List<object>(), new List<object>(), new List<DeductionRule> { regel }, 0m,
             new SvBases(bvgBasis, bvgBasis, bvgBasis, bvgBasis, bvgBasis),
             new List<object>(), 0, new List<object>(), 0, new List<object>(), 0, Saldo(),
             new List<EmployeeLohnAssignment>(), new List<EmployeeBankAccount>());
@@ -55,6 +57,13 @@ public class BvgPflichtTests
     {
         // 709.60 × 12 = 8'515 < 22'680 → kein BVG (alte Monatsprüfung)
         Assert.Equal(0m, BvgAbzug(709.60m, null));
+    }
+
+    [Fact]
+    public void Voraussichtlich_Schwelle_nimmt_Jahreslohn_Abzug_bleibt_der_Monat()
+    {
+        // 65'000 liegt über 22'680, der Februarlohn bleibt 709.60 → Mindestbasis 315 × 7 %
+        Assert.Equal(-22.05m, BvgAbzug(709.60m, null, 65000m));
     }
 
     [Fact]
@@ -145,6 +154,49 @@ public class BvgPflichtTests
         // jüngste 12: 2026-01..03 (3 × 4'000) + 2025-04..12 (9 × 1'000) → Ø 1'750 × 12 = 21'000
         Assert.Equal(21000m, v.Jahreslohn);
         Assert.False(v.Versichert);
+    }
+
+    [Fact]
+    public void Voraussichtlich_Fix_nimmt_Faktor_statt_mal_12()
+    {
+        var steuer = new BvgPflichtVorschlag.Jahressteuerung(true, 13m);
+        var v = BvgPflichtVorschlag.Berechne("FIX", 5000m, null, null, true, 8.33m, Schwelle, KeineMonate, steuer);
+        Assert.True(v.Voraussichtlich);
+        Assert.Equal(65000m, v.Jahreslohn);
+        Assert.True(v.Versichert);
+        // Faktor 12 liegt unter der Schwelle, die rückwirkende Rechnung mit 13. ML liegt darüber.
+        var knapp = BvgPflichtVorschlag.Berechne("FIX", 1800m, null, null, true, 8.33m, Schwelle, KeineMonate,
+            new BvgPflichtVorschlag.Jahressteuerung(true, 12m));
+        Assert.Equal(21600m, knapp.Jahreslohn);
+        Assert.False(knapp.Versichert);
+    }
+
+    [Fact]
+    public void Voraussichtlich_Mtp_und_Flex_nehmen_den_Monatsbetrag_mal_Faktor()
+    {
+        var steuer = new BvgPflichtVorschlag.Jahressteuerung(true, 10m);
+        var mtp = BvgPflichtVorschlag.Berechne("MTP", null, 20m, 20.40m, true, 8.33m, Schwelle, KeineMonate, steuer);
+        // 20 × 20.40 × 52 / 12 × 10 = 17'680
+        Assert.Equal(17680m, mtp.Jahreslohn);
+        Assert.False(mtp.Versichert);
+
+        var monate = new List<BvgPflichtVorschlag.LohnMonat>
+        {
+            new(2026, 1, 2010m, false), new(2026, 2, 709.60m, true),
+            new(2026, 3, 1990m, false), new(2026, 4, 2030m, false),
+        };
+        var flex = BvgPflichtVorschlag.Berechne("FLEX", null, null, 21.66m, true, 8.33m, Schwelle, monate, steuer);
+        // Ø 2'010 × 10 = 20'100, der Krankmonat bleibt draussen
+        Assert.Equal(20100m, flex.Jahreslohn);
+        Assert.True(flex.Voraussichtlich);
+    }
+
+    [Fact]
+    public void Lohnart_folgt_dem_Modell()
+    {
+        Assert.Equal("1000", BvgPflichtVorschlag.LohnartCode("FIX-M", null));
+        Assert.Equal("1006", BvgPflichtVorschlag.LohnartCode("FLEX", 45m));
+        Assert.Equal("1005", BvgPflichtVorschlag.LohnartCode("MTP", null));
     }
 
     [Fact]

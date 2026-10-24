@@ -108,6 +108,14 @@ public class DeductionRule
     [NotMapped]
     public bool? BvgVersichert { get; set; }
 
+    /// <summary>
+    /// Mutmasslicher Jahreslohn, wenn die massgebende Lohnart auf voraussichtlich steht
+    /// (Monatsbetrag × Faktor). null = rückwirkend, Schwelle bleibt Monatsbasis × 12.
+    /// Der Abzug selbst bleibt der BVG-pflichtige Lohn des Monats. Transient.
+    /// </summary>
+    [NotMapped]
+    public decimal? BvgJahreslohnVoraussichtlich { get; set; }
+
     /// <summary>Gilt nur für Mitarbeiter mit Quellensteuer-Pflicht</summary>
     public bool OnlyQuellensteuer { get; set; } = false;
 

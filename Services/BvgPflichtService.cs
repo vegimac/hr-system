@@ -58,7 +58,7 @@ public class BvgPflichtService
         var vertraege = await _db.Employments.AsNoTracking()
             .Where(e => ids.Contains(e.EmployeeId) && (e.ContractEndDate == null || e.ContractEndDate >= tag))
             .Select(e => new { e.EmployeeId, e.CompanyProfileId, e.EmploymentModel, e.ContractStartDate,
-                               e.MonthlySalary, e.GuaranteedHoursPerWeek, e.HourlyRate, e.ThirteenthSalary })
+                               e.MonthlySalary, e.GuaranteedHoursPerWeek, e.HourlyRate, e.ThirteenthSalary, e.LessonRate })
             .ToListAsync();
         var firmen = await _db.CompanyProfiles.AsNoTracking()
             .Select(c => new { c.Id, c.DefaultThirteenthSalaryPercent })
@@ -75,6 +75,11 @@ public class BvgPflichtService
                      && s.Periode != null && s.Periode.PeriodFrom >= vonMonat && s.Periode.PeriodFrom <= stichtag)
             .Select(s => new { s.EmployeeId, s.Periode!.Year, s.Periode.Month, s.SvBasisBvg, s.SlipJson })
             .ToListAsync();
+        var lohnarten = await _db.Lohnpositionen.AsNoTracking()
+            .Where(l => l.IsActive && (l.Code == "1000" || l.Code == "1005" || l.Code == "1006"))
+            .Select(l => new { l.Code, l.BvgBetrachtung, l.BvgFaktor })
+            .ToListAsync();
+
         var monateJeMa = snaps
             .GroupBy(s => s.EmployeeId)
             .ToDictionary(g => g.Key, g => g
@@ -103,15 +108,29 @@ public class BvgPflichtService
                         ?? schwellen.Where(s => s.CompanyProfileId == null).Select(s => s.EntryThresholdYearly).FirstOrDefault()
                         ?? 0m;
             var pct = firmen.TryGetValue(cp, out var p) ? p : 8.33m;
+            var code = BvgPflichtVorschlag.LohnartCode(v.EmploymentModel, v.LessonRate);
             result[id] = BvgPflichtVorschlag.Berechne(
                 v.EmploymentModel, v.MonthlySalary, v.GuaranteedHoursPerWeek, v.HourlyRate,
                 v.ThirteenthSalary, pct, schwelle,
-                monateJeMa.TryGetValue(id, out var mon) ? mon : new List<BvgPflichtVorschlag.LohnMonat>());
+                monateJeMa.TryGetValue(id, out var mon) ? mon : new List<BvgPflichtVorschlag.LohnMonat>(),
+                Steuerung(lohnarten.Select(l => new LohnartZeile(l.Code, l.BvgBetrachtung, l.BvgFaktor)), code));
         }
         return result;
     }
 
     private const int MaxMonateZurueck = 14;
+
+    private readonly record struct LohnartZeile(string Code, string? Betrachtung, decimal Faktor);
+
+    private static BvgPflichtVorschlag.Jahressteuerung? Steuerung(
+        IEnumerable<LohnartZeile> lohnarten, string code)
+    {
+        var zeile = lohnarten.FirstOrDefault(l => l.Code == code);
+        if (zeile.Code == null) return null;
+        if (!string.Equals(zeile.Betrachtung, LohnartSteuerung.BvgVoraussichtlich, StringComparison.OrdinalIgnoreCase))
+            return null;
+        return new BvgPflichtVorschlag.Jahressteuerung(true, zeile.Faktor);
+    }
 
     /// <summary>13.-ML-Betrag (180.x) und ob Krankheit/Unfall im Monat vorkam.</summary>
     public static (decimal Dreizehnter, bool KrankOderUnfall) LeseSlip(string? slipJson)

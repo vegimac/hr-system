@@ -403,7 +403,8 @@ public static class PayrollCalculations
             //     versichert bleibt versichert, auch im Krankheits- oder Ferienmonat.
             if (d.BvgVersichert == false)
                 basis = 0;
-            else if (d.BvgVersichert != true && d.EntryThresholdYearly is > 0 && svBases.Bvg * 12m < d.EntryThresholdYearly.Value)
+            else if (d.BvgVersichert != true && d.EntryThresholdYearly is > 0
+                     && (d.BvgJahreslohnVoraussichtlich ?? svBases.Bvg * 12m) < d.EntryThresholdYearly.Value)
                 basis = 0;
             else if (d.MinBaseMonthly is > 0 && svBases.Bvg > 0 && basis < d.MinBaseMonthly.Value)
                 basis = d.MinBaseMonthly.Value;

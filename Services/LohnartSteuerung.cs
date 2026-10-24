@@ -26,8 +26,9 @@ public static class LohnartSteuerung
     }
 
     /// <summary>
-    /// Voraussichtlich: Monatsbetrag × Faktor. Rückwirkend: die Summe der
-    /// ausbezahlten BVG-pflichtigen Beträge. Der Monatsabzug nutzt das nicht.
+    /// Voraussichtlich: Monatsbetrag × Faktor, für die Eintrittsschwelle.
+    /// Rückwirkend: die Summe der ausbezahlten BVG-pflichtigen Beträge.
+    /// Der Abzug auf dem Lohnzettel bleibt der Lohn des Monats.
     /// </summary>
     public static decimal BvgJahreslohn(string? betrachtung, decimal monatsbetrag, decimal faktor, decimal istSumme)
     {

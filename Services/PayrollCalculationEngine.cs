@@ -5890,11 +5890,22 @@ public class PayrollCalculationEngine
     /// </summary>
     private async Task WendeBvgPflichtAnAsync(List<DeductionRule> deductions, int employeeId, DateOnly von, DateOnly bis)
     {
-        var status = await new BvgPflichtService(_db).StatusInPeriodeAsync(employeeId, von, bis);
-        if (status == null) return;
+        var bvg = new BvgPflichtService(_db);
+        var status = await bvg.StatusInPeriodeAsync(employeeId, von, bis);
         static bool IstBvg(DeductionRule r) => string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase);
         if (status == false) deductions.RemoveAll(r => IstBvg(r) && r.Type == "fixed");
-        foreach (var r in deductions.Where(IstBvg)) r.BvgVersichert = status;
+        if (status != null)
+            foreach (var r in deductions.Where(IstBvg)) r.BvgVersichert = status;
+
+        // Voraussichtlich: die Schwelle vergleicht den mutmasslichen Jahreslohn
+        // (Betrag × Faktor). Rückwirkend bleibt Monatsbasis × 12, kein zusätzlicher Abfrageweg.
+        var voraussichtlich = await _db.Lohnpositionen.AsNoTracking()
+            .AnyAsync(l => l.IsActive && (l.Code == "1000" || l.Code == "1005" || l.Code == "1006")
+                        && l.BvgBetrachtung == LohnartSteuerung.BvgVoraussichtlich);
+        if (!voraussichtlich) return;
+        var vorschlag = await bvg.VorschlagAsync(employeeId, bis);
+        if (vorschlag is { Voraussichtlich: true, Jahreslohn: decimal jahr })
+            foreach (var r in deductions.Where(IstBvg)) r.BvgJahreslohnVoraussichtlich = jahr;
     }
 
     private async Task<List<DeductionRule>> WendeVersicherungsCodesAnAsync(
