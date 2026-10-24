@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 103;  // 103: Mirus-Nummern aus der Auswahl · 102: UVG, UVGZ, QST, BVG-Betrachtung, Statistik
+const int SchemaStand = 104;  // 104: BVG-Steuerung aus dem Swissdec-Stamm · 103: Mirus-Nummern aus der Auswahl
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -445,6 +445,13 @@ using (var scope = app.Services.CreateScope())
 
     if (startSqlNoetig)
     {
+    // Stand 104: Spalten vor dem Schema-Check, sonst meldet er sie als fehlend.
+    if (dbStand < 104)
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS bvg_faktor_x boolean NOT NULL DEFAULT false;
+            ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS bvg_rueck_code integer NOT NULL DEFAULT 0;
+        ");
+
     // ── Versand-Freigabe, Mail-Protokoll, MA-Sync-Fehlerliste ────────────
     // (Walter-Vorgabe 01.09.2026). Bewusst HIER und nicht nur als SQL-Skript:
     // der Schema-Waechter vergleicht EF-Modell gegen Datenbank und blockiert
@@ -7286,6 +7293,32 @@ using (var scope = app.Services.CreateScope())
                 "UPDATE vertragstyp_lohnposition SET lohnposition_code = {0} WHERE lohnposition_code = {1}",
                 swiss, alt.Code);
             // lohn_zulag_typ gibt es nicht mehr (Schema-Check: durch Lohnposition ersetzt).
+        }
+    }
+
+    // Stand 104: BVG-Spalten aus showcase_wagetypes_2.0.9. Abzugszeilen ohne Zelle bleiben.
+    if (dbStand < 104)
+    {
+        if (SwissdecLohnartenKatalog.Alle.Count == 0)
+            startLog.LogWarning("Stand 104: Swissdec-Lohnartenkatalog leer, BVG-Steuerung nicht übernommen");
+        else
+        {
+            var positionen = db.Lohnpositionen.ToList();
+            int n = 0;
+            foreach (var lp in positionen)
+            {
+                var k = SwissdecLohnartenKatalog.FindeBvg(lp.Code);
+                if (k?.BvgErwartet == null) continue;
+                var z = LohnartSteuerung.BvgAbleiten(k.BvgErwartet.Value, k.BvgRueck ?? 0, k.BvgFaktorRoh);
+                lp.BvgBetrachtung = z.Betrachtung;
+                lp.BvgFaktor = z.Faktor;
+                lp.BvgFaktorX = z.FaktorX;
+                lp.BvgRueckCode = z.RueckCode;
+                lp.BvgPflichtig = z.Pflichtig;
+                n++;
+            }
+            db.SaveChanges();
+            startLog.LogInformation("Stand 104: BVG-Steuerung aus dem Swissdec-Stamm auf {Anzahl} Lohnarten übernommen", n);
         }
     }
 

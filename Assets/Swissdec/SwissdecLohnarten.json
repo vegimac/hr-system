@@ -1,5 +1,5 @@
 {
- "_kommentar": "Swissdec-Musterlohnartenstamm (Wage_Types.xlsx, Swissdec ELM 6.0), alle Lohnarten mit Steuerung +/−. Spalten: brutto/ahv/uvg/uvgz/ktg/bvg = Pflichten; qst = Startwert (AHV-pflichtig oder Taggeld/Familienzulage/geldwerter Vorteil); lohnausweis = Swissdec-Charakteristik (TAS Character bzw. Tax Chiffre); fibuKonto = Swissdec-Musterkontenplan; statistik = LSE. ml13 = OneCrew-Startwert «zählt als Basis 13. ML». Alles an der OneCrew-Lohnposition editierbar. Walter/Claude 08.09.2026.",
+ "_kommentar": "Swissdec-Musterlohnartenstamm (showcase_wagetypes_2.0.9.xlsx, ELM 6). bvgErwartet, bvgRueck und bvgFaktorRoh folgen BVG_LPP_Expected, BVG_LPP_Retrospective und Factor. x beim Monatslohn = 13 mit 13. Monatslohn, sonst 12. Rück-Code 1 Stundenlohn, 2 Lektionenlohn, 3 übrige, 4 Taggeld. Abzugszeilen ohne BVG-Zelle behalten ihr bisheriges BVG-Häkchen. qst und ml13 bleiben OneCrew-Startwerte.",
  "lohnarten": [
   {
    "code": "1200",
@@ -11,7 +11,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "O",
@@ -19,7 +19,10 @@
    "fibuKonto": "5005",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1202",
@@ -39,7 +42,10 @@
    "fibuKonto": "5005",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 2
+   "statistikJahr": 2,
+   "bvgErwartet": 0,
+   "bvgRueck": 2,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1201",
@@ -59,7 +65,10 @@
    "fibuKonto": "5005",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1205",
@@ -71,7 +80,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "O",
@@ -79,7 +88,10 @@
    "fibuKonto": "5005",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1400",
@@ -91,7 +103,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "S",
@@ -99,7 +111,10 @@
    "fibuKonto": "5035",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1401",
@@ -111,7 +126,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -119,7 +134,10 @@
    "fibuKonto": "5036",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1020",
@@ -139,7 +157,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5150",
@@ -199,7 +220,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5012",
@@ -231,7 +255,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Z",
@@ -239,7 +263,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5014",
@@ -271,7 +298,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -279,7 +306,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1130",
@@ -299,7 +329,10 @@
    "fibuKonto": "5003",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1961",
@@ -311,7 +344,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "R",
@@ -319,7 +352,10 @@
    "fibuKonto": "5032",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3010",
@@ -331,7 +367,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "K",
@@ -339,7 +375,10 @@
    "fibuKonto": "5040",
    "fak": true,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3011",
@@ -351,7 +390,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "K",
@@ -359,7 +398,10 @@
    "fibuKonto": "5040",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5212",
@@ -459,7 +501,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6001",
@@ -479,7 +524,10 @@
    "fibuKonto": "5820",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1100",
@@ -499,7 +547,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1021",
@@ -519,7 +570,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3036",
@@ -531,7 +585,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "K",
@@ -539,7 +593,10 @@
    "fibuKonto": "5040",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3037",
@@ -551,7 +608,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "K",
@@ -559,7 +616,10 @@
    "fibuKonto": "5040",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1210",
@@ -571,7 +631,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -579,7 +639,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1209",
@@ -591,7 +654,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -599,7 +662,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5050",
@@ -651,7 +717,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -659,7 +725,10 @@
    "fibuKonto": "5009",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1030",
@@ -679,7 +748,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1112",
@@ -699,7 +771,10 @@
    "fibuKonto": "5003",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1111",
@@ -719,7 +794,10 @@
    "fibuKonto": "5003",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6020",
@@ -739,7 +817,10 @@
    "fibuKonto": "5320",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1072",
@@ -759,7 +840,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2000",
@@ -779,7 +863,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 4
+   "statistikJahr": 4,
+   "bvgErwartet": 0,
+   "bvgRueck": 4,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1213",
@@ -791,7 +878,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -799,7 +886,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1101",
@@ -819,7 +909,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1040",
@@ -839,7 +932,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3030",
@@ -851,7 +947,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "K",
@@ -859,7 +955,10 @@
    "fibuKonto": "5040",
    "fak": true,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3031",
@@ -871,7 +970,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "K",
@@ -879,7 +978,10 @@
    "fibuKonto": "5040",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1163",
@@ -899,7 +1001,10 @@
    "fibuKonto": "5004",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 2
+   "statistikJahr": 2,
+   "bvgErwartet": 0,
+   "bvgRueck": 2,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1161",
@@ -919,7 +1024,10 @@
    "fibuKonto": "5004",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1166",
@@ -939,7 +1047,10 @@
    "fibuKonto": "5004",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1168",
@@ -959,7 +1070,10 @@
    "fibuKonto": "5004",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1162",
@@ -979,7 +1093,10 @@
    "fibuKonto": "5004",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 2
+   "statistikJahr": 2,
+   "bvgErwartet": 0,
+   "bvgRueck": 2,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1160",
@@ -999,7 +1116,10 @@
    "fibuKonto": "5004",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1031",
@@ -1019,7 +1139,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3034",
@@ -1031,7 +1154,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -1039,7 +1162,10 @@
    "fibuKonto": "5040",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1955",
@@ -1051,7 +1177,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "R",
@@ -1059,7 +1185,10 @@
    "fibuKonto": "5032",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1211",
@@ -1071,7 +1200,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -1079,7 +1208,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1203",
@@ -1099,7 +1231,10 @@
    "fibuKonto": "5006",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1901",
@@ -1111,7 +1246,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "R",
@@ -1119,7 +1254,10 @@
    "fibuKonto": "5030",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1900",
@@ -1139,7 +1277,10 @@
    "fibuKonto": "5030",
    "fak": true,
    "statistikMonat": 1,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 1,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": "12"
   },
   {
    "code": "1902",
@@ -1159,7 +1300,10 @@
    "fibuKonto": "5030",
    "fak": true,
    "statistikMonat": 1,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 1,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": "12"
   },
   {
    "code": "3032",
@@ -1171,7 +1315,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "K",
@@ -1179,7 +1323,10 @@
    "fibuKonto": "5040",
    "fak": true,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3033",
@@ -1191,7 +1338,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "K",
@@ -1199,7 +1346,10 @@
    "fibuKonto": "5040",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1016",
@@ -1219,7 +1369,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3035",
@@ -1231,7 +1384,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Q",
@@ -1239,7 +1392,10 @@
    "fibuKonto": "5040",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1010",
@@ -1259,7 +1415,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1074",
@@ -1279,7 +1438,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2026",
@@ -1291,7 +1453,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Y",
@@ -1299,7 +1461,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2025",
@@ -1311,7 +1476,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Y",
@@ -1319,7 +1484,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2027",
@@ -1331,7 +1499,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Y",
@@ -1339,7 +1507,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1231",
@@ -1351,7 +1522,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -1359,7 +1530,10 @@
    "fibuKonto": "5009",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1411",
@@ -1371,7 +1545,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -1379,7 +1553,10 @@
    "fibuKonto": "5036",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1410",
@@ -1391,7 +1568,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "S",
@@ -1399,7 +1576,10 @@
    "fibuKonto": "5035",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2075",
@@ -1411,7 +1591,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Z",
@@ -1419,7 +1599,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3000",
@@ -1431,7 +1614,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "K",
@@ -1439,7 +1622,10 @@
    "fibuKonto": "5040",
    "fak": true,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "3001",
@@ -1451,7 +1637,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "K",
@@ -1459,7 +1645,10 @@
    "fibuKonto": "5040",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2050",
@@ -1479,7 +1668,10 @@
    "fibuKonto": "5008",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 4
+   "statistikJahr": 4,
+   "bvgErwartet": 0,
+   "bvgRueck": 4,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2035",
@@ -1499,7 +1691,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 4
+   "statistikJahr": 4,
+   "bvgErwartet": 0,
+   "bvgRueck": 4,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5040",
@@ -1591,7 +1786,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -1599,7 +1794,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1006",
@@ -1619,7 +1817,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 2
+   "statistikJahr": 2,
+   "bvgErwartet": 0,
+   "bvgRueck": 2,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2060",
@@ -1631,7 +1832,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Z",
@@ -1639,7 +1840,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2065",
@@ -1651,7 +1855,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": false,
+   "bvg": true,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Z",
@@ -1659,7 +1863,10 @@
    "fibuKonto": null,
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1307",
@@ -1679,7 +1886,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 2
+   "statistikJahr": 2,
+   "bvgErwartet": 0,
+   "bvgRueck": 2,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1303",
@@ -1699,7 +1909,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1305",
@@ -1719,7 +1932,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 2
+   "statistikJahr": 2,
+   "bvgErwartet": 0,
+   "bvgRueck": 2,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1301",
@@ -1739,7 +1955,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1306",
@@ -1759,7 +1978,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 2
+   "statistikJahr": 2,
+   "bvgErwartet": 0,
+   "bvgRueck": 2,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1302",
@@ -1779,7 +2001,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1304",
@@ -1799,7 +2024,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 2
+   "statistikJahr": 2,
+   "bvgErwartet": 0,
+   "bvgRueck": 2,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1300",
@@ -1819,7 +2047,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1001",
@@ -1831,7 +2062,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": true,
    "lohnausweis": "I",
@@ -1839,7 +2070,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1420",
@@ -1851,7 +2085,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "S",
@@ -1859,7 +2093,10 @@
    "fibuKonto": "5035",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1060",
@@ -1879,7 +2116,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2005",
@@ -1899,7 +2139,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 4
+   "statistikJahr": 4,
+   "bvgErwartet": 0,
+   "bvgRueck": 4,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2010",
@@ -1911,7 +2154,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Y",
@@ -1919,7 +2162,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1962",
@@ -1931,7 +2177,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "R",
@@ -1939,7 +2185,10 @@
    "fibuKonto": "5032",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1000",
@@ -1959,7 +2208,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 1,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 1,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": "x"
   },
   {
    "code": "2001",
@@ -1979,7 +2231,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 4
+   "statistikJahr": 4,
+   "bvgErwartet": 0,
+   "bvgRueck": 4,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2021",
@@ -1991,7 +2246,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Y",
@@ -1999,7 +2254,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2020",
@@ -2011,7 +2269,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Y",
@@ -2019,7 +2277,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2022",
@@ -2031,7 +2292,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Y",
@@ -2039,7 +2300,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1075",
@@ -2059,7 +2323,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1076",
@@ -2079,7 +2346,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1953",
@@ -2091,7 +2361,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "R",
@@ -2099,7 +2369,10 @@
    "fibuKonto": "5300",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5020",
@@ -2131,7 +2404,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "T",
@@ -2139,7 +2412,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1131",
@@ -2159,7 +2435,10 @@
    "fibuKonto": "5003",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1033",
@@ -2179,7 +2458,10 @@
    "fibuKonto": "5001",
    "fak": true,
    "statistikMonat": 1,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 1,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": "12"
   },
   {
    "code": "2015",
@@ -2191,7 +2473,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Y",
@@ -2199,7 +2481,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6050",
@@ -2219,7 +2504,10 @@
    "fibuKonto": "5831",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6035",
@@ -2231,7 +2519,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "",
@@ -2239,7 +2527,10 @@
    "fibuKonto": "5320",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6040",
@@ -2259,7 +2550,10 @@
    "fibuKonto": "5830",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6060",
@@ -2279,7 +2573,10 @@
    "fibuKonto": "5331",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1071",
@@ -2299,7 +2596,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1219",
@@ -2311,7 +2611,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -2319,7 +2619,10 @@
    "fibuKonto": "5003",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1910",
@@ -2339,7 +2642,10 @@
    "fibuKonto": "5030",
    "fak": true,
    "statistikMonat": 1,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 1,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": "12"
   },
   {
    "code": "1218",
@@ -2359,7 +2665,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5062",
@@ -2419,7 +2728,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6000",
@@ -2439,7 +2751,10 @@
    "fibuKonto": "5820",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1250",
@@ -2451,7 +2766,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -2459,7 +2774,10 @@
    "fibuKonto": "5003",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1070",
@@ -2479,7 +2797,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1102",
@@ -2499,7 +2820,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1503",
@@ -2511,7 +2835,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -2519,7 +2843,10 @@
    "fibuKonto": "5601",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1212",
@@ -2531,7 +2858,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -2539,7 +2866,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1073",
@@ -2559,7 +2889,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1103",
@@ -2579,7 +2912,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1032",
@@ -2599,7 +2935,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1960",
@@ -2611,7 +2950,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "R",
@@ -2619,7 +2958,10 @@
    "fibuKonto": "5031",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1005",
@@ -2639,7 +2981,10 @@
    "fibuKonto": "5000",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 1
+   "statistikJahr": 1,
+   "bvgErwartet": 0,
+   "bvgRueck": 1,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1510",
@@ -2651,7 +2996,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -2659,7 +3004,10 @@
    "fibuKonto": "5601",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1034",
@@ -2679,7 +3027,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1232",
@@ -2691,7 +3042,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -2699,7 +3050,10 @@
    "fibuKonto": "5009",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1920",
@@ -2711,7 +3065,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "I",
@@ -2719,7 +3073,10 @@
    "fibuKonto": null,
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6010",
@@ -2739,7 +3096,10 @@
    "fibuKonto": "5822",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1061",
@@ -2759,7 +3119,10 @@
    "fibuKonto": "5002",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1065",
@@ -2779,7 +3142,10 @@
    "fibuKonto": "5002",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1067",
@@ -2791,7 +3157,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "P",
@@ -2799,7 +3165,10 @@
    "fibuKonto": "5002",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6030",
@@ -2819,7 +3188,10 @@
    "fibuKonto": "5820",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "6070",
@@ -2839,7 +3211,10 @@
    "fibuKonto": "5832",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1217",
@@ -2851,7 +3226,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -2859,7 +3234,10 @@
    "fibuKonto": "5007",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2031",
@@ -2871,7 +3249,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Y",
@@ -2879,7 +3257,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2030",
@@ -2899,7 +3280,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 4
+   "statistikJahr": 4,
+   "bvgErwartet": 0,
+   "bvgRueck": 4,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "2032",
@@ -2911,7 +3295,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "Y",
@@ -2919,7 +3303,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1104",
@@ -2939,7 +3326,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "5030",
@@ -3039,7 +3429,10 @@
    "fibuKonto": "2990",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 4
+   "statistikJahr": 4,
+   "bvgErwartet": 0,
+   "bvgRueck": 4,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1216",
@@ -3051,7 +3444,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -3059,7 +3452,10 @@
    "fibuKonto": "5003",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1950",
@@ -3079,7 +3475,10 @@
    "fibuKonto": "5030",
    "fak": true,
    "statistikMonat": 1,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 1,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": "12"
   },
   {
    "code": "6002",
@@ -3099,7 +3498,10 @@
    "fibuKonto": "5821",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1056",
@@ -3119,7 +3521,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1501",
@@ -3131,7 +3536,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "Q",
@@ -3139,7 +3544,10 @@
    "fibuKonto": "5601",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1500",
@@ -3159,7 +3567,10 @@
    "fibuKonto": "5601",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1972",
@@ -3179,7 +3590,10 @@
    "fibuKonto": "5720",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1973",
@@ -3191,7 +3605,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "T",
@@ -3199,7 +3613,10 @@
    "fibuKonto": "5721",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1974",
@@ -3211,7 +3628,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "T",
@@ -3219,7 +3636,10 @@
    "fibuKonto": "5740",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1971",
@@ -3231,7 +3651,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "T",
@@ -3239,7 +3659,10 @@
    "fibuKonto": "5740",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1975",
@@ -3251,7 +3674,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "T",
@@ -3259,7 +3682,10 @@
    "fibuKonto": "5730",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1976",
@@ -3271,7 +3697,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": false,
    "ml13": false,
    "lohnausweis": "T",
@@ -3279,7 +3705,10 @@
    "fibuKonto": "5731",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1978",
@@ -3291,7 +3720,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "T",
@@ -3299,7 +3728,10 @@
    "fibuKonto": "5722",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1977",
@@ -3311,7 +3743,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "T",
@@ -3319,7 +3751,10 @@
    "fibuKonto": "5722",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1979",
@@ -3331,7 +3766,7 @@
    "uvg": true,
    "uvgz": true,
    "ktg": true,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "T",
@@ -3339,7 +3774,10 @@
    "fibuKonto": "5790",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1110",
@@ -3359,7 +3797,10 @@
    "fibuKonto": "5003",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1055",
@@ -3379,7 +3820,10 @@
    "fibuKonto": "5001",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1204",
@@ -3399,7 +3843,10 @@
    "fibuKonto": "5006",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 3
+   "statistikJahr": 3,
+   "bvgErwartet": 0,
+   "bvgRueck": 3,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1980",
@@ -3411,7 +3858,7 @@
    "uvg": false,
    "uvgz": false,
    "ktg": false,
-   "bvg": true,
+   "bvg": false,
    "qst": true,
    "ml13": false,
    "lohnausweis": "",
@@ -3419,7 +3866,10 @@
    "fibuKonto": "5034",
    "fak": false,
    "statistikMonat": 0,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 0,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": ""
   },
   {
    "code": "1050",
@@ -3439,7 +3889,10 @@
    "fibuKonto": "5001",
    "fak": true,
    "statistikMonat": 1,
-   "statistikJahr": 0
+   "statistikJahr": 0,
+   "bvgErwartet": 1,
+   "bvgRueck": 0,
+   "bvgFaktorRoh": "12"
   }
  ]
 }

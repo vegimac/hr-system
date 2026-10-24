@@ -1623,7 +1623,9 @@ function lpOpenForm(id) {
     const bvgB = document.getElementById('lpBvgBetrachtung');
     if (bvgB) bvgB.value = d?.bvgBetrachtung || 'rueckwirkend';
     const bvgF = document.getElementById('lpBvgFaktor');
-    if (bvgF) bvgF.value = d?.bvgFaktor ?? 1;
+    if (bvgF) bvgF.value = d?.bvgFaktorX ? 'x' : (d?.bvgFaktor ?? 1);
+    const bvgR = document.getElementById('lpBvgRueckCode');
+    if (bvgR) bvgR.value = String(d?.bvgRueckCode ?? 0);
     const stM = document.getElementById('lpStatistikMonat');
     if (stM) stM.value = d?.statistikMonat || '';
     const stJ = document.getElementById('lpStatistikJahr');
@@ -1664,7 +1666,7 @@ function lpSperreAnwenden(gesperrt) {
             ? 'Diese Lohnart wurde bereits in einem Lohnlauf verwendet. Versicherung, Quellensteuer, BVG-Betrachtung, Statistik, Lohnausweis und Lohnbasen bleiben. Bezeichnung, frühere Mirus-Nummer und Sortierung kannst du noch ändern.'
             : '';
     }
-    ['lpCode','lpTyp','lpLaCode','lpIsActive','lpAhv','lpUvg','lpNbuv','lpUvgz','lpKtg','lpBvg','lpQst','lpQstPeriodisch','lpQstCharakter','lpBvgBetrachtung','lpBvgFaktor','lpStatistikMonat','lpStatistikJahr','lpDreijehnter','lpBasisFeiertag','lpBasisFerien','lpBasis13ml','lpBasisVorschlag']
+    ['lpCode','lpTyp','lpLaCode','lpIsActive','lpAhv','lpUvg','lpNbuv','lpUvgz','lpKtg','lpBvg','lpQst','lpQstPeriodisch','lpQstCharakter','lpBvgBetrachtung','lpBvgFaktor','lpBvgRueckCode','lpStatistikMonat','lpStatistikJahr','lpDreijehnter','lpBasisFeiertag','lpBasisFerien','lpBasis13ml','lpBasisVorschlag']
         .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = gesperrt; });
 }
 
@@ -1698,7 +1700,11 @@ async function lpSave(e) {
         qstPeriodisch:          document.getElementById('lpQstPeriodisch').checked,
         qstCharakter:           document.getElementById('lpQstCharakter').value,
         bvgBetrachtung:         document.getElementById('lpBvgBetrachtung').value,
-        bvgFaktor:              parseFloat(document.getElementById('lpBvgFaktor').value) || 1,
+        bvgFaktorX:             (document.getElementById('lpBvgFaktor').value || '').trim().toLowerCase() === 'x',
+        bvgFaktor:              (document.getElementById('lpBvgFaktor').value || '').trim().toLowerCase() === 'x'
+                                    ? 0
+                                    : (parseFloat(String(document.getElementById('lpBvgFaktor').value).replace(',', '.')) || 1),
+        bvgRueckCode:           parseInt(document.getElementById('lpBvgRueckCode').value, 10) || 0,
         statistikMonat:         document.getElementById('lpStatistikMonat').value || null,
         statistikJahr:          document.getElementById('lpStatistikJahr').value || null,
         dreijehnterMlPflichtig: document.getElementById('lpDreijehnter').checked,

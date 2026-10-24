@@ -113,9 +113,19 @@ public partial class SwissdecTestmandantController
                 SwissdecLohnart = code, QstPeriodisch = !Lohnposition.SwissdecEinmalig(code),
                 QstCharakter = Lohnposition.SwissdecEinmalig(code) ? LohnartSteuerung.QstJaehrlich : LohnartSteuerung.QstMonatlich,
                 BvgBetrachtung = LohnartSteuerung.BvgRueckwirkend,
-                BvgFaktor = code is "1000" or "1005" or "1006" ? 13m : 1m,
+                BvgFaktor = 1m,
                 SortOrder = ++maxSort, IsActive = true, CreatedAt = DateTime.Now,   // created_at ohne Zeitzone → lokale Zeit (Npgsql-Kind)
             };
+            var bvgStamm = SwissdecLohnartenKatalog.FindeBvg(code);
+            if (bvgStamm?.BvgErwartet != null)
+            {
+                var z = LohnartSteuerung.BvgAbleiten(bvgStamm.BvgErwartet.Value, bvgStamm.BvgRueck ?? 0, bvgStamm.BvgFaktorRoh);
+                lp.BvgBetrachtung = z.Betrachtung;
+                lp.BvgFaktor = z.Faktor;
+                lp.BvgFaktorX = z.FaktorX;
+                lp.BvgRueckCode = z.RueckCode;
+                lp.BvgPflichtig = z.Pflichtig;
+            }
             WendeSwissdecBasisFlagsAn(lp);
             _db.Lohnpositionen.Add(lp);
             positionen.Add(lp);

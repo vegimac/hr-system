@@ -27,6 +27,39 @@ public class LohnartSteuerungTests
     }
 
     [Fact]
+    public void Bvg_Stamm_Monatslohn_ist_voraussichtlich_mit_Faktor_x()
+    {
+        var z = LohnartSteuerung.BvgAbleiten(1, 0, "x");
+        Assert.Equal(LohnartSteuerung.BvgVoraussichtlich, z.Betrachtung);
+        Assert.True(z.FaktorX);
+        Assert.True(z.Pflichtig);
+        Assert.Equal(0, z.RueckCode);
+        Assert.Equal(13m, LohnartSteuerung.BvgFaktorAufloesen(true, 0m, true));
+        Assert.Equal(12m, LohnartSteuerung.BvgFaktorAufloesen(true, 0m, false));
+    }
+
+    [Fact]
+    public void Bvg_Stamm_Stundenlohn_rueckwirkend_13_Monatslohn_keine()
+    {
+        var stunden = LohnartSteuerung.BvgAbleiten(0, 1, "");
+        Assert.Equal(LohnartSteuerung.BvgRueckwirkend, stunden.Betrachtung);
+        Assert.Equal(1, stunden.RueckCode);
+        Assert.True(stunden.Pflichtig);
+
+        var lektionen = LohnartSteuerung.BvgAbleiten(0, 2, "");
+        Assert.Equal(2, lektionen.RueckCode);
+
+        var ort = LohnartSteuerung.BvgAbleiten(1, 0, "12");
+        Assert.Equal(LohnartSteuerung.BvgVoraussichtlich, ort.Betrachtung);
+        Assert.Equal(12m, ort.Faktor);
+        Assert.False(ort.FaktorX);
+
+        var dreizehnter = LohnartSteuerung.BvgAbleiten(0, 0, "");
+        Assert.Equal(LohnartSteuerung.BvgKeine, dreizehnter.Betrachtung);
+        Assert.False(dreizehnter.Pflichtig);
+    }
+
+    [Fact]
     public void Bvg_voraussichtlich_rechnet_mal_Faktor_der_Monat_nicht()
     {
         Assert.Equal(65000m, LohnartSteuerung.BvgJahreslohn("voraussichtlich", 5000m, 13m, 41234m));

@@ -134,11 +134,17 @@ public class Lohnposition
     /// </summary>
     public string QstCharakter { get; set; } = "monatlich";
 
-    /// <summary>«rueckwirkend» = ausbezahlter Lohn. «voraussichtlich» = Monatsbetrag × Faktor.</summary>
+    /// <summary>«rueckwirkend», «voraussichtlich» oder «keine». «keine» zählt nicht zur BVG-Basis.</summary>
     public string BvgBetrachtung { get; set; } = "rueckwirkend";
 
-    /// <summary>Faktor der voraussichtlichen BVG-Betrachtung, z.B. 13 für den Monatslohn inkl. 13. ML.</summary>
+    /// <summary>Faktor der voraussichtlichen Betrachtung, z.B. 12. Bei Faktor x steht hier 0 und <see cref="BvgFaktorX"/>.</summary>
     public decimal BvgFaktor { get; set; } = 1m;
+
+    /// <summary>Swissdec-Faktor «x» beim Monatslohn: 13 mit 13. Monatslohn, sonst 12.</summary>
+    public bool BvgFaktorX { get; set; }
+
+    /// <summary>Rückwirkende Gruppe: 0 keine, 1 Stundenlohn, 2 Lektionenlohn, 3 übrige, 4 Taggeld.</summary>
+    public int BvgRueckCode { get; set; }
 
     /// <summary>Statistik-Topf der Monatswerte (Bruttolohn, Zulagen, …). Leer = keine Monatsbasis.</summary>
     public string? StatistikMonat { get; set; }

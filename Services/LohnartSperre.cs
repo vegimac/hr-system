@@ -36,6 +36,8 @@ public static class LohnartSperre
         || !Gleich(ist.QstCharakter, neu.QstCharakter)
         || !Gleich(ist.BvgBetrachtung, neu.BvgBetrachtung)
         || ist.BvgFaktor != neu.BvgFaktor
+        || ist.BvgFaktorX != neu.BvgFaktorX
+        || ist.BvgRueckCode != neu.BvgRueckCode
         || !Gleich(ist.StatistikMonat, neu.StatistikMonat)
         || !Gleich(ist.StatistikJahr, neu.StatistikJahr)
         || ist.DreijehnterMlPflichtig != neu.DreijehnterMlPflichtig

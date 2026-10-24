@@ -78,7 +78,7 @@ public class BvgPflichtService
             .ToListAsync();
         var lohnarten = await _db.Lohnpositionen.AsNoTracking()
             .Where(l => l.IsActive && (l.Code == "1000" || l.Code == "1005" || l.Code == "1006"))
-            .Select(l => new { l.Code, l.BvgBetrachtung, l.BvgFaktor })
+            .Select(l => new { l.Code, l.BvgBetrachtung, l.BvgFaktor, l.BvgFaktorX })
             .ToListAsync();
 
         var monateJeMa = snaps
@@ -114,23 +114,24 @@ public class BvgPflichtService
                 v.EmploymentModel, v.MonthlySalary, v.GuaranteedHoursPerWeek, v.HourlyRate,
                 v.ThirteenthSalary, pct, schwelle,
                 monateJeMa.TryGetValue(id, out var mon) ? mon : new List<BvgPflichtVorschlag.LohnMonat>(),
-                Steuerung(lohnarten.Select(l => new LohnartZeile(l.Code, l.BvgBetrachtung, l.BvgFaktor)), code));
+                Steuerung(lohnarten.Select(l => new LohnartZeile(l.Code, l.BvgBetrachtung, l.BvgFaktor, l.BvgFaktorX)), code, v.ThirteenthSalary));
         }
         return result;
     }
 
     private const int MaxMonateZurueck = 14;
 
-    private readonly record struct LohnartZeile(string Code, string? Betrachtung, decimal Faktor);
+    private readonly record struct LohnartZeile(string Code, string? Betrachtung, decimal Faktor, bool FaktorX);
 
     private static BvgPflichtVorschlag.Jahressteuerung? Steuerung(
-        IEnumerable<LohnartZeile> lohnarten, string code)
+        IEnumerable<LohnartZeile> lohnarten, string code, bool mit13)
     {
         var zeile = lohnarten.FirstOrDefault(l => l.Code == code);
         if (zeile.Code == null) return null;
         if (!string.Equals(zeile.Betrachtung, LohnartSteuerung.BvgVoraussichtlich, StringComparison.OrdinalIgnoreCase))
             return null;
-        return new BvgPflichtVorschlag.Jahressteuerung(true, zeile.Faktor);
+        return new BvgPflichtVorschlag.Jahressteuerung(true,
+            LohnartSteuerung.BvgFaktorAufloesen(zeile.FaktorX, zeile.Faktor, mit13));
     }
 
     /// <summary>13.-ML-Betrag (180.x) und ob Krankheit/Unfall im Monat vorkam.</summary>

@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261024f">
+    <link rel="stylesheet" href="css/app.css?v=20261024h">
 </head>
 <body>
 
@@ -7011,14 +7011,25 @@
                                 <div>
                                     <label class="lp-lbl" for="lpBvgBetrachtung">BVG-Betrachtung</label>
                                     <select id="lpBvgBetrachtung">
+                                        <option value="keine">keine</option>
                                         <option value="rueckwirkend">rückwirkend</option>
                                         <option value="voraussichtlich">voraussichtlich</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="lp-lbl" for="lpBvgFaktor">BVG-Faktor</label>
-                                    <input id="lpBvgFaktor" type="number" min="0.01" max="99" step="0.01" value="1"
-                                        title="Voraussichtlich: Monatsbetrag mal Faktor. Der Monatsabzug bleibt der BVG-pflichtige Lohn dieses Monats.">
+                                    <input id="lpBvgFaktor" type="text" value="1" inputmode="decimal" autocomplete="off"
+                                        title="Voraussichtlich: Zahl, zum Beispiel 12. x = 13 mit 13. Monatslohn, sonst 12.">
+                                </div>
+                                <div>
+                                    <label class="lp-lbl" for="lpBvgRueckCode">BVG rückwirkend</label>
+                                    <select id="lpBvgRueckCode">
+                                        <option value="0">—</option>
+                                        <option value="1">1 Stundenlohn</option>
+                                        <option value="2">2 Lektionenlohn</option>
+                                        <option value="3">3 übrige</option>
+                                        <option value="4">4 Taggeld</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="lp-lbl" for="lpStatistikMonat">Statistik Monat</label>
@@ -7046,7 +7057,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <p class="lp-hinweis">Rückwirkend nimmt den ausbezahlten BVG-Lohn. Voraussichtlich rechnet Monatsbetrag × Faktor. Diese Zahl gilt für die Eintrittsschwelle und die Karte «BVG-Pflicht prüfen». Der Abzug im Monat bleibt der BVG-pflichtige Lohn dieses Monats.</p>
+                            <p class="lp-hinweis">Voraussichtlich rechnet Monatsbetrag × Faktor. x beim Monatslohn ist 13 mit 13. Monatslohn, sonst 12. Rückwirkend ist die Swissdec-Gruppe: 1 Stundenlohn, 2 Lektionenlohn, 3 übrige, 4 Taggeld. Keine heisst, die Lohnart zählt nicht zur BVG-Basis, auch der Monatsabzug lässt sie weg.</p>
 
                             <div class="lp-mask-ft">
                                 <label class="lp-pill lp-pill-aktiv"><input type="checkbox" id="lpIsActive" checked><span>Aktiv</span></label>
@@ -10903,7 +10914,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261024e"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261024h"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>

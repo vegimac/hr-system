@@ -163,9 +163,18 @@ public class LohnpositionController : ControllerBase
         }
         else if (string.IsNullOrWhiteSpace(dto.QstCharakter))
             dto.QstCharakter = dto.QstPeriodisch ? LohnartSteuerung.QstMonatlich : LohnartSteuerung.QstJaehrlich;
-        if (string.IsNullOrWhiteSpace(dto.BvgBetrachtung))
-            dto.BvgBetrachtung = LohnartSteuerung.BvgRueckwirkend;
-        if (dto.BvgFaktor <= 0) dto.BvgFaktor = 1m;
+        var stammNeu = SwissdecLohnartenKatalog.FindeBvg(dto.Code);
+        if (stammNeu?.BvgErwartet != null)
+        {
+            var z = LohnartSteuerung.BvgAbleiten(stammNeu.BvgErwartet.Value, stammNeu.BvgRueck ?? 0, stammNeu.BvgFaktorRoh);
+            dto.BvgBetrachtung = z.Betrachtung;
+            dto.BvgFaktor = z.Faktor;
+            dto.BvgFaktorX = z.FaktorX;
+            dto.BvgRueckCode = z.RueckCode;
+            dto.BvgPflichtig = z.Pflichtig;
+        }
+        else
+            LohnartSteuerung.SetzeBvg(dto, dto.BvgBetrachtung, dto.BvgFaktor, dto.BvgFaktorX, dto.BvgRueckCode, pflichtAusBetrachtung: false);
         dto.CreatedAt = DateTime.Now;
         _db.Lohnpositionen.Add(dto);
         await _db.SaveChangesAsync();
@@ -200,6 +209,8 @@ public class LohnpositionController : ControllerBase
             QstCharakter = dto.QstCharakter,
             BvgBetrachtung = dto.BvgBetrachtung,
             BvgFaktor = dto.BvgFaktor,
+            BvgFaktorX = dto.BvgFaktorX,
+            BvgRueckCode = dto.BvgRueckCode,
             StatistikMonat = dto.StatistikMonat,
             StatistikJahr = dto.StatistikJahr,
             DreijehnterMlPflichtig = dto.DreijehnterMlPflichtig,
@@ -212,6 +223,9 @@ public class LohnpositionController : ControllerBase
                 : SwissdecKopf(neuerCode, dto.SwissdecLohnart),
             IsActive = dto.IsActive,
         };
+        var stamm = SwissdecLohnartenKatalog.FindeBvg(neuerCode);
+        LohnartSteuerung.SetzeBvg(probe, dto.BvgBetrachtung, dto.BvgFaktor, dto.BvgFaktorX, dto.BvgRueckCode,
+            pflichtAusBetrachtung: stamm?.BvgErwartet != null);
         if ((await VerwendeteCodesAsync()).Contains(item.Code)
             && LohnartSperre.SteuerungGeaendert(item, probe))
             return Conflict(new { error = LohnartSperre.Fehler, message = LohnartSperre.MeldungAendern(item.Code, item.Bezeichnung) });
@@ -230,8 +244,11 @@ public class LohnpositionController : ControllerBase
         item.QstPflichtig           = dto.QstPflichtig;
         item.QstPeriodisch          = dto.QstPeriodisch;
         item.QstCharakter           = string.IsNullOrWhiteSpace(dto.QstCharakter) ? LohnartSteuerung.QstMonatlich : dto.QstCharakter.Trim();
-        item.BvgBetrachtung         = string.IsNullOrWhiteSpace(dto.BvgBetrachtung) ? LohnartSteuerung.BvgRueckwirkend : dto.BvgBetrachtung.Trim();
-        item.BvgFaktor              = dto.BvgFaktor <= 0 ? 1m : dto.BvgFaktor;
+        item.BvgBetrachtung         = probe.BvgBetrachtung;
+        item.BvgFaktor              = probe.BvgFaktor;
+        item.BvgFaktorX             = probe.BvgFaktorX;
+        item.BvgRueckCode           = probe.BvgRueckCode;
+        if (stamm?.BvgErwartet != null) item.BvgPflichtig = probe.BvgPflichtig;
         item.StatistikMonat         = string.IsNullOrWhiteSpace(dto.StatistikMonat) ? null : dto.StatistikMonat.Trim();
         item.StatistikJahr          = string.IsNullOrWhiteSpace(dto.StatistikJahr) ? null : dto.StatistikJahr.Trim();
         item.DreijehnterMlPflichtig = dto.DreijehnterMlPflichtig;
@@ -304,7 +321,7 @@ public class LohnpositionController : ControllerBase
         var headers = new[]
         {
             "Nr", "Bezeichnung", "Typ", "AHV", "UVG", "NBU", "UVGZ", "KTG", "BVG",
-            "BVG-Betrachtung", "BVG-Faktor", "QST", "QST periodisch", "QST-Charakter",
+            "BVG-Betrachtung", "BVG-Faktor", "BVG-Rück", "QST", "QST periodisch", "QST-Charakter",
             "Lohnausweis", "Statistik Monat", "Statistik Jahr", "früher", "aktiv", "im Lohn"
         };
         var hr = sheet.CreateRow(0);
@@ -329,8 +346,14 @@ public class LohnpositionController : ControllerBase
             row.CreateCell(col++).SetCellValue(Ja(l.UvgzPflichtig));
             row.CreateCell(col++).SetCellValue(Ja(l.KtgPflichtig));
             row.CreateCell(col++).SetCellValue(Ja(l.BvgPflichtig));
-            row.CreateCell(col++).SetCellValue(l.BvgBetrachtung == LohnartSteuerung.BvgVoraussichtlich ? "voraussichtlich" : "rückwirkend");
-            row.CreateCell(col++).SetCellValue((double)l.BvgFaktor);
+            row.CreateCell(col++).SetCellValue(l.BvgBetrachtung switch
+            {
+                LohnartSteuerung.BvgVoraussichtlich => "voraussichtlich",
+                LohnartSteuerung.BvgKeine => "keine",
+                _ => "rückwirkend"
+            });
+            row.CreateCell(col++).SetCellValue(l.BvgFaktorX ? "x" : l.BvgFaktor.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+            row.CreateCell(col++).SetCellValue(l.BvgRueckCode);
             row.CreateCell(col++).SetCellValue(Ja(l.QstPflichtig));
             row.CreateCell(col++).SetCellValue(Ja(l.QstPeriodisch));
             row.CreateCell(col++).SetCellValue(l.QstCharakter == LohnartSteuerung.QstJaehrlich ? "jährlich" : "monatlich");

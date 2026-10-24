@@ -3367,6 +3367,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.QstCharakter).HasColumnName("qst_charakter").HasMaxLength(20).HasDefaultValue("monatlich");
             entity.Property(e => e.BvgBetrachtung).HasColumnName("bvg_betrachtung").HasMaxLength(20).HasDefaultValue("rueckwirkend");
             entity.Property(e => e.BvgFaktor).HasColumnName("bvg_faktor").HasColumnType("numeric(6,2)").HasDefaultValue(1m);
+            entity.Property(e => e.BvgFaktorX).HasColumnName("bvg_faktor_x").HasDefaultValue(false);
+            entity.Property(e => e.BvgRueckCode).HasColumnName("bvg_rueck_code").HasDefaultValue(0);
             entity.Property(e => e.StatistikMonat).HasColumnName("statistik_monat").HasMaxLength(40);
             entity.Property(e => e.StatistikJahr).HasColumnName("statistik_jahr").HasMaxLength(40);
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
