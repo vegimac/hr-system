@@ -1616,7 +1616,7 @@
                      Walter 31.08.2026: «Import & Schnittstellen» ist in den Bereich
                      Entwicklung umgezogen (page-entwicklung / entwHubGrp-import). -->
                 <div class="ra-tile-row" id="adminHubCats" style="margin-top:12px;margin-bottom:0">
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Mirus Lohnraster für Migration, Swissdec-Lohnarten, Basen-Kontrolle, Absenz-Typen">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Lohndaten-Empfänger, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Mirus Lohnraster für Migration, Swissdec-Lohnarten, Basen-Kontrolle, Absenz-Typen">
                         <img src="img/lohn-stammdaten.webp?v=20260816b" alt="" loading="lazy">
                         <span>Lohn-Stammdaten</span>
                     </button>
@@ -1674,6 +1674,11 @@
                         <img src="img/lohnkat-sv-saetze.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">SV-Sätze</div>
                         <div class="admin-card-desc">AHV, ALV, NBU, KTG, BVG — Prozentsätze</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('lohndaten-empfaenger')">
+                        <img src="img/vvkat-lohndaten-empfaenger.webp?v=20261017f" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Lohndaten-Empfänger</div>
+                        <div class="admin-card-desc">AK, FAK, Versicherer, Steuerverwaltungen — zentral; Filiale wählt und setzt Nummern</div>
                     </div>
                         <div class="admin-card" onclick="showPage('mindestloehne')">
                         <img src="img/lohnkat-mindestloehne.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -1752,11 +1757,6 @@
                         <img src="img/vvkat-behoerden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Behörden</div>
                         <div class="admin-card-desc">Betreibungsämter, Sozialämter, Empfänger</div>
-                    </div>
-                        <div class="admin-card" onclick="showPage('lohndaten-empfaenger')">
-                        <img src="img/vvkat-lohndaten-empfaenger.webp?v=20261017f" alt="" loading="lazy" style="width:160px;height:auto;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Lohndaten-Empfänger</div>
-                        <div class="admin-card-desc">AK, FAK, Versicherer, Steuerverwaltungen — zentral; Filiale wählt und setzt Nummern</div>
                     </div>
                         <div class="admin-card" onclick="showPage('swiss-locations')">
                         <img src="img/vvkat-gemeinden.webp?v=20261016a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -5451,7 +5451,7 @@
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">Lohndaten-Empfänger</h1>
-                        <p class="page-sub">Stammdaten aus der Swissdec-Empfängerliste (nur lesen). Filialen wählen daraus und erfassen nur ihre Mitglied-/SSL-Nummern. Aktualisieren über den Swissdec-Button.</p>
+                        <p class="page-sub">Stammdaten aus der Swissdec-Empfängerliste (nur lesen). Filialen wählen daraus und erfassen nur ihre Mitglied-/SSL-Nummern. Aktualisieren über «Liste aktualisieren».</p>
                     </div>
                 </div>
                 <div class="page-body">
@@ -5459,9 +5459,8 @@
                         <div id="leFilterBar" style="display:flex;gap:6px;flex-wrap:wrap"></div>
                         <div style="display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap">
                             <button type="button" onclick="leSwissdecImport()" title="Empfängerliste von swissdec.ch laden und aktualisieren (monatlich)"
-                                    aria-label="Swissdec Empfängerliste aktualisieren"
-                                    style="display:inline-flex;align-items:center;background:#fff;border:1px solid rgba(60,55,48,0.16);border-radius:12px;padding:7px 12px;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.10)">
-                                <img src="img/swissdec-logo.png?v=20261017b" alt="swissdec — Liste aktualisieren" style="height:26px;width:auto;display:block">
+                                    style="background:#fff;color:#3f3f3f;border:1px solid rgba(60,55,48,0.16);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(60,55,48,0.10)">
+                                Liste aktualisieren
                             </button>
                         </div>
                     </div>
@@ -10887,7 +10886,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-uid.js?v=20261016h"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261017d"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261024j"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261011b"></script>
@@ -12667,7 +12666,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kuendigung.js?v=20261023b"></script>
 <script type="text/plain" data-modul="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script type="text/plain" data-modul="js/aerzte.js?v=20261016a"></script>
-<script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261017h"></script>
+<script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261024i"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="lib/xlsx/xlsx.full.min.js?v=0.18.5"></script>
 

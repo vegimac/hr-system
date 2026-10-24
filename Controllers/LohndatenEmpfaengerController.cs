@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -244,8 +245,13 @@ public class CompanyProfileEmpfaengerController : ControllerBase
     {
         var cpExists = await _db.CompanyProfiles.AnyAsync(c => c.Id == cpId);
         if (!cpExists) return NotFound(new { error = "BRANCH_NOT_FOUND" });
-        var empExists = await _db.LohndatenEmpfaengers.AnyAsync(e => e.Id == dto.EmpfaengerId);
-        if (!empExists) return NotFound(new { error = "EMPFAENGER_NOT_FOUND" });
+        var empf = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .Where(e => e.Id == dto.EmpfaengerId)
+            .Select(e => new { e.Art })
+            .FirstOrDefaultAsync();
+        if (empf == null) return NotFound(new { error = "EMPFAENGER_NOT_FOUND" });
+        var nummerFehler = PruefeKassennummer(empf.Art, dto.Kassennummer);
+        if (nummerFehler != null) return nummerFehler;
         var z = new CompanyProfileEmpfaenger
         {
             CompanyProfileId = cpId,
@@ -309,6 +315,12 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         var z = await _db.CompanyProfileEmpfaengers
             .FirstOrDefaultAsync(x => x.Id == id && x.CompanyProfileId == cpId);
         if (z == null) return NotFound();
+        var art = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .Where(e => e.Id == z.EmpfaengerId)
+            .Select(e => e.Art)
+            .FirstOrDefaultAsync();
+        var nummerFehler = PruefeKassennummer(art, dto.Kassennummer);
+        if (nummerFehler != null) return nummerFehler;
         ApplyZuordnung(z, dto);
         if (z.GueltigAb != null && z.GueltigBis != null && z.GueltigBis < z.GueltigAb)
             return BadRequest(new { error = "GUELTIG_BIS_VOR_AB" });
@@ -326,6 +338,14 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         _db.CompanyProfileEmpfaengers.Remove(z);
         await _db.SaveChangesAsync();
         return Ok(new { deleted = true });
+    }
+
+    /// <summary>Nur Ausgleichskasse, und nur wenn die Maske eine Nummer schickt.</summary>
+    private static IActionResult? PruefeKassennummer(string? art, string? nummer)
+    {
+        if (art != "AUSGLEICHSKASSE" || nummer == null) return null;
+        var fehler = AusgleichskasseNummer.Fehler(nummer);
+        return fehler == null ? null : new BadRequestObjectResult(new { error = "KASSENNUMMER_UNGUELTIG", message = fehler });
     }
 
     private static void ApplyZuordnung(CompanyProfileEmpfaenger z, CpEmpfaengerDto dto)
@@ -361,6 +381,8 @@ public class CpEmpfaengerDto
     public int EmpfaengerId { get; set; }
     public string? Mitgliednummer { get; set; }
     public string? Subnummer { get; set; }
+    /// <summary>Nur zur Prüfung bei der Ausgleichskasse. Wird nicht gespeichert.</summary>
+    public string? Kassennummer { get; set; }
     public string? Bemerkung { get; set; }
     /// <summary>ISO yyyy-MM-dd (native Datumsfelder) — leer = seit jeher.</summary>
     public string? GueltigAb { get; set; }

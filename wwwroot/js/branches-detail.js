@@ -649,7 +649,7 @@ function renderFilialenDetail(b) {
         </div>
 
         <!-- TAB: Lohndatenempfänger — Filiale wählt aus dem zentralen Verzeichnis
-             (System → Verzeichnisse → Lohndaten-Empfänger) und erfasst nur
+             (System → Lohn-Stammdaten → Lohndaten-Empfänger) und erfasst nur
              Mitglied/SSL + Gültigkeit (Walter 17.10.2026). -->
         <div class="emp-tab-content" id="fil-tab-f-empf">
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -2502,18 +2502,51 @@ function cpEmpfFieldLabels(art) {
     if (art === 'QST')
         return { kasse: 'Nummer der Kasse', mitglied: 'SSL-Nummer', sub: 'Buchungskreis',
                  phMitglied: 'z.B. 1914715' };
+    if (art === 'AUSGLEICHSKASSE')
+        return { kasse: 'Nummer der Ausgleichskasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
+                 phMitglied: 'z.B. 629.0714.00', kassePruefen: true };
     return { kasse: 'Nummer der Kasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
              phMitglied: 'z.B. 629.0714.00' };
+}
+
+/// Gleicher Satz wie AusgleichskasseNummer.Fehler. «000.003» ist ungültig.
+function cpEmpfKasseFehler(nummer) {
+    const t = (nummer || '').trim();
+    if (!t) return '';
+    const erster = t.split('.')[0];
+    const n = parseInt(erster, 10);
+    if (!/^\d+$/.test(erster) || !(n > 0))
+        return 'Nummer der Ausgleichskasse: der erste Block muss grösser als 0 sein (nicht «000.003»).';
+    return '';
+}
+
+function cpEmpfKassePruefen() {
+    const wrap = document.getElementById('cpEmpfKasseWrap');
+    const box = document.getElementById('cpEmpfKasseFehler');
+    if (!wrap || wrap.style.display === 'none') {
+        if (box) { box.style.display = 'none'; box.textContent = ''; }
+        return '';
+    }
+    const msg = cpEmpfKasseFehler(document.getElementById('cpEmpfKasse')?.value);
+    if (box) {
+        box.style.display = msg ? 'block' : 'none';
+        box.textContent = msg;
+    }
+    return msg;
 }
 
 function cpEmpfUpdateLabels(artOpt) {
     const art = artOpt || document.getElementById('cpEmpfArt')?.value || '';
     const L = cpEmpfFieldLabels(art);
     const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    set('cpEmpfLblKasse', L.kasse);
     set('cpEmpfLblMitglied', L.mitglied);
     set('cpEmpfLblSub', L.sub);
     const mi = document.getElementById('cpEmpfMitglied');
     if (mi) mi.placeholder = L.phMitglied;
+    const wrap = document.getElementById('cpEmpfKasseWrap');
+    if (wrap) wrap.style.display = L.kassePruefen ? 'block' : 'none';
+    if (!L.kassePruefen) cpEmpfKassePruefen();
 }
 
 async function cpEmpfLoad(branchId) {
@@ -2564,8 +2597,7 @@ function cpEmpfRender() {
 function cpEmpfRowHtml(z) {
     const adr = [z.strasse, z.postfach, [z.plz, z.ort].filter(Boolean).join(' ')]
         .filter(s => s && s.trim()).join(' · ');
-    const isVers = (z.art === 'KTG' || z.art === 'UVG' || z.art === 'UVGZ' || z.art === 'BVG');
-    const isQst  = (z.art === 'QST');
+    const labels = cpEmpfFieldLabels(z.art);
     const fmtD = (d) => new Date(d).toLocaleDateString('de-CH');
     const today = new Date().toISOString().slice(0, 10);
     const abgelaufen = z.gueltigBis && String(z.gueltigBis).slice(0, 10) < today;
@@ -2577,9 +2609,9 @@ function cpEmpfRowHtml(z) {
     if (zeitraum && abgelaufen) zeitraum = `<span style="color:#991b1b">${zeitraum} (abgelaufen)</span>`;
     else if (zeitraum && zukunft) zeitraum = `<span style="color:#1d4ed8">${zeitraum} (künftig)</span>`;
     const nums = [
-        z.kassennummer   ? `${isVers ? 'Versicherer' : 'Kasse'} ${cdokEsc(z.kassennummer)}` : null,
-        z.mitgliednummer ? `${isVers ? 'Kunde' : isQst ? 'SSL' : 'Mitglied'} ${cdokEsc(z.mitgliednummer)}` : null,
-        z.subnummer      ? `${isVers ? 'Vertrag' : isQst ? 'Buchungskreis' : 'Sub'} ${cdokEsc(z.subnummer)}` : null,
+        z.kassennummer   ? `${cdokEsc(labels.kasse)} ${cdokEsc(z.kassennummer)}` : null,
+        z.mitgliednummer ? `${cdokEsc(labels.mitglied)} ${cdokEsc(z.mitgliednummer)}` : null,
+        z.subnummer      ? `${cdokEsc(labels.sub)} ${cdokEsc(z.subnummer)}` : null,
         zeitraum,
     ].filter(Boolean).join(' · ');
     return `
@@ -2602,11 +2634,11 @@ function cpEmpfRowHtml(z) {
 }
 
 // ── Modal Filiale: nur Auswahl + Filialfelder (Walter 17.10.2026) ───────
-// Stammdaten leben unter Verzeichnisse → Lohndaten-Empfänger.
+// Stammdaten leben unter Lohn-Stammdaten → Lohndaten-Empfänger.
 function cpEmpfEnsureModal() {
     // Altes Modal ohne Art-Vorfilter nach Deploy neu aufbauen.
     const existing = document.getElementById('cpEmpfModal');
-    if (existing && !document.getElementById('cpEmpfArtFilter')) existing.remove();
+    if (existing && (!document.getElementById('cpEmpfArtFilter') || !document.getElementById('cpEmpfKasse'))) existing.remove();
     if (document.getElementById('cpEmpfModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -2634,6 +2666,7 @@ function cpEmpfEnsureModal() {
         <div>
             <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Angaben dieser Filiale</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+                <label id="cpEmpfKasseWrap" style="${lbl};grid-column:span 2;display:none"><span id="cpEmpfLblKasse">Nummer der Ausgleichskasse</span><input id="cpEmpfKasse" placeholder="z.B. 003.000" style="${inp}" onblur="cpEmpfKassePruefen()"><div id="cpEmpfKasseFehler" style="font-size:12px;color:#9b2c2c;font-weight:600;margin-top:4px;display:none"></div></label>
                 <label style="${lbl}"><span id="cpEmpfLblMitglied">Mitgliednummer</span><input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
                 <label style="${lbl}"><span id="cpEmpfLblSub">Subnummer</span><input id="cpEmpfSub" style="${inp}"></label>
                 <label style="${lbl}">Gültig ab<input id="cpEmpfGueltigAb" type="date" style="${inp}"></label>
@@ -2659,11 +2692,19 @@ function cpEmpfShowStamm(k) {
     if (!box) return;
     if (!k) {
         box.innerHTML = '<span style="color:#8b8b8b">Bitte einen Empfänger wählen.</span>';
+        const leer = document.getElementById('cpEmpfKasse');
+        if (leer) leer.value = '';
+        cpEmpfKassePruefen();
         return;
     }
     const adr = [k.strasse, k.postfach, [k.plz, k.ort].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+    const kasseInp = document.getElementById('cpEmpfKasse');
+    if (kasseInp) {
+        kasseInp.value = k.kassennummer || '';
+        kasseInp.dataset.liste = k.kassennummer || '';
+    }
     const meta = [
-        k.kassennummer ? `Nr. ${cdokEsc(k.kassennummer)}` : null,
+        (k.art === 'AUSGLEICHSKASSE') ? null : (k.kassennummer ? `Nr. ${cdokEsc(k.kassennummer)}` : null),
         k.uidNummer ? cdokEsc(k.uidNummer) : null,
         k.kantonCode ? cdokEsc(k.kantonCode) : null,
         k.supportEmail ? cdokEsc(k.supportEmail) : null,
@@ -2673,6 +2714,7 @@ function cpEmpfShowStamm(k) {
         + (meta ? `<div style="font-size:11.5px;color:#646464;margin-top:3px">${meta}</div>` : '')
         + `<div style="font-size:11px;margin-top:6px;color:#8b8b8b">Stammdaten nur über Swissdec-Import (Verzeichnis).</div>`;
     cpEmpfUpdateLabels(k.art);
+    cpEmpfKassePruefen();
 }
 
 function cpEmpfOpenModal(zuordnungId) {
@@ -2774,6 +2816,19 @@ async function cpEmpfSave() {
     if (zuordnungFields.gueltigAb && zuordnungFields.gueltigBis && zuordnungFields.gueltigBis < zuordnungFields.gueltigAb) {
         showToast('«Gültig bis» liegt vor «Gültig ab».', 'error'); return;
     }
+    const kasseMsg = cpEmpfKassePruefen();
+    if (kasseMsg) { showToast(kasseMsg, 'error'); return; }
+    const kasseWrap = document.getElementById('cpEmpfKasseWrap');
+    const kasseSichtbar = kasseWrap && kasseWrap.style.display !== 'none';
+    if (kasseSichtbar) {
+        const eingabe = val('cpEmpfKasse') || '';
+        const liste = (document.getElementById('cpEmpfKasse')?.dataset.liste || '').trim();
+        if (eingabe && liste && eingabe !== liste) {
+            showToast('Die Nummer der Ausgleichskasse bleibt «' + liste + '» aus der Empfängerliste.', 'error');
+            return;
+        }
+        zuordnungFields.kassennummer = eingabe || null;
+    }
     if (btn) btn.disabled = true;
     try {
         if (_cpEmpfEditId == null) {
@@ -2790,6 +2845,7 @@ async function cpEmpfSave() {
                     const j = await r2.json();
                     if (j.error === 'EMPFAENGER_BEREITS_ZUGEORDNET') msg = 'Dieser Empfänger ist der Filiale bereits zugeordnet (für einen neuen Satz «Gültig ab» setzen).';
                     else if (j.error === 'GUELTIG_BIS_VOR_AB') msg = '«Gültig bis» liegt vor «Gültig ab».';
+                    else if (j.message) msg = j.message;
                 } catch (_) {}
                 showToast(msg, 'error'); return;
             }
@@ -2805,7 +2861,11 @@ async function cpEmpfSave() {
                 method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
                 body: JSON.stringify({ empfaengerId: z.empfaengerId, ...zuordnungFields }),
             });
-            if (!r2.ok) { showToast('Speichern fehlgeschlagen.', 'error'); return; }
+            if (!r2.ok) {
+                let msg = 'Speichern fehlgeschlagen.';
+                try { const j = await r2.json(); if (j.message) msg = j.message; } catch (_) {}
+                showToast(msg, 'error'); return;
+            }
         }
         cpEmpfCloseModal();
         showToast('Gespeichert.', 'success');

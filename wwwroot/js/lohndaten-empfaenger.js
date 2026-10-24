@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════════════
 // lohndaten-empfaenger.js — Zentraler Empfänger-Katalog (Walter 17.10.2026)
 //
-// System → Verzeichnisse & Vorgaben → Lohndaten-Empfänger.
+// System → Lohn-Stammdaten → Lohndaten-Empfänger.
 // Stammdaten = nur Swissdec-Import (nicht editierbar/löschbar).
 // Filiale wählt zu und erfasst Mitglied/SSL + Gültigkeit.
 // API: /api/lohndaten-empfaenger
@@ -346,12 +346,9 @@ function leSwissEnsureModal() {
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:330;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(720px,94vw);max-height:92vh;overflow:auto;background:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-            <img src="img/swissdec-logo.png?v=20261017b" alt="swissdec" style="height:32px;width:auto">
-            <div>
-                <div style="font-size:15px;font-weight:700;color:#3f3f3f">Empfängerliste aktualisieren</div>
-                <div style="font-size:12px;color:#8b8b8b">Quelle: swissdec.ch/data-receiver — empfohlen monatlich</div>
-            </div>
+        <div style="margin-bottom:14px">
+            <div style="font-size:15px;font-weight:700;color:#3f3f3f">Empfängerliste aktualisieren</div>
+            <div style="font-size:12px;color:#8b8b8b">Quelle: swissdec.ch/data-receiver — empfohlen monatlich</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
             <button type="button" onclick="leSwissDownload()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">XLSX herunterladen</button>
