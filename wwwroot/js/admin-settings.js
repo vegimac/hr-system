@@ -1775,10 +1775,10 @@ async function loadSvSaetze() {
                 km.forEach(m => {
                     // AN-Buchung der SV = Soll 1920 → Gegenkonto (Verbindlichkeit).
                     if (svKontoByPos[m.position] == null && String(m.fibukonto) === '1920')
-                        svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto };
+                        svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto, lohnart: m.lohnartCode || null };
                 });
                 // Fallback: irgendeine Zeile der Position, falls keine 1920-AN-Zeile.
-                km.forEach(m => { if (svKontoByPos[m.position] == null) svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto }; });
+                km.forEach(m => { if (svKontoByPos[m.position] == null) svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto, lohnart: m.lohnartCode || null }; });
             }
         } catch {}
         svRender();
@@ -1788,33 +1788,77 @@ async function loadSvSaetze() {
     }
 }
 
+let _ahvEdit = false;
+
 function ahvPflichtDarf() {
     return typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+}
+
+function ahvUebergangSatz(z) {
+    const von = z.von == null || z.von === '' ? null : Number(z.von);
+    const bis = z.bis == null || z.bis === '' ? null : Number(z.bis);
+    const wer = von == null && bis != null ? `bis ${bis}`
+        : von != null && bis != null && von !== bis ? `${von}–${bis}`
+        : von != null ? String(von) : 'übrige';
+    const mon = Number(z.monate) ? ` + ${z.monate} Monate` : '';
+    return `${wer}: ${z.jahre} Jahre${mon}`;
+}
+
+function ahvPflichtLesen(j) {
+    const lese = document.getElementById('ahvPflichtLese');
+    if (!lese) return;
+    const ueb = (j.uebergaenge || []).map(ahvUebergangSatz).join(' · ');
+    const knopf = ahvPflichtDarf()
+        ? `<button type="button" class="ahv-bearbeiten" onclick="ahvPflichtOeffnen()">Bearbeiten</button>` : '';
+    lese.innerHTML = `<span class="ahv-lese-titel">AHV-Beitragspflicht</span>
+        <span class="ahv-lese-werte">
+            <span>Beginn <b>${j.beginn ?? '–'}</b></span>
+            <span>Ende Männer <b>${j.endeMaenner ?? '–'}</b></span>
+            <span>Ende Frauen <b>${j.endeFrauen ?? '–'}</b></span>
+            ${ueb ? `<span class="ahv-lese-ueb">Übergang ${ueb}</span>` : ''}
+        </span>${knopf}`;
 }
 
 function ahvUebergangZeile(z) {
     const body = document.getElementById('ahvUebergangBody');
     if (!body) return;
     const tr = document.createElement('tr');
-    const feld = (cls, val) => `<td><input class="${cls}" type="number" value="${val == null ? '' : val}" ${ahvPflichtDarf() ? '' : 'disabled'}></td>`;
+    const feld = (cls, val) => `<td><input class="${cls}" type="number" value="${val == null ? '' : val}"></td>`;
     tr.innerHTML = feld('ahv-von', z?.von) + feld('ahv-bis', z?.bis) + feld('ahv-jahre', z?.jahre) + feld('ahv-monate', z?.monate)
-        + `<td>${ahvPflichtDarf() ? '<button type="button" class="ahv-weg" title="Zeile entfernen">×</button>' : ''}</td>`;
+        + `<td><button type="button" class="ahv-weg" title="Zeile entfernen">×</button></td>`;
     tr.querySelector('.ahv-weg')?.addEventListener('click', () => tr.remove());
     body.appendChild(tr);
+}
+
+function ahvPflichtMaske(offen) {
+    _ahvEdit = offen;
+    const lese = document.getElementById('ahvPflichtLese');
+    const edit = document.getElementById('ahvPflichtEdit');
+    if (lese) lese.hidden = offen;
+    if (edit) edit.hidden = !offen;
+    ['ahvBeginn', 'ahvEndeMaenner', 'ahvEndeFrauen'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !offen;
+    });
+}
+
+async function ahvPflichtOeffnen() {
+    if (!ahvPflichtDarf()) return;
+    const ja = await liquidConfirm(
+        'Diese Altersgrenzen gelten für jeden Lohnlauf. Eine Änderung rechnet die offenen Löhne danach so. Wirklich bearbeiten?',
+        { title: 'AHV-Beitragspflicht ändern?', yesLabel: 'Bearbeiten', noLabel: 'Abbrechen' });
+    if (!ja) return;
+    ahvPflichtMaske(true);
+}
+
+function ahvPflichtAbbrechen() {
+    ahvPflichtMaske(false);
+    ahvPflichtLaden();
 }
 
 async function ahvPflichtLaden() {
     const body = document.getElementById('ahvUebergangBody');
     if (!body) return;
-    const darf = ahvPflichtDarf();
-    ['ahvBeginn', 'ahvEndeMaenner', 'ahvEndeFrauen'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.disabled = !darf;
-    });
-    const save = document.getElementById('ahvPflichtSave');
-    const zeile = document.querySelector('#ahvPflichtKarte .ahv-zeile');
-    if (save) save.style.display = darf ? '' : 'none';
-    if (zeile) zeile.style.display = darf ? '' : 'none';
     try {
         const res = await fetch('/api/ahv-beitragspflicht', { headers: ah() });
         if (!res.ok) return;
@@ -1824,6 +1868,8 @@ async function ahvPflichtLaden() {
         document.getElementById('ahvEndeFrauen').value = j.endeFrauen ?? '';
         body.innerHTML = '';
         (j.uebergaenge || []).forEach(ahvUebergangZeile);
+        ahvPflichtLesen(j);
+        if (!_ahvEdit) ahvPflichtMaske(false);
     } catch {}
 }
 
@@ -1845,6 +1891,10 @@ async function ahvPflichtSpeichern() {
         monate: ahvZahl(tr, 'ahv-monate') ?? 0,
     })).filter(z => z.jahre != null);
     const btn = document.getElementById('ahvPflichtSave');
+    const ja = await liquidConfirm(
+        `Beginn ${num('ahvBeginn')}, Ende Männer ${num('ahvEndeMaenner')}, Ende Frauen ${num('ahvEndeFrauen')}. Der Lohnlauf rechnet ab jetzt so. Speichern?`,
+        { title: 'AHV-Beitragspflicht speichern?', yesLabel: 'Speichern', noLabel: 'Abbrechen' });
+    if (!ja) return;
     if (btn) btn.disabled = true;
     try {
         const res = await fetch('/api/ahv-beitragspflicht', {
@@ -1863,6 +1913,7 @@ async function ahvPflichtSpeichern() {
             return;
         }
         showToast('AHV-Beitragspflicht gespeichert', 'success');
+        _ahvEdit = false;
         ahvPflichtLaden();
     } catch (e) {
         if (err) err.textContent = e.message;
@@ -1898,8 +1949,13 @@ function svSpaetereVersion(r) {
 }
 
 function svSelectStand(iso) {
-    svStand = iso || null;
+    const st = iso ? svStaende().find(s => s.tag === iso) : null;
+    // Der heutige Stand ist die normale Liste. Ein Klick darauf ist «zurück zu heute»,
+    // kein zweiter Modus auf das Startdatum der aktuellen Generation.
+    svStand = !st || st.lage === 'aktuell' ? null : iso;
     svRender();
+    const sc = document.querySelector('#page-sv-saetze .fh-list-scroll');
+    if (sc) sc.scrollTop = 0;
 }
 
 // Stände = Tage, an denen mindestens ein Satz neu beginnt.
@@ -1926,11 +1982,12 @@ function svRenderStandHint() {
     if (!host) return;
     if (!svStand) { host.innerHTML = ''; return; }
     const st = svStaende().find(s => s.tag === svStand);
-    const text = !st ? '' : st.lage === 'vergangen' ? 'abgelaufen — nur Ansicht, bleibt unverändert'
-        : st.lage === 'aktuell' ? 'heute gültig' : 'geplant';
-    host.innerHTML = `<div class="mw-planhint" style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <span>Stand am <b>${svFmt(svStand)}</b> — alle Sätze, die an diesem Tag galten · ${text}</span>
-        <button class="vh-btn" style="margin-left:auto" onclick="svSelectStand(null)">← zurück zu aktuell</button>
+    const text = st?.lage === 'geplant'
+        ? 'geplant — gilt noch nicht, nur Ansicht'
+        : 'so galt es an diesem Tag — nur Ansicht, die Sätze bleiben unverändert';
+    host.innerHTML = `<div class="mw-planhint" style="display:flex;align-items:center;gap:10px;margin:8px 0">
+        <span>Stand am <b>${svFmt(svStand)}</b> — ${text}</span>
+        <button class="vh-btn" style="margin-left:auto" onclick="svSelectStand(null)">← zurück zu heute</button>
     </div>`;
 }
 
@@ -1940,7 +1997,7 @@ function svRenderHistorie() {
     const staende = svStaende();
     if (!staende.length) { host.innerHTML = ''; return; }
     const pill = s => s.lage === 'geplant' ? '<span class="vh-pill vh-pill-plan">geplant</span>'
-        : s.lage === 'aktuell' ? '<span class="vh-pill vh-pill-akt">aktuell</span>'
+        : s.lage === 'aktuell' ? '<span class="vh-pill vh-pill-akt">heute</span>'
         : '<span class="vh-pill">vergangen</span>';
     host.innerHTML = `<div class="card" style="padding:0">
         <div class="mw-section-head" style="padding:10px 14px">Historie<span class="mw-unit">Stände · anklicken zeigt alle Sätze, die an dem Tag galten</span></div>
@@ -1948,7 +2005,8 @@ function svRenderHistorie() {
             const codes = [...new Set(s.saetze.map(r => r.code))].join(', ');
             const info = [`${s.saetze.length} Satz${s.saetze.length !== 1 ? 'sätze' : ''} neu ab diesem Tag: ${escHtml(codes)}`,
                           s.saetze.some(r => r.inLohnVerwendet) ? '🔒 in Lohn verwendet' : ''].filter(Boolean).join(' · ');
-            return `<div class="vh-row${svStand === s.tag ? ' sel' : ''}" onclick="svSelectStand('${s.tag}')">
+            const sel = svStand ? svStand === s.tag : s.lage === 'aktuell';
+            return `<div class="vh-row${sel ? ' sel' : ''}" onclick="svSelectStand('${s.tag}')">
                 <span class="vh-range">${svFmt(s.tag)} – ${s.bis ? svFmt(s.bis) : 'offen'}</span>${pill(s)}
                 <span class="vh-info">${info}</span>
             </div>`;
@@ -1998,7 +2056,8 @@ function svRender() {
     const branchRows = rows.filter(r => r.companyProfileId != null);
 
     if (infoEl) infoEl.textContent =
-        `${globalRows.length} Satz${globalRows.length !== 1 ? 'sätze' : ''} angezeigt`
+        (svStand ? `Stand ${svFmt(svStand)} · ` : '')
+        + `${globalRows.length} Satz${globalRows.length !== 1 ? 'sätze' : ''} angezeigt`
         + (branchRows.length ? ` · ${branchRows.length} Filial-Abweichung${branchRows.length !== 1 ? 'en' : ''}` : '');
 
     const codeColor = { AHV: '#3f3f3f', ALV: '#f59e0b', ALVZ: '#d97706', NBUV: '#10b981', BUV: '#059669', UVGZ: '#0d9488', KTG: '#06b6d4', BVG: '#8b5cf6', BVG_ZUSATZ: '#ec4899' };
@@ -2042,7 +2101,7 @@ function svRender() {
     // Satz HEUTE zeitlich gültig ist. IsActive=false → Inaktiv; valid_to in der
     // Vergangenheit → Abgelaufen (z.B. von „Neu ab" abgelöste Vorversion);
     // valid_from in der Zukunft → Künftig.
-    const _todayIso = new Date().toISOString().slice(0, 10);
+    const _todayIso = svTodayIso();
     const svStatus = (r) => {
         if (!r.isActive) return { label: 'Inaktiv', bg: '#f1f5f9', fg: '#4f4c45', dim: true };
         const vt = r.validTo   ? String(r.validTo).slice(0, 10)   : null;
@@ -2097,16 +2156,17 @@ function svRender() {
                 <span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:${col}22;color:${col}">${r.code}</span>${r.loesungsCode ? ` <span title="Versicherungs-Lösung / Swissdec-Code${r.isDefaultCode ? ' — Standard für MA ohne Code' : ''}" style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:8px;border:1px solid ${col};color:${col};white-space:nowrap">${r.loesungsCode}${r.isDefaultCode ? ' ★' : ''}</span>` : ''}
             </td>
             <td style="padding:4px 12px;font-weight:500;color:#1e293b" title="${String(r.name).replace(/"/g, '&quot;')}"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}${lockPill}</div></td>
-            <td style="padding:4px 12px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
-            <td style="padding:4px 12px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#a39d90'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
+            <td style="padding:4px 12px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(4)} %</td>
+            <td style="padding:4px 12px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#a39d90'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(4) + ' %' : '—'}</td>
             <td style="padding:4px 12px;color:#4f4c45;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${[(basisLabel[r.basisType] ?? r.basisType), ...svLimitParts(r)].join(' · ')}">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
             <td style="padding:4px 12px;text-align:center;color:#4f4c45;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}${r.gender === 'F' ? ' <span title="Nur Frauen" style="font-weight:700;color:#be185d">♀</span>' : r.gender === 'M' ? ' <span title="Nur Männer" style="font-weight:700;color:#1d4ed8">♂</span>' : ''}</td>
             <td style="padding:4px 12px">${modelBadge}</td>
             <td style="padding:4px 12px;font-size:12px;white-space:nowrap">${(() => {
                 if (r.fibuPosition == null) return '<span style="color:#a39d90">—</span>';
                 const k = svKontoByPos[r.fibuPosition];
+                const nr = k?.lohnart || r.fibuPosition;
                 const kontoTxt = k ? ` <span style="color:#6f6a5f">→ ${k.gegen}</span>` : ' <span style="color:#f59e0b" title="Position nicht im Kontoplan">→ ?</span>';
-                return `<span style="font-weight:600;font-family:monospace">${r.fibuPosition}</span>${kontoTxt}`;
+                return `<span style="font-weight:600;font-family:monospace" title="Lohnart ${nr}">${nr}</span>${kontoTxt}`;
             })()}</td>
             <td style="padding:4px 12px;color:#4f4c45;font-size:12px;white-space:nowrap">${fmtDate(r.validFrom)}</td>
             <td style="padding:4px 12px;color:#4f4c45;font-size:12px;white-space:nowrap">${fmtDate(r.validTo)}</td>

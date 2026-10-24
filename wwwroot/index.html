@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261025b">
+    <link rel="stylesheet" href="css/app.css?v=20261025c">
 </head>
 <body>
 
@@ -5195,43 +5195,28 @@
                     <span id="svInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
                     <button class="btn-primary" onclick="svOpenForm(null)">+ Neuer Satz</button>
                 </div>
-                </div><!-- /.fh-page-head -->
-                <div class="page-body fh-body sv-split">
-                    <aside class="card ahv-pflicht" id="ahvPflichtKarte">
-                        <div class="ahv-pflicht-head">
-                            <h2>AHV-Beitragspflicht</h2>
-                            <p>Zentral für alle Filialen. Der Lohnlauf liest diese Angaben. Die Spalte Alter an den Sätzen wählt nur die Zeile.</p>
-                        </div>
-                        <label>Beginn der Beitragspflicht
-                            <input id="ahvBeginn" type="number" min="1" max="99" inputmode="numeric">
-                        </label>
-                        <label>Ende der Beitragspflicht für Männer
-                            <input id="ahvEndeMaenner" type="number" min="1" max="99" inputmode="numeric">
-                        </label>
-                        <label>Ende der Beitragspflicht für Frauen
-                            <input id="ahvEndeFrauen" type="number" min="1" max="99" inputmode="numeric">
-                        </label>
-                        <div class="ahv-pflicht-uebergang">
-                            <div class="ahv-pflicht-uebergang-head">
-                                <h3>Übergang AHV 21 · Frauen</h3>
-                                <button type="button" class="ahv-zeile" onclick="ahvUebergangZeile()">Zeile</button>
-                            </div>
+                <div class="ahv-bar" id="ahvPflichtKarte">
+                    <div id="ahvPflichtLese" class="ahv-lese"></div>
+                    <div id="ahvPflichtEdit" class="ahv-edit" hidden>
+                        <label>Beginn der Beitragspflicht<input id="ahvBeginn" type="number" min="1" max="99" inputmode="numeric" disabled></label>
+                        <label>Ende der Beitragspflicht für Männer<input id="ahvEndeMaenner" type="number" min="1" max="99" inputmode="numeric" disabled></label>
+                        <label>Ende der Beitragspflicht für Frauen<input id="ahvEndeFrauen" type="number" min="1" max="99" inputmode="numeric" disabled></label>
+                        <div class="ahv-edit-ueb">
+                            <div class="ahv-edit-ueb-head"><span>Übergang AHV 21 · Frauen</span><button type="button" class="ahv-zeile" onclick="ahvUebergangZeile()">Zeile</button></div>
                             <table>
-                                <thead><tr>
-                                    <th>Jahrgang von</th><th>Jahrgang bis</th><th>Jahre</th><th>Monate</th><th></th>
-                                </tr></thead>
+                                <thead><tr><th>Jahrgang von</th><th>Jahrgang bis</th><th>Jahre</th><th>Monate</th><th></th></tr></thead>
                                 <tbody id="ahvUebergangBody"></tbody>
                             </table>
-                            <p class="ahv-pflicht-hinweis">Jahrgänge ohne Zeile nehmen das Ende für Frauen. Leer bei «von» = alle älteren, leer bei «bis» = alle jüngeren.</p>
+                            <p class="ahv-hinweis">Jahrgänge ohne Zeile nehmen das Ende für Frauen. Leer bei «von» = alle älteren, leer bei «bis» = alle jüngeren.</p>
                         </div>
-                        <div class="ahv-pflicht-actions">
+                        <div class="ahv-edit-actions">
                             <span id="ahvPflichtErr"></span>
+                            <button type="button" class="ahv-abbruch" onclick="ahvPflichtAbbrechen()">Abbrechen</button>
                             <button type="button" id="ahvPflichtSave" class="ahv-pflicht-save" onclick="ahvPflichtSpeichern()">Speichern</button>
                         </div>
-                    </aside>
-                    <div class="sv-main">
-                    <div id="svStandHint"></div>
-                    <div class="fh-cols-head-wrap">
+                    </div>
+                </div>
+                <div class="fh-cols-head-wrap">
                     <table class="fh-table fh-table-head" aria-hidden="true">
                         <colgroup>
                             <col class="sv-c-nr"><col class="sv-c-typ"><col class="sv-c-name"><col class="sv-c-an"><col class="sv-c-ag">
@@ -5244,11 +5229,14 @@
                             <th class="fh-th-right">Satz AN %</th>
                             <th class="fh-th-right" title="Arbeitgeber-Anteil für die AG-Sozialbeiträge im Fibu-Journal (leer = nicht gebucht)">Satz AG %</th>
                             <th>Basis</th><th class="fh-th-center">Alter</th><th>Vertrag</th>
-                            <th title="Fibu-Position (Mirus-Lohnart) → Konto aus Kontoplan">Fibu → Konto</th>
+                            <th title="Lohnart aus dem Katalog, dahinter das Fibu-Konto">Lohnart → Konto</th>
                             <th>Gültig ab</th><th>Gültig bis</th><th class="fh-th-center">Status</th><th></th>
                         </tr></thead>
                     </table>
-                    </div>
+                </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
+                    <div id="svStandHint"></div>
                     <div class="card fh-list-card">
                         <div class="fh-list-scroll">
                             <table class="fh-table fh-table-body">
@@ -5264,19 +5252,12 @@
                         </div>
                     </div>
 
-                    <div class="sv-extra">
-                    <!-- Filial-Abweichungen (Walter-Vorgabe 06.08.2026): jede Filiale
-                         ist eine eigene GmbH — KTG/NBU/BU-Sätze können abweichen.
-                         Zeilen mit gesetzter companyProfileId, gruppiert pro Filiale;
-                         gerendert von svRender() in admin-settings.js. -->
-                    <div>
+                    <div style="margin-top:18px">
                         <h2 style="font-size:15px;font-weight:700;color:#3f3f3f;margin:0 0 3px">Filial-Abweichungen</h2>
                         <p style="font-size:12.5px;color:#8b8b8b;margin:0 0 12px">Sätze, die in einzelnen Filialen vom Standard abweichen — die Abweichung gewinnt dort gegen den Standard.</p>
                         <div id="svBranchSection"></div>
                     </div>
-                    <div id="svHistorie"></div>
-                    </div>
-                    </div><!-- /.sv-main -->
+                    <div id="svHistorie" style="margin-top:18px"></div>
                 </div>
 
                 <!-- Formular (Drawer-Style) -->
@@ -10949,7 +10930,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261025b"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261025c"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>
