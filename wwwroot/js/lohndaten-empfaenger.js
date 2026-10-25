@@ -123,14 +123,14 @@ function leRender() {
             <th style="${th};width:6%"></th>
         </tr></thead><tbody>`;
         for (const e of items) {
-            const name = `${leEsc(e.bezeichnung)}${e.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${leEsc(e.zusatz)}</span>` : ''}${e.isActive ? '' : ' <span style="font-size:10.5px;color:#8b8b8b">(inaktiv)</span>'}`;
+            const name = `${leEsc(e.bezeichnung)}${e.zusatz ? ` <span class="le-zusatz">— ${leEsc(e.zusatz)}</span>` : ''}${e.isActive ? '' : ' <span style="font-size:10.5px;color:#8b8b8b">(inaktiv)</span>'}`;
             const tip = [e.strasse, e.postfach, [e.plz, e.ort].filter(Boolean).join(' '), e.uidNummer].filter(Boolean).join(', ');
             const nZug = e.zuordnungen || 0;
             const zuord = nZug > 0
                 ? `<span class="le-zuord">${nZug} ${nZug === 1 ? 'Filiale' : 'Filialen'}</span>`
                 : '<span class="le-offen">nicht zugeordnet</span>';
             html += `<tr class="${nZug > 0 ? 'le-zugeordnet' : ''}" style="${e.isActive ? '' : 'opacity:0.5'}"${tip ? ` title="${leEsc(tip)}"` : ''}>
-                <td style="${td};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</td>
+                <td class="le-name" style="${td};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</td>
                 <td style="${td};font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:nowrap">${leEsc(e.kassennummer || '–')}${leKassenTypText(e.kassenTyp) ? ` <span style="font-family:inherit;color:#646464">${leEsc(leKassenTypText(e.kassenTyp))}</span>` : ''}</td>
                 <td style="${td};white-space:nowrap">${e.kantonCode ? leEsc(e.kantonCode) : '–'}</td>
                 <td style="${td};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#646464">${leEsc(e.supportEmail || '–')}</td>
