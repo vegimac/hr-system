@@ -1772,13 +1772,17 @@ async function loadSvSaetze() {
             if (kr.ok) {
                 const km = await kr.json() || [];
                 svKontoByPos = {};
+                svPosByLohnart = {};
+                const merken = (m) => {
+                    svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto, lohnart: m.lohnartCode || null };
+                    if (m.lohnartCode) svPosByLohnart[String(m.lohnartCode)] = m.position;
+                };
                 km.forEach(m => {
                     // AN-Buchung der SV = Soll 1920 → Gegenkonto (Verbindlichkeit).
-                    if (svKontoByPos[m.position] == null && String(m.fibukonto) === '1920')
-                        svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto, lohnart: m.lohnartCode || null };
+                    if (svKontoByPos[m.position] == null && String(m.fibukonto) === '1920') merken(m);
                 });
                 // Fallback: irgendeine Zeile der Position, falls keine 1920-AN-Zeile.
-                km.forEach(m => { if (svKontoByPos[m.position] == null) svKontoByPos[m.position] = { soll: m.fibukonto, gegen: m.gegenkonto, lohnart: m.lohnartCode || null }; });
+                km.forEach(m => { if (svKontoByPos[m.position] == null) merken(m); });
             }
         } catch {}
         svRender();
@@ -1922,6 +1926,7 @@ async function ahvPflichtSpeichern() {
     }
 }
 let svKontoByPos = {};
+let svPosByLohnart = {};
 // Gewählter Stand aus der Historie (ISO-Datum). null = heute gültig + geplant.
 let svStand = null;
 
@@ -2299,6 +2304,16 @@ function svSatzFeld(el) {
     el.value = svSatz4(String(el.value || '').trim().replace(',', '.'));
 }
 
+// Die Maske zeigt die Lohnart (5010). Gespeichert bleibt die Buchungs-Position,
+// damit das Journal dieselbe Zeile im Kontoplan trifft.
+function svFibuPosSpeichern() {
+    const raw = (document.getElementById('svFibuPosition')?.value || '').trim();
+    if (raw === '') return null;
+    if (svPosByLohnart[raw] != null) return Number(svPosByLohnart[raw]);
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+}
+
 function svOpenForm(rate, mode) {
     _svFormMode = mode || (rate ? 'edit' : 'new');
     // «Duplizieren» (Walter 06.08.2026): alle Werte der Quelle übernehmen,
@@ -2368,7 +2383,12 @@ function svOpenForm(rate, mode) {
     }
     document.getElementById('svOnlyQst').checked     = rate?.onlyQuellensteuer ?? false;
     document.getElementById('svSortOrder').value     = rate?.sortOrder ?? 99;
-    const _fp = document.getElementById('svFibuPosition'); if (_fp) _fp.value = rate?.fibuPosition ?? '';
+    const _fp = document.getElementById('svFibuPosition');
+    if (_fp) {
+        const pos = rate?.fibuPosition;
+        const k = pos != null ? svKontoByPos[pos] : null;
+        _fp.value = k?.lohnart || (pos ?? '');
+    }
     document.getElementById('svFormErr').style.display = 'none';
 
     // „Neu ab"-Hinweis im Formular einblenden (per id-Anker, falls vorhanden)
@@ -2469,7 +2489,7 @@ async function svSave(event) {
         minBaseMonthly:        parseNum('svMinBase'),
         entryThresholdYearly:  parseNum('svEntryThreshold'),
         onlyQuellensteuer:     document.getElementById('svOnlyQst').checked,
-        fibuPosition:          parseIntOpt('svFibuPosition'),
+        fibuPosition:          svFibuPosSpeichern(),
         validFrom:             document.getElementById('svValidFrom').value,
         validTo:               document.getElementById('svValidTo').value || null,
         sortOrder:             parseInt(document.getElementById('svSortOrder').value, 10) || 99,
