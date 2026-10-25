@@ -221,7 +221,7 @@ public class PayrollPdfService
 
                     Cell(t.Cell(), bez, left: true);
                     Cell(t.Cell(), "", right: true);
-                    Cell(t.Cell(), proz.HasValue ? Num(proz, 3) : "", right: true);
+                    Cell(t.Cell(), proz.HasValue ? Num(proz, 4) : "", right: true);
                     Cell(t.Cell(), basis.HasValue ? CHF(basis) : "", right: true);
                     Cell(t.Cell(), "", right: true);
                     // Negativer Abzug = Rückerstattung (z.B. ALVZ kumuliert nach einem

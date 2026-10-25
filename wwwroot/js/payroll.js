@@ -2234,7 +2234,7 @@ function renderLohnSlip(s, targetEl) {
         <tr>
             <td class="ls-desc">${l.bezeichnung}</td>
             <td class="ls-num"></td>
-            <td class="ls-num">${l.prozent != null ? fmtNum(l.prozent, 3) : ''}</td>
+            <td class="ls-num">${l.prozent != null ? fmtNum(l.prozent, 4) : ''}</td>
             <td class="ls-num">${l.basis   != null ? fmt(l.basis) : ''}</td>
             <td class="ls-amt"></td>
             <td class="ls-amt" style="color:${Number(l.betrag) > 0 ? '#059669' : '#dc2626'}">${Number(l.betrag) > 0 ? '+' : ''}${fmt(l.betrag)}</td>
