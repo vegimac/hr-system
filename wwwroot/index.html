@@ -5348,11 +5348,11 @@
                         <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr 0.7fr 0.7fr;gap:12px;margin-bottom:12px">
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Satz AN % *</label>
-                                <input id="svRate" type="number" step="0.0001" min="0" max="100" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <input id="svRate" type="text" inputmode="decimal" required onblur="svSatzFeld(this)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Arbeitgeber-Anteil fürs Fibu-Journal — leer lassen, wenn kein AG-Beitrag gebucht werden soll">Satz AG %</label>
-                                <input id="svRateEmployer" type="number" step="0.0001" min="0" max="100" placeholder="leer = nicht buchen" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <input id="svRateEmployer" type="text" inputmode="decimal" placeholder="leer = nicht buchen" onblur="svSatzFeld(this)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Berechnungsbasis</label>
@@ -10930,7 +10930,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261025c"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261025d"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>

@@ -2288,6 +2288,17 @@ function svToggleMenu(event, id) {
 // ändern) oder 'new-version' (Nachfolger mit neuem Gültig-ab anlegen).
 let _svFormMode = 'new';
 
+// Vier Nachkommastellen, Komma wie in der Maske (5,3000). Leeres AG-Feld bleibt leer.
+function svSatz4(v) {
+    if (v == null || v === '') return '';
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toFixed(4).replace('.', ',') : '';
+}
+function svSatzFeld(el) {
+    if (!el) return;
+    el.value = svSatz4(String(el.value || '').trim().replace(',', '.'));
+}
+
 function svOpenForm(rate, mode) {
     _svFormMode = mode || (rate ? 'edit' : 'new');
     // «Duplizieren» (Walter 06.08.2026): alle Werte der Quelle übernehmen,
@@ -2308,8 +2319,8 @@ function svOpenForm(rate, mode) {
     document.getElementById('svCode').value            = rate?.code ?? 'AHV';
     document.getElementById('svName').value            = rate?.name ?? '';
     document.getElementById('svDescription').value     = rate?.description ?? '';
-    document.getElementById('svRate').value            = rate?.rate ?? '';
-    const _re = document.getElementById('svRateEmployer'); if (_re) _re.value = rate?.rateEmployer ?? '';
+    document.getElementById('svRate').value            = svSatz4(rate?.rate);
+    const _re = document.getElementById('svRateEmployer'); if (_re) _re.value = svSatz4(rate?.rateEmployer);
     document.getElementById('svBasisType').value       = rate?.basisType ?? 'gross';
     document.getElementById('svEmploymentModel').value = rate?.employmentModelCode ?? '';
     // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): '' = alle, F/M.
@@ -2424,7 +2435,7 @@ async function svSave(event) {
     errEl.style.display = 'none';
 
     const parseNum = (id, fallback = null) => {
-        const v = document.getElementById(id).value.trim();
+        const v = document.getElementById(id).value.trim().replace(',', '.');
         return v === '' ? fallback : parseFloat(v);
     };
     const parseIntOpt = (id) => {
