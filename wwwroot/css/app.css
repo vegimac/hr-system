@@ -14135,3 +14135,10 @@ body.theme-dark .cp-empf-titel {
 }
 body.theme-dark .cp-empf-titel::before { background: #c4bdb0; }
 body.theme-dark .cp-empf-zeile { border-bottom-color: rgba(255, 255, 255, 0.08); }
+
+/* Verzeichnis: zugeordnete Empfänger nur leicht anheben, nicht wie die Titelzeile */
+#leList tr.le-zugeordnet td { background: rgba(255, 252, 247, 0.78); }
+#leList .le-zuord { font-weight: 700; color: #3f3a34; }
+#leList .le-offen { color: #b45309; }
+body.theme-dark #leList tr.le-zugeordnet td { background: rgba(255, 255, 255, 0.06); }
+body.theme-dark #leList .le-zuord { color: #f0ebe3; }
