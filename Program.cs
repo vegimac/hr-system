@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 106;  // 106: BVG kontiert auf 5050 · 105: AHV-Beitragspflicht zentral
+const int SchemaStand = 107;  // 107: Kassen-Art kantonal/Verband · 106: BVG kontiert auf 5050 · 105: AHV-Beitragspflicht zentral
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2830,6 +2830,32 @@ using (var scope = app.Services.CreateScope())
                AND fibu_position IS DISTINCT FROM 550;
         ");
         startLog.LogInformation("Stand 106: BVG und BVG-Zusatz kontieren auf Lohnart 5050");
+    }
+
+    // Stand 107: kantonale Kasse (001–025 und 150) oder Verband (ab 028).
+    // Dieselbe Regel wie Services/KassenArt. 026 bleibt leer.
+    if (dbStand < 107)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE lohndaten_empfaenger ADD COLUMN IF NOT EXISTS kassen_typ varchar(12);
+
+            UPDATE lohndaten_empfaenger e
+               SET kassen_typ = CASE
+                    WHEN b.block::int BETWEEN 1 AND 25 OR b.block::int = 150 THEN 'KANTONAL'
+                    WHEN b.block::int >= 28 THEN 'VERBAND'
+                    ELSE NULL
+                   END
+              FROM (
+                    SELECT id,
+                           split_part(regexp_replace(upper(trim(kassennummer)), '\s', '', 'g'), '.', 1) AS block
+                      FROM lohndaten_empfaenger
+                     WHERE upper(art) IN ('AUSGLEICHSKASSE', 'FAK')
+                       AND kassennummer IS NOT NULL
+                   ) b
+             WHERE e.id = b.id
+               AND b.block ~ '^[0-9]+$';
+        ");
+        startLog.LogInformation("Stand 107: Kassen-Art kantonal oder Verband aus der AK-Nummer");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

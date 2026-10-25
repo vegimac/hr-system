@@ -34,6 +34,9 @@ public class LohndatenEmpfaenger
     /// <summary>Nummer der Kasse (z.B. «046.000») — gehört zur Kasse, nicht zur Filiale.</summary>
     public string? Kassennummer { get; set; }
 
+    /// <summary>KANTONAL oder VERBAND, aus der AK-Nummer beim Swissdec-Import. Leer bei UVG und bei der eidgenössischen Kasse 026.</summary>
+    public string? KassenTyp { get; set; }
+
     public string? SupportEmail { get; set; }
     public string? Bemerkung { get; set; }
 

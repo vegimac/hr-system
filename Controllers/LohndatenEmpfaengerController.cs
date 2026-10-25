@@ -39,7 +39,7 @@ public class LohndatenEmpfaengerController : ControllerBase
             {
                 e.Id, e.Art, e.Bezeichnung, e.Zusatz, e.UidNummer,
                 e.Strasse, e.Postfach, e.Plz, e.Ort, e.KantonCode,
-                e.Kassennummer, e.SupportEmail, e.Bemerkung, e.IsActive,
+                e.Kassennummer, e.KassenTyp, e.SupportEmail, e.Bemerkung, e.IsActive,
                 zuordnungen = e.Zuordnungen.Count,
             })
             .ToListAsync();
@@ -170,6 +170,7 @@ public class LohndatenEmpfaengerController : ControllerBase
                     Art = d.Art,
                     Bezeichnung = d.Bezeichnung,
                     Kassennummer = d.Kassennummer,
+                    KassenTyp = KassenArt.AusNummer(d.Art, d.Kassennummer),
                     UidNummer = d.UidNummer,
                     KantonCode = d.KantonCode,
                     SupportEmail = d.SupportEmail,
@@ -189,9 +190,19 @@ public class LohndatenEmpfaengerController : ControllerBase
                 if (!string.IsNullOrWhiteSpace(d.SupportEmail)) e.SupportEmail = d.SupportEmail;
                 if (!string.IsNullOrWhiteSpace(d.KantonCode)) e.KantonCode = d.KantonCode;
                 if (!string.IsNullOrWhiteSpace(d.Kassennummer)) e.Kassennummer = d.Kassennummer;
+                e.KassenTyp = KassenArt.AusNummer(e.Art, e.Kassennummer);
                 e.UpdatedAt = DateTime.Now;
                 geaendert++;
             }
+        }
+        foreach (var d in diffs.Where(x => x.Status == "gleich" && x.BestehendId is int))
+        {
+            var e = bestand.FirstOrDefault(x => x.Id == d.BestehendId);
+            if (e == null) continue;
+            var typ = KassenArt.AusNummer(e.Art, e.Kassennummer);
+            if (e.KassenTyp == typ) continue;
+            e.KassenTyp = typ;
+            e.UpdatedAt = DateTime.Now;
         }
         await _db.SaveChangesAsync();
         return Ok(new
@@ -233,6 +244,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
                 ort          = z.Empfaenger!.Ort,
                 kantonCode   = z.Empfaenger!.KantonCode,
                 kassennummer = z.Empfaenger!.Kassennummer,
+                kassenTyp    = z.Empfaenger!.KassenTyp,
                 uidNummer    = z.Empfaenger!.UidNummer,
                 supportEmail = z.Empfaenger!.SupportEmail,
             })

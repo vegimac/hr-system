@@ -160,6 +160,7 @@ public partial class SwissdecTestmandantController
                 _db.LohndatenEmpfaengers.Add(e); katalog.Add(e);
             }
             e.Zusatz = s.Zusatz; e.Kassennummer = s.Kassennummer; e.UidNummer = s.Uid;
+            e.KassenTyp = HrSystem.Services.KassenArt.AusNummer(e.Art, e.Kassennummer);
             e.Strasse = s.Strasse; e.Postfach = s.Postfach; e.Plz = s.Plz; e.Ort = s.Ort;
             e.Bemerkung = "Swissdec-Testmandant Muster AG"; e.IsActive = true; e.UpdatedAt = DateTime.Now;
             foreach (var f in ziel)

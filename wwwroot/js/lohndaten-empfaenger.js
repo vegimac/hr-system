@@ -115,8 +115,8 @@ function leRender() {
             || (a.kassennummer || '').localeCompare(b.kassennummer || '', 'de'));
         html += `<div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px;padding:0 4px">${leEsc(label)}</div>`;
         html += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:2px"><thead><tr>
-            <th style="${th};width:36%">Name</th>
-            <th style="${th};width:12%">Nr.</th>
+            <th style="${th};width:30%">Name</th>
+            <th style="${th};width:18%">Nr.</th>
             <th style="${th};width:7%">Kt.</th>
             <th style="${th};width:24%">E-Mail</th>
             <th style="${th};width:15%">Zuordnung</th>
@@ -130,7 +130,7 @@ function leRender() {
                 : '<span style="color:#b45309">nicht zugeordnet</span>';
             html += `<tr style="${e.isActive ? '' : 'opacity:0.5'}"${tip ? ` title="${leEsc(tip)}"` : ''}>
                 <td style="${td};font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</td>
-                <td style="${td};font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:nowrap">${leEsc(e.kassennummer || '–')}</td>
+                <td style="${td};font-family:ui-monospace,Menlo,monospace;font-size:11.5px;white-space:nowrap">${leEsc(e.kassennummer || '–')}${leKassenTypText(e.kassenTyp) ? ` <span style="font-family:inherit;color:#646464">${leEsc(leKassenTypText(e.kassenTyp))}</span>` : ''}</td>
                 <td style="${td};white-space:nowrap">${e.kantonCode ? leEsc(e.kantonCode) : '–'}</td>
                 <td style="${td};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#646464">${leEsc(e.supportEmail || '–')}</td>
                 <td style="${td};white-space:nowrap">${zuord}</td>
@@ -182,7 +182,7 @@ function leEnsureModal() {
             </label>
             <label style="${lbl}">Bezeichnung<span class="pflicht-stern">*</span><input id="leBez" style="${inp}"></label>
             <label style="${lbl}">Zusatz<input id="leZusatz" style="${inp}"></label>
-            <label style="${lbl}"><span id="leKassenLbl">Nummer der Kasse / Vers.-Nr.</span><input id="leKassenNr" placeholder="z.B. 003.000" style="${inp}" onblur="leKassePruefen()"><div id="leKassenFehler" style="font-size:12px;color:#9b2c2c;font-weight:600;margin-top:4px;display:none"></div></label>
+            <label style="${lbl}"><span id="leKassenLbl">Nummer der Kasse / Vers.-Nr.</span><input id="leKassenNr" placeholder="z.B. 003.000" style="${inp}" onblur="leKasseLabelSetzen()"><div id="leKassenArt" style="font-size:12px;font-weight:600;color:#3f3f3f;margin-top:4px;display:none"></div><div id="leKassenFehler" style="font-size:12px;color:#9b2c2c;font-weight:600;margin-top:4px;display:none"></div></label>
             <label style="${lbl};grid-column:span 2">UID-Nummer <span style="font-weight:400;color:#8b8b8b">(Swissdec)</span>
                 <input id="leUid" placeholder="CHE-XXX.XXX.XXX" style="${inp}">
                 <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Prüfziffer beim Verlassen des Feldes</span>
@@ -234,7 +234,24 @@ function leOpenNew() {
     ['leBez','leZusatz','leKassenNr','leUid','leStrasse','lePostfach','lePlz','leOrt','leKanton','leMail','leBem'].forEach(id => set(id, ''));
     const akt = document.getElementById('leAktiv'); if (akt) akt.checked = true;
     const hint = document.getElementById('lePlzHint'); if (hint) hint.innerHTML = '';
+    leKasseLabelSetzen();
     document.getElementById('leModal').style.display = 'block';
+}
+
+function leKassenTypAusNummer(art, nummer) {
+    if (art !== 'AUSGLEICHSKASSE' && art !== 'FAK') return '';
+    const block = String(nummer || '').trim().split('.')[0].trim();
+    if (!/^\d+$/.test(block)) return '';
+    const n = parseInt(block, 10);
+    if ((n >= 1 && n <= 25) || n === 150) return 'KANTONAL';
+    if (n >= 28) return 'VERBAND';
+    return '';
+}
+
+function leKassenTypText(typ) {
+    if (typ === 'KANTONAL') return 'kantonal';
+    if (typ === 'VERBAND') return 'Verband';
+    return '';
 }
 
 function leKasseBegriff(art) {
@@ -259,6 +276,12 @@ function leKasseLabelSetzen() {
     const art = document.getElementById('leArt')?.value || '';
     const lbl = document.getElementById('leKassenLbl');
     if (lbl) lbl.textContent = leKasseBegriff(art) || 'Nummer der Kasse / Vers.-Nr.';
+    const artZeile = document.getElementById('leKassenArt');
+    const typText = leKassenTypText(leKassenTypAusNummer(art, document.getElementById('leKassenNr')?.value));
+    if (artZeile) {
+        artZeile.style.display = typText ? 'block' : 'none';
+        artZeile.textContent = typText;
+    }
     leKassePruefen();
 }
 

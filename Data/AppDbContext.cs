@@ -1998,6 +1998,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Ort).HasColumnName("ort");
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code");
             entity.Property(e => e.Kassennummer).HasColumnName("kassennummer");
+            entity.Property(e => e.KassenTyp).HasColumnName("kassen_typ").HasMaxLength(12);
             entity.Property(e => e.SupportEmail).HasColumnName("support_email");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.IsActive).HasColumnName("is_active");

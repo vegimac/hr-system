@@ -2478,6 +2478,11 @@ const CP_EMPF_ARTEN = [
     ['LOHNAUSWEIS',     'Lohnausweis'],
     ['ANDERE',          'Andere'],
 ];
+function cpKassenTypText(typ) {
+    if (typ === 'KANTONAL') return 'kantonal';
+    if (typ === 'VERBAND') return 'Verband';
+    return '';
+}
 function cpEmpfArtLabel(code) {
     const f = CP_EMPF_ARTEN.find(a => a[0] === code);
     return f ? f[1] : (code || 'Andere');
@@ -2615,7 +2620,7 @@ function cpEmpfRowHtml(z) {
     if (zeitraum && abgelaufen) zeitraum = `<span style="color:#991b1b">${zeitraum} (abgelaufen)</span>`;
     else if (zeitraum && zukunft) zeitraum = `<span style="color:#1d4ed8">${zeitraum} (künftig)</span>`;
     const nums = [
-        z.kassennummer   ? `${cdokEsc(labels.kasse)} ${cdokEsc(z.kassennummer)}` : null,
+        z.kassennummer   ? `${cdokEsc(labels.kasse)} ${cdokEsc(z.kassennummer)}${cpKassenTypText(z.kassenTyp) ? ' · ' + cpKassenTypText(z.kassenTyp) : ''}` : null,
         z.mitgliednummer ? `${cdokEsc(labels.mitglied)} ${cdokEsc(z.mitgliednummer)}` : null,
         z.subnummer      ? `${cdokEsc(labels.sub)} ${cdokEsc(z.subnummer)}` : null,
         zeitraum,
@@ -2712,6 +2717,7 @@ function cpEmpfShowStamm(k) {
     const meta = [
         cpEmpfFieldLabels(k.art).kassePruefen ? null : (k.kassennummer ? `Nr. ${cdokEsc(k.kassennummer)}` : null),
         k.uidNummer ? cdokEsc(k.uidNummer) : null,
+        cpKassenTypText(k.kassenTyp) || null,
         k.kantonCode ? cdokEsc(k.kantonCode) : null,
         k.supportEmail ? cdokEsc(k.supportEmail) : null,
     ].filter(Boolean).join(' · ');
@@ -2744,7 +2750,7 @@ function cpEmpfOpenModal(zuordnungId) {
         document.getElementById('cpEmpfPickBlock').style.display = 'none';
         cpEmpfShowStamm({
             art: z.art, bezeichnung: z.bezeichnung, zusatz: z.zusatz,
-            kassennummer: z.kassennummer, uidNummer: z.uidNummer, strasse: z.strasse, postfach: z.postfach,
+            kassennummer: z.kassennummer, kassenTyp: z.kassenTyp, uidNummer: z.uidNummer, strasse: z.strasse, postfach: z.postfach,
             plz: z.plz, ort: z.ort, kantonCode: z.kantonCode, supportEmail: z.supportEmail,
         });
         set('cpEmpfMitglied', z.mitgliednummer);
