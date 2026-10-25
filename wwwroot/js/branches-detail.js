@@ -2502,7 +2502,10 @@ function cpEmpfFieldLabels(art) {
     if (art === 'UVG')
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertrags-/Subnummer',
                  phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
-    if (art === 'KTG' || art === 'UVGZ')
+    if (art === 'UVGZ')
+        return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
+                 name: 'Versicherungsname', phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
+    if (art === 'KTG')
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
                  phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
     if (art === 'BVG')
@@ -2557,6 +2560,9 @@ function cpEmpfUpdateLabels(artOpt) {
     set('cpEmpfLblKasse', L.kasse);
     set('cpEmpfLblMitglied', L.mitglied);
     set('cpEmpfLblSub', L.sub);
+    set('cpEmpfLblName', L.name || 'Versicherungsname');
+    const nameWrap = document.getElementById('cpEmpfNameWrap');
+    if (nameWrap) nameWrap.style.display = L.name ? 'block' : 'none';
     const mi = document.getElementById('cpEmpfMitglied');
     if (mi) mi.placeholder = L.phMitglied;
     const wrap = document.getElementById('cpEmpfKasseWrap');
@@ -2675,7 +2681,7 @@ function cpEmpfRowHtml(z) {
 function cpEmpfEnsureModal() {
     // Altes Modal ohne Art-Vorfilter nach Deploy neu aufbauen.
     const existing = document.getElementById('cpEmpfModal');
-    if (existing && (!document.getElementById('cpEmpfArtFilter') || !document.getElementById('cpEmpfKasseText') || !document.getElementById('cpEmpfIkv'))) existing.remove();
+    if (existing && (!document.getElementById('cpEmpfArtFilter') || !document.getElementById('cpEmpfKasseText') || !document.getElementById('cpEmpfIkv') || !document.getElementById('cpEmpfNameWrap'))) existing.remove();
     if (document.getElementById('cpEmpfModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -2703,6 +2709,7 @@ function cpEmpfEnsureModal() {
         <div>
             <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Angaben dieser Filiale</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+                <div id="cpEmpfNameWrap" style="${lbl};grid-column:span 2;display:none"><span id="cpEmpfLblName">Versicherungsname</span><div id="cpEmpfNameText" style="margin-top:4px;font-size:14px;font-weight:600;color:#3f3f3f">–</div></div>
                 <div id="cpEmpfKasseWrap" style="${lbl};grid-column:span 2;display:none"><span id="cpEmpfLblKasse">Nummer der Ausgleichskasse</span><div id="cpEmpfKasseText" style="margin-top:4px;font-size:14px;font-weight:600;color:#8b8b8b">–</div><input id="cpEmpfKasse" type="hidden"><div id="cpEmpfKasseFehler" style="font-size:12px;color:#9b2c2c;font-weight:600;margin-top:4px;display:none"></div></div>
                 <label style="${lbl}"><span id="cpEmpfLblMitglied">Mitgliednummer</span><input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
                 <label style="${lbl}"><span id="cpEmpfLblSub">Subnummer</span><input id="cpEmpfSub" style="${inp}"></label>
@@ -2742,6 +2749,8 @@ function cpEmpfShowStamm(k, ikvZielId) {
     if (!box) return;
     if (!k) {
         box.innerHTML = '<span style="color:#8b8b8b">Bitte einen Empfänger wählen.</span>';
+        const leer = document.getElementById('cpEmpfNameText');
+        if (leer) leer.textContent = '–';
         cpEmpfKasseAnzeigen('');
         cpEmpfKassePruefen();
         cpEmpfIkvSync();
@@ -2760,6 +2769,8 @@ function cpEmpfShowStamm(k, ikvZielId) {
         ? `<div style="margin-top:4px">Name des UVG-Versicherers · <b>${cdokEsc(k.bezeichnung)}</b></div>`
           + `<div>UID-BFS · ${k.uidNummer ? cdokEsc(k.uidNummer) : '–'}</div>`
         : '';
+    const nameText = document.getElementById('cpEmpfNameText');
+    if (nameText) nameText.textContent = k.bezeichnung || '–';
     box.innerHTML = `<div style="font-weight:600">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${cdokEsc(k.zusatz)}</span>` : ''}</div>`
         + uvgName
         + `<div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">${cdokEsc(adr) || 'keine Adresse'}</div>`

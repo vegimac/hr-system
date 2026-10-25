@@ -150,6 +150,8 @@ public class SocialInsuranceRatesController : ControllerBase
         dto.LoesungsCode   = string.IsNullOrWhiteSpace(dto.LoesungsCode) ? null : dto.LoesungsCode.Trim().ToUpperInvariant();
         var uvgCode = UvgLoesung.LoesungsCodeFehler(dto.Code, dto.LoesungsCode);
         if (uvgCode != null) return BadRequest(new { error = "UVG_CODE", message = uvgCode });
+        var uvgzCode = UvgzLoesung.LoesungsCodeFehler(dto.Code, dto.LoesungsCode);
+        if (uvgzCode != null) return BadRequest(new { error = "UVGZ_CODE", message = uvgzCode });
         dto.IsDefaultCode  = dto.LoesungsCode != null && dto.IsDefaultCode;
         dto.BandVonMonthly = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
         _db.SocialInsuranceRates.Add(dto);
@@ -216,6 +218,8 @@ public class SocialInsuranceRatesController : ControllerBase
         rate.LoesungsCode          = string.IsNullOrWhiteSpace(dto.LoesungsCode) ? null : dto.LoesungsCode.Trim().ToUpperInvariant();
         var uvgCode = UvgLoesung.LoesungsCodeFehler(rate.Code, rate.LoesungsCode);
         if (uvgCode != null) return BadRequest(new { error = "UVG_CODE", message = uvgCode });
+        var uvgzCode = UvgzLoesung.LoesungsCodeFehler(rate.Code, rate.LoesungsCode);
+        if (uvgzCode != null) return BadRequest(new { error = "UVGZ_CODE", message = uvgzCode });
         rate.IsDefaultCode         = rate.LoesungsCode != null && dto.IsDefaultCode;
         rate.BandVonMonthly        = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
         rate.FibuPosition          = dto.FibuPosition;

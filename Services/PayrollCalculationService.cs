@@ -434,9 +434,11 @@ public static class PayrollCalculations
             // von = 0 → unverändert das bisherige Verhalten (nur Deckelung oben).
             bool dezAusgleich = false;
             decimal von = d.BandVonMonthly is > 0 ? d.BandVonMonthly.Value : 0m;
-            if (d.MaxBaseMonthly is > 0 || von > 0)
+            // 0 ist eine echte Obergrenze (UVGZ-Code 10 = nicht versichert).
+            // Leer (null) bleibt unbegrenzt.
+            if (d.MaxBaseMonthly is >= 0 || von > 0)
             {
-                decimal cap = d.MaxBaseMonthly is > 0 ? d.MaxBaseMonthly.Value : decimal.MaxValue / 24m;
+                decimal cap = d.MaxBaseMonthly is >= 0 ? d.MaxBaseMonthly.Value : decimal.MaxValue / 24m;
                 decimal Band(decimal b) => Math.Max(0m, Math.Min(b, cap) - von);
                 // Kumulierte Basis: Deckel oben, Band-Untergrenze «von», Boden 0.
                 // Ist die KUMULIERTE Basis selbst negativ (eine Korrektur zieht die

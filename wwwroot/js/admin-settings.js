@@ -2356,9 +2356,8 @@ function svOpenForm(rate, mode) {
     // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): '' = alle, F/M.
     const _sg = document.getElementById('svGender'); if (_sg) _sg.value = rate?.gender ?? '';
     const _lc = document.getElementById('svLoesungsCode'); if (_lc) _lc.value = rate?.loesungsCode ?? '';
-    svUvgMaske();
     const _dc = document.getElementById('svIsDefaultCode'); if (_dc) _dc.checked = !!rate?.isDefaultCode;
-    const _bv = document.getElementById('svBandVon'); if (_bv) _bv.value = rate?.bandVonMonthly ?? '';
+    svFeldMonat('svBandVon', rate?.bandVonMonthly ?? '');
     // «Gilt für» (Walter 06.08.2026): erste Option = globaler Standard,
     // danach die Filialen aus allBranches (Sortierung wie Filial-Selektor).
     // Bei «Neu ab» ist die Filiale Teil des Fach-Schlüssels — das Backend
@@ -2384,10 +2383,11 @@ function svOpenForm(rate, mode) {
     document.getElementById('svMaxAge').value        = rate?.maxAge ?? '';
     document.getElementById('svFreibetrag').value    = rate?.freibetragMonthly ?? '';
     document.getElementById('svCoordDeduction').value = rate?.coordinationDeduction ?? '';
-    document.getElementById('svMaxBase').value        = rate?.maxBaseMonthly ?? '';
+    svFeldMonat('svMaxBase', rate?.maxBaseMonthly ?? '');
     const _mbf = document.getElementById('svMaxBaseFlat'); if (_mbf) _mbf.value = rate?.maxBaseFlatMonthly ?? '';
     const _mnb = document.getElementById('svMinBase'); if (_mnb) _mnb.value = rate?.minBaseMonthly ?? '';
     const _ets = document.getElementById('svEntryThreshold'); if (_ets) _ets.value = rate?.entryThresholdYearly ?? '';
+    svUvgMaske();
     // Bei „Neu ab" das ValidFrom-Feld bewusst LEER lassen, damit der User
     // bewusst ein Datum eingeben muss; Vorgänger-ValidFrom wäre missverständlich.
     if (_svFormMode === 'new-version') {
@@ -2456,16 +2456,74 @@ function svCloseForm() {
     document.getElementById('svFormPanel').style.display   = 'none';
 }
 
+function svFeldMonat(id, wert) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = wert ?? '';
+    el.dataset.einheit = 'monat';
+}
+
+// UVGZ zeigt das Lohnband in Franken pro Jahr. Gespeichert bleibt der Monat (÷ 12),
+// weil der Lohn so rechnet. 148'200 und 300'000 gehen glatt auf.
+function svJahrFelder(jahr) {
+    for (const id of ['svMaxBase', 'svBandVon']) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const istJahr = el.dataset.einheit === 'jahr';
+        if (jahr === istJahr) continue;
+        if (el.value !== '') {
+            const n = parseFloat(String(el.value).replace(',', '.'));
+            if (Number.isFinite(n)) {
+                const x = jahr ? n * 12 : n / 12;
+                el.value = String(Math.round(x * 100) / 100);
+            }
+        }
+        el.dataset.einheit = jahr ? 'jahr' : 'monat';
+    }
+}
+
+function svMonatAusJahr(n) {
+    if (n == null || !Number.isFinite(n)) return n;
+    return Math.round(n / 12 * 100) / 100;
+}
+
 function svUvgMaske() {
-    const uvg = document.getElementById('svCode')?.value === 'NBUV';
+    const code = document.getElementById('svCode')?.value || '';
+    const uvg = code === 'NBUV';
+    const uvgz = code === 'UVGZ';
     const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-    set('svLblLoesung', uvg ? 'UVG-Code' : 'Lösungs-Code');
-    set('svLblRate', uvg ? 'NBU % *' : 'Satz AN % *');
+    set('svLblLoesung', uvg ? 'UVG-Code' : uvgz ? 'UVGZ-Code' : 'Lösungs-Code');
+    set('svLblRate', uvg ? 'NBU % *' : uvgz ? 'Beitrag % *' : 'Satz AN % *');
     set('svLblRateAg', uvg ? 'BU %' : 'Satz AG %');
+    set('svLblGender', uvgz ? 'Männer / Frauen' : 'Geschlecht');
+    set('svLblMaxBase', uvgz ? 'Obergrenze/Jahr (CHF)' : 'Höchstlohn/Mt. (CHF)');
+    set('svLblBandVon', uvgz ? 'Lohnband von/Jahr (CHF)' : 'Lohnband ab/Mt. (CHF)');
+    const gender = document.getElementById('svGender');
+    if (gender) {
+        const texte = uvgz
+            ? { '': 'Alle', M: 'Männer', F: 'Frauen' }
+            : { '': 'Alle', M: 'Nur Männer', F: 'Nur Frauen' };
+        for (const opt of gender.options) {
+            if (texte[opt.value] != null) opt.textContent = texte[opt.value];
+        }
+    }
+    const codeFeld = document.getElementById('svLoesungsCode');
+    if (codeFeld) codeFeld.placeholder = uvg ? 'z.B. A1' : uvgz ? 'z.B. 11' : 'leer = für alle';
     const beschr = document.getElementById('svDescription');
-    if (beschr) beschr.placeholder = uvg ? 'z.B. A Gesamtes Personal' : '';
+    if (beschr) beschr.placeholder = uvg ? 'z.B. A Gesamtes Personal' : uvgz ? 'z.B. 11 Personal, UVG-Lohn' : '';
     const hinweis = document.getElementById('svUvgHinweis');
     if (hinweis) hinweis.style.display = uvg ? 'block' : 'none';
+    const hinweisZ = document.getElementById('svUvgzHinweis');
+    if (hinweisZ) hinweisZ.style.display = uvgz ? 'block' : 'none';
+    const hintMax = document.getElementById('svHintMax');
+    if (hintMax) hintMax.textContent = uvgz
+        ? 'Obergrenze der Lösung pro Jahr. 300\'000 ist erlaubt. Code 10 = 0. Leer = unbegrenzt. Der Lohn rechnet mit dem Monat (Jahr ÷ 12).'
+        : 'UVG-Höchstlohn und ALV: 12\'350 pro Monat (= 148\'200 pro Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).';
+    const hintBand = document.getElementById('svHintBand');
+    if (hintBand) hintBand.textContent = uvgz
+        ? 'Untergrenze pro Jahr. Code 11 beginnt bei 0 (Feld leer), Code 12 bei 148\'200.'
+        : 'Nur der Teil über diesem Wert (bis Höchstlohn) ist pflichtig: Überschusslohn KTG/UVGZ Code 12, ALVZ 12\'350–30\'875.';
+    svJahrFelder(uvgz);
 }
 
 async function svSave(event) {
@@ -2502,7 +2560,7 @@ async function svSave(event) {
         gender:                document.getElementById('svGender')?.value || null,
         loesungsCode:          (document.getElementById('svLoesungsCode')?.value || '').trim().toUpperCase() || null,
         isDefaultCode:         !!document.getElementById('svIsDefaultCode')?.checked,
-        bandVonMonthly:        parseNum('svBandVon'),
+        bandVonMonthly:        document.getElementById('svCode').value === 'UVGZ' ? svMonatAusJahr(parseNum('svBandVon')) : parseNum('svBandVon'),
         // SV-Sätze pro Filiale (Walter 06.08.2026): leer = globaler Standard.
         companyProfileId:      (() => {
             const v = document.getElementById('svCompanyProfile')?.value || '';
@@ -2512,7 +2570,7 @@ async function svSave(event) {
         maxAge:                parseIntOpt('svMaxAge'),
         freibetragMonthly:     parseNum('svFreibetrag'),
         coordinationDeduction: parseNum('svCoordDeduction'),
-        maxBaseMonthly:        parseNum('svMaxBase'),
+        maxBaseMonthly:        document.getElementById('svCode').value === 'UVGZ' ? svMonatAusJahr(parseNum('svMaxBase')) : parseNum('svMaxBase'),
         maxBaseFlatMonthly:    parseNum('svMaxBaseFlat'),
         minBaseMonthly:        parseNum('svMinBase'),
         entryThresholdYearly:  parseNum('svEntryThreshold'),
@@ -2526,6 +2584,10 @@ async function svSave(event) {
 
     if (body.code === 'NBUV' && body.loesungsCode && !/^[A-Z]/.test(body.loesungsCode)) {
         errEl.textContent = 'Die erste Stelle des UVG-Codes muss ein Buchstabe A–Z sein (Betriebsteil, z.B. A Gesamtes Personal).';
+        errEl.style.display = 'block'; resetSubmitBtn(); return;
+    }
+    if (body.code === 'UVGZ' && body.loesungsCode && !/^[A-Z0-9]{2}$/.test(body.loesungsCode)) {
+        errEl.textContent = 'Der UVGZ-Code hat zwei Stellen. Jede Stelle ist ein Buchstabe A–Z oder eine Ziffer 0–9 (z.B. 11, A2, B1).';
         errEl.style.display = 'block'; resetSubmitBtn(); return;
     }
     if (!body.name) { errEl.textContent = 'Bitte eine Bezeichnung eingeben.'; errEl.style.display = 'block'; resetSubmitBtn(); return; }

@@ -37,12 +37,12 @@ public class UvgzBandTests
         Type = "percent", Rate = 1.0m, BasisType = "gross", BandVonMonthly = 12350m, MaxBaseMonthly = 25000m, IsActive = true,
     };
 
-    private static (List<Dictionary<string, object?>> Lines, decimal Total) Run(decimal brutto, List<decimal>? ytd = null, decimal monate = 12m, decimal bisher = -1m)
+    private static (List<Dictionary<string, object?>> Lines, decimal Total) Run(decimal brutto, List<decimal>? ytd = null, decimal monate = 12m, decimal bisher = -1m, List<DeductionRule>? rules = null)
     {
         var anon = PayrollCalculations.BuildResult(
             Emp(), Contract(), Company(), 2025, 1, new DateOnly(2025, 1, 1), new DateOnly(2025, 1, 31),
             new List<object>(), new List<object>(),
-            new List<DeductionRule> { Uvgz12(), Ktg12() }, brutto,
+            rules ?? new List<DeductionRule> { Uvgz12(), Ktg12() }, brutto,
             new SvBases(brutto, brutto, brutto, brutto, brutto),
             new List<object>(), 0, new List<object>(), 0, new List<object>(), 0, Saldo(),
             new List<EmployeeLohnAssignment>(), new List<EmployeeBankAccount>(),
@@ -101,5 +101,19 @@ public class UvgzBandTests
         // Nov 12'958.35 (voll), Dez 9'395 bei Austritt 20.12. → Höchstlohn 20/30 → Überschuss 1'161.67
         var (lines, _) = Run(9395m, ytd: new List<decimal> { 12958.35m }, monate: 1m + 20m / 30m, bisher: 1m);
         Assert.Equal(1161.67m, (decimal)Line(lines, "UVGZ")["basis"]!);
+    }
+
+    [Fact]
+    public void ObergrenzeNull_BasisNull()
+    {
+        var rule = new DeductionRule
+        {
+            Id = -3, CompanyProfileId = 1, CategoryCode = "UVGZ", CategoryName = "UVG-Zusatz",
+            Name = "UVGZ 10", Type = "percent", Rate = 0.2010m, BasisType = "gross",
+            MaxBaseMonthly = 0m, IsActive = true,
+        };
+        var (lines, _) = Run(4000m, ytd: new List<decimal>(), monate: 1m, bisher: 0m, rules: new List<DeductionRule> { rule });
+        Assert.Equal(0m, (decimal)Line(lines, "UVGZ")["basis"]!);
+        Assert.Equal(0m, (decimal)Line(lines, "UVGZ")["betrag"]!);
     }
 }
