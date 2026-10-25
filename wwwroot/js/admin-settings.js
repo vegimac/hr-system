@@ -2535,15 +2535,23 @@ async function svBvgLohnartenLaden() {
         alle = await res.json();
     } catch { box.textContent = 'Lohnarten konnten nicht geladen werden.'; return; }
     const meine = alle.filter(l => (l.bvgLoesungsCode || '').toUpperCase() === code);
-    const rest = alle.filter(l => (l.bvgLoesungsCode || '').toUpperCase() !== code)
-        .sort((a, b) => (a.bezeichnung || '').localeCompare(b.bezeichnung || '', 'de'));
-    pick.innerHTML = '<option value="">Lohnart zuordnen…</option>' + rest.map(l => {
-        const fremd = l.bvgLoesungsCode ? ' · Lösung ' + l.bvgLoesungsCode : '';
-        return `<option value="${l.id}">${escHtml(l.code)} ${escHtml(l.bezeichnung)}${escHtml(fremd)}</option>`;
+    const sortiert = alle.slice().sort((a, b) => (a.bezeichnung || '').localeCompare(b.bezeichnung || '', 'de'));
+    pick.innerHTML = '<option value="">Lohnart zuordnen…</option>' + sortiert.map(l => {
+        const ihr = (l.bvgLoesungsCode || '').toUpperCase();
+        const mark = !ihr ? '' : ihr === code ? ' · diese Lösung' : ' · Lösung ' + l.bvgLoesungsCode;
+        return `<option value="${l.id}">${escHtml(l.code)} ${escHtml(l.bezeichnung)}${escHtml(mark)}</option>`;
     }).join('');
-    box.innerHTML = meine.length
+    box.innerHTML = (meine.length
         ? meine.map(l => `<span style="display:inline-flex;align-items:center;gap:4px;margin:0 8px 4px 0;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.7)">${escHtml(l.bezeichnung)} <button type="button" onclick="svBvgLohnartLoesen(${l.id})" style="border:none;background:transparent;cursor:pointer;color:#646464">×</button></span>`).join('')
-        : 'Noch keine. Eine Lohnart darf nur einer Lösung gehören.';
+        : 'Noch keine.')
+        + '<div id="svBvgLohnartenHinweis" style="margin-top:4px;color:#6b6152">Eine Lohnart nur einer Lösung. Steht sie schon woanders, zuerst dort das ×.</div>';
+}
+
+function svBvgHinweis(text, fehler) {
+    const el = document.getElementById('svBvgLohnartenHinweis');
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = fehler ? '#9b2c2c' : '#6b6152';
 }
 
 async function svBvgLohnartSenden(id, loesungsCode) {
@@ -2555,7 +2563,9 @@ async function svBvgLohnartSenden(id, loesungsCode) {
     });
     if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        if (errEl) { errEl.textContent = d.message || 'Zuordnen ist nicht möglich.'; errEl.style.display = 'block'; }
+        const msg = d.message || 'Zuordnen ist nicht möglich.';
+        svBvgHinweis(msg, true);
+        if (errEl) errEl.style.display = 'none';
         return;
     }
     if (errEl) errEl.style.display = 'none';
@@ -2563,9 +2573,15 @@ async function svBvgLohnartSenden(id, loesungsCode) {
 }
 
 async function svBvgLohnartZuordnen() {
-    const id = document.getElementById('svBvgLohnartPick')?.value;
+    const pick = document.getElementById('svBvgLohnartPick');
+    const id = pick?.value;
     const code = (document.getElementById('svLoesungsCode')?.value || '').trim().toUpperCase();
     if (!id || !code) return;
+    const text = pick.options[pick.selectedIndex]?.textContent || '';
+    if (text.includes('· diese Lösung')) {
+        svBvgHinweis('Diese Lohnart ist der Lösung schon zugeordnet. Das × nimmt sie wieder weg.', false);
+        return;
+    }
     await svBvgLohnartSenden(id, code);
 }
 
