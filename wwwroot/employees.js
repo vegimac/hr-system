@@ -1810,7 +1810,7 @@ function loadUebersichtTab() {
     // MA-Kopf (🆘-Zeile unter dem Eintrittsdatum, Klick = Modal) — die
     // frühere Zusatz-Zeile in der Personalien-Karte ist raus (Walter).
 
-    const hand = maHandErfasst(emp);
+    const hand = maHandErfasst(emp) || !!emp._testBearbeiten;
     const ahvRoh = (emp.ahvNumber ?? emp.socialSecurityNumber ?? '').trim();
     const ahvUnbekannt = ahvRoh.toLowerCase() === 'unbekannt';
     const ahvZiffern = ahvRoh.replace(/\D/g, '');
@@ -1819,6 +1819,7 @@ function loadUebersichtTab() {
             ? `${ahvZiffern.slice(0, 3)}.${ahvZiffern.slice(3, 7)}.${ahvZiffern.slice(7, 11)}.${ahvZiffern.slice(11)}`
             : ahvRoh);
     const ahvEdit = !!window._istTestinstanz;
+    const nummerEdit = !!(emp._neu || !(emp.easyAtWorkEmployeeId || emp.easyatworkEmployeeId));
     const handKopf = hand ? `
         <div class="ov-pers-aligned" style="margin-bottom:4px">
             <div class="ov-pf"><div class="ov-pfl">Vorname</div>
@@ -1826,7 +1827,10 @@ function loadUebersichtTab() {
             <div class="ov-pf"><div class="ov-pfl">Nachname</div>
             <input id="ov-lastName" class="ov-softin" value="${esc(emp.lastName)}" oninput="ovDirty()"></div>
             <div class="ov-pf"><div class="ov-pfl">Personalnummer</div>
-            <input id="ov-nr" class="ov-softin" value="${esc(emp.employeeNumber)}" oninput="ovDirty()"></div>
+            ${nummerEdit
+                ? `<input id="ov-nr" class="ov-softin" value="${esc(emp.employeeNumber)}" oninput="ovDirty()">`
+                : `<div class="ov-pfv">${esc(emp.employeeNumber) || '<span class="ov-empty">–</span>'}</div>`}
+            </div>
             <div class="ov-pf"><div class="ov-pfl">Land</div>
             <input id="ov-land" class="ov-softin" value="${esc((emp.country || 'CH').trim())}" maxlength="2" oninput="ovLandGeaendert()" title="CH oder ISO-Code, z.B. DE"></div>
         </div>` : '';
@@ -2004,7 +2008,7 @@ function loadUebersichtTab() {
             <input id="ov-schuhgroesse" class="ov-softin" type="text" inputmode="decimal" value="${esc(emp.schuhgroesse)}" placeholder="z.B. 42" maxlength="10" oninput="ovDirty()"></div>
         </div>
         </div>`,
-        `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
+        `${window._istTestinstanz ? `<button type="button" class="ov-hbtn" onclick="neuerMaOeffnen()">Neuer MA</button>${emp._neu || emp._testBearbeiten ? '' : `<button type="button" class="ov-hbtn" onclick="testPersonBearbeiten()">Bearbeiten</button>`}` : ''}<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
     // Weitere Adressen = eigene Box unten (Walter 02.08.2026).
     // Titelzeile: «Weitere Adressen» [(n)] · Beschreibung (Walter 02.08.2026).
@@ -2293,6 +2297,18 @@ async function ovKuendAmChanged(empId) {
 }
 function ovSave() {
     saveEmpEdit();
+}
+
+document.addEventListener('onecrew-instanz', () => {
+    if (window._istTestinstanz && selectedEmployee && document.getElementById('uebersichtContent'))
+        loadUebersichtTab();
+});
+
+function testPersonBearbeiten() {
+    if (!window._istTestinstanz || !selectedEmployee || selectedEmployee._neu) return;
+    selectedEmployee._testBearbeiten = true;
+    loadUebersichtTab();
+    ovDirty();
 }
 
 function neuerMaOeffnen() {
