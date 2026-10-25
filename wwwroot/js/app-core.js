@@ -2162,6 +2162,9 @@ async function saveMyPassword() {
             .then(r => (r.ok ? r.json() : null))
             .then(j => {
                 const label = j && j.label ? String(j.label).trim() : '';
+                window._istTestinstanz = !!label;
+                const neuBtn = document.getElementById('empNeuBtn');
+                if (neuBtn) neuBtn.style.display = label ? '' : 'none';
                 if (!label) return;
                 if (document.getElementById('instanceBanner')) return;
                 const el = document.createElement('div');

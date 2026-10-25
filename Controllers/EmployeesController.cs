@@ -756,6 +756,15 @@ public class EmployeesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(Employee employee)
     {
+        var nrNeu = (employee.EmployeeNumber ?? "").Trim();
+        employee.EmployeeNumber = nrNeu;
+        if (nrNeu.Length > 0)
+        {
+            var nummerBelegt = await _context.Employees.AnyAsync(e => !e.IsHidden && e.EmployeeNumber == nrNeu);
+            if (nummerBelegt)
+                return BadRequest(new { error = "NUMMER_VERGEBEN", message = $"Personalnummer «{nrNeu}» ist schon vergeben." });
+        }
+
         // Kanton + Land aus PLZ ableiten, falls nicht mitgeliefert.
         await EnrichAddressFromZipAsync(employee);
 
@@ -774,7 +783,13 @@ public class EmployeesController : ControllerBase
         var primary = await _postfach.GetPrimaryCompanyAsync(employee.Id);
         await _postfach.EnsureAccountAsync(employee, primary);
 
-        return CreatedAtAction(nameof(GetById), new { id = employee.Id }, employee);
+        return CreatedAtAction(nameof(GetById), new { id = employee.Id }, new
+        {
+            id = employee.Id,
+            employeeNumber = employee.EmployeeNumber,
+            firstName = employee.FirstName,
+            lastName = employee.LastName
+        });
     }
 
     // PUT /api/employees/{id} – Mitarbeiterstammdaten aktualisieren
@@ -783,6 +798,18 @@ public class EmployeesController : ControllerBase
     {
         var employee = await _context.Employees.FindAsync(id);
         if (employee is null) return NotFound();
+
+        // Personalnummer nur bei einer Person ohne easy@work (Test-Erfassung).
+        if (dto.EmployeeNumber is not null && employee.EasyAtWorkEmployeeId == null)
+        {
+            var nr = dto.EmployeeNumber.Trim();
+            if (nr.Length == 0)
+                return BadRequest(new { error = "NUMMER_FEHLT", message = "Personalnummer fehlt." });
+            var nummerBelegt = await _context.Employees.AnyAsync(e => e.Id != id && !e.IsHidden && e.EmployeeNumber == nr);
+            if (nummerBelegt)
+                return BadRequest(new { error = "NUMMER_VERGEBEN", message = $"Personalnummer «{nr}» ist schon vergeben." });
+            employee.EmployeeNumber = nr;
+        }
 
         // ── Personalien ───────────────────────────────────────────────────
         if (dto.FirstName    is not null) employee.FirstName    = dto.FirstName;
@@ -2548,6 +2575,8 @@ public class EmployeesController : ControllerBase
 public class EmployeeUpdateDto
 {
     // Personalien
+    /// <summary>Nur geschrieben, wenn die Person keine easy@work-Id hat.</summary>
+    public string?   EmployeeNumber { get; set; }
     public string?   FirstName    { get; set; }
     public string?   LastName     { get; set; }
     public string?   MaidenName   { get; set; }

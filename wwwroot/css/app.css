@@ -4079,6 +4079,21 @@
             margin-bottom: 0;
             width: auto;
         }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf.ov-pf-ahv { min-width: 240px; }
+        #page-mitarbeiter.liquid-employee .ov-ahv-zeile {
+            display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;
+        }
+        #page-mitarbeiter.liquid-employee .ov-ahv-voll {
+            white-space: nowrap; overflow: visible; font-variant-numeric: tabular-nums;
+        }
+        #page-mitarbeiter.liquid-employee .ov-ahv-eingabe {
+            width: 18ch !important; min-width: 18ch !important; max-width: none;
+            flex: 0 0 auto; padding-right: 2px !important;
+        }
+        #page-mitarbeiter.liquid-employee .ov-ahv-unb {
+            font-size: 12px; color: #3f3f3f; white-space: nowrap;
+            display: flex; align-items: center; gap: 4px;
+        }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .ov-softin {
             width: 100%;
             box-sizing: border-box;

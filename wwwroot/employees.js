@@ -498,6 +498,10 @@ function applyEmpFilter() {
             if (!emps.length && restCode && (e.employeeNumber || '').replace(/alt$/i, '').startsWith(restCode)) {
                 return true;
             }
+            // Testsystem: eine hier erfasste Person hat noch keinen Vertrag.
+            if (!emps.length && window._istTestinstanz && !(e.easyAtWorkEmployeeId || e.easyatworkEmployeeId)) {
+                return true;
+            }
             // ── Heimatfiliale-Prinzip (Walter-Vorgabe 05.08.2026) ────────────
             // Das Dossier wohnt dort, wo der MA ARBEITET: beim Filialwechsel
             // zieht die GANZE Akte in die neue Filiale; die alte Filiale zeigt
@@ -1213,13 +1217,13 @@ function _ovKuendigungRowHtml(emp) {
 // ── Detail rendern ─────────────────────────────
 function renderEmployeeDetail(emp) {
     const panel = document.getElementById('empDetailPanel');
-    const name = ((emp.firstName ?? '') + ' ' + (emp.lastName ?? '')).trim() || '–';
+    const name = emp._neu ? 'Neuer Mitarbeiter' : (((emp.firstName ?? '') + ' ' + (emp.lastName ?? '')).trim() || '–');
     const entry = emp.entryDate ? formatDate(emp.entryDate) : '–';
     const birthHeader = emp.dateOfBirth
         ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:500">(${calcAge(emp.dateOfBirth)} J.)</span>`
         : '–';
     const exit  = emp.exitDate  ? formatDate(emp.exitDate)  : _t('ma.detail.statusActive', 'Aktiv');
-    const nr    = emp.employeeNumber ?? '–';
+    const nr    = emp._neu ? '' : (emp.employeeNumber ?? '–');
     // Walter-Vorgabe 14.06.2026: Header-Status MUSS sich an emp.isActive
     // orientieren — vorher zeigte er nur „● Aktiv" wenn kein ExitDate gesetzt
     // war. Wenn ein MA via Re-Import ohne ExitDate deaktiviert wird (z.B.
@@ -1327,7 +1331,7 @@ function renderEmployeeDetail(emp) {
         : null;
     const _appChip = emp.isPayrollExcluded ? '' :
         `<span id="empAppChip" style="display:none;font-size:10.5px;font-weight:600;padding:1px 8px;border-radius:8px;cursor:pointer;margin-top:2px;width:fit-content" onclick="postfachSetupQr(${emp.id})" title="Klick: Link/QR senden"></span>`;
-    if (!emp.isPayrollExcluded) requestAnimationFrame(() => pfLoadAppChip(emp.id));
+    if (!emp.isPayrollExcluded && !emp._neu) requestAnimationFrame(() => pfLoadAppChip(emp.id));
     const _hcEmailVal = emp.email
         ? `<span class="emp-hfact-with-act" style="display:flex;flex-direction:column;align-items:flex-start"><span style="display:flex;align-items:center;gap:6px"><a class="emp-hfact-act" href="mailto:${esc(emp.email)}" title="E-Mail an ${esc(emp.email)}" aria-label="E-Mail schreiben">${_hcActIcon('mail')}</a><span class="emp-hfact-txt" title="${esc(emp.email)}">${esc(emp.email)}</span></span>${_appChip}</span>`
         : null;
@@ -1708,7 +1712,8 @@ function updateLsEmpSyncBtn() {
     const ok = (typeof currentPageName === 'undefined' || currentPageName === 'mitarbeiter')
         && window.selectedEmployeeId
         && window._lsEmpSyncAllowed
-        && aufUebersicht;
+        && aufUebersicht
+        && !selectedEmployee?._neu;
     btn.style.display = ok ? 'inline-flex' : 'none';
 }
 
@@ -1736,6 +1741,30 @@ function _ovCard(title, jumpTab, jumpTitle, bodyHtml, extraHeader = '') {
 }
 function _ovF(label, value) {
     return `<div class="ov-f"><div class="ov-fl">${label}</div><div class="ov-fv">${value || '<span class="ov-empty">–</span>'}</div></div>`;
+}
+
+function landIstCh(roh) {
+    const u = (roh || '').trim().toUpperCase();
+    return !u || u === 'CH' || u === 'CHE' || u === 'SCHWEIZ' || u === 'SWITZERLAND';
+}
+
+function maHandErfasst(emp) {
+    if (!emp) return false;
+    if (emp._neu) return true;
+    const easy = emp.easyAtWorkEmployeeId || emp.easyatworkEmployeeId;
+    return !easy && !(emp.employments || []).length;
+}
+
+function ovLandGeaendert() {
+    const land = (document.getElementById('ov-land')?.value || '').trim().toUpperCase();
+    const kt = document.getElementById('ov-canton');
+    if (kt && land && land !== 'CH' && land !== 'SCHWEIZ' && land !== 'SWITZERLAND') kt.value = 'EX';
+    if (typeof ovDirty === 'function') ovDirty();
+}
+
+function heuteIsoLokal() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function loadUebersichtTab() {
@@ -1781,9 +1810,41 @@ function loadUebersichtTab() {
     // MA-Kopf (🆘-Zeile unter dem Eintrittsdatum, Klick = Modal) — die
     // frühere Zusatz-Zeile in der Personalien-Karte ist raus (Walter).
 
+    const hand = maHandErfasst(emp);
+    const ahvRoh = (emp.ahvNumber ?? emp.socialSecurityNumber ?? '').trim();
+    const ahvUnbekannt = ahvRoh.toLowerCase() === 'unbekannt';
+    const ahvZiffern = ahvRoh.replace(/\D/g, '');
+    const ahvText = ahvUnbekannt ? 'unbekannt'
+        : (ahvZiffern.length === 13
+            ? `${ahvZiffern.slice(0, 3)}.${ahvZiffern.slice(3, 7)}.${ahvZiffern.slice(7, 11)}.${ahvZiffern.slice(11)}`
+            : ahvRoh);
+    const ahvEdit = !!window._istTestinstanz;
+    const handKopf = hand ? `
+        <div class="ov-pers-aligned" style="margin-bottom:4px">
+            <div class="ov-pf"><div class="ov-pfl">Vorname</div>
+            <input id="ov-firstName" class="ov-softin" value="${esc(emp.firstName)}" oninput="ovDirty()"></div>
+            <div class="ov-pf"><div class="ov-pfl">Nachname</div>
+            <input id="ov-lastName" class="ov-softin" value="${esc(emp.lastName)}" oninput="ovDirty()"></div>
+            <div class="ov-pf"><div class="ov-pfl">Personalnummer</div>
+            <input id="ov-nr" class="ov-softin" value="${esc(emp.employeeNumber)}" oninput="ovDirty()"></div>
+            <div class="ov-pf"><div class="ov-pfl">Land</div>
+            <input id="ov-land" class="ov-softin" value="${esc((emp.country || 'CH').trim())}" maxlength="2" oninput="ovLandGeaendert()" title="CH oder ISO-Code, z.B. DE"></div>
+        </div>` : '';
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-pers-body">
+        ${handKopf}
         <div class="ov-pers-aligned">
+            ${hand ? `<div class="ov-pf ov-pf-street"><div class="ov-pfl">${_t('ma.field.street','Strasse')}</div>
+                <input id="ov-street" class="ov-softin" value="${esc(emp.street)}" oninput="ovDirty()"></div>
+            <div class="ov-pf ov-pf-plz"><div class="ov-pfl">PLZ</div>
+                <input id="ov-zip" class="ov-softin" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="10" oninput="ovDirty()" onblur="plzLookupGeneric(this.value,'ov-city','ov-canton',null,'ov-plz-hint')">
+                <div id="ov-plz-hint" style="font-size:11px;min-height:14px"></div></div>
+            <div class="ov-pf ov-pf-ortkt"><div class="ov-ortkt">
+                <div class="ov-pf ov-pf-city"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
+                <input id="ov-city" class="ov-softin" value="${esc(stripCityCantonSuffix(emp.city))}" oninput="ovDirty()"></div>
+                <div class="ov-pf ov-pf-kt"><div class="ov-pfl">Kt.</div>
+                ${renderKantonSelect('ov-canton', ((emp.country || 'CH').trim().toUpperCase() !== 'CH' && (emp.country || '').trim() !== '') ? 'EX' : (emp.cantonCode || ''), 'onchange="ovDirty()"')}</div>
+            </div></div>` : `
             <div class="ov-pf ov-pf-street" title="${esc(emp.street || '')}">
                 <div class="ov-pfl">${_t('ma.field.street','Strasse')}</div>
                 <div class="ov-pfv">${esc(emp.street) || '<span class="ov-empty">–</span>'}</div>
@@ -1800,9 +1861,6 @@ function loadUebersichtTab() {
                     </div>
                     <div class="ov-pf ov-pf-kt">
                         ${(() => {
-                            // Auslands-Hauptwohnsitz (Walter 28.08.2026): statt Kanton
-                            // das LAND zeigen — der QST-Kanton kommt dann von der
-                            // Filiale (Arbeitskanton), siehe ApplyWohnadresseAsync.
                             const land = (emp.country || 'CH').trim();
                             const auslandAdr = land && land.toUpperCase() !== 'CH' && land.toLowerCase() !== 'schweiz';
                             return auslandAdr
@@ -1813,24 +1871,28 @@ function loadUebersichtTab() {
                         })()}
                     </div>
                 </div>
-            </div>
+            </div>`}
             <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefonnummer</div>
             <input id="ov-phone2" class="ov-softin" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div>
             <div class="ov-pf ov-pf-ahv">
                 <div class="ov-pfl">AHV-Nummer${_ahvKasseHtml(emp)}</div>
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                    <input id="ov-ahv" class="ov-softin" style="width:150px" inputmode="numeric" maxlength="16"
-                        value="${(emp.ahvNumber ?? emp.socialSecurityNumber ?? '').trim().toLowerCase() === 'unbekannt' ? '' : esc(emp.ahvNumber ?? emp.socialSecurityNumber)}"
+                ${ahvEdit ? `<div class="ov-ahv-zeile">
+                    <input id="ov-ahv" class="ov-softin ov-ahv-eingabe" inputmode="numeric" maxlength="16"
+                        value="${ahvUnbekannt ? '' : esc(ahvText)}"
                         placeholder="756.7865.5342.46"
-                        ${(emp.ahvNumber ?? emp.socialSecurityNumber ?? '').trim().toLowerCase() === 'unbekannt' ? 'disabled' : ''}
+                        ${ahvUnbekannt ? 'disabled' : ''}
                         oninput="ahvMaskInput(this);ovDirty()" onblur="validateAhvField(this, true)">
-                    <label style="font-size:12px;color:#3f3f3f;white-space:nowrap;display:flex;align-items:center;gap:4px">
-                        <input type="checkbox" id="ov-ahv-unbekannt" ${(emp.ahvNumber ?? emp.socialSecurityNumber ?? '').trim().toLowerCase() === 'unbekannt' ? 'checked' : ''} onchange="ovAhvUnbekannt()">
+                    <label class="ov-ahv-unb">
+                        <input type="checkbox" id="ov-ahv-unbekannt" ${ahvUnbekannt ? 'checked' : ''} onchange="ovAhvUnbekannt()">
                         unbekannt
                     </label>
-                    ${(emp.ahvNumber ?? emp.socialSecurityNumber) && (emp.ahvNumber ?? emp.socialSecurityNumber).trim().toLowerCase() !== 'unbekannt' ? directDocButton(emp.ahvKarteDokumentId, 'ahv_karte', 'ahv_card') : ''}
+                    ${!ahvUnbekannt && ahvRoh ? directDocButton(emp.ahvKarteDokumentId, 'ahv_karte', 'ahv_card') : ''}
                 </div>
-                <div id="ov-ahv-status" style="font-size:11px;min-height:14px"></div>
+                <div id="ov-ahv-status" style="font-size:11px;min-height:14px"></div>`
+                : `<div class="ov-ahv-zeile">
+                    <div class="ov-pfv ov-ahv-voll">${ahvText ? esc(ahvText) : '<span class="ov-empty">–</span>'}</div>
+                    ${!ahvUnbekannt && ahvRoh ? directDocButton(emp.ahvKarteDokumentId, 'ahv_karte', 'ahv_card') : ''}
+                </div>`}
             </div>
 
             <div class="ov-pers-z2">
@@ -1874,7 +1936,7 @@ function loadUebersichtTab() {
             </div>
             <div class="ov-pf">
                 <div class="ov-pfl">Geburtsdatum</div>
-                <input id="ov-dob" class="ov-softin" type="date" max="${new Date().toISOString().slice(0,10)}" value="${toDateInput(emp.dateOfBirth)}" onchange="ovDirty()">
+                <input id="ov-dob" class="ov-softin" type="date" max="${heuteIsoLokal()}" value="${toDateInput(emp.dateOfBirth)}" onchange="ovDirty()">
             </div>
             <div class="ov-pf">
                 <div class="ov-pfl">Mobilnummer</div>
@@ -2099,9 +2161,16 @@ function loadUebersichtTab() {
     // gehabt ihren eigenen Bereich (Tab «Dokumente»).
 
     // Personalien · Anstellung|Nachtarbeit · Verträge|Saldi · Weitere Adressen
-    el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
+    el.innerHTML = emp._neu
+        ? `<div class="ov-wrap"><div class="ov-full">${kPers}</div></div>`
+        : `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
         : `<div id="pdKarte" class="ov-full" style="display:none"></div><div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div><div class="ov-addr-full">${kAddr}</div>`}</div>`;
+    if (emp._neu) {
+        ovNatFuellen(emp);
+        ovDirty();
+        return;
+    }
     if (!emp.isPayrollExcluded && typeof pdKarteLaden === 'function')
         pdKarteLaden(emp.id);
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
@@ -2218,6 +2287,120 @@ async function ovKuendAmChanged(empId) {
 }
 function ovSave() {
     saveEmpEdit();
+}
+
+function neuerMaOeffnen() {
+    if (!window._istTestinstanz) return;
+    let nr = '';
+    try {
+        const b = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId && typeof allBranches !== 'undefined')
+            ? allBranches.find(x => Number(x.id) === Number(fixedCompanyProfileId)) : null;
+        if (b && typeof pnKreisFuer === 'function') {
+            const kreis = pnKreisFuer(b);
+            if (kreis && kreis.hatLaenge) {
+                const nums = (_empAllRaw || [])
+                    .map(e => String(e.employeeNumber || '').trim())
+                    .filter(n => kreis.passt(n))
+                    .map(Number)
+                    .filter(n => !isNaN(n))
+                    .sort((a, c) => c - a);
+                nr = nums.length ? (kreis.naechste(nums[0]) || '') : (kreis.praefix + '1'.padStart(kreis.stellen, '0'));
+            }
+        }
+    } catch (_) { /* Vorschlag bleibt leer */ }
+    selectedEmployee = {
+        _neu: true, id: -1, isActive: true, isPayrollExcluded: false,
+        firstName: '', lastName: '', employeeNumber: nr,
+        gender: '', languageCode: 'de', country: 'CH', employments: [],
+    };
+    selectedEmployeeId = -1;
+    window.selectedEmployeeId = -1;
+    renderEmployeeDetail(selectedEmployee);
+}
+
+async function neuerMaSpeichern() {
+    const v = id => (document.getElementById(id)?.value || '').trim();
+    const vorname = v('ov-firstName');
+    const nachname = v('ov-lastName');
+    const nummer = v('ov-nr');
+    const geschlecht = v('ov-gender');
+    const geburt = v('ov-dob');
+    const nat = v('ov-nat');
+    if (!vorname || !nachname) { alert('Vorname und Nachname fehlen.'); return; }
+    if (!nummer) { alert('Personalnummer fehlt.'); return; }
+    if (!geschlecht) { alert('Geschlecht fehlt. M oder F.'); return; }
+    if (!geburt) { alert('Geburtsdatum fehlt.'); return; }
+    const heute = new Date(); heute.setHours(0, 0, 0, 0);
+    if (new Date(geburt + 'T00:00:00') > heute) { alert('Geburtsdatum darf nicht nach dem heutigen Tag liegen.'); return; }
+    if (!nat) { alert('Nationalität fehlt.'); return; }
+    let ahv = '';
+    if (document.getElementById('ov-ahv-unbekannt')?.checked) ahv = 'unbekannt';
+    else if (v('ov-ahv')) {
+        const chk = validateAhvNummer(v('ov-ahv'));
+        if (chk.valid === false) {
+            alert('AHV-Nummer ist ungültig:\n' + chk.error + '\n\nGültig zum Beispiel 756.7865.5342.46.');
+            return;
+        }
+        ahv = chk.normalized || '';
+    }
+    const mobilRoh = v('ov-mobile');
+    const mobil = mobilRoh && window.formatPhoneIntl ? window.formatPhoneIntl(mobilRoh) : mobilRoh;
+    if (mobilRoh && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(mobil)) {
+        alert('Mobilnummer ungültig (erwartet +41 79 409 43 33).');
+        return;
+    }
+    const telRoh = v('ov-phone2');
+    const tel = telRoh && window.formatPhoneIntl ? window.formatPhoneIntl(telRoh) : telRoh;
+    if (telRoh && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(tel)) {
+        alert('Telefonnummer ungültig (erwartet +41 79 409 43 33).');
+        return;
+    }
+    const mail = v('ov-email');
+    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { alert('E-Mail-Adresse ist ungültig.'); return; }
+    const landRoh = (v('ov-land') || 'CH').toUpperCase();
+    const land = landIstCh(landRoh) ? 'CH' : landRoh;
+    const body = {
+        employeeNumber: nummer,
+        firstName: vorname,
+        lastName: nachname,
+        gender: geschlecht,
+        dateOfBirth: geburt,
+        languageCode: v('ov-lang') || 'de',
+        nationalityId: parseInt(nat, 10) || null,
+        socialSecurityNumber: ahv || null,
+        phoneMobile: mobil || null,
+        phone2: tel || null,
+        email: mail || null,
+        street: v('ov-street') || null,
+        zipCode: v('ov-zip') || null,
+        city: v('ov-city') || null,
+        country: land,
+        cantonCode: land === 'CH' ? (v('ov-canton') || null) : 'EX',
+        isActive: true,
+    };
+    const btn = document.getElementById('ovSaveBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await (typeof pdFetch === 'function' ? pdFetch : fetch)('/api/employees', {
+            method: 'POST',
+            headers: ah(),
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const msg = typeof pdFehlertext === 'function' ? await pdFehlertext(res) : 'Speichern fehlgeschlagen.';
+            alert(msg || 'Speichern fehlgeschlagen.');
+            return;
+        }
+        const created = await res.json().catch(() => ({}));
+        const id = created.id || created.Id;
+        if (typeof loadMitarbeiterList === 'function') await loadMitarbeiterList();
+        if (id && typeof selectEmployee === 'function') await selectEmployee(id);
+        if (typeof showToast === 'function') showToast('Mitarbeiter erfasst.', 'success');
+    } catch (e) {
+        alert('Speichern fehlgeschlagen.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 
@@ -2707,6 +2890,10 @@ async function easyworkSyncSelectedEmployee(empId) {
 
 // ── Tab wechseln ───────────────────────────────
 function switchEmpTab(tab) {
+    if (selectedEmployee?._neu && tab && tab !== 'uebersicht' && tab !== 'personal') {
+        if (typeof showToast === 'function') showToast('Zuerst die Person speichern.', 'info');
+        return;
+    }
     // Bank ist seit 15.07.2026 Teil von «Bewilligung QST Bank».
     if (tab === 'bank') tab = 'quellensteuer';
     // Zeiten-Kombi zurückgenommen (Walter 17.07.2026): falls noch jemand auf
@@ -7516,6 +7703,7 @@ async function onIsActiveChange(cb, empId) {
 async function saveEmpEdit() {
     if (!selectedEmployeeId || !selectedEmployee) return;
     const emp = selectedEmployee;
+    if (emp._neu) { await neuerMaSpeichern(); return; }
     const easyWorkLocked = true;
 
     // AHV-Nr-Prüfziffer-Check: blockt Save wenn AHV-Nr eingegeben aber ungültig.
@@ -7626,14 +7814,26 @@ async function saveEmpEdit() {
         }
         mobilFeld.value = fmt;
     }
+    const ovZipEl = document.getElementById('ov-zip');
+    const ovLandEl = document.getElementById('ov-land');
+    if (ovZipEl) {
+        const land = ((ovLandEl?.value || 'CH').trim().toUpperCase());
+        const zip = ovZipEl.value.trim();
+        const ch = !land || land === 'CH' || land === 'SCHWEIZ' || land === 'SWITZERLAND';
+        if (ch && zip && !/^\d{4}$/.test(zip)) {
+            alert('PLZ muss 4-stellig numerisch sein.');
+            ovZipEl.focus();
+            return;
+        }
+    }
 
     const permitTypeEl = document.getElementById('ef-permitType');
     const permitExpiryEl = document.getElementById('ef-permitExpiry');
     const zemisEl = formEl('ef-zemisNumber', 'ov-zemisNumber');
     const placeOfOriginEl = document.getElementById('ef-placeOfOrigin');
     const empPayload = {
-        firstName:    easyWorkLocked ? (emp.firstName || null) : (document.getElementById('ef-firstName')?.value || null),
-        lastName:     easyWorkLocked ? (emp.lastName || null) : (document.getElementById('ef-lastName')?.value || null),
+        firstName:    document.getElementById('ov-firstName') ? (document.getElementById('ov-firstName').value.trim() || null) : (easyWorkLocked ? (emp.firstName || null) : (document.getElementById('ef-firstName')?.value || null)),
+        lastName:     document.getElementById('ov-lastName') ? (document.getElementById('ov-lastName').value.trim() || null) : (easyWorkLocked ? (emp.lastName || null) : (document.getElementById('ef-lastName')?.value || null)),
         salutation:   easyWorkLocked ? (emp.salutation || null) : (document.getElementById('ef-salutation')?.value || null),
         gender:       document.getElementById('ov-gender') ? (document.getElementById('ov-gender').value || null) : (easyWorkLocked ? (emp.gender || null) : (document.getElementById('ef-gender')?.value || null)),
         dateOfBirth:  document.getElementById('ov-dob') ? (document.getElementById('ov-dob').value || null) : (easyWorkLocked ? (toDateInput(emp.dateOfBirth) || null) : (document.getElementById('ef-dob')?.value || null)),
@@ -7641,14 +7841,16 @@ async function saveEmpEdit() {
         phoneMobile:  document.getElementById('ov-mobile') ? ((document.getElementById('ov-mobile').value || '').trim()) : (easyWorkLocked ? (emp.phoneMobile || null) : (_phoneFmt || null)),
         phone2:       _phone2Fmt || null,
         email:        document.getElementById('ov-email') ? ((document.getElementById('ov-email').value || '').trim()) : (easyWorkLocked ? (emp.email || null) : (_emailRaw || null)),
-        street:       easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null),
-        zipCode:      _zipRaw || null,
-        city:         easyWorkLocked ? (emp.city || null) : (stripCityCantonSuffix(document.getElementById('ef-city')?.value) || null),
+        street:       document.getElementById('ov-street') ? (document.getElementById('ov-street').value.trim() || null) : (easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null)),
+        zipCode:      document.getElementById('ov-zip') ? (document.getElementById('ov-zip').value.trim() || null) : (_zipRaw || null),
+        city:         document.getElementById('ov-city') ? (stripCityCantonSuffix(document.getElementById('ov-city').value) || null) : (easyWorkLocked ? (emp.city || null) : (stripCityCantonSuffix(document.getElementById('ef-city')?.value) || null)),
         // Land IMMER aus dem Feld (auch bei easy@work-Lock, Walter 28.08.2026);
         // Kanton bei Auslands-Adresse bewusst leeren (Filial-Kanton greift).
-        country:      _landVal || null,
-        cantonCode:   !_istCHAdresse ? null
-                      : (easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null)),
+        country:      document.getElementById('ov-land') ? ((document.getElementById('ov-land').value || 'CH').trim().toUpperCase() || 'CH') : (_landVal || null),
+        cantonCode:   document.getElementById('ov-canton')
+                      ? (landIstCh(document.getElementById('ov-land')?.value) ? (document.getElementById('ov-canton').value || null) : 'EX')
+                      : (!_istCHAdresse ? null
+                      : (easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null))),
         permitTypeId: permitTypeEl ? (parseInt(permitTypeEl.value) || 0) : (emp.permitTypeId || 0),
         permitExpiryDate: permitExpiryEl ? (permitExpiryEl.value || null) : (toDateInput(emp.permitExpiryDate) || null),
         nationalityId: (document.getElementById('ov-nat') && document.getElementById('ov-nat').options.length > 1)
@@ -7701,6 +7903,7 @@ async function saveEmpEdit() {
         // Schuhgrösse nur aus der Übersicht: null = nicht ändern, '' = löschen.
         schuhgroesse:          document.getElementById('ov-schuhgroesse') ? document.getElementById('ov-schuhgroesse').value.trim() : null,
         placeOfOrigin:         placeOfOriginEl ? (placeOfOriginEl.value?.trim() || null) : (emp.placeOfOrigin || null),
+        employeeNumber:        document.getElementById('ov-nr') ? document.getElementById('ov-nr').value.trim() : undefined,
     };
     const religionBefore = emp.religion || '';
     const religionAfter  = empPayload.religion || '';
