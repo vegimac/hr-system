@@ -1798,29 +1798,44 @@ function ahvPflichtDarf() {
     return typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
 }
 
-function ahvUebergangSatz(z) {
+function ahvUebergangKarte(z) {
     const von = z.von == null || z.von === '' ? null : Number(z.von);
     const bis = z.bis == null || z.bis === '' ? null : Number(z.bis);
-    const wer = von == null && bis != null ? `bis ${bis}`
+    const jahrgang = von == null && bis != null ? `bis ${bis}`
         : von != null && bis != null && von !== bis ? `${von}–${bis}`
         : von != null ? String(von) : 'übrige';
-    const mon = Number(z.monate) ? ` + ${z.monate} Monate` : '';
-    return `${wer}: ${z.jahre} Jahre${mon}`;
+    const mon = Number(z.monate) || 0;
+    const alter = mon ? `${z.jahre} Jahre + ${mon} Monate` : `${z.jahre} Jahre`;
+    return { jahrgang, alter, bis };
 }
 
 function ahvPflichtLesen(j) {
     const lese = document.getElementById('ahvPflichtLese');
     if (!lese) return;
-    const ueb = (j.uebergaenge || []).map(ahvUebergangSatz).join(' · ');
+    const kachel = (label, wert) =>
+        `<div class="ahv-kachel"><span>${label}</span><b>${wert ?? '–'}</b></div>`;
+    const karten = (j.uebergaenge || []).map(ahvUebergangKarte);
+    const letztesBis = karten.reduce((m, k) => k.bis != null && k.bis > m ? k.bis : m, 0);
+    const danach = letztesBis
+        ? `<div class="ahv-21-chip ahv-21-danach"><span>ab ${letztesBis + 1}</span><b>${j.endeFrauen ?? '–'} Jahre</b></div>`
+        : '';
+    const chips = karten.map(k =>
+        `<div class="ahv-21-chip"><span>${k.jahrgang}</span><b>${k.alter}</b></div>`).join('') + danach;
+    const block21 = chips
+        ? `<div class="ahv-21">
+            <div class="ahv-21-titel">AHV 21<span>Übergang Frauen</span></div>
+            <div class="ahv-21-chips">${chips}</div>
+           </div>` : '';
     const knopf = ahvPflichtDarf()
         ? `<button type="button" class="ahv-bearbeiten" onclick="ahvPflichtOeffnen()">Bearbeiten</button>` : '';
-    lese.innerHTML = `<span class="ahv-lese-titel">AHV-Beitragspflicht</span>
-        <span class="ahv-lese-werte">
-            <span>Beginn <b>${j.beginn ?? '–'}</b></span>
-            <span>Ende Männer <b>${j.endeMaenner ?? '–'}</b></span>
-            <span>Ende Frauen <b>${j.endeFrauen ?? '–'}</b></span>
-            ${ueb ? `<span class="ahv-lese-ueb">Übergang ${ueb}</span>` : ''}
-        </span>${knopf}`;
+    lese.innerHTML = `<div class="ahv-grund">
+            <div class="ahv-lese-titel">AHV-Beitragspflicht</div>
+            <div class="ahv-kacheln">
+                ${kachel('Beginn', j.beginn)}
+                ${kachel('Ende Männer', j.endeMaenner)}
+                ${kachel('Ende Frauen', j.endeFrauen)}
+            </div>
+        </div>${block21}${knopf}`;
 }
 
 function ahvUebergangZeile(z) {
