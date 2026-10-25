@@ -2673,7 +2673,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.Art).HasColumnName("art").HasMaxLength(10);
-            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(10);
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(32);
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             entity.Property(e => e.BeitragFixAn).HasColumnName("beitrag_fix_an").HasColumnType("numeric(10,2)");
@@ -3331,7 +3331,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
             entity.Property(e => e.Gender).HasColumnName("gender").HasMaxLength(1);
             entity.Property(e => e.FibuPosition).HasColumnName("fibu_position");
-            entity.Property(e => e.LoesungsCode).HasColumnName("loesungs_code").HasMaxLength(10);
+            entity.Property(e => e.LoesungsCode).HasColumnName("loesungs_code").HasMaxLength(32);
             entity.Property(e => e.IsDefaultCode).HasColumnName("is_default_code").HasDefaultValue(false);
             entity.Property(e => e.BandVonMonthly).HasColumnName("band_von_monthly").HasColumnType("numeric(10,2)");
             entity.Property(e => e.HoechstlohnArt).HasColumnName("hoechstlohn_art").HasMaxLength(10);
@@ -3405,6 +3405,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.BvgFaktor).HasColumnName("bvg_faktor").HasColumnType("numeric(6,2)").HasDefaultValue(1m);
             entity.Property(e => e.BvgFaktorX).HasColumnName("bvg_faktor_x").HasDefaultValue(false);
             entity.Property(e => e.BvgRueckCode).HasColumnName("bvg_rueck_code").HasDefaultValue(0);
+            entity.Property(e => e.BvgLoesungsCode).HasColumnName("bvg_loesungs_code").HasMaxLength(32);
             entity.Property(e => e.StatistikMonat).HasColumnName("statistik_monat").HasMaxLength(40);
             entity.Property(e => e.StatistikJahr).HasColumnName("statistik_jahr").HasMaxLength(40);
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);

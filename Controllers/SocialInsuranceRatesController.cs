@@ -154,6 +154,8 @@ public class SocialInsuranceRatesController : ControllerBase
         if (uvgzCode != null) return BadRequest(new { error = "UVGZ_CODE", message = uvgzCode });
         var ktgCode = KtgLoesung.LoesungsCodeFehler(dto.Code, dto.LoesungsCode);
         if (ktgCode != null) return BadRequest(new { error = "KTG_CODE", message = ktgCode });
+        var bvgCode = BvgLoesung.CodeFehler(dto.Code, dto.LoesungsCode);
+        if (bvgCode != null) return BadRequest(new { error = "BVG_CODE", message = bvgCode });
         dto.HoechstlohnArt = KtgLoesung.HoechstlohnArt(dto.Code, dto.HoechstlohnArt);
         dto.IsDefaultCode  = dto.LoesungsCode != null && dto.IsDefaultCode;
         dto.BandVonMonthly = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
@@ -225,6 +227,8 @@ public class SocialInsuranceRatesController : ControllerBase
         if (uvgzCode != null) return BadRequest(new { error = "UVGZ_CODE", message = uvgzCode });
         var ktgCode = KtgLoesung.LoesungsCodeFehler(rate.Code, rate.LoesungsCode);
         if (ktgCode != null) return BadRequest(new { error = "KTG_CODE", message = ktgCode });
+        var bvgCode = BvgLoesung.CodeFehler(rate.Code, rate.LoesungsCode);
+        if (bvgCode != null) return BadRequest(new { error = "BVG_CODE", message = bvgCode });
         rate.HoechstlohnArt        = KtgLoesung.HoechstlohnArt(rate.Code, dto.HoechstlohnArt);
         rate.IsDefaultCode         = rate.LoesungsCode != null && dto.IsDefaultCode;
         rate.BandVonMonthly        = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;

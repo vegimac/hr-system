@@ -1718,6 +1718,14 @@ public class PayrollCalculationEngine
                 lohnposByCode.TryAdd(lp.MirusCode!, lp);
         }
 
+        // BVG-Lösung der Person (leer = bisher: jede BVG-pflichtige Lohnart zählt).
+        var bvgLoesungPerson = await _db.EmployeeVersicherungCodes.AsNoTracking()
+            .Where(v => v.EmployeeId == employeeId && v.Art == "BVG"
+                     && v.ValidFrom <= periodTo && (v.ValidTo == null || v.ValidTo >= periodFrom))
+            .OrderByDescending(v => v.ValidFrom)
+            .Select(v => v.Code)
+            .FirstOrDefaultAsync();
+
         // Walter 31.07.2026: hier EXAKTE Beträge für Flag-Summen
         // (Ferien%/Feiertag%/13.ML). Keine gerundeten Zwischenresultate —
         // Lohnzeilen-CHF werden am Add-Ort separat gerundet.
@@ -1776,7 +1784,7 @@ public class PayrollCalculationEngine
         {
             if (lohnposByCode.TryGetValue(code, out var lp) && lp != null)
                 return (lp.AhvAlvPflichtig, lp.NbuvPflichtig, lp.KtgPflichtig,
-                        lp.BvgPflichtig, lp.QstPflichtig, lp.UvgPflichtig, lp.UvgzPflichtig);
+                        BvgLoesung.Zaehlt(lp, bvgLoesungPerson), lp.QstPflichtig, lp.UvgPflichtig, lp.UvgzPflichtig);
             return (fallbackAhv, fallbackNbuv, fallbackKtg, fallbackBvg, fallbackQst, fallbackNbuv, fallbackNbuv);
         }
         // Lohnposition-Bezeichnung aus dem Katalog holen (mit Fallback).
@@ -1841,7 +1849,7 @@ public class PayrollCalculationEngine
             mainLohn + deltaAhv  + dreizehnter - NichtPflichtig(lp => lp.AhvAlvPflichtig, dreizehnter),
             mainLohn + deltaNbuv + dreizehnter - NichtPflichtig(lp => lp.NbuvPflichtig,   dreizehnter),
             mainLohn + deltaKtg  + dreizehnter - NichtPflichtig(lp => lp.KtgPflichtig,    dreizehnter),
-            mainLohn + deltaBvg  + dreizehnter - NichtPflichtig(lp => lp.BvgPflichtig,    dreizehnter),
+            mainLohn + deltaBvg  + dreizehnter - NichtPflichtig(lp => BvgLoesung.Zaehlt(lp, bvgLoesungPerson), dreizehnter),
             mainLohn + deltaQst  + dreizehnter - NichtPflichtig(lp => lp.QstPflichtig,    dreizehnter))
         {
             Uvg = mainLohn + deltaUvg + dreizehnter - NichtPflichtig(lp => lp.UvgPflichtig, dreizehnter),
@@ -1957,7 +1965,7 @@ public class PayrollCalculationEngine
             if (lp.AhvAlvPflichtig) deltaAhv  += b;
             LohnartSteuerung.UnfallDazu(lp.NbuvPflichtig, lp.UvgPflichtig, lp.UvgzPflichtig, b, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
             if (lp.KtgPflichtig)    deltaKtg  += b;
-            if (lp.BvgPflichtig)    deltaBvg  += b;
+            if (BvgLoesung.Zaehlt(lp, bvgLoesungPerson)) deltaBvg += b;
             if (lp.QstPflichtig)    deltaQst  += b;
             if (lp.QstPflichtig && IstPeriodischeZulage(lp)) deltaQstPeriodisch += b;
             if (lp.QstPflichtig && !IstPeriodischeZulage(lp)) deltaQstEinmalig += b;
@@ -2087,7 +2095,7 @@ public class PayrollCalculationEngine
                         if (lpEo?.AhvAlvPflichtig ?? true) deltaAhv  += betrag;
                         LohnartSteuerung.UnfallDazu(lpEo?.NbuvPflichtig ?? true, lpEo?.UvgPflichtig ?? true, lpEo?.UvgzPflichtig ?? true, betrag, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                         if (lpEo?.KtgPflichtig    ?? true) deltaKtg  += betrag;
-                        if (lpEo?.BvgPflichtig    ?? true) deltaBvg  += betrag;
+                        if (BvgLoesung.Zaehlt(lpEo, bvgLoesungPerson)) deltaBvg += betrag;
                         if (lpEo?.QstPflichtig    ?? true) deltaQst  += betrag;
                         AddAmount(code, betrag);
                     }
@@ -2185,7 +2193,7 @@ public class PayrollCalculationEngine
                             // Militär-/EO-Taggelder sind UVG-FREI — Fallback bewusst nein.
                             LohnartSteuerung.UnfallDazu(lpM?.NbuvPflichtig ?? false, lpM?.UvgPflichtig ?? false, lpM?.UvgzPflichtig ?? false, betrag, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                             if (lpM?.KtgPflichtig    ?? true)  deltaKtg  += betrag;
-                            if (lpM?.BvgPflichtig    ?? true)  deltaBvg  += betrag;
+                            if (BvgLoesung.Zaehlt(lpM, bvgLoesungPerson)) deltaBvg += betrag;
                             if (lpM?.QstPflichtig    ?? true)  deltaQst  += betrag;
                             AddAmount(code, betrag);
                         }
@@ -5429,6 +5437,12 @@ public class PayrollCalculationEngine
             if (company is null) return new NotFoundObjectResult("Filiale nicht gefunden.");
 
             var (periodFrom, periodTo) = CalcPeriod(year, month);
+            var bvgLoesungPerson = await _db.EmployeeVersicherungCodes.AsNoTracking()
+                .Where(v => v.EmployeeId == employeeId && v.Art == "BVG"
+                         && v.ValidFrom <= periodTo && (v.ValidTo == null || v.ValidTo >= periodFrom))
+                .OrderByDescending(v => v.ValidFrom)
+                .Select(v => v.Code)
+                .FirstOrDefaultAsync();
 
             // Vertrag dieser Filiale, der zur Periode passt: der jüngste, der SPÄTESTENS
             // am Periodenende begonnen hat (auch abgelaufen) — nicht blind der jüngste.
@@ -5496,7 +5510,7 @@ public class PayrollCalculationEngine
                     if (lp.AhvAlvPflichtig) deltaAhv  += b;
                     LohnartSteuerung.UnfallDazu(lp.NbuvPflichtig, lp.UvgPflichtig, lp.UvgzPflichtig, b, ref deltaNbuv, ref deltaUvg, ref deltaUvgz);
                     if (lp.KtgPflichtig)    deltaKtg  += b;
-                    if (lp.BvgPflichtig)    deltaBvg  += b;
+                    if (BvgLoesung.Zaehlt(lp, bvgLoesungPerson)) deltaBvg += b;
                     if (lp.QstPflichtig)    deltaQst  += b;
                     if (lp.QstPflichtig && !IstPeriodischeZulage(lp)) deltaQstEinmalig += b;
                 }
@@ -5584,7 +5598,7 @@ public class PayrollCalculationEngine
                 if (lpK?.UvgPflichtig ?? true) deltaUvg += betrag;
                 if (lpK?.UvgzPflichtig ?? true) deltaUvgz += betrag;
                 if (lpK?.KtgPflichtig    ?? true) deltaKtg  += betrag;
-                if (lpK?.BvgPflichtig    ?? true) deltaBvg  += betrag;
+                if (BvgLoesung.Zaehlt(lpK, bvgLoesungPerson)) deltaBvg += betrag;
                 if (lpK?.QstPflichtig    ?? true)
                 {
                     deltaQst += betrag;

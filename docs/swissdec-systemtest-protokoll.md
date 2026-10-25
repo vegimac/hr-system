@@ -516,6 +516,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente "Versicherernummer", "Kundennummer" und "Vertragsnummer" müssen im ERP-System vorhanden sein und identisch benannt werden. - Prüfen ob im ERP-System mehrere BVG-Versicherer hinterlegt werden können.
 
+**Notiz 25.10.2026:** Filiale → Lohndaten-Empfänger, Art BVG: Versicherernummer, Kundennummer, Vertragsnummer. Ein zweiter BVG-Versicherer bleibt daneben offen. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_06_02 Angaben zum BVG-Versicherer ⬜ offen
 
@@ -525,6 +527,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - UID-BFS: Prüfen ob "unbekannt" ausgewählt werden kann und anhand der UID-BFS "CHE-999.999.997" prüfen, ob eine Fehlermeldung bei einer invaliden Nummer angezeigt wird. - Prüfen ob die zwei Elemente "Name" und "Gültig-ab-Datum" erfasst werden können.
 
+**Notiz 25.10.2026:** Verzeichnis Lohndaten-Empfänger, Art BVG: Feld Name, UID-BFS, Häkchen «unbekannt», CHE-999.999.997 zeigt die Prüfziffer-Meldung. Gültig ab an der Filial-Zuordnung. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_06_03 Angaben zur BVG-Versicherungslösung ⬜ offen
 
@@ -533,6 +537,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** Angaben zur BVG-Versicherungslösung BVG-Codes mit bis zu 32 Stellen, inkl. Beschreibung der Versicherungslösung: Beispiel: - 1101 Basisplan - 2020 Kaderplan Ein ERP-System muss pro Vertrag mit einer Vorsorgeeinrichtung - also pro Versicherungslösung - eine eigene Lohnartensteuerung unterstützen. Es kann beispielsweise sein, das die Lohnart "Bonus" beim 1101 Basisplan berücksichtigt wird und beim 2020 Kaderplan nicht berücksichtigt wird. Diesem Spezialfall muss im ERP-System Rechnung getragen wer…
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob BVG-Codes mit maximal 32 Stellen erfasst werden können. - Prüfen ob eine BVG-Versicherungslösung mit einer Beschreibung versehen werden kann. - Prüfen ob im ERP-System pro BVG-Versicherungslösung eine eigene Lohnartensteuerung unterstützt wird.
+
+**Notiz 25.10.2026:** System → SV-Sätze, Typ BVG. Feld BVG-Code bis 32 Stellen, Beschreibung daneben. Darunter «Lohnarten dieser Lösung»: Zuordnen speichert sofort, eine Lohnart nur einer Lösung. Nicht auf gebaut gesetzt.
 
 
 ### BFS / Statistik (`02_07`)

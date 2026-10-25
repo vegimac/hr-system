@@ -5344,7 +5344,7 @@
                         <div style="display:grid;grid-template-columns:160px 220px 220px 1fr;gap:8px;margin-bottom:8px;align-items:end">
                             <div>
                                 <label id="svLblLoesung" style="display:block;font-weight:600;color:#475569" title="Versicherungs-Lösung / Swissdec-Code: UVG A, B, P …; UVGZ und KTG je zwei Stellen A–Z oder 0–9; BVG 11/21/22/K2010. Leer = Zeile gilt für alle MA ohne Code.">Lösungs-Code</label>
-                                <input id="svLoesungsCode" maxlength="10" placeholder="leer = für alle" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box;text-transform:uppercase">
+                                <input id="svLoesungsCode" maxlength="32" placeholder="leer = für alle" onblur="svBvgLohnartenLaden()" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box;text-transform:uppercase">
                             </div>
                             <div>
                                 <label style="display:block;font-weight:600;color:#475569" title="Mit Code gilt die Zeile nur für Mitarbeiter, denen dieser Code zugewiesen ist (MA → Vertrag → Versicherungen) — oder als Standard für alle ohne Code. Der Code steht später in der Swissdec-Meldung.">Standard-Lösung</label>
@@ -5361,7 +5361,20 @@
                                 <div id="svUvgHinweis" style="display:none" title="Erste Stelle = Betriebsteil A–Z, z.B. A Gesamtes Personal. Die Ziffern 0–3 gelten pro Person. NBU und BU mit 4 Nachkommastellen, z.B. 1,4600. UVG-Höchstlohn 148'200 pro Jahr.">Erste Stelle A–Z, z.B. A Gesamtes Personal. NBU/BU z.B. 1,4600. Höchstlohn 148'200 pro Jahr.</div>
                                 <div id="svUvgzHinweis" style="display:none" title="10 Personal, nicht versichert · 11 Personal, UVG-Lohn · A2 Personal, Überschuss-Lohn · B1 Geschäftsleitung, UVG-Lohn. Männer und Frauen je eine Zeile. Beitrag z.B. 0,2010. 11 von 0 bis 148'200, 12 von 148'200 bis 300'000.">Zwei Stellen A–Z oder 0–9, z.B. 11 oder A2. Beschreibung daneben. Bis 300'000 pro Jahr.</div>
                                 <div id="svKtgHinweis" style="display:none" title="10 Personal, nicht versichert · 11 Personal, KTG-Lohn · A2 Mutterschaft überobligatorisch, KTG-Lohn · B1 Geschäftsleitung, KTG-Lohn. UVG-Höchstlohn: 11 bis 148'200, 12 bis 300'000. Vertraglich z.B. A1 bis 300'000, B1 bis 400'000. Männer und Frauen je eine Zeile. Beitrag z.B. 0,2010.">Zwei Stellen A–Z oder 0–9. UVG-Höchstlohn bis 300'000, vertraglich z.B. bis 400'000.</div>
+                                <div id="svBvgHinweis" style="display:none" title="1101 Basisplan · 2020 Kaderplan. Höchstens 32 Stellen. Die Beschreibung steht im Feld oben.">Bis 32 Stellen, z.B. 1101 oder 2020. Beschreibung oben.</div>
                             </div>
+                        </div>
+                        <div id="svBvgLohnarten" style="display:none;margin:0 0 8px">
+                            <div style="display:flex;gap:8px;align-items:flex-end">
+                                <div style="flex:1;min-width:0">
+                                    <label for="svBvgLohnartPick" style="display:block;font-weight:600;color:#475569" title="Pro BVG-Lösung eigene Lohnarten. Eine Lohnart darf nur einer Lösung gehören, z.B. Bonus beim Basisplan und nicht beim Kaderplan.">Lohnarten dieser Lösung</label>
+                                    <select id="svBvgLohnartPick" style="width:100%;padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                        <option value="">Zuerst den BVG-Code eintragen</option>
+                                    </select>
+                                </div>
+                                <button type="button" onclick="svBvgLohnartZuordnen()" style="padding:6px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;background:white;white-space:nowrap">Zuordnen</button>
+                            </div>
+                            <div id="svBvgLohnartenListe" style="font-size:12px;color:#3f3f3f;margin-top:6px;line-height:1.5"></div>
                         </div>
 
                         <div style="display:grid;grid-template-columns:1fr 1fr 1.4fr 0.7fr 0.7fr;gap:8px;margin-bottom:8px">
@@ -10906,7 +10919,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-uid.js?v=20261025a"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261025h"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261025i"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261011b"></script>
@@ -10933,7 +10946,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261025k"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261025l"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>
@@ -12686,7 +12699,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kuendigung.js?v=20261023b"></script>
 <script type="text/plain" data-modul="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script type="text/plain" data-modul="js/aerzte.js?v=20261016a"></script>
-<script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261025i"></script>
+<script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261025j"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="lib/xlsx/xlsx.full.min.js?v=0.18.5"></script>
 

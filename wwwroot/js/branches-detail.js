@@ -2506,8 +2506,8 @@ function cpEmpfFieldLabels(art) {
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
                  name: 'Versicherungsname', phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
     if (art === 'BVG')
-        return { kasse: 'Versicherernummer / Nummer der Kasse', mitglied: 'Kundennummer (Mitgliednummer)', sub: 'Vertragsnummer',
-                 phMitglied: 'z.B. 629.0714.00', kasseAnzeigen: true };
+        return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
+                 name: 'Name', phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
     if (art === 'QST')
         return { kasse: 'Nummer der Kasse', mitglied: 'SSL-Nummer', sub: 'Buchungskreis',
                  phMitglied: 'z.B. 1914715' };
@@ -2686,7 +2686,7 @@ function cpEmpfEnsureModal() {
     div.id = 'cpEmpfModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,94vw);max-height:92vh;overflow:auto;background:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+    <div style="position:absolute;top:72px;left:50%;transform:translateX(-50%);width:min(560px,94vw);max-height:calc(100vh - 84px);overflow:auto;background:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
         <div id="cpEmpfModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Empfänger zuordnen</div>
 
         <div id="cpEmpfPickBlock" style="margin-bottom:12px">

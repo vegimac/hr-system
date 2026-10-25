@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 110;  // 110: KTG-Höchstlohn UVG oder vertraglich · 109: UVG-Versicherer an der Person · 108: IKV an der FAK-Zuordnung
+const int SchemaStand = 111;  // 111: BVG-Code bis 32 Stellen, Lohnart einer Lösung · 110: KTG-Höchstlohn UVG oder vertraglich · 109: UVG-Versicherer an der Person
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2900,6 +2900,18 @@ using (var scope = app.Services.CreateScope())
                 ADD COLUMN IF NOT EXISTS hoechstlohn_art varchar(10) NULL;
         ");
         startLog.LogInformation("Stand 110: KTG-Höchstlohn UVG oder vertraglich");
+    }
+
+    // Stand 111: BVG-Code bis 32 Stellen. Eine Lohnart gehört höchstens einer Lösung.
+    if (dbStand < 111)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE social_insurance_rate ALTER COLUMN loesungs_code TYPE varchar(32);
+            ALTER TABLE employee_versicherung_code ALTER COLUMN code TYPE varchar(32);
+            ALTER TABLE lohnposition
+                ADD COLUMN IF NOT EXISTS bvg_loesungs_code varchar(32) NULL;
+        ");
+        startLog.LogInformation("Stand 111: BVG-Code bis 32 Stellen, Lohnart einer Lösung");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

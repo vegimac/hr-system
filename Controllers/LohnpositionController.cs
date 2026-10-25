@@ -371,6 +371,30 @@ public class LohnpositionController : ControllerBase
         return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name);
     }
 
+    /// <summary>
+    /// Lohnart einer BVG-Lösung zuordnen oder lösen. Eine Lohnart nur einer Lösung.
+    /// Bewusst kein Voll-Update: die übrige Steuerung einer verwendeten Lohnart bleibt.
+    /// </summary>
+    [HttpPatch("{id:int}/bvg-loesung")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> BvgLoesungSetzen(int id, [FromBody] BvgLoesungDto dto)
+    {
+        var item = await _db.Lohnpositionen.FindAsync(id);
+        if (item is null) return NotFound();
+        var neu = string.IsNullOrWhiteSpace(dto?.LoesungsCode) ? null : dto.LoesungsCode.Trim().ToUpperInvariant();
+        if (neu != null && neu.Length > BvgLoesung.MaxStellen)
+            return BadRequest(new { error = "BVG_CODE", message = "Der BVG-Code hat höchstens 32 Stellen." });
+        var alt = string.IsNullOrWhiteSpace(item.BvgLoesungsCode) ? null : item.BvgLoesungsCode.Trim();
+        if (neu != null && alt != null && !string.Equals(alt, neu, StringComparison.OrdinalIgnoreCase))
+            return Conflict(new {
+                error = "BVG_LOHNART_BELEGT",
+                message = $"Die Lohnart «{item.Bezeichnung}» ist bereits der Lösung {alt} zugeordnet. Eine Lohnart darf nur einer BVG-Lösung gehören."
+            });
+        item.BvgLoesungsCode = neu;
+        await _db.SaveChangesAsync();
+        return Ok(new { item.Id, item.Code, item.Bezeichnung, item.BvgLoesungsCode });
+    }
+
     // DELETE – soft-delete (nur Admin)
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "admin")]
@@ -384,4 +408,9 @@ public class LohnpositionController : ControllerBase
         await _db.SaveChangesAsync();
         return NoContent();
     }
+}
+
+public class BvgLoesungDto
+{
+    public string? LoesungsCode { get; set; }
 }

@@ -146,6 +146,12 @@ public class Lohnposition
     /// <summary>Rückwirkende Gruppe: 0 keine, 1 Stundenlohn, 2 Lektionenlohn, 3 übrige, 4 Taggeld.</summary>
     public int BvgRueckCode { get; set; }
 
+    /// <summary>
+    /// BVG-Lösung, der diese Lohnart gehört (z.B. 1101). Leer = zählt für jede Lösung.
+    /// Eine Lohnart darf nur einer Lösung gehören (Swissdec 8.6.2).
+    /// </summary>
+    public string? BvgLoesungsCode { get; set; }
+
     /// <summary>Statistik-Topf der Monatswerte (Bruttolohn, Zulagen, …). Leer = keine Monatsbasis.</summary>
     public string? StatistikMonat { get; set; }
 

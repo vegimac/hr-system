@@ -309,7 +309,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         var neuE = await _db.LohndatenEmpfaengers.AsNoTracking().FirstOrDefaultAsync(e => e.Id == neu.EmpfaengerId);
         if (neuE == null) return info;
         var kantonZaehlt = neuE.Art is "QST" or "FAK" or "LOHNAUSWEIS";
-        var proVersicherer = neuE.Art == "UVG";
+        var proVersicherer = neuE.Art is "UVG" or "BVG";
         var ende = neu.GueltigAb.Value.AddDays(-1);
 
         var offene = await _db.CompanyProfileEmpfaengers
