@@ -2617,15 +2617,15 @@ function cpEmpfRender() {
     for (const [code] of CP_EMPF_ARTEN) {
         const items = _cpEmpfCache.filter(z => z.art === code);
         if (!items.length) continue;
-        html += `<div style="font-size:12px;font-weight:700;color:#646464;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 4px">${cdokEsc(cpEmpfArtLabel(code))}</div>`;
-        html += items.map(cpEmpfRowHtml).join('');
+        html += `<div class="cp-empf-gruppe"><div class="cp-empf-titel">${cdokEsc(cpEmpfArtLabel(code))}</div>`;
+        html += items.map(cpEmpfRowHtml).join('') + '</div>';
     }
     // unbekannte Arten zuletzt
     const known = CP_EMPF_ARTEN.map(a => a[0]);
     const rest = _cpEmpfCache.filter(z => !known.includes(z.art));
     if (rest.length) {
-        html += `<div style="font-size:12px;font-weight:700;color:#646464;margin:14px 0 4px">WEITERE</div>`;
-        html += rest.map(cpEmpfRowHtml).join('');
+        html += `<div class="cp-empf-gruppe"><div class="cp-empf-titel">Weitere</div>`;
+        html += rest.map(cpEmpfRowHtml).join('') + '</div>';
     }
     el.innerHTML = html;
 }
@@ -2652,7 +2652,7 @@ function cpEmpfRowHtml(z) {
         z.ikvAktiv && z.ikvBezeichnung ? `IKV → ${cdokEsc(z.ikvBezeichnung)}${z.ikvKanton ? ' (' + cdokEsc(z.ikvKanton) + ')' : ''}` : null,
     ].filter(Boolean).join(' · ');
     return `
-    <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
+    <div class="cp-empf-zeile" style="display:flex;align-items:center;gap:12px;padding:9px 8px">
         <div style="flex:1;min-width:0">
             <div style="font-size:13px;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                 <span style="font-weight:600">${cdokEsc(z.bezeichnung)}</span>${z.zusatz ? ` <span style="font-weight:400;color:#8b8b8b;font-size:12px">— ${cdokEsc(z.zusatz)}</span>` : ''}${z.kantonCode ? ` <span style="font-weight:600;color:#6b7280;font-size:11px;border:1px solid rgba(60,55,48,0.18);border-radius:6px;padding:1px 6px;margin-left:4px">${cdokEsc(z.kantonCode)}</span>` : ''}
