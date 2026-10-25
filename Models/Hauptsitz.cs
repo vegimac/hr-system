@@ -36,6 +36,19 @@ public class Hauptsitz
     /// <summary>BFS-Gemeindenummer des Sitzes — für Lohnausweis-Verteilung bei ResidenceCanton EX (nicht im Company-Address-XML).</summary>
     public int? BfsGemeindeNr { get; set; }
 
+    /// <summary>
+    /// Ein Buchungskreis für die ganze Rechtseinheit (Swissdec PayrollUnit, Statistik).
+    /// Leer = keine Aufteilung. Mehrere Kreise gibt es nicht.
+    /// </summary>
+    public string? BfsBuchungskreis { get; set; }
+
+    /// <summary>
+    /// Lohnvereinbarung der Rechtseinheit (Swissdec PayAgreement).
+    /// CLA-Association, CLA-BusinessOrGovernment, collectiveContratOutside-CLA, individualContract.
+    /// Leer = Einzelarbeitsvertrag, wie die Muster AG.
+    /// </summary>
+    public string? Lohnvereinbarung { get; set; }
+
     public string? Bemerkung { get; set; }
 
     /// <summary>

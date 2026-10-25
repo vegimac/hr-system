@@ -572,9 +572,14 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "TaxAtSourceType", "salaries")));
         }
         if (statZeilen > 0)
-            institutions.Add(new XElement(Sd + "Statistic",
+        {
+            var statistik = new XElement(Sd + "Statistic",
                 new XAttribute("addresseeIDRef", "#BFS"),
-                new XElement(Sd + "PayAgreement", "individualContract")));
+                new XElement(Sd + "PayAgreement", BfsAngaben.FuerXml(stamm.Hauptsitz?.Lohnvereinbarung)));
+            var kreis = BfsAngaben.Kreis(stamm.Hauptsitz?.BfsBuchungskreis);
+            if (kreis != null) statistik.Add(new XElement(Sd + "PayrollUnit", kreis));
+            institutions.Add(statistik);
+        }
         // Ohne Schuldnernummer weist die Steuerverwaltung die Meldung zurück — dann
         // lieber gar keine Meldung als eine mit Platzhalter (Walter 27.09.2026).
         if (fehlendeQstNummern.Count > 0)

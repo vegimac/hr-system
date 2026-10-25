@@ -551,6 +551,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob ein Buchungskreis strukturiert auf Ebene vom Unternehmen erfasst werden kann.
 
+**Notiz 25.10.2026:** Hauptsitz, Hauptdaten, ein Feld Buchungskreis für die ganze Firma. Leer lassen, bis das BFS einen Kreis verlangt. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_07_02 Unternehmensübergreifende Angaben zur Lohnvereinbarung (Auswahl) ⬜ offen
 
@@ -559,6 +561,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** Unternehmensübergreifende Angaben zur Lohnvereinbarung (Auswahl) Auf Ebene der Unternehmung muss die für das Unternehmen gültige Lohnvereinbarung ausgewählt werden können.
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: Die Auswahl der gültigen Lohnvereinbarung muss folgende Elemente beinhalten: - Gesamtarbeitsvertrag eines Verbands - Gesamtarbeitsvertrag einer Firma oder einer öffentlichen Verwaltung - Kollektive Lohnvereinbarung ausserhalb eines Gesamtarbeitsvertrags - Einzelarbeitsvertrag
+
+**Notiz 25.10.2026:** Hauptsitz, Hauptdaten, Auswahl Lohnvereinbarung mit den vier Begriffen. Mindestlöhne bleiben die Beträge. Leer gemeldet bleibt der Einzelarbeitsvertrag. Nicht auf gebaut gesetzt.
 
 
 ### Quellensteuer-Empfänger (`02_08`)

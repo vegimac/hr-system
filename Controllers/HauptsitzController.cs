@@ -36,7 +36,8 @@ public class HauptsitzController : ControllerBase
         string? StellvertreterAdressZusatz = null, string? StellvertreterStrasse = null,
         string? StellvertreterPostfach = null, string? StellvertreterLokalitaet = null,
         string? StellvertreterPlz = null, string? StellvertreterOrt = null,
-        string? StellvertreterLand = null, string? StellvertreterUid = null);
+        string? StellvertreterLand = null, string? StellvertreterUid = null,
+        string? Lohnvereinbarung = null, string? BfsBuchungskreis = null);
 
     private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
@@ -81,7 +82,7 @@ public class HauptsitzController : ControllerBase
         h.ZusatzAbteilung, h.ZusatzAbteilung2, h.AdressZusatz,
         h.Strasse, h.Postfach, h.Lokalitaet,
         h.Plz, h.Ort, h.KantonCode, land = h.Land ?? "CH", h.BfsGemeindeNr,
-        h.Bemerkung, h.IsActive,
+        h.Bemerkung, h.BfsBuchungskreis, h.Lohnvereinbarung, h.IsActive,
         h.FixPensenErlaubt, h.FlexStundenMax, h.MtpStundenMin, h.MtpStundenMax,
         h.KontaktName, h.KontaktEmail, h.KontaktTelefon, h.KontaktMobil,
         h.StellvertreterName, h.StellvertreterInhaber, h.StellvertreterAdressZusatz,
@@ -130,6 +131,10 @@ public class HauptsitzController : ControllerBase
         // BFS kommt aus dem Ortschaftsverzeichnis (PLZ/Ort) — dto nur Fallback.
         h.BfsGemeindeNr = dto.BfsGemeindeNr is > 0 ? dto.BfsGemeindeNr : null;
         h.Bemerkung = Norm(dto.Bemerkung);
+        h.BfsBuchungskreis = BfsAngaben.Kreis(dto.BfsBuchungskreis);
+        if (h.BfsBuchungskreis != null && h.BfsBuchungskreis.Length > 40)
+            h.BfsBuchungskreis = h.BfsBuchungskreis[..40];
+        h.Lohnvereinbarung = BfsAngaben.Code(dto.Lohnvereinbarung);
         h.FixPensenErlaubt = NormPensen(dto.FixPensenErlaubt);
         h.FlexStundenMax = dto.FlexStundenMax;
         h.MtpStundenMin = dto.MtpStundenMin;
@@ -175,6 +180,9 @@ public class HauptsitzController : ControllerBase
 
         if (TelFehler(dto.KontaktTelefon, "Telefon") is { } t1) return t1;
         if (TelFehler(dto.KontaktMobil, "Mobil") is { } t2) return t2;
+
+        if (!string.IsNullOrWhiteSpace(dto.Lohnvereinbarung) && BfsAngaben.Code(dto.Lohnvereinbarung) == null)
+            return BadRequest(new { error = "LOHNVEREINBARUNG", message = "Die Lohnvereinbarung bitte aus der Liste wählen." });
 
         if (!string.IsNullOrWhiteSpace(dto.StellvertreterUid)
             && UidError(dto.StellvertreterUid) is string svUid)

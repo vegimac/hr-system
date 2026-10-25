@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 111;  // 111: BVG-Code bis 32 Stellen, Lohnart einer Lösung · 110: KTG-Höchstlohn UVG oder vertraglich · 109: UVG-Versicherer an der Person
+const int SchemaStand = 112;  // 112: BFS Buchungskreis und Lohnvereinbarung am Hauptsitz · 111: BVG-Code bis 32 Stellen, Lohnart einer Lösung
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2912,6 +2912,16 @@ using (var scope = app.Services.CreateScope())
                 ADD COLUMN IF NOT EXISTS bvg_loesungs_code varchar(32) NULL;
         ");
         startLog.LogInformation("Stand 111: BVG-Code bis 32 Stellen, Lohnart einer Lösung");
+    }
+
+    // Stand 112: ein Buchungskreis und die Lohnvereinbarung am Hauptsitz (BFS).
+    if (dbStand < 112)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE hauptsitz ADD COLUMN IF NOT EXISTS bfs_buchungskreis varchar(40) NULL;
+            ALTER TABLE hauptsitz ADD COLUMN IF NOT EXISTS lohnvereinbarung varchar(40) NULL;
+        ");
+        startLog.LogInformation("Stand 112: BFS Buchungskreis und Lohnvereinbarung am Hauptsitz");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

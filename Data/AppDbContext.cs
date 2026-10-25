@@ -1031,6 +1031,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
             entity.Property(e => e.Land).HasColumnName("land").HasMaxLength(2);
             entity.Property(e => e.BfsGemeindeNr).HasColumnName("bfs_gemeinde_nr");
+            entity.Property(e => e.BfsBuchungskreis).HasColumnName("bfs_buchungskreis").HasMaxLength(40);
+            entity.Property(e => e.Lohnvereinbarung).HasColumnName("lohnvereinbarung").HasMaxLength(40);
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.KontaktName).HasColumnName("kontakt_name").HasMaxLength(200);
             entity.Property(e => e.KontaktEmail).HasColumnName("kontakt_email").HasMaxLength(200);
