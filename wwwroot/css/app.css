@@ -7615,14 +7615,14 @@
             min-width: 0;
             padding: 3px 10px;
             border-radius: 8px;
-            background: rgba(70, 100, 130, 0.07);
-            border: 1px solid rgba(70, 100, 130, 0.14);
+            background: linear-gradient(180deg, #e6eef6 0%, #d7e3ef 100%);
+            border: 1px solid #b9cbe0;
         }
         #page-sv-saetze .ahv-21-titel {
             flex: 0 0 auto;
             font-size: 12px;
             font-weight: 720;
-            color: #3d5368;
+            color: #1e3a56;
             line-height: 1.1;
         }
         #page-sv-saetze .ahv-21-titel span {
@@ -7631,7 +7631,7 @@
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 0;
-            color: #7a8794;
+            color: #4d6882;
         }
         #page-sv-saetze .ahv-21-chips {
             display: flex;
@@ -7653,17 +7653,17 @@
             display: inline;
             font-size: 11px;
             font-weight: 600;
-            color: #6a7c8c;
+            color: #4d6882;
         }
         #page-sv-saetze .ahv-21-chip b {
             display: inline;
             font-size: 12.5px;
             font-weight: 700;
-            color: #2c4256;
+            color: #1e3a56;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
         }
-        #page-sv-saetze .ahv-21-danach b { font-weight: 600; color: #6a7c8c; }
+        #page-sv-saetze .ahv-21-danach b { font-weight: 600; color: #4d6882; }
         #page-sv-saetze .ahv-bearbeiten,
         #page-sv-saetze .ahv-abbruch,
         #page-sv-saetze .ahv-zeile,
@@ -7747,8 +7747,8 @@
         body.theme-dark #page-sv-saetze .ahv-kachel span { color: #c8c2b6; }
         body.theme-dark #page-sv-saetze .ahv-kachel b { color: #f3f0ea; }
         body.theme-dark #page-sv-saetze .ahv-21 {
-            background: rgba(160, 190, 220, 0.08);
-            border-color: rgba(160, 190, 220, 0.18);
+            background: rgba(120, 165, 205, 0.18);
+            border-color: rgba(160, 195, 225, 0.35);
         }
         body.theme-dark #page-sv-saetze .ahv-21-titel { color: #d5e4f2; }
         body.theme-dark #page-sv-saetze .ahv-21-titel span,
