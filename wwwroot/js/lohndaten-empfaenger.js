@@ -113,7 +113,7 @@ function leRender() {
         if (!items?.length) continue;
         items.sort((a, b) => (a.bezeichnung || '').localeCompare(b.bezeichnung || '', 'de')
             || (a.kassennummer || '').localeCompare(b.kassennummer || '', 'de'));
-        html += `<div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px;padding:0 4px">${leEsc(label)}</div>`;
+        html += `<div class="cp-empf-gruppe"><div class="cp-empf-titel">${leEsc(label)}</div>`;
         html += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:2px"><thead><tr>
             <th style="${th};width:30%">Name</th>
             <th style="${th};width:18%">Nr.</th>
@@ -144,15 +144,16 @@ function leRender() {
                 </td>
             </tr>`;
         }
-        html += `</tbody></table>`;
+        html += `</tbody></table></div>`;
     }
     const known = new Set(LE_ARTEN.map(a => a[0]));
     const rest = list.filter(e => !known.has(e.art));
     if (rest.length) {
-        html += `<div style="font-size:11px;font-weight:700;color:#8b8b8b;margin:12px 0 4px">WEITERE</div>`;
+        html += `<div class="cp-empf-gruppe"><div class="cp-empf-titel">Weitere</div>`;
         for (const e of rest) {
             html += `<div style="padding:6px 8px;border-top:1px solid rgba(139,139,139,0.14);font-size:12.5px">${leEsc(e.bezeichnung)} (${leEsc(e.art)})</div>`;
         }
+        html += `</div>`;
     }
     el.innerHTML = html;
 }
