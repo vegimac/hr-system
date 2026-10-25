@@ -7554,9 +7554,9 @@
 
         /* AHV-Beitragspflicht quer über den Satzkopf. Lesen ist der Normalfall. */
         #page-sv-saetze .ahv-bar {
-            margin: 8px 14px 0;
-            padding: 8px 12px;
-            border-radius: 12px;
+            margin: 6px 14px 0;
+            padding: 5px 10px;
+            border-radius: 10px;
             background: linear-gradient(165deg, #eeece4 0%, #e7e4db 55%, #dfdcd1 100%);
             border: 1px solid rgba(255,255,255,0.62);
         }
@@ -7564,106 +7564,106 @@
             display: flex;
             align-items: center;
             flex-wrap: wrap;
-            gap: 12px;
-            min-height: 28px;
+            gap: 10px 14px;
+            min-height: 0;
         }
         #page-sv-saetze .ahv-grund {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             flex: 0 0 auto;
         }
         #page-sv-saetze .ahv-lese-titel {
-            font-size: 11px;
-            font-weight: 750;
-            letter-spacing: 0.02em;
-            color: #3f3f3f;
+            font-size: 12px;
+            font-weight: 700;
+            color: #5c574e;
             white-space: nowrap;
-            max-width: 7.2em;
-            line-height: 1.25;
         }
-        #page-sv-saetze .ahv-kacheln { display: flex; gap: 6px; }
+        #page-sv-saetze .ahv-kacheln { display: flex; gap: 12px; }
         #page-sv-saetze .ahv-kachel {
-            background: rgba(255,255,255,0.78);
-            border: 1px solid rgba(255,255,255,0.95);
-            border-radius: 10px;
-            padding: 4px 10px 5px;
-            min-width: 78px;
-            box-shadow: 0 1px 2px rgba(60,55,48,0.06);
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            min-width: 0;
+            box-shadow: none;
         }
         #page-sv-saetze .ahv-kachel span {
-            display: block;
-            font-size: 10px;
-            font-weight: 650;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
+            display: inline;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: none;
             color: #6f6a5f;
         }
         #page-sv-saetze .ahv-kachel b {
-            display: block;
-            font-size: 18px;
-            font-weight: 750;
-            line-height: 1.15;
+            display: inline;
+            font-size: 14px;
+            font-weight: 720;
+            line-height: 1;
             font-variant-numeric: tabular-nums;
-            color: #1f1f1f;
+            color: #2c2c2c;
         }
         #page-sv-saetze .ahv-21 {
             display: flex;
             align-items: center;
-            gap: 10px;
-            flex: 1 1 420px;
-            min-width: 280px;
-            padding: 6px 10px;
-            border-radius: 12px;
-            background: linear-gradient(180deg, #e6eef6 0%, #d7e3ef 100%);
-            border: 1px solid #b9cbe0;
+            gap: 12px;
+            flex: 1 1 360px;
+            min-width: 0;
+            padding: 3px 10px;
+            border-radius: 8px;
+            background: rgba(70, 100, 130, 0.07);
+            border: 1px solid rgba(70, 100, 130, 0.14);
         }
         #page-sv-saetze .ahv-21-titel {
             flex: 0 0 auto;
-            font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 0.01em;
-            color: #1e3a56;
-            line-height: 1.15;
+            font-size: 12px;
+            font-weight: 720;
+            color: #3d5368;
+            line-height: 1.1;
         }
         #page-sv-saetze .ahv-21-titel span {
             display: block;
-            margin-top: 1px;
+            margin-top: 0;
             font-size: 10px;
-            font-weight: 650;
-            letter-spacing: 0.02em;
-            color: #4d6882;
+            font-weight: 600;
+            letter-spacing: 0;
+            color: #7a8794;
         }
         #page-sv-saetze .ahv-21-chips {
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+            flex: 1 1 auto;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
         }
         #page-sv-saetze .ahv-21-chip {
-            background: #fff;
-            border: 1px solid rgba(30,58,86,0.14);
-            border-radius: 8px;
-            padding: 3px 8px 4px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
         }
         #page-sv-saetze .ahv-21-chip span {
-            display: block;
-            font-size: 10px;
-            font-weight: 700;
-            color: #4d6882;
+            display: inline;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6a7c8c;
         }
         #page-sv-saetze .ahv-21-chip b {
-            display: block;
+            display: inline;
             font-size: 12.5px;
-            font-weight: 750;
-            color: #1e3a56;
+            font-weight: 700;
+            color: #2c4256;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
         }
-        #page-sv-saetze .ahv-21-danach {
-            background: transparent;
-            border-style: dashed;
-        }
-        #page-sv-saetze .ahv-21-danach b { font-weight: 650; }
+        #page-sv-saetze .ahv-21-danach b { font-weight: 600; color: #6a7c8c; }
         #page-sv-saetze .ahv-bearbeiten,
         #page-sv-saetze .ahv-abbruch,
         #page-sv-saetze .ahv-zeile,
@@ -7741,23 +7741,20 @@
         body.theme-dark #page-sv-saetze .ahv-edit > label,
         body.theme-dark #page-sv-saetze .ahv-edit-ueb-head { color: #f3f0ea; }
         body.theme-dark #page-sv-saetze .ahv-kachel {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(255,255,255,0.14);
+            background: transparent;
+            border: none;
         }
         body.theme-dark #page-sv-saetze .ahv-kachel span { color: #c8c2b6; }
         body.theme-dark #page-sv-saetze .ahv-kachel b { color: #f3f0ea; }
         body.theme-dark #page-sv-saetze .ahv-21 {
-            background: linear-gradient(180deg, #243444 0%, #1c2b3a 100%);
-            border-color: #3d5570;
+            background: rgba(160, 190, 220, 0.08);
+            border-color: rgba(160, 190, 220, 0.18);
         }
         body.theme-dark #page-sv-saetze .ahv-21-titel { color: #d5e4f2; }
         body.theme-dark #page-sv-saetze .ahv-21-titel span,
         body.theme-dark #page-sv-saetze .ahv-21-chip span { color: #9eb4c8; }
-        body.theme-dark #page-sv-saetze .ahv-21-chip {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(180,205,230,0.22);
-        }
         body.theme-dark #page-sv-saetze .ahv-21-chip b { color: #e7f0f8; }
+        body.theme-dark #page-sv-saetze .ahv-21-danach b { color: #9eb4c8; }
         body.theme-dark #page-sv-saetze .ahv-hinweis,
         body.theme-dark #page-sv-saetze .ahv-edit th { color: #c8c2b6; }
 
