@@ -2682,9 +2682,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.BvgVollArbeitsfaehig).HasColumnName("bvg_voll_arbeitsfaehig");
             entity.Property(e => e.BvgBasisManuell).HasColumnName("bvg_basis_manuell").HasColumnType("numeric(12,2)");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.EmpfaengerId).HasColumnName("empfaenger_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasOne(e => e.Empfaenger).WithMany().HasForeignKey(e => e.EmpfaengerId)
+                  .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.EmployeeId, e.Art, e.ValidFrom })
                   .HasDatabaseName("ix_emp_vers_code_emp_art_from");
         });

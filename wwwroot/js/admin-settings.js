@@ -2356,6 +2356,7 @@ function svOpenForm(rate, mode) {
     // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): '' = alle, F/M.
     const _sg = document.getElementById('svGender'); if (_sg) _sg.value = rate?.gender ?? '';
     const _lc = document.getElementById('svLoesungsCode'); if (_lc) _lc.value = rate?.loesungsCode ?? '';
+    svUvgMaske();
     const _dc = document.getElementById('svIsDefaultCode'); if (_dc) _dc.checked = !!rate?.isDefaultCode;
     const _bv = document.getElementById('svBandVon'); if (_bv) _bv.value = rate?.bandVonMonthly ?? '';
     // «Gilt für» (Walter 06.08.2026): erste Option = globaler Standard,
@@ -2455,6 +2456,18 @@ function svCloseForm() {
     document.getElementById('svFormPanel').style.display   = 'none';
 }
 
+function svUvgMaske() {
+    const uvg = document.getElementById('svCode')?.value === 'NBUV';
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    set('svLblLoesung', uvg ? 'UVG-Code' : 'Lösungs-Code');
+    set('svLblRate', uvg ? 'NBU % *' : 'Satz AN % *');
+    set('svLblRateAg', uvg ? 'BU %' : 'Satz AG %');
+    const beschr = document.getElementById('svDescription');
+    if (beschr) beschr.placeholder = uvg ? 'z.B. A Gesamtes Personal' : '';
+    const hinweis = document.getElementById('svUvgHinweis');
+    if (hinweis) hinweis.style.display = uvg ? 'block' : 'none';
+}
+
 async function svSave(event) {
     event.preventDefault();
     // Doppelklick-Schutz: Submit-Button für die Dauer des Requests sperren
@@ -2511,6 +2524,10 @@ async function svSave(event) {
         isActive:              true,
     };
 
+    if (body.code === 'NBUV' && body.loesungsCode && !/^[A-Z]/.test(body.loesungsCode)) {
+        errEl.textContent = 'Die erste Stelle des UVG-Codes muss ein Buchstabe A–Z sein (Betriebsteil, z.B. A Gesamtes Personal).';
+        errEl.style.display = 'block'; resetSubmitBtn(); return;
+    }
     if (!body.name) { errEl.textContent = 'Bitte eine Bezeichnung eingeben.'; errEl.style.display = 'block'; resetSubmitBtn(); return; }
     if (!body.validFrom) { errEl.textContent = 'Bitte ein Gültig-ab-Datum angeben.'; errEl.style.display = 'block'; resetSubmitBtn(); return; }
 

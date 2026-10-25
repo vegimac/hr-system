@@ -295,11 +295,12 @@ public class CompanyProfileEmpfaengerController : ControllerBase
 
     /// <summary>
     /// Walter 07.09.2026: «Gültig bis» bleibt normalerweise offen. Ein neuer
-    /// Satz DERSELBEN ART (z.B. neue UVG-Versicherung ab 1.1.) setzt bei allen
-    /// noch offenen Sätzen dieser Art in dieser Filiale das Ende automatisch
-    /// auf Neubeginn − 1 Tag. Sätze, die erst nach dem Neubeginn starten,
-    /// bleiben unberührt (Zukunftssatz). Bei QST/FAK/Lohnausweis zählt der
-    /// Kanton mit — pro Kanton ist es ein eigener «Strang».
+    /// Satz DERSELBEN ART setzt bei allen noch offenen Sätzen dieser Art in
+    /// dieser Filiale das Ende automatisch auf Neubeginn − 1 Tag. Sätze, die
+    /// erst nach dem Neubeginn starten, bleiben unberührt (Zukunftssatz).
+    /// Bei QST/FAK/Lohnausweis zählt der Kanton mit. Beim UVG zählt der
+    /// Versicherer: ein zweiter Versicherer bleibt daneben offen (Suva und
+    /// Privat), nur derselbe Versicherer wird versioniert.
     /// </summary>
     private async Task<List<string>> SchliesseVorgaengerAsync(int cpId, CompanyProfileEmpfaenger neu)
     {
@@ -308,6 +309,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         var neuE = await _db.LohndatenEmpfaengers.AsNoTracking().FirstOrDefaultAsync(e => e.Id == neu.EmpfaengerId);
         if (neuE == null) return info;
         var kantonZaehlt = neuE.Art is "QST" or "FAK" or "LOHNAUSWEIS";
+        var proVersicherer = neuE.Art == "UVG";
         var ende = neu.GueltigAb.Value.AddDays(-1);
 
         var offene = await _db.CompanyProfileEmpfaengers
@@ -320,6 +322,8 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         foreach (var alt in offene)
         {
             if (kantonZaehlt && !string.Equals(alt.Empfaenger?.KantonCode ?? "", neuE.KantonCode ?? "", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (proVersicherer && alt.EmpfaengerId != neu.EmpfaengerId)
                 continue;
             alt.GueltigBis = ende;
             alt.UpdatedAt  = DateTime.Now;

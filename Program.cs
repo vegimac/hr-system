@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 108;  // 108: IKV an der FAK-Zuordnung · 107: Kassen-Art kantonal/Verband · 106: BVG kontiert auf 5050
+const int SchemaStand = 109;  // 109: UVG-Versicherer an der Person · 108: IKV an der FAK-Zuordnung · 107: Kassen-Art kantonal/Verband
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2874,6 +2874,22 @@ using (var scope = app.Services.CreateScope())
                 FOREIGN KEY (ikv_empfaenger_id) REFERENCES lohndaten_empfaenger(id);
         ");
         startLog.LogInformation("Stand 108: interkantonale Vereinbarung an der FAK-Zuordnung");
+    }
+
+    // Stand 109: welcher UVG-Versicherer für diese Person gilt.
+    // Leer = der einzige offene UVG der Filiale.
+    if (dbStand < 109)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_versicherung_code
+                ADD COLUMN IF NOT EXISTS empfaenger_id integer NULL;
+            ALTER TABLE employee_versicherung_code
+                DROP CONSTRAINT IF EXISTS employee_versicherung_code_empfaenger_id_fkey;
+            ALTER TABLE employee_versicherung_code
+                ADD CONSTRAINT employee_versicherung_code_empfaenger_id_fkey
+                FOREIGN KEY (empfaenger_id) REFERENCES lohndaten_empfaenger(id);
+        ");
+        startLog.LogInformation("Stand 109: UVG-Versicherer an der Person");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

@@ -5280,7 +5280,7 @@
                         <div style="display:grid;grid-template-columns:1.1fr 1.5fr 1.5fr;gap:12px;margin-bottom:12px">
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Typ *</label>
-                                <select id="svCode" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <select id="svCode" required onchange="svUvgMaske()" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                                     <option value="AHV">AHV / IV / EO</option>
                                     <option value="ALV">ALV – Arbeitslosenversicherung</option>
                                     <option value="ALVZ">ALVZ – ALV Solidaritätsprozent (Lohnband)</option>
@@ -5297,7 +5297,7 @@
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Beschreibung</label>
-                                <input id="svDescription" maxlength="200" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <input id="svDescription" maxlength="200" placeholder="" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                             </div>
                         </div>
 
@@ -5335,7 +5335,7 @@
 
                         <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-bottom:12px">
                             <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Versicherungs-Lösung / Swissdec-Code: UVG A, B, P …; UVGZ und KTG 10/11/12; BVG 11/21/22/K2010. Leer = Zeile gilt für alle MA ohne Code (wie bisher).">Lösungs-Code</label>
+                                <label id="svLblLoesung" style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Versicherungs-Lösung / Swissdec-Code: UVG A, B, P …; UVGZ und KTG 10/11/12; BVG 11/21/22/K2010. Leer = Zeile gilt für alle MA ohne Code (wie bisher).">Lösungs-Code</label>
                                 <input id="svLoesungsCode" maxlength="10" placeholder="leer = für alle" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box;text-transform:uppercase">
                             </div>
                             <div>
@@ -5344,14 +5344,15 @@
                             </div>
                             <div style="font-size:10.5px;color:#8b8578;line-height:1.4;align-self:end;padding-bottom:6px">Mit Code gilt die Zeile nur für Mitarbeiter, denen dieser Code zugewiesen ist (MA → Vertrag → Versicherungen) — oder als Standard für alle ohne Code. Der Code steht später in der Swissdec-Meldung.</div>
                         </div>
+                        <div id="svUvgHinweis" style="display:none;font-size:11.5px;color:#6b6152;line-height:1.45;margin:-4px 0 12px">Erste Stelle = Betriebsteil A–Z, z.B. A Gesamtes Personal. Die Ziffern 0–3 gelten pro Person und sind hier keine eigene Auswahl. NBU und BU mit 4 Nachkommastellen, z.B. 1,4600. UVG-Höchstlohn 12'350 pro Monat = 148'200 pro Jahr.</div>
 
                         <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr 0.7fr 0.7fr;gap:12px;margin-bottom:12px">
                             <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Satz AN % *</label>
+                                <label id="svLblRate" style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Satz AN % *</label>
                                 <input id="svRate" type="text" inputmode="decimal" required onblur="svSatzFeld(this)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                             </div>
                             <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Arbeitgeber-Anteil fürs Fibu-Journal — leer lassen, wenn kein AG-Beitrag gebucht werden soll">Satz AG %</label>
+                                <label id="svLblRateAg" style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Arbeitgeber-Anteil fürs Fibu-Journal — leer lassen, wenn kein AG-Beitrag gebucht werden soll">Satz AG %</label>
                                 <input id="svRateEmployer" type="text" inputmode="decimal" placeholder="leer = nicht buchen" onblur="svSatzFeld(this)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                             </div>
                             <div>
@@ -5395,7 +5396,7 @@
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Höchstlohn/Mt. (CHF)</label>
                                 <input id="svMaxBase" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">ALV/NBU: 12'350 (= 148'200/Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).</div>
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">UVG-Höchstlohn und ALV: 12'350 pro Monat (= 148'200 pro Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).</div>
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Lohnband ab/Mt. (CHF)</label>
@@ -10902,8 +10903,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/akonto-lauf.js?v=20260708flex"></script>
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
-<script type="text/plain" data-modul="js/swiss-uid.js?v=20261016h"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261025d"></script>
+<script type="text/plain" data-modul="js/swiss-uid.js?v=20261025a"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261025e"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261011b"></script>
@@ -10930,7 +10931,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261025f"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261025g"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>
@@ -11658,7 +11659,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 
 <script type="text/plain" data-modul="employees.js?v=20261023b"></script>
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261012a"></script>
-<script type="text/plain" data-modul="js/versicherung-codes.js?v=20260915b"></script>
+<script type="text/plain" data-modul="js/versicherung-codes.js?v=20261025a"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
 
 <!-- ABSENZ MODAL -->
@@ -12683,7 +12684,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kuendigung.js?v=20261023b"></script>
 <script type="text/plain" data-modul="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script type="text/plain" data-modul="js/aerzte.js?v=20261016a"></script>
-<script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261025c"></script>
+<script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261025d"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="lib/xlsx/xlsx.full.min.js?v=0.18.5"></script>
 

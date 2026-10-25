@@ -16,12 +16,17 @@
         return pruef === (z.charCodeAt(8) - 48);
     }
 
+    function uidUnbekannt(uid) {
+        const u = String(uid || '').trim().toUpperCase();
+        return u === 'UNKNOWN' || u === 'UNBEKANNT' || u === 'UNK';
+    }
+
     function uidBfsFehler(uid) {
         const roh = String(uid || '').trim();
-        if (!roh) return null;
+        if (!roh || uidUnbekannt(roh)) return null;
         const u = roh.toUpperCase();
         if (!/^CHE-\d{3}\.\d{3}\.\d{3}$/.test(u))
-            return 'UID bitte im Format CHE-XXX.XXX.XXX erfassen.';
+            return 'UID bitte im Format CHE-XXX.XXX.XXX erfassen (oder «unbekannt»).';
         if (!uidBfsGueltig(u))
             return `UID «${u}» ist ungültig (Prüfziffer stimmt nicht).`;
         return null;

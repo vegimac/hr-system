@@ -5,6 +5,18 @@
 let _vcData = null;
 const VC_ARTEN = { UVG: 'UVG (Unfall)', UVGZ: 'UVG-Zusatz', KTG: 'KTG', BVG: 'BVG', AHV: 'AHV/ALV' };
 
+function vcUvgName(id) {
+    const v = (_vcData?.uvgVersicherer || []).find(x => x.id === id);
+    return v ? v.bezeichnung : '';
+}
+function vcUvgSelectHtml(selId) {
+    const liste = _vcData?.uvgVersicherer || [];
+    const opts = liste.map(v => `<option value="${v.id}" ${Number(v.id) === Number(selId) ? 'selected' : ''}>${esc(v.bezeichnung)}${v.kassennummer ? ' · ' + esc(v.kassennummer) : ''}</option>`).join('');
+    return (liste.length
+        ? `<option value="">– nicht einzeln zugewiesen –</option>`
+        : `<option value="">– der Filiale ist kein UVG-Versicherer zugeordnet –</option>`) + opts;
+}
+
 async function vcLoad(employeeId) {
     const el = document.getElementById('vcContent');
     if (!el || !employeeId) return;
@@ -34,6 +46,8 @@ function vcRender(el) {
                    : a.herkunft === 'standard' ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">STANDARD</span>'
                    : a.herkunft === 'beitragspflichtig' ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">BEITRAGSPFLICHTIG</span>'
                    : `<span style="color:#94a3b8;font-size:11px">${esc(a.herkunft)}</span>`;
+        const uvgV = a.art === 'UVG' && a.explizit?.empfaengerId
+            ? `<div style="font-size:11.5px;color:#475569">UVG-Versicherer · ${esc(vcUvgName(a.explizit.empfaengerId) || ('Nr. ' + a.explizit.empfaengerId))}</div>` : '';
         const fix = a.explizit && (a.explizit.beitragFixAn || a.explizit.beitragFixAg)
             ? `<div style="font-size:11.5px;color:#475569">Fixbetrag/Mt.: AN ${Number(a.explizit.beitragFixAn || 0).toFixed(2)} · AG ${Number(a.explizit.beitragFixAg || 0).toFixed(2)}</div>` : '';
         const bvgInfo = a.art === 'BVG' && a.explizit && (a.explizit.bvgEintrittsgrund || a.explizit.bvgVollArbeitsfaehig != null || a.explizit.bvgBasisManuell)
@@ -55,7 +69,7 @@ function vcRender(el) {
                 </div>
                 <div style="display:flex;gap:6px">${btns}</div>
             </div>
-            ${fix}${bvgInfo}${zeit}
+            ${uvgV}${fix}${bvgInfo}${zeit}
         </div>`;
     }).join('');
     // History: beendete Einträge — mit Fixbetrag/Basis, sonst sieht man nur Daten
@@ -189,6 +203,13 @@ function vcOpenModal(entryId, artVorgabe, codeVorgabe) {
                     <select id="vcCode" class="ma-input" ${istVerzicht ? 'disabled' : ''}>${optHtml(art, codeSel)}</select>
                 </div>
             </div>
+            <div id="vcUvgBox" style="${art === 'UVG' ? '' : 'display:none'};margin-top:8px">
+                <div class="ma-field">
+                    <div class="ma-field-label">UVG-Versicherer</div>
+                    <select id="vcUvg" class="ma-input">${vcUvgSelectHtml(entry?.empfaengerId || '')}</select>
+                    <div style="font-size:11px;color:#8b8b8b;margin-top:3px">Mehrere Versicherer der Filiale können verschiedenen Personen zugewiesen werden. Leer = der einzige offene UVG der Filiale.</div>
+                </div>
+            </div>
             <div class="ma-grid cols-2">
                 <div class="ma-field">
                     <div class="ma-field-label">${istVerzicht ? 'MA wünscht Verzicht Freibetrag ab *' : 'Gültig ab *'}</div>
@@ -259,6 +280,8 @@ function vcArtChanged() {
     sel.innerHTML = (art === 'AHV' ? '' : `<option value="">– kein Code (nur Fixbetrag) –</option>`) +
         (arten?.optionen || []).map(o => `<option value="${esc(o.code)}">${esc(o.code)} · ${esc(o.name)}${o.istStandard ? ' ★ Standard' : ''}</option>`).join('');
     document.getElementById('vcFixBox').style.display = art === 'BVG' ? '' : 'none';
+    const uvg = document.getElementById('vcUvgBox');
+    if (uvg) uvg.style.display = art === 'UVG' ? '' : 'none';
 }
 
 async function vcSaveVerzicht() {
@@ -297,7 +320,8 @@ async function vcSave() {
                   bvgEintrittsgrund: art === 'BVG' ? (document.getElementById('vcBvgGrund')?.value || null) : null,
                   bvgVollArbeitsfaehig: art === 'BVG' && fitV ? fitV === '1' : null,
                   bvgBasisManuell: art === 'BVG' ? (parseFloat(document.getElementById('vcBvgBasis')?.value) || null) : null,
-                  zusaetzlich: !!document.getElementById('vcZusaetzlich')?.checked };
+                  zusaetzlich: !!document.getElementById('vcZusaetzlich')?.checked,
+                  empfaengerId: art === 'UVG' ? (parseInt(document.getElementById('vcUvg')?.value, 10) || null) : null };
     const url = id ? `/api/employees/${selectedEmployeeId}/versicherung-codes/${id}` : `/api/employees/${selectedEmployeeId}/versicherung-codes`;
     const res = await fetch(url, { method: id ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(dto) });
     if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;

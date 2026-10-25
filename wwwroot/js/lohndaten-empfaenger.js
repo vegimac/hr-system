@@ -167,6 +167,8 @@ function leToggleMenu(ev, id) {
 document.addEventListener('click', () => document.querySelectorAll('#leList .dok-menu.show').forEach(m => m.classList.remove('show')));
 
 function leEnsureModal() {
+    const alt = document.getElementById('leModal');
+    if (alt && !document.getElementById('leUidUnbekannt')) alt.remove();
     if (document.getElementById('leModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -180,12 +182,15 @@ function leEnsureModal() {
             <label style="${lbl}">Art
                 <select id="leArt" onchange="leKasseLabelSetzen()" style="${inp}">${LE_ARTEN.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
             </label>
-            <label style="${lbl}">Bezeichnung<span class="pflicht-stern">*</span><input id="leBez" style="${inp}"></label>
+            <label style="${lbl}"><span id="leBezLbl">Bezeichnung</span><span class="pflicht-stern">*</span><input id="leBez" style="${inp}"></label>
             <label style="${lbl}">Zusatz<input id="leZusatz" style="${inp}"></label>
             <label style="${lbl}"><span id="leKassenLbl">Nummer der Kasse / Vers.-Nr.</span><input id="leKassenNr" placeholder="z.B. 003.000" style="${inp}" onblur="leKasseLabelSetzen()"><div id="leKassenArt" style="font-size:12px;font-weight:600;color:#3f3f3f;margin-top:4px;display:none"></div><div id="leKassenFehler" style="font-size:12px;color:#9b2c2c;font-weight:600;margin-top:4px;display:none"></div></label>
-            <label style="${lbl};grid-column:span 2">UID-Nummer <span style="font-weight:400;color:#8b8b8b">(Swissdec)</span>
-                <input id="leUid" placeholder="CHE-XXX.XXX.XXX" style="${inp}">
-                <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Prüfziffer beim Verlassen des Feldes</span>
+            <label style="${lbl};grid-column:span 2"><span id="leUidLbl">UID-Nummer</span> <span style="font-weight:400;color:#8b8b8b">(Swissdec)</span>
+                <input id="leUid" placeholder="CHE-XXX.XXX.XXX" style="${inp}" oninput="leUidGetippt()">
+                <span id="leUidUnbekannt" style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">
+                    <input type="checkbox" id="leUidUnbekanntChk" onchange="leUidUnbekanntSetzen()" style="width:14px;height:14px;accent-color:#3f3f3f"> unbekannt
+                </span>
+                <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Prüfziffer beim Verlassen des Feldes. CHE-999.999.997 ist ungültig.</span>
             </label>
             <label style="${lbl};grid-column:span 2">Strasse<input id="leStrasse" style="${inp}"></label>
             <label style="${lbl}">Postfach<input id="lePostfach" style="${inp}"></label>
@@ -232,6 +237,7 @@ function leOpenNew() {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
     set('leArt', 'AUSGLEICHSKASSE');
     ['leBez','leZusatz','leKassenNr','leUid','leStrasse','lePostfach','lePlz','leOrt','leKanton','leMail','leBem'].forEach(id => set(id, ''));
+    leUidZustand('');
     const akt = document.getElementById('leAktiv'); if (akt) akt.checked = true;
     const hint = document.getElementById('lePlzHint'); if (hint) hint.innerHTML = '';
     leKasseLabelSetzen();
@@ -272,10 +278,55 @@ function leKasseFehler(art, nummer) {
     return '';
 }
 
+function leIstUidUnbekannt(v) {
+    const u = String(v || '').trim().toUpperCase();
+    return u === 'UNKNOWN' || u === 'UNBEKANNT' || u === 'UNK';
+}
+
+function leUidUnbekanntSetzen() {
+    const chk = document.getElementById('leUidUnbekanntChk');
+    const inp = document.getElementById('leUid');
+    if (!chk || !inp) return;
+    if (chk.checked) {
+        inp.value = 'unbekannt';
+        inp.readOnly = true;
+        if (window.SwissUid) SwissUid.feldFehlerLoeschen(inp);
+    } else {
+        if (leIstUidUnbekannt(inp.value)) inp.value = '';
+        inp.readOnly = false;
+    }
+}
+
+function leUidGetippt() {
+    const chk = document.getElementById('leUidUnbekanntChk');
+    const inp = document.getElementById('leUid');
+    if (!chk || !inp || chk.checked) return;
+    if (leIstUidUnbekannt(inp.value)) {
+        chk.checked = true;
+        inp.readOnly = true;
+        if (window.SwissUid) SwissUid.feldFehlerLoeschen(inp);
+    }
+}
+
+function leUidZustand(wert) {
+    const chk = document.getElementById('leUidUnbekanntChk');
+    const inp = document.getElementById('leUid');
+    const unbekannt = leIstUidUnbekannt(wert);
+    if (chk) chk.checked = unbekannt;
+    if (inp) {
+        inp.readOnly = unbekannt;
+        if (unbekannt) inp.value = 'unbekannt';
+    }
+}
+
 function leKasseLabelSetzen() {
     const art = document.getElementById('leArt')?.value || '';
     const lbl = document.getElementById('leKassenLbl');
-    if (lbl) lbl.textContent = leKasseBegriff(art) || 'Nummer der Kasse / Vers.-Nr.';
+    if (lbl) lbl.textContent = leKasseBegriff(art) || (art === 'UVG' ? 'Versicherernummer' : 'Nummer der Kasse / Vers.-Nr.');
+    const bez = document.getElementById('leBezLbl');
+    if (bez) bez.textContent = art === 'UVG' ? 'Name des UVG-Versicherers' : 'Bezeichnung';
+    const uid = document.getElementById('leUidLbl');
+    if (uid) uid.textContent = art === 'UVG' ? 'UID-BFS' : 'UID-Nummer';
     const artZeile = document.getElementById('leKassenArt');
     const typText = leKassenTypText(leKassenTypAusNummer(art, document.getElementById('leKassenNr')?.value));
     if (artZeile) {
@@ -307,6 +358,7 @@ function leOpenEdit(id) {
     set('leZusatz', e.zusatz);
     set('leKassenNr', e.kassennummer);
     set('leUid', e.uidNummer);
+    leUidZustand(e.uidNummer);
     set('leStrasse', e.strasse);
     set('lePostfach', e.postfach);
     set('lePlz', e.plz);

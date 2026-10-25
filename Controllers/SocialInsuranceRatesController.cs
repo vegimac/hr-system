@@ -148,6 +148,8 @@ public class SocialInsuranceRatesController : ControllerBase
         dto.IsActive  = true;
         dto.CreatedAt = DateTime.UtcNow;
         dto.LoesungsCode   = string.IsNullOrWhiteSpace(dto.LoesungsCode) ? null : dto.LoesungsCode.Trim().ToUpperInvariant();
+        var uvgCode = UvgLoesung.LoesungsCodeFehler(dto.Code, dto.LoesungsCode);
+        if (uvgCode != null) return BadRequest(new { error = "UVG_CODE", message = uvgCode });
         dto.IsDefaultCode  = dto.LoesungsCode != null && dto.IsDefaultCode;
         dto.BandVonMonthly = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
         _db.SocialInsuranceRates.Add(dto);
@@ -212,6 +214,8 @@ public class SocialInsuranceRatesController : ControllerBase
         rate.CompanyProfileId      = dto.CompanyProfileId;
         rate.Gender                = dto.Gender;
         rate.LoesungsCode          = string.IsNullOrWhiteSpace(dto.LoesungsCode) ? null : dto.LoesungsCode.Trim().ToUpperInvariant();
+        var uvgCode = UvgLoesung.LoesungsCodeFehler(rate.Code, rate.LoesungsCode);
+        if (uvgCode != null) return BadRequest(new { error = "UVG_CODE", message = uvgCode });
         rate.IsDefaultCode         = rate.LoesungsCode != null && dto.IsDefaultCode;
         rate.BandVonMonthly        = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
         rate.FibuPosition          = dto.FibuPosition;

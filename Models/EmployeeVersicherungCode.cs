@@ -53,6 +53,15 @@ public class EmployeeVersicherungCode
     public decimal? BvgBasisManuell { get; set; }
 
     public string? Bemerkung { get; set; }
+
+    /// <summary>
+    /// UVG: welcher Versicherer für diese Person gilt (öffentliche Verwaltung:
+    /// Verwaltung privat, Forst/Werkhof Suva). Leer = der einzige offene
+    /// UVG-Versicherer der Filiale.
+    /// </summary>
+    public int? EmpfaengerId { get; set; }
+    public LohndatenEmpfaenger? Empfaenger { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public int? CreatedBy { get; set; }
 

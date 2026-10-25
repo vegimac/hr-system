@@ -2498,7 +2498,11 @@ function cpEmpfFieldLabels(art) {
     // Swissdec: Versicherer (UVG/UVGZ/KTG/BVG) führen Kundennummer (CustomerIdentity)
     // + Vertragsnummer (ContractIdentity). Bei BVG bleibt «Mitgliednummer» in Klammern,
     // weil GastroSocial das so nennt (Walter 06.08./07.09.2026) — gleiches Feld.
-    if (art === 'KTG' || art === 'UVG' || art === 'UVGZ')
+    // Swissdec 8.3.3: die drei Begriffe heissen beim UVG genau so.
+    if (art === 'UVG')
+        return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertrags-/Subnummer',
+                 phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
+    if (art === 'KTG' || art === 'UVGZ')
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
                  phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
     if (art === 'BVG')
@@ -2561,6 +2565,10 @@ function cpEmpfUpdateLabels(artOpt) {
         wrap.dataset.pruefen = L.kassePruefen ? '1' : '';
     }
     if (!L.kassePruefen) cpEmpfKassePruefen();
+    const hinweis = document.getElementById('cpEmpfFolgeHinweis');
+    if (hinweis) hinweis.textContent = art === 'UVG'
+        ? 'Ein weiterer UVG-Versicherer bleibt daneben offen. Derselbe Versicherer mit neuem «Gültig ab» beendet nur seine eigene Zeile. Gültig ab = ab wann dieser Versicherer zuständig ist. Die Person bekommt ihn unter Mitarbeiter → Versicherungen.'
+        : 'Ein neuer Satz derselben Art mit «Gültig ab» beendet den bisherigen automatisch am Vortag. Die Vereinbarung gilt für genau diese Dauer.';
 }
 
 function cpEmpfKasseAnzeigen(nummer) {
@@ -2701,7 +2709,7 @@ function cpEmpfEnsureModal() {
                 <label style="${lbl}">Gültig ab<input id="cpEmpfGueltigAb" type="date" style="${inp}"></label>
                 <label style="${lbl}">Gültig bis <span style="font-weight:400;color:#8b8b8b">(leer = offen)</span><input id="cpEmpfGueltigBis" type="date" style="${inp}"></label>
                 <label style="${lbl};grid-column:span 2">Bemerkung<input id="cpEmpfBem" style="${inp}"></label>
-                <div style="grid-column:span 2;font-size:11px;color:#8b8b8b;line-height:1.4">Ein neuer Satz derselben Art mit «Gültig ab» beendet den bisherigen automatisch am Vortag (z.B. Wechsel der UVG-Versicherung). Die Vereinbarung gilt für genau diese Dauer.</div>
+                <div id="cpEmpfFolgeHinweis" style="grid-column:span 2;font-size:11px;color:#8b8b8b;line-height:1.4">Ein neuer Satz derselben Art mit «Gültig ab» beendet den bisherigen automatisch am Vortag. Die Vereinbarung gilt für genau diese Dauer.</div>
                 <div id="cpEmpfIkv" style="display:none;grid-column:span 2;margin-top:4px;padding:10px 12px;border:1px solid rgba(60,55,48,0.18);border-radius:12px">
                     <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#3f3f3f;cursor:pointer">
                         <input id="cpEmpfIkvAktiv" type="checkbox" onchange="cpEmpfIkvSync()" style="margin-top:3px">
@@ -2748,7 +2756,12 @@ function cpEmpfShowStamm(k, ikvZielId) {
         k.kantonCode ? cdokEsc(k.kantonCode) : null,
         k.supportEmail ? cdokEsc(k.supportEmail) : null,
     ].filter(Boolean).join(' · ');
+    const uvgName = k.art === 'UVG'
+        ? `<div style="margin-top:4px">Name des UVG-Versicherers · <b>${cdokEsc(k.bezeichnung)}</b></div>`
+          + `<div>UID-BFS · ${k.uidNummer ? cdokEsc(k.uidNummer) : '–'}</div>`
+        : '';
     box.innerHTML = `<div style="font-weight:600">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.zusatz ? ` <span style="font-weight:400;color:#8b8b8b">— ${cdokEsc(k.zusatz)}</span>` : ''}</div>`
+        + uvgName
         + `<div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">${cdokEsc(adr) || 'keine Adresse'}</div>`
         + (meta ? `<div style="font-size:11.5px;color:#646464;margin-top:3px">${meta}</div>` : '')
         + `<div style="font-size:11px;margin-top:6px;color:#8b8b8b">Stammdaten nur über Swissdec-Import (Verzeichnis).</div>`;

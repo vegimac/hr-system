@@ -27,7 +27,8 @@ public class EmployeeVersicherungCodeController : ControllerBase
     public record UpsertDto(string Art, string? Code, DateOnly ValidFrom, DateOnly? ValidTo,
                             decimal? BeitragFixAn, decimal? BeitragFixAg, string? Bemerkung,
                             string? BvgEintrittsgrund = null, bool? BvgVollArbeitsfaehig = null, decimal? BvgBasisManuell = null,
-                            bool Zusaetzlich = false);   // true = bisherige Codes derselben Art bleiben (z.B. KTG 11 + 12)
+                            bool Zusaetzlich = false,   // true = bisherige Codes derselben Art bleiben (z.B. KTG 11 + 12)
+                            int? EmpfaengerId = null);  // UVG: welcher Versicherer für diese Person
 
     private static readonly string[] Arten = { "UVG", "UVGZ", "KTG", "BVG", "AHV" };
 
@@ -75,7 +76,7 @@ public class EmployeeVersicherungCodeController : ControllerBase
                 weitereCodes = alleCodes.Skip(1).ToList(),
                 herkunft = explizit?.Code != null ? "manuell" : art == EmployeeVersicherungCode.ArtAhv ? "beitragspflichtig" : (optionen.Any(o => o.istStandard) ? "standard" : (optionen.Count == 0 ? "keine Lösungen erfasst" : "ohne Code")),
                 explizit = explizit == null ? null : new { explizit.Id, explizit.Code, explizit.ValidFrom, explizit.ValidTo, explizit.BeitragFixAn, explizit.BeitragFixAg, explizit.Bemerkung,
-                                                           explizit.BvgEintrittsgrund, explizit.BvgVollArbeitsfaehig, explizit.BvgBasisManuell },
+                                                           explizit.BvgEintrittsgrund, explizit.BvgVollArbeitsfaehig, explizit.BvgBasisManuell, explizit.EmpfaengerId },
                 optionen,
             };
         }).ToList();
@@ -85,8 +86,9 @@ public class EmployeeVersicherungCodeController : ControllerBase
             stichtag = tag,
             arten,
             eintraege = eintraege.Select(e => new { e.Id, e.Art, e.Code, e.ValidFrom, e.ValidTo, e.BeitragFixAn, e.BeitragFixAg, e.Bemerkung, e.CreatedAt,
-                                                    e.BvgEintrittsgrund, e.BvgVollArbeitsfaehig, e.BvgBasisManuell,
+                                                    e.BvgEintrittsgrund, e.BvgVollArbeitsfaehig, e.BvgBasisManuell, e.EmpfaengerId,
                                                     isCurrent = e.GiltAm(tag) }),
+            uvgVersicherer = await OffeneUvgVersichererAsync(branchId, tag),
         });
     }
 
@@ -96,6 +98,8 @@ public class EmployeeVersicherungCodeController : ControllerBase
         if (!await _db.Employees.AnyAsync(e => e.Id == employeeId)) return NotFound();
         var fehler = Pruefe(dto);
         if (fehler != null) return BadRequest(new { error = "UNGUELTIG", message = fehler });
+        var versichererFehler = await PruefeUvgVersichererAsync(employeeId, dto);
+        if (versichererFehler != null) return BadRequest(new { error = "UVG_VERSICHERER", message = versichererFehler });
 
         var lock1 = await PruefeEditLockAsync(employeeId, dto.ValidFrom);
         if (lock1 != null) return lock1;
@@ -119,6 +123,7 @@ public class EmployeeVersicherungCodeController : ControllerBase
             BeitragFixAn = dto.Art == "BVG" && dto.BeitragFixAn is > 0 ? dto.BeitragFixAn : null,
             BeitragFixAg = dto.Art == "BVG" && dto.BeitragFixAg is > 0 ? dto.BeitragFixAg : null,
             Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim(),
+            EmpfaengerId = dto.Art == "UVG" ? dto.EmpfaengerId : null,
             CreatedAt = DateTime.Now, CreatedBy = GetCurrentUserId(),
         };
         UebernehmeBvg(e, dto);
@@ -134,6 +139,8 @@ public class EmployeeVersicherungCodeController : ControllerBase
         if (e == null) return NotFound();
         var fehler = Pruefe(dto);
         if (fehler != null) return BadRequest(new { error = "UNGUELTIG", message = fehler });
+        var versichererFehler = await PruefeUvgVersichererAsync(employeeId, dto);
+        if (versichererFehler != null) return BadRequest(new { error = "UVG_VERSICHERER", message = versichererFehler });
         var lock1 = await PruefeEditLockAsync(employeeId, dto.ValidFrom < e.ValidFrom ? dto.ValidFrom : e.ValidFrom);
         if (lock1 != null) return lock1;
 
@@ -141,6 +148,7 @@ public class EmployeeVersicherungCodeController : ControllerBase
         e.BeitragFixAn = dto.Art == "BVG" && dto.BeitragFixAn is > 0 ? dto.BeitragFixAn : null;
         e.BeitragFixAg = dto.Art == "BVG" && dto.BeitragFixAg is > 0 ? dto.BeitragFixAg : null;
         e.Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
+        e.EmpfaengerId = dto.Art == "UVG" ? dto.EmpfaengerId : null;
         UebernehmeBvg(e, dto);
         await _db.SaveChangesAsync();
         return Ok(new { id = e.Id });
@@ -197,6 +205,44 @@ public class EmployeeVersicherungCodeController : ControllerBase
                 firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
             });
         return null;
+    }
+
+    private async Task<string?> PruefeUvgVersichererAsync(int employeeId, UpsertDto dto)
+    {
+        if (dto.Art != "UVG" || dto.EmpfaengerId is not int id) return null;
+        var art = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .Where(e => e.Id == id).Select(e => e.Art).FirstOrDefaultAsync();
+        if (art == null) return "UVG-Versicherer nicht gefunden.";
+        if (!string.Equals(art, "UVG", StringComparison.OrdinalIgnoreCase))
+            return "Die Zuweisung muss ein UVG-Versicherer sein.";
+        var branchId = await GetEmployeeBranchAsync(employeeId);
+        if (branchId == null) return "Die Person hat keine Filiale — den UVG-Versicherer dort zuerst zuordnen.";
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        var zeilen = await _db.CompanyProfileEmpfaengers.AsNoTracking()
+            .Where(z => z.CompanyProfileId == branchId && z.EmpfaengerId == id && z.IsActive)
+            .Select(z => new { z.GueltigAb, z.GueltigBis })
+            .ToListAsync();
+        var offen = zeilen.Any(z => (z.GueltigAb == null || z.GueltigAb <= heute)
+                                 && (z.GueltigBis == null || z.GueltigBis >= heute));
+        if (!offen) return "Diesen UVG-Versicherer zuerst der Filiale zuordnen.";
+        return null;
+    }
+
+    private sealed record UvgVersichererWahl(int Id, string Bezeichnung, string? Kassennummer);
+
+    private async Task<List<UvgVersichererWahl>> OffeneUvgVersichererAsync(int? branchId, DateOnly tag)
+    {
+        if (branchId == null) return new List<UvgVersichererWahl>();
+        var zeilen = await _db.CompanyProfileEmpfaengers.AsNoTracking()
+            .Where(z => z.CompanyProfileId == branchId && z.IsActive && z.Empfaenger!.Art == "UVG")
+            .Select(z => new { z.EmpfaengerId, z.Empfaenger!.Bezeichnung, z.Empfaenger.Kassennummer, z.GueltigAb, z.GueltigBis })
+            .ToListAsync();
+        return zeilen
+            .Where(z => (z.GueltigAb == null || z.GueltigAb <= tag) && (z.GueltigBis == null || z.GueltigBis >= tag))
+            .GroupBy(z => z.EmpfaengerId)
+            .Select(g => new UvgVersichererWahl(g.Key, g.First().Bezeichnung, g.First().Kassennummer))
+            .OrderBy(x => x.Bezeichnung)
+            .ToList();
     }
 
     private async Task<int?> GetEmployeeBranchAsync(int employeeId)

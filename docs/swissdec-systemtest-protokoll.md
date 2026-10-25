@@ -389,6 +389,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente "Versicherernummer", "Kundennummer" und "Vertrags-/Subnummer" müssen im ERP-System vorhanden sein und identisch benannt werden.
 
+**Notiz 25.10.2026:** Filiale → Lohndaten-Empfänger, Art UVG. Die drei Bezeichnungen stehen so. Nicht im Katalog auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_03_02 Angaben zum UVG-Versicherer ⬜ offen
 
@@ -397,6 +399,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** Angaben zum UVG-Versicherer Folgende Angaben zum Unfallversicherer müssen im ERP-System erfasst werden können: - Name des UVG-Versicherers - UID-BFS des UVG-Versicherers Eingabe der UID-BFS oder Auswahl "unbekannt" - Gültig-ab Datum ab wann der UVG-Versicherer zuständig ist
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - UID-BFS: Prüfen ob "unbekannt" ausgewählt werden kann und anhand der UID-BFS "CHE-999.999.997" prüfen, ob eine Fehlermeldung bei einer invaliden Nummer angezeigt wird. - Prüfen ob die zwei Elemente "Name" und "Gültig-ab-Datum" erfasst werden können.
+
+**Notiz 25.10.2026:** Verzeichnis Lohndaten-Empfänger, Art UVG: Name, UID-BFS, Häkchen «unbekannt», CHE-999.999.997 zeigt die Prüfziffer-Meldung vor dem Speichern. Gültig ab an der Filial-Zuordnung. Verzeichnis selbst bleibt Swissdec-Import. Nicht auf gebaut gesetzt.
 
 
 #### S_ELM_V6_02_03_03 Mehrere UVG-Versicherer ⬜ offen
@@ -407,6 +411,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Der Anwendungsfall von öffentlichen Verwaltungen wird wie folgt geprüft: - Prüfen ob in der Benutzeroberfläche mehrere UVG-Versicherer erfasst und unterschiedlichen Personen zugewiesen werden können.
 
+**Notiz 25.10.2026:** Zweiter UVG an der Filiale bleibt offen (nur derselbe Versicherer wird mit neuem Gültig-ab beendet). Person: Mitarbeiter → Versicherungen → UVG-Versicherer. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_03_04 Angaben zur UVG-Versicherungslösungen ⬜ offen
 
@@ -416,6 +422,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die erste Stelle vom UVG-Code auf Buchstaben beschränkt ist. (A-Z) - Prüfen ob eine UVG-Versicherungslösung mit einer Beschreibung versehen werden kann.
 
+**Notiz 25.10.2026:** System → SV-Sätze, Typ NBUV. Feld UVG-Code, erste Stelle A–Z, Beschreibung daneben. Ziffern 0–3 bleiben an der Person. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_03_05 UVG Grundlagen ⬜ offen
 
@@ -424,6 +432,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** UVG Grundlagen UVG-Höchstlohn 12'350 pro Monat oder 148'200 pro Jahr Beitragsssätze müssen pro Versicherungslösung erfasst werden können. Beispiel: - A1 = NBU 1.4600% | BU 1.200% - B1 = NBU 1.6200% | BU 1.300%
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Höchstlöhne im System hinterlegt sind. - Prüfen ob die Beitragssätze pro Versicherungslösung erfasst werden können. - Prüfen ob die Beitragssätze mit 4 Nachkommastellen erfasst werden können.
+
+**Notiz 25.10.2026:** Dieselbe SV-Satz-Maske, Typ NBUV: Höchstlohn/Mt. 12'350 (= 148'200/Jahr), NBU % und BU % mit 4 Nachkommastellen pro UVG-Code. Nicht auf gebaut gesetzt.
 
 
 ### UVGZ (`02_04`)
