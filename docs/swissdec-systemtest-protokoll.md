@@ -601,7 +601,7 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob eine Person mit identischen Persondendaten mehrfach im ERP-System erfasst werden kann. Wenn nein, gilt der Test als bestanden. - Falls ja, gilt es zu prüfen, ob der Anwender zum Zeitpunkt der Übermittlung auf die Anforderung der Eindeutigkeit einer Person im ERP-System hingewiesen wird.
 
-**Notiz 25.10.2026:** Gleiche AHV-Nummer oder gleicher Name plus Geburtsdatum lässt sich nicht ein zweites Mal speichern. Nicht auf gebaut gesetzt.
+**Notiz 25.10.2026:** Gleiche AHV-Nummer oder gleicher Name plus Geburtsdatum lässt sich nicht ein zweites Mal speichern. Der easy@work-Import blockiert dieselbe Kombination (Vorname, Nachname, Geburtsdatum) und übernimmt die Zeile nicht. Nicht auf gebaut gesetzt.
 
 
 #### S_ELM_V6_03_01_02 AHV-Nummer ⬜ offen

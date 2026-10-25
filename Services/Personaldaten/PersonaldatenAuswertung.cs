@@ -36,10 +36,16 @@ public sealed class PersonaldatenDuplikate
         l.Add(e);
     }
 
+    /// <summary>Nur Buchstaben und Ziffern, klein. «Anna-Maria» und «Anna Maria» sind derselbe Name.</summary>
+    public static string NormName(string? s)
+        => new string((s ?? "").Trim().ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+
     private static string? PersonSchluessel(string? vor, string? nach, DateOnly? geb)
-        => string.IsNullOrWhiteSpace(vor) || string.IsNullOrWhiteSpace(nach) || geb == null
-            ? null
-            : $"{vor.Trim().ToLowerInvariant()}|{nach.Trim().ToLowerInvariant()}|{geb:yyyy-MM-dd}";
+    {
+        var v = NormName(vor);
+        var n = NormName(nach);
+        return v.Length == 0 || n.Length == 0 || geb == null ? null : $"{v}|{n}|{geb:yyyy-MM-dd}";
+    }
 
     /// <summary>Befunde für eine Person; <paramref name="eigeneId"/> = sie selbst (NULL bei neuem MA).</summary>
     public List<PdBefund> Pruefe(int? eigeneId, string? ahv, string? vor, string? nach, DateOnly? geb)

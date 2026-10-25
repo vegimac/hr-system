@@ -310,6 +310,10 @@ public class PersonaldatenPruefungTests
         var c = d.Pruefe(null, "7569217076985", "walter", "SCHAUB", new DateOnly(1970, 5, 3)).Select(b => b.Code).ToList();
         Assert.Contains("AHV_DOPPELT", c);
         Assert.Contains("PERSON_DOPPELT", c);
+        d.Hinzufuegen(2, "580108", "Gazele", "Jemmo", new DateOnly(1999, 1, 1), null);
+        Assert.Contains("PERSON_DOPPELT", d.Pruefe(3, null, "Gazele", "Jemmo", new DateOnly(1999, 1, 1)).Select(b => b.Code));
+        Assert.Contains("PERSON_DOPPELT", d.Pruefe(3, null, "Gazele", "Jem-mo", new DateOnly(1999, 1, 1)).Select(b => b.Code));
+        Assert.Empty(d.Pruefe(2, null, "Gazele", "Jemmo", new DateOnly(1999, 1, 1)));
         Assert.True(PersonaldatenDuplikate.IstArchiv("991220001"));
         Assert.True(PersonaldatenDuplikate.IstArchiv("1220001alt"));
     }

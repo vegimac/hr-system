@@ -4130,31 +4130,99 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-sex {
             max-width: 44px;
         }
-        /* Z2 eigene Zeile über die ganze Breite (Walter 12.10.2026):
-           Briefanrede (schmal) | Kurzname | Sex | Konfession | Nationalität | Bewilligung | ZEMIS */
+        /* Z2 über die ganze Breite, in zwei Zeilen (Walter 26.10.2026):
+           Zeile A: Briefanrede | Kurzname | Geschlecht | Konfession | Nationalität | Sprache | Geburtsdatum
+           Zeile B: Mobil | E-Mail | Bewilligung | ZEMIS
+           Vorher ein 7-Spalten-Raster für die alte Feldliste — Sprache, Geburt,
+           Mobil und E-Mail sind in die schmalen Spalten gerutscht. */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 {
             grid-column: 1 / -1;
-            display: grid;
-            grid-template-columns:
-                minmax(150px, 1.35fr)  /* Briefanrede */
-                minmax(80px, 0.8fr)    /* Kurzname */
-                44px                   /* Sex */
-                minmax(140px, 1.1fr)   /* Konfession */
-                minmax(150px, 1.35fr)  /* Nationalität */
-                minmax(120px, 1fr)     /* Bewilligung */
-                150px;                 /* ZEMIS */
-            column-gap: 14px;
-            align-items: start;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 0;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 > .ov-pf {
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b {
+            display: grid;
+            column-gap: 12px;
+            align-items: start;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a {
+            grid-template-columns:
+                minmax(108px, 1.15fr)  /* Briefanrede */
+                minmax(64px, 0.55fr)   /* Kurzname */
+                92px                   /* Geschlecht — Label «Geschlecht» */
+                minmax(108px, 1fr)     /* Konfession */
+                minmax(150px, 1.35fr)  /* Nationalität + Ausweis */
+                72px                   /* Sprache */
+                minmax(158px, 1fr);    /* Geburtsdatum inkl. Kalender */
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b {
+            grid-template-columns:
+                minmax(158px, 0.85fr)  /* Mobil */
+                minmax(220px, 1.8fr)   /* E-Mail */
+                minmax(168px, 1fr)     /* Bewilligung «B bis dd.mm.yyyy» */
+                minmax(148px, 0.7fr);  /* ZEMIS */
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a > .ov-pf,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b > .ov-pf {
             min-width: 0;
             margin-bottom: 0;
             max-width: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 .ov-pf-sex {
+            max-width: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .lqsel-wrap {
+            display: block;
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .lqsel-btn {
+            min-height: 30px;
+            height: 30px;
+            padding: 0 8px 0 0;
+            font-size: 14.5px;
+            font-weight: 700;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-nat-zeile {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-nat-zeile > .lqsel-wrap,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-nat-zeile > select {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: auto;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-nat-zeile > .emp-field-docbtn {
+            flex: 0 0 auto;
+            margin-left: 0 !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .yp-field-wrap > input.ov-softin {
+            padding-right: 6px;
+            width: auto;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned input.ov-softin:not([type="date"]) {
+            padding-right: 8px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 .ov-pfv {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-bew .ov-pfv {
+            overflow: visible;
+            text-overflow: clip;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-zemis .ov-softin {
+            width: 100%;
+            max-width: 100%;
         }
         /* Familienbetreuung 1 Spalte (darf umbrechen), daneben Schuhgrösse (Walter 15.10.2026) */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-fb .ov-pfv {

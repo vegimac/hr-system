@@ -1896,6 +1896,7 @@ function loadUebersichtTab() {
             </div>
 
             <div class="ov-pers-z2">
+            <div class="ov-pers-z2a">
             <div class="ov-pf ov-pf-briefanrede"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
             <input id="ov-letterSalutation" class="ov-softin" type="text" value="${esc(emp.letterSalutation)}" oninput="ovDirty()"></div>
             <div class="ov-pf ov-pf-kurzname" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">
@@ -1923,28 +1924,32 @@ function loadUebersichtTab() {
             </select></div>
             <div class="ov-pf ov-pf-nat">
                 <div class="ov-pfl">${_t('ma.field.nationality','Nationalität')}</div>
+                <div class="ov-nat-zeile">
                 <select id="ov-nat" class="ov-softin" onchange="ovDirty()" title="ISO 3166, plus 11 unbekannt und 22 staatenlos">
                     <option value="${emp.nationalityId || ''}">${esc(emp.nationalityName || emp.nationalityCode || emp.nationality || '–')}</option>
                 </select>
                 ${directDocButton(emp.idPassDokumentId, 'id_pass', 'passport')}
+                </div>
             </div>
-            <div class="ov-pf">
+            <div class="ov-pf ov-pf-lang">
                 <div class="ov-pfl">Sprache</div>
                 <select id="ov-lang" class="ov-softin" onchange="ovDirty()" title="DE, FR, IT, EN">
                     ${['de','fr','it','en'].map(c => `<option value="${c}" ${(emp.languageCode || 'de').toLowerCase() === c ? 'selected' : ''}>${c.toUpperCase()}</option>`).join('')}
                 </select>
             </div>
-            <div class="ov-pf">
+            <div class="ov-pf ov-pf-geb">
                 <div class="ov-pfl">Geburtsdatum</div>
                 <input id="ov-dob" class="ov-softin" type="date" max="${heuteIsoLokal()}" value="${toDateInput(emp.dateOfBirth)}" onchange="ovDirty()">
             </div>
-            <div class="ov-pf">
+            </div>
+            <div class="ov-pers-z2b">
+            <div class="ov-pf ov-pf-mobil">
                 <div class="ov-pfl">Mobilnummer</div>
                 <input id="ov-mobile" class="ov-softin" type="tel" value="${esc(emp.phoneMobile)}" placeholder="+41 79 409 43 33" oninput="ovDirty()">
             </div>
-            <div class="ov-pf">
+            <div class="ov-pf ov-pf-mail">
                 <div class="ov-pfl">E-Mail</div>
-                <input id="ov-email" class="ov-softin" type="email" value="${esc(emp.email)}" oninput="ovDirty()">
+                <input id="ov-email" class="ov-softin" type="email" value="${esc(emp.email)}" title="${esc(emp.email)}" oninput="ovDirty()">
             </div>
             ${istCH
                 ? ''
@@ -1965,6 +1970,7 @@ function loadUebersichtTab() {
                 ? ''
                 : `<div class="ov-pf ov-pf-zemis"><div class="ov-pfl">ZEMIS-Nr.</div>
             <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" maxlength="14" oninput="ovDirty()"></div>`}
+            </div>
             </div>
 
             <div class="ov-pf">

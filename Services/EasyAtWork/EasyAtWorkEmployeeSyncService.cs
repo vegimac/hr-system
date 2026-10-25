@@ -2631,6 +2631,17 @@ public class EasyAtWorkEmployeeSyncService
                         continue;
                     }
 
+                    var masterNeu = masterByEaw[row.EawEmployeeId];
+                    var personDoppeltNeu = pd.Duplikate.Pruefe(null, masterNeu.Ahv, masterNeu.FirstName, masterNeu.LastName, masterNeu.DateOfBirth)
+                        .FirstOrDefault(b => b.Code == "PERSON_DOPPELT");
+                    if (personDoppeltNeu != null)
+                    {
+                        res.Notes.Add($"⚠ {masterNeu.FirstName} {masterNeu.LastName} (Nr. {eaw.Number}): {personDoppeltNeu.Text} Nicht importiert.");
+                        row.Status = "CONFLICT";
+                        row.Reason = "Personaldaten: " + personDoppeltNeu.Text + " — bitte in easy@work korrigieren.";
+                        continue;
+                    }
+
                     var emp = new Employee
                     {
                         EmployeeNumber       = row.Number ?? "",
@@ -2665,6 +2676,22 @@ public class EasyAtWorkEmployeeSyncService
                     if (row.CoworkEmployeeId == null) continue;
                     var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.CoworkEmployeeId, ct);
                     if (emp == null) continue;
+                    var masterUp = masterByEaw[row.EawEmployeeId];
+                    static string? GleichOderBisher(string? neu, string? bisher) => string.IsNullOrWhiteSpace(neu) ? bisher : neu;
+                    var geburtUp = masterUp.DateOfBirth ?? (emp.DateOfBirth is DateTime gdUp ? DateOnly.FromDateTime(gdUp) : null);
+                    var personDoppeltUp = pd.Duplikate.Pruefe(emp.Id,
+                            GleichOderBisher(masterUp.Ahv, emp.SocialSecurityNumber),
+                            GleichOderBisher(masterUp.FirstName, emp.FirstName),
+                            GleichOderBisher(masterUp.LastName, emp.LastName),
+                            geburtUp)
+                        .FirstOrDefault(b => b.Code is "PERSON_DOPPELT" or "AHV_DOPPELT");
+                    if (personDoppeltUp != null)
+                    {
+                        res.Notes.Add($"⚠ {emp.FirstName} {emp.LastName} (Nr. {emp.EmployeeNumber}): {personDoppeltUp.Text} Nicht übernommen.");
+                        row.Status = "CONFLICT";
+                        row.Reason = "Personaldaten: " + personDoppeltUp.Text + " — bitte in easy@work korrigieren.";
+                        continue;
+                    }
                     var newEawId = eaw.Id;
                     // Anker-Schutz (Walter 12.07.2026, Alaa/Rasakumary): ein BEENDETER
                     // easy@work-Datensatz (to in der Vergangenheit) darf die Verknüpfung
@@ -4849,16 +4876,7 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     private static string NameDobKey(string? firstName, string? lastName, DateTime dateOfBirth)
-    {
-        static string Norm(string? s)
-            => new string((s ?? "")
-                .Trim()
-                .ToLowerInvariant()
-                .Where(char.IsLetterOrDigit)
-                .ToArray());
-
-        return $"{Norm(firstName)}|{Norm(lastName)}|{dateOfBirth:yyyy-MM-dd}";
-    }
+        => $"{PersonaldatenDuplikate.NormName(firstName)}|{PersonaldatenDuplikate.NormName(lastName)}|{dateOfBirth:yyyy-MM-dd}";
 
     private static string NameDobKey(string? firstName, string? lastName, DateOnly dateOfBirth)
         => NameDobKey(firstName, lastName, dateOfBirth.ToDateTime(TimeOnly.MinValue));
@@ -4927,17 +4945,17 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
-    /// Was der Import neu falsch machen würde: Fehler (nie übernehmen) und noch nicht
-    /// bestätigte Rückfragen. Doppelte Person bei neuem MA übernimmt die
-    /// Wiedereintritts-Erkennung — hier nur die doppelte AHV-Nummer.
+    /// Was der Import falsch machen würde. Gleicher Vorname, Nachname und
+    /// Geburtsdatum wie ein anderer Mitarbeiter blockiert immer — auch bei einem
+    /// neuen Datensatz und auch wenn der Stand schon so war (Walter 26.10.2026).
     /// </summary>
     private static (List<PdBefund> Fehler, List<PdBefund> Offen) PersonaldatenNeu(
         PersonaldatenKontext k, EmployeeMasterData m, Employee? alt, int? wiedereintrittId, int eawId)
     {
         var neuP = PersonNachImport(m, alt, k);
         var neu = PersonaldatenPruefung.Pruefe(neuP, k.Heute, null, k.ChPlz);
-        neu.AddRange(k.Duplikate.Pruefe(alt?.Id ?? wiedereintrittId, neuP.Ahv, neuP.Vorname, neuP.Nachname, neuP.Geburt)
-            .Where(b => alt != null || b.Code == "AHV_DOPPELT"));
+        var duplikat = k.Duplikate.Pruefe(alt?.Id ?? wiedereintrittId, neuP.Ahv, neuP.Vorname, neuP.Nachname, neuP.Geburt);
+        neu.AddRange(duplikat);
 
         List<PdBefund> befunde = neu;
         if (alt != null)
@@ -4947,6 +4965,11 @@ public class EasyAtWorkEmployeeSyncService
             var vorher = PersonaldatenPruefung.Pruefe(altP, k.Heute, null, k.ChPlz);
             vorher.AddRange(k.Duplikate.Pruefe(alt.Id, altP.Ahv, altP.Vorname, altP.Nachname, altP.Geburt));
             befunde = PersonaldatenPruefung.NurNeue(neu, vorher);
+            foreach (var d in duplikat.Where(b => b.Code is "PERSON_DOPPELT" or "AHV_DOPPELT"))
+            {
+                if (!befunde.Any(b => b.Code == d.Code && b.Wert == d.Wert))
+                    befunde.Add(d);
+            }
         }
 
         var ok = k.Bestaetigt
