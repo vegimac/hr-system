@@ -2569,8 +2569,8 @@ function cpEmpfUpdateLabels(artOpt) {
     }
     if (!L.kassePruefen) cpEmpfKassePruefen();
     const hinweis = document.getElementById('cpEmpfFolgeHinweis');
-    if (hinweis) hinweis.textContent = art === 'UVG'
-        ? 'Ein weiterer UVG-Versicherer bleibt daneben offen. Derselbe Versicherer mit neuem «Gültig ab» beendet nur seine eigene Zeile. Gültig ab = ab wann dieser Versicherer zuständig ist. Die Person bekommt ihn unter Mitarbeiter → Versicherungen.'
+    if (hinweis) hinweis.textContent = art === 'UVG' || art === 'BVG'
+        ? `Ein weiterer ${art}-Versicherer bleibt daneben offen. Derselbe Versicherer mit neuem «Gültig ab» beendet nur seine eigene Zeile. Gültig ab = ab wann dieser Versicherer zuständig ist.`
         : 'Ein neuer Satz derselben Art mit «Gültig ab» beendet den bisherigen automatisch am Vortag. Die Vereinbarung gilt für genau diese Dauer.';
 }
 
