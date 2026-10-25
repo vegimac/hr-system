@@ -2500,20 +2500,20 @@ function cpEmpfFieldLabels(art) {
     // weil GastroSocial das so nennt (Walter 06.08./07.09.2026) — gleiches Feld.
     if (art === 'KTG' || art === 'UVG' || art === 'UVGZ')
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
-                 phMitglied: 'z.B. 6494895' };
+                 phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
     if (art === 'BVG')
         return { kasse: 'Versicherernummer / Nummer der Kasse', mitglied: 'Kundennummer (Mitgliednummer)', sub: 'Vertragsnummer',
-                 phMitglied: 'z.B. 629.0714.00' };
+                 phMitglied: 'z.B. 629.0714.00', kasseAnzeigen: true };
     if (art === 'QST')
         return { kasse: 'Nummer der Kasse', mitglied: 'SSL-Nummer', sub: 'Buchungskreis',
                  phMitglied: 'z.B. 1914715' };
     if (art === 'AUSGLEICHSKASSE')
         return { kasse: 'Nummer der Ausgleichskasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
-                 phMitglied: 'z.B. 629.0714.00', kassePruefen: true };
-    // Swissdec 8.2.3: gleiche drei Felder, erster Block der Nummer > 0 («000.003» ungültig).
+                 phMitglied: 'z.B. 629.0714.00', kasseAnzeigen: true, kassePruefen: true };
+    // Swissdec 8.2.3: gleiche drei Felder. Die Nummer kommt aus dem Verzeichnis, nur Anzeige.
     if (art === 'FAK')
         return { kasse: 'Nummer der Familienausgleichskasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
-                 phMitglied: 'z.B. 629.0714.00', kassePruefen: true };
+                 phMitglied: 'z.B. 629.0714.00', kasseAnzeigen: true, kassePruefen: true };
     return { kasse: 'Nummer der Kasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
              phMitglied: 'z.B. 629.0714.00' };
 }
@@ -2534,7 +2534,7 @@ function cpEmpfKasseFehler(nummer) {
 function cpEmpfKassePruefen() {
     const wrap = document.getElementById('cpEmpfKasseWrap');
     const box = document.getElementById('cpEmpfKasseFehler');
-    if (!wrap || wrap.style.display === 'none') {
+    if (!wrap || wrap.style.display === 'none' || wrap.dataset.pruefen !== '1') {
         if (box) { box.style.display = 'none'; box.textContent = ''; }
         return '';
     }
@@ -2556,8 +2556,25 @@ function cpEmpfUpdateLabels(artOpt) {
     const mi = document.getElementById('cpEmpfMitglied');
     if (mi) mi.placeholder = L.phMitglied;
     const wrap = document.getElementById('cpEmpfKasseWrap');
-    if (wrap) wrap.style.display = L.kassePruefen ? 'block' : 'none';
+    if (wrap) {
+        wrap.style.display = L.kasseAnzeigen ? 'block' : 'none';
+        wrap.dataset.pruefen = L.kassePruefen ? '1' : '';
+    }
     if (!L.kassePruefen) cpEmpfKassePruefen();
+}
+
+function cpEmpfKasseAnzeigen(nummer) {
+    const nr = (nummer || '').trim();
+    const inp = document.getElementById('cpEmpfKasse');
+    const text = document.getElementById('cpEmpfKasseText');
+    if (inp) {
+        inp.value = nr;
+        inp.dataset.liste = nr;
+    }
+    if (text) {
+        text.textContent = nr || '–';
+        text.style.color = nr ? '#3f3f3f' : '#8b8b8b';
+    }
 }
 
 async function cpEmpfLoad(branchId) {
@@ -2649,7 +2666,7 @@ function cpEmpfRowHtml(z) {
 function cpEmpfEnsureModal() {
     // Altes Modal ohne Art-Vorfilter nach Deploy neu aufbauen.
     const existing = document.getElementById('cpEmpfModal');
-    if (existing && (!document.getElementById('cpEmpfArtFilter') || !document.getElementById('cpEmpfKasse'))) existing.remove();
+    if (existing && (!document.getElementById('cpEmpfArtFilter') || !document.getElementById('cpEmpfKasseText'))) existing.remove();
     if (document.getElementById('cpEmpfModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -2677,7 +2694,7 @@ function cpEmpfEnsureModal() {
         <div>
             <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Angaben dieser Filiale</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
-                <label id="cpEmpfKasseWrap" style="${lbl};grid-column:span 2;display:none"><span id="cpEmpfLblKasse">Nummer der Ausgleichskasse</span><input id="cpEmpfKasse" placeholder="z.B. 003.000" style="${inp}" onblur="cpEmpfKassePruefen()"><div id="cpEmpfKasseFehler" style="font-size:12px;color:#9b2c2c;font-weight:600;margin-top:4px;display:none"></div></label>
+                <div id="cpEmpfKasseWrap" style="${lbl};grid-column:span 2;display:none"><span id="cpEmpfLblKasse">Nummer der Ausgleichskasse</span><div id="cpEmpfKasseText" style="margin-top:4px;font-size:14px;font-weight:600;color:#8b8b8b">–</div><input id="cpEmpfKasse" type="hidden"><div id="cpEmpfKasseFehler" style="font-size:12px;color:#9b2c2c;font-weight:600;margin-top:4px;display:none"></div></div>
                 <label style="${lbl}"><span id="cpEmpfLblMitglied">Mitgliednummer</span><input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
                 <label style="${lbl}"><span id="cpEmpfLblSub">Subnummer</span><input id="cpEmpfSub" style="${inp}"></label>
                 <label style="${lbl}">Gültig ab<input id="cpEmpfGueltigAb" type="date" style="${inp}"></label>
@@ -2703,19 +2720,14 @@ function cpEmpfShowStamm(k) {
     if (!box) return;
     if (!k) {
         box.innerHTML = '<span style="color:#8b8b8b">Bitte einen Empfänger wählen.</span>';
-        const leer = document.getElementById('cpEmpfKasse');
-        if (leer) leer.value = '';
+        cpEmpfKasseAnzeigen('');
         cpEmpfKassePruefen();
         return;
     }
     const adr = [k.strasse, k.postfach, [k.plz, k.ort].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
-    const kasseInp = document.getElementById('cpEmpfKasse');
-    if (kasseInp) {
-        kasseInp.value = k.kassennummer || '';
-        kasseInp.dataset.liste = k.kassennummer || '';
-    }
+    cpEmpfKasseAnzeigen(k.kassennummer);
     const meta = [
-        cpEmpfFieldLabels(k.art).kassePruefen ? null : (k.kassennummer ? `Nr. ${cdokEsc(k.kassennummer)}` : null),
+        cpEmpfFieldLabels(k.art).kasseAnzeigen ? null : (k.kassennummer ? `Nr. ${cdokEsc(k.kassennummer)}` : null),
         k.uidNummer ? cdokEsc(k.uidNummer) : null,
         cpKassenTypText(k.kassenTyp) || null,
         k.kantonCode ? cdokEsc(k.kantonCode) : null,
@@ -2830,18 +2842,6 @@ async function cpEmpfSave() {
     }
     const kasseMsg = cpEmpfKassePruefen();
     if (kasseMsg) { showToast(kasseMsg, 'error'); return; }
-    const kasseWrap = document.getElementById('cpEmpfKasseWrap');
-    const kasseSichtbar = kasseWrap && kasseWrap.style.display !== 'none';
-    if (kasseSichtbar) {
-        const eingabe = val('cpEmpfKasse') || '';
-        const liste = (document.getElementById('cpEmpfKasse')?.dataset.liste || '').trim();
-        if (eingabe && liste && eingabe !== liste) {
-            const begriff = document.getElementById('cpEmpfLblKasse')?.textContent || 'Nummer der Kasse';
-            showToast('Die ' + begriff + ' bleibt «' + liste + '» aus der Empfängerliste.', 'error');
-            return;
-        }
-        zuordnungFields.kassennummer = eingabe || null;
-    }
     if (btn) btn.disabled = true;
     try {
         if (_cpEmpfEditId == null) {
