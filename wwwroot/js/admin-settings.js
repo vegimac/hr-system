@@ -2456,11 +2456,31 @@ function svCloseForm() {
     document.getElementById('svFormPanel').style.display   = 'none';
 }
 
+// Franken in der Maske: 148'200.00. Apostroph und Komma werden beim Lesen entfernt.
+function svBetragZahl(text) {
+    const v = String(text ?? '').trim().replace(/['’\u00A0\s]/g, '').replace(',', '.');
+    if (v === '' || v === '-') return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+}
+function svChf(n) {
+    const x = Number(n);
+    if (!Number.isFinite(x)) return '';
+    const [ganz, frac] = Math.abs(x).toFixed(2).split('.');
+    const mit = ganz.replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+    return (x < 0 ? '-' : '') + mit + '.' + frac;
+}
+function svChfFeld(el) {
+    if (!el) return;
+    const n = svBetragZahl(el.value);
+    el.value = n == null ? '' : svChf(n);
+}
 function svFeldMonat(id, wert) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.value = wert ?? '';
     el.dataset.einheit = 'monat';
+    const n = svBetragZahl(wert);
+    el.value = n == null ? '' : svChf(n);
 }
 
 // UVGZ zeigt das Lohnband in Franken pro Jahr. Gespeichert bleibt der Monat (÷ 12),
@@ -2470,14 +2490,14 @@ function svJahrFelder(jahr) {
         const el = document.getElementById(id);
         if (!el) continue;
         const istJahr = el.dataset.einheit === 'jahr';
-        if (jahr === istJahr) continue;
-        if (el.value !== '') {
-            const n = parseFloat(String(el.value).replace(',', '.'));
-            if (Number.isFinite(n)) {
-                const x = jahr ? n * 12 : n / 12;
-                el.value = String(Math.round(x * 100) / 100);
-            }
+        const n = svBetragZahl(el.value);
+        if (n == null) {
+            el.value = '';
+            el.dataset.einheit = jahr ? 'jahr' : 'monat';
+            continue;
         }
+        const x = jahr === istJahr ? n : (jahr ? n * 12 : n / 12);
+        el.value = svChf(Math.round(x * 100) / 100);
         el.dataset.einheit = jahr ? 'jahr' : 'monat';
     }
 }
@@ -2541,7 +2561,7 @@ async function svSave(event) {
     errEl.style.display = 'none';
 
     const parseNum = (id, fallback = null) => {
-        const v = document.getElementById(id).value.trim().replace(',', '.');
+        const v = document.getElementById(id).value.trim().replace(/['’\u00A0\s]/g, '').replace(',', '.');
         return v === '' ? fallback : parseFloat(v);
     };
     const parseIntOpt = (id) => {

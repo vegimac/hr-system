@@ -5396,12 +5396,12 @@
                         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
                             <div>
                                 <label id="svLblMaxBase" style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Höchstlohn/Mt. (CHF)</label>
-                                <input id="svMaxBase" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <input id="svMaxBase" type="text" inputmode="decimal" onblur="svChfFeld(this)" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                                 <div id="svHintMax" style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">UVG-Höchstlohn und ALV: 12'350 pro Monat (= 148'200 pro Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).</div>
                             </div>
                             <div>
                                 <label id="svLblBandVon" style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Lohnband ab/Mt. (CHF)</label>
-                                <input id="svBandVon" type="number" step="0.01" min="0" placeholder="– (ab 0)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <input id="svBandVon" type="text" inputmode="decimal" onblur="svChfFeld(this)" placeholder="– (ab 0)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                                 <div id="svHintBand" style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">Nur der Teil über diesem Wert (bis Höchstlohn) ist pflichtig: Überschusslohn KTG/UVGZ Code 12, ALVZ 12'350–30'875.</div>
                             </div>
                             <div>
@@ -10932,7 +10932,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261025h"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261025i"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>
