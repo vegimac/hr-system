@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 105;  // 105: AHV-Beitragspflicht zentral · 104: BVG-Steuerung aus dem Swissdec-Stamm
+const int SchemaStand = 106;  // 106: BVG kontiert auf 5050 · 105: AHV-Beitragspflicht zentral
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2816,6 +2816,20 @@ using (var scope = app.Services.CreateScope())
             WHERE NOT EXISTS (SELECT 1 FROM ahv_beitragspflicht_uebergang);
         ");
         startLog.LogInformation("Stand 105: AHV-Beitragspflicht 18/65/65 und Übergänge AHV 21");
+    }
+
+    // Stand 106: BVG und BVG-Zusatz sind eine Lohnart 5050 (Walter 25.10.2026).
+    // 590 ist die alte Mirus-Nummer des Zusatzes. Die Konten stehen am Kontoplan:
+    // Arbeitnehmer 1920 an 2080, Arbeitgeber 4060 an 2080.
+    if (dbStand < 106)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE social_insurance_rate
+               SET fibu_position = 550
+             WHERE upper(code) IN ('BVG', 'BVGV', 'BVG_ZUSATZ', 'BVGZUSATZ')
+               AND fibu_position IS DISTINCT FROM 550;
+        ");
+        startLog.LogInformation("Stand 106: BVG und BVG-Zusatz kontieren auf Lohnart 5050");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
