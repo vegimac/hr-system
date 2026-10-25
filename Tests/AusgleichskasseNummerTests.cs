@@ -24,4 +24,13 @@ public class AusgleichskasseNummerTests
         Assert.Equal(AusgleichskasseNummer.Meldung, fehler);
         Assert.Contains("000.003", fehler);
     }
+
+    [Fact]
+    public void Fak_nennt_die_Familienausgleichskasse()
+    {
+        var fehler = AusgleichskasseNummer.Fehler("000.003", AusgleichskasseNummer.BegriffFak);
+        Assert.Equal(AusgleichskasseNummer.MeldungZu(AusgleichskasseNummer.BegriffFak), fehler);
+        Assert.Contains("Familienausgleichskasse", fehler!);
+        Assert.Contains("000.003", fehler);
+    }
 }

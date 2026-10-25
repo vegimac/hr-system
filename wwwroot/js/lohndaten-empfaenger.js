@@ -237,21 +237,28 @@ function leOpenNew() {
     document.getElementById('leModal').style.display = 'block';
 }
 
+function leKasseBegriff(art) {
+    if (art === 'AUSGLEICHSKASSE') return 'Nummer der Ausgleichskasse';
+    if (art === 'FAK') return 'Nummer der Familienausgleichskasse';
+    return '';
+}
+
 function leKasseFehler(art, nummer) {
-    if (art !== 'AUSGLEICHSKASSE') return '';
+    const begriff = leKasseBegriff(art);
+    if (!begriff) return '';
     const t = (nummer || '').trim();
     if (!t) return '';
     const erster = t.split('.')[0];
     const n = parseInt(erster, 10);
     if (!/^\d+$/.test(erster) || !(n > 0))
-        return 'Nummer der Ausgleichskasse: der erste Block muss grösser als 0 sein (nicht «000.003»).';
+        return begriff + ': der erste Block muss grösser als 0 sein (nicht «000.003»).';
     return '';
 }
 
 function leKasseLabelSetzen() {
     const art = document.getElementById('leArt')?.value || '';
     const lbl = document.getElementById('leKassenLbl');
-    if (lbl) lbl.textContent = art === 'AUSGLEICHSKASSE' ? 'Nummer der Ausgleichskasse' : 'Nummer der Kasse / Vers.-Nr.';
+    if (lbl) lbl.textContent = leKasseBegriff(art) || 'Nummer der Kasse / Vers.-Nr.';
     leKassePruefen();
 }
 

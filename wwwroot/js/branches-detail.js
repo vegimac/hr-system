@@ -2505,6 +2505,10 @@ function cpEmpfFieldLabels(art) {
     if (art === 'AUSGLEICHSKASSE')
         return { kasse: 'Nummer der Ausgleichskasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
                  phMitglied: 'z.B. 629.0714.00', kassePruefen: true };
+    // Swissdec 8.2.3: gleiche drei Felder, erster Block der Nummer > 0 («000.003» ungültig).
+    if (art === 'FAK')
+        return { kasse: 'Nummer der Familienausgleichskasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
+                 phMitglied: 'z.B. 629.0714.00', kassePruefen: true };
     return { kasse: 'Nummer der Kasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
              phMitglied: 'z.B. 629.0714.00' };
 }
@@ -2515,8 +2519,10 @@ function cpEmpfKasseFehler(nummer) {
     if (!t) return '';
     const erster = t.split('.')[0];
     const n = parseInt(erster, 10);
-    if (!/^\d+$/.test(erster) || !(n > 0))
-        return 'Nummer der Ausgleichskasse: der erste Block muss grösser als 0 sein (nicht «000.003»).';
+    if (!/^\d+$/.test(erster) || !(n > 0)) {
+        const begriff = document.getElementById('cpEmpfLblKasse')?.textContent || 'Nummer der Ausgleichskasse';
+        return begriff + ': der erste Block muss grösser als 0 sein (nicht «000.003»).';
+    }
     return '';
 }
 
@@ -2704,7 +2710,7 @@ function cpEmpfShowStamm(k) {
         kasseInp.dataset.liste = k.kassennummer || '';
     }
     const meta = [
-        (k.art === 'AUSGLEICHSKASSE') ? null : (k.kassennummer ? `Nr. ${cdokEsc(k.kassennummer)}` : null),
+        cpEmpfFieldLabels(k.art).kassePruefen ? null : (k.kassennummer ? `Nr. ${cdokEsc(k.kassennummer)}` : null),
         k.uidNummer ? cdokEsc(k.uidNummer) : null,
         k.kantonCode ? cdokEsc(k.kantonCode) : null,
         k.supportEmail ? cdokEsc(k.supportEmail) : null,
@@ -2824,7 +2830,8 @@ async function cpEmpfSave() {
         const eingabe = val('cpEmpfKasse') || '';
         const liste = (document.getElementById('cpEmpfKasse')?.dataset.liste || '').trim();
         if (eingabe && liste && eingabe !== liste) {
-            showToast('Die Nummer der Ausgleichskasse bleibt «' + liste + '» aus der Empfängerliste.', 'error');
+            const begriff = document.getElementById('cpEmpfLblKasse')?.textContent || 'Nummer der Kasse';
+            showToast('Die ' + begriff + ' bleibt «' + liste + '» aus der Empfängerliste.', 'error');
             return;
         }
         zuordnungFields.kassennummer = eingabe || null;

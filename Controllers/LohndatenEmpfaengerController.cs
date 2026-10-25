@@ -340,11 +340,18 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         return Ok(new { deleted = true });
     }
 
-    /// <summary>Nur Ausgleichskasse, und nur wenn die Maske eine Nummer schickt.</summary>
+    /// <summary>Ausgleichskasse und FAK, und nur wenn die Maske eine Nummer schickt.</summary>
     private static IActionResult? PruefeKassennummer(string? art, string? nummer)
     {
-        if (art != "AUSGLEICHSKASSE" || nummer == null) return null;
-        var fehler = AusgleichskasseNummer.Fehler(nummer);
+        if (nummer == null) return null;
+        var begriff = art switch
+        {
+            "AUSGLEICHSKASSE" => AusgleichskasseNummer.BegriffAhv,
+            "FAK" => AusgleichskasseNummer.BegriffFak,
+            _ => null,
+        };
+        if (begriff == null) return null;
+        var fehler = AusgleichskasseNummer.Fehler(nummer, begriff);
         return fehler == null ? null : new BadRequestObjectResult(new { error = "KASSENNUMMER_UNGUELTIG", message = fehler });
     }
 
@@ -381,7 +388,7 @@ public class CpEmpfaengerDto
     public int EmpfaengerId { get; set; }
     public string? Mitgliednummer { get; set; }
     public string? Subnummer { get; set; }
-    /// <summary>Nur zur Prüfung bei der Ausgleichskasse. Wird nicht gespeichert.</summary>
+    /// <summary>Nur zur Prüfung bei Ausgleichskasse und FAK. Wird nicht gespeichert.</summary>
     public string? Kassennummer { get; set; }
     public string? Bemerkung { get; set; }
     /// <summary>ISO yyyy-MM-dd (native Datumsfelder) — leer = seit jeher.</summary>
