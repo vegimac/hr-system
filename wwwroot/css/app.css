@@ -7538,6 +7538,12 @@
         /* Walter 07.09.2026 (3. Runde, Lösungs-Codes): Bezeichnung braucht
            deutlich mehr Platz («UVG Betriebsteil B — BU+NBU, NBU-Abzug AN») —
            Basis, Fibu und die Kurzspalten geben ab. */
+        #page-sv-saetze .sv-neu-satz {
+            padding: 12px 26px;
+            font-size: 15px;
+            line-height: 1.2;
+            border-radius: 999px;
+        }
         #page-sv-saetze .sv-c-nr { width: 2.5%; }
         #page-sv-saetze .sv-c-typ { width: 6%; }
         #page-sv-saetze .sv-c-name { width: 31.7%; }
