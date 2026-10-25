@@ -215,7 +215,14 @@ function kqvRender() {
     const wirkung = (a.wirkung || []).map(w =>
         `<span style="color:#166534">${kqvMonat(w.von)} – ${w.bis ? kqvMonat(w.bis) : 'offen'}</span> <span class="kqv-grau">(${kqvEsc(w.grund)})</span>`).join(' · ');
     const gelb = [...(a.offen || []), ...(a.hinweise || [])].map(t => `<div style="color:#92400e">⚠ ${kqvEsc(t)}</div>`).join('');
+    const erste = (a.wirkung || [])[0];
+    const letzte = (a.wirkung || []).length ? a.wirkung[a.wirkung.length - 1] : null;
+    const anspruch = erste
+        ? `<div>Beginn des Anspruchs auf Kinderabzug: ${kqvDatum(erste.von)}</div>
+           <div>Ende des Anspruchs auf Kinderabzug: ${letzte && letzte.bis ? kqvDatum(letzte.bis) : 'offen'}</div>`
+        : '';
     const kopf = `<div title="Eine Änderung wirkt ab dem Folgemonat (KS 45). Lohnrelevant erst mit einer QST-Erfassung durch HR.">
+        ${anspruch}
         Zählt für die Kinderziffer: ${wirkung || '<span class="kqv-grau">in keinem Monat</span>'}
         ${a.zaehltHeute === false && wirkung ? `<span class="kqv-grau"> · zurzeit nicht (${kqvEsc(a.grundHeute || '')})</span>` : ''}
         ${gelb}

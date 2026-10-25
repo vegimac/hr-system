@@ -381,6 +381,12 @@ public class ElmMonthlyDeclarationBuilder
                 wohnHist.Where(h => h.EmployeeId == e.Id), monatsEndeTag,
                 e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
             var adresseAm = new PersonAdresseAm(wohnAm.Strasse, wohnAm.Plz, wohnAm.Ort, wohnAm.Land, wohnAm.KantonCode);
+            var umzug = WohnortHistorieService.UmzugImMonat(
+                wohnHist.Where(h => h.EmployeeId == e.Id),
+                DateOnly.FromDateTime(monatsAnfang), monatsEndeTag);
+            PersonAdresseAm? adresseVorher = umzug is { } u
+                ? new PersonAdresseAm(u.Alt.Strasse, u.Alt.Plz, u.Alt.Ort, u.Alt.Land, u.Alt.KantonCode)
+                : null;
 
             foreach (var s in g.OrderBy(x => x.PayrollPeriodeId))
             {
@@ -516,7 +522,7 @@ public class ElmMonthlyDeclarationBuilder
 
             var person = new XElement(Sd + "Person",
                 Particulars(e, warn, WohnGemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde,
-                    zivAm, zivSeitAm, adresseAm),
+                    zivAm, zivSeitAm, adresseAm, adresseVorher, umzug?.Wegzug),
                 new XElement(C + "Work",
                     new XAttribute("workID", WorkId(e)),
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,

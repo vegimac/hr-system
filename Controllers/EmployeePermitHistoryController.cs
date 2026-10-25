@@ -244,12 +244,33 @@ public class EmployeePermitHistoryController : ControllerBase
         return Ok(dtos);
     }
 
+    /// <summary>Staatsangehörigkeit CH: keine Aufenthaltskategorie (Swissdec 7.2).</summary>
+    async Task<IActionResult?> SchweizerSperreAsync(Employee? emp, int? permitTypeId)
+    {
+        if (emp == null || permitTypeId == null) return null;
+        var code = emp.NationalityId == null
+            ? null
+            : await _db.Nationalities.AsNoTracking()
+                .Where(n => n.Id == emp.NationalityId)
+                .Select(n => n.Code)
+                .FirstOrDefaultAsync();
+        if (!string.Equals((code ?? "").Trim(), "CH", StringComparison.OrdinalIgnoreCase))
+            return null;
+        return BadRequest(new
+        {
+            error = "SCHWEIZER_KEINE_BEWILLIGUNG",
+            message = "Einer Person mit Staatsangehörigkeit CH kann keine Aufenthaltskategorie zugeordnet werden."
+        });
+    }
+
     [HttpPost]
     [Authorize(Roles = "admin,superuser,user")]
     public async Task<IActionResult> Create(int employeeId, [FromBody] PermitHistoryUpsertDto dto)
     {
         var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
         if (emp == null) return NotFound();
+        var schweizer = await SchweizerSperreAsync(emp, dto.PermitTypeId);
+        if (schweizer != null) return schweizer;
 
         if (dto.PermitTypeId.HasValue)
         {
@@ -339,6 +360,9 @@ public class EmployeePermitHistoryController : ControllerBase
         var entry = await _db.EmployeePermitHistories
             .FirstOrDefaultAsync(h => h.Id == id && h.EmployeeId == employeeId);
         if (entry == null) return NotFound();
+        var empU = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId);
+        var schweizerU = await SchweizerSperreAsync(empU, dto.PermitTypeId);
+        if (schweizerU != null) return schweizerU;
 
         // Walter 17.05.2026: bereits in Lohn verwendet → nicht editierbar.
         var branchIdU     = await GetEmployeeBranchAsync(employeeId);

@@ -207,6 +207,12 @@ public class PersonaldatenPruefungTests
         Assert.Contains("AHV_UNGUELTIG", Codes(p));
         p.Ahv = "756.1234.5678.97";
         Assert.DoesNotContain("AHV_UNGUELTIG", Codes(p));
+        p.Ahv = "756.7865.5342.46";
+        Assert.DoesNotContain("AHV_UNGUELTIG", Codes(p));
+        p.Ahv = "756.7865.4342.46";
+        Assert.Contains("AHV_UNGUELTIG", Codes(p));
+        p.Ahv = "unbekannt";
+        Assert.DoesNotContain("AHV_UNGUELTIG", Codes(p));
     }
 
     [Fact]

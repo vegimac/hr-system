@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.Personaldaten;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Services.Elm;
@@ -389,7 +390,8 @@ public static class ElmGemeinsam
     public static XElement Particulars(Employee e, List<string> warn, int? wohnGemeindeNr = null,
                                        PermitType? bewilligungAmStichtag = null,
                                        string? zivilstandAmStichtag = null, DateOnly? zivilstandSeit = null,
-                                       PersonAdresseAm? adresseAmStichtag = null)
+                                       PersonAdresseAm? adresseAmStichtag = null,
+                                       PersonAdresseAm? adresseVorher = null, DateOnly? wegzug = null)
     {
         var svDigits = Regex.Replace(e.SocialSecurityNumber ?? "", @"\D", "");
         XElement svEl;
@@ -399,7 +401,8 @@ public static class ElmGemeinsam
         else
         {
             svEl = new XElement(C + "unknown");
-            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): AHV-Nummer fehlt/ungültig — als «unknown» gemeldet.");
+            if (!PersonaldatenPruefung.AhvUnbekannt(e.SocialSecurityNumber))
+                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): AHV-Nummer fehlt/ungültig — als «unknown» gemeldet.");
         }
 
         var sex = (e.Gender ?? "").ToLowerInvariant();
@@ -407,8 +410,9 @@ public static class ElmGemeinsam
         if (string.IsNullOrEmpty(sex))
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Geschlecht fehlt — als M gemeldet.");
 
-        var natCode = (e.NationalityRef?.Code ?? "").ToUpperInvariant();
-        if (!Regex.IsMatch(natCode, "^[A-Z]{2}$"))
+        var natCode = (e.NationalityRef?.Code ?? "").Trim().ToUpperInvariant();
+        // ISO-3166 Alpha-2, plus 11 = unbekannt und 22 = staatenlos (Swissdec NationalityType).
+        if (natCode is not ("11" or "22") && !Regex.IsMatch(natCode, "^[A-Z]{2}$"))
         {
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Nationalität fehlt — als CH gemeldet.");
             natCode = "CH";
@@ -445,13 +449,29 @@ public static class ElmGemeinsam
         if (zivilSeit != null)
             civilEl.Add(new XElement(C + "ValidAsOf", zivilSeit.Value.ToString("yyyy-MM-dd")));
 
-        var adresse = new XElement(C + "Address",
-            string.IsNullOrWhiteSpace(street) ? null : new XElement(C + "Street", street.Trim()),
-            new XElement(C + "ZIP-Code", zip),
-            new XElement(C + "City", city),
-            new XElement(C + "Country", LandName(landRoh)),
-            new XElement(C + "ResidenceCanton", canton),
-            landCh && wohnGemeindeNr is > 0 ? new XElement(C + "MunicipalityID", wohnGemeindeNr!.Value) : null);
+        XElement Adresse(string? str, string? zipR, string? cityR, string? landR, string? kantonR, int? gemeinde, DateOnly? abreise)
+        {
+            var z = string.IsNullOrWhiteSpace(zipR) ? "0000" : zipR!.Trim();
+            var o = string.IsNullOrWhiteSpace(cityR) ? "Unbekannt" : cityR!.Trim();
+            var landU2 = (landR ?? "").Trim().ToUpperInvariant();
+            var ch = landU2.Length == 0 || landU2 is "CH" or "CHE" or "SCHWEIZ" or "SWITZERLAND";
+            var kt = (kantonR ?? "").ToUpperInvariant();
+            if (!ch || kt == "EX") { ch = false; kt = "EX"; }
+            else if (!Regex.IsMatch(kt, "^[A-Z]{2}$")) kt = canton;
+            return new XElement(C + "Address",
+                string.IsNullOrWhiteSpace(str) ? null : new XElement(C + "Street", str.Trim()),
+                new XElement(C + "ZIP-Code", z),
+                new XElement(C + "City", o),
+                new XElement(C + "Country", LandName(landR)),
+                new XElement(C + "ResidenceCanton", kt),
+                ch && gemeinde is > 0 ? new XElement(C + "MunicipalityID", gemeinde.Value) : null,
+                abreise == null ? null : new XElement(C + "DepartureDate", abreise.Value.ToString("yyyy-MM-dd")));
+        }
+
+        var adressen = new XElement(C + "Addresses");
+        if (adresseVorher != null && wegzug != null)
+            adressen.Add(Adresse(adresseVorher.Street, adresseVorher.Zip, adresseVorher.City, adresseVorher.Country, adresseVorher.Canton, null, wegzug));
+        adressen.Add(Adresse(street, zipRoh, cityRoh, landRoh, kantonRoh, wohnGemeindeNr, null));
 
         // Bewilligungsart nur bei Ausländern (Reihenfolge laut XSD nach Nationality).
         var permit = bewilligungAmStichtag ?? e.PermitType;
@@ -469,7 +489,7 @@ public static class ElmGemeinsam
             new XElement(C + "DateOfBirth", e.DateOfBirth!.Value.ToString("yyyy-MM-dd")),
             new XElement(C + "Nationality", natCode),
             civilEl,
-            new XElement(C + "Addresses", adresse),
+            adressen,
             // Reihenfolge laut XSD (ParticularsType): … Addresses, EmailAddress,
             // PhoneNumber, MobilePhoneNumber, ResidenceCategory, LanguageCode.
             bewilligung == null ? null : new XElement(C + "ResidenceCategory", bewilligung),

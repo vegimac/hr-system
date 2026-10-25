@@ -130,7 +130,9 @@ public static class PersonaldatenPruefung
             F("NATIONALITAET_FEHLT", "Nationalität", "Nationalität fehlt.", null);
 
         // ── AHV-Nummer ──
-        if (!string.IsNullOrWhiteSpace(p.Ahv) && !AhvGueltig(p.Ahv))
+        if (AhvUnbekannt(p.Ahv))
+        { /* bewusste Wahl «unbekannt» — keine Nummer, keine Prüfziffer */ }
+        else if (!string.IsNullOrWhiteSpace(p.Ahv) && !AhvGueltig(p.Ahv))
             F("AHV_UNGUELTIG", "AHV-Nummer", $"AHV-Nummer {p.Ahv.Trim()} ist ungültig (756, 13 Ziffern, Prüfziffer).", Ziffern(p.Ahv));
 
         // ── Telefon, E-Mail ──
@@ -186,7 +188,7 @@ public static class PersonaldatenPruefung
     {
         var b = new List<PdBefund>();
         var wer = string.IsNullOrWhiteSpace(f.Vorname) ? (f.Art ?? "Familienmitglied") : $"{f.Art} {f.Vorname.Trim()}";
-        if (!string.IsNullOrWhiteSpace(f.Ahv) && !AhvGueltig(f.Ahv))
+        if (!AhvUnbekannt(f.Ahv) && !string.IsNullOrWhiteSpace(f.Ahv) && !AhvGueltig(f.Ahv))
             b.Add(new("FAM_AHV_UNGUELTIG", "Familie", PdStufe.Fehler,
                 $"{wer}: AHV-Nummer {f.Ahv.Trim()} ist ungültig (756, 13 Ziffern, Prüfziffer).", Ziffern(f.Ahv)));
         if (f.Geburt is DateOnly g)
@@ -246,6 +248,10 @@ public static class PersonaldatenPruefung
         "divers" or "diverse" or "d" or "x" => "divers",
         _ => null,
     };
+
+    /// <summary>Bewusst keine AHV-Nummer (Swissdec «unknown»), nicht eine leere oder falsche.</summary>
+    public static bool AhvUnbekannt(string? ahv)
+        => string.Equals((ahv ?? "").Trim(), "unbekannt", StringComparison.OrdinalIgnoreCase);
 
     public static bool AhvGueltig(string? ahv)
     {

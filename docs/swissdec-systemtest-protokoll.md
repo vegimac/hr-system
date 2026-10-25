@@ -575,6 +575,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Es muss ein neuer Kanton auf Basis einer strukturierten Liste hinzugefügt werden können - Pro Kanton muss eine SSL-Nummer hinterlegt werden können - Pro Kanton muss ein Buchungskreis hinterlegt werden können. Der Buchungskreis kann nur einmal auf einem Kanton hinterlegt werden. Eine Unterteilung innerhalb von einem Kanton auf mehrere Buchungskreise darf nicht vorgenommen werden. Siehe Hintergrundinformationen zu detaillierteren Ausführungen.
 
+**Notiz 25.10.2026:** Filiale, Tab Lohndaten Empfänger. Art Quellensteuer, Empfänger aus dem Verzeichnis (Swissdec-Liste, Kanton in Klammern). Felder heissen SSL-Nummer und Buchungskreis. Zweiter offener Kreis desselben Kantons entsteht nicht: derselbe Empfänger wird abgelehnt, ein neuer Satz mit Gültig ab beendet nur diesen Kanton. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_08_02 QST-Tarifcodes ⬜ offen
 
@@ -583,6 +585,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** QST-Tarifcodes Die QST-Tarifcodes müssen mittels der kantonalen Tariftabellen in ein ERP-System importiert werden können. Der Import der Tariftabellen kann durch den ERP-Hersteller selbst oder auch durch manuelle Eingriff vom Anwender vorgenommen werden.
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Sicherstellen, dass die QST-Tarifcodes anhand der von der ESTV publizierten Tariftabellen eingelesen werden.
+
+**Notiz 25.10.2026:** System, Lohn, QST Tarife. Import der ESTV-Datei (.txt oder .zip), Satzart 06, Kanton und Jahr werden erkannt. Nachschlagen prüft einen Code in der geladenen Datei. Nicht auf gebaut gesetzt.
 
 
 ## S_ELM_V6_03 — Personendaten
@@ -597,6 +601,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob eine Person mit identischen Persondendaten mehrfach im ERP-System erfasst werden kann. Wenn nein, gilt der Test als bestanden. - Falls ja, gilt es zu prüfen, ob der Anwender zum Zeitpunkt der Übermittlung auf die Anforderung der Eindeutigkeit einer Person im ERP-System hingewiesen wird.
 
+**Notiz 25.10.2026:** Gleiche AHV-Nummer oder gleicher Name plus Geburtsdatum lässt sich nicht ein zweites Mal speichern. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_03_01_02 AHV-Nummer ⬜ offen
 
@@ -605,6 +611,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** AHV-Nummer Für jede erfasste Person muss eine AHV-Nummer hinterlegt werden können. Wenn die AHV-Nummer nicht bekannt ist muss "unbekannt" ausgewählt werden können.
 
 **Erwartet:** Folgende AHV-Nummer muss erfasst werden: 756.7865.5342.46 - Prüfen ob "unbekannt" ausgewählt werden kann. - Prüfen ob invalide AHV-Nummern gespeichert werden können (Bsp: 756.7865.4342.46)
+
+**Notiz 25.10.2026:** Mitarbeiter, Personalien, Feld AHV-Nummer, Häkchen unbekannt. 756.7865.5342.46 geht, 756.7865.4342.46 wird abgelehnt. Nicht auf gebaut gesetzt.
 
 
 #### S_ELM_V6_03_01_03 Personalnummer ⬜ offen
@@ -615,6 +623,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Die Personalnummer muss vom System automatisiert vergeben werden - Falls eine Person das Unternehmen verlässt und zu einem späteren Zeitpunkt wieder in das Unternehmen eintritt, muss die gleiche Personalnummer verwendet werden.
 
+**Notiz 25.10.2026:** Die Nummer hängt an der Person. Ein späterer Vertrag behält sie. Dieselbe Nummer ein zweites Mal geht nicht. Die nächste freie Nummer steht in der Liste. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_03_01_04 Name, Vorname und Geschlechtscode ⬜ offen
 
@@ -623,6 +633,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** Name, Vorname und Geschlechtscode Für jede erfasste Person muss ein Name, Vorname und Geschlechtscode gepflegt werden können.
 
 **Erwartet:** Folgende Kombination aus Vor- , Nachname und Geschlechtscode muss erfasst werden: Felix Müller, M - Prüfen ob die Geschlechtscodes M und F erfasst werden können
+
+**Notiz 25.10.2026:** Personalien, Auswahl Geschlecht mit M und F. Umlaute im Namen gehen. Nicht auf gebaut gesetzt.
 
 
 #### S_ELM_V6_03_01_05 Geburtsdatum ⬜ offen
@@ -633,6 +645,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob ein Geburtsdatum grösser als aktuelles Tagesdatum erfasst werden kann (darf nicht möglich sein)
 
+**Notiz 25.10.2026:** Personalien, Geburtsdatum. Ein Datum nach heute lässt sich nicht speichern. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_03_01_06 Staatsangehörigkeit ⬜ offen
 
@@ -641,6 +655,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** Staatsangehörigkeit Für jede Person muss die dazugehörige Staatsangehörigkeit ausgewählt werden können. Für die Übermittlung müssen die Alpha-2 Codes von ISO 3166 verwendet werden. Folgende Auswahl muss zudem möglich sein: 11 = unbekannt 22 = staatenlos
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die ISO 3166 Liste in der ERP-Lösung hinterlegt wurde. - Prüfen ob 11 (unbekannt) und 12 (staatenlos) ausgewählt werden kann
+
+**Notiz 25.10.2026:** Personalien, Nationalität, ISO-Liste plus 11 unbekannt und 22 staatenlos. Die Richtlinie sagt 22, im Expected steht einmal 12. Nicht auf gebaut gesetzt.
 
 
 #### S_ELM_V6_03_01_07 Sprachcode ⬜ offen
@@ -651,6 +667,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die vier möglichen Sprachcodes hinterlegt werden können: DE, FR, IT, EN
 
+**Notiz 25.10.2026:** Personalien, Auswahl Sprache: DE, FR, IT, EN. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_03_01_08 Aufenthaltskategorie ⬜ offen
 
@@ -659,6 +677,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** Aufenthaltskategorie Für jede Person muss eine Aufenthaltskategorie hinterlegt werden können. Für qsP ist die Erfassung von einer Aufenthaltskategorie obligatorisch. Schweizern darf keine Aufenthaltskategorie zugeordnet werden können.
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob die möglichen Kategorien ausgewählt werden können: - Kurzaufenthalter (L) - Jahresaufenthalter (B) - Niedergelassene (C) - Aufenthaltsbewilligung mit Erwerbstätigkeit (Ci) - Grenzgänger (G) - Asylsuchender (N) - Schutzbedürftige (S) - Vorläufig Aufgenommene (F) - Meldeverfahren für kurzfristige Erwerbstätigkeit (90 Tage) - Meldeverfahren für kurzfristige Erwerbstätigkeit (120 Tage) - Andere (nicht Schweizer) Sicherstellen, dass einer P…
+
+**Notiz 25.10.2026:** Tab Bewilligung. L, B, C, Ci, G, N, S, F, 90 Tage, 120 Tage, Andere. Bei Nationalität CH speichert der Server keine Kategorie. Nicht auf gebaut gesetzt.
 
 
 #### S_ELM_V6_03_01_09 Zivilstand mit Gültig-ab-Datum ⬜ offen
@@ -669,6 +689,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob die möglichen Zivilstände im ERP-System ausgewählt werden können und ob ein Gültig-ab-Datum hinterlegt werden kann: - ledig - verheiratet - geschieden - verwittwet - getrennt - eingetragene Partnerschaft - gerichtlich aufgelöste Partnerschaft - durch Tod aufgelöste Partnerschaft - durch Verschollenerklärung aufgelöste Partnerschaft - unbekannt
 
+**Notiz 25.10.2026:** Personalien, Knopf Historie beim Zivilstand. Gültig ab und die genannten Stände. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_03_01_10 Angaben zu den Kindern ⬜ offen
 
@@ -677,6 +699,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** Angaben zu den Kindern Für jede Person müssen die Angaben zu den Kindern erfasst werden können. Die Kinder in der ERP-Lösung werden für die Quellensteuer-Übermittlung, wie auch die Ermittlung der Zulagen auf Seiten der Familienausgleichskassen verwendet. Quellensteuer: Für die Übermittlung der Quellensteuer-Monatsmeldung sind Kinder obligatorisch zu erfassen. Es wird empfohlen, die Validierung im ERP-System an den QST-Code zu koppeln. (x1y = 1 Kind, x2y = 2 Kinder, ...).
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob Kinder mit folgenden Angaben in der ERP-Lösung erfasst werden können: - Vorname des Kindes - Name des Kindes - Geburtsdatum des Kindes - Beginn des Anspruchs auf Kinderabzug - Ende des Anspruchs auf Kinderabzug Prüfen ob in der ERP-Lösung eine Fehlermeldung erscheint, wenn auf einem Kind ein Geburtsdatum erfasst wird, welches grösser ist als das aktuelle Tagesdatum. Prüfen ob die Anzahl erfasster Kinder mit dem QST-Tarifcode validiert …
+
+**Notiz 25.10.2026:** Tab Familie, Kind. Vorname, Name, Geburtsdatum. Beginn und Ende des Kinderabzugs stehen am Kind. Ein Geburtsdatum nach heute geht nicht. Die Kinderziffer wird gegen die erfassten Kinder geprüft, ausser beim speziell bewilligten Tarif. Nicht auf gebaut gesetzt.
 
 
 #### S_ELM_V6_03_01_11 Adresse der Mitarbeitenden ⬜ offen
@@ -687,6 +711,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob Wohnadressen für Mitarbeitende mit folgenden Angaben erfasst werden können: - Strasse und Hausnummer - Postfach - Zusätzliche Informaton zur Lokalität - Postleitzahl - Ort - Land (Englisch in Grossbuchstaben bsp. SWITZERLAND) - Zweistelliger ISO-Ländercode, falls Adresse im Ausland - Wohnkanton (zwingende Auswahl CH-Kanton oder EX) - Gemeindenummer - Wegzugsdatum Prüfen ob im Falle von einer Adresse im Ausland der zweistelliger ISO-Län…
 
+**Notiz 25.10.2026:** Wohnadresse in den Personalien, Umzug in der Wohnort-Historie. Postfach, PLZ, Ort, Kanton oder EX, Gemeindenummer in der Zusatzadresse. Ausland wird zum ISO-Code, Kanton EX. Ein Umzug im Meldemonat geht mit Wegzugdatum und beiden Adressen in die Meldung. Die Liste der italienischen Grenzregionen ist noch nicht eingebunden. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_03_01_12 E-Mail und Telefonnummer des Mitarbeitenden ⬜ offen
 
@@ -696,6 +722,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob folgende Angaben auf einem Mitarbeitenden erfasst werden können: - E-Mail - Telefonnummer - Mobilnummer
 
+**Notiz 25.10.2026:** Personalien: E-Mail, Telefonnummer, Mobilnummer. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_03_01_13 Arbeitsort ⬜ offen
 
@@ -704,6 +732,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** Arbeitsort Im ERP-System muss jeder Person einer der im Unternehmen hinterlegten Arbeitsorte zugewiesen werden.
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob einer Person ein Arbeitsort zugewiesen werden kann. - Sicherstellen, dass mit dieser Auswahl auch die zuständige Familienausgleichskasse zugeordnet wird, die auf dem Arbeitsort hinterlegt ist.
+
+**Notiz 25.10.2026:** Der Arbeitsort ist die Filiale am Vertrag. Die Familienausgleichskasse hängt an dieser Filiale. Nicht auf gebaut gesetzt.
 
 
 ### Arbeitsverträge (`03_02`)

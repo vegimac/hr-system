@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 112;  // 112: BFS Buchungskreis und Lohnvereinbarung am Hauptsitz · 111: BVG-Code bis 32 Stellen, Lohnart einer Lösung
+const int SchemaStand = 113;  // 113: Nationalität 11 unbekannt und 22 staatenlos · 112: BFS Buchungskreis und Lohnvereinbarung am Hauptsitz
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2922,6 +2922,20 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE hauptsitz ADD COLUMN IF NOT EXISTS lohnvereinbarung varchar(40) NULL;
         ");
         startLog.LogInformation("Stand 112: BFS Buchungskreis und Lohnvereinbarung am Hauptsitz");
+    }
+
+    // Stand 113: Staatsangehörigkeit 11 = unbekannt, 22 = staatenlos (Swissdec, nicht ISO).
+    if (dbStand < 113)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            INSERT INTO nationality (code, name_de, is_active)
+            SELECT '11', 'unbekannt', true
+            WHERE NOT EXISTS (SELECT 1 FROM nationality WHERE code = '11');
+            INSERT INTO nationality (code, name_de, is_active)
+            SELECT '22', 'staatenlos', true
+            WHERE NOT EXISTS (SELECT 1 FROM nationality WHERE code = '22');
+        ");
+        startLog.LogInformation("Stand 113: Nationalität 11 unbekannt und 22 staatenlos");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

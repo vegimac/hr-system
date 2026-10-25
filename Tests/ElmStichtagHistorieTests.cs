@@ -149,4 +149,46 @@ public class ElmStichtagHistorieTests
         Assert.Equal("GERMANY", adr.Element(ElmGemeinsam.C + "Country")!.Value);
         Assert.Equal("EX", adr.Element(ElmGemeinsam.C + "ResidenceCanton")!.Value);
     }
+
+    [Fact]
+    public void Umzug_im_Monat_meldet_alte_Adresse_mit_Wegzug()
+    {
+        var hist = new[]
+        {
+            new EmployeeWohnortHistory
+            {
+                Id = 1, Strasse = "Alt 1", Plz = "6003", Ort = "Luzern", KantonCode = "LU", Land = "CH",
+                GueltigAb = new DateOnly(2024, 1, 1),
+            },
+            new EmployeeWohnortHistory
+            {
+                Id = 2, Strasse = "Neu 2", Plz = "3011", Ort = "Bern", KantonCode = "BE", Land = "CH",
+                GueltigAb = new DateOnly(2025, 4, 15),
+            },
+        };
+        var u = WohnortHistorieService.UmzugImMonat(hist, new DateOnly(2025, 4, 1), new DateOnly(2025, 4, 30));
+        Assert.NotNull(u);
+        Assert.Equal("6003", u.Value.Alt.Plz);
+        Assert.Equal(new DateOnly(2025, 4, 14), u.Value.Wegzug);
+        Assert.Null(WohnortHistorieService.UmzugImMonat(hist, new DateOnly(2025, 5, 1), new DateOnly(2025, 5, 31)));
+    }
+
+    [Fact]
+    public void Particulars_Nationalitaet_11_und_Ahv_unbekannt()
+    {
+        var e = new Employee
+        {
+            EmployeeNumber = "1", FirstName = "Felix", LastName = "Müller",
+            Gender = "male", DateOfBirth = new DateTime(1990, 1, 1),
+            SocialSecurityNumber = "unbekannt",
+            NationalityRef = new Nationality { Code = "11" },
+            Street = "A 1", ZipCode = "6003", City = "Luzern", CantonCode = "LU", Country = "CH",
+        };
+        var warn = new List<string>();
+        var xml = ElmGemeinsam.Particulars(e, warn);
+        Assert.Equal("11", xml.Element(ElmGemeinsam.C + "Nationality")!.Value);
+        Assert.Equal("unknown", xml.Element(ElmGemeinsam.C + "Social-InsuranceIdentification")!
+            .Element(ElmGemeinsam.C + "unknown")!.Name.LocalName);
+        Assert.DoesNotContain(warn, w => w.Contains("AHV-Nummer fehlt"));
+    }
 }

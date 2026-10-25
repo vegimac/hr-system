@@ -37,6 +37,36 @@ public class WohnortHistorieService
         return new Stand(fallbackStrasse, fallbackPlz, fallbackOrt, fallbackKanton, fallbackLand, null, false);
     }
 
+    /// <summary>
+    /// Umzug im Meldemonat: die Adresse davor, mit Wegzug am Vortag des neuen Gültig-ab.
+    /// Gleicher Ort bleibt eine Adresse.
+    /// </summary>
+    public static (Stand Alt, DateOnly Wegzug)? UmzugImMonat(IEnumerable<EmployeeWohnortHistory> hist, DateOnly von, DateOnly bis)
+    {
+        var sortiert = hist.Where(h => !h.DatumOffen)
+            .OrderBy(h => h.GueltigAb == null ? 0 : 1).ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
+            .ToList();
+        EmployeeWohnortHistory? treffer = null;
+        EmployeeWohnortHistory? davor = null;
+        foreach (var h in sortiert)
+        {
+            if (h.GueltigAb == null || h.GueltigAb <= bis)
+            {
+                davor = treffer;
+                treffer = h;
+            }
+        }
+        if (treffer?.GueltigAb is not DateOnly ab || ab < von || ab > bis || davor == null)
+            return null;
+        if (Gleich(davor.Plz, treffer.Plz) && Gleich(davor.Ort, treffer.Ort) && Gleich(davor.Strasse, treffer.Strasse))
+            return null;
+        return (new Stand(davor.Strasse, davor.Plz, davor.Ort, davor.KantonCode, LandAus(davor), davor.GueltigAb, true),
+            ab.AddDays(-1));
+    }
+
+    static bool Gleich(string? a, string? b)
+        => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
     public async Task<Stand> AmAsync(int employeeId, DateOnly stichtag)
     {
         var hist = await _db.EmployeeWohnortHistories.AsNoTracking()

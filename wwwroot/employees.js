@@ -1387,7 +1387,7 @@ function renderEmployeeDetail(emp) {
                         </div>
                     </div>
                     ${_hcFact('Geburtstag', emp.dateOfBirth ? birthHeader /* kein Doku-Symbol am Geburtstag (Walter 26.09.2026) */ : null)}
-                    ${_hcFact(_t('ma.field.phone','Telefon'), _hcPhoneVal)}
+                    ${_hcFact('Mobilnummer', _hcPhoneVal)}
                     ${_hcFact('E-Mail', _hcEmailVal)}
                 </div>
             </div>
@@ -1814,15 +1814,23 @@ function loadUebersichtTab() {
                     </div>
                 </div>
             </div>
-            <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefon 2</div>
+            <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefonnummer</div>
             <input id="ov-phone2" class="ov-softin" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div>
             <div class="ov-pf ov-pf-ahv">
-                <div class="ov-pfl">AHV-Nr.${_ahvKasseHtml(emp)}</div>
-                <div class="ov-pfv">${esc(emp.ahvNumber ?? emp.socialSecurityNumber)
-                    || (typeof ahvQuickPdf === 'function' ? `<button type="button" onclick="ahvQuickPdf(${emp.id})"
-                            title="AHV-Anmeldung 318.260 vorbefüllt öffnen (Versicherungsausweis bestellen)"
-                            style="height:22px;display:inline-flex;align-items:center;vertical-align:middle;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:0 10px;font-size:10.5px;font-weight:600;cursor:pointer;box-shadow:0 1px 4px rgba(60,55,48,0.18);white-space:nowrap">📄 Ausweis bestellen</button>`
-                        : '<span class="ov-empty">–</span>')}${(emp.ahvNumber ?? emp.socialSecurityNumber) ? directDocButton(emp.ahvKarteDokumentId, 'ahv_karte', 'ahv_card') : ''}</div>
+                <div class="ov-pfl">AHV-Nummer${_ahvKasseHtml(emp)}</div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <input id="ov-ahv" class="ov-softin" style="width:150px" inputmode="numeric" maxlength="16"
+                        value="${(emp.ahvNumber ?? emp.socialSecurityNumber ?? '').trim().toLowerCase() === 'unbekannt' ? '' : esc(emp.ahvNumber ?? emp.socialSecurityNumber)}"
+                        placeholder="756.7865.5342.46"
+                        ${(emp.ahvNumber ?? emp.socialSecurityNumber ?? '').trim().toLowerCase() === 'unbekannt' ? 'disabled' : ''}
+                        oninput="ahvMaskInput(this);ovDirty()" onblur="validateAhvField(this, true)">
+                    <label style="font-size:12px;color:#3f3f3f;white-space:nowrap;display:flex;align-items:center;gap:4px">
+                        <input type="checkbox" id="ov-ahv-unbekannt" ${(emp.ahvNumber ?? emp.socialSecurityNumber ?? '').trim().toLowerCase() === 'unbekannt' ? 'checked' : ''} onchange="ovAhvUnbekannt()">
+                        unbekannt
+                    </label>
+                    ${(emp.ahvNumber ?? emp.socialSecurityNumber) && (emp.ahvNumber ?? emp.socialSecurityNumber).trim().toLowerCase() !== 'unbekannt' ? directDocButton(emp.ahvKarteDokumentId, 'ahv_karte', 'ahv_card') : ''}
+                </div>
+                <div id="ov-ahv-status" style="font-size:11px;min-height:14px"></div>
             </div>
 
             <div class="ov-pers-z2">
@@ -1833,8 +1841,13 @@ function loadUebersichtTab() {
                 <div class="ov-pfv">${esc(emp.shortName) || '<span class="ov-empty">–</span>'}</div>
             </div>
             <div class="ov-pf ov-pf-sex">
-                <div class="ov-pfl">Sex</div>
-                <div class="ov-pfv">${gKurz2 || '<span class="ov-empty">–</span>'}</div>
+                <div class="ov-pfl">Geschlecht</div>
+                <select id="ov-gender" class="ov-softin" onchange="ovDirty()" title="M und F">
+                    <option value="">–</option>
+                    <option value="male" ${(_g === 'male' || _g === 'm' || _g === 'mann' || _g === 'männlich') ? 'selected' : ''}>M</option>
+                    <option value="female" ${(_g === 'female' || _g === 'f' || _g === 'w' || _g === 'weiblich' || _g === 'frau') ? 'selected' : ''}>F</option>
+                    ${_g === 'divers' || _g === 'd' ? '<option value="divers" selected>D</option>' : ''}
+                </select>
             </div>
             <div class="ov-pf ov-pf-konf"><div class="ov-pfl">${_t('ma.field.religion','Konfession')}</div>
             <select id="ov-religion" class="ov-softin" onchange="ovDirty()">
@@ -1848,7 +1861,28 @@ function loadUebersichtTab() {
             </select></div>
             <div class="ov-pf ov-pf-nat">
                 <div class="ov-pfl">${_t('ma.field.nationality','Nationalität')}</div>
-                <div class="ov-pfv">${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${directDocButton(emp.idPassDokumentId, 'id_pass', 'passport')}</div>
+                <select id="ov-nat" class="ov-softin" onchange="ovDirty()" title="ISO 3166, plus 11 unbekannt und 22 staatenlos">
+                    <option value="${emp.nationalityId || ''}">${esc(emp.nationalityName || emp.nationalityCode || emp.nationality || '–')}</option>
+                </select>
+                ${directDocButton(emp.idPassDokumentId, 'id_pass', 'passport')}
+            </div>
+            <div class="ov-pf">
+                <div class="ov-pfl">Sprache</div>
+                <select id="ov-lang" class="ov-softin" onchange="ovDirty()" title="DE, FR, IT, EN">
+                    ${['de','fr','it','en'].map(c => `<option value="${c}" ${(emp.languageCode || 'de').toLowerCase() === c ? 'selected' : ''}>${c.toUpperCase()}</option>`).join('')}
+                </select>
+            </div>
+            <div class="ov-pf">
+                <div class="ov-pfl">Geburtsdatum</div>
+                <input id="ov-dob" class="ov-softin" type="date" max="${new Date().toISOString().slice(0,10)}" value="${toDateInput(emp.dateOfBirth)}" onchange="ovDirty()">
+            </div>
+            <div class="ov-pf">
+                <div class="ov-pfl">Mobilnummer</div>
+                <input id="ov-mobile" class="ov-softin" type="tel" value="${esc(emp.phoneMobile)}" placeholder="+41 79 409 43 33" oninput="ovDirty()">
+            </div>
+            <div class="ov-pf">
+                <div class="ov-pfl">E-Mail</div>
+                <input id="ov-email" class="ov-softin" type="email" value="${esc(emp.email)}" oninput="ovDirty()">
             </div>
             ${istCH
                 ? ''
@@ -2076,6 +2110,44 @@ function loadUebersichtTab() {
         loadOvSaldi(emp.id);
         // loadOvVertragSms(emp.id);  // entfernt — Status jetzt in der ONBOARDING-Auswertung (HR-Hub)
     }
+    ovNatFuellen(emp);
+}
+
+function ovAhvUnbekannt() {
+    const box = document.getElementById('ov-ahv-unbekannt');
+    const inp = document.getElementById('ov-ahv');
+    const status = document.getElementById('ov-ahv-status');
+    if (!inp) return;
+    inp.disabled = !!(box && box.checked);
+    if (box && box.checked) {
+        inp.value = '';
+        if (status) status.textContent = '';
+    }
+    if (typeof ovDirty === 'function') ovDirty();
+}
+
+async function ovNatFuellen(emp) {
+    const sel = document.getElementById('ov-nat');
+    if (!sel || !emp) return;
+    const list = await getNationalities();
+    const cur = emp.nationalityId;
+    const zeilen = (list || []).filter(n => n.isActive !== false);
+    zeilen.sort((a, b) => {
+        const ac = String(a.code || '');
+        const bc = String(b.code || '');
+        const sonder = c => c === '11' ? 0 : c === '22' ? 1 : 2;
+        const d = sonder(ac) - sonder(bc);
+        if (d) return d;
+        return String(a.name || a.nameDe || ac).localeCompare(String(b.name || b.nameDe || bc), 'de');
+    });
+    sel.innerHTML = '<option value="">–</option>' + zeilen.map(n => {
+        const id = n.id ?? n.Id;
+        const code = n.code ?? n.Code ?? '';
+        const name = n.name ?? n.nameDe ?? n.Name ?? code;
+        const label = code === '11' || code === '22' ? `${code} ${name}` : `${name}${code ? ' (' + code + ')' : ''}`;
+        return `<option value="${id}">${esc(label)}</option>`;
+    }).join('');
+    if (cur) sel.value = String(cur);
 }
 
 // SMS-/Link-Status in der Vertragszeile (Walter 05.08.2026): NUR wenn
@@ -6835,6 +6907,10 @@ function formatGender(g) {
 // und in EN/DE.
 function formatMaritalStatus(s) {
     if (!s) return null;
+    if (typeof ZIV_OPTIONEN !== 'undefined') {
+        const hit = ZIV_OPTIONEN.find(([v]) => v === String(s).toLowerCase().trim());
+        if (hit) return hit[1];
+    }
     const key = 'ma.value.maritalStatus.' + String(s).toLowerCase().trim();
     if (window.i18n && window.i18n.t) {
         const v = window.i18n.t(key);
@@ -7264,6 +7340,7 @@ function renderKantonSelect(id, current, extraAttrs = '') {
         .join('');
     return `<select id="${id}" class="ef-input" ${extraAttrs}>
         <option value="" ${!cur ? 'selected' : ''}>— nicht gepflegt —</option>
+        <option value="EX" ${cur === 'EX' ? 'selected' : ''}>EX — Ausland</option>
         ${opts}
     </select>`;
 }
@@ -7515,6 +7592,41 @@ async function saveEmpEdit() {
         if (el.type === 'checkbox') return el.checked === true;
         return el.value === 'true';
     };
+    const ahvFeld = document.getElementById('ov-ahv');
+    const ahvUnb = document.getElementById('ov-ahv-unbekannt');
+    let ahvWert = emp.socialSecurityNumber || null;
+    if (ahvFeld) {
+        if (ahvUnb && ahvUnb.checked) ahvWert = 'unbekannt';
+        else {
+            const chk = validateAhvNummer(ahvFeld.value);
+            if (chk.valid === false) {
+                alert('AHV-Nummer ist ungültig:\n' + chk.error + '\n\nGültig zum Beispiel 756.7865.5342.46. Ungültig zum Beispiel 756.7865.4342.46.');
+                ahvFeld.focus();
+                return;
+            }
+            ahvWert = chk.valid === true ? chk.normalized : '';
+        }
+    }
+    const dobFeld = document.getElementById('ov-dob');
+    if (dobFeld && dobFeld.value) {
+        const heute = new Date(); heute.setHours(0, 0, 0, 0);
+        if (new Date(dobFeld.value + 'T00:00:00') > heute) {
+            alert('Geburtsdatum darf nicht nach dem heutigen Tag liegen.');
+            dobFeld.focus();
+            return;
+        }
+    }
+    const mobilFeld = document.getElementById('ov-mobile');
+    if (mobilFeld && mobilFeld.value.trim()) {
+        const fmt = window.formatPhoneIntl ? window.formatPhoneIntl(mobilFeld.value.trim()) : mobilFeld.value.trim();
+        if (!/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(fmt)) {
+            alert('Mobilnummer ungültig (erwartet +41 79 409 43 33).');
+            mobilFeld.focus();
+            return;
+        }
+        mobilFeld.value = fmt;
+    }
+
     const permitTypeEl = document.getElementById('ef-permitType');
     const permitExpiryEl = document.getElementById('ef-permitExpiry');
     const zemisEl = formEl('ef-zemisNumber', 'ov-zemisNumber');
@@ -7523,12 +7635,12 @@ async function saveEmpEdit() {
         firstName:    easyWorkLocked ? (emp.firstName || null) : (document.getElementById('ef-firstName')?.value || null),
         lastName:     easyWorkLocked ? (emp.lastName || null) : (document.getElementById('ef-lastName')?.value || null),
         salutation:   easyWorkLocked ? (emp.salutation || null) : (document.getElementById('ef-salutation')?.value || null),
-        gender:       easyWorkLocked ? (emp.gender || null) : (document.getElementById('ef-gender')?.value || null),
-        dateOfBirth:  easyWorkLocked ? (toDateInput(emp.dateOfBirth) || null) : (document.getElementById('ef-dob')?.value || null),
-        languageCode: easyWorkLocked ? (emp.languageCode || null) : (document.getElementById('ef-lang')?.value || null),
-        phoneMobile:  easyWorkLocked ? (emp.phoneMobile || null) : (_phoneFmt || null),
+        gender:       document.getElementById('ov-gender') ? (document.getElementById('ov-gender').value || null) : (easyWorkLocked ? (emp.gender || null) : (document.getElementById('ef-gender')?.value || null)),
+        dateOfBirth:  document.getElementById('ov-dob') ? (document.getElementById('ov-dob').value || null) : (easyWorkLocked ? (toDateInput(emp.dateOfBirth) || null) : (document.getElementById('ef-dob')?.value || null)),
+        languageCode: document.getElementById('ov-lang') ? (document.getElementById('ov-lang').value || null) : (easyWorkLocked ? (emp.languageCode || null) : (document.getElementById('ef-lang')?.value || null)),
+        phoneMobile:  document.getElementById('ov-mobile') ? ((document.getElementById('ov-mobile').value || '').trim()) : (easyWorkLocked ? (emp.phoneMobile || null) : (_phoneFmt || null)),
         phone2:       _phone2Fmt || null,
-        email:        easyWorkLocked ? (emp.email || null) : (_emailRaw || null),
+        email:        document.getElementById('ov-email') ? ((document.getElementById('ov-email').value || '').trim()) : (easyWorkLocked ? (emp.email || null) : (_emailRaw || null)),
         street:       easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null),
         zipCode:      _zipRaw || null,
         city:         easyWorkLocked ? (emp.city || null) : (stripCityCantonSuffix(document.getElementById('ef-city')?.value) || null),
@@ -7539,7 +7651,9 @@ async function saveEmpEdit() {
                       : (easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null)),
         permitTypeId: permitTypeEl ? (parseInt(permitTypeEl.value) || 0) : (emp.permitTypeId || 0),
         permitExpiryDate: permitExpiryEl ? (permitExpiryEl.value || null) : (toDateInput(emp.permitExpiryDate) || null),
-        nationalityId: easyWorkLocked ? (emp.nationalityId || null) : (parseInt(document.getElementById('ef-nationalityId')?.value) || null),
+        nationalityId: (document.getElementById('ov-nat') && document.getElementById('ov-nat').options.length > 1)
+            ? (parseInt(document.getElementById('ov-nat').value, 10) || null)
+            : (easyWorkLocked ? (emp.nationalityId || null) : (parseInt(document.getElementById('ef-nationalityId')?.value) || null)),
         // ZEMIS: Backend-Konvention — null = «nicht ändern», '' = «löschen».
         // Feld gerendert → Wert (oder '' zum Löschen) senden; sonst null.
         zemisNumber:  zemisEl ? (zemisEl.value || '').trim() : null,
@@ -7559,8 +7673,8 @@ async function saveEmpEdit() {
         // Walter-Vorgabe 07.06.2026: Anstellungs-Booleans (Übersicht ov-*).
         lgavPflichtig:        boolVal('ef-lgavPflichtig', 'ov-lgavPflichtig', emp.lgavPflichtig),
         // < 8 h / Wo. gehört zum FLEX-Vertrag (Walter 31.07.2026) — hier nicht mehr schreiben.
-        socialSecurityNumber: easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
-        ahvNummer:    easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null),
+        socialSecurityNumber: ahvFeld ? ahvWert : (easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null)),
+        ahvNummer:    ahvFeld ? ahvWert : (easyWorkLocked ? (emp.socialSecurityNumber || null) : (document.getElementById('ef-ahvNummer')?.value || null)),
         maidenName:   formVal('ef-maidenName', 'ov-maidenName') || null,
         // Kurzname = easy@work Nickname — nur anzeigen, beim Save nicht
         // ueberschreiben wenn kein Formularfeld (Uebersicht ist read-only).
@@ -15828,10 +15942,24 @@ async function saveEmployeeAddress() {
     errEl.textContent = '';
 
     const val = id => (document.getElementById(id)?.value || '').trim();
+    const landIso = roh => {
+        const u = (roh || '').trim().toUpperCase();
+        if (!u || u === 'CH' || u === 'CHE' || u === 'SCHWEIZ' || u === 'SWITZERLAND') return 'CH';
+        if (/^[A-Z]{2}$/.test(u)) return u;
+        const namen = { DEUTSCHLAND: 'DE', GERMANY: 'DE', ITALIEN: 'IT', ITALY: 'IT', FRANKREICH: 'FR', FRANCE: 'FR', ÖSTERREICH: 'AT', OESTERREICH: 'AT', AUSTRIA: 'AT', LIECHTENSTEIN: 'LI' };
+        return namen[u] || u;
+    };
+    const land = landIso(val('empAddr-country'));
+    const landEl = document.getElementById('empAddr-country');
+    if (landEl) landEl.value = land;
+    if (land !== 'CH') {
+        const kt = document.getElementById('empAddr-canton');
+        if (kt) kt.value = 'EX';
+    }
 
     // Walter-Vorgabe 01.06.2026: harte Validierung vor dem Speichern.
     const zip = val('empAddr-zip');
-    if (zip && !/^\d{4}$/.test(zip)) {
+    if (land === 'CH' && zip && !/^\d{4}$/.test(zip)) {
         errEl.textContent = 'PLZ muss 4-stellig numerisch sein.';
         return;
     }
@@ -19671,9 +19799,16 @@ window.maAenderungenOeffnen = maAenderungenOeffnen;
 // automatisch nachgeführt; hier ergänzen/korrigieren.
 // ══════════════════════════════════════════════════════════════════════
 const ZIV_OPTIONEN = [
-    ['ledig', 'Ledig'], ['verheiratet', 'Verheiratet'], ['getrennt', 'Getrennt'],
-    ['geschieden', 'Geschieden'], ['verwitwet', 'Verwitwet'],
-    ['eingetragene_partnerschaft', 'Eingetragene Partnerschaft'], ['aufgeloeste_partnerschaft', 'Aufgelöste Partnerschaft'],
+    ['ledig', 'ledig'],
+    ['verheiratet', 'verheiratet'],
+    ['geschieden', 'geschieden'],
+    ['verwitwet', 'verwittwet'],
+    ['getrennt', 'getrennt'],
+    ['eingetragene_partnerschaft', 'eingetragene Partnerschaft'],
+    ['aufgeloeste_partnerschaft', 'gerichtlich aufgelöste Partnerschaft'],
+    ['aufgeloeste_partnerschaft_tod', 'durch Tod aufgelöste Partnerschaft'],
+    ['aufgeloeste_partnerschaft_verschollen', 'durch Verschollenerklärung aufgelöste Partnerschaft'],
+    ['unbekannt', 'unbekannt'],
     ['konkubinat', 'Konkubinat'],
 ];
 let _zivEmpId = null;
@@ -19686,7 +19821,7 @@ function _zivHeuteIso() {
 function _zivEnsureModal() {
     // Altes Modal ohne «Erfahren am» ersetzen (einmal nach Deploy / Hard-Reload).
     const alt = document.getElementById('zivModal');
-    if (alt && !document.getElementById('zivEa')) alt.remove();
+    if (alt && (!document.getElementById('zivEa') || !document.getElementById('zivOptV2'))) alt.remove();
     if (document.getElementById('zivModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -19694,7 +19829,8 @@ function _zivEnsureModal() {
     div.id = 'zivModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:9700;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(720px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+    <div style="position:absolute;top:72px;left:50%;transform:translateX(-50%);width:min(720px,94vw);max-height:calc(100vh - 84px);overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+        <span id="zivOptV2" hidden></span>
         <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🕘 Zivilstand-Historie</div>
         <div id="zivMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:12px"></div>
         <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:10px 12px;align-items:end;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:10px 12px">
