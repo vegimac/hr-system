@@ -12558,7 +12558,13 @@ body:not(.theme-dark) .dok-menu-item:hover { background: #f4f0e8 !important; }
     border-radius: 10px !important;
     box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
 }
-#svFormPanel label { color: #3f3f3f !important; }
+#svFormPanel label { color: #3f3f3f !important; margin-bottom: 2px !important; font-size: 11px !important; line-height: 1.2; }
+#svFormPanel .sv-hilfe { display: none !important; }
+#svFormPanel input:not([type="checkbox"]), #svFormPanel select, #svFormPanel .lqsel-btn {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+    min-height: 0 !important;
+}
 #svFormPanel #svFormHint { background: rgba(255, 255, 255, 0.55) !important; }
 
 /* Pflichtfeld-Stern + Feldfehler bei blur (UID/BUR/Firmenname, Walter 16.10.2026).

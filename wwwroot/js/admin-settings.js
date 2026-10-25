@@ -2549,14 +2549,22 @@ function svUvgMaske() {
     if (hinweisZ) hinweisZ.style.display = uvgz ? 'block' : 'none';
     const ktgBox = document.getElementById('svKtgHoechst');
     if (ktgBox) ktgBox.style.display = ktg ? 'block' : 'none';
+    const ktgHinweis = document.getElementById('svKtgHinweis');
+    if (ktgHinweis) ktgHinweis.style.display = ktg ? 'block' : 'none';
     const hintMax = document.getElementById('svHintMax');
-    if (hintMax) hintMax.textContent = jahr
+    const maxText = jahr
         ? 'Obergrenze der Lösung pro Jahr. 300\'000 und beim KTG auch 400\'000 sind erlaubt. Code 10 = 0. Leer = unbegrenzt. Der Lohn rechnet mit dem Monat (Jahr ÷ 12).'
         : 'UVG-Höchstlohn und ALV: 12\'350 pro Monat (= 148\'200 pro Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).';
+    if (hintMax) hintMax.textContent = maxText;
+    const lblMax = document.getElementById('svLblMaxBase');
+    if (lblMax) lblMax.title = maxText;
     const hintBand = document.getElementById('svHintBand');
-    if (hintBand) hintBand.textContent = jahr
+    const bandText = jahr
         ? 'Untergrenze pro Jahr. Code 11 beginnt bei 0 (Feld leer), Code 12 bei 148\'200.'
         : 'Nur der Teil über diesem Wert (bis Höchstlohn) ist pflichtig: Überschusslohn KTG/UVGZ Code 12, ALVZ 12\'350–30\'875.';
+    if (hintBand) hintBand.textContent = bandText;
+    const lblBand = document.getElementById('svLblBandVon');
+    if (lblBand) lblBand.title = bandText;
     svJahrFelder(jahr);
 }
 
