@@ -46,7 +46,7 @@
 <!-- DECKBLATT -->
 <section>
   <div class="kopf"><h1>Swissdec Systemtest<br>Handbuch für die Prüfung (ERP + Tech)</h1>
-    <div class="rechts">OneCrew · Muster AG · ELM 6.0<br>Testinstanz test.onecrew.ch<br>Stand 17.10.2026</div></div>
+    <div class="rechts">OneCrew · Muster AG · ELM 6.0<br>Testinstanz test.onecrew.ch<br>Stand 25.10.2026</div></div>
 
   <div class="worum"><b class="t">Worum es bei diesem Test geht</b>
     Anders als der <b>Foundation-Test</b> (Verbindung, Siegel, Zertifikate) prüft der <b>Systemtest</b>,
@@ -56,7 +56,7 @@
     <b>Foundation-Handbuch:</b> <span class="mono">docs/swissdec-vorfuehrung/vorfuehrung.html</span></div>
 
   <table>
-    <tr><th style="width:40mm">ERP (Run 24364)</th><td><b>123</b> Prüfpunkte · gebaut <b>7</b> · vorhanden <b>86</b> · offen <b>30</b></td></tr>
+    <tr><th style="width:40mm">ERP (Run 24364)</th><td><b>123</b> Prüfpunkte · gebaut <b>11</b> · vorhanden <b>82</b> · offen <b>30</b></td></tr>
     <tr><th>Tech (Run 26667)</th><td><b>20</b> Fälle (Gates im QT teils höher) — oft Überlappung mit Foundation / ELM-Cockpit</td></tr>
     <tr><th>Digital begleiten</th><td>Entwicklung → Swissdec → <b>Systemtest</b> — gleiche Punkte, Sprungknopf in die Maske, Bewertung speichern</td></tr>
     <tr><th>Katalog</th><td><span class="mono">docs/swissdec-systemtest-katalog.json</span> · dieses HTML neu erzeugen: <span class="mono">python3 Scripts/swissdec-systemtest-handbuch.py</span></td></tr>
@@ -158,7 +158,7 @@
     <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_04</span></span></div>
   </div>
   <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S01_01_05</span><span class="titel">Adressierung von Empfängern - Nullmeldung FAK</span><span class="ok">gebaut</span> <span class="dir">Direktive 8.2.4</span></div>
-    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec (Admin-Bereich) · lohndaten-empfaenger: System → Lohn-Stammdaten → Lohndaten-Empfänger</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>Entwicklung → Swissdec (Admin-Bereich) · lohndaten-empfaenger: System → Verzeichnisse &amp; Vorgaben → Lohndaten-Empfänger</span></div>
     <div class="z"><span class="lab">So handhabt OneCrew</span><span>FAK-Zuordnung Filiale → Tab «Lohndaten Empfänger» (Art FAK). Jahres-XML (DeclareAnnualSalary): Job/Institutions/Totals nur für FAKs mit gültiger Zuordnung am 31.12. an einem Workplace der Rechtseinheit — auch ohne Personen dort (Nullmeldung, Totals 0.00). Abgelaufene/nicht zugewiesene Kassen fehlen. ProcessByDistributor=true. Logik ElmFakAdressierung. Monatsmeldung hat noch keine FAK-Domäne. (FAK-Nullmeldung Jahres-XML 17.10.2026 (ElmFakAdressierung + ElmAnnualDeclarationBuilder).)</span></div>
     <div class="z"><span class="lab">Du prüfst</span><span>Das ERP-System muss wie folgt geprüft werden: - Sicherstellen, dass das Konzept der Nullmeldungen verstanden wurde und die Adressierung im ERP-System dahingehend angepasst wurde, dass nur noch die Empfänger im Job aufgeführt werden, für die auch eine Übermittlung verteilt werden soll. Diese Logik kann auch über das Element &quot;ProcessByDistributor&quot;…</span></div>
     <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_01_01_05</span></span></div>
@@ -225,30 +225,30 @@
   </div></section>
 <section class="kapitel">
   <div class="kopf"><h2>S02 — Angaben zu Datenempfängern</h2>
-    <div class="rechts">25 Prüfpunkte · 0 gebaut<br>Reiter «S02» in Systemtest</div></div>
+    <div class="rechts">25 Prüfpunkte · 4 gebaut<br>Reiter «S02» in Systemtest</div></div>
   <div class="worum"><b class="t">Worum es geht</b> Datenempfänger: Ausgleichskasse, FAK, UVG/UVGZ, KTG, BVG, Statistik, Quellensteuer — Nummern und Zuordnung pro Filiale.</div>
   <h3>02_01 · AHV / ALV</h3>
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_01</span><span class="titel">Angaben zur AHV-Ausgleichskasse</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.3</span></div>
-    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
-    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_01</span><span class="titel">Angaben zur AHV-Ausgleichskasse</span><span class="ok">gebaut</span> <span class="dir">Direktive 8.1.3</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Verzeichnisse &amp; Vorgaben → Lohndaten-Empfänger</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>OneCrew: Lohndaten-Empfänger, Art Ausgleichskasse — Feld «Nummer der Ausgleichskasse». «000.003» wird abgelehnt (erster Block grösser als 0). «003» und «070.000» bleiben gültig. Mitgliednummer und Subnummer an der Filiale, Reiter Lohndaten-Empfänger. (Walter 25.10.2026 bestätigt (⋮ Bearbeiten, 000.003).)</span></div>
     <div class="z"><span class="lab">Du prüfst</span><span>Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente &quot;Nummer der Ausgleichskasse&quot;, &quot;Mitgliednummer&quot; und &quot;Subnummer&quot; müssen im ERP-System vorhanden sein und identisch benannt werden. - Anhand vom Beispiel &quot;000.003&quot; prüfen ob die Nummer der Ausgleichskasse plausibilisiert wird. Der erste Block (im…</span></div>
     <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_01_01</span></span></div>
   </div>
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_02</span><span class="titel">Beginn und Ende der AHV-Beitragspflicht</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.1</span></div>
-    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
-    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_02</span><span class="titel">Beginn und Ende der AHV-Beitragspflicht</span><span class="ok">gebaut</span> <span class="dir">Direktive 8.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohn-Stammdaten → SV-Sätze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>OneCrew: SV-Sätze, Leiste «AHV-Beitragspflicht». Zentral Beginn 18, Ende Männer 65, Ende Frauen 65. AHV 21 Übergang Frauen: bis 1960 = 64 Jahre, 1961 + 3 Monate, 1962 + 6, 1963 + 9, ab 1964 = 65. Der Lohnlauf liest diese Werte. (Walter 25.10.2026, Leiste abgenommen. Engine liest die Werte.)</span></div>
     <div class="z"><span class="lab">Du prüfst</span><span>Die Angaben zur Beitragspflicht werden im ERP-System zentral geführt. - Prüfen ob die drei Angaben zur Beitragspflicht in der AHV vorhanden sind. - Prüfen ob im ERP-System mit Übergangslösungen wie bei AHV21 umgegangen werden kann. Im Berechnungstest wird dieser Fall nicht geprüft.</span></div>
     <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_01_02</span></span></div>
   </div>
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_03</span><span class="titel">AHV-Grundlagen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.1</span></div>
-    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
-    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_03</span><span class="titel">AHV-Grundlagen</span><span class="ok">gebaut</span> <span class="dir">Direktive 8.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohn-Stammdaten → SV-Sätze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>OneCrew: SV-Sätze, Zeile AHV / IV / EO (65+). Freibetrag 1&#x27;400 pro Monat (16&#x27;800 pro Jahr). Arbeitnehmer-Beitrag 5,3000 %, vier Nachkommastellen in der Liste und in der Einzelansicht. (Jahresbetrag ist dieselbe Grenze, geführt als Monat.)</span></div>
     <div class="z"><span class="lab">Du prüfst</span><span>Die Angaben zur AHV-Freigrenze und zu AHV-Arbeitnehmer-Beiträgen werden im ERP-System zentral geführt. - Prüfen ob die Werte korrekt hinterlegt sind - Prüfen ob der Beitragssatz mit 4 Nachkommastellen dargestellt wird. Ein ERP-Hersteller muss mit 4 Nachkommastellen umgehen können.</span></div>
     <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_01_03</span></span></div>
   </div>
-  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_04</span><span class="titel">ALV/ALVZ-Grundlagen</span><span class="ok">vorhanden</span> <span class="dir">Direktive 8.1.1</span></div>
-    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Filialen &amp; Benutzer → Hauptsitze</span></div>
-    <div class="z"><span class="lab">So handhabt OneCrew</span><span>In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.</span></div>
+  <div class="pp"><div class="pp-kopf"><span class="box"></span><span class="id">S02_01_04</span><span class="titel">ALV/ALVZ-Grundlagen</span><span class="ok">gebaut</span> <span class="dir">Direktive 8.1.1</span></div>
+    <div class="z"><span class="lab">Wo in OneCrew</span><span>System → Lohn-Stammdaten → SV-Sätze</span></div>
+    <div class="z"><span class="lab">So handhabt OneCrew</span><span>OneCrew: SV-Sätze. ALV Höchstlohn 12&#x27;350 pro Monat, Beitrag 1,1000 %. ALVZ auf derselben Maske: Lohnband ab 12&#x27;350, Höchstlohn leer = keine Obergrenze, Beitrag 0,5000 % mit vier Nachkommastellen. (Jahresgrenzen 148&#x27;200 / 315&#x27;000 = Monat × 12. ALVZ-Obergrenze bleibt leer.)</span></div>
     <div class="z"><span class="lab">Du prüfst</span><span>Die ALV/ALVZ-Grundlagen werden im ERP-System zentral geführt. - Prüfen ob die ALV-Höchstlöhne und die ALV-Beiträge korrekt hinterlegt sind. Die Beiträge müssen mit 4 Nachkommastellen dargestellt werden. - Prüfen ob die ALVZ-Höchstlöhne, wie auch die ALVZ-Beiträge im Falle von einer erneuten Einführung, im ERP- System hinterlegt werden können. Die Beiträge…</span></div>
     <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">S_ELM_V6_02_01_04</span></span></div>
   </div>  <h3>02_02 · Familienausgleichskasse</h3>
@@ -1019,7 +1019,7 @@
     <div class="z"><span class="lab">Häkchen</span><span>Stimmt → <span class="box"></span> · Systemtest-Seite: Bewertung setzen. Voll-ID: <span class="mono">ST_ELM_V6_06_02</span></span></div>
   </div></section>
 <section class="kapitel">
-  <div class="kopf"><h2>Notizen vom Termin</h2><div class="rechts">17.10.2026</div></div>
+  <div class="kopf"><h2>Notizen vom Termin</h2><div class="rechts">25.10.2026</div></div>
   <p class="klein">Antworten der Expertin, offene Punkte, nächste Schritte.</p>
   <div style="border-bottom:1px solid #bbb;height:8mm;margin:2mm 0"></div>
   <div style="border-bottom:1px solid #bbb;height:8mm;margin:2mm 0"></div>

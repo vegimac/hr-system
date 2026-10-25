@@ -24,6 +24,7 @@ WO = {
     "hauptsitze": "System → Filialen & Benutzer → Hauptsitze",
     "filialen": "System → Filialen → Stammdaten der Filiale (Arbeitsort)",
     "lohndaten-empfaenger": "System → Verzeichnisse & Vorgaben → Lohndaten-Empfänger",
+    "sv-saetze": "System → Lohn-Stammdaten → SV-Sätze",
     "lohnpositionen": "System → Lohnarten (Lohnpositionen)",
     "mitarbeiter": "Personal → Mitarbeiter (Detail je nach Prüfpunkt)",
     "vertraege": "Personal → Verträge",

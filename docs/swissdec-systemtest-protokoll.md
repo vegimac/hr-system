@@ -34,11 +34,11 @@ Quellen (Walter 16.10.2026):
 | Gruppe | Thema | Checks | gebaut | Stand |
 |---|---|---:|---:|---|
 | S_ELM_V6_01 | Unternehmen | 15 | **6** | teilweise |
-| S_ELM_V6_02 | Angaben zu Datenempfängern | 25 | **0** | offen |
+| S_ELM_V6_02 | Angaben zu Datenempfängern | 25 | **4** | AHV/ALV 01–04 |
 | S_ELM_V6_03 | Personendaten | 59 | **0** | offen |
 | S_ELM_V6_04 | Prozessuale Testfälle | 13 | **0** | offen |
 | S_ELM_V6_05 | Cockpit Testfälle | 11 | **0** | offen |
-| **Total ERP** | | **123** | **6** | |
+| **Total ERP** | | **123** | **10** | |
 
 ### Systemtest Tech (Run 26667)
 
@@ -284,7 +284,7 @@ Delegate am Hauptsitz: Name, Adresse, UID-BFS (optional Owner). Keine Kontaktfel
 
 ### AHV / ALV (`02_01`)
 
-#### S_ELM_V6_02_01_01 Angaben zur AHV-Ausgleichskasse ⬜ offen
+#### S_ELM_V6_02_01_01 Angaben zur AHV-Ausgleichskasse 🔧 gebaut
 
 **Directive** 8.1.3
 
@@ -292,8 +292,15 @@ Delegate am Hauptsitz: Name, Adresse, UID-BFS (optional Owner). Keine Kontaktfel
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente "Nummer der Ausgleichskasse", "Mitgliednummer" und "Subnummer" müssen im ERP-System vorhanden sein und identisch benannt werden. - Anhand vom Beispiel "000.003" prüfen ob die Nummer der Ausgleichskasse plausibilisiert wird. Der erste Block (im Beispiel "003" muss grösser als 0 sein). In diesem Fall muss eine Fehlermeldung angezeigt werden.
 
+**Kommentar fürs Quality Tool:**
+```
+OneCrew: Lohndaten-Empfänger, Art Ausgleichskasse — Feld «Nummer der Ausgleichskasse». «000.003» wird abgelehnt (erster Block grösser als 0). «003» und «070.000» bleiben gültig. Mitgliednummer und Subnummer an der Filiale, Reiter Lohndaten-Empfänger.
+```
 
-#### S_ELM_V6_02_01_02 Beginn und Ende der AHV-Beitragspflicht ⬜ offen
+**Notiz:** Walter 25.10.2026 bestätigt (⋮ Bearbeiten, 000.003).
+
+
+#### S_ELM_V6_02_01_02 Beginn und Ende der AHV-Beitragspflicht 🔧 gebaut
 
 **Directive** 8.1.1
 
@@ -301,8 +308,15 @@ Delegate am Hauptsitz: Name, Adresse, UID-BFS (optional Owner). Keine Kontaktfel
 
 **Erwartet:** Die Angaben zur Beitragspflicht werden im ERP-System zentral geführt. - Prüfen ob die drei Angaben zur Beitragspflicht in der AHV vorhanden sind. - Prüfen ob im ERP-System mit Übergangslösungen wie bei AHV21 umgegangen werden kann. Im Berechnungstest wird dieser Fall nicht geprüft.
 
+**Kommentar fürs Quality Tool:**
+```
+OneCrew: SV-Sätze, Leiste «AHV-Beitragspflicht». Zentral Beginn 18, Ende Männer 65, Ende Frauen 65. AHV 21 Übergang Frauen: bis 1960 = 64 Jahre, 1961 + 3 Monate, 1962 + 6, 1963 + 9, ab 1964 = 65. Der Lohnlauf liest diese Werte.
+```
 
-#### S_ELM_V6_02_01_03 AHV-Grundlagen ⬜ offen
+**Notiz:** Walter 25.10.2026, Leiste abgenommen. Engine AhvBeitragspflichtStand.
+
+
+#### S_ELM_V6_02_01_03 AHV-Grundlagen 🔧 gebaut
 
 **Directive** 8.1.1
 
@@ -310,14 +324,28 @@ Delegate am Hauptsitz: Name, Adresse, UID-BFS (optional Owner). Keine Kontaktfel
 
 **Erwartet:** Die Angaben zur AHV-Freigrenze und zu AHV-Arbeitnehmer-Beiträgen werden im ERP-System zentral geführt. - Prüfen ob die Werte korrekt hinterlegt sind - Prüfen ob der Beitragssatz mit 4 Nachkommastellen dargestellt wird. Ein ERP-Hersteller muss mit 4 Nachkommastellen umgehen können.
 
+**Kommentar fürs Quality Tool:**
+```
+OneCrew: SV-Sätze, Zeile AHV / IV / EO (65+). Freibetrag 1'400 pro Monat (16'800 pro Jahr). Arbeitnehmer-Beitrag 5,3000 %, vier Nachkommastellen in der Liste und in der Einzelansicht.
+```
 
-#### S_ELM_V6_02_01_04 ALV/ALVZ-Grundlagen ⬜ offen
+**Notiz:** Jahresbetrag ist dieselbe Grenze, geführt als Monat.
+
+
+#### S_ELM_V6_02_01_04 ALV/ALVZ-Grundlagen 🔧 gebaut
 
 **Directive** 8.1.1
 
 **Beschreibung:** ALV/ALVZ-Grundlagen ALV-Höchstlohn 12'350 pro Monat oder 148'200 pro Jahr ALV-Arbeitnehmer-Beiträge 1.1000% ALVZ-Höchstlohn Von: 12'350 pro Monat oder 148'200 pro Jahr Bis: 26'250 pro Monat oder 315'000 pro Jahr, im Moment ohne Obergrenze ALVZ-Arbeitnehmer-Beiträge 0.5000%
 
 **Erwartet:** Die ALV/ALVZ-Grundlagen werden im ERP-System zentral geführt. - Prüfen ob die ALV-Höchstlöhne und die ALV-Beiträge korrekt hinterlegt sind. Die Beiträge müssen mit 4 Nachkommastellen dargestellt werden. - Prüfen ob die ALVZ-Höchstlöhne, wie auch die ALVZ-Beiträge im Falle von einer erneuten Einführung, im ERP- System hinterlegt werden können. Die Beiträge müssen mit 4 Nachkommastellen dargestellt werden.
+
+**Kommentar fürs Quality Tool:**
+```
+OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf derselben Maske: Lohnband ab 12'350, Höchstlohn leer = keine Obergrenze, Beitrag 0,5000 % mit vier Nachkommastellen.
+```
+
+**Notiz:** Jahresgrenzen 148'200 / 315'000 = Monat × 12. ALVZ-Obergrenze bleibt leer, bis sie wieder gilt.
 
 
 ### Familienausgleichskasse (`02_02`)

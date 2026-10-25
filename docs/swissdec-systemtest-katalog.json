@@ -454,17 +454,17 @@
       "erwartet": "Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente \"Nummer der Ausgleichskasse\", \"Mitgliednummer\" und \"Subnummer\" müssen im ERP-System vorhanden sein und identisch benannt werden. - Anhand vom Beispiel \"000.003\" prüfen ob die Nummer der Ausgleichskasse plausibilisiert wird. Der erste Block (im Beispiel \"003\" muss grösser als 0 sein). In diesem Fall muss eine Fehlermeldung angezeigt werden.",
       "hintergrund": "Die Liste der empfangsbereiten Datenempfänger wird von Swissdec gepflegt und auf der Homepage unter folgendem Link [https://www.swissdec.ch/data-receiver] veröffentlicht. Die hier beschriebenen Angaben werden für die korrekte Adressierung der Endempfänger verwendet. Für die Domäne AHV wird heute die Subnummer in der Produktion nicht verwendet. Nichts destro trotz ist es wichtig, dass sämtliche ERP-Hersteller in der Lage sind, eine Subnummer abzufüllen, damit bei allfälligen Einführung einer Subnummer auf Seiten der AHV die ERP-Lösungen bereits vorbereitet sind.",
       "direktive": "8.1.3",
-      "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "stand": "gebaut",
+      "kommentarQt": "OneCrew: Lohndaten-Empfänger, Art Ausgleichskasse — Feld «Nummer der Ausgleichskasse». «000.003» wird abgelehnt (erster Block grösser als 0). «003» und «070.000» bleiben gültig. Mitgliednummer und Subnummer an der Filiale, Reiter Lohndaten-Empfänger.",
+      "notiz": "Walter 25.10.2026 bestätigt (⋮ Bearbeiten, 000.003).",
       "gebaut": true,
-      "seite": "hauptsitze",
-      "seiteLabel": "Hauptsitze / Empfänger",
+      "seite": "lohndaten-empfaenger",
+      "seiteLabel": "Lohndaten-Empfänger",
       "aktionen": [
         {
-          "label": "Öffnen: Hauptsitze / Empfänger",
+          "label": "Öffnen: Lohndaten-Empfänger",
           "art": "seite",
-          "seite": "hauptsitze"
+          "seite": "lohndaten-empfaenger"
         }
       ]
     },
@@ -480,17 +480,17 @@
       "erwartet": "Die Angaben zur Beitragspflicht werden im ERP-System zentral geführt. - Prüfen ob die drei Angaben zur Beitragspflicht in der AHV vorhanden sind. - Prüfen ob im ERP-System mit Übergangslösungen wie bei AHV21 umgegangen werden kann. Im Berechnungstest wird dieser Fall nicht geprüft.",
       "hintergrund": "",
       "direktive": "8.1.1",
-      "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "stand": "gebaut",
+      "kommentarQt": "OneCrew: SV-Sätze, Leiste «AHV-Beitragspflicht». Zentral Beginn 18, Ende Männer 65, Ende Frauen 65. AHV 21 Übergang Frauen: bis 1960 = 64 Jahre, 1961 + 3 Monate, 1962 + 6, 1963 + 9, ab 1964 = 65. Der Lohnlauf liest diese Werte.",
+      "notiz": "Walter 25.10.2026, Leiste abgenommen. Engine liest die Werte.",
       "gebaut": true,
-      "seite": "hauptsitze",
-      "seiteLabel": "Hauptsitze / Empfänger",
+      "seite": "sv-saetze",
+      "seiteLabel": "SV-Sätze",
       "aktionen": [
         {
-          "label": "Öffnen: Hauptsitze / Empfänger",
+          "label": "Öffnen: SV-Sätze",
           "art": "seite",
-          "seite": "hauptsitze"
+          "seite": "sv-saetze"
         }
       ]
     },
@@ -506,17 +506,17 @@
       "erwartet": "Die Angaben zur AHV-Freigrenze und zu AHV-Arbeitnehmer-Beiträgen werden im ERP-System zentral geführt. - Prüfen ob die Werte korrekt hinterlegt sind - Prüfen ob der Beitragssatz mit 4 Nachkommastellen dargestellt wird. Ein ERP-Hersteller muss mit 4 Nachkommastellen umgehen können.",
       "hintergrund": "",
       "direktive": "8.1.1",
-      "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "stand": "gebaut",
+      "kommentarQt": "OneCrew: SV-Sätze, Zeile AHV / IV / EO (65+). Freibetrag 1'400 pro Monat (16'800 pro Jahr). Arbeitnehmer-Beitrag 5,3000 %, vier Nachkommastellen in der Liste und in der Einzelansicht.",
+      "notiz": "Jahresbetrag ist dieselbe Grenze, geführt als Monat.",
       "gebaut": true,
-      "seite": "hauptsitze",
-      "seiteLabel": "Hauptsitze / Empfänger",
+      "seite": "sv-saetze",
+      "seiteLabel": "SV-Sätze",
       "aktionen": [
         {
-          "label": "Öffnen: Hauptsitze / Empfänger",
+          "label": "Öffnen: SV-Sätze",
           "art": "seite",
-          "seite": "hauptsitze"
+          "seite": "sv-saetze"
         }
       ]
     },
@@ -532,17 +532,17 @@
       "erwartet": "Die ALV/ALVZ-Grundlagen werden im ERP-System zentral geführt. - Prüfen ob die ALV-Höchstlöhne und die ALV-Beiträge korrekt hinterlegt sind. Die Beiträge müssen mit 4 Nachkommastellen dargestellt werden. - Prüfen ob die ALVZ-Höchstlöhne, wie auch die ALVZ-Beiträge im Falle von einer erneuten Einführung, im ERP- System hinterlegt werden können. Die Beiträge müssen mit 4 Nachkommastellen dargestellt werden.",
       "hintergrund": "Seit 2016 wird kein ALVZ-Höchstlohn mehr angewendet. Der Bundesrat ist verpflichtet, unter den im AVIG Art. 90c Abs. 1 gelisteten Voraussetzungen, den ALVZ-Höchstlohn erneut einzuführen. Aus diesem Grund ist es wichtig, dass die Schweizer ERP-Systeme auf eine Wiedereinführung vorbereitet sind und die ALVZ-Grundlagen im ERP-System belassen.",
       "direktive": "8.1.1",
-      "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «Hauptsitze / Empfänger» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "stand": "gebaut",
+      "kommentarQt": "OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf derselben Maske: Lohnband ab 12'350, Höchstlohn leer = keine Obergrenze, Beitrag 0,5000 % mit vier Nachkommastellen.",
+      "notiz": "Jahresgrenzen 148'200 / 315'000 = Monat × 12. ALVZ-Obergrenze bleibt leer.",
       "gebaut": true,
-      "seite": "hauptsitze",
-      "seiteLabel": "Hauptsitze / Empfänger",
+      "seite": "sv-saetze",
+      "seiteLabel": "SV-Sätze",
       "aktionen": [
         {
-          "label": "Öffnen: Hauptsitze / Empfänger",
+          "label": "Öffnen: SV-Sätze",
           "art": "seite",
-          "seite": "hauptsitze"
+          "seite": "sv-saetze"
         }
       ]
     },
