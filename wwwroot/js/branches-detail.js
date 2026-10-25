@@ -2641,6 +2641,7 @@ function cpEmpfRowHtml(z) {
         z.mitgliednummer ? `${cdokEsc(labels.mitglied)} ${cdokEsc(z.mitgliednummer)}` : null,
         z.subnummer      ? `${cdokEsc(labels.sub)} ${cdokEsc(z.subnummer)}` : null,
         zeitraum,
+        z.ikvAktiv && z.ikvBezeichnung ? `IKV → ${cdokEsc(z.ikvBezeichnung)}${z.ikvKanton ? ' (' + cdokEsc(z.ikvKanton) + ')' : ''}` : null,
     ].filter(Boolean).join(' · ');
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
@@ -2666,7 +2667,7 @@ function cpEmpfRowHtml(z) {
 function cpEmpfEnsureModal() {
     // Altes Modal ohne Art-Vorfilter nach Deploy neu aufbauen.
     const existing = document.getElementById('cpEmpfModal');
-    if (existing && (!document.getElementById('cpEmpfArtFilter') || !document.getElementById('cpEmpfKasseText'))) existing.remove();
+    if (existing && (!document.getElementById('cpEmpfArtFilter') || !document.getElementById('cpEmpfKasseText') || !document.getElementById('cpEmpfIkv'))) existing.remove();
     if (document.getElementById('cpEmpfModal')) return;
     const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
@@ -2700,7 +2701,20 @@ function cpEmpfEnsureModal() {
                 <label style="${lbl}">Gültig ab<input id="cpEmpfGueltigAb" type="date" style="${inp}"></label>
                 <label style="${lbl}">Gültig bis <span style="font-weight:400;color:#8b8b8b">(leer = offen)</span><input id="cpEmpfGueltigBis" type="date" style="${inp}"></label>
                 <label style="${lbl};grid-column:span 2">Bemerkung<input id="cpEmpfBem" style="${inp}"></label>
-                <div style="grid-column:span 2;font-size:11px;color:#8b8b8b;line-height:1.4">Ein neuer Satz derselben Art mit «Gültig ab» beendet den bisherigen automatisch am Vortag (z.B. Wechsel der UVG-Versicherung).</div>
+                <div style="grid-column:span 2;font-size:11px;color:#8b8b8b;line-height:1.4">Ein neuer Satz derselben Art mit «Gültig ab» beendet den bisherigen automatisch am Vortag (z.B. Wechsel der UVG-Versicherung). Die Vereinbarung gilt für genau diese Dauer.</div>
+                <div id="cpEmpfIkv" style="display:none;grid-column:span 2;margin-top:4px;padding:10px 12px;border:1px solid rgba(60,55,48,0.18);border-radius:12px">
+                    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#3f3f3f;cursor:pointer">
+                        <input id="cpEmpfIkvAktiv" type="checkbox" onchange="cpEmpfIkvSync()" style="margin-top:3px">
+                        <span>Interkantonale Vereinbarung liegt vor</span>
+                    </label>
+                    <div id="cpEmpfIkvFelder" style="display:none;margin-top:8px">
+                        <div id="cpEmpfIkvKanton" style="font-size:12.5px;color:#3f3f3f;line-height:1.45"></div>
+                        <label style="${lbl};margin-top:8px">Familienausgleichskasse des Hauptsitzes
+                            <select id="cpEmpfIkvZiel" style="${inp}"></select>
+                        </label>
+                        <div style="font-size:11.5px;color:#646464;margin-top:6px;line-height:1.4">Die Filiale bleibt im Arbeitskanton. Kinder- und Ausbildungszulagen folgen dem Tarif des Hauptsitzkantons. Die Jahresmeldung geht an die gewählte Kasse, der Kanton in der Meldung bleibt der Arbeitskanton. Das Häkchen hält eine bestehende Vereinbarung fest.</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -2715,13 +2729,14 @@ function cpEmpfEnsureModal() {
 
 let _cpEmpfEditId = null;   // Zuordnungs-Id beim Bearbeiten, null = neu
 
-function cpEmpfShowStamm(k) {
+function cpEmpfShowStamm(k, ikvZielId) {
     const box = document.getElementById('cpEmpfStammInfo');
     if (!box) return;
     if (!k) {
         box.innerHTML = '<span style="color:#8b8b8b">Bitte einen Empfänger wählen.</span>';
         cpEmpfKasseAnzeigen('');
         cpEmpfKassePruefen();
+        cpEmpfIkvSync();
         return;
     }
     const adr = [k.strasse, k.postfach, [k.plz, k.ort].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
@@ -2739,6 +2754,7 @@ function cpEmpfShowStamm(k) {
         + `<div style="font-size:11px;margin-top:6px;color:#8b8b8b">Stammdaten nur über Swissdec-Import (Verzeichnis).</div>`;
     cpEmpfUpdateLabels(k.art);
     cpEmpfKassePruefen();
+    cpEmpfIkvSync(ikvZielId);
 }
 
 function cpEmpfOpenModal(zuordnungId) {
@@ -2755,16 +2771,21 @@ function cpEmpfOpenModal(zuordnungId) {
         cpEmpfFillArtFilter();
         cpEmpfFillPick();
         ['cpEmpfMitglied','cpEmpfSub','cpEmpfBem','cpEmpfGueltigAb','cpEmpfGueltigBis'].forEach(id => set(id, ''));
+        const ikvNeu = document.getElementById('cpEmpfIkvAktiv');
+        if (ikvNeu) ikvNeu.checked = false;
+        cpEmpfIkvSync();
     } else {
         const z = _cpEmpfCache.find(x => x.id === zuordnungId);
         if (!z) return;
         title.textContent = 'Zuordnung bearbeiten';
         document.getElementById('cpEmpfPickBlock').style.display = 'none';
+        const ikvBox = document.getElementById('cpEmpfIkvAktiv');
+        if (ikvBox) ikvBox.checked = !!z.ikvAktiv;
         cpEmpfShowStamm({
             art: z.art, bezeichnung: z.bezeichnung, zusatz: z.zusatz,
             kassennummer: z.kassennummer, kassenTyp: z.kassenTyp, uidNummer: z.uidNummer, strasse: z.strasse, postfach: z.postfach,
             plz: z.plz, ort: z.ort, kantonCode: z.kantonCode, supportEmail: z.supportEmail,
-        });
+        }, z.ikvEmpfaengerId);
         set('cpEmpfMitglied', z.mitgliednummer);
         set('cpEmpfSub', z.subnummer);
         set('cpEmpfBem', z.bemerkung);
@@ -2822,6 +2843,60 @@ function cpEmpfPickChanged() {
     cpEmpfShowStamm(k || null);
 }
 
+function cpEmpfAktuelleKasse() {
+    if (_cpEmpfEditId != null) {
+        const z = _cpEmpfCache.find(x => x.id === _cpEmpfEditId);
+        return z ? { id: z.empfaengerId, art: z.art, kassenTyp: z.kassenTyp, kassennummer: z.kassennummer } : null;
+    }
+    const v = document.getElementById('cpEmpfPick')?.value;
+    return (_cpEmpfKatalog || []).find(x => String(x.id) === v) || null;
+}
+
+function cpEmpfIstKantonalFak(k) {
+    if (!k || k.art !== 'FAK') return false;
+    const typ = k.kassenTyp || (typeof leKassenTypAusNummer === 'function' ? leKassenTypAusNummer(k.art, k.kassennummer) : '');
+    return typ === 'KANTONAL';
+}
+
+async function cpEmpfIkvSync(zielId) {
+    const block = document.getElementById('cpEmpfIkv');
+    const felder = document.getElementById('cpEmpfIkvFelder');
+    const box = document.getElementById('cpEmpfIkvAktiv');
+    if (!block || !felder || !box) return;
+    const k = cpEmpfAktuelleKasse();
+    const zeigen = cpEmpfIstKantonalFak(k);
+    block.style.display = zeigen ? 'block' : 'none';
+    if (!zeigen) { box.checked = false; felder.style.display = 'none'; return; }
+    felder.style.display = box.checked ? 'block' : 'none';
+    if (!box.checked) return;
+
+    const arbeits = (selectedBranch?.kantonCode || '').toUpperCase();
+    if (!window._hsCache) {
+        try {
+            const r = await fetch('/api/hauptsitze', { headers: ah() });
+            if (r.ok) window._hsCache = await r.json();
+        } catch (_) {}
+    }
+    const hs = (window._hsCache || []).find(h => String(h.id) === String(selectedBranch?.hauptsitzId));
+    const hsKt = (hs?.kantonCode || '').toUpperCase();
+    const zeile = document.getElementById('cpEmpfIkvKanton');
+    if (zeile) {
+        zeile.textContent = `Arbeitskanton ${arbeits || '–'} · Hauptsitzkanton ${hsKt || '–'}`;
+    }
+    const sel = document.getElementById('cpEmpfIkvZiel');
+    if (!sel) return;
+    const vorher = zielId != null ? String(zielId) : sel.value;
+    const ziele = (_cpEmpfKatalog || []).filter(x => cpEmpfIstKantonalFak(x)
+        && String(x.id) !== String(k.id)
+        && (x.kantonCode || '').toUpperCase() === hsKt
+        && hsKt.length === 2);
+    ziele.sort((a, b) => (a.bezeichnung || '').localeCompare(b.bezeichnung || '', 'de'));
+    sel.innerHTML = ziele.length
+        ? ziele.map(x => `<option value="${x.id}">${cdokEsc(x.bezeichnung)}${x.kassennummer ? ' · ' + cdokEsc(x.kassennummer) : ''}</option>`).join('')
+        : '<option value="">— keine kantonale Kasse des Hauptsitzes —</option>';
+    if (vorher && [...sel.options].some(o => o.value === vorher)) sel.value = vorher;
+}
+
 function cpEmpfCloseModal() {
     const m = document.getElementById('cpEmpfModal');
     if (m) m.style.display = 'none';
@@ -2836,6 +2911,11 @@ async function cpEmpfSave() {
         bemerkung: val('cpEmpfBem'),
         gueltigAb: val('cpEmpfGueltigAb'),
         gueltigBis: val('cpEmpfGueltigBis'),
+        ikvAktiv: !!document.getElementById('cpEmpfIkvAktiv')?.checked,
+        ikvEmpfaengerId: (() => {
+            const id = parseInt(document.getElementById('cpEmpfIkvZiel')?.value, 10);
+            return id || null;
+        })(),
     };
     if (zuordnungFields.gueltigAb && zuordnungFields.gueltigBis && zuordnungFields.gueltigBis < zuordnungFields.gueltigAb) {
         showToast('«Gültig bis» liegt vor «Gültig ab».', 'error'); return;

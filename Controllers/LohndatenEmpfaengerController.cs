@@ -235,6 +235,10 @@ public class CompanyProfileEmpfaengerController : ControllerBase
             {
                 z.Id, z.EmpfaengerId, z.Mitgliednummer, z.Subnummer,
                 z.GueltigAb, z.GueltigBis, z.Bemerkung, z.IsActive,
+                z.IkvAktiv, z.IkvEmpfaengerId,
+                ikvBezeichnung = z.IkvEmpfaenger != null ? z.IkvEmpfaenger.Bezeichnung : null,
+                ikvKanton      = z.IkvEmpfaenger != null ? z.IkvEmpfaenger.KantonCode : null,
+                ikvNummer      = z.IkvEmpfaenger != null ? z.IkvEmpfaenger.Kassennummer : null,
                 art          = z.Empfaenger!.Art,
                 bezeichnung  = z.Empfaenger!.Bezeichnung,
                 zusatz       = z.Empfaenger!.Zusatz,
@@ -255,12 +259,13 @@ public class CompanyProfileEmpfaengerController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(int cpId, [FromBody] CpEmpfaengerDto dto)
     {
-        var cpExists = await _db.CompanyProfiles.AnyAsync(c => c.Id == cpId);
-        if (!cpExists) return NotFound(new { error = "BRANCH_NOT_FOUND" });
-        var empf = await _db.LohndatenEmpfaengers.AsNoTracking()
-            .Where(e => e.Id == dto.EmpfaengerId)
-            .Select(e => new { e.Art })
+        var filiale = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == cpId)
+            .Select(c => new { c.KantonCode, c.HauptsitzId })
             .FirstOrDefaultAsync();
+        if (filiale == null) return NotFound(new { error = "BRANCH_NOT_FOUND" });
+        var empf = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == dto.EmpfaengerId);
         if (empf == null) return NotFound(new { error = "EMPFAENGER_NOT_FOUND" });
         var nummerFehler = PruefeKassennummer(empf.Art, dto.Kassennummer);
         if (nummerFehler != null) return nummerFehler;
@@ -272,6 +277,8 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         ApplyZuordnung(z, dto);
         if (z.GueltigAb != null && z.GueltigBis != null && z.GueltigBis < z.GueltigAb)
             return BadRequest(new { error = "GUELTIG_BIS_VOR_AB" });
+        var ikvFehler = await PruefeIkvAsync(filiale.KantonCode, filiale.HauptsitzId, empf, z);
+        if (ikvFehler != null) return ikvFehler;
 
         // Derselbe Empfänger nochmals ohne Gültig-ab = echtes Duplikat.
         // Mit Gültig-ab ist es ein neuer Satz (neuer Vertrag / neue Nummer).
@@ -327,15 +334,22 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         var z = await _db.CompanyProfileEmpfaengers
             .FirstOrDefaultAsync(x => x.Id == id && x.CompanyProfileId == cpId);
         if (z == null) return NotFound();
-        var art = await _db.LohndatenEmpfaengers.AsNoTracking()
-            .Where(e => e.Id == z.EmpfaengerId)
-            .Select(e => e.Art)
+        var filiale = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == cpId)
+            .Select(c => new { c.KantonCode, c.HauptsitzId })
             .FirstOrDefaultAsync();
-        var nummerFehler = PruefeKassennummer(art, dto.Kassennummer);
+        var empf = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == z.EmpfaengerId);
+        var nummerFehler = PruefeKassennummer(empf?.Art, dto.Kassennummer);
         if (nummerFehler != null) return nummerFehler;
         ApplyZuordnung(z, dto);
         if (z.GueltigAb != null && z.GueltigBis != null && z.GueltigBis < z.GueltigAb)
             return BadRequest(new { error = "GUELTIG_BIS_VOR_AB" });
+        if (empf != null && filiale != null)
+        {
+            var ikvFehler = await PruefeIkvAsync(filiale.KantonCode, filiale.HauptsitzId, empf, z);
+            if (ikvFehler != null) return ikvFehler;
+        }
         z.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { z.Id });
@@ -367,6 +381,34 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         return fehler == null ? null : new BadRequestObjectResult(new { error = "KASSENNUMMER_UNGUELTIG", message = fehler });
     }
 
+    private async Task<IActionResult?> PruefeIkvAsync(
+        string? arbeitsKanton, int? hauptsitzId, LohndatenEmpfaenger quelle, CompanyProfileEmpfaenger z)
+    {
+        if (!z.IkvAktiv)
+        {
+            z.IkvEmpfaengerId = null;
+            return null;
+        }
+        var ziel = z.IkvEmpfaengerId is int id
+            ? await _db.LohndatenEmpfaengers.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id)
+            : null;
+        string? hsKanton = null;
+        if (hauptsitzId is int hid)
+            hsKanton = await _db.Hauptsitze.AsNoTracking()
+                .Where(h => h.Id == hid).Select(h => h.KantonCode).FirstOrDefaultAsync();
+        var text = FakIkv.Pruefen(quelle, true, ziel, arbeitsKanton, hsKanton);
+        if (text != null) return BadRequest(new { error = "IKV_UNGUELTIG", message = text });
+        var hatTarif = await _db.FamilienzulagenTarife.AnyAsync(t =>
+            t.IsActive && t.KantonCode == ziel!.KantonCode);
+        if (!hatTarif)
+            return BadRequest(new
+            {
+                error = "IKV_OHNE_TARIF",
+                message = $"Für den Hauptsitzkanton {ziel!.KantonCode} ist kein Familienzulagen-Tarif hinterlegt."
+            });
+        return null;
+    }
+
     private static void ApplyZuordnung(CompanyProfileEmpfaenger z, CpEmpfaengerDto dto)
     {
         z.Mitgliednummer = string.IsNullOrWhiteSpace(dto.Mitgliednummer) ? null : dto.Mitgliednummer.Trim();
@@ -375,6 +417,8 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         z.GueltigAb      = DateOnly.TryParse(dto.GueltigAb, out var ab) ? ab : null;
         z.GueltigBis     = DateOnly.TryParse(dto.GueltigBis, out var bis) ? bis : null;
         if (dto.IsActive.HasValue) z.IsActive = dto.IsActive.Value;
+        z.IkvAktiv = dto.IkvAktiv == true;
+        z.IkvEmpfaengerId = z.IkvAktiv ? dto.IkvEmpfaengerId : null;
     }
 }
 
@@ -408,4 +452,7 @@ public class CpEmpfaengerDto
     /// <summary>ISO yyyy-MM-dd — leer = offen (gilt weiterhin).</summary>
     public string? GueltigBis { get; set; }
     public bool? IsActive { get; set; }
+    /// <summary>Interkantonale Vereinbarung. Leer = aus.</summary>
+    public bool? IkvAktiv { get; set; }
+    public int? IkvEmpfaengerId { get; set; }
 }

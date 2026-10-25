@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 107;  // 107: Kassen-Art kantonal/Verband · 106: BVG kontiert auf 5050 · 105: AHV-Beitragspflicht zentral
+const int SchemaStand = 108;  // 108: IKV an der FAK-Zuordnung · 107: Kassen-Art kantonal/Verband · 106: BVG kontiert auf 5050
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2856,6 +2856,24 @@ using (var scope = app.Services.CreateScope())
                AND b.block ~ '^[0-9]+$';
         ");
         startLog.LogInformation("Stand 107: Kassen-Art kantonal oder Verband aus der AK-Nummer");
+    }
+
+    // Stand 108: interkantonale Vereinbarung auf der bestehenden FAK-Zuordnung.
+    // Gültig ab/bis der Zuordnung gelten mit. Kein zweites Datums-Paar.
+    if (dbStand < 108)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE company_profile_empfaenger
+                ADD COLUMN IF NOT EXISTS ikv_aktiv boolean NOT NULL DEFAULT false;
+            ALTER TABLE company_profile_empfaenger
+                ADD COLUMN IF NOT EXISTS ikv_empfaenger_id integer NULL;
+            ALTER TABLE company_profile_empfaenger
+                DROP CONSTRAINT IF EXISTS company_profile_empfaenger_ikv_empfaenger_id_fkey;
+            ALTER TABLE company_profile_empfaenger
+                ADD CONSTRAINT company_profile_empfaenger_ikv_empfaenger_id_fkey
+                FOREIGN KEY (ikv_empfaenger_id) REFERENCES lohndaten_empfaenger(id);
+        ");
+        startLog.LogInformation("Stand 108: interkantonale Vereinbarung an der FAK-Zuordnung");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

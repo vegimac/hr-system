@@ -124,10 +124,22 @@ public class GastroSocialFzAbgleichController : ControllerBase
                 .ToListAsync(ct))
             .ToLookup(a => a.FamilyMemberId);
 
-        var tarife = string.IsNullOrWhiteSpace(branch.KantonCode)
+        var ikvZeilen = await _db.CompanyProfileEmpfaengers.AsNoTracking()
+            .Include(z => z.IkvEmpfaenger)
+            .Where(z => z.CompanyProfileId == companyProfileId && z.IkvAktiv && z.Empfaenger!.Art == "FAK")
+            .ToListAsync(ct);
+        var tarifKantone = new List<string>();
+        if (!string.IsNullOrWhiteSpace(branch.KantonCode)) tarifKantone.Add(branch.KantonCode.Trim().ToUpperInvariant());
+        foreach (var z in ikvZeilen)
+            if (z.IkvEmpfaenger?.KantonCode is { Length: 2 } kk)
+            {
+                var code = kk.Trim().ToUpperInvariant();
+                if (!tarifKantone.Contains(code)) tarifKantone.Add(code);
+            }
+        var tarife = tarifKantone.Count == 0
             ? new List<Models.FamilienzulagenTarif>()
             : await _db.FamilienzulagenTarife.AsNoTracking()
-                .Where(t => t.IsActive && t.KantonCode == branch.KantonCode).ToListAsync(ct);
+                .Where(t => t.IsActive && tarifKantone.Contains(t.KantonCode)).ToListAsync(ct);
 
         var alle = emps.Select(e => new GastroSocialFzAbgleich.Ma
         {
@@ -163,7 +175,8 @@ public class GastroSocialFzAbgleichController : ControllerBase
                         {
                             if (a.ValidFrom > m.AddMonths(1).AddDays(-1) || (a.ValidTo != null && a.ValidTo < m)) continue;
                             var ende = m.AddMonths(1).AddDays(-1);
-                            var tarif = tarife.Where(t => t.ValidFrom <= ende && (t.ValidTo == null || t.ValidTo >= m))
+                            var kt = FakIkv.TarifKantonAm(branch.KantonCode, ikvZeilen, ende);
+                            var tarif = tarife.Where(t => t.KantonCode == kt && t.ValidFrom <= ende && (t.ValidTo == null || t.ValidTo >= m))
                                 .OrderByDescending(t => t.ValidFrom).FirstOrDefault();
                             var typ = a.AllowanceType;
                             if (string.IsNullOrWhiteSpace(typ))

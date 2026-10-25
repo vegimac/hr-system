@@ -1412,12 +1412,33 @@ public class PayrollCalculationEngine
         // ersatzlos entfernt; entschieden wird auf der Basis, die später auf
         // der AHV-Abzugszeile steht (mainLohn + deltaAhv + dreizehnter).
         // FamZ sind selbst NICHT AHV-pflichtig → keine Zirkularität.
+        // Interkantonale Vereinbarung: der Tarif kommt vom Hauptsitzkanton.
+        // company.KantonCode (Arbeitskanton) bleibt unverändert.
+        string? tarifKanton = company.KantonCode;
+        var ikvHinweis = false;
+        if (familienzulagenRaw.Count > 0)
+        {
+            var ikvKanton = await _db.CompanyProfileEmpfaengers.AsNoTracking()
+                .Where(z => z.CompanyProfileId == company.Id
+                         && z.IkvAktiv && z.IsActive
+                         && z.IkvEmpfaengerId != null
+                         && z.Empfaenger!.Art == "FAK"
+                         && (z.GueltigAb == null || z.GueltigAb <= periodTo)
+                         && (z.GueltigBis == null || z.GueltigBis >= periodTo))
+                .OrderByDescending(z => z.GueltigAb.HasValue)
+                .ThenByDescending(z => z.GueltigAb)
+                .Select(z => z.IkvEmpfaenger!.KantonCode)
+                .FirstOrDefaultAsync();
+            tarifKanton = FakIkv.TarifKanton(company.KantonCode, ikvKanton != null, ikvKanton);
+            ikvHinweis = ikvKanton != null
+                && !string.Equals(tarifKanton, company.KantonCode, StringComparison.OrdinalIgnoreCase);
+        }
         FamilienzulagenTarif? fakTarif = null;
-        if (familienzulagenRaw.Count > 0 && !string.IsNullOrWhiteSpace(company.KantonCode))
+        if (familienzulagenRaw.Count > 0 && !string.IsNullOrWhiteSpace(tarifKanton))
         {
             fakTarif = await _db.FamilienzulagenTarife
                 .Where(t => t.IsActive
-                         && t.KantonCode == company.KantonCode
+                         && t.KantonCode == tarifKanton
                          && t.ValidFrom <= periodTo
                          && (t.ValidTo == null || t.ValidTo >= periodFrom))
                 .OrderByDescending(t => t.ValidFrom)
@@ -1496,6 +1517,8 @@ public class PayrollCalculationEngine
             {
                 bemerkung = istAz ? "Ausbildungszulage" : "Kinderzulage";
             }
+            if (ikvHinweis && !string.IsNullOrWhiteSpace(tarifKanton))
+                bemerkung += $" · Vereinbarung {tarifKanton}";
 
             // Walter-Vorgabe 28.05.2026 (v3): User wählt pro Kind den KONKRETEN
             // Tarif-Satz (KZ Satz 1, KZ Satz 2 ab 12J., AZ Satz 1, …) mit

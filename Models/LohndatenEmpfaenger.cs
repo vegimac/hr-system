@@ -78,6 +78,16 @@ public class CompanyProfileEmpfaenger
     public DateOnly? GueltigBis { get; set; }
     public string? Bemerkung { get; set; }
 
+    /// <summary>
+    /// Interkantonale Vereinbarung (Swissdec 8.2.4.2). Gilt für die Dauer
+    /// dieser Zuordnung (gültig ab/bis). Die Zielkasse ist die kantonale
+    /// FAK des Hauptsitzes.
+    /// </summary>
+    public bool IkvAktiv { get; set; }
+
+    public int? IkvEmpfaengerId { get; set; }
+    public LohndatenEmpfaenger? IkvEmpfaenger { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;

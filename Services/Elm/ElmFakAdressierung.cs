@@ -32,6 +32,9 @@ public static class ElmFakAdressierung
         Func<int, string?> kantonDerFiliale)
     {
         var map = new Dictionary<string, Eintrag>(StringComparer.OrdinalIgnoreCase);
+        var byId = katalog.Where(x => x.Id != 0)
+            .GroupBy(x => x.Id)
+            .ToDictionary(g => g.Key, g => g.First());
 
         foreach (var e in katalog.Where(x => x.IsActive
                  && string.Equals(x.Art, "FAK", StringComparison.OrdinalIgnoreCase)))
@@ -39,40 +42,65 @@ public static class ElmFakAdressierung
             var nr = NormKasse(e.Kassennummer);
             if (nr.Length == 0) continue;
 
-            var gilt = e.Zuordnungen
-                .Where(z => z.GiltAm(stichtag) && workplaceIds.Contains(z.CompanyProfileId))
-                .ToList();
-            if (gilt.Count == 0) continue;
-
-            var kunde = gilt.Select(z => (z.Mitgliednummer ?? "").Trim())
-                .FirstOrDefault(v => v.Length > 0) ?? "";
-            if (kunde.Length == 0) kunde = nr;
-
-            var kantone = gilt
-                .Select(z => (kantonDerFiliale(z.CompanyProfileId) ?? e.KantonCode ?? "").Trim().ToUpperInvariant())
-                .Where(k => k.Length == 2)
-                .Distinct()
-                .OrderBy(k => k)
-                .ToList();
-            if (kantone.Count == 0 && !string.IsNullOrWhiteSpace(e.KantonCode))
-                kantone.Add(e.KantonCode.Trim().ToUpperInvariant());
-
-            if (!map.TryGetValue(nr, out var alt))
+            foreach (var z in e.Zuordnungen.Where(z => z.GiltAm(stichtag) && workplaceIds.Contains(z.CompanyProfileId)))
             {
-                map[nr] = new Eintrag(AddresseeIdFuer(nr), nr, kunde, e.Bezeichnung ?? nr, kantone);
-            }
-            else
-            {
-                // Gleiche Kassen-Nr. (z.B. Spida an mehreren Filialen): Kantone mergen
-                var kt = alt.Kantone.Concat(kantone).Distinct().OrderBy(k => k).ToList();
-                var kundeNeu = alt.CustomerNumber.Length > 0 ? alt.CustomerNumber : kunde;
-                map[nr] = alt with { Kantone = kt, CustomerNumber = kundeNeu };
+                // Vereinbarung: diese Filiale geht an die Kasse des Hauptsitzes.
+                // Der Kanton in der Meldung bleibt der Arbeitskanton.
+                var ziel = Zielkasse(z, byId);
+                var adressat = ziel ?? e;
+                var adressNr = NormKasse(adressat.Kassennummer);
+                if (adressNr.Length == 0) continue;
+
+                var kunde = ziel == null
+                    ? (z.Mitgliednummer ?? "").Trim()
+                    : MitgliedDerKasse(adressat, stichtag, workplaceIds);
+                if (kunde.Length == 0) kunde = adressNr;
+
+                var kanton = (kantonDerFiliale(z.CompanyProfileId) ?? "").Trim().ToUpperInvariant();
+                if (kanton.Length != 2 && ziel == null)
+                    kanton = (e.KantonCode ?? "").Trim().ToUpperInvariant();
+
+                Mergen(map, adressNr, kunde, adressat.Bezeichnung ?? adressNr, kanton);
             }
         }
 
         return map.Values
             .OrderBy(x => x.Kassennummer, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    /// <summary>Kantonale Zielkasse der Vereinbarung, sonst keine Umleitung.</summary>
+    static LohndatenEmpfaenger? Zielkasse(
+        CompanyProfileEmpfaenger z, IReadOnlyDictionary<int, LohndatenEmpfaenger> byId)
+    {
+        if (!z.IkvAktiv) return null;
+        LohndatenEmpfaenger? ziel = z.IkvEmpfaenger;
+        if (ziel == null && z.IkvEmpfaengerId is int id && byId.TryGetValue(id, out var gefunden))
+            ziel = gefunden;
+        if (!FakIkv.IstKantonalFak(ziel)) return null;
+        return NormKasse(ziel!.Kassennummer).Length == 0 ? null : ziel;
+    }
+
+    /// <summary>Mitgliednummer der Zielkasse an einer Filiale derselben Meldung.</summary>
+    static string MitgliedDerKasse(LohndatenEmpfaenger kasse, DateOnly stichtag, IReadOnlySet<int> workplaceIds)
+    {
+        return kasse.Zuordnungen
+            .Where(z => z.GiltAm(stichtag) && workplaceIds.Contains(z.CompanyProfileId))
+            .Select(z => (z.Mitgliednummer ?? "").Trim())
+            .FirstOrDefault(v => v.Length > 0) ?? "";
+    }
+
+    static void Mergen(Dictionary<string, Eintrag> map, string nr, string kunde, string bezeichnung, string kanton)
+    {
+        var kt = kanton.Length == 2 ? new List<string> { kanton } : new List<string>();
+        if (!map.TryGetValue(nr, out var alt))
+        {
+            map[nr] = new Eintrag(AddresseeIdFuer(nr), nr, kunde, bezeichnung, kt);
+            return;
+        }
+        var kantone = alt.Kantone.Concat(kt).Distinct().OrderBy(k => k).ToList();
+        var kundeNeu = alt.CustomerNumber.Length > 0 ? alt.CustomerNumber : kunde;
+        map[nr] = alt with { Kantone = kantone, CustomerNumber = kundeNeu };
     }
 
     public static string AddresseeIdFuer(string kassennummer)

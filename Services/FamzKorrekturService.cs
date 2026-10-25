@@ -58,13 +58,18 @@ public class FamzKorrekturService
         // Eintrag am Kind. Der gespeicherte Betrag nur, wenn kein Tarif greift (Alt-Einträge).
         var kantone = await _db.CompanyProfiles.AsNoTracking()
             .ToDictionaryAsync(c => c.Id, c => c.KantonCode, ct);
+        var ikvZeilen = await _db.CompanyProfileEmpfaengers.AsNoTracking()
+            .Include(z => z.IkvEmpfaenger)
+            .Where(z => z.IkvAktiv && z.Empfaenger!.Art == "FAK")
+            .ToListAsync(ct);
         var tarife = await _db.FamilienzulagenTarife.AsNoTracking()
             .Where(t => t.IsActive).ToListAsync(ct);
         string typ = allowance.AllowanceType is "AZ" or "GZ" or "AdoptZ" ? allowance.AllowanceType : "KZ";
         decimal MonatsBetrag(int cp, DateOnly mStart)
         {
             var mEnd = mStart.AddMonths(1).AddDays(-1);
-            var kanton = kantone.TryGetValue(cp, out var k) ? k : null;
+            var arbeits = kantone.TryGetValue(cp, out var k) ? k : null;
+            var kanton = FakIkv.TarifKantonAm(arbeits, ikvZeilen.Where(z => z.CompanyProfileId == cp), mEnd);
             var tarif = string.IsNullOrWhiteSpace(kanton) ? null : tarife
                 .Where(t => t.KantonCode == kanton && t.ValidFrom <= mEnd && (t.ValidTo == null || t.ValidTo >= mStart))
                 .OrderByDescending(t => t.ValidFrom)

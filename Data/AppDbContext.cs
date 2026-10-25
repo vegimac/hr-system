@@ -2020,6 +2020,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
             entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.IkvAktiv).HasColumnName("ikv_aktiv");
+            entity.Property(e => e.IkvEmpfaengerId).HasColumnName("ikv_empfaenger_id");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
                   .HasColumnType("timestamp without time zone");
@@ -2030,6 +2032,10 @@ public class AppDbContext : DbContext
                   .WithMany(x => x.Zuordnungen)
                   .HasForeignKey(e => e.EmpfaengerId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.IkvEmpfaenger)
+                  .WithMany()
+                  .HasForeignKey(e => e.IkvEmpfaengerId)
+                  .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.CompanyProfile)
                   .WithMany()
                   .HasForeignKey(e => e.CompanyProfileId)

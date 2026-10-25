@@ -367,6 +367,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfung ob bei einer kantonalen Familienausgleichskasse eine interkantonale Vereinbarung hinterlegt werden kann. Ziel davon ist es, die Adressierung dieser Familienausgleichskasse in der Übermittlung an eine andere Familienausgleichskasse umzuleiten.
 
+**Notiz:** 25.10.2026 im Programm, noch nicht abgehakt. Filiale → Lohndaten-Empfänger, nur bei kantonaler FAK: Häkchen «Interkantonale Vereinbarung liegt vor», Zielkasse = kantonale FAK des Hauptsitzes. Zulagen nach dem Tarif des Hauptsitzkantons, Arbeitskanton bleibt. Jahres-XML adressiert die Zielkasse, der Kanton in der Meldung bleibt der Arbeitskanton. Der FAK-Beitragssatz bleibt der eine SV-Satz «FAK» (kein Satz pro Kanton). Keine Differenzzeile.
+
 
 #### S_ELM_V6_02_02_03 FAK-Grundlagen ⬜ offen
 
