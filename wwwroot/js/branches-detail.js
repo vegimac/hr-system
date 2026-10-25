@@ -2502,12 +2502,9 @@ function cpEmpfFieldLabels(art) {
     if (art === 'UVG')
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertrags-/Subnummer',
                  phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
-    if (art === 'UVGZ')
+    if (art === 'UVGZ' || art === 'KTG')
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
                  name: 'Versicherungsname', phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
-    if (art === 'KTG')
-        return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
-                 phMitglied: 'z.B. 6494895', kasseAnzeigen: true };
     if (art === 'BVG')
         return { kasse: 'Versicherernummer / Nummer der Kasse', mitglied: 'Kundennummer (Mitgliednummer)', sub: 'Vertragsnummer',
                  phMitglied: 'z.B. 629.0714.00', kasseAnzeigen: true };

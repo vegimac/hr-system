@@ -2095,8 +2095,9 @@ function svRender() {
             if (r.minBaseMonthly     != null) parts.push(`min ${chf(r.minBaseMonthly)}`);
             if (r.maxBaseFlatMonthly != null) parts.push(`max ${chf(r.maxBaseFlatMonthly)}`);
         }
-        if (r.bandVonMonthly       != null) parts.push(`ab ${chf(r.bandVonMonthly)}`);
-        if (r.maxBaseMonthly       != null) parts.push(`Höchst. ${chf(r.maxBaseMonthly)}`);
+        const jahr = r.code === 'UVGZ' || r.code === 'KTG';
+        if (r.bandVonMonthly       != null) parts.push(jahr ? `ab ${chf(Math.round(r.bandVonMonthly * 12))}/J` : `ab ${chf(r.bandVonMonthly)}`);
+        if (r.maxBaseMonthly       != null) parts.push(jahr ? `Höchst. ${chf(Math.round(r.maxBaseMonthly * 12))}/J` : `Höchst. ${chf(r.maxBaseMonthly)}`);
         if (r.entryThresholdYearly != null) parts.push(`Eintr. ${chf(r.entryThresholdYearly)}/J`);
         if (r.freibetragMonthly    != null) parts.push(`Freibetr. ${chf(r.freibetragMonthly)}`);
         return parts;
@@ -2387,6 +2388,7 @@ function svOpenForm(rate, mode) {
     const _mbf = document.getElementById('svMaxBaseFlat'); if (_mbf) _mbf.value = rate?.maxBaseFlatMonthly ?? '';
     const _mnb = document.getElementById('svMinBase'); if (_mnb) _mnb.value = rate?.minBaseMonthly ?? '';
     const _ets = document.getElementById('svEntryThreshold'); if (_ets) _ets.value = rate?.entryThresholdYearly ?? '';
+    const _ha = document.getElementById('svHoechstlohnArt'); if (_ha) _ha.value = rate?.hoechstlohnArt === 'VERTRAG' ? 'VERTRAG' : 'UVG';
     svUvgMaske();
     // Bei „Neu ab" das ValidFrom-Feld bewusst LEER lassen, damit der User
     // bewusst ein Datum eingeben muss; Vorgänger-ValidFrom wäre missverständlich.
@@ -2496,7 +2498,7 @@ function svJahrFelder(jahr) {
             el.dataset.einheit = jahr ? 'jahr' : 'monat';
             continue;
         }
-        const x = jahr === istJahr ? n : (jahr ? n * 12 : n / 12);
+        const x = jahr === istJahr ? n : (jahr ? svJahrAusMonat(n) : n / 12);
         el.value = svChf(Math.round(x * 100) / 100);
         el.dataset.einheit = jahr ? 'jahr' : 'monat';
     }
@@ -2506,21 +2508,31 @@ function svMonatAusJahr(n) {
     if (n == null || !Number.isFinite(n)) return n;
     return Math.round(n / 12 * 100) / 100;
 }
+// 400'000 / 12 ist nicht glatt. Die Anzeige rundet den Rest auf den Franken,
+// damit 33333.33 im Monat wieder als 400'000.00 dasteht.
+function svJahrAusMonat(m) {
+    const y = m * 12;
+    const ganz = Math.round(y);
+    if (Math.abs(y - ganz) < 0.1) return ganz;
+    return Math.round(y * 100) / 100;
+}
 
 function svUvgMaske() {
     const code = document.getElementById('svCode')?.value || '';
     const uvg = code === 'NBUV';
     const uvgz = code === 'UVGZ';
+    const ktg = code === 'KTG';
+    const jahr = uvgz || ktg;
     const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-    set('svLblLoesung', uvg ? 'UVG-Code' : uvgz ? 'UVGZ-Code' : 'Lösungs-Code');
-    set('svLblRate', uvg ? 'NBU % *' : uvgz ? 'Beitrag % *' : 'Satz AN % *');
+    set('svLblLoesung', uvg ? 'UVG-Code' : uvgz ? 'UVGZ-Code' : ktg ? 'KTG-Code' : 'Lösungs-Code');
+    set('svLblRate', uvg ? 'NBU % *' : (uvgz || ktg) ? 'Beitrag % *' : 'Satz AN % *');
     set('svLblRateAg', uvg ? 'BU %' : 'Satz AG %');
-    set('svLblGender', uvgz ? 'Männer / Frauen' : 'Geschlecht');
-    set('svLblMaxBase', uvgz ? 'Obergrenze/Jahr (CHF)' : 'Höchstlohn/Mt. (CHF)');
-    set('svLblBandVon', uvgz ? 'Lohnband von/Jahr (CHF)' : 'Lohnband ab/Mt. (CHF)');
+    set('svLblGender', (uvgz || ktg) ? 'Männer / Frauen' : 'Geschlecht');
+    set('svLblMaxBase', jahr ? 'Obergrenze/Jahr (CHF)' : 'Höchstlohn/Mt. (CHF)');
+    set('svLblBandVon', jahr ? 'Lohnband von/Jahr (CHF)' : 'Lohnband ab/Mt. (CHF)');
     const gender = document.getElementById('svGender');
     if (gender) {
-        const texte = uvgz
+        const texte = (uvgz || ktg)
             ? { '': 'Alle', M: 'Männer', F: 'Frauen' }
             : { '': 'Alle', M: 'Nur Männer', F: 'Nur Frauen' };
         for (const opt of gender.options) {
@@ -2528,22 +2540,24 @@ function svUvgMaske() {
         }
     }
     const codeFeld = document.getElementById('svLoesungsCode');
-    if (codeFeld) codeFeld.placeholder = uvg ? 'z.B. A1' : uvgz ? 'z.B. 11' : 'leer = für alle';
+    if (codeFeld) codeFeld.placeholder = uvg ? 'z.B. A1' : (uvgz || ktg) ? 'z.B. 11' : 'leer = für alle';
     const beschr = document.getElementById('svDescription');
-    if (beschr) beschr.placeholder = uvg ? 'z.B. A Gesamtes Personal' : uvgz ? 'z.B. 11 Personal, UVG-Lohn' : '';
+    if (beschr) beschr.placeholder = uvg ? 'z.B. A Gesamtes Personal' : uvgz ? 'z.B. 11 Personal, UVG-Lohn' : ktg ? 'z.B. 11 Personal, KTG-Lohn' : '';
     const hinweis = document.getElementById('svUvgHinweis');
     if (hinweis) hinweis.style.display = uvg ? 'block' : 'none';
     const hinweisZ = document.getElementById('svUvgzHinweis');
     if (hinweisZ) hinweisZ.style.display = uvgz ? 'block' : 'none';
+    const ktgBox = document.getElementById('svKtgHoechst');
+    if (ktgBox) ktgBox.style.display = ktg ? 'block' : 'none';
     const hintMax = document.getElementById('svHintMax');
-    if (hintMax) hintMax.textContent = uvgz
-        ? 'Obergrenze der Lösung pro Jahr. 300\'000 ist erlaubt. Code 10 = 0. Leer = unbegrenzt. Der Lohn rechnet mit dem Monat (Jahr ÷ 12).'
+    if (hintMax) hintMax.textContent = jahr
+        ? 'Obergrenze der Lösung pro Jahr. 300\'000 und beim KTG auch 400\'000 sind erlaubt. Code 10 = 0. Leer = unbegrenzt. Der Lohn rechnet mit dem Monat (Jahr ÷ 12).'
         : 'UVG-Höchstlohn und ALV: 12\'350 pro Monat (= 148\'200 pro Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).';
     const hintBand = document.getElementById('svHintBand');
-    if (hintBand) hintBand.textContent = uvgz
+    if (hintBand) hintBand.textContent = jahr
         ? 'Untergrenze pro Jahr. Code 11 beginnt bei 0 (Feld leer), Code 12 bei 148\'200.'
         : 'Nur der Teil über diesem Wert (bis Höchstlohn) ist pflichtig: Überschusslohn KTG/UVGZ Code 12, ALVZ 12\'350–30\'875.';
-    svJahrFelder(uvgz);
+    svJahrFelder(jahr);
 }
 
 async function svSave(event) {
@@ -2580,7 +2594,7 @@ async function svSave(event) {
         gender:                document.getElementById('svGender')?.value || null,
         loesungsCode:          (document.getElementById('svLoesungsCode')?.value || '').trim().toUpperCase() || null,
         isDefaultCode:         !!document.getElementById('svIsDefaultCode')?.checked,
-        bandVonMonthly:        document.getElementById('svCode').value === 'UVGZ' ? svMonatAusJahr(parseNum('svBandVon')) : parseNum('svBandVon'),
+        bandVonMonthly:        (document.getElementById('svCode').value === 'UVGZ' || document.getElementById('svCode').value === 'KTG') ? svMonatAusJahr(parseNum('svBandVon')) : parseNum('svBandVon'),
         // SV-Sätze pro Filiale (Walter 06.08.2026): leer = globaler Standard.
         companyProfileId:      (() => {
             const v = document.getElementById('svCompanyProfile')?.value || '';
@@ -2590,7 +2604,8 @@ async function svSave(event) {
         maxAge:                parseIntOpt('svMaxAge'),
         freibetragMonthly:     parseNum('svFreibetrag'),
         coordinationDeduction: parseNum('svCoordDeduction'),
-        maxBaseMonthly:        document.getElementById('svCode').value === 'UVGZ' ? svMonatAusJahr(parseNum('svMaxBase')) : parseNum('svMaxBase'),
+        maxBaseMonthly:        (document.getElementById('svCode').value === 'UVGZ' || document.getElementById('svCode').value === 'KTG') ? svMonatAusJahr(parseNum('svMaxBase')) : parseNum('svMaxBase'),
+        hoechstlohnArt:        document.getElementById('svCode').value === 'KTG' ? (document.getElementById('svHoechstlohnArt')?.value || 'UVG') : null,
         maxBaseFlatMonthly:    parseNum('svMaxBaseFlat'),
         minBaseMonthly:        parseNum('svMinBase'),
         entryThresholdYearly:  parseNum('svEntryThreshold'),
@@ -2606,8 +2621,9 @@ async function svSave(event) {
         errEl.textContent = 'Die erste Stelle des UVG-Codes muss ein Buchstabe A–Z sein (Betriebsteil, z.B. A Gesamtes Personal).';
         errEl.style.display = 'block'; resetSubmitBtn(); return;
     }
-    if (body.code === 'UVGZ' && body.loesungsCode && !/^[A-Z0-9]{2}$/.test(body.loesungsCode)) {
-        errEl.textContent = 'Der UVGZ-Code hat zwei Stellen. Jede Stelle ist ein Buchstabe A–Z oder eine Ziffer 0–9 (z.B. 11, A2, B1).';
+    if ((body.code === 'UVGZ' || body.code === 'KTG') && body.loesungsCode && !/^[A-Z0-9]{2}$/.test(body.loesungsCode)) {
+        const begriff = body.code === 'KTG' ? 'KTG-Code' : 'UVGZ-Code';
+        errEl.textContent = 'Der ' + begriff + ' hat zwei Stellen. Jede Stelle ist ein Buchstabe A–Z oder eine Ziffer 0–9 (z.B. 11, A2, B1).';
         errEl.style.display = 'block'; resetSubmitBtn(); return;
     }
     if (!body.name) { errEl.textContent = 'Bitte eine Bezeichnung eingeben.'; errEl.style.display = 'block'; resetSubmitBtn(); return; }

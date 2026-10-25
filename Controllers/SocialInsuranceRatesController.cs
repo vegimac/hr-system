@@ -76,7 +76,7 @@ public class SocialInsuranceRatesController : ControllerBase
             // Geschlechts-Filter (Walter 06.08.2026): NULL = alle, «F»/«M».
             r.Gender,
             // Versicherungs-Lösung / Swissdec-Code + Lohnband «ab» (Walter 07.09.2026)
-            r.LoesungsCode, r.IsDefaultCode, r.BandVonMonthly,
+            r.LoesungsCode, r.IsDefaultCode, r.BandVonMonthly, r.HoechstlohnArt,
             inLohnVerwendet = frozenPerioden.Any(p =>
                 r.ValidFrom <= p.PeriodTo
              && (r.ValidTo == null || r.ValidTo >= p.PeriodFrom))
@@ -152,6 +152,9 @@ public class SocialInsuranceRatesController : ControllerBase
         if (uvgCode != null) return BadRequest(new { error = "UVG_CODE", message = uvgCode });
         var uvgzCode = UvgzLoesung.LoesungsCodeFehler(dto.Code, dto.LoesungsCode);
         if (uvgzCode != null) return BadRequest(new { error = "UVGZ_CODE", message = uvgzCode });
+        var ktgCode = KtgLoesung.LoesungsCodeFehler(dto.Code, dto.LoesungsCode);
+        if (ktgCode != null) return BadRequest(new { error = "KTG_CODE", message = ktgCode });
+        dto.HoechstlohnArt = KtgLoesung.HoechstlohnArt(dto.Code, dto.HoechstlohnArt);
         dto.IsDefaultCode  = dto.LoesungsCode != null && dto.IsDefaultCode;
         dto.BandVonMonthly = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
         _db.SocialInsuranceRates.Add(dto);
@@ -220,6 +223,9 @@ public class SocialInsuranceRatesController : ControllerBase
         if (uvgCode != null) return BadRequest(new { error = "UVG_CODE", message = uvgCode });
         var uvgzCode = UvgzLoesung.LoesungsCodeFehler(rate.Code, rate.LoesungsCode);
         if (uvgzCode != null) return BadRequest(new { error = "UVGZ_CODE", message = uvgzCode });
+        var ktgCode = KtgLoesung.LoesungsCodeFehler(rate.Code, rate.LoesungsCode);
+        if (ktgCode != null) return BadRequest(new { error = "KTG_CODE", message = ktgCode });
+        rate.HoechstlohnArt        = KtgLoesung.HoechstlohnArt(rate.Code, dto.HoechstlohnArt);
         rate.IsDefaultCode         = rate.LoesungsCode != null && dto.IsDefaultCode;
         rate.BandVonMonthly        = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
         rate.FibuPosition          = dto.FibuPosition;
@@ -305,6 +311,7 @@ public class SocialInsuranceRatesController : ControllerBase
             LoesungsCode          = oldRate.LoesungsCode,
             IsDefaultCode         = oldRate.IsDefaultCode,
             BandVonMonthly        = dto.BandVonMonthly ?? oldRate.BandVonMonthly,
+            HoechstlohnArt        = KtgLoesung.HoechstlohnArt(oldRate.Code, dto.HoechstlohnArt ?? oldRate.HoechstlohnArt),
             FibuPosition          = dto.FibuPosition ?? oldRate.FibuPosition,
             ValidFrom             = dto.ValidFrom,
             ValidTo               = dto.ValidTo,

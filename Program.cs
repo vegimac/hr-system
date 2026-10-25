@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 109;  // 109: UVG-Versicherer an der Person · 108: IKV an der FAK-Zuordnung · 107: Kassen-Art kantonal/Verband
+const int SchemaStand = 110;  // 110: KTG-Höchstlohn UVG oder vertraglich · 109: UVG-Versicherer an der Person · 108: IKV an der FAK-Zuordnung
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2890,6 +2890,16 @@ using (var scope = app.Services.CreateScope())
                 FOREIGN KEY (empfaenger_id) REFERENCES lohndaten_empfaenger(id);
         ");
         startLog.LogInformation("Stand 109: UVG-Versicherer an der Person");
+    }
+
+    // Stand 110: KTG unterscheidet UVG-Höchstlohn und vertraglich definierte Obergrenze.
+    if (dbStand < 110)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE social_insurance_rate
+                ADD COLUMN IF NOT EXISTS hoechstlohn_art varchar(10) NULL;
+        ");
+        startLog.LogInformation("Stand 110: KTG-Höchstlohn UVG oder vertraglich");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

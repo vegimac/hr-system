@@ -481,6 +481,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Begriffsdefinitionen im ERP-System prüfen. Die Elemente "Versicherungsname", "Versicherernummer", "Kundennummer" und "Vertragsnummer" müssen im ERP-System vorhanden sein und identisch benannt werden.
 
+**Notiz 25.10.2026:** Filiale → Lohndaten-Empfänger, Art KTG: Versicherungsname, Versicherernummer, Kundennummer, Vertragsnummer. Im Verzeichnis heisst das Namensfeld bei Art KTG ebenfalls Versicherungsname. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_05_02 Angaben zur KTG-Versicherungslösung ⬜ offen
 
@@ -490,6 +492,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob für die erste Stelle der KTG-Codes ausschliesslich Buchstaben (A-Z) und Ziffern (0-9) erfasst werden können. - Prüfen ob eine KTG-Versicherungslösung mit einer Beschreibung versehen werden kann.
 
+**Notiz 25.10.2026:** System → SV-Sätze, Typ KTG. Feld KTG-Code, zwei Stellen je A–Z oder 0–9. Beschreibung daneben. Ein einzelnes A wird beim Speichern abgelehnt. Nicht auf gebaut gesetzt.
+
 
 #### S_ELM_V6_02_05_03 KTG-Grundlagen ⬜ offen
 
@@ -498,6 +502,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 **Beschreibung:** KTG-Grundlagen Für die KTG-Versicherung können neben den UVG-Höchstlöhnen, auch vertraglich definierte Höchstlöhne verwendet werden. Beispiel anhand der UVG-Höchstlöhne: Pro Versicherungslösung 10 = 0 11 = 0 - 148'200 12 = 148'200 - 300'000 Beispiel mit vertraglich definierten Höchstlöhnen: A0 = 0 A1 = 0 - 300'000 B1 = 0 - 400'000 Beitragsssätze müssen pro Versicherungslösung erfasst werden können: KTG-Beiträge Männer pro Versicherungslösung 10 = 0.0000% 11 = 0.2010% 12 = 0.6340% KTG-Beiträge Fr…
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob die Höchstlöhne im System hinterlegt werden können. - Prüfen ob zwischen UVG-Höchstlöhnen und vertraglich definierten Höchstlöhnen unterschieden werden kann. - Prüfen ob die Beitragssätze pro Versicherungslösung erfasst werden können. - Prüfen ob die Beitragssätze mit 4 Nachkommastellen erfasst werden können.
+
+**Notiz 25.10.2026:** Dieselbe SV-Satz-Maske, Typ KTG: Wahl UVG-Höchstlohn oder vertraglich definiert. Obergrenze/Jahr bis 400'000, Beitrag mit 4 Nachkommastellen, Männer und Frauen je eine Zeile. Nicht auf gebaut gesetzt.
 
 
 ### BVG (`02_06`)

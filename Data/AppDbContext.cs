@@ -3334,6 +3334,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LoesungsCode).HasColumnName("loesungs_code").HasMaxLength(10);
             entity.Property(e => e.IsDefaultCode).HasColumnName("is_default_code").HasDefaultValue(false);
             entity.Property(e => e.BandVonMonthly).HasColumnName("band_von_monthly").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.HoechstlohnArt).HasColumnName("hoechstlohn_art").HasMaxLength(10);
             entity.Property(e => e.RateEmployer).HasColumnName("rate_employer").HasColumnType("numeric(6,3)");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");

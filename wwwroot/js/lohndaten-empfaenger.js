@@ -324,9 +324,9 @@ function leUidZustand(wert) {
 function leKasseLabelSetzen() {
     const art = document.getElementById('leArt')?.value || '';
     const lbl = document.getElementById('leKassenLbl');
-    if (lbl) lbl.textContent = leKasseBegriff(art) || (art === 'UVG' || art === 'UVGZ' ? 'Versicherernummer' : 'Nummer der Kasse / Vers.-Nr.');
+    if (lbl) lbl.textContent = leKasseBegriff(art) || (art === 'UVG' || art === 'UVGZ' || art === 'KTG' ? 'Versicherernummer' : 'Nummer der Kasse / Vers.-Nr.');
     const bez = document.getElementById('leBezLbl');
-    if (bez) bez.textContent = art === 'UVG' ? 'Name des UVG-Versicherers' : art === 'UVGZ' ? 'Versicherungsname' : 'Bezeichnung';
+    if (bez) bez.textContent = art === 'UVG' ? 'Name des UVG-Versicherers' : (art === 'UVGZ' || art === 'KTG') ? 'Versicherungsname' : 'Bezeichnung';
     const uid = document.getElementById('leUidLbl');
     if (uid) uid.textContent = art === 'UVG' ? 'UID-BFS' : 'UID-Nummer';
     const artZeile = document.getElementById('leKassenArt');

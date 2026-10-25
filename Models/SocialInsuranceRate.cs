@@ -70,6 +70,12 @@ public class SocialInsuranceRate
     /// </summary>
     public decimal? BandVonMonthly        { get; set; }
 
+    /// <summary>
+    /// KTG-Höchstlohn (Swissdec 8.5.1): «UVG» = UVG-Höchstlohn, «VERTRAG» = vertraglich
+    /// definierte Obergrenze. Leer bei allen anderen SV-Arten. Der Lohn rechnet mit den Beträgen.
+    /// </summary>
+    public string?  HoechstlohnArt        { get; set; }
+
     public DateOnly ValidFrom             { get; set; }
     public DateOnly? ValidTo              { get; set; }
     public int      SortOrder             { get; set; } = 99;
