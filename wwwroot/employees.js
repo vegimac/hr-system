@@ -1988,9 +1988,10 @@ function loadUebersichtTab() {
             <div class="ov-pers-z4">
             <div class="ov-pf ov-pf-zivil">
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
-                <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${directDocButton(emp.zivilstandDokumentId, 'zivilstand', 'marriage_cert')}
-                    <button type="button" class="qst-warum-btn" style="margin-left:6px;vertical-align:middle;padding:2px 10px;font-size:11px" title="Zivilstand-Historie — Zivilstand mit Gültig-ab (für QST-Alt-Einträge)" onclick="openZivilstandHistorie(${emp.id})">🕘 Historie</button>
-                </div>
+                <div class="ov-pfv">${emp._neu
+                    ? `<select id="ov-zivilstand" class="ov-softin" onchange="ovDirty()">${zivOptionenHtml('')}</select>`
+                    : `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${directDocButton(emp.zivilstandDokumentId, 'zivilstand', 'marriage_cert')}
+                    <button type="button" class="qst-warum-btn" style="margin-left:6px;vertical-align:middle;padding:2px 10px;font-size:11px" title="Zivilstand-Historie — Zivilstand mit Gültig-ab (für QST-Alt-Einträge)" onclick="openZivilstandHistorie(${emp.id})">🕘 Historie</button>`}</div>
             </div>
             <div class="ov-pf ov-pf-seit"><div class="ov-pfl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
             <input id="ov-maritalStatusSince" class="ov-softin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()"></div>
@@ -2486,6 +2487,8 @@ async function neuerMaSpeichern() {
         city: v('ov-city') || null,
         country: land,
         cantonCode: land === 'CH' ? (v('ov-canton') || null) : 'EX',
+        maritalStatus: v('ov-zivilstand') || null,
+        maritalStatusSince: v('ov-maritalStatusSince') || null,
         isActive: true,
     };
     const btn = document.getElementById('ovSaveBtn');
@@ -7455,15 +7458,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     </div>
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-extra-line">
         ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input" ${ewSelect}>
-            <option value="">–</option>
-            <option value="unbekannt"                  ${(emp.zivilstand ?? emp.maritalStatus)==='unbekannt'                  ?'selected':''}>${_t('ma.value.maritalStatus.unbekannt','Unbekannt')}</option>
-            <option value="ledig"                      ${(emp.zivilstand ?? emp.maritalStatus)==='ledig'                      ?'selected':''}>${_t('ma.value.maritalStatus.ledig','Ledig')}</option>
-            <option value="verheiratet"                ${(emp.zivilstand ?? emp.maritalStatus)==='verheiratet'                ?'selected':''}>${_t('ma.value.maritalStatus.verheiratet','Verheiratet')}</option>
-            <option value="geschieden"                 ${(emp.zivilstand ?? emp.maritalStatus)==='geschieden'                 ?'selected':''}>${_t('ma.value.maritalStatus.geschieden','Geschieden')}</option>
-            <option value="verwitwet"                  ${(emp.zivilstand ?? emp.maritalStatus)==='verwitwet'                  ?'selected':''}>${_t('ma.value.maritalStatus.verwitwet','Verwitwet')}</option>
-            <option value="getrennt"                   ${(emp.zivilstand ?? emp.maritalStatus)==='getrennt'                   ?'selected':''}>${_t('ma.value.maritalStatus.getrennt','Getrennt')}</option>
-            <option value="eingetragene_partnerschaft" ${(emp.zivilstand ?? emp.maritalStatus)==='eingetragene_partnerschaft' ?'selected':''}>${_t('ma.value.maritalStatus.eingetragene_partnerschaft','Eingetragene Partnerschaft')}</option>
-            <option value="konkubinat"                 ${(emp.zivilstand ?? emp.maritalStatus)==='konkubinat'                 ?'selected':''}>${_t('ma.value.maritalStatus.konkubinat','Konkubinat')}</option>
+            ${zivOptionenHtml(emp.zivilstand ?? emp.maritalStatus)}
         </select>`)}
         ${eField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}">`)}
         ${eField(_t('ma.field.religion','Konfession'), `<select id="ef-religion" class="ef-input">
@@ -20120,6 +20115,13 @@ const ZIV_OPTIONEN = [
     ['unbekannt', 'unbekannt'],
     ['konkubinat', 'Konkubinat'],
 ];
+
+function zivOptionenHtml(aktuell) {
+    const cur = String(aktuell || '').toLowerCase().trim();
+    const leer = `<option value="" ${cur ? '' : 'selected'}>–</option>`;
+    return leer + ZIV_OPTIONEN.map(([v, l]) =>
+        `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`).join('');
+}
 let _zivEmpId = null;
 
 function _zivHeuteIso() {

@@ -776,6 +776,13 @@ public class EmployeesController : ControllerBase
         await _context.SaveChangesAsync();
         await PersonaldatenBestaetigungMerkenAsync(pd, employee, pdBestaetigt);
 
+        if (!string.IsNullOrWhiteSpace(employee.MaritalStatus))
+        {
+            await new Services.ZivilstandHistorieService(_context)
+                .NachfuehrenAsync(employee.Id, null, employee.MaritalStatus, employee.MaritalStatusSince, "aus MA-Maske");
+            await _context.SaveChangesAsync();
+        }
+
         // Auto-Postfach für jeden neu angelegten MA. Falls die Hauptfiliale
         // (Employment) zu diesem Zeitpunkt noch nicht erfasst ist, wird der
         // Account mit "MA"-Default-Präfix angelegt und kann später per
