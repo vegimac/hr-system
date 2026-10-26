@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261026h">
+    <link rel="stylesheet" href="css/app.css?v=20261026i">
 </head>
 <body>
 
@@ -11067,6 +11067,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <option value="aufgeloeste_partnerschaft">aufgelöste Partnerschaft</option>
                     </select>
                 </div>
+                <div class="fmf-field" id="fmLivesInChField">
+                    <label class="fmf-label" data-i18n="fam.field.livesInCh">In der Schweiz lebend</label>
+                    <label class="fmf-checkbox-card">
+                        <input type="checkbox" id="fmLivesInSwitzerland" onchange="fmUpdateAuslandHint()">
+                        <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
+                    </label>
+                </div>
             </div>
 
             <!-- ── Kind (Walter 11.10.2026, docs/famz-anmeldung-konzept.md):
@@ -11144,32 +11151,23 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <label class="fmf-label" data-i18n="fam.field.zemis">ZEMIS-Nr.</label>
                     <input class="fmf-input" id="fmZemisNumber" type="text" data-i18n-placeholder="ma.placeholder.zemis" placeholder="z.B. 22952410">
                 </div>
-                <div class="fmf-field" style="grid-column:span 1">
+                <div class="fmf-field" id="fmNatField">
                     <label class="fmf-label" data-i18n="fam.field.nationality">Nationalität</label>
                     <select class="fmf-select" id="fmNationalityId">
                         <option value="">–</option>
                     </select>
                 </div>
-                <div class="fmf-field">
-                    <label class="fmf-label" data-i18n="fam.field.livesInCh">In der Schweiz lebend</label>
-                    <label class="fmf-checkbox-card">
-                        <input type="checkbox" id="fmLivesInSwitzerland" onchange="fmUpdateAuslandHint()">
-                        <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
-                    </label>
+                <div class="fmf-field" id="fmPermitInline" title="Nur erfassen, wenn sich der Status ändert (z.B. B nach C, Einbürgerung) — nicht bei neuem Ausweis gleicher Art.">
+                    <label class="fmf-label">Bewilligungsstatus <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(für QST)</span></label>
+                    <div class="fm-bew-zeile">
+                        <div id="fmPermitStandText">– noch nicht erfasst –</div>
+                        <button type="button" id="fmPermitWechselBtn" onclick="fmOpenPermitWechsel()">Status ändern</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Bewilligungsstatus (QST): aktueller Stand + Status ändern -->
-            <div id="fmPermitStatusBlock" style="margin-top:10px">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.12)">
-                    <div style="min-width:0;flex:1">
-                        <div class="fmf-label" style="margin-bottom:4px">Bewilligungsstatus <span style="font-weight:400;color:#8b8b8b;text-transform:none;letter-spacing:0">(für QST)</span></div>
-                        <div id="fmPermitStandText" style="font-size:13.5px;font-weight:600;color:#3f3f3f">– noch nicht erfasst –</div>
-                        <div style="font-size:11px;color:#8b8b8b;margin-top:3px;line-height:1.35">Nur erfassen, wenn sich der Status ändert (z.B. B→C, Einbürgerung) — nicht bei neuem Ausweis gleicher Art.</div>
-                    </div>
-                    <button type="button" id="fmPermitWechselBtn" onclick="fmOpenPermitWechsel()"
-                            style="flex-shrink:0;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer">Status ändern</button>
-                </div>
+            <!-- Bewilligungsstatus: Erfassung und Historie unter der Zeile -->
+            <div id="fmPermitStatusBlock">
                 <!-- Ersterfassung (neu / noch keine Historie) -->
                 <div id="fmPermitErst" style="display:none;margin-top:8px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.45);border:1px dashed rgba(60,55,48,0.22)">
                     <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Ersterfassung Bewilligungsstatus</div>
@@ -11675,7 +11673,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script type="text/plain" data-modul="employees.js?v=20261026h"></script>
+<script type="text/plain" data-modul="employees.js?v=20261026i"></script>
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261025a"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>

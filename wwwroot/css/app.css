@@ -13234,8 +13234,42 @@ body.theme-dark #qstModal .qst-cb-ro {
     grid-template-columns: minmax(168px, 1.15fr) minmax(132px, 0.85fr) minmax(120px, 1fr) minmax(140px, 1.1fr) minmax(130px, 0.95fr) !important;
 }
 #familyModal #fmAufenthaltGrid {
-    grid-template-columns: 16ch minmax(200px, 1fr) max-content !important;
+    grid-template-columns: 16ch minmax(180px, 0.9fr) minmax(280px, 1.7fr) !important;
+    align-items: end;
 }
+#familyModal .fm-bew-zeile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    height: 32px;
+}
+#familyModal #fmPermitStandText {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 650;
+    color: #3f3f3f;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+body.theme-dark #familyModal #fmPermitStandText { color: #f2f5f8; }
+#familyModal #fmPermitWechselBtn {
+    flex: 0 0 auto;
+    background: #3f3f3f;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+#familyModal #fmLivesInChField .fmf-checkbox-card { height: 32px; min-height: 32px; }
+#familyModal #fmSocialSecurity-status:empty { display: none; }
+#familyModal #fmPermitStatusBlock { margin-top: 4px; }
+#familyModal #fmPermitHistList { margin-top: 4px !important; }
 #familyModal .fm-ag-zeile {
     display: grid;
     grid-template-columns: minmax(160px, 1.15fr) minmax(180px, 1.4fr) 18ch;

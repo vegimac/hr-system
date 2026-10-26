@@ -6440,7 +6440,7 @@ function fmQstBlocksVisibility(type) {
     // GastroSocial führt die Familienzulage darüber).
     // Verborgene Inputs behalten ihre Werte (kein Datenverlust
     // beim Bearbeiten von Alt-Erfassungen).
-    ['fmMaidenNameField', 'fmPhoneField', 'fmZemisField'].forEach(id => {
+    ['fmMaidenNameField', 'fmPhoneField', 'fmZemisField', 'fmLivesInChField', 'fmPermitInline'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = istKind ? 'none' : '';
     });
