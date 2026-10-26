@@ -881,6 +881,7 @@ function filterEmployeeList() {
 
 // ── Mitarbeiter auswählen ──────────────────────
 async function selectEmployee(id) {
+    if (document.getElementById('testNeuMaModal')?.classList.contains('offen')) testNeuMaZu();
     selectedEmployeeId = id;
     // Bug-Fix 17.07.2026: top-level `let` liegt NICHT auf window — der
     // easy@work-Sync-Button im langSwitcher (index.html) und showPage
@@ -1223,18 +1224,7 @@ function renderEmployeeDetail(emp) {
         ? `${formatDate(emp.dateOfBirth)} <span style="color:#94a3b8;font-weight:500">(${calcAge(emp.dateOfBirth)} J.)</span>`
         : '–';
     const exit  = emp.exitDate  ? formatDate(emp.exitDate)  : _t('ma.detail.statusActive', 'Aktiv');
-    const nr    = emp._neu ? '' : (emp.employeeNumber ?? '–');
-    const kopfEdit = !!(emp._neu || emp._testBearbeiten || maHandErfasst(emp));
-    const nummerEditKopf = !!(emp._neu || !(emp.easyAtWorkEmployeeId || emp.easyatworkEmployeeId));
-    const kopfNameHtml = kopfEdit
-        ? `<input id="ov-firstName" class="ov-kopf-feld" value="${esc(emp.firstName || '')}" placeholder="Vorname" autocomplete="off" oninput="ovDirty()">
-           <input id="ov-lastName" class="ov-kopf-feld" value="${esc(emp.lastName || '')}" placeholder="Nachname" autocomplete="off" oninput="ovDirty()">
-           ${nummerEditKopf
-                ? `<input id="ov-nr" class="ov-kopf-feld ov-kopf-nr" value="${esc(emp.employeeNumber || '')}" placeholder="Nummer" inputmode="numeric" autocomplete="off" oninput="ovDirty()">`
-                : `<span style="font-size:16px;font-weight:650;color:#8b8b8b">${esc(emp.employeeNumber) || ''}</span>`}
-           <input type="hidden" id="ov-land" value="${esc(((emp.country || 'CH') + '').trim() || 'CH')}">`
-        : `<span>${esc(name)}</span>
-           <span style="font-size:16px;font-weight:650;color:#8b8b8b">${esc(nr)}</span>`;
+    const nr    = emp.employeeNumber ?? '–';
     // Walter-Vorgabe 14.06.2026: Header-Status MUSS sich an emp.isActive
     // orientieren — vorher zeigte er nur „● Aktiv" wenn kein ExitDate gesetzt
     // war. Wenn ein MA via Re-Import ohne ExitDate deaktiviert wird (z.B.
@@ -1376,8 +1366,9 @@ function renderEmployeeDetail(emp) {
                      verschwinden (Walter 06.09.2026). Der rechte Freiraum
                      wird in empHeaderReserveRight() gemessen. -->
                 <div class="emp-detail-name" id="empDetailNameLine" style="display:flex;align-items:baseline;gap:8px 10px;flex-wrap:wrap;min-width:0">
-                    <span style="white-space:nowrap;display:inline-flex;align-items:center;gap:8px">
-                        ${kopfNameHtml}
+                    <span style="white-space:nowrap;display:inline-flex;align-items:baseline;gap:10px">
+                        <span>${name}</span>
+                        <span style="font-size:16px;font-weight:650;color:#8b8b8b">${nr}</span>
                         <span id="empNumberAliases" data-emp="${emp.id}"></span>
                     </span>
                     ${_hcBadges.join('')}
@@ -1791,9 +1782,11 @@ function heuteIsoLokal() {
 }
 
 function loadUebersichtTab() {
-    const el = document.getElementById('uebersichtContent');
     const emp = selectedEmployee;
+    const popup = !!(emp && emp._neu && document.getElementById('testNeuMaModal')?.classList.contains('offen'));
+    const el = popup ? document.getElementById('testNeuMaBody') : document.getElementById('uebersichtContent');
     if (!el || !emp) return;
+    if (popup) document.querySelectorAll('#uebersichtContent [id]').forEach(n => n.removeAttribute('id'));
 
 
     // ── Karte Personalien & Adresse (Walter 17.07.2026, 3 fixe Zeilen):
@@ -1842,9 +1835,21 @@ function loadUebersichtTab() {
             ? `${ahvZiffern.slice(0, 3)}.${ahvZiffern.slice(3, 7)}.${ahvZiffern.slice(7, 11)}.${ahvZiffern.slice(11)}`
             : ahvRoh);
     const ahvEdit = !!window._istTestinstanz;
-    const kPers = _ovCard('Personalien & Adresse', null, '', `
+    const neuZeile = emp._neu ? `
+            <div class="ov-pers-neu">
+            <div class="ov-pf"><div class="ov-pfl">Vorname</div>
+            <input id="ov-firstName" class="ov-softin" value="${esc(emp.firstName || '')}" autocomplete="off" oninput="ovDirty()"></div>
+            <div class="ov-pf"><div class="ov-pfl">Nachname</div>
+            <input id="ov-lastName" class="ov-softin" value="${esc(emp.lastName || '')}" autocomplete="off" oninput="ovDirty()"></div>
+            <div class="ov-pf"><div class="ov-pfl">Personalnummer</div>
+            <input id="ov-nr" class="ov-softin" value="${esc(emp.employeeNumber || '')}" inputmode="numeric" autocomplete="off" oninput="ovNrPruefen()">
+            <div id="ov-nr-hinweis" class="ov-nr-hinweis"></div></div>
+            <input type="hidden" id="ov-land" value="${esc(((emp.country || 'CH') + '').trim() || 'CH')}">
+            </div>` : '';
+    const kPers = _ovCard(emp._neu ? 'Neuer Mitarbeiter' : 'Personalien & Adresse', null, '', `
         <div class="ov-pers-body">
         <div class="ov-pers-aligned">
+            ${neuZeile}
             <div class="ov-pers-z1">
             ${hand ? `<div class="ov-pf ov-pf-street"><div class="ov-pfl">${_t('ma.field.street','Strasse')}</div>
                 <input id="ov-street" class="ov-softin" value="${esc(emp.street)}" oninput="ovDirty()"></div>
@@ -2183,6 +2188,7 @@ function loadUebersichtTab() {
         : `<div id="pdKarte" class="ov-full" style="display:none"></div><div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div><div class="ov-addr-full">${kAddr}</div>`}</div>`;
     if (emp._neu) {
         ovNatFuellen(emp);
+        ovNrPruefen();
         ovDirty();
         return;
     }
@@ -2307,6 +2313,7 @@ function ovAbbrechen() {
     if (selectedEmployee && selectedEmployee._neu) {
         const zurueck = window._maVorNeu || null;
         window._maVorNeu = null;
+        testNeuMaZu();
         if (zurueck && typeof selectEmployee === 'function') {
             selectEmployee(zurueck);
             return;
@@ -2351,8 +2358,59 @@ function naechstePersonalnummerGlobal() {
     return String(max + 1);
 }
 
+function testNeuMaSicher() {
+    let host = document.getElementById('testNeuMaCssHost');
+    const page = document.getElementById('page-mitarbeiter') || document.body;
+    if (!host) {
+        host = document.createElement('div');
+        host.id = 'testNeuMaCssHost';
+        host.className = 'emp-detail-body ov-noscroll';
+        host.innerHTML = '<div id="testNeuMaModal"><div class="ov-full" id="testNeuMaBody"></div></div>';
+        page.appendChild(host);
+    }
+    return document.getElementById('testNeuMaModal');
+}
+function testNeuMaPlatz() {
+    const modal = document.getElementById('testNeuMaModal');
+    const tabs = document.querySelector('#empDetailPanel .emp-detail-tabs');
+    const panel = document.getElementById('empDetailPanel');
+    const ziel = tabs || panel;
+    if (!modal || !ziel) return;
+    const r = ziel.getBoundingClientRect();
+    const top = Math.max(8, r.top);
+    modal.style.top = top + 'px';
+    modal.style.left = r.left + 'px';
+    modal.style.width = r.width + 'px';
+    modal.style.maxHeight = Math.max(280, window.innerHeight - top - 12) + 'px';
+}
+function testNeuMaZu() {
+    const modal = document.getElementById('testNeuMaModal');
+    if (!modal) return;
+    modal.classList.remove('offen');
+    const body = document.getElementById('testNeuMaBody');
+    if (body) body.innerHTML = '';
+}
+function ovNrPruefen() {
+    const el = document.getElementById('ov-nr');
+    const hin = document.getElementById('ov-nr-hinweis');
+    if (!el || !hin) return;
+    const nr = el.value.trim();
+    const selbst = selectedEmployee && selectedEmployee.id > 0 ? selectedEmployee.id : -1;
+    const schon = !!nr && (_empAllRaw || []).some(e => String(e.employeeNumber || '').trim() === nr && e.id !== selbst);
+    hin.textContent = schon ? 'Diese Nummer gibt es im Test schon.' : (nr ? 'Vorschlag. Kann geändert werden, solange sie frei ist.' : 'Personalnummer fehlt.');
+    hin.classList.toggle('belegt', schon || !nr);
+    if (typeof ovDirty === 'function') ovDirty();
+}
+if (!window._testNeuMaLage) {
+    window._testNeuMaLage = true;
+    const nach = () => { if (document.getElementById('testNeuMaModal')?.classList.contains('offen')) testNeuMaPlatz(); };
+    window.addEventListener('resize', nach);
+    document.addEventListener('scroll', nach, true);
+}
 function neuerMaOeffnen() {
     if (!window._istTestinstanz) return;
+    if (typeof activeEmpTab !== 'undefined' && activeEmpTab !== 'uebersicht' && selectedEmployee && !selectedEmployee._neu && typeof switchEmpTab === 'function')
+        switchEmpTab('uebersicht');
     let nr = '';
     try { nr = naechstePersonalnummerGlobal(); } catch (_) { nr = ''; }
     window._maVorNeu = (selectedEmployee && !selectedEmployee._neu && selectedEmployee.id > 0)
@@ -2362,9 +2420,10 @@ function neuerMaOeffnen() {
         firstName: '', lastName: '', employeeNumber: nr,
         gender: '', languageCode: 'de', country: 'CH', employments: [],
     };
-    selectedEmployeeId = -1;
-    window.selectedEmployeeId = -1;
-    renderEmployeeDetail(selectedEmployee);
+    const modal = testNeuMaSicher();
+    modal.classList.add('offen');
+    testNeuMaPlatz();
+    loadUebersichtTab();
 }
 
 async function neuerMaSpeichern() {
