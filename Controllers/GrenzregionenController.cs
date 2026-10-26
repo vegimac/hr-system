@@ -9,8 +9,7 @@ namespace HrSystem.Controllers;
 
 /// <summary>
 /// Grenzregionen der ESTV. Die italienische Liste kommt täglich von der
-/// Steuerverwaltung. Eine CSV bleibt nur der Ersatz, wenn die Seite nicht
-/// erreichbar ist. Die Schweizer Gemeinden bleiben in swiss_location.
+/// Steuerverwaltung. Die Schweizer Gemeinden bleiben in swiss_location.
 /// </summary>
 [ApiController]
 [Route("api/grenzregionen")]

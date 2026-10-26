@@ -9283,22 +9283,10 @@
                     </div>
                 </div>
                 <div id="grAlert" style="margin-bottom:12px"></div>
-                <div id="grImportWrap" style="display:none;margin-top:8px;max-width:820px">
-                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-                        <button type="button" id="grEstvBtn" onclick="grEstvHolen()"
-                                style="padding:10px 16px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Von der ESTV holen</button>
-                        <span id="grEstvStand" style="font-size:16px;color:#646464">Täglich um 05:45 bei der Eidgenössischen Steuerverwaltung.</span>
-                    </div>
-                    <input type="file" id="grImportFile" accept=".csv,.txt,text/csv" style="display:none" onchange="grDatei(this)">
-                    <div class="dok-upload-dropzone" role="button" tabindex="0" style="margin-top:10px"
-                         title="Ersatzdatei: plz;ort;region;land"
-                         onclick="document.getElementById('grImportFile').click()"
-                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('grImportFile').click();}">
-                        <div class="dok-upload-dropzone-text">
-                            Ersatzdatei, falls die ESTV-Seite nicht erreichbar ist: <strong>plz;ort;region;land</strong><br>
-                            <span style="font-size:15px;color:#8b8b8b">Land ist der ISO-Code, z.B. IT. Schweizer Zeilen werden abgelehnt.</span>
-                        </div>
-                    </div>
+                <div id="grImportWrap" style="display:none;margin-top:12px;text-align:center">
+                    <button type="button" id="grEstvBtn" onclick="grEstvHolen()"
+                            style="padding:10px 16px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Von der ESTV holen</button>
+                    <div id="grEstvStand" style="margin-top:8px;font-size:16px;color:#646464">Täglich um 05:45 bei der Eidgenössischen Steuerverwaltung.</div>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
                     <input type="text" id="grSearch" placeholder="Suchen (PLZ, Ort, Region, Land)…"
@@ -10952,7 +10940,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kontrolle.js?v=20261013a"></script>
 <script type="text/plain" data-modul="js/nationen.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-locations.js?v=20261016e"></script>
-<script type="text/plain" data-modul="js/grenzregionen.js?v=20261026d"></script>
+<script type="text/plain" data-modul="js/grenzregionen.js?v=20261026e"></script>
 <script type="text/plain" data-modul="js/family-children-import.js?v=20261022e"></script>
 <script type="text/plain" data-modul="js/stammdaten-import.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/saldo-vortrag-import.js?v=20261005a"></script>

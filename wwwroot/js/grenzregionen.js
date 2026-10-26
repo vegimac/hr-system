@@ -13,7 +13,6 @@ async function grInit() {
     const isAdmin = currentUser?.role === 'admin';
     const zone = document.getElementById('grImportWrap');
     if (zone) zone.style.display = isAdmin ? '' : 'none';
-    grDropBinden();
     grEstvStand();
     const list = document.getElementById('grList');
     if (list) list.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
@@ -125,41 +124,3 @@ async function grLoeschen(id) {
     await grInit();
 }
 
-async function grDatei(input) {
-    const file = input.files && input.files[0];
-    input.value = '';
-    if (!file) return;
-    await grCsvSenden(await file.text());
-}
-
-async function grCsvSenden(text) {
-    const alert = document.getElementById('grAlert');
-    try {
-        const r = await fetch('/api/grenzregionen/import', {
-            method: 'POST', headers: ah(), body: JSON.stringify({ csv: text }),
-        });
-        const body = await r.json().catch(() => ({}));
-        if (!r.ok) {
-            if (alert) alert.innerHTML = `<div style="color:#9b2c2c">${_grE(body.error || 'Import nicht möglich.')}</div>`;
-            return;
-        }
-        const fehler = (body.fehler || []).slice(0, 8).map(_grE).join('<br>');
-        if (alert) alert.innerHTML = `<div style="color:#3f3f3f">${body.neu || 0} neu, ${body.aktualisiert || 0} aktualisiert.${fehler ? '<br>' + fehler : ''}</div>`;
-        await grInit();
-        if (alert) alert.innerHTML = `<div style="color:#3f3f3f">${body.neu || 0} neu, ${body.aktualisiert || 0} aktualisiert.${fehler ? '<br>' + fehler : ''}</div>`;
-    } catch (_) {
-        if (alert) alert.innerHTML = '<div style="color:#9b2c2c">Verbindungsfehler.</div>';
-    }
-}
-
-function grDropBinden() {
-    const zone = document.querySelector('#grImportWrap .dok-upload-dropzone');
-    if (!zone || zone.dataset.grDrop === '1') return;
-    zone.dataset.grDrop = '1';
-    zone.addEventListener('dragover', e => { e.preventDefault(); });
-    zone.addEventListener('drop', async e => {
-        e.preventDefault();
-        const file = e.dataTransfer?.files?.[0];
-        if (file) await grCsvSenden(await file.text());
-    });
-}
