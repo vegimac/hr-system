@@ -28,7 +28,7 @@ Die Seite ist in **sechs Hauptkategorie-Kacheln** gegliedert: **Lohn-Stammdaten*
 | **Banken** | SIX Bank Master API (Nacht 05:30 + Knopf); IBAN-Prüfung optional über SIX |
 | **Nationen** | ISO-3166-Codes, Alternativ-Code (Mirus) |
 | **PLZ / Gemeinden** | Ortschaften + BFS-Gemeindenummer (AMTOVZ) |
-| **Grenzregion** | Ausland-PLZ der ESTV (Ort, Region, Land). Eigene Liste, der Schweizer Gemeinde-Import lässt sie stehen |
+| **Grenzregion** | Ausland-PLZ der ESTV (Ort, Region, Land), nur per Import. Eigene Liste, der Schweizer Gemeinde-Import lässt sie stehen |
 | **Aktivitäts-Log** | Wer hat was geändert — [Audit](#audit) |
 | **easy@work API** | Verbindung, Syncs, Diagnose — [easy@work](#easyatwork) |
 | **d.velop Import** | Alte Personalakten (CSV+ZIP) |

@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Pflege der Grenzregionen (ESTV). Die Schweizer Gemeinden bleiben in
-/// swiss_location und werden von hier nicht angefasst.
+/// Grenzregionen der ESTV. Neue Zeilen nur über den CSV-Import oder den
+/// Start-Import. Die Schweizer Gemeinden bleiben in swiss_location.
 /// </summary>
 [ApiController]
 [Route("api/grenzregionen")]
@@ -39,38 +39,6 @@ public class GrenzregionenController : ControllerBase
             .Select(g => new { g.Id, g.Plz, g.Ort, g.Region, land = g.LandIso })
             .ToListAsync();
         return Ok(new { items, total = items.Count });
-    }
-
-    [HttpPost]
-    [Authorize(Roles = "admin")]
-    public async Task<IActionResult> Create([FromBody] GrenzregionEingabe dto)
-    {
-        if (!Lesen(dto, out var zeile, out var err)) return BadRequest(new { error = err });
-        if (await _db.Grenzregionen.AnyAsync(g =>
-                g.LandIso == zeile.LandIso && g.Plz == zeile.Plz && g.Ort == zeile.Ort))
-            return Conflict(new { error = $"PLZ {zeile.Plz} {zeile.Ort} ({zeile.LandIso}) gibt es schon." });
-        _db.Grenzregionen.Add(zeile);
-        await _db.SaveChangesAsync();
-        return Ok(Antwort(zeile));
-    }
-
-    [HttpPut("{id:int}")]
-    [Authorize(Roles = "admin")]
-    public async Task<IActionResult> Update(int id, [FromBody] GrenzregionEingabe dto)
-    {
-        var row = await _db.Grenzregionen.FirstOrDefaultAsync(g => g.Id == id);
-        if (row == null) return NotFound();
-        if (!Lesen(dto, out var zeile, out var err)) return BadRequest(new { error = err });
-        var doppelt = await _db.Grenzregionen.AnyAsync(g =>
-            g.Id != id && g.LandIso == zeile.LandIso && g.Plz == zeile.Plz && g.Ort == zeile.Ort);
-        if (doppelt)
-            return Conflict(new { error = $"PLZ {zeile.Plz} {zeile.Ort} ({zeile.LandIso}) gibt es schon." });
-        row.Plz = zeile.Plz;
-        row.Ort = zeile.Ort;
-        row.Region = zeile.Region;
-        row.LandIso = zeile.LandIso;
-        await _db.SaveChangesAsync();
-        return Ok(Antwort(row));
     }
 
     [HttpDelete("{id:int}")]
@@ -180,15 +148,6 @@ public class GrenzregionenController : ControllerBase
         zeile.LandIso = land;
         return true;
     }
-
-    private static object Antwort(Grenzregion g) => new
-    {
-        g.Id,
-        g.Plz,
-        g.Ort,
-        g.Region,
-        land = g.LandIso,
-    };
 
     public class GrenzregionEingabe
     {

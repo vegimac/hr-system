@@ -11,8 +11,6 @@ async function grInit() {
     const alert = document.getElementById('grAlert');
     if (alert) alert.innerHTML = '';
     const isAdmin = currentUser?.role === 'admin';
-    const bar = document.getElementById('grAdminActions');
-    if (bar) bar.style.display = isAdmin ? 'flex' : 'none';
     const zone = document.getElementById('grImportWrap');
     if (zone) zone.style.display = isAdmin ? '' : 'none';
     grDropBinden();
@@ -43,7 +41,7 @@ function grRender() {
         || (g.land || '').toLowerCase().includes(q));
     const isAdmin = currentUser?.role === 'admin';
     if (!rows.length) {
-        list.innerHTML = '<div class="emp-placeholder"><span>' + (_grCache.length ? 'Nichts gefunden.' : 'Noch keine Grenzregion. CSV oder + Eintrag.') + '</span></div>';
+        list.innerHTML = '<div class="emp-placeholder"><span>' + (_grCache.length ? 'Nichts gefunden.' : 'Noch keine Grenzregion. Die ESTV-Liste kommt mit dem Import.') + '</span></div>';
         return;
     }
     list.innerHTML = `<div style="font-size:15px;color:#8b8b8b;margin-bottom:8px">${rows.length} von ${_grCache.length}</div>
@@ -59,74 +57,10 @@ function grRender() {
             <td style="padding:10px 12px;font-size:16px">${_grE(g.region)}</td>
             <td style="padding:10px 12px;font-size:16px">${_grE(g.land)}</td>
             ${isAdmin ? `<td style="padding:10px 12px;text-align:right;white-space:nowrap">
-                <button type="button" onclick="grOpen(${g.id})" style="background:transparent;border:none;color:#3f3f3f;font-weight:600;font-size:15px;cursor:pointer">Bearbeiten</button>
                 <button type="button" onclick="grLoeschen(${g.id})" style="background:transparent;border:none;color:#9b2c2c;font-weight:600;font-size:15px;cursor:pointer">Löschen</button>
             </td>` : ''}
         </tr>`).join('')}
         </tbody></table>`;
-}
-
-function grOpen(id) {
-    const g = id ? _grCache.find(x => x.id === id) : null;
-    let bg = document.getElementById('grModalBg');
-    if (!bg) {
-        bg = document.createElement('div');
-        bg.id = 'grModalBg';
-        bg.className = 'modal-bg';
-        bg.onclick = (e) => { if (e.target === bg) grZu(); };
-        document.body.appendChild(bg);
-    }
-    bg.innerHTML = `<div class="modal" style="width:520px" onclick="event.stopPropagation()">
-        <div class="modal-hd">
-            <span class="modal-hd-title" style="font-size:22px">${g ? 'Grenzregion bearbeiten' : 'Grenzregion'}</span>
-            <button type="button" class="modal-x" onclick="grZu()">×</button>
-        </div>
-        <div class="modal-body" style="padding:22px 26px 26px">
-            <div id="grFormFehler" style="color:#9b2c2c;font-size:16px;min-height:20px;margin-bottom:8px"></div>
-            <div style="display:grid;grid-template-columns:11rem 1fr;gap:16px 18px">
-                <label style="font-size:16px;font-weight:600;color:#3f3f3f">PLZ<input id="grF-plz" maxlength="10" inputmode="numeric" value="${_grE(g?.plz || '')}" style="display:block;width:100%;padding:12px 14px;margin-top:6px;font-size:18px;font-family:inherit"></label>
-                <label style="font-size:16px;font-weight:600;color:#3f3f3f">Land (ISO)<input id="grF-land" maxlength="2" value="${_grE(g?.land || 'IT')}" style="display:block;width:100%;padding:12px 14px;margin-top:6px;font-size:18px;font-family:inherit;text-transform:uppercase"></label>
-                <label style="grid-column:1 / -1;font-size:16px;font-weight:600;color:#3f3f3f">Ort<input id="grF-ort" value="${_grE(g?.ort || '')}" style="display:block;width:100%;padding:12px 14px;margin-top:6px;font-size:18px;font-family:inherit"></label>
-                <label style="grid-column:1 / -1;font-size:16px;font-weight:600;color:#3f3f3f">Region<input id="grF-region" value="${_grE(g?.region || '')}" style="display:block;width:100%;padding:12px 14px;margin-top:6px;font-size:18px;font-family:inherit"></label>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
-                <button type="button" onclick="grZu()" style="padding:10px 18px;border-radius:12px;border:1px solid rgba(60,55,48,0.2);background:rgba(255,255,255,0.55);color:#3f3f3f;font-size:16px;font-weight:600;cursor:pointer">Abbrechen</button>
-                <button type="button" onclick="grSpeichern(${g ? g.id : 'null'})" style="padding:10px 18px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Speichern</button>
-            </div>
-        </div>
-    </div>`;
-    bg.classList.add('open');
-    document.getElementById('grF-plz')?.focus();
-}
-
-function grZu() {
-    document.getElementById('grModalBg')?.classList.remove('open');
-}
-
-async function grSpeichern(id) {
-    const fehler = document.getElementById('grFormFehler');
-    const dto = {
-        plz: document.getElementById('grF-plz')?.value || '',
-        ort: document.getElementById('grF-ort')?.value || '',
-        region: document.getElementById('grF-region')?.value || '',
-        land: document.getElementById('grF-land')?.value || '',
-    };
-    try {
-        const r = await fetch(id ? `/api/grenzregionen/${id}` : '/api/grenzregionen', {
-            method: id ? 'PUT' : 'POST',
-            headers: ah(),
-            body: JSON.stringify(dto),
-        });
-        if (!r.ok) {
-            const body = await r.json().catch(() => ({}));
-            if (fehler) fehler.textContent = body.error || 'Speichern nicht möglich.';
-            return;
-        }
-        grZu();
-        await grInit();
-    } catch (_) {
-        if (fehler) fehler.textContent = 'Verbindungsfehler.';
-    }
 }
 
 async function grLoeschen(id) {
