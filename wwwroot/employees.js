@@ -1704,11 +1704,12 @@ function renderEmployeeDetail(emp) {
     updateLsEmpSyncBtn();
 }
 
-/** easy@work-Sync-Knopf: nur Übersicht + gewählter MA, unter «Dunkel» (Walter 18.10.2026). */
+/** easy@work-Sync unter «Dunkel». Test: in der Liste Neuer MA + Bearbeiten statt easy-Neu. */
 function updateLsEmpSyncBtn() {
     const btn = document.getElementById('lsEmpSyncBtn');
-    const neu = document.getElementById('lsNeuMaBtn');
-    const edit = document.getElementById('lsBearbeitenBtn');
+    const easyNeu = document.getElementById('empEasyNeuBtn');
+    const testZeile = document.getElementById('empTestAktionen');
+    const edit = document.getElementById('empBearbeitenBtn');
     const aufUebersicht = (typeof activeEmpTab === 'undefined' || activeEmpTab === 'uebersicht');
     const aufMa = (typeof currentPageName === 'undefined' || currentPageName === 'mitarbeiter') && aufUebersicht;
     const test = !!window._istTestinstanz;
@@ -1720,9 +1721,11 @@ function updateLsEmpSyncBtn() {
             && !test;
         btn.style.display = ok ? 'inline-flex' : 'none';
     }
-    if (neu) neu.style.display = (aufMa && test) ? 'inline-flex' : 'none';
+    if (easyNeu) easyNeu.style.display = test ? 'none' : '';
+    if (testZeile) testZeile.style.display = test ? 'flex' : 'none';
     if (edit) {
-        const zeigen = aufMa && test && selectedEmployee && !selectedEmployee._neu && !selectedEmployee._testBearbeiten;
+        const zeigen = test && selectedEmployee && selectedEmployee.id > 0
+            && !selectedEmployee._neu && !selectedEmployee._testBearbeiten;
         edit.style.display = zeigen ? 'inline-flex' : 'none';
     }
 }
@@ -2319,6 +2322,7 @@ function ovAbbrechen() {
         window.selectedEmployeeId = null;
         const el = document.getElementById('uebersichtContent');
         if (el) el.innerHTML = '';
+        updateLsEmpSyncBtn();
         return;
     }
     if (selectedEmployee) {
@@ -2337,7 +2341,8 @@ document.addEventListener('onecrew-instanz', () => {
 function testPersonBearbeiten() {
     if (!window._istTestinstanz || !selectedEmployee || selectedEmployee._neu) return;
     selectedEmployee._testBearbeiten = true;
-    loadUebersichtTab();
+    if (typeof activeEmpTab !== 'undefined' && activeEmpTab !== 'uebersicht') switchEmpTab('uebersicht');
+    else loadUebersichtTab();
     ovDirty();
     updateLsEmpSyncBtn();
 }

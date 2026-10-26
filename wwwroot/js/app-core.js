@@ -2163,8 +2163,10 @@ async function saveMyPassword() {
             .then(j => {
                 const label = j && j.label ? String(j.label).trim() : '';
                 window._istTestinstanz = !!label;
-                const neuBtn = document.getElementById('empNeuBtn');
-                if (neuBtn) neuBtn.style.display = label ? '' : 'none';
+                const easyNeu = document.getElementById('empEasyNeuBtn');
+                const testZeile = document.getElementById('empTestAktionen');
+                if (easyNeu) easyNeu.style.display = label ? 'none' : '';
+                if (testZeile) testZeile.style.display = label ? 'flex' : 'none';
                 document.dispatchEvent(new CustomEvent('onecrew-instanz'));
                 if (!label) return;
                 if (document.getElementById('instanceBanner')) return;

@@ -1819,8 +1819,7 @@
             transform: translateY(-1px);
         }
 
-        /* Knöpfe unter «Dunkel», nur MA-Übersicht (Walter 26.10.2026).
-           Test: Neuer MA + Bearbeiten. Produktiv: easy@work sync. */
+        /* easy@work-Sync unter «Dunkel», nur MA-Übersicht auf Produktiv. */
         #lsEmpActions {
             position: fixed;
             top: 62px;
@@ -2681,6 +2680,16 @@
         #page-mitarbeiter .emp-eaw-new-btn:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(60, 55, 48, 0.14);
+        }
+        /* Testsystem: Neuer MA und Bearbeiten ersetzen «Neuer MA aus easy@work». */
+        #empTestAktionen {
+            display: none;
+            gap: 6px;
+        }
+        #empTestAktionen .emp-eaw-new-btn {
+            flex: 1;
+            width: auto;
+            min-width: 0;
         }
         body.theme-dark #page-mitarbeiter .emp-eaw-new-btn {
             background: #fff;

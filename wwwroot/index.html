@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261026j">
+    <link rel="stylesheet" href="css/app.css?v=20261026k">
 </head>
 <body>
 
@@ -248,8 +248,6 @@
         <!-- easy@work-Sync (Walter 18.10.2026): schmal (@ + sync), nur MA-Übersicht,
              fix unter «Dunkel» — nicht in der Sprachzeile. -->
         <div id="lsEmpActions">
-            <button type="button" id="lsNeuMaBtn" onclick="neuerMaOeffnen()" style="display:none">Neuer MA</button>
-            <button type="button" id="lsBearbeitenBtn" onclick="testPersonBearbeiten()" style="display:none">Bearbeiten</button>
             <button type="button" id="lsEmpSyncBtn" class="ls-emp-sync"
                     title="easy@work-Felder des gewählten Mitarbeiters aktualisieren"
                     onclick="lsEmpSyncClick()" style="display:none" aria-label="easy@work sync">
@@ -573,19 +571,22 @@
                             <div class="emp-list-search">
                                 <input class="emp-search-input" id="empSearch" type="text" data-i18n-placeholder="ma.search" placeholder="Suchen..." oninput="filterEmployeeList()">
                             </div>
-                            <!-- Neuer MA kommt NUR noch aus easy@work (Walter-Vorgabe 08.07.2026):
-                                 zuerst dort anlegen, dann hier importieren. Öffnet ein Modal mit dem
-                                 eingeschränkten Einzelimport (nur NEUE MA + Updates aktiver MA;
-                                 inaktive werden nie angefasst). Für alle HR-Rollen sichtbar. -->
+                            <!-- Produktiv: Neuer MA nur aus easy@work (Walter 08.07.2026).
+                                 Testsystem: dieser Knopf wird durch Neuer MA + Bearbeiten ersetzt. -->
                             <div class="liquid-role-el" data-liquid-roles="admin,superuser,user,buchhaltung" style="padding:0 12px 6px">
-                                <button type="button" class="emp-eaw-new-btn" onclick="empImportFromEasy()"
+                                <button type="button" id="empEasyNeuBtn" class="emp-eaw-new-btn" onclick="empImportFromEasy()"
                                         title="Neuen MA zuerst in easy@work anlegen — dieser Knopf holt ihn dann per Stammdaten-Sync ins System">
                                     <img src="img/easyatwork-icon.webp?v=20260628a" alt="" aria-hidden="true">
                                     <span>Neuer MA aus easy@work</span>
                                 </button>
-                                <button type="button" id="empNeuBtn" class="emp-eaw-new-btn" style="display:none;margin-top:6px"
-                                        onclick="neuerMaOeffnen()"
-                                        title="Nur Testsystem: Person direkt hier erfassen">Neuer MA</button>
+                                <div id="empTestAktionen">
+                                    <button type="button" id="empNeuBtn" class="emp-eaw-new-btn"
+                                            onclick="neuerMaOeffnen()"
+                                            title="Nur Testsystem: Person direkt hier erfassen">Neuer MA</button>
+                                    <button type="button" id="empBearbeitenBtn" class="emp-eaw-new-btn" style="display:none"
+                                            onclick="testPersonBearbeiten()"
+                                            title="Nur Testsystem: Person hier ändern">Bearbeiten</button>
+                                </div>
                             </div>
                             <div style="display:flex;gap:0;padding:0 12px 6px">
                                 <button id="empFilterAktiv"   onclick="setEmpFilter('aktiv')" data-i18n="ma.filter.active"
@@ -10884,7 +10885,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261026b"></script>
+<script src="js/app-core.js?v=20261026c"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -11677,7 +11678,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script type="text/plain" data-modul="employees.js?v=20261026j"></script>
+<script type="text/plain" data-modul="employees.js?v=20261026k"></script>
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261025a"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
