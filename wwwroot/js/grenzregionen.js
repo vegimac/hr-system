@@ -46,21 +46,21 @@ function grRender() {
         list.innerHTML = '<div class="emp-placeholder"><span>' + (_grCache.length ? 'Nichts gefunden.' : 'Noch keine Grenzregion. CSV oder + Eintrag.') + '</span></div>';
         return;
     }
-    list.innerHTML = `<div style="font-size:12px;color:#8b8b8b;margin-bottom:8px">${rows.length} von ${_grCache.length}</div>
-        <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+    list.innerHTML = `<div style="font-size:15px;color:#8b8b8b;margin-bottom:8px">${rows.length} von ${_grCache.length}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:16px">
         <thead><tr style="text-align:left;color:#646464">
-            <th style="padding:8px 10px">PLZ</th><th style="padding:8px 10px">Ort</th>
-            <th style="padding:8px 10px">Region</th><th style="padding:8px 10px">Land</th>
+            <th style="padding:10px 12px;font-size:15px">PLZ</th><th style="padding:10px 12px;font-size:15px">Ort</th>
+            <th style="padding:10px 12px;font-size:15px">Region</th><th style="padding:10px 12px;font-size:15px">Land</th>
             ${isAdmin ? '<th></th>' : ''}
         </tr></thead><tbody>
         ${rows.map(g => `<tr style="border-top:1px solid rgba(60,55,48,0.08)">
-            <td style="padding:7px 10px;font-family:monospace;font-weight:600">${_grE(g.plz)}</td>
-            <td style="padding:7px 10px">${_grE(g.ort)}</td>
-            <td style="padding:7px 10px">${_grE(g.region)}</td>
-            <td style="padding:7px 10px">${_grE(g.land)}</td>
-            ${isAdmin ? `<td style="padding:7px 10px;text-align:right;white-space:nowrap">
-                <button type="button" onclick="grOpen(${g.id})" style="background:transparent;border:none;color:#3f3f3f;font-weight:600;cursor:pointer">Bearbeiten</button>
-                <button type="button" onclick="grLoeschen(${g.id})" style="background:transparent;border:none;color:#9b2c2c;font-weight:600;cursor:pointer">Löschen</button>
+            <td style="padding:10px 12px;font-family:monospace;font-weight:600;font-size:16px">${_grE(g.plz)}</td>
+            <td style="padding:10px 12px;font-size:16px">${_grE(g.ort)}</td>
+            <td style="padding:10px 12px;font-size:16px">${_grE(g.region)}</td>
+            <td style="padding:10px 12px;font-size:16px">${_grE(g.land)}</td>
+            ${isAdmin ? `<td style="padding:10px 12px;text-align:right;white-space:nowrap">
+                <button type="button" onclick="grOpen(${g.id})" style="background:transparent;border:none;color:#3f3f3f;font-weight:600;font-size:15px;cursor:pointer">Bearbeiten</button>
+                <button type="button" onclick="grLoeschen(${g.id})" style="background:transparent;border:none;color:#9b2c2c;font-weight:600;font-size:15px;cursor:pointer">Löschen</button>
             </td>` : ''}
         </tr>`).join('')}
         </tbody></table>`;
@@ -78,20 +78,20 @@ function grOpen(id) {
     }
     bg.innerHTML = `<div class="modal" style="width:520px" onclick="event.stopPropagation()">
         <div class="modal-hd">
-            <span class="modal-hd-title">${g ? 'Grenzregion bearbeiten' : 'Grenzregion'}</span>
+            <span class="modal-hd-title" style="font-size:22px">${g ? 'Grenzregion bearbeiten' : 'Grenzregion'}</span>
             <button type="button" class="modal-x" onclick="grZu()">×</button>
         </div>
-        <div class="modal-body" style="padding:18px 22px 22px">
-            <div id="grFormFehler" style="color:#9b2c2c;font-size:13px;min-height:18px;margin-bottom:8px"></div>
-            <div style="display:grid;grid-template-columns:8rem 1fr;gap:12px 14px">
-                <label>PLZ<input id="grF-plz" maxlength="10" inputmode="numeric" value="${_grE(g?.plz || '')}" style="width:100%;padding:8px 10px;margin-top:4px"></label>
-                <label>Land (ISO)<input id="grF-land" maxlength="2" value="${_grE(g?.land || 'IT')}" style="width:100%;padding:8px 10px;margin-top:4px;text-transform:uppercase"></label>
-                <label style="grid-column:1 / -1">Ort<input id="grF-ort" value="${_grE(g?.ort || '')}" style="width:100%;padding:8px 10px;margin-top:4px"></label>
-                <label style="grid-column:1 / -1">Region<input id="grF-region" value="${_grE(g?.region || '')}" style="width:100%;padding:8px 10px;margin-top:4px"></label>
+        <div class="modal-body" style="padding:22px 26px 26px">
+            <div id="grFormFehler" style="color:#9b2c2c;font-size:16px;min-height:20px;margin-bottom:8px"></div>
+            <div style="display:grid;grid-template-columns:11rem 1fr;gap:16px 18px">
+                <label style="font-size:16px;font-weight:600;color:#3f3f3f">PLZ<input id="grF-plz" maxlength="10" inputmode="numeric" value="${_grE(g?.plz || '')}" style="display:block;width:100%;padding:12px 14px;margin-top:6px;font-size:18px;font-family:inherit"></label>
+                <label style="font-size:16px;font-weight:600;color:#3f3f3f">Land (ISO)<input id="grF-land" maxlength="2" value="${_grE(g?.land || 'IT')}" style="display:block;width:100%;padding:12px 14px;margin-top:6px;font-size:18px;font-family:inherit;text-transform:uppercase"></label>
+                <label style="grid-column:1 / -1;font-size:16px;font-weight:600;color:#3f3f3f">Ort<input id="grF-ort" value="${_grE(g?.ort || '')}" style="display:block;width:100%;padding:12px 14px;margin-top:6px;font-size:18px;font-family:inherit"></label>
+                <label style="grid-column:1 / -1;font-size:16px;font-weight:600;color:#3f3f3f">Region<input id="grF-region" value="${_grE(g?.region || '')}" style="display:block;width:100%;padding:12px 14px;margin-top:6px;font-size:18px;font-family:inherit"></label>
             </div>
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
-                <button type="button" onclick="grZu()" style="padding:8px 16px;border-radius:12px;border:1px solid rgba(60,55,48,0.2);background:rgba(255,255,255,0.55);color:#3f3f3f;font-weight:600;cursor:pointer">Abbrechen</button>
-                <button type="button" onclick="grSpeichern(${g ? g.id : 'null'})" style="padding:8px 16px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-weight:600;cursor:pointer">Speichern</button>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
+                <button type="button" onclick="grZu()" style="padding:10px 18px;border-radius:12px;border:1px solid rgba(60,55,48,0.2);background:rgba(255,255,255,0.55);color:#3f3f3f;font-size:16px;font-weight:600;cursor:pointer">Abbrechen</button>
+                <button type="button" onclick="grSpeichern(${g ? g.id : 'null'})" style="padding:10px 18px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Speichern</button>
             </div>
         </div>
     </div>`;
