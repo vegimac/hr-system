@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 114;  // 114: Grenzregion (eigene Tabelle, nicht im CH-Gemeinde-Import) · 113: Nationalität 11 und 22
+const int SchemaStand = 115;  // 115: ESTV-Liste italienische Grenzgemeinden 20 km · 114: Tabelle grenzregion
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2955,6 +2955,50 @@ using (var scope = app.Services.CreateScope())
             CREATE INDEX IF NOT EXISTS idx_grenzregion_plz ON grenzregion (plz);
         ");
         startLog.LogInformation("Stand 114: Tabelle grenzregion");
+    }
+
+    // Stand 115: die ESTV-Liste (518 Gemeinden, 20-km-Zone, ab 1.1.2024).
+    // Ergänzt nur. Von Hand erfasste Zeilen (auch DE/FR) bleiben.
+    if (dbStand < 115)
+    {
+        var grenzDatei = Path.Combine(app.Environment.ContentRootPath, "data", GrenzregionKatalog.DateiName);
+        if (!File.Exists(grenzDatei))
+            startLog.LogWarning("Stand 115: Datei fehlt: {Pfad}", grenzDatei);
+        else
+        {
+            var zeilen = GrenzregionKatalog.Lesen(grenzDatei);
+            var vorhanden = db.Grenzregionen.Where(g => g.LandIso == "IT").ToList();
+            var index = vorhanden.ToDictionary(g => g.Plz + "|" + g.Ort, g => g);
+            var neu = 0;
+            var aktualisiert = 0;
+            foreach (var z in zeilen)
+            {
+                var key = z.Plz + "|" + z.Ort;
+                if (index.TryGetValue(key, out var alt))
+                {
+                    if (alt.Region != z.Region)
+                    {
+                        alt.Region = z.Region;
+                        aktualisiert++;
+                    }
+                }
+                else
+                {
+                    var row = new Grenzregion
+                    {
+                        Plz = z.Plz,
+                        Ort = z.Ort,
+                        Region = z.Region,
+                        LandIso = z.Land,
+                    };
+                    db.Grenzregionen.Add(row);
+                    index[key] = row;
+                    neu++;
+                }
+            }
+            db.SaveChanges();
+            startLog.LogInformation("Stand 115: {Neu} italienische Grenzgemeinden neu, {Aktualisiert} Regionen nachgetragen", neu, aktualisiert);
+        }
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
