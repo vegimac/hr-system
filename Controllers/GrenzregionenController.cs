@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,8 +8,9 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Grenzregionen der ESTV. Neue Zeilen nur über den CSV-Import oder den
-/// Start-Import. Die Schweizer Gemeinden bleiben in swiss_location.
+/// Grenzregionen der ESTV. Die italienische Liste kommt täglich von der
+/// Steuerverwaltung. Eine CSV bleibt nur der Ersatz, wenn die Seite nicht
+/// erreichbar ist. Die Schweizer Gemeinden bleiben in swiss_location.
 /// </summary>
 [ApiController]
 [Route("api/grenzregionen")]
@@ -16,7 +18,58 @@ namespace HrSystem.Controllers;
 public class GrenzregionenController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public GrenzregionenController(AppDbContext db) => _db = db;
+    private readonly GrenzregionEstvImport _estv;
+    public GrenzregionenController(AppDbContext db, GrenzregionEstvImport estv)
+    {
+        _db = db;
+        _estv = estv;
+    }
+
+    [HttpGet("estv-status")]
+    [Authorize(Roles = "admin")]
+    public IActionResult EstvStatus()
+    {
+        var e = _estv.LetztesErgebnis;
+        return Ok(new
+        {
+            laeuft = _estv.LaeuftGerade,
+            ausloeser = _estv.LetzterAusloeser,
+            ok = e?.Ok,
+            anzahl = e?.Anzahl,
+            neu = e?.Neu,
+            aktualisiert = e?.Aktualisiert,
+            entfernt = e?.Entfernt,
+            fertigAm = e?.FertigAm,
+            fehler = e?.Fehler,
+        });
+    }
+
+    /// <summary>Italienische Grenzgemeinden jetzt von der ESTV-Seite holen.</summary>
+    [HttpPost("estv-holen")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> EstvHolen(CancellationToken ct)
+    {
+        if (_estv.LaeuftGerade)
+            return Conflict(new { error = "LAEUFT", message = "Der ESTV-Abruf läuft bereits." });
+        try
+        {
+            var erg = await _estv.HolenAsync("manuell", ct);
+            return Ok(new
+            {
+                ok = true,
+                anzahl = erg.Anzahl,
+                neu = erg.Neu,
+                aktualisiert = erg.Aktualisiert,
+                entfernt = erg.Entfernt,
+                fertigAm = erg.FertigAm,
+                message = $"{erg.Anzahl} Gemeinden von der ESTV. {erg.Neu} neu, {erg.Aktualisiert} aktualisiert, {erg.Entfernt} entfernt.",
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "ESTV", message = ex.Message });
+        }
+    }
 
     [HttpGet]
     [Authorize(Roles = "admin,superuser")]

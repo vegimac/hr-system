@@ -274,6 +274,14 @@ builder.Services.AddHttpClient(HrSystem.Services.Six.SixBankMasterClient.HttpCli
 builder.Services.AddSingleton<HrSystem.Services.Six.SixBankMasterClient>();
 builder.Services.AddSingleton<HrSystem.Services.Six.SixBankMasterSyncService>();
 builder.Services.AddHostedService<HrSystem.Services.Six.SixBankMasterBackgroundService>();
+// Italienische Grenzgemeinden täglich 05:45 von der ESTV-Quellensteuer-Seite.
+builder.Services.AddHttpClient(HrSystem.Services.GrenzregionEstvImport.HttpClientName, c =>
+{
+    c.Timeout = TimeSpan.FromMinutes(2);
+    c.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "OneCrew/1.0 (Grenzregion)");
+});
+builder.Services.AddSingleton<HrSystem.Services.GrenzregionEstvImport>();
+builder.Services.AddHostedService<HrSystem.Services.GrenzregionEstvBackgroundService>();
 // MA-Postfach: Login-Account-Verwaltung pro Mitarbeiter
 builder.Services.AddScoped<EmployeePostfachService>();
 // AES-Helper für verschlüsselte Secrets in der DB (z.B. SMTP-Passwort)

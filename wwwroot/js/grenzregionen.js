@@ -14,6 +14,7 @@ async function grInit() {
     const zone = document.getElementById('grImportWrap');
     if (zone) zone.style.display = isAdmin ? '' : 'none';
     grDropBinden();
+    grEstvStand();
     const list = document.getElementById('grList');
     if (list) list.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
     try {
@@ -61,6 +62,56 @@ function grRender() {
             </td>` : ''}
         </tr>`).join('')}
         </tbody></table>`;
+}
+
+async function grEstvStand() {
+    const el = document.getElementById('grEstvStand');
+    if (!el) return;
+    try {
+        const r = await fetch('/api/grenzregionen/estv-status', { headers: ah() });
+        if (!r.ok) return;
+        const s = await r.json();
+        if (s.laeuft) {
+            el.textContent = 'Wird bei der ESTV geholt…';
+            return;
+        }
+        if (!s.fertigAm) {
+            el.textContent = 'Täglich um 05:45 bei der Eidgenössischen Steuerverwaltung.';
+            return;
+        }
+        if (s.ok === false) {
+            el.textContent = s.fehler || 'Letzter Abruf fehlgeschlagen. Die bestehende Liste bleibt.';
+            return;
+        }
+        const datum = new Date(s.fertigAm).toLocaleString('de-CH', {
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        el.textContent = `Zuletzt ${datum}: ${s.anzahl} Gemeinden (${s.neu} neu, ${s.aktualisiert} aktualisiert, ${s.entfernt} entfernt).`;
+    } catch (_) { /* die Liste bleibt sichtbar */ }
+}
+
+async function grEstvHolen() {
+    const ok = await liquidConfirm(
+        'Die italienischen Gemeinden jetzt bei der ESTV holen? Was nicht mehr auf der Liste steht, wird entfernt.',
+        { title: 'Grenzregion', yesLabel: 'Holen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    const btn = document.getElementById('grEstvBtn');
+    const stand = document.getElementById('grEstvStand');
+    if (btn) btn.disabled = true;
+    if (stand) stand.textContent = 'Wird bei der ESTV geholt…';
+    try {
+        const r = await fetch('/api/grenzregionen/estv-holen', { method: 'POST', headers: ah() });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            if (stand) stand.textContent = body.message || 'Holen nicht möglich. Die bestehende Liste bleibt.';
+            return;
+        }
+        await grInit();
+    } catch (_) {
+        if (stand) stand.textContent = 'Verbindungsfehler. Die bestehende Liste bleibt.';
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 async function grLoeschen(id) {
