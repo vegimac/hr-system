@@ -2940,6 +2940,27 @@
             letter-spacing: -.02em;
             color: var(--emp-text-strong);
         }
+        #page-mitarbeiter .ov-kopf-feld {
+            font: inherit;
+            font-size: 17px;
+            font-weight: 780;
+            letter-spacing: -.02em;
+            color: #1a1a1a;
+            background: #fff;
+            border: 1px solid rgba(60,55,48,.2);
+            border-radius: 8px;
+            padding: 2px 8px;
+            height: 32px;
+            width: 9.5rem;
+            box-sizing: border-box;
+        }
+        #page-mitarbeiter .ov-kopf-feld.ov-kopf-nr {
+            width: 8rem;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        #page-mitarbeiter .ov-kopf-feld:focus { border-color: #3f3f3f; outline: none; }
+        #page-mitarbeiter .ov-kopf-feld::placeholder { color: #b8c0ca; font-weight: 600; }
         #page-mitarbeiter.liquid-employee .emp-detail-meta {
             font-size: 12px;
             color: var(--emp-text-soft);
