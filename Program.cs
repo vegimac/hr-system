@@ -2959,9 +2959,10 @@ using (var scope = app.Services.CreateScope())
 
     // Stand 115: die ESTV-Liste (518 Gemeinden, 20-km-Zone, ab 1.1.2024).
     // Ergänzt nur. Von Hand erfasste Zeilen (auch DE/FR) bleiben.
-    if (dbStand < 115)
+    // Die Zählung fängt einen Deploy ab, bei dem die Datei noch gefehlt hat.
+    if (db.Grenzregionen.Count(g => g.LandIso == "IT") < 400)
     {
-        var grenzDatei = Path.Combine(app.Environment.ContentRootPath, "data", GrenzregionKatalog.DateiName);
+        var grenzDatei = Path.Combine(app.Environment.ContentRootPath, "Data", GrenzregionKatalog.DateiName);
         if (!File.Exists(grenzDatei))
             startLog.LogWarning("Stand 115: Datei fehlt: {Pfad}", grenzDatei);
         else
