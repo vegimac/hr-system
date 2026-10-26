@@ -203,13 +203,18 @@ function qstDocPaneZoom() {
 // Schweizer Standard-Konvention wie plzLookup bei den Adressen).
 async function qstPlzLookup(plz) {
     const p = String(plz || '').trim();
-    if (!/^\d{4}$/.test(p)) return;
+    if (!/^\d{3,10}$/.test(p)) return;
     try {
         const r = await fetch(`/api/swiss-locations/by-plz?plz=${p}`, { headers: ah() });
         if (!r.ok) return;
         const list = await r.json();
         const hit = Array.isArray(list) ? list[0] : null;
         if (!hit) return;
+        if (hit.quelle === 'grenz' || (hit.land && hit.land !== 'CH')) {
+            const gAus = document.getElementById('qstGemeinde');
+            if (gAus) gAus.value = hit.ortschaftsname || hit.gemeindename || '';
+            return;
+        }
         const g = document.getElementById('qstGemeinde');
         const b = document.getElementById('qstGemeindeBfs');
         const k = document.getElementById('qstSteuerkanton');
@@ -962,10 +967,10 @@ async function openQstEntry(id) {
             const res = await fetch(`/api/swiss-locations/by-plz?plz=${encodeURIComponent(ed.zipCode)}`, { headers: ah() });
             if (!res.ok) return;
             const locs = await res.json();
-            const match = locs.find(l => l.gemeindename === ed.city) ?? locs[0];
+            const match = locs.find(l => l.gemeindename === ed.city && l.quelle !== 'grenz') ?? locs.find(l => l.quelle !== 'grenz');
             if (match) {
                 const bfsInp = document.getElementById('qstGemeindeBfs');
-                if (bfsInp && !bfsInp.value) bfsInp.value = match.bfsNr;
+                if (bfsInp && !bfsInp.value && match.bfsNr) bfsInp.value = match.bfsNr;
                 // Falls Kanton nicht aus cantonCode kam, vom swiss_location-Match übernehmen
                 const ksel = document.getElementById('qstSteuerkanton');
                 if (ksel && !ksel.value && match.kantonskuerzel) ksel.value = match.kantonskuerzel;

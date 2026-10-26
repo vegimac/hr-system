@@ -112,7 +112,7 @@ function _azEnsureModal() {
         </div>
         <div style="display:grid;grid-template-columns:2fr 90px 1fr;gap:10px 12px;margin-top:10px">
             ${fld('azStrasse', 'Strasse Nr.')}
-            ${fld('azPlz', 'PLZ', '', 'inputmode="numeric" maxlength="4" oninput="validateZip(this);if(this.value.length===4)plzLookupGeneric(this.value,\'azOrt\',null,null,\'azPlzHint\')" onblur="plzLookupGeneric(this.value,\'azOrt\',null,null,\'azPlzHint\')"')}
+            ${fld('azPlz', 'PLZ', '', 'inputmode="numeric" maxlength="10" oninput="validateZip(this);if(this.value.length>=4)plzLookupGeneric(this.value,\'azOrt\',null,null,\'azPlzHint\')" onblur="plzLookupGeneric(this.value,\'azOrt\',null,null,\'azPlzHint\')"')}
             ${fld('azOrt', 'Ort', '', 'oninput="validateCity(this)"')}
         </div>
         <div id="azPlzHint" style="font-size:11.5px;margin-top:4px;min-height:16px"></div>

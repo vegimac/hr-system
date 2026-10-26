@@ -1468,7 +1468,7 @@ function roleName(r) {
 // Mapping: Unterseiten → in Sidebar als "admin-hub" markieren, damit der
 // Systemeinstellungen-Eintrag aktiv bleibt wenn man in einem Admin-Bereich ist.
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
-                         'qst-tarife','fz-tarife','absenz-typen','behoerden','banken','nationen','swiss-locations','audit-log','aktive-sitzungen','virenscanner',
+                         'qst-tarife','fz-tarife','absenz-typen','behoerden','banken','nationen','swiss-locations','grenzregion','audit-log','aktive-sitzungen','virenscanner',
                          'perioden','elm-meldungen','elm-schnittstelle','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-lohnkonto-import','lohn-simulation','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill','austrittsbrief',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','lohndaten-empfaenger','schulung-typen','feiertage','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
@@ -1603,6 +1603,7 @@ function showPage(name) {
     if (name === 'banken')       loadBanks();
     if (name === 'nationen')     natInit();
     if (name === 'swiss-locations') locInit();
+    if (name === 'grenzregion' && typeof grInit === 'function') grInit();
     if (name === 'pregnancy-rules')  prInit();
     if (name === 'sv-saetze') loadSvSaetze();
     if (name === 'lohnpositionen') loadLohnpositionen();

@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Models;
 using HrSystem.Services;
 using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authorization;
@@ -34,34 +35,7 @@ public class SwissLocationsController : ControllerBase
             return BadRequest(new { error = "plz ist erforderlich." });
 
         var plzTrim = plz.Trim();
-        var raw = await _db.SwissLocations
-            .Where(l => l.Plz4 == plzTrim)
-            .OrderBy(l => l.Ortschaftsname)
-            .Select(l => new {
-                l.Plz4,
-                l.Ortschaftsname,
-                l.Gemeindename,
-                l.BfsNr,
-                l.Kantonskuerzel
-            })
-            .ToListAsync();
-
-        // Walter 29.07.2026: Adress-Ort ohne Kantons-Suffix («Roggwil BE» → «Roggwil»).
-        // Rohname bleibt in der Admin-Tabelle ( /admin ).
-        var list = raw.Select(l => {
-            var ort = EasyAtWorkEmployeeSyncService.StripCityCantonSuffix(l.Ortschaftsname)
-                      ?? l.Ortschaftsname;
-            return new {
-                plz4               = l.Plz4,
-                ortschaftsname     = ort,
-                // Backward-compat: ältere Clients lasen «gemeindename» als Ort.
-                gemeindename       = ort,
-                politischeGemeinde = l.Gemeindename,
-                bfsNr              = l.BfsNr,
-                kantonskuerzel     = l.Kantonskuerzel
-            };
-        }).ToList();
-
+        var list = await PlzSucheAsync(plzTrim, null);
         return Ok(list);
     }
 
@@ -74,22 +48,95 @@ public class SwissLocationsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
             return Ok(Array.Empty<object>());
-        var qLower = q.Trim().ToLower();
-        var raw = await _db.SwissLocations
-            .Where(l => l.Ortschaftsname.ToLower().Contains(qLower))
-            .OrderBy(l => l.Ortschaftsname.ToLower().StartsWith(qLower) ? 0 : 1)
-            .ThenBy(l => l.Ortschaftsname)
-            .ThenBy(l => l.Plz4)
-            .Take(25)
-            .Select(l => new { l.Plz4, l.Ortschaftsname, l.Kantonskuerzel })
-            .ToListAsync();
-        var list = raw.Select(l => new {
-            plz4           = l.Plz4,
-            ortschaftsname = EasyAtWorkEmployeeSyncService.StripCityCantonSuffix(l.Ortschaftsname)
-                             ?? l.Ortschaftsname,
-            kantonskuerzel = l.Kantonskuerzel
-        }).ToList();
+        var list = await PlzSucheAsync(null, q.Trim());
         return Ok(list);
+    }
+
+    /// <summary>
+    /// PLZ oder Ortsname in beiden Listen. Schweizer Treffer zuerst bei
+    /// gleicher PLZ, damit eine 4-stellige CH-PLZ nicht von einer Grenzregion
+    /// verdrängt wird. <paramref name="ortQuery"/> sucht im Namen (ab 2 Zeichen).
+    /// </summary>
+    private async Task<List<PlzTreffer>> PlzSucheAsync(string? plz, string? ortQuery)
+    {
+        var chQuery = _db.SwissLocations.AsQueryable();
+        var grQuery = _db.Grenzregionen.AsQueryable();
+        var qLower = (ortQuery ?? "").Trim().ToLower();
+        var hatName = qLower.Length >= 2;
+        if (!string.IsNullOrEmpty(plz))
+        {
+            chQuery = chQuery.Where(l => l.Plz4 == plz);
+            grQuery = grQuery.Where(g => g.Plz == plz);
+        }
+        else if (hatName)
+        {
+            chQuery = chQuery.Where(l => l.Ortschaftsname.ToLower().Contains(qLower));
+            grQuery = grQuery.Where(g => g.Ort.ToLower().Contains(qLower));
+        }
+        else
+            return new List<PlzTreffer>();
+
+        if (hatName)
+        {
+            chQuery = chQuery.OrderBy(l => l.Ortschaftsname).ThenBy(l => l.Plz4).Take(40);
+            grQuery = grQuery.OrderBy(g => g.Ort).ThenBy(g => g.Plz).Take(40);
+        }
+        else
+        {
+            chQuery = chQuery.OrderBy(l => l.Ortschaftsname).ThenBy(l => l.Plz4);
+            grQuery = grQuery.OrderBy(g => g.Ort).ThenBy(g => g.Plz);
+        }
+        var chRaw = await chQuery
+            .Select(l => new { l.Plz4, l.Ortschaftsname, l.Gemeindename, l.BfsNr, l.Kantonskuerzel })
+            .ToListAsync();
+        var grRaw = await grQuery
+            .Select(g => new { g.Plz, g.Ort, g.Region, g.LandIso })
+            .ToListAsync();
+
+        var list = new List<PlzTreffer>();
+        foreach (var l in chRaw)
+        {
+            var ort = EasyAtWorkEmployeeSyncService.StripCityCantonSuffix(l.Ortschaftsname)
+                      ?? l.Ortschaftsname;
+            list.Add(new PlzTreffer
+            {
+                Plz4 = l.Plz4,
+                Ortschaftsname = ort,
+                Gemeindename = ort,
+                PolitischeGemeinde = l.Gemeindename ?? "",
+                BfsNr = l.BfsNr,
+                Kantonskuerzel = l.Kantonskuerzel ?? "",
+                Region = l.Kantonskuerzel ?? "",
+                Land = "CH",
+                Quelle = "ch",
+            });
+        }
+        foreach (var g in grRaw)
+        {
+            var land = (g.LandIso ?? "").Trim().ToUpperInvariant();
+            list.Add(new PlzTreffer
+            {
+                Plz4 = g.Plz,
+                Ortschaftsname = g.Ort,
+                Gemeindename = g.Ort,
+                PolitischeGemeinde = g.Region ?? "",
+                BfsNr = null,
+                Kantonskuerzel = "",
+                Region = g.Region ?? "",
+                Land = land,
+                Quelle = "grenz",
+            });
+        }
+        if (hatName)
+        {
+            list = list
+                .OrderBy(t => t.Ortschaftsname.StartsWith(ortQuery!.Trim(), StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(t => t.Ortschaftsname)
+                .ThenBy(t => t.Plz4)
+                .Take(25)
+                .ToList();
+        }
+        return list;
     }
 
     // POST /api/swiss-locations/learn — unbekannte PLZ lernen (Walter 06.08.2026).

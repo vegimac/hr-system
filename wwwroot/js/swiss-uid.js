@@ -217,7 +217,7 @@
         const landEl = _el(opts.land);
         const pflicht = !!opts.pflicht;
 
-        if (!plzEl.getAttribute('maxlength')) plzEl.setAttribute('maxlength', '4');
+        plzEl.setAttribute('maxlength', '10');
         if (!plzEl.getAttribute('inputmode')) plzEl.setAttribute('inputmode', 'numeric');
 
         function _adrRandReset() {
@@ -254,10 +254,6 @@
         }
 
         async function lookup() {
-            if (!_istCHLand(landEl)) {
-                _adrRandReset();
-                return true;
-            }
             if (typeof w.validateZip === 'function') w.validateZip(plzEl);
             if (typeof w.plzLookupGeneric === 'function' && ortEl.id) {
                 await w.plzLookupGeneric(
@@ -265,7 +261,8 @@
                     ortEl.id,
                     kantonEl && kantonEl.id ? kantonEl.id : null,
                     bfsEl && bfsEl.id ? bfsEl.id : null,
-                    hintEl && hintEl.id ? hintEl.id : null);
+                    hintEl && hintEl.id ? hintEl.id : null,
+                    landEl && landEl.id ? landEl.id : null);
             }
             return pruefen();
         }
@@ -332,9 +329,8 @@
         }
 
         plzEl.addEventListener('input', () => {
-            if (!_istCHLand(landEl)) return;
             if (typeof w.validateZip === 'function') w.validateZip(plzEl);
-            if (plzEl.value.length === 4) lookup();
+            if (plzEl.value.trim().length >= 4) lookup();
         });
         plzEl.addEventListener('blur', () => { lookup(); });
         ortEl.addEventListener('input', () => {

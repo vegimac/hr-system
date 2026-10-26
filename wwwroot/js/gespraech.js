@@ -725,7 +725,7 @@ function bgsRenderField(f) {
                 <button type="button" class="bgs-opt bgs-yn ${v === false ? 'on' : ''}" data-key="${f.k}" data-bool="0">Nein</button>
                 <button type="button" class="bgs-opt bgs-yn ${v === true ? 'on' : ''}" data-key="${f.k}" data-bool="1">Ja</button></div>${hint}</div>`;
         case 'plz':
-            return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-short" id="bgsf_${f.k}" data-key="${f.k}" type="text" inputmode="numeric" maxlength="4" value="${esc(v)}" autocomplete="off"><div class="bgs-fhint" id="bgsPlzHint"></div></div>`;
+            return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-short" id="bgsf_${f.k}" data-key="${f.k}" type="text" inputmode="numeric" maxlength="10" value="${esc(v)}" autocomplete="off"><div class="bgs-fhint" id="bgsPlzHint"></div></div>`;
         case 'nation':
             return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" type="text" list="bgsNationList" value="${esc(v)}" placeholder="z.B. Schweiz, Italien, Kosovo" autocomplete="off"><datalist id="bgsNationList"></datalist>${hint}</div>`;
         case 'ahv':
@@ -1262,7 +1262,7 @@ document.addEventListener('keydown', e => {
 let _bgsPlzAbort = null;
 async function bgsPlzLookup(plz) {
     const hint = document.getElementById('bgsPlzHint');
-    if (!/^\d{4}$/.test((plz || '').trim())) { if (hint) hint.innerHTML = ''; return; }
+    if (!/^\d{3,10}$/.test((plz || '').trim())) { if (hint) hint.innerHTML = ''; return; }
     try {
         if (_bgsPlzAbort) _bgsPlzAbort.abort();
         _bgsPlzAbort = new AbortController();
@@ -1274,7 +1274,10 @@ async function bgsPlzLookup(plz) {
         const ortEl = document.getElementById('bgsf_ort');
         if (orte.length === 1) {
             if (ortEl && !ortEl.value) { ortEl.value = orte[0]; bgsSet('ort', orte[0]); }
-            if (hint) hint.innerHTML = `${esc(orte[0])}${list[0].kantonskuerzel ? ' · ' + esc(list[0].kantonskuerzel) : ''}`;
+            const zusatz = (list[0].land && list[0].land !== 'CH')
+                ? ((list[0].region ? ' · ' + esc(list[0].region) : '') + ' · ' + esc(list[0].land))
+                : (list[0].kantonskuerzel ? ' · ' + esc(list[0].kantonskuerzel) : '');
+            if (hint) hint.innerHTML = `${esc(orte[0])}${zusatz}`;
         } else if (hint) {
             hint.innerHTML = 'Ort wählen: ' + orte.map(o => `<button type="button" class="bgs-opt" style="padding:3px 9px;font-size:12px" onclick="bgsPickOrt('${esc(o).replace(/'/g, '&#39;')}')">${esc(o)}</button>`).join(' ');
         }

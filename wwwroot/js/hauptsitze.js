@@ -342,7 +342,7 @@ function _hsEnsureModal() {
                 <div style="grid-column:span 2">
                     <div style="display:grid;grid-template-columns:100px minmax(0,1fr) 90px 1fr;gap:10px;align-items:start">
                         <label style="${lbl}">PLZ<span class="pflicht-stern">*</span>
-                            <input id="hsPlz" inputmode="numeric" maxlength="4" placeholder="6003" style="${inp}"
+                            <input id="hsPlz" inputmode="numeric" maxlength="10" placeholder="6003" style="${inp}"
                                    data-swiss-plz data-swiss-ort="hsOrt" data-swiss-kanton="hsKanton" data-swiss-bfs="hsBfs" data-swiss-hint="hsPlzHint" data-swiss-pflicht="1">
                         </label>
                         <label style="${lbl}">Ort<span class="pflicht-stern">*</span>
@@ -407,7 +407,7 @@ function _hsEnsureModal() {
                 <div style="grid-column:span 2">
                     <div style="display:grid;grid-template-columns:100px minmax(0,1fr);gap:10px;align-items:start">
                         <label style="${lbl}">PLZ
-                            <input id="hsSvPlz" inputmode="numeric" maxlength="4" placeholder="3000" style="${inp}"
+                            <input id="hsSvPlz" inputmode="numeric" maxlength="10" placeholder="3000" style="${inp}"
                                    data-swiss-plz data-swiss-ort="hsSvOrt" data-swiss-hint="hsSvPlzHint" data-swiss-land="hsSvLand">
                         </label>
                         <label style="${lbl}">Ort

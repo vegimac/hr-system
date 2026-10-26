@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 113;  // 113: Nationalität 11 unbekannt und 22 staatenlos · 112: BFS Buchungskreis und Lohnvereinbarung am Hauptsitz
+const int SchemaStand = 114;  // 114: Grenzregion (eigene Tabelle, nicht im CH-Gemeinde-Import) · 113: Nationalität 11 und 22
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2936,6 +2936,25 @@ using (var scope = app.Services.CreateScope())
             WHERE NOT EXISTS (SELECT 1 FROM nationality WHERE code = '22');
         ");
         startLog.LogInformation("Stand 113: Nationalität 11 unbekannt und 22 staatenlos");
+    }
+
+    // Stand 114: italienische Grenzregionen. Eigene Tabelle, damit der
+    // AMTOVZ-Import (TRUNCATE swiss_location) sie nicht löscht.
+    if (dbStand < 114)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS grenzregion (
+                id       serial PRIMARY KEY,
+                plz      varchar(10) NOT NULL,
+                ort      varchar(80) NOT NULL,
+                region   varchar(80) NOT NULL DEFAULT '',
+                land_iso varchar(2)  NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_grenzregion_land_plz_ort
+                ON grenzregion (land_iso, plz, ort);
+            CREATE INDEX IF NOT EXISTS idx_grenzregion_plz ON grenzregion (plz);
+        ");
+        startLog.LogInformation("Stand 114: Tabelle grenzregion");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

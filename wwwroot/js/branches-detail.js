@@ -1412,17 +1412,27 @@ async function stmPlzLookup(rawPlz) {
     const hint     = document.getElementById('stmPlzHint');
     if (!cityEl || !kantonEl || !hint) return;
 
-    if (!/^\d{4}$/.test(plz)) { hint.innerHTML = ''; return; }
+    if (!/^\d{3,10}$/.test(plz)) { hint.innerHTML = ''; return; }
     try {
         const res = await fetch(`/api/swiss-locations/by-plz?plz=${encodeURIComponent(plz)}`, { headers: ah() });
         if (!res.ok) return;
         const locs = await res.json();
-        if (!locs.length) {
+        const ch = (locs || []).filter(l => typeof plzIstGrenz !== 'function' || !plzIstGrenz(l));
+        if ((!ch.length) && locs && locs.length) {
+            if (locs.length === 1 && typeof plzTrefferAnwenden === 'function') {
+                plzTrefferAnwenden(locs[0], cityEl, kantonEl, document.getElementById('stmBfsGemeindeNr'), null);
+                hint.innerHTML = `<span style="color:#16a34a">✓ ${plzTrefferHinweis(locs[0])}</span>`;
+            } else {
+                hint.innerHTML = `<span style="color:#8b8b8b">${locs.length} Orte in der Grenzregion für PLZ ${plz}.</span>`;
+            }
+            return;
+        }
+        if (!ch.length) {
             hint.innerHTML = `<span style="color:#b45309">⚠ PLZ ${plz} nicht im Ortschaftsverzeichnis gefunden — Ort und Kanton bitte manuell eintragen.</span>`;
             return;
         }
-        if (locs.length === 1) {
-            const l = locs[0];
+        if (ch.length === 1) {
+            const l = ch[0];
             const ortName = (typeof stripCityCantonSuffix === 'function'
                 ? stripCityCantonSuffix(l.ortschaftsname || l.gemeindename)
                 : (l.ortschaftsname || l.gemeindename));
@@ -1437,10 +1447,10 @@ async function stmPlzLookup(rawPlz) {
         // Mehrere Treffer: nur Hinweis — Ort und Kanton nicht überschreiben falls schon gefüllt.
         // Gehören alle Treffer zur SELBEN Gemeinde (z.B. Lausanne 1000–1018), ist die
         // Gemeinde-Nr. trotzdem eindeutig → setzen.
-        const bfsSet = new Set(locs.map(l => l.bfsNr).filter(Boolean));
+        const bfsSet = new Set(ch.map(l => l.bfsNr).filter(Boolean));
         const bfsEl2 = document.getElementById('stmBfsGemeindeNr');
         if (bfsEl2 && bfsSet.size === 1) bfsEl2.value = [...bfsSet][0];
-        hint.innerHTML = `<span style="color:#8b8b8b">${locs.length} Orte für PLZ ${plz} gefunden — bitte Ort manuell wählen${bfsSet.size === 1 ? ' (Gemeinde-Nr. ' + [...bfsSet][0] + ' gesetzt)' : bfsSet.size > 1 ? ' — mehrere Gemeinden, Gemeinde-Nr. bitte prüfen' : ''}.</span>`;
+        hint.innerHTML = `<span style="color:#8b8b8b">${ch.length} Orte für PLZ ${plz} gefunden — bitte Ort manuell wählen${bfsSet.size === 1 ? ' (Gemeinde-Nr. ' + [...bfsSet][0] + ' gesetzt)' : bfsSet.size > 1 ? ' — mehrere Gemeinden, Gemeinde-Nr. bitte prüfen' : ''}.</span>`;
     } catch {
         hint.innerHTML = `<span style="color:#b45309">PLZ-Lookup nicht verfügbar.</span>`;
     }
@@ -3012,7 +3022,7 @@ async function cpEmpfDelete(zuordnungId) {
 // aus der PLZ — nutzt den globalen Helfer aus employees.js (BFS-Liste).
 function cpEmpfPlzLookup() {
     const plz = document.getElementById('cpEmpfPlz')?.value || '';
-    if (!/^\d{4}$/.test(plz.trim())) return;
+    if (!/^\d{3,10}$/.test(plz.trim())) return;
     if (typeof plzLookupGeneric === 'function') {
         // Hint zeigt ✓ Ort bzw. «PLZ nicht gefunden» (z.B. Postfach-PLZ wie
         // 5001 Aarau — die stehen nicht im BFS-Ortschaftsverzeichnis, dann

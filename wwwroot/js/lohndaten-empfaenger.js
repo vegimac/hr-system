@@ -198,8 +198,8 @@ function leEnsureModal() {
             <label style="${lbl}">Postfach<input id="lePostfach" style="${inp}"></label>
             <label style="${lbl}">PLZ / Ort
                 <div style="display:flex;gap:8px">
-                    <input id="lePlz" maxlength="4" inputmode="numeric" style="${inp};width:80px;flex:none"
-                           oninput="if(this.value.length===4)lePlzLookup()" onblur="lePlzLookup()">
+                    <input id="lePlz" maxlength="10" inputmode="numeric" style="${inp};width:90px;flex:none"
+                           oninput="if(this.value.length>=4)lePlzLookup()" onblur="lePlzLookup()">
                     <input id="leOrt" style="${inp}">
                 </div>
                 <div id="lePlzHint" style="font-size:11px;font-weight:400;margin-top:3px;min-height:14px"></div>
@@ -227,7 +227,7 @@ function leEnsureModal() {
 
 function lePlzLookup() {
     const plz = document.getElementById('lePlz')?.value || '';
-    if (!/^\d{4}$/.test(plz.trim())) return;
+    if (!/^\d{3,10}$/.test(plz.trim())) return;
     if (typeof plzLookupGeneric === 'function')
         plzLookupGeneric(plz, 'leOrt', 'leKanton', null, 'lePlzHint');
 }

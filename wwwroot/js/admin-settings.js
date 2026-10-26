@@ -330,7 +330,7 @@ async function bePlzLookup(rawPlz) {
     const ortEl = document.getElementById('beOrt');
     const list  = document.getElementById('bePlzCityList');
     const hint  = document.getElementById('bePlzHint');
-    if (!ortEl || !/^\d{4}$/.test(plz)) { if (hint) hint.innerHTML = ''; return; }
+    if (!ortEl || !/^\d{3,10}$/.test(plz)) { if (hint) hint.innerHTML = ''; return; }
     try {
         const res = await fetch(`/api/swiss-locations/by-plz?plz=${encodeURIComponent(plz)}`, { headers: ah() });
         if (!res.ok) return;
@@ -340,11 +340,11 @@ async function bePlzLookup(rawPlz) {
             return;
         }
         if (locs.length === 1) {
-            const ortName = (typeof stripCityCantonSuffix === 'function'
-                ? stripCityCantonSuffix(locs[0].ortschaftsname || locs[0].gemeindename)
-                : (locs[0].ortschaftsname || locs[0].gemeindename));
-            ortEl.value = ortName;
-            if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${ortName}</span>`;
+            const ortName = (typeof plzTrefferAnwenden === 'function')
+                ? plzTrefferAnwenden(locs[0], ortEl, null, null, null)
+                : (locs[0].ortschaftsname || locs[0].gemeindename);
+            const hinweis = (typeof plzTrefferHinweis === 'function') ? plzTrefferHinweis(locs[0]) : ortName;
+            if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${hinweis}</span>`;
             if (list) list.innerHTML = '';
             return;
         }

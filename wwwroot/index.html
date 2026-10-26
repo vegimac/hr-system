@@ -1771,6 +1771,11 @@
                         <div class="admin-card-title">PLZ / Gemeinden</div>
                         <div class="admin-card-desc">Ortschaften + BFS-Gemeindenummer — Ansicht &amp; AMTOVZ-Import</div>
                     </div>
+                        <div class="admin-card" onclick="showPage('grenzregion')">
+                        <img src="img/vvkat-grenzregion.jpg?v=20261026a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Grenzregion</div>
+                        <div class="admin-card-desc">Ausland-PLZ der ESTV — Ort, Region, Land. Der Schweizer Import fasst diese Liste nicht an</div>
+                    </div>
                         <div class="admin-card" onclick="showPage('banken')">
                         <img src="img/glokat-banken.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Banken</div>
@@ -9268,6 +9273,43 @@
                 </div>
             </div>
 
+            <!-- ═══════════════ GRENZREGION (ESTV, nicht AMTOVZ) ═══════════════ -->
+            <div class="page liquid-mask fixhead" id="page-grenzregion">
+                <div class="sticky-page-head fh-page-head">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                        <h1 class="page-title">Grenzregion</h1>
+                        <p class="page-sub">PLZ, Ort, Region und Land (ISO) der ESTV-Grenzregionen. Der Import der Schweizer Gemeinden lässt diese Liste stehen. Eine PLZ in einer Adresse sucht hier mit.</p>
+                    </div>
+                    <div id="grAdminActions" style="display:none;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end;align-items:center">
+                        <button type="button" id="grNeuBtn" onclick="grOpen()"
+                                style="padding:9px 14px;border-radius:12px;border:none;background:#3f3f3f;color:#fff;font-size:13px;font-weight:600;cursor:pointer">+ Eintrag</button>
+                    </div>
+                </div>
+                <div id="grAlert" style="margin-bottom:12px"></div>
+                <div id="grImportWrap" style="display:none;margin-top:8px;max-width:720px">
+                    <input type="file" id="grImportFile" accept=".csv,.txt,text/csv" style="display:none" onchange="grDatei(this)">
+                    <div class="dok-upload-dropzone" role="button" tabindex="0"
+                         title="CSV: plz;ort;region;land"
+                         onclick="document.getElementById('grImportFile').click()"
+                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('grImportFile').click();}">
+                        <div class="dok-upload-dropzone-text">
+                            CSV laden: <strong>plz;ort;region;land</strong> hierher ziehen oder anklicken<br>
+                            <span style="font-size:12px;color:#8b8b8b">Land ist der ISO-Code, z.B. IT. Schweizer Zeilen werden abgelehnt.</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
+                    <input type="text" id="grSearch" placeholder="Suchen (PLZ, Ort, Region, Land)…"
+                           oninput="grRender()"
+                           style="flex:1;min-width:200px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                </div>
+                </div>
+                <div class="page-body">
+                <div id="grList" style="margin-top:14px"></div>
+                </div>
+            </div>
+
             <!-- ═══════════════ MUTTERSCHAFTS-REGELN ═══════════════ -->
             <!-- Walter-Vorgabe 10.06.2026: globales Regelwerk für die
                  Schwangerschaftsfristen (ArG/ArGV/OR). Wird vom Mutterschafts-
@@ -9549,9 +9591,9 @@
                     <div class="ma-field">
                         <div class="ma-field-label" data-i18n="bank.field.kontoinhaberPlz">PLZ</div>
                         <input type="text" id="baKontoinhaberPlz" class="ma-input" placeholder="08130"
-                               inputmode="numeric"
+                               inputmode="numeric" maxlength="10"
                                onblur="baKontoinhaberPlzLookup(this.value)"
-                               onkeyup="if(this.value.length===4)baKontoinhaberPlzLookup(this.value)">
+                               onkeyup="if(this.value.length>=4)baKontoinhaberPlzLookup(this.value)">
                     </div>
                     <div class="ma-field" style="grid-column:span 2">
                         <div class="ma-field-label" data-i18n="bank.field.kontoinhaberOrt">Ort</div>
@@ -9700,8 +9742,8 @@
                 <div>
                     <label class="be-lbl">PLZ</label>
                     <input type="text" id="bePlz" class="be-inp" placeholder="6002"
-                           inputmode="numeric" maxlength="4"
-                           onblur="bePlzLookup(this.value)" onkeyup="if(this.value.length===4)bePlzLookup(this.value)">
+                           inputmode="numeric" maxlength="10"
+                           onblur="bePlzLookup(this.value)" onkeyup="if(this.value.length>=4)bePlzLookup(this.value)">
                 </div>
                 <div style="grid-column:span 2">
                     <label class="be-lbl">Ort</label>
@@ -9920,9 +9962,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div style="display:grid;grid-template-columns:90px minmax(0,1.4fr) 1.2fr 1.4fr 110px;gap:10px;margin-bottom:4px">
                     <div>
                         <label class="f-label">PLZ *</label>
-                        <input id="stmZipCode" class="f-input" inputmode="numeric" maxlength="4"
+                        <input id="stmZipCode" class="f-input" inputmode="numeric" maxlength="10"
                                onblur="stmPlzLookup(this.value)"
-                               onkeyup="if(this.value.length===4)stmPlzLookup(this.value)"
+                               onkeyup="if(this.value.length>=4)stmPlzLookup(this.value)"
                                style="font-variant-numeric:tabular-nums">
                     </div>
                     <div><label class="f-label">Ort *</label><input id="stmCity" class="f-input"></div>
@@ -10885,7 +10927,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261026c"></script>
+<script src="js/app-core.js?v=20261026d"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261004a"></script>
@@ -10909,6 +10951,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kontrolle.js?v=20261013a"></script>
 <script type="text/plain" data-modul="js/nationen.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-locations.js?v=20261016e"></script>
+<script type="text/plain" data-modul="js/grenzregionen.js?v=20261026a"></script>
 <script type="text/plain" data-modul="js/family-children-import.js?v=20261022e"></script>
 <script type="text/plain" data-modul="js/stammdaten-import.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/saldo-vortrag-import.js?v=20261005a"></script>
@@ -10920,17 +10963,17 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/gs-ahv-abgleich.js?v=20261013b"></script>
 <script type="text/plain" data-modul="js/gs-fz-abgleich.js?v=20261022c"></script>
 <script type="text/plain" data-modul="js/famz-mitteilung.js?v=20261021a"></script>
-<script type="text/plain" data-modul="js/gespraech.js?v=20261015b"></script>
+<script type="text/plain" data-modul="js/gespraech.js?v=20261026a"></script>
 <script type="text/plain" data-modul="js/roster-absence-import.js?v=20261003a"></script>
 <script type="text/plain" data-modul="js/absence-report.js?v=20260831a"></script>
 <script type="text/plain" data-modul="js/akonto-lauf.js?v=20260708flex"></script>
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
-<script type="text/plain" data-modul="js/swiss-uid.js?v=20261025a"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261025o"></script>
+<script type="text/plain" data-modul="js/swiss-uid.js?v=20261026a"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261026a"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/qst-modal.js?v=20261011b"></script>
+<script type="text/plain" data-modul="js/qst-modal.js?v=20261026a"></script>
 <script type="text/plain" data-modul="js/users.js?v=20261022b"></script>
 <script type="text/plain" data-modul="js/contracts-page.js?v=20260802a"></script>
 <script type="text/plain" data-modul="js/documents.js?v=20261020j"></script>
@@ -10954,7 +10997,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
 <script type="text/plain" data-modul="js/payroll-perioden.js?v=20261003b"></script>
 <script type="text/plain" data-modul="js/sortable-table.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/admin-settings.js?v=20261025q"></script>
+<script type="text/plain" data-modul="js/admin-settings.js?v=20261026a"></script>
 <script type="text/plain" data-modul="js/admin-data-fix.js?v=20260803a"></script>
 <script type="text/plain" data-modul="js/pregnancy-rules.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/minimum-wages.js?v=20261007a"></script>
@@ -10975,7 +11018,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/swissdec-komm.js?v=20261015a"></script>
 <script type="text/plain" data-modul="js/swissdec-systemtest.js?v=20261017c"></script>
 <script type="text/plain" data-modul="js/swissdec-uebermittlung.js?v=20261002b"></script>
-<script type="text/plain" data-modul="js/hauptsitze.js?v=20261025r"></script>
+<script type="text/plain" data-modul="js/hauptsitze.js?v=20261026a"></script>
 <script type="text/plain" data-modul="js/arbeitszeit-regeln.js?v=20261007d"></script>
 <script type="text/plain" data-modul="js/feiertage.js?v=20261007a"></script>
 <script type="text/plain" data-modul="js/exit-survey-report.js?v=20260726h"></script>
@@ -11435,8 +11478,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <div class="fm-ag-adr">
                         <div class="fmf-field">
                             <label class="fmf-label">PLZ</label>
-                            <input class="fmf-input" id="fmArbeitgeberPlz" type="text" inputmode="numeric" maxlength="4" placeholder="4665"
-                                   oninput="if (this.value.length === 4) plzLookupGeneric(this.value, 'fmArbeitgeberOrt', 'fmArbeitgeberKanton', null, 'fmAgPlzHint')">
+                            <input class="fmf-input" id="fmArbeitgeberPlz" type="text" inputmode="numeric" maxlength="10" placeholder="4665"
+                                   oninput="if (this.value.length >= 4) plzLookupGeneric(this.value, 'fmArbeitgeberOrt', 'fmArbeitgeberKanton', null, 'fmAgPlzHint')">
                         </div>
                         <div class="fmf-field">
                             <label class="fmf-label">Ort</label>
@@ -11678,7 +11721,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script type="text/plain" data-modul="employees.js?v=20261026m"></script>
+<script type="text/plain" data-modul="employees.js?v=20261026n"></script>
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261025a"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
@@ -12343,8 +12386,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div style="display:grid;grid-template-columns:80px 1.3fr 64px 90px 150px;gap:7px 10px">
                     <div>
                         <label class="qst-lbl">PLZ</label>
-                        <input type="text" id="qstWagPlz" class="qst-inp" inputmode="numeric" maxlength="4" placeholder="4665"
-                               oninput="if (this.value.length === 4) plzLookupGeneric(this.value, 'qstWagOrt', 'qstWagKanton', null, null)">
+                        <input type="text" id="qstWagPlz" class="qst-inp" inputmode="numeric" maxlength="10" placeholder="4665"
+                               oninput="if (this.value.length >= 4) plzLookupGeneric(this.value, 'qstWagOrt', 'qstWagKanton', null, null)">
                     </div>
                     <div>
                         <label class="qst-lbl">Ort</label>
@@ -12704,8 +12747,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/hr-lohnausweis.js?v=20260816e"></script>
 <script type="text/plain" data-modul="js/kuendigung.js?v=20261023b"></script>
 <script type="text/plain" data-modul="js/aufforderung-arbeit.js?v=20260812b"></script>
-<script type="text/plain" data-modul="js/aerzte.js?v=20261016a"></script>
-<script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261025j"></script>
+<script type="text/plain" data-modul="js/aerzte.js?v=20261026a"></script>
+<script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261026a"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="lib/xlsx/xlsx.full.min.js?v=0.18.5"></script>
 

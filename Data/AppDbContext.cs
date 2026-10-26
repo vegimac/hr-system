@@ -82,6 +82,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeePregnancy> EmployeePregnancies => Set<EmployeePregnancy>();
     public DbSet<EmploymentModelComponent> EmploymentModelComponents => Set<EmploymentModelComponent>();
     public DbSet<SwissLocation> SwissLocations => Set<SwissLocation>();
+    public DbSet<Grenzregion> Grenzregionen => Set<Grenzregion>();
     public DbSet<Behoerde> Behoerden => Set<Behoerde>();
     public DbSet<BehoerdeSachbearbeiter> BehoerdeSachbearbeiter => Set<BehoerdeSachbearbeiter>();
     public DbSet<CompanyProfileSsl> CompanyProfileSsls => Set<CompanyProfileSsl>();
@@ -2895,6 +2896,21 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => new { e.Plz4, e.Ortschaftsname })
                   .IsUnique()
                   .HasDatabaseName("swiss_location_plz_ortschaft_unique");
+        });
+
+        modelBuilder.Entity<Grenzregion>(entity =>
+        {
+            entity.ToTable("grenzregion");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Plz).HasColumnName("plz").HasMaxLength(10);
+            entity.Property(e => e.Ort).HasColumnName("ort").HasMaxLength(80);
+            entity.Property(e => e.Region).HasColumnName("region").HasMaxLength(80);
+            entity.Property(e => e.LandIso).HasColumnName("land_iso").HasMaxLength(2);
+            entity.HasIndex(e => new { e.LandIso, e.Plz, e.Ort })
+                  .IsUnique()
+                  .HasDatabaseName("ux_grenzregion_land_plz_ort");
+            entity.HasIndex(e => e.Plz).HasDatabaseName("idx_grenzregion_plz");
         });
 
         // ── CompanyProfileSsl ──────────────────────────────────────────────

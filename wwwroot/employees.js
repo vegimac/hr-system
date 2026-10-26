@@ -50,10 +50,10 @@ function _showQstSyncToast(msg) {
 }
 
 window.validateZip = function(el) {
-    // Schweizer PLZ = 4-stellig numerisch.
+    // CH = 4 Ziffern, Grenzregion (z.B. Italien) bis 10. Nur Ziffern.
     const before = el.value;
-    const cleaned = before.replace(/\D/g, '').slice(0, 4);
-    if (cleaned !== before) {
+    const cleaned = before.replace(/\D/g, '').slice(0, 10);
+    if (/\D/.test(before)) {
         el._lastZipWarn = el._lastZipWarn || 0;
         const now = Date.now();
         if (now - el._lastZipWarn > 1500) {
@@ -1855,7 +1855,7 @@ function loadUebersichtTab() {
                 <input id="ov-street" class="ov-softin" value="${esc(emp.street)}" oninput="ovDirty()"></div>
             <div class="ov-adr-gruppe">
             <div class="ov-pf ov-pf-plz"><div class="ov-pfl">PLZ</div>
-                <input id="ov-zip" class="ov-softin" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="10" oninput="ovDirty()" onblur="plzLookupGeneric(this.value,'ov-city','ov-canton',null,'ov-plz-hint')">
+                <input id="ov-zip" class="ov-softin" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="10" oninput="ovDirty();if(this.value.replace(/\\D/g,'').length>=4)plzLookupGeneric(this.value,'ov-city','ov-canton',null,'ov-plz-hint','ov-land')" onblur="plzLookupGeneric(this.value,'ov-city','ov-canton',null,'ov-plz-hint','ov-land')">
                 <div id="ov-plz-hint" style="font-size:11px;min-height:14px"></div></div>
             <div class="ov-pf ov-pf-city"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
                 <input id="ov-city" class="ov-softin" value="${esc(stripCityCantonSuffix(emp.city))}" oninput="ovDirty()"></div>
@@ -7446,7 +7446,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
          der QST-Kanton kommt dann von der Filiale (Arbeitskanton). -->
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-address-line">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
-        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" ${efIstCHAdresse(emp) ? 'inputmode="numeric" maxlength="4"' : 'maxlength="10"'} ${ewInput}>`)}
+        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="10" ${ewInput}>`)}
         ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(stripCityCantonSuffix(emp.city))}" ${ewInput}>`)}
         <span id="ef-canton-wrap" style="${efIstCHAdresse(emp) ? 'display:contents' : 'display:none'}">
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
@@ -7657,6 +7657,42 @@ function kantonNameFor(code) {
 let _plzLookupAbort = null;
 let _plzLookupCache = new Map();
 
+function plzSuchbar(plz) { return /^\d{3,10}$/.test(plz || ''); }
+function plzLandVon(l) { return ((l && (l.land || (l.quelle === 'grenz' ? '' : 'CH'))) || 'CH').toUpperCase(); }
+function plzIstGrenz(l) { return plzLandVon(l) !== 'CH' || (l && l.quelle === 'grenz'); }
+
+function plzTrefferAnwenden(l, cityEl, cantonEl, bfsEl, landEl) {
+    if (!l) return '';
+    const land = plzLandVon(l);
+    const ortName = (typeof stripCityCantonSuffix === 'function'
+        ? stripCityCantonSuffix(l.ortschaftsname || l.gemeindename)
+        : (l.ortschaftsname || l.gemeindename)) || '';
+    if (cityEl) cityEl.value = ortName;
+    if (landEl) {
+        landEl.value = land;
+        try { landEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+    }
+    if (plzIstGrenz(l)) {
+        if (cantonEl) cantonEl.value = 'EX';
+        if (bfsEl) bfsEl.value = '';
+        if (landEl && landEl.id === 'ov-land' && typeof ovLandGeaendert === 'function') ovLandGeaendert();
+    } else {
+        if (cantonEl && l.kantonskuerzel) cantonEl.value = l.kantonskuerzel;
+        if (bfsEl && l.bfsNr) bfsEl.value = l.bfsNr;
+        if (landEl && landEl.id === 'ov-land' && typeof ovLandGeaendert === 'function') ovLandGeaendert();
+    }
+    return ortName;
+}
+
+function plzTrefferHinweis(l) {
+    const ort = (typeof stripCityCantonSuffix === 'function'
+        ? stripCityCantonSuffix(l.ortschaftsname || l.gemeindename)
+        : (l.ortschaftsname || l.gemeindename)) || '';
+    if (!plzIstGrenz(l)) return ort;
+    const region = l.region || '';
+    return ort + (region ? ' · ' + region : '') + (l.land ? ' · ' + l.land : '');
+}
+
 async function plzLookup(rawPlz) {
     const plz = (rawPlz ?? '').toString().trim();
     const cityInput   = document.getElementById('ef-city');
@@ -7664,7 +7700,7 @@ async function plzLookup(rawPlz) {
     const hint = document.getElementById('ef-plz-hint');
     if (!cityInput || !kantonSelect || !hint) return;
 
-    if (!/^\d{4}$/.test(plz)) {
+    if (!plzSuchbar(plz)) {
         hint.innerHTML = '';
         return;
     }
@@ -7690,18 +7726,14 @@ async function plzLookup(rawPlz) {
     }
 
     if (!locs.length) {
-        hint.innerHTML = `<span style="color:#b45309">⚠ PLZ ${plz} nicht im Ortschaftsverzeichnis gefunden — Ort und Kanton bitte manuell eintragen.</span>`;
+        hint.innerHTML = `<span style="color:#b45309">⚠ PLZ ${plz} weder in den Schweizer Ortschaften noch in der Grenzregion — bitte von Hand eintragen.</span>`;
         return;
     }
 
-    // Eindeutiger Treffer → automatisch setzen
     if (locs.length === 1) {
         const l = locs[0];
-        const ortName = stripCityCantonSuffix(l.ortschaftsname || l.gemeindename);
-        cityInput.value   = ortName;
-        kantonSelect.value = l.kantonskuerzel;
-        // Ortschaft ohne Kanton in Klammern (Walter 02.08.2026)
-        hint.innerHTML = `<span style="color:#16a34a">✓ ${esc(ortName)}</span>`;
+        const ortName = plzTrefferAnwenden(l, cityInput, kantonSelect, null, document.getElementById('ef-country'));
+        hint.innerHTML = `<span style="color:#16a34a">✓ ${esc(plzTrefferHinweis(l) || ortName)}</span>`;
         return;
     }
 
@@ -7710,12 +7742,12 @@ async function plzLookup(rawPlz) {
     // kann aber jederzeit auch frei tippen (und "off-list"-Werte eingeben).
     // Wenn der getippte/gewählte Wert zu einer Gemeinde matcht, wird der
     // Kanton automatisch synchronisiert.
-    bindDatalistToCityInput(cityInput, kantonSelect, null, locs, plz, hint);
+    bindDatalistToCityInput(cityInput, kantonSelect, null, locs, plz, hint, document.getElementById('ef-country'));
 }
 
 // Hilfsfunktion: hängt eine <datalist> ans Ort-Input und installiert einen
 // input-Handler, der Kanton (und ggf. BFS-Nr.) bei einem Treffer aktualisiert.
-function bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint) {
+function bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint, landEl) {
     if (!cityEl) return;
     const dlId = (cityEl.id || 'plz') + '-datalist';
 
@@ -7735,19 +7767,11 @@ function bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint) {
 
     // Wenn aktueller Wert schon einer der Treffer ist → Kanton/BFS sofort syncen
     const pre = locs.find(l => locName(l) === cityEl.value || l.gemeindename === cityEl.value);
-    if (pre) {
-        if (cantonEl) cantonEl.value = pre.kantonskuerzel;
-        if (bfsEl)    bfsEl.value    = pre.bfsNr ?? pre.bfsNumber ?? pre.bfs_number ?? '';
-        cityEl.value = locName(pre);
-    }
+    if (pre) plzTrefferAnwenden(pre, cityEl, cantonEl, bfsEl, landEl);
 
-    // Bei jeder Änderung im Ort-Feld den Kanton aktualisieren falls Match
     cityEl.oninput = () => {
         const match = locs.find(l => locName(l) === cityEl.value || l.gemeindename === cityEl.value);
-        if (match) {
-            if (cantonEl) cantonEl.value = match.kantonskuerzel;
-            if (bfsEl)    bfsEl.value    = match.bfsNr ?? match.bfsNumber ?? match.bfs_number ?? '';
-        }
+        if (match) plzTrefferAnwenden(match, cityEl, cantonEl, bfsEl, landEl);
     };
 
     if (hint) {
@@ -8494,7 +8518,7 @@ async function fmFillPermitAndNationalitySelects(currentPermitTypeId, currentNat
 // oninput="ortNameSuggest(this, '<plzId>', '<ortId>', '<kantonId>')".
 let _ortSugTimer = null, _ortSugBox = null;
 function ortSugClose() { if (_ortSugBox) { _ortSugBox.remove(); _ortSugBox = null; } }
-function ortNameSuggest(inp, plzId, ortId, kantonId) {
+function ortNameSuggest(inp, plzId, ortId, kantonId, landId) {
     clearTimeout(_ortSugTimer);
     const q = (inp.value || '').trim();
     if (q.length < 2 || /^\d/.test(q)) { ortSugClose(); return; }
@@ -8509,13 +8533,15 @@ function ortNameSuggest(inp, plzId, ortId, kantonId) {
             const box = document.createElement('div');
             box.style.cssText = `position:fixed;left:${r.left}px;top:${r.bottom + 4}px;width:${Math.max(r.width, 260)}px;z-index:9000;background:#fff;border:1px solid #e2ddd3;border-radius:10px;box-shadow:0 12px 28px rgba(60,55,48,0.18);max-height:240px;overflow:auto`;
             box.innerHTML = locs.map((l, i) =>
-                `<div data-i="${i}" style="padding:7px 12px;font-size:13px;cursor:pointer;color:#3f3f3f">${esc(l.plz4)} ${esc(l.ortschaftsname)} <span style="color:#8b8b8b">${esc(l.kantonskuerzel || '')}</span></div>`).join('');
+                `<div data-i="${i}" style="padding:7px 12px;font-size:13px;cursor:pointer;color:#3f3f3f">${esc(l.plz4)} ${esc(l.ortschaftsname)} <span style="color:#8b8b8b">${esc(plzLandVon(l) === 'CH' ? (l.kantonskuerzel || '') : ((l.region || '') + (l.land ? ' · ' + l.land : '')))}</span></div>`).join('');
             box.addEventListener('mousedown', e => {   // mousedown feuert VOR blur
                 const t = e.target.closest('[data-i]');
                 if (!t) return;
                 const l = locs[parseInt(t.getAttribute('data-i'), 10)];
                 const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
-                set(plzId, l.plz4); set(ortId, l.ortschaftsname); set(kantonId, l.kantonskuerzel);
+                set(plzId, l.plz4); set(ortId, l.ortschaftsname);
+                plzTrefferAnwenden(l, null, document.getElementById(kantonId), null, document.getElementById(landId || ''));
+                if (!landId && (plzLandVon(l) === 'CH')) set(kantonId, l.kantonskuerzel);
                 ortSugClose();
                 e.preventDefault();
             });
@@ -10695,8 +10721,8 @@ function _abEnsureModal() {
             </div>
             <div style="display:grid;grid-template-columns:2fr 80px 1fr;gap:8px;margin-top:8px">
                 <input type="text" id="abNeuStrasse" placeholder="Strasse Nr." style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white">
-                <input type="text" id="abNeuPlz" placeholder="PLZ" inputmode="numeric" maxlength="4" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
-                       oninput="validateZip(this);if(this.value.length===4)plzLookupGeneric(this.value,'abNeuOrt',null,null,'abPlzHint')"
+                <input type="text" id="abNeuPlz" placeholder="PLZ" inputmode="numeric" maxlength="10" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
+                       oninput="validateZip(this);if(this.value.length>=4)plzLookupGeneric(this.value,'abNeuOrt',null,null,'abPlzHint')"
                        onblur="plzLookupGeneric(this.value,'abNeuOrt',null,null,'abPlzHint')">
                 <input type="text" id="abNeuOrt" placeholder="Ort" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
                        oninput="validateCity(this)">
@@ -15619,10 +15645,10 @@ function openWeitererAgModal(employeeId, ag) {
                 ${f('Strasse / Nr.', `<input class="fmf-input" id="waStrasse" type="text" placeholder="z.B. Industriestrasse 13" value="${v('strasse')}">`)}
             </div>
             <div style="display:grid;grid-template-columns:90px 1fr 90px 90px;gap:6px 10px">
-                ${f('PLZ', `<input class="fmf-input" id="waPlz" type="text" inputmode="numeric" maxlength="4" placeholder="4665" value="${v('plz')}"
-                        oninput="if (this.value.length === 4 && typeof plzLookupGeneric === 'function') plzLookupGeneric(this.value, 'waOrt', 'waKanton', null, 'waPlzHint')">`)}
+                ${f('PLZ', `<input class="fmf-input" id="waPlz" type="text" inputmode="numeric" maxlength="10" placeholder="4665" value="${v('plz')}"
+                        oninput="if (this.value.length >= 4 && typeof plzLookupGeneric === 'function') plzLookupGeneric(this.value, 'waOrt', 'waKanton', null, 'waPlzHint', 'waLand')">`)}
                 ${f('Ort', `<input class="fmf-input" id="waOrt" type="text" placeholder="z.B. Oftringen" autocomplete="off" value="${v('ort')}"
-                        oninput="if (typeof ortNameSuggest === 'function') ortNameSuggest(this, 'waPlz', 'waOrt', 'waKanton')">`)}
+                        oninput="if (typeof ortNameSuggest === 'function') ortNameSuggest(this, 'waPlz', 'waOrt', 'waKanton', 'waLand')">`)}
                 ${f('Kanton', `<input class="fmf-input" id="waKanton" type="text" maxlength="2" placeholder="AG" value="${v('kanton')}">`)}
                 ${f('Land', `<input class="fmf-input" id="waLand" type="text" maxlength="2" value="${esc(ag?.land ?? 'CH')}">`)}
             </div>
@@ -15995,48 +16021,24 @@ const EMP_ADDRESS_TYPES = [
     'Sonstige'
 ];
 
-// PLZ-Lookup im Bankkonto-Modal („abweichender Empfänger") — füllt Ort
-// und setzt Land=CH bei einer 4-stelligen CH-PLZ. Bei ausländischer PLZ
-// (Land bereits gesetzt und ≠ CH) wird nichts gemacht.
+// PLZ im Bankkonto-Modal: Schweizer Ortschaft oder Grenzregion, inkl. Land.
 async function baKontoinhaberPlzLookup(rawPlz) {
-    const plz   = (rawPlz ?? '').toString().trim();
-    const ortEl = document.getElementById('baKontoinhaberOrt');
-    const landEl= document.getElementById('baKontoinhaberLand');
-    const list  = document.getElementById('baKontoinhaberCityList');
-    if (!ortEl) return;
-    if (!/^\d{4}$/.test(plz)) return;
-    const land = (landEl?.value ?? '').trim().toUpperCase();
-    if (land && land !== 'CH') return;   // ausländisch — Schweizer-Lookup übergehen
-    try {
-        const res = await fetch(`/api/swiss-locations/by-plz?plz=${encodeURIComponent(plz)}`, { headers: ah() });
-        if (!res.ok) return;
-        const locs = await res.json();
-        if (!Array.isArray(locs) || locs.length === 0) return;
-        if (locs.length === 1) {
-            ortEl.value  = locs[0].gemeindename;
-            if (landEl && !landEl.value.trim()) landEl.value = 'CH';
-            if (list) list.innerHTML = '';
-            return;
-        }
-        if (list) {
-            list.innerHTML = locs.map(l => `<option value="${l.gemeindename}">${l.kantonskuerzel}</option>`).join('');
-        }
-        if (landEl && !landEl.value.trim()) landEl.value = 'CH';
-    } catch { /* still */ }
+    return plzLookupGeneric(rawPlz, 'baKontoinhaberOrt', null, null, null, 'baKontoinhaberLand');
 }
 
-// Generischer PLZ-Lookup für beliebige Field-IDs (Hauptadresse hat eigene Funktion).
-// cantonId/bfsId/hintId optional — z.B. Ärzte-Formular hat nur PLZ+Ort
-// (Walter 20.07.2026: gleiche Auswahlliste bei mehreren Orten pro PLZ).
-async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
+// Generischer PLZ-Lookup. Sucht Schweizer Ortschaften und die Grenzregion.
+// landId optional: bei einem Grenz-Treffer wird das Land gesetzt und der
+// Wohnkanton auf EX.
+async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId, landId) {
     const plz = (rawPlz ?? '').toString().trim();
     const cityEl   = document.getElementById(cityId);
     const cantonEl = cantonId ? document.getElementById(cantonId) : null;
     const bfsEl    = bfsId ? document.getElementById(bfsId) : null;
     const hint     = hintId ? document.getElementById(hintId) : null;
+    const landEl   = landId ? document.getElementById(landId) : null;
     if (!cityEl) return;
 
-    if (!/^\d{4}$/.test(plz)) { if (hint) hint.innerHTML = ''; return; }
+    if (!plzSuchbar(plz)) { if (hint) hint.innerHTML = ''; return; }
 
     let locs = _plzLookupCache.get(plz);
     if (!locs) {
@@ -16049,22 +16051,16 @@ async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
     }
 
     if (!locs.length) {
-        if (hint) hint.innerHTML = `<span style="color:#b45309">⚠ PLZ ${plz} nicht gefunden — bitte manuell eintragen.</span>`;
+        if (hint) hint.innerHTML = `<span style="color:#b45309">⚠ PLZ ${esc(plz)} weder in den Schweizer Ortschaften noch in der Grenzregion — bitte von Hand eintragen.</span>`;
         return;
     }
     if (locs.length === 1) {
         const l = locs[0];
-        const ortName = stripCityCantonSuffix(l.ortschaftsname || l.gemeindename);
-        cityEl.value = ortName;
-        if (cantonEl) cantonEl.value = l.kantonskuerzel;
-        if (bfsEl) bfsEl.value = l.bfsNr ?? l.bfsNumber ?? l.bfs_number ?? '';
-        if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${esc(ortName)}</span>`;
+        plzTrefferAnwenden(l, cityEl, cantonEl, bfsEl, landEl);
+        if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${esc(plzTrefferHinweis(l))}</span>`;
         return;
     }
-    // Mehrere Treffer → Combobox im Ort-Feld via HTML5-<datalist>.
-    // Gleiche UX wie bei der Hauptadresse: User klickt im Ort-Feld auf
-    // den Pfeil und sieht die Vorschläge, kann aber frei tippen.
-    bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint);
+    bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint, landEl);
 }
 
 function _otherAddressesContainers() {
@@ -16209,7 +16205,7 @@ function openEmployeeAddressModal(existing) {
                 ${eField(_t('addr.field.street','Strasse'),  `<input id="empAddr-street"  class="ef-input" value="${esc(a.street)}">`)}
                 ${eField(_t('addr.field.street2','Strasse 2'), `<input id="empAddr-street2" class="ef-input" value="${esc(a.street2)}">`)}
                 ${eField(_t('addr.field.poBox','Postfach'),  `<input id="empAddr-poBox"   class="ef-input" value="${esc(a.poBox)}">`)}
-                ${eField(_t('addr.field.zipCode','PLZ'),     `<input id="empAddr-zip" class="ef-input" value="${esc(a.zipCode)}" inputmode="numeric" maxlength="4" oninput="validateZip(this)" onblur="plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')" onkeyup="if(this.value.length===4)plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')">`)}
+                ${eField(_t('addr.field.zipCode','PLZ'),     `<input id="empAddr-zip" class="ef-input" value="${esc(a.zipCode)}" inputmode="numeric" maxlength="10" oninput="validateZip(this);if(this.value.length>=4)plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint','empAddr-country')" onblur="plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint','empAddr-country')">`)}
                 ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(stripCityCantonSuffix(a.city))}" oninput="validateCity(this)">`)}
                 ${eField('BFS-Nr.',                          `<input id="empAddr-bfs"  class="ef-input" value="${esc(a.bfsNumber)}">`)}
                 ${eField(_t('addr.field.canton','Kanton'),   renderKantonSelect('empAddr-canton', a.canton))}
