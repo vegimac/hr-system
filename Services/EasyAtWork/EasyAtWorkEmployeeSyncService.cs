@@ -793,7 +793,7 @@ public class EasyAtWorkEmployeeSyncService
         if (!emp.IsPayrollExcluded)
         {
             var pdK = await PersonaldatenKontextAsync(ct);
-            var (pdFehler, pdOffen) = PersonaldatenNeu(pdK, master, emp.Id > 0 ? emp : null, null, eaw.Id);
+            var (pdFehler, pdOffen) = PersonaldatenNeu(pdK, master, emp.Id > 0 ? emp : null, eaw.Id);
             if (pdFehler.Count > 0)
             {
                 result.Errors.Add("Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(pdFehler) + " — bitte in easy@work korrigieren, nichts übernommen.");
@@ -1945,6 +1945,21 @@ public class EasyAtWorkEmployeeSyncService
                 continue;
             }
 
+            // Gleicher Vorname, Nachname und Geburtsdatum — oder dieselbe AHV-Nummer —
+            // wie ein anderer Mitarbeiter: bei JEDEM easy@work-Import verboten
+            // (Walter 26.10.2026). Auch ohne sonstige Feldänderung, auch beim
+            // Wiedereintritt mit neuer easy-Nummer. Nichts wird angelegt oder geändert.
+            var doppelt = PersonOderAhvDoppelt(pd, master, co);
+            if (doppelt != null)
+            {
+                row.Status = "CONFLICT";
+                row.Reason = "Personaldaten: " + doppelt.Text + " — bitte in easy@work korrigieren. Nicht importiert.";
+                row.Diffs = new();
+                res.Rows.Add(row); res.CountConflict++;
+                res.Notes.Add($"⚠ {master.FirstName} {master.LastName} (Nr. {row.Number}): {doppelt.Text} Nicht importiert.");
+                continue;
+            }
+
             // Über eine ALTE Nummer gematcht? (matchender Key ≠ aktuelle Personalnr.)
             if (co != null && matchedKey != null
                 && !string.Equals(co.EmployeeNumber?.Trim(), matchedKey, StringComparison.OrdinalIgnoreCase))
@@ -2046,11 +2061,7 @@ public class EasyAtWorkEmployeeSyncService
             // bestehende Mängel meldet das To-do «personaldaten_pruefen».
             if ((co == null || diffs.Any(d => d.WillSet)) && co?.IsPayrollExcluded != true)
             {
-                int? wiedereintrittId = null;
-                if (co == null && eaw.BirthDate.HasValue
-                    && byNameDob.TryGetValue(NameDobKey(eaw.FirstName, eaw.LastName, eaw.BirthDate.Value), out var reCand))
-                    wiedereintrittId = reCand.Id;
-                var (pdFehler, pdOffen) = PersonaldatenNeu(pd, master, co, wiedereintrittId, eaw.Id);
+                var (pdFehler, pdOffen) = PersonaldatenNeu(pd, master, co, eaw.Id);
                 if (pdFehler.Count > 0 || pdOffen.Count > 0)
                 {
                     row.Status = "CONFLICT";
@@ -2503,15 +2514,17 @@ public class EasyAtWorkEmployeeSyncService
                     // user_id wird NICHT mehr geprüft (Walter 29.06.2026) — nur eaw.Id.
                     var existingByEawId = await _db.Employees.FirstOrDefaultAsync(
                         e => !e.IsHidden && e.EasyAtWorkEmployeeId == eawKey, ct);
-                    // Stufe 2: gleicher Name+Geburtsdatum (Wiedereintritt mit NEUER eaw-ID).
-                    // Nur, wenn die Vorschau das vermutet hat (row.PossibleReentry) —
-                    // ist ein VORSCHLAG; wer es nicht will, deselektiert die Zeile.
-                    bool viaNameDob = false;
+                    // Gleicher Vorname, Nachname und Geburtsdatum ist kein Wiedereintritt
+                    // mehr (Walter 26.10.2026): die Zeile wird nicht zusammengeführt
+                    // und nicht angelegt. Gilt für jeden easy@work-Import.
                     if (existingByEawId == null && row.PossibleReentry && row.ReentryEmployeeId.HasValue)
                     {
-                        existingByEawId = await _db.Employees.FirstOrDefaultAsync(e => e.Id == row.ReentryEmployeeId.Value, ct);
-                        viaNameDob = existingByEawId != null;
+                        res.Notes.Add($"⚠ {eaw.FirstName} {eaw.LastName} (Nr. {eaw.Number}): gleicher Vorname, Nachname und Geburtsdatum wie Nr. {row.ReentryEmployeeNumber}. Nicht importiert.");
+                        row.Status = "CONFLICT";
+                        row.Reason = $"Gleicher Vorname, Nachname und Geburtsdatum wie Nr. {row.ReentryEmployeeNumber} — bitte in easy@work korrigieren. Nicht importiert.";
+                        continue;
                     }
+                    bool viaNameDob = false;
                     if (existingByEawId != null && !viaNameDob)
                     {
                         var mNeu = masterByEaw[row.EawEmployeeId];
@@ -4945,16 +4958,27 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
+    /// Anderer Mitarbeiter mit gleichem Vornamen, Nachnamen und Geburtsdatum,
+    /// oder mit derselben AHV-Nummer. Die Person selbst (alt) zählt nicht.
+    /// </summary>
+    private static PdBefund? PersonOderAhvDoppelt(PersonaldatenKontext k, EmployeeMasterData m, Employee? alt)
+    {
+        var p = PersonNachImport(m, alt, k);
+        return k.Duplikate.Pruefe(alt?.Id, p.Ahv, p.Vorname, p.Nachname, p.Geburt)
+            .FirstOrDefault(b => b.Code is "PERSON_DOPPELT" or "AHV_DOPPELT");
+    }
+
+    /// <summary>
     /// Was der Import falsch machen würde. Gleicher Vorname, Nachname und
     /// Geburtsdatum wie ein anderer Mitarbeiter blockiert immer — auch bei einem
     /// neuen Datensatz und auch wenn der Stand schon so war (Walter 26.10.2026).
     /// </summary>
     private static (List<PdBefund> Fehler, List<PdBefund> Offen) PersonaldatenNeu(
-        PersonaldatenKontext k, EmployeeMasterData m, Employee? alt, int? wiedereintrittId, int eawId)
+        PersonaldatenKontext k, EmployeeMasterData m, Employee? alt, int eawId)
     {
         var neuP = PersonNachImport(m, alt, k);
         var neu = PersonaldatenPruefung.Pruefe(neuP, k.Heute, null, k.ChPlz);
-        var duplikat = k.Duplikate.Pruefe(alt?.Id ?? wiedereintrittId, neuP.Ahv, neuP.Vorname, neuP.Nachname, neuP.Geburt);
+        var duplikat = k.Duplikate.Pruefe(alt?.Id, neuP.Ahv, neuP.Vorname, neuP.Nachname, neuP.Geburt);
         neu.AddRange(duplikat);
 
         List<PdBefund> befunde = neu;
