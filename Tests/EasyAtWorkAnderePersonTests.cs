@@ -35,6 +35,24 @@ public class EasyAtWorkAnderePersonTests
             "anna lena", "Meier", null));
 
     [Fact]
+    public void Sync_AndererDatensatz_GleicherNameUndGeburtstag_Verboten()
+        => Assert.True(EasyAtWorkEmployeeSyncService.IstZweiterEasyDatensatz(
+            100, "580108", "Gazele", "Jemmo", new DateTime(1999, 1, 1),
+            200, "580999", "Gazele", "Jemmo", new DateOnly(1999, 1, 1)));
+
+    [Fact]
+    public void Sync_GleicheBadge_IdReparatur_Erlaubt()
+        => Assert.False(EasyAtWorkEmployeeSyncService.IstZweiterEasyDatensatz(
+            100, "580108alt", "Gazele", "Jemmo", new DateTime(1999, 1, 1),
+            200, "580108", "Gazele", "Jemmo", new DateOnly(1999, 1, 1)));
+
+    [Fact]
+    public void Sync_GleicheEasyId_Erlaubt()
+        => Assert.False(EasyAtWorkEmployeeSyncService.IstZweiterEasyDatensatz(
+            100, "580108", "Gazele", "Jemmo", new DateTime(1999, 1, 1),
+            100, "580999", "Gazele", "Jemmo", new DateOnly(1999, 1, 1)));
+
+    [Fact]
     public void BeideNamenAnders_OhneGeburtstag_AnderePerson()
         => Assert.True(EasyAtWorkEmployeeSyncService.IstAnderePerson(
             "Sahra", "Dschafari", null,

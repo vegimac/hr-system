@@ -772,6 +772,19 @@ public class EasyAtWorkEmployeeSyncService
         }
         result.EasyAtWorkEmployeeId = eaw.Id;
 
+        // @sync darf keinen zweiten easy@work-Datensatz auf diesen MA schreiben
+        // (Walter 26.10.2026). Aktiv-Vorrang und die Namenssuche lösen sonst
+        // einen anderen Datensatz mit gleichem Vornamen, Nachnamen und
+        // Geburtsdatum auf und überschreiben E-Mail, Telefon und Verknüpfung.
+        // Dieselbe Badge (ID-Reparatur, «alt»-Suffix) bleibt erlaubt.
+        if (IstZweiterEasyDatensatz(
+                emp.EasyAtWorkEmployeeId, emp.EmployeeNumber, emp.FirstName, emp.LastName, emp.DateOfBirth,
+                eaw.Id, eaw.Number, eaw.FirstName, eaw.LastName, eaw.BirthDate))
+        {
+            result.Errors.Add($"Gleicher Vorname, Nachname und Geburtsdatum, aber anderer easy@work-Datensatz Nr. {eaw.Number}. Nicht übernommen — bitte in easy@work korrigieren.");
+            return result;
+        }
+
         var natByCode = await _db.Nationalities.AsNoTracking()
             .ToDictionaryAsync(n => (n.Code ?? "").ToUpperInvariant(), n => n.Id, ct);
         var master = await BuildMasterDataAsync(matchedCustomerId!.Value, eaw, natByCode, includeDetailCalls: true, ct);
@@ -790,20 +803,30 @@ public class EasyAtWorkEmployeeSyncService
         }
 
         // Personaldaten-Plausibilität (Walter 15.10.2026) — wie im Massenimport.
-        if (!emp.IsPayrollExcluded)
+        // Doppelter Name oder doppelte AHV blockiert jeden @sync, auch wenn der
+        // MA sonst von der Prüfung ausgenommen wäre (Walter 26.10.2026).
         {
             var pdK = await PersonaldatenKontextAsync(ct);
-            var (pdFehler, pdOffen) = PersonaldatenNeu(pdK, master, emp.Id > 0 ? emp : null, eaw.Id);
-            if (pdFehler.Count > 0)
+            var nameDoppelt = PersonOderAhvDoppelt(pdK, master, emp.Id > 0 ? emp : null);
+            if (nameDoppelt != null)
             {
-                result.Errors.Add("Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(pdFehler) + " — bitte in easy@work korrigieren, nichts übernommen.");
+                result.Errors.Add("Personaldaten: " + nameDoppelt.Text + " — bitte in easy@work korrigieren, nichts übernommen.");
                 return result;
             }
-            if (pdOffen.Count > 0)
+            if (!emp.IsPayrollExcluded)
             {
-                result.Bestaetigen = pdOffen;
-                result.Errors.Add("Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(pdOffen) + " — Bestätigung nötig, nichts übernommen.");
-                return result;
+                var (pdFehler, pdOffen) = PersonaldatenNeu(pdK, master, emp.Id > 0 ? emp : null, eaw.Id);
+                if (pdFehler.Count > 0)
+                {
+                    result.Errors.Add("Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(pdFehler) + " — bitte in easy@work korrigieren, nichts übernommen.");
+                    return result;
+                }
+                if (pdOffen.Count > 0)
+                {
+                    result.Bestaetigen = pdOffen;
+                    result.Errors.Add("Personaldaten: " + PersonaldatenPruefung.Zusammenfassung(pdOffen) + " — Bestätigung nötig, nichts übernommen.");
+                    return result;
+                }
             }
         }
 
@@ -5003,6 +5026,29 @@ public class EasyAtWorkEmployeeSyncService
         var fehler = befunde.Where(b => b.Stufe == PdStufe.Fehler).ToList();
         var offen = PersonaldatenPruefung.OhneBestaetigte(befunde.Where(b => b.Stufe == PdStufe.Bestaetigen), ok);
         return (fehler, offen);
+    }
+
+    /// <summary>
+    /// Der @sync hat einen anderen easy@work-Datensatz aufgelöst (andere ID und
+    /// andere Personalnummer) mit gleichem Vornamen, Nachnamen und Geburtsdatum.
+    /// Das ist der verbotene zweite Datensatz, keine ID-Reparatur derselben Badge
+    /// (Walter 26.10.2026).
+    /// </summary>
+    public static bool IstZweiterEasyDatensatz(
+        int? gespeicherteEawId, string? gespeicherteNummer,
+        string? gespeicherterVorname, string? gespeicherterNachname, DateTime? gespeicherteGeburt,
+        int aufgeloesteEawId, string? aufgeloesteNummer,
+        string? aufgeloesterVorname, string? aufgeloesterNachname, DateOnly? aufgeloesteGeburt)
+    {
+        if (gespeicherteEawId == aufgeloesteEawId) return false;
+        if (IsSameNumberIgnoringAlt(gespeicherteNummer, aufgeloesteNummer)) return false;
+        if (aufgeloesteGeburt == null || gespeicherteGeburt == null) return false;
+        if (aufgeloesteGeburt.Value != DateOnly.FromDateTime(gespeicherteGeburt.Value)) return false;
+        var vor = PersonaldatenDuplikate.NormName(aufgeloesterVorname);
+        var nach = PersonaldatenDuplikate.NormName(aufgeloesterNachname);
+        if (vor.Length == 0 || nach.Length == 0) return false;
+        return vor == PersonaldatenDuplikate.NormName(gespeicherterVorname)
+            && nach == PersonaldatenDuplikate.NormName(gespeicherterNachname);
     }
 
     /// <summary>
