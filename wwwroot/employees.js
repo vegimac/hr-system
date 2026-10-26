@@ -1957,17 +1957,13 @@ function loadUebersichtTab() {
             </div>
             ${istCH
                 ? ''
-                // Walter-Vorgabe 20.08.2026: letzte Bewilligung direkt in der
-                // MA-Maske — read-only Info aus der jüngsten Permit-History
-                // (emp.permitType/Expiry), Klick springt in den Bewilligungs-Tab.
+                // Letzte Bewilligung, read-only. Klick springt in den Bewilligungs-Tab.
+                // Datum gleich gross wie die anderen Daten, mit führender Null (Walter 26.10.2026).
                 : `<div class="ov-pf ov-pf-bew" title="Neueste Bewilligung — Klick öffnet den Tab «Bewilligung QST Bank»"
                         style="cursor:pointer" onclick="switchEmpTab('quellensteuer')">
                     <div class="ov-pfl">Bewilligung</div>
                     <div class="ov-pfv">${emp.permitType
-                        // Walter-Vorgabe 20.08.2026 (final): B sticht ins Auge
-                        // (fett, Link-Look — Klick springt zur Bewilligung),
-                        // «bis dd.mm.jjjj» klein und nicht fett daneben.
-                        ? `<b style="font-size:15px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(60,55,48,0.35)">${esc(emp.permitType.code)}</b>${emp.permitExpiryDate ? `<span class="ov-bew-bis">bis ${formatDate(emp.permitExpiryDate)}</span>` : ''}`
+                        ? `<b class="ov-bew-code">${esc(emp.permitType.code)}</b>${emp.permitExpiryDate ? `<span class="ov-bew-bis">bis <span class="ov-bew-datum">${(/^\d{4}-\d{2}-\d{2}/.test(String(emp.permitExpiryDate)) ? `${String(emp.permitExpiryDate).slice(8,10)}.${String(emp.permitExpiryDate).slice(5,7)}.${String(emp.permitExpiryDate).slice(0,4)}` : formatDate(emp.permitExpiryDate))}</span></span>` : ''}`
                         : '<span class="ov-empty" style="color:#b91c1c;font-weight:600">– keine erfasst –</span>'}</div>
                 </div>`}
             ${istCH
