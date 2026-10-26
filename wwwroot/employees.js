@@ -1926,15 +1926,6 @@ function loadUebersichtTab() {
                 ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
                 ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
             </select></div>
-            <div class="ov-pf ov-pf-nat">
-                <div class="ov-pfl">${_t('ma.field.nationality','Nationalität')}</div>
-                <div class="ov-nat-zeile">
-                <select id="ov-nat" class="ov-softin" onchange="ovDirty()" title="ISO 3166, plus 11 unbekannt und 22 staatenlos">
-                    <option value="${emp.nationalityId || ''}">${esc(emp.nationalityName || emp.nationalityCode || emp.nationality || '–')}</option>
-                </select>
-                ${directDocButton(emp.idPassDokumentId, 'id_pass', 'passport')}
-                </div>
-            </div>
             <div class="ov-pf ov-pf-lang">
                 <div class="ov-pfl">Sprache</div>
                 <select id="ov-lang" class="ov-softin" onchange="ovDirty()" title="DE, FR, IT, EN">
@@ -1954,6 +1945,15 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-pf-mail">
                 <div class="ov-pfl">E-Mail</div>
                 <input id="ov-email" class="ov-softin" type="email" value="${esc(emp.email)}" title="${esc(emp.email)}" oninput="ovDirty()">
+            </div>
+            <div class="ov-pf ov-pf-nat">
+                <div class="ov-pfl">${_t('ma.field.nationality','Nationalität')}</div>
+                <div class="ov-nat-zeile">
+                <select id="ov-nat" class="ov-softin" onchange="ovDirty()" title="ISO 3166, plus 11 unbekannt und 22 staatenlos">
+                    <option value="${emp.nationalityId || ''}">${esc(emp.nationalityName || emp.nationalityCode || emp.nationality || '–')}</option>
+                </select>
+                ${directDocButton(emp.idPassDokumentId, 'id_pass', 'passport')}
+                </div>
             </div>
             ${istCH
                 ? ''

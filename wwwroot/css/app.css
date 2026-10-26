@@ -4198,16 +4198,16 @@
                 minmax(120px, 1.05fr)  /* Kurzname */
                 84px                   /* Geschlecht, ein Buchstabe */
                 minmax(230px, 1.7fr)   /* Konfession, «Israelitische Kultusgemeinde» */
-                minmax(220px, 1.55fr)  /* Nationalität + Ausweis, «Mazedonien (MK)» */
                 58px                   /* Sprache, zwei Buchstaben */
                 146px;                 /* Geburtsdatum + Kalender */
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b {
             grid-template-columns:
-                168px                 /* Mobilnummer */
-                minmax(280px, 1fr)    /* E-Mail, nimmt den Rest der Zeile */
-                max-content           /* Bewilligung */
-                132px;                /* ZEMIS */
+                168px                  /* Mobilnummer */
+                300px                  /* E-Mail, nicht die ganze Zeile */
+                minmax(260px, 1.4fr)   /* Nationalität, rechts neben der E-Mail */
+                max-content            /* Bewilligung */
+                132px;                 /* ZEMIS */
             column-gap: 16px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a > .ov-pf,
@@ -4270,7 +4270,7 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-mail .ov-softin {
             width: 100%;
-            max-width: none;
+            max-width: 300px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-bew-code {
             font-size: 14.5px;
