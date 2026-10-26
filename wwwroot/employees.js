@@ -1841,41 +1841,39 @@ function loadUebersichtTab() {
             <div class="ov-pers-z1">
             ${hand ? `<div class="ov-pf ov-pf-street"><div class="ov-pfl">${_t('ma.field.street','Strasse')}</div>
                 <input id="ov-street" class="ov-softin" value="${esc(emp.street)}" oninput="ovDirty()"></div>
+            <div class="ov-adr-gruppe">
             <div class="ov-pf ov-pf-plz"><div class="ov-pfl">PLZ</div>
                 <input id="ov-zip" class="ov-softin" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="10" oninput="ovDirty()" onblur="plzLookupGeneric(this.value,'ov-city','ov-canton',null,'ov-plz-hint')">
                 <div id="ov-plz-hint" style="font-size:11px;min-height:14px"></div></div>
-            <div class="ov-pf ov-pf-ortkt"><div class="ov-ortkt">
-                <div class="ov-pf ov-pf-city"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
+            <div class="ov-pf ov-pf-city"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
                 <input id="ov-city" class="ov-softin" value="${esc(stripCityCantonSuffix(emp.city))}" oninput="ovDirty()"></div>
-                <div class="ov-pf ov-pf-kt"><div class="ov-pfl">Kt.</div>
+            <div class="ov-pf ov-pf-kt"><div class="ov-pfl">Kt.</div>
                 ${renderKantonSelect('ov-canton', ((emp.country || 'CH').trim().toUpperCase() !== 'CH' && (emp.country || '').trim() !== '') ? 'EX' : (emp.cantonCode || ''), 'onchange="ovDirty()"')}</div>
-            </div></div>` : `
+            </div>` : `
             <div class="ov-pf ov-pf-street" title="${esc(emp.street || '')}">
                 <div class="ov-pfl">${_t('ma.field.street','Strasse')}</div>
                 <div class="ov-pfv">${esc(emp.street) || '<span class="ov-empty">–</span>'}</div>
             </div>
+            <div class="ov-adr-gruppe">
             <div class="ov-pf ov-pf-plz">
                 <div class="ov-pfl">PLZ</div>
                 <div class="ov-pfv">${esc(emp.zipCode) || '<span class="ov-empty">–</span>'}</div>
             </div>
-            <div class="ov-pf ov-pf-ortkt">
-                <div class="ov-ortkt">
-                    <div class="ov-pf ov-pf-city" title="${esc(stripCityCantonSuffix(emp.city) || '')}">
-                        <div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
-                        <div class="ov-pfv">${esc(stripCityCantonSuffix(emp.city)) || '<span class="ov-empty">–</span>'}</div>
-                    </div>
-                    <div class="ov-pf ov-pf-kt">
-                        ${(() => {
-                            const land = (emp.country || 'CH').trim();
-                            const auslandAdr = land && land.toUpperCase() !== 'CH' && land.toLowerCase() !== 'schweiz';
-                            return auslandAdr
-                                ? `<div class="ov-pfl">Land</div>
-                                   <div class="ov-pfv" title="Wohnsitz im Ausland — QST-Kanton = Kanton der Filiale (Arbeitskanton)"><span style="color:#1d4ed8;font-weight:700">${esc(land)}</span></div>`
-                                : `<div class="ov-pfl">Kt.</div>
-                                   <div class="ov-pfv">${esc(emp.cantonCode) || '<span class="ov-empty">–</span>'}</div>`;
-                        })()}
-                    </div>
-                </div>
+            <div class="ov-pf ov-pf-city" title="${esc(stripCityCantonSuffix(emp.city) || '')}">
+                <div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
+                <div class="ov-pfv">${esc(stripCityCantonSuffix(emp.city)) || '<span class="ov-empty">–</span>'}</div>
+            </div>
+            <div class="ov-pf ov-pf-kt">
+                ${(() => {
+                    const land = (emp.country || 'CH').trim();
+                    const auslandAdr = land && land.toUpperCase() !== 'CH' && land.toLowerCase() !== 'schweiz';
+                    return auslandAdr
+                        ? `<div class="ov-pfl">Land</div>
+                           <div class="ov-pfv" title="Wohnsitz im Ausland — QST-Kanton = Kanton der Filiale (Arbeitskanton)"><span style="color:#1d4ed8;font-weight:700">${esc(land)}</span></div>`
+                        : `<div class="ov-pfl">Kt.</div>
+                           <div class="ov-pfv">${esc(emp.cantonCode) || '<span class="ov-empty">–</span>'}</div>`;
+                })()}
+            </div>
             </div>`}
             <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefonnummer</div>
             <input id="ov-phone2" class="ov-softin" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div>
@@ -1969,7 +1967,7 @@ function loadUebersichtTab() {
                         // Walter-Vorgabe 20.08.2026 (final): B sticht ins Auge
                         // (fett, Link-Look — Klick springt zur Bewilligung),
                         // «bis dd.mm.jjjj» klein und nicht fett daneben.
-                        ? `<b style="font-size:15px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(60,55,48,0.35)">${esc(emp.permitType.code)}</b>${emp.permitExpiryDate ? `<span style="font-size:11.5px;font-weight:400;color:#8b8b8b"> bis ${formatDate(emp.permitExpiryDate)}</span>` : ''}`
+                        ? `<b style="font-size:15px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(60,55,48,0.35)">${esc(emp.permitType.code)}</b>${emp.permitExpiryDate ? `<span class="ov-bew-bis">bis ${formatDate(emp.permitExpiryDate)}</span>` : ''}`
                         : '<span class="ov-empty" style="color:#b91c1c;font-weight:600">– keine erfasst –</span>'}</div>
                 </div>`}
             ${istCH
@@ -1979,15 +1977,16 @@ function loadUebersichtTab() {
             </div>
             </div>
 
-            <div class="ov-pf">
+            <div class="ov-pers-z4">
+            <div class="ov-pf ov-pf-zivil">
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
                 <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${directDocButton(emp.zivilstandDokumentId, 'zivilstand', 'marriage_cert')}
                     <button type="button" class="qst-warum-btn" style="margin-left:6px;vertical-align:middle;padding:2px 10px;font-size:11px" title="Zivilstand-Historie — Zivilstand mit Gültig-ab (für QST-Alt-Einträge)" onclick="openZivilstandHistorie(${emp.id})">🕘 Historie</button>
                 </div>
             </div>
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
+            <div class="ov-pf ov-pf-seit"><div class="ov-pfl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
             <input id="ov-maritalStatusSince" class="ov-softin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()"></div>
-            <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
+            <div class="ov-pf ov-pf-ledig"><div class="ov-pfl">${_t('ma.field.maidenName','Ledigname')}</div>
             <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
             ${(() => {
                 // Familienbetreuung (Walter 12.10.2026): nur aus easy@work, hier nur Anzeige.
@@ -2007,7 +2006,8 @@ function loadUebersichtTab() {
                 </div>`;
             })()}
             <div class="ov-pf ov-pf-schuh"><div class="ov-pfl">Schuhgrösse</div>
-            <input id="ov-schuhgroesse" class="ov-softin" type="text" inputmode="decimal" value="${esc(emp.schuhgroesse)}" placeholder="z.B. 42" maxlength="10" oninput="ovDirty()"></div>
+            <input id="ov-schuhgroesse" class="ov-softin" type="text" inputmode="decimal" value="${esc(emp.schuhgroesse)}" placeholder="42" maxlength="10" oninput="ovDirty()"></div>
+            </div>
         </div>
         </div>`,
         `${window._istTestinstanz ? `<button type="button" class="ov-hbtn" onclick="neuerMaOeffnen()">Neuer MA</button>${emp._neu || emp._testBearbeiten ? '' : `<button type="button" class="ov-hbtn" onclick="testPersonBearbeiten()">Bearbeiten</button>`}` : ''}<button type="button" id="ovCancelBtn" class="ov-hbtn ov-savebtn" style="display:none" onclick="ovAbbrechen()">Abbrechen</button><button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);

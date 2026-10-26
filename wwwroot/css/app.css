@@ -4075,21 +4075,43 @@
             grid-column: 1 / -1;
             display: grid;
             grid-template-columns:
-                minmax(130px, 1.55fr)  /* Strasse */
-                92px                   /* PLZ */
-                minmax(150px, 1.35fr)  /* Ort + Kanton */
-                minmax(128px, 1fr)     /* Telefon */
-                minmax(270px, 1.7fr);  /* AHV + unbekannt */
-            column-gap: 12px;
+                minmax(150px, 1.15fr)  /* Strasse */
+                max-content            /* PLZ + Ort + Kanton, eng beieinander */
+                168px                  /* Telefon +41 … */
+                minmax(250px, 1fr);    /* AHV + unbekannt */
+            column-gap: 16px;
             align-items: start;
             min-width: 0;
             padding-bottom: 11px;
             border-bottom: 1px solid rgba(90, 80, 65, 0.10);
             margin-bottom: 4px;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 > .ov-pf {
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 > .ov-pf,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe > .ov-pf {
             min-width: 0;
             margin-bottom: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-plz {
+            flex: 0 0 6.6ch;
+            width: 6.6ch;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city {
+            flex: 0 1 12rem;
+            width: 12rem;
+            max-width: 13rem;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-kt {
+            flex: 0 0 54px;
+            width: 54px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-tel2 .ov-softin {
+            max-width: 168px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf {
             min-width: 0;
@@ -4143,7 +4165,7 @@
             flex: 1 1 auto;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ortkt > .ov-pf-kt {
-            flex: 0 0 68px; /* Kt. + Pfeil des Auswahlfelds */
+            flex: 0 0 54px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-sex {
             max-width: 44px;
@@ -4169,20 +4191,22 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a {
             grid-template-columns:
-                minmax(108px, 1.15fr)  /* Briefanrede */
-                minmax(64px, 0.55fr)   /* Kurzname */
-                92px                   /* Geschlecht — Label «Geschlecht» */
-                minmax(108px, 1fr)     /* Konfession */
-                minmax(150px, 1.35fr)  /* Nationalität + Ausweis */
-                72px                   /* Sprache */
-                minmax(158px, 1fr);    /* Geburtsdatum inkl. Kalender */
+                minmax(118px, 1fr)     /* Briefanrede */
+                minmax(120px, 1.05fr)  /* Kurzname */
+                84px                   /* Geschlecht, ein Buchstabe */
+                minmax(210px, 2.15fr)  /* Konfession, «Israelitische Kultusgemeinde» */
+                minmax(150px, 1.2fr)   /* Nationalität + Ausweis */
+                58px                   /* Sprache, zwei Buchstaben */
+                146px;                 /* Geburtsdatum + Kalender */
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b {
+            justify-content: start;
             grid-template-columns:
-                minmax(158px, 0.85fr)  /* Mobil */
-                minmax(220px, 1.8fr)   /* E-Mail */
-                minmax(168px, 1fr)     /* Bewilligung «B bis dd.mm.yyyy» */
-                minmax(148px, 0.7fr);  /* ZEMIS */
+                158px          /* Mobilnummer */
+                270px          /* E-Mail */
+                max-content    /* Bewilligung */
+                132px;         /* ZEMIS */
+            column-gap: 18px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a > .ov-pf,
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b > .ov-pf {
@@ -4238,24 +4262,57 @@
             overflow: visible;
             text-overflow: clip;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-zemis .ov-softin {
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-mobil .ov-softin {
             width: 100%;
-            max-width: 100%;
+            max-width: 158px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-mail .ov-softin {
+            width: 100%;
+            max-width: 270px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-bew-bis {
+            margin-left: 8px;
+            font-size: 11.5px;
+            font-weight: 400;
+            color: #8b8b8b;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z4 {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns:
+                minmax(188px, 1.25fr)  /* Zivilstand + Historie */
+                146px                  /* Zivilstand seit */
+                minmax(150px, 1.25fr)  /* Ledigname */
+                minmax(240px, 2fr)     /* Familienbetreuung */
+                92px;                  /* Schuhgrösse, zwei Ziffern */
+            column-gap: 14px;
+            align-items: start;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z4 > .ov-pf {
+            min-width: 0;
+            margin-bottom: 0;
+            max-width: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-zemis .ov-softin,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-zemis .ov-softin {
+            width: 100%;
+            max-width: 132px;
         }
         /* Familienbetreuung 1 Spalte (darf umbrechen), daneben Schuhgrösse (Walter 15.10.2026) */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-fb .ov-pfv {
             white-space: normal;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-schuh .ov-softin {
-            width: 90px;
-            max-width: 90px;
+            width: 100%;
+            max-width: 92px;
         }
         /* ZEMIS-Nr. — Feld nicht auf Spaltenbreite strecken, aber breit genug
            für das lange Format «017.335.114-6» (Walter 21.08.2026: 118px
            schnitt die letzte Ziffer ab). */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-zemis .ov-softin {
-            width: 150px;
-            max-width: 150px;
+            width: 132px;
+            max-width: 132px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-slot > .ov-pf {
             width: 100%;
