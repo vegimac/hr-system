@@ -4068,11 +4068,28 @@
             align-items: start;
             margin-bottom: 10px;
         }
-        /* Z1 vom Rest trennen */
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf:nth-child(-n+5) {
+        /* Z1 eigene Spalten: PLZ nur 4 Ziffern, Kanton mit Pfeil, AHV inkl. «unbekannt».
+           Nicht die 5 Spalten der Karte — sonst wird die PLZ so breit wie die Strasse
+           und «unbekannt» am Rand abgeschnitten (Walter 26.10.2026). */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns:
+                minmax(130px, 1.55fr)  /* Strasse */
+                92px                   /* PLZ */
+                minmax(150px, 1.35fr)  /* Ort + Kanton */
+                minmax(128px, 1fr)     /* Telefon */
+                minmax(270px, 1.7fr);  /* AHV + unbekannt */
+            column-gap: 12px;
+            align-items: start;
+            min-width: 0;
             padding-bottom: 11px;
             border-bottom: 1px solid rgba(90, 80, 65, 0.10);
             margin-bottom: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 > .ov-pf {
+            min-width: 0;
+            margin-bottom: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf {
             min-width: 0;
@@ -4087,12 +4104,13 @@
             white-space: nowrap; overflow: visible; font-variant-numeric: tabular-nums;
         }
         #page-mitarbeiter.liquid-employee .ov-ahv-eingabe {
-            width: 18ch !important; min-width: 18ch !important; max-width: none;
-            flex: 0 0 auto; padding-right: 2px !important;
+            width: auto !important; min-width: 15ch !important; max-width: 18ch;
+            flex: 1 1 15ch; padding-right: 2px !important;
         }
         #page-mitarbeiter.liquid-employee .ov-ahv-unb {
             font-size: 12px; color: #3f3f3f; white-space: nowrap;
             display: flex; align-items: center; gap: 4px;
+            flex: 0 0 auto;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .ov-softin {
             width: 100%;
@@ -4125,7 +4143,7 @@
             flex: 1 1 auto;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ortkt > .ov-pf-kt {
-            flex: 0 0 36px; /* Kt. = 3 Zeichen */
+            flex: 0 0 68px; /* Kt. + Pfeil des Auswahlfelds */
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-sex {
             max-width: 44px;
@@ -4267,7 +4285,7 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
             color: rgba(210, 220, 232, 0.78) !important;
         }
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf:nth-child(-n+5) {
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 {
             border-bottom-color: rgba(255, 255, 255, 0.10);
         }
         /* Anstellung / Nachtarbeit = mittlere Zeile (kompakt, Walter 26.07.2026) */

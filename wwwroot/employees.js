@@ -1838,6 +1838,7 @@ function loadUebersichtTab() {
         <div class="ov-pers-body">
         ${handKopf}
         <div class="ov-pers-aligned">
+            <div class="ov-pers-z1">
             ${hand ? `<div class="ov-pf ov-pf-street"><div class="ov-pfl">${_t('ma.field.street','Strasse')}</div>
                 <input id="ov-street" class="ov-softin" value="${esc(emp.street)}" oninput="ovDirty()"></div>
             <div class="ov-pf ov-pf-plz"><div class="ov-pfl">PLZ</div>
@@ -1897,6 +1898,7 @@ function loadUebersichtTab() {
                     <div class="ov-pfv ov-ahv-voll">${ahvText ? esc(ahvText) : '<span class="ov-empty">–</span>'}</div>
                     ${!ahvUnbekannt && ahvRoh ? directDocButton(emp.ahvKarteDokumentId, 'ahv_karte', 'ahv_card') : ''}
                 </div>`}
+            </div>
             </div>
 
             <div class="ov-pers-z2">
@@ -2008,7 +2010,7 @@ function loadUebersichtTab() {
             <input id="ov-schuhgroesse" class="ov-softin" type="text" inputmode="decimal" value="${esc(emp.schuhgroesse)}" placeholder="z.B. 42" maxlength="10" oninput="ovDirty()"></div>
         </div>
         </div>`,
-        `${window._istTestinstanz ? `<button type="button" class="ov-hbtn" onclick="neuerMaOeffnen()">Neuer MA</button>${emp._neu || emp._testBearbeiten ? '' : `<button type="button" class="ov-hbtn" onclick="testPersonBearbeiten()">Bearbeiten</button>`}` : ''}<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
+        `${window._istTestinstanz ? `<button type="button" class="ov-hbtn" onclick="neuerMaOeffnen()">Neuer MA</button>${emp._neu || emp._testBearbeiten ? '' : `<button type="button" class="ov-hbtn" onclick="testPersonBearbeiten()">Bearbeiten</button>`}` : ''}<button type="button" id="ovCancelBtn" class="ov-hbtn ov-savebtn" style="display:none" onclick="ovAbbrechen()">Abbrechen</button><button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
     // Weitere Adressen = eigene Box unten (Walter 02.08.2026).
     // Titelzeile: «Weitere Adressen» [(n)] · Beschreibung (Walter 02.08.2026).
@@ -2298,6 +2300,26 @@ async function ovKuendAmChanged(empId) {
 function ovSave() {
     saveEmpEdit();
 }
+function ovAbbrechen() {
+    if (selectedEmployee && selectedEmployee._neu) {
+        const zurueck = window._maVorNeu || null;
+        window._maVorNeu = null;
+        if (zurueck && typeof selectEmployee === 'function') {
+            selectEmployee(zurueck);
+            return;
+        }
+        selectedEmployee = null;
+        selectedEmployeeId = null;
+        window.selectedEmployeeId = null;
+        const el = document.getElementById('uebersichtContent');
+        if (el) el.innerHTML = '';
+        return;
+    }
+    if (selectedEmployee) {
+        delete selectedEmployee._testBearbeiten;
+        if (typeof loadUebersichtTab === 'function') loadUebersichtTab();
+    }
+}
 
 document.addEventListener('onecrew-instanz', () => {
     if (window._istTestinstanz && selectedEmployee && document.getElementById('uebersichtContent'))
@@ -2330,6 +2352,8 @@ function neuerMaOeffnen() {
             }
         }
     } catch (_) { /* Vorschlag bleibt leer */ }
+    window._maVorNeu = (selectedEmployee && !selectedEmployee._neu && selectedEmployee.id > 0)
+        ? selectedEmployee.id : (selectedEmployeeId > 0 ? selectedEmployeeId : null);
     selectedEmployee = {
         _neu: true, id: -1, isActive: true, isPayrollExcluded: false,
         firstName: '', lastName: '', employeeNumber: nr,
