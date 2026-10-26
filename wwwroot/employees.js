@@ -1707,14 +1707,24 @@ function renderEmployeeDetail(emp) {
 /** easy@work-Sync-Knopf: nur Übersicht + gewählter MA, unter «Dunkel» (Walter 18.10.2026). */
 function updateLsEmpSyncBtn() {
     const btn = document.getElementById('lsEmpSyncBtn');
-    if (!btn) return;
+    const neu = document.getElementById('lsNeuMaBtn');
+    const edit = document.getElementById('lsBearbeitenBtn');
     const aufUebersicht = (typeof activeEmpTab === 'undefined' || activeEmpTab === 'uebersicht');
-    const ok = (typeof currentPageName === 'undefined' || currentPageName === 'mitarbeiter')
-        && window.selectedEmployeeId
-        && window._lsEmpSyncAllowed
-        && aufUebersicht
-        && !selectedEmployee?._neu;
-    btn.style.display = ok ? 'inline-flex' : 'none';
+    const aufMa = (typeof currentPageName === 'undefined' || currentPageName === 'mitarbeiter') && aufUebersicht;
+    const test = !!window._istTestinstanz;
+    if (btn) {
+        const ok = aufMa
+            && window.selectedEmployeeId
+            && window._lsEmpSyncAllowed
+            && !selectedEmployee?._neu
+            && !test;
+        btn.style.display = ok ? 'inline-flex' : 'none';
+    }
+    if (neu) neu.style.display = (aufMa && test) ? 'inline-flex' : 'none';
+    if (edit) {
+        const zeigen = aufMa && test && selectedEmployee && !selectedEmployee._neu && !selectedEmployee._testBearbeiten;
+        edit.style.display = zeigen ? 'inline-flex' : 'none';
+    }
 }
 
 // ═══════════ TAB «UEBERSICHT» (Etappe 2, Walter 17.07.2026) ═══════════
@@ -2006,7 +2016,7 @@ function loadUebersichtTab() {
             </div>
         </div>
         </div>`,
-        `${window._istTestinstanz ? `<button type="button" class="ov-hbtn" onclick="neuerMaOeffnen()">Neuer MA</button>${emp._neu || emp._testBearbeiten ? '' : `<button type="button" class="ov-hbtn" onclick="testPersonBearbeiten()">Bearbeiten</button>`}` : ''}<button type="button" id="ovCancelBtn" class="ov-hbtn ov-savebtn" style="display:none" onclick="ovAbbrechen()">Abbrechen</button><button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
+        `<button type="button" id="ovCancelBtn" class="ov-hbtn ov-savebtn" style="display:none" onclick="ovAbbrechen()">Abbrechen</button><button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
     // Weitere Adressen = eigene Box unten (Walter 02.08.2026).
     // Titelzeile: «Weitere Adressen» [(n)] · Beschreibung (Walter 02.08.2026).
@@ -2315,9 +2325,11 @@ function ovAbbrechen() {
         delete selectedEmployee._testBearbeiten;
         if (typeof loadUebersichtTab === 'function') loadUebersichtTab();
     }
+    updateLsEmpSyncBtn();
 }
 
 document.addEventListener('onecrew-instanz', () => {
+    if (typeof updateLsEmpSyncBtn === 'function') updateLsEmpSyncBtn();
     if (window._istTestinstanz && selectedEmployee && document.getElementById('uebersichtContent'))
         loadUebersichtTab();
 });
@@ -2327,6 +2339,7 @@ function testPersonBearbeiten() {
     selectedEmployee._testBearbeiten = true;
     loadUebersichtTab();
     ovDirty();
+    updateLsEmpSyncBtn();
 }
 
 function neuerMaOeffnen() {
