@@ -1759,7 +1759,49 @@ function _ovF(label, value) {
 
 function landIstCh(roh) {
     const u = (roh || '').trim().toUpperCase();
-    return !u || u === 'CH' || u === 'CHE' || u === 'SCHWEIZ' || u === 'SWITZERLAND';
+    return !u || u === 'CH' || u === 'CHE' || u === 'SCHWEIZ' || u === 'SWITZERLAND'
+        || u === 'SUISSE' || u === 'SVIZZERA';
+}
+
+/** Gespeicherter Wert = ISO-2. Anzeige im Menü = englisch, gross (SWITZERLAND). */
+function maLandIso(roh) {
+    const u = (roh || '').trim().toUpperCase();
+    if (!u || u === 'CH' || u === 'CHE' || u === 'SCHWEIZ' || u === 'SWITZERLAND'
+        || u === 'SUISSE' || u === 'SVIZZERA') return 'CH';
+    return /^[A-Z]{2}$/.test(u) ? u : 'CH';
+}
+
+function maLandName(iso) {
+    const code = maLandIso(iso);
+    if (window.SwissUid && typeof SwissUid.landNameEn === 'function') return SwissUid.landNameEn(code);
+    return code === 'CH' ? 'SWITZERLAND' : code;
+}
+
+function maLandSelectHtml(id, iso, extra) {
+    const code = maLandIso(iso);
+    let sel = (window.SwissUid && typeof SwissUid.landSelectHtml === 'function')
+        ? SwissUid.landSelectHtml(id, code, '')
+        : `<select id="${id}"><option value="${code}" selected>${maLandName(code)}</option></select>`;
+    if (!sel.includes('value="' + code + '"'))
+        sel = sel.replace(/>/, '><option value="' + code + '" data-kurz="' + code + '" selected>' + maLandName(code) + '</option>');
+    sel = sel.replace(/<option value="([A-Z0-9]+)"/g, '<option value="$1" data-kurz="$1"');
+    sel = sel.replace('<select ', '<select class="ov-softin ef-input" ' + (extra || '')
+        + ' onchange="maLandGeaendert(\'' + id + '\')" ');
+    return '<div class="ma-land-zeile">' + sel
+        + '<span class="ma-land-en" id="' + id + '-en">' + maLandName(code) + '</span></div>';
+}
+
+function maLandGeaendert(id) {
+    const el = document.getElementById(id);
+    const iso = maLandIso(el && el.value);
+    const name = document.getElementById(id + '-en');
+    if (name) name.textContent = maLandName(iso);
+    if (id === 'ov-land' && typeof ovLandGeaendert === 'function') ovLandGeaendert();
+    if (id === 'ef-country' && typeof efLandChanged === 'function') efLandChanged();
+    if (id === 'empAddr-country') {
+        const kt = document.getElementById('empAddr-canton');
+        if (kt && iso !== 'CH') kt.value = 'EX';
+    }
 }
 
 function maHandErfasst(emp) {
@@ -1844,7 +1886,6 @@ function loadUebersichtTab() {
             <div class="ov-pf"><div class="ov-pfl">Personalnummer</div>
             <input id="ov-nr" class="ov-softin" value="${esc(emp.employeeNumber || '')}" inputmode="numeric" autocomplete="off" oninput="ovNrPruefen()">
             <div id="ov-nr-hinweis" class="ov-nr-hinweis"></div></div>
-            <input type="hidden" id="ov-land" value="${esc(((emp.country || 'CH') + '').trim() || 'CH')}">
             </div>` : '';
     const kPers = _ovCard(emp._neu ? 'Neuer Mitarbeiter' : 'Personalien & Adresse', null, '', `
         <div class="ov-pers-body">
@@ -1860,7 +1901,9 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-pf-city"><div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
                 <input id="ov-city" class="ov-softin" value="${esc(stripCityCantonSuffix(emp.city))}" oninput="ovDirty()"></div>
             <div class="ov-pf ov-pf-kt"><div class="ov-pfl">Kt.</div>
-                ${renderKantonSelect('ov-canton', ((emp.country || 'CH').trim().toUpperCase() !== 'CH' && (emp.country || '').trim() !== '') ? 'EX' : (emp.cantonCode || ''), 'onchange="ovDirty()"')}</div>
+                ${renderKantonSelect('ov-canton', maLandIso(emp.country) !== 'CH' ? 'EX' : (emp.cantonCode || ''), 'onchange="ovDirty()"')}</div>
+            <div class="ov-pf ov-pf-land"><div class="ov-pfl">Land</div>
+                ${maLandSelectHtml('ov-land', emp.country || 'CH', '')}</div>
             </div>` : `
             <div class="ov-pf ov-pf-street" title="${esc(emp.street || '')}">
                 <div class="ov-pfl">${_t('ma.field.street','Strasse')}</div>
@@ -1876,15 +1919,12 @@ function loadUebersichtTab() {
                 <div class="ov-pfv">${esc(stripCityCantonSuffix(emp.city)) || '<span class="ov-empty">–</span>'}</div>
             </div>
             <div class="ov-pf ov-pf-kt">
-                ${(() => {
-                    const land = (emp.country || 'CH').trim();
-                    const auslandAdr = land && land.toUpperCase() !== 'CH' && land.toLowerCase() !== 'schweiz';
-                    return auslandAdr
-                        ? `<div class="ov-pfl">Land</div>
-                           <div class="ov-pfv" title="Wohnsitz im Ausland — QST-Kanton = Kanton der Filiale (Arbeitskanton)"><span style="color:#1d4ed8;font-weight:700">${esc(land)}</span></div>`
-                        : `<div class="ov-pfl">Kt.</div>
-                           <div class="ov-pfv">${esc(emp.cantonCode) || '<span class="ov-empty">–</span>'}</div>`;
-                })()}
+                <div class="ov-pfl">Kt.</div>
+                <div class="ov-pfv">${esc(maLandIso(emp.country) !== 'CH' ? 'EX' : (emp.cantonCode || '')) || '<span class="ov-empty">–</span>'}</div>
+            </div>
+            <div class="ov-pf ov-pf-land" title="${maLandIso(emp.country) !== 'CH' ? 'Wohnsitz im Ausland — QST-Kanton = Kanton der Filiale' : 'ISO-Code, dahinter der englische Ländername.'}">
+                <div class="ov-pfl">Land</div>
+                <div class="ov-pfv ma-land-zeile"><span class="ma-land-code">${esc(maLandIso(emp.country))}</span><span class="ma-land-en">${esc(maLandName(emp.country))}</span></div>
             </div>
             </div>`}
             <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefonnummer</div>
@@ -7454,7 +7494,9 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         <span id="ef-canton-wrap" style="${efIstCHAdresse(emp) ? 'display:contents' : 'display:none'}">
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
         </span>
-        ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" oninput="efLandChanged()" title="Land des Hauptwohnsitzes (aus easy@work) — bei Ausland gilt der Filial-Kanton als QST-Kanton (Grenzgänger/int. Wochenaufenthalter)" ${ewInput}>`)}
+        ${eField(_t('ma.field.country','Land'),         maLandSelectHtml('ef-country', emp.country || 'CH', easyWorkLocked
+            ? 'disabled data-easywork-locked="1" title="Kommt aus easy@work. Anzeige englisch, gespeichert wird der ISO-Code."'
+            : 'title="Anzeige englisch in Grossbuchstaben (SWITZERLAND). Gespeichert wird der ISO-Code daneben."'))}
     </div>
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-extra-line">
         ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input" ${ewSelect}>
@@ -7581,7 +7623,8 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
 function efIstCHAdresse(empOrLand) {
     const land = (typeof empOrLand === 'string' ? empOrLand : (empOrLand?.country ?? 'CH')) || 'CH';
     const l = land.trim().toUpperCase();
-    return l === '' || l === 'CH' || l === 'SCHWEIZ';
+    return l === '' || l === 'CH' || l === 'CHE' || l === 'SCHWEIZ' || l === 'SWITZERLAND'
+        || l === 'SUISSE' || l === 'SVIZZERA';
 }
 
 // Live-Umschaltung beim Tippen im Land-Feld: CH → PLZ 4-stellig numerisch +
@@ -16204,7 +16247,7 @@ function openEmployeeAddressModal(existing) {
                 ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(stripCityCantonSuffix(a.city))}" oninput="validateCity(this)">`)}
                 ${eField('BFS-Nr.',                          `<input id="empAddr-bfs"  class="ef-input" value="${esc(a.bfsNumber)}">`)}
                 ${eField(_t('addr.field.canton','Kanton'),   renderKantonSelect('empAddr-canton', a.canton))}
-                ${eField(_t('addr.field.country','Land'),    `<input id="empAddr-country" class="ef-input" value="${esc(a.country ?? 'CH')}">`)}
+                ${eField(_t('addr.field.country','Land'),    maLandSelectHtml('empAddr-country', a.country || 'CH', 'title="Anzeige englisch in Grossbuchstaben. Gespeichert wird der ISO-Code."'))}
             </div>
             <div id="empAddr-plz-hint" style="font-size:12px;margin-top:-6px;margin-bottom:10px"></div>
 

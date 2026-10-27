@@ -711,7 +711,7 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob Wohnadressen für Mitarbeitende mit folgenden Angaben erfasst werden können: - Strasse und Hausnummer - Postfach - Zusätzliche Informaton zur Lokalität - Postleitzahl - Ort - Land (Englisch in Grossbuchstaben bsp. SWITZERLAND) - Zweistelliger ISO-Ländercode, falls Adresse im Ausland - Wohnkanton (zwingende Auswahl CH-Kanton oder EX) - Gemeindenummer - Wegzugsdatum Prüfen ob im Falle von einer Adresse im Ausland der zweistelliger ISO-Län…
 
-**Notiz 25.10.2026:** Wohnadresse in den Personalien, Umzug in der Wohnort-Historie. Postfach, PLZ, Ort, Kanton oder EX, Gemeindenummer in der Zusatzadresse. Ausland wird zum ISO-Code, Kanton EX. Ein Umzug im Meldemonat geht mit Wegzugdatum und beiden Adressen in die Meldung. Die Liste der italienischen Grenzregionen ist noch nicht eingebunden. Nicht auf gebaut gesetzt.
+**Notiz 26.10.2026:** Wohnadresse zeigt das Land englisch in Grossbuchstaben (SWITZERLAND) und daneben den gespeicherten ISO-Code (CH, bei Ausland IT). Gleiches Menü in «Bearbeiten» und in der Zusatzadresse. Postfach, Lokalität und Gemeindenummer stehen an der Zusatzadresse. Umzug mit Wegzugdatum und beiden Adressen geht in die Meldung. Die italienische Grenzregion liegt in der eigenen Liste und hängt an der PLZ-Prüfung. Nicht auf gebaut gesetzt.
 
 
 #### S_ELM_V6_03_01_12 E-Mail und Telefonnummer des Mitarbeitenden ⬜ offen

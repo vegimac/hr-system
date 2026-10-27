@@ -83,7 +83,9 @@
 
         const curLabel = () => {
             const o = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
-            return o ? o.textContent.trim() : '';
+            if (!o) return '';
+            // data-kurz: geschlossenes Feld bleibt schmal (z.B. «CH»), die Liste zeigt den vollen Text.
+            return (o.dataset.kurz || o.textContent || '').trim();
         };
         // Zähler-Spalte (Walter 08.09.2026): <option data-badge="N"> → Name links,
         // Anzahl rechts in einer fixen Spalte als Pille (Postfächer).

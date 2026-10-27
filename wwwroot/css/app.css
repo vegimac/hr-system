@@ -4125,7 +4125,7 @@
             display: grid;
             grid-template-columns:
                 minmax(150px, 1.15fr)  /* Strasse */
-                max-content            /* PLZ + Ort + Kanton, eng beieinander */
+                calc(7.2ch + 9rem + 3rem + 11.4rem + 30px) /* PLZ + Ort + Kt. + Land, fest */
                 max-content            /* Telefon, ganze Nummer */
                 minmax(240px, 1fr);    /* AHV + unbekannt */
             column-gap: 16px;
@@ -4141,24 +4141,73 @@
             margin-bottom: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe {
-            display: flex;
-            align-items: flex-start;
-            gap: 6px;
-            min-width: 0;
+            display: grid;
+            grid-template-columns: 7.2ch 9rem 3rem 11.4rem;
+            column-gap: 10px;
+            align-items: start;
+            width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
+            min-width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
+            max-width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-plz {
-            flex: 0 0 6.6ch;
-            width: 6.6ch;
-        }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city {
-            flex: 0 1 12rem;
-            width: 12rem;
-            max-width: 13rem;
-        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-plz,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city,
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-kt {
-            flex: 0 0 54px;
-            width: 54px;
+            width: auto;
+            min-width: 0;
+            max-width: none;
         }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-land {
+            width: 11.4rem;
+            min-width: 11.4rem;
+            max-width: 11.4rem;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city .ov-pfv,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city .ov-softin {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ma-land-zeile {
+            display: grid;
+            grid-template-columns: 2.4rem 8.6rem;
+            align-items: center;
+            column-gap: 0.4rem;
+            width: 11.4rem;
+            min-width: 11.4rem;
+            max-width: 11.4rem;
+            height: 30px;
+        }
+        .ma-land-zeile .lqsel-wrap { width: 2.4rem; min-width: 2.4rem; max-width: 2.4rem; }
+        .ma-land-zeile .lqsel-btn {
+            min-width: 0;
+            width: 2.4rem;
+            padding-left: 0;
+            padding-right: 14px;
+        }
+        .ma-land-code {
+            display: block;
+            width: 2.4rem;
+            min-width: 2.4rem;
+            max-width: 2.4rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .ma-land-en {
+            display: block;
+            width: 8.6rem;
+            min-width: 8.6rem;
+            max-width: 8.6rem;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #8b8b8b;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            line-height: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        body.theme-dark .ma-land-en { color: rgba(210, 220, 232, 0.78); }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-tel2 .ov-softin {
             width: 20ch;
             min-width: 20ch;
