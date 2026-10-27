@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Dienstplan — was du einteilen darfst</title>
+<style>
+  @page { size: A4 landscape; margin: 5mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1c1917; background: #d6d3cd;
+    font-size: 8.5px; line-height: 1.25;
+  }
+  .sheet {
+    width: 287mm; height: 200mm;
+    margin: 6px auto; padding: 3mm 4.5mm 3mm;
+    background: #fffdf8;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; margin-bottom: 1mm; }
+  .brand { margin: 0; font-size: 6.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #a8a29e; font-weight: 700; }
+  h1 { margin: 0; font-size: 13px; letter-spacing: -0.03em; font-weight: 760; line-height: 1; }
+  .legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 7px; max-width: 168mm; font-size: 8px; color: #44403c; font-weight: 650; }
+  .sw { width: 11px; height: 8px; border-radius: 2px; display: inline-block; vertical-align: -1px; margin-right: 3px; }
+
+  .days { margin: 0 0 0.4mm 26mm; display: grid; grid-template-columns: 1fr 1fr; font-size: 7px; letter-spacing: 0.14em; text-transform: uppercase; color: #a8a29e; font-weight: 700; }
+  .scale {
+    margin: 0 0 1.2mm 26mm; position: relative; height: 18px;
+    background: #f7f4ee; border-radius: 4px; overflow: hidden;
+  }
+  .scale .nacht { position: absolute; top: 0; bottom: 0; z-index: 0; background: rgba(56, 189, 248, 0.62); }
+  .scale span {
+    position: absolute; top: 0; height: 18px; transform: translateX(-50%);
+    display: flex; align-items: center; z-index: 1;
+    font-size: 8px; color: #44403c; font-variant-numeric: tabular-nums; font-weight: 700;
+  }
+  .scale36 span {
+    position: absolute; top: 0; transform: translateX(-50%);
+    font-size: 7.5px; color: #a8a29e; font-variant-numeric: tabular-nums; font-weight: 650;
+  }
+  .scale span.zero, .scale36 span.zero { transform: none; left: 0 !important; padding-left: 1px; }
+  .scale span.end, .scale36 span.end { transform: none; left: auto !important; right: 0; padding-right: 1px; }
+  .scale span.stark { font-weight: 800; color: #1c1917; }
+  .scale span.nachtstunde { color: #0c4a6e; }
+
+  .lane { display: grid; grid-template-columns: 26mm 1fr; align-items: center; margin-bottom: 1.7mm; }
+  .who { font-size: 12px; font-weight: 760; line-height: 1.05; padding-right: 2mm; }
+  .who small { display: block; font-weight: 600; font-size: 7.5px; margin-top: 1px; letter-spacing: 0.01em; }
+  .who.tag small { color: #15803d; }
+  .who.nacht small { color: #4338ca; }
+  .who.jung small { color: #44403c; font-weight: 650; }
+  .who.jung b { display: block; margin-top: 1px; color: #9f1239; font-size: 11.5px; line-height: 1; letter-spacing: -0.02em; }
+  .who.jung b span { color: #44403c; font-size: 7.5px; font-weight: 650; }
+  .who.schw small { color: #be123c; }
+
+  .track {
+    position: relative; height: 58px; border-radius: 8px; overflow: hidden;
+    background-color: #f4f1ea;
+    background-image:
+      repeating-linear-gradient(90deg, transparent 0, transparent calc(12.5% - 1px), rgba(28,25,23,0.28) calc(12.5% - 1px), rgba(28,25,23,0.28) 12.5%),
+      repeating-linear-gradient(90deg, transparent 0, transparent calc(2.083333% - 1px), rgba(28,25,23,0.16) calc(2.083333% - 1px), rgba(28,25,23,0.16) 2.083333%);
+  }
+  .track i { position: absolute; top: 0; bottom: 0; }
+  .zu { background: #e11d48; z-index: 1; }
+  .zu16 { background: #9f1239; z-index: 1; }
+  .einsatz.band { top: 8px; bottom: auto; height: 22px; border-radius: 4px; z-index: 2; background: linear-gradient(180deg, #ecfccb, #bef264); box-shadow: inset 0 0 0 1px rgba(101,163,13,0.5); }
+  .arbeit.band, .arbeit { top: auto; bottom: 5px; height: 22px; border-radius: 4px; z-index: 3; background: linear-gradient(180deg, #4ade80, #15803d); }
+  .arbeit { top: 16px; height: auto; bottom: 16px; }
+  .ruhe { top: 8px; bottom: 5px; border-radius: 4px; background: linear-gradient(180deg, #c4b5fd, #6d28d9); z-index: 3; }
+  .lab {
+    position: absolute; z-index: 4; top: 0; bottom: 0;
+    display: flex; align-items: center; color: #fff;
+    font-size: 9px; font-weight: 750; letter-spacing: -0.01em; pointer-events: none; white-space: nowrap;
+  }
+  .lab.oben { top: 8px; bottom: auto; height: 22px; color: #14532d; }
+  .lab.unten { top: auto; bottom: 5px; height: 22px; }
+  .lab.nachtnote { color: #1e1b4b; font-size: 8px; font-weight: 650; white-space: normal; line-height: 1.25; width: 40%; align-items: center; }
+  .lab.mini { font-size: 7px; }
+
+  .chips { display: grid; grid-template-columns: 1.25fr 1fr 1.15fr 1.05fr; gap: 2mm; margin: 1.8mm 0 2mm; }
+  .chip { border-radius: 8px; padding: 6px 8px 7px; }
+  .chip b { display: block; font-size: 11px; letter-spacing: -0.02em; margin-bottom: 2px; }
+  .chip span { display: block; font-size: 8.5px; line-height: 1.3; color: #292524; }
+  .chip.lime { background: #ecfccb; }
+  .chip.amber { background: #fef3c7; }
+  .chip.violet { background: #ede9fe; }
+  .chip.sky { background: #e0f2fe; }
+
+  .mid { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 1.6mm; }
+  .board { border-radius: 8px; padding: 4px 6px 6px; }
+  .board.ok { background: #dcfce7; }
+  .board.sieb { background: #fff7ed; }
+  .board h3 { margin: 0; font-size: 10px; letter-spacing: -0.02em; }
+  .board .sub { margin: 0 0 2px; font-size: 7px; color: #44403c; }
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .wd { border-radius: 5px; min-height: 38px; padding: 4px 1px 5px; text-align: center; }
+  .wd b { display: block; font-size: 8.5px; }
+  .wd span { display: block; font-size: 7px; margin-top: 1px; }
+  .wd.work { background: #15803d; color: #fff; }
+  .wd.work span { color: #dcfce7; }
+  .wd.frei { background: #fff; color: #14532d; border: 1.5px dashed #16a34a; }
+  .wd.frei span { color: #15803d; font-weight: 750; }
+  .wd.neun { background: #f59e0b; color: #451a03; }
+  .wd.neun span { color: #78350f; font-weight: 700; }
+  .after { margin: 2px 0 0; background: #6d28d9; color: #fff; border-radius: 4px; text-align: center; font-weight: 750; font-size: 7.5px; padding: 2px 3px 3px; }
+
+  .ruhetag { background: #f5f3ff; border-radius: 8px; padding: 4px 6px 6px; }
+  .ruhetag h3 { margin: 0; font-size: 11px; letter-spacing: -0.02em; color: #5b21b6; }
+  .ruhetag .sub { margin: 0 0 2px; font-size: 7.5px; color: #44403c; }
+  .scale36 { position: relative; height: 9px; margin: 0 0 0.5mm 0; }
+  .track36 {
+    position: relative; height: 34px; border-radius: 5px; overflow: hidden;
+    background: #faf8f5;
+    background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(16.666% - 1px), rgba(28,25,23,0.16) calc(16.666% - 1px), rgba(28,25,23,0.16) 16.666%);
+  }
+  .track36 i { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; }
+  .track36 .schluss { background: #1c1917; }
+  .track36 .ruhe { top: 3px; bottom: 3px; }
+  .track36 .frei { background: linear-gradient(180deg, #fde68a, #f59e0b); }
+  .track36 .lab { font-size: 7.5px; }
+
+  .bottom { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 3mm; margin-top: 2mm; align-items: stretch; }
+  .card { border-radius: 8px; padding: 4px 7px 5px; }
+  .card.jung { background: #e0f2fe; }
+  .card h3 { margin: 0 0 2px; font-size: 10.5px; letter-spacing: -0.02em; }
+  .card.jung h3 { color: #075985; }
+  .card ul { margin: 0; padding: 0; list-style: none; }
+  .card li { font-size: 9px; padding: 1.5px 0; color: #1c1917; }
+  .schwblock {
+    margin-top: 2mm;
+    flex: 1;
+    display: flex; flex-direction: column;
+    background: #fff1f2;
+    border: 1.5px solid #9f1239;
+    border-radius: 10px;
+    padding: 3px 3mm 3mm;
+  }
+  .schwblock h3 { margin: 0 0 2px; font-size: 10px; letter-spacing: -0.02em; color: #9f1239; }
+  .phases { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 1.4mm; }
+  .ph { border-radius: 6px; padding: 4px 5px 5px; min-height: 0; border: 1.5px solid transparent; }
+  .ph b { display: block; font-size: 7.5px; margin-bottom: 1px; }
+  .ph span { display: block; font-size: 7px; line-height: 1.25; color: #292524; }
+  .ph.a { background: #dcfce7; border-color: #16a34a; }
+  .ph.b { background: #fef3c7; border-color: #d97706; }
+  .ph.c { background: #ffedd5; border-color: #ea580c; }
+  .ph.d { background: #ede9fe; border-color: #7c3aed; }
+  .ph.e { background: #ffe4e6; border-color: #e11d48; }
+  .ph.f { background: #fce7f3; border-color: #db2777; }
+
+  .ftbox { background: #fff; border: 1px solid #e7e2d8; border-radius: 8px; padding: 3px 3mm 3px; }
+  .ftbox h3 { margin: 0 0 1px; font-size: 10px; letter-spacing: -0.02em; }
+  .ft { width: 100%; border-collapse: collapse; font-size: 8px; }
+  .ft th { text-align: center; font-size: 7px; letter-spacing: 0.06em; color: #78716c; font-weight: 700; padding: 0 2px 1px; }
+  .ft th:first-child, .ft td:first-child { text-align: left; }
+  .ft td { padding: 0.5px 2px; }
+  .ft tr:nth-child(odd) td { background: #faf8f5; }
+  .ft td.j, .ft td.n { text-align: center; font-weight: 750; width: 12mm; }
+  .ft td.j { color: #15803d; }
+  .ft td.n { color: #a8a29e; font-weight: 500; }
+  @media print {
+    body { background: #fff; }
+    .sheet { margin: 0; }
+    .sheet, .chip, .board, .wd, .card, .ph, .schwblock, .ftbox, .ft td, .arbeit, .ruhe, .zu, .zu16, .einsatz, .nacht, .track36 .schluss, .track36 .frei, .after, .ruhetag {
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+  }
+</style>
+</head>
+<body>
+
+<section class="sheet">
+  <header class="top">
+    <div>
+      <p class="brand">Schaub Restaurants · neben den Dienstplan</p>
+      <h1>Was du einteilen darfst.</h1>
+    </div>
+    <p class="legend">
+      <span><i class="sw" style="background:linear-gradient(#ecfccb,#bef264);box-shadow:inset 0 0 0 1px #84cc16"></i>max. Anwesenheit</span>
+      <span><i class="sw" style="background:linear-gradient(#4ade80,#15803d)"></i>Arbeit</span>
+      <span><i class="sw" style="background:linear-gradient(#c4b5fd,#6d28d9)"></i>Ruhe</span>
+      <span><i class="sw" style="background:#e11d48"></i>gesperrt</span>
+      <span><i class="sw" style="background:rgba(56,189,248,0.62)"></i>Nacht 24–07</span>
+    </p>
+  </header>
+
+  <div class="days"><span>Dieser Tag</span><span>Nächster Tag</span></div>
+  <div class="scale" aria-hidden="true">
+    <i class="nacht" style="left:0;width:14.583%"></i>
+    <i class="nacht" style="left:50%;width:14.583%"></i>
+    <span class="zero stark nachtstunde">0</span>
+    <span class="nachtstunde" style="left:2.083%">1</span>
+    <span class="nachtstunde" style="left:4.167%">2</span>
+    <span class="nachtstunde" style="left:6.25%">3</span>
+    <span class="nachtstunde" style="left:8.333%">4</span>
+    <span class="nachtstunde" style="left:10.417%">5</span>
+    <span class="stark nachtstunde" style="left:12.5%">6</span>
+    <span class="nachtstunde" style="left:14.583%">7</span>
+    <span style="left:16.667%">8</span>
+    <span style="left:18.75%">9</span>
+    <span style="left:20.833%">10</span>
+    <span style="left:22.917%">11</span>
+    <span class="stark" style="left:25%">12</span>
+    <span style="left:27.083%">13</span>
+    <span style="left:29.167%">14</span>
+    <span style="left:31.25%">15</span>
+    <span style="left:33.333%">16</span>
+    <span style="left:35.417%">17</span>
+    <span class="stark" style="left:37.5%">18</span>
+    <span style="left:39.583%">19</span>
+    <span style="left:41.667%">20</span>
+    <span style="left:43.75%">21</span>
+    <span style="left:45.833%">22</span>
+    <span style="left:47.917%">23</span>
+    <span class="stark nachtstunde" style="left:50%">24</span>
+    <span class="nachtstunde" style="left:52.083%">1</span>
+    <span class="nachtstunde" style="left:54.167%">2</span>
+    <span class="nachtstunde" style="left:56.25%">3</span>
+    <span class="nachtstunde" style="left:58.333%">4</span>
+    <span class="nachtstunde" style="left:60.417%">5</span>
+    <span class="stark nachtstunde" style="left:62.5%">6</span>
+    <span class="nachtstunde" style="left:64.583%">7</span>
+    <span style="left:66.667%">8</span>
+    <span style="left:68.75%">9</span>
+    <span style="left:70.833%">10</span>
+    <span style="left:72.917%">11</span>
+    <span class="stark" style="left:75%">12</span>
+    <span style="left:77.083%">13</span>
+    <span style="left:79.167%">14</span>
+    <span style="left:81.25%">15</span>
+    <span style="left:83.333%">16</span>
+    <span style="left:85.417%">17</span>
+    <span class="stark" style="left:87.5%">18</span>
+    <span style="left:89.583%">19</span>
+    <span style="left:91.667%">20</span>
+    <span style="left:93.75%">21</span>
+    <span style="left:95.833%">22</span>
+    <span style="left:97.917%">23</span>
+    <span class="end stark">24</span>
+  </div>
+
+  <div class="lane">
+    <div class="who tag">Ab 18<small>Tag und Abend</small></div>
+    <div class="track">
+      <i class="einsatz band" style="left:16.667%;width:29.167%"></i>
+      <i class="arbeit band" style="left:16.667%;width:26.042%"></i>
+      <i class="ruhe" style="left:45.833%;width:22.917%"></i>
+      <i class="einsatz band" style="left:68.75%;width:29.167%"></i>
+      <i class="arbeit band" style="left:68.75%;width:26.042%"></i>
+      <span class="lab oben" style="left:17.2%">14 Std. Anwesenheit</span>
+      <span class="lab unten" style="left:17.2%">12,5 Std. Arbeit</span>
+      <span class="lab" style="left:47%">11 Std. Ruhe</span>
+      <span class="lab oben" style="left:69.3%">14 Std. Anwesenheit</span>
+      <span class="lab unten" style="left:69.3%">12,5 Std. Arbeit</span>
+    </div>
+  </div>
+  <div class="lane">
+    <div class="who nacht">Ab 18<small>sofern Nachtarbeit</small></div>
+    <div class="track">
+      <i class="einsatz band" style="left:43.75%;width:20.833%"></i>
+      <i class="arbeit band" style="left:43.75%;width:18.75%"></i>
+      <span class="lab nachtnote" style="left:1.4%">Mehr als 18 Nächte in 6 Wochen: Arztzeugnis und Ausnahmeregelung.</span>
+      <span class="lab oben" style="left:44.2%">10 Std. Anwesenheit</span>
+      <span class="lab unten" style="left:44.2%">9 Std. Arbeit</span>
+    </div>
+  </div>
+  <div class="lane">
+    <div class="who jung">Unter 18<small>22–07 gesperrt</small><b>Unter 16 <span>ab 20</span></b></div>
+    <div class="track">
+      <i class="zu" style="left:0;width:14.583%"></i>
+      <i class="zu16" style="left:41.667%;width:4.167%"></i>
+      <i class="zu" style="left:45.833%;width:18.75%"></i>
+      <i class="einsatz band" style="left:16.667%;width:25%"></i>
+      <i class="arbeit band" style="left:16.667%;width:18.75%"></i>
+      <span class="lab" style="left:0.8%">gesperrt</span>
+      <span class="lab oben" style="left:17.2%">12 Std. Anwesenheit</span>
+      <span class="lab unten" style="left:17.2%">9 Std. Arbeit</span>
+      <span class="lab" style="left:46.4%">gesperrt bis 7</span>
+    </div>
+  </div>
+  <div class="lane">
+    <div class="who schw">Schwanger<small>letzte 8 Wochen, 20–06</small></div>
+    <div class="track">
+      <i class="zu" style="left:0;width:12.5%"></i>
+      <i class="zu" style="left:41.667%;width:20.833%"></i>
+      <i class="arbeit" style="left:16.667%;width:18.75%"></i>
+      <span class="lab" style="left:0.8%">gesperrt</span>
+      <span class="lab" style="left:17.4%">9 Std. Arbeit</span>
+      <span class="lab" style="left:44%">gesperrt 20–06</span>
+    </div>
+  </div>
+
+  <div class="chips">
+    <div class="chip lime">
+      <b>Pause in die Schicht</b>
+      <span>über 5½ Std. 15 Min. · über 7 Std. 30 · über 9 Std. 60, davon 30 am Stück. Unter 15 Min. zählt nicht.</span>
+    </div>
+    <div class="chip amber">
+      <b>Max. 5½ Std. am Stück</b>
+      <span>Pause so legen, dass davor und danach höchstens 5½ Stunden liegen.</span>
+    </div>
+    <div class="chip violet">
+      <b>11 Std. Ruhe</b>
+      <span>Einmal pro Woche 8 Std., nur ab 18. Jugend und ab 4. Monat immer 12.</span>
+    </div>
+    <div class="chip sky">
+      <b>Halber Tag: 5 Std.</b>
+      <span>Ende bis 14:30 oder Beginn ab 12:00. 9–14 zählt. 11–16 zählt nicht.</span>
+    </div>
+  </div>
+
+  <div class="mid">
+    <div class="board ok">
+      <h3>Höchstens 6 Tage</h3>
+      <p class="sub">Sechs Schichten, ein Tag frei.</p>
+      <div class="week">
+        <div class="wd work"><b>Mo</b><span>Schicht</span></div>
+        <div class="wd work"><b>Di</b><span>Schicht</span></div>
+        <div class="wd work"><b>Mi</b><span>Schicht</span></div>
+        <div class="wd work"><b>Do</b><span>Schicht</span></div>
+        <div class="wd work"><b>Fr</b><span>Schicht</span></div>
+        <div class="wd work"><b>Sa</b><span>Schicht</span></div>
+        <div class="wd frei"><b>So</b><span>frei</span></div>
+      </div>
+    </div>
+    <div class="board sieb">
+      <h3>7. Tag</h3>
+      <p class="sub">Nur wenn jeder Tag höchstens 9 Std. hat.</p>
+      <div class="week">
+        <div class="wd neun"><b>Mo</b><span>9 Std.</span></div>
+        <div class="wd neun"><b>Di</b><span>9 Std.</span></div>
+        <div class="wd neun"><b>Mi</b><span>9 Std.</span></div>
+        <div class="wd neun"><b>Do</b><span>9 Std.</span></div>
+        <div class="wd neun"><b>Fr</b><span>9 Std.</span></div>
+        <div class="wd neun"><b>Sa</b><span>9 Std.</span></div>
+        <div class="wd neun"><b>So</b><span>9 Std.</span></div>
+      </div>
+      <p class="after">danach 83 Std. Ruhe</p>
+    </div>
+    <div class="ruhetag">
+      <h3>Ruhetag: 35 Std. am Stück</h3>
+      <p class="sub">Nur so gilt er. Beispiel Schluss 01:00.</p>
+      <div class="scale36">
+        <span class="zero">Di 0</span>
+        <span style="left:16.667%">6</span>
+        <span style="left:33.333%">12</span>
+        <span style="left:50%">18</span>
+        <span style="left:66.667%">Mi 0</span>
+        <span style="left:83.333%">6</span>
+        <span class="end">12</span>
+      </div>
+      <div class="track36">
+        <i class="schluss" style="left:0;width:2.778%"></i>
+        <i class="ruhe" style="left:2.778%;width:30.555%"></i>
+        <i class="frei" style="left:33.333%;width:66.667%"></i>
+        <span class="lab" style="left:6%">11 Std. bis 12:00</span>
+        <span class="lab" style="left:40%;color:#78350f">danach frei · Beginn Mi 12:00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="card jung">
+      <h3>Unter 18</h3>
+      <ul>
+        <li>Von 22:00 bis 07:00 gesperrt. Unter 16 schon ab 20:00.</li>
+        <li>Vor der Berufsschule Schluss um 20:00.</li>
+        <li>Sonntag gesperrt, wie auch die dem Sonntag gleichgestellten Feiertage.</li>
+        <li>9 Std. Arbeit, 12 Std. Anwesenheit, danach 12 Std. Ruhe. Woche 50 Std.</li>
+      </ul>
+    </div>
+    <div class="ftbox">
+      <h3>Wie der Sonntag gesperrt</h3>
+      <table class="ft">
+        <thead><tr><th></th><th>AG/BE</th><th>LU</th></tr></thead>
+        <tbody>
+          <tr><td>1.1. Neujahr</td><td class="j">ja</td><td class="j">ja</td></tr>
+          <tr><td>2.1. Berchtoldstag</td><td class="j">ja</td><td class="n">nein</td></tr>
+          <tr><td>Karfreitag</td><td class="j">ja</td><td class="j">ja</td></tr>
+          <tr><td>Ostermontag</td><td class="j">ja</td><td class="n">nein</td></tr>
+          <tr><td>Auffahrt</td><td class="j">ja</td><td class="j">ja</td></tr>
+          <tr><td>Pfingstmontag</td><td class="j">ja</td><td class="n">nein</td></tr>
+          <tr><td>Fronleichnam</td><td class="n">nein</td><td class="j">ja</td></tr>
+          <tr><td>1.8. Bundesfeier</td><td class="j">ja</td><td class="j">ja</td></tr>
+          <tr><td>15.8. Maria Himmelfahrt</td><td class="n">nein</td><td class="j">ja</td></tr>
+          <tr><td>1.11. Allerheiligen</td><td class="n">nein</td><td class="j">ja</td></tr>
+          <tr><td>25.12. Weihnachten</td><td class="j">ja</td><td class="j">ja</td></tr>
+          <tr><td>26.12. Stephanstag</td><td class="j">ja</td><td class="j">ja</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="schwblock">
+    <h3>Schwangerschaft</h3>
+    <div class="phases">
+      <div class="ph a"><b>Ab Meldung</b><span>9 Std. Arbeit bis zur Geburt</span></div>
+      <div class="ph b"><b>4. Monat</b><span>12 Std. Ruhe, 10 Min. alle 2 Std., Stehen 4 Std.</span></div>
+      <div class="ph c"><b>6. Monat</b><span>Rest der Schicht sitzend</span></div>
+      <div class="ph d"><b>8. Monat</b><span>keine Überzeit</span></div>
+      <div class="ph e"><b>Letzte 8 Wo.</b><span>20:00–06:00 gesperrt, bis zum Termin</span></div>
+      <div class="ph f"><b>Nach Geburt</b><span>8 Wo. keine Arbeit. Woche 9–16 nur auf Wunsch. Stillzeit im 1. Jahr: bis 4 Std. 30 Min., 4–7 Std. 60 Min., darüber 90 Min.</span></div>
+    </div>
+  </div>
+
+</section>
+
+</body>
+</html>

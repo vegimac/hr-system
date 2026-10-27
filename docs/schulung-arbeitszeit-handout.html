@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneCrew · Arbeitszeit kurz — Dienstplan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --ink: #1a1a1a;
+    --soft: #3d3a35;
+    --muted: #7a746c;
+    --line: #d8d2c8;
+    --tan: #f0ebe3;
+    --card: #fffcf7;
+    --serif: 'Playfair Display', Georgia, serif;
+    --sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12.2px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: #f7f4ee;
+    line-height: 1.38;
+    -webkit-font-smoothing: antialiased;
+}
+.sheet {
+    width: min(210mm, 100%);
+    margin: 0 auto;
+    padding: 12px 16px 20px;
+}
+h1 {
+    margin: 0 0 2px;
+    font-family: var(--serif);
+    font-size: 1.42rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+}
+.eyebrow {
+    margin: 0 0 3px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+}
+.lede { margin: 6px 0 0; font-size: 12.5px; color: var(--soft); }
+.meta { margin-top: 5px; font-size: 11.5px; color: var(--muted); }
+.meta strong { color: var(--soft); font-weight: 650; }
+.warn {
+    margin: 7px 0 4px;
+    padding: 6px 9px;
+    background: var(--tan);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--soft);
+}
+.warn strong { color: var(--ink); }
+table.cols {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 6px 6px;
+    margin: 0 -6px;
+}
+table.cols > tbody > tr > td.box,
+table.cols > tbody > tr > td.box-wide {
+    vertical-align: top;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 10px 9px;
+}
+table.cols > tbody > tr > td.box { width: 50%; }
+h2 {
+    margin: 0 0 3px;
+    font-family: var(--serif);
+    font-size: 1.02rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+h3 { margin: 1px 0 3px; font-size: 11.6px; font-weight: 750; }
+p, li { font-size: 11.3px; color: var(--soft); }
+p { margin: 0 0 4px; }
+p:last-child { margin-bottom: 0; }
+table.data { width: 100%; border-collapse: collapse; font-size: 11.2px; }
+table.data th, table.data td {
+    text-align: left;
+    padding: 3px 6px 3px 0;
+    vertical-align: top;
+    border-bottom: 1px solid #eee8de;
+    color: var(--soft);
+}
+table.data th { color: var(--muted); font-weight: 650; font-size: 10.5px; }
+table.data td:last-child, table.data th:last-child { text-align: right; padding-right: 0; white-space: nowrap; }
+.note { font-size: 10.6px; color: var(--muted); margin-top: 3px; }
+.foot {
+    margin: 2px 6px 0;
+    display: flex; justify-content: space-between; gap: 12px;
+    font-size: 10.5px; color: var(--muted);
+}
+@media print {
+    @page { size: A4; margin: 7mm 8mm; }
+    body { background: #fff; }
+    .sheet { width: auto; max-width: none; padding: 0; }
+}
+</style>
+</head>
+<body>
+<main class="sheet">
+    <p class="eyebrow">Restaurant-Management · neben den Dienstplan</p>
+    <h1>Arbeitszeit — kurz</h1>
+    <p class="lede">
+        Was ihr einteilen dürft. Anwesenheit ist der Weg vom ersten bis zum letzten Stempel,
+        Pausen zählen mit. Arbeit ist die gestempelte Zeit ohne Pausen.
+        Die Woche läuft von Montag bis Sonntag.
+    </p>
+    <p class="meta">
+        <strong>Stand</strong> 19. Oktober 2026
+        · Gesetzliche Nacht 23:00–06:00. Unsere Nacht 24:00–07:00.
+        · Das Bild dazu heisst «Was du einteilen darfst».
+    </p>
+    <div class="warn">
+        <strong>Der Plan richtet sich nach der Regel.</strong>
+        Eine Grenze wird nicht ausgeschaltet, damit die Woche aufgeht.
+        Steht in einer Filiale etwas anderes, steht es unter Filiale → Arbeitszeit.
+    </div>
+
+    <table class="cols">
+        <tr>
+            <td class="box">
+                <h2>1 · Der Tag</h2>
+                <table class="data">
+                    <tr><th>Grenze</th><th></th></tr>
+                    <tr><td>Arbeit, Tag und Abend</td><td><strong>12,5 Std.</strong></td></tr>
+                    <tr><td>Anwesenheit, Pausen inklusive</td><td><strong>14 Std.</strong></td></tr>
+                    <tr><td>Mit Nacht: Arbeit / Anwesenheit</td><td><strong>9 / 10 Std.</strong></td></tr>
+                    <tr><td>Ruhe bis zur nächsten Schicht</td><td><strong>11 Std.</strong></td></tr>
+                    <tr><td>Am Stück, vor und nach der Pause</td><td><strong>5½ Std.</strong></td></tr>
+                </table>
+                <p class="note">
+                    Pause: über 5½ Std. 15 Min., über 7 Std. 30 Min., über 9 Std. 60 Min., davon 30 am Stück.
+                    Unter 15 Min. zählt nicht. Einmal pro Woche genügen 8 Std. Ruhe, nur ab 18.
+                    Jugendliche und Schwangere ab dem 4. Monat immer 12.
+                </p>
+            </td>
+            <td class="box">
+                <h2>2 · Nacht und die Woche</h2>
+                <p>Eine Minute in unserer Nacht 24:00–07:00 färbt den ganzen Tag. Dann gelten 9 und 10 Stunden, nicht 12,5 und 14. Gesetzlich wäre Nacht 23:00–06:00.</p>
+                <table class="data">
+                    <tr><td>Woche, auch unter 18</td><td><strong>50 Std.</strong></td></tr>
+                    <tr><td>Tage in Folge</td><td><strong>6</strong></td></tr>
+                    <tr><td>7. Tag nur bei max. 9 Std., danach frei</td><td><strong>83 Std.</strong></td></tr>
+                    <tr><td>Ruhetag am Stück, einmal pro Woche</td><td><strong>35 Std.</strong></td></tr>
+                    <tr><td>Halber Tag, höchstens</td><td><strong>5 Std.</strong></td></tr>
+                </table>
+                <p class="note">
+                    Halber Tag: Ende bis 14:30 oder Beginn ab 12:00. 9–14 zählt, 11–16 zählt nicht.
+                    Zwei halbe Tage sind ein ganzer. Acht Tage in Folge gehen nie.
+                    Mehr als 18 Nächte in 6 Wochen: Arztzeugnis und Ausnahmeregelung, beides gültig.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td class="box-wide" colspan="2">
+                <h2>3 · Der Ruhetag, an einem Beispiel</h2>
+                <p>
+                    Er gilt nur bei <strong>35 Stunden am Stück</strong>. Schluss Dienstag 01:00:
+                    von 00:00 bis 01:00 läuft noch die Schicht. Ab 01:00 folgen 11 Stunden Ruhe,
+                    bis Dienstag 12:00. Danach 24 Stunden frei. Der nächste Beginn ist frühestens
+                    <strong>Mittwoch 12:00</strong>. Kürzer ist kein Ruhetag, auch nicht ein freier Sonntagmittag.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td class="box">
+                <h2>4 · Unter 18</h2>
+                <table class="data">
+                    <tr><td>Arbeit / Anwesenheit / Ruhe</td><td><strong>9 / 12 / 12</strong></td></tr>
+                    <tr><td>Gesperrt</td><td><strong>22:00–07:00</strong></td></tr>
+                    <tr><td>Unter 16 schon ab</td><td><strong>20:00</strong></td></tr>
+                    <tr><td>Vor der Berufsschule Schluss</td><td><strong>20:00</strong></td></tr>
+                </table>
+                <p class="note">
+                    Sonntag gesperrt, wie auch die dem Sonntag gleichgestellten Feiertage.
+                    Der 1. August immer. Welche Tage in AG/BE und Luzern gelten, steht auf dem Bild.
+                    Ab 18 gelten die Regeln der Erwachsenen, auch in der Lehre.
+                    Ohne Geburtsdatum gibt es keinen Jugendschutz.
+                </p>
+            </td>
+            <td class="box">
+                <h2>5 · Schwangerschaft</h2>
+                <p>OneCrew rechnet ab der Meldung, und vom errechneten Termin rückwärts.</p>
+                <table class="data">
+                    <tr><td>Meldung, bis zur Geburt</td><td><strong>9 Std. Arbeit</strong></td></tr>
+                    <tr><td>4. Monat</td><td><strong>12 Std. Ruhe</strong></td></tr>
+                    <tr><td>Letzte 8 Wochen, bis zum Termin</td><td><strong>20:00–06:00 zu</strong></td></tr>
+                    <tr><td>Nach der Geburt</td><td><strong>8 Wochen zu</strong></td></tr>
+                </table>
+                <p class="note">
+                    Ab dem 4. Monat alle 2 Std. 10 Min. extra, Stehen höchstens 4 Std.
+                    Ab dem 6. Monat der Rest der Schicht sitzend, ab dem 8. keine Überzeit.
+                    Termin 1. Oktober: die letzten 8 Wochen ab 6. August.
+                    Der Geburtstag selbst ist noch Schwangerschaft, das Verbot beginnt am Tag danach.
+                    Woche 9–16 nur auf Wunsch. Stillzeit im 1. Jahr: bis 4 Std. 30 Min., 4–7 Std. 60 Min., darüber 90 Min.
+                </p>
+            </td>
+        </tr>
+    </table>
+
+    <div class="foot">
+        <span>OneCrew · Schaub Restaurants GmbH</span>
+        <span>Ihr plant 12,5 Std., den Schulschluss, Stehen, Sitzen, Überzeit und die Stillzeit. Die Stempel sehen das nicht.</span>
+    </div>
+</main>
+</body>
+</html>
