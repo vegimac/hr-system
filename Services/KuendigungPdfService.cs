@@ -254,6 +254,21 @@ public class KuendigungPdfService
     }
 
     /// <summary>
+    /// Hängt an einen fertigen Brief die Austritts-Beilagen: Referenzangaben,
+    /// Swica-Informationsblatt, GastroSocial «Überweisung Pensionskassenguthaben».
+    /// Dieselben Seiten wie bei der Kündigungsbestätigung.
+    /// </summary>
+    public byte[] HaengeAustrittsanhaenge(byte[] brief, BestaetigungData d)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+        var referenz = Document.Create(doc =>
+        {
+            doc.Page(page => ComposeReferenzangabenPage(page, d));
+        }).GeneratePdf();
+        return MergePdfs(new[] { brief, referenz, StampSwicaPage(d), FillPkUeberweisungPages(d) });
+    }
+
+    /// <summary>
     /// Aufhebungsvereinbarung (Walter 28.07.2026) — Brief + dieselben Anhänge
     /// wie die Kündigungsbestätigung (Referenz · Swica · PK-Überweisung).
     /// </summary>

@@ -22,11 +22,13 @@ public class BriefVorlageController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly WebStampBriefPdfService _pdf;
+    private readonly KuendigungPdfService _kuendigung;
 
-    public BriefVorlageController(AppDbContext db, WebStampBriefPdfService pdf)
+    public BriefVorlageController(AppDbContext db, WebStampBriefPdfService pdf, KuendigungPdfService kuendigung)
     {
         _db = db;
         _pdf = pdf;
+        _kuendigung = kuendigung;
     }
 
     public class TextDto
@@ -42,6 +44,8 @@ public class BriefVorlageController : ControllerBase
         public string? Text { get; set; }
         /// <summary>App-User aus dem HR-Team. Leer = der angemeldete Benutzer.</summary>
         public int? UnterzeichnerId { get; set; }
+        /// <summary>Frankierte Briefseite, Base64. Die Anhänge werden dahinter gehängt.</summary>
+        public string? PdfBase64 { get; set; }
     }
 
     /// <summary>Aktive Personen mit Häkchen HR-Team, plus der angemeldete Benutzer.</summary>
@@ -109,7 +113,7 @@ public class BriefVorlageController : ControllerBase
     {
         var (bau, fehler) = await BaueAsync(dto);
         if (fehler != null) return fehler;
-        var pdf = _pdf.Generate(bau!.Daten);
+        var pdf = await MitAnhaengenAsync(bau!.EmployeeId, _pdf.Generate(bau.Daten));
         var nr = string.IsNullOrWhiteSpace(bau.Personalnummer)
             ? "Austrittsbrief.pdf"
             : "Austrittsbrief-" + System.Text.RegularExpressions.Regex.Replace(bau.Personalnummer, @"[^\w\-]", "") + ".pdf";
@@ -138,6 +142,101 @@ public class BriefVorlageController : ControllerBase
             grund = bau.Grund,
             hinweise = bau.Hinweise,
         });
+    }
+
+    /// <summary>Frankierte Seite plus Referenzangaben, Swica und GastroSocial.</summary>
+    [HttpPost("austritt/anhaenge")]
+    public async Task<IActionResult> Anhaenge([FromBody] AuftragDto dto)
+    {
+        if (dto.EmployeeId <= 0)
+            return BadRequest(new { error = "MA", message = "Bitte einen Mitarbeitenden wählen." });
+        byte[] brief;
+        try { brief = Convert.FromBase64String(dto.PdfBase64 ?? ""); }
+        catch (FormatException)
+        {
+            return BadRequest(new { error = "PDF", message = "Die Briefseite fehlt." });
+        }
+        if (brief.Length < 100 || brief.Length > 12_000_000)
+            return BadRequest(new { error = "PDF", message = "Die Briefseite fehlt." });
+        try
+        {
+            var pdf = await MitAnhaengenAsync(dto.EmployeeId, brief);
+            return Ok(new { ok = true, pdf = Convert.ToBase64String(pdf) });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "BEILAGE", message = "Eine Beilage konnte nicht erzeugt werden: " + ex.GetBaseException().Message });
+        }
+    }
+
+    private async Task<byte[]> MitAnhaengenAsync(int employeeId, byte[] brief)
+    {
+        var ma = await _db.Employees.AsNoTracking().FirstAsync(e => e.Id == employeeId);
+        var anstellung = await _db.Employments.AsNoTracking()
+            .Where(x => x.EmployeeId == employeeId && x.CompanyProfileId != null)
+            .OrderByDescending(x => x.IsActive)
+            .ThenByDescending(x => x.ContractStartDate)
+            .Select(x => x.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        var filiale = anstellung == null
+            ? null
+            : await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == anstellung);
+        var (refName, refFunktion) = await StandardUnterzeichnerAsync(filiale?.Id);
+        var austritt = ma.ExitDate ?? ma.KuendigungPer;
+        var tag = austritt.HasValue
+            ? DateOnly.FromDateTime(austritt.Value)
+            : DateOnly.FromDateTime(DateTime.Today);
+        var telefon = !string.IsNullOrWhiteSpace(ma.PhoneMobile) ? ma.PhoneMobile : ma.Phone2;
+        var daten = new KuendigungPdfService.BestaetigungData(
+            FirmaName: filiale?.CompanyName,
+            RestaurantName: filiale?.BranchName,
+            FirmaStrasse: $"{filiale?.Street} {filiale?.HouseNumber}".Trim(),
+            FirmaPlzOrt: $"{filiale?.ZipCode} {filiale?.City}".Trim(),
+            MaName: $"{ma.FirstName} {ma.LastName}".Trim(),
+            MaVorname: (ma.FirstName ?? "").Trim(),
+            MaNachname: (ma.LastName ?? "").Trim(),
+            MaStrasse: ma.Street,
+            MaPlzOrt: $"{ma.ZipCode} {ma.City}".Trim(),
+            DuAnrede: "",
+            Ort: (filiale?.City ?? "").Trim(),
+            Datum: DateOnly.FromDateTime(DateTime.Today),
+            KuendigungsDatumMa: tag,
+            KuendigungAuf: tag,
+            UnterzeichnerName: null,
+            MaAhvNummer: ma.SocialSecurityNumber,
+            MaGeburtsdatum: ma.DateOfBirth.HasValue ? DateOnly.FromDateTime(ma.DateOfBirth.Value) : null,
+            MaTelefon: telefon,
+            MaEmail: ma.Email,
+            MaLand: ma.Country,
+            MaZivilstand: ma.MaritalStatus,
+            MaZivilstandSeit: ma.MaritalStatusSince,
+            ReferenzVertreterName: refName,
+            ReferenzVertreterFunktion: refFunktion);
+        return _kuendigung.HaengeAustrittsanhaenge(brief, daten);
+    }
+
+    private async Task<(string? Name, string? Funktion)> StandardUnterzeichnerAsync(int? companyProfileId)
+    {
+        if (!companyProfileId.HasValue) return (null, null);
+        var signatory = await _db.UserBranchAccesses.AsNoTracking()
+            .Include(a => a.User)
+            .Where(a => a.CompanyProfileId == companyProfileId.Value && a.IsDefault)
+            .FirstOrDefaultAsync();
+        if (signatory?.User == null)
+        {
+            signatory = await _db.UserBranchAccesses.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a => a.CompanyProfileId == companyProfileId.Value && a.Role == "GESCHAEFTSFUEHRER")
+                .OrderBy(a => a.Id)
+                .FirstOrDefaultAsync();
+        }
+        if (signatory?.User == null) return (null, null);
+        var full = $"{signatory.User.FirstName} {signatory.User.LastName}".Trim();
+        var name = string.IsNullOrWhiteSpace(full) ? signatory.User.Username : full;
+        var funktion = !string.IsNullOrWhiteSpace(signatory.FunctionTitle)
+            ? signatory.FunctionTitle
+            : (signatory.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in" : null);
+        return (name, funktion);
     }
 
     private async Task<(Bau? Bau, IActionResult? Fehler)> BaueAsync(AuftragDto dto)

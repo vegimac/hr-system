@@ -181,6 +181,7 @@ async function abFrankatur(bestellen) {
             abMeldung(j.message || ('Die Post antwortet mit HTTP ' + r.status), true, info.hinweise);
             return;
         }
+        if (j.druckPdf) j.druckPdf = await abAnhaenge(info.employeeId, j.druckPdf);
         abPostErgebnis(j, bestellen, info.hinweise);
     } catch (e) {
         abMeldung(e.message || 'Die Post ist nicht erreichbar.', true);
@@ -212,9 +213,22 @@ function abPostErgebnis(j, bestellen, hinweise) {
     html += abHinweisHtml(hinweise);
     if (j.druckPdf) {
         window._abDruckPdf = j.druckPdf;
-        html += '<div style="margin-top:10px"><button type="button" class="bv-btn2" onclick="abDruckPdf()">Brief mit Frankatur ansehen</button></div>';
+        html += '<div style="margin-top:10px"><button type="button" class="bv-btn2" onclick="abDruckPdf()">Brief mit Frankatur und Anhängen ansehen</button></div>';
     }
     out.innerHTML = html;
+}
+
+async function abAnhaenge(employeeId, pdfBase64) {
+    if (!employeeId || !pdfBase64) return pdfBase64;
+    try {
+        const r = await fetch('/api/brief-vorlagen/austritt/anhaenge', {
+            method: 'POST', headers: ah(),
+            body: JSON.stringify({ employeeId, pdfBase64 }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j.pdf) return j.pdf;
+    } catch { /* Die frankierte Seite bleibt ansehbar. */ }
+    return pdfBase64;
 }
 
 function abDruckPdf() {
