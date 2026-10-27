@@ -1652,7 +1652,7 @@ public class PayrollController : HrControllerBase
             var mwChk = await _minWage.CheckAsync(
                 mwEmp.JobGroup?.Code, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
                 mwEmp.EmploymentPercentage, mwEmp.HourlyRate, mwEmp.MonthlySalary,
-                mwDob, mwTo, mwEmp.CompanyProfileId);
+                mwDob, mwTo, mwEmp.CompanyProfileId, mwEmp.SwissdecVertragsart);
             if (mwChk.Status == "UNDERPAID")
                 return Conflict(new { error = "MINDESTLOHN_UNTERSCHRITTEN", message = mwChk.Message });
         }

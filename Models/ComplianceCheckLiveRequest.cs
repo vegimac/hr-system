@@ -16,4 +16,10 @@ public class ComplianceCheckLiveRequest
     /// werden nur Regeln ohne age_max-Filter angewendet.
     /// </summary>
     public DateTime? BirthDate { get; set; }
+
+    /// <summary>Filiale des Vertrags. Ohne L-GAV entfällt die Gastro-Tabelle.</summary>
+    public int? CompanyProfileId { get; set; }
+
+    /// <summary>Gesetzte Swissdec-Art heisst: nicht einer der vier L-GAV-Verträge.</summary>
+    public string? SwissdecVertragsart { get; set; }
 }

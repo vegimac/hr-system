@@ -595,7 +595,7 @@ function renderFilialenDetail(b) {
                     <div class="emp-field-value"><input type="number" id="einBvgWartefrist" class="ef-input" min="0" max="24" value="${b.bvgWartefristMonate ?? 3}"></div></div>
             </div>`,
                 'Karenztage bei Krank/Unfall und BVG-Wartefrist') +
-            einSec('lgav', 'L-GAV-Vollzugsbeitrag',
+            (brancheIstLgav(b) ? einSec('lgav', 'L-GAV-Vollzugsbeitrag',
                 b.lgavAktiv === false ? 'deaktiviert'
                     : `aktiv · Abzug im ${LGAV_MONTH_LABELS[(b.lgavTriggerMonat ?? 1) - 1]} · CHF ${Number(b.lgavBeitragVoll ?? 99).toFixed(2)} / ${Number(b.lgavBeitragReduziert ?? 49.5).toFixed(2)}`, `
             <div class="emp-field-grid">
@@ -613,7 +613,7 @@ function renderFilialenDetail(b) {
                 <div class="emp-field"><div class="emp-field-label">Reduzierter Beitrag (CHF)</div>
                     <div class="emp-field-value"><input type="number" id="einLgavRed" class="ef-input" min="0" step="0.05" value="${Number(b.lgavBeitragReduziert ?? 49.5).toFixed(2)}"></div></div>
             </div>`,
-                'Vollzugsbeitrag: Monat und Beträge') +
+                'Vollzugsbeitrag: Monat und Beträge') : '') +
             einSec('uniformdepot', 'Uniform-Depot',
                 b.uniformDepotAktiv === false ? 'deaktiviert' : 'aktiv · CHF 50 Abzug beim ersten Lohn (Lohnposition 600.32), Rückgabe beim Austritt', `
             <div class="emp-field-grid">
@@ -996,9 +996,11 @@ async function saveEinstellungen(branchId) {
     if (!Number.isFinite(karenzKrank)  || karenzKrank  < 0 || karenzKrank  > 365) { alert('Karenz-Tage Krank muss zwischen 0 und 365 liegen.'); return; }
     if (!Number.isFinite(karenzUnfall) || karenzUnfall < 0 || karenzUnfall > 365) { alert('Karenz-Tage Unfall muss zwischen 0 und 365 liegen.'); return; }
     if (!Number.isFinite(bvgWartefrist)|| bvgWartefrist< 0 || bvgWartefrist> 24)  { alert('BVG-Wartefrist muss zwischen 0 und 24 Monaten liegen.'); return; }
-    if (!(lgavMonat >= 1 && lgavMonat <= 12)) { alert('L-GAV Abzugs-Monat ungültig.'); return; }
-    if (!Number.isFinite(lgavVoll) || lgavVoll < 0) { alert('L-GAV voller Beitrag ungültig.'); return; }
-    if (!Number.isFinite(lgavRed)  || lgavRed  < 0) { alert('L-GAV reduzierter Beitrag ungültig.'); return; }
+    if (g('einLgavAktiv')) {
+        if (!(lgavMonat >= 1 && lgavMonat <= 12)) { alert('L-GAV Abzugs-Monat ungültig.'); return; }
+        if (!Number.isFinite(lgavVoll) || lgavVoll < 0) { alert('L-GAV voller Beitrag ungültig.'); return; }
+        if (!Number.isFinite(lgavRed)  || lgavRed  < 0) { alert('L-GAV reduzierter Beitrag ungültig.'); return; }
+    }
     if (!Number.isFinite(akontoProzent) || akontoProzent < 0 || akontoProzent > 100) { alert('Akonto-% (FIX) muss zwischen 0 und 100 liegen.'); return; }
     if (!Number.isFinite(akontoProzentFixM) || akontoProzentFixM < 0 || akontoProzentFixM > 100) { alert('Akonto-% (FIX-M) muss zwischen 0 und 100 liegen.'); return; }
     if (!Number.isFinite(akontoProzentHourly) || akontoProzentHourly < 0 || akontoProzentHourly > 100) { alert('Akonto-% (UTP/MTP) muss zwischen 0 und 100 liegen.'); return; }
@@ -1022,7 +1024,9 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/vertragsarten`,               { method: 'PATCH', headers: H, body: JSON.stringify({ codes: vertragsarten }) }),
             fetch(`/api/companyprofiles/${branchId}/schlussabrechnung`,           { method: 'PATCH', headers: H, body: JSON.stringify({ ferientageAmAustrittAuszahlen: ferientageAustritt, feiertagstageAmAustrittAuszahlen: feiertagstageAustritt, stundenSaldoImLohnVerrechnen: stundenSaldoImLohn }) }),
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
-            fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
+            (g('einLgavAktiv')
+                ? fetch(`/api/companyprofiles/${branchId}/lgav`,                  { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) })
+                : Promise.resolve({ ok: true })),
             fetch(`/api/companyprofiles/${branchId}/thirteenth-payouts`,          { method: 'PATCH', headers: H, body: JSON.stringify({ months: tpMonths, payoutsPerYear: tpMonths.length || 12 }) }),
             fetch(`/api/companyprofiles/${branchId}/akonto-prozent`,              { method: 'PATCH', headers: H, body: JSON.stringify({ akontoProzentFix: akontoProzent, akontoProzentFixM: akontoProzentFixM, akontoProzentHourly: akontoProzentHourly, akontoAktiv }) }),
             fetch(`/api/companyprofiles/${branchId}/lohnlauf-bestaetigung`,       { method: 'PATCH', headers: H, body: JSON.stringify({ nurHr: lohnlaufNurHr }) }),

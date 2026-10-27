@@ -396,7 +396,7 @@ public class MinimumWageRulesController : ControllerBase
             var chk = await _minWage.CheckAsync(
                 em.JobGroup?.Code, em.EducationLevelCode, em.EmploymentModel,
                 em.EmploymentPercentage, em.HourlyRate, em.MonthlySalary,
-                em.Employee!.DateOfBirth, periodTo, companyProfileId);
+                em.Employee!.DateOfBirth, periodTo, companyProfileId, em.SwissdecVertragsart);
             if (chk.Status == "UNDERPAID")
             {
                 underpaid.Add(new

@@ -2090,7 +2090,9 @@ function loadUebersichtTab() {
                 ${_ovDienstalterRowHtml(emp)}
                 ${_ovArbeitszeugnisRowHtml(emp)}
                 ${_ovKuendigungRowHtml(emp)}
-                <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
+                ${empSiehtLgav(emp)
+                    ? `<div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>`
+                    : ''}
             </div>
             <div class="ov-anst-kuend-row">
                 <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
@@ -2633,6 +2635,13 @@ function contractModelClass(model) {
     })[model] || '';
 }
 
+function empSiehtLgav(emp) {
+    if (typeof filialeUnterstehtLgav !== 'function') return true;
+    const ids = (emp?.employments || []).map(c => c.companyProfileId).filter(id => id != null);
+    if (!ids.length) return filialeUnterstehtLgav(typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
+    return ids.some(id => filialeUnterstehtLgav(id));
+}
+
 function empContractBranch(c) {
     const id = c?.companyProfileId;
     if (id == null || typeof allBranches === 'undefined') return null;
@@ -2819,11 +2828,14 @@ function _empContractActionsHtml(emp, c, allContracts) {
             loesen: `docLoesenPatch('/api/employees/${emp.id}/employments/${cid}/dokument','Unterschriebener Vertrag',()=>selectEmployee(${emp.id}))` })
         : '';
     // Arbeitstage pro Woche: nur noch in «Vertrag bearbeiten» neben dem Pensum (Walter 06.10.2026).
+    const arbeitsvertrag = (typeof filialeUnterstehtLgav !== 'function' || filialeUnterstehtLgav(c.companyProfileId))
+        ? `<button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>`
+        : '';
     const items = historisch
         ? `${editItem}
-           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${deleteItem}`
+           ${arbeitsvertrag}${vertragItems}${deleteItem}`
         : `${editItem}
-           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${smsItems}${deleteItem}`;
+           ${arbeitsvertrag}${vertragItems}${(typeof filialeUnterstehtLgav !== 'function' || filialeUnterstehtLgav(c.companyProfileId)) ? smsItems : ''}${deleteItem}`;
     const pillen = elternPill + vertragPill;
     return `${pillen ? `<span style="margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center">${pillen}</span>` : ''}<div class="dok-menu-wrap ov-vmenu" style="${pillen ? '' : 'margin-left:auto;'}flex-shrink:0">
         <button type="button" class="dok-menu-btn" onclick="ctrToggleMenu(event, ${cid})" title="Aktionen" aria-label="Aktionen">⋮</button>
@@ -7549,13 +7561,15 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
         ${eField('Austrittsgrund',
             `<select id="ef-austrittsgrund" class="ef-input">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select>`,
             'Für Statistik')}
-        ${eField('L-GAV',
+        ${empSiehtLgav(emp)
+            ? eField('L-GAV',
             `<label style="display:flex;align-items:center;gap:8px;height:19px;cursor:pointer">
                  <input id="ef-lgavPflichtig" type="checkbox" ${emp.lgavPflichtig ? 'checked' : ''}
                         style="width:16px;height:16px;cursor:pointer;margin:0">
                  <span style="font-size:12px;color:#475569">pflichtig</span>
              </label>`,
-            _t('ma.field.lgavPflichtigHint','Jährlicher Abzug im Lohnlauf'))}
+            _t('ma.field.lgavPflichtigHint','Jährlicher Abzug im Lohnlauf'))
+            : ''}
     </div>
     <div style="margin:6px 0 0;font-size:11px;color:#94a3b8">Nachtarbeit-Untersuchung (Ausstellungsdatum + Dokument) wird in der Ansicht direkt erfasst.</div>
     <div style="margin:4px 0 16px;font-size:11.5px;color:#64748b;line-height:1.45">

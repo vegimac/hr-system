@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Models;
 using HrSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +84,13 @@ public class ContractsController : ControllerBase
             .FirstOrDefaultAsync(e => e.Id == employmentId);
         if (employment == null) return NotFound("Employment not found.");
         if (employment.CompanyProfileId == null) return BadRequest("No company profile.");
+        var gav = await _context.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == employment.CompanyProfileId)
+            .Select(c => new { c.IstGav, c.GavName })
+            .FirstOrDefaultAsync();
+        var untersteht = gav != null && CompanyProfile.IstLgavBezeichnung(gav.IstGav, gav.GavName);
+        if (!untersteht)
+            return BadRequest(new { error = "KEIN_LGAV", message = "Ein Arbeitsvertrag zum Ausdrucken gibt es nur, wenn die Filiale dem L-GAV untersteht." });
         var employee = employment.Employee;
         if (employee == null) return BadRequest("Employee not found.");
 

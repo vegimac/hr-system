@@ -1878,7 +1878,8 @@ async function runApiImportMinimumWagePreflight(row) {
                 employmentPercentage: pct ?? 100,
                 hourlyRate,
                 monthlySalary,
-                birthDate: formatDate(get(row, 'Geburtsdatum')) || null
+                birthDate: formatDate(get(row, 'Geburtsdatum')) || null,
+                companyProfileId
             })
         });
         if (!res.ok) return { status: 'ERROR', message: `Mindestlohnprüfung nicht verfügbar (HTTP ${res.status}).` };
@@ -3370,7 +3371,7 @@ function markRowDone(idx, statusText, savedEmploymentId) {
     }
     if (btn) btn.style.display = 'none';
     if (statusEl) {
-        const pdfHtml = savedEmploymentId
+        const pdfHtml = savedEmploymentId && importUnterstehtLgav()
             ? ` <button class="btn btn-outline" style="margin-left:8px;padding:3px 10px;font-size:12px" onclick="downloadContractPdf(${savedEmploymentId})">📄 Vertrag als PDF</button>`
             : '';
         statusEl.innerHTML = `
@@ -3389,6 +3390,14 @@ function markRowDone(idx, statusText, savedEmploymentId) {
 function dismissRow(idx) {
     const row = document.getElementById(`row-${idx}`);
     if (row) row.style.display = 'none';
+}
+
+function importUnterstehtLgav() {
+    const b = (allBranches || []).find(x => Number(x.id) === Number(companyProfileId));
+    if (!b) return true;
+    if (b.istGav !== true) return false;
+    const name = String(b.gavName || '').trim().toUpperCase();
+    return name === 'L-GAV' || name.startsWith('L-GAV ') || name.startsWith('L-GAV(');
 }
 
 async function downloadContractPdf(employmentId) {
@@ -3493,7 +3502,9 @@ function renderContractRow(c) {
             <div class="row-actions">
                 <div id="rowStatus-${idx}"></div>
                 ${apiSingleImport && existingEmploymentId
-                    ? `<button class="btn btn-primary" onclick="downloadContractPdf(${existingEmploymentId})" style="width:100%;justify-content:center;padding:14px 18px;font-size:16px;border-radius:12px">📄 Vertrag drucken</button>`
+                    ? (importUnterstehtLgav()
+                        ? `<button class="btn btn-primary" onclick="downloadContractPdf(${existingEmploymentId})" style="width:100%;justify-content:center;padding:14px 18px;font-size:16px;border-radius:12px">📄 Vertrag drucken</button>`
+                        : '')
                     : `<button class="btn btn-primary" id="btnSave-${idx}" onclick="saveContractChange(${idx}, ${employeeId})" ${apiSingleImport ? 'style="width:100%;justify-content:center;padding:14px 18px;font-size:16px;border-radius:12px"' : ''} disabled>📋 Vertrag erstellen</button>`}
             </div>
         </div>
@@ -3773,7 +3784,8 @@ async function runComplianceCheck(idx) {
             employmentPercentage: pct,
             hourlyRate,
             monthlySalary,
-            birthDate
+            birthDate,
+            companyProfileId
         };
         const res = await fetch('/api/compliance/check-live', { method: 'POST', headers: ah(), body: JSON.stringify(body) });
         if (!res.ok) {
@@ -3781,6 +3793,11 @@ async function runComplianceCheck(idx) {
             return;
         }
         const cr = await res.json();
+        if (cr.status === 'NICHT_LGAV') {
+            box.innerHTML = pastInfo;
+            if (btn) btn.disabled = false;
+            return;
+        }
         const underpaid = cr.status === 'UNDERPAID';
         const ok = cr.status === 'OK' || cr.status === 'ok';
         const noRule = cr.status === 'NO_RULE';

@@ -286,6 +286,22 @@ public class CompanyProfile
     /// <summary>true = Betrieb ist einem GAV unterstellt</summary>
     public bool IstGav { get; set; } = false;
 
+    /// <summary>
+    /// Volles L-GAV-Programm (Mindestlohn-Tabelle, Arbeitsvertrag, Vollzugsbeitrag)
+    /// nur wenn der Betrieb einem GAV unterstellt ist und die Bezeichnung L-GAV ist.
+    /// </summary>
+    public static bool IstLgavBezeichnung(bool istGav, string? gavName)
+    {
+        if (!istGav || string.IsNullOrWhiteSpace(gavName)) return false;
+        var name = gavName.Trim();
+        return name.Equals("L-GAV", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("L-GAV ", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("L-GAV(", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [NotMapped]
+    public bool IstLgavBetrieb => IstLgavBezeichnung(IstGav, GavName);
+
     // ── Krankheits-Karenz ──────────────────────────────────────────────────
     /// <summary>
     /// Basis für das Karenzjahr:

@@ -2250,12 +2250,20 @@ public class DashboardService
         // Default-Code „Ia" für Verträge ohne gesetzten EducationLevelCode.
         // Walter-Importer-Konvention: CCNT leer → 5 Sans qualification → Ia.
         var defaultEduCode = "Ia";
+        var ohneLgav = (await _db.CompanyProfiles.AsNoTracking()
+            .Select(c => new { c.Id, c.IstGav, c.GavName })
+            .ToListAsync())
+            .Where(c => !CompanyProfile.IstLgavBezeichnung(c.IstGav, c.GavName))
+            .Select(c => c.Id)
+            .ToHashSet();
 
         int checkedCount = 0;
         int violationCount = 0;
         foreach (var em in mwContracts)
         {
             var emp = em.Employee!;
+            if (!string.IsNullOrWhiteSpace(em.SwissdecVertragsart)) continue;
+            if (em.CompanyProfileId is int mwFiliale && ohneLgav.Contains(mwFiliale)) continue;
             // Walter-Vorgabe 28.05.2026: Stichtag = effectiveDt (aelteste
             // offene Lohnperiode), NICHT heute. Bei zukuenftigen Vertraegen
             // (Vertragsbeginn liegt nach dem Stichtag) gilt der Vertragsbeginn

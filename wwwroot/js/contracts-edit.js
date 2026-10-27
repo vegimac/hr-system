@@ -192,6 +192,7 @@ async function openContractEditModal(c, mode = 'edit') {
         c.companyProfileId ?? (typeof currentBranchId !== 'undefined' ? currentBranchId : null),
         ceVertragsartCode(c),
         mode === 'edit');
+    _ceCompanyProfileId = c.companyProfileId ?? (typeof currentBranchId !== 'undefined' ? currentBranchId : null);
     document.getElementById('ceContractType').value    = isBefristet ? 'befristet' : 'unbefristet';
     document.getElementById('ceEndDate').value         = c.contractEndDate ? c.contractEndDate.slice(0,10) : '';
     document.getElementById('ceJobTitle').value        = c.jobTitle ?? '';
@@ -234,6 +235,10 @@ async function openContractEditModal(c, mode = 'edit') {
     // Handerfassung (Walter 07.09.2026): neuer Vertrag ohne easy@work-Herkunft ist
     // automatisch geschützt — sonst könnte der Sync ihn später kappen.
     if (overrideEl) overrideEl.checked = c.easyAtWorkManualOverride === true || (mode === 'new' && !c.easyAtWorkContractId);
+    // Der Block ist nur sichtbar, wenn der Vertrag wirklich aus easy@work kommt.
+    // Der Haken dahinter bleibt, auch wenn die Zeile ausgeblendet ist.
+    const eawBlock = document.getElementById('ceEasyBlock');
+    if (eawBlock) eawBlock.style.display = c.easyAtWorkContractId ? '' : 'none';
     // Walter-Vorgabe 26.05.2026: Vorbelegung aus Filial-Defaults wenn leer.
     //   Feiertag % → immer DefaultHolidayPercent (z.B. 2.27)
     //   Ferien %   → DefaultVacationPercent5Weeks bei Alter <50 am Vertrags-
@@ -459,6 +464,22 @@ function ceArbeitstageInfo() {
 
 // Letztes Compliance-Ergebnis (für "Mindestlohn übernehmen"-Button)
 let _ceLastComplianceResult = null;
+let _ceCompanyProfileId = null;
+
+// lgav = Ausbildung + Funktionsgruppe + L-GAV-Zeile.
+// kanton = nur die Lohnzeile. aus = ganzer Block weg.
+function ceQualifModus(modus) {
+    const block = document.getElementById('ceQualifBlock');
+    const felder = document.getElementById('ceQualifFelder');
+    const titel = document.getElementById('ceQualifTitel');
+    if (block) block.style.display = modus === 'aus' ? 'none' : '';
+    if (felder) felder.style.display = modus === 'lgav' ? '' : 'none';
+    if (titel) {
+        const key = modus === 'kanton' ? 'vt.modal.section.mindestlohn' : 'vt.modal.section.qualif';
+        titel.setAttribute('data-i18n', key);
+        titel.textContent = window.i18n ? window.i18n.t(key) : (modus === 'kanton' ? 'MINDESTLOHN' : 'QUALIFIKATION & MINDESTLOHN');
+    }
+}
 
 async function checkCeMinimumWage() {
     const infoEl   = document.getElementById('ceMinimumWageInfo');
@@ -492,6 +513,8 @@ async function checkCeMinimumWage() {
     resultEl.innerHTML = '';
 
     const _t = (k, args) => (window.i18n ? (args ? window.i18n.tFormat(k, args) : window.i18n.t(k)) : k);
+    const lgavVertrag = !ceGewaehlteArt().art;
+    ceQualifModus(lgavVertrag ? 'lgav' : 'aus');
 
     // MTP-Hinweise
     let preHints = '';
@@ -504,9 +527,10 @@ async function checkCeMinimumWage() {
         }
     }
 
-    // Wenn Ausbildung/Funktion/Beginn fehlen, dezenten Hinweis im Mindestlohn-Bereich
-    if (!jobGroupCode || !educationLevelCode || !startDate) {
-        infoEl.innerHTML = `<div class="ce-hint">${_t('vt.compl.qualMissing')}</div>`;
+    // Ausbildung und Funktion braucht nur der L-GAV. Ohne Vertragsbeginn kein Stichtag.
+    if (!startDate || (lgavVertrag && (!jobGroupCode || !educationLevelCode))) {
+        if (lgavVertrag)
+            infoEl.innerHTML = `<div class="ce-hint">${_t('vt.compl.qualMissing')}</div>`;
         if (preHints) resultEl.innerHTML = preHints;
         return;
     }
@@ -529,7 +553,9 @@ async function checkCeMinimumWage() {
             employmentPercentage: pensum ?? 100,
             hourlyRate: !isFix && Number.isFinite(hourly) ? hourly : null,
             monthlySalary: isFix && Number.isFinite(monthly) ? monthly : null,
-            birthDate
+            birthDate,
+            companyProfileId: _ceCompanyProfileId,
+            swissdecVertragsart: ceGewaehlteArt().art || null
         };
         const res = await fetch('/api/compliance/check-live', {
             method: 'POST',
@@ -543,6 +569,12 @@ async function checkCeMinimumWage() {
         }
         const cr = await res.json();
         _ceLastComplianceResult = cr;
+        if (cr.status === 'NICHT_LGAV' || (cr.lgav === false && cr.kanton === false)) {
+            ceQualifModus('aus');
+            if (preHints) resultEl.innerHTML = preHints;
+            return;
+        }
+        ceQualifModus(cr.lgav === false ? 'kanton' : 'lgav');
 
         // ──────── Mindestlohn-Info (oben, immer angezeigt sobald Quali da) ────────
         const noRule = cr.status === 'NO_RULE';
@@ -550,7 +582,7 @@ async function checkCeMinimumWage() {
             infoEl.innerHTML = `<div class="ce-mw-info"><span class="ce-mw-k">${_t('vt.compl.noRule')}</span></div>`;
         } else {
             let infoHtml = `<div class="ce-mw-info">`;
-            infoHtml += `<span class="ce-mw-k">${_t('vt.compl.headline')}</span>`;
+            infoHtml += `<span class="ce-mw-k">${cr.quelle === 'kanton' ? _t('vt.compl.headlineKanton') : _t('vt.compl.headline')}</span>`;
             if (!isFix && cr.minimumHourlyRate != null) {
                 infoHtml += `<span>${_t('vt.compl.hourlyFrom')} <strong>CHF ${Number(cr.minimumHourlyRate).toFixed(2)}</strong>/h</span>`;
             }
@@ -562,7 +594,8 @@ async function checkCeMinimumWage() {
                 }
                 infoHtml += `</span>`;
             }
-            infoHtml += `<span class="ce-mw-meta">${_t('vt.compl.validFrom')} ${new Date(startDate).toLocaleDateString('de-CH')}</span>`;
+            const abIso = cr.gueltigAb || startDate;
+            infoHtml += `<span class="ce-mw-meta">${_t('vt.compl.validFrom')} ${new Date(abIso).toLocaleDateString('de-CH')}</span>`;
             infoHtml += `</div>`;
             infoEl.innerHTML = infoHtml;
         }
@@ -972,7 +1005,7 @@ function buildContractPage() {
             <div class="c-section-title">Speichern &amp; PDF</div>
             <div class="c-buttons">
                 <button class="c-btn c-btn-blue" onclick="saveEmployment()">Anstellung speichern</button>
-                <button class="c-btn c-btn-orange" onclick="downloadContractPdf()" id="btnPdf" disabled>📄 Vertrag als PDF</button>
+                <button class="c-btn c-btn-orange" onclick="downloadContractPdf()" id="btnPdf" disabled style="${(typeof filialeUnterstehtLgav === 'function' && !filialeUnterstehtLgav(typeof selectedCompanyProfile !== 'undefined' ? selectedCompanyProfile?.id : null)) ? 'display:none' : ''}">📄 Vertrag als PDF</button>
             </div>
             <div id="saveResult" style="margin-top:12px;font-size:13px;color:#64748b">Noch nicht gespeichert.</div>
         </div>

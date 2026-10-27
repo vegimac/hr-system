@@ -77,6 +77,16 @@ public class MinimumWageCheckService
     /// </summary>
     public static bool IstNullBelegErlaubt(bool lgavPflichtig) => !lgavPflichtig;
 
+    /// <summary>
+    /// Die L-GAV-Mindestlohn-Tabelle gilt nur unter dem L-GAV und nur für die
+    /// vier Modelle (keine Swissdec-Art). Die Tabelle bleibt liegen. Ein späterer
+    /// Gesamtarbeitsvertrag wäre dieselbe Prüfung mit einer eigenen Tabelle,
+    /// eingeschaltet an der Filiale. Der örtliche Mindestlohn der Filiale gilt
+    /// unabhängig davon.
+    /// </summary>
+    public static bool LgavTabelleGilt(bool lgavAktiv, string? swissdecVertragsart)
+        => lgavAktiv && string.IsNullOrWhiteSpace(swissdecVertragsart);
+
     public async Task<MinWageCheckResult> CheckAsync(
         string? jobGroupCode,
         string? educationLevelCode,
@@ -86,7 +96,8 @@ public class MinimumWageCheckService
         decimal? monthlySalary,
         DateTime? dateOfBirth,
         DateOnly effectiveDate,
-        int? companyProfileId = null)
+        int? companyProfileId = null,
+        string? swissdecVertragsart = null)
     {
         if (string.IsNullOrWhiteSpace(jobGroupCode) || string.IsNullOrWhiteSpace(employmentModel))
             return new MinWageCheckResult("NOT_CHECKED", null, null, null, null, null);
@@ -100,52 +111,68 @@ public class MinimumWageCheckService
         };
         var salaryType = (modelCode == "FIX" || modelCode == "FIX-M") ? "monthly" : "hourly";
 
-        // Importer-Konvention: leere Ausbildung → „Ia" (5 Sans qualification).
-        var eduCode = string.IsNullOrWhiteSpace(educationLevelCode) ? "Ia" : educationLevelCode!;
-        var eduLevelId = await _db.EducationLevels
-            .Where(e => e.Code == eduCode && e.IsActive)
-            .Select(e => (int?)e.Id)
-            .FirstOrDefaultAsync();
-        if (eduLevelId == null)
-            return new MinWageCheckResult("NO_RULE", null, null, null, null, "Bildungsstufe nicht gefunden.");
+        var istLgav = true;
+        if (companyProfileId is int filialeId)
+        {
+            var gav = await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => c.Id == filialeId)
+                .Select(c => new { c.IstGav, c.GavName })
+                .FirstOrDefaultAsync();
+            istLgav = gav != null && HrSystem.Models.CompanyProfile.IstLgavBezeichnung(gav.IstGav, gav.GavName);
+        }
+        var tabelle = LgavTabelleGilt(istLgav, swissdecVertragsart);
 
         // Alter für altersabhängige Jugend-Regeln — am Ende des Stichtag-Monats.
         var effDt = effectiveDate.ToDateTime(TimeOnly.MinValue);
         int? age = MindestlohnAlter.AlterFuerRegel(dateOfBirth, effDt);
 
-        // Spezifischste Regel zuerst: niedrigster age_max (Jugendliche), NULLS LAST;
-        // dann jüngstes Gültig-ab.
-        var rule = await _db.MinimumWageRulesNew
-            .Where(r => r.IsActive
-                     && r.JobGroupCode == jobGroupCode
-                     && r.EmploymentModelCode == modelCode
-                     && r.EducationLevelId == eduLevelId.Value
-                     && r.SalaryType == salaryType
-                     && r.ValidFrom <= effDt
-                     && (r.ValidTo == null || r.ValidTo >= effDt)
-                     && (r.AgeMax == null || (age != null && age <= r.AgeMax)))
-            .OrderBy(r => r.AgeMax == null ? int.MaxValue : r.AgeMax)
-            .ThenByDescending(r => r.ValidFrom)
-            .FirstOrDefaultAsync();
-
-        if (rule == null)
-            return new MinWageCheckResult("NO_RULE", null, null, null, null, "Keine Mindestlohnregel gefunden.");
-
-        decimal? actual;
-        decimal minimum;
-        string unit;
-        if (salaryType == "monthly")
+        HrSystem.Models.MinimumWageRuleNew? rule = null;
+        if (tabelle)
         {
-            actual  = monthlySalary;
-            var pct = (employmentPercentage ?? 100m) / 100m;
-            minimum = Math.Round(rule.Amount * pct, 2);
-            unit    = "/Mt.";
+            // Importer-Konvention: leere Ausbildung → «Ia» (5 Sans qualification).
+            var eduCode = string.IsNullOrWhiteSpace(educationLevelCode) ? "Ia" : educationLevelCode!;
+            var eduLevelId = await _db.EducationLevels
+                .Where(e => e.Code == eduCode && e.IsActive)
+                .Select(e => (int?)e.Id)
+                .FirstOrDefaultAsync();
+            if (eduLevelId == null)
+                return new MinWageCheckResult("NO_RULE", null, null, null, null, "Bildungsstufe nicht gefunden.");
+
+            // Spezifischste Regel zuerst: niedrigster age_max (Jugendliche), NULLS LAST;
+            // dann jüngstes Gültig-ab.
+            rule = await _db.MinimumWageRulesNew
+                .Where(r => r.IsActive
+                         && r.JobGroupCode == jobGroupCode
+                         && r.EmploymentModelCode == modelCode
+                         && r.EducationLevelId == eduLevelId.Value
+                         && r.SalaryType == salaryType
+                         && r.ValidFrom <= effDt
+                         && (r.ValidTo == null || r.ValidTo >= effDt)
+                         && (r.AgeMax == null || (age != null && age <= r.AgeMax)))
+                .OrderBy(r => r.AgeMax == null ? int.MaxValue : r.AgeMax)
+                .ThenByDescending(r => r.ValidFrom)
+                .FirstOrDefaultAsync();
+
+            if (rule == null)
+                return new MinWageCheckResult("NO_RULE", null, null, null, null, "Keine Mindestlohnregel gefunden.");
         }
-        else
+
+        decimal? actual = salaryType == "monthly" ? monthlySalary : hourlyRate;
+        decimal minimum = 0m;
+        string unit = salaryType == "monthly" ? "/Mt." : "/h";
+        var hatMindestlohn = false;
+        if (rule != null)
         {
-            actual  = hourlyRate;
-            minimum = rule.Amount;
-            unit    = "/h";
+            if (salaryType == "monthly")
+            {
+                var pct = (employmentPercentage ?? 100m) / 100m;
+                minimum = Math.Round(rule.Amount * pct, 2);
+            }
+            else
+            {
+                minimum = rule.Amount;
+            }
+            hatMindestlohn = true;
         }
 
         // ── Kommunaler Filial-Mindestlohn (übersteuert NACH OBEN) ────────────
@@ -153,40 +180,27 @@ public class MinimumWageCheckService
         // Mindestlohn. Erfasst als JAHRESLOHN pro Filiale (branch_min_wage,
         // versioniert). Monatslohn = Jahr/13, Stundenlohn = Jahr/52/Wochenstunden.
         // Effektives Minimum = max(L-GAV, Filial-Floor) — senkt nie einen schon
-        // höheren L-GAV-Satz (z.B. Manager). Bei Jugendlichen nur, wenn der
-        // Filial-Eintrag das ausdrücklich vorsieht (applies_to_youth).
+        // höheren L-GAV-Satz (z.B. Manager). Ohne L-GAV ist er der einzige
+        // Mindestlohn. Bei Jugendlichen nur, wenn der Filial-Eintrag das
+        // ausdrücklich vorsieht (applies_to_youth).
         string minSource = "L-GAV-Mindestlohn";
-        DateTime minValidFrom = rule.ValidFrom;
-        if (companyProfileId.HasValue)
+        DateTime minValidFrom = rule?.ValidFrom ?? effDt;
+        if (companyProfileId is int filialId && await FilialMindestlohnAsync(filialId, effDt, age) is { } filial)
         {
-            bool isYouth = age != null && age < 18;
-            var bmw = await _db.BranchMinWages
-                .Where(b => b.IsActive
-                         && b.CompanyProfileId == companyProfileId.Value
-                         && b.ValidFrom <= effDt
-                         && (b.ValidTo == null || b.ValidTo >= effDt))
-                .OrderByDescending(b => b.ValidFrom)
-                .FirstOrDefaultAsync();
-            if (bmw != null && (bmw.AppliesToYouth || !isYouth))
+            decimal cityFloor = salaryType == "monthly"
+                ? Math.Round(filial.MonthlyFte * ((employmentPercentage ?? 100m) / 100m), 2)
+                : filial.Hourly;
+            if (cityFloor > minimum)
             {
-                var weekly = (await _db.CompanyProfiles
-                    .Where(c => c.Id == companyProfileId.Value)
-                    .Select(c => c.NormalWeeklyHours)
-                    .FirstOrDefaultAsync()) ?? 42m;
-                if (weekly <= 0) weekly = 42m;
-
-                decimal cityFloor = salaryType == "monthly"
-                    ? Math.Round(bmw.AnnualSalary / 13m * ((employmentPercentage ?? 100m) / 100m), 2)
-                    : Math.Round(bmw.AnnualSalary / 52m / weekly, 2);
-
-                if (cityFloor > minimum)
-                {
-                    minimum      = cityFloor;
-                    minSource    = "kommunalen Mindestlohn dieser Filiale";
-                    minValidFrom = bmw.ValidFrom;
-                }
+                minimum        = cityFloor;
+                hatMindestlohn = true;
+                minSource      = "kommunalen Mindestlohn dieser Filiale";
+                minValidFrom   = filial.ValidFrom;
             }
         }
+
+        if (!hatMindestlohn)
+            return new MinWageCheckResult("NOT_CHECKED", null, null, null, null, null);
 
         if (actual == null)
             return new MinWageCheckResult("NOT_CHECKED", minimum, null, unit, null, "Lohn fehlt.");
@@ -200,4 +214,35 @@ public class MinimumWageCheckService
 
         return new MinWageCheckResult("OK", minimum, actual, unit, diff, null);
     }
+
+    /// <summary>
+    /// Kantonaler/örtlicher Mindestlohn der Filiale, falls einer am Stichtag gilt.
+    /// Stundenlohn = Jahreslohn / 52 / Wochenstunden, Monatslohn 100 % = Jahreslohn / 13.
+    /// Jugendliche nur, wenn der Eintrag das vorsieht.
+    /// </summary>
+    public async Task<FilialMindestlohn?> FilialMindestlohnAsync(int companyProfileId, DateTime effDt, int? age)
+    {
+        bool isYouth = age != null && age < 18;
+        var bmw = await _db.BranchMinWages
+            .Where(b => b.IsActive
+                     && b.CompanyProfileId == companyProfileId
+                     && b.ValidFrom <= effDt
+                     && (b.ValidTo == null || b.ValidTo >= effDt))
+            .OrderByDescending(b => b.ValidFrom)
+            .FirstOrDefaultAsync();
+        if (bmw == null || (isYouth && !bmw.AppliesToYouth)) return null;
+
+        var weekly = (await _db.CompanyProfiles
+            .Where(c => c.Id == companyProfileId)
+            .Select(c => c.NormalWeeklyHours)
+            .FirstOrDefaultAsync()) ?? 42m;
+        if (weekly <= 0) weekly = 42m;
+
+        return new FilialMindestlohn(
+            Math.Round(bmw.AnnualSalary / 52m / weekly, 2),
+            Math.Round(bmw.AnnualSalary / 13m, 2),
+            bmw.ValidFrom);
+    }
 }
+
+public readonly record struct FilialMindestlohn(decimal Hourly, decimal MonthlyFte, DateTime ValidFrom);

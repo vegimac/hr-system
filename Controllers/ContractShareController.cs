@@ -340,6 +340,20 @@ public class ContractShareController : ControllerBase
             if (employment == null) return new ShareBuildResult { Error = NotFound(new { error = "Für diesen Mitarbeitenden ist kein Vertrag erfasst." }) };
         }
 
+        if (employment.CompanyProfileId is int lgavFiliale)
+        {
+            var gav = await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => c.Id == lgavFiliale)
+                .Select(c => new { c.IstGav, c.GavName })
+                .FirstOrDefaultAsync();
+            var untersteht = gav != null && CompanyProfile.IstLgavBezeichnung(gav.IstGav, gav.GavName);
+            if (!untersteht)
+                return new ShareBuildResult
+                {
+                    Error = BadRequest(new { error = "KEIN_LGAV", message = "Ein Arbeitsvertrag gibt es nur, wenn die Filiale dem L-GAV untersteht." }),
+                };
+        }
+
         // Vertrags-SMS nur für ausgewählte Benutzer (Walter 10.08.2026):
         // admin/superuser immer; Rolle user braucht das Häkchen «Vertrags-SMS
         // senden» (user_branch_access) für die Filiale des Vertrags.
@@ -1007,6 +1021,21 @@ public class ContractShareController : ControllerBase
             return StatusCode(410, "Dieser Vertrags-Link wurde ersetzt oder zurückgezogen. Bitte einen neuen Link anfordern.");
         if (t.ExpiresAt < DateTime.Now)
             return StatusCode(410, "Dieser Vertrags-Link ist abgelaufen. Bitte einen neuen Link anfordern.");
+
+        var filialeId = await _db.Employments.AsNoTracking()
+            .Where(e => e.Id == t.EmploymentId)
+            .Select(e => e.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        if (filialeId is int pdfFiliale)
+        {
+            var gav = await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => c.Id == pdfFiliale)
+                .Select(c => new { c.IstGav, c.GavName })
+                .FirstOrDefaultAsync();
+            var untersteht = gav != null && CompanyProfile.IstLgavBezeichnung(gav.IstGav, gav.GavName);
+            if (!untersteht)
+                return BadRequest("Für diesen Betrieb gibt es keinen Arbeitsvertrag zum Herunterladen.");
+        }
 
         var pdf = await ContractPdfBuilder.BuildAsync(_db, t.EmploymentId);
         if (pdf == null)

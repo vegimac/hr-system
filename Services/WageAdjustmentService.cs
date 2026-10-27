@@ -129,7 +129,7 @@ public class WageAdjustmentService
             var chk = await _minWage.CheckAsync(
                 em.JobGroup?.Code, em.EducationLevelCode, em.EmploymentModel,
                 em.EmploymentPercentage, em.HourlyRate, em.MonthlySalary,
-                em.Employee!.DateOfBirth, effDate, companyProfileId);
+                em.Employee!.DateOfBirth, effDate, companyProfileId, em.SwissdecVertragsart);
             if (chk.Status != "UNDERPAID" || chk.Minimum == null) continue;
 
             bool monthly = chk.Unit == "/Mt.";
@@ -206,7 +206,7 @@ public class WageAdjustmentService
                 src.EmploymentPercentage,
                 monthly ? (decimal?)null : newActual,
                 monthly ? newActual : (decimal?)null,
-                src.Employee?.DateOfBirth, effectiveDate, companyProfileId);
+                src.Employee?.DateOfBirth, effectiveDate, companyProfileId, src.SwissdecVertragsart);
             if (recheck.Status == "UNDERPAID")
             {
                 skipped.Add($"{src.Employee?.FirstName} {src.Employee?.LastName}: Neuer Lohn liegt weiterhin unter dem Mindestlohn.");

@@ -55,7 +55,7 @@ public class LgavBeitragService
     {
         if (employee is null || employment is null) return;
 
-        if (!profile.LgavAktiv)
+        if (!profile.IstLgavBetrieb || !profile.LgavAktiv)
         {
             // Filiale ohne L-GAV (Walter 09.09.2026): ein automatisch gesetzter
             // Beitrag der laufenden Periode wird wieder entfernt — sonst bliebe

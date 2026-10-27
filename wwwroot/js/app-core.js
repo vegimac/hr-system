@@ -1706,6 +1706,20 @@ function sichtbareFilialen() {
     return src.slice().sort((a, b) => parseInt(a.restaurantCode || '9999', 10) - parseInt(b.restaurantCode || '9999', 10));
 }
 
+function brancheIstLgav(b) {
+    if (!b || b.istGav !== true) return false;
+    const name = String(b.gavName || '').trim().toUpperCase();
+    return name === 'L-GAV' || name.startsWith('L-GAV ') || name.startsWith('L-GAV(');
+}
+
+function filialeUnterstehtLgav(companyProfileId) {
+    const id = companyProfileId != null && companyProfileId !== '' ? Number(companyProfileId) : null;
+    if (id == null || typeof allBranches === 'undefined') return true;
+    const b = allBranches.find(x => Number(x.id) === id);
+    if (!b) return true;
+    return brancheIstLgav(b);
+}
+
 function filialKurzname(b) {
     if (!b) return '';
     const ort = (b.workLocation

@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,26 +11,50 @@ namespace HrSystem.Controllers;
 public class ComplianceController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly MinimumWageCheckService _mindestlohn;
 
-    public ComplianceController(AppDbContext context)
+    public ComplianceController(AppDbContext context, MinimumWageCheckService mindestlohn)
     {
         _context = context;
+        _mindestlohn = mindestlohn;
     }
 
     [HttpPost("check-live")]
     public async Task<IActionResult> CheckLive([FromBody] ComplianceCheckLiveRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.JobGroupCode))
-            return BadRequest("JobGroupCode is required.");
-
-        if (string.IsNullOrWhiteSpace(request.EducationLevelCode))
-            return BadRequest("EducationLevelCode is required.");
-
         if (request.EffectiveDate == default)
             return BadRequest("EffectiveDate is required.");
 
         if (string.IsNullOrWhiteSpace(request.EmploymentModel))
             return BadRequest("EmploymentModel is required.");
+
+        var istLgav = true;
+        if (request.CompanyProfileId is int filialeId)
+        {
+            var gav = await _context.CompanyProfiles.AsNoTracking()
+                .Where(c => c.Id == filialeId)
+                .Select(c => new { c.IstGav, c.GavName })
+                .FirstOrDefaultAsync();
+            istLgav = gav != null && CompanyProfile.IstLgavBezeichnung(gav.IstGav, gav.GavName);
+        }
+        var tabelle = MinimumWageCheckService.LgavTabelleGilt(istLgav, request.SwissdecVertragsart);
+        int? alter = MindestlohnAlter.AlterFuerRegel(request.BirthDate, request.EffectiveDate);
+        FilialMindestlohn? filial = request.CompanyProfileId is int filialFuerLohn
+            ? await _mindestlohn.FilialMindestlohnAsync(filialFuerLohn, request.EffectiveDate, alter)
+            : null;
+
+        if (!tabelle)
+        {
+            if (filial == null)
+                return Ok(new { status = "NICHT_LGAV", lgav = false, kanton = false });
+            return Ok(KantonAntwort(request, filial.Value));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.JobGroupCode))
+            return BadRequest("JobGroupCode is required.");
+
+        if (string.IsNullOrWhiteSpace(request.EducationLevelCode))
+            return BadRequest("EducationLevelCode is required.");
 
         var educationLevel = await _context.EducationLevels
             .FirstOrDefaultAsync(e => e.Code == request.EducationLevelCode && e.IsActive);
@@ -78,6 +103,8 @@ public class ComplianceController : ControllerBase
             return Ok(new
             {
                 status = "NO_RULE",
+                lgav = true,
+                kanton = filial != null,
                 warningMessage = "Keine Mindestlohnregel gefunden.",
                 educationLevelCode = educationLevel.Code,
                 jobGroupCode = request.JobGroupCode,
@@ -86,6 +113,22 @@ public class ComplianceController : ControllerBase
             });
         }
 
+        // Kantonaler Lohn hebt den L-GAV nur nach oben.
+        var mindest = rule.Amount;
+        var quelle = "lgav";
+        string? gueltigAb = null;
+        if (filial is { } hoeher)
+        {
+            var filialBetrag = salaryType == "hourly" ? hoeher.Hourly : hoeher.MonthlyFte;
+            if (filialBetrag > mindest)
+            {
+                mindest = filialBetrag;
+                quelle = "kanton";
+                gueltigAb = hoeher.ValidFrom.ToString("yyyy-MM-dd");
+            }
+        }
+        var kanton = filial != null;
+
         if (salaryType == "hourly")
         {
             if (request.HourlyRate == null)
@@ -93,36 +136,44 @@ public class ComplianceController : ControllerBase
                 return Ok(new
                 {
                     status = "NOT_CHECKED",
+                    quelle,
+                    lgav = true,
+                    kanton,
+                    gueltigAb,
                     warningMessage = "Stundenlohn fehlt.",
                     educationLevelCode = educationLevel.Code,
                     jobGroupCode = request.JobGroupCode,
                     employmentModelCode,
                     salaryType,
-                    minimumHourlyRate = rule.Amount,
+                    minimumHourlyRate = mindest,
                     jugendsatzBis,
                     jugendsatzGeburtstag
                 });
             }
 
-            var difference = request.HourlyRate.Value - rule.Amount;
+            var difference = request.HourlyRate.Value - mindest;
             var status = difference < 0 ? "UNDERPAID" : "OK";
 
             string? warningMessage = null;
             if (difference < 0)
             {
                 warningMessage =
-                    $"Achtung: Der eingegebene Stundenlohn von CHF {request.HourlyRate.Value:0.00} liegt CHF {Math.Abs(difference):0.00} unter dem Mindestlohn von CHF {rule.Amount:0.00}.";
+                    $"Achtung: Der eingegebene Stundenlohn von CHF {request.HourlyRate.Value:0.00} liegt CHF {Math.Abs(difference):0.00} unter dem Mindestlohn von CHF {mindest:0.00}.";
             }
 
             return Ok(new
             {
                 status,
+                quelle,
+                lgav = true,
+                kanton,
+                gueltigAb,
                 educationLevelCode = educationLevel.Code,
                 jobGroupCode = request.JobGroupCode,
                 employmentModelCode,
                 salaryType,
                 currentHourlyRate = request.HourlyRate,
-                minimumHourlyRate = rule.Amount,
+                minimumHourlyRate = mindest,
                 difference,
                 warningMessage,
                 jugendsatzBis,
@@ -132,7 +183,7 @@ public class ComplianceController : ControllerBase
 
         // Pensum-Faktor (100% = 1.0, 80% = 0.8 usw.)
         var pct = (request.EmploymentPercentage ?? 100m) / 100m;
-        var minimumFte      = rule.Amount;                              // Mindestlohn 100%
+        var minimumFte      = mindest;                                  // Mindestlohn 100%
         var minimumEffective = Math.Round(minimumFte * pct, 2);         // Mindestlohn anteilig
 
         if (request.MonthlySalary == null)
@@ -140,6 +191,10 @@ public class ComplianceController : ControllerBase
             return Ok(new
             {
                 status = "NOT_CHECKED",
+                quelle,
+                lgav = true,
+                kanton,
+                gueltigAb,
                 warningMessage = "Monatslohn fehlt.",
                 educationLevelCode = educationLevel.Code,
                 jobGroupCode = request.JobGroupCode,
@@ -169,6 +224,10 @@ public class ComplianceController : ControllerBase
         return Ok(new
         {
             status = monthlyStatus,
+            quelle,
+            lgav = true,
+            kanton,
+            gueltigAb,
             educationLevelCode = educationLevel.Code,
             jobGroupCode = request.JobGroupCode,
             employmentModelCode,
@@ -183,6 +242,50 @@ public class ComplianceController : ControllerBase
             jugendsatzBis,
             jugendsatzGeburtstag
         });
+    }
+
+    /// <summary>Nur der kantonale/örtliche Lohn, ohne Gastro-Tabelle.</summary>
+    private static object KantonAntwort(ComplianceCheckLiveRequest request, FilialMindestlohn filial)
+    {
+        var salaryType = GetSalaryType(request.EmploymentModel!);
+        var ab = filial.ValidFrom.ToString("yyyy-MM-dd");
+        if (salaryType == "hourly")
+        {
+            if (request.HourlyRate == null)
+                return new
+                {
+                    status = "NOT_CHECKED", quelle = "kanton", lgav = false, kanton = true,
+                    salaryType, minimumHourlyRate = filial.Hourly, gueltigAb = ab
+                };
+            var diff = request.HourlyRate.Value - filial.Hourly;
+            return new
+            {
+                status = diff < 0 ? "UNDERPAID" : "OK", quelle = "kanton", lgav = false, kanton = true,
+                salaryType, currentHourlyRate = request.HourlyRate, minimumHourlyRate = filial.Hourly,
+                difference = diff, gueltigAb = ab
+            };
+        }
+
+        var pct = (request.EmploymentPercentage ?? 100m) / 100m;
+        var minimumFte = filial.MonthlyFte;
+        var minimumEffective = Math.Round(minimumFte * pct, 2);
+        if (request.MonthlySalary == null)
+            return new
+            {
+                status = "NOT_CHECKED", quelle = "kanton", lgav = false, kanton = true, salaryType,
+                minimumMonthlySalary = minimumEffective, minimumMonthlySalaryFte = minimumFte,
+                employmentPercentage = request.EmploymentPercentage ?? 100m, gueltigAb = ab
+            };
+        var effective = Math.Round(request.MonthlySalary.Value * pct, 2);
+        var monthlyDiff = effective - minimumEffective;
+        return new
+        {
+            status = monthlyDiff < 0 ? "UNDERPAID" : "OK", quelle = "kanton", lgav = false, kanton = true,
+            salaryType, currentMonthlySalary = effective, currentMonthlySalaryFte = request.MonthlySalary,
+            minimumMonthlySalary = minimumEffective, minimumMonthlySalaryFte = minimumFte,
+            employmentPercentage = request.EmploymentPercentage ?? 100m,
+            difference = monthlyDiff, gueltigAb = ab
+        };
     }
 
     // Vertragsmodell-Code für Mindestlohn-Lookup. Seit dem Rename 08.07.2026 sind
