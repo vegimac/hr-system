@@ -1712,6 +1712,13 @@ function brancheIstLgav(b) {
     return name === 'L-GAV' || name.startsWith('L-GAV ') || name.startsWith('L-GAV(');
 }
 
+function filialeHatEasy(companyProfileId) {
+    const id = companyProfileId != null && companyProfileId !== '' ? Number(companyProfileId) : null;
+    if (id == null || typeof allBranches === 'undefined') return false;
+    const b = allBranches.find(x => Number(x.id) === id);
+    return b?.hatEasyAtWork === true;
+}
+
 function filialeUnterstehtLgav(companyProfileId) {
     const id = companyProfileId != null && companyProfileId !== '' ? Number(companyProfileId) : null;
     if (id == null || typeof allBranches === 'undefined') return true;

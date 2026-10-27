@@ -302,6 +302,13 @@ public class CompanyProfile
     [NotMapped]
     public bool IstLgavBetrieb => IstLgavBezeichnung(IstGav, GavName);
 
+    /// <summary>
+    /// Filiale hat eine easy@work-Zuordnung. Verträge kommen dann nur aus easy@work.
+    /// Wird in der Filial-Liste gesetzt, nicht gespeichert.
+    /// </summary>
+    [NotMapped]
+    public bool HatEasyAtWork { get; set; }
+
     // ── Krankheits-Karenz ──────────────────────────────────────────────────
     /// <summary>
     /// Basis für das Karenzjahr:

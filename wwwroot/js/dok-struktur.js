@@ -850,7 +850,9 @@ async function renderVtDetail(emp) {
             <div style="display:flex;gap:8px">
                     <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openZeugnisModal(${emp.id})">📄 Arbeitszeugnis</button>
                     <button class="btn btn-outline" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openVtImport(${emp.id}, '${emp.employeeNumber}')">${_t('vt.btn.csvImport')}</button>
-                    <button class="btn btn-primary" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openNewContractInModal(${emp.id})">${_t('vt.btn.newContract')}</button>
+                    ${(typeof filialeHatEasy !== 'function' || !filialeHatEasy(typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null))
+                        ? `<button class="btn btn-primary" style="font-size:12px;padding:5px 14px;white-space:nowrap" onclick="openNewContractInModal(${emp.id})">${_t('vt.btn.newContract')}</button>`
+                        : ''}
                 </div>
         </div>
     </div>
@@ -905,7 +907,11 @@ async function showProbationHistory(employmentId) {
 // nur Vertragsbeginn/-ende werden NICHT übernommen. Fällt auf den Import-
 // Snapshot (easy@work) zurück, wenn der MA noch keinen Vertrag hat.
 async function openNewContractInModal(employeeId) {
-    selectedVtEmployee = allVtEmployees.find(e => e.id === employeeId) || null;
+    const ausListe = (typeof allVtEmployees !== 'undefined' && Array.isArray(allVtEmployees))
+        ? allVtEmployees.find(e => e.id === employeeId)
+        : null;
+    selectedVtEmployee = ausListe
+        || (typeof selectedEmployee !== 'undefined' && Number(selectedEmployee?.id) === Number(employeeId) ? selectedEmployee : null);
 
     // Letzten Vertrag bestimmen: aktiver (kein contractEndDate) bevorzugt,
     // sonst chronologisch jüngster nach contractStartDate.

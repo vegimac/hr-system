@@ -43,7 +43,23 @@ public class CompanyProfilesController : ControllerBase
             .ThenBy(p => p.BranchName ?? p.CompanyName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        await MarkiereEasyAsync(profiles);
         return Ok(profiles);
+    }
+
+    /// <summary>easy@work-Zuordnung nur für die Anzeige. Ohne Eintrag legt man Verträge von Hand an.</summary>
+    private async Task MarkiereEasyAsync(IEnumerable<CompanyProfile> profiles)
+    {
+        var list = profiles as IList<CompanyProfile> ?? profiles.ToList();
+        if (list.Count == 0) return;
+        var ids = list.Select(p => p.Id).ToList();
+        var easy = await _context.EasyAtWorkBranchMappings.AsNoTracking()
+            .Where(m => ids.Contains(m.CompanyProfileId))
+            .Select(m => m.CompanyProfileId)
+            .ToListAsync();
+        var set = easy.ToHashSet();
+        foreach (var p in list)
+            p.HatEasyAtWork = set.Contains(p.Id);
     }
 
     /// <summary>
@@ -66,6 +82,7 @@ public class CompanyProfilesController : ControllerBase
         if (profile == null)
             return NotFound();
 
+        await MarkiereEasyAsync(new[] { profile });
         return Ok(profile);
     }
 

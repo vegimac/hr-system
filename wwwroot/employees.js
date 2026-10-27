@@ -2209,7 +2209,16 @@ function loadUebersichtTab() {
     const vShare = '<div class="contractShareBox" style="margin:4px 0 0"></div>';
     // Verträge breit + rechts Stunden/Saldi-Tabelle (Walter 19.07.2026).
     // KTG/UVG-Tagessatz bleibt im Absenzen-Tab (Sidebar) — nicht mehr hier.
-    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vList + vShare);
+    // Neuer Vertrag nur ohne easy@work (Walter 27.10.2026): mit Zuordnung
+    // kommen die Verträge nur aus easy. Filiale = Seitenleiste.
+    const filialId = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
+    const hatEasy = filialId != null && typeof filialeHatEasy === 'function' && filialeHatEasy(filialId);
+    const neuerVertrag = !filialId
+        ? ''
+        : hatEasy
+            ? `<span style="font-size:12px;font-weight:600;color:#8b8b8b">aus easy@work</span>`
+            : `<button type="button" class="ov-hbtn ov-hbtn-primary" style="padding:4px 12px;font-size:12px" onclick="openNewContractInModal(${emp.id})">+ Neuer Vertrag</button>`;
+    const kVert = _ovCard(`Verträge <span class="ov-count">${contracts.length}</span>`, null, '', vList + vShare, neuerVertrag);
     const kSaldi = `<div class="ov-card ov-saldi-card">
         <div class="ov-saldi-head">
             <div class="ov-saldi-switch" role="group" aria-label="Saldi-Zeitraum">
