@@ -6,42 +6,15 @@ namespace HrSystem.Services;
 
 // ── Daten der Stempel-Berichte (Controller, Bildschirm und PDF teilen sie) ──
 public record StempelZeit(DateOnly Tag, string Ein, string Aus, int EinMin, int AusMin, int Minuten);
-public record StempelManager(int Id, string? Vorname, string? Nachname)
-{
-    public string Name => $"{Vorname} {Nachname}".Trim();
-}
 public record StempelVerstossZeile(string Art, string Titel, DateOnly Von, DateOnly Bis, string Text,
-                                   int Ist, int Grenze, string Recht, List<StempelZeit> Stempel,
-                                   List<StempelManager>? Manager = null);
+                                   int Ist, int Grenze, string Recht, List<StempelZeit> Stempel);
 public record StempelVerstossMa(int EmployeeId, string? Nummer, string? Vorname, string? Nachname,
                                 List<StempelVerstossZeile> Verstoesse);
 public record StempelVerstossArt(string Art, string Titel, string Regel, int Anzahl);
 public record StempelVerstoesseDaten(string Filiale, DateOnly Von, DateOnly Bis, int AnzahlMa,
                                      List<StempelVerstossArt> ProArt, List<StempelVerstossMa> Mitarbeiter,
                                      List<string> Ausgeschaltet,
-                                     string NachtVon = "00:00", string NachtBis = "07:00",
-                                     List<StempelManager>? ManagerAuswahl = null, string? ManagerFilter = null)
-{
-    /// <summary>
-    /// null = alle. 0 = kein Manager hat zur Verstosszeit gestempelt.
-    /// Sonst nur Verstösse, bei denen dieser Manager dabei war.
-    /// </summary>
-    public StempelVerstoesseDaten FuerManager(int? managerId)
-    {
-        if (managerId == null) return this;
-        bool ohne = managerId == 0;
-        var ma = Mitarbeiter.Select(m => m with
-        {
-            Verstoesse = m.Verstoesse.Where(v =>
-                ohne ? v.Manager == null || v.Manager.Count == 0
-                     : v.Manager?.Any(x => x.Id == managerId) == true).ToList()
-        }).Where(m => m.Verstoesse.Count > 0).ToList();
-        var pro = ProArt.Select(a => a with { Anzahl = ma.Sum(m => m.Verstoesse.Count(v => v.Art == a.Art)) }).ToList();
-        var name = ohne ? "kein Manager gestempelt"
-            : ManagerAuswahl?.FirstOrDefault(x => x.Id == managerId)?.Name;
-        return this with { Mitarbeiter = ma, ProArt = pro, ManagerFilter = string.IsNullOrWhiteSpace(name) ? "Manager" : name };
-    }
-}
+                                     string NachtVon = "00:00", string NachtBis = "07:00");
 
 public record StempelKorrekturZeile(int Id, DateOnly Tag, string Ein, string? Aus, string? VorherEin, string? VorherAus,
                                     string Art, string? Von, DateTime? Am, string? Kommentar, string? Protokoll);
@@ -111,8 +84,6 @@ public class StempelBerichtPdfService
                 {
                     t.Span($"{total} Verstösse").Bold().FontSize(11f).FontColor(Ink);
                     t.Span($" bei {d.Mitarbeiter.Count} von {d.AnzahlMa} Mitarbeitenden").FontSize(9f);
-                    if (!string.IsNullOrWhiteSpace(d.ManagerFilter))
-                        t.Span($" · {d.ManagerFilter}").FontSize(9f).FontColor(Muted);
                 });
                 col.Item().Table(tb =>
                 {
@@ -153,9 +124,6 @@ public class StempelBerichtPdfService
                                 r.RelativeItem().Column(c2 =>
                                 {
                                     c2.Item().Text(v.Text).FontSize(8f);
-                                    if (v.Manager is { Count: > 0 })
-                                        c2.Item().Text("Manager: " + string.Join(", ", v.Manager.Select(x => x.Name)))
-                                            .FontSize(7f).FontColor(Muted);
                                     if (v.Stempel.Count > 0)
                                         c2.Item().PaddingTop(1).Text(StempelText(v)).FontSize(7f).FontColor(Muted);
                                 });

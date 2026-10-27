@@ -116,47 +116,12 @@ function _szSuche(prefix, m) {
 
 function szvInit() { _szInitZeitraum('szv'); szvLoad(); }
 function szvZeitraum(art) { _szZeitraumSetzen('szv', art); }
-function szvPdf() {
-    const cp = _szFiliale();
-    if (!cp) return alert('Bitte zuerst oben links in der Sidebar eine Filiale wählen.');
-    const von = document.getElementById('szvFrom').value, bis = document.getElementById('szvTo').value;
-    const qs = new URLSearchParams({ companyProfileId: cp, from: von, to: bis });
-    const manager = document.getElementById('szvManager')?.value;
-    if (manager) qs.set('managerId', manager);
-    previewUrlFetch('/api/reports/stempel-verstoesse/pdf?' + qs, `Arbeitszeit-Verstoesse_${von}_${bis}.pdf`, ah());
-}
-
-function szvManagerOptionen() {
-    const sel = document.getElementById('szvManager');
-    if (!sel || !_szvData) return;
-    const bisher = sel.value;
-    const liste = [...(_szvData.managerAuswahl || [])].sort((a, b) =>
-        (a.vorname || '').localeCompare(b.vorname || '', 'de') || (a.nachname || '').localeCompare(b.nachname || '', 'de'));
-    sel.innerHTML = '<option value="">Alle</option>'
-        + liste.map(m => `<option value="${m.id}">${_szEsc(((m.vorname || '') + ' ' + (m.nachname || '')).trim())}</option>`).join('')
-        + '<option value="0">kein Manager gestempelt</option>';
-    sel.value = [...sel.options].some(o => o.value === bisher) ? bisher : '';
-    if (typeof sel._lqRefresh === 'function') sel._lqRefresh();
-}
-
-function szvManagerPasst(v) {
-    const id = document.getElementById('szvManager')?.value || '';
-    if (!id) return true;
-    const ids = (v.manager || []).map(m => String(m.id));
-    return id === '0' ? ids.length === 0 : ids.includes(id);
-}
-
-function szvManagerName() {
-    const sel = document.getElementById('szvManager');
-    if (!sel || !sel.value) return '';
-    return sel.options[sel.selectedIndex]?.text || '';
-}
+function szvPdf() { _szPdf('szv', 'stempel-verstoesse', 'Arbeitszeit-Verstoesse'); }
 
 async function szvLoad() {
     const j = await _szLaden('szv', 'stempel-verstoesse');
     if (!j) return;
     _szvData = j;
-    szvManagerOptionen();
     szvRender();
 }
 
@@ -225,22 +190,15 @@ function szvRender() {
     const box = document.getElementById('szvResult');
     const d = _szvData;
     if (!box || !d) return;
-    const managerAktiv = !!(document.getElementById('szvManager')?.value);
-    const imManager = v => !managerAktiv || szvManagerPasst(v);
-    const proArt = managerAktiv
-        ? d.proArt.map(a => ({ ...a, anzahl: d.mitarbeiter.reduce((s, m) => s + m.verstoesse.filter(v => v.art === a.art && imManager(v)).length, 0) }))
-        : d.proArt;
-    const total = proArt.reduce((s, a) => s + a.anzahl, 0);
-    const maMit = managerAktiv ? d.mitarbeiter.filter(m => m.verstoesse.some(imManager)).length : d.mitarbeiter.length;
-    const managerText = managerAktiv ? ' · ' + _szEsc(szvManagerName()) : '';
+    const total = d.proArt.reduce((s, a) => s + a.anzahl, 0);
 
-    let html = `<div class="szb-summe"><div class="szb-zahl">${total}</div><div>Verstösse bei <b>${maMit}</b> von ${d.anzahlMa} Mitarbeitenden<br><span>${_szEsc(d.filiale)} · ${_szDatum(d.von)} – ${_szDatum(d.bis)}${managerText}</span></div></div>`;
-    html += '<div class="szb-kacheln">' + proArt.map(a => `
+    let html = `<div class="szb-summe"><div class="szb-zahl">${total}</div><div>Verstösse bei <b>${d.mitarbeiter.length}</b> von ${d.anzahlMa} Mitarbeitenden<br><span>${_szEsc(d.filiale)} · ${_szDatum(d.von)} – ${_szDatum(d.bis)}</span></div></div>`;
+    html += '<div class="szb-kacheln">' + d.proArt.map(a => `
         <button type="button" class="szb-kachel${_szvFilter === a.art ? ' aktiv' : ''}${a.anzahl ? '' : ' null'}" style="--f:${_SZ_FARBE[a.art]}" onclick="szvFilter('${a.art}')" title="${_szEsc(a.regel)}">
             <b>${a.anzahl}</b><span>${_szEsc(a.titel)}</span></button>`).join('') + '</div>';
 
     const liste = d.mitarbeiter.filter(m => _szSuche('szv', m))
-        .map(m => ({ ...m, verstoesse: m.verstoesse.filter(v => imManager(v) && (!_szvFilter || v.art === _szvFilter)) }))
+        .map(m => ({ ...m, verstoesse: m.verstoesse.filter(v => !_szvFilter || v.art === _szvFilter) }))
         .filter(m => m.verstoesse.length);
 
     if (!liste.length) html += `<div class="szb-leer">${total ? 'Keine Treffer für diese Auswahl.' : 'Keine Verstösse im Zeitraum. 👍'}</div>`;
@@ -257,12 +215,10 @@ function szvRender() {
             const bild = v.art === 'NAECHTE' ? '' : (v.von === v.bis ? _szvBand(v.stempel, d.nachtVon, d.nachtBis) : _szvWoche(v));
             const zeiten = (v.von === v.bis || v.art === 'RUHEZEIT') && v.stempel.length
                 ? `<div class="szb-zeiten">${v.stempel.map(s => `${v.von === v.bis ? '' : _szWt(s.tag) + ' '}${s.ein}–${s.aus}`).join(' · ')}</div>` : '';
-            const mgr = (v.manager || []).map(x => ((x.vorname || '') + ' ' + (x.nachname || '')).trim()).filter(Boolean);
-            const mgrHtml = mgr.length ? `<span class="szb-manager">Manager ${_szEsc(mgr.join(', '))}</span>` : '';
             html += `<div class="szb-zeile" style="--f:${_SZ_FARBE[v.art]}">
                 <div class="szb-tag">${tag}</div>
                 <div class="szb-inhalt">
-                    <div><span class="szb-pill">${_szEsc(v.titel)}</span><span class="szb-recht">${_szEsc(v.recht)}</span>${mgrHtml}</div>
+                    <div><span class="szb-pill">${_szEsc(v.titel)}</span><span class="szb-recht">${_szEsc(v.recht)}</span></div>
                     <div class="szb-text">${_szEsc(v.text)}</div>
                     ${bild}${zeiten}
                 </div>
@@ -274,7 +230,7 @@ function szvRender() {
     html += `<details class="szb-regeln"><summary>Wie wird geprüft?</summary>
         ${d.proArt.map(a => `<div style="--f:${_SZ_FARBE[a.art]}"><b>${_szEsc(a.titel)}</b>${_szEsc(a.regel)}</div>`).join('')}
         ${(d.ausgeschaltet || []).length ? `<p>Für diese Filiale ausgeschaltet: ${d.ausgeschaltet.map(_szEsc).join(', ')}.</p>` : ''}
-        <p>Grundlage sind die Stempelzeiten aus easy@work und die Regeln der Filiale (Filial-Detail → «Arbeitszeit») sowie die Feiertage (Systemeinstellungen → Lohn-Stammdaten → Feiertage). Wochen zählen zum Zeitraum, in dem ihr Sonntag liegt. Stempel ohne Dauer zählen nicht. Manager = wer in dieser Filiale zur selben Zeit gestempelt hat und FIX-M ist oder MTP mit Kader-Funktion (Restaurant- und Schichtführung). Ein Verstoss ohne überlappende Manager-Stempel steht unter «kein Manager gestempelt».</p>
+        <p>Grundlage sind die Stempelzeiten aus easy@work und die Regeln der Filiale (Filial-Detail → «Arbeitszeit») sowie die Feiertage (Systemeinstellungen → Lohn-Stammdaten → Feiertage). Wochen zählen zum Zeitraum, in dem ihr Sonntag liegt. Stempel ohne Dauer zählen nicht.</p>
     </details>`;
     box.innerHTML = html;
 }
