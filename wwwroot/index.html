@@ -2371,7 +2371,7 @@
                         <img src="img/hrkat-onboarding.webp?v=20261014a" alt="" loading="lazy">
                         <span>Onboarding</span>
                     </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="austritt" onclick="hrHubShowCat('austritt')" title="Offboarding: Kündigung, Zeugnisse, Verwarnung, Aufforderung, Aufhebung">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="austritt" onclick="hrHubShowCat('austritt')" title="Offboarding: Kündigung, Zeugnisse, Austrittsbrief, Verwarnung, Aufforderung, Aufhebung">
                         <img src="img/hrkat-offboarding.webp?v=20261014a" alt="" loading="lazy">
                         <span>Offboarding</span>
                     </button>
@@ -2478,7 +2478,8 @@
                          darin direkte Menuepunkte — nichts verschachtelt.
                          +7 Kündigungsbestätigung (Walter 26.07.2026).
                          +8 Aufhebungsvereinbarung (Walter 28.07.2026).
-                         Walter 13.09.2026: eigene Hub-Kategorie «Kündigung und Austritt». -->
+                         Walter 13.09.2026: eigene Hub-Kategorie «Kündigung und Austritt».
+                         Walter 27.10.2026: Austrittsbrief als Punkt 12, Zurück führt hierher. -->
                     <div class="hr-card" style="opacity:1">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#fee2e2;color:#991b1b">
@@ -2501,6 +2502,7 @@
                             <button type="button" class="kz-menu-item" onclick="zdOpen('aufhebung')">9&nbsp;·&nbsp;Aufhebungsvereinbarung</button>
                             <button type="button" class="kz-menu-item" onclick="meldepflichtHubOpen('aufnahme')">10&nbsp;·&nbsp;Meldepflicht Anmeldung</button>
                             <button type="button" class="kz-menu-item" onclick="meldepflichtHubOpen('beendigung')">11&nbsp;·&nbsp;Meldepflicht Abmeldung</button>
+                            <button type="button" class="kz-menu-item" onclick="abAusOffboarding()">12&nbsp;·&nbsp;Austrittsbrief</button>
                         </div>
                     </div>
                     </div>
@@ -12751,7 +12753,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/ma-sync-fehler.js?v=20260901a"></script>
 <script type="text/plain" data-modul="js/ecall-settings.js?v=20260901a"></script>
 <script type="text/plain" data-modul="js/briefpost.js?v=20261023a"></script>
-<script type="text/plain" data-modul="js/brief-verwaltung.js?v=20261023b"></script>
+<script type="text/plain" data-modul="js/brief-verwaltung.js?v=20261027a"></script>
 <script type="text/plain" data-modul="js/bfs-lse.js?v=20260704p"></script>
 <script>init();</script>
 </body>

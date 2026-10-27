@@ -4,6 +4,11 @@
 let _abEmployees = [];
 let _abVorlageGeladen = false;
 
+function abAusOffboarding() {
+    window._ruecksprung = { seite: 'austrittsbrief', ziel: 'hr-hub', vorher: currentPageName };
+    showPage('austrittsbrief');
+}
+
 async function abInit() {
     const admin = currentUser?.role === 'admin';
     const aktionen = document.getElementById('abPostAktionen');
