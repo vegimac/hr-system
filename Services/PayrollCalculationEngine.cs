@@ -79,14 +79,7 @@ public class PayrollCalculationEngine
     private async Task<AhvBeitragspflichtStand> AhvPflichtAsync()
     {
         if (_ahvPflicht != null) return _ahvPflicht;
-        var kopf = await _db.AhvBeitragspflichten.AsNoTracking().FirstOrDefaultAsync(a => a.Id == 1);
-        if (kopf == null) return _ahvPflicht = AhvBeitragspflichtStand.Gesetzlich;
-        var rows = await _db.AhvBeitragspflichtUebergaenge.AsNoTracking()
-            .OrderBy(u => u.JahrgangVon ?? int.MinValue)
-            .ToListAsync();
-        return _ahvPflicht = new AhvBeitragspflichtStand(
-            kopf.BeginnAlter, kopf.EndeMaenner, kopf.EndeFrauen,
-            rows.Select(u => new AhvUebergang(u.JahrgangVon, u.JahrgangBis, u.Jahre, u.Monate)).ToList());
+        return _ahvPflicht = await AhvBeitragspflichtStand.LadenAsync(_db);
     }
 
     public async Task<IActionResult> CalculateAsync(

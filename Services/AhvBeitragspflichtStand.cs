@@ -1,3 +1,6 @@
+using HrSystem.Data;
+using Microsoft.EntityFrameworkCore;
+
 namespace HrSystem.Services;
 
 /// <summary>Eine Übergangszeile. Leeres Von = alle älteren Jahrgänge, leeres Bis = alle jüngeren.</summary>
@@ -33,5 +36,21 @@ public sealed record AhvBeitragspflichtStand(
                 return u.Jahre * 12 + u.Monate;
         }
         return EndeFrauen * 12;
+    }
+
+    /// <summary>
+    /// Stand aus ahv_beitragspflicht (eine Zeile, alle Filialen).
+    /// Fehlt die Zeile, gilt das Gesetz inklusive AHV 21.
+    /// </summary>
+    public static async Task<AhvBeitragspflichtStand> LadenAsync(AppDbContext db)
+    {
+        var kopf = await db.AhvBeitragspflichten.AsNoTracking().FirstOrDefaultAsync(a => a.Id == 1);
+        if (kopf == null) return Gesetzlich;
+        var rows = await db.AhvBeitragspflichtUebergaenge.AsNoTracking()
+            .OrderBy(u => u.JahrgangVon ?? int.MinValue)
+            .ToListAsync();
+        return new AhvBeitragspflichtStand(
+            kopf.BeginnAlter, kopf.EndeMaenner, kopf.EndeFrauen,
+            rows.Select(u => new AhvUebergang(u.JahrgangVon, u.JahrgangBis, u.Jahre, u.Monate)).ToList());
     }
 }

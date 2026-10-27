@@ -4045,6 +4045,7 @@
                 .szb-kohle { background:#3f3f3f; color:#fff; border:none; border-radius:12px; padding:7px 15px; font-size:12.5px; font-weight:600; cursor:pointer; transition:transform .15s, box-shadow .15s; }
                 .szb-kohle:hover { transform:translateY(-2px); box-shadow:0 6px 14px rgba(26,26,26,0.25); }
                 .szb-suche { background:#fff; border:1px solid rgba(255,255,255,0.95); border-radius:10px; box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9); padding:6px 11px; font-size:13px; min-width:200px; }
+                .szb-manager { display:inline-block; margin-left:8px; font-size:11.5px; color:#646464; font-weight:600; }
                 .szb-summe { display:flex; align-items:center; gap:16px; margin:4px 0 14px; color:#3f3f3f; font-size:14px; line-height:1.45; }
                 .szb-summe span { color:#8b8b8b; font-size:12px; }
                 .szb-zahl { font-size:42px; font-weight:700; color:#1a1a1a; letter-spacing:-1px; }
@@ -4126,7 +4127,7 @@
                 body.theme-dark .szb-ma-kopf { background:rgba(51,65,85,0.7); }
                 body.theme-dark .szb-ma-kopf.szb-ma-sprung:hover { background:rgba(71,85,105,0.85); }
                 body.theme-dark .szb-ma-name, body.theme-dark .szb-tag span, body.theme-dark .szb-jetzt, body.theme-dark .szb-zahl { color:#f1f5f9; }
-                body.theme-dark .szb-text, body.theme-dark .szb-kachel span, body.theme-dark .szb-summe { color:#cbd5e1; }
+                body.theme-dark .szb-text, body.theme-dark .szb-kachel span, body.theme-dark .szb-summe, body.theme-dark .szb-manager { color:#cbd5e1; }
                 .szf-raster { display:grid; grid-template-columns:repeat(auto-fit, minmax(440px, 1fr)); gap:14px; }
                 .szf-karte { background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.75); border-radius:16px; box-shadow:0 8px 24px rgba(60,55,48,0.08); padding:14px 16px; margin-bottom:14px; }
                 .szf-titel { font-size:14px; font-weight:760; color:#1a1a1a; margin-bottom:10px; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
@@ -4173,6 +4174,12 @@
                             <button type="button" onclick="szvZeitraum('jahr')">Dieses Jahr</button>
                         </div>
                         <input type="search" id="szvSuche" class="szb-suche" placeholder="Mitarbeiter suchen…" oninput="szvRender()" style="align-self:center">
+                        <div class="ma-field" style="min-width:210px">
+                            <div class="ma-field-label">Manager</div>
+                            <select id="szvManager" class="ma-input" onchange="szvRender()">
+                                <option value="">Alle</option>
+                            </select>
+                        </div>
                         <div style="margin-left:auto;display:flex;gap:8px;align-self:center">
                             <button type="button" class="szb-kohle" onclick="szvLoad()">Aktualisieren</button>
                             <button type="button" class="szb-glas" onclick="szvPdf()">📄 PDF</button>
@@ -10999,7 +11006,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/fluktuation-report.js?v=20260726e"></script>
 <script type="text/plain" data-modul="js/wochenstunden-report.js?v=20260825b"></script>
 <script type="text/plain" data-modul="js/mtp-stunden-report.js?v=20260825d"></script>
-<script type="text/plain" data-modul="js/stempel-berichte.js?v=20261018b"></script>
+<script type="text/plain" data-modul="js/stempel-berichte.js?v=20261027d"></script>
 <script type="text/plain" data-modul="js/stempel-muster.js?v=20261015a"></script>
 <script type="text/plain" data-modul="js/swissdec.js?v=20261015c"></script>
 <script type="text/plain" data-modul="js/swissdec-komm.js?v=20261015a"></script>
@@ -11710,7 +11717,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 
 <script type="text/plain" data-modul="employees.js?v=20261027a"></script>
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
-<script type="text/plain" data-modul="js/versicherung-codes.js?v=20261025a"></script>
+<script type="text/plain" data-modul="js/versicherung-codes.js?v=20261027b"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
 
 <!-- ABSENZ MODAL -->

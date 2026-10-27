@@ -54,11 +54,14 @@ function vcRender(el) {
             ? `<div style="font-size:11.5px;color:#475569">${[a.explizit.bvgEintrittsgrund === 'entryCompany' ? 'Firmeneintritt' : a.explizit.bvgEintrittsgrund === 'interruptionOfEmployment' ? 'Wiedereintritt' : a.explizit.bvgEintrittsgrund,
                  a.explizit.bvgVollArbeitsfaehig === true ? 'voll arbeitsfähig' : a.explizit.bvgVollArbeitsfaehig === false ? 'nicht voll arbeitsfähig' : null,
                  a.explizit.bvgBasisManuell ? 'Basis manuell ' + Number(a.explizit.bvgBasisManuell).toLocaleString('de-CH') : null].filter(Boolean).join(' · ')}</div>` : '';
-        const zeit = a.explizit ? `<div style="font-size:11.5px;color:#64748b">${istVerzicht ? 'Wunsch ab' : 'ab'} ${fmt(a.explizit.validFrom)}${a.explizit.validTo ? ' bis ' + fmt(a.explizit.validTo) : ''}${a.explizit.bemerkung ? ' · ' + esc(a.explizit.bemerkung) : ''}${istVerzicht ? ' · greift erst nach Referenzalter' : ''}</div>` : '';
+        const zeit = a.explizit ? `<div style="font-size:11.5px;color:#64748b">${istVerzicht ? 'Wunsch ab' : 'ab'} ${fmt(a.explizit.validFrom)}${a.explizit.validTo ? ' bis ' + fmt(a.explizit.validTo) : ''}${a.explizit.bemerkung ? ' · ' + esc(a.explizit.bemerkung) : ''}${istVerzicht && !d.imRentenalter ? ' · ' + esc(d.verzichtHinweis || '') : ''}</div>` : '';
+        const verzichtNeu = d.imRentenalter
+            ? `<button class="btn-emp-edit" onclick="vcOpenVerzichtModal()">Verzicht Freibetrag</button> `
+            : `<span style="font-size:11.5px;color:#64748b;max-width:280px;text-align:right;line-height:1.35">${esc(d.verzichtHinweis || '')}</span> `;
         const btns = a.explizit
-            ? `<button class="btn-emp-edit" onclick="${istVerzicht ? `vcOpenVerzichtModal(${a.explizit.id})` : `vcOpenModal(${a.explizit.id})`}">Bearbeiten</button> <button class="btn-emp-del" onclick="vcDelete(${a.explizit.id})">Löschen</button>`
+            ? `${istVerzicht && !d.imRentenalter ? '' : `<button class="btn-emp-edit" onclick="${istVerzicht ? `vcOpenVerzichtModal(${a.explizit.id})` : `vcOpenModal(${a.explizit.id})`}">Bearbeiten</button> `}<button class="btn-emp-del" onclick="vcDelete(${a.explizit.id})">Löschen</button>`
             : a.art === 'AHV'
-                ? `<button class="btn-emp-edit" onclick="vcOpenVerzichtModal()">Verzicht Freibetrag</button> <button class="btn-emp-edit" onclick="vcOpenModal(null, 'AHV', 'SONDERFALL')">Sonderfall</button>`
+                ? `${verzichtNeu}<button class="btn-emp-edit" onclick="vcOpenModal(null, 'AHV', 'SONDERFALL')">Sonderfall</button>`
                 : `<button class="btn-emp-edit" onclick="vcOpenModal(null, '${a.art}')">Abweichung</button>`;
         return `<div class="emp-family-card" style="border-left:3px solid ${a.herkunft === 'manuell' ? '#d97706' : '#cbd5e1'};margin-bottom:6px">
             <div class="emp-family-card-head">
@@ -93,7 +96,7 @@ function vcRender(el) {
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                 <span>${VC_ARTEN[e.art] || e.art} · <b>${esc(e.code === 'VERZICHT' ? 'Verzicht Freibetrag (Wunsch MA)' : (e.code || 'Fix'))}</b> · ${fmt(e.validFrom)} – ${fmt(e.validTo)}</span>
                 <span style="margin-left:auto;display:flex;gap:6px">
-                    <button class="btn-emp-edit" onclick="${e.code === 'VERZICHT' ? `vcOpenVerzichtModal(${e.id})` : `vcOpenModal(${e.id})`}">Details</button>
+                    ${e.code === 'VERZICHT' && !d.imRentenalter ? '' : `<button class="btn-emp-edit" onclick="${e.code === 'VERZICHT' ? `vcOpenVerzichtModal(${e.id})` : `vcOpenModal(${e.id})`}">Details</button>`}
                     <button class="btn-emp-del" onclick="vcDelete(${e.id})">Löschen</button>
                 </span>
             </div>
@@ -104,8 +107,18 @@ function vcRender(el) {
     if (typeof zulHistFillSlot === 'function') zulHistFillSlot('vcHistPillSlot', hist.length, 'vcHistWrap', 'vcHistPill');
 }
 
+function vcDarfVerzicht() {
+    return !!_vcData?.imRentenalter;
+}
+function vcAhvOptionen(arten, sel) {
+    const opts = (arten?.optionen || [])
+        .filter(o => vcDarfVerzicht() || o.code !== 'VERZICHT')
+        .map(o => `<option value="${esc(o.code)}" ${o.code === sel ? 'selected' : ''}>${esc(o.code)} · ${esc(o.name)}${o.istStandard ? ' ★ Standard' : ''}</option>`).join('');
+    return opts;
+}
 function vcOpenVerzichtModal(entryId) {
     if (!selectedEmployeeId || !_vcData) return;
+    if (!vcDarfVerzicht()) return;
     const entry = entryId ? (_vcData.eintraege || []).find(e => e.id === entryId) : null;
     const html = `
     <div id="vcModal" class="vc-wunsch-overlay" style="position:fixed;inset:0;background:rgba(60,55,48,.28);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
@@ -114,7 +127,7 @@ function vcOpenVerzichtModal(entryId) {
         <div class="ma-modal-head">
             <div>
                 <div class="ma-modal-title">MA wünscht Verzicht Freibetrag</div>
-                <div class="ma-modal-sub">Nur nach ausdrücklichem Wunsch · erst ab Referenzalter wirksam</div>
+                <div class="ma-modal-sub">Nur nach ausdrücklichem Wunsch · Person ist im Rentenalter (AHV 21)</div>
             </div>
             <button class="ma-modal-close" onclick="document.getElementById('vcModal').remove()">✕</button>
         </div>
@@ -165,7 +178,11 @@ function vcOpenModal(entryId, artVorgabe, codeVorgabe) {
     const entry = entryId ? (_vcData.eintraege || []).find(e => e.id === entryId) : null;
     const art = entry?.art || artVorgabe || 'UVG';
     const codeSel = entry?.code || codeVorgabe || '';
-    if (codeSel === 'VERZICHT') { vcOpenVerzichtModal(entryId); return; }
+    if (codeSel === 'VERZICHT') {
+        if (!vcDarfVerzicht()) return;
+        vcOpenVerzichtModal(entryId);
+        return;
+    }
     const istVerzicht = codeSel === 'VERZICHT';
     const titel = istVerzicht
         ? (entry ? 'Verzicht Freibetrag bearbeiten' : 'MA wünscht Verzicht auf AHV-Freibetrag')
@@ -175,8 +192,7 @@ function vcOpenModal(entryId, artVorgabe, codeVorgabe) {
         : 'Nur erfassen, wenn der MA vom Standard abweicht (z.B. Büro → UVG B, Kader → BVG K2010). Die wählbaren Codes kommen aus den SV-Sätzen (System → SV-Sätze, Spalte Lösungs-Code). Ein neuer Eintrag beendet den bisherigen derselben Art automatisch am Vortag.';
     const optHtml = (a, sel) => {
         const arten = _vcData.arten.find(x => x.art === a);
-        const opts = (arten?.optionen || []).map(o => `<option value="${esc(o.code)}" ${o.code === sel ? 'selected' : ''}>${esc(o.code)} · ${esc(o.name)}${o.istStandard ? ' ★ Standard' : ''}</option>`).join('');
-        return (a === 'AHV' ? '' : `<option value="">– kein Code (nur Fixbetrag) –</option>`) + opts;
+        return (a === 'AHV' ? '' : `<option value="">– kein Code (nur Fixbetrag) –</option>`) + vcAhvOptionen(arten, sel);
     };
     const html = `
     <div id="vcModal" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
@@ -278,7 +294,7 @@ function vcArtChanged() {
     const arten = _vcData.arten.find(x => x.art === art);
     const sel = document.getElementById('vcCode');
     sel.innerHTML = (art === 'AHV' ? '' : `<option value="">– kein Code (nur Fixbetrag) –</option>`) +
-        (arten?.optionen || []).map(o => `<option value="${esc(o.code)}">${esc(o.code)} · ${esc(o.name)}${o.istStandard ? ' ★ Standard' : ''}</option>`).join('');
+        vcAhvOptionen(arten, '');
     document.getElementById('vcFixBox').style.display = art === 'BVG' ? '' : 'none';
     const uvg = document.getElementById('vcUvgBox');
     if (uvg) uvg.style.display = art === 'UVG' ? '' : 'none';

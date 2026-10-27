@@ -32,12 +32,14 @@ public class StempelBerichteController : HrControllerBase
     }
 
     [HttpGet("stempel-verstoesse/pdf")]
-    public async Task<IActionResult> VerstoessePdf([FromQuery] int companyProfileId, [FromQuery] string? from, [FromQuery] string? to)
+    public async Task<IActionResult> VerstoessePdf([FromQuery] int companyProfileId, [FromQuery] string? from, [FromQuery] string? to,
+        [FromQuery] int? managerId)
     {
         var (fehler, daten) = await VerstoesseAsync(companyProfileId, from, to);
         if (fehler != null) return fehler;
-        var bytes = _pdf.Verstoesse(daten!);
-        return File(bytes, "application/pdf", $"Arbeitszeit-Verstoesse_{daten!.Von:yyyy-MM-dd}_{daten.Bis:yyyy-MM-dd}.pdf");
+        daten = daten!.FuerManager(managerId);
+        var bytes = _pdf.Verstoesse(daten);
+        return File(bytes, "application/pdf", $"Arbeitszeit-Verstoesse_{daten.Von:yyyy-MM-dd}_{daten.Bis:yyyy-MM-dd}.pdf");
     }
 
     [HttpGet("stempel-korrekturen")]
@@ -238,6 +240,8 @@ public class StempelBerichteController : HrControllerBase
             .GroupBy(f => f.Datum)
             .ToDictionary(g => g.Key, g => g.First().Bezeichnung);
 
+        var (managerAuswahl, managerDabei) = await ManagerDerFilialeAsync(r.Cp, r.Von, r.Bis, ladeVon, ladeBis);
+
         var gruppen = new List<StempelVerstossMa>();
         foreach (var m in NachVorname(ma.Values))
         {
@@ -249,9 +253,18 @@ public class StempelBerichteController : HrControllerBase
             var liste = V.Pruefe(person, r.Von, r.Bis, einst, sonntagsgleich);
             if (liste.Count == 0) continue;
             gruppen.Add(new StempelVerstossMa(m.Id, m.Nummer, m.Vorname, m.Nachname,
-                liste.Select(v => new StempelVerstossZeile(v.Art, V.Titel(v.Art, einst), v.Von, v.Bis, v.Text,
-                    v.Ist, v.Grenze, v.Recht,
-                    v.Stempel.OrderBy(s => s.Ein).Select(s => ZeileVon(s)).ToList())).ToList()));
+                liste.Select(v =>
+                {
+                    // Nächte tragen keine Einzelstempel. Dann gelten die Schichten
+                    // der Person im Zeitraum, damit der Manager der Nachtschicht bleibt.
+                    IReadOnlyList<V.Stempel> quelle = v.Stempel.Count > 0
+                        ? v.Stempel
+                        : (st ?? new List<V.Stempel>()).Where(s => s.Tag >= v.Von && s.Tag <= v.Bis).ToList();
+                    return new StempelVerstossZeile(v.Art, V.Titel(v.Art, einst), v.Von, v.Bis, v.Text,
+                        v.Ist, v.Grenze, v.Recht,
+                        v.Stempel.OrderBy(s => s.Ein).Select(s => ZeileVon(s)).ToList(),
+                        managerDabei(quelle));
+                }).ToList()));
         }
 
         var proArt = V.Reihenfolge.Where(einst.IstAktiv)
@@ -261,7 +274,58 @@ public class StempelBerichteController : HrControllerBase
         var aus = V.Reihenfolge.Where(a => !einst.IstAktiv(a)).Select(a => V.Titel(a, einst)).ToList();
         static string Hhmm(TimeSpan t) => $"{(int)t.TotalHours:00}:{t.Minutes:00}";
         return (null, new StempelVerstoesseDaten(r.Filiale, r.Von, r.Bis, ids.Count, proArt, gruppen, aus,
-            Hhmm(berichtNachtVon), Hhmm(berichtNachtBis)));
+            Hhmm(berichtNachtVon), Hhmm(berichtNachtBis), managerAuswahl));
+    }
+
+    /// <summary>
+    /// Schichtführung der Filiale im Zeitraum: FIX-M, und MTP mit Kader-Funktion
+    /// (Restaurant- und Schichtführung). Gezählt wird, wer zur Stempelzeit des
+    /// Verstosses selbst gestempelt hat — nicht der Dienstplan.
+    /// </summary>
+    async Task<(List<StempelManager> Auswahl, Func<IReadOnlyList<V.Stempel>, List<StempelManager>> Dabei)>
+        ManagerDerFilialeAsync(int cp, DateOnly von, DateOnly bis, DateOnly ladeVon, DateOnly ladeBis)
+    {
+        var vonDt = von.ToDateTime(TimeOnly.MinValue);
+        var bisDt = bis.ToDateTime(TimeOnly.MaxValue);
+        var kader = await _db.JobGroups.AsNoTracking()
+            .Where(g => g.IsKader).Select(g => g.Id).ToListAsync();
+        var managerIds = await _db.Employments.AsNoTracking()
+            .Where(em => em.CompanyProfileId == cp
+                      && em.ContractStartDate <= bisDt
+                      && (em.ContractEndDate == null || em.ContractEndDate >= vonDt)
+                      && (em.EmploymentModel == "FIX-M"
+                          || (em.EmploymentModel == "MTP" && em.JobGroupId != null && kader.Contains(em.JobGroupId.Value))))
+            .Select(em => em.EmployeeId).Distinct().ToListAsync();
+        var namen = (await _db.Employees.AsNoTracking()
+                .Where(e => managerIds.Contains(e.Id) && !e.IsHidden)
+                .Select(e => new { e.Id, e.FirstName, e.LastName })
+                .ToListAsync())
+            .Select(e => new StempelManager(e.Id, e.FirstName, e.LastName))
+            .OrderBy(e => e.Vorname ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(e => e.Nachname ?? "", StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var bekannt = namen.Select(n => n.Id).ToList();
+        var schichten = (await _db.EmployeeTimeEntries.AsNoTracking()
+                .Where(t => bekannt.Contains(t.EmployeeId) && t.SourceCompanyProfileId == cp && t.TimeOut != null
+                         && t.EntryDate >= ladeVon && t.EntryDate <= ladeBis)
+                .Select(t => new { t.EmployeeId, t.TimeIn, t.TimeOut })
+                .ToListAsync())
+            .Select(t => new ManagerSchicht.Schicht(t.EmployeeId, t.TimeIn, t.TimeOut!.Value))
+            .ToList();
+        var nachId = namen.ToDictionary(n => n.Id);
+
+        List<StempelManager> Dabei(IReadOnlyList<V.Stempel> stempel)
+        {
+            var fenster = stempel.Select(s => new ManagerSchicht.Fenster(s.Ein, s.Aus)).ToList();
+            return ManagerSchicht.Dabei(fenster, schichten)
+                .Where(nachId.ContainsKey)
+                .Select(id => nachId[id])
+                .OrderBy(n => n.Vorname ?? "", StringComparer.OrdinalIgnoreCase)
+                .ThenBy(n => n.Nachname ?? "", StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        return (namen, Dabei);
     }
 
     static StempelZeit ZeileVon(V.Stempel s)

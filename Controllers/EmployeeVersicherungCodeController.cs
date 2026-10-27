@@ -41,6 +41,7 @@ public class EmployeeVersicherungCodeController : ControllerBase
             .OrderBy(v => v.Art).ThenByDescending(v => v.ValidFrom)
             .ToListAsync();
         var branchId = await GetEmployeeBranchAsync(employeeId);
+        var renten = await RentenalterAsync(employeeId, branchId);
         var saetze = await _db.SocialInsuranceRates.AsNoTracking()
             .Where(r => r.IsActive && r.LoesungsCode != null
                      && (r.CompanyProfileId == null || r.CompanyProfileId == branchId))
@@ -89,6 +90,9 @@ public class EmployeeVersicherungCodeController : ControllerBase
                                                     e.BvgEintrittsgrund, e.BvgVollArbeitsfaehig, e.BvgBasisManuell, e.EmpfaengerId,
                                                     isCurrent = e.GiltAm(tag) }),
             uvgVersicherer = await OffeneUvgVersichererAsync(branchId, tag),
+            imRentenalter = renten.Erreicht,
+            verzichtHinweis = renten.Hinweis,
+            rentenalterStichtag = renten.Stichtag,
         });
     }
 
@@ -98,6 +102,8 @@ public class EmployeeVersicherungCodeController : ControllerBase
         if (!await _db.Employees.AnyAsync(e => e.Id == employeeId)) return NotFound();
         var fehler = Pruefe(dto);
         if (fehler != null) return BadRequest(new { error = "UNGUELTIG", message = fehler });
+        var verzicht = await PruefeVerzichtAlterAsync(employeeId, dto);
+        if (verzicht != null) return verzicht;
         var versichererFehler = await PruefeUvgVersichererAsync(employeeId, dto);
         if (versichererFehler != null) return BadRequest(new { error = "UVG_VERSICHERER", message = versichererFehler });
 
@@ -139,6 +145,8 @@ public class EmployeeVersicherungCodeController : ControllerBase
         if (e == null) return NotFound();
         var fehler = Pruefe(dto);
         if (fehler != null) return BadRequest(new { error = "UNGUELTIG", message = fehler });
+        var verzicht = await PruefeVerzichtAlterAsync(employeeId, dto);
+        if (verzicht != null) return verzicht;
         var versichererFehler = await PruefeUvgVersichererAsync(employeeId, dto);
         if (versichererFehler != null) return BadRequest(new { error = "UVG_VERSICHERER", message = versichererFehler });
         var lock1 = await PruefeEditLockAsync(employeeId, dto.ValidFrom < e.ValidFrom ? dto.ValidFrom : e.ValidFrom);
@@ -243,6 +251,51 @@ public class EmployeeVersicherungCodeController : ControllerBase
             .Select(g => new UvgVersichererWahl(g.Key, g.First().Bezeichnung, g.First().Kassennummer))
             .OrderBy(x => x.Bezeichnung)
             .ToList();
+    }
+
+    private sealed record RentenalterLage(bool Erreicht, string? Hinweis, DateOnly Stichtag);
+
+    /// <summary>
+    /// Verzicht auf den Freibetrag nur, wenn am Stichtag das Referenzalter erreicht
+    /// ist. AHV 21 (Frauen-Übergang) und «ab dem Folgemonat» kommen aus
+    /// <see cref="PayrollCalculations.HatReferenzalterErreicht"/>, derselbe Stand
+    /// wie der Lohnlauf. Stichtag = älteste offene Lohnperiode der Filiale.
+    /// </summary>
+    private async Task<RentenalterLage> RentenalterAsync(int employeeId, int? branchId)
+    {
+        var stichtag = await RentenalterStichtagAsync(branchId);
+        var emp = await _db.Employees.AsNoTracking()
+            .Where(e => e.Id == employeeId)
+            .Select(e => new { e.DateOfBirth, e.Gender })
+            .FirstOrDefaultAsync();
+        if (emp?.DateOfBirth == null)
+            return new RentenalterLage(false, "Verzicht auf den Freibetrag braucht ein Geburtsdatum.", stichtag);
+        var stand = await AhvBeitragspflichtStand.LadenAsync(_db);
+        var erreicht = PayrollCalculations.HatReferenzalterErreicht(
+            emp.Gender, emp.DateOfBirth.Value, stichtag.Year, stichtag.Month, stand);
+        return erreicht
+            ? new RentenalterLage(true, null, stichtag)
+            : new RentenalterLage(false, "Verzicht auf den Freibetrag erst ab dem Folgemonat des Referenzalters.", stichtag);
+    }
+
+    private async Task<IActionResult?> PruefeVerzichtAlterAsync(int employeeId, UpsertDto dto)
+    {
+        if (dto.Art != EmployeeVersicherungCode.ArtAhv) return null;
+        if (!string.Equals((dto.Code ?? "").Trim(), EmployeeVersicherungCode.CodeFreibetragVerzicht, StringComparison.OrdinalIgnoreCase))
+            return null;
+        var branchId = await GetEmployeeBranchAsync(employeeId);
+        var lage = await RentenalterAsync(employeeId, branchId);
+        if (lage.Erreicht) return null;
+        return BadRequest(new { error = "NICHT_IM_RENTENALTER", message = lage.Hinweis });
+    }
+
+    private async Task<DateOnly> RentenalterStichtagAsync(int? branchId)
+    {
+        var q = _db.PayrollPerioden.AsNoTracking().Where(p => p.Status != "abgeschlossen");
+        if (branchId.HasValue)
+            q = q.Where(p => p.CompanyProfileId == branchId.Value);
+        var earliest = await q.OrderBy(p => p.PeriodFrom).Select(p => (DateOnly?)p.PeriodFrom).FirstOrDefaultAsync();
+        return earliest ?? DateOnly.FromDateTime(DateTime.Today);
     }
 
     private async Task<int?> GetEmployeeBranchAsync(int employeeId)

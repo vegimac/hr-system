@@ -16,6 +16,13 @@ public class AhvReferenzalterTests
     [InlineData("male", 1960, 4, 15, 2025, 5, true)]
     [InlineData("female", 1960, 12, 16, 2024, 12, false)]
     [InlineData("female", 1960, 12, 16, 2025, 1, true)]
+    // AHV 21, Frau Jg. 1962: Referenzalter 64 Jahre + 6 Monate = September 2026.
+    [InlineData("female", 1962, 3, 1, 2026, 9, false)]
+    [InlineData("female", 1962, 3, 1, 2026, 10, true)]
+    [InlineData("weiblich", 1961, 6, 15, 2025, 9, false)]
+    [InlineData("weiblich", 1961, 6, 15, 2025, 10, true)]
+    [InlineData("f", 1963, 1, 20, 2027, 10, false)]
+    [InlineData("f", 1963, 1, 20, 2027, 11, true)]
     public void Folgemonat_DesReferenzalters(
         string gender, int y, int m, int d, int jahr, int monat, bool erwartet)
     {

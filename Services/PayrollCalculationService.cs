@@ -523,8 +523,10 @@ public static class PayrollCalculations
 
             totalAbzuege += betrag;
             if (d.CategoryCode == "QST") qstBetragOut += -betrag;
+            // Verzicht übersteuert den Code «Rentenbezüger» (65+-Zeile): trotz
+            // Referenzalter AHV-pflichtig (aktiv), Freibetrag entfällt. ALV bleibt weg.
             string abzugBezeichnung = d.AhvFreibetragVerzicht
-                ? $"{d.Name} (Verzicht Freibetrag, Wunsch MA)"
+                ? "AHV-pflichtig (aktiv) (Verzicht Freibetrag, Wunsch MA)"
                 : d.FreibetragMonthly is > 0
                     ? (freibetragKumuliert && freibetragAngewendet != d.FreibetragMonthly.Value
                         ? $"{d.Name} (−CHF {freibetragAngewendet:F2} Freibetrag {ahvFreibetragMonateText ?? (ahvFreibetragMonateBisher + 1) + " Mt."}, {ahvFreibetragMonateBisher + 1} × {d.FreibetragMonthly:F2})"
