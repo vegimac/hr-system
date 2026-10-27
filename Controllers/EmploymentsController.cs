@@ -183,7 +183,7 @@ public class EmploymentsController : ControllerBase
                 e.VertragDokumentId,
                 e.UnterschriftEltern,
                 e.ContractStartDate, e.ContractEndDate,
-                e.EmploymentModel, e.SalaryType, e.ContractType,
+                e.EmploymentModel, e.SalaryType, e.ContractType, e.SwissdecVertragsart,
                 e.JobTitle,
                 jobGroupId   = e.JobGroupId,
                 jobGroupCode = e.JobGroup != null ? e.JobGroup.Code : null,
@@ -217,6 +217,10 @@ public class EmploymentsController : ControllerBase
 
         if (!employeeExists)
             return BadRequest(new { error = $"Mitarbeiter {employment.EmployeeId} nicht gefunden." });
+
+        var artSperre = await VertragsartSperreAsync(
+            employment.CompanyProfileId, employment.EmploymentModel, employment.SwissdecVertragsart, bisher: null);
+        if (artSperre != null) return artSperre;
 
         if (HrSystem.Services.MaFilialZugriff.IstEingeschraenkt(User)
             && (employment.CompanyProfileId is not int zielFiliale
@@ -634,7 +638,7 @@ public class EmploymentsController : ControllerBase
     /// </summary>
     [HttpPut("{id:int}")]
     [Authorize(Roles = "admin")]
-    public Task<IActionResult> Update(int id, Employment dto) => UpdateInternAsync(id, dto);
+    public Task<IActionResult> Update(int id, Employment dto) => UpdateInternAsync(id, dto, meldungsartUebernehmen: true);
 
     /// <summary>
     /// PUT /api/employments/{id}/aus-easy-import — derselbe Schreibweg, aber aus dem
@@ -645,7 +649,7 @@ public class EmploymentsController : ControllerBase
     [HttpPut("{id:int}/aus-easy-import")]
     public Task<IActionResult> UpdateAusEasyImport(int id, Employment dto) => UpdateInternAsync(id, dto);
 
-    private async Task<IActionResult> UpdateInternAsync(int id, Employment dto)
+    private async Task<IActionResult> UpdateInternAsync(int id, Employment dto, bool meldungsartUebernehmen = false)
     {
         var existing = await _context.Employments.FindAsync(id);
         if (existing == null) return NotFound();
@@ -731,8 +735,21 @@ public class EmploymentsController : ControllerBase
         if (dto.ContractStartDate != default)
             existing.ContractStartDate  = dto.ContractStartDate;
         existing.ContractEndDate        = dto.ContractEndDate;
+        // Die Filiale entscheidet, welche Art neu gewählt werden darf.
+        // Dieselbe Art bleibt erlaubt, auch wenn sie inzwischen aus ist.
+        // Der Import (aus-easy-import) ändert die Swissdec-Art nicht.
+        var artNeu = meldungsartUebernehmen && dto.SwissdecVertragsartGesetzt ? dto.SwissdecVertragsart : null;
+        var artAlt = meldungsartUebernehmen && dto.SwissdecVertragsartGesetzt ? existing.SwissdecVertragsart : null;
+        var artSperre = await VertragsartSperreAsync(
+            existing.CompanyProfileId, dto.EmploymentModel, artNeu,
+            VertragsartKatalog.CodeVon(existing.EmploymentModel, artAlt));
+        if (artSperre != null) return artSperre;
+
         existing.EmploymentModel        = dto.EmploymentModel;
         existing.SalaryType             = dto.SalaryType;
+        if (meldungsartUebernehmen && dto.SwissdecVertragsartGesetzt)
+            existing.SwissdecVertragsart = string.IsNullOrWhiteSpace(dto.SwissdecVertragsart)
+                ? null : dto.SwissdecVertragsart.Trim();
         existing.ContractType           = dto.ContractType;
         // Walter-Klarstellung 26.05.2026: JobTitle ist Free-Text-Stellenbezeichnung
         // (z.B. „Shift Coordinator") und wird 1:1 gespeichert. JobGroupId ist die
@@ -1183,6 +1200,30 @@ public class EmploymentsController : ControllerBase
             uebernommen = uebernehmen ? geaendert : 0,
             zeilen = sichtbar.OrderByDescending(z => z.Neu != null).ThenBy(z => z.EmployeeName).ThenBy(z => z.Von),
         };
+    }
+
+    /// <summary>
+    /// Neue Vertragsart nur, wenn die Filiale sie anbietet. Dieselbe Art
+    /// (bisher) bleibt, auch wenn sie später ausgeschaltet wurde.
+    /// bisher = null heisst: es gibt noch keinen Vertrag, die Art muss an sein.
+    /// </summary>
+    private async Task<IActionResult?> VertragsartSperreAsync(
+        int? filialeId, string? modell, string? art, string? bisher)
+    {
+        var code = VertragsartKatalog.CodeVon(modell, art);
+        if (bisher != null && code == bisher) return null;
+        if (filialeId is not int id || id <= 0) return null;
+        var gespeichert = await _context.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == id)
+            .Select(c => c.Vertragsarten)
+            .FirstOrDefaultAsync();
+        if (VertragsartKatalog.Erlaubt(gespeichert, code)) return null;
+        var name = VertragsartKatalog.Find(code)?.Bezeichnung ?? code;
+        return BadRequest(new
+        {
+            error = "VERTRAGSART_GESPERRT",
+            message = $"«{name}» ist in dieser Filiale nicht freigeschaltet. Filiale → Einstellungen → Verträge."
+        });
     }
 
 }

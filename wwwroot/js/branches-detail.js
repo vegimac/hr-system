@@ -418,6 +418,11 @@ function renderFilialenDetail(b) {
                  Buttons hier — die Aktions-Buttons sitzen oben in der
                  Tab-Leiste (Walter-Vorgabe 15.05.2026). -->
             <p class="ein-tab-lead">Pro Filiale, nach Thema. Zugeklappt der Stand, aufgeklappt die Felder.</p>
+            ${einGroup('Verträge',
+            einSec('vertragsarten', 'Vertragsarten',
+                einVertragsartenKurz(b),
+                einVertragsartenBody(b),
+                'Welche Verträge hier neu angelegt werden können'))}
             ${einGroup('Zeit &amp; Anwesenheit',
             einSec('arbeitszeit', 'Arbeitszeit',
                 `Nacht ${nightStart}–${nightEnd} · ${b.normalWeeklyHours ?? '–'} h/Woche · max. ${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) + ' h' : 'keine Grenze'} · Teilmonat ${({TAGESSATZ365:'Tagessatz 365',KALENDERTAGE:'Kalendertage',TAGE30:'30 Tage'})[b.teilmonatMethode || 'TAGESSATZ365']} · Krank/Unfall ${({DIENSTPLAN_1_7:'Dienstplan, dann 1/7',KALENDER_1_7:'immer 1/7',MO_FR_1_5:'Mo–Fr 1/5'})[b.zeitgutschriftKrankMethode || 'DIENSTPLAN_1_7']}`, `
@@ -971,6 +976,8 @@ async function saveEinstellungen(branchId) {
     const lgavRed      = Number(g('einLgavRed')?.value);
     const uniformDepotAktiv = g('einUniformDepotAktiv')?.value !== 'false';
     const lektionenLohnAktiv = g('einLektionenLohnAktiv')?.value === 'true';
+    const vertragsarten = [...document.querySelectorAll('#fil-tab-f-einstellungen .einVertragsart:checked')].map(x => x.value);
+    if (vertragsarten.length === 0) { alert('Mindestens eine Vertragsart muss anbleiben.'); return; }
     const akontoAktiv         = g('einAkontoAktiv')?.value !== 'false';
     const lohnlaufNurHr       = g('einLohnlaufNurHr')?.value === 'true';
     const akontoProzent       = Number(g('einAkontoProzent')?.value);
@@ -1012,6 +1019,7 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/zeitgutschrift-krank`,        { method: 'PATCH', headers: H, body: JSON.stringify({ methode: zgKrank }) }),
             fetch(`/api/companyprofiles/${branchId}/uniform-depot`,               { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: uniformDepotAktiv }) }),
             fetch(`/api/companyprofiles/${branchId}/lektionen-lohn`,              { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: lektionenLohnAktiv }) }),
+            fetch(`/api/companyprofiles/${branchId}/vertragsarten`,               { method: 'PATCH', headers: H, body: JSON.stringify({ codes: vertragsarten }) }),
             fetch(`/api/companyprofiles/${branchId}/schlussabrechnung`,           { method: 'PATCH', headers: H, body: JSON.stringify({ ferientageAmAustrittAuszahlen: ferientageAustritt, feiertagstageAmAustrittAuszahlen: feiertagstageAustritt, stundenSaldoImLohnVerrechnen: stundenSaldoImLohn }) }),
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
@@ -1028,6 +1036,11 @@ async function saveEinstellungen(branchId) {
         const akontoRes = results.find(r => (r.url || '').includes('/akonto-prozent'));
         if (akontoRes && !akontoRes.ok) {
             const d = await akontoRes.json().catch(() => ({}));
+            if (d.message) alert(d.message);
+        }
+        const artRes = results.find(r => (r.url || '').includes('/vertragsarten'));
+        if (artRes && !artRes.ok) {
+            const d = await artRes.json().catch(() => ({}));
             if (d.message) alert(d.message);
         }
 
@@ -1057,6 +1070,10 @@ async function saveEinstellungen(branchId) {
             vacationSixWeeksFromAge: vacSixWeeksAge,
             defaultThirteenthSalaryPercent: defaultThirteenth,
         };
+        if (artRes && artRes.ok) {
+            patch.vertragsarten = vertragsarten.join(',');
+            patch.vertragsartenAktiv = vertragsarten;
+        }
         const b = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === branchId);
         if (b) Object.assign(b, patch);
         if (typeof selectedCompanyProfile !== 'undefined' && selectedCompanyProfile?.id === branchId) {
@@ -3322,6 +3339,41 @@ function einAkontoAktivToggle() {
 // Jeder Abschnitt zeigt zugeklappt eine Kurzfassung der aktuellen Werte, so
 // bleibt der Tab auf einen Blick lesbar. Auf/zu wird pro Abschnitt im Browser
 // gemerkt (localStorage), Standard: zugeklappt.
+// Gleicher Katalog wie Models/VertragsartKatalog.cs. Leer in der Filiale = die ersten vier.
+const EIN_VERTRAGSARTEN = [
+    { code: 'FLEX', kurz: 'FLEX', label: 'FLEX – Stundenlohn' },
+    { code: 'MTP', kurz: 'MTP', label: 'MTP – garantierte Stunden' },
+    { code: 'FIX', kurz: 'FIX', label: 'FIX – Festpensum' },
+    { code: 'FIX-M', kurz: 'FIX-M', label: 'FIX-M – Management' },
+    { code: 'indefiniteSalaryMth', kurz: 'Monatslohn', label: 'Unbefristeter Vertrag mit Monatslohn' },
+    { code: 'indefiniteSalaryMthAWT', kurz: 'Jahresarbeitszeit', label: 'Unbefristeter Vertrag mit Monatslohn und Jahresarbeitszeit' },
+    { code: 'fixedSalaryMth', kurz: 'Monatslohn befristet', label: 'Befristeter Vertrag mit Monatslohn' },
+    { code: 'apprentice', kurz: 'Lehre', label: 'Lehrvertrag' },
+    { code: 'internshipContract', kurz: 'Praktikum', label: 'Praktikumsvertrag' },
+    { code: 'indefiniteSalaryHrs', kurz: 'Stundenlohn', label: 'Unbefristeter Vertrag mit Stundenlohn' },
+    { code: 'fixedSalaryHrs', kurz: 'Stundenlohn befristet', label: 'Befristeter Vertrag mit Stundenlohn' },
+    { code: 'indefiniteSalaryNoTimeConstraint', kurz: 'Provision', label: 'Unbefristeter Vertrag mit Provision, Pauschale, Akkordlohn' },
+    { code: 'fixedSalaryNoTimeConstraint', kurz: 'Provision befristet', label: 'Befristeter Vertrag mit Provision, Pauschale, Akkordlohn' },
+    { code: 'administrativeBoard', kurz: 'Verwaltungsrat', label: 'Verwaltungsrat' },
+];
+function einVertragsartenAktiv(b) {
+    return Array.isArray(b?.vertragsartenAktiv) ? b.vertragsartenAktiv : ['FLEX', 'MTP', 'FIX', 'FIX-M'];
+}
+function einVertragsartenKurz(b) {
+    const namen = einVertragsartenAktiv(b).map(c => EIN_VERTRAGSARTEN.find(v => v.code === c)?.kurz || c);
+    return namen.length ? namen.join(' · ') : 'keine';
+}
+function einVertragsartenBody(b) {
+    const aktiv = new Set(einVertragsartenAktiv(b));
+    const zeilen = EIN_VERTRAGSARTEN.map(v =>
+        `<label style="display:flex;gap:8px;align-items:flex-start;margin:5px 0;font-size:13px;color:#3f3f3f">
+            <input type="checkbox" class="einVertragsart" value="${v.code}" ${aktiv.has(v.code) ? 'checked' : ''} style="margin-top:2px">
+            <span>${v.label}</span>
+        </label>`).join('');
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:2px 18px">${zeilen}</div>
+        <div class="ein-hint" style="margin-top:8px">Gilt für neue Verträge. Bestehende bleiben. «Auf alle Filialen übertragen» übernimmt diese Liste nicht.</div>`;
+}
+
 function einGroup(titel, html) {
     return `<section class="ein-group">
         <h3 class="ein-group-title">${titel}</h3>

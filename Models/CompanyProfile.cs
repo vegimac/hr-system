@@ -401,6 +401,16 @@ public class CompanyProfile
     public bool LektionenLohnAktiv { get; set; }
 
     /// <summary>
+    /// Welche Vertragsarten hier neu angelegt werden dürfen (Walter 27.10.2026).
+    /// NULL = FLEX, MTP, FIX, FIX-M. Ein Text ist die Liste selbst, kommagetrennt.
+    /// Bestehende Verträge bleiben, auch wenn ihre Art später aus ist.
+    /// </summary>
+    public string? Vertragsarten { get; set; }
+
+    [NotMapped]
+    public string[] VertragsartenAktiv => VertragsartKatalog.Aufgeloest(Vertragsarten).ToArray();
+
+    /// <summary>
     /// Akonto-Prozentsatz für FIX (Akonto-Lohn-Modell). Das Akonto für FIX
     /// = AkontoProzentFix % des voraussichtlich ausbezahlten Monatslohns.
     /// Default 80 %, pro Filiale im Einstellungen-Tab änderbar. Siehe

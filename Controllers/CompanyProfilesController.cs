@@ -701,6 +701,26 @@ public class CompanyProfilesController : ControllerBase
         return Ok(profile);
     }
 
+    // PATCH /api/companyprofiles/{id}/vertragsarten  (Walter 27.10.2026)
+    // Welche Verträge in dieser Filiale neu angelegt werden dürfen.
+    // Mindestens eine Art. «Auf alle Filialen übertragen» kopiert das nicht.
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/vertragsarten")]
+    public async Task<IActionResult> UpdateVertragsarten(int id, [FromBody] VertragsartenDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        var (text, unbekannt) = VertragsartKatalog.Speichern(dto.Codes);
+        if (unbekannt.Count > 0)
+            return BadRequest(new { error = "VERTRAGSART_UNBEKANNT", message = $"Unbekannte Vertragsart «{unbekannt[0]}»." });
+        if (string.IsNullOrEmpty(text))
+            return BadRequest(new { error = "VERTRAGSART_LEER", message = "Mindestens eine Vertragsart muss anbleiben." });
+        profile.Vertragsarten = text;
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+    public record VertragsartenDto(string[]? Codes);
+
     // PATCH /api/companyprofiles/{id}/lgav
     [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/lgav")]
@@ -893,6 +913,7 @@ public class CompanyProfilesController : ControllerBase
             t.StundenSaldoImLohnVerrechnen     = source.StundenSaldoImLohnVerrechnen;
             t.UniformDepotAktiv                = source.UniformDepotAktiv;
             t.LektionenLohnAktiv               = source.LektionenLohnAktiv;
+            // Vertragsarten bewusst nicht: jede Filiale entscheidet selbst.
             // ── Karenz ──
             t.KarenzjahrBasis      = source.KarenzjahrBasis;
             t.KarenzTageMax        = source.KarenzTageMax;

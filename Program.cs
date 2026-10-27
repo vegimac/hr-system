@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 115;  // 115: ESTV-Liste italienische Grenzgemeinden 20 km · 114: Tabelle grenzregion
+const int SchemaStand = 116;  // 116: Filiale Vertragsarten (null = FLEX/MTP/FIX/FIX-M) · 115: ESTV-Liste italienische Grenzgemeinden 20 km
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1268,6 +1268,9 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS uniform_depot_aktiv boolean NOT NULL DEFAULT true;
         -- Lektionenlohn-Felder im Vertrag anzeigen (Walter 07.10.2026); Default aus = Schaub
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lektionen_lohn_aktiv boolean NOT NULL DEFAULT false;
+        -- 116: welche Vertragsarten in dieser Filiale neu angelegt werden dürfen.
+        -- NULL = die vier Modelle FLEX/MTP/FIX/FIX-M. Ein Text ist die Liste selbst.
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS vertragsarten text;
         -- Arbeitszeit-Regeln: Vorlage pro Hauptsitz, Abweichung pro Filiale (Walter 07.10.2026)
         CREATE TABLE IF NOT EXISTS arbeitszeit_regel_wert (
             id                 serial PRIMARY KEY,

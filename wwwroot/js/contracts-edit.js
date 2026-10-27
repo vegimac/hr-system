@@ -172,7 +172,7 @@ async function openContractEditModal(c, mode = 'edit') {
         ? `${_ceMa.firstName ?? ''} ${_ceMa.lastName ?? ''}`.trim()
         : '';
     document.getElementById('ceModalSub').textContent =
-        (empName ? empName + ' · ' : '') + (c.jobTitle ?? '') + ' · ' + (c.employmentModel ?? '');
+        (empName ? empName + ' · ' : '') + (c.jobTitle ?? '') + ' · ' + (ceVertragsartName(ceVertragsartCode(c)) || c.employmentModel || '');
 
     // Hinweis bei abgeschlossenen Abschnitten (Walter-Vorgabe 22.09.2026):
     // die alte Historie wird von Hand gepflegt — der Text sagt, worauf die
@@ -188,7 +188,10 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('ceContractId').value      = mode === 'edit' ? (c.id ?? '') : '';
     document.getElementById('ceEmployeeId').value      = c.employeeId ?? _ceMa?.id ?? '';
     document.getElementById('ceStartDate').value       = c.contractStartDate ? c.contractStartDate.slice(0,10) : '';
-    document.getElementById('ceEmploymentModel').value = c.employmentModel ?? 'FLEX';
+    ceVertragsartenFuellen(
+        c.companyProfileId ?? (typeof currentBranchId !== 'undefined' ? currentBranchId : null),
+        ceVertragsartCode(c),
+        mode === 'edit');
     document.getElementById('ceContractType').value    = isBefristet ? 'befristet' : 'unbefristet';
     document.getElementById('ceEndDate').value         = c.contractEndDate ? c.contractEndDate.slice(0,10) : '';
     document.getElementById('ceJobTitle').value        = c.jobTitle ?? '';
@@ -267,8 +270,76 @@ function closeContractEditModal() {
     document.getElementById('contractEditModal').style.display = 'none';
 }
 
+// Gleicher Katalog wie Models/VertragsartKatalog.cs.
+// code = Auswahl, modell = Lohnrechnung, art = Meldung (leer = ableiten).
+window.VERTRAGSARTEN = [
+    { code: 'FLEX', label: 'FLEX – Stundenlohn', modell: 'FLEX', art: '', befristet: false },
+    { code: 'MTP', label: 'MTP – garantierte Stunden', modell: 'MTP', art: '', befristet: false },
+    { code: 'FIX', label: 'FIX – Festpensum', modell: 'FIX', art: '', befristet: false },
+    { code: 'FIX-M', label: 'FIX-M – Management', modell: 'FIX-M', art: '', befristet: false },
+    { code: 'indefiniteSalaryMth', label: 'Unbefristeter Vertrag mit Monatslohn', modell: 'FIX', art: 'indefiniteSalaryMth', befristet: false },
+    { code: 'indefiniteSalaryMthAWT', label: 'Unbefristeter Vertrag mit Monatslohn und Jahresarbeitszeit', modell: 'FIX', art: 'indefiniteSalaryMthAWT', befristet: false },
+    { code: 'fixedSalaryMth', label: 'Befristeter Vertrag mit Monatslohn', modell: 'FIX', art: 'fixedSalaryMth', befristet: true },
+    { code: 'apprentice', label: 'Lehrvertrag', modell: 'FIX', art: 'apprentice', befristet: false },
+    { code: 'internshipContract', label: 'Praktikumsvertrag', modell: 'FIX', art: 'internshipContract', befristet: false },
+    { code: 'indefiniteSalaryHrs', label: 'Unbefristeter Vertrag mit Stundenlohn', modell: 'FLEX', art: 'indefiniteSalaryHrs', befristet: false },
+    { code: 'fixedSalaryHrs', label: 'Befristeter Vertrag mit Stundenlohn', modell: 'FLEX', art: 'fixedSalaryHrs', befristet: true },
+    { code: 'indefiniteSalaryNoTimeConstraint', label: 'Unbefristeter Vertrag mit Provision, Pauschale, Akkordlohn', modell: 'FIX', art: 'indefiniteSalaryNoTimeConstraint', befristet: false },
+    { code: 'fixedSalaryNoTimeConstraint', label: 'Befristeter Vertrag mit Provision, Pauschale, Akkordlohn', modell: 'FIX', art: 'fixedSalaryNoTimeConstraint', befristet: true },
+    { code: 'administrativeBoard', label: 'Verwaltungsrat', modell: 'FIX', art: 'administrativeBoard', befristet: false },
+];
+
+function ceVertragsartCode(c) {
+    const art = (c?.swissdecVertragsart || '').trim();
+    if (art && window.VERTRAGSARTEN.some(v => v.code === art || v.art === art)) {
+        return window.VERTRAGSARTEN.find(v => v.code === art || v.art === art).code;
+    }
+    const modell = c?.employmentModel === 'UTP' ? 'FLEX' : (c?.employmentModel || 'FLEX');
+    return window.VERTRAGSARTEN.some(v => v.code === modell && !v.art) ? modell : 'FLEX';
+}
+function ceVertragsartName(code) {
+    return window.VERTRAGSARTEN.find(v => v.code === code)?.label || code || '';
+}
+function ceFilialeVertragsarten(filialeId) {
+    const liste = (typeof allBranches !== 'undefined' ? allBranches : []);
+    const b = liste.find(x => x.id === filialeId)
+        || (typeof selectedCompanyProfile !== 'undefined' && selectedCompanyProfile?.id === filialeId ? selectedCompanyProfile : null)
+        || (typeof selectedBranch !== 'undefined' && selectedBranch?.id === filialeId ? selectedBranch : null);
+    if (b && Array.isArray(b.vertragsartenAktiv)) return b.vertragsartenAktiv;
+    return ['FLEX', 'MTP', 'FIX', 'FIX-M'];
+}
+function ceVertragsartenFuellen(filialeId, code, aktuelleImmer) {
+    const sel = document.getElementById('ceEmploymentModel');
+    if (!sel) return;
+    const erlaubt = new Set(ceFilialeVertragsarten(filialeId));
+    const zeilen = window.VERTRAGSARTEN.filter(v => erlaubt.has(v.code) || (aktuelleImmer && v.code === code));
+    sel.innerHTML = zeilen.map(v => {
+        const hinweis = erlaubt.has(v.code) ? '' : ' (nicht mehr freigeschaltet)';
+        return `<option value="${v.code}" data-modell="${v.modell}" data-art="${v.art}" data-befristet="${v.befristet}">${v.label}${hinweis}</option>`;
+    }).join('');
+    if (![...sel.options].some(o => o.value === code) && zeilen.length) code = zeilen[0].code;
+    sel.value = code;
+    if (sel._lqRefresh) sel._lqRefresh();
+}
+function ceGewaehlteArt() {
+    const sel = document.getElementById('ceEmploymentModel');
+    const code = sel?.value || 'FLEX';
+    const opt = sel?.selectedOptions?.[0];
+    const bekannt = window.VERTRAGSARTEN.find(v => v.code === code);
+    return {
+        code,
+        modell: opt?.dataset?.modell || bekannt?.modell || 'FLEX',
+        art: (opt?.dataset?.art ?? bekannt?.art ?? ''),
+        befristet: (opt?.dataset?.befristet ?? String(!!bekannt?.befristet)) === 'true',
+        ohneMonatslohn: code === 'indefiniteSalaryNoTimeConstraint'
+            || code === 'fixedSalaryNoTimeConstraint'
+            || code === 'administrativeBoard',
+    };
+}
+
 function onCeModelChange() {
-    const m = document.getElementById('ceEmploymentModel').value;
+    const art = ceGewaehlteArt();
+    const m = art.modell;
     const isFix = m === 'FIX' || m === 'FIX-M';
     const isMtp = m === 'MTP';
     const isUtp = m === 'FLEX';
@@ -292,6 +363,13 @@ function onCeModelChange() {
     show('ceWeeklyLessonsWrap', lektionen);
     // < 8 h / Wo. nur bei FLEX — eigene Grid-Zelle rechts neben Max. h/Woche.
     show('ceTeilzeitUnter8hWrap', isUtp);
+    const typeSel = document.getElementById('ceContractType');
+    const typeWrap = typeSel?.closest('.ce-field');
+    if (art.befristet) {
+        if (typeSel) typeSel.value = 'befristet';
+        if (typeWrap) typeWrap.style.display = 'none';
+    } else if (typeWrap) typeWrap.style.display = '';
+    onCeContractTypeChange();
     if (!isUtp && typeof empSetYesNo === 'function')
         empSetYesNo('ceTeilzeitUnter8h', false);
     checkCeMinimumWage();
@@ -389,7 +467,7 @@ async function checkCeMinimumWage() {
     _ceLastComplianceResult = null;
     const jobGroupCode = document.getElementById('ceJobGroup').value;
     const educationLevelCode = document.getElementById('ceEducationLevel').value;
-    const employmentModel = document.getElementById('ceEmploymentModel').value;
+    const employmentModel = ceGewaehlteArt().modell;
     const isFix = employmentModel === 'FIX' || employmentModel === 'FIX-M';
     const isMtp = employmentModel === 'MTP';
     const startDate = document.getElementById('ceStartDate').value;
@@ -581,7 +659,7 @@ async function checkCeMinimumWage() {
 /// Übernimmt den errechneten Mindestlohn als Vorschlag in das Lohn-Feld.
 function applyCeMinimumWage() {
     if (!_ceLastComplianceResult) return;
-    const employmentModel = document.getElementById('ceEmploymentModel').value;
+    const employmentModel = ceGewaehlteArt().modell;
     const isFix = employmentModel === 'FIX' || employmentModel === 'FIX-M';
     if (isFix) {
         const fte = _ceLastComplianceResult.minimumMonthlySalaryFte
@@ -606,12 +684,13 @@ async function saveContractEdit() {
     if (_ceMode === 'edit' && !id) { errEl.textContent = _t('vt.err.noContractId'); return; }
     if ((_ceMode === 'import' || _ceMode === 'new') && !empId) { errEl.textContent = _t('vt.err.noEmployeeId'); return; }
 
-    const employmentModel = document.getElementById('ceEmploymentModel').value;
+    const art = ceGewaehlteArt();
+    const employmentModel = art.modell;
     const isFix = employmentModel === 'FIX' || employmentModel === 'FIX-M';
     const isMtp = employmentModel === 'MTP';
     const startDate = document.getElementById('ceStartDate').value;
     if (!startDate) { errEl.textContent = _t('vt.err.startDateRequired'); return; }
-    const isBefristet = document.getElementById('ceContractType').value === 'befristet';
+    const isBefristet = art.befristet || document.getElementById('ceContractType').value === 'befristet';
     const endDate = document.getElementById('ceEndDate').value;
 
     const pensumStr = document.getElementById('cePensum').value;
@@ -621,7 +700,7 @@ async function saveContractEdit() {
     const monthly = parseFloat(document.getElementById('ceMonthlySalary').value) || null;
 
     // Pflichtfeld-Validierung für Lohn (insb. wichtig bei Import)
-    if (isFix && !fte && !monthly) {
+    if (isFix && !art.ohneMonatslohn && !fte && !monthly) {
         errEl.textContent = _t('vt.err.salaryRequired');
         return;
     }
@@ -638,6 +717,8 @@ async function saveContractEdit() {
         contractEndDate:         isBefristet && endDate ? endDate : null,
         contractType:            isBefristet ? 'befristet' : 'unbefristet',
         employmentModel,
+        swissdecVertragsart:     art.art || null,
+        swissdecVertragsartGesetzt: true,
         salaryType:              isFix ? 'monthly' : 'hourly',
         // Walter-Klarstellung 26.05.2026:
         // • jobTitle = Stellenbezeichnung (Free-Text, z.B. „Shift Coordinator") —
@@ -699,7 +780,7 @@ async function saveContractEdit() {
         if (!res.ok) {
             const txt = await res.text().catch(() => '');
             let msg = 'Fehler ' + res.status;
-            try { const j = JSON.parse(txt); msg = j.error || j.title || msg; } catch { if (txt) msg = txt; }
+            try { const j = JSON.parse(txt); msg = j.message || j.error || j.title || msg; } catch { if (txt) msg = txt; }
             errEl.textContent = msg;
             return;
         }

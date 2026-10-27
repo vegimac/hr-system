@@ -939,6 +939,7 @@ async function openNewContractInModal(employeeId) {
         id: null,
         employeeId,
         employmentModel:         src.employmentModel || 'FLEX',
+        swissdecVertragsart:     src.swissdecVertragsart ?? null,
         jobTitle:                src.jobTitle ?? '',
         jobGroupCode:            src.jobGroupCode ?? selectedVtEmployee?.jobGroupCode ?? '',
         educationLevelCode:      src.educationLevelCode ?? selectedVtEmployee?.educationLevelCode ?? '',

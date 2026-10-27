@@ -42,6 +42,13 @@ public class Employment
     public string? SwissdecVertragsart { get; set; }
 
     /// <summary>
+    /// Nur die Vertragsmaske setzt das. Der easy@work-Import schickt das Feld
+    /// nicht mit — sonst würde ein fehlender Wert die Meldungsart löschen.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool SwissdecVertragsartGesetzt { get; set; }
+
+    /// <summary>
     /// Vertraglicher Jahreslohn bei Verträgen ohne Zeitbindung (Honorar,
     /// <c>NoTimeConstraint</c>) — die Statistik verlangt dort einen Jahresbetrag
     /// statt eines Monatslohns.
