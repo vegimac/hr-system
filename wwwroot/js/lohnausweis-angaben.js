@@ -18,12 +18,12 @@ function laStil() {
     const s = document.createElement('style');
     s.id = 'laAngabenStil';
     s.textContent = `
-        #laAngabenOverlay { padding: 16px !important; align-items: stretch !important; justify-content: stretch !important; }
+        #laAngabenOverlay { padding: 28px !important; align-items: center !important; justify-content: center !important; }
         #laAngabenOverlay .la-blatt {
-            width: 100% !important;
-            max-width: none !important;
-            height: 100% !important;
-            max-height: none !important;
+            width: min(1640px, calc(100vw - 96px)) !important;
+            max-width: 1640px !important;
+            height: auto !important;
+            max-height: calc(100vh - 64px) !important;
             display: flex; flex-direction: column; overflow: hidden;
             padding: 0; border-radius: 18px; box-sizing: border-box;
         }
