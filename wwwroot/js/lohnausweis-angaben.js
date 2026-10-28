@@ -31,12 +31,13 @@ function laStil() {
         #laAngabenOverlay .la-unter { font-size: 12px; line-height: 1.35; color: #646464; font-weight: 500; margin-top: 2px; }
         #laAngabenOverlay .modal-body { padding: 8px 14px 10px; overflow: hidden; }
         #laAngabenOverlay .modal-ft { padding: 8px 14px; background: rgba(255,255,255,0.28); }
-        #laAngabenOverlay .la-raster { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: start; }
+        #laAngabenOverlay .la-raster { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: start; }
         #laAngabenOverlay .la-karte {
             background: rgba(255,255,255,0.48);
             border: 1px solid rgba(255,255,255,0.78);
-            border-radius: 12px;
-            padding: 8px 10px 8px;
+            border-radius: 14px;
+            padding: 12px 14px 12px;
+            min-width: 0;
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 4px 10px rgba(60,55,48,0.04);
         }
         #laAngabenOverlay .la-breit { grid-column: 1 / -1; }
@@ -47,8 +48,8 @@ function laStil() {
             font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
             display: flex; align-items: center; justify-content: center;
         }
-        #laAngabenOverlay .la-titel { margin: 0 0 1px; font-size: 13px; font-weight: 700; color: #3f3f3f; }
-        #laAngabenOverlay .la-text { margin: 0; font-size: 11.5px; line-height: 1.3; color: #646464; }
+        #laAngabenOverlay .la-titel { margin: 0 0 2px; font-size: 14px; font-weight: 700; color: #3f3f3f; }
+        #laAngabenOverlay .la-text { margin: 0; font-size: 12.5px; line-height: 1.4; color: #646464; }
         #laAngabenOverlay .la-satz { margin: 4px 0 0; font-size: 11px; line-height: 1.3; color: #8b8b8b; }
         #laAngabenOverlay .la-feld { margin-top: 6px; }
         #laAngabenOverlay .la-feld .lqsel-wrap { display: block; width: 100%; }
@@ -61,7 +62,16 @@ function laStil() {
             padding: 4px 8px !important; font-size: 12.5px !important; min-height: 28px;
         }
         #laAngabenOverlay .f-label { font-size: 11px; margin-bottom: 2px; }
-        #laAngabenOverlay .la-zeile { display: grid; grid-template-columns: 1fr 88px; gap: 6px; margin-top: 6px; }
+        #laAngabenOverlay .la-zeile {
+            display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 8px; margin-top: 8px;
+        }
+        #laAngabenOverlay .la-zeile > * { min-width: 0; }
+        #laAngabenOverlay .la-kanton .lqsel-wrap,
+        #laAngabenOverlay .la-kanton .lqsel-btn {
+            width: 52px; min-width: 0; max-width: 52px; padding-left: 6px !important; padding-right: 4px !important;
+        }
+        #laAngabenOverlay .la-kanton .lqsel-btn { gap: 2px; }
+        #laAngabenOverlay .la-kanton .lqsel-panel { min-width: 72px; }
         #laAngabenOverlay .la-checks { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 6px; }
         #laAngabenOverlay .la-check {
             display: flex; gap: 6px; align-items: center;
@@ -86,9 +96,10 @@ function laStil() {
             box-shadow: inset 4px 0 0 #c2410c;
         }
         #laAngabenOverlay .la-korrektur {
-            margin: 6px 0 0; font-size: 12px; font-weight: 650;
-            color: #c2410c; line-height: 1.35;
+            margin: 8px 0 0; font-size: 12.5px; font-weight: 650;
+            color: #c2410c; line-height: 1.4;
         }
+        #laAngabenOverlay .la-speichern {
             background: #3f3f3f; color: #fff; border: none; border-radius: 12px;
             padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
         }
@@ -97,7 +108,7 @@ function laStil() {
             #laAngabenOverlay .la-raster,
             #laAngabenOverlay .la-checks,
             #laAngabenOverlay .la-nach { grid-template-columns: 1fr 1fr; }
-            #laAngabenOverlay .la-zeile { grid-template-columns: 1fr 88px; }
+            #laAngabenOverlay .la-zeile { grid-template-columns: minmax(0, 1fr) 52px; }
         }
         body.theme-dark #laAngabenOverlay .la-karte { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
         body.theme-dark #laAngabenOverlay .la-titel { color: #f3f0ea; }
@@ -241,7 +252,7 @@ function laFirmaStand(text) {
 function laGrantFelder(modusId, datumId, kantonId, datum, kanton) {
     return `<div data-la-wenn="${modusId}=EIGEN" class="la-zeile">
         <label class="f-label">Datum der Genehmigung<input type="date" id="${datumId}" class="f-input" value="${laEsc(datum || '')}"></label>
-        <label class="f-label">Kanton${laKantonSelect(kantonId, kanton)}</label>
+        <label class="f-label la-kanton">Kt.${laKantonSelect(kantonId, kanton)}</label>
     </div>`;
 }
 
@@ -468,7 +479,7 @@ function laFirmaHinweisHaengen() {
 function laFirmaGrant(datumId, kantonId, datum, kanton) {
     return `<div class="la-zeile">
         <label class="f-label">Datum der Genehmigung<input type="date" id="${datumId}" class="f-input" value="${laEsc(datum || '')}"></label>
-        <label class="f-label">Kanton${laKantonSelect(kantonId, kanton)}</label>
+        <label class="f-label la-kanton">Kt.${laKantonSelect(kantonId, kanton)}</label>
     </div>`;
 }
 
