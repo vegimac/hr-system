@@ -123,6 +123,7 @@ public class LohnausweisAngabenController : ControllerBase
 
         firma.LohnausweisBoxFFreierTransport = dto.BoxF;
         firma.LohnausweisBoxGKantineGratis = dto.BoxG;
+        firma.LohnausweisPos21VerpflegungMonat = dto.Pos21 is > 0 ? dto.Pos21 : null;
         firma.LohnausweisZiffer14 = Leer(dto.Ziffer14);
         firma.LohnausweisExpatDatum = dto.ExpatDatum;
         firma.LohnausweisExpatKanton = Kanton(dto.ExpatKanton);
@@ -216,6 +217,7 @@ public class LohnausweisAngabenController : ControllerBase
             name = f.BranchName ?? f.CompanyName,
             boxF = f.LohnausweisBoxFFreierTransport,
             boxG = f.LohnausweisBoxGKantineGratis,
+            pos21 = f.LohnausweisPos21VerpflegungMonat,
             ziffer14 = f.LohnausweisZiffer14,
             expatDatum = Iso(f.LohnausweisExpatDatum),
             expatKanton = f.LohnausweisExpatKanton,
@@ -397,6 +399,7 @@ public class LohnausweisAngabenController : ControllerBase
     {
         public bool BoxF { get; set; }
         public bool BoxG { get; set; }
+        public decimal? Pos21 { get; set; }
         public string? Ziffer14 { get; set; }
         public DateOnly? ExpatDatum { get; set; }
         public string? ExpatKanton { get; set; }

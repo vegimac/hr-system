@@ -10029,8 +10029,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
             </section>
 
-            <!-- GAV + Lohnausweis nebeneinander -->
-            <section style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <!-- GAV und Probezeit. Lohnausweis nur noch über die eigene Maske. -->
+            <section style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start">
                 <div>
                     <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">GAV</div>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#0f172a">
@@ -10043,33 +10043,19 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     </div>
                 </div>
                 <div>
-                    <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Lohnausweis-Standardwerte</div>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:#334155;margin-bottom:5px">
-                        <input type="checkbox" id="stmLohnausweisBoxF" style="width:14px;height:14px;cursor:pointer;accent-color:#3f3f3f">
-                        <span><b>Box F</b> — Unentgeltliche Beförderung Wohn-/Arbeitsort</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:#334155;margin-bottom:6px">
-                        <input type="checkbox" id="stmLohnausweisBoxG" style="width:14px;height:14px;cursor:pointer;accent-color:#3f3f3f">
-                        <span><b>Box G</b> — Kantinenverpflegung / Lunch-Checks gratis</span>
-                    </label>
-                    <div>
-                        <label class="f-label">Ziffer 2.1 Verpflegungs-Geldwert / Monat (CHF)</label>
-                        <input id="stmLohnausweisPos21" class="f-input" type="number" step="0.05" min="0" placeholder="leer = 0">
-                        <div style="font-size:10.5px;color:#94a3b8;margin-top:2px;line-height:1.4">
-                            ESTV-Pauschale CHF 645 wenn AG voll bezahlt. Bei 50%-Eigenanteil: leer.
-                        </div>
-                        <button type="button" onclick="laFirmaAusStammdaten()" style="margin-top:10px;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 12px;font-size:12px;cursor:pointer">Lohnausweis für das Unternehmen</button>
-                    </div>
-                    <div>
-                        <label class="f-label">Probezeit</label>
-                        <select id="stmProbationMonths" class="f-input">
-                            <option value="">— keine Vorgabe —</option>
-                            <option value="14">14 Tage</option>
-                            <option value="1">1 Monat</option>
-                            <option value="2">2 Monate</option>
-                            <option value="3">3 Monate</option>
-                        </select>
-                    </div>
+                    <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Probezeit</div>
+                    <select id="stmProbationMonths" class="f-input">
+                        <option value="">— keine Vorgabe —</option>
+                        <option value="14">14 Tage</option>
+                        <option value="1">1 Monat</option>
+                        <option value="2">2 Monate</option>
+                        <option value="3">3 Monate</option>
+                    </select>
+                </div>
+                <div>
+                    <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Lohnausweis</div>
+                    <div style="font-size:12px;color:#646464;line-height:1.4;margin-bottom:8px">Kreuze, Bemerkungen und Verpflegung stehen in der Lohnausweis-Maske.</div>
+                    <button type="button" onclick="laFirmaAusStammdaten()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 12px;font-size:12px;cursor:pointer">Lohnausweis für das Unternehmen</button>
                 </div>
             </section>
         </div>
@@ -10962,7 +10948,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261028a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-uid.js?v=20261026a"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261028c"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261028d"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261026a"></script>
@@ -11717,7 +11703,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261027b"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
-<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261028j"></script>
+<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261028k"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

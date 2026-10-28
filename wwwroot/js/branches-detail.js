@@ -1324,11 +1324,6 @@ async function openStmModal(id) {
         // stmAhvKasse/stmBvgVersicherer entfernt (aus Lohndatenempfängern abgeleitet).
         document.getElementById('stmIstGav').checked       = !!b.istGav;
         document.getElementById('stmGavName').value        = b.gavName        || '';
-        // Lohnausweis-Standardwerte (Walter 13.05.2026: pro Filiale konfigurierbar)
-        document.getElementById('stmLohnausweisBoxF').checked = !!b.lohnausweisBoxFFreierTransport;
-        document.getElementById('stmLohnausweisBoxG').checked = !!b.lohnausweisBoxGKantineGratis;
-        document.getElementById('stmLohnausweisPos21').value  =
-            (b.lohnausweisPos21VerpflegungMonat == null) ? '' : b.lohnausweisPos21VerpflegungMonat;
         const stmProb = document.getElementById('stmProbationMonths');
         if (stmProb) stmProb.value = (b.probationMonths == null) ? '' : String(b.probationMonths);
         // Nummernkreis (Walter 02.09.2026). Ist noch keiner gepflegt, schlagen
@@ -1489,10 +1484,11 @@ function laFirmaAusStammdaten() {
     laFirmaVonFiliale(stmModalBranchId);
 }
 
-function laFirmaAnsichtAktualisieren(id, boxF, boxG) {
+function laFirmaAnsichtAktualisieren(id, boxF, boxG, pos21) {
     if (!selectedBranch || selectedBranch.id !== id) return;
     selectedBranch.lohnausweisBoxFFreierTransport = !!boxF;
     selectedBranch.lohnausweisBoxGKantineGratis = !!boxG;
+    selectedBranch.lohnausweisPos21VerpflegungMonat = pos21;
     renderFilialenDetail(selectedBranch);
 }
 
@@ -1534,15 +1530,11 @@ async function saveStm() {
         // unangetastet (Ableitung aus Lohndatenempfängern, Walter 06.08.2026).
         istGav:         document.getElementById('stmIstGav').checked,
         gavName:        trimOrNull('stmGavName'),
-        // Lohnausweis-Standardwerte
-        lohnausweisBoxFFreierTransport: document.getElementById('stmLohnausweisBoxF').checked,
-        lohnausweisBoxGKantineGratis:   document.getElementById('stmLohnausweisBoxG').checked,
-        lohnausweisPos21VerpflegungMonat: (() => {
-            const v = (document.getElementById('stmLohnausweisPos21').value || '').trim();
-            if (!v) return null;
-            const n = parseFloat(v);
-            return Number.isFinite(n) ? n : null;
-        })(),
+        // Lohnausweis bleibt in der eigenen Maske. Hier die schon gespeicherten
+        // Werte mitsenden, damit Speichern der Stammdaten sie nicht leert.
+        lohnausweisBoxFFreierTransport: !!selectedBranch?.lohnausweisBoxFFreierTransport,
+        lohnausweisBoxGKantineGratis:   !!selectedBranch?.lohnausweisBoxGKantineGratis,
+        lohnausweisPos21VerpflegungMonat: selectedBranch?.lohnausweisPos21VerpflegungMonat ?? null,
         probationMonths: (() => {
             const v = (document.getElementById('stmProbationMonths')?.value || '').trim();
             return v ? parseInt(v, 10) : null;
