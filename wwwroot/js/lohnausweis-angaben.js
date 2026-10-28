@@ -372,7 +372,34 @@ async function laFirmaOeffnen(companyProfileId) {
         'Gilt für alle Personen dieser Filiale, solange bei der Person nichts Abweichendes steht. Box F und G sind dieselben Schalter wie in den Stammdaten.';
     document.getElementById('laAngabenBody').innerHTML = laFirmaHtml(f);
     document.getElementById('laAngabenSave').onclick = () => laFirmaSpeichern(companyProfileId);
+    laFirmaHinweisHaengen();
     ov.style.display = 'flex';
+}
+
+const laSpesenSatz = 'Genehmigtes Spesenreglement und die Angabe RZ 52 sind beide gesetzt. '
+    + 'Auf dem Lohnausweis gilt das Reglement; das Kreuz in Ziffer 13.1.1 entfällt '
+    + '(Wegleitung 2026, Randziffer 65).';
+
+function laFirmaSpesenKollision() {
+    const datum = document.getElementById('laFSpesenDatum')?.value;
+    const kanton = document.getElementById('laFSpesenKanton')?.value;
+    const rz = document.getElementById('laFRz52')?.checked;
+    return !!(datum && kanton && rz);
+}
+
+function laFirmaHinweisZeigen() {
+    const box = document.getElementById('laFirmaHinweis');
+    if (!box) return;
+    const an = laFirmaSpesenKollision();
+    box.style.display = an ? '' : 'none';
+    box.textContent = an ? laSpesenSatz : '';
+}
+
+function laFirmaHinweisHaengen() {
+    ['laFSpesenDatum', 'laFSpesenKanton', 'laFRz52'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', laFirmaHinweisZeigen);
+    });
+    laFirmaHinweisZeigen();
 }
 
 function laFirmaGrant(datumId, kantonId, datum, kanton) {
@@ -384,6 +411,7 @@ function laFirmaGrant(datumId, kantonId, datum, kanton) {
 
 function laFirmaHtml(f) {
     return `<div class="la-raster">
+        <div id="laFirmaHinweis" class="la-hinweis" style="display:none"></div>
         ${laKarte('F', 'Unentgeltliche Beförderung',
             'Ziffer F für alle Personen dieser Filiale, wenn der Arbeitgeber die Fahrt zwischen Wohn- und Arbeitsort bezahlt.',
             `<label class="la-check" style="margin-top:12px"><input type="checkbox" id="laFBoxF"${f.boxF ? ' checked' : ''}> Ziffer F ankreuzen</label>`)}
@@ -457,6 +485,7 @@ async function laFirmaSpeichern(companyProfileId) {
     if (g) g.checked = body.boxG;
     if (typeof laFirmaAnsichtAktualisieren === 'function')
         laFirmaAnsichtAktualisieren(companyProfileId, body.boxF, body.boxG);
+    if (laFirmaSpesenKollision()) alert(laSpesenSatz);
     laAngabenSchliessen();
 }
 
