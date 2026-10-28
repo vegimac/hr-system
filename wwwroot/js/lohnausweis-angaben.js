@@ -80,7 +80,15 @@ function laStil() {
             font-size: 11px; font-weight: 800; letter-spacing: .06em;
             text-transform: uppercase; color: #c2410c; margin-bottom: 1px;
         }
-        #laAngabenOverlay .la-speichern {
+        #laAngabenOverlay .la-karte.la-korrigiert {
+            background: #fff4e5;
+            border-color: #e8b15a;
+            box-shadow: inset 4px 0 0 #c2410c;
+        }
+        #laAngabenOverlay .la-korrektur {
+            margin: 6px 0 0; font-size: 12px; font-weight: 650;
+            color: #c2410c; line-height: 1.35;
+        }
             background: #3f3f3f; color: #fff; border: none; border-radius: 12px;
             padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
         }
@@ -119,8 +127,8 @@ function laModus(id, wert) {
     </select></div>`;
 }
 
-function laKarte(badge, titel, text, inhalt, breit) {
-    return `<article class="la-karte${breit ? ' la-breit' : ''}">
+function laKarte(badge, titel, text, inhalt, breit, id) {
+    return `<article class="la-karte${breit ? ' la-breit' : ''}"${id ? ` id="${id}"` : ''}>
         <div class="la-kopf">
             <span class="la-badge">${badge}</span>
             <div>
@@ -213,7 +221,9 @@ async function laPersonOeffnen(employeeId) {
         'Leer heisst: wie die Filiale' + (d.firmaName ? ' ' + d.firmaName : '') + '. «Einer von …» setzt das Programm, sobald dieselbe Person im Jahr bei zwei Arbeitgebern Lohn hat.';
     document.getElementById('laAngabenBody').innerHTML = laPersonHtml(p, f);
     document.getElementById('laAngabenSave').onclick = () => laPersonSpeichern(employeeId);
-    laWarnung(d.hinweis);
+    const spesenModus = document.getElementById('laSpesenModus');
+    if (spesenModus && f.spesenDatum && f.spesenKanton) spesenModus.dataset.firma = '1';
+    laPersonKorrekturHaengen();
     laModusZeigen();
     ov.style.display = 'flex';
 }
@@ -276,7 +286,9 @@ function laPersonHtml(p, f) {
             + laGrantFelder('laSpesenModus', 'laSpesenDatum', 'laSpesenKanton', p.spesenDatum, p.spesenKanton))}
         ${laKarte('13.1.1', 'Randziffer 52',
             'Kreuz nur ohne genehmigtes Spesenreglement.',
-            laTri('laRz52', p.rz52, !!f.rz52))}
+            laTri('laRz52', p.rz52, !!f.rz52)
+            + `<div id="laRz52Korrektur" class="la-korrektur" style="display:none"></div>`,
+            false, 'laRz52Karte')}
         ${laKarte('15', 'Verkehrswert der Beteiligung',
             '«Verkehrswert durch Kanton … am … genehmigt».',
             laFirmaStand(firmaGrant(f.wertDatum, f.wertKanton))
@@ -391,27 +403,59 @@ async function laFirmaOeffnen(companyProfileId) {
     ov.style.display = 'flex';
 }
 
-const laSpesenSatz = 'Genehmigtes Spesenreglement und die Angabe RZ 52 sind beide gesetzt. '
-    + 'Auf dem Lohnausweis gilt das Reglement; das Kreuz in Ziffer 13.1.1 entfällt '
-    + '(Wegleitung 2026, Randziffer 65).';
+const laKorrekturSatz = 'Korrektur: das Kreuz in Ziffer 13.1.1 entfällt, weil das Spesenreglement gilt. Noch nicht gespeichert.';
 
-function laFirmaSpesenKollision() {
-    const datum = document.getElementById('laFSpesenDatum')?.value;
-    const kanton = document.getElementById('laFSpesenKanton')?.value;
-    const rz = document.getElementById('laFRz52')?.checked;
-    return !!(datum && kanton && rz);
+function laSpesenDerFirma() {
+    return !!(document.getElementById('laFSpesenDatum')?.value
+        && document.getElementById('laFSpesenKanton')?.value);
 }
 
-function laWarnung(text) {
-    const box = document.getElementById('laAngabenWarn');
-    if (!box) return;
-    if (!text) { box.style.display = 'none'; box.innerHTML = ''; return; }
-    box.style.display = '';
-    box.innerHTML = `<div class="la-warn-titel">Warnung</div><div>${laEsc(text)}</div>`;
+function laKorrekturZeichnen(aktiv) {
+    const karte = document.getElementById('laRz52Karte');
+    const hin = document.getElementById('laRz52Korrektur');
+    if (karte) karte.classList.toggle('la-korrigiert', aktiv);
+    if (hin) {
+        hin.style.display = aktiv ? '' : 'none';
+        hin.textContent = aktiv ? laKorrekturSatz : '';
+    }
+}
+
+function laFirmaKorrektur() {
+    const voll = laSpesenDerFirma();
+    const box = document.getElementById('laFRz52');
+    if (box) {
+        if (voll && box.checked) box.checked = false;
+        box.disabled = voll;
+    }
+    laKorrekturZeichnen(voll);
 }
 
 function laFirmaHinweisZeigen() {
-    laWarnung(laFirmaSpesenKollision() ? laSpesenSatz : '');
+    laFirmaKorrektur();
+}
+
+function laPersonSpesenWirksam() {
+    const modus = document.getElementById('laSpesenModus')?.value || '';
+    if (modus === 'KEIN') return false;
+    if (modus === 'EIGEN') {
+        return !!(document.getElementById('laSpesenDatum')?.value
+            && document.getElementById('laSpesenKanton')?.value);
+    }
+    return document.getElementById('laSpesenModus')?.dataset.firma === '1';
+}
+
+function laPersonKorrektur() {
+    const voll = laPersonSpesenWirksam();
+    const sel = document.getElementById('laRz52');
+    if (sel && voll && sel.value === 'ja') sel.value = 'nein';
+    laKorrekturZeichnen(voll);
+}
+
+function laPersonKorrekturHaengen() {
+    ['laSpesenModus', 'laSpesenDatum', 'laSpesenKanton', 'laRz52'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', laPersonKorrektur);
+    });
+    laPersonKorrektur();
 }
 
 function laFirmaHinweisHaengen() {
@@ -453,7 +497,9 @@ function laFirmaHtml(f) {
             laFirmaGrant('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton))}
         ${laKarte('13.1.1', 'Randziffer 52',
             'Kreuz nur, wenn kein genehmigtes Spesenreglement vorliegt.',
-            `<label class="la-check"><input type="checkbox" id="laFRz52"${f.rz52 ? ' checked' : ''}> Kreuz in Ziffer 13.1.1 setzen</label>`)}
+            `<label class="la-check"><input type="checkbox" id="laFRz52"${f.rz52 ? ' checked' : ''}> Kreuz in Ziffer 13.1.1 setzen</label>
+            <div id="laRz52Korrektur" class="la-korrektur" style="display:none"></div>`,
+            false, 'laRz52Karte')}
         ${laKarte('15', 'Verkehrswert der Beteiligung',
             '«Verkehrswert durch Kanton … am … genehmigt».',
             laFirmaGrant('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton))}
