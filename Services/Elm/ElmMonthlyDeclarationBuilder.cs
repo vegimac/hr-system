@@ -513,11 +513,11 @@ public class ElmMonthlyDeclarationBuilder
                 ?? employments.Where(m => m.EmployeeId == e.Id)
                        .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
             // Am Monatsende gueltiges Modell (juengstes Gueltig-ab <= Monatsende).
-            var modellId = zuordnungen
+            var zuordnung = zuordnungen
                 .Where(z => z.EmployeeId == e.Id && z.GueltigAb <= DateOnly.FromDateTime(monatsEnde))
                 .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id)
-                .Select(z => (int?)z.ArbeitszeitmodellId).FirstOrDefault();
-            var modell = modellId != null ? modelle.FirstOrDefault(m => m.Id == modellId) : null;
+                .FirstOrDefault();
+            var modell = zuordnung != null ? modelle.FirstOrDefault(m => m.Id == zuordnung.ArbeitszeitmodellId) : null;
             modell ??= modelle.FirstOrDefault();   // Rueckfall: Standardmodell der Rechtseinheit
 
             var person = new XElement(Sd + "Person",
@@ -527,7 +527,8 @@ public class ElmMonthlyDeclarationBuilder
                     new XAttribute("workID", WorkId(e)),
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
                     new XElement(C + "WorkingTime", WorkingTime(emHaupt,
-                        modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : stamm.Haupt.NormalWeeklyHours ?? 42m)),
+                        modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : stamm.Haupt.NormalWeeklyHours ?? 42m,
+                        zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen)),
                     // Beginn der nahtlosen Vertragskette, nicht des Abschnitts im Monat
                     // (RefXML Jan 2025: TF37 Oberli 2024-11-16 trotz neuem Vertrag ab 01.01.).
                     new XElement(C + "EntryDate", (anstellung?.Start ?? emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd")),

@@ -62,6 +62,39 @@ public class Employment
     /// </summary>
     public bool VierzehnterMonatslohn { get; set; }
 
+    /// <summary>Nur die Vertragsmaske setzt den 14. Monatslohn. Der Import schickt das Feld nicht.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool VierzehnterGesetzt { get; set; }
+
+    /// <summary>Nur die Vertragsmaske setzt den Jahreslohn ohne Zeitbindung.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool JahreslohnGesetzt { get; set; }
+
+    /// <summary>
+    /// Regelmässig = feste Arbeitszeit, Beschäftigungsgrad wird gemeldet.
+    /// Unregelmässig = keine feste Arbeitszeit. NULL = aus dem Modell ableiten
+    /// (bisheriges Verhalten). Die Lohnrechnung liest das Feld nicht.
+    /// </summary>
+    public bool? Regelmaessig { get; set; }
+
+    /// <summary>Nur die Vertragsmaske setzt regelmässig/unregelmässig.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool RegelmaessigGesetzt { get; set; }
+
+    /// <summary>Arbeitszeitmodell ab Vertragsbeginn. Nur die Vertragsmaske setzt es.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool ArbeitszeitmodellGesetzt { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int? ArbeitszeitmodellId { get; set; }
+
+    /// <summary>Abweichung vom Modell, zwei Nachkommastellen. Leer = das Modell gilt. Nicht weekly_hours.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal? AbweichendeWochenstunden { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal? AbweichendeWochenlektionen { get; set; }
+
     /// <summary>
     /// Stellenbezeichnung (Free-Text) — wird 1:1 auf den Vertrag gedruckt,
     /// z.B. „Shift Coordinator", „Rest. Manager Stellvertreter". Hat NICHTS

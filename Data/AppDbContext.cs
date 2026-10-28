@@ -372,6 +372,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SwissdecVertragsart).HasColumnName("swissdec_vertragsart").HasMaxLength(60);
             entity.Property(e => e.JahreslohnOhneZeitbindung).HasColumnName("jahreslohn_ohne_zeitbindung").HasColumnType("numeric(12,2)");
             entity.Property(e => e.VierzehnterMonatslohn).HasColumnName("vierzehnter_monatslohn");
+            entity.Property(e => e.Regelmaessig).HasColumnName("regelmaessig");
             entity.Property(e => e.JobTitle).HasColumnName("job_title");
             entity.Property(e => e.JobGroupId).HasColumnName("job_group_id");
             entity.HasOne(e => e.JobGroup).WithMany().HasForeignKey(e => e.JobGroupId);
@@ -1008,6 +1009,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.ArbeitszeitmodellId).HasColumnName("arbeitszeitmodell_id");
             entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab").HasColumnType("date");
+            entity.Property(e => e.AbweichendeWochenstunden).HasColumnName("abweichende_wochenstunden").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.AbweichendeWochenlektionen).HasColumnName("abweichende_wochenlektionen").HasColumnType("numeric(5,2)");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);

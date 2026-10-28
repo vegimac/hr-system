@@ -15,7 +15,7 @@ namespace HrSystem.Controllers;
 /// darf keinen Lohn verändern.</para>
 /// </summary>
 [ApiController]
-[Authorize(Roles = "admin")]
+[Authorize(Roles = "admin,superuser,user,buchhaltung")]
 [Route("api/arbeitszeitmodelle")]
 public class ArbeitszeitmodellController : ControllerBase
 {
@@ -47,6 +47,7 @@ public class ArbeitszeitmodellController : ControllerBase
         }));
     }
 
+    [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Anlegen([FromBody] ModellDto dto)
     {
@@ -72,6 +73,7 @@ public class ArbeitszeitmodellController : ControllerBase
         return Ok(new { m.Id });
     }
 
+    [Authorize(Roles = "admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Aendern(int id, [FromBody] ModellDto dto)
     {
@@ -126,6 +128,7 @@ public class ArbeitszeitmodellController : ControllerBase
     /// Löschen nur, solange niemand darauf verweist — sonst verlöre die Meldung
     /// die Zuordnung, ohne dass es jemand merkt.
     /// </summary>
+    [Authorize(Roles = "admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Loeschen(int id)
     {
@@ -158,6 +161,7 @@ public class ArbeitszeitmodellController : ControllerBase
             return new
             {
                 z.Id, z.ArbeitszeitmodellId, z.GueltigAb, z.Bemerkung,
+                z.AbweichendeWochenstunden, z.AbweichendeWochenlektionen,
                 bezeichnung = m?.Bezeichnung,
                 wochenstunden = m?.Wochenstunden,
                 wochenlektionen = m?.Wochenlektionen,

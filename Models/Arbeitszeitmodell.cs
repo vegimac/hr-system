@@ -69,6 +69,15 @@ public class EmployeeArbeitszeitmodell
     /// <summary>Ab diesem Tag gilt das Modell. Das jüngste Datum ≤ Stichtag gewinnt.</summary>
     public DateOnly GueltigAb { get; set; }
 
+    /// <summary>
+    /// Abweichende Wochenstunden zu diesem Modell. Leer = die Stunden des Modells.
+    /// Die Lohnrechnung liest das nicht.
+    /// </summary>
+    public decimal? AbweichendeWochenstunden { get; set; }
+
+    /// <summary>Abweichende Wochenlektionen. Leer = die Lektionen des Modells.</summary>
+    public decimal? AbweichendeWochenlektionen { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public string? Bemerkung { get; set; }
 }

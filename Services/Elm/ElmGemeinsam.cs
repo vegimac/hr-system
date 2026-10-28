@@ -512,13 +512,32 @@ public static class ElmGemeinsam
     /// Person keine eigenen Wochenstunden hat, wird aus Vollzeit × Pensum gerechnet.
     /// </para>
     /// </summary>
-    public static XElement WorkingTime(Employment? em, decimal vollzeitWochenstunden)
+    public static XElement WorkingTime(Employment? em, decimal vollzeitWochenstunden,
+        decimal? abweichendeStunden = null, decimal? abweichendeLektionen = null)
     {
         // Honorar ohne Zeitbindung und Verwaltungsrat haben keine feste Arbeitszeit
         // (Walter 27.09.2026; RefXML Jan 2025 TF39 Hasler Unsteady).
         var art = (em?.SwissdecVertragsart ?? "").Trim();
         if (art.Contains("NoTimeConstraint", StringComparison.OrdinalIgnoreCase) || art == "administrativeBoard")
             return new XElement(C + "Unsteady");
+        // Explizit unregelmässig: keine feste Arbeitszeit. NULL lässt die bisherige
+        // Ableitung aus dem Modell (Muster AG bleibt gleich).
+        if (em?.Regelmaessig == false)
+            return new XElement(C + "Unsteady");
+        if (abweichendeStunden is > 0m || abweichendeLektionen is > 0m)
+        {
+            em = new Employment
+            {
+                EmploymentModel = em?.EmploymentModel ?? "",
+                SwissdecVertragsart = em?.SwissdecVertragsart,
+                EmploymentPercentage = em?.EmploymentPercentage,
+                GuaranteedHoursPerWeek = em?.GuaranteedHoursPerWeek,
+                Regelmaessig = em?.Regelmaessig,
+                WeeklyHours = abweichendeStunden is > 0m ? abweichendeStunden : em?.WeeklyHours,
+                WeeklyLessons = abweichendeStunden is > 0m ? null
+                    : abweichendeLektionen is > 0m ? abweichendeLektionen : em?.WeeklyLessons,
+            };
+        }
         var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
         // Lektionenvertrag: Steady mit Wochenlektionen (RefXML Feb TF15 Degelo 10.50 / 50 %)
         if (em?.WeeklyLessons is decimal wl && wl > 0m)
@@ -546,6 +565,13 @@ public static class ElmGemeinsam
             return new XElement(C + "Steady",
                 new XElement(C + "WeeklyHours", Amt(wh)),
                 new XElement(C + "ActivityRate", Amt(PayrollCalculations.Rappen(wh / vollzeitWochenstunden * 100m))));
+        if (em?.Regelmaessig == true && vollzeitWochenstunden > 0)
+        {
+            var pct = em.EmploymentPercentage ?? 100m;
+            return new XElement(C + "Steady",
+                new XElement(C + "WeeklyHours", Amt(PayrollCalculations.Rappen(vollzeitWochenstunden * pct / 100m))),
+                new XElement(C + "ActivityRate", Amt(pct)));
+        }
         return new XElement(C + "Unsteady");
     }
 }

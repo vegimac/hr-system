@@ -263,12 +263,23 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('ceEducationLevel').value  = (c.educationLevelCode || _ceMa?.educationLevelCode || 'Ia');
     document.getElementById('ceErrorMsg').textContent  = '';
     document.getElementById('ceComplianceResult').innerHTML = '';
+    if (typeof empSetYesNo === 'function') empSetYesNo('ceVierzehnter', c.vierzehnterMonatslohn === true);
+    const jahresEl = document.getElementById('ceJahreslohn');
+    if (jahresEl) jahresEl.value = c.jahreslohnOhneZeitbindung ?? '';
+    const regGesetzt = c.regelmaessig === true || c.regelmaessig === false;
+    const regDefault = ceGewaehlteArt().modell !== 'FLEX'
+        || Number(c.weeklyHours) > 0
+        || Number(c.weeklyLessons) > 0;
+    if (typeof empSetYesNo === 'function') empSetYesNo('ceRegelmaessig', regGesetzt ? c.regelmaessig : regDefault);
+    const gradEl = document.getElementById('ceBeschaeftigungsgrad');
+    if (gradEl) gradEl.value = c.employmentPercentage ?? '';
 
     onCeModelChange();
     onCeContractTypeChange();
     checkCeMinimumWage();
 
     modal.style.display = 'flex';
+    ceArbeitszeitLaden(c.employeeId, c.contractStartDate);
 }
 
 function closeContractEditModal() {
@@ -349,10 +360,14 @@ function onCeModelChange() {
     const isMtp = m === 'MTP';
     const isUtp = m === 'FLEX';
     const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+    const ohneLohn = !!art.ohneMonatslohn;
+    const regelmaessig = document.getElementById('ceRegelmaessig')?.value !== 'false';
     show('ceHourlyWrap',     !isFix);
-    show('ceFteWrap',        isFix);
-    show('ceMonthlyWrap',    isFix);
-    show('cePensumWrap',     isFix);
+    show('ceFteWrap',        isFix && !ohneLohn);
+    show('ceMonthlyWrap',    isFix && !ohneLohn);
+    show('cePensumWrap',     isFix && !ohneLohn);
+    show('ceJahreslohnWrap', ohneLohn);
+    show('ceGradWrap',       regelmaessig && !isFix && !ohneLohn);
     show('ceArbeitstageWrap', isFix);
     // Walter-Vorgabe 26.05.2026: „Max. h/Woche" nur bei UTP. Bei MTP
     // redundant zu „Garantierte h/Woche" (Engine nimmt GuaranteedHoursPerWeek
@@ -378,6 +393,38 @@ function onCeModelChange() {
     if (!isUtp && typeof empSetYesNo === 'function')
         empSetYesNo('ceTeilzeitUnter8h', false);
     checkCeMinimumWage();
+}
+
+async function ceArbeitszeitLaden(employeeId, startIso) {
+    const sel = document.getElementById('ceAzm');
+    const std = document.getElementById('ceAzmStunden');
+    const lek = document.getElementById('ceAzmLektionen');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">–</option>';
+    if (std) std.value = '';
+    if (lek) lek.value = '';
+    if (!employeeId) { if (sel._lqRefresh) sel._lqRefresh(); return; }
+    try {
+        const [modelleRes, zuordRes] = await Promise.all([
+            fetch('/api/arbeitszeitmodelle', { headers: ah() }),
+            fetch('/api/arbeitszeitmodelle/mitarbeiter/' + employeeId, { headers: ah() }),
+        ]);
+        const modelle = modelleRes.ok ? await modelleRes.json() : [];
+        const zuord = zuordRes.ok ? await zuordRes.json() : [];
+        sel.innerHTML = '<option value="">–</option>' + (modelle || []).filter(m => m.isActive !== false).map(m => {
+            const zeit = [m.wochenstunden != null ? Number(m.wochenstunden).toFixed(2) + ' h' : '',
+                m.wochenlektionen != null ? Number(m.wochenlektionen).toFixed(2) + ' Lekt.' : ''].filter(Boolean).join(' · ');
+            return `<option value="${m.id}">${m.bezeichnung || 'Modell'}${zeit ? ' · ' + zeit : ''}</option>`;
+        }).join('');
+        const tag = String(startIso || '').slice(0, 10);
+        const treffer = (zuord || []).find(z => String(z.gueltigAb || '').slice(0, 10) === tag) || null;
+        if (treffer) {
+            sel.value = String(treffer.arbeitszeitmodellId);
+            if (std && treffer.abweichendeWochenstunden != null) std.value = Number(treffer.abweichendeWochenstunden).toFixed(2);
+            if (lek && treffer.abweichendeWochenlektionen != null) lek.value = Number(treffer.abweichendeWochenlektionen).toFixed(2);
+        }
+    } catch { /* Liste bleibt leer */ }
+    if (sel._lqRefresh) sel._lqRefresh();
 }
 
 function onCeContractTypeChange() {
@@ -725,6 +772,10 @@ async function saveContractEdit() {
     if (!startDate) { errEl.textContent = _t('vt.err.startDateRequired'); return; }
     const isBefristet = art.befristet || document.getElementById('ceContractType').value === 'befristet';
     const endDate = document.getElementById('ceEndDate').value;
+    if (endDate && startDate && endDate < startDate) {
+        errEl.textContent = 'Das Vertragsende liegt vor dem Beginn.';
+        return;
+    }
 
     const pensumStr = document.getElementById('cePensum').value;
     const pensum = pensumStr === '' ? null : parseFloat(pensumStr);
@@ -761,7 +812,10 @@ async function saveContractEdit() {
         jobTitle:                document.getElementById('ceJobTitle').value || null,
         jobGroupCode:            document.getElementById('ceJobGroup').value || null,
         educationLevelCode:      document.getElementById('ceEducationLevel').value || null,
-        employmentPercentage:    isFix ? pensum : null,
+        employmentPercentage:    isFix ? pensum
+            : (document.getElementById('ceRegelmaessig')?.value === 'true'
+                ? (parseFloat(document.getElementById('ceBeschaeftigungsgrad')?.value) || null)
+                : null),
         // Walter-Vorgabe 26.05.2026: Bei MTP ist „Wochenstunden" redundant zu
         // „Garantierte h/Woche" — Feld ist ausgeblendet. Beim Save automatisch
         // weeklyHours = guaranteedHoursPerWeek setzen, damit Alt-Konsumenten
@@ -772,6 +826,17 @@ async function saveContractEdit() {
                                 : null,
         guaranteedHoursPerWeek:  parseFloat(document.getElementById('ceGuaranteedHours').value) || null,
         thirteenthSalary:        document.getElementById('ceThirteenth')?.value !== 'false',
+        vierzehnterMonatslohn:   document.getElementById('ceVierzehnter')?.value === 'true',
+        vierzehnterGesetzt:      true,
+        jahreslohnOhneZeitbindung: art.ohneMonatslohn
+            ? (parseFloat(document.getElementById('ceJahreslohn')?.value) || null) : null,
+        jahreslohnGesetzt:       true,
+        regelmaessig:            document.getElementById('ceRegelmaessig')?.value === 'true',
+        regelmaessigGesetzt:     true,
+        arbeitszeitmodellGesetzt: true,
+        arbeitszeitmodellId:     parseInt(document.getElementById('ceAzm')?.value, 10) || null,
+        abweichendeWochenstunden: parseFloat(document.getElementById('ceAzmStunden')?.value) || null,
+        abweichendeWochenlektionen: parseFloat(document.getElementById('ceAzmLektionen')?.value) || null,
         lessonRate:              !isFix ? (parseFloat(document.getElementById('ceLessonRate')?.value) || null) : null,
         weeklyLessons:           !isFix ? (parseFloat(document.getElementById('ceWeeklyLessons')?.value) || null) : null,
         // < 8 h / Wo. nur FLEX (Walter 31.07.2026) — NBU-Befreiung am Vertrag.

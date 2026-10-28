@@ -133,6 +133,34 @@ public class ElmMonatJanuar2025Tests
         => Assert.Equal("Unsteady", ElmGemeinsam.WorkingTime(new Employment { EmploymentModel = "FLEX" }, 42m).Name.LocalName);
 
     [Fact]
+    public void Arbeitszeit_regelmaessig_50_von_40_sind_20()
+    {
+        var wt = ElmGemeinsam.WorkingTime(new Employment
+        {
+            EmploymentModel = "FLEX",
+            Regelmaessig = true,
+            EmploymentPercentage = 50m,
+        }, 40m);
+        Assert.Equal("Steady", wt.Name.LocalName);
+        Assert.Equal("20.00", wt.Element(ElmGemeinsam.C + "WeeklyHours")?.Value);
+        Assert.Equal("50.00", wt.Element(ElmGemeinsam.C + "ActivityRate")?.Value);
+    }
+
+    [Fact]
+    public void Arbeitszeit_unregelmaessig_bleibt_Unsteady()
+        => Assert.Equal("Unsteady", ElmGemeinsam.WorkingTime(
+            new Employment { EmploymentModel = "FIX", EmploymentPercentage = 50m, Regelmaessig = false }, 40m).Name.LocalName);
+
+    [Fact]
+    public void Arbeitszeit_abweichende_Stunden_zwei_Nachkommastellen()
+    {
+        var wt = ElmGemeinsam.WorkingTime(
+            new Employment { EmploymentModel = "FIX", EmploymentPercentage = 100m, WeeklyHours = 40m },
+            40m, abweichendeStunden: 41.75m);
+        Assert.Equal("41.75", wt.Element(ElmGemeinsam.C + "WeeklyHours")?.Value);
+    }
+
+    [Fact]
     public void Arbeitszeit_Verwaltungsrat_Unsteady()   // TF39 Hasler
         => Assert.Equal("Unsteady", ElmGemeinsam.WorkingTime(
             new Employment { EmploymentModel = "FIX", EmploymentPercentage = 100m, SwissdecVertragsart = "administrativeBoard" }, 40m).Name.LocalName);

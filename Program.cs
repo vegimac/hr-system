@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 116;  // 116: Filiale Vertragsarten (null = FLEX/MTP/FIX/FIX-M) · 115: ESTV-Liste italienische Grenzgemeinden 20 km
+const int SchemaStand = 117;  // 117: Vertrag regelmässig/unregelmässig, abweichende Arbeitszeit an der AZM-Zuordnung · 116: Filiale Vertragsarten
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3011,6 +3011,18 @@ using (var scope = app.Services.CreateScope())
             db.SaveChanges();
             startLog.LogInformation("Stand 115: {Neu} italienische Grenzgemeinden neu, {Aktualisiert} Regionen nachgetragen", neu, aktualisiert);
         }
+    }
+
+    // Stand 117: regelmässig/unregelmässig am Vertrag (nur Meldung, nicht der Lohn).
+    // Abweichende Wochenstunden/Lektionen an der AZM-Zuordnung, nicht in weekly_hours.
+    if (dbStand < 117)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employment ADD COLUMN IF NOT EXISTS regelmaessig boolean NULL;
+            ALTER TABLE employee_arbeitszeitmodell ADD COLUMN IF NOT EXISTS abweichende_wochenstunden numeric(5,2) NULL;
+            ALTER TABLE employee_arbeitszeitmodell ADD COLUMN IF NOT EXISTS abweichende_wochenlektionen numeric(5,2) NULL;
+        ");
+        startLog.LogInformation("Stand 117: Vertrag regelmässig, abweichende Arbeitszeit");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

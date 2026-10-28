@@ -190,6 +190,7 @@ public class EmploymentsController : ControllerBase
                 e.EducationLevelCode,
                 e.EmploymentPercentage,
                 e.WeeklyHours, e.GuaranteedHoursPerWeek, e.LessonRate, e.WeeklyLessons, e.ThirteenthSalary,
+                e.VierzehnterMonatslohn, e.JahreslohnOhneZeitbindung, e.Regelmaessig,
                 e.TeilzeitUnter8hWoche,
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
                 e.EasyAtWorkManualOverride,
@@ -217,6 +218,11 @@ public class EmploymentsController : ControllerBase
 
         if (!employeeExists)
             return BadRequest(new { error = $"Mitarbeiter {employment.EmployeeId} nicht gefunden." });
+
+        if (employment.ContractEndDate.HasValue
+            && DateOnly.FromDateTime(employment.ContractEndDate.Value) < DateOnly.FromDateTime(employment.ContractStartDate))
+            return Conflict(new { error = "VERTRAG_ZEITRAUM",
+                message = $"Das Vertragsende ({employment.ContractEndDate:dd.MM.yyyy}) liegt vor dem Beginn ({employment.ContractStartDate:dd.MM.yyyy})." });
 
         var artSperre = await VertragsartSperreAsync(
             employment.CompanyProfileId, employment.EmploymentModel, employment.SwissdecVertragsart, bisher: null);
@@ -335,6 +341,9 @@ public class EmploymentsController : ControllerBase
             if (empRow != null)
                 empRow.TeilzeitUnter8hWoche = employment.TeilzeitUnter8hWoche;
         }
+
+        var azmNeu = await SpeichereArbeitszeitAsync(employment);
+        if (azmNeu != null) return azmNeu;
 
         _context.Employments.Add(employment);
         await _context.SaveChangesAsync();
@@ -775,6 +784,11 @@ public class EmploymentsController : ControllerBase
         existing.GuaranteedHoursPerWeek = dto.GuaranteedHoursPerWeek;
         // Lektionenlohn (Walter 07.09.2026): nur bei Stundenlohn-Modellen sinnvoll; leer = keiner.
         existing.ThirteenthSalary       = dto.ThirteenthSalary;
+        if (dto.VierzehnterGesetzt) existing.VierzehnterMonatslohn = dto.VierzehnterMonatslohn;
+        if (dto.JahreslohnGesetzt)
+            existing.JahreslohnOhneZeitbindung = dto.JahreslohnOhneZeitbindung is > 0m
+                ? Math.Round(dto.JahreslohnOhneZeitbindung.Value, 2) : null;
+        if (dto.RegelmaessigGesetzt) existing.Regelmaessig = dto.Regelmaessig;
         existing.LessonRate             = dto.LessonRate is > 0 ? dto.LessonRate : null;
         existing.WeeklyLessons          = dto.WeeklyLessons is > 0 ? dto.WeeklyLessons : null;
         // < 8 h / Wo. nur bei FLEX (Walter 31.07.2026); andere Modelle immer false.
@@ -803,8 +817,61 @@ public class EmploymentsController : ControllerBase
                 empRow.TeilzeitUnter8hWoche = existing.TeilzeitUnter8hWoche;
         }
 
+        var azmAlt = await SpeichereArbeitszeitAsync(dto.ArbeitszeitmodellGesetzt
+            ? new Employment
+            {
+                EmployeeId = existing.EmployeeId,
+                ContractStartDate = existing.ContractStartDate,
+                ArbeitszeitmodellGesetzt = true,
+                ArbeitszeitmodellId = dto.ArbeitszeitmodellId,
+                AbweichendeWochenstunden = dto.AbweichendeWochenstunden,
+                AbweichendeWochenlektionen = dto.AbweichendeWochenlektionen,
+            }
+            : dto);
+        if (azmAlt != null) return azmAlt;
+
         await _context.SaveChangesAsync();
         return Ok(existing);
+    }
+
+    /// <summary>
+    /// Arbeitszeitmodell ab dem Vertragsbeginn. Leer = Zuordnung an diesem Tag weg.
+    /// Die Lohnrechnung liest das nicht. Der Import setzt das Kennzeichen nicht.
+    /// </summary>
+    async Task<IActionResult?> SpeichereArbeitszeitAsync(Employment employment)
+    {
+        if (!employment.ArbeitszeitmodellGesetzt) return null;
+        var std = employment.AbweichendeWochenstunden is > 0m
+            ? Math.Round(employment.AbweichendeWochenstunden.Value, 2) : (decimal?)null;
+        var lek = employment.AbweichendeWochenlektionen is > 0m
+            ? Math.Round(employment.AbweichendeWochenlektionen.Value, 2) : (decimal?)null;
+        if (std is > 50m || lek is > 50m)
+            return BadRequest(new { error = "ZEIT_MAX", message = "Abweichende Wochenstunden und Wochenlektionen höchstens 50.00." });
+
+        var ab = DateOnly.FromDateTime(employment.ContractStartDate);
+        var z = await _context.EmployeeArbeitszeitmodelle
+            .FirstOrDefaultAsync(x => x.EmployeeId == employment.EmployeeId && x.GueltigAb == ab);
+        if (employment.ArbeitszeitmodellId is not > 0)
+        {
+            if (z != null) _context.EmployeeArbeitszeitmodelle.Remove(z);
+            return null;
+        }
+        if (!await _context.Arbeitszeitmodelle.AnyAsync(m => m.Id == employment.ArbeitszeitmodellId && m.IsActive))
+            return BadRequest(new { error = "MODELL_FEHLT", message = "Dieses Arbeitszeitmodell gibt es nicht." });
+        if (z == null)
+        {
+            z = new EmployeeArbeitszeitmodell
+            {
+                EmployeeId = employment.EmployeeId,
+                GueltigAb = ab,
+                CreatedAt = DateTime.Now,
+            };
+            _context.EmployeeArbeitszeitmodelle.Add(z);
+        }
+        z.ArbeitszeitmodellId = employment.ArbeitszeitmodellId.Value;
+        z.AbweichendeWochenstunden = std;
+        z.AbweichendeWochenlektionen = lek;
+        return null;
     }
 
     // DELETE /api/employments/{id} — Vertrag endgültig löschen.
