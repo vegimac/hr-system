@@ -130,6 +130,74 @@ public class LohnausweisController : ControllerBase
         return File(bytes, "application/pdf", filename);
     }
 
+    /// <summary>
+    /// Einzelner Lohnausweis: neue DocID, Ziffer 15 verweist auf die bisherige.
+    /// </summary>
+    [HttpPost("{employeeId:int}/{year:int}/rektifikat")]
+    public async Task<IActionResult> Rektifikat(int employeeId, int year)
+    {
+        var fin = await _db.LohnausweisFinals
+            .FirstOrDefaultAsync(f => f.EmployeeId == employeeId && f.Year == year);
+        if (fin == null)
+            return BadRequest(new { message = "Zuerst den Lohnausweis finalisieren. Ein Entwurf kann nicht rektifiziert werden." });
+        LohnausweisErsetzen(fin);
+        await _db.SaveChangesAsync();
+        return Ok(new
+        {
+            docId = fin.DocId.ToString().ToUpperInvariant(),
+            ersetzt = fin.ErsetztDocId?.ToString().ToUpperInvariant(),
+        });
+    }
+
+    /// <summary>
+    /// Ersatzmeldung: jeder bereits finale Lohnausweis der Filiale im Jahr
+    /// wird ein Rektifikat mit neuer DocID.
+    /// </summary>
+    [HttpPost("ersatz")]
+    public async Task<IActionResult> Ersatz(int year, int companyProfileId)
+    {
+        if (companyProfileId <= 0 || year < 2000)
+            return BadRequest(new { message = "Jahr und Filiale fehlen." });
+        if (!await DarfFilialeAsync(companyProfileId)) return Forbid();
+
+        var von = new DateOnly(year, 1, 1);
+        var bis = new DateOnly(year, 12, 31);
+        var personen = await _db.PayrollSnapshots.AsNoTracking()
+            .Where(s => s.CompanyProfileId == companyProfileId
+                     && s.Periode.PeriodFrom >= von
+                     && s.Periode.PeriodFrom <= bis)
+            .Select(s => s.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        var finals = await _db.LohnausweisFinals
+            .Where(f => f.Year == year && personen.Contains(f.EmployeeId))
+            .ToListAsync();
+        if (finals.Count == 0)
+            return BadRequest(new { message = "Für dieses Jahr gibt es noch keinen finalen Lohnausweis." });
+        foreach (var fin in finals)
+            LohnausweisErsetzen(fin);
+        await _db.SaveChangesAsync();
+        return Ok(new { anzahl = finals.Count });
+    }
+
+    private static void LohnausweisErsetzen(LohnausweisFinal fin)
+    {
+        fin.ErsetztDocId = fin.DocId;
+        fin.ErsetztAm = fin.CreationDate;
+        fin.DocId = Guid.NewGuid();
+        fin.CreationDate = DateTime.Now;
+    }
+
+    private async Task<bool> DarfFilialeAsync(int companyProfileId)
+    {
+        if (User.IsInRole("admin") || (User.IsInRole("superuser") && !User.IsInRole("buchhaltung")))
+            return true;
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return false;
+        return await _db.UserBranchAccesses.AnyAsync(a =>
+            a.UserId == userId && a.CompanyProfileId == companyProfileId);
+    }
+
     private static void MergeStammdaten(LohnausweisData payload, LohnausweisData fresh)
     {
         static string? Fill(string? frontend, string? db)

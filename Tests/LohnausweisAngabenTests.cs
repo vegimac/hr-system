@@ -386,6 +386,59 @@ public class LohnausweisAngabenTests
         Assert.True(fehler.Count == 0, string.Join("\n", fehler));
     }
 
+    [Fact]
+    public void Systemtest_05_15_16_und_Rektifikat_im_Barcode()
+    {
+        var firma = new CompanyProfile
+        {
+            LohnausweisKontaktOrg = "Schaub Restaurants GmbH",
+            LohnausweisKontaktStrasse = "Bahnhofstrasse 1",
+            LohnausweisKontaktPlz = "6003",
+            LohnausweisKontaktOrt = "Luzern",
+            LohnausweisKontaktPerson = "Hans Muster",
+            LohnausweisKontaktTelefon = "041 444 44 44",
+        };
+        var kontakt = LohnausweisAngaben.Kontakt(firma, null);
+        Assert.NotNull(kontakt);
+        Assert.Equal("Hans Muster", kontakt!.Person);
+        Assert.Null(LohnausweisAngaben.Kontakt(firma, new EmployeeLohnausweis { KontaktModus = "KEIN" }));
+
+        var satz = LohnausweisAngaben.QstSatz(2026);
+        Assert.Contains("31. März 2027", satz);
+        Assert.Contains("Quellensteuerabzug definitiv", satz);
+
+        var alt = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var rekt = LohnausweisAngaben.RektifikatSatz(new DateTime(2026, 3, 1), alt);
+        Assert.Contains("11111111-1111-1111-1111-111111111111", rekt);
+
+        var daten = Basis();
+        daten.Zusatz = new LohnausweisZusatz
+        {
+            QstEinwand = true,
+            RektifikatDatumIso = "2026-03-01",
+            RektifikatDocId = alt.ToString().ToUpperInvariant(),
+            KontaktOrg = kontakt.Organisation,
+            KontaktStrasse = kontakt.Strasse,
+            KontaktPlz = kontakt.Plz,
+            KontaktOrt = kontakt.Ort,
+            KontaktPerson = kontakt.Person,
+            KontaktTelefon = kontakt.Telefon,
+            FreieBemerkung = "80%-Stelle.",
+        };
+        var doc = XDocument.Parse(LohnausweisBarcodeService.BuildXml(
+            daten, LohnausweisBarcodeService.TxAbSchemaVersion.V6_20260306));
+        var s = doc.Root!.Elements().Single(e => e.Name.LocalName == "S");
+        var namen = s.Elements().Select(e => e.Name.LocalName).ToList();
+        Assert.True(namen.IndexOf("StandardRemark") < namen.IndexOf("Remark"));
+        Assert.True(namen.IndexOf("Remark") < namen.IndexOf("Contact"));
+        Assert.Contains(s.Descendants(), e => e.Name.LocalName == "TaxAtSourcePeriodForObjection");
+        Assert.Equal("2026-03-01", s.Descendants().Single(e => e.Name.LocalName == "OriginalDate").Value);
+        Assert.Equal("HANS MUSTER", s.Descendants().Single(e => e.Name.LocalName == "Person").Value.ToUpperInvariant());
+        var fehler = new System.Collections.Generic.List<string>();
+        doc.Validate(LadeElm6Schemas(), (_, e) => fehler.Add(e.Message));
+        Assert.True(fehler.Count == 0, string.Join("\n", fehler));
+    }
+
     private static LohnausweisData Basis() => new()
     {
         CompanyUidFormatted = "CHE-262.373.037",

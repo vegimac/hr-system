@@ -130,10 +130,14 @@ public static class LohnausweisAngaben
     public static void Zeilen(
         Wirkung w,
         IReadOnlyList<string> frei,
-        out string? z141, out string? z142, out string? z151, out string? z152)
+        out string? z141, out string? z142, out string? z151, out string? z152,
+        IReadOnlyList<string>? zuerst = null)
     {
         var z14 = Split(w.Ziffer14, 110).Take(2).ToList();
         var z15 = new List<string>();
+        if (zuerst != null)
+            foreach (var z in zuerst)
+                if (!string.IsNullOrWhiteSpace(z)) z15.Add(z.Trim());
         foreach (var b in w.StandardBemerkungen)
             z15.Add(b);
         foreach (var f in frei)
@@ -169,6 +173,59 @@ public static class LohnausweisAngaben
             _ => n.ToString(CultureInfo.InvariantCulture),
         };
         return "Einer von " + wort + " Lohnausweisen";
+    }
+
+    /// <summary>
+    /// Abrechnungsbeleg für Quellensteuerpflichtige. Das Jahr in der Frist
+    /// ist das Jahr nach dem Lohnausweis (31. März des Folgejahres).
+    /// </summary>
+    public static string QstSatz(int lohnjahr) =>
+        "Quellensteuerpflichtige Personen können schriftlich und begründet bis 31. März "
+        + (lohnjahr + 1).ToString(CultureInfo.InvariantCulture)
+        + " bei der zuständigen kantonalen Steuerbehörde eine Verfügung über Bestand und Umfang der Quellensteuerpflicht "
+        + "oder eine nachträgliche ordentliche Veranlagung bzw. eine Neuberechnung der Quellensteuer verlangen. "
+        + "Ohne form- und fristgerechten Antrag wird der Quellensteuerabzug definitiv.";
+
+    public static string RektifikatSatz(DateTime original, Guid docId) =>
+        "Rektifikat eines fehlerhaften Lohnausweises: Datum: "
+        + original.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)
+        + " DocID: " + docId.ToString().ToUpperInvariant();
+
+    public static KontaktAngabe? Kontakt(CompanyProfile? firma, EmployeeLohnausweis? person)
+    {
+        var modus = (person?.KontaktModus ?? "").Trim().ToUpperInvariant();
+        if (modus == ModusKein) return null;
+        if (modus == ModusEigen)
+            return KontaktVoll(person!.KontaktOrg, person.KontaktStrasse, person.KontaktPlz,
+                person.KontaktOrt, person.KontaktPerson, person.KontaktTelefon);
+        if (firma == null) return null;
+        return KontaktVoll(firma.LohnausweisKontaktOrg, firma.LohnausweisKontaktStrasse,
+            firma.LohnausweisKontaktPlz, firma.LohnausweisKontaktOrt,
+            firma.LohnausweisKontaktPerson, firma.LohnausweisKontaktTelefon);
+    }
+
+    public static string BestaetigungMitKontakt(string block, KontaktAngabe kontakt)
+    {
+        var zeilen = new[]
+        {
+            kontakt.Organisation,
+            kontakt.Person,
+            kontakt.Strasse,
+            (kontakt.Plz + " " + kontakt.Ort).Trim(),
+            "Tel. " + kontakt.Telefon,
+        }.Where(z => !string.IsNullOrWhiteSpace(z));
+        var anhang = string.Join("\n", zeilen);
+        return string.IsNullOrWhiteSpace(block) ? anhang : block.TrimEnd() + "\n" + anhang;
+    }
+
+    private static KontaktAngabe? KontaktVoll(
+        string? org, string? strasse, string? plz, string? ort, string? person, string? telefon)
+    {
+        if (string.IsNullOrWhiteSpace(org) || string.IsNullOrWhiteSpace(strasse)
+            || string.IsNullOrWhiteSpace(plz) || string.IsNullOrWhiteSpace(ort)
+            || string.IsNullOrWhiteSpace(person) || string.IsNullOrWhiteSpace(telefon))
+            return null;
+        return new KontaktAngabe(org.Trim(), strasse.Trim(), plz.Trim(), ort.Trim(), person.Trim(), telefon.Trim());
     }
 
     public static LohnausweisZusatz AlsZusatz(Wirkung w, string? freieBemerkung) => new()
@@ -343,4 +400,16 @@ public class LohnausweisZusatz
     public int? AnzahlLohnausweise { get; set; }
     public string? Standardtext { get; set; }
     public string? FreieBemerkung { get; set; }
+    public bool QstEinwand { get; set; }
+    public string? RektifikatDatumIso { get; set; }
+    public string? RektifikatDocId { get; set; }
+    public string? KontaktOrg { get; set; }
+    public string? KontaktStrasse { get; set; }
+    public string? KontaktPlz { get; set; }
+    public string? KontaktOrt { get; set; }
+    public string? KontaktPerson { get; set; }
+    public string? KontaktTelefon { get; set; }
 }
+
+public sealed record KontaktAngabe(
+    string Organisation, string Strasse, string Plz, string Ort, string Person, string Telefon);

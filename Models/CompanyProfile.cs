@@ -266,6 +266,14 @@ public class CompanyProfile
     public bool LohnausweisBetAnwartschaft { get; set; }
     public bool LohnausweisBetUnecht { get; set; }
 
+    /// <summary>Kontaktperson auf dem Lohnausweis, gilt für alle Personen dieser Filiale.</summary>
+    public string? LohnausweisKontaktOrg { get; set; }
+    public string? LohnausweisKontaktStrasse { get; set; }
+    public string? LohnausweisKontaktPlz { get; set; }
+    public string? LohnausweisKontaktOrt { get; set; }
+    public string? LohnausweisKontaktPerson { get; set; }
+    public string? LohnausweisKontaktTelefon { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     // ── Bankverbindung der Filiale (Auftraggeber-Konto für DTA / Lohnlauf) ──

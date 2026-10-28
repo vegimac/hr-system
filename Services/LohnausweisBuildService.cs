@@ -84,7 +84,25 @@ public static class LohnausweisBuildService
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .Select(s => s!)
             .ToList();
-        LohnausweisAngaben.Zeilen(wirkung, frei, out var z141, out var z142, out var z151, out var z152);
+
+        var jahrAnfang = new DateOnly(year, 1, 1);
+        var jahrEnde = new DateOnly(year, 12, 31);
+        var qstPflicht = aggregated.QstBetrag != 0
+            || await db.EmployeeQuellensteuer.AnyAsync(q =>
+                q.EmployeeId == emp.Id
+                && q.ValidFrom <= jahrEnde
+                && (q.ValidTo == null || q.ValidTo >= jahrAnfang));
+        var fin = await db.LohnausweisFinals.AsNoTracking()
+            .FirstOrDefaultAsync(f => f.EmployeeId == emp.Id && f.Year == year);
+        var zuerst = new List<string>();
+        if (qstPflicht) zuerst.Add(LohnausweisAngaben.QstSatz(year));
+        if (fin?.ErsetztDocId is Guid alt && fin.ErsetztAm is DateTime altAm)
+            zuerst.Add(LohnausweisAngaben.RektifikatSatz(altAm, alt));
+        var kontakt = LohnausweisAngaben.Kontakt(company, angaben);
+        if (kontakt != null)
+            bestaetigung = LohnausweisAngaben.BestaetigungMitKontakt(bestaetigung, kontakt);
+
+        LohnausweisAngaben.Zeilen(wirkung, frei, out var z141, out var z142, out var z151, out var z152, zuerst);
 
         decimal z4 = wirkung.Nachgenuss?.Betrag ?? 0m;
         decimal z8 = aggregated.Brutto + (z21 ?? 0m) + z4;
@@ -129,8 +147,9 @@ public static class LohnausweisBuildService
             Ziffer151Bemerkungen     = z151,
             Ziffer152Bemerkungen     = z152,
             AnzahlLohnausweise       = wirkung.AnzahlLohnausweise,
-            Zusatz                   = LohnausweisAngaben.AlsZusatz(
-                wirkung, string.Join(" · ", frei)),
+            Zusatz                   = MitKontakt(
+                LohnausweisAngaben.AlsZusatz(wirkung, string.Join(" · ", frei)),
+                qstPflicht, fin, kontakt),
             Ziffer151Ort             = company?.City ?? "Meggen",
             Ziffer152Datum           = DateTime.Today.ToString("dd.MM.yyyy"),
             BestaetigungAgBlock      = bestaetigung,
@@ -406,6 +425,27 @@ public static class LohnausweisBuildService
         return c is "CH" or "SCHWEIZ" or "SWITZERLAND" or "SUISSE" or "SVIZZERA"
             ? "SWITZERLAND"
             : c;
+    }
+
+    private static LohnausweisZusatz MitKontakt(
+        LohnausweisZusatz zusatz, bool qst, LohnausweisFinal? fin, KontaktAngabe? kontakt)
+    {
+        zusatz.QstEinwand = qst;
+        if (fin?.ErsetztDocId is Guid alt && fin.ErsetztAm is DateTime altAm)
+        {
+            zusatz.RektifikatDatumIso = altAm.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            zusatz.RektifikatDocId = alt.ToString().ToUpperInvariant();
+        }
+        if (kontakt != null)
+        {
+            zusatz.KontaktOrg = kontakt.Organisation;
+            zusatz.KontaktStrasse = kontakt.Strasse;
+            zusatz.KontaktPlz = kontakt.Plz;
+            zusatz.KontaktOrt = kontakt.Ort;
+            zusatz.KontaktPerson = kontakt.Person;
+            zusatz.KontaktTelefon = kontakt.Telefon;
+        }
+        return zusatz;
     }
 
     private static string BuildEmployeeAddress(Employee emp)

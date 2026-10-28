@@ -16,6 +16,13 @@ public class LohnausweisFinal
     public int Year { get; set; }
     public Guid DocId { get; set; }
     public DateTime CreationDate { get; set; } = DateTime.Now;
+
+    /// <summary>DocID des Lohnausweises, den dieses Rektifikat ersetzt.</summary>
+    public Guid? ErsetztDocId { get; set; }
+
+    /// <summary>Erstellungsdatum des ersetzten Lohnausweises.</summary>
+    public DateTime? ErsetztAm { get; set; }
+
     public string? CreatedBy { get; set; }
 
     public Employee? Employee { get; set; }

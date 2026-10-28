@@ -368,11 +368,11 @@ function laCollectFormData() {
 // ──────────────────────────────────────────────────────────────────────
 // PDF-GENERIERUNG: POST an Backend mit aktuellem Form-Stand
 // ──────────────────────────────────────────────────────────────────────
-async function laGeneratePdf(final = false) {
+async function laGeneratePdf(final = false, ohneFrage = false) {
     if (!_laCurrentEmp?.id || !_laCurrentYear) return;
     // Finalisierung (Walter 16.08.2026): erster Final-Druck vergibt die
     // definitive DocID (UUID) + CreationDate — Wiederdrucke sind identisch.
-    if (final) {
+    if (final && !ohneFrage) {
         const ok = await liquidConfirm(
             `Finalen Lohnausweis ${_laCurrentYear} für ${_laCurrentEmp.name} erzeugen? `
             + `Beim ersten Mal werden DocID und Erstellungsdatum definitiv vergeben; `
@@ -399,4 +399,36 @@ async function laGeneratePdf(final = false) {
     } catch (ex) {
         alert('Fehler beim PDF-Generieren: ' + ex.message);
     }
+}
+
+async function laRektifikat() {
+    if (!_laCurrentEmp?.id || !_laCurrentYear) return;
+    const ok = await liquidConfirm(
+        `Den finalen Lohnausweis ${_laCurrentYear} von ${_laCurrentEmp.name} als Rektifikat ersetzen? `
+        + 'Es gibt eine neue DocID. In Ziffer 15 steht die DocID des bisherigen Ausweises.',
+        { title: 'Rektifikat', yesLabel: 'Rektifikat erstellen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    const r = await fetch(`/api/lohnausweis/${_laCurrentEmp.id}/${_laCurrentYear}/rektifikat`, {
+        method: 'POST', headers: ah(),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(body.message || 'Rektifikat fehlgeschlagen.'); return; }
+    await laGeneratePdf(true, true);
+}
+
+async function laErsatz() {
+    const year = parseInt(document.getElementById('laJahr')?.value, 10);
+    const filiale = typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null;
+    if (!year || !filiale) { alert('Zuerst Jahr und Filiale wählen.'); return; }
+    const ok = await liquidConfirm(
+        `Alle finalen Lohnausweise ${year} dieser Filiale als Ersatzmeldung ersetzen? `
+        + 'Jede Person bekommt eine neue DocID. In Ziffer 15 steht die bisherige.',
+        { title: 'Ersatzmeldung', yesLabel: 'Alle ersetzen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    const r = await fetch(`/api/lohnausweis/ersatz?year=${year}&companyProfileId=${filiale}`, {
+        method: 'POST', headers: ah(),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(body.message || 'Ersatzmeldung fehlgeschlagen.'); return; }
+    alert(body.anzahl + (body.anzahl === 1 ? ' Lohnausweis wurde ersetzt.' : ' Lohnausweise wurden ersetzt.'));
 }

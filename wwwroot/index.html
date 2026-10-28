@@ -3519,6 +3519,7 @@
                         <h1 class="page-title" data-i18n="la.pageTitle">Jahres-Lohnausweis</h1>
                         <p class="page-sub" data-i18n="la.pageSub">ESTV Form 11 dfe — aggregiert alle Lohnabrechnungen des gewählten Jahres in das amtliche Lohnausweis-Formular.</p>
                     </div>
+                    <button type="button" onclick="laErsatz()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;cursor:pointer">Ersatzmeldung</button>
                 </div>
                 <div class="page-body">
                     <div class="card" style="padding:20px;max-width:760px">
@@ -3583,6 +3584,7 @@
                             <button class="btn btn-outline" onclick="laPreviewClose()" data-i18n="qsta.btn.close">Schliessen</button>
                             <button class="btn btn-outline" onclick="laGeneratePdf(false)">Entwurf-PDF</button>
                             <button class="btn btn-success" onclick="laGeneratePdf(true)" title="Vergibt beim ersten Mal die definitive DocID + Erstellungsdatum — Wiederdrucke bleiben identisch">✓ Finaler Lohnausweis</button>
+                            <button class="btn btn-outline" onclick="laRektifikat()" title="Nur für einen bereits finalen Lohnausweis: neue DocID, Ziffer 15 verweist auf die alte">Rektifikat</button>
                         </div>
                     </div>
                 </div>
@@ -11715,7 +11717,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261027b"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
-<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261028i"></script>
+<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261028j"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -12771,7 +12773,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kandidaten.js?v=20261008a"></script>
 <script type="text/plain" data-modul="js/hr-saldi-lohnlauf.js?v=20260909a"></script>
 <script type="text/plain" data-modul="js/hr-qst-anmeldung.js?v=20261011a"></script>
-<script type="text/plain" data-modul="js/hr-lohnausweis.js?v=20261028a"></script>
+<script type="text/plain" data-modul="js/hr-lohnausweis.js?v=20261028b"></script>
 <script type="text/plain" data-modul="js/kuendigung.js?v=20261023b"></script>
 <script type="text/plain" data-modul="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script type="text/plain" data-modul="js/aerzte.js?v=20261026a"></script>

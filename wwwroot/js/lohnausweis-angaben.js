@@ -338,6 +338,29 @@ function laPersonHtml(p, f) {
                 <label class="f-label">Ort<input id="laNachOrt" class="f-input" value="${laEsc(p.nachgenussOrt || '')}"></label>
             </div>`,
             true)}
+        ${laKarte('15', 'Quellensteuer',
+            'Steht automatisch in Ziffer 15, sobald die Person im Jahr quellensteuerpflichtig ist. Frist: 31. März des Folgejahres.',
+            '')}
+        ${laKarte('I', 'Kontaktperson',
+            'Für Rückfragen der Steuerverwaltung. Leer heisst: wie die Filiale. Steht unten beim Arbeitgeber.',
+            laFirmaStand(f.kontaktPerson
+                ? 'Filiale: ' + f.kontaktPerson + (f.kontaktTelefon ? ', ' + f.kontaktTelefon : '')
+                : 'Filiale: keine Kontaktperson')
+            + laModus('laKontaktModus', p.kontaktModus)
+            + `<div data-la-wenn="laKontaktModus=EIGEN">${laKontaktFelder('la', p)}</div>`,
+            true)}
+    </div>`;
+}
+
+function laKontaktFelder(prefix, v) {
+    const val = id => laEsc((v && v[id]) || '');
+    return `<div class="la-nach">
+        <label class="f-label">Organisation<input id="${prefix}KontaktOrg" class="f-input" value="${val('kontaktOrg')}"></label>
+        <label class="f-label">Name<input id="${prefix}KontaktPerson" class="f-input" value="${val('kontaktPerson')}"></label>
+        <label class="f-label">Telefon<input id="${prefix}KontaktTel" class="f-input" value="${val('kontaktTelefon')}"></label>
+        <label class="f-label">Strasse<input id="${prefix}KontaktStrasse" class="f-input" value="${val('kontaktStrasse')}"></label>
+        <label class="f-label">PLZ<input id="${prefix}KontaktPlz" class="f-input" value="${val('kontaktPlz')}"></label>
+        <label class="f-label">Ort<input id="${prefix}KontaktOrt" class="f-input" value="${val('kontaktOrt')}"></label>
     </div>`;
 }
 
@@ -387,6 +410,13 @@ async function laPersonSpeichern(employeeId) {
         nachgenussStrasse: document.getElementById('laNachStrasse').value,
         nachgenussPlz: document.getElementById('laNachPlz').value,
         nachgenussOrt: document.getElementById('laNachOrt').value,
+        kontaktModus: document.getElementById('laKontaktModus').value || null,
+        kontaktOrg: document.getElementById('laKontaktOrg')?.value || null,
+        kontaktStrasse: document.getElementById('laKontaktStrasse')?.value || null,
+        kontaktPlz: document.getElementById('laKontaktPlz')?.value || null,
+        kontaktOrt: document.getElementById('laKontaktOrt')?.value || null,
+        kontaktPerson: document.getElementById('laKontaktPerson')?.value || null,
+        kontaktTelefon: document.getElementById('laKontaktTel')?.value || null,
     };
     const r = await fetch(`/api/employees/${employeeId}/lohnausweis-angaben`, {
         method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -524,6 +554,10 @@ function laFirmaHtml(f) {
                 ${laCheck('laFBetU', 'Unechte Mitarbeiterbeteiligungen', f.betUnecht)}
             </div>`,
             true)}
+        ${laKarte('I', 'Kontaktperson',
+            'Gilt für alle Personen dieser Filiale. Name, Adresse und Telefon stehen auf dem Lohnausweis.',
+            laKontaktFelder('laF', f),
+            true)}
     </div>`;
 }
 
@@ -545,6 +579,12 @@ async function laFirmaSpeichern(companyProfileId) {
         betNichtKotiert: !!document.getElementById('laFBetN').checked,
         betAnwartschaft: !!document.getElementById('laFBetA').checked,
         betUnecht: !!document.getElementById('laFBetU').checked,
+        kontaktOrg: document.getElementById('laFKontaktOrg').value,
+        kontaktStrasse: document.getElementById('laFKontaktStrasse').value,
+        kontaktPlz: document.getElementById('laFKontaktPlz').value,
+        kontaktOrt: document.getElementById('laFKontaktOrt').value,
+        kontaktPerson: document.getElementById('laFKontaktPerson').value,
+        kontaktTelefon: document.getElementById('laFKontaktTel').value,
     };
     const r = await fetch(`/api/companyprofiles/${companyProfileId}/lohnausweis-angaben`, {
         method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),

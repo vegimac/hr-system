@@ -131,6 +131,35 @@ public class EmployeeLohnausweis
     [MaxLength(80)]
     public string? NachgenussOrt { get; set; }
 
+    /// <summary>null = Kontakt der Filiale, EIGEN = eigene Kontaktperson, KEIN = keine.</summary>
+    [Column("kontakt_modus")]
+    [MaxLength(8)]
+    public string? KontaktModus { get; set; }
+
+    [Column("kontakt_org")]
+    [MaxLength(200)]
+    public string? KontaktOrg { get; set; }
+
+    [Column("kontakt_strasse")]
+    [MaxLength(120)]
+    public string? KontaktStrasse { get; set; }
+
+    [Column("kontakt_plz")]
+    [MaxLength(10)]
+    public string? KontaktPlz { get; set; }
+
+    [Column("kontakt_ort")]
+    [MaxLength(80)]
+    public string? KontaktOrt { get; set; }
+
+    [Column("kontakt_person")]
+    [MaxLength(120)]
+    public string? KontaktPerson { get; set; }
+
+    [Column("kontakt_telefon")]
+    [MaxLength(40)]
+    public string? KontaktTelefon { get; set; }
+
     [Column("geaendert_am", TypeName = "timestamp without time zone")]
     public DateTime GeaendertAm { get; set; } = DateTime.Now;
 }

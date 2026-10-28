@@ -297,6 +297,7 @@ public class LohnausweisBarcodeService
         {
             if (!string.IsNullOrWhiteSpace(d.Zusatz.FreieBemerkung))
                 s.Add(new XElement(Ns + "Remark", d.Zusatz.FreieBemerkung));
+            KontaktElement(s, Ns, d.Zusatz);
         }
         else
         {
@@ -410,6 +411,8 @@ public class LohnausweisBarcodeService
             std.Add(new XElement(Ns + "CompanyCarClarify"));
         if (z.WagenMinimal)
             std.Add(new XElement(Ns + "MinimalEmployeeCarPartPercentage"));
+        if (z.QstEinwand)
+            std.Add(new XElement(Ns + "TaxAtSourcePeriodForObjection"));
         if (!string.IsNullOrWhiteSpace(z.NachgenussName))
         {
             std.Add(new XElement(Ns + "ContinuedProvisionOfSalary",
@@ -429,8 +432,28 @@ public class LohnausweisBarcodeService
         }
         if (z.AnzahlLohnausweise is int n && n > 1)
             std.Add(new XElement(Ns + "NumberOfSalaryCertificate", n.ToString(Inv)));
+        if (!string.IsNullOrWhiteSpace(z.RektifikatDatumIso) && !string.IsNullOrWhiteSpace(z.RektifikatDocId))
+        {
+            std.Add(new XElement(Ns + "Rectificate",
+                new XElement(Ns + "OriginalDate", z.RektifikatDatumIso),
+                new XElement(Ns + "OriginalDocID", z.RektifikatDocId)));
+        }
         if (std.HasElements)
             s.Add(std);
+    }
+
+    private static void KontaktElement(XElement s, XNamespace Ns, LohnausweisZusatz z)
+    {
+        if (string.IsNullOrWhiteSpace(z.KontaktPerson)) return;
+        s.Add(new XElement(Ns + "Contact",
+            new XElement(Ns + "HR-RC-Name", z.KontaktOrg ?? ""),
+            new XElement(Ns + "Address",
+                new XElement(Ns + "Street", z.KontaktStrasse ?? ""),
+                new XElement(Ns + "ZIP-Code", z.KontaktPlz ?? ""),
+                new XElement(Ns + "City", z.KontaktOrt ?? ""),
+                new XElement(Ns + "Country", "SWITZERLAND")),
+            new XElement(Ns + "Person", z.KontaktPerson),
+            new XElement(Ns + "PhoneNumber", z.KontaktTelefon ?? "")));
     }
 
     // ════════════════════════════════════════════════════════════════════

@@ -287,6 +287,13 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NachgenussStrasse).HasColumnName("nachgenuss_strasse").HasMaxLength(120);
             entity.Property(e => e.NachgenussPlz).HasColumnName("nachgenuss_plz").HasMaxLength(10);
             entity.Property(e => e.NachgenussOrt).HasColumnName("nachgenuss_ort").HasMaxLength(80);
+            entity.Property(e => e.KontaktModus).HasColumnName("kontakt_modus").HasMaxLength(8);
+            entity.Property(e => e.KontaktOrg).HasColumnName("kontakt_org").HasMaxLength(200);
+            entity.Property(e => e.KontaktStrasse).HasColumnName("kontakt_strasse").HasMaxLength(120);
+            entity.Property(e => e.KontaktPlz).HasColumnName("kontakt_plz").HasMaxLength(10);
+            entity.Property(e => e.KontaktOrt).HasColumnName("kontakt_ort").HasMaxLength(80);
+            entity.Property(e => e.KontaktPerson).HasColumnName("kontakt_person").HasMaxLength(120);
+            entity.Property(e => e.KontaktTelefon).HasColumnName("kontakt_telefon").HasMaxLength(40);
             entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
             entity.HasOne<Employee>().WithOne().HasForeignKey<EmployeeLohnausweis>(e => e.EmployeeId);
         });
@@ -828,6 +835,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LohnausweisBetNichtKotiert).HasColumnName("lohnausweis_bet_nicht_kotiert");
             entity.Property(e => e.LohnausweisBetAnwartschaft).HasColumnName("lohnausweis_bet_anwartschaft");
             entity.Property(e => e.LohnausweisBetUnecht).HasColumnName("lohnausweis_bet_unecht");
+            entity.Property(e => e.LohnausweisKontaktOrg).HasColumnName("lohnausweis_kontakt_org").HasMaxLength(200);
+            entity.Property(e => e.LohnausweisKontaktStrasse).HasColumnName("lohnausweis_kontakt_strasse").HasMaxLength(120);
+            entity.Property(e => e.LohnausweisKontaktPlz).HasColumnName("lohnausweis_kontakt_plz").HasMaxLength(10);
+            entity.Property(e => e.LohnausweisKontaktOrt).HasColumnName("lohnausweis_kontakt_ort").HasMaxLength(80);
+            entity.Property(e => e.LohnausweisKontaktPerson).HasColumnName("lohnausweis_kontakt_person").HasMaxLength(120);
+            entity.Property(e => e.LohnausweisKontaktTelefon).HasColumnName("lohnausweis_kontakt_telefon").HasMaxLength(40);
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.BurNummer).HasColumnName("bur_nummer").HasMaxLength(20);
             entity.Property(e => e.InHouseId).HasColumnName("in_house_id").HasMaxLength(50);
@@ -2266,6 +2279,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Year).HasColumnName("year");
             entity.Property(e => e.DocId).HasColumnName("doc_id");
             entity.Property(e => e.CreationDate).HasColumnName("creation_date")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErsetztDocId).HasColumnName("ersetzt_doc_id");
+            entity.Property(e => e.ErsetztAm).HasColumnName("ersetzt_am")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => new { e.EmployeeId, e.Year }).IsUnique();

@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 118;  // 118: Lohnausweis-Angaben Person + Filiale · 117: Vertrag regelmässig/unregelmässig
+const int SchemaStand = 119;  // 119: Lohnausweis Kontakt + Rektifikat · 118: Lohnausweis-Angaben Person + Filiale
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3083,6 +3083,30 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_bet_unecht boolean NOT NULL DEFAULT false;
         ");
         startLog.LogInformation("Stand 118: Lohnausweis-Angaben Person und Filiale");
+    }
+
+    // Stand 119: Kontaktperson auf dem Lohnausweis (Filiale und Person) und die
+    // Referenz des Rektifikats auf die ersetzte DocID.
+    if (dbStand < 119)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS kontakt_modus varchar(8) NULL;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS kontakt_org varchar(200) NULL;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS kontakt_strasse varchar(120) NULL;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS kontakt_plz varchar(10) NULL;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS kontakt_ort varchar(80) NULL;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS kontakt_person varchar(120) NULL;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS kontakt_telefon varchar(40) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_kontakt_org varchar(200) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_kontakt_strasse varchar(120) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_kontakt_plz varchar(10) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_kontakt_ort varchar(80) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_kontakt_person varchar(120) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_kontakt_telefon varchar(40) NULL;
+            ALTER TABLE lohnausweis_final ADD COLUMN IF NOT EXISTS ersetzt_doc_id uuid NULL;
+            ALTER TABLE lohnausweis_final ADD COLUMN IF NOT EXISTS ersetzt_am timestamp without time zone NULL;
+        ");
+        startLog.LogInformation("Stand 119: Lohnausweis Kontakt und Rektifikat");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

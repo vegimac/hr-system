@@ -90,6 +90,13 @@ public class LohnausweisAngabenController : ControllerBase
         zeile.NachgenussStrasse = Leer(dto.NachgenussStrasse);
         zeile.NachgenussPlz = Leer(dto.NachgenussPlz);
         zeile.NachgenussOrt = Leer(dto.NachgenussOrt);
+        zeile.KontaktModus = NormModus(dto.KontaktModus);
+        zeile.KontaktOrg = Leer(dto.KontaktOrg);
+        zeile.KontaktStrasse = Leer(dto.KontaktStrasse);
+        zeile.KontaktPlz = Leer(dto.KontaktPlz);
+        zeile.KontaktOrt = Leer(dto.KontaktOrt);
+        zeile.KontaktPerson = Leer(dto.KontaktPerson);
+        zeile.KontaktTelefon = Leer(dto.KontaktTelefon);
         zeile.GeaendertAm = DateTime.Now;
 
         await _db.SaveChangesAsync();
@@ -130,6 +137,12 @@ public class LohnausweisAngabenController : ControllerBase
         firma.LohnausweisBetNichtKotiert = dto.BetNichtKotiert;
         firma.LohnausweisBetAnwartschaft = dto.BetAnwartschaft;
         firma.LohnausweisBetUnecht = dto.BetUnecht;
+        firma.LohnausweisKontaktOrg = Leer(dto.KontaktOrg);
+        firma.LohnausweisKontaktStrasse = Leer(dto.KontaktStrasse);
+        firma.LohnausweisKontaktPlz = Leer(dto.KontaktPlz);
+        firma.LohnausweisKontaktOrt = Leer(dto.KontaktOrt);
+        firma.LohnausweisKontaktPerson = Leer(dto.KontaktPerson);
+        firma.LohnausweisKontaktTelefon = Leer(dto.KontaktTelefon);
 
         await _db.SaveChangesAsync();
         return Ok(FirmaNachAussen(firma));
@@ -185,6 +198,13 @@ public class LohnausweisAngabenController : ControllerBase
         nachgenussStrasse = z?.NachgenussStrasse,
         nachgenussPlz = z?.NachgenussPlz,
         nachgenussOrt = z?.NachgenussOrt,
+        kontaktModus = z?.KontaktModus,
+        kontaktOrg = z?.KontaktOrg,
+        kontaktStrasse = z?.KontaktStrasse,
+        kontaktPlz = z?.KontaktPlz,
+        kontaktOrt = z?.KontaktOrt,
+        kontaktPerson = z?.KontaktPerson,
+        kontaktTelefon = z?.KontaktTelefon,
     };
 
     private static object? FirmaNachAussen(CompanyProfile? f)
@@ -210,6 +230,12 @@ public class LohnausweisAngabenController : ControllerBase
             betNichtKotiert = f.LohnausweisBetNichtKotiert,
             betAnwartschaft = f.LohnausweisBetAnwartschaft,
             betUnecht = f.LohnausweisBetUnecht,
+            kontaktOrg = f.LohnausweisKontaktOrg,
+            kontaktStrasse = f.LohnausweisKontaktStrasse,
+            kontaktPlz = f.LohnausweisKontaktPlz,
+            kontaktOrt = f.LohnausweisKontaktOrt,
+            kontaktPerson = f.LohnausweisKontaktPerson,
+            kontaktTelefon = f.LohnausweisKontaktTelefon,
         };
     }
 
@@ -250,6 +276,10 @@ public class LohnausweisAngabenController : ControllerBase
                 || string.IsNullOrWhiteSpace(dto.NachgenussOrt))
                 return "Zur begünstigten Person gehören Name, Vorname und Adresse.";
         }
+        if (NormModus(dto.KontaktModus) == LohnausweisAngaben.ModusEigen
+            && KontaktFehler(dto.KontaktOrg, dto.KontaktStrasse, dto.KontaktPlz, dto.KontaktOrt,
+                dto.KontaktPerson, dto.KontaktTelefon) is string ek)
+            return ek;
         return null;
     }
 
@@ -262,6 +292,22 @@ public class LohnausweisAngabenController : ControllerBase
             + (dto.BetAnwartschaft ? 1 : 0) + (dto.BetUnecht ? 1 : 0);
         if (gruende == 0 && (dto.BetGesperrt || dto.BetNichtKotiert || dto.BetAnwartschaft || dto.BetUnecht))
             return null;
+        var kontaktAngefangen = new[] { dto.KontaktOrg, dto.KontaktStrasse, dto.KontaktPlz, dto.KontaktOrt, dto.KontaktPerson, dto.KontaktTelefon }
+            .Any(s => !string.IsNullOrWhiteSpace(s));
+        if (kontaktAngefangen
+            && KontaktFehler(dto.KontaktOrg, dto.KontaktStrasse, dto.KontaktPlz, dto.KontaktOrt,
+                dto.KontaktPerson, dto.KontaktTelefon) is string ek)
+            return ek;
+        return null;
+    }
+
+    private static string? KontaktFehler(
+        string? org, string? strasse, string? plz, string? ort, string? person, string? telefon)
+    {
+        if (string.IsNullOrWhiteSpace(org) || string.IsNullOrWhiteSpace(strasse)
+            || string.IsNullOrWhiteSpace(plz) || string.IsNullOrWhiteSpace(ort)
+            || string.IsNullOrWhiteSpace(person) || string.IsNullOrWhiteSpace(telefon))
+            return "Die Kontaktperson braucht Organisation, Strasse, PLZ, Ort, Name und Telefon.";
         return null;
     }
 
@@ -338,6 +384,13 @@ public class LohnausweisAngabenController : ControllerBase
         public string? NachgenussStrasse { get; set; }
         public string? NachgenussPlz { get; set; }
         public string? NachgenussOrt { get; set; }
+        public string? KontaktModus { get; set; }
+        public string? KontaktOrg { get; set; }
+        public string? KontaktStrasse { get; set; }
+        public string? KontaktPlz { get; set; }
+        public string? KontaktOrt { get; set; }
+        public string? KontaktPerson { get; set; }
+        public string? KontaktTelefon { get; set; }
     }
 
     public class FirmaDto
@@ -358,5 +411,11 @@ public class LohnausweisAngabenController : ControllerBase
         public bool BetNichtKotiert { get; set; }
         public bool BetAnwartschaft { get; set; }
         public bool BetUnecht { get; set; }
+        public string? KontaktOrg { get; set; }
+        public string? KontaktStrasse { get; set; }
+        public string? KontaktPlz { get; set; }
+        public string? KontaktOrt { get; set; }
+        public string? KontaktPerson { get; set; }
+        public string? KontaktTelefon { get; set; }
     }
 }
