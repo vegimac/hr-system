@@ -42,6 +42,14 @@ function laStil() {
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 4px 10px rgba(60,55,48,0.04);
         }
         #laAngabenOverlay .la-breit { grid-column: 1 / -1; }
+        #laAngabenOverlay .la-gueltig {
+            display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end;
+            padding: 2px 2px 4px;
+        }
+        #laAngabenOverlay .la-gueltig .f-input { width: 110px; }
+        #laAngabenOverlay .la-gueltig #laGueltigBis {
+            font-size: 13px; font-weight: 650; color: #3f3f3f; padding-bottom: 8px;
+        }
         #laAngabenOverlay .la-gruppe {
             grid-column: 1 / -1;
             background: rgba(255,255,255,0.28);
@@ -244,18 +252,24 @@ async function laPersonKarte(employeeId) {
     }
 }
 
-async function laPersonOeffnen(employeeId) {
-    const r = await fetch(`/api/employees/${employeeId}/lohnausweis-angaben`, { headers: ah() });
+async function laPersonOeffnen(employeeId, ab) {
+    const url = `/api/employees/${employeeId}/lohnausweis-angaben` + (ab ? '?ab=' + ab : '');
+    const r = await fetch(url, { headers: ah() });
     if (!r.ok) { alert('Lohnausweis-Angaben konnten nicht geladen werden.'); return; }
     const d = await r.json();
     const p = d.person || {};
+    p.staende = d.staende || [];
     const f = d.firma || {};
+    window._laStaende = p.staende;
+    window._laGeladenAb = p.gueltigAb;
     const ov = laOverlay();
     document.getElementById('laAngabenTitel').textContent = 'Lohnausweis der Person';
     document.getElementById('laAngabenUnter').textContent =
         'Leer heisst: wie die Filiale' + (d.firmaName ? ' ' + d.firmaName : '') + '. «Einer von …» setzt das Programm, sobald dieselbe Person im Jahr bei zwei Arbeitgebern Lohn hat.';
     document.getElementById('laAngabenBody').innerHTML = laPersonHtml(p, f);
     document.getElementById('laAngabenSave').onclick = () => laPersonSpeichern(employeeId);
+    laGueltigAnbinden(jahr => laPersonOeffnen(employeeId, jahr));
+    laGeschlossen(d.geschlossen);
     const spesenModus = document.getElementById('laSpesenModus');
     if (spesenModus && f.spesenDatum && f.spesenKanton) spesenModus.dataset.firma = '1';
     laPersonKorrekturHaengen();
@@ -289,6 +303,7 @@ function laPersonHtml(p, f) {
             <option value="RENTE"${p.art === 'RENTE' ? ' selected' : ''}>Rentenbescheinigung (Buchstabe B)</option>
         </select></div>`;
     return `<div class="la-raster">
+        <div class="la-breit">${laGueltigLeiste({ gueltigAb: p.gueltigAb, gueltigBis: p.gueltigBis, staende: p.staende })}</div>
         ${laKarte('A/B', 'Lohn oder Rente',
             'A = Lohnausweis, B = Rentenbescheinigung. Beträge kommen aus dem Lohnlauf.',
             art)}
@@ -400,6 +415,7 @@ function laNum(id) {
 
 async function laPersonSpeichern(employeeId) {
     const body = {
+        gueltigAb: parseInt(document.getElementById('laGueltigAb')?.value, 10) || null,
         art: document.getElementById('laArt').value,
         boxF: laTriWert('laBoxF'),
         boxG: laTriWert('laBoxG'),
@@ -453,17 +469,22 @@ async function laPersonSpeichern(employeeId) {
     laPersonKarte(employeeId);
 }
 
-async function laFirmaOeffnen(companyProfileId) {
+async function laFirmaOeffnen(companyProfileId, ab) {
     if (!companyProfileId) return;
-    const r = await fetch(`/api/companyprofiles/${companyProfileId}/lohnausweis-angaben`, { headers: ah() });
+    const url = `/api/companyprofiles/${companyProfileId}/lohnausweis-angaben` + (ab ? '?ab=' + ab : '');
+    const r = await fetch(url, { headers: ah() });
     if (!r.ok) { alert('Die Unternehmensangaben konnten nicht geladen werden.'); return; }
     const f = await r.json();
+    window._laStaende = f.staende || [];
+    window._laGeladenAb = f.gueltigAb;
     const ov = laOverlay();
     document.getElementById('laAngabenTitel').textContent = 'Lohnausweis für das Unternehmen';
     document.getElementById('laAngabenUnter').textContent =
-        'Gilt für alle Personen dieser Filiale, bis eine Person davon abweicht. F und G sind dieselben Schalter wie in den Stammdaten.';
+        'Gilt für alle Personen dieser Filiale, bis eine Person davon abweicht. Eine spätere Fassung gilt erst ab ihrem Jahr.';
     document.getElementById('laAngabenBody').innerHTML = laFirmaHtml(f);
     document.getElementById('laAngabenSave').onclick = () => laFirmaSpeichern(companyProfileId);
+    laGueltigAnbinden(jahr => laFirmaOeffnen(companyProfileId, jahr));
+    laGeschlossen(f.geschlossen);
     laFirmaHinweisHaengen();
     ov.style.display = 'flex';
 }
@@ -558,9 +579,60 @@ function laGruppe(badge, titel, text, innen) {
     </section>`;
 }
 
+function laGueltigLeiste(d) {
+    const ab = d.gueltigAb || 2000;
+    const staende = d.staende || [];
+    const bisText = d.gueltigBis ? 'bis ' + d.gueltigBis : 'bis offen';
+    const opts = staende.map(s =>
+        `<option value="${s.ab}"${Number(s.ab) === Number(ab) ? ' selected' : ''}>ab ${s.ab}${s.bis ? ' bis ' + s.bis : ' · offen'}</option>`).join('');
+    return `<div class="la-gueltig">
+        <label class="f-label">Gültig ab
+            <input id="laGueltigAb" class="f-input" type="number" min="1990" max="2100" value="${ab}">
+        </label>
+        <span id="laGueltigBis">${bisText}</span>
+        ${opts ? `<label class="f-label">Fassung<select id="laFassung" class="f-input">${opts}</select></label>` : ''}
+        <p class="la-satz" style="flex:1 1 220px">Bis bleibt offen. Ein späteres Gültig-ab schliesst diese Fassung per Ende des Vorjahres.</p>
+    </div>`;
+}
+
+function laGueltigAnbinden(neuLaden) {
+    const inp = document.getElementById('laGueltigAb');
+    const sel = document.getElementById('laFassung');
+    const staende = window._laStaende || [];
+    const zieh = (jahr, laden) => {
+        const stand = staende.find(s => Number(s.ab) === jahr);
+        const bis = document.getElementById('laGueltigBis');
+        if (stand) {
+            if (bis) bis.textContent = stand.bis ? 'bis ' + stand.bis : 'bis offen';
+            if (laden && jahr !== window._laGeladenAb) neuLaden(jahr);
+        } else if (bis && jahr) {
+            bis.textContent = 'neue Fassung · bisherige gilt bis ' + (jahr - 1);
+            const save = document.getElementById('laAngabenSave');
+            if (save) save.disabled = false;
+        }
+    };
+    if (inp) inp.onchange = () => zieh(parseInt(inp.value, 10), false);
+    if (sel) sel.onchange = () => {
+        const jahr = parseInt(sel.value, 10);
+        if (inp) inp.value = String(jahr);
+        zieh(jahr, true);
+    };
+}
+
+function laGeschlossen(zu) {
+    const save = document.getElementById('laAngabenSave');
+    if (save) save.disabled = !!zu;
+    if (!zu) return;
+    document.querySelectorAll('#laAngabenBody input, #laAngabenBody select, #laAngabenBody textarea').forEach(el => {
+        if (el.id === 'laFassung') return;
+        el.disabled = true;
+    });
+}
+
 function laFirmaHtml(f) {
     const pos21 = f.pos21 == null || f.pos21 === 0 ? '' : f.pos21;
     return `<div class="la-raster">
+        <div class="la-breit">${laGueltigLeiste(f)}</div>
         ${laKarte('F', 'Unentgeltliche Beförderung',
             'Kreuz, wenn der Arbeitgeber die Fahrt Wohn–Arbeit bezahlt.',
             `<label class="la-check"><input type="checkbox" id="laFBoxF"${f.boxF ? ' checked' : ''}> Ziffer F ankreuzen</label>`)}
@@ -619,6 +691,7 @@ function laFirmaHtml(f) {
 
 async function laFirmaSpeichern(companyProfileId) {
     const body = {
+        gueltigAb: parseInt(document.getElementById('laGueltigAb')?.value, 10) || null,
         boxF: !!document.getElementById('laFBoxF').checked,
         boxG: !!document.getElementById('laFBoxG').checked,
         pos21: (() => {

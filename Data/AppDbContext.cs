@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmployeeLohnausweis> EmployeeLohnausweise => Set<EmployeeLohnausweis>();
+    public DbSet<CompanyLohnausweis> CompanyLohnausweise => Set<CompanyLohnausweis>();
     public DbSet<Employment> Employments => Set<Employment>();
     public DbSet<EmploymentProbationLog> EmploymentProbationLogs => Set<EmploymentProbationLog>();
     public DbSet<Moment> Moments => Set<Moment>();
@@ -252,8 +253,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<EmployeeLohnausweis>(entity =>
         {
             entity.ToTable("employee_lohnausweis");
-            entity.HasKey(e => e.EmployeeId);
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
+            entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis");
+            entity.HasIndex(e => new { e.EmployeeId, e.GueltigAb }).IsUnique();
             entity.Property(e => e.Art).HasColumnName("art").HasMaxLength(10);
             entity.Property(e => e.BoxF).HasColumnName("box_f");
             entity.Property(e => e.BoxG).HasColumnName("box_g");
@@ -295,7 +300,24 @@ public class AppDbContext : DbContext
             entity.Property(e => e.KontaktPerson).HasColumnName("kontakt_person").HasMaxLength(120);
             entity.Property(e => e.KontaktTelefon).HasColumnName("kontakt_telefon").HasMaxLength(40);
             entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
-            entity.HasOne<Employee>().WithOne().HasForeignKey<EmployeeLohnausweis>(e => e.EmployeeId);
+            entity.HasOne<Employee>().WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        modelBuilder.Entity<CompanyLohnausweis>(entity =>
+        {
+            entity.ToTable("company_lohnausweis");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
+            entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis");
+            entity.Property(e => e.Pos21).HasColumnName("pos21").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.ExpatDatum).HasColumnName("expat_datum").HasColumnType("date");
+            entity.Property(e => e.SpesenDatum).HasColumnName("spesen_datum").HasColumnType("date");
+            entity.Property(e => e.WertDatum).HasColumnName("wert_datum").HasColumnType("date");
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => new { e.CompanyProfileId, e.GueltigAb }).IsUnique();
+            entity.HasOne<CompanyProfile>().WithMany().HasForeignKey(e => e.CompanyProfileId);
         });
 
         modelBuilder.Entity<Employee>(entity =>

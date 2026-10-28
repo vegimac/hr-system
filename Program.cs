@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 119;  // 119: Lohnausweis Kontakt + Rektifikat · 118: Lohnausweis-Angaben Person + Filiale
+const int SchemaStand = 120;  // 120: Lohnausweis gültig ab/bis · 119: Kontakt + Rektifikat
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3107,6 +3107,83 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE lohnausweis_final ADD COLUMN IF NOT EXISTS ersetzt_am timestamp without time zone NULL;
         ");
         startLog.LogInformation("Stand 119: Lohnausweis Kontakt und Rektifikat");
+    }
+
+    // Stand 122: Angaben gelten ab einem Jahr, bis bleibt offen. Eine spätere
+    // Fassung schliesst die bisherige per Ende des Vorjahres.
+    if (dbStand < 120)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS id integer;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS gueltig_ab integer;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS gueltig_bis integer;
+            CREATE SEQUENCE IF NOT EXISTS employee_lohnausweis_id_seq;
+            UPDATE employee_lohnausweis SET id = nextval('employee_lohnausweis_id_seq') WHERE id IS NULL;
+            UPDATE employee_lohnausweis SET gueltig_ab = 2000 WHERE gueltig_ab IS NULL;
+            ALTER TABLE employee_lohnausweis ALTER COLUMN id SET NOT NULL;
+            ALTER TABLE employee_lohnausweis ALTER COLUMN id SET DEFAULT nextval('employee_lohnausweis_id_seq');
+            ALTER TABLE employee_lohnausweis ALTER COLUMN gueltig_ab SET NOT NULL;
+            ALTER TABLE employee_lohnausweis ALTER COLUMN gueltig_ab SET DEFAULT 2000;
+            ALTER SEQUENCE employee_lohnausweis_id_seq OWNED BY employee_lohnausweis.id;
+            ALTER TABLE employee_lohnausweis DROP CONSTRAINT IF EXISTS employee_lohnausweis_pkey;
+            ALTER TABLE employee_lohnausweis ADD PRIMARY KEY (id);
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_employee_lohnausweis_ab
+                ON employee_lohnausweis (employee_id, gueltig_ab);
+
+            CREATE TABLE IF NOT EXISTS company_lohnausweis (
+                id serial PRIMARY KEY,
+                company_profile_id integer NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
+                gueltig_ab integer NOT NULL,
+                gueltig_bis integer NULL,
+                box_f boolean NOT NULL DEFAULT false,
+                box_g boolean NOT NULL DEFAULT false,
+                pos21 numeric(10,2) NULL,
+                ziffer14 text NULL,
+                expat_datum date NULL,
+                expat_kanton varchar(2) NULL,
+                wagen_abklaeren boolean NOT NULL DEFAULT false,
+                wagen_minimal boolean NOT NULL DEFAULT false,
+                spesen_datum date NULL,
+                spesen_kanton varchar(2) NULL,
+                rz52 boolean NOT NULL DEFAULT false,
+                wert_datum date NULL,
+                wert_kanton varchar(2) NULL,
+                bet_gesperrt boolean NOT NULL DEFAULT false,
+                bet_nicht_kotiert boolean NOT NULL DEFAULT false,
+                bet_anwartschaft boolean NOT NULL DEFAULT false,
+                bet_unecht boolean NOT NULL DEFAULT false,
+                kontakt_org varchar(200) NULL,
+                kontakt_strasse varchar(120) NULL,
+                kontakt_plz varchar(10) NULL,
+                kontakt_ort varchar(80) NULL,
+                kontakt_person varchar(120) NULL,
+                kontakt_telefon varchar(40) NULL,
+                geaendert_am timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_company_lohnausweis_ab
+                ON company_lohnausweis (company_profile_id, gueltig_ab);
+            INSERT INTO company_lohnausweis (
+                company_profile_id, gueltig_ab, box_f, box_g, pos21, ziffer14,
+                expat_datum, expat_kanton, wagen_abklaeren, wagen_minimal,
+                spesen_datum, spesen_kanton, rz52, wert_datum, wert_kanton,
+                bet_gesperrt, bet_nicht_kotiert, bet_anwartschaft, bet_unecht,
+                kontakt_org, kontakt_strasse, kontakt_plz, kontakt_ort, kontakt_person, kontakt_telefon)
+            SELECT cp.id, 2000,
+                cp.lohnausweis_box_f_freier_transport, cp.lohnausweis_box_g_kantine_gratis,
+                cp.lohnausweis_pos_2_1_verpflegung_monat, cp.lohnausweis_ziffer14,
+                cp.lohnausweis_expat_datum, cp.lohnausweis_expat_kanton,
+                cp.lohnausweis_wagen_abklaeren, cp.lohnausweis_wagen_minimal,
+                cp.lohnausweis_spesen_datum, cp.lohnausweis_spesen_kanton, cp.lohnausweis_rz52,
+                cp.lohnausweis_wert_datum, cp.lohnausweis_wert_kanton,
+                cp.lohnausweis_bet_gesperrt, cp.lohnausweis_bet_nicht_kotiert,
+                cp.lohnausweis_bet_anwartschaft, cp.lohnausweis_bet_unecht,
+                cp.lohnausweis_kontakt_org, cp.lohnausweis_kontakt_strasse, cp.lohnausweis_kontakt_plz,
+                cp.lohnausweis_kontakt_ort, cp.lohnausweis_kontakt_person, cp.lohnausweis_kontakt_telefon
+            FROM company_profile cp
+            WHERE NOT EXISTS (
+                SELECT 1 FROM company_lohnausweis v WHERE v.company_profile_id = cp.id);
+        ");
+        startLog.LogInformation("Stand 120: Lohnausweis-Angaben mit Gültig-ab");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

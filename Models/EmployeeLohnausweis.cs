@@ -12,8 +12,19 @@ namespace HrSystem.Models;
 public class EmployeeLohnausweis
 {
     [Key]
+    [Column("id")]
+    public int Id { get; set; }
+
     [Column("employee_id")]
     public int EmployeeId { get; set; }
+
+    /// <summary>Erstes Jahr, in dem diese Fassung gilt. Bis bleibt leer, solange sie offen ist.</summary>
+    [Column("gueltig_ab")]
+    public int GueltigAb { get; set; } = 2000;
+
+    /// <summary>Letztes Jahr. Leer = offen. Eine spätere Fassung setzt das auf ihr Anfangsjahr minus 1.</summary>
+    [Column("gueltig_bis")]
+    public int? GueltigBis { get; set; }
 
     /// <summary>LOHN = Buchstabe A, RENTE = Buchstabe B (Rentenbescheinigung).</summary>
     [Column("art")]

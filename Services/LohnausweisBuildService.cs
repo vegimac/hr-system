@@ -40,8 +40,24 @@ public static class LohnausweisBuildService
 
         var (periodeVon, periodeBis, istGanzesJahr) = ResolveAnstellungsperiode(emp, year);
 
+        CompanyLohnausweis? fassung = null;
+        var firmaFuerJahr = company;
+        if (company != null)
+        {
+            var fassungen = await db.CompanyLohnausweise.AsNoTracking()
+                .Where(x => x.CompanyProfileId == company.Id)
+                .ToListAsync();
+            fassung = LohnausweisFassung.FuerJahr(fassungen, year, x => x.GueltigAb, x => x.GueltigBis);
+            if (fassung != null)
+            {
+                firmaFuerJahr = new CompanyProfile { Id = company.Id, CompanyName = company.CompanyName, BranchName = company.BranchName };
+                LohnausweisFassung.AufProfil(firmaFuerJahr, fassung);
+            }
+        }
+
         decimal? z21 = null;
-        if (company?.LohnausweisPos21VerpflegungMonat is decimal monatsBetrag && monatsBetrag > 0)
+        var verpflegung = fassung?.Pos21 ?? company?.LohnausweisPos21VerpflegungMonat;
+        if (verpflegung is decimal monatsBetrag && monatsBetrag > 0)
             z21 = Math.Round(monatsBetrag * aggregated.AnzahlSnapshots, 2);
 
         var empfaengerAdresse = BuildEmployeeAddress(emp);
@@ -65,10 +81,12 @@ public static class LohnausweisBuildService
         // Teilzeit-Hinweis (Wegleitung Ziffer 15, Walter-Vorgabe 16.08.2026):
         // bei Beschaeftigungsgrad < 100 % gehoert «X%-Stelle.» in die
         // Bemerkungen — Pensum aus dem im Jahr zuletzt gueltigen Vertrag.
-        var angaben = await db.EmployeeLohnausweise.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.EmployeeId == emp.Id);
+        var personen = await db.EmployeeLohnausweise.AsNoTracking()
+            .Where(x => x.EmployeeId == emp.Id)
+            .ToListAsync();
+        var angaben = LohnausweisFassung.FuerJahr(personen, year, x => x.GueltigAb, x => x.GueltigBis);
         var wirkung = LohnausweisAngaben.Aufloesen(
-            company, angaben, year, aggregated.AnzahlAusweise);
+            firmaFuerJahr, angaben, year, aggregated.AnzahlAusweise);
 
         string? pensumBemerkung = null;
         var jahresEnde = new DateTime(year, 12, 31);
@@ -98,7 +116,7 @@ public static class LohnausweisBuildService
         if (qstPflicht) zuerst.Add(LohnausweisAngaben.QstSatz(year));
         if (fin?.ErsetztDocId is Guid alt && fin.ErsetztAm is DateTime altAm)
             zuerst.Add(LohnausweisAngaben.RektifikatSatz(altAm, alt));
-        var kontakt = LohnausweisAngaben.Kontakt(company, angaben);
+        var kontakt = LohnausweisAngaben.Kontakt(firmaFuerJahr, angaben);
         if (kontakt != null)
             bestaetigung = LohnausweisAngaben.BestaetigungMitKontakt(bestaetigung, kontakt);
 

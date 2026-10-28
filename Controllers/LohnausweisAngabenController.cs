@@ -28,17 +28,27 @@ public class LohnausweisAngabenController : ControllerBase
         var emp = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId);
         if (emp == null) return NotFound();
 
-        var zeile = await _db.EmployeeLohnausweise.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.EmployeeId == employeeId);
+        var alle = await _db.EmployeeLohnausweise.AsNoTracking()
+            .Where(x => x.EmployeeId == employeeId)
+            .OrderBy(x => x.GueltigAb)
+            .ToListAsync();
+        var offen = Offen(alle);
+        var gezeigt = Ab(Request) is int ab
+            ? alle.FirstOrDefault(x => x.GueltigAb == ab) ?? offen
+            : offen;
         var firma = await FilialeDerPersonAsync(employeeId);
-        var wirkung = LohnausweisAngaben.Aufloesen(firma, zeile, DateTime.Today.Year, null);
+        var firmaFassung = firma == null ? null : await FirmaImJahrAsync(firma.Id, gezeigt?.GueltigAb ?? DateTime.Today.Year);
+        if (firma != null && firmaFassung != null) LohnausweisFassung.AufProfil(firma, firmaFassung);
+        var wirkung = LohnausweisAngaben.Aufloesen(firma, gezeigt, gezeigt?.GueltigAb ?? DateTime.Today.Year, null);
 
         return Ok(new
         {
-            person = NachAussen(zeile),
-            firma = FirmaNachAussen(firma),
+            person = NachAussen(gezeigt),
+            firma = FirmaNachAussen(firma, firmaFassung),
             firmaName = firma?.BranchName ?? firma?.CompanyName,
             hinweis = wirkung.SpesenHinweis,
+            staende = alle.Select(x => new { ab = x.GueltigAb, bis = x.GueltigBis }),
+            geschlossen = gezeigt?.GueltigBis != null,
         });
     }
 
@@ -50,12 +60,29 @@ public class LohnausweisAngabenController : ControllerBase
         if (PruefePerson(dto) is string fehler)
             return BadRequest(new { message = fehler });
 
-        var zeile = await _db.EmployeeLohnausweise.FirstOrDefaultAsync(x => x.EmployeeId == employeeId);
-        if (zeile == null)
+        var alle = await _db.EmployeeLohnausweise
+            .Where(x => x.EmployeeId == employeeId)
+            .ToListAsync();
+        var offen = Offen(alle);
+        var jahr = dto.GueltigAb ?? offen?.GueltigAb ?? LohnausweisFassung.Beginn;
+        int? bisherBis = null;
+        if (offen != null && LohnausweisFassung.Entscheiden(offen.GueltigAb, jahr, out bisherBis) is string hinweis)
+            return BadRequest(new { message = hinweis });
+
+        EmployeeLohnausweis zeile;
+        if (offen == null)
         {
-            zeile = new EmployeeLohnausweis { EmployeeId = employeeId };
+            zeile = new EmployeeLohnausweis { EmployeeId = employeeId, GueltigAb = jahr };
             _db.EmployeeLohnausweise.Add(zeile);
         }
+        else if (bisherBis != null)
+        {
+            offen.GueltigBis = bisherBis;
+            offen.GeaendertAm = DateTime.Now;
+            zeile = new EmployeeLohnausweis { EmployeeId = employeeId, GueltigAb = jahr };
+            _db.EmployeeLohnausweise.Add(zeile);
+        }
+        else zeile = offen;
 
         zeile.Art = NormArt(dto.Art);
         zeile.BoxF = dto.BoxF;
@@ -108,7 +135,17 @@ public class LohnausweisAngabenController : ControllerBase
     {
         var firma = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
         if (firma == null) return NotFound();
-        return Ok(FirmaNachAussen(firma));
+        var alle = await _db.CompanyLohnausweise.AsNoTracking()
+            .Where(x => x.CompanyProfileId == id)
+            .OrderBy(x => x.GueltigAb)
+            .ToListAsync();
+        var offen = Offen(alle);
+        var gezeigt = Ab(Request) is int ab
+            ? alle.FirstOrDefault(x => x.GueltigAb == ab) ?? offen
+            : offen;
+        if (gezeigt != null) LohnausweisFassung.AufProfil(firma, gezeigt);
+        else gezeigt = LohnausweisFassung.AusProfil(firma, LohnausweisFassung.Beginn);
+        return Ok(FirmaAntwort(firma, gezeigt, alle, gezeigt.GueltigBis != null && alle.Contains(gezeigt)));
     }
 
     [Authorize(Roles = "admin")]
@@ -121,32 +158,36 @@ public class LohnausweisAngabenController : ControllerBase
         if (PruefeFirma(dto) is string fehler)
             return BadRequest(new { message = fehler });
 
-        firma.LohnausweisBoxFFreierTransport = dto.BoxF;
-        firma.LohnausweisBoxGKantineGratis = dto.BoxG;
-        firma.LohnausweisPos21VerpflegungMonat = dto.Pos21 is > 0 ? dto.Pos21 : null;
-        firma.LohnausweisZiffer14 = Leer(dto.Ziffer14);
-        firma.LohnausweisExpatDatum = dto.ExpatDatum;
-        firma.LohnausweisExpatKanton = Kanton(dto.ExpatKanton);
-        firma.LohnausweisWagenAbklaeren = dto.WagenAbklaeren;
-        firma.LohnausweisWagenMinimal = dto.WagenMinimal;
-        firma.LohnausweisSpesenDatum = dto.SpesenDatum;
-        firma.LohnausweisSpesenKanton = Kanton(dto.SpesenKanton);
-        firma.LohnausweisRz52 = dto.Rz52;
-        firma.LohnausweisWertDatum = dto.WertDatum;
-        firma.LohnausweisWertKanton = Kanton(dto.WertKanton);
-        firma.LohnausweisBetGesperrt = dto.BetGesperrt;
-        firma.LohnausweisBetNichtKotiert = dto.BetNichtKotiert;
-        firma.LohnausweisBetAnwartschaft = dto.BetAnwartschaft;
-        firma.LohnausweisBetUnecht = dto.BetUnecht;
-        firma.LohnausweisKontaktOrg = Leer(dto.KontaktOrg);
-        firma.LohnausweisKontaktStrasse = Leer(dto.KontaktStrasse);
-        firma.LohnausweisKontaktPlz = Leer(dto.KontaktPlz);
-        firma.LohnausweisKontaktOrt = Leer(dto.KontaktOrt);
-        firma.LohnausweisKontaktPerson = Leer(dto.KontaktPerson);
-        firma.LohnausweisKontaktTelefon = Leer(dto.KontaktTelefon);
+        var alle = await _db.CompanyLohnausweise
+            .Where(x => x.CompanyProfileId == id)
+            .ToListAsync();
+        var offen = Offen(alle);
+        var jahr = dto.GueltigAb ?? offen?.GueltigAb ?? LohnausweisFassung.Beginn;
+        int? bisherBis = null;
+        if (offen != null && LohnausweisFassung.Entscheiden(offen.GueltigAb, jahr, out bisherBis) is string hinweis)
+            return BadRequest(new { message = hinweis });
+
+        CompanyLohnausweis zeile;
+        if (offen == null)
+        {
+            zeile = new CompanyLohnausweis { CompanyProfileId = id, GueltigAb = jahr };
+            _db.CompanyLohnausweise.Add(zeile);
+        }
+        else if (bisherBis != null)
+        {
+            offen.GueltigBis = bisherBis;
+            offen.GeaendertAm = DateTime.Now;
+            zeile = new CompanyLohnausweis { CompanyProfileId = id, GueltigAb = jahr };
+            _db.CompanyLohnausweise.Add(zeile);
+        }
+        else zeile = offen;
+
+        SchreibFirma(zeile, dto);
+        zeile.GeaendertAm = DateTime.Now;
+        LohnausweisFassung.AufProfil(firma, zeile.GueltigBis == null ? zeile : offen!);
 
         await _db.SaveChangesAsync();
-        return Ok(FirmaNachAussen(firma));
+        return Ok(FirmaAntwort(firma, zeile, alle.Append(zeile).Distinct(), false));
     }
 
     private async Task<CompanyProfile?> FilialeDerPersonAsync(int employeeId)
@@ -166,6 +207,8 @@ public class LohnausweisAngabenController : ControllerBase
 
     private static object NachAussen(EmployeeLohnausweis? z) => new
     {
+        gueltigAb = z?.GueltigAb ?? LohnausweisFassung.Beginn,
+        gueltigBis = z?.GueltigBis,
         art = z?.Art ?? LohnausweisAngaben.ArtLohn,
         boxF = z?.BoxF,
         boxG = z?.BoxG,
@@ -208,37 +251,121 @@ public class LohnausweisAngabenController : ControllerBase
         kontaktTelefon = z?.KontaktTelefon,
     };
 
-    private static object? FirmaNachAussen(CompanyProfile? f)
+    private static object? FirmaNachAussen(CompanyProfile? f, CompanyLohnausweis? v = null)
     {
-        if (f == null) return null;
+        if (f == null && v == null) return null;
         return new
         {
-            id = f.Id,
-            name = f.BranchName ?? f.CompanyName,
-            boxF = f.LohnausweisBoxFFreierTransport,
-            boxG = f.LohnausweisBoxGKantineGratis,
-            pos21 = f.LohnausweisPos21VerpflegungMonat,
-            ziffer14 = f.LohnausweisZiffer14,
-            expatDatum = Iso(f.LohnausweisExpatDatum),
-            expatKanton = f.LohnausweisExpatKanton,
-            wagenAbklaeren = f.LohnausweisWagenAbklaeren,
-            wagenMinimal = f.LohnausweisWagenMinimal,
-            spesenDatum = Iso(f.LohnausweisSpesenDatum),
-            spesenKanton = f.LohnausweisSpesenKanton,
-            rz52 = f.LohnausweisRz52,
-            wertDatum = Iso(f.LohnausweisWertDatum),
-            wertKanton = f.LohnausweisWertKanton,
-            betGesperrt = f.LohnausweisBetGesperrt,
-            betNichtKotiert = f.LohnausweisBetNichtKotiert,
-            betAnwartschaft = f.LohnausweisBetAnwartschaft,
-            betUnecht = f.LohnausweisBetUnecht,
-            kontaktOrg = f.LohnausweisKontaktOrg,
-            kontaktStrasse = f.LohnausweisKontaktStrasse,
-            kontaktPlz = f.LohnausweisKontaktPlz,
-            kontaktOrt = f.LohnausweisKontaktOrt,
-            kontaktPerson = f.LohnausweisKontaktPerson,
-            kontaktTelefon = f.LohnausweisKontaktTelefon,
+            id = f?.Id ?? v!.CompanyProfileId,
+            name = f?.BranchName ?? f?.CompanyName,
+            gueltigAb = v?.GueltigAb ?? LohnausweisFassung.Beginn,
+            gueltigBis = v?.GueltigBis,
+            boxF = v?.BoxF ?? f?.LohnausweisBoxFFreierTransport ?? false,
+            boxG = v?.BoxG ?? f?.LohnausweisBoxGKantineGratis ?? false,
+            pos21 = v?.Pos21 ?? f?.LohnausweisPos21VerpflegungMonat,
+            ziffer14 = v?.Ziffer14 ?? f?.LohnausweisZiffer14,
+            expatDatum = Iso(v?.ExpatDatum ?? f?.LohnausweisExpatDatum),
+            expatKanton = v?.ExpatKanton ?? f?.LohnausweisExpatKanton,
+            wagenAbklaeren = v?.WagenAbklaeren ?? f?.LohnausweisWagenAbklaeren ?? false,
+            wagenMinimal = v?.WagenMinimal ?? f?.LohnausweisWagenMinimal ?? false,
+            spesenDatum = Iso(v?.SpesenDatum ?? f?.LohnausweisSpesenDatum),
+            spesenKanton = v?.SpesenKanton ?? f?.LohnausweisSpesenKanton,
+            rz52 = v?.Rz52 ?? f?.LohnausweisRz52 ?? false,
+            wertDatum = Iso(v?.WertDatum ?? f?.LohnausweisWertDatum),
+            wertKanton = v?.WertKanton ?? f?.LohnausweisWertKanton,
+            betGesperrt = v?.BetGesperrt ?? f?.LohnausweisBetGesperrt ?? false,
+            betNichtKotiert = v?.BetNichtKotiert ?? f?.LohnausweisBetNichtKotiert ?? false,
+            betAnwartschaft = v?.BetAnwartschaft ?? f?.LohnausweisBetAnwartschaft ?? false,
+            betUnecht = v?.BetUnecht ?? f?.LohnausweisBetUnecht ?? false,
+            kontaktOrg = v?.KontaktOrg ?? f?.LohnausweisKontaktOrg,
+            kontaktStrasse = v?.KontaktStrasse ?? f?.LohnausweisKontaktStrasse,
+            kontaktPlz = v?.KontaktPlz ?? f?.LohnausweisKontaktPlz,
+            kontaktOrt = v?.KontaktOrt ?? f?.LohnausweisKontaktOrt,
+            kontaktPerson = v?.KontaktPerson ?? f?.LohnausweisKontaktPerson,
+            kontaktTelefon = v?.KontaktTelefon ?? f?.LohnausweisKontaktTelefon,
         };
+    }
+
+    private object FirmaAntwort(CompanyProfile firma, CompanyLohnausweis gezeigt, IEnumerable<CompanyLohnausweis> alle, bool geschlossen) => new
+    {
+        id = firma.Id,
+        name = firma.BranchName ?? firma.CompanyName,
+        gueltigAb = gezeigt.GueltigAb,
+        gueltigBis = gezeigt.GueltigBis,
+        boxF = gezeigt.BoxF,
+        boxG = gezeigt.BoxG,
+        pos21 = gezeigt.Pos21,
+        ziffer14 = gezeigt.Ziffer14,
+        expatDatum = Iso(gezeigt.ExpatDatum),
+        expatKanton = gezeigt.ExpatKanton,
+        wagenAbklaeren = gezeigt.WagenAbklaeren,
+        wagenMinimal = gezeigt.WagenMinimal,
+        spesenDatum = Iso(gezeigt.SpesenDatum),
+        spesenKanton = gezeigt.SpesenKanton,
+        rz52 = gezeigt.Rz52,
+        wertDatum = Iso(gezeigt.WertDatum),
+        wertKanton = gezeigt.WertKanton,
+        betGesperrt = gezeigt.BetGesperrt,
+        betNichtKotiert = gezeigt.BetNichtKotiert,
+        betAnwartschaft = gezeigt.BetAnwartschaft,
+        betUnecht = gezeigt.BetUnecht,
+        kontaktOrg = gezeigt.KontaktOrg,
+        kontaktStrasse = gezeigt.KontaktStrasse,
+        kontaktPlz = gezeigt.KontaktPlz,
+        kontaktOrt = gezeigt.KontaktOrt,
+        kontaktPerson = gezeigt.KontaktPerson,
+        kontaktTelefon = gezeigt.KontaktTelefon,
+        staende = alle.Select(x => new { ab = x.GueltigAb, bis = x.GueltigBis }).Distinct(),
+        geschlossen,
+    };
+
+    private async Task<CompanyLohnausweis?> FirmaImJahrAsync(int companyId, int jahr)
+    {
+        var alle = await _db.CompanyLohnausweise.AsNoTracking()
+            .Where(x => x.CompanyProfileId == companyId)
+            .ToListAsync();
+        return LohnausweisFassung.FuerJahr(alle, jahr, x => x.GueltigAb, x => x.GueltigBis);
+    }
+
+    private static EmployeeLohnausweis? Offen(IReadOnlyCollection<EmployeeLohnausweis> alle) =>
+        alle.Where(x => x.GueltigBis == null).OrderByDescending(x => x.GueltigAb).FirstOrDefault()
+        ?? alle.OrderByDescending(x => x.GueltigAb).FirstOrDefault();
+
+    private static CompanyLohnausweis? Offen(IReadOnlyCollection<CompanyLohnausweis> alle) =>
+        alle.Where(x => x.GueltigBis == null).OrderByDescending(x => x.GueltigAb).FirstOrDefault()
+        ?? alle.OrderByDescending(x => x.GueltigAb).FirstOrDefault();
+
+    private static int? Ab(HttpRequest request)
+    {
+        var roh = request.Query["ab"].ToString();
+        return int.TryParse(roh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var jahr) ? jahr : null;
+    }
+
+    private static void SchreibFirma(CompanyLohnausweis zeile, FirmaDto dto)
+    {
+        zeile.BoxF = dto.BoxF;
+        zeile.BoxG = dto.BoxG;
+        zeile.Pos21 = dto.Pos21 is > 0 ? dto.Pos21 : null;
+        zeile.Ziffer14 = Leer(dto.Ziffer14);
+        zeile.ExpatDatum = dto.ExpatDatum;
+        zeile.ExpatKanton = Kanton(dto.ExpatKanton);
+        zeile.WagenAbklaeren = dto.WagenAbklaeren;
+        zeile.WagenMinimal = dto.WagenMinimal;
+        zeile.SpesenDatum = dto.SpesenDatum;
+        zeile.SpesenKanton = Kanton(dto.SpesenKanton);
+        zeile.Rz52 = dto.Rz52;
+        zeile.WertDatum = dto.WertDatum;
+        zeile.WertKanton = Kanton(dto.WertKanton);
+        zeile.BetGesperrt = dto.BetGesperrt;
+        zeile.BetNichtKotiert = dto.BetNichtKotiert;
+        zeile.BetAnwartschaft = dto.BetAnwartschaft;
+        zeile.BetUnecht = dto.BetUnecht;
+        zeile.KontaktOrg = Leer(dto.KontaktOrg);
+        zeile.KontaktStrasse = Leer(dto.KontaktStrasse);
+        zeile.KontaktPlz = Leer(dto.KontaktPlz);
+        zeile.KontaktOrt = Leer(dto.KontaktOrt);
+        zeile.KontaktPerson = Leer(dto.KontaktPerson);
+        zeile.KontaktTelefon = Leer(dto.KontaktTelefon);
     }
 
     private static string? PruefePerson(PersonDto dto)
@@ -353,6 +480,7 @@ public class LohnausweisAngabenController : ControllerBase
 
     public class PersonDto
     {
+        public int? GueltigAb { get; set; }
         public string? Art { get; set; }
         public bool? BoxF { get; set; }
         public bool? BoxG { get; set; }
@@ -397,6 +525,7 @@ public class LohnausweisAngabenController : ControllerBase
 
     public class FirmaDto
     {
+        public int? GueltigAb { get; set; }
         public bool BoxF { get; set; }
         public bool BoxG { get; set; }
         public decimal? Pos21 { get; set; }
