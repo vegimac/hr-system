@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeLohnausweis> EmployeeLohnausweise => Set<EmployeeLohnausweis>();
     public DbSet<Employment> Employments => Set<Employment>();
     public DbSet<EmploymentProbationLog> EmploymentProbationLogs => Set<EmploymentProbationLog>();
     public DbSet<Moment> Moments => Set<Moment>();
@@ -248,6 +249,48 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<EmployeeLohnausweis>(entity =>
+        {
+            entity.ToTable("employee_lohnausweis");
+            entity.HasKey(e => e.EmployeeId);
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Art).HasColumnName("art").HasMaxLength(10);
+            entity.Property(e => e.BoxF).HasColumnName("box_f");
+            entity.Property(e => e.BoxG).HasColumnName("box_g");
+            entity.Property(e => e.Ziffer14Modus).HasColumnName("ziffer14_modus").HasMaxLength(8);
+            entity.Property(e => e.Ziffer14Text).HasColumnName("ziffer14_text");
+            entity.Property(e => e.ExpatModus).HasColumnName("expat_modus").HasMaxLength(8);
+            entity.Property(e => e.ExpatDatum).HasColumnName("expat_datum").HasColumnType("date");
+            entity.Property(e => e.ExpatKanton).HasColumnName("expat_kanton").HasMaxLength(2);
+            entity.Property(e => e.WagenAbklaeren).HasColumnName("wagen_abklaeren");
+            entity.Property(e => e.WagenMinimal).HasColumnName("wagen_minimal");
+            entity.Property(e => e.SpesenModus).HasColumnName("spesen_modus").HasMaxLength(8);
+            entity.Property(e => e.SpesenDatum).HasColumnName("spesen_datum").HasColumnType("date");
+            entity.Property(e => e.SpesenKanton).HasColumnName("spesen_kanton").HasMaxLength(2);
+            entity.Property(e => e.Rz52).HasColumnName("rz52");
+            entity.Property(e => e.WertModus).HasColumnName("wert_modus").HasMaxLength(8);
+            entity.Property(e => e.WertDatum).HasColumnName("wert_datum").HasColumnType("date");
+            entity.Property(e => e.WertKanton).HasColumnName("wert_kanton").HasMaxLength(2);
+            entity.Property(e => e.BeteiligungModus).HasColumnName("beteiligung_modus").HasMaxLength(8);
+            entity.Property(e => e.BeteiligungGesperrt).HasColumnName("beteiligung_gesperrt");
+            entity.Property(e => e.BeteiligungNichtKotiert).HasColumnName("beteiligung_nicht_kotiert");
+            entity.Property(e => e.BeteiligungAnwartschaft).HasColumnName("beteiligung_anwartschaft");
+            entity.Property(e => e.BeteiligungUnecht).HasColumnName("beteiligung_unecht");
+            entity.Property(e => e.KinderzulageAhv).HasColumnName("kinderzulage_ahv");
+            entity.Property(e => e.UmzugBetrag).HasColumnName("umzug_betrag").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.UmzugJahr).HasColumnName("umzug_jahr");
+            entity.Property(e => e.Nachgenuss).HasColumnName("nachgenuss");
+            entity.Property(e => e.NachgenussBetrag).HasColumnName("nachgenuss_betrag").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.NachgenussJahr).HasColumnName("nachgenuss_jahr");
+            entity.Property(e => e.NachgenussName).HasColumnName("nachgenuss_name").HasMaxLength(100);
+            entity.Property(e => e.NachgenussVorname).HasColumnName("nachgenuss_vorname").HasMaxLength(100);
+            entity.Property(e => e.NachgenussStrasse).HasColumnName("nachgenuss_strasse").HasMaxLength(120);
+            entity.Property(e => e.NachgenussPlz).HasColumnName("nachgenuss_plz").HasMaxLength(10);
+            entity.Property(e => e.NachgenussOrt).HasColumnName("nachgenuss_ort").HasMaxLength(80);
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
+            entity.HasOne<Employee>().WithOne().HasForeignKey<EmployeeLohnausweis>(e => e.EmployeeId);
+        });
+
         modelBuilder.Entity<Employee>(entity =>
         {
             entity.ToTable("employee");
@@ -771,6 +814,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LohnausweisBoxFFreierTransport).HasColumnName("lohnausweis_box_f_freier_transport").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisBoxGKantineGratis).HasColumnName("lohnausweis_box_g_kantine_gratis").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisPos21VerpflegungMonat).HasColumnName("lohnausweis_pos_2_1_verpflegung_monat").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.LohnausweisZiffer14).HasColumnName("lohnausweis_ziffer14");
+            entity.Property(e => e.LohnausweisExpatDatum).HasColumnName("lohnausweis_expat_datum").HasColumnType("date");
+            entity.Property(e => e.LohnausweisExpatKanton).HasColumnName("lohnausweis_expat_kanton").HasMaxLength(2);
+            entity.Property(e => e.LohnausweisWagenAbklaeren).HasColumnName("lohnausweis_wagen_abklaeren");
+            entity.Property(e => e.LohnausweisWagenMinimal).HasColumnName("lohnausweis_wagen_minimal");
+            entity.Property(e => e.LohnausweisSpesenDatum).HasColumnName("lohnausweis_spesen_datum").HasColumnType("date");
+            entity.Property(e => e.LohnausweisSpesenKanton).HasColumnName("lohnausweis_spesen_kanton").HasMaxLength(2);
+            entity.Property(e => e.LohnausweisRz52).HasColumnName("lohnausweis_rz52");
+            entity.Property(e => e.LohnausweisWertDatum).HasColumnName("lohnausweis_wert_datum").HasColumnType("date");
+            entity.Property(e => e.LohnausweisWertKanton).HasColumnName("lohnausweis_wert_kanton").HasMaxLength(2);
+            entity.Property(e => e.LohnausweisBetGesperrt).HasColumnName("lohnausweis_bet_gesperrt");
+            entity.Property(e => e.LohnausweisBetNichtKotiert).HasColumnName("lohnausweis_bet_nicht_kotiert");
+            entity.Property(e => e.LohnausweisBetAnwartschaft).HasColumnName("lohnausweis_bet_anwartschaft");
+            entity.Property(e => e.LohnausweisBetUnecht).HasColumnName("lohnausweis_bet_unecht");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.BurNummer).HasColumnName("bur_nummer").HasMaxLength(20);
             entity.Property(e => e.InHouseId).HasColumnName("in_house_id").HasMaxLength(50);

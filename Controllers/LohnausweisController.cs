@@ -150,6 +150,8 @@ public class LohnausweisController : ControllerBase
         payload.MaZip                  = Fill(payload.MaZip,                  fresh.MaZip);
         payload.MaCity                 = Fill(payload.MaCity,                 fresh.MaCity);
         payload.MaCountry              = Fill(payload.MaCountry,              fresh.MaCountry);
+        if (fresh.Zusatz != null)
+            payload.Zusatz = fresh.Zusatz;
     }
 
     // ════════════════════════════════════════════════════════════════════════

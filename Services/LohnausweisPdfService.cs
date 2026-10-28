@@ -228,12 +228,9 @@ public class LohnausweisPdfService
         SetMulti(form, "TextMehrzeiligLinks_Empfaenger", d.EmpfaengerAdresse);
 
         // ── Ziffer A / B — Form-Typ ─────────────────────────────────────
-        // A = Lohnausweis (für Arbeitsverhältnisse)
-        // B = Rentenbescheinigung (für Vorsorgeleistungen)
-        // Nur EINES davon ankreuzen — wir nutzen das System nur für Lohnausweise,
-        // also IMMER Box A, NIE Box B.
+        // A = Lohnausweis, B = Rentenbescheinigung. Genau eines.
         if (d.IstLohnausweis) Check(form, "OptionKreuzOhneRahmen_A");
-        // Box B bleibt leer (würde nur bei Rentenbescheinigung angekreuzt).
+        else Check(form, "OptionKreuzOhneRahmen_B");
 
         // ── Ziffer C — AHV-Nr + Geburtsdatum ────────────────────────────
         // AHV-Nr immer im Schweizer Standard-Format 756.XXXX.XXXX.XX anzeigen,
@@ -537,6 +534,12 @@ public class LohnausweisData
     // Periode-Flags (oben rechts)
     public bool IstGanzesJahr  { get; set; } = true;
     public bool IstLohnausweis { get; set; } = true;
+
+    /// <summary>Nur gesetzt, wenn im Jahr mehr als ein Lohnausweis entsteht.</summary>
+    public int? AnzahlLohnausweise { get; set; }
+
+    /// <summary>Struktur für den Barcode. Der Server setzt sie vor dem Druck.</summary>
+    public LohnausweisZusatz? Zusatz { get; set; }
 
     // Ziffer C — AHV + Geburtsdatum
     public string? AhvNummer    { get; set; }

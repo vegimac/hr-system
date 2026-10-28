@@ -150,7 +150,12 @@ async function laOpenPreview() {
         _laCurrentEmp = { id: empId, name: opt?.textContent || '' };
 
         const sub = document.getElementById('laPreviewSub');
-        if (sub) sub.textContent = `${_laCurrentEmp.name} — Jahr ${year} — ${payload.anzahlMonate} Lohnabrechnungen aggregiert`;
+        if (sub) {
+            let txt = `${_laCurrentEmp.name} — Jahr ${year} — ${payload.anzahlMonate} Lohnabrechnungen aggregiert`;
+            if (payload.data?.anzahlLohnausweise > 1)
+                txt += ` — ${payload.data.anzahlLohnausweise} Lohnausweise in diesem Jahr`;
+            sub.textContent = txt;
+        }
 
         laRenderForm();
         document.getElementById('laPreviewModal').style.display = 'block';
@@ -189,8 +194,8 @@ function laRenderForm() {
       <div style="grid-column:1 / -1">
         <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">CHECKBOXEN</div>
       </div>
-      ${laCheckbox('istGanzesJahr', 'Ziffer A — Ganzes Jahr', d.istGanzesJahr)}
-      ${laCheckbox('istLohnausweis', 'Ziffer B — Lohnausweis', d.istLohnausweis)}
+      ${laCheckbox('istGanzesJahr', 'Ganzes Jahr beschäftigt', d.istGanzesJahr)}
+      ${laCheckbox('istLohnausweis', 'Buchstabe A — Lohnausweis (aus = Rentenbescheinigung, Buchstabe B)', d.istLohnausweis)}
       ${laCheckbox('boxFFreierTransport', 'Box F — Unentgeltliche Beförderung Wohn-/Arbeitsort', d.boxFFreierTransport)}
       ${laCheckbox('boxGKantineGratis', 'Box G — Kantinenverpflegung gratis', d.boxGKantineGratis)}
 

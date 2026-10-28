@@ -1540,6 +1540,7 @@ function renderEmployeeDetail(emp) {
 
         <!-- TAB: Zulagen & Abzüge -->
         <div class="emp-tab-content" id="emp-tab-zulagen">
+            <div id="laAngabenKarte"></div>
             <!-- Lohnschema-Block (Walter 17.08.2026): Standard-Lohnblatt des
                  Vertragsmodells als read-only-Chips, gerendert von
                  loadLohnschemaBlockForModel() in js/lohnschema.js -->
@@ -3164,6 +3165,7 @@ function switchEmpTab(tab) {
                 .sort((a, b) => String(b.contractStartDate || '').localeCompare(String(a.contractStartDate || '')))[0];
             loadLohnschemaBlockForModel(_lsC?.employmentModel || null);
         }
+        if (typeof laPersonKarte === 'function') laPersonKarte(selectedEmployeeId);
         if (typeof loadUniformDepotTab === 'function') loadUniformDepotTab(selectedEmployeeId);
         if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
         if (typeof vcLoad === 'function') vcLoad(selectedEmployeeId);

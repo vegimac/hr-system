@@ -252,6 +252,14 @@ public class LohnausweisBarcodeService
         if (d.Ziffer1Lohn is decimal lohn)
             s.Add(new XElement(Ns + "Income", FormatMoney(lohn)));
 
+        // Ziffer 4 Besoldungsnachgenuss — vor GrossIncome (Schema-Reihenfolge).
+        if (d.Zusatz is { IstRente: false, NachgenussBetrag: decimal ng } && ng > 0)
+        {
+            s.Add(new XElement(Ns + "CapitalPayment",
+                new XElement(Ns + "Text", "Besoldungsnachgenuss"),
+                new XElement(Ns + "Sum", FormatMoney(ng))));
+        }
+
         // Ziffer 8 → <GrossIncome> (Pflicht [1..1], oben validiert)
         s.Add(new XElement(Ns + "GrossIncome", FormatMoney(d.Ziffer8BruttoTotal.Value)));
 
@@ -278,16 +286,30 @@ public class LohnausweisBarcodeService
         if (d.Ziffer12Quellensteuer is decimal qst && qst > 0)
             s.Add(new XElement(Ns + "DeductionAtSource", FormatMoney(qst)));
 
-        // <Remark> — Bemerkungen Zeile 1..4 zusammengefasst
-        var remarks = new[]
+        if (d.Zusatz is { IstRente: false } z)
+            Anhang(s, Ns, z);
+
+        // Ohne Zusatz bleiben die vier Bemerkungszeilen im freien Remark
+        // (bisheriges Verhalten). Mit Zusatz trägt das freie Remark nur die
+        // Hinweise, die kein Standardelement sind — die Standardsätze stehen
+        // in StandardRemark, sonst kämen sie im Barcode doppelt.
+        if (d.Zusatz != null)
         {
-            d.Ziffer141Bemerkungen,
-            d.Ziffer142Bemerkungen,
-            d.Ziffer151Bemerkungen,
-            d.Ziffer152Bemerkungen
-        }.Where(r => !string.IsNullOrWhiteSpace(r)).ToArray();
-        if (remarks.Length > 0)
-            s.Add(new XElement(Ns + "Remark", string.Join(" — ", remarks)));
+            if (!string.IsNullOrWhiteSpace(d.Zusatz.FreieBemerkung))
+                s.Add(new XElement(Ns + "Remark", d.Zusatz.FreieBemerkung));
+        }
+        else
+        {
+            var remarks = new[]
+            {
+                d.Ziffer141Bemerkungen,
+                d.Ziffer142Bemerkungen,
+                d.Ziffer151Bemerkungen,
+                d.Ziffer152Bemerkungen
+            }.Where(r => !string.IsNullOrWhiteSpace(r)).ToArray();
+            if (remarks.Length > 0)
+                s.Add(new XElement(Ns + "Remark", string.Join(" — ", remarks)));
+        }
 
         // ELM v6: <S> braucht das Pflicht-Attribut addresseeIDRef (Pattern «#…»,
         // offizielle Beispiele nutzen «#TAX» fuer den Steuer-Empfaenger).
@@ -295,17 +317,120 @@ public class LohnausweisBarcodeService
         if (version == TxAbSchemaVersion.V6_20260306)
             s.Add(new XAttribute("addresseeIDRef", "#TAX"));
 
+        var aussage = d.Zusatz?.IstRente == true
+            ? RentenElement(Ns, d, version)
+            : s;
+
         var t = new XElement(Ns + "T",
             new XAttribute("SID", "000"),
             new XAttribute("SysV", "001"),
             company,
             personId,
-            s
+            aussage
         );
 
         var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null), t);
         // SaveOptions.DisableFormatting → keine Einrückung/Newlines (= kompakter Barcode)
         return doc.ToString(SaveOptions.DisableFormatting);
+    }
+
+    /// <summary>Rentenbescheinigung: Element A statt S (Buchstabe B).</summary>
+    private static XElement RentenElement(XNamespace Ns, LohnausweisData d, TxAbSchemaVersion version)
+    {
+        var docId = d.IstFinal && !string.IsNullOrWhiteSpace(d.DocId)
+            ? d.DocId!
+            : "Entwurf - Brouillon - Bozza";
+        var creation = !string.IsNullOrWhiteSpace(d.CreationDateFinal)
+            ? d.CreationDateFinal!
+            : DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", Inv);
+        var a = new XElement(Ns + "A",
+            new XElement(Ns + "DocID", docId),
+            new XElement(Ns + "CreationDate", creation),
+            new XElement(Ns + "Period",
+                new XElement(Ns + "from", ToIsoDate(d.PeriodeVon)),
+                new XElement(Ns + "until", ToIsoDate(d.PeriodeBis))));
+        if (d.Ziffer1Lohn is decimal lohn)
+            a.Add(new XElement(Ns + "Income", FormatMoney(lohn)));
+        a.Add(new XElement(Ns + "GrossIncome", FormatMoney(d.Ziffer8BruttoTotal!.Value)));
+        a.Add(new XElement(Ns + "NetIncome", FormatMoney(d.Ziffer11Nettolohn!.Value)));
+        if (d.Ziffer12Quellensteuer is decimal qst && qst > 0)
+            a.Add(new XElement(Ns + "DeductionAtSource", FormatMoney(qst)));
+        var texte = new[] { d.Zusatz?.Standardtext, d.Zusatz?.FreieBemerkung }
+            .Where(t => !string.IsNullOrWhiteSpace(t));
+        var remark = string.Join(" · ", texte);
+        if (remark.Length > 0)
+            a.Add(new XElement(Ns + "Remark", remark));
+        if (version == TxAbSchemaVersion.V6_20260306)
+            a.Add(new XAttribute("addresseeIDRef", "#TAX"));
+        return a;
+    }
+
+    /// <summary>
+    /// ChargesRule, OtherFringeBenefits und StandardRemark in der
+    /// Reihenfolge des TaxSalaryType.
+    /// </summary>
+    private static void Anhang(XElement s, XNamespace Ns, LohnausweisZusatz z)
+    {
+        if (!string.IsNullOrWhiteSpace(z.SpesenDatumIso) && !string.IsNullOrWhiteSpace(z.SpesenKanton))
+        {
+            s.Add(new XElement(Ns + "ChargesRule",
+                new XElement(Ns + "WithRegulation",
+                    new XElement(Ns + "Allowed", z.SpesenDatumIso),
+                    new XElement(Ns + "Canton", z.SpesenKanton))));
+        }
+        else if (z.Rz52)
+        {
+            s.Add(new XElement(Ns + "ChargesRule", new XElement(Ns + "Guidance")));
+        }
+
+        if (!string.IsNullOrWhiteSpace(z.Ziffer14))
+            s.Add(new XElement(Ns + "OtherFringeBenefits", z.Ziffer14));
+
+        var std = new XElement(Ns + "StandardRemark");
+        if (z.KinderzulageAhv)
+            std.Add(new XElement(Ns + "ChildAllowancePerAHV-AVS"));
+        if (z.Umzugskosten is decimal umzug && umzug > 0)
+            std.Add(new XElement(Ns + "RelocationCosts", FormatMoney(umzug)));
+        if (!string.IsNullOrWhiteSpace(z.WertDatumIso) && !string.IsNullOrWhiteSpace(z.WertKanton))
+        {
+            std.Add(new XElement(Ns + "StaffShareMarketValue",
+                new XElement(Ns + "Allowed", z.WertDatumIso),
+                new XElement(Ns + "Canton", z.WertKanton)));
+        }
+        if (z.Gesperrt || z.NichtKotiert || z.Anwartschaft || z.Unecht)
+        {
+            var grund = new XElement(Ns + "StaffShareWithoutTaxableIncome");
+            if (z.Gesperrt) grund.Add(new XElement(Ns + "BlockedOptions"));
+            if (z.NichtKotiert) grund.Add(new XElement(Ns + "UnquotedOptions"));
+            if (z.Anwartschaft) grund.Add(new XElement(Ns + "DeferredBenefitsStaffShares"));
+            if (z.Unecht) grund.Add(new XElement(Ns + "FictitiousStaffShare"));
+            std.Add(grund);
+        }
+        if (z.WagenAbklaeren)
+            std.Add(new XElement(Ns + "CompanyCarClarify"));
+        if (z.WagenMinimal)
+            std.Add(new XElement(Ns + "MinimalEmployeeCarPartPercentage"));
+        if (!string.IsNullOrWhiteSpace(z.NachgenussName))
+        {
+            std.Add(new XElement(Ns + "ContinuedProvisionOfSalary",
+                new XElement(Ns + "Lastname", z.NachgenussName),
+                new XElement(Ns + "Firstname", z.NachgenussVorname ?? ""),
+                new XElement(Ns + "Address",
+                    new XElement(Ns + "Street", z.NachgenussStrasse ?? ""),
+                    new XElement(Ns + "ZIP-Code", z.NachgenussPlz ?? ""),
+                    new XElement(Ns + "City", z.NachgenussOrt ?? ""),
+                    new XElement(Ns + "Country", "SWITZERLAND"))));
+        }
+        if (!string.IsNullOrWhiteSpace(z.ExpatDatumIso) && !string.IsNullOrWhiteSpace(z.ExpatKanton))
+        {
+            std.Add(new XElement(Ns + "ExpatriateRuling",
+                new XElement(Ns + "Allowed", z.ExpatDatumIso),
+                new XElement(Ns + "Canton", z.ExpatKanton)));
+        }
+        if (z.AnzahlLohnausweise is int n && n > 1)
+            std.Add(new XElement(Ns + "NumberOfSalaryCertificate", n.ToString(Inv)));
+        if (std.HasElements)
+            s.Add(std);
     }
 
     // ════════════════════════════════════════════════════════════════════

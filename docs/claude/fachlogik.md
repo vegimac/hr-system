@@ -206,7 +206,8 @@ Stellen, die NICHT betroffen sind (bewusst):
 - Frontend: `js/hr-lohnausweis.js` + Page `lohnausweis` mit MA-Picker + Jahr-Input. Vorschau-Modal zeigt alle Werte editierbar (Walter kann Spesen-Pauschalen ergänzen, Bemerkungen schreiben) — danach POST mit eventuell editiertem DTO an Backend für PDF.
 - AG-Unterschrift: aus `currentUser.signature_png` (analog QST-Anmeldung) — eingebettet im Bestätigungs-Block unten rechts.
 - **Skalierung Verpflegungs-Geldwert:** Backend rechnet `LohnausweisPos21VerpflegungMonat × AnzahlSnapshots` (= Anzahl Lohnabrechnungen des Jahres). Für Teiljahres-MA stimmt das automatisch (es gibt nur Snapshots für die angestellten Monate).
-- Phase-2-Punkte (offen): Spesen-Reglement-Hinweise (Ziffer 14), Auto-Versand an MA-Postfach am Stichtag, Bulk-Generierung für alle MA eines Jahres, Ablage als Dokument beim MA.
+- Standardbemerkungen (Wegleitung 2026, Schema-Stand 118): Person im Tab «Zulagen & Abzüge» (`employee_lohnausweis`, `js/lohnausweis-angaben.js`), Vorgabe der Filiale am `CompanyProfile` (Knopf «Lohnausweis für das Unternehmen» in den Stammdaten). Leer = Filiale, `KEIN` unterdrückt, `EIGEN` überschreibt. Auflösung `LohnausweisAngaben`. «Einer von … Lohnausweisen» nur, wenn dieselbe Person im Jahr bei zwei verschiedenen UIDs Lohn hat. Genehmigtes Spesenreglement verdrängt das Kreuz in Ziffer 13.1.1 (Rz 65). Besoldungsnachgenuss-Betrag kommt zusätzlich in Ziffer 4, 8 und 11. Druck auf dem Formular und strukturiert im TxAB-Barcode; das freie Remark wiederholt die Standardsätze nicht.
+- Weiter offen: Auto-Versand an MA-Postfach am Stichtag, Bulk-Generierung für alle MA eines Jahres, Ablage als Dokument beim MA.
 
 ### QST-Pflicht-Prüfung (Walter-Vorgabe 26.05.2026)
 

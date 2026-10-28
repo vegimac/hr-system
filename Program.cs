@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 117;  // 117: Vertrag regelmässig/unregelmässig, abweichende Arbeitszeit an der AZM-Zuordnung · 116: Filiale Vertragsarten
+const int SchemaStand = 118;  // 118: Lohnausweis-Angaben Person + Filiale · 117: Vertrag regelmässig/unregelmässig
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3023,6 +3023,66 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE employee_arbeitszeitmodell ADD COLUMN IF NOT EXISTS abweichende_wochenlektionen numeric(5,2) NULL;
         ");
         startLog.LogInformation("Stand 117: Vertrag regelmässig, abweichende Arbeitszeit");
+    }
+
+    // Stand 118: Lohnausweis Person (Buchstabe A/B, Ziffer F/G, Standardbemerkungen)
+    // und die gleichen Vorgaben auf der Filiale, wo der Test sie für das Unternehmen verlangt.
+    if (dbStand < 118)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS employee_lohnausweis (
+                employee_id integer PRIMARY KEY REFERENCES employee(id) ON DELETE CASCADE,
+                art varchar(10) NOT NULL DEFAULT 'LOHN',
+                box_f boolean NULL,
+                box_g boolean NULL,
+                ziffer14_modus varchar(8) NULL,
+                ziffer14_text text NULL,
+                expat_modus varchar(8) NULL,
+                expat_datum date NULL,
+                expat_kanton varchar(2) NULL,
+                wagen_abklaeren boolean NULL,
+                wagen_minimal boolean NULL,
+                spesen_modus varchar(8) NULL,
+                spesen_datum date NULL,
+                spesen_kanton varchar(2) NULL,
+                rz52 boolean NULL,
+                wert_modus varchar(8) NULL,
+                wert_datum date NULL,
+                wert_kanton varchar(2) NULL,
+                beteiligung_modus varchar(8) NULL,
+                beteiligung_gesperrt boolean NOT NULL DEFAULT false,
+                beteiligung_nicht_kotiert boolean NOT NULL DEFAULT false,
+                beteiligung_anwartschaft boolean NOT NULL DEFAULT false,
+                beteiligung_unecht boolean NOT NULL DEFAULT false,
+                kinderzulage_ahv boolean NOT NULL DEFAULT false,
+                umzug_betrag numeric(12,2) NULL,
+                umzug_jahr integer NULL,
+                nachgenuss boolean NOT NULL DEFAULT false,
+                nachgenuss_betrag numeric(12,2) NULL,
+                nachgenuss_jahr integer NULL,
+                nachgenuss_name varchar(100) NULL,
+                nachgenuss_vorname varchar(100) NULL,
+                nachgenuss_strasse varchar(120) NULL,
+                nachgenuss_plz varchar(10) NULL,
+                nachgenuss_ort varchar(80) NULL,
+                geaendert_am timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP
+            );
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_ziffer14 text NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_expat_datum date NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_expat_kanton varchar(2) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_wagen_abklaeren boolean NOT NULL DEFAULT false;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_wagen_minimal boolean NOT NULL DEFAULT false;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_spesen_datum date NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_spesen_kanton varchar(2) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_rz52 boolean NOT NULL DEFAULT false;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_wert_datum date NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_wert_kanton varchar(2) NULL;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_bet_gesperrt boolean NOT NULL DEFAULT false;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_bet_nicht_kotiert boolean NOT NULL DEFAULT false;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_bet_anwartschaft boolean NOT NULL DEFAULT false;
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnausweis_bet_unecht boolean NOT NULL DEFAULT false;
+        ");
+        startLog.LogInformation("Stand 118: Lohnausweis-Angaben Person und Filiale");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

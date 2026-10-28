@@ -1477,6 +1477,11 @@ async function stmPlzLookup(rawPlz) {
     }
 }
 
+function laFirmaAusStammdaten() {
+    if (!stmModalBranchId) return;
+    if (typeof laFirmaOeffnen === 'function') laFirmaOeffnen(stmModalBranchId);
+}
+
 async function saveStm() {
     if (!stmModalBranchId) return;
     const trimOrNull = id => {

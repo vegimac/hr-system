@@ -240,6 +240,32 @@ public class CompanyProfile
     /// </summary>
     public decimal? LohnausweisPos21VerpflegungMonat { get; set; }
 
+    /// <summary>Ziffer 14, Vorgabe für alle Personen dieser Filiale.</summary>
+    public string? LohnausweisZiffer14 { get; set; }
+
+    public DateOnly? LohnausweisExpatDatum { get; set; }
+    public string? LohnausweisExpatKanton { get; set; }
+
+    /// <summary>Privatanteil im Veranlagungsverfahren abklären (Wegleitung Rz 22).</summary>
+    public bool LohnausweisWagenAbklaeren { get; set; }
+
+    /// <summary>Arbeitnehmer bezahlt mindestens 0,9 % des Kaufpreises.</summary>
+    public bool LohnausweisWagenMinimal { get; set; }
+
+    public DateOnly? LohnausweisSpesenDatum { get; set; }
+    public string? LohnausweisSpesenKanton { get; set; }
+
+    /// <summary>Bedingungen von Randziffer 52 eingehalten (Kreuz Ziffer 13.1.1).</summary>
+    public bool LohnausweisRz52 { get; set; }
+
+    public DateOnly? LohnausweisWertDatum { get; set; }
+    public string? LohnausweisWertKanton { get; set; }
+
+    public bool LohnausweisBetGesperrt { get; set; }
+    public bool LohnausweisBetNichtKotiert { get; set; }
+    public bool LohnausweisBetAnwartschaft { get; set; }
+    public bool LohnausweisBetUnecht { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     // ── Bankverbindung der Filiale (Auftraggeber-Konto für DTA / Lohnlauf) ──

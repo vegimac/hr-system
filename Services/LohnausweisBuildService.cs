@@ -17,9 +17,9 @@ public static class LohnausweisBuildService
     /// Letzter Tuple-Eintrag = UID der Filiale (Barcode).
     /// </summary>
     public static async Task<(LohnausweisData? Data, int Months, string? Uid, AppUser? HrUser)>
-        BuildDataAsync(AppDbContext db, Employee emp, int year)
+        BuildDataAsync(AppDbContext db, Employee emp, int year, int? companyProfileId = null)
     {
-        var aggregated = await AggregateAsync(db, emp.Id, year);
+        var aggregated = await AggregateAsync(db, emp.Id, year, companyProfileId);
         if (aggregated.AnzahlSnapshots == 0) return (null, 0, null, null);
 
         var company = await db.CompanyProfiles
@@ -65,6 +65,11 @@ public static class LohnausweisBuildService
         // Teilzeit-Hinweis (Wegleitung Ziffer 15, Walter-Vorgabe 16.08.2026):
         // bei Beschaeftigungsgrad < 100 % gehoert «X%-Stelle.» in die
         // Bemerkungen — Pensum aus dem im Jahr zuletzt gueltigen Vertrag.
+        var angaben = await db.EmployeeLohnausweise.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.EmployeeId == emp.Id);
+        var wirkung = LohnausweisAngaben.Aufloesen(
+            company, angaben, year, aggregated.AnzahlAusweise);
+
         string? pensumBemerkung = null;
         var jahresEnde = new DateTime(year, 12, 31);
         var vertragImJahr = emp.Employments?
@@ -74,6 +79,16 @@ public static class LohnausweisBuildService
             .FirstOrDefault();
         if (vertragImJahr?.EmploymentPercentage is decimal pensum && pensum > 0 && pensum < 100)
             pensumBemerkung = pensum.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%-Stelle.";
+
+        var frei = new[] { pensumBemerkung, ktgBemerkung, lgavBemerkung }
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!)
+            .ToList();
+        LohnausweisAngaben.Zeilen(wirkung, frei, out var z141, out var z142, out var z151, out var z152);
+
+        decimal z4 = wirkung.Nachgenuss?.Betrag ?? 0m;
+        decimal z8 = aggregated.Brutto + (z21 ?? 0m) + z4;
+        decimal z11 = aggregated.Netto + z4;
 
         string? hrFullName = null;
         if (hrUser != null)
@@ -89,29 +104,33 @@ public static class LohnausweisBuildService
         {
             EmpfaengerAdresse        = empfaengerAdresse,
             IstGanzesJahr            = istGanzesJahr,
-            IstLohnausweis           = true,
+            IstLohnausweis           = !wirkung.IstRente,
             AhvNummer                = emp.SocialSecurityNumber,
             Geburtsdatum             = emp.DateOfBirth?.ToString("dd.MM.yyyy"),
             MitarbeiterNameAdresse   = empfaengerAdresse,
             Jahr                     = year.ToString(),
             PeriodeVon               = periodeVon,
             PeriodeBis               = periodeBis,
-            BoxFFreierTransport      = company?.LohnausweisBoxFFreierTransport ?? false,
-            BoxGKantineGratis        = company?.LohnausweisBoxGKantineGratis   ?? false,
+            BoxFFreierTransport      = wirkung.BoxF,
+            BoxGKantineGratis        = wirkung.BoxG,
             Heimatort                = null,
             Ziffer1Lohn              = aggregated.Brutto,
             Ziffer21VerpflegungUnterkunft = z21,
-            Ziffer8BruttoTotal       = aggregated.Brutto + (z21 ?? 0m),
+            Ziffer4Kapitalleistungen = z4 > 0 ? z4 : null,
+            Ziffer4Art               = z4 > 0 ? "Besoldungsnachgenuss" : null,
+            Ziffer8BruttoTotal       = z8,
             Ziffer9AhvIvEoAlvNbu     = aggregated.SvAbzuegeTotal,
             Ziffer101BvgOrdentlich   = aggregated.BvgAbzuege,
-            Ziffer11Nettolohn        = aggregated.Netto,
+            Ziffer11Nettolohn        = z11,
             Ziffer12Quellensteuer    = aggregated.QstBetrag,
-            Ziffer141Bemerkungen     = null,
-            Ziffer142Bemerkungen     = null,
-            Ziffer151Bemerkungen     = string.Join(" ", new[] { pensumBemerkung, ktgBemerkung }
-                                           .Where(s => !string.IsNullOrWhiteSpace(s))) is string z15 && z15.Length > 0
-                                           ? z15 : null,
-            Ziffer152Bemerkungen     = lgavBemerkung,
+            Ziffer1311EffektivOhneBeleg = wirkung.Rz52,
+            Ziffer141Bemerkungen     = z141,
+            Ziffer142Bemerkungen     = z142,
+            Ziffer151Bemerkungen     = z151,
+            Ziffer152Bemerkungen     = z152,
+            AnzahlLohnausweise       = wirkung.AnzahlLohnausweise,
+            Zusatz                   = LohnausweisAngaben.AlsZusatz(
+                wirkung, string.Join(" · ", frei)),
             Ziffer151Ort             = company?.City ?? "Meggen",
             Ziffer152Datum           = DateTime.Today.ToString("dd.MM.yyyy"),
             BestaetigungAgBlock      = bestaetigung,
@@ -172,7 +191,8 @@ public static class LohnausweisBuildService
         }
     }
 
-    private static async Task<AggregatedYear> AggregateAsync(AppDbContext db, int employeeId, int year)
+    private static async Task<AggregatedYear> AggregateAsync(
+        AppDbContext db, int employeeId, int year, int? companyProfileId)
     {
         var yearStart = new DateOnly(year, 1, 1);
         var yearEnd   = new DateOnly(year, 12, 31);
@@ -189,14 +209,36 @@ public static class LohnausweisBuildService
         var agg = new AggregatedYear { AnzahlSnapshots = snapshots.Count };
         if (snapshots.Count == 0) return agg;
 
-        agg.CompanyProfileId = snapshots[0].CompanyProfileId;
+        var ids = snapshots.Select(s => s.CompanyProfileId).Distinct().ToList();
+        var uids = await db.CompanyProfiles.AsNoTracking()
+            .Where(c => ids.Contains(c.Id))
+            .Select(c => new { c.Id, c.UidNummer })
+            .ToListAsync();
+        string Schluessel(int id)
+        {
+            var uid = uids.FirstOrDefault(u => u.Id == id)?.UidNummer ?? "";
+            var kompakt = new string(uid.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+            return kompakt.Length >= 9 ? "uid:" + kompakt : "filiale:" + id;
+        }
+
+        var gruppen = snapshots.GroupBy(s => Schluessel(s.CompanyProfileId)).ToList();
+        agg.AnzahlAusweise = gruppen.Count;
+        var gewaehlt = companyProfileId is int cid && snapshots.Any(s => s.CompanyProfileId == cid)
+            ? gruppen.First(g => g.Any(s => s.CompanyProfileId == cid)).ToList()
+            : gruppen
+                .OrderByDescending(g => g.Max(s => s.Periode!.PeriodFrom))
+                .First()
+                .ToList();
+
+        agg.AnzahlSnapshots = gewaehlt.Count;
+        agg.CompanyProfileId = gewaehlt[^1].CompanyProfileId;
 
         decimal sv   = 0m;
         decimal ktg  = 0m;
         decimal bvg  = 0m;
         decimal lgav = 0m;
 
-        foreach (var s in snapshots)
+        foreach (var s in gewaehlt)
         {
             agg.Brutto    += s.Brutto;
             agg.Netto     += s.Netto;
@@ -401,6 +443,7 @@ public static class LohnausweisBuildService
     private class AggregatedYear
     {
         public int     AnzahlSnapshots  { get; set; }
+        public int     AnzahlAusweise   { get; set; }
         public int     CompanyProfileId { get; set; }
         public decimal Brutto           { get; set; }
         public decimal Netto            { get; set; }
