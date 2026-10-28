@@ -18,19 +18,20 @@ function laStil() {
     const s = document.createElement('style');
     s.id = 'laAngabenStil';
     s.textContent = `
-        #laAngabenOverlay { padding: 10px !important; align-items: center !important; }
+        #laAngabenOverlay { padding: 16px !important; align-items: stretch !important; justify-content: stretch !important; }
         #laAngabenOverlay .la-blatt {
-            width: min(1280px, calc(100vw - 20px));
-            height: calc(100vh - 20px);
-            max-height: none;
+            width: 100% !important;
+            max-width: none !important;
+            height: 100% !important;
+            max-height: none !important;
             display: flex; flex-direction: column; overflow: hidden;
             padding: 0; border-radius: 18px; box-sizing: border-box;
         }
-        #laAngabenOverlay .modal-hd { background: transparent; padding: 12px 18px 8px; border-bottom: 1px solid rgba(60,55,48,0.08); }
-        #laAngabenOverlay .modal-hd-title { font-size: 16px; }
-        #laAngabenOverlay .la-unter { font-size: 12px; line-height: 1.35; color: #646464; font-weight: 500; margin-top: 2px; }
-        #laAngabenOverlay .modal-body { padding: 8px 14px 10px; overflow: hidden; }
-        #laAngabenOverlay .modal-ft { padding: 8px 14px; background: rgba(255,255,255,0.28); }
+        #laAngabenOverlay .modal-hd { background: transparent; padding: 16px 22px 12px; border-bottom: 1px solid rgba(60,55,48,0.08); }
+        #laAngabenOverlay .modal-hd-title { font-size: 18px; }
+        #laAngabenOverlay .la-unter { font-size: 13px; line-height: 1.4; color: #646464; font-weight: 500; margin-top: 3px; }
+        #laAngabenOverlay .modal-body { padding: 16px 22px; overflow: auto; }
+        #laAngabenOverlay .modal-ft { padding: 12px 22px; background: rgba(255,255,255,0.28); }
         #laAngabenOverlay .la-raster { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: start; }
         #laAngabenOverlay .la-karte {
             background: rgba(255,255,255,0.48);
@@ -174,7 +175,7 @@ function laOverlay() {
             <button type="button" class="modal-x" onclick="laAngabenSchliessen()">×</button>
         </div>
         <div id="laAngabenWarn" class="la-hinweis" style="display:none"></div>
-        <div class="modal-body" id="laAngabenBody" style="flex:1 1 auto;overflow:hidden"></div>
+        <div class="modal-body" id="laAngabenBody" style="flex:1 1 auto;overflow:auto"></div>
         <div class="modal-ft" style="flex:0 0 auto">
             <button type="button" class="btn btn-outline" onclick="laAngabenSchliessen()">Abbrechen</button>
             <button type="button" id="laAngabenSave" class="la-speichern">Speichern</button>
