@@ -18,63 +18,78 @@ function laStil() {
     const s = document.createElement('style');
     s.id = 'laAngabenStil';
     s.textContent = `
-        #laAngabenOverlay { padding: 18px !important; align-items: center !important; }
+        #laAngabenOverlay { padding: 10px !important; align-items: center !important; }
         #laAngabenOverlay .la-blatt {
-            width: min(1240px, calc(100vw - 36px));
-            height: calc(100vh - 36px);
+            width: min(1280px, calc(100vw - 20px));
+            height: calc(100vh - 20px);
             max-height: none;
             display: flex; flex-direction: column; overflow: hidden;
-            padding: 0; border-radius: 22px; box-sizing: border-box;
+            padding: 0; border-radius: 18px; box-sizing: border-box;
         }
-        #laAngabenOverlay .modal-hd { background: transparent; padding: 22px 32px 12px; border-bottom: 1px solid rgba(60,55,48,0.08); }
-        #laAngabenOverlay .la-unter { font-size: 13.5px; line-height: 1.45; color: #646464; font-weight: 500; margin-top: 4px; }
-        #laAngabenOverlay .modal-body { padding: 16px 32px 28px; }
-        #laAngabenOverlay .modal-ft { padding: 14px 32px; background: rgba(255,255,255,0.28); }
-        #laAngabenOverlay .la-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+        #laAngabenOverlay .modal-hd { background: transparent; padding: 12px 18px 8px; border-bottom: 1px solid rgba(60,55,48,0.08); }
+        #laAngabenOverlay .modal-hd-title { font-size: 16px; }
+        #laAngabenOverlay .la-unter { font-size: 12px; line-height: 1.35; color: #646464; font-weight: 500; margin-top: 2px; }
+        #laAngabenOverlay .modal-body { padding: 8px 14px 10px; overflow: hidden; }
+        #laAngabenOverlay .modal-ft { padding: 8px 14px; background: rgba(255,255,255,0.28); }
+        #laAngabenOverlay .la-raster { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: start; }
         #laAngabenOverlay .la-karte {
             background: rgba(255,255,255,0.48);
             border: 1px solid rgba(255,255,255,0.78);
-            border-radius: 16px;
-            padding: 16px 16px 14px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 8px 18px rgba(60,55,48,0.05);
+            border-radius: 12px;
+            padding: 8px 10px 8px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 4px 10px rgba(60,55,48,0.04);
         }
         #laAngabenOverlay .la-breit { grid-column: 1 / -1; }
-        #laAngabenOverlay .la-kopf { display: flex; gap: 12px; align-items: flex-start; }
+        #laAngabenOverlay .la-kopf { display: flex; gap: 8px; align-items: flex-start; }
         #laAngabenOverlay .la-badge {
-            flex: 0 0 auto; min-width: 38px; height: 32px; padding: 0 8px;
-            border-radius: 10px; background: #3f3f3f; color: #fff;
-            font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+            flex: 0 0 auto; min-width: 32px; height: 22px; padding: 0 6px;
+            border-radius: 7px; background: #3f3f3f; color: #fff;
+            font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
             display: flex; align-items: center; justify-content: center;
         }
-        #laAngabenOverlay .la-titel { margin: 1px 0 4px; font-size: 15px; font-weight: 700; color: #3f3f3f; }
-        #laAngabenOverlay .la-text { margin: 0; font-size: 13px; line-height: 1.5; color: #646464; }
-        #laAngabenOverlay .la-satz { margin: 8px 0 0; font-size: 12.5px; line-height: 1.4; color: #8b8b8b; }
-        #laAngabenOverlay .la-feld { margin-top: 12px; }
+        #laAngabenOverlay .la-titel { margin: 0 0 1px; font-size: 13px; font-weight: 700; color: #3f3f3f; }
+        #laAngabenOverlay .la-text { margin: 0; font-size: 11.5px; line-height: 1.3; color: #646464; }
+        #laAngabenOverlay .la-satz { margin: 4px 0 0; font-size: 11px; line-height: 1.3; color: #8b8b8b; }
+        #laAngabenOverlay .la-feld { margin-top: 6px; }
         #laAngabenOverlay .la-feld .lqsel-wrap { display: block; width: 100%; }
         #laAngabenOverlay .la-feld .f-input,
-        #laAngabenOverlay .la-feld select { width: 100%; box-sizing: border-box; }
-        #laAngabenOverlay .la-zeile { display: grid; grid-template-columns: 1fr 160px; gap: 10px; margin-top: 10px; }
-        #laAngabenOverlay .la-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        #laAngabenOverlay .la-feld select,
+        #laAngabenOverlay .la-feld textarea,
+        #laAngabenOverlay .la-zeile .f-input,
+        #laAngabenOverlay .lqsel-btn {
+            width: 100%; box-sizing: border-box;
+            padding: 4px 8px !important; font-size: 12.5px !important; min-height: 28px;
+        }
+        #laAngabenOverlay .f-label { font-size: 11px; margin-bottom: 2px; }
+        #laAngabenOverlay .la-zeile { display: grid; grid-template-columns: 1fr 88px; gap: 6px; margin-top: 6px; }
+        #laAngabenOverlay .la-checks { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 6px; }
         #laAngabenOverlay .la-check {
-            display: flex; gap: 8px; align-items: flex-start;
-            padding: 10px 12px; border-radius: 12px;
+            display: flex; gap: 6px; align-items: center;
+            padding: 5px 8px; border-radius: 8px;
             border: 1px solid rgba(60,55,48,0.16);
             background: rgba(255,255,255,0.4);
-            font-size: 13px; line-height: 1.35; color: #3f3f3f; cursor: pointer;
+            font-size: 12px; line-height: 1.25; color: #3f3f3f; cursor: pointer;
         }
-        #laAngabenOverlay .la-check input { margin-top: 2px; }
+        #laAngabenOverlay .la-check input { margin: 0; }
         #laAngabenOverlay .la-hinweis {
-            grid-column: 1 / -1; padding: 12px 14px; border-radius: 12px;
-            background: rgba(146,64,14,0.08); color: #92400e; font-size: 13px; line-height: 1.45;
+            margin: 0 14px 2px; padding: 7px 10px 7px 12px; border-radius: 10px;
+            background: #fff4e5; border: 1px solid #e8b15a; border-left: 4px solid #c2410c;
+            color: #7c2d12; font-size: 12.5px; line-height: 1.35;
+        }
+        #laAngabenOverlay .la-warn-titel {
+            font-size: 11px; font-weight: 800; letter-spacing: .06em;
+            text-transform: uppercase; color: #c2410c; margin-bottom: 1px;
         }
         #laAngabenOverlay .la-speichern {
             background: #3f3f3f; color: #fff; border: none; border-radius: 12px;
-            padding: 9px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+            padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
         }
-        @media (max-width: 900px) {
+        #laAngabenOverlay .la-nach { display: grid; grid-template-columns: 1fr 80px 1fr 1fr 1.4fr 70px 1fr; gap: 6px; margin-top: 6px; }
+        @media (max-width: 1100px) {
             #laAngabenOverlay .la-raster,
             #laAngabenOverlay .la-checks,
-            #laAngabenOverlay .la-zeile { grid-template-columns: 1fr; }
+            #laAngabenOverlay .la-nach { grid-template-columns: 1fr 1fr; }
+            #laAngabenOverlay .la-zeile { grid-template-columns: 1fr 88px; }
         }
         body.theme-dark #laAngabenOverlay .la-karte { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
         body.theme-dark #laAngabenOverlay .la-titel { color: #f3f0ea; }
@@ -139,7 +154,8 @@ function laOverlay() {
             </div>
             <button type="button" class="modal-x" onclick="laAngabenSchliessen()">×</button>
         </div>
-        <div class="modal-body" id="laAngabenBody" style="flex:1 1 auto;overflow:auto"></div>
+        <div id="laAngabenWarn" class="la-hinweis" style="display:none"></div>
+        <div class="modal-body" id="laAngabenBody" style="flex:1 1 auto;overflow:hidden"></div>
         <div class="modal-ft" style="flex:0 0 auto">
             <button type="button" class="btn btn-outline" onclick="laAngabenSchliessen()">Abbrechen</button>
             <button type="button" id="laAngabenSave" class="la-speichern">Speichern</button>
@@ -194,9 +210,10 @@ async function laPersonOeffnen(employeeId) {
     const ov = laOverlay();
     document.getElementById('laAngabenTitel').textContent = 'Lohnausweis der Person';
     document.getElementById('laAngabenUnter').textContent =
-        'Was hier leer bleibt, gilt wie bei der Filiale' + (d.firmaName ? ' ' + d.firmaName : '') + '. «Einer von … Lohnausweisen» setzt das Programm selbst, sobald dieselbe Person im Jahr bei zwei Arbeitgebern Lohn hat.';
-    document.getElementById('laAngabenBody').innerHTML = laPersonHtml(p, f, d.hinweis);
+        'Leer heisst: wie die Filiale' + (d.firmaName ? ' ' + d.firmaName : '') + '. «Einer von …» setzt das Programm, sobald dieselbe Person im Jahr bei zwei Arbeitgebern Lohn hat.';
+    document.getElementById('laAngabenBody').innerHTML = laPersonHtml(p, f);
     document.getElementById('laAngabenSave').onclick = () => laPersonSpeichern(employeeId);
+    laWarnung(d.hinweis);
     laModusZeigen();
     ov.style.display = 'flex';
 }
@@ -218,83 +235,81 @@ function laGrantFelder(modusId, datumId, kantonId, datum, kanton) {
     </div>`;
 }
 
-function laPersonHtml(p, f, hinweis) {
+function laPersonHtml(p, f) {
     const firmaGrant = (datum, kanton) => datum && kanton
         ? 'Filiale: Kanton ' + kanton + ', ' + laDatum(datum)
-        : 'Filiale: keine Genehmigung hinterlegt';
+        : 'Filiale: keine Genehmigung';
     const art = `<div class="la-feld"><select id="laArt" class="f-input">
             <option value="LOHN"${p.art !== 'RENTE' ? ' selected' : ''}>Lohnausweis (Buchstabe A)</option>
             <option value="RENTE"${p.art === 'RENTE' ? ' selected' : ''}>Rentenbescheinigung (Buchstabe B)</option>
         </select></div>`;
     return `<div class="la-raster">
-        ${hinweis ? `<div class="la-hinweis">${laEsc(hinweis)}</div>` : ''}
         ${laKarte('A/B', 'Lohn oder Rente',
-            'Buchstabe A ist der normale Lohnausweis. Buchstabe B ist die Rentenbescheinigung. Die Beträge kommen aus den Lohnabrechnungen. Schaub zahlt keine Renten; das Feld ist für den Fall, dass ein Ausweis eine Rente bescheinigt.',
-            art, true)}
+            'A = Lohnausweis, B = Rentenbescheinigung. Beträge kommen aus dem Lohnlauf.',
+            art)}
         ${laKarte('F', 'Unentgeltliche Beförderung',
-            'Ziffer F wird angekreuzt, wenn der Arbeitgeber die Fahrt zwischen Wohn- und Arbeitsort bezahlt, zum Beispiel mit einem Firmenbus. Bei einem selbst bezahlten Arbeitsweg bleibt das Kreuz weg.',
+            'Kreuz, wenn der Arbeitgeber die Fahrt Wohn–Arbeit bezahlt.',
             laTri('laBoxF', p.boxF, !!f.boxF))}
         ${laKarte('G', 'Kantine oder Lunch-Checks',
-            'Ziffer G wird angekreuzt, wenn der Arbeitgeber die Verpflegung bezahlt. Zahlt die Person einen Anteil selbst, bleibt das Kreuz weg. Bei Schaub ist das der Normalfall, weil die Crew die Hälfte selbst zahlt.',
+            'Kreuz, wenn der Arbeitgeber die Verpflegung bezahlt. Eigenanteil: leer.',
             laTri('laBoxG', p.boxG, !!f.boxG))}
         ${laKarte('14', 'Nicht bewertete Nebenleistungen',
-            'Gehaltsnebenleistungen, die nicht in Franken aufgerechnet werden. Der Text steht in Ziffer 14, zum Beispiel «stark verbilligte Abgabe eines Personenwagens».',
+            'Text in Ziffer 14, z. B. verbilligte Abgabe eines Personenwagens.',
             laFirmaStand('Filiale: ' + (f.ziffer14 || 'kein Text'))
             + laModus('laZ14Modus', p.ziffer14Modus)
-            + `<div data-la-wenn="laZ14Modus=EIGEN" class="la-feld"><textarea id="laZ14Text" class="f-input" rows="3" placeholder="z. B. stark verbilligte Abgabe eines Personenwagens">${laEsc(p.ziffer14Text || '')}</textarea></div>`,
-            true)}
+            + `<div data-la-wenn="laZ14Modus=EIGEN" class="la-feld"><textarea id="laZ14Text" class="f-input" rows="2">${laEsc(p.ziffer14Text || '')}</textarea></div>`)}
         ${laKarte('15', 'Expatriate-Ruling',
-            'Genehmigung der kantonalen Steuerverwaltung. Auf dem Ausweis steht «Expatriateruling durch Kanton … am … genehmigt».',
+            'Satz: «Expatriateruling durch Kanton … am … genehmigt».',
             laFirmaStand(firmaGrant(f.expatDatum, f.expatKanton))
             + laModus('laExpatModus', p.expatModus)
             + laGrantFelder('laExpatModus', 'laExpatDatum', 'laExpatKanton', p.expatDatum, p.expatKanton))}
         ${laKarte('2.2', 'Geschäftswagen, Kosten abklären',
-            'Übernimmt die Person einen grossen Teil der Kosten am Geschäftsfahrzeug, steht in Ziffer 2.2 kein Betrag. Dafür der Satz «Privatanteil Geschäftsfahrzeug im Veranlagungsverfahren abzuklären».',
+            '«Privatanteil Geschäftsfahrzeug im Veranlagungsverfahren abzuklären».',
             laTri('laWagenAb', p.wagenAbklaeren, !!f.wagenAbklaeren))}
         ${laKarte('2.2', 'Geschäftswagen, 0,9 Prozent',
-            'Zahlt die Person mindestens 0,9 Prozent des Kaufpreises selbst, steht «Privatanteil wird vom Arbeitnehmer bezahlt».',
+            '«Privatanteil wird vom Arbeitnehmer bezahlt».',
             laTri('laWagenMin', p.wagenMinimal, !!f.wagenMinimal))}
         ${laKarte('13', 'Spesenreglement genehmigt',
-            'Genehmigung der kantonalen Steuerverwaltung. Auf dem Ausweis steht «Spesenreglement durch Kanton … am … genehmigt». Liegt sie vor, entfällt das Kreuz in Ziffer 13.1.1.',
+            '«Spesenreglement durch Kanton … am … genehmigt». Dann kein Kreuz in 13.1.1.',
             laFirmaStand(firmaGrant(f.spesenDatum, f.spesenKanton))
             + laModus('laSpesenModus', p.spesenModus)
             + laGrantFelder('laSpesenModus', 'laSpesenDatum', 'laSpesenKanton', p.spesenDatum, p.spesenKanton))}
         ${laKarte('13.1.1', 'Randziffer 52',
-            'Kreuz in Ziffer 13.1.1, wenn die Spesen den Bedingungen von Randziffer 52 entsprechen. Ein genehmigtes Spesenreglement verdrängt dieses Kreuz.',
+            'Kreuz nur ohne genehmigtes Spesenreglement.',
             laTri('laRz52', p.rz52, !!f.rz52))}
         ${laKarte('15', 'Verkehrswert der Beteiligung',
-            'Der Kanton hat den Verkehrswert der Mitarbeiterbeteiligung genehmigt. Auf dem Ausweis steht «Verkehrswert durch Kanton … am … genehmigt».',
+            '«Verkehrswert durch Kanton … am … genehmigt».',
             laFirmaStand(firmaGrant(f.wertDatum, f.wertKanton))
             + laModus('laWertModus', p.wertModus)
             + laGrantFelder('laWertModus', 'laWertDatum', 'laWertKanton', p.wertDatum, p.wertKanton))}
+        ${laKarte('15', 'Kinderzulagen der Ausgleichskasse',
+            '«Kinderzulagen im LA nicht enthalten. Auszahlung durch Ausgleichskasse».',
+            `<label class="la-check"><input type="checkbox" id="laKinder"${p.kinderzulageAhv ? ' checked' : ''}> Direkt durch die Ausgleichskasse</label>`)}
+        ${laKarte('15', 'Umzugskosten',
+            'Nur dieses Jahr. «Umzugskosten von CHF … bezahlt».',
+            `<div class="la-zeile">
+                <label class="f-label">Betrag CHF<input id="laUmzugBetrag" class="f-input" type="number" step="0.05" min="0" value="${p.umzugBetrag ?? ''}"></label>
+                <label class="f-label">Jahr<input id="laUmzugJahr" class="f-input" type="number" value="${p.umzugJahr ?? ''}"></label>
+            </div>`)}
         ${laKarte('15', 'Beteiligung noch ohne Einkommen',
-            'Mitarbeiterbeteiligung, aus der noch kein steuerbares Einkommen entsteht. Mehrere Gründe sind möglich. Auf dem Ausweis steht «Mitarbeiterbeteiligung ohne steuerbares Einkommen. Grund: …».',
+            '«Mitarbeiterbeteiligung ohne steuerbares Einkommen. Grund: …». Mehrere Gründe möglich.',
             laModus('laBetModus', p.beteiligungModus)
             + `<div data-la-wenn="laBetModus=EIGEN" class="la-checks">
                 ${laCheck('laBetG', 'Gesperrte Mitarbeiteroptionen', p.beteiligungGesperrt)}
-                ${laCheck('laBetN', 'Nicht börsenkotierte Mitarbeiteroptionen', p.beteiligungNichtKotiert)}
-                ${laCheck('laBetA', 'Anwartschaften auf Mitarbeiteraktien', p.beteiligungAnwartschaft)}
+                ${laCheck('laBetN', 'Nicht börsenkotierte Optionen', p.beteiligungNichtKotiert)}
+                ${laCheck('laBetA', 'Anwartschaften auf Aktien', p.beteiligungAnwartschaft)}
                 ${laCheck('laBetU', 'Unechte Mitarbeiterbeteiligungen', p.beteiligungUnecht)}
             </div>`,
             true)}
-        ${laKarte('15', 'Kinderzulagen der Ausgleichskasse',
-            'Nur diese Person. Die Zulagen stehen nicht im Lohnausweis, weil die Ausgleichskasse sie direkt auszahlt. Satz: «Kinderzulagen im LA nicht enthalten. Auszahlung durch Ausgleichskasse».',
-            `<label class="la-check" style="margin-top:12px"><input type="checkbox" id="laKinder"${p.kinderzulageAhv ? ' checked' : ''}> Direkt durch die Ausgleichskasse ausbezahlt</label>`)}
-        ${laKarte('15', 'Umzugskosten',
-            'Nur diese Person und nur im angegebenen Jahr. Berufsbedingte Umzugskosten, die der Arbeitgeber bezahlt. Satz: «Umzugskosten von CHF … bezahlt».',
-            `<div class="la-zeile">
-                <label class="f-label">Betrag CHF<input id="laUmzugBetrag" class="f-input" type="number" step="0.05" min="0" value="${p.umzugBetrag ?? ''}"></label>
-                <label class="f-label">Jahr des Lohnausweises<input id="laUmzugJahr" class="f-input" type="number" value="${p.umzugJahr ?? ''}"></label>
-            </div>`)}
         ${laKarte('4', 'Besoldungsnachgenuss',
-            'Nur diese Person und nur im angegebenen Jahr. Lohn, der nach dem Tod an eine begünstigte Person weitergeht. Der Betrag kommt in Ziffer 4 und zusätzlich auf Brutto und Netto. Name und Adresse stehen in Ziffer 15: «Besoldungsnachgenuss an Name, Vorname, Strasse, PLZ Ort». Nur eintragen, wenn der Betrag nicht schon im Lohnlauf steckt.',
-            `<label class="la-check" style="margin-top:12px"><input type="checkbox" id="laNach"${p.nachgenuss ? ' checked' : ''} onchange="laModusZeigen()"> Besoldungsnachgenuss für diese Person erfassen</label>
-            <div data-la-wenn="laNach=on" id="laNachBlock" class="la-checks">
+            'Nur dieses Jahr. Betrag in Ziffer 4, Adresse in Ziffer 15. Nur wenn der Betrag nicht schon im Lohnlauf steckt.',
+            `<label class="la-check"><input type="checkbox" id="laNach"${p.nachgenuss ? ' checked' : ''} onchange="laModusZeigen()"> Für diese Person erfassen</label>
+            <div data-la-wenn="laNach=on" id="laNachBlock" class="la-nach">
                 <label class="f-label">Betrag CHF<input id="laNachBetrag" class="f-input" type="number" step="0.05" min="0" value="${p.nachgenussBetrag ?? ''}"></label>
                 <label class="f-label">Jahr<input id="laNachJahr" class="f-input" type="number" value="${p.nachgenussJahr ?? ''}"></label>
                 <label class="f-label">Name<input id="laNachName" class="f-input" value="${laEsc(p.nachgenussName || '')}"></label>
                 <label class="f-label">Vorname<input id="laNachVorname" class="f-input" value="${laEsc(p.nachgenussVorname || '')}"></label>
-                <label class="f-label" style="grid-column:1 / -1">Strasse<input id="laNachStrasse" class="f-input" value="${laEsc(p.nachgenussStrasse || '')}"></label>
+                <label class="f-label">Strasse<input id="laNachStrasse" class="f-input" value="${laEsc(p.nachgenussStrasse || '')}"></label>
                 <label class="f-label">PLZ<input id="laNachPlz" class="f-input" value="${laEsc(p.nachgenussPlz || '')}"></label>
                 <label class="f-label">Ort<input id="laNachOrt" class="f-input" value="${laEsc(p.nachgenussOrt || '')}"></label>
             </div>`,
@@ -369,7 +384,7 @@ async function laFirmaOeffnen(companyProfileId) {
     const ov = laOverlay();
     document.getElementById('laAngabenTitel').textContent = 'Lohnausweis für das Unternehmen';
     document.getElementById('laAngabenUnter').textContent =
-        'Gilt für alle Personen dieser Filiale, solange bei der Person nichts Abweichendes steht. Box F und G sind dieselben Schalter wie in den Stammdaten.';
+        'Gilt für alle Personen dieser Filiale, bis eine Person davon abweicht. F und G sind dieselben Schalter wie in den Stammdaten.';
     document.getElementById('laAngabenBody').innerHTML = laFirmaHtml(f);
     document.getElementById('laAngabenSave').onclick = () => laFirmaSpeichern(companyProfileId);
     laFirmaHinweisHaengen();
@@ -387,12 +402,16 @@ function laFirmaSpesenKollision() {
     return !!(datum && kanton && rz);
 }
 
-function laFirmaHinweisZeigen() {
-    const box = document.getElementById('laFirmaHinweis');
+function laWarnung(text) {
+    const box = document.getElementById('laAngabenWarn');
     if (!box) return;
-    const an = laFirmaSpesenKollision();
-    box.style.display = an ? '' : 'none';
-    box.textContent = an ? laSpesenSatz : '';
+    if (!text) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = '';
+    box.innerHTML = `<div class="la-warn-titel">Warnung</div><div>${laEsc(text)}</div>`;
+}
+
+function laFirmaHinweisZeigen() {
+    laWarnung(laFirmaSpesenKollision() ? laSpesenSatz : '');
 }
 
 function laFirmaHinweisHaengen() {
@@ -411,41 +430,39 @@ function laFirmaGrant(datumId, kantonId, datum, kanton) {
 
 function laFirmaHtml(f) {
     return `<div class="la-raster">
-        <div id="laFirmaHinweis" class="la-hinweis" style="display:none"></div>
         ${laKarte('F', 'Unentgeltliche Beförderung',
-            'Ziffer F für alle Personen dieser Filiale, wenn der Arbeitgeber die Fahrt zwischen Wohn- und Arbeitsort bezahlt.',
-            `<label class="la-check" style="margin-top:12px"><input type="checkbox" id="laFBoxF"${f.boxF ? ' checked' : ''}> Ziffer F ankreuzen</label>`)}
+            'Kreuz, wenn der Arbeitgeber die Fahrt Wohn–Arbeit bezahlt.',
+            `<label class="la-check"><input type="checkbox" id="laFBoxF"${f.boxF ? ' checked' : ''}> Ziffer F ankreuzen</label>`)}
         ${laKarte('G', 'Kantine oder Lunch-Checks',
-            'Ziffer G für alle, wenn der Arbeitgeber die Verpflegung bezahlt. Bei einem Eigenanteil der Personen bleibt das Kreuz weg.',
-            `<label class="la-check" style="margin-top:12px"><input type="checkbox" id="laFBoxG"${f.boxG ? ' checked' : ''}> Ziffer G ankreuzen</label>`)}
+            'Kreuz, wenn der Arbeitgeber die Verpflegung bezahlt. Eigenanteil: leer.',
+            `<label class="la-check"><input type="checkbox" id="laFBoxG"${f.boxG ? ' checked' : ''}> Ziffer G ankreuzen</label>`)}
         ${laKarte('14', 'Nicht bewertete Nebenleistungen',
-            'Text in Ziffer 14 für alle Personen, zum Beispiel «stark verbilligte Abgabe eines Personenwagens». Eine Person kann ihn durch einen eigenen Text ersetzen oder unterdrücken.',
-            `<div class="la-feld"><textarea id="laF14" class="f-input" rows="3">${laEsc(f.ziffer14 || '')}</textarea></div>`,
-            true)}
+            'Text in Ziffer 14 für alle, z. B. verbilligte Abgabe eines Personenwagens.',
+            `<div class="la-feld"><textarea id="laF14" class="f-input" rows="2">${laEsc(f.ziffer14 || '')}</textarea></div>`)}
         ${laKarte('15', 'Expatriate-Ruling',
-            'Genehmigung der kantonalen Steuerverwaltung. Auf dem Ausweis steht «Expatriateruling durch Kanton … am … genehmigt».',
+            '«Expatriateruling durch Kanton … am … genehmigt».',
             laFirmaGrant('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton))}
         ${laKarte('2.2', 'Geschäftswagen, Kosten abklären',
-            'Für alle: «Privatanteil Geschäftsfahrzeug im Veranlagungsverfahren abzuklären». In Ziffer 2.2 steht dann kein Betrag.',
-            `<label class="la-check" style="margin-top:12px"><input type="checkbox" id="laFWagenAb"${f.wagenAbklaeren ? ' checked' : ''}> Satz auf den Lohnausweis setzen</label>`)}
+            '«Privatanteil Geschäftsfahrzeug im Veranlagungsverfahren abzuklären».',
+            `<label class="la-check"><input type="checkbox" id="laFWagenAb"${f.wagenAbklaeren ? ' checked' : ''}> Satz auf den Lohnausweis setzen</label>`)}
         ${laKarte('2.2', 'Geschäftswagen, 0,9 Prozent',
-            'Für alle: «Privatanteil wird vom Arbeitnehmer bezahlt», wenn mindestens 0,9 Prozent des Kaufpreises selbst bezahlt werden.',
-            `<label class="la-check" style="margin-top:12px"><input type="checkbox" id="laFWagenMin"${f.wagenMinimal ? ' checked' : ''}> Satz auf den Lohnausweis setzen</label>`)}
+            '«Privatanteil wird vom Arbeitnehmer bezahlt».',
+            `<label class="la-check"><input type="checkbox" id="laFWagenMin"${f.wagenMinimal ? ' checked' : ''}> Satz auf den Lohnausweis setzen</label>`)}
         ${laKarte('13', 'Spesenreglement genehmigt',
-            'Genehmigung der kantonalen Steuerverwaltung. Satz: «Spesenreglement durch Kanton … am … genehmigt». Danach entfällt das Kreuz in Ziffer 13.1.1.',
+            '«Spesenreglement durch Kanton … am … genehmigt». Dann kein Kreuz in 13.1.1.',
             laFirmaGrant('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton))}
         ${laKarte('13.1.1', 'Randziffer 52',
-            'Kreuz in Ziffer 13.1.1 für alle, wenn die Spesen den Bedingungen von Randziffer 52 entsprechen und kein genehmigtes Reglement vorliegt.',
-            `<label class="la-check" style="margin-top:12px"><input type="checkbox" id="laFRz52"${f.rz52 ? ' checked' : ''}> Kreuz in Ziffer 13.1.1 setzen</label>`)}
+            'Kreuz nur, wenn kein genehmigtes Spesenreglement vorliegt.',
+            `<label class="la-check"><input type="checkbox" id="laFRz52"${f.rz52 ? ' checked' : ''}> Kreuz in Ziffer 13.1.1 setzen</label>`)}
         ${laKarte('15', 'Verkehrswert der Beteiligung',
-            'Der Kanton hat den Verkehrswert genehmigt. Satz: «Verkehrswert durch Kanton … am … genehmigt».',
+            '«Verkehrswert durch Kanton … am … genehmigt».',
             laFirmaGrant('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton))}
         ${laKarte('15', 'Beteiligung noch ohne Einkommen',
-            'Gründe, warum aus der Mitarbeiterbeteiligung noch kein steuerbares Einkommen entsteht. Mehrere sind möglich. Eine Person kann die Liste für sich ersetzen.',
+            '«Mitarbeiterbeteiligung ohne steuerbares Einkommen. Grund: …». Mehrere Gründe möglich.',
             `<div class="la-checks">
                 ${laCheck('laFBetG', 'Gesperrte Mitarbeiteroptionen', f.betGesperrt)}
-                ${laCheck('laFBetN', 'Nicht börsenkotierte Mitarbeiteroptionen', f.betNichtKotiert)}
-                ${laCheck('laFBetA', 'Anwartschaften auf Mitarbeiteraktien', f.betAnwartschaft)}
+                ${laCheck('laFBetN', 'Nicht börsenkotierte Optionen', f.betNichtKotiert)}
+                ${laCheck('laFBetA', 'Anwartschaften auf Aktien', f.betAnwartschaft)}
                 ${laCheck('laFBetU', 'Unechte Mitarbeiterbeteiligungen', f.betUnecht)}
             </div>`,
             true)}
@@ -485,7 +502,6 @@ async function laFirmaSpeichern(companyProfileId) {
     if (g) g.checked = body.boxG;
     if (typeof laFirmaAnsichtAktualisieren === 'function')
         laFirmaAnsichtAktualisieren(companyProfileId, body.boxF, body.boxG);
-    if (laFirmaSpesenKollision()) alert(laSpesenSatz);
     laAngabenSchliessen();
 }
 
