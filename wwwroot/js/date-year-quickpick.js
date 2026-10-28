@@ -275,6 +275,9 @@
         panel.style.left = left + 'px';
         panel.style.top = top + 'px';
         panel.style.visibility = 'visible';
+        // Auszahlungsdatum und andere Dialoge liegen auf 99999.
+        // Das Menü muss darüber, sonst ragt es nur seitlich hinter dem Fenster hervor.
+        panel.style.zIndex = '100001';
     }
 
     function openMenu(input, anchorEl) {

@@ -74,12 +74,12 @@ function askPayoutDate({ title = 'Auszahlungsdatum', message = '', defaultIso = 
         ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center';
         const box = document.createElement('div');
         box.className = 'card';   // erbt automatisch das Dark-Theme (body.theme-dark .card)
-        box.style.cssText = 'width:440px;max-width:92vw;padding:24px;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,0.35);color-scheme:light dark';
+        box.style.cssText = 'width:440px;max-width:92vw;padding:24px;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,0.35);background:#f7f2e9;color:#3f3f3f';
         box.innerHTML = `
             <div style="font-size:16px;font-weight:700;margin-bottom:8px">${title}</div>
-            ${message ? `<div style="font-size:13px;color:#64748b;line-height:1.5;margin-bottom:16px">${message}</div>` : ''}
+            ${message ? `<div style="font-size:13px;color:#646464;line-height:1.5;margin-bottom:16px">${message}</div>` : ''}
             <input type="date" id="_payoutDateInput" value="${defaultIso}" ${minIso ? `min="${minIso}"` : ''}
-                   style="width:100%;font-size:15px;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:9px;box-sizing:border-box;color-scheme:light dark">
+                   style="width:100%;font-size:15px;padding:10px 12px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;box-sizing:border-box;background:#fff;color:#3f3f3f;color-scheme:light">
             <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
                 <button type="button" id="_payoutCancel" class="btn btn-outline">Abbrechen</button>
                 <button type="button" id="_payoutOk" class="btn btn-primary">OK</button>
