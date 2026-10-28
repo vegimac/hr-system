@@ -3,6 +3,7 @@ using System.Text.Json;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
+using HrSystem.Services.Elm;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -221,8 +222,33 @@ public class LseController : ControllerBase
     [HttpGet("employee/{employeeId:int}")]
     public async Task<IActionResult> GetEmployeeLse(int employeeId)
     {
+        var emp = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId);
+        if (emp == null) return NotFound();
         var lse = await _db.EmployeeLse.AsNoTracking()
             .FirstOrDefaultAsync(x => x.EmployeeId == employeeId);
+        var (em, firma) = await VertragHeute(employeeId);
+        var heute = DateTime.Now;
+        var stichtag = new DateOnly(heute.Year, heute.Month, DateTime.DaysInMonth(heute.Year, heute.Month));
+        var regel = ElmStatistikCodes.FerienRegelFuer(
+            em?.EmploymentModel, em?.SwissdecVertragsart, emp.DateOfBirth, stichtag,
+            firma?.VacationSixWeeksFromAge ?? 50, firma?.DefaultVacationWeeks,
+            firma?.DefaultVacationPercent5Weeks ?? 0m);
+        int? stellungVorschlag = null;
+        string? stellungVorschlagText = null;
+        if (!string.IsNullOrWhiteSpace(em?.JobTitle))
+        {
+            var bfs = await _db.LseCodeMappings.AsNoTracking()
+                .Where(m => m.MappingTyp == "STELLUNG")
+                .ToListAsync();
+            var code = bfs.FirstOrDefault(m => string.Equals(m.SourceCode, em!.JobTitle!.Trim(), StringComparison.OrdinalIgnoreCase))?.BfsCode;
+            if (code is int nr)
+            {
+                var zeile = await _db.StatistikStellungen.AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.LseCode == nr);
+                stellungVorschlag = zeile?.Id;
+                stellungVorschlagText = zeile?.Bezeichnung;
+            }
+        }
         return Ok(new
         {
             employeeId,
@@ -231,11 +257,33 @@ public class LseController : ControllerBase
             positionOverride = lse?.PositionOverride,
             practicedProfession = lse?.PracticedProfession,
             inHouseId = lse?.InHouseId,
-            // Ferienanspruch in Tagen fuer die Swissdec-Statistik (Walter 27.09.2026).
-            // Leer = aus der Regel gerechnet: Stundenlohn mit Ferienprozent -> 0,
-            // sonst Ferienwochen x 5.
+            statistikAusbildungId = lse?.StatistikAusbildungId,
+            statistikStellungId = lse?.StatistikStellungId,
+            verliehenesPersonal = lse?.VerliehenesPersonal ?? false,
+            stammpersonalOeffentlich = lse?.StammpersonalOeffentlich ?? false,
+            flexProfiling = lse?.FlexProfiling,
             leaveEntitlementDays = lse?.LeaveEntitlementDays,
+            ferienTageRegel = regel.Tage,
+            ferienHinweis = regel.Text,
+            ferienHandAbweisen = regel.HandAbweisen,
+            stellungVorschlagId = stellungVorschlag,
+            stellungVorschlagText,
         });
+    }
+
+    private async Task<(Employment? Em, CompanyProfile? Firma)> VertragHeute(int employeeId)
+    {
+        var jetzt = DateTime.Now;
+        var em = await _db.Employments.AsNoTracking()
+            .Where(e => e.EmployeeId == employeeId
+                     && e.ContractStartDate <= jetzt
+                     && (e.ContractEndDate == null || e.ContractEndDate >= jetzt))
+            .OrderByDescending(e => e.ContractStartDate)
+            .FirstOrDefaultAsync();
+        CompanyProfile? firma = null;
+        if (em?.CompanyProfileId is int cp)
+            firma = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cp);
+        return (em, firma);
     }
 
     public class EmployeeLseDto
@@ -246,31 +294,105 @@ public class LseController : ControllerBase
         public string? PracticedProfession { get; set; }
         public string? InHouseId { get; set; }
         public decimal? LeaveEntitlementDays { get; set; }
+        public int? StatistikAusbildungId { get; set; }
+        public int? StatistikStellungId { get; set; }
+        public bool VerliehenesPersonal { get; set; }
+        public bool StammpersonalOeffentlich { get; set; }
+        public string? FlexProfiling { get; set; }
+        /// <summary>Maske am Mitarbeiter: Katalog, Kennzeichen und Ferientage zusammen.</summary>
+        public bool Vollstaendig { get; set; }
     }
 
     [HttpPut("employee/{employeeId:int}")]
     public async Task<IActionResult> PutEmployeeLse(int employeeId, [FromBody] EmployeeLseDto dto)
     {
-        if (!await _db.Employees.AnyAsync(e => e.Id == employeeId)) return NotFound();
-        if (dto.Education is < 1 or > 8)
-            return BadRequest(new { error = "EDUCATION_UNGUELTIG", message = "Ausbildung: BFS-Code 1–8." });
-        if (dto.UniversityDegree is < 1 or > 3)
-            return BadRequest(new { error = "DEGREE_UNGUELTIG", message = "Hochschultitel: BFS-Code 1–3." });
-        if (dto.PositionOverride is < 1 or > 5)
-            return BadRequest(new { error = "POSITION_UNGUELTIG", message = "Berufliche Stellung: BFS-Code 1–5." });
+        var emp = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId);
+        if (emp == null) return NotFound();
         if ((dto.PracticedProfession?.Length ?? 0) > 255)
             return BadRequest(new { error = "BERUF_ZU_LANG", message = "Ausgeübter Beruf: max. 255 Zeichen." });
+        if ((dto.FlexProfiling?.Length ?? 0) > 255)
+            return BadRequest(new { error = "PROFILING_ZU_LANG", message = "Das Profiling-Feld hat höchstens 255 Zeichen." });
         if (dto.LeaveEntitlementDays is < 0m or > 99m)
             return BadRequest(new { error = "FERIENTAGE_UNGUELTIG", message = "Ferientage: 0 bis 99 pro Jahr." });
 
+        if (dto.Vollstaendig && dto.LeaveEntitlementDays is > 0m)
+        {
+            var (em, firma) = await VertragHeute(employeeId);
+            var heute = DateTime.Now;
+            var stichtag = new DateOnly(heute.Year, heute.Month, DateTime.DaysInMonth(heute.Year, heute.Month));
+            var regel = ElmStatistikCodes.FerienRegelFuer(
+                em?.EmploymentModel, em?.SwissdecVertragsart, emp.DateOfBirth, stichtag,
+                firma?.VacationSixWeeksFromAge ?? 50, firma?.DefaultVacationWeeks,
+                firma?.DefaultVacationPercent5Weeks ?? 0m);
+            if (regel.HandAbweisen)
+                return BadRequest(new { error = "FERIEN_WIDERSPRUCH", message = regel.Text });
+        }
+
         var lse = await _db.EmployeeLse.FirstOrDefaultAsync(x => x.EmployeeId == employeeId);
         if (lse == null) { lse = new EmployeeLse { EmployeeId = employeeId }; _db.EmployeeLse.Add(lse); }
-        lse.Education = dto.Education;
-        lse.UniversityDegree = dto.UniversityDegree;
-        lse.PositionOverride = dto.PositionOverride;
+
+        if (dto.Vollstaendig)
+        {
+            if (dto.StatistikAusbildungId is int aid)
+            {
+                var row = await _db.StatistikAusbildungen.AsNoTracking().FirstOrDefaultAsync(a => a.Id == aid);
+                if (row == null)
+                    return BadRequest(new { error = "AUSBILDUNG_UNBEKANNT", message = "Diese Ausbildung gibt es im Katalog nicht." });
+                lse.StatistikAusbildungId = row.Id;
+                lse.Education = row.LseAusbildung;
+                lse.UniversityDegree = row.LseTitel;
+            }
+            else
+            {
+                lse.StatistikAusbildungId = null;
+                lse.Education = null;
+                lse.UniversityDegree = null;
+            }
+            if (dto.StatistikStellungId is int sid)
+            {
+                var row = await _db.StatistikStellungen.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sid);
+                if (row == null)
+                    return BadRequest(new { error = "STELLUNG_UNBEKANNT", message = "Diese berufliche Stellung gibt es im Katalog nicht." });
+                lse.StatistikStellungId = row.Id;
+                lse.PositionOverride = row.LseCode;
+            }
+            else
+            {
+                lse.StatistikStellungId = null;
+                lse.PositionOverride = null;
+            }
+            lse.VerliehenesPersonal = dto.VerliehenesPersonal;
+            lse.StammpersonalOeffentlich = dto.StammpersonalOeffentlich;
+            lse.FlexProfiling = string.IsNullOrWhiteSpace(dto.FlexProfiling) ? null : dto.FlexProfiling.Trim();
+            lse.LeaveEntitlementDays = dto.LeaveEntitlementDays;
+        }
+        else
+        {
+            if (dto.Education is < 1 or > 8)
+                return BadRequest(new { error = "EDUCATION_UNGUELTIG", message = "Ausbildung: BFS-Code 1–8." });
+            if (dto.UniversityDegree is < 1 or > 3)
+                return BadRequest(new { error = "DEGREE_UNGUELTIG", message = "Hochschultitel: BFS-Code 1–3." });
+            if (dto.PositionOverride is < 1 or > 5)
+                return BadRequest(new { error = "POSITION_UNGUELTIG", message = "Berufliche Stellung: BFS-Code 1–5." });
+            lse.Education = dto.Education;
+            lse.UniversityDegree = dto.UniversityDegree;
+            lse.PositionOverride = dto.PositionOverride;
+            if (dto.Education is int edu)
+            {
+                var code = ElmStatistikCodes.Ausbildung(edu, dto.UniversityDegree);
+                lse.StatistikAusbildungId = await _db.StatistikAusbildungen.AsNoTracking()
+                    .Where(a => a.Code == code).Select(a => (int?)a.Id).FirstOrDefaultAsync();
+            }
+            else lse.StatistikAusbildungId = null;
+            if (dto.PositionOverride is int pos)
+            {
+                lse.StatistikStellungId = await _db.StatistikStellungen.AsNoTracking()
+                    .Where(s => s.LseCode == pos).Select(s => (int?)s.Id).FirstOrDefaultAsync();
+            }
+            else lse.StatistikStellungId = null;
+        }
+
         lse.PracticedProfession = string.IsNullOrWhiteSpace(dto.PracticedProfession) ? null : dto.PracticedProfession.Trim();
-        lse.InHouseId = string.IsNullOrWhiteSpace(dto.InHouseId) ? null : dto.InHouseId.Trim();
-        lse.LeaveEntitlementDays = dto.LeaveEntitlementDays;
         lse.UpdatedAt = DateTime.Now;
         lse.UpdatedBy = Actor();
         await _db.SaveChangesAsync();

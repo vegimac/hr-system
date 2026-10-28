@@ -620,8 +620,7 @@ public partial class SwissdecTestmandantController
                 {
                     var lse = await _db.EmployeeLse.FirstOrDefaultAsync(l => l.EmployeeId == emp.Id);
                     if (lse == null) { lse = new EmployeeLse { EmployeeId = emp.Id }; _db.EmployeeLse.Add(lse); }
-                    if (bfsEdu != null) lse.Education = bfsEdu;
-                    if (bfsPos != null) lse.PositionOverride = bfsPos;
+                    await HrSystem.Services.Elm.StatistikZuordnung.Anwenden(_db, lse, V("PersonEducation"), V("PersonPosition"));
                     if (tage != null) lse.LeaveEntitlementDays = tage;
                     lse.UpdatedAt = DateTime.Now;
                     lse.UpdatedBy = "Swissdec-Testdaten Mutation";

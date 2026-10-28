@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 119;  // 119: Lohnausweis Kontakt + Rektifikat · 118: Lohnausweis-Angaben Person + Filiale
+const int SchemaStand = 121;  // 121: Statistik-Katalog Ausbildung und Stellung
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3107,6 +3107,97 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE lohnausweis_final ADD COLUMN IF NOT EXISTS ersetzt_am timestamp without time zone NULL;
         ");
         startLog.LogInformation("Stand 119: Lohnausweis Kontakt und Rektifikat");
+    }
+
+    // Stand 121: Ausbildung und berufliche Stellung als Katalog (Swissdec 12.3).
+    // Bezeichnung und XML-Wert sind danach in der Maske änderbar; dieser Seed
+    // läuft nur beim Wechsel und überschreibt keine spätere Pflege.
+    if (dbStand < 121)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS statistik_ausbildung (
+                id              serial PRIMARY KEY,
+                code            varchar(40) NOT NULL UNIQUE,
+                bezeichnung     varchar(200) NOT NULL,
+                beschreibung    text,
+                sortierung      integer NOT NULL DEFAULT 0,
+                lse_ausbildung  integer,
+                lse_titel       integer,
+                aktiv           boolean NOT NULL DEFAULT true
+            );
+            CREATE TABLE IF NOT EXISTS statistik_stellung (
+                id            serial PRIMARY KEY,
+                code          varchar(40) NOT NULL UNIQUE,
+                bezeichnung   varchar(200) NOT NULL,
+                beschreibung  text,
+                sortierung    integer NOT NULL DEFAULT 0,
+                lse_code      integer,
+                aktiv         boolean NOT NULL DEFAULT true
+            );
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS statistik_ausbildung_id integer REFERENCES statistik_ausbildung(id) ON DELETE SET NULL;
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS statistik_stellung_id integer REFERENCES statistik_stellung(id) ON DELETE SET NULL;
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS verliehenes_personal boolean NOT NULL DEFAULT false;
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS stammpersonal_oeffentlich boolean NOT NULL DEFAULT false;
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS flex_profiling varchar(255);
+
+            INSERT INTO statistik_ausbildung (code, bezeichnung, beschreibung, sortierung, lse_ausbildung, lse_titel)
+            SELECT v.code, v.bezeichnung, v.beschreibung, v.sortierung, v.lse_ausbildung, v.lse_titel
+            FROM (VALUES
+                ('doctorate', 'Doktorat, Habilitation', 'Doktorat oder Habilitation an einer universitären Hochschule oder Fachhochschule.', 10, 1, 1),
+                ('universityMaster', 'Uni, ETH, Master', 'Universitäre Hochschule (Uni, ETH), Master.', 20, 1, 2),
+                ('universityBachelor', 'Uni, ETH, Bachelor', 'Universitäre Hochschule (Uni, ETH), Bachelor.', 30, 1, 3),
+                ('higherEducationMaster', 'Fachhochschule (FH), Pädagogische (PH), Master', 'Fachhochschule oder Pädagogische Hochschule, Master.', 40, 2, 2),
+                ('higherEducationBachelor', 'Fachhochschule (FH), Pädagogische (PH), Bachelor', 'Fachhochschule oder Pädagogische Hochschule, Bachelor.', 50, 2, 3),
+                ('higherVocEducation', 'Höhere Berufsausbildung, höhere Fachschule', 'Höhere Berufsbildung, höhere Fachschule, ohne Master oder Bachelor.', 60, 3, NULL::integer),
+                ('higherVocEducationMaster', 'Höhere Berufsbildung Master', 'Höhere Berufsbildung mit Master.', 70, 3, 2),
+                ('higherVocEducationBachelor', 'Höhere Berufsbildung Bachelor', 'Höhere Berufsbildung mit Bachelor.', 80, 3, 3),
+                ('teacherCertificate', 'Lehrpatent', 'Lehrpatent.', 90, 4, NULL::integer),
+                ('universityEntranceCertificate', 'Matura', 'Matura oder gleichwertiger Abschluss.', 100, 5, NULL::integer),
+                ('vocEducationCompl', 'Abgeschlossene Berufsausbildung', 'Abgeschlossene Berufsausbildung mit eidgenössischem Fähigkeitszeugnis.', 110, 6, NULL::integer),
+                ('enterpriseEducation', 'Ausschliesslich unternehmensintern', 'Nur eine unternehmensinterne Ausbildung, keine anerkannte Berufslehre.', 120, 7, NULL::integer),
+                ('mandatorySchoolOnly', 'Obligatorische Schule, ohne abgeschlossene Berufsausbildung', 'Obligatorische Schule, ohne abgeschlossene Berufsausbildung.', 130, 8, NULL::integer)
+            ) AS v(code, bezeichnung, beschreibung, sortierung, lse_ausbildung, lse_titel)
+            WHERE NOT EXISTS (SELECT 1 FROM statistik_ausbildung a WHERE a.code = v.code);
+
+            INSERT INTO statistik_stellung (code, bezeichnung, beschreibung, sortierung, lse_code)
+            SELECT v.code, v.bezeichnung, v.beschreibung, v.sortierung, v.lse_code
+            FROM (VALUES
+                ('highestCadre', 'Oberes Kader', 'Oberes Kader.', 10, 1),
+                ('middleCadre', 'Mittleres Kader', 'Mittleres Kader.', 20, 2),
+                ('lowerCadre', 'Unteres Kader', 'Unteres Kader.', 30, 3),
+                ('lowestCadre', 'Unterstes Kader', 'Verantwortlich für die Ausführung der Arbeiten.', 40, 4),
+                ('noCadre', 'Ohne Kaderfunktion', 'Ohne Kaderfunktion.', 50, 5)
+            ) AS v(code, bezeichnung, beschreibung, sortierung, lse_code)
+            WHERE NOT EXISTS (SELECT 1 FROM statistik_stellung s WHERE s.code = v.code);
+
+            UPDATE employee_lse AS l
+               SET statistik_ausbildung_id = a.id
+              FROM statistik_ausbildung a
+             WHERE l.statistik_ausbildung_id IS NULL
+               AND a.code = CASE
+                    WHEN l.education IN (1, 2) AND l.university_degree = 1 THEN 'doctorate'
+                    WHEN l.education = 1 AND l.university_degree = 3 THEN 'universityBachelor'
+                    WHEN l.education = 2 AND l.university_degree = 2 THEN 'higherEducationMaster'
+                    WHEN l.education = 3 AND l.university_degree = 2 THEN 'higherVocEducationMaster'
+                    WHEN l.education = 3 AND l.university_degree = 3 THEN 'higherVocEducationBachelor'
+                    WHEN l.education = 1 THEN 'universityMaster'
+                    WHEN l.education = 2 THEN 'higherEducationBachelor'
+                    WHEN l.education = 3 THEN 'higherVocEducation'
+                    WHEN l.education = 4 THEN 'teacherCertificate'
+                    WHEN l.education = 5 THEN 'universityEntranceCertificate'
+                    WHEN l.education = 6 THEN 'vocEducationCompl'
+                    WHEN l.education = 7 THEN 'enterpriseEducation'
+                    WHEN l.education = 8 THEN 'mandatorySchoolOnly'
+                    ELSE NULL
+               END;
+
+            UPDATE employee_lse AS l
+               SET statistik_stellung_id = s.id
+              FROM statistik_stellung s
+             WHERE l.statistik_stellung_id IS NULL
+               AND l.position_override = s.lse_code;
+        ");
+        startLog.LogInformation("Stand 121: Statistik-Katalog Ausbildung und Stellung");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

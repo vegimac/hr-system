@@ -60,10 +60,36 @@ public class EmployeeLse
     public string? InHouseId { get; set; }
 
     /// <summary>
+    /// Höchste abgeschlossene Ausbildung (Katalog <see cref="StatistikAusbildung"/>).
+    /// Die Zahlen <see cref="Education"/> und <see cref="UniversityDegree"/> schreibt
+    /// der Server aus der gewählten Zeile mit, damit der LSE-Export nicht bricht.
+    /// </summary>
+    public int? StatistikAusbildungId { get; set; }
+
+    /// <summary>
+    /// Berufliche Stellung (Katalog <see cref="StatistikStellung"/>).
+    /// Leer = Vorschlag aus der Funktion (lse_code_mapping).
+    /// </summary>
+    public int? StatistikStellungId { get; set; }
+
+    /// <summary>Swissdec TemporaryAgencyWorker. Nur gesetzt ergibt das leere XML-Element.</summary>
+    public bool VerliehenesPersonal { get; set; }
+
+    /// <summary>Swissdec PermanentStaffPublicAdmin.</summary>
+    public bool StammpersonalOeffentlich { get; set; }
+
+    /// <summary>
+    /// Swissdec FlexProfiling. Leer = kein Element. Nur ausfüllen, wenn das BFS
+    /// das Profiling mit dem Unternehmen vereinbart hat.
+    /// </summary>
+    public string? FlexProfiling { get; set; }
+
+    /// <summary>
     /// Ferienanspruch in Tagen pro Jahr für die Swissdec-Statistik
     /// (<c>LeaveEntitlement</c>, Walter 27.09.2026). NULL = aus der Regel rechnen:
     /// Stunden-/Lektionenlohn mit Ferienentschädigung in Prozent → 0, sonst
-    /// Ferienwochen × 5. Eine Eingabe hier sticht die Regel.
+    /// Ferienwochen × 5 (ab dem Filial-Alter sechs Wochen). Eine Eingabe hier
+    /// sticht die Regel, ausser sie widerspricht der Ferienentschädigung.
     /// </summary>
     public decimal? LeaveEntitlementDays { get; set; }
 

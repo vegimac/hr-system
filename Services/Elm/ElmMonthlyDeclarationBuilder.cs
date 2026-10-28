@@ -36,6 +36,8 @@ public class ElmMonthlyDeclarationBuilder
     private readonly ElmXmlValidator _validator;
 
     private readonly ElmEinstellungen _einstellungen;
+    private Dictionary<int, StatistikAusbildung> _ausbildungKatalog = new();
+    private Dictionary<int, StatistikStellung> _stellungKatalog = new();
 
     public ElmMonthlyDeclarationBuilder(AppDbContext db, ElmXmlValidator validator, ElmEinstellungen einstellungen)
     {
@@ -230,6 +232,10 @@ public class ElmMonthlyDeclarationBuilder
             .Where(l => empIds.Contains(l.EmployeeId))
             .ToListAsync(ct);
         var lseById = lseJeMa.ToDictionary(l => l.EmployeeId);
+        _ausbildungKatalog = await _db.StatistikAusbildungen.AsNoTracking()
+            .ToDictionaryAsync(a => a.Id, ct);
+        _stellungKatalog = await _db.StatistikStellungen.AsNoTracking()
+            .ToDictionaryAsync(s => s.Id, ct);
         var stellungMapping = await _db.LseCodeMappings.AsNoTracking()
             .Where(m => m.MappingTyp == "STELLUNG")
             .ToListAsync(ct);
@@ -739,7 +745,7 @@ public class ElmMonthlyDeclarationBuilder
             new XAttribute("addresseeIDRef", "#BFS"),
             new XAttribute("workIDRef", WorkId(e)),
             new XElement(Sd + "CurrentMonth", monatStr),
-            BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn, lohnartByCode),
+            BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn, periodeBis, lohnartByCode),
             KindOfWagePayment(em, filiale, slip, lohnartByCode),
             new XElement(Sd + "MonthlyValues",
                 new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(Wert(ElmStatistikCodes.Topf.Bruttolohn))),
@@ -908,29 +914,35 @@ public class ElmMonthlyDeclarationBuilder
     }
 
     /// <summary>
-    /// Statistik-Stammdaten der Person. Alle vier Felder sind im Schema PFLICHT
-    /// (StatisticAdditionalParticularsType): Ausbildung, berufliche Stellung,
-    /// Funktion, Ferienanspruch in Tagen. Ausbildung und Stellung kommen aus den
-    /// LSE-Feldern und werden hier nur uebersetzt; fehlen sie, meldet OneCrew den
-    /// vorsichtigsten Wert UND sagt es.
+    /// Statistik-Stammdaten der Person. Pflicht im Schema: Ausbildung, berufliche
+    /// Stellung, Funktion, Ferienanspruch in Tagen. Ausbildung und Stellung kommen
+    /// aus dem Katalog; fehlen sie, meldet OneCrew den vorsichtigsten Wert und sagt es.
+    /// Verliehenes Personal, Stammpersonal und Profiling nur, wenn gesetzt.
     /// </summary>
     private XElement BaueStatistikStammdaten(
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
         EmployeeLse? lse, List<LseCodeMapping> stellungMapping, List<string> warn,
-        IReadOnlyDictionary<string, string>? lohnartByCode = null)
+        DateTime stichtag, IReadOnlyDictionary<string, string>? lohnartByCode = null)
     {
-        var ausbildungCode = lse?.Education;
-        if (!ElmStatistikCodes.AusbildungErfasst(ausbildungCode))
+        string? ausbildungXml = null;
+        if (lse?.StatistikAusbildungId is int aid && _ausbildungKatalog.TryGetValue(aid, out var arow))
+            ausbildungXml = arow.Code;
+        var ausbildungErfasst = !string.IsNullOrWhiteSpace(ausbildungXml)
+            || ElmStatistikCodes.AusbildungErfasst(lse?.Education);
+        if (!ausbildungErfasst)
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Ausbildung für die Statistik nicht erfasst "
-                   + "— gemeldet wird «ohne abgeschlossene Berufsausbildung» (MA → BFS/Statistik).");
+                   + "— gemeldet wird «ohne abgeschlossene Berufsausbildung» (Mitarbeiter → Statistik).");
 
-        var stellungCode = lse?.PositionOverride;
-        if (stellungCode == null && !string.IsNullOrWhiteSpace(em?.JobTitle))
-            stellungCode = stellungMapping
+        string? stellungXml = null;
+        if (lse?.StatistikStellungId is int sid && _stellungKatalog.TryGetValue(sid, out var srow))
+            stellungXml = srow.Code;
+        var stellungBfs = lse?.PositionOverride;
+        if (string.IsNullOrWhiteSpace(stellungXml) && stellungBfs == null && !string.IsNullOrWhiteSpace(em?.JobTitle))
+            stellungBfs = stellungMapping
                 .FirstOrDefault(m => string.Equals(m.SourceCode, em!.JobTitle!.Trim(), StringComparison.OrdinalIgnoreCase))?.BfsCode;
-        if (!ElmStatistikCodes.StellungErfasst(stellungCode))
+        if (string.IsNullOrWhiteSpace(stellungXml) && !ElmStatistikCodes.StellungErfasst(stellungBfs))
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): berufliche Stellung nicht erfasst "
-                   + "— gemeldet wird «ohne Kaderfunktion» (LSE-Zuordnung Funktion → Stellung).");
+                   + "— gemeldet wird «ohne Kaderfunktion» (Zuordnung Funktion → Stellung).");
 
         var stundenlohn = (em?.EmploymentModel?.ToUpperInvariant() ?? "") is not ("FIX" or "FIX-M" or "MTP");
         // Ferien-% und Ferientage nie zusammen (Richtlinien). Nur wenn der Lohnzettel
@@ -938,17 +950,27 @@ public class ElmMonthlyDeclarationBuilder
         var ferienPct = lohnartByCode != null
             ? (ProzentAusLohnzeile(slip, lohnartByCode, 1160) ?? 0m)
             : 0m;
-        var ferienwochen = (filiale.DefaultVacationWeeks ?? 5) >= 6 ? 6 : 5;
-        var tage = ElmStatistikCodes.Ferientage(stundenlohn && ferienPct > 0m, ferienwochen, lse?.LeaveEntitlementDays);
+        var entsch = stundenlohn && ferienPct > 0m;
+        var ferienwochen = ElmStatistikCodes.Ferienwochen(
+            e.DateOfBirth, DateOnly.FromDateTime(stichtag),
+            filiale.VacationSixWeeksFromAge, filiale.DefaultVacationWeeks);
+        var tage = ElmStatistikCodes.Ferientage(entsch, ferienwochen, lse?.LeaveEntitlementDays);
+        if (entsch && lse?.LeaveEntitlementDays is > 0m)
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Ferientage von Hand "
+                   + $"{lse!.LeaveEntitlementDays:0}, gemeldet wird 0, weil dieser Monat eine Ferienentschädigung enthält.");
         // Verwaltungsrat hat keinen Ferienanspruch (RefXML Jan 2025: TF39 Hasler 0).
         if ((em?.SwissdecVertragsart ?? "").Trim() == "administrativeBoard" && lse?.LeaveEntitlementDays == null)
             tage = 0m;
 
+        var profiling = (lse?.FlexProfiling ?? "").Trim();
         return new XElement(Sd + "AdditionalParticulars",
-            new XElement(Sd + "Education", ElmStatistikCodes.Ausbildung(ausbildungCode, lse?.UniversityDegree)),
-            new XElement(Sd + "Position", ElmStatistikCodes.Stellung(stellungCode)),
+            new XElement(Sd + "Education", ElmStatistikCodes.AusbildungFuerMeldung(ausbildungXml, lse?.Education, lse?.UniversityDegree)),
+            new XElement(Sd + "Position", ElmStatistikCodes.StellungFuerMeldung(stellungXml, stellungBfs)),
             new XElement(Sd + "JobTitle", string.IsNullOrWhiteSpace(em?.JobTitle) ? "—" : em!.JobTitle!.Trim()),
-            new XElement(Sd + "LeaveEntitlement", ((int)Math.Round(tage, 0)).ToString()));
+            new XElement(Sd + "LeaveEntitlement", ((int)Math.Round(tage, 0)).ToString()),
+            lse?.VerliehenesPersonal == true ? new XElement(Sd + "TemporaryAgencyWorker") : null,
+            lse?.StammpersonalOeffentlich == true ? new XElement(Sd + "PermanentStaffPublicAdmin") : null,
+            profiling.Length > 0 ? new XElement(Sd + "FlexProfiling", profiling) : null);
     }
 
     /// <summary>
