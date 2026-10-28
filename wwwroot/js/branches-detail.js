@@ -275,9 +275,12 @@ function renderFilialenDetail(b) {
                 </select>
                 <span id="stmHauptsitzInlineHint-${b.id}" style="font-size:11.5px;color:#8b8b8b"></span>
             </div>
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                 Stammdaten
-                <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">✎ Bearbeiten</button>
+                <span style="display:flex;gap:8px;align-items:center">
+                    <button type="button" onclick="laFirmaVonFiliale(${b.id})" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:4px 14px;font-size:12px;cursor:pointer">Lohnausweis</button>
+                    <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">✎ Bearbeiten</button>
+                </span>
             </div>
             <div class="emp-field-grid">
                 ${fField('Firma',           b.companyName)}
@@ -1477,9 +1480,20 @@ async function stmPlzLookup(rawPlz) {
     }
 }
 
+function laFirmaVonFiliale(id) {
+    if (typeof laFirmaOeffnen === 'function') laFirmaOeffnen(id);
+}
+
 function laFirmaAusStammdaten() {
     if (!stmModalBranchId) return;
-    if (typeof laFirmaOeffnen === 'function') laFirmaOeffnen(stmModalBranchId);
+    laFirmaVonFiliale(stmModalBranchId);
+}
+
+function laFirmaAnsichtAktualisieren(id, boxF, boxG) {
+    if (!selectedBranch || selectedBranch.id !== id) return;
+    selectedBranch.lohnausweisBoxFFreierTransport = !!boxF;
+    selectedBranch.lohnausweisBoxGKantineGratis = !!boxG;
+    renderFilialenDetail(selectedBranch);
 }
 
 async function saveStm() {

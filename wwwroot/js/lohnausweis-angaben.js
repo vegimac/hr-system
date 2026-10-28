@@ -455,6 +455,8 @@ async function laFirmaSpeichern(companyProfileId) {
     const g = document.getElementById('stmLohnausweisBoxG');
     if (f) f.checked = body.boxF;
     if (g) g.checked = body.boxG;
+    if (typeof laFirmaAnsichtAktualisieren === 'function')
+        laFirmaAnsichtAktualisieren(companyProfileId, body.boxF, body.boxG);
     laAngabenSchliessen();
 }
 

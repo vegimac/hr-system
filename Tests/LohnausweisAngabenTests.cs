@@ -184,6 +184,192 @@ public class LohnausweisAngabenTests
     }
 
     [Fact]
+    public void Systemtest_05_01_bis_14_Druck_und_Barcode()
+    {
+        var rot = new System.Collections.Generic.List<string>();
+        void Punkt(string id, bool gilt, string meldung)
+        {
+            if (!gilt) rot.Add(id + " — " + meldung);
+        }
+
+        var firma = new CompanyProfile
+        {
+            LohnausweisBoxFFreierTransport = true,
+            LohnausweisBoxGKantineGratis = true,
+            LohnausweisZiffer14 = "Vergünstigung Versicherungsprämien",
+            LohnausweisExpatDatum = new DateOnly(2021, 4, 15),
+            LohnausweisExpatKanton = "LU",
+            LohnausweisWagenAbklaeren = true,
+            LohnausweisWagenMinimal = true,
+            LohnausweisRz52 = true,
+            LohnausweisWertDatum = new DateOnly(2010, 9, 15),
+            LohnausweisWertKanton = "LU",
+            LohnausweisBetGesperrt = true,
+            LohnausweisBetNichtKotiert = true,
+            LohnausweisBetAnwartschaft = true,
+            LohnausweisBetUnecht = true,
+        };
+
+        var vonFirma = LohnausweisAngaben.Aufloesen(firma, null, 2026, 1);
+        Punkt("05_01", !vonFirma.IstRente, "ohne Personenangabe bleibt es ein Lohnausweis");
+        Punkt("05_02", vonFirma.BoxF, "Ziffer F der Filiale fehlt auf der Person");
+        Punkt("05_03", vonFirma.BoxG, "Ziffer G der Filiale fehlt auf der Person");
+        Punkt("05_04", vonFirma.Ziffer14 == "Vergünstigung Versicherungsprämien",
+            "Ziffer 14 der Filiale wird nicht übernommen");
+        Punkt("05_05", vonFirma.Expat?.Kanton == "LU" && vonFirma.Expat?.Datum == new DateOnly(2021, 4, 15),
+            "Expatriateruling der Filiale fehlt");
+        Punkt("05_06", vonFirma.WagenAbklaeren && vonFirma.WagenMinimal,
+            "die beiden Geschäftswagen-Angaben der Filiale fehlen");
+        Punkt("05_08", vonFirma.Rz52, "Kreuz RZ 52 der Filiale fehlt");
+        Punkt("05_09", vonFirma.AnzahlLohnausweise == null
+            && !vonFirma.StandardBemerkungen.Any(s => s.Contains("Einer von")),
+            "bei einem Lohnausweis darf «Einer von» nicht erscheinen");
+        Punkt("05_10", vonFirma.Verkehrswert?.Kanton == "LU",
+            "Verkehrswert der Filiale fehlt");
+        Punkt("05_11", vonFirma.Gesperrt && vonFirma.NichtKotiert && vonFirma.Anwartschaft && vonFirma.Unecht,
+            "die vier Gründe der Filiale fehlen");
+
+        var rente = LohnausweisAngaben.Aufloesen(firma, new EmployeeLohnausweis { Art = "RENTE" }, 2026, 1);
+        Punkt("05_01", rente.IstRente, "Rente an der Person wird nicht zur Rentenbescheinigung");
+
+        var person = new EmployeeLohnausweis
+        {
+            Art = "LOHN",
+            BoxF = true,
+            BoxG = true,
+            Ziffer14Modus = "EIGEN",
+            Ziffer14Text = "Stark verbilligte Abgabe eines Personenwagens",
+            ExpatModus = "EIGEN",
+            ExpatDatum = new DateOnly(2021, 4, 15),
+            ExpatKanton = "LU",
+            WagenAbklaeren = true,
+            WagenMinimal = true,
+            SpesenModus = "EIGEN",
+            SpesenDatum = new DateOnly(2021, 4, 15),
+            SpesenKanton = "LU",
+            Rz52 = true,
+            WertModus = "EIGEN",
+            WertDatum = new DateOnly(2010, 9, 15),
+            WertKanton = "LU",
+            BeteiligungModus = "EIGEN",
+            BeteiligungGesperrt = true,
+            BeteiligungNichtKotiert = true,
+            BeteiligungAnwartschaft = true,
+            BeteiligungUnecht = true,
+            KinderzulageAhv = true,
+            UmzugBetrag = 4251m,
+            UmzugJahr = 2026,
+            Nachgenuss = true,
+            NachgenussBetrag = 1200m,
+            NachgenussJahr = 2026,
+            NachgenussName = "Meier",
+            NachgenussVorname = "Anna",
+            NachgenussStrasse = "Bahnhofstrasse 1",
+            NachgenussPlz = "6003",
+            NachgenussOrt = "Luzern",
+        };
+        var w = LohnausweisAngaben.Aufloesen(null, person, 2026, 2);
+        LohnausweisAngaben.Zeilen(w, new[] { "80%-Stelle." }, out var z141, out _, out var z151, out var z152);
+        var block15 = (z151 ?? "") + " " + (z152 ?? "");
+
+        Punkt("05_04", z141 == "Stark verbilligte Abgabe eines Personenwagens",
+            "Ziffer 14 steht nicht in der Bemerkungszeile 14");
+        Punkt("05_05", block15.Contains("Expatriateruling durch Kanton LU am 15.04.2021 genehmigt"),
+            "Expatriateruling wird nicht gedruckt");
+        Punkt("05_06",
+            block15.Contains("Privatanteil Geschäftsfahrzeug im Veranlagungsverfahren abzuklären")
+            && block15.Contains("Privatanteil wird vom Arbeitnehmer bezahlt"),
+            "eine der beiden Geschäftswagen-Bemerkungen fehlt");
+        Punkt("05_07", block15.Contains("Spesenreglement durch Kanton LU am 15.04.2021 genehmigt") && !w.Rz52,
+            "Spesenreglement fehlt oder das Kreuz RZ 52 bleibt trotzdem stehen");
+        Punkt("05_08", !w.Rz52, "bei genehmigtem Spesenreglement darf Ziffer 13.1.1 nicht angekreuzt sein");
+        Punkt("05_09", block15.Contains("Einer von zwei Lohnausweisen"),
+            "«Einer von zwei Lohnausweisen» fehlt");
+        Punkt("05_10", block15.Contains("Verkehrswert durch Kanton LU am 15.09.2010 genehmigt"),
+            "Verkehrswert wird nicht gedruckt");
+        Punkt("05_11", block15.Contains("Gesperrte Mitarbeiteroptionen")
+            && block15.Contains("Nicht börsenkotierte Mitarbeiteroptionen")
+            && block15.Contains("Anwartschaften auf Mitarbeiteraktien")
+            && block15.Contains("Unechte Mitarbeiterbeteiligungen"),
+            "ein Grund der Mitarbeiterbeteiligung fehlt im Druck");
+        var nachgenuss = w.Nachgenuss;
+        Punkt("05_12", nachgenuss != null
+            && block15.Contains("Besoldungsnachgenuss an Meier, Anna, Bahnhofstrasse 1, 6003 Luzern")
+            && nachgenuss.Betrag == 1200m,
+            "Besoldungsnachgenuss oder der Betrag für Ziffer 4 fehlt");
+        Punkt("05_13", block15.Contains("Kinderzulagen im LA nicht enthalten. Auszahlung durch Ausgleichskasse"),
+            "Kinderzulagen-Bemerkung fehlt");
+        Punkt("05_14", block15.Contains("Umzugskosten von CHF 4'251.00 bezahlt"),
+            "Umzugskosten fehlen");
+
+        var daten = Basis();
+        daten.BoxFFreierTransport = w.BoxF;
+        daten.BoxGKantineGratis = w.BoxG;
+        daten.Ziffer4Kapitalleistungen = nachgenuss?.Betrag;
+        daten.Ziffer4Art = "Besoldungsnachgenuss";
+        daten.Ziffer1311EffektivOhneBeleg = w.Rz52;
+        daten.Ziffer141Bemerkungen = z141;
+        daten.Ziffer151Bemerkungen = z151;
+        daten.Ziffer152Bemerkungen = z152;
+        daten.Zusatz = LohnausweisAngaben.AlsZusatz(w, "80%-Stelle.");
+        var xml = LohnausweisBarcodeService.BuildXml(
+            daten, LohnausweisBarcodeService.TxAbSchemaVersion.V6_20260306);
+        var doc = XDocument.Parse(xml);
+        var s = doc.Root!.Elements().Single(e => e.Name.LocalName == "S");
+        bool Hat(string name) => s.Descendants().Any(e => e.Name.LocalName == name);
+
+        Punkt("05_02", Hat("FreeTransport"), "Barcode ohne FreeTransport");
+        Punkt("05_03", Hat("CanteenLunchCheck"), "Barcode ohne CanteenLunchCheck");
+        Punkt("05_04", s.Elements().Any(e => e.Name.LocalName == "OtherFringeBenefits"
+            && e.Value.Contains("Personenwagens")), "Barcode ohne Ziffer 14");
+        Punkt("05_05", Hat("ExpatriateRuling"), "Barcode ohne ExpatriateRuling");
+        Punkt("05_06", Hat("CompanyCarClarify") && Hat("MinimalEmployeeCarPartPercentage"),
+            "Barcode ohne eine der beiden Geschäftswagen-Angaben");
+        Punkt("05_07", Hat("WithRegulation") && !Hat("Guidance"),
+            "Barcode ohne Spesenreglement oder mit Kreuz RZ 52 daneben");
+        Punkt("05_09", s.Descendants().Single(e => e.Name.LocalName == "NumberOfSalaryCertificate").Value == "2"
+            && !xml.Contains("Einer von zwei"),
+            "Gesamtzahl fehlt im Barcode oder der Satz steht doppelt im XML");
+        Punkt("05_10", Hat("StaffShareMarketValue"), "Barcode ohne Verkehrswert");
+        Punkt("05_11", Hat("BlockedOptions") && Hat("UnquotedOptions")
+            && Hat("DeferredBenefitsStaffShares") && Hat("FictitiousStaffShare"),
+            "ein Grund fehlt im Barcode");
+        Punkt("05_12", s.Elements().Any(e => e.Name.LocalName == "CapitalPayment")
+            && Hat("ContinuedProvisionOfSalary")
+            && xml.Contains("1200.00"),
+            "Besoldungsnachgenuss fehlt in Ziffer 4 oder in der Bemerkung des Barcodes");
+        Punkt("05_13", Hat("ChildAllowancePerAHV-AVS"), "Barcode ohne Kinderzulage");
+        Punkt("05_14", Hat("RelocationCosts") && xml.Contains("4251.00"),
+            "Barcode ohne Umzugskosten");
+        Punkt("05_01", doc.Root.Elements().All(e => e.Name.LocalName != "A"),
+            "ein Lohnausweis darf nicht als Rentenbescheinigung (Element A) herausgehen");
+
+        var fehler = new System.Collections.Generic.List<string>();
+        doc.Validate(LadeElm6Schemas(), (_, e) => fehler.Add(e.Message));
+        Punkt("05_01", fehler.Count == 0, "Barcode-XML ungültig: " + string.Join(" | ", fehler));
+
+        var nurRz = LohnausweisAngaben.Aufloesen(null, new EmployeeLohnausweis { Rz52 = true }, 2026, 1);
+        var rzDaten = Basis();
+        rzDaten.Ziffer1311EffektivOhneBeleg = nurRz.Rz52;
+        rzDaten.Zusatz = LohnausweisAngaben.AlsZusatz(nurRz, null);
+        var rzXml = LohnausweisBarcodeService.BuildXml(
+            rzDaten, LohnausweisBarcodeService.TxAbSchemaVersion.V6_20260306);
+        Punkt("05_08", nurRz.Rz52 && rzXml.Contains("Guidance") && !rzXml.Contains("WithRegulation"),
+            "ohne Spesenreglement fehlt das Kreuz RZ 52 im Barcode");
+
+        var renteDaten = Basis();
+        renteDaten.IstLohnausweis = false;
+        renteDaten.Zusatz = LohnausweisAngaben.AlsZusatz(rente, null);
+        var renteXml = XDocument.Parse(LohnausweisBarcodeService.BuildXml(
+            renteDaten, LohnausweisBarcodeService.TxAbSchemaVersion.V6_20260306));
+        Punkt("05_01", renteXml.Root!.Elements().Any(e => e.Name.LocalName == "A")
+            && renteXml.Root.Elements().All(e => e.Name.LocalName != "S"),
+            "Rentenbescheinigung kommt nicht als Element A");
+
+        Assert.True(rot.Count == 0, string.Join("\n", rot));
+    }
+
+    [Fact]
     public void Rentenbescheinigung_verwendet_Element_A()
     {
         var w = LohnausweisAngaben.Aufloesen(null, new EmployeeLohnausweis { Art = "RENTE" }, 2026, null);
