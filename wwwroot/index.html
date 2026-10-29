@@ -10012,18 +10012,22 @@ body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
 .stm-ansicht.stm-edit .ov-pfv { display: flex; flex-direction: column; align-items: flex-start; }
 #stmDatenModal { display: none !important; }
 .stm-ansicht.stm-edit .stm-inline,
-.stm-ansicht.stm-edit .lqsel-btn,
+.stm-ansicht.stm-edit .lqsel-btn {
+    height: 30px !important; min-height: 30px !important; padding: 0 10px !important;
+    font-size: 14.5px !important; font-weight: 700 !important; line-height: 28px !important;
+    color: #1a1a1a !important; background: #fff !important;
+    border: 1px solid #e7e1d6 !important; border-radius: 9px !important;
+    box-shadow: inset 0 1px 2px rgba(60,55,48,0.04) !important;
+    box-sizing: border-box !important;
+}
 .stm-ansicht.stm-edit .stm-inline:focus,
 .stm-ansicht.stm-edit .lqsel-btn:hover,
 .stm-ansicht.stm-edit .lqsel-btn:focus {
-    height: auto !important; min-height: 0 !important; padding: 0 0 1px !important;
-    font-size: 15px !important; font-weight: 700 !important; line-height: 1.25 !important;
-    color: #1a1a1a !important; background: transparent !important;
-    border: none !important; border-radius: 0 !important; box-shadow: none !important;
-    border-bottom: 1px solid rgba(60,55,48,0.35) !important;
+    border-color: #3f3f3f !important; background: #fff !important;
+    box-shadow: 0 0 0 2px rgba(63,63,63,0.10) !important;
 }
 .stm-ansicht.stm-edit .lqsel-wrap { min-width: 0 !important; width: auto !important; max-width: none; display: inline-block; }
-.stm-ansicht.stm-edit .lqsel-btn { width: auto !important; justify-content: flex-start; gap: 6px; }
+.stm-ansicht.stm-edit .lqsel-btn { width: auto !important; justify-content: flex-start; gap: 8px; }
 .stm-ansicht.stm-edit .stm-w-firma { width: 280px !important; }
 .stm-ansicht.stm-edit .stm-w-str { width: 200px !important; }
 .stm-ansicht.stm-edit .stm-w-nr { width: 52px !important; }
@@ -10052,9 +10056,13 @@ body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
 .stm-ansicht.stm-edit .stm-gav input { width: 15px; height: 15px; accent-color: #3f3f3f; margin: 0; }
 body.theme-dark .stm-ansicht.stm-edit .stm-inline,
 body.theme-dark .stm-ansicht.stm-edit .lqsel-btn,
+body.theme-dark .stm-ansicht.stm-edit .lqsel-btn:hover,
+body.theme-dark .stm-ansicht.stm-edit .lqsel-btn:focus {
+    color: #f3f0ea !important;
+    background: rgba(6, 16, 32, 0.62) !important;
+    border-color: rgba(145, 200, 255, 0.28) !important;
+}
 body.theme-dark .stm-ansicht.stm-edit .stm-gav { color: #f3f0ea !important; }
-body.theme-dark .stm-ansicht.stm-edit .stm-inline,
-body.theme-dark .stm-ansicht.stm-edit .lqsel-btn { border-bottom-color: rgba(255,255,255,0.28) !important; }
 .la-ghost { display: flex; flex-direction: column; gap: 14px; }
 .la-zone-fg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .la-zone-fg .la-ghost-row {
@@ -11274,7 +11282,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261028a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-uid.js?v=20261026a"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261029g"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261029h"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261029a"></script>

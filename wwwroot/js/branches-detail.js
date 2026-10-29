@@ -243,8 +243,8 @@ function stmLeer(v) {
 function stmFeld(label, inhalt) {
     return `<div class="ov-pf"><div class="ov-pfl">${label}</div><div class="ov-pfv">${inhalt}</div></div>`;
 }
-function stmInline(id, ch, extra) {
-    return `<input id="${id}" class="stm-inline" style="width:${ch}ch" autocomplete="off"${extra ? ' ' + extra : ''}>`;
+function stmInline(id, breite, extra) {
+    return `<input id="${id}" class="stm-inline ov-softin stm-w-${breite}" autocomplete="off"${extra ? ' ' + extra : ''}>`;
 }
 function stmWertSlot(ansicht, label) {
     for (const pf of ansicht.querySelectorAll('.ov-pf')) {
@@ -267,35 +267,35 @@ function stmAnsichtZuEdit(ansicht, b) {
     }
     const hs = ansicht.querySelector('[id^="stmHauptsitzAnzeige-"]');
     if (hs) {
-        hs.innerHTML = '<select id="stmHauptsitz" class="stm-inline" title="Rechtseinheit für die Swissdec-Jahresmeldung"><option value="">nicht zugeordnet</option></select>';
+        hs.innerHTML = '<select id="stmHauptsitz" class="stm-inline ov-softin" title="Rechtseinheit für die Swissdec-Jahresmeldung"><option value="">nicht zugeordnet</option></select>';
     }
     const texte = [
-        ['Firma', 'stmCompanyName', 22],
-        ['Strasse', 'stmStreet', 16],
-        ['Nr.', 'stmHouseNumber', 4],
-        ['Postfach', 'stmPostfach', 10],
-        ['Ort', 'stmCity', 14],
-        ['Lokalität', 'stmLokalitaet', 14],
-        ['Telefon', 'stmPhone', 14],
-        ['E-Mail', 'stmEmail', 22],
-        ['Filiale', 'stmBranchName', 14],
-        ['Code', 'stmRestaurantCode', 4],
-        ['BUR-Nummer', 'stmBurNummer', 12],
-        ['UID-Nummer', 'stmUidNummer', 16],
-        ['Branchen-Code', 'stmBranchenCode', 6],
-        ['BFS-Nr.', 'stmBfsGemeindeNr', 5],
+        ['Firma', 'stmCompanyName', 'firma'],
+        ['Strasse', 'stmStreet', 'str'],
+        ['Nr.', 'stmHouseNumber', 'nr'],
+        ['Postfach', 'stmPostfach', 'pf'],
+        ['Ort', 'stmCity', 'ort'],
+        ['Lokalität', 'stmLokalitaet', 'lok'],
+        ['Telefon', 'stmPhone', 'tel'],
+        ['E-Mail', 'stmEmail', 'mail'],
+        ['Filiale', 'stmBranchName', 'fil'],
+        ['Code', 'stmRestaurantCode', 'code'],
+        ['BUR-Nummer', 'stmBurNummer', 'bur'],
+        ['UID-Nummer', 'stmUidNummer', 'uid'],
+        ['Branchen-Code', 'stmBranchenCode', 'noga'],
+        ['BFS-Nr.', 'stmBfsGemeindeNr', 'bfs'],
     ];
-    texte.forEach(([label, id, ch]) => stmSlotSetzen(ansicht, label, stmInline(id, ch)));
-    stmSlotSetzen(ansicht, 'PLZ', stmInline('stmZipCode', 5, 'inputmode="numeric" maxlength="10" onblur="stmPlzLookup(this.value)" onkeyup="if(this.value.length>=4)stmPlzLookup(this.value)"'));
+    texte.forEach(([label, id, breite]) => stmSlotSetzen(ansicht, label, stmInline(id, breite)));
+    stmSlotSetzen(ansicht, 'PLZ', stmInline('stmZipCode', 'plz', 'inputmode="numeric" maxlength="10" onblur="stmPlzLookup(this.value)" onkeyup="if(this.value.length>=4)stmPlzLookup(this.value)"'));
     const plzZeile = stmWertSlot(ansicht, 'PLZ')?.closest('.stm-zeile');
     if (plzZeile && !ansicht.querySelector('#stmPlzHint'))
         plzZeile.insertAdjacentHTML('afterend', '<div id="stmPlzHint" class="stm-hinweis"></div>');
     const ktOpts = ['<option value="">–</option>']
         .concat(Object.keys(STM_KANTON).map(k => `<option value="${k}">${k} – ${STM_KANTON[k]}</option>`));
-    stmSlotSetzen(ansicht, 'Kanton', `<select id="stmKantonCode" class="stm-inline">${ktOpts.join('')}</select>`);
-    stmSlotSetzen(ansicht, 'Land', '<select id="stmCountry" class="stm-inline"></select>');
-    stmSlotSetzen(ansicht, 'Nummernkreis', stmInline('stmPnPraefix', 6, 'maxlength="6" inputmode="numeric" oninput="stmPnVorschau()"'));
-    stmSlotSetzen(ansicht, 'Stellen', stmInline('stmPnStellen', 3, 'maxlength="2" inputmode="numeric" oninput="stmPnVorschau()"'));
+    stmSlotSetzen(ansicht, 'Kanton', `<select id="stmKantonCode" class="stm-inline ov-softin">${ktOpts.join('')}</select>`);
+    stmSlotSetzen(ansicht, 'Land', '<select id="stmCountry" class="stm-inline ov-softin"></select>');
+    stmSlotSetzen(ansicht, 'Nummernkreis', stmInline('stmPnPraefix', 'kreis', 'maxlength="6" inputmode="numeric" oninput="stmPnVorschau()"'));
+    stmSlotSetzen(ansicht, 'Stellen', stmInline('stmPnStellen', 'st', 'maxlength="2" inputmode="numeric" oninput="stmPnVorschau()"'));
     const kreisZeile = stmWertSlot(ansicht, 'Nummernkreis')?.closest('.stm-zeile');
     let kreisHinweis = ansicht.querySelector('.stm-kreis-hinweis');
     if (!kreisHinweis && kreisZeile) {
@@ -305,12 +305,12 @@ function stmAnsichtZuEdit(ansicht, b) {
     }
     stmSlotSetzen(ansicht, 'GAV',
         '<label class="stm-gav"><input type="checkbox" id="stmIstGav" onchange="stmToggleGavName()"><span id="stmGavTxt">Nein</span></label>'
-        + '<div id="stmGavNameRow" style="display:none">' + stmInline('stmGavName', 18) + '</div>');
+        + '<div id="stmGavNameRow" style="display:none">' + stmInline('stmGavName', 'gav') + '</div>');
     stmSlotSetzen(ansicht, 'Probezeit',
-        '<select id="stmProbationMonths" class="stm-inline"><option value="">–</option><option value="14">14 Tage</option><option value="1">1 Monat</option><option value="2">2 Monate</option><option value="3">3 Monate</option></select>');
+        '<select id="stmProbationMonths" class="stm-inline ov-softin"><option value="">–</option><option value="14">14 Tage</option><option value="1">1 Monat</option><option value="2">2 Monate</option><option value="3">3 Monate</option></select>');
     const ihHint = (b.inHouseId || '').trim() ? '' : '<div class="stm-hinweis">nur wenn keine BUR</div>';
-    stmSlotSetzen(ansicht, 'InHouseID', stmInline('stmInHouseId', 10) + ihHint);
-    stmSlotSetzen(ansicht, 'Arbeitsort', stmInline('stmWorkLocation', 16) + '<div id="stmArbeitHinweis" class="stm-hinweis"></div>');
+    stmSlotSetzen(ansicht, 'InHouseID', stmInline('stmInHouseId', 'ih') + ihHint);
+    stmSlotSetzen(ansicht, 'Arbeitsort', stmInline('stmWorkLocation', 'arbeit') + '<div id="stmArbeitHinweis" class="stm-hinweis"></div>');
 }
 
 function stmModalIdsParken() {
