@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 120;  // 120: Lohnausweis gültig ab/bis · 119: Kontakt + Rektifikat
+const int SchemaStand = 123;  // 123: Lohnausweis-Fassung auch nach QST-Stand 122 · 122: QST · 121: Statistik · 120: Lohnausweis gültig ab
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3109,7 +3109,7 @@ using (var scope = app.Services.CreateScope())
         startLog.LogInformation("Stand 119: Lohnausweis Kontakt und Rektifikat");
     }
 
-    // Stand 122: Angaben gelten ab einem Jahr, bis bleibt offen. Eine spätere
+    // Stand 120: Angaben gelten ab einem Jahr, bis bleibt offen. Eine spätere
     // Fassung schliesst die bisherige per Ende des Vorjahres.
     if (dbStand < 120)
     {
@@ -3185,6 +3185,211 @@ using (var scope = app.Services.CreateScope())
         ");
         startLog.LogInformation("Stand 120: Lohnausweis-Angaben mit Gültig-ab");
     }
+
+    // Stand 121: Ausbildung und berufliche Stellung als Katalog (Swissdec 12.3).
+    // Bezeichnung und XML-Wert sind danach in der Maske änderbar; dieser Seed
+    // läuft nur beim Wechsel und überschreibt keine spätere Pflege.
+    if (dbStand < 121)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS statistik_ausbildung (
+                id              serial PRIMARY KEY,
+                code            varchar(40) NOT NULL UNIQUE,
+                bezeichnung     varchar(200) NOT NULL,
+                beschreibung    text,
+                sortierung      integer NOT NULL DEFAULT 0,
+                lse_ausbildung  integer,
+                lse_titel       integer,
+                aktiv           boolean NOT NULL DEFAULT true
+            );
+            CREATE TABLE IF NOT EXISTS statistik_stellung (
+                id            serial PRIMARY KEY,
+                code          varchar(40) NOT NULL UNIQUE,
+                bezeichnung   varchar(200) NOT NULL,
+                beschreibung  text,
+                sortierung    integer NOT NULL DEFAULT 0,
+                lse_code      integer,
+                aktiv         boolean NOT NULL DEFAULT true
+            );
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS statistik_ausbildung_id integer REFERENCES statistik_ausbildung(id) ON DELETE SET NULL;
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS statistik_stellung_id integer REFERENCES statistik_stellung(id) ON DELETE SET NULL;
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS verliehenes_personal boolean NOT NULL DEFAULT false;
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS stammpersonal_oeffentlich boolean NOT NULL DEFAULT false;
+            ALTER TABLE employee_lse ADD COLUMN IF NOT EXISTS flex_profiling varchar(255);
+
+            INSERT INTO statistik_ausbildung (code, bezeichnung, beschreibung, sortierung, lse_ausbildung, lse_titel)
+            SELECT v.code, v.bezeichnung, v.beschreibung, v.sortierung, v.lse_ausbildung, v.lse_titel
+            FROM (VALUES
+                ('doctorate', 'Doktorat, Habilitation', 'Doktorat oder Habilitation an einer universitären Hochschule oder Fachhochschule.', 10, 1, 1),
+                ('universityMaster', 'Uni, ETH, Master', 'Universitäre Hochschule (Uni, ETH), Master.', 20, 1, 2),
+                ('universityBachelor', 'Uni, ETH, Bachelor', 'Universitäre Hochschule (Uni, ETH), Bachelor.', 30, 1, 3),
+                ('higherEducationMaster', 'Fachhochschule (FH), Pädagogische (PH), Master', 'Fachhochschule oder Pädagogische Hochschule, Master.', 40, 2, 2),
+                ('higherEducationBachelor', 'Fachhochschule (FH), Pädagogische (PH), Bachelor', 'Fachhochschule oder Pädagogische Hochschule, Bachelor.', 50, 2, 3),
+                ('higherVocEducation', 'Höhere Berufsausbildung, höhere Fachschule', 'Höhere Berufsbildung, höhere Fachschule, ohne Master oder Bachelor.', 60, 3, NULL::integer),
+                ('higherVocEducationMaster', 'Höhere Berufsbildung Master', 'Höhere Berufsbildung mit Master.', 70, 3, 2),
+                ('higherVocEducationBachelor', 'Höhere Berufsbildung Bachelor', 'Höhere Berufsbildung mit Bachelor.', 80, 3, 3),
+                ('teacherCertificate', 'Lehrpatent', 'Lehrpatent.', 90, 4, NULL::integer),
+                ('universityEntranceCertificate', 'Matura', 'Matura oder gleichwertiger Abschluss.', 100, 5, NULL::integer),
+                ('vocEducationCompl', 'Abgeschlossene Berufsausbildung', 'Abgeschlossene Berufsausbildung mit eidgenössischem Fähigkeitszeugnis.', 110, 6, NULL::integer),
+                ('enterpriseEducation', 'Ausschliesslich unternehmensintern', 'Nur eine unternehmensinterne Ausbildung, keine anerkannte Berufslehre.', 120, 7, NULL::integer),
+                ('mandatorySchoolOnly', 'Obligatorische Schule, ohne abgeschlossene Berufsausbildung', 'Obligatorische Schule, ohne abgeschlossene Berufsausbildung.', 130, 8, NULL::integer)
+            ) AS v(code, bezeichnung, beschreibung, sortierung, lse_ausbildung, lse_titel)
+            WHERE NOT EXISTS (SELECT 1 FROM statistik_ausbildung a WHERE a.code = v.code);
+
+            INSERT INTO statistik_stellung (code, bezeichnung, beschreibung, sortierung, lse_code)
+            SELECT v.code, v.bezeichnung, v.beschreibung, v.sortierung, v.lse_code
+            FROM (VALUES
+                ('highestCadre', 'Oberes Kader', 'Oberes Kader.', 10, 1),
+                ('middleCadre', 'Mittleres Kader', 'Mittleres Kader.', 20, 2),
+                ('lowerCadre', 'Unteres Kader', 'Unteres Kader.', 30, 3),
+                ('lowestCadre', 'Unterstes Kader', 'Verantwortlich für die Ausführung der Arbeiten.', 40, 4),
+                ('noCadre', 'Ohne Kaderfunktion', 'Ohne Kaderfunktion.', 50, 5)
+            ) AS v(code, bezeichnung, beschreibung, sortierung, lse_code)
+            WHERE NOT EXISTS (SELECT 1 FROM statistik_stellung s WHERE s.code = v.code);
+
+            UPDATE employee_lse AS l
+               SET statistik_ausbildung_id = a.id
+              FROM statistik_ausbildung a
+             WHERE l.statistik_ausbildung_id IS NULL
+               AND a.code = CASE
+                    WHEN l.education IN (1, 2) AND l.university_degree = 1 THEN 'doctorate'
+                    WHEN l.education = 1 AND l.university_degree = 3 THEN 'universityBachelor'
+                    WHEN l.education = 2 AND l.university_degree = 2 THEN 'higherEducationMaster'
+                    WHEN l.education = 3 AND l.university_degree = 2 THEN 'higherVocEducationMaster'
+                    WHEN l.education = 3 AND l.university_degree = 3 THEN 'higherVocEducationBachelor'
+                    WHEN l.education = 1 THEN 'universityMaster'
+                    WHEN l.education = 2 THEN 'higherEducationBachelor'
+                    WHEN l.education = 3 THEN 'higherVocEducation'
+                    WHEN l.education = 4 THEN 'teacherCertificate'
+                    WHEN l.education = 5 THEN 'universityEntranceCertificate'
+                    WHEN l.education = 6 THEN 'vocEducationCompl'
+                    WHEN l.education = 7 THEN 'enterpriseEducation'
+                    WHEN l.education = 8 THEN 'mandatorySchoolOnly'
+                    ELSE NULL
+               END;
+
+            UPDATE employee_lse AS l
+               SET statistik_stellung_id = s.id
+              FROM statistik_stellung s
+             WHERE l.statistik_stellung_id IS NULL
+               AND l.position_override = s.lse_code;
+        ");
+        startLog.LogInformation("Stand 121: Statistik-Katalog Ausbildung und Stellung");
+    }
+
+    // Stand 122: QST-Maske Swissdec 10.6.4 / 10.5 / 10.3.2.
+    // weitere_angaben_art leer = bisherige Reihenfolge Pensum, dann Einkommen, dann 100 %.
+    // Median 5'875 = ESTV Berechnungsgrundlagen 2026 (Art. 85 Abs. 3 / Art. 9 Abs. 1 DBG),
+    // von GR und TG als Untergrenze bestätigt, wenn der Beschäftigungsgrad fehlt.
+    // Kein UPDATE bestehender QST-Zeilen — die bleiben auf der alten Rechnung.
+    if (dbStand < 122)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS weitere_angaben_art varchar(12);
+            ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS kategorie_art varchar(12);
+            ALTER TABLE employee_quellensteuer ALTER COLUMN qst_code TYPE varchar(40);
+
+            CREATE TABLE IF NOT EXISTS qst_medianlohn (
+                id serial PRIMARY KEY,
+                kanton varchar(2) NOT NULL,
+                betrag numeric(10,2) NOT NULL,
+                valid_from date NOT NULL,
+                valid_to date,
+                UNIQUE (kanton, valid_from)
+            );
+
+            INSERT INTO qst_medianlohn (kanton, betrag, valid_from)
+            SELECT v.kanton, 5875.00, DATE '2026-01-01'
+              FROM (VALUES
+                ('AG'),('AI'),('AR'),('BE'),('BL'),('BS'),('FR'),('GE'),('GL'),('GR'),
+                ('JU'),('LU'),('NE'),('NW'),('OW'),('SG'),('SH'),('SO'),('SZ'),('TG'),
+                ('TI'),('UR'),('VD'),('VS'),('ZG'),('ZH')
+              ) AS v(kanton)
+             WHERE NOT EXISTS (
+                SELECT 1 FROM qst_medianlohn m
+                 WHERE m.kanton = v.kanton AND m.valid_from = DATE '2026-01-01'
+             );
+        ");
+        startLog.LogInformation("Stand 122: QST weitere Angaben, Kategorie, Medianlohn 5875");
+    }
+
+    // Stand 123: dieselbe Fassung noch einmal, falls die Datenbank über den
+    // anderen Branch schon auf 122 steht und Stand 120 deshalb überspringt.
+    if (dbStand < 123)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS id integer;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS gueltig_ab integer;
+            ALTER TABLE employee_lohnausweis ADD COLUMN IF NOT EXISTS gueltig_bis integer;
+            CREATE SEQUENCE IF NOT EXISTS employee_lohnausweis_id_seq;
+            UPDATE employee_lohnausweis SET id = nextval('employee_lohnausweis_id_seq') WHERE id IS NULL;
+            UPDATE employee_lohnausweis SET gueltig_ab = 2000 WHERE gueltig_ab IS NULL;
+            ALTER TABLE employee_lohnausweis ALTER COLUMN id SET NOT NULL;
+            ALTER TABLE employee_lohnausweis ALTER COLUMN id SET DEFAULT nextval('employee_lohnausweis_id_seq');
+            ALTER TABLE employee_lohnausweis ALTER COLUMN gueltig_ab SET NOT NULL;
+            ALTER TABLE employee_lohnausweis ALTER COLUMN gueltig_ab SET DEFAULT 2000;
+            ALTER SEQUENCE employee_lohnausweis_id_seq OWNED BY employee_lohnausweis.id;
+            ALTER TABLE employee_lohnausweis DROP CONSTRAINT IF EXISTS employee_lohnausweis_pkey;
+            ALTER TABLE employee_lohnausweis ADD PRIMARY KEY (id);
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_employee_lohnausweis_ab
+                ON employee_lohnausweis (employee_id, gueltig_ab);
+
+            CREATE TABLE IF NOT EXISTS company_lohnausweis (
+                id serial PRIMARY KEY,
+                company_profile_id integer NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
+                gueltig_ab integer NOT NULL,
+                gueltig_bis integer NULL,
+                box_f boolean NOT NULL DEFAULT false,
+                box_g boolean NOT NULL DEFAULT false,
+                pos21 numeric(10,2) NULL,
+                ziffer14 text NULL,
+                expat_datum date NULL,
+                expat_kanton varchar(2) NULL,
+                wagen_abklaeren boolean NOT NULL DEFAULT false,
+                wagen_minimal boolean NOT NULL DEFAULT false,
+                spesen_datum date NULL,
+                spesen_kanton varchar(2) NULL,
+                rz52 boolean NOT NULL DEFAULT false,
+                wert_datum date NULL,
+                wert_kanton varchar(2) NULL,
+                bet_gesperrt boolean NOT NULL DEFAULT false,
+                bet_nicht_kotiert boolean NOT NULL DEFAULT false,
+                bet_anwartschaft boolean NOT NULL DEFAULT false,
+                bet_unecht boolean NOT NULL DEFAULT false,
+                kontakt_org varchar(200) NULL,
+                kontakt_strasse varchar(120) NULL,
+                kontakt_plz varchar(10) NULL,
+                kontakt_ort varchar(80) NULL,
+                kontakt_person varchar(120) NULL,
+                kontakt_telefon varchar(40) NULL,
+                geaendert_am timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_company_lohnausweis_ab
+                ON company_lohnausweis (company_profile_id, gueltig_ab);
+            INSERT INTO company_lohnausweis (
+                company_profile_id, gueltig_ab, box_f, box_g, pos21, ziffer14,
+                expat_datum, expat_kanton, wagen_abklaeren, wagen_minimal,
+                spesen_datum, spesen_kanton, rz52, wert_datum, wert_kanton,
+                bet_gesperrt, bet_nicht_kotiert, bet_anwartschaft, bet_unecht,
+                kontakt_org, kontakt_strasse, kontakt_plz, kontakt_ort, kontakt_person, kontakt_telefon)
+            SELECT cp.id, 2000,
+                cp.lohnausweis_box_f_freier_transport, cp.lohnausweis_box_g_kantine_gratis,
+                cp.lohnausweis_pos_2_1_verpflegung_monat, cp.lohnausweis_ziffer14,
+                cp.lohnausweis_expat_datum, cp.lohnausweis_expat_kanton,
+                cp.lohnausweis_wagen_abklaeren, cp.lohnausweis_wagen_minimal,
+                cp.lohnausweis_spesen_datum, cp.lohnausweis_spesen_kanton, cp.lohnausweis_rz52,
+                cp.lohnausweis_wert_datum, cp.lohnausweis_wert_kanton,
+                cp.lohnausweis_bet_gesperrt, cp.lohnausweis_bet_nicht_kotiert,
+                cp.lohnausweis_bet_anwartschaft, cp.lohnausweis_bet_unecht,
+                cp.lohnausweis_kontakt_org, cp.lohnausweis_kontakt_strasse, cp.lohnausweis_kontakt_plz,
+                cp.lohnausweis_kontakt_ort, cp.lohnausweis_kontakt_person, cp.lohnausweis_kontakt_telefon
+            FROM company_profile cp
+            WHERE NOT EXISTS (
+                SELECT 1 FROM company_lohnausweis v WHERE v.company_profile_id = cp.id);
+        ");
+        startLog.LogInformation("Stand 123: Lohnausweis-Fassung, auch wenn der Stand schon über 120 lag");
+    }
+
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
     HrSystem.Services.SchemaCheckService.Pruefe(

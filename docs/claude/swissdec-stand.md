@@ -297,12 +297,17 @@ stillschweigend weglassen wäre der schlimmere Fehler.
    gilt ein Standardmodell aus der Filiale, Schaub verhält sich also wie bisher; ein Modell ohne
    Stunden UND ohne Lektionen sperrt die Meldung mit Klartext. Verwaltung: System → Hauptsitze,
    Zuordnung am MA unter «BFS / Statistik». Import: 3a (Modelle), 4a (Zuordnung), 4c (Wechsel).
-2. **Statistik-Stammdaten.** Ausbildung und Stellung werden **nicht neu erfasst**, sondern aus den
-   LSE-Feldern übersetzt (`employee_lse.education` 1–8, `position_override` bzw.
-   `lse_code_mapping` STELLUNG 1–5) — zentrales Mapping in `Services/Elm/ElmStatistikCodes.cs`,
-   gemeinsam für LSE und ELM. Neu ist nur `employee_lse.leave_entitlement_days` als Handeingabe;
-   ohne sie gilt die Regel: Stunden-/Lektionenlohn mit Ferienprozent → 0, sonst Ferienwochen × 5.
-   Fehlende Werte melden den vorsichtigsten Wert **und sagen es** im Cockpit.
+2. **Statistik-Stammdaten.** Ausbildung (13 Zeilen) und berufliche Stellung (5 Zeilen) sind
+   Kataloge `statistik_ausbildung` / `statistik_stellung` (Schema-Stand 121). Die Maske am
+   Mitarbeiter, Übersicht, Block «Statistik (BFS)», wählt die Zeile; Bezeichnung und XML-Wert
+   pflegt der Admin unter System → Verzeichnisse. Die Meldung nimmt den XML-Wert der Zeile.
+   Die alten LSE-Zahlen schreibt der Server aus der Zeile mit. Fehlt die Wahl, gilt die
+   Zahlen-Übersetzung in `ElmStatistikCodes` (Rückfall). Verliehenes Personal, Stammpersonal
+   öffentliche Verwaltung und FlexProfiling sind Felder auf `employee_lse` und gehen nur
+   gesetzt in die Meldung. Ferientage: Stundenlohn mit Ferienprozent → 0 (Speichern einer
+   Zahl darüber wird abgewiesen), sonst Wochen × 5, ab `VacationSixWeeksFromAge` sechs Wochen.
+   Eine eigene Zahl sticht die Regel. Fehlende Ausbildung oder Stellung meldet den
+   vorsichtigsten Wert **und sagt es** im Cockpit.
 
 Keine Werte aus der Referenz abgeschrieben oder hart codiert.
 

@@ -28,8 +28,27 @@ public static class ElmStatistikCodes
         (1 or 2, 1) => "doctorate",
         (1, 3) => "universityBachelor",
         (2, 2) => "higherEducationMaster",
+        (3, 2) => "higherVocEducationMaster",
+        (3, 3) => "higherVocEducationBachelor",
         _ => AusbildungOhneTitel(bfsCode),
     };
+
+    /// <summary>
+    /// Wert für das XML. Eine Katalogzeile sticht die alte Zahlen-Übersetzung,
+    /// damit eine angepasste Tabelle ohne Code-Änderung in die Meldung kommt.
+    /// </summary>
+    public static string AusbildungFuerMeldung(string? katalogCode, int? bfsCode, int? hochschultitel)
+    {
+        if (!string.IsNullOrWhiteSpace(katalogCode)) return katalogCode.Trim();
+        return Ausbildung(bfsCode, hochschultitel);
+    }
+
+    /// <summary>Wie <see cref="AusbildungFuerMeldung"/> für die berufliche Stellung.</summary>
+    public static string StellungFuerMeldung(string? katalogCode, int? bfsCode)
+    {
+        if (!string.IsNullOrWhiteSpace(katalogCode)) return katalogCode.Trim();
+        return Stellung(bfsCode);
+    }
 
     private static string AusbildungOhneTitel(int? bfsCode) => bfsCode switch
     {
@@ -70,7 +89,7 @@ public static class ElmStatistikCodes
     {
         "universityMaster" or "doctorate" or "universityBachelor" => 1,
         "higherEducationBachelor" or "higherEducationMaster" => 2,
-        "higherVocEducation" => 3,
+        "higherVocEducation" or "higherVocEducationMaster" or "higherVocEducationBachelor" => 3,
         "teacherCertificate" => 4,
         "universityEntranceCertificate" => 5,
         "vocEducationCompl" => 6,
@@ -83,8 +102,8 @@ public static class ElmStatistikCodes
     public static int? BfsHochschultitel(string? swissdec) => (swissdec ?? "").Trim() switch
     {
         "doctorate" => 1,
-        "universityMaster" or "higherEducationMaster" => 2,
-        "universityBachelor" or "higherEducationBachelor" => 3,
+        "universityMaster" or "higherEducationMaster" or "higherVocEducationMaster" => 2,
+        "universityBachelor" or "higherEducationBachelor" or "higherVocEducationBachelor" => 3,
         _ => null,
     };
 
@@ -218,4 +237,59 @@ public static class ElmStatistikCodes
         if (handeingabe is >= 0m) return handeingabe.Value;
         return ferienwochen * 5m;
     }
+
+    /// <summary>
+    /// Ferienwochen für einen vollen Kalenderjahr bei 100 %. Die Filiale gibt
+    /// die Basis (5 oder schon 6). Liegt der Geburtstag der Schwelle am Stichtag
+    /// oder davor, sind es sechs Wochen — dieselbe Schwelle wie der Ferienprozentsatz
+    /// im Lohn (<c>VacationSixWeeksFromAge</c>).
+    /// </summary>
+    public static int Ferienwochen(DateTime? geburt, DateOnly stichtag, int schwelleAlter, int? filialWochen)
+    {
+        var basis = filialWochen is >= 6 ? 6 : 5;
+        if (basis >= 6 || geburt is null) return basis;
+        var jahre = schwelleAlter > 0 ? schwelleAlter : 50;
+        var dob = DateOnly.FromDateTime(geburt.Value);
+        return dob.AddYears(jahre) <= stichtag ? 6 : basis;
+    }
+
+    /// <summary>
+    /// Was die Maske als Regel zeigt. Stundenlohn mit Ferienprozent: 0 Tage,
+    /// eine Eingabe darüber wird abgewiesen. Monatslohn: Wochen × 5.
+    /// Verwaltungsrat: 0, eine eigene Zahl bleibt erlaubt.
+    /// </summary>
+    public static FerienRegel FerienRegelFuer(
+        string? modell, string? vertragsart, DateTime? geburt, DateOnly stichtag,
+        int schwelleAlter, int? filialWochen, decimal ferienProzent)
+    {
+        var art = (vertragsart ?? "").Trim();
+        if (art == "administrativeBoard")
+            return new FerienRegel(0m,
+                "Verwaltungsrat: kein Ferienanspruch. Ohne eigene Zahl wird 0 gemeldet.",
+                false);
+
+        var m = (modell ?? "").ToUpperInvariant();
+        var monatslohn = m is "FIX" or "FIX-M" or "MTP";
+        if (!monatslohn && ferienProzent > 0m)
+        {
+            var prozent = ferienProzent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
+                .Replace('.', ',');
+            return new FerienRegel(0m,
+                $"Stundenlohn mit Ferienentschädigung {prozent} %. Der Anspruch in Tagen ist 0. "
+                + "Eine Zahl grösser als 0 widerspricht der Meldung an das BFS.",
+                true);
+        }
+
+        var wochen = Ferienwochen(geburt, stichtag, schwelleAlter, filialWochen);
+        var tage = wochen * 5m;
+        var herkunft = wochen == 6 && filialWochen is not >= 6
+            ? $"{wochen} Wochen ab Alter {schwelleAlter}"
+            : $"{wochen} Wochen";
+        return new FerienRegel(tage,
+            $"Vertraglicher Anspruch bei 100 % und vollem Kalenderjahr: {herkunft} = {tage:0} Tage. "
+            + "Bezogene Tage, Pensum, unbezahlter Urlaub und Feiertage zählen nicht.",
+            false);
+    }
+
+    public readonly record struct FerienRegel(decimal Tage, string Text, bool HandAbweisen);
 }

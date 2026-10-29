@@ -67,6 +67,7 @@ public class AppDbContext : DbContext
     public DbSet<KrankheitKarenzSaldo> KrankheitKarenzSaldos => Set<KrankheitKarenzSaldo>();
     public DbSet<EmployeeLohnDurchschnitt> EmployeeLohnDurchschnitte => Set<EmployeeLohnDurchschnitt>();
     public DbSet<EmployeeQuellensteuer> EmployeeQuellensteuer => Set<EmployeeQuellensteuer>();
+    public DbSet<QstMedianlohn> QstMedianloehne => Set<QstMedianlohn>();
     public DbSet<LohnZulagTyp> LohnZulagTypen => Set<LohnZulagTyp>();
     public DbSet<LohnZulage> LohnZulagen => Set<LohnZulage>();
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
@@ -127,6 +128,8 @@ public class AppDbContext : DbContext
     // BFS Lohnstrukturerhebung (Walter 13.08.2026)
     public DbSet<LseVersion>                LseVersions                 => Set<LseVersion>();
     public DbSet<EmployeeLse>               EmployeeLse                 => Set<EmployeeLse>();
+    public DbSet<StatistikAusbildung>       StatistikAusbildungen       => Set<StatistikAusbildung>();
+    public DbSet<StatistikStellung>         StatistikStellungen         => Set<StatistikStellung>();
     public DbSet<LseLohnartMapping>         LseLohnartMappings          => Set<LseLohnartMapping>();
     public DbSet<LseCodeMapping>            LseCodeMappings             => Set<LseCodeMapping>();
     public DbSet<ManagerDienstplanEntry>    ManagerDienstplanEntries    => Set<ManagerDienstplanEntry>();
@@ -2233,6 +2236,15 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PracticedProfession).HasColumnName("practiced_profession");
             entity.Property(e => e.InHouseId).HasColumnName("in_house_id");
             entity.Property(e => e.LeaveEntitlementDays).HasColumnName("leave_entitlement_days").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.StatistikAusbildungId).HasColumnName("statistik_ausbildung_id");
+            entity.Property(e => e.StatistikStellungId).HasColumnName("statistik_stellung_id");
+            entity.Property(e => e.VerliehenesPersonal).HasColumnName("verliehenes_personal").HasDefaultValue(false);
+            entity.Property(e => e.StammpersonalOeffentlich).HasColumnName("stammpersonal_oeffentlich").HasDefaultValue(false);
+            entity.Property(e => e.FlexProfiling).HasColumnName("flex_profiling").HasMaxLength(255);
+            entity.HasOne<StatistikAusbildung>().WithMany().HasForeignKey(e => e.StatistikAusbildungId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<StatistikStellung>().WithMany().HasForeignKey(e => e.StatistikStellungId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
@@ -2241,6 +2253,33 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.EmployeeId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<StatistikAusbildung>(entity =>
+        {
+            entity.ToTable("statistik_ausbildung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(40);
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(200);
+            entity.Property(e => e.Beschreibung).HasColumnName("beschreibung");
+            entity.Property(e => e.Sortierung).HasColumnName("sortierung");
+            entity.Property(e => e.LseAusbildung).HasColumnName("lse_ausbildung");
+            entity.Property(e => e.LseTitel).HasColumnName("lse_titel");
+            entity.Property(e => e.Aktiv).HasColumnName("aktiv").HasDefaultValue(true);
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+        modelBuilder.Entity<StatistikStellung>(entity =>
+        {
+            entity.ToTable("statistik_stellung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(40);
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(200);
+            entity.Property(e => e.Beschreibung).HasColumnName("beschreibung");
+            entity.Property(e => e.Sortierung).HasColumnName("sortierung");
+            entity.Property(e => e.LseCode).HasColumnName("lse_code");
+            entity.Property(e => e.Aktiv).HasColumnName("aktiv").HasDefaultValue(true);
+            entity.HasIndex(e => e.Code).IsUnique();
         });
         modelBuilder.Entity<LseLohnartMapping>(entity =>
         {
@@ -3379,7 +3418,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TarifBezeichnung).HasColumnName("tarif_bezeichnung").HasMaxLength(200);
             entity.Property(e => e.AnzahlKinder).HasColumnName("anzahl_kinder").HasDefaultValue(0);
             entity.Property(e => e.Kirchensteuer).HasColumnName("kirchensteuer").HasDefaultValue(false);
-            entity.Property(e => e.QstCode).HasColumnName("qst_code").HasMaxLength(10);
+            entity.Property(e => e.QstCode).HasColumnName("qst_code").HasMaxLength(40);
+            entity.Property(e => e.KategorieArt).HasColumnName("kategorie_art").HasMaxLength(12);
             entity.Property(e => e.SpezielBewilligt).HasColumnName("speziell_bewilligt").HasDefaultValue(false);
             entity.Property(e => e.Kategorie).HasColumnName("kategorie").HasMaxLength(100);
             entity.Property(e => e.Prozentsatz).HasColumnName("prozentsatz").HasColumnType("numeric(5,2)");
@@ -3389,9 +3429,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PartnerEinkommenBis).HasColumnName("partner_einkommen_bis").HasColumnType("date");
             entity.Property(e => e.ArbeitsortKanton).HasColumnName("arbeitsort_kanton").HasMaxLength(10);
             entity.Property(e => e.WeitereBeschaftigungen).HasColumnName("weitere_beschaeftigungen").HasDefaultValue(false);
+            entity.Property(e => e.WeitereAngabenArt).HasColumnName("weitere_angaben_art").HasMaxLength(12);
             entity.Property(e => e.GesamtpensumWeitereAg).HasColumnName("gesamtpensum_weitere_ag").HasColumnType("numeric(5,2)");
-            // Anderer Arbeitgeber des MA (Walter 25.08.2026) — volle Adresse
-            // fürs kantonale Anmeldeformular; Einkommen wird nicht mehr erfasst.
+            // Anderer Arbeitgeber des MA — volle Adresse fürs kantonale
+            // Anmeldeformular. Das Einkommen steht hinter der Angabe «bekannt».
             entity.Property(e => e.WeitereAgName).HasColumnName("weitere_ag_name").HasMaxLength(150);
             entity.Property(e => e.WeitereAgStrasse).HasColumnName("weitere_ag_strasse").HasMaxLength(150);
             entity.Property(e => e.WeitereAgPlz).HasColumnName("weitere_ag_plz").HasMaxLength(10);
@@ -3422,6 +3463,18 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom }).HasDatabaseName("IX_emp_qst_emp_valid");
+        });
+
+        modelBuilder.Entity<QstMedianlohn>(entity =>
+        {
+            entity.ToTable("qst_medianlohn");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Kanton).HasColumnName("kanton").HasMaxLength(2);
+            entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.HasIndex(e => new { e.Kanton, e.ValidFrom }).IsUnique();
         });
 
         // ── SocialInsuranceRate ────────────────────────────────────────────

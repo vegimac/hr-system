@@ -49,8 +49,14 @@ public class EmployeeQuellensteuer
 
     public bool Kirchensteuer { get; set; } = false;
 
-    /// <summary>Offizieller QST-Code, z.B. "A0Y", "B1N"</summary>
+    /// <summary>Offizieller QST-Code, z.B. A0Y, oder offene Kategorie (Buchstaben und Ziffern).</summary>
     public string? QstCode { get; set; }
+
+    /// <summary>
+    /// Leer = Resultat aus den Angaben (A/B/C/H …).
+    /// VORDEFINIERT = HEN/HEY/MEN/MEY/NON/NOY/SFN. OFFEN = freier Code.
+    /// </summary>
+    public string? KategorieArt { get; set; }
 
     public bool SpezielBewilligt { get; set; } = false;
 
@@ -76,7 +82,13 @@ public class EmployeeQuellensteuer
     // ── Zusätzliche Angaben ──────────────────────────────────────────────────
     public bool WeitereBeschaftigungen { get; set; } = false;
 
-    /// <summary>Gesamtpensum bei weiteren Arbeitgebern in %</summary>
+    /// <summary>
+    /// Leer = bisherige Rechnung (Pensum, sonst Einkommen, sonst auf 100 %).
+    /// EINKOMMEN, PENSUM oder UNBEKANNT = die drei sich ausschliessenden Angaben.
+    /// </summary>
+    public string? WeitereAngabenArt { get; set; }
+
+    /// <summary>Kumulierter Beschäftigungsgrad aller weiteren Arbeitgeber in %. Darf über 100 liegen.</summary>
     public decimal? GesamtpensumWeitereAg { get; set; }
 
     // ── Anderer Arbeitgeber des MA (Walter-Vorgabe 25.08.2026): das
@@ -90,7 +102,7 @@ public class EmployeeQuellensteuer
     public string? WeitereAgKanton  { get; set; }
     public string? WeitereAgLand    { get; set; }
 
-    /// <summary>Gesamteinkommen bei weiteren Arbeitgebern pro Monat in CHF</summary>
+    /// <summary>Gesamtbruttoeinkommen der weiteren Arbeitgeber oder Ersatzeinkünfte, pro Monat in CHF.</summary>
     public decimal? GesamteinkommenWeitereAg { get; set; }
 
     /// <summary>Halbfamilie-Status (Dropdown-Wert)</summary>

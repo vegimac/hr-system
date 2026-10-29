@@ -133,12 +133,20 @@ public class ElmMonatJanuar2025Tests
         => Assert.Equal("Unsteady", ElmGemeinsam.WorkingTime(new Employment { EmploymentModel = "FLEX" }, 42m).Name.LocalName);
 
     [Fact]
-    public void Arbeitszeit_regelmaessig_50_von_40_sind_20()
-    {
-        var wt = ElmGemeinsam.WorkingTime(new Employment
+    public void Arbeitszeit_Stundenlohn_mit_Pensum_bleibt_ohne_Stunden_Unsteady()
+        => Assert.Equal("Unsteady", ElmGemeinsam.WorkingTime(new Employment
         {
             EmploymentModel = "FLEX",
             Regelmaessig = true,
+            EmploymentPercentage = 50m,
+        }, 40m).Name.LocalName);
+
+    [Fact]
+    public void Arbeitszeit_Monatslohn_50_von_40_sind_20()
+    {
+        var wt = ElmGemeinsam.WorkingTime(new Employment
+        {
+            EmploymentModel = "FIX",
             EmploymentPercentage = 50m,
         }, 40m);
         Assert.Equal("Steady", wt.Name.LocalName);
@@ -264,4 +272,51 @@ public class ElmMonatJanuar2025Tests
     public void Ohne_weitere_Erwerbstaetigkeit_kein_Element()
         => Assert.Null(ElmMonthlyDeclarationBuilder.WeitereErwerbstaetigkeit(
             new EmployeeQuellensteuer(), new Employment { EmploymentModel = "FIX" }, new CompanyProfile(), Slip("{}")));
+
+    [Fact]
+    public void Median_ersetzt_den_eigenen_Beschaeftigungsgrad()
+    {
+        var q = new EmployeeQuellensteuer { WeitereBeschaftigungen = true, WeitereAngabenArt = "UNBEKANNT", GesamtpensumWeitereAg = 40m };
+        var em = new Employment { EmploymentModel = "FIX", EmploymentPercentage = 80m };
+        var oa = ElmMonthlyDeclarationBuilder.WeitereErwerbstaetigkeit(q, em, new CompanyProfile(), Slip("{}"), median: true)!;
+        Assert.NotNull(oa.Element(ElmGemeinsam.Sd + "MedianSalary"));
+        Assert.Null(oa.Element(ElmGemeinsam.Sd + "MonthlySalary"));
+        Assert.Null(oa.Element(ElmGemeinsam.Sd + "TotalOtherActivityRate"));
+        Assert.Equal("", oa.Element(ElmGemeinsam.Sd + "MedianSalary")!.Value);
+    }
+
+    [Fact]
+    public void Pensum_ueber_100_wird_gemeldet_Einkommen_nicht()
+    {
+        var pensum = new EmployeeQuellensteuer { WeitereBeschaftigungen = true, WeitereAngabenArt = "PENSUM", GesamtpensumWeitereAg = 120m };
+        var oa = ElmMonthlyDeclarationBuilder.WeitereErwerbstaetigkeit(
+            pensum, new Employment { EmploymentModel = "FIX", EmploymentPercentage = 50m }, new CompanyProfile(), Slip("{}"))!;
+        Assert.Equal("120.00", oa.Element(ElmGemeinsam.Sd + "TotalOtherActivityRate")?.Value);
+
+        var einkommen = new EmployeeQuellensteuer
+        {
+            WeitereBeschaftigungen = true, WeitereAngabenArt = "EINKOMMEN",
+            GesamteinkommenWeitereAg = 2000m, GesamtpensumWeitereAg = 40m,
+        };
+        var oa2 = ElmMonthlyDeclarationBuilder.WeitereErwerbstaetigkeit(
+            einkommen, new Employment { EmploymentModel = "FIX", EmploymentPercentage = 50m }, new CompanyProfile(), Slip("{}"))!;
+        Assert.Null(oa2.Element(ElmGemeinsam.Sd + "TotalOtherActivityRate"));
+        Assert.NotNull(oa2.Element(ElmGemeinsam.Sd + "MonthlySalary"));
+    }
+
+    [Fact]
+    public void Offene_Kategorie_ist_CategoryOpen_und_Bewilligung_ist_leer()
+    {
+        var offen = ElmMonthlyDeclarationBuilder.QstKategorie("XY12", "OFFEN");
+        Assert.Equal("XY12", offen.Element(ElmGemeinsam.C + "CategoryOpen")?.Value);
+        Assert.Null(offen.Element(ElmGemeinsam.C + "TaxAtSourceCode"));
+
+        var resultat = ElmMonthlyDeclarationBuilder.QstKategorie("A0N");
+        Assert.Equal("A0N", resultat.Element(ElmGemeinsam.C + "TaxAtSourceCode")?.Value);
+
+        var grant = ElmMonthlyDeclarationBuilder.GrantTaxAtSourceCode(true);
+        Assert.Equal("GrantTaxAtSourceCode", grant?.Name.LocalName);
+        Assert.Equal("", grant?.Value);
+        Assert.Null(ElmMonthlyDeclarationBuilder.GrantTaxAtSourceCode(false));
+    }
 }

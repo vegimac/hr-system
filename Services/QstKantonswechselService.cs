@@ -128,6 +128,8 @@ public class QstKantonswechselService
             WeitereBeschaftigungen = alt.WeitereBeschaftigungen,
             GesamtpensumWeitereAg = alt.GesamtpensumWeitereAg,
             GesamteinkommenWeitereAg = alt.GesamteinkommenWeitereAg,
+            WeitereAngabenArt = alt.WeitereAngabenArt,
+            KategorieArt = alt.KategorieArt,
             Halbfamilie = alt.Halbfamilie,
             SorgerechtCode = alt.SorgerechtCode,
             WohnsitzAusland = alt.WohnsitzAusland,

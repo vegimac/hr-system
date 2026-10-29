@@ -620,8 +620,7 @@ public partial class SwissdecTestmandantController
                 {
                     var lse = await _db.EmployeeLse.FirstOrDefaultAsync(l => l.EmployeeId == emp.Id);
                     if (lse == null) { lse = new EmployeeLse { EmployeeId = emp.Id }; _db.EmployeeLse.Add(lse); }
-                    if (bfsEdu != null) lse.Education = bfsEdu;
-                    if (bfsPos != null) lse.PositionOverride = bfsPos;
+                    await HrSystem.Services.Elm.StatistikZuordnung.Anwenden(_db, lse, V("PersonEducation"), V("PersonPosition"));
                     if (tage != null) lse.LeaveEntitlementDays = tage;
                     lse.UpdatedAt = DateTime.Now;
                     lse.UpdatedBy = "Swissdec-Testdaten Mutation";
@@ -760,7 +759,7 @@ public partial class SwissdecTestmandantController
                                 q.Steuerkanton = letzter.Steuerkanton; q.SteuerkantonName = letzter.SteuerkantonName; q.QstGemeinde = letzter.QstGemeinde; q.QstGemeindeBfsNr = letzter.QstGemeindeBfsNr;
                                 q.QstCode = letzter.QstCode; q.TarifCode = letzter.TarifCode; q.AnzahlKinder = letzter.AnzahlKinder; q.Kirchensteuer = letzter.Kirchensteuer;
                                 q.ArbeitsortKanton = letzter.ArbeitsortKanton; q.WeitereBeschaftigungen = letzter.WeitereBeschaftigungen; q.GesamtpensumWeitereAg = letzter.GesamtpensumWeitereAg;
-                                q.Halbfamilie = letzter.Halbfamilie; q.SorgerechtCode = letzter.SorgerechtCode; q.IsGrenzgaenger = letzter.IsGrenzgaenger; q.IsWochenaufenthalter = letzter.IsWochenaufenthalter;
+                                q.Halbfamilie = letzter.Halbfamilie; q.SorgerechtCode = letzter.SorgerechtCode; q.KategorieArt = letzter.KategorieArt; q.WeitereAngabenArt = letzter.WeitereAngabenArt; q.IsGrenzgaenger = letzter.IsGrenzgaenger; q.IsWochenaufenthalter = letzter.IsWochenaufenthalter;
                                 q.Wohnsitzstaat = letzter.Wohnsitzstaat; q.WohnsitzAusland = letzter.WohnsitzAusland;
                                 q.GrenzgaengerSteuerId = letzter.GrenzgaengerSteuerId; q.GrenzgaengerGeburtsort = letzter.GrenzgaengerGeburtsort; q.GrenzgaengerAb = letzter.GrenzgaengerAb;
                                 q.SpezielBewilligt = letzter.SpezielBewilligt;

@@ -10951,7 +10951,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/branches-detail.js?v=20261028d"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/qst-modal.js?v=20261026a"></script>
+<script type="text/plain" data-modul="js/qst-modal.js?v=20261028a"></script>
 <script type="text/plain" data-modul="js/users.js?v=20261022b"></script>
 <script type="text/plain" data-modul="js/contracts-page.js?v=20260802a"></script>
 <script type="text/plain" data-modul="js/documents.js?v=20261020j"></script>
@@ -10969,7 +10969,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script type="text/plain" data-modul="js/austritt.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/contracts-edit.js?v=20261027f"></script>
-<script type="text/plain" data-modul="js/payroll.js?v=20261025n"></script>
+<script type="text/plain" data-modul="js/payroll.js?v=20261028a"></script>
 <script type="text/plain" data-modul="js/elm-meldungen.js?v=20260927i"></script>
 <script type="text/plain" data-modul="js/fibu.js?v=20260805a"></script>
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
@@ -12220,7 +12220,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <option value="P">P – Pauschale</option>
                     <option value="Q">Q – Grenzgänger alleinerz.</option>
                 </select>
-                <input type="text" id="qstCode" maxlength="10" tabindex="-1">
+                <input type="text" id="qstCode" maxlength="40" tabindex="-1">
             </div>
             <!-- Ausgeblendet (Walter 29.08.2026): Kirchensteuer ist im Resultat
                  sichtbar (…Y/N, aus Konfession abgeleitet), «Tarifvorschlag QST»
@@ -12328,18 +12328,33 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <!-- Segment-Pille statt Select (Walter 12.08.2026, wie LGAV/Zustellart).
                      Lesen/Schreiben via qstGetHalbfamilie()/qstSetHalbfamilie() in qst-modal.js. -->
                 <div class="zst-wrap">
-                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="" checked> –</label>
-                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="Ja"> Ja</label>
-                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="Nein"> Nein</label>
+                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="" checked onchange="qstHalbfamilieArtSync()"> –</label>
+                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="Ja" onchange="qstHalbfamilieArtSync()"> Ja</label>
+                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="Nein" onchange="qstHalbfamilieArtSync()"> Nein</label>
                 </div>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:18px">
                 <label class="qst-cb"><input type="checkbox" id="qstHasJointParentalCare"> Gemeinsame elterl. Sorge</label>
                 <label class="qst-cb"><input type="checkbox" id="qstPaysAlimonyAdultChildren"> Unterhalt volljährige Kinder</label>
             </div>
+            <div id="qstHalbfamilieArt" style="display:none;grid-column:1 / -1">
+                <label class="qst-lbl">Familiäre Situation <span class="qst-ro-hint">Tarif H, P oder U</span></label>
+                <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:8px">
+                    <select id="qstKonkubinatWahl" class="qst-inp" onchange="qstKonkubinatWahlChanged()">
+                        <option value="">–</option>
+                        <option value="NoConcubinage">Kein Konkubinat</option>
+                        <option value="Concubinage">Konkubinat</option>
+                    </select>
+                    <select id="qstSorgerechtFolge" class="qst-inp" style="display:none">
+                        <option value="SoleCustody">Alleiniges Sorgerecht</option>
+                        <option value="ShareCustodyAndHigherIncome">Gemeinsames Sorgerecht und höheres Bruttoeinkommen</option>
+                        <option value="AdultChildAndHigherIncome">Volljähriges Kind und höheres Bruttoeinkommen</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <!-- 5 · Weitere Beschäftigungen — Toggle + Felder kompakt in 1 Zeile -->
-        <div class="emp-section-title">5 · Weitere Beschäftigungen</div>
+        <div class="emp-section-title">5 · Weitere Arbeitgeber oder Ersatzeinkünfte</div>
         <!-- Layout kompakt (Walter 25.08.2026 v2): Zeile 1 = Checkbox + Name
              (breit) + Strasse (breit) · Zeile 2 = PLZ/Ort/Kanton/Land/Pensum. -->
         <div style="display:grid;grid-template-columns:auto 1.4fr 1.1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
@@ -12348,11 +12363,27 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <label class="qst-cb" style="padding-bottom:6px;white-space:nowrap"
                    title="Der/die MA hat neben Schaub weitere Arbeitgeber — KS-45-Hochrechnung für den satzbestimmenden Lohn. Die Erwerbstätigkeit des Ehe-/Konkubinatspartners wird im Familie-Tab erfasst.">
                 <input type="checkbox" id="qstWeitere" onchange="toggleQstWeitere()">
-                Weitere Beschäftigungen des MA
+                Weitere Arbeitgeber oder Ersatzeinkünfte
             </label>
-            <!-- Walter 25.08.2026: VOLLE Adresse des anderen Arbeitgebers
-                 (wie auf dem kantonalen Anmeldeformular) — das Einkommen wird
-                 bewusst NICHT mehr erfasst, nur das Stellenpensum. -->
+            <div id="qstWeitereArtRow" style="display:none;grid-column:1 / -1">
+                <label class="qst-lbl">Angabe zum satzbestimmenden Einkommen</label>
+                <div class="zst-wrap">
+                    <label class="zst-pill"><input type="radio" name="qstWeitereArt" value="EINKOMMEN" onchange="qstWeitereArtChanged()"> Gesamtbruttoeinkommen bekannt</label>
+                    <label class="zst-pill"><input type="radio" name="qstWeitereArt" value="PENSUM" onchange="qstWeitereArtChanged()"> Kumulierter Beschäftigungsgrad bekannt</label>
+                    <label class="zst-pill"><input type="radio" name="qstWeitereArt" value="UNBEKANNT" onchange="qstWeitereArtChanged()"> Beides unbekannt</label>
+                </div>
+                <div id="qstEinkommenRow" style="display:none;margin-top:8px;max-width:220px">
+                    <label class="qst-lbl">Gesamtbruttoeinkommen / Monat</label>
+                    <input type="number" id="qstGesamteinkommen" step="0.05" min="0" class="qst-inp" placeholder="CHF">
+                </div>
+                <div id="qstUnbekanntHinweis" style="display:none;margin-top:6px;font-size:11px;color:#64748b;line-height:1.4">
+                    Hat die Person ein Pensum oder Stunden, wird auf 100 % hochgerechnet.
+                    Fehlt beides und liegt der QST-Lohn unter dem Median des Steuerkantons, gilt dieser Median.
+                    Ein Handwert unter Sonderfälle hat Vorrang.
+                </div>
+            </div>
+            <!-- Adresse des anderen Arbeitgebers fürs Anmeldeformular.
+                 Einkommen oder Beschäftigungsgrad nur, wenn die Angabe darüber «bekannt» ist. -->
             <div id="qstWeitereField1" style="display:none">
                 <label class="qst-lbl">Arbeitgeber (Name)</label>
                 <input type="text" id="qstWagName" class="qst-inp" placeholder="Firma / Arbeitgeber">
@@ -12380,9 +12411,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <label class="qst-lbl">Land</label>
                         <input type="text" id="qstWagLand" class="qst-inp" placeholder="CH">
                     </div>
-                    <div>
-                        <label class="qst-lbl">Pensum dort (%)</label>
-                        <input type="number" id="qstGesamtpensum" step="1" min="0" max="100" class="qst-inp">
+                    <div id="qstPensumBox" style="display:none">
+                        <label class="qst-lbl">Beschäftigungsgrad andere AG (%)</label>
+                        <input type="number" id="qstGesamtpensum" step="0.01" min="0" max="999.99" class="qst-inp">
                     </div>
                 </div>
             </div>
@@ -12395,8 +12426,34 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
              Dazu die manuellen Berechnungs-Vorgaben (Prozentsatz/Medianlohn). -->
         <div class="emp-section-title">6 · Behördenbewilligung &amp; Sonderfälle</div>
         <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+            <div style="display:grid;grid-template-columns:240px 1fr;gap:8px 12px;margin-bottom:10px;align-items:end">
+                <div>
+                    <label class="qst-lbl">Kategorie</label>
+                    <select id="qstKategorieArt" class="qst-inp" onchange="qstKategorieArtChanged(true)">
+                        <option value="">Resultat aus den Angaben</option>
+                        <option value="VORDEFINIERT">Vordefinierte Kategorie</option>
+                        <option value="OFFEN">Offene Kategorie</option>
+                    </select>
+                </div>
+                <div id="qstVordefBox" style="display:none">
+                    <label class="qst-lbl">Vordefiniert</label>
+                    <select id="qstVordefCode" class="qst-inp" onchange="qstKategorieArtChanged()">
+                        <option value="HEN">HEN — VR-Honorar Ausland, ohne Kirchensteuer</option>
+                        <option value="HEY">HEY — VR-Honorar Ausland, mit Kirchensteuer</option>
+                        <option value="MEN">MEN — Mitarbeiterbeteiligungen nach Wegzug, ohne Kirchensteuer</option>
+                        <option value="MEY">MEY — Mitarbeiterbeteiligungen nach Wegzug, mit Kirchensteuer</option>
+                        <option value="NON">NON — nicht QST-pflichtig (Korrektur), ohne Kirchensteuer</option>
+                        <option value="NOY">NOY — nicht QST-pflichtig (Korrektur), mit Kirchensteuer</option>
+                        <option value="SFN">SFN — Sondervereinbarung Frankreich</option>
+                    </select>
+                </div>
+                <div id="qstOffenBox" style="display:none">
+                    <label class="qst-lbl">Offener Code (Buchstaben und Ziffern)</label>
+                    <input type="text" id="qstOffenCode" class="qst-inp" maxlength="40" placeholder="z.B. XY12" oninput="qstKategorieArtChanged()">
+                </div>
+            </div>
             <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt" onchange="qstToggleBewilligung()">
-                Kinderabzug auf Tarif A behördlich bewilligt (A1–A9)</label>
+                Speziell bewilligter QST-Code (Verfügung der Steuerbehörde, Beispiel A1–A9)</label>
             <div id="qstBewilligungFields" style="display:none;margin-top:8px;max-width:520px">
                 <label class="qst-lbl">Verfügung der Steuerbehörde <span class="qst-ro-hint">Pflicht</span></label>
                 <select id="qstBewilligungDok" class="qst-inp"></select>
@@ -12411,7 +12468,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                            oninput="if(parseFloat(this.value)<0)this.value='';qstRenderResultat()">
                 </div>
                 <div>
-                    <label class="qst-lbl" style="white-space:nowrap">Satzbest. Medianlohn</label>
+                    <label class="qst-lbl" style="white-space:nowrap" title="Handwert. Hat Vorrang vor der Hochrechnung und vor dem kantonalen Median.">Satzbest. Medianlohn</label>
                     <input type="number" id="qstMedianlohn" step="0.05" min="0" placeholder="CHF" class="qst-inp"
                            oninput="if(parseFloat(this.value)<0)this.value=''">
                 </div>

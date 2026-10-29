@@ -598,6 +598,7 @@ public class PayrollCalculationEngine
         }
         _sonderSaetze = qstEinstellung == null ? null
             : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
+        decimal? qstMedian = await QstMedianMonatAsync(qstEinstellung, periodFrom);
         _qstJahresYtd = null;
         _qstJahresVertraege = new();
         _qstNachzahlungStandalone = false;
@@ -3355,13 +3356,15 @@ public class PayrollCalculationEngine
             }
             // Kurzmonat × Nebenerwerb kombiniert (Walter 21.09.2026, wie FIX): erst voller
             // Monat, dann Gesamtpensum. Ohne Nebenerwerb = Kurzmonat-Basis.
+            var nebenjobMtp = new PayrollCalculations.QstNebenjobInfo();
             decimal? satzBruttoMtp = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, satzBasisMtp, workedHours, company,
                 einmaligNichtHochrechnen: deltaQstEinmalig,
-                ausfallStunden: PayrollCalculations.QstAusfallStunden(absenzBreakdown));
+                ausfallStunden: PayrollCalculations.QstAusfallStunden(absenzBreakdown),
+                medianMonat: qstMedian, info: nebenjobMtp);
             if (!satzBruttoMtp.HasValue && satzBasisMtp != svBasesMtp.Qst)
                 satzBruttoMtp = satzBasisMtp;
-            var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp, deltaQstEinmalig, dreizehnterMtp);
+            var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp, deltaQstEinmalig, dreizehnterMtp, nebenjobMtp.MedianAngewendet);
             if (qstRule is not null) deductions.Add(qstRule);
 
             SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
@@ -3993,11 +3996,13 @@ public class PayrollCalculationEngine
             //
             // Steuerung über qst.WeitereBeschaftigungen + GesamtpensumWeitereAg
             // im QST-Eintrag.
+            var nebenjobUtp = new PayrollCalculations.QstNebenjobInfo();
             decimal? satzBruttoUtp = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, svBasesUtp.Qst, workedHours, company,
                 einmaligNichtHochrechnen: deltaQstEinmalig,
-                ausfallStunden: PayrollCalculations.QstAusfallStunden(absenzBreakdown));
-            var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp, deltaQstEinmalig, dreizehnterUtp);
+                ausfallStunden: PayrollCalculations.QstAusfallStunden(absenzBreakdown),
+                medianMonat: qstMedian, info: nebenjobUtp);
+            var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp, deltaQstEinmalig, dreizehnterUtp, nebenjobUtp.MedianAngewendet);
             if (qstRuleUtp is not null) deductions.Add(qstRuleUtp);
 
             // FLEX: 13. ML standardmässig monatlich. Während Probezeit → Saldo
@@ -4711,13 +4716,15 @@ public class PayrollCalculationEngine
                              + PayrollCalculations.Rappen(deltaQstPeriodisch * (faktorKurz - 1m))
                              + PayrollCalculations.Rappen(dreizehnterFix * (faktorKurz - 1m));
             }
+            var nebenjobFix = new PayrollCalculations.QstNebenjobInfo();
             decimal? satzBruttoFix = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, satzBasisFix, workedHours: 0, company,
                 pensumPct: emp.EmploymentPercentage,
-                einmaligNichtHochrechnen: deltaQstEinmalig);
+                einmaligNichtHochrechnen: deltaQstEinmalig,
+                medianMonat: qstMedian, info: nebenjobFix);
             if (!satzBruttoFix.HasValue && satzBasisFix != svBasesFix.Qst)
                 satzBruttoFix = satzBasisFix;
-            var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix, deltaQstEinmalig, dreizehnterFix);
+            var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix, deltaQstEinmalig, dreizehnterFix, nebenjobFix.MedianAngewendet);
             if (qstRuleFix is not null) deductions.Add(qstRuleFix);
 
             SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
@@ -5078,6 +5085,20 @@ public class PayrollCalculationEngine
         || (!string.IsNullOrWhiteSpace(e.Wohnsitzstaat) && !string.Equals(e.Wohnsitzstaat, "CH", StringComparison.OrdinalIgnoreCase))
         || e.IsGrenzgaenger;
 
+    /// <summary>Median des Steuerkantons, nur wenn die Angabe «beides unbekannt» ist.</summary>
+    private async Task<decimal?> QstMedianMonatAsync(EmployeeQuellensteuer? q, DateOnly stichtag)
+    {
+        if (q == null || !string.Equals(q.WeitereAngabenArt, "UNBEKANNT", StringComparison.OrdinalIgnoreCase))
+            return null;
+        var kt = (q.Steuerkanton ?? "").Trim().ToUpperInvariant();
+        if (kt.Length != 2) return null;
+        return await _db.QstMedianloehne.AsNoTracking()
+            .Where(m => m.Kanton == kt && m.ValidFrom <= stichtag && (m.ValidTo == null || m.ValidTo >= stichtag))
+            .OrderByDescending(m => m.ValidFrom)
+            .Select(m => (decimal?)m.Betrag)
+            .FirstOrDefaultAsync();
+    }
+
     private DeductionRule? ComputeQstDeduction(
         EmployeeQuellensteuer? einstellung,
         decimal bruttolohn,
@@ -5085,13 +5106,17 @@ public class PayrollCalculationEngine
         DateOnly periodFrom,
         decimal? satzbestimmenderBrutto = null,
         decimal aperiodisch = 0,
-        decimal dreizehnter = 0)
+        decimal dreizehnter = 0,
+        bool medianAngewendet = false)
     {
         if (einstellung is null || string.IsNullOrEmpty(einstellung.Steuerkanton))
             return null;
         var vordef = QstVordefinierteKategorie.Parse(einstellung.QstCode);
-        if (vordef == null && string.IsNullOrEmpty(einstellung.TarifCode))
+        bool offen = string.Equals(einstellung.KategorieArt, "OFFEN", StringComparison.OrdinalIgnoreCase);
+        if (vordef == null && string.IsNullOrEmpty(einstellung.TarifCode) && !offen)
             return null;
+        // Handwert «Satzbest. Medianlohn» hat Vorrang — dann war der Tabellen-Median nicht die Basis.
+        if (einstellung.MindestlohnSatzbestimmung != null) medianAngewendet = false;
 
         // Steuerbarer Anteil nach Arbeitstagen CH (nur Wohnsitz Ausland). Der Satz
         // bleibt auf dem vollen satzbestimmenden Lohn; nur die Bemessung schrumpft.
@@ -5161,9 +5186,24 @@ public class PayrollCalculationEngine
         string? sonderHinweis = null;
         bool jahresmodell = QstJahresmodell.GiltFuer(einstellung.Steuerkanton)
                             && vordef == null
+                            && !offen
                             && _qstJahresYtd != null;
 
-        if (vordef != null)
+        if (offen)
+        {
+            if (einstellung.Prozentsatz is decimal offenSatz)
+            {
+                qstBetrag = PayrollCalculations.Round05(bruttolohn * offenSatz / 100m);
+                satzPct = offenSatz;
+            }
+            else
+            {
+                qstBetrag = 0;
+                satzPct = 0;
+                sonderHinweis = "Offene Kategorie — kein Tarifbuchstabe. Prozentsatz erfassen oder mit dem QST-Amt klären.";
+            }
+        }
+        else if (vordef != null)
         {
             // Swissdec CategoryPredefined — Pauschale, kein ESTV-Buchstabe.
             // MEY ≠ ESTV-Tarif M (4.5 %). TF30 Müller Jan: BE 29.5 % × 5'500 = 1'622.50.
@@ -5369,6 +5409,7 @@ public class PayrollCalculationEngine
             QstSatzBasis     = slipSatz,
             QstSatzAperiodisch = slipAper,
             QstTarifCode     = qstCode,
+            QstMedianAngewendet = medianAngewendet,
             BasisOverride    = (tageHinweis != null || jahresmodell) ? bruttolohn : null,
             Hinweis          = sonderHinweis,
         };
@@ -5829,10 +5870,17 @@ public class PayrollCalculationEngine
                     if (QstJahresmodell.GiltFuer(qstEinstellungKorr.Steuerkanton))
                         _qstJahresYtd = await LadeQstJahresYtdAsync(
                             employee, qstEinstellungKorr, year, month, periodFrom, periodTo);
-                    // Monatsmodell: kein satzbestimmender Vollmonat vorhanden → IST = Satzbasis.
+                    // Monatsmodell: kein satzbestimmender Vollmonat vorhanden → IST = Satzbasis,
+                    // ausser die QST-Angabe verlangt die Hochrechnung oder den Median.
+                    decimal? medianKorr = await QstMedianMonatAsync(qstEinstellungKorr, periodFrom);
+                    var nebenjobKorr = new PayrollCalculations.QstNebenjobInfo();
+                    decimal? pensumKorr = emp.EmploymentModel is "FIX" or "FIX-M" ? emp.EmploymentPercentage : null;
+                    var satzKorr = ComputeSatzBruttoForNebenjob(
+                        qstEinstellungKorr, deltaQst, 0, company, pensumKorr, deltaQstEinmalig, 0, medianKorr, nebenjobKorr);
                     var qstRuleKorr = ComputeQstDeduction(
                         qstEinstellungKorr, deltaQst, companyProfileId, periodFrom,
-                        satzbestimmenderBrutto: null, aperiodisch: deltaQstEinmalig, dreizehnter: 0m);
+                        satzbestimmenderBrutto: satzKorr, aperiodisch: deltaQstEinmalig, dreizehnter: 0m,
+                        medianAngewendet: nebenjobKorr.MedianAngewendet);
                     if (qstRuleKorr is not null) deductions.Add(qstRuleKorr);
                 }
             }

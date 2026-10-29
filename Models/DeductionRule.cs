@@ -197,6 +197,10 @@ public class DeductionRule
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string? QstTarifCode { get; set; }
 
+    /// <summary>Transient: der kantonale Median war die Satzbasis (ELM MedianSalary).</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool QstMedianAngewendet { get; set; }
+
     /// <summary>
     /// Transient (Walter 11.09.2026): abweichende Bemessungsbasis für die Anzeige
     /// im Lohnzettel — QST bei Wohnsitz Ausland: nur der CH-Arbeitstage-Anteil

@@ -294,15 +294,13 @@ public partial class SwissdecTestmandantController
             if (!vorschau)
             {
                 var bfsEdu = HrSystem.Services.Elm.ElmStatistikCodes.BfsAusbildung(V("PersonEducation"));
-                var bfsTitel = HrSystem.Services.Elm.ElmStatistikCodes.BfsHochschultitel(V("PersonEducation"));
                 var bfsPos = HrSystem.Services.Elm.ElmStatistikCodes.BfsStellung(V("PersonPosition"));
                 var ferienTage = Dez(V("PersonLeaveEntitlement"));
                 if (bfsEdu != null || bfsPos != null || ferienTage != null)
                 {
                     var lse = await _db.EmployeeLse.FirstOrDefaultAsync(l => l.EmployeeId == emp.Id);
                     if (lse == null) { lse = new EmployeeLse { EmployeeId = emp.Id }; _db.EmployeeLse.Add(lse); }
-                    if (bfsEdu != null) { lse.Education = bfsEdu; lse.UniversityDegree = bfsTitel; }
-                    if (bfsPos != null) lse.PositionOverride = bfsPos;
+                    await HrSystem.Services.Elm.StatistikZuordnung.Anwenden(_db, lse, V("PersonEducation"), V("PersonPosition"));
                     if (ferienTage != null) lse.LeaveEntitlementDays = ferienTage;
                     lse.UpdatedAt = DateTime.Now;
                     lse.UpdatedBy = "Swissdec-Testdaten";

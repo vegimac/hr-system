@@ -36,6 +36,8 @@ public class ElmMonthlyDeclarationBuilder
     private readonly ElmXmlValidator _validator;
 
     private readonly ElmEinstellungen _einstellungen;
+    private Dictionary<int, StatistikAusbildung> _ausbildungKatalog = new();
+    private Dictionary<int, StatistikStellung> _stellungKatalog = new();
 
     public ElmMonthlyDeclarationBuilder(AppDbContext db, ElmXmlValidator validator, ElmEinstellungen einstellungen)
     {
@@ -230,6 +232,10 @@ public class ElmMonthlyDeclarationBuilder
             .Where(l => empIds.Contains(l.EmployeeId))
             .ToListAsync(ct);
         var lseById = lseJeMa.ToDictionary(l => l.EmployeeId);
+        _ausbildungKatalog = await _db.StatistikAusbildungen.AsNoTracking()
+            .ToDictionaryAsync(a => a.Id, ct);
+        _stellungKatalog = await _db.StatistikStellungen.AsNoTracking()
+            .ToDictionaryAsync(s => s.Id, ct);
         var stellungMapping = await _db.LseCodeMappings.AsNoTracking()
             .Where(m => m.MappingTyp == "STELLUNG")
             .ToListAsync(ct);
@@ -739,7 +745,7 @@ public class ElmMonthlyDeclarationBuilder
             new XAttribute("addresseeIDRef", "#BFS"),
             new XAttribute("workIDRef", WorkId(e)),
             new XElement(Sd + "CurrentMonth", monatStr),
-            BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn, lohnartByCode),
+            BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn, periodeBis, lohnartByCode),
             KindOfWagePayment(em, filiale, slip, lohnartByCode),
             new XElement(Sd + "MonthlyValues",
                 new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(Wert(ElmStatistikCodes.Topf.Bruttolohn))),
@@ -908,29 +914,35 @@ public class ElmMonthlyDeclarationBuilder
     }
 
     /// <summary>
-    /// Statistik-Stammdaten der Person. Alle vier Felder sind im Schema PFLICHT
-    /// (StatisticAdditionalParticularsType): Ausbildung, berufliche Stellung,
-    /// Funktion, Ferienanspruch in Tagen. Ausbildung und Stellung kommen aus den
-    /// LSE-Feldern und werden hier nur uebersetzt; fehlen sie, meldet OneCrew den
-    /// vorsichtigsten Wert UND sagt es.
+    /// Statistik-Stammdaten der Person. Pflicht im Schema: Ausbildung, berufliche
+    /// Stellung, Funktion, Ferienanspruch in Tagen. Ausbildung und Stellung kommen
+    /// aus dem Katalog; fehlen sie, meldet OneCrew den vorsichtigsten Wert und sagt es.
+    /// Verliehenes Personal, Stammpersonal und Profiling nur, wenn gesetzt.
     /// </summary>
     private XElement BaueStatistikStammdaten(
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
         EmployeeLse? lse, List<LseCodeMapping> stellungMapping, List<string> warn,
-        IReadOnlyDictionary<string, string>? lohnartByCode = null)
+        DateTime stichtag, IReadOnlyDictionary<string, string>? lohnartByCode = null)
     {
-        var ausbildungCode = lse?.Education;
-        if (!ElmStatistikCodes.AusbildungErfasst(ausbildungCode))
+        string? ausbildungXml = null;
+        if (lse?.StatistikAusbildungId is int aid && _ausbildungKatalog.TryGetValue(aid, out var arow))
+            ausbildungXml = arow.Code;
+        var ausbildungErfasst = !string.IsNullOrWhiteSpace(ausbildungXml)
+            || ElmStatistikCodes.AusbildungErfasst(lse?.Education);
+        if (!ausbildungErfasst)
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Ausbildung für die Statistik nicht erfasst "
-                   + "— gemeldet wird «ohne abgeschlossene Berufsausbildung» (MA → BFS/Statistik).");
+                   + "— gemeldet wird «ohne abgeschlossene Berufsausbildung» (Mitarbeiter → Statistik).");
 
-        var stellungCode = lse?.PositionOverride;
-        if (stellungCode == null && !string.IsNullOrWhiteSpace(em?.JobTitle))
-            stellungCode = stellungMapping
+        string? stellungXml = null;
+        if (lse?.StatistikStellungId is int sid && _stellungKatalog.TryGetValue(sid, out var srow))
+            stellungXml = srow.Code;
+        var stellungBfs = lse?.PositionOverride;
+        if (string.IsNullOrWhiteSpace(stellungXml) && stellungBfs == null && !string.IsNullOrWhiteSpace(em?.JobTitle))
+            stellungBfs = stellungMapping
                 .FirstOrDefault(m => string.Equals(m.SourceCode, em!.JobTitle!.Trim(), StringComparison.OrdinalIgnoreCase))?.BfsCode;
-        if (!ElmStatistikCodes.StellungErfasst(stellungCode))
+        if (string.IsNullOrWhiteSpace(stellungXml) && !ElmStatistikCodes.StellungErfasst(stellungBfs))
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): berufliche Stellung nicht erfasst "
-                   + "— gemeldet wird «ohne Kaderfunktion» (LSE-Zuordnung Funktion → Stellung).");
+                   + "— gemeldet wird «ohne Kaderfunktion» (Zuordnung Funktion → Stellung).");
 
         var stundenlohn = (em?.EmploymentModel?.ToUpperInvariant() ?? "") is not ("FIX" or "FIX-M" or "MTP");
         // Ferien-% und Ferientage nie zusammen (Richtlinien). Nur wenn der Lohnzettel
@@ -938,17 +950,27 @@ public class ElmMonthlyDeclarationBuilder
         var ferienPct = lohnartByCode != null
             ? (ProzentAusLohnzeile(slip, lohnartByCode, 1160) ?? 0m)
             : 0m;
-        var ferienwochen = (filiale.DefaultVacationWeeks ?? 5) >= 6 ? 6 : 5;
-        var tage = ElmStatistikCodes.Ferientage(stundenlohn && ferienPct > 0m, ferienwochen, lse?.LeaveEntitlementDays);
+        var entsch = stundenlohn && ferienPct > 0m;
+        var ferienwochen = ElmStatistikCodes.Ferienwochen(
+            e.DateOfBirth, DateOnly.FromDateTime(stichtag),
+            filiale.VacationSixWeeksFromAge, filiale.DefaultVacationWeeks);
+        var tage = ElmStatistikCodes.Ferientage(entsch, ferienwochen, lse?.LeaveEntitlementDays);
+        if (entsch && lse?.LeaveEntitlementDays is > 0m)
+            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Ferientage von Hand "
+                   + $"{lse!.LeaveEntitlementDays:0}, gemeldet wird 0, weil dieser Monat eine Ferienentschädigung enthält.");
         // Verwaltungsrat hat keinen Ferienanspruch (RefXML Jan 2025: TF39 Hasler 0).
         if ((em?.SwissdecVertragsart ?? "").Trim() == "administrativeBoard" && lse?.LeaveEntitlementDays == null)
             tage = 0m;
 
+        var profiling = (lse?.FlexProfiling ?? "").Trim();
         return new XElement(Sd + "AdditionalParticulars",
-            new XElement(Sd + "Education", ElmStatistikCodes.Ausbildung(ausbildungCode, lse?.UniversityDegree)),
-            new XElement(Sd + "Position", ElmStatistikCodes.Stellung(stellungCode)),
+            new XElement(Sd + "Education", ElmStatistikCodes.AusbildungFuerMeldung(ausbildungXml, lse?.Education, lse?.UniversityDegree)),
+            new XElement(Sd + "Position", ElmStatistikCodes.StellungFuerMeldung(stellungXml, stellungBfs)),
             new XElement(Sd + "JobTitle", string.IsNullOrWhiteSpace(em?.JobTitle) ? "—" : em!.JobTitle!.Trim()),
-            new XElement(Sd + "LeaveEntitlement", ((int)Math.Round(tage, 0)).ToString()));
+            new XElement(Sd + "LeaveEntitlement", ((int)Math.Round(tage, 0)).ToString()),
+            lse?.VerliehenesPersonal == true ? new XElement(Sd + "TemporaryAgencyWorker") : null,
+            lse?.StammpersonalOeffentlich == true ? new XElement(Sd + "PermanentStaffPublicAdmin") : null,
+            profiling.Length > 0 ? new XElement(Sd + "FlexProfiling", profiling) : null);
     }
 
     /// <summary>
@@ -1027,12 +1049,15 @@ public class ElmMonthlyDeclarationBuilder
             new XElement(Sd + "CurrentMonth", monatStr),
             new XElement(Sd + "Current",
                 new XAttribute("workplaceIDRef", WpId(filiale)),
-                WeitereErwerbstaetigkeit(version, em, filiale, slip),
-                QstKategorie(code),
+                WeitereErwerbstaetigkeit(version, em, filiale, slip,
+                    median: zeile.TryGetProperty("qstMedian", out var md) && md.ValueKind == JsonValueKind.True),
+                QstKategorie(string.Equals(version?.KategorieArt, "OFFEN", StringComparison.OrdinalIgnoreCase)
+                    ? (version?.QstCode ?? code) : code, version?.KategorieArt),
                 new XElement(Sd + "TaxableEarning", Betrag05(basis)),
                 new XElement(Sd + "AscertainedTaxableEarning", Betrag05(satzBasis)),
                 new XElement(Sd + "TaxAtSource", Betrag05(steuer)),
                 aperiodisch != 0m ? new XElement(Sd + "SporadicBenefits", Betrag05(aperiodisch)) : null,
+                GrantTaxAtSourceCode(version?.SpezielBewilligt == true),
                 residence,
                 stamm.GemeindeNr.TryGetValue(filiale.Id, out var wg) ? new XElement(Sd + "WorkMunicipalityID", wg) : null,
                 declaration));
@@ -1052,7 +1077,11 @@ public class ElmMonthlyDeclarationBuilder
         // Reihenfolge laut XSD: Denomination, SingleParentFamily, MarriagePartner, Children.
         var konfession = MapKonfession(e.Religion);
         XElement? alleinerziehend = null;
-        if (string.Equals(version?.Halbfamilie, "ja", StringComparison.OrdinalIgnoreCase))
+        bool halbJa = string.Equals(version?.Halbfamilie, "ja", StringComparison.OrdinalIgnoreCase);
+        bool tarifHalb = version != null
+            && !string.IsNullOrWhiteSpace(version.SorgerechtCode)
+            && (IstHalbfamilieTarif(version.TarifCode) || IstHalbfamilieTarif(version.QstCode));
+        if (halbJa || tarifHalb)
         {
             // Vier Fälle laut Schema: kein Konkubinat, oder im Konkubinat mit
             // alleinigem Sorgerecht / geteiltem Sorgerecht und höherem Einkommen /
@@ -1144,28 +1173,48 @@ public class ElmMonthlyDeclarationBuilder
     /// Quality Tool Jan 2025: TF18 Blanc 35 h ÷ 182 h → 19.23/60.
     /// </summary>
     public static XElement? WeitereErwerbstaetigkeit(EmployeeQuellensteuer? version, Employment? em,
-                                                     CompanyProfile filiale, JsonElement slip)
+                                                     CompanyProfile filiale, JsonElement slip, bool median = false)
     {
         if (version?.WeitereBeschaftigungen != true) return null;
-        var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
-        var art = (em?.SwissdecVertragsart ?? "").Trim();
-        var stundenlohn = art.Length > 0
-            ? art is "indefiniteSalaryHrs" or "fixedSalaryHrs"
-            : model is not ("FIX" or "FIX-M" or "MTP");
+        var angabe = (version.WeitereAngabenArt ?? "").Trim().ToUpperInvariant();
         XElement grad;
-        if (stundenlohn)
-        {
-            var vollzeit = PayrollCalculations.MonatsstundenVollzeit(filiale);
-            var pct = vollzeit > 0 ? Num(slip, "workedHours") / vollzeit * 100m : 0m;
-            grad = new XElement(Sd + "HourlyOrLessonSalary", Amt(Math.Round(pct, 2, MidpointRounding.AwayFromZero)));
-        }
+        if (median)
+            grad = new XElement(Sd + "MedianSalary");
         else
-            grad = new XElement(Sd + "MonthlySalary", Amt(em?.EmploymentPercentage ?? 100m));
+        {
+            var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
+            var art = (em?.SwissdecVertragsart ?? "").Trim();
+            var stundenlohn = art.Length > 0
+                ? art is "indefiniteSalaryHrs" or "fixedSalaryHrs"
+                : model is not ("FIX" or "FIX-M" or "MTP");
+            if (stundenlohn)
+            {
+                var vollzeit = PayrollCalculations.MonatsstundenVollzeit(filiale);
+                var pct = vollzeit > 0 ? Num(slip, "workedHours") / vollzeit * 100m : 0m;
+                grad = new XElement(Sd + "HourlyOrLessonSalary", Amt(Math.Round(pct, 2, MidpointRounding.AwayFromZero)));
+            }
+            else
+                grad = new XElement(Sd + "MonthlySalary", Amt(em?.EmploymentPercentage ?? 100m));
+        }
+        // Pensum der anderen AG nur, wenn es die gewählte Angabe ist.
+        // Altzeilen ohne Art melden es weiter, sobald ein Wert steht.
+        bool pensumMelden = angabe == "PENSUM" || (angabe.Length == 0 && version.GesamtpensumWeitereAg is > 0m);
         return new XElement(Sd + "OtherActivities",
             grad,
-            version.GesamtpensumWeitereAg is > 0m
+            pensumMelden && version.GesamtpensumWeitereAg is > 0m
                 ? new XElement(Sd + "TotalOtherActivityRate", Amt(version.GesamtpensumWeitereAg.Value))
                 : null);
+    }
+
+    /// <summary>Leeres Element, sobald der QST-Code behördlich bewilligt ist.</summary>
+    public static XElement? GrantTaxAtSourceCode(bool speziell)
+        => speziell ? new XElement(Sd + "GrantTaxAtSourceCode") : null;
+
+    private static bool IstHalbfamilieTarif(string? code)
+    {
+        var c = (code ?? "").Trim().ToUpperInvariant();
+        if (c.Length == 0 || QstVordefinierteKategorie.Parse(c) != null) return false;
+        return c[0] is 'H' or 'P' or 'U';
     }
 
     /// <summary>
@@ -1272,13 +1321,17 @@ public class ElmMonthlyDeclarationBuilder
             new XElement(Sd + "KindOfResidence", art));
     }
 
-    /// <summary>Tarifcode (A0N …) oder vordefinierte Kategorie (NON, MEY …) laut Schema.</summary>
-    public static XElement QstKategorie(string? code)
+    /// <summary>Tarifcode (A0N …), vordefinierte Kategorie (NON, MEY …) oder offener Code.</summary>
+    public static XElement QstKategorie(string? code, string? kategorieArt = null)
     {
         var c = (code ?? "").Trim().ToUpperInvariant();
-        return new XElement(Sd + "TaxAtSourceCategory", QstVordefinierteKategorie.Parse(c) != null
-            ? new XElement(C + "CategoryPredefined", c)
-            : new XElement(C + "TaxAtSourceCode", c));
+        var art = (kategorieArt ?? "").Trim().ToUpperInvariant();
+        XElement inner = art == "OFFEN" && c.Length > 0
+            ? new XElement(C + "CategoryOpen", c)
+            : QstVordefinierteKategorie.Parse(c) != null
+                ? new XElement(C + "CategoryPredefined", c)
+                : new XElement(C + "TaxAtSourceCode", c);
+        return new XElement(Sd + "TaxAtSourceCategory", inner);
     }
 
     private static bool IstNullKategorie(string? code)

@@ -25,6 +25,7 @@ let _qstServerVorschlag  = null;
 function qstSetHalbfamilie(val) {
     const want = (val ?? '').toString();
     document.querySelectorAll('input[name="qstHalbfamilie"]').forEach(r => { r.checked = (r.value === want); });
+    if (typeof qstHalbfamilieArtSync === 'function') qstHalbfamilieArtSync();
 }
 function qstGetHalbfamilie() {
     const r = document.querySelector('input[name="qstHalbfamilie"]:checked');
@@ -287,8 +288,13 @@ function qstApplyWochenaufenthaltLock() {
         const ort = [wa.zipCode, wa.city].filter(Boolean).join(' ');
         cb.checked  = true;
         cb.disabled = true;
+        const land = ((qstEmployeeData?.country || 'CH') + '').trim().toUpperCase();
+        const ausland = !!land && land !== 'CH' && land !== 'SCHWEIZ';
+        const kantonHinweis = ausland
+            ? 'QST-Kanton und Gemeinde kommen aus dieser Wochenadresse.'
+            : 'Hauptwohnsitz ist in der Schweiz — der QST-Kanton bleibt die Wohnadresse.';
         cb.parentElement.title = 'Aus der Wohnsituation (Zusatzadresse «Wochenaufenthalt»'
-            + (ort ? `: ${ort}` : '') + ') — Pflege beim MA unter Weitere Adressen. QST-Kanton bleibt der Hauptwohnsitz.';
+            + (ort ? `: ${ort}` : '') + ') — Pflege beim MA unter Weitere Adressen. ' + kantonHinweis;
         cb.parentElement.style.opacity = '0.65';
     } else {
         cb.disabled = false;
@@ -408,10 +414,13 @@ function qstRenderWohnsituation() {
     // Kompakt + NUR im Sonderfall (Walter 29.08.2026 v2): Normalfall
     // (CH-Wohnsitz, kein Wochenaufenthalt) → ganze Sektion unsichtbar.
     const lines = [];
-    if (istAusland)
-        lines.push(`🌍 <b>Grenzgänger/in</b> — Wohnsitz ${land.toUpperCase()} (aus easy@work), QST-Kanton = Arbeitskanton der Filiale.`);
-    if (wa)
-        lines.push(`🛏 <b>Wochenaufenthalter/in</b> — QST-Kanton bleibt der Hauptwohnsitz.`);
+    const waOrt = wa ? [wa.zipCode || wa.ZipCode, wa.city || wa.City].filter(Boolean).join(' ') : '';
+    if (istAusland && wa)
+        lines.push(`🌍 <b>Wochenaufenthalter/in</b> — Wohnsitz ${land.toUpperCase()}, wöchentliche Rückkehr. QST-Kanton und Gemeinde aus der Wochenadresse${waOrt ? ' ' + waOrt : ''}.`);
+    else if (istAusland)
+        lines.push(`🌍 <b>Tagesaufenthalter/in</b> — Wohnsitz ${land.toUpperCase()}, tägliche Rückkehr. QST-Kanton = Arbeitsort der Filiale.`);
+    else if (wa)
+        lines.push(`🛏 <b>Wochenaufenthalt</b> — Hauptwohnsitz in der Schweiz${waOrt ? ' (' + waOrt + ')' : ''}. QST-Kanton bleibt die Wohnadresse.`);
     else if (waCb?.checked)
         lines.push(`🛏 Wochenaufenthalter/in <span style="color:#b45309">(Wochenaufenthaltsadresse beim MA nachtragen)</span>`);
 
@@ -502,9 +511,13 @@ function qstRenderResultat() {
     const code  = (document.getElementById('qstCode')?.value || '').toString().trim().toUpperCase();
     const tarif = (document.getElementById('qstTarifCode')?.value || '').toString().trim().toUpperCase();
     const pct   = (document.getElementById('qstProzentsatz')?.value || '').toString().trim();
+    const katArt = document.getElementById('qstKategorieArt')?.value || '';
     codeEl.textContent = code || (pct ? `${pct} %` : '–');
+    if (typeof qstHalbfamilieArtSync === 'function') qstHalbfamilieArtSync();
     const v = _qstServerVorschlag;
-    let bez = qstIstSonderkategorie(code)
+    let bez = katArt === 'OFFEN'
+        ? 'Offene Kategorie'
+        : qstIstSonderkategorie(code)
         ? ('Sonderkategorie · ' + QST_SONDER_BEZ[code])
         : ((v && v.tarifCode === tarif && v.tarifBezeichnung) ? v.tarifBezeichnung : (QST_TARIF_BEZ[tarif] || ''));
     if (pct) bez = (bez ? bez + ' · ' : '') + 'manueller Prozentsatz';
@@ -626,6 +639,11 @@ async function qstFetchServerVorschlag(stichtagIso) {
 function qstApplyServerVorschlagToForm() {
     const v = _qstServerVorschlag;
     if (!v) { qstRenderVorschlagBanner(); return; }
+    const katArt = document.getElementById('qstKategorieArt')?.value || '';
+    if (katArt === 'VORDEFINIERT' || katArt === 'OFFEN') {
+        qstRenderVorschlagBanner();
+        return;
+    }
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val ?? '').toString(); };
     const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
     setVal('qstTarifCode',    v.tarifCode);
@@ -1039,7 +1057,25 @@ function populateQstForm(entry) {
     v('qstWagKanton',  entry?.weitereAgKanton  ?? '');
     v('qstWagLand',    entry?.weitereAgLand    ?? '');
     window._qstGesEinkommenAlt = entry?.gesamteinkommenWeitereAg ?? null;
+    const eink = document.getElementById('qstGesamteinkommen');
+    if (eink) eink.value = entry?.gesamteinkommenWeitereAg ?? '';
+    const wart = entry?.weitereAngabenArt
+        || (Number(entry?.gesamtpensumWeitereAg) > 0 ? 'PENSUM'
+            : (Number(entry?.gesamteinkommenWeitereAg) > 0 ? 'EINKOMMEN' : ''));
+    qstSetWeitereArt(wart);
+    const katSel = document.getElementById('qstKategorieArt');
+    if (katSel) katSel.value = entry?.kategorieArt || '';
+    if ((entry?.kategorieArt || '') === 'VORDEFINIERT') {
+        const vor = document.getElementById('qstVordefCode');
+        if (vor) vor.value = entry?.qstCode || 'HEN';
+    }
+    if ((entry?.kategorieArt || '') === 'OFFEN') {
+        const off = document.getElementById('qstOffenCode');
+        if (off) off.value = entry?.qstCode || '';
+    }
+    qstKategorieArtChanged();
     qstSetHalbfamilie(entry?.halbfamilie ?? '');
+    qstSetSorgerecht(entry?.sorgerechtCode || '');
     v('qstWohnsitzAusland',entry?.wohnsitzAusland          ?? '');
     v('qstWohnsitzstaat',  entry?.wohnsitzstaat            ?? '');
     v('qstAdresseAusland', entry?.adresseAusland           ?? '');
@@ -1110,6 +1146,11 @@ function onQstTarifChange() {
 }
 
 function buildQstCode() {
+    const katArt = document.getElementById('qstKategorieArt')?.value || '';
+    if (katArt === 'VORDEFINIERT' || katArt === 'OFFEN') {
+        qstKategorieArtChanged();
+        return;
+    }
     const existing = (document.getElementById('qstCode')?.value || '').toString().trim().toUpperCase();
     const tarif   = document.getElementById('qstTarifCode')?.value ?? '';
     if (qstIstSonderkategorie(existing) && !tarif) { qstRenderResultat(); return; }
@@ -1127,15 +1168,83 @@ function buildQstCode() {
 
 function toggleQstWeitere() {
     const checked = document.getElementById('qstWeitere')?.checked;
-    // Walter 25.08.2026: vier Wrapper — Arbeitgeber/Strasse/Pensum + volle
-    // Adresszeile (PLZ/Ort/Kanton/Land) für das Anmeldeformular.
-    ['qstWeitereField1', 'qstWeitereField2', 'qstWeitereField3', 'qstWeitereField4'].forEach(id => {
+    ['qstWeitereField1', 'qstWeitereField2', 'qstWeitereField3', 'qstWeitereField4', 'qstWeitereArtRow'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = checked ? 'block' : 'none';
     });
-    // Backwards-compat (falls noch irgendwo ein Element mit der alten ID existiert)
     const legacy = document.getElementById('qstWeitereFields');
     if (legacy) legacy.style.display = checked ? 'flex' : 'none';
+    if (checked) qstWeitereArtChanged();
+}
+
+function qstWeitereArt() {
+    return document.querySelector('input[name="qstWeitereArt"]:checked')?.value || '';
+}
+
+function qstSetWeitereArt(art) {
+    document.querySelectorAll('input[name="qstWeitereArt"]').forEach(r => { r.checked = r.value === art; });
+    qstWeitereArtChanged();
+}
+
+function qstWeitereArtChanged() {
+    const art = qstWeitereArt();
+    const ein = document.getElementById('qstEinkommenRow');
+    const pen = document.getElementById('qstPensumBox');
+    const hin = document.getElementById('qstUnbekanntHinweis');
+    if (ein) ein.style.display = art === 'EINKOMMEN' ? 'block' : 'none';
+    if (pen) pen.style.display = art === 'PENSUM' ? 'block' : 'none';
+    if (hin) hin.style.display = art === 'UNBEKANNT' ? 'block' : 'none';
+}
+
+function qstKategorieArtChanged(neuBauen) {
+    const art = document.getElementById('qstKategorieArt')?.value || '';
+    const vor = document.getElementById('qstVordefBox');
+    const off = document.getElementById('qstOffenBox');
+    if (vor) vor.style.display = art === 'VORDEFINIERT' ? '' : 'none';
+    if (off) off.style.display = art === 'OFFEN' ? '' : 'none';
+    if (art === 'VORDEFINIERT') {
+        const code = document.getElementById('qstVordefCode')?.value || 'HEN';
+        const el = document.getElementById('qstCode');
+        if (el) el.value = code;
+    } else if (art === 'OFFEN') {
+        const code = (document.getElementById('qstOffenCode')?.value || '').trim().toUpperCase();
+        const el = document.getElementById('qstCode');
+        if (el) el.value = code;
+    } else if (neuBauen && typeof buildQstCode === 'function') {
+        buildQstCode();
+        return;
+    }
+    qstRenderResultat();
+}
+
+function qstTarifBuchstabe() {
+    const kat = document.getElementById('qstKategorieArt')?.value || '';
+    if (kat === 'VORDEFINIERT' || kat === 'OFFEN') return '';
+    const code = (document.getElementById('qstCode')?.value || document.getElementById('qstTarifCode')?.value || '').trim().toUpperCase();
+    return code ? code[0] : '';
+}
+
+function qstHalbfamilieArtSync() {
+    const box = document.getElementById('qstHalbfamilieArt');
+    if (!box) return;
+    const halb = (qstGetHalbfamilie() || '').toLowerCase() === 'ja';
+    const letter = qstTarifBuchstabe();
+    box.style.display = (halb || letter === 'H' || letter === 'P' || letter === 'U') ? '' : 'none';
+}
+
+function qstKonkubinatWahlChanged() {
+    const wahl = document.getElementById('qstKonkubinatWahl')?.value || '';
+    const folge = document.getElementById('qstSorgerechtFolge');
+    if (folge) folge.style.display = wahl === 'Concubinage' ? '' : 'none';
+}
+
+function qstSetSorgerecht(code) {
+    const wahl = document.getElementById('qstKonkubinatWahl');
+    const folge = document.getElementById('qstSorgerechtFolge');
+    const c = code || '';
+    if (wahl) wahl.value = c === 'NoConcubinage' ? 'NoConcubinage' : (c ? 'Concubinage' : '');
+    if (folge && c && c !== 'NoConcubinage') folge.value = c;
+    qstKonkubinatWahlChanged();
 }
 
 async function saveQstEntry() {
@@ -1175,11 +1284,12 @@ async function saveQstEntry() {
         qstGemeinde:          document.getElementById('qstGemeinde').value         || null,
         qstGemeindeBfsNr:     parseInt(document.getElementById('qstGemeindeBfs').value) || null,
         tarifvorschlagQst:    document.getElementById('qstTarifvorschlag').checked,
-        tarifCode:            document.getElementById('qstTarifCode').value        || null,
-        tarifBezeichnung:     tarifBez[document.getElementById('qstTarifCode').value] ?? null,
+        tarifCode:            (document.getElementById('qstKategorieArt')?.value ? null : (document.getElementById('qstTarifCode').value || null)),
+        tarifBezeichnung:     document.getElementById('qstKategorieArt')?.value ? null : (tarifBez[document.getElementById('qstTarifCode').value] ?? null),
         anzahlKinder:         parseInt(document.getElementById('qstKinder').value) || 0,
         kirchensteuer:        document.getElementById('qstKirchensteuer').checked,
         qstCode:              document.getElementById('qstCode').value             || null,
+        kategorieArt:         document.getElementById('qstKategorieArt')?.value || null,
         spezielBewilligt:     document.getElementById('qstSpezielBewilligt').checked,
         // Beleg-Dokument (Verfügung Behördenbewilligung / Tarifbestätigung).
         dokumentId:           parseInt(document.getElementById('qstBewilligungDok')?.value) || null,
@@ -1189,10 +1299,9 @@ async function saveQstEntry() {
         partnerEinkommenVon:  document.getElementById('qstPartnerVon').value       || null,
         partnerEinkommenBis:  document.getElementById('qstPartnerBis').value       || null,
         weitereBeschaftigungen: document.getElementById('qstWeitere').checked,
+        weitereAngabenArt:      document.getElementById('qstWeitere').checked ? (qstWeitereArt() || null) : null,
         gesamtpensumWeitereAg:  parseFloat(document.getElementById('qstGesamtpensum').value)    || null,
-        // Einkommen wird nicht mehr erfasst (Walter 25.08.2026) — Altwert
-        // unverändert mitschicken, damit bestehende Daten nicht gelöscht werden.
-        gesamteinkommenWeitereAg: window._qstGesEinkommenAlt ?? null,
+        gesamteinkommenWeitereAg: parseFloat(document.getElementById('qstGesamteinkommen')?.value) || null,
         // Anderer Arbeitgeber des MA — volle Adresse (Anmeldeformular).
         weitereAgName:    document.getElementById('qstWagName')?.value.trim()    || null,
         weitereAgStrasse: document.getElementById('qstWagStrasse')?.value.trim() || null,
@@ -1201,6 +1310,12 @@ async function saveQstEntry() {
         weitereAgKanton:  (document.getElementById('qstWagKanton')?.value.trim().toUpperCase()) || null,
         weitereAgLand:    document.getElementById('qstWagLand')?.value.trim()    || null,
         halbfamilie:          qstGetHalbfamilie()                                  || null,
+        sorgerechtCode:       (() => {
+            const wahl = document.getElementById('qstKonkubinatWahl')?.value || '';
+            if (wahl === 'NoConcubinage') return 'NoConcubinage';
+            if (wahl === 'Concubinage') return document.getElementById('qstSorgerechtFolge')?.value || null;
+            return null;
+        })(),
         wohnsitzAusland:      document.getElementById('qstWohnsitzAusland').value  || null,
         wohnsitzstaat:        document.getElementById('qstWohnsitzstaat').value    || null,
         adresseAusland:       document.getElementById('qstAdresseAusland').value   || null,
@@ -1225,8 +1340,26 @@ async function saveQstEntry() {
         return;
     }
     // Behördenbewilligung NUR mit Beleg (Walter 29.08.2026, analog Befreiung).
+    if (payload.weitereBeschaftigungen && payload.weitereAngabenArt === 'EINKOMMEN' && !(payload.gesamteinkommenWeitereAg > 0)) {
+        resultEl.innerHTML = '<span style="color:#dc2626">Gesamtbruttoeinkommen der weiteren Arbeitgeber oder Ersatzeinkünfte fehlt.</span>';
+        return;
+    }
+    if (payload.weitereBeschaftigungen && payload.weitereAngabenArt === 'PENSUM' && !(payload.gesamtpensumWeitereAg > 0)) {
+        resultEl.innerHTML = '<span style="color:#dc2626">Kumulierter Beschäftigungsgrad aller weiteren Arbeitgeber fehlt.</span>';
+        return;
+    }
+    if (payload.kategorieArt === 'OFFEN' && !/^[A-Z0-9]{1,40}$/.test((payload.qstCode || '').toUpperCase())) {
+        resultEl.innerHTML = '<span style="color:#dc2626">Offene Kategorie: nur Buchstaben und Ziffern, höchstens 40 Zeichen.</span>';
+        return;
+    }
+    if ((document.getElementById('qstKonkubinatWahl')?.value || '') === 'Concubinage'
+        && document.getElementById('qstHalbfamilieArt')?.style.display !== 'none'
+        && !payload.sorgerechtCode) {
+        resultEl.innerHTML = '<span style="color:#dc2626">Bei Konkubinat eine Folgeangabe wählen: Alleiniges Sorgerecht, Gemeinsames Sorgerecht und höheres Bruttoeinkommen, oder Volljähriges Kind und höheres Bruttoeinkommen.</span>';
+        return;
+    }
     if (payload.spezielBewilligt && !payload.dokumentId) {
-        resultEl.innerHTML = '<span style="color:#dc2626">«Kinderabzug behördlich bewilligt» braucht die Verfügung der Steuerbehörde als Beleg — Dokument im Dokumente-Tab ablegen und oben auswählen.</span>';
+        resultEl.innerHTML = '<span style="color:#dc2626">Speziell bewilligter QST-Code braucht die Verfügung der Steuerbehörde als Beleg — Dokument im Dokumente-Tab ablegen und oben auswählen.</span>';
         return;
     }
 

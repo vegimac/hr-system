@@ -15,6 +15,7 @@ let _lseScope = 'alle';          // 'alle' (Unternehmen) | 'filiale' (Sidebar-Fi
 let _lseData = null;             // letzte Prüfungs-Antwort
 let _lseConfig = null;           // Versions-Konfig (Code-Labels)
 let _lseVersions = [];
+let _statKatalog = null;         // Ausbildung + Stellung aus der Tabelle
 
 const _lseBtnDark = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer';
 const _lseBtnLight = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f';
@@ -317,7 +318,114 @@ async function lseExport() {
     showToast(j.message || 'XLS-Export folgt in Phase 2.', 'info');
 }
 
-// ── Bereich «BFS / Statistik» im MA-Detail (Restaurant Admin) ────────────
+// ── Katalog (System → Verzeichnisse) ─────────────────────────────────────
+async function statKatalogLaden(frisch) {
+    if (_statKatalog && !frisch) return _statKatalog;
+    const [a, s] = await Promise.all([
+        fetch('/api/statistik-katalog/ausbildung', { headers: ah() }),
+        fetch('/api/statistik-katalog/stellung', { headers: ah() }),
+    ]);
+    _statKatalog = {
+        ausbildung: a.ok ? await a.json() : [],
+        stellung: s.ok ? await s.json() : [],
+    };
+    return _statKatalog;
+}
+
+function statOpt(list, val, leer) {
+    const rows = (list || []).filter(x => x.aktiv !== false || x.id === val);
+    return `<option value="">${_lseEsc(leer)}</option>` + rows.map(x =>
+        `<option value="${x.id}" ${Number(val) === x.id ? 'selected' : ''}>${_lseEsc(x.bezeichnung)}</option>`).join('');
+}
+
+async function statistikKatalogInit() {
+    const el = document.getElementById('statistikKatalogBody');
+    if (!el) return;
+    el.innerHTML = '<div style="padding:16px;color:#8b8b8b">Lade…</div>';
+    const k = await statKatalogLaden(true);
+    const admin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+    const feld = (id, val, breit) => admin
+        ? `<input id="${id}" value="${_lseEsc(val ?? '')}" style="width:${breit};padding:6px 8px;border:1px solid rgba(60,55,48,0.16);border-radius:8px;background:#fff">`
+        : _lseEsc(val ?? '');
+    const zeileA = t => `
+        <tr style="border-top:1px solid rgba(60,55,48,0.1);${t.aktiv ? '' : 'opacity:0.55'}">
+            <td style="padding:8px 6px">${feld('skaBez' + t.id, t.bezeichnung, '100%')}</td>
+            <td style="padding:8px 6px">${feld('skaBesch' + t.id, t.beschreibung, '100%')}</td>
+            <td style="padding:8px 6px;font-family:monospace;font-size:12px">${feld('skaCode' + t.id, t.code, '180px')}</td>
+            <td style="padding:8px 6px">${feld('skaLse' + t.id, t.lseAusbildung ?? '', '52px')}</td>
+            <td style="padding:8px 6px">${feld('skaTitel' + t.id, t.lseTitel ?? '', '42px')}</td>
+            <td style="padding:8px 6px">${feld('skaSort' + t.id, t.sortierung, '52px')}</td>
+            <td style="padding:8px 6px;text-align:center"><input id="skaAktiv${t.id}" type="checkbox" ${t.aktiv ? 'checked' : ''} ${admin ? '' : 'disabled'}></td>
+            <td style="padding:8px 6px">${admin ? `<button type="button" onclick="statistikKatalogSave('ausbildung', ${t.id})" style="${_lseBtnDark};padding:5px 12px">Speichern</button>` : ''}</td>
+        </tr>`;
+    const zeileS = t => `
+        <tr style="border-top:1px solid rgba(60,55,48,0.1);${t.aktiv ? '' : 'opacity:0.55'}">
+            <td style="padding:8px 6px">${feld('sksBez' + t.id, t.bezeichnung, '100%')}</td>
+            <td style="padding:8px 6px">${feld('sksBesch' + t.id, t.beschreibung, '100%')}</td>
+            <td style="padding:8px 6px;font-family:monospace;font-size:12px">${feld('sksCode' + t.id, t.code, '160px')}</td>
+            <td style="padding:8px 6px">${feld('sksLse' + t.id, t.lseCode ?? '', '52px')}</td>
+            <td style="padding:8px 6px">${feld('sksSort' + t.id, t.sortierung, '52px')}</td>
+            <td style="padding:8px 6px;text-align:center"><input id="sksAktiv${t.id}" type="checkbox" ${t.aktiv ? 'checked' : ''} ${admin ? '' : 'disabled'}></td>
+            <td style="padding:8px 6px">${admin ? `<button type="button" onclick="statistikKatalogSave('stellung', ${t.id})" style="${_lseBtnDark};padding:5px 12px">Speichern</button>` : ''}</td>
+        </tr>`;
+    const th = 'text-align:left;padding:8px 6px;color:#8b8b8b;font-size:11px;text-transform:uppercase';
+    el.innerHTML = `
+        <div class="card" style="padding:14px 16px;margin-bottom:16px">
+            <div style="font-weight:700;margin-bottom:8px">Höchste abgeschlossene Ausbildung</div>
+            <div style="font-size:12.5px;color:#646464;margin-bottom:10px">Diese Liste erscheint am Mitarbeiter. Der XML-Wert geht in die Meldung und muss zum Swissdec-Schema passen.</div>
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr>
+                    <th style="${th}">Bezeichnung</th><th style="${th}">Hilfetext</th><th style="${th}">XML-Wert</th>
+                    <th style="${th}">LSE</th><th style="${th}">Titel</th><th style="${th}">Reihe</th><th style="${th}">Aktiv</th><th></th>
+                </tr></thead>
+                <tbody>${(k.ausbildung || []).map(zeileA).join('')}</tbody>
+            </table>
+        </div>
+        <div class="card" style="padding:14px 16px">
+            <div style="font-weight:700;margin-bottom:8px">Berufliche Stellung</div>
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead><tr>
+                    <th style="${th}">Bezeichnung</th><th style="${th}">Hilfetext</th><th style="${th}">XML-Wert</th>
+                    <th style="${th}">LSE</th><th style="${th}">Reihe</th><th style="${th}">Aktiv</th><th></th>
+                </tr></thead>
+                <tbody>${(k.stellung || []).map(zeileS).join('')}</tbody>
+            </table>
+        </div>`;
+}
+
+function _statZahl(id) {
+    const v = document.getElementById(id)?.value;
+    if (v == null || String(v).trim() === '') return null;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : null;
+}
+
+async function statistikKatalogSave(art, id) {
+    const a = art === 'ausbildung';
+    const dto = a ? {
+        code: document.getElementById('skaCode' + id)?.value,
+        bezeichnung: document.getElementById('skaBez' + id)?.value,
+        beschreibung: document.getElementById('skaBesch' + id)?.value,
+        sortierung: _statZahl('skaSort' + id) || 0,
+        lseAusbildung: _statZahl('skaLse' + id),
+        lseTitel: _statZahl('skaTitel' + id),
+        aktiv: !!document.getElementById('skaAktiv' + id)?.checked,
+    } : {
+        code: document.getElementById('sksCode' + id)?.value,
+        bezeichnung: document.getElementById('sksBez' + id)?.value,
+        beschreibung: document.getElementById('sksBesch' + id)?.value,
+        sortierung: _statZahl('sksSort' + id) || 0,
+        lseCode: _statZahl('sksLse' + id),
+        aktiv: !!document.getElementById('sksAktiv' + id)?.checked,
+    };
+    const r = await fetch(`/api/statistik-katalog/${art}/${id}`, { method: 'PUT', headers: ah(), body: JSON.stringify(dto) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen', 'error'); return; }
+    showToast('Gespeichert', 'success');
+    statistikKatalogInit();
+}
+
+// ── Bereich «Statistik (BFS)» in der Mitarbeiter-Übersicht ───────────────
 async function lseEmpBlockAppend(container, employeeId) {
     if (!container) return;
     let lse = {};
