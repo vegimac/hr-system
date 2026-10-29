@@ -53,17 +53,17 @@ function laStil() {
         }
         #laAngabenOverlay.la-kompakt .la-bemerkungen .la-bet { grid-column: 1 / -1; }
         #laAngabenOverlay.la-kompakt .la-mini { font-size: 12px; font-weight: 700; color: #3f3f3f; margin: 0 0 2px; }
-        #laAngabenOverlay.la-kompakt .la-kontakt-firma .la-nach {
-            display: grid; width: max-content; max-width: 100%;
-            grid-template-columns: 240px 72px 168px 180px 150px;
-            gap: 6px 8px; margin-top: 4px;
+        #laAngabenOverlay.la-kompakt .la-bestaetigung {
+            display: grid; grid-template-columns: auto auto; gap: 12px 28px;
+            margin-top: 6px; justify-content: start;
         }
-        #laAngabenOverlay.la-kompakt .la-kontakt-firma .la-nach label:nth-child(1) { grid-column: 1; grid-row: 1; }
-        #laAngabenOverlay.la-kompakt .la-kontakt-firma .la-nach label:nth-child(2) { grid-column: 4; grid-row: 1; }
-        #laAngabenOverlay.la-kompakt .la-kontakt-firma .la-nach label:nth-child(3) { grid-column: 5; grid-row: 1; }
-        #laAngabenOverlay.la-kompakt .la-kontakt-firma .la-nach label:nth-child(4) { grid-column: 1; grid-row: 2; }
-        #laAngabenOverlay.la-kompakt .la-kontakt-firma .la-nach label:nth-child(5) { grid-column: 2; grid-row: 2; }
-        #laAngabenOverlay.la-kompakt .la-kontakt-firma .la-nach label:nth-child(6) { grid-column: 3; grid-row: 2; }
+        #laAngabenOverlay.la-kompakt .la-best-person {
+            display: grid; grid-template-columns: 180px 150px; gap: 8px; align-content: start;
+        }
+        #laAngabenOverlay.la-kompakt .la-best-stelle {
+            display: grid; grid-template-columns: 220px 72px 150px; gap: 8px; align-content: start;
+        }
+        #laAngabenOverlay.la-kompakt .la-best-stelle label:first-child { grid-column: 1 / -1; max-width: 280px; }
         #laAngabenOverlay.la-kompakt .la-karte { padding: 8px 10px; }
         #laAngabenOverlay.la-kompakt .la-titel { font-size: 13px; }
         #laAngabenOverlay.la-kompakt .la-text { font-size: 11px; line-height: 1.25; }
@@ -729,8 +729,25 @@ function laFirmaHtml(f) {
                 </div>
             </div>`, 2)}
         ${laKarte('I', 'Bestätigung',
-            'Unten auf dem Ausweis: Name, Adresse und Telefon für die Steuerverwaltung.',
-            `<div class="la-kontakt la-kontakt-firma">${laKontaktFelder('laF', f)}</div>`, 2)}
+            'Unten auf dem Ausweis, für Rückfragen der Steuerverwaltung.',
+            `<div class="la-bestaetigung">
+                <div>
+                    <div class="la-mini">Person</div>
+                    <div class="la-best-person">
+                        <label class="f-label">Name<input id="laFKontaktPerson" class="f-input" value="${laEsc(f.kontaktPerson || '')}"></label>
+                        <label class="f-label">Telefon<input id="laFKontaktTel" class="f-input" value="${laEsc(f.kontaktTelefon || '')}"></label>
+                    </div>
+                </div>
+                <div>
+                    <div class="la-mini">Stelle</div>
+                    <div class="la-best-stelle">
+                        <label class="f-label">Organisation<input id="laFKontaktOrg" class="f-input" value="${laEsc(f.kontaktOrg || '')}"></label>
+                        <label class="f-label">Strasse<input id="laFKontaktStrasse" class="f-input" value="${laEsc(f.kontaktStrasse || '')}"></label>
+                        <label class="f-label">PLZ<input id="laFKontaktPlz" class="f-input" value="${laEsc(f.kontaktPlz || '')}"></label>
+                        <label class="f-label">Ort<input id="laFKontaktOrt" class="f-input" value="${laEsc(f.kontaktOrt || '')}"></label>
+                    </div>
+                </div>
+            </div>`, 2)}
     </div>`;
 }
 
@@ -777,6 +794,119 @@ async function laFirmaSpeichern(companyProfileId) {
     if (typeof laFirmaAnsichtAktualisieren === 'function')
         laFirmaAnsichtAktualisieren(companyProfileId, body.boxF, body.boxG, body.pos21);
     laAngabenSchliessen();
+    laFilialeAnsichtLaden(companyProfileId);
+}
+
+function laGhostZeile(nr, name, wert) {
+    const hat = !!(wert && String(wert).trim());
+    return `<div class="la-ghost-row${hat ? ' hat' : ''}">
+        <span class="la-ghost-nr">${nr}</span>
+        <span class="la-ghost-name">${name}</span>
+        <span class="la-ghost-wert">${hat ? laEsc(wert) : ''}</span>
+    </div>`;
+}
+
+function laFilialeGefuellt(f) {
+    const geld = v => (v != null && v !== '' && Number(v) !== 0)
+        ? 'CHF ' + Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+    const grant = (datum, kanton) => (datum && kanton) ? 'Kanton ' + kanton + ', ' + laDatum(datum) : '';
+    const wagen = [f.wagenAbklaeren ? 'Privatanteil abklären' : '', f.wagenMinimal ? 'Arbeitnehmer zahlt 0,9 %' : ''].filter(Boolean).join(' · ');
+    const bet = [
+        f.betGesperrt ? 'gesperrte Optionen' : '',
+        f.betNichtKotiert ? 'nicht börsenkotiert' : '',
+        f.betAnwartschaft ? 'Anwartschaften' : '',
+        f.betUnecht ? 'unechte Beteiligung' : '',
+    ].filter(Boolean).join(' · ');
+    const bem = [
+        grant(f.expatDatum, f.expatKanton) ? 'Expatriate ' + grant(f.expatDatum, f.expatKanton) : '',
+        grant(f.wertDatum, f.wertKanton) ? 'Verkehrswert ' + grant(f.wertDatum, f.wertKanton) : '',
+        bet,
+    ].filter(Boolean).join(' · ');
+    const kontakt = [f.kontaktPerson, f.kontaktTelefon, f.kontaktOrg,
+        [f.kontaktStrasse, [f.kontaktPlz, f.kontaktOrt].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+    ].filter(Boolean).join(' · ');
+    return { geld: geld(f.pos21), wagen, bem, kontakt, grant13: grant(f.spesenDatum, f.spesenKanton), z14: f.ziffer14 || '' };
+}
+
+function laFilialeZeitraum(f) {
+    if (!f.gueltigAb) return '';
+    return f.gueltigBis ? f.gueltigAb + '–' + f.gueltigBis : 'seit ' + f.gueltigAb;
+}
+
+function laFilialeBlatt(f, id, mitKnopf) {
+    const g = laFilialeGefuellt(f);
+    const zeit = laFilialeZeitraum(f);
+    return `<section class="stm-karte-ansicht la-filiale">
+        <div class="ov-card-h">
+            <span>Lohnausweis${zeit ? ' <span class="ov-count">' + laEsc(zeit) + '</span>' : ''}</span>
+            ${mitKnopf ? `<button type="button" class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="laFirmaVonFiliale(${id})">Bearbeiten</button>` : ''}
+        </div>
+        <div class="la-ghost">
+            <div class="la-zone-fg">
+                ${laGhostZeile('F', 'Unentgeltliche Beförderung zwischen Wohn- und Arbeitsort', f.boxF ? 'angekreuzt' : '')}
+                ${laGhostZeile('G', 'Kantinenverpflegung / Lunch-Checks', f.boxG ? 'angekreuzt' : '')}
+            </div>
+            <div class="la-zone-zwei">
+                ${laGhostZeile('2.1', 'Verpflegung, Unterkunft', g.geld)}
+                ${laGhostZeile('2.2', 'Privatanteil Geschäftsfahrzeug', g.wagen)}
+            </div>
+            <div class="la-zone-unten">
+                ${laGhostZeile('13', 'Spesenvergütungen', g.grant13)}
+                ${laGhostZeile('13.1.1', 'Reise, Verpflegung, Übernachtung', f.rz52 ? 'angekreuzt' : '')}
+                ${laGhostZeile('14', 'Weitere Gehaltsnebenleistungen', g.z14)}
+                ${laGhostZeile('15', 'Bemerkungen', g.bem)}
+                ${laGhostZeile('I', 'Kontaktperson', g.kontakt)}
+            </div>
+        </div>
+    </section>`;
+}
+
+function laFilialeKurz(f) {
+    const g = laFilialeGefuellt(f);
+    const teile = [
+        f.boxF ? 'F' : '',
+        f.boxG ? 'G' : '',
+        g.geld ? '2.1 ' + g.geld : '',
+        g.wagen ? '2.2 ' + g.wagen : '',
+        g.grant13 ? '13 ' + g.grant13 : '',
+        f.rz52 ? '13.1.1' : '',
+        g.z14 ? '14 ' + g.z14 : '',
+        g.bem ? '15 ' + g.bem : '',
+        g.kontakt ? 'I ' + g.kontakt : '',
+    ].filter(Boolean);
+    return teile.length ? teile.join(' · ') : 'keine Einträge';
+}
+
+function laFilialeAnsichtHtml(f, id) {
+    const jahr = new Date().getFullYear();
+    const liste = (f.fassungen && f.fassungen.length) ? f.fassungen : [f];
+    const aktuell = liste.find(x => x.gueltigAb <= jahr && (x.gueltigBis == null || x.gueltigBis >= jahr)) || liste[0];
+    const historie = liste.filter(x => x.gueltigAb !== aktuell.gueltigAb)
+        .sort((a, b) => b.gueltigAb - a.gueltigAb);
+    const alt = historie.map(h => `<div class="la-hist-zeile">
+        <div class="la-hist-wann">${laEsc(laFilialeZeitraum(h))}</div>
+        <div class="la-hist-was">${laEsc(laFilialeKurz(h))}</div>
+    </div>`).join('');
+    return `<div class="la-filiale-stapel">
+        ${laFilialeBlatt(aktuell, id, true)}
+        ${historie.length ? `<section class="stm-karte-ansicht la-historie">
+            <div class="ov-card-h"><span>Historie</span></div>
+            ${alt}
+        </section>` : ''}
+    </div>`;
+}
+
+async function laFilialeAnsichtLaden(companyProfileId) {
+    const box = document.getElementById('laFilialeAnsicht-' + companyProfileId);
+    if (!box) return;
+    box.innerHTML = '<div style="font-size:12px;color:#8b8b8b;padding:8px">Wird geladen…</div>';
+    try {
+        const r = await fetch(`/api/companyprofiles/${companyProfileId}/lohnausweis-angaben`, { headers: ah() });
+        if (!r.ok) { box.innerHTML = '<div style="color:#b91c1c;padding:8px">Lohnausweis konnte nicht geladen werden.</div>'; return; }
+        box.innerHTML = laFilialeAnsichtHtml(await r.json(), companyProfileId);
+    } catch {
+        box.innerHTML = '<div style="color:#b91c1c;padding:8px">Lohnausweis konnte nicht geladen werden.</div>';
+    }
 }
 
 // Blöcke mit data-la-wenn ein- und ausblenden (Select-Wert oder Häkchen).

@@ -272,7 +272,6 @@ function stmAnsichtHtml(b) {
                     <div class="ov-card-h">
                         <span>Hauptsitz</span>
                         <span class="stm-ansicht-aktionen">
-                            <button type="button" onclick="laFirmaVonFiliale(${b.id})" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:4px 14px;font-size:12px;cursor:pointer">Lohnausweis</button>
                             <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">Bearbeiten</button>
                         </span>
                     </div>
@@ -358,6 +357,7 @@ function renderFilialenDetail(b) {
 
             <div class="emp-tab"        data-ftab="f-einstellungen"  onclick="switchFilialenTab('f-einstellungen')">Einstellungen</div>
             <div class="emp-tab"        data-ftab="f-empf"           onclick="switchFilialenTab('f-empf')" style="line-height:1.15;text-align:center">Lohndaten<br>Empfänger</div>
+            <div class="emp-tab"        data-ftab="f-lohnausweis"    onclick="switchFilialenTab('f-lohnausweis')">Lohnausweis</div>
             <div class="emp-tab"        data-ftab="f-arbeitszeit"    onclick="switchFilialenTab('f-arbeitszeit')">Arbeitszeit</div>
             ${cdokCanSee() ? `<div class="emp-tab" data-ftab="f-doks" onclick="switchFilialenTab('f-doks')">Dokumente</div>` : ''}
             <!-- Aktions-Buttons des Einstellungen-Tabs sitzen in der Tab-Leiste
@@ -707,6 +707,10 @@ function renderFilialenDetail(b) {
                  die Lohnperiode ist jetzt immer der Kalendermonat.
                  Der „Auf alle Filialen übertragen"-Button sitzt in der
                  sticky Kopfzeile oben — kein zweiter Button hier unten nötig. -->
+        </div>
+
+        <div class="emp-tab-content" id="fil-tab-f-lohnausweis">
+            <div id="laFilialeAnsicht-${b.id}"><div style="font-size:12px;color:#8b8b8b;padding:8px">Wird geladen…</div></div>
         </div>
 
         <!-- TAB: Lohndatenempfänger — Filiale wählt aus dem zentralen Verzeichnis
@@ -1186,6 +1190,9 @@ function switchFilialenTab(tab) {
     // Lohndatenempfänger-Tab: Zuordnungen beim Betreten laden.
     if (tab === 'f-empf' && selectedBranch && typeof cpEmpfLoad === 'function') {
         cpEmpfLoad(selectedBranch.id);
+    }
+    if (tab === 'f-lohnausweis' && selectedBranch && typeof laFilialeAnsichtLaden === 'function') {
+        laFilialeAnsichtLaden(selectedBranch.id);
     }
 }
 

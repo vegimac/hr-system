@@ -316,6 +316,7 @@ public class LohnausweisAngabenController : ControllerBase
         kontaktPerson = gezeigt.KontaktPerson,
         kontaktTelefon = gezeigt.KontaktTelefon,
         staende = alle.Select(x => new { ab = x.GueltigAb, bis = x.GueltigBis }).Distinct(),
+        fassungen = alle.OrderByDescending(x => x.GueltigAb).Select(x => FirmaNachAussen(firma, x)).ToList(),
         geschlossen,
     };
 
