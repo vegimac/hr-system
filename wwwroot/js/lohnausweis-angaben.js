@@ -1080,10 +1080,17 @@ function laFilialeAnsichtHtml(f, id) {
     const aktuell = liste.find(x => x.gueltigAb <= jahr && (x.gueltigBis == null || x.gueltigBis >= jahr)) || liste[0];
     const historie = liste.filter(x => x.gueltigAb !== aktuell.gueltigAb)
         .sort((a, b) => b.gueltigAb - a.gueltigAb);
-    const alt = historie.map(h => `<div class="la-hist-zeile">
-        <div class="la-hist-wann">${laEsc(laFilialeZeitraum(h))}</div>
-        <div class="la-hist-was">${laEsc(laFilialeKurz(h))}</div>
-    </div>`).join('');
+    const auf = window._laHistAuf && Number(window._laHistAuf.id) === Number(id) ? Number(window._laHistAuf.ab) : null;
+    const alt = historie.map(h => {
+        const offen = auf === Number(h.gueltigAb);
+        return `<div class="la-hist-block">
+            <button type="button" class="la-hist-zeile${offen ? ' auf' : ''}" onclick="laHistAuf(${id}, ${Number(h.gueltigAb)})">
+                <span class="la-hist-wann">${laEsc(laFilialeZeitraum(h))}</span>
+                <span class="la-hist-was">${offen ? 'zuklappen' : laEsc(laFilialeKurz(h))}</span>
+            </button>
+            ${offen ? `<div class="la-hist-blatt">${laAnsichtMaske(h)}</div>` : ''}
+        </div>`;
+    }).join('');
     return `<div class="la-filiale-stapel">
         ${laFilialeBlatt(aktuell, id, true)}
         ${historie.length ? `<section class="stm-karte-ansicht la-historie">
@@ -1093,6 +1100,16 @@ function laFilialeAnsichtHtml(f, id) {
     </div>`;
 }
 
+function laHistAuf(id, ab) {
+    const gleich = window._laHistAuf && Number(window._laHistAuf.id) === Number(id) && Number(window._laHistAuf.ab) === Number(ab);
+    window._laHistAuf = gleich ? null : { id, ab };
+    const cache = window._laFilialeCache;
+    const box = document.getElementById('laFilialeAnsicht-' + id);
+    if (cache && Number(cache.id) === Number(id) && box)
+        box.innerHTML = laFilialeAnsichtHtml(cache.f, id);
+    else laFilialeAnsichtLaden(id);
+}
+
 async function laFilialeAnsichtLaden(companyProfileId) {
     const box = document.getElementById('laFilialeAnsicht-' + companyProfileId);
     if (!box) return;
@@ -1100,7 +1117,9 @@ async function laFilialeAnsichtLaden(companyProfileId) {
     try {
         const r = await fetch(`/api/companyprofiles/${companyProfileId}/lohnausweis-angaben`, { headers: ah() });
         if (!r.ok) { box.innerHTML = '<div style="color:#b91c1c;padding:8px">Lohnausweis konnte nicht geladen werden.</div>'; return; }
-        box.innerHTML = laFilialeAnsichtHtml(await r.json(), companyProfileId);
+        const daten = await r.json();
+        window._laFilialeCache = { id: companyProfileId, f: daten };
+        box.innerHTML = laFilialeAnsichtHtml(daten, companyProfileId);
     } catch {
         box.innerHTML = '<div style="color:#b91c1c;padding:8px">Lohnausweis konnte nicht geladen werden.</div>';
     }

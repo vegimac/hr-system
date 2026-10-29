@@ -10171,8 +10171,12 @@ body.theme-dark .la-filiale .la-gueltig .lqsel-btn {
 .la-filiale-stapel { display: flex; flex-direction: column; gap: 36px; }
 .la-hist-zeile {
     display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: baseline;
-    padding: 7px 0; border-top: 1px solid rgba(90,80,65,0.10);
+    width: 100%; margin: 0; padding: 7px 2px; border: none; border-top: 1px solid rgba(90,80,65,0.10);
+    background: transparent; text-align: left; font: inherit; cursor: pointer; color: inherit;
 }
+.la-hist-zeile:hover { background: rgba(255,255,255,0.45); }
+.la-hist-zeile.auf { cursor: pointer; }
+.la-hist-blatt { padding: 8px 2px 12px; }
 .la-hist-wann { font-size: 13.5px; font-weight: 700; color: #1a1a1a; }
 .la-hist-was { font-size: 13px; color: #646464; line-height: 1.4; }
 body.theme-dark .la-hist-wann { color: #f3f0ea; }
@@ -11978,7 +11982,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261028h"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
-<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029p"></script>
+<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029q"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
