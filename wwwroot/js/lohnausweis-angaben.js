@@ -238,6 +238,51 @@ function laStil() {
         body.theme-dark #laAngabenOverlay .la-check { color: #f3f0ea; background: rgba(255,255,255,0.05); }
         body.theme-dark #laAngabenOverlay.la-kompakt .la-unter-name,
         body.theme-dark #laAngabenOverlay.la-kompakt .la-neben { color: #f3f0ea; }
+        #laAngabenOverlay.la-kompakt .la-maske .la-einzeile,
+        #laAngabenOverlay.la-kompakt .la-maske .la-unterzeile {
+            display: grid; grid-template-columns: 54px 270px minmax(0, 1fr);
+            column-gap: 12px; align-items: center; justify-content: stretch;
+            padding: 5px 12px;
+        }
+        #laAngabenOverlay.la-kompakt .la-maske .la-unterzeile { padding-top: 2px; padding-bottom: 2px; }
+        #laAngabenOverlay.la-kompakt .la-maske .la-titel,
+        #laAngabenOverlay.la-kompakt .la-maske .la-unter-name {
+            width: auto; flex: none; margin: 0; font-size: 13px; white-space: nowrap;
+        }
+        #laAngabenOverlay.la-kompakt .la-maske .la-werte {
+            display: grid; grid-template-columns: 200px 196px 156px 156px;
+            column-gap: 12px; align-items: center; flex: none;
+        }
+        #laAngabenOverlay.la-kompakt .la-maske .la-adr {
+            display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+            padding: 2px 12px 10px;
+        }
+        #laAngabenOverlay.la-kompakt .la-maske .la-adr-zeile {
+            display: grid;
+            grid-template-columns: 54px 270px 200px 196px 156px 156px;
+            column-gap: 12px; align-items: end; justify-content: stretch;
+        }
+        #laAngabenOverlay.la-kompakt .la-maske .la-karte { padding: 0; }
+        #laAngabenOverlay.la-kompakt .la-maske .la-badge {
+            width: 54px; min-width: 54px; max-width: 54px; flex: none;
+        }
+        #laAngabenOverlay.la-kompakt .la-maske .la-inline .yp-field-wrap,
+        #laAngabenOverlay.la-kompakt .la-maske .la-slot .yp-field-wrap {
+            width: 100%; flex: 1 1 auto; display: inline-flex; align-items: center;
+        }
+        #laAngabenOverlay.la-kompakt .la-maske .yp-cal-btn {
+            width: 16px; height: 16px; min-height: 0; padding: 0; border-radius: 0;
+            background: transparent; border: none; box-shadow: none;
+        }
+        #laAngabenOverlay.la-kompakt .la-maske .la-wert,
+        #laAngabenOverlay.la-kompakt .la-maske input.yp-text,
+        #laAngabenOverlay.la-kompakt .la-maske .lqsel-btn {
+            height: 22px !important; min-height: 0 !important; padding: 0 2px !important;
+            font-size: 14.5px !important; font-weight: 700 !important;
+            background: transparent !important; border: none !important;
+            border-radius: 0 !important; box-shadow: none !important;
+            border-bottom: 1px solid rgba(60,55,48,0.28) !important;
+        }
     `;
     document.head.appendChild(s);
 }
@@ -663,7 +708,7 @@ function laEinzeile(badge, titel, inhalt, breit, id) {
     return `<article class="la-karte la-einzeile${spalte}"${id ? ` id="${id}"` : ''}>
         <span class="la-badge">${badge}</span>
         <h3 class="la-titel">${titel}</h3>
-        <div class="la-einzeile-rest">${inhalt}</div>
+        <div class="la-werte">${inhalt}</div>
     </article>`;
 }
 
@@ -745,50 +790,83 @@ function laPlzOrt(el) {
     plzLookupGeneric(plz, 'laFKontaktOrt', null, null, null);
 }
 
-function laEditCheck(id, label, on) {
-    return `<label class="la-edit-check"><input type="checkbox" id="${id}"${on ? ' checked' : ''}> ${laEsc(label)}</label>`;
+function laWahl(id, label, on, edit) {
+    const hat = on ? ' hat' : '';
+    if (!edit) return `<span class="la-wahl${hat}">${laEsc(label)}</span>`;
+    return `<label class="la-wahl${hat}"><input type="checkbox" id="${id}"${on ? ' checked' : ''}>${laEsc(label)}</label>`;
 }
 
-function laGrantEdit(datumId, kantonId, datum, kanton) {
-    return `<span class="la-inline"><span class="la-mini-l">Datum</span><input type="date" id="${datumId}" class="f-input la-w-dat" value="${laEsc(datum || '')}"></span>
-        <span class="la-inline"><span class="la-mini-l">Kt.</span><span class="la-kanton">${laKantonSelect(kantonId, kanton)}</span></span>`;
+function laWert(text, cls) {
+    const s = text == null ? '' : String(text).trim();
+    return `<span class="la-wert${cls ? ' ' + cls : ''}${s ? ' hat' : ''}">${s ? laEsc(s) : ''}</span>`;
 }
 
-function laFirmaHtml(f) {
+function laEingabe(id, wert, cls, edit, attrs) {
+    if (!edit) return laWert(wert, cls);
+    return `<input id="${id}" class="la-wert ${cls}" value="${laEsc(wert || '')}"${attrs ? ' ' + attrs : ''}>`;
+}
+
+function laDatumKt(datumId, kantonId, datum, kanton, edit) {
+    const dat = edit
+        ? `<input type="date" id="${datumId}" class="la-wert" value="${laEsc(datum || '')}">`
+        : laWert(datum ? laDatum(datum) : '', '');
+    const kt = edit
+        ? `<span class="la-kanton">${laKantonSelect(kantonId, kanton)}</span>`
+        : laWert(kanton || '', '');
+    return `<span class="la-inline"><span class="la-mini-l">Datum</span><span class="la-slot la-w-dat">${dat}</span></span><span class="la-inline"><span class="la-mini-l">Kt.</span><span class="la-slot la-w-kt">${kt}</span></span>`;
+}
+
+function laUnter(name, inhalt) {
+    return `<div class="la-unterzeile"><span></span><span class="la-unter-name">${name}</span><div class="la-werte">${inhalt}</div></div>`;
+}
+
+function laAdr(label, innen) {
+    return `<label class="f-label">${label}${innen}</label>`;
+}
+
+function laMaske(f, edit) {
     const pos21 = f.pos21 == null || f.pos21 === 0 ? '' : f.pos21;
-    return `<div class="la-breit" style="margin-bottom:8px">${laGueltigLeiste(f)}</div>
-    <div class="la-maske">
-        ${laEinzeile('F', 'Unentgeltliche Beförderung', laEditCheck('laFBoxF', 'Ziffer F ankreuzen', f.boxF))}
-        ${laEinzeile('G', 'Kantinenverpflegung / Lunch-Checks', laEditCheck('laFBoxG', 'Ziffer G ankreuzen', f.boxG))}
-        ${laEinzeile('2.1', 'Verpflegung, Unterkunft', `<span class="la-inline"><span class="la-mini-l">CHF / Monat</span><input id="laFPos21" class="f-input la-w-geld" type="number" step="0.05" min="0" title="ESTV-Pauschale CHF 645, wenn der Arbeitgeber alles bezahlt" value="${laEsc(pos21)}"></span>`)}
-        ${laEinzeile('2.2', 'Privatanteil Geschäftsfahrzeug', `<span class="la-einzeile-checks">${laEditCheck('laFWagenAb', 'Privatanteil abklären', f.wagenAbklaeren)}${laEditCheck('laFWagenMin', 'Arbeitnehmer zahlt 0,9 %', f.wagenMinimal)}</span>`)}
-        ${laEinzeile('13', 'Spesenvergütungen', laGrantEdit('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton))}
-        ${laEinzeile('13.1.1', 'Reise, Verpflegung, Übernachtung',
-            `${laEditCheck('laFRz52', 'Kreuz in Ziffer 13.1.1', f.rz52)}<div id="laRz52Korrektur" class="la-korrektur" style="display:none"></div>`,
-            false, 'laRz52Karte')}
-        ${laEinzeile('14', 'Weitere Gehaltsnebenleistungen', `<input id="laF14" class="f-input la-w-art" value="${laEsc(f.ziffer14 || '')}">`)}
+    const geld = pos21 === '' ? '' : (edit ? String(pos21) : Number(pos21).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    const geldFeld = edit
+        ? `<input id="laFPos21" class="la-wert la-w-geld" type="number" step="0.05" min="0" title="ESTV-Pauschale CHF 645, wenn der Arbeitgeber alles bezahlt" value="${laEsc(pos21)}">`
+        : laWert(geld, 'la-w-geld');
+    const hinweis = edit ? '<div id="laRz52Korrektur" class="la-korrektur" style="display:none"></div>' : '';
+    return `<div class="la-maske">
+        ${laEinzeile('F', 'Unentgeltliche Beförderung', laWahl('laFBoxF', 'Ziffer F ankreuzen', !!f.boxF, edit))}
+        ${laEinzeile('G', 'Kantinenverpflegung / Lunch-Checks', laWahl('laFBoxG', 'Ziffer G ankreuzen', !!f.boxG, edit))}
+        ${laEinzeile('2.1', 'Verpflegung, Unterkunft', `<span class="la-inline"><span class="la-mini-l">CHF / Monat</span>${geldFeld}</span>`)}
+        ${laEinzeile('2.2', 'Privatanteil Geschäftsfahrzeug', laWahl('laFWagenAb', 'Privatanteil abklären', !!f.wagenAbklaeren, edit) + laWahl('laFWagenMin', 'Arbeitnehmer zahlt 0,9 %', !!f.wagenMinimal, edit))}
+        ${laEinzeile('13', 'Spesenvergütungen', laDatumKt('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton, edit))}
+        ${laEinzeile('13.1.1', 'Reise, Verpflegung, Übernachtung', laWahl('laFRz52', 'Kreuz in Ziffer 13.1.1', !!f.rz52, edit) + hinweis, false, edit ? 'laRz52Karte' : '')}
+        ${laEinzeile('14', 'Weitere Gehaltsnebenleistungen', laEingabe('laF14', f.ziffer14, 'la-w-art', edit))}
         <article class="la-karte">
             <div class="la-einzeile"><span class="la-badge">15</span><h3 class="la-titel">Bemerkungen</h3></div>
-            <div class="la-unterzeile"><span class="la-unter-name">Expatriate</span>${laGrantEdit('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton)}</div>
-            <div class="la-unterzeile"><span class="la-unter-name">Verkehrswert</span>${laGrantEdit('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton)}</div>
-            <div class="la-unterzeile"><span class="la-unter-name">Beteiligung</span><span class="la-einzeile-checks">${laEditCheck('laFBetG', 'Gesperrte Optionen', f.betGesperrt)}${laEditCheck('laFBetN', 'Nicht börsenkotiert', f.betNichtKotiert)}${laEditCheck('laFBetA', 'Anwartschaften', f.betAnwartschaft)}${laEditCheck('laFBetU', 'Unechte Beteiligung', f.betUnecht)}</span></div>
+            ${laUnter('Expatriate', laDatumKt('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton, edit))}
+            ${laUnter('Verkehrswert', laDatumKt('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton, edit))}
+            ${laUnter('Beteiligung', laWahl('laFBetG', 'Gesperrte Optionen', !!f.betGesperrt, edit) + laWahl('laFBetN', 'Nicht börsenkotiert', !!f.betNichtKotiert, edit) + laWahl('laFBetA', 'Anwartschaften', !!f.betAnwartschaft, edit) + laWahl('laFBetU', 'Unechte Beteiligung', !!f.betUnecht, edit))}
         </article>
         <article class="la-karte">
             <div class="la-einzeile"><span class="la-badge">I</span><h3 class="la-titel">Bestätigung</h3></div>
             <div class="la-adr">
                 <div class="la-adr-zeile">
-                    <label class="f-label">Organisation<input id="laFKontaktOrg" class="f-input la-w-org" value="${laEsc(f.kontaktOrg || '')}"></label>
-                    <label class="f-label">Name<input id="laFKontaktPerson" class="f-input la-w-name" value="${laEsc(f.kontaktPerson || '')}"></label>
-                    <label class="f-label">Telefon<input id="laFKontaktTel" class="f-input la-w-tel" value="${laEsc(f.kontaktTelefon || '')}"></label>
+                    <span></span>
+                    ${laAdr('Organisation', laEingabe('laFKontaktOrg', f.kontaktOrg, 'la-w-org', edit))}
+                    ${laAdr('Name', laEingabe('laFKontaktPerson', f.kontaktPerson, 'la-w-name', edit))}
+                    ${laAdr('Telefon', laEingabe('laFKontaktTel', f.kontaktTelefon, 'la-w-tel', edit))}
                 </div>
                 <div class="la-adr-zeile">
-                    <label class="f-label">Strasse<input id="laFKontaktStrasse" class="f-input la-w-str" value="${laEsc(f.kontaktStrasse || '')}"></label>
-                    <label class="f-label">PLZ<input id="laFKontaktPlz" class="f-input la-w-plz" inputmode="numeric" maxlength="10" value="${laEsc(f.kontaktPlz || '')}" oninput="laPlzOrt(this)" onblur="laPlzOrt(this)"></label>
-                    <label class="f-label">Ort<input id="laFKontaktOrt" class="f-input la-w-ort" value="${laEsc(f.kontaktOrt || '')}"></label>
+                    <span></span>
+                    ${laAdr('Strasse', laEingabe('laFKontaktStrasse', f.kontaktStrasse, 'la-w-str', edit))}
+                    ${laAdr('PLZ', laEingabe('laFKontaktPlz', f.kontaktPlz, 'la-w-plz', edit, 'inputmode="numeric" maxlength="10" oninput="laPlzOrt(this)" onblur="laPlzOrt(this)"'))}
+                    ${laAdr('Ort', laEingabe('laFKontaktOrt', f.kontaktOrt, 'la-w-ort', edit))}
                 </div>
             </div>
         </article>
     </div>`;
+}
+
+function laFirmaHtml(f) {
+    return `<div class="la-breit" style="margin-bottom:8px">${laGueltigLeiste(f)}</div>${laMaske(f, true)}`;
 }
 
 async function laFirmaSpeichern(companyProfileId) {
@@ -873,53 +951,8 @@ function laFilialeZeitraum(f) {
     return f.gueltigBis ? f.gueltigAb + '–' + f.gueltigBis : 'seit ' + f.gueltigAb;
 }
 
-function laRo(text, cls) {
-    const s = text == null ? '' : String(text).trim();
-    return `<span class="la-ro${cls ? ' ' + cls : ''}${s ? ' hat' : ''}">${s ? laEsc(s) : ''}</span>`;
-}
-
-function laRoCheck(label, on) {
-    return `<span class="la-ro-check${on ? ' hat' : ''}">${laEsc(label)}</span>`;
-}
-
-function laGrantRo(datum, kanton) {
-    return `<span class="la-inline"><span class="la-mini-l">Datum</span>${laRo(datum ? laDatum(datum) : '')}</span>
-        <span class="la-inline"><span class="la-mini-l">Kt.</span>${laRo(kanton || '')}</span>`;
-}
-
 function laAnsichtMaske(f) {
-    const pos21 = f.pos21 == null || f.pos21 === 0 ? '' : f.pos21;
-    const geld = pos21 === '' ? '' : Number(pos21).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return `<div class="la-maske">
-        ${laEinzeile('F', 'Unentgeltliche Beförderung', laRoCheck('Ziffer F ankreuzen', !!f.boxF))}
-        ${laEinzeile('G', 'Kantinenverpflegung / Lunch-Checks', laRoCheck('Ziffer G ankreuzen', !!f.boxG))}
-        ${laEinzeile('2.1', 'Verpflegung, Unterkunft', `<span class="la-inline"><span class="la-mini-l">CHF / Monat</span>${laRo(geld, 'la-w-geld')}</span>`)}
-        ${laEinzeile('2.2', 'Privatanteil Geschäftsfahrzeug', `<span class="la-einzeile-checks">${laRoCheck('Privatanteil abklären', !!f.wagenAbklaeren)} ${laRoCheck('Arbeitnehmer zahlt 0,9 %', !!f.wagenMinimal)}</span>`)}
-        ${laEinzeile('13', 'Spesenvergütungen', laGrantRo(f.spesenDatum, f.spesenKanton))}
-        ${laEinzeile('13.1.1', 'Reise, Verpflegung, Übernachtung', laRoCheck('Kreuz in Ziffer 13.1.1', !!f.rz52))}
-        ${laEinzeile('14', 'Weitere Gehaltsnebenleistungen', laRo(f.ziffer14 || '', 'la-w-art'))}
-        <article class="la-karte">
-            <div class="la-einzeile"><span class="la-badge">15</span><h3 class="la-titel">Bemerkungen</h3></div>
-            <div class="la-unterzeile"><span class="la-unter-name">Expatriate</span>${laGrantRo(f.expatDatum, f.expatKanton)}</div>
-            <div class="la-unterzeile"><span class="la-unter-name">Verkehrswert</span>${laGrantRo(f.wertDatum, f.wertKanton)}</div>
-            <div class="la-unterzeile"><span class="la-unter-name">Beteiligung</span><span class="la-einzeile-checks">${laRoCheck('Gesperrte Optionen', !!f.betGesperrt)} ${laRoCheck('Nicht börsenkotiert', !!f.betNichtKotiert)} ${laRoCheck('Anwartschaften', !!f.betAnwartschaft)} ${laRoCheck('Unechte Beteiligung', !!f.betUnecht)}</span></div>
-        </article>
-        <article class="la-karte">
-            <div class="la-einzeile"><span class="la-badge">I</span><h3 class="la-titel">Bestätigung</h3></div>
-            <div class="la-adr">
-                <div class="la-adr-zeile">
-                    <label class="f-label">Organisation${laRo(f.kontaktOrg, 'la-w-org')}</label>
-                    <label class="f-label">Name${laRo(f.kontaktPerson, 'la-w-name')}</label>
-                    <label class="f-label">Telefon${laRo(f.kontaktTelefon, 'la-w-tel')}</label>
-                </div>
-                <div class="la-adr-zeile">
-                    <label class="f-label">Strasse${laRo(f.kontaktStrasse, 'la-w-str')}</label>
-                    <label class="f-label">PLZ${laRo(f.kontaktPlz, 'la-w-plz')}</label>
-                    <label class="f-label">Ort${laRo(f.kontaktOrt, 'la-w-ort')}</label>
-                </div>
-            </div>
-        </article>
-    </div>`;
+    return laMaske(f, false);
 }
 
 function laFilialeBlatt(f, id, mitKnopf) {
