@@ -36,41 +36,60 @@ function laStil() {
         #laAngabenOverlay.la-kompakt .modal-body { padding: 8px 14px 10px; overflow: hidden; }
         #laAngabenOverlay.la-kompakt .modal-ft { padding: 8px 14px; }
         #laAngabenOverlay.la-kompakt .la-blatt {
-            width: min(1080px, calc(100vw - 24px)) !important;
-            max-width: 1080px !important;
+            width: min(1160px, calc(100vw - 24px)) !important;
+            max-width: 1160px !important;
             max-height: calc(100vh - 20px) !important; height: auto;
         }
-        #laAngabenOverlay.la-kompakt .la-firma { grid-template-columns: 1fr 1fr; gap: 8px; }
-        #laAngabenOverlay.la-kompakt .la-span2 { grid-column: span 2; }
-        #laAngabenOverlay.la-kompakt .la-pos21 { max-width: 140px; }
-        #laAngabenOverlay.la-kompakt .la-z14 { max-width: 460px; }
-        #laAngabenOverlay.la-kompakt .la-zeile {
-            width: max-content; max-width: 100%;
-            grid-template-columns: 148px 64px;
+        #laAngabenOverlay.la-kompakt .la-firma { grid-template-columns: 1fr; gap: 6px; }
+        #laAngabenOverlay.la-kompakt .la-einzeile {
+            display: flex; align-items: center; justify-content: flex-start;
+            gap: 10px; padding: 5px 10px;
         }
-        #laAngabenOverlay.la-kompakt .la-bemerkungen {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin-top: 6px;
+        #laAngabenOverlay.la-kompakt .la-einzeile .la-titel {
+            margin: 0; width: 280px; flex: 0 0 280px; white-space: nowrap;
         }
-        #laAngabenOverlay.la-kompakt .la-bemerkungen .la-bet { grid-column: 1 / -1; }
-        #laAngabenOverlay.la-kompakt .la-mini { font-size: 12px; font-weight: 700; color: #3f3f3f; margin: 0 0 2px; }
-        #laAngabenOverlay.la-kompakt .la-bestaetigung {
-            display: grid; grid-template-columns: auto auto; gap: 12px 28px;
-            margin-top: 6px; justify-content: start;
+        #laAngabenOverlay.la-kompakt .la-einzeile-rest {
+            display: flex; align-items: center; gap: 8px; flex: none; justify-content: flex-start;
         }
-        #laAngabenOverlay.la-kompakt .la-best-person {
-            display: grid; grid-template-columns: 180px 150px; gap: 8px; align-content: start;
+        #laAngabenOverlay.la-kompakt .la-einzeile .la-check { width: auto; margin: 0; white-space: nowrap; }
+        #laAngabenOverlay.la-kompakt .la-einzeile-checks { display: flex; gap: 6px; }
+        #laAngabenOverlay.la-kompakt .la-inline {
+            display: flex; flex-direction: row; align-items: center; gap: 6px;
+            width: auto; margin: 0; white-space: nowrap;
         }
-        #laAngabenOverlay.la-kompakt .la-best-stelle {
-            display: grid; grid-template-columns: 220px 72px 150px; gap: 8px; align-content: start;
+        #laAngabenOverlay.la-kompakt .la-pos21 { width: auto; max-width: none; }
+        #laAngabenOverlay.la-kompakt .la-pos21 .f-input { width: 108px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-z14 { width: 360px; max-width: 360px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-w-org { width: 220px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-w-name { width: 168px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-w-str { width: 200px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-w-plz { width: 72px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-w-ort { width: 148px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-w-tel { width: 140px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-zeile-kurz {
+            display: flex; width: auto; margin: 0; gap: 8px; align-items: center;
         }
-        #laAngabenOverlay.la-kompakt .la-best-stelle label:first-child { grid-column: 1 / -1; max-width: 280px; }
-        #laAngabenOverlay.la-kompakt .la-karte { padding: 8px 10px; }
+        #laAngabenOverlay.la-kompakt .la-zeile-kurz .yp-field-wrap { width: 148px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-zeile-kurz .yp-field-wrap > input.yp-text { width: 108px; flex: none; }
+        #laAngabenOverlay.la-kompakt .la-zeile-kurz .la-kanton .lqsel-wrap,
+        #laAngabenOverlay.la-kompakt .la-zeile-kurz .la-kanton .lqsel-btn { width: 64px; max-width: 64px; }
+        #laAngabenOverlay.la-kompakt .la-unterzeile {
+            display: flex; align-items: center; justify-content: flex-start;
+            gap: 10px; padding: 3px 10px 3px 52px;
+        }
+        #laAngabenOverlay.la-kompakt .la-unter-name {
+            width: 280px; flex: 0 0 280px; font-size: 13px; font-weight: 700; color: #3f3f3f; white-space: nowrap;
+        }
+        #laAngabenOverlay.la-kompakt .la-einzeile .la-korrektur { margin: 0 0 0 8px; }
+        #laAngabenOverlay.la-kompakt .la-karte { padding: 4px 8px; }
         #laAngabenOverlay.la-kompakt .la-titel { font-size: 13px; }
         #laAngabenOverlay.la-kompakt .la-text { font-size: 11px; line-height: 1.25; }
         #laAngabenOverlay.la-kompakt .la-satz { margin-top: 2px; }
         #laAngabenOverlay.la-kompakt .la-feld,
         #laAngabenOverlay.la-kompakt .la-zeile,
         #laAngabenOverlay.la-kompakt .la-checks { margin-top: 4px; }
+        #laAngabenOverlay.la-kompakt .la-zeile-kurz,
+        #laAngabenOverlay.la-kompakt .la-unterzeile .la-checks { margin-top: 0; }
         #laAngabenOverlay.la-kompakt .la-span2 .la-checks { grid-template-columns: 1fr 1fr; }
         #laAngabenOverlay.la-kompakt .la-kontakt .la-nach { grid-template-columns: 1.2fr 1fr 0.9fr; gap: 6px; margin-top: 4px; }
         #laAngabenOverlay.la-kompakt .la-gueltig { padding: 0; gap: 8px 12px; }
@@ -190,6 +209,7 @@ function laStil() {
         body.theme-dark #laAngabenOverlay .la-text,
         body.theme-dark #laAngabenOverlay .la-unter { color: #c8c2b8; }
         body.theme-dark #laAngabenOverlay .la-check { color: #f3f0ea; background: rgba(255,255,255,0.05); }
+        body.theme-dark #laAngabenOverlay.la-kompakt .la-unter-name { color: #f3f0ea; }
     `;
     document.head.appendChild(s);
 }
@@ -597,11 +617,23 @@ function laFirmaHinweisHaengen() {
     laFirmaHinweisZeigen();
 }
 
-function laFirmaGrant(datumId, kantonId, datum, kanton) {
-    return `<div class="la-zeile">
-        <label class="f-label">Datum der Genehmigung<input type="date" id="${datumId}" class="f-input" value="${laEsc(datum || '')}"></label>
-        <label class="f-label la-kanton">Kt.${laKantonSelect(kantonId, kanton)}</label>
+function laFirmaGrant(datumId, kantonId, datum, kanton, kurz) {
+    const datumLabel = kurz ? 'Datum' : 'Datum der Genehmigung';
+    const zeile = kurz ? ' la-zeile-kurz' : '';
+    const inline = kurz ? ' la-inline' : '';
+    return `<div class="la-zeile${zeile}">
+        <label class="f-label${inline}">${datumLabel}<input type="date" id="${datumId}" class="f-input" value="${laEsc(datum || '')}"></label>
+        <label class="f-label la-kanton${inline}">Kt.${laKantonSelect(kantonId, kanton)}</label>
     </div>`;
+}
+
+function laEinzeile(badge, titel, inhalt, breit, id) {
+    const spalte = breit ? ' la-span2' : '';
+    return `<article class="la-karte la-einzeile${spalte}"${id ? ` id="${id}"` : ''}>
+        <span class="la-badge">${badge}</span>
+        <h3 class="la-titel">${titel}</h3>
+        <div class="la-einzeile-rest">${inhalt}</div>
+    </article>`;
 }
 
 function laTeil(titel, text, inhalt) {
@@ -677,77 +709,61 @@ function laGeschlossen(zu) {
 
 function laFirmaHtml(f) {
     const pos21 = f.pos21 == null || f.pos21 === 0 ? '' : f.pos21;
+    const kontakt = (label, id, wert, breite) =>
+        `<label class="f-label la-inline">${label}<input id="${id}" class="f-input ${breite}" value="${laEsc(wert || '')}"></label>`;
     return `<div class="la-raster la-firma">
         <div class="la-breit">${laGueltigLeiste(f)}</div>
-        ${laKarte('F', 'Unentgeltliche Beförderung',
-            'Zwischen Wohn- und Arbeitsort. Oben rechts auf dem Ausweis.',
-            `<label class="la-check"><input type="checkbox" id="laFBoxF"${f.boxF ? ' checked' : ''}> Ziffer F ankreuzen</label>`)}
-        ${laKarte('G', 'Kantinenverpflegung / Lunch-Checks',
-            'Oben rechts auf dem Ausweis, neben F.',
-            `<label class="la-check"><input type="checkbox" id="laFBoxG"${f.boxG ? ' checked' : ''}> Ziffer G ankreuzen</label>`)}
-        ${laKarte('2.1', 'Verpflegung, Unterkunft',
-            'Pauschale pro Monat auf der Zeile 2.1.',
-            `<label class="f-label la-pos21">CHF pro Monat
+        ${laEinzeile('F', 'Unentgeltliche Beförderung', laCheck('laFBoxF', 'Ziffer F ankreuzen', f.boxF))}
+        ${laEinzeile('G', 'Kantinenverpflegung / Lunch-Checks', laCheck('laFBoxG', 'Ziffer G ankreuzen', f.boxG))}
+        ${laEinzeile('2.1', 'Verpflegung, Unterkunft',
+            `<label class="f-label la-inline la-pos21">CHF / Monat
                 <input id="laFPos21" class="f-input" type="number" step="0.05" min="0" placeholder="leer = keine" title="ESTV-Pauschale CHF 645, wenn der Arbeitgeber alles bezahlt" value="${laEsc(pos21)}">
             </label>`)}
-        ${laKarte('2.2', 'Privatanteil Geschäftsfahrzeug',
-            'Die Sätze stehen in den Bemerkungen. Beide können zusammen gelten.',
-            `<label class="la-check"><input type="checkbox" id="laFWagenAb"${f.wagenAbklaeren ? ' checked' : ''}> Privatanteil abklären</label>
-            <label class="la-check" style="margin-top:4px"><input type="checkbox" id="laFWagenMin"${f.wagenMinimal ? ' checked' : ''}> Arbeitnehmer zahlt 0,9 %</label>`)}
-        ${laKarte('13', 'Spesenvergütungen',
-            'Genehmigtes Reglement: dann kein Kreuz in 13.1.1.',
-            laFirmaGrant('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton))}
-        ${laKarte('13.1.1', 'Reise, Verpflegung, Übernachtung',
-            'Kreuz nur ohne genehmigtes Reglement (Randziffer 52).',
-            `<label class="la-check"><input type="checkbox" id="laFRz52"${f.rz52 ? ' checked' : ''}> Kreuz in Ziffer 13.1.1</label>
+        ${laEinzeile('2.2', 'Privatanteil Geschäftsfahrzeug',
+            `<div class="la-einzeile-checks">
+                ${laCheck('laFWagenAb', 'Privatanteil abklären', f.wagenAbklaeren)}
+                ${laCheck('laFWagenMin', 'Arbeitnehmer zahlt 0,9 %', f.wagenMinimal)}
+            </div>`)}
+        ${laEinzeile('13', 'Spesenvergütungen', laFirmaGrant('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton, true))}
+        ${laEinzeile('13.1.1', 'Reise, Verpflegung, Übernachtung',
+            `${laCheck('laFRz52', 'Kreuz in Ziffer 13.1.1', f.rz52)}
             <div id="laRz52Korrektur" class="la-korrektur" style="display:none"></div>`,
             false, 'laRz52Karte')}
-        ${laKarte('14', 'Weitere Gehaltsnebenleistungen',
-            'Art, in der Zeile 14.',
-            `<div class="la-feld la-z14"><textarea id="laF14" class="f-input" rows="1">${laEsc(f.ziffer14 || '')}</textarea></div>`, 2)}
-        ${laKarte('15', 'Bemerkungen',
-            'Alles hier erscheint im Feld 15 des Ausdrucks.',
-            `<div class="la-bemerkungen">
-                <div>
-                    <div class="la-mini">Expatriate</div>
-                    <p class="la-text">Kanton und Datum der Genehmigung.</p>
-                    ${laFirmaGrant('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton)}
+        ${laEinzeile('14', 'Weitere Gehaltsnebenleistungen',
+            `<input id="laF14" class="f-input la-z14" placeholder="Art" value="${laEsc(f.ziffer14 || '')}">`)}
+        <article class="la-karte">
+            <div class="la-einzeile"><span class="la-badge">15</span><h3 class="la-titel">Bemerkungen</h3></div>
+            <div class="la-unterzeile">
+                <span class="la-unter-name">Expatriate</span>
+                ${laFirmaGrant('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton, true)}
+            </div>
+            <div class="la-unterzeile">
+                <span class="la-unter-name">Verkehrswert</span>
+                ${laFirmaGrant('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton, true)}
+            </div>
+            <div class="la-unterzeile">
+                <span class="la-unter-name">Beteiligung</span>
+                <div class="la-einzeile-checks">
+                    ${laCheck('laFBetG', 'Gesperrte Optionen', f.betGesperrt)}
+                    ${laCheck('laFBetN', 'Nicht börsenkotiert', f.betNichtKotiert)}
+                    ${laCheck('laFBetA', 'Anwartschaften', f.betAnwartschaft)}
+                    ${laCheck('laFBetU', 'Unechte Beteiligung', f.betUnecht)}
                 </div>
-                <div>
-                    <div class="la-mini">Verkehrswert</div>
-                    <p class="la-text">Kanton und Datum der Genehmigung.</p>
-                    ${laFirmaGrant('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton)}
-                </div>
-                <div class="la-bet">
-                    <div class="la-mini">Beteiligung noch ohne steuerbares Einkommen</div>
-                    <div class="la-checks">
-                        ${laCheck('laFBetG', 'Gesperrte Optionen', f.betGesperrt)}
-                        ${laCheck('laFBetN', 'Nicht börsenkotiert', f.betNichtKotiert)}
-                        ${laCheck('laFBetA', 'Anwartschaften', f.betAnwartschaft)}
-                        ${laCheck('laFBetU', 'Unechte Beteiligung', f.betUnecht)}
-                    </div>
-                </div>
-            </div>`, 2)}
-        ${laKarte('I', 'Bestätigung',
-            'Unten auf dem Ausweis, für Rückfragen der Steuerverwaltung.',
-            `<div class="la-bestaetigung">
-                <div>
-                    <div class="la-mini">Person</div>
-                    <div class="la-best-person">
-                        <label class="f-label">Name<input id="laFKontaktPerson" class="f-input" value="${laEsc(f.kontaktPerson || '')}"></label>
-                        <label class="f-label">Telefon<input id="laFKontaktTel" class="f-input" value="${laEsc(f.kontaktTelefon || '')}"></label>
-                    </div>
-                </div>
-                <div>
-                    <div class="la-mini">Stelle</div>
-                    <div class="la-best-stelle">
-                        <label class="f-label">Organisation<input id="laFKontaktOrg" class="f-input" value="${laEsc(f.kontaktOrg || '')}"></label>
-                        <label class="f-label">Strasse<input id="laFKontaktStrasse" class="f-input" value="${laEsc(f.kontaktStrasse || '')}"></label>
-                        <label class="f-label">PLZ<input id="laFKontaktPlz" class="f-input" value="${laEsc(f.kontaktPlz || '')}"></label>
-                        <label class="f-label">Ort<input id="laFKontaktOrt" class="f-input" value="${laEsc(f.kontaktOrt || '')}"></label>
-                    </div>
-                </div>
-            </div>`, 2)}
+            </div>
+        </article>
+        <article class="la-karte">
+            <div class="la-einzeile"><span class="la-badge">I</span><h3 class="la-titel">Bestätigung</h3></div>
+            <div class="la-unterzeile">
+                ${kontakt('Organisation', 'laFKontaktOrg', f.kontaktOrg, 'la-w-org')}
+                ${kontakt('Name', 'laFKontaktPerson', f.kontaktPerson, 'la-w-name')}
+            </div>
+            <div class="la-unterzeile">
+                ${kontakt('Strasse', 'laFKontaktStrasse', f.kontaktStrasse, 'la-w-str')}
+                ${kontakt('PLZ', 'laFKontaktPlz', f.kontaktPlz, 'la-w-plz')}
+                ${kontakt('Ort', 'laFKontaktOrt', f.kontaktOrt, 'la-w-ort')}
+                ${kontakt('Telefon', 'laFKontaktTel', f.kontaktTelefon, 'la-w-tel')}
+            </div>
+        </article>
     </div>`;
 }
 
