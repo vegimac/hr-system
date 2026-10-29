@@ -60,6 +60,16 @@ function laStil() {
             display: flex; flex-direction: row; align-items: center; gap: 6px;
             width: auto; margin: 0; white-space: nowrap;
         }
+        #laAngabenOverlay.la-kompakt .f-input,
+        #laAngabenOverlay.la-kompakt input.yp-text,
+        #laAngabenOverlay.la-kompakt .lqsel-btn {
+            padding: 3px 8px !important; font-size: 13px !important; line-height: 1.2;
+            height: 28px; min-height: 0 !important; box-sizing: border-box;
+        }
+        #laAngabenOverlay.la-kompakt .yp-cal-btn {
+            width: 28px; height: 28px; min-height: 0; border-radius: 8px;
+        }
+        #laAngabenOverlay.la-kompakt .yp-field-wrap { width: auto; align-items: center; }
         #laAngabenOverlay.la-kompakt .la-pos21 { width: auto; max-width: none; }
         #laAngabenOverlay.la-kompakt .la-pos21 .f-input { width: 108px; flex: none; }
         #laAngabenOverlay.la-kompakt .la-z14 { width: 360px; max-width: 360px; flex: none; }
@@ -85,6 +95,17 @@ function laStil() {
         }
         #laAngabenOverlay.la-kompakt .la-neben {
             font-size: 13px; font-weight: 700; color: #3f3f3f; white-space: nowrap;
+        }
+        #laAngabenOverlay.la-kompakt .la-adr {
+            display: flex; flex-direction: column; gap: 8px;
+            padding: 2px 10px 8px 74px; align-items: flex-start;
+        }
+        #laAngabenOverlay.la-kompakt .la-adr-zeile {
+            display: flex; gap: 12px; align-items: flex-end; justify-content: flex-start;
+        }
+        #laAngabenOverlay.la-kompakt .la-adr .f-label {
+            display: flex; flex-direction: column; gap: 3px; margin: 0; width: max-content;
+            font-size: 11px; font-weight: 650; color: #8b8b8b;
         }
         #laAngabenOverlay.la-kompakt .la-einzeile .la-korrektur { margin: 0 0 0 8px; }
         #laAngabenOverlay.la-kompakt .la-karte { padding: 4px 8px; }
@@ -768,16 +789,18 @@ function laFirmaHtml(f) {
         </article>
         <article class="la-karte">
             <div class="la-einzeile"><span class="la-badge">I</span><h3 class="la-titel">Bestätigung</h3></div>
-            <div class="la-unterzeile"><span class="la-unter-name">Organisation</span><input id="laFKontaktOrg" class="f-input la-w-org" value="${laEsc(f.kontaktOrg || '')}"></div>
-            <div class="la-unterzeile"><span class="la-unter-name">Name</span><input id="laFKontaktPerson" class="f-input la-w-name" value="${laEsc(f.kontaktPerson || '')}"></div>
-            <div class="la-unterzeile"><span class="la-unter-name">Strasse</span><input id="laFKontaktStrasse" class="f-input la-w-str" value="${laEsc(f.kontaktStrasse || '')}"></div>
-            <div class="la-unterzeile">
-                <span class="la-unter-name">PLZ</span>
-                <input id="laFKontaktPlz" class="f-input la-w-plz" inputmode="numeric" maxlength="10" value="${laEsc(f.kontaktPlz || '')}" oninput="laPlzOrt(this)" onblur="laPlzOrt(this)">
-                <span class="la-neben">Ort</span>
-                <input id="laFKontaktOrt" class="f-input la-w-ort" value="${laEsc(f.kontaktOrt || '')}">
+            <div class="la-adr">
+                <div class="la-adr-zeile">
+                    <label class="f-label">Organisation<input id="laFKontaktOrg" class="f-input la-w-org" value="${laEsc(f.kontaktOrg || '')}"></label>
+                    <label class="f-label">Name<input id="laFKontaktPerson" class="f-input la-w-name" value="${laEsc(f.kontaktPerson || '')}"></label>
+                    <label class="f-label">Telefon<input id="laFKontaktTel" class="f-input la-w-tel" value="${laEsc(f.kontaktTelefon || '')}"></label>
+                </div>
+                <div class="la-adr-zeile">
+                    <label class="f-label">Strasse<input id="laFKontaktStrasse" class="f-input la-w-str" value="${laEsc(f.kontaktStrasse || '')}"></label>
+                    <label class="f-label">PLZ<input id="laFKontaktPlz" class="f-input la-w-plz" inputmode="numeric" maxlength="10" value="${laEsc(f.kontaktPlz || '')}" oninput="laPlzOrt(this)" onblur="laPlzOrt(this)"></label>
+                    <label class="f-label">Ort<input id="laFKontaktOrt" class="f-input la-w-ort" value="${laEsc(f.kontaktOrt || '')}"></label>
+                </div>
             </div>
-            <div class="la-unterzeile"><span class="la-unter-name">Telefon</span><input id="laFKontaktTel" class="f-input la-w-tel" value="${laEsc(f.kontaktTelefon || '')}"></div>
         </article>
     </div>`;
 }
