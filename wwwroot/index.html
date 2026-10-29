@@ -10071,6 +10071,39 @@ body.theme-dark .la-ghost-row.hat .la-ghost-nr { color: #f3f0ea; }
 .la-maske .la-w-tel { width: 140px; }
 .la-maske .la-w-geld { width: 108px; }
 .la-maske .la-w-art { width: 360px; }
+.la-maske .la-w-dat { width: 108px; }
+.la-maske .la-edit-check {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500; color: #c4bdb2; cursor: pointer;
+}
+.la-maske .la-edit-check input { margin: 0; }
+.la-maske .la-edit-check:has(input:checked) { font-weight: 700; color: #1a1a1a; }
+#laAngabenOverlay .la-maske .f-input,
+#laAngabenOverlay .la-maske input.yp-text,
+#laAngabenOverlay .la-maske .lqsel-btn {
+    height: 22px !important; min-height: 0 !important; padding: 0 2px !important;
+    font-size: 14.5px !important; font-weight: 700 !important; line-height: 1.2 !important;
+    background: transparent !important; border: none !important; border-radius: 0 !important;
+    box-shadow: none !important; border-bottom: 1px solid rgba(60,55,48,0.22) !important;
+}
+#laAngabenOverlay .la-maske .yp-cal-btn {
+    width: 22px; height: 22px; min-height: 0; padding: 0;
+    background: transparent; border: none; box-shadow: none;
+}
+#laAngabenOverlay .la-maske .la-kanton .lqsel-wrap,
+#laAngabenOverlay .la-maske .la-kanton .lqsel-btn { width: 52px; max-width: 52px; }
+#laAngabenOverlay .la-maske .la-karte {
+    background: rgba(255,255,255,0.48);
+    border: 1px solid rgba(255,255,255,0.78);
+    border-radius: 14px; padding: 4px 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+}
+body.theme-dark .la-maske .la-edit-check:has(input:checked) { color: #f3f0ea; }
+body.theme-dark #laAngabenOverlay .la-maske .f-input,
+body.theme-dark #laAngabenOverlay .la-maske input.yp-text,
+body.theme-dark #laAngabenOverlay .la-maske .lqsel-btn {
+    color: #f3f0ea !important; border-bottom-color: rgba(255,255,255,0.28) !important;
+}
 body.theme-dark .la-maske .la-karte { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); box-shadow: none; }
 body.theme-dark .la-maske .la-titel,
 body.theme-dark .la-maske .la-unter-name,
@@ -11886,7 +11919,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261028h"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
-<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029k"></script>
+<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029l"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

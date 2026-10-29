@@ -745,47 +745,33 @@ function laPlzOrt(el) {
     plzLookupGeneric(plz, 'laFKontaktOrt', null, null, null);
 }
 
+function laEditCheck(id, label, on) {
+    return `<label class="la-edit-check"><input type="checkbox" id="${id}"${on ? ' checked' : ''}> ${laEsc(label)}</label>`;
+}
+
+function laGrantEdit(datumId, kantonId, datum, kanton) {
+    return `<span class="la-inline"><span class="la-mini-l">Datum</span><input type="date" id="${datumId}" class="f-input la-w-dat" value="${laEsc(datum || '')}"></span>
+        <span class="la-inline"><span class="la-mini-l">Kt.</span><span class="la-kanton">${laKantonSelect(kantonId, kanton)}</span></span>`;
+}
+
 function laFirmaHtml(f) {
     const pos21 = f.pos21 == null || f.pos21 === 0 ? '' : f.pos21;
-    return `<div class="la-raster la-firma">
-        <div class="la-breit">${laGueltigLeiste(f)}</div>
-        ${laEinzeile('F', 'Unentgeltliche Beförderung', laCheck('laFBoxF', 'Ziffer F ankreuzen', f.boxF))}
-        ${laEinzeile('G', 'Kantinenverpflegung / Lunch-Checks', laCheck('laFBoxG', 'Ziffer G ankreuzen', f.boxG))}
-        ${laEinzeile('2.1', 'Verpflegung, Unterkunft',
-            `<label class="f-label la-inline la-pos21">CHF / Monat
-                <input id="laFPos21" class="f-input" type="number" step="0.05" min="0" placeholder="leer = keine" title="ESTV-Pauschale CHF 645, wenn der Arbeitgeber alles bezahlt" value="${laEsc(pos21)}">
-            </label>`)}
-        ${laEinzeile('2.2', 'Privatanteil Geschäftsfahrzeug',
-            `<div class="la-einzeile-checks">
-                ${laCheck('laFWagenAb', 'Privatanteil abklären', f.wagenAbklaeren)}
-                ${laCheck('laFWagenMin', 'Arbeitnehmer zahlt 0,9 %', f.wagenMinimal)}
-            </div>`)}
-        ${laEinzeile('13', 'Spesenvergütungen', laFirmaGrant('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton, true))}
+    return `<div class="la-breit" style="margin-bottom:8px">${laGueltigLeiste(f)}</div>
+    <div class="la-maske">
+        ${laEinzeile('F', 'Unentgeltliche Beförderung', laEditCheck('laFBoxF', 'Ziffer F ankreuzen', f.boxF))}
+        ${laEinzeile('G', 'Kantinenverpflegung / Lunch-Checks', laEditCheck('laFBoxG', 'Ziffer G ankreuzen', f.boxG))}
+        ${laEinzeile('2.1', 'Verpflegung, Unterkunft', `<span class="la-inline"><span class="la-mini-l">CHF / Monat</span><input id="laFPos21" class="f-input la-w-geld" type="number" step="0.05" min="0" title="ESTV-Pauschale CHF 645, wenn der Arbeitgeber alles bezahlt" value="${laEsc(pos21)}"></span>`)}
+        ${laEinzeile('2.2', 'Privatanteil Geschäftsfahrzeug', `<span class="la-einzeile-checks">${laEditCheck('laFWagenAb', 'Privatanteil abklären', f.wagenAbklaeren)}${laEditCheck('laFWagenMin', 'Arbeitnehmer zahlt 0,9 %', f.wagenMinimal)}</span>`)}
+        ${laEinzeile('13', 'Spesenvergütungen', laGrantEdit('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton))}
         ${laEinzeile('13.1.1', 'Reise, Verpflegung, Übernachtung',
-            `${laCheck('laFRz52', 'Kreuz in Ziffer 13.1.1', f.rz52)}
-            <div id="laRz52Korrektur" class="la-korrektur" style="display:none"></div>`,
+            `${laEditCheck('laFRz52', 'Kreuz in Ziffer 13.1.1', f.rz52)}<div id="laRz52Korrektur" class="la-korrektur" style="display:none"></div>`,
             false, 'laRz52Karte')}
-        ${laEinzeile('14', 'Weitere Gehaltsnebenleistungen',
-            `<input id="laF14" class="f-input la-z14" placeholder="Art" value="${laEsc(f.ziffer14 || '')}">`)}
+        ${laEinzeile('14', 'Weitere Gehaltsnebenleistungen', `<input id="laF14" class="f-input la-w-art" value="${laEsc(f.ziffer14 || '')}">`)}
         <article class="la-karte">
             <div class="la-einzeile"><span class="la-badge">15</span><h3 class="la-titel">Bemerkungen</h3></div>
-            <div class="la-unterzeile">
-                <span class="la-unter-name">Expatriate</span>
-                ${laFirmaGrant('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton, true)}
-            </div>
-            <div class="la-unterzeile">
-                <span class="la-unter-name">Verkehrswert</span>
-                ${laFirmaGrant('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton, true)}
-            </div>
-            <div class="la-unterzeile">
-                <span class="la-unter-name">Beteiligung</span>
-                <div class="la-einzeile-checks">
-                    ${laCheck('laFBetG', 'Gesperrte Optionen', f.betGesperrt)}
-                    ${laCheck('laFBetN', 'Nicht börsenkotiert', f.betNichtKotiert)}
-                    ${laCheck('laFBetA', 'Anwartschaften', f.betAnwartschaft)}
-                    ${laCheck('laFBetU', 'Unechte Beteiligung', f.betUnecht)}
-                </div>
-            </div>
+            <div class="la-unterzeile"><span class="la-unter-name">Expatriate</span>${laGrantEdit('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton)}</div>
+            <div class="la-unterzeile"><span class="la-unter-name">Verkehrswert</span>${laGrantEdit('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton)}</div>
+            <div class="la-unterzeile"><span class="la-unter-name">Beteiligung</span><span class="la-einzeile-checks">${laEditCheck('laFBetG', 'Gesperrte Optionen', f.betGesperrt)}${laEditCheck('laFBetN', 'Nicht börsenkotiert', f.betNichtKotiert)}${laEditCheck('laFBetA', 'Anwartschaften', f.betAnwartschaft)}${laEditCheck('laFBetU', 'Unechte Beteiligung', f.betUnecht)}</span></div>
         </article>
         <article class="la-karte">
             <div class="la-einzeile"><span class="la-badge">I</span><h3 class="la-titel">Bestätigung</h3></div>
