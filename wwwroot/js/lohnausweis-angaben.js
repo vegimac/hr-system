@@ -887,31 +887,63 @@ function laFilialeZeitraum(f) {
     return f.gueltigBis ? f.gueltigAb + '–' + f.gueltigBis : 'seit ' + f.gueltigAb;
 }
 
+function laRo(text, cls) {
+    const s = text == null ? '' : String(text).trim();
+    return `<span class="la-ro${cls ? ' ' + cls : ''}${s ? ' hat' : ''}">${s ? laEsc(s) : ''}</span>`;
+}
+
+function laRoCheck(label, on) {
+    return `<span class="la-ro-check${on ? ' hat' : ''}">${laEsc(label)}</span>`;
+}
+
+function laGrantRo(datum, kanton) {
+    return `<span class="la-inline"><span class="la-mini-l">Datum</span>${laRo(datum ? laDatum(datum) : '')}</span>
+        <span class="la-inline"><span class="la-mini-l">Kt.</span>${laRo(kanton || '')}</span>`;
+}
+
+function laAnsichtMaske(f) {
+    const pos21 = f.pos21 == null || f.pos21 === 0 ? '' : f.pos21;
+    const geld = pos21 === '' ? '' : Number(pos21).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `<div class="la-maske">
+        ${laEinzeile('F', 'Unentgeltliche Beförderung', laRoCheck('Ziffer F ankreuzen', !!f.boxF))}
+        ${laEinzeile('G', 'Kantinenverpflegung / Lunch-Checks', laRoCheck('Ziffer G ankreuzen', !!f.boxG))}
+        ${laEinzeile('2.1', 'Verpflegung, Unterkunft', `<span class="la-inline"><span class="la-mini-l">CHF / Monat</span>${laRo(geld, 'la-w-geld')}</span>`)}
+        ${laEinzeile('2.2', 'Privatanteil Geschäftsfahrzeug', `<span class="la-einzeile-checks">${laRoCheck('Privatanteil abklären', !!f.wagenAbklaeren)} ${laRoCheck('Arbeitnehmer zahlt 0,9 %', !!f.wagenMinimal)}</span>`)}
+        ${laEinzeile('13', 'Spesenvergütungen', laGrantRo(f.spesenDatum, f.spesenKanton))}
+        ${laEinzeile('13.1.1', 'Reise, Verpflegung, Übernachtung', laRoCheck('Kreuz in Ziffer 13.1.1', !!f.rz52))}
+        ${laEinzeile('14', 'Weitere Gehaltsnebenleistungen', laRo(f.ziffer14 || '', 'la-w-art'))}
+        <article class="la-karte">
+            <div class="la-einzeile"><span class="la-badge">15</span><h3 class="la-titel">Bemerkungen</h3></div>
+            <div class="la-unterzeile"><span class="la-unter-name">Expatriate</span>${laGrantRo(f.expatDatum, f.expatKanton)}</div>
+            <div class="la-unterzeile"><span class="la-unter-name">Verkehrswert</span>${laGrantRo(f.wertDatum, f.wertKanton)}</div>
+            <div class="la-unterzeile"><span class="la-unter-name">Beteiligung</span><span class="la-einzeile-checks">${laRoCheck('Gesperrte Optionen', !!f.betGesperrt)} ${laRoCheck('Nicht börsenkotiert', !!f.betNichtKotiert)} ${laRoCheck('Anwartschaften', !!f.betAnwartschaft)} ${laRoCheck('Unechte Beteiligung', !!f.betUnecht)}</span></div>
+        </article>
+        <article class="la-karte">
+            <div class="la-einzeile"><span class="la-badge">I</span><h3 class="la-titel">Bestätigung</h3></div>
+            <div class="la-adr">
+                <div class="la-adr-zeile">
+                    <label class="f-label">Organisation${laRo(f.kontaktOrg, 'la-w-org')}</label>
+                    <label class="f-label">Name${laRo(f.kontaktPerson, 'la-w-name')}</label>
+                    <label class="f-label">Telefon${laRo(f.kontaktTelefon, 'la-w-tel')}</label>
+                </div>
+                <div class="la-adr-zeile">
+                    <label class="f-label">Strasse${laRo(f.kontaktStrasse, 'la-w-str')}</label>
+                    <label class="f-label">PLZ${laRo(f.kontaktPlz, 'la-w-plz')}</label>
+                    <label class="f-label">Ort${laRo(f.kontaktOrt, 'la-w-ort')}</label>
+                </div>
+            </div>
+        </article>
+    </div>`;
+}
+
 function laFilialeBlatt(f, id, mitKnopf) {
-    const g = laFilialeGefuellt(f);
     const zeit = laFilialeZeitraum(f);
-    return `<section class="stm-karte-ansicht la-filiale">
-        <div class="ov-card-h">
+    return `<section class="la-filiale">
+        <div class="ov-card-h" style="margin:0 2px 8px">
             <span>Lohnausweis${zeit ? ' <span class="ov-count">' + laEsc(zeit) + '</span>' : ''}</span>
             ${mitKnopf ? `<button type="button" class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="laFirmaVonFiliale(${id})">Bearbeiten</button>` : ''}
         </div>
-        <div class="la-ghost">
-            <div class="la-zone-fg">
-                ${laGhostZeile('F', 'Unentgeltliche Beförderung zwischen Wohn- und Arbeitsort', f.boxF ? 'angekreuzt' : '')}
-                ${laGhostZeile('G', 'Kantinenverpflegung / Lunch-Checks', f.boxG ? 'angekreuzt' : '')}
-            </div>
-            <div class="la-zone-zwei">
-                ${laGhostZeile('2.1', 'Verpflegung, Unterkunft', g.geld)}
-                ${laGhostZeile('2.2', 'Privatanteil Geschäftsfahrzeug', g.wagen)}
-            </div>
-            <div class="la-zone-unten">
-                ${laGhostZeile('13', 'Spesenvergütungen', g.grant13)}
-                ${laGhostZeile('13.1.1', 'Reise, Verpflegung, Übernachtung', f.rz52 ? 'angekreuzt' : '')}
-                ${laGhostZeile('14', 'Weitere Gehaltsnebenleistungen', g.z14)}
-                ${laGhostZeile('15', 'Bemerkungen', g.bem)}
-                ${laGhostZeile('I', 'Kontaktperson', g.kontakt)}
-            </div>
-        </div>
+        ${laAnsichtMaske(f)}
     </section>`;
 }
 

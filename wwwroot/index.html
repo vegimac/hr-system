@@ -10035,6 +10035,47 @@ body.theme-dark .la-zone-fg .la-ghost-row,
 body.theme-dark .la-ghost-wert { background: rgba(255,255,255,0.06); }
 body.theme-dark .la-ghost-wert,
 body.theme-dark .la-ghost-row.hat .la-ghost-nr { color: #f3f0ea; }
+.la-maske { display: flex; flex-direction: column; gap: 6px; }
+.la-maske .la-karte {
+    background: rgba(255,255,255,0.48);
+    border: 1px solid rgba(255,255,255,0.78);
+    border-radius: 14px;
+    padding: 4px 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+}
+.la-maske .la-badge {
+    width: 54px; min-width: 54px; flex: 0 0 54px; box-sizing: border-box;
+    height: 22px; padding: 0 6px; border-radius: 7px; background: #3f3f3f; color: #fff;
+    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.la-maske .la-einzeile { display: flex; align-items: center; gap: 10px; padding: 5px 10px; }
+.la-maske .la-titel { margin: 0; width: 300px; flex: 0 0 300px; font-size: 13px; font-weight: 700; color: #3f3f3f; white-space: nowrap; }
+.la-maske .la-einzeile-rest,
+.la-maske .la-einzeile-checks { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.la-maske .la-unterzeile { display: flex; align-items: center; gap: 10px; padding: 3px 10px 3px 74px; }
+.la-maske .la-unter-name { width: 300px; flex: 0 0 300px; font-size: 13px; font-weight: 700; color: #3f3f3f; }
+.la-maske .la-inline { display: flex; align-items: center; gap: 6px; }
+.la-maske .la-mini-l { font-size: 11px; font-weight: 650; color: #8b8b8b; }
+.la-maske .la-adr { display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 8px 74px; align-items: flex-start; }
+.la-maske .la-adr-zeile { display: flex; gap: 12px; align-items: flex-end; }
+.la-maske .la-adr .f-label { display: flex; flex-direction: column; gap: 3px; margin: 0; width: max-content; font-size: 11px; font-weight: 650; color: #8b8b8b; }
+.la-maske .la-ro { display: inline-block; min-height: 18px; font-size: 14.5px; font-weight: 500; color: #c4bdb2; }
+.la-maske .la-ro.hat { font-weight: 700; color: #1a1a1a; }
+.la-maske .la-ro-check { font-size: 13px; font-weight: 500; color: #c4bdb2; padding: 2px 0; }
+.la-maske .la-ro-check.hat { font-weight: 700; color: #1a1a1a; }
+.la-maske .la-w-org { width: 220px; }
+.la-maske .la-w-name { width: 168px; }
+.la-maske .la-w-str { width: 200px; }
+.la-maske .la-w-plz { width: 72px; }
+.la-maske .la-w-ort { width: 148px; }
+.la-maske .la-w-tel { width: 140px; }
+.la-maske .la-w-geld { width: 108px; }
+.la-maske .la-w-art { width: 360px; }
+body.theme-dark .la-maske .la-karte { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); box-shadow: none; }
+body.theme-dark .la-maske .la-titel,
+body.theme-dark .la-maske .la-unter-name,
+body.theme-dark .la-maske .la-ro.hat,
+body.theme-dark .la-maske .la-ro-check.hat { color: #f3f0ea; }
 .la-filiale-stapel { display: flex; flex-direction: column; gap: 12px; }
 .la-hist-zeile {
     display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: baseline;
@@ -11845,7 +11886,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261028h"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
-<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029j"></script>
+<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029k"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
