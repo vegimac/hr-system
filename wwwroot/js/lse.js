@@ -474,7 +474,7 @@ async function loadStatistikMa(employeeId) {
                 ${feld('lse-stat-pos', 'Berufliche Stellung',
                     `<select id="lseEmpPos" class="ov-softin">${statOpt(k.stellung, lse.statistikStellungId, stellungLeer)}</select>`)}
                 ${feld('lse-stat-beruf', 'Ausgeübter Beruf',
-                    `<input id="lseEmpBeruf" class="ov-softin" maxlength="255" value="${_lseEsc(lse.practicedProfession || '')}" placeholder="Restaurantmitarbeiter/in">`)}
+                    `<div class="lse-stat-beruf-wert" title="Vom Vertrag, der im Meldemonat gilt">${_lseEsc(lse.berufVomVertrag || 'fehlt am Vertrag')}</div>`)}
                 ${feld('lse-stat-ferien', 'Ferientage pro Jahr',
                     `<input id="lseEmpFerien" class="ov-softin" type="number" min="0" max="99" step="1" value="${lse.leaveEntitlementDays ?? ''}" placeholder="${lse.ferienTageRegel ?? ''}">`)}
                 ${feld('lse-stat-flex', 'Profiling',
@@ -482,7 +482,7 @@ async function loadStatistikMa(employeeId) {
             </div>
             <div id="lseEmpEduHilfe" style="font-size:12px;color:#646464;margin-top:8px"></div>
             <div id="lseEmpHinweis" style="font-size:12px;color:#646464;margin-top:4px">${_lseEsc(lse.ferienHinweis || '')}</div>
-            <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Leer bei den Ferientagen lässt die Regel gelten. Profiling nur ausfüllen, wenn das BFS es so vereinbart hat.</div>
+            <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Leer bei den Ferientagen lässt die Regel gelten. Der ausgeübte Beruf kommt vom Vertrag, der im Meldemonat gilt. Profiling nur ausfüllen, wenn das BFS es so vereinbart hat.</div>
             <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;font-size:13px;color:#3f3f3f">
                 <label style="display:flex;gap:8px;align-items:center"><input id="lseEmpVerliehen" type="checkbox" ${lse.verliehenesPersonal ? 'checked' : ''}> Verliehenes Personal</label>
                 <label style="display:flex;gap:8px;align-items:center"><input id="lseEmpStamm" type="checkbox" ${lse.stammpersonalOeffentlich ? 'checked' : ''}> Stammpersonal in öffentlichen Verwaltungen</label>
@@ -552,7 +552,6 @@ async function lseEmpBlockSave(employeeId) {
         vollstaendig: true,
         statistikAusbildungId: parseInt(document.getElementById('lseEmpEdu')?.value, 10) || null,
         statistikStellungId: parseInt(document.getElementById('lseEmpPos')?.value, 10) || null,
-        practicedProfession: document.getElementById('lseEmpBeruf')?.value || null,
         leaveEntitlementDays: ferienRoh === '' || ferienRoh == null ? null : Number(ferienRoh),
         verliehenesPersonal: !!document.getElementById('lseEmpVerliehen')?.checked,
         stammpersonalOeffentlich: !!document.getElementById('lseEmpStamm')?.checked,

@@ -5586,6 +5586,11 @@
         #statistikMaContent .lse-stat-edu { width: 460px; }
         #statistikMaContent .lse-stat-pos { width: 280px; }
         #statistikMaContent .lse-stat-beruf { width: 260px; }
+        #statistikMaContent .lse-stat-beruf-wert {
+            height: 30px; line-height: 30px; font-size: 15px; font-weight: 700; color: #1a1a1a;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        body.theme-dark #statistikMaContent .lse-stat-beruf-wert { color: var(--dlg-text-strong); }
         #statistikMaContent .lse-stat-ferien { width: 96px; }
         #statistikMaContent .lse-stat-flex { width: 200px; }
         #statistikMaContent .lse-stat-feld .ov-softin,

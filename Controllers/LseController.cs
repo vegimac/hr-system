@@ -256,6 +256,8 @@ public class LseController : ControllerBase
             universityDegree = lse?.UniversityDegree,
             positionOverride = lse?.PositionOverride,
             practicedProfession = lse?.PracticedProfession,
+            berufVomVertrag = string.IsNullOrWhiteSpace(em?.JobTitle) ? null : em!.JobTitle.Trim(),
+            vertragVon = em?.ContractStartDate,
             inHouseId = lse?.InHouseId,
             statistikAusbildungId = lse?.StatistikAusbildungId,
             statistikStellungId = lse?.StatistikStellungId,
@@ -390,9 +392,8 @@ public class LseController : ControllerBase
                     .Where(s => s.LseCode == pos).Select(s => (int?)s.Id).FirstOrDefaultAsync();
             }
             else lse.StatistikStellungId = null;
+            lse.PracticedProfession = string.IsNullOrWhiteSpace(dto.PracticedProfession) ? null : dto.PracticedProfession.Trim();
         }
-
-        lse.PracticedProfession = string.IsNullOrWhiteSpace(dto.PracticedProfession) ? null : dto.PracticedProfession.Trim();
         lse.UpdatedAt = DateTime.Now;
         lse.UpdatedBy = Actor();
         await _db.SaveChangesAsync();
