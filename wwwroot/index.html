@@ -11333,7 +11333,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/branches-detail.js?v=20261029i"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/qst-modal.js?v=20261029a"></script>
+<script type="text/plain" data-modul="js/qst-modal.js?v=20261029b"></script>
 <script type="text/plain" data-modul="js/users.js?v=20261022b"></script>
 <script type="text/plain" data-modul="js/contracts-page.js?v=20260802a"></script>
 <script type="text/plain" data-modul="js/documents.js?v=20261020j"></script>
@@ -12649,22 +12649,40 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
         <div id="qstWohnsituationWrap" style="display:none">
             <div class="emp-section-title">2 · Wohnsituation</div>
             <div id="qstWohnsituationInfo" style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:6px;font-size:12.5px;color:#475569;line-height:1.6"></div>
-            <!-- Grenzgänger-Angaben (Walter 07.09.2026, Swissdec «Crossborder»): nur sichtbar bei Grenzgänger.
-                 Steuer-ID des Wohnsitzstaats (IT Codice fiscale / FR numéro fiscal), Geburtsort, Status ab. -->
-            <div id="qstGrenzgaengerBox" class="ma-grid cols-3" style="display:none;margin-bottom:6px">
-                <div class="ma-field">
-                    <div class="ma-field-label">Steuer-ID Wohnsitzstaat <span class="opt">(IT Codice fiscale / FR n° fiscal)</span></div>
-                    <input id="qstGrenzSteuerId" class="ma-input" maxlength="40" placeholder="z.B. RNLMSM67D11A794W" style="text-transform:uppercase">
+        </div>
+
+        <div class="emp-section-title">Grenzgängermeldungen</div>
+        <div id="qstGrenzMeldungen" style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:10px">
+            <label class="qst-cb"><input type="checkbox" id="qstDatenaustauschItalien" onchange="qstGrenzMeldungen()"> Vom Datenaustausch mit Italien betroffen</label>
+            <div id="qstItalienFelder" style="display:none;margin-top:8px">
+                <div style="display:grid;grid-template-columns:220px 4.2rem 18ch 152px;gap:8px 12px;justify-content:start;align-items:end">
+                    <div class="ma-field">
+                        <div class="ma-field-label">Geburtsort</div>
+                        <input id="qstGrenzGeburtsort" class="ma-input" maxlength="120" style="width:220px">
+                    </div>
+                    <div class="ma-field">
+                        <div class="ma-field-label">Staat</div>
+                        <input id="qstGrenzGeburtsstaat" class="ma-input" maxlength="2" style="width:4.2rem;text-transform:uppercase" placeholder="IT">
+                    </div>
+                    <div class="ma-field">
+                        <div class="ma-field-label">Italienische Steuernummer</div>
+                        <input id="qstGrenzSteuerId" class="ma-input" maxlength="16" style="width:18ch;text-transform:uppercase">
+                    </div>
+                    <div class="ma-field">
+                        <div class="ma-field-label">Grenzgänger-Datum</div>
+                        <input id="qstGrenzAb" type="date" class="ma-input" style="width:152px">
+                    </div>
                 </div>
-                <div class="ma-field">
-                    <div class="ma-field-label">Geburtsort</div>
-                    <input id="qstGrenzGeburtsort" class="ma-input" maxlength="120" placeholder="z.B. Bergamo">
-                </div>
-                <div class="ma-field">
-                    <div class="ma-field-label">Grenzgängerstatus ab <span class="opt">(CH–IT: neue Grenzgänger ab 17.7.2023)</span></div>
-                    <input id="qstGrenzAb" type="date" class="ma-input">
+                <div style="font-size:11px;color:#8b8b8b;margin-top:6px">Pflicht, sobald die Person markiert ist. Die Steuernummer wird als Codice fiscale geprüft.</div>
+            </div>
+            <div id="qstFrankreichZeile" style="display:none;margin-top:10px">
+                <div style="font-size:12.5px;color:#3f3f3f;margin-bottom:6px">Wohnsitz Frankreich, Arbeitsort Schweiz. Diese Person geht automatisch in die Grenzgängermeldung Frankreich.</div>
+                <div class="ma-field" style="width:7.5rem">
+                    <div class="ma-field-label">Telearbeit %</div>
+                    <input id="qstTelearbeit" class="ma-input" inputmode="decimal" maxlength="6" style="width:7ch" placeholder="0">
                 </div>
             </div>
+            <div id="qstSfnZeile" style="display:none;margin-top:10px;font-size:12.5px;color:#3f3f3f">Tarif SFN. Diese Person geht automatisch in die Grenzgängermeldung SFN. Weitere Angaben gibt es nicht.</div>
         </div>
         <div style="display:none">
             <input type="checkbox" id="qstIsGrenzgaenger" tabindex="-1">

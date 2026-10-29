@@ -426,9 +426,43 @@ function qstRenderWohnsituation() {
 
     wrap.style.display = lines.length ? '' : 'none';
     el.innerHTML = lines.join('<br>');
-    // Grenzgänger-Angaben (Walter 07.09.2026): editierbar, nur bei Grenzgänger.
-    const gb = document.getElementById('qstGrenzgaengerBox');
-    if (gb) gb.style.display = istAusland ? '' : 'none';
+    qstGrenzMeldungen();
+}
+
+function qstWohnsitzFrankreich() {
+    const land = ((qstEmployeeData?.country || document.getElementById('qstWohnsitzstaat')?.value || '') + '').trim().toUpperCase();
+    return land === 'FR' || land === 'FRA' || land === 'FRANKREICH' || land === 'FRANCE';
+}
+
+function qstGrenzMeldungen() {
+    const it = !!document.getElementById('qstDatenaustauschItalien')?.checked;
+    const itF = document.getElementById('qstItalienFelder');
+    if (itF) itF.style.display = it ? '' : 'none';
+    const frZ = document.getElementById('qstFrankreichZeile');
+    if (frZ) frZ.style.display = qstWohnsitzFrankreich() ? '' : 'none';
+    const code = (document.getElementById('qstCode')?.value || document.getElementById('qstVordefCode')?.value || '').trim().toUpperCase();
+    const sfn = document.getElementById('qstSfnZeile');
+    if (sfn) sfn.style.display = code === 'SFN' ? '' : 'none';
+}
+
+function qstCodiceGueltig(roh) {
+    const s = (roh || '').trim().toUpperCase().replace(/ /g, '');
+    if (s.length !== 16) return 'Die italienische Steuernummer hat 16 Zeichen.';
+    if (!/^[A-Z]{6}[0-9]{2}[ABCDEHLMPRST][0-9]{2}[A-Z][0-9]{3}[A-Z]$/.test(s))
+        return 'Die italienische Steuernummer entspricht nicht dem Aufbau des Codice fiscale.';
+    let tag = parseInt(s.slice(9, 11), 10);
+    if (tag > 40) tag -= 40;
+    if (tag < 1 || tag > 31) return 'Der Geburtstag in der italienischen Steuernummer ist ungültig.';
+    const ungerade = { '0':1,'1':0,'2':5,'3':7,'4':9,'5':13,'6':15,'7':17,'8':19,'9':21,
+        A:1,B:0,C:5,D:7,E:9,F:13,G:15,H:17,I:19,J:21,K:2,L:4,M:18,N:20,O:11,P:3,Q:6,R:8,S:12,T:14,U:16,V:10,W:22,X:25,Y:24,Z:23 };
+    let summe = 0;
+    for (let i = 0; i < 15; i++) {
+        const c = s[i];
+        summe += i % 2 === 0 ? ungerade[c] : (c >= '0' && c <= '9' ? c.charCodeAt(0) - 48 : c.charCodeAt(0) - 65);
+    }
+    if (s[15] !== String.fromCharCode(65 + summe % 26))
+        return 'Die Prüfziffer der italienischen Steuernummer stimmt nicht.';
+    return '';
 }
 
 // Konkubinat-Frage NUR bei Zivilstand «ledig» zeigen (Walter 29.08.2026 v2) —
@@ -505,6 +539,7 @@ async function qstStammPendingSave() {
 // unsichtbaren) Datenträger-Felder; die Begründung liefert der Server-
 // Vorschlag-Banner (qstTarifHint sitzt in derselben Karte).
 function qstRenderResultat() {
+    qstGrenzMeldungen();
     const codeEl = document.getElementById('qstResultatCode');
     const besEl  = document.getElementById('qstResultatBeschreibung');
     if (!codeEl) return;
@@ -1104,7 +1139,11 @@ function populateQstForm(entry) {
         const v = (id, val) => { const e = document.getElementById(id); if (e) e.value = val ?? ''; };
         v('qstGrenzSteuerId',   entry?.grenzgaengerSteuerId);
         v('qstGrenzGeburtsort', entry?.grenzgaengerGeburtsort);
+        v('qstGrenzGeburtsstaat', entry?.grenzgaengerGeburtsstaat);
         v('qstGrenzAb',         entry?.grenzgaengerAb ? String(entry.grenzgaengerAb).slice(0, 10) : '');
+        v('qstTelearbeit',      entry?.telearbeitProzent ?? '');
+        const it = document.getElementById('qstDatenaustauschItalien');
+        if (it) it.checked = !!entry?.datenaustauschItalien;
     })();
     // Konkubinat aus dem Familie-Tab befüllen + sperren (Walter 25.08.2026).
     qstApplyKonkubinatLock();
@@ -1330,7 +1369,15 @@ async function saveQstEntry() {
         isWochenaufenthalter:       document.getElementById('qstIsWochenaufenthalter').checked,
         grenzgaengerSteuerId:       (document.getElementById('qstGrenzSteuerId')?.value || '').trim().toUpperCase() || null,
         grenzgaengerGeburtsort:     (document.getElementById('qstGrenzGeburtsort')?.value || '').trim() || null,
+        grenzgaengerGeburtsstaat:   (document.getElementById('qstGrenzGeburtsstaat')?.value || '').trim().toUpperCase() || null,
         grenzgaengerAb:             document.getElementById('qstGrenzAb')?.value || null,
+        datenaustauschItalien:      !!document.getElementById('qstDatenaustauschItalien')?.checked,
+        telearbeitProzent:          (() => {
+            const roh = (document.getElementById('qstTelearbeit')?.value || '').trim().replace(',', '.');
+            if (roh === '') return null;
+            const n = Number(roh);
+            return Number.isFinite(n) ? n : null;
+        })(),
     };
 
     if (!payload.validFrom) { resultEl.innerHTML = '<span style="color:#dc2626">Gültig ab ist Pflicht.</span>'; return; }
@@ -1361,6 +1408,28 @@ async function saveQstEntry() {
     if (payload.spezielBewilligt && !payload.dokumentId) {
         resultEl.innerHTML = '<span style="color:#dc2626">Speziell bewilligter QST-Code braucht die Verfügung der Steuerbehörde als Beleg — Dokument im Dokumente-Tab ablegen und oben auswählen.</span>';
         return;
+    }
+    if (payload.datenaustauschItalien) {
+        if (!payload.grenzgaengerGeburtsort) {
+            resultEl.innerHTML = '<span style="color:#dc2626">Beim Datenaustausch mit Italien ist der Geburtsort Pflicht.</span>';
+            return;
+        }
+        if (!/^[A-Z]{2}$/.test(payload.grenzgaengerGeburtsstaat || '')) {
+            resultEl.innerHTML = '<span style="color:#dc2626">Beim Datenaustausch mit Italien ist der Geburtsstaat als Ländercode Pflicht, zum Beispiel IT.</span>';
+            return;
+        }
+        const codice = qstCodiceGueltig(payload.grenzgaengerSteuerId);
+        if (codice) { resultEl.innerHTML = `<span style="color:#dc2626">${codice}</span>`; return; }
+        if (!payload.grenzgaengerAb) {
+            resultEl.innerHTML = '<span style="color:#dc2626">Beim Datenaustausch mit Italien ist das Grenzgänger-Datum Pflicht.</span>';
+            return;
+        }
+    }
+    if (qstWohnsitzFrankreich()) {
+        if (payload.telearbeitProzent == null || payload.telearbeitProzent < 0 || payload.telearbeitProzent > 100) {
+            resultEl.innerHTML = '<span style="color:#dc2626">Wohnsitz Frankreich: der Anteil Telearbeit in Prozent ist Pflicht. 0, wenn keine Telearbeit.</span>';
+            return;
+        }
     }
 
     // Tarif eingefroren — nur Wissensdatum nachtragbar.

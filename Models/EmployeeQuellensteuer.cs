@@ -152,7 +152,18 @@ public class EmployeeQuellensteuer
     // Meldung an Frankreich. Nur relevant, wenn IsGrenzgaenger.
     public string? GrenzgaengerSteuerId { get; set; }
     public string? GrenzgaengerGeburtsort { get; set; }
+    /// <summary>ISO-Ländercode des Geburtsstaats, Pflicht beim Datenaustausch Italien.</summary>
+    public string? GrenzgaengerGeburtsstaat { get; set; }
     public DateOnly? GrenzgaengerAb { get; set; }
+
+    /// <summary>Person ist vom Datenaustausch mit Italien betroffen (Swissdec S03_08_01).</summary>
+    public bool DatenaustauschItalien { get; set; }
+
+    /// <summary>
+    /// Anteil Telearbeit in Prozent für die Grenzgängermeldung Frankreich.
+    /// Pflicht, sobald die Person automatisch erkannt ist. 0 = keine Telearbeit.
+    /// </summary>
+    public decimal? TelearbeitProzent { get; set; }
 
     // ── Beleg (Walter-Vorgabe 21.08.2026) ────────────────────────────────────
     /// <summary>

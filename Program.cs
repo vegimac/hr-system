@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 125;  // 125: Ende Erwerb Ehepartner · 124: Tabname Schulungs-Anleitungen · 123: Lohnausweis-Fassung · 122: QST
+const int SchemaStand = 126;  // 126: Grenzgänger IT/FR · 125: Ende Erwerb Ehepartner · 124: Tabname · 123: Lohnausweis
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3409,6 +3409,18 @@ using (var scope = app.Services.CreateScope())
                 ADD COLUMN IF NOT EXISTS stellenende DATE;
         ");
         startLog.LogInformation("Stand 125: Ende der Erwerbstätigkeit am Ehepartner");
+    }
+
+    // Stand 126: Datenaustausch Italien, Geburtsstaat, Telearbeit Frankreich.
+    if (dbStand < 126)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_quellensteuer
+                ADD COLUMN IF NOT EXISTS datenaustausch_italien boolean NOT NULL DEFAULT false,
+                ADD COLUMN IF NOT EXISTS grenzgaenger_geburtsstaat varchar(2),
+                ADD COLUMN IF NOT EXISTS telearbeit_prozent numeric(5,2);
+        ");
+        startLog.LogInformation("Stand 126: Grenzgängermeldung Italien und Frankreich");
     }
 
 

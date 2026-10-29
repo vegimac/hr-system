@@ -3455,7 +3455,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsWochenaufenthalter).HasColumnName("is_wochenaufenthalter");
             entity.Property(e => e.GrenzgaengerSteuerId).HasColumnName("grenzgaenger_steuer_id").HasMaxLength(40);
             entity.Property(e => e.GrenzgaengerGeburtsort).HasColumnName("grenzgaenger_geburtsort").HasMaxLength(120);
+            entity.Property(e => e.GrenzgaengerGeburtsstaat).HasColumnName("grenzgaenger_geburtsstaat").HasMaxLength(2);
             entity.Property(e => e.GrenzgaengerAb).HasColumnName("grenzgaenger_ab").HasColumnType("date");
+            entity.Property(e => e.DatenaustauschItalien).HasColumnName("datenaustausch_italien").HasDefaultValue(false);
+            entity.Property(e => e.TelearbeitProzent).HasColumnName("telearbeit_prozent").HasColumnType("numeric(5,2)");
             // TIMESTAMP (= without time zone) — ohne HasColumnType mappt Npgsql 8
             // DateTime als timestamptz und SaveChanges scheitert beim Schreiben.
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")

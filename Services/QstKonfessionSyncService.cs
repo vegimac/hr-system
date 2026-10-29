@@ -215,6 +215,12 @@ public class QstKonfessionSyncService
             HasHigherIncomeThanPartner   = src.HasHigherIncomeThanPartner,
             IsGrenzgaenger               = src.IsGrenzgaenger,
             IsWochenaufenthalter         = src.IsWochenaufenthalter,
+            GrenzgaengerSteuerId         = src.GrenzgaengerSteuerId,
+            GrenzgaengerGeburtsort       = src.GrenzgaengerGeburtsort,
+            GrenzgaengerGeburtsstaat     = src.GrenzgaengerGeburtsstaat,
+            GrenzgaengerAb               = src.GrenzgaengerAb,
+            DatenaustauschItalien        = src.DatenaustauschItalien,
+            TelearbeitProzent            = src.TelearbeitProzent,
             CreatedAt                    = now,
             UpdatedAt                    = now
         };

@@ -116,7 +116,8 @@ public class EmployeeQuellensteuerController : ControllerBase
         q.LivesInKonkubinat, q.HasJointParentalCare,
         q.PaysAlimonyAdultChildren, q.HasHigherIncomeThanPartner,
         q.IsGrenzgaenger, q.IsWochenaufenthalter,
-        q.GrenzgaengerSteuerId, q.GrenzgaengerGeburtsort, q.GrenzgaengerAb,
+        q.GrenzgaengerSteuerId, q.GrenzgaengerGeburtsort, q.GrenzgaengerGeburtsstaat, q.GrenzgaengerAb,
+        q.DatenaustauschItalien, q.TelearbeitProzent,
         // Walter 21.08.2026: Tarifbestätigung als Beleg-Doku.
         q.DokumentId,
         q.CreatedAt, q.UpdatedAt,
@@ -460,6 +461,8 @@ public class EmployeeQuellensteuerController : ControllerBase
 
         var zusatzNeu = PruefeQstZusatz(dto);
         if (zusatzNeu != null) return zusatzNeu;
+        var grenzNeu = await PruefeGrenzgaengerAsync(dto, employeeId);
+        if (grenzNeu != null) return grenzNeu;
 
         // Kirchensteuer IMMER aus der Konfession des MA (Walter 12.08.2026):
         // nur Anzeige im Modal, Client-Wert wird ignoriert. Der Y/N-Suffix im
@@ -682,6 +685,8 @@ public class EmployeeQuellensteuerController : ControllerBase
         await ApplyWohnadresseAsync(entry, employeeId);
         var zusatzUpd = PruefeQstZusatz(dto);
         if (zusatzUpd != null) return zusatzUpd;
+        var grenzUpd = await PruefeGrenzgaengerAsync(dto, employeeId);
+        if (grenzUpd != null) return grenzUpd;
 
         entry.TarifvorschlagQst          = dto.TarifvorschlagQst;
         entry.TarifCode                  = dto.TarifCode;
@@ -730,9 +735,12 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.HasHigherIncomeThanPartner = dto.HasHigherIncomeThanPartner;
         entry.IsGrenzgaenger             = dto.IsGrenzgaenger;
         entry.IsWochenaufenthalter       = dto.IsWochenaufenthalter;
-        entry.GrenzgaengerSteuerId       = string.IsNullOrWhiteSpace(dto.GrenzgaengerSteuerId) ? null : dto.GrenzgaengerSteuerId.Trim().ToUpperInvariant();
-        entry.GrenzgaengerGeburtsort     = string.IsNullOrWhiteSpace(dto.GrenzgaengerGeburtsort) ? null : dto.GrenzgaengerGeburtsort.Trim();
+        entry.GrenzgaengerSteuerId       = dto.GrenzgaengerSteuerId;
+        entry.GrenzgaengerGeburtsort     = dto.GrenzgaengerGeburtsort;
+        entry.GrenzgaengerGeburtsstaat   = dto.GrenzgaengerGeburtsstaat;
         entry.GrenzgaengerAb             = dto.GrenzgaengerAb;
+        entry.DatenaustauschItalien      = dto.DatenaustauschItalien;
+        entry.TelearbeitProzent          = dto.TelearbeitProzent;
 
         // Konkubinat IMMER aus dem Familie-Tab (Walter 25.08.2026) — analog
         // Wohnadresse/Kirchensteuer, siehe ApplyKonkubinatAsync.
@@ -1128,6 +1136,80 @@ public class EmployeeQuellensteuerController : ControllerBase
                 message = "Familiäre Situation: Kein Konkubinat, oder Konkubinat mit Alleiniges Sorgerecht, Gemeinsames Sorgerecht und höheres Bruttoeinkommen, oder Volljähriges Kind und höheres Bruttoeinkommen."
             });
         else e.SorgerechtCode = sorg;
+        return null;
+    }
+
+    /// <summary>
+    /// Grenzgängermeldungen (Swissdec S03_08): Italien ist eine Markierung
+    /// und macht Geburtsort, Geburtsstaat, Codice fiscale und das Datum zur Pflicht.
+    /// Frankreich und SFN erkennt das System. Die Jahresübermittlung ist ein eigener Lauf.
+    /// </summary>
+    private async Task<IActionResult?> PruefeGrenzgaengerAsync(EmployeeQuellensteuer e, int employeeId)
+    {
+        e.GrenzgaengerSteuerId = string.IsNullOrWhiteSpace(e.GrenzgaengerSteuerId)
+            ? null : e.GrenzgaengerSteuerId.Trim().ToUpperInvariant().Replace(" ", "");
+        e.GrenzgaengerGeburtsort = string.IsNullOrWhiteSpace(e.GrenzgaengerGeburtsort)
+            ? null : e.GrenzgaengerGeburtsort.Trim();
+        e.GrenzgaengerGeburtsstaat = string.IsNullOrWhiteSpace(e.GrenzgaengerGeburtsstaat)
+            ? null : e.GrenzgaengerGeburtsstaat.Trim().ToUpperInvariant();
+        if (e.TelearbeitProzent is { } prozent && (prozent < 0 || prozent > 100))
+            return BadRequest(new
+            {
+                error = "TELEARBET_BEREICH",
+                message = "Der Anteil Telearbeit liegt zwischen 0 und 100 Prozent. 0 heisst: keine Telearbeit."
+            });
+
+        if (e.DatenaustauschItalien)
+        {
+            if (string.IsNullOrWhiteSpace(e.GrenzgaengerGeburtsort))
+                return BadRequest(new { error = "GEBURTSORT_FEHLT", message = "Beim Datenaustausch mit Italien ist der Geburtsort Pflicht." });
+            if (e.GrenzgaengerGeburtsstaat is not { Length: 2 })
+                return BadRequest(new { error = "GEBURTSSTAAT_FEHLT", message = "Beim Datenaustausch mit Italien ist der Geburtsstaat als Ländercode Pflicht, zum Beispiel IT." });
+            if (!CodiceFiscale.Gueltig(e.GrenzgaengerSteuerId, out var grund))
+                return BadRequest(new { error = "STEUERNUMMER_ITALIEN", message = grund });
+            if (e.GrenzgaengerAb == null)
+                return BadRequest(new { error = "GRENZGAENGER_DATUM_FEHLT", message = "Beim Datenaustausch mit Italien ist das Grenzgänger-Datum Pflicht." });
+        }
+
+        var person = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == employeeId)
+            .Select(x => new { x.Country, x.NationalityId })
+            .FirstOrDefaultAsync();
+        string? nat = null;
+        if (person?.NationalityId is int nid)
+            nat = await _db.Nationalities.AsNoTracking()
+                .Where(n => n.Id == nid).Select(n => n.Code).FirstOrDefaultAsync();
+
+        var stichtag = e.ValidFrom.ToDateTime(TimeOnly.MinValue).Date;
+        var jobs = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == employeeId && em.CompanyProfileId != null)
+            .Select(em => new { em.ContractStartDate, em.ContractEndDate, em.CompanyProfileId })
+            .ToListAsync();
+        var filialen = jobs
+            .Where(j => j.ContractStartDate.Date <= stichtag
+                        && (j.ContractEndDate == null || j.ContractEndDate.Value.Date >= stichtag))
+            .Select(j => j.CompanyProfileId!.Value)
+            .Distinct()
+            .ToList();
+        var arbeitsortSchweiz = false;
+        if (filialen.Count > 0)
+        {
+            var firmen = await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => filialen.Contains(c.Id))
+                .Select(c => new { c.Country, c.KantonCode })
+                .ToListAsync();
+            arbeitsortSchweiz = firmen.Any(c => GrenzgaengerMeldung.ArbeitsortSchweiz(c.Country, c.KantonCode));
+        }
+
+        var wohn = string.IsNullOrWhiteSpace(person?.Country) ? e.Wohnsitzstaat : person!.Country;
+        // Schaub Restaurants ist eine GmbH, kein öffentlich-rechtlicher Arbeitgeber.
+        if (GrenzgaengerMeldung.Frankreich(wohn, arbeitsortSchweiz, nat, oeffentlichRechtlich: false)
+            && e.TelearbeitProzent == null)
+            return BadRequest(new
+            {
+                error = "TELEARBET_FEHLT",
+                message = "Wohnsitz Frankreich und Arbeitsort Schweiz: der Anteil Telearbeit in Prozent ist Pflicht. 0, wenn keine Telearbeit."
+            });
         return null;
     }
 
@@ -1533,6 +1615,12 @@ public class EmployeeQuellensteuerController : ControllerBase
             HasHigherIncomeThanPartner   = aktiv.HasHigherIncomeThanPartner,
             IsGrenzgaenger               = aktiv.IsGrenzgaenger,
             IsWochenaufenthalter         = aktiv.IsWochenaufenthalter,
+            GrenzgaengerSteuerId         = aktiv.GrenzgaengerSteuerId,
+            GrenzgaengerGeburtsort       = aktiv.GrenzgaengerGeburtsort,
+            GrenzgaengerGeburtsstaat     = aktiv.GrenzgaengerGeburtsstaat,
+            GrenzgaengerAb               = aktiv.GrenzgaengerAb,
+            DatenaustauschItalien        = aktiv.DatenaustauschItalien,
+            TelearbeitProzent            = aktiv.TelearbeitProzent,
             CreatedAt                    = now,
             UpdatedAt                    = now
         };

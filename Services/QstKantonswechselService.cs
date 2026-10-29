@@ -141,6 +141,12 @@ public class QstKantonswechselService
             HasHigherIncomeThanPartner = alt.HasHigherIncomeThanPartner,
             IsGrenzgaenger = alt.IsGrenzgaenger,
             IsWochenaufenthalter = alt.IsWochenaufenthalter,
+            GrenzgaengerSteuerId = alt.GrenzgaengerSteuerId,
+            GrenzgaengerGeburtsort = alt.GrenzgaengerGeburtsort,
+            GrenzgaengerGeburtsstaat = alt.GrenzgaengerGeburtsstaat,
+            GrenzgaengerAb = alt.GrenzgaengerAb,
+            DatenaustauschItalien = alt.DatenaustauschItalien,
+            TelearbeitProzent = alt.TelearbeitProzent,
             CreatedAt = DateTime.Now,
             UpdatedAt = DateTime.Now,
         });
@@ -202,7 +208,10 @@ public class QstKantonswechselService
         q.AdresseAusland = null;
         q.GrenzgaengerSteuerId = null;
         q.GrenzgaengerGeburtsort = null;
+        q.GrenzgaengerGeburtsstaat = null;
         q.GrenzgaengerAb = null;
+        q.DatenaustauschItalien = false;
+        q.TelearbeitProzent = null;
         q.UpdatedAt = DateTime.Now;
     }
 
