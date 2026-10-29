@@ -6713,7 +6713,7 @@ function fmErwerbChanged() {
     // Im Ausland (inkl. gleicher Haushalt eines Auslands-MA) komplett weg.
     const aktiv = fmGetErwerb() === true;
     ['fmArbeitgeberName', 'fmArbeitgeberStrasse', 'fmArbeitgeberPlz',
-     'fmArbeitgeberOrt', 'fmArbeitgeberKanton', 'fmStellenantritt', 'fmArbeitgeberTelefon'].forEach(id => {
+     'fmArbeitgeberOrt', 'fmArbeitgeberKanton', 'fmStellenantritt', 'fmStellenende', 'fmArbeitgeberTelefon'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         el.disabled = !aktiv;
@@ -8331,8 +8331,12 @@ async function openFamilyModal(member) {
     document.getElementById('fmArbeitgeberStrasse').value = member?.arbeitgeberStrasse ?? '';
     document.getElementById('fmArbeitgeberPlz').value     = member?.arbeitgeberPlz     ?? '';
     document.getElementById('fmArbeitgeberOrt').value     = member?.arbeitgeberOrt     ?? '';
-    document.getElementById('fmArbeitgeberKanton').value  = member?.arbeitgeberKanton  ?? '';
+    const agKanton = (member?.arbeitgeberKanton || '').trim().toUpperCase();
+    const agKantonSel = document.getElementById('fmArbeitgeberKanton');
+    if (agKantonSel) agKantonSel.value = agKanton;
     document.getElementById('fmStellenantritt').value     = toDateInput(member?.stellenantritt);
+    const stellenende = document.getElementById('fmStellenende');
+    if (stellenende) stellenende.value = toDateInput(member?.stellenende);
     const agHint = document.getElementById('fmAgPlzHint');
     if (agHint) agHint.innerHTML = '';
     fmQstBlocksVisibility(member?.memberType ?? 'Kind');
@@ -8757,9 +8761,15 @@ function fmPartnerGiltAlsInDerSchweizAusFormular() {
 
 function fmSyncArbeitgeberSichtbarkeit() {
     const block = document.getElementById('fmArbeitgeberFelder');
-    if (!block) return;
-    const zeigen = fmGetErwerb() === true && fmPartnerGiltAlsInDerSchweizAusFormular();
-    block.style.display = zeigen ? '' : 'none';
+    const aktiv = fmGetErwerb() === true;
+    const inCh = fmPartnerGiltAlsInDerSchweizAusFormular();
+    if (block) block.style.display = (aktiv && inCh) ? '' : 'none';
+    const qst = document.getElementById('fmQstErwerbZeile');
+    if (qst) qst.style.display = aktiv ? '' : 'none';
+    if (aktiv && !inCh) {
+        const k = document.getElementById('fmArbeitgeberKanton');
+        if (k && !k.value) k.value = 'EX';
+    }
 }
 
 function fmUpdateAuslandHint() {
@@ -8898,6 +8908,7 @@ async function saveFamilyMember() {
         arbeitgeberOrt:         (document.getElementById('fmArbeitgeberOrt')?.value     || '').trim() || null,
         arbeitgeberKanton:      (document.getElementById('fmArbeitgeberKanton')?.value  || '').trim().toUpperCase() || null,
         stellenantritt:         document.getElementById('fmStellenantritt')?.value      || null,
+        stellenende:            document.getElementById('fmStellenende')?.value         || null,
         // Historie Seit/Erfahren (Walter 08.10.2026) — leer Seit = kein neuer Hist-Eintrag
         // ausser Ersteintrag (Server). Erfahren leer = gleich Seit.
         // Seit/Erfahren nur bei Ersterfassung (Status-Wechsel hat eigenen Speichern-Knopf).

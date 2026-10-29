@@ -180,6 +180,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         m.ArbeitgeberOrt,
         m.ArbeitgeberKanton,
         m.Stellenantritt,
+        m.Stellenende,
         m.InErstausbildung,
         m.KeineUnterhaltspflicht,
         qstVerlauf,
@@ -226,6 +227,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         member.CreatedAt = DateTime.Now;
         member.UpdatedAt = DateTime.Now;
         if (await FamilieUngueltigAsync(employeeId, member, null) is IActionResult pdStop) return pdStop;
+        if (ErwerbEndeUngueltig(member) is IActionResult endeStop) return endeStop;
 
         // AlternativeAddressId nur akzeptieren, wenn die Zusatzadresse
         // tatsächlich zum gleichen MA gehört (Schutz vor Cross-MA-IDs).
@@ -253,6 +255,17 @@ public class EmployeeFamilyMembersController : ControllerBase
         await _context.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetById), new { employeeId, id = member.Id }, member);
+    }
+
+    /// <summary>Ende der Erwerbstätigkeit nicht vor dem Beginn, und nicht ohne Beginn.</summary>
+    private IActionResult? ErwerbEndeUngueltig(EmployeeFamilyMember m)
+    {
+        if (m.Stellenende is not DateTime ende) return null;
+        if (m.Stellenantritt is not DateTime start)
+            return BadRequest(new { error = "ENDE_OHNE_BEGINN", message = "Zum Ende der Erwerbstätigkeit braucht es den Beginn." });
+        if (ende.Date < start.Date)
+            return BadRequest(new { error = "ENDE_VOR_BEGINN", message = "Das Ende der Erwerbstätigkeit darf nicht vor dem Beginn liegen." });
+        return null;
     }
 
     /// <summary>
@@ -292,6 +305,7 @@ public class EmployeeFamilyMembersController : ControllerBase
 
         if (existing == null) return NotFound();
         if (await FamilieUngueltigAsync(employeeId, member, existing) is IActionResult pdStop) return pdStop;
+        if (ErwerbEndeUngueltig(member) is IActionResult endeStop) return endeStop;
 
         existing.MemberType           = member.MemberType;
         existing.Gender               = member.Gender;
@@ -328,6 +342,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.ArbeitgeberOrt       = string.IsNullOrWhiteSpace(member.ArbeitgeberOrt)     ? null : member.ArbeitgeberOrt.Trim();
         existing.ArbeitgeberKanton    = string.IsNullOrWhiteSpace(member.ArbeitgeberKanton)  ? null : member.ArbeitgeberKanton.Trim();
         existing.Stellenantritt       = member.Stellenantritt;
+        existing.Stellenende          = member.Stellenende;
         // «keine Unterhaltspflicht» ist nur noch Abbild des Verlaufs (SnapshotNachfuehren).
         // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
         existing.MaHatHoeheresEinkommen     = member.MaHatHoeheresEinkommen;

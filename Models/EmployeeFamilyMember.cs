@@ -102,8 +102,14 @@ public class EmployeeFamilyMember
     /// <summary>Ehepartner: Arbeitgeber Kanton (Kürzel, z.B. «AG»).</summary>
     public string? ArbeitgeberKanton { get; set; }
 
-    /// <summary>Ehepartner: Stellenantritt beim Arbeitgeber.</summary>
+    /// <summary>Ehepartner: Stellenantritt beim Arbeitgeber bzw. Beginn der Ersatzeinkünfte.</summary>
     public DateTime? Stellenantritt { get; set; }
+
+    /// <summary>
+    /// Ehepartner: Ende der Erwerbstätigkeit bzw. des Anspruchs auf Ersatzeinkünfte.
+    /// Leer = läuft noch. Swissdec WorkOrCompensatory/End (S03_07_05).
+    /// </summary>
+    public DateTime? Stellenende { get; set; }
 
     // ── Historie-Felder nur für Create/Update-Payload (Walter 08.10.2026) ──
     // Werden beim Speichern in family_member_*_history geschrieben; nicht

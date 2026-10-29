@@ -13416,8 +13416,22 @@ body.theme-dark #familyModal #fmPermitStandText { color: #f2f5f8; }
 }
 #familyModal .fm-ag-adr {
     display: grid;
-    grid-template-columns: 6.6ch minmax(120px, 1fr) 4.4ch 152px;
+    grid-template-columns: 6.6ch minmax(120px, 220px);
     gap: 6px 8px;
+    justify-content: start;
+}
+#familyModal .fm-qst-erwerb {
+    display: grid;
+    grid-template-columns: 88px 152px 152px;
+    gap: 6px 10px;
+    justify-content: start;
+}
+#familyModal .fm-qst-erwerb .fmf-select,
+#familyModal .fm-qst-erwerb .lqsel-btn,
+#familyModal .fm-qst-erwerb .yp-field-wrap,
+#familyModal .fm-qst-erwerb .fmf-input {
+    width: 100%;
+    max-width: 100%;
 }
 #familyModal #fmPhone,
 #familyModal #fmArbeitgeberTelefon { max-width: 18ch; }

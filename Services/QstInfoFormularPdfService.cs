@@ -43,6 +43,7 @@ public record QstInfoPrefill(
     string? PartnerAdresse = null, bool? PartnerErwerb = null,
     string? PartnerArbeitgeber = null, string? PartnerAgStrasse = null, string? PartnerAgOrt = null,
     string? PartnerStellenantritt = null, string? PartnerArbeitskanton = null,
+    string? PartnerStellenende = null,
     List<QstInfoKind>? Kinder = null);
 
 public record QstInfoFormularInput(
@@ -307,7 +308,8 @@ public class QstInfoFormularPdfService
             col.Item().PaddingTop(7).Row(r =>
             {
                 r.RelativeItem(3).Element(e => LabeledLine(e, "Arbeitskanton", p.PartnerArbeitskanton));
-                r.RelativeItem(6);
+                r.ConstantItem(18);
+                r.RelativeItem(4).Element(e => LabeledLine(e, "Ende der Erwerbstätigkeit", p.PartnerStellenende));
             });
 
             // 5 · Kinder

@@ -1231,9 +1231,10 @@ public class ElmMonthlyDeclarationBuilder
     /// <summary>
     /// Ehepartner laut Schema (MarriagePartnerType): AHV-Nummer oder «unknown», Name,
     /// Geburtsdatum, Adresse (eigene Adresse, sonst die des MA), Wohnsitz und — wenn
-    /// erwerbstätig mit bekanntem Stellenantritt — Arbeitsort-Kanton (EX im Ausland).
-    /// WorkOrCompensatory nur, wenn der Stellenantritt am Stichtag (Monatsende) schon
-    /// gilt — sonst meldet Jan TF24 Utzinger den Partner-Job von Sept. mit (QT: 7 statt 6).
+    /// erwerbstätig mit bekanntem Stellenantritt — Arbeitsort-Kanton (EX im Ausland)
+    /// plus Beginn und, falls erfasst, Ende. WorkOrCompensatory nur, solange der
+    /// Stellenantritt am Stichtag schon gilt und das Ende nicht vor dem Meldemonat
+    /// liegt — sonst meldet Jan TF24 Utzinger den Partner-Job von Sept. mit (QT: 7 statt 6).
     /// Null + Hinweis, wenn kein Ehepartner erfasst ist.
     /// </summary>
     public static XElement? Ehepartner(Employee e, EmployeeFamilyMember? p, EmployeeAddress? eigeneAdresse, List<string> warn, DateOnly? stichtag = null)
@@ -1270,13 +1271,21 @@ public class ElmMonthlyDeclarationBuilder
 
         XElement? arbeit = null;
         var antritt = p.Stellenantritt.HasValue ? DateOnly.FromDateTime(p.Stellenantritt.Value) : (DateOnly?)null;
+        var ende = p.Stellenende.HasValue ? DateOnly.FromDateTime(p.Stellenende.Value) : (DateOnly?)null;
         var antrittGilt = antritt.HasValue && (stichtag == null || antritt.Value <= stichtag.Value);
-        if (p.Erwerbstaetig == true && antrittGilt)
+        var monatAnfang = stichtag is { } s ? new DateOnly(s.Year, s.Month, 1) : (DateOnly?)null;
+        var vorbei = ende.HasValue && monatAnfang.HasValue && ende.Value < monatAnfang.Value;
+        var endeVorBeginn = antritt.HasValue && ende.HasValue && ende.Value < antritt.Value;
+        // Auch nach «nicht mehr erwerbstätig» den Monat des Endes noch melden.
+        var melden = antrittGilt && !vorbei && !endeVorBeginn
+            && (p.Erwerbstaetig == true || ende.HasValue);
+        if (melden && antritt.HasValue)
         {
             var akt = (p.ArbeitgeberKanton ?? "").Trim().ToUpperInvariant();
             arbeit = new XElement(Sd + "WorkOrCompensatory",
                 new XElement(Sd + "Workplace", akt.Length == 2 ? akt : "EX"),
-                new XElement(Sd + "Start", antritt!.Value.ToString("yyyy-MM-dd")));
+                new XElement(Sd + "Start", antritt.Value.ToString("yyyy-MM-dd")),
+                ende is { } bis ? new XElement(Sd + "End", bis.ToString("yyyy-MM-dd")) : null);
         }
 
         return new XElement(Sd + "MarriagePartner",

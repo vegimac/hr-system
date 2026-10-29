@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 124;  // 124: Tabname Schulungs-Anleitungen · 123: Lohnausweis-Fassung · 122: QST · 121: Statistik
+const int SchemaStand = 125;  // 125: Ende Erwerb Ehepartner · 124: Tabname Schulungs-Anleitungen · 123: Lohnausweis-Fassung · 122: QST
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3399,6 +3399,16 @@ using (var scope = app.Services.CreateScope())
              WHERE anleitung LIKE '%Verfügbarkeit / Training%';
         ");
         startLog.LogInformation("Stand 124: Tabname in den Schulungs-Anleitungen");
+    }
+
+    // Stand 125: Ende der Erwerbstätigkeit des Ehepartners (Swissdec S03_07_05).
+    if (dbStand < 125)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_family_member
+                ADD COLUMN IF NOT EXISTS stellenende DATE;
+        ");
+        startLog.LogInformation("Stand 125: Ende der Erwerbstätigkeit am Ehepartner");
     }
 
 

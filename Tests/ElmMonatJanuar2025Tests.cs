@@ -231,6 +231,33 @@ public class ElmMonatJanuar2025Tests
         var w = mp.Element(ElmGemeinsam.Sd + "WorkOrCompensatory");
         Assert.Equal("TI", w?.Element(ElmGemeinsam.Sd + "Workplace")?.Value);
         Assert.Equal("2025-09-20", w?.Element(ElmGemeinsam.Sd + "Start")?.Value);
+        Assert.Null(w?.Element(ElmGemeinsam.Sd + "End"));
+    }
+
+    [Fact]
+    public void Ehepartner_WorkOrCompensatory_mit_Ende_im_Meldemonat()
+    {
+        var e = new Employee { FirstName = "Jan", LastName = "Utzinger", Street = "Via Lugano 40", ZipCode = "6500", City = "Bellinzona", Country = "CH", CantonCode = "TI" };
+        var p = new EmployeeFamilyMember { MemberType = "Ehepartner", FirstName = "Julie", LastName = "Utzinger", DateOfBirth = new DateTime(1983, 7, 7),
+                                           Erwerbstaetig = true, ArbeitgeberKanton = "TI", Stellenantritt = new DateTime(2025, 9, 20), Stellenende = new DateTime(2025, 10, 31) };
+        var mp = ElmMonthlyDeclarationBuilder.Ehepartner(e, p, null, new List<string>(), new DateOnly(2025, 10, 31))!;
+        var w = mp.Element(ElmGemeinsam.Sd + "WorkOrCompensatory");
+        Assert.Equal("2025-09-20", w?.Element(ElmGemeinsam.Sd + "Start")?.Value);
+        Assert.Equal("2025-10-31", w?.Element(ElmGemeinsam.Sd + "End")?.Value);
+    }
+
+    [Fact]
+    public void Ehepartner_WorkOrCompensatory_nach_Ende_nicht_mehr()
+    {
+        var e = new Employee { FirstName = "Jan", LastName = "Utzinger", Street = "Via Lugano 40", ZipCode = "6500", City = "Bellinzona", Country = "CH", CantonCode = "TI" };
+        var p = new EmployeeFamilyMember { MemberType = "Ehepartner", FirstName = "Julie", LastName = "Utzinger", DateOfBirth = new DateTime(1983, 7, 7),
+                                           Erwerbstaetig = false, ArbeitgeberKanton = "EX", Stellenantritt = new DateTime(2025, 9, 20), Stellenende = new DateTime(2025, 10, 31) };
+        var imMonat = ElmMonthlyDeclarationBuilder.Ehepartner(e, p, null, new List<string>(), new DateOnly(2025, 10, 31))!;
+        var w = imMonat.Element(ElmGemeinsam.Sd + "WorkOrCompensatory");
+        Assert.Equal("EX", w?.Element(ElmGemeinsam.Sd + "Workplace")?.Value);
+        Assert.Equal("2025-10-31", w?.Element(ElmGemeinsam.Sd + "End")?.Value);
+        var danach = ElmMonthlyDeclarationBuilder.Ehepartner(e, p, null, new List<string>(), new DateOnly(2025, 11, 30))!;
+        Assert.Null(danach.Element(ElmGemeinsam.Sd + "WorkOrCompensatory"));
     }
 
     [Fact]

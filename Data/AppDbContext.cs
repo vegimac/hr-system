@@ -1455,6 +1455,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ArbeitgeberOrt).HasColumnName("arbeitgeber_ort").HasMaxLength(120);
             entity.Property(e => e.ArbeitgeberKanton).HasColumnName("arbeitgeber_kanton").HasMaxLength(10);
             entity.Property(e => e.Stellenantritt).HasColumnName("stellenantritt").HasColumnType("date");
+            entity.Property(e => e.Stellenende).HasColumnName("stellenende").HasColumnType("date");
             entity.Property(e => e.InErstausbildung).HasColumnName("in_erstausbildung");
             entity.Property(e => e.KeineUnterhaltspflicht).HasColumnName("keine_unterhaltspflicht");
             // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)

@@ -238,6 +238,7 @@ public class QstInfoFormularController : ControllerBase
                     .Where(s => !string.IsNullOrWhiteSpace(s))).Trim(),
             PartnerStellenantritt: Dt(spouse?.Stellenantritt),
             PartnerArbeitskanton: spouse?.ArbeitgeberKanton,
+            PartnerStellenende: Dt(spouse?.Stellenende),
             Kinder:           kinder);
     }
 }
