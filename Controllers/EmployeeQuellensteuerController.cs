@@ -103,16 +103,16 @@ public class EmployeeQuellensteuerController : ControllerBase
         q.Steuerkanton, q.SteuerkantonName,
         q.QstGemeinde, q.QstGemeindeBfsNr,
         q.TarifvorschlagQst, q.TarifCode, q.TarifBezeichnung,
-        q.AnzahlKinder, q.Kirchensteuer, q.QstCode,
+        q.AnzahlKinder, q.Kirchensteuer, q.QstCode, q.KategorieArt,
         q.SpezielBewilligt, q.Kategorie, q.Prozentsatz,
         q.MindestlohnSatzbestimmung,
         q.PartnerEmployeeId, q.PartnerEinkommenVon, q.PartnerEinkommenBis,
-        q.ArbeitsortKanton, q.WeitereBeschaftigungen,
+        q.ArbeitsortKanton, q.WeitereBeschaftigungen, q.WeitereAngabenArt,
         q.GesamtpensumWeitereAg, q.GesamteinkommenWeitereAg,
         // Anderer Arbeitgeber des MA (Walter 25.08.2026) — volle Adresse.
         q.WeitereAgName, q.WeitereAgStrasse, q.WeitereAgPlz,
         q.WeitereAgOrt, q.WeitereAgKanton, q.WeitereAgLand,
-        q.Halbfamilie, q.WohnsitzAusland, q.Wohnsitzstaat, q.AdresseAusland,
+        q.Halbfamilie, q.SorgerechtCode, q.WohnsitzAusland, q.Wohnsitzstaat, q.AdresseAusland,
         q.LivesInKonkubinat, q.HasJointParentalCare,
         q.PaysAlimonyAdultChildren, q.HasHigherIncomeThanPartner,
         q.IsGrenzgaenger, q.IsWochenaufenthalter,
@@ -350,8 +350,8 @@ public class EmployeeQuellensteuerController : ControllerBase
             return BadRequest(new
             {
                 error   = "BEWILLIGUNG_DOKUMENT_FEHLT",
-                message = "«Kinderabzug behördlich bewilligt (A1–A9)» braucht die Verfügung der Steuerbehörde als Beleg — " +
-                          "Dokument zuerst im Dokumente-Tab beim MA ablegen und hier auswählen."
+                message = "Speziell bewilligter QST-Code braucht die Verfügung der Steuerbehörde als Beleg " +
+                          "(Beispiel Kinderabzug A1–A9) — Dokument zuerst im Dokumente-Tab beim MA ablegen und hier auswählen."
             });
         if (dto.DokumentId.HasValue)
         {
@@ -457,6 +457,9 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Abweichung = keine falsche Steuermeldung). Die Spalten bleiben
         // als eingefrorene Historie pro Gültigkeits-Version erhalten.
         await ApplyWohnadresseAsync(dto, employeeId);
+
+        var zusatzNeu = PruefeQstZusatz(dto);
+        if (zusatzNeu != null) return zusatzNeu;
 
         // Kirchensteuer IMMER aus der Konfession des MA (Walter 12.08.2026):
         // nur Anzeige im Modal, Client-Wert wird ignoriert. Der Y/N-Suffix im
@@ -677,11 +680,17 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Client-Wert wird ignoriert.
         // Wohnort-Kette server-autoritativ (Walter 12.08.2026) — siehe Create.
         await ApplyWohnadresseAsync(entry, employeeId);
+        var zusatzUpd = PruefeQstZusatz(dto);
+        if (zusatzUpd != null) return zusatzUpd;
+
         entry.TarifvorschlagQst          = dto.TarifvorschlagQst;
         entry.TarifCode                  = dto.TarifCode;
         entry.TarifBezeichnung           = dto.TarifBezeichnung;
         entry.AnzahlKinder               = dto.AnzahlKinder;
         entry.QstCode                    = dto.QstCode;
+        entry.KategorieArt               = dto.KategorieArt;
+        entry.WeitereAngabenArt          = dto.WeitereAngabenArt;
+        entry.SorgerechtCode             = dto.SorgerechtCode;
         // Kirchensteuer server-autoritativ aus der Konfession (Walter
         // 12.08.2026) — Client-Wert ignoriert, Y/N-Suffix im QstCode
         // wird mitgezogen (siehe Create).
@@ -1046,8 +1055,88 @@ public class EmployeeQuellensteuerController : ControllerBase
     /// (QstTarifVorschlagLogic.IstKirchensteuerPflichtig). Der Y/N-Suffix
     /// im QST-Code (z.B. C3N/C3Y) wird passend nachgezogen.
     /// </summary>
+    private static IActionResult? PruefeQstZusatz(EmployeeQuellensteuer e)
+    {
+        var art = e.WeitereBeschaftigungen
+            ? (e.WeitereAngabenArt ?? "").Trim().ToUpperInvariant()
+            : "";
+        if (art.Length > 0 && art is not ("EINKOMMEN" or "PENSUM" or "UNBEKANNT"))
+            return new BadRequestObjectResult(new
+            {
+                error = "WEITERE_ANGABEN_ART",
+                message = "Weitere Arbeitgeber oder Ersatzeinkünfte: Gesamtbruttoeinkommen, kumulierter Beschäftigungsgrad oder beides unbekannt."
+            });
+        e.WeitereAngabenArt = art.Length == 0 ? null : art;
+        if (art == "EINKOMMEN" && !(e.GesamteinkommenWeitereAg is > 0))
+            return new BadRequestObjectResult(new
+            {
+                error = "EINKOMMEN_FEHLT",
+                message = "Gesamtbruttoeinkommen der weiteren Arbeitgeber oder Ersatzeinkünfte fehlt."
+            });
+        if (art == "PENSUM" && !(e.GesamtpensumWeitereAg is > 0))
+            return new BadRequestObjectResult(new
+            {
+                error = "PENSUM_FEHLT",
+                message = "Kumulierter Beschäftigungsgrad aller weiteren Arbeitgeber fehlt."
+            });
+        if (e.GesamtpensumWeitereAg is > 999.99m)
+            return new BadRequestObjectResult(new
+            {
+                error = "PENSUM_ZU_GROSS",
+                message = "Der kumulierte Beschäftigungsgrad darf 999.99 % nicht übersteigen."
+            });
+
+        var kat = (e.KategorieArt ?? "").Trim().ToUpperInvariant();
+        if (kat.Length > 0 && kat is not ("VORDEFINIERT" or "OFFEN"))
+            return new BadRequestObjectResult(new
+            {
+                error = "KATEGORIE_ART",
+                message = "Kategorie: Resultat aus den Angaben, vordefiniert oder offen."
+            });
+        e.KategorieArt = kat.Length == 0 ? null : kat;
+        if (kat == "VORDEFINIERT")
+        {
+            var v = QstVordefinierteKategorie.Parse(e.QstCode);
+            if (v == null)
+                return new BadRequestObjectResult(new
+                {
+                    error = "KATEGORIE_VORDEFINIERT",
+                    message = "Vordefinierte Kategorie: HEN, HEY, MEN, MEY, NON, NOY oder SFN."
+                });
+            e.QstCode = v.Value.Code;
+            e.TarifCode = null;
+        }
+        if (kat == "OFFEN")
+        {
+            var code = (e.QstCode ?? "").Trim().ToUpperInvariant();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(code, "^[A-Z0-9]{1,40}$"))
+                return new BadRequestObjectResult(new
+                {
+                    error = "KATEGORIE_OFFEN",
+                    message = "Offene Kategorie: nur Buchstaben und Ziffern, höchstens 40 Zeichen."
+                });
+            e.QstCode = code;
+            e.TarifCode = null;
+        }
+
+        var sorg = (e.SorgerechtCode ?? "").Trim();
+        if (sorg.Length == 0) e.SorgerechtCode = null;
+        else if (sorg is not ("NoConcubinage" or "SoleCustody" or "ShareCustodyAndHigherIncome" or "AdultChildAndHigherIncome"))
+            return new BadRequestObjectResult(new
+            {
+                error = "SORGERECHT",
+                message = "Familiäre Situation: Kein Konkubinat, oder Konkubinat mit Alleiniges Sorgerecht, Gemeinsames Sorgerecht und höheres Bruttoeinkommen, oder Volljähriges Kind und höheres Bruttoeinkommen."
+            });
+        else e.SorgerechtCode = sorg;
+        return null;
+    }
+
     private async Task ApplyKirchensteuerAsync(EmployeeQuellensteuer entry, int employeeId)
     {
+        var kat = (entry.KategorieArt ?? "").Trim().ToUpperInvariant();
+        if (kat is "OFFEN" or "VORDEFINIERT")
+            entry.TarifCode = null;
+
         var religion = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == employeeId)
             .Select(x => x.Religion)
@@ -1055,7 +1144,8 @@ public class EmployeeQuellensteuerController : ControllerBase
 
         // Walter 05.09.2026: mit Tarifbestätigung (DokumentId) gilt das Y/N der
         // Behörde — nicht die Ableitung aus der Konfession.
-        if (entry.DokumentId != null) return;
+        // Offene Kategorie: der freie Code bleibt, wie er erfasst wurde.
+        if (entry.DokumentId != null || kat == "OFFEN") return;
         entry.Kirchensteuer = QstTarifVorschlagLogic.IstKirchensteuerPflichtig(religion);
 
         // K4.4 (Bauplan Punkt 4, Walter 29.08.2026): der KANTON hat das
@@ -1431,6 +1521,9 @@ public class EmployeeQuellensteuerController : ControllerBase
             GesamtpensumWeitereAg        = aktiv.GesamtpensumWeitereAg,
             GesamteinkommenWeitereAg     = aktiv.GesamteinkommenWeitereAg,
             Halbfamilie                  = aktiv.Halbfamilie,
+            SorgerechtCode               = aktiv.SorgerechtCode,
+            KategorieArt                 = aktiv.KategorieArt,
+            WeitereAngabenArt            = aktiv.WeitereAngabenArt,
             WohnsitzAusland              = aktiv.WohnsitzAusland,
             Wohnsitzstaat                = aktiv.Wohnsitzstaat,
             AdresseAusland               = aktiv.AdresseAusland,

@@ -1049,12 +1049,15 @@ public class ElmMonthlyDeclarationBuilder
             new XElement(Sd + "CurrentMonth", monatStr),
             new XElement(Sd + "Current",
                 new XAttribute("workplaceIDRef", WpId(filiale)),
-                WeitereErwerbstaetigkeit(version, em, filiale, slip),
-                QstKategorie(code),
+                WeitereErwerbstaetigkeit(version, em, filiale, slip,
+                    median: zeile.TryGetProperty("qstMedian", out var md) && md.ValueKind == JsonValueKind.True),
+                QstKategorie(string.Equals(version?.KategorieArt, "OFFEN", StringComparison.OrdinalIgnoreCase)
+                    ? (version?.QstCode ?? code) : code, version?.KategorieArt),
                 new XElement(Sd + "TaxableEarning", Betrag05(basis)),
                 new XElement(Sd + "AscertainedTaxableEarning", Betrag05(satzBasis)),
                 new XElement(Sd + "TaxAtSource", Betrag05(steuer)),
                 aperiodisch != 0m ? new XElement(Sd + "SporadicBenefits", Betrag05(aperiodisch)) : null,
+                GrantTaxAtSourceCode(version?.SpezielBewilligt == true),
                 residence,
                 stamm.GemeindeNr.TryGetValue(filiale.Id, out var wg) ? new XElement(Sd + "WorkMunicipalityID", wg) : null,
                 declaration));
@@ -1074,7 +1077,11 @@ public class ElmMonthlyDeclarationBuilder
         // Reihenfolge laut XSD: Denomination, SingleParentFamily, MarriagePartner, Children.
         var konfession = MapKonfession(e.Religion);
         XElement? alleinerziehend = null;
-        if (string.Equals(version?.Halbfamilie, "ja", StringComparison.OrdinalIgnoreCase))
+        bool halbJa = string.Equals(version?.Halbfamilie, "ja", StringComparison.OrdinalIgnoreCase);
+        bool tarifHalb = version != null
+            && !string.IsNullOrWhiteSpace(version.SorgerechtCode)
+            && (IstHalbfamilieTarif(version.TarifCode) || IstHalbfamilieTarif(version.QstCode));
+        if (halbJa || tarifHalb)
         {
             // Vier Fälle laut Schema: kein Konkubinat, oder im Konkubinat mit
             // alleinigem Sorgerecht / geteiltem Sorgerecht und höherem Einkommen /
@@ -1166,28 +1173,48 @@ public class ElmMonthlyDeclarationBuilder
     /// Quality Tool Jan 2025: TF18 Blanc 35 h ÷ 182 h → 19.23/60.
     /// </summary>
     public static XElement? WeitereErwerbstaetigkeit(EmployeeQuellensteuer? version, Employment? em,
-                                                     CompanyProfile filiale, JsonElement slip)
+                                                     CompanyProfile filiale, JsonElement slip, bool median = false)
     {
         if (version?.WeitereBeschaftigungen != true) return null;
-        var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
-        var art = (em?.SwissdecVertragsart ?? "").Trim();
-        var stundenlohn = art.Length > 0
-            ? art is "indefiniteSalaryHrs" or "fixedSalaryHrs"
-            : model is not ("FIX" or "FIX-M" or "MTP");
+        var angabe = (version.WeitereAngabenArt ?? "").Trim().ToUpperInvariant();
         XElement grad;
-        if (stundenlohn)
-        {
-            var vollzeit = PayrollCalculations.MonatsstundenVollzeit(filiale);
-            var pct = vollzeit > 0 ? Num(slip, "workedHours") / vollzeit * 100m : 0m;
-            grad = new XElement(Sd + "HourlyOrLessonSalary", Amt(Math.Round(pct, 2, MidpointRounding.AwayFromZero)));
-        }
+        if (median)
+            grad = new XElement(Sd + "MedianSalary");
         else
-            grad = new XElement(Sd + "MonthlySalary", Amt(em?.EmploymentPercentage ?? 100m));
+        {
+            var model = em?.EmploymentModel?.ToUpperInvariant() ?? "";
+            var art = (em?.SwissdecVertragsart ?? "").Trim();
+            var stundenlohn = art.Length > 0
+                ? art is "indefiniteSalaryHrs" or "fixedSalaryHrs"
+                : model is not ("FIX" or "FIX-M" or "MTP");
+            if (stundenlohn)
+            {
+                var vollzeit = PayrollCalculations.MonatsstundenVollzeit(filiale);
+                var pct = vollzeit > 0 ? Num(slip, "workedHours") / vollzeit * 100m : 0m;
+                grad = new XElement(Sd + "HourlyOrLessonSalary", Amt(Math.Round(pct, 2, MidpointRounding.AwayFromZero)));
+            }
+            else
+                grad = new XElement(Sd + "MonthlySalary", Amt(em?.EmploymentPercentage ?? 100m));
+        }
+        // Pensum der anderen AG nur, wenn es die gewählte Angabe ist.
+        // Altzeilen ohne Art melden es weiter, sobald ein Wert steht.
+        bool pensumMelden = angabe == "PENSUM" || (angabe.Length == 0 && version.GesamtpensumWeitereAg is > 0m);
         return new XElement(Sd + "OtherActivities",
             grad,
-            version.GesamtpensumWeitereAg is > 0m
+            pensumMelden && version.GesamtpensumWeitereAg is > 0m
                 ? new XElement(Sd + "TotalOtherActivityRate", Amt(version.GesamtpensumWeitereAg.Value))
                 : null);
+    }
+
+    /// <summary>Leeres Element, sobald der QST-Code behördlich bewilligt ist.</summary>
+    public static XElement? GrantTaxAtSourceCode(bool speziell)
+        => speziell ? new XElement(Sd + "GrantTaxAtSourceCode") : null;
+
+    private static bool IstHalbfamilieTarif(string? code)
+    {
+        var c = (code ?? "").Trim().ToUpperInvariant();
+        if (c.Length == 0 || QstVordefinierteKategorie.Parse(c) != null) return false;
+        return c[0] is 'H' or 'P' or 'U';
     }
 
     /// <summary>
@@ -1294,13 +1321,17 @@ public class ElmMonthlyDeclarationBuilder
             new XElement(Sd + "KindOfResidence", art));
     }
 
-    /// <summary>Tarifcode (A0N …) oder vordefinierte Kategorie (NON, MEY …) laut Schema.</summary>
-    public static XElement QstKategorie(string? code)
+    /// <summary>Tarifcode (A0N …), vordefinierte Kategorie (NON, MEY …) oder offener Code.</summary>
+    public static XElement QstKategorie(string? code, string? kategorieArt = null)
     {
         var c = (code ?? "").Trim().ToUpperInvariant();
-        return new XElement(Sd + "TaxAtSourceCategory", QstVordefinierteKategorie.Parse(c) != null
-            ? new XElement(C + "CategoryPredefined", c)
-            : new XElement(C + "TaxAtSourceCode", c));
+        var art = (kategorieArt ?? "").Trim().ToUpperInvariant();
+        XElement inner = art == "OFFEN" && c.Length > 0
+            ? new XElement(C + "CategoryOpen", c)
+            : QstVordefinierteKategorie.Parse(c) != null
+                ? new XElement(C + "CategoryPredefined", c)
+                : new XElement(C + "TaxAtSourceCode", c);
+        return new XElement(Sd + "TaxAtSourceCategory", inner);
     }
 
     private static bool IstNullKategorie(string? code)

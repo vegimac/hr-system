@@ -552,6 +552,7 @@ public static class PayrollCalculations
                 satzBasis   = d.QstSatzBasis,
                 satzAperiodisch = d.QstSatzAperiodisch,
                 qstCode     = d.QstTarifCode,
+                qstMedian   = d.QstMedianAngewendet,
                 betrag,
                 // AG-Anteil (positiv) fürs Fibu-Journal — pro Zeile mit korrekter
                 // Staffel-Stufe. NULL = kein AG-Anteil.
@@ -1540,6 +1541,12 @@ public static class PayrollCalculations
         => absenzBreakdown == null ? 0m
          : absenzBreakdown.Where(kv => QstAusfallTypen.Contains(kv.Key)).Sum(kv => kv.Value);
 
+    /// <summary>Nebenjob-Rechnung: ob der kantonale Median die Satzbasis war.</summary>
+    public sealed class QstNebenjobInfo
+    {
+        public bool MedianAngewendet { get; set; }
+    }
+
     public static decimal? ComputeSatzBruttoForNebenjob(
         EmployeeQuellensteuer? qst,
         decimal bruttolohn,
@@ -1547,7 +1554,9 @@ public static class PayrollCalculations
         CompanyProfile company,
         decimal? pensumPct = null,
         decimal einmaligNichtHochrechnen = 0,
-        decimal ausfallStunden = 0)
+        decimal ausfallStunden = 0,
+        decimal? medianMonat = null,
+        QstNebenjobInfo? info = null)
     {
         // Variante A: keine Nebenbeschäftigung → kein Hochrechnen
         if (qst is null || !qst.WeitereBeschaftigungen)
@@ -1558,8 +1567,13 @@ public static class PayrollCalculations
         // aufs Gesamtpensum hochgerechnet (Walter 12.09.2026, TF28 Arbenz).
         var einmalig = Math.Max(0m, einmaligNichtHochrechnen);
         var periodisch = Math.Max(0m, bruttolohn - einmalig);
+        var art = (qst.WeitereAngabenArt ?? "").Trim().ToUpperInvariant();
+        bool legacy = art.Length == 0;
 
-        // B1: Gesamtpensum aller AGs bekannt
+        // B1: kumulierter Beschäftigungsgrad der weiteren AG bekannt.
+        // Ohne Art bleibt die bisherige Reihenfolge (Pensum vor Einkommen).
+        if (art == "PENSUM" || (legacy && qst.GesamtpensumWeitereAg is > 0))
+        {
         if (qst.GesamtpensumWeitereAg.HasValue && qst.GesamtpensumWeitereAg.Value > 0)
         {
             // GesamtpensumWeitereAg ist das Pensum bei den ANDEREN AGs.
@@ -1586,14 +1600,21 @@ public static class PayrollCalculations
             decimal gesamtPensum = eigenesPensum + qst.GesamtpensumWeitereAg.Value;
             return Rappen(periodisch * gesamtPensum / eigenesPensum + einmalig);
         }
-
-        // B2: Gesamteinkommen aller AGs bekannt
-        if (qst.GesamteinkommenWeitereAg.HasValue && qst.GesamteinkommenWeitereAg.Value > 0)
-        {
-            return Rappen(bruttolohn + qst.GesamteinkommenWeitereAg.Value);
+            if (art == "PENSUM")
+                return einmalig > 0 && periodisch == 0 ? einmalig : null;
         }
 
-        // B3: Hochrechnung auf 100%
+        // B2: Gesamtbruttoeinkommen oder Ersatzeinkünfte bekannt.
+        if (art == "EINKOMMEN" || (legacy && qst.GesamteinkommenWeitereAg is > 0))
+        {
+            if (qst.GesamteinkommenWeitereAg is > 0)
+                return Rappen(bruttolohn + qst.GesamteinkommenWeitereAg.Value);
+            if (art == "EINKOMMEN")
+                return einmalig > 0 && periodisch == 0 ? einmalig : null;
+        }
+
+        // B3: eigener Grad bekannt → auf 100 % (Stunden oder Vertrags-Pensum).
+        // Gilt für Altzeilen ohne Art und für «beides unbekannt».
         var stundenMitAusfall = workedHours + Math.Max(0m, ausfallStunden);
         if (stundenMitAusfall > 0)
         {
@@ -1605,6 +1626,16 @@ public static class PayrollCalculations
         {
             // Festlohn: Umrechnung über Pensum
             return Rappen(periodisch * 100m / pensumPct.Value + einmalig);
+        }
+        // Eigener Grad 100 % oder mehr: nichts hochrechnen, auch keinen Median.
+        if (art == "UNBEKANNT" && pensumPct is >= 100)
+            return Rappen(bruttolohn);
+        // Letzter Schritt: beides unbekannt und kein eigener Grad.
+        // Nur wenn der periodische QST-Lohn unter dem Median des Kantons liegt.
+        if (art == "UNBEKANNT" && medianMonat is > 0 && periodisch < medianMonat.Value)
+        {
+            if (info != null) info.MedianAngewendet = true;
+            return Rappen(medianMonat.Value + einmalig);
         }
         return einmalig > 0 && periodisch == 0 ? einmalig : null;
     }

@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 121;  // 121: Statistik-Katalog Ausbildung und Stellung
+const int SchemaStand = 122;  // 122: QST weitere Angaben, Kategorie, Medianlohn
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3198,6 +3198,42 @@ using (var scope = app.Services.CreateScope())
                AND l.position_override = s.lse_code;
         ");
         startLog.LogInformation("Stand 121: Statistik-Katalog Ausbildung und Stellung");
+    }
+
+    // Stand 122: QST-Maske Swissdec 10.6.4 / 10.5 / 10.3.2.
+    // weitere_angaben_art leer = bisherige Reihenfolge Pensum, dann Einkommen, dann 100 %.
+    // Median 5'875 = ESTV Berechnungsgrundlagen 2026 (Art. 85 Abs. 3 / Art. 9 Abs. 1 DBG),
+    // von GR und TG als Untergrenze bestätigt, wenn der Beschäftigungsgrad fehlt.
+    // Kein UPDATE bestehender QST-Zeilen — die bleiben auf der alten Rechnung.
+    if (dbStand < 122)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS weitere_angaben_art varchar(12);
+            ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS kategorie_art varchar(12);
+            ALTER TABLE employee_quellensteuer ALTER COLUMN qst_code TYPE varchar(40);
+
+            CREATE TABLE IF NOT EXISTS qst_medianlohn (
+                id serial PRIMARY KEY,
+                kanton varchar(2) NOT NULL,
+                betrag numeric(10,2) NOT NULL,
+                valid_from date NOT NULL,
+                valid_to date,
+                UNIQUE (kanton, valid_from)
+            );
+
+            INSERT INTO qst_medianlohn (kanton, betrag, valid_from)
+            SELECT v.kanton, 5875.00, DATE '2026-01-01'
+              FROM (VALUES
+                ('AG'),('AI'),('AR'),('BE'),('BL'),('BS'),('FR'),('GE'),('GL'),('GR'),
+                ('JU'),('LU'),('NE'),('NW'),('OW'),('SG'),('SH'),('SO'),('SZ'),('TG'),
+                ('TI'),('UR'),('VD'),('VS'),('ZG'),('ZH')
+              ) AS v(kanton)
+             WHERE NOT EXISTS (
+                SELECT 1 FROM qst_medianlohn m
+                 WHERE m.kanton = v.kanton AND m.valid_from = DATE '2026-01-01'
+             );
+        ");
+        startLog.LogInformation("Stand 122: QST weitere Angaben, Kategorie, Medianlohn 5875");
     }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

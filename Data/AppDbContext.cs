@@ -66,6 +66,7 @@ public class AppDbContext : DbContext
     public DbSet<KrankheitKarenzSaldo> KrankheitKarenzSaldos => Set<KrankheitKarenzSaldo>();
     public DbSet<EmployeeLohnDurchschnitt> EmployeeLohnDurchschnitte => Set<EmployeeLohnDurchschnitt>();
     public DbSet<EmployeeQuellensteuer> EmployeeQuellensteuer => Set<EmployeeQuellensteuer>();
+    public DbSet<QstMedianlohn> QstMedianloehne => Set<QstMedianlohn>();
     public DbSet<LohnZulagTyp> LohnZulagTypen => Set<LohnZulagTyp>();
     public DbSet<LohnZulage> LohnZulagen => Set<LohnZulage>();
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
@@ -3395,7 +3396,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TarifBezeichnung).HasColumnName("tarif_bezeichnung").HasMaxLength(200);
             entity.Property(e => e.AnzahlKinder).HasColumnName("anzahl_kinder").HasDefaultValue(0);
             entity.Property(e => e.Kirchensteuer).HasColumnName("kirchensteuer").HasDefaultValue(false);
-            entity.Property(e => e.QstCode).HasColumnName("qst_code").HasMaxLength(10);
+            entity.Property(e => e.QstCode).HasColumnName("qst_code").HasMaxLength(40);
+            entity.Property(e => e.KategorieArt).HasColumnName("kategorie_art").HasMaxLength(12);
             entity.Property(e => e.SpezielBewilligt).HasColumnName("speziell_bewilligt").HasDefaultValue(false);
             entity.Property(e => e.Kategorie).HasColumnName("kategorie").HasMaxLength(100);
             entity.Property(e => e.Prozentsatz).HasColumnName("prozentsatz").HasColumnType("numeric(5,2)");
@@ -3405,9 +3407,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PartnerEinkommenBis).HasColumnName("partner_einkommen_bis").HasColumnType("date");
             entity.Property(e => e.ArbeitsortKanton).HasColumnName("arbeitsort_kanton").HasMaxLength(10);
             entity.Property(e => e.WeitereBeschaftigungen).HasColumnName("weitere_beschaeftigungen").HasDefaultValue(false);
+            entity.Property(e => e.WeitereAngabenArt).HasColumnName("weitere_angaben_art").HasMaxLength(12);
             entity.Property(e => e.GesamtpensumWeitereAg).HasColumnName("gesamtpensum_weitere_ag").HasColumnType("numeric(5,2)");
-            // Anderer Arbeitgeber des MA (Walter 25.08.2026) — volle Adresse
-            // fürs kantonale Anmeldeformular; Einkommen wird nicht mehr erfasst.
+            // Anderer Arbeitgeber des MA — volle Adresse fürs kantonale
+            // Anmeldeformular. Das Einkommen steht hinter der Angabe «bekannt».
             entity.Property(e => e.WeitereAgName).HasColumnName("weitere_ag_name").HasMaxLength(150);
             entity.Property(e => e.WeitereAgStrasse).HasColumnName("weitere_ag_strasse").HasMaxLength(150);
             entity.Property(e => e.WeitereAgPlz).HasColumnName("weitere_ag_plz").HasMaxLength(10);
@@ -3438,6 +3441,18 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom }).HasDatabaseName("IX_emp_qst_emp_valid");
+        });
+
+        modelBuilder.Entity<QstMedianlohn>(entity =>
+        {
+            entity.ToTable("qst_medianlohn");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Kanton).HasColumnName("kanton").HasMaxLength(2);
+            entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.HasIndex(e => new { e.Kanton, e.ValidFrom }).IsUnique();
         });
 
         // ── SocialInsuranceRate ────────────────────────────────────────────

@@ -146,4 +146,76 @@ public class QstNebenjobHochrechnungTests
         var satz = ComputeSatzBruttoForNebenjob(Qst(20), 6000m, 0, Firma, pensumPct: 60);
         Assert.Equal(8000.00m, satz);
     }
+
+    [Fact]
+    public void Einkommen_addiert_den_Betrag_und_ignoriert_das_Pensum()
+    {
+        var q = new EmployeeQuellensteuer
+        {
+            WeitereBeschaftigungen = true,
+            WeitereAngabenArt = "EINKOMMEN",
+            GesamteinkommenWeitereAg = 1500m,
+            GesamtpensumWeitereAg = 40m,
+        };
+        Assert.Equal(5500.00m, ComputeSatzBruttoForNebenjob(q, 4000m, 0, Firma, pensumPct: 80));
+    }
+
+    [Fact]
+    public void Pensum_ueber_100_wird_nicht_gedeckelt()
+    {
+        var q = new EmployeeQuellensteuer
+        {
+            WeitereBeschaftigungen = true,
+            WeitereAngabenArt = "PENSUM",
+            GesamtpensumWeitereAg = 120m,
+            GesamteinkommenWeitereAg = 9000m,
+        };
+        // 50 % hier + 120 % andere = 170 % → 4'000 × 170/50 = 13'600. Einkommen zählt nicht.
+        Assert.Equal(13600.00m, ComputeSatzBruttoForNebenjob(q, 4000m, 0, Firma, pensumPct: 50));
+    }
+
+    [Fact]
+    public void Unbekannt_mit_eigenem_Pensum_rechnet_auf_100()
+    {
+        var q = new EmployeeQuellensteuer { WeitereBeschaftigungen = true, WeitereAngabenArt = "UNBEKANNT" };
+        var info = new QstNebenjobInfo();
+        Assert.Equal(5000.00m, ComputeSatzBruttoForNebenjob(q, 4000m, 0, Firma, pensumPct: 80, medianMonat: 5875m, info: info));
+        Assert.False(info.MedianAngewendet);
+    }
+
+    [Fact]
+    public void Unbekannt_ohne_Grad_unter_Median_nimmt_den_Median()
+    {
+        var q = new EmployeeQuellensteuer { WeitereBeschaftigungen = true, WeitereAngabenArt = "UNBEKANNT" };
+        var info = new QstNebenjobInfo();
+        Assert.Equal(5875.00m, ComputeSatzBruttoForNebenjob(q, 4000m, 0, Firma, medianMonat: 5875m, info: info));
+        Assert.True(info.MedianAngewendet);
+    }
+
+    [Fact]
+    public void Unbekannt_ohne_Grad_ueber_Median_bleibt_beim_Lohn()
+    {
+        var q = new EmployeeQuellensteuer { WeitereBeschaftigungen = true, WeitereAngabenArt = "UNBEKANNT" };
+        var info = new QstNebenjobInfo();
+        Assert.Null(ComputeSatzBruttoForNebenjob(q, 7000m, 0, Firma, medianMonat: 5875m, info: info));
+        Assert.False(info.MedianAngewendet);
+    }
+
+    [Fact]
+    public void Unbekannt_mit_Stunden_rechnet_nicht_den_Median()
+    {
+        var q = new EmployeeQuellensteuer { WeitereBeschaftigungen = true, WeitereAngabenArt = "UNBEKANNT" };
+        var info = new QstNebenjobInfo();
+        // 91 h von 182 h, Lohn 2'000 → 4'000. Median 5'875 greift nicht, der Grad ist bekannt.
+        Assert.Equal(4000.00m, ComputeSatzBruttoForNebenjob(q, 2000m, 91m, Firma, medianMonat: 5875m, info: info));
+        Assert.False(info.MedianAngewendet);
+    }
+
+    [Fact]
+    public void Altzeile_ohne_Art_ignoriert_den_Median()
+    {
+        var info = new QstNebenjobInfo();
+        Assert.Equal(6500.00m, ComputeSatzBruttoForNebenjob(Qst(30), 4550m, 0, Firma, pensumPct: 70, medianMonat: 5875m, info: info));
+        Assert.False(info.MedianAngewendet);
+    }
 }
