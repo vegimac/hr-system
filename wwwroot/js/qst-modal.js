@@ -570,7 +570,7 @@ function qstApplyKonkubinatLock() {
         konk.disabled = true;
         eink.disabled = true;
         konk.parentElement.title = 'Aus dem Familie-Tab (Konkubinatspartner erfasst) — Pflege dort.';
-        eink.parentElement.title = 'Aus dem Familie-Tab (Einkommensfrage beim Konkubinatspartner) — Pflege dort.';
+        eink.parentElement.title = 'Häkchen: der Mitarbeiter verdient mehr als der Partner. Pflege im Familie-Tab.';
         konk.parentElement.style.opacity = '0.65';
         eink.parentElement.style.opacity = '0.65';
     } else {
@@ -579,7 +579,7 @@ function qstApplyKonkubinatLock() {
         konk.parentElement.style.opacity = '';
         eink.parentElement.style.opacity = '';
         konk.parentElement.title = '';
-        eink.parentElement.title = '';
+        eink.parentElement.title = 'Häkchen: der Mitarbeiter verdient mehr als der Partner.';
     }
 }
 
