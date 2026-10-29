@@ -313,12 +313,6 @@ function renderFilialenDetail(b) {
                     <div class="emp-field-value" style="font-size:14px;color:#0f172a" id="stmDerivedBvg-${b.id}">–</div>
                 </div>
                 ${fField('GAV',             b.istGav ? (b.gavName || 'Ja') : 'Nein')}
-                ${fField('Lohnausweis Box F', b.lohnausweisBoxFFreierTransport ? '✓ Werks-Transport gratis' : '✗ nicht angekreuzt')}
-                ${fField('Lohnausweis Box G', b.lohnausweisBoxGKantineGratis    ? '✓ Kantine gratis'       : '✗ nicht angekreuzt')}
-                ${fField('Ziffer 2.1 Verpflegung/Monat',
-                    (b.lohnausweisPos21VerpflegungMonat == null || b.lohnausweisPos21VerpflegungMonat === 0)
-                        ? 'CHF 0 (kein Pauschalbetrag)'
-                        : `CHF ${Number(b.lohnausweisPos21VerpflegungMonat).toFixed(2)}`)}
                 ${fField('Probezeit', probationLabel(b.probationMonths))}
             </div>
 
@@ -1479,17 +1473,11 @@ function laFirmaVonFiliale(id) {
     if (typeof laFirmaOeffnen === 'function') laFirmaOeffnen(id);
 }
 
-function laFirmaAusStammdaten() {
-    if (!stmModalBranchId) return;
-    laFirmaVonFiliale(stmModalBranchId);
-}
-
 function laFirmaAnsichtAktualisieren(id, boxF, boxG, pos21) {
     if (!selectedBranch || selectedBranch.id !== id) return;
     selectedBranch.lohnausweisBoxFFreierTransport = !!boxF;
     selectedBranch.lohnausweisBoxGKantineGratis = !!boxG;
     selectedBranch.lohnausweisPos21VerpflegungMonat = pos21;
-    renderFilialenDetail(selectedBranch);
 }
 
 async function saveStm() {

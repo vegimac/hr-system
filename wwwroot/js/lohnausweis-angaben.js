@@ -31,6 +31,23 @@ function laStil() {
         #laAngabenOverlay .modal-hd-title { font-size: 18px; }
         #laAngabenOverlay .la-unter { font-size: 13px; line-height: 1.4; color: #646464; font-weight: 500; margin-top: 3px; }
         #laAngabenOverlay .modal-body { padding: 16px 22px; overflow: auto; }
+        #laAngabenOverlay.la-kompakt { padding: 10px !important; }
+        #laAngabenOverlay.la-kompakt .modal-hd { padding: 10px 16px 8px; }
+        #laAngabenOverlay.la-kompakt .modal-body { padding: 8px 14px 10px; overflow: hidden; }
+        #laAngabenOverlay.la-kompakt .modal-ft { padding: 8px 14px; }
+        #laAngabenOverlay.la-kompakt .la-blatt { max-height: calc(100vh - 20px) !important; height: auto; }
+        #laAngabenOverlay.la-kompakt .la-firma { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        #laAngabenOverlay.la-kompakt .la-span2 { grid-column: span 2; }
+        #laAngabenOverlay.la-kompakt .la-karte { padding: 8px 10px; }
+        #laAngabenOverlay.la-kompakt .la-titel { font-size: 13px; }
+        #laAngabenOverlay.la-kompakt .la-text { font-size: 11px; line-height: 1.25; }
+        #laAngabenOverlay.la-kompakt .la-satz { margin-top: 2px; }
+        #laAngabenOverlay.la-kompakt .la-feld,
+        #laAngabenOverlay.la-kompakt .la-zeile,
+        #laAngabenOverlay.la-kompakt .la-checks { margin-top: 4px; }
+        #laAngabenOverlay.la-kompakt .la-span2 .la-checks { grid-template-columns: 1fr 1fr; }
+        #laAngabenOverlay.la-kompakt .la-kontakt .la-nach { grid-template-columns: 1.2fr 1fr 0.9fr; gap: 6px; margin-top: 4px; }
+        #laAngabenOverlay.la-kompakt .la-gueltig { padding: 0; gap: 8px 12px; }
         #laAngabenOverlay .modal-ft { padding: 12px 22px; background: rgba(255,255,255,0.28); }
         #laAngabenOverlay .la-raster { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; align-items: start; }
         #laAngabenOverlay .la-karte {
@@ -171,7 +188,8 @@ function laModus(id, wert) {
 }
 
 function laKarte(badge, titel, text, inhalt, breit, id) {
-    return `<article class="la-karte${breit ? ' la-breit' : ''}"${id ? ` id="${id}"` : ''}>
+    const spalte = breit === 2 ? ' la-span2' : (breit ? ' la-breit' : '');
+    return `<article class="la-karte${spalte}"${id ? ` id="${id}"` : ''}>
         <div class="la-kopf">
             <span class="la-badge">${badge}</span>
             <div>
@@ -263,6 +281,7 @@ async function laPersonOeffnen(employeeId, ab) {
     window._laStaende = p.staende;
     window._laGeladenAb = p.gueltigAb;
     const ov = laOverlay();
+    ov.classList.remove('la-kompakt');
     document.getElementById('laAngabenTitel').textContent = 'Lohnausweis der Person';
     document.getElementById('laAngabenUnter').textContent =
         'Leer heisst: wie die Filiale' + (d.firmaName ? ' ' + d.firmaName : '') + '. «Einer von …» setzt das Programm, sobald dieselbe Person im Jahr bei zwei Arbeitgebern Lohn hat.';
@@ -478,9 +497,10 @@ async function laFirmaOeffnen(companyProfileId, ab) {
     window._laStaende = f.staende || [];
     window._laGeladenAb = f.gueltigAb;
     const ov = laOverlay();
+    ov.classList.add('la-kompakt');
     document.getElementById('laAngabenTitel').textContent = 'Lohnausweis für das Unternehmen';
     document.getElementById('laAngabenUnter').textContent =
-        'Gilt für alle Personen dieser Filiale, bis eine Person davon abweicht. Eine spätere Fassung gilt erst ab ihrem Jahr.';
+        'Gilt für alle Personen dieser Filiale, bis eine Person davon abweicht.';
     document.getElementById('laAngabenBody').innerHTML = laFirmaHtml(f);
     document.getElementById('laAngabenSave').onclick = () => laFirmaSpeichern(companyProfileId);
     laGueltigAnbinden(jahr => laFirmaOeffnen(companyProfileId, jahr));
@@ -631,61 +651,49 @@ function laGeschlossen(zu) {
 
 function laFirmaHtml(f) {
     const pos21 = f.pos21 == null || f.pos21 === 0 ? '' : f.pos21;
-    return `<div class="la-raster">
+    return `<div class="la-raster la-firma">
         <div class="la-breit">${laGueltigLeiste(f)}</div>
-        ${laKarte('F', 'Unentgeltliche Beförderung',
-            'Kreuz, wenn der Arbeitgeber die Fahrt Wohn–Arbeit bezahlt.',
+        ${laKarte('F', 'Beförderung',
+            'Wohn–Arbeit zahlt der Arbeitgeber.',
             `<label class="la-check"><input type="checkbox" id="laFBoxF"${f.boxF ? ' checked' : ''}> Ziffer F ankreuzen</label>`)}
-        ${laKarte('G', 'Kantine oder Lunch-Checks',
-            'Kreuz, wenn der Arbeitgeber die Verpflegung bezahlt.',
+        ${laKarte('G', 'Kantine',
+            'Verpflegung zahlt der Arbeitgeber.',
             `<label class="la-check"><input type="checkbox" id="laFBoxG"${f.boxG ? ' checked' : ''}> Ziffer G ankreuzen</label>
-            <label class="f-label" style="margin-top:8px">Ziffer 2.1, Verpflegung pro Monat (CHF)
-                <input id="laFPos21" class="f-input" type="number" step="0.05" min="0" placeholder="leer = kein Pauschalbetrag" value="${laEsc(pos21)}">
-            </label>
-            <p class="la-satz">ESTV-Pauschale CHF 645, wenn der Arbeitgeber alles bezahlt. Bei Eigenanteil leer lassen.</p>`)}
-        ${laKarte('14', 'Nicht bewertete Nebenleistungen',
-            'Text in Ziffer 14 für alle, z. B. verbilligte Abgabe eines Personenwagens.',
-            `<div class="la-feld"><textarea id="laF14" class="f-input" rows="2">${laEsc(f.ziffer14 || '')}</textarea></div>`)}
-        ${laGruppe('2.2', 'Geschäftswagen',
-            'Beide Sätze können zusammen auf dem Lohnausweis stehen.',
-            `<div class="la-innen">
-                ${laTeil('Kosten abklären',
-                    '«Privatanteil Geschäftsfahrzeug im Veranlagungsverfahren abzuklären».',
-                    `<label class="la-check"><input type="checkbox" id="laFWagenAb"${f.wagenAbklaeren ? ' checked' : ''}> Satz setzen</label>`)}
-                ${laTeil('0,9 Prozent',
-                    '«Privatanteil wird vom Arbeitnehmer bezahlt».',
-                    `<label class="la-check"><input type="checkbox" id="laFWagenMin"${f.wagenMinimal ? ' checked' : ''}> Satz setzen</label>`)}
-            </div>`)}
-        ${laKarte('13', 'Spesenreglement genehmigt',
-            '«Spesenreglement durch Kanton … am … genehmigt». Dann kein Kreuz in 13.1.1.',
+            <label class="f-label" style="margin-top:6px">Ziffer 2.1 pro Monat, CHF
+                <input id="laFPos21" class="f-input" type="number" step="0.05" min="0" placeholder="leer = kein Pauschalbetrag" title="ESTV-Pauschale CHF 645, wenn der Arbeitgeber alles bezahlt" value="${laEsc(pos21)}">
+            </label>`)}
+        ${laKarte('14', 'Nebenleistungen',
+            'Text in Ziffer 14.',
+            `<div class="la-feld"><textarea id="laF14" class="f-input" rows="1">${laEsc(f.ziffer14 || '')}</textarea></div>`)}
+        ${laKarte('2.2', 'Geschäftswagen',
+            'Beide Sätze können zusammen stehen.',
+            `<label class="la-check"><input type="checkbox" id="laFWagenAb"${f.wagenAbklaeren ? ' checked' : ''}> Privatanteil abklären</label>
+            <label class="la-check" style="margin-top:4px"><input type="checkbox" id="laFWagenMin"${f.wagenMinimal ? ' checked' : ''}> Arbeitnehmer zahlt 0,9 %</label>`)}
+        ${laKarte('13', 'Spesenreglement',
+            'Genehmigt: dann kein Kreuz in 13.1.1.',
             laFirmaGrant('laFSpesenDatum', 'laFSpesenKanton', f.spesenDatum, f.spesenKanton))}
         ${laKarte('13.1.1', 'Randziffer 52',
-            'Kreuz nur, wenn kein genehmigtes Spesenreglement vorliegt.',
-            `<label class="la-check"><input type="checkbox" id="laFRz52"${f.rz52 ? ' checked' : ''}> Kreuz in Ziffer 13.1.1 setzen</label>
+            'Nur ohne genehmigtes Reglement.',
+            `<label class="la-check"><input type="checkbox" id="laFRz52"${f.rz52 ? ' checked' : ''}> Kreuz in Ziffer 13.1.1</label>
             <div id="laRz52Korrektur" class="la-korrektur" style="display:none"></div>`,
             false, 'laRz52Karte')}
-        ${laGruppe('15', 'Bemerkungen',
-            'Alles hier erscheint in Ziffer 15. Es ist eine Ziffer mit mehreren Sätzen, nicht mehrere Felder.',
-            `<div class="la-innen drei">
-                ${laTeil('Expatriate-Ruling',
-                    '«Expatriateruling durch Kanton … am … genehmigt».',
-                    laFirmaGrant('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton))}
-                ${laTeil('Verkehrswert der Beteiligung',
-                    '«Verkehrswert durch Kanton … am … genehmigt».',
-                    laFirmaGrant('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton))}
-                ${laTeil('Beteiligung noch ohne Einkommen',
-                    '«Mitarbeiterbeteiligung ohne steuerbares Einkommen. Grund: …».',
-                    `<div class="la-checks" style="grid-template-columns:1fr 1fr">
-                        ${laCheck('laFBetG', 'Gesperrte Mitarbeiteroptionen', f.betGesperrt)}
-                        ${laCheck('laFBetN', 'Nicht börsenkotierte Optionen', f.betNichtKotiert)}
-                        ${laCheck('laFBetA', 'Anwartschaften auf Aktien', f.betAnwartschaft)}
-                        ${laCheck('laFBetU', 'Unechte Mitarbeiterbeteiligungen', f.betUnecht)}
-                    </div>`)}
-            </div>`)}
+        ${laKarte('15', 'Expatriate',
+            'Kanton und Datum der Genehmigung.',
+            laFirmaGrant('laFExpatDatum', 'laFExpatKanton', f.expatDatum, f.expatKanton))}
+        ${laKarte('15', 'Verkehrswert',
+            'Kanton und Datum der Genehmigung.',
+            laFirmaGrant('laFWertDatum', 'laFWertKanton', f.wertDatum, f.wertKanton))}
+        ${laKarte('15', 'Beteiligung',
+            'Noch ohne steuerbares Einkommen.',
+            `<div class="la-checks">
+                ${laCheck('laFBetG', 'Gesperrte Optionen', f.betGesperrt)}
+                ${laCheck('laFBetN', 'Nicht börsenkotiert', f.betNichtKotiert)}
+                ${laCheck('laFBetA', 'Anwartschaften', f.betAnwartschaft)}
+                ${laCheck('laFBetU', 'Unechte Beteiligung', f.betUnecht)}
+            </div>`, 2)}
         ${laKarte('I', 'Kontaktperson',
-            'Gilt für alle Personen dieser Filiale. Name, Adresse und Telefon stehen auf dem Lohnausweis.',
-            laKontaktFelder('laF', f),
-            true)}
+            'Name, Adresse und Telefon für die Steuerverwaltung.',
+            `<div class="la-kontakt">${laKontaktFelder('laF', f)}</div>`, 2)}
     </div>`;
 }
 

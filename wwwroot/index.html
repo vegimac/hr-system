@@ -9877,13 +9877,35 @@
 body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1e293b; }
 </style>
 
+
+<style>
+#stmDatenModal .stm-body {
+    display: grid;
+    grid-template-columns: 0.92fr 1.25fr 0.78fr;
+    gap: 8px 18px;
+    padding: 8px 16px 12px;
+    overflow: hidden;
+}
+#stmDatenModal .stm-sec {
+    font-weight: 700; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+    color: #8b8b8b; margin: 10px 0 4px;
+}
+#stmDatenModal section > .stm-sec:first-child { margin-top: 0; }
+#stmDatenModal .f-label { font-size: 11px; margin-bottom: 2px; }
+#stmDatenModal .f-input, #stmDatenModal .f-select, #stmDatenModal .lqsel-btn {
+    padding: 4px 8px !important; min-height: 28px; font-size: 12.5px;
+}
+#stmDatenModal .stm-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+#stmDatenModal .stm-adr { display: grid; grid-template-columns: 1.6fr 0.5fr 0.9fr; gap: 8px; }
+#stmDatenModal .stm-plz { display: grid; grid-template-columns: 72px 1fr 1fr; gap: 8px; margin-top: 6px; }
+</style>
 <!-- ═══════════════ ALV-DATEN MODAL ═══════════════ -->
 <!-- ═══════════════ FILIAL-STAMMDATEN MODAL (komplett) ═══════════════ -->
 <!-- Ersetzt das frühere ALV-Sub-Modal: alle Stammdaten in einem Rutsch
      bearbeitbar (Adresse, Kanton, Kontakt, BUR/UID/NOGA, AHV-Kasse,
      BVG-Versicherer, GAV). PLZ-Eingabe füllt Ort + Kanton automatisch. -->
-<div id="stmDatenModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
-    <div class="modal" style="border-radius:14px;width:100%;max-width:1100px;box-shadow:0 24px 64px rgba(60,55,48,0.22);margin:auto;overflow:hidden">
+<div id="stmDatenModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:1000;align-items:center;justify-content:center;padding:12px;overflow:hidden">
+    <div class="modal" style="border-radius:14px;width:min(1480px, calc(100vw - 24px));max-height:calc(100vh - 24px);box-shadow:0 24px 64px rgba(60,55,48,0.22);margin:0;overflow:hidden;display:flex;flex-direction:column">
 
         <!-- Header (kompakt) -->
         <div class="modal-hd" style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
@@ -9895,62 +9917,60 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     style="background:#f1f5f9;border:none;cursor:pointer;font-size:16px;color:#475569;padding:0;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
         </div>
 
-        <!-- Body (kompakt, dichter gepackt, max 2 Spalten) -->
-        <div style="padding:14px 20px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 130px);overflow-y:auto">
-
-            <!-- Hauptsitz-Zuordnung GANZ OBEN (Walter 29.08.2026: war in den
-                 Betriebsangaben zu versteckt) — bestimmt die Rechtseinheit
-                 für die Swissdec-/ELM-Meldung dieser Filiale. -->
-            <section style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.16);border-radius:10px;padding:10px 12px">
-                <div style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center">
-                    <label class="f-label" style="margin:0;white-space:nowrap">🏛 Hauptsitz (Rechtseinheit)</label>
-                    <select id="stmHauptsitz" class="f-input"><option value="">— nicht zugeordnet —</option></select>
-                </div>
-                <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Rechtseinheit dieser Filiale — Quelle für UID/Firmenname der Swissdec-Jahresmeldung. Hauptsitze verwalten: System → Filialen &amp; Benutzer → «Hauptsitze».</div>
-            </section>
-
-            <!-- Bezeichnung -->
+        <div class="stm-body">
             <section>
-                <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Bezeichnung</div>
-                <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:10px">
-                    <div><label class="f-label">Firma</label><input id="stmCompanyName" class="f-input" placeholder="Firmenname der Filiale"></div>
-                    <div><label class="f-label">Filiale (Anzeigename)</label><input id="stmBranchName" class="f-input" placeholder="z.B. Sursee"></div>
+                <div class="stm-sec">Bezeichnung</div>
+                <label class="f-label">Firma</label>
+                <input id="stmCompanyName" class="f-input" placeholder="Firmenname der Filiale">
+                <div class="stm-2" style="margin-top:6px">
+                    <div><label class="f-label">Filiale</label><input id="stmBranchName" class="f-input" placeholder="z.B. Sursee"></div>
                     <div><label class="f-label">Code</label><input id="stmRestaurantCode" class="f-input" style="text-align:center;font-variant-numeric:tabular-nums"></div>
                 </div>
-                <!-- Nummernkreis (Walter-Vorgabe 02.09.2026): Praefix + Anzahl
-                     Stellen bestimmen, wie eine Personalnummer dieser Filiale
-                     aussehen MUSS. Reines Infofeld mit Eingabekontrolle —
-                     OneCrew nummeriert nie selbstaendig um. -->
-                <div style="display:grid;grid-template-columns:1fr 1fr 3fr;gap:10px;margin-top:10px;align-items:end">
+                <div class="stm-sec">Nummernkreis</div>
+                <div class="stm-2">
                     <div>
-                        <label class="f-label">Nummernkreis — Präfix</label>
+                        <label class="f-label">Präfix</label>
                         <input id="stmPnPraefix" class="f-input" placeholder="z.B. 122" maxlength="6"
                                inputmode="numeric" style="text-align:center;font-variant-numeric:tabular-nums"
                                oninput="stmPnVorschau()">
                     </div>
                     <div>
-                        <label class="f-label">Anzahl Stellen</label>
+                        <label class="f-label">Stellen</label>
                         <input id="stmPnStellen" class="f-input" placeholder="z.B. 4" maxlength="2"
                                inputmode="numeric" style="text-align:center;font-variant-numeric:tabular-nums"
                                oninput="stmPnVorschau()">
                     </div>
-                    <div id="stmPnVorschau" style="font-size:11.5px;color:#8b8b8b;padding-bottom:9px"></div>
                 </div>
+                <div id="stmPnVorschau" style="font-size:11px;color:#8b8b8b;margin-top:4px"></div>
+                <div class="stm-sec">Hauptsitz</div>
+                <select id="stmHauptsitz" class="f-input" title="Rechtseinheit für die Swissdec-Jahresmeldung"><option value="">— nicht zugeordnet —</option></select>
+                <div class="stm-sec">GAV und Probezeit</div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:#3f3f3f">
+                    <input type="checkbox" id="stmIstGav" onchange="stmToggleGavName()" style="width:14px;height:14px;cursor:pointer;accent-color:#3f3f3f">
+                    Betrieb ist GAV unterstellt
+                </label>
+                <div id="stmGavNameRow" style="margin-top:6px;display:none">
+                    <label class="f-label">GAV-Bezeichnung</label>
+                    <input id="stmGavName" class="f-input" placeholder="z.B. L-GAV (Gastgewerbe)">
+                </div>
+                <select id="stmProbationMonths" class="f-input" style="margin-top:6px">
+                    <option value="">— keine Probezeit-Vorgabe —</option>
+                    <option value="14">14 Tage</option>
+                    <option value="1">1 Monat</option>
+                    <option value="2">2 Monate</option>
+                    <option value="3">3 Monate</option>
+                </select>
             </section>
-
-            <!-- Adresse Swissdec 4.2 (gleicher Aufbau wie Hauptsitz) -->
             <section>
-                <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Adresse &amp; Kontakt</div>
-                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:8px">
-                    <div><label class="f-label">Strasse <span style="font-weight:400;color:#8b8b8b">(optional)</span></label><input id="stmStreet" class="f-input"></div>
+                <div class="stm-sec">Adresse und Kontakt</div>
+                <div class="stm-adr">
+                    <div><label class="f-label">Strasse</label><input id="stmStreet" class="f-input"></div>
                     <div><label class="f-label">Nr.</label><input id="stmHouseNumber" class="f-input"></div>
-                    <div><label class="f-label">Postfach <span style="font-weight:400;color:#8b8b8b">(alternativ)</span></label><input id="stmPostfach" class="f-input"></div>
+                    <div><label class="f-label">Postfach</label><input id="stmPostfach" class="f-input"></div>
                 </div>
-                <div style="margin-bottom:8px">
-                    <label class="f-label">Lokalität (Region / Provinz)</label>
-                    <input id="stmLokalitaet" class="f-input" placeholder="optional">
-                </div>
-                <div style="display:grid;grid-template-columns:90px minmax(0,1.4fr) 1.2fr 1.4fr 110px;gap:10px;margin-bottom:4px">
+                <label class="f-label" style="margin-top:6px">Lokalität</label>
+                <input id="stmLokalitaet" class="f-input" placeholder="optional">
+                <div class="stm-plz">
                     <div>
                         <label class="f-label">PLZ *</label>
                         <input id="stmZipCode" class="f-input" inputmode="numeric" maxlength="10"
@@ -9991,6 +10011,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                             <option value="ZH">ZH – Zürich</option>
                         </select>
                     </div>
+                </div>
+                <div class="stm-2">
                     <div>
                         <label class="f-label">Land *</label>
                         <select id="stmCountry" class="f-select"></select>
@@ -10000,63 +10022,24 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <input id="stmBfsGemeindeNr" class="f-input" type="number" min="1" max="9999" placeholder="1061" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px">
                     </div>
                 </div>
-                <div id="stmPlzHint" style="margin-top:4px;font-size:11.5px;min-height:14px"></div>
-                <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:8px">
+                <div id="stmPlzHint" style="margin-top:2px;font-size:11px;min-height:14px"></div>
+                <div class="stm-2">
                     <div><label class="f-label">Telefon</label><input id="stmPhone" class="f-input" placeholder="+41 …"></div>
                     <div><label class="f-label">E-Mail</label><input id="stmEmail" class="f-input" type="email"></div>
                 </div>
-                <div style="margin-top:8px">
-                    <label class="f-label">Arbeitsort im Vertrag («im Restaurant in …»)</label>
-                    <input id="stmWorkLocation" class="f-input" placeholder="leer = Ort der Filiale">
-                </div>
-                <div style="margin-top:4px;font-size:11px;color:#92400e">
-                    <strong>Hinweis:</strong> Standort-Kanton ist massgeblich für die Familienzulagen. Land erscheint im XML englisch in Grossbuchstaben (SWITZERLAND). Filialbezeichnung = Feld «Filialname» oben (ComplementaryLine).
-                </div>
+                <label class="f-label" style="margin-top:6px">Arbeitsort im Vertrag</label>
+                <input id="stmWorkLocation" class="f-input" placeholder="leer = Ort der Filiale">
             </section>
-
-            <!-- Betriebsangaben -->
             <section>
-                <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Betriebsangaben</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
-                    <div><label class="f-label">BUR-Nummer</label><input id="stmBurNummer" class="f-input" placeholder="A89058593" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Ein Buchstabe + 8 Ziffern"><div class="f-hint" style="margin-top:2px">z.B. A89058593 — Prüfziffer beim Verlassen des Feldes</div></div>
-                    <div><label class="f-label">InHouseID <span style="font-weight:400;color:#8b8b8b">(statt BUR)</span></label><input id="stmInHouseId" class="f-input" placeholder="100_10" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"><div class="f-hint" style="margin-top:2px">Nur nach Absprache mit dem BFS — Alternative zur BUR</div></div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
-                    <div><label class="f-label">UID-Nummer</label><input id="stmUidNummer" class="f-input" placeholder="CHE-XXX.XXX.XXX" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="CHE-123.456.789"><div class="f-hint" style="margin-top:2px">CHE-999.999.997 wird abgelehnt — Prüfung beim Verlassen des Feldes</div></div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">
-                    <div><label class="f-label">Branchen-Code (NOGA)</label><input id="stmBranchenCode" class="f-input" placeholder="5610"></div>
-                </div>
-            </section>
-
-            <!-- GAV und Probezeit. Lohnausweis nur noch über die eigene Maske. -->
-            <section style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start">
-                <div>
-                    <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">GAV</div>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#0f172a">
-                        <input type="checkbox" id="stmIstGav" onchange="stmToggleGavName()" style="width:14px;height:14px;cursor:pointer;accent-color:#3f3f3f">
-                        Betrieb ist GAV unterstellt
-                    </label>
-                    <div id="stmGavNameRow" style="margin-top:8px;display:none">
-                        <label class="f-label">GAV-Bezeichnung</label>
-                        <input id="stmGavName" class="f-input" placeholder="z.B. L-GAV (Gastgewerbe)">
-                    </div>
-                </div>
-                <div>
-                    <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Probezeit</div>
-                    <select id="stmProbationMonths" class="f-input">
-                        <option value="">— keine Vorgabe —</option>
-                        <option value="14">14 Tage</option>
-                        <option value="1">1 Monat</option>
-                        <option value="2">2 Monate</option>
-                        <option value="3">3 Monate</option>
-                    </select>
-                </div>
-                <div>
-                    <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Lohnausweis</div>
-                    <div style="font-size:12px;color:#646464;line-height:1.4;margin-bottom:8px">Kreuze, Bemerkungen und Verpflegung stehen in der Lohnausweis-Maske.</div>
-                    <button type="button" onclick="laFirmaAusStammdaten()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 12px;font-size:12px;cursor:pointer">Lohnausweis für das Unternehmen</button>
-                </div>
+                <div class="stm-sec">Betriebsangaben</div>
+                <label class="f-label">BUR-Nummer</label>
+                <input id="stmBurNummer" class="f-input" placeholder="A89058593" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Ein Buchstabe und 8 Ziffern, Prüfung beim Verlassen">
+                <label class="f-label" style="margin-top:6px">InHouseID, statt BUR</label>
+                <input id="stmInHouseId" class="f-input" placeholder="100_10" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Nur nach Absprache mit dem BFS">
+                <label class="f-label" style="margin-top:6px">UID-Nummer</label>
+                <input id="stmUidNummer" class="f-input" placeholder="CHE-XXX.XXX.XXX" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="CHE-999.999.997 wird abgelehnt">
+                <label class="f-label" style="margin-top:6px">Branchen-Code (NOGA)</label>
+                <input id="stmBranchenCode" class="f-input" placeholder="5610">
             </section>
         </div>
 
@@ -10948,7 +10931,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261028a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-uid.js?v=20261026a"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261028d"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261029b"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261029a"></script>
@@ -11703,7 +11686,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261028h"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
-<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261028l"></script>
+<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
