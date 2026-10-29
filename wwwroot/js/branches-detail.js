@@ -257,10 +257,10 @@ function stmAnsichtHtml(b) {
     const gavTxt = b.istGav ? stmEsc(b.gavName || 'Ja') : 'Nein';
     const inhouse = b.inHouseId
         ? stmEsc(b.inHouseId)
-        : '<span class="ov-empty">–</span><span class="stm-hinweis">nur wenn keine BUR</span>';
+        : '<span class="ov-empty">–</span><div class="stm-hinweis">nur wenn keine BUR</div>';
     const arbeitsort = b.workLocation
         ? stmEsc(b.workLocation)
-        : `<span class="ov-empty">–</span><span class="stm-hinweis">Ort der Filiale: ${stmEsc(ort || '–')}</span>`;
+        : `<span class="ov-empty">–</span><div class="stm-hinweis">Ort der Filiale: ${stmEsc(ort || '–')}</div>`;
     const p = String(b.personalnummerPraefix || '').replace(/\D/g, '').replace(/^0+/, '');
     const st = Number(b.personalnummerStellen);
     const kreisHinweis = (p && Number.isFinite(st) && st > 0)
@@ -268,18 +268,18 @@ function stmAnsichtHtml(b) {
         : '';
     return `
             <div class="stm-ansicht">
-                <div class="stm-ansicht-kopf">
-                    <div class="ov-pf">
-                        <div class="ov-pfl">Hauptsitz</div>
-                        <div class="ov-pfv" id="stmHauptsitzAnzeige-${b.id}"><span class="ov-empty">–</span></div>
+                <section class="stm-karte-ansicht">
+                    <div class="ov-card-h">
+                        <span>Hauptsitz</span>
+                        <span class="stm-ansicht-aktionen">
+                            <button type="button" onclick="laFirmaVonFiliale(${b.id})" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:4px 14px;font-size:12px;cursor:pointer">Lohnausweis</button>
+                            <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">Bearbeiten</button>
+                        </span>
                     </div>
-                    <span class="stm-ansicht-aktionen">
-                        <button type="button" onclick="laFirmaVonFiliale(${b.id})" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:4px 14px;font-size:12px;cursor:pointer">Lohnausweis</button>
-                        <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">Bearbeiten</button>
-                    </span>
-                </div>
-                <div class="stm-gruppe">
-                    <div class="stm-gruppe-titel">Adresse</div>
+                    <div class="ov-pfv" id="stmHauptsitzAnzeige-${b.id}"><span class="ov-empty">–</span></div>
+                </section>
+                <section class="stm-karte-ansicht">
+                    <div class="ov-card-h"><span>Adresse</span></div>
                     <div class="stm-zeile">${stmFeld('Firma', stmLeer(b.companyName))}</div>
                     <div class="stm-zeile">
                         ${stmFeld('Strasse', stmLeer(b.street))}
@@ -292,15 +292,15 @@ function stmAnsichtHtml(b) {
                         ${stmFeld('Kanton', kantonTxt)}
                         ${stmFeld('Land', landTxt)}
                     </div>
-                    <div class="stm-zeile">${stmFeld('Lokalität', stmLeer(b.lokalitaet))}</div>
                     <div class="stm-zeile">
+                        ${stmFeld('Lokalität', stmLeer(b.lokalitaet))}
                         ${stmFeld('Telefon', stmLeer(b.phone))}
                         ${stmFeld('E-Mail', stmLeer(b.email))}
                     </div>
-                </div>
+                </section>
                 <div class="stm-zwei">
-                    <div class="stm-gruppe">
-                        <div class="stm-gruppe-titel">Filiale</div>
+                    <section class="stm-karte-ansicht">
+                        <div class="ov-card-h"><span>Filiale</span></div>
                         <div class="stm-zeile">
                             ${stmFeld('Filiale', stmLeer(b.branchName))}
                             ${stmFeld('Code', stmLeer(b.restaurantCode))}
@@ -314,9 +314,9 @@ function stmAnsichtHtml(b) {
                             ${stmFeld('GAV', gavTxt)}
                             ${stmFeld('Probezeit', probeTxt)}
                         </div>
-                    </div>
-                    <div class="stm-gruppe">
-                        <div class="stm-gruppe-titel">Betrieb</div>
+                    </section>
+                    <section class="stm-karte-ansicht">
+                        <div class="ov-card-h"><span>Betrieb</span></div>
                         <div class="stm-zeile">
                             ${stmFeld('BUR-Nummer', stmLeer(b.burNummer))}
                             ${stmFeld('InHouseID', inhouse)}
@@ -329,7 +329,7 @@ function stmAnsichtHtml(b) {
                             ${stmFeld('BFS-Nr.', stmLeer(b.bfsGemeindeNr))}
                             ${stmFeld('Arbeitsort', arbeitsort)}
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>`;
 }
