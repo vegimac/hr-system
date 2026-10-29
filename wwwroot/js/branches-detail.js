@@ -225,6 +225,115 @@ function probationLabel(v) {
     return '–';
 }
 
+const STM_KANTON = {
+    AG: 'Aargau', AI: 'Appenzell I.Rh.', AR: 'Appenzell A.Rh.', BE: 'Bern',
+    BL: 'Basel-Land', BS: 'Basel-Stadt', FR: 'Freiburg', GE: 'Genf', GL: 'Glarus',
+    GR: 'Graubünden', JU: 'Jura', LU: 'Luzern', NE: 'Neuenburg', NW: 'Nidwalden',
+    OW: 'Obwalden', SG: 'St. Gallen', SH: 'Schaffhausen', SO: 'Solothurn', SZ: 'Schwyz',
+    TG: 'Thurgau', TI: 'Tessin', UR: 'Uri', VD: 'Waadt', VS: 'Wallis', ZG: 'Zug', ZH: 'Zürich',
+};
+
+function stmEsc(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function stmLeer(v) {
+    const s = v == null ? '' : String(v).trim();
+    return s ? stmEsc(s) : '<span class="ov-empty">–</span>';
+}
+function stmFeld(label, inhalt) {
+    return `<div class="ov-pf"><div class="ov-pfl">${label}</div><div class="ov-pfv">${inhalt}</div></div>`;
+}
+
+/** Stammdaten-Ansicht: dieselben Felder wie die Erfassungsmaske, nur Lesetext. */
+function stmAnsichtHtml(b) {
+    const ort = typeof stripCityCantonSuffix === 'function' ? stripCityCantonSuffix(b.city) : b.city;
+    const kanton = (b.kantonCode || '').toUpperCase();
+    const kantonTxt = kanton
+        ? stmEsc(STM_KANTON[kanton] ? `${kanton} – ${STM_KANTON[kanton]}` : kanton)
+        : '<span class="ov-empty" style="color:#b91c1c;font-weight:650">nicht gesetzt</span>';
+    const landTxt = typeof maLandName === 'function' ? stmEsc(maLandName(b.country || 'CH')) : stmLeer(b.country || 'CH');
+    const probe = probationLabel(b.probationMonths);
+    const probeTxt = probe === '–' ? '<span class="ov-empty">–</span>' : stmEsc(probe);
+    const gavTxt = b.istGav ? stmEsc(b.gavName || 'Ja') : 'Nein';
+    const inhouse = b.inHouseId
+        ? stmEsc(b.inHouseId)
+        : '<span class="ov-empty">–</span><span class="stm-hinweis">nur wenn keine BUR</span>';
+    const arbeitsort = b.workLocation
+        ? stmEsc(b.workLocation)
+        : `<span class="ov-empty">–</span><span class="stm-hinweis">Ort der Filiale: ${stmEsc(ort || '–')}</span>`;
+    const p = String(b.personalnummerPraefix || '').replace(/\D/g, '').replace(/^0+/, '');
+    const st = Number(b.personalnummerStellen);
+    const kreisHinweis = (p && Number.isFinite(st) && st > 0)
+        ? `<div class="stm-hinweis stm-kreis-hinweis">${stmEsc(p + 'x'.repeat(st))} → ${stmEsc(p + '1'.padStart(st, '0'))} bis ${stmEsc(p + '9'.repeat(st))}</div>`
+        : '';
+    return `
+            <div class="stm-ansicht">
+                <div class="stm-ansicht-kopf">
+                    <div class="ov-pf">
+                        <div class="ov-pfl">Hauptsitz</div>
+                        <div class="ov-pfv" id="stmHauptsitzAnzeige-${b.id}"><span class="ov-empty">–</span></div>
+                    </div>
+                    <span class="stm-ansicht-aktionen">
+                        <button type="button" onclick="laFirmaVonFiliale(${b.id})" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:4px 14px;font-size:12px;cursor:pointer">Lohnausweis</button>
+                        <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">Bearbeiten</button>
+                    </span>
+                </div>
+                <div class="stm-gruppe">
+                    <div class="stm-gruppe-titel">Adresse</div>
+                    <div class="stm-zeile">${stmFeld('Firma', stmLeer(b.companyName))}</div>
+                    <div class="stm-zeile">
+                        ${stmFeld('Strasse', stmLeer(b.street))}
+                        ${stmFeld('Nr.', stmLeer(b.houseNumber))}
+                        ${stmFeld('Postfach', stmLeer(b.postfach))}
+                    </div>
+                    <div class="stm-zeile">
+                        ${stmFeld('PLZ', stmLeer(b.zipCode))}
+                        ${stmFeld('Ort', stmLeer(ort))}
+                        ${stmFeld('Kanton', kantonTxt)}
+                        ${stmFeld('Land', landTxt)}
+                    </div>
+                    <div class="stm-zeile">${stmFeld('Lokalität', stmLeer(b.lokalitaet))}</div>
+                    <div class="stm-zeile">
+                        ${stmFeld('Telefon', stmLeer(b.phone))}
+                        ${stmFeld('E-Mail', stmLeer(b.email))}
+                    </div>
+                </div>
+                <div class="stm-zwei">
+                    <div class="stm-gruppe">
+                        <div class="stm-gruppe-titel">Filiale</div>
+                        <div class="stm-zeile">
+                            ${stmFeld('Filiale', stmLeer(b.branchName))}
+                            ${stmFeld('Code', stmLeer(b.restaurantCode))}
+                        </div>
+                        <div class="stm-zeile">
+                            ${stmFeld('Nummernkreis', stmLeer(p))}
+                            ${stmFeld('Stellen', (Number.isFinite(st) && st > 0) ? stmEsc(String(st)) : '<span class="ov-empty">–</span>')}
+                        </div>
+                        ${kreisHinweis}
+                        <div class="stm-zeile">
+                            ${stmFeld('GAV', gavTxt)}
+                            ${stmFeld('Probezeit', probeTxt)}
+                        </div>
+                    </div>
+                    <div class="stm-gruppe">
+                        <div class="stm-gruppe-titel">Betrieb</div>
+                        <div class="stm-zeile">
+                            ${stmFeld('BUR-Nummer', stmLeer(b.burNummer))}
+                            ${stmFeld('InHouseID', inhouse)}
+                        </div>
+                        <div class="stm-zeile">
+                            ${stmFeld('UID-Nummer', stmLeer(b.uidNummer))}
+                            ${stmFeld('Branchen-Code', stmLeer(b.branchenCode))}
+                        </div>
+                        <div class="stm-zeile">
+                            ${stmFeld('BFS-Nr.', stmLeer(b.bfsGemeindeNr))}
+                            ${stmFeld('Arbeitsort', arbeitsort)}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+}
+
 function renderFilialenDetail(b) {
     const panel = document.getElementById('filialenDetailPanel');
     if (!panel) return;
@@ -264,57 +373,7 @@ function renderFilialenDetail(b) {
     <div class="emp-detail-body">
         <!-- TAB: Stammdaten -->
         <div class="emp-tab-content active" id="fil-tab-f-stamm">
-            <!-- Hauptsitz-Zuordnung GANZ OBEN, VOR dem Titel (Walter
-                 29.08.2026: war zu versteckt) — direkt editierbares Dropdown
-                 mit Sofort-Speichern (PATCH stammdaten, nur hauptsitzId). -->
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(255,255,255,0.5);border:1px solid rgba(60,55,48,0.16);border-radius:12px;padding:10px 14px;margin-bottom:12px">
-                <span style="font-weight:700;font-size:13px;white-space:nowrap">🏛 Hauptsitz (Rechtseinheit)</span>
-                <select id="stmHauptsitzInline-${b.id}" class="f-input" style="min-width:320px;flex:1;max-width:520px"
-                        onchange="stmHauptsitzInlineSave(${b.id})">
-                    <option value="">— nicht zugeordnet —</option>
-                </select>
-                <span id="stmHauptsitzInlineHint-${b.id}" style="font-size:11.5px;color:#8b8b8b"></span>
-            </div>
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                Stammdaten
-                <span style="display:flex;gap:8px;align-items:center">
-                    <button type="button" onclick="laFirmaVonFiliale(${b.id})" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:4px 14px;font-size:12px;cursor:pointer">Lohnausweis</button>
-                    <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">✎ Bearbeiten</button>
-                </span>
-            </div>
-            <div class="emp-field-grid">
-                ${fField('Firma',           b.companyName)}
-                ${fField('Filiale',         b.branchName)}
-                ${fField('Code',            b.restaurantCode)}
-                ${fField('Strasse',         [b.street, b.houseNumber].filter(Boolean).join(' '))}
-                ${fField('PLZ / Ort',       [b.zipCode, (typeof stripCityCantonSuffix === 'function' ? stripCityCantonSuffix(b.city) : b.city)].filter(Boolean).join(' '))}
-                ${fField('Standort-Kanton', b.kantonCode ? b.kantonCode : '<span style="color:#dc2626">⚠ nicht gesetzt</span>')}
-                ${fField('Telefon',         b.phone)}
-                ${fField('E-Mail',          b.email)}
-                ${fField('Arbeitsort (Vertrag)', b.workLocation || `<span style="color:#8b8b8b">– (Fallback: ${b.city || 'Ort'})</span>`)}
-                ${fField('BUR-Nummer',      b.burNummer)}
-                ${fField('InHouseID',       b.inHouseId || '<span style="color:#8b8b8b">– (nur wenn keine BUR)</span>')}
-                ${fField('UID-Nummer',      b.uidNummer)}
-                ${fField('Branchen-Code',   b.branchenCode)}
-                ${fField('BFS-Gemeinde-Nr. (Swissdec)', b.bfsGemeindeNr)}
-                <!-- AHV/FAK/BVG aus den Lohndatenempfängern abgeleitet
-                     (Walter 06.08.2026; FAK sichtbar für Swissdec S01_01_04).
-                     Wird nach dem Render async aus den Zuordnungen gefüllt. -->
-                <div class="emp-field">
-                    <div class="emp-field-label">AHV-Kasse <span style="font-weight:400;color:#b8b2a7">(aus Lohndaten Empfänger)</span></div>
-                    <div class="emp-field-value" style="font-size:14px;color:#0f172a" id="stmDerivedAhvKasse-${b.id}">–</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">Familienausgleichskasse <span style="font-weight:400;color:#b8b2a7">(aus Lohndaten Empfänger)</span></div>
-                    <div class="emp-field-value" style="font-size:14px;color:#0f172a" id="stmDerivedFak-${b.id}">–</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">BVG-Versicherer <span style="font-weight:400;color:#b8b2a7">(aus Lohndaten Empfänger)</span></div>
-                    <div class="emp-field-value" style="font-size:14px;color:#0f172a" id="stmDerivedBvg-${b.id}">–</div>
-                </div>
-                ${fField('GAV',             b.istGav ? (b.gavName || 'Ja') : 'Nein')}
-                ${fField('Probezeit', probationLabel(b.probationMonths))}
-            </div>
+            ${stmAnsichtHtml(b)}
 
             <!-- ── Öffnungszeiten der Filiale (Walter 31.08.2026) ──
                  Lokalzeit. «Bis» kleiner als «Von» = bis zum Folgetag
@@ -685,9 +744,9 @@ function renderFilialenDetail(b) {
     einAkontoAktivToggle();   // Akonto-Prozente ausgrauen, wenn Akonto-Lohn = nein
     // SSL-Nummern-Block entfernt (Walter 06.08.2026) — Pflege im Tab
     // «Lohndaten Empfänger»; loadSslListForBranch bleibt toter Code.
-    // AHV-Kasse/BVG-Versicherer aus den Empfänger-Zuordnungen ableiten.
-    stmFillDerivedKassen(b.id);
-    stmHauptsitzInlineInit(b.id, b.hauptsitzId);   // Hauptsitz-Dropdown oben (Walter 29.08.2026)
+    // AHV, Familienausgleichskasse und BVG stehen nur im Tab Lohndaten Empfänger
+    // (Walter 29.10.2026) — nicht mehr in den Stammdaten.
+    stmHauptsitzAnzeige(b.id, b.hauptsitzId);
     // Filial-Bankverbindungen asynchron nachladen (separate Tabelle mit Historie)
     loadCompanyBankList(b.id);
     // 13.-ML-Monatsraster im Einstellungen-Tab initialisieren.
@@ -3051,9 +3110,9 @@ function cpEmpfPlzLookup() {
     }
 }
 
-// AHV-Kasse/BVG-Versicherer der Stammdaten-Card aus den Lohndatenempfänger-
-// Zuordnungen ableiten (Walter 06.08.2026): neuster gültiger Eintrag gewinnt,
-// künftige (Gültig-ab in der Zukunft) zählen noch nicht.
+// AHV-Kasse/BVG-Versicherer aus den Lohndatenempfänger-Zuordnungen
+// (Walter 06.08.2026): neuster gültiger Eintrag gewinnt, künftige zählen nicht.
+// Die Stammdaten-Ansicht ruft das seit 29.10.2026 nicht mehr auf.
 async function stmFillDerivedKassen(branchId) {
     try {
         const res = await fetch(`/api/companyprofiles/${branchId}/empfaenger`, { headers: ah(), cache: 'no-store' });
@@ -3077,26 +3136,20 @@ async function stmFillDerivedKassen(branchId) {
     } catch (_) { /* Anzeige bleibt «–» */ }
 }
 
-// ── Hauptsitz-Inline-Dropdown im Stammdaten-Tab (Walter 29.08.2026) ─────
-// Befüllt das Dropdown ganz oben im Tab und speichert die Zuordnung SOFORT
-// beim Wechsel (PATCH stammdaten, nur hauptsitzId — Backend ist
-// null-tolerant für die übrigen Felder).
-async function stmHauptsitzInlineInit(branchId, currentHsId) {
-    const sel = document.getElementById('stmHauptsitzInline-' + branchId);
-    if (!sel) return;
+// Hauptsitz in der Stammdaten-Ansicht: nur der Name. Geändert wird er in der Maske.
+async function stmHauptsitzAnzeige(branchId, currentHsId) {
+    const el = document.getElementById('stmHauptsitzAnzeige-' + branchId);
+    if (!el) return;
     try {
         const r = await fetch('/api/hauptsitze', { headers: ah() });
-        if (r.ok) {
-            const list = await r.json();
-            window._hsCache = list;
-            sel.innerHTML = '<option value="">— nicht zugeordnet —</option>' +
-                list.map(h => `<option value="${h.id}">${(h.name || '').replace(/</g, '&lt;')}${h.uid ? ' (' + h.uid + ')' : ''}</option>`).join('');
-        }
-    } catch { /* Dropdown bleibt mit Default */ }
-    sel.value = currentHsId != null ? String(currentHsId) : '';
-    const hint = document.getElementById('stmHauptsitzInlineHint-' + branchId);
-    if (hint && !window._hsCache?.length)
-        hint.textContent = 'Noch keine Hauptsitze — anlegen unter System → Filialen & Benutzer → «Hauptsitze».';
+        if (r.ok) window._hsCache = await r.json();
+    } catch { /* Anzeige bleibt leer */ }
+    const h = (window._hsCache || []).find(x => String(x.id) === String(currentHsId));
+    if (!h) {
+        el.innerHTML = '<span class="ov-empty">nicht zugeordnet</span>';
+        return;
+    }
+    el.innerHTML = stmEsc(h.name || '') + (h.uid ? ' (' + stmEsc(h.uid) + ')' : '');
 }
 
 async function stmHauptsitzInlineSave(branchId) {

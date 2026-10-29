@@ -9953,7 +9953,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     gap: 8px; justify-content: start;
 }
 #stmDatenModal .stm-paar + .stm-paar { margin-top: 6px; }
-#stmDatenModal .stm-bfs { grid-template-columns: 180px 84px; }
+#stmDatenModal .stm-lok { max-width: 220px; margin-top: 6px; }
+#stmDatenModal .stm-ortzeile {
+    display: grid; width: max-content; max-width: 100%;
+    grid-template-columns: 84px 280px;
+    gap: 8px; margin-top: 6px; justify-content: start;
+}
 #stmDatenModal .stm-rest { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 8px 16px; }
 #stmDatenModal .stm-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #stmDatenModal .stm-name { display: grid; grid-template-columns: minmax(0, 200px) 84px; gap: 8px; justify-content: start; }
@@ -9970,6 +9975,24 @@ body.theme-dark #stmDatenModal .stm-sec,
 body.theme-dark #stmDatenModal .stm-hs .f-label,
 body.theme-dark #stmDatenModal .modal-hd > div > div:first-child { color: #f3f0ea !important; }
 body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
+
+/* Stammdaten-Ansicht: Lesetext wie die Easy-Angaben beim Mitarbeiter. */
+.stm-ansicht { display: flex; flex-direction: column; gap: 16px; }
+.stm-ansicht-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.stm-ansicht-aktionen { display: flex; gap: 8px; align-items: center; flex: none; }
+.stm-gruppe-titel { font-size: 13.5px; font-weight: 760; color: #1a1a1a; letter-spacing: -0.01em; margin: 0 0 8px; }
+.stm-zeile { display: flex; flex-wrap: wrap; gap: 2px 28px; align-items: flex-start; margin-bottom: 8px; }
+.stm-ansicht .ov-pf { margin: 0; }
+.stm-ansicht .ov-pfv {
+    font-size: 15px; font-weight: 700; color: #1a1a1a; line-height: 1.35;
+    background: none; border: none; box-shadow: none; padding: 0; min-height: 0;
+}
+.stm-ansicht .ov-empty { font-weight: 500; }
+.stm-hinweis { font-size: 12px; font-weight: 500; color: #8b8b8b; margin-left: 8px; }
+.stm-kreis-hinweis { margin: -2px 0 8px; }
+.stm-zwei { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 8px 36px; }
+body.theme-dark .stm-gruppe-titel,
+body.theme-dark .stm-ansicht .ov-pfv { color: #f3f0ea; }
 </style>
 <!-- ═══════════════ ALV-DATEN MODAL ═══════════════ -->
 <!-- ═══════════════ FILIAL-STAMMDATEN MODAL (komplett) ═══════════════ -->
@@ -10052,6 +10075,10 @@ body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
                     </div>
                 </div>
                 <div id="stmPlzHint" style="margin-top:2px;font-size:11px;min-height:14px"></div>
+                <div class="stm-lok">
+                    <label class="f-label">Lokalität</label>
+                    <input id="stmLokalitaet" class="f-input" placeholder="optional">
+                </div>
                 <div class="stm-tel">
                     <div><label class="f-label">Telefon</label><input id="stmPhone" class="f-input" placeholder="+41 …"></div>
                     <div><label class="f-label">E-Mail</label><input id="stmEmail" class="f-input" type="email"></div>
@@ -10061,7 +10088,7 @@ body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
                 <section class="stm-karte">
                     <div class="stm-sec">Filiale</div>
                     <div class="stm-name">
-                        <div><label class="f-label">Anzeigename</label><input id="stmBranchName" class="f-input" placeholder="z.B. Sursee"></div>
+                        <div><label class="f-label">Filiale</label><input id="stmBranchName" class="f-input" placeholder="z.B. Sursee"></div>
                         <div><label class="f-label">Code</label><input id="stmRestaurantCode" class="f-input" style="text-align:center;font-variant-numeric:tabular-nums"></div>
                     </div>
                     <div class="stm-kreis">
@@ -10102,19 +10129,15 @@ body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
                     <div class="stm-sec">Betrieb</div>
                     <div class="stm-paar">
                         <div><label class="f-label">BUR-Nummer</label><input id="stmBurNummer" class="f-input" placeholder="A89058593" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Ein Buchstabe und 8 Ziffern, Prüfung beim Verlassen"></div>
-                        <div><label class="f-label">InHouseID, statt BUR</label><input id="stmInHouseId" class="f-input" placeholder="100_10" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Nur nach Absprache mit dem BFS"></div>
+                        <div><label class="f-label">InHouseID</label><input id="stmInHouseId" class="f-input" placeholder="100_10" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Nur wenn keine BUR, und nur nach Absprache mit dem BFS"></div>
                     </div>
                     <div class="stm-paar">
                         <div><label class="f-label">UID-Nummer</label><input id="stmUidNummer" class="f-input" placeholder="CHE-XXX.XXX.XXX" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="CHE-999.999.997 wird abgelehnt"></div>
                         <div><label class="f-label">Branchen-Code (NOGA)</label><input id="stmBranchenCode" class="f-input" placeholder="5610"></div>
                     </div>
-                    <div class="stm-paar stm-bfs">
-                        <div><label class="f-label">Lokalität</label><input id="stmLokalitaet" class="f-input" placeholder="optional"></div>
+                    <div class="stm-ortzeile">
                         <div><label class="f-label">BFS-Nr.</label><input id="stmBfsGemeindeNr" class="f-input" type="number" min="1" max="9999" placeholder="1061" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></div>
-                    </div>
-                    <div class="stm-firma" style="margin-top:6px">
-                        <label class="f-label">Arbeitsort im Vertrag</label>
-                        <input id="stmWorkLocation" class="f-input" placeholder="leer = Ort der Filiale">
+                        <div><label class="f-label">Arbeitsort</label><input id="stmWorkLocation" class="f-input" placeholder="leer = Ort der Filiale"></div>
                     </div>
                 </section>
             </div>
@@ -11008,7 +11031,7 @@ body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261028a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-uid.js?v=20261026a"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261029b"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261029c"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261029a"></script>
