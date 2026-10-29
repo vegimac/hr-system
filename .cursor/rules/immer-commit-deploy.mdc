@@ -1,0 +1,14 @@
+---
+description: Nach einer fertigen Änderung committen, pushen und den Deploy-Befehl geben
+alwaysApply: true
+---
+
+# Immer committen und Deploy-Befehl (Walter, 29.10.2026)
+
+Sobald eine verlangte Änderung fertig ist: committen, auf `origin` pushen und den Deploy-Befehl in die Antwort setzen. Nicht erst fragen, ob committet werden soll.
+
+```bash
+cd /Users/Walter/projects/hr-system && git fetch origin && git checkout main && git pull origin main && ./deploy.sh
+```
+
+Danach kurz: Hard-Reload (Cmd+Shift+R). Branch ist der aktive Branch, zurzeit `main`. `nuget.config.bak-agent` nie mitcommitten.
