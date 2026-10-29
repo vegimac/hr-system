@@ -1,0 +1,14 @@
+---
+description: Felder in Erfassungsmasken so breit wie der Wert, nicht wie die Karte
+alwaysApply: true
+---
+
+# Feldbreite (Walter, 29.10.2026)
+
+In Erfassungsmasken bleibt jedes Feld so breit, wie ein normaler Wert lang ist. Der Leerraum bleibt in der Karte, nicht im weissen Feld.
+
+- PLZ, Hausnummer, Code, Stellen, BFS-Nr., Telefon: kurz und fest.
+- Kanton und Land sitzen direkt nebeneinander, Land nicht ans Zeilenende geschoben.
+- Firma, Strasse, Postfach, Ort, E-Mail: nur so breit, dass ein üblicher Eintrag Platz hat. Nie die ganze Zeile.
+- Zwei Felder in einer Zeile sind nicht gleich breit, wenn die Werte verschieden lang sind.
+- Eine breite Maske ist kein Grund, kurze Felder mitzuziehen.
