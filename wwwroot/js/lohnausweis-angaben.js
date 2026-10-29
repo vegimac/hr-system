@@ -670,6 +670,7 @@ async function laFirmaInAnsicht(companyProfileId, ab, box, neuAb) {
                 <span>Lohnausweis</span>
                 ${laGueltigLeiste(f, neuAb)}
                 <span class="la-aktionen">
+                    ${(!neuAb && !f.geschlossen && (f.staende || []).some(s => Number(s.ab) < Number(f.gueltigAb))) ? `<button type="button" class="btn btn-outline" style="font-size:12px;padding:4px 14px" onclick="laFirmaLoeschen(${companyProfileId})">Löschen</button>` : ''}
                     <button type="button" class="btn btn-outline" style="font-size:12px;padding:4px 14px" onclick="laFilialeAnsichtLaden(${companyProfileId})">Abbrechen</button>
                     <button type="button" class="btn btn-primary" id="laAnsichtSave" style="font-size:12px;padding:4px 14px">Speichern</button>
                 </span>
@@ -959,6 +960,25 @@ function laMaske(f, edit) {
 
 function laFirmaHtml(f) {
     return `<div class="la-breit" style="margin-bottom:8px">${laGueltigLeiste(f)}</div>${laMaske(f, true)}`;
+}
+
+async function laFirmaLoeschen(companyProfileId) {
+    const ab = Number(window._laGeladenAb);
+    const vorher = (window._laStaende || [])
+        .filter(s => Number(s.ab) < ab)
+        .sort((a, b) => Number(b.ab) - Number(a.ab))[0];
+    if (!vorher) return;
+    const ok = await liquidConfirm(`Fassung ab ${ab} löschen? Danach gilt wieder die Fassung ab ${vorher.ab}.`, { title: 'Fassung löschen', yesLabel: 'Löschen', noLabel: 'Behalten' });
+    if (!ok) return;
+    const r = await fetch(`/api/companyprofiles/${companyProfileId}/lohnausweis-angaben`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        alert(err.message || 'Löschen fehlgeschlagen.');
+        return;
+    }
+    window._laHistAuf = null;
+    laAngabenSchliessen();
+    laFilialeAnsichtLaden(companyProfileId);
 }
 
 async function laFirmaSpeichern(companyProfileId) {

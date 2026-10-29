@@ -24,6 +24,10 @@ public static class LohnausweisFassung
     /// Gleiches Jahr: die offene Fassung fortschreiben (<paramref name="bisherBis"/> bleibt leer).
     /// Späteres Jahr: neue Fassung, die alte gilt bis zum Jahr davor.
     /// </summary>
+    /// <summary>Die jüngste Fassung vor der offenen. Nur die offene darf weg, dann wird diese wieder offen.</summary>
+    public static T? Vorversion<T>(IEnumerable<T> alle, int offenesAb, Func<T, int> ab) =>
+        alle.Where(x => ab(x) < offenesAb).OrderByDescending(ab).FirstOrDefault();
+
     public static string? Entscheiden(int offenesAb, int jahr, out int? bisherBis)
     {
         bisherBis = null;

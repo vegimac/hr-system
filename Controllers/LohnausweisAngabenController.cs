@@ -190,6 +190,31 @@ public class LohnausweisAngabenController : ControllerBase
         return Ok(FirmaAntwort(firma, zeile, alle.Append(zeile).Distinct(), false));
     }
 
+    [Authorize(Roles = "admin")]
+    [HttpDelete("api/companyprofiles/{id:int}/lohnausweis-angaben")]
+    public async Task<IActionResult> FirmaLoeschen(int id)
+    {
+        var firma = await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.Id == id);
+        if (firma == null) return NotFound();
+        var alle = await _db.CompanyLohnausweise
+            .Where(x => x.CompanyProfileId == id)
+            .ToListAsync();
+        var offen = alle.Where(x => x.GueltigBis == null).OrderByDescending(x => x.GueltigAb).FirstOrDefault();
+        if (offen == null)
+            return BadRequest(new { message = "Nur die offene Fassung kann gelöscht werden." });
+        var vorher = LohnausweisFassung.Vorversion(alle, offen.GueltigAb, x => x.GueltigAb);
+        if (vorher == null)
+            return BadRequest(new { message = "Die einzige Fassung bleibt." });
+
+        _db.CompanyLohnausweise.Remove(offen);
+        alle.Remove(offen);
+        vorher.GueltigBis = null;
+        vorher.GeaendertAm = DateTime.Now;
+        LohnausweisFassung.AufProfil(firma, vorher);
+        await _db.SaveChangesAsync();
+        return Ok(FirmaAntwort(firma, vorher, alle, false));
+    }
+
     private async Task<CompanyProfile?> FilialeDerPersonAsync(int employeeId)
     {
         var vertraege = await _db.Employments.AsNoTracking()

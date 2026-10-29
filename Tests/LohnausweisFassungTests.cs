@@ -40,6 +40,14 @@ public class LohnausweisFassungTests
     }
 
     [Fact]
+    public void Vorversion_ist_die_juengste_vor_der_offenen()
+    {
+        var alle = new[] { new Zeile(2000, 2025), new Zeile(2026, null) };
+        var vor = LohnausweisFassung.Vorversion(alle, 2026, z => z.Ab);
+        Assert.Equal(2000, vor!.Ab);
+    }
+
+    [Fact]
     public void Frueheres_Jahr_bleibt_geschlossen()
     {
         var fehler = LohnausweisFassung.Entscheiden(2026, 2024, out _);
