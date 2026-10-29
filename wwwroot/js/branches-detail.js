@@ -243,83 +243,74 @@ function stmLeer(v) {
 function stmFeld(label, inhalt) {
     return `<div class="ov-pf"><div class="ov-pfl">${label}</div><div class="ov-pfv">${inhalt}</div></div>`;
 }
-function stmInp(id, breite, extra) {
-    return `<input id="${id}" class="f-input stm-w-${breite}"${extra ? ' ' + extra : ''}>`;
+function stmInline(id, ch, extra) {
+    return `<input id="${id}" class="stm-inline" style="width:${ch}ch" autocomplete="off"${extra ? ' ' + extra : ''}>`;
 }
-function stmKantonWahl() {
-    const opts = ['<option value="">—</option>']
+function stmWertSlot(ansicht, label) {
+    for (const pf of ansicht.querySelectorAll('.ov-pf')) {
+        const l = pf.querySelector('.ov-pfl');
+        if (l && l.textContent.trim() === label) return pf.querySelector('.ov-pfv');
+    }
+    return null;
+}
+function stmSlotSetzen(ansicht, label, html) {
+    const slot = stmWertSlot(ansicht, label);
+    if (slot) slot.innerHTML = html;
+}
+function stmAnsichtZuEdit(ansicht, b) {
+    ansicht.classList.add('stm-edit');
+    const aktionen = ansicht.querySelector('.stm-ansicht-aktionen');
+    if (aktionen) {
+        aktionen.innerHTML = `
+            <button type="button" class="btn btn-outline" style="font-size:12px;padding:4px 14px" onclick="stmAbbrechen()">Abbrechen</button>
+            <button type="button" class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="saveStm()">Speichern</button>`;
+    }
+    const hs = ansicht.querySelector('[id^="stmHauptsitzAnzeige-"]');
+    if (hs) {
+        hs.innerHTML = '<select id="stmHauptsitz" class="stm-inline" title="Rechtseinheit für die Swissdec-Jahresmeldung"><option value="">nicht zugeordnet</option></select>';
+    }
+    const texte = [
+        ['Firma', 'stmCompanyName', 22],
+        ['Strasse', 'stmStreet', 16],
+        ['Nr.', 'stmHouseNumber', 4],
+        ['Postfach', 'stmPostfach', 10],
+        ['Ort', 'stmCity', 14],
+        ['Lokalität', 'stmLokalitaet', 14],
+        ['Telefon', 'stmPhone', 14],
+        ['E-Mail', 'stmEmail', 22],
+        ['Filiale', 'stmBranchName', 14],
+        ['Code', 'stmRestaurantCode', 4],
+        ['BUR-Nummer', 'stmBurNummer', 12],
+        ['UID-Nummer', 'stmUidNummer', 16],
+        ['Branchen-Code', 'stmBranchenCode', 6],
+        ['BFS-Nr.', 'stmBfsGemeindeNr', 5],
+    ];
+    texte.forEach(([label, id, ch]) => stmSlotSetzen(ansicht, label, stmInline(id, ch)));
+    stmSlotSetzen(ansicht, 'PLZ', stmInline('stmZipCode', 5, 'inputmode="numeric" maxlength="10" onblur="stmPlzLookup(this.value)" onkeyup="if(this.value.length>=4)stmPlzLookup(this.value)"'));
+    const plzZeile = stmWertSlot(ansicht, 'PLZ')?.closest('.stm-zeile');
+    if (plzZeile && !ansicht.querySelector('#stmPlzHint'))
+        plzZeile.insertAdjacentHTML('afterend', '<div id="stmPlzHint" class="stm-hinweis"></div>');
+    const ktOpts = ['<option value="">–</option>']
         .concat(Object.keys(STM_KANTON).map(k => `<option value="${k}">${k} – ${STM_KANTON[k]}</option>`));
-    return `<select id="stmKantonCode" class="f-input stm-w-kt" style="width:148px">${opts.join('')}</select>`;
-}
-
-function stmEditHtml(id) {
-    return `
-            <div class="stm-ansicht stm-edit">
-                <section class="stm-karte-ansicht">
-                    <div class="ov-card-h">
-                        <span>Hauptsitz</span>
-                        <span class="stm-ansicht-aktionen">
-                            <button type="button" class="btn btn-outline" style="font-size:12px;padding:4px 14px" onclick="stmAbbrechen()">Abbrechen</button>
-                            <button type="button" class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="saveStm()">Speichern</button>
-                        </span>
-                    </div>
-                    <div class="ov-pfv stm-hs-wert"><select id="stmHauptsitz" class="f-input stm-w-hs" style="width:360px" title="Rechtseinheit für die Swissdec-Jahresmeldung"><option value="">— nicht zugeordnet —</option></select></div>
-                </section>
-                <section class="stm-karte-ansicht">
-                    <div class="ov-card-h"><span>Adresse</span></div>
-                    <div class="stm-zeile">${stmFeld('Firma', stmInp('stmCompanyName', 'firma'))}</div>
-                    <div class="stm-zeile">
-                        ${stmFeld('Strasse', stmInp('stmStreet', 'str'))}
-                        ${stmFeld('Nr.', stmInp('stmHouseNumber', 'nr'))}
-                        ${stmFeld('Postfach', stmInp('stmPostfach', 'pf'))}
-                    </div>
-                    <div class="stm-zeile">
-                        ${stmFeld('PLZ', stmInp('stmZipCode', 'plz', 'inputmode="numeric" maxlength="10" onblur="stmPlzLookup(this.value)" onkeyup="if(this.value.length>=4)stmPlzLookup(this.value)"'))}
-                        ${stmFeld('Ort', stmInp('stmCity', 'ort'))}
-                        ${stmFeld('Kanton', stmKantonWahl())}
-                        ${stmFeld('Land', '<select id="stmCountry" class="f-input stm-w-land" style="width:150px"></select>')}
-                    </div>
-                    <div id="stmPlzHint" class="stm-hinweis"></div>
-                    <div class="stm-zeile">
-                        ${stmFeld('Lokalität', stmInp('stmLokalitaet', 'lok'))}
-                        ${stmFeld('Telefon', stmInp('stmPhone', 'tel', 'placeholder="+41 …"'))}
-                        ${stmFeld('E-Mail', stmInp('stmEmail', 'mail', 'type="email"'))}
-                    </div>
-                </section>
-                <div class="stm-zwei">
-                    <section class="stm-karte-ansicht">
-                        <div class="ov-card-h"><span>Filiale</span></div>
-                        <div class="stm-zeile">
-                            ${stmFeld('Filiale', stmInp('stmBranchName', 'fil'))}
-                            ${stmFeld('Code', stmInp('stmRestaurantCode', 'code'))}
-                        </div>
-                        <div class="stm-zeile">
-                            ${stmFeld('Nummernkreis', stmInp('stmPnPraefix', 'kreis', 'maxlength="6" inputmode="numeric" oninput="stmPnVorschau()"'))}
-                            ${stmFeld('Stellen', stmInp('stmPnStellen', 'st', 'maxlength="2" inputmode="numeric" oninput="stmPnVorschau()"'))}
-                        </div>
-                        <div id="stmPnVorschau" class="stm-hinweis stm-kreis-hinweis"></div>
-                        <div class="stm-zeile">
-                            ${stmFeld('GAV', `<label class="stm-gav"><input type="checkbox" id="stmIstGav" onchange="stmToggleGavName()"><span id="stmGavTxt">Nein</span></label><div id="stmGavNameRow" style="display:none">${stmInp('stmGavName', 'gav')}</div>`)}
-                            ${stmFeld('Probezeit', `<select id="stmProbationMonths" class="f-input stm-w-probe" style="width:120px"><option value="">—</option><option value="14">14 Tage</option><option value="1">1 Monat</option><option value="2">2 Monate</option><option value="3">3 Monate</option></select>`)}
-                        </div>
-                    </section>
-                    <section class="stm-karte-ansicht">
-                        <div class="ov-card-h"><span>Betrieb</span></div>
-                        <div class="stm-zeile">
-                            ${stmFeld('BUR-Nummer', stmInp('stmBurNummer', 'bur'))}
-                            ${stmFeld('InHouseID', stmInp('stmInHouseId', 'ih') + '<div class="stm-hinweis">nur wenn keine BUR</div>')}
-                        </div>
-                        <div class="stm-zeile">
-                            ${stmFeld('UID-Nummer', stmInp('stmUidNummer', 'uid'))}
-                            ${stmFeld('Branchen-Code', stmInp('stmBranchenCode', 'noga'))}
-                        </div>
-                        <div class="stm-zeile">
-                            ${stmFeld('BFS-Nr.', stmInp('stmBfsGemeindeNr', 'bfs', 'inputmode="numeric"'))}
-                            ${stmFeld('Arbeitsort', stmInp('stmWorkLocation', 'arbeit') + '<div id="stmArbeitHinweis" class="stm-hinweis"></div>')}
-                        </div>
-                    </section>
-                </div>
-            </div>`;
+    stmSlotSetzen(ansicht, 'Kanton', `<select id="stmKantonCode" class="stm-inline">${ktOpts.join('')}</select>`);
+    stmSlotSetzen(ansicht, 'Land', '<select id="stmCountry" class="stm-inline"></select>');
+    stmSlotSetzen(ansicht, 'Nummernkreis', stmInline('stmPnPraefix', 6, 'maxlength="6" inputmode="numeric" oninput="stmPnVorschau()"'));
+    stmSlotSetzen(ansicht, 'Stellen', stmInline('stmPnStellen', 3, 'maxlength="2" inputmode="numeric" oninput="stmPnVorschau()"'));
+    const kreisZeile = stmWertSlot(ansicht, 'Nummernkreis')?.closest('.stm-zeile');
+    let kreisHinweis = ansicht.querySelector('.stm-kreis-hinweis');
+    if (!kreisHinweis && kreisZeile) {
+        kreisZeile.insertAdjacentHTML('afterend', '<div id="stmPnVorschau" class="stm-hinweis stm-kreis-hinweis"></div>');
+    } else if (kreisHinweis) {
+        kreisHinweis.id = 'stmPnVorschau';
+    }
+    stmSlotSetzen(ansicht, 'GAV',
+        '<label class="stm-gav"><input type="checkbox" id="stmIstGav" onchange="stmToggleGavName()"><span id="stmGavTxt">Nein</span></label>'
+        + '<div id="stmGavNameRow" style="display:none">' + stmInline('stmGavName', 18) + '</div>');
+    stmSlotSetzen(ansicht, 'Probezeit',
+        '<select id="stmProbationMonths" class="stm-inline"><option value="">–</option><option value="14">14 Tage</option><option value="1">1 Monat</option><option value="2">2 Monate</option><option value="3">3 Monate</option></select>');
+    const ihHint = (b.inHouseId || '').trim() ? '' : '<div class="stm-hinweis">nur wenn keine BUR</div>';
+    stmSlotSetzen(ansicht, 'InHouseID', stmInline('stmInHouseId', 10) + ihHint);
+    stmSlotSetzen(ansicht, 'Arbeitsort', stmInline('stmWorkLocation', 16) + '<div id="stmArbeitHinweis" class="stm-hinweis"></div>');
 }
 
 function stmModalIdsParken() {
@@ -342,8 +333,10 @@ async function stmBearbeiten(id) {
     if (!b && selectedBranch && selectedBranch.id === id) b = selectedBranch;
     if (!b) return;
     const host = document.querySelector('#fil-tab-f-stamm .stm-ansicht');
+    const modal = document.getElementById('stmDatenModal');
+    if (modal) modal.style.display = 'none';
     if (!host) return;
-    host.outerHTML = stmEditHtml(id);
+    stmAnsichtZuEdit(host, b);
     stmModalBranchId = id;
     stmFelderSetzen(b);
 }
@@ -1460,7 +1453,8 @@ function stmFelderSetzen(b) {
         const stmPf = document.getElementById('stmPostfach'); if (stmPf) stmPf.value = b.postfach || '';
         const stmLok = document.getElementById('stmLokalitaet'); if (stmLok) stmLok.value = b.lokalitaet || '';
         document.getElementById('stmZipCode').value        = b.zipCode        || '';
-        document.getElementById('stmCity').value           = b.city           || '';
+        const ortAnzeige = typeof stripCityCantonSuffix === 'function' ? stripCityCantonSuffix(b.city) : b.city;
+        document.getElementById('stmCity').value           = ortAnzeige       || '';
         document.getElementById('stmKantonCode').value     = (b.kantonCode || '').toUpperCase();
         if (window.SwissUid) SwissUid.landSelectFuellen('stmCountry', b.country || 'CH');
         document.getElementById('stmPhone').value          = b.phone          || '';
@@ -1499,18 +1493,16 @@ function stmFelderSetzen(b) {
         const pnP = document.getElementById('stmPnPraefix');
         const pnS = document.getElementById('stmPnStellen');
         if (pnP && pnS) {
-            const gepflegt = !!(b.personalnummerPraefix || '').trim();
-            pnP.value = gepflegt ? b.personalnummerPraefix
-                                 : (b.restaurantCode || '').replace(/\D/g, '').replace(/^0+/, '');
-            pnS.value = (b.personalnummerStellen != null) ? String(b.personalnummerStellen)
-                      : (pnP.value ? '4' : '');
+            pnP.value = (b.personalnummerPraefix || '').replace(/\D/g, '').replace(/^0+/, '');
+            pnS.value = (b.personalnummerStellen != null) ? String(b.personalnummerStellen) : '';
             stmPnVorschau();
         }
         document.getElementById('stmPlzHint').innerHTML    = '';
         const arbeitHinweis = document.getElementById('stmArbeitHinweis');
         if (arbeitHinweis) {
             const ort = typeof stripCityCantonSuffix === 'function' ? stripCityCantonSuffix(b.city) : (b.city || '');
-            arbeitHinweis.textContent = 'Ort der Filiale: ' + (ort || '–');
+            const hat = (b.workLocation || '').trim();
+            arbeitHinweis.textContent = hat ? '' : ('Ort der Filiale: ' + (ort || '–'));
         }
         stmToggleGavName();
         stmBindPruefungen();
@@ -1541,7 +1533,7 @@ function stmPnVorschau() {
     const sRaw = (document.getElementById('stmPnStellen')?.value || '').trim();
     const st = parseInt(sRaw, 10);
     if (!p) {
-        el.innerHTML = '<span style="color:#b3ada1">Kein Nummernkreis — Personalnummern werden nicht auf die Länge geprüft.</span>';
+        el.innerHTML = '';
         return;
     }
     if (!Number.isFinite(st) || st < 1 || st > 10) {
