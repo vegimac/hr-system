@@ -41,12 +41,15 @@ function laStil() {
             max-height: calc(100vh - 20px) !important; height: auto;
         }
         #laAngabenOverlay.la-kompakt .la-firma { grid-template-columns: 1fr; gap: 6px; }
+        #laAngabenOverlay.la-kompakt .la-badge {
+            width: 54px; min-width: 54px; flex: 0 0 54px; box-sizing: border-box;
+        }
         #laAngabenOverlay.la-kompakt .la-einzeile {
             display: flex; align-items: center; justify-content: flex-start;
             gap: 10px; padding: 5px 10px;
         }
         #laAngabenOverlay.la-kompakt .la-einzeile .la-titel {
-            margin: 0; width: 280px; flex: 0 0 280px; white-space: nowrap;
+            margin: 0; width: 300px; flex: 0 0 300px; white-space: nowrap; overflow: visible;
         }
         #laAngabenOverlay.la-kompakt .la-einzeile-rest {
             display: flex; align-items: center; gap: 8px; flex: none; justify-content: flex-start;
@@ -75,10 +78,13 @@ function laStil() {
         #laAngabenOverlay.la-kompakt .la-zeile-kurz .la-kanton .lqsel-btn { width: 64px; max-width: 64px; }
         #laAngabenOverlay.la-kompakt .la-unterzeile {
             display: flex; align-items: center; justify-content: flex-start;
-            gap: 10px; padding: 3px 10px 3px 52px;
+            gap: 10px; padding: 3px 10px 3px 74px;
         }
         #laAngabenOverlay.la-kompakt .la-unter-name {
-            width: 280px; flex: 0 0 280px; font-size: 13px; font-weight: 700; color: #3f3f3f; white-space: nowrap;
+            width: 300px; flex: 0 0 300px; font-size: 13px; font-weight: 700; color: #3f3f3f; white-space: nowrap;
+        }
+        #laAngabenOverlay.la-kompakt .la-neben {
+            font-size: 13px; font-weight: 700; color: #3f3f3f; white-space: nowrap;
         }
         #laAngabenOverlay.la-kompakt .la-einzeile .la-korrektur { margin: 0 0 0 8px; }
         #laAngabenOverlay.la-kompakt .la-karte { padding: 4px 8px; }
@@ -209,7 +215,8 @@ function laStil() {
         body.theme-dark #laAngabenOverlay .la-text,
         body.theme-dark #laAngabenOverlay .la-unter { color: #c8c2b8; }
         body.theme-dark #laAngabenOverlay .la-check { color: #f3f0ea; background: rgba(255,255,255,0.05); }
-        body.theme-dark #laAngabenOverlay.la-kompakt .la-unter-name { color: #f3f0ea; }
+        body.theme-dark #laAngabenOverlay.la-kompakt .la-unter-name,
+        body.theme-dark #laAngabenOverlay.la-kompakt .la-neben { color: #f3f0ea; }
     `;
     document.head.appendChild(s);
 }
@@ -548,6 +555,9 @@ async function laFirmaOeffnen(companyProfileId, ab) {
     document.getElementById('laAngabenUnter').textContent =
         'Gilt für alle Personen dieser Filiale, bis eine Person davon abweicht.';
     document.getElementById('laAngabenBody').innerHTML = laFirmaHtml(f);
+    const plzFeld = document.getElementById('laFKontaktPlz');
+    const ortFeld = document.getElementById('laFKontaktOrt');
+    if (plzFeld && ortFeld && !String(ortFeld.value || '').trim()) laPlzOrt(plzFeld);
     document.getElementById('laAngabenSave').onclick = () => laFirmaSpeichern(companyProfileId);
     laGueltigAnbinden(jahr => laFirmaOeffnen(companyProfileId, jahr));
     laGeschlossen(f.geschlossen);
@@ -707,10 +717,15 @@ function laGeschlossen(zu) {
     });
 }
 
+function laPlzOrt(el) {
+    if (!el || typeof plzLookupGeneric !== 'function') return;
+    const plz = String(el.value || '').replace(/\D/g, '');
+    if (plz.length < 4) return;
+    plzLookupGeneric(plz, 'laFKontaktOrt', null, null, null);
+}
+
 function laFirmaHtml(f) {
     const pos21 = f.pos21 == null || f.pos21 === 0 ? '' : f.pos21;
-    const kontakt = (label, id, wert, breite) =>
-        `<label class="f-label la-inline">${label}<input id="${id}" class="f-input ${breite}" value="${laEsc(wert || '')}"></label>`;
     return `<div class="la-raster la-firma">
         <div class="la-breit">${laGueltigLeiste(f)}</div>
         ${laEinzeile('F', 'Unentgeltliche Beförderung', laCheck('laFBoxF', 'Ziffer F ankreuzen', f.boxF))}
@@ -753,16 +768,16 @@ function laFirmaHtml(f) {
         </article>
         <article class="la-karte">
             <div class="la-einzeile"><span class="la-badge">I</span><h3 class="la-titel">Bestätigung</h3></div>
+            <div class="la-unterzeile"><span class="la-unter-name">Organisation</span><input id="laFKontaktOrg" class="f-input la-w-org" value="${laEsc(f.kontaktOrg || '')}"></div>
+            <div class="la-unterzeile"><span class="la-unter-name">Name</span><input id="laFKontaktPerson" class="f-input la-w-name" value="${laEsc(f.kontaktPerson || '')}"></div>
+            <div class="la-unterzeile"><span class="la-unter-name">Strasse</span><input id="laFKontaktStrasse" class="f-input la-w-str" value="${laEsc(f.kontaktStrasse || '')}"></div>
             <div class="la-unterzeile">
-                ${kontakt('Organisation', 'laFKontaktOrg', f.kontaktOrg, 'la-w-org')}
-                ${kontakt('Name', 'laFKontaktPerson', f.kontaktPerson, 'la-w-name')}
+                <span class="la-unter-name">PLZ</span>
+                <input id="laFKontaktPlz" class="f-input la-w-plz" inputmode="numeric" maxlength="10" value="${laEsc(f.kontaktPlz || '')}" oninput="laPlzOrt(this)" onblur="laPlzOrt(this)">
+                <span class="la-neben">Ort</span>
+                <input id="laFKontaktOrt" class="f-input la-w-ort" value="${laEsc(f.kontaktOrt || '')}">
             </div>
-            <div class="la-unterzeile">
-                ${kontakt('Strasse', 'laFKontaktStrasse', f.kontaktStrasse, 'la-w-str')}
-                ${kontakt('PLZ', 'laFKontaktPlz', f.kontaktPlz, 'la-w-plz')}
-                ${kontakt('Ort', 'laFKontaktOrt', f.kontaktOrt, 'la-w-ort')}
-                ${kontakt('Telefon', 'laFKontaktTel', f.kontaktTelefon, 'la-w-tel')}
-            </div>
+            <div class="la-unterzeile"><span class="la-unter-name">Telefon</span><input id="laFKontaktTel" class="f-input la-w-tel" value="${laEsc(f.kontaktTelefon || '')}"></div>
         </article>
     </div>`;
 }
