@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════════════
 //  MANAGER-SCHULUNGEN — seit 01.10.2026 nur noch Einstiege + Excel-Import.
 //  Nothelfer / Peak / SECO sind Typen im Verzeichnis «Schulungen &
-//  Ausbildungen»; erfasst wird im MA (Tab «Verfügbarkeit / Training»),
+//  Ausbildungen»; erfasst wird im MA (Tab «Training, Verfügbar, Statistik»),
 //  die Übersicht ist «Schulungen» unter Auswertungen (js/schulungen.js).
 // ══════════════════════════════════════════════════════════════════════
 

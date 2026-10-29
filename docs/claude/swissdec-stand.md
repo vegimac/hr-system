@@ -298,8 +298,8 @@ stillschweigend weglassen wäre der schlimmere Fehler.
    Stunden UND ohne Lektionen sperrt die Meldung mit Klartext. Verwaltung: System → Hauptsitze,
    Zuordnung am MA unter «BFS / Statistik». Import: 3a (Modelle), 4a (Zuordnung), 4c (Wechsel).
 2. **Statistik-Stammdaten.** Ausbildung (13 Zeilen) und berufliche Stellung (5 Zeilen) sind
-   Kataloge `statistik_ausbildung` / `statistik_stellung` (Schema-Stand 121). Der Knopf
-   «Ausbildung / Statistik» am Mitarbeiter (Tab MA Formulare) öffnet den Dialog; Bezeichnung und XML-Wert
+   Kataloge `statistik_ausbildung` / `statistik_stellung` (Schema-Stand 121). Die Felder
+   stehen fest unten im Tab «Training, Verfügbar, Statistik»; Bezeichnung und XML-Wert
    pflegt der Admin unter System → Verzeichnisse. Die Meldung nimmt den XML-Wert der Zeile.
    Die alten LSE-Zahlen schreibt der Server aus der Zeile mit. Fehlt die Wahl, gilt die
    Zahlen-Übersetzung in `ElmStatistikCodes` (Rückfall). Verliehenes Personal, Stammpersonal

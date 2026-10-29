@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 123;  // 123: Lohnausweis-Fassung auch nach QST-Stand 122 · 122: QST · 121: Statistik · 120: Lohnausweis gültig ab
+const int SchemaStand = 124;  // 124: Tabname Schulungs-Anleitungen · 123: Lohnausweis-Fassung · 122: QST · 121: Statistik
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3390,6 +3390,17 @@ using (var scope = app.Services.CreateScope())
         startLog.LogInformation("Stand 123: Lohnausweis-Fassung, auch wenn der Stand schon über 120 lag");
     }
 
+    // Stand 124: Reiter heisst «Training, Verfügbar, Statistik».
+    if (dbStand < 124)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE todo_anleitung
+               SET anleitung = replace(anleitung, 'Verfügbarkeit / Training', 'Training, Verfügbar, Statistik')
+             WHERE anleitung LIKE '%Verfügbarkeit / Training%';
+        ");
+        startLog.LogInformation("Stand 124: Tabname in den Schulungs-Anleitungen");
+    }
+
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
     HrSystem.Services.SchemaCheckService.Pruefe(
@@ -3559,15 +3570,15 @@ using (var scope = app.Services.CreateScope())
          210),
         ('schulung_laeuft_ab',
          'Auffrischung planen',
-         'Person zur Auffrischung anmelden. Danach im Mitarbeiter, Tab «Verfügbarkeit / Training», einen neuen Eintrag mit Datum und Nachweis erfassen.',
+         'Person zur Auffrischung anmelden. Danach im Mitarbeiter, Tab «Training, Verfügbar, Statistik», einen neuen Eintrag mit Datum und Nachweis erfassen.',
          220),
         ('schulung_abgelaufen',
          'Schulung erneuern',
-         'Die Schulung ist nicht mehr gültig. Person anmelden und danach im Tab «Verfügbarkeit / Training» den neuen Eintrag mit Nachweis erfassen.',
+         'Die Schulung ist nicht mehr gültig. Person anmelden und danach im Tab «Training, Verfügbar, Statistik» den neuen Eintrag mit Nachweis erfassen.',
          221),
         ('schulung_fehlt',
          'Schulung nachholen',
-         'Schulung durchführen (Hygiene und Sicherheit am ersten Tag, SRIW innert 14 Tagen). Danach im Tab «Verfügbarkeit / Training» abhaken: in FRED oder mit Dokument.',
+         'Schulung durchführen (Hygiene und Sicherheit am ersten Tag, SRIW innert 14 Tagen). Danach im Tab «Training, Verfügbar, Statistik» abhaken: in FRED oder mit Dokument.',
          222),
         ('ahv_nummer_fehlt',
          'AHV-Nummer nachtragen',

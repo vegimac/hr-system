@@ -3282,7 +3282,7 @@ async function dokNeueZulageMitDok(empId, docId, memberId) {
 }
 
 // Neue Schulung mit dem soeben abgelegten Dokument (Walter 01.10.2026): MA öffnen,
-// Tab «Verfügbarkeit / Training», Erfassen-Maske mit dem Dokument als Nachweis.
+// Tab «Training, Verfügbar, Statistik», Erfassen-Maske mit dem Dokument als Nachweis.
 async function dokNeueSchulungMitDok(empId, docId) {
     if (typeof trOpenErfassen !== 'function') return;
     if (window.selectedEmployeeId !== empId) {

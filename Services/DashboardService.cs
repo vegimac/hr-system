@@ -2727,8 +2727,8 @@ public class DashboardService
                             cat = "schulung_fehlt";
                             title = $"{name} fehlt";
                             sub = r.FaelligAm.HasValue
-                                ? $"fällig war am {r.FaelligAm:dd.MM.yyyy} — im Tab «Verfügbarkeit / Training» erfassen"
-                                : "kein Nachweis erfasst — im Tab «Verfügbarkeit / Training» erfassen";
+                                ? $"fällig war am {r.FaelligAm:dd.MM.yyyy} — im Tab «Training, Verfügbar, Statistik» erfassen"
+                                : "kein Nachweis erfasst — im Tab «Training, Verfügbar, Statistik» erfassen";
                             sev = SeverityState(cat, "critical");
                             due = r.FaelligAm;
                             break;

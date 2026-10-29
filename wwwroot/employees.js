@@ -1420,7 +1420,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')" style="line-height:1.2;text-align:center">${_t('ma.tab.restAdmin','MA<br>Formulare')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')" style="line-height:1.2;text-align:center">${_t('ma.tab.absencesKtg','Absenzen /<br>KTG/UVG')}</div>
-            <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availabilityTraining','Verfügbarkeit /<br>Training')}</div>
+            <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availabilityTraining','Training,<br>Verfügbar, Statistik')}</div>
             <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
             <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')" style="line-height:1.2;text-align:center">Dokumente /<br>Historie</div>
         </div>
@@ -1530,12 +1530,13 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
 
-        <!-- TAB: Verfügbarkeit / Training (Walter 01.10.2026: Training-Block darunter) -->
+        <!-- TAB: Training, Verfügbar, Statistik -->
         <div class="emp-tab-content" id="emp-tab-verfuegbarkeit">
             <div id="verfuegbarkeitContent">
                 <div class="emp-placeholder" style="height:200px">${_t('ma.loading','Wird geladen...')}</div>
             </div>
             <div id="trainingContent" style="margin-top:22px"></div>
+            <div id="statistikMaContent"></div>
         </div>
 
         <!-- TAB: Zulagen & Abzüge -->
@@ -3154,6 +3155,7 @@ function switchEmpTab(tab) {
     }
     if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof loadVerfuegbarkeitTab === 'function') loadVerfuegbarkeitTab(selectedEmployeeId);
     if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof trLoad === 'function') trLoad(selectedEmployeeId);
+    if (tab === 'verfuegbarkeit' && selectedEmployeeId && typeof loadStatistikMa === 'function') loadStatistikMa(selectedEmployeeId);
     if (tab === 'zulagen'        && selectedEmployeeId) {
         // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
         // teilen sich den neuen „Zulagen & Abzüge"-Tab.
@@ -18849,11 +18851,7 @@ function _raTilesHtml() {
     // ${tile('Aufforderung.webp', 'Arbeits Aufforderung', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
     // ${tile('Schlusszeugnis.webp', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
     // ${tile('zwischenzeugnis.webp', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
-    const statistikBtn = ['admin', 'superuser', 'buchhaltung'].includes(currentUser?.role)
-        ? `<button type="button" class="btn-emp-add" onclick="openAusbildungStatistik(selectedEmployeeId)">Ausbildung / Statistik</button>`
-        : '';
-    return `${statistikBtn ? `<div style="margin:4px 0 16px">${statistikBtn}</div>` : ''}
-    <div class="ra-tile-row">
+    return `<div class="ra-tile-row">
         ${tile('probezeit.webp', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
         ${tile('umzug.svg', 'Umzug erfassen', 'openUmzugModal(selectedEmployeeId)')}
         ${kontoTiles}

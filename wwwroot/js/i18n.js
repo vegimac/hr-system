@@ -261,6 +261,7 @@ window.i18n = (function () {
         'ma.tab.absences':           { de: 'Absenzen Zulagen Abzüge',      en: 'Absences, allowances, deductions' },
         'ma.tab.absencesOnly':       { de: 'Absenzen',                     en: 'Absences' },
         'ma.tab.absencesKtg':        { de: 'Absenzen /<br>KTG/UVG',        en: 'Absences /<br>Sick pay' },
+        'ma.tab.availabilityTraining': { de: 'Training,<br>Verfügbar, Statistik', en: 'Training,<br>Available, statistics' },
         'ma.tab.absencesTimes':      { de: 'Absenzen &<br>Zeiten',         en: 'Absences &<br>Times' },
         'ma.tab.ktg':                { de: 'KTG/UVG',                      en: 'Sick pay / accident' },
         'ma.tab.docs':               { de: 'Dokumente',                    en: 'Documents' },

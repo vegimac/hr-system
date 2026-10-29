@@ -10,7 +10,7 @@ namespace HrSystem.Controllers;
 
 /// <summary>
 /// Schulungen &amp; Ausbildungen (Walter-Vorgabe 01.10.2026): Verzeichnis (System →
-/// Verzeichnisse &amp; Vorgaben), Historie pro MA (Tab «Verfügbarkeit / Training») und
+/// Verzeichnisse &amp; Vorgaben), Historie pro MA (Tab «Training, Verfügbar, Statistik») und
 /// die read-only Übersicht «Schulungen» unter Auswertungen. Genau ein Nachweis pro
 /// Eintrag: «in FRED» ohne Dokument oder ein verknüpftes Dokument.
 /// </summary>

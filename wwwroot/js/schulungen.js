@@ -2,7 +2,7 @@
 // schulungen.js — Schulungen & Ausbildungen (Walter-Vorgabe 01.10.2026)
 //
 //  1. Verzeichnis (System → Verzeichnisse & Vorgaben → «Schulungen & Ausbildungen»)
-//  2. Training-Block im MA-Tab «Verfügbarkeit / Training» + Historie
+//  2. Training-Block im MA-Tab «Training, Verfügbar, Statistik» + Historie
 //  3. Erfassen-Maske: Nachweis «in FRED» oder genau ein Dokument
 //  4. Übersicht «Schulungen» (Auswertungen) — nur Ansicht, Klick → MA
 //
@@ -762,7 +762,7 @@ function schulungUebersichtRender() {
         ${zeilen.map(z => {
             const proTyp = new Map((z.zellen || []).map(c => [c.typId, c]));
             return `
-            <tr style="border-top:1px solid rgba(139,139,139,0.16);cursor:pointer" onclick="suOpenMa(${z.employeeId})" title="Im Mitarbeiter öffnen (Tab «Verfügbarkeit / Training»)">
+            <tr style="border-top:1px solid rgba(139,139,139,0.16);cursor:pointer" onclick="suOpenMa(${z.employeeId})" title="Im Mitarbeiter öffnen (Tab «Training, Verfügbar, Statistik»)">
                 <td style="padding:6px 8px"><b style="color:#3f3f3f">${_trEsc(z.vorname)} ${_trEsc(z.nachname)}</b>
                     <span style="color:#8b8b8b;font-size:11px">${_trEsc(z.employeeNumber)}</span></td>
                 <td style="padding:6px 8px;color:#646464">${_trEsc(z.filiale || '')}</td>
