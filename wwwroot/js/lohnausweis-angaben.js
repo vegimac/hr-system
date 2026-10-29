@@ -241,7 +241,7 @@ function laStil() {
         #laAngabenOverlay.la-kompakt .la-maske .la-einzeile,
         #laAngabenOverlay.la-kompakt .la-maske .la-unterzeile {
             display: grid; grid-template-columns: 54px 270px minmax(0, 1fr);
-            column-gap: 12px; align-items: center; justify-content: stretch;
+            column-gap: 16px; align-items: center; justify-content: stretch;
             padding: 5px 12px;
         }
         #laAngabenOverlay.la-kompakt .la-maske .la-unterzeile { padding-top: 2px; padding-bottom: 2px; }
@@ -250,8 +250,8 @@ function laStil() {
             width: auto; flex: none; margin: 0; font-size: 13px; white-space: nowrap;
         }
         #laAngabenOverlay.la-kompakt .la-maske .la-werte {
-            display: grid; grid-template-columns: 200px 196px 156px 156px;
-            column-gap: 12px; align-items: center; flex: none;
+            display: grid; grid-template-columns: minmax(200px, 1.25fr) minmax(190px, 1.15fr) minmax(160px, 1fr) minmax(180px, 1.05fr);
+            column-gap: 16px; align-items: center; flex: none; width: 100%;
         }
         #laAngabenOverlay.la-kompakt .la-maske .la-adr {
             display: flex; flex-direction: column; gap: 8px; align-items: stretch;
@@ -259,8 +259,8 @@ function laStil() {
         }
         #laAngabenOverlay.la-kompakt .la-maske .la-adr-zeile {
             display: grid;
-            grid-template-columns: 54px 270px 200px 196px 156px 156px;
-            column-gap: 12px; align-items: end; justify-content: stretch;
+            grid-template-columns: 54px 270px minmax(200px, 1.25fr) minmax(190px, 1.15fr) minmax(160px, 1fr) minmax(180px, 1.05fr);
+            column-gap: 16px; align-items: end; justify-content: stretch;
         }
         #laAngabenOverlay.la-kompakt .la-maske .la-karte { padding: 0; }
         #laAngabenOverlay.la-kompakt .la-maske .la-badge {

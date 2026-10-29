@@ -10053,7 +10053,7 @@ body.theme-dark .la-ghost-row.hat .la-ghost-nr { color: #f3f0ea; }
 .la-maske .la-unterzeile {
     display: grid;
     grid-template-columns: 54px 270px minmax(0, 1fr);
-    column-gap: 12px; align-items: center;
+    column-gap: 16px; align-items: center;
     padding: 5px 12px;
 }
 .la-maske .la-unterzeile { padding-top: 2px; padding-bottom: 2px; }
@@ -10063,17 +10063,17 @@ body.theme-dark .la-ghost-row.hat .la-ghost-nr { color: #f3f0ea; }
     font-size: 13px; font-weight: 700; color: #3f3f3f; white-space: nowrap;
 }
 .la-maske .la-werte {
-    display: grid;
-    grid-template-columns: 200px 196px 156px 156px;
-    column-gap: 12px; align-items: center;
+    display: grid; width: 100%;
+    grid-template-columns: minmax(200px, 1.25fr) minmax(190px, 1.15fr) minmax(160px, 1fr) minmax(180px, 1.05fr);
+    column-gap: 16px; align-items: center;
 }
 .la-maske .la-inline { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .la-maske .la-mini-l { font-size: 11px; font-weight: 650; color: #8b8b8b; flex: 0 0 auto; }
 .la-maske .la-adr { display: flex; flex-direction: column; gap: 8px; padding: 2px 12px 10px; }
 .la-maske .la-adr-zeile {
     display: grid;
-    grid-template-columns: 54px 270px 200px 196px 156px 156px;
-    column-gap: 12px; align-items: end;
+    grid-template-columns: 54px 270px minmax(200px, 1.25fr) minmax(190px, 1.15fr) minmax(160px, 1fr) minmax(180px, 1.05fr);
+    column-gap: 16px; align-items: end;
 }
 .la-maske .la-adr .f-label {
     display: flex; flex-direction: column; gap: 3px; margin: 0; width: max-content; max-width: 100%;
@@ -10167,7 +10167,7 @@ body.theme-dark .la-filiale .la-gueltig .lqsel-btn {
     background: rgba(255,255,255,0.08) !important; color: #f3f0ea !important;
     border-color: rgba(255,255,255,0.16) !important;
 }
-.la-filiale-stapel { display: flex; flex-direction: column; gap: 12px; }
+.la-filiale-stapel { display: flex; flex-direction: column; gap: 36px; }
 .la-hist-zeile {
     display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: baseline;
     padding: 7px 0; border-top: 1px solid rgba(90,80,65,0.10);
@@ -11977,7 +11977,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261028h"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
-<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029n"></script>
+<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029o"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
