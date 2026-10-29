@@ -639,12 +639,18 @@ async function laFirmaOeffnen(companyProfileId, ab) {
     ov.style.display = 'flex';
 }
 
-async function laFirmaInAnsicht(companyProfileId, ab, box) {
+async function laFirmaNeuAb(companyProfileId) {
+    const box = document.getElementById('laFilialeAnsicht-' + companyProfileId);
+    if (!box) return;
+    await laFirmaInAnsicht(companyProfileId, null, box, true);
+}
+
+async function laFirmaInAnsicht(companyProfileId, ab, box, neuAb) {
     const url = `/api/companyprofiles/${companyProfileId}/lohnausweis-angaben` + (ab ? '?ab=' + ab : '');
     const r = await fetch(url, { headers: ah() });
     if (!r.ok) { alert('Die Unternehmensangaben konnten nicht geladen werden.'); return; }
     const f = await r.json();
-    if (!ab) {
+    if (!ab && !neuAb) {
         const gezeigt = laFassungFuerJahr(f);
         if (gezeigt && gezeigt.gueltigAb && Number(gezeigt.gueltigAb) !== Number(f.gueltigAb))
             return laFirmaInAnsicht(companyProfileId, gezeigt.gueltigAb, box);
@@ -659,10 +665,10 @@ async function laFirmaInAnsicht(companyProfileId, ab, box) {
         <div class="la-hist-was">${laEsc(laFilialeKurz(h))}</div>
     </div>`).join('');
     box.innerHTML = `<div class="la-filiale-stapel">
-        <section class="la-filiale">
+        <section class="la-filiale${neuAb ? ' la-neu' : ''}">
             <div class="ov-card-h la-kopfzeile">
                 <span>Lohnausweis</span>
-                ${laGueltigLeiste(f)}
+                ${laGueltigLeiste(f, neuAb)}
                 <span class="la-aktionen">
                     <button type="button" class="btn btn-outline" style="font-size:12px;padding:4px 14px" onclick="laFilialeAnsichtLaden(${companyProfileId})">Abbrechen</button>
                     <button type="button" class="btn btn-primary" id="laAnsichtSave" style="font-size:12px;padding:4px 14px">Speichern</button>
@@ -682,6 +688,7 @@ async function laFirmaInAnsicht(companyProfileId, ab, box) {
     laGueltigAnbinden(jahr => laFirmaInAnsicht(companyProfileId, jahr, box));
     laGeschlossen(f.geschlossen);
     laFirmaHinweisHaengen();
+    if (neuAb) laNeuAbVorbereiten();
 }
 
 const laKorrekturSatz = 'Korrektur: das Kreuz in Ziffer 13.1.1 entfällt, weil das Spesenreglement gilt. Noch nicht gespeichert.';
@@ -786,20 +793,46 @@ function laGruppe(badge, titel, text, innen) {
     </section>`;
 }
 
-function laGueltigLeiste(d) {
+function laGueltigLeiste(d, neu) {
     const ab = d.gueltigAb || 2000;
     const staende = d.staende || [];
-    const bisText = d.gueltigBis ? 'bis ' + d.gueltigBis : 'bis offen';
+    const bisText = neu ? 'neue Fassung' : (d.gueltigBis ? 'bis ' + d.gueltigBis : 'bis offen');
     const opts = staende.map(s =>
-        `<option value="${s.ab}"${Number(s.ab) === Number(ab) ? ' selected' : ''}>ab ${s.ab}${s.bis ? ' bis ' + s.bis : ' · offen'}</option>`).join('');
+        `<option value="${s.ab}"${!neu && Number(s.ab) === Number(ab) ? ' selected' : ''}>ab ${s.ab}${s.bis ? ' bis ' + s.bis : ' · offen'}</option>`).join('');
+    const neuOpt = neu ? '<option value="neu" selected>neu ab …</option>' : '';
     return `<div class="la-gueltig">
         <label class="f-label">Gültig ab
-            <input id="laGueltigAb" class="f-input" type="number" min="1990" max="2100" value="${ab}">
+            <input id="laGueltigAb" class="f-input" type="number" min="1990" max="2100" value="${neu ? '' : ab}">
         </label>
         <span id="laGueltigBis">${bisText}</span>
-        ${opts ? `<label class="f-label">Fassung<select id="laFassung" class="f-input">${opts}</select></label>` : ''}
-        <p class="la-satz" style="flex:1 1 220px">Bis bleibt offen. Ein späteres Gültig-ab schliesst diese Fassung per Ende des Vorjahres.</p>
+        ${(opts || neuOpt) ? `<label class="f-label">Fassung<select id="laFassung" class="f-input">${neuOpt}${opts}</select></label>` : ''}
+        <p class="la-satz" style="flex:1 1 220px">Ein späteres Gültig-ab schliesst die bisherige Fassung per Ende des Vorjahres.</p>
     </div>`;
+}
+
+function laNeuAbVorbereiten() {
+    const inp = document.getElementById('laGueltigAb');
+    const bis = document.getElementById('laGueltigBis');
+    const sel = document.getElementById('laFassung');
+    const offen = Number(window._laGeladenAb) || 2000;
+    const jahr = Math.max(new Date().getFullYear(), offen + 1);
+    const zeige = () => {
+        const wert = parseInt(inp?.value, 10);
+        const ok = Number.isFinite(wert) && wert > offen && wert <= 2100;
+        laSaveKnopf(!ok);
+        if (bis) bis.textContent = ok ? 'neue Fassung · bisherige gilt bis ' + (wert - 1) : 'neue Fassung · Jahr nach ' + offen;
+        const opt = sel?.querySelector('option[value="neu"]');
+        if (opt) opt.textContent = ok ? 'neu ab ' + wert : 'neu ab …';
+        if (sel && sel.value !== 'neu') sel.value = 'neu';
+        if (sel?._lqRefresh) sel._lqRefresh();
+    };
+    if (inp) {
+        inp.value = String(jahr);
+        inp.oninput = zeige;
+        inp.onchange = zeige;
+        inp.focus();
+    }
+    zeige();
 }
 
 function laGueltigAnbinden(neuLaden) {
@@ -819,6 +852,7 @@ function laGueltigAnbinden(neuLaden) {
     };
     if (inp) inp.onchange = () => zieh(parseInt(inp.value, 10), false);
     if (sel) sel.onchange = () => {
+        if (sel.value === 'neu') return;
         const jahr = parseInt(sel.value, 10);
         if (inp) inp.value = String(jahr);
         zieh(jahr, true);
@@ -1018,7 +1052,7 @@ function laFilialeBlatt(f, id, mitKnopf) {
     return `<section class="la-filiale">
         <div class="ov-card-h" style="margin:0 2px 8px">
             <span>Lohnausweis${zeit ? ' <span class="ov-count">' + laEsc(zeit) + '</span>' : ''}</span>
-            ${mitKnopf ? `<button type="button" class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="laFirmaVonFiliale(${id})">Bearbeiten</button>` : ''}
+            ${mitKnopf ? `<span class="la-aktionen"><button type="button" class="btn btn-outline" style="font-size:12px;padding:4px 14px" onclick="laFirmaNeuAb(${id})">Neu ab</button><button type="button" class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="laFirmaVonFiliale(${id})">Bearbeiten</button></span>` : ''}
         </div>
         ${laAnsichtMaske(f)}
     </section>`;
