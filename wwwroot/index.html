@@ -9879,27 +9879,55 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 
 
 <style>
+#stmDatenModal > .modal {
+    background:
+        radial-gradient(ellipse 70% 50% at 85% -5%, rgba(255,255,255,.70) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 45% at 8% 100%, rgba(180,165,140,.14) 0%, transparent 55%),
+        linear-gradient(160deg, #f6f3ee 0%, #efebe3 48%, #faf8f5 100%) !important;
+    border-radius: 18px;
+}
+#stmDatenModal .modal-hd {
+    background: transparent !important;
+    border-bottom: none !important;
+    padding: 16px 18px 2px !important;
+}
+#stmDatenModal .modal-hd > div > div:first-child { color: #1a1a1a !important; font-size: 17px !important; letter-spacing: -0.01em; }
+#stmDatenModal .modal-ft {
+    background: transparent !important;
+    border-top: none !important;
+    padding: 4px 18px 14px !important;
+}
 #stmDatenModal .stm-body {
     display: flex; flex-direction: column; gap: 10px;
-    padding: 10px 18px 12px; overflow: hidden;
+    padding: 8px 16px 6px; overflow: hidden;
 }
 #stmDatenModal .stm-sec {
-    font-weight: 700; font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
-    color: #8b8b8b; margin: 0 0 6px;
+    font-size: 14px; font-weight: 760; letter-spacing: -0.01em; text-transform: none;
+    color: #1a1a1a; margin: 0 0 8px;
 }
-#stmDatenModal .f-label { font-size: 11px; margin-bottom: 2px; }
+#stmDatenModal .f-label { font-size: 11px; font-weight: 650; color: #8b8b8b; margin-bottom: 3px; }
 #stmDatenModal .f-input, #stmDatenModal .f-select, #stmDatenModal .lqsel-btn {
-    padding: 4px 8px !important; min-height: 28px; font-size: 12.5px;
+    padding: 5px 10px !important; min-height: 30px; font-size: 13px;
 }
 #stmDatenModal .stm-hs {
-    display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px; align-items: center;
+    display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: center;
 }
-#stmDatenModal .stm-hs .f-label { margin: 0; }
+#stmDatenModal .stm-hs .f-label { margin: 0; font-size: 13px; font-weight: 760; color: #1a1a1a; }
 #stmDatenModal .stm-karte {
-    background: rgba(255,255,255,0.45);
-    border: 1px solid rgba(255,255,255,0.78);
-    border-radius: 14px;
-    padding: 10px 12px 12px;
+    border: 1px solid transparent;
+    border-radius: 16px;
+    padding: 12px 14px 12px;
+    background-color: #e9e6dd;
+    background-image:
+        linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%),
+        linear-gradient(135deg, rgba(255,255,255,.98) 0%, rgba(210,200,185,.55) 35%, rgba(120,110,95,.22) 62%, rgba(255,255,255,.88) 100%);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    box-shadow:
+        0 0 0 1px rgba(90,80,65,.10),
+        0 4px 12px rgba(60,55,48,.08),
+        0 16px 32px rgba(60,55,48,.10),
+        inset 0 1px 0 rgba(255,255,255,.85);
 }
 #stmDatenModal .stm-strasse { display: grid; grid-template-columns: minmax(0, 1.7fr) 88px minmax(0, 1fr); gap: 8px; margin-top: 6px; }
 #stmDatenModal .stm-ort { display: grid; grid-template-columns: 78px minmax(0, 1.5fr) minmax(0, 1.15fr) minmax(0, 1fr); gap: 8px; margin-top: 6px; }
@@ -9907,6 +9935,16 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 #stmDatenModal .stm-rest { display: grid; grid-template-columns: 1fr 1.15fr; gap: 8px 16px; }
 #stmDatenModal .stm-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #stmDatenModal .stm-4 { display: grid; grid-template-columns: 1fr 1fr 1.3fr 0.7fr; gap: 8px; }
+body.theme-dark #stmDatenModal .stm-karte {
+    background-color: rgba(255,255,255,0.06);
+    background-image: none;
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: none;
+}
+body.theme-dark #stmDatenModal .stm-sec,
+body.theme-dark #stmDatenModal .stm-hs .f-label,
+body.theme-dark #stmDatenModal .modal-hd > div > div:first-child { color: #f3f0ea !important; }
+body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
 </style>
 <!-- ═══════════════ ALV-DATEN MODAL ═══════════════ -->
 <!-- ═══════════════ FILIAL-STAMMDATEN MODAL (komplett) ═══════════════ -->
@@ -9927,7 +9965,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <div class="stm-body">
-            <div class="stm-hs">
+            <div class="stm-karte stm-hs">
                 <label class="f-label">Hauptsitz</label>
                 <select id="stmHauptsitz" class="f-input" title="Rechtseinheit für die Swissdec-Jahresmeldung"><option value="">— nicht zugeordnet —</option></select>
             </div>
@@ -9993,7 +10031,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
             </section>
             <div class="stm-rest">
-                <section>
+                <section class="stm-karte">
                     <div class="stm-sec">Filiale</div>
                     <div class="stm-2">
                         <div><label class="f-label">Anzeigename</label><input id="stmBranchName" class="f-input" placeholder="z.B. Sursee"></div>
@@ -10031,7 +10069,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <option value="3">3 Monate</option>
                     </select>
                 </section>
-                <section>
+                <section class="stm-karte">
                     <div class="stm-sec">Betrieb</div>
                     <div class="stm-2">
                         <div><label class="f-label">BUR-Nummer</label><input id="stmBurNummer" class="f-input" placeholder="A89058593" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px" title="Ein Buchstabe und 8 Ziffern, Prüfung beim Verlassen"></div>
