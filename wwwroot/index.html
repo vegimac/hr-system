@@ -10073,6 +10073,44 @@ body.theme-dark .stm-ansicht.stm-edit .lqsel-btn:focus {
     border-color: rgba(145, 200, 255, 0.28) !important;
 }
 body.theme-dark .stm-ansicht.stm-edit .stm-gav { color: #f3f0ea !important; }
+.hs-karte {
+    max-width: 960px; margin-bottom: 14px; padding: 16px 18px 14px;
+    border: 1px solid transparent; border-radius: 16px;
+    background-color: #e9e6dd;
+    background-image:
+        linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%),
+        linear-gradient(135deg, rgba(255,255,255,.98) 0%, rgba(210,200,185,.55) 35%, rgba(120,110,95,.22) 62%, rgba(255,255,255,.88) 100%);
+    background-origin: padding-box, border-box; background-clip: padding-box, border-box;
+    box-shadow: 0 0 0 1px rgba(90,80,65,.10), 0 8px 22px rgba(60,55,48,.08), inset 0 1px 0 rgba(255,255,255,.85);
+}
+.hs-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.hs-titel { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.hs-name { font-size: 17px; font-weight: 760; color: #1a1a1a; letter-spacing: -0.01em; }
+.hs-uid { background: #fff; border: 1px solid rgba(60,55,48,0.16); border-radius: 8px; padding: 1px 8px; font-size: 12px; font-family: ui-monospace, Menlo, monospace; color: #3f3f3f; }
+.hs-inaktiv { background: #fee2e2; color: #991b1b; border-radius: 8px; padding: 0 7px; font-size: 11px; font-weight: 650; }
+.hs-raster { display: grid; grid-template-columns: minmax(220px, 1.1fr) minmax(200px, 0.9fr); gap: 8px 36px; }
+.hs-lbl, .hs-azm-head { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #8b8b8b; margin-bottom: 3px; }
+.hs-wert { font-size: 14.5px; font-weight: 700; color: #1a1a1a; line-height: 1.35; }
+.hs-notiz, .hs-leer { font-size: 12.5px; font-weight: 500; color: #8b8b8b; line-height: 1.4; margin-top: 3px; }
+.hs-warn { font-size: 12.5px; color: #b45309; line-height: 1.4; }
+.hs-filialen { margin-top: 12px; }
+.hs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hs-chip { background: #fff; border: 1px solid rgba(60,55,48,0.14); border-radius: 8px; padding: 3px 9px; font-size: 12.5px; font-weight: 650; color: #3f3f3f; }
+.hs-azm { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(90,80,65,0.12); }
+.hs-azm-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.hs-abschnitt { font-size: 14px; font-weight: 760; color: #1a1a1a; }
+.hs-neu { background: #3f3f3f; border: none; border-radius: 12px; padding: 6px 14px; font-size: 12.5px; font-weight: 650; color: #fff; cursor: pointer; font-family: inherit; }
+.hs-azm-zeile { display: grid; grid-template-columns: 188px minmax(120px, 1.3fr) minmax(160px, 1fr) 44px 28px; gap: 8px 14px; align-items: center; padding: 7px 2px; border-top: 1px solid rgba(90,80,65,0.08); }
+.hs-azm-head { border-top: none; padding-bottom: 2px; margin: 0; }
+.hs-azm-head span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #8b8b8b; }
+.hs-kennung { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: #8b8b8b; }
+.hs-bez { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+.hs-zeit { font-size: 13px; color: #3f3f3f; }
+.hs-zeit-fehl { color: #b91c1c; font-weight: 650; }
+.hs-ma { font-size: 14px; font-weight: 700; color: #1a1a1a; text-align: right; }
+body.theme-dark .hs-karte { background: rgba(255,255,255,0.06); background-image: none; box-shadow: none; border-color: rgba(255,255,255,0.12); }
+body.theme-dark .hs-name, body.theme-dark .hs-wert, body.theme-dark .hs-bez, body.theme-dark .hs-ma, body.theme-dark .hs-abschnitt { color: #f3f0ea; }
+body.theme-dark .hs-uid, body.theme-dark .hs-chip { background: rgba(255,255,255,0.08); color: #f3f0ea; border-color: rgba(255,255,255,0.16); }
 .la-ghost { display: flex; flex-direction: column; gap: 14px; }
 .la-zone-fg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .la-zone-fg .la-ghost-row {
@@ -11340,7 +11378,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/swissdec-komm.js?v=20261015a"></script>
 <script type="text/plain" data-modul="js/swissdec-systemtest.js?v=20261028a"></script>
 <script type="text/plain" data-modul="js/swissdec-uebermittlung.js?v=20261002b"></script>
-<script type="text/plain" data-modul="js/hauptsitze.js?v=20261026a"></script>
+<script type="text/plain" data-modul="js/hauptsitze.js?v=20261029a"></script>
 <script type="text/plain" data-modul="js/arbeitszeit-regeln.js?v=20261007d"></script>
 <script type="text/plain" data-modul="js/feiertage.js?v=20261007a"></script>
 <script type="text/plain" data-modul="js/exit-survey-report.js?v=20260726h"></script>

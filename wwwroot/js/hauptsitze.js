@@ -33,15 +33,23 @@ function hsRender() {
             Der Hauptsitz ist die Rechtseinheit (GmbH) mit ihrer UID; die Filialen werden ihm im Filial-Stammdaten-Modal zugeordnet.</div>`;
         return;
     }
-    el.innerHTML = _hsList.map(h => `
-        <div style="background:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.62);border-radius:14px;padding:14px 16px;margin-bottom:10px;max-width:860px;box-shadow:0 2px 8px rgba(60,55,48,0.08)">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <div style="font-weight:800;font-size:15px;color:#3f3f3f">🏛 ${esc(h.name)}</div>
-                ${h.uid ? `<span style="background:#fff;border:1px solid rgba(60,55,48,0.18);border-radius:8px;padding:1px 8px;font-size:12px;font-family:ui-monospace,Menlo,monospace">${esc(h.uid)}</span>`
-                        : '<span style="color:#b45309;font-size:12px">⚠ UID fehlt</span>'}
-                ${h.isActive ? '' : '<span style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:1px 8px;font-size:11.5px">inaktiv</span>'}
-                <span style="flex:1"></span>
-                <div style="position:relative;display:inline-block">
+    const zeile = (v) => v ? `<div class="hs-wert">${esc(v)}</div>` : '';
+    el.innerHTML = _hsList.map(h => {
+        const ort = [h.plz, h.ort].filter(Boolean).join(' ');
+        const sitz = [ort, h.kantonCode].filter(Boolean).join(' · ');
+        const filialen = h.filialen && h.filialen.length
+            ? h.filialen.map(f => `<span class="hs-chip">${esc((f.restaurantCode ? f.restaurantCode + ' ' : '') + f.name)}</span>`).join('')
+            : '<div class="hs-warn">keine zugeordnet — Zuordnung in den Filial-Stammdaten</div>';
+        const kontakt = [h.kontaktName, h.kontaktEmail, h.kontaktTelefon].filter(Boolean);
+        return `
+        <article class="hs-karte">
+            <header class="hs-kopf">
+                <div class="hs-titel">
+                    <div class="hs-name">${esc(h.name)}</div>
+                    ${h.uid ? `<span class="hs-uid">${esc(h.uid)}</span>` : '<span class="hs-warn">UID fehlt</span>'}
+                    ${h.isActive ? '' : '<span class="hs-inaktiv">inaktiv</span>'}
+                </div>
+                <div style="position:relative">
                     <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'hs-${h.id}')" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="dokMenu-hs-${h.id}">
                         <button class="dok-menu-item" onclick="dokCloseAllMenus();hsOpenModal(${h.id})">Bearbeiten</button>
@@ -49,24 +57,28 @@ function hsRender() {
                         <button class="dok-menu-item danger" onclick="dokCloseAllMenus();hsDelete(${h.id})">Löschen</button>
                     </div>
                 </div>
+            </header>
+            <div class="hs-raster">
+                <section>
+                    <div class="hs-lbl">Adresse</div>
+                    ${zeile(h.strasse) || (!sitz ? '<div class="hs-leer">–</div>' : '')}
+                    ${zeile(sitz)}
+                    ${h.bemerkung ? `<div class="hs-notiz">${esc(h.bemerkung)}</div>` : ''}
+                </section>
+                <section>
+                    <div class="hs-lbl">Kontakt für Lohnmeldungen</div>
+                    ${kontakt.length
+                        ? kontakt.map(v => `<div class="hs-wert">${esc(v)}</div>`).join('')
+                        : '<div class="hs-warn">nicht erfasst — in der Meldung erscheint der erste Admin-Benutzer</div>'}
+                </section>
             </div>
-            <div style="font-size:12.5px;color:#646464;margin-top:4px">
-                ${[h.strasse, [h.plz, h.ort].filter(Boolean).join(' '), h.kantonCode].filter(Boolean).join(' · ') || '—'}
-                ${h.bemerkung ? ' · <span style="color:#8b8b8b">' + esc(h.bemerkung) + '</span>' : ''}
-            </div>
-            <div style="font-size:12.5px;margin-top:6px">
-                <span style="font-weight:600;color:#646464">Filialen:</span>
-                ${h.filialen && h.filialen.length
-                    ? h.filialen.map(f => `<span style="background:#fff;border:1px solid rgba(60,55,48,0.14);border-radius:8px;padding:1px 8px;margin-right:4px;display:inline-block;margin-top:3px">${esc((f.restaurantCode ? f.restaurantCode + ' ' : '') + f.name)}</span>`).join('')
-                    : '<span style="color:#b45309">keine zugeordnet — Zuordnung im Filial-Stammdaten-Modal («Bearbeiten» bei der Filiale)</span>'}
-            </div>
-            <div style="font-size:12.5px;margin-top:6px">
-                <span style="font-weight:600;color:#646464">Kontakt für Lohnmeldungen:</span>
-                ${[h.kontaktName, h.kontaktEmail, h.kontaktTelefon].filter(Boolean).join(' · ')
-                    || '<span style="color:#b45309">nicht erfasst — in der Meldung erscheint der erste Admin-Benutzer</span>'}
-            </div>
-            <div id="azmBlock-${h.id}" style="margin-top:10px;padding-top:9px;border-top:1px solid rgba(60,55,48,0.12)"></div>
-        </div>`).join('');
+            <section class="hs-filialen">
+                <div class="hs-lbl">Filialen</div>
+                <div class="hs-chips">${filialen}</div>
+            </section>
+            <div id="azmBlock-${h.id}" class="hs-azm"></div>
+        </article>`;
+    }).join('');
     _hsList.forEach(h => azmRender(h.id));
 }
 
@@ -90,38 +102,28 @@ function azmRender(hauptsitzId) {
         ? `${Number(m.wochenstunden).toFixed(2)} h + ${Number(m.wochenlektionen).toFixed(2)} Lekt./Wo`
         : m.wochenlektionen ? `${Number(m.wochenlektionen).toFixed(2)} Lektionen/Wo`
         : m.wochenstunden ? `${Number(m.wochenstunden).toFixed(2)} h/Wo` : 'keine Zeit erfasst';
-    const pill = 'display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:8px 10px 8px 12px;margin:0';
     el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="hs-azm-kopf">
             <div>
-                <div style="font-weight:700;color:#3f3f3f;font-size:13px">Arbeitszeitmodelle</div>
-                <div style="font-size:11.5px;color:#8b8b8b;margin-top:1px">Swissdec CompanyWorkingTime · Zuordnung am MA</div>
+                <div class="hs-abschnitt">Arbeitszeitmodelle</div>
+                <div class="hs-notiz">Zuordnung am Mitarbeiter</div>
             </div>
-            <span style="flex:1"></span>
-            <button type="button" onclick="azmNeu(${hauptsitzId})"
-                style="background:#3f3f3f;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit">+ Modell</button>
+            <button type="button" class="hs-neu" onclick="azmNeu(${hauptsitzId})">+ Modell</button>
         </div>
         ${liste.length === 0
-            ? `<div style="${pill};width:100%;box-sizing:border-box;font-size:12.5px;color:#8b8b8b;line-height:1.45">
-                Noch keines erfasst — die Meldung nimmt ein Standardmodell aus den Wochenstunden der Filiale.
-               </div>`
-            : `<div style="display:flex;flex-direction:column;gap:6px">${liste.map(m => {
-                const belegt = (m.mitarbeiter || 0) > 0;
-                const zeitFarbe = m.meldefaehig ? '#646464' : '#b91c1c';
-                return `
-                <div style="${pill}">
-                    <span style="background:#f3f1ec;border:1px solid rgba(60,55,48,0.10);border-radius:8px;padding:2px 8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#646464;flex:0 0 auto">${esc(m.kennungOderId)}</span>
-                    <div style="min-width:0;flex:1 1 auto">
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                            <span style="font-weight:700;font-size:13px;color:#3f3f3f">${esc(m.bezeichnung)}</span>
-                            ${m.isActive ? '' : '<span style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:0 7px;font-size:11px;font-weight:600">inaktiv</span>'}
-                        </div>
-                        <div style="font-size:12px;margin-top:2px;color:${zeitFarbe}">
-                            ${zeit(m)}${m.ferientageProJahr ? ` · ${Number(m.ferientageProJahr).toFixed(0)} Ferientage` : ''}
-                            · <span style="color:#8b8b8b">${m.mitarbeiter} MA</span>
-                        </div>
-                    </div>
-                    <div style="position:relative;display:inline-block;flex:0 0 auto">
+            ? `<div class="hs-leer">Noch keines erfasst — die Meldung nimmt ein Standardmodell aus den Wochenstunden der Filiale.</div>`
+            : `<div class="hs-azm-tab">
+                <div class="hs-azm-zeile hs-azm-head"><span>Kennung</span><span>Bezeichnung</span><span>Zeit</span><span>MA</span><span></span></div>
+                ${liste.map(m => {
+                    const belegt = (m.mitarbeiter || 0) > 0;
+                    const ferien = m.ferientageProJahr ? ` · ${Number(m.ferientageProJahr).toFixed(0)} Ferientage` : '';
+                    return `
+                <div class="hs-azm-zeile">
+                    <span class="hs-kennung">${esc(m.kennungOderId)}</span>
+                    <span class="hs-bez">${esc(m.bezeichnung)}${m.isActive ? '' : ' <span class="hs-inaktiv">inaktiv</span>'}</span>
+                    <span class="${m.meldefaehig ? 'hs-zeit' : 'hs-zeit hs-zeit-fehl'}">${zeit(m)}${ferien}</span>
+                    <span class="hs-ma">${m.mitarbeiter}</span>
+                    <div style="position:relative">
                         <button type="button" class="dok-menu-btn" onclick="dokToggleMenu(event, 'azm-${m.id}')" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="dokMenu-azm-${m.id}">
                             <button type="button" class="dok-menu-item" onclick="dokCloseAllMenus();azmBearbeiten(${m.id})">Bearbeiten</button>
@@ -131,7 +133,8 @@ function azmRender(hauptsitzId) {
                         </div>
                     </div>
                 </div>`;
-            }).join('')}</div>`}`;
+                }).join('')}
+               </div>`}`;
 }
 
 let _azmEditId = null;
