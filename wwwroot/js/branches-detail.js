@@ -240,11 +240,13 @@ function stmLeer(v) {
     const s = v == null ? '' : String(v).trim();
     return s ? stmEsc(s) : '<span class="ov-empty">–</span>';
 }
-function stmFeld(label, inhalt) {
-    return `<div class="ov-pf"><div class="ov-pfl">${label}</div><div class="ov-pfv">${inhalt}</div></div>`;
+function stmFeld(label, inhalt, breite, hinweis) {
+    const w = breite ? ` stm-w-${breite}` : '';
+    const h = hinweis ? `<div class="stm-hinweis">${hinweis}</div>` : '';
+    return `<div class="ov-pf${w}"><div class="ov-pfl">${label}</div><div class="ov-pfv">${inhalt}</div>${h}</div>`;
 }
-function stmInline(id, breite, extra) {
-    return `<input id="${id}" class="stm-inline ov-softin stm-w-${breite}" autocomplete="off"${extra ? ' ' + extra : ''}>`;
+function stmInline(id, extra) {
+    return `<input id="${id}" class="stm-inline ov-softin" autocomplete="off"${extra ? ' ' + extra : ''}>`;
 }
 function stmWertSlot(ansicht, label) {
     for (const pf of ansicht.querySelectorAll('.ov-pf')) {
@@ -270,23 +272,23 @@ function stmAnsichtZuEdit(ansicht, b) {
         hs.innerHTML = '<select id="stmHauptsitz" class="stm-inline ov-softin" title="Rechtseinheit für die Swissdec-Jahresmeldung"><option value="">nicht zugeordnet</option></select>';
     }
     const texte = [
-        ['Firma', 'stmCompanyName', 'firma'],
-        ['Strasse', 'stmStreet', 'str'],
-        ['Nr.', 'stmHouseNumber', 'nr'],
-        ['Postfach', 'stmPostfach', 'pf'],
-        ['Ort', 'stmCity', 'ort'],
-        ['Lokalität', 'stmLokalitaet', 'lok'],
-        ['Telefon', 'stmPhone', 'tel'],
-        ['E-Mail', 'stmEmail', 'mail'],
-        ['Filiale', 'stmBranchName', 'fil'],
-        ['Code', 'stmRestaurantCode', 'code'],
-        ['BUR-Nummer', 'stmBurNummer', 'bur'],
-        ['UID-Nummer', 'stmUidNummer', 'uid'],
-        ['Branchen-Code', 'stmBranchenCode', 'noga'],
-        ['BFS-Nr.', 'stmBfsGemeindeNr', 'bfs'],
+        ['Firma', 'stmCompanyName'],
+        ['Strasse', 'stmStreet'],
+        ['Nr.', 'stmHouseNumber'],
+        ['Postfach', 'stmPostfach'],
+        ['Ort', 'stmCity'],
+        ['Lokalität', 'stmLokalitaet'],
+        ['Telefon', 'stmPhone'],
+        ['E-Mail', 'stmEmail'],
+        ['Filiale', 'stmBranchName'],
+        ['Code', 'stmRestaurantCode'],
+        ['BUR-Nummer', 'stmBurNummer'],
+        ['UID-Nummer', 'stmUidNummer'],
+        ['Branchen-Code', 'stmBranchenCode'],
+        ['BFS-Nr.', 'stmBfsGemeindeNr'],
     ];
-    texte.forEach(([label, id, breite]) => stmSlotSetzen(ansicht, label, stmInline(id, breite)));
-    stmSlotSetzen(ansicht, 'PLZ', stmInline('stmZipCode', 'plz', 'inputmode="numeric" maxlength="10" onblur="stmPlzLookup(this.value)" onkeyup="if(this.value.length>=4)stmPlzLookup(this.value)"'));
+    texte.forEach(([label, id]) => stmSlotSetzen(ansicht, label, stmInline(id)));
+    stmSlotSetzen(ansicht, 'PLZ', stmInline('stmZipCode', 'inputmode="numeric" maxlength="10" onblur="stmPlzLookup(this.value)" onkeyup="if(this.value.length>=4)stmPlzLookup(this.value)"'));
     const plzZeile = stmWertSlot(ansicht, 'PLZ')?.closest('.stm-zeile');
     if (plzZeile && !ansicht.querySelector('#stmPlzHint'))
         plzZeile.insertAdjacentHTML('afterend', '<div id="stmPlzHint" class="stm-hinweis"></div>');
@@ -294,8 +296,8 @@ function stmAnsichtZuEdit(ansicht, b) {
         .concat(Object.keys(STM_KANTON).map(k => `<option value="${k}">${k} – ${STM_KANTON[k]}</option>`));
     stmSlotSetzen(ansicht, 'Kanton', `<select id="stmKantonCode" class="stm-inline ov-softin">${ktOpts.join('')}</select>`);
     stmSlotSetzen(ansicht, 'Land', '<select id="stmCountry" class="stm-inline ov-softin"></select>');
-    stmSlotSetzen(ansicht, 'Nummernkreis', stmInline('stmPnPraefix', 'kreis', 'maxlength="6" inputmode="numeric" oninput="stmPnVorschau()"'));
-    stmSlotSetzen(ansicht, 'Stellen', stmInline('stmPnStellen', 'st', 'maxlength="2" inputmode="numeric" oninput="stmPnVorschau()"'));
+    stmSlotSetzen(ansicht, 'Nummernkreis', stmInline('stmPnPraefix', 'maxlength="6" inputmode="numeric" oninput="stmPnVorschau()"'));
+    stmSlotSetzen(ansicht, 'Stellen', stmInline('stmPnStellen', 'maxlength="2" inputmode="numeric" oninput="stmPnVorschau()"'));
     const kreisZeile = stmWertSlot(ansicht, 'Nummernkreis')?.closest('.stm-zeile');
     let kreisHinweis = ansicht.querySelector('.stm-kreis-hinweis');
     if (!kreisHinweis && kreisZeile) {
@@ -305,12 +307,11 @@ function stmAnsichtZuEdit(ansicht, b) {
     }
     stmSlotSetzen(ansicht, 'GAV',
         '<label class="stm-gav"><input type="checkbox" id="stmIstGav" onchange="stmToggleGavName()"><span id="stmGavTxt">Nein</span></label>'
-        + '<div id="stmGavNameRow" style="display:none">' + stmInline('stmGavName', 'gav') + '</div>');
+        + '<input id="stmGavName" class="stm-inline ov-softin stm-gav-name" autocomplete="off" style="display:none">');
     stmSlotSetzen(ansicht, 'Probezeit',
         '<select id="stmProbationMonths" class="stm-inline ov-softin"><option value="">–</option><option value="14">14 Tage</option><option value="1">1 Monat</option><option value="2">2 Monate</option><option value="3">3 Monate</option></select>');
-    const ihHint = (b.inHouseId || '').trim() ? '' : '<div class="stm-hinweis">nur wenn keine BUR</div>';
-    stmSlotSetzen(ansicht, 'InHouseID', stmInline('stmInHouseId', 'ih') + ihHint);
-    stmSlotSetzen(ansicht, 'Arbeitsort', stmInline('stmWorkLocation', 'arbeit') + '<div id="stmArbeitHinweis" class="stm-hinweis"></div>');
+    stmSlotSetzen(ansicht, 'InHouseID', stmInline('stmInHouseId'));
+    stmSlotSetzen(ansicht, 'Arbeitsort', stmInline('stmWorkLocation'));
 }
 
 function stmModalIdsParken() {
@@ -360,12 +361,8 @@ function stmAnsichtHtml(b) {
     const probe = probationLabel(b.probationMonths);
     const probeTxt = probe === '–' ? '<span class="ov-empty">–</span>' : stmEsc(probe);
     const gavTxt = b.istGav ? stmEsc(b.gavName || 'Ja') : 'Nein';
-    const inhouse = b.inHouseId
-        ? stmEsc(b.inHouseId)
-        : '<span class="ov-empty">–</span><div class="stm-hinweis">nur wenn keine BUR</div>';
-    const arbeitsort = b.workLocation
-        ? stmEsc(b.workLocation)
-        : `<span class="ov-empty">–</span><div class="stm-hinweis">Ort der Filiale: ${stmEsc(ort || '–')}</div>`;
+    const inhouse = b.inHouseId ? stmEsc(b.inHouseId) : '<span class="ov-empty">–</span>';
+    const arbeitsort = b.workLocation ? stmEsc(b.workLocation) : '<span class="ov-empty">–</span>';
     const p = String(b.personalnummerPraefix || '').replace(/\D/g, '').replace(/^0+/, '');
     const st = Number(b.personalnummerStellen);
     const kreisHinweis = (p && Number.isFinite(st) && st > 0)
@@ -380,58 +377,58 @@ function stmAnsichtHtml(b) {
                             <button type="button" class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="stmBearbeiten(${b.id})">Bearbeiten</button>
                         </span>
                     </div>
-                    <div class="ov-pfv" id="stmHauptsitzAnzeige-${b.id}"><span class="ov-empty">–</span></div>
+                    <div class="ov-pfv stm-w-hs" id="stmHauptsitzAnzeige-${b.id}"><span class="ov-empty">–</span></div>
                 </section>
                 <section class="stm-karte-ansicht">
                     <div class="ov-card-h"><span>Adresse</span></div>
-                    <div class="stm-zeile">${stmFeld('Firma', stmLeer(b.companyName))}</div>
+                    <div class="stm-zeile">${stmFeld('Firma', stmLeer(b.companyName), 'firma')}</div>
                     <div class="stm-zeile">
-                        ${stmFeld('Strasse', stmLeer(b.street))}
-                        ${stmFeld('Nr.', stmLeer(b.houseNumber))}
-                        ${stmFeld('Postfach', stmLeer(b.postfach))}
+                        ${stmFeld('Strasse', stmLeer(b.street), 'str')}
+                        ${stmFeld('Nr.', stmLeer(b.houseNumber), 'nr')}
+                        ${stmFeld('Postfach', stmLeer(b.postfach), 'pf')}
                     </div>
                     <div class="stm-zeile">
-                        ${stmFeld('PLZ', stmLeer(b.zipCode))}
-                        ${stmFeld('Ort', stmLeer(ort))}
-                        ${stmFeld('Kanton', kantonTxt)}
-                        ${stmFeld('Land', landTxt)}
+                        ${stmFeld('PLZ', stmLeer(b.zipCode), 'plz')}
+                        ${stmFeld('Ort', stmLeer(ort), 'ort')}
+                        ${stmFeld('Kanton', kantonTxt, 'kt')}
+                        ${stmFeld('Land', landTxt, 'land')}
                     </div>
                     <div class="stm-zeile">
-                        ${stmFeld('Lokalität', stmLeer(b.lokalitaet))}
-                        ${stmFeld('Telefon', stmLeer(b.phone))}
-                        ${stmFeld('E-Mail', stmLeer(b.email))}
+                        ${stmFeld('Lokalität', stmLeer(b.lokalitaet), 'lok')}
+                        ${stmFeld('Telefon', stmLeer(b.phone), 'tel')}
+                        ${stmFeld('E-Mail', stmLeer(b.email), 'mail')}
                     </div>
                 </section>
                 <div class="stm-zwei">
                     <section class="stm-karte-ansicht">
                         <div class="ov-card-h"><span>Filiale</span></div>
                         <div class="stm-zeile">
-                            ${stmFeld('Filiale', stmLeer(b.branchName))}
-                            ${stmFeld('Code', stmLeer(b.restaurantCode))}
+                            ${stmFeld('Filiale', stmLeer(b.branchName), 'fil')}
+                            ${stmFeld('Code', stmLeer(b.restaurantCode), 'code')}
                         </div>
                         <div class="stm-zeile">
-                            ${stmFeld('Nummernkreis', stmLeer(p))}
-                            ${stmFeld('Stellen', (Number.isFinite(st) && st > 0) ? stmEsc(String(st)) : '<span class="ov-empty">–</span>')}
+                            ${stmFeld('Nummernkreis', stmLeer(p), 'kreis')}
+                            ${stmFeld('Stellen', (Number.isFinite(st) && st > 0) ? stmEsc(String(st)) : '<span class="ov-empty">–</span>', 'st')}
                         </div>
                         ${kreisHinweis}
                         <div class="stm-zeile">
-                            ${stmFeld('GAV', gavTxt)}
-                            ${stmFeld('Probezeit', probeTxt)}
+                            ${stmFeld('GAV', gavTxt, 'gav')}
+                            ${stmFeld('Probezeit', probeTxt, 'probe')}
                         </div>
                     </section>
                     <section class="stm-karte-ansicht">
                         <div class="ov-card-h"><span>Betrieb</span></div>
                         <div class="stm-zeile">
-                            ${stmFeld('BUR-Nummer', stmLeer(b.burNummer))}
-                            ${stmFeld('InHouseID', inhouse)}
+                            ${stmFeld('BUR-Nummer', stmLeer(b.burNummer), 'bur')}
+                            ${stmFeld('InHouseID', inhouse, 'ih', b.inHouseId ? '' : 'nur wenn keine BUR')}
                         </div>
                         <div class="stm-zeile">
-                            ${stmFeld('UID-Nummer', stmLeer(b.uidNummer))}
-                            ${stmFeld('Branchen-Code', stmLeer(b.branchenCode))}
+                            ${stmFeld('UID-Nummer', stmLeer(b.uidNummer), 'uid')}
+                            ${stmFeld('Branchen-Code', stmLeer(b.branchenCode), 'noga')}
                         </div>
                         <div class="stm-zeile">
-                            ${stmFeld('BFS-Nr.', stmLeer(b.bfsGemeindeNr))}
-                            ${stmFeld('Arbeitsort', arbeitsort)}
+                            ${stmFeld('BFS-Nr.', stmLeer(b.bfsGemeindeNr), 'bfs')}
+                            ${stmFeld('Arbeitsort', arbeitsort, 'arbeit', b.workLocation ? '' : ('Ort der Filiale: ' + stmEsc(ort || '–')))}
                         </div>
                     </section>
                 </div>
@@ -1583,8 +1580,8 @@ function stmToggleGavName() {
     const box = document.getElementById('stmIstGav');
     if (!box) return;
     const checked = box.checked;
-    const row = document.getElementById('stmGavNameRow');
-    if (row) row.style.display = checked ? 'block' : 'none';
+    const name = document.getElementById('stmGavName');
+    if (name) name.style.display = checked ? 'block' : 'none';
     const txt = document.getElementById('stmGavTxt');
     if (txt) txt.style.display = checked ? 'none' : '';
 }

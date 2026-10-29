@@ -10001,59 +10001,69 @@ body.theme-dark #stmDatenModal .f-label { color: #c8c2b8; }
 .stm-ansicht .ov-pf { margin: 0; }
 .stm-ansicht .ov-pfl { margin-bottom: 1px; }
 .stm-ansicht .ov-pfv {
-    font-size: 15px; font-weight: 700; color: #1a1a1a; line-height: 1.25;
-    background: none; border: none; box-shadow: none; padding: 0; min-height: 0;
+    font-size: 15px; font-weight: 700; color: #1a1a1a; line-height: 30px;
+    background: none; border: none; box-shadow: none; padding: 0;
+    height: 30px; min-height: 30px; box-sizing: border-box;
 }
 .stm-ansicht .ov-empty { color: #b7b1a6; font-weight: 500; font-size: 14px; }
 .stm-hinweis { display: block; margin: 1px 0 0; font-size: 11px; font-weight: 500; color: #a39c92; line-height: 1.3; }
 .stm-kreis-hinweis { margin: -2px 0 6px; }
 .stm-zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
-.stm-ansicht.stm-edit .stm-zeile > .ov-pf { flex: 0 0 auto; width: auto; }
-.stm-ansicht.stm-edit .ov-pfv { display: flex; flex-direction: column; align-items: flex-start; }
+.stm-ansicht .ov-pf.stm-w-firma { width: 280px; flex: 0 0 280px; }
+.stm-ansicht .ov-pf.stm-w-str { width: 200px; flex: 0 0 200px; }
+.stm-ansicht .ov-pf.stm-w-nr { width: 52px; flex: 0 0 52px; }
+.stm-ansicht .ov-pf.stm-w-pf { width: 130px; flex: 0 0 130px; }
+.stm-ansicht .ov-pf.stm-w-plz { width: 72px; flex: 0 0 72px; }
+.stm-ansicht .ov-pf.stm-w-ort { width: 150px; flex: 0 0 150px; }
+.stm-ansicht .ov-pf.stm-w-kt { width: 148px; flex: 0 0 148px; }
+.stm-ansicht .ov-pf.stm-w-land { width: 160px; flex: 0 0 160px; }
+.stm-ansicht .ov-pf.stm-w-lok { width: 160px; flex: 0 0 160px; }
+.stm-ansicht .ov-pf.stm-w-tel { width: 150px; flex: 0 0 150px; }
+.stm-ansicht .ov-pf.stm-w-mail { width: 220px; flex: 0 0 220px; }
+.stm-ansicht .ov-pf.stm-w-fil { width: 180px; flex: 0 0 180px; }
+.stm-ansicht .ov-pf.stm-w-code { width: 64px; flex: 0 0 64px; }
+.stm-ansicht .ov-pf.stm-w-kreis { width: 88px; flex: 0 0 88px; }
+.stm-ansicht .ov-pf.stm-w-st { width: 48px; flex: 0 0 48px; }
+.stm-ansicht .ov-pf.stm-w-gav { width: 180px; flex: 0 0 180px; }
+.stm-ansicht .ov-pf.stm-w-probe { width: 120px; flex: 0 0 120px; }
+.stm-ansicht .ov-pf.stm-w-bur { width: 130px; flex: 0 0 130px; }
+.stm-ansicht .ov-pf.stm-w-ih { width: 110px; flex: 0 0 110px; }
+.stm-ansicht .ov-pf.stm-w-uid { width: 170px; flex: 0 0 170px; }
+.stm-ansicht .ov-pf.stm-w-noga { width: 72px; flex: 0 0 72px; }
+.stm-ansicht .ov-pf.stm-w-bfs { width: 72px; flex: 0 0 72px; }
+.stm-ansicht .ov-pf.stm-w-arbeit { width: 180px; flex: 0 0 180px; }
+.stm-ansicht .stm-w-hs { width: 320px; max-width: 100%; }
 #stmDatenModal { display: none !important; }
 .stm-ansicht.stm-edit .stm-inline,
 .stm-ansicht.stm-edit .lqsel-btn {
-    height: 30px !important; min-height: 30px !important; padding: 0 10px !important;
-    font-size: 14.5px !important; font-weight: 700 !important; line-height: 28px !important;
+    width: 100% !important; max-width: 100%;
+    height: 30px !important; min-height: 30px !important; padding: 0 8px 0 0 !important;
+    font-size: 15px !important; font-weight: 700 !important; line-height: 28px !important;
     color: #1a1a1a !important; background: #fff !important;
     border: 1px solid #e7e1d6 !important; border-radius: 9px !important;
     box-shadow: inset 0 1px 2px rgba(60,55,48,0.04) !important;
     box-sizing: border-box !important;
 }
+.stm-ansicht.stm-edit .lqsel-btn { padding: 0 22px 0 0 !important; justify-content: flex-start; gap: 6px; }
 .stm-ansicht.stm-edit .stm-inline:focus,
 .stm-ansicht.stm-edit .lqsel-btn:hover,
 .stm-ansicht.stm-edit .lqsel-btn:focus {
     border-color: #3f3f3f !important; background: #fff !important;
     box-shadow: 0 0 0 2px rgba(63,63,63,0.10) !important;
 }
-.stm-ansicht.stm-edit .lqsel-wrap { min-width: 0 !important; width: auto !important; max-width: none; display: inline-block; }
-.stm-ansicht.stm-edit .lqsel-btn { width: auto !important; justify-content: flex-start; gap: 8px; }
-.stm-ansicht.stm-edit .stm-w-firma { width: 280px !important; }
-.stm-ansicht.stm-edit .stm-w-str { width: 200px !important; }
-.stm-ansicht.stm-edit .stm-w-nr { width: 52px !important; }
-.stm-ansicht.stm-edit .stm-w-pf { width: 130px !important; }
-.stm-ansicht.stm-edit .stm-w-plz { width: 72px !important; }
-.stm-ansicht.stm-edit .stm-w-ort { width: 150px !important; }
-.stm-ansicht.stm-edit .stm-w-lok { width: 160px !important; }
-.stm-ansicht.stm-edit .stm-w-tel { width: 150px !important; }
-.stm-ansicht.stm-edit .stm-w-mail { width: 220px !important; }
-.stm-ansicht.stm-edit .stm-w-fil { width: 180px !important; }
-.stm-ansicht.stm-edit .stm-w-code { width: 64px !important; text-align: left; }
-.stm-ansicht.stm-edit .stm-w-kreis { width: 88px !important; }
-.stm-ansicht.stm-edit .stm-w-st { width: 48px !important; }
-.stm-ansicht.stm-edit .stm-w-gav { width: 180px !important; }
-.stm-ansicht.stm-edit .stm-w-bur { width: 130px !important; }
-.stm-ansicht.stm-edit .stm-w-ih { width: 110px !important; }
-.stm-ansicht.stm-edit .stm-w-uid { width: 170px !important; }
-.stm-ansicht.stm-edit .stm-w-noga { width: 72px !important; }
-.stm-ansicht.stm-edit .stm-w-bfs { width: 72px !important; }
-.stm-ansicht.stm-edit .stm-w-arbeit { width: 180px !important; }
-.stm-ansicht.stm-edit .stm-hs-wert { min-height: 22px; }
+.stm-ansicht.stm-edit .lqsel-wrap {
+    min-width: 0 !important; width: 100% !important; max-width: 100%;
+    height: 30px !important; display: block;
+    padding: 0 !important; background: transparent !important;
+    border: none !important; box-shadow: none !important; border-radius: 0 !important;
+}
+.stm-ansicht.stm-edit .ov-pf.stm-w-gav .ov-pfv { display: flex; align-items: center; gap: 6px; }
 .stm-ansicht.stm-edit .stm-gav {
-    display: flex; align-items: center; gap: 6px; min-height: 22px;
+    display: flex; align-items: center; gap: 6px; height: 30px; flex: none;
     font-size: 15px; font-weight: 700; color: #1a1a1a;
 }
-.stm-ansicht.stm-edit .stm-gav input { width: 15px; height: 15px; accent-color: #3f3f3f; margin: 0; }
+.stm-ansicht.stm-edit .stm-gav input { width: 15px !important; height: 15px !important; min-height: 0 !important; padding: 0 !important; border: none !important; background: transparent !important; box-shadow: none !important; accent-color: #3f3f3f; margin: 0; }
+.stm-ansicht.stm-edit .stm-gav-name { flex: 1 1 auto; width: auto !important; min-width: 0; }
 body.theme-dark .stm-ansicht.stm-edit .stm-inline,
 body.theme-dark .stm-ansicht.stm-edit .lqsel-btn,
 body.theme-dark .stm-ansicht.stm-edit .lqsel-btn:hover,
@@ -11282,7 +11292,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/akonto-workflow.js?v=20261028a"></script>
 <script type="text/plain" data-modul="js/dok-audit.js?v=20260816a"></script>
 <script type="text/plain" data-modul="js/swiss-uid.js?v=20261026a"></script>
-<script type="text/plain" data-modul="js/branches-detail.js?v=20261029h"></script>
+<script type="text/plain" data-modul="js/branches-detail.js?v=20261029i"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261029a"></script>
