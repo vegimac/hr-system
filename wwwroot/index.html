@@ -10118,6 +10118,9 @@ body.theme-dark .la-ghost-row.hat .la-ghost-nr { color: #f3f0ea; }
 .la-maske input[type=number]::-webkit-outer-spin-button,
 .la-maske input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .la-maske input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+.la-maske input.la-wert,
+.la-maske input.yp-text,
+.la-maske .lqsel-btn,
 #laAngabenOverlay .la-maske .la-wert,
 #laAngabenOverlay .la-maske input.yp-text,
 #laAngabenOverlay .la-maske .lqsel-btn {
@@ -10126,6 +10129,23 @@ body.theme-dark .la-ghost-row.hat .la-ghost-nr { color: #f3f0ea; }
     background: transparent !important; border: none !important; border-radius: 0 !important;
     box-shadow: none !important; border-bottom: 1px solid rgba(60,55,48,0.28) !important;
 }
+.la-filiale .la-kopfzeile { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.la-filiale .la-kopfzeile .la-gueltig { flex: 1 1 auto; display: flex; align-items: center; gap: 8px 14px; padding: 0; margin: 0; }
+.la-filiale .la-satz { display: none; }
+.la-filiale .la-gueltig .f-label {
+    display: flex; flex-direction: row; align-items: center; gap: 6px;
+    margin: 0; width: auto; font-size: 12px; font-weight: 650; color: #646464;
+}
+.la-filiale .la-gueltig .f-input,
+.la-filiale .la-gueltig .lqsel-btn,
+.la-filiale .la-gueltig input.yp-text {
+    height: 26px !important; min-height: 0 !important; width: 96px !important;
+    padding: 2px 8px !important; font-size: 13px !important; font-weight: 650 !important;
+    background: #fff !important; border: 1px solid rgba(60,55,48,0.16) !important;
+    border-radius: 8px !important; box-shadow: none !important;
+}
+.la-filiale .la-gueltig #laGueltigBis { font-size: 13px; font-weight: 650; color: #3f3f3f; padding: 0; }
+.la-filiale .la-aktionen { display: flex; gap: 8px; margin-left: auto; }
 #laAngabenOverlay .la-maske .la-kanton .lqsel-wrap,
 #laAngabenOverlay .la-maske .la-kanton .lqsel-btn { width: 48px; max-width: 48px; min-width: 0; }
 body.theme-dark .la-maske .la-wahl.hat,
@@ -10134,10 +10154,18 @@ body.theme-dark .la-maske .la-wert.hat,
 body.theme-dark .la-maske .la-titel,
 body.theme-dark .la-maske .la-unter-name { color: #f3f0ea; }
 body.theme-dark .la-maske .la-karte { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); box-shadow: none; }
+body.theme-dark .la-maske input.la-wert,
+body.theme-dark .la-maske input.yp-text,
+body.theme-dark .la-maske .lqsel-btn,
 body.theme-dark #laAngabenOverlay .la-maske .la-wert,
 body.theme-dark #laAngabenOverlay .la-maske input.yp-text,
 body.theme-dark #laAngabenOverlay .la-maske .lqsel-btn {
     color: #f3f0ea !important; border-bottom-color: rgba(255,255,255,0.28) !important;
+}
+body.theme-dark .la-filiale .la-gueltig .f-input,
+body.theme-dark .la-filiale .la-gueltig .lqsel-btn {
+    background: rgba(255,255,255,0.08) !important; color: #f3f0ea !important;
+    border-color: rgba(255,255,255,0.16) !important;
 }
 .la-filiale-stapel { display: flex; flex-direction: column; gap: 12px; }
 .la-hist-zeile {
@@ -11949,7 +11977,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261028h"></script>
 <script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
-<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029m"></script>
+<script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029n"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

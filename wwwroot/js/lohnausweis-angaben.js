@@ -607,8 +607,16 @@ async function laPersonSpeichern(employeeId) {
     laPersonKarte(employeeId);
 }
 
+function laFassungFuerJahr(payload) {
+    const jahr = new Date().getFullYear();
+    const liste = (payload.fassungen && payload.fassungen.length) ? payload.fassungen : [payload];
+    return liste.find(x => x.gueltigAb <= jahr && (x.gueltigBis == null || x.gueltigBis >= jahr)) || liste[0];
+}
+
 async function laFirmaOeffnen(companyProfileId, ab) {
     if (!companyProfileId) return;
+    const box = document.getElementById('laFilialeAnsicht-' + companyProfileId);
+    if (box) return laFirmaInAnsicht(companyProfileId, ab, box);
     const url = `/api/companyprofiles/${companyProfileId}/lohnausweis-angaben` + (ab ? '?ab=' + ab : '');
     const r = await fetch(url, { headers: ah() });
     if (!r.ok) { alert('Die Unternehmensangaben konnten nicht geladen werden.'); return; }
@@ -629,6 +637,51 @@ async function laFirmaOeffnen(companyProfileId, ab) {
     laGeschlossen(f.geschlossen);
     laFirmaHinweisHaengen();
     ov.style.display = 'flex';
+}
+
+async function laFirmaInAnsicht(companyProfileId, ab, box) {
+    const url = `/api/companyprofiles/${companyProfileId}/lohnausweis-angaben` + (ab ? '?ab=' + ab : '');
+    const r = await fetch(url, { headers: ah() });
+    if (!r.ok) { alert('Die Unternehmensangaben konnten nicht geladen werden.'); return; }
+    const f = await r.json();
+    if (!ab) {
+        const gezeigt = laFassungFuerJahr(f);
+        if (gezeigt && gezeigt.gueltigAb && Number(gezeigt.gueltigAb) !== Number(f.gueltigAb))
+            return laFirmaInAnsicht(companyProfileId, gezeigt.gueltigAb, box);
+    }
+    window._laStaende = f.staende || [];
+    window._laGeladenAb = f.gueltigAb;
+    const liste = (f.fassungen && f.fassungen.length) ? f.fassungen : [f];
+    const historie = liste.filter(x => Number(x.gueltigAb) !== Number(f.gueltigAb))
+        .sort((a, b) => b.gueltigAb - a.gueltigAb);
+    const alt = historie.map(h => `<div class="la-hist-zeile">
+        <div class="la-hist-wann">${laEsc(laFilialeZeitraum(h))}</div>
+        <div class="la-hist-was">${laEsc(laFilialeKurz(h))}</div>
+    </div>`).join('');
+    box.innerHTML = `<div class="la-filiale-stapel">
+        <section class="la-filiale">
+            <div class="ov-card-h la-kopfzeile">
+                <span>Lohnausweis</span>
+                ${laGueltigLeiste(f)}
+                <span class="la-aktionen">
+                    <button type="button" class="btn btn-outline" style="font-size:12px;padding:4px 14px" onclick="laFilialeAnsichtLaden(${companyProfileId})">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" id="laAnsichtSave" style="font-size:12px;padding:4px 14px">Speichern</button>
+                </span>
+            </div>
+            ${laMaske(f, true)}
+        </section>
+        ${historie.length ? `<section class="stm-karte-ansicht la-historie">
+            <div class="ov-card-h"><span>Historie</span></div>
+            ${alt}
+        </section>` : ''}
+    </div>`;
+    const plzFeld = document.getElementById('laFKontaktPlz');
+    const ortFeld = document.getElementById('laFKontaktOrt');
+    if (plzFeld && ortFeld && !String(ortFeld.value || '').trim()) laPlzOrt(plzFeld);
+    document.getElementById('laAnsichtSave').onclick = () => laFirmaSpeichern(companyProfileId);
+    laGueltigAnbinden(jahr => laFirmaInAnsicht(companyProfileId, jahr, box));
+    laGeschlossen(f.geschlossen);
+    laFirmaHinweisHaengen();
 }
 
 const laKorrekturSatz = 'Korrektur: das Kreuz in Ziffer 13.1.1 entfällt, weil das Spesenreglement gilt. Noch nicht gespeichert.';
@@ -761,8 +814,7 @@ function laGueltigAnbinden(neuLaden) {
             if (laden && jahr !== window._laGeladenAb) neuLaden(jahr);
         } else if (bis && jahr) {
             bis.textContent = 'neue Fassung · bisherige gilt bis ' + (jahr - 1);
-            const save = document.getElementById('laAngabenSave');
-            if (save) save.disabled = false;
+            laSaveKnopf(false);
         }
     };
     if (inp) inp.onchange = () => zieh(parseInt(inp.value, 10), false);
@@ -773,11 +825,17 @@ function laGueltigAnbinden(neuLaden) {
     };
 }
 
+function laSaveKnopf(zu) {
+    ['laAngabenSave', 'laAnsichtSave'].forEach(id => {
+        const save = document.getElementById(id);
+        if (save) save.disabled = !!zu;
+    });
+}
+
 function laGeschlossen(zu) {
-    const save = document.getElementById('laAngabenSave');
-    if (save) save.disabled = !!zu;
+    laSaveKnopf(zu);
     if (!zu) return;
-    document.querySelectorAll('#laAngabenBody input, #laAngabenBody select, #laAngabenBody textarea').forEach(el => {
+    document.querySelectorAll('.la-filiale input, .la-filiale select, .la-filiale textarea, #laAngabenBody input, #laAngabenBody select, #laAngabenBody textarea').forEach(el => {
         if (el.id === 'laFassung') return;
         el.disabled = true;
     });
