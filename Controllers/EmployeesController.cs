@@ -928,6 +928,8 @@ public class EmployeesController : ControllerBase
                         message = "Ungültiger Austrittsgrund." });
                 employee.Austrittsgrund = ag;
             }
+            if (employee.KuendigungPer is DateTime gekuendigtPer)
+                await VertragsendeAusKuendigungAsync(employee.Id, gekuendigtPer);
         }
 
         // ── Nachtarbeit-Untersuchung gültig bis (Walter 20.06.2026) ──────────
@@ -1155,6 +1157,25 @@ public class EmployeesController : ControllerBase
             });
         bestaetigt = offen;
         return null;
+    }
+
+    /// <summary>
+    /// «Gekündigt per» zieht das Ende jedes Vertrags nach, der an diesem Tag
+    /// noch läuft. Ein früheres Ende bleibt. Die Vertragsart bleibt unbefristet.
+    /// </summary>
+    private async Task VertragsendeAusKuendigungAsync(int employeeId, DateTime per)
+    {
+        var vertraege = await _context.Employments
+            .Where(v => v.EmployeeId == employeeId)
+            .ToListAsync();
+        var heute = DateTime.Today;
+        foreach (var v in vertraege)
+        {
+            if (!KuendigungVertragsende.Deckt(v.ContractStartDate, v.ContractEndDate, per)) continue;
+            if (v.ContractEndDate != null && v.ContractEndDate.Value.Date <= per.Date) continue;
+            v.ContractEndDate = per.Date;
+            v.IsActive = per.Date >= heute;
+        }
     }
 
     private async Task PersonaldatenBestaetigungMerkenAsync(PersonaldatenAuswertung pd, Employee e, List<PdBefund> bestaetigt)

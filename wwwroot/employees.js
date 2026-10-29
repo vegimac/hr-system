@@ -18765,10 +18765,6 @@ async function loadVerwarnungenTab(employeeId) {
         if (!r.ok) { el.innerHTML = `<div style="color:#dc2626;padding:16px">Fehler beim Laden (${r.status})</div>`; return; }
         _vwList = await r.json();
         renderVerwarnungenTab(el);
-        // Bereich «BFS / Statistik» (Walter 13.08.2026) — kleine LSE-Ergänzungs-
-        // felder am Ende des Restaurant-Admin-Tabs (nicht prominent im Stamm).
-        if (typeof lseEmpBlockAppend === 'function' && ['admin', 'superuser'].includes(currentUser?.role))
-            lseEmpBlockAppend(el, employeeId);
     } catch (e) {
         el.innerHTML = `<div style="color:#dc2626;padding:16px">Netzwerkfehler: ${e.message}</div>`;
     }
@@ -18853,7 +18849,11 @@ function _raTilesHtml() {
     // ${tile('Aufforderung.webp', 'Arbeits Aufforderung', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
     // ${tile('Schlusszeugnis.webp', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
     // ${tile('zwischenzeugnis.webp', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
-    return `<div class="ra-tile-row">
+    const statistikBtn = ['admin', 'superuser', 'buchhaltung'].includes(currentUser?.role)
+        ? `<button type="button" class="btn-emp-add" onclick="openAusbildungStatistik(selectedEmployeeId)">Ausbildung / Statistik</button>`
+        : '';
+    return `${statistikBtn ? `<div style="margin:4px 0 16px">${statistikBtn}</div>` : ''}
+    <div class="ra-tile-row">
         ${tile('probezeit.webp', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
         ${tile('umzug.svg', 'Umzug erfassen', 'openUmzugModal(selectedEmployeeId)')}
         ${kontoTiles}

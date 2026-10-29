@@ -196,6 +196,7 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('ceContractType').value    = isBefristet ? 'befristet' : 'unbefristet';
     document.getElementById('ceEndDate').value         = c.contractEndDate ? c.contractEndDate.slice(0,10) : '';
     document.getElementById('ceJobTitle').value        = c.jobTitle ?? '';
+    cePruefeBeruf();
     document.getElementById('ceProbationMonths').value = c.probationPeriodMonths ?? '';
     document.getElementById('ceIsActive').value        = c.isActive === false ? 'false' : 'true';
 
@@ -271,8 +272,6 @@ async function openContractEditModal(c, mode = 'edit') {
         || Number(c.weeklyHours) > 0
         || Number(c.weeklyLessons) > 0;
     if (typeof empSetYesNo === 'function') empSetYesNo('ceRegelmaessig', regGesetzt ? c.regelmaessig : regDefault);
-    const gradEl = document.getElementById('ceBeschaeftigungsgrad');
-    if (gradEl) gradEl.value = c.employmentPercentage ?? '';
 
     onCeModelChange();
     onCeContractTypeChange();
@@ -317,10 +316,13 @@ function ceVertragsartName(code) {
     return window.VERTRAGSARTEN.find(v => v.code === code)?.label || code || '';
 }
 function ceFilialeVertragsarten(filialeId) {
+    const id = Number(filialeId);
+    if (!id) return ['FLEX', 'MTP', 'FIX', 'FIX-M'];
     const liste = (typeof allBranches !== 'undefined' ? allBranches : []);
-    const b = liste.find(x => x.id === filialeId)
-        || (typeof selectedCompanyProfile !== 'undefined' && selectedCompanyProfile?.id === filialeId ? selectedCompanyProfile : null)
-        || (typeof selectedBranch !== 'undefined' && selectedBranch?.id === filialeId ? selectedBranch : null);
+    const gleiche = x => Number(x?.id) === id;
+    const b = liste.find(gleiche)
+        || (typeof selectedCompanyProfile !== 'undefined' && gleiche(selectedCompanyProfile) ? selectedCompanyProfile : null)
+        || (typeof selectedBranch !== 'undefined' && gleiche(selectedBranch) ? selectedBranch : null);
     if (b && Array.isArray(b.vertragsartenAktiv)) return b.vertragsartenAktiv;
     return ['FLEX', 'MTP', 'FIX', 'FIX-M'];
 }
@@ -361,13 +363,11 @@ function onCeModelChange() {
     const isUtp = m === 'FLEX';
     const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
     const ohneLohn = !!art.ohneMonatslohn;
-    const regelmaessig = document.getElementById('ceRegelmaessig')?.value !== 'false';
     show('ceHourlyWrap',     !isFix);
     show('ceFteWrap',        isFix && !ohneLohn);
     show('ceMonthlyWrap',    isFix && !ohneLohn);
     show('cePensumWrap',     isFix && !ohneLohn);
     show('ceJahreslohnWrap', ohneLohn);
-    show('ceGradWrap',       regelmaessig && !isFix && !ohneLohn);
     show('ceArbeitstageWrap', isFix);
     // Walter-Vorgabe 26.05.2026: „Max. h/Woche" nur bei UTP. Bei MTP
     // redundant zu „Garantierte h/Woche" (Engine nimmt GuaranteedHoursPerWeek
@@ -754,6 +754,53 @@ function applyCeMinimumWage() {
     }
 }
 
+function ceBerufZeichenErlaubt(ch) {
+    if (/\p{L}/u.test(ch) || /\s/.test(ch)) return true;
+    return ch === '-' || ch === "'" || ch === '’' || ch === '´';
+}
+function ceHatZahl(text) {
+    return [...String(text || '')].some(ch => !ceBerufZeichenErlaubt(ch));
+}
+function ceOhneZahl(text) {
+    return [...String(text || '')].filter(ceBerufZeichenErlaubt).join('');
+}
+function ceBerufHinweis(zeigen) {
+    const el = document.getElementById('ceJobTitle');
+    const hint = document.getElementById('ceJobTitleHinweis');
+    if (el) el.classList.toggle('ce-inp-sperre', !!zeigen);
+    if (hint) {
+        hint.hidden = !zeigen;
+        hint.textContent = zeigen
+            ? 'Im Unternehmen ausgeübter Beruf ist die genaue Berufsbezeichnung, ohne Zahlen oder Sonderzeichen.'
+            : '';
+    }
+    const errEl = document.getElementById('ceErrorMsg');
+    if (errEl && errEl.textContent.indexOf('genaue Berufsbezeichnung') >= 0) errEl.textContent = '';
+}
+function ceBerufVorEingabe(ev) {
+    if (!ev || !ceHatZahl(ev.data)) return;
+    ev.preventDefault();
+    const el = ev.target;
+    const rein = ceOhneZahl(ev.data);
+    if (rein && el && typeof el.setRangeText === 'function')
+        el.setRangeText(rein, el.selectionStart ?? el.value.length, el.selectionEnd ?? el.value.length, 'end');
+    ceBerufHinweis(true);
+}
+function cePruefeBeruf() {
+    const el = document.getElementById('ceJobTitle');
+    if (!el) return true;
+    const roh = el.value;
+    const rein = ceOhneZahl(roh);
+    if (rein !== roh) {
+        const pos = el.selectionStart || 0;
+        const davor = ceOhneZahl(roh.slice(0, pos)).length;
+        el.value = rein;
+        try { el.setSelectionRange(davor, davor); } catch (_) { /* Auswahl egal */ }
+    }
+    ceBerufHinweis(rein !== roh || ceHatZahl(el.value));
+    return !ceHatZahl(el.value);
+}
+
 async function saveContractEdit() {
     const _t = (k, args) => (window.i18n ? (args ? window.i18n.tFormat(k, args) : window.i18n.t(k)) : k);
     const errEl = document.getElementById('ceErrorMsg');
@@ -776,6 +823,7 @@ async function saveContractEdit() {
         errEl.textContent = 'Das Vertragsende liegt vor dem Beginn.';
         return;
     }
+    if (!cePruefeBeruf()) return;
 
     const pensumStr = document.getElementById('cePensum').value;
     const pensum = pensumStr === '' ? null : parseFloat(pensumStr);
@@ -812,10 +860,7 @@ async function saveContractEdit() {
         jobTitle:                document.getElementById('ceJobTitle').value || null,
         jobGroupCode:            document.getElementById('ceJobGroup').value || null,
         educationLevelCode:      document.getElementById('ceEducationLevel').value || null,
-        employmentPercentage:    isFix ? pensum
-            : (document.getElementById('ceRegelmaessig')?.value === 'true'
-                ? (parseFloat(document.getElementById('ceBeschaeftigungsgrad')?.value) || null)
-                : null),
+        employmentPercentage:    isFix ? pensum : null,
         // Walter-Vorgabe 26.05.2026: Bei MTP ist „Wochenstunden" redundant zu
         // „Garantierte h/Woche" — Feld ist ausgeblendet. Beim Save automatisch
         // weeklyHours = guaranteedHoursPerWeek setzen, damit Alt-Konsumenten
@@ -853,7 +898,10 @@ async function saveContractEdit() {
     // Bei Import / Neu zusätzliche Pflichtfelder
     if (_ceMode === 'import' || _ceMode === 'new') {
         payload.employeeId = empId;
-        payload.companyProfileId = currentBranchId || 1;
+        const filialZahl = Number(
+            (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+            || (typeof currentBranchId !== 'undefined' ? currentBranchId : 0));
+        payload.companyProfileId = filialZahl > 0 ? filialZahl : null;
         payload.contractEndDateSet = true;
     }
 

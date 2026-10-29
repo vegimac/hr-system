@@ -3895,7 +3895,7 @@ public class EasyAtWorkEmployeeSyncService
                     if (vorhanden.ContractEndDate == null && seg.End.HasValue
                         && eawTo.HasValue && eawTo.Value < today && seg.End.Value <= eawTo.Value)
                     {
-                        vorhanden.ContractEndDate = endDt;
+                        vorhanden.ContractEndDate = KuendigungVertragsende.Begrenze(endDt, vorhanden.ContractStartDate, emp.KuendigungPer);
                         vorhanden.IsActive = false;
                         cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): offener Vertrag ab {seg.Start:dd.MM.yyyy} per {seg.End.Value:dd.MM.yyyy} abgeschlossen (Austritt in easy@work {eawTo.Value:dd.MM.yyyy}).");
                     }
@@ -3909,10 +3909,14 @@ public class EasyAtWorkEmployeeSyncService
                     bool zuFruehZu = vorhanden.ContractEndDate.HasValue
                         && (!seg.End.HasValue
                             || DateOnly.FromDateTime(vorhanden.ContractEndDate.Value) < seg.End.Value);
-                    if (easyLaeuft && keinAustritt && zuFruehZu && !vorhanden.EasyAtWorkManualOverride)
+                    bool kuendigungHaeltEnde = emp.KuendigungPer is DateTime kp
+                        && vorhanden.ContractEndDate?.Date == kp.Date
+                        && vorhanden.ContractStartDate.Date <= kp.Date;
+                    if (easyLaeuft && keinAustritt && zuFruehZu && !vorhanden.EasyAtWorkManualOverride && !kuendigungHaeltEnde)
                     {
-                        vorhanden.ContractEndDate = endDt;
-                        vorhanden.IsActive = active;
+                        var ende = KuendigungVertragsende.Begrenze(endDt, vorhanden.ContractStartDate, emp.KuendigungPer);
+                        vorhanden.ContractEndDate = ende;
+                        vorhanden.IsActive = ende == null || DateOnly.FromDateTime(ende.Value) >= today;
                         vorhanden.EasyAtWorkPayRateId = seg.EasyAtWorkPayRateId;
                         if (info.HourlyRate.HasValue)
                         {
@@ -3932,7 +3936,8 @@ public class EasyAtWorkEmployeeSyncService
                             vorhanden.GuaranteedHoursPerWeek = info.GuaranteedHoursPerWeek;
                         if (!string.IsNullOrWhiteSpace(info.EmploymentModel))
                             vorhanden.EmploymentModel = info.EmploymentModel!;
-                        cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): Vertrag ab {seg.Start:dd.MM.yyyy} war zu früh geschlossen und läuft in easy@work weiter — Ende wieder geöffnet.");
+                        if (ende == null || DateOnly.FromDateTime(ende.Value) >= today)
+                            cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): Vertrag ab {seg.Start:dd.MM.yyyy} war zu früh geschlossen und läuft in easy@work weiter — Ende wieder geöffnet.");
                     }
                     continue;
                 }
@@ -3953,11 +3958,16 @@ public class EasyAtWorkEmployeeSyncService
                     matched.Add(existing);
                     DateOnly? altEnde = existing.ContractEndDate.HasValue
                         ? DateOnly.FromDateTime(existing.ContractEndDate.Value) : null;
-                    if (seg.End.HasValue && seg.End.Value >= firstAllowedDate.Value
-                        && altEnde != seg.End.Value)
+                    if (seg.End.HasValue && seg.End.Value >= firstAllowedDate.Value)
                     {
-                        existing.ContractEndDate = seg.End.Value.ToDateTime(TimeOnly.MinValue);
-                        existing.IsActive = seg.End.Value >= today;
+                        var ziel = KuendigungVertragsende.Begrenze(
+                            seg.End.Value.ToDateTime(TimeOnly.MinValue), existing.ContractStartDate, emp.KuendigungPer);
+                        var zielTag = ziel.HasValue ? DateOnly.FromDateTime(ziel.Value) : (DateOnly?)null;
+                        if (altEnde != zielTag && ziel.HasValue)
+                        {
+                            existing.ContractEndDate = ziel;
+                            existing.IsActive = zielTag >= today;
+                        }
                     }
                     // Lohn NACHTRAGEN, wenn am alten Abschnitt GAR KEINER steht
                     // (Walter-Vorgabe 22.09.2026, Fall 1220009 Acar-Hasanoglu):
@@ -4002,14 +4012,15 @@ public class EasyAtWorkEmployeeSyncService
                     .FirstOrDefault();
                 var (fnId, fnTitel) = FunktionFuerNeuenAbschnitt(
                     active, jobGroupId, jobGroupCode ?? info.JobGroupCode ?? info.JobTitle, vorgaenger);
+                var endeNeu = KuendigungVertragsende.Begrenze(endDt, startDt, emp.KuendigungPer);
                 var neu = new Employment
                 {
                     Employee             = emp,
                     EmployeeId           = emp.Id,
                     CompanyProfileId     = companyProfileId,
                     ContractStartDate    = startDt,
-                    ContractEndDate      = endDt,
-                    IsActive             = active,
+                    ContractEndDate      = endeNeu,
+                    IsActive             = endeNeu == null || DateOnly.FromDateTime(endeNeu.Value) >= today,
                     EmploymentModel      = string.IsNullOrWhiteSpace(info.EmploymentModel) ? "FLEX"    : info.EmploymentModel!,
                     SalaryType           = string.IsNullOrWhiteSpace(info.SalaryType)      ? "hourly" : info.SalaryType!,
                     ContractType         = info.ContractType,
@@ -4076,8 +4087,9 @@ public class EasyAtWorkEmployeeSyncService
                     continue;
 
                 existing.ContractStartDate = startDt;   // Start auf das Segment ausrichten (ID-Match kann verschieben)
-                existing.ContractEndDate   = endDt;
-                existing.IsActive          = active;
+                var ende = KuendigungVertragsende.Begrenze(endDt, startDt, emp.KuendigungPer);
+                existing.ContractEndDate   = ende;
+                existing.IsActive          = ende == null || DateOnly.FromDateTime(ende.Value) >= today;
                 if (!string.IsNullOrWhiteSpace(info.EmploymentModel)) existing.EmploymentModel = info.EmploymentModel!;
                 if (!string.IsNullOrWhiteSpace(info.SalaryType))      existing.SalaryType      = info.SalaryType!;
                 if (!string.IsNullOrWhiteSpace(info.ContractType))    existing.ContractType    = info.ContractType;
@@ -4306,11 +4318,13 @@ public class EasyAtWorkEmployeeSyncService
                 var newStart = info.RateFrom?.ToDateTime(TimeOnly.MinValue)
                                ?? eaw.From?.ToDateTime(TimeOnly.MinValue);
                 if (newStart.HasValue) existing.ContractStartDate = newStart.Value;
-                existing.ContractEndDate = eaw.To.HasValue ? eaw.To.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null;
+                var easyEnde = eaw.To.HasValue ? eaw.To.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null;
+                var ende = KuendigungVertragsende.Begrenze(easyEnde, existing.ContractStartDate, emp.KuendigungPer);
+                existing.ContractEndDate = ende;
                 // A) IsActive MUSS mit dem Vertragsende synchron sein (Walter 23.06.2026):
                 // contract_end_date konnte gesetzt sein, während is_active alt/falsch blieb.
                 var todayDate = DateOnly.FromDateTime(DateTime.Today);
-                existing.IsActive = !eaw.To.HasValue || eaw.To.Value >= todayDate;
+                existing.IsActive = ende == null || DateOnly.FromDateTime(ende.Value) >= todayDate;
                 // Funktion (JobGroup) ist führend aus easy@work /positions → setzen,
                 // aber NUR am aktuellen Vertrag (Walter-Bug 22.09.2026): easy liefert
                 // keine Funktions-Historie, sonst wird die Vergangenheit überschrieben.

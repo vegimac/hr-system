@@ -425,44 +425,73 @@ async function statistikKatalogSave(art, id) {
     statistikKatalogInit();
 }
 
-// ── Bereich «Statistik (BFS)» in der Mitarbeiter-Übersicht ───────────────
-async function lseEmpBlockAppend(container, employeeId) {
-    if (!container) return;
+// Knopf «Ausbildung / Statistik» am Mitarbeiter (Tab MA Formulare) öffnet
+// diesen Dialog. Die Felder stehen nicht in der Personenmaske.
+async function openAusbildungStatistik(employeeId) {
+    if (!employeeId) return;
+    document.getElementById('ausbildungStatistikDlg')?.remove();
     let lse = {};
+    let k = { ausbildung: [], stellung: [] };
     try {
-        const r = await fetch(`/api/lse/employee/${employeeId}`, { headers: ah() });
-        if (r.ok) lse = await r.json();
-    } catch { }
-    if (!_lseConfig) {
-        try {
-            const rv = await fetch('/api/lse/versions', { headers: ah() });
-            const vs = rv.ok ? await rv.json() : [];
-            const y = vs.find(v => v.isActive)?.surveyYear;
-            if (y) { const rc = await fetch(`/api/lse/config?year=${y}`, { headers: ah() }); _lseConfig = rc.ok ? await rc.json() : null; }
-        } catch { }
+        const [rk, rl] = await Promise.all([
+            statKatalogLaden(true),
+            fetch(`/api/lse/employee/${employeeId}`, { headers: ah() }),
+        ]);
+        k = rk || k;
+        if (rl.ok) lse = await rl.json();
+        else { showToast('Statistik konnte nicht geladen werden', 'error'); return; }
+    } catch {
+        showToast('Statistik konnte nicht geladen werden', 'error');
+        return;
     }
-    const codes = _lseConfig?.codes || {};
-    const opt = (list, val) => '<option value="">–</option>' + (list || []).map(c =>
-        `<option value="${c.code}" ${val === c.code ? 'selected' : ''}>${c.code} — ${_lseEsc(c.label)}</option>`).join('');
-    const div = document.createElement('div');
-    div.id = 'lseEmpBlock';
-    div.innerHTML = `
-        <div class="emp-section-title" style="margin-top:22px">BFS / Statistik</div>
-        <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Höchste abgeschlossene Ausbildung (BFS)
-                <select id="lseEmpEdu" class="no-liquid" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;min-width:250px">${opt(codes.education, lse.education)}</select></label>
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Hochschultitel
-                <select id="lseEmpDeg" class="no-liquid" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;min-width:150px">${opt(codes.universityDegree, lse.universityDegree)}</select></label>
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Berufliche Stellung (Override)
-                <select id="lseEmpPos" class="no-liquid" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;min-width:200px">${opt(codes.position, lse.positionOverride)}</select></label>
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Ausgeübter Beruf (Klartext, LSE)
-                <input id="lseEmpBeruf" maxlength="255" value="${_lseEsc(lse.practicedProfession || '')}" placeholder="z.B. Restaurantmitarbeiter/in" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;min-width:220px"></label>
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px" title="Für die Swissdec-Lohnstatistik. Leer = aus der Regel gerechnet: Stundenlohn mit Ferienprozent → 0, sonst Ferienwochen × 5.">Ferientage/Jahr (Swissdec)
-                <input id="lseEmpFerien" type="number" min="0" max="99" step="1" value="${lse.leaveEntitlementDays ?? ''}" placeholder="aus Regel" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;width:110px"></label>
-            <button onclick="lseEmpBlockSave(${employeeId})" style="${_lseBtnDark};padding:6px 14px">Speichern</button>
-        </div>
-        <div id="lseEmpAzm" style="font-size:11.5px;color:#8b8b8b;margin-top:8px"></div>`;
-    container.appendChild(div);
+    const stellungLeer = lse.stellungVorschlagText
+        ? `aus der Funktion (${lse.stellungVorschlagText})`
+        : 'aus der Funktion';
+    const lab = 'display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464';
+    const wrap = document.createElement('div');
+    wrap.id = 'ausbildungStatistikDlg';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center;padding:24px';
+    wrap.innerHTML = `
+        <div class="modal" style="max-width:680px;width:100%;padding:22px 24px;border-radius:16px;max-height:90vh;overflow:auto">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f;margin-bottom:4px">Ausbildung / Statistik</div>
+            <div style="font-size:12.5px;color:#646464;margin-bottom:14px">Angaben für das BFS. Die Lohnrechnung benutzt sie nicht.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
+                <label style="${lab}">Höchste abgeschlossene Ausbildung
+                    <select id="lseEmpEdu">${statOpt(k.ausbildung, lse.statistikAusbildungId, '–')}</select></label>
+                <label style="${lab}">Berufliche Stellung
+                    <select id="lseEmpPos">${statOpt(k.stellung, lse.statistikStellungId, stellungLeer)}</select></label>
+                <label style="${lab};grid-column:1 / -1">Ausgeübter Beruf
+                    <input id="lseEmpBeruf" maxlength="255" value="${_lseEsc(lse.practicedProfession || '')}" placeholder="z. B. Restaurantmitarbeiter/in"></label>
+                <label style="${lab}">Ferientage pro Jahr
+                    <input id="lseEmpFerien" type="number" min="0" max="99" step="1" value="${lse.leaveEntitlementDays ?? ''}" placeholder="${lse.ferienTageRegel ?? ''}"></label>
+                <label style="${lab}">Profiling
+                    <input id="lseEmpFlex" maxlength="255" value="${_lseEsc(lse.flexProfiling || '')}"></label>
+            </div>
+            <div id="lseEmpEduHilfe" style="font-size:12px;color:#646464;margin-top:8px"></div>
+            <div id="lseEmpHinweis" style="font-size:12px;color:#646464;margin-top:6px">${_lseEsc(lse.ferienHinweis || '')}</div>
+            <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Ferientage gelten für ein volles Kalenderjahr bei 100 %. Genommene Tage, Pensum, unbezahlter Urlaub und Feiertage zählen nicht. Leer lässt die Regel gelten. Profiling nur ausfüllen, wenn das BFS es so vereinbart hat.</div>
+            <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;font-size:13px;color:#3f3f3f">
+                <label style="display:flex;gap:8px;align-items:center"><input id="lseEmpVerliehen" type="checkbox" ${lse.verliehenesPersonal ? 'checked' : ''}> Verliehenes Personal</label>
+                <label style="display:flex;gap:8px;align-items:center"><input id="lseEmpStamm" type="checkbox" ${lse.stammpersonalOeffentlich ? 'checked' : ''}> Stammpersonal in öffentlichen Verwaltungen</label>
+            </div>
+            <div id="lseEmpAzm" style="font-size:12px;color:#646464;margin-top:14px"></div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+                <button type="button" onclick="document.getElementById('ausbildungStatistikDlg').remove()"
+                    style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Abbrechen</button>
+                <button type="button" onclick="lseEmpBlockSave(${employeeId})"
+                    style="${_lseBtnDark};padding:8px 18px">Speichern</button>
+            </div>
+        </div>`;
+    wrap.addEventListener('click', ev => { if (ev.target === wrap) wrap.remove(); });
+    document.body.appendChild(wrap);
+    const hilfe = () => {
+        const id = Number(document.getElementById('lseEmpEdu')?.value);
+        const zeile = (k.ausbildung || []).find(x => x.id === id);
+        const ziel = document.getElementById('lseEmpEduHilfe');
+        if (ziel) ziel.textContent = zeile?.beschreibung || '';
+    };
+    document.getElementById('lseEmpEdu')?.addEventListener('change', hilfe);
+    hilfe();
     lseEmpArbeitszeitmodell(employeeId);
 }
 
@@ -487,7 +516,7 @@ async function lseEmpArbeitszeitmodell(employeeId) {
         el.innerHTML = `
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <span><b>Arbeitszeitmodell (Swissdec):</b> ${aktuell ? _lseEsc(aktuell.bezeichnung || '–') + ' seit ' + dat(aktuell.gueltigAb) : 'keines zugeordnet'}</span>
-                <select id="lseEmpAzmSel" class="no-liquid" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:8px">
+                <select id="lseEmpAzmSel" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:8px">
                     ${modelle.map(m => `<option value="${m.id}" ${aktuell && aktuell.arbeitszeitmodellId === m.id ? 'selected' : ''}>${_lseEsc(m.bezeichnung)}</option>`).join('')}
                 </select>
                 <input id="lseEmpAzmAb" type="date" value="${heute}" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:8px">
@@ -513,16 +542,20 @@ async function lseEmpAzmSave(employeeId) {
 }
 
 async function lseEmpBlockSave(employeeId) {
+    const ferienRoh = document.getElementById('lseEmpFerien')?.value;
     const dto = {
-        education: parseInt(document.getElementById('lseEmpEdu')?.value, 10) || null,
-        universityDegree: parseInt(document.getElementById('lseEmpDeg')?.value, 10) || null,
-        positionOverride: parseInt(document.getElementById('lseEmpPos')?.value, 10) || null,
+        vollstaendig: true,
+        statistikAusbildungId: parseInt(document.getElementById('lseEmpEdu')?.value, 10) || null,
+        statistikStellungId: parseInt(document.getElementById('lseEmpPos')?.value, 10) || null,
         practicedProfession: document.getElementById('lseEmpBeruf')?.value || null,
-        leaveEntitlementDays: document.getElementById('lseEmpFerien')?.value === ''
-            ? null : Number(document.getElementById('lseEmpFerien')?.value),
+        leaveEntitlementDays: ferienRoh === '' || ferienRoh == null ? null : Number(ferienRoh),
+        verliehenesPersonal: !!document.getElementById('lseEmpVerliehen')?.checked,
+        stammpersonalOeffentlich: !!document.getElementById('lseEmpStamm')?.checked,
+        flexProfiling: document.getElementById('lseEmpFlex')?.value || null,
     };
     const r = await fetch(`/api/lse/employee/${employeeId}`, { method: 'PUT', headers: ah(), body: JSON.stringify(dto) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen', 'error'); return; }
-    showToast('BFS-Angaben gespeichert', 'success');
+    showToast('Gespeichert', 'success');
+    document.getElementById('ausbildungStatistikDlg')?.remove();
 }

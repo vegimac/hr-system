@@ -746,6 +746,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 **Erwartet:** Die Erfassungsmaske muss wie folgt geprüft werden: Prüfen ob im ERP-System ein Vertrag erfasst werden kann und ob folgende Angaben auf dem Vertrag hinterlegt werden können: - Wahl des Arbeitszeitmodells aus der Liste der im Unternehmen erfassten Arbeitszeitmodelle - Arbeitsverhältnis (regelmässig/unregelmässig) inkl. Folgeangaben - Eintritts- und Austrittsdatum - Im Unternehmen ausgeübter Beruf - Vertraglicher 13. Monatslohn - Vertraglicher weiterer Monatslohn Prüfen ob die Art der Lohnzahlung a…
 
+**Notiz 28.10.2026 (Walter):** Mehrfachbeschäftigung benötigen wir im Moment nicht. Später können wir sie bauen.
+
 
 #### S_ELM_V6_03_02_02 Arbeitsverträge - Wahl des Arbeitszeitmodells ⬜ offen
 

@@ -698,7 +698,7 @@ window.i18n = (function () {
         'vt.modal.field.contractType': { de: 'Vertragstyp',           en: 'Contract type' },
         'vt.modal.field.endDate':    { de: 'Vertragsende',            en: 'Contract end' },
         'vt.modal.field.jobTitle':   { de: 'Im Unternehmen ausgeübter Beruf', en: 'Occupation in the company' },
-        'vt.modal.field.jobTitlePh': { de: 'z.B. Informatikerin, ohne Zahlen oder Codes', en: 'e.g. computer scientist, no codes' },
+        'vt.modal.field.jobTitlePh': { de: 'z.B. Informatikerin, ohne Zahlen oder Sonderzeichen', en: 'e.g. computer scientist, no numbers or symbols' },
         'vt.modal.field.probation':  { de: 'Probezeit (Monate)',      en: 'Probation (months)' },
         'vt.modal.field.active':     { de: 'Aktiv',                   en: 'Active' },
         'vt.modal.field.eduLevel':   { de: 'Gastronomische Ausbildung *', en: 'Hospitality qualification *' },

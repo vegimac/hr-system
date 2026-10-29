@@ -41,7 +41,7 @@ public class EmployeeVersicherungCodeController : ControllerBase
             .OrderBy(v => v.Art).ThenByDescending(v => v.ValidFrom)
             .ToListAsync();
         var branchId = await GetEmployeeBranchAsync(employeeId);
-        var renten = await RentenalterAsync(employeeId, branchId);
+        var renten = await VerzichtLageAsync(employeeId);
         var saetze = await _db.SocialInsuranceRates.AsNoTracking()
             .Where(r => r.IsActive && r.LoesungsCode != null
                      && (r.CompanyProfileId == null || r.CompanyProfileId == branchId))
@@ -70,11 +70,26 @@ public class EmployeeVersicherungCodeController : ControllerBase
                 ? (PayrollCalculations.WaehleBvgFix(amTag) ?? amTag.FirstOrDefault())
                 : amTag.FirstOrDefault();
             var alleCodes = amTag.Where(e => !string.IsNullOrWhiteSpace(e.Code)).Select(e => e.Code!).Distinct().ToList();
+            var betriebsteile = art != "UVG"
+                ? new List<object>()
+                : saetze.Where(s => svCodes.Contains(s.Code, StringComparer.OrdinalIgnoreCase)
+                                 && !string.IsNullOrWhiteSpace(s.LoesungsCode))
+                    .Select(s => new { Satz = s, C = s.LoesungsCode!.Trim().ToUpperInvariant() })
+                    .Where(x => x.C.Length > 0 && x.C[0] >= 'A' && x.C[0] <= 'Z')
+                    .GroupBy(x => x.C[0])
+                    .OrderBy(g => g.Key)
+                    .Select(g => (object)new
+                    {
+                        code = g.Key.ToString(),
+                        name = g.Select(x => x.Satz.Description).FirstOrDefault(d => !string.IsNullOrWhiteSpace(d)) ?? ""
+                    })
+                    .ToList();
             return new
             {
                 art,
                 effektiverCode = PayrollCalculations.EffektiverCode(art, eintraege, saetze, tag),
                 weitereCodes = alleCodes.Skip(1).ToList(),
+                betriebsteile,
                 herkunft = explizit?.Code != null ? "manuell" : art == EmployeeVersicherungCode.ArtAhv ? "beitragspflichtig" : (optionen.Any(o => o.istStandard) ? "standard" : (optionen.Count == 0 ? "keine Lösungen erfasst" : "ohne Code")),
                 explizit = explizit == null ? null : new { explizit.Id, explizit.Code, explizit.ValidFrom, explizit.ValidTo, explizit.BeitragFixAn, explizit.BeitragFixAg, explizit.Bemerkung,
                                                            explizit.BvgEintrittsgrund, explizit.BvgVollArbeitsfaehig, explizit.BvgBasisManuell, explizit.EmpfaengerId },
@@ -91,8 +106,18 @@ public class EmployeeVersicherungCodeController : ControllerBase
                                                     isCurrent = e.GiltAm(tag) }),
             uvgVersicherer = await OffeneUvgVersichererAsync(branchId, tag),
             imRentenalter = renten.Erreicht,
+            darfVerzicht = renten.Darf,
             verzichtHinweis = renten.Hinweis,
-            rentenalterStichtag = renten.Stichtag,
+            verzicht = new
+            {
+                jahr = renten.Jahr,
+                gesperrt = renten.Gesperrt,
+                naechstesJahr = renten.Jahr + 1,
+                naechstesGesperrt = renten.NaechstesGesperrt,
+                ersterTag = renten.ErsterTag?.ToString("yyyy-MM-dd"),
+                freibetragMonate = renten.FreibetragMonate,
+            },
+            rentenalterStichtag = renten.Heute,
         });
     }
 
@@ -102,6 +127,8 @@ public class EmployeeVersicherungCodeController : ControllerBase
         if (!await _db.Employees.AnyAsync(e => e.Id == employeeId)) return NotFound();
         var fehler = Pruefe(dto);
         if (fehler != null) return BadRequest(new { error = "UNGUELTIG", message = fehler });
+        var uvgCode = await PruefeUvgCodeAsync(employeeId, dto);
+        if (uvgCode != null) return uvgCode;
         var verzicht = await PruefeVerzichtAlterAsync(employeeId, dto);
         if (verzicht != null) return verzicht;
         var versichererFehler = await PruefeUvgVersichererAsync(employeeId, dto);
@@ -145,7 +172,9 @@ public class EmployeeVersicherungCodeController : ControllerBase
         if (e == null) return NotFound();
         var fehler = Pruefe(dto);
         if (fehler != null) return BadRequest(new { error = "UNGUELTIG", message = fehler });
-        var verzicht = await PruefeVerzichtAlterAsync(employeeId, dto);
+        var uvgCode = await PruefeUvgCodeAsync(employeeId, dto);
+        if (uvgCode != null) return uvgCode;
+        var verzicht = await PruefeVerzichtAlterAsync(employeeId, dto, e);
         if (verzicht != null) return verzicht;
         var versichererFehler = await PruefeUvgVersichererAsync(employeeId, dto);
         if (versichererFehler != null) return BadRequest(new { error = "UVG_VERSICHERER", message = versichererFehler });
@@ -167,6 +196,8 @@ public class EmployeeVersicherungCodeController : ControllerBase
     {
         var e = await _db.EmployeeVersicherungCodes.FirstOrDefaultAsync(v => v.Id == id && v.EmployeeId == employeeId);
         if (e == null) return NotFound();
+        var verzicht = await PruefeVerzichtAlterAsync(employeeId, null, e);
+        if (verzicht != null) return verzicht;
         var lock1 = await PruefeEditLockAsync(employeeId, e.ValidFrom);
         if (lock1 != null) return lock1;
         _db.EmployeeVersicherungCodes.Remove(e);
@@ -197,8 +228,27 @@ public class EmployeeVersicherungCodeController : ControllerBase
         if (dto.ValidTo != null && dto.ValidTo < dto.ValidFrom) return "«Gültig bis» liegt vor «Gültig ab».";
         var hatCode = !string.IsNullOrWhiteSpace(dto.Code);
         var hatFix  = dto.Art == "BVG" && (dto.BeitragFixAn is > 0 || dto.BeitragFixAg is > 0);
-        if (!hatCode && !hatFix) return dto.Art == "BVG" ? "Code oder fester Beitrag angeben." : "Code angeben.";
+        if (dto.Art != "UVG" && !hatCode && !hatFix)
+            return dto.Art == "BVG" ? "Code oder fester Beitrag angeben." : "Code angeben.";
         return null;
+    }
+
+    private async Task<IActionResult?> PruefeUvgCodeAsync(int employeeId, UpsertDto dto)
+    {
+        if (dto.Art != "UVG") return null;
+        var branchId = await GetEmployeeBranchAsync(employeeId);
+        var zeilen = await _db.SocialInsuranceRates.AsNoTracking()
+            .Where(r => r.IsActive && r.LoesungsCode != null
+                     && (r.CompanyProfileId == null || r.CompanyProfileId == branchId))
+            .Select(r => new { r.Code, r.LoesungsCode })
+            .ToListAsync();
+        var codes = zeilen
+            .Where(r => string.Equals(r.Code, "NBUV", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(r.Code, "BUV", StringComparison.OrdinalIgnoreCase))
+            .Select(r => r.LoesungsCode);
+        var fehler = UvgLoesung.PersonenCodeFehler(dto.Code, codes);
+        if (fehler == null) return null;
+        return BadRequest(new { error = "UVG_CODE", message = fehler });
     }
 
     private async Task<IActionResult?> PruefeEditLockAsync(int employeeId, DateOnly validFrom)
@@ -253,49 +303,99 @@ public class EmployeeVersicherungCodeController : ControllerBase
             .ToList();
     }
 
-    private sealed record RentenalterLage(bool Erreicht, string? Hinweis, DateOnly Stichtag);
+    private sealed record VerzichtLage(
+        bool Erreicht, bool Darf, string Hinweis, DateOnly Heute,
+        int Jahr, bool Gesperrt, bool NaechstesGesperrt,
+        DateOnly? ErsterTag, int FreibetragMonate,
+        DateOnly? Folgemonat, DateOnly? Eintritt, HashSet<int> GesperrteJahre);
 
     /// <summary>
-    /// Verzicht auf den Freibetrag nur, wenn am Stichtag das Referenzalter erreicht
-    /// ist. AHV 21 (Frauen-Übergang) und «ab dem Folgemonat» kommen aus
-    /// <see cref="PayrollCalculations.HatReferenzalterErreicht"/>, derselbe Stand
-    /// wie der Lohnlauf. Stichtag = älteste offene Lohnperiode der Filiale.
+    /// Freibetrag ab dem Folgemonat des Referenzalters, automatisch.
+    /// Verzicht darf schon im Erreichensjahr ab diesem Monat erfasst werden
+    /// (Juli → ab August), nicht erst am 1.1. Maßstab ist heute: eine alte
+    /// offene Lohnperiode auf der Testinstanz darf eine 66-jährige Person
+    /// nicht vom Bearbeiten aussperren. Gesperrt ist ein Jahr erst, wenn darin
+    /// eine bestätigte Lohnabrechnung in einem Freibetrag-Monat liegt.
     /// </summary>
-    private async Task<RentenalterLage> RentenalterAsync(int employeeId, int? branchId)
+    private async Task<VerzichtLage> VerzichtLageAsync(int employeeId)
     {
-        var stichtag = await RentenalterStichtagAsync(branchId);
-        var emp = await _db.Employees.AsNoTracking()
-            .Where(e => e.Id == employeeId)
-            .Select(e => new { e.DateOfBirth, e.Gender })
-            .FirstOrDefaultAsync();
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        var emp = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId);
         if (emp?.DateOfBirth == null)
-            return new RentenalterLage(false, "Verzicht auf den Freibetrag braucht ein Geburtsdatum.", stichtag);
+        {
+            var leer = new HashSet<int>();
+            return new VerzichtLage(false, false, "Verzicht auf den Freibetrag braucht ein Geburtsdatum.",
+                heute, heute.Year, false, false, null, 0, null, null, leer);
+        }
         var stand = await AhvBeitragspflichtStand.LadenAsync(_db);
+        var folge = AhvFreibetragEntscheid.Folgemonat(emp.Gender, emp.DateOfBirth.Value, stand);
+        var vertraege = await _db.Employments.AsNoTracking()
+            .Where(e => e.EmployeeId == employeeId).ToListAsync();
+        var eintritt = Dienstalter.Massgebend(emp, vertraege, heute);
+        var erster = AhvFreibetragEntscheid.ErsterTag(heute.Year, eintritt, folge);
+        var lohn = await (
+            from s in _db.PayrollSnapshots.AsNoTracking()
+            join p in _db.PayrollPerioden.AsNoTracking() on s.PayrollPeriodeId equals p.Id
+            where s.EmployeeId == employeeId
+               && (s.Status == "FREIGEGEBEN_GF" || s.Status == "HR_BESTAETIGT" || s.Status == "ABGESCHLOSSEN")
+            select new { p.Year, p.Month }
+        ).Distinct().ToListAsync();
+        bool freibetragGilt(int j, int m) => PayrollCalculations.HatReferenzalterErreicht(
+            emp.Gender, emp.DateOfBirth.Value, j, m, stand);
+        var gesperrt = AhvFreibetragEntscheid.GesperrteJahre(lohn.Select(x => (x.Year, x.Month)), freibetragGilt);
         var erreicht = PayrollCalculations.HatReferenzalterErreicht(
-            emp.Gender, emp.DateOfBirth.Value, stichtag.Year, stichtag.Month, stand);
-        return erreicht
-            ? new RentenalterLage(true, null, stichtag)
-            : new RentenalterLage(false, "Verzicht auf den Freibetrag erst ab dem Folgemonat des Referenzalters.", stichtag);
+            emp.Gender, emp.DateOfBirth.Value, heute.Year, heute.Month, stand);
+        var darf = folge != null && folge.Value.Year <= heute.Year;
+        var hinweis = AhvFreibetragEntscheid.Hinweis(heute, folge, erster, gesperrt.Contains(heute.Year));
+        return new VerzichtLage(
+            erreicht, darf, hinweis, heute, heute.Year,
+            gesperrt.Contains(heute.Year), gesperrt.Contains(heute.Year + 1),
+            erster, AhvFreibetragEntscheid.MonateImJahr(erster ?? folge, heute.Year),
+            folge, eintritt, gesperrt);
     }
 
-    private async Task<IActionResult?> PruefeVerzichtAlterAsync(int employeeId, UpsertDto dto)
+    private async Task<IActionResult?> PruefeVerzichtAlterAsync(int employeeId, UpsertDto? dto, EmployeeVersicherungCode? ersetzt = null)
     {
-        if (dto.Art != EmployeeVersicherungCode.ArtAhv) return null;
-        if (!string.Equals((dto.Code ?? "").Trim(), EmployeeVersicherungCode.CodeFreibetragVerzicht, StringComparison.OrdinalIgnoreCase))
-            return null;
-        var branchId = await GetEmployeeBranchAsync(employeeId);
-        var lage = await RentenalterAsync(employeeId, branchId);
-        if (lage.Erreicht) return null;
-        return BadRequest(new { error = "NICHT_IM_RENTENALTER", message = lage.Hinweis });
-    }
+        var istNeu = dto != null
+            && dto.Art == EmployeeVersicherungCode.ArtAhv
+            && string.Equals((dto.Code ?? "").Trim(), EmployeeVersicherungCode.CodeFreibetragVerzicht, StringComparison.OrdinalIgnoreCase);
+        var istAlt = ersetzt?.IstAhvFreibetragVerzicht == true;
+        if (!istNeu && !istAlt) return null;
 
-    private async Task<DateOnly> RentenalterStichtagAsync(int? branchId)
-    {
-        var q = _db.PayrollPerioden.AsNoTracking().Where(p => p.Status != "abgeschlossen");
-        if (branchId.HasValue)
-            q = q.Where(p => p.CompanyProfileId == branchId.Value);
-        var earliest = await q.OrderBy(p => p.PeriodFrom).Select(p => (DateOnly?)p.PeriodFrom).FirstOrDefaultAsync();
-        return earliest ?? DateOnly.FromDateTime(DateTime.Today);
+        var lage = await VerzichtLageAsync(employeeId);
+        if (istNeu && !lage.Darf)
+            return BadRequest(new { error = "NICHT_IM_RENTENALTER", message = lage.Hinweis });
+
+        var bestehende = await _db.EmployeeVersicherungCodes.AsNoTracking()
+            .Where(v => v.EmployeeId == employeeId
+                     && v.Art == EmployeeVersicherungCode.ArtAhv
+                     && v.Code == EmployeeVersicherungCode.CodeFreibetragVerzicht)
+            .ToListAsync();
+        var vorher = bestehende
+            .Select(e => new AhvFreibetragEntscheid.Spanne(e.ValidFrom, e.ValidTo)).ToList();
+        var nachher = new List<AhvFreibetragEntscheid.Spanne>();
+        foreach (var e in bestehende)
+        {
+            if (ersetzt != null && e.Id == ersetzt.Id) continue;
+            nachher.Add(new AhvFreibetragEntscheid.Spanne(e.ValidFrom, e.ValidTo));
+        }
+        if (istNeu && dto != null)
+        {
+            if (!dto.Zusaetzlich)
+            {
+                for (var i = 0; i < nachher.Count; i++)
+                {
+                    var s = nachher[i];
+                    if ((s.Bis == null || s.Bis >= dto.ValidFrom) && s.Von < dto.ValidFrom)
+                        nachher[i] = new AhvFreibetragEntscheid.Spanne(s.Von, dto.ValidFrom.AddDays(-1));
+                }
+            }
+            nachher.Add(new AhvFreibetragEntscheid.Spanne(dto.ValidFrom, dto.ValidTo));
+        }
+        var fehler = AhvFreibetragEntscheid.Pruefe(vorher, nachher, lage.GesperrteJahre, lage.Eintritt, lage.Folgemonat);
+        if (fehler != null)
+            return BadRequest(new { error = "VERZICHT_JAHR", message = fehler });
+        return null;
     }
 
     private async Task<int?> GetEmployeeBranchAsync(int employeeId)

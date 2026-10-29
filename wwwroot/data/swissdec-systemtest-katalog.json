@@ -1444,7 +1444,7 @@
       "direktive": "4.2.3",
       "stand": "vorhanden",
       "kommentarQt": "In OneCrew unter «Verträge» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "notiz": "Mehrfachbeschäftigung benötigen wir im Moment nicht. Später können wir sie bauen.",
       "gebaut": true,
       "seite": "vertraege",
       "seiteLabel": "Verträge",

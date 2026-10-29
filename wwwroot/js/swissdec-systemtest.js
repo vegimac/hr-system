@@ -49,7 +49,14 @@ function _stListeFuerTab(tab) {
 
 function _stEintrag(c) {
     const s = _stStand[c.id];
-    if (s) return s;
+    const katalogNotiz = (c.notiz || '').trim();
+    if (s) {
+        if (!(s.notiz || '').trim() && katalogNotiz)
+            return { ...s, notiz: katalogNotiz, vorbelegt: true };
+        return s;
+    }
+    if (katalogNotiz)
+        return { status: 'offen', notiz: katalogNotiz, vorbelegt: true };
     if (c.stand === 'gebaut' && c.kommentarQt)
         return { status: 'ok', notiz: c.kommentarQt, vorbelegt: true };
     return { status: 'offen' };

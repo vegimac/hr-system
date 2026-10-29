@@ -565,13 +565,9 @@ public static class ElmGemeinsam
             return new XElement(C + "Steady",
                 new XElement(C + "WeeklyHours", Amt(wh)),
                 new XElement(C + "ActivityRate", Amt(PayrollCalculations.Rappen(wh / vollzeitWochenstunden * 100m))));
-        if (em?.Regelmaessig == true && vollzeitWochenstunden > 0)
-        {
-            var pct = em.EmploymentPercentage ?? 100m;
-            return new XElement(C + "Steady",
-                new XElement(C + "WeeklyHours", Amt(PayrollCalculations.Rappen(vollzeitWochenstunden * pct / 100m))),
-                new XElement(C + "ActivityRate", Amt(pct)));
-        }
+        // Pensum in Prozent gibt es nur beim Monatslohn (FIX/FIX-M, oben).
+        // Beim Stundenlohn ist die feste Arbeitszeit die Wochenstundenzahl;
+        // ein mitgespeicherter Prozentsatz wird nicht zur Arbeitszeit.
         return new XElement(C + "Unsteady");
     }
 }

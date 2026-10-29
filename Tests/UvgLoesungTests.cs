@@ -23,6 +23,29 @@ public class UvgLoesungTests
     public void ErsteStelleZifferIstUngueltig(string code)
         => Assert.Contains("A–Z", UvgLoesung.ErsteStelleFehler(code));
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void PersonenCode_fehlt(string? code)
+        => Assert.Equal(UvgLoesung.CodeFehlt, UvgLoesung.PersonenCodeFehler(code, new[] { "A1" }));
+
+    [Theory]
+    [InlineData("A4")]
+    [InlineData("A9")]
+    [InlineData("B5")]
+    public void Zweite_Stelle_nur_0_bis_3(string code)
+        => Assert.Contains("0, 1, 2 oder 3", UvgLoesung.PersonenCodeFehler(code, new[] { "A1", "B2" }));
+
+    [Fact]
+    public void Betriebsteil_kommt_vom_Unternehmen()
+    {
+        var teile = new[] { "A1", "A2", "P3" };
+        Assert.Null(UvgLoesung.PersonenCodeFehler("A0", teile));
+        Assert.Null(UvgLoesung.PersonenCodeFehler("p1", teile));
+        Assert.Contains("nicht hinterlegt", UvgLoesung.PersonenCodeFehler("C1", teile));
+    }
+
     [Fact]
     public void NurUvgSaetzePruefenDieStelle()
     {

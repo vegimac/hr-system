@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using HrSystem.Data;
+using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using static HrSystem.Services.Elm.ElmGemeinsam;
 
@@ -121,14 +122,10 @@ public class ElmAnnualDeclarationBuilder
         if (offenePerioden.Count > 0)
             warn.Add($"Nicht definitiv abgeschlossene Monate im XML enthalten: {string.Join(", ", offenePerioden)} — für Übungszwecke ok, für eine echte Meldung müssen alle Monate abgeschlossen sein.");
 
-        var perEmp = rows.GroupBy(r => r.EmployeeId).Select(g => new
-        {
-            EmployeeId = g.Key,
-            Ahv = g.Sum(r => r.SvBasisAhv),
-            Alv = g.Sum(r => Math.Min(r.SvBasisAhv, AlvMonatsCap)),
-            FirstMonth = g.Min(r => r.Month),
-            LastMonth = g.Max(r => r.Month)
-        }).Where(x => x.Ahv > 0).OrderBy(x => x.EmployeeId).ToList();
+        var perEmp = rows.GroupBy(r => r.EmployeeId)
+            .Select(g => new { EmployeeId = g.Key, Ahv = g.Sum(r => r.SvBasisAhv) })
+            .Where(x => x.Ahv > 0).OrderBy(x => x.EmployeeId).ToList();
+        var rowsByEmp = rows.GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
 
         var empIds = perEmp.Select(x => x.EmployeeId).ToList();
         var emps = await _db.Employees.AsNoTracking()
@@ -142,13 +139,20 @@ public class ElmAnnualDeclarationBuilder
 
         var yearStart = new DateTime(year, 1, 1);
         var yearEnd = new DateTime(year, 12, 31);
+        var versicherung = await _db.EmployeeVersicherungCodes.AsNoTracking()
+            .Where(v => empIds.Contains(v.EmployeeId) && v.Art == EmployeeVersicherungCode.ArtAhv)
+            .ToListAsync(ct);
+        var codesByEmp = versicherung.GroupBy(v => v.EmployeeId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<EmployeeVersicherungCode>)g.ToList());
+        var ahvStand = await AhvBeitragspflichtStand.LadenAsync(_db);
 
         // ── Personen ──────────────────────────────────────────────────────
         var persons = new List<XElement>();
         int skipped = rows.GroupBy(r => r.EmployeeId).Count() - perEmp.Count;
         if (skipped > 0)
             warn.Add($"{skipped} MA ohne AHV-pflichtigen Lohn {year} übersprungen (z.B. unter 18 / nur 0-Läufe).");
-        decimal totalAhv = 0, totalAlv = 0;
+        decimal totalAhv = 0, totalAlv = 0, totalAhvFrei = 0, totalAlvFrei = 0;
+        var salaryTags = 0;
 
         foreach (var x in perEmp)
         {
@@ -181,25 +185,46 @@ public class ElmAnnualDeclarationBuilder
             if (e.ExitDate != null && e.ExitDate.Value >= yearStart && e.ExitDate.Value <= yearEnd)
                 work.Add(new XElement(C + "WithdrawalDate", e.ExitDate.Value.ToString("yyyy-MM-dd")));
 
-            var from = new DateTime(year, x.FirstMonth, 1);
-            var until = new DateTime(year, x.LastMonth, DateTime.DaysInMonth(year, x.LastMonth));
+            codesByEmp.TryGetValue(x.EmployeeId, out var codes);
+            var monate = rowsByEmp[x.EmployeeId]
+                .GroupBy(r => r.Month)
+                .OrderBy(g => g.Key)
+                .Select(g => new ElmAhvJahreslohn.Monat(
+                    g.Key,
+                    g.Sum(r => r.SvBasisAhv),
+                    g.Sum(r => Math.Min(r.SvBasisAhv, AlvMonatsCap)),
+                    ArtDesMonats(e, year, g.Key, codes, ahvStand)))
+                .ToList();
 
-            persons.Add(new XElement(Sd + "Person",
-                particulars,
-                work,
-                new XElement(Sd + "AHV-AVS-Salaries",
-                    new XElement(Sd + "AHV-AVS-Salary",
-                        new XAttribute("addresseeIDRef", "#ahv"),
-                        new XElement(Sd + "AccountingTime",
-                            new XElement(Ep + "from", from.ToString("yyyy-MM-dd")),
-                            new XElement(Ep + "until", until.ToString("yyyy-MM-dd"))),
-                        new XElement(Sd + "AHV-AVS-BaseSalary", Betrag05(x.Ahv)),
-                        new XElement(Sd + "AHV-AVS-Income", Betrag05(x.Ahv)),
-                        new XElement(Sd + "ALV-AC-Income", Betrag05(x.Alv))))));
+            var salaries = new XElement(Sd + "AHV-AVS-Salaries");
+            foreach (var a in ElmAhvJahreslohn.Abschnitte(monate))
+            {
+                var from = new DateTime(year, a.Von, 1);
+                var until = new DateTime(year, a.Bis, DateTime.DaysInMonth(year, a.Bis));
+                var salary = new XElement(Sd + "AHV-AVS-Salary",
+                    new XAttribute("addresseeIDRef", "#ahv"),
+                    new XElement(Sd + "AccountingTime",
+                        new XElement(Ep + "from", from.ToString("yyyy-MM-dd")),
+                        new XElement(Ep + "until", until.ToString("yyyy-MM-dd"))),
+                    new XElement(Sd + "AHV-AVS-BaseSalary", Betrag05(a.Basis)),
+                    new XElement(Sd + "AHV-AVS-Income", Betrag05(a.AhvLohn)));
+                if (a.AhvFrei != 0)
+                    salary.Add(new XElement(Sd + "AHV-AVS-Open", Betrag05(a.AhvFrei)));
+                salary.Add(new XElement(Sd + "ALV-AC-Income", Betrag05(a.AlvLohn)));
+                if (a.AlvFrei != 0)
+                    salary.Add(new XElement(Sd + "ALV-AC-Open", Betrag05(a.AlvFrei)));
+                if (a.Art == ElmAhvJahreslohn.Art.Verzicht)
+                    salary.Add(new XElement(Sd + "WaiveOfPensionDeduct"));
+                salaries.Add(salary);
+                salaryTags++;
+                // Totale = Summe der gemeldeten (gerundeten) Einzelwerte, sonst passen sie nicht zusammen.
+                totalAhv += PayrollCalculations.Round05(a.AhvLohn);
+                totalAlv += PayrollCalculations.Round05(a.AlvLohn);
+                totalAhvFrei += PayrollCalculations.Round05(a.AhvFrei);
+                totalAlvFrei += PayrollCalculations.Round05(a.AlvFrei);
+            }
 
-            // Totale = Summe der gemeldeten (gerundeten) Einzelwerte, sonst passen sie nicht zusammen.
-            totalAhv += PayrollCalculations.Round05(x.Ahv);
-            totalAlv += PayrollCalculations.Round05(x.Alv);
+            persons.Add(new XElement(Sd + "Person", particulars, work, salaries));
         }
 
         // ── FAK Nullmeldung (S_ELM_V6_01_01_05 / Direktive 8.2.4) ─────────
@@ -250,16 +275,16 @@ public class ElmAnnualDeclarationBuilder
             new(Sd + "AHV-AVS-Totals",
                 new XAttribute("addresseeIDRef", "#ahv"),
                 new XElement(Sd + "Total-AHV-AVS-Incomes", Amt(totalAhv)),
-                new XElement(Sd + "Total-AHV-AVS-Open", "0.00"),
+                new XElement(Sd + "Total-AHV-AVS-Open", Amt(totalAhvFrei)),
                 new XElement(Sd + "Total-ALV-AC-Incomes", Amt(totalAlv)),
                 new XElement(Sd + "Total-ALVZ-ACS-Incomes", "0.00"),
-                new XElement(Sd + "Total-ALV-AC-Open", "0.00"))
+                new XElement(Sd + "Total-ALV-AC-Open", Amt(totalAlvFrei)))
         };
         salaryTotals.AddRange(faks.Select(ElmFakAdressierung.TotalsNull));
 
         var counters = new List<XElement>
         {
-            new(Sd + "NumberOf-AHV-AVS-Salary-Tags", persons.Count)
+            new(Sd + "NumberOf-AHV-AVS-Salary-Tags", salaryTags)
         };
         if (faks.Count > 0)
             counters.Add(new XElement(Sd + "NumberOf-FAK-CAF-Salary-Tags", 0));
@@ -293,6 +318,30 @@ public class ElmAnnualDeclarationBuilder
         var xsdFehler = _validator.Validate(xml);
 
         return new BuildResult(xml, persons.Count, skipped, totalAhv, totalAlv, warn, xsdFehler);
+    }
+
+    /// <summary>
+    /// Sonderfall und das Kalenderjahr vor dem 18. Geburtstag: nicht AHV-/ALV-pflichtig.
+    /// Verzicht nur nach Referenzalter (Folgemonat). Sonst der normale Lohn.
+    /// </summary>
+    private static ElmAhvJahreslohn.Art ArtDesMonats(
+        Employee e, int year, int month,
+        IReadOnlyList<EmployeeVersicherungCode>? codes, AhvBeitragspflichtStand stand)
+    {
+        var erster = new DateOnly(year, month, 1);
+        var letzter = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+        bool gilt(EmployeeVersicherungCode c) =>
+            c.ValidFrom <= letzter && (c.ValidTo == null || c.ValidTo >= erster);
+
+        if (codes != null && codes.Any(c => c.IstAhvSonderfall && gilt(c)))
+            return ElmAhvJahreslohn.Art.Frei;
+        var geb = e.DateOfBirth!.Value;
+        if (year <= geb.Year + 17)
+            return ElmAhvJahreslohn.Art.Frei;
+        if (PayrollCalculations.HatReferenzalterErreicht(e.Gender, geb, year, month, stand)
+            && codes != null && codes.Any(c => c.IstAhvFreibetragVerzicht && gilt(c)))
+            return ElmAhvJahreslohn.Art.Verzicht;
+        return ElmAhvJahreslohn.Art.Normal;
     }
 
     /// <summary>

@@ -219,6 +219,9 @@ public class EmploymentsController : ControllerBase
         if (!employeeExists)
             return BadRequest(new { error = $"Mitarbeiter {employment.EmployeeId} nicht gefunden." });
 
+        var berufZahl = await BerufMitZahlAsync(employment.JobTitle);
+        if (berufZahl != null) return berufZahl;
+
         if (employment.ContractEndDate.HasValue
             && DateOnly.FromDateTime(employment.ContractEndDate.Value) < DateOnly.FromDateTime(employment.ContractStartDate))
             return Conflict(new { error = "VERTRAG_ZEITRAUM",
@@ -760,6 +763,8 @@ public class EmploymentsController : ControllerBase
             existing.SwissdecVertragsart = string.IsNullOrWhiteSpace(dto.SwissdecVertragsart)
                 ? null : dto.SwissdecVertragsart.Trim();
         existing.ContractType           = dto.ContractType;
+        var berufZahl = await BerufMitZahlAsync(dto.JobTitle);
+        if (berufZahl != null) return berufZahl;
         // Walter-Klarstellung 26.05.2026: JobTitle ist Free-Text-Stellenbezeichnung
         // (z.B. „Shift Coordinator") und wird 1:1 gespeichert. JobGroupId ist die
         // FK-Referenz auf die Funktionsgruppe (z.B. SHIFT_LEADER_7_PLUS) und
@@ -1267,6 +1272,20 @@ public class EmploymentsController : ControllerBase
             uebernommen = uebernehmen ? geaendert : 0,
             zeilen = sichtbar.OrderByDescending(z => z.Neu != null).ThenBy(z => z.EmployeeName).ThenBy(z => z.Von),
         };
+    }
+
+    /// <summary>
+    /// Zahl oder Sonderzeichen in der Berufsbezeichnung ablehnen. Der
+    /// easy@work-Import legt den Funktionscode (z.B. SHIFT_LEADER_7_PLUS)
+    /// in dasselbe Feld — der bleibt, weil er im Funktionskatalog steht.
+    /// </summary>
+    private async Task<IActionResult?> BerufMitZahlAsync(string? jobTitle)
+    {
+        if (!Berufsbezeichnung.IstGesperrt(jobTitle)) return null;
+        var text = jobTitle!.Trim();
+        var istFunktionscode = await _context.JobGroups.AnyAsync(g => g.Code == text);
+        if (istFunktionscode) return null;
+        return BadRequest(new { error = "BERUF_ZEICHEN", message = Berufsbezeichnung.Meldung });
     }
 
     /// <summary>

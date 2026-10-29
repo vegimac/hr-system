@@ -941,9 +941,15 @@ async function openNewContractInModal(employeeId) {
         ? Math.round(src.monthlySalaryFte * pct / 100 * 100) / 100
         : src.monthlySalary;
 
+    const filialId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        || (typeof currentBranchId !== 'undefined' ? Number(currentBranchId) || null : null);
+    window._ceAfterSave = async () => {
+        if (typeof selectEmployee === 'function') await selectEmployee(employeeId);
+    };
     const c = {
         id: null,
         employeeId,
+        companyProfileId:        filialId,
         employmentModel:         src.employmentModel || 'FLEX',
         swissdecVertragsart:     src.swissdecVertragsart ?? null,
         jobTitle:                src.jobTitle ?? '',
