@@ -19,14 +19,18 @@ let _elmaHinweis = null;
 let _elmaTimer = null;
 let _elmaOffen = new Set();
 let _elmaArchivOffen = false;
+let _elmaFokus = null;
+let _elmaFlug = false;
 
 (function () {
     if (document.getElementById('elmaSanduhrStyle')) return;
     const s = document.createElement('style');
     s.id = 'elmaSanduhrStyle';
     s.textContent = '@keyframes elmaSanduhr{0%,40%{transform:rotate(0)}60%,100%{transform:rotate(180deg)}}'
+        + '@keyframes elmaPuls{0%,100%{opacity:1}50%{opacity:.35}}'
         + '.elma-sanduhr{display:inline-block;font-size:36px;line-height:1;animation:elmaSanduhr 1.8s ease-in-out infinite}'
-        + '@media (prefers-reduced-motion:reduce){.elma-sanduhr{animation:none}}';
+        + '.elma-puls{animation:elmaPuls 1.2s ease-in-out infinite}'
+        + '@media (prefers-reduced-motion:reduce){.elma-sanduhr,.elma-puls{animation:none}}';
     document.head.appendChild(s);
 })();
 
@@ -299,8 +303,13 @@ async function elmaSenden() {
         : `${v.titel} senden?`;
     if (!(await liquidConfirm(frage, { title: 'Meldung senden', yesLabel: 'Senden', noLabel: 'Abbrechen' }))) return;
     const body = Object.assign({}, v.auswahl, { ersetztId: _elmaErsatz?.id || null, ziel: null });
+    _elmaFlug = true;
+    elmaKommZeichnen();
     const j = await _elmaPost('senden', body, 'Meldung wird gesendet', 'OneCrew übergibt sie an Swissdec.');
+    _elmaFlug = false;
     if (j?.ok) {
+        const neu = (_elma?.meldungen || []).find(m => !m.zertifizierung && _elmaPasstArt(m));
+        if (neu) _elmaFokus = neu.id;
         _elmaVorschau = null;
         _elmaErsatz = null;
         elmaErsatzZeichnen();
@@ -310,6 +319,7 @@ async function elmaSenden() {
         elmaListeZeichnen();
         elmaPlanen();
     }
+    elmaKommZeichnen();
 }
 
 function elmaErsatzZeichnen() {
@@ -382,10 +392,11 @@ function elmaListeZeichnen() {
     const kopf = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <div style="font-size:13px;font-weight:700;color:#3f3f3f">Gesendete Meldungen</div>
         <button type="button" class="btn btn-secondary" style="margin-left:auto" onclick="elmaLaden()">Aktualisieren</button></div>`;
-    if (!_elma) { el.innerHTML = ''; return; }
+    if (!_elma) { el.innerHTML = ''; elmaKommZeichnen(); return; }
     if (!alle.length) {
         el.innerHTML = kopf + hinweis + '<div style="font-size:13px;color:#8b8b8b">Für diese Meldung wurde noch nichts gesendet.</div>';
         elmaLageZeichnen();
+        elmaKommZeichnen();
         return;
     }
     el.innerHTML = kopf + hinweis
@@ -395,6 +406,87 @@ function elmaListeZeichnen() {
             ${_elmaArchivOffen ? `<div style="margin-top:8px">${fertig.map(x => _elmaZeile(x.m, x.mi)).join('')}</div>` : ''}
         </div>` : '');
     elmaLageZeichnen();
+    elmaKommZeichnen();
+}
+
+function elmaAnsehen(id) {
+    _elmaFokus = id;
+    elmaListeZeichnen();
+}
+
+function _elmaFokusMeldung() {
+    const liste = (_elma?.meldungen || []).filter(m => !m.zertifizierung && _elmaPasstArt(m));
+    if (_elmaFokus) {
+        const m = liste.find(x => x.id === _elmaFokus);
+        if (m) return m;
+    }
+    return liste.find(m => !m.fertig && (m.stufe === 'laeuft' || _elmaBrauchtNutzer(m))) || null;
+}
+
+function _elmaSchritt(zustand, titel, text, zeit) {
+    const farbe = zustand === 'ok' ? '#16a34a' : zustand === 'jetzt' ? '#3f3f3f' : zustand === 'rot' ? '#dc2626' : '#c4bfb6';
+    const puls = zustand === 'jetzt' ? ' elma-puls' : '';
+    return `<div style="display:flex;gap:12px">
+        <div style="width:16px;display:flex;flex-direction:column;align-items:center;flex:0 0 auto">
+            <span class="${puls.trim()}" style="width:10px;height:10px;border-radius:50%;background:${farbe};margin-top:5px"></span>
+            <span style="width:2px;flex:1;background:rgba(60,55,48,0.14);margin-top:4px"></span>
+        </div>
+        <div style="padding-bottom:14px">
+            <div style="font-size:14px;font-weight:700;color:#3f3f3f">${titel}</div>
+            <div style="font-size:13px;color:#646464;margin-top:2px;line-height:1.4">${text}</div>
+            ${zeit ? `<div style="font-size:11px;color:#8b8b8b;margin-top:2px">${zeit}</div>` : ''}
+        </div>
+    </div>`;
+}
+
+function _elmaKommSatz(schritt) {
+    if (schritt === 'Gesendet') return 'Unterschrieben, verschlüsselt und an Swissdec geschickt. Die Antwort mit der Auftragsnummer ist da.';
+    if (schritt === 'Stand abgefragt') return 'Stand abgefragt. Swissdec sagt, wo der Auftrag steht.';
+    if (schritt === 'Nachrichten abgeholt') return 'Quittung und Nachrichten vom Empfänger geholt.';
+    if (schritt === 'Angemeldet') return 'Anmeldung an Swissdec geschickt.';
+    return schritt || '';
+}
+
+function elmaKommZeichnen() {
+    const el = document.getElementById('elmaKomm');
+    if (!el) return;
+    const kopf = `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#8b8b8b">Kommunikation</div>`;
+    if (_elmaFlug) {
+        el.innerHTML = kopf + `<div style="font-size:18px;font-weight:700;color:#3f3f3f;margin:6px 0 16px">OneCrew sendet</div>`
+            + _elmaSchritt('ok', 'Meldung gebaut', 'Die Prüfung ist durch. Die Datei steht.', '')
+            + _elmaSchritt('jetzt', 'Leitung, Unterschrift, Verschlüsselung', 'OneCrew öffnet die Verbindung, unterschreibt mit dem Zertifikat und verschlüsselt für Swissdec.', '')
+            + _elmaSchritt('wartend', 'Antwort abwarten', 'Swissdec antwortet gleich mit der Auftragsnummer.', '')
+            + _elmaSchritt('wartend', 'Stand abfragen', 'Danach fragt OneCrew, bis der Auftrag fertig ist.', '')
+            + _elmaSchritt('wartend', 'Quittung holen', 'Zum Schluss die Rückmeldung jedes Empfängers.', '');
+        return;
+    }
+    const m = _elmaFokusMeldung();
+    if (!m) {
+        el.innerHTML = kopf + `<div style="font-size:18px;font-weight:700;color:#3f3f3f;margin:6px 0 8px">Noch nichts unterwegs</div>
+            <div style="font-size:13px;color:#646464;line-height:1.45">Setze links eine Meldung ab, oder klicke links auf eine gesendete. Hier erscheint dann jeder Schritt der Verbindung.</div>`;
+        return;
+    }
+    const mi = (_elma?.meldungen || []).indexOf(m);
+    const schritte = (m.verlauf || []).slice().reverse().map(p =>
+        _elmaSchritt('ok', _elmaEsc(p.schritt || 'Schritt'), _elmaEsc(_elmaKommSatz(p.schritt)), _elmaEsc(_elmaDatum(p.zeit))));
+    let jetzt = '';
+    if (_elmaBrauchtNutzer(m))
+        jetzt = _elmaSchritt('jetzt', 'Deine Ergänzung', 'Ein Empfänger wartet auf Angaben. Die Felder stehen unten.', '');
+    else if (!m.fertig && m.stufe === 'laeuft')
+        jetzt = _elmaSchritt('jetzt', 'Stand abfragen', 'OneCrew fragt bei Swissdec nach und wartet auf die nächste Antwort.', '');
+    else if (m.stufe === 'rot')
+        jetzt = _elmaSchritt('rot', 'Nicht angenommen', 'Mindestens ein Empfänger hat die Meldung abgelehnt.', '');
+    else if (m.fertig)
+        jetzt = _elmaSchritt('ok', 'Fertig', 'Swissdec ist mit diesem Auftrag durch.', '');
+    const namen = (m.empfaenger || []).map(e => e.name).filter(Boolean);
+    el.innerHTML = kopf
+        + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 4px">
+            <div style="font-size:18px;font-weight:700;color:#3f3f3f">${_elmaEsc(m.titel)}</div>
+            ${_elmaKurzStatus(m)}
+           </div>`
+        + (namen.length ? `<div style="font-size:12.5px;color:#646464;margin-bottom:14px">Empfänger: ${_elmaEsc(namen.join(', '))}</div>` : '<div style="height:14px"></div>')
+        + schritte.join('') + jetzt
+        + (_elmaBrauchtNutzer(m) ? `<div style="margin-top:8px">${_elmaDetailsInhalt(m, mi)}</div>` : '');
 }
 
 let _elmaLageKey = '';
@@ -493,10 +585,11 @@ function _elmaZeile(m, mi) {
     const offen = _elmaOffen.has(m.id);
     const f = _ELMA_STUFE[m.stufe] || _ELMA_STUFE.grau;
     const id = _elmaEsc(m.id);
-    return `<div style="margin-bottom:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.55)">
+    const rand = _elmaFokus === m.id ? '2px solid #3f3f3f' : '1px solid rgba(60,55,48,0.14)';
+    return `<div style="margin-bottom:8px;border-radius:12px;border:${rand};background:rgba(255,255,255,0.55)">
         <div style="padding:10px 14px;display:flex;align-items:center;gap:10px">
             <span style="width:10px;height:10px;border-radius:50%;background:${f.punkt};flex:0 0 auto"></span>
-            <b style="color:#3f3f3f;font-size:14px;white-space:nowrap">${_elmaEsc(m.titel)}</b>
+            <button type="button" onclick="elmaAnsehen('${id}')" style="background:none;border:none;padding:0;cursor:pointer;font:inherit;font-weight:700;color:#3f3f3f;font-size:14px;white-space:nowrap;text-align:left">${_elmaEsc(m.titel)}</button>
             ${m.ersatz ? '<span style="font-size:11px;color:#646464;white-space:nowrap">Ersatz</span>' : ''}
             <span style="font-size:12px;color:#8b8b8b;white-space:nowrap">${_elmaDatum(m.gesendet)}</span>
             <span style="margin-left:auto;white-space:nowrap">${_elmaKurzStatus(m)}</span>
