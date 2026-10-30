@@ -159,6 +159,7 @@ async function elmaPruefen() {
         _elmaWarte(null);
         _elmaBusy = false;
         if (btn) btn.disabled = false;
+        elmaLageZeichnen();
         elmaVorschauZeichnen();
     }
 }
@@ -208,7 +209,7 @@ async function elmaSenden() {
         _elmaErsatz = null;
         elmaErsatzZeichnen();
         const el = document.getElementById('elmaVorschau');
-        if (el) el.innerHTML = _elmaKasten(true, 'Gesendet.');
+        if (el) el.innerHTML = '';
         _elmaHinweis = null;
         elmaListeZeichnen();
         elmaPlanen();
@@ -294,6 +295,65 @@ function elmaListeZeichnen() {
         + (offen.length ? offen.map(x => _elmaZeile(x.m, x.mi)).join('') : '<div style="font-size:13px;color:#8b8b8b;margin-bottom:8px">Keine offenen Meldungen.</div>')
         + (fertig.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:#646464">Abgeschlossene Meldungen (${fertig.length})</summary>
             <div style="margin-top:8px">${fertig.map(x => _elmaZeile(x.m, x.mi)).join('')}</div></details>` : '');
+    elmaLageZeichnen();
+}
+
+let _elmaLageKey = '';
+
+function _elmaObenMeldung() {
+    return (_elma?.meldungen || []).find(m => !m.zertifizierung && !m.fertig && _elmaBrauchtNutzer(m)) || null;
+}
+
+function _elmaBrauchtNutzer(m) {
+    return (m.empfaenger || []).some(e =>
+        (e.nachrichten || []).some(n => n.dialog && n.dialog.beantwortbar && !n.beantwortet) || e.freigabeUrl);
+}
+
+function _elmaKarten(innen) {
+    return `<div id="elmaLage" style="margin-top:16px;padding:18px 20px;border-radius:16px;background:rgba(255,255,255,0.55);
+        border:1px solid rgba(255,255,255,0.75);box-shadow:0 10px 28px rgba(60,55,48,0.12)">${innen}</div>`;
+}
+
+function elmaLageZeichnen() {
+    if (_elmaBusy) return;
+    const el = document.getElementById('elmaStatus');
+    if (!el) return;
+    const liste = _elma?.meldungen || [];
+    const aktion = liste.filter(m => !m.zertifizierung && !m.fertig && _elmaBrauchtNutzer(m));
+    const unterwegs = liste.filter(m => !m.zertifizierung && !m.fertig && m.stufe === 'laeuft');
+    if (aktion.length) {
+        const m = aktion[0];
+        const mi = liste.indexOf(m);
+        const key = 'aktion:' + m.id;
+        if (key === _elmaLageKey && document.getElementById('elmaLage')) return;
+        _elmaLageKey = key;
+        const weitere = aktion.length > 1 ? `<div style="font-size:13px;color:#646464;margin-top:8px">Weitere Meldungen warten ebenfalls auf Sie. Sie stehen im Verlauf.</div>` : '';
+        const parallel = unterwegs.length
+            ? `<div style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:13px;color:#646464"><span class="elma-sanduhr" style="font-size:18px" aria-hidden="true">⏳</span> OneCrew fragt eine andere Meldung noch bei Swissdec ab.</div>`
+            : '';
+        el.innerHTML = _elmaKarten(`<div style="font-size:16px;font-weight:700;color:#3f3f3f">Bitte ergänzen</div>
+            <div style="font-size:13px;color:#646464;margin-top:4px">${_elmaEsc(m.titel)} — der Empfänger braucht noch Angaben von Ihnen.</div>
+            <div id="elmaLageHinweis"></div>
+            ${_elmaDetailsInhalt(m, mi)}${weitere}${parallel}`);
+        return;
+    }
+    if (unterwegs.length) {
+        const m = unterwegs[0];
+        const key = 'lauf:' + m.id;
+        if (key === _elmaLageKey && document.getElementById('elmaLage')) return;
+        _elmaLageKey = key;
+        const weitere = unterwegs.length > 1 ? ' Weitere Meldungen sind ebenfalls unterwegs.' : '';
+        el.innerHTML = _elmaKarten(`<div style="display:flex;gap:16px;align-items:center">
+            <div class="elma-sanduhr" aria-hidden="true">⏳</div>
+            <div>
+                <div style="font-size:16px;font-weight:700;color:#3f3f3f">OneCrew fragt bei Swissdec nach</div>
+                <div style="font-size:13px;color:#646464;margin-top:4px">${_elmaEsc(m.titel)}. Der Stand erscheint hier, sobald er da ist.${_elmaEsc(weitere)}</div>
+            </div>
+        </div>`);
+        return;
+    }
+    _elmaLageKey = '';
+    el.innerHTML = '';
 }
 
 function _elmaMensch(text, ok) {
@@ -336,7 +396,9 @@ function _elmaZeile(m, mi) {
             <button type="button" class="btn btn-secondary" style="white-space:nowrap" onclick="elmaDetails('${id}')">${offen ? 'Schliessen' : 'Details'}</button>
         </div>
         ${offen ? `<div style="padding:0 14px 14px">
-            ${_elmaDetailsInhalt(m, mi)}
+            ${_elmaObenMeldung()?.id === m.id
+                ? '<div style="font-size:13px;color:#646464;padding-top:4px">Die Angaben stehen oben.</div>'
+                : _elmaDetailsInhalt(m, mi)}
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
                 ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmaErsetzen('${id}')">Korrigierte Meldung senden</button>` : ''}
             </div>
@@ -442,10 +504,8 @@ async function elmaAntworten(mi, ei, ni) {
     });
     if (fehlt.length) {
         const st = document.getElementById('elmaStatus');
-        if (st) {
-            st.innerHTML = _elmaKasten(false, 'Bitte noch ausfüllen: ' + fehlt.map(_elmaEsc).join(', ') + '.');
-            st.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+        const hin = document.getElementById('elmaLageHinweis');
+        if (hin) hin.innerHTML = _elmaKasten(false, 'Bitte noch ausfüllen: ' + fehlt.map(_elmaEsc).join(', ') + '.');
         return;
     }
     await _elmaPost(`${encodeURIComponent(m.id)}/antworten`, { addresseeId: e.addresseeId, storyId: n.storyId, werte },
@@ -464,8 +524,7 @@ function elmaPlanen() {
     clearTimeout(_elmaTimer);
     _elmaTimer = setTimeout(async () => {
         if (!document.getElementById('page-elm-anwender')?.classList.contains('active')) return;
-        const grenze = Date.now() - 10 * 60 * 1000;
-        const m = (_elma?.meldungen || []).find(x => !x.fertig && !x.zertifizierung && x.stufe === 'laeuft' && new Date(x.gesendet).getTime() > grenze);
+        const m = (_elma?.meldungen || []).find(x => !x.fertig && !x.zertifizierung && x.stufe === 'laeuft');
         if (!m) return;
         if (_elmaBusy) { elmaPlanen(); return; }
         try {
