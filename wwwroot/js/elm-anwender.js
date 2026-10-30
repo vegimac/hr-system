@@ -504,21 +504,21 @@ function _elmaText(id, text) {
 
 function _elmaPhaseVon(m) {
     if (_elmaFlug)
-        return { schritte: _ELMA_SEND, index: 1, laufend: true, titel: 'Leitung, Unterschrift, Verschlüsselung', kern: 'Sendet', phase: 'Sendet' };
+        return { schritte: _ELMA_SEND, index: 1, laufend: true, titel: 'Leitung, Unterschrift, Verschlüsselung', kern: 'Sendet', phase: 'Sendet', zurueck: false };
     if (!m)
-        return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit' };
+        return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit', zurueck: false };
     const hat = s => (m.verlauf || []).some(p => p.schritt === s);
     if (m.stufe === 'rot')
-        return { schritte: _ELMA_QUERY, index: 4, laufend: false, titel: 'Nicht angenommen', kern: 'Stopp', phase: 'Abgelehnt' };
+        return { schritte: _ELMA_QUERY, index: 4, laufend: false, titel: 'Nicht angenommen', kern: 'Stopp', phase: 'Abgelehnt', zurueck: true };
     if (_elmaBrauchtNutzer(m))
-        return { schritte: _ELMA_QUERY, index: 4, laufend: true, titel: 'Empfänger wartet auf eine Ergänzung', kern: 'Wartet', phase: 'Ergänzen' };
+        return { schritte: _ELMA_QUERY, index: 4, laufend: true, titel: 'Empfänger wartet auf eine Ergänzung', kern: 'Wartet', phase: 'Ergänzen', zurueck: true };
     if (m.fertig)
-        return { schritte: _ELMA_QUERY, index: 6, laufend: false, titel: 'Auftrag abgeschlossen', kern: 'Fertig', phase: m.stufe === 'ok' ? 'Erledigt' : 'Prüfen' };
+        return { schritte: _ELMA_QUERY, index: 6, laufend: false, titel: 'Auftrag abgeschlossen', kern: 'Fertig', phase: m.stufe === 'ok' ? 'Erledigt' : 'Prüfen', zurueck: true };
     if (hat('Nachrichten abgeholt'))
-        return { schritte: _ELMA_QUERY, index: 5, laufend: m.stufe === 'laeuft', titel: 'Quittung ist da', kern: 'Prüft', phase: 'Quittung' };
+        return { schritte: _ELMA_QUERY, index: 5, laufend: m.stufe === 'laeuft', titel: 'Quittung ist da', kern: 'Prüft', phase: 'Quittung', zurueck: true };
     if (hat('Gesendet') || hat('Stand abgefragt') || m.stufe === 'laeuft')
-        return { schritte: _ELMA_QUERY, index: 3, laufend: true, titel: 'Stand wird abgefragt', kern: 'Fragt', phase: 'Unterwegs' };
-    return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit' };
+        return { schritte: _ELMA_QUERY, index: 3, laufend: true, titel: 'Stand wird abgefragt', kern: 'Fragt', phase: 'Unterwegs', zurueck: true };
+    return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit', zurueck: false };
 }
 
 function elmaKommZeichnen() {
@@ -539,7 +539,10 @@ function elmaKommZeichnen() {
     _elmaText('elmaCore', phase.kern);
     _elmaText('elmaPhase', phase.phase);
     const stage = document.getElementById('elmaStage');
-    if (stage) stage.classList.toggle('paused', !phase.laufend);
+    if (stage) {
+        stage.classList.toggle('paused', !phase.laufend);
+        stage.classList.toggle('elma-zurueck', !!phase.zurueck);
+    }
 
     const sua = _elmaCert?.sua;
     const online = _elmaVerb?.letzte?.erreichbar?.stufe === 'ok';

@@ -14633,6 +14633,8 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-packet.b { width: 12px; height: 6px; top: calc(50% - 3px); animation-delay: -.8s; opacity: .65; }
 #page-elm-anwender .elma-packet.c { width: 7px; height: 7px; top: calc(50% - 3px); border-radius: 50%; animation-delay: -1.6s; opacity: .4; }
 #page-elm-anwender .elma-stage.paused .elma-packet { animation-play-state: paused; opacity: 0; }
+#page-elm-anwender .elma-stage.elma-zurueck .elma-packet,
+#page-elm-anwender .elma-stage.elma-zurueck:not(.paused) .elma-beam:after { animation-direction: reverse; }
 @keyframes elmaTravel { from { left: 28%; } to { left: calc(72% - 22px); } }
 #page-elm-anwender .elma-stage:not(.paused) .elma-core { animation: elmaCore 2.4s ease-in-out infinite; }
 @keyframes elmaCore {
