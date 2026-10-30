@@ -11,8 +11,8 @@ namespace HrSystem.Controllers;
 /// Gemerkte An-/Abmeldungen bei GastroSocial (Walter 13.10.2026).
 /// • AKIS-Seite: «Im AKISnet gemeldet ✓» → <c>gemeldet</c>, rückgängig → DELETE.
 /// • AHV-Abgleich: Altbestand aus der GastroSocial-Liste → <c>abgleich-uebernehmen</c>.
-/// Gespeichert wird nur, was nach <see cref="GastroSocialMeldungRegel"/> wirklich ein Ein-/Austritt
-/// des MA in dieser Filiale ist — der Browser kann keine beliebigen Einträge anlegen.
+/// Gespeichert wird nur, was nach <see cref="GastroSocialMeldungRegel"/> wirklich eine An- oder
+/// Abmeldung des MA in dieser Filiale ist — der Browser kann keine beliebigen Einträge anlegen.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -104,13 +104,10 @@ public class GastroSocialMeldungController : HrControllerBase
             .Where(e => empIds.Contains(e.Id) && e.ExitDate != null)
             .Select(e => new { e.Id, e.ExitDate, e.KuendigungPer })
             .ToListAsync();
-        var proMa = vertraege.ToLookup(v => v.EmployeeId);
         var res = GastroSocialMeldungRegel.Anmeldungen(vertraege).Where(e => e.CompanyProfileId == cpId).ToList();
-        foreach (var a in austritte)
-        {
-            var ab = GastroSocialMeldungRegel.AbmeldungVon(a.Id, a.ExitDate, a.KuendigungPer, proMa[a.Id]);
-            if (ab != null && ab.CompanyProfileId == cpId) res.Add(ab);
-        }
+        res.AddRange(GastroSocialMeldungRegel.Abmeldungen(vertraege,
+                austritte.Select(a => new GastroSocialMeldungRegel.PersonAustritt(a.Id, a.ExitDate, a.KuendigungPer)))
+            .Where(e => e.CompanyProfileId == cpId));
         return res;
     }
 

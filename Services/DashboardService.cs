@@ -1812,11 +1812,13 @@ public class DashboardService
         }
 
         // ── GastroSocial An-/Abmeldung fehlt (Walter 13.10.2026) ───────────
-        // Jeder Eintritt (pro Filiale = eigenes Konto) braucht eine Anmeldung, jeder erfasste
-        // Austritt mit gesetztem «Gekündigt per» eine Abmeldung (befristet ohne Kündigung per zählt nicht).
+        // Jeder Eintritt (pro Filiale = eigenes Konto) braucht eine Anmeldung.
+        // Abmeldung: Austritt mit «Gekündigt per», oder Filialwechsel (letzter Vertragstag
+        // der alten Filiale, sobald anderswo weitergearbeitet wird). Befristet ohne Anschluss
+        // und ohne Kündigung per zählt nicht.
         // Gemeldet = Knopf auf der AKIS-Seite oder übernommen aus dem
-        // AHV-Abgleich. Anmeldung ab dem Eintrittstag. Abmeldung erst nach dem Austritt
-        // (Vorlauf −3 = Austritt 31.10., Warnung ab 3.11.). Altbestand vor 2026 bleibt still.
+        // AHV-Abgleich. Anmeldung ab dem Eintrittstag. Abmeldung erst am Folgetag
+        // (Vorlauf −3 = Stichtag 31.10., Warnung ab 3.11.). Altbestand vor 2026 bleibt still.
         // Regel: GastroSocialMeldungRegel. Austretende: siehe keepCats unten.
         if (Enabled("gastrosocial_anmeldung_fehlt") || Enabled("gastrosocial_abmeldung_fehlt"))
         {
@@ -1835,9 +1837,8 @@ public class DashboardService
             if (Enabled("gastrosocial_anmeldung_fehlt"))
                 gsEreignisse.AddRange(GastroSocialMeldungRegel.Anmeldungen(gsVertraege));
             if (Enabled("gastrosocial_abmeldung_fehlt"))
-                foreach (var e in gsMa)
-                    if (GastroSocialMeldungRegel.AbmeldungVon(e.Id, e.ExitDate, e.KuendigungPer, gsProMa[e.Id]) is { } ab)
-                        gsEreignisse.Add(ab);
+                gsEreignisse.AddRange(GastroSocialMeldungRegel.Abmeldungen(gsVertraege,
+                    gsMa.Select(e => new GastroSocialMeldungRegel.PersonAustritt(e.Id, e.ExitDate, e.KuendigungPer))));
             if (companyProfileId.HasValue)
                 gsEreignisse = gsEreignisse.Where(e => e.CompanyProfileId == companyProfileId.Value).ToList();
             var gsMeldungen = (await _db.GastroSocialMeldungen.AsNoTracking()
@@ -1861,13 +1862,18 @@ public class DashboardService
                     var fil = gsFilialen.TryGetValue(o.CompanyProfileId, out var f)
                         ? $"{f.RestaurantCode} {(string.IsNullOrWhiteSpace(f.BranchName) ? f.City : f.BranchName)}".Trim() : "";
                     bool an = o.Art == GastroSocialMeldungRegel.Anmeldung;
+                    var firma = an ? null : GastroSocialMeldungRegel.AbmeldungVon(
+                        ma.Id, ma.ExitDate, ma.KuendigungPer, gsProMa[ma.Id]);
+                    bool firmenaustritt = firma != null
+                        && firma.CompanyProfileId == o.CompanyProfileId && firma.Datum == o.Datum;
+                    string anlass = an ? "Eintritt" : firmenaustritt ? "Austritt" : "Filialwechsel";
                     var cat = an ? "gastrosocial_anmeldung_fehlt" : "gastrosocial_abmeldung_fehlt";
                     alerts.Add(new DashboardAlert
                     {
                         Category = cat,
                         Severity = SeverityState(cat, "warning"),
                         Title    = an ? "GastroSocial-Anmeldung fehlt" : "GastroSocial-Abmeldung fehlt",
-                        Subtitle = $"{name} · Personalnr. {ma.EmployeeNumber} · {(an ? "Eintritt" : "Austritt")} am {o.Datum:dd.MM.yyyy}"
+                        Subtitle = $"{name} · Personalnr. {ma.EmployeeNumber} · {anlass} am {o.Datum:dd.MM.yyyy}"
                                  + (fil.Length > 0 ? $" · {fil}" : ""),
                         DueDate        = o.Datum.ToDateTime(TimeOnly.MinValue),
                         DaysUntil      = o.Datum.DayNumber - today.DayNumber,

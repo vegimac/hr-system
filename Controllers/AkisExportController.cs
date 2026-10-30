@@ -15,13 +15,13 @@ namespace HrSystem.Controllers;
 /// ORIGINAL-Vorlagen (Assets/Forms/Akis_*.xlsx, Daten ab Zeile 8) aus den
 /// Ein-/Austritten der Filiale — hochladen bleibt manuell (kein API/ELM).
 ///
-/// Anmeldung  = Vertrag startet im Zeitraum und es lief am Vortag KEIN
-///              anderer Vertrag derselben Filiale (nahtlose Vertrags-
-///              anpassungen lösen also keine Anmeldung aus).
-/// Abmeldung  = Vertrag endet im Zeitraum und es folgt KEIN Anschluss-
-///              vertrag derselben Filiale (Folgevertrag = kein Austritt).
-/// Jede Filiale ist eine eigene GmbH — Filialwechsel ist damit korrekt
-/// eine Abmeldung + Anmeldung.
+/// Anmeldung = Vertrag beginnt in der Filiale, am Vortag lief dort keiner
+///             (nahtlose Anpassung = keine neue Anmeldung).
+/// Abmeldung = Austritt mit «Gekündigt per», Filiale des letzten Vertrags,
+///             oder Filialwechsel: letzter Vertragstag der alten Filiale,
+///             sobald in einer anderen Filiale weitergearbeitet wird.
+///             Befristet ohne Anschluss und ohne Kündigung per bleibt still.
+/// Die Zeile erscheint erst am Folgetag. Jede Filiale ist ein eigenes Konto.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -57,42 +57,40 @@ public class AkisExportController : ControllerBase
     }
 
     /// <summary>
-    /// Abmeldung nur, wenn der Austritt schon vorbei ist (Austritt 31.10. erscheint ab 1.11.)
-    /// und «Gekündigt per» gesetzt ist. Ein befristeter Vertrag hat oft trotzdem ein
-    /// Austrittsdatum — ohne Kündigung per ist das keine Abmeldung (Walter 20.10.2026).
-    /// Filial-Zuordnung: der letzte Vertrag des MA (über alle Filialen) muss
-    /// in dieser Filiale liegen.
+    /// Abmeldung am Folgetag: Firmenaustritt mit «Gekündigt per» (Filiale des letzten Vertrags)
+    /// oder Filialwechsel (letzter Vertragstag der alten Filiale). Befristet ohne Anschluss bleibt draussen.
     /// </summary>
     private async Task<(List<Row> rows, List<Row> ohneAhv)> AbmeldungenAsync(
         int cpId, DateTime from, DateTime to)
     {
-        // Tag des Austritts zählt noch nicht: am 31.10. arbeitet der MA, ab 1.11. ist er weg.
+        // Der letzte Tag zählt noch: am 31.10. arbeitet der MA, ab 1.11. ist die Zeile fällig.
         var letzterTag = DateTime.Today.AddDays(-1);
         if (to.Date < letzterTag) letzterTag = to.Date;
         if (from.Date > letzterTag) return (new List<Row>(), new List<Row>());
 
-        var exitEmps = await _db.Employees.AsNoTracking()
-            .Where(e => !e.IsHidden && !e.IsPayrollExcluded
-                     && e.ExitDate != null && e.KuendigungPer != null
-                     && e.ExitDate >= from && e.ExitDate <= letzterTag)
-            .Select(e => new { e.Id, e.ExitDate, e.KuendigungPer })
+        var idsInFiliale = await _db.Employments.AsNoTracking()
+            .Where(e => e.CompanyProfileId == cpId)
+            .Select(e => e.EmployeeId)
+            .Distinct()
             .ToListAsync();
-        if (exitEmps.Count == 0) return (new List<Row>(), new List<Row>());
+        if (idsInFiliale.Count == 0) return (new List<Row>(), new List<Row>());
 
-        var ids = exitEmps.Select(e => e.Id).ToList();
-        var alleVertraege = (await _db.Employments.AsNoTracking()
-            .Where(e => ids.Contains(e.EmployeeId) && e.CompanyProfileId != null)
+        var alleVertraege = await _db.Employments.AsNoTracking()
+            .Where(e => idsInFiliale.Contains(e.EmployeeId) && e.CompanyProfileId != null)
             .Select(e => new GastroSocialMeldungRegel.Vertrag(e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate))
+            .ToListAsync();
+        var austritte = (await _db.Employees.AsNoTracking()
+            .Where(e => idsInFiliale.Contains(e.Id) && e.ExitDate != null)
+            .Select(e => new { e.Id, e.ExitDate, e.KuendigungPer })
             .ToListAsync())
-            .ToLookup(v => v.EmployeeId);
+            .Select(e => new GastroSocialMeldungRegel.PersonAustritt(e.Id, e.ExitDate, e.KuendigungPer))
+            .ToList();
 
-        var kandidaten = new List<(int, DateTime)>();
-        foreach (var e in exitEmps)
-        {
-            var ab = GastroSocialMeldungRegel.AbmeldungVon(e.Id, e.ExitDate, e.KuendigungPer, alleVertraege[e.Id]);
-            if (ab != null && ab.CompanyProfileId == cpId)
-                kandidaten.Add((e.Id, e.ExitDate!.Value));
-        }
+        DateOnly von = DateOnly.FromDateTime(from.Date), bis = DateOnly.FromDateTime(letzterTag);
+        var kandidaten = GastroSocialMeldungRegel.Abmeldungen(alleVertraege, austritte)
+            .Where(e => e.CompanyProfileId == cpId && e.Datum >= von && e.Datum <= bis)
+            .Select(e => (e.EmployeeId, e.Datum.ToDateTime(TimeOnly.MinValue)))
+            .ToList();
         return await LoadRowsAsync(kandidaten);
     }
 
@@ -125,13 +123,24 @@ public class AkisExportController : ControllerBase
             }
         }
         if (kandidaten.Count == 0) return new List<Row>();
-        // MA mit erfasstem Austritt raus (die sind echte Abmeldungen)
         var ids = kandidaten.Keys.ToList();
+        // Filialwechsel ist schon eine Abmeldung — nicht nochmals als «befristet, noch entscheiden».
+        var alleFilialen = await _db.Employments.AsNoTracking()
+            .Where(e => ids.Contains(e.EmployeeId) && e.CompanyProfileId != null)
+            .Select(e => new GastroSocialMeldungRegel.Vertrag(e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate))
+            .ToListAsync();
+        var wechsel = GastroSocialMeldungRegel.AbmeldungenBeiFilialwechsel(alleFilialen)
+            .Where(e => e.CompanyProfileId == cpId)
+            .Select(e => (e.EmployeeId, e.Datum))
+            .ToHashSet();
+        // MA mit erfasstem Austritt raus (die sind echte Abmeldungen)
         var ohneExit = await _db.Employees.AsNoTracking()
             .Where(e => ids.Contains(e.Id) && e.ExitDate == null)
             .Select(e => e.Id)
             .ToListAsync();
-        var gefiltert = kandidaten.Where(k => ohneExit.Contains(k.Key))
+        var gefiltert = kandidaten
+            .Where(k => ohneExit.Contains(k.Key)
+                     && !wechsel.Contains((k.Key, DateOnly.FromDateTime(k.Value))))
             .Select(k => (k.Key, k.Value)).ToList();
         var (rows, ohneAhv) = await LoadRowsAsync(gefiltert);
         return rows.Concat(ohneAhv)

@@ -102,7 +102,7 @@ function _akisRender(d) {
         ${kopf('Anmeldungen', d.anmeldungen.concat(d.anmeldungenOhneAhv || []), 'ANMELDUNG')}
         ${warn((d.anmeldungenOhneAhv || []).filter(r => !r.gemeldet), 'Eintritt(e)')}
         ${tbl(d.anmeldungen.concat(d.anmeldungenOhneAhv || []), 'ANMELDUNG')}
-        ${kopf('Abmeldungen', d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— erst nach dem Austritt, nur mit Kündigung per</span>')}
+        ${kopf('Abmeldungen', d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— am Folgetag: Austritt mit Kündigung per, oder letzter Vertragstag beim Filialwechsel</span>')}
         ${warn((d.abmeldungenOhneAhv || []).filter(r => !r.gemeldet), 'Austritt(e)')}
         ${tbl(d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG')}
         ${(d.befristetOffen || []).length ? `

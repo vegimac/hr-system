@@ -183,4 +183,122 @@ public class GastroSocialMeldungTests
         Assert.Contains(b, e => e.Datum == O(2025, 1, 1));
         Assert.DoesNotContain(b, e => e.Datum == O(2026, 8, 1));
     }
+
+    [Fact]
+    public void Filialwechsel_meldet_alte_Filiale_am_letzten_Vertragstag_ab()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var e = Assert.Single(R.AbmeldungenBeiFilialwechsel(v));
+        Assert.Equal(R.Abmeldung, e.Art);
+        Assert.Equal((10, O(2026, 8, 31)), (e.CompanyProfileId, e.Datum));
+    }
+
+    [Fact]
+    public void Nahtlos_in_derselben_Filiale_und_befristet_ohne_Anschluss_bleiben_still()
+    {
+        var gleiche = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 3, 31)),
+            new R.Vertrag(1, 10, D(2026, 4, 1), null),
+        };
+        Assert.Empty(R.AbmeldungenBeiFilialwechsel(gleiche));
+
+        var befristet = new[] { new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 10, 31)) };
+        Assert.Empty(R.AbmeldungenBeiFilialwechsel(befristet));
+        Assert.Empty(R.Abmeldungen(befristet, new[] { new R.PersonAustritt(1, D(2026, 10, 31), null) }));
+
+        var lueckeGleich = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 2, 28)),
+            new R.Vertrag(1, 10, D(2026, 6, 1), null),
+        };
+        Assert.Empty(R.AbmeldungenBeiFilialwechsel(lueckeGleich));
+    }
+
+    [Fact]
+    public void Luecke_dann_andere_Filiale_meldet_am_letzten_Tag_ab()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 2, 28)),
+            new R.Vertrag(1, 20, D(2026, 6, 1), null),
+        };
+        var e = Assert.Single(R.AbmeldungenBeiFilialwechsel(v));
+        Assert.Equal((10, O(2026, 2, 28)), (e.CompanyProfileId, e.Datum));
+    }
+
+    [Fact]
+    public void Rueckkehr_in_dieselbe_Filiale_vor_dem_Wechsel_ist_keine_Abmeldung()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 2, 28)),
+            new R.Vertrag(1, 10, D(2026, 6, 1), D(2026, 8, 31)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var e = Assert.Single(R.AbmeldungenBeiFilialwechsel(v));
+        Assert.Equal((10, O(2026, 8, 31)), (e.CompanyProfileId, e.Datum));
+    }
+
+    [Fact]
+    public void Ueberlappender_Wechsel_meldet_am_letzten_Tag_der_alten_Filiale_ab()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 9, 15)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var e = Assert.Single(R.AbmeldungenBeiFilialwechsel(v));
+        Assert.Equal((10, O(2026, 9, 15)), (e.CompanyProfileId, e.Datum));
+    }
+
+    [Fact]
+    public void Hin_und_zurueck_meldet_beide_Filialen_ab()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 3, 31)),
+            new R.Vertrag(1, 20, D(2026, 4, 1), D(2026, 6, 30)),
+            new R.Vertrag(1, 10, D(2026, 7, 1), null),
+        };
+        var ab = R.AbmeldungenBeiFilialwechsel(v).OrderBy(e => e.Datum).ToList();
+        Assert.Equal(2, ab.Count);
+        Assert.Equal((10, O(2026, 3, 31)), (ab[0].CompanyProfileId, ab[0].Datum));
+        Assert.Equal((20, O(2026, 6, 30)), (ab[1].CompanyProfileId, ab[1].Datum));
+    }
+
+    [Fact]
+    public void Wechsel_und_spaeterer_Firmenaustritt_sind_zwei_Abmeldungen()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 4, 30)),
+            new R.Vertrag(1, 20, D(2026, 5, 1), D(2026, 9, 30)),
+        };
+        var ab = R.Abmeldungen(v, new[] { new R.PersonAustritt(1, D(2026, 9, 30), D(2026, 9, 30)) })
+            .OrderBy(e => e.Datum).ToList();
+        Assert.Equal(2, ab.Count);
+        Assert.Equal((10, O(2026, 4, 30)), (ab[0].CompanyProfileId, ab[0].Datum));
+        Assert.Equal((20, O(2026, 9, 30)), (ab[1].CompanyProfileId, ab[1].Datum));
+    }
+
+    [Fact]
+    public void Filialwechsel_erscheint_erst_am_Folgetag_und_Altbestand_bleibt_still()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2025, 1, 1), D(2025, 12, 31)),
+            new R.Vertrag(1, 20, D(2026, 1, 1), null),
+            new R.Vertrag(2, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(2, 20, D(2026, 9, 1), null),
+        };
+        var ereignisse = R.AbmeldungenBeiFilialwechsel(v);
+        Assert.Empty(R.Offen(ereignisse, Array.Empty<R.Meldung>(), O(2026, 8, 31)));
+        var e = Assert.Single(R.Offen(ereignisse, Array.Empty<R.Meldung>(), O(2026, 9, 1)));
+        Assert.Equal((2, 10, O(2026, 8, 31)), (e.EmployeeId, e.CompanyProfileId, e.Datum));
+    }
 }

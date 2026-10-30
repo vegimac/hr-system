@@ -5,11 +5,15 @@ namespace HrSystem.Services;
 /// AKIS-Seite, AHV-Abgleich und To-do. Jede Filiale ist eine eigene GmbH mit eigenem Konto.
 ///
 /// Anmeldung = Vertrag in der Filiale beginnt, und am Vortag lief dort kein anderer Vertrag
-///             (nahtlose Vertragsanpassung = keine neue Anmeldung; Filialwechsel = Ab- + Anmeldung).
-/// Abmeldung = erfasster Austritt (Employee.ExitDate) UND gesetztes «Gekündigt per».
-///             Ein befristeter Vertrag trägt oft trotzdem ein Austrittsdatum — ohne Kündigung per
-///             ist das keine Abmeldung. Zuständig ist die Filiale des letzten Vertrags.
-///             Auf der AKIS-Liste erscheint die Zeile erst am Tag nach dem Austritt.
+///             (nahtlose Vertragsanpassung = keine neue Anmeldung).
+/// Abmeldung = zwei Auslöser, dieselbe Zeile (Walter 30.10.2026, Filialwechsel):
+///             (1) erfasster Austritt (Employee.ExitDate) UND gesetztes «Gekündigt per»,
+///                 Filiale des letzten Vertrags. Ein befristeter Vertrag ohne Kündigung per
+///                 ist keine Abmeldung.
+///             (2) Filialwechsel: der Abschnitt in der alten Filiale endet, und als Nächstes
+///                 wird in einer anderen Filiale gearbeitet. Datum = letzter Vertragstag dort.
+///                 Die Person bleibt angestellt, «Gekündigt per» bleibt leer.
+///             Auf der AKIS-Liste erscheint die Zeile erst am Folgetag.
 /// Erledigt  = in <c>gastrosocial_meldung</c> steht für MA, Filiale und Art eine Meldung, deren
 ///             Stichtag höchstens <see cref="ToleranzTage"/> vom Ereignis abweicht (kleine Korrekturen
 ///             am Eintritts-/Austrittsdatum heben die Meldung nicht auf).
@@ -26,6 +30,7 @@ public static class GastroSocialMeldungRegel
     public sealed record Vertrag(int EmployeeId, int? CompanyProfileId, DateTime Start, DateTime? Ende);
     public sealed record Ereignis(int EmployeeId, int CompanyProfileId, string Art, DateOnly Datum);
     public sealed record Meldung(int EmployeeId, int CompanyProfileId, string Art, DateOnly Stichtag);
+    public sealed record PersonAustritt(int EmployeeId, DateTime? Datum, DateTime? GekuendigtPer);
 
     /// <summary>Alle Anmelde-Ereignisse (über alle Zeit), pro MA und Filiale.</summary>
     public static List<Ereignis> Anmeldungen(IEnumerable<Vertrag> vertraege)
@@ -63,6 +68,109 @@ public static class GastroSocialMeldungRegel
             .FirstOrDefault();
         return letzter == null ? null
             : new Ereignis(employeeId, letzter.CompanyProfileId!.Value, Abmeldung, DateOnly.FromDateTime(austritt.Value));
+    }
+
+    /// <summary>
+    /// Abmeldung, weil die Beschäftigung in einer anderen Filiale weitergeht (Walter 30.10.2026).
+    /// Verträge derselben Filiale, die lückenlos anschliessen, sind ein Abschnitt. Er ist zu Ende,
+    /// wenn am Folgetag dort nichts mehr läuft und die nächste Beschäftigung in einer anderen
+    /// Filiale liegt — auch mit Lücke dazwischen. Rückkehr in dieselbe Filiale ist keine Abmeldung.
+    /// Datum ist der letzte Vertragstag des Abschnitts.
+    /// </summary>
+    public static List<Ereignis> AbmeldungenBeiFilialwechsel(IEnumerable<Vertrag> vertraege)
+    {
+        var alle = vertraege.Where(v => v.CompanyProfileId != null).ToList();
+        var res = new List<Ereignis>();
+        foreach (var ma in alle.GroupBy(v => v.EmployeeId))
+        {
+            var desMa = ma.ToList();
+            foreach (var fil in desMa.GroupBy(v => v.CompanyProfileId!.Value))
+            {
+                foreach (var abschnitt in Abschnitte(fil))
+                {
+                    if (abschnitt.Ende == null) continue;
+                    var ende = abschnitt.Ende.Value.Date;
+                    if (!AndereFilialeZuerst(desMa, fil.Key, ende)) continue;
+                    res.Add(new Ereignis(ma.Key, fil.Key, Abmeldung, DateOnly.FromDateTime(ende)));
+                }
+            }
+        }
+        return res;
+    }
+
+    /// <summary>
+    /// Filialwechsel und Firmenaustritt zusammen, dieselbe Person/Filiale/Datum nur einmal.
+    /// </summary>
+    public static List<Ereignis> Abmeldungen(IEnumerable<Vertrag> vertraege, IEnumerable<PersonAustritt> austritte)
+    {
+        var liste = vertraege as IList<Vertrag> ?? vertraege.ToList();
+        var res = AbmeldungenBeiFilialwechsel(liste);
+        var gesehen = res.Select(e => (e.EmployeeId, e.CompanyProfileId, e.Datum)).ToHashSet();
+        var proMa = liste.Where(v => v.CompanyProfileId != null).ToLookup(v => v.EmployeeId);
+        foreach (var a in austritte)
+        {
+            var ab = AbmeldungVon(a.EmployeeId, a.Datum, a.GekuendigtPer, proMa[a.EmployeeId]);
+            if (ab == null || !gesehen.Add((ab.EmployeeId, ab.CompanyProfileId, ab.Datum))) continue;
+            res.Add(ab);
+        }
+        return res;
+    }
+
+    private readonly record struct Abschnitt(DateTime Start, DateTime? Ende);
+
+    /// <summary>Lückenlose Verträge einer Filiale zu Abschnitten zusammenziehen.</summary>
+    private static List<Abschnitt> Abschnitte(IEnumerable<Vertrag> einerFiliale)
+    {
+        var sorted = einerFiliale
+            .OrderBy(v => v.Start.Date)
+            .ThenBy(v => v.Ende == null ? DateTime.MaxValue : v.Ende.Value.Date)
+            .ToList();
+        var res = new List<Abschnitt>();
+        foreach (var c in sorted)
+        {
+            if (res.Count > 0)
+            {
+                var last = res[^1];
+                if (last.Ende == null || c.Start.Date <= last.Ende.Value.Date.AddDays(1))
+                {
+                    DateTime? ende = last.Ende == null || c.Ende == null
+                        ? null
+                        : (c.Ende.Value.Date > last.Ende.Value.Date ? c.Ende : last.Ende);
+                    res[^1] = new Abschnitt(last.Start, ende);
+                    continue;
+                }
+            }
+            res.Add(new Abschnitt(c.Start, c.Ende));
+        }
+        return res;
+    }
+
+    /// <summary>
+    /// Die nächste Beschäftigung nach <paramref name="ende"/> liegt in einer anderen Filiale.
+    /// Am Folgetag zählt ein noch laufender Vertrag dort; sonst der früheste spätere Beginn.
+    /// </summary>
+    private static bool AndereFilialeZuerst(List<Vertrag> desMa, int filiale, DateTime ende)
+    {
+        var folgetag = ende.AddDays(1);
+        DateTime? naechster = null;
+        foreach (var v in desMa)
+        {
+            if (v.Ende != null && v.Ende.Value.Date <= ende) continue;
+            if (v.Start.Date <= folgetag && (v.Ende == null || v.Ende.Value.Date >= folgetag))
+            {
+                naechster = folgetag;
+                break;
+            }
+            if (v.Start.Date > ende && (naechster == null || v.Start.Date < naechster.Value))
+                naechster = v.Start.Date;
+        }
+        if (naechster == null) return false;
+        var tag = naechster.Value.Date;
+        bool gleiche = desMa.Any(v => v.CompanyProfileId == filiale
+            && v.Start.Date <= tag && (v.Ende == null || v.Ende.Value.Date >= tag));
+        if (gleiche) return false;
+        return desMa.Any(v => v.CompanyProfileId != filiale
+            && v.Start.Date <= tag && (v.Ende == null || v.Ende.Value.Date >= tag));
     }
 
     /// <summary>Die Meldung, die dieses Ereignis abdeckt (nächstgelegener Stichtag), sonst null.</summary>

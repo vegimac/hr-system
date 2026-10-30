@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 126;  // 126: Grenzgänger IT/FR · 125: Ende Erwerb Ehepartner · 124: Tabname · 123: Lohnausweis
+const int SchemaStand = 127;  // 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR · 125: Ende Erwerb Ehepartner · 124: Tabname
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2442,8 +2442,8 @@ using (var scope = app.Services.CreateScope())
          'Der Mitarbeiter ist eingetreten, eine Anmeldung bei der Ausgleichskasse GastroSocial ist in OneCrew nicht vermerkt. HR-Bereich → Behörden-Korrespondenz → «An-/Abmeldung Ausgleichskasse (AKIS)»: dort stehen alle noch nicht gemeldeten Eintritte — Anmelde-Excel erstellen und im AKISnet hochladen, danach bei der Anmeldung «Im AKISnet gemeldet ✓» klicken. Fehlt die AHV-Nummer, zuerst die AHV-Anmeldung (Versicherungsausweis) machen. War die Person schon gemeldet: im AHV-Abgleich GastroSocial die aktuelle Liste der Filiale hochladen und «Ergebnis übernehmen».',
          30),
         ('gastrosocial_abmeldung_fehlt',
-         'Austritt bei GastroSocial abmelden',
-         'Der Austritt ist erfasst, eine Abmeldung bei der Ausgleichskasse GastroSocial ist in OneCrew nicht vermerkt. HR-Bereich → Behörden-Korrespondenz → «An-/Abmeldung Ausgleichskasse (AKIS)»: dort stehen alle noch nicht gemeldeten Austritte — Abmelde-Excel erstellen und im AKISnet hochladen, danach bei der Abmeldung «Im AKISnet gemeldet ✓» klicken. Bezieht die Person Familienzulagen, diese ebenfalls abmelden. War die Abmeldung schon gemacht: im AHV-Abgleich GastroSocial die aktuelle Liste der Filiale hochladen und «Ergebnis übernehmen».',
+         'Abmeldung bei GastroSocial',
+         'Eine Abmeldung bei der Ausgleichskasse GastroSocial ist in OneCrew nicht vermerkt. Das gilt für einen Austritt mit gesetztem «Gekündigt per» und für einen Filialwechsel (letzter Vertragstag in der alten Filiale, die Person arbeitet in einer anderen Filiale weiter). HR-Bereich → Behörden-Korrespondenz → «An-/Abmeldung Ausgleichskasse (AKIS)»: dort stehen alle noch nicht gemeldeten Abmeldungen — Abmelde-Excel erstellen und im AKISnet hochladen, danach bei der Abmeldung «Im AKISnet gemeldet ✓» klicken. Bezieht die Person Familienzulagen, diese ebenfalls abmelden. War die Abmeldung schon gemacht: im AHV-Abgleich GastroSocial die aktuelle Liste der Filiale hochladen und «Ergebnis übernehmen».',
          31)
         ON CONFLICT (category) DO NOTHING;
         -- Schema-Stand 71: AKIS-Seite ohne Datumswahl — alten Text einmalig ersetzen.
@@ -3422,6 +3422,18 @@ using (var scope = app.Services.CreateScope())
                 ADD COLUMN IF NOT EXISTS telearbeit_prozent numeric(5,2);
         ");
         startLog.LogInformation("Stand 126: Grenzgängermeldung Italien und Frankreich");
+    }
+
+    // Stand 127: To-do-Text Abmeldung umfasst den Filialwechsel (Walter 30.10.2026).
+    if (dbStand < 127)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE todo_anleitung
+               SET titel = 'Abmeldung bei GastroSocial',
+                   anleitung = 'Eine Abmeldung bei der Ausgleichskasse GastroSocial ist in OneCrew nicht vermerkt. Das gilt für einen Austritt mit gesetztem «Gekündigt per» und für einen Filialwechsel (letzter Vertragstag in der alten Filiale, die Person arbeitet in einer anderen Filiale weiter). HR-Bereich → Behörden-Korrespondenz → «An-/Abmeldung Ausgleichskasse (AKIS)»: dort stehen alle noch nicht gemeldeten Abmeldungen — Abmelde-Excel erstellen und im AKISnet hochladen, danach bei der Abmeldung «Im AKISnet gemeldet ✓» klicken. Bezieht die Person Familienzulagen, diese ebenfalls abmelden. War die Abmeldung schon gemacht: im AHV-Abgleich GastroSocial die aktuelle Liste der Filiale hochladen und «Ergebnis übernehmen».'
+             WHERE category = 'gastrosocial_abmeldung_fehlt';
+        ");
+        startLog.LogInformation("Stand 127: AKIS-Abmeldung nennt den Filialwechsel");
     }
 
 
