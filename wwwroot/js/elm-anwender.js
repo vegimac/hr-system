@@ -3,6 +3,29 @@
 // Verbindungstest und Quality Tool. Server: ElmMeldungenController (api/elm/meldungen).
 
 const _ELMA_MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const _ELMA_ARTEN = [
+    { id: 'monthly', name: 'Monatsmeldung', sub: 'Steuer und Statistik', kategorie: 'Meldung senden' },
+    { id: 'annual', name: 'Jahresmeldung AHV', sub: 'Ausgleichskasse', kategorie: 'Meldung senden' },
+    { id: 'grenz-it', name: 'Grenzgänger Italien', sub: 'Datenaustausch Italien', kategorie: 'Grenzgänger' },
+    { id: 'grenz-fr', name: 'Grenzgänger Frankreich', sub: 'Wohnsitz Frankreich', kategorie: 'Grenzgänger' },
+    { id: 'grenz-sfn', name: 'Grenzgänger SFN', sub: 'Tarifcode SFN', kategorie: 'Grenzgänger' },
+];
+const _ELMA_SEND = [
+    ['Meldung erstellen', 'Personen, Beträge, Empfänger'],
+    ['Leitung öffnen', 'Verbindung zu Swissdec'],
+    ['Unterschreiben', 'Programm und Firma'],
+    ['Verschlüsseln', 'Für Swissdec'],
+    ['Senden', 'Übermittlung und Antwort'],
+    ['Antwort prüfen', 'Auftrag ist angekommen'],
+];
+const _ELMA_QUERY = [
+    ['Auftrag da', 'Swissdec hat ihn angenommen'],
+    ['Leitung öffnen', 'Neue Verbindung'],
+    ['Stand abfragen', 'Wo der Auftrag steht'],
+    ['Antwort lesen', 'Noch unterwegs oder fertig'],
+    ['Quittung holen', 'Nachrichten der Empfänger'],
+    ['Abschluss', 'Nichts mehr offen'],
+];
 const _ELMA_STUFE = {
     ok:     { punkt: '#16a34a', text: '#166534', grund: 'rgba(22,163,74,0.10)' },
     warn:   { punkt: '#d97706', text: '#92400e', grund: 'rgba(217,119,6,0.12)' },
@@ -84,13 +107,15 @@ let _elmaCert = null;
 let _elmaVerb = null;
 
 async function elmaBereit() {
-    const box = document.getElementById('elmaBereit');
-    if (!box) return;
-    box.innerHTML = '<div style="font-size:13px;color:#646464">Verbindung und Zertifikat werden geprüft …</div>';
+    const server = document.getElementById('elmaServerText');
+    const zert = document.getElementById('elmaZertText');
+    if (server) server.textContent = 'Verbindung wird geprüft';
+    if (zert) zert.textContent = 'Zertifikat wird geprüft';
     const [cert, verb] = await Promise.all([elmaCertHolen(), elmaVerbindungHolen()]);
     _elmaCert = cert;
     _elmaVerb = verb;
     elmaBereitZeichnen();
+    elmaKommZeichnen();
 }
 
 async function elmaCertHolen() {
@@ -114,23 +139,25 @@ function _elmaZertAbgelaufen(sua) {
 }
 
 function elmaBereitZeichnen() {
-    const box = document.getElementById('elmaBereit');
-    if (!box) return;
     const sua = _elmaCert?.sua;
     const online = _elmaVerb?.letzte?.erreichbar?.stufe === 'ok';
     const abgelaufen = _elmaZertAbgelaufen(sua);
     const zertText = !sua ? 'Zertifikat nicht geprüft'
         : !sua.vorhanden ? 'Kein Zertifikat'
-        : abgelaufen ? `Zertifikat abgelaufen am ${_elmaDatum(sua.gueltigBis)}`
-        : `Zertifikat gültig bis ${_elmaDatum(sua.gueltigBis)}`;
+        : abgelaufen ? `Abgelaufen ${_elmaDatum(sua.gueltigBis)}`
+        : `Gültig bis ${_elmaDatum(sua.gueltigBis)}`;
     const serverText = !_elmaVerb ? 'Swissdec nicht geprüft' : online ? 'Swissdec erreichbar' : 'Swissdec nicht erreichbar';
-    const punkt = ok => `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ok ? '#16a34a' : '#dc2626'};margin-right:6px"></span>`;
-    box.innerHTML = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px;color:#3f3f3f">
-        <span>${punkt(online)}${_elmaEsc(serverText)}</span>
-        <span>${punkt(!!sua?.vorhanden && !abgelaufen)}${_elmaEsc(zertText)}</span>
-        <button type="button" class="btn btn-secondary" style="margin-left:auto" onclick="elmaZertifikatErneuern()"
-            ${abgelaufen ? '' : 'disabled'} title="${abgelaufen ? 'Neues Zertifikat bei Swissdec beantragen' : 'Das Zertifikat ist gültig.'}">Zertifikat erneuern</button>
-    </div>`;
+    const server = document.getElementById('elmaServerText');
+    const zert = document.getElementById('elmaZertText');
+    const dot = document.getElementById('elmaDot');
+    const btn = document.getElementById('elmaZertBtn');
+    if (server) server.textContent = serverText;
+    if (zert) zert.textContent = zertText;
+    if (dot) dot.className = 'elma-dot' + (online && sua?.vorhanden && !abgelaufen ? ' ok' : _elmaVerb && !online ? ' rot' : '');
+    if (btn) {
+        btn.disabled = !abgelaufen;
+        btn.title = abgelaufen ? 'Neues Zertifikat bei Swissdec beantragen' : 'Das Zertifikat ist gültig.';
+    }
 }
 
 async function elmaZertifikatErneuern() {
@@ -139,8 +166,8 @@ async function elmaZertifikatErneuern() {
     if (!(await liquidConfirm('Das Zertifikat ist abgelaufen. OneCrew beantragt ein neues bei Swissdec.', {
         title: 'Zertifikat erneuern', yesLabel: 'Beantragen', noLabel: 'Abbrechen' }))) return;
     const v = _elmaCert?.vorlage || {};
-    const box = document.getElementById('elmaBereit');
-    if (box) box.innerHTML = '<div style="font-size:13px;color:#646464">OneCrew beantragt das Zertifikat bei Swissdec …</div>';
+    const zert = document.getElementById('elmaZertText');
+    if (zert) zert.textContent = 'Wird beantragt …';
     try {
         const r = await fetch('/api/elm/zertifikat/registrieren', {
             method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
@@ -151,9 +178,9 @@ async function elmaZertifikatErneuern() {
             }),
         });
         const j = await r.json().catch(() => ({}));
-        if (box) box.innerHTML = `<div style="font-size:13px;color:${r.ok && j.ok ? '#166534' : '#991b1b'}">${_elmaEsc(j.meldung || j.message || 'Nicht erledigt.')}</div>`;
+        if (zert) zert.textContent = j.meldung || j.message || 'Nicht erledigt.';
     } catch {
-        if (box) box.innerHTML = '<div style="font-size:13px;color:#991b1b">Server nicht erreichbar.</div>';
+        if (zert) zert.textContent = 'Server nicht erreichbar.';
     }
     setTimeout(elmaBereit, 1500);
 }
@@ -184,6 +211,27 @@ function elmaInit() {
     elmaBereit();
 }
 
+function elmaArtWaehlen(id) {
+    const el = document.getElementById('elmaArt');
+    if (!el || el.value === id) return;
+    el.value = id;
+    elmaArtGewechselt();
+}
+
+function elmaAktionenZeichnen() {
+    const box = document.getElementById('elmaAktionen');
+    if (!box) return;
+    const art = _elmaAktuelleArt();
+    box.innerHTML = _ELMA_ARTEN.map(a =>
+        `<button type="button" class="elma-action${a.id === art ? ' active' : ''}" onclick="elmaArtWaehlen('${a.id}')"><b>${a.name}</b><small>${a.sub}</small></button>`
+    ).join('');
+    const meta = _ELMA_ARTEN.find(a => a.id === art) || _ELMA_ARTEN[0];
+    const kat = document.getElementById('elmaKategorie');
+    const op = document.getElementById('elmaOperation');
+    if (kat) kat.textContent = meta.kategorie;
+    if (op) op.textContent = meta.name;
+}
+
 function elmaArtGewechselt() {
     const art = document.getElementById('elmaArt')?.value;
     const w = document.getElementById('elmaMonatWrap');
@@ -196,6 +244,7 @@ function elmaArtGewechselt() {
     };
     const hin = document.getElementById('elmaArtHinweis');
     if (hin) hin.textContent = hinweise[art] || 'Monatsmeldung an die Steuerverwaltungen und ans Bundesamt für Statistik.';
+    elmaAktionenZeichnen();
     _elmaLageKey = '';
     _elmaVorschau = null;
     const vorschau = document.getElementById('elmaVorschau');
@@ -423,70 +472,86 @@ function _elmaFokusMeldung() {
     return liste.find(m => !m.fertig && (m.stufe === 'laeuft' || _elmaBrauchtNutzer(m))) || null;
 }
 
-function _elmaSchritt(zustand, titel, text, zeit) {
-    const farbe = zustand === 'ok' ? '#16a34a' : zustand === 'jetzt' ? '#3f3f3f' : zustand === 'rot' ? '#dc2626' : '#c4bfb6';
-    const puls = zustand === 'jetzt' ? ' elma-puls' : '';
-    return `<div style="display:flex;gap:12px">
-        <div style="width:16px;display:flex;flex-direction:column;align-items:center;flex:0 0 auto">
-            <span class="${puls.trim()}" style="width:10px;height:10px;border-radius:50%;background:${farbe};margin-top:5px"></span>
-            <span style="width:2px;flex:1;background:rgba(60,55,48,0.14);margin-top:4px"></span>
-        </div>
-        <div style="padding-bottom:14px">
-            <div style="font-size:14px;font-weight:700;color:#3f3f3f">${titel}</div>
-            <div style="font-size:13px;color:#646464;margin-top:2px;line-height:1.4">${text}</div>
-            ${zeit ? `<div style="font-size:11px;color:#8b8b8b;margin-top:2px">${zeit}</div>` : ''}
-        </div>
-    </div>`;
-}
-
 function _elmaKommSatz(schritt) {
-    if (schritt === 'Gesendet') return 'Unterschrieben, verschlüsselt und an Swissdec geschickt. Die Antwort mit der Auftragsnummer ist da.';
+    if (schritt === 'Gesendet') return 'Unterschrieben, verschlüsselt und an Swissdec geschickt. Der Auftrag ist angekommen.';
     if (schritt === 'Stand abgefragt') return 'Stand abgefragt. Swissdec sagt, wo der Auftrag steht.';
     if (schritt === 'Nachrichten abgeholt') return 'Quittung und Nachrichten vom Empfänger geholt.';
     if (schritt === 'Angemeldet') return 'Anmeldung an Swissdec geschickt.';
     return schritt || '';
 }
 
-function elmaKommZeichnen() {
-    const el = document.getElementById('elmaKomm');
-    if (!el) return;
-    const kopf = `<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#8b8b8b">Kommunikation</div>`;
-    if (_elmaFlug) {
-        el.innerHTML = kopf + `<div style="font-size:18px;font-weight:700;color:#3f3f3f;margin:6px 0 16px">OneCrew sendet</div>`
-            + _elmaSchritt('ok', 'Meldung gebaut', 'Die Prüfung ist durch. Die Datei steht.', '')
-            + _elmaSchritt('jetzt', 'Leitung, Unterschrift, Verschlüsselung', 'OneCrew öffnet die Verbindung, unterschreibt mit dem Zertifikat und verschlüsselt für Swissdec.', '')
-            + _elmaSchritt('wartend', 'Antwort abwarten', 'Swissdec antwortet gleich mit der Auftragsnummer.', '')
-            + _elmaSchritt('wartend', 'Stand abfragen', 'Danach fragt OneCrew, bis der Auftrag fertig ist.', '')
-            + _elmaSchritt('wartend', 'Quittung holen', 'Zum Schluss die Rückmeldung jedes Empfängers.', '');
-        return;
-    }
-    const m = _elmaFokusMeldung();
-    if (!m) {
-        el.innerHTML = kopf + `<div style="font-size:18px;font-weight:700;color:#3f3f3f;margin:6px 0 8px">Noch nichts unterwegs</div>
-            <div style="font-size:13px;color:#646464;line-height:1.45">Setze links eine Meldung ab, oder klicke links auf eine gesendete. Hier erscheint dann jeder Schritt der Verbindung.</div>`;
-        return;
-    }
-    const mi = (_elma?.meldungen || []).indexOf(m);
-    const schritte = (m.verlauf || []).slice().reverse().map(p =>
-        _elmaSchritt('ok', _elmaEsc(p.schritt || 'Schritt'), _elmaEsc(_elmaKommSatz(p.schritt)), _elmaEsc(_elmaDatum(p.zeit))));
-    let jetzt = '';
+function _elmaUhr(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return isNaN(d) ? '' : d.toLocaleTimeString('de-CH', { hour12: false });
+}
+
+function _elmaText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
+function _elmaPhaseVon(m) {
+    if (_elmaFlug)
+        return { schritte: _ELMA_SEND, index: 1, laufend: true, titel: 'Leitung, Unterschrift, Verschlüsselung', kern: 'Sendet', phase: 'Sendet' };
+    if (!m)
+        return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit' };
+    const hat = s => (m.verlauf || []).some(p => p.schritt === s);
+    if (m.stufe === 'rot')
+        return { schritte: _ELMA_QUERY, index: 4, laufend: false, titel: 'Nicht angenommen', kern: 'Stopp', phase: 'Abgelehnt' };
     if (_elmaBrauchtNutzer(m))
-        jetzt = _elmaSchritt('jetzt', 'Deine Ergänzung', 'Ein Empfänger wartet auf Angaben. Die Felder stehen unten.', '');
-    else if (!m.fertig && m.stufe === 'laeuft')
-        jetzt = _elmaSchritt('jetzt', 'Stand abfragen', 'OneCrew fragt bei Swissdec nach und wartet auf die nächste Antwort.', '');
-    else if (m.stufe === 'rot')
-        jetzt = _elmaSchritt('rot', 'Nicht angenommen', 'Mindestens ein Empfänger hat die Meldung abgelehnt.', '');
-    else if (m.fertig)
-        jetzt = _elmaSchritt('ok', 'Fertig', 'Swissdec ist mit diesem Auftrag durch.', '');
-    const namen = (m.empfaenger || []).map(e => e.name).filter(Boolean);
-    el.innerHTML = kopf
-        + `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 4px">
-            <div style="font-size:18px;font-weight:700;color:#3f3f3f">${_elmaEsc(m.titel)}</div>
-            ${_elmaKurzStatus(m)}
-           </div>`
-        + (namen.length ? `<div style="font-size:12.5px;color:#646464;margin-bottom:14px">Empfänger: ${_elmaEsc(namen.join(', '))}</div>` : '<div style="height:14px"></div>')
-        + schritte.join('') + jetzt
-        + (_elmaBrauchtNutzer(m) ? `<div style="margin-top:8px">${_elmaDetailsInhalt(m, mi)}</div>` : '');
+        return { schritte: _ELMA_QUERY, index: 4, laufend: true, titel: 'Empfänger wartet auf eine Ergänzung', kern: 'Wartet', phase: 'Ergänzen' };
+    if (m.fertig)
+        return { schritte: _ELMA_QUERY, index: 6, laufend: false, titel: 'Auftrag abgeschlossen', kern: 'Fertig', phase: m.stufe === 'ok' ? 'Erledigt' : 'Prüfen' };
+    if (hat('Nachrichten abgeholt'))
+        return { schritte: _ELMA_QUERY, index: 5, laufend: m.stufe === 'laeuft', titel: 'Quittung ist da', kern: 'Prüft', phase: 'Quittung' };
+    if (hat('Gesendet') || hat('Stand abgefragt') || m.stufe === 'laeuft')
+        return { schritte: _ELMA_QUERY, index: 3, laufend: true, titel: 'Stand wird abgefragt', kern: 'Fragt', phase: 'Unterwegs' };
+    return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit' };
+}
+
+function elmaKommZeichnen() {
+    const m = _elmaFlug ? null : _elmaFokusMeldung();
+    const phase = _elmaPhaseVon(_elmaFlug ? null : m);
+    const box = document.getElementById('elmaSteps');
+    if (box) {
+        box.innerHTML = phase.schritte.map((v, i) => {
+            const cls = i < phase.index ? ' done' : (i === phase.index && phase.laufend ? ' current' : '');
+            const num = i < phase.index ? '✓' : String(i + 1).padStart(2, '0');
+            return `<div class="elma-step${cls}"><div class="elma-stepnum">${num}</div><strong>${v[0]}</strong><small>${v[1]}</small></div>`;
+        }).join('');
+    }
+    const bar = document.getElementById('elmaBar');
+    if (bar) bar.style.width = (phase.index / phase.schritte.length * 100) + '%';
+    _elmaText('elmaProgTitel', phase.titel);
+    _elmaText('elmaProgText', `${phase.index} / ${phase.schritte.length}`);
+    _elmaText('elmaCore', phase.kern);
+    _elmaText('elmaPhase', phase.phase);
+    const stage = document.getElementById('elmaStage');
+    if (stage) stage.classList.toggle('paused', !phase.laufend);
+
+    const sua = _elmaCert?.sua;
+    const online = _elmaVerb?.letzte?.erreichbar?.stufe === 'ok';
+    const signiert = !!(m && (m.verlauf || []).some(p => p.schritt === 'Gesendet'));
+    _elmaText('elmaTeleLeitung', _elmaFlug ? 'Offen' : online ? 'Erreichbar' : (_elmaVerb ? 'Nicht erreichbar' : '—'));
+    _elmaText('elmaTeleZert', !sua ? '—' : !sua.vorhanden ? 'Keines' : _elmaZertAbgelaufen(sua) ? 'Abgelaufen' : 'Gültig');
+    _elmaText('elmaTeleSign', _elmaFlug ? 'Gerade' : signiert ? 'Gesetzt' : 'Ausstehend');
+    _elmaText('elmaTeleCrypt', _elmaFlug ? 'Gerade' : signiert ? 'Verschlüsselt' : 'Ausstehend');
+    _elmaText('elmaTeleStand', phase.phase);
+    const namen = (m?.empfaenger || []).map(e => e.name).filter(Boolean);
+    _elmaText('elmaTeleEmpf', namen.length ? namen.join(', ') : '—');
+    const letzt = (m?.verlauf || [])[0];
+    _elmaText('elmaTeleLetzt', letzt ? `${letzt.schritt}${letzt.zeit ? ' · ' + _elmaUhr(letzt.zeit) : ''}` : '—');
+
+    const log = document.getElementById('elmaKomm');
+    if (!log) return;
+    const zeilen = [];
+    if (_elmaFlug) zeilen.push({ zeit: '', text: 'OneCrew öffnet die Leitung, unterschreibt und verschlüsselt.' });
+    (m?.verlauf || []).forEach(p => zeilen.push({ zeit: _elmaUhr(p.zeit), text: _elmaKommSatz(p.schritt) }));
+    if (m && _elmaBrauchtNutzer(m)) zeilen.unshift({ zeit: '', text: 'Ein Empfänger wartet auf Angaben. Die Felder stehen in der Mitte.' });
+    log.innerHTML = zeilen.length
+        ? zeilen.map(z => `<div class="elma-logline"><time>${_elmaEsc(z.zeit || '—')}</time><span>${_elmaEsc(z.text)}</span></div>`).join('')
+        : '<div class="elma-logline"><time>—</time><span>Noch nichts gesendet. Links eine Meldung wählen, dann prüfen.</span></div>';
 }
 
 let _elmaLageKey = '';
@@ -530,18 +595,8 @@ function elmaLageZeichnen() {
         return;
     }
     if (unterwegs.length) {
-        const m = unterwegs[0];
-        const key = 'lauf:' + m.id;
-        if (key === _elmaLageKey && document.getElementById('elmaLage')) return;
-        _elmaLageKey = key;
-        const weitere = unterwegs.length > 1 ? ' Weitere Meldungen sind ebenfalls unterwegs.' : '';
-        el.innerHTML = _elmaKarten(`<div style="display:flex;gap:16px;align-items:center">
-            <div class="elma-sanduhr" aria-hidden="true">⏳</div>
-            <div>
-                <div style="font-size:16px;font-weight:700;color:#3f3f3f">OneCrew fragt bei Swissdec nach</div>
-                <div style="font-size:13px;color:#646464;margin-top:4px">${_elmaEsc(m.titel)}. Der Stand erscheint hier, sobald er da ist.${_elmaEsc(weitere)}</div>
-            </div>
-        </div>`);
+        _elmaLageKey = '';
+        el.innerHTML = '';
         return;
     }
     _elmaLageKey = '';

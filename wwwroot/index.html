@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261029l">
+    <link rel="stylesheet" href="css/app.css?v=20261030p">
 </head>
 <body>
 
@@ -6799,47 +6799,81 @@
                  «Lohnmeldungen (ELM)» bleibt unter System. -->
             <div class="page liquid-mask" id="page-elm-anwender">
                 <button type="button" class="seite-zurueck" onclick="elmaZurueck()" hidden aria-hidden="true">Zurück</button>
-                <div class="page-head" style="padding:72px 32px 0">
-                    <div>
-                        <h1 class="page-title">ELM-Cockpit</h1>
-                        <p class="page-sub">Meldung absetzen und live sehen, was die Verbindung gerade tut.</p>
-                    </div>
-                </div>
-                <div class="page-body" style="padding:0 32px 32px">
-                    <div id="elmaBereit" style="margin-bottom:14px"></div>
-                    <div style="display:grid;grid-template-columns:minmax(320px,440px) minmax(0,1fr);gap:18px;align-items:start">
-                    <div>
-                    <div class="card" style="padding:22px 24px;border:1px solid rgba(60,55,48,0.14);
-                                background-image:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%)">
-                        <div id="elmaErsatz" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:10px;background:rgba(217,119,6,0.12);color:#92400e;font-size:13px"></div>
-                        <div style="display:flex;gap:12px 16px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-start">
-                            <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464;width:20rem">Meldung
-                                <select id="elmaArt" onchange="elmaArtGewechselt()">
-                                    <option value="monthly">Monatsmeldung</option>
-                                    <option value="annual">Jahresmeldung AHV</option>
-                                    <option value="grenz-it">Grenzgänger Italien</option>
-                                    <option value="grenz-fr">Grenzgänger Frankreich</option>
-                                    <option value="grenz-sfn">Grenzgänger SFN</option>
-                                </select>
-                            </label>
-                            <label id="elmaMonatWrap" style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464;width:10rem">Monat
-                                <select id="elmaMonat"></select>
-                            </label>
-                            <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464">Jahr
-                                <input id="elmaJahr" type="number" min="2020" max="2100" inputmode="numeric"
-                                       style="width:5.5rem;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:8px 10px;font-size:13px;color:#3f3f3f;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)">
-                            </label>
-                            <button type="button" id="elmaPruefenBtn" class="btn btn-primary" onclick="elmaPruefen()">Prüfen</button>
+                <div class="page-body elma-cockpit">
+                    <header class="elma-head">
+                        <div>
+                            <div class="elma-eyebrow">Swissdec · Lohnmeldungen</div>
+                            <h1>ELM-Cockpit</h1>
+                            <p>Meldung absetzen und sehen, was die Verbindung gerade tut.</p>
                         </div>
-                        <div id="elmaArtHinweis" style="font-size:12px;color:#8b8b8b;margin-top:10px"></div>
-                        <div id="elmaStatus"></div>
-                        <div id="elmaVorschau"></div>
+                        <div id="elmaBereit" class="elma-connection">
+                            <i class="elma-dot" id="elmaDot"></i>
+                            <span id="elmaServerText">Verbindung wird geprüft</span>
+                            <span class="elma-sep">|</span>
+                            <span id="elmaZertText">Zertifikat wird geprüft</span>
+                            <button type="button" id="elmaZertBtn" class="btn btn-secondary" onclick="elmaZertifikatErneuern()" disabled>Zertifikat erneuern</button>
+                        </div>
+                    </header>
+                    <div class="elma-layout">
+                        <aside class="elma-panel elma-side">
+                            <div class="elma-kicker">Meldung</div>
+                            <div id="elmaAktionen"></div>
+                            <select id="elmaArt" class="no-liquid" hidden onchange="elmaArtGewechselt()" aria-hidden="true">
+                                <option value="monthly">Monatsmeldung</option>
+                                <option value="annual">Jahresmeldung AHV</option>
+                                <option value="grenz-it">Grenzgänger Italien</option>
+                                <option value="grenz-fr">Grenzgänger Frankreich</option>
+                                <option value="grenz-sfn">Grenzgänger SFN</option>
+                            </select>
+                            <div class="elma-sidefoot" id="elmaArtHinweis"></div>
+                        </aside>
+                        <main class="elma-panel elma-center">
+                            <div class="elma-panelhead">
+                                <div>
+                                    <div class="elma-eyebrow" id="elmaKategorie">Meldung senden</div>
+                                    <h2 id="elmaOperation">Monatsmeldung</h2>
+                                </div>
+                                <div class="elma-pill" id="elmaPhase">Bereit</div>
+                            </div>
+                            <div class="elma-stage paused" id="elmaStage">
+                                <div class="elma-beam"></div>
+                                <div class="elma-pulse"></div>
+                                <div class="elma-hub left"><div class="elma-hubicon">OC</div><strong>OneCrew</strong><small>Lohn</small></div>
+                                <div class="elma-core"><strong>ELM</strong><span id="elmaCore">Bereit</span></div>
+                                <div class="elma-hub right"><div class="elma-hubicon">SD</div><strong>Swissdec</strong><small>Verteiler</small></div>
+                            </div>
+                            <div class="elma-progresshead"><b id="elmaProgTitel">Bereit für die Übermittlung</b><span id="elmaProgText">0 / 6</span></div>
+                            <div class="elma-bar"><div class="elma-fill" id="elmaBar"></div></div>
+                            <div class="elma-steps" id="elmaSteps"></div>
+                            <div id="elmaErsatz" class="elma-ersatz" style="display:none"></div>
+                            <div class="elma-controls">
+                                <label id="elmaMonatWrap">Monat<select id="elmaMonat"></select></label>
+                                <label>Jahr<input id="elmaJahr" type="number" min="2020" max="2100" inputmode="numeric"></label>
+                                <button type="button" id="elmaPruefenBtn" class="btn btn-primary" onclick="elmaPruefen()">Prüfen</button>
+                            </div>
+                            <div id="elmaStatus"></div>
+                            <div id="elmaVorschau"></div>
+                        </main>
+                        <div class="elma-right">
+                            <section class="elma-panel elma-tele" id="elmaTele">
+                                <div class="elma-kicker">Verbindung</div>
+                                <div class="elma-kv"><span>Leitung</span><b id="elmaTeleLeitung">—</b></div>
+                                <div class="elma-kv"><span>Zertifikat</span><b id="elmaTeleZert">—</b></div>
+                                <div class="elma-kv"><span>Unterschrift</span><b id="elmaTeleSign">—</b></div>
+                                <div class="elma-kv"><span>Verschlüsselung</span><b id="elmaTeleCrypt">—</b></div>
+                                <div class="elma-rule"></div>
+                                <div class="elma-kicker">Auftrag</div>
+                                <div class="elma-kv"><span>Stand</span><b id="elmaTeleStand">—</b></div>
+                                <div class="elma-kv"><span>Empfänger</span><b id="elmaTeleEmpf">—</b></div>
+                                <div class="elma-kv"><span>Letzter Schritt</span><b id="elmaTeleLetzt">—</b></div>
+                            </section>
+                            <section class="elma-panel elma-log">
+                                <div class="elma-kicker">Kommunikation</div>
+                                <div class="elma-loglines" id="elmaKomm"></div>
+                            </section>
+                        </div>
                     </div>
-                    <div id="elmaListe" style="margin-top:18px"></div>
-                    </div>
-                    <div class="card" id="elmaKomm" style="min-height:480px;padding:22px 24px;border:1px solid rgba(60,55,48,0.14);
-                                background-image:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%)"></div>
-                    </div>
+                    <div id="elmaListe" class="elma-liste"></div>
                 </div>
             </div>
 
@@ -11477,7 +11511,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/virenscanner.js?v=20261022b"></script>
 <script type="text/plain" data-modul="js/elm-zertifikat.js?v=20261030b"></script>
 <script type="text/plain" data-modul="js/elm-schnittstelle.js?v=20261016d"></script>
-<script type="text/plain" data-modul="js/elm-anwender.js?v=20261030p"></script>
+<script type="text/plain" data-modul="js/elm-anwender.js?v=20261030q"></script>
 <script type="text/plain" data-modul="js/elm-lohnraster.js?v=20261021a"></script>
 <script type="text/plain" data-modul="js/lohnschema.js?v=20261024g"></script>
 <script type="text/plain" data-modul="js/global-search.js?v=20261023a"></script>
