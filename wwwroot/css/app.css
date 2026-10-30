@@ -14626,10 +14626,19 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-pill { padding: 7px 12px; border-radius: 99px; border: 1px solid rgba(60, 55, 48, 0.18); background: rgba(255, 255, 255, 0.55); color: #3f3f3f; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
 #page-elm-anwender .elma-stage { position: relative; height: 210px; margin-top: 16px; border-radius: 14px; overflow: hidden; border: 1px solid rgba(60, 55, 48, 0.12); background: radial-gradient(circle at 50% 46%, #f7f4ee 0%, #efeae0 42%, #e6e1d6 100%); }
 #page-elm-anwender .elma-stage:before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(60,55,48,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(60,55,48,0.05) 1px, transparent 1px); background-size: 28px 28px; }
-#page-elm-anwender .elma-beam { position: absolute; left: 30%; right: 30%; top: 50%; height: 2px; background: #3f3f3f; z-index: 1; }
-#page-elm-anwender .elma-pulse { position: absolute; top: calc(50% - 5px); left: 30%; width: 10px; height: 10px; border-radius: 50%; background: #3f3f3f; z-index: 3; animation: elmaTravel 1.8s linear infinite; }
-#page-elm-anwender .elma-stage.paused .elma-pulse { animation-play-state: paused; opacity: 0.25; }
-@keyframes elmaTravel { from { left: 30%; } to { left: 66%; } }
+#page-elm-anwender .elma-beam { position: absolute; left: 28%; right: 28%; top: 50%; height: 2px; margin-top: -1px; background: rgba(60,55,48,0.22); border-radius: 2px; z-index: 1; overflow: hidden; }
+#page-elm-anwender .elma-stage:not(.paused) .elma-beam:after { content: ""; position: absolute; top: -3px; bottom: -3px; width: 46%; left: -46%; background: linear-gradient(90deg, transparent, rgba(63,63,63,0.9), transparent); animation: elmaSweep 2.4s ease-in-out infinite; }
+@keyframes elmaSweep { from { left: -46%; } to { left: 110%; } }
+#page-elm-anwender .elma-packet { position: absolute; top: calc(50% - 4px); left: 28%; width: 22px; height: 8px; border-radius: 99px; background: #3f3f3f; box-shadow: 0 0 0 4px rgba(63,63,63,0.08), 0 0 14px rgba(63,63,63,0.28); z-index: 3; animation: elmaTravel 2.4s cubic-bezier(.45,0,.2,1) infinite; }
+#page-elm-anwender .elma-packet.b { width: 12px; height: 6px; top: calc(50% - 3px); animation-delay: -.8s; opacity: .65; }
+#page-elm-anwender .elma-packet.c { width: 7px; height: 7px; top: calc(50% - 3px); border-radius: 50%; animation-delay: -1.6s; opacity: .4; }
+#page-elm-anwender .elma-stage.paused .elma-packet { animation-play-state: paused; opacity: 0; }
+@keyframes elmaTravel { from { left: 28%; } to { left: calc(72% - 22px); } }
+#page-elm-anwender .elma-stage:not(.paused) .elma-core { animation: elmaCore 2.4s ease-in-out infinite; }
+@keyframes elmaCore {
+    0%, 100% { box-shadow: 0 0 0 8px rgba(255,255,255,0.55), 0 0 0 12px rgba(63,63,63,0.04); }
+    50% { box-shadow: 0 0 0 8px rgba(255,255,255,0.75), 0 0 0 22px rgba(63,63,63,0.10); }
+}
 #page-elm-anwender .elma-hub { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); width: 26%; max-width: 168px; }
 #page-elm-anwender .elma-hub.left { left: 16px; }
 #page-elm-anwender .elma-hub.right { right: 16px; }
@@ -14680,5 +14689,7 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
     #page-elm-anwender .elma-core { width: 72px; height: 72px; }
 }
 @media (prefers-reduced-motion: reduce) {
-    #page-elm-anwender .elma-pulse { animation: none; }
+    #page-elm-anwender .elma-packet,
+    #page-elm-anwender .elma-beam:after,
+    #page-elm-anwender .elma-core { animation: none; }
 }
