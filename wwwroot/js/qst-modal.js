@@ -75,6 +75,7 @@ async function openQstModal(employeeId, employeeData) {
     qstCurrentEmployeeId = employeeId;
     qstCurrentEntryId    = null;
     qstEmployeeData      = employeeData;
+    qstWohnLandAmStichtag = employeeData?.country || null;
 
     // Stammdaten anzeigen
     const permitName = employeeData?.permitTypeName ?? employeeData?.permitType ?? '–';
@@ -429,13 +430,27 @@ function qstRenderWohnsituation() {
     qstGrenzMeldungen();
 }
 
+// Wohnland der Version: Adresse am «Gültig ab», sonst der aktuelle Wohnsitz.
+let qstWohnLandAmStichtag = null;
+function qstWohnLand() {
+    return ((qstWohnLandAmStichtag || qstEmployeeData?.country || document.getElementById('qstWohnsitzstaat')?.value || '') + '').trim().toUpperCase();
+}
 function qstWohnsitzFrankreich() {
-    const land = ((qstEmployeeData?.country || document.getElementById('qstWohnsitzstaat')?.value || '') + '').trim().toUpperCase();
+    const land = qstWohnLand();
     return land === 'FR' || land === 'FRA' || land === 'FRANKREICH' || land === 'FRANCE';
+}
+function qstWohnsitzItalien() {
+    const land = qstWohnLand();
+    return land === 'IT' || land === 'ITA' || land === 'ITALIEN' || land === 'ITALY' || land === 'ITALIA';
 }
 
 function qstGrenzMeldungen() {
-    const it = !!document.getElementById('qstDatenaustauschItalien')?.checked;
+    const italien = qstWohnsitzItalien();
+    const zeile = document.getElementById('qstItalienZeile');
+    if (zeile) zeile.style.display = italien ? '' : 'none';
+    const itCb = document.getElementById('qstDatenaustauschItalien');
+    if (itCb && !italien) itCb.checked = false;
+    const it = italien && !!itCb?.checked;
     const itF = document.getElementById('qstItalienFelder');
     if (itF) itF.style.display = it ? '' : 'none';
     const frZ = document.getElementById('qstFrankreichZeile');
@@ -443,6 +458,11 @@ function qstGrenzMeldungen() {
     const code = (document.getElementById('qstCode')?.value || document.getElementById('qstVordefCode')?.value || '').trim().toUpperCase();
     const sfn = document.getElementById('qstSfnZeile');
     if (sfn) sfn.style.display = code === 'SFN' ? '' : 'none';
+    const irgendwas = italien || qstWohnsitzFrankreich() || code === 'SFN';
+    const box = document.getElementById('qstGrenzMeldungen');
+    const titel = document.getElementById('qstGrenzTitel');
+    if (box) box.style.display = irgendwas ? '' : 'none';
+    if (titel) titel.style.display = irgendwas ? '' : 'none';
 }
 
 function qstCodiceGueltig(roh) {
@@ -1049,13 +1069,14 @@ async function openQstEntry(id) {
     }
 }
 
-// Tarif-Sperre (ValidTo oder in Lohn verwendet): alles eingefroren ausser
-// «Erfahren am» — Wissensdatum darf immer nachgetragen werden (Walter 15.09.2026).
+// Tarif-Sperre nur, wenn ein definitiv abgeschlossener Lohn die Version
+// verwendet (Walter 30.10.2026). Ein Enddatum wegen Folgeversion sperrt nicht.
+// «Erfahren am» bleibt auch dann nachtragbar (Walter 15.09.2026).
 function qstSetLocked(entry) {
     const wrap   = document.getElementById('qstFormWrap');
     const banner = document.getElementById('qstLockBanner');
     const save   = document.getElementById('qstSaveBtn');
-    const tarifFrozen = !!(entry && (entry.validTo || entry.inLohnVerwendet));
+    const tarifFrozen = !!(entry && entry.inLohnVerwendet);
     window._qstEntryInLohnVerwendet = tarifFrozen;
     window._qstOrigErfahrenAm = entry?.erfahrenAm?.slice(0, 10) ?? entry?.validFrom?.slice(0, 10) ?? '';
     if (wrap) {
@@ -1066,14 +1087,10 @@ function qstSetLocked(entry) {
     if (banner) {
         if (tarifFrozen) {
             banner.style.display = 'block';
-            if (entry.validTo) {
-                banner.innerHTML = `🔒 Tarif eingefroren (${qstFmtDe(entry.validFrom)} – ${qstFmtDe(entry.validTo)}) — «Erfahren am» kann noch nachgetragen werden; Korrektur der Zwischenmonate läuft automatisch im nächsten Lohnlauf.`;
-            } else {
-                const bis = entry.verwendetBis
-                    ? `${entry.verwendetBis.slice(5, 7)}.${entry.verwendetBis.slice(0, 4)}`
-                    : '…';
-                banner.innerHTML = `🔒 Tarif eingefroren (definitiv abgerechnet bis ${bis}) — «Erfahren am» kann noch nachgetragen werden; Korrektur der Zwischenmonate läuft automatisch im nächsten Lohnlauf.`;
-            }
+            const bis = entry.verwendetBis
+                ? `${entry.verwendetBis.slice(5, 7)}.${entry.verwendetBis.slice(0, 4)}`
+                : '…';
+            banner.innerHTML = `🔒 Tarif eingefroren (definitiv abgerechnet bis ${bis}) — «Erfahren am» kann noch nachgetragen werden; Korrektur der Zwischenmonate läuft automatisch im nächsten Lohnlauf.`;
         } else {
             banner.style.display = 'none';
         }
@@ -1546,6 +1563,8 @@ async function qstUpdateWohnortKopf(datum) {
         const r = await fetch(`/api/employees/${qstCurrentEmployeeId}/quellensteuer/wohnadresse-am?datum=${encodeURIComponent(datum)}`, { headers: ah(), cache: 'no-store' });
         if (!r.ok) return;
         const a = await r.json();
+        qstWohnLandAmStichtag = a.country || qstWohnLandAmStichtag;
+        if (typeof qstGrenzMeldungen === 'function') qstGrenzMeldungen();
         const city = (typeof stripCityCantonSuffix === 'function') ? stripCityCantonSuffix(a.city) : (a.city || '');
         const wohnort = [a.zipCode, city].filter(Boolean).join(' ') || '–';
         const f = iso => iso ? new Date(iso).toLocaleDateString('de-CH') : '';

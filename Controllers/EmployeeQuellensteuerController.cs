@@ -254,13 +254,18 @@ public class EmployeeQuellensteuerController : ControllerBase
     }
 
     // GET /api/employees/{employeeId}/quellensteuer/{id}
+    // Gleiche Form wie die Liste, inkl. inLohnVerwendet — das Modal sperrt
+    // nur danach, nicht nach dem Enddatum (Walter 30.10.2026).
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int employeeId, int id)
     {
         var entry = await _db.EmployeeQuellensteuer
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();
-        return Ok(entry);
+        var branchId = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowed = await GetQstFirstAllowedAsync(branchId);
+        var verwendet = await GetAbgeschlosseneLohnMonateAsync(employeeId);
+        return Ok(MapToDto(entry, firstAllowed, verwendet));
     }
 
     /// <summary>
@@ -643,20 +648,10 @@ public class EmployeeQuellensteuerController : ControllerBase
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();
 
-        // ABGESCHLOSSENE Version = unveränderbar (Walter 12.08.2026, gleiche
-        // Logik wie Verträge): hat der Eintrag ein Enddatum, ist er Historie —
-        // Änderungen laufen IMMER über einen neuen Eintrag.
-        if (entry.ValidTo != null)
-        {
-            return Conflict(new
-            {
-                error   = "QST_ABGESCHLOSSEN",
-                message = $"Diese QST-Version ({entry.ValidFrom:dd.MM.yyyy} – {entry.ValidTo:dd.MM.yyyy}) ist abgeschlossen und kann nicht mehr geändert werden. Bitte einen neuen Eintrag erfassen."
-            });
-        }
-
-        // Soft-Lock: Edit tabu erst nach Definitiv-Abschluss (DTA). Davor
-        // (inkl. HR-Kontrolle) korrigierbar. Danach: neuen Eintrag anlegen.
+        // Ein Enddatum allein sperrt nicht (Walter 30.10.2026). Die Folgeversion
+        // setzt ValidTo, sobald die nächste Erfassung beginnt. Änderbar bleibt
+        // die Version, solange kein definitiv abgeschlossener Lohn sie verwendet.
+        // Das Enddatum selbst bleibt systemisch (Folge-Eintrag, Umzug, Befreiung).
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = await GetQstFirstAllowedAsync(branchId);
         var verwendetIn  = await GetAbgeschlosseneLohnMonateAsync(employeeId);
@@ -1162,18 +1157,6 @@ public class EmployeeQuellensteuerController : ControllerBase
                 message = "Der Anteil Telearbeit liegt zwischen 0 und 100 Prozent. 0 heisst: keine Telearbeit."
             });
 
-        if (e.DatenaustauschItalien)
-        {
-            if (string.IsNullOrWhiteSpace(e.GrenzgaengerGeburtsort))
-                return BadRequest(new { error = "GEBURTSORT_FEHLT", message = "Beim Datenaustausch mit Italien ist der Geburtsort Pflicht." });
-            if (e.GrenzgaengerGeburtsstaat is not { Length: 2 })
-                return BadRequest(new { error = "GEBURTSSTAAT_FEHLT", message = "Beim Datenaustausch mit Italien ist der Geburtsstaat als Ländercode Pflicht, zum Beispiel IT." });
-            if (!CodiceFiscale.Gueltig(e.GrenzgaengerSteuerId, out var grund))
-                return BadRequest(new { error = "STEUERNUMMER_ITALIEN", message = grund });
-            if (e.GrenzgaengerAb == null)
-                return BadRequest(new { error = "GRENZGAENGER_DATUM_FEHLT", message = "Beim Datenaustausch mit Italien ist das Grenzgänger-Datum Pflicht." });
-        }
-
         var person = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == employeeId)
             .Select(x => new { x.Country, x.NationalityId })
@@ -1204,7 +1187,27 @@ public class EmployeeQuellensteuerController : ControllerBase
             arbeitsortSchweiz = firmen.Any(c => GrenzgaengerMeldung.ArbeitsortSchweiz(c.Country, c.KantonCode));
         }
 
-        var wohn = string.IsNullOrWhiteSpace(person?.Country) ? e.Wohnsitzstaat : person!.Country;
+        var adresseAm = await WohnadresseAmAsync(employeeId, e.ValidFrom);
+        var wohn = !string.IsNullOrWhiteSpace(adresseAm?.Country)
+            ? adresseAm!.Country
+            : (string.IsNullOrWhiteSpace(person?.Country) ? e.Wohnsitzstaat : person!.Country);
+        if (e.DatenaustauschItalien && !GrenzgaengerMeldung.WohnsitzItalien(wohn))
+            return BadRequest(new
+            {
+                error = "ITALIEN_NUR_WOHNSITZ",
+                message = "Der Datenaustausch mit Italien gilt nur bei Wohnsitz in Italien."
+            });
+        if (e.DatenaustauschItalien)
+        {
+            if (string.IsNullOrWhiteSpace(e.GrenzgaengerGeburtsort))
+                return BadRequest(new { error = "GEBURTSORT_FEHLT", message = "Beim Datenaustausch mit Italien ist der Geburtsort Pflicht." });
+            if (e.GrenzgaengerGeburtsstaat is not { Length: 2 })
+                return BadRequest(new { error = "GEBURTSSTAAT_FEHLT", message = "Beim Datenaustausch mit Italien ist der Geburtsstaat als Ländercode Pflicht, zum Beispiel IT." });
+            if (!CodiceFiscale.Gueltig(e.GrenzgaengerSteuerId, out var grund))
+                return BadRequest(new { error = "STEUERNUMMER_ITALIEN", message = grund });
+            if (e.GrenzgaengerAb == null)
+                return BadRequest(new { error = "GRENZGAENGER_DATUM_FEHLT", message = "Beim Datenaustausch mit Italien ist das Grenzgänger-Datum Pflicht." });
+        }
         // Schaub Restaurants ist eine GmbH, kein öffentlich-rechtlicher Arbeitgeber.
         if (GrenzgaengerMeldung.Frankreich(wohn, arbeitsortSchweiz, nat, oeffentlichRechtlich: false)
             && e.TelearbeitProzent == null)

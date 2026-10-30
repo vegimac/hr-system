@@ -11444,7 +11444,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/branches-detail.js?v=20261029i"></script>
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/qst-modal.js?v=20261030a"></script>
+<script type="text/plain" data-modul="js/qst-modal.js?v=20261030b"></script>
 <script type="text/plain" data-modul="js/users.js?v=20261030a"></script>
 <script type="text/plain" data-modul="js/contracts-page.js?v=20260802a"></script>
 <script type="text/plain" data-modul="js/documents.js?v=20261020j"></script>
@@ -12763,9 +12763,9 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
             <div id="qstWohnsituationInfo" style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:6px;font-size:12.5px;color:#475569;line-height:1.6"></div>
         </div>
 
-        <div class="emp-section-title">Grenzgängermeldungen</div>
-        <div id="qstGrenzMeldungen" style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:10px">
-            <label class="qst-cb"><input type="checkbox" id="qstDatenaustauschItalien" onchange="qstGrenzMeldungen()"> Vom Datenaustausch mit Italien betroffen</label>
+        <div class="emp-section-title" id="qstGrenzTitel" style="display:none">Grenzgängermeldungen</div>
+        <div id="qstGrenzMeldungen" style="display:none;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:10px">
+            <label class="qst-cb" id="qstItalienZeile" style="display:none"><input type="checkbox" id="qstDatenaustauschItalien" onchange="qstGrenzMeldungen()"> Vom Datenaustausch mit Italien betroffen</label>
             <div id="qstItalienFelder" style="display:none;margin-top:8px">
                 <div style="display:grid;grid-template-columns:320px 4.2rem 26ch 168px;gap:8px 12px;justify-content:start;align-items:end">
                     <div>

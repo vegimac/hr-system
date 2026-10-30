@@ -12,6 +12,12 @@ public static class GrenzgaengerMeldung
         return l is "FR" or "FRA" or "FRANKREICH" or "FRANCE";
     }
 
+    public static bool WohnsitzItalien(string? land)
+    {
+        var l = (land ?? "").Trim().ToUpperInvariant();
+        return l is "IT" or "ITA" or "ITALIEN" or "ITALY" or "ITALIA";
+    }
+
     public static bool NationalitaetSchweiz(string? code)
     {
         var c = (code ?? "").Trim().ToUpperInvariant();

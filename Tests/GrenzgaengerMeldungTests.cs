@@ -37,6 +37,16 @@ public class GrenzgaengerMeldungTests
         => Assert.False(GrenzgaengerMeldung.Frankreich("CH", true, "FR", false));
 
     [Fact]
+    public void Italien_nur_bei_wohnsitz_italien()
+    {
+        Assert.True(GrenzgaengerMeldung.WohnsitzItalien("IT"));
+        Assert.True(GrenzgaengerMeldung.WohnsitzItalien("Italien"));
+        Assert.False(GrenzgaengerMeldung.WohnsitzItalien("FR"));
+        Assert.False(GrenzgaengerMeldung.WohnsitzItalien("Frankreich"));
+        Assert.False(GrenzgaengerMeldung.WohnsitzItalien("CH"));
+    }
+
+    [Fact]
     public void Sfn_nur_der_tarifcode()
     {
         Assert.True(GrenzgaengerMeldung.Sfn("SFN"));
