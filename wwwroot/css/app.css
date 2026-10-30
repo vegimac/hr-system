@@ -4849,13 +4849,14 @@
             gap: 8px 14px;
             min-width: 0;
         }
-        /* Eintritt, Austritt, Dienstalter: so breit wie das Datum, eng beieinander.
-           Der Leerraum bleibt rechts in der Karte (Walter 30.10.2026). */
+        /* Eintritt | Austritt | Dienstalter: feste Spalten, bei jedem MA gleich.
+           Kurzes Datum rückt die nächste Spalte nicht nach links (Walter 30.10.2026). */
         .ov-anst-daten {
-            display: flex;
+            display: grid;
+            grid-template-columns: 6.75rem 7.15rem 9.75rem;
+            column-gap: 1.15rem;
+            align-items: end;
             flex: 0 0 auto;
-            align-items: flex-end;
-            gap: 8px;
             min-width: 0;
         }
         .ov-anst-datum {
