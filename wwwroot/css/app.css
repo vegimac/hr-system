@@ -14661,6 +14661,19 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-step.current .elma-stepnum { color: #3f3f3f; }
 #page-elm-anwender .elma-step strong { display: block; font-size: 11px; margin: 12px 0 4px; color: #3f3f3f; font-weight: 650; }
 #page-elm-anwender .elma-step small { display: block; font-size: 10px; color: #8b8b8b; line-height: 1.35; }
+#page-elm-anwender .elma-send { margin-top: 16px; padding: 16px 18px 14px; border-radius: 14px; background: rgba(255,255,255,0.72); border: 1px solid rgba(255,255,255,0.9); box-shadow: 0 10px 24px rgba(60,55,48,0.10); }
+#page-elm-anwender .elma-send-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+#page-elm-anwender .elma-send-head h3 { margin: 2px 0 0; font-size: 18px; font-weight: 650; color: #3f3f3f; letter-spacing: -0.02em; }
+#page-elm-anwender .elma-send-an { margin-top: 14px; }
+#page-elm-anwender .elma-send-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+#page-elm-anwender .elma-send-chip { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px; background: #fff; border: 1px solid rgba(60,55,48,0.16); color: #3f3f3f; font-size: 13px; font-weight: 600; }
+#page-elm-anwender .elma-send-leer { color: #991b1b; font-size: 13px; font-weight: 650; }
+#page-elm-anwender .elma-send-warn { margin-top: 14px; padding: 10px 12px 8px; border-radius: 12px; background: rgba(217,119,6,0.12); }
+#page-elm-anwender .elma-send-warn .elma-kicker { color: #92400e; }
+#page-elm-anwender .elma-send-warn ul { margin: 4px 0 4px; padding: 0 0 0 16px; color: #92400e; font-size: 13px; line-height: 1.45; }
+#page-elm-anwender .elma-send-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(60,55,48,0.10); }
+#page-elm-anwender .elma-send-foot p { margin: 0; font-size: 13px; color: #646464; }
+#page-elm-anwender .elma-send-foot .btn { min-width: 8.5rem; }
 #page-elm-anwender .elma-controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
 #page-elm-anwender .elma-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #646464; }
 #page-elm-anwender .elma-controls input { width: 5.5rem; box-sizing: border-box; background: #fff; border: 1px solid rgba(255,255,255,0.95); border-radius: 10px; padding: 8px 10px; font-size: 13px; color: #3f3f3f; box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9); }

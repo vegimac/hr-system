@@ -324,24 +324,35 @@ function elmaVorschauZeichnen() {
     const fehler = v.fehler || [];
     const leer = !(v.empfaenger || []).length;
     const kann = !fehler.length && !(v.technisch || []).length && !leer && !v.sendenGesperrt;
+    const warnungen = v.warnungen || [];
+    const empf = leer
+        ? '<span class="elma-send-leer">Niemanden — die Meldung ist leer</span>'
+        : v.empfaenger.map(e => `<span class="elma-send-chip">${_elmaEsc(e.name)}</span>`).join('');
+    const hinweise = warnungen.length
+        ? `<div class="elma-send-warn"><div class="elma-kicker">Hinweise</div><ul>${warnungen.map(w => `<li>${_elmaEsc(w)}</li>`).join('')}</ul></div>`
+        : '';
     el.innerHTML = `
-        <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(60,55,48,0.12)">
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                <b style="color:#3f3f3f;font-size:14px">${_elmaEsc(v.titel)}</b>
+        <section class="elma-send">
+            <div class="elma-send-head">
+                <div>
+                    <div class="elma-kicker">Meldung</div>
+                    <h3>${_elmaEsc(v.titel)}</h3>
+                </div>
                 ${kann ? _elmaPille('ok', 'Bereit zum Senden') : _elmaPille('rot', leer ? 'Keine Empfänger' : 'Bitte zuerst korrigieren')}
             </div>
-            <div style="margin-top:8px;font-size:13px;color:#646464">Geht an:
-                ${leer ? '<b style="color:#991b1b">niemanden — die Meldung ist leer</b>'
-                       : v.empfaenger.map(e => `<span style="display:inline-block;margin:3px 6px 0 0;padding:3px 10px;border-radius:999px;border:1px solid rgba(60,55,48,0.2);font-size:12px">${_elmaEsc(e.name)}</span>`).join('')}
+            <div class="elma-send-an">
+                <div class="elma-kicker">Geht an</div>
+                <div class="elma-send-chips">${empf}</div>
             </div>
-            ${(v.warnungen || []).length ? `<div style="margin-top:8px;font-size:13px;color:#854d0e;line-height:1.45">${(v.warnungen || []).map(w => _elmaEsc(w)).join('<br>')}</div>` : ''}
+            ${hinweise}
             ${fehler.length ? _elmaKasten(false, `<ul style="margin:0 0 0 18px;padding:0">${fehler.map(f => `<li>${_elmaEsc(f)}</li>`).join('')}</ul>`) : ''}
             ${(v.technisch || []).length ? _elmaKasten(false, 'Die Meldung ist fehlerhaft. Bitte dem Support melden.') : ''}
             ${v.sendenGesperrt ? _elmaKasten(false, _elmaEsc(v.sendenGesperrt)) : ''}
-            <div style="display:flex;justify-content:flex-end;margin-top:14px">
+            <div class="elma-send-foot">
+                <p>${kann ? 'OneCrew übergibt die Meldung an Swissdec.' : 'Senden bleibt zu, bis die Meldung in Ordnung ist.'}</p>
                 <button type="button" class="btn btn-primary" onclick="elmaSenden()" ${kann && !_elmaBusy ? '' : 'disabled'}>${_elmaErsatz ? 'Korrigierte Meldung senden' : 'Senden'}</button>
             </div>
-        </div>`;
+        </section>`;
 }
 
 async function elmaSenden() {
