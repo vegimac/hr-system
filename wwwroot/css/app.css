@@ -4849,12 +4849,13 @@
             gap: 8px 14px;
             min-width: 0;
         }
-        /* Eintritt | Austritt | Dienstalter: feste Spalten, bei jedem MA gleich.
-           Kurzes Datum rückt die nächste Spalte nicht nach links (Walter 30.10.2026). */
+        /* Eintritt | Austritt | Dienstalter: feste, knappe Spalten.
+           Breite = längstes Datum bzw. das Label «Dienstalter seit».
+           Kurzes Datum rückt die nächste Spalte nicht (Walter 30.10.2026). */
         .ov-anst-daten {
             display: grid;
-            grid-template-columns: 6.75rem 7.15rem 9.75rem;
-            column-gap: 1.15rem;
+            grid-template-columns: 6.05rem 6.35rem 8.35rem;
+            column-gap: 0.7rem;
             align-items: end;
             flex: 0 0 auto;
             min-width: 0;
