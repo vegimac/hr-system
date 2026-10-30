@@ -6007,11 +6007,16 @@
            Spalte (Doku+⋮) auf schmalen Panels abgeschnitten ohne Scroll.
            Breite = Inhalt, min 100%; horizontal scrollen im .abs-list-scroll. */
         #page-mitarbeiter.liquid-employee .abs-table {
-            width: max-content;
+            width: 100%;
             min-width: 100%;
             table-layout: auto;
             border-collapse: separate;
             border-spacing: 0;
+        }
+        #page-mitarbeiter.liquid-employee .abs-table td:first-child { max-width: 10rem; }
+        #page-mitarbeiter.liquid-employee .abs-table .abs-type-badge {
+            white-space: normal;
+            line-height: 1.25;
         }
         /* Walter 23.09.2026: enger (Datum jetzt dd.mm.yy), damit Doku + ⋮ sichtbar bleiben */
         #page-mitarbeiter.liquid-employee .abs-col-type { width: 6.5rem; }
@@ -6025,15 +6030,18 @@
            opaque Sticky-Streifen die Bemerkung und liess Doku/⋮ «schweben». */
         #page-mitarbeiter.liquid-employee .abs-table th:last-child,
         #page-mitarbeiter.liquid-employee .abs-table td.abs-actions {
-            position: static;
-            right: auto;
-            z-index: auto;
-            background: transparent !important;
-            box-shadow: none !important;
+            position: sticky;
+            right: 0;
+            z-index: 2;
+            background: #e9e6dd;
+            box-shadow: -10px 0 12px -10px rgba(60,55,48,0.28);
             padding: 6px 10px 6px 6px !important;
             vertical-align: middle;
             white-space: nowrap;
             text-align: right;
+        }
+        #page-mitarbeiter.liquid-employee .abs-table-body tr.abs-row-critical td.abs-actions {
+            background: #fef2f2;
         }
         #page-mitarbeiter.liquid-employee .abs-cols .abs-table th:last-child {
             background: transparent !important;
@@ -6094,6 +6102,12 @@
             background-image: none !important;
             box-shadow: none !important;
             border-bottom: none !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table td.abs-actions {
+            background: #1c2634;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .abs-table-body tr.abs-row-critical td.abs-actions {
+            background: #3a2428;
         }
         body.theme-dark #page-mitarbeiter.liquid-employee .abs-list-shell {
             background-color: var(--dlg-fill) !important;
