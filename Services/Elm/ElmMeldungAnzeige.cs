@@ -120,6 +120,7 @@ public static class ElmMeldungAnzeige
             "KTG-AMC" => $"Krankentaggeld-Versicherung {id}",
             "BVG-LPP" => $"Pensionskasse {id}",
             "FAK-CAF" => $"Familienausgleichskasse {id}",
+            "TaxCrossborder" => $"Grenzgänger Kanton {id}",
             _ => string.IsNullOrWhiteSpace(domain) ? id : $"{domain} {id}",
         };
     }
@@ -138,9 +139,34 @@ public static class ElmMeldungAnzeige
     public static string? DeclarationId(ElmVorgang v)
         => v.Adressaten.FirstOrDefault(a => a.Zustand == "Success" && !string.IsNullOrWhiteSpace(a.FallId))?.FallId;
 
+    /// <summary>Monats-, Jahres- und die drei Grenzgängermeldungen. Alles andere bleibt in der Entwicklung.</summary>
+    public static bool IstAnwender(string? art)
+        => art is "monthly" or "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn";
+
+    /// <summary>Grenzgänger steckt in DeclareAnnualSalary, nicht in einer eigenen SOAP-Operation.</summary>
+    public static bool IstJahresSoap(string? art)
+        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn";
+
+    /// <summary>Unbekanntes wird Monatsmeldung. Die drei Grenzgänger-Arten bleiben erhalten.</summary>
+    public static string NormalisiereArt(string? art)
+        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" ? art : "monthly";
+
+    public static string Titel(ElmVorgang v)
+    {
+        var (jahr, monat) = Periode(v);
+        return v.Art switch
+        {
+            "annual" => $"Jahresmeldung {jahr}",
+            "grenz-it" => $"Grenzgänger Italien {jahr}",
+            "grenz-fr" => $"Grenzgänger Frankreich {jahr}",
+            "grenz-sfn" => $"Grenzgänger SFN {jahr}",
+            _ => monat != null ? $"Monatsmeldung {monat:00}.{jahr}" : (string.IsNullOrWhiteSpace(v.Titel) ? "Lohnmeldung" : v.Titel),
+        };
+    }
+
     /// <summary>Ersetzen geht, sobald der Job fertig ist und mindestens ein Empfänger angenommen hat.</summary>
     public static bool Ersetzbar(ElmVorgang v)
-        => v.Art is "monthly" or "annual" && v.JobFinished && DeclarationId(v) != null;
+        => IstAnwender(v.Art) && v.JobFinished && DeclarationId(v) != null;
 
     /// <summary>Lohnjahr und -monat: gespeichert, sonst aus dem Titel («Monatsmeldung 01.2025», «Jahresmeldung AHV 2025»).</summary>
     public static (int? Jahr, int? Monat) Periode(ElmVorgang v)
@@ -158,14 +184,14 @@ public static class ElmMeldungAnzeige
     /// die älteren Prüfpunkt-Fälle aus der Zertifizierung fragt sie nicht nach.
     /// </summary>
     public static bool StatusFaellig(ElmVorgang v, DateTime jetzt)
-        => v.Art is "monthly" or "annual" && !v.JobFinished && !string.IsNullOrEmpty(v.JobKey)
+        => IstAnwender(v.Art) && !v.JobFinished && !string.IsNullOrEmpty(v.JobKey)
            && v.Url != null && (jetzt - v.Gesendet).TotalDays <= AutoHoechstensTage
            && (v.LetzteStatusAbfrage is not DateTime t || jetzt - t >= AutoStatusAbstand);
 
     /// <summary>Empfänger, bei denen die Automatik jetzt synchronisieren soll (Quittung/Rückfrage abholen).</summary>
     public static List<ElmVorgangAdressat> SyncFaellig(ElmVorgang v, DateTime jetzt)
     {
-        if (v.Art is not ("monthly" or "annual") || !v.JobFinished || v.Url == null
+        if (!IstAnwender(v.Art) || !v.JobFinished || v.Url == null
             || (jetzt - v.Gesendet).TotalDays > AutoHoechstensTage)
             return new();
         return v.Adressaten.Where(a => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId)

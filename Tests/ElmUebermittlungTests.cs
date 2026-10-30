@@ -98,6 +98,8 @@ public class ElmUebermittlungTests
         IstGueltig(body);
         Assert.Equal(art == "annual" ? "GetStatusFromDeclareAnnualSalary" : "GetStatusFromDeclareMonthlySalary",
             body.Name.LocalName);
+        Assert.Equal("GetStatusFromDeclareAnnualSalary",
+            BaueGetStatus("grenz-it", "JobKey1234", Kontext()).Name.LocalName);
         Assert.DoesNotContain(body.Descendants(), e => e.Name.LocalName == "TestCase");
     }
 

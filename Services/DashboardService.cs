@@ -1081,13 +1081,12 @@ public class DashboardService
         if (_elmStore != null && Enabled("elm_meldung"))
         {
             foreach (var v in _elmStore.LadeUebermittlungen().Vorgaenge
-                         .Where(v => v.Art is "monthly" or "annual" && v.Url != null
+                         .Where(v => HrSystem.Services.Elm.ElmMeldungAnzeige.IstAnwender(v.Art) && v.Url != null
                                      && (DateTime.Now - v.Gesendet).TotalDays <= HrSystem.Services.Elm.ElmMeldungAnzeige.AutoHoechstensTage))
             {
                 var st = HrSystem.Services.Elm.ElmMeldungAnzeige.Meldung(v);
                 if (!st.AktionNoetig) continue;
-                var (jahr, monat) = HrSystem.Services.Elm.ElmMeldungAnzeige.Periode(v);
-                var titel = v.Art == "annual" ? $"Jahresmeldung {jahr}" : $"Monatsmeldung {monat:00}.{jahr}";
+                var titel = HrSystem.Services.Elm.ElmMeldungAnzeige.Titel(v);
                 alerts.Add(new DashboardAlert
                 {
                     Category  = "elm_meldung",

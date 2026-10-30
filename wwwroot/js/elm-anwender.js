@@ -66,7 +66,8 @@ function _elmaPille(stufe, text) {
 }
 
 function elmAnwenden(art) {
-    window._elmaArt = art === 'annual' ? 'annual' : 'monthly';
+    const erlaubt = ['monthly', 'annual', 'grenz-it', 'grenz-fr', 'grenz-sfn'];
+    window._elmaArt = erlaubt.includes(art) ? art : 'monthly';
     showPage('elm-anwender');
 }
 
@@ -103,11 +104,15 @@ function elmaInit() {
 function elmaArtGewechselt() {
     const art = document.getElementById('elmaArt')?.value;
     const w = document.getElementById('elmaMonatWrap');
-    if (w) w.style.display = art === 'annual' ? 'none' : 'flex';
+    if (w) w.style.display = art === 'monthly' ? 'flex' : 'none';
+    const hinweise = {
+        annual: 'Jahresmeldung an die AHV-Ausgleichskasse.',
+        'grenz-it': 'Nur Personen mit dem Häkchen «Datenaustausch Italien» in der Quellensteuer. Geburtsort, Steuernummer und Datum stehen dort.',
+        'grenz-fr': 'Wohnsitz Frankreich und Arbeitsort Schweiz. Der Anteil Telearbeit steht in der Quellensteuer. Tarif SFN hat eine eigene Meldung.',
+        'grenz-sfn': 'Nur Personen mit Tarifcode SFN. Keine weiteren Angaben.',
+    };
     const hin = document.getElementById('elmaArtHinweis');
-    if (hin) hin.textContent = art === 'annual'
-        ? 'Jahresmeldung an die AHV-Ausgleichskasse.'
-        : 'Monatsmeldung an die Steuerverwaltungen und ans Bundesamt für Statistik.';
+    if (hin) hin.textContent = hinweise[art] || 'Monatsmeldung an die Steuerverwaltungen und ans Bundesamt für Statistik.';
     _elmaVorschau = null;
     const vorschau = document.getElementById('elmaVorschau');
     if (vorschau) vorschau.innerHTML = '';

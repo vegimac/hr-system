@@ -239,7 +239,7 @@ public static class ElmUebermittlungXml
     // ── GetStatus / Synchronize / Subscribe bauen ────────────────────────
 
     public static XElement BaueGetStatus(string art, string jobKey, XElement requestContext)
-        => new(Sdst + (art == "annual" ? "GetStatusFromDeclareAnnualSalary" : "GetStatusFromDeclareMonthlySalary"),
+        => new(Sdst + (ElmMeldungAnzeige.IstJahresSoap(art) ? "GetStatusFromDeclareAnnualSalary" : "GetStatusFromDeclareMonthlySalary"),
             new XAttribute(XNamespace.Xmlns + "sdst", Sdst),
             new XAttribute(XNamespace.Xmlns + "ep", Ep),
             requestContext,
@@ -272,7 +272,7 @@ public static class ElmUebermittlungXml
     public static XElement BaueSynchronizeDeclare(ElmVorgang v, ElmVorgangAdressat a,
         IEnumerable<string> quittieren, XElement requestContext)
     {
-        var name = v.Art == "annual" ? "SynchronizeDeclareAnnualSalary" : "SynchronizeDeclareMonthlySalary";
+        var name = ElmMeldungAnzeige.IstJahresSoap(v.Art) ? "SynchronizeDeclareAnnualSalary" : "SynchronizeDeclareMonthlySalary";
         return new XElement(Sdst + name, NsAttribute(),
             requestContext,
             Sender(v.Uid),

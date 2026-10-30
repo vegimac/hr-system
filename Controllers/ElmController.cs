@@ -923,7 +923,7 @@ public class ElmController : ControllerBase
         string art, int jahr, int? monat, CancellationToken ct)
     {
         if (!await IstSuperAdminAsync()) return NurSuperAdmin();
-        try { return Ok(await dienst.VorschauAsync(art == "annual" ? "annual" : "monthly", jahr, monat, ct)); }
+        try { return Ok(await dienst.VorschauAsync(ElmMeldungAnzeige.NormalisiereArt(art), jahr, monat, ct)); }
         catch (Exception ex) { return BadRequest(new { error = "VORSCHAU", message = ex.GetBaseException().Message }); }
     }
 
@@ -941,7 +941,7 @@ public class ElmController : ControllerBase
         try
         {
             var r = await dienst.DeclareAsync(ziel.Value.Url!, new ElmUebermittlungService.DeclareOptionen(
-                dto.Art == "annual" ? "annual" : "monthly", dto.Jahr, dto.Monat, dto.TestCase, dto.Substitution,
+                ElmMeldungAnzeige.NormalisiereArt(dto.Art), dto.Jahr, dto.Monat, dto.TestCase, dto.Substitution,
                 dto.Adressaten, dto.DoppeltSignieren, dto.RequestIdWiederverwenden), ct);
             return Ok(Antwort(r, ziel.Value.Name));
         }

@@ -43,17 +43,20 @@ public class ElmUebermittlungService
     private readonly ElmZertifikatStore _store;
     private readonly ElmMonthlyDeclarationBuilder _monat;
     private readonly ElmAnnualDeclarationBuilder _jahr;
+    private readonly ElmGrenzgaengerJahresBuilder _grenz;
     private readonly ElmEinstellungen _einst;
     private readonly ElmXmlValidator _validator;
 
     public ElmUebermittlungService(ElmTransmitterClient client, ElmZertifikatStore store,
         ElmMonthlyDeclarationBuilder monat, ElmAnnualDeclarationBuilder jahr,
+        ElmGrenzgaengerJahresBuilder grenz,
         ElmEinstellungen einstellungen, ElmXmlValidator validator)
     {
         _client = client;
         _store = store;
         _monat = monat;
         _jahr = jahr;
+        _grenz = grenz;
         _einst = einstellungen;
         _validator = validator;
     }
@@ -113,6 +116,12 @@ public class ElmUebermittlungService
             var r = await _jahr.BuildAhvAsync(jahr, ct);
             return (r.Xml, $"Jahresmeldung AHV {jahr}", r.Warnungen, r.XsdFehler);
         }
+        if (art is ElmGrenzgaengerJahresBuilder.ArtItalien or ElmGrenzgaengerJahresBuilder.ArtFrankreich
+            or ElmGrenzgaengerJahresBuilder.ArtSfn)
+        {
+            var g = await _grenz.BuildAsync(art, jahr, ct);
+            return (g.Xml, g.Titel, g.Warnungen, g.XsdFehler);
+        }
         if (monat is null or < 1 or > 12)
             throw new InvalidOperationException("Für die Monatsmeldung Monat 1–12 angeben.");
         var m = await _monat.BuildAsync(jahr, monat.Value, ct);
@@ -126,7 +135,7 @@ public class ElmUebermittlungService
 
     private async Task<Ergebnis> DeclareInternAsync(string url, DeclareOptionen o, CancellationToken ct)
     {
-        var art = o.Art == "annual" ? "annual" : "monthly";
+        var art = ElmMeldungAnzeige.NormalisiereArt(o.Art);
         var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, o.Jahr, o.Monat, ct);
         if (xml.Length == 0)
             return new Ergebnis(false, "Keine Meldung erzeugt: " + string.Join(" · ", warn), null, null) { Warnungen = warn };
@@ -150,7 +159,7 @@ public class ElmUebermittlungService
         if (gewaehlt.Count == 0)
             return new Ergebnis(false, "Die Meldung hat keinen Adressaten.", null, null);
 
-        var s = await SendeAsync(url, anfrage, art == "annual" ? "declare-annual" : "declare-monthly",
+        var s = await SendeAsync(url, anfrage, ElmMeldungAnzeige.IstJahresSoap(art) ? "declare-annual" : "declare-monthly",
             o.DoppeltSignieren, stand, requestId, ct);
         warn.AddRange(s.Warnungen);
 
@@ -218,7 +227,7 @@ public class ElmUebermittlungService
         var anfrage = BaueGetStatus(v.Art, v.JobKey!, Kontext(v.Firmenname, requestId));
         v.LetzteStatusAbfrage = DateTime.Now;
         v.StatusAbfragen++;
-        var s = await SendeAsync(url, anfrage, v.Art == "annual" ? "status-annual" : "status-monthly",
+        var s = await SendeAsync(url, anfrage, ElmMeldungAnzeige.IstJahresSoap(v.Art) ? "status-annual" : "status-monthly",
             v.DoppeltSigniert, stand, requestId, ct);
         if (s.Abbruch != null)
         {

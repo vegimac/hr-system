@@ -25,7 +25,7 @@ public class ElmMeldungenController : ControllerBase
     [HttpGet("vorschau")]
     public async Task<IActionResult> Vorschau(string art, int jahr, int? monat, CancellationToken ct)
     {
-        art = art == "annual" ? "annual" : "monthly";
+        art = ElmMeldungAnzeige.NormalisiereArt(art);
         try
         {
             var v = await _dienst.VorschauAsync(art, jahr, monat, ct);
@@ -51,7 +51,7 @@ public class ElmMeldungenController : ControllerBase
     [HttpPost("senden")]
     public async Task<IActionResult> Senden([FromBody] SendenBody dto, CancellationToken ct)
     {
-        var art = dto.Art == "annual" ? "annual" : "monthly";
+        var art = ElmMeldungAnzeige.NormalisiereArt(dto.Art);
         try
         {
             var r = await _dienst.SendenAsync(art, dto.Jahr, dto.Monat, dto.ErsetztId, dto.Ziel, ct);
@@ -149,7 +149,7 @@ public class ElmMeldungenController : ControllerBase
         {
             v.Id, v.Art, jahr, monat, v.Gesendet, v.TestCase,
             qualityTool = v.Url == ElmEndpunkte.QualityToolUrl,
-            titel = v.Art == "annual" ? $"Jahresmeldung {jahr}" : monat != null ? $"Monatsmeldung {monat:00}.{jahr}" : v.Titel,
+            titel = ElmMeldungAnzeige.Titel(v),
             ersatz = v.Substitution != null,
             zertifizierung = ElmMeldungAnzeige.Zertifizierungstest(v),
             stufe = st.Stufe, text = st.Text, aktionNoetig = st.AktionNoetig,

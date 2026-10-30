@@ -2777,7 +2777,7 @@
                         <div class="admin-card-title">Steuerverwaltungen</div>
                         <div class="admin-card-desc">Quellensteuer in der Monatsmeldung</div>
                     </div>
-                        <div class="admin-card" onclick="elmHubPlatz('Grenzgänger')" title="Italien, Frankreich und SFN">
+                        <div class="admin-card" onclick="elmAnwenden('grenz-it')" title="Italien, Frankreich und SFN">
                         <img src="img/elmkat-grenz.webp?v=20261030a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Grenzgänger (IT / FR)</div>
                         <div class="admin-card-desc">Jahresmeldung Italien, Frankreich und SFN</div>
@@ -6810,10 +6810,13 @@
                                 background-image:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%)">
                         <div id="elmaErsatz" style="display:none;margin-bottom:14px;padding:10px 12px;border-radius:10px;background:rgba(217,119,6,0.12);color:#92400e;font-size:13px"></div>
                         <div style="display:flex;gap:12px 16px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-start">
-                            <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464;width:17rem">Meldung
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464;width:20rem">Meldung
                                 <select id="elmaArt" onchange="elmaArtGewechselt()">
                                     <option value="monthly">Monatsmeldung</option>
                                     <option value="annual">Jahresmeldung AHV</option>
+                                    <option value="grenz-it">Grenzgänger Italien</option>
+                                    <option value="grenz-fr">Grenzgänger Frankreich</option>
+                                    <option value="grenz-sfn">Grenzgänger SFN</option>
                                 </select>
                             </label>
                             <label id="elmaMonatWrap" style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464;width:10rem">Monat
@@ -11467,7 +11470,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/virenscanner.js?v=20261022b"></script>
 <script type="text/plain" data-modul="js/elm-zertifikat.js?v=20261030b"></script>
 <script type="text/plain" data-modul="js/elm-schnittstelle.js?v=20261016d"></script>
-<script type="text/plain" data-modul="js/elm-anwender.js?v=20261030k"></script>
+<script type="text/plain" data-modul="js/elm-anwender.js?v=20261030l"></script>
 <script type="text/plain" data-modul="js/elm-lohnraster.js?v=20261021a"></script>
 <script type="text/plain" data-modul="js/lohnschema.js?v=20261024g"></script>
 <script type="text/plain" data-modul="js/global-search.js?v=20261023a"></script>

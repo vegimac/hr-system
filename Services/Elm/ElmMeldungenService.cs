@@ -46,7 +46,7 @@ public class ElmMeldungenService
 
     public static string UrlVon(ElmVorgang v) => ElmEndpunkte.IstSicher(v.Url) ? v.Url! : ElmEndpunkte.Standard().Url;
 
-    public List<ElmVorgang> Liste() => _dienst.Liste().Where(v => v.Art is "monthly" or "annual").ToList();
+    public List<ElmVorgang> Liste() => _dienst.Liste().Where(v => ElmMeldungAnzeige.IstAnwender(v.Art)).ToList();
 
     private ElmVorgang Finde(string id)
         => _dienst.Liste().FirstOrDefault(v => v.Id == id)
@@ -92,7 +92,7 @@ public class ElmMeldungenService
         var fehler = new List<string>();
 
         var statusNoetig = automatisch ? ElmMeldungAnzeige.StatusFaellig(v, jetzt)
-            : v.Art is "monthly" or "annual" && !v.JobFinished && !string.IsNullOrEmpty(v.JobKey);
+            : ElmMeldungAnzeige.IstAnwender(v.Art) && !v.JobFinished && !string.IsNullOrEmpty(v.JobKey);
         if (statusNoetig)
         {
             if (!automatisch && v.LetzteStatusAbfrage is DateTime t

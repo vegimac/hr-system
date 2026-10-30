@@ -217,6 +217,7 @@ builder.Services.AddScoped<HrSystem.Services.Elm.ElmSuaService>();
 builder.Services.AddHostedService<HrSystem.Services.Elm.ElmZertifikatAutoErneuerung>();   // SUA vor Ablauf erneuern (15.10.2026)
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmAnnualDeclarationBuilder>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmMonthlyDeclarationBuilder>();
+builder.Services.AddScoped<HrSystem.Services.Elm.ElmGrenzgaengerJahresBuilder>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmUebermittlungService>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmMeldungenService>();
 builder.Services.AddScoped<HrSystem.Services.Elm.QualityToolClient>();
