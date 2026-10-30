@@ -8,7 +8,7 @@ namespace HrSystem.Tests;
 /// Tests für die benutzerbezogene Session-/Logout-Policy
 /// (Walter-Vorgabe 21.06.2026, Sperrbildschirm 04.09.2026).
 ///
-/// Inaktivität: 0–30 Minuten, 0 = kein Sperren durch Inaktivität, Standard 15 für alle.
+/// Inaktivität: 0–120 Minuten, 0 = kein Sperren durch Inaktivität, Standard 15 für alle.
 /// Maximale Sitzung: Rollen-Default (MA 30, sonst 480), geklemmt auf 5–1440.
 /// Genau diese Werte fliessen in die JWT-Ablaufzeit und in die Token-Claims.
 /// </summary>
@@ -55,7 +55,7 @@ public class SessionPolicyTests
         Assert.Equal(0, AuthController.EffectiveIdleTimeout(u));
     }
 
-    // ── Klemmen: Inaktivität 0–30, Sitzung 5–1440 ─────────────────────────
+    // ── Klemmen: Inaktivität 0–120, Sitzung 5–1440 ────────────────────────
     [Fact]
     public void Override_BelowMinimum_Clamped()
     {
@@ -80,7 +80,7 @@ public class SessionPolicyTests
         Assert.Equal(5, AuthController.EffectiveMaxSession(lo));
 
         var hi = U("user", idle: AuthController.IDLE_MAX, max: AuthController.POLICY_MAX);
-        Assert.Equal(30,   AuthController.EffectiveIdleTimeout(hi));
+        Assert.Equal(120,  AuthController.EffectiveIdleTimeout(hi));
         Assert.Equal(1440, AuthController.EffectiveMaxSession(hi));
     }
 }

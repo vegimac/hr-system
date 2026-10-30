@@ -150,9 +150,9 @@ public class UsersController : ControllerBase
     // Default, sonst 5–1440 Minuten.
     private static string? ValidateSessionPolicy(int? idle, int? max)
     {
-        // Sperrbildschirm (Walter 04.09.2026): Inaktivität 0–30 Minuten (0 = aus).
+        // Sperrbildschirm: Inaktivität 0–120 Minuten (Walter 30.10.2026, 0 = aus).
         if (idle.HasValue && (idle.Value < AuthController.IDLE_MIN || idle.Value > AuthController.IDLE_MAX))
-            return "Inaktivitäts-Sperre muss zwischen 0 und 30 Minuten liegen (0 = keine Sperre, leer = Standard 15).";
+            return $"Inaktivitäts-Sperre muss zwischen {AuthController.IDLE_MIN} und {AuthController.IDLE_MAX} Minuten liegen (0 = keine Sperre, leer = Standard 15).";
         if (max.HasValue && (max.Value < 5 || max.Value > 1440))
             return "Token-Laufzeit muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).";
         return null;
