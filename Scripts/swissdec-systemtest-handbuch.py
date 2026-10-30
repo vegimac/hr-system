@@ -211,7 +211,7 @@ def main() -> None:
 <!-- DECKBLATT -->
 <section>
   <div class="kopf"><h1>Swissdec Systemtest<br>Handbuch für die Prüfung (ERP + Tech)</h1>
-    <div class="rechts">OneCrew · Muster AG · ELM 6.0<br>Testinstanz test.onecrew.ch<br>Stand {heute}</div></div>
+    <div class="rechts">OneCrew · Muster AG · ELMv6.0.1<br>Testinstanz test.onecrew.ch<br>Stand {heute}</div></div>
 
   <div class="worum"><b class="t">Worum es bei diesem Test geht</b>
     Anders als der <b>Foundation-Test</b> (Verbindung, Siegel, Zertifikate) prüft der <b>Systemtest</b>,

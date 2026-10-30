@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  SWISSDEC ELM 6.0 — Admin-Bereich (Walter 27.08.2026)
+//  SWISSDEC ELMv6.0.1 — Admin-Bereich (Walter 27.08.2026, Zielversion seit 30.10.2026)
 //  Etappe E1: Ping + CheckInteroperability gegen Distributor/Refapps.
 //  Konzept: docs/swissdec-elm6-konzept.md. NUR manuell auslösen (Richtlinien
 //  Kap. 4: Ping nie automatisieren).

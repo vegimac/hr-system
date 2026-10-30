@@ -124,7 +124,7 @@ function stKopfZeichnen() {
     const kachel = (titel, inhalt, klasse = '') =>
         `<div class="komm-kachel ${klasse ? 'komm-kachel-' + klasse : ''}"><div class="komm-kachel-titel">${titel}</div><div>${inhalt}</div></div>`;
     el.innerHTML =
-        kachel('Bereich', `<b>Systemtest ERP + Tech</b><div class="komm-klein">Quality Tool · ELM 6.0</div>`, 'ok')
+        kachel('Bereich', `<b>Systemtest ERP + Tech</b><div class="komm-klein">Quality Tool · ELMv6.0.1</div>`, 'ok')
         + kachel('ERP-Katalog', `<b>${erpN}</b> Prüfpunkte<div class="komm-klein">${_stEsc(quelle.erpPdf || 'Run 24364')}</div>`)
         + kachel('Tech-Katalog', `<b>${techN}</b> Fälle / Gates<div class="komm-klein">${_stEsc(quelle.techPdf || 'Run 26667')}</div>`)
         + kachel('In OneCrew', `<b>${gebaut}</b> vorführbar<div class="komm-klein">${alle.length - gebaut} noch nicht gebaut</div>`, gebaut ? 'ok' : 'warn')

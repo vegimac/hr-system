@@ -62,9 +62,9 @@ DB-Backup/Restore: siehe `RESTORE.md`. Backups laufen täglich um 03:00 auf dem 
 
 Vor JEDER Arbeit an/mit der Testinstanz die Datei lesen (verbatim ausgelagert 29.08.2026). Eiserne Kurzregeln: **NIE echte Daten in die Testinstanz** (kein pg_dump prod→test); keine geteilten Secrets/DB-User/Verzeichnisse; `./deploy.sh` ist gestaffelt (erst Test, dann Prod); Test-Login walter.schaub@gmail.com (kein «admin»).
 
-### Swissdec ELM 6.0 → PFLICHT: `docs/claude/swissdec-stand.md` lesen
+### Swissdec ELMv6.0.1 → PFLICHT: `docs/claude/swissdec-stand.md` lesen
 
-Vor JEDER Swissdec-/ELM-Arbeit die Datei lesen (Stand E1–E3 + Hauptsitz-Verwaltung, verbatim ausgelagert 29.08.2026). Eiserne Kurzregeln: Zertifizierungsbasis = **ELM 6.0**; Übungs-XML NUR aus test.onecrew.ch-Kunstdaten via Refapps-Transmitter (kein Transmitter-Zertifikat vor Zertifizierung); Ping NUR manuell; Konzept `docs/swissdec-elm6-konzept.md`.
+Vor JEDER Swissdec-/ELM-Arbeit die Datei lesen (Stand E1–E3 + Hauptsitz-Verwaltung, verbatim ausgelagert 29.08.2026). Eiserne Kurzregeln: Zertifizierungsbasis = **ELMv6.0.1** (Schema-Patch auf ELM 6.0, Mail Fachstelle ELM 30.10.2026; bis zum November-Release bleibt das XML bei `schemaVersion` 0.0, danach blockt der Distributor 6.0.0); Übungs-XML NUR aus test.onecrew.ch-Kunstdaten via Refapps-Transmitter (kein Transmitter-Zertifikat vor Zertifizierung); Ping NUR manuell; Konzept `docs/swissdec-elm6-konzept.md`.
 
 ### Deploy-Befehl IMMER mitliefern (Walter-Vorgabe 01.08.2026, ABSOLUT)
 

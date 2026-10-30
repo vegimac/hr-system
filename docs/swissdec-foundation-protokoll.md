@@ -3,7 +3,8 @@
 Was wir zu welchem Prüfpunkt gemacht haben, wo es im Code steht und was offen ist.
 **Zweck:** vor jedem Swissdec-Call nachlesen können, ohne im Chatverlauf zu suchen.
 
-System: **OneCrew** · Schaub Restaurants GmbH · ELM 6.0
+System: **OneCrew** · Schaub Restaurants GmbH · **ELMv6.0.1**
+Läufe bis 30.10.2026 gingen gegen Schema 6.0.0 (`schemaVersion` 0.0). Ab dem November-Release nur noch 6.0.1.
 Erster Call: **24.09.2026** (30 Minuten, Organisatorisches — Foundation-Test kommt zuerst)
 Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 

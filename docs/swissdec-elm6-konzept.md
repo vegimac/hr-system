@@ -1,10 +1,13 @@
-# Konzept: Swissdec ELM 6.0 — elektronische Lohnmeldung für OneCrew
+# Konzept: Swissdec ELMv6.0.1 — elektronische Lohnmeldung für OneCrew
 
-**Status: ENTWURF v1 (27.08.2026)** — Grundlage: ELM 6.0 «Richtlinien für
-Lohndatenverarbeitung» (507 S., Ausgabe 06.03.2026 = aktuelle
-Zertifizierungsbasis), «Richtlinien für Lohndatentransmitter» (240 S.),
+**Status: ENTWURF v1 (27.08.2026), Zielversion ELMv6.0.1 seit 30.10.2026** —
+Grundlage bleiben die ELM-6.0-«Richtlinien für Lohndatenverarbeitung»
+(507 S., Ausgabe 06.03.2026), «Richtlinien für Lohndatentransmitter» (240 S.),
 WSDL/XSD/Beispiel-XMLs (alles unter `docs/swissdec/`), Swissdec-
-Testinfrastruktur-Zugang (Benutzer «schaub»).
+Testinfrastruktur-Zugang (Benutzer «schaub»). Der Schema-Patch ELMv6.0.1
+kommt mit dem November-Release; bis das XSD im Repo liegt, bleibt das XML
+bei `schemaVersion` 0.0. Stand und die fünf Korrekturen:
+`docs/claude/swissdec-stand.md`.
 
 ## 1. Zielbild
 

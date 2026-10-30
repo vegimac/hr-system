@@ -3,7 +3,8 @@
 Was wir zu welchem Prüfpunkt gemacht haben, wo es in OneCrew steht und was offen ist.
 **Zweck:** vor jedem Swissdec-Call nachlesen — analog `docs/swissdec-foundation-protokoll.md`.
 
-System: **OneCrew** · Testmandant Muster AG · ELM 6.0 · nur **test.onecrew.ch**
+System: **OneCrew** · Testmandant Muster AG · **ELMv6.0.1** · nur **test.onecrew.ch**
+Läufe bis 30.10.2026 gingen gegen Schema 6.0.0 (`schemaVersion` 0.0). Ab dem November-Release nur noch 6.0.1.
 Quality Tool: `https://test.swissdec.ch/qualitytool/stable` → ELM
 
 Quellen (Walter 16.10.2026):

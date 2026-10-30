@@ -1,4 +1,6 @@
-# Swissdec Quality Tool — Testprotokoll (Muster AG, ELM 6.0)
+# Swissdec Quality Tool — Testprotokoll (Muster AG, ELMv6.0.1)
+
+Zielversion seit 30.10.2026: **ELMv6.0.1**. Die bisherigen Läufe gingen gegen Schema 6.0.0 (`schemaVersion` 0.0).
 
 Angelegt 28.09.2026 (Walter). Hält fest, welche Monatsmeldungen der Muster AG an das
 Quality Tool gegangen sind, was es angestrichen hat und **warum wir dort abweichen**.
