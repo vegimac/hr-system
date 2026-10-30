@@ -14626,17 +14626,14 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-pill { padding: 7px 12px; border-radius: 99px; border: 1px solid rgba(60, 55, 48, 0.18); background: rgba(255, 255, 255, 0.55); color: #3f3f3f; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
 #page-elm-anwender .elma-stage { position: relative; height: 210px; margin-top: 16px; border-radius: 14px; overflow: hidden; border: 1px solid rgba(60, 55, 48, 0.12); background: radial-gradient(circle at 50% 46%, #f7f4ee 0%, #efeae0 42%, #e6e1d6 100%); }
 #page-elm-anwender .elma-stage:before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(60,55,48,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(60,55,48,0.05) 1px, transparent 1px); background-size: 28px 28px; }
-#page-elm-anwender .elma-beam { position: absolute; left: 22%; right: 22%; top: 50%; height: 2px; background: #3f3f3f; z-index: 1; }
-#page-elm-anwender .elma-pulse { position: absolute; top: calc(50% - 5px); left: 22%; width: 10px; height: 10px; border-radius: 50%; background: #3f3f3f; z-index: 3; animation: elmaTravel 1.8s linear infinite; }
+#page-elm-anwender .elma-beam { position: absolute; left: 30%; right: 30%; top: 50%; height: 2px; background: #3f3f3f; z-index: 1; }
+#page-elm-anwender .elma-pulse { position: absolute; top: calc(50% - 5px); left: 30%; width: 10px; height: 10px; border-radius: 50%; background: #3f3f3f; z-index: 3; animation: elmaTravel 1.8s linear infinite; }
 #page-elm-anwender .elma-stage.paused .elma-pulse { animation-play-state: paused; opacity: 0.25; }
-@keyframes elmaTravel { from { left: 22%; } to { left: 74%; } }
-#page-elm-anwender .elma-hub { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); width: 110px; text-align: center; color: #3f3f3f; }
+@keyframes elmaTravel { from { left: 30%; } to { left: 66%; } }
+#page-elm-anwender .elma-hub { position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); width: 26%; max-width: 168px; }
 #page-elm-anwender .elma-hub.left { left: 16px; }
 #page-elm-anwender .elma-hub.right { right: 16px; }
-#page-elm-anwender .elma-hubicon { width: 52px; height: 52px; margin: 0 auto 8px; border-radius: 14px; display: grid; place-items: center; font-weight: 750; font-size: 13px; letter-spacing: 0.04em; background: rgba(255,255,255,0.72); border: 1px solid rgba(60,55,48,0.16); box-shadow: 0 8px 18px rgba(60,55,48,0.08); }
-#page-elm-anwender .elma-hub.right .elma-hubicon { border-radius: 50%; }
-#page-elm-anwender .elma-hub strong { display: block; font-size: 13px; }
-#page-elm-anwender .elma-hub small { display: block; margin-top: 2px; font-size: 11px; color: #8b8b8b; }
+#page-elm-anwender .elma-hub img { display: block; width: 100%; height: auto; max-height: 40px; object-fit: contain; object-position: center; }
 #page-elm-anwender .elma-core { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; width: 92px; height: 92px; border-radius: 50%; background: #faf8f5; border: 1px solid rgba(60,55,48,0.28); display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 8px rgba(255,255,255,0.45); text-align: center; }
 #page-elm-anwender .elma-core strong { font-size: 16px; letter-spacing: 0.08em; color: #3f3f3f; }
 #page-elm-anwender .elma-core span { font-size: 10px; color: #646464; margin-top: 3px; letter-spacing: 0.04em; }
@@ -14678,8 +14675,9 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
     #page-elm-anwender .elma-connection { justify-content: flex-start; margin-top: 12px; }
     #page-elm-anwender .elma-layout, #page-elm-anwender .elma-right { grid-template-columns: 1fr; }
     #page-elm-anwender .elma-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    #page-elm-anwender .elma-hub { width: 78px; }
-    #page-elm-anwender .elma-hubicon { width: 40px; height: 40px; font-size: 11px; }
+    #page-elm-anwender .elma-hub { width: 22%; }
+    #page-elm-anwender .elma-hub img { max-height: 28px; }
+    #page-elm-anwender .elma-core { width: 72px; height: 72px; }
 }
 @media (prefers-reduced-motion: reduce) {
     #page-elm-anwender .elma-pulse { animation: none; }
