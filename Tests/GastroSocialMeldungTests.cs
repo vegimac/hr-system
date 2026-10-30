@@ -301,4 +301,147 @@ public class GastroSocialMeldungTests
         var e = Assert.Single(R.Offen(ereignisse, Array.Empty<R.Meldung>(), O(2026, 9, 1)));
         Assert.Equal((2, 10, O(2026, 8, 31)), (e.EmployeeId, e.CompanyProfileId, e.Datum));
     }
+
+    private static Dictionary<int, R.Filiale> Filialen(params (int Id, string Kanton, string? Konto, DateOnly? Ab, DateOnly? Bis)[] f) =>
+        f.GroupBy(x => x.Id).ToDictionary(
+            g => g.Key,
+            g => new R.Filiale(g.Key, g.First().Kanton, g
+                .Select(x => new R.Mitgliedschaft(x.Konto, x.Ab, x.Bis))
+                .ToList()));
+
+    [Fact]
+    public void Gleicher_Konto_anderer_Arbeitskanton_der_Filiale_ist_Kantonswechsel()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var filialen = Filialen((10, "BE", "629.0714.00", null, null), (20, "lu", "629071400", null, null));
+        var aus = R.Arbeitsort(v, filialen);
+        var k = Assert.Single(aus.Kantonswechsel);
+        Assert.Equal((1, 20, O(2026, 9, 1), "BE", "LU"), (k.EmployeeId, k.NeueFiliale, k.NeuerBeginn, k.AlterKanton, k.NeuerKanton));
+        Assert.Equal(R.Kantonswechsel, Assert.Single(aus.Ereignisse).Art);
+        Assert.True(R.Kantonswechsel.Length <= 10);
+
+        var an = R.Anmeldungen(v).Where(e => !aus.IstUnterdrueckt(e)).ToList();
+        Assert.Contains(an, e => e.CompanyProfileId == 10 && e.Datum == O(2026, 1, 1));
+        Assert.DoesNotContain(an, e => e.CompanyProfileId == 20);
+        Assert.Empty(R.AbmeldungenBeiFilialwechsel(v).Where(e => !aus.IstUnterdrueckt(e)));
+    }
+
+    [Fact]
+    public void Anderes_Konto_bleibt_Abmeldung_und_Anmeldung_auch_bei_anderem_Kanton()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var aus = R.Arbeitsort(v, Filialen((10, "BE", "111", null, null), (20, "LU", "222", null, null)));
+        Assert.Empty(aus.Kantonswechsel);
+        Assert.Contains(R.Anmeldungen(v), e => e.CompanyProfileId == 20 && !aus.IstUnterdrueckt(e));
+        Assert.Contains(R.AbmeldungenBeiFilialwechsel(v), e => e.CompanyProfileId == 10 && !aus.IstUnterdrueckt(e));
+    }
+
+    [Fact]
+    public void Gleicher_Konto_gleicher_Kanton_meldet_weder_ab_noch_neu_an()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var aus = R.Arbeitsort(v, Filialen((10, "BE", "629.0714", null, null), (20, "BE", "629.0714", null, null)));
+        Assert.Empty(aus.Kantonswechsel);
+        Assert.DoesNotContain(R.Anmeldungen(v), e => e.CompanyProfileId == 20 && !aus.IstUnterdrueckt(e));
+        Assert.Empty(R.AbmeldungenBeiFilialwechsel(v).Where(e => !aus.IstUnterdrueckt(e)));
+    }
+
+    [Fact]
+    public void Ohne_Mitgliednummer_bleibt_jede_Filiale_ein_eigenes_Konto()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var aus = R.Arbeitsort(v, Filialen((10, "BE", null, null, null), (20, "LU", null, null, null)));
+        Assert.Empty(aus.Kantonswechsel);
+        Assert.False(aus.IstUnterdrueckt(Assert.Single(R.AbmeldungenBeiFilialwechsel(v))));
+    }
+
+    [Fact]
+    public void Kantonswechsel_datum_ist_der_Beginn_am_neuen_Arbeitsort()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 9, 15)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var k = Assert.Single(R.Arbeitsort(v, Filialen(
+            (10, "BE", "100", null, null), (20, "LU", "100", null, null))).Kantonswechsel);
+        Assert.Equal(O(2026, 9, 1), k.NeuerBeginn);
+        Assert.Equal(O(2026, 9, 15), k.AltesEnde);
+    }
+
+    [Fact]
+    public void Konto_gilt_am_Beginn_des_neuen_Arbeitsorts()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var aus = R.Arbeitsort(v, Filialen(
+            (10, "BE", "111", null, O(2026, 8, 31)),
+            (10, "BE", "222", O(2026, 9, 1), null),
+            (20, "LU", "111", null, null)));
+        Assert.Empty(aus.Kantonswechsel);
+
+        var gleich = R.Arbeitsort(v, Filialen(
+            (10, "BE", "111", null, null),
+            (20, "LU", "111", O(2026, 9, 1), null)));
+        Assert.Single(gleich.Kantonswechsel);
+    }
+
+    [Fact]
+    public void Kantonswechsel_ist_ab_dem_Beginn_faellig_und_vor_2026_still()
+    {
+        var alt = new[]
+        {
+            new R.Vertrag(1, 10, D(2025, 1, 1), D(2025, 5, 31)),
+            new R.Vertrag(1, 20, D(2025, 6, 1), null),
+        };
+        var filialen = Filialen((10, "BE", "100", null, null), (20, "LU", "100", null, null));
+        Assert.Empty(R.Offen(R.Arbeitsort(alt, filialen).Ereignisse, Array.Empty<R.Meldung>(), O(2026, 6, 1)));
+
+        var neu = new[]
+        {
+            new R.Vertrag(2, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(2, 20, D(2026, 9, 1), null),
+        };
+        var ereignisse = R.Arbeitsort(neu, filialen).Ereignisse;
+        Assert.Empty(R.Offen(ereignisse, Array.Empty<R.Meldung>(), O(2026, 8, 31)));
+        var e = Assert.Single(R.Offen(ereignisse, Array.Empty<R.Meldung>(), O(2026, 9, 1)));
+        Assert.Equal((2, 20, R.Kantonswechsel, O(2026, 9, 1)), (e.EmployeeId, e.CompanyProfileId, e.Art, e.Datum));
+    }
+
+    [Fact]
+    public void Maske_zeigt_Kantonswechsel_statt_neuer_Anmeldung()
+    {
+        var v = new[]
+        {
+            new R.Vertrag(1, 10, D(2026, 1, 1), D(2026, 8, 31)),
+            new R.Vertrag(1, 20, D(2026, 9, 1), null),
+        };
+        var filialen = Filialen((10, "BE", "100", null, null), (20, "LU", "100", null, null));
+        var fehlt = R.AnzeigeFuerMaske(1, null, null, v, Array.Empty<R.Meldung>(), O(2026, 9, 15), filialen);
+        Assert.Equal("Kantonswechsel fehlt", fehlt!.Text);
+        Assert.False(fehlt.Erledigt);
+
+        var meldungen = new[] { new R.Meldung(1, 20, R.Kantonswechsel, O(2026, 9, 1)) };
+        var da = R.AnzeigeFuerMaske(1, null, null, v, meldungen, O(2026, 9, 15), filialen);
+        Assert.True(da!.Erledigt);
+    }
 }

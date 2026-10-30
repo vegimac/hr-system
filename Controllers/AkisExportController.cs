@@ -21,7 +21,10 @@ namespace HrSystem.Controllers;
 ///             oder Filialwechsel: letzter Vertragstag der alten Filiale,
 ///             sobald in einer anderen Filiale weitergearbeitet wird.
 ///             Befristet ohne Anschluss und ohne Kündigung per bleibt still.
-/// Die Zeile erscheint erst am Folgetag. Jede Filiale ist ein eigenes Konto.
+/// Die Zeile erscheint erst am Folgetag. Jede Filiale ist ein eigenes Konto,
+/// ausser die Mitgliednummer der Ausgleichskasse ist dieselbe: dann ist ein
+/// Wechsel des Arbeitskantons (Kanton der Filiale) ein Kantonswechsel
+/// am Beginn des neuen Arbeitsorts, ohne Ab- und ohne neue Anmeldung.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -38,19 +41,20 @@ public class AkisExportController : ControllerBase
     // ── Kandidaten-Ermittlung ──────────────────────────────────────────
 
     private sealed record Row(int EmployeeId, string? Ahv, string Name, string Vorname,
-        DateTime? GebDat, string? Geschlecht, DateTime Datum, string Sprache);
+        DateTime? GebDat, string? Geschlecht, DateTime Datum, string Sprache,
+        string? AlterKanton = null, string? NeuerKanton = null);
 
     private async Task<(List<Row> rows, List<Row> ohneAhv)> AnmeldungenAsync(
         int cpId, DateTime from, DateTime to)
     {
-        var vertraege = await _db.Employments.AsNoTracking()
-            .Where(e => e.CompanyProfileId == cpId)
-            .Select(e => new GastroSocialMeldungRegel.Vertrag(e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate))
-            .ToListAsync();
+        var vertraege = await VertraegeMitSchwesternAsync(cpId);
+        if (vertraege.Count == 0) return (new List<Row>(), new List<Row>());
+        var aus = GastroSocialMeldungRegel.Arbeitsort(vertraege, await GastroSocialFilialen.LadenAsync(_db));
         DateOnly von = DateOnly.FromDateTime(from), bis = DateOnly.FromDateTime(to);
         // Jede Anmeldung einzeln (Wiedereintritt im selben Jahr = zweite Zeile).
+        // Gleicher Konto und anderer Arbeitskanton: das ist ein Kantonswechsel, keine Anmeldung.
         var kandidaten = GastroSocialMeldungRegel.Anmeldungen(vertraege)
-            .Where(e => e.Datum >= von && e.Datum <= bis)
+            .Where(e => e.CompanyProfileId == cpId && e.Datum >= von && e.Datum <= bis && !aus.IstUnterdrueckt(e))
             .Select(e => (e.EmployeeId, e.Datum.ToDateTime(TimeOnly.MinValue)))
             .ToList();
         return await LoadRowsAsync(kandidaten);
@@ -87,11 +91,51 @@ public class AkisExportController : ControllerBase
             .ToList();
 
         DateOnly von = DateOnly.FromDateTime(from.Date), bis = DateOnly.FromDateTime(letzterTag);
+        var aus = GastroSocialMeldungRegel.Arbeitsort(alleVertraege, await GastroSocialFilialen.LadenAsync(_db));
         var kandidaten = GastroSocialMeldungRegel.Abmeldungen(alleVertraege, austritte)
-            .Where(e => e.CompanyProfileId == cpId && e.Datum >= von && e.Datum <= bis)
+            .Where(e => e.CompanyProfileId == cpId && e.Datum >= von && e.Datum <= bis && !aus.IstUnterdrueckt(e))
             .Select(e => (e.EmployeeId, e.Datum.ToDateTime(TimeOnly.MinValue)))
             .ToList();
         return await LoadRowsAsync(kandidaten);
+    }
+
+    /// <summary>
+    /// Kantonswechsel der Filiale: gleiches Ausgleichskassen-Konto, anderer Arbeitskanton.
+    /// Die Zeile hängt an der neuen Filiale, Datum = Beginn dort (auch künftig, wie die Anmeldung).
+    /// </summary>
+    private async Task<(List<Row> rows, List<Row> ohneAhv)> KantonswechselAsync(
+        int cpId, DateTime from, DateTime to)
+    {
+        var vertraege = await VertraegeMitSchwesternAsync(cpId);
+        if (vertraege.Count == 0) return (new List<Row>(), new List<Row>());
+        var aus = GastroSocialMeldungRegel.Arbeitsort(vertraege, await GastroSocialFilialen.LadenAsync(_db));
+        DateOnly von = DateOnly.FromDateTime(from), bis = DateOnly.FromDateTime(to);
+        var faelle = aus.Kantonswechsel
+            .Where(k => k.NeueFiliale == cpId && k.NeuerBeginn >= von && k.NeuerBeginn <= bis)
+            .ToList();
+        var nachZeile = faelle.ToDictionary(k => (k.EmployeeId, k.NeuerBeginn));
+        var (rows, ohne) = await LoadRowsAsync(faelle
+            .Select(k => (k.EmployeeId, k.NeuerBeginn.ToDateTime(TimeOnly.MinValue))).ToList());
+        return (MitKanton(rows, nachZeile), MitKanton(ohne, nachZeile));
+    }
+
+    private static List<Row> MitKanton(List<Row> rows, Dictionary<(int, DateOnly), GastroSocialMeldungRegel.KantonswechselFall> nachZeile) =>
+        rows.Select(r => nachZeile.TryGetValue((r.EmployeeId, DateOnly.FromDateTime(r.Datum)), out var k)
+            ? r with { AlterKanton = k.AlterKanton, NeuerKanton = k.NeuerKanton } : r).ToList();
+
+    /// <summary>Verträge der Filiale und aller anderen Filialen derselben Personen (für Konto und Kanton).</summary>
+    private async Task<List<GastroSocialMeldungRegel.Vertrag>> VertraegeMitSchwesternAsync(int cpId)
+    {
+        var ids = await _db.Employments.AsNoTracking()
+            .Where(e => e.CompanyProfileId == cpId)
+            .Select(e => e.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        if (ids.Count == 0) return new List<GastroSocialMeldungRegel.Vertrag>();
+        return await _db.Employments.AsNoTracking()
+            .Where(e => ids.Contains(e.EmployeeId) && e.CompanyProfileId != null)
+            .Select(e => new GastroSocialMeldungRegel.Vertrag(e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate))
+            .ToListAsync();
     }
 
     /// <summary>
@@ -233,6 +277,7 @@ public class AkisExportController : ControllerBase
         var (von, bis) = Zeitraum(from, to);
         var (an, anOhne) = await AnmeldungenAsync(companyProfileId, von, bis);
         var (ab, abOhne) = await AbmeldungenAsync(companyProfileId, von, bis);
+        var (kw, kwOhne) = await KantonswechselAsync(companyProfileId, von, bis);
         // Befristungen: ohne Zeitraum nur, was bald endet oder kürzlich endete.
         var befristet = await BefristetOffenAsync(companyProfileId,
             from?.Date ?? DateTime.Today.AddDays(-31), to?.Date ?? DateTime.Today.AddDays(60));
@@ -249,6 +294,8 @@ public class AkisExportController : ControllerBase
                 datum = r.Datum.ToString("dd.MM.yyyy"),
                 datumIso = r.Datum.ToString("yyyy-MM-dd"),
                 sprache = r.Sprache,
+                alterKanton = r.AlterKanton,
+                neuerKanton = r.NeuerKanton,
                 gemeldet = m == null ? null : new
                 {
                     m.Id, quelle = m.Quelle,
@@ -259,12 +306,15 @@ public class AkisExportController : ControllerBase
             };
         }
         const string AN = GastroSocialMeldungRegel.Anmeldung, AB = GastroSocialMeldungRegel.Abmeldung;
+        const string KW = GastroSocialMeldungRegel.Kantonswechsel;
         return Ok(new
         {
             anmeldungen = an.Select(r => Map(r, AN)),
             anmeldungenOhneAhv = anOhne.Select(r => Map(r, AN)),   // → zuerst AHV-Anmeldung 318.260!
             abmeldungen = ab.Select(r => Map(r, AB)),
             abmeldungenOhneAhv = abOhne.Select(r => Map(r, AB)),
+            kantonswechsel = kw.Select(r => Map(r, KW)),
+            kantonswechselOhneAhv = kwOhne.Select(r => Map(r, KW)),
             // Befristungen ohne erfassten Austritt: verlängern oder Austritt erfassen?
             befristetOffen = befristet.Select(r => Map(r, null)),
         });

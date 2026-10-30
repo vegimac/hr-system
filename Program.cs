@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 127;  // 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR · 125: Ende Erwerb Ehepartner · 124: Tabname
+const int SchemaStand = 128;  // 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR · 125: Ende Erwerb Ehepartner
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3434,6 +3434,25 @@ using (var scope = app.Services.CreateScope())
              WHERE category = 'gastrosocial_abmeldung_fehlt';
         ");
         startLog.LogInformation("Stand 127: AKIS-Abmeldung nennt den Filialwechsel");
+    }
+
+    // Stand 128: To-do FAK-Kantonswechsel (Walter 30.10.2026). Arbeitskanton = Kanton der Filiale.
+    if (dbStand < 128)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            INSERT INTO dashboard_warning_config
+                (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+            VALUES
+                ('gastrosocial_kantonswechsel', 'FAK-Kantonswechsel', TRUE, NULL, NULL, 'warning', NULL, FALSE, 34, 32, 'none')
+            ON CONFLICT (category) DO NOTHING;
+            INSERT INTO todo_anleitung (category, titel, anleitung, sort_order) VALUES
+            ('gastrosocial_kantonswechsel',
+             'FAK-Kantonswechsel melden',
+             'Die Person wechselt die Filiale, das Ausgleichskassen-Konto bleibt dasselbe, und der Arbeitskanton der Filiale ändert sich. Datum ist der Beginn am neuen Arbeitsort. Unter HR-Bereich, Behörden-Korrespondenz, An-/Abmeldung Ausgleichskasse (AKIS) steht der Kantonswechsel mit altem und neuem Kanton. Im AKISnet melden, danach «Im AKISnet gemeldet» klicken. Wechselt mit der Filiale auch das Konto, ist es eine Abmeldung plus Anmeldung und kein Kantonswechsel. Der Wohnkanton-Wechsel bleibt bei der Quellensteuer.',
+             32)
+            ON CONFLICT (category) DO NOTHING;
+        ");
+        startLog.LogInformation("Stand 128: FAK-Kantonswechsel als Aufgabe");
     }
 
 

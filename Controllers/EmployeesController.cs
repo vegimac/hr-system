@@ -554,7 +554,8 @@ public class EmployeesController : ControllerBase
             .ToList();
         var ahvKasse = GastroSocialMeldungRegel.AnzeigeFuerMaske(
             employee.Id, employee.ExitDate, employee.KuendigungPer,
-            kassenVertraege, kassenMeldungen, DateOnly.FromDateTime(DateTime.Today));
+            kassenVertraege, kassenMeldungen, DateOnly.FromDateTime(DateTime.Today),
+            await GastroSocialFilialen.LadenAsync(_context));
 
         // Flache Felder des aktiven Vertrags direkt in die Antwort einbauen
         // damit das bestehende UI (emp.employmentModel, emp.employmentPercentage usw.)

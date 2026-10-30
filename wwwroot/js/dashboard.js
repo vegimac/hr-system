@@ -103,6 +103,7 @@ const DASH_CATEGORY_META = {
     personaldaten_pruefen:  { label: 'Personaldaten prüfen', icon: '🪪', color: '#b45309' },
     gastrosocial_anmeldung_fehlt: { label: 'GastroSocial-Anmeldung fehlt', icon: '🏛', color: '#92400e' },
     gastrosocial_abmeldung_fehlt: { label: 'GastroSocial-Abmeldung fehlt', icon: '🏛', color: '#92400e' },
+    gastrosocial_kantonswechsel: { label: 'FAK-Kantonswechsel', icon: '🏛', color: '#92400e' },
     austritt_datum_mismatch: { label: 'Austrittsdatum stimmt nicht überein', icon: '📆', color: '#b45309' },
     contract_end_weitergearbeitet: { label: 'Nach Vertragsende weitergearbeitet', icon: '⏰', color: '#991b1b' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
@@ -544,7 +545,8 @@ function dashTodoOnClick(a) {
             case 'permit_missing':      return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
             case 'gastrosocial_anmeldung_fehlt':
-            case 'gastrosocial_abmeldung_fehlt': return `onclick="dashOpenAkis()"`;
+            case 'gastrosocial_abmeldung_fehlt':
+            case 'gastrosocial_kantonswechsel': return `onclick="dashOpenAkis()"`;
             case 'kuendigung_sperrfrist_ende': return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'ferienkuerzung_moeglich':    return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'erlaubnis_hauptarbeitgeber_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;

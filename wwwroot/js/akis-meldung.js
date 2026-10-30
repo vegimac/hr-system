@@ -50,7 +50,7 @@ function _akisRender(d) {
     // Häkchen nur bei offenen Zeilen mit AHV-Nummer (nur die gehen in die Excel).
     const haken = (r, art) => r.gemeldet ? '' : r.ahv
         ? `<input type="checkbox" class="akis-haken" ${_akisGewaehlt(art, r) ? 'checked' : ''}
-                  title="Melden — in die Excel und «Im AKISnet gemeldet» aufnehmen"
+                  title="${art === 'KTWECHSEL' ? 'Melden — in «Im AKISnet gemeldet» aufnehmen' : 'Melden — in die Excel und «Im AKISnet gemeldet» aufnehmen'}"
                   onchange="akisHaken('${art}', '${_akisKey(r)}', this.checked)">`
         : `<input type="checkbox" class="akis-haken" disabled title="Ohne AHV-Nummer nicht in der Excel">`;
     const tabelle = (rows, art) => `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
@@ -62,6 +62,7 @@ function _akisRender(d) {
                 <td style="padding:5px 8px">${esc(r.gebDat) || ''}</td>
                 <td style="padding:5px 8px">${esc(r.geschlecht) || ''}</td>
                 <td style="padding:5px 8px;font-weight:600">${esc(r.datum)}</td>
+                ${art === 'KTWECHSEL' ? `<td style="padding:5px 8px;font-weight:600">${esc(r.alterKanton)} → ${esc(r.neuerKanton)}</td>` : ''}
                 ${art === 'ANMELDUNG' ? `<td style="padding:5px 8px">${esc(r.sprache)}</td>` : ''}
                 <td style="padding:5px 8px;text-align:right">${status(r, art)}</td>
             </tr>`).join('')}
@@ -105,6 +106,9 @@ function _akisRender(d) {
         ${kopf('Abmeldungen', d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— am Folgetag: Austritt mit Kündigung per, oder letzter Vertragstag beim Filialwechsel</span>')}
         ${warn((d.abmeldungenOhneAhv || []).filter(r => !r.gemeldet), 'Austritt(e)')}
         ${tbl(d.abmeldungen.concat(d.abmeldungenOhneAhv || []), 'ABMELDUNG')}
+        ${kopf('Kantonswechsel', (d.kantonswechsel || []).concat(d.kantonswechselOhneAhv || []), 'KTWECHSEL', ' <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— gleiches Konto, anderer Arbeitskanton der Filiale, Datum = Beginn am neuen Arbeitsort</span>')}
+        ${warn((d.kantonswechselOhneAhv || []).filter(r => !r.gemeldet), 'Kantonswechsel')}
+        ${tbl((d.kantonswechsel || []).concat(d.kantonswechselOhneAhv || []), 'KTWECHSEL')}
         ${(d.befristetOffen || []).length ? `
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:14px;font-size:12px;color:#92400e">
             <b>${d.befristetOffen.length} befristete(r) Vertrag/Verträge enden bald (oder endeten kürzlich) ohne erfassten Austritt</b> — verlängern oder Austritt erfassen (erst dann erscheinen sie als Abmeldung):<br>
@@ -125,9 +129,15 @@ const _akisKey = (r) => `${r.employeeId}_${r.datumIso}`;
 const _akisGewaehlt = (art, r) => !_akisAbgewaehlt.has(art + '|' + _akisKey(r));
 
 /** Offene Zeilen mit AHV-Nummer, die angekreuzt sind (= Inhalt der Excel). */
+function _akisListe(art) {
+    if (!_akisDaten) return [];
+    if (art === 'ANMELDUNG') return _akisDaten.anmeldungen || [];
+    if (art === 'KTWECHSEL') return _akisDaten.kantonswechsel || [];
+    return _akisDaten.abmeldungen || [];
+}
+
 function _akisAusgewaehlt(art) {
-    const rows = (art === 'ANMELDUNG' ? _akisDaten?.anmeldungen : _akisDaten?.abmeldungen) || [];
-    return rows.filter(r => !r.gemeldet && r.ahv && _akisGewaehlt(art, r));
+    return _akisListe(art).filter(r => !r.gemeldet && r.ahv && _akisGewaehlt(art, r));
 }
 
 function akisHaken(art, key, an) {
@@ -136,7 +146,7 @@ function akisHaken(art, key, an) {
 }
 
 function akisAlleHaken(art, an) {
-    const rows = (art === 'ANMELDUNG' ? _akisDaten?.anmeldungen : _akisDaten?.abmeldungen) || [];
+    const rows = _akisListe(art);
     rows.filter(r => !r.gemeldet && r.ahv).forEach(r => {
         if (an) _akisAbgewaehlt.delete(art + '|' + _akisKey(r)); else _akisAbgewaehlt.add(art + '|' + _akisKey(r));
     });
@@ -189,7 +199,7 @@ async function akisGemeldet(art, empIds, daten, btn) {
 async function akisAlleGemeldet(art, btn) {
     const rows = _akisAusgewaehlt(art);
     if (!rows.length) return;
-    const was = art === 'ANMELDUNG' ? 'Anmeldungen' : 'Abmeldungen';
+    const was = art === 'ANMELDUNG' ? 'Anmeldungen' : art === 'KTWECHSEL' ? 'Kantonswechsel' : 'Abmeldungen';
     const ok = await liquidConfirm(`${rows.length} ${was} als «im AKISnet gemeldet» vermerken?\n\n${rows.map(r => `${r.vorname} ${r.name} (${r.datum})`).join('\n')}`,
         { title: 'Im AKISnet gemeldet', yesLabel: 'Ja, gemeldet', noLabel: 'Abbrechen' });
     if (!ok) return;
@@ -198,7 +208,8 @@ async function akisAlleGemeldet(art, btn) {
 
 async function akisMeldungZurueck(id) {
     const alle = [].concat(_akisDaten?.anmeldungen || [], _akisDaten?.anmeldungenOhneAhv || [],
-                           _akisDaten?.abmeldungen || [], _akisDaten?.abmeldungenOhneAhv || []);
+                           _akisDaten?.abmeldungen || [], _akisDaten?.abmeldungenOhneAhv || [],
+                           _akisDaten?.kantonswechsel || [], _akisDaten?.kantonswechselOhneAhv || []);
     const r = alle.find(x => x.gemeldet?.id === id);
     const ok = await liquidConfirm(`Vermerk «gemeldet» bei ${r ? r.vorname + ' ' + r.name : 'diesem MA'} entfernen?`,
         { title: 'Rückgängig', yesLabel: 'Entfernen', noLabel: 'Abbrechen' });

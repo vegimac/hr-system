@@ -13,7 +13,7 @@ public class GastroSocialMeldung
     public int Id { get; set; }
     public int EmployeeId { get; set; }
     public int CompanyProfileId { get; set; }
-    /// <summary>ANMELDUNG | ABMELDUNG</summary>
+    /// <summary>ANMELDUNG | ABMELDUNG | KTWECHSEL</summary>
     public string Art { get; set; } = "";
     public DateOnly Stichtag { get; set; }
     public string Quelle { get; set; } = QuelleAkis;

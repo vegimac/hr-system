@@ -29,8 +29,8 @@ public class GastroSocialMeldungController : HrControllerBase
     [HttpPost("gemeldet")]
     public async Task<IActionResult> Gemeldet([FromBody] GemeldetDto dto)
     {
-        if (dto.Art is not (GastroSocialMeldungRegel.Anmeldung or GastroSocialMeldungRegel.Abmeldung))
-            return BadRequest(new { error = "Art fehlt (ANMELDUNG oder ABMELDUNG)." });
+        if (dto.Art is not (GastroSocialMeldungRegel.Anmeldung or GastroSocialMeldungRegel.Abmeldung or GastroSocialMeldungRegel.Kantonswechsel))
+            return BadRequest(new { error = "Art fehlt (ANMELDUNG, ABMELDUNG oder KTWECHSEL)." });
         var eintraege = (dto.Eintraege ?? new()).Select(e => e with { Art = dto.Art }).ToList();
         return await SpeichernAsync(dto.CompanyProfileId, eintraege, GastroSocialMeldung.QuelleAkis);
     }
@@ -104,10 +104,13 @@ public class GastroSocialMeldungController : HrControllerBase
             .Where(e => empIds.Contains(e.Id) && e.ExitDate != null)
             .Select(e => new { e.Id, e.ExitDate, e.KuendigungPer })
             .ToListAsync();
-        var res = GastroSocialMeldungRegel.Anmeldungen(vertraege).Where(e => e.CompanyProfileId == cpId).ToList();
+        var aus = GastroSocialMeldungRegel.Arbeitsort(vertraege, await GastroSocialFilialen.LadenAsync(db));
+        var res = GastroSocialMeldungRegel.Anmeldungen(vertraege)
+            .Where(e => e.CompanyProfileId == cpId && !aus.IstUnterdrueckt(e)).ToList();
         res.AddRange(GastroSocialMeldungRegel.Abmeldungen(vertraege,
                 austritte.Select(a => new GastroSocialMeldungRegel.PersonAustritt(a.Id, a.ExitDate, a.KuendigungPer)))
-            .Where(e => e.CompanyProfileId == cpId));
+            .Where(e => e.CompanyProfileId == cpId && !aus.IstUnterdrueckt(e)));
+        res.AddRange(aus.Ereignisse.Where(e => e.CompanyProfileId == cpId));
         return res;
     }
 

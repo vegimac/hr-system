@@ -14,6 +14,11 @@ namespace HrSystem.Services;
 ///                 wird in einer anderen Filiale gearbeitet. Datum = letzter Vertragstag dort.
 ///                 Die Person bleibt angestellt, «Gekündigt per» bleibt leer.
 ///             Auf der AKIS-Liste erscheint die Zeile erst am Folgetag.
+/// Kantonswechsel (Walter 30.10.2026, FAK): nur wenn das Ausgleichskassen-Konto gleich bleibt
+///             und der Arbeitskanton der Filiale (CompanyProfile.KantonCode) wechselt.
+///             Datum = Beginn am neuen Arbeitsort. Dann keine Abmeldung und keine neue Anmeldung.
+///             Wechselt das Konto, bleibt es Abmeldung plus Anmeldung, auch bei anderem Kanton.
+///             Der Wohnkanton spielt keine Rolle.
 /// Erledigt  = in <c>gastrosocial_meldung</c> steht für MA, Filiale und Art eine Meldung, deren
 ///             Stichtag höchstens <see cref="ToleranzTage"/> vom Ereignis abweicht (kleine Korrekturen
 ///             am Eintritts-/Austrittsdatum heben die Meldung nicht auf).
@@ -22,6 +27,8 @@ public static class GastroSocialMeldungRegel
 {
     public const string Anmeldung = "ANMELDUNG";
     public const string Abmeldung = "ABMELDUNG";
+    /// <summary>Passt in gastrosocial_meldung.art (varchar 10). Anzeige: Kantonswechsel.</summary>
+    public const string Kantonswechsel = "KTWECHSEL";
     public const int ToleranzTage = 31;
 
     /// <summary>Ab diesem Datum meldet das To-do fehlende An-/Abmeldungen (älteres = Altbestand).</summary>
@@ -31,6 +38,16 @@ public static class GastroSocialMeldungRegel
     public sealed record Ereignis(int EmployeeId, int CompanyProfileId, string Art, DateOnly Datum);
     public sealed record Meldung(int EmployeeId, int CompanyProfileId, string Art, DateOnly Stichtag);
     public sealed record PersonAustritt(int EmployeeId, DateTime? Datum, DateTime? GekuendigtPer);
+    /// <summary>Mitgliednummer der Filiale bei der Ausgleichskasse, gültig von/bis.</summary>
+    public sealed record Mitgliedschaft(string? Nummer, DateOnly? Ab, DateOnly? Bis);
+    /// <summary>Filiale: Arbeitskanton und Mitgliedschaften der Ausgleichskasse.</summary>
+    public sealed record Filiale(int Id, string? Kanton, IReadOnlyList<Mitgliedschaft> Mitgliedschaften);
+    /// <summary>FAK-Grund Kantonswechsel. Die Zeile hängt an der neuen Filiale, Datum = Beginn dort.</summary>
+    public sealed record KantonswechselFall(
+        int EmployeeId, int AlteFiliale, DateOnly AltesEnde,
+        int NeueFiliale, DateOnly NeuerBeginn,
+        string AlterKanton, string NeuerKanton);
+    public readonly record struct Unterdrueckung(int EmployeeId, int CompanyProfileId, DateOnly Datum, string Art);
 
     /// <summary>Alle Anmelde-Ereignisse (über alle Zeit), pro MA und Filiale.</summary>
     public static List<Ereignis> Anmeldungen(IEnumerable<Vertrag> vertraege)
@@ -116,6 +133,70 @@ public static class GastroSocialMeldungRegel
         return res;
     }
 
+    /// <summary>
+    /// Arbeitsortwechsel bei gleichem Ausgleichskassen-Konto (Walter 30.10.2026).
+    /// Der Arbeitskanton ist der Kanton der Filiale. Gleiche Mitgliednummer und anderer Kanton
+    /// = eine Zeile Kantonswechsel am Beginn des neuen Arbeitsorts, an der neuen Filiale.
+    /// Abmeldung der alten und Anmeldung der neuen Filiale entfallen dann.
+    /// Gleiches Konto und gleicher Kanton: ebenfalls keine Ab- und keine Anmeldung.
+    /// Anderes oder fehlendes Konto, oder ein Kanton fehlt: es bleibt beim Filialwechsel (Ab + An).
+    /// Ohne Filialangaben passiert nichts — die bisherigen Listen bleiben unverändert.
+    /// </summary>
+    public static ArbeitsortAuswertung Arbeitsort(
+        IEnumerable<Vertrag> vertraege, IReadOnlyDictionary<int, Filiale>? filialen)
+    {
+        if (filialen == null || filialen.Count == 0)
+            return ArbeitsortAuswertung.Leer;
+        var alle = vertraege.Where(v => v.CompanyProfileId != null).ToList();
+        var wechsel = new List<KantonswechselFall>();
+        var still = new HashSet<Unterdrueckung>();
+        var gesehen = new HashSet<(int EmployeeId, int NeueFiliale, DateOnly Beginn)>();
+        foreach (var ma in alle.GroupBy(v => v.EmployeeId))
+        {
+            var desMa = ma.ToList();
+            foreach (var fil in desMa.GroupBy(v => v.CompanyProfileId!.Value))
+            {
+                foreach (var abschnitt in Abschnitte(fil))
+                {
+                    if (abschnitt.Ende == null) continue;
+                    var ende = abschnitt.Ende.Value.Date;
+                    var ort = NaechsterArbeitsort(desMa, fil.Key, ende);
+                    if (ort == null) continue;
+                    filialen.TryGetValue(fil.Key, out var alt);
+                    filialen.TryGetValue(ort.Value.Filiale, out var neu);
+                    var tag = ort.Value.Beginn;
+                    if (KontoAm(alt, tag) is not { Length: > 0 } kontoAlt) continue;
+                    if (KontoAm(neu, tag) != kontoAlt) continue;
+                    var ka = KantonVon(alt);
+                    var kn = KantonVon(neu);
+                    if (ka == null || kn == null) continue;
+                    still.Add(new Unterdrueckung(ma.Key, fil.Key, DateOnly.FromDateTime(ende), Abmeldung));
+                    still.Add(new Unterdrueckung(ma.Key, ort.Value.Filiale, tag, Anmeldung));
+                    if (ka == kn) continue;
+                    if (!gesehen.Add((ma.Key, ort.Value.Filiale, tag))) continue;
+                    wechsel.Add(new KantonswechselFall(
+                        ma.Key, fil.Key, DateOnly.FromDateTime(ende),
+                        ort.Value.Filiale, tag, ka, kn));
+                }
+            }
+        }
+        return new ArbeitsortAuswertung(wechsel, still);
+    }
+
+    public sealed record ArbeitsortAuswertung(
+        IReadOnlyList<KantonswechselFall> Kantonswechsel,
+        IReadOnlySet<Unterdrueckung> Unterdrueckt)
+    {
+        public static ArbeitsortAuswertung Leer { get; } =
+            new(Array.Empty<KantonswechselFall>(), new HashSet<Unterdrueckung>());
+
+        public bool IstUnterdrueckt(Ereignis e) =>
+            Unterdrueckt.Contains(new Unterdrueckung(e.EmployeeId, e.CompanyProfileId, e.Datum, e.Art));
+
+        public IEnumerable<Ereignis> Ereignisse =>
+            Kantonswechsel.Select(k => new Ereignis(k.EmployeeId, k.NeueFiliale, GastroSocialMeldungRegel.Kantonswechsel, k.NeuerBeginn));
+    }
+
     private readonly record struct Abschnitt(DateTime Start, DateTime? Ende);
 
     /// <summary>Lückenlose Verträge einer Filiale zu Abschnitten zusammenziehen.</summary>
@@ -171,6 +252,67 @@ public static class GastroSocialMeldungRegel
         if (gleiche) return false;
         return desMa.Any(v => v.CompanyProfileId != filiale
             && v.Start.Date <= tag && (v.Ende == null || v.Ende.Value.Date >= tag));
+    }
+
+    private readonly record struct NaechsterOrt(int Filiale, DateOnly Beginn);
+
+    /// <summary>
+    /// Die nächste Beschäftigung nach <paramref name="ende"/>: Filiale und Beginn des Vertrags,
+    /// der an diesem Tag läuft. Dieselbe Filiale oder keine weitere Beschäftigung = null.
+    /// </summary>
+    private static NaechsterOrt? NaechsterArbeitsort(List<Vertrag> desMa, int filiale, DateTime ende)
+    {
+        var folgetag = ende.AddDays(1);
+        DateTime? naechster = null;
+        foreach (var v in desMa)
+        {
+            if (v.Ende != null && v.Ende.Value.Date <= ende) continue;
+            if (v.Start.Date <= folgetag && (v.Ende == null || v.Ende.Value.Date >= folgetag))
+            {
+                naechster = folgetag;
+                break;
+            }
+            if (v.Start.Date > ende && (naechster == null || v.Start.Date < naechster.Value))
+                naechster = v.Start.Date;
+        }
+        if (naechster == null) return null;
+        var tag = naechster.Value.Date;
+        if (desMa.Any(v => v.CompanyProfileId == filiale
+            && v.Start.Date <= tag && (v.Ende == null || v.Ende.Value.Date >= tag)))
+            return null;
+        var fremd = desMa
+            .Where(v => v.CompanyProfileId != filiale
+                && v.Start.Date <= tag && (v.Ende == null || v.Ende.Value.Date >= tag))
+            .OrderByDescending(v => v.Start)
+            .FirstOrDefault();
+        if (fremd?.CompanyProfileId == null) return null;
+        return new NaechsterOrt(fremd.CompanyProfileId.Value, DateOnly.FromDateTime(fremd.Start));
+    }
+
+    private static string? KantonVon(Filiale? f)
+    {
+        var k = (f?.Kanton ?? "").Trim().ToUpperInvariant();
+        return k.Length == 2 && k.All(char.IsLetter) ? k : null;
+    }
+
+    /// <summary>Mitgliednummer der Ausgleichskasse am Tag, nur Ziffern. Leer = kein Konto hinterlegt.</summary>
+    private static string KontoAm(Filiale? f, DateOnly tag)
+    {
+        if (f == null) return "";
+        return f.Mitgliedschaften
+            .Where(m => (m.Ab == null || m.Ab <= tag) && (m.Bis == null || m.Bis >= tag))
+            .OrderByDescending(m => m.Ab ?? DateOnly.MinValue)
+            .Select(m => Ziffern(m.Nummer))
+            .FirstOrDefault(z => z.Length > 0) ?? "";
+    }
+
+    private static string Ziffern(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return "";
+        var sb = new System.Text.StringBuilder(s.Length);
+        foreach (var c in s)
+            if (char.IsDigit(c)) sb.Append(c);
+        return sb.ToString();
     }
 
     /// <summary>Die Meldung, die dieses Ereignis abdeckt (nächstgelegener Stichtag), sonst null.</summary>
@@ -238,7 +380,8 @@ public static class GastroSocialMeldungRegel
     /// </summary>
     public static Anzeige? AnzeigeFuerMaske(
         int employeeId, DateTime? austritt, DateTime? gekuendigtPer,
-        IEnumerable<Vertrag> vertraege, IEnumerable<Meldung> meldungen, DateOnly heute)
+        IEnumerable<Vertrag> vertraege, IEnumerable<Meldung> meldungen, DateOnly heute,
+        IReadOnlyDictionary<int, Filiale>? filialen = null)
     {
         var liste = vertraege.Where(v => v.EmployeeId == employeeId).ToList();
         bool ausgetreten = austritt != null && DateOnly.FromDateTime(austritt.Value) < heute;
@@ -258,11 +401,31 @@ public static class GastroSocialMeldungRegel
             ?? liste.Where(v => v.CompanyProfileId != null).OrderByDescending(v => v.Start).FirstOrDefault();
         if (laufend == null) return null;
 
+        var aus = filialen == null ? null : Arbeitsort(liste, filialen);
+        var filiale = laufend.CompanyProfileId!.Value;
         var an = Anmeldungen(liste)
-            .Where(e => e.CompanyProfileId == laufend.CompanyProfileId)
+            .Where(e => e.CompanyProfileId == filiale && (aus == null || !aus.IstUnterdrueckt(e)))
             .OrderByDescending(e => e.Datum)
             .ToList();
         var massgebend = an.FirstOrDefault(e => e.Datum <= heute) ?? an.FirstOrDefault();
+        if (massgebend == null && aus != null)
+        {
+            var kw = aus.Kantonswechsel
+                .Where(k => k.EmployeeId == employeeId && k.NeueFiliale == filiale)
+                .OrderByDescending(k => k.NeuerBeginn)
+                .FirstOrDefault();
+            if (kw != null)
+            {
+                var ev = new Ereignis(employeeId, kw.NeueFiliale, Kantonswechsel, kw.NeuerBeginn);
+                bool gemeldet = Passende(ev, meldungen) != null;
+                return new Anzeige(gemeldet ? "Kantonswechsel gemeldet" : "Kantonswechsel fehlt", gemeldet);
+            }
+            massgebend = Anmeldungen(liste)
+                .Where(e => !aus.IstUnterdrueckt(e))
+                .OrderByDescending(e => e.Datum)
+                .FirstOrDefault(e => e.Datum <= heute)
+                ?? Anmeldungen(liste).Where(e => !aus.IstUnterdrueckt(e)).MaxBy(e => e.Datum);
+        }
         if (massgebend == null) return null;
         bool da = Passende(massgebend, meldungen) != null;
         return new Anzeige(da ? "angemeldet" : "Anmeldung fehlt", da);

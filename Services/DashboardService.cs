@@ -1820,7 +1820,8 @@ public class DashboardService
         // AHV-Abgleich. Anmeldung ab dem Eintrittstag. Abmeldung erst am Folgetag
         // (Vorlauf −3 = Stichtag 31.10., Warnung ab 3.11.). Altbestand vor 2026 bleibt still.
         // Regel: GastroSocialMeldungRegel. Austretende: siehe keepCats unten.
-        if (Enabled("gastrosocial_anmeldung_fehlt") || Enabled("gastrosocial_abmeldung_fehlt"))
+        if (Enabled("gastrosocial_anmeldung_fehlt") || Enabled("gastrosocial_abmeldung_fehlt")
+            || Enabled("gastrosocial_kantonswechsel"))
         {
             var gsMa = await _db.Employees.AsNoTracking()
                 .Where(e => !e.IsHidden && !e.IsPayrollExcluded)
@@ -1839,6 +1840,10 @@ public class DashboardService
             if (Enabled("gastrosocial_abmeldung_fehlt"))
                 gsEreignisse.AddRange(GastroSocialMeldungRegel.Abmeldungen(gsVertraege,
                     gsMa.Select(e => new GastroSocialMeldungRegel.PersonAustritt(e.Id, e.ExitDate, e.KuendigungPer))));
+            var gsAus = GastroSocialMeldungRegel.Arbeitsort(gsVertraege, await GastroSocialFilialen.LadenAsync(_db));
+            gsEreignisse = gsEreignisse.Where(e => !gsAus.IstUnterdrueckt(e)).ToList();
+            if (Enabled("gastrosocial_kantonswechsel"))
+                gsEreignisse.AddRange(gsAus.Ereignisse);
             if (companyProfileId.HasValue)
                 gsEreignisse = gsEreignisse.Where(e => e.CompanyProfileId == companyProfileId.Value).ToList();
             var gsMeldungen = (await _db.GastroSocialMeldungen.AsNoTracking()
@@ -1862,17 +1867,25 @@ public class DashboardService
                     var fil = gsFilialen.TryGetValue(o.CompanyProfileId, out var f)
                         ? $"{f.RestaurantCode} {(string.IsNullOrWhiteSpace(f.BranchName) ? f.City : f.BranchName)}".Trim() : "";
                     bool an = o.Art == GastroSocialMeldungRegel.Anmeldung;
-                    var firma = an ? null : GastroSocialMeldungRegel.AbmeldungVon(
+                    bool kw = o.Art == GastroSocialMeldungRegel.Kantonswechsel;
+                    var firma = an || kw ? null : GastroSocialMeldungRegel.AbmeldungVon(
                         ma.Id, ma.ExitDate, ma.KuendigungPer, gsProMa[ma.Id]);
                     bool firmenaustritt = firma != null
                         && firma.CompanyProfileId == o.CompanyProfileId && firma.Datum == o.Datum;
-                    string anlass = an ? "Eintritt" : firmenaustritt ? "Austritt" : "Filialwechsel";
-                    var cat = an ? "gastrosocial_anmeldung_fehlt" : "gastrosocial_abmeldung_fehlt";
+                    var fall = kw
+                        ? gsAus.Kantonswechsel.FirstOrDefault(k => k.EmployeeId == o.EmployeeId
+                            && k.NeueFiliale == o.CompanyProfileId && k.NeuerBeginn == o.Datum)
+                        : null;
+                    string anlass = kw
+                        ? (fall == null ? "Kantonswechsel" : $"Kantonswechsel {fall.AlterKanton} → {fall.NeuerKanton}")
+                        : an ? "Eintritt" : firmenaustritt ? "Austritt" : "Filialwechsel";
+                    var cat = kw ? "gastrosocial_kantonswechsel"
+                        : an ? "gastrosocial_anmeldung_fehlt" : "gastrosocial_abmeldung_fehlt";
                     alerts.Add(new DashboardAlert
                     {
                         Category = cat,
                         Severity = SeverityState(cat, "warning"),
-                        Title    = an ? "GastroSocial-Anmeldung fehlt" : "GastroSocial-Abmeldung fehlt",
+                        Title    = kw ? "FAK-Kantonswechsel" : an ? "GastroSocial-Anmeldung fehlt" : "GastroSocial-Abmeldung fehlt",
                         Subtitle = $"{name} · Personalnr. {ma.EmployeeNumber} · {anlass} am {o.Datum:dd.MM.yyyy}"
                                  + (fil.Length > 0 ? $" · {fil}" : ""),
                         DueDate        = o.Datum.ToDateTime(TimeOnly.MinValue),
@@ -2775,7 +2788,8 @@ public class DashboardService
                                                  // Walter 23.09.2026: Kürzung ändert die Restferien-Auszahlung beim Austritt
                                                  "ferienkuerzung_moeglich",
                                                  // Walter 13.10.2026: An-/Abmeldung GastroSocial gilt auch für Ausgetretene
-                                                 "gastrosocial_anmeldung_fehlt", "gastrosocial_abmeldung_fehlt" };
+                                                 "gastrosocial_anmeldung_fehlt", "gastrosocial_abmeldung_fehlt",
+                                                 "gastrosocial_kantonswechsel" };
             var filterIds = alerts
                 .Where(a => a.EmployeeId.HasValue && !keepCats.Contains(a.Category))
                 .Select(a => a.EmployeeId!.Value).Distinct().ToList();

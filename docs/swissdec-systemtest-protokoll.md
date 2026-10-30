@@ -1184,6 +1184,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 #### S_ELM_V6_04_01_02 EMA-Meldungen Domäne FAK ⬜ offen
 
+**Notiz (30.10.2026, fürs Quality Tool):** FAK-Gründe Eintritt, Austritt und Kantonswechsel stehen unter «An-/Abmeldung Ausgleichskasse (AKIS)». Der Arbeitskanton ist der Kanton der Filiale. Eintritt und Austritt wie bei der AHV. Wechselt die Filiale und damit das Ausgleichskassen-Konto, bleibt es Abmeldung plus Anmeldung, auch wenn der Kanton wechselt. Kantonswechsel nur, wenn die Mitgliednummer gleich bleibt und der Kanton der Filiale wechselt. Datum ist der Beginn am neuen Arbeitsort, mit altem und neuem Kanton. Freigabe über «Im AKISnet gemeldet». Der Wohnkanton-Wechsel bleibt bei der Quellensteuer. Systemtest = Visualisierung, nicht die ELM-Datei.
+
 **Directive** 8.2.7
 
 **Beschreibung:** EMA-Meldungen Domäne FAK Die EMA-Meldungen in der FAK umfassen folgende Ereignisse: - Eintritt - Austritt ...mit den Gründen: - Eintritt in das Unternehmen - Austritt in das Unternehmen - Kantonswechsel Die Anwendungsfälle müssen automatisiert im ERP-System erkannt und für die Übermittlung aufbereitet werden. Die vorbereitete EMA-Meldung muss in den Aufgaben visualisiert und dem Anwender zur Übermittlung vorgeschlagen werden.

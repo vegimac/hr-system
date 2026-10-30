@@ -2665,16 +2665,16 @@
       "hintergrund": "Die EMA-Meldungen mutieren mit ELMv6 zu einem Prozess mit hohem Automatisierungsgrad. Die Idee vom neuen Prozess liegt darin, dass sämtliche EMA-Meldungen vom ERP-System automatisiert erkannt werden und der Anwender nur noch die effektive Übermittlung freigeben muss. Ziel davon ist es die Anwender bei diesen Prozessen anzuleiten und Fehler auf allen Seiten zu vermeiden.",
       "direktive": "8.2.7",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "kommentarQt": "FAK-Gründe Eintritt, Austritt und Kantonswechsel stehen unter «An-/Abmeldung Ausgleichskasse (AKIS)». Der Arbeitskanton ist der Kanton der Filiale. Eintritt und Austritt wie bei der AHV. Wechselt die Filiale und damit das Ausgleichskassen-Konto, bleibt es Abmeldung plus Anmeldung, auch wenn der Kanton wechselt. Kantonswechsel nur, wenn die Mitgliednummer gleich bleibt und der Kanton der Filiale wechselt. Datum ist der Beginn am neuen Arbeitsort, mit altem und neuem Kanton. Freigabe über «Im AKISnet gemeldet». Der Wohnkanton-Wechsel bleibt bei der Quellensteuer. Systemtest = Visualisierung, nicht die ELM-Datei.",
+      "notiz": "FAK-Gründe Eintritt, Austritt und Kantonswechsel stehen unter «An-/Abmeldung Ausgleichskasse (AKIS)». Der Arbeitskanton ist der Kanton der Filiale. Eintritt und Austritt wie bei der AHV. Wechselt die Filiale und damit das Ausgleichskassen-Konto, bleibt es Abmeldung plus Anmeldung, auch wenn der Kanton wechselt. Kantonswechsel nur, wenn die Mitgliednummer gleich bleibt und der Kanton der Filiale wechselt. Datum ist der Beginn am neuen Arbeitsort, mit altem und neuem Kanton. Freigabe über «Im AKISnet gemeldet». Der Wohnkanton-Wechsel bleibt bei der Quellensteuer. Systemtest = Visualisierung, nicht die ELM-Datei.",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "akis-meldung",
+      "seiteLabel": "An-/Abmeldung Ausgleichskasse (AKIS)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: AKIS An-/Abmeldung",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "akis-meldung"
         }
       ]
     },
