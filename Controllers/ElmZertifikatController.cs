@@ -14,7 +14,7 @@ namespace HrSystem.Controllers;
 /// wählen kann sie weiterhin nur der Superadmin (F01_01). Regeln: <see cref="ElmZertifikatLaufzeit"/>.
 /// </summary>
 [ApiController]
-[Authorize(Roles = "admin")]
+[Authorize(Roles = "admin,superuser")]
 [Route("api/elm/zertifikat")]
 public class ElmZertifikatController : ControllerBase
 {

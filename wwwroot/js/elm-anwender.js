@@ -76,6 +76,84 @@ function elmaZurueck() {
     if (typeof hrHubShowCat === 'function') hrHubShowCat('elm');
 }
 
+let _elmaCert = null;
+let _elmaVerb = null;
+
+async function elmaBereit() {
+    const box = document.getElementById('elmaBereit');
+    if (!box) return;
+    box.innerHTML = '<div style="font-size:13px;color:#646464">Verbindung und Zertifikat werden geprüft …</div>';
+    const [cert, verb] = await Promise.all([elmaCertHolen(), elmaVerbindungHolen()]);
+    _elmaCert = cert;
+    _elmaVerb = verb;
+    elmaBereitZeichnen();
+}
+
+async function elmaCertHolen() {
+    try {
+        const r = await fetch('/api/elm/zertifikat', { headers: ah(), cache: 'no-store' });
+        return r.ok ? await r.json() : null;
+    } catch { return null; }
+}
+
+async function elmaVerbindungHolen() {
+    try {
+        const r = await fetch('/api/elm/meldungen/verbindung/pruefen', { method: 'POST', headers: ah() });
+        if (r.ok) return await r.json();
+        const g = await fetch('/api/elm/meldungen/verbindung', { headers: ah(), cache: 'no-store' });
+        return g.ok ? await g.json() : null;
+    } catch { return null; }
+}
+
+function _elmaZertAbgelaufen(sua) {
+    return !sua?.vorhanden || (sua.restTage != null && sua.restTage < 0);
+}
+
+function elmaBereitZeichnen() {
+    const box = document.getElementById('elmaBereit');
+    if (!box) return;
+    const sua = _elmaCert?.sua;
+    const online = _elmaVerb?.letzte?.erreichbar?.stufe === 'ok';
+    const abgelaufen = _elmaZertAbgelaufen(sua);
+    const zertText = !sua ? 'Zertifikat nicht geprüft'
+        : !sua.vorhanden ? 'Kein Zertifikat'
+        : abgelaufen ? `Zertifikat abgelaufen am ${_elmaDatum(sua.gueltigBis)}`
+        : `Zertifikat gültig bis ${_elmaDatum(sua.gueltigBis)}`;
+    const serverText = !_elmaVerb ? 'Swissdec nicht geprüft' : online ? 'Swissdec erreichbar' : 'Swissdec nicht erreichbar';
+    const punkt = ok => `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ok ? '#16a34a' : '#dc2626'};margin-right:6px"></span>`;
+    box.innerHTML = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px;color:#3f3f3f">
+        <span>${punkt(online)}${_elmaEsc(serverText)}</span>
+        <span>${punkt(!!sua?.vorhanden && !abgelaufen)}${_elmaEsc(zertText)}</span>
+        <button type="button" class="btn btn-secondary" style="margin-left:auto" onclick="elmaZertifikatErneuern()"
+            ${abgelaufen ? '' : 'disabled'} title="${abgelaufen ? 'Neues Zertifikat bei Swissdec beantragen' : 'Das Zertifikat ist gültig.'}">Zertifikat erneuern</button>
+    </div>`;
+}
+
+async function elmaZertifikatErneuern() {
+    const sua = _elmaCert?.sua;
+    if (!_elmaZertAbgelaufen(sua)) return;
+    if (!(await liquidConfirm('Das Zertifikat ist abgelaufen. OneCrew beantragt ein neues bei Swissdec.', {
+        title: 'Zertifikat erneuern', yesLabel: 'Beantragen', noLabel: 'Abbrechen' }))) return;
+    const v = _elmaCert?.vorlage || {};
+    const box = document.getElementById('elmaBereit');
+    if (box) box.innerHTML = '<div style="font-size:13px;color:#646464">OneCrew beantragt das Zertifikat bei Swissdec …</div>';
+    try {
+        const r = await fetch('/api/elm/zertifikat/registrieren', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                firma: v.firma, uid: v.uid, kontakt: v.kontakt, plz: v.plz, ort: v.ort,
+                domain: v.domain, versicherer: v.versicherer, kundennummer: v.kundennummer,
+                vertragsnummer: v.vertragsnummer, addresseeIdentification: v.addresseeIdentification,
+            }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (box) box.innerHTML = `<div style="font-size:13px;color:${r.ok && j.ok ? '#166534' : '#991b1b'}">${_elmaEsc(j.meldung || j.message || 'Nicht erledigt.')}</div>`;
+    } catch {
+        if (box) box.innerHTML = '<div style="font-size:13px;color:#991b1b">Server nicht erreichbar.</div>';
+    }
+    setTimeout(elmaBereit, 1500);
+}
+
 function elmaInit() {
     const monat = document.getElementById('elmaMonat');
     if (monat && !monat.options.length) {
@@ -99,6 +177,7 @@ function elmaInit() {
     elmaArtGewechselt();
     elmaErsatzZeichnen();
     elmaLaden();
+    elmaBereit();
 }
 
 function elmaArtGewechselt() {

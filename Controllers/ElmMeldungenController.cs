@@ -98,12 +98,10 @@ public class ElmMeldungenController : ControllerBase
 
     // ── Verbindung + Archiv ──────────────────────────────────────────────────
 
-    [Authorize(Roles = "admin")]
     [HttpGet("verbindung")]
     public IActionResult Verbindung() => Ok(new { ziel = _dienst.Ziel.Name, letzte = _dienst.LetzteVerbindung() });
 
-    /// <summary>Ping + Testnachricht — nur auf Knopfdruck (Richtlinien: Ping nie automatisieren).</summary>
-    [Authorize(Roles = "admin")]
+    /// <summary>Ping + Testnachricht. Die Anwendermaske ruft das einmal beim Öffnen auf, nicht im Takt.</summary>
     [HttpPost("verbindung/pruefen")]
     public async Task<IActionResult> VerbindungPruefen(CancellationToken ct)
     {
