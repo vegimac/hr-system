@@ -4849,14 +4849,24 @@
             gap: 8px 14px;
             min-width: 0;
         }
+        /* Eintritt, Austritt, Dienstalter: so breit wie das Datum, eng beieinander.
+           Der Leerraum bleibt rechts in der Karte (Walter 30.10.2026). */
+        .ov-anst-daten {
+            display: flex;
+            flex: 0 0 auto;
+            align-items: flex-end;
+            gap: 8px;
+            min-width: 0;
+        }
         .ov-anst-datum {
             flex: 0 0 auto;
-            width: 7.6em;
+            width: auto;
             margin-bottom: 0;
             min-width: 0;
         }
         .ov-anst-datum .ov-pfl {
             margin-bottom: 1px;
+            white-space: nowrap;
         }
         .ov-anst-datum .ov-pfv {
             font-size: 14px;

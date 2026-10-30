@@ -2087,9 +2087,11 @@ function loadUebersichtTab() {
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             <div class="ov-anst-top">
+                <div class="ov-anst-daten">
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.entryDate','Eintritt')}</div><div class="ov-pfv">${emp.entryDate ? formatDate(emp.entryDate) : '<span class="ov-empty">–</span>'}</div></div>
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.exitDate','Austritt')}</div><div class="ov-pfv">${emp.exitDate ? formatDate(emp.exitDate) : '<span class="ov-empty">–</span>'}</div></div>
                 ${_ovDienstalterRowHtml(emp)}
+                </div>
                 ${_ovArbeitszeugnisRowHtml(emp)}
                 ${_ovKuendigungRowHtml(emp)}
                 ${empSiehtLgav(emp)
@@ -20464,24 +20466,18 @@ async function fmOcrAusweisRun(docId) {
 // «Dienstalter seit» ist nur die Handeingabe für Ausnahmen.
 function _ovDienstalterRowHtml(emp) {
     const hand = !!emp.dienstalterSeit;
-    // Walter 28.09.2026: gerechnetes Datum + Herkunft. Herkunft und «ansehen» stehen
-    // in einer zweiten Zeile — die Spalte ist nur so breit wie ein Datum.
+    // Walter 30.10.2026: nur das Datum. Klick öffnet die Ausnahme (Handeingabe).
     const datum = hand ? emp.dienstalterSeit : emp.dienstalterGerechnet;
     const wert = datum
         ? formatDate(datum)
         // NULL kommt nur, wenn WEDER Eintritt NOCH ein Vertrag da ist.
         : `<span style="color:#8b8b8b;font-size:12px">– kein Eintritt –</span>`;
-    const herkunft = hand ? 'von Hand' : 'aus Verträgen';
     const titel = hand && emp.dienstalterBemerkung
         ? esc(emp.dienstalterBemerkung)
-        : (hand ? 'Von Hand gesetzt' : 'Aus der Vertragskette berechnet') + ' — ab wann zählen die Dienstjahre? (Lohnfortzahlung, Karenz, Sperrfrist)';
+        : (hand ? 'Von Hand gesetzt' : 'Aus der Vertragskette berechnet') + ' — Klick, um eine Ausnahme zu setzen';
     return `<div class="ov-pf ov-anst-datum">
         <div class="ov-pfl">Dienstalter seit</div>
-        <div class="ov-pfv">${wert}</div>
-        <div onclick="ovDienstalterModal(${emp.id})" title="${titel}"
-             style="font-size:10.5px;line-height:1.2;margin-top:-3px;color:#8b8b8b;white-space:nowrap;cursor:pointer">
-            ${herkunft} · <span style="text-decoration:underline;color:#646464">ansehen</span>
-        </div>
+        <div class="ov-pfv" onclick="ovDienstalterModal(${emp.id})" title="${titel}" style="cursor:pointer">${wert}</div>
     </div>`;
 }
 
