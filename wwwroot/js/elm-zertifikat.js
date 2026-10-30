@@ -8,6 +8,7 @@ let _elmzForm = false;       // Registrierungsformular offen
 let _elmzMeldung = null;     // { ok, text }
 let _elmzBusy = false;
 let _elmzPwVorschlag = '';
+let _elmzAutoStatus = false;
 
 function _elmzEsc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -35,6 +36,8 @@ const _ELMZ_FELD = 'width:100%;box-sizing:border-box;padding:9px 12px;font-size:
 function elmzInit() {
     _elmzForm = false;
     _elmzMeldung = null;
+    _elmzPwVorschlag = '';
+    _elmzAutoStatus = false;
     elmzLaden();
 }
 
@@ -135,6 +138,15 @@ function elmzZeichnen() {
             <span>${_elmzEsc(erp)}</span>
             <span>Verbunden mit: ${_elmzEsc(s.ziel?.name || '–')}</span>
         </div>`;
+    // Testinfrastruktur: das «Brief»-Passwort steht in der Status-Antwort (Code 9998).
+    // Einmal holen, sobald Swissdec die Angaben geprüft hat und das Feld noch leer ist.
+    if (reg.laufend && s.ziel?.istTest && !_elmzPwVorschlag && !_elmzAutoStatus && !_elmzBusy) {
+        const st = (reg.state || '').toLowerCase();
+        if (st === 'registered' || st === 'verified') {
+            _elmzAutoStatus = true;
+            elmzStatus();
+        }
+    }
 }
 
 function _elmzSchritt(nr, titel, zustand, inhalt = '') {
@@ -155,13 +167,17 @@ function _elmzRegistrierungLaeuft(reg) {
            <button type="button" class="btn btn-secondary" style="margin-top:8px" onclick="elmzFormOeffnen(true)">Angaben korrigieren und neu senden</button>`
         : `<div style="font-size:13px;color:#646464;margin-top:4px">${_elmzEsc(reg.text)}</div>
            <button type="button" class="btn btn-secondary" style="margin-top:8px" onclick="elmzStatus()" ${_elmzBusy ? 'disabled' : ''}>Stand bei Swissdec abfragen</button>`;
-    const schritt3 = `<div style="font-size:13px;color:#646464;margin-top:4px">Swissdec schickt der Firma einen Brief mit dem Registrierungspasswort. Dieses hier eingeben:</div>
-        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;max-width:520px">
+    const statusKnopf = `<button type="button" class="btn btn-secondary" onclick="elmzStatus()" ${_elmzBusy ? 'disabled' : ''}>${_elmz?.ziel?.istTest ? 'Passwort vom Testsystem holen' : 'Stand bei Swissdec abfragen'}</button>`;
+    const schritt3 = `<div style="font-size:13px;color:#646464;margin-top:4px">${_elmz?.ziel?.istTest
+        ? 'Auf der Testumgebung steht das Registrierungspasswort in der Antwort von Swissdec, nicht im Brief.'
+        : 'Swissdec schickt der Firma einen Brief mit dem Registrierungspasswort. Dieses hier eingeben:'}</div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;max-width:640px;align-items:center">
             <input id="elmzPasswort" type="text" autocomplete="off" spellcheck="false" placeholder="Registrierungspasswort"
                    value="${_elmzEsc(_elmzPwVorschlag)}" style="${_ELMZ_FELD};flex:1;min-width:220px">
+            ${!_elmzPwVorschlag ? statusKnopf : ''}
             <button type="button" class="btn btn-primary" onclick="elmzAbschliessen()" ${_elmzBusy ? 'disabled' : ''}>Zertifikat abholen</button>
         </div>
-        ${_elmzPwVorschlag ? '<div style="font-size:12px;color:#8b8b8b;margin-top:4px">Auf dem Testsystem liefert Swissdec das Passwort direkt mit — es ist bereits eingesetzt.</div>' : ''}`;
+        ${_elmzPwVorschlag ? '<div style="font-size:12px;color:#8b8b8b;margin-top:4px">Passwort von Swissdec eingesetzt. «Zertifikat abholen» holt das neue Zertifikat.</div>' : ''}`;
     return `<div style="margin-top:18px;padding:14px 16px;border-radius:12px;border:1px solid rgba(60,55,48,0.16)">
         <div style="font-weight:700;color:#3f3f3f;font-size:14px">Neues Zertifikat — Antrag läuft</div>
         ${_elmzSchritt(1, `Angaben gesendet${reg.registriertAm ? ' am ' + _elmzDatum(reg.registriertAm, true) : ''}`, 'fertig')}
