@@ -1173,6 +1173,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 #### S_ELM_V6_04_01_01 EMA-Meldungen Domäne AHV ⬜ offen
 
+**Notiz (30.10.2026, fürs Quality Tool):** Eintritt und Austritt werden automatisch erkannt und unter «An-/Abmeldung Ausgleichskasse (AKIS)» zur Freigabe vorbereitet. Jede Filiale ist ein eigenes Konto. Eintritt = Anmeldung am Vertragsbeginn. Austritt = Abmeldung am Austrittsdatum, nur mit «Gekündigt per», Zeile ab dem Folgetag. Übertritt = Abmeldung der alten Filiale am letzten Vertragstag plus Anmeldung der neuen Filiale am Vertragsbeginn; die Person bleibt angestellt. Freigabe über die Excel im AKISnet und «Im AKISnet gemeldet». Systemtest = Visualisierung, nicht die ELM-Datei.
+
 **Directive** 8.1.9
 
 **Beschreibung:** EMA-Meldungen Domäne AHV Die EMA-Meldungen in der AHV umfassen folgende Ereignisse: - Eintritt in das Unternehmen - Austritt aus dem Unternehmen Die zwei Anwendungsfälle müssen automatisiert im ERP-System erkannt und für die Übermittlung aufbereitet werden. Die vorbereitete EMA-Meldung muss in den Aufgaben visualisiert und dem Anwender zur Übermittlung vorgeschlagen werden.

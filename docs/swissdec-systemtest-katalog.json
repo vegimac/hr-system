@@ -2639,16 +2639,16 @@
       "hintergrund": "Die EMA-Meldungen mutieren mit ELMv6 zu einem Prozess mit hohem Automatisierungsgrad. Die Idee vom neuen Prozess liegt darin, dass sämtliche EMA-Meldungen vom ERP-System automatisiert erkannt werden und der Anwender nur noch die effektive Übermittlung freigeben muss. Ziel davon ist es die Anwender bei diesen Prozessen anzuleiten und Fehler auf allen Seiten zu vermeiden.",
       "direktive": "8.1.9",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "kommentarQt": "Eintritt und Austritt werden automatisch erkannt und unter «An-/Abmeldung Ausgleichskasse (AKIS)» zur Freigabe vorbereitet. Jede Filiale ist ein eigenes Konto. Eintritt = Anmeldung am Vertragsbeginn. Austritt = Abmeldung am Austrittsdatum, nur mit «Gekündigt per», Zeile ab dem Folgetag. Übertritt = Abmeldung der alten Filiale am letzten Vertragstag plus Anmeldung der neuen Filiale am Vertragsbeginn; die Person bleibt angestellt. Freigabe über die Excel im AKISnet und «Im AKISnet gemeldet». Systemtest = Visualisierung, nicht die ELM-Datei.",
+      "notiz": "Eintritt und Austritt werden automatisch erkannt und unter «An-/Abmeldung Ausgleichskasse (AKIS)» zur Freigabe vorbereitet. Jede Filiale ist ein eigenes Konto. Eintritt = Anmeldung am Vertragsbeginn. Austritt = Abmeldung am Austrittsdatum, nur mit «Gekündigt per», Zeile ab dem Folgetag. Übertritt = Abmeldung der alten Filiale am letzten Vertragstag plus Anmeldung der neuen Filiale am Vertragsbeginn; die Person bleibt angestellt. Freigabe über die Excel im AKISnet und «Im AKISnet gemeldet». Systemtest = Visualisierung, nicht die ELM-Datei.",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "akis-meldung",
+      "seiteLabel": "An-/Abmeldung Ausgleichskasse (AKIS)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: AKIS An-/Abmeldung",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "akis-meldung"
         }
       ]
     },
