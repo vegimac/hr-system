@@ -994,6 +994,23 @@ function hrHubShowCat(cat) {
         c.classList.toggle('active', c.dataset.cat === cat));
     try { localStorage.hrHrHubCat = cat; } catch (e) { /* egal */ }
 }
+
+// ELM-Kachel ohne Seite: der Platz im Menü ist da, die Meldung folgt.
+function elmHubPlatz(titel) {
+    let t = document.getElementById('toastMsg');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'toastMsg';
+        t.style.cssText = 'position:fixed;top:16px;right:24px;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 14px rgba(60,55,48,.18);transition:opacity .25s';
+        document.body.appendChild(t);
+    }
+    t.textContent = titel + ': die Meldung folgt in diesem Menü.';
+    t.style.background = '#3f3f3f';
+    t.style.color = '#fff';
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2600);
+}
 (function () {
     const init = () => {
         let cat = 'onb';

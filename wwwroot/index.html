@@ -2395,6 +2395,10 @@
                         <img src="img/hrkat-gastrosocial.webp?v=20261014a" alt="" loading="lazy">
                         <span>GastroSocial</span>
                     </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="elm" onclick="hrHubShowCat('elm')" title="ELM 6: Meldungen an Ausgleichskassen, Versicherer, Vorsorge, Steuer, Statistik und Grenzgänger">
+                        <img src="img/hrkat-elm.webp?v=20261030a" alt="" loading="lazy">
+                        <span>ELM</span>
+                    </button>
                 </div>
                 <div class="hr-hub-group" id="hrHubGrp-onb" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
@@ -2741,6 +2745,42 @@
                         <img src="img/lohnkat-fz-tarife.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Familienzulage aus Mitteilung</div>
                         <div class="admin-card-desc">Entscheid, Verfall- oder Wegfallanzeige einlesen, prüfen und am Kind speichern</div>
+                    </div>
+                    </div>
+                </div>
+                <!-- Walter 30.10.2026: ELM 6 im HR-Bereich. Empfänger wie auf der
+                     Swissdec-Datendrehscheibe. Seiten, die es schon gibt, öffnen direkt. -->
+                <div class="hr-hub-group" id="hrHubGrp-elm" style="display:none">
+                    <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <div class="admin-card" onclick="showPage('elm-schnittstelle')" title="Jahresmeldung AHV">
+                        <img src="img/elmkat-ahv.webp?v=20261030a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">AHV-Ausgleichskassen</div>
+                        <div class="admin-card-desc">Jahresmeldung AHV an die Ausgleichskasse</div>
+                    </div>
+                        <div class="admin-card" onclick="elmHubPlatz('Versicherer / Suva')" title="UVG, UVGZ und KTG">
+                        <img src="img/elmkat-suva.webp?v=20261030a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Versicherer / Suva</div>
+                        <div class="admin-card-desc">UVG, UVGZ und KTG</div>
+                    </div>
+                        <div class="admin-card" onclick="elmHubPlatz('Vorsorgeeinrichtung')" title="BVG-Jahresmeldung und Mutationen">
+                        <img src="img/elmkat-bvg.webp?v=20261030a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Vorsorgeeinrichtung (BVG)</div>
+                        <div class="admin-card-desc">Jahresmeldung und Mutationen an die Vorsorge</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('elm-meldungen')" title="Statistik in der Monatsmeldung">
+                        <img src="img/elmkat-bfs.webp?v=20261030a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Bundesamt für Statistik</div>
+                        <div class="admin-card-desc">Lohnstruktur in der Monatsmeldung</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('elm-meldungen')" title="Quellensteuer in der Monatsmeldung. Lohnausweis unter Auswertungen.">
+                        <img src="img/elmkat-steuer.webp?v=20261030a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Steuerverwaltungen</div>
+                        <div class="admin-card-desc">Quellensteuer in der Monatsmeldung</div>
+                    </div>
+                        <div class="admin-card" onclick="elmHubPlatz('Grenzgänger')" title="Italien, Frankreich und SFN">
+                        <img src="img/elmkat-grenz.webp?v=20261030a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Grenzgänger (IT / FR)</div>
+                        <div class="admin-card-desc">Jahresmeldung Italien, Frankreich und SFN</div>
                     </div>
                     </div>
                 </div>
@@ -11287,7 +11327,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261027e"></script>
+<script src="js/app-core.js?v=20261030a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261027a"></script>
