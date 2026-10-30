@@ -590,6 +590,27 @@ async function kommArchivZeigen(name, zeile) {
     } catch (e) { el.innerHTML = `<span class="komm-rot">${esc(e.message)}</span>`; }
 }
 
+async function kommArchivAufraeumen() {
+    if (!(await liquidConfirm(
+        'Gelöscht werden nur Dateien, deren zehn Jahre ab Ende des Kalenderjahres abgelaufen sind. Alles Jüngere bleibt.',
+        { title: 'Archiv aufräumen', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
+    const el = document.getElementById('kommArchivInhalt');
+    try {
+        const r = await fetch('/api/elm/archiv/aufraeumen', { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || 'Fehler ' + r.status);
+        const bis = j.aeltesteBleibtBis
+            ? new Date(j.aeltesteBleibtBis).toLocaleDateString('de-CH') : null;
+        const text = j.geloescht
+            ? `${j.geloescht} Datei(en) gelöscht.` + (bis ? ` Die älteste verbleibende Datei bleibt bis ${bis}.` : '')
+            : 'Nichts zu löschen.' + (bis ? ` Die älteste Datei bleibt bis ${bis}.` : ' Das Archiv ist leer.');
+        if (el) el.innerHTML = `<div class="komm-klein">${esc(text)}</div>`;
+        kommArchivLaden();
+    } catch (e) {
+        if (el) el.innerHTML = `<span class="komm-rot">${esc(e.message)}</span>`;
+    }
+}
+
 /** Archivdatei unverändert speichern (Byte für Byte wie archiviert — Signaturen bleiben prüfbar). */
 async function kommArchivSpeichern(name) {
     try {

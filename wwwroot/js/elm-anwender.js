@@ -208,7 +208,7 @@ async function elmaSenden() {
         _elmaErsatz = null;
         elmaErsatzZeichnen();
         const el = document.getElementById('elmaVorschau');
-        if (el) el.innerHTML = _elmaKasten(true, _elmaEsc(j.meldung || 'Gesendet.'));
+        if (el) el.innerHTML = _elmaKasten(true, 'Gesendet.');
         _elmaHinweis = null;
         elmaListeZeichnen();
         elmaPlanen();
@@ -259,9 +259,9 @@ async function _elmaPost(pfad, body, warteTitel, warteText) {
     try {
         const r = await fetch('/api/elm/meldungen/' + pfad, { method: 'POST', headers: ah(), body: JSON.stringify(body || {}) });
         const j = await r.json().catch(() => ({}));
-        if (!r.ok) { _elmaHinweis = { ok: false, text: j.message || 'Fehler ' + r.status }; return null; }
+        if (!r.ok) { _elmaHinweis = _elmaMensch(j.message || 'Fehler ' + r.status, false); return null; }
         if (j.stand) _elma = j.stand;
-        _elmaHinweis = j.meldung ? { ok: !!j.ok, text: j.meldung } : null;
+        _elmaHinweis = j.meldung ? _elmaMensch(j.meldung, !!j.ok) : null;
         return j;
     } catch (e) {
         _elmaHinweis = { ok: false, text: 'Server nicht erreichbar.' };
@@ -296,6 +296,26 @@ function elmaListeZeichnen() {
             <div style="margin-top:8px">${fertig.map(x => _elmaZeile(x.m, x.mi)).join('')}</div></details>` : '');
 }
 
+function _elmaMensch(text, ok) {
+    const t = text || '';
+    if (/andere Übermittlung|Mindestabstand|frühestens in \d+/i.test(t))
+        return { ok: true, text: 'OneCrew spricht gerade mit Swissdec. Das dauert einen Moment.' };
+    if (/JobKey|soap:|XML|Fault|Schema/i.test(t))
+        return { ok: false, text: 'Das hat nicht geklappt. Bitte später noch einmal versuchen.' };
+    return { ok, text: t };
+}
+
+function _elmaKurzStatus(m) {
+    const ergaenzen = (m.empfaenger || []).some(e =>
+        (e.nachrichten || []).some(n => n.dialog && n.dialog.beantwortbar && !n.beantwortet) || e.freigabeUrl);
+    if (ergaenzen) return _elmaPille('warn', 'Bitte ergänzen');
+    if (m.stufe === 'laeuft') return _elmaPille('laeuft', 'Unterwegs');
+    if (m.stufe === 'ok') return _elmaPille('ok', 'Erledigt');
+    if (m.stufe === 'rot') return _elmaPille('rot', 'Nicht angenommen');
+    if (m.stufe === 'warn') return _elmaPille('warn', 'Bitte prüfen');
+    return _elmaPille('grau', 'Offen');
+}
+
 function elmaDetails(id) {
     if (_elmaOffen.has(id)) _elmaOffen.delete(id);
     else _elmaOffen.add(id);
@@ -312,11 +332,11 @@ function _elmaZeile(m, mi) {
             <b style="color:#3f3f3f;font-size:14px;white-space:nowrap">${_elmaEsc(m.titel)}</b>
             ${m.ersatz ? '<span style="font-size:11px;color:#646464;white-space:nowrap">Ersatz</span>' : ''}
             <span style="font-size:12px;color:#8b8b8b;white-space:nowrap">${_elmaDatum(m.gesendet)}</span>
-            <span style="margin-left:auto;white-space:nowrap">${_elmaPille(m.stufe, m.text)}</span>
+            <span style="margin-left:auto;white-space:nowrap">${_elmaKurzStatus(m)}</span>
             <button type="button" class="btn btn-secondary" style="white-space:nowrap" onclick="elmaDetails('${id}')">${offen ? 'Schliessen' : 'Details'}</button>
         </div>
         ${offen ? `<div style="padding:0 14px 14px">
-            ${(m.empfaenger || []).map((e, ei) => _elmaEmpfaenger(m, mi, e, ei)).join('')}
+            ${_elmaDetailsInhalt(m, mi)}
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
                 ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmaErsetzen('${id}')">Korrigierte Meldung senden</button>` : ''}
             </div>
@@ -324,22 +344,38 @@ function _elmaZeile(m, mi) {
     </div>`;
 }
 
+function _elmaDetailsInhalt(m, mi) {
+    const teile = (m.empfaenger || []).map((e, ei) => _elmaEmpfaenger(m, mi, e, ei)).filter(Boolean);
+    if (!teile.length)
+        return '<div style="font-size:13px;color:#646464;padding-top:4px">Nichts zu tun. OneCrew erledigt den Rest.</div>';
+    return teile.join('');
+}
+
 function _elmaEmpfaenger(m, mi, e, ei) {
+    const runden = [];
+    (e.nachrichten || []).forEach((n, ni) => {
+        if (!n.dialog || !n.dialog.beantwortbar || n.beantwortet) return;
+        const qs = (n.dialog.absaetze || []).filter(p => p.istFrage);
+        if (qs.length) runden.push({ ni, qs });
+    });
+    const abgelehnt = e.stufe === 'rot';
+    if (!runden.length && !e.freigabeUrl && !abgelehnt) return '';
+    const felder = runden.map(({ ni, qs }) => qs.map(p => {
+        const id = `elmaDlg-${mi}-${ei}-${ni}-${p.id}`;
+        return `<label style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:12px">
+            <span style="font-size:13px;color:#3f3f3f">${_elmaEsc(_elmaFrageTitel(p))}${p.optional ? '' : ' *'}</span>
+            ${_elmaFeld(id, p, false)}
+        </label>`;
+    }).join('') + `<div style="display:flex;justify-content:flex-end;margin-top:14px">
+        <button type="button" class="btn btn-primary" onclick="elmaAntworten(${mi}, ${ei}, ${ni})">Antwort senden</button></div>`).join('');
     const freigabe = e.freigabeUrl
-        ? `<div style="margin-top:8px"><button type="button" class="btn btn-primary" onclick="elmaFreigeben(${mi}, ${ei})">Beim Empfänger freigeben</button></div>` : '';
-    const nachrichten = (e.nachrichten || []).map((n, ni) => _elmaNachricht(mi, ei, n, ni, e.name)).join('');
-    if (!freigabe && !nachrichten && !(e.hinweise || []).length) {
-        return `<div style="padding:8px 0;border-top:1px solid rgba(60,55,48,0.10);display:flex;gap:10px;align-items:center">
-            <span style="font-size:13px;color:#3f3f3f">${_elmaEsc(e.name)}</span>
-            <span style="margin-left:auto">${_elmaPille(e.stufe, e.text)}</span></div>`;
-    }
+        ? `<div style="margin-top:10px"><button type="button" class="btn btn-primary" onclick="elmaFreigeben(${mi}, ${ei})">Beim Empfänger freigeben</button></div>`
+        : '';
     return `<div style="padding:10px 0;border-top:1px solid rgba(60,55,48,0.10)">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <b style="font-size:13px;color:#3f3f3f">${_elmaEsc(e.name)}</b>
-            <span style="margin-left:auto">${_elmaPille(e.stufe, e.text)}</span>
-        </div>
-        ${(e.hinweise || []).map(h => `<div style="font-size:12px;color:#646464;margin-top:4px">${_elmaEsc(h)}</div>`).join('')}
-        ${freigabe}${nachrichten}
+        <div style="font-size:13px;color:#3f3f3f"><b>${_elmaEsc(e.name)}</b></div>
+        ${abgelehnt ? '<div style="font-size:13px;color:#991b1b;margin-top:4px">Nicht angenommen.</div>' : ''}
+        ${runden.length ? '<div style="font-size:13px;color:#646464;margin-top:4px">Bitte die Felder ausfüllen.</div>' : ''}
+        ${felder}${freigabe}
     </div>`;
 }
 
@@ -391,62 +427,6 @@ function _elmaFeld(id, p, gesperrt) {
         return `<input id="${id}" type="text" value="${_elmaEsc(_elmaAnzeigeWert(typ, vor))}" placeholder="TT.MM.JJJJ HH:MM" ${dis} style="${_ELMA_FELD};width:14rem">`;
     const breite = typ === 'Amount' || typ === 'Double' ? '10rem' : typ === 'Integer' ? '8rem' : '22rem';
     return `<input id="${id}" type="text" value="${_elmaEsc(_elmaAnzeigeWert(typ, vor))}" inputmode="${typ === 'String' ? 'text' : 'decimal'}" ${dis} style="${_ELMA_FELD};width:${breite}">`;
-}
-
-function _elmaNachricht(mi, ei, n, ni, empfaengerName) {
-    if (!n.dialog) return '';
-    const d = n.dialog;
-    const abschnitte = d.abschnitte || [];
-    const absaetze = d.absaetze || [];
-    const gruppen = [];
-    const bekannt = new Set(abschnitte.map(s => s.id));
-    abschnitte.forEach(s => gruppen.push({ s, zeilen: absaetze.filter(p => p.abschnittRef === s.id) }));
-    const lose = absaetze.filter(p => !p.abschnittRef || !bekannt.has(p.abschnittRef));
-    if (lose.length) gruppen.push({ s: null, zeilen: lose });
-
-    const block = g => {
-        const werte = g.zeilen.filter(p => !p.istFrage && (p.wert || p.wert === 0));
-        const fragen = g.zeilen.filter(p => p.istFrage);
-        if (!werte.length && !fragen.length && !(g.s?.beschreibung)) return '';
-        const kopf = g.s?.titel
-            ? `<div style="font-weight:700;color:#3f3f3f;font-size:14px">${_elmaEsc(g.s.titel)}</div>` : '';
-        const erklaerung = g.s?.beschreibung && g.s.beschreibung !== d.beschreibung
-            ? `<div style="font-size:13px;color:#646464;margin-top:4px;line-height:1.45">${_elmaEsc(g.s.beschreibung)}</div>` : '';
-        const kenntnis = werte.length
-            ? `<div style="margin-top:8px;font-size:12px;color:#8b8b8b">Zur Kenntnis</div>`
-              + werte.map(p => `<div style="display:flex;gap:12px;font-size:13px;margin-top:3px">
-                    <span style="color:#646464">${_elmaEsc(_elmaFrageTitel(p))}</span>
-                    <span style="color:#3f3f3f">${_elmaEsc(_elmaAnzeigeWert(p.wertTyp, p.wert))}</span></div>`).join('')
-            : '';
-        const felder = fragen.map(p => {
-            const id = `elmaDlg-${mi}-${ei}-${ni}-${p.id}`;
-            const hinweis = `${_elmaTypName(p.frageTyp)}${p.optional ? ', freiwillig' : ', Pflicht'}`;
-            return `<label style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:12px">
-                <span style="font-size:12px;color:#646464">${_elmaEsc(_elmaFrageTitel(p))}</span>
-                ${_elmaFeld(id, p, n.beantwortet)}
-                <span style="font-size:11px;color:#8b8b8b">${hinweis}</span>
-                ${p.problem ? `<span style="font-size:12px;color:#991b1b">${_elmaEsc(p.problem)}</span>` : ''}
-            </label>`;
-        }).join('');
-        return `<div style="margin-top:14px">${kopf}${erklaerung}${felder}${kenntnis}</div>`;
-    };
-
-    const fuss = !d.beantwortbar
-        ? '<div style="font-size:13px;color:#646464;margin-top:10px">Nur zur Kenntnis. Eine Antwort ist nicht nötig.</div>'
-        : n.beantwortet
-            ? '<div style="font-size:13px;color:#166534;margin-top:12px">Die Antwort ist abgeschickt.</div>'
-            : `<div style="display:flex;justify-content:flex-end;margin-top:16px">
-                <button type="button" class="btn btn-primary" onclick="elmaAntworten(${mi}, ${ei}, ${ni})">Antwort senden</button></div>`;
-    return `<div style="margin-top:12px;padding:16px 18px;border-radius:14px;border:1px solid rgba(60,55,48,0.12);
-            background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%)">
-        <div style="font-size:15px;font-weight:700;color:#3f3f3f">Rückfrage${empfaengerName ? ' von ' + _elmaEsc(empfaengerName) : ''}</div>
-        <div style="font-size:13px;color:#646464;margin-top:4px;line-height:1.45">
-            ${d.beantwortbar && !n.beantwortet ? 'Bitte die offenen Felder ausfüllen. Danach geht die Antwort an den Empfänger.' : ''}
-        </div>
-        ${d.titel ? `<div style="font-weight:600;color:#3f3f3f;margin-top:10px">${_elmaEsc(d.titel)}</div>` : ''}
-        ${d.beschreibung ? `<div style="font-size:13px;color:#646464;margin-top:4px;line-height:1.45">${_elmaEsc(d.beschreibung)}</div>` : ''}
-        ${gruppen.map(block).join('')}${fuss}
-    </div>`;
 }
 
 async function elmaAntworten(mi, ei, ni) {

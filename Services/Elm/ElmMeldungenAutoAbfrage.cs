@@ -12,6 +12,7 @@ public class ElmMeldungenAutoAbfrage : BackgroundService
     private readonly ILogger<ElmMeldungenAutoAbfrage> _log;
 
     private static readonly TimeSpan Intervall = TimeSpan.FromMinutes(10);
+    private static DateTime _archivGeraeumtAm = DateTime.MinValue;
 
     public ElmMeldungenAutoAbfrage(IServiceProvider services, ILogger<ElmMeldungenAutoAbfrage> log)
     {
@@ -31,6 +32,14 @@ public class ElmMeldungenAutoAbfrage : BackgroundService
                 using var scope = _services.CreateScope();
                 var dienst = scope.ServiceProvider.GetRequiredService<ElmMeldungenService>();
                 var jetzt = DateTime.Now;
+                if (_archivGeraeumtAm.Date != jetzt.Date)
+                {
+                    _archivGeraeumtAm = jetzt;
+                    var raeumung = scope.ServiceProvider.GetRequiredService<ElmZertifikatStore>()
+                        .RaeumeAbgelaufenesArchiv(jetzt);
+                    if (raeumung.Geloescht > 0)
+                        _log.LogInformation("[ELM-Archiv] {Anzahl} Dateien nach Ablauf der Aufbewahrung gelöscht.", raeumung.Geloescht);
+                }
                 foreach (var v in dienst.Liste().Where(v => ElmMeldungAnzeige.StatusFaellig(v, jetzt)
                                                             || ElmMeldungAnzeige.SyncFaellig(v, jetzt).Count > 0))
                 {

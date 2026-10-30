@@ -578,6 +578,52 @@ public class ElmZertifikatStore
             .LastOrDefault();
     }
 
+    /// <summary>
+    /// Löscht Archivdateien, deren zehn Jahre ab Ende des Kalenderjahres um sind,
+    /// und nimmt die Dateinamen aus dem Verlauf. Jüngere Dateien bleiben.
+    /// </summary>
+    public ElmArchivRaeumung RaeumeAbgelaufenesArchiv(DateTime heute)
+    {
+        var dir = Path.Combine(_root, "archiv");
+        if (!Directory.Exists(dir)) return new ElmArchivRaeumung(0, null);
+        var weg = new List<string>();
+        DateTime? aeltesteBleibtBis = null;
+        foreach (var pfad in Directory.EnumerateFiles(dir, "*.xml"))
+        {
+            var name = Path.GetFileName(pfad);
+            if (!ArchivName.IsMatch(name)) continue;
+            var zeit = ElmArchivFrist.ZeitAusName(name) ?? File.GetLastWriteTime(pfad);
+            if (ElmArchivFrist.DarfWeg(zeit, heute))
+            {
+                try { File.Delete(pfad); weg.Add(name); }
+                catch { /* bleibt liegen, nächster Durchgang */ }
+            }
+            else
+            {
+                var bis = ElmArchivFrist.AufbewahrenBis(zeit);
+                if (aeltesteBleibtBis == null || bis < aeltesteBleibtBis) aeltesteBleibtBis = bis;
+            }
+        }
+        if (weg.Count > 0) LoescheArchivVerweise(weg);
+        return new ElmArchivRaeumung(weg.Count, aeltesteBleibtBis);
+    }
+
+    private void LoescheArchivVerweise(List<string> namen)
+    {
+        var set = new HashSet<string>(namen, StringComparer.Ordinal);
+        var stand = LadeUebermittlungen();
+        var geaendert = false;
+        foreach (var v in stand.Vorgaenge)
+            foreach (var p in v.Protokoll)
+            {
+                if (p.ArchivAnfrage != null && set.Contains(p.ArchivAnfrage))
+                { p.ArchivAnfrage = null; geaendert = true; }
+                if (p.ArchivAntwort != null && set.Contains(p.ArchivAntwort))
+                { p.ArchivAntwort = null; geaendert = true; }
+            }
+        if (geaendert) SpeichereUebermittlungen(stand);
+    }
+
     public string? LeseArchiv(string name)
     {
         if (!ArchivName.IsMatch(name ?? "")) return null;
@@ -638,6 +684,8 @@ public class ElmFoundationEintrag
     public DateTime? LetzterVersuchAm { get; set; }
     public DateTime GeaendertAm { get; set; } = DateTime.Now;
 }
+
+public record ElmArchivRaeumung(int Geloescht, DateTime? AeltesteBleibtBis);
 
 public record ElmArchivDatei(string Name, DateTime Zeit, long Bytes,
     bool SignatureConfirmation, bool Verschluesselt, int Signaturen)

@@ -1158,6 +1158,15 @@ public class ElmController : ControllerBase
         return Ok(_store.ListeArchiv());
     }
 
+    /// <summary>Löscht nur Archivdateien nach Ablauf der zehn Jahre (Art. 958f OR).</summary>
+    [HttpPost("archiv/aufraeumen")]
+    public async Task<IActionResult> ArchivAufraeumen()
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var r = _store.RaeumeAbgelaufenesArchiv(DateTime.Now);
+        return Ok(new { geloescht = r.Geloescht, aeltesteBleibtBis = r.AeltesteBleibtBis, jahre = ElmArchivFrist.Jahre });
+    }
+
     [HttpGet("archiv/{name}")]
     public async Task<IActionResult> ArchivDatei(string name)
     {
