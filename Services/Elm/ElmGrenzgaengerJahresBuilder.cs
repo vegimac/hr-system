@@ -138,7 +138,7 @@ public class ElmGrenzgaengerJahresBuilder
         var mitKasse = new List<string>();
         foreach (var kt in kantone)
         {
-            var nummer = (kassen.FirstOrDefault(x => (x.KantonCode ?? "").Trim().ToUpperInvariant() == kt)?.Kassennummer ?? "").Trim();
+            var nummer = SslNummer(kassen, kt);
             if (nummer.Length == 0)
             {
                 warn.Add($"Kanton {kt}: SSL-Nummer fehlt — diese Personen sind nicht in der Meldung.");
@@ -165,7 +165,7 @@ public class ElmGrenzgaengerJahresBuilder
         foreach (var kt in mitKasse)
         {
             var id = $"#QST-{kt}";
-            var nummer = kassen.First(x => (x.KantonCode ?? "").Trim().ToUpperInvariant() == kt).Kassennummer!.Trim();
+            var nummer = SslNummer(kassen, kt);
             job.Add(new XElement(Sdc + "Addressee",
                 new XAttribute("addresseeID", id),
                 new XElement(Ep + "AddresseeIdentification", kt),
@@ -214,6 +214,21 @@ public class ElmGrenzgaengerJahresBuilder
 
         var xml = doc.Declaration + Environment.NewLine + doc.ToString();
         return new Ergebnis(xml, titel, warn, _validator.Validate(xml));
+    }
+
+    /// <summary>
+    /// Schuldnernummer des Kantons. Liegen zwei Einträge vor (Platzhalter «TI» und die echte Nummer),
+    /// gilt die Nummer mit Ziffern.
+    /// </summary>
+    private static string SslNummer(IEnumerable<LohndatenEmpfaenger> kassen, string kt)
+    {
+        var nummern = kassen
+            .Where(x => string.Equals((x.KantonCode ?? "").Trim(), kt, StringComparison.OrdinalIgnoreCase))
+            .Select(x => (x.Kassennummer ?? "").Trim())
+            .Where(n => n.Length > 0)
+            .Distinct()
+            .ToList();
+        return nummern.FirstOrDefault(n => n.Any(char.IsDigit)) ?? nummern.FirstOrDefault() ?? "";
     }
 
     /// <summary>Die Version, die diese Meldung trägt. SFN gehört nur in die SFN-Meldung, nicht nach Frankreich.</summary>

@@ -996,13 +996,16 @@ public class EmployeeQuellensteuerController : ControllerBase
                 }
             }
 
-            var jetzt = DateTime.Now;
+            // Arbeitskanton am Gültig-ab der Version. «Heute» trifft einen
+            // beendeten Vertrag nicht mehr (Maldini: Vertrag bis 31.12.2025,
+            // erfasst 2026) und würde den Kanton leeren.
+            var tag = entry.ValidFrom.ToDateTime(TimeOnly.MinValue);
+            var naechsterTag = tag.AddDays(1);
             var filiale = await (from em in _db.Employments
                                  join c in _db.CompanyProfiles on em.CompanyProfileId equals c.Id
                                  where em.EmployeeId == employeeId
-                                       && em.IsActive
-                                       && em.ContractStartDate <= jetzt
-                                       && (em.ContractEndDate == null || em.ContractEndDate >= jetzt)
+                                       && em.ContractStartDate < naechsterTag
+                                       && (em.ContractEndDate == null || em.ContractEndDate >= tag)
                                  orderby em.ContractStartDate
                                  select new { c.ZipCode, c.City })
                 .FirstOrDefaultAsync();

@@ -192,6 +192,7 @@ function elmaVorschauZeichnen() {
                 ${leer ? '<b style="color:#991b1b">niemanden — die Meldung ist leer</b>'
                        : v.empfaenger.map(e => `<span style="display:inline-block;margin:3px 6px 0 0;padding:3px 10px;border-radius:999px;border:1px solid rgba(60,55,48,0.2);font-size:12px">${_elmaEsc(e.name)}</span>`).join('')}
             </div>
+            ${(v.warnungen || []).length ? `<div style="margin-top:8px;font-size:13px;color:#854d0e;line-height:1.45">${(v.warnungen || []).map(w => _elmaEsc(w)).join('<br>')}</div>` : ''}
             ${fehler.length ? _elmaKasten(false, `<ul style="margin:0 0 0 18px;padding:0">${fehler.map(f => `<li>${_elmaEsc(f)}</li>`).join('')}</ul>`) : ''}
             ${(v.technisch || []).length ? _elmaKasten(false, 'Die Meldung ist fehlerhaft. Bitte dem Support melden.') : ''}
             ${v.sendenGesperrt ? _elmaKasten(false, _elmaEsc(v.sendenGesperrt)) : ''}
