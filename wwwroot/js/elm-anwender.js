@@ -209,7 +209,8 @@ async function elmaSenden() {
         elmaErsatzZeichnen();
         const el = document.getElementById('elmaVorschau');
         if (el) el.innerHTML = _elmaKasten(true, _elmaEsc(j.meldung || 'Gesendet.'));
-        if (j.vorgangId) _elmaOffen.add(j.vorgangId);
+        _elmaHinweis = null;
+        elmaListeZeichnen();
         elmaPlanen();
     }
 }
@@ -295,25 +296,32 @@ function elmaListeZeichnen() {
             <div style="margin-top:8px">${fertig.map(x => _elmaZeile(x.m, x.mi)).join('')}</div></details>` : '');
 }
 
+function elmaDetails(id) {
+    if (_elmaOffen.has(id)) _elmaOffen.delete(id);
+    else _elmaOffen.add(id);
+    elmaListeZeichnen();
+}
+
 function _elmaZeile(m, mi) {
-    const offen = _elmaOffen.has(m.id) || m.aktionNoetig;
+    const offen = _elmaOffen.has(m.id);
     const f = _ELMA_STUFE[m.stufe] || _ELMA_STUFE.grau;
-    return `<details ${offen ? 'open' : ''} ontoggle="this.open ? _elmaOffen.add(this.dataset.id) : _elmaOffen.delete(this.dataset.id)" data-id="${_elmaEsc(m.id)}"
-        style="margin-bottom:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.55)">
-        <summary style="cursor:pointer;list-style:none;padding:12px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="width:10px;height:10px;border-radius:50%;background:${f.punkt}"></span>
-            <b style="color:#3f3f3f;font-size:14px">${_elmaEsc(m.titel)}</b>
-            ${m.ersatz ? '<span style="font-size:11px;color:#646464">Ersatz</span>' : ''}
-            <span style="font-size:12px;color:#8b8b8b">${_elmaDatum(m.gesendet)}</span>
-            <span style="margin-left:auto">${_elmaPille(m.stufe, m.text)}</span>
-        </summary>
-        <div style="padding:0 14px 14px">
+    const id = _elmaEsc(m.id);
+    return `<div style="margin-bottom:8px;border-radius:12px;border:1px solid rgba(60,55,48,0.14);background:rgba(255,255,255,0.55)">
+        <div style="padding:10px 14px;display:flex;align-items:center;gap:10px">
+            <span style="width:10px;height:10px;border-radius:50%;background:${f.punkt};flex:0 0 auto"></span>
+            <b style="color:#3f3f3f;font-size:14px;white-space:nowrap">${_elmaEsc(m.titel)}</b>
+            ${m.ersatz ? '<span style="font-size:11px;color:#646464;white-space:nowrap">Ersatz</span>' : ''}
+            <span style="font-size:12px;color:#8b8b8b;white-space:nowrap">${_elmaDatum(m.gesendet)}</span>
+            <span style="margin-left:auto;white-space:nowrap">${_elmaPille(m.stufe, m.text)}</span>
+            <button type="button" class="btn btn-secondary" style="white-space:nowrap" onclick="elmaDetails('${id}')">${offen ? 'Schliessen' : 'Details'}</button>
+        </div>
+        ${offen ? `<div style="padding:0 14px 14px">
             ${(m.empfaenger || []).map((e, ei) => _elmaEmpfaenger(m, mi, e, ei)).join('')}
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
-                ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmaErsetzen('${_elmaEsc(m.id)}')">Korrigierte Meldung senden</button>` : ''}
+                ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmaErsetzen('${id}')">Korrigierte Meldung senden</button>` : ''}
             </div>
-        </div>
-    </details>`;
+        </div>` : ''}
+    </div>`;
 }
 
 function _elmaEmpfaenger(m, mi, e, ei) {
