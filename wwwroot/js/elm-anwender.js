@@ -18,6 +18,7 @@ let _elmaBusy = false;
 let _elmaHinweis = null;
 let _elmaTimer = null;
 let _elmaOffen = new Set();
+let _elmaArchivOffen = false;
 
 (function () {
     if (document.getElementById('elmaSanduhrStyle')) return;
@@ -293,8 +294,10 @@ function elmaListeZeichnen() {
     }
     el.innerHTML = kopf + hinweis
         + (offen.length ? offen.map(x => _elmaZeile(x.m, x.mi)).join('') : '<div style="font-size:13px;color:#8b8b8b;margin-bottom:8px">Keine offenen Meldungen.</div>')
-        + (fertig.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:#646464">Abgeschlossene Meldungen (${fertig.length})</summary>
-            <div style="margin-top:8px">${fertig.map(x => _elmaZeile(x.m, x.mi)).join('')}</div></details>` : '');
+        + (fertig.length ? `<div style="margin-top:10px">
+            <button type="button" onclick="elmaArchiv()" style="background:none;border:none;padding:0;cursor:pointer;font-size:13px;color:#646464">${_elmaArchivOffen ? '▼' : '▶'} Abgeschlossene Meldungen (${fertig.length})</button>
+            ${_elmaArchivOffen ? `<div style="margin-top:8px">${fertig.map(x => _elmaZeile(x.m, x.mi)).join('')}</div>` : ''}
+        </div>` : '');
     elmaLageZeichnen();
 }
 
@@ -376,7 +379,14 @@ function _elmaKurzStatus(m) {
     return _elmaPille('grau', 'Offen');
 }
 
+function elmaArchiv() {
+    _elmaArchivOffen = !_elmaArchivOffen;
+    elmaListeZeichnen();
+}
+
 function elmaDetails(id) {
+    const m = (_elma?.meldungen || []).find(x => x.id === id);
+    if (m?.fertig) _elmaArchivOffen = true;
     if (_elmaOffen.has(id)) _elmaOffen.delete(id);
     else _elmaOffen.add(id);
     elmaListeZeichnen();
