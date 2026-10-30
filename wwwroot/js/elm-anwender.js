@@ -358,10 +358,6 @@ function elmaVorschauZeichnen() {
 async function elmaSenden() {
     const v = _elmaVorschau;
     if (!v || _elmaBusy) return;
-    const frage = _elmaErsatz
-        ? `${v.titel} als Ersatz für die Meldung vom ${_elmaDatum(_elmaErsatz.gesendet)} senden?`
-        : `${v.titel} senden?`;
-    if (!(await liquidConfirm(frage, { title: 'Meldung senden', yesLabel: 'Senden', noLabel: 'Abbrechen' }))) return;
     const body = Object.assign({}, v.auswahl, { ersetztId: _elmaErsatz?.id || null, ziel: null });
     _elmaFlug = true;
     elmaKommZeichnen();
