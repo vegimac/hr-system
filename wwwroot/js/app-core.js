@@ -1546,6 +1546,7 @@ function showPage(name) {
         || name === 'entwicklung' || _devSubPages.includes(name));
     const navPage = _adminSubPages.includes(name) ? 'admin-hub'
                   : _devSubPages.includes(name)   ? 'entwicklung'
+                  : name === 'elm-anwender'       ? 'hr-hub'
                   : name;
     document.querySelector(`[data-page="${navPage}"]`)?.classList.add('active');
     // Walter 28.05.2026: Breadcrumb „← Systemeinstellungen / <Page>" einfuegen
@@ -1632,6 +1633,7 @@ function showPage(name) {
     if (name === 'aktive-sitzungen') asInit();
     if (name === 'virenscanner') vsInit();
     if (name === 'elm-schnittstelle') { elmzInit(); elmmInit(); }
+    if (name === 'elm-anwender' && typeof elmaInit === 'function') elmaInit();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'moments') momInit();
