@@ -465,6 +465,23 @@ function qstCodiceGueltig(roh) {
     return '';
 }
 
+function qstCodiceFeldPruefen() {
+    const el = document.getElementById('qstGrenzSteuerId');
+    const hin = document.getElementById('qstCodiceHinweis');
+    if (!el) return '';
+    const roh = (el.value || '').trim();
+    const italien = !!document.getElementById('qstDatenaustauschItalien')?.checked;
+    const msg = !roh
+        ? (italien ? 'Die italienische Steuernummer ist Pflicht.' : '')
+        : qstCodiceGueltig(roh);
+    el.classList.toggle('feld-ungueltig', !!msg);
+    if (hin) {
+        hin.textContent = msg;
+        hin.style.display = msg ? '' : 'none';
+    }
+    return msg;
+}
+
 // Konkubinat-Frage NUR bei Zivilstand «ledig» zeigen (Walter 29.08.2026 v2) —
 // sonst ist die Zeile unsichtbar (Werte bleiben Datenträger; bei erfasstem
 // K-Partner sperrt qstApplyKonkubinatLock sie ohnehin).
@@ -1418,7 +1435,7 @@ async function saveQstEntry() {
             resultEl.innerHTML = '<span style="color:#dc2626">Beim Datenaustausch mit Italien ist der Geburtsstaat als Ländercode Pflicht, zum Beispiel IT.</span>';
             return;
         }
-        const codice = qstCodiceGueltig(payload.grenzgaengerSteuerId);
+        const codice = qstCodiceFeldPruefen();
         if (codice) { resultEl.innerHTML = `<span style="color:#dc2626">${codice}</span>`; return; }
         if (!payload.grenzgaengerAb) {
             resultEl.innerHTML = '<span style="color:#dc2626">Beim Datenaustausch mit Italien ist das Grenzgänger-Datum Pflicht.</span>';
