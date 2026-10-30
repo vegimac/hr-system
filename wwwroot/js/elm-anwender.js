@@ -113,9 +113,19 @@ function elmaArtGewechselt() {
     };
     const hin = document.getElementById('elmaArtHinweis');
     if (hin) hin.textContent = hinweise[art] || 'Monatsmeldung an die Steuerverwaltungen und ans Bundesamt für Statistik.';
+    _elmaLageKey = '';
     _elmaVorschau = null;
     const vorschau = document.getElementById('elmaVorschau');
     if (vorschau) vorschau.innerHTML = '';
+    elmaListeZeichnen();
+}
+
+function _elmaAktuelleArt() {
+    return document.getElementById('elmaArt')?.value || 'monthly';
+}
+
+function _elmaPasstArt(m) {
+    return (m.art || 'monthly') === _elmaAktuelleArt();
 }
 
 function _elmaAuswahl() {
@@ -241,7 +251,7 @@ function elmaErsetzen(id) {
     const art = document.getElementById('elmaArt');
     const jahr = document.getElementById('elmaJahr');
     const monat = document.getElementById('elmaMonat');
-    if (art) art.value = m.art === 'annual' ? 'annual' : 'monthly';
+    if (art && m.art) art.value = m.art;
     if (jahr && m.jahr) jahr.value = m.jahr;
     if (monat && m.monat) monat.value = String(m.monat);
     _elmaVorschau = null;
@@ -284,7 +294,7 @@ async function _elmaPost(pfad, body, warteTitel, warteText) {
 function elmaListeZeichnen() {
     const el = document.getElementById('elmaListe');
     if (!el) return;
-    const alle = (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung);
+    const alle = (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung && _elmaPasstArt(x.m));
     const offen = alle.filter(x => !x.m.fertig);
     const fertig = alle.filter(x => x.m.fertig);
     const hinweis = _elmaHinweis
@@ -295,7 +305,8 @@ function elmaListeZeichnen() {
         <button type="button" class="btn btn-secondary" style="margin-left:auto" onclick="elmaLaden()">Aktualisieren</button></div>`;
     if (!_elma) { el.innerHTML = ''; return; }
     if (!alle.length) {
-        el.innerHTML = kopf + hinweis + '<div style="font-size:13px;color:#8b8b8b">Noch keine Meldung gesendet.</div>';
+        el.innerHTML = kopf + hinweis + '<div style="font-size:13px;color:#8b8b8b">Für diese Meldung wurde noch nichts gesendet.</div>';
+        elmaLageZeichnen();
         return;
     }
     el.innerHTML = kopf + hinweis
@@ -327,12 +338,13 @@ function elmaLageZeichnen() {
     if (_elmaBusy) return;
     const el = document.getElementById('elmaStatus');
     if (!el) return;
-    const liste = _elma?.meldungen || [];
-    const aktion = liste.filter(m => !m.zertifizierung && !m.fertig && _elmaBrauchtNutzer(m));
-    const unterwegs = liste.filter(m => !m.zertifizierung && !m.fertig && m.stufe === 'laeuft');
+    const quelle = _elma?.meldungen || [];
+    const liste = quelle.filter(m => !m.zertifizierung && _elmaPasstArt(m));
+    const aktion = liste.filter(m => !m.fertig && _elmaBrauchtNutzer(m));
+    const unterwegs = liste.filter(m => !m.fertig && m.stufe === 'laeuft');
     if (aktion.length) {
         const m = aktion[0];
-        const mi = liste.indexOf(m);
+        const mi = quelle.indexOf(m);
         const key = 'aktion:' + m.id;
         if (key === _elmaLageKey && document.getElementById('elmaLage')) return;
         _elmaLageKey = key;
