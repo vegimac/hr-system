@@ -1416,7 +1416,7 @@ async function startApp() {
     if (!isMaPostfach && currentUser.startPage && currentUser.startPage !== 'dashboard') {
         const sp = currentUser.startPage;
         if (sp === 'todos' && typeof dashOpenTodos === 'function') dashOpenTodos();
-        else if (document.getElementById('page-' + sp)) showPage(sp);
+        else if (sp !== 'roster-absence-import' && document.getElementById('page-' + sp)) showPage(sp);
     }
 }
 
@@ -1526,6 +1526,11 @@ function showPage(name) {
     if (name === 'globale-daten') {
         showPage('admin-hub');
         if (typeof adminHubShowCat === 'function') adminHubShowCat('kataloge');
+        return;
+    }
+    // Walter 30.10.2026: Mirus-Absenz-Import ausgeblendet. Absenzen nur noch in OneCrew.
+    if (name === 'roster-absence-import') {
+        showPage('mitarbeiter');
         return;
     }
     // Seiten-Historie (Walter 12.08.2026): für «← Zurück»-Buttons auf den
@@ -2022,7 +2027,6 @@ function openMySettings() {
         ['posteingang', 'Postfach'],
         ['auswertungen', 'Auswertungen'],
         ['manager-dienstplan', 'Manager-DP'],
-        ['roster-absence-import', 'Mirus Absenz Import'],
         ['lohn', 'Lohnlauf'],
         ['hr-hub', 'HR-Hub'],
         ['fibu', 'FIBU'],

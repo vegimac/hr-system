@@ -552,7 +552,8 @@ public class RosterAbsenceImportController : ControllerBase
     // ── Stunden- / Tagesberechnung ──────────────────────────────────────────
     // Spiegelt renderAbsDayCheckboxes() Default «Mo–Fr Muster» in employees.js:
     // KRANK/UNFALL (1/5-Werktag) → immer Mo–Fr, Sa+So nie als Gutschrift.
-    // FERIEN/FEIERTAG/UNBEZ_URLAUB → alle Kalendertage (1/7).
+    // FERIEN/FEIERTAG/UNBEZ_URLAUB und Mutterschaft/Vaterschaft/Militär → alle
+    // Kalendertage (1/7). Der Lohn kürzt das MTP-Soll mit genau diesen Tagen.
     //
     // Walter 26.07.2026: Die frühere Heuristik «Sa/So nur bei voller Mo–So-Woche
     // auslassen» war falsch bei Monatswechsel mitten in der Woche (z.B. Start Do):
@@ -563,7 +564,9 @@ public class RosterAbsenceImportController : ControllerBase
     {
         // Unbezahlter Urlaub wird wie Ferien kalenderbasiert (1/7) gezählt
         // (Walter-Vorgabe 27.06.2026) — passt zum Festlohn-Tagessatz 12/365.
-        if (absenceType == "FERIEN" || absenceType == "FEIERTAG" || absenceType == "UNBEZ_URLAUB")
+        if (absenceType is "FERIEN" or "FEIERTAG" or "UNBEZ_URLAUB"
+            or "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT"
+            or "MILITAER" or "ZIVILSCHUTZ")
             return new List<string>(allDays);
 
         var result = new List<string>();
