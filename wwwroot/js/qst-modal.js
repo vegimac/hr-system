@@ -454,7 +454,10 @@ function qstGrenzMeldungen() {
     const itF = document.getElementById('qstItalienFelder');
     if (itF) itF.style.display = it ? '' : 'none';
     const frZ = document.getElementById('qstFrankreichZeile');
-    if (frZ) frZ.style.display = qstWohnsitzFrankreich() ? '' : 'none';
+    const frankreich = qstWohnsitzFrankreich();
+    if (frZ) frZ.style.display = frankreich ? '' : 'none';
+    const tele = document.getElementById('qstTelearbeitZeile');
+    if (tele) tele.style.display = (frankreich || italien) ? '' : 'none';
     const code = (document.getElementById('qstCode')?.value || document.getElementById('qstVordefCode')?.value || '').trim().toUpperCase();
     const sfn = document.getElementById('qstSfnZeile');
     if (sfn) sfn.style.display = code === 'SFN' ? '' : 'none';

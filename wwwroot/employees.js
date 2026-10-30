@@ -5300,6 +5300,10 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
         const kirche   = e.kirchensteuer  ? 'mit Kirchensteuer' : 'ohne Kirchensteuer';
         const pct      = e.prozentsatz    ? ` · ${Number(e.prozentsatz).toFixed(2)} %` : '';
         const gemeinde = e.qstGemeinde    ? ` · ${e.qstGemeinde}` : '';
+        const teleRaw  = e.telearbeitProzent;
+        const teleHtml = (teleRaw === 0 || teleRaw)
+            ? ` · Telearbeit ${Number(teleRaw).toLocaleString('de-CH', { maximumFractionDigits: 2 })} %`
+            : '';
         const eaIso    = (e.erfahrenAm || e.validFrom || '').toString().slice(0, 10);
         const eaStr    = eaIso ? formatDate(eaIso) : '';
         const eaSpaeter = eaIso && e.validFrom && eaIso.slice(0, 10) > String(e.validFrom).slice(0, 10);
@@ -5316,7 +5320,7 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                         <span>${vonStr} bis ${bisStr}</span>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-top:3px">
-                        Kanton <strong>${kanton}</strong> · Code ${codeHtml} · ${kinder} Kinder · ${kirche}${pct}${gemeinde}${eaHtml}
+                        Kanton <strong>${kanton}</strong> · Code ${codeHtml} · ${kinder} Kinder · ${kirche}${pct}${gemeinde}${teleHtml}${eaHtml}
                         <!-- Walter 30.08.2026: Klartext-Erklärung zum Tarif.
                              Rein lokal aus der Tabelle qst_erklaerung — kein
                              externer Dienst, keine Daten nach draussen. -->
