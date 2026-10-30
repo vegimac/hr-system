@@ -513,7 +513,7 @@ function _elmaPhaseVon(m) {
     if (hat('Nachrichten abgeholt'))
         return { schritte: _ELMA_QUERY, index: 5, laufend: m.stufe === 'laeuft', titel: 'Quittung ist da', kern: 'Prüft', phase: 'Quittung', zurueck: true };
     if (hat('Gesendet') || hat('Stand abgefragt') || m.stufe === 'laeuft')
-        return { schritte: _ELMA_QUERY, index: 3, laufend: true, titel: 'Stand wird abgefragt', kern: 'Fragt', phase: 'Unterwegs', zurueck: true };
+        return { schritte: _ELMA_QUERY, index: 3, laufend: true, titel: 'Antwort kommt an', kern: 'Empfängt', phase: 'Unterwegs', zurueck: true };
     return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit', zurueck: false };
 }
 
