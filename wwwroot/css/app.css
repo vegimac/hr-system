@@ -14649,10 +14649,12 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-progresshead { display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px; font-size: 13px; color: #3f3f3f; }
 #page-elm-anwender .elma-progresshead span { color: #8b8b8b; font-size: 12px; }
 #page-elm-anwender .elma-bar { height: 5px; border-radius: 20px; background: rgba(60,55,48,0.12); overflow: hidden; }
-#page-elm-anwender .elma-fill { width: 0; height: 100%; background: #3f3f3f; transition: width .4s ease; }
+#page-elm-anwender .elma-fill { width: 0; height: 100%; background: #16a34a; transition: width .4s ease; }
 #page-elm-anwender .elma-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 #page-elm-anwender .elma-step { min-height: 92px; border: 1px solid rgba(60,55,48,0.12); background: rgba(255,255,255,0.38); border-radius: 10px; padding: 8px; }
-#page-elm-anwender .elma-step.done { background: rgba(255,255,255,0.72); border-color: rgba(22,101,52,0.35); }
+#page-elm-anwender .elma-step.done { background: rgba(22,163,74,0.16); border-color: rgba(22,101,52,0.45); }
+#page-elm-anwender .elma-step.done strong { color: #166534; }
+#page-elm-anwender .elma-step.done small { color: #3d6b4a; }
 #page-elm-anwender .elma-step.current { background: #fff; border-color: #3f3f3f; }
 #page-elm-anwender .elma-stepnum { font-size: 11px; color: #8b8b8b; }
 #page-elm-anwender .elma-step.done .elma-stepnum { color: #166534; }
