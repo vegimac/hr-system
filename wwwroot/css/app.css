@@ -14824,7 +14824,11 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-send-foot p { margin: 0; font-size: 13px; color: #646464; }
 #page-elm-anwender .elma-send-foot .btn { min-width: 8.5rem; }
 #page-elm-anwender .elma-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
-#page-elm-anwender .elma-zeit { position: relative; display: flex; align-items: center; gap: 6px; }
+#page-elm-anwender .elma-zeit { position: relative; display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+#page-elm-anwender .elma-zeit-feld { position: relative; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #646464; }
+#page-elm-anwender .elma-zeit-wahl { display: flex; align-items: center; gap: 6px; }
+#page-elm-anwender #elmaZeitMonatWert { min-width: 7.2rem; }
+#page-elm-anwender #elmaZeitJahrWert { min-width: 4.2rem; }
 #page-elm-anwender .elma-zeit-pfeil {
     width: 40px; height: 40px; border-radius: 12px; padding: 0; cursor: pointer;
     background: #fff; border: 1px solid rgba(60, 55, 48, 0.16); color: #3f3f3f;
@@ -14910,6 +14914,7 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-panelhead .lqsel-btn { background: transparent; border: 0; box-shadow: none; font-size: 20px; font-weight: 650; color: #3f3f3f; padding: 0 4px 0 0; min-height: 0; }
 #page-elm-anwender select.elma-artsicht { font-size: 20px; font-weight: 650; color: #3f3f3f; border: 0; background: transparent; }
 #page-elm-anwender .elma-domcols.elma-domcols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#page-elm-anwender .elma-domcols.elma-domcols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 #page-elm-anwender .elma-check input { accent-color: #3f3f3f; }
 #page-elm-anwender .elma-hinweis { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; }
 #page-elm-anwender .elma-hinweis b { display: block; font-size: 13px; color: #3f3f3f; }
@@ -14986,7 +14991,8 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender table.elma-bvg th, #page-elm-anwender table.elma-bvg td { text-align: left; padding: 4px 10px 4px 0; }
 #page-elm-anwender table.elma-bvg input { width: 8rem; }
 @media (max-width: 1180px) {
-    #page-elm-anwender .elma-domcols.elma-domcols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #page-elm-anwender .elma-domcols.elma-domcols-4,
+    #page-elm-anwender .elma-domcols.elma-domcols-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #page-elm-anwender .elma-layout { grid-template-columns: 210px minmax(0, 1fr); }
     #page-elm-anwender .elma-right { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
     #page-elm-anwender .elma-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -14997,7 +15003,8 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
     #page-elm-anwender .elma-connection { justify-content: flex-start; margin-top: 12px; }
     #page-elm-anwender .elma-layout, #page-elm-anwender .elma-right,
     #page-elm-anwender .elma-mission, #page-elm-anwender .elma-unten,
-    #page-elm-anwender .elma-domcols.elma-domcols-4 { grid-template-columns: 1fr; }
+    #page-elm-anwender .elma-domcols.elma-domcols-4,
+    #page-elm-anwender .elma-domcols.elma-domcols-5 { grid-template-columns: 1fr; }
     #page-elm-anwender .elma-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #page-elm-anwender .elma-hub { width: 22%; }
     #page-elm-anwender .elma-hub img { max-height: 28px; }
