@@ -221,11 +221,14 @@ function elmaInit() {
     } else _elmaAnsicht = 'home';
     elmaAnsicht(_elmaAnsicht);
     elmaErsatzZeichnen();
-    const jahrFeld = document.getElementById('elmaJahr');
-    if (jahrFeld && !jahrFeld.dataset.elma) {
-        jahrFeld.dataset.elma = '1';
-        jahrFeld.addEventListener('change', elmaDomaenenLaden);
+    if (!document.body.dataset.elmaZeit) {
+        document.body.dataset.elmaZeit = '1';
+        document.addEventListener('click', (ev) => {
+            const box = document.getElementById('elmaZeit');
+            if (box && !box.contains(ev.target)) elmaZeitBlattZu();
+        });
     }
+    elmaZeitZeichnen();
     elmaLaden();
     elmaBereit();
     elmaDomaenenLaden();
@@ -694,10 +697,89 @@ function elmaAktionenZeichnen() {
         : 'Unten nur die Empfänger, die der Firma zugeordnet sind.';
 }
 
-function elmaArtGewechselt() {
+function elmaZeitLesen() {
+    const jahr = parseInt(document.getElementById('elmaJahr')?.value, 10) || new Date().getFullYear();
+    const monat = parseInt(document.getElementById('elmaMonat')?.value, 10) || 1;
+    return { jahr, monat, monatlich: _elmaAnsicht === 'monat' };
+}
+
+function elmaZeitSetzen(jahr, monat) {
+    jahr = Math.min(2035, Math.max(2015, jahr));
+    const feldJahr = document.getElementById('elmaJahr');
+    const feldMonat = document.getElementById('elmaMonat');
+    const alt = parseInt(feldJahr?.value, 10);
+    if (feldJahr) feldJahr.value = String(jahr);
+    if (feldMonat && monat) feldMonat.value = String(monat);
+    elmaZeitZeichnen();
+    if (jahr !== alt) elmaDomaenenLaden();
+}
+
+function elmaZeitSchritt(dir) {
+    const z = elmaZeitLesen();
+    if (z.monatlich) {
+        let monat = z.monat + dir;
+        let jahr = z.jahr;
+        if (monat < 1) { monat = 12; jahr--; }
+        if (monat > 12) { monat = 1; jahr++; }
+        elmaZeitSetzen(jahr, monat);
+    } else elmaZeitSetzen(z.jahr + dir, z.monat);
+    elmaZeitBlattZu();
+}
+
+function elmaZeitZeichnen() {
+    const z = elmaZeitLesen();
+    const wert = document.getElementById('elmaZeitWert');
+    if (wert) wert.textContent = z.monatlich ? `${_ELMA_MONATE[z.monat - 1]} ${z.jahr}` : String(z.jahr);
+    const blatt = document.getElementById('elmaZeitBlatt');
+    if (blatt && !blatt.hidden) elmaZeitBlattFuellen();
+}
+
+function elmaZeitBlatt() {
+    const blatt = document.getElementById('elmaZeitBlatt');
+    if (!blatt) return;
+    blatt.hidden = !blatt.hidden;
+    if (!blatt.hidden) elmaZeitBlattFuellen();
+}
+
+function elmaZeitBlattZu() {
+    const blatt = document.getElementById('elmaZeitBlatt');
+    if (blatt) blatt.hidden = true;
+}
+
+function elmaZeitBlattFuellen() {
+    const blatt = document.getElementById('elmaZeitBlatt');
+    if (!blatt) return;
+    const z = elmaZeitLesen();
+    const kurz = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+    if (z.monatlich) {
+        const monate = kurz.map((n, i) =>
+            `<button type="button" class="elma-zeit-monat${i + 1 === z.monat ? ' ist' : ''}" onclick="elmaZeitMonat(${i + 1})">${n}</button>`).join('');
+        blatt.innerHTML = `<div class="elma-zeit-jahrzeile"><button type="button" class="elma-zeit-pfeil" onclick="elmaZeitJahr(${z.jahr - 1})" aria-label="Jahr zurück">‹</button><b>${z.jahr}</b><button type="button" class="elma-zeit-pfeil" onclick="elmaZeitJahr(${z.jahr + 1})" aria-label="Jahr vor">›</button></div><div class="elma-zeit-monate">${monate}</div>`;
+    } else {
+        const heute = new Date().getFullYear();
+        const bis = Math.max(z.jahr, heute);
+        const von = Math.min(z.jahr, bis - 5);
+        let knoepfe = '';
+        for (let y = von; y <= bis; y++) knoepfe += `<button type="button" class="elma-zeit-jahr${y === z.jahr ? ' ist' : ''}" onclick="elmaZeitJahr(${y}, true)">${y}</button>`;
+        blatt.innerHTML = `<div class="elma-zeit-jahre">${knoepfe}</div>`;
+    }
+}
+
+function elmaZeitMonat(monat) {
+    const z = elmaZeitLesen();
+    elmaZeitSetzen(z.jahr, monat);
+    elmaZeitBlattZu();
+}
+
+function elmaZeitJahr(jahr, schliessen) {
     const monatlich = _elmaAnsicht === 'monat';
-    const w = document.getElementById('elmaMonatWrap');
-    if (w) w.style.display = monatlich ? 'flex' : 'none';
+    elmaZeitSetzen(jahr, elmaZeitLesen().monat);
+    if (schliessen || !monatlich) elmaZeitBlattZu();
+}
+
+function elmaArtGewechselt() {
+    elmaZeitBlattZu();
+    elmaZeitZeichnen();
     const portal = document.getElementById('elmaPortalWrap');
     if (portal) portal.style.display = _elmaAnsicht === 'jahr' ? '' : 'none';
     const controls = document.getElementById('elmaControls');

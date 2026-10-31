@@ -14823,7 +14823,35 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-send-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(60,55,48,0.10); }
 #page-elm-anwender .elma-send-foot p { margin: 0; font-size: 13px; color: #646464; }
 #page-elm-anwender .elma-send-foot .btn { min-width: 8.5rem; }
-#page-elm-anwender .elma-controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
+#page-elm-anwender .elma-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+#page-elm-anwender .elma-zeit { position: relative; display: flex; align-items: center; gap: 6px; }
+#page-elm-anwender .elma-zeit-pfeil {
+    width: 40px; height: 40px; border-radius: 12px; padding: 0; cursor: pointer;
+    background: #fff; border: 1px solid rgba(60, 55, 48, 0.16); color: #3f3f3f;
+    font-size: 22px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.10);
+}
+#page-elm-anwender .elma-zeit-wert {
+    height: 40px; min-width: 4.5rem; padding: 0 16px; border-radius: 12px; cursor: pointer;
+    background: #fff; border: 1px solid rgba(255, 255, 255, 0.95); color: #3f3f3f;
+    font-size: 14px; font-weight: 650;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+#page-elm-anwender .elma-zeit-blatt {
+    position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
+    background: #fff; border-radius: 14px; padding: 10px;
+    border: 1px solid rgba(60, 55, 48, 0.10);
+    box-shadow: 0 12px 32px rgba(60, 55, 48, 0.18);
+}
+#page-elm-anwender .elma-zeit-jahrzeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+#page-elm-anwender .elma-zeit-jahrzeile b { font-size: 15px; color: #3f3f3f; min-width: 3.2rem; text-align: center; }
+#page-elm-anwender .elma-zeit-monate { display: grid; grid-template-columns: repeat(4, 3.4rem); gap: 6px; }
+#page-elm-anwender .elma-zeit-jahre { display: grid; grid-template-columns: repeat(3, 4.2rem); gap: 6px; }
+#page-elm-anwender .elma-zeit-monat, #page-elm-anwender .elma-zeit-jahr {
+    height: 36px; border-radius: 10px; cursor: pointer; color: #3f3f3f; font-size: 13px; font-weight: 600;
+    background: #f6f3ee; border: 1px solid rgba(60, 55, 48, 0.12);
+}
+#page-elm-anwender .elma-zeit-monat.ist, #page-elm-anwender .elma-zeit-jahr.ist { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
 #page-elm-anwender .elma-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #646464; }
 #page-elm-anwender .elma-controls input { width: 5.5rem; box-sizing: border-box; background: #fff; border: 1px solid rgba(255,255,255,0.95); border-radius: 10px; padding: 8px 10px; font-size: 13px; color: #3f3f3f; box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9); }
 #page-elm-anwender .elma-ersatz { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(217,119,6,0.12); color: #92400e; font-size: 13px; }
