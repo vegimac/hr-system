@@ -251,12 +251,21 @@ function laInput(name, label, value, breite) {
                class="la-inp ${breite || 'la-text'}">
     </label>`;
 }
+function laGeldText(value) {
+    if (value === null || value === undefined || value === '') return '';
+    const n = typeof value === 'number'
+        ? value
+        : parseFloat(String(value).replace(/'/g, '').replace(',', '.'));
+    return Number.isFinite(n) ? n.toFixed(2) : '';
+}
+function laGeldNorm(el) {
+    el.value = laGeldText(String(el.value || '').trim());
+}
 function laMoney(name, label, value) {
-    const v = (value ?? '');
     return `<label class="la-feld">
         <span>${label}</span>
-        <input type="number" step="0.01" id="la_${name}" value="${v === null || v === undefined ? '' : v}"
-               class="la-inp la-geld">
+        <input type="text" inputmode="decimal" autocomplete="off" id="la_${name}" value="${laEscape(laGeldText(value))}"
+               class="la-inp la-geld" onblur="laGeldNorm(this)">
     </label>`;
 }
 function laTextarea(name, label, value, rows) {
@@ -284,7 +293,7 @@ function laCollectFormData() {
         const el = grab(name);
         const v = el?.value;
         if (v === undefined || v === null || v === '') return null;
-        const n = parseFloat(v);
+        const n = parseFloat(String(v).replace(/'/g, '').replace(',', '.'));
         return Number.isFinite(n) ? n : null;
     };
     const bool  = (name) => !!grab(name)?.checked;

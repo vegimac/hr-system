@@ -12640,7 +12640,9 @@ body.theme-dark .sys-back-btn {
 
 /* Lohnausweis-Vorschau: ov-Eingabemaske (warme Karte, weisse Felder, Kohle-Knopf). */
 #laPreviewModal .la-maske {
-    position: absolute; top: 12px; left: 12px; right: 12px; bottom: 12px;
+    position: absolute; top: 12px; bottom: 12px; left: 50%;
+    transform: translateX(-50%);
+    width: min(1040px, calc(100vw - 48px));
     display: flex; flex-direction: column; overflow: hidden;
     border-radius: 16px;
     background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
@@ -12668,7 +12670,7 @@ body.theme-dark .sys-back-btn {
     display: flex; align-items: center; gap: 8px;
     font-size: 11px; color: #646464; min-width: 0;
 }
-#laPreviewModal .la-feld > span { flex: 0 0 240px; margin: 0; line-height: 1.15; }
+#laPreviewModal .la-feld > span { flex: 0 1 auto; max-width: 62%; margin: 0; line-height: 1.15; }
 #laPreviewModal .la-inp,
 #laPreviewModal textarea {
     display: block; box-sizing: border-box;
@@ -12682,15 +12684,12 @@ body.theme-dark .sys-back-btn {
     outline: none; border-color: #3f3f3f;
     box-shadow: 0 0 0 3px rgba(63,63,63,0.10);
 }
-#laPreviewModal .la-geld,
-#laPreviewModal .la-kurz,
-#laPreviewModal .la-ahv,
-#laPreviewModal .la-text,
-#laPreviewModal .la-breit,
-#laPreviewModal .la-area {
-    flex: 1 1 auto; width: auto; max-width: none; min-width: 0;
-}
-#laPreviewModal .la-area { resize: vertical; }
+#laPreviewModal .la-geld { width: 9.5rem; flex: 0 0 9.5rem; text-align: right; }
+#laPreviewModal .la-kurz { width: 8.5rem; flex: 0 0 8.5rem; }
+#laPreviewModal .la-ahv { width: 16rem; flex: 0 0 16rem; }
+#laPreviewModal .la-text { width: 16rem; flex: 0 0 16rem; max-width: 100%; }
+#laPreviewModal .la-breit { width: 22rem; flex: 0 1 22rem; max-width: 100%; }
+#laPreviewModal .la-area { width: min(36rem, 100%); flex: 1 1 auto; max-width: 100%; resize: vertical; }
 #laPreviewModal .la-check {
     display: flex; align-items: center; gap: 6px;
     font-size: 12px; color: #3f3f3f; cursor: pointer;
