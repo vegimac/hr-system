@@ -7,8 +7,10 @@
 // ══════════════════════════════════════════════════════════════════════
 let _gsbData = null;
 let _gsbUebernahme = [];
+let _gsbErfolg = '';
 
 function gsbInit() {
+    _gsbErfolg = '';
     ['gsbAlert', 'gsbSummary', 'gsbResult'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '';
@@ -38,7 +40,8 @@ function gsbUpdateBranchBanner() {
     el.style.color = '#6b6152';
 }
 
-async function gsbAnalyze() {
+async function gsbAnalyze(opts) {
+    if (!(opts && opts.behalteErfolg)) _gsbErfolg = '';
     const inp = document.getElementById('gsbFileInput');
     document.getElementById('gsbAlert').innerHTML = '';
     document.getElementById('gsbSummary').innerHTML = '';
@@ -180,12 +183,15 @@ function gsbRenderRows() {
 }
 
 function gsbUebernahmeHtml() {
+    const erfolg = _gsbErfolg
+        ? `<div style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;font-size:12.5px;color:#166534">✓ ${_gsbErfolg}</div>`
+        : '';
     const n = _gsbUebernahme.length;
-    if (!n) return '';
+    if (!n) return erfolg;
     const an = _gsbUebernahme.filter(x => x.aktion === 'anlegen').length;
     const ab = _gsbUebernahme.filter(x => x.aktion === 'beenden').length;
     const teile = [an ? `${an} als versichert festlegen` : '', ab ? `${ab} beenden` : ''].filter(Boolean).join(', ');
-    return `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;font-size:12.5px;color:#3f3f3f">
+    return erfolg + `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;font-size:12.5px;color:#3f3f3f">
         <span style="flex:1;min-width:240px">Übernehmen speichert <b>${teile}</b>.
             Ab dem Datum der Liste rechnet der Lohn jeden Monat BVG, auch bei wenig Stunden.
             <span style="color:#8b8b8b">Wer nicht auf der Liste steht, bleibt unverändert. Ein abweichendes Datum wird nicht überschrieben.</span></span>
@@ -216,9 +222,8 @@ async function gsbUebernehmen() {
         });
         if (!r.ok) { gsbFehler('Übernehmen fehlgeschlagen (' + r.status + ').'); return; }
         const j = await r.json();
-        _gsbUebernahme = [];
-        const bar = document.getElementById('gsbUebernahmeBar');
-        if (bar) bar.innerHTML = `<div style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;font-size:12.5px;color:#166534">✓ ${j.neu} festgelegt, ${j.beendet} beendet.</div>`;
+        _gsbErfolg = `${j.neu} festgelegt, ${j.beendet} beendet.`;
+        await gsbAnalyze({ behalteErfolg: true });
     } catch (e) {
         gsbFehler('Verbindung fehlgeschlagen: ' + e.message);
     } finally {
