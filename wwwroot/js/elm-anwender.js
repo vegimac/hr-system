@@ -991,17 +991,18 @@ function elmaListeZeichnen() {
         return `<tr>
             <td>${_elmaEsc(m.statusText || 'In Bearbeitung')}</td>
             <td>${_elmaEsc(domains.join(', ') || m.titel || '—')}</td>
-            <td>${_elmaEsc(empfaenger.join(', ') || '—')}</td>
-            <td>${hinweise.length ? _elmaEsc(hinweise.join(' · ')) : 'keine'}</td>
+            <td>${_elmaEsc(_elmaKurzListe(empfaenger))}</td>
+            <td>${hinweise.length ? _elmaEsc(hinweise.length === 1 ? hinweise[0] : hinweise.length + ' Hinweise') : 'keine'}</td>
             <td><button type="button" class="btn btn-secondary" onclick="elmaAnsehen('${_elmaEsc(m.id)}')">${offen ? 'Schliessen' : 'Öffnen'}</button></td>
-        </tr>${offen ? `<tr><td colspan="5">${_elmaUebersicht(m, mi)}</td></tr>` : ''}`;
+        </tr>`;
     }).join('');
     mitte.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Mitteilungen</div>
         <button type="button" class="btn btn-secondary" onclick="elmaAktualisieren()">Aktualisieren</button></div>
         ${hinweis}
         <table class="elma-mit"><thead><tr><th>Status</th><th>Domäne</th><th>Empfänger</th><th>Benachrichtigung</th><th>Aktion</th></tr></thead>
         <tbody>${zeilen || '<tr><td colspan="5">Keine Einträge gefunden</td></tr>'}</tbody></table>
-        ${_elmaAktionsleiste(alle.find(x => x.m.id === _elmaFokus) || alle[0])}`;
+        ${(_elmaFokus && alle.some(x => x.m.id === _elmaFokus)) ? (() => { const f = alle.find(x => x.m.id === _elmaFokus); return `<div class="elma-detail">${_elmaUebersicht(f.m, f.mi)}</div>`; })() : ''}
+        ${_elmaAktionsleiste(alle.find(x => x.m.id === _elmaFokus) || null)}`;
     verlauf.innerHTML = `<div class="elma-kicker">Mitteilungsverlauf</div>
         <table class="elma-mit"><thead><tr><th>Zeit</th><th>Meldung</th><th>Anzahl</th></tr></thead>
         <tbody>${alle.length ? alle.map(({ m }) => `<tr><td>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</td><td>${_elmaEsc(m.titel || '')}</td><td>${(m.empfaenger || []).length}</td></tr>`).join('') : '<tr><td colspan="3">Keine Datensätze gefunden.</td></tr>'}</tbody></table>`;
@@ -1062,22 +1063,22 @@ function _elmaUebersicht(m, mi) {
         <span>Übermittlungszeitpunkt</span><b>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</b>
         <span>DeclarationID</span><b>${_elmaEsc(m.declarationId || 'noch nicht vergeben')}</b>
         <span>Domäne</span><b>${_elmaEsc(domains.join(', ') || m.titel || '—')}</b>
-        <span>Empfänger</span><b>${_elmaEsc(empfaenger.join(', ') || '—')}</b>
-        <span>Benachrichtigungen</span><b>${hinweise.length ? hinweise.map(_elmaEsc).join(' · ') : 'keine'}</b>
-    </div>
-    <div class="elma-aktionen">
-        <button type="button" class="btn btn-primary" ${frei >= 0 ? '' : 'disabled'} onclick="elmaFreigeben(${mi}, ${frei})">Freigabe starten</button>
-        <button type="button" class="btn btn-secondary" onclick="elmaDialogHolen('${_elmaEsc(m.id)}')">DialogMessage abholen</button>
-        <button type="button" class="btn btn-secondary" ${quittung ? '' : 'disabled'} onclick="elmaQuittung('${_elmaEsc(m.id)}')">Quittung anzeigen</button>
-        ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmaErsetzen('${_elmaEsc(m.id)}')">Ersatzmeldung</button>` : ''}
+        <span>Empfänger</span><b>${_elmaEsc(_elmaKurzListe(empfaenger) === '—' ? '—' : _elmaKurzListe(empfaenger))}</b>
+        <span>Benachrichtigungen</span><b>${hinweise.length ? _elmaEsc(hinweise.length === 1 ? hinweise[0] : hinweise.length + ' Hinweise') : 'keine'}</b>
     </div>
     ${quittungText}
     ${_elmaDetailsInhalt(m, mi)}`;
 }
 
 function elmaAnsehen(id) {
-    _elmaFokus = id;
+    _elmaFokus = _elmaFokus === id ? null : id;
     elmaListeZeichnen();
+}
+
+function _elmaKurzListe(arr) {
+    if (!arr.length) return '—';
+    if (arr.length <= 2) return arr.join(', ');
+    return `${arr[0]} und ${arr.length - 1} weitere`;
 }
 
 function _elmaFokusMeldung() {
@@ -1131,13 +1132,7 @@ function elmaKommZeichnen() {
     const m = _elmaFlug ? null : _elmaFokusMeldung();
     const phase = _elmaPhaseVon(_elmaFlug ? null : m);
     const box = document.getElementById('elmaSteps');
-    if (box) {
-        box.innerHTML = phase.schritte.map((v, i) => {
-            const cls = i < phase.index ? ' done' : (i === phase.index && phase.laufend ? ' current' : '');
-            const num = i < phase.index ? '✓' : String(i + 1).padStart(2, '0');
-            return `<div class="elma-step${cls}"><div class="elma-stepnum">${num}</div><strong>${v[0]}</strong><small>${v[1]}</small></div>`;
-        }).join('');
-    }
+    if (box) box.innerHTML = '';
     const bar = document.getElementById('elmaBar');
     if (bar) bar.style.width = (phase.index / phase.schritte.length * 100) + '%';
     _elmaText('elmaProgTitel', phase.titel);
@@ -1165,13 +1160,9 @@ function elmaKommZeichnen() {
 
     const log = document.getElementById('elmaKomm');
     if (!log) return;
-    const zeilen = [];
-    if (_elmaFlug) zeilen.push({ zeit: '', text: 'OneCrew öffnet die Leitung, unterschreibt und verschlüsselt.' });
-    (m?.verlauf || []).forEach(p => zeilen.push({ zeit: _elmaUhr(p.zeit), text: _elmaKommSatz(p.schritt) }));
-    if (m && _elmaBrauchtNutzer(m)) zeilen.unshift({ zeit: '', text: 'Ein Empfänger wartet auf Angaben. Die Felder stehen in der Mitte.' });
-    log.innerHTML = zeilen.length
-        ? zeilen.map(z => `<div class="elma-logline"><time>${_elmaEsc(z.zeit || '—')}</time><span>${_elmaEsc(z.text)}</span></div>`).join('')
-        : '<div class="elma-logline"><time>—</time><span>Noch nichts gesendet. Links eine Meldung wählen, dann prüfen.</span></div>';
+    const text = _elmaFlug ? 'Die Meldung geht an Swissdec.' : (letzt ? _elmaKommSatz(letzt.schritt) : phase.titel);
+    const zeit = letzt && !_elmaFlug ? _elmaUhr(letzt.zeit) : '';
+    log.innerHTML = `<div class="elma-logline"><time>${_elmaEsc(zeit || '—')}</time><span>${_elmaEsc(text)}</span></div>`;
 }
 
 let _elmaLageKey = '';
@@ -1283,9 +1274,10 @@ function _elmaZeile(m, mi) {
 
 function _elmaDetailsInhalt(m, mi) {
     const teile = (m.empfaenger || []).map((e, ei) => _elmaEmpfaenger(m, mi, e, ei)).filter(Boolean);
-    if (!teile.length)
-        return '<div style="font-size:13px;color:#646464;padding-top:4px">Nichts zu tun. OneCrew erledigt den Rest.</div>';
-    return teile.join('');
+    const abgelehnt = (m.empfaenger || []).filter(e => e.stufe === 'rot').length;
+    const zeile = abgelehnt ? `<div style="font-size:13px;color:#991b1b;margin-top:8px">${abgelehnt} Empfänger nicht angenommen.</div>` : '';
+    if (!teile.length) return zeile;
+    return teile.join('') + zeile;
 }
 
 function _elmaEmpfaenger(m, mi, e, ei) {
@@ -1295,8 +1287,7 @@ function _elmaEmpfaenger(m, mi, e, ei) {
         const qs = (n.dialog.absaetze || []).filter(p => p.istFrage);
         if (qs.length) runden.push({ ni, qs });
     });
-    const abgelehnt = e.stufe === 'rot';
-    if (!runden.length && !e.freigabeUrl && !abgelehnt) return '';
+    if (!runden.length && !e.freigabeUrl) return '';
     const felder = runden.map(({ ni, qs }) => qs.map(p => {
         const id = `elmaDlg-${mi}-${ei}-${ni}-${p.id}`;
         return `<label style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:12px">
@@ -1310,7 +1301,6 @@ function _elmaEmpfaenger(m, mi, e, ei) {
         : '';
     return `<div style="padding:10px 0;border-top:1px solid rgba(60,55,48,0.10)">
         <div style="font-size:13px;color:#3f3f3f"><b>${_elmaEsc(e.name)}</b></div>
-        ${abgelehnt ? '<div style="font-size:13px;color:#991b1b;margin-top:4px">Nicht angenommen.</div>' : ''}
         ${runden.length ? '<div style="font-size:13px;color:#646464;margin-top:4px">Bitte die Felder ausfüllen.</div>' : ''}
         ${felder}${freigabe}
     </div>`;

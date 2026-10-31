@@ -14768,7 +14768,10 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-panelhead { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 #page-elm-anwender .elma-panelhead h2 { margin: 4px 0 0; font-size: 18px; font-weight: 600; color: #3f3f3f; }
 #page-elm-anwender .elma-pill { padding: 7px 12px; border-radius: 99px; border: 1px solid rgba(60, 55, 48, 0.18); background: rgba(255, 255, 255, 0.55); color: #3f3f3f; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
-#page-elm-anwender .elma-stage { position: relative; height: 210px; margin-top: 16px; border-radius: 14px; overflow: hidden; border: 1px solid rgba(60, 55, 48, 0.12); background: radial-gradient(circle at 50% 46%, #f7f4ee 0%, #efeae0 42%, #e6e1d6 100%); }
+#page-elm-anwender .elma-stage { position: relative; height: 128px; margin-top: 0; border-radius: 14px; overflow: hidden; border: 1px solid rgba(60, 55, 48, 0.12); background: radial-gradient(circle at 50% 46%, #f7f4ee 0%, #efeae0 42%, #e6e1d6 100%); }
+#page-elm-anwender .elma-steps,
+#page-elm-anwender .elma-bar,
+#page-elm-anwender .elma-progresshead { display: none; }
 #page-elm-anwender .elma-stage:before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(60,55,48,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(60,55,48,0.05) 1px, transparent 1px); background-size: 28px 28px; }
 #page-elm-anwender .elma-beam { position: absolute; left: 28%; right: 28%; top: 50%; height: 2px; margin-top: -1px; background: rgba(60,55,48,0.22); border-radius: 2px; z-index: 1; overflow: hidden; }
 #page-elm-anwender .elma-stage:not(.paused) .elma-beam:after { content: ""; position: absolute; top: -3px; bottom: -3px; width: 46%; left: -46%; background: linear-gradient(90deg, transparent, rgba(63,63,63,0.9), transparent); animation: elmaSweep 2.4s ease-in-out infinite; }
