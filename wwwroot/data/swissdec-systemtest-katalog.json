@@ -2279,12 +2279,12 @@
       "erwartet": "Die Erfassungsmaske muss wie folgt geprüft werden: - Prüfen ob ein Arbeitnehmer als \"verliehenes Personal\" gekennzeichnet werden kann. - Prüfen ob ein Arbeitnehmer als \"Stammpersonal in öffentlichen Verwaltungen\" gekennzeichnet werden kann. - Prüfen ob auf dem Arbeitnehmer ein flexibles Feld für das Profiling verfügbar ist.",
       "hintergrund": "Während der Buchungskreis (PayrollUnit) auf Seiten vom BFS dafür verwendet wird, Übermittlungen aus mehreren ERP-Systemen zusammenzuführen, ermöglicht das Flexible Feld für das Profiling (FlexProfiling) dem BFS die Mitarbeiter einer Unternehmung innerhalb von einem ERP-System auf mehrere Grup-pen aufzuteilen. Diese Variable kann nur ausgefüllt werden, wenn im Voraus eine entsprechende Abmachung im Rahmen des Profilings zwischen dem BFS und dem Unternehmen vereinbart wurde.",
       "direktive": "12.3.5",
-      "stand": "offen",
-      "kommentarQt": "",
+      "stand": "vorhanden",
+      "kommentarQt": "Mitarbeiter, Tab «Training, Verfügbar, Statistik», Karte Statistik. Häkchen «Verliehenes Personal», Häkchen «Stammpersonal in öffentlichen Verwaltungen», Feld «Profiling» (nur, wenn das BFS es vereinbart hat). Speichern. Die Lohnrechnung liest die Felder nicht; gesetzt gehen sie in die Statistik-Meldung.",
       "notiz": "",
-      "gebaut": false,
+      "gebaut": true,
       "seite": "mitarbeiter",
-      "seiteLabel": "Mitarbeiter",
+      "seiteLabel": "Mitarbeiter · Statistik",
       "aktionen": [
         {
           "label": "Öffnen: Mitarbeiter",
