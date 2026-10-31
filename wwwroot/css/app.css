@@ -12638,18 +12638,80 @@ body.theme-dark .sys-back-btn {
     line-height: 1.35;
 }
 
-/* Lohnausweis-Vorschau: deutlich erkennbare Eingabefelder (Walter 16.08.2026) */
+/* Lohnausweis-Vorschau: ov-Eingabemaske (warme Karte, weisse Felder, Kohle-Knopf). */
+#laPreviewModal .la-maske {
+    position: absolute; top: 72px; left: 5vw; right: 5vw; bottom: 3vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    border-radius: 16px;
+    background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+    box-shadow: 0 24px 50px rgba(60,55,48,0.22);
+}
+#laPreviewModal .la-kopf,
+#laPreviewModal .la-fuss {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 20px;
+}
+#laPreviewModal .la-fuss { justify-content: flex-end; border-top: 1px solid rgba(60,55,48,0.10); }
+#laPreviewModal .la-titel { font-size: 15px; font-weight: 700; color: #3f3f3f; }
+#laPreviewModal .la-sub { font-size: 12px; color: #8b8b8b; margin-top: 2px; }
+#laPreviewModal .la-body { flex: 1; overflow: auto; padding: 8px 22px 18px; }
+#laPreviewModal #laFormGrid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px;
+    max-width: 880px; margin: 0 auto;
+}
+#laPreviewModal .la-abschnitt {
+    grid-column: 1 / -1;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    color: #8b8b8b; margin: 10px 0 0;
+}
+#laPreviewModal .la-feld { display: block; font-size: 12px; color: #646464; }
+#laPreviewModal .la-feld > span { display: block; margin-bottom: 4px; }
 #laPreviewModal .la-inp,
 #laPreviewModal textarea {
-    border: 1px solid #b8b2a7;
-    background: #fbfaf7;
+    display: block; box-sizing: border-box;
+    background: #fff; color: #3f3f3f;
+    border: 1px solid rgba(255,255,255,0.95); border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);
+    padding: 7px 10px; font-size: 13px; font-family: inherit;
 }
 #laPreviewModal .la-inp:focus,
 #laPreviewModal textarea:focus {
-    outline: none;
-    border-color: #3f3f3f;
-    background: #fff;
+    outline: none; border-color: #3f3f3f;
     box-shadow: 0 0 0 3px rgba(63,63,63,0.10);
+}
+#laPreviewModal .la-geld { width: 9.5rem; }
+#laPreviewModal .la-kurz { width: 8.5rem; }
+#laPreviewModal .la-ahv { width: 16rem; }
+#laPreviewModal .la-text { width: 16rem; max-width: 100%; }
+#laPreviewModal .la-breit { width: 22rem; max-width: 100%; }
+#laPreviewModal .la-area { width: 28rem; max-width: 100%; resize: vertical; }
+#laPreviewModal .la-check {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: #3f3f3f; cursor: pointer;
+    background: transparent; border: 1px solid rgba(60,55,48,0.20);
+    border-radius: 12px; padding: 8px 12px;
+}
+#laPreviewModal .la-kohle,
+#laPreviewModal .la-glas {
+    border-radius: 12px; padding: 8px 16px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+}
+#laPreviewModal .la-kohle {
+    background: #3f3f3f; color: #fff; border: none;
+    box-shadow: 0 6px 16px rgba(60,55,48,0.18);
+}
+#laPreviewModal .la-kohle:hover { background: #1a1a1a; }
+#laPreviewModal .la-glas {
+    background: rgba(255,255,255,0.55); color: #3f3f3f;
+    border: 1px solid rgba(255,255,255,0.72);
+}
+#laPreviewModal .la-glas:hover { background: rgba(255,255,255,0.8); }
+body.theme-dark #laPreviewModal .la-maske { background: #2c2a28; }
+body.theme-dark #laPreviewModal .la-titel,
+body.theme-dark #laPreviewModal .la-check { color: #f3f1ec; }
+body.theme-dark #laPreviewModal .la-inp,
+body.theme-dark #laPreviewModal textarea {
+    background: #1e1c1a; color: #f3f1ec; border-color: rgba(255,255,255,0.16);
 }
 
 /* ── Lohnschema-Seite (Walter 17.08.2026): kompakte Tabelle, gruppiert nach Art.

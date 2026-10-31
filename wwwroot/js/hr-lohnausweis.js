@@ -179,29 +179,23 @@ function laRenderForm() {
 
     // Sektionen: Header / Beträge / Bemerkungen / Bestätigung
     grid.innerHTML = `
-      <div style="grid-column:1 / -1">
-        <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f1f5f9">EMPFÄNGER &amp; PERIODE</div>
-      </div>
+      <div class="la-abschnitt">EMPFÄNGER &amp; PERIODE</div>
 
       ${laTextarea('empfaengerAdresse', 'Empfänger-Adresse (Mitarbeiter)', d.empfaengerAdresse, 3)}
       ${laTextarea('mitarbeiterNameAdresse', 'Ziffer D — Name + Adresse', d.mitarbeiterNameAdresse, 3)}
-      ${laInput('ahvNummer', 'Ziffer C — AHV-Nummer (756.XXXX.XXXX.XX)', d.ahvNummer)}
-      ${laInput('geburtsdatum', 'Ziffer C — Geburtsdatum (dd.mm.yyyy)', d.geburtsdatum)}
-      ${laInput('periodeVon', 'Ziffer E — Periode von', d.periodeVon)}
-      ${laInput('periodeBis', 'Ziffer E — Periode bis', d.periodeBis)}
+      ${laInput('ahvNummer', 'Ziffer C — AHV-Nummer (756.XXXX.XXXX.XX)', d.ahvNummer, 'la-ahv')}
+      ${laInput('geburtsdatum', 'Ziffer C — Geburtsdatum (dd.mm.yyyy)', d.geburtsdatum, 'la-kurz')}
+      ${laInput('periodeVon', 'Ziffer E — Periode von', d.periodeVon, 'la-kurz')}
+      ${laInput('periodeBis', 'Ziffer E — Periode bis', d.periodeBis, 'la-kurz')}
       ${laInput('heimatort', 'Ziffer I — Heimatort', d.heimatort)}
 
-      <div style="grid-column:1 / -1">
-        <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">CHECKBOXEN</div>
-      </div>
+      <div class="la-abschnitt">CHECKBOXEN</div>
       ${laCheckbox('istGanzesJahr', 'Ganzes Jahr beschäftigt', d.istGanzesJahr)}
       ${laCheckbox('istLohnausweis', 'Buchstabe A — Lohnausweis (aus = Rentenbescheinigung, Buchstabe B)', d.istLohnausweis)}
       ${laCheckbox('boxFFreierTransport', 'Box F — Unentgeltliche Beförderung Wohn-/Arbeitsort', d.boxFFreierTransport)}
       ${laCheckbox('boxGKantineGratis', 'Box G — Kantinenverpflegung gratis', d.boxGKantineGratis)}
 
-      <div style="grid-column:1 / -1">
-        <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">LOHN (Ziffer 1–8)</div>
-      </div>
+      <div class="la-abschnitt">LOHN (Ziffer 1–8)</div>
       ${laMoney('ziffer1Lohn', 'Ziffer 1 — Lohn', d.ziffer1Lohn)}
       ${laMoney('ziffer21VerpflegungUnterkunft', 'Ziffer 2.1 — Verpflegung/Unterkunft', d.ziffer21VerpflegungUnterkunft)}
       ${laMoney('ziffer22PrivatanteilFahrzeug', 'Ziffer 2.2 — Privatanteil Fahrzeug', d.ziffer22PrivatanteilFahrzeug)}
@@ -217,18 +211,14 @@ function laRenderForm() {
       ${laInput('ziffer7Art', 'Ziffer 7 — Art', d.ziffer7Art)}
       ${laMoney('ziffer8BruttoTotal', 'Ziffer 8 — Bruttoeinkommen Total', d.ziffer8BruttoTotal)}
 
-      <div style="grid-column:1 / -1">
-        <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">ABZÜGE (Ziffer 9–12)</div>
-      </div>
+      <div class="la-abschnitt">ABZÜGE (Ziffer 9–12)</div>
       ${laMoney('ziffer9AhvIvEoAlvNbu', 'Ziffer 9 — AHV/IV/EO/ALV/NBU', d.ziffer9AhvIvEoAlvNbu)}
       ${laMoney('ziffer101BvgOrdentlich', 'Ziffer 10.1 — BVG ordentlich', d.ziffer101BvgOrdentlich)}
       ${laMoney('ziffer102BvgEinkauf', 'Ziffer 10.2 — BVG Einkauf', d.ziffer102BvgEinkauf)}
       ${laMoney('ziffer11Nettolohn', 'Ziffer 11 — Nettolohn', d.ziffer11Nettolohn)}
       ${laMoney('ziffer12Quellensteuer', 'Ziffer 12 — Quellensteuer-Abzug', d.ziffer12Quellensteuer)}
 
-      <div style="grid-column:1 / -1">
-        <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">SPESENVERGÜTUNGEN (Ziffer 13)</div>
-      </div>
+      <div class="la-abschnitt">SPESENVERGÜTUNGEN (Ziffer 13)</div>
       ${laCheckbox('ziffer1311EffektivOhneBeleg', 'Ziffer 13.1.1 — Spesen effektiv ohne Beleg', d.ziffer1311EffektivOhneBeleg)}
       ${laMoney('ziffer1311SpesenEffektivBetrag', 'Ziffer 13.1.1 — Betrag', d.ziffer1311SpesenEffektivBetrag)}
       ${laMoney('ziffer1312SpesenPauschal', 'Ziffer 13.1.2 — Spesen pauschal', d.ziffer1312SpesenPauschal)}
@@ -239,52 +229,46 @@ function laRenderForm() {
       ${laInput('ziffer1323Art', 'Ziffer 13.2.3 — Art', d.ziffer1323Art)}
       ${laMoney('ziffer133AusWeiterbildung', 'Ziffer 13.3 — Aus-/Weiterbildung', d.ziffer133AusWeiterbildung)}
 
-      <div style="grid-column:1 / -1">
-        <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">BEMERKUNGEN (Ziffer 14 + 15 — 4 Zeilen)</div>
-      </div>
-      ${laInput('ziffer141Bemerkungen', 'Bemerkung Zeile 1', d.ziffer141Bemerkungen)}
-      ${laInput('ziffer142Bemerkungen', 'Bemerkung Zeile 2', d.ziffer142Bemerkungen)}
-      ${laInput('ziffer151Bemerkungen', 'Bemerkung Zeile 3', d.ziffer151Bemerkungen)}
-      ${laInput('ziffer152Bemerkungen', 'Bemerkung Zeile 4', d.ziffer152Bemerkungen)}
+      <div class="la-abschnitt">BEMERKUNGEN (Ziffer 14 + 15 — 4 Zeilen)</div>
+      ${laInput('ziffer141Bemerkungen', 'Bemerkung Zeile 1', d.ziffer141Bemerkungen, 'la-breit')}
+      ${laInput('ziffer142Bemerkungen', 'Bemerkung Zeile 2', d.ziffer142Bemerkungen, 'la-breit')}
+      ${laInput('ziffer151Bemerkungen', 'Bemerkung Zeile 3', d.ziffer151Bemerkungen, 'la-breit')}
+      ${laInput('ziffer152Bemerkungen', 'Bemerkung Zeile 4', d.ziffer152Bemerkungen, 'la-breit')}
 
-      <div style="grid-column:1 / -1">
-        <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:8px 0 4px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">ORT, DATUM &amp; UNTERSCHRIFT</div>
-      </div>
+      <div class="la-abschnitt">ORT, DATUM &amp; UNTERSCHRIFT</div>
       ${laInput('ziffer151Ort', 'Ort und Datum — Ort', d.ziffer151Ort)}
-      ${laInput('ziffer152Datum', 'Ort und Datum — Datum (dd.mm.yyyy)', d.ziffer152Datum)}
+      ${laInput('ziffer152Datum', 'Ort und Datum — Datum (dd.mm.yyyy)', d.ziffer152Datum, 'la-kurz')}
       ${laTextarea('bestaetigungAgBlock', 'Bestätigungs-Block AG (UID, Firma, Adresse)', d.bestaetigungAgBlock, 4)}
     `;
 }
 
 // ── Form-Helper ───────────────────────────────────────────────────────
-function laInput(name, label, value) {
+function laInput(name, label, value, breite) {
     const v = (value ?? '');
-    return `<label style="font-size:11.5px;color:#475569;display:block">
-        <span style="display:block;margin-bottom:2px">${label}</span>
+    return `<label class="la-feld">
+        <span>${label}</span>
         <input type="text" id="la_${name}" value="${laEscape(String(v))}"
-               class="la-inp" style="width:100%;padding:4px 9px;border-radius:7px;font-size:12.5px">
+               class="la-inp ${breite || 'la-text'}">
     </label>`;
 }
 function laMoney(name, label, value) {
     const v = (value ?? '');
-    return `<label style="font-size:11.5px;color:#475569;display:block">
-        <span style="display:block;margin-bottom:2px">${label}</span>
+    return `<label class="la-feld">
+        <span>${label}</span>
         <input type="number" step="0.01" id="la_${name}" value="${v === null || v === undefined ? '' : v}"
-               class="la-inp" style="width:100%;padding:4px 9px;border-radius:7px;font-size:12.5px">
+               class="la-inp la-geld">
     </label>`;
 }
 function laTextarea(name, label, value, rows) {
     const v = (value ?? '');
-    return `<label style="font-size:12px;color:#475569;display:block;grid-column:1 / -1">
-        <span style="display:block;margin-bottom:3px">${label}</span>
-        <textarea id="la_${name}" rows="${rows||2}"
-               style="width:100%;padding:4px 9px;border:1px solid #b8b2a7;border-radius:7px;font-size:12.5px;background:white;font-family:inherit;resize:vertical">${laEscape(String(v))}</textarea>
+    return `<label class="la-feld" style="grid-column:1 / -1">
+        <span>${label}</span>
+        <textarea id="la_${name}" rows="${rows||2}" class="la-area">${laEscape(String(v))}</textarea>
     </label>`;
 }
 function laCheckbox(name, label, value) {
-    return `<label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input type="checkbox" id="la_${name}" ${value ? 'checked' : ''}
-               style="width:16px;height:16px;cursor:pointer">
+    return `<label class="la-check">
+        <input type="checkbox" id="la_${name}" ${value ? 'checked' : ''}>
         <span>${label}</span>
     </label>`;
 }
