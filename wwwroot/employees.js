@@ -1546,16 +1546,6 @@ function renderEmployeeDetail(emp) {
                  Vertragsmodells als read-only-Chips, gerendert von
                  loadLohnschemaBlockForModel() in js/lohnschema.js -->
             <div id="empLohnschemaBlock"></div>
-            <!-- Uniformen-Depot (Walter Aug 2026) -->
-            <div class="emp-section-title" style="display:flex;align-items:center;gap:8px" title="CHF 50 beim 1. Lohn · Rückerstattung bei ordentlichem Austritt">
-                <span>Uniformen-Depot</span>
-            </div>
-            <div id="uniformDepotContent">
-                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
-            </div>
-
-            <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
-
             <!-- Bereich 1: Wiederkehrende Zulagen & Abzüge
                  Walter 29.08.2026 (kompakt): +-Pille + History-Pille in der
                  Titelzeile (Muster Bewilligungen/permHistPill), Hint = Tooltip. -->
@@ -1669,6 +1659,16 @@ function renderEmployeeDetail(emp) {
                 </span>
             </div>
             <div id="bvgZusatzContent">
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
+            </div>
+
+            <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
+
+            <!-- Uniformen-Depot ans Ende (Walter 31.10.2026) -->
+            <div class="emp-section-title" style="display:flex;align-items:center;gap:8px" title="CHF 50 beim 1. Lohn · Rückerstattung bei ordentlichem Austritt">
+                <span>Uniformen-Depot</span>
+            </div>
+            <div id="uniformDepotContent">
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
             </div>
         </div>
