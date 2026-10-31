@@ -101,13 +101,12 @@ function _elmaPille(stufe, text) {
 
 function elmAnwenden(art) {
     const erlaubt = ['monthly', 'annual', 'grenz-it', 'grenz-fr', 'grenz-sfn'];
-    window._elmaArt = erlaubt.includes(art) ? art : 'monthly';
+    window._elmaArt = erlaubt.includes(art) ? art : null;
     showPage('elm-anwender');
 }
 
 function elmaZurueck() {
     showPage('hr-hub');
-    if (typeof hrHubShowCat === 'function') hrHubShowCat('elm');
 }
 
 let _elmaCert = null;
