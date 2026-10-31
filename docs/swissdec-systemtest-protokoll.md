@@ -37,9 +37,9 @@ Quellen (Walter 16.10.2026):
 | S_ELM_V6_01 | Unternehmen | 15 | **15** | bewertbar |
 | S_ELM_V6_02 | Angaben zu Datenempfängern | 25 | **25** | bewertbar |
 | S_ELM_V6_03 | Personendaten | 59 | **58** | S03_03_03 Landwirtschaft entfällt |
-| S_ELM_V6_04 | Prozessuale Testfälle | 13 | **11** | DocID und Rektifikat noch nicht bewertbar |
+| S_ELM_V6_04 | Prozessuale Testfälle | 13 | **13** | bewertbar |
 | S_ELM_V6_05 | Cockpit Testfälle | 11 | **7** | Portal-Freigabe, Mitteilungen, Aufgaben noch nicht |
-| **Total ERP** | | **123** | **116** | |
+| **Total ERP** | | **123** | **118** | |
 
 ### Systemtest Tech (Run 26667)
 
@@ -1208,6 +1208,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 #### S_ELM_V6_04_02_01 Umgang mit der DocID auf dem Lohnausweis ⬜ offen
 
+**Notiz (31.10.2026, fürs Quality Tool):** Entwurf trägt «Entwurf - Brouillon - Bozza». «Final erzeugen» vergibt DocID und Erstellungsdatum. Wiederdruck = dieselbe DocID.
+
 **Directive** 9.1.5
 
 **Beschreibung:** Umgang mit der DocID auf dem Lohnausweis Mit der UUID (eine weltweit eindeutige Identifikationsnummer) als DocID wird der Lohnausweis auch im Lohnstandard als weltweit einzigartige Urkunde behandelt. Dieser “Urkunden-Charakter” hat zur Folge, dass in einem ERP-System Prozesse geschaffen werden müssen, die der neuen Anforderung gerecht werden.
@@ -1216,6 +1218,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 
 #### S_ELM_V6_04_02_02 Korrektur von Lohnausweisen ⬜ offen
+
+**Notiz (31.10.2026, fürs Quality Tool):** Rektifikat = eine Person, neue DocID, Ziffer 15 verweist auf die bisherige. Ersatzmeldung = alle finalen Ausweise der Filiale. Nachzahlung nach dem 31.12. ist kein Rektifikat.
 
 **Directive** 9.1.6
 
