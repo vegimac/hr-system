@@ -2722,16 +2722,16 @@
       "hintergrund": "Mit der DocID wird sichergestellt, dass jeder Lohnausweis als Urkunde behandelt wird. Dieser Urkunden- Charakter mit dem Identifikationsmerkmal \"DocID\" ermöglicht es dem Betrachter, einen Lohnausweis eindeutig zu identifizieren. Damit werden Doppelbesteuerungen und ähnliche Problematiken aufgrund von Misverständnissen verhindert. Zudem wird der Lohnausweis Generierungs-Prozess in den ERP-Systemen angepasst und damit die Nutzer in der Handhabung der Urkunde unterstützt.",
       "direktive": "9.1.5",
       "stand": "vorhanden",
-      "kommentarQt": "Mitarbeiter, Tab Lohnausweis. Entwurf: auf dem Ausweis steht «Entwurf - Brouillon - Bozza», noch keine DocID. «Final erzeugen»: DocID (UUID) und Erstellungsdatum werden fest vergeben und stehen auf der Urkunde. Ein späterer Ausdruck desselben Ausweises trägt dieselbe DocID.",
+      "kommentarQt": "HR-Hub, Lohnausweis. Entwurf: auf dem Ausweis steht «Entwurf - Brouillon - Bozza», noch keine DocID. «Final erzeugen»: DocID (UUID) und Erstellungsdatum werden fest vergeben und stehen auf der Urkunde. Ein späterer Ausdruck desselben Ausweises trägt dieselbe DocID.",
       "notiz": "",
       "gebaut": true,
-      "seite": "mitarbeiter",
-      "seiteLabel": "Mitarbeiter · Lohnausweis",
+      "seite": "lohnausweis",
+      "seiteLabel": "HR Hub Lohnausweis",
       "aktionen": [
         {
-          "label": "Öffnen: Mitarbeiter · Lohnausweis",
+          "label": "Öffnen: HR Hub Lohnausweis",
           "art": "seite",
-          "seite": "mitarbeiter"
+          "seite": "lohnausweis"
         }
       ]
     },
@@ -2748,16 +2748,16 @@
       "hintergrund": "Korrekturen von Lohnausweisen (inkl. Beiblätter für Mitarbeiterbeteiligungen) sowie Rentenbescheinigungen können notwendig werden, wenn das Unternehmen oder der Beschäftigte einen Fehler feststellt. Solche zu korrigierenden Fehler liegen vor, wenn ein im Lohnausweis bescheinigter Umstand nicht mit den tatsächlichen Verhältnissen am 31.12. des entsprechenden Jahres übereinstimmt (z.B. fehlende oder falsche Bemerkungen in Ziffer 15, falsche Zuweisung von Lohnarten zu Ziffern im Lohnausweis). Hingegen darf keine Korrektur vorgenommen werden, wenn nachträglich die Lohnabrechnung korrigiert wird (z.B. Nachzahlung von Kinder- oder anderen Zulagen, rückwirkende Lohnerhöhung). Solche Nachzahlungen fliessen in den Lohnausweis des aktuellen Jahres (Realisierungsprinzip).",
       "direktive": "9.1.6",
       "stand": "vorhanden",
-      "kommentarQt": "Mitarbeiter, Tab Lohnausweis, ein finaler Ausweis. «Rektifikat» vergibt eine neue DocID. In Ziffer 15 stehen die bisherige DocID und das bisherige Erstellungsdatum. «Ersatzmeldung» macht dasselbe für alle finalen Lohnausweise der Filiale im gewählten Jahr. Eine Nachzahlung nach dem 31.12. kommt in den Lohnausweis des Auszahlungsjahres, sie ist kein Rektifikat.",
+      "kommentarQt": "HR-Hub, Lohnausweis, ein finaler Ausweis. «Rektifikat» vergibt eine neue DocID. In Ziffer 15 stehen die bisherige DocID und das bisherige Erstellungsdatum. «Ersatzmeldung» macht dasselbe für alle finalen Lohnausweise der Filiale im gewählten Jahr. Eine Nachzahlung nach dem 31.12. kommt in den Lohnausweis des Auszahlungsjahres, sie ist kein Rektifikat.",
       "notiz": "",
       "gebaut": true,
-      "seite": "mitarbeiter",
-      "seiteLabel": "Mitarbeiter · Lohnausweis",
+      "seite": "lohnausweis",
+      "seiteLabel": "HR Hub Lohnausweis",
       "aktionen": [
         {
-          "label": "Öffnen: Mitarbeiter · Lohnausweis",
+          "label": "Öffnen: HR Hub Lohnausweis",
           "art": "seite",
-          "seite": "mitarbeiter"
+          "seite": "lohnausweis"
         }
       ]
     },
