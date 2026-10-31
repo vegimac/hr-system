@@ -14898,6 +14898,33 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
     background-repeat: no-repeat; background-position: center; background-size: 12px 12px;
 }
 #page-elm-anwender .elma-split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.9fr); gap: 16px; margin-top: 16px; }
+#page-elm-anwender .elma-mission,
+#page-elm-anwender .elma-unten { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr); gap: 16px; margin-top: 16px; align-items: start; }
+#page-elm-anwender #elmaBuehne .elma-logline { justify-content: center; }
+#page-elm-anwender .elma-schrittzeile { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center; margin-top: 12px; }
+#page-elm-anwender .elma-schritt { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #8b8b8b; }
+#page-elm-anwender .elma-schritt i { font-style: normal; width: 14px; text-align: center; }
+#page-elm-anwender .elma-schritt.fertig { color: #166534; }
+#page-elm-anwender .elma-schritt.jetzt { background: #166534; color: #fff; border-radius: 999px; padding: 4px 10px; }
+#page-elm-anwender .elma-panelhead .lqsel-wrap { min-width: 12rem; }
+#page-elm-anwender .elma-panelhead .lqsel-btn { background: transparent; border: 0; box-shadow: none; font-size: 20px; font-weight: 650; color: #3f3f3f; padding: 0 4px 0 0; min-height: 0; }
+#page-elm-anwender select.elma-artsicht { font-size: 20px; font-weight: 650; color: #3f3f3f; border: 0; background: transparent; }
+#page-elm-anwender .elma-domcols.elma-domcols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#page-elm-anwender .elma-check input { accent-color: #3f3f3f; }
+#page-elm-anwender .elma-hinweis { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; }
+#page-elm-anwender .elma-hinweis b { display: block; font-size: 13px; color: #3f3f3f; }
+#page-elm-anwender .elma-hinweis p { margin: 2px 0 0; font-size: 12px; color: #646464; }
+#page-elm-anwender .elma-hinweis .btn { flex: 0 0 auto; }
+#page-elm-anwender .elma-hinweis-rot { background: rgba(220, 38, 38, 0.10); }
+#page-elm-anwender .elma-hinweis-warn { background: rgba(217, 119, 6, 0.14); }
+#page-elm-anwender .elma-hinweis-info { background: rgba(60, 55, 48, 0.06); }
+#page-elm-anwender td .elma-aktionen { margin-top: 0; }
+#page-elm-anwender .elma-schalter { position: relative; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #3f3f3f; cursor: pointer; }
+#page-elm-anwender .elma-controls .elma-schalter input { position: absolute; opacity: 0; width: 36px; height: 22px; margin: 0; padding: 0; box-shadow: none; }
+#page-elm-anwender .elma-schalter i { width: 36px; height: 22px; border-radius: 99px; background: #d9d4cb; display: inline-block; position: relative; flex: 0 0 auto; }
+#page-elm-anwender .elma-schalter i:before { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s ease; }
+#page-elm-anwender .elma-schalter input:checked + i { background: #3f3f3f; }
+#page-elm-anwender .elma-schalter input:checked + i:before { transform: translateX(14px); }
 #page-elm-anwender #elmaVerlauf, #page-elm-anwender #elmaBuehne { margin-top: 16px; }
 #page-elm-anwender .elma-domcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; }
 #page-elm-anwender .elma-check { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; font-size: 13px; color: #3f3f3f; }
@@ -14920,7 +14947,10 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 @media (max-width: 980px) {
     #page-elm-anwender .elma-homegrid,
     #page-elm-anwender .elma-split,
+    #page-elm-anwender .elma-mission,
+    #page-elm-anwender .elma-unten,
     #page-elm-anwender .elma-domcols,
+    #page-elm-anwender .elma-domcols-4,
     #page-elm-anwender .elma-kacheln { grid-template-columns: 1fr; }
 }
 #page-elm-anwender .elma-empfaenger { margin-top: 16px; }
@@ -14956,6 +14986,7 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender table.elma-bvg th, #page-elm-anwender table.elma-bvg td { text-align: left; padding: 4px 10px 4px 0; }
 #page-elm-anwender table.elma-bvg input { width: 8rem; }
 @media (max-width: 1180px) {
+    #page-elm-anwender .elma-domcols.elma-domcols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #page-elm-anwender .elma-layout { grid-template-columns: 210px minmax(0, 1fr); }
     #page-elm-anwender .elma-right { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
     #page-elm-anwender .elma-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -14964,7 +14995,9 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
     #page-elm-anwender .elma-cockpit { padding: 72px 14px 24px; }
     #page-elm-anwender .elma-head { display: block; }
     #page-elm-anwender .elma-connection { justify-content: flex-start; margin-top: 12px; }
-    #page-elm-anwender .elma-layout, #page-elm-anwender .elma-right { grid-template-columns: 1fr; }
+    #page-elm-anwender .elma-layout, #page-elm-anwender .elma-right,
+    #page-elm-anwender .elma-mission, #page-elm-anwender .elma-unten,
+    #page-elm-anwender .elma-domcols.elma-domcols-4 { grid-template-columns: 1fr; }
     #page-elm-anwender .elma-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #page-elm-anwender .elma-hub { width: 22%; }
     #page-elm-anwender .elma-hub img { max-height: 28px; }
