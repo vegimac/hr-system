@@ -267,22 +267,26 @@ public class EmployeeVersicherungCodeController : ControllerBase
 
     private async Task<string?> PruefeUvgVersichererAsync(int employeeId, UpsertDto dto)
     {
-        if (dto.Art != "UVG" || dto.EmpfaengerId is not int id) return null;
+        if (dto.Art != "UVG") return null;
+        var branchId = await GetEmployeeBranchAsync(employeeId);
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        var offen = await OffeneUvgVersichererAsync(branchId, heute);
+        var fehlt = UvgMehrereVersicherer.ZuweisungFehlt(offen.Count, dto.EmpfaengerId);
+        if (fehlt != null) return fehlt;
+        if (dto.EmpfaengerId is not int id) return null;
         var art = await _db.LohndatenEmpfaengers.AsNoTracking()
             .Where(e => e.Id == id).Select(e => e.Art).FirstOrDefaultAsync();
         if (art == null) return "UVG-Versicherer nicht gefunden.";
         if (!string.Equals(art, "UVG", StringComparison.OrdinalIgnoreCase))
             return "Die Zuweisung muss ein UVG-Versicherer sein.";
-        var branchId = await GetEmployeeBranchAsync(employeeId);
         if (branchId == null) return "Die Person hat keine Filiale — den UVG-Versicherer dort zuerst zuordnen.";
-        var heute = DateOnly.FromDateTime(DateTime.Today);
         var zeilen = await _db.CompanyProfileEmpfaengers.AsNoTracking()
             .Where(z => z.CompanyProfileId == branchId && z.EmpfaengerId == id && z.IsActive)
             .Select(z => new { z.GueltigAb, z.GueltigBis })
             .ToListAsync();
-        var offen = zeilen.Any(z => (z.GueltigAb == null || z.GueltigAb <= heute)
+        var zugeordnet = zeilen.Any(z => (z.GueltigAb == null || z.GueltigAb <= heute)
                                  && (z.GueltigBis == null || z.GueltigBis >= heute));
-        if (!offen) return "Diesen UVG-Versicherer zuerst der Filiale zuordnen.";
+        if (!zugeordnet) return "Diesen UVG-Versicherer zuerst der Filiale zuordnen.";
         return null;
     }
 

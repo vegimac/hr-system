@@ -12,9 +12,10 @@ function vcUvgName(id) {
 function vcUvgSelectHtml(selId) {
     const liste = _vcData?.uvgVersicherer || [];
     const opts = liste.map(v => `<option value="${v.id}" ${Number(v.id) === Number(selId) ? 'selected' : ''}>${esc(v.bezeichnung)}${v.kassennummer ? ' · ' + esc(v.kassennummer) : ''}</option>`).join('');
-    return (liste.length
-        ? `<option value="">– nicht einzeln zugewiesen –</option>`
-        : `<option value="">– der Filiale ist kein UVG-Versicherer zugeordnet –</option>`) + opts;
+    const leer = liste.length > 1
+        ? '– bitte den Versicherer wählen –'
+        : (liste.length ? '– nicht einzeln zugewiesen –' : '– der Filiale ist kein UVG-Versicherer zugeordnet –');
+    return `<option value="">${leer}</option>` + opts;
 }
 
 async function vcLoad(employeeId) {
@@ -288,9 +289,11 @@ function vcOpenModal(entryId, artVorgabe, codeVorgabe) {
             </div>
             <div id="vcUvgBox" style="${art === 'UVG' ? '' : 'display:none'};margin-top:8px">
                 <div class="ma-field">
-                    <div class="ma-field-label">UVG-Versicherer</div>
+                    <div class="ma-field-label">UVG-Versicherer${(_vcData?.uvgVersicherer || []).length > 1 ? ' *' : ''}</div>
                     <select id="vcUvg" class="ma-input">${vcUvgSelectHtml(entry?.empfaengerId || '')}</select>
-                    <div style="font-size:11px;color:#8b8b8b;margin-top:3px">Mehrere Versicherer der Filiale können verschiedenen Personen zugewiesen werden. Leer = der einzige offene UVG der Filiale.</div>
+                    <div style="font-size:11px;color:#8b8b8b;margin-top:3px">${(_vcData?.uvgVersicherer || []).length > 1
+                        ? 'Die Filiale hat mehrere UVG-Versicherer. Diese Person braucht einen davon.'
+                        : 'Mehrere Versicherer der Filiale können verschiedenen Personen zugewiesen werden. Leer = der einzige offene UVG der Filiale.'}</div>
                 </div>
             </div>
             <div class="ma-grid cols-2">
@@ -412,6 +415,10 @@ async function vcSave() {
     const fixAn = parseFloat(document.getElementById('vcFixAn')?.value) || null;
     const fixAg = parseFloat(document.getElementById('vcFixAg')?.value) || null;
     if (!von) { alert('Bitte «Gültig ab» eintragen.'); return; }
+    if (art === 'UVG' && (_vcData?.uvgVersicherer || []).length > 1 && !(parseInt(document.getElementById('vcUvg')?.value, 10) > 0)) {
+        alert('Die Filiale hat mehrere UVG-Versicherer. Bitte den zuständigen der Person zuweisen.');
+        return;
+    }
     if (!code && !(art === 'BVG' && (fixAn || fixAg))) {
         alert(art === 'UVG'
             ? 'UVG-Code fehlt. Betriebsteil und Ziffer 0, 1, 2 oder 3 angeben.'

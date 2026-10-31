@@ -73,8 +73,8 @@ public class CompanyProfileEmpfaenger
     public DateOnly? GueltigAb { get; set; }
 
     /// <summary>Gültig bis (Walter 07.09.2026): NULL = offen = gilt weiterhin.
-    /// Wird ein neuer Satz derselben Art für dieselbe Filiale mit Gültig-ab
-    /// erfasst, setzt das System hier automatisch «Neubeginn − 1 Tag».</summary>
+    /// Ein neuer Satz derselben Art setzt hier «Neubeginn − 1 Tag». Beim UVG
+    /// und BVG nur für denselben Versicherer — ein zweiter bleibt daneben offen.</summary>
     public DateOnly? GueltigBis { get; set; }
     public string? Bemerkung { get; set; }
 

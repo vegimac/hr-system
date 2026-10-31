@@ -688,17 +688,22 @@
       "erwartet": "Der Anwendungsfall von öffentlichen Verwaltungen wird wie folgt geprüft: - Prüfen ob in der Benutzeroberfläche mehrere UVG-Versicherer erfasst und unterschiedlichen Personen zugewiesen werden können.",
       "hintergrund": "Bei öffentlichen Verwaltungen wird das Personal in der Verwaltung privat versichert, während andere Teile wie Forstwirtschaft oder Werkhöfe per Gesetz der Suva unterstellt werden. Diesem Umstand muss im ERP-System Rechnung getragen werden können.",
       "direktive": "8.3.4",
-      "stand": "offen",
-      "kommentarQt": "",
+      "stand": "vorhanden",
+      "kommentarQt": "Mehrere UVG-Versicherer im Verzeichnis Lohndaten-Empfänger. An der Filiale bleiben zwei offene UVG-Zeilen nebeneinander. Am Mitarbeiter unter Versicherungen wird jeder Person einer zugewiesen. Sind mehrere offen, ist die Zuweisung Pflicht.",
       "notiz": "",
-      "gebaut": false,
-      "seite": "hauptsitze",
-      "seiteLabel": "Hauptsitze / Empfänger",
+      "gebaut": true,
+      "seite": "lohndaten-empfaenger",
+      "seiteLabel": "Lohndaten-Empfänger",
       "aktionen": [
         {
-          "label": "Öffnen: Hauptsitze / Empfänger",
+          "label": "Öffnen: Lohndaten-Empfänger",
           "art": "seite",
-          "seite": "hauptsitze"
+          "seite": "lohndaten-empfaenger"
+        },
+        {
+          "label": "Öffnen: Mitarbeiter",
+          "art": "seite",
+          "seite": "mitarbeiter"
         }
       ]
     },

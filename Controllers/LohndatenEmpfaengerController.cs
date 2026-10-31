@@ -309,7 +309,6 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         var neuE = await _db.LohndatenEmpfaengers.AsNoTracking().FirstOrDefaultAsync(e => e.Id == neu.EmpfaengerId);
         if (neuE == null) return info;
         var kantonZaehlt = neuE.Art is "QST" or "FAK" or "LOHNAUSWEIS";
-        var proVersicherer = neuE.Art is "UVG" or "BVG";
         var ende = neu.GueltigAb.Value.AddDays(-1);
 
         var offene = await _db.CompanyProfileEmpfaengers
@@ -323,7 +322,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         {
             if (kantonZaehlt && !string.Equals(alt.Empfaenger?.KantonCode ?? "", neuE.KantonCode ?? "", StringComparison.OrdinalIgnoreCase))
                 continue;
-            if (proVersicherer && alt.EmpfaengerId != neu.EmpfaengerId)
+            if (UvgMehrereVersicherer.BleibtDanebenOffen(neuE.Art, alt.EmpfaengerId, neu.EmpfaengerId))
                 continue;
             alt.GueltigBis = ende;
             alt.UpdatedAt  = DateTime.Now;
