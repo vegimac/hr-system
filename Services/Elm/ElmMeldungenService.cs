@@ -55,8 +55,12 @@ public class ElmMeldungenService
     public Task<ElmUebermittlungService.Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct)
         => _dienst.VorschauAsync(art, jahr, monat, ct);
 
+    public List<ElmVorgang> Anmeldungen()
+        => _dienst.Liste().Where(v => v.Art == "subscribe").ToList();
+
     public async Task<ElmUebermittlungService.Ergebnis> SendenAsync(string art, int jahr, int? monat, string? ersetztId,
-        string? zielSchluessel, CancellationToken ct)
+        string? zielSchluessel, bool? testmeldung, bool freigabePortal,
+        Dictionary<string, bool>? adressaten, CancellationToken ct)
     {
         var ziel = string.IsNullOrWhiteSpace(ersetztId) ? ZielFuerNeue(zielSchluessel)
             : ElmEndpunkte.FindeNachUrl(UrlVon(Finde(ersetztId))) ?? Ziel;
@@ -74,7 +78,26 @@ public class ElmMeldungenService
         }
         return await _dienst.DeclareAsync(ziel.Url, new ElmUebermittlungService.DeclareOptionen(
             art, jahr, art == "monthly" ? monat : null,
-            TestCase: ziel.IstTest, Substitution: substitution, Adressaten: null, DoppeltSignieren: true), ct);
+            TestCase: testmeldung ?? ziel.IstTest, Substitution: substitution, Adressaten: adressaten,
+            DoppeltSignieren: true, FreigabePortal: freigabePortal), ct);
+    }
+
+    public Task<ElmUebermittlungService.Ergebnis> AnmeldenAsync(ElmUebermittlungService.SubscribeOptionen o, CancellationToken ct)
+    {
+        if (_store.LadeSuaZumSignieren() == null)
+            throw new InvalidOperationException("Zuerst das Unternehmenszertifikat hinterlegen. Danach kann die Anmeldung ausgelöst werden.");
+        if (string.IsNullOrWhiteSpace(o.Versicherer) || string.IsNullOrWhiteSpace(o.Kundennummer) || string.IsNullOrWhiteSpace(o.Vertragsnummer))
+            throw new InvalidOperationException("Name, Kundennummer und Vertragsnummer des Empfängers müssen im Katalog stehen.");
+        var ziel = Ziel;
+        return _dienst.SubscribeAsync(ziel.Url, o with { TestCase = ziel.IstTest, DoppeltSignieren = true }, ct);
+    }
+
+    public Task<ElmUebermittlungService.Ergebnis> AbmeldenAsync(string id, string addresseeId, CancellationToken ct)
+    {
+        var v = Finde(id);
+        if (v.Art != "subscribe")
+            throw new InvalidOperationException("Abmelden geht nur bei einer Anmeldung.");
+        return _dienst.SynchronizeAsync(UrlVon(v), id, addresseeId, new(), abmelden: true, ct);
     }
 
     public record Abfrage(bool Ok, string? Fehler);

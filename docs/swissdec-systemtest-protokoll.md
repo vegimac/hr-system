@@ -38,8 +38,8 @@ Quellen (Walter 16.10.2026):
 | S_ELM_V6_02 | Angaben zu Datenempfängern | 25 | **25** | bewertbar |
 | S_ELM_V6_03 | Personendaten | 59 | **58** | S03_03_03 Landwirtschaft entfällt |
 | S_ELM_V6_04 | Prozessuale Testfälle | 13 | **13** | bewertbar |
-| S_ELM_V6_05 | Cockpit Testfälle | 11 | **7** | Portal-Freigabe, Mitteilungen, Aufgaben noch nicht |
-| **Total ERP** | | **123** | **118** | |
+| S_ELM_V6_05 | Cockpit Testfälle | 11 | **11** | ELM-Cockpit, HR |
+| **Total ERP** | | **123** | **122** | |
 
 ### Systemtest Tech (Run 26667)
 
@@ -1311,6 +1311,16 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 
 ## S_ELM_V6_05 — Cockpit Testfälle
+
+Vorführung: HR → ELM-Cockpit (`page-elm-anwender`), nicht die Entwicklungsseite Lohnmeldungen.
+
+Jahresmeldung: Ausgleichskassen (AHV sendet, FAK zeigt den Empfänger), Versicherungen mit «Freigabe im Portal gewünscht», Vorsorge mit «Lohnsummen aufbereiten» und «Zur Übermittlung freigeben», Steuern mit den drei Grenzgängermeldungen. «Testmeldung» sitzt über «Prüfen». Nach dem Senden: Mitteilungsübersicht (Status Erfolg / In Bearbeitung / Fehler, Zeitpunkt, DeclarationID, Domäne, Empfänger, Benachrichtigungen, Freigabe starten, DialogMessage abholen, Quittung anzeigen). Darunter die Mitteilungshistorie mit «Ersatzmeldung». «Aktualisieren» holt den Stand aller offenen Meldungen, ohne GetStatus oder Synchronisieren zu zeigen.
+
+Monatsmeldung: Quellensteuer, nach dem Prüfen jeder Kanton einzeln, plus Statistik. Dieselben Knöpfe Aktualisieren, Testmeldung, Übersicht, Historie. TariTemp (Personalverleih) gibt es nicht.
+
+SUA: Text oben im Cockpit, Knopf «Konfiguration». Dort Firmenangaben vor der Bestellung, Hinweis auf den Registerabgleich, Zertifikat bestellen, Anmeldung erst wenn das Zertifikat da ist, Abmelden je Empfänger. Aufgaben: eigener Reiter, «Aktualisieren», der Hintergrunddienst holt sie laufend ab.
+
+FAK, UVG, UVGZ, KTG, BVG und die Lohnausweise sind im Cockpit adressiert. Die Lohndatei dafür ist noch nicht die Jahresmeldung; gesendet werden heute AHV, Quellensteuer, Statistik und die drei Grenzgänger. Die BVG-Summen werden gespeichert und freigegeben, noch nicht als BVG-XML verschickt.
 
 ### Cockpit Jahresmeldung (`05_01`)
 

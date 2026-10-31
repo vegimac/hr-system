@@ -14834,6 +14834,42 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-logline { display: flex; gap: 10px; margin: 0 0 8px; font-size: 12px; line-height: 1.4; color: #3f3f3f; }
 #page-elm-anwender .elma-logline time { color: #8b8b8b; white-space: nowrap; font-variant-numeric: tabular-nums; }
 #page-elm-anwender .elma-liste { margin-top: 16px; }
+#page-elm-anwender .elma-sua {
+    display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 14px; padding: 14px 16px; border-radius: 16px;
+    background: rgba(255,255,255,0.45); border: 1px solid rgba(60,55,48,0.12);
+}
+#page-elm-anwender .elma-sua p { margin: 0; font-size: 13px; line-height: 1.5; color: #3f3f3f; max-width: 68rem; }
+#page-elm-anwender .elma-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+#page-elm-anwender .elma-tabs button {
+    background: rgba(255,255,255,0.38); border: 1px solid rgba(60,55,48,0.16); color: #646464;
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+}
+#page-elm-anwender .elma-tabs button.active { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
+#page-elm-anwender .elma-haken {
+    flex-direction: row !important; align-items: center; gap: 8px; font-size: 13px; color: #3f3f3f;
+    padding-bottom: 8px;
+}
+#page-elm-anwender .elma-haken input { width: auto; box-shadow: none; }
+#page-elm-anwender .elma-gruppe { margin: 0 0 16px; }
+#page-elm-anwender .elma-zeile {
+    display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap;
+    padding: 8px 0; border-bottom: 1px solid rgba(60,55,48,0.08); font-size: 13px; color: #3f3f3f;
+}
+#page-elm-anwender .elma-zeile b { min-width: 11rem; }
+#page-elm-anwender .elma-an { color: #646464; }
+#page-elm-anwender .elma-an em { font-style: normal; font-weight: 650; color: #3f3f3f; }
+#page-elm-anwender .elma-uebersicht, #page-elm-anwender .elma-historie {
+    margin-top: 8px; padding: 14px 16px; border-radius: 16px;
+    background: rgba(255,255,255,0.55); border: 1px solid rgba(60,55,48,0.12);
+}
+#page-elm-anwender .elma-kv2 { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 4px 12px; font-size: 13px; margin-top: 10px; }
+#page-elm-anwender .elma-kv2 span { color: #8b8b8b; }
+#page-elm-anwender .elma-kv2 b { font-weight: 650; color: #3f3f3f; word-break: break-word; }
+#page-elm-anwender .elma-aktionen { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+#page-elm-anwender table.elma-bvg { border-collapse: collapse; width: auto; margin-top: 8px; font-size: 13px; }
+#page-elm-anwender table.elma-bvg th, #page-elm-anwender table.elma-bvg td { text-align: left; padding: 4px 10px 4px 0; }
+#page-elm-anwender table.elma-bvg input { width: 8rem; }
 @media (max-width: 1180px) {
     #page-elm-anwender .elma-layout { grid-template-columns: 210px minmax(0, 1fr); }
     #page-elm-anwender .elma-right { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }

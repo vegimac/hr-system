@@ -76,7 +76,8 @@ public class ElmUebermittlungService
         string? Substitution = null,
         Dictionary<string, bool>? Adressaten = null,
         bool DoppeltSignieren = true,
-        bool RequestIdWiederverwenden = false);
+        bool RequestIdWiederverwenden = false,
+        bool FreigabePortal = false);
 
     public record DialogAntwort(string StoryId, Dictionary<short, string?> Werte);
 
@@ -154,7 +155,7 @@ public class ElmUebermittlungService
             ? stand.LetzteRequestId : NeueId();
         var root = XDocument.Parse(xml).Root!;
         var vorlage = LiesVorlage(root);
-        var anfrage = BereiteDeclareVor(root, o.Adressaten, o.TestCase, o.Substitution, requestId, DateTime.Now);
+        var anfrage = BereiteDeclareVor(root, o.Adressaten, o.TestCase, o.Substitution, requestId, DateTime.Now, o.FreigabePortal);
         var gewaehlt = LiesVorlage(anfrage).Adressaten;
         if (gewaehlt.Count == 0)
             return new Ergebnis(false, "Die Meldung hat keinen Adressaten.", null, null);
@@ -176,6 +177,7 @@ public class ElmUebermittlungService
             Art = art,
             Titel = titel + (o.TestCase ? " · TestCase" : "") + (string.IsNullOrWhiteSpace(o.Substitution) ? "" : " · Ersatzmeldung"),
             TestCase = o.TestCase,
+            FreigabePortal = o.FreigabePortal,
             Substitution = string.IsNullOrWhiteSpace(o.Substitution) ? null : o.Substitution.Trim(),
             DoppeltSigniert = s.Call.DoppeltSigniert,
             RequestId = requestId,

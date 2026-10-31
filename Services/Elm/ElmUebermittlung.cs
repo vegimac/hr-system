@@ -53,6 +53,8 @@ public class ElmVorgang
     /// <summary>Lohnjahr/-monat der Meldung — für die Ersatzmeldung (NULL = vor 15.10.2026, dann aus dem Titel).</summary>
     public int? Jahr { get; set; }
     public int? Monat { get; set; }
+    /// <summary>Versicherungsdomänen: der Benutzer hat «Freigabe im Portal gewünscht» gesetzt (DeclarationIncomplete).</summary>
+    public bool FreigabePortal { get; set; }
 }
 
 public class ElmProtokollZeile
@@ -202,8 +204,32 @@ public static class ElmUebermittlungXml
     /// TestCase (AB-11), Substitution (AB-09), frische RequestID und Sendezeit.
     /// Reihenfolge im Job laut Schema: Addressees, TestCase, Substitution.
     /// </summary>
+    /// <summary>
+    /// «Freigabe im Portal gewünscht» an jede Versicherungs-Kundennummer (DeclarationIncomplete).
+    /// Gibt die Anzahl gesetzter Marken zurück. Ohne Kundenblock in der Meldung passiert nichts.
+    /// </summary>
+    public static int SetzeFreigabePortal(XElement root, bool gewuenscht)
+    {
+        var n = 0;
+        foreach (var vertrag in root.Descendants().Where(x => x.Name.LocalName == "ContractIdentity").ToList())
+        {
+            var parent = vertrag.Parent;
+            if (parent == null || !parent.Elements().Any(x => x.Name.LocalName == "InsuranceCompanyName")) continue;
+            var vorhanden = parent.Elements().FirstOrDefault(x => x.Name.LocalName == "DeclarationIncomplete");
+            if (!gewuenscht)
+            {
+                if (vorhanden != null) { vorhanden.Remove(); n++; }
+                continue;
+            }
+            if (vorhanden != null) continue;
+            vertrag.AddAfterSelf(new XElement(vertrag.Name.Namespace + "DeclarationIncomplete"));
+            n++;
+        }
+        return n;
+    }
+
     public static XElement BereiteDeclareVor(XElement root, IReadOnlyDictionary<string, bool>? auswahl,
-        bool testCase, string? substitution, string requestId, DateTime jetzt)
+        bool testCase, string? substitution, string requestId, DateTime jetzt, bool freigabePortal = false)
     {
         var el = new XElement(root);
         SetzeKopf(el, requestId, jetzt);
@@ -224,6 +250,7 @@ public static class ElmUebermittlungXml
         if (sub.Length > 0)
             job.Add(new XElement(Sdc + "Substitution",
                 new XElement(Sdc + "PredecessorDeclarationIDWithAcceptedState", sub)));
+        if (freigabePortal) SetzeFreigabePortal(el, true);
         return el;
     }
 

@@ -70,6 +70,18 @@ public class ElmMeldungAnzeigeTests
     }
 
     [Fact]
+    public void CockpitStatus_FehlerVorUnterwegsVorErfolg()
+    {
+        Assert.Equal("error", ElmMeldungAnzeige.CockpitStatus(Vorgang(true, Adr("Error"))));
+        Assert.Equal("pending", ElmMeldungAnzeige.CockpitStatus(Vorgang(false, Adr("Success", "Finished"))));
+        Assert.Equal("pending", ElmMeldungAnzeige.CockpitStatus(Vorgang(true, Adr("Processing"))));
+        Assert.Equal("success", ElmMeldungAnzeige.CockpitStatus(Vorgang(true, Adr("Success", "Finished"), Adr("Ignored"))));
+        Assert.Equal("Erfolg", ElmMeldungAnzeige.CockpitStatusText("success"));
+        Assert.Equal("In Bearbeitung", ElmMeldungAnzeige.CockpitStatusText("pending"));
+        Assert.Equal("Fehler", ElmMeldungAnzeige.CockpitStatusText("error"));
+    }
+
+    [Fact]
     public void Ersatz_NimmtDeclarationIdUndPeriodeAusAltemTitel()
     {
         var v = Vorgang(true, Adr("Ignored"), Adr("Success", "Finished"));

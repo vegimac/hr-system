@@ -203,6 +203,22 @@ public class ElmUebermittlungTests
     }
 
     [Fact]
+    public void FreigabePortal_SetztDeclarationIncompleteNachDerVertragsnummer()
+    {
+        var root = Muster("DeclareAnnualSalary_UVG.xml").Root!;
+        Assert.DoesNotContain(root.Descendants(), e => e.Name.LocalName == "DeclarationIncomplete");
+        var n = SetzeFreigabePortal(root, true);
+        Assert.Equal(1, n);
+        var marke = root.Descendants().Single(e => e.Name.LocalName == "DeclarationIncomplete");
+        Assert.Equal("ContractIdentity", marke.ElementsBeforeSelf().Last().Name.LocalName);
+        var vorher = Validator.Validate(Muster("DeclareAnnualSalary_UVG.xml").Root!.ToString());
+        var nachher = Validator.Validate(root.ToString());
+        Assert.True(nachher.Count <= vorher.Count, string.Join("\n", nachher));
+        Assert.Equal(1, SetzeFreigabePortal(root, false));
+        Assert.DoesNotContain(root.Descendants(), e => e.Name.LocalName == "DeclarationIncomplete");
+    }
+
+    [Fact]
     public void Declare_OhneTestCase_EntferntVorhandeneMarke()
     {
         var root = BereiteDeclareVor(Muster("DeclareAnnualSalary_UVG.xml").Root!, null, true, null, "R1", DateTime.Now);

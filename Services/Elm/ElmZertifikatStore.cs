@@ -633,6 +633,31 @@ public class ElmZertifikatStore
 
     // ── Übermittlungen F05/F08 (Walter 30.09.2026) ───────────────────────────
 
+    private const string BvgDatei = "bvg-lohnsummen.json";
+    private static readonly object BvgSperre = new();
+
+    public List<ElmBvgJahr> LadeBvgLohnsummen()
+    {
+        lock (BvgSperre)
+        {
+            var p = Path.Combine(_root, BvgDatei);
+            if (!File.Exists(p)) return new();
+            try { return JsonSerializer.Deserialize<List<ElmBvgJahr>>(File.ReadAllText(p)) ?? new(); }
+            catch { return new(); }
+        }
+    }
+
+    public void SpeichereBvgLohnsummen(List<ElmBvgJahr> jahre)
+    {
+        lock (BvgSperre)
+        {
+            Directory.CreateDirectory(_root);
+            var p = Path.Combine(_root, BvgDatei);
+            File.WriteAllText(p, JsonSerializer.Serialize(jahre, new JsonSerializerOptions { WriteIndented = true }));
+            VersucheRechte600(p);
+        }
+    }
+
     private const string UebermittlungDatei = "uebermittlungen.json";
     private static readonly object UebermittlungSperre = new();
 

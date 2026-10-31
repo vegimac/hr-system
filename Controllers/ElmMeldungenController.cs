@@ -1,6 +1,8 @@
+using HrSystem.Data;
 using HrSystem.Services.Elm;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Controllers;
 
@@ -16,8 +18,15 @@ namespace HrSystem.Controllers;
 public class ElmMeldungenController : ControllerBase
 {
     private readonly ElmMeldungenService _dienst;
+    private readonly AppDbContext _db;
+    private readonly ElmZertifikatStore _store;
 
-    public ElmMeldungenController(ElmMeldungenService dienst) => _dienst = dienst;
+    public ElmMeldungenController(ElmMeldungenService dienst, AppDbContext db, ElmZertifikatStore store)
+    {
+        _dienst = dienst;
+        _db = db;
+        _store = store;
+    }
 
     [HttpGet]
     public IActionResult Liste() => Ok(Stand());
@@ -35,6 +44,8 @@ public class ElmMeldungenController : ControllerBase
                 empfaenger = v.Adressaten.Select(a => new
                 {
                     a.AddresseeId,
+                    a.Identification,
+                    a.Domain,
                     name = ElmMeldungAnzeige.EmpfaengerName(a.Domain, a.Identification, null),
                 }),
                 fehler = v.Plausibilitaet.Select(h => h.Text ?? h.Code ?? "Plausibilitätsregel verletzt"),
@@ -46,7 +57,8 @@ public class ElmMeldungenController : ControllerBase
         catch (Exception ex) { return BadRequest(new { error = "VORSCHAU", message = ex.GetBaseException().Message }); }
     }
 
-    public record SendenBody(string? Art, int Jahr, int? Monat, string? ErsetztId, string? Ziel);
+    public record SendenBody(string? Art, int Jahr, int? Monat, string? ErsetztId, string? Ziel,
+        bool? Testmeldung, bool FreigabePortal, Dictionary<string, bool>? Adressaten);
 
     [HttpPost("senden")]
     public async Task<IActionResult> Senden([FromBody] SendenBody dto, CancellationToken ct)
@@ -54,7 +66,8 @@ public class ElmMeldungenController : ControllerBase
         var art = ElmMeldungAnzeige.NormalisiereArt(dto.Art);
         try
         {
-            var r = await _dienst.SendenAsync(art, dto.Jahr, dto.Monat, dto.ErsetztId, dto.Ziel, ct);
+            var r = await _dienst.SendenAsync(art, dto.Jahr, dto.Monat, dto.ErsetztId, dto.Ziel,
+                dto.Testmeldung, dto.FreigabePortal, dto.Adressaten, ct);
             return Ok(new
             {
                 ok = r.Ok,
@@ -133,7 +146,159 @@ public class ElmMeldungenController : ControllerBase
             ziele = ElmEndpunkte.MeldungsZiele().Select(x => new { x.Schluessel, x.Name }),
             sendenGesperrt = _dienst.SendenGesperrt(),
             meldungen = _dienst.Liste().Select(Projektion),
+            anmeldungen = _dienst.Anmeldungen().Select(Projektion),
         };
+    }
+
+    /// <summary>Adressaten der Jahresmeldung, gruppiert wie im Cockpit. Leer = im Katalog nicht erfasst.</summary>
+    [HttpGet("domaenen")]
+    public async Task<IActionResult> Domaenen(int jahr, CancellationToken ct)
+    {
+        var empf = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .Include(e => e.Zuordnungen)
+            .Where(e => e.IsActive)
+            .OrderBy(e => e.Bezeichnung)
+            .ToListAsync(ct);
+        object Zeile(string id, string name, string an, string? art, bool lohnsummen,
+            string? kennung, string? kundennummer, string? vertragsnummer, string? domain) => new
+        {
+            id, name,
+            an = string.IsNullOrEmpty(an) ? "noch kein Empfänger im Katalog" : an,
+            art, lohnsummen, kennung, kundennummer, vertragsnummer, domain,
+        };
+        IEnumerable<object> AusKatalog(string prefix, string name, string[] arten, string? art, bool lohnsummen, string? domain)
+        {
+            var liste = empf.Where(e => arten.Contains(e.Art)).ToList();
+            if (liste.Count == 0)
+                return new[] { Zeile(prefix, name, "", art, lohnsummen, null, null, null, domain) };
+            return liste.Select(e =>
+            {
+                var z = e.Zuordnungen.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Mitgliednummer));
+                return Zeile(prefix + "-" + e.Id, name, e.Bezeichnung.Trim(), art, lohnsummen,
+                    e.Kassennummer, z?.Mitgliednummer, z?.Subnummer, domain);
+            });
+        }
+        var gruppen = new object[]
+        {
+            new
+            {
+                id = "ausgleich", name = "Ausgleichskassen", portal = false,
+                zeilen = AusKatalog("ahv", "AHV", new[] { "AUSGLEICHSKASSE" }, "annual", false, "AHV-AVS")
+                    .Concat(AusKatalog("fak", "FAK", new[] { "FAK" }, null, false, "FAK-CAF")),
+            },
+            new
+            {
+                id = "versicherung", name = "Versicherungen", portal = true,
+                zeilen = AusKatalog("uvg", "UVG", new[] { "UVG" }, null, false, "UVG-LAA")
+                    .Concat(AusKatalog("uvgz", "UVGZ", new[] { "UVGZ" }, null, false, "UVGZ-LAAC"))
+                    .Concat(AusKatalog("ktg", "KTG", new[] { "KTG" }, null, false, "KTG-AMC")),
+            },
+            new
+            {
+                id = "vorsorge", name = "Vorsorgeeinrichtungen", portal = true,
+                zeilen = AusKatalog("bvg", "BVG", new[] { "BVG" }, null, true, "BVG-LPP"),
+            },
+            new
+            {
+                id = "steuern", name = "Steuern", portal = false,
+                zeilen = AusKatalog("lohnausweis", "Lohnausweise", new[] { "LOHNAUSWEIS" }, null, false, "Tax")
+                    .Concat(new object[]
+                    {
+                        Zeile("grenz-sfn", "Grenzgänger SFN", "Steuerverwaltung des Arbeitskantons", "grenz-sfn", false, null, null, null, "TaxCrossborder"),
+                        Zeile("grenz-fr", "Grenzgänger Frankreich", "Steuerverwaltung des Arbeitskantons", "grenz-fr", false, null, null, null, "TaxCrossborder"),
+                        Zeile("grenz-it", "Grenzgänger Italien", "Steuerverwaltung des Arbeitskantons", "grenz-it", false, null, null, null, "TaxCrossborder"),
+                    }),
+            },
+        };
+        return Ok(new { jahr, gruppen });
+    }
+
+    [HttpGet("bvg-lohnsummen")]
+    public async Task<IActionResult> BvgLohnsummen(int jahr, CancellationToken ct)
+    {
+        var summen = await (
+            from s in _db.PayrollSnapshots.AsNoTracking()
+            join p in _db.PayrollPerioden.AsNoTracking() on s.PayrollPeriodeId equals p.Id
+            where p.Year == jahr && s.Status != "STORNIERT"
+            group s by s.EmployeeId into g
+            select new { EmployeeId = g.Key, Summe = g.Sum(x => x.SvBasisBvg) }
+        ).ToListAsync(ct);
+        var ids = summen.Select(s => s.EmployeeId).ToList();
+        var namen = await _db.Employees.AsNoTracking()
+            .Where(e => ids.Contains(e.Id) && !e.IsPayrollExcluded)
+            .Select(e => new { e.Id, e.FirstName, e.LastName })
+            .ToListAsync(ct);
+        var gespeichert = _store.LadeBvgLohnsummen().FirstOrDefault(j => j.Jahr == jahr);
+        var betrag = (gespeichert?.Zeilen ?? new()).ToDictionary(z => z.EmployeeId, z => z.Betrag);
+        var zeilen = namen
+            .OrderBy(n => n.FirstName).ThenBy(n => n.LastName)
+            .Select(n =>
+            {
+                var vorschlag = summen.First(s => s.EmployeeId == n.Id).Summe;
+                return new
+                {
+                    employeeId = n.Id,
+                    name = $"{n.FirstName} {n.LastName}".Trim(),
+                    vorschlag,
+                    betrag = betrag.TryGetValue(n.Id, out var b) ? b : vorschlag,
+                };
+            }).ToList();
+        return Ok(new
+        {
+            jahr,
+            freigegeben = gespeichert?.Freigegeben == true,
+            freigegebenAm = gespeichert?.FreigegebenAm,
+            zeilen,
+        });
+    }
+
+    public record BvgSpeichernBody(int Jahr, bool Freigegeben, List<ElmBvgZeile>? Zeilen);
+
+    [HttpPost("bvg-lohnsummen")]
+    public IActionResult BvgLohnsummenSpeichern([FromBody] BvgSpeichernBody dto)
+    {
+        if (dto.Jahr < 2000 || dto.Jahr > 2100)
+            return BadRequest(new { error = "JAHR", message = "Jahr fehlt." });
+        var alle = _store.LadeBvgLohnsummen();
+        alle.RemoveAll(j => j.Jahr == dto.Jahr);
+        alle.Add(new ElmBvgJahr
+        {
+            Jahr = dto.Jahr,
+            Freigegeben = dto.Freigegeben,
+            FreigegebenAm = dto.Freigegeben ? DateTime.Now : null,
+            Zeilen = (dto.Zeilen ?? new()).Where(z => z.EmployeeId > 0).ToList(),
+        });
+        _store.SpeichereBvgLohnsummen(alle);
+        return Ok(new { ok = true, freigegeben = dto.Freigegeben });
+    }
+
+    public record AnmeldenBody(string? Domain, string? Versicherer, string? Kundennummer, string? Vertragsnummer, string? Kennung);
+
+    [HttpPost("anmelden")]
+    public async Task<IActionResult> Anmelden([FromBody] AnmeldenBody dto, CancellationToken ct)
+    {
+        var hs = await _db.Hauptsitze.AsNoTracking().Where(h => h.IsActive).OrderBy(h => h.Id).FirstOrDefaultAsync(ct);
+        if (hs == null)
+            return BadRequest(new { error = "HAUPTSITZ", message = "Kein Hauptsitz erfasst." });
+        try
+        {
+            var r = await _dienst.AnmeldenAsync(new ElmUebermittlungService.SubscribeOptionen(
+                hs.Uid, hs.Name, hs.KontaktName, dto.Kennung, dto.Domain, hs.Plz, hs.Ort,
+                dto.Versicherer, dto.Kundennummer, dto.Vertragsnummer), ct);
+            return Ok(new { ok = r.Ok, meldung = r.Meldung, stand = Stand() });
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = "ANMELDEN", message = ex.Message }); }
+    }
+
+    [HttpPost("anmeldungen/{id}/abmelden")]
+    public async Task<IActionResult> Abmelden(string id, [FromBody] AntwortBody dto, CancellationToken ct)
+    {
+        try
+        {
+            var r = await _dienst.AbmeldenAsync(id, dto.AddresseeId, ct);
+            return Ok(new { ok = r.Ok, meldung = r.Meldung, stand = Stand() });
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = "ABMELDEN", message = ex.Message }); }
     }
 
     /// <summary>Verlauf je Meldung in der Liste — die automatische Abfrage schreibt stündlich eine Zeile.</summary>
@@ -145,7 +310,10 @@ public class ElmMeldungenController : ControllerBase
         var (jahr, monat) = ElmMeldungAnzeige.Periode(v);
         return new
         {
-            v.Id, v.Art, jahr, monat, v.Gesendet, v.TestCase,
+            v.Id, v.Art, jahr, monat, v.Gesendet, v.TestCase, v.FreigabePortal,
+            declarationId = ElmMeldungAnzeige.DeclarationId(v),
+            status = ElmMeldungAnzeige.CockpitStatus(v),
+            statusText = ElmMeldungAnzeige.CockpitStatusText(ElmMeldungAnzeige.CockpitStatus(v)),
             qualityTool = v.Url == ElmEndpunkte.QualityToolUrl,
             titel = ElmMeldungAnzeige.Titel(v),
             ersatz = v.Substitution != null,
@@ -169,6 +337,8 @@ public class ElmMeldungenController : ControllerBase
                 return new
                 {
                     a.AddresseeId,
+                    a.Domain,
+                    declarationId = a.FallId,
                     name = ElmMeldungAnzeige.EmpfaengerName(a.Domain, a.Identification, a.InstitutionName),
                     stufe = e.Stufe, text = e.Text,
                     hinweise = a.Hinweise.Where(h => !string.IsNullOrWhiteSpace(h.Text)).Select(h => h.Text),

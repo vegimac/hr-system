@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261031r">
+    <link rel="stylesheet" href="css/app.css?v=20261031s">
 </head>
 <body>
 
@@ -6739,7 +6739,7 @@
                         <div>
                             <div class="elma-eyebrow">Swissdec · Lohnmeldungen</div>
                             <h1>ELM-Cockpit</h1>
-                            <p>Meldung absetzen und sehen, was die Verbindung gerade tut.</p>
+                            <p>Jahres- und Monatsmeldungen. Bei jeder Zeile steht, an wen sie geht.</p>
                         </div>
                         <div id="elmaBereit" class="elma-connection">
                             <i class="elma-dot" id="elmaDot"></i>
@@ -6749,66 +6749,38 @@
                             <button type="button" id="elmaZertBtn" class="btn btn-secondary" onclick="elmaZertifikatErneuern()" disabled>Zertifikat erneuern</button>
                         </div>
                     </header>
-                    <div class="elma-layout">
-                        <aside class="elma-panel elma-side">
-                            <div class="elma-kicker">Meldung</div>
-                            <div id="elmaAktionen"></div>
-                            <select id="elmaArt" class="no-liquid" hidden onchange="elmaArtGewechselt()" aria-hidden="true">
-                                <option value="monthly">Monatsmeldung</option>
-                                <option value="annual">Jahresmeldung AHV</option>
-                                <option value="grenz-it">Grenzgänger Italien</option>
-                                <option value="grenz-fr">Grenzgänger Frankreich</option>
-                                <option value="grenz-sfn">Grenzgänger SFN</option>
-                            </select>
-                            <div class="elma-sidefoot" id="elmaArtHinweis"></div>
-                        </aside>
-                        <main class="elma-panel elma-center">
-                            <div class="elma-panelhead">
-                                <div>
-                                    <div class="elma-eyebrow" id="elmaKategorie">Meldung senden</div>
-                                    <h2 id="elmaOperation">Monatsmeldung</h2>
-                                </div>
-                                <div class="elma-pill" id="elmaPhase">Bereit</div>
-                            </div>
-                            <div class="elma-stage paused" id="elmaStage">
-                                <div class="elma-beam"></div>
-                                <div class="elma-packet"></div>
-                                <div class="elma-packet b"></div>
-                                <div class="elma-packet c"></div>
-                                <div class="elma-hub left"><img src="img/onecrew-logo.webp?v=20260628a" alt="OneCrew"></div>
-                                <div class="elma-core"><strong>ELM</strong><span id="elmaCore">Bereit</span></div>
-                                <div class="elma-hub right"><img src="img/swissdec-logo-klar.png" alt="swissdec"></div>
-                            </div>
-                            <div class="elma-progresshead"><b id="elmaProgTitel">Bereit für die Übermittlung</b><span id="elmaProgText">0 / 6</span></div>
-                            <div class="elma-bar"><div class="elma-fill" id="elmaBar"></div></div>
-                            <div class="elma-steps" id="elmaSteps"></div>
-                            <div id="elmaErsatz" class="elma-ersatz" style="display:none"></div>
-                            <div class="elma-controls">
-                                <label id="elmaMonatWrap">Monat<select id="elmaMonat"></select></label>
-                                <label>Jahr<input id="elmaJahr" type="number" min="2020" max="2100" inputmode="numeric"></label>
-                                <button type="button" id="elmaPruefenBtn" class="btn btn-primary" onclick="elmaPruefen()">Prüfen</button>
-                            </div>
-                            <div id="elmaStatus"></div>
-                            <div id="elmaVorschau"></div>
-                        </main>
-                        <div class="elma-right">
-                            <section class="elma-panel elma-tele" id="elmaTele">
-                                <div class="elma-kicker">Verbindung</div>
-                                <div class="elma-kv"><span>Leitung</span><b id="elmaTeleLeitung">—</b></div>
-                                <div class="elma-kv"><span>Zertifikat</span><b id="elmaTeleZert">—</b></div>
-                                <div class="elma-kv"><span>Unterschrift</span><b id="elmaTeleSign">—</b></div>
-                                <div class="elma-kv"><span>Verschlüsselung</span><b id="elmaTeleCrypt">—</b></div>
-                                <div class="elma-rule"></div>
-                                <div class="elma-kicker">Auftrag</div>
-                                <div class="elma-kv"><span>Stand</span><b id="elmaTeleStand">—</b></div>
-                                <div class="elma-kv"><span>Empfänger</span><b id="elmaTeleEmpf">—</b></div>
-                                <div class="elma-kv"><span>Letzter Schritt</span><b id="elmaTeleLetzt">—</b></div>
-                            </section>
-                            <section class="elma-panel elma-log">
-                                <div class="elma-kicker">Kommunikation</div>
-                                <div class="elma-loglines" id="elmaKomm"></div>
-                            </section>
+                    <section class="elma-sua">
+                        <p>Die Möglichkeiten von Swissdec umfassen Prozesse, die direkt aus OneCrew gestartet werden, und Prozesse, die Versicherungen oder Behörden auslösen. Dafür muss das Unternehmen eindeutig erkennbar sein. Dafür gibt es das Unternehmenszertifikat SUA (Swissdec Unternehmens-Authentifizierung). Es wird hier bestellt, gilt für sämtliche Swissdec-Standards, und es braucht nur eines. Sobald es hinterlegt ist, melden Sie das Unternehmen in der Konfiguration bei den gewünschten Versicherungen und Behörden an.</p>
+                        <button type="button" class="btn btn-secondary" onclick="elmaAnsicht('konfig')">Konfiguration</button>
+                    </section>
+                    <div class="elma-tabs" id="elmaTabs">
+                        <button type="button" data-ansicht="jahr" class="active" onclick="elmaAnsicht('jahr')">Jahresmeldung</button>
+                        <button type="button" data-ansicht="monat" onclick="elmaAnsicht('monat')">Monatsmeldung</button>
+                        <button type="button" data-ansicht="aufgaben" onclick="elmaAnsicht('aufgaben')">Aufgaben</button>
+                    </div>
+                    <div class="elma-panel elma-center" id="elmaComposer">
+                        <div id="elmaMitte"></div>
+                        <div id="elmaErsatz" class="elma-ersatz" style="display:none"></div>
+                        <div class="elma-controls" id="elmaControls">
+                            <label id="elmaMonatWrap">Monat<select id="elmaMonat"></select></label>
+                            <label>Jahr<input id="elmaJahr" type="number" min="2020" max="2100" inputmode="numeric"></label>
+                            <label class="elma-haken" id="elmaTestWrap" title="Als Testmeldung gekennzeichnete Übermittlungen werden von den Empfängern nicht verarbeitet.">
+                                <input type="checkbox" id="elmaTest" checked> Testmeldung
+                            </label>
+                            <label class="elma-haken" id="elmaPortalWrap" title="In den Übermittlungsprozessen der Versicherungen wird üblicherweise ein Link auf das Portal der Versicherung zurückgegeben. Falls ein Link ins Portal ausdrücklich gewünscht wird, kann das bei der Übermittlung mitgegeben werden.">
+                                <input type="checkbox" id="elmaPortal"> Freigabe im Portal gewünscht
+                            </label>
+                            <button type="button" id="elmaPruefenBtn" class="btn btn-primary" onclick="elmaPruefen()">Prüfen</button>
                         </div>
+                        <select id="elmaArt" class="no-liquid" hidden onchange="elmaArtGewechselt()" aria-hidden="true">
+                            <option value="monthly">Monatsmeldung</option>
+                            <option value="annual">Jahresmeldung AHV</option>
+                            <option value="grenz-it">Grenzgänger Italien</option>
+                            <option value="grenz-fr">Grenzgänger Frankreich</option>
+                            <option value="grenz-sfn">Grenzgänger SFN</option>
+                        </select>
+                        <div id="elmaStatus"></div>
+                        <div id="elmaVorschau"></div>
                     </div>
                     <div id="elmaListe" class="elma-liste"></div>
                 </div>
@@ -11476,7 +11448,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/stempel-muster.js?v=20261015a"></script>
 <script type="text/plain" data-modul="js/swissdec.js?v=20261015c"></script>
 <script type="text/plain" data-modul="js/swissdec-komm.js?v=20261030a"></script>
-<script type="text/plain" data-modul="js/swissdec-systemtest.js?v=20261031o"></script>
+<script type="text/plain" data-modul="js/swissdec-systemtest.js?v=20261031s"></script>
 <script type="text/plain" data-modul="js/swissdec-uebermittlung.js?v=20261002b"></script>
 <script type="text/plain" data-modul="js/hauptsitze.js?v=20261029a"></script>
 <script type="text/plain" data-modul="js/arbeitszeit-regeln.js?v=20261007d"></script>
@@ -11488,7 +11460,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/virenscanner.js?v=20261022b"></script>
 <script type="text/plain" data-modul="js/elm-zertifikat.js?v=20261030b"></script>
 <script type="text/plain" data-modul="js/elm-schnittstelle.js?v=20261016d"></script>
-<script type="text/plain" data-modul="js/elm-anwender.js?v=20261030w"></script>
+<script type="text/plain" data-modul="js/elm-anwender.js?v=20261031s"></script>
 <script type="text/plain" data-modul="js/elm-lohnraster.js?v=20261021a"></script>
 <script type="text/plain" data-modul="js/lohnschema.js?v=20261024g"></script>
 <script type="text/plain" data-modul="js/global-search.js?v=20261023a"></script>

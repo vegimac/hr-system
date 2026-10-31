@@ -135,6 +135,21 @@ public static class ElmMeldungAnzeige
         return art;
     }
 
+    /// <summary>Mitteilungsübersicht: success, pending oder error. Deutsch daneben über <see cref="CockpitStatusText"/>.</summary>
+    public static string CockpitStatus(ElmVorgang v)
+    {
+        if (v.Adressaten.Any(a => a.Zustand == "Error")) return "error";
+        if (!v.JobFinished || v.Adressaten.Any(a => a.Zustand is "offen" or "Processing")) return "pending";
+        return "success";
+    }
+
+    public static string CockpitStatusText(string status) => status switch
+    {
+        "success" => "Erfolg",
+        "error" => "Fehler",
+        _ => "In Bearbeitung",
+    };
+
     /// <summary>DeclarationID der Meldung (alle Empfänger eines Jobs teilen sie) — Grundlage der Ersatzmeldung.</summary>
     public static string? DeclarationId(ElmVorgang v)
         => v.Adressaten.FirstOrDefault(a => a.Zustand == "Success" && !string.IsNullOrWhiteSpace(a.FallId))?.FallId;

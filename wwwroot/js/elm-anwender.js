@@ -44,6 +44,12 @@ let _elmaOffen = new Set();
 let _elmaArchivOffen = false;
 let _elmaFokus = null;
 let _elmaFlug = false;
+let _elmaAnsicht = 'jahr';
+let _elmaDomaenen = null;
+let _elmaBvg = null;
+let _elmaKantone = null;
+let _elmaQuittung = null;
+let _elmaExtra = new Set();
 
 (function () {
     if (document.getElementById('elmaSanduhrStyle')) return;
@@ -158,6 +164,8 @@ function elmaBereitZeichnen() {
         btn.disabled = !abgelaufen;
         btn.title = abgelaufen ? 'Neues Zertifikat bei Swissdec beantragen' : 'Das Zertifikat ist gültig.';
     }
+    const mitte = document.getElementById('elmaMitte');
+    if (_elmaAnsicht === 'konfig' && mitte && !mitte.contains(document.activeElement)) elmaMitteZeichnen();
 }
 
 async function elmaZertifikatErneuern() {
@@ -205,10 +213,18 @@ function elmaInit() {
     _elmaVorschau = null;
     _elmaErsatz = null;
     _elmaHinweis = null;
-    elmaArtGewechselt();
+    const artNow = document.getElementById('elmaArt')?.value || 'annual';
+    _elmaAnsicht = artNow === 'monthly' ? 'monat' : 'jahr';
+    elmaAnsicht(_elmaAnsicht);
     elmaErsatzZeichnen();
+    const jahrFeld = document.getElementById('elmaJahr');
+    if (jahrFeld && !jahrFeld.dataset.elma) {
+        jahrFeld.dataset.elma = '1';
+        jahrFeld.addEventListener('change', elmaDomaenenLaden);
+    }
     elmaLaden();
     elmaBereit();
+    elmaDomaenenLaden();
 }
 
 function elmaArtWaehlen(id) {
@@ -216,6 +232,273 @@ function elmaArtWaehlen(id) {
     if (!el || el.value === id) return;
     el.value = id;
     elmaArtGewechselt();
+}
+
+function elmaAnsicht(name) {
+    _elmaAnsicht = name === 'monat' || name === 'konfig' || name === 'aufgaben' ? name : 'jahr';
+    document.querySelectorAll('#elmaTabs button').forEach(b => b.classList.toggle('active', b.dataset.ansicht === _elmaAnsicht));
+    const art = document.getElementById('elmaArt');
+    if (art) {
+        if (_elmaAnsicht === 'monat') art.value = 'monthly';
+        else if (_elmaAnsicht === 'jahr' && (art.value === 'monthly' || !art.value)) art.value = 'annual';
+    }
+    const liste = document.getElementById('elmaListe');
+    if (liste) liste.style.display = (_elmaAnsicht === 'konfig' || _elmaAnsicht === 'aufgaben') ? 'none' : '';
+    elmaMitteZeichnen();
+    elmaArtGewechselt();
+}
+
+function elmaExtra(id, an) {
+    if (an) _elmaExtra.add(id); else _elmaExtra.delete(id);
+    elmaMitteZeichnen();
+    if (_elmaBvg) elmaBvgZeichnen();
+}
+
+function elmaDomWaehlen(art) {
+    const el = document.getElementById('elmaArt');
+    if (!el || !art) return;
+    el.value = art;
+    elmaArtGewechselt();
+    elmaMitteZeichnen();
+}
+
+async function elmaDomaenenLaden() {
+    const jahr = parseInt(document.getElementById('elmaJahr')?.value, 10) || new Date().getFullYear();
+    try {
+        const r = await fetch('/api/elm/meldungen/domaenen?jahr=' + jahr, { headers: ah(), cache: 'no-store' });
+        if (r.ok) _elmaDomaenen = await r.json();
+    } catch { /* Katalog bleibt leer, die Seite zeigt den Hinweis. */ }
+    if (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'konfig') elmaMitteZeichnen();
+}
+
+function elmaMitteZeichnen() {
+    const box = document.getElementById('elmaMitte');
+    if (!box) return;
+    if (_elmaAnsicht === 'konfig') { box.innerHTML = elmaKonfigHtml(); return; }
+    if (_elmaAnsicht === 'aufgaben') { box.innerHTML = elmaAufgabenHtml(); return; }
+    if (_elmaAnsicht === 'monat') { box.innerHTML = elmaMonatHtml(); return; }
+    box.innerHTML = elmaJahrHtml();
+}
+
+function elmaJahrHtml() {
+    const gruppen = _elmaDomaenen?.gruppen || [];
+    if (!gruppen.length) return '<div style="font-size:13px;color:#8b8b8b">Empfänger werden geladen.</div>';
+    const art = _elmaAktuelleArt();
+    return gruppen.map(g => `<section class="elma-gruppe">
+        <div class="elma-kicker">${_elmaEsc(g.name)}</div>
+        ${(g.zeilen || []).map(z => {
+            const sendbar = !!z.art;
+            const aktiv = sendbar && z.art === art;
+            const extra = !sendbar && _elmaExtra.has(z.id);
+            const haken = sendbar
+                ? `<input type="checkbox" ${aktiv ? 'checked' : ''} onchange="if(this.checked)elmaDomWaehlen('${_elmaEsc(z.art)}');else elmaMitteZeichnen()">`
+                : `<input type="checkbox" ${extra ? 'checked' : ''} onchange="elmaExtra('${_elmaEsc(z.id)}', this.checked)">`;
+            const summen = z.lohnsummen
+                ? `<button type="button" class="btn btn-secondary" onclick="elmaBvgLaden()">Lohnsummen aufbereiten</button>`
+                : '';
+            const hinweis = extra
+                ? `<div style="font-size:12px;color:#646464;margin:-2px 0 8px 22px">Adressiert. Die Lohndaten dieser Domäne stehen noch nicht in der Jahresdatei, deshalb geht hier noch nichts raus.</div>`
+                : '';
+            return `<div class="elma-zeile">${haken}<b>${_elmaEsc(z.name)}</b><span class="elma-an">an <em>${_elmaEsc(z.an)}</em></span>${summen}</div>${hinweis}`;
+        }).join('')}
+        ${g.portal ? '<div style="font-size:12px;color:#8b8b8b;margin-top:6px">Bei UVG, UVGZ, KTG und BVG kann «Freigabe im Portal gewünscht» mitgegeben werden.</div>' : ''}
+    </section>`).join('') + '<div id="elmaBvg"></div>';
+}
+
+function elmaMonatHtml() {
+    return `<section class="elma-gruppe">
+        <div class="elma-kicker">Quellensteuer</div>
+        <div class="elma-zeile"><b>Quellensteuer</b><span class="elma-an">an die Steuerverwaltung jedes Kantons mit Quellensteuer. Nach dem Prüfen lässt sich jeder Kanton einzeln an- und abwählen.</span></div>
+    </section>
+    <section class="elma-gruppe">
+        <div class="elma-kicker">Statistik</div>
+        <div class="elma-zeile"><b>Statistik</b><span class="elma-an">an das <em>Bundesamt für Statistik</em></span></div>
+    </section>`;
+}
+
+function elmaAufgabenHtml() {
+    const aufgaben = [];
+    (_elma?.meldungen || []).forEach(m => {
+        if (m.zertifizierung) return;
+        (m.empfaenger || []).forEach(e => {
+            const dialog = (e.nachrichten || []).some(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet);
+            if (dialog) aufgaben.push({ text: `Rückfrage von ${e.name}`, titel: m.titel });
+            if (e.freigabeUrl) aufgaben.push({ text: `Freigabe bei ${e.name}`, titel: m.titel });
+        });
+    });
+    const liste = aufgaben.length
+        ? aufgaben.map(a => `<div class="elma-zeile"><b>${_elmaEsc(a.text)}</b><span class="elma-an">${_elmaEsc(a.titel)}</span></div>`).join('')
+        : '<div style="font-size:13px;color:#8b8b8b">Keine offenen Aufgaben.</div>';
+    return `<div class="elma-kicker">Aufgaben</div>
+        <p style="font-size:13px;color:#646464;margin:0 0 10px">Rückfragen und Freigaben, die Empfänger an OneCrew schicken. OneCrew holt sie selbst ab, mindestens einmal am Tag.</p>
+        ${liste}
+        <div style="margin-top:12px"><button type="button" class="btn btn-secondary" onclick="elmaAktualisieren()">Aktualisieren</button></div>`;
+}
+
+function elmaKonfigHtml() {
+    const v = _elmaCert?.vorlage || {};
+    const sua = _elmaCert?.sua;
+    const da = !!(sua?.vorhanden && !(sua.restTage != null && sua.restTage < 0));
+    const firma = `<section class="elma-gruppe">
+        <div class="elma-kicker">Unternehmen</div>
+        <div class="elma-kv2">
+            <span>Firma</span><b>${_elmaEsc(v.firma || '—')}</b>
+            <span>UID</span><b>${_elmaEsc(v.uid || '—')}</b>
+            <span>Kontakt</span><b>${_elmaEsc(v.kontakt || '—')}</b>
+            <span>PLZ / Ort</span><b>${_elmaEsc([v.plz, v.ort].filter(Boolean).join(' ') || '—')}</b>
+        </div>
+        <p style="font-size:13px;color:#92400e;margin:10px 0 0">Diese Angaben werden mit den offiziellen Registern abgeglichen. Abweichungen werden zurückgewiesen. Stimmt etwas nicht, zuerst den Hauptsitz anpassen.</p>
+        <div class="elma-aktionen">
+            ${da ? '' : '<button type="button" class="btn btn-primary" onclick="elmaZertifikatBestellen()">Zertifikat bestellen</button>'}
+            <button type="button" class="btn btn-secondary" onclick="elmaZertifikatAktualisieren()">Aktualisieren</button>
+        </div>
+        <div id="elmaKonfigHinweis" style="font-size:13px;color:#646464;margin-top:8px">${_elmaEsc(_elmaCert?.registrierung?.text || '')}</div>
+        ${da ? '' : `<label style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:10px;font-size:12px;color:#646464">Registrierungspasswort aus dem Brief
+            <input id="elmaBrief" type="text" autocomplete="one-time-code" style="${_ELMA_FELD};width:16rem">
+            <button type="button" class="btn btn-primary" style="margin-top:8px" onclick="elmaZertifikatHinterlegen()">Zertifikat hinterlegen</button>
+        </label>`}
+    </section>`;
+    const zeilen = [];
+    (_elmaDomaenen?.gruppen || []).forEach(g => {
+        if (g.id !== 'versicherung' && g.id !== 'vorsorge') return;
+        (g.zeilen || []).forEach(z => {
+            if (!z.domain || z.an === 'noch kein Empfänger im Katalog') return;
+            const anm = (_elma?.anmeldungen || []).find(m => (m.empfaenger || []).some(e => e.domain === z.domain && (e.name || '').includes(z.an)));
+            const empf = anm?.empfaenger?.find(e => e.domain === z.domain);
+            const profil = g.id === 'versicherung'
+                ? '<div style="font-size:12px;color:#646464">Nach der Anmeldung schickt der Versicherer das Versicherungsprofil. Es erscheint unter Aufgaben.</div>'
+                : '';
+            zeilen.push(`<div class="elma-zeile"><b>${_elmaEsc(z.name)}</b><span class="elma-an">an <em>${_elmaEsc(z.an)}</em></span>
+                ${da
+                    ? (anm
+                        ? `<button type="button" class="btn btn-secondary" onclick="elmaAbmelden('${_elmaEsc(anm.id)}','${_elmaEsc(empf?.addresseeId || '')}')">Abmelden</button>`
+                        : `<button type="button" class="btn btn-primary" onclick="elmaAnmelden('${_elmaEsc(z.domain)}','${_elmaEsc(z.an)}','${_elmaEsc(z.kundennummer || '')}','${_elmaEsc(z.vertragsnummer || '')}','${_elmaEsc(z.kennung || '')}')">Anmelden</button>`)
+                    : '<span class="elma-an">Anmeldung, sobald das Zertifikat hinterlegt ist</span>'}
+                </div>${profil}`);
+        });
+    });
+    return firma + `<section class="elma-gruppe"><div class="elma-kicker">Anmeldung bei Versicherungen und Behörden</div>
+        <p style="font-size:13px;color:#646464;margin:0 0 8px">Pro Standard und pro Empfänger eine Anmeldung. Die Anmeldung bleibt zu, bis das Zertifikat hinterlegt ist.</p>
+        ${zeilen.join('') || '<div style="font-size:13px;color:#8b8b8b">Keine Versicherer im Katalog.</div>'}
+    </section>`;
+}
+
+async function elmaZertifikatBestellen() {
+    const v = _elmaCert?.vorlage || {};
+    const hin = document.getElementById('elmaKonfigHinweis');
+    if (hin) hin.textContent = 'Wird bestellt …';
+    try {
+        const r = await fetch('/api/elm/zertifikat/registrieren', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                firma: v.firma, uid: v.uid, kontakt: v.kontakt, plz: v.plz, ort: v.ort,
+                domain: v.domain, versicherer: v.versicherer, kundennummer: v.kundennummer,
+                vertragsnummer: v.vertragsnummer, addresseeIdentification: v.addresseeIdentification,
+            }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (hin) hin.textContent = j.meldung || j.message || 'Nicht erledigt.';
+    } catch { if (hin) hin.textContent = 'Server nicht erreichbar.'; }
+    setTimeout(elmaBereit, 800);
+}
+
+async function elmaZertifikatAktualisieren() {
+    const hin = document.getElementById('elmaKonfigHinweis');
+    if (hin) hin.textContent = 'Wird aktualisiert …';
+    try {
+        const r = await fetch('/api/elm/zertifikat/status', { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (j.stand) _elmaCert = j.stand;
+        if (hin) hin.textContent = j.meldung || j.message || '';
+    } catch { if (hin) hin.textContent = 'Server nicht erreichbar.'; }
+    elmaBereitZeichnen();
+}
+
+async function elmaZertifikatHinterlegen() {
+    const passwort = document.getElementById('elmaBrief')?.value?.trim();
+    const hin = document.getElementById('elmaKonfigHinweis');
+    if (!passwort) { if (hin) hin.textContent = 'Bitte das Passwort aus dem Brief eingeben.'; return; }
+    try {
+        const r = await fetch('/api/elm/zertifikat/abschliessen', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ passwort }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (j.stand) _elmaCert = j.stand;
+        if (hin) hin.textContent = j.meldung || j.message || '';
+    } catch { if (hin) hin.textContent = 'Server nicht erreichbar.'; }
+    elmaBereitZeichnen();
+}
+
+async function elmaAnmelden(domain, versicherer, kundennummer, vertragsnummer, kennung) {
+    await _elmaPost('anmelden', { domain, versicherer, kundennummer, vertragsnummer, kennung },
+        'Anmeldung', 'OneCrew meldet das Unternehmen an.');
+    elmaMitteZeichnen();
+}
+
+async function elmaAbmelden(id, addresseeId) {
+    if (!addresseeId) return;
+    await _elmaPost('anmeldungen/' + encodeURIComponent(id) + '/abmelden', { addresseeId, storyId: '' },
+        'Abmeldung', 'OneCrew meldet das Unternehmen ab.');
+    elmaMitteZeichnen();
+}
+
+async function elmaBvgLaden() {
+    const jahr = parseInt(document.getElementById('elmaJahr')?.value, 10);
+    const box = document.getElementById('elmaBvg');
+    if (!box || !jahr) return;
+    box.innerHTML = '<div style="font-size:13px;color:#646464">Lohnsummen werden gerechnet.</div>';
+    try {
+        const r = await fetch('/api/elm/meldungen/bvg-lohnsummen?jahr=' + jahr, { headers: ah(), cache: 'no-store' });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || 'Fehler');
+        _elmaBvg = j;
+    } catch (e) {
+        box.innerHTML = _elmaKasten(false, _elmaEsc(e.message));
+        return;
+    }
+    elmaBvgZeichnen();
+}
+
+function elmaBvgZeichnen() {
+    const box = document.getElementById('elmaBvg');
+    const b = _elmaBvg;
+    if (!box || !b) return;
+    const zeilen = (b.zeilen || []).map(z => `<tr>
+        <td>${_elmaEsc(z.name)}</td>
+        <td>${_elmaGeld(z.vorschlag)}</td>
+        <td><input id="elmaBvg-${z.employeeId}" inputmode="decimal" value="${_elmaEsc(String(z.betrag))}" style="${_ELMA_FELD}"></td>
+    </tr>`).join('');
+    box.innerHTML = `<section class="elma-gruppe">
+        <div class="elma-kicker">Voraussichtliche Lohnsummen ${b.jahr}</div>
+        <p style="font-size:13px;color:#646464;margin:0">Vorschlag aus den BVG-Basen des Jahres. Die Summe lässt sich anpassen und danach zur Übermittlung freigeben.</p>
+        <table class="elma-bvg"><thead><tr><th>Person</th><th>Vorschlag</th><th>Lohnsumme</th></tr></thead><tbody>${zeilen || '<tr><td colspan="3">Keine Lohnabrechnungen in diesem Jahr.</td></tr>'}</tbody></table>
+        <div class="elma-aktionen">
+            <button type="button" class="btn btn-primary" onclick="elmaBvgFrei(true)">Zur Übermittlung freigeben</button>
+            ${b.freigegeben ? '<span style="font-size:13px;color:#166534">Freigegeben</span>' : ''}
+        </div>
+    </section>`;
+}
+
+function _elmaGeld(n) {
+    const x = Number(n);
+    if (!isFinite(x)) return '';
+    return x.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function elmaBvgFrei(frei) {
+    const b = _elmaBvg;
+    if (!b) return;
+    const zeilen = (b.zeilen || []).map(z => {
+        const roh = document.getElementById('elmaBvg-' + z.employeeId)?.value || '';
+        const betrag = Number(String(roh).replace(/'/g, '').replace(',', '.'));
+        return { employeeId: z.employeeId, betrag: isFinite(betrag) ? betrag : z.vorschlag };
+    });
+    const r = await fetch('/api/elm/meldungen/bvg-lohnsummen', {
+        method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jahr: b.jahr, freigegeben: !!frei, zeilen }),
+    });
+    if (r.ok) { b.freigegeben = !!frei; elmaBvgZeichnen(); }
 }
 
 function elmaAktionenZeichnen() {
@@ -233,23 +516,35 @@ function elmaAktionenZeichnen() {
 }
 
 function elmaArtGewechselt() {
-    const art = document.getElementById('elmaArt')?.value;
+    const monatlich = _elmaAnsicht === 'monat';
     const w = document.getElementById('elmaMonatWrap');
-    if (w) w.style.display = art === 'monthly' ? 'flex' : 'none';
-    const hinweise = {
-        annual: 'Jahresmeldung an die AHV-Ausgleichskasse.',
-        'grenz-it': 'Nur Personen mit dem Häkchen «Datenaustausch Italien» in der Quellensteuer. Geburtsort, Steuernummer und Datum stehen dort.',
-        'grenz-fr': 'Wohnsitz Frankreich und Arbeitsort Schweiz. Der Anteil Telearbeit steht in der Quellensteuer. Tarif SFN hat eine eigene Meldung.',
-        'grenz-sfn': 'Nur Personen mit Tarifcode SFN. Keine weiteren Angaben.',
-    };
-    const hin = document.getElementById('elmaArtHinweis');
-    if (hin) hin.textContent = hinweise[art] || 'Monatsmeldung an die Steuerverwaltungen und ans Bundesamt für Statistik.';
-    elmaAktionenZeichnen();
+    if (w) w.style.display = monatlich ? 'flex' : 'none';
+    const portal = document.getElementById('elmaPortalWrap');
+    if (portal) portal.style.display = _elmaAnsicht === 'jahr' ? '' : 'none';
+    const controls = document.getElementById('elmaControls');
+    if (controls) controls.style.display = (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat') ? '' : 'none';
     _elmaLageKey = '';
     _elmaVorschau = null;
+    _elmaKantone = null;
     const vorschau = document.getElementById('elmaVorschau');
     if (vorschau) vorschau.innerHTML = '';
     elmaListeZeichnen();
+}
+
+function _elmaPasstAnsicht(m) {
+    const art = m.art || 'monthly';
+    return _elmaAnsicht === 'monat' ? art === 'monthly' : art !== 'monthly';
+}
+
+function _elmaGewaehlt(v) {
+    return (v?.empfaenger || []).filter(e => _elmaKantone == null || _elmaKantone.has(e.addresseeId));
+}
+
+function elmaKantonToggle(id, an) {
+    const ids = (_elmaVorschau?.empfaenger || []).map(e => e.addresseeId);
+    if (_elmaKantone == null) _elmaKantone = new Set(ids);
+    if (an) _elmaKantone.add(id); else _elmaKantone.delete(id);
+    elmaVorschauZeichnen();
 }
 
 function _elmaAktuelleArt() {
@@ -322,12 +617,16 @@ function elmaVorschauZeichnen() {
     if (!el || !_elmaVorschau) return;
     const v = _elmaVorschau;
     const fehler = v.fehler || [];
-    const leer = !(v.empfaenger || []).length;
+    const gewaehlt = _elmaGewaehlt(v);
+    const leer = !gewaehlt.length;
     const kann = !fehler.length && !(v.technisch || []).length && !leer && !v.sendenGesperrt;
     const warnungen = v.warnungen || [];
-    const empf = leer
+    const empf = !(v.empfaenger || []).length
         ? '<span class="elma-send-leer">Niemanden — die Meldung ist leer</span>'
-        : v.empfaenger.map(e => `<span class="elma-send-chip">${_elmaEsc(e.name)}</span>`).join('');
+        : v.empfaenger.map(e => {
+            const an = _elmaKantone == null || _elmaKantone.has(e.addresseeId);
+            return `<label class="elma-send-chip" style="gap:6px;cursor:pointer"><input type="checkbox" ${an ? 'checked' : ''} onchange="elmaKantonToggle('${_elmaEsc(e.addresseeId)}', this.checked)"> ${_elmaEsc(e.name)}</label>`;
+        }).join('');
     const hinweise = warnungen.length
         ? `<div class="elma-send-warn"><div class="elma-kicker">Hinweise</div><ul>${warnungen.map(w => `<li>${_elmaEsc(w)}</li>`).join('')}</ul></div>`
         : '';
@@ -350,7 +649,7 @@ function elmaVorschauZeichnen() {
             ${v.sendenGesperrt ? _elmaKasten(false, _elmaEsc(v.sendenGesperrt)) : ''}
             <div class="elma-send-foot">
                 <p>${kann ? 'OneCrew übergibt die Meldung an Swissdec.' : 'Senden bleibt zu, bis die Meldung in Ordnung ist.'}</p>
-                <button type="button" class="btn btn-primary" onclick="elmaSenden()" ${kann && !_elmaBusy ? '' : 'disabled'}>${_elmaErsatz ? 'Korrigierte Meldung senden' : 'Senden'}</button>
+                <button type="button" class="btn btn-primary" onclick="elmaSenden()" ${kann && !_elmaBusy ? '' : 'disabled'}>${_elmaErsatz ? 'Ersatzmeldung' : 'Übermitteln'}</button>
             </div>
         </section>`;
 }
@@ -358,7 +657,15 @@ function elmaVorschauZeichnen() {
 async function elmaSenden() {
     const v = _elmaVorschau;
     if (!v || _elmaBusy) return;
-    const body = Object.assign({}, v.auswahl, { ersetztId: _elmaErsatz?.id || null, ziel: null });
+    const adressaten = _elmaKantone == null ? null
+        : Object.fromEntries((v.empfaenger || []).map(e => [e.addresseeId, _elmaKantone.has(e.addresseeId)]));
+    const body = Object.assign({}, v.auswahl, {
+        ersetztId: _elmaErsatz?.id || null,
+        ziel: null,
+        testmeldung: document.getElementById('elmaTest')?.checked !== false,
+        freigabePortal: _elmaAnsicht === 'jahr' && !!document.getElementById('elmaPortal')?.checked,
+        adressaten,
+    });
     _elmaFlug = true;
     elmaKommZeichnen();
     const j = await _elmaPost('senden', body, 'Meldung wird gesendet', 'OneCrew übergibt sie an Swissdec.');
@@ -439,30 +746,89 @@ async function _elmaPost(pfad, body, warteTitel, warteText) {
 function elmaListeZeichnen() {
     const el = document.getElementById('elmaListe');
     if (!el) return;
-    const alle = (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung && _elmaPasstArt(x.m));
-    const offen = alle.filter(x => !x.m.fertig);
-    const fertig = alle.filter(x => x.m.fertig);
+    if (_elmaAnsicht === 'aufgaben') elmaMitteZeichnen();
+    const alle = (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung && _elmaPasstAnsicht(x.m));
     const hinweis = _elmaHinweis
         ? `<div style="margin-bottom:10px;padding:10px 12px;border-radius:10px;font-size:13px;background:${_elmaHinweis.ok ? _ELMA_STUFE.ok.grund : _ELMA_STUFE.rot.grund};color:${_elmaHinweis.ok ? _ELMA_STUFE.ok.text : _ELMA_STUFE.rot.text}">${_elmaEsc(_elmaHinweis.text)}</div>`
         : '';
-    const kopf = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div style="font-size:13px;font-weight:700;color:#3f3f3f">Gesendete Meldungen</div>
-        <button type="button" class="btn btn-secondary" style="margin-left:auto" onclick="elmaLaden()">Aktualisieren</button></div>`;
-    if (!_elma) { el.innerHTML = ''; elmaKommZeichnen(); return; }
-    if (!alle.length) {
-        el.innerHTML = kopf + hinweis + '<div style="font-size:13px;color:#8b8b8b">Für diese Meldung wurde noch nichts gesendet.</div>';
-        elmaLageZeichnen();
-        elmaKommZeichnen();
+    if (!_elma) { el.innerHTML = ''; return; }
+    const fokus = alle.find(x => x.m.id === _elmaFokus) || alle[0];
+    const uebersicht = fokus
+        ? _elmaUebersicht(fokus.m, fokus.mi)
+        : '<div style="font-size:13px;color:#8b8b8b">Noch keine Übermittlung. Nach «Übermitteln» steht die Mitteilung hier.</div>';
+    el.innerHTML = hinweis
+        + `<section class="elma-uebersicht"><div style="display:flex;align-items:center;gap:10px"><div class="elma-kicker" style="margin:0">Mitteilungsübersicht</div>
+            <button type="button" class="btn btn-secondary" style="margin-left:auto" onclick="elmaAktualisieren()">Aktualisieren</button></div>${uebersicht}</section>`
+        + `<section class="elma-historie"><div class="elma-kicker">Mitteilungshistorie</div>
+            ${alle.length ? alle.map(x => _elmaZeile(x.m, x.mi)).join('') : '<div style="font-size:13px;color:#8b8b8b">Noch nichts gesendet.</div>'}
+        </section>`;
+}
+
+async function elmaAktualisieren() {
+    const offen = (_elma?.meldungen || []).filter(m => !m.fertig && !m.zertifizierung);
+    if (!offen.length) {
+        await elmaLaden();
+        if (_elmaAnsicht === 'aufgaben' || _elmaAnsicht === 'konfig') elmaMitteZeichnen();
         return;
     }
-    el.innerHTML = kopf + hinweis
-        + (offen.length ? offen.map(x => _elmaZeile(x.m, x.mi)).join('') : '<div style="font-size:13px;color:#8b8b8b;margin-bottom:8px">Keine offenen Meldungen.</div>')
-        + (fertig.length ? `<div style="margin-top:10px">
-            <button type="button" onclick="elmaArchiv()" style="background:none;border:none;padding:0;cursor:pointer;font-size:13px;color:#646464">${_elmaArchivOffen ? '▼' : '▶'} Abgeschlossene Meldungen (${fertig.length})</button>
-            ${_elmaArchivOffen ? `<div style="margin-top:8px">${fertig.map(x => _elmaZeile(x.m, x.mi)).join('')}</div>` : ''}
-        </div>` : '');
-    elmaLageZeichnen();
-    elmaKommZeichnen();
+    if (_elmaBusy) return;
+    _elmaBusy = true;
+    _elmaWarte('Aktualisieren', 'OneCrew holt den Stand der offenen Meldungen.');
+    try {
+        for (const m of offen) {
+            const r = await fetch('/api/elm/meldungen/' + encodeURIComponent(m.id) + '/abfragen', { method: 'POST', headers: ah() });
+            const j = await r.json().catch(() => ({}));
+            if (r.ok && j.stand) _elma = j.stand;
+        }
+    } finally {
+        _elmaWarte(null);
+        _elmaBusy = false;
+        elmaListeZeichnen();
+        if (_elmaAnsicht === 'aufgaben' || _elmaAnsicht === 'konfig') elmaMitteZeichnen();
+    }
+}
+
+async function elmaDialogHolen(id) {
+    _elmaFokus = id;
+    await _elmaPost(encodeURIComponent(id) + '/abfragen', {}, 'DialogMessage abholen', 'OneCrew holt die Nachricht des Empfängers.');
+}
+
+function elmaQuittung(id) {
+    _elmaQuittung = _elmaQuittung === id ? null : id;
+    _elmaFokus = id;
+    elmaListeZeichnen();
+}
+
+function _elmaUebersicht(m, mi) {
+    const status = `${m.statusText || 'In Bearbeitung'} (${m.status || 'pending'})`;
+    const _ELMA_DOMNAME = {
+        'AHV-AVS': 'AHV', 'FAK-CAF': 'FAK', 'UVG-LAA': 'UVG', 'UVGZ-LAAC': 'UVGZ', 'KTG-AMC': 'KTG',
+        'BVG-LPP': 'BVG', 'TaxAtSource': 'Quellensteuer', 'Statistic': 'Statistik', 'TaxCrossborder': 'Grenzgänger', 'Tax': 'Lohnausweise',
+    };
+    const domains = [...new Set((m.empfaenger || []).map(e => _ELMA_DOMNAME[e.domain] || e.domain).filter(Boolean))];
+    const empfaenger = (m.empfaenger || []).map(e => e.name).filter(Boolean);
+    const hinweise = (m.empfaenger || []).flatMap(e => e.hinweise || []);
+    const frei = (m.empfaenger || []).findIndex(e => e.freigabeUrl);
+    const quittung = (m.empfaenger || []).some(e => (e.nachrichten || []).some(n => (n.art || '').indexOf('Quittung') >= 0));
+    const quittungText = _elmaQuittung === m.id
+        ? (m.empfaenger || []).flatMap(e => (e.nachrichten || []).filter(n => (n.art || '').indexOf('Quittung') >= 0).map(n => `<pre style="white-space:pre-wrap;font-size:12px;margin:8px 0 0">${_elmaEsc(n.xml || n.art)}</pre>`)).join('')
+        : '';
+    return `<div class="elma-kv2">
+        <span>Status</span><b>${_elmaEsc(status)}</b>
+        <span>Übermittlungszeitpunkt</span><b>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</b>
+        <span>DeclarationID</span><b>${_elmaEsc(m.declarationId || 'noch nicht vergeben')}</b>
+        <span>Domäne</span><b>${_elmaEsc(domains.join(', ') || m.titel || '—')}</b>
+        <span>Empfänger</span><b>${_elmaEsc(empfaenger.join(', ') || '—')}</b>
+        <span>Benachrichtigungen</span><b>${hinweise.length ? hinweise.map(_elmaEsc).join(' · ') : 'keine'}</b>
+    </div>
+    <div class="elma-aktionen">
+        <button type="button" class="btn btn-primary" ${frei >= 0 ? '' : 'disabled'} onclick="elmaFreigeben(${mi}, ${frei})">Freigabe starten</button>
+        <button type="button" class="btn btn-secondary" onclick="elmaDialogHolen('${_elmaEsc(m.id)}')">DialogMessage abholen</button>
+        <button type="button" class="btn btn-secondary" ${quittung ? '' : 'disabled'} onclick="elmaQuittung('${_elmaEsc(m.id)}')">Quittung anzeigen</button>
+        ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmaErsetzen('${_elmaEsc(m.id)}')">Ersatzmeldung</button>` : ''}
+    </div>
+    ${quittungText}
+    ${_elmaDetailsInhalt(m, mi)}`;
 }
 
 function elmaAnsehen(id) {
@@ -517,7 +883,8 @@ function _elmaPhaseVon(m) {
     return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit', zurueck: false };
 }
 
-function elmaKommZeichnen() {
+function elmaKommZeichnen() { return; }
+function elmaKommZeichnenAlt() {
     const m = _elmaFlug ? null : _elmaFokusMeldung();
     const phase = _elmaPhaseVon(_elmaFlug ? null : m);
     const box = document.getElementById('elmaSteps');
@@ -580,7 +947,8 @@ function _elmaKarten(innen) {
         border:1px solid rgba(255,255,255,0.75);box-shadow:0 10px 28px rgba(60,55,48,0.12)">${innen}</div>`;
 }
 
-function elmaLageZeichnen() {
+function elmaLageZeichnen() { return; }
+function elmaLageZeichnenAlt() {
     if (_elmaBusy) return;
     const el = document.getElementById('elmaStatus');
     if (!el) return;
@@ -665,7 +1033,7 @@ function _elmaZeile(m, mi) {
                 ? '<div style="font-size:13px;color:#646464;padding-top:4px">Die Angaben stehen oben.</div>'
                 : _elmaDetailsInhalt(m, mi)}
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
-                ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmaErsetzen('${id}')">Korrigierte Meldung senden</button>` : ''}
+                ${m.ersetzbar ? `<button type="button" class="btn btn-secondary" onclick="elmaErsetzen('${id}')">Ersatzmeldung</button>` : ''}
             </div>
         </div>` : ''}
     </div>`;

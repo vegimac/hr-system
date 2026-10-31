@@ -2982,16 +2982,16 @@
       "hintergrund": "Mit ELMv5 konnten diverse Erfahrungen mit den Übermittlungsprozessen, wie auch den Übermittlungscockpits in den produktiven ERP-Lösungen gemacht werden. Eine grosse Herausforderung liegt im Support der ELM-Prozesse. Da das Cockpit in jedem ERP-System individuell umgesetzt wurde, ist es für die Datenempfänger praktisch unmöglich bei Fragen weiterzuhelfen. Aus diesem Grund wird praktisch der gesamte Support über die ERP-Hersteller abgewickelt. Um ein besseres Verständnis für die Übermittlungsprozesse von ELMv6 für das gesamte System zu schaffen, haben wir uns entschieden die Übermittlungscockpits zu einem gewissen Grad zu zertifizieren und damit ein Stück weit zu vereinheitlichen. Wir erhoffen uns dadurch eine Reduktion vom Supportaufwand auf allen Seiten und ein besseres Verständnis für die ELM-Prozesse bei den Anwendern.",
       "direktive": "Showcase",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
+      "kommentarQt": "ELM-Cockpit, Reiter Jahresmeldung: AHV, FAK, UVG, UVGZ, KTG, BVG mit Lohnsummen, Lohnausweise, Grenzgänger. Empfänger steht an jeder Zeile.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3008,16 +3008,16 @@
       "hintergrund": "Eine der grössten Herausforderungen vom Lohnstandard-CH (ELM) Version 5.0 lag im Prozessabschluss nach erfolgter Übermittlung. Bei ELMv5 wurde der letzte Prozessschritt - also das \"GetResult\" von den Endkunden kaum ausgefüht und dieser Umstand hat zu diversen Rückfragen geführt. Um sicherzustellen, dass die technischen Prozesse in jedem Fall abgeschlossen werden, wird in der Zertifzierung sichergestellt, dass die technischen Prozesse im ERP-System nicht visualisiert werden, sondern einfach hinter einer konsolidierten Funktion \"Aktualisieren\" verborgen werden. Damit wird einerseits sichergestellt, dass die Quittungen in jedem Fall abgeholt und dem Endbenutzer angezeigt werden und andererseits wird damit erreicht, dass der Endbenutzer vom ERP-System besser geführt wird.",
       "direktive": "Showcase",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
+      "kommentarQt": "ELM-Cockpit: ein Knopf Aktualisieren. Kein GetStatus, kein Synchronisieren.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3034,16 +3034,16 @@
       "hintergrund": "Testmeldungen werden in der Produktion vor allem im Zusammenhang mit den Jahresmeldungen sehr aktiv genutzt. Vor allem grosse Unternehmen prüfen die Einrichtung im ERP-System aktiv und regelmässig um sich auf die Lohndeklarationsperiode vorzubereiten. Es ist aus diesem Grund wichtig, diese Funktion zentral zu platzieren. Es empfiehlt sich zudem, die Anwender auf den Nutzen dieser Funktion hinzuweisen. Als Testmeldung gekennzeichnete Übermittlungen werden von den Empfängern nicht verarbeitet.",
       "direktive": "Showcase",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
+      "kommentarQt": "ELM-Cockpit, Jahresmeldung: Häkchen Testmeldung.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3059,17 +3059,17 @@
       "erwartet": "Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob im ERP-System die Möglichkeit eine Übermittlung an die Versicherungsdomänen mit der Information \"Freigabe im Portal gewünscht\" zu kennzeichnen, umgesetzt wurde. - Prüfen ob die Funktion analog der Spezifikation im Anhang x benannt wurde.",
       "hintergrund": "Die Funktion \"Freigabe im Portal gewünscht\" wurde mit ELMv5 in den Standard aufgenommen (früher unvollständige Meldung). Stand heute verwendet ausschliesslich die Suva diesen Prozess. In der technischen Abnahme der Endempfänger wird allerdings geprüft, dass jede Versicherung technisch mit dem Element umgehen kann. Wenn das Element \"Freigabe im Portal gewünscht\" bei der Suva nicht mitgeschickt wird, verarbeitet die Suva im besten Fall die Daten direkt und verzichtet auf die Freigabe via Portal. Je nach Ausgangslage kann allerdings auch die Suva eine Freigabe anstossen. Beim Element im ERP-System geht es ausschliesslich darum, dem Anwender die Möglichkeit zu geben, eine Freigabe via Portal zu erzwingen. Es wird empfohlen im ERP-System eine Erklärung zur Funktion als eine Art Tooltip zu hinterlegen. Beispielsweise wie folgt: \"In den Übermittlungsprozessen der Versicherungen wird üblicherweise ein Link auf das jeweilige Portal der Versicherung zurückgegeben (Completion). Je nach Versicherung wird die Übermittlung auch ohne Absprung auf ein Portal verarbeitet. Falls ein Link ins Portal ausdrücklich gewünscht wird, kann dies mit dieser Option bei der Übermittlung mitgegeben werden.\"",
       "direktive": "Showcase",
-      "stand": "offen",
-      "kommentarQt": "",
+      "stand": "vorhanden",
+      "kommentarQt": "ELM-Cockpit, Jahresmeldung: Häkchen Freigabe im Portal gewünscht bei den Versicherungen.",
       "notiz": "",
-      "gebaut": false,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "gebaut": true,
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3085,17 +3085,17 @@
       "erwartet": "Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob die Mitteilungen der letzten Übermittlung direkt nach dem Klick auf Übermitteln angezeigt werden. Dies kann in der gleichen Benutzeroberfläche dargestellt werden oder auch via PopUp oder ähnlichen Funktionalitäten sichergestellt werden. - Prüfen ob die vorgegebenen Angaben im ERP-System in der Mitteilungsübersicht visualisiert werden. - Prüfen ob die einzelnen Elemente analog der Spezifikation im Anhang x benannt wurden. (Status bis und mit möglicher Aktionen)",
       "hintergrund": "Auch hier ist die Erfahrung aus ELMv5 mit eingeflossen. Das grösste Ziel liegt, wie bereits bei Testfall 113 erwähnt, darin das die Prozesse abgeschlossen werden und die Anwender die Notifications, wie auch die Quittungen einheitlicher visualisiert erhalten. Es gilt sicherzustellen, dass die Notifications in den Benachrichtigungen auf übersichtliche Art und Weise dargestellt werden. Ein Beispiel zu einer möglichen Umsetzung ist im Showcase zu finden.",
       "direktive": "Showcase",
-      "stand": "offen",
-      "kommentarQt": "",
+      "stand": "vorhanden",
+      "kommentarQt": "ELM-Cockpit: Mitteilungsübersicht direkt unter der Meldung, mit Status, Zeitpunkt, DeclarationID, Domäne, Empfänger, Benachrichtigungen und den Aktionen.",
       "notiz": "",
-      "gebaut": false,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "gebaut": true,
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3111,17 +3111,17 @@
       "erwartet": "Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob in der Mitteilungshistorie vergangene Übermittlungen angezeigt werden können. - Prüfen ob der Informationsgehalt identisch ist, wie in der Mitteilungsübersicht. - Prüfen ob aus der Mitteilungshistorie heraus direkt Ersatzmeldungen vorgenommen werden können.",
       "hintergrund": "Die Hintergrundinformationen decken sich mit den Angaben im Testfall zur Mitteilungsübersicht. In der Historie kommt einzig die Anforderung hinzu, dass Ersatzmeldungen direkt über die Historie ausgelöst werden können müssen. Die Idee liegt darin, fälschicherweise übermittelten Ersatzmeldungen vorzubeugen. Gleichzeitig versuchen wir damit eine Ersatzmeldung immer auch gleich von einer bereits getätigten Übermittlung abhängig zu machen.",
       "direktive": "Showcase",
-      "stand": "offen",
-      "kommentarQt": "",
+      "stand": "vorhanden",
+      "kommentarQt": "ELM-Cockpit: Mitteilungshistorie, gleiche Angaben, Knopf Ersatzmeldung.",
       "notiz": "",
-      "gebaut": false,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "gebaut": true,
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3138,16 +3138,16 @@
       "hintergrund": "Die Hintergrundinformationen decken sich mit den Angaben im Testfall zum Cockpit der Jahresmeldung. Bei der UVG-Übermittlung \"TariTemp\" an die Suva handelt es sich um einen Spezialfall. Diese Übermittlung ist nur für Unternehmen aus der Personalverleihbranche relevant und muss auch ausschliesslich von ERP- Herstellern umgesetzt werden, die diese Branche betreuen. Weitere Informationen dazu sind im Anhang 2 der Richtlinien von ELMv6 beschrieben. Für die Domäne Quellensteuer ist es wichtig, dass im Cockpit der Monatsmeldung die Möglichkeit besteht, dass eine Übermittlung an einen einzelnen Kanton vorgenommen werden kann. Der Grund dafür liegt darin, dass es in der Produktion in der Vergangenheit immer wieder Situationen gab, wo eine Übermittlung für einen einzelnen Kanton ausgelöst werden musste und dies in diversen ERP-Systemen nicht möglich war. Die Idee ist selbstverständlich, dass auch für die Domäne Quellensteuer immer sämtliche adressierten Kantone gemeinsam übermittelt werden, aber es muss dennoch möglich sein, die Übermittlung nur für einen Kanton vorzunehmen.",
       "direktive": "Showcase",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
+      "kommentarQt": "ELM-Cockpit, Reiter Monatsmeldung: Quellensteuer je Kanton nach dem Prüfen, Statistik. TariTemp entfällt (keine Personalverleih-Branche).",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3164,16 +3164,16 @@
       "hintergrund": "Um eine gewisse Einheitlichkeit zu erreichen, ist es in den Cockpits wichtig, dass die Funktionalitäten einheitlich umgesetzt werden.",
       "direktive": "Showcase",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
+      "kommentarQt": "ELM-Cockpit, Monatsmeldung: dieselben Knöpfe Aktualisieren, Testmeldung, Mitteilungsübersicht, Mitteilungshistorie.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3190,16 +3190,16 @@
       "hintergrund": "Im Gegensatz zu den bereits bekannten Jahres- und Monatsmeldungen hat Swissdec im Umgang mit SUA sehr wenig Erfahrung. Bei den Anforderungen in diesem Testfall geht es um einen ersten \"best effort\". Wir erhoffen uns Sie als ERP-Hersteller mit diesen Informationen bereits ab Einführung von ELMv6 zu unterstützen. Ziel ist es, die neuen Prozesse massentauglich in die ERP-Systeme zu integrieren, damit sie vom Endbenutzer eigenständig abgeschlossen werden können. Eine mögliche Umsetzung ist im Showcase visualisiert.",
       "direktive": "Showcase",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
+      "kommentarQt": "ELM-Cockpit, Text zu SUA oben, Knopf Konfiguration. Ein Zertifikat für alle Swissdec-Standards.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3216,16 +3216,16 @@
       "hintergrund": "Beim SUA- wie auch dem Anmeldungsprozess handelt es sich um zentrale Bausteine von Swissdec. Sie werden standardübergreifend verwendet und es ist sehr wichtig, diese Bausteine massentauglich in die ERP-Systeme zu integrieren. Die kompletten KLE- und EO-Prozesse bauen auf diesen Bausteinen auf. In ELM sind es zwar nur Teile vom Standard (UVG, UVGZ, KTG Versicherungsprofile und BVG-Beitragsänderungen), aber es ist trotzdem essentiell die zwei Prozesse bereits bei der Umsetzung von ELM einfach bedienbar in die Systeme zu integrieren. Eine mögliche Umsetzung vom SUA- wie auch vom Anmeldungsprozess inkl. textueller Beschreibungen ist im Showcase visualisiert.",
       "direktive": "Showcase",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
+      "kommentarQt": "ELM-Cockpit, Konfiguration: Firmenangaben vor der Bestellung, Registerhinweis, Zertifikat bestellen, Anmeldung erst mit Zertifikat, Abmelden je Empfänger.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     },
@@ -3241,17 +3241,17 @@
       "erwartet": "Das Cockpit im ERP-System muss wie folgt geprüft werden: - Prüfen ob im ERP-System Aufgaben visualisiert werden können. - Prüfen wie im ERP-System die Aufgaben \"aktualisiert\" werden können. - Prüfen ob die integrierte Aufgabenübersicht aus Sicht Swissdec massentauglich ins ERP-System integriert wurde.",
       "hintergrund": "Auf den Aufgaben basieren diverse Prozesse von Swissdec Standards. Im Lohnstandard-CH (ELM) sind dies ausschliesslich die unterstützenden Prozesse bzgl. Versicherungsprofile aus den Domänen UVG, UVGZ und KTG und Beitragsänderungen aus der Domäne BVG. Im Falle von KLE und EO basiert sehr viel mehr darauf. Aus diesem Grund empfiehlt Swissdec die Aufgaben übergreifend in die Software zu integrieren.",
       "direktive": "Showcase",
-      "stand": "offen",
-      "kommentarQt": "",
+      "stand": "vorhanden",
+      "kommentarQt": "ELM-Cockpit, Reiter Aufgaben, Knopf Aktualisieren. Der Hintergrunddienst holt Aufgaben laufend ab.",
       "notiz": "",
-      "gebaut": false,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "gebaut": true,
+      "seite": "elm-anwender",
+      "seiteLabel": "ELM-Cockpit",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: ELM-Cockpit",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-anwender"
         }
       ]
     }
