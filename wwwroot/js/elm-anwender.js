@@ -164,8 +164,8 @@ function elmaBereitZeichnen() {
         btn.disabled = !abgelaufen;
         btn.title = abgelaufen ? 'Neues Zertifikat bei Swissdec beantragen' : 'Das Zertifikat ist gültig.';
     }
-    const mitte = document.getElementById('elmaMitte');
-    if (_elmaAnsicht === 'konfig' && mitte && !mitte.contains(document.activeElement)) elmaMitteZeichnen();
+    const sonder = document.getElementById('elmaSonder');
+    if (_elmaAnsicht === 'konfig' && sonder && !sonder.contains(document.activeElement)) elmaMitteZeichnen();
 }
 
 async function elmaZertifikatErneuern() {
@@ -229,8 +229,10 @@ function elmaInit() {
 
 function elmaArtWaehlen(id) {
     const el = document.getElementById('elmaArt');
-    if (!el || el.value === id) return;
+    if (!el) return;
     el.value = id;
+    const ansicht = id === 'monthly' ? 'monat' : 'jahr';
+    if (_elmaAnsicht !== ansicht) { elmaAnsicht(ansicht); return; }
     elmaArtGewechselt();
 }
 
@@ -272,37 +274,49 @@ async function elmaDomaenenLaden() {
 }
 
 function elmaMitteZeichnen() {
-    const box = document.getElementById('elmaMitte');
-    if (!box) return;
-    if (_elmaAnsicht === 'konfig') { box.innerHTML = elmaKonfigHtml(); return; }
-    if (_elmaAnsicht === 'aufgaben') { box.innerHTML = elmaAufgabenHtml(); return; }
-    if (_elmaAnsicht === 'monat') { box.innerHTML = elmaMonatHtml(); return; }
-    box.innerHTML = elmaJahrHtml();
+    const layout = document.getElementById('elmaLayout');
+    const sonder = document.getElementById('elmaSonder');
+    const sua = document.querySelector('#page-elm-anwender .elma-sua');
+    const tabs = document.getElementById('elmaTabs');
+    const speziell = _elmaAnsicht === 'konfig' || _elmaAnsicht === 'aufgaben';
+    if (layout) layout.style.display = speziell ? 'none' : '';
+    if (sua) sua.style.display = speziell ? 'none' : '';
+    if (tabs) tabs.style.display = _elmaAnsicht === 'konfig' ? 'none' : '';
+    if (sonder) {
+        sonder.style.display = speziell ? '' : 'none';
+        sonder.innerHTML = _elmaAnsicht === 'konfig' ? elmaKonfigHtml()
+            : _elmaAnsicht === 'aufgaben' ? elmaAufgabenHtml() : '';
+    }
+    const box = document.getElementById('elmaEmpfaenger');
+    if (box && !speziell) box.innerHTML = _elmaAnsicht === 'monat' ? elmaMonatHtml() : elmaJahrHtml();
+    if (!speziell) elmaAktionenZeichnen();
 }
 
 function elmaJahrHtml() {
     const gruppen = _elmaDomaenen?.gruppen || [];
     if (!gruppen.length) return '<div style="font-size:13px;color:#8b8b8b">Empfänger werden geladen.</div>';
     const art = _elmaAktuelleArt();
-    return gruppen.map(g => `<section class="elma-gruppe">
-        <div class="elma-kicker">${_elmaEsc(g.name)}</div>
-        ${(g.zeilen || []).map(z => {
-            const sendbar = !!z.art;
-            const aktiv = sendbar && z.art === art;
-            const extra = !sendbar && _elmaExtra.has(z.id);
-            const haken = sendbar
-                ? `<input type="checkbox" ${aktiv ? 'checked' : ''} onchange="if(this.checked)elmaDomWaehlen('${_elmaEsc(z.art)}');else elmaMitteZeichnen()">`
-                : `<input type="checkbox" ${extra ? 'checked' : ''} onchange="elmaExtra('${_elmaEsc(z.id)}', this.checked)">`;
-            const summen = z.lohnsummen
+    const bloecke = gruppen.map(g => {
+        const nachName = new Map();
+        (g.zeilen || []).forEach(z => {
+            if (!nachName.has(z.name)) nachName.set(z.name, []);
+            nachName.get(z.name).push(z);
+        });
+        const zeilen = [...nachName.entries()].map(([name, liste]) => {
+            const namen = [...new Set(liste.map(z => z.an).filter(a => a && a !== 'noch keiner zugeordnet'))];
+            const an = namen.length ? namen.join(', ') : 'noch keiner zugeordnet';
+            const z = liste.find(x => x.art) || liste[0];
+            const summen = liste.some(x => x.lohnsummen)
                 ? `<button type="button" class="btn btn-secondary" onclick="elmaBvgLaden()">Lohnsummen aufbereiten</button>`
                 : '';
-            const hinweis = extra
-                ? `<div style="font-size:12px;color:#646464;margin:-2px 0 8px 22px">Adressiert. Die Lohndaten dieser Domäne stehen noch nicht in der Jahresdatei, deshalb geht hier noch nichts raus.</div>`
+            const marke = z.art
+                ? (z.art === art ? '<span class="elma-an">diese Meldung</span>' : '')
                 : '';
-            return `<div class="elma-zeile">${haken}<b>${_elmaEsc(z.name)}</b><span class="elma-an">an <em>${_elmaEsc(z.an)}</em></span>${summen}</div>${hinweis}`;
-        }).join('')}
-        ${g.portal ? '<div style="font-size:12px;color:#8b8b8b;margin-top:6px">Bei UVG, UVGZ, KTG und BVG kann «Freigabe im Portal gewünscht» mitgegeben werden.</div>' : ''}
-    </section>`).join('') + '<div id="elmaBvg"></div>';
+            return `<div class="elma-zeile"><b>${_elmaEsc(name)}</b><span class="elma-an">an <em>${_elmaEsc(an)}</em></span>${marke}${summen}</div>`;
+        }).join('');
+        return `<section class="elma-gruppe"><div class="elma-kicker">${_elmaEsc(g.name)}</div>${zeilen}</section>`;
+    }).join('');
+    return bloecke + '<div id="elmaBvg"></div>';
 }
 
 function elmaMonatHtml() {
@@ -339,7 +353,8 @@ function elmaKonfigHtml() {
     const v = _elmaCert?.vorlage || {};
     const sua = _elmaCert?.sua;
     const da = !!(sua?.vorhanden && !(sua.restTage != null && sua.restTage < 0));
-    const firma = `<section class="elma-gruppe">
+    const firma = `<button type="button" class="btn btn-secondary" onclick="elmaAnsicht('jahr')">Zurück zur Meldung</button>
+    <section class="elma-gruppe">
         <div class="elma-kicker">Unternehmen</div>
         <div class="elma-kv2">
             <span>Firma</span><b>${_elmaEsc(v.firma || '—')}</b>
@@ -362,7 +377,7 @@ function elmaKonfigHtml() {
     (_elmaDomaenen?.gruppen || []).forEach(g => {
         if (g.id !== 'versicherung' && g.id !== 'vorsorge') return;
         (g.zeilen || []).forEach(z => {
-            if (!z.domain || z.an === 'noch kein Empfänger im Katalog') return;
+            if (!z.domain || z.an === 'noch keiner zugeordnet') return;
             const anm = (_elma?.anmeldungen || []).find(m => (m.empfaenger || []).some(e => e.domain === z.domain && (e.name || '').includes(z.an)));
             const empf = anm?.empfaenger?.find(e => e.domain === z.domain);
             const profil = g.id === 'versicherung'
@@ -513,6 +528,10 @@ function elmaAktionenZeichnen() {
     const op = document.getElementById('elmaOperation');
     if (kat) kat.textContent = meta.kategorie;
     if (op) op.textContent = meta.name;
+    const hin = document.getElementById('elmaArtHinweis');
+    if (hin) hin.textContent = art === 'monthly'
+        ? 'Quellensteuer an die Kantone, Statistik an das Bundesamt für Statistik.'
+        : 'Unten nur die Empfänger, die der Firma zugeordnet sind.';
 }
 
 function elmaArtGewechselt() {
@@ -528,6 +547,7 @@ function elmaArtGewechselt() {
     _elmaKantone = null;
     const vorschau = document.getElementById('elmaVorschau');
     if (vorschau) vorschau.innerHTML = '';
+    elmaAktionenZeichnen();
     elmaListeZeichnen();
 }
 
@@ -762,6 +782,7 @@ function elmaListeZeichnen() {
         + `<section class="elma-historie"><div class="elma-kicker">Mitteilungshistorie</div>
             ${alle.length ? alle.map(x => _elmaZeile(x.m, x.mi)).join('') : '<div style="font-size:13px;color:#8b8b8b">Noch nichts gesendet.</div>'}
         </section>`;
+    elmaKommZeichnen();
 }
 
 async function elmaAktualisieren() {
@@ -883,8 +904,7 @@ function _elmaPhaseVon(m) {
     return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit', zurueck: false };
 }
 
-function elmaKommZeichnen() { return; }
-function elmaKommZeichnenAlt() {
+function elmaKommZeichnen() {
     const m = _elmaFlug ? null : _elmaFokusMeldung();
     const phase = _elmaPhaseVon(_elmaFlug ? null : m);
     const box = document.getElementById('elmaSteps');
@@ -947,8 +967,7 @@ function _elmaKarten(innen) {
         border:1px solid rgba(255,255,255,0.75);box-shadow:0 10px 28px rgba(60,55,48,0.12)">${innen}</div>`;
 }
 
-function elmaLageZeichnen() { return; }
-function elmaLageZeichnenAlt() {
+function elmaLageZeichnen() {
     if (_elmaBusy) return;
     const el = document.getElementById('elmaStatus');
     if (!el) return;

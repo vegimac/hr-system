@@ -163,12 +163,14 @@ public class ElmMeldungenController : ControllerBase
             string? kennung, string? kundennummer, string? vertragsnummer, string? domain) => new
         {
             id, name,
-            an = string.IsNullOrEmpty(an) ? "noch kein Empfänger im Katalog" : an,
+            an = string.IsNullOrEmpty(an) ? "noch keiner zugeordnet" : an,
             art, lohnsummen, kennung, kundennummer, vertragsnummer, domain,
         };
         IEnumerable<object> AusKatalog(string prefix, string name, string[] arten, string? art, bool lohnsummen, string? domain)
         {
-            var liste = empf.Where(e => arten.Contains(e.Art)).ToList();
+            var heute = DateOnly.FromDateTime(DateTime.Now);
+            var liste = empf.Where(e => arten.Contains(e.Art) && e.Zuordnungen.Any(z =>
+                z.GueltigBis == null || z.GueltigBis >= heute)).ToList();
             if (liste.Count == 0)
                 return new[] { Zeile(prefix, name, "", art, lohnsummen, null, null, null, domain) };
             return liste.Select(e =>
