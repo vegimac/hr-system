@@ -2806,27 +2806,35 @@
                             <img src="img/auswkat-reporting.png?v=20261031c" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                             <div class="admin-card-title">Auswertungen</div>
                         </div>
-                        <div class="admin-card" onclick="showPage('alter-report')" title="Altersstruktur">
-                            <div class="admin-card-title">Altersstruktur</div>
+                    </div>
+                    <div class="hr-card liquid-role-el" data-liquid-roles="admin,superuser,buchhaltung" style="opacity:1;margin-top:18px;max-width:720px">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#cffafe;color:#0e7490">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title">Auswertungen / Reporting</div>
+                                <div class="hr-card-status" style="color:#15803d">Zeile anklicken</div>
+                            </div>
                         </div>
-                        <div class="admin-card" onclick="showPage('fluktuation-report')" title="Fluktuation">
-                            <div class="admin-card-title">Fluktuation</div>
-                        </div>
-                        <div class="admin-card" onclick="showPage('exit-survey-report')" title="Austritts-Feedback">
-                            <div class="admin-card-title">Austritts-Feedback</div>
-                        </div>
-                        <div class="admin-card" onclick="showPage('wochenstunden-report')" title="Wochenstunden">
-                            <div class="admin-card-title">Wochenstunden</div>
-                        </div>
-                        <div class="admin-card" onclick="showPage('mtp-stunden-report')" title="MTP-Stunden">
-                            <div class="admin-card-title">MTP-Stunden</div>
-                        </div>
-                        <div class="admin-card" onclick="showPage('stempel-filialvergleich')" title="Stempelzeiten">
-                            <div class="admin-card-title">Stempelzeiten</div>
-                        </div>
-                        <div class="admin-card" onclick="orgOpen()" title="Organigramm">
-                            <div class="admin-card-title">Organigramm</div>
-                        </div>
+                        <ul>
+                            <li style="cursor:pointer" onclick="showPage('alter-report')"><b>Altersstruktur</b> alle Filialen, namentlich (&lt;16 / &lt;18 / &lt;30 / &lt;45 / &lt;50 / 50+ / Pension) <span style="color:#15803d">✓ öffnen</span></li>
+                            <li style="cursor:pointer" onclick="showPage('fluktuation-report')"><b>Fluktuation</b>: Ein-/Austritte, Austrittsgründe, Zeitraum frei — Sidebar-Filiale oder alle <span style="color:#15803d">✓ öffnen</span></li>
+                            <li style="cursor:pointer" onclick="showPage('exit-survey-report')"><b>Austritts-Feedback</b>: anonyme Fragebogen-Antworten (Filiale, Note, Gründe) <span style="color:#15803d">✓ öffnen</span></li>
+                            <li style="cursor:pointer" onclick="showPage('wochenstunden-report')"><b>Ø Wochenstunden</b>: gestempelte Stunden pro MA, Zeitraum frei — Sidebar-Filiale oder alle <span style="color:#15803d">✓ öffnen</span></li>
+                            <li style="cursor:pointer" onclick="showPage('mtp-stunden-report')"><b>MTP-Stunden-Kontrolle</b>: Garantie vs. Ist pro Woche inkl. Absenzen — Sidebar-Filiale <span style="color:#15803d">✓ öffnen</span></li>
+                            <li style="cursor:pointer" onclick="showPage('stempel-filialvergleich')"><b>Stempelzeiten alle Filialen</b>: Korrekturen und Arbeitszeit-Verstösse pro 100 Stempel <span style="color:#15803d">✓ öffnen</span></li>
+                            <li style="cursor:pointer" onclick="orgOpen()"><b>Organigramm</b>: Lizenznehmer, Filialen mit GF und Managern, Druck A4 quer <span style="color:#15803d">✓ öffnen</span></li>
+                            <li class="hr-idea"><b>Personalbestand</b>: FTE / Headcount pro Filiale</li>
+                            <li class="hr-idea">Verteilung Vertragstyp (FIX / MTP / FLEX)</li>
+                            <li class="hr-idea">Eintritte / Austritte pro Monat (Trendlinie)</li>
+                            <li class="hr-idea">Krankheits-Quote pro Filiale</li>
+                            <li class="hr-idea">Ferien-Saldo Übersicht (rote Flags)</li>
+                            <li class="hr-idea">Überstunden-Übersicht</li>
+                            <li class="hr-idea">Demografie (Nationalität, Sprache)</li>
+                            <li class="hr-idea">Termine: Geburtstage / Jubiläen / Probezeit-Ende / Bewilligungen</li>
+                            <li class="hr-idea">Compliance: überfällige Schulungen, L-GAV-Verstösse</li>
+                        </ul>
                     </div>
                 </div>
             </div>
