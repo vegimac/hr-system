@@ -13068,11 +13068,11 @@ function renderRecurringWagesList(el, list, employeeId, famList = []) {
         const ab = f.erfahrenAm && f.erfahrenAm > f.validFrom ? f.erfahrenAm : f.validFrom;
         const abHinweis = ab !== f.validFrom ? `<div style="font-size:11px;color:#94a3b8">Anspruch ab ${fmtDate(f.validFrom)}</div>` : '';
         return `<tr style="background:rgba(60,55,48,0.03)">
-            <td><span title="Kommt aus dem Familie-Tab" style="color:#16a34a">●</span>
+            <td style="white-space:nowrap"><span title="Kommt aus dem Familie-Tab" style="color:#16a34a">●</span>
                 <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#ece9e2;color:#646464">aus Familie</span>
                 <span style="font-weight:500">${bez}</span>
                 <span style="color:#94a3b8;font-size:11px;margin-left:4px">[${f.code}]</span>
-                <div style="font-size:11px;color:#64748b">${escH(f.kind)}${f.satzLabel ? ' · ' + escH(f.satzLabel) : ''}</div></td>
+                <span style="font-size:12px;color:#64748b;margin-left:8px">${escH(f.kind)}${f.satzLabel ? ' · ' + escH(f.satzLabel) : ''}</span></td>
             <td style="font-family:monospace;text-align:right;color:#059669;font-weight:600">+ CHF ${fmtAmount(f.betrag)}</td>
             <td style="white-space:nowrap">${fmtDate(ab)}${abHinweis}</td>
             <td style="white-space:nowrap;color:${f.validTo ? '#334155' : '#94a3b8'}">${f.validTo ? fmtDate(f.validTo) : 'offen'}</td>
