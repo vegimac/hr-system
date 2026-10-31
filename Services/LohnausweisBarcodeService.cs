@@ -123,6 +123,18 @@ public class LohnausweisBarcodeService
 
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
+    /// <summary>Was auf der Urkunde und im Barcode als DocID steht.</summary>
+    public static string DocIdText(LohnausweisData d) =>
+        d.IstFinal && !string.IsNullOrWhiteSpace(d.DocId)
+            ? d.DocId!
+            : "Entwurf - Brouillon - Bozza";
+
+    /// <summary>Erstellungszeit wie im Barcode, ISO ohne Zeitzone.</summary>
+    public static string CreationDateIso(LohnausweisData d) =>
+        !string.IsNullOrWhiteSpace(d.CreationDateFinal)
+            ? d.CreationDateFinal!
+            : DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", Inv);
+
     /// <summary>
     /// Baut den vollständigen Barcode-Payload (14-Byte-Steuerzeichen + ZIP+XML)
     /// als byte[]. Wird im LohnausweisPdfService an iText's
@@ -223,12 +235,8 @@ public class LohnausweisBarcodeService
         // DocID/CreationDate (Walter 16.08.2026): Entwurf traegt die amtliche
         // Entwurfs-Kennung, Final die persistierte UUID + das beim
         // Finalisieren eingefrorene CreationDate (Wiederdruck-stabil).
-        var docId = d.IstFinal && !string.IsNullOrWhiteSpace(d.DocId)
-            ? d.DocId!
-            : "Entwurf - Brouillon - Bozza";
-        var creation = !string.IsNullOrWhiteSpace(d.CreationDateFinal)
-            ? d.CreationDateFinal!
-            : DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", Inv);
+        var docId = DocIdText(d);
+        var creation = CreationDateIso(d);
         var s = new XElement(Ns + "S",
             new XElement(Ns + "DocID", docId),
             // CreationDate: xs:dateTime, PFLICHT [1..1] gemäss ELM 6.0 Spec
@@ -338,12 +346,8 @@ public class LohnausweisBarcodeService
     /// <summary>Rentenbescheinigung: Element A statt S (Buchstabe B).</summary>
     private static XElement RentenElement(XNamespace Ns, LohnausweisData d, TxAbSchemaVersion version)
     {
-        var docId = d.IstFinal && !string.IsNullOrWhiteSpace(d.DocId)
-            ? d.DocId!
-            : "Entwurf - Brouillon - Bozza";
-        var creation = !string.IsNullOrWhiteSpace(d.CreationDateFinal)
-            ? d.CreationDateFinal!
-            : DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", Inv);
+        var docId = DocIdText(d);
+        var creation = CreationDateIso(d);
         var a = new XElement(Ns + "A",
             new XElement(Ns + "DocID", docId),
             new XElement(Ns + "CreationDate", creation),

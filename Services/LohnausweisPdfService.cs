@@ -1,3 +1,4 @@
+using System.Globalization;
 using HrSystem.Models;
 using iText.Barcodes;
 using iText.Forms;
@@ -95,6 +96,8 @@ public class LohnausweisPdfService
 
         // ESTV-Barcode (PDF417) oben rechts (Position H) einbetten
         EmbedBarcode(pdf, d, companyUid);
+        // Dieselbe DocID lesbar über dem Barcode. Der Tester liest sie nicht aus dem Strichcode.
+        SchreibeDocId(pdf, d);
 
         pdf.Close();
         return ms.ToArray();
@@ -215,6 +218,32 @@ public class LohnausweisPdfService
             // Bei Fehler bleibt der Lohnausweis gültig — Steueramt müsste
             // Werte dann manuell abtippen.
         }
+    }
+
+    /// <summary>
+    /// DocID und Erstellungszeit als Text über dem Barcode (Feld H).
+    /// Die Zeile sitzt zwischen Barcode-Oberkante (y 710) und der Zeile G (y 748).
+    /// </summary>
+    private static void SchreibeDocId(PdfDocument pdf, LohnausweisData d)
+    {
+        var docId = LohnausweisBarcodeService.DocIdText(d);
+        var iso = LohnausweisBarcodeService.CreationDateIso(d);
+        var datum = DateTime.TryParseExact(iso, "yyyy-MM-ddTHH:mm:ss",
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)
+            ? dt.ToString("dd.MM.yyyy HH:mm")
+            : iso;
+        var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+        var canvas = new PdfCanvas(pdf.GetPage(1));
+        canvas.SaveState();
+        canvas.SetFillColor(ColorConstants.BLACK);
+        canvas.BeginText();
+        canvas.SetFontAndSize(font, 7f);
+        canvas.MoveText(320f, 732f);
+        canvas.ShowText("DocID  " + docId);
+        canvas.MoveText(0, -9f);
+        canvas.ShowText(datum);
+        canvas.EndText();
+        canvas.RestoreState();
     }
 
     // ════════════════════════════════════════════════════════════════════════
