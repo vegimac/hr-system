@@ -253,8 +253,12 @@ function laGeldText(value) {
     if (value === null || value === undefined || value === '') return '';
     const n = typeof value === 'number'
         ? value
-        : parseFloat(String(value).replace(/'/g, '').replace(',', '.'));
-    return Number.isFinite(n) ? n.toFixed(2) : '';
+        : parseFloat(String(value).replace(/'/g, '').replace(/\s/g, '').replace(',', '.'));
+    if (!Number.isFinite(n)) return '';
+    const neg = n < 0;
+    const [ganz, dez] = Math.abs(n).toFixed(2).split('.');
+    const mit = ganz.replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+    return (neg ? '-' : '') + mit + '.' + dez;
 }
 function laMoney(name, label, value) {
     return `<span class="la-lbl">${label}</span>

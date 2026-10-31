@@ -364,10 +364,10 @@ public class LohnausweisPdfService
         // ── Ziffer 14 + 15 — Bemerkungen (4 Zeilen durchgehend) ─────────
         // Beide Ziffern bilden zusammen den Bemerkungs-Block am unteren
         // Lohnausweis-Rand. Reihenfolge: 14_1 → 14_2 → 15_1 → 15_2.
-        Set(form, "TextLinks_14_1", d.Ziffer141Bemerkungen);
-        Set(form, "TextLinks_14_2", d.Ziffer142Bemerkungen);
-        Set(form, "TextLinks_15_1", d.Ziffer151Bemerkungen);
-        Set(form, "TextLinks_15_2", d.Ziffer152Bemerkungen);
+        // Vorlage ist Arial 9 pt. Eine lange Zeile (mehrere Genehmigungen
+        // mit « · ») läuft sonst über den Rand. Dann wird der ganze Block
+        // gemeinsam kleiner, damit die Zeilen gleich gross bleiben.
+        SetBemerkungen(form, d);
 
         // ── Bestätigung AG (Adress-Block beim Unterschriften-Stempel) ──
         // Schriftgrösse explizit verkleinert (8 pt statt Default 12 pt), damit
@@ -460,6 +460,59 @@ public class LohnausweisPdfService
         var field = form.GetField(fieldName);
         if (field is null) return;
         field.SetValue(value);
+    }
+
+    private static readonly (string Feld, float Breite)[] _bemerkungsFelder =
+    {
+        ("TextLinks_14_1", 348.66f),
+        ("TextLinks_14_2", 348.66f),
+        ("TextLinks_15_1", 456.38f),
+        ("TextLinks_15_2", 456.38f),
+    };
+
+    private static void SetBemerkungen(PdfAcroForm form, LohnausweisData d)
+    {
+        var texte = new[]
+        {
+            d.Ziffer141Bemerkungen,
+            d.Ziffer142Bemerkungen,
+            d.Ziffer151Bemerkungen,
+            d.Ziffer152Bemerkungen,
+        };
+        var groesse = 9f;
+        for (var i = 0; i < texte.Length; i++)
+        {
+            var g = BemerkungsSchrift(texte[i], _bemerkungsFelder[i].Breite);
+            if (g < groesse) groesse = g;
+        }
+        for (var i = 0; i < texte.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(texte[i])) continue;
+            var field = form.GetField(_bemerkungsFelder[i].Feld);
+            if (field is null) continue;
+            if (groesse < 9f)
+            {
+                try { field.SetFontSize(groesse); } catch { /* Vorlage bleibt */ }
+            }
+            field.SetValue(texte[i]);
+        }
+    }
+
+    /// <summary>
+    /// Schrift der Bemerkungszeile. 9 pt, solange der Text in die Zeile passt,
+    /// sonst in Halb-Punkt-Schritten bis 6 pt.
+    /// </summary>
+    public static float BemerkungsSchrift(string? text, float feldBreite)
+    {
+        const float start = 9f;
+        const float min = 6f;
+        if (string.IsNullOrWhiteSpace(text) || feldBreite <= 8f) return start;
+        var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+        var nutz = feldBreite - 8f;
+        var g = start;
+        while (g > min && font.GetWidth(text, g) > nutz)
+            g -= 0.5f;
+        return g;
     }
 
     /// <summary>
