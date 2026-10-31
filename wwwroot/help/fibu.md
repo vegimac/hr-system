@@ -1,6 +1,6 @@
 # Buchhaltung (Fibu)
 
-Der Fibu-Bereich verbindet den abgeschlossenen Lohnlauf mit der Finanzbuchhaltung: **Fibu-Journal** (Buchungszeilen nach Mirus/McDonald's-Schema) und **Buchhaltungs-Saldo-Liste**. Sichtbar für die Rollen **buchhaltung** und **admin**.
+Der Fibu-Bereich verbindet den abgeschlossenen Lohnlauf mit der Finanzbuchhaltung: **Fibu-Journal** (Buchungszeilen nach dem Kontenplan) und **Buchhaltungs-Saldo-Liste**. Sichtbar für die Rollen **buchhaltung** und **admin**.
 
 ## Wo finde ich was?
 

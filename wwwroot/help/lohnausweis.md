@@ -1,8 +1,8 @@
 # Jahres-Lohnausweis (ESTV Form 11)
 
 OneCrew erstellt den amtlichen Schweizer Lohnausweis als PDF — **inklusive
-2D-Barcode (PDF417)** nach Swissdec-Standard, wie ihn Mirus und der offizielle
-eLohnausweis der Steuerkonferenz drucken. Die Werte werden automatisch aus
+2D-Barcode (PDF417)** nach Swissdec-Standard, wie ihn der offizielle
+eLohnausweis der Steuerkonferenz druckt. Die Werte werden automatisch aus
 allen Lohnabrechnungen des Jahres zusammengezählt.
 
 ## So erstellst du einen Lohnausweis
@@ -44,7 +44,7 @@ Ausweis blockiert und die Meldung zählt auf, **welche Felder fehlen**.
 ## Der Barcode (Feld H)
 
 Der PDF417-Barcode enthält die Lohnausweis-Daten maschinenlesbar
-(Swissdec-Format, wie Mirus): die Steuerverwaltung kann den Ausweis scannen
+(Swissdec-Format): die Steuerverwaltung kann den Ausweis scannen
 statt abtippen. Grösse und Geometrie entsprechen den amtlichen Referenzen —
 mit einem üblichen PDF417-Scanner prüfbar.
 

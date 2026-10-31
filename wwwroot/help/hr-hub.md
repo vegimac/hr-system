@@ -26,7 +26,7 @@ Verwarnung, Aufhebungsvertrag und «Arbeitszeugnis bestellen» gibt es zusätzli
 | **Lücken in Personalakten** | Fehlende Ehepartner-Dokumente, MA-Dokumente, Nachtarbeit-Nachweise. Excel oder PDF. |
 | **Dokument-Upload-Protokoll** | Wer hat wann welches Dokument hochgeladen (Buchhaltung / Revision), inkl. CSV. |
 | **Schulungen** | Stand aller MA. Erfasst wird beim MA, Tab «Training, Verfügbar, Statistik». |
-| **Mirus-Abgleich: fehlende MA** | Personen, die in Mirus stehen und in OneCrew noch fehlen — als Liste zum Nachtragen. |
+| **Fehlende MA** | Personalexport hochladen: welche aktiven Mitarbeitenden in der Liste noch fehlen. Zum Nachtragen, es wird nichts übernommen. |
 | **Familienbetreuung** | easy@work gegen das, was OneCrew als Betreuung erwartet. |
 | **Freie Sonntage** | 4 freie Sonntage im Jahr, 12 im Blick — wer darunter liegt. |
 

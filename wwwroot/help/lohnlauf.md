@@ -138,7 +138,7 @@ Für Nachzahlungen / Korrekturen nach Austritt:
 
 ## Stunden, Saldi, Rückstellungen — kurz erklärt
 
-- **Nacht-Saldo** (Stunden) — für **alle Modelle inkl. FLEX**. Kein Geld, Kompensation mit Ruhetag. Soft-Warnung, wenn die Kompensation **> 9 h** wäre. Vortrag aus Mirus-Monatsblatt (Code 904) gilt auch für FLEX.
+- **Nacht-Saldo** (Stunden) — für **alle Modelle inkl. FLEX**. Kein Geld, Kompensation mit Ruhetag. Soft-Warnung, wenn die Kompensation **> 9 h** wäre. Ein Vortrag (Code 904) gilt auch für FLEX.
 - **Ferien-Saldo (Tage)** — offene Ferientage (auch FLEX, inkl. Vormonat).
 - **Ferien-Geld (CHF)** — FLEX/MTP: Saldo inkl. Vormonat. Bezug = Auszahlung aus dem **Pott** (Vormonat + aktueller Monat), anteilig Tage × Tagessatz, gedeckelt auf Pott-CHF.
 - **13. ML / Probezeit:**

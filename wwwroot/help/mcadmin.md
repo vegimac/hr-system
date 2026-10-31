@@ -22,6 +22,6 @@ direkt unter «Mitarbeiter».
 | **Arbeitsmuster** | Wer arbeitet an welchem Wochentag zu welcher Stunde — aus den Stempelzeiten, für die Dienstplanung. Zeitraum frei (letzte 3 Monate, Vormonat, Jahr). |
 | **Manager-DP** | Der Manager-Dienstplan (FIX-M-Schichtplanung) — inkl. Ferienplaner. |
 
-Zwischenzeugnis, Arbeitsbestätigung, Arbeits-Aufforderung, Meldepflicht und der Austrittsbrief bleiben im HR-Hub unter Offboarding. Absenzen erfasst du in OneCrew, nicht mehr aus einem Mirus-Dienstplan.
+Zwischenzeugnis, Arbeitsbestätigung, Arbeits-Aufforderung, Meldepflicht und der Austrittsbrief bleiben im HR-Hub unter Offboarding. Absenzen erfasst du in OneCrew.
 
 Beim MA bleiben im Tab **«MA Formulare»** Probezeit, Umzug, Postfach-Passwort, Onboarding-QR und Face ID. Darunter siehst du die Verwarnungen dieser Person.

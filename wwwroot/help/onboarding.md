@@ -14,7 +14,7 @@ Wenn eine Filiale von Mirus nach OneCrew kommt, arbeitest du die Karten **der Re
 | 7 | **QST-Auswertung (Mirus)** | Tarifcodes aus Mirus |
 | 8 | **CHF-Saldi** | Mirus «Rückstellungsliste Saldomethode» → Ferien-Geld (905) + 13. ML (906) |
 | 9 | **Stunden-Saldi** | Mirus «Monatsblatt» → Zeitsaldo (901), Nacht (904, **auch FLEX**), Ferien-Tage (903), Feiertag-Tage (902) |
-| 10 | **Adress-/Kontakt-Vergleich** | Mirus vs. OneCrew (nur Kontrolle) |
+| 10 | **Adress-/Kontakt-Vergleich** | Adressliste gegen OneCrew (nur Kontrolle, nichts wird übernommen) |
 
 (Schritt 3 Bank-Import entfällt — IBAN kommt über easy@work.)
 

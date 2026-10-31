@@ -42,7 +42,7 @@ Den Alltag der Lohnmeldungen findest du auch unter [HR → ELM](#hr-hub).
 | **PLZ / Gemeinden** | Ortschaften und BFS-Gemeindenummer |
 | **Grenzregion** | Ausland-PLZ der ESTV. Der Schweizer Import lässt diese Liste stehen. |
 | **Banken** | Name, BIC, BC-Nummer. IBAN-Prüfung darüber. |
-| **Nationen** | ISO-Code, Alternativ-Code (z.B. aus Mirus), aktiv ja/nein |
+| **Nationen** | ISO-Code, Alternativ-Code, aktiv ja/nein |
 | **Mutterschafts-Regeln** | Gesetzliche Fristen |
 | **Dokument-Struktur** | Kategorien und Typen der Personalakte. «Drucken» gibt die Übersicht. |
 | **Schulungen & Ausbildungen** | Code, Auffrischung, Frist ab Eintritt, für wen, ob in FRED möglich, ab wann gewarnt wird. Die Gastro-Ausbildung ist keine Schulung — sie kommt als Einstufung aus easy@work. |
