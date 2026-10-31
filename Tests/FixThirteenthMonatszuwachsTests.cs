@@ -114,10 +114,9 @@ public class FixThirteenthMonatszuwachsTests
     [Fact]
     public void Code13mlAuszahlen_Ist1803_AusloeserNichtSwissdecSuffix()
     {
-        // Treuhand: 13. ML = 1200; Auslöser bleibt Mirus 180.3 (kein 1200.3).
-        Assert.Equal("180.3", PayrollCalculations.Code13mlAuszahlen);
+        // ELM-Nummer beider Zeilen ist 1200. Der Mirus-Auslöser 180.3 steht an der Lohnposition (mirus_code), nicht in dieser Konstante.
+        Assert.Equal("1200", PayrollCalculations.Code13mlAuszahlen);
         Assert.Equal("1200", PayrollCalculations.Code13ml);
-        Assert.NotEqual(PayrollCalculations.Code13ml, PayrollCalculations.Code13mlAuszahlen);
     }
 
     [Fact]

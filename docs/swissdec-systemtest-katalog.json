@@ -2825,17 +2825,17 @@
       "erwartet": "Beschreibung des Ablaufs",
       "hintergrund": "",
       "direktive": "8.7.7.3",
-      "stand": "offen",
-      "kommentarQt": "",
+      "stand": "vorhanden",
+      "kommentarQt": "Es gibt keinen eigenen Jahresabschluss-Schalter. Eine Lohnperiode ist zu, sobald sie definitiv abgeschlossen ist: die Lohn-Sperre schreibt danach nichts mehr in diesen Monat. Ist der Dezember definitiv, ist das Jahr in diesem Sinn zu. Späteres Geld wird nicht in die abgeschlossenen Monate zurückgeschrieben, sondern als Korrekturlohn im Auszahlungsmonat gerechnet. Ein falscher Lohnausweis wird als Rektifikat ersetzt (neue DocID, die bisherige in Ziffer 15). Der abgeschlossene Lohn bleibt.",
       "notiz": "",
-      "gebaut": false,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "gebaut": true,
+      "seite": "lohnlauf",
+      "seiteLabel": "Lohnlauf",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnlauf",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "lohnlauf"
         }
       ]
     },
@@ -2851,17 +2851,17 @@
       "erwartet": "Beschreibung des Ablaufs",
       "hintergrund": "",
       "direktive": "8.7.5.2",
-      "stand": "offen",
-      "kommentarQt": "",
+      "stand": "vorhanden",
+      "kommentarQt": "Eine Nachzahlung nach Austritt im Vorjahr ist ein Korrekturlohn im Monat der Auszahlung. Das Austrittsjahr wird nicht wieder geöffnet. AHV, ALV und die gedeckelten Versicherungen rechnen mit den Sätzen und den Anstellungsmonaten des Austrittsjahres. Die Zeile heisst «Nachzahlung, Austrittsjahr». Kein BVG. Quellensteuer: vollständig jährliche Zulage und Austritt in einem früheren Jahr verwenden Tarif und Verhältnisse des Austrittsmonats, mit gelbem Hinweis auf den Lohnausweis jenes Jahres. Sonst gilt der Auszahlungsmonat.",
       "notiz": "",
-      "gebaut": false,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "gebaut": true,
+      "seite": "lohnlauf",
+      "seiteLabel": "Lohnlauf",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnlauf",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "lohnlauf"
         }
       ]
     },

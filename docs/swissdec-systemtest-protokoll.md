@@ -28,30 +28,30 @@ Quellen (Walter 16.10.2026):
 
 ## Stand Übersicht
 
-> **Aktuell 17.10.2026 (Nacht):** Katalog aus beiden PDF-Runs extrahiert. ERP: **6/123** gebaut (S01 Unternehmensstammdaten weitgehend). Tech: **0/45** noch nicht systematisch abgearbeitet (vieles überlappt Foundation/Cockpit).
+> **Aktuell 31.10.2026:** «gebaut» heisst vorführbar in OneCrew, nicht dass Walter den Punkt im Systemtest grün gesetzt hat. S03_03_03 Landwirtschaft entfällt. Die Überschriften der einzelnen Punkte unten bleiben ⬜, bis Walter sie abhakt.
 
 ### Systemtest ERP (Run 24364)
 
-| Gruppe | Thema | Checks | gebaut | Stand |
+| Gruppe | Thema | Checks | vorführbar | Stand |
 |---|---|---:|---:|---|
-| S_ELM_V6_01 | Unternehmen | 15 | **6** | teilweise |
-| S_ELM_V6_02 | Angaben zu Datenempfängern | 25 | **4** | AHV/ALV 01–04 |
-| S_ELM_V6_03 | Personendaten | 59 | **0** | offen |
-| S_ELM_V6_04 | Prozessuale Testfälle | 13 | **0** | offen |
-| S_ELM_V6_05 | Cockpit Testfälle | 11 | **0** | offen |
-| **Total ERP** | | **123** | **10** | |
+| S_ELM_V6_01 | Unternehmen | 15 | **15** | bewertbar |
+| S_ELM_V6_02 | Angaben zu Datenempfängern | 25 | **25** | bewertbar |
+| S_ELM_V6_03 | Personendaten | 59 | **58** | S03_03_03 Landwirtschaft entfällt |
+| S_ELM_V6_04 | Prozessuale Testfälle | 13 | **11** | DocID und Rektifikat noch nicht bewertbar |
+| S_ELM_V6_05 | Cockpit Testfälle | 11 | **7** | Portal-Freigabe, Mitteilungen, Aufgaben noch nicht |
+| **Total ERP** | | **123** | **116** | |
 
 ### Systemtest Tech (Run 26667)
 
-| Gruppe | Thema | Fälle | Gates | Stand |
+| Gruppe | Thema | Fälle | vorführbar | Stand |
 |---|---|---:|---:|---|
-| ST_ELM_V6_01 | Lohnmeldung | 4 | 8 | offen |
-| ST_ELM_V6_02 | Synchronisierung | 7 | 18 | offen |
-| ST_ELM_V6_03 | Completion | 3 | 3 | offen |
-| ST_ELM_V6_04 | Lohnausweis / Barcode | 2 | 6 | offen |
-| ST_ELM_V6_05 | DialogMessage ELM | 2 | 3 | offen |
-| ST_ELM_V6_06 | Warnung / Information | 2 | 4 | offen |
-| **Total Tech** | | **20** | **42** | QT zeigt 45 |
+| ST_ELM_V6_01 | Lohnmeldung | 4 | **4** | bewertbar |
+| ST_ELM_V6_02 | Synchronisierung | 7 | **7** | bewertbar |
+| ST_ELM_V6_03 | Completion | 3 | **3** | bewertbar |
+| ST_ELM_V6_04 | Lohnausweis / Barcode | 2 | **0** | Viewgen und Barcode noch nicht |
+| ST_ELM_V6_05 | DialogMessage ELM | 2 | **1** | BESTA-Dialog noch nicht |
+| ST_ELM_V6_06 | Warnung / Information | 2 | **2** | bewertbar |
+| **Total Tech** | | **20** | **17** | |
 
 ---
 
@@ -1250,6 +1250,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 #### S_ELM_V6_04_04_02 Jahresendverarbeitung ⬜ offen
 
+**Notiz (31.10.2026, fürs Quality Tool):** Es gibt keinen eigenen Jahresabschluss-Schalter. Definitiv abgeschlossene Lohnperiode = gesperrt. Dezember definitiv = das Jahr ist in diesem Sinn zu. Späteres Geld ist ein Korrekturlohn im Auszahlungsmonat. Falscher Lohnausweis = Rektifikat, der Lohn bleibt.
+
 **Directive** 8.7.7.3
 
 **Beschreibung:** Jahresendverarbeitung Zu welchem Zeitpunkt erfolgt die Jahresendverarbeitung, nach der keine rückwirkende Korrekturen mehr möglich sind?
@@ -1258,6 +1260,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 
 #### S_ELM_V6_04_04_03 Nachzahlung fürs Vorjahr ⬜ offen
+
+**Notiz (31.10.2026, fürs Quality Tool):** Korrekturlohn im Auszahlungsmonat, Austrittsjahr bleibt zu. AHV/ALV und die gedeckelten Versicherungen nach dem Austrittsjahr, Zeile «Nachzahlung, Austrittsjahr», kein BVG. Quellensteuer bei vollständig jährlicher Zulage und Austritt im Vorjahr: Tarif des Austrittsmonats und Hinweis auf den Lohnausweis.
 
 **Directive** 8.7.5.2
 

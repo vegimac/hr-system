@@ -91,10 +91,10 @@ public class VertragHistorieEditTests
         await db.SaveChangesAsync();
 
         var res = await Ctrl(db).Update(1,
-            Aenderung(new DateTime(2024, 6, 1), new DateTime(2025, 5, 31), "REST_MANAGER"));
+            Aenderung(new DateTime(2024, 6, 1), new DateTime(2025, 5, 31), "Restaurantleitung"));
 
         Assert.IsType<OkObjectResult>(res);
-        Assert.Equal("REST_MANAGER", (await db.Employments.FindAsync(1))!.JobTitle);
+        Assert.Equal("Restaurantleitung", (await db.Employments.FindAsync(1))!.JobTitle);
     }
 
     [Fact]

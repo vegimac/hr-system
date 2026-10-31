@@ -256,8 +256,8 @@ public class FeiertagLohnersatzTests
         var src = ReadAllText("Services/PayrollCalculationEngine.cs");
         // Beide Zweige buchen die Zeile VOR dem mainLohn-Snapshot als Grundzeile
         // → SV nach den Häkchen von 195.2 / 195.4 (Walter 04.10.2026).
-        Assert.Contains("Grundzeile(\"195.2\", feiertagLohnersatzUtp)", src);
-        Assert.Contains("Grundzeile(\"195.4\", feiertagLohnersatzMtp)", src);
+        Assert.Contains("Grundzeile(LohnCodes.FeiertagEntschaedigung, feiertagLohnersatzUtp)", src);
+        Assert.Contains("Grundzeile(LohnCodes.FeiertagEntschaedigung, feiertagLohnersatzMtp)", src);
         Assert.DoesNotContain("deltaAhv  += feiertagLohnersatzUtp", src);
     }
 
@@ -267,6 +267,6 @@ public class FeiertagLohnersatzTests
         var src = ReadAllText("Services/PayrollCalculationEngine.cs");
         // 60.3 (UVG Taggeld 80 %) hatte die SV-Häkchen von 60.2 (Karenz) → war AHV-pflichtig.
         Assert.DoesNotContain("LpFlagsOr(\"60.2\"", src);
-        Assert.Equal(3, Regex.Matches(src, @"LpFlagsOr\(""60\.3""").Count);
+        Assert.Equal(3, Regex.Matches(src, @"LpFlagsOr\(LohnCodes\.UnfallTaggeld").Count);
     }
 }

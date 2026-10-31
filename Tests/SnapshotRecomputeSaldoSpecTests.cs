@@ -100,7 +100,7 @@ public class SnapshotRecomputeSaldoSpecTests
             "RST-13-Buchungen dürfen nicht mehr über FindByPosKst(2010, …) laufen — Find13MlRst verwenden.");
 
         // FLEX-Fallback-Zeile muss unterscheidbar beschriftet sein.
-        Assert.Contains("\"RST 13. ML \" + KstName(kst)", src);
+        Assert.Contains("\"RST 13. ML \" + ModellLabel(modell)", src);
     }
 
     [Fact]

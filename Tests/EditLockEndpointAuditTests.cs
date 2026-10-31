@@ -203,6 +203,14 @@ public class EditLockEndpointAuditTests
         ,["EasyAtWorkHrFilesController"]            = "easy@work HR-Dateien (Walter 08.09.2026) — Dokument an MA senden / Dateitypen / Dossier-Eingang, admin; keine Lohndaten"
         ,["MaEasyAtWorkController"]                 = "easy@work-Mitteilung an MA (Walter 08.09.2026) — PDF-Versand über easy@work, keine Lohndaten"
         ,["ArbeitszeitmodellController"]            = "Arbeitszeitmodelle der Rechtseinheit (Walter 27.09.2026) — reine Meldeangabe für Swissdec CompanyWorkingTime; die Lohnrechnung liest sie NICHT"
+        ,["AhvBeitragspflichtController"]        = "AHV-Referenzalter und Übergangsjahrgänge (admin, eine Gesetzeszeile) — Katalog wie die SV-Sätze, kein MA-Lohn"
+        ,["BriefVorlageController"]              = "Austrittsbrief-Vorlage und PDF — erzeugt den Brief, schreibt keinen Lohn"
+        ,["BvgVersichertenAbgleichController"]  = "Übernahme historischer BVG-Daten der Versichertenliste (Walter 31.10.2026) — Fondsdaten vor dem ersten Lohnlauf, bewusst ohne Lohn-Sperre"
+        ,["EmaAufgabeController"]               = "Freigabe einer Swissdec-EMA-Aufgabe (Anzeige) — schreibt keine Lohndaten und sendet keine Meldung"
+        ,["GrenzregionenController"]            = "Grenzregionen-Verzeichnis (ESTV) — Katalog, keine MA-Daten"
+        ,["LohnausweisAngabenController"]       = "Angaben auf dem Lohnausweis (Person und Filiale) — Urkunde, ändert keinen abgeschlossenen Lohnlauf"
+        ,["MeldepflichtMeldungController"]      = "Meldepflicht-Brief an die Behörde — Versand, kein Lohn"
+        ,["StatistikKatalogController"]         = "BFS-Katalog Ausbildung und Stellung (admin) — Texte der Statistik, die Lohnrechnung liest sie nicht"
     };
 
     [Fact]

@@ -1424,7 +1424,8 @@ public static class PayrollCalculations
             string? code = null;
             if (line.TryGetProperty("code", out var c) || line.TryGetProperty("Code", out c))
                 code = c.ValueKind == JsonValueKind.String ? c.GetString() : null;
-            if (code != LohnCodes.Ml13) continue;
+            var alt13 = LohnCodes.MirusVonSwissdec.TryGetValue(LohnCodes.Ml13, out var mirus13) ? mirus13 : null;
+            if (code != LohnCodes.Ml13 && !string.Equals(code, alt13, StringComparison.OrdinalIgnoreCase)) continue;
             if ((TryJsonDecimal(line, "basis", out var basis) || TryJsonDecimal(line, "Basis", out basis))
                 && basis != 0m)
                 return basis;

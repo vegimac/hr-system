@@ -126,8 +126,9 @@ public class TimeEntryHoursTests
             },
         };
         var byDay = TimeEntryHours.SumAbsoluteByDayOfMonth(list);
-        Assert.Equal(3.02m, byDay[1]);
+        // 11:29–14:31 sind 3 h 2 min, gerundet 3.03. Die Wanduhr liegt über dem gespeicherten 3.02 und gewinnt.
+        Assert.Equal(3.03m, byDay[1]);
         Assert.Equal(4.15m, byDay[2]);
-        Assert.Equal(7.17m, TimeEntryHours.SumAbsolute(list));
+        Assert.Equal(7.18m, TimeEntryHours.SumAbsolute(list));
     }
 }

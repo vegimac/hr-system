@@ -107,7 +107,7 @@ async function stKatalogLaden() {
         if (r.ok) { _stKatalog = await r.json(); return; }
     } catch (_) { /* Fallback */ }
     try {
-        const r2 = await fetch('/data/swissdec-systemtest-katalog.json?v=20261031l');
+        const r2 = await fetch('/data/swissdec-systemtest-katalog.json?v=20261031m');
         if (r2.ok) _stKatalog = await r2.json();
     } catch (_) { _stKatalog = null; }
 }
