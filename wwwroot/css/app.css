@@ -12697,7 +12697,15 @@ body.theme-dark .sys-back-btn {
 #laPreviewModal .la-ganz > span { flex: 0 0 220px; }
 #laPreviewModal .la-ganz textarea { flex: 1 1 auto; width: auto; }
 #laPreviewModal .la-inp[readonly],
-#laPreviewModal textarea[readonly] { cursor: default; }
+#laPreviewModal textarea[readonly] {
+    background: transparent; color: #1a1a1a; font-weight: 700;
+    border: none; border-radius: 0; box-shadow: none;
+    padding: 2px 0; cursor: default; resize: none;
+}
+#laPreviewModal .la-inp[readonly]:focus,
+#laPreviewModal textarea[readonly]:focus {
+    border: none; box-shadow: none;
+}
 #laPreviewModal .la-check {
     grid-column: span 2;
     display: flex; align-items: center; gap: 6px;
@@ -12726,6 +12734,10 @@ body.theme-dark #laPreviewModal .la-check { color: #f3f1ec; }
 body.theme-dark #laPreviewModal .la-inp,
 body.theme-dark #laPreviewModal textarea {
     background: #1e1c1a; color: #f3f1ec; border-color: rgba(255,255,255,0.16);
+}
+body.theme-dark #laPreviewModal .la-inp[readonly],
+body.theme-dark #laPreviewModal textarea[readonly] {
+    background: transparent; color: #f3f1ec; border: none; box-shadow: none;
 }
 
 /* ── Lohnschema-Seite (Walter 17.08.2026): kompakte Tabelle, gruppiert nach Art.
