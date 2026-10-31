@@ -62,9 +62,15 @@ public class LohnausweisController : ControllerBase
             .FirstOrDefaultAsync(e => e.Id == employeeId);
         if (emp == null) return NotFound(new { error = "Mitarbeiter nicht gefunden." });
 
+        // Die Vorschau zeigt den Ausweis nur. Was gedruckt wird, kommt aus dem
+        // Lohn und den Lohnausweis-Angaben, nicht aus getippten Feldern.
+        _ = payload;
         var (fresh, _, freshUid, _) = await LohnausweisBuildService.BuildDataAsync(_db, emp, year);
-        if (fresh != null)
-            MergeStammdaten(payload, fresh);
+        if (fresh == null)
+            return BadRequest(new {
+                error = $"Keine Lohnabrechnungen für {emp.FirstName} {emp.LastName} im Jahr {year} gefunden."
+            });
+        payload = fresh;
 
         if (final)
         {
@@ -196,30 +202,6 @@ public class LohnausweisController : ControllerBase
             return false;
         return await _db.UserBranchAccesses.AnyAsync(a =>
             a.UserId == userId && a.CompanyProfileId == companyProfileId);
-    }
-
-    private static void MergeStammdaten(LohnausweisData payload, LohnausweisData fresh)
-    {
-        static string? Fill(string? frontend, string? db)
-            => string.IsNullOrWhiteSpace(frontend) ? db : frontend;
-
-        payload.CompanyUidFormatted    = Fill(payload.CompanyUidFormatted,    fresh.CompanyUidFormatted);
-        payload.CompanyName            = Fill(payload.CompanyName,            fresh.CompanyName);
-        payload.BranchName             = Fill(payload.BranchName,             fresh.BranchName);
-        payload.CompanyStreet          = Fill(payload.CompanyStreet,          fresh.CompanyStreet);
-        payload.CompanyZip             = Fill(payload.CompanyZip,             fresh.CompanyZip);
-        payload.CompanyCity            = Fill(payload.CompanyCity,            fresh.CompanyCity);
-        payload.CompanyCountry         = Fill(payload.CompanyCountry,         fresh.CompanyCountry);
-        payload.CompanyPhone           = Fill(payload.CompanyPhone,           fresh.CompanyPhone);
-        payload.HrVerantwortlicherName = Fill(payload.HrVerantwortlicherName, fresh.HrVerantwortlicherName);
-        payload.MaLastname             = Fill(payload.MaLastname,             fresh.MaLastname);
-        payload.MaFirstname            = Fill(payload.MaFirstname,            fresh.MaFirstname);
-        payload.MaStreet               = Fill(payload.MaStreet,               fresh.MaStreet);
-        payload.MaZip                  = Fill(payload.MaZip,                  fresh.MaZip);
-        payload.MaCity                 = Fill(payload.MaCity,                 fresh.MaCity);
-        payload.MaCountry              = Fill(payload.MaCountry,              fresh.MaCountry);
-        if (fresh.Zusatz != null)
-            payload.Zusatz = fresh.Zusatz;
     }
 
     // ════════════════════════════════════════════════════════════════════════

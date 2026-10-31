@@ -12696,10 +12696,12 @@ body.theme-dark .sys-back-btn {
 }
 #laPreviewModal .la-ganz > span { flex: 0 0 220px; }
 #laPreviewModal .la-ganz textarea { flex: 1 1 auto; width: auto; }
+#laPreviewModal .la-inp[readonly],
+#laPreviewModal textarea[readonly] { cursor: default; }
 #laPreviewModal .la-check {
     grid-column: span 2;
     display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: #3f3f3f; cursor: pointer;
+    font-size: 12px; color: #3f3f3f; cursor: default; pointer-events: none;
     background: transparent; border: 1px solid rgba(60,55,48,0.20);
     border-radius: 8px; padding: 2px 8px;
 }

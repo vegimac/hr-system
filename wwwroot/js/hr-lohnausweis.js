@@ -246,7 +246,7 @@ function laRenderForm() {
 function laInput(name, label, value, breite) {
     const v = (value ?? '');
     return `<span class="la-lbl">${label}</span>
-        <input type="text" id="la_${name}" value="${laEscape(String(v))}"
+        <input type="text" id="la_${name}" value="${laEscape(String(v))}" readonly tabindex="-1"
                class="la-inp ${breite || 'la-text'}">`;
 }
 function laGeldText(value) {
@@ -256,13 +256,10 @@ function laGeldText(value) {
         : parseFloat(String(value).replace(/'/g, '').replace(',', '.'));
     return Number.isFinite(n) ? n.toFixed(2) : '';
 }
-function laGeldNorm(el) {
-    el.value = laGeldText(String(el.value || '').trim());
-}
 function laMoney(name, label, value) {
     return `<span class="la-lbl">${label}</span>
         <input type="text" inputmode="decimal" autocomplete="off" id="la_${name}" value="${laEscape(laGeldText(value))}"
-               class="la-inp la-geld" onblur="laGeldNorm(this)">`;
+               readonly tabindex="-1" class="la-inp la-geld">`;
 }
 function laAdressZeilen(value) {
     const text = String(value ?? '');
@@ -273,12 +270,12 @@ function laTextarea(name, label, value, rows, ganz) {
     const v = (value ?? '');
     return `<label class="la-adresse${ganz ? ' la-ganz' : ''}">
         <span class="la-lbl">${label}</span>
-        <textarea id="la_${name}" rows="${rows||2}" class="la-area">${laEscape(String(v))}</textarea>
+        <textarea id="la_${name}" rows="${rows||2}" class="la-area" readonly tabindex="-1">${laEscape(String(v))}</textarea>
     </label>`;
 }
 function laCheckbox(name, label, value) {
     return `<label class="la-check">
-        <input type="checkbox" id="la_${name}" ${value ? 'checked' : ''}>
+        <input type="checkbox" id="la_${name}" tabindex="-1" ${value ? 'checked' : ''} onclick="return false">
         <span>${label}</span>
     </label>`;
 }
