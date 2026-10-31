@@ -105,9 +105,21 @@ function elmAnwenden(art) {
     showPage('elm-anwender');
 }
 
+let _elmaDavor = 'jahr';
+
 function elmaZurueck() {
-    if (_elmaAnsicht && _elmaAnsicht !== 'home') { elmaAnsicht('home'); return; }
+    if (_elmaAnsicht === 'konfig') { elmaAnsicht(_elmaDavor || 'jahr'); return; }
     showPage('hr-hub');
+}
+
+function elmaMehr() {
+    const box = document.getElementById('elmaMehr');
+    if (box) box.hidden = false;
+}
+
+function elmaMehrZu() {
+    const box = document.getElementById('elmaMehr');
+    if (box) box.hidden = true;
 }
 
 let _elmaCert = null;
@@ -218,7 +230,7 @@ function elmaInit() {
             _elmaAnsicht = 'jahr';
             if (String(art).startsWith('grenz')) _elmaWahl.add(art);
         }
-    } else _elmaAnsicht = 'home';
+    } else _elmaAnsicht = 'jahr';
     elmaAnsicht(_elmaAnsicht);
     elmaErsatzZeichnen();
     if (!document.body.dataset.elmaZeit) {
@@ -243,36 +255,38 @@ function elmaArtWaehlen(id) {
     elmaArtGewechselt();
 }
 
+function elmaArtSicht(name) {
+    if (name !== 'jahr' && name !== 'monat' && name !== 'profil') return;
+    elmaAnsicht(name);
+}
+
 function elmaAnsicht(name) {
-    const erlaubt = ['home', 'jahr', 'monat', 'konfig', 'profil', 'leistung', 'finanz'];
-    _elmaAnsicht = name === 'aufgaben' ? 'home' : (erlaubt.includes(name) ? name : 'home');
+    if (name === 'home' || name === 'aufgaben' || name === 'leistung' || name === 'finanz') name = 'jahr';
+    const erlaubt = ['jahr', 'monat', 'konfig', 'profil'];
+    if (name === 'konfig' && _elmaAnsicht !== 'konfig') _elmaDavor = _elmaAnsicht || 'jahr';
+    _elmaAnsicht = erlaubt.includes(name) ? name : 'jahr';
     const art = document.getElementById('elmaArt');
     if (art) {
         if (_elmaAnsicht === 'monat') art.value = 'monthly';
         else if (_elmaAnsicht === 'jahr' && (art.value === 'monthly' || !art.value)) art.value = 'annual';
     }
+    const sicht = document.getElementById('elmaArtSicht');
+    if (sicht && (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat' || _elmaAnsicht === 'profil')) {
+        sicht.value = _elmaAnsicht;
+        if (typeof sicht._lqRefresh === 'function') sicht._lqRefresh();
+    }
     const home = document.getElementById('elmaHome');
     const arbeit = document.getElementById('elmaArbeit');
     const sonder = document.getElementById('elmaSonder');
-    if (home) home.style.display = _elmaAnsicht === 'home' ? '' : 'none';
-    if (arbeit) arbeit.style.display = (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat') ? '' : 'none';
+    if (home) home.style.display = 'none';
+    const inArbeit = _elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat' || _elmaAnsicht === 'profil';
+    if (arbeit) arbeit.style.display = inArbeit ? '' : 'none';
     if (sonder) {
-        const speziell = _elmaAnsicht === 'konfig' || _elmaAnsicht === 'profil' || _elmaAnsicht === 'leistung' || _elmaAnsicht === 'finanz';
-        sonder.style.display = speziell ? '' : 'none';
-        sonder.innerHTML = _elmaAnsicht === 'konfig' ? elmaKonfigHtml()
-            : _elmaAnsicht === 'profil' ? elmaProfilHtml()
-            : _elmaAnsicht === 'leistung' ? elmaStandardHtml('Fallcockpit', 'Fallcockpit und Ereignismeldungen sind der Leistungsstandard. Die Lohnmeldungen liegen unter Lohndaten.')
-            : _elmaAnsicht === 'finanz' ? elmaStandardHtml('eBilanz', 'eBilanz ist der Finanzstandard. Die Lohnmeldungen liegen unter Lohndaten.')
-            : '';
+        sonder.style.display = _elmaAnsicht === 'konfig' ? '' : 'none';
+        sonder.innerHTML = _elmaAnsicht === 'konfig' ? elmaKonfigHtml() : '';
     }
-    const unter = document.getElementById('elmaUntertitel');
     const titel = document.querySelector('#page-elm-anwender .elma-head h1');
-    const inMeldung = _elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat';
-    if (titel) titel.textContent = inMeldung ? 'ELM Mission Control' : 'Cockpit';
-    if (unter) {
-        unter.style.display = inMeldung ? '' : 'none';
-        unter.textContent = 'Meldungen prüfen, übermitteln und die Rückmeldung verfolgen.';
-    }
+    if (titel) titel.textContent = 'ELM-Cockpit';
     elmaDomaenenZeichnen();
     elmaHomeAufgaben();
     elmaArtGewechselt();
@@ -302,9 +316,22 @@ function _elmaCheck(id, label, prefix) {
 
 function elmaDomaenenZeichnen() {
     const box = document.getElementById('elmaDomaenen');
-    if (!box || (_elmaAnsicht !== 'jahr' && _elmaAnsicht !== 'monat')) return;
+    if (!box || (_elmaAnsicht !== 'jahr' && _elmaAnsicht !== 'monat' && _elmaAnsicht !== 'profil')) return;
+    if (_elmaAnsicht === 'profil') {
+        box.innerHTML = elmaProfilHtml();
+        return;
+    }
     const portalAn = !!document.getElementById('elmaPortal')?.checked;
-    box.innerHTML = `<div class="elma-domcols elma-domcols-5">
+    if (_elmaAnsicht === 'monat') {
+        box.innerHTML = `<div class="elma-domcols">
+            <div><div class="elma-kicker">Quellensteuer</div>${_elmaCheck('qst', 'Quellensteuer', 'qst')}
+                <small class="elma-an">Nach dem Prüfen lässt sich jeder Kanton einzeln an- und abwählen.</small></div>
+            <div><div class="elma-kicker">Statistik</div>${_elmaCheck('statistik', 'Statistik', 'statistik')}
+                <small class="elma-an">an das Bundesamt für Statistik</small></div>
+        </div>`;
+        return;
+    }
+    box.innerHTML = `<div class="elma-domcols elma-domcols-4">
         <div><div class="elma-kicker">Ausgleichskassen</div>
             ${_elmaCheck('annual', 'AHV Jahresmeldung', 'ahv')}
             ${_elmaCheck('fak', 'FAK Jahresmeldung', 'fak')}</div>
@@ -322,10 +349,6 @@ function elmaDomaenenZeichnen() {
             ${_elmaCheck('grenz-sfn', 'Grenzgänger SFN', 'grenz-sfn')}
             ${_elmaCheck('grenz-fr', 'Grenzgänger Frankreich', 'grenz-fr')}
             ${_elmaCheck('grenz-it', 'Grenzgänger Italien', 'grenz-it')}</div>
-        <div><div class="elma-kicker">Monat</div>
-            ${_elmaCheck('qst', 'Quellensteuer', 'qst')}
-            ${_elmaCheck('statistik', 'Statistik', 'statistik')}
-            <small class="elma-an">an das Bundesamt für Statistik. Nach dem Prüfen lässt sich jeder Kanton einzeln an- und abwählen.</small></div>
     </div>`;
     const offen = ['fak', 'uvg', 'uvgz', 'ktg', 'lohnausweis', 'bvg'].filter(id => _elmaWahl.has(id));
     if (offen.length) {
@@ -538,12 +561,11 @@ function elmaProfilHtml() {
             : `<button type="button" class="btn btn-secondary" onclick="elmaAnsicht('konfig')">Zuerst anmelden</button>`;
         return `<tr><td>${_elmaEsc(r.name)}</td><td>${_elmaEsc(z ? z.an : 'noch keiner zugeordnet')}</td><td>${aktion}</td></tr>`;
     }).join('');
-    return `<section class="elma-panel elma-karte">
-            <div class="elma-kicker">Versicherungsprofil</div>
-            <p style="font-size:13px;color:#646464;margin:0 0 8px">Profile von UVG, UVGZ und KTG. Sie treffen nach der Anmeldung als Aufgabe ein.</p>
+    return `<div>
+            <p style="font-size:13px;color:#646464;margin:0 0 8px">Profile von UVG, UVGZ und KTG. Sie treffen nach der Anmeldung als Aufgabe ein. Eine eigene Bestellung gibt es erst nach der Anmeldung.</p>
             <table class="elma-mit"><thead><tr><th>Domäne</th><th>Empfänger</th><th>Aktion</th></tr></thead><tbody>${rows}</tbody></table>
             <div id="elmaProfilHinweis" style="font-size:13px;color:#646464;margin-top:10px"></div>
-        </section>`;
+        </div>`;
 }
 
 async function elmaZertifikatBestellen() {
@@ -777,10 +799,17 @@ function elmaZeitJahr(jahr) {
 function elmaArtGewechselt() {
     elmaZeitBlattZu();
     elmaZeitZeichnen();
+    const monatFeld = document.getElementById('elmaZeitMonatFeld');
+    if (monatFeld) monatFeld.style.display = _elmaAnsicht === 'monat' ? '' : 'none';
+    const profil = _elmaAnsicht === 'profil';
     const prozess = document.getElementById('elmaProzess');
-    if (prozess) prozess.style.display = '';
+    if (prozess) prozess.disabled = _elmaAnsicht !== 'jahr';
+    const pruefen = document.getElementById('elmaPruefenBtn');
+    const senden = document.getElementById('elmaSendenBtn');
+    if (pruefen) pruefen.disabled = profil;
+    if (senden) senden.disabled = profil;
     const controls = document.getElementById('elmaControls');
-    if (controls) controls.style.display = (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat') ? '' : 'none';
+    if (controls) controls.style.display = (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat' || profil) ? '' : 'none';
     _elmaLageKey = '';
     _elmaVorschau = null;
     _elmaKantone = null;
@@ -790,8 +819,10 @@ function elmaArtGewechselt() {
     elmaListeZeichnen();
 }
 
-function _elmaPasstAnsicht() {
-    return true;
+function _elmaPasstAnsicht(m) {
+    const art = m.art || 'monthly';
+    if (_elmaAnsicht === 'monat') return art === 'monthly';
+    return art !== 'monthly';
 }
 
 function _elmaGewaehlt(v) {
@@ -932,17 +963,24 @@ async function elmaMonatSenden() {
 }
 
 async function elmaUebermitteln() {
-    if (_elmaBusy) return;
-    const monatlich = _elmaWahl.has('qst') || _elmaWahl.has('statistik');
+    if (_elmaBusy || _elmaAnsicht === 'profil') return;
+    if (_elmaAnsicht === 'monat') {
+        if (!_elmaWahl.has('qst') && !_elmaWahl.has('statistik')) {
+            _elmaHinweis = { ok: false, text: 'Quellensteuer oder Statistik ankreuzen.' };
+            elmaListeZeichnen();
+            return;
+        }
+        await elmaMonatSenden();
+        return;
+    }
     const arts = [];
     if (_elmaWahl.has('annual')) arts.push('annual');
     ['grenz-sfn', 'grenz-fr', 'grenz-it'].forEach(a => { if (_elmaWahl.has(a)) arts.push(a); });
-    if (!monatlich && !arts.length) {
-        _elmaHinweis = { ok: false, text: 'AHV, eine Grenzgängermeldung, Quellensteuer oder Statistik ankreuzen. FAK, UVG, UVGZ, KTG, BVG und die Lohnausweise sind adressiert, ihre Lohndaten stehen noch nicht in der Datei.' };
+    if (!arts.length) {
+        _elmaHinweis = { ok: false, text: 'AHV oder eine Grenzgängermeldung ankreuzen. FAK, UVG, UVGZ, KTG, BVG und die Lohnausweise sind adressiert, ihre Lohndaten stehen noch nicht in der Datei.' };
         elmaListeZeichnen();
         return;
     }
-    if (monatlich && !await elmaMonatSenden()) return;
     for (const id of arts) {
         const art = document.getElementById('elmaArt');
         if (art) art.value = id;
@@ -1095,7 +1133,7 @@ function elmaListeZeichnen() {
 
 function elmaAufgabenZeichnen() {
     const box = document.getElementById('elmaAufgaben');
-    if (!box || (_elmaAnsicht !== 'jahr' && _elmaAnsicht !== 'monat')) return;
+    if (!box || (_elmaAnsicht !== 'jahr' && _elmaAnsicht !== 'monat' && _elmaAnsicht !== 'profil')) return;
     const karten = [];
     const sua = _elmaCert?.sua;
     if (sua && sua.restTage != null && sua.restTage <= 30) {
