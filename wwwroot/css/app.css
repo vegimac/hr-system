@@ -13263,6 +13263,10 @@ body.theme-dark .admin-card img {
 .admin-card-grid .admin-card img[src*="lohnraster-elm"] { width: 109px !important; height: 109px !important; }
 .admin-card-grid .admin-card img[src*="lohnkat-lohnschema"],
 .admin-card-grid .admin-card img[src*="vvkat-absenz-typen"] { width: 98px !important; height: 98px !important; }
+.admin-card-grid .admin-card img[src*="auswkat-lohnausweis"] {
+    width: 148px !important; height: 112px !important; object-fit: contain;
+}
+#hrHubGrp-ausw .admin-card { min-height: 168px; justify-content: flex-end; }
 /* Entwicklung → Lohn: gleiche Kachelhöhe wie Import & Schnittstellen (Walter 19.10.2026).
    Icon-Mass = Standard-Raster (73px), nur Kontrast für die hellen Skizzen. */
 .admin-card-grid .admin-card img[src*="entwkat-lohn-formeln"],
