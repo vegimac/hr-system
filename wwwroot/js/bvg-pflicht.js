@@ -28,8 +28,9 @@ function bpRender(el) {
     const d = _bpData; if (!d) return;
     const fmt = (x) => x ? formatDate(x) : '';
     const a = d.aktuell;
+    const plan = a ? (d.eintraege || []).find(e => e.id === a.id)?.bemerkung : '';
     const stand = a
-        ? `<b>${a.versichert ? 'Versichert' : 'Nicht versichert'}</b> <span style="color:#64748b">ab ${fmt(a.gueltigAb)}${a.gueltigBis ? ' bis ' + fmt(a.gueltigBis) : ''} · ${bpQuelleText(a.quelle)}</span>`
+        ? `<b>${a.versichert ? 'Versichert' : 'Nicht versichert'}</b> <span style="color:#64748b">ab ${fmt(a.gueltigAb)}${a.gueltigBis ? ' bis ' + fmt(a.gueltigBis) : ''}</span>${plan ? ` <b style="font-size:15px;color:#1a1a1a">${esc(plan)}</b>` : ''}`
         : '<b>Nicht festgelegt</b> <span style="color:#64748b">· der Lohn prüft jeden Monat einzeln (Monatslohn × 12)</span>';
     const standPille = a
         ? (a.versichert ? bpPille('VERSICHERT', '#dcfce7', '#166534') : bpPille('NICHT VERSICHERT', '#f1f5f9', '#475569'))
@@ -39,6 +40,7 @@ function bpRender(el) {
         : '';
 
     const v = d.vorschlag;
+    const quelleKlein = a ? `<span style="color:#94a3b8;font-size:11px">${bpQuelleText(a.quelle)}</span>` : '';
     let vorschlagHtml = '';
     if (v) {
         const vTxt = v.versichert === true ? 'versichert' : v.versichert === false ? 'nicht versichert' : 'noch kein Vorschlag';
@@ -47,6 +49,7 @@ function bpRender(el) {
         vorschlagHtml = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12px;color:#475569">
             <span>Vorschlag: <b>${vTxt}</b>${v.abweichend ? ' ' + bpPille('WEICHT AB', '#fef3c7', '#92400e') : ''}</span>
             <span style="color:#64748b">${esc(v.grundlage || '')}</span>
+            ${quelleKlein}
             <span style="margin-left:auto">${knopf}</span>
         </div>`;
     }
@@ -55,13 +58,12 @@ function bpRender(el) {
         <div class="emp-family-card-head">
             <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
                 <div style="min-width:110px;font-weight:600">BVG</div>
-                <div>${stand}</div>
+                <div>${stand}${v ? '' : (quelleKlein ? ' ' + quelleKlein : '')}</div>
                 ${standPille}
             </div>
             <div style="display:flex;gap:6px">${btns}</div>
         </div>
         ${vorschlagHtml}
-        ${a && (d.eintraege || []).find(e => e.id === a.id)?.bemerkung ? `<div style="font-size:11.5px;color:#64748b">${esc(d.eintraege.find(e => e.id === a.id).bemerkung)}</div>` : ''}
     </div>`;
 
     const hist = (d.eintraege || []).filter(e => !e.isCurrent);
