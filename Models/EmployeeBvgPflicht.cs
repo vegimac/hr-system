@@ -11,6 +11,8 @@ public class EmployeeBvgPflicht
     public const string QuelleHand = "HAND";
     public const string QuelleVorschlag = "VORSCHLAG";
     public const string QuelleMirus = "MIRUS";
+    /// <summary>Übernommen aus der Versichertenliste der beruflichen Vorsorge.</summary>
+    public const string QuelleListe = "LISTE";
 
     public int Id { get; set; }
     public int EmployeeId { get; set; }

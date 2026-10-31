@@ -1615,6 +1615,7 @@ function showPage(name) {
     if (name === 'mirus-address-compare') macInit();
     if (name === 'mirus-fehlende-ma' && typeof mfmInit === 'function') mfmInit();
     if (name === 'gs-ahv-abgleich' && typeof gsaInit === 'function') gsaInit();
+    if (name === 'gs-bvg-abgleich' && typeof gsbInit === 'function') gsbInit();
     if (name === 'gs-fz-abgleich' && typeof gsfInit === 'function') gsfInit();
     if (name === 'famz-mitteilung' && typeof fzmInit === 'function') fzmInit();
     if (name === 'gespraech' && typeof bgsInit === 'function') bgsInit();
@@ -1899,6 +1900,8 @@ function onBranchChange() {
         if (typeof mfmInit === 'function') mfmInit();
     } else if (currentPageName === 'gs-ahv-abgleich') {
         if (typeof gsaInit === 'function') gsaInit();
+    } else if (currentPageName === 'gs-bvg-abgleich') {
+        if (typeof gsbInit === 'function') gsbInit();
     } else if (currentPageName === 'gs-fz-abgleich') {
         if (typeof gsfInit === 'function') gsfInit();
     } else if (currentPageName === 'gespraech') {

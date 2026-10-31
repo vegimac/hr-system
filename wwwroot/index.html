@@ -2735,6 +2735,11 @@
                         <div class="admin-card-title">AHV-Abgleich: gemeldete MA</div>
                         <div class="admin-card-desc">GastroSocial-Liste der gemeldeten MA gegen OneCrew prüfen</div>
                     </div>
+                        <div class="admin-card" onclick="showPage('gs-bvg-abgleich')">
+                        <img src="img/elmkat-bvg.webp?v=20261031a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">BVG-Abgleich: Versichertenliste</div>
+                        <div class="admin-card-desc">Liste der beruflichen Vorsorge gegen die BVG-Pflicht prüfen und übernehmen</div>
+                    </div>
                         <div class="admin-card" onclick="showPage('gs-fz-abgleich')">
                         <img src="img/kontr-fz.webp?v=20261013a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">FZ-Abgleich: Familienzulagen</div>
@@ -9130,6 +9135,46 @@
                 <div id="gsaResult" style="margin-top:8px"></div>
             </div>
 
+            <!-- ═══════════════ BVG-ABGLEICH VERSICHERTENLISTE (HR-Bereich → GastroSocial) ═══════════════
+                 Walter 31.10.2026. JS: js/gs-bvg-abgleich.js (Prefix gsb). -->
+            <div class="page" id="page-gs-bvg-abgleich">
+                <div class="sticky-page-head">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                        <h1 class="page-title">BVG-Abgleich: Versichertenliste</h1>
+                        <p class="page-sub">Liste «Versichertenliste - Auskunft» aus der beruflichen Vorsorge hochladen. OneCrew zeigt, wer in dieser Filiale noch als versichert festgelegt werden muss. Gespeichert wird erst mit «Ergebnis übernehmen».</p>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="seite-zurueck btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                    </div>
+                </div>
+                <div id="gsbAlert" style="margin-bottom:12px"></div>
+
+                <div class="card" style="padding:24px">
+                    <div id="gsbBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
+                    <div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:flex-end">
+                        <button type="button" onclick="akisOpenPortal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">🌐 Portal öffnen</button>
+                        <div>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Versichertenliste (XLSX / XLS)</label>
+                            <input type="file" id="gsbFileInput" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                   style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                        </div>
+                        <button class="btn btn-primary" id="gsbAnalyzeBtn" onclick="gsbAnalyze()">Vergleichen</button>
+                    </div>
+                    <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
+                        <b>So holst du die Datei:</b> Berufliche Vorsorge → Versichertenliste - Auskunft, Stichtag wählen, über das Menü <b>⋮</b> als Excel herunterladen.<br>
+                        <b>Erwartete Spalten</b> (Reihenfolge egal): <code>Name · Vorname · AHV-Nummer · Geburtsdatum · Bezeichnung · Gültig ab · Gültig bis</code><br>
+                        <b>Match:</b> AHV-Nummer → Name + Geburtsdatum.<br>
+                        <b>Übernehmen</b> setzt «versichert» ab dem Datum der Liste. Der Plan (Uno Basis / Uno Integral) steht in der Bemerkung, nicht als Versicherungscode.<br>
+                        <b>Wer nicht auf der Liste steht, bleibt unverändert</b> — die Liste zeigt nur die Versicherten, nicht die anderen.
+                    </div>
+                </div>
+                </div><!-- /.sticky-page-head -->
+
+                <div id="gsbSummary" style="margin-top:16px"></div>
+                <div id="gsbResult" style="margin-top:8px"></div>
+            </div>
+
             <!-- ═══════════════ FZ-ABGLEICH GASTROSOCIAL (HR-Hub → Kontrolle) ═══════════════
                  Walter 12.10.2026: «Familienzulagenbescheinigung» gegen die Zulagen bei den
                  Kindern der MA der Sidebar-Filiale. Read-only. JS: js/gs-fz-abgleich.js (Prefix gsf). -->
@@ -11419,7 +11464,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261030y"></script>
+<script src="js/app-core.js?v=20261031a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261027a"></script>
@@ -11453,6 +11498,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/mirus-address-compare.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/mirus-fehlende-ma.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/gs-ahv-abgleich.js?v=20261013b"></script>
+<script type="text/plain" data-modul="js/gs-bvg-abgleich.js?v=20261031a"></script>
 <script type="text/plain" data-modul="js/gs-fz-abgleich.js?v=20261022c"></script>
 <script type="text/plain" data-modul="js/famz-mitteilung.js?v=20261021a"></script>
 <script type="text/plain" data-modul="js/gespraech.js?v=20261026a"></script>
@@ -12238,7 +12284,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="employees.js?v=20261030e"></script>
 <script type="text/plain" data-modul="js/kind-qst-verlauf.js?v=20261025s"></script>
 <script type="text/plain" data-modul="js/versicherung-codes.js?v=20261028h"></script>
-<script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261004a"></script>
+<script type="text/plain" data-modul="js/bvg-pflicht.js?v=20261031a"></script>
 <script type="text/plain" data-modul="js/lohnausweis-angaben.js?v=20261029r"></script>
 
 <!-- ABSENZ MODAL -->

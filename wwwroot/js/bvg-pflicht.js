@@ -21,7 +21,7 @@ function bpPille(text, bg, fg) {
 }
 
 function bpQuelleText(q) {
-    return q === 'VORSCHLAG' ? 'aus Vorschlag' : q === 'MIRUS' ? 'aus Mirus' : 'von Hand';
+    return q === 'VORSCHLAG' ? 'aus Vorschlag' : q === 'MIRUS' ? 'aus Mirus' : q === 'LISTE' ? 'aus Versichertenliste' : 'von Hand';
 }
 
 function bpRender(el) {
