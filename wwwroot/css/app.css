@@ -13909,6 +13909,26 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         .komm-tab-trenner { width: 1px; height: 22px; background: rgba(60,55,48,0.2); margin: 0 6px; }
 
         .komm-grid { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; align-items: start; max-width: 1360px; }
+        /* Systemtest: Detail bleibt stehen, die Prüfpunkte links scrollen (Walter 31.10.2026). */
+        #page-swissdec-systemtest.page.fixhead .page-body {
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        #page-swissdec-systemtest #stPaneUebersicht {
+            flex: 1 1 auto; min-height: 0; overflow-y: auto;
+        }
+        #page-swissdec-systemtest #stPaneTest {
+            flex: 1 1 auto; min-height: 0; align-items: stretch; overflow: hidden;
+        }
+        #page-swissdec-systemtest #stListe,
+        #page-swissdec-systemtest #stDetail {
+            min-height: 0; max-height: 100%; overflow-y: auto;
+        }
+        #page-swissdec-systemtest #stDetail .komm-bewertung {
+            position: sticky; bottom: 0; z-index: 1;
+            background: #e4e1d8;
+            margin: 8px -18px -16px; padding: 10px 18px 16px;
+        }
+        body.theme-dark #page-swissdec-systemtest #stDetail .komm-bewertung { background: #1e293b; }
         .komm-grid-archiv { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
         .komm-liste {
             display: flex; flex-direction: column; gap: 4px; padding: 8px;

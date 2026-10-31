@@ -10,6 +10,7 @@ let _stKatalog = null;
 let _stStand = {};
 let _stTab = 'S01';
 let _stAuswahl = null;
+let _stListeTab = null;
 
 const ST_ERP_GRUPPEN = [
     { key: 'S01', gruppe: '01', name: 'Unternehmen' },
@@ -205,6 +206,8 @@ function stUebersichtZeichnen() {
 function stListeZeichnen() {
     const el = document.getElementById('stListe');
     if (!el) return;
+    const oben = _stListeTab === _stTab ? el.scrollTop : 0;
+    _stListeTab = _stTab;
     el.innerHTML = _stListeFuerTab(_stTab).map(c => `
         <button type="button" class="komm-zeile ${c.id === _stAuswahl ? 'aktiv' : ''} ${c.gebaut === false ? 'leer' : ''}"
                 onclick="stWaehle('${c.id}')">
@@ -212,6 +215,7 @@ function stListeZeichnen() {
             <span class="komm-id">${_stEsc(c.id.replace(/^S_ELM_V6_/, 'S').replace(/^ST_ELM_V6_/, 'T'))}</span>
             <span class="komm-titel">${_stEsc(c.titel)}</span>
         </button>`).join('');
+    el.scrollTop = oben;
 }
 
 function stWaehle(id) {
