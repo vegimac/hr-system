@@ -151,7 +151,7 @@ async function laOpenPreview() {
 
         const sub = document.getElementById('laPreviewSub');
         if (sub) {
-            let txt = `${_laCurrentEmp.name} — Jahr ${year} — ${payload.anzahlMonate} Lohnabrechnungen aggregiert`;
+            let txt = `Jahr ${year} — ${payload.anzahlMonate} Lohnabrechnungen aggregiert`;
             if (payload.data?.anzahlLohnausweise > 1)
                 txt += ` — ${payload.data.anzahlLohnausweise} Lohnausweise in diesem Jahr`;
             sub.textContent = txt;
@@ -238,18 +238,16 @@ function laRenderForm() {
       <div class="la-abschnitt">ORT, DATUM &amp; UNTERSCHRIFT</div>
       ${laInput('ziffer151Ort', 'Ort und Datum — Ort', d.ziffer151Ort)}
       ${laInput('ziffer152Datum', 'Ort und Datum — Datum (dd.mm.yyyy)', d.ziffer152Datum, 'la-kurz')}
-      ${laTextarea('bestaetigungAgBlock', 'Bestätigungs-Block AG (UID, Firma, Adresse)', d.bestaetigungAgBlock, 2)}
+      ${laTextarea('bestaetigungAgBlock', 'Bestätigungs-Block AG (UID, Firma, Adresse)', d.bestaetigungAgBlock, 2, true)}
     `;
 }
 
 // ── Form-Helper ───────────────────────────────────────────────────────
 function laInput(name, label, value, breite) {
     const v = (value ?? '');
-    return `<label class="la-feld">
-        <span>${label}</span>
+    return `<span class="la-lbl">${label}</span>
         <input type="text" id="la_${name}" value="${laEscape(String(v))}"
-               class="la-inp ${breite || 'la-text'}">
-    </label>`;
+               class="la-inp ${breite || 'la-text'}">`;
 }
 function laGeldText(value) {
     if (value === null || value === undefined || value === '') return '';
@@ -262,16 +260,14 @@ function laGeldNorm(el) {
     el.value = laGeldText(String(el.value || '').trim());
 }
 function laMoney(name, label, value) {
-    return `<label class="la-feld">
-        <span>${label}</span>
+    return `<span class="la-lbl">${label}</span>
         <input type="text" inputmode="decimal" autocomplete="off" id="la_${name}" value="${laEscape(laGeldText(value))}"
-               class="la-inp la-geld" onblur="laGeldNorm(this)">
-    </label>`;
+               class="la-inp la-geld" onblur="laGeldNorm(this)">`;
 }
-function laTextarea(name, label, value, rows) {
+function laTextarea(name, label, value, rows, ganz) {
     const v = (value ?? '');
-    return `<label class="la-feld" style="grid-column:1 / -1">
-        <span>${label}</span>
+    return `<label class="la-adresse${ganz ? ' la-ganz' : ''}">
+        <span class="la-lbl">${label}</span>
         <textarea id="la_${name}" rows="${rows||2}" class="la-area">${laEscape(String(v))}</textarea>
     </label>`;
 }
