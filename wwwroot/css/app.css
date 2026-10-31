@@ -12696,6 +12696,15 @@ body.theme-dark .sys-back-btn {
 }
 #laPreviewModal .la-ganz > span { flex: 0 0 220px; }
 #laPreviewModal .la-ganz textarea { flex: 1 1 auto; width: auto; }
+#laPreviewModal .la-bestaetigung {
+    grid-column: 1 / -1;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2px 32px;
+    margin-top: 4px;
+}
+#laPreviewModal .la-best-spalte .la-lbl { display: block; margin-bottom: 2px; }
+#laPreviewModal .la-best-zeile {
+    font-weight: 700; color: #1a1a1a; font-size: 12.5px; line-height: 1.3;
+}
 #laPreviewModal .la-inp[readonly],
 #laPreviewModal textarea[readonly] {
     background: transparent; color: #1a1a1a; font-weight: 700;
@@ -12739,6 +12748,7 @@ body.theme-dark #laPreviewModal .la-inp[readonly],
 body.theme-dark #laPreviewModal textarea[readonly] {
     background: transparent; color: #f3f1ec; border: none; box-shadow: none;
 }
+body.theme-dark #laPreviewModal .la-best-zeile { color: #f3f1ec; }
 
 /* ── Lohnschema-Seite (Walter 17.08.2026): kompakte Tabelle, gruppiert nach Art.
    Farbwelt Liquid-Glass (gedaempft, kein grelles Signal-Rot/Gruen):

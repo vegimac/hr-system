@@ -238,7 +238,7 @@ function laRenderForm() {
       <div class="la-abschnitt">ORT, DATUM &amp; UNTERSCHRIFT</div>
       ${laInput('ziffer151Ort', 'Ort und Datum — Ort', d.ziffer151Ort)}
       ${laInput('ziffer152Datum', 'Ort und Datum — Datum (dd.mm.yyyy)', d.ziffer152Datum, 'la-kurz')}
-      ${laTextarea('bestaetigungAgBlock', 'Bestätigungs-Block AG (UID, Firma, Adresse)', d.bestaetigungAgBlock, laAdressZeilen(d.bestaetigungAgBlock), true)}
+      ${laBestaetigung(d.bestaetigungAgBlock)}
     `;
 }
 
@@ -265,6 +265,24 @@ function laAdressZeilen(value) {
     const text = String(value ?? '');
     const n = text ? text.split('\n').length : 0;
     return Math.max(3, n);
+}
+function laBestaetigung(value) {
+    const lines = String(value ?? '').split('\n').map(s => s.trim()).filter(Boolean);
+    let firma = lines;
+    let kontakt = [];
+    if (lines.length >= 5 && lines[lines.length - 1].startsWith('Tel. ')) {
+        kontakt = lines.slice(-5);
+        firma = lines.slice(0, -5);
+    }
+    const spalte = (titel, zeilen) => zeilen.length ? `<div class="la-best-spalte">
+        <span class="la-lbl">${titel}</span>
+        ${zeilen.map(z => `<div class="la-best-zeile">${laEscape(z)}</div>`).join('')}
+    </div>` : '';
+    return `<div class="la-bestaetigung">
+        ${spalte('Arbeitgeber', firma)}
+        ${spalte('Kontakt', kontakt)}
+        <input type="hidden" id="la_bestaetigungAgBlock" value="${laEscape(String(value ?? ''))}">
+    </div>`;
 }
 function laTextarea(name, label, value, rows, ganz) {
     const v = (value ?? '');
