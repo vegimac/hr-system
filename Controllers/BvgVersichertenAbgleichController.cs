@@ -109,7 +109,7 @@ public class BvgVersichertenAbgleichController : ControllerBase
         }).ToList();
 
         var res = BvgVersichertenAbgleich.Vergleiche(zeilen, alle, heute);
-        var uebernahme = res.Festlegen.Concat(res.Beenden)
+        var uebernahme = res.Festlegen.Concat(res.Beenden).Concat(res.Abweichend)
             .Where(t => t.EmployeeId != null && t.GueltigAb != null && t.Aktion != null)
             .Select(t => new
             {
@@ -144,11 +144,24 @@ public class BvgVersichertenAbgleichController : ControllerBase
             .Where(p => ids.Contains(p.EmployeeId))
             .ToListAsync();
         var userId = GetUserId();
-        int neu = 0, beendet = 0;
+        int neu = 0, beendet = 0, datum = 0;
         foreach (var e in eintraege)
         {
             if (!inFiliale.Contains(e.EmployeeId)) continue;
             var eigene = bestehend.Where(p => p.EmployeeId == e.EmployeeId).ToList();
+            if (e.Aktion == BvgVersichertenAbgleich.Datum)
+            {
+                var offen = eigene.FirstOrDefault(p => p.Versichert && p.GueltigBis == null && p.GueltigAb > e.GueltigAb);
+                if (offen == null) continue;
+                foreach (var o in eigene.Where(p => p != offen && p.GueltigAb < e.GueltigAb && (p.GueltigBis == null || p.GueltigBis >= e.GueltigAb)))
+                    o.GueltigBis = e.GueltigAb.AddDays(-1);
+                offen.GueltigAb = e.GueltigAb;
+                offen.Quelle = EmployeeBvgPflicht.QuelleListe;
+                var planName = Plan(e.Bezeichnung);
+                if (planName != null) offen.Bemerkung = planName;
+                datum++;
+                continue;
+            }
             if (e.Aktion == BvgVersichertenAbgleich.Beenden)
             {
                 if (e.GueltigBis == null) continue;
@@ -162,8 +175,7 @@ public class BvgVersichertenAbgleichController : ControllerBase
             if (eigene.Any(p => p.Versichert)) continue;
             foreach (var o in eigene.Where(p => p.GueltigAb < e.GueltigAb && (p.GueltigBis == null || p.GueltigBis >= e.GueltigAb)))
                 o.GueltigBis = e.GueltigAb.AddDays(-1);
-            var plan = string.IsNullOrWhiteSpace(e.Bezeichnung) ? null : e.Bezeichnung.Trim();
-            if (plan != null && plan.Length > 200) plan = plan[..200];
+            var plan = Plan(e.Bezeichnung);
             var row = new EmployeeBvgPflicht
             {
                 EmployeeId = e.EmployeeId,
@@ -180,7 +192,14 @@ public class BvgVersichertenAbgleichController : ControllerBase
             neu++;
         }
         await _db.SaveChangesAsync();
-        return Ok(new { neu, beendet });
+        return Ok(new { neu, beendet, datum });
+    }
+
+    private static string? Plan(string? bezeichnung)
+    {
+        var plan = string.IsNullOrWhiteSpace(bezeichnung) ? null : bezeichnung.Trim();
+        if (plan != null && plan.Length > 200) plan = plan[..200];
+        return plan;
     }
 
     private int? GetUserId()

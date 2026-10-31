@@ -137,7 +137,7 @@ function gsbRender(d) {
             <select id="gsbFilter" onchange="gsbRenderRows()">
                 <option value="festlegen">Festlegen — auf der Liste versichert, in OneCrew noch offen (${fest})</option>
                 <option value="beenden">Beenden — Liste hat ein Ende, OneCrew noch offen (${end})</option>
-                <option value="abweichend">Datum weicht ab — nicht automatisch überschrieben (${abw})</option>
+                <option value="abweichend">Datum weicht ab — Beginn der Liste wird übernommen (${abw})</option>
                 <option value="nurInOneCrew">Nur in OneCrew versichert — fehlt auf der Liste, bleibt (${nur})</option>
                 <option value="andereFiliale">Andere Filiale (${af})</option>
                 <option value="nichtZuordenbar">Nicht zuordenbar (${nz})</option>
@@ -189,12 +189,13 @@ function gsbUebernahmeHtml() {
     const n = _gsbUebernahme.length;
     if (!n) return erfolg;
     const an = _gsbUebernahme.filter(x => x.aktion === 'anlegen').length;
+    const dt = _gsbUebernahme.filter(x => x.aktion === 'datum').length;
     const ab = _gsbUebernahme.filter(x => x.aktion === 'beenden').length;
-    const teile = [an ? `${an} als versichert festlegen` : '', ab ? `${ab} beenden` : ''].filter(Boolean).join(', ');
+    const teile = [an ? `${an} als versichert festlegen` : '', dt ? `${dt} auf das Datum der Liste setzen` : '', ab ? `${ab} beenden` : ''].filter(Boolean).join(', ');
     return erfolg + `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;font-size:12.5px;color:#3f3f3f">
         <span style="flex:1;min-width:240px">Übernehmen speichert <b>${teile}</b>.
             Ab dem Datum der Liste rechnet der Lohn jeden Monat BVG, auch bei wenig Stunden.
-            <span style="color:#8b8b8b">Wer nicht auf der Liste steht, bleibt unverändert. Ein abweichendes Datum wird nicht überschrieben.</span></span>
+            <span style="color:#8b8b8b">Wer nicht auf der Liste steht, bleibt unverändert. Ein früheres Datum der Liste ersetzt den späteren Stand in OneCrew.</span></span>
         <button id="gsbUebernahmeBtn" onclick="gsbUebernehmen()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer">Ergebnis übernehmen (${n})</button>
     </div>`;
 }
@@ -222,7 +223,12 @@ async function gsbUebernehmen() {
         });
         if (!r.ok) { gsbFehler('Übernehmen fehlgeschlagen (' + r.status + ').'); return; }
         const j = await r.json();
-        _gsbErfolg = `${j.neu} festgelegt, ${j.beendet} beendet.`;
+        const teile = [
+            j.neu ? `${j.neu} festgelegt` : '',
+            j.datum ? `${j.datum} Datum auf die Liste gesetzt` : '',
+            j.beendet ? `${j.beendet} beendet` : '',
+        ].filter(Boolean);
+        _gsbErfolg = (teile.length ? teile.join(', ') : 'Nichts geändert') + '.';
         await gsbAnalyze({ behalteErfolg: true });
     } catch (e) {
         gsbFehler('Verbindung fehlgeschlagen: ' + e.message);

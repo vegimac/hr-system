@@ -20,6 +20,8 @@ public static class BvgVersichertenAbgleich
 {
     public const string Anlegen = "anlegen";
     public const string Beenden = "beenden";
+    /// <summary>Offener Eintrag, OneCrew beginnt später als die Liste: «Gültig ab» wird auf das Datum der Liste gesetzt.</summary>
+    public const string Datum = "datum";
 
     public class Zeile
     {
@@ -131,11 +133,21 @@ public static class BvgVersichertenAbgleich
                     : $"Auf der Liste versichert bis {Fmt(listBis)}, in OneCrew noch nicht festgelegt.";
                 res.Festlegen.Add(t);
             }
-            else if (offen && listBis == null && hit.VersichertBis == null && hit.VersichertAb <= listAb)
+            else if (offen && listBis == null && hit.VersichertBis == null && hit.VersichertAb == listAb)
             {
-                t.Hinweis = hit.VersichertAb == listAb
-                    ? "Versichert, Datum stimmt."
-                    : $"Versichert. OneCrew ab {Fmt(hit.VersichertAb)}, Liste ab {Fmt(listAb)}.";
+                t.Hinweis = "Versichert, Datum stimmt.";
+                res.Passt.Add(t);
+            }
+            else if (offen && listBis == null && hit.VersichertBis == null && hit.VersichertAb > listAb)
+            {
+                // Beginn bei GastroSocial, oft schon im vorherigen Restaurant. OneCrew hat nur den späteren Erfassungsstand.
+                t.Aktion = Datum;
+                t.Hinweis = $"Liste ab {Fmt(listAb)} ist der Beginn bei GastroSocial. OneCrew steht auf {Fmt(hit.VersichertAb)}.";
+                res.Abweichend.Add(t);
+            }
+            else if (offen && listBis == null && hit.VersichertBis == null && hit.VersichertAb < listAb)
+            {
+                t.Hinweis = $"Versichert. OneCrew ab {Fmt(hit.VersichertAb)}, Liste ab {Fmt(listAb)}.";
                 res.Passt.Add(t);
             }
             else

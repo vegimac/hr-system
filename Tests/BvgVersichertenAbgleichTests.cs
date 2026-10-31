@@ -45,13 +45,25 @@ public class BvgVersichertenAbgleichTests
     }
 
     [Fact]
-    public void OneCrew_beginnt_spaeter_ist_abweichend()
+    public void OneCrew_beginnt_spaeter_uebernimmt_das_Datum_der_Liste()
     {
         var r = BvgVersichertenAbgleich.Vergleiche(
             new[] { Liste("Anna", "Muster", "756.1234.5678.97", new DateTime(2021, 1, 1)) },
-            new[] { Oc(1, "Anna", "Muster", "756.1234.5678.97", ab: new DateOnly(2025, 3, 1)) }, Heute);
-        Assert.Single(r.Abweichend);
+            new[] { Oc(1, "Anna", "Muster", "756.1234.5678.97", ab: new DateOnly(2026, 1, 1)) }, Heute);
+        var t = Assert.Single(r.Abweichend);
+        Assert.Equal(BvgVersichertenAbgleich.Datum, t.Aktion);
+        Assert.Equal(new DateTime(2021, 1, 1), t.GueltigAb);
         Assert.Empty(r.Festlegen);
+    }
+
+    [Fact]
+    public void OneCrew_mit_Ende_bleibt_ohne_Datumskorrektur()
+    {
+        var r = BvgVersichertenAbgleich.Vergleiche(
+            new[] { Liste("Anna", "Muster", "756.1234.5678.97", new DateTime(2021, 1, 1)) },
+            new[] { Oc(1, "Anna", "Muster", "756.1234.5678.97", ab: new DateOnly(2021, 1, 1), bis: new DateOnly(2026, 12, 31)) }, Heute);
+        var t = Assert.Single(r.Abweichend);
+        Assert.Null(t.Aktion);
     }
 
     [Fact]
