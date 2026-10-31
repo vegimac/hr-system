@@ -200,9 +200,94 @@ public class EmployeeVersicherungCodeController : ControllerBase
         if (verzicht != null) return verzicht;
         var lock1 = await PruefeEditLockAsync(employeeId, e.ValidFrom);
         if (lock1 != null) return lock1;
+        var reaktiviert = await VorgaengerWiederOeffnenAsync(employeeId, e);
         _db.EmployeeVersicherungCodes.Remove(e);
         await _db.SaveChangesAsync();
-        return Ok();
+        return Ok(new { reaktiviert });
+    }
+
+    /// <summary>
+    /// Die abgeschlossene Zeile gilt wieder ohne Enddatum.
+    /// Ein Nachfolger, der in diese Zeit reicht, bleibt — den zuerst löschen,
+    /// das Löschen öffnet den Vorgänger von selbst.
+    /// </summary>
+    [HttpPost("{id:int}/wieder-oeffnen")]
+    public async Task<IActionResult> WiederOeffnen(int employeeId, int id)
+    {
+        var e = await _db.EmployeeVersicherungCodes.FirstOrDefaultAsync(v => v.Id == id && v.EmployeeId == employeeId);
+        if (e == null) return NotFound();
+        if (e.ValidTo == null) return Ok(new { id = e.Id, bereitsOffen = true });
+
+        var ab = e.ValidTo.Value.AddDays(1);
+        var lock1 = await PruefeEditLockAsync(employeeId, ab);
+        if (lock1 != null) return lock1;
+
+        var andere = await _db.EmployeeVersicherungCodes
+            .Where(v => v.EmployeeId == employeeId && v.Art == e.Art && v.Id != e.Id)
+            .ToListAsync();
+        var block = andere.FirstOrDefault(v =>
+            VersicherungNachfolge.GleicherSchluss(e.Art, e.Code, v.Code)
+            && VersicherungNachfolge.BlockiertWiederOeffnen(e.ValidFrom, v.ValidTo));
+        if (block != null)
+            return Conflict(new
+            {
+                error = "NACHFOLGER",
+                message = $"Ab {block.ValidFrom:dd.MM.yyyy} gilt bereits ein anderer Eintrag. Diesen zuerst löschen, dann gilt der ältere wieder."
+            });
+
+        if (e.IstAhvFreibetragVerzicht)
+        {
+            var verzicht = await PruefeVerzichtWiederOeffnenAsync(employeeId, e);
+            if (verzicht != null) return verzicht;
+        }
+
+        e.ValidTo = null;
+        await _db.SaveChangesAsync();
+        return Ok(new { id = e.Id });
+    }
+
+    private async Task<int> VorgaengerWiederOeffnenAsync(int employeeId, EmployeeVersicherungCode geloescht)
+    {
+        var andere = await _db.EmployeeVersicherungCodes
+            .Where(v => v.EmployeeId == employeeId && v.Art == geloescht.Art && v.Id != geloescht.Id)
+            .ToListAsync();
+        var naechster = andere
+            .Where(v => v.ValidFrom > geloescht.ValidFrom && VersicherungNachfolge.GleicherSchluss(geloescht.Art, geloescht.Code, v.Code))
+            .OrderBy(v => v.ValidFrom)
+            .FirstOrDefault();
+        var n = 0;
+        foreach (var p in andere)
+        {
+            if (!VersicherungNachfolge.GleicherSchluss(geloescht.Art, geloescht.Code, p.Code)) continue;
+            if (!VersicherungNachfolge.WurdeDurchNachfolgerBeendet(p.ValidTo, geloescht.ValidFrom)) continue;
+            if (p.ValidFrom >= geloescht.ValidFrom) continue;
+            var ende = VersicherungNachfolge.EndeNachLoeschen(geloescht.ValidTo, naechster?.ValidFrom);
+            if (ende != null && ende < p.ValidFrom) continue;
+            p.ValidTo = ende;
+            n++;
+        }
+        return n;
+    }
+
+    private async Task<IActionResult?> PruefeVerzichtWiederOeffnenAsync(int employeeId, EmployeeVersicherungCode e)
+    {
+        var lage = await VerzichtLageAsync(employeeId);
+        if (!lage.Darf)
+            return BadRequest(new { error = "NICHT_IM_RENTENALTER", message = lage.Hinweis });
+        var bestehende = await _db.EmployeeVersicherungCodes.AsNoTracking()
+            .Where(v => v.EmployeeId == employeeId
+                     && v.Art == EmployeeVersicherungCode.ArtAhv
+                     && v.Code == EmployeeVersicherungCode.CodeFreibetragVerzicht)
+            .ToListAsync();
+        var vorher = bestehende.Select(x => new AhvFreibetragEntscheid.Spanne(x.ValidFrom, x.ValidTo)).ToList();
+        var nachher = bestehende.Select(x =>
+            x.Id == e.Id
+                ? new AhvFreibetragEntscheid.Spanne(x.ValidFrom, null)
+                : new AhvFreibetragEntscheid.Spanne(x.ValidFrom, x.ValidTo)).ToList();
+        var fehler = AhvFreibetragEntscheid.Pruefe(vorher, nachher, lage.GesperrteJahre, lage.Eintritt, lage.Folgemonat);
+        if (fehler != null)
+            return BadRequest(new { error = "VERZICHT_JAHR", message = fehler });
+        return null;
     }
 
     // ── Helfer ──────────────────────────────────────────────────────────

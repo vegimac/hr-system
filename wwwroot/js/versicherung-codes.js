@@ -101,6 +101,7 @@ function vcRender(el) {
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                 <span>${VC_ARTEN[e.art] || e.art} · <b>${esc(e.code === 'VERZICHT' ? 'Verzicht Freibetrag (Wunsch MA)' : (e.code || 'Fix'))}</b> · ${fmt(e.validFrom)} – ${fmt(e.validTo)}</span>
                 <span style="margin-left:auto;display:flex;gap:6px">
+                    <button class="btn-emp-edit" onclick="vcReaktivieren(${e.id})">Wieder öffnen</button>
                     ${e.code === 'VERZICHT' && !d.darfVerzicht ? '' : `<button class="btn-emp-edit" onclick="${e.code === 'VERZICHT' ? `vcOpenVerzichtModal(${e.id})` : `vcOpenModal(${e.id})`}">Details</button>`}
                     <button class="btn-emp-del" onclick="vcDelete(${e.id})">Löschen</button>
                 </span>
@@ -441,8 +442,22 @@ async function vcSave() {
     vcLoad(selectedEmployeeId);
 }
 
+async function vcReaktivieren(id) {
+    const e = (_vcData?.eintraege || []).find(x => x.id === id);
+    const art = VC_ARTEN[e?.art] || e?.art || 'Dieser Eintrag';
+    const ab = e?.validFrom ? formatDate(e.validFrom) : '';
+    const text = ab
+        ? `${art} ab ${ab} gilt wieder ohne Enddatum.`
+        : `${art} gilt wieder ohne Enddatum.`;
+    if (!(await liquidConfirm(text, { title: 'Wieder öffnen', yesLabel: 'Öffnen', noLabel: 'Abbrechen' }))) return;
+    const res = await fetch(`/api/employees/${selectedEmployeeId}/versicherung-codes/${id}/wieder-oeffnen`, { method: 'POST', headers: ah() });
+    if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
+    if (!res.ok) { const b = await res.clone().json().catch(() => ({})); alert(b.message || 'Konnte nicht geöffnet werden.'); return; }
+    vcLoad(selectedEmployeeId);
+}
+
 async function vcDelete(id) {
-    if (!(await liquidConfirm('Diesen Versicherungs-Code löschen? Der MA fällt dann auf den Standard zurück.'))) return;
+    if (!(await liquidConfirm('Diesen Eintrag löschen? Endete eine frühere Versicherung am Vortag, gilt sie wieder. Sonst gilt der Standard.'))) return;
     const res = await fetch(`/api/employees/${selectedEmployeeId}/versicherung-codes/${id}`, { method: 'DELETE', headers: ah() });
     if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
     if (!res.ok) { const b = await res.clone().json().catch(() => ({})); alert(b.message || 'Fehler beim Löschen.'); return; }
