@@ -181,8 +181,8 @@ function laRenderForm() {
     grid.innerHTML = `
       <div class="la-abschnitt">EMPFÄNGER &amp; PERIODE</div>
 
-      ${laTextarea('empfaengerAdresse', 'Empfänger-Adresse (Mitarbeiter)', d.empfaengerAdresse, 2)}
-      ${laTextarea('mitarbeiterNameAdresse', 'Ziffer D — Name + Adresse', d.mitarbeiterNameAdresse, 2)}
+      ${laTextarea('empfaengerAdresse', 'Empfänger-Adresse (Mitarbeiter)', d.empfaengerAdresse, laAdressZeilen(d.empfaengerAdresse))}
+      ${laTextarea('mitarbeiterNameAdresse', 'Ziffer D — Name + Adresse', d.mitarbeiterNameAdresse, laAdressZeilen(d.mitarbeiterNameAdresse))}
       ${laInput('ahvNummer', 'Ziffer C — AHV-Nummer (756.XXXX.XXXX.XX)', d.ahvNummer, 'la-ahv')}
       ${laInput('geburtsdatum', 'Ziffer C — Geburtsdatum (dd.mm.yyyy)', d.geburtsdatum, 'la-kurz')}
       ${laInput('periodeVon', 'Ziffer E — Periode von', d.periodeVon, 'la-kurz')}
@@ -238,7 +238,7 @@ function laRenderForm() {
       <div class="la-abschnitt">ORT, DATUM &amp; UNTERSCHRIFT</div>
       ${laInput('ziffer151Ort', 'Ort und Datum — Ort', d.ziffer151Ort)}
       ${laInput('ziffer152Datum', 'Ort und Datum — Datum (dd.mm.yyyy)', d.ziffer152Datum, 'la-kurz')}
-      ${laTextarea('bestaetigungAgBlock', 'Bestätigungs-Block AG (UID, Firma, Adresse)', d.bestaetigungAgBlock, 2, true)}
+      ${laTextarea('bestaetigungAgBlock', 'Bestätigungs-Block AG (UID, Firma, Adresse)', d.bestaetigungAgBlock, laAdressZeilen(d.bestaetigungAgBlock), true)}
     `;
 }
 
@@ -263,6 +263,11 @@ function laMoney(name, label, value) {
     return `<span class="la-lbl">${label}</span>
         <input type="text" inputmode="decimal" autocomplete="off" id="la_${name}" value="${laEscape(laGeldText(value))}"
                class="la-inp la-geld" onblur="laGeldNorm(this)">`;
+}
+function laAdressZeilen(value) {
+    const text = String(value ?? '');
+    const n = text ? text.split('\n').length : 0;
+    return Math.max(3, n);
 }
 function laTextarea(name, label, value, rows, ganz) {
     const v = (value ?? '');
