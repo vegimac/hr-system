@@ -2802,12 +2802,12 @@
                             <img src="img/auswkat-absenz.png?v=20261031c" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                             <div class="admin-card-title">Absenz-Auswertung</div>
                         </div>
-                        <div class="admin-card" title="Auswertungen" style="cursor:default">
+                        <div class="admin-card" id="hrAuswKachel" title="Auswertungen" onclick="hrAuswToggle(this)" style="cursor:pointer">
                             <img src="img/auswkat-reporting.png?v=20261031c" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                             <div class="admin-card-title">Auswertungen</div>
                         </div>
                     </div>
-                    <div class="hr-card liquid-role-el" data-liquid-roles="admin,superuser,buchhaltung" style="opacity:1;margin-top:18px;max-width:720px">
+                    <div id="hrAuswMenu" class="hr-card liquid-role-el" data-liquid-roles="admin,superuser,buchhaltung" style="display:none;opacity:1;margin-top:18px;max-width:720px">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#cffafe;color:#0e7490">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -11358,7 +11358,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261031a"></script>
+<script src="js/app-core.js?v=20261031b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261027a"></script>

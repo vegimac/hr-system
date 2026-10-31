@@ -993,6 +993,22 @@ function hrHubShowCat(cat) {
     document.querySelectorAll('#hrHubCats .admin-hub-cat').forEach(c =>
         c.classList.toggle('active', c.dataset.cat === cat));
     try { localStorage.hrHrHubCat = cat; } catch (e) { /* egal */ }
+    if (cat !== 'ausw') hrAuswZu();
+}
+
+function hrAuswZu() {
+    const box = document.getElementById('hrAuswMenu');
+    const card = document.getElementById('hrAuswKachel');
+    if (box) box.style.display = 'none';
+    if (card) card.style.outline = '';
+}
+
+function hrAuswToggle(card) {
+    const box = document.getElementById('hrAuswMenu');
+    if (!box) return;
+    const offen = box.style.display === 'none';
+    box.style.display = offen ? '' : 'none';
+    if (card) card.style.outline = offen ? '2px solid #3f3f3f' : '';
 }
 
 // ELM-Kachel ohne Seite: der Platz im Menü ist da, die Meldung folgt.
