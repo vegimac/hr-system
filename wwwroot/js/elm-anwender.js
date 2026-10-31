@@ -106,6 +106,7 @@ function elmAnwenden(art) {
 }
 
 function elmaZurueck() {
+    if (_elmaAnsicht && _elmaAnsicht !== 'home') { elmaAnsicht('home'); return; }
     showPage('hr-hub');
 }
 
@@ -240,7 +241,7 @@ function elmaArtWaehlen(id) {
 }
 
 function elmaAnsicht(name) {
-    const erlaubt = ['home', 'jahr', 'monat', 'konfig', 'profil'];
+    const erlaubt = ['home', 'jahr', 'monat', 'konfig', 'profil', 'leistung', 'finanz'];
     _elmaAnsicht = name === 'aufgaben' ? 'home' : (erlaubt.includes(name) ? name : 'home');
     const art = document.getElementById('elmaArt');
     if (art) {
@@ -253,10 +254,13 @@ function elmaAnsicht(name) {
     if (home) home.style.display = _elmaAnsicht === 'home' ? '' : 'none';
     if (arbeit) arbeit.style.display = (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat') ? '' : 'none';
     if (sonder) {
-        const speziell = _elmaAnsicht === 'konfig' || _elmaAnsicht === 'profil';
+        const speziell = _elmaAnsicht === 'konfig' || _elmaAnsicht === 'profil' || _elmaAnsicht === 'leistung' || _elmaAnsicht === 'finanz';
         sonder.style.display = speziell ? '' : 'none';
         sonder.innerHTML = _elmaAnsicht === 'konfig' ? elmaKonfigHtml()
-            : _elmaAnsicht === 'profil' ? elmaProfilHtml() : '';
+            : _elmaAnsicht === 'profil' ? elmaProfilHtml()
+            : _elmaAnsicht === 'leistung' ? elmaStandardHtml('Fallcockpit', 'Fallcockpit und Ereignismeldungen sind der Leistungsstandard. Die Lohnmeldungen liegen unter Lohndaten.')
+            : _elmaAnsicht === 'finanz' ? elmaStandardHtml('eBilanz', 'eBilanz ist der Finanzstandard. Die Lohnmeldungen liegen unter Lohndaten.')
+            : '';
     }
     const op = document.getElementById('elmaOperation');
     const lead = document.getElementById('elmaLead');
@@ -268,9 +272,12 @@ function elmaAnsicht(name) {
         if (op) op.textContent = 'Monatsmeldung';
         if (lead) lead.textContent = 'Quellensteuer an die Kantone, Statistik an das Bundesamt für Statistik.';
     }
-    if (unter) unter.textContent = _elmaAnsicht === 'home'
-        ? 'Lohnmeldungen an Ausgleichskassen, Versicherungen, Vorsorge und Steuer.'
-        : 'Meldung absetzen und sehen, was die Verbindung gerade tut.';
+    const titel = document.querySelector('#page-elm-anwender .elma-head h1');
+    if (titel) titel.textContent = _elmaAnsicht === 'home' ? 'Cockpit' : 'ELM-Cockpit';
+    if (unter) {
+        unter.style.display = _elmaAnsicht === 'home' ? 'none' : '';
+        unter.textContent = 'Meldung absetzen und sehen, was die Verbindung gerade tut.';
+    }
     elmaDomaenenZeichnen();
     elmaHomeAufgaben();
     elmaArtGewechselt();
@@ -384,10 +391,11 @@ function elmaHomeAufgaben() {
     const liste = aufgaben.length
         ? aufgaben.map(a => `<button type="button" class="elma-aufgabe" onclick="elmaAufgabe('${_elmaEsc(a.id)}','${_elmaEsc(a.art || '')}')">${_elmaEsc(a.text)}</button>`).join('')
         : '<div style="font-size:13px;color:#8b8b8b">Keine offenen Aufgaben.</div>';
-    box.innerHTML = `<div class="elma-kicker">Aufgaben</div>
-        <div class="elma-aufgabe-balken" style="width:${aufgaben.length ? '100%' : '12%'}"></div>
-        <b style="display:block;margin:8px 0;font-size:14px;color:#3f3f3f">${aufgaben.length} offene Aufgaben</b>
-        <p style="font-size:12px;color:#646464;margin:0 0 8px">OneCrew holt sie selbst ab, mindestens einmal am Tag.</p>
+    const fuell = aufgaben.length ? '100%' : '0%';
+    box.innerHTML = `<h3>Aufgaben</h3>
+        <div class="elma-aufgabe-spur"><i style="width:${fuell}"></i></div>
+        <b style="display:block;margin:10px 0 4px;font-size:14px;color:#3f3f3f">${aufgaben.length} offene Aufgaben</b>
+        <p style="font-size:12px;color:#646464;margin:0 0 10px">OneCrew holt sie selbst ab, mindestens einmal am Tag.</p>
         ${liste}
         <div style="margin-top:12px"><button type="button" class="btn btn-secondary" onclick="elmaAktualisieren()">Aktualisieren</button></div>`;
 }
@@ -458,7 +466,7 @@ function elmaKonfigHtml() {
     const v = _elmaCert?.vorlage || {};
     const sua = _elmaCert?.sua;
     const da = !!(sua?.vorhanden && !(sua.restTage != null && sua.restTage < 0));
-    const firma = `<div class="elma-panelhead"><button type="button" class="elma-zurueck" onclick="elmaAnsicht('home')">Cockpit</button>
+    const firma = `<div class="elma-panelhead">
         <button type="button" class="btn btn-secondary" onclick="elmaZertifikatAktualisieren()">Aktualisieren</button></div>
     <section class="elma-panel elma-karte">
         <div class="elma-kicker">Swissdec Unternehmens-Authentifizierung (SUA)</div>
@@ -524,6 +532,10 @@ function _elmaAnmeldeZeilen() {
     return rows;
 }
 
+function elmaStandardHtml(titel, text) {
+    return `<section class="elma-panel elma-karte"><h3>${_elmaEsc(titel)}</h3><p style="font-size:13px;color:#3f3f3f;margin:0">${_elmaEsc(text)}</p></section>`;
+}
+
 function elmaProfilSatz() {
     const hin = document.getElementById('elmaProfilHinweis');
     if (hin) hin.textContent = 'Eine eigene Bestellung gibt es nicht. Nach der Anmeldung schickt der Versicherer das Versicherungsprofil. Es erscheint unter Aufgaben.';
@@ -538,8 +550,7 @@ function elmaProfilHtml() {
             : `<button type="button" class="btn btn-secondary" onclick="elmaAnsicht('konfig')">Zuerst anmelden</button>`;
         return `<tr><td>${_elmaEsc(r.name)}</td><td>${_elmaEsc(z ? z.an : 'noch keiner zugeordnet')}</td><td>${aktion}</td></tr>`;
     }).join('');
-    return `<div class="elma-panelhead"><button type="button" class="elma-zurueck" onclick="elmaAnsicht('home')">Cockpit</button></div>
-        <section class="elma-panel elma-karte">
+    return `<section class="elma-panel elma-karte">
             <div class="elma-kicker">Versicherungsprofil</div>
             <p style="font-size:13px;color:#646464;margin:0 0 8px">Profile von UVG, UVGZ und KTG. Sie treffen nach der Anmeldung als Aufgabe ein.</p>
             <table class="elma-mit"><thead><tr><th>Domäne</th><th>Empfänger</th><th>Aktion</th></tr></thead><tbody>${rows}</tbody></table>

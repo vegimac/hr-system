@@ -1312,7 +1312,7 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 ## S_ELM_V6_05 — Cockpit Testfälle
 
-Vorführung: HR → ELM-Cockpit (`page-elm-anwender`). Start wie im Swissdec-Showcase: SUA-Text, Kacheln Jahresmeldung / Monatsmeldung / Versicherungsprofil, Aufgaben rechts. In der Meldung links die Domänen, rechts Mitteilungen, darunter der Verlauf. Darüber die Bühne mit OneCrew, ELM und Swissdec. Fallcockpit und eBilanz sind andere Standards und stehen hier nicht.
+Vorführung: HR → ELM-Cockpit (`page-elm-anwender`). Start wie im Swissdec-Showcase: SUA-Text, Karten Lohndaten (Jahresmeldung, Monatsmeldung, Versicherungsprofil), Leistungsdaten (Fallcockpit, Neues Ereignis), Finanzdaten (eBilanz), Aufgaben rechts. Zurück aus einer Kachel führt auf diesen Start, Zurück vom Start in den HR-Bereich. In der Lohnmeldung links die Domänen, rechts Mitteilungen, darunter der Verlauf. Darüber die Bühne mit OneCrew, ELM und Swissdec. Fallcockpit und eBilanz öffnen nur den Hinweis, dass es andere Standards sind; gesendet wird dort nichts.
 
 Jahresmeldung: Ausgleichskassen (AHV sendet, FAK zeigt den Empfänger), Versicherungen mit «Freigabe im Portal gewünscht», Vorsorge mit «Lohnsummen aufbereiten» und «Zur Übermittlung freigeben», Steuern mit den drei Grenzgängermeldungen. «Testmeldung» sitzt über «Prüfen». Nach dem Senden: Mitteilungsübersicht (Status Erfolg / In Bearbeitung / Fehler, Zeitpunkt, DeclarationID, Domäne, Empfänger, Benachrichtigungen, Freigabe starten, DialogMessage abholen, Quittung anzeigen). Darunter die Mitteilungshistorie mit «Ersatzmeldung». «Aktualisieren» holt den Stand aller offenen Meldungen, ohne GetStatus oder Synchronisieren zu zeigen.
 

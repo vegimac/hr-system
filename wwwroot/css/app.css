@@ -14847,15 +14847,28 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-sua-text p { margin: 0 0 8px; max-width: 52rem; }
 #page-elm-anwender .elma-homegrid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
 #page-elm-anwender .elma-karte { padding: 16px 18px; }
+#page-elm-anwender .elma-einleitung { margin: 0 0 18px; max-width: 62rem; }
+#page-elm-anwender .elma-einleitung p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: #3f3f3f; }
+#page-elm-anwender .elma-textlink { background: none; border: 0; padding: 0; color: #3f3f3f; font: inherit; font-weight: 650; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+#page-elm-anwender .elma-home-main { display: flex; flex-direction: column; gap: 16px; }
+#page-elm-anwender .elma-karte h3 { margin: 0 0 12px; font-size: 16px; font-weight: 650; color: #3f3f3f; }
 #page-elm-anwender .elma-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+#page-elm-anwender .elma-kacheln-2 { grid-template-columns: repeat(2, minmax(160px, 240px)); }
+#page-elm-anwender .elma-kacheln-1 { grid-template-columns: minmax(160px, 240px); }
 #page-elm-anwender .elma-kachel {
-    display: flex; flex-direction: column; align-items: flex-start; text-align: left; width: 100%;
-    background: #fff; border: 1px solid rgba(60, 55, 48, 0.14); border-radius: 12px;
-    padding: 14px 12px; cursor: pointer; color: #3f3f3f;
+    display: flex; flex-direction: column; align-items: stretch; text-align: left; width: 100%;
+    background: #fff; border: 1px solid rgba(60, 55, 48, 0.16); border-radius: 12px;
+    padding: 0; cursor: pointer; color: #3f3f3f; overflow: hidden;
     box-shadow: 0 2px 6px rgba(60, 55, 48, 0.08);
 }
-#page-elm-anwender .elma-kachel b { font-size: 14px; }
-#page-elm-anwender .elma-kachel small { color: #8b8b8b; margin-top: 4px; font-size: 12px; }
+#page-elm-anwender .elma-kachel-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
+#page-elm-anwender .elma-kachel b { font-size: 14px; font-weight: 650; }
+#page-elm-anwender .elma-kachel small { display: block; color: #646464; font-size: 12px; margin: 0; padding: 8px 12px; border-top: 1px solid rgba(60, 55, 48, 0.10); }
+#page-elm-anwender .elma-pfeil {
+    width: 22px; height: 22px; border-radius: 6px; flex: 0 0 auto; background-color: #3f3f3f;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M5 11 L11 5 M7.2 5 H11 V8.8' fill='none' stroke='white' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat; background-position: center; background-size: 12px 12px;
+}
 #page-elm-anwender .elma-split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.9fr); gap: 16px; margin-top: 16px; }
 #page-elm-anwender #elmaVerlauf, #page-elm-anwender #elmaBuehne { margin-top: 16px; }
 #page-elm-anwender .elma-domcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; }
@@ -14867,7 +14880,8 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-lead { margin: 4px 0 0; color: #646464; font-size: 13px; }
 #page-elm-anwender .elma-zurueck { background: none; border: 0; padding: 0 0 4px; color: #646464; cursor: pointer; font-size: 12px; }
 #page-elm-anwender .elma-aufgabe { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid rgba(60, 55, 48, 0.08); padding: 8px 0; cursor: pointer; color: #3f3f3f; font-size: 13px; }
-#page-elm-anwender .elma-aufgabe-balken { height: 6px; border-radius: 99px; background: #3f3f3f; }
+#page-elm-anwender .elma-aufgabe-spur { height: 6px; border-radius: 99px; background: rgba(60, 55, 48, 0.12); overflow: hidden; }
+#page-elm-anwender .elma-aufgabe-spur i { display: block; height: 100%; width: 0; border-radius: 99px; background: #3f3f3f; }
 #page-elm-anwender .elma-sua-ok { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: rgba(22, 163, 74, 0.12); color: #166534; font-size: 12px; font-weight: 650; }
 #page-elm-anwender table.elma-mit { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
 #page-elm-anwender table.elma-mit th { text-align: left; font-size: 12px; font-weight: 700; color: #3f3f3f; border-bottom: 2px solid #3f3f3f; padding: 6px 8px 6px 0; }
