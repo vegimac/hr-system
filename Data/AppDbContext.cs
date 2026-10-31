@@ -74,6 +74,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
     public DbSet<EmployeeVersicherungCode> EmployeeVersicherungCodes => Set<EmployeeVersicherungCode>();
     public DbSet<EmployeeBvgPflicht> EmployeeBvgPflichten => Set<EmployeeBvgPflicht>();
+    public DbSet<EmaFreigabe> EmaFreigaben => Set<EmaFreigabe>();
     public DbSet<VorsystemLohnkonto> VorsystemLohnkonten => Set<VorsystemLohnkonto>();
     public DbSet<SimulationVortrag> SimulationVortraege => Set<SimulationVortrag>();
     public DbSet<SimulationLohn> SimulationLoehne => Set<SimulationLohn>();
@@ -4138,6 +4139,23 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ErfasstVonUserId).HasColumnName("erfasst_von_user_id");
             entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von").HasMaxLength(200);
             entity.HasIndex(e => new { e.EmployeeId, e.CompanyProfileId, e.Art, e.Stichtag }).IsUnique();
+        });
+
+        modelBuilder.Entity<EmaFreigabe>(entity =>
+        {
+            entity.ToTable("ema_freigabe");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Domaene).HasColumnName("domaene").HasMaxLength(3);
+            entity.Property(e => e.Grund).HasColumnName("grund").HasMaxLength(40);
+            entity.Property(e => e.Stichtag).HasColumnName("stichtag").HasColumnType("date");
+            entity.Property(e => e.ErfasstAm).HasColumnName("erfasst_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErfasstVonUserId).HasColumnName("erfasst_von_user_id");
+            entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von").HasMaxLength(200);
+            entity.HasIndex(e => new { e.EmployeeId, e.Domaene, e.Grund, e.Stichtag }).IsUnique();
         });
     }
 }

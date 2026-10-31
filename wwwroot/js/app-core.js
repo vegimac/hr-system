@@ -1651,6 +1651,7 @@ function showPage(name) {
     if (name === 'ahv-anmeldung') ahvInit();
     if (name === 'famz-anmeldung' && typeof famzInit === 'function') famzInit();
     if (name === 'akis-meldung' && typeof akisInit === 'function') akisInit();
+    if (name === 'ema-aufgaben' && typeof emaInit === 'function') emaInit();
     if (name === 'manager-dienstplan' && typeof dpInit === 'function') dpInit();
     if (name === 'ferien-planer' && typeof fplInit === 'function') fplInit();
     if (name === 'schulungen-uebersicht' && typeof schulungUebersichtInit === 'function') schulungUebersichtInit();
@@ -1869,6 +1870,8 @@ function onBranchChange() {
     } else if (currentPageName === 'akis-meldung') {
         // AKIS-Meldung folgt dem globalen Filial-Selektor.
         if (typeof akisRefresh === 'function') akisRefresh();
+    } else if (currentPageName === 'ema-aufgaben') {
+        if (typeof emaRefresh === 'function') emaRefresh();
     } else if (currentPageName === 'lohn-abtretungen') {
         if (typeof laListInit === 'function') laListInit();
     } else if (currentPageName === 'saldo-vortrag') {

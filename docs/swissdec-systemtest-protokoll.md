@@ -1195,6 +1195,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 #### S_ELM_V6_04_01_03 EMA-Meldungen Domäne BVG ⬜ offen
 
+**Notiz (30.10.2026, fürs Quality Tool):** BVG-Gründe stehen unter «Meldungen BVG und Quellensteuer» und in den Aufgaben. Eintritt Vorsorgeplan oder Beginn nach Arbeitsunterbruch, dazu ob die Person am Stichtag zu 100 % arbeitsfähig ist. Mutationen: Lohn, Vorsorgeplan, Wohnadresse, Zivilstand, Arbeitsunfähigkeit, vollständig arbeitsfähig. Austritt: Austritt Vorsorgeplan, Verstorben beim Austrittsgrund Todesfall, Beginn Arbeitsunterbruch wenn Krankheit oder Unfall am Ende des Plans beginnt. Das Datum ist das Datum des Auslösers. Freigabe über «Zur Übermittlung freigegeben». Teilpensionierung, nur Risiko und nicht versichert werden nicht erfunden, solange kein eigener Fakt dazu erfasst ist. Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht die ELM-Datei.
+
 **Directive** 8.6.8
 
 **Beschreibung:** EMA-Meldungen Domäne BVG Die EMA-Meldungen in der BVG umfassen folgende Ereignisse und Begründungen: Eintritt: - Eintritt Vorsorgeplan - Beginn nach Arbeitsunterbruch Zusätzlich muss bei sämtlichen Eintrittsmeldungen übermittelt werden können, ob ein Arbeitnehmer 100% Arbeitsfähig ist. Mutationen: - Lohnänderung - Vorsorgeplan, Betrieb, Kategorie - Wohnadresse - Zivilstandsänderung - Teilpensionierung - Arbeitsunfähigkeit - vollständig Arbeitsfähig Austritt: - Austritt Vorsorgeplan - Pensionieru…
@@ -1225,6 +1227,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 ### QST Ein-/Austritt (`04_03`)
 
 #### S_ELM_V6_04_03_01 Eintritt, Mutation, Austritt in der Quellensteuer ⬜ offen
+
+**Notiz (30.10.2026, fürs Quality Tool):** Quellensteuer-Gründe stehen unter «Meldungen BVG und Quellensteuer». OneCrew vergleicht aufeinanderfolgende Versionen, ohne manuelle Begründung. Eintritt in die Firma behält das Eintrittsdatum, Austritt aus der Firma das Austrittsdatum. Jede andere Änderung gilt ab dem 1. des Folgemonats. Zivilstand, wenn sich der Tarifbuchstabe ändert und dazwischen ein Zivilstand erfasst ist, sonst Arbeit des Partners. Dazu Kinderabzug, Kirchensteuer, Wechsel der Einkünfte des Partners zwischen CH und EX, Kantonswechsel, Wohnadresse, Niederlassung C, Einbürgerung und Andere. Freigabe über «Zur Übermittlung freigegeben». Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht das XML.
 
 **Directive** 10.7
 
@@ -1263,6 +1267,8 @@ OneCrew: SV-Sätze. ALV Höchstlohn 12'350 pro Monat, Beitrag 1,1000 %. ALVZ auf
 
 
 #### S_ELM_V6_04_04_04 Nachzahlung nach Austritt im Vorjahr ⬜ offen
+
+**Notiz (30.10.2026, fürs Quality Tool):** AHV- und ALV-Sätze einer Nachzahlung nach Austritt sind die des Austrittsjahres. Quellensteuer: ist die erfasste Zulage vollständig jährlich und der Austritt liegt in einem früheren Jahr, gelten Tarif und Verhältnisse des Austrittsmonats. Der gelbe Balken im Korrekturlohn weist dann auf die Korrektur des Lohnausweises dieses Jahres hin. Monatlicher Charakter oder eine Zahlung im selben Jahr wie der Austritt bleiben beim Auszahlungsmonat, ohne Hinweis auf einen Lohnausweis des Vorjahres.
 
 **Directive** 8.7.5.2
 

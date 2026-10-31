@@ -2201,8 +2201,14 @@ function renderLohnSlip(s, targetEl) {
     const _mwBanner = (_mwWarn && !s.isCorrection)
         ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">${_mwHead}<div style="font-weight:400;margin-top:2px">${String(_mwWarn.message || '').replace(/</g,'&lt;')}</div>${_qstSprung}</div>`
         : '';
+    const _corrQst = s.isCorrection && s.qstVerhaeltnis
+        ? `<span style="font-weight:400;display:block;margin-top:2px">Quellensteuer nach den Verhältnissen des ${s.qstVerhaeltnis === 'Austrittsmonat' ? 'Austrittsmonats' : 'Auszahlungsmonats'}.</span>`
+        : '';
+    const _corrLa = s.isCorrection && s.lohnausweisKorrektur && s.lohnausweisKorrektur.text
+        ? `<span style="font-weight:600;display:block;margin-top:6px">${String(s.lohnausweisKorrektur.text).replace(/</g, '&lt;')}</span>`
+        : '';
     const _corrBanner = s.isCorrection
-        ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">Korrekturlohn / Sonderlohn<span style="font-weight:400;display:block;margin-top:2px">Nur manuelle Zulagen/Abzüge (+ Depot-Refund). Keine Stempelzeiten, Absenzen oder Saldo-Fortschreibung.</span></div>`
+        ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">Korrekturlohn / Sonderlohn<span style="font-weight:400;display:block;margin-top:2px">Nur manuelle Zulagen/Abzüge (+ Depot-Refund). Keine Stempelzeiten, Absenzen oder Saldo-Fortschreibung.</span>${_corrQst}${_corrLa}</div>`
         : '';
     // Phase 3 Etappe 1 (Walter 18.08.2026): produktive SV-Basen = Katalog-Flags.
     // Differenz zur verdrahteten Kontrollrechnung → roter Riegel (Confirm blockt

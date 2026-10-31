@@ -2710,6 +2710,11 @@
                      Behörden-Korrespondenz, die zwei Abgleiche aus «Kontrolle» hierher gezogen. -->
                 <div class="hr-hub-group" id="hrHubGrp-gastrosocial" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <div class="admin-card" onclick="showPage('ema-aufgaben')">
+                        <img src="img/vvkat-behoerden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Meldungen BVG und Quellensteuer</div>
+                        <div class="admin-card-desc">Erkannte EMA-Zeilen prüfen und zur Übermittlung freigeben</div>
+                    </div>
                         <div class="admin-card" onclick="showPage('akis-meldung')">
                         <img src="img/vvkat-behoerden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">An-/Abmeldung Ausgleichskasse (AKIS)</div>
@@ -4303,6 +4308,22 @@
                         </div>
                         <div id="akisFiles" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"></div>
                         <div id="akisPreview"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ EMA BVG / QUELLENSTEUER ═══════════════ -->
+            <div class="page liquid-mask" id="page-ema-aufgaben">
+                <button type="button" class="seite-zurueck btn btn-outline" onclick="pageBack()" style="font-size:12px">← Zurück</button>
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Meldungen BVG und Quellensteuer</h1>
+                        <p class="page-sub">Erkannte Zeilen der gewählten Filiale ab 1.1.2026. Eintritt und Austritt behalten ihr Datum, jede andere Quellensteuer-Änderung gilt ab dem 1. des Folgemonats. Zur Übermittlung freigeben. Die ELM-Datei folgt später.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="card" style="padding:20px;max-width:980px">
+                        <div id="emaPreview"></div>
                     </div>
                 </div>
             </div>
@@ -11398,7 +11419,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261030x"></script>
+<script src="js/app-core.js?v=20261030y"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261027a"></script>
@@ -11412,7 +11433,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/upload-regel.js?v=20261001a"></script>
 <script type="text/plain" data-modul="js/employee-lookup-cache.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/action-menu.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/dashboard.js?v=20261030f"></script>
+<script type="text/plain" data-modul="js/dashboard.js?v=20261030g"></script>
 <script type="text/plain" data-modul="js/session-timeout.js?v=20261022e"></script>
 <script type="text/plain" data-modul="js/session-lock.js?v=20261022e"></script>
 <script type="text/plain" data-modul="js/wage-adjustment.js?v=20260720a"></script>
@@ -11462,7 +11483,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script type="text/plain" data-modul="js/austritt.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/contracts-edit.js?v=20261028f"></script>
-<script type="text/plain" data-modul="js/payroll.js?v=20261028a"></script>
+<script type="text/plain" data-modul="js/payroll.js?v=20261030a"></script>
 <script type="text/plain" data-modul="js/elm-meldungen.js?v=20261030c"></script>
 <script type="text/plain" data-modul="js/fibu.js?v=20260805a"></script>
 <script type="text/plain" data-modul="js/dok-protokoll.js?v=20261012a"></script>
@@ -13339,6 +13360,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/famz-anmeldung.js?v=20261022a"></script>
 <script type="text/plain" data-modul="js/famz-gastrosocial.js?v=20261011p"></script>
 <script type="text/plain" data-modul="js/akis-meldung.js?v=20261030f"></script>
+<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261030a"></script>
 <script type="text/plain" data-modul="js/manager-dienstplan.js?v=20261013b"></script>
 <script type="text/plain" data-modul="js/organigramm.js?v=20261013o"></script>
 <script type="text/plain" data-modul="js/ferien-planer.js?v=20260814b"></script>

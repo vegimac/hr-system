@@ -5512,6 +5512,7 @@ public class PayrollCalculationEngine
             decimal deltaAhv = 0, deltaNbuv = 0, deltaKtg = 0, deltaBvg = 0, deltaQst = 0;
             decimal deltaUvg = 0, deltaUvgz = 0;
             decimal deltaQstEinmalig = 0;   // aperiodischer Anteil (Jahresmodell: ÷ 12 statt annualisiert)
+            decimal qstZulage = 0, qstZulageEinmalig = 0; // nur erfasste Zulagen, ohne Ferien/Feiertag/13. ML
             var zulagenExtraLines = new List<object>();
             decimal zulagenExtraTotal = 0;
             var lohnposAbzugLines = new List<object>();
@@ -5547,6 +5548,11 @@ public class PayrollCalculationEngine
                     if (BvgLoesung.Zaehlt(lp, bvgLoesungPerson)) deltaBvg += b;
                     if (lp.QstPflichtig)    deltaQst  += b;
                     if (lp.QstPflichtig && !IstPeriodischeZulage(lp)) deltaQstEinmalig += b;
+                    if (lp.QstPflichtig)
+                    {
+                        qstZulage += b;
+                        if (!IstPeriodischeZulage(lp)) qstZulageEinmalig += b;
+                    }
                 }
                 else
                 {
@@ -5835,33 +5841,45 @@ public class PayrollCalculationEngine
             // Jahresmodell TF41 Mai: Satz-Lohn (30'000 ÷ 90 × 360 + 20'000 + 30'000) ÷ 12 =
             // 14'166.65 (Lückenmonate = 0 QST-Tage, Anhang 1 Y1.1) → A0N 18.6 % auf
             // 80'000 − bezahlt 8'250 = 6'630 (Soll-Tabelle; XML 5'580 verschiebt 1'050 in den Juli).
+            // Jährliche Nachzahlung nach einem früheren Austrittsjahr: Verhältnisse des
+            // Austrittsmonats (Systemtest 04_04_04). Monatlich oder gleiches Jahr: Auszahlungsmonat.
+            bool qstMitAustritt = NachzahlungQstZeit.LeistungsanspruchMitAustritt(
+                nachzahlungNachAustritt, austrittKorr, year,
+                qstZulage > 0 && qstZulageEinmalig == qstZulage);
+            var qstBis = qstMitAustritt ? svPeriodTo : periodTo;
+            var qstVon = qstMitAustritt ? svPeriodFrom : periodFrom;
+            int qstJahr = qstMitAustritt ? svYear : year;
+            int qstMonat = qstMitAustritt ? svMonth : month;
+            string? qstVerhaeltnis = null;
+            string? lohnausweisHinweis = null;
+            int lohnausweisJahr = 0;
             if (deltaQst > 0)
             {
-                var qstPflichtKorr = await _qstCheck.CheckAsync(employeeId, periodTo);
+                var qstPflichtKorr = await _qstCheck.CheckAsync(employeeId, qstBis);
                 EmployeeQuellensteuer? qstEinstellungKorr = null;
                 if (qstPflichtKorr.IsQstPflichtig)
                 {
                     var qstAlleKorr = await _db.EmployeeQuellensteuer
-                        .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= periodTo)
+                        .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= qstBis)
                         .ToListAsync();
-                    qstEinstellungKorr = QstVersionWahl.Waehle(qstAlleKorr, periodTo);
+                    qstEinstellungKorr = QstVersionWahl.Waehle(qstAlleKorr, qstBis);
                 }
                 if (qstEinstellungKorr != null)
                 {
-                    _qstWohnsitzSchweiz = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, employeeId, periodFrom);
-                    _adresseZurPeriode = await AdresseZurPeriodeAsync(employee, periodTo);
+                    _qstWohnsitzSchweiz = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, employeeId, qstVon);
+                    _adresseZurPeriode = await AdresseZurPeriodeAsync(employee, qstBis);
                     _qstArbeitstage = await _db.EmployeeQstArbeitstage.AsNoTracking()
-                        .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
+                        .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == qstJahr && a.Month == qstMonat);
                     _qstArbeitstageBisher = null;
                     {
                         var bisher = await _db.EmployeeQstArbeitstage.AsNoTracking()
-                            .Where(a => a.EmployeeId == employeeId && a.Year == year && a.Month < month)
+                            .Where(a => a.EmployeeId == employeeId && a.Year == qstJahr && a.Month < qstMonat)
                             .Select(a => new { a.Month, a.TageCh, a.TageEffektiv })
                             .ToListAsync();
                         if (bisher.Any(a => a.TageCh < a.TageEffektiv))
                             _qstArbeitstageBisher = QstJahresmodell.ArbeitstageBisher(
                                 bisher.Select(a => (a.Month, a.TageCh, a.TageEffektiv)),
-                                QstJahresmodell.Vertragszeitraeume(employee), year, month);
+                                QstJahresmodell.Vertragszeitraeume(employee), qstJahr, qstMonat);
                     }
                     _sonderSaetze = await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
                     _qstJahresYtd = null;
@@ -5869,19 +5887,31 @@ public class PayrollCalculationEngine
                     _qstNachzahlungStandalone = nachzahlungNachAustritt;
                     if (QstJahresmodell.GiltFuer(qstEinstellungKorr.Steuerkanton))
                         _qstJahresYtd = await LadeQstJahresYtdAsync(
-                            employee, qstEinstellungKorr, year, month, periodFrom, periodTo);
+                            employee, qstEinstellungKorr, qstJahr, qstMonat, qstVon, qstBis);
                     // Monatsmodell: kein satzbestimmender Vollmonat vorhanden → IST = Satzbasis,
                     // ausser die QST-Angabe verlangt die Hochrechnung oder den Median.
-                    decimal? medianKorr = await QstMedianMonatAsync(qstEinstellungKorr, periodFrom);
+                    decimal? medianKorr = await QstMedianMonatAsync(qstEinstellungKorr, qstVon);
                     var nebenjobKorr = new PayrollCalculations.QstNebenjobInfo();
                     decimal? pensumKorr = emp.EmploymentModel is "FIX" or "FIX-M" ? emp.EmploymentPercentage : null;
                     var satzKorr = ComputeSatzBruttoForNebenjob(
                         qstEinstellungKorr, deltaQst, 0, company, pensumKorr, deltaQstEinmalig, 0, medianKorr, nebenjobKorr);
                     var qstRuleKorr = ComputeQstDeduction(
-                        qstEinstellungKorr, deltaQst, companyProfileId, periodFrom,
+                        qstEinstellungKorr, deltaQst, companyProfileId, qstVon,
                         satzbestimmenderBrutto: satzKorr, aperiodisch: deltaQstEinmalig, dreizehnter: 0m,
                         medianAngewendet: nebenjobKorr.MedianAngewendet);
-                    if (qstRuleKorr is not null) deductions.Add(qstRuleKorr);
+                    if (qstRuleKorr is not null)
+                    {
+                        deductions.Add(qstRuleKorr);
+                        if (nachzahlungNachAustritt)
+                        {
+                            qstVerhaeltnis = qstMitAustritt ? "Austrittsmonat" : "Auszahlungsmonat";
+                            if (qstMitAustritt)
+                            {
+                                lohnausweisJahr = svYear;
+                                lohnausweisHinweis = $"Lohnausweis {svYear} korrigieren: die Nachzahlung ist ein Leistungsanspruch im Austritt und gehört in den Lohnausweis dieses Jahres.";
+                            }
+                        }
+                    }
                 }
             }
 
@@ -5961,6 +5991,13 @@ public class PayrollCalculationEngine
             var node = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(result, opts))!;
             node["isCorrection"] = true;
             node["periodLabel"] = $"Korrektur {month:00}/{year}";
+            if (qstVerhaeltnis != null) node["qstVerhaeltnis"] = qstVerhaeltnis;
+            if (lohnausweisHinweis != null)
+                node["lohnausweisKorrektur"] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["jahr"] = lohnausweisJahr,
+                    ["text"] = lohnausweisHinweis,
+                };
             return new OkObjectResult(node);
         }
         catch (Exception ex)

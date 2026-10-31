@@ -1898,6 +1898,31 @@ public class DashboardService
             }
         }
 
+        // ── 3c.u) EMA BVG und Quellensteuer (Walter 30.10.2026) ──────────────
+        if (Enabled("ema_bvg") || Enabled("ema_qst"))
+        {
+            var ema = await EmaAufgabeService.LadenAsync(_db, companyProfileId);
+            foreach (var z in ema.Where(z => z.FreigabeId == null))
+            {
+                var cat = z.Aufgabe.Domaene == EmaAufgabeRegel.Bvg ? "ema_bvg" : "ema_qst";
+                if (!Enabled(cat)) continue;
+                var name = $"{z.Vorname} {z.Name}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = cat,
+                    Severity = SeverityState(cat, "warning"),
+                    Title    = z.Aufgabe.Domaene == EmaAufgabeRegel.Bvg ? "BVG-Meldung" : "Quellensteuer-Meldung",
+                    Subtitle = $"{name} · {z.Aufgabe.Text}"
+                             + (string.IsNullOrWhiteSpace(z.Aufgabe.Zusatz) ? "" : $" · {z.Aufgabe.Zusatz}")
+                             + $" · {z.Aufgabe.Stichtag:dd.MM.yyyy}",
+                    DueDate      = z.Aufgabe.Stichtag.ToDateTime(TimeOnly.MinValue),
+                    DaysUntil    = z.Aufgabe.Stichtag.DayNumber - today.DayNumber,
+                    EmployeeId   = z.Aufgabe.EmployeeId,
+                    EmployeeName = name
+                });
+            }
+        }
+
         // ── 3c.v) Umzugsdatum bestätigen (Walter 08.08.2026) ───────────────
         // easy@work hat eine neue Adresse mit PLZ/Ort-Wechsel geliefert —
         // Walter muss das echte Umzugsdatum bestätigen (erst dann läuft die
@@ -2789,7 +2814,8 @@ public class DashboardService
                                                  "ferienkuerzung_moeglich",
                                                  // Walter 13.10.2026: An-/Abmeldung GastroSocial gilt auch für Ausgetretene
                                                  "gastrosocial_anmeldung_fehlt", "gastrosocial_abmeldung_fehlt",
-                                                 "gastrosocial_kantonswechsel" };
+                                                 "gastrosocial_kantonswechsel",
+                                                 "ema_bvg", "ema_qst" };
             var filterIds = alerts
                 .Where(a => a.EmployeeId.HasValue && !keepCats.Contains(a.Category))
                 .Select(a => a.EmployeeId!.Value).Distinct().ToList();

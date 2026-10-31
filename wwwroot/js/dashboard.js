@@ -104,6 +104,8 @@ const DASH_CATEGORY_META = {
     gastrosocial_anmeldung_fehlt: { label: 'GastroSocial-Anmeldung fehlt', icon: '🏛', color: '#92400e' },
     gastrosocial_abmeldung_fehlt: { label: 'GastroSocial-Abmeldung fehlt', icon: '🏛', color: '#92400e' },
     gastrosocial_kantonswechsel: { label: 'FAK-Kantonswechsel', icon: '🏛', color: '#92400e' },
+    ema_bvg: { label: 'BVG-Meldung', icon: '🏦', color: '#92400e' },
+    ema_qst: { label: 'Quellensteuer-Meldung', icon: '🧾', color: '#92400e' },
     austritt_datum_mismatch: { label: 'Austrittsdatum stimmt nicht überein', icon: '📆', color: '#b45309' },
     contract_end_weitergearbeitet: { label: 'Nach Vertragsende weitergearbeitet', icon: '⏰', color: '#991b1b' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
@@ -547,6 +549,8 @@ function dashTodoOnClick(a) {
             case 'gastrosocial_anmeldung_fehlt':
             case 'gastrosocial_abmeldung_fehlt':
             case 'gastrosocial_kantonswechsel': return `onclick="dashOpenAkis()"`;
+            case 'ema_bvg':
+            case 'ema_qst': return `onclick="dashOpenEma()"`;
             case 'kuendigung_sperrfrist_ende': return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'ferienkuerzung_moeglich':    return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'erlaubnis_hauptarbeitgeber_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
@@ -576,6 +580,10 @@ function dashTodoOnClick(a) {
 /** AKIS-Seite öffnen (GastroSocial-To-dos, Walter 13.10.2026) — sie zeigt alle offenen Meldungen. */
 function dashOpenAkis() {
     showPage('akis-meldung');
+}
+
+function dashOpenEma() {
+    showPage('ema-aufgaben');
 }
 
 /** Wochentag kurz + Datum (z.B. «Fr, 31.07.2026») — Probezeit-Todos. */

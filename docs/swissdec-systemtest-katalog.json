@@ -2691,16 +2691,16 @@
       "hintergrund": "Die EMA-Meldungen mutieren mit ELMv6 zu einem Prozess mit hohem Automatisierungsgrad. Die Idee vom neuen Prozess liegt darin, dass sämtliche EMA-Meldungen vom ERP-System automatisiert erkannt werden und der Anwender nur noch die effektive Übermittlung freigeben muss. Ziel davon ist es die Anwender bei diesen Prozessen anzuleiten und Fehler auf allen Seiten zu vermeiden.",
       "direktive": "8.6.8",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "kommentarQt": "BVG-Gründe stehen unter «Meldungen BVG und Quellensteuer» und in den Aufgaben. Eintritt Vorsorgeplan oder Beginn nach Arbeitsunterbruch, dazu ob die Person am Stichtag zu 100 % arbeitsfähig ist. Mutationen: Lohn, Vorsorgeplan, Wohnadresse, Zivilstand, Arbeitsunfähigkeit, vollständig arbeitsfähig. Austritt: Austritt Vorsorgeplan, Verstorben beim Austrittsgrund Todesfall, Beginn Arbeitsunterbruch wenn Krankheit oder Unfall am Ende des Plans beginnt. Das Datum ist das Datum des Auslösers. Freigabe über «Zur Übermittlung freigegeben». Teilpensionierung, nur Risiko und nicht versichert werden nicht erfunden, solange kein eigener Fakt dazu erfasst ist. Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht die ELM-Datei.",
+      "notiz": "BVG-Gründe stehen unter «Meldungen BVG und Quellensteuer» und in den Aufgaben. Eintritt Vorsorgeplan oder Beginn nach Arbeitsunterbruch, dazu ob die Person am Stichtag zu 100 % arbeitsfähig ist. Mutationen: Lohn, Vorsorgeplan, Wohnadresse, Zivilstand, Arbeitsunfähigkeit, vollständig arbeitsfähig. Austritt: Austritt Vorsorgeplan, Verstorben beim Austrittsgrund Todesfall, Beginn Arbeitsunterbruch wenn Krankheit oder Unfall am Ende des Plans beginnt. Das Datum ist das Datum des Auslösers. Freigabe über «Zur Übermittlung freigegeben». Teilpensionierung, nur Risiko und nicht versichert werden nicht erfunden, solange kein eigener Fakt dazu erfasst ist. Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht die ELM-Datei.",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "ema-aufgaben",
+      "seiteLabel": "Meldungen BVG und Quellensteuer",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Meldungen BVG und Quellensteuer",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "ema-aufgaben"
         }
       ]
     },
@@ -2769,16 +2769,16 @@
       "hintergrund": "",
       "direktive": "10.7",
       "stand": "vorhanden",
-      "kommentarQt": "In OneCrew unter «ELM-Meldungen» prüfen. QT-Bewertung noch offen.",
-      "notiz": "",
+      "kommentarQt": "Quellensteuer-Gründe stehen unter «Meldungen BVG und Quellensteuer». OneCrew vergleicht aufeinanderfolgende Versionen, ohne manuelle Begründung. Eintritt in die Firma behält das Eintrittsdatum, Austritt aus der Firma das Austrittsdatum. Jede andere Änderung gilt ab dem 1. des Folgemonats. Zivilstand, wenn sich der Tarifbuchstabe ändert und dazwischen ein Zivilstand erfasst ist, sonst Arbeit des Partners. Dazu Kinderabzug, Kirchensteuer, Wechsel der Einkünfte des Partners zwischen CH und EX, Kantonswechsel, Wohnadresse, Niederlassung C, Einbürgerung und Andere. Freigabe über «Zur Übermittlung freigegeben». Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht das XML.",
+      "notiz": "Quellensteuer-Gründe stehen unter «Meldungen BVG und Quellensteuer». OneCrew vergleicht aufeinanderfolgende Versionen, ohne manuelle Begründung. Eintritt in die Firma behält das Eintrittsdatum, Austritt aus der Firma das Austrittsdatum. Jede andere Änderung gilt ab dem 1. des Folgemonats. Zivilstand, wenn sich der Tarifbuchstabe ändert und dazwischen ein Zivilstand erfasst ist, sonst Arbeit des Partners. Dazu Kinderabzug, Kirchensteuer, Wechsel der Einkünfte des Partners zwischen CH und EX, Kantonswechsel, Wohnadresse, Niederlassung C, Einbürgerung und Andere. Freigabe über «Zur Übermittlung freigegeben». Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht das XML.",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "ema-aufgaben",
+      "seiteLabel": "Meldungen BVG und Quellensteuer",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Meldungen BVG und Quellensteuer",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "ema-aufgaben"
         }
       ]
     },
@@ -2872,17 +2872,17 @@
       "erwartet": "Das ERP-System muss wie folgt geprüft werden: - Prüfen ob im Falle einer Nachzahlung nach Austritt im Vorjahr die AHV-/ALV-Beitragssätze des Austrittsjahres verwendet werden. - Prüfen ob bei einer Quellensteuer Korrektur (Old/New) je nach Charakter (RL 9.6.5) die QST-Tarifcodes, wie auch die generellen Verhältnisse des Austrittsmonats oder des Auszahlungsmonat für die Berechnung berücksichtigt werden. - Prüfen ob bei einer Quellensteuer Korrektur mit Leistungsanspruch mit dem Austritt der Anwender auf eine Korrektur vom Lohnausweis der betroffenen qsP hingewiesen wird.",
       "hintergrund": "Bei diesem Testfall geht es vor allem darum, sicherzustellen, dass die Abhängigkeiten bei Nachzahlungen nach Austritt im Vorjahr zu den enstprechenden Lohnperioden bekannt sind. Die korrekte Berechnung wird im Berechnungstest separat geprüft.",
       "direktive": "8.7.5.2",
-      "stand": "offen",
-      "kommentarQt": "",
-      "notiz": "",
-      "gebaut": false,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "stand": "vorhanden",
+      "kommentarQt": "AHV- und ALV-Sätze einer Nachzahlung nach Austritt sind die des Austrittsjahres. Quellensteuer: ist die erfasste Zulage vollständig jährlich und der Austritt liegt in einem früheren Jahr, gelten Tarif und Verhältnisse des Austrittsmonats. Der gelbe Balken im Korrekturlohn weist dann auf die Korrektur des Lohnausweises dieses Jahres hin. Monatlicher Charakter oder eine Zahlung im selben Jahr wie der Austritt bleiben beim Auszahlungsmonat, ohne Hinweis auf einen Lohnausweis des Vorjahres.",
+      "notiz": "AHV- und ALV-Sätze einer Nachzahlung nach Austritt sind die des Austrittsjahres. Quellensteuer: ist die erfasste Zulage vollständig jährlich und der Austritt liegt in einem früheren Jahr, gelten Tarif und Verhältnisse des Austrittsmonats. Der gelbe Balken im Korrekturlohn weist dann auf die Korrektur des Lohnausweises dieses Jahres hin. Monatlicher Charakter oder eine Zahlung im selben Jahr wie der Austritt bleiben beim Auszahlungsmonat, ohne Hinweis auf einen Lohnausweis des Vorjahres.",
+      "gebaut": true,
+      "seite": "lohnlauf",
+      "seiteLabel": "Lohnlauf",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnlauf",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "lohnlauf"
         }
       ]
     },
