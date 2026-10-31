@@ -18364,44 +18364,42 @@ function renderUniformDepotTab(el, d) {
     };
     const st = statusMap[d.status] || { label: d.status, color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' };
     const charged = d.chargedPeriode === 'BACKFILL'
-        ? 'Backfill (Eintritt vor 01.07.2026)'
-        : (d.chargedPeriode || '–');
-    const refund = d.refundPeriode
-        ? `<div style="font-size:12px;color:#64748b;margin-top:4px">Rückerstattet in Periode ${esc(d.refundPeriode)}</div>`
-        : '';
-    // Rückgabe-Entscheidung nur bei Austritt (letzter Lohn / Korrektur) —
-    // nicht bei aktiven MA die gerade den Eintritts-Abzug haben.
+        ? 'Eintritt vor 01.07.2026'
+        : (d.chargedPeriode || '');
     const emp = (typeof allEmployees !== 'undefined' && allEmployees)
         ? allEmployees.find(x => x.id === (selectedEmployeeId || window.activeEmpId))
         : null;
     const hasExit = !!(emp?.exitDate || emp?.ExitDate);
-    const ret = d.returnConfirmed === true
-        ? '<div style="font-size:12px;color:#166534;margin-top:4px">Uniform zurückgegeben → Refund erscheint automatisch auf dem (Korrektur-)Lohnzettel</div>'
-        : d.returnConfirmed === false
-            ? '<div style="font-size:12px;color:#991b1b;margin-top:4px">Uniform nicht zurück → Depot verfällt (kein Refund)</div>'
-            : (hasExit
-                ? '<div style="font-size:12px;color:#92400e;margin-top:4px">Rückgabe noch nicht entschieden</div>'
-                : '');
-    const bem = d.bemerkung ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">${esc(d.bemerkung)}</div>` : '';
     const canDecide = hasExit && d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0;
+    const standardBem = !d.bemerkung || [
+        'Backfill: Eintritt vor 01.07.2026',
+        'Depot aus bestehendem Lohnabzug übernommen',
+        '1. Lohn — Pauschale Uniform',
+        'Automatisch beim 1. Lohn',
+    ].includes(d.bemerkung);
+    const teile = [];
+    if (charged) teile.push(`<span style="color:#64748b">${esc(charged)}</span>`);
+    if (d.refundPeriode) teile.push(`<span style="color:#166534">zurück ${esc(d.refundPeriode)}</span>`);
+    if (d.returnConfirmed === true) teile.push('<span style="color:#166534">Uniform zurück</span>');
+    else if (d.returnConfirmed === false) teile.push('<span style="color:#991b1b">nicht zurück</span>');
+    else if (canDecide) teile.push('<span style="color:#92400e">Rückgabe offen</span>');
+    else if (d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0)
+        teile.push('<span style="color:#94a3b8">beim Austritt</span>');
+    if (!standardBem) teile.push(`<span style="color:#94a3b8">${esc(d.bemerkung)}</span>`);
     const actions = canDecide ? `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
             <button type="button" onclick="setUniformDepotReturn(true)"
-                style="background:#3f3f3f;color:#fff;border:none;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Uniform zurück → Refund</button>
+                style="background:#3f3f3f;color:#fff;border:none;padding:6px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Uniform zurück → Refund</button>
             <button type="button" onclick="setUniformDepotReturn(false)"
-                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid #cbd5e1;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Nicht zurück → verfällt</button>
-        </div>` : (d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0 && !hasExit
-        ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:10px">Rückgabe/Verfall wird beim <strong>Austritt</strong> (letzter Lohn) entschieden.</div>`
-        : '');
-    // Schlank (Walter 18.08.2026): eine kompakte Zeile statt grosser Block.
+                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid #cbd5e1;padding:6px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Nicht zurück → verfällt</button>
+        </div>` : '';
     el.innerHTML = `
-        <div class="ud-card ud-${esc(d.status || '')}" style="padding:7px 12px;background:${st.bg};border:1px solid ${st.border};border-radius:10px;font-size:12px">
+        <div class="ud-card ud-${esc(d.status || '')}" style="padding:6px 12px;background:${st.bg};border:1px solid ${st.border};border-radius:10px;font-size:12px">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <b class="ud-amt" style="font-size:13px;color:#1a1a1a">CHF ${bal}</b>
-                <span style="color:#64748b">Belastet: ${esc(charged)}</span>
+                ${teile.join('')}
                 <span class="ud-pill" style="font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;background:#fff;color:${st.color};border:1px solid ${st.border};margin-left:auto">${st.label}</span>
             </div>
-            ${refund}${ret}${bem}
             ${actions}
         </div>`;
 }
