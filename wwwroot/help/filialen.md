@@ -7,7 +7,13 @@ Jede Filiale hat Stammdaten und Einstellungen, die den Lohnlauf und Formulare st
 ## Tabs
 
 ### Stammdaten
-Adresse, AHV/BVG-Nummern, Telefon (wichtig für Formulare), Lohnausweis-Optionen (Verpflegung, Transport …), Standard-Probezeit in Monaten, Firmen-Bankverbindung für DTA, SSL-Nummern pro QST-Kanton.
+Adresse, AHV/BVG-Nummern, Telefon (wichtig für Formulare), Standard-Probezeit in Monaten, Firmen-Bankverbindung für DTA, SSL-Nummern pro QST-Kanton.
+
+### Lohndaten-Empfänger
+Welche Ausgleichskasse, welche FAK, welcher Versicherer für diese Filiale gilt, plus die Nummern dieser Filiale. Den Katalog der Empfänger pflegt der Admin unter System → Lohndaten-Empfänger.
+
+### Lohnausweis
+Verpflegung, Transport und die übrigen Angaben, die auf dem Jahresausweis dieser Filiale stehen.
 
 ### Unterzeichner
 Namen für Formulare (AG-Vertreter etc.). Die **Unterschrift** auf dem PDF kommt trotzdem vom **eingeloggten User**.

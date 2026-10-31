@@ -7,22 +7,26 @@ Wenn ein Arbeitsverhältnis endet, brauchst du ein klares Datum, die richtigen F
 | Was | Wo |
 |---|---|
 | **Kündigung am / Kündigung per** am MA | Mitarbeiter → Übersicht → Karte **Anstellung** |
-| **Formulare** (Schreiben, Zeugnis, Aufhebung …) | McAdmin (Verwarnung, Aufhebungsvertrag, Arbeitszeugnis) bzw. Sidebar → **HR** → Kündigung / Zeugnisse |
+| **Formulare** (Schreiben, Zeugnis, Aufhebung, Austrittsbrief) | Sidebar → **HR** → **Offboarding** → Kündigung / Zeugnisse |
+| **Verwarnung, Aufhebung, Arbeitszeugnis bestellen** im Filial-Alltag | [McAdmin](#mcadmin) |
 | **Probezeit-Kündigung** | Mitarbeiter → MA Formulare → **Probezeit** |
 | **Austritts-Feedback** (anonym) | Separater Link für den MA; Auswertung im HR-Bereich |
 
 ## Die Formulare im Überblick
 
-Im HR-Menü Kündigung / Zeugnisse:
+Im HR-Menü **Offboarding → Kündigung / Zeugnisse**:
 
-1. **Kündigung** — Schreiben erstellen; kann „Gekündigt am / per" am MA eintragen
+1. **Kündigung** — Schreiben erstellen; kann «Gekündigt am / per» am MA eintragen
 2. **Arbeitszeugnis** — Schlusszeugnis
 3. **Zwischenzeugnis**
 4. **Arbeitsbestätigung**
 5. **Verwarnung** — speichern, drucken, unterschreiben, Scan nachführen
-6. **Kündigungsrückzug** — z.B. nach gemeldeter Schwangerschaft (Kündigung am MA wieder entfernen)
-7. **Kündigungsbestätigung** — wenn der **MA** gekündigt hat
-8. **Aufhebungsvereinbarung**
+6. **Arbeits-Aufforderung**
+7. **Kündigungsrückzug** — z.B. nach gemeldeter Schwangerschaft
+8. **Kündigungsbestätigung** — wenn der **MA** gekündigt hat
+9. **Aufhebungsvereinbarung**
+10. **Meldepflicht Anmeldung** und **11. Meldepflicht Abmeldung** — Meldung an die Behörde bei Stellenantritt bzw. Stellenende, wo sie vorgeschrieben ist
+12. **Austrittsbrief** — Text aus der Briefverwaltung, PDF mit den Anhängen. Frankieren ist der Administration vorbehalten (Briefpost).
 
 Ablauf typisch: Formular ausfüllen → PDF-Vorschau → Drucken / Speichern → optional in der Personalakte ablegen.
 
@@ -47,7 +51,7 @@ Ablauf typisch: Formular ausfüllen → PDF-Vorschau → Drucken / Speichern →
 
 Wenn eine Kündigung zurückgenommen wird (z.B. Sperrfrist Schwangerschaft):
 
-1. HR → **Kündigungsrückzug**
+1. HR → Offboarding → **Kündigungsrückzug**
 2. Datum der ursprünglichen Kündigung + optionaler Grund
 3. PDF erzeugen und ablegen
 4. Optional: Kündigung am MA wieder löschen / zurücksetzen

@@ -1,10 +1,6 @@
 # Neue Filiale importieren
 
-Wenn eine Filiale von Mirus / alten Systemen nach OneCrew kommt, gibt es den **Onboarding-Hub**:
-
-**System → Neue Filiale importieren**
-
-Arbeite die Karten **der Reihe nach** ab. Nach erfolgreichem Commit schliesst sich die Seite oft automatisch (zurück zum Hub).
+Wenn eine Filiale von Mirus nach OneCrew kommt, arbeitest du die Karten **der Reihe nach** ab. Nach erfolgreichem Commit schliesst sich die Seite oft automatisch.
 
 ## Die Schritte
 

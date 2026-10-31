@@ -1,58 +1,83 @@
 # HR-Bereich
 
-Unter **HR** in der Sidebar liegen die Werkzeuge für Formulare, Kontrollen und Behörden — getrennt vom Filial-Alltag des Geschäftsführers.
+Unter **HR** in der Sidebar liegen Formulare, Kontrollen und Meldungen — getrennt vom Filial-Alltag des Geschäftsführers.
 
-Der HR-Hub ist in Kategorie-Kacheln gegliedert (wie die Systemeinstellungen): **Onboarding**, **Kündigung und Austritt**, **Kontrolle & Meldungen**, **Korrespondenz**, **Behörden Korrespondenz** und **Auswertungen & Exporte**. Ein Klick auf die Kategorie zeigt die zugehörigen Karten; die Auswahl bleibt gespeichert.
+Oben acht Kategorie-Kacheln. Ein Klick zeigt die Karten darunter; die Auswahl bleibt gespeichert. Die Filiale kommt immer aus der Sidebar.
 
-## Was findest du hier?
+## Onboarding
 
-### Kontrolle
-- **Lücken** — fehlende Ehepartner-Dokumente, MA-Dokumente, Nachtarbeit-Nachweise; mit Export
-- **Dok-Upload-Protokoll** — wer hat wann was hochgeladen (wichtig für Buchhaltung/Revision), inkl. CSV
-- **Schulungen** — Stand aller MA (Hygiene, Sicherheit, SRIW, Nothelfer, Peak, SECO), nur Ansicht. Erfasst wird im Mitarbeiter, Tab «Training, Verfügbar, Statistik»; Gültigkeit und Fristen stehen unter System → Verzeichnisse & Vorgaben → Schulungen & Ausbildungen. Warnungen: «Schulung läuft ab», «abgelaufen», «fehlt».
+1. **Kandidaten-Verwaltung** — Gespräch prüfen, Willkommenstag, mit dem Mitarbeiter verknüpfen, abschliessen
+2. **SMS Vertrag & Dokumente** — nur solange die Person noch Kandidat ist
+3. **Onboarding-Dokumente gelesen** — wer Vertrag und Dokumente schon geöffnet hat
+4. **Onboarding-Day-Verwaltung** — Termine und Plätze
 
-### Kündigung / Zeugnisse
-Alle Schreiben an einem Ort — siehe [Kündigung & Austritt](#austritt).
+Die Dokumente selbst pflegst du an der Filiale, Kategorie «Onboarding (Vertrags-Link)». Am Willkommenstag gehören Vertrag, Erstunterweisung, Sicherheitsblatt und Lebensmittelhygiene dazu.
 
-### Behörden & Jahresformulare
+## Offboarding
+
+**Kündigung / Zeugnisse** — alle Schreiben an einem Ort. Die Liste und die Regeln: [Kündigung & Austritt](#austritt).
+
+Verwarnung, Aufhebungsvertrag und «Arbeitszeugnis bestellen» gibt es zusätzlich in [McAdmin](#mcadmin), für den Filial-Alltag.
+
+## Kontrolle & Meldungen
+
+| Kachel | Was du prüfst |
+|---|---|
+| **Lücken in Personalakten** | Fehlende Ehepartner-Dokumente, MA-Dokumente, Nachtarbeit-Nachweise. Excel oder PDF. |
+| **Dokument-Upload-Protokoll** | Wer hat wann welches Dokument hochgeladen (Buchhaltung / Revision), inkl. CSV. |
+| **Schulungen** | Stand aller MA. Erfasst wird beim MA, Tab «Training, Verfügbar, Statistik». |
+| **Mirus-Abgleich: fehlende MA** | Personen, die in Mirus stehen und in OneCrew noch fehlen — als Liste zum Nachtragen. |
+| **Familienbetreuung** | easy@work gegen das, was OneCrew als Betreuung erwartet. |
+| **Freie Sonntage** | 4 freie Sonntage im Jahr, 12 im Blick — wer darunter liegt. |
+
+## Korrespondenz
+
+**Mitarbeiter-Korrespondenz**
+
+- **Gruppen-E-Mail** — Empfänger nach Filiale, Vertragsmodell und Funktion. Jede Person bekommt eine eigene Mail, Adressen bleiben privat.
+- **easy@work-Mitteilung** — dieselben Empfänger. Die Mitteilung geht als PDF ins easy@work-Dossier, mit App-Benachrichtigung. Unterzeichnung ist wählbar.
+
+Lohnbelege laufen nicht über diese Karte.
+
+## Behörden-Korrespondenz
 
 | Formular | Wofür |
 |---|---|
-| **Lohnabtretungen** | Übersicht aller Pfändungen/Sozialamts-Abtretungen — Zeilenklick öffnet die Abtretung beim MA. Details: [Lohnabtretungen & Behörden](#lohnabtretungen) |
-| **Jahres-Lohnausweis** | ESTV Form 11 mit Swissdec-Barcode, Entwurf/Final mit fester DocID — Details: [Jahres-Lohnausweis](#lohnausweis) |
-| **QST-Anmeldung** | Anmeldung beim Kanton (SO, AG, ZH, BE) — siehe auch [Quellensteuer](#qst) |
-| **RAV-Zwischenverdienst** | Formular für RAV — Stunden: MTP = Garantie + Mehrstunden (Total = Summe), FLEX = Stempel; Ferienbezug nicht im Raster; Rundung erst am Schluss |
-| **BFS-LSE** | Lohnstrukturerhebung als CSV-Entwurf |
-| **Absenz-Auswertung** | Krank / Unfall / Mutterschaft usw. — mit Drilldown, Excel oder PDF |
+| **Quellensteuer-Anmeldung** | Anmeldung beim Kanton. Unterschrift: du oder die Geschäftsführung. Siehe [Quellensteuer](#qst). |
+| **Lohnabtretungen** | Übersicht aller Pfändungen. Zeile öffnet die Abtretung beim MA. Siehe [Lohnabtretungen](#lohnabtretungen). |
+| **RAV-Zwischenverdienst** | Stunden: MTP = Garantie plus Mehrstunden, FLEX = Stempel. Ferienbezug steht nicht im Raster. |
 
-### Reports (alle Filialen)
+Ausgleichskasse, Familienzulagen und BVG liegen daneben unter [GastroSocial](#gastrosocial).
 
-| Report | Inhalt |
+## Auswertungen & Exporte
+
+Jahres-Lohnausweis, BFS-Statistik, Absenz-Auswertung, Altersstruktur, Fluktuation, Austritts-Feedback, Wochenstunden, MTP-Stunden, Stempelzeiten aller Filialen, Organigramm. Was jede Liste zeigt: [Auswertungen](#auswertungen).
+
+## GastroSocial
+
+Eigene Kategorie. An- und Abmeldung, Abgleiche, Familienzulagen, BVG-Pflicht gegen die Liste. Alles in [GastroSocial](#gastrosocial).
+
+## ELM (Lohnmeldungen)
+
+Meldungen im Stil der Swissdec-Datendrehscheibe. Du öffnest die Kachel, prüfst Verbindung und Zertifikat und erzeugst die Meldung für die gewählte Filiale.
+
+| Kachel | Stand |
 |---|---|
-| **Altersstruktur** | Matrix Alter × Filiale + Kurve, PDF |
-| **Fluktuation** | Ein-/Austritte, Gründe |
-| **Austritts-Feedback** | Anonyme Umfrage-Antworten |
+| **AHV-Ausgleichskassen** | Jahresmeldung AHV |
+| **Bundesamt für Statistik** | Lohnstruktur in der Monatsmeldung |
+| **Steuerverwaltungen** | Quellensteuer in der Monatsmeldung |
+| **Grenzgänger (IT / FR)** | Jahresmeldung Italien, Frankreich und SFN |
+| **Versicherer / Suva** | UVG, UVGZ, KTG — die Meldung folgt noch |
+| **Vorsorgeeinrichtung (BVG)** | Jahresmeldung und Mutationen — die Meldung folgt noch |
 
-💡 Viele Reports sind auch über die Karte **„Auswertungen / Reporting"** im HR-Hub erreichbar. Filial-Reports (Sollstunden, Ferien) liegen unter [Auswertungen](#auswertungen) in der Sidebar.
+Dieselben Meldungen erreichst du als Admin auch unter System → Lohn-Stammdaten → **ELM-Meldungen** und **Lohnmeldungen (ELM)**.
 
 ## Tipps
 
-- **Filiale** immer über die Sidebar wählen — Formulare folgen dem Selektor.
-- Unterschrift auf Formularen = **deine** Unterschrift (eingeloggter User), nicht die einer anderen Person.
-- Telefon auf Formularen = **Filial-Telefon**, nicht die private Nummer.
-- PDFs zuerst im **Vorschaufenster** (Drucken / Herunterladen / Schliessen).
+- Unterschrift auf Formularen = **deine** Unterschrift, ausser bei der QST-Anmeldung (dort wählbar: du oder die Geschäftsführung).
+- Telefon auf Formularen = **Filial-Telefon**.
+- PDFs zuerst im Vorschaufenster (Drucken / Herunterladen / Schliessen).
 
-## Geplante Karten (grau)
+## Graue Karten
 
-Manche Kacheln sind noch „in Planung" (Korrespondenz, Checklisten, Schulungen …). Sie sind sichtbar, aber noch nicht aktiv — bitte nur die farbigen/aktiven Karten nutzen.
-
-
-## Mitarbeiter-Korrespondenz: Gruppen-E-Mail
-
-Die Karte **Mitarbeiter-Korrespondenz** enthält die aktive **Gruppen-E-Mail**:
-Empfänger nach **Filiale**, **Vertragsmodell** und/oder **Funktion**
-(Crew, Crew Trainer, Geschäftsführer …) selektieren, die Empfängerliste
-prüfen (einzelne abwählbar), Betreff + Text erfassen, senden. Jede Person
-erhält eine **eigene** E-Mail — Adressen bleiben privat. Typischer
-Anwendungsfall: den Dienstplan-Handy-Link ans Management-Team schicken.
-Der Versand von Lohnbelegen bleibt bewusst geschlossen.
+Manche Karten sind noch «in Planung» (Checklisten, Brief-Vorlagen, Massen-SMS). Sie sind sichtbar, aber noch nicht der Weg. Nimm die Kacheln und die Zeilen mit Häkchen.

@@ -1,47 +1,81 @@
 # System (Admin)
 
-Die Sidebar **System** ist die Schaltzentrale. Nur Rolle **admin**. Hier pflegst du Kataloge, Benutzer, Importer und Schnittstellen.
+Die Sidebar **System** ist die Schaltzentrale. Nur Rolle **admin**. Oben sechs Kategorien. Ein Klick zeigt die Karten; die Auswahl bleibt gespeichert. Auf jeder Unterseite führt **«← Zurück»** wieder hierher.
 
-Die Seite ist in **sechs Hauptkategorie-Kacheln** gegliedert: **Lohn-Stammdaten**, **Filialen & Benutzer**, **Verzeichnisse & Vorgaben**, **Import & Schnittstellen**, **Kommunikation** und **Kontrolle & Datenpflege**. Ein Klick auf die Kategorie zeigt die Karten darunter; die Auswahl bleibt gespeichert. Auf jeder Unterseite führt der **«← Zurück»-Button** neben dem Titel wieder hierher.
-
-## Karten-Übersicht (was wofür)
+## Lohn-Stammdaten
 
 | Karte | Zweck |
 |---|---|
-| **Benutzer** | Accounts, Rollen, Filial-Zugang, Unterschrift, Flag «Mirus-Änderungsmail», Bereiche ein-/ausblenden |
-| **Lohnperioden** | Perioden anlegen, Bemerkungen, Akonto-Reset, Definitiv wieder öffnen, DTA nochmals holen |
-| **Filialen** | Stammdaten, Unterzeichner, Einstellungen — siehe [Filialen](#filialen) |
-| **SV-Sätze** | AHV, ALV, NBU, KTG, BVG, FAK … inkl. Höchstlohn / Min / AG-Satz (versioniert) |
-| **Mindestlöhne** | L-GAV-Matrix — siehe [Mindestlöhne](#mindestloehne) |
-| **Lohnpositionen** | Codes für Zulagen/Abzüge |
+| **Lohnperioden** | Perioden anlegen, Bemerkung, wieder öffnen |
+| **Swissdec Lohnpositionen** | Lohnarten mit SV-Häkchen. Die Häkchen steuern die Rechnung. |
 | **Kontoplan (Fibu)** | Welche Lohnart auf welches Konto bucht |
-| **Warnungen** | Welche Dashboard-To-dos an/aus, Vorlauf, Schwere |
+| **ELM-Meldungen** | Monatsmeldung Quellensteuer und Statistik erzeugen und prüfen |
+| **Lohnmeldungen (ELM)** | Meldungen senden und verfolgen, Zertifikat erneuern |
+| **SV-Sätze** | AHV, ALV, NBU, KTG, BVG — versioniert, inkl. Höchstlohn |
+| **Lohndaten-Empfänger** | Ausgleichskasse, FAK, Versicherer, Steuerverwaltungen. Die Filiale wählt den Empfänger und setzt ihre Nummern. |
+| **Mindestlöhne** | L-GAV-Matrix — siehe [Mindestlöhne](#mindestloehne) |
 | **QST-Tarife** | Kantonale Tarifdateien |
-| **Familienzulagen-Tarife** | FAK-Sätze |
-| **Absenz-Typen** | Katalog Krank/Ferien/… |
-| **Feiertage** | Für alle Filialen: national, pro Kanton oder für eine Filiale. «Wie Sonntag» = dem Sonntag gleichgestellt (Art. 20a ArG, Jugendliche dürfen nicht arbeiten). «Vorschlag übernehmen» pro Jahr und Kanton — für AG, LU und BE nach der kantonalen Liste vorbelegt. Nur Admin ändert. |
-| **Behörden** | Stamm für [Lohnabtretungen](#lohnabtretungen): Adresse, IBAN, Sachbearbeiter, optional Kontoinhaber = andere Behörde (für DTA, z.B. ORS Burgdorf → Zürich) |
+| **Familienzulagen-Tarife** | FAK-Sätze Kinder- und Ausbildungszulage |
+| **Saldi-Vortrag** | Eröffnungssaldi aus dem alten System, einmalig |
+| **Mirus Lohnraster für Migration** | Alte Mirus-Nummern den Lohnpositionen zuordnen |
+| **Swissdec-Lohnarten** | Musterstamm 1000–6999, nur Ansicht |
+| **Basen-Kontrolle** | SV-Basen aus den Häkchen nachrechnen und mit der Lohnrechnung vergleichen |
+| **Absenz-Typen** | Krank, Unfall, Ferien, Mutterschaft — was lohnwirksam ist |
+| **Feiertage** | National, pro Kanton oder Filiale. «Wie Sonntag» gilt für den Jugendschutz. «Vorschlag übernehmen» legt das Jahr nach der kantonalen Liste an. |
+
+Den Alltag der Lohnmeldungen findest du auch unter [HR → ELM](#hr-hub).
+
+## Filialen & Benutzer
+
+| Karte | Zweck |
+|---|---|
+| **Hauptsitze** | Die GmbH: UID, Sitzadresse, welche Filialen dazu gehören. Die Arbeitszeit-Vorlage hängt am Hauptsitz. |
+| **Filialen** | Restaurant, Einstellungen, Lohndaten-Empfänger der Filiale — siehe [Filialen](#filialen) |
+| **Benutzer** | Zugang, Rolle, Filialen, Unterschrift, zweite Prüfung (Authenticator), Bereiche |
+
+## Verzeichnisse & Vorgaben
+
+| Karte | Zweck |
+|---|---|
 | **Ärzte** | Für Mutterschutz-Briefe |
-| **Mutterschafts-Regeln** | Gesetzliche Fristen (ArG/OR) |
-| **Dokument-Struktur** | Kategorien und Dokumenttypen; ausdrucken über «Drucken» |
-| **Dokumenten-Audit** | Verdächtige Dateinamen (falsche Filiale?) |
-| **Banken** | SIX Bank Master API (Nacht 05:30 + Knopf); IBAN-Prüfung optional über SIX |
-| **Nationen** | ISO-3166-Codes, Alternativ-Code (Mirus) |
-| **PLZ / Gemeinden** | Ortschaften + BFS-Gemeindenummer (AMTOVZ) |
-| **Grenzregion** | Italienische Grenzgemeinden, täglich automatisch von der ESTV. Eigene Liste, der Schweizer Gemeinde-Import lässt sie stehen |
-| **Aktivitäts-Log** | Wer hat was geändert — [Audit](#audit) |
-| **easy@work API** | Verbindung, Syncs, Diagnose — [easy@work](#easyatwork) |
-| **d.velop Import** | Alte Personalakten (CSV+ZIP) |
-| **Saldi-Vortrag** | Eröffnungssaldi manuell |
-| **Neue Filiale importieren** | Migrations-Hub — [Onboarding](#onboarding) |
-| **E-Mail (SMTP)** | Lohnzettel-Mails, Test-Umleitung |
-| **SMS (eCall)** | Credentials, Test-Umleitung — [SMS](#sms) |
-| **Moments-Texte** | Vorlagen für Moments, Vertrags-Link, Bewilligungs-SMS |
-| **Datenaufbewahrung** | Alte Stempelzeiten nach X Jahren löschen |
-| **Postfach-Backfill** | Postfächer für alle aktiven MA anlegen |
+| **Behörden** | Stamm für [Lohnabtretungen](#lohnabtretungen): Adresse, IBAN, Sachbearbeiter |
+| **PLZ / Gemeinden** | Ortschaften und BFS-Gemeindenummer |
+| **Grenzregion** | Ausland-PLZ der ESTV. Der Schweizer Import lässt diese Liste stehen. |
+| **Banken** | Name, BIC, BC-Nummer. IBAN-Prüfung darüber. |
+| **Nationen** | ISO-Code, Alternativ-Code (z.B. aus Mirus), aktiv ja/nein |
+| **Mutterschafts-Regeln** | Gesetzliche Fristen |
+| **Dokument-Struktur** | Kategorien und Typen der Personalakte. «Drucken» gibt die Übersicht. |
+| **Schulungen & Ausbildungen** | Code, Auffrischung, Frist ab Eintritt, für wen, ob in FRED möglich, ab wann gewarnt wird. Die Gastro-Ausbildung ist keine Schulung — sie kommt als Einstufung aus easy@work. |
+
+## Kommunikation
+
+| Karte | Zweck |
+|---|---|
+| **E-Mail-Versand** | SMTP, Test-Mail, Rückläufer, Wiedervorlage |
+| **SMS (eCall)** | Zugangsdaten und Test-SMS — siehe [SMS](#sms) |
+| **Briefpost (WebStamp)** | Die Post frankiert, druckt und verschickt. Solange die Testphase läuft, geht eine Bestellung nur an die Testumgebung der Post. |
+| **Moments-Texte** | Vorlagen für Moments, Vertrags-Link und Bewilligungs-SMS |
+| **Postfach-Backfill** | Persönliches Postfach für alle aktiven MA anlegen |
+
+## Kontrolle & Datenpflege
+
+| Karte | Zweck |
+|---|---|
+| **Warnungen** | Welche Dashboard-To-dos an sind, Farbe, Vorlauf, Schwere |
+| **Aktivitäts-Log** | Wer hat was geändert — [Aktivitäts-Log](#audit) |
+| **Aktive Sitzungen** | Wer gerade angemeldet ist. Benutzer abmelden. |
+| **Dokumenten-Audit** | Dateiname nennt eine andere Filiale als der gespeicherte Ort |
+| **Vertragshistorie prüfen** | Überlappungen, Lücken, Abschnitte ohne Lohn. Korrigiert wird in easy@work. |
+| **Funktionen prüfen** | Funktion abgelaufener Verträge aus dem Lohn zurückrechnen |
+| **Datenaufbewahrung** | Stempelzeiten älter als X Jahre löschen (mindestens 5). Lohn und Personal bleiben. |
+| **Virenscanner** | Jeder Upload wird geprüft. Status, Funde, bestehende Dokumente nachprüfen. |
+
+## Briefverwaltung
+
+**Austrittsbrief** — Text mit Platzhaltern, Unterzeichner aus dem HR-Team, PDF ansehen. Frankieren geht über die Briefpost und ist der Administration vorbehalten. Im Alltag erreichst du denselben Brief unter [HR → Offboarding](#austritt).
 
 ## Faustregeln
 
-- **Versionierte Kataloge** (SV, Mindestlohn): nie „heimlich" alte Sätze ändern, die schon im Lohn waren — immer **Folge-Version ab Datum**.
-- Nach grossen Importen: Dashboard-To-dos und einen Test-Lohnlauf prüfen.
-- SMTP/SMS: Solange **Test-Umleitung** aktiv ist, landet nichts beim echten Empfänger — gut zum Testen, gefährlich wenn man es vergisst.
+- **Versionierte Kataloge** (SV-Sätze, Mindestlöhne): eine vergangene Version bleibt. Die aktuelle änderst du nur, solange noch kein Lohnlauf sie benutzt. Eine neue Version beginnt frühestens morgen.
+- Nach grossen Importen: Dashboard-To-dos und einen Test-Lohnzettel prüfen.
+- Solange die **Test-Umleitung** bei E-Mail oder SMS aktiv ist, landet nichts beim echten Empfänger.

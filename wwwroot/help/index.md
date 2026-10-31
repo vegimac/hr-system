@@ -15,9 +15,11 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 | Dokument hochladen oder Posteingang sortieren | [Dokumente & Posteingang](#dokumente) |
 | Geburtstags-Gruss / Wertschätzung senden | [Moments](#moments) |
 | Arbeitsvertrag per SMS schicken | [SMS & Vertrags-Link](#sms) |
-| Kündigung, Zeugnis, Behördenformulare | [HR-Bereich](#hr-hub) |
+| Kandidat, Willkommenstag, Vertrags-Link | [HR-Bereich](#hr-hub) |
+| Kündigung, Zeugnis, Austrittsbrief | [Kündigung & Austritt](#austritt) |
+| AHV, Familienzulagen, BVG an GastroSocial | [GastroSocial](#gastrosocial) |
 | Jahres-Lohnausweis erstellen (Form 11 + Barcode) | [Jahres-Lohnausweis](#lohnausweis) |
-| Bewerbungsformular, Gespräch starten, Arbeitszeugnis, Verwarnung, Aufhebungsvertrag | [McAdmin](#mcadmin) |
+| Gespräch, Absenzen, Stempel, Verwarnung | [McAdmin](#mcadmin) |
 | Lohnabtretung / Pfändung an Behörde | [Lohnabtretungen & Behörden](#lohnabtretungen) |
 | Sollstunden / Ferien / Alter / Fluktuation | [Auswertungen & Reports](#auswertungen) |
 | Fibu-Journal ziehen | [Buchhaltung (Fibu)](#fibu) |
@@ -37,7 +39,9 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 
 ## So ist das Programm aufgebaut
 
-**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Dokumente. Praxis-Aktionen am MA (Probezeit, Umzug, Postfach …) liegen im Tab **MA Formulare**. Verwarnung, Aufhebungsvertrag und Arbeitszeugnis bestellen liegen in [McAdmin](#mcadmin).
+**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Schulungen, Dokumente. Praxis-Aktionen am MA (Probezeit, Umzug, Postfach) liegen im Tab **MA Formulare**. Gespräch, Absenzkalender, Stempel-Berichte, Verwarnung, Aufhebungsvertrag und Arbeitszeugnis liegen in [McAdmin](#mcadmin).
+
+**HR** bündelt Onboarding, Offboarding, Kontrollen, Behörden, [GastroSocial](#gastrosocial), Lohnmeldungen (ELM) und die Reports über alle Filialen.
 
 **Verträge** sagen, wie viel jemand verdient. Bei Änderungen legst du einen **neuen** Vertrag an (nicht den alten überschreiben).
 
@@ -51,7 +55,7 @@ Beides mit **4-Augen-Prinzip**: zuerst GF pro MA, dann HR, dann DTA zur Bank.
 
 **Dokumente** liegen in der Personalakte. **Posteingang** ist die Eingangs-Schale der Filiale / HR / Buchhaltung.
 
-**Stempelzeiten** kommen nur aus **easy@work** (lesen im Programm, korrigieren in easy@work).
+**Stempelzeiten** kommen nur aus **easy@work** (lesen im Programm, korrigieren in easy@work). **Absenzen** erfasst du in OneCrew.
 
 ## Die vier Vertragsmodelle (30 Sekunden)
 
@@ -74,4 +78,4 @@ Beides mit **4-Augen-Prinzip**: zuerst GF pro MA, dann HR, dann DTA zur Bank.
 
 ---
 
-> Stand: August 2026. Fehlt etwas oder ist etwas unklar — sag Bescheid, wir ergänzen.
+> Stand: Oktober 2026. Fehlt etwas oder ist etwas unklar — sag Bescheid, wir ergänzen.

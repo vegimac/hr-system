@@ -1,6 +1,6 @@
 # Daten-Fix (Admin)
 
-Unter **System → Daten-Fix** korrigierst du bewusst Stammdaten-Fehler. Nur Rolle **admin** — kein Alltagswerkzeug für GF/HR.
+Nur Rolle **admin**. Kein Alltagswerkzeug für GF oder HR.
 
 ## Personalnummer ändern
 

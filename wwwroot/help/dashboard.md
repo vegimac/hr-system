@@ -26,6 +26,12 @@ Es gibt auch die eigene Seite **„To do"** in der Sidebar — gleiche Liste, et
 | **Nachtarbeit: Untersuchung / Zeugnis fehlt** | Dokumente verknüpfen oder Formulare drucken (Übersicht → Nachtarbeit) |
 | **Geburtstag / Jubiläum** | Optional [Moments](#moments) senden |
 | **Schwangerschaft / Fristen** | Familie / Schwanger-Tab öffnen, Fahrplan abarbeiten |
+| **Zivilstand oder AHV-Nummer fehlt** | In den Personalien nachtragen — gilt auch vor dem ersten Lohn, und auch ohne Quellensteuer |
+| **Personaldaten prüfen** | Rückfrage lesen. Stimmt die Angabe, «Stimmt so». Ein echter Fehler wird in easy@work korrigiert. |
+| **Anmeldung / Abmeldung Ausgleichskasse** | [GastroSocial → AKIS](#gastrosocial), Zeile abhaken wenn im AKISnet gemeldet |
+| **Schulung fehlt, läuft ab oder ist abgelaufen** | MA → Training, Verfügbar, Statistik. In FRED abhaken oder Nachweis hochladen. |
+| **Ferienkürzung möglich** | Absenzen-Tab, Karte Ferienkürzung — nach dem Dienstjahr, oder beim bevorstehenden Austritt |
+| **E-Mail unzustellbar** | Adresse am MA korrigieren. Eine harte Rückmeldung («existiert nicht») sperrt den Versand, bis die Adresse stimmt. |
 
 ## Banner „Mindestlohn — Verträge anpassen"
 

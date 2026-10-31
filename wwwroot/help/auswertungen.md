@@ -27,6 +27,7 @@ Stand aller Mitarbeitenden der gewählten Filiale: Hygiene, Sicherheit, SRIW, No
 | **Organigramm** | Oben die von Hand gepflegten Stellen (z.B. Owner Operator als Linie, Operations/People & Culture seitlich als Stab links oder rechts; eine weitere Stab-Stelle auf derselben Seite hängt gestrichelt an der darüber), darunter jede Filiale mit Geschäftsführung und den Managern aus den FIX-M-Verträgen des gewählten Monats (‹ › wechselt den Monat). Ist am MA ein Kurzname hinterlegt, steht dieser. Umschalter **Neutral** (Standard, mit OneCrew-Bogen) / **Farbig**. «✎ Stellen & Farben»: Titel, Name, Beschreibungszeile, Text unter dem GF-Namen (leer = weglassen) Farben pro Stufe (gelten für «Farbig») und Graustufen per Regler — eigene für jede obere Stelle sowie für Filiale und Manager (gelten für «Neutral», Schrift wird automatisch weiss oder schwarz), mit Live-Vorschau. Druck A4 quer in der gewählten Darstellung. |
 | **MTP-Stunden-Kontrolle** | Garantie vs. Ist pro Woche **inkl. angerechneter Absenzen** (Ferien/Krank nach Lohn-Logik). Grün = Garantie erreicht, rot = darunter; Spalte «Saldo aktuell» wie in der MA-Maske; 🤰/🍼-Markierung; sortiert nach grösstem Minus; PDF A4 quer. |
 | **Absenz-Auswertung** | Krankheit, Unfall, Mutterschaft … mit Detail und Export |
+| **Stempelzeiten alle Filialen** | Korrekturen und Arbeitszeit-Verstösse im Vergleich, bezogen auf 100 Stempel. Eine Filiale anklicken öffnet den Einzelbericht (den es auch in [McAdmin](#mcadmin) gibt). |
 
 ## Tipps
 

@@ -1,6 +1,6 @@
 # Mitarbeiter — der Personalbereich
 
-Hier verwaltest du alle Mitarbeiter:innen: Stammdaten, Verträge, Familie, Bank, Quellensteuer, Absenzen, Dokumente. Jeder Bereich hat einen eigenen Tab.
+Hier verwaltest du alle Mitarbeiter:innen: Stammdaten, Verträge, Familie, Bank, Quellensteuer, Schulungen, Absenzen, Dokumente. Jeder Bereich hat einen eigenen Tab.
 
 ## Wo finde ich was?
 
@@ -39,7 +39,7 @@ Karten auf einen Blick:
 
 - **Personalien & Adresse** — Strasse, PLZ, Ort, Kanton, Telefon, AHV, Zivilstand, Nationalität, ZEMIS, Ledigname … (viele Felder direkt speicherbar)
 - **🆘 Notfallkontakt** — eine Zeile im Kopf, direkt unter dem Eintrittsdatum: Name (Beziehung) · Telefon mit Anruf-Knopf. Klick öffnet die Erfassung: entweder **aus der Familie verknüpft** (Nummer bleibt automatisch aktuell) oder **freie Person** (z.B. Schwester, Nachbar). Die Druckliste aller Notfallkontakte gibt es in [McAdmin](#mcadmin).
-- **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, Probezeit bis, Probezeitgespräch-Status
+- **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, Probezeit bis, Probezeitgespräch-Status. **Dienstalter seit** rechnet OneCrew aus der lückenlosen Vertragskette (nahtloser Übertritt behält das alte Datum, eine Lücke beginnt neu). Eine Ausnahme trägst du von Hand ein — der easy@work-Sync löscht sie nicht.
 - **Nachtarbeit** — Pflicht-Badge, Nächte-Zähler, Arztzeugnis / Ausnahme verknüpfen, SECO-Formulare drucken
 - **Verträge** — kompakte Liste + Saldi der Periode
 - **Weitere Adressen** — eigene Box unter den Personalien (1 Zeile sichtbar, Rest scrollbar; Beschreibung neben dem Titel)
@@ -63,13 +63,13 @@ Drei Blöcke (Bank oben, dann Bewilligung, dann QST):
 1. **Bank** — versioniert, eine Hauptbank, optionale Aufteilung
 2. **Bewilligungen** — nur die **neueste** Bewilligung sichtbar; ältere hinter der Pille **«🕘 History»** im Titel. SMS-Erinnerung möglich; beim Einscannen werden Art/Ablauf/ZEMIS automatisch gelesen und das Dokument gleich verknüpft
 3. **Quellensteuer** — Banner + Tarif / Behörden-Befreiung — Details: [QST](#qst)
+4. **Weitere Arbeitgeber** — nur für die Checkliste (Erlaubnis Hauptarbeitgeber). Die Lohnrechnung liest diese Liste nicht; massgebend bleiben die Felder in der QST-Version.
 
 ### MA Formulare
-Icon-Kacheln für den Filial-Alltag:
+Icon-Kacheln für den Filial-Alltag, darunter die Verwarnungen dieser Person (Formular, Unterschrift, Storno). Gespräch, Bewerbungsformular, Verwarnung anlegen und Zeugnisse liegen in [McAdmin](#mcadmin) bzw. im [HR-Bereich](#hr-hub).
 
 | Kachel | Was sie tut |
 |---|---|
-| **Bewerbungsbogen** | Blanko-Bewerbungsbogen der Filiale als PDF |
 | **Probezeit** | Probezeit-Gespräch-PDF, Datum + Protokoll verknüpfen, Kündigung in Probezeit |
 | **Umzug erfassen** | Wohnortwechsel am MA |
 | **Postfach-Passwort** | Reset auf Personalnummer + Login-Sperre weg |
@@ -82,17 +82,24 @@ Nur **lesen**. Quelle = easy@work — Korrekturen dort, kommen mit dem nächsten
 ### Absenzen / KTG/UVG
 Krankheit, Unfall, Ferien … — siehe [Absenzen](#absenzen).
 
-### Verfügbarkeit
-Wann der MA einsetzbar ist. Daten aus easy@work (Einzel-Sync). Anzeige read-only; manuelle Versionen bleiben erhalten.
+### Training, Verfügbar, Statistik
+Drei Blöcke:
+
+- **Verfügbarkeit** — wann der MA einsetzbar ist. Pflege in easy@work, hier nur lesen (Einzel-Sync). Siehe [easy@work](#easyatwork).
+- **Schulungen** — Hygiene, Sicherheit, SRIW und weitere. Ein Nachweis pro Eintrag: in FRED abhaken oder ein Dokument hochladen. Auffrischung = neuer Eintrag. Welche Schulung für wen gilt: System → Schulungen & Ausbildungen. Die Übersicht aller MA: [Auswertungen](#auswertungen).
+- **Statistik** — Kennzahlen dieser Person.
 
 ### Zulagen Abzüge Abtretung BVG
 - **Uniformen-Depot** CHF 50 — beim 1. Lohn einbehalten; bei Austritt Refund oder Verfall (Buttons nur mit Austrittsdatum). Siehe [Lohnlauf](#lohnlauf) / [Austritt](#austritt).
 - BVG-Zusatz-Mitgliedschaft (pro MA, versioniert)
 - Wiederkehrende Zulagen/Abzüge
 - **Lohnabtretungen** (Pfändung / Sozialamt) — Behörde + Sachbearbeiter, Beleg verknüpfen (ohne Dokument unwirksam). Bemerkung-Default: Name, Vorname, AHV. → [Lohnabtretungen & Behörden](#lohnabtretungen)
+- **BVG-Pflicht** — versichert ja oder nein, ab einem Datum. OneCrew schlägt vor (mutmasslicher Jahreslohn inkl. 13. Monatslohn), du entscheidest. Ohne Eintrag gilt die monatliche Eintrittsschwelle. Der Abgleich mit der GastroSocial-Liste: [GastroSocial](#gastrosocial).
 
-### Dokumente
-Personalakte — siehe [Dokumente](#dokumente).
+### Dokumente / Historie
+Personalakte — siehe [Dokumente](#dokumente). Daneben die **Historie**: Eintritt, Verträge, Umzüge, QST-Versionen, frühere Personalnummern. Nur Ansicht.
+
+Speichern prüft die Personalien (Alter, Name, E-Mail, Wohnsitz, Kind über 25). Ein klarer Fehler wird nicht übernommen. Eine Rückfrage («stimmt das?») kannst du mit **Stimmt so** bestätigen — das To-do **Personaldaten prüfen** zeigt den Altbestand.
 
 ## Nachtarbeit (kurz)
 
@@ -109,7 +116,7 @@ Häkchen **„MA ohne Lohn"**: kein Lohnlauf, oft kein Postfach/Bank. Für easy@
 
 ## Austritt
 
-Kündigung am/per in der Anstellung-Karte; Formulare über MA Formulare oder [HR](#hr-hub). Ausführlich: [Kündigung & Austritt](#austritt).
+Kündigung am/per in der Anstellung-Karte. Formulare über [HR → Offboarding](#austritt). Ausführlich: [Kündigung & Austritt](#austritt).
 
 ## Häufige Stolpersteine
 

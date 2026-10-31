@@ -1,52 +1,47 @@
-# Absenzen, Kalender & Mirus-Import
+# Absenzen & Kalender
 
-Absenzen (Krankheit, Unfall, Ferien, Militär …) beeinflussen den Lohn. Stempelzeiten kommen aus easy@work — Absenzen erfassst du in OneCrew (oder importierst sie aus dem Mirus-Dienstplan).
+Absenzen (Krankheit, Unfall, Ferien, Militär, Mutterschaft) erfasst du in OneCrew. Sie beeinflussen den Lohn. Stempelzeiten kommen aus easy@work und bleiben dort die Quelle — die korrigierst du nicht hier.
 
 ## Absenzen beim Mitarbeiter
 
-**Mitarbeiter → Tab „Absenzen / KTG/UVG"**
+**Mitarbeiter → Tab «Absenzen / KTG/UVG»**
 
-1. Neue Absenz: Typ wählen, Von/Bis, ggf. Ausfall-%
-2. Speichern — Stunden werden berechnet
-3. Bei Krankheit/Unfall siehst du **Karenz** und den **KTG/UVG-Tagessatz** (Regeln A/B)
+1. Neue Absenz: Typ wählen, Von/Bis, bei Krankheit und Unfall die Arbeitstage
+2. Speichern — Stunden und Tagessatz rechnet das System
+3. Bei Krankheit und Unfall siehst du **Karenz** und den **KTG/UVG-Tagessatz**
 
-💡 Absenzen einer Periode sind erst gesperrt, wenn der **Definitivlauf abgeschlossen** ist (nicht schon bei Akonto oder «provisorisch»). Details: [Edit-Sperre](#edit-sperre).
+**Zeitgutschrift** (FIX, FIX-M, MTP): bis zum hinterlegten Dienstplan zählt der Plan, danach die Regel der Filiale (Dienstplan bis, danach 1/7 · immer 1/7 · Mo–Fr 1/5). Die Vorschau zeigt dir die Stunden, bevor du speicherst.
+
+**Ferien während Krankheit** kannst du als «ferienfähig» markieren. Für den Lohn bleiben es Ferien. Die Sperrfrist läuft durch diese Tage hindurch, sie starten aber selbst keine.
+
+**Absenzbedingte Ferienkürzung** ist ein eigener Eintrag (nicht eine Absenz-Zeile): nach dem Ende des Dienstjahres, bzw. beim Austritt. Das System rechnet den Vorschlag, du erfasst die Tage. «Nicht kürzen» ist eine bewusste Entscheidung und bleibt stehen, bis sich die Absenzen ändern. Die Karte rechts im Tab zeigt den Stand.
+
+Absenzen einer Periode sind erst gesperrt, wenn der **Definitivlauf abgeschlossen** ist. Details: [Edit-Sperre](#edit-sperre).
 
 ## Absenzkalender
 
-**Mitarbeiter → MA Formulare → Absenzkalender** (oder direkt die Seite)
+**McAdmin → Absenzkalender**
 
-Monatsübersicht der Filiale: wer ist wann abwesend, wo knirscht es personell. Praktisch für die Planung im Restaurant.
-
-## Mirus Absenz-Import (Dienstplan)
-
-Wenn Absenzen noch im **Mirus-Dienstplan** (XLS) stehen:
-
-1. Sidebar → **Mirus Absenz Import** (je nach Rolle)
-2. Datei wählen, Filiale prüfen
-3. Vorschau: welche Zeilen werden zu Krankheit / Unfall / Ferien …
-4. Commit nur wenn die Zuordnung stimmt
-
-**Überlappung gleicher Art:** Liegt schon eine Absenz derselben Art und der Import korrigiert Daten/Zeiten, übernimmt das System die Korrektur (statt die Zeile still zu überspringen). Anderer Typ / echte Überschneidung bleibt Konflikt.
-
-Danach erscheinen die Einträge im Absenzen-Tab des MA und im Lohnlauf.
+Monatsübersicht der Filiale: wer ist wann abwesend. Für die Planung im Restaurant.
 
 ## Was gehört wohin?
 
 | Thema | Ort |
 |---|---|
-| Krankheit, Unfall, Ferien, Militär … | Absenzen-Tab |
+| Krankheit, Unfall, Ferien, Militär, Mutterschaft | Absenzen-Tab |
 | Gestempelte Arbeitszeit | Stempelzeiten-Tab (nur lesen → easy@work) |
-| Wann jemand grundsätzlich einsetzbar ist | Verfügbarkeit-Tab (aus easy@work) |
+| Wer hat Stempel von Hand geändert | [McAdmin → Stempel Korrekturen](#mcadmin) |
+| Pausen, Ruhezeit, Jugendschutz | [McAdmin → Arbeitszeit Verstösse](#mcadmin) |
+| Wann jemand grundsätzlich einsetzbar ist | Tab «Training, Verfügbar, Statistik» |
 | Auswertung über viele MA | HR → Absenz-Auswertung |
 
 ## Häufige Fragen
 
 **Darf ich Stempelzeiten korrigieren?**
-Nein. Nur in **easy@work**, dann Sync abwarten oder MA synchronisieren.
+Nein. Nur in **easy@work**. Danach Sync abwarten oder den MA synchronisieren. Geänderte Stempel siehst du unter McAdmin → Stempel Korrekturen.
 
-**Ferien bei MTP/FIX — was passiert im Lohn?**
-Sollstunden / Festlohn werden gekürzt; Auszahlung je nach Modell aus dem Ferien-Pott bzw. als Tage-Saldo. Details im [Lohnlauf](#lohnlauf).
+**Ferien bei MTP und FIX — was passiert im Lohn?**
+Sollstunden oder Festlohn werden gekürzt. Die Auszahlung kommt je nach Modell aus dem Ferien-Pott oder als Tage-Saldo. Details im [Lohnlauf](#lohnlauf).
 
 **Unbezahlter Urlaub?**
-Erscheint auf dem Lohnzettel als Info-Zeile (FLEX/MTP). Bei MTP ist der Festlohn bereits um die UU-Tage gekürzt.
+Erscheint auf dem Lohnzettel als Info-Zeile (FLEX/MTP). Bei MTP ist der Festlohn bereits um diese Tage gekürzt.

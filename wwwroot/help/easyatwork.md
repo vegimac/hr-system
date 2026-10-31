@@ -40,13 +40,7 @@ Im **easy@work-Modul** (Admin): Button **«⚓ Probezeiten nachführen»**.
 
 ## Admin: easy@work-Modul
 
-**System → easy@work API**
-
-- Verbindung testen, Mapping Filiale ↔ Customer
-- Syncs anstossen, Logs lesen
-- Diagnose-Dumps (z.B. Verfügbarkeit roh)
-- **MA zusammenführen** bei Dubletten
-- **Probezeiten nachführen** (siehe oben)
+Verbindung, Filial-Zuordnung (Customer), Syncs, Logs und das Zusammenführen von Dubletten. Den einzelnen MA synchronisierst du im Mitarbeiter-Detail, nicht in diesem Modul.
 
 ## Häufige Fragen
 
@@ -59,19 +53,12 @@ Im **easy@work-Modul** (Admin): Button **«⚓ Probezeiten nachführen»**.
 **MA wurde als FLEX statt MTP importiert?** → In easy@work `type_id` / Vertragsart MTP prüfen, dann Sync.
 
 
-## Absenzen aus easy@work importieren
+## Absenzen
 
-Im easy@work-Modul gibt es den **Absenzen-Import** (Vorschau → Import):
+Absenzen erfasst du in OneCrew, Tab Absenzen. Ein Import aus easy@work gibt es für Krankheit und Ähnliches (Vorschau, dann übernehmen):
 
-- **NEU** (grün): Absenz existiert nur in easy@work → wird angelegt.
-  Einzelne Zeilen lassen sich vor dem Import **abwählen**.
-- **SCHON ERFASST** (türkis): Beginn, Ende und Typ stimmen mit einer manuell
-  erfassten Absenz überein → wird nur verknüpft, nichts geändert.
-- **FEHLER** (rot): Datum oder Typ weichen von der bereits erfassten Absenz ab
-  → wird NICHT importiert, sondern im Fehlerprotokoll gelistet — bitte von
-  Hand klären.
-- **Wichtig bei Krankheit/Unfall** (FIX / FIX-M / MTP): nach dem Import die
-  **Arbeitstage** («Welche Tage hätte er/sie gearbeitet?») in der Absenz
-  ergänzen — der Import kennt den Dienstplan nicht.
-- **Ferien sind vorerst ausgeschaltet**, weil easy@work auch Freiwünsche als
-  «Ferien» führt. Ferien kommen weiterhin aus dem Mirus-Import oder von Hand.
+- **NEU**: nur in easy@work → wird angelegt. Einzelne Zeilen lassen sich vorher abwählen.
+- **SCHON ERFASST**: Beginn, Ende und Typ stimmen → wird nur verknüpft.
+- **ABWEICHUNG**: Datum oder Typ weicht von der erfassten Absenz ab → wird nicht überschrieben. Von Hand klären.
+- Bei Krankheit und Unfall (FIX, FIX-M, MTP) danach die **Arbeitstage** in der Absenz ergänzen. Der Import kennt den Dienstplan nicht.
+- **Ferien** kommen nicht aus easy@work (dort sind oft nur Freiwünsche). Ferien erfasst du in OneCrew.
