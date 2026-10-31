@@ -63,8 +63,15 @@ function _stEintrag(c) {
     return { status: 'offen' };
 }
 
+function _stEntfaellt(c) {
+    return c.gebaut === false && !!((c.notiz || '').trim());
+}
+
 function _stPunkt(c) {
-    if (c.gebaut === false) return '<span class="komm-dot komm-dot-leer" title="noch nicht gebaut"></span>';
+    if (c.gebaut === false) {
+        const titel = _stEntfaellt(c) ? 'entfällt' : 'noch nicht gebaut';
+        return `<span class="komm-dot komm-dot-leer" title="${titel}"></span>`;
+    }
     const st = _stEintrag(c).status;
     return `<span class="komm-dot komm-dot-${st}" title="${st === 'ok' ? 'erledigt' : st === 'fehler' ? 'nicht bestanden' : 'offen'}"></span>`;
 }
@@ -100,7 +107,7 @@ async function stKatalogLaden() {
         if (r.ok) { _stKatalog = await r.json(); return; }
     } catch (_) { /* Fallback */ }
     try {
-        const r2 = await fetch('/data/swissdec-systemtest-katalog.json?v=20261031h');
+        const r2 = await fetch('/data/swissdec-systemtest-katalog.json?v=20261031k');
         if (r2.ok) _stKatalog = await r2.json();
     } catch (_) { _stKatalog = null; }
 }
@@ -247,7 +254,7 @@ function stDetailZeichnen() {
                 <div class="komm-detail-id">${_stEsc(c.id)} · <span>${typ}${dir}</span></div>
                 <div class="komm-detail-titel">${_stEsc(c.titel)}</div>
             </div>
-            <span class="komm-status komm-status-${c.gebaut === false ? 'leer' : e.status}">${c.gebaut === false ? 'noch nicht gebaut' : statusText}</span>
+            <span class="komm-status komm-status-${c.gebaut === false ? 'leer' : e.status}">${c.gebaut === false ? (_stEntfaellt(c) ? 'entfällt' : 'noch nicht gebaut') : statusText}</span>
         </div>
         <div class="komm-schritt">
             <div class="komm-schritt-nr">1</div>
@@ -258,14 +265,16 @@ function stDetailZeichnen() {
             <div class="komm-schritt-nr">2</div>
             <div style="flex:1;min-width:0"><div class="komm-schritt-titel">In OneCrew prüfen</div>
                  ${c.gebaut === false
-                    ? '<span class="komm-klein">Noch nicht vorführbar — Lücke schliessen, dann hier bewerten.</span>'
+                    ? (_stEntfaellt(c)
+                        ? `<div>${_stEsc((c.notiz || '').trim())}</div>`
+                        : '<span class="komm-klein">Noch nicht vorführbar — Lücke schliessen, dann hier bewerten.</span>')
                     : `<div class="komm-knoepfe">${knoepfe || '<span class="komm-klein">Manuell in der genannten Maske prüfen.</span>'}</div>
                        ${c.seiteLabel ? `<div class="komm-klein" style="margin-top:6px">Ziel: ${_stEsc(c.seiteLabel)}</div>` : ''}`}</div>
         </div>
         <div class="komm-schritt">
             <div class="komm-schritt-nr">3</div>
             <div><div class="komm-schritt-titel">Erwartet</div><div>${erw ? _stEsc(erw) : '<span class="komm-klein">—</span>'}</div>
-                 ${hinweis ? `<div class="komm-hinweis">💬 Kommentar fürs QT:<br>${_stEsc(hinweis)}</div>` : ''}</div>
+                 ${hinweis && !_stEntfaellt(c) ? `<div class="komm-hinweis">💬 Kommentar fürs QT:<br>${_stEsc(hinweis)}</div>` : ''}</div>
         </div>
         ${c.gebaut === false ? '' : `
         <div class="komm-bewertung">
