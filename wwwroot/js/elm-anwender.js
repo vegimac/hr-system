@@ -1081,8 +1081,9 @@ function elmaLaufZeichnen() {
     if (!el || !m || (m.fertig && !_elmaLauf)) return;
     _elmaLauf = true;
     _elmaBahnHolen();
-    const label = m.stufe === 'rot' ? 'Nicht angenommen' : m.fertig ? 'Antwort da' : 'Antwort kommt zurück';
-    const stufe = m.stufe === 'rot' ? 'rot' : m.fertig ? 'ok' : 'laeuft';
+    const quittung = (m.verlauf || []).some(p => p.schritt === 'Nachrichten abgeholt');
+    const label = m.stufe === 'rot' ? 'Nicht angenommen' : m.fertig ? 'Antwort da' : quittung ? 'Quittung da' : 'Antwort kommt zurück';
+    const stufe = m.stufe === 'rot' ? 'rot' : (m.fertig || quittung) ? 'ok' : 'laeuft';
     const chips = (m.empfaenger || []).map(e => e.name).filter(Boolean)
         .map(n => `<span class="elma-send-chip">${_elmaEsc(n)}</span>`).join('');
     el.innerHTML = `
@@ -1546,7 +1547,7 @@ function _elmaPhaseVon(m) {
     if (m.fertig)
         return { schritte: _ELMA_QUERY, index: 6, laufend: false, titel: 'Auftrag abgeschlossen', kern: 'Fertig', phase: m.stufe === 'ok' ? 'Erledigt' : 'Prüfen', zurueck: true };
     if (hat('Nachrichten abgeholt'))
-        return { schritte: _ELMA_QUERY, index: 5, laufend: m.stufe === 'laeuft', titel: 'Quittung ist da', kern: 'Prüft', phase: 'Quittung', zurueck: true };
+        return { schritte: _ELMA_QUERY, index: 5, laufend: false, titel: 'Quittung ist da', kern: 'Quittung', phase: 'Quittung', zurueck: false };
     if (hat('Gesendet') || hat('Stand abgefragt') || m.stufe === 'laeuft')
         return { schritte: _ELMA_QUERY, index: 3, laufend: true, titel: 'Antwort kommt an', kern: 'Empfängt', phase: 'Unterwegs', zurueck: true };
     return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit', zurueck: false };
