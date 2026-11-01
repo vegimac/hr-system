@@ -10,6 +10,15 @@ const XC_DOM = {
     'TaxCrossborder': 'Grenzgänger', 'Tax': 'Lohnausweise',
 };
 const XC_PORTAL = 'In den Übermittlungsprozessen der Versicherungen wird üblicherweise ein Link auf das Portal zurückgegeben. Falls der Link ausdrücklich gewünscht wird, geht diese Option mit.';
+const XC_LAUF = {
+    'PRÜFUNG': 'Wird geprüft',
+    'ÜBERMITTLUNG': 'Wird übermittelt',
+    'STAND': 'Stand wird geholt',
+    'NACHRICHT': 'Mitteilung wird geholt',
+    'ANTWORT': 'Antwort wird gesendet',
+    'ANMELDUNG': 'Anmeldung läuft',
+    'ABMELDUNG': 'Abmeldung läuft',
+};
 
 const xc = {
     gebunden: false,
@@ -207,12 +216,35 @@ function xcLink() {
     const sua = xc.cert?.sua;
     const online = xc.verb?.letzte?.erreichbar?.stufe === 'ok';
     const weg = !sua?.vorhanden || (sua?.restTage != null && sua.restTage < 0);
-    if (xc.lauf) return { wort: xc.lauf, klasse: '' };
-    if (!xc.verb) return { wort: '…', klasse: '' };
-    if (!online) return { wort: 'KEINE VERBINDUNG', klasse: 'xc-rot' };
-    if (weg) return { wort: 'ZERTIFIKAT', klasse: 'xc-rot' };
-    if (sua.restTage != null && sua.restTage <= 30) return { wort: 'ZERTIFIKAT', klasse: 'xc-gelb' };
-    return { wort: 'NOMINAL', klasse: 'xc-gruen' };
+    if (xc.lauf) return { wort: XC_LAUF[xc.lauf] || xc.lauf, klasse: '' };
+    if (!xc.verb) return { wort: 'Verbindung wird geprüft', klasse: '' };
+    if (!online) return { wort: 'Keine Verbindung', klasse: 'xc-rot' };
+    if (weg) return { wort: 'Zertifikat fehlt', klasse: 'xc-rot' };
+    if (sua.restTage != null && sua.restTage <= 30) return { wort: 'Zertifikat läuft ab', klasse: 'xc-gelb' };
+    return { wort: '', klasse: '' };
+}
+
+function xcSatz() {
+    if (xc.sicht === 'konfig')
+        return 'Hier liegen das Zertifikat und die Anmeldungen bei den Versicherungen. Die Lohnmeldung schickst du über Zurück.';
+    const sua = xc.cert?.sua;
+    const weg = sua && (!sua.vorhanden || (sua.restTage != null && sua.restTage < 0));
+    if (weg)
+        return 'Ohne gültiges Zertifikat nimmt Swissdec keine Meldung an. Das Zertifikat liegt unter Konfiguration.';
+    if (xc.art === 'monat') {
+        const name = `${XC_MONATE[xc.monat - 1] || ''} ${xc.jahr}`.trim();
+        if (xc.arm === xcKern() && xcBereit())
+            return `Geprüft. Übermitteln schickt die Monatsmeldung ${name}. Eine Testmeldung verarbeiten die Empfänger nicht.`;
+        return `Monatsmeldung ${name}. Hake Quellensteuer und Statistik an, dann Prüfen. Die Kantone wählst du danach. Übermitteln bleibt zu, bis die Prüfung sauber ist.`;
+    }
+    if (xc.arm === xcKern() && xcBereit())
+        return `Geprüft. Übermitteln schickt die Jahresmeldung ${xc.jahr} an die angehakten Stellen. Eine Testmeldung verarbeiten die Empfänger nicht.`;
+    const gewaehlt = xcJahrZeilen().filter(z => xc.wahl.has(z.id));
+    if (!gewaehlt.length)
+        return `Jahresmeldung ${xc.jahr}. Hake an, wer sie erhalten soll. «Lohndaten fehlen» heisst: die Stelle ist zugeordnet, die Beträge stehen noch nicht in der Meldung.`;
+    if (!xcArts().length)
+        return 'Die angehakten Stellen haben noch keine Lohndaten in der Meldung. Übermitteln bleibt zu. Bei der Pensionskasse erfasst du die Lohnsummen.';
+    return `Jahresmeldung ${xc.jahr}. Angehakt heisst: diese Stelle erhält die Meldung. Prüfen kontrolliert sie. Übermitteln bleibt zu, bis die Prüfung sauber ist.`;
 }
 
 function xcZeichnen() {
@@ -222,18 +254,17 @@ function xcZeichnen() {
     if (!xc.force && fokus && fokus.closest && fokus.closest('#page-elm-cockpit') && fokus.matches('input, textarea')) return;
     xc.force = false;
     const link = xcLink();
-    const aufgaben = xcAufgaben();
     const kopf = `<div class="xc-bar"></div>
         <header class="xc-top">
             <div>
                 <div class="xc-kicker">ELM</div>
-                <h1>Cockpit</h1>
+                <h1>${xc.sicht === 'konfig' ? 'Zertifikat' : 'Lohnmeldung'}</h1>
             </div>
-            <div class="xc-link ${link.klasse}" aria-live="polite">${xcEsc(link.wort)}${aufgaben.length ? ' · ' + aufgaben.length : ''}</div>
-            <button type="button" class="xc-text" data-xc="${xc.sicht === 'konfig' ? 'zurueck' : 'konfig'}">${xc.sicht === 'konfig' ? 'Zurück' : 'Konfiguration'}</button>
-            <button type="button" class="xc-ghost xc-klein" data-xc="aktualisieren" ${xc.busy ? 'disabled' : ''}>Aktualisieren</button>
+            ${link.wort ? `<div class="xc-link ${link.klasse}" aria-live="polite">${xcEsc(link.wort)}</div>` : '<div class="xc-link"></div>'}
+            <button type="button" class="xc-text" data-xc="${xc.sicht === 'konfig' ? 'zurueck' : 'konfig'}" title="${xc.sicht === 'konfig' ? 'Zurück zur Lohnmeldung' : 'Zertifikat und Anmeldung bei den Versicherungen'}">${xc.sicht === 'konfig' ? 'Zurück' : 'Konfiguration'}</button>
+            <button type="button" class="xc-ghost xc-klein" data-xc="aktualisieren" title="Holt den aktuellen Stand und neue Mitteilungen." ${xc.busy ? 'disabled' : ''}>Aktualisieren</button>
         </header>
-        <p class="xc-sua">Für Prozesse, die Versicherungen oder Behörden auslösen, braucht das Unternehmen ein Zertifikat. Es wird einmal bestellt und gilt für sämtliche Swissdec-Standards.</p>`;
+        <p class="xc-satz">${xcEsc(xcSatz())}</p>`;
     app.className = 'xc' + (xc.busy ? ' ist-busy' : '');
     app.innerHTML = kopf + (xc.sicht === 'konfig' ? xcKonfigHtml() : xcSendHtml()) + xcSheetHtml();
 }
@@ -293,7 +324,7 @@ function xcJahrHtml() {
         const portal = g.portal && g.id === 'versicherung'
             ? `<label class="xc-row xc-portal" title="${xcEsc(XC_PORTAL)}">
                 <span class="xc-name">Freigabe im Portal gewünscht</span>
-                <span class="xc-an">${xcEsc(XC_PORTAL)}</span>
+                <span class="xc-an">Nur setzen, wenn der Link auf das Portal mitgehen soll.</span>
                 <span></span>
                 <input class="xc-check" type="checkbox" data-xc="portal" ${xc.portal ? 'checked' : ''}>
                </label>` : '';
@@ -308,11 +339,14 @@ function xcZeile(z) {
     if (z.lohnsummen) tag = xc.bvgStand?.jahr === xc.jahr && xc.bvgStand.freigegeben ? 'FREIGEGEBEN' : 'LOHNDATEN FEHLEN';
     else if (!xcSendbar(z)) tag = 'LOHNDATEN FEHLEN';
     const knopf = z.lohnsummen ? '<button type="button" class="xc-text" data-xc="bvg">Lohnsummen</button>' : '<span></span>';
+    const tagTitle = tag === 'LOHNDATEN FEHLEN'
+        ? 'Die Stelle ist zugeordnet. Die Beträge stehen noch nicht in der Meldung, sie geht nicht mit.'
+        : (tag === 'FREIGEGEBEN' ? 'Die Lohnsummen sind für dieses Jahr freigegeben.' : '');
     return `<div class="xc-row">
         <span class="xc-name">${xcEsc(z.name)}</span>
         <span class="xc-an">${xcEsc(z.an)}</span>
         ${knopf}
-        <span class="xc-tag">${xcEsc(tag)}</span>
+        <span class="xc-tag"${tagTitle ? ` title="${xcEsc(tagTitle)}"` : ''}>${xcEsc(tag)}</span>
         <input class="xc-check" type="checkbox" data-xc="wahl" data-id="${xcEsc(z.id)}" ${an ? 'checked' : ''} aria-label="${xcEsc(z.name)}">
     </div>`;
 }
@@ -473,6 +507,7 @@ function xcKonfigHtml() {
     return `<div class="xc-flaeche">
         <div>
             <div class="xc-gruppe">Zertifikat</div>
+            <p class="xc-an">Für Prozesse, die Versicherungen oder Behörden auslösen, braucht das Unternehmen ein Zertifikat. Es wird einmal bestellt und gilt für sämtliche Swissdec-Standards.</p>
             ${firma}
             ${bestellen}
             <p class="xc-hin">${xcEsc(xc.konfigHinweis || xc.cert?.registrierung?.text || '')}</p>
@@ -507,11 +542,16 @@ function xcAnmeldeZeilen() {
 
 function xcAufgabenHtml() {
     const list = xcAufgaben();
-    const rows = list.length ? list.map(a => `<div class="xc-auf ${a.ton}">
+    const leer = xc.sicht === 'konfig'
+        ? 'Nichts liegt an.'
+        : 'Nichts liegt an. Als Nächstes die Meldung prüfen.';
+    const rows = list.length
+        ? '<p class="xc-an">Das musst du noch erledigen.</p>' + list.map(a => `<div class="xc-auf ${a.ton}">
         <div><b>${xcEsc(a.titel)}</b><p>${xcEsc(a.text || '')}</p></div>
         <button type="button" class="xc-ghost xc-klein" data-xc="${xcEsc(a.aktion)}" ${a.id ? `data-id="${xcEsc(a.id)}"` : ''} ${a.url ? `data-url="${xcEsc(a.url)}"` : ''}>${xcEsc(a.label)}</button>
-    </div>`).join('') : '<p class="xc-an">Keine offenen Aufgaben.</p>';
-    return `<div class="xc-gruppe">Aufgaben</div>${rows}`;
+    </div>`).join('')
+        : `<p class="xc-an">${leer}</p>`;
+    return `<div class="xc-gruppe">Offen</div>${rows}`;
 }
 
 function xcSheetHtml() {

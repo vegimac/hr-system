@@ -15088,7 +15088,10 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
 #page-elm-cockpit .xc-gruen { color: #3dd68c; }
 #page-elm-cockpit .xc-gelb { color: #f5a524; }
 #page-elm-cockpit .xc-rot { color: #ff5c5c; }
-#page-elm-cockpit .xc-sua { max-width: 62ch; margin: 14px 0 0; color: #9aa0a6; font-size: 14px; line-height: 1.45; }
+#page-elm-cockpit .xc-sua,
+#page-elm-cockpit .xc-satz { max-width: 68ch; margin: 14px 0 0; font-size: 17px; line-height: 1.45; }
+#page-elm-cockpit .xc-satz { color: #e8eaed; }
+#page-elm-cockpit .xc-sua { color: #9aa0a6; font-size: 14px; }
 #page-elm-cockpit .xc-block { margin-top: 28px; }
 #page-elm-cockpit .xc-wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
 #page-elm-cockpit .xc-seg { display: inline-flex; border: 1px solid #3a3f46; }
