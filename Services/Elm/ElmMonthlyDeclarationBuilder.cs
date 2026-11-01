@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services.LohnFormelwerk;
 using HrSystem.Services.Personaldaten;
 using HrSystem.Services;
 using Microsoft.EntityFrameworkCore;
@@ -104,6 +105,26 @@ public class ElmMonthlyDeclarationBuilder
             .FirstOrDefault();
 
     /// <summary>
+    /// Swissdec-Nummer einer Lohnzeile. Die Positionsnummer ist diese Nummer
+    /// (1000, 3000, auch 1000.2). Das Zusatzfeld gilt nur, wenn die Nummer
+    /// selbst keine Swissdec-Nummer ist — der Auslöser 180.3 trägt 1200.
+    /// Alte Mirus-Nummern (10.1, 190.1) werden nicht übersetzt.
+    /// </summary>
+    public static string SwissdecNummer(string? code, IReadOnlyDictionary<string, string>? lohnartByCode)
+    {
+        var c = (code ?? "").Trim();
+        var direkt = LohnCodes.SwissdecVon(c);
+        if (direkt.Length == 4) return direkt;
+        if (c.Length > 0 && lohnartByCode != null
+            && lohnartByCode.TryGetValue(c, out var feld))
+        {
+            var ausFeld = LohnCodes.SwissdecVon(feld);
+            if (ausFeld.Length == 4) return ausFeld;
+        }
+        return "";
+    }
+
+    /// <summary>
     /// Lohnzeilen eines Lohnzettels in die Statistik-Töpfe (Lohnart → Topf, Richtlinien Kap. 12).
     /// <paramref name="warn"/> = null für Vormonate, damit Hinweise nicht mehrfach erscheinen.
     /// </summary>
@@ -121,13 +142,17 @@ public class ElmMonthlyDeclarationBuilder
             var betrag = Num(z, "betrag");
             if (betrag == 0) continue;
             var code = (Str(z, "code") ?? "").Trim();
-            var lohnartTxt = code.Length > 0 && lohnartByCode.TryGetValue(code, out var la) ? la : "";
-            if (lohnartTxt.Length == 0) lohnartTxt = code;     // Testmandant führt die Lohnart als Code
-            if (!int.TryParse(lohnartTxt, out var lohnart))
+            var nummer = SwissdecNummer(code, lohnartByCode);
+            if (!int.TryParse(nummer, out var lohnart))
             {
                 Buche(ElmStatistikCodes.Topf.Bruttolohn, betrag);
-                warn?.Add($"Lohnzeile «{(Str(z, "bezeichnung") ?? code)}» ohne Swissdec-Lohnart — als Bruttolohn gemeldet "
-                        + "(Lohnpositionen → Swissdec-Lohnart setzen).");
+                if (!LohnCodes.IstInternOhneSwissdec(code))
+                {
+                    var name = Str(z, "bezeichnung") ?? code;
+                    var steht = code.Length > 0 ? $" Auf dem Lohnzettel steht «{code}»." : "";
+                    warn?.Add($"Lohnzeile «{name}» hat keine Swissdec-Nummer.{steht} "
+                            + "Der Betrag geht in den Bruttolohn. Lohnlauf neu rechnen, dann steht 1000, 3000 und so weiter auf der Zeile.");
+                }
                 continue;
             }
             ElmStatistikCodes.Topf? ziel = null;
@@ -207,10 +232,8 @@ public class ElmMonthlyDeclarationBuilder
 
         var periodeFiliale = perioden.ToDictionary(p => p.Id, p => p.CompanyProfileId);
 
-        // ── Statistik-Zuordnung der Lohnarten (ELM-Lohnraster, Spalte StatistikCode) ─
-        // Zuordnung Lohnzeile → Statistik-Topf über die SWISSDEC-LOHNART der
-        // Lohnposition (Walter 27.09.2026). Der Code der Lohnposition ist unser
-        // eigener; massgebend ist die Lohnart des Musterlohnartenstamms.
+        // Statistik-Topf über die Swissdec-Nummer der Lohnposition. Die Nummer
+        // ist der Code (1000, 3000). Das Zusatzfeld nur für 180.3 → 1200.
         var positionen = await _db.Lohnpositionen.AsNoTracking()
             .Select(l => new { l.Code, l.SwissdecLohnart, l.QstPflichtig, l.QstPeriodisch, l.QstCharakter, l.StatistikMonat, l.StatistikJahr })
             .ToListAsync(ct);
@@ -222,8 +245,8 @@ public class ElmMonthlyDeclarationBuilder
         {
             var topf = ElmStatistikCodes.Gespeichert(p.StatistikMonat, p.StatistikJahr);
             if (topf == null) continue;
-            var nrText = string.IsNullOrWhiteSpace(p.SwissdecLohnart) ? p.Code : p.SwissdecLohnart;
-            if (!int.TryParse((nrText ?? "").Trim(), out var nr)) continue;
+            var nrText = SwissdecNummer(p.Code, new Dictionary<string, string> { [p.Code] = p.SwissdecLohnart ?? "" });
+            if (!int.TryParse(nrText, out var nr)) continue;
             statistikByLohnart[nr] = topf;
         }
         var qstCharakter = positionen
@@ -903,8 +926,7 @@ public class ElmMonthlyDeclarationBuilder
         if (!slip.TryGetProperty("lohnLines", out var ll) || ll.ValueKind != JsonValueKind.Array) return null;
         foreach (var z in ll.EnumerateArray())
         {
-            var code = (Str(z, "code") ?? "").Trim();
-            var la = code.Length > 0 && lohnartByCode.TryGetValue(code, out var t) && t.Length > 0 ? t : code;
+            var la = SwissdecNummer(Str(z, "code"), lohnartByCode);
             if (la == lohnart.ToString() && Num(z, "prozent") is > 0m and var p) return p;
         }
         return null;
@@ -920,8 +942,7 @@ public class ElmMonthlyDeclarationBuilder
         decimal summe = 0;
         foreach (var z in ll.EnumerateArray())
         {
-            var code = (Str(z, "code") ?? "").Trim();
-            var la = code.Length > 0 && lohnartByCode.TryGetValue(code, out var t) && t.Length > 0 ? t : code;
+            var la = SwissdecNummer(Str(z, "code"), lohnartByCode);
             if (la != "1006") continue;
             var anzahl = Num(z, "anzahl");
             if (anzahl != 0) summe += anzahl;
@@ -1164,8 +1185,8 @@ public class ElmMonthlyDeclarationBuilder
                 periodisch = LohnartSteuerung.ImPeriodischenQstTopf(
                     new Lohnposition { QstPeriodisch = p.QstPeriodisch, QstCharakter = charakter });
             if (!p.QstPflichtig || periodisch) continue;
-            var la = int.TryParse((p.SwissdecLohnart ?? "").Trim(), out var n) ? n
-                   : int.TryParse(p.Code, out var n2) ? n2 : 0;
+            var nummer = SwissdecNummer(p.Code, new Dictionary<string, string> { [p.Code] = p.SwissdecLohnart ?? "" });
+            var la = int.TryParse(nummer, out var n) ? n : 0;
             if (ElmStatistikCodes.TopfFuer(la) == ElmStatistikCodes.Topf.Dreizehnter) continue;
             if (la == 1410 || la is >= 1960 and <= 1969) continue;
             set.Add(p.Code);

@@ -9,16 +9,12 @@ namespace HrSystem.Controllers;
 /// Schritt 4b: Swissdec-Lohnarten der Testfälle (wagetypes_export.csv) mit
 /// OneCrew-Lohnpositionen verbinden (Walter 08.09.2026, Neufassung).
 ///
-/// Prinzip: Die interne Nummer bleibt Schlüssel (Lohnschema, FIBU); die
-/// Swissdec-Bedeutung hängt als <see cref="Lohnposition.SwissdecLohnart"/> an
-/// der Position — wie bei Mirus, wo 60.3 «Versicherungstaggeld UVG» die
-/// Swissdec-Lohnart 2030 ist. Ablauf pro verwendeter Swissdec-Lohnart:
-///   1. Eine Position trägt die Swissdec-Lohnart bereits → nichts zu tun.
-///   2. OneCrew rechnet die Lohnart selbst (Monatslohn, Stundenlohn, Ferien,
-///      Feiertag, 13. ML, Kinderzulage …) → die Swissdec-Lohnart wird an den
-///      bestehenden OneCrew-Positionen eingetragen (Zuordnungstabelle unten;
-///      nur wo noch leer, Handeinträge werden nie überschrieben).
-///   3. Sonst → neue Position mit der Swissdec-Nummer als Code und den
+/// Prinzip: Die Positionsnummer IST die Swissdec-Nummer (1000 Monatslohn,
+/// 3000 Kinderzulage). Kein Anhängen an alte Mirus-Nummern, kein Suffix «.sd».
+/// Ablauf pro verwendeter Swissdec-Lohnart:
+///   1. Eine aktive Position trägt diese Nummer als Code (auch 1000.2) → nichts
+///      neu anlegen. Fehlt das Zusatzfeld, wird dieselbe Nummer eingetragen.
+///   2. Sonst → neue Position mit der Swissdec-Nummer als Code und den
 ///      Pflichten/Lohnausweis-Ziffer aus dem Musterlohnartenstamm
 ///      (Assets/Swissdec/SwissdecLohnarten.json); danach an der Position editierbar.
 /// 5050 (BVG-Beitrag) wird nicht als Position gebucht — Schritt 5b setzt daraus
@@ -67,25 +63,24 @@ public partial class SwissdecTestmandantController
                 uebersprungen++; continue;
             }
 
-            // 1) schon zugeordnet?
-            var vorhandene = positionen.Where(p => p.SwissdecLohnart == code && p.IsActive).ToList();
+            // 1) Nummer ist schon der Code (1000, auch 1000.2) oder im Zusatzfeld.
+            var vorhandene = positionen.Where(p => p.IsActive && (
+                string.Equals(p.SwissdecLohnart, code, StringComparison.Ordinal)
+                || string.Equals(HrSystem.Services.LohnFormelwerk.LohnCodes.SwissdecVon(p.Code), code, StringComparison.Ordinal)))
+                .ToList();
             if (vorhandene.Count > 0)
             {
-                felder["OneCrew"] = string.Join(" · ", vorhandene.Select(p => $"{p.Code} {p.Bezeichnung}")) + " (bereits zugeordnet)";
+                var ohneFeld = vorhandene.Where(p => string.IsNullOrWhiteSpace(p.SwissdecLohnart)).ToList();
+                felder["OneCrew"] = string.Join(" · ", vorhandene.Select(p => $"{p.Code} {p.Bezeichnung}"))
+                    + (ohneFeld.Count > 0 ? " (Nummer ins Zusatzfeld)" : " (bereits zugeordnet)");
                 aktionen.Add(new Aktion("aktualisieren", "Lohnart", $"{code} → {string.Join(", ", vorhandene.Select(p => p.Code))}", felder));
-                bereits++; continue;
-            }
-
-            // 2) OneCrew rechnet selbst → Swissdec-Lohnart an bestehenden Positionen eintragen
-            var ziele = SwissdecLohnartZuordnung.NachOneCrewCode
-                .Where(z => z.Value == code).Select(z => z.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var kandidaten = positionen.Where(p => p.IsActive && ziele.Contains(p.Code) && string.IsNullOrEmpty(p.SwissdecLohnart)).ToList();
-            if (kandidaten.Count > 0)
-            {
-                felder["OneCrew"] = string.Join(" · ", kandidaten.Select(p => $"{p.Code} {p.Bezeichnung}")) + " (Swissdec-Lohnart eintragen)";
-                aktionen.Add(new Aktion("aktualisieren", "Lohnposition", $"{code} → {string.Join(", ", kandidaten.Select(p => p.Code))}", felder));
-                if (!vorschau) foreach (var p in kandidaten) p.SwissdecLohnart = code;
-                zugeordnet++; continue;
+                if (ohneFeld.Count > 0)
+                {
+                    if (!vorschau) foreach (var p in ohneFeld) p.SwissdecLohnart = code;
+                    zugeordnet++;
+                }
+                else bereits++;
+                continue;
             }
 
             // 3) neu aus dem Musterlohnartenstamm
@@ -101,9 +96,7 @@ public partial class SwissdecTestmandantController
             neu++;
             if (vorschau) continue;
 
-            // Code-Kollision mit einer bestehenden OneCrew-Position (z.B. «1000»)? Dann Suffix.
             var lpCode = code;
-            if (positionen.Any(p => p.Code == lpCode && p.IsActive)) lpCode = code + ".sd";
             var lp = new Lohnposition
             {
                 Code = lpCode, Bezeichnung = k.Bezeichnung, Typ = k.Typ,

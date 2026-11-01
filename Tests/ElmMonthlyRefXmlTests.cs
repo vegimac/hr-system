@@ -289,6 +289,33 @@ public class ElmMonatsJahreswerteTests
         var summe = nov[ElmStatistikCodes.Topf.Dreizehnter] + dez[ElmStatistikCodes.Topf.Dreizehnter];
         Assert.Equal("479.55", ElmGemeinsam.Betrag05(summe));
     }
+
+    [Fact]
+    public void SwissdecNummer_KommtVonDerZeile_NichtVomZusatzfeld()
+    {
+        var feld = new Dictionary<string, string> { ["1000"] = "K", ["180.3"] = "1200" };
+        Assert.Equal("1000", ElmMonthlyDeclarationBuilder.SwissdecNummer("1000", feld));
+        Assert.Equal("1000", ElmMonthlyDeclarationBuilder.SwissdecNummer("1000.2", feld));
+        Assert.Equal("3000", ElmMonthlyDeclarationBuilder.SwissdecNummer("3000", null));
+        Assert.Equal("1200", ElmMonthlyDeclarationBuilder.SwissdecNummer("180.3", feld));
+        Assert.Equal("", ElmMonthlyDeclarationBuilder.SwissdecNummer("10.1", feld));
+        Assert.Equal("", ElmMonthlyDeclarationBuilder.SwissdecNummer("190.1", null));
+    }
+
+    [Fact]
+    public void Toepfe_MonatslohnUndKinderzulage_OhneMirusUebersetzung()
+    {
+        static System.Text.Json.JsonElement Slip(string json) => System.Text.Json.JsonDocument.Parse(json).RootElement;
+        var warn = new List<string>();
+        var map = new Dictionary<string, string> { ["1000"] = "K" };
+        var t = ElmMonthlyDeclarationBuilder.Toepfe(Slip(
+            """{"lohnLines":[{"code":"1000","bezeichnung":"Monatslohn","betrag":5000},{"code":"3000","bezeichnung":"Kinderzulage","betrag":250},{"code":"10.1","bezeichnung":"Monatslohn alt","betrag":100}]}"""),
+            map, warn);
+        Assert.Equal(5100m, t[ElmStatistikCodes.Topf.Bruttolohn]);
+        Assert.Equal(250m, t[ElmStatistikCodes.Topf.Familienzulagen]);
+        Assert.Contains(warn, w => w.Contains("10.1") && w.Contains("neu rechnen"));
+        Assert.DoesNotContain(warn, w => w.Contains("Swissdec-Lohnart setzen"));
+    }
 }
 
 /// <summary>Konfessions-Zuordnung der Quellensteuer-Zeile.</summary>
