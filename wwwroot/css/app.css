@@ -15213,3 +15213,81 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
     #page-elm-cockpit .xc-flaeche { grid-template-columns: 1fr; }
     #page-elm-cockpit .xc-seite { position: static; }
 }
+
+/* Lohnmeldung, einfacher Ablauf. Eine Spalte, heller Grund, grosse Türen. */
+.main:has(#page-elm-cockpit.active),
+body.theme-dark .main:has(#page-elm-cockpit.active) {
+    background: #f6f3ee;
+    color: #3f3f3f;
+}
+#page-elm-cockpit.page.active {
+    background: #f6f3ee;
+    color: #3f3f3f;
+    color-scheme: light;
+}
+#eeApp {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px 24px 80px;
+    color: #3f3f3f;
+    font-size: 16px;
+    line-height: 1.45;
+}
+#eeApp h1 { margin: 8px 0 8px; font-size: 32px; font-weight: 560; letter-spacing: -.03em; color: #1a1a1a; }
+#eeApp h2 { margin: 28px 0 6px; font-size: 18px; font-weight: 560; color: #3f3f3f; }
+#eeApp .ee-lead { margin: 0 0 18px; color: #646464; }
+#eeApp .ee-kopf { display: flex; justify-content: space-between; min-height: 28px; margin-bottom: 8px; }
+#eeApp .ee-tueren { display: flex; flex-direction: column; gap: 12px; }
+#eeApp .ee-tuer, #eeApp .ee-karte {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    width: 100%; text-align: left; padding: 18px 20px; cursor: pointer; font: inherit;
+    background: #fff; color: #1a1a1a; border: 1px solid rgba(60,55,48,.18); border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(60,55,48,.08);
+}
+#eeApp .ee-tuer b, #eeApp .ee-karte b { font-size: 20px; font-weight: 560; }
+#eeApp .ee-tuer span, #eeApp .ee-karte span { color: #646464; font-size: 15px; }
+#eeApp .ee-karte { margin-top: 22px; }
+#eeApp .ee-liste { display: flex; flex-direction: column; }
+#eeApp .ee-zeile {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    padding: 14px 0; border-top: 1px solid rgba(60,55,48,.14);
+}
+#eeApp .ee-zeile span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#eeApp .ee-zeile i { font-style: normal; color: #646464; font-size: 14px; }
+#eeApp .ee-liste > li { padding: 8px 0; color: #646464; border-top: 1px solid rgba(60,55,48,.14); }
+#eeApp .ee-step { display: flex; align-items: center; gap: 14px; margin: 0 0 8px; }
+#eeApp .ee-step button {
+    width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(60,55,48,.2);
+    background: #fff; color: #1a1a1a; font-size: 20px; cursor: pointer;
+}
+#eeApp .ee-aktionen { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+#eeApp .ee-go, #eeApp .ee-ghost {
+    height: 44px; padding: 0 16px; border-radius: 12px; font: inherit; cursor: pointer;
+}
+#eeApp .ee-go { background: #1a1a1a; color: #fff; border: 0; }
+#eeApp .ee-ghost { background: #fff; color: #1a1a1a; border: 1px solid rgba(60,55,48,.25); }
+#eeApp .ee-go:disabled, #eeApp .ee-ghost:disabled { opacity: .4; cursor: default; }
+#eeApp .ee-text {
+    background: none; border: 0; padding: 0; color: #646464; text-decoration: underline;
+    text-underline-offset: 3px; cursor: pointer; font: inherit;
+}
+#eeApp .ee-test { display: flex; align-items: center; gap: 8px; color: #3f3f3f; }
+#eeApp .ee-merk { margin: 16px 0 0; color: #3f3f3f; }
+#eeApp .ee-still { margin-top: 22px; color: #8b8b8b; }
+#eeApp .ee-ok { color: #3f3f3f; }
+#eeApp .ee-rechts { display: flex; align-items: center; gap: 10px; flex: none; }
+#eeApp .ee-stand { margin-top: 28px; padding-top: 8px; }
+#eeApp .ee-fakt { display: grid; grid-template-columns: 9rem minmax(0,1fr); gap: 6px 12px; margin: 12px 0 0; }
+#eeApp .ee-fakt dt { color: #8b8b8b; }
+#eeApp .ee-fakt dd { margin: 0; }
+#eeApp .ee-frage { margin-top: 22px; padding-top: 8px; border-top: 1px solid rgba(60,55,48,.14); }
+#eeApp .ee-original { color: #646464; }
+#eeApp .ee-feld { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 14px; }
+#eeApp .ee-feld i { color: #8b8b8b; font-style: normal; font-size: 13px; }
+#eeApp .ee-feld input {
+    background: #fff; color: #1a1a1a; border: 1px solid rgba(60,55,48,.25); border-radius: 10px;
+    height: 40px; padding: 0 10px; font: inherit;
+}
+#eeApp .ee-kurz { width: 11rem; }
+#eeApp .ee-breit { width: 18rem; max-width: 100%; }
+#eeApp .ee-pre { white-space: pre-wrap; font-size: 12px; color: #646464; }

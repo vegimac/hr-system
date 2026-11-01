@@ -1676,7 +1676,7 @@ function showPage(name) {
     if (name === 'virenscanner') vsInit();
     if (name === 'elm-schnittstelle') { elmzInit(); elmmInit(); }
     if (name === 'elm-anwender' && typeof elmaInit === 'function') elmaInit();
-    if (name === 'elm-cockpit' && typeof xcInit === 'function') xcInit();
+    if (name === 'elm-cockpit' && typeof eeInit === 'function') eeInit();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'moments') momInit();
@@ -1911,7 +1911,7 @@ function onBranchChange() {
     } else if (currentPageName === 'ema-aufgaben') {
         if (typeof emaRefresh === 'function') emaRefresh();
     } else if (currentPageName === 'elm-cockpit') {
-        if (typeof xcFilialeWechsel === 'function') xcFilialeWechsel();
+        if (typeof eeFilialeWechsel === 'function') eeFilialeWechsel();
     } else if (currentPageName === 'lohn-abtretungen') {
         if (typeof laListInit === 'function') laListInit();
     } else if (currentPageName === 'saldo-vortrag') {
