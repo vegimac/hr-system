@@ -1,0 +1,18 @@
+---
+description: ABSOLUT — vor jedem Neubau die Code-Landkarte lesen; keine Riesendateien, nichts doppelt bauen
+alwaysApply: true
+---
+
+# Code-Landkarte zuerst (Walter 01.11.2026)
+
+1. **Vor jedem Neubau `docs/code-landkarte.md` lesen** und mit grep prüfen, ob es das schon gibt.
+   Lehre ELM: es entstanden fünf parallele Oberflächen statt einer — das darf nicht wieder passieren.
+2. **Neues in die passende bestehende Datei**, sonst eine neue kleine Datei im Modul-Ordner.
+   Keine neue Riesendatei: Richtwert ≤ ~1'500 Zeilen pro Datei.
+3. **Mitarbeiter-Maske** liegt in `wwwroot/js/ma/ma-01 … ma-19` (früher `employees.js`).
+   Reihenfolge der Script-Tags in `index.html` nicht ändern; neue Datei hinten anhängen.
+4. **CSS** liegt in `wwwroot/css/app.css` + `app-02 … app-11` + `elm.css`. Die Ladereihenfolge
+   ist die Kaskade — nie umsortieren. Neue Regeln ans Ende der passenden Datei, Cache-Buster
+   (`?v=`) der geänderten Datei hochzählen.
+5. **ELM Cockpit** = `wwwroot/js/elm.js` (Seite `page-elm`). Keine zweite ELM-Oberfläche bauen.
+6. Regeln und Fachwissen: `CLAUDE.md` (Eiserne Kurzregeln) und die Pflicht-Dateien in `docs/claude/`.
