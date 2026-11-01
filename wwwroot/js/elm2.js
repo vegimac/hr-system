@@ -209,61 +209,45 @@ function e2Zeichnen() {
     if (!app) return;
     let inhalt = '';
     if (e2.reiter === 'jahr' || e2.reiter === 'monat') inhalt = e2CockpitHtml();
-    else if (e2.reiter === 'aufgaben') inhalt = e2AufgabenHtml();
-    else inhalt = e2KonfigHtml();
-    app.innerHTML = `${e2KopfHtml()}${e2SuaHtml()}${e2ReiterHtml()}<div class="e2-inhalt">${inhalt}</div>`;
+    else if (e2.reiter === 'aufgaben') inhalt = `<div class="e2-scroll">${e2AufgabenHtml()}</div>`;
+    else inhalt = `<div class="e2-scroll">${e2KonfigHtml()}</div>`;
+    app.innerHTML = `${e2KopfHtml()}<div class="e2-inhalt">${inhalt}</div>`;
 }
 
+// Kopf in zwei schmalen Zeilen (Walter 01.11.2026: die Seite soll nicht scrollen):
+// 1. Titel, Filiale, Ziel · 2. Reiter links, Zertifikat, Testmeldung und Aktualisieren rechts.
 function e2KopfHtml() {
     const ziel = e2.stand?.ziel;
     const gesperrt = e2.stand?.sendenGesperrt;
-    const zeit = e2.letzteAktualisierung ? 'Zuletzt aktualisiert ' + e2Datum(e2.letzteAktualisierung) : '';
-    return `<header class="e2-kopf">
-        <div>
-            <div class="e2-eyebrow">Swissdec · Lohnstandard-CH (ELM)</div>
-            <h1>ELM 2</h1>
-            <p class="e2-unter">${e2FilialeId() ? e2Esc(e2FilialeName()) : 'Alle Filialen'}${ziel ? ' · Ziel: ' + e2Esc(ziel.name) : ''}</p>
-        </div>
-    </header>
-    <div class="e2-leiste">
-        <button type="button" class="e2-pille e2-primaer" data-e2="aktualisieren" ${e2.busy ? 'disabled' : ''}>${e2.busy ? 'Läuft …' : '↻ ' + E2_B.aktualisieren}</button>
-        <label class="e2-schalter" title="${e2Esc(E2_TIPP_TEST)}">
-            <input type="checkbox" data-e2="test" ${e2.test ? 'checked' : ''}>
-            <span>${E2_B.testmeldung}</span>
-        </label>
-        <span class="e2-tipp">${e2.test ? 'Empfänger verarbeiten Testmeldungen nicht. Ideal, um die Einrichtung zu prüfen.' : 'Echte Übermittlung: die Empfänger verarbeiten die Daten.'}</span>
-        <span class="e2-zeit">${e2.verbindung ? `<span class="e2-dreher"></span>${e2Esc(e2.verbindung)}` : e2Esc(zeit)}</span>
-    </div>
-    ${gesperrt ? `<p class="e2-hinweis e2-warn">${e2Esc(gesperrt)}</p>` : ''}
-    ${e2.hinweis ? `<p class="e2-hinweis ${e2.hinweis.ok ? 'e2-gut' : 'e2-warn'}">${e2Esc(e2.hinweis.text)}</p>` : ''}`;
-}
-
-function e2SuaHtml() {
-    const da = e2SuaGueltig();
-    const s = e2.cert?.sua;
-    const stand = da
-        ? `Zertifikat gültig bis ${e2Esc(e2Datum(s.gueltigBis, false))}.`
-        : 'Noch kein gültiges Zertifikat hinterlegt.';
-    return `<section class="e2-sua">
-        <div class="e2-sua-kopf">
-            <span class="e2-punkt ${da ? 'e2-p-ok' : 'e2-p-warn'}"></span>
-            <b>Unternehmenszertifikat (SUA)</b>
-            <span class="e2-still">${stand}</span>
-            <span class="e2-rechts">
-                <button type="button" class="e2-text" data-e2="sua-mehr">${e2.suaOffen ? 'Weniger' : 'Was ist das?'}</button>
-                <button type="button" class="e2-pille" data-e2="reiter" data-wert="konfig">Zur Konfiguration</button>
-            </span>
-        </div>
-        ${e2.suaOffen ? `<div class="e2-sua-text">${E2_SUA_TEXT.map(t => `<p>${e2Esc(t)}</p>`).join('')}</div>` : ''}
-    </section>`;
-}
-
-function e2ReiterHtml() {
+    const zeit = e2.letzteAktualisierung ? 'Zuletzt aktualisiert ' + e2Datum(e2.letzteAktualisierung) : 'Holt Stand, Quittungen und Rückfragen aller offenen Übermittlungen';
     const offen = e2AufgabenListe().length;
     const r = (id, text, zahl) => `<button type="button" class="e2-reiter${e2.reiter === id ? ' an' : ''}" data-e2="reiter" data-wert="${id}">${text}${zahl ? ` <span class="e2-zahl">${zahl}</span>` : ''}</button>`;
-    return `<nav class="e2-reiterleiste">
-        ${r('monat', 'Monatsmeldung')}${r('jahr', 'Jahresmeldung')}${r('aufgaben', 'Aufgaben', offen)}${r('konfig', 'Konfiguration')}
-    </nav>`;
+    const da = e2SuaGueltig();
+    const sua = e2.cert?.sua;
+    const suaText = da ? 'SUA gültig bis ' + e2Datum(sua.gueltigBis, false) : 'SUA-Zertifikat fehlt';
+    const meldung = gesperrt ? { ok: false, text: gesperrt } : e2.hinweis;
+    return `<header class="e2-kopf">
+        <h1>ELM 2</h1>
+        <span class="e2-unter">${e2FilialeId() ? e2Esc(e2FilialeName()) : 'Alle Filialen'}${ziel ? ' · ' + e2Esc(ziel.name) : ''}</span>
+    </header>
+    <div class="e2-leiste">
+        <nav class="e2-reiterleiste">${r('monat', 'Monatsmeldung')}${r('jahr', 'Jahresmeldung')}${r('aufgaben', 'Aufgaben', offen)}${r('konfig', 'Konfiguration')}</nav>
+        <span class="e2-rechts">
+            <span class="e2-sua-pille">
+                <button type="button" class="e2-text e2-sua-link" data-e2="reiter" data-wert="konfig" title="Zur Konfiguration"><span class="e2-punkt ${da ? 'e2-p-ok' : 'e2-p-warn'}"></span>${e2Esc(suaText)}</button>
+                <button type="button" class="e2-info-knopf" data-e2="sua-mehr" aria-label="Was ist das SUA-Zertifikat?">?</button>
+                ${e2.suaOffen ? `<div class="e2-sua-pop"><b>Unternehmenszertifikat (SUA)</b>${E2_SUA_TEXT.map(t => `<p>${e2Esc(t)}</p>`).join('')}
+                    <div class="e2-aktionen"><button type="button" class="e2-pille e2-klein" data-e2="sua-mehr">Schliessen</button><button type="button" class="e2-pille e2-klein e2-primaer" data-e2="reiter" data-wert="konfig">Zur Konfiguration</button></div></div>` : ''}
+            </span>
+            <label class="e2-schalter" title="${e2Esc(E2_TIPP_TEST)}">
+                <input type="checkbox" data-e2="test" ${e2.test ? 'checked' : ''}>
+                <span>${E2_B.testmeldung}</span>
+            </label>
+            <button type="button" class="e2-pille e2-primaer" data-e2="aktualisieren" title="${e2Esc(zeit)}" ${e2.busy ? 'disabled' : ''}>${e2.verbindung ? '<span class="e2-dreher e2-dreher-hell"></span>' : '↻ '}${E2_B.aktualisieren}</button>
+        </span>
+    </div>
+    ${e2.verbindung ? `<p class="e2-hinweis e2-gut e2-zeile-hinweis"><span class="e2-dreher"></span>${e2Esc(e2.verbindung)}</p>`
+        : meldung ? `<p class="e2-hinweis ${meldung.ok ? 'e2-gut' : 'e2-warn'} e2-zeile-hinweis">${e2Esc(meldung.text)}${gesperrt ? '' : ' <button type="button" class="e2-text" data-e2="hinweis-weg" aria-label="Hinweis schliessen">×</button>'}</p>` : ''}`;
 }
 
 // ── Cockpit (Jahr und Monat) ────────────────────────────────────────────────
@@ -277,8 +261,8 @@ function e2CockpitHtml() {
     const auswahl = jahr ? e2JahrAuswahlHtml() : e2MonatAuswahlHtml();
     const kannPruefen = jahr ? e2ZeilenGewaehlt().length > 0 : e2.wahlMonat.size > 0;
     const kannSenden = !!e2.pruefung?.ok && !e2.busy && !e2.stand?.sendenGesperrt;
-    return `<section class="e2-karte">
-        <div class="e2-karte-kopf"><h2>${jahr ? 'Jahresmeldung' : 'Monatsmeldung'} ${jahr ? e2.jahr : E2_MONATE[e2.monat - 1] + ' ' + e2.jahr} übermitteln</h2></div>
+    return `<div class="e2-spalten"><section class="e2-karte e2-spalte">
+        <div class="e2-karte-kopf"><h2>${jahr ? 'Jahresmeldung' : 'Monatsmeldung'} ${jahr ? e2.jahr : E2_MONATE[e2.monat - 1] + ' ' + e2.jahr}</h2></div>
         ${e2PeriodeHtml(jahr)}
         ${ersatz}
         ${auswahl}
@@ -288,8 +272,7 @@ function e2CockpitHtml() {
             <button type="button" class="e2-pille e2-primaer" data-e2="senden" ${kannSenden ? '' : 'disabled'}>${E2_B.uebermitteln}${e2.test ? ' (' + E2_B.testmeldung + ')' : ''}</button>
         </div>
     </section>
-    ${e2UebersichtHtml()}
-    ${e2HistorieHtml()}`;
+    ${e2.historieOffen ? e2HistorieHtml() : e2UebersichtHtml()}</div>`;
 }
 
 // Periode: Jahr als Pillen, Monat als Raster mit dem Stand je Monat (Lohnlauf, Übermittlung).
@@ -459,7 +442,7 @@ function e2AktuelleMeldung() {
 function e2UebersichtHtml() {
     const m = e2AktuelleMeldung();
     const titel = `<h2>${E2_B.uebersicht}</h2>`;
-    if (!m) return `<section class="e2-karte">${titel}<p class="e2-leer">Noch keine Übermittlung. Nach dem Klick auf «${E2_B.uebermitteln}» erscheinen die Mitteilungen hier.</p></section>`;
+    if (!m) return `<section class="e2-karte e2-spalte">${titel}<p class="e2-leer">Noch keine Übermittlung. Nach dem Klick auf «${E2_B.uebermitteln}» erscheinen die Mitteilungen hier.</p></section>`;
     const ausHistorie = !!e2.auswahl[e2.reiter] && m.id !== e2MeldungenDesReiters()[0]?.id;
     const marken = [
         m.testCase ? `<span class="e2-chip e2-grau">${E2_B.testmeldung}</span>` : '',
@@ -478,8 +461,9 @@ function e2UebersichtHtml() {
             <td class="e2-aktionsspalte">${e2AktionenHtml(m, e)}</td>
         </tr>`;
     }).join('');
-    return `<section class="e2-karte e2-uebersicht" id="e2Uebersicht">
-        <div class="e2-karte-kopf">${titel}<span class="e2-rechts">${marken}${m.ersetzbar ? `<button type="button" class="e2-pille" data-e2="ersatz" data-id="${e2Esc(m.id)}">${E2_B.ersatz}</button>` : ''}</span></div>
+    const anzahl = e2MeldungenDesReiters().length;
+    return `<section class="e2-karte e2-spalte e2-uebersicht" id="e2Uebersicht">
+        <div class="e2-karte-kopf">${titel}<span class="e2-rechts">${marken}${m.ersetzbar ? `<button type="button" class="e2-pille e2-klein" data-e2="ersatz" data-id="${e2Esc(m.id)}">${E2_B.ersatz}</button>` : ''}<button type="button" class="e2-pille e2-klein" data-e2="historie">${E2_B.historie} (${anzahl})</button></span></div>
         <p class="e2-still">${e2Esc(m.titel || '')}${ausHistorie ? ' · aus der Historie gewählt <button type="button" class="e2-text" data-e2="auswahl-weg">zur letzten Übermittlung</button>' : ' · letzte Übermittlung'}${m.letzteAbfrage ? ' · Stand abgefragt ' + e2Esc(e2Datum(m.letzteAbfrage)) : ' · Stand noch nicht abgefragt'}</p>
         ${e2SchritteHtml(m)}
         ${e2NachlaufHtml(m)}
@@ -595,11 +579,11 @@ function e2HistorieHtml() {
         <td>${(m.empfaenger || []).length}</td>
         <td class="e2-aktionsspalte">${m.ersetzbar ? `<button type="button" class="e2-pille e2-klein" data-e2="ersatz" data-id="${e2Esc(m.id)}">${E2_B.ersatz}</button>` : ''}</td>
     </tr>`).join('');
-    return `<section class="e2-karte">
-        <div class="e2-karte-kopf"><h2>${E2_B.historie}</h2><button type="button" class="e2-text" data-e2="historie">${e2.historieOffen ? 'Ausblenden' : `Anzeigen (${liste.length})`}</button></div>
-        ${e2.historieOffen ? `<p class="e2-still">Eine Zeile wählen: die ${E2_B.uebersicht} oben zeigt dieselben Angaben dazu. Eine ${E2_B.ersatz} geht nur von einer bestehenden Übermittlung aus.</p>
+    return `<section class="e2-karte e2-spalte">
+        <div class="e2-karte-kopf"><h2>${E2_B.historie}</h2><span class="e2-rechts"><button type="button" class="e2-pille e2-klein" data-e2="historie">Zur ${E2_B.uebersicht}</button></span></div>
+        <p class="e2-still">Eine Zeile wählen: die ${E2_B.uebersicht} zeigt dieselben Angaben dazu. Eine ${E2_B.ersatz} geht nur von einer bestehenden Übermittlung aus.</p>
         <div class="e2-tabelle-rahmen"><table class="e2-tabelle"><thead><tr><th>${E2_B.status}</th><th>${E2_B.zeitpunkt}</th><th>Meldung</th><th>${E2_B.declarationId}</th><th>${E2_B.empfaenger}</th><th></th></tr></thead>
-        <tbody>${zeilen || '<tr><td colspan="6">Noch keine Übermittlung.</td></tr>'}</tbody></table></div>` : ''}
+        <tbody>${zeilen || '<tr><td colspan="6">Noch keine Übermittlung.</td></tr>'}</tbody></table></div>
     </section>`;
 }
 
@@ -706,22 +690,24 @@ function e2Klick(ev) {
     if (!el) return;
     const a = el.dataset.e2;
     if (['test', 'portal', 'wahl-jahr', 'wahl-monat', 'kanton'].includes(a)) return;
-    if (e2.busy && a !== 'reiter' && a !== 'historie' && a !== 'sua-mehr') return;
+    if (e2.busy && !['reiter', 'historie', 'sua-mehr', 'hinweis-weg'].includes(a)) return;
     if (a === 'reiter') {
         const neu = el.dataset.wert;
+        e2.suaOffen = false;
         if (neu !== e2.reiter && (neu === 'monat' || neu === 'jahr')) e2.pruefung = null;
         e2.reiter = neu; e2.hinweis = null; e2.detail = null; e2Zeichnen(); e2MonatAutoPruefen();
     }
     else if (a === 'aktualisieren') e2Aktualisieren();
     else if (a === 'sua-mehr') { e2.suaOffen = !e2.suaOffen; e2Zeichnen(); }
+    else if (a === 'hinweis-weg') { e2.hinweis = null; e2Zeichnen(); }
     else if (a === 'jahr-wahl') e2JahrWahl(parseInt(el.dataset.wert, 10));
     else if (a === 'monat-wahl') e2MonatWahl(parseInt(el.dataset.wert, 10));
     else if (a === 'pruefen') e2Pruefen();
     else if (a === 'senden') e2Senden();
     else if (a === 'historie') { e2.historieOffen = !e2.historieOffen; e2Zeichnen(); }
-    else if (a === 'auswahl') { e2.auswahl[e2.reiter] = el.dataset.id; e2.detail = null; e2Zeichnen(); e2ZurUebersicht(); }
+    else if (a === 'auswahl') { e2.auswahl[e2.reiter] = el.dataset.id; e2.detail = null; e2.historieOffen = false; e2Zeichnen(); }
     else if (a === 'auswahl-weg') { e2.auswahl[e2.reiter] = null; e2.detail = null; e2Zeichnen(); }
-    else if (a === 'zeigen') { e2.reiter = el.dataset.reiter || e2.reiter; e2.auswahl[e2.reiter] = el.dataset.id; e2Zeichnen(); e2ZurUebersicht(); }
+    else if (a === 'zeigen') { e2.reiter = el.dataset.reiter || e2.reiter; e2.auswahl[e2.reiter] = el.dataset.id; e2.historieOffen = false; e2.pruefung = null; e2Zeichnen(); e2MonatAutoPruefen(); }
     else if (a === 'ersatz') e2Ersatz(el.dataset.id);
     else if (a === 'ersatz-weg') { e2.ersatz = null; e2.pruefung = null; e2Zeichnen(); }
     else if (a === 'freigabe' && el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
@@ -765,10 +751,6 @@ function e2Change(ev) {
         e2.pruefung.ok = e2.pruefung.okOhneKantone && e2MonatHatEmpfaenger();
     } else return;
     e2Zeichnen();
-}
-
-function e2ZurUebersicht() {
-    requestAnimationFrame(() => document.getElementById('e2Uebersicht')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 
 // ── Aktionen ────────────────────────────────────────────────────────────────
@@ -939,8 +921,10 @@ async function e2Senden() {
     e2.busy = false; e2.verbindung = null; e2.pruefung = null; e2.ersatz = null;
     e2.auswahl[e2.reiter] = null;
     e2.hinweis = fehler ? { ok: false, text: fehler } : { ok: true, text: 'Übermittelt. Die Mitteilungen der Empfänger erscheinen unten; «Aktualisieren» holt neue.' };
+    e2.historieOffen = false;
     e2Zeichnen();
-    if (letzte) { e2ZurUebersicht(); e2NachlaufStarten(); }
+    e2MonatAutoPruefen();
+    if (letzte) e2NachlaufStarten();
 }
 
 function e2Ersatz(id) {
@@ -956,7 +940,6 @@ function e2Ersatz(id) {
         e2Laden().then(() => {
             e2.wahlJahr = new Set(e2Zeilen().filter(z => z.art === m.art && e2Sendbar(z)).map(z => z.id));
             e2Zeichnen();
-            document.getElementById('e2App')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
         return;
     }

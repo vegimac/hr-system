@@ -15634,3 +15634,48 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
     #e2App { padding: 16px 16px 60px; }
     #e2App .e2-gruppen { grid-template-columns: 1fr; }
 }
+
+/* ELM 2 ohne Seiten-Scroll (Walter 01.11.2026): Seite = Fensterhöhe, Kopf zwei schmale Zeilen,
+   darunter zwei Spalten (Übermitteln | Mitteilungsübersicht/Historie). Nur eine Spalte, deren
+   Inhalt nicht passt (z.B. viele Empfänger), scrollt in sich. Schmale Fenster: normal scrollen. */
+.main:has(#page-elm2.active) { overflow: hidden; }
+#page-elm2.page.active { display: flex !important; flex-direction: column; flex: 1 1 auto !important; min-height: 0; height: 100%; overflow: hidden; }
+#e2App { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; max-width: none; padding: 14px 28px 16px 40px; box-sizing: border-box; }
+#e2App .e2-kopf { margin: 0; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-right: 420px; }
+#e2App .e2-kopf h1 { font-size: 24px; margin: 0; }
+#e2App .e2-unter { font-size: 14px; color: #646464; }
+#e2App .e2-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 18px 0 10px; border-bottom: 1px solid rgba(60,55,48,0.14); }
+#e2App .e2-reiterleiste { margin: 0; border-bottom: 0; }
+#e2App .e2-leiste .e2-rechts { padding-bottom: 6px; }
+#e2App .e2-sua-pille { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: 999px; border: 1px solid rgba(60,55,48,0.18); background: rgba(255,255,255,0.45); }
+#e2App .e2-sua-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; font-weight: 600; font-size: 13px; }
+#e2App .e2-info-knopf { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(60,55,48,0.25); background: #fff; font: inherit; font-size: 12px; font-weight: 700; color: #646464; cursor: pointer; }
+#e2App .e2-sua-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: min(460px, 80vw); padding: 14px 16px; border-radius: 16px; background: #faf8f5; border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 14px 40px rgba(60,55,48,0.22); }
+#e2App .e2-sua-pop p { margin: 8px 0 0; font-size: 13px; color: #646464; }
+#e2App .e2-zeile-hinweis { margin: 0 0 10px; padding: 7px 12px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+#e2App .e2-dreher-hell { border-color: rgba(255,255,255,0.35); border-top-color: #fff; width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 6px; }
+#e2App .e2-inhalt { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+#e2App .e2-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; }
+#e2App .e2-spalten { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(360px, 5fr) minmax(0, 7fr); gap: 16px; }
+#e2App .e2-spalte { min-height: 0; overflow-y: auto; margin: 0; padding: 14px 16px; }
+#e2App .e2-spalte .e2-gruppen { grid-template-columns: 1fr; gap: 8px; margin: 8px 0; }
+#e2App .e2-spalte .e2-gruppe { padding: 8px 12px; }
+#e2App .e2-spalte .e2-gruppe-kopf { margin-bottom: 2px; }
+#e2App .e2-spalte .e2-zeile { padding: 5px 0; }
+#e2App .e2-spalte .e2-an i { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#e2App .e2-spalte .e2-periodenwahl { margin: 2px 0 8px; }
+#e2App .e2-spalte .e2-jahre { margin-bottom: 8px; }
+#e2App .e2-spalte .e2-monate { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+#e2App .e2-spalte .e2-monat { padding: 6px 8px; }
+#e2App .e2-spalte .e2-pruefung { margin: 8px 0; padding: 8px 12px; }
+#e2App .e2-spalte .e2-aktionen { margin-top: 8px; }
+#e2App .e2-spalte .e2-tabelle { font-size: 12.5px; }
+#e2App .e2-spalte .e2-tabelle th, #e2App .e2-spalte .e2-tabelle td { padding: 7px 8px; }
+#e2App .e2-spalte .e2-schritte { margin: 8px 0 10px; }
+@media (max-width: 1100px), (max-height: 620px) {
+    .main:has(#page-elm2.active) { overflow-y: auto; }
+    #page-elm2.page.active { height: auto; overflow: visible; }
+    #e2App .e2-spalten { grid-template-columns: 1fr; }
+    #e2App .e2-spalte, #e2App .e2-scroll { overflow: visible; }
+    #e2App .e2-kopf { padding-right: 0; margin-top: 44px; }
+}
