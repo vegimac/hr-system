@@ -15707,3 +15707,17 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
 #e2App .e2-rechtsbuendig { text-align: right; }
 #e2App .e2-dlg-problem { font-style: normal; font-size: 11px; color: #991b1b; }
 #e2App .e2-frage .e2-aktionen { align-items: center; }
+/* ELM 2: linke Spalte wurde breiter als ihr Platz (Walter 01.11.2026, «linker Teil nicht ganz sichtbar»).
+   Ursache: 1fr-Raster nehmen die Breite des längsten nicht umbrechenden Textes an. minmax(0, …) und
+   min-width: 0 lassen die Inhalte schrumpfen; lange Texte kürzen bzw. brechen um. */
+#e2App .e2-spalte { min-width: 0; overflow-x: hidden; }
+#e2App .e2-spalte .e2-gruppen { grid-template-columns: minmax(0, 1fr); }
+#e2App .e2-spalte .e2-gruppe, #e2App .e2-spalte .e2-zeile, #e2App .e2-spalte .e2-an { min-width: 0; }
+#e2App .e2-spalte .e2-zeile > .e2-chip, #e2App .e2-spalte .e2-zeile > button { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+#e2App .e2-spalte .e2-an b { overflow-wrap: anywhere; }
+#e2App .e2-spalte .e2-gruppe-kopf .e2-schalter { max-width: 100%; white-space: normal; }
+#e2App .e2-spalte .e2-gruppe-kopf .e2-schalter span { min-width: 0; }
+#e2App .e2-spalte .e2-pruefung { overflow-wrap: anywhere; }
+#e2App .e2-spalte .e2-pruefung .e2-chip { white-space: normal; }
+#e2App .e2-spalte .e2-kantone { margin-left: 0; }
+#e2App .e2-spalte .e2-bvg-kopf { flex-wrap: wrap; }
