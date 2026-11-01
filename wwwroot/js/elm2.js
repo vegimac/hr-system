@@ -449,14 +449,16 @@ function e2UebersichtHtml() {
         m.ersatz ? `<span class="e2-chip e2-grau">${E2_B.ersatz}</span>` : '',
         m.freigabePortal ? `<span class="e2-chip e2-grau">${E2_B.portal}</span>` : '',
     ].join('');
+    // Zeitpunkt und DeclarationID gelten für den ganzen Job: einmal über der Tabelle statt in jeder
+    // Zeile (die Tabelle passt so in die rechte Spalte). Weicht eine DeclarationID ab, steht sie in der Zeile.
+    const ids = [...new Set((m.empfaenger || []).map(e => e.declarationId || m.declarationId).filter(Boolean))];
+    const eineId = ids.length <= 1;
     const zeilen = (m.empfaenger || []).map(e => {
         const st = e2EmpfStatus(e);
+        const eigeneId = !eineId && (e.declarationId || m.declarationId);
         return `<tr>
             <td><span class="e2-status e2-s-${st}" title="${e2Esc(e.text || '')}">${E2_B[st]}</span><i class="e2-status-text">${e2Esc(E2_STATUS_TEXT[st])}</i></td>
-            <td>${e2Esc(e2Datum(m.gesendet))}</td>
-            <td class="e2-mono">${e2Esc(e.declarationId || m.declarationId || '—')}</td>
-            <td>${e2Esc(E2_DOM[e.domain] || e.domain || '')}</td>
-            <td>${e2Esc(e.name || e.addresseeId || '')}</td>
+            <td><b>${e2Esc(E2_DOM[e.domain] || e.domain || '')}</b><i class="e2-status-text">${e2Esc(e.name || e.addresseeId || '')}${eigeneId ? `<br><span class="e2-mono">${E2_B.declarationId} ${e2Esc(eigeneId)}</span>` : ''}</i></td>
             <td>${e2BenachrichtigungenHtml(e)}</td>
             <td class="e2-aktionsspalte">${e2AktionenHtml(m, e)}</td>
         </tr>`;
@@ -467,10 +469,15 @@ function e2UebersichtHtml() {
         <p class="e2-still">${e2Esc(m.titel || '')}${ausHistorie ? ' · aus der Historie gewählt <button type="button" class="e2-text" data-e2="auswahl-weg">zur letzten Übermittlung</button>' : ' · letzte Übermittlung'}${m.letzteAbfrage ? ' · Stand abgefragt ' + e2Esc(e2Datum(m.letzteAbfrage)) : ' · Stand noch nicht abgefragt'}</p>
         ${e2SchritteHtml(m)}
         ${e2NachlaufHtml(m)}
-        <div class="e2-tabelle-rahmen"><table class="e2-tabelle">
-            <thead><tr><th>${E2_B.status}</th><th>${E2_B.zeitpunkt}</th><th>${E2_B.declarationId}</th><th>${E2_B.domaene}</th><th>${E2_B.empfaenger}</th><th>${E2_B.benachrichtigungen}</th><th>${E2_B.aktionen}</th></tr></thead>
-            <tbody>${zeilen || '<tr><td colspan="7">Keine Empfänger in dieser Übermittlung.</td></tr>'}</tbody>
-        </table></div>
+        <div class="e2-jobkopf">
+            <span><i>${E2_B.zeitpunkt}</i><b>${e2Esc(e2Datum(m.gesendet))}</b></span>
+            <span><i>${E2_B.declarationId}</i><b class="e2-mono">${e2Esc(eineId ? (ids[0] || 'noch nicht vergeben') : 'je Empfänger, siehe unten')}</b></span>
+        </div>
+        <table class="e2-tabelle e2-mitteilungen">
+            <colgroup><col style="width:17%"><col style="width:24%"><col><col style="width:22%"></colgroup>
+            <thead><tr><th>${E2_B.status}</th><th>${E2_B.domaene} · ${E2_B.empfaenger}</th><th>${E2_B.benachrichtigungen}</th><th>${E2_B.aktionen}</th></tr></thead>
+            <tbody>${zeilen || '<tr><td colspan="4">Keine Empfänger in dieser Übermittlung.</td></tr>'}</tbody>
+        </table>
         ${e2DetailHtml(m)}
         ${e2VerlaufHtml(m)}
     </section>`;

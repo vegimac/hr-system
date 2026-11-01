@@ -15679,3 +15679,14 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
     #e2App .e2-spalte, #e2App .e2-scroll { overflow: visible; }
     #e2App .e2-kopf { padding-right: 0; margin-top: 44px; }
 }
+/* ELM 2: Mitteilungstabelle passt in die rechte Spalte (Walter 01.11.2026, «nicht alles sichtbar»). */
+#e2App .e2-spalten { grid-template-columns: minmax(340px, 4fr) minmax(0, 7fr); }
+#e2App .e2-jobkopf { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 4px 0 8px; font-size: 13px; }
+#e2App .e2-jobkopf span { display: flex; flex-direction: column; }
+#e2App .e2-jobkopf i { font-style: normal; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #8b8b8b; }
+#e2App .e2-mitteilungen { table-layout: fixed; width: 100%; }
+#e2App .e2-mitteilungen td { overflow-wrap: anywhere; }
+#e2App .e2-mitteilungen .e2-aktionsspalte { white-space: normal; }
+#e2App .e2-mitteilungen .e2-aktionsspalte .e2-pille { display: block; width: 100%; margin: 0 0 6px; white-space: normal; text-align: center; }
+#e2App .e2-mitteilungen .e2-aktionsspalte .e2-pille + .e2-pille { margin-left: 0; }
+#e2App .e2-mitteilungen .e2-notiz { padding-left: 14px; }
