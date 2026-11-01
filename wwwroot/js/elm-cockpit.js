@@ -154,7 +154,7 @@ function xcKern() {
 }
 
 function xcBereit() {
-    if (xc.arm !== xc.kern()) return false;
+    if (xc.arm !== xcKern()) return false;
     if (xc.stand?.sendenGesperrt) return false;
     if (xc.art === 'monat' && (!xc.kantone || !xc.kantone.size)) return false;
     return true;
@@ -351,7 +351,7 @@ function xcGehtHtml() {
             if (e.name && !namen.includes(e.name)) namen.push(e.name);
         }
     }
-    if (!namen.length || xc.arm !== xc.kern()) return '';
+    if (!namen.length || xc.arm !== xcKern()) return '';
     return `<p class="xc-geht">Geht an ${xcEsc(namen.join(', '))}</p>`;
 }
 
@@ -551,7 +551,7 @@ function xcKlick(ev) {
     else if (a === 'aufgaben') { xc.sheet = 'aufgaben'; xc.force = true; xcZeichnen(); }
     else if (a === 'schliessen') { xc.sheet = null; xc.force = true; xcZeichnen(); }
     else if (a === 'historie') { xc.historie = !xc.historie; xc.force = true; xcZeichnen(); }
-    else if (a === 'fokus') { xc.fokus = el.dataset.id; xc.artPassend(el.dataset.id); xc.sheet = null; xc.force = true; xcZeichnen(); }
+    else if (a === 'fokus') { xc.fokus = el.dataset.id; xcArtPassend(el.dataset.id); xc.sheet = null; xc.force = true; xcZeichnen(); }
     else if (a === 'ersatz') xcErsatz(el.dataset.id);
     else if (a === 'ersatz-aus') { xc.ersatz = null; xcEntschaerfen(); xc.force = true; xcZeichnen(); }
     else if (a === 'freigabe' && el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
@@ -679,7 +679,7 @@ async function xcPruefen() {
         }
         if (!xc.kantone.size) ok = false;
     }
-    xc.arm = ok ? xc.kern() : null;
+    xc.arm = ok ? xcKern() : null;
     if (offen.length && ok) xc.hinweis = offen.map(z => z.name).filter((n, i, a) => a.indexOf(n) === i).join(', ') + ' geht nicht mit. Die Lohndaten fehlen in der Datei.';
     xc.busy = false;
     xc.lauf = '';
