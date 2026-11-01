@@ -516,8 +516,9 @@ public class ElmMeldungenController : ControllerBase
             empfaenger = v.Adressaten.Select(a =>
             {
                 var e = ElmMeldungAnzeige.Empfaenger(a);
-                var freigabe = a.State == "CompletionReleaseMissing" && a.Completion != null
-                    && (a.Completion.Ablauf == null || a.Completion.Ablauf > DateTime.Now);
+                var offen = a.State == "CompletionReleaseMissing" && a.Completion != null;
+                var abgelaufen = offen && a.Completion!.Ablauf != null && a.Completion.Ablauf <= DateTime.Now;
+                var freigabe = offen && !abgelaufen;
                 return new
                 {
                     a.AddresseeId,
@@ -528,6 +529,7 @@ public class ElmMeldungenController : ControllerBase
                     hinweise = a.Hinweise.Where(h => !string.IsNullOrWhiteSpace(h.Text)).Select(h => h.Text),
                     freigabeUrl = freigabe ? a.Completion!.AufrufUrl : null,
                     freigabeBis = freigabe ? a.Completion!.Ablauf : null,
+                    freigabeAbgelaufen = abgelaufen,
                     nachrichten = a.Stories.Select(s => new
                     {
                         s.StoryId, s.Empfangen, s.Beantwortet, s.Quittiert,

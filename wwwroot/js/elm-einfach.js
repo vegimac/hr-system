@@ -219,24 +219,43 @@ function eeUebersichtHtml() {
         </table>`;
 }
 
+function eeLetzteMeldung(art) {
+    return eeMeldungen().find(m => Number(m.jahr) === ee.jahr && m.companyProfileId === ee.filiale && m.art === art) || null;
+}
+function eeStandText(m, sonst) {
+    if (!m) return sonst;
+    if ((m.empfaenger || []).some(e => e.freigabeAbgelaufen)) return 'Link abgelaufen';
+    if (eeHatFrage(m)) return 'Rückfrage';
+    return m.statusText || 'In Bearbeitung';
+}
+function eeAufgabeZeile(titel, an, stand, ziel, id, vorgang) {
+    return `<button type="button" class="ee-meld" data-ee="aufgabe" data-ziel="${ziel}" data-id="${eeEsc(id || '')}" data-vorgang="${eeEsc(vorgang || '')}">
+        <b>${eeEsc(titel)}</b><span>${eeEsc(an || '')}</span><span>${eeEsc(stand)}</span></button>`;
+}
 function eeMeldungenSeite() {
-    const liste = eeMeldungen().filter(m => {
-        if (m.jahr && Number(m.jahr) !== ee.jahr) return false;
-        if (ee.filiale > 0 && m.companyProfileId !== ee.filiale) return false;
-        return true;
-    }).slice(0, 12);
-    const zeilen = liste.map(m => {
-        const name = (m.empfaenger || []).map(e => e.name).filter(Boolean)[0] || m.titel || '';
-        return `<button type="button" class="ee-meld" data-ee="stand" data-id="${eeEsc(m.id)}">
-            <b>${eeEsc(m.statusText || 'In Bearbeitung')}</b>
-            <span>${eeEsc(eeDatum(m.gesendet))}</span>
-            <span>${eeEsc(name)}</span>
-        </button>`;
-    }).join('');
     const zert = eeZertWeg()
         ? '<button type="button" class="ee-meld" data-ee="nav" data-wert="konfiguration"><b>Zertifikat</b><span>Fehlt oder ist abgelaufen.</span></button>'
         : '';
-    return `<h2>Meldungen</h2>${zert}${zeilen || '<p class="ee-lead">Keine Meldung.</p>'}`;
+    if (!eeFilialeId()) {
+        const liste = eeMeldungen().filter(m => !m.jahr || Number(m.jahr) === ee.jahr).slice(0, 12);
+        const zeilen = liste.map(m => {
+            const name = (m.empfaenger || []).map(e => e.name).filter(Boolean)[0] || m.titel || '';
+            return `<button type="button" class="ee-meld" data-ee="stand" data-id="${eeEsc(m.id)}">
+                <b>${eeEsc(eeStandText(m, ''))}</b><span>${eeEsc(eeDatum(m.gesendet))}</span><span>${eeEsc(name)}</span></button>`;
+        }).join('');
+        return `<h2>Meldungen</h2><p class="ee-lead">Wähle links eine Filiale. Dann steht hier eine Aufgabe pro Empfänger.</p>${zert}${zeilen}`;
+    }
+    const fil = (ee.uebersicht?.filialen || []).find(f => f.id === ee.filiale);
+    const monat = eeLetzteMeldung('monthly');
+    const zeilen = [eeAufgabeZeile('Monatsmeldung', 'Quellensteuer und Statistik', eeStandText(monat, fil?.monatText || 'Bereit'), 'monat', 'qst', monat?.id)];
+    if (!ee.domaenen) zeilen.push('<p class="ee-lead">Empfänger werden geladen.</p>');
+    for (const z of eeZeilen()) {
+        if (!z.an || z.an === 'noch keiner zugeordnet') continue;
+        const m = z.art ? eeLetzteMeldung(z.art) : null;
+        const stand = z.lohnsummen ? 'Lohnsummen' : (z.domain === 'FAK-CAF' ? 'Mit der AHV' : eeStandText(m, eeKann(z) ? 'Bereit' : 'Geht noch nicht'));
+        zeilen.push(eeAufgabeZeile(z.name, z.an, m && z.art ? eeStandText(m, stand) : stand, 'jahr', z.id, m?.id));
+    }
+    return `<h2>Meldungen</h2>${zert}${zeilen.join('')}`;
 }
 
 function eeMonatHtml() {
@@ -276,7 +295,7 @@ function eeJahrHtml() {
     }).join('');
     const bvg = ee.bvgOffen ? eeBvgHtml() : '';
     return `<h1>Jahresmeldung ${ee.jahr}</h1>
-        <p class="ee-lead">${eeEsc(eeFilialeName())}. Nur Empfänger, die bei dieser Filiale für ${ee.jahr} hinterlegt sind. Was noch keine Lohndaten hat, geht nicht mit.</p>
+        <p class="ee-lead">${eeEsc(eeFilialeName())}. Nur Empfänger, die bei dieser Filiale für ${ee.jahr} hinterlegt sind. Was noch keine Lohndaten hat, geht nicht mit. Offene Monate: die Meldung kann trotzdem raus, ist dann aber unvollständig.</p>
         <div class="ee-step">
             <button type="button" data-ee="jahr-schritt" data-wert="-1" aria-label="Jahr zurück">‹</button>
             <b>${ee.jahr}</b>
@@ -318,7 +337,7 @@ function eeBvgHtml() {
 
 function eeLeiste() {
     const bereit = ee.arm && !ee.busy;
-    return `<p class="ee-merk">${eeEsc(ee.hinweis || 'Testmeldung ankreuzen, dann Prüfen. Eine Testmeldung verarbeiten die Empfänger nicht.')}</p>
+    return `<p class="ee-merk">${eeEsc(ee.hinweis || 'Testmeldung ankreuzen, dann Prüfen. Die Empfänger verarbeiten eine Testmeldung nicht. Im Testsystem ist das der Normalfall, bei einer Versicherung nur mit deren Einverständnis.')}</p>
         <div class="ee-aktionen">
             <label class="ee-test"><input type="checkbox" data-ee="test" ${ee.test ? 'checked' : ''}> Testmeldung</label>
             <button type="button" class="ee-ghost" data-ee="pruefen" ${ee.busy ? 'disabled' : ''}>Prüfen</button>
@@ -335,6 +354,7 @@ function eeKarte(m) {
     const empf = (m.empfaenger || []).map(e => e.name).filter(Boolean);
     const hin = (m.empfaenger || []).flatMap(e => e.hinweise || []);
     const frei = (m.empfaenger || []).find(e => e.freigabeUrl);
+    const linkWeg = !frei && (m.empfaenger || []).some(e => e.freigabeAbgelaufen);
     const quittung = (m.empfaenger || []).some(e => (e.nachrichten || []).some(n => (n.art || '').indexOf('Quittung') >= 0));
     const knoepfe = [
         frei ? `<button type="button" class="ee-go" data-ee="freigabe" data-url="${eeEsc(frei.freigabeUrl)}">Freigabe starten</button>` : '',
@@ -357,6 +377,7 @@ function eeKarte(m) {
             <dt>Status</dt><dd>${eeEsc(m.statusText || 'In Bearbeitung')}</dd>
         </dl>
         ${schein}
+        ${linkWeg ? '<p class="ee-merk">Der Freigabe-Link ist abgelaufen. Neu prüfen und nochmals senden.</p>' : ''}
         ${knoepfe ? `<div class="ee-aktionen">${knoepfe}</div>` : ''}
     </section>`;
 }
@@ -456,6 +477,7 @@ function eeKlick(ev) {
     if (ee.busy && a !== 'nav') return;
     if (a === 'nav') { ee.schritt = el.dataset.wert; ee.hinweis = ''; ee.force = true; eeZeichnen(); if (el.dataset.wert === 'jahr' || el.dataset.wert === 'konfiguration') eeDomaenenNach(); }
     else if (a === 'oeffnen') eeOeffnen(el);
+    else if (a === 'aufgabe') eeAufgabeOeffnen(el);
     else if (a === 'stand') { ee.fokus = el.dataset.id; ee.schritt = ee.schritt === 'uebersicht' || ee.schritt === 'aufgaben' ? 'historie' : ee.schritt; ee.force = true; eeZeichnen(); }
     else if (a === 'jahr-schritt') eeJahrSchritt(parseInt(el.dataset.wert, 10));
     else if (a === 'monat-schritt') eeMonatSchritt(parseInt(el.dataset.wert, 10));
@@ -486,6 +508,32 @@ function eeChange(ev) {
         if (el.checked) ee.kantone.add(el.dataset.id); else ee.kantone.delete(el.dataset.id);
         ee.arm = null;
     } else return;
+    ee.force = true;
+    eeZeichnen();
+}
+function eeAufgabeOeffnen(el) {
+    ee.schritt = el.dataset.ziel === 'monat' ? 'monat' : 'jahr';
+    ee.arm = null;
+    ee.checks = [];
+    ee.hinweis = '';
+    ee.fokus = el.dataset.vorgang || null;
+    ee.jahrGesetzt = true;
+    if (ee.schritt === 'monat') {
+        ee.wahl.add('qst');
+        ee.wahl.add('statistik');
+    } else {
+        const z = eeZeilen().find(x => x.id === el.dataset.id);
+        if (z?.lohnsummen) {
+            ee.bvgOffen = false;
+            eeBvgLaden();
+            return;
+        }
+        if (z && eeKann(z)) ee.wahl = new Set([z.id]);
+        else if (z && z.domain === 'FAK-CAF') {
+            const ahv = eeZeilen().find(x => eeKann(x) && String(x.id).startsWith('ahv'));
+            if (ahv) ee.wahl = new Set([ahv.id]);
+        }
+    }
     ee.force = true;
     eeZeichnen();
 }
@@ -538,7 +586,7 @@ function eeMonatSchritt(delta) {
 function eeKlar(text) {
     const t = String(text || '');
     if (t.startsWith('FAK Nullmeldung')) return '';
-    if (t.includes('Nicht definitiv abgeschlossene Monate')) return 'Einige Monate sind noch nicht abgeschlossen. Für eine Übung ist das in Ordnung.';
+    if (t.includes('Nicht definitiv abgeschlossene Monate')) return 'Einige Monate sind noch offen. Die Meldung kann raus, ist aber unvollständig. Für eine Übung ist das in Ordnung.';
     if (t.includes('ohne AHV-pflichtigen Lohn')) return '';
     return t;
 }
