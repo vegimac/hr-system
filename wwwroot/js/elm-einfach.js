@@ -47,6 +47,7 @@ const ee = {
     zertHinweis: '',
     bvg: null,
     bvgOffen: false,
+    herkunft: null,
     busy: false,
     force: false,
 };
@@ -186,9 +187,11 @@ function eeZeichnen() {
         : ee.schritt === 'konfiguration' ? eeKonfigHtml()
         : ee.schritt === 'frage' ? eeFrageHtml()
         : eeHomeHtml();
-    app.innerHTML = `<div class="ee-arbeit">
+    const zurueck = ee.herkunft && ee.herkunft !== ee.schritt && ee.herkunft !== 'home' ? ee.herkunft : 'home';
+    const seite = ee.schritt === 'jahr' ? ' ee-jahr-seite' : '';
+    app.innerHTML = `<div class="ee-arbeit${seite}">
         <div class="ee-arbeit-kopf">
-            <button type="button" class="ee-text" data-ee="nav" data-wert="home">Zurück</button>
+            <button type="button" class="ee-text" data-ee="nav" data-wert="${zurueck}">Zurück</button>
             <button type="button" class="ee-text" data-ee="neu" ${ee.busy ? 'disabled' : ''}>Aktualisieren</button>
         </div>
         ${inhalt}</div>`;
@@ -367,43 +370,141 @@ function eeMonatHtml() {
         ${eeFokusKarte()}`;
 }
 
-function eeJahrHtml() {
-    if (!eeFilialeId()) return '<h1>Jahr</h1><p class="ee-lead">Wähle links die Filiale. Alle Filialen ist nur die Übersicht.</p>';
-    const gruppen = ee.domaenen ? (ee.domaenen.gruppen || []).filter(g => (g.zeilen || []).length) : null;
-    const bloecke = (gruppen || []).map(g => {
-        const rows = (g.zeilen || []).map(z => eeJahrZeile(z)).join('');
-        const portal = g.id === 'versicherung'
-            ? `<label class="ee-zeile" title="${eeEsc(EE_PORTAL)}"><span><b>Portal</b><i>Freigabe im Portal gewünscht</i></span>
-                <input type="checkbox" data-ee="portal" ${ee.portal ? 'checked' : ''}></label>` : '';
-        return `<section><h2>${eeEsc(g.name)}</h2><div class="ee-liste">${rows}${portal}</div></section>`;
-    }).join('');
-    const bvg = ee.bvgOffen ? eeBvgHtml() : '';
-    return `<h1>Jahresmeldung ${ee.jahr}</h1>
-        <p class="ee-lead">${eeEsc(eeFilialeName())}. Nur Empfänger, die bei dieser Filiale für ${ee.jahr} hinterlegt sind. Was noch keine Lohndaten hat, geht nicht mit. Offene Monate: die Meldung kann trotzdem raus, ist dann aber unvollständig.</p>
-        <div class="ee-step">
-            <button type="button" data-ee="jahr-schritt" data-wert="-1" aria-label="Jahr zurück">‹</button>
-            <b>${ee.jahr}</b>
-            <button type="button" data-ee="jahr-schritt" data-wert="1" aria-label="Jahr vor">›</button>
-        </div>
-        ${ee.ersatz ? `<p class="ee-merk">Das ersetzt die Meldung vom ${eeEsc(eeDatum(ee.ersatz.gesendet))}.</p>` : ''}
-        ${gruppen == null ? '<p class="ee-lead">Empfänger werden geladen.</p>' : (bloecke || '<p class="ee-lead">Dieser Filiale ist für dieses Jahr kein Empfänger zugeordnet.</p>')}
-        ${bvg}
-        ${eeLeiste()}
-        ${eeFokusKarte()}`;
+function eeJahrMeldungen() {
+    return eeMeldungen().filter(m => {
+        if (ee.filiale && m.companyProfileId !== ee.filiale) return false;
+        if (m.jahr && Number(m.jahr) !== ee.jahr) return false;
+        return m.art === 'annual' || String(m.art || '').startsWith('grenz');
+    });
 }
-function eeJahrZeile(z) {
-    const nr = [z.kundennummer, z.vertragsnummer].filter(Boolean).join(' · ');
-    const an = !z.an || z.an === 'noch keiner zugeordnet' ? 'noch keiner zugeordnet' : (nr ? `${z.an} · ${nr}` : z.an);
-    if (z.lohnsummen) {
-        return `<div class="ee-zeile"><span><b>${eeEsc(z.name)}</b><i>${eeEsc(an)} · Lohndaten fehlen in der Meldung</i></span>
-            <button type="button" class="ee-text" data-ee="bvg">Lohnsummen</button></div>`;
+function eeJahrFokus() {
+    const liste = eeJahrMeldungen();
+    return liste.find(m => m.id === ee.fokus) || liste[0] || null;
+}
+function eeHakenTitel(z) {
+    if (/Grenzgänger|Lohnausweis/.test(z.name || '')) return z.name;
+    if (String(z.name || '').includes('Jahresmeldung')) return z.name;
+    return (z.name || '') + ' Jahresmeldung';
+}
+function eeHaken(z) {
+    const titel = eeHakenTitel(z);
+    const an = z.an && z.an !== 'noch keiner zugeordnet' ? z.an : '';
+    if (z.domain === 'FAK-CAF') {
+        return `<label class="ee-haken"><input type="checkbox" disabled><span><b>FAK Jahresmeldung</b><i>Geht mit der AHV${an ? ' · ' + eeEsc(an) : ''}</i></span></label>`;
     }
     if (!eeKann(z)) {
-        const hin = z.domain === 'FAK-CAF' ? 'Geht mit der AHV-Meldung mit' : 'Geht noch nicht';
-        return `<div class="ee-zeile"><span><b>${eeEsc(z.name)}</b><i>${eeEsc(an)}</i></span><span class="ee-still">${hin}</span></div>`;
+        return `<label class="ee-haken"><input type="checkbox" disabled><span><b>${eeEsc(titel)}</b><i>${eeEsc(an ? an + ' · Geht noch nicht' : 'Geht noch nicht')}</i></span></label>`;
     }
-    return `<label class="ee-zeile"><span><b>${eeEsc(z.name)}</b><i>${eeEsc(an)}</i></span>
-        <input type="checkbox" data-ee="wahl" data-id="${eeEsc(z.id)}" ${ee.wahl.has(z.id) ? 'checked' : ''}></label>`;
+    return `<label class="ee-haken"><input type="checkbox" data-ee="wahl" data-id="${eeEsc(z.id)}" ${ee.wahl.has(z.id) ? 'checked' : ''}><span><b>${eeEsc(titel)}</b>${an ? `<i>${eeEsc(an)}</i>` : ''}</span></label>`;
+}
+function eeJahrSpalte(id, name, extra) {
+    const g = (ee.domaenen?.gruppen || []).find(x => x.id === id);
+    const rows = ((g && g.zeilen) || []).filter(z => !z.lohnsummen).map(eeHaken).join('');
+    return `<div class="ee-spalte"><h3>${name}</h3>${rows}${extra || ''}</div>`;
+}
+function eeStufeZeichen(stufe) {
+    if (stufe === 'ok') return '✓';
+    if (stufe === 'rot' || stufe === 'warn') return '!';
+    return '○';
+}
+function eeHinweisKnopf(m, e) {
+    const n = (e.nachrichten || []).length;
+    const hin = e.hinweise || [];
+    if (!n && !hin.length) return '';
+    const zahl = n || hin.length;
+    const dialog = (e.nachrichten || []).some(x => x.dialog && x.dialog.beantwortbar && !x.beantwortet);
+    const quittung = (e.nachrichten || []).some(x => (x.art || '').indexOf('Quittung') >= 0);
+    const tip = hin[0] || (e.nachrichten || [])[0]?.art || '';
+    if (dialog) return `<button type="button" class="ee-brief" data-ee="frage" data-id="${eeEsc(m.id)}" title="${eeEsc(tip)}">${zahl}</button>`;
+    if (quittung) return `<button type="button" class="ee-brief" data-ee="quittung" data-id="${eeEsc(m.id)}" title="${eeEsc(tip || 'Quittung')}">${zahl}</button>`;
+    return `<span class="ee-brief" title="${eeEsc(tip)}">${zahl}</span>`;
+}
+function eeAktion(m, e) {
+    if (e.freigabeUrl) return `<button type="button" class="ee-go ee-klein" data-ee="freigabe" data-url="${eeEsc(e.freigabeUrl)}">Freigabe starten</button>`;
+    if (e.freigabeAbgelaufen) return '<span class="ee-still">Link abgelaufen</span>';
+    const dialog = (e.nachrichten || []).some(x => x.dialog && x.dialog.beantwortbar && !x.beantwortet);
+    if (dialog) return `<button type="button" class="ee-go ee-klein" data-ee="frage" data-id="${eeEsc(m.id)}">Dialog abholen</button>`;
+    const quittung = (e.nachrichten || []).some(x => (x.art || '').indexOf('Quittung') >= 0);
+    if (quittung) return `<button type="button" class="ee-ghost ee-klein" data-ee="quittung" data-id="${eeEsc(m.id)}">Quittung anzeigen</button>`;
+    return '';
+}
+function eeMitteilungenHtml(m) {
+    if (!m) return `<section class="ee-panel"><div class="ee-panel-kopf"><h2>Mitteilungen</h2>
+        <button type="button" class="ee-text" data-ee="neu" aria-label="Aktualisieren">↻</button></div>
+        <p class="ee-lead">Noch keine Meldung.</p></section>`;
+    const zeilen = (m.empfaenger || []).map(e => `<tr>
+        <td title="${eeEsc(e.text || '')}">${eeStufeZeichen(e.stufe)}</td>
+        <td>${eeEsc(EE_DOM[e.domain] || e.domain || '')}</td>
+        <td>${eeEsc(e.addresseeId || e.name || '')}</td>
+        <td>${eeHinweisKnopf(m, e)}</td>
+        <td>${eeAktion(m, e)}</td>
+    </tr>`).join('');
+    const schein = ee.quittung === m.id
+        ? (m.empfaenger || []).flatMap(e => (e.nachrichten || []).filter(n => (n.art || '').indexOf('Quittung') >= 0).map(n => `<pre class="ee-pre">${eeEsc(n.xml || '')}</pre>`)).join('')
+        : '';
+    const weg = (m.empfaenger || []).some(e => e.freigabeAbgelaufen) && !(m.empfaenger || []).some(e => e.freigabeUrl);
+    const ersatz = m.ersetzbar ? `<button type="button" class="ee-text" data-ee="ersatz" data-id="${eeEsc(m.id)}">Ersatzmeldung</button>` : '';
+    return `<section class="ee-panel">
+        <div class="ee-panel-kopf"><h2>Mitteilungen</h2><span class="ee-panel-rechts">${ersatz}<button type="button" class="ee-text" data-ee="neu" aria-label="Aktualisieren">↻</button></span></div>
+        <p class="ee-id"><span>DeclarationID</span> <b>${eeEsc(m.declarationId || 'noch nicht vergeben')}</b><span>Zeit</span> <b>${eeEsc(eeDatum(m.gesendet) || '—')}</b></p>
+        <table class="ee-mit"><thead><tr><th>Status</th><th>Domain</th><th>Empfänger</th><th>Benachrichtigung</th><th>Aktion</th></tr></thead>
+        <tbody>${zeilen || '<tr><td colspan="5">Keine Empfänger in dieser Meldung.</td></tr>'}</tbody></table>
+        ${weg ? '<p class="ee-merk">Der Freigabe-Link ist abgelaufen. Neu prüfen und nochmals senden.</p>' : ''}
+        ${schein}
+    </section>`;
+}
+function eeVerlaufHtml() {
+    const liste = eeJahrMeldungen();
+    const zeilen = liste.map(m => `<button type="button" class="ee-verlauf-zeile${m.id === (eeJahrFokus() || {}).id ? ' an' : ''}" data-ee="stand" data-id="${eeEsc(m.id)}">
+        <span>${eeEsc(eeDatum(m.gesendet))}</span><span>${(m.empfaenger || []).length}</span></button>`).join('');
+    return `<section class="ee-panel ee-verlauf">
+        <h2>Mitteilungsverlauf</h2>
+        <div class="ee-verlauf-kopf"><span>Zeit</span><span>Anzahl</span></div>
+        ${zeilen || '<p class="ee-lead">Noch keine Meldung.</p>'}
+    </section>`;
+}
+function eeJahrHtml() {
+    if (!eeFilialeId()) return '<h1>Jahresmeldung</h1><p class="ee-lead">Wähle links die Filiale. Alle Filialen ist nur die Übersicht.</p>';
+    const geladen = !!ee.domaenen;
+    const bvg = ((ee.domaenen?.gruppen || []).find(g => g.id === 'vorsorge')?.zeilen || []);
+    const bvgZeilen = bvg.map(z => `<div class="ee-vorsorge-zeile"><span><b>BVG Jahresmeldung</b><i>${eeEsc(z.an && z.an !== 'noch keiner zugeordnet' ? z.an : '')}</i></span>
+        <button type="button" class="ee-go ee-klein" data-ee="bvg">Prozess starten</button></div>`).join('');
+    const portal = `<div class="ee-completion"><b>Completion</b>
+        <label class="ee-haken" title="${eeEsc(EE_PORTAL)}"><input type="checkbox" data-ee="portal" ${ee.portal ? 'checked' : ''}><span>Completion gewünscht</span></label></div>`;
+    const bereit = ee.arm && !ee.busy;
+    const spalten = geladen
+        ? `<div class="ee-spalten">
+            ${eeJahrSpalte('ausgleich', 'Ausgleichskassen')}
+            ${eeJahrSpalte('versicherung', 'Versicherungen', portal)}
+            ${eeJahrSpalte('steuern', 'Steuern')}
+        </div>
+        <div class="ee-vorsorge"><h3>Vorsorgeeinrichtungen</h3>${bvgZeilen || '<p class="ee-lead">Keine Vorsorge zugeordnet.</p>'}</div>`
+        : '<p class="ee-lead">Empfänger werden geladen.</p>';
+    return `<div class="ee-ueber">
+        <section class="ee-panel">
+            <div class="ee-panel-kopf">
+                <h2>Übermittlung</h2>
+                <div class="ee-step">
+                    <button type="button" data-ee="jahr-schritt" data-wert="-1" aria-label="Jahr zurück">‹</button>
+                    <b>${ee.jahr}</b>
+                    <button type="button" data-ee="jahr-schritt" data-wert="1" aria-label="Jahr vor">›</button>
+                </div>
+                <button type="button" class="ee-go ee-klein" data-ee="nav" data-wert="konfiguration">Konfiguration</button>
+            </div>
+            <p class="ee-lead">${eeEsc(eeFilialeName())}. Nur Empfänger dieser Filiale. Offene Monate: die Meldung kann trotzdem raus, ist dann aber unvollständig.</p>
+            ${ee.ersatz ? `<p class="ee-merk">Das ersetzt die Meldung vom ${eeEsc(eeDatum(ee.ersatz.gesendet))}.</p>` : ''}
+            ${spalten}
+            <div class="ee-senden">
+                <label class="ee-test"><input type="checkbox" data-ee="test" ${ee.test ? 'checked' : ''}> Testmeldung</label>
+                <button type="button" class="ee-ghost ee-klein" data-ee="pruefen" ${ee.busy ? 'disabled' : ''}>Prüfen</button>
+                <button type="button" class="ee-go ee-klein" data-ee="senden" ${bereit ? '' : 'disabled'}>${ee.ersatz ? 'Ersatzmeldung' : 'Übermitteln'}</button>
+            </div>
+            <p class="ee-merk">${eeEsc(ee.hinweis || 'Testmeldung ankreuzen, dann Prüfen. Die Empfänger verarbeiten eine Testmeldung nicht. Im Testsystem ist das der Normalfall, bei einer Versicherung nur mit deren Einverständnis.')}</p>
+            ${ee.bvgOffen ? eeBvgHtml() : ''}
+        </section>
+        ${eeMitteilungenHtml(eeJahrFokus())}
+    </div>
+    ${eeVerlaufHtml()}`;
 }
 function eeBvgHtml() {
     const j = ee.bvg;
@@ -559,7 +660,13 @@ function eeKlick(ev) {
     const a = el.dataset.ee;
     if (a === 'wahl' || a === 'test' || a === 'kanton' || a === 'portal') return;
     if (ee.busy && a !== 'nav') return;
-    if (a === 'nav') { ee.schritt = el.dataset.wert; ee.hinweis = ''; ee.force = true; eeZeichnen(); if (el.dataset.wert === 'jahr' || el.dataset.wert === 'konfiguration') eeDomaenenNach(); }
+    if (a === 'nav') {
+        const ziel = el.dataset.wert;
+        if (ziel === 'home') ee.herkunft = null;
+        else if (ee.schritt === 'jahr' || ee.schritt === 'monat') ee.herkunft = ee.schritt;
+        ee.schritt = ziel; ee.hinweis = ''; ee.force = true; eeZeichnen();
+        if (ziel === 'jahr' || ziel === 'konfiguration') eeDomaenenNach();
+    }
     else if (a === 'spaeter') { ee.hinweis = 'Das gibt es in OneCrew noch nicht.'; ee.schritt = 'home'; ee.force = true; eeZeichnen(); }
     else if (a === 'oeffnen') eeOeffnen(el);
     else if (a === 'stand') {
@@ -751,6 +858,7 @@ async function eeAktualisieren() {
     } finally { ee.busy = false; ee.force = true; eeZeichnen(); }
 }
 async function eeFrageOeffnen(id) {
+    if (ee.schritt !== 'frage') ee.herkunft = ee.schritt;
     ee.fokus = id; ee.schritt = 'frage'; ee.busy = true; ee.hinweis = ''; ee.force = true; eeZeichnen();
     try {
         const r = await fetch('/api/elm/meldungen/' + encodeURIComponent(id) + '/abfragen', { method: 'POST', headers: ah() });
