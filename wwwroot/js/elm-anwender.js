@@ -1244,13 +1244,12 @@ function elmaAufgabenZeichnen() {
     if (!box || (_elmaAnsicht !== 'jahr' && _elmaAnsicht !== 'monat' && _elmaAnsicht !== 'profil')) return;
     const karten = [];
     const sua = _elmaCert?.sua;
-    if (sua && sua.restTage != null && sua.restTage <= 30) {
-        const weg = sua.restTage < 0 || !sua.vorhanden;
+    if (sua && (!sua.vorhanden || (sua.restTage != null && sua.restTage < 0))) {
         karten.push({
-            art: weg ? 'rot' : 'warn', aufgabe: true,
-            titel: weg ? 'SUA-Zertifikat abgelaufen' : `SUA-Zertifikat läuft in ${sua.restTage} Tagen ab`,
-            text: 'Erneuern Sie das Unternehmenszertifikat, damit die Übermittlung weiter möglich ist.',
-            knopf: 'Zertifikat erneuern', click: 'elmaZertifikatErneuern()',
+            art: 'rot', aufgabe: true,
+            titel: 'SUA-Zertifikat abgelaufen',
+            text: 'Erneuern geht nicht mehr. OneCrew beantragt ein neues Zertifikat, Swissdec schickt das Passwort per Brief.',
+            knopf: 'Neues Zertifikat beantragen', click: 'elmaZertifikatErneuern()',
         });
     }
     const alle = (_elma?.meldungen || []).filter(m => !m.zertifizierung && _elmaPasstAnsicht(m));
