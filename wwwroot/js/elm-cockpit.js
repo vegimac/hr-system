@@ -151,11 +151,6 @@ function xcFilialeName() {
     return b ? (b.branchName || b.companyName || '') : '';
 }
 
-function xcKanton() {
-    const k = (xcFiliale()?.kantonCode || '').trim().toUpperCase();
-    return k;
-}
-
 function xcDomaenenUrl() {
     const id = xcFilialeId();
     if (!id) return '/api/elm/meldungen/domaenen?jahr=' + xc.jahr + '&companyProfileId=0';
@@ -276,10 +271,9 @@ function xcSatz() {
         return 'Ohne gültiges Zertifikat nimmt Swissdec keine Meldung an. Das Zertifikat liegt unter Konfiguration.';
     if (xc.art === 'monat') {
         const name = `${XC_MONATE[xc.monat - 1] || ''} ${xc.jahr}`.trim();
-        const kt = xcKanton();
         if (xc.arm === xcKern() && xcBereit())
-            return `Geprüft. Übermitteln schickt die Monatsmeldung ${name}${kt ? ' an Kanton ' + kt : ''}. Eine Testmeldung verarbeiten die Empfänger nicht.`;
-        return `Monatsmeldung ${name}. Quellensteuer geht an ${kt ? 'Kanton ' + kt : 'den Kanton der Filiale'}. Danach Prüfen.`;
+            return `Geprüft. Übermitteln schickt die Monatsmeldung ${name}. Die Quellensteuer geht an den Wohnkanton. Eine Testmeldung verarbeiten die Empfänger nicht.`;
+        return `Monatsmeldung ${name}. Die Quellensteuer geht an den Kanton, in dem der Mitarbeiter wohnt. Danach Prüfen.`;
     }
     if (xc.arm === xcKern() && xcBereit())
         return `Geprüft. Übermitteln schickt die Jahresmeldung ${xc.jahr}. Eine Testmeldung verarbeiten die Empfänger nicht.`;
@@ -399,25 +393,27 @@ function xcIstStatistik(e) {
     return e.domain === 'Statistic' || e.addresseeId === '#BFS';
 }
 
-function xcIstKantonDerFiliale(e) {
-    const kt = xcKanton();
-    if (!kt || xcIstStatistik(e)) return false;
-    const id = String(e.addresseeId || '');
-    const kennung = String(e.identification || '').trim().toUpperCase();
-    return id === '#QST-' + kt || kennung === kt;
-}
-
 function xcMonatHtml() {
-    const kt = xcKanton();
     const reihe = (id, name, an) => `<div class="xc-row">
         <span class="xc-name">${name}</span>
         <span class="xc-an">${an}</span>
         <span></span>
         <input class="xc-check" type="checkbox" data-xc="wahl" data-id="${id}" ${xc.wahl.has(id) ? 'checked' : ''} aria-label="${name}">
     </div>`;
+    let wohn = '';
+    const v = xc.checks.find(c => c.art === 'monthly');
+    if (v && xc.wahl.has('qst') && xc.kantone) {
+        wohn = (v.v.empfaenger || []).filter(e => !xcIstStatistik(e)).map(e => `<div class="xc-row">
+            <span class="xc-name">Wohnkanton</span>
+            <span class="xc-an">${xcEsc(e.name || e.identification || '')}</span>
+            <span></span>
+            <input class="xc-check" type="checkbox" data-xc="kanton" data-id="${xcEsc(e.addresseeId)}" ${xc.kantone.has(e.addresseeId) ? 'checked' : ''} aria-label="${xcEsc(e.name || '')}">
+        </div>`).join('');
+    }
     return `<div class="xc-gruppe">Monatsmeldung</div>
-        ${reihe('qst', 'Quellensteuer', kt ? 'Kanton ' + kt : 'Kanton fehlt an der Filiale')}
-        ${reihe('statistik', 'Statistik', 'Bundesamt für Statistik')}`;
+        ${reihe('qst', 'Quellensteuer', 'Wohnkanton des Mitarbeiters')}
+        ${reihe('statistik', 'Statistik', 'Bundesamt für Statistik')}
+        ${wohn}`;
 }
 
 function xcGehtHtml() {
@@ -438,8 +434,8 @@ function xcFehlerHtml() {
         for (const f of c.v.fehler || []) zeilen.push(f);
         if ((c.v.technisch || []).length) zeilen.push('Die Meldung ist fehlerhaft.');
         if (c.v.sendenGesperrt) zeilen.push(c.v.sendenGesperrt);
-        if (c.art === 'monthly' && xc.kantone && !xc.kantone.size && xc.wahl.has('qst') && !xcKanton())
-            zeilen.push('An der Filiale ist kein Kanton hinterlegt.');
+        if (c.art === 'monthly' && xc.wahl.has('qst') && xc.kantone && !([...xc.kantone].some(id => String(id).indexOf('QST') >= 0)) && (c.v.empfaenger || []).some(e => !xcIstStatistik(e)))
+            zeilen.push('Kein Wohnkanton angehakt.');
         if (!(c.v.fehler || []).length && !(c.v.empfaenger || []).length) zeilen.push('Die Meldung hat keinen Empfänger.');
     }
     const warn = xc.checks.flatMap(c => c.v.warnungen || []);
@@ -780,7 +776,7 @@ async function xcPruefen() {
     if (xc.art === 'monat' && checks[0]) {
         xc.kantone = new Set();
         for (const e of checks[0].v.empfaenger || []) {
-            if (xcIstStatistik(e) ? xc.wahl.has('statistik') : (xc.wahl.has('qst') && xcIstKantonDerFiliale(e)))
+            if (xcIstStatistik(e) ? xc.wahl.has('statistik') : xc.wahl.has('qst'))
                 xc.kantone.add(e.addresseeId);
         }
         if (!xc.kantone.size) ok = false;
