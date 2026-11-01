@@ -537,6 +537,59 @@ function e2BenachrichtigungenHtml(e) {
     return `<ul class="e2-notiz">${teile.join('')}</ul>`;
 }
 
+// ── Rückfrage lesbar (Walter 01.11.2026) ────────────────────────────────────
+// Abschnitte mit Überschrift, Angaben als Liste, Fragen als Raster mit passendem Feld.
+// Werte in Schweizer Form (01.11.2026, ja/nein, 1'000.00); der Server nimmt sie so an
+// (ElmDialog.PruefeWert) und schreibt sie in die Swissdec-Form zurück.
+function e2DlgAnzeige(typ, w) {
+    if (w == null || w === '') return '';
+    const t = String(w).trim();
+    if (typ === 'Date') { const d = t.match(/^(\d{4})-(\d{2})-(\d{2})/); return d ? `${d[3]}.${d[2]}.${d[1]}` : t; }
+    if (typ === 'DateTime') { const d = new Date(t); return Number.isNaN(d.getTime()) ? t : e2Datum(d.toISOString()); }
+    if (typ === 'Boolean') return t === 'true' ? 'ja' : t === 'false' ? 'nein' : t;
+    if (typ === 'YesNoUnknown') return { yes: 'ja', no: 'nein', unknown: 'unbekannt' }[t] || t;
+    if (typ === 'Amount') { const n = Number(t); return Number.isFinite(n) ? n.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : t; }
+    return t;
+}
+function e2DlgFeld(p) {
+    const roh = p.antwort || p.default || '';
+    const typ = p.frageTyp || 'String';
+    const attr = `data-frage="${e2Esc(p.id)}"`;
+    const wahl = (opts, akt) => `<select ${attr}>${opts.map(([v, l]) => `<option value="${v}"${v === akt ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+    if (typ === 'Boolean') return wahl([['ja', 'ja'], ['nein', 'nein']], e2DlgAnzeige(typ, roh) || 'nein');
+    if (typ === 'YesNoUnknown') return wahl([['ja', 'ja'], ['nein', 'nein'], ['unbekannt', 'unbekannt']], e2DlgAnzeige(typ, roh) || 'unbekannt');
+    if (typ === 'Date') { const d = String(roh).match(/^(\d{4}-\d{2}-\d{2})/); return `<input type="date" ${attr} value="${d ? d[1] : ''}">`; }
+    if (typ === 'DateTime') return `<input ${attr} value="${e2Esc(e2DlgAnzeige(typ, roh))}" placeholder="TT.MM.JJJJ HH:MM">`;
+    if (typ === 'Amount') return `<input ${attr} inputmode="decimal" class="e2-rechtsbuendig" value="${e2Esc(e2DlgAnzeige(typ, roh))}" placeholder="0.00">`;
+    if (typ === 'Integer' || typ === 'Double') return `<input ${attr} inputmode="decimal" class="e2-rechtsbuendig" value="${e2Esc(roh)}">`;
+    return `<input ${attr} value="${e2Esc(roh)}">`;
+}
+function e2DialogHtml(m, e, n) {
+    const d = n.dialog;
+    const offen = d.beantwortbar && !n.beantwortet;
+    const absaetze = d.absaetze || [];
+    const gruppen = [{ id: null, titel: null, beschreibung: null }, ...(d.abschnitte || [])];
+    const teil = g => {
+        const liste = absaetze.filter(p => (p.abschnittRef || null) === g.id || (g.id === null && !gruppen.some(x => x.id && x.id === p.abschnittRef)));
+        if (!liste.length && !g.titel) return '';
+        const angaben = liste.filter(p => !p.istFrage);
+        const fragen = liste.filter(p => p.istFrage);
+        return `<div class="e2-dlg-abschnitt">
+            ${g.titel ? `<h4>${e2Esc(g.titel)}</h4>` : ''}${g.beschreibung ? `<p class="e2-still">${e2Esc(g.beschreibung)}</p>` : ''}
+            ${angaben.length ? `<dl class="e2-dlg-angaben">${angaben.map(p => `<dt>${e2Esc(p.label)}</dt><dd>${e2Esc(e2DlgAnzeige(p.wertTyp, p.wert)) || '—'}</dd>`).join('')}</dl>` : ''}
+            ${fragen.length ? `<div class="e2-dlg-fragen">${fragen.map(p => offen
+                ? `<label class="e2-feld"><span>${e2Esc(p.label || 'Antwort')}${p.optional ? ' <i>(freiwillig)</i>' : ' *'}</span>${e2DlgFeld(p)}${p.problem ? `<i class="e2-dlg-problem">${e2Esc(p.problem)}</i>` : ''}</label>`
+                : `<div class="e2-feld"><span>${e2Esc(p.label || 'Antwort')}</span><b>${e2Esc(e2DlgAnzeige(p.frageTyp, p.antwort || p.default)) || '—'}</b></div>`).join('')}</div>` : ''}
+        </div>`;
+    };
+    return `${d.titel ? `<p class="e2-dlg-titel">${e2Esc(d.titel)}</p>` : ''}
+        ${d.beschreibung ? `<p>${e2Esc(d.beschreibung)}</p>` : ''}
+        ${gruppen.map(teil).join('')}
+        ${offen ? `<div class="e2-aktionen"><span class="e2-still">Die Felder sind mit den Vorschlägen des Empfängers ausgefüllt.</span><button type="button" class="e2-pille e2-primaer" data-e2="antwort" data-id="${e2Esc(m.id)}" data-emp="${e2Esc(e.addresseeId)}" data-story="${e2Esc(n.storyId)}">Antwort senden</button></div>`
+            : !d.beantwortbar ? '<p class="e2-still">Nur zur Kenntnis, keine Antwort nötig. OneCrew bestätigt dem Empfänger den Empfang beim nächsten «Aktualisieren».</p>'
+            : '<p class="e2-still">Beantwortet.</p>'}`;
+}
+
 // Rückfrage = DialogMessage, gelesen oder nicht (NachrichtArt «Rückfrage» oder ein gelesener Dialog).
 function e2IstRueckfrage(n) { return !!n.dialog || n.art === 'Rückfrage'; }
 
@@ -571,21 +624,7 @@ function e2DetailHtml(m) {
             inhalt += `<div class="e2-frage">${kopf}<p>OneCrew konnte diese Rückfrage nicht lesen. Hier der Originaltext:</p><pre class="e2-pre">${e2Esc(n.xml || '')}</pre></div>`;
             continue;
         }
-        inhalt += `<div class="e2-frage">${kopf}`;
-        if (n.dialog.titel) inhalt += `<p><b>${e2Esc(n.dialog.titel)}</b></p>`;
-        if (n.dialog.beschreibung) inhalt += `<p>${e2Esc(n.dialog.beschreibung)}</p>`;
-        for (const p of (n.dialog.absaetze || []).filter(x => !x.istFrage && x.label))
-            inhalt += `<p class="e2-still">${e2Esc(p.label)}${p.wert ? ': <b>' + e2Esc(p.wert) + '</b>' : ''}</p>`;
-        if (n.dialog.beantwortbar && !n.beantwortet) {
-            for (const p of (n.dialog.absaetze || []).filter(x => x.istFrage)) {
-                inhalt += `<label class="e2-feld"><span>${e2Esc(p.label || 'Antwort')}${p.optional ? '' : ' *'}</span>
-                    <input data-frage="${e2Esc(p.id)}" value="${e2Esc(p.default || p.antwort || '')}" placeholder="${e2Esc(E2_TYP[p.frageTyp] || '')}"></label>`;
-            }
-            inhalt += `<div class="e2-aktionen"><button type="button" class="e2-pille e2-primaer" data-e2="antwort" data-id="${e2Esc(m.id)}" data-emp="${e2Esc(e.addresseeId)}" data-story="${e2Esc(n.storyId)}">Antwort senden</button></div>`;
-        } else if (!n.dialog.beantwortbar) {
-            inhalt += '<p class="e2-still">Nur zur Kenntnis, keine Antwort nötig. OneCrew bestätigt dem Empfänger den Empfang beim nächsten «Aktualisieren».</p>';
-        }
-        inhalt += '</div>';
+        inhalt += `<div class="e2-frage">${kopf}${e2DialogHtml(m, e, n)}</div>`;
     }
     const haengt = e.stufe === 'warn' && !(e.nachrichten || []).some(n => n.dialog?.beantwortbar && !n.beantwortet);
     return `<div class="e2-detail"><div class="e2-karte-kopf"><h3>Rückfrage · ${e2Esc(e.name)}</h3><button type="button" class="e2-text" data-e2="detail-weg">Schliessen</button></div>

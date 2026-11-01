@@ -15690,3 +15690,20 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
 #e2App .e2-mitteilungen .e2-aktionsspalte .e2-pille { display: block; width: 100%; margin: 0 0 6px; white-space: normal; text-align: center; }
 #e2App .e2-mitteilungen .e2-aktionsspalte .e2-pille + .e2-pille { margin-left: 0; }
 #e2App .e2-mitteilungen .e2-notiz { padding-left: 14px; }
+/* ELM 2: Rückfrage lesbar (Walter 01.11.2026). */
+#e2App .e2-dlg-titel { margin: 6px 0 2px; font-size: 16px; font-weight: 700; color: #1a1a1a; }
+#e2App .e2-dlg-abschnitt { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(60,55,48,0.10); }
+#e2App .e2-dlg-abschnitt h4 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: #3f3f3f; }
+#e2App .e2-dlg-angaben { display: grid; grid-template-columns: minmax(140px, max-content) 1fr; gap: 4px 16px; margin: 6px 0; font-size: 13px; }
+#e2App .e2-dlg-angaben dt { color: #8b8b8b; }
+#e2App .e2-dlg-angaben dd { margin: 0; font-weight: 600; color: #1a1a1a; overflow-wrap: anywhere; }
+#e2App .e2-dlg-fragen { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 16px; }
+#e2App .e2-dlg-fragen .e2-feld { max-width: none; margin: 4px 0; }
+#e2App .e2-dlg-fragen .e2-feld span i { font-style: normal; color: #8b8b8b; }
+#e2App .e2-dlg-fragen select, #e2App .e2-dlg-fragen input[type="date"] {
+    background: #fff; border: 1px solid rgba(255,255,255,0.95); border-radius: 10px; padding: 8px 10px; font: inherit; color: #3f3f3f;
+    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+#e2App .e2-rechtsbuendig { text-align: right; }
+#e2App .e2-dlg-problem { font-style: normal; font-size: 11px; color: #991b1b; }
+#e2App .e2-frage .e2-aktionen { align-items: center; }
