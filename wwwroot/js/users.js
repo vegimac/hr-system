@@ -346,10 +346,12 @@ function umApplyPolicyPermission() {
     document.querySelectorAll('.um-policy-field').forEach(el => { el.disabled = !isAdmin; el.style.opacity = isAdmin ? '' : '.55'; });
 }
 
+// «ELM Cockpit» (Walter 01.11.2026): ohne eigene Auswahl nur bei Rolle Admin angehakt.
 function umSetAreas(arr) {
+    const admin = document.getElementById('umRole')?.value === 'admin';
     document.querySelectorAll('#umAreas input[type=checkbox]').forEach(cb => {
         const a = cb.getAttribute('data-area');
-        if (arr == null) cb.checked = a !== 'entwicklung';
+        if (arr == null) cb.checked = a === 'elm' ? admin : a !== 'entwicklung';
         else cb.checked = arr.includes(a);
     });
 }

@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261102x">
+    <link rel="stylesheet" href="css/app.css?v=20261102y">
 </head>
 <body>
 
@@ -355,8 +355,9 @@
                     </div>
                 </div>
                 <!-- ELM Cockpit (Walter 01.11.2026): Lohnmeldungen an Swissdec (page-elm, js/elm.js).
-                     Sichtbar wie der HR-Hub (Klasse hr-section; Bereich «hr-hub»). -->
-                <div class="nav-section hr-section" style="display:none">
+                     Eigener Bereich «elm» bei «Sichtbare Bereiche»: Admin und Super-Admin sehen ihn
+                     ohne eigene Auswahl; sonst nur mit Häkchen (body.elm-on, applyAreaVisibility). -->
+                <div class="nav-section elm-only-section" style="display:none">
                     <div class="nav-item" data-page="elm" onclick="showPage('elm')">
                         <img class="nav-icon-img" src="img/hrkat-elm.webp?v=20261030g" alt="">
                         <span>ELM Cockpit</span>
@@ -11234,6 +11235,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
                     <label class="um-area-cb"><input type="checkbox" data-area="manager-dienstplan"><span>Manager-Dienstplan</span></label>
                     <label class="um-area-cb"><input type="checkbox" data-area="lohn"><span>Lohnlauf</span></label>
                     <label class="um-area-cb"><input type="checkbox" data-area="hr-hub"><span>HR-Hub</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="elm"><span>ELM Cockpit</span></label>
                     <label class="um-area-cb"><input type="checkbox" data-area="fibu"><span>FIBU</span></label>
                     <label class="um-area-cb"><input type="checkbox" data-area="admin-hub"><span>System</span></label>
                     <label class="um-area-cb"><input type="checkbox" data-area="entwicklung"><span>Entwicklung</span></label>
@@ -11276,7 +11278,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261101t"></script>
+<script src="js/app-core.js?v=20261101u"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261101b"></script>
@@ -11324,7 +11326,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/branch-modals.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/deductions.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/qst-modal.js?v=20261030c"></script>
-<script type="text/plain" data-modul="js/users.js?v=20261030a"></script>
+<script type="text/plain" data-modul="js/users.js?v=20261101a"></script>
 <script type="text/plain" data-modul="js/contracts-page.js?v=20260802a"></script>
 <script type="text/plain" data-modul="js/documents.js?v=20261020j"></script>
 <script type="text/plain" data-modul="js/dvelop-import.js?v=20261001a"></script>

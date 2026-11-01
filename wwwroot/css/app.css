@@ -1607,6 +1607,9 @@
            von diesem Bereich gar nichts weiss. Fehlerfall = unsichtbar. */
         .entw-only-section { display: none !important; }
         body.entw-on .entw-only-section { display: flex !important; }
+        /* ELM Cockpit (Walter 01.11.2026): wie Entwicklung über eine Body-Klasse (elm-on). */
+        .elm-only-section { display: none !important; }
+        body.elm-on .elm-only-section { display: flex !important; }
         .nav-item {
             position: relative;
             width: 100%; min-height: 46px;

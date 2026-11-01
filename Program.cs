@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 129;  // 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 130;  // 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -3490,6 +3490,22 @@ using (var scope = app.Services.CreateScope())
             ON CONFLICT (category) DO NOTHING;
         ");
         startLog.LogInformation("Stand 129: EMA-Freigabe BVG und Quellensteuer");
+    }
+
+    // Stand 130: Bereich «ELM Cockpit» (Walter 01.11.2026). Admins mit eigener Bereichs-Auswahl
+    // bekommen das Häkchen «elm» einmal dazu; ohne Auswahl (NULL) sehen Admins den Bereich ohnehin.
+    // Nur einmal (dbStand < 130): ein später bewusst entferntes Häkchen bleibt entfernt.
+    if (dbStand < 130)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE app_user ADD COLUMN IF NOT EXISTS allowed_areas text;
+            UPDATE app_user
+               SET allowed_areas = CASE WHEN allowed_areas = '' THEN 'elm' ELSE allowed_areas || ',elm' END
+             WHERE role = 'admin'
+               AND allowed_areas IS NOT NULL
+               AND (',' || allowed_areas || ',') NOT LIKE '%,elm,%';
+        ");
+        startLog.LogInformation("Stand 130: Bereich ELM Cockpit für Admins");
     }
 
 

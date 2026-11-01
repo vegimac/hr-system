@@ -1456,6 +1456,11 @@ function applyAreaVisibility() {
     // app.css) statt ueber style.display — damit bleibt der Bereich auch bei
     // einer veralteten, gecachten Skriptversion zuverlaessig verborgen.
     document.body.classList.toggle('entw-on', entwErlaubt);
+    // «ELM Cockpit» (Walter 01.11.2026): Bereich «elm». Mit eigener Auswahl zählt das Häkchen,
+    // ohne Auswahl sehen ihn nur Admin und Super-Admin. Ebenfalls VOR dem Abbruch unten.
+    const elmErlaubt = currentUser?.isSuperAdmin === true
+        || (Array.isArray(aa) ? aa.includes('elm') : currentUser?.role === 'admin');
+    document.body.classList.toggle('elm-on', elmErlaubt);
     if (!Array.isArray(aa)) return;
     const allowed = new Set(['dashboard', ...aa]);
     // Walter-Bug 26.08.2026: Moments hat seit 15.08. eine EIGENE nav-section
@@ -1470,9 +1475,7 @@ function applyAreaVisibility() {
     // dieselbe Regel haben, sonst bleibt sie unsichtbar.
     const ok = (area) => area === 'dashboard' || area === 'todos' || area === 'moments'
         || allowed.has(area)
-        || (area === 'mcadmin' && allowed.has('mitarbeiter'))
-        // ELM Cockpit (Walter 01.11.2026) ist kein eigener Bereich — er fährt mit dem HR-Hub mit.
-        || (area === 'elm' && allowed.has('hr-hub'));
+        || (area === 'mcadmin' && allowed.has('mitarbeiter'));
     // Globale Sidebar: jede nav-section enthält genau einen nav-item (data-page).
     document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
         const item = sec.querySelector('.nav-item[data-page]');
@@ -1480,6 +1483,7 @@ function applyAreaVisibility() {
         // «entwicklung» ist oben schon entschieden (Super-Admin ODER Häkchen)
         // — hier nicht nochmals überschreiben.
         if (item.getAttribute('data-page') === 'entwicklung') return;
+        if (item.getAttribute('data-page') === 'elm') return;   // oben entschieden (body.elm-on)
         sec.style.display = ok(item.getAttribute('data-page')) ? '' : 'none';
     });
     // Dashboard-Kacheln + Mitarbeiter-Nav-Buttons (onclick="showPage('X')").
@@ -1543,6 +1547,10 @@ function showPage(name) {
     // Walter 01.11.2026: die früheren ELM-Seiten (Cursor) sind durch «ELM» ersetzt.
     if (name === 'elm-anwender' || name === 'elm-cockpit' || name === 'elm2') {
         showPage('elm');
+        return;
+    }
+    if (name === 'elm' && !document.body.classList.contains('elm-on')) {
+        showPage('dashboard');
         return;
     }
     // Walter 16.10.2026: alter Sub-Hub «Globale Daten» → Verzeichnisse & Vorgaben.
