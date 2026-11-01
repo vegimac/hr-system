@@ -8253,6 +8253,15 @@ app.MapGet("/api/instance-info", () => Results.Ok(new
     schemaZeitzonen = HrSystem.Services.SchemaCheckService.LetztesErgebnis?.Zeitzonen.Count ?? 0
 })).AllowAnonymous();
 
+// ELM-Cockpit: alte Übungs-Meldungen einmal leeren (Walter 01.11.2026). Danach bleiben neue Sendungen.
+using (var scope = app.Services.CreateScope())
+{
+    var elmStore = scope.ServiceProvider.GetRequiredService<HrSystem.Services.Elm.ElmZertifikatStore>();
+    var geleert = elmStore.HistorieEinmalLeeren();
+    if (geleert > 0)
+        app.Logger.LogInformation("ELM-Historie einmal geleert: {Anzahl} Meldungen", geleert);
+}
+
 // Bank-Master: Initial-Seed aus CSV falls DB-Tabelle leer, Cache laden
 using (var scope = app.Services.CreateScope())
 {

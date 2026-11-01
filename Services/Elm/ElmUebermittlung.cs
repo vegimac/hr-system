@@ -23,6 +23,8 @@ public class ElmUebermittlungsStand
     public string? LetzteRequestId { get; set; }
     /// <summary>F05_07: jede je gesendete RequestID — auch von gelöschten Übermittlungen.</summary>
     public List<string> GesendeteRequestIds { get; set; } = new();
+    /// <summary>Gesetzt, nachdem die alten Übungs-Meldungen einmal geleert wurden (Walter 01.11.2026). Neue Sendungen bleiben.</summary>
+    public DateTime? HistorieGeleertAm { get; set; }
 }
 
 /// <summary>Eine Übermittlung: Declare-Job oder Anmeldung (SubscribeOrganization).</summary>

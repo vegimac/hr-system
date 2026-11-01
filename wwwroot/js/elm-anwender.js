@@ -287,6 +287,9 @@ function elmaAnsicht(name) {
     }
     const titel = document.querySelector('#page-elm-anwender .elma-head h1');
     if (titel) titel.textContent = 'ELM-Cockpit';
+    document.querySelectorAll('#page-elm-anwender [data-elma-nav]').forEach(b => {
+        b.classList.toggle('an', b.dataset.elmaNav === _elmaAnsicht);
+    });
     elmaDomaenenZeichnen();
     elmaHomeAufgaben();
     elmaArtGewechselt();

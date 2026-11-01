@@ -672,6 +672,21 @@ public class ElmZertifikatStore
         }
     }
 
+    /// <summary>Einmal: alte Meldungen weg, damit das Cockpit leer startet. RequestIDs bleiben, das Zertifikat bleibt.</summary>
+    public int HistorieEinmalLeeren()
+    {
+        lock (UebermittlungSperre)
+        {
+            var stand = LadeUebermittlungen();
+            if (stand.HistorieGeleertAm != null) return 0;
+            var n = stand.Vorgaenge.Count;
+            stand.Vorgaenge.Clear();
+            stand.HistorieGeleertAm = DateTime.Now;
+            SpeichereUebermittlungen(stand);
+            return n;
+        }
+    }
+
     public void SpeichereUebermittlungen(ElmUebermittlungsStand stand)
     {
         lock (UebermittlungSperre)
