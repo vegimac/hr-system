@@ -45,7 +45,11 @@ public class ElmAnnualDeclarationBuilder
         string Xml, int Personen, int Uebersprungen, decimal TotalAhv, decimal TotalAlv,
         List<string> Warnungen, List<string> XsdFehler);
 
-    public async Task<BuildResult> BuildAhvAsync(int year, CancellationToken ct = default)
+    public Task<BuildResult> BuildAhvAsync(int year, CancellationToken ct = default)
+        => BuildAhvAsync(year, null, ct);
+
+    /// <summary>Mit nurFiliale nur die Lohnzettel und Arbeitsorte dieser Filiale. Ohne: alle Filialen der Rechtseinheit.</summary>
+    public async Task<BuildResult> BuildAhvAsync(int year, int? nurFiliale, CancellationToken ct = default)
     {
         var warn = new List<string>();
 
@@ -53,7 +57,19 @@ public class ElmAnnualDeclarationBuilder
         var stamm = await LadeRechtseinheitAsync(_db, warn, ct);
         if (stamm == null)
             return new BuildResult("", 0, 0, 0, 0, warn, new List<string>());
+        if (nurFiliale is int cp && cp > 0)
+        {
+            var nur = stamm.Filialen.Where(b => b.Id == cp).ToList();
+            if (nur.Count == 0)
+            {
+                warn.Add("Diese Filiale ist in der Meldung nicht enthalten.");
+                return new BuildResult("", 0, 0, 0, 0, warn, new List<string>());
+            }
+            stamm = stamm with { Filialen = nur };
+        }
         var branches = stamm.Filialen;
+        var filialIds = branches.Select(b => b.Id).ToHashSet();
+        var ganzeFirma = nurFiliale is not > 0;
         var main = stamm.Haupt;
         var uid = stamm.Uid;
 
@@ -72,15 +88,18 @@ public class ElmAnnualDeclarationBuilder
         var akE = empf.FirstOrDefault(e => e.Art == "AUSGLEICHSKASSE");
         static bool IstZusatz(Models.LohndatenEmpfaenger e) =>
             (e.Bezeichnung + " " + (e.Zusatz ?? "")).ToLowerInvariant().Contains("zusatz");
-        var uvgE = empf.FirstOrDefault(e => e.Art == "UVG" && !IstZusatz(e));
-        var bvgE = empf.FirstOrDefault(e => e.Art == "BVG");
-
         // Stichtag für die Zuordnung = 31.12. des Lohnjahres (Gültig ab/bis, Walter 07.09.2026)
         var stichtagZuord = new DateOnly(year, 12, 31);
+        bool GehoertHier(Models.LohndatenEmpfaenger e) =>
+            ganzeFirma
+            || e.Zuordnungen.Any(z => filialIds.Contains(z.CompanyProfileId) && z.GiltAm(stichtagZuord));
+        var uvgE = empf.FirstOrDefault(e => e.Art == "UVG" && !IstZusatz(e) && GehoertHier(e));
+        var bvgE = empf.FirstOrDefault(e => e.Art == "BVG" && GehoertHier(e));
         string? GemeinsameMitgliedNr(Models.LohndatenEmpfaenger? e)
         {
             if (e == null) return null;
-            var nrs = e.Zuordnungen.Where(z => z.GiltAm(stichtagZuord))
+            var nrs = e.Zuordnungen.Where(z => z.GiltAm(stichtagZuord)
+                    && (ganzeFirma || filialIds.Contains(z.CompanyProfileId)))
                 .Select(z => (z.Mitgliednummer ?? "").Trim())
                 .Where(v => v.Length > 0).Distinct().ToList();
             return nrs.Count == 1 ? nrs[0] : null;
@@ -102,20 +121,27 @@ public class ElmAnnualDeclarationBuilder
         var akAbrechnung = GemeinsameMitgliedNr(akE) ?? "";
         if (string.IsNullOrEmpty(akAbrechnung))
         {
-            if (akE != null && akE.Zuordnungen.Any(z => z.GiltAm(stichtagZuord)))
-                warn.Add("AK-Mitgliednummern sind pro Filiale unterschiedlich — im XML steht vorerst die Kassen-Nr. (Zuordnung pro Filiale kommt in E5).");
+            if (akE != null && akE.Zuordnungen.Any(z => z.GiltAm(stichtagZuord)
+                    && (ganzeFirma || filialIds.Contains(z.CompanyProfileId))))
+                warn.Add(nurFiliale is int and > 0
+                    ? "AK-Mitgliednummer dieser Filiale ist nicht eindeutig — im XML steht die Kassen-Nr."
+                    : "AK-Mitgliednummern sind pro Filiale unterschiedlich — im XML steht vorerst die Kassen-Nr. (Zuordnung pro Filiale kommt in E5).");
             akAbrechnung = akKasse;
         }
 
         // ── Lohndaten des Jahres (alle Filialen, STORNIERTE ausgenommen) ──
-        var rows = await (from s in _db.PayrollSnapshots
-                          join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
-                          where p.Year == year && s.Status != "STORNIERT"
-                          select new { s.EmployeeId, s.SvBasisAhv, p.Month, PeriodeStatus = p.Status })
-                         .ToListAsync(ct);
+        var lohn = from s in _db.PayrollSnapshots
+                   join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+                   where p.Year == year && s.Status != "STORNIERT"
+                   select new { s.EmployeeId, s.SvBasisAhv, p.Month, PeriodeStatus = p.Status, p.CompanyProfileId };
+        if (nurFiliale is int fil && fil > 0)
+            lohn = lohn.Where(r => r.CompanyProfileId == fil);
+        var rows = await lohn.ToListAsync(ct);
         if (rows.Count == 0)
             return new BuildResult("", 0, 0, 0, 0,
-                new List<string> { $"Keine Lohnabrechnungen für {year} gefunden." }, new List<string>());
+                new List<string> { nurFiliale is int and > 0
+                    ? $"Keine Lohnabrechnungen für {year} bei dieser Filiale gefunden."
+                    : $"Keine Lohnabrechnungen für {year} gefunden." }, new List<string>());
 
         var offenePerioden = rows.Where(r => r.PeriodeStatus != "abgeschlossen")
             .Select(r => r.Month).Distinct().OrderBy(m => m).ToList();

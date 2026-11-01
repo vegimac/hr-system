@@ -115,13 +115,13 @@ public class ElmUebermittlungService
     {
         if (art == "annual")
         {
-            var r = await _jahr.BuildAhvAsync(jahr, ct);
+            var r = await _jahr.BuildAhvAsync(jahr, companyProfileId, ct);
             return (r.Xml, $"Jahresmeldung AHV {jahr}", r.Warnungen, r.XsdFehler);
         }
         if (art is ElmGrenzgaengerJahresBuilder.ArtItalien or ElmGrenzgaengerJahresBuilder.ArtFrankreich
             or ElmGrenzgaengerJahresBuilder.ArtSfn)
         {
-            var g = await _grenz.BuildAsync(art, jahr, ct);
+            var g = await _grenz.BuildAsync(art, jahr, companyProfileId, ct);
             return (g.Xml, g.Titel, g.Warnungen, g.XsdFehler);
         }
         if (monat is null or < 1 or > 12)

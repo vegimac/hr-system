@@ -775,7 +775,7 @@ async function xcPruefen() {
     xc.checks = [];
     xc.kantone = null;
     xc.hinweis = '';
-    if (xc.art === 'monat' && !xcFilialeId()) {
+    if (!xcFilialeId()) {
         xc.hinweis = 'Zuerst eine Filiale in der Seitenleiste wählen.';
         xc.arm = null;
         xc.force = true;
@@ -801,11 +801,9 @@ async function xcPruefen() {
     let ok = true;
     for (const art of arts) {
         const q = new URLSearchParams({ art, jahr: String(xc.jahr) });
-        if (art === 'monthly') {
-            q.set('monat', String(xc.monat));
-            const filiale = xcFilialeId();
-            if (filiale) q.set('companyProfileId', String(filiale));
-        }
+        const filiale = xcFilialeId();
+        if (filiale) q.set('companyProfileId', String(filiale));
+        if (art === 'monthly') q.set('monat', String(xc.monat));
         let j = {};
         let gut = false;
         try {
@@ -839,7 +837,7 @@ async function xcPruefen() {
 
 async function xcSenden() {
     if (!xcBereit() || xc.busy) return;
-    if (xc.checks.some(c => c.art === 'monthly') && !xcFilialeId()) return;
+    if (!xcFilialeId()) return;
     xc.busy = true;
     xc.lauf = 'ÜBERMITTLUNG';
     xc.force = true;
@@ -858,7 +856,7 @@ async function xcSenden() {
             testmeldung: xc.test,
             freigabePortal: art !== 'monthly' && xc.portal,
             adressaten,
-            companyProfileId: art === 'monthly' ? xcFilialeId() : null,
+            companyProfileId: xcFilialeId(),
         };
         try {
             const r = await fetch('/api/elm/meldungen/senden', { method: 'POST', headers: ah(), body: JSON.stringify(body) });

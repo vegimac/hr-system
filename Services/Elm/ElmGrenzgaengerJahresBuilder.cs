@@ -32,7 +32,11 @@ public class ElmGrenzgaengerJahresBuilder
 
     public record Ergebnis(string Xml, string Titel, List<string> Warnungen, List<string> XsdFehler);
 
-    public async Task<Ergebnis> BuildAsync(string art, int year, CancellationToken ct = default)
+    public Task<Ergebnis> BuildAsync(string art, int year, CancellationToken ct = default)
+        => BuildAsync(art, year, null, ct);
+
+    /// <summary>Mit nurFiliale nur Personen mit Vertrag in dieser Filiale. Ohne: die ganze Rechtseinheit.</summary>
+    public async Task<Ergebnis> BuildAsync(string art, int year, int? nurFiliale, CancellationToken ct = default)
     {
         var titel = art switch
         {
@@ -79,6 +83,7 @@ public class ElmGrenzgaengerJahresBuilder
         var slips = await (from s in _db.PayrollSnapshots
                            join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
                            where p.Year == year && s.Status != "STORNIERT" && empIds.Contains(s.EmployeeId)
+                                 && (nurFiliale == null || nurFiliale <= 0 || p.CompanyProfileId == nurFiliale)
                            select new { s.EmployeeId, s.SlipJson, p.Month, p.Status })
                           .ToListAsync(ct);
         var offene = slips.Where(s => s.Status != "abgeschlossen").Select(s => s.Month).Distinct().OrderBy(m => m).ToList();
@@ -95,6 +100,11 @@ public class ElmGrenzgaengerJahresBuilder
         foreach (var q in gewaehlt.OrderBy(x => x.EmployeeId))
         {
             if (!empById.TryGetValue(q.EmployeeId, out var e) || e.IsPayrollExcluded) continue;
+            if (nurFiliale is int cp && cp > 0 && !employments.Any(m => m.EmployeeId == e.Id
+                    && m.CompanyProfileId == cp
+                    && m.ContractStartDate <= yearEnd
+                    && (m.ContractEndDate == null || m.ContractEndDate >= yearStart)))
+                continue;
             if (art == ArtFrankreich && !PasstFrankreich(q, e, employments, filialen, yearStart, yearEnd))
                 continue;
             var name = $"{e.FirstName} {e.LastName}".Trim();
@@ -106,7 +116,8 @@ public class ElmGrenzgaengerJahresBuilder
             var em = employments
                 .Where(m => m.EmployeeId == e.Id
                             && m.ContractStartDate <= yearEnd
-                            && (m.ContractEndDate == null || m.ContractEndDate >= yearStart))
+                            && (m.ContractEndDate == null || m.ContractEndDate >= yearStart)
+                            && (nurFiliale == null || nurFiliale <= 0 || m.CompanyProfileId == nurFiliale))
                 .OrderByDescending(m => m.ContractStartDate)
                 .FirstOrDefault();
             if (em == null)
