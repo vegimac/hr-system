@@ -1094,6 +1094,40 @@ function _elmaAktionsleiste(fokus) {
     </div>`;
 }
 
+function _elmaDomKurz(domain) {
+    const namen = {
+        'AHV-AVS': 'AHV', 'FAK-CAF': 'FAK', 'UVG-LAA': 'UVG', 'UVGZ-LAAC': 'UVGZ', 'KTG-AMC': 'KTG',
+        'BVG-LPP': 'BVG', 'TaxAtSource': 'Quellensteuer', 'Statistic': 'Statistik',
+        'TaxCrossborder': 'Grenzgänger', 'Tax': 'Lohnausweise',
+    };
+    return namen[domain] || domain || '';
+}
+function _elmaStufeZeichen(stufe) {
+    if (stufe === 'ok') return '✓';
+    if (stufe === 'rot' || stufe === 'warn') return '!';
+    return '○';
+}
+function _elmaEmpfAktion(m, mi, e, ei) {
+    if (e.freigabeUrl) return `<button type="button" class="btn btn-primary" onclick="elmaFreigeben(${mi}, ${ei})">Freigabe starten</button>`;
+    if (e.freigabeAbgelaufen) return '<span class="elma-an">Link abgelaufen</span>';
+    const dialog = (e.nachrichten || []).some(n => n.dialog && n.dialog.beantwortbar && !n.beantwortet);
+    if (dialog) return `<button type="button" class="btn btn-secondary" onclick="elmaDialogHolen('${_elmaEsc(m.id)}')">Dialog abholen</button>`;
+    const quittung = (e.nachrichten || []).some(n => (n.art || '').indexOf('Quittung') >= 0);
+    if (quittung) return `<button type="button" class="btn btn-secondary" onclick="elmaQuittung('${_elmaEsc(m.id)}')">Quittung anzeigen</button>`;
+    return '';
+}
+function _elmaEmpfHinweis(m, e) {
+    const n = (e.nachrichten || []).length;
+    const hin = e.hinweise || [];
+    if (!n && !hin.length) return '';
+    const zahl = n || hin.length;
+    const tip = hin[0] || (e.nachrichten || [])[0]?.art || '';
+    return `<span class="elma-brief" title="${_elmaEsc(tip)}">${zahl}</span>`;
+}
+function elmaVerlaufWaehlen(id) {
+    _elmaFokus = id;
+    elmaListeZeichnen();
+}
 function elmaListeZeichnen() {
     elmaHomeAufgaben();
     elmaAufgabenZeichnen();
@@ -1101,33 +1135,38 @@ function elmaListeZeichnen() {
     const verlauf = document.getElementById('elmaVerlauf');
     if (!mitte || !verlauf) { elmaKommZeichnen(); return; }
     const alle = (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung && _elmaPasstAnsicht(x.m));
+    const gezeigt = alle.find(x => x.m.id === _elmaFokus) || alle[0] || null;
     const hinweis = _elmaHinweis
         ? `<div style="margin-bottom:10px;padding:10px 12px;border-radius:10px;font-size:13px;background:${_elmaHinweis.ok ? _ELMA_STUFE.ok.grund : _ELMA_STUFE.rot.grund};color:${_elmaHinweis.ok ? _ELMA_STUFE.ok.text : _ELMA_STUFE.rot.text}">${_elmaEsc(_elmaHinweis.text)}</div>`
         : '';
-    const gezeigt = _elmaFokus && alle.some(x => x.m.id === _elmaFokus) ? _elmaFokus : (alle[0]?.m.id || null);
-    const zeilen = alle.map(({ m, mi }) => {
-        const hinweise = (m.empfaenger || []).flatMap(e => e.hinweise || []);
-        const text = hinweise.length ? (hinweise.length === 1 ? hinweise[0] : hinweise.length + ' Hinweise') : 'keine';
-        const aktion = m.id === gezeigt
-            ? _elmaAktionsleiste({ m, mi })
-            : `<button type="button" class="btn btn-secondary" onclick="elmaAnsehen('${_elmaEsc(m.id)}')">Öffnen</button>`;
-        return `<tr>
-            <td>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</td>
-            <td>${_elmaPille(m.stufe || 'grau', m.statusText || 'In Bearbeitung')}</td>
-            <td>${_elmaEsc(text)}</td>
-            <td>${aktion}</td>
-        </tr>`;
-    }).join('');
+    let kopf = '<p class="elma-an">Noch keine Meldung.</p>';
+    let tabelle = '';
+    if (gezeigt) {
+        const m = gezeigt.m;
+        const zeilen = (m.empfaenger || []).map((e, ei) => `<tr>
+            <td title="${_elmaEsc(e.text || '')}">${_elmaStufeZeichen(e.stufe)}</td>
+            <td>${_elmaEsc(_elmaDomKurz(e.domain))}</td>
+            <td>${_elmaEsc(e.addresseeId || e.name || '')}</td>
+            <td>${_elmaEmpfHinweis(m, e)}</td>
+            <td>${_elmaEmpfAktion(m, gezeigt.mi, e, ei)}</td>
+        </tr>`).join('');
+        const schein = _elmaQuittung === m.id
+            ? (m.empfaenger || []).flatMap(e => (e.nachrichten || []).filter(n => (n.art || '').indexOf('Quittung') >= 0).map(n => `<pre class="elma-pre">${_elmaEsc(n.xml || '')}</pre>`)).join('')
+            : '';
+        const weg = (m.empfaenger || []).some(e => e.freigabeAbgelaufen) && !(m.empfaenger || []).some(e => e.freigabeUrl);
+        kopf = `<p class="elma-id"><span>DeclarationID</span> <b>${_elmaEsc(m.declarationId || 'noch nicht vergeben')}</b><span>Zeit</span> <b>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</b></p>`;
+        tabelle = `<table class="elma-mit"><thead><tr><th>Status</th><th>Domain</th><th>Empfänger</th><th>Benachrichtigung</th><th>Aktion</th></tr></thead>
+            <tbody>${zeilen || '<tr><td colspan="5">Keine Empfänger in dieser Meldung.</td></tr>'}</tbody></table>
+            ${weg ? '<p class="elma-an">Der Freigabe-Link ist abgelaufen. Neu prüfen und nochmals senden.</p>' : ''}${schein}`;
+    }
     mitte.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Mitteilungen</div>
-        <span class="elma-an">${alle.length} ${alle.length === 1 ? 'Eintrag' : 'Einträge'}</span></div>
-        ${hinweis}
-        <table class="elma-mit"><thead><tr><th>Zeit</th><th>Status</th><th>Benachrichtigung</th><th>Aktion</th></tr></thead>
-        <tbody>${zeilen || '<tr><td colspan="4">Keine Einträge gefunden</td></tr>'}</tbody></table>
-        ${(_elmaFokus && alle.some(x => x.m.id === _elmaFokus)) ? (() => { const f = alle.find(x => x.m.id === _elmaFokus); return `<div class="elma-detail">${_elmaUebersicht(f.m, f.mi)}</div>`; })() : ''}
-        <div style="margin-top:10px"><button type="button" class="btn btn-secondary" onclick="elmaAktualisieren()">Aktualisieren</button></div>`;
-    verlauf.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Mitteilungsverlauf</div><span class="elma-an">${alle.length} ${alle.length === 1 ? 'Eintrag' : 'Einträge'}</span></div>
-        <table class="elma-mit"><thead><tr><th>Zeit</th><th>Meldung</th></tr></thead>
-        <tbody>${alle.length ? alle.map(({ m }) => `<tr><td>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</td><td>${_elmaEsc(m.titel || '')}</td></tr>`).join('') : '<tr><td colspan="2">Keine Datensätze gefunden.</td></tr>'}</tbody></table>`;
+        <button type="button" class="btn btn-secondary" onclick="elmaAktualisieren()">Aktualisieren</button></div>
+        ${hinweis}${kopf}${tabelle}`;
+    const zeilenVerlauf = alle.map(({ m }) => `<button type="button" class="elma-verlauf-zeile${gezeigt && m.id === gezeigt.m.id ? ' an' : ''}" onclick="elmaVerlaufWaehlen('${_elmaEsc(m.id)}')">
+        <span>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</span><span>${(m.empfaenger || []).length}</span></button>`).join('');
+    verlauf.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Mitteilungsverlauf</div></div>
+        <div class="elma-verlauf-kopf"><span>Zeit</span><span>Anzahl</span></div>
+        ${zeilenVerlauf || '<p class="elma-an">Noch keine Meldung.</p>'}`;
     elmaKommZeichnen();
 }
 

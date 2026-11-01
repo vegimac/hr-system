@@ -14773,7 +14773,17 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-panelhead { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 #page-elm-anwender .elma-panelhead h2 { margin: 4px 0 0; font-size: 18px; font-weight: 600; color: #3f3f3f; }
 #page-elm-anwender .elma-pill { padding: 7px 12px; border-radius: 99px; border: 1px solid rgba(60, 55, 48, 0.18); background: rgba(255, 255, 255, 0.55); color: #3f3f3f; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+#page-elm-anwender #elmaBuehne { display: none; }
 #page-elm-anwender .elma-stage { position: relative; height: 128px; margin-top: 0; border-radius: 14px; overflow: hidden; border: 1px solid rgba(60, 55, 48, 0.12); background: radial-gradient(circle at 50% 46%, #f7f4ee 0%, #efeae0 42%, #e6e1d6 100%); }
+#page-elm-anwender .elma-id { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; font-size: 12px; color: #8b8b8b; }
+#page-elm-anwender .elma-id b { color: #1a1a1a; font-weight: 650; }
+#page-elm-anwender .elma-brief { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 6px; border: 1px solid rgba(60,55,48,.25); background: #fff; font-size: 12px; }
+#page-elm-anwender .elma-verlauf-kopf, #page-elm-anwender .elma-verlauf-zeile { display: grid; grid-template-columns: 1fr 5rem; gap: 12px; width: 100%; text-align: left; }
+#page-elm-anwender .elma-verlauf-kopf { color: #8b8b8b; font-size: 12px; font-weight: 650; padding-bottom: 6px; }
+#page-elm-anwender .elma-verlauf-zeile { background: none; border: 0; border-top: 1px solid rgba(60,55,48,.12); padding: 10px 0; font: inherit; color: #1a1a1a; cursor: pointer; }
+#page-elm-anwender .elma-verlauf-zeile.an { background: rgba(255,255,255,.55); }
+#page-elm-anwender .elma-verlauf-zeile span:last-child, #page-elm-anwender .elma-verlauf-kopf span:last-child { text-align: right; }
+#page-elm-anwender .elma-pre { white-space: pre-wrap; font-size: 12px; margin: 8px 0 0; }
 #page-elm-anwender .elma-steps,
 #page-elm-anwender .elma-bar,
 #page-elm-anwender .elma-progresshead { display: none; }
