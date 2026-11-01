@@ -14846,6 +14846,13 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-send-foot p { margin: 0; font-size: 13px; color: #646464; }
 #page-elm-anwender .elma-send-foot .btn { min-width: 8.5rem; }
 #page-elm-anwender .elma-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+#page-elm-anwender #elmaMonatStand { min-height: 1em; font-size: 12px; color: #646464; }
+#page-elm-anwender #elmaUeber { margin-top: 16px; }
+#page-elm-anwender .elma-ueber-zeile {
+    display: grid; grid-template-columns: 4rem minmax(0, 1fr) auto; gap: 12px; align-items: baseline;
+    padding: 10px 0; border-top: 1px solid rgba(60,55,48,.12); font-size: 14px; color: #1a1a1a;
+}
+#page-elm-anwender .elma-ueber-zeile span { color: #646464; }
 #page-elm-anwender .elma-zeit { position: relative; display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
 #page-elm-anwender .elma-zeit-feld { position: relative; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #646464; }
 #page-elm-anwender .elma-zeit-wahl { display: flex; align-items: center; gap: 6px; }
