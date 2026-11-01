@@ -2225,11 +2225,13 @@ function renderLohnSlip(s, targetEl) {
         return fmt(acc);
     };
     const lohnZeileName = (l) => {
-        const bez = l.bezeichnung || '';
+        let bez = l.bezeichnung || '';
         const code = String(l.code || '').trim();
         if (!code) return bez;
-        if (bez.startsWith(code + ' ') || bez.startsWith(code + '\u00a0')) return bez;
-        return code + '  ' + bez;
+        if (bez.startsWith(code + ' ') || bez.startsWith(code + '\u00a0'))
+            bez = bez.slice(code.length).replace(/^[\s\u00a0]+/, '');
+        const nr = code.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        return `<span class="ls-lp">${nr}</span>${bez}`;
     };
     const lohnRows = s.lohnLines.map(l => `
         <tr>

@@ -182,14 +182,13 @@ public class PayrollPdfService
                 decimal totalLohn = 0;
                 foreach (var line in lohnLines.Value.EnumerateArray())
                 {
-                    var bez   = BezeichungMitSwissdec(line);
                     var anz   = GetDecimal(line, "anzahl");
                     var proz  = GetDecimal(line, "prozent");
                     var basis = GetDecimal(line, "basis");
                     var betr  = GetDecimal(line, "betrag");
                     var accr  = GetDecimal(line, "accrued");
 
-                    Cell(t.Cell(), bez, left: true);
+                    ZelleBezeichnung(t.Cell(), line);
                     Cell(t.Cell(), anz.HasValue ? Num(anz, 2) : "", right: true);
                     Cell(t.Cell(), proz.HasValue ? Num(proz, 3) : "", right: true);
                     Cell(t.Cell(), basis.HasValue ? CHF(basis) : "", right: true);
@@ -213,12 +212,11 @@ public class PayrollPdfService
                 t.Cell().ColumnSpan(6).PaddingTop(8).Text("Abzüge").Bold().FontSize(9.5f);
                 foreach (var line in abzugLines.Value.EnumerateArray())
                 {
-                    var bez   = BezeichungMitSwissdec(line);
                     var proz  = GetDecimal(line, "prozent");
                     var basis = GetDecimal(line, "basis");
                     var betr  = GetDecimal(line, "betrag");
 
-                    Cell(t.Cell(), bez, left: true);
+                    ZelleBezeichnung(t.Cell(), line);
                     Cell(t.Cell(), "", right: true);
                     Cell(t.Cell(), proz.HasValue ? Num(proz, 4) : "", right: true);
                     Cell(t.Cell(), basis.HasValue ? CHF(basis) : "", right: true);
@@ -614,17 +612,24 @@ public class PayrollPdfService
     }
 
     // ─── JSON Helpers ────────────────────────────────────────────────
-    /// <summary>Bezeichnung mit der gespeicherten Lohnpositions-Nummer davor, z.B. «1000  Monatslohn».
-    /// Die Nummer wird nicht übersetzt: steht 10.1 auf dem Lohnzettel, steht 10.1 auch hier.</summary>
-    private static string BezeichungMitSwissdec(JsonElement line)
+    /// <summary>Nummer kleiner und kursiv, ein Zeichen mehr Abstand zum Text.</summary>
+    private static void ZelleBezeichnung(IContainer cell, JsonElement line)
     {
         var bez = GetString(line, "bezeichnung") ?? "";
         var code = (GetString(line, "code") ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(code)) return bez;
-        if (bez.StartsWith(code + " ", StringComparison.Ordinal)
-            || bez.StartsWith(code + "\u00a0", StringComparison.Ordinal))
-            return bez;
-        return string.IsNullOrEmpty(bez) ? code : $"{code}  {bez}";
+        if (code.Length > 0 && (bez.StartsWith(code + " ", StringComparison.Ordinal)
+                              || bez.StartsWith(code + "\u00a0", StringComparison.Ordinal)))
+            bez = bez[code.Length..].TrimStart();
+        cell.PaddingVertical(2).AlignLeft().Text(t =>
+        {
+            t.DefaultTextStyle(s => s.FontSize(9f));
+            if (code.Length > 0)
+            {
+                t.Span(code).FontSize(7.5f).Italic();
+                t.Span("   ");
+            }
+            t.Span(bez);
+        });
     }
 
     private static string GetString(JsonElement el, string prop) =>

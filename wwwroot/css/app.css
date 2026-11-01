@@ -9297,6 +9297,7 @@
         .ls-table th.ls-num, .ls-table th.ls-amt { text-align:right; }
         .ls-table td { padding:2px 4px;vertical-align:top;line-height:1.35; }
         .ls-desc { width:auto;white-space:normal;word-break:break-word; }
+        .ls-wrap .ls-lp { font-size:11px;font-style:italic;padding-right:1.5ch; }
         .ls-num  { width:1%;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:6px;font-size:13px; }
         .ls-amt  { width:1%;text-align:right;font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap;padding-left:6px;font-size:13px; }
         .ls-section-hd td { font-weight:600;padding-top:3px;padding-bottom:1px;color:#1e293b; }
