@@ -225,7 +225,10 @@ function e2KopfHtml() {
     const r = (id, text, zahl) => `<button type="button" class="e2-reiter${e2.reiter === id ? ' an' : ''}" data-e2="reiter" data-wert="${id}">${text}${zahl ? ` <span class="e2-zahl">${zahl}</span>` : ''}</button>`;
     const da = e2SuaGueltig();
     const sua = e2.cert?.sua;
-    const suaText = da ? 'SUA gültig bis ' + e2Datum(sua.gueltigBis, false) : 'SUA-Zertifikat fehlt';
+    const bald = da && (sua.stufe === 'warn' || sua.stufe === 'rot');
+    const suaText = !da ? 'SUA-Zertifikat fehlt'
+        : bald ? `SUA läuft ab ${e2Datum(sua.gueltigBis, false)}${sua.erneuernErlaubt ? ' · erneuern' : ''}`
+        : 'SUA gültig bis ' + e2Datum(sua.gueltigBis, false);
     const meldung = gesperrt ? { ok: false, text: gesperrt } : e2.hinweis;
     return `<header class="e2-kopf">
         <h1>ELM 2</h1>
@@ -235,7 +238,7 @@ function e2KopfHtml() {
         <nav class="e2-reiterleiste">${r('monat', 'Monatsmeldung')}${r('jahr', 'Jahresmeldung')}${r('aufgaben', 'Aufgaben', offen)}${r('konfig', 'Konfiguration')}</nav>
         <span class="e2-rechts">
             <span class="e2-sua-pille">
-                <button type="button" class="e2-text e2-sua-link" data-e2="reiter" data-wert="konfig" title="Zur Konfiguration"><span class="e2-punkt ${da ? 'e2-p-ok' : 'e2-p-warn'}"></span>${e2Esc(suaText)}</button>
+                <button type="button" class="e2-text e2-sua-link" data-e2="reiter" data-wert="konfig" title="Zur Konfiguration"><span class="e2-punkt ${da && !bald ? 'e2-p-ok' : 'e2-p-warn'}"></span>${e2Esc(suaText)}</button>
                 <button type="button" class="e2-info-knopf" data-e2="sua-mehr" aria-label="Was ist das SUA-Zertifikat?">?</button>
                 ${e2.suaOffen ? `<div class="e2-sua-pop"><b>Unternehmenszertifikat (SUA)</b>${E2_SUA_TEXT.map(t => `<p>${e2Esc(t)}</p>`).join('')}
                     <div class="e2-aktionen"><button type="button" class="e2-pille e2-klein" data-e2="sua-mehr">Schliessen</button><button type="button" class="e2-pille e2-klein e2-primaer" data-e2="reiter" data-wert="konfig">Zur Konfiguration</button></div></div>` : ''}
@@ -695,7 +698,17 @@ function e2KonfigHtml() {
     const da = e2SuaGueltig();
     let sua;
     if (da) {
-        sua = `<p><span class="e2-chip e2-ok">gültig</span> bis ${e2Esc(e2Datum(s.gueltigBis, false))}${s.text ? ' · ' + e2Esc(s.text) : ''}</p>`;
+        // Erneuern (Anhang C): frühestens 60 Tage vor Ablauf, höchstens 3× nacheinander. Die Automatik
+        // erneuert kurz vor Ablauf selbst; beim RefApps-Testzertifikat (rund 10 Tage) erst ~2 Tage vorher.
+        const auto = e2.cert?.auto || {};
+        const chip = s.stufe === 'rot' ? '<span class="e2-chip e2-rot">läuft bald ab</span>'
+            : s.stufe === 'warn' ? '<span class="e2-chip e2-warnchip">läuft ab</span>' : '<span class="e2-chip e2-ok">gültig</span>';
+        const knopf = s.erneuernErlaubt
+            ? '<button type="button" class="e2-pille e2-primaer" data-e2="zert-erneuern">Zertifikat erneuern</button>'
+            : '';
+        sua = `<p>${chip} ${e2Esc(s.text || ('Gültig bis ' + e2Datum(s.gueltigBis, false)))}</p>
+            <p class="e2-still">Erneuert: ${s.erneuerungen || 0} von ${s.maxErneuerungen || 3} Mal. OneCrew erneuert kurz vor Ablauf auch selbst.${auto.letzterVersuch ? ' Letzter automatischer Versuch ' + e2Esc(e2Datum(auto.letzterVersuch)) + (auto.fehler ? ': ' + e2Esc(auto.fehler) : ' erfolgreich') + '.' : ''}</p>
+            ${knopf ? `<div class="e2-aktionen">${knopf}</div>` : ''}`;
     } else if (reg.laufend) {
         sua = `<p><span class="e2-chip e2-grau">bestellt</span> ${e2Esc(reg.text || '')}</p>
             <p class="e2-still">Swissdec schickt ein Passwort per Brief. Damit wird das Zertifikat hinterlegt.</p>
@@ -802,6 +815,7 @@ function e2Klick(ev) {
     else if (a === 'sua-vorschau') { e2.suaVorschau = el.dataset.wert === '1'; e2Zeichnen(); }
     else if (a === 'zert-bestellen') e2ZertBestellen();
     else if (a === 'zert-hinterlegen') e2ZertHinterlegen();
+    else if (a === 'zert-erneuern') e2ZertErneuern();
     else if (a === 'anmelden') e2Anmelden(el);
     else if (a === 'abmelden') e2Abmelden(el);
 }
@@ -1083,6 +1097,15 @@ async function e2ZertBestellen() {
         if (r.j.stand) e2.cert = r.j.stand;
         e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, ort: 'sua', text: r.j.meldung || r.j.message || (r.ok ? 'Bestellt.' : 'Nicht bestellt.') };
         e2.suaVorschau = false;
+    });
+}
+
+async function e2ZertErneuern() {
+    if (!(await liquidConfirm('OneCrew erneuert das Unternehmenszertifikat bei Swissdec. Das neue gilt wieder für alle Meldungen und Anmeldungen.', { title: 'Zertifikat erneuern', yesLabel: 'Erneuern', noLabel: 'Abbrechen' }))) return;
+    await e2MitVerbindung('Zertifikat wird bei Swissdec erneuert …', async () => {
+        const r = await e2Post('/api/elm/zertifikat/erneuern', {});
+        if (r.j.stand) e2.cert = r.j.stand;
+        e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, ort: 'sua', text: r.j.meldung || r.j.message || (r.ok ? 'Erneuert.' : 'Nicht erneuert.') };
     });
 }
 

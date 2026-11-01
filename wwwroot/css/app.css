@@ -15722,3 +15722,5 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
 #e2App .e2-spalte .e2-kantone { margin-left: 0; }
 #e2App .e2-spalte .e2-bvg-kopf { flex-wrap: wrap; }
 #e2App .e2-laeuft { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #166534; }
+#e2App .e2-chip.e2-rot { background: rgba(220,38,38,0.10); color: #991b1b; }
+#e2App .e2-chip.e2-warnchip { background: rgba(217,119,6,0.12); color: #92400e; }
