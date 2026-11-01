@@ -79,8 +79,12 @@ const e2 = {
     hinweis: null,           // { ok, text }
     konfigHinweis: null,
     letzteAktualisierung: null,
+    nachlauf: null,          // { bis, timer, naechste, schritt }: nach dem Übermitteln fragt die offene Seite selbst nach
     busy: false,
 };
+// Abstände (Sekunden) der automatischen Nachfrage nach dem Übermitteln, danach jede Minute bis E2_NACHLAUF_MIN.
+const E2_NACHLAUF_TAKT = [5, 10, 20, 30, 45, 60];
+const E2_NACHLAUF_MIN = 15;
 
 function e2Esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -191,6 +195,7 @@ async function e2Laden() {
     e2.uebersicht = ueb;
     const letzter = e2FilialeUebersicht()?.letzterMonat;
     if (!e2.monatVonHand && letzter) e2.monat = letzter;
+    if (!e2.nachlauf && e2LaufendeMeldungen().length) e2NachlaufStarten();
     if (f && !e2.wahlJahr.size) for (const z of e2Zeilen()) if (z.art === 'annual' && e2Sendbar(z)) e2.wahlJahr.add(z.id);
     e2Zeichnen();
 }
@@ -444,13 +449,21 @@ function e2UebersichtHtml() {
     }).join('');
     return `<section class="e2-karte e2-uebersicht" id="e2Uebersicht">
         <div class="e2-karte-kopf">${titel}<span class="e2-rechts">${marken}${m.ersetzbar ? `<button type="button" class="e2-pille" data-e2="ersatz" data-id="${e2Esc(m.id)}">${E2_B.ersatz}</button>` : ''}</span></div>
-        <p class="e2-still">${e2Esc(m.titel || '')}${ausHistorie ? ' · aus der Historie gewählt <button type="button" class="e2-text" data-e2="auswahl-weg">zur letzten Übermittlung</button>' : ' · letzte Übermittlung'}</p>
+        <p class="e2-still">${e2Esc(m.titel || '')}${ausHistorie ? ' · aus der Historie gewählt <button type="button" class="e2-text" data-e2="auswahl-weg">zur letzten Übermittlung</button>' : ' · letzte Übermittlung'}${m.letzteAbfrage ? ' · Stand abgefragt ' + e2Esc(e2Datum(m.letzteAbfrage)) : ' · Stand noch nicht abgefragt'}</p>
+        ${e2NachlaufHtml(m)}
         <div class="e2-tabelle-rahmen"><table class="e2-tabelle">
             <thead><tr><th>${E2_B.status}</th><th>${E2_B.zeitpunkt}</th><th>${E2_B.declarationId}</th><th>${E2_B.domaene}</th><th>${E2_B.empfaenger}</th><th>${E2_B.benachrichtigungen}</th><th>${E2_B.aktionen}</th></tr></thead>
             <tbody>${zeilen || '<tr><td colspan="7">Keine Empfänger in dieser Übermittlung.</td></tr>'}</tbody>
         </table></div>
         ${e2DetailHtml(m)}
     </section>`;
+}
+
+function e2NachlaufHtml(m) {
+    const n = e2.nachlauf;
+    if (!n || !e2LaufendeMeldungen().some(x => x.id === m.id)) return '';
+    const sek = n.naechste ? Math.max(0, Math.round((n.naechste - Date.now()) / 1000)) : 0;
+    return `<p class="e2-hinweis e2-gut e2-nachlauf"><span class="e2-dreher"></span>Swissdec verteilt die Meldung. OneCrew fragt selbst nach${e2.busy ? ' …' : ` · nächste Abfrage in ${sek} s`}. Verlassen Sie die Seite, holt OneCrew den Stand später im Hintergrund ab.</p>`;
 }
 
 function e2BenachrichtigungenHtml(e) {
@@ -677,16 +690,64 @@ function e2ZurUebersicht() {
 
 // ── Aktionen ────────────────────────────────────────────────────────────────
 
-async function e2Aktualisieren() {
+async function e2Aktualisieren(still = false) {
     if (e2.busy) return;
-    e2.busy = true; e2.hinweis = null; e2Zeichnen();
+    e2.busy = true; if (!still) e2.hinweis = null; e2Zeichnen();
     const r = await e2Post('/api/elm/meldungen/aktualisieren', {});
     if (r.j.stand) e2.stand = r.j.stand;
     const cert = await e2Get('/api/elm/zertifikat');
     if (cert) e2.cert = cert;
     e2.letzteAktualisierung = new Date().toISOString();
-    if (!r.ok || r.j.ok === false) e2.hinweis = { ok: false, text: r.j.meldung || r.j.message || 'Nicht alles konnte aktualisiert werden.' };
+    if (!still && (!r.ok || r.j.ok === false)) e2.hinweis = { ok: false, text: r.j.meldung || r.j.message || 'Nicht alles konnte aktualisiert werden.' };
     e2.busy = false; e2Zeichnen();
+}
+
+// Meldungen, bei denen Swissdec bzw. ein Empfänger noch arbeitet (nicht: wartet auf den Benutzer),
+// gesendet in den letzten E2_NACHLAUF_MIN Minuten.
+function e2LaufendeMeldungen() {
+    const grenze = Date.now() - E2_NACHLAUF_MIN * 60000;
+    return e2Meldungen().filter(m => new Date(m.gesendet || 0).getTime() >= grenze
+        && (m.empfaenger || []).some(e => e.stufe === 'laeuft'));
+}
+function e2NachlaufStarten() {
+    if (e2.nachlauf?.timer) clearTimeout(e2.nachlauf.timer);
+    e2.nachlauf = { bis: Date.now() + E2_NACHLAUF_MIN * 60000, schritt: 0, timer: null, naechste: null };
+    e2NachlaufPlanen();
+}
+function e2NachlaufPlanen() {
+    const n = e2.nachlauf;
+    if (!n) return;
+    const sek = E2_NACHLAUF_TAKT[Math.min(n.schritt, E2_NACHLAUF_TAKT.length - 1)];
+    n.naechste = Date.now() + sek * 1000;
+    n.timer = setTimeout(e2NachlaufSchritt, sek * 1000);
+    e2NachlaufUhr();
+}
+function e2NachlaufUhr() {
+    clearInterval(e2NachlaufUhr.iv);
+    e2NachlaufUhr.iv = setInterval(() => {
+        const el = document.querySelector('#e2App .e2-nachlauf');
+        if (!e2.nachlauf || !el) { clearInterval(e2NachlaufUhr.iv); return; }
+        const sek = Math.max(0, Math.round((e2.nachlauf.naechste - Date.now()) / 1000));
+        if (!e2.busy) el.innerHTML = el.innerHTML.replace(/nächste Abfrage in \d+ s/, `nächste Abfrage in ${sek} s`);
+    }, 1000);
+}
+function e2NachlaufStopp() {
+    if (e2.nachlauf?.timer) clearTimeout(e2.nachlauf.timer);
+    clearInterval(e2NachlaufUhr.iv);
+    e2.nachlauf = null;
+}
+async function e2NachlaufSchritt() {
+    const n = e2.nachlauf;
+    if (!n) return;
+    const sichtbar = document.getElementById('page-elm2')?.classList.contains('active');
+    if (!sichtbar || Date.now() > n.bis) { e2NachlaufStopp(); e2Zeichnen(); return; }
+    // Wer gerade etwas eintippt (Rückfrage, Lohnsummen), wird nicht überzeichnet: diese Runde auslassen.
+    const tippt = document.activeElement?.closest?.('#e2App') && document.activeElement.matches('input, textarea');
+    if (!e2.busy && !tippt) await e2Aktualisieren(true);
+    if (!e2.nachlauf) return;
+    if (!e2LaufendeMeldungen().length) { e2NachlaufStopp(); e2Zeichnen(); return; }
+    n.schritt++;
+    e2NachlaufPlanen();
 }
 
 function e2JahrWahl(y) {
@@ -776,7 +837,7 @@ async function e2Senden() {
     e2.auswahl[e2.reiter] = null;
     e2.hinweis = fehler ? { ok: false, text: fehler } : { ok: true, text: 'Übermittelt. Die Mitteilungen der Empfänger erscheinen unten; «Aktualisieren» holt neue.' };
     e2Zeichnen();
-    if (letzte) e2ZurUebersicht();
+    if (letzte) { e2ZurUebersicht(); e2NachlaufStarten(); }
 }
 
 function e2Ersatz(id) {

@@ -195,7 +195,7 @@ public class ElmMeldungenController : ControllerBase
             {
                 ok = r.Fehler.Count == 0,
                 geprueft = r.Geprueft,
-                meldung = r.Fehler.Count == 0 ? null : string.Join(" · ", r.Fehler),
+                meldung = r.Fehler.Count == 0 ? null : string.Join(" · ", r.Fehler.Distinct()),
                 stand = Stand(),
             });
         }

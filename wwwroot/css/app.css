@@ -15599,6 +15599,9 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
 }
 #e2App .e2-betrag { width: 8.5rem; text-align: right; padding: 5px 8px; }
 #e2App .e2-pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; color: #646464; max-height: 320px; overflow: auto; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 10px; }
+#e2App .e2-nachlauf { display: flex; align-items: center; gap: 10px; }
+#e2App .e2-dreher { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid rgba(22,163,74,0.25); border-top-color: #16a34a; animation: e2Drehen 0.9s linear infinite; }
+@keyframes e2Drehen { to { transform: rotate(360deg); } }
 #e2App .e2-leer { color: #8b8b8b; margin: 8px 0; }
 #e2App .e2-bvg-kopf { cursor: default; }
 #e2App .e2-bvg { margin-top: 8px; }

@@ -156,10 +156,15 @@ public class ElmMeldungenService
             .Select(v => v.Id)
             .ToList();
         var fehler = new List<string>();
+        // Eine Meldung, die scheitert (z.B. weil der Hintergrunddienst gerade abfragt), hält die übrigen nicht auf.
         foreach (var id in offen)
         {
-            var r = await AbfragenAsync(id, automatisch: false, ct);
-            if (!r.Ok && !string.IsNullOrWhiteSpace(r.Fehler)) fehler.Add(r.Fehler);
+            try
+            {
+                var r = await AbfragenAsync(id, automatisch: false, ct);
+                if (!r.Ok && !string.IsNullOrWhiteSpace(r.Fehler)) fehler.Add(r.Fehler);
+            }
+            catch (InvalidOperationException ex) { fehler.Add(ex.Message); }
         }
         return new(offen.Count, fehler);
     }
