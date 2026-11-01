@@ -127,13 +127,23 @@ function elmaFilialeName() {
     }
     return (b && (b.branchName || b.companyName)) || '';
 }
+function _elmaPasstFiliale(m) {
+    const id = elmaFilialeId();
+    return !!id && Number(m.companyProfileId) === id;
+}
+
 function elmaFilialeWechsel() {
     _elmaVorschau = null;
     _elmaLetzter = null;
+    _elmaFokus = null;
+    _elmaAufgabeOffen = null;
+    _elmaQuittung = null;
+    _elmaBestaetigtText = null;
     const el = document.getElementById('elmaVorschau');
     if (el) el.innerHTML = '';
     elmaDomaenenLaden();
     elmaMonatStand(true);
+    elmaListeZeichnen();
 }
 
 function elmaZurueck() {
@@ -484,7 +494,7 @@ function elmaHomeAufgaben() {
     if (!box) return;
     const aufgaben = [];
     (_elma?.meldungen || []).forEach(m => {
-        if (m.zertifizierung) return;
+        if (m.zertifizierung || !_elmaPasstFiliale(m)) return;
         (m.empfaenger || []).forEach(e => {
             const dialog = (e.nachrichten || []).some(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet);
             if (dialog) aufgaben.push({ text: `Rückfrage von ${e.name}`, id: m.id, art: m.art });
@@ -549,7 +559,7 @@ function elmaMonatHtml() {
 function elmaAufgabenHtml() {
     const aufgaben = [];
     (_elma?.meldungen || []).forEach(m => {
-        if (m.zertifizierung) return;
+        if (m.zertifizierung || !_elmaPasstFiliale(m)) return;
         (m.empfaenger || []).forEach(e => {
             const dialog = (e.nachrichten || []).some(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet);
             if (dialog) aufgaben.push({ text: `Rückfrage von ${e.name}`, titel: m.titel });
@@ -1079,7 +1089,7 @@ async function elmaSenden() {
     const j = await _elmaPost('senden', body, 'Meldung wird gesendet', 'OneCrew übergibt sie an Swissdec.');
     _elmaFlug = false;
     if (j?.ok) {
-        const neu = (_elma?.meldungen || []).find(m => !m.zertifizierung && _elmaPasstArt(m));
+        const neu = (_elma?.meldungen || []).find(m => !m.zertifizierung && _elmaPasstArt(m) && _elmaPasstFiliale(m));
         if (neu) _elmaFokus = neu.id;
         _elmaVorschau = null;
         _elmaErsatz = null;
@@ -1205,12 +1215,15 @@ function elmaListeZeichnen() {
     const mitte = document.getElementById('elmaMitteilungen');
     const verlauf = document.getElementById('elmaVerlauf');
     if (!mitte || !verlauf) { elmaKommZeichnen(); return; }
-    const alle = (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung && _elmaPasstAnsicht(x.m));
+    const filiale = elmaFilialeId();
+    const alle = filiale
+        ? (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung && _elmaPasstAnsicht(x.m) && _elmaPasstFiliale(x.m))
+        : [];
     const gezeigt = alle.find(x => x.m.id === _elmaFokus) || alle[0] || null;
     const hinweis = _elmaHinweis
         ? `<div style="margin-bottom:10px;padding:10px 12px;border-radius:10px;font-size:13px;background:${_elmaHinweis.ok ? _ELMA_STUFE.ok.grund : _ELMA_STUFE.rot.grund};color:${_elmaHinweis.ok ? _ELMA_STUFE.ok.text : _ELMA_STUFE.rot.text}">${_elmaEsc(_elmaHinweis.text)}</div>`
         : '';
-    let kopf = '<p class="elma-an">Noch keine Meldung.</p>';
+    let kopf = `<p class="elma-an">${filiale ? 'Noch keine Meldung.' : 'Wähle links die Filiale.'}</p>`;
     let tabelle = '';
     if (gezeigt) {
         const m = gezeigt.m;
@@ -1237,7 +1250,7 @@ function elmaListeZeichnen() {
         <span>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</span><span>${(m.empfaenger || []).length}</span></button>`).join('');
     verlauf.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Mitteilungsverlauf</div></div>
         <div class="elma-verlauf-kopf"><span>Zeit</span><span>Anzahl</span></div>
-        ${zeilenVerlauf || '<p class="elma-an">Noch keine Meldung.</p>'}`;
+        ${zeilenVerlauf || `<p class="elma-an">${filiale ? 'Noch keine Meldung.' : 'Wähle links die Filiale.'}</p>`}`;
     elmaKommZeichnen();
 }
 
@@ -1255,7 +1268,7 @@ function elmaAufgabenZeichnen() {
         });
     }
     (_elma?.meldungen || []).forEach((m, mi) => {
-        if (m.zertifizierung || !_elmaPasstAnsicht(m)) return;
+        if (m.zertifizierung || !_elmaPasstAnsicht(m) || !_elmaPasstFiliale(m)) return;
         const id = _elmaEsc(m.id);
         const hinweise = (m.empfaenger || []).flatMap(e => e.hinweise || []);
         const detail = _elmaAufgabeOffen === m.id ? _elmaAufgabeDetail(m, mi) : '';
@@ -1268,8 +1281,13 @@ function elmaAufgabenZeichnen() {
             });
         }
         (m.empfaenger || []).forEach(e => {
-            if ((e.nachrichten || []).some(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet && (n.dialog.beantwortbar || !n.quittiert)))
+            const dialoge = (e.nachrichten || []).filter(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet);
+            const frage = dialoge.some(n => n.dialog.beantwortbar);
+            const haengt = (e.text || '').indexOf('geht nicht weiter') >= 0;
+            if (frage || (dialoge.some(n => !n.quittiert) && !haengt))
                 karten.push({ art: 'warn', aufgabe: true, titel: `Rückfrage von ${e.name}`, text: m.titel || '', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
+            else if (haengt)
+                karten.push({ art: 'info', aufgabe: false, titel: `${e.name} bleibt stehen`, text: 'Die Mitteilung ist bestätigt. Es gibt nichts auszufüllen. Dieser Testempfänger geht trotzdem nicht weiter.', knopf: '', click: '', detail: '' });
             if (e.freigabeUrl)
                 karten.push({ art: 'info', aufgabe: true, titel: `Freigabe bei ${e.name}`, text: 'Die Freigabe im Portal steht bereit.', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
         });
@@ -1279,16 +1297,20 @@ function elmaAufgabenZeichnen() {
     });
     const offen = karten.filter(k => k.aufgabe).length;
     const erfolg = _elmaBestaetigtText ? `<p class="elma-an" style="margin:0 0 10px;color:#166534">${_elmaEsc(_elmaBestaetigtText)}</p>` : '';
+    const leer = elmaFilialeId() ? 'Keine offenen Aufgaben.' : 'Wähle links die Filiale.';
     const liste = karten.length
-        ? erfolg + karten.map(k => `<div><article class="elma-hinweis elma-hinweis-${k.art}"><div><b>${_elmaEsc(k.titel)}</b><p>${_elmaEsc(k.text)}</p></div><button type="button" class="btn btn-secondary" onclick="${k.click}">${_elmaEsc(k.knopf)}</button></article>${k.detail || ''}</div>`).join('')
-        : erfolg + '<div style="font-size:13px;color:#8b8b8b">Keine offenen Aufgaben.</div>';
+        ? erfolg + karten.map(k => {
+            const knopf = k.knopf ? `<button type="button" class="btn btn-secondary" onclick="${k.click}">${_elmaEsc(k.knopf)}</button>` : '';
+            return `<div><article class="elma-hinweis elma-hinweis-${k.art}"><div><b>${_elmaEsc(k.titel)}</b><p>${_elmaEsc(k.text)}</p></div>${knopf}</article>${k.detail || ''}</div>`;
+        }).join('')
+        : erfolg + `<div style="font-size:13px;color:#8b8b8b">${leer}</div>`;
     box.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Aufgaben & Hinweise</div><span class="elma-an">${offen} ${offen === 1 ? 'offene Aufgabe' : 'offene Aufgaben'}</span></div>
         <div class="elma-aufgabe-spur" style="margin:10px 0 12px"><i style="width:${offen ? '100%' : '0%'}"></i></div>
         ${liste}`;
 }
 
 async function elmaAktualisieren() {
-    const offen = (_elma?.meldungen || []).filter(m => !m.fertig && !m.zertifizierung);
+    const offen = (_elma?.meldungen || []).filter(m => !m.fertig && !m.zertifizierung && _elmaPasstFiliale(m));
     if (!offen.length) {
         await elmaLaden();
         if (_elmaAnsicht === 'konfig' || _elmaAnsicht === 'profil') elmaMitteZeichnen();
@@ -1721,7 +1743,7 @@ function elmaPlanen() {
     clearTimeout(_elmaTimer);
     _elmaTimer = setTimeout(async () => {
         if (!document.getElementById('page-elm-anwender')?.classList.contains('active')) return;
-        const m = (_elma?.meldungen || []).find(x => !x.fertig && !x.zertifizierung && x.stufe === 'laeuft');
+        const m = (_elma?.meldungen || []).find(x => !x.fertig && !x.zertifizierung && x.stufe === 'laeuft' && _elmaPasstFiliale(x));
         if (!m) return;
         if (_elmaBusy) { elmaPlanen(); return; }
         try {

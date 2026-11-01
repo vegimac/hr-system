@@ -2775,6 +2775,7 @@
         /* Tipp-Suche im Dropdown (Walter 04.10.2026): Suchfeld bleibt oben,
            nur die Liste darunter scrollt. */
         .lqsel-panel.lqsel-mit-suche { overflow: hidden; }
+        .lqsel-panel.lq-voll { max-height: none; overflow: visible; }
         .lqsel-mit-suche .lqsel-list { max-height: 286px; overflow-y: auto; }
         .lqsel-search {
             display: block; box-sizing: border-box; width: 100%;

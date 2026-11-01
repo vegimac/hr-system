@@ -65,7 +65,7 @@
         btn.type = 'button';
         btn.className = 'lqsel-btn';
         const panel = document.createElement('div');
-        panel.className = 'lqsel-panel';
+        panel.className = 'lqsel-panel' + (sel.classList.contains('lq-voll') ? ' lq-voll' : '');
         panel.style.display = 'none';
         // Tipp-Suche (Walter 04.10.2026): «mcb» oder «205» → McBonus.
         const search = document.createElement('input');
@@ -120,7 +120,7 @@
                 }
             });
             list.innerHTML = html || '<div class="lqsel-group">— leer —</div>';
-            const mitSuche = sel.options.length >= SUCH_AB;
+            const mitSuche = !sel.classList.contains('lq-voll') && sel.options.length >= SUCH_AB;
             panel.classList.toggle('lqsel-mit-suche', mitSuche);
             search.style.display = mitSuche ? '' : 'none';
             if (!mitSuche) search.value = '';
@@ -188,7 +188,8 @@
             panel.style.minWidth = w + 'px';
             panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
             const below = window.innerHeight - r.bottom;
-            const panelH = Math.min(panel.scrollHeight, 340);
+            const voll = sel.classList.contains('lq-voll');
+            const panelH = voll ? panel.scrollHeight : Math.min(panel.scrollHeight, 340);
             if (below < panelH + 12 && r.top > panelH + 12) {
                 // Unten verankert, damit das Panel beim Filtern am Feld bleibt.
                 panel.style.top = 'auto';
