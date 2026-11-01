@@ -124,7 +124,7 @@ function eeInit() {
         const vor = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : 0;
         ee.filiale = vor || 0;
     }
-    ee.schritt = 'uebersicht';
+    ee.schritt = 'home';
     eeLaden();
 }
 function eeFilialeWechsel() {
@@ -176,15 +176,22 @@ function eeZeichnen() {
     const fokus = document.activeElement;
     if (!ee.force && fokus && fokus.closest && fokus.closest('#eeApp') && (fokus.matches('input, textarea') || fokus.matches('select'))) return;
     ee.force = false;
-    const inhalt = ee.schritt === 'uebersicht' ? eeUebersichtHtml()
-        : ee.schritt === 'monat' ? eeMonatHtml()
+    if (ee.schritt === 'home' || ee.schritt === 'uebersicht') {
+        app.innerHTML = eeHomeHtml();
+        return;
+    }
+    const inhalt = ee.schritt === 'monat' ? eeMonatHtml()
         : ee.schritt === 'jahr' ? eeJahrHtml()
-        : ee.schritt === 'aufgaben' ? eeAufgabenHtml()
         : ee.schritt === 'historie' ? eeHistorieHtml()
         : ee.schritt === 'konfiguration' ? eeKonfigHtml()
         : ee.schritt === 'frage' ? eeFrageHtml()
-        : eeUebersichtHtml();
-    app.innerHTML = `<div class="ee-rahmen">${eeKopf()}<div class="ee-haupt">${inhalt}</div><aside class="ee-seite">${eeMeldungenSeite()}</aside></div>`;
+        : eeHomeHtml();
+    app.innerHTML = `<div class="ee-arbeit">
+        <div class="ee-arbeit-kopf">
+            <button type="button" class="ee-text" data-ee="nav" data-wert="home">Zurück</button>
+            <button type="button" class="ee-text" data-ee="neu" ${ee.busy ? 'disabled' : ''}>Aktualisieren</button>
+        </div>
+        ${inhalt}</div>`;
 }
 
 function eeKopf() {
@@ -196,6 +203,94 @@ function eeKopf() {
     </header>`;
 }
 
+function eeKachel(titel, unter, ziel) {
+    const attr = ziel ? `data-ee="nav" data-wert="${ziel}"` : 'data-ee="spaeter"';
+    return `<button type="button" class="ee-kachel" ${attr}><span class="ee-kachel-top"><b>${titel}</b><span class="ee-pfeil" aria-hidden="true"></span></span><small>${unter}</small></button>`;
+}
+function eeHomeAufgaben() {
+    const aufgaben = [];
+    const sua = ee.cert?.sua;
+    if (!sua?.vorhanden) aufgaben.push({ text: 'SUA-Zertifikat fehlt.', sub: 'In der Konfiguration bestellen.', ee: 'nav', wert: 'konfiguration' });
+    else if (sua.restTage != null && sua.restTage < 0) aufgaben.push({ text: 'SUA-Zertifikat ist abgelaufen.', sub: 'In der Konfiguration erneuern.', ee: 'nav', wert: 'konfiguration' });
+    else if (sua.restTage != null && sua.restTage <= 30) aufgaben.push({ text: `SUA-Zertifikat läuft in ${sua.restTage} Tagen ab.`, sub: '', ee: 'nav', wert: 'konfiguration' });
+    const filialen = ee.filiale > 0 ? eeFilialenListe().filter(f => f.id === ee.filiale) : eeFilialenListe();
+    const mehrere = filialen.length > 1;
+    for (const f of filialen) {
+        const name = mehrere ? eeFilialeLabel(f.id, f.name) : '';
+        if (f.monatStatus === 'bereit' && f.letzterMonat) {
+            const monat = EE_MONATE[f.letzterMonat - 1] || '';
+            aufgaben.push({
+                text: 'Die monatliche Quellensteuermeldung ist zur Übermittlung bereit.',
+                sub: [name, monat, ee.jahr].filter(Boolean).join(' · '),
+                ee: 'oeffnen', ziel: 'monat', id: f.id, monat: f.letzterMonat,
+            });
+        }
+        if (f.jahrStatus === 'bereit') {
+            aufgaben.push({
+                text: 'Die Jahresmeldung ist zur Übermittlung bereit.',
+                sub: [name, ee.jahr].filter(Boolean).join(' · '),
+                ee: 'oeffnen', ziel: 'jahr', id: f.id,
+            });
+        }
+        if (f.aufgabe) {
+            const frage = String(f.aufgabe).startsWith('Rückfrage');
+            aufgaben.push({
+                text: f.aufgabe,
+                sub: name,
+                ee: frage ? 'frage' : 'stand',
+                id: f.aufgabeId || '',
+            });
+        }
+    }
+    const zeilen = aufgaben.map(a => `<button type="button" class="ee-aufgabe" data-ee="${eeEsc(a.ee)}" ${a.wert ? `data-wert="${eeEsc(a.wert)}"` : ''} ${a.ziel ? `data-ziel="${eeEsc(a.ziel)}"` : ''} data-id="${eeEsc(a.id || '')}" ${a.monat ? `data-monat="${a.monat}"` : ''}>
+        <b>${eeEsc(a.text)}</b>${a.sub ? `<span>${eeEsc(a.sub)}</span>` : ''}</button>`).join('');
+    const fuell = aufgaben.length ? '100%' : '0%';
+    return `<section class="ee-panel">
+        <h2>Aufgaben</h2>
+        <div class="ee-spur"><i style="width:${fuell}"></i></div>
+        <b class="ee-spur-zahl">${aufgaben.length} offene Aufgaben</b>
+        ${zeilen || '<p class="ee-lead">Keine offenen Aufgaben.</p>'}
+    </section>`;
+}
+function eeHomeHtml() {
+    const fil = eeFilialeId() ? eeFilialeName() : 'Alle Filialen';
+    const merk = ee.hinweis ? `<p class="ee-merk">${eeEsc(ee.hinweis)}</p>` : '';
+    return `<div class="ee-home">
+        <h1>Cockpit</h1>
+        <div class="ee-einleitung">
+            <p>Für ${eeEsc(fil)}. Die Möglichkeiten von Swissdec umfassen Prozesse, die direkt aus OneCrew gestartet werden, und Prozesse, die Versicherungen oder Behörden auslösen. Für die von aussen ausgelösten Prozesse muss das Unternehmen eindeutig erkennbar sein.</p>
+            <p>Dafür gibt es das Unternehmenszertifikat SUA. Es wird direkt aus OneCrew bestellt, gilt für sämtliche Swissdec-Standards, und es braucht nur eines.</p>
+            <p>Bestellt wird es in der <button type="button" class="ee-text" data-ee="nav" data-wert="konfiguration">Konfiguration</button>. Sobald es hinterlegt ist, melden Sie das Unternehmen dort bei den gewünschten Versicherungen und Behörden an.</p>
+        </div>
+        ${merk}
+        <div class="ee-homegrid">
+            <div class="ee-home-main">
+                <section class="ee-panel">
+                    <h2>Lohndaten</h2>
+                    <div class="ee-kacheln">
+                        ${eeKachel('Jahresmeldung', 'AHV, FAK, UVG …', 'jahr')}
+                        ${eeKachel('Monatsmeldung', 'QST, Statistik', 'monat')}
+                        ${eeKachel('Versicherungsprofil', 'Versicherungsprofile anfordern', 'konfiguration')}
+                    </div>
+                </section>
+                <section class="ee-panel">
+                    <h2>Leistungsdaten</h2>
+                    <div class="ee-kacheln ee-kacheln-2">
+                        ${eeKachel('Fallcockpit', 'Übersicht', '')}
+                        ${eeKachel('Neues Ereignis', 'Ereignismeldungen', '')}
+                    </div>
+                </section>
+                <section class="ee-panel">
+                    <h2>Finanzdaten</h2>
+                    <div class="ee-kacheln ee-kacheln-1">
+                        ${eeKachel('eBilanz', 'Bilanzdaten übermitteln', '')}
+                    </div>
+                </section>
+            </div>
+            ${eeHomeAufgaben()}
+        </div>
+    </div>`;
+}
 function eeUebersichtHtml() {
     const alle = eeFilialenListe();
     const liste = ee.filiale > 0 ? alle.filter(f => f.id === ee.filiale) : alle;
@@ -465,8 +560,14 @@ function eeKlick(ev) {
     if (a === 'wahl' || a === 'test' || a === 'kanton' || a === 'portal') return;
     if (ee.busy && a !== 'nav') return;
     if (a === 'nav') { ee.schritt = el.dataset.wert; ee.hinweis = ''; ee.force = true; eeZeichnen(); if (el.dataset.wert === 'jahr' || el.dataset.wert === 'konfiguration') eeDomaenenNach(); }
+    else if (a === 'spaeter') { ee.hinweis = 'Das gibt es in OneCrew noch nicht.'; ee.schritt = 'home'; ee.force = true; eeZeichnen(); }
     else if (a === 'oeffnen') eeOeffnen(el);
-    else if (a === 'stand') { ee.fokus = el.dataset.id; ee.schritt = ee.schritt === 'uebersicht' || ee.schritt === 'aufgaben' ? 'historie' : ee.schritt; ee.force = true; eeZeichnen(); }
+    else if (a === 'stand') {
+        ee.fokus = el.dataset.id;
+        if (ee.schritt === 'home' || ee.schritt === 'uebersicht' || ee.schritt === 'aufgaben') ee.schritt = 'historie';
+        ee.force = true;
+        eeZeichnen();
+    }
     else if (a === 'jahr-schritt') eeJahrSchritt(parseInt(el.dataset.wert, 10));
     else if (a === 'monat-schritt') eeMonatSchritt(parseInt(el.dataset.wert, 10));
     else if (a === 'pruefen') eePruefen();
