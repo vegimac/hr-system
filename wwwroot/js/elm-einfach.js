@@ -62,9 +62,23 @@ function eeDatum(iso) {
     return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 function eeFilialeId() { return ee.filiale > 0 ? ee.filiale : null; }
+function eeFilialeLabel(id, fallback) {
+    const b = (typeof allBranches !== 'undefined' && Array.isArray(allBranches))
+        ? allBranches.find(x => Number(x.id) === Number(id))
+        : null;
+    if (b && typeof filialKurzname === 'function') {
+        const k = filialKurzname(b);
+        if (k) return k;
+    }
+    return fallback || '';
+}
+function eeFilialenListe() {
+    return (ee.uebersicht?.filialen || []).slice().sort((a, b) =>
+        eeFilialeLabel(a.id, a.name).localeCompare(eeFilialeLabel(b.id, b.name), 'de'));
+}
 function eeFilialeName() {
     const z = (ee.uebersicht?.filialen || []).find(f => f.id === ee.filiale);
-    return z ? z.name : '';
+    return eeFilialeLabel(ee.filiale, z ? z.name : '');
 }
 function eeMeldungen() {
     return (ee.stand?.meldungen || [])
@@ -174,9 +188,9 @@ function eeZeichnen() {
 }
 
 function eeKopf() {
-    const filialen = ee.uebersicht?.filialen || [];
+    const filialen = eeFilialenListe();
     const opts = ['<option value="0">Alle Filialen</option>']
-        .concat(filialen.map(f => `<option value="${f.id}"${f.id === ee.filiale ? ' selected' : ''}>${eeEsc(f.name)}</option>`))
+        .concat(filialen.map(f => `<option value="${f.id}"${f.id === ee.filiale ? ' selected' : ''}>${eeEsc(eeFilialeLabel(f.id, f.name))}</option>`))
         .join('');
     const nav = EE_NAV.map(([id, name]) =>
         `<button type="button" class="ee-nav${ee.schritt === id ? ' an' : ''}" data-ee="nav" data-wert="${id}">${name}</button>`).join('');
@@ -190,10 +204,10 @@ function eeKopf() {
 }
 
 function eeUebersichtHtml() {
-    const alle = ee.uebersicht?.filialen || [];
+    const alle = eeFilialenListe();
     const liste = ee.filiale > 0 ? alle.filter(f => f.id === ee.filiale) : alle;
     const zeilen = liste.map(f => `<tr>
-        <td>${eeEsc(f.name)}</td>
+        <td>${eeEsc(eeFilialeLabel(f.id, f.name))}</td>
         <td>${eeEsc(f.letzterText)}</td>
         <td><button type="button" class="ee-text" data-ee="oeffnen" data-ziel="monat" data-id="${f.id}" data-monat="${f.letzterMonat || ''}">${eeEsc(f.monatText)}</button></td>
         <td><button type="button" class="ee-text" data-ee="oeffnen" data-ziel="jahr" data-id="${f.id}">${eeEsc(f.jahrText)}</button></td>
