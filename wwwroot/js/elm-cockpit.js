@@ -235,16 +235,16 @@ function xcSatz() {
         const name = `${XC_MONATE[xc.monat - 1] || ''} ${xc.jahr}`.trim();
         if (xc.arm === xcKern() && xcBereit())
             return `Geprüft. Übermitteln schickt die Monatsmeldung ${name}. Eine Testmeldung verarbeiten die Empfänger nicht.`;
-        return `Monatsmeldung ${name}. Hake Quellensteuer und Statistik an, dann Prüfen. Die Kantone wählst du danach. Übermitteln bleibt zu, bis die Prüfung sauber ist.`;
+        return `Monatsmeldung ${name}. Anwählen, dann Prüfen. Die Kantone kommen danach.`;
     }
     if (xc.arm === xcKern() && xcBereit())
-        return `Geprüft. Übermitteln schickt die Jahresmeldung ${xc.jahr} an die angehakten Stellen. Eine Testmeldung verarbeiten die Empfänger nicht.`;
+        return `Geprüft. Übermitteln schickt die Jahresmeldung ${xc.jahr}. Eine Testmeldung verarbeiten die Empfänger nicht.`;
     const gewaehlt = xcJahrZeilen().filter(z => xc.wahl.has(z.id));
     if (!gewaehlt.length)
-        return `Jahresmeldung ${xc.jahr}. Hake an, wer sie erhalten soll. «Lohndaten fehlen» heisst: die Stelle ist zugeordnet, die Beträge stehen noch nicht in der Meldung.`;
+        return `Jahresmeldung ${xc.jahr}. Hake an, wer sie erhalten soll.`;
     if (!xcArts().length)
-        return 'Die angehakten Stellen haben noch keine Lohndaten in der Meldung. Übermitteln bleibt zu. Bei der Pensionskasse erfasst du die Lohnsummen.';
-    return `Jahresmeldung ${xc.jahr}. Angehakt heisst: diese Stelle erhält die Meldung. Prüfen kontrolliert sie. Übermitteln bleibt zu, bis die Prüfung sauber ist.`;
+        return 'Die angehakten Stellen haben noch keine Lohndaten. Übermitteln bleibt zu.';
+    return `Jahresmeldung ${xc.jahr}. Angehakt erhält die Meldung. Danach Prüfen.`;
 }
 
 function xcZeichnen() {
@@ -323,8 +323,8 @@ function xcJahrHtml() {
         const rows = (g.zeilen || []).map(z => xcZeile(z)).join('');
         const portal = g.portal && g.id === 'versicherung'
             ? `<label class="xc-row xc-portal" title="${xcEsc(XC_PORTAL)}">
-                <span class="xc-name">Freigabe im Portal gewünscht</span>
-                <span class="xc-an">Nur setzen, wenn der Link auf das Portal mitgehen soll.</span>
+                <span class="xc-name">Portal</span>
+                <span class="xc-an">Freigabe im Portal gewünscht</span>
                 <span></span>
                 <input class="xc-check" type="checkbox" data-xc="portal" ${xc.portal ? 'checked' : ''}>
                </label>` : '';
@@ -336,16 +336,15 @@ function xcJahrHtml() {
 function xcZeile(z) {
     const an = xc.wahl.has(z.id);
     let tag = '';
-    if (z.lohnsummen) tag = xc.bvgStand?.jahr === xc.jahr && xc.bvgStand.freigegeben ? 'FREIGEGEBEN' : 'LOHNDATEN FEHLEN';
-    else if (!xcSendbar(z)) tag = 'LOHNDATEN FEHLEN';
-    const knopf = z.lohnsummen ? '<button type="button" class="xc-text" data-xc="bvg">Lohnsummen</button>' : '<span></span>';
-    const tagTitle = tag === 'LOHNDATEN FEHLEN'
+    if (z.lohnsummen) tag = xc.bvgStand?.jahr === xc.jahr && xc.bvgStand.freigegeben ? 'Freigegeben' : 'Lohndaten fehlen';
+    else if (!xcSendbar(z)) tag = 'Lohndaten fehlen';
+    const knopf = z.lohnsummen ? ' <button type="button" class="xc-text" data-xc="bvg">Lohnsummen</button>' : '';
+    const tagTitle = tag === 'Lohndaten fehlen'
         ? 'Die Stelle ist zugeordnet. Die Beträge stehen noch nicht in der Meldung, sie geht nicht mit.'
-        : (tag === 'FREIGEGEBEN' ? 'Die Lohnsummen sind für dieses Jahr freigegeben.' : '');
+        : (tag === 'Freigegeben' ? 'Die Lohnsummen sind für dieses Jahr freigegeben.' : '');
     return `<div class="xc-row">
         <span class="xc-name">${xcEsc(z.name)}</span>
-        <span class="xc-an">${xcEsc(z.an)}</span>
-        ${knopf}
+        <span class="xc-an">${xcEsc(z.an)}${knopf}</span>
         <span class="xc-tag"${tagTitle ? ` title="${xcEsc(tagTitle)}"` : ''}>${xcEsc(tag)}</span>
         <input class="xc-check" type="checkbox" data-xc="wahl" data-id="${xcEsc(z.id)}" ${an ? 'checked' : ''} aria-label="${xcEsc(z.name)}">
     </div>`;
@@ -355,7 +354,7 @@ function xcMonatHtml() {
     const reihe = (id, name, an) => `<div class="xc-row">
         <span class="xc-name">${name}</span>
         <span class="xc-an">${an}</span>
-        <span></span><span></span>
+        <span></span>
         <input class="xc-check" type="checkbox" data-xc="wahl" data-id="${id}" ${xc.wahl.has(id) ? 'checked' : ''} aria-label="${name}">
     </div>`;
     let kantone = '';
@@ -368,7 +367,7 @@ function xcMonatHtml() {
             return `<div class="xc-row">
                 <span class="xc-name">${xcEsc(XC_DOM[e.domain] || e.domain || '')}</span>
                 <span class="xc-an">${xcEsc(e.name)}</span>
-                <span></span><span></span>
+                <span></span>
                 <input class="xc-check" type="checkbox" data-xc="kanton" data-id="${xcEsc(e.addresseeId)}" ${an ? 'checked' : ''} aria-label="${xcEsc(e.name)}">
             </div>`;
         }).join('');
@@ -542,16 +541,24 @@ function xcAnmeldeZeilen() {
 
 function xcAufgabenHtml() {
     const list = xcAufgaben();
-    const leer = xc.sicht === 'konfig'
-        ? 'Nichts liegt an.'
-        : 'Nichts liegt an. Als Nächstes die Meldung prüfen.';
-    const rows = list.length
-        ? '<p class="xc-an">Das musst du noch erledigen.</p>' + list.map(a => `<div class="xc-auf ${a.ton}">
-        <div><b>${xcEsc(a.titel)}</b><p>${xcEsc(a.text || '')}</p></div>
-        <button type="button" class="xc-ghost xc-klein" data-xc="${xcEsc(a.aktion)}" ${a.id ? `data-id="${xcEsc(a.id)}"` : ''} ${a.url ? `data-url="${xcEsc(a.url)}"` : ''}>${xcEsc(a.label)}</button>
-    </div>`).join('')
-        : `<p class="xc-an">${leer}</p>`;
-    return `<div class="xc-gruppe">Offen</div>${rows}`;
+    const leer = xc.sicht === 'konfig' ? 'Nichts liegt an.' : 'Nichts liegt an.';
+    const seen = [];
+    for (const a of list) {
+        const g = seen.find(x => x.titel === a.titel);
+        if (g) g.n += 1;
+        else seen.push(Object.assign({ n: 1 }, a));
+    }
+    const rows = seen.map(a => {
+        const mehr = a.n > 1;
+        const text = mehr ? `${a.n} Meldungen` : (a.text || '');
+        const aktion = mehr ? 'aufgaben' : a.aktion;
+        const label = mehr ? 'Anzeigen' : a.label;
+        return `<div class="xc-auf ${a.ton}">
+        <div><b>${xcEsc(a.titel)}</b><p>${xcEsc(text)}</p></div>
+        <button type="button" class="xc-ghost xc-klein" data-xc="${xcEsc(aktion)}" ${!mehr && a.id ? `data-id="${xcEsc(a.id)}"` : ''} ${!mehr && a.url ? `data-url="${xcEsc(a.url)}"` : ''}>${xcEsc(label)}</button>
+    </div>`;
+    }).join('');
+    return `<div class="xc-gruppe">Offen</div>${rows || `<p class="xc-an">${leer}</p>`}`;
 }
 
 function xcSheetHtml() {
@@ -573,7 +580,7 @@ function xcSheetHtml() {
 function xcBvgHtml() {
     const j = xc.bvg;
     const stand = !j ? '<p class="xc-an">Lohnsummen werden gerechnet.</p>'
-        : (j.zeilen || []).map(z => `<div class="xc-row">
+        : (j.zeilen || []).map(z => `<div class="xc-row xc-bvg">
             <span class="xc-name">${xcEsc(z.name)}</span>
             <span class="xc-an">${xcEsc(xcGeld(z.vorschlag))}</span>
             <input class="xc-geld" data-bvg="${z.employeeId}" value="${xcEsc(Number(z.betrag).toFixed(2))}" inputmode="decimal" aria-label="Lohnsumme ${xcEsc(z.name)}">
