@@ -14847,12 +14847,13 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-send-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 #page-elm-anwender .elma-send-chip { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; background: #fff; border: 1px solid rgba(60,55,48,0.16); color: #3f3f3f; font-size: 12px; font-weight: 600; }
 #page-elm-anwender .elma-send-bahn { margin: 8px -12px 0; }
-#page-elm-anwender .elma-send .elma-stage { height: 52px; border-radius: 0; border-left: 0; border-right: 0; }
+#page-elm-anwender .elma-send .elma-stage { height: 52px; border-radius: 0; border: 0; background: transparent; }
+#page-elm-anwender .elma-send .elma-stage:before { display: none; }
 #page-elm-anwender .elma-send .elma-hub { width: 16%; max-width: 88px; }
 #page-elm-anwender .elma-send .elma-hub.left { left: 10px; }
 #page-elm-anwender .elma-send .elma-hub.right { right: 10px; }
 #page-elm-anwender .elma-send .elma-hub img { max-height: 16px; }
-#page-elm-anwender .elma-send .elma-core { width: 40px; height: 40px; box-shadow: 0 0 0 3px rgba(255,255,255,0.55); }
+#page-elm-anwender .elma-send .elma-core { width: 40px; height: 40px; background: #fff; box-shadow: 0 0 0 3px #fff; }
 #page-elm-anwender .elma-send .elma-stage:not(.paused) .elma-core { animation: none; }
 #page-elm-anwender .elma-send .elma-core strong { font-size: 10px; letter-spacing: 0.06em; }
 #page-elm-anwender .elma-send .elma-core span { font-size: 8px; margin-top: 0; }
@@ -14860,8 +14861,8 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-send .elma-packet { height: 5px; width: 14px; }
 #page-elm-anwender .elma-send .elma-stage:not(.paused) .elma-packet { animation-name: elmaTravelKlein; }
 @keyframes elmaTravelKlein { from { left: 18%; } to { left: calc(82% - 14px); } }
-#page-elm-anwender .elma-send .elma-schrittzeile { margin: 0; padding: 5px 8px 6px; gap: 4px; background: rgba(255,255,255,0.55); }
-#page-elm-anwender .elma-send .elma-schritt { padding: 2px 7px; font-size: 10px; }
+#page-elm-anwender .elma-send .elma-schrittzeile { margin: 0; padding: 5px 8px 6px; gap: 4px; background: transparent; }
+#page-elm-anwender .elma-send .elma-schritt { padding: 2px 7px; font-size: 10px; background: #fff; }
 #page-elm-anwender .elma-send-leer { color: #991b1b; font-size: 13px; font-weight: 650; }
 #page-elm-anwender .elma-send-warn { margin-top: 8px; padding: 8px 10px 6px; border-radius: 12px; background: rgba(217,119,6,0.12); }
 #page-elm-anwender .elma-send-warn .elma-kicker { color: #92400e; }

@@ -48,6 +48,7 @@ let _elmaBestaetigtText = null;
 let _elmaArchivOffen = false;
 let _elmaFokus = null;
 let _elmaFlug = false;
+let _elmaLauf = false;
 let _elmaAnsicht = 'home';
 let _elmaWahl = new Set(['annual', 'qst', 'statistik']);
 let _elmaDomaenen = null;
@@ -945,8 +946,17 @@ async function elmaLaden() {
     elmaPlanen();
 }
 
+function _elmaZeitraumMeldung() {
+    const a = _elmaAuswahl();
+    if (!a.companyProfileId || !a.jahr) return null;
+    return (_elma?.meldungen || []).find(m => !m.zertifizierung && _elmaPasstFiliale(m)
+        && (m.art || 'monthly') === a.art && Number(m.jahr) === a.jahr
+        && (a.art !== 'monthly' || Number(m.monat) === a.monat)) || null;
+}
+
 function elmaVorschauPlanen() {
     clearTimeout(_elmaVorschauTimer);
+    _elmaLauf = false;
     if (_elmaAnsicht !== 'monat' || !elmaFilialeId()) return;
     _elmaKantone = null;
     _elmaVorschau = null;
@@ -1062,6 +1072,36 @@ function elmaVorschauZeichnen() {
             <div class="elma-send-bahn" id="elmaSendBahn"></div>
         </section>`;
     _elmaBahnSetzen();
+    elmaKommZeichnen();
+}
+
+function elmaLaufZeichnen() {
+    const el = document.getElementById('elmaVorschau');
+    const m = _elmaZeitraumMeldung();
+    if (!el || !m || (m.fertig && !_elmaLauf)) return;
+    _elmaLauf = true;
+    _elmaBahnHolen();
+    const label = m.stufe === 'rot' ? 'Nicht angenommen' : m.fertig ? 'Antwort da' : 'Antwort kommt zurück';
+    const stufe = m.stufe === 'rot' ? 'rot' : m.fertig ? 'ok' : 'laeuft';
+    const chips = (m.empfaenger || []).map(e => e.name).filter(Boolean)
+        .map(n => `<span class="elma-send-chip">${_elmaEsc(n)}</span>`).join('');
+    el.innerHTML = `
+        <section class="elma-send">
+            <div class="elma-send-head">
+                <div>
+                    <div class="elma-kicker">Meldung</div>
+                    <h3>${_elmaEsc(m.titel || 'Monatsmeldung')}</h3>
+                </div>
+                ${_elmaPille(stufe, label)}
+            </div>
+            <div class="elma-send-an">
+                <div class="elma-kicker">Geht an</div>
+                <div class="elma-send-chips">${chips || '<span class="elma-an">—</span>'}</div>
+            </div>
+            <div class="elma-send-bahn" id="elmaSendBahn"></div>
+        </section>`;
+    _elmaBahnSetzen();
+    elmaKommZeichnen();
 }
 
 async function elmaMonatSenden() {
@@ -1124,10 +1164,8 @@ async function elmaSenden() {
         _elmaVorschau = null;
         _elmaErsatz = null;
         elmaErsatzZeichnen();
-        _elmaBahnHolen();
-        const el = document.getElementById('elmaVorschau');
-        if (el) el.innerHTML = '';
         _elmaHinweis = null;
+        elmaLaufZeichnen();
         elmaListeZeichnen();
         elmaPlanen();
     }
@@ -1515,7 +1553,7 @@ function _elmaPhaseVon(m) {
 }
 
 function elmaKommZeichnen() {
-    const m = _elmaFlug ? null : _elmaFokusMeldung();
+    const m = _elmaFlug || !_elmaLauf ? null : _elmaZeitraumMeldung();
     const phase = _elmaPhaseVon(_elmaFlug ? null : m);
     const schritte = document.getElementById('elmaSchritte');
     if (schritte) schritte.innerHTML = _elmaSchritteStand(_elmaFlug ? null : m);
@@ -1781,7 +1819,11 @@ function elmaPlanen() {
         try {
             const r = await fetch(`/api/elm/meldungen/${encodeURIComponent(m.id)}/abfragen`, { method: 'POST', headers: ah() });
             const j = await r.json().catch(() => ({}));
-            if (r.ok && j.stand) { _elma = j.stand; elmaListeZeichnen(); }
+            if (r.ok && j.stand) {
+                _elma = j.stand;
+                if (_elmaLauf) elmaLaufZeichnen();
+                elmaListeZeichnen();
+            }
         } catch (_) { /* nächster Versuch */ }
         elmaPlanen();
     }, 20000);
