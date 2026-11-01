@@ -273,7 +273,7 @@ function elmaInit() {
             _elmaAnsicht = 'jahr';
             if (String(art).startsWith('grenz')) _elmaWahl.add(art);
         }
-    } else _elmaAnsicht = 'jahr';
+    } else _elmaAnsicht = 'monat';
     elmaAnsicht(_elmaAnsicht);
     elmaErsatzZeichnen();
     elmaZeitZeichnen();
