@@ -233,6 +233,19 @@ async function elmaZertifikatErneuern() {
     setTimeout(elmaBereit, 1500);
 }
 
+function elmaJahrOptionen(jahr) {
+    const feld = document.getElementById('elmaJahr');
+    if (!feld) return;
+    const heute = new Date().getFullYear();
+    const von = Math.min(heute - 3, jahr);
+    const bis = Math.max(heute + 1, jahr);
+    const soll = [];
+    for (let y = von; y <= bis; y++) soll.push(String(y));
+    const haben = Array.from(feld.options).map(o => o.value);
+    if (haben.join(',') === soll.join(',')) return;
+    feld.innerHTML = soll.map(y => `<option value="${y}">${y}</option>`).join('');
+}
+
 function elmaInit() {
     const monat = document.getElementById('elmaMonat');
     if (monat && !monat.options.length) {
@@ -241,8 +254,11 @@ function elmaInit() {
     const jahr = document.getElementById('elmaJahr');
     if (jahr && !jahr.value) {
         const h = new Date();
-        jahr.value = h.getMonth() === 0 ? h.getFullYear() - 1 : h.getFullYear();
-        if (monat) monat.value = String(h.getMonth() === 0 ? 12 : h.getMonth());
+        const y = h.getMonth() === 0 ? h.getFullYear() - 1 : h.getFullYear();
+        const m = h.getMonth() === 0 ? 12 : h.getMonth();
+        elmaJahrOptionen(y);
+        jahr.value = String(y);
+        if (monat) monat.value = String(m);
     }
     const art = window._elmaArt;
     window._elmaArt = null;
@@ -260,13 +276,6 @@ function elmaInit() {
     } else _elmaAnsicht = 'jahr';
     elmaAnsicht(_elmaAnsicht);
     elmaErsatzZeichnen();
-    if (!document.body.dataset.elmaZeit) {
-        document.body.dataset.elmaZeit = '1';
-        document.addEventListener('click', (ev) => {
-            const box = document.getElementById('elmaZeit');
-            if (box && !box.contains(ev.target)) elmaZeitBlattZu();
-        });
-    }
     elmaZeitZeichnen();
     elmaLaden();
     elmaBereit();
@@ -354,16 +363,9 @@ function elmaDomaenenZeichnen() {
     }
     const portalAn = !!document.getElementById('elmaPortal')?.checked;
     if (_elmaAnsicht === 'monat') {
-        if (!elmaFilialeId()) {
-            box.innerHTML = '<p class="elma-an">Wähle links die Filiale. Die Monatsmeldung gilt nur für diese, nicht für alle zusammen.</p>';
-            return;
-        }
-        box.innerHTML = `<div class="elma-domcols">
-            <div><div class="elma-kicker">Quellensteuer</div>${_elmaCheck('qst', 'Quellensteuer', 'qst')}
-                <small class="elma-an">Jeder Kanton lässt sich in der Meldung einzeln an- und abwählen.</small></div>
-            <div><div class="elma-kicker">Statistik</div>${_elmaCheck('statistik', 'Statistik', 'statistik')}
-                <small class="elma-an">an das Bundesamt für Statistik</small></div>
-        </div>`;
+        box.innerHTML = elmaFilialeId()
+            ? ''
+            : '<p class="elma-an">Wähle links die Filiale. Die Monatsmeldung gilt nur für diese, nicht für alle zusammen.</p>';
         return;
     }
     box.innerHTML = `<div class="elma-domcols elma-domcols-4">
@@ -803,36 +805,24 @@ function elmaZeitSetzen(jahr, monat, opt) {
     const feldJahr = document.getElementById('elmaJahr');
     const feldMonat = document.getElementById('elmaMonat');
     const alt = parseInt(feldJahr?.value, 10);
+    elmaJahrOptionen(jahr);
     if (feldJahr) feldJahr.value = String(jahr);
     if (feldMonat && monat) feldMonat.value = String(monat);
+    if (typeof feldJahr?._lqRefresh === 'function') feldJahr._lqRefresh();
+    if (typeof feldMonat?._lqRefresh === 'function') feldMonat._lqRefresh();
     elmaZeitZeichnen();
     if (opt && opt.still) { elmaUeberZeichnen(); return; }
     if (jahr !== alt) elmaDomaenenLaden();
     elmaMonatStand(jahr !== alt);
 }
 
-function elmaZeitSchrittJahr(dir) {
+function elmaZeitGeaendert() {
     const z = elmaZeitLesen();
-    elmaZeitSetzen(z.jahr + dir, z.monat);
-    elmaZeitBlattZu();
-}
-
-function elmaZeitSchrittMonat(dir) {
-    const z = elmaZeitLesen();
-    let monat = z.monat + dir;
-    let jahr = z.jahr;
-    if (monat < 1) { monat = 12; jahr--; }
-    if (monat > 12) { monat = 1; jahr++; }
-    elmaZeitSetzen(jahr, monat);
-    elmaZeitBlattZu();
+    elmaZeitSetzen(z.jahr, z.monat);
 }
 
 function elmaZeitZeichnen() {
     const z = elmaZeitLesen();
-    const jahr = document.getElementById('elmaZeitJahrWert');
-    const monat = document.getElementById('elmaZeitMonatWert');
-    if (jahr) jahr.textContent = String(z.jahr);
-    if (monat) monat.textContent = _ELMA_MONATE[z.monat - 1] || '';
     const stand = document.getElementById('elmaMonatStand');
     if (stand) {
         const bekannt = _elmaAnsicht === 'monat' && !!elmaFilialeId() && !!_elmaLetzter;
@@ -857,63 +847,11 @@ function elmaZeitZeichnen() {
         stand.textContent = text;
         stand.className = klasse;
     }
-    if (!document.getElementById('elmaZeitBlattJahr')?.hidden) elmaZeitBlattFuellen('jahr');
-    if (!document.getElementById('elmaZeitBlattMonat')?.hidden) elmaZeitBlattFuellen('monat');
-}
-
-function elmaZeitBlatt(welches) {
-    const jahr = document.getElementById('elmaZeitBlattJahr');
-    const monat = document.getElementById('elmaZeitBlattMonat');
-    const ziel = welches === 'monat' ? monat : jahr;
-    const andere = welches === 'monat' ? jahr : monat;
-    if (andere) andere.hidden = true;
-    if (!ziel) return;
-    ziel.hidden = !ziel.hidden;
-    if (!ziel.hidden) elmaZeitBlattFuellen(welches);
-}
-
-function elmaZeitBlattZu() {
-    ['elmaZeitBlattJahr', 'elmaZeitBlattMonat'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.hidden = true;
-    });
-}
-
-function elmaZeitBlattFuellen(welches) {
-    const z = elmaZeitLesen();
-    if (welches === 'monat') {
-        const blatt = document.getElementById('elmaZeitBlattMonat');
-        if (!blatt) return;
-        const kurz = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-        blatt.innerHTML = `<div class="elma-zeit-monate">${kurz.map((n, i) =>
-            `<button type="button" class="elma-zeit-monat${i + 1 === z.monat ? ' ist' : ''}" onclick="elmaZeitMonat(${i + 1})">${n}</button>`).join('')}</div>`;
-        return;
-    }
-    const blatt = document.getElementById('elmaZeitBlattJahr');
-    if (!blatt) return;
-    const heute = new Date().getFullYear();
-    const bis = Math.max(z.jahr, heute);
-    const von = Math.min(z.jahr, bis - 5);
-    let knoepfe = '';
-    for (let y = von; y <= bis; y++) knoepfe += `<button type="button" class="elma-zeit-jahr${y === z.jahr ? ' ist' : ''}" onclick="elmaZeitJahr(${y})">${y}</button>`;
-    blatt.innerHTML = `<div class="elma-zeit-jahre">${knoepfe}</div>`;
-}
-
-function elmaZeitMonat(monat) {
-    const z = elmaZeitLesen();
-    elmaZeitSetzen(z.jahr, monat);
-    elmaZeitBlattZu();
-}
-
-function elmaZeitJahr(jahr) {
-    elmaZeitSetzen(jahr, elmaZeitLesen().monat);
-    elmaZeitBlattZu();
 }
 
 function elmaArtGewechselt() {
     clearTimeout(_elmaVorschauTimer);
     _elmaVorschauLauf++;
-    elmaZeitBlattZu();
     elmaZeitZeichnen();
     const monatFeld = document.getElementById('elmaZeitMonatFeld');
     if (monatFeld) monatFeld.style.display = _elmaAnsicht === 'monat' ? '' : 'none';
@@ -1086,12 +1024,7 @@ async function elmaMonatSenden() {
     if (art) art.value = 'monthly';
     await elmaPruefen();
     if (!_elmaVorschau || (_elmaVorschau.fehler || []).length || (_elmaVorschau.technisch || []).length || _elmaVorschau.sendenGesperrt) return false;
-    _elmaKantone = new Set();
-    (_elmaVorschau.empfaenger || []).forEach(e => {
-        const stat = e.domain === 'Statistic' || e.addresseeId === '#BFS';
-        if (stat ? _elmaWahl.has('statistik') : _elmaWahl.has('qst')) _elmaKantone.add(e.addresseeId);
-    });
-    if (!_elmaKantone.size) {
+    if (!_elmaGewaehlt(_elmaVorschau).length) {
         _elmaHinweis = { ok: false, text: 'Keine Empfänger in der Monatsmeldung.' };
         elmaListeZeichnen();
         return false;
@@ -1103,11 +1036,6 @@ async function elmaMonatSenden() {
 async function elmaUebermitteln() {
     if (_elmaBusy || _elmaAnsicht === 'profil') return;
     if (_elmaAnsicht === 'monat') {
-        if (!_elmaWahl.has('qst') && !_elmaWahl.has('statistik')) {
-            _elmaHinweis = { ok: false, text: 'Quellensteuer oder Statistik ankreuzen.' };
-            elmaListeZeichnen();
-            return;
-        }
         await elmaMonatSenden();
         return;
     }

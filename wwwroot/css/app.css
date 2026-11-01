@@ -14852,7 +14852,7 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-send-foot .btn { min-width: 8.5rem; }
 #page-elm-anwender .elma-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
 #page-elm-anwender #elmaMonatStand {
-    align-self: flex-end; height: 32px; display: inline-flex; align-items: center;
+    align-self: center; height: 32px; display: inline-flex; align-items: center;
     padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 650; white-space: nowrap;
 }
 #page-elm-anwender #elmaMonatStand:empty { display: none; }
@@ -14971,8 +14971,12 @@ body.theme-dark #page-elm-anwender .elma-panel,
 body.theme-dark #page-elm-anwender table.elma-mit,
 body.theme-dark #page-elm-anwender table.elma-mit th,
 body.theme-dark #page-elm-anwender table.elma-mit td { color: #303130; }
-#page-elm-anwender .elma-panelhead .lqsel-wrap { min-width: 12rem; }
-#page-elm-anwender .elma-panelhead .lqsel-btn { background: transparent; border: 0; box-shadow: none; font-size: 20px; font-weight: 650; color: #3f3f3f; padding: 0 4px 0 0; min-height: 0; }
+#page-elm-anwender .elma-panelhead .lqsel-wrap:has(select.elma-artsicht) { min-width: 12rem; }
+#page-elm-anwender .elma-panelhead .lqsel-wrap:has(select.elma-artsicht) .lqsel-btn { background: transparent; border: 0; box-shadow: none; font-size: 20px; font-weight: 650; color: #3f3f3f; padding: 0 4px 0 0; min-height: 0; }
+#page-elm-anwender .elma-zeit { align-items: center; }
+#page-elm-anwender .elma-zeit .lqsel-wrap { min-width: 0; }
+#page-elm-anwender #elmaZeitMonatFeld .lqsel-btn { min-width: 8.6rem; }
+#page-elm-anwender .elma-zeit > .lqsel-wrap .lqsel-btn { min-width: 5.4rem; }
 #page-elm-anwender select.elma-artsicht { font-size: 20px; font-weight: 650; color: #3f3f3f; border: 0; background: transparent; }
 #page-elm-anwender .elma-domcols.elma-domcols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 #page-elm-anwender .elma-domcols.elma-domcols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
