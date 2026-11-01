@@ -15228,7 +15228,7 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
 #eeApp {
     max-width: none;
     margin: 0;
-    padding: 20px 32px 80px;
+    padding: 20px 32px 80px 120px;
     color: #3f3f3f;
     font-size: 16px;
     line-height: 1.45;
@@ -15236,7 +15236,15 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
 #eeApp h1 { margin: 8px 0 8px; font-size: 32px; font-weight: 560; letter-spacing: -.03em; color: #1a1a1a; }
 #eeApp h2 { margin: 28px 0 6px; font-size: 18px; font-weight: 560; color: #3f3f3f; }
 #eeApp .ee-lead { margin: 0 0 18px; color: #646464; }
-#eeApp .ee-kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-bottom: 22px; }
+#eeApp .ee-rahmen {
+    display: grid;
+    grid-template-columns: minmax(0, 640px) 280px;
+    column-gap: 64px;
+    justify-content: start;
+    align-items: start;
+}
+#eeApp .ee-kopf { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-bottom: 8px; }
+#eeApp .ee-seite { grid-column: 2; grid-row: 2; }
 #eeApp .ee-navs { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 #eeApp .ee-nav {
     background: none; border: 0; padding: 6px 0; font: inherit; color: #646464; cursor: pointer;
@@ -15248,7 +15256,14 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
 #eeApp .ee-seite h2 { margin-top: 0; }
 #eeApp .ee-seite .ee-karte, #eeApp .ee-tueren .ee-karte { margin-top: 0; }
 #eeApp .ee-seite { display: flex; flex-direction: column; gap: 10px; }
-#eeApp .ee-tabelle { width: 100%; border-collapse: collapse; }
+#eeApp .ee-tabelle { width: auto; border-collapse: collapse; }
+#eeApp .ee-meld {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    width: 100%; text-align: left; background: none; border: 0;
+    border-top: 1px solid rgba(60,55,48,.14); padding: 10px 0;
+    font: inherit; cursor: pointer; color: #1a1a1a;
+}
+#eeApp .ee-meld span { color: #646464; font-size: 13px; }
 #eeApp .ee-tabelle th {
     text-align: left; font-weight: 560; font-size: 13px; color: #8b8b8b; padding: 8px 12px 8px 0;
 }
@@ -15264,8 +15279,10 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
     background: #fff; color: #1a1a1a; border: 1px solid rgba(60,55,48,.25); border-radius: 10px;
 }
 #eeApp .ee-zeile .ee-still { margin-top: 0; }
-@media (max-width: 860px) {
-    #eeApp .ee-split { grid-template-columns: 1fr; }
+@media (max-width: 980px) {
+    #eeApp { padding-left: 32px; }
+    #eeApp .ee-rahmen { grid-template-columns: 1fr; }
+    #eeApp .ee-seite { grid-column: 1; grid-row: auto; }
     #eeApp .ee-hist { grid-template-columns: 1fr 1fr; }
 }
 #eeApp .ee-tueren { display: flex; flex-direction: column; gap: 12px; }

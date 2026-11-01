@@ -184,7 +184,7 @@ function eeZeichnen() {
         : ee.schritt === 'konfiguration' ? eeKonfigHtml()
         : ee.schritt === 'frage' ? eeFrageHtml()
         : eeUebersichtHtml();
-    app.innerHTML = eeKopf() + inhalt;
+    app.innerHTML = `<div class="ee-rahmen">${eeKopf()}<div class="ee-haupt">${inhalt}</div><aside class="ee-seite">${eeMeldungenSeite()}</aside></div>`;
 }
 
 function eeKopf() {
@@ -206,41 +206,37 @@ function eeUebersichtHtml() {
         <td><button type="button" class="ee-text" data-ee="oeffnen" data-ziel="jahr" data-id="${f.id}">${eeEsc(f.jahrText)}</button></td>
         <td>${f.aufgabe ? `<button type="button" class="ee-text" data-ee="stand" data-id="${eeEsc(f.aufgabeId)}">${eeEsc(f.aufgabe)}</button>` : ''}</td>
     </tr>`).join('');
-    return `<div class="ee-split">
-        <div>
-            <h1>Lohnmeldung ${ee.jahr}</h1>
-            <p class="ee-lead">Eine Zeile pro Filiale. Alle Filialen zeigt nur diese Liste, es wird nichts zusammengefasst.</p>
-            <div class="ee-step">
-                <button type="button" data-ee="jahr-schritt" data-wert="-1" aria-label="Jahr zurück">‹</button>
-                <b>${ee.jahr}</b>
-                <button type="button" data-ee="jahr-schritt" data-wert="1" aria-label="Jahr vor">›</button>
-            </div>
-            <table class="ee-tabelle">
-                <thead><tr><th>Filiale</th><th>Lohnlauf</th><th>Monatsmeldung</th><th>Jahresmeldung</th><th>Aufgabe</th></tr></thead>
-                <tbody>${zeilen || '<tr><td colspan="5">Keine Filiale.</td></tr>'}</tbody>
-            </table>
+    return `<h1>Lohnmeldung ${ee.jahr}</h1>
+        <p class="ee-lead">Eine Zeile pro Filiale. Alle Filialen zeigt nur diese Liste, es wird nichts zusammengefasst.</p>
+        <div class="ee-step">
+            <button type="button" data-ee="jahr-schritt" data-wert="-1" aria-label="Jahr zurück">‹</button>
+            <b>${ee.jahr}</b>
+            <button type="button" data-ee="jahr-schritt" data-wert="1" aria-label="Jahr vor">›</button>
         </div>
-        <aside class="ee-seite">${eeAufgabenKurz()}</aside>
-    </div>`;
+        <table class="ee-tabelle">
+            <thead><tr><th>Filiale</th><th>Lohnlauf</th><th>Monatsmeldung</th><th>Jahresmeldung</th><th>Aufgabe</th></tr></thead>
+            <tbody>${zeilen || '<tr><td colspan="5">Keine Filiale.</td></tr>'}</tbody>
+        </table>`;
 }
 
-function eeAufgabenKurz() {
-    const punkte = [];
-    if (eeZertWeg()) punkte.push('<button type="button" class="ee-karte" data-ee="nav" data-wert="konfiguration"><b>Zertifikat</b><span>Ohne Zertifikat nimmt Swissdec keine Meldung an.</span></button>');
-    const seen = new Set();
-    for (const m of eeMeldungen()) {
-        if (ee.filiale > 0 && m.companyProfileId !== ee.filiale) continue;
-        if (eeHatFrage(m) && !seen.has(m.id)) {
-            seen.add(m.id);
-            const name = (m.empfaenger || []).find(e => (e.nachrichten || []).some(n => n.dialog && !n.beantwortet))?.name || 'Empfänger';
-            punkte.push(`<button type="button" class="ee-karte" data-ee="frage" data-id="${eeEsc(m.id)}"><b>Rückfrage</b><span>${eeEsc(name)}</span></button>`);
-        } else if ((m.empfaenger || []).some(e => e.freigabeUrl) && !seen.has(m.id)) {
-            seen.add(m.id);
-            punkte.push(`<button type="button" class="ee-karte" data-ee="stand" data-id="${eeEsc(m.id)}"><b>Freigabe</b><span>${eeEsc(m.titel || '')}</span></button>`);
-        }
-        if (punkte.length >= 4) break;
-    }
-    return `<h2>Aufgaben</h2>${punkte.join('') || '<p class="ee-lead">Nichts liegt an.</p>'}`;
+function eeMeldungenSeite() {
+    const liste = eeMeldungen().filter(m => {
+        if (m.jahr && Number(m.jahr) !== ee.jahr) return false;
+        if (ee.filiale > 0 && m.companyProfileId !== ee.filiale) return false;
+        return true;
+    }).slice(0, 12);
+    const zeilen = liste.map(m => {
+        const name = (m.empfaenger || []).map(e => e.name).filter(Boolean)[0] || m.titel || '';
+        return `<button type="button" class="ee-meld" data-ee="stand" data-id="${eeEsc(m.id)}">
+            <b>${eeEsc(m.statusText || 'In Bearbeitung')}</b>
+            <span>${eeEsc(eeDatum(m.gesendet))}</span>
+            <span>${eeEsc(name)}</span>
+        </button>`;
+    }).join('');
+    const zert = eeZertWeg()
+        ? '<button type="button" class="ee-meld" data-ee="nav" data-wert="konfiguration"><b>Zertifikat</b><span>Fehlt oder ist abgelaufen.</span></button>'
+        : '';
+    return `<h2>Meldungen</h2>${zert}${zeilen || '<p class="ee-lead">Keine Meldung.</p>'}`;
 }
 
 function eeMonatHtml() {
