@@ -18,4 +18,15 @@ public static class UvgMehrereVersicherer
     /// <summary>null = Zuweisung darf leer bleiben (kein oder genau ein offener Versicherer).</summary>
     public static string? ZuweisungFehlt(int anzahlOffen, int? empfaengerId)
         => anzahlOffen > 1 && empfaengerId is not > 0 ? ZuweisungPflicht : null;
+
+    /// <summary>
+    /// Ein Versicherer gilt für alle. Mehrere offene: nur die, denen ein Mitarbeiter zugeordnet ist.
+    /// Ist noch niemand zugeordnet, bleiben die Zuordnungen der Filiale sichtbar.
+    /// </summary>
+    public static List<int> Sichtbar(IReadOnlyList<int> zugeordnet, IReadOnlyCollection<int> amMitarbeiter)
+    {
+        if (zugeordnet.Count <= 1 || amMitarbeiter.Count == 0) return zugeordnet.ToList();
+        var treffer = zugeordnet.Where(amMitarbeiter.Contains).Distinct().ToList();
+        return treffer.Count > 0 ? treffer : zugeordnet.ToList();
+    }
 }

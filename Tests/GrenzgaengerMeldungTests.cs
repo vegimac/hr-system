@@ -47,6 +47,23 @@ public class GrenzgaengerMeldungTests
     }
 
     [Fact]
+    public void Bern_ohne_italien_zeigt_keinen_Grenzgaenger_Italien()
+    {
+        var q = new HrSystem.Models.EmployeeQuellensteuer { TarifCode = "A0N", Wohnsitzstaat = "CH" };
+        Assert.DoesNotContain("grenz-it", GrenzgaengerMeldung.Arten(new[] { q }, "CH", "CH"));
+        Assert.DoesNotContain("grenz-fr", GrenzgaengerMeldung.Arten(new[] { q }, "CH", "CH"));
+    }
+
+    [Fact]
+    public void Italien_am_mitarbeiter_zeigt_nur_italien()
+    {
+        var q = new HrSystem.Models.EmployeeQuellensteuer { DatenaustauschItalien = true, Wohnsitzstaat = "IT" };
+        var arten = GrenzgaengerMeldung.Arten(new[] { q }, "IT", "IT").ToList();
+        Assert.Contains("grenz-it", arten);
+        Assert.DoesNotContain("grenz-fr", arten);
+    }
+
+    [Fact]
     public void Sfn_nur_der_tarifcode()
     {
         Assert.True(GrenzgaengerMeldung.Sfn("SFN"));

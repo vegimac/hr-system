@@ -19,6 +19,20 @@ public class UvgMehrereVersichererTests
     }
 
     [Fact]
+    public void Suva_ohne_Mitarbeiter_faellt_weg_wenn_ein_anderer_zugeordnet_ist()
+    {
+        var sichtbar = UvgMehrereVersicherer.Sichtbar(new[] { 1, 2 }, new[] { 1 });
+        Assert.Equal(new[] { 1 }, sichtbar);
+    }
+
+    [Fact]
+    public void Einziger_Versicherer_bleibt_ohne_Eintrag_am_Mitarbeiter()
+    {
+        var sichtbar = UvgMehrereVersicherer.Sichtbar(new[] { 2 }, Array.Empty<int>());
+        Assert.Equal(new[] { 2 }, sichtbar);
+    }
+
+    [Fact]
     public void Mehrere_offene_Versicherer_verlangen_eine_Personenzuweisung()
     {
         Assert.Equal(UvgMehrereVersicherer.ZuweisungPflicht, UvgMehrereVersicherer.ZuweisungFehlt(2, null));

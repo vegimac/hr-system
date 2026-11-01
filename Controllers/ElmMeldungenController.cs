@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using HrSystem.Services.Elm;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -235,14 +236,18 @@ public class ElmMeldungenController : ControllerBase
     public async Task<IActionResult> Domaenen(int jahr, int? companyProfileId, CancellationToken ct)
     {
         var heute = DateOnly.FromDateTime(DateTime.Now);
+        var jahrVon = new DateOnly(jahr, 1, 1);
+        var jahrBis = new DateOnly(jahr, 12, 31);
         var zuordnungen = companyProfileId is int cp && cp > 0
             ? (await _db.CompanyProfileEmpfaengers.AsNoTracking()
                 .Include(z => z.Empfaenger)
                 .Where(z => z.CompanyProfileId == cp && z.IsActive && z.Empfaenger != null && z.Empfaenger.IsActive)
                 .ToListAsync(ct))
-                .Where(z => z.GiltAm(heute))
+                .Where(z => GiltImJahr(z, jahrVon, jahrBis))
                 .ToList()
             : null;
+        var grenz = zuordnungen == null ? null : await GrenzArtenAsync(companyProfileId!.Value, jahr, ct);
+        var genutzt = zuordnungen == null ? null : await GenutzteVersichererAsync(companyProfileId!.Value, jahr, ct);
         var empf = zuordnungen == null
             ? await _db.LohndatenEmpfaengers.AsNoTracking()
                 .Include(e => e.Zuordnungen)
@@ -262,8 +267,13 @@ public class ElmMeldungenController : ControllerBase
             if (zuordnungen != null)
             {
                 var liste = zuordnungen.Where(z => arten.Contains(z.Empfaenger!.Art)).ToList();
-                if (liste.Count == 0)
-                    return new[] { Zeile(prefix, name, "", art, lohnsummen, null, null, null, domain) };
+                if (arten.Length == 1 && arten[0] is "UVG" or "UVGZ" or "KTG" or "BVG"
+                    && genutzt != null && genutzt.TryGetValue(arten[0], out var ids))
+                {
+                    var sichtbar = UvgMehrereVersicherer.Sichtbar(liste.Select(z => z.EmpfaengerId).ToList(), ids);
+                    liste = liste.Where(z => sichtbar.Contains(z.EmpfaengerId)).ToList();
+                }
+                if (liste.Count == 0) return Array.Empty<object>();
                 return liste.Select(z => Zeile(prefix + "-" + z.Id, name, z.Empfaenger!.Bezeichnung.Trim(), art, lohnsummen,
                     z.Empfaenger.Kassennummer, z.Mitgliednummer, z.Subnummer, domain));
             }
@@ -278,6 +288,23 @@ public class ElmMeldungenController : ControllerBase
                     e.Kassennummer, z?.Mitgliednummer, z?.Subnummer, domain);
             });
         }
+        IEnumerable<object> GrenzZeilen()
+        {
+            object ZeileArt(string id, string name) => Zeile(id, name, "Steuerverwaltung des Arbeitskantons", id, false, null, null, null, "TaxCrossborder");
+            if (grenz == null)
+                return new[]
+                {
+                    ZeileArt("grenz-sfn", "Grenzgänger SFN"),
+                    ZeileArt("grenz-fr", "Grenzgänger Frankreich"),
+                    ZeileArt("grenz-it", "Grenzgänger Italien"),
+                };
+            var liste = new List<object>();
+            if (grenz.Contains("grenz-sfn")) liste.Add(ZeileArt("grenz-sfn", "Grenzgänger SFN"));
+            if (grenz.Contains("grenz-fr")) liste.Add(ZeileArt("grenz-fr", "Grenzgänger Frankreich"));
+            if (grenz.Contains("grenz-it")) liste.Add(ZeileArt("grenz-it", "Grenzgänger Italien"));
+            return liste;
+        }
+
         var gruppen = new object[]
         {
             new
@@ -302,15 +329,72 @@ public class ElmMeldungenController : ControllerBase
             {
                 id = "steuern", name = "Steuern", portal = false,
                 zeilen = AusKatalog("lohnausweis", "Lohnausweise", new[] { "LOHNAUSWEIS" }, null, false, "Tax")
-                    .Concat(new object[]
-                    {
-                        Zeile("grenz-sfn", "Grenzgänger SFN", "Steuerverwaltung des Arbeitskantons", "grenz-sfn", false, null, null, null, "TaxCrossborder"),
-                        Zeile("grenz-fr", "Grenzgänger Frankreich", "Steuerverwaltung des Arbeitskantons", "grenz-fr", false, null, null, null, "TaxCrossborder"),
-                        Zeile("grenz-it", "Grenzgänger Italien", "Steuerverwaltung des Arbeitskantons", "grenz-it", false, null, null, null, "TaxCrossborder"),
-                    }),
+                    .Concat(GrenzZeilen()),
             },
         };
         return Ok(new { jahr, companyProfileId, gruppen });
+    }
+
+    private static bool GiltImJahr(CompanyProfileEmpfaenger z, DateOnly von, DateOnly bis)
+        => z.IsActive
+           && (z.GueltigAb == null || z.GueltigAb <= bis)
+           && (z.GueltigBis == null || z.GueltigBis >= von);
+
+    private async Task<HashSet<string>> GrenzArtenAsync(int filiale, int jahr, CancellationToken ct)
+    {
+        var von = new DateOnly(jahr, 1, 1);
+        var bis = new DateOnly(jahr, 12, 31);
+        var yearStart = new DateTime(jahr, 1, 1);
+        var yearEnd = new DateTime(jahr, 12, 31);
+        var empIds = await _db.Employments.AsNoTracking()
+            .Where(m => m.CompanyProfileId == filiale
+                && m.ContractStartDate <= yearEnd
+                && (m.ContractEndDate == null || m.ContractEndDate >= yearStart))
+            .Select(m => m.EmployeeId)
+            .Distinct()
+            .ToListAsync(ct);
+        if (empIds.Count == 0) return new HashSet<string>();
+        var emps = await _db.Employees.AsNoTracking().Include(e => e.NationalityRef)
+            .Where(e => empIds.Contains(e.Id) && !e.IsPayrollExcluded)
+            .ToListAsync(ct);
+        var ids = emps.Select(e => e.Id).ToList();
+        var versionen = await _db.EmployeeQuellensteuer.AsNoTracking()
+            .Where(q => ids.Contains(q.EmployeeId) && q.ValidFrom <= bis && (q.ValidTo == null || q.ValidTo >= von))
+            .ToListAsync(ct);
+        var arten = new HashSet<string>();
+        foreach (var e in emps)
+        {
+            foreach (var art in GrenzgaengerMeldung.Arten(versionen.Where(q => q.EmployeeId == e.Id), e.Country, e.NationalityRef?.Code))
+                arten.Add(art);
+        }
+        return arten;
+    }
+
+    private async Task<Dictionary<string, HashSet<int>>> GenutzteVersichererAsync(int filiale, int jahr, CancellationToken ct)
+    {
+        var von = new DateOnly(jahr, 1, 1);
+        var bis = new DateOnly(jahr, 12, 31);
+        var yearStart = new DateTime(jahr, 1, 1);
+        var yearEnd = new DateTime(jahr, 12, 31);
+        var empIds = await _db.Employments.AsNoTracking()
+            .Where(m => m.CompanyProfileId == filiale
+                && m.ContractStartDate <= yearEnd
+                && (m.ContractEndDate == null || m.ContractEndDate >= yearStart))
+            .Select(m => m.EmployeeId)
+            .Distinct()
+            .ToListAsync(ct);
+        if (empIds.Count == 0) return new Dictionary<string, HashSet<int>>();
+        var codes = await _db.EmployeeVersicherungCodes.AsNoTracking()
+            .Where(c => empIds.Contains(c.EmployeeId)
+                && c.EmpfaengerId != null
+                && c.ValidFrom <= bis
+                && (c.ValidTo == null || c.ValidTo >= von)
+                && (c.Art == "UVG" || c.Art == "UVGZ" || c.Art == "KTG" || c.Art == "BVG"))
+            .Select(c => new { c.Art, EmpfaengerId = c.EmpfaengerId!.Value })
+            .ToListAsync(ct);
+        return codes
+            .GroupBy(c => c.Art)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.EmpfaengerId).ToHashSet());
     }
 
     [HttpGet("bvg-lohnsummen")]

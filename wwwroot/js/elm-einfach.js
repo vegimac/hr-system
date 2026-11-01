@@ -270,8 +270,8 @@ function eeMonatHtml() {
 
 function eeJahrHtml() {
     if (!eeFilialeId()) return '<h1>Jahr</h1><p class="ee-lead">Wähle links die Filiale. Alle Filialen ist nur die Übersicht.</p>';
-    const gruppen = ee.domaenen?.gruppen || [];
-    const bloecke = gruppen.map(g => {
+    const gruppen = ee.domaenen ? (ee.domaenen.gruppen || []).filter(g => (g.zeilen || []).length) : null;
+    const bloecke = (gruppen || []).map(g => {
         const rows = (g.zeilen || []).map(z => eeJahrZeile(z)).join('');
         const portal = g.id === 'versicherung'
             ? `<label class="ee-zeile" title="${eeEsc(EE_PORTAL)}"><span><b>Portal</b><i>Freigabe im Portal gewünscht</i></span>
@@ -280,14 +280,14 @@ function eeJahrHtml() {
     }).join('');
     const bvg = ee.bvgOffen ? eeBvgHtml() : '';
     return `<h1>Jahresmeldung ${ee.jahr}</h1>
-        <p class="ee-lead">${eeEsc(eeFilialeName())}. Was noch keine Lohndaten hat, bleibt sichtbar und geht nicht mit.</p>
+        <p class="ee-lead">${eeEsc(eeFilialeName())}. Nur Empfänger, die bei dieser Filiale für ${ee.jahr} hinterlegt sind. Was noch keine Lohndaten hat, geht nicht mit.</p>
         <div class="ee-step">
             <button type="button" data-ee="jahr-schritt" data-wert="-1" aria-label="Jahr zurück">‹</button>
             <b>${ee.jahr}</b>
             <button type="button" data-ee="jahr-schritt" data-wert="1" aria-label="Jahr vor">›</button>
         </div>
         ${ee.ersatz ? `<p class="ee-merk">Das ersetzt die Meldung vom ${eeEsc(eeDatum(ee.ersatz.gesendet))}.</p>` : ''}
-        ${bloecke || '<p class="ee-lead">Empfänger werden geladen.</p>'}
+        ${gruppen == null ? '<p class="ee-lead">Empfänger werden geladen.</p>' : (bloecke || '<p class="ee-lead">Dieser Filiale ist für dieses Jahr kein Empfänger zugeordnet.</p>')}
         ${bvg}
         ${eeLeiste()}
         ${eeFokusKarte()}`;
