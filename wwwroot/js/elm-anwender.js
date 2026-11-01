@@ -36,6 +36,8 @@ const _ELMA_STUFE = {
 
 let _elma = null;
 let _elmaVorschau = null;
+let _elmaVorschauTimer = 0;
+let _elmaVorschauLauf = 0;
 let _elmaErsatz = null;
 let _elmaBusy = false;
 let _elmaHinweis = null;
@@ -358,7 +360,7 @@ function elmaDomaenenZeichnen() {
         }
         box.innerHTML = `<div class="elma-domcols">
             <div><div class="elma-kicker">Quellensteuer</div>${_elmaCheck('qst', 'Quellensteuer', 'qst')}
-                <small class="elma-an">Nach dem Prüfen lässt sich jeder Kanton einzeln an- und abwählen.</small></div>
+                <small class="elma-an">Jeder Kanton lässt sich in der Meldung einzeln an- und abwählen.</small></div>
             <div><div class="elma-kicker">Statistik</div>${_elmaCheck('statistik', 'Statistik', 'statistik')}
                 <small class="elma-an">an das Bundesamt für Statistik</small></div>
         </div>`;
@@ -453,10 +455,12 @@ async function elmaMonatStand(setzen) {
     const z = elmaZeitLesen();
     if (setzen && _elmaLetzter && _elmaLetzter.monat && _elmaLetzter.monat !== z.monat) {
         elmaZeitSetzen(z.jahr, _elmaLetzter.monat, { still: true });
+        elmaVorschauPlanen();
         return;
     }
     elmaZeitZeichnen();
     elmaUeberZeichnen();
+    elmaVorschauPlanen();
 }
 
 function elmaMitteZeichnen() {
@@ -525,7 +529,7 @@ function elmaJahrHtml() {
 function elmaMonatHtml() {
     return `<section class="elma-gruppe">
         <div class="elma-kicker">Quellensteuer</div>
-        <div class="elma-zeile"><b>Quellensteuer</b><span class="elma-an">an die Steuerverwaltung jedes Kantons mit Quellensteuer. Nach dem Prüfen lässt sich jeder Kanton einzeln an- und abwählen.</span></div>
+        <div class="elma-zeile"><b>Quellensteuer</b><span class="elma-an">an die Steuerverwaltung jedes Kantons mit Quellensteuer. Jeder Kanton lässt sich in der Meldung einzeln an- und abwählen.</span></div>
     </section>
     <section class="elma-gruppe">
         <div class="elma-kicker">Statistik</div>
@@ -880,6 +884,8 @@ function elmaZeitJahr(jahr) {
 }
 
 function elmaArtGewechselt() {
+    clearTimeout(_elmaVorschauTimer);
+    _elmaVorschauLauf++;
     elmaZeitBlattZu();
     elmaZeitZeichnen();
     const monatFeld = document.getElementById('elmaZeitMonatFeld');
@@ -951,31 +957,51 @@ async function elmaLaden() {
     elmaPlanen();
 }
 
-async function elmaPruefen() {
+function elmaVorschauPlanen() {
+    clearTimeout(_elmaVorschauTimer);
+    if (_elmaAnsicht !== 'monat' || !elmaFilialeId()) return;
+    _elmaKantone = null;
+    _elmaVorschau = null;
+    const el = document.getElementById('elmaVorschau');
+    if (el) el.innerHTML = '<p class="elma-an" style="margin-top:14px">Meldung wird geprüft …</p>';
+    _elmaVorschauTimer = setTimeout(function () { elmaPruefen({ auto: true }); }, 200);
+}
+
+async function elmaPruefen(opt) {
+    const auto = !!(opt && opt.auto);
     const a = _elmaAuswahl();
     const el = document.getElementById('elmaVorschau');
-    if (!a.jahr) { if (el) el.innerHTML = _elmaKasten(false, 'Bitte ein Jahr angeben.'); return; }
-    if (!a.companyProfileId) { if (el) el.innerHTML = _elmaKasten(false, 'Wähle links die Filiale. Eine Meldung gilt nur für diese.'); return; }
-    if (_elmaBusy) return;
-    _elmaBusy = true;
+    if (!a.jahr) { if (!auto && el) el.innerHTML = _elmaKasten(false, 'Bitte ein Jahr angeben.'); return; }
+    if (!a.companyProfileId) { if (!auto && el) el.innerHTML = _elmaKasten(false, 'Wähle links die Filiale. Eine Meldung gilt nur für diese.'); return; }
+    if (!auto && _elmaBusy) return;
+    if (!auto) clearTimeout(_elmaVorschauTimer);
+    const lauf = ++_elmaVorschauLauf;
     const btn = document.getElementById('elmaPruefenBtn');
-    if (btn) btn.disabled = true;
-    if (el) el.innerHTML = '';
-    _elmaWarte('Meldung wird geprüft', 'OneCrew baut die Meldung und schaut, ob sie so rausgehen kann.');
+    if (!auto) {
+        _elmaBusy = true;
+        if (btn) btn.disabled = true;
+        if (el) el.innerHTML = '';
+        _elmaWarte('Meldung wird geprüft', 'OneCrew baut die Meldung und schaut, ob sie so rausgehen kann.');
+    }
     try {
         const q = new URLSearchParams({ art: a.art, jahr: String(a.jahr), companyProfileId: String(a.companyProfileId) });
         if (a.monat) q.set('monat', String(a.monat));
         const r = await fetch('/api/elm/meldungen/vorschau?' + q, { headers: ah() });
         const j = await r.json().catch(() => ({}));
+        if (lauf !== _elmaVorschauLauf) return;
         if (!r.ok) throw new Error(j.message || 'Fehler ' + r.status);
         _elmaVorschau = Object.assign(j, { auswahl: a });
     } catch (e) {
+        if (lauf !== _elmaVorschauLauf) return;
         _elmaVorschau = null;
         if (el) el.innerHTML = _elmaKasten(false, _elmaEsc(e.message));
     } finally {
-        _elmaWarte(null);
-        _elmaBusy = false;
-        if (btn) btn.disabled = false;
+        if (!auto) {
+            _elmaWarte(null);
+            _elmaBusy = false;
+            if (btn) btn.disabled = false;
+        }
+        if (lauf !== _elmaVorschauLauf) return;
         elmaLageZeichnen();
         elmaVorschauZeichnen();
     }
