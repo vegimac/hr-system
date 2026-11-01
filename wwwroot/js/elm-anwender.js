@@ -43,6 +43,7 @@ let _elmaBusy = false;
 let _elmaHinweis = null;
 let _elmaTimer = null;
 let _elmaOffen = new Set();
+let _elmaAufgabeOffen = null;
 let _elmaArchivOffen = false;
 let _elmaFokus = null;
 let _elmaFlug = false;
@@ -1252,31 +1253,32 @@ function elmaAufgabenZeichnen() {
             knopf: 'Neues Zertifikat beantragen', click: 'elmaZertifikatErneuern()',
         });
     }
-    const alle = (_elma?.meldungen || []).filter(m => !m.zertifizierung && _elmaPasstAnsicht(m));
-    alle.forEach(m => {
+    (_elma?.meldungen || []).forEach((m, mi) => {
+        if (m.zertifizierung || !_elmaPasstAnsicht(m)) return;
         const id = _elmaEsc(m.id);
         const hinweise = (m.empfaenger || []).flatMap(e => e.hinweise || []);
+        const detail = _elmaAufgabeOffen === m.id ? _elmaAufgabeDetail(m, mi) : '';
         if (m.status === 'error' || m.stufe === 'rot') {
             karten.push({
                 art: 'rot', aufgabe: true,
                 titel: `Fehler in der ${m.titel || 'Meldung'}`,
                 text: hinweise.length ? (hinweise.length === 1 ? hinweise[0] : `${hinweise.length} Hinweise in der Prüfung.`) : (m.statusText || 'Die Meldung wurde nicht angenommen.'),
-                knopf: 'Details anzeigen', click: `elmaAnsehen('${id}')`,
+                knopf: 'Details anzeigen', click: `elmaAnsehen('${id}')`, detail: '',
             });
         }
         (m.empfaenger || []).forEach(e => {
             if ((e.nachrichten || []).some(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet))
-                karten.push({ art: 'warn', aufgabe: true, titel: `Rückfrage von ${e.name}`, text: m.titel || '', knopf: 'Öffnen', click: `elmaAnsehen('${id}')` });
+                karten.push({ art: 'warn', aufgabe: true, titel: `Rückfrage von ${e.name}`, text: m.titel || '', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
             if (e.freigabeUrl)
-                karten.push({ art: 'info', aufgabe: true, titel: `Freigabe bei ${e.name}`, text: 'Die Freigabe im Portal steht bereit.', knopf: 'Öffnen', click: `elmaAnsehen('${id}')` });
+                karten.push({ art: 'info', aufgabe: true, titel: `Freigabe bei ${e.name}`, text: 'Die Freigabe im Portal steht bereit.', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
         });
         const quittung = (m.empfaenger || []).some(e => (e.nachrichten || []).some(n => (n.art || '').indexOf('Quittung') >= 0));
         if (quittung && m.stufe !== 'rot')
-            karten.push({ art: 'info', aufgabe: false, titel: 'Quittung der letzten Übermittlung vorhanden', text: 'Die Verarbeitung durch die Empfänger wurde bestätigt.', knopf: 'Quittung anzeigen', click: `elmaQuittung('${id}')` });
+            karten.push({ art: 'info', aufgabe: false, titel: 'Quittung der letzten Übermittlung vorhanden', text: 'Die Verarbeitung durch die Empfänger wurde bestätigt.', knopf: 'Quittung anzeigen', click: `elmaQuittung('${id}')`, detail: '' });
     });
     const offen = karten.filter(k => k.aufgabe).length;
     const liste = karten.length
-        ? karten.map(k => `<article class="elma-hinweis elma-hinweis-${k.art}"><div><b>${_elmaEsc(k.titel)}</b><p>${_elmaEsc(k.text)}</p></div><button type="button" class="btn btn-secondary" onclick="${k.click}">${_elmaEsc(k.knopf)}</button></article>`).join('')
+        ? karten.map(k => `<div><article class="elma-hinweis elma-hinweis-${k.art}"><div><b>${_elmaEsc(k.titel)}</b><p>${_elmaEsc(k.text)}</p></div><button type="button" class="btn btn-secondary" onclick="${k.click}">${_elmaEsc(k.knopf)}</button></article>${k.detail || ''}</div>`).join('')
         : '<div style="font-size:13px;color:#8b8b8b">Keine offenen Aufgaben.</div>';
     box.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Aufgaben & Hinweise</div><span class="elma-an">${offen} ${offen === 1 ? 'offene Aufgabe' : 'offene Aufgaben'}</span></div>
         <div class="elma-aufgabe-spur" style="margin:10px 0 12px"><i style="width:${offen ? '100%' : '0%'}"></i></div>
@@ -1344,9 +1346,27 @@ function _elmaUebersicht(m, mi) {
     ${_elmaDetailsInhalt(m, mi)}`;
 }
 
+function _elmaAufgabeDetail(m, mi) {
+    const formular = _elmaDetailsInhalt(m, mi);
+    if (formular && formular.trim()) return `<div id="elmaAufgabeDetail" class="elma-aufgabe-detail">${formular}</div>`;
+    const bloecke = [];
+    (m.empfaenger || []).forEach(e => {
+        (e.nachrichten || []).forEach(n => {
+            if (n.art !== 'Rückfrage' || !n.dialog || n.beantwortet) return;
+            const d = n.dialog;
+            const zeilen = (d.absaetze || []).map(p => p.label || p.wert || '').filter(Boolean);
+            bloecke.push(`<div><b>${_elmaEsc(e.name)}</b><p>${_elmaEsc(d.titel || d.beschreibung || 'Mitteilung ohne Eingabe')}</p>${zeilen.map(t => `<p>${_elmaEsc(t)}</p>`).join('')}<p class="elma-an">Keine Eingabe nötig. OneCrew bestätigt den Empfang selbst.</p></div>`);
+        });
+    });
+    const innen = bloecke.join('') || '<p class="elma-an">Die Rückfrage enthält keinen Text.</p>';
+    return `<div id="elmaAufgabeDetail" class="elma-aufgabe-detail">${innen}</div>`;
+}
+
 function elmaAnsehen(id) {
-    _elmaFokus = _elmaFokus === id ? null : id;
+    _elmaAufgabeOffen = _elmaAufgabeOffen === id ? null : id;
+    _elmaFokus = id;
     elmaListeZeichnen();
+    document.getElementById('elmaAufgabeDetail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function _elmaKurzListe(arr) {

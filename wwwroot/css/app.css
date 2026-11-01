@@ -14982,6 +14982,8 @@ body.theme-dark #page-elm-anwender table.elma-mit td { color: #303130; }
 #page-elm-anwender .elma-domcols.elma-domcols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 #page-elm-anwender .elma-check input { accent-color: #3f3f3f; }
 #page-elm-anwender .elma-hinweis { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; }
+#page-elm-anwender .elma-aufgabe-detail { margin: -4px 0 10px; padding: 4px 12px 10px; font-size: 13px; color: #3f3f3f; }
+#page-elm-anwender .elma-aufgabe-detail p { margin: 4px 0 0; }
 #page-elm-anwender .elma-hinweis b { display: block; font-size: 13px; color: #3f3f3f; }
 #page-elm-anwender .elma-hinweis p { margin: 2px 0 0; font-size: 12px; color: #646464; }
 #page-elm-anwender .elma-hinweis .btn { flex: 0 0 auto; }
