@@ -140,11 +140,20 @@ function xcFilialeId() {
     return (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
 }
 
-function xcFilialeName() {
+function xcFiliale() {
     const id = xcFilialeId();
-    if (!id || typeof allBranches === 'undefined') return '';
-    const b = allBranches.find(x => x.id === id);
+    if (!id || typeof allBranches === 'undefined') return null;
+    return allBranches.find(x => x.id === id) || null;
+}
+
+function xcFilialeName() {
+    const b = xcFiliale();
     return b ? (b.branchName || b.companyName || '') : '';
+}
+
+function xcKanton() {
+    const k = (xcFiliale()?.kantonCode || '').trim().toUpperCase();
+    return k;
 }
 
 function xcDomaenenUrl() {
@@ -267,9 +276,10 @@ function xcSatz() {
         return 'Ohne gültiges Zertifikat nimmt Swissdec keine Meldung an. Das Zertifikat liegt unter Konfiguration.';
     if (xc.art === 'monat') {
         const name = `${XC_MONATE[xc.monat - 1] || ''} ${xc.jahr}`.trim();
+        const kt = xcKanton();
         if (xc.arm === xcKern() && xcBereit())
-            return `Geprüft. Übermitteln schickt die Monatsmeldung ${name}. Eine Testmeldung verarbeiten die Empfänger nicht.`;
-        return `Monatsmeldung ${name}. Anwählen, dann Prüfen. Die Kantone kommen danach.`;
+            return `Geprüft. Übermitteln schickt die Monatsmeldung ${name}${kt ? ' an Kanton ' + kt : ''}. Eine Testmeldung verarbeiten die Empfänger nicht.`;
+        return `Monatsmeldung ${name}. Quellensteuer geht an ${kt ? 'Kanton ' + kt : 'den Kanton der Filiale'}. Danach Prüfen.`;
     }
     if (xc.arm === xcKern() && xcBereit())
         return `Geprüft. Übermitteln schickt die Jahresmeldung ${xc.jahr}. Eine Testmeldung verarbeiten die Empfänger nicht.`;
@@ -385,33 +395,29 @@ function xcZeile(z) {
     </div>`;
 }
 
+function xcIstStatistik(e) {
+    return e.domain === 'Statistic' || e.addresseeId === '#BFS';
+}
+
+function xcIstKantonDerFiliale(e) {
+    const kt = xcKanton();
+    if (!kt || xcIstStatistik(e)) return false;
+    const id = String(e.addresseeId || '');
+    const kennung = String(e.identification || '').trim().toUpperCase();
+    return id === '#QST-' + kt || kennung === kt;
+}
+
 function xcMonatHtml() {
+    const kt = xcKanton();
     const reihe = (id, name, an) => `<div class="xc-row">
         <span class="xc-name">${name}</span>
         <span class="xc-an">${an}</span>
         <span></span>
         <input class="xc-check" type="checkbox" data-xc="wahl" data-id="${id}" ${xc.wahl.has(id) ? 'checked' : ''} aria-label="${name}">
     </div>`;
-    let kantone = '';
-    const v = xc.checks.find(c => c.art === 'monthly');
-    if (v && xc.kantone) {
-        const rows = (v.v.empfaenger || []).map(e => {
-            const stat = e.domain === 'Statistic' || e.addresseeId === '#BFS';
-            if (stat ? !xc.wahl.has('statistik') : !xc.wahl.has('qst')) return '';
-            const an = xc.kantone.has(e.addresseeId);
-            return `<div class="xc-row">
-                <span class="xc-name">${xcEsc(XC_DOM[e.domain] || e.domain || '')}</span>
-                <span class="xc-an">${xcEsc(e.name)}</span>
-                <span></span>
-                <input class="xc-check" type="checkbox" data-xc="kanton" data-id="${xcEsc(e.addresseeId)}" ${an ? 'checked' : ''} aria-label="${xcEsc(e.name)}">
-            </div>`;
-        }).join('');
-        if (rows) kantone = `<div class="xc-gruppe">Kantone</div>${rows}`;
-    }
     return `<div class="xc-gruppe">Monatsmeldung</div>
-        ${reihe('qst', 'Quellensteuer', 'Jeder Kanton einzeln, nach dem Prüfen')}
-        ${reihe('statistik', 'Statistik', 'Bundesamt für Statistik')}
-        ${kantone}`;
+        ${reihe('qst', 'Quellensteuer', kt ? 'Kanton ' + kt : 'Kanton fehlt an der Filiale')}
+        ${reihe('statistik', 'Statistik', 'Bundesamt für Statistik')}`;
 }
 
 function xcGehtHtml() {
@@ -432,7 +438,8 @@ function xcFehlerHtml() {
         for (const f of c.v.fehler || []) zeilen.push(f);
         if ((c.v.technisch || []).length) zeilen.push('Die Meldung ist fehlerhaft.');
         if (c.v.sendenGesperrt) zeilen.push(c.v.sendenGesperrt);
-        if (c.art === 'monthly' && xc.kantone && !xc.kantone.size) zeilen.push('Kein Kanton gewählt.');
+        if (c.art === 'monthly' && xc.kantone && !xc.kantone.size && xc.wahl.has('qst') && !xcKanton())
+            zeilen.push('An der Filiale ist kein Kanton hinterlegt.');
         if (!(c.v.fehler || []).length && !(c.v.empfaenger || []).length) zeilen.push('Die Meldung hat keinen Empfänger.');
     }
     const warn = xc.checks.flatMap(c => c.v.warnungen || []);
@@ -773,8 +780,8 @@ async function xcPruefen() {
     if (xc.art === 'monat' && checks[0]) {
         xc.kantone = new Set();
         for (const e of checks[0].v.empfaenger || []) {
-            const stat = e.domain === 'Statistic' || e.addresseeId === '#BFS';
-            if (stat ? xc.wahl.has('statistik') : xc.wahl.has('qst')) xc.kantone.add(e.addresseeId);
+            if (xcIstStatistik(e) ? xc.wahl.has('statistik') : (xc.wahl.has('qst') && xcIstKantonDerFiliale(e)))
+                xc.kantone.add(e.addresseeId);
         }
         if (!xc.kantone.size) ok = false;
     }
