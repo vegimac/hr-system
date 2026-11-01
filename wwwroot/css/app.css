@@ -15191,6 +15191,15 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
 #page-elm-cockpit .xc-anm { grid-template-columns: 5.5rem minmax(0, 1fr) auto; }
 #page-elm-cockpit .xc-bvg { grid-template-columns: minmax(0, 1fr) 6rem 8rem; }
 #page-elm-cockpit .xc-seite { position: sticky; top: 12px; }
+#page-elm-cockpit .xc-tueren { display: flex; flex-direction: column; gap: 12px; }
+#page-elm-cockpit .xc-tuer {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    width: 100%; text-align: left; padding: 18px 20px; background: transparent; color: #e8eaed;
+    border: 1px solid #3a3f46; cursor: pointer; font: inherit;
+}
+#page-elm-cockpit .xc-tuer b { font-size: 18px; font-weight: 560; }
+#page-elm-cockpit .xc-tuer span { color: #9aa0a6; font-size: 14px; line-height: 1.4; }
+#page-elm-cockpit .xc-tuer:hover { border-color: #e8eaed; }
 #page-elm-cockpit .xc-auf {
     display: flex; justify-content: space-between; gap: 16px; align-items: center;
     min-height: 56px; border-top: 1px solid #1c1f24; padding: 8px 0;

@@ -33,12 +33,12 @@ public class ElmMeldungenController : ControllerBase
     public IActionResult Liste() => Ok(Stand());
 
     [HttpGet("vorschau")]
-    public async Task<IActionResult> Vorschau(string art, int jahr, int? monat, CancellationToken ct)
+    public async Task<IActionResult> Vorschau(string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct)
     {
         art = ElmMeldungAnzeige.NormalisiereArt(art);
         try
         {
-            var v = await _dienst.VorschauAsync(art, jahr, monat, ct);
+            var v = await _dienst.VorschauAsync(art, jahr, monat, ct, companyProfileId);
             return Ok(new
             {
                 v.Titel, v.Firmenname, v.Uid,
@@ -59,7 +59,7 @@ public class ElmMeldungenController : ControllerBase
     }
 
     public record SendenBody(string? Art, int Jahr, int? Monat, string? ErsetztId, string? Ziel,
-        bool? Testmeldung, bool FreigabePortal, Dictionary<string, bool>? Adressaten);
+        bool? Testmeldung, bool FreigabePortal, Dictionary<string, bool>? Adressaten, int? CompanyProfileId);
 
     [HttpPost("senden")]
     public async Task<IActionResult> Senden([FromBody] SendenBody dto, CancellationToken ct)
@@ -68,7 +68,7 @@ public class ElmMeldungenController : ControllerBase
         try
         {
             var r = await _dienst.SendenAsync(art, dto.Jahr, dto.Monat, dto.ErsetztId, dto.Ziel,
-                dto.Testmeldung, dto.FreigabePortal, dto.Adressaten, ct);
+                dto.Testmeldung, dto.FreigabePortal, dto.Adressaten, ct, dto.CompanyProfileId);
             return Ok(new
             {
                 ok = r.Ok,

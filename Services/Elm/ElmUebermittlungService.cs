@@ -77,7 +77,8 @@ public class ElmUebermittlungService
         Dictionary<string, bool>? Adressaten = null,
         bool DoppeltSignieren = true,
         bool RequestIdWiederverwenden = false,
-        bool FreigabePortal = false);
+        bool FreigabePortal = false,
+        int? CompanyProfileId = null);
 
     public record DialogAntwort(string StoryId, Dictionary<short, string?> Werte);
 
@@ -94,9 +95,9 @@ public class ElmUebermittlungService
         public List<Hinweis> Plausibilitaet { get; init; } = new();
     }
 
-    public async Task<Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct)
+    public async Task<Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct, int? companyProfileId = null)
     {
-        var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, jahr, monat, ct);
+        var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, jahr, monat, companyProfileId, ct);
         if (xml.Length == 0) return new Vorschau(art, titel, new(), "", "", warn, xsd);
         var root = XDocument.Parse(xml).Root!;
         var v = LiesVorlage(root);
@@ -110,7 +111,7 @@ public class ElmUebermittlungService
             : new DateTime(jahr, monat.Value, DateTime.DaysInMonth(jahr, monat.Value));
 
     private async Task<(string Xml, string Titel, List<string> Warn, List<string> Xsd)> BaueMeldungAsync(
-        string art, int jahr, int? monat, CancellationToken ct)
+        string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct)
     {
         if (art == "annual")
         {
@@ -125,7 +126,7 @@ public class ElmUebermittlungService
         }
         if (monat is null or < 1 or > 12)
             throw new InvalidOperationException("Für die Monatsmeldung Monat 1–12 angeben.");
-        var m = await _monat.BuildAsync(jahr, monat.Value, ct);
+        var m = await _monat.BuildAsync(jahr, monat.Value, companyProfileId, ct);
         return (m.Xml, $"Monatsmeldung {monat:00}.{jahr}", m.Warnungen, m.XsdFehler);
     }
 
@@ -137,7 +138,7 @@ public class ElmUebermittlungService
     private async Task<Ergebnis> DeclareInternAsync(string url, DeclareOptionen o, CancellationToken ct)
     {
         var art = ElmMeldungAnzeige.NormalisiereArt(o.Art);
-        var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, o.Jahr, o.Monat, ct);
+        var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, o.Jahr, o.Monat, o.CompanyProfileId, ct);
         if (xml.Length == 0)
             return new Ergebnis(false, "Keine Meldung erzeugt: " + string.Join(" · ", warn), null, null) { Warnungen = warn };
         if (xsd.Count > 0)

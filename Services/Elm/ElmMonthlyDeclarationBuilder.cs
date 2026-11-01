@@ -154,11 +154,26 @@ public class ElmMonthlyDeclarationBuilder
     private static string? Str(JsonElement el, string name)
         => el.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    public async Task<BuildResult> BuildAsync(int year, int month, CancellationToken ct = default)
+    public Task<BuildResult> BuildAsync(int year, int month, CancellationToken ct = default)
+        => BuildAsync(year, month, null, ct);
+
+    /// <summary>Mit nurFiliale nur die Lohnzettel dieser Filiale. Ohne: alle Filialen der Rechtseinheit.</summary>
+    public async Task<BuildResult> BuildAsync(int year, int month, int? nurFiliale, CancellationToken ct = default)
     {
         var warn = new List<string>();
         var stamm = await LadeRechtseinheitAsync(_db, warn, ct);
         if (stamm == null) return new BuildResult("", 0, 0, 0, warn, new List<string>());
+
+        if (nurFiliale is int cp && cp > 0)
+        {
+            var nur = stamm.Filialen.Where(b => b.Id == cp).ToList();
+            if (nur.Count == 0)
+            {
+                warn.Add("Diese Filiale ist in der Meldung nicht enthalten.");
+                return new BuildResult("", 0, 0, 0, warn, new List<string>());
+            }
+            stamm = stamm with { Filialen = nur };
+        }
 
         var filialIds = stamm.Filialen.Select(b => b.Id).ToList();
         var filialeById = stamm.Filialen.ToDictionary(b => b.Id);
@@ -169,7 +184,9 @@ public class ElmMonthlyDeclarationBuilder
             .ToListAsync(ct);
         if (perioden.Count == 0)
             return new BuildResult("", 0, 0, 0,
-                new List<string> { $"Für {month:00}.{year} gibt es in keiner Filiale eine Lohnperiode." }, new List<string>());
+                new List<string> { nurFiliale is int and > 0
+                    ? $"Für {month:00}.{year} gibt es bei dieser Filiale keine Lohnperiode."
+                    : $"Für {month:00}.{year} gibt es in keiner Filiale eine Lohnperiode." }, new List<string>());
 
         var offen = perioden.Where(p => p.Status != "abgeschlossen")
             .Select(p => filialeById.TryGetValue(p.CompanyProfileId, out var b) ? b.FullDisplayName : $"Filiale {p.CompanyProfileId}")

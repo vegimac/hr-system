@@ -89,7 +89,7 @@ function xcInit() {
         xc.wahl.add('qst');
         xc.wahl.add('statistik');
     }
-    xc.sicht = 'senden';
+    xc.sicht = 'tueren';
     xc.sheet = null;
     xcLaden();
 }
@@ -263,6 +263,10 @@ function xcLink() {
 function xcSatz() {
     if (!xcFilialeId())
         return 'Zuerst eine Filiale in der Seitenleiste wählen. Die Empfänger sind die Lohndatenempfänger dieser Filiale.';
+    if (xc.sicht === 'tueren')
+        return 'Wähle, was du für diese Filiale tun willst.';
+    if (xc.sicht === 'profil')
+        return 'Anmeldung bei den Versicherungen dieser Filiale. Das Profil kommt danach als Aufgabe.';
     if (xc.sicht === 'konfig')
         return 'Hier liegen das Zertifikat und die Anmeldungen bei den Versicherungen. Die Lohnmeldung schickst du über Zurück.';
     const sua = xc.cert?.sua;
@@ -296,15 +300,37 @@ function xcZeichnen() {
         <header class="xc-top">
             <div>
                 <div class="xc-kicker">ELM${xcFilialeName() ? ' · ' + xcEsc(xcFilialeName()) : ''}</div>
-                <h1>${xc.sicht === 'konfig' ? 'Zertifikat' : 'Lohnmeldung'}</h1>
+                <h1>${xc.sicht === 'konfig' ? 'Zertifikat' : xc.sicht === 'profil' ? 'Versicherungsprofil' : xc.sicht === 'tueren' ? 'Lohnmeldung' : (xc.art === 'monat' ? 'Monatsmeldung' : 'Jahresmeldung')}</h1>
             </div>
             ${link.wort ? `<div class="xc-link ${link.klasse}" aria-live="polite">${xcEsc(link.wort)}</div>` : '<div class="xc-link"></div>'}
-            <button type="button" class="xc-text" data-xc="${xc.sicht === 'konfig' ? 'zurueck' : 'konfig'}" title="${xc.sicht === 'konfig' ? 'Zurück zur Lohnmeldung' : 'Zertifikat und Anmeldung bei den Versicherungen'}">${xc.sicht === 'konfig' ? 'Zurück' : 'Konfiguration'}</button>
+            ${xc.sicht !== 'tueren' ? '<button type="button" class="xc-text" data-xc="zurueck">Zurück</button>' : ''}
+            ${xc.sicht !== 'konfig' ? '<button type="button" class="xc-text" data-xc="konfig" title="Zertifikat">Konfiguration</button>' : ''}
             <button type="button" class="xc-ghost xc-klein" data-xc="aktualisieren" title="Holt den aktuellen Stand und neue Mitteilungen." ${xc.busy ? 'disabled' : ''}>Aktualisieren</button>
         </header>
         <p class="xc-satz">${xcEsc(xcSatz())}</p>`;
     app.className = 'xc' + (xc.busy ? ' ist-busy' : '');
-    app.innerHTML = kopf + (xc.sicht === 'konfig' ? xcKonfigHtml() : xcSendHtml()) + xcSheetHtml();
+    const inhalt = xc.sicht === 'konfig' ? xcKonfigHtml()
+        : xc.sicht === 'profil' ? xcProfilHtml()
+        : xc.sicht === 'tueren' ? xcTuerenHtml()
+        : xcSendHtml();
+    app.innerHTML = kopf + inhalt + xcSheetHtml();
+}
+
+function xcTuerenHtml() {
+    const tuer = (wert, name, text) => `<button type="button" class="xc-tuer" data-xc="tuer" data-wert="${wert}"><b>${name}</b><span>${text}</span></button>`;
+    return `<div class="xc-flaeche"><div class="xc-tueren">
+        ${tuer('jahr', 'Jahresmeldung', 'Konten dieser Filiale aus den Lohndatenempfängern.')}
+        ${tuer('monat', 'Monatsmeldung', 'Quellensteuer an den Wohnkanton, Statistik an den Bund. Nur die Mitarbeiter dieser Filiale.')}
+        ${tuer('profil', 'Versicherungsprofil', 'Anmeldung bei den Versicherungen. Das Profil kommt als Aufgabe.')}
+    </div><aside class="xc-seite">${xcAufgabenHtml()}</aside></div>`;
+}
+
+function xcProfilHtml() {
+    return `<div class="xc-flaeche"><div>
+        <div class="xc-gruppe">Anmeldung</div>
+        <p class="xc-an">Pro Empfänger eine Anmeldung. Das Versicherungsprofil von UVG, UVGZ und KTG kommt danach als Aufgabe.</p>
+        ${xcAnmeldungHtml()}
+    </div><aside class="xc-seite">${xcAufgabenHtml()}</aside></div>`;
 }
 
 function xcSendHtml() {
@@ -528,19 +554,6 @@ function xcKonfigHtml() {
         <input id="xcBrief" autocomplete="one-time-code" style="width:16rem">
     </label>
     <button type="button" class="xc-ghost" data-xc="zert-hinterlegen">Zertifikat hinterlegen</button>`;
-    const zeilen = xcAnmeldeZeilen().map(r => {
-        const z = r.zeile;
-        const anm = z && (xc.stand?.anmeldungen || []).find(m => (m.empfaenger || []).some(e => e.domain === z.domain && (e.name || '').includes(z.an)));
-        const empf = anm?.empfaenger?.find(e => e.domain === z.domain);
-        let aktion = '<span class="xc-an">Anmeldung, sobald das Zertifikat hinterlegt ist</span>';
-        if (da && z) {
-            aktion = anm
-                ? `<span class="xc-gruen">Angemeldet</span> <button type="button" class="xc-ghost xc-klein" data-xc="abmelden" data-id="${xcEsc(anm.id)}" data-emp="${xcEsc(empf?.addresseeId || '')}">Abmelden</button>`
-                : `<button type="button" class="xc-go" data-xc="anmelden" data-domain="${xcEsc(z.domain)}" data-versicherer="${xcEsc(z.an)}" data-kunde="${xcEsc(z.kundennummer || '')}" data-vertrag="${xcEsc(z.vertragsnummer || '')}" data-kennung="${xcEsc(z.kennung || '')}">Anmelden</button>`;
-            if (anm && r.profil) aktion += ' <button type="button" class="xc-ghost xc-klein" data-xc="profil">Versicherungsprofil bestellen</button>';
-        }
-        return `<div class="xc-row xc-anm"><span class="xc-name">${xcEsc(r.name)}</span><span class="xc-an">${xcEsc(z ? xcAnText(z) : 'noch keiner zugeordnet')}</span><span class="xc-aktionen">${aktion}</span></div>`;
-    }).join('');
     return `<div class="xc-flaeche">
         <div>
             <div class="xc-gruppe">Zertifikat</div>
@@ -552,10 +565,28 @@ function xcKonfigHtml() {
         <div>
             <div class="xc-gruppe">Anmeldung</div>
             <p class="xc-an">Pro Empfänger eine Anmeldung. Das Versicherungsprofil von UVG, UVGZ und KTG kommt danach als Aufgabe.</p>
-            ${zeilen}
+            ${xcAnmeldungHtml()}
             ${xcAufgabenHtml()}
         </div>
     </div>`;
+}
+
+function xcAnmeldungHtml() {
+    const sua = xc.cert?.sua;
+    const da = !!(sua?.vorhanden && !(sua.restTage != null && sua.restTage < 0));
+    return xcAnmeldeZeilen().map(r => {
+        const z = r.zeile;
+        const anm = z && (xc.stand?.anmeldungen || []).find(m => (m.empfaenger || []).some(e => e.domain === z.domain && (e.name || '').includes(z.an)));
+        const empf = anm?.empfaenger?.find(e => e.domain === z.domain);
+        let aktion = '<span class="xc-an">Anmeldung, sobald das Zertifikat hinterlegt ist</span>';
+        if (da && z) {
+            aktion = anm
+                ? `<span class="xc-gruen">Angemeldet</span> <button type="button" class="xc-ghost xc-klein" data-xc="abmelden" data-id="${xcEsc(anm.id)}" data-emp="${xcEsc(empf?.addresseeId || '')}">Abmelden</button>`
+                : `<button type="button" class="xc-go" data-xc="anmelden" data-domain="${xcEsc(z.domain)}" data-versicherer="${xcEsc(z.an)}" data-kunde="${xcEsc(z.kundennummer || '')}" data-vertrag="${xcEsc(z.vertragsnummer || '')}" data-kennung="${xcEsc(z.kennung || '')}">Anmelden</button>`;
+            if (anm && r.profil) aktion += ' <button type="button" class="xc-ghost xc-klein" data-xc="profil-hinweis">Versicherungsprofil</button>';
+        }
+        return `<div class="xc-row xc-anm"><span class="xc-name">${xcEsc(r.name)}</span><span class="xc-an">${xcEsc(z ? xcAnText(z) : 'noch keiner zugeordnet')}</span><span class="xc-aktionen">${aktion}</span></div>`;
+    }).join('');
 }
 
 function xcAnmeldeZeilen() {
@@ -649,7 +680,14 @@ function xcKlick(ev) {
     else if (a === 'senden') xcSenden();
     else if (a === 'aktualisieren') xcAktualisieren();
     else if (a === 'konfig') { xc.sicht = 'konfig'; xc.sheet = null; xc.force = true; xcZeichnen(); }
-    else if (a === 'zurueck') { xc.sicht = 'senden'; xc.force = true; xcZeichnen(); }
+    else if (a === 'zurueck') { xc.sicht = 'tueren'; xc.sheet = null; xc.force = true; xcZeichnen(); }
+    else if (a === 'tuer') {
+        xc.sheet = null;
+        if (el.dataset.wert === 'profil') { xc.sicht = 'profil'; xc.force = true; xcZeichnen(); }
+        else if (xc.art !== el.dataset.wert) xcArt(el.dataset.wert);
+        else { xc.sicht = 'senden'; xc.force = true; xcZeichnen(); }
+    }
+    else if (a === 'profil-hinweis') { xc.konfigHinweis = 'Eine eigene Bestellung gibt es nicht. Nach der Anmeldung schickt der Versicherer das Profil. Es erscheint unter Aufgaben.'; xc.force = true; xcZeichnen(); }
     else if (a === 'aufgaben') { xc.sheet = 'aufgaben'; xc.force = true; xcZeichnen(); }
     else if (a === 'schliessen') { xc.sheet = null; xc.force = true; xcZeichnen(); }
     else if (a === 'historie') { xc.historie = !xc.historie; xc.force = true; xcZeichnen(); }
@@ -666,7 +704,6 @@ function xcKlick(ev) {
     else if (a === 'zert-hinterlegen') xcZertHinterlegen();
     else if (a === 'anmelden') xcAnmelden(el);
     else if (a === 'abmelden') xcAbmelden(el);
-    else if (a === 'profil') { xc.konfigHinweis = 'Eine eigene Bestellung gibt es nicht. Nach der Anmeldung schickt der Versicherer das Profil. Es erscheint unter Aufgaben.'; xc.force = true; xcZeichnen(); }
 }
 
 function xcChange(ev) {
@@ -738,6 +775,13 @@ async function xcPruefen() {
     xc.checks = [];
     xc.kantone = null;
     xc.hinweis = '';
+    if (xc.art === 'monat' && !xcFilialeId()) {
+        xc.hinweis = 'Zuerst eine Filiale in der Seitenleiste wählen.';
+        xc.arm = null;
+        xc.force = true;
+        xcZeichnen();
+        return;
+    }
     const arts = xc.art === 'monat' ? (xc.wahl.has('qst') || xc.wahl.has('statistik') ? ['monthly'] : []) : xcArts();
     const offen = xc.art === 'jahr' ? xcOffenOhneDatei() : [];
     if (!arts.length) {
@@ -757,7 +801,11 @@ async function xcPruefen() {
     let ok = true;
     for (const art of arts) {
         const q = new URLSearchParams({ art, jahr: String(xc.jahr) });
-        if (art === 'monthly') q.set('monat', String(xc.monat));
+        if (art === 'monthly') {
+            q.set('monat', String(xc.monat));
+            const filiale = xcFilialeId();
+            if (filiale) q.set('companyProfileId', String(filiale));
+        }
         let j = {};
         let gut = false;
         try {
@@ -791,6 +839,7 @@ async function xcPruefen() {
 
 async function xcSenden() {
     if (!xcBereit() || xc.busy) return;
+    if (xc.checks.some(c => c.art === 'monthly') && !xcFilialeId()) return;
     xc.busy = true;
     xc.lauf = 'ÜBERMITTLUNG';
     xc.force = true;
@@ -809,6 +858,7 @@ async function xcSenden() {
             testmeldung: xc.test,
             freigabePortal: art !== 'monthly' && xc.portal,
             adressaten,
+            companyProfileId: art === 'monthly' ? xcFilialeId() : null,
         };
         try {
             const r = await fetch('/api/elm/meldungen/senden', { method: 'POST', headers: ah(), body: JSON.stringify(body) });
