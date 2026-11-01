@@ -219,43 +219,32 @@ function eeUebersichtHtml() {
         </table>`;
 }
 
-function eeLetzteMeldung(art) {
-    return eeMeldungen().find(m => Number(m.jahr) === ee.jahr && m.companyProfileId === ee.filiale && m.art === art) || null;
-}
 function eeStandText(m, sonst) {
     if (!m) return sonst;
     if ((m.empfaenger || []).some(e => e.freigabeAbgelaufen)) return 'Link abgelaufen';
     if (eeHatFrage(m)) return 'Rückfrage';
     return m.statusText || 'In Bearbeitung';
 }
-function eeAufgabeZeile(titel, an, stand, ziel, id, vorgang) {
-    return `<button type="button" class="ee-meld" data-ee="aufgabe" data-ziel="${ziel}" data-id="${eeEsc(id || '')}" data-vorgang="${eeEsc(vorgang || '')}">
-        <b>${eeEsc(titel)}</b><span>${eeEsc(an || '')}</span><span>${eeEsc(stand)}</span></button>`;
+function eeMeldungKnopf(m, mitFiliale) {
+    const name = (m.empfaenger || []).map(e => e.name).filter(Boolean)[0] || m.titel || '';
+    const fil = mitFiliale && m.companyProfileId ? eeFilialeLabel(m.companyProfileId, '') : '';
+    const zeile = [eeDatum(m.gesendet), fil].filter(Boolean).join(' · ');
+    return `<button type="button" class="ee-meld" data-ee="stand" data-id="${eeEsc(m.id)}">
+        <b>${eeEsc(eeStandText(m, m.titel || 'Meldung'))}</b><span>${eeEsc(zeile)}</span><span>${eeEsc(name)}</span></button>`;
 }
 function eeMeldungenSeite() {
     const zert = eeZertWeg()
         ? '<button type="button" class="ee-meld" data-ee="nav" data-wert="konfiguration"><b>Zertifikat</b><span>Fehlt oder ist abgelaufen.</span></button>'
         : '';
-    if (!eeFilialeId()) {
-        const liste = eeMeldungen().filter(m => !m.jahr || Number(m.jahr) === ee.jahr).slice(0, 12);
-        const zeilen = liste.map(m => {
-            const name = (m.empfaenger || []).map(e => e.name).filter(Boolean)[0] || m.titel || '';
-            return `<button type="button" class="ee-meld" data-ee="stand" data-id="${eeEsc(m.id)}">
-                <b>${eeEsc(eeStandText(m, ''))}</b><span>${eeEsc(eeDatum(m.gesendet))}</span><span>${eeEsc(name)}</span></button>`;
-        }).join('');
-        return `<h2>Meldungen</h2><p class="ee-lead">Wähle links eine Filiale. Dann steht hier eine Aufgabe pro Empfänger.</p>${zert}${zeilen}`;
-    }
-    const fil = (ee.uebersicht?.filialen || []).find(f => f.id === ee.filiale);
-    const monat = eeLetzteMeldung('monthly');
-    const zeilen = [eeAufgabeZeile('Monatsmeldung', 'Quellensteuer und Statistik', eeStandText(monat, fil?.monatText || 'Bereit'), 'monat', 'qst', monat?.id)];
-    if (!ee.domaenen) zeilen.push('<p class="ee-lead">Empfänger werden geladen.</p>');
-    for (const z of eeZeilen()) {
-        if (!z.an || z.an === 'noch keiner zugeordnet') continue;
-        const m = z.art ? eeLetzteMeldung(z.art) : null;
-        const stand = z.lohnsummen ? 'Lohnsummen' : (z.domain === 'FAK-CAF' ? 'Mit der AHV' : eeStandText(m, eeKann(z) ? 'Bereit' : 'Geht noch nicht'));
-        zeilen.push(eeAufgabeZeile(z.name, z.an, m && z.art ? eeStandText(m, stand) : stand, 'jahr', z.id, m?.id));
-    }
-    return `<h2>Meldungen</h2>${zert}${zeilen.join('')}`;
+    const filiale = eeFilialeId();
+    const liste = eeMeldungen().filter(m => {
+        if (m.jahr && Number(m.jahr) !== ee.jahr) return false;
+        if (!filiale) return true;
+        return m.companyProfileId === filiale;
+    }).slice(0, 12);
+    const zeilen = liste.map(m => eeMeldungKnopf(m, !filiale)).join('');
+    const leer = zeilen ? '' : '<p class="ee-lead">Noch keine Meldung. Hier steht nur, was wirklich gesendet wurde.</p>';
+    return `<h2>Meldungen</h2>${zert}${leer}${zeilen}`;
 }
 
 function eeMonatHtml() {
@@ -477,7 +466,6 @@ function eeKlick(ev) {
     if (ee.busy && a !== 'nav') return;
     if (a === 'nav') { ee.schritt = el.dataset.wert; ee.hinweis = ''; ee.force = true; eeZeichnen(); if (el.dataset.wert === 'jahr' || el.dataset.wert === 'konfiguration') eeDomaenenNach(); }
     else if (a === 'oeffnen') eeOeffnen(el);
-    else if (a === 'aufgabe') eeAufgabeOeffnen(el);
     else if (a === 'stand') { ee.fokus = el.dataset.id; ee.schritt = ee.schritt === 'uebersicht' || ee.schritt === 'aufgaben' ? 'historie' : ee.schritt; ee.force = true; eeZeichnen(); }
     else if (a === 'jahr-schritt') eeJahrSchritt(parseInt(el.dataset.wert, 10));
     else if (a === 'monat-schritt') eeMonatSchritt(parseInt(el.dataset.wert, 10));
@@ -508,32 +496,6 @@ function eeChange(ev) {
         if (el.checked) ee.kantone.add(el.dataset.id); else ee.kantone.delete(el.dataset.id);
         ee.arm = null;
     } else return;
-    ee.force = true;
-    eeZeichnen();
-}
-function eeAufgabeOeffnen(el) {
-    ee.schritt = el.dataset.ziel === 'monat' ? 'monat' : 'jahr';
-    ee.arm = null;
-    ee.checks = [];
-    ee.hinweis = '';
-    ee.fokus = el.dataset.vorgang || null;
-    ee.jahrGesetzt = true;
-    if (ee.schritt === 'monat') {
-        ee.wahl.add('qst');
-        ee.wahl.add('statistik');
-    } else {
-        const z = eeZeilen().find(x => x.id === el.dataset.id);
-        if (z?.lohnsummen) {
-            ee.bvgOffen = false;
-            eeBvgLaden();
-            return;
-        }
-        if (z && eeKann(z)) ee.wahl = new Set([z.id]);
-        else if (z && z.domain === 'FAK-CAF') {
-            const ahv = eeZeilen().find(x => eeKann(x) && String(x.id).startsWith('ahv'));
-            if (ahv) ee.wahl = new Set([ahv.id]);
-        }
-    }
     ee.force = true;
     eeZeichnen();
 }
