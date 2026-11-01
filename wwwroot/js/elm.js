@@ -1,4 +1,5 @@
-// ELM 2 (Walter 01.11.2026): Übermittlungscockpit nach den Swissdec-Testfällen ELMv6.
+// ELM (Walter 01.11.2026): Übermittlungscockpit nach den Swissdec-Testfällen ELMv6.
+// Ersetzt die früheren Seiten elm-anwender / elm-einfach / elm-cockpit. Präfix e2 (historisch).
 // Ein Cockpit für Jahr und Monat (Aktualisieren, Testmeldung, Mitteilungsübersicht und
 // Mitteilungshistorie sind darum identisch), dazu Aufgaben und Konfiguration (SUA, Anmeldung).
 // Dieselben Schnittstellen wie die übrigen ELM-Seiten (api/elm/meldungen, api/elm/zertifikat).
@@ -168,6 +169,8 @@ function e2Init() {
         e2.monat = h.getMonth() === 0 ? 12 : h.getMonth();
     }
     e2.filiale = e2SelektorFiliale();
+    // Sprung aus dem To-do (Zertifikat → Konfiguration, Lohnmeldung → Aufgaben).
+    if (window._elmReiter) { e2.reiter = window._elmReiter; window._elmReiter = null; }
     e2Laden();
 }
 function e2FilialeWechsel() {
@@ -231,7 +234,7 @@ function e2KopfHtml() {
         : 'SUA gültig bis ' + e2Datum(sua.gueltigBis, false);
     const meldung = gesperrt ? { ok: false, text: gesperrt } : e2.hinweis;
     return `<header class="e2-kopf">
-        <h1>ELM 2</h1>
+        <h1>ELM</h1>
         <span class="e2-unter">${e2FilialeId() ? e2Esc(e2FilialeName()) : 'Alle Filialen'}${ziel ? ' · ' + e2Esc(ziel.name) : ''}</span>
     </header>
     <div class="e2-leiste">
@@ -908,7 +911,7 @@ function e2NachlaufStopp() {
 async function e2NachlaufSchritt() {
     const n = e2.nachlauf;
     if (!n) return;
-    const sichtbar = document.getElementById('page-elm2')?.classList.contains('active');
+    const sichtbar = document.getElementById('page-elm')?.classList.contains('active');
     if (!sichtbar || Date.now() > n.bis) { e2NachlaufStopp(); e2Zeichnen(); return; }
     // Wer gerade etwas eintippt (Rückfrage, Lohnsummen), wird nicht überzeichnet: diese Runde auslassen.
     const tippt = document.activeElement?.closest?.('#e2App') && document.activeElement.matches('input, textarea');

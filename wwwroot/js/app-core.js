@@ -1394,14 +1394,6 @@ async function startApp() {
         const sec = it.closest('.nav-section') || it;
         sec.style.display = _entwErlaubt ? '' : 'none';
     });
-    // ELM Cockpit (Walter 01.11.2026): Administrator und Super-Admin.
-    // Superuser, Buchhaltung und GF sehen den Eintrag nicht.
-    const _empErlaubt = elmCockpitSichtbar();
-    document.body.classList.toggle('elm-cockpit-on', _empErlaubt);
-    document.querySelectorAll('.nav-item[data-page="elm-cockpit"]').forEach(it => {
-        const sec = it.closest('.nav-section') || it;
-        sec.style.display = _empErlaubt ? '' : 'none';
-    });
     // Einzelne admin-only Karten in Systemeinstellungen (Walter 27.05.2026)
     document.querySelectorAll('.admin-only-card').forEach(el => {
         el.style.display = isAdmin ? '' : 'none';
@@ -1464,7 +1456,6 @@ function applyAreaVisibility() {
     // app.css) statt ueber style.display — damit bleibt der Bereich auch bei
     // einer veralteten, gecachten Skriptversion zuverlaessig verborgen.
     document.body.classList.toggle('entw-on', entwErlaubt);
-    document.body.classList.toggle('elm-cockpit-on', elmCockpitSichtbar());
     if (!Array.isArray(aa)) return;
     const allowed = new Set(['dashboard', ...aa]);
     // Walter-Bug 26.08.2026: Moments hat seit 15.08. eine EIGENE nav-section
@@ -1487,7 +1478,6 @@ function applyAreaVisibility() {
         // «entwicklung» ist oben schon entschieden (Super-Admin ODER Häkchen)
         // — hier nicht nochmals überschreiben.
         if (item.getAttribute('data-page') === 'entwicklung') return;
-        if (item.getAttribute('data-page') === 'elm-cockpit') return;
         sec.style.display = ok(item.getAttribute('data-page')) ? '' : 'none';
     });
     // Dashboard-Kacheln + Mitarbeiter-Nav-Buttons (onclick="showPage('X')").
@@ -1499,10 +1489,6 @@ function applyAreaVisibility() {
 
 // ELM Cockpit (Walter 01.11.2026): nur Administrator und der Super-Admin
 // darüber. Die Rolle superuser ist hier nicht gemeint.
-function elmCockpitSichtbar() {
-    return currentUser?.isSuperAdmin === true || currentUser?.role === 'admin';
-}
-
 function roleName(r) {
     if (r === 'admin')       return 'Administrator';
     if (r === 'superuser')   return 'Superuser';
@@ -1554,8 +1540,9 @@ function applyAdminBreadcrumb(name) {
 }
 
 function showPage(name) {
-    if ((name === 'elm-cockpit' || name === 'elm2') && !elmCockpitSichtbar()) {
-        showPage('dashboard');
+    // Walter 01.11.2026: die früheren ELM-Seiten (Cursor) sind durch «ELM» ersetzt.
+    if (name === 'elm-anwender' || name === 'elm-cockpit' || name === 'elm2') {
+        showPage('elm');
         return;
     }
     // Walter 16.10.2026: alter Sub-Hub «Globale Daten» → Verzeichnisse & Vorgaben.
@@ -1587,8 +1574,7 @@ function showPage(name) {
         || name === 'entwicklung' || _devSubPages.includes(name));
     const navPage = _adminSubPages.includes(name) ? 'admin-hub'
                   : _devSubPages.includes(name)   ? 'entwicklung'
-                  : name === 'elm-anwender'       ? 'hr-hub'
-                  : name === 'elm2'               ? 'hr-hub'
+                  : name === 'elm'                ? 'hr-hub'
                   : name;
     document.querySelector(`[data-page="${navPage}"]`)?.classList.add('active');
     // Walter 28.05.2026: Breadcrumb „← Systemeinstellungen / <Page>" einfuegen
@@ -1676,9 +1662,7 @@ function showPage(name) {
     if (name === 'aktive-sitzungen') asInit();
     if (name === 'virenscanner') vsInit();
     if (name === 'elm-schnittstelle') { elmzInit(); elmmInit(); }
-    if (name === 'elm-anwender' && typeof elmaInit === 'function') elmaInit();
-    if (name === 'elm-cockpit' && typeof eeInit === 'function') eeInit();
-    if (name === 'elm2' && typeof e2Init === 'function') e2Init();
+    if (name === 'elm' && typeof e2Init === 'function') e2Init();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'moments') momInit();
@@ -1912,11 +1896,7 @@ function onBranchChange() {
         if (typeof akisRefresh === 'function') akisRefresh();
     } else if (currentPageName === 'ema-aufgaben') {
         if (typeof emaRefresh === 'function') emaRefresh();
-    } else if (currentPageName === 'elm-anwender') {
-        if (typeof elmaFilialeWechsel === 'function') elmaFilialeWechsel();
-    } else if (currentPageName === 'elm-cockpit') {
-        if (typeof eeFilialeWechsel === 'function') eeFilialeWechsel();
-    } else if (currentPageName === 'elm2') {
+    } else if (currentPageName === 'elm') {
         if (typeof e2FilialeWechsel === 'function') e2FilialeWechsel();
     } else if (currentPageName === 'lohn-abtretungen') {
         if (typeof laListInit === 'function') laListInit();

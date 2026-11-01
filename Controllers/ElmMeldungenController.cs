@@ -11,7 +11,7 @@ namespace HrSystem.Controllers;
 /// <summary>
 /// Lohnmeldungen (ELM): Meldung prüfen und senden, Stand je Empfänger verfolgen, Rückfragen
 /// beantworten, Freigabe-Link, Ersatzmeldung. Die Anwendermaske im HR-Bereich
-/// (<c>page-elm-anwender</c>) ist für admin und superuser. Zertifikat, Verbindungstest und
+/// (<c>page-elm</c>, js/elm.js) ist für admin und superuser. Zertifikat, Verbindungstest und
 /// die Entwicklungsseite bleiben admin. Adresse und Prüfschalter setzt der Server.
 /// </summary>
 [ApiController]

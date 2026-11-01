@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261102w">
+    <link rel="stylesheet" href="css/app.css?v=20261102x">
 </head>
 <body>
 
@@ -362,15 +362,6 @@
                 <!-- Bewusst KEINE admin-only-section (Walter 31.08.2026): die
                      würde für jeden Admin wieder auf «block» gesetzt. Sichtbar
                      macht diese Sektion ausschliesslich applyAreaVisibility(). -->
-                <!-- ELM Cockpit (Walter 01.11.2026): die ruhige Übermittlung.
-                     Im Moment nur Administrator und Super-Admin. Kein eigener
-                     Bereich in «Sichtbare Bereiche» — die Rolle entscheidet. -->
-                <div class="nav-section elm-cockpit-section" style="display:none">
-                    <div class="nav-item" data-page="elm-cockpit" onclick="showPage('elm-cockpit')">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21"/><path d="M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>
-                        <span>Lohnmeldung</span>
-                    </div>
-                </div>
                 <div class="nav-section entw-only-section" style="display:none">
                     <div class="nav-item" data-page="entwicklung" onclick="showPage('entwicklung')">
                         <img class="nav-icon-img" src="img/entwkat-swissdec.webp?v=20260831a" alt="">
@@ -2398,15 +2389,10 @@
                         <img src="img/hrkat-gastrosocial.webp?v=20261014a" alt="" loading="lazy">
                         <span>GastroSocial</span>
                     </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="elm" onclick="elmAnwenden()" title="ELM-Cockpit: Lohnmeldungen an Ausgleichskassen, Versicherer, Vorsorge, Steuer und Statistik">
+                    <!-- ELM (Walter 01.11.2026): Übermittlungscockpit nach den Swissdec-Testfällen. -->
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="elm" onclick="showPage('elm')" title="ELM: Lohnmeldungen an Ausgleichskassen, Versicherer, Vorsorge, Steuer und Statistik (Monats- und Jahresmeldung, Aufgaben, Konfiguration)">
                         <img src="img/hrkat-elm.webp?v=20261030g" alt="" loading="lazy">
                         <span>ELM</span>
-                    </button>
-                    <!-- ELM 2 (Walter 01.11.2026): Cockpit nach den Swissdec-Testfällen.
-                         Vorerst nur Administrator und Super-Admin (body.elm-cockpit-on). -->
-                    <button type="button" class="ra-tile admin-hub-cat elm2-kachel" onclick="showPage('elm2')" title="ELM 2: Übermittlungscockpit nach den Swissdec-Testfällen (Jahres- und Monatsmeldung, Aufgaben, Konfiguration)">
-                        <img src="img/hrkat-elm.webp?v=20261030g" alt="" loading="lazy">
-                        <span>ELM 2</span>
                     </button>
                 </div>
                 <div class="hr-hub-group" id="hrHubGrp-onb" style="display:none">
@@ -6709,171 +6695,11 @@
                     </p>
                 </div>
             </div>
-            <!-- ELM Cockpit (Walter 01.11.2026): Crew-Anzeige der Übermittlung.
-                 Vorerst nur Administrator und Super-Admin. Das Cockpit im HR-Hub bleibt. -->
-            <div class="page" id="page-elm-cockpit">
-                <div id="eeApp"></div>
-            </div>
-            <!-- ELM 2 (Walter 01.11.2026): Übermittlungscockpit nach den Swissdec-Testfällen.
-                 Inhalt baut js/elm2.js. Vorerst nur Administrator und Super-Admin. -->
-            <div class="page" id="page-elm2">
+            <!-- ELM (Walter 01.11.2026): Übermittlungscockpit nach den Swissdec-Testfällen.
+                 Inhalt baut js/elm.js. Die Entwicklungsseite «Lohnmeldungen (ELM)» bleibt unter System. -->
+            <div class="page" id="page-elm">
                 <button type="button" class="seite-zurueck" onclick="showPage('hr-hub')" hidden aria-hidden="true">Zurück</button>
                 <div id="e2App"></div>
-            </div>
-
-            <!-- HR-Bereich: Meldung absetzen (Walter 30.10.2026). Die Entwicklungsseite
-                 «Lohnmeldungen (ELM)» bleibt unter System. -->
-            <div class="page liquid-mask" id="page-elm-anwender">
-                <button type="button" class="seite-zurueck" onclick="elmaZurueck()" hidden aria-hidden="true">Zurück</button>
-                <div class="page-body elma-cockpit">
-                    <header class="elma-head">
-                        <div>
-                            <div class="elma-eyebrow">Swissdec · Lohnmeldungen</div>
-                            <div class="elma-titelzeile">
-                                <h1>ELM-Cockpit</h1>
-                                <nav class="elma-nav" aria-label="Lohnmeldung">
-                                    <button type="button" data-elma-nav="monat" onclick="elmaAnsicht('monat')">Monatsmeldung</button>
-                                    <button type="button" data-elma-nav="jahr" onclick="elmaAnsicht('jahr')">Jahresmeldung</button>
-                                    <button type="button" data-elma-nav="profil" onclick="elmaAnsicht('profil')">Versicherungsprofil</button>
-                                </nav>
-                            </div>
-                        </div>
-                        <div id="elmaBereit" class="elma-connection">
-                            <i class="elma-dot" id="elmaDot"></i>
-                            <span id="elmaServerText">Verbindung wird geprüft</span>
-                            <span class="elma-sep">|</span>
-                            <span id="elmaZertText">Zertifikat wird geprüft</span>
-                            <button type="button" id="elmaZertBtn" class="btn btn-secondary" onclick="elmaZertifikatErneuern()" disabled>Zertifikat erneuern</button>
-                        </div>
-                    </header>
-                    <div id="elmaHome" style="display:none">
-                        <div class="elma-einleitung">
-                            <p>Die Möglichkeiten von Swissdec umfassen Prozesse, die direkt aus OneCrew gestartet werden, und Prozesse, die Versicherungen oder Behörden auslösen. Für diese von aussen ausgelösten Prozesse muss das Unternehmen eindeutig erkennbar sein.</p>
-                            <p>Dafür gibt es das Unternehmenszertifikat SUA (Swissdec Unternehmens-Authentifizierung). Es wird direkt aus OneCrew bestellt, gilt für sämtliche Swissdec-Standards, und es braucht nur eines.</p>
-                            <p>Bestellt wird es in der <button type="button" class="elma-textlink" onclick="elmaAnsicht('konfig')">Konfiguration</button>. Sobald es hinterlegt ist, melden Sie das Unternehmen dort bei den gewünschten Versicherungen und Behörden an.</p>
-                        </div>
-                        <div class="elma-homegrid">
-                            <div class="elma-home-main">
-                                <section class="elma-panel elma-karte">
-                                    <h3>Lohndaten</h3>
-                                    <div class="elma-kacheln">
-                                        <button type="button" class="elma-kachel" onclick="elmaAnsicht('jahr')"><span class="elma-kachel-top"><b>Jahresmeldung</b><span class="elma-pfeil" aria-hidden="true"></span></span><small>AHV, FAK, UVG …</small></button>
-                                        <button type="button" class="elma-kachel" onclick="elmaAnsicht('monat')"><span class="elma-kachel-top"><b>Monatsmeldung</b><span class="elma-pfeil" aria-hidden="true"></span></span><small>QST, Statistik</small></button>
-                                        <button type="button" class="elma-kachel" onclick="elmaAnsicht('profil')"><span class="elma-kachel-top"><b>Versicherungsprofil</b><span class="elma-pfeil" aria-hidden="true"></span></span><small>Versicherungsprofile anfordern</small></button>
-                                    </div>
-                                </section>
-                                <section class="elma-panel elma-karte">
-                                    <h3>Leistungsdaten</h3>
-                                    <div class="elma-kacheln elma-kacheln-2">
-                                        <button type="button" class="elma-kachel" onclick="elmaAnsicht('leistung')"><span class="elma-kachel-top"><b>Fallcockpit</b><span class="elma-pfeil" aria-hidden="true"></span></span><small>Übersicht</small></button>
-                                        <button type="button" class="elma-kachel" onclick="elmaAnsicht('leistung')"><span class="elma-kachel-top"><b>Neues Ereignis</b><span class="elma-pfeil" aria-hidden="true"></span></span><small>Ereignismeldungen</small></button>
-                                    </div>
-                                </section>
-                                <section class="elma-panel elma-karte">
-                                    <h3>Finanzdaten</h3>
-                                    <div class="elma-kacheln elma-kacheln-1">
-                                        <button type="button" class="elma-kachel" onclick="elmaAnsicht('finanz')"><span class="elma-kachel-top"><b>eBilanz</b><span class="elma-pfeil" aria-hidden="true"></span></span><small>Bilanzdaten übermitteln</small></button>
-                                    </div>
-                                </section>
-                            </div>
-                            <section class="elma-panel elma-karte" id="elmaHomeAufgaben">
-                                <h3>Aufgaben</h3>
-                                <div class="elma-aufgabe-spur"><i></i></div>
-                                <b style="display:block;margin:10px 0 12px;font-size:14px;color:#3f3f3f">0 offene Aufgaben</b>
-                            </section>
-                        </div>
-                    </div>
-                    <div id="elmaArbeit">
-                        <div id="elmaBuehne" class="elma-panel elma-karte">
-                            <div class="elma-kommband">
-                                <div class="elma-loglines" id="elmaKomm"></div>
-                            </div>
-                            <div class="elma-stage paused" id="elmaStage">
-                                <div class="elma-beam"></div>
-                                <div class="elma-packet"></div>
-                                <div class="elma-packet b"></div>
-                                <div class="elma-packet c"></div>
-                                <div class="elma-hub left"><img src="img/onecrew-logo.webp?v=20260628a" alt="OneCrew"></div>
-                                <div class="elma-core"><strong>ELM</strong><span id="elmaCore">Bereit</span></div>
-                                <div class="elma-hub right"><img src="img/swissdec-logo-klar.png" alt="swissdec"></div>
-                            </div>
-                            <div class="elma-schrittzeile" id="elmaSchritte"></div>
-                            <span id="elmaPhase" hidden>Bereit</span>
-                        </div>
-                        <div class="elma-mission">
-                            <section class="elma-panel elma-karte">
-                                <div class="elma-panelhead">
-                                    <div class="elma-kopf">
-                                        <div>
-                                            <div class="elma-kicker" style="margin:0">Übermittlung</div>
-                                            <select id="elmaArtSicht" class="elma-artsicht" onchange="elmaArtSicht(this.value)" aria-label="Meldungsart">
-                                                <option value="jahr">Jahresmeldung</option>
-                                                <option value="monat">Monatsmeldung</option>
-                                                <option value="profil">Versicherungsprofil</option>
-                                                <option value="leistung" disabled>Ereignismeldung</option>
-                                            </select>
-                                        </div>
-                                        <div class="elma-zeit" id="elmaZeit">
-                                            <span id="elmaZeitMonatFeld" style="display:none">
-                                                <select id="elmaMonat" class="lq-voll" aria-label="Monat" onchange="elmaZeitGeaendert()"></select>
-                                            </span>
-                                            <select id="elmaJahr" aria-label="Jahr" onchange="elmaZeitGeaendert()"></select>
-                                            <span id="elmaMonatStand"></span>
-                                        </div>
-                                    </div>
-                                    <button type="button" class="btn btn-secondary" onclick="elmaAnsicht('konfig')">Konfiguration</button>
-                                </div>
-                                <div id="elmaDomaenen"></div>
-                                <div id="elmaBvg"></div>
-                                <div id="elmaErsatz" class="elma-ersatz" style="display:none"></div>
-                                <div class="elma-controls" id="elmaControls">
-                                    <label class="elma-schalter" id="elmaTestWrap" title="Als Testmeldung gekennzeichnete Übermittlungen werden von den Empfängern nicht verarbeitet.">
-                                        <input type="checkbox" id="elmaTest" checked><i></i> Testmeldung
-                                    </label>
-                                    <button type="button" id="elmaPruefenBtn" class="btn btn-secondary" onclick="elmaPruefen()">Prüfen</button>
-                                    <button type="button" id="elmaSendenBtn" class="btn btn-primary" onclick="elmaUebermitteln()">Übermitteln</button>
-                                    <button type="button" id="elmaProzess" class="btn btn-secondary" onclick="elmaBvgLaden()">Lohnsummen</button>
-                                </div>
-                                <div id="elmaUeber"></div>
-                                <div id="elmaStatus"></div>
-                                <div id="elmaVorschau"></div>
-                            </section>
-                            <section class="elma-panel elma-karte" id="elmaAufgaben">
-                                <div class="elma-kicker">Aufgaben & Hinweise</div>
-                            </section>
-                        </div>
-                        <div class="elma-unten">
-                            <section class="elma-panel elma-karte" id="elmaMitteilungen"></section>
-                            <section class="elma-panel elma-karte" id="elmaVerlauf"></section>
-                        </div>
-                        <div class="elma-tele" id="elmaTele" hidden>
-                            <b id="elmaTeleLeitung">—</b>
-                            <b id="elmaTeleZert">—</b>
-                            <b id="elmaTeleSign">—</b>
-                            <b id="elmaTeleCrypt">—</b>
-                            <b id="elmaTeleStand">—</b>
-                            <b id="elmaTeleEmpf">—</b>
-                            <b id="elmaTeleLetzt">—</b>
-                            <span id="elmaKategorie" hidden>Meldung senden</span>
-                        </div>
-                    </div>
-                    <select id="elmaArt" class="no-liquid" hidden onchange="elmaArtGewechselt()" aria-hidden="true">
-                        <option value="monthly">Monatsmeldung</option>
-                        <option value="annual">Jahresmeldung AHV</option>
-                        <option value="grenz-it">Grenzgänger Italien</option>
-                        <option value="grenz-fr">Grenzgänger Frankreich</option>
-                        <option value="grenz-sfn">Grenzgänger SFN</option>
-                    </select>
-                    <div id="elmaSonder" style="display:none"></div>
-                    <div id="elmaMehr" class="elma-mehr" hidden>
-                        <div class="elma-mehr-karte">
-                            <h2>Über das ELM-Cockpit</h2>
-                            <p>Über das ELM-Cockpit kommuniziert OneCrew sicher mit Versicherungen und Behörden. Meldungen können übermittelt und Rückmeldungen sowie Anfragen der Empfänger bearbeitet werden.</p>
-                            <p>Das Swissdec-Unternehmenszertifikat (SUA) identifiziert das Unternehmen für die bidirektionale Kommunikation. Es gilt für sämtliche Swissdec-Standards und wird in der Konfiguration verwaltet.</p>
-                            <button type="button" class="btn btn-primary" onclick="elmaMehrZu()">Schliessen</button>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- ═══ VIRENSCANNER (Walter-Vorgabe 08.10.2026, admin-only) ═══ -->
@@ -11448,7 +11274,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261101r"></script>
+<script src="js/app-core.js?v=20261101s"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261101b"></script>
@@ -11462,7 +11288,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/upload-regel.js?v=20261001a"></script>
 <script type="text/plain" data-modul="js/employee-lookup-cache.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/action-menu.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/dashboard.js?v=20261030g"></script>
+<script type="text/plain" data-modul="js/dashboard.js?v=20261101a"></script>
 <script type="text/plain" data-modul="js/session-timeout.js?v=20261022e"></script>
 <script type="text/plain" data-modul="js/session-lock.js?v=20261022e"></script>
 <script type="text/plain" data-modul="js/wage-adjustment.js?v=20260720a"></script>
@@ -11550,13 +11376,11 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/virenscanner.js?v=20261022b"></script>
 <script type="text/plain" data-modul="js/elm-zertifikat.js?v=20261030b"></script>
 <script type="text/plain" data-modul="js/elm-schnittstelle.js?v=20261016d"></script>
-<script type="text/plain" data-modul="js/elm-anwender.js?v=20261101x"></script>
-<script type="text/plain" data-modul="js/elm-einfach.js?v=20261101j"></script>
-<script type="text/plain" data-modul="js/elm2.js?v=20261101n"></script>
+<script type="text/plain" data-modul="js/elm.js?v=20261101o"></script>
 <script type="text/plain" data-modul="js/elm-lohnraster.js?v=20261021a"></script>
 <script type="text/plain" data-modul="js/lohnschema.js?v=20261024g"></script>
 <script type="text/plain" data-modul="js/global-search.js?v=20261023a"></script>
-<script type="text/plain" data-modul="js/help-panel.js?v=20261031b"></script>
+<script type="text/plain" data-modul="js/help-panel.js?v=20261101a"></script>
 <script type="text/plain" data-modul="js/i18n.js?v=20261029a"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">

@@ -571,8 +571,8 @@ function dashTodoOnClick(a) {
         }
     }
     if (a.category === 'virus_gefunden') return `onclick="showPage('virenscanner')"`;
-    if (a.category === 'elm_zertifikat') return `onclick="showPage('elm-schnittstelle')"`;
-    if (a.category === 'elm_meldung') return `onclick="showPage('elm-schnittstelle')"`;
+    if (a.category === 'elm_zertifikat') return `onclick="window._elmReiter='konfig';showPage('elm')"`;
+    if (a.category === 'elm_meldung') return `onclick="window._elmReiter='aufgaben';showPage('elm')"`;
     if (a.category === 'audit_log_stumm') return `onclick="showPage('audit-log')"`;
     return a.periodeId ? `onclick="dashOpenLohnlauf()"` : '';
 }

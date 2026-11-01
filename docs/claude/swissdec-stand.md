@@ -367,12 +367,15 @@ Foundation im Foundation-Protokoll (`docs/swissdec-vorfuehrung/vorfuehrung.html`
   Jahresmeldung: AHV-/ALV-Löhne je Person auf 5 Rp., Totale = Summe der gerundeten Werte.
   Prozentsätze (13. ML 8.33, Ferien 13.04) bleiben, wie in der Referenz.
 
-## ELM 2 — Cockpit nach den Swissdec-Testfällen (Walter 01.11.2026)
+## ELM — Cockpit nach den Swissdec-Testfällen (Walter 01.11.2026)
 
-Kachel «ELM 2» im HR-Bereich (nur Administrator/Super-Admin, `body.elm-cockpit-on`), Seite
-`page-elm2`, Code `js/elm2.js` (Präfix `e2`), CSS-Block «ELM 2» in `css/app.css`. Eigene
-Oberfläche über denselben Schnittstellen (`api/elm/meldungen`, `api/elm/zertifikat`); die
-älteren Seiten (`elm-anwender`, `elm-einfach`, `elm-cockpit`) bleiben, bis Walter ELM 2 abnimmt.
+Kachel «ELM» im HR-Bereich, Seite `page-elm`, Code `js/elm.js` (Präfix `e2`, historisch),
+CSS-Block «ELM» in `css/app.css`. Über `api/elm/meldungen` und `api/elm/zertifikat`
+(admin, superuser). **Ersetzt seit 01.11.2026 die früheren Seiten** `elm-anwender.js`
+(Kachel ELM), `elm-einfach.js` (Seitenleiste «Lohnmeldung», `page-elm-cockpit`) und
+`elm-cockpit.js` — gelöscht samt HTML und CSS; alte Seitennamen leitet `showPage` auf `elm`
+um. Die To-dos `elm_zertifikat` / `elm_meldung` öffnen ELM (Konfiguration bzw. Aufgaben).
+Die Entwicklungsseiten `elm-schnittstelle` und `elm-meldungen` (System) bleiben.
 - **Ein Cockpit für Jahr und Monat** (Testfall «Weitere Tests»): Aktualisieren, Testmeldung,
   Mitteilungsübersicht (7 Spalten) und Mitteilungshistorie (Ersatzmeldung nur von dort) sind
   dieselben Funktionen. Reiter Aufgaben und Konfiguration (SUA mit Vorschau der Firmendaten,
