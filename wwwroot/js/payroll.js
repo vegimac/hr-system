@@ -2224,9 +2224,16 @@ function renderLohnSlip(s, targetEl) {
         if (Math.abs(acc - pay) < 0.005) return '';
         return fmt(acc);
     };
+    const lohnZeileName = (l) => {
+        const bez = l.bezeichnung || '';
+        const code = String(l.code || '').trim();
+        if (!code) return bez;
+        if (bez.startsWith(code + ' ') || bez.startsWith(code + '\u00a0')) return bez;
+        return code + '  ' + bez;
+    };
     const lohnRows = s.lohnLines.map(l => `
         <tr>
-            <td class="ls-desc">${l.bezeichnung}</td>
+            <td class="ls-desc">${lohnZeileName(l)}</td>
             <td class="ls-num">${l.anzahl != null ? fmtNum(l.anzahl) : ''}</td>
             <td class="ls-num">${l.prozent != null ? fmtNum(l.prozent, 3) : ''}</td>
             <td class="ls-num">${l.basis   != null ? fmt(l.basis)   : ''}</td>
@@ -2236,7 +2243,7 @@ function renderLohnSlip(s, targetEl) {
 
     const abzugRows = s.abzugLines.map(l => `
         <tr>
-            <td class="ls-desc">${l.bezeichnung}</td>
+            <td class="ls-desc">${lohnZeileName(l)}</td>
             <td class="ls-num"></td>
             <td class="ls-num">${l.prozent != null ? fmtNum(l.prozent, 4) : ''}</td>
             <td class="ls-num">${l.basis   != null ? fmt(l.basis) : ''}</td>
@@ -2301,7 +2308,7 @@ function renderLohnSlip(s, targetEl) {
                 <tr class="ls-section-hd"><td colspan="6">Weitere Zahlungen</td></tr>
                 ${s.zulagenExtraLines.map(l => `
                 <tr>
-                    <td class="ls-desc">${l.bezeichnung}</td>
+                    <td class="ls-desc">${lohnZeileName(l)}</td>
                     <td colspan="4"></td>
                     <td class="ls-amt" style="color:#16a34a">+${fmt(l.betrag)}</td>
                 </tr>`).join('')}` : ''}
@@ -2309,7 +2316,7 @@ function renderLohnSlip(s, targetEl) {
                 <tr class="ls-section-hd"><td colspan="6">Weitere Abzüge</td></tr>
                 ${s.abzuegeExtraLines.map(l => `
                 <tr class="ls-extra-abzug">
-                    <td class="ls-desc" style="color:#dc2626">${l.bezeichnung}</td>
+                    <td class="ls-desc" style="color:#dc2626">${lohnZeileName(l)}</td>
                     <td colspan="4"></td>
                     <td class="ls-amt" style="color:#dc2626">${fmt(l.betrag)}</td>
                 </tr>`).join('')}` : ''}

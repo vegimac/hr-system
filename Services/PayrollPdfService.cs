@@ -1,7 +1,6 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
-using HrSystem.Services.LohnFormelwerk;
 using System.Globalization;
 using System.Text.Json;
 
@@ -615,20 +614,12 @@ public class PayrollPdfService
     }
 
     // ─── JSON Helpers ────────────────────────────────────────────────
-    /// <summary>Bezeichnung mit Swissdec-Nr. davor (Walter 19.10.2026), z.B. «1005  Stundenlohn».
-    /// Gespeicherte Mirus-Nummern (10.1, 190.1) werden dafür in die Swissdec-Nr. übersetzt.</summary>
+    /// <summary>Bezeichnung mit der gespeicherten Lohnpositions-Nummer davor, z.B. «1000  Monatslohn».
+    /// Die Nummer wird nicht übersetzt: steht 10.1 auf dem Lohnzettel, steht 10.1 auch hier.</summary>
     private static string BezeichungMitSwissdec(JsonElement line)
     {
         var bez = GetString(line, "bezeichnung") ?? "";
-        var roh = GetString(line, "code");
-        var swiss = LohnCodes.SwissdecVon(roh);
-        var code = string.IsNullOrWhiteSpace(swiss) ? roh : swiss;
-        if (!string.IsNullOrWhiteSpace(roh)
-            && !string.Equals(roh, code, StringComparison.OrdinalIgnoreCase))
-        {
-            if (bez.StartsWith(roh + " ", StringComparison.Ordinal) || bez.StartsWith(roh + "\u00a0", StringComparison.Ordinal))
-                bez = bez[(roh.Length + 1)..].TrimStart();
-        }
+        var code = (GetString(line, "code") ?? "").Trim();
         if (string.IsNullOrWhiteSpace(code)) return bez;
         if (bez.StartsWith(code + " ", StringComparison.Ordinal)
             || bez.StartsWith(code + "\u00a0", StringComparison.Ordinal))
