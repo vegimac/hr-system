@@ -63,6 +63,8 @@ const e2 = {
     stand: null,
     cert: null,
     domaenen: null,
+    uebersicht: null,        // Lohnperioden je Filiale für e2.jahr (api/elm/meldungen/uebersicht)
+    monatVonHand: false,     // Monat selbst gewählt; sonst springt er auf den letzten abgeschlossenen
     wahlJahr: new Set(),
     wahlMonat: new Set(['qst', 'statistik']),
     pruefung: null,          // { art: [ {art, v} ], ok, kantone:Set }
@@ -164,6 +166,7 @@ function e2Init() {
 }
 function e2FilialeWechsel() {
     e2.filiale = e2SelektorFiliale();
+    e2.monatVonHand = false;
     e2.wahlJahr = new Set();
     e2.pruefung = null;
     e2.ersatz = null;
@@ -176,14 +179,18 @@ function e2FilialeWechsel() {
 async function e2Laden() {
     e2Zeichnen();
     const f = e2FilialeId();
-    const [stand, cert, dom] = await Promise.all([
+    const [stand, cert, dom, ueb] = await Promise.all([
         e2Get('/api/elm/meldungen'),
         e2Get('/api/elm/zertifikat'),
         f ? e2Get(`/api/elm/meldungen/domaenen?jahr=${e2.jahr}&companyProfileId=${f}`) : Promise.resolve(null),
+        e2Get('/api/elm/meldungen/uebersicht?jahr=' + e2.jahr),
     ]);
     if (stand) e2.stand = stand;
     if (cert) e2.cert = cert;
     e2.domaenen = f ? dom : null;
+    e2.uebersicht = ueb;
+    const letzter = e2FilialeUebersicht()?.letzterMonat;
+    if (!e2.monatVonHand && letzter) e2.monat = letzter;
     if (f && !e2.wahlJahr.size) for (const z of e2Zeilen()) if (z.art === 'annual' && e2Sendbar(z)) e2.wahlJahr.add(z.id);
     e2Zeichnen();
 }
@@ -257,9 +264,6 @@ function e2ReiterHtml() {
 function e2CockpitHtml() {
     if (!e2FilialeId()) return '<p class="e2-leer">Bitte oben links eine Filiale wählen. Jede Filiale meldet für sich.</p>';
     const jahr = e2.reiter === 'jahr';
-    const periode = jahr
-        ? `<div class="e2-periode"><button type="button" class="e2-pfeil" data-e2="periode" data-wert="-1" aria-label="Vorjahr">‹</button><b>Lohnjahr ${e2.jahr}</b><button type="button" class="e2-pfeil" data-e2="periode" data-wert="1" aria-label="Folgejahr">›</button></div>`
-        : `<div class="e2-periode"><button type="button" class="e2-pfeil" data-e2="periode" data-wert="-1" aria-label="Vormonat">‹</button><b>${E2_MONATE[e2.monat - 1]} ${e2.jahr}</b><button type="button" class="e2-pfeil" data-e2="periode" data-wert="1" aria-label="Folgemonat">›</button></div>`;
     const ersatz = e2.ersatz && (jahr ? e2.ersatz.art !== 'monthly' : e2.ersatz.art === 'monthly')
         ? `<p class="e2-hinweis e2-warn">${E2_B.ersatz} für ${E2_B.declarationId} <b>${e2Esc(e2.ersatz.declarationId || '')}</b> vom ${e2Esc(e2Datum(e2.ersatz.gesendet))}. Die neue Übermittlung ersetzt diese vollständig.
             <button type="button" class="e2-text" data-e2="ersatz-weg">Abbrechen</button></p>` : '';
@@ -267,7 +271,8 @@ function e2CockpitHtml() {
     const kannPruefen = jahr ? e2ZeilenGewaehlt().length > 0 : e2.wahlMonat.size > 0;
     const kannSenden = !!e2.pruefung?.ok && !e2.busy && !e2.stand?.sendenGesperrt;
     return `<section class="e2-karte">
-        <div class="e2-karte-kopf"><h2>${jahr ? 'Jahresmeldung übermitteln' : 'Monatsmeldung übermitteln'}</h2>${periode}</div>
+        <div class="e2-karte-kopf"><h2>${jahr ? 'Jahresmeldung' : 'Monatsmeldung'} ${jahr ? e2.jahr : E2_MONATE[e2.monat - 1] + ' ' + e2.jahr} übermitteln</h2></div>
+        ${e2PeriodeHtml(jahr)}
         ${ersatz}
         ${auswahl}
         ${e2PruefungHtml()}
@@ -278,6 +283,40 @@ function e2CockpitHtml() {
     </section>
     ${e2UebersichtHtml()}
     ${e2HistorieHtml()}`;
+}
+
+// Periode: Jahr als Pillen, Monat als Raster mit dem Stand je Monat (Lohnlauf, Übermittlung).
+function e2FilialeUebersicht() {
+    return (e2.uebersicht?.filialen || []).find(x => x.id === e2.filiale) || null;
+}
+function e2MonatStand(m) {
+    const meldung = e2Meldungen().find(x => x.art === 'monthly' && x.jahr === e2.jahr && x.monat === m);
+    if (meldung) return { klasse: 'e2-m-' + meldung.status, text: E2_STATUS_TEXT[meldung.status] || meldung.statusText || '' };
+    const lp = (e2FilialeUebersicht()?.lohnperioden || []).find(x => x.monat === m);
+    if (!lp) return { klasse: 'e2-m-keine', text: 'kein Lohnlauf' };
+    if (lp.status === 'abgeschlossen') return { klasse: 'e2-m-bereit', text: 'bereit' };
+    if (lp.status === 'provisorisch_abgeschlossen') return { klasse: 'e2-m-offen', text: 'provisorisch' };
+    return { klasse: 'e2-m-offen', text: 'Lohnlauf offen' };
+}
+function e2JahrStand(y) {
+    const m = e2Meldungen().find(x => x.art !== 'monthly' && x.jahr === y);
+    return m ? { klasse: 'e2-m-' + m.status, text: E2_STATUS_TEXT[m.status] || '' } : null;
+}
+function e2PeriodeHtml(jahr) {
+    const heute = new Date().getFullYear();
+    const jahre = [];
+    for (let y = Math.min(heute - 2, e2.jahr); y <= Math.max(heute, e2.jahr); y++) jahre.push(y);
+    const jahrPillen = jahre.map(y => {
+        const st = jahr ? e2JahrStand(y) : null;
+        return `<button type="button" class="e2-jahrpille${y === e2.jahr ? ' an' : ''}" data-e2="jahr-wahl" data-wert="${y}">${y}${st ? ` <i class="e2-mpunkt ${st.klasse}" title="${e2Esc(st.text)}"></i>` : ''}</button>`;
+    }).join('');
+    const monate = jahr ? '' : `<div class="e2-monate">${E2_MONATE.map((name, i) => {
+        const m = i + 1;
+        const st = e2MonatStand(m);
+        return `<button type="button" class="e2-monat${m === e2.monat ? ' an' : ''} ${st.klasse}" data-e2="monat-wahl" data-wert="${m}" title="${e2Esc(name + ' ' + e2.jahr + ': ' + st.text)}">
+            <b>${name.slice(0, 3)}</b><span>${e2Esc(st.text)}</span></button>`;
+    }).join('')}</div>`;
+    return `<div class="e2-periodenwahl"><div class="e2-jahre"><span class="e2-still">${jahr ? 'Lohnjahr' : 'Jahr'}</span>${jahrPillen}</div>${monate}</div>`;
 }
 
 function e2ZeilenGewaehlt() { return e2Zeilen().filter(z => e2.wahlJahr.has(z.id) && e2Sendbar(z)); }
@@ -592,7 +631,8 @@ function e2Klick(ev) {
     if (a === 'reiter') { e2.reiter = el.dataset.wert; e2.hinweis = null; e2.detail = null; e2Zeichnen(); }
     else if (a === 'aktualisieren') e2Aktualisieren();
     else if (a === 'sua-mehr') { e2.suaOffen = !e2.suaOffen; e2Zeichnen(); }
-    else if (a === 'periode') e2Periode(parseInt(el.dataset.wert, 10));
+    else if (a === 'jahr-wahl') e2JahrWahl(parseInt(el.dataset.wert, 10));
+    else if (a === 'monat-wahl') e2MonatWahl(parseInt(el.dataset.wert, 10));
     else if (a === 'pruefen') e2Pruefen();
     else if (a === 'senden') e2Senden();
     else if (a === 'historie') { e2.historieOffen = !e2.historieOffen; e2Zeichnen(); }
@@ -649,20 +689,21 @@ async function e2Aktualisieren() {
     e2.busy = false; e2Zeichnen();
 }
 
-function e2Periode(delta) {
-    if (e2.reiter === 'jahr') {
-        const n = e2.jahr + delta;
-        if (n < 2015 || n > 2035) return;
-        e2.jahr = n;
-        e2.wahlJahr = new Set(); e2.bvg = null; e2.bvgOffen = false;
-    } else {
-        let m = e2.monat + delta;
-        if (m < 1) { m = 12; e2.jahr -= 1; }
-        if (m > 12) { m = 1; e2.jahr += 1; }
-        e2.monat = m;
-    }
+function e2JahrWahl(y) {
+    if (!y || y === e2.jahr) return;
+    e2.jahr = y;
+    e2.monatVonHand = false;
+    e2.wahlJahr = new Set(); e2.bvg = null; e2.bvgOffen = false;
     e2.pruefung = null; e2.hinweis = null;
     e2Laden();
+}
+
+function e2MonatWahl(m) {
+    if (!m || m === e2.monat) return;
+    e2.monat = m;
+    e2.monatVonHand = true;
+    e2.pruefung = null; e2.hinweis = null;
+    e2Zeichnen();
 }
 
 function e2MonatHatEmpfaenger() {
@@ -744,7 +785,7 @@ function e2Ersatz(id) {
     e2.ersatz = { id: m.id, art: m.art, declarationId: m.declarationId, gesendet: m.gesendet };
     e2.reiter = m.art === 'monthly' ? 'monat' : 'jahr';
     if (m.jahr) e2.jahr = m.jahr;
-    if (m.monat) e2.monat = m.monat;
+    if (m.monat) { e2.monat = m.monat; e2.monatVonHand = true; }
     if (m.art !== 'monthly') {
         e2.wahlJahr = new Set();
         e2.pruefung = null;
