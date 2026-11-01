@@ -14847,6 +14847,9 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-send-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 #page-elm-anwender .elma-send-chip { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; background: #fff; border: 1px solid rgba(60,55,48,0.16); color: #3f3f3f; font-size: 12px; font-weight: 600; }
 #page-elm-anwender .elma-send-bahn { margin: 8px -12px 0; }
+#page-elm-anwender .elma-send-satz { margin: 0; padding: 0 12px 8px; font-size: 12px; line-height: 1.4; color: #646464; text-align: center; }
+#page-elm-anwender .elma-aufgaben-liste { max-height: 280px; overflow-y: auto; }
+#page-elm-anwender .elma-verlauf-liste { max-height: 220px; overflow-y: auto; }
 #page-elm-anwender .elma-send .elma-stage { height: 52px; border-radius: 0; border: 0; background: transparent; }
 #page-elm-anwender .elma-send .elma-stage:before { display: none; }
 #page-elm-anwender .elma-send .elma-hub { width: 16%; max-width: 88px; }

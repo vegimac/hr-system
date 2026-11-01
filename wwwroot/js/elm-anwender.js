@@ -48,6 +48,7 @@ let _elmaBestaetigtText = null;
 let _elmaArchivOffen = false;
 let _elmaFokus = null;
 let _elmaFlug = false;
+let _elmaHolt = false;
 let _elmaLauf = false;
 let _elmaAnsicht = 'home';
 let _elmaWahl = new Set(['annual', 'qst', 'statistik']);
@@ -946,16 +947,29 @@ async function elmaLaden() {
     elmaPlanen();
 }
 
-function _elmaZeitraumMeldung() {
+function _elmaZeitraumListe() {
     const a = _elmaAuswahl();
-    if (!a.companyProfileId || !a.jahr) return null;
-    return (_elma?.meldungen || []).find(m => !m.zertifizierung && _elmaPasstFiliale(m)
+    if (!a.companyProfileId || !a.jahr) return [];
+    return (_elma?.meldungen || []).filter(m => !m.zertifizierung && _elmaPasstFiliale(m)
         && (m.art || 'monthly') === a.art && Number(m.jahr) === a.jahr
-        && (a.art !== 'monthly' || Number(m.monat) === a.monat)) || null;
+        && (a.art !== 'monthly' || Number(m.monat) === a.monat));
+}
+
+function _elmaZeitraumMeldung() {
+    const liste = _elmaZeitraumListe();
+    return liste.find(m => _elmaSchonRaus(m)) || liste[0] || null;
 }
 
 function elmaVorschauPlanen() {
     clearTimeout(_elmaVorschauTimer);
+    if (!_elmaErsatz && _elmaAnsicht === 'monat' && elmaFilialeId() && _elmaSchonRaus(_elmaZeitraumMeldung())) {
+        _elmaVorschauLauf++;
+        _elmaVorschau = null;
+        _elmaKantone = null;
+        _elmaLauf = true;
+        elmaLaufZeichnen();
+        return;
+    }
     _elmaLauf = false;
     if (_elmaAnsicht !== 'monat' || !elmaFilialeId()) return;
     _elmaKantone = null;
@@ -974,6 +988,12 @@ async function elmaPruefen(opt) {
     if (!a.companyProfileId) { if (!auto && el) { _elmaBahnHolen(); el.innerHTML = _elmaKasten(false, 'Wähle links die Filiale. Eine Meldung gilt nur für diese.'); } return; }
     if (!auto && _elmaBusy) return;
     if (!auto) clearTimeout(_elmaVorschauTimer);
+    if (auto && !_elmaErsatz && _elmaAnsicht === 'monat' && _elmaSchonRaus(_elmaZeitraumMeldung())) {
+        _elmaLauf = true;
+        elmaLaufZeichnen();
+        return;
+    }
+    _elmaLauf = false;
     const lauf = ++_elmaVorschauLauf;
     const btn = document.getElementById('elmaPruefenBtn');
     if (!auto) {
@@ -1070,6 +1090,7 @@ function elmaVorschauZeichnen() {
             ${(v.technisch || []).length ? _elmaKasten(false, 'Die Meldung ist fehlerhaft. Bitte dem Support melden.') : ''}
             ${v.sendenGesperrt ? _elmaKasten(false, _elmaEsc(v.sendenGesperrt)) : ''}
             <div class="elma-send-bahn" id="elmaSendBahn"></div>
+            <p class="elma-send-satz" id="elmaSendSatz"></p>
         </section>`;
     _elmaBahnSetzen();
     elmaKommZeichnen();
@@ -1100,6 +1121,7 @@ function elmaLaufZeichnen() {
                 <div class="elma-send-chips">${chips || '<span class="elma-an">—</span>'}</div>
             </div>
             <div class="elma-send-bahn" id="elmaSendBahn"></div>
+            <p class="elma-send-satz" id="elmaSendSatz"></p>
         </section>`;
     _elmaBahnSetzen();
     elmaKommZeichnen();
@@ -1214,7 +1236,10 @@ async function _elmaPost(pfad, body, warteTitel, warteText) {
     if (_elmaBusy) return null;
     _elmaBusy = true;
     _elmaHinweis = null;
+    const holt = /abfragen|antworten/.test(String(pfad));
+    if (holt) _elmaHolt = true;
     _elmaWarte(warteTitel || 'OneCrew arbeitet', warteText || 'Bitte einen Moment.');
+    if (holt || _elmaFlug) elmaKommZeichnen();
     try {
         const r = await fetch('/api/elm/meldungen/' + pfad, { method: 'POST', headers: ah(), body: JSON.stringify(body || {}) });
         const j = await r.json().catch(() => ({}));
@@ -1226,8 +1251,10 @@ async function _elmaPost(pfad, body, warteTitel, warteText) {
         _elmaHinweis = { ok: false, text: 'Server nicht erreichbar.' };
         return null;
     } finally {
+        _elmaHolt = false;
         _elmaWarte(null);
         _elmaBusy = false;
+        if (_elmaLauf) elmaLaufZeichnen();
         elmaListeZeichnen();
     }
 }
@@ -1287,8 +1314,11 @@ function elmaListeZeichnen() {
     const verlauf = document.getElementById('elmaVerlauf');
     if (!mitte || !verlauf) { elmaKommZeichnen(); return; }
     const filiale = elmaFilialeId();
+    const zeit = _elmaAuswahl();
     const alle = filiale
-        ? (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung && _elmaPasstAnsicht(x.m) && _elmaPasstFiliale(x.m))
+        ? (_elma?.meldungen || []).map((m, mi) => ({ m, mi })).filter(x => !x.m.zertifizierung && _elmaPasstAnsicht(x.m) && _elmaPasstFiliale(x.m)
+            && (!zeit.jahr || Number(x.m.jahr) === zeit.jahr)
+            && (_elmaAnsicht !== 'monat' || !zeit.monat || Number(x.m.monat) === zeit.monat))
         : [];
     const gezeigt = alle.find(x => x.m.id === _elmaFokus) || alle[0] || null;
     const hinweis = _elmaHinweis
@@ -1321,7 +1351,7 @@ function elmaListeZeichnen() {
         <span>${_elmaEsc(_elmaDatum(m.gesendet) || '—')}</span><span>${(m.empfaenger || []).length}</span></button>`).join('');
     verlauf.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Mitteilungsverlauf</div></div>
         <div class="elma-verlauf-kopf"><span>Zeit</span><span>Anzahl</span></div>
-        ${zeilenVerlauf || `<p class="elma-an">${filiale ? 'Noch keine Meldung.' : 'Wähle links die Filiale.'}</p>`}`;
+        <div class="elma-verlauf-liste">${zeilenVerlauf || `<p class="elma-an">${filiale ? 'Noch keine Meldung.' : 'Wähle links die Filiale.'}</p>`}</div>`;
     elmaKommZeichnen();
 }
 
@@ -1338,13 +1368,22 @@ function elmaAufgabenZeichnen() {
             knopf: 'Neues Zertifikat beantragen', click: 'elmaZertifikatErneuern()',
         });
     }
-    (_elma?.meldungen || []).forEach((m, mi) => {
-        if (m.zertifizierung || !_elmaPasstAnsicht(m) || !_elmaPasstFiliale(m)) return;
+    const aktuell = _elmaZeitraumMeldung();
+    const mi = aktuell ? (_elma?.meldungen || []).indexOf(aktuell) : -1;
+    if (aktuell && mi >= 0) {
+        const m = aktuell;
         const id = _elmaEsc(m.id);
         const hinweise = (m.empfaenger || []).flatMap(e => e.hinweise || []);
         const detail = _elmaAufgabeOffen === m.id ? _elmaAufgabeDetail(m, mi) : '';
+        const gesehen = new Set();
+        const merken = k => {
+            const schluessel = k.titel + '|' + k.text;
+            if (gesehen.has(schluessel)) return;
+            gesehen.add(schluessel);
+            karten.push(k);
+        };
         if (m.status === 'error' || m.stufe === 'rot') {
-            karten.push({
+            merken({
                 art: 'rot', aufgabe: true,
                 titel: `Fehler in der ${m.titel || 'Meldung'}`,
                 text: hinweise.length ? (hinweise.length === 1 ? hinweise[0] : `${hinweise.length} Hinweise in der Prüfung.`) : (m.statusText || 'Die Meldung wurde nicht angenommen.'),
@@ -1355,17 +1394,19 @@ function elmaAufgabenZeichnen() {
             const dialoge = (e.nachrichten || []).filter(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet);
             const frage = dialoge.some(n => n.dialog.beantwortbar);
             const haengt = (e.text || '').indexOf('geht nicht weiter') >= 0;
-            if (frage || (dialoge.some(n => !n.quittiert) && !haengt))
-                karten.push({ art: 'warn', aufgabe: true, titel: `Rückfrage von ${e.name}`, text: m.titel || '', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
+            if (frage)
+                merken({ art: 'warn', aufgabe: true, titel: `Rückfrage von ${e.name}`, text: m.titel || 'Bitte die Angaben ausfüllen.', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
+            else if (dialoge.some(n => !n.quittiert) && !haengt)
+                merken({ art: 'warn', aufgabe: true, titel: `Rückfrage von ${e.name}`, text: 'Empfang bestätigen. Dabei geht eine Meldung an Swissdec.', knopf: 'Bestätigen', click: `elmaBestaetigen('${id}')`, detail: '' });
             else if (haengt)
-                karten.push({ art: 'info', aufgabe: false, titel: `${e.name} bleibt stehen`, text: 'Die Mitteilung ist bestätigt. Es gibt nichts auszufüllen. Dieser Testempfänger geht trotzdem nicht weiter.', knopf: '', click: '', detail: '' });
+                merken({ art: 'info', aufgabe: false, titel: `${e.name} bleibt stehen`, text: 'Die Mitteilung ist bestätigt. Es gibt nichts auszufüllen. Dieser Testempfänger geht trotzdem nicht weiter.', knopf: '', click: '', detail: '' });
             if (e.freigabeUrl)
-                karten.push({ art: 'info', aufgabe: true, titel: `Freigabe bei ${e.name}`, text: 'Die Freigabe im Portal steht bereit.', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
+                merken({ art: 'info', aufgabe: true, titel: `Freigabe bei ${e.name}`, text: 'Die Freigabe im Portal steht bereit.', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
         });
         const quittung = (m.empfaenger || []).some(e => (e.nachrichten || []).some(n => (n.art || '').indexOf('Quittung') >= 0));
         if (quittung && m.stufe !== 'rot')
-            karten.push({ art: 'info', aufgabe: false, titel: 'Quittung der letzten Übermittlung vorhanden', text: 'Die Verarbeitung durch die Empfänger wurde bestätigt.', knopf: 'Quittung anzeigen', click: `elmaQuittung('${id}')`, detail: '' });
-    });
+            merken({ art: 'info', aufgabe: false, titel: 'Quittung vorhanden', text: 'Die Verarbeitung durch die Empfänger wurde bestätigt.', knopf: 'Quittung anzeigen', click: `elmaQuittung('${id}')`, detail: '' });
+    }
     const offen = karten.filter(k => k.aufgabe).length;
     const erfolg = _elmaBestaetigtText ? `<p class="elma-an" style="margin:0 0 10px;color:#166534">${_elmaEsc(_elmaBestaetigtText)}</p>` : '';
     const leer = elmaFilialeId() ? 'Keine offenen Aufgaben.' : 'Wähle links die Filiale.';
@@ -1377,7 +1418,7 @@ function elmaAufgabenZeichnen() {
         : erfolg + `<div style="font-size:13px;color:#8b8b8b">${leer}</div>`;
     box.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Aufgaben & Hinweise</div><span class="elma-an">${offen} ${offen === 1 ? 'offene Aufgabe' : 'offene Aufgaben'}</span></div>
         <div class="elma-aufgabe-spur" style="margin:10px 0 12px"><i style="width:${offen ? '100%' : '0%'}"></i></div>
-        ${liste}`;
+        <div class="elma-aufgaben-liste">${liste}</div>`;
 }
 
 async function elmaAktualisieren() {
@@ -1463,7 +1504,8 @@ function _elmaAufgabeDetail(m, mi) {
 }
 
 async function elmaBestaetigen(id) {
-    _elmaAufgabeOffen = id;
+    _elmaAufgabeOffen = null;
+    _elmaFokus = id;
     const j = await _elmaPost(encodeURIComponent(id) + '/abfragen', {}, 'Bestätigen', 'OneCrew bestätigt den Empfang bei Swissdec.');
     if (!j || j.ok === false) return;
     const noch = (_elma?.meldungen || []).find(x => x.id === id);
@@ -1535,9 +1577,16 @@ function _elmaHatAntwort(m) {
     return (m.empfaenger || []).some(e => (e.nachrichten || []).length);
 }
 
+function _elmaSchonRaus(m) {
+    if (!m || m.stufe === 'rot') return false;
+    return _elmaHatSchritt(m, 'Gesendet') || m.fertig || m.stufe === 'ok' || m.stufe === 'laeuft' || m.stufe === 'warn' || _elmaHatQuittung(m);
+}
+
 function _elmaKommStand(m) {
     if (_elmaFlug)
         return { fertig: -1, jetzt: 0, laufend: true, zurueck: false, kern: 'Sendet', label: 'Gesendet' };
+    if (_elmaHolt)
+        return { fertig: 0, jetzt: 1, laufend: true, zurueck: true, kern: 'Holt', label: 'Warte auf Antwort' };
     if (!m || m.stufe === 'rot' && !_elmaHatSchritt(m, 'Gesendet'))
         return { fertig: -1, jetzt: m && m.stufe === 'rot' ? 0 : -1, laufend: false, zurueck: false, kern: m && m.stufe === 'rot' ? 'Stopp' : 'Bereit', label: m && m.stufe === 'rot' ? 'Nicht angenommen' : 'Bereit' };
     if (m.stufe === 'rot')
@@ -1580,8 +1629,19 @@ function _elmaPhaseVon(m) {
     return { schritte: _ELMA_SEND, index: 0, laufend: false, titel: 'Bereit für die Übermittlung', kern: 'Bereit', phase: 'Bereit', zurueck: false };
 }
 
+function _elmaSatzJetzt(m, stand) {
+    if (_elmaFlug) return 'Die Meldung geht an Swissdec.';
+    if (_elmaHolt) return 'OneCrew holt die Antwort bei Swissdec.';
+    const letzt = (m?.verlauf || [])[0];
+    if (letzt) {
+        const zeit = _elmaUhr(letzt.zeit);
+        return (zeit ? zeit + ' · ' : '') + _elmaKommSatz(letzt.schritt);
+    }
+    return stand.label === 'Bereit' ? 'Noch nicht gesendet.' : stand.label;
+}
+
 function elmaKommZeichnen() {
-    const m = _elmaFlug || !_elmaLauf ? null : _elmaZeitraumMeldung();
+    const m = _elmaFlug ? null : ((_elmaHolt || _elmaLauf) ? _elmaZeitraumMeldung() : null);
     const stand = _elmaKommStand(m);
     const schritte = document.getElementById('elmaSchritte');
     if (schritte) schritte.innerHTML = _elmaSchritteStand(m);
@@ -1608,7 +1668,9 @@ function elmaKommZeichnen() {
 
     const log = document.getElementById('elmaKomm');
     if (!log) return;
-    const text = _elmaFlug ? 'Die Meldung geht an Swissdec.' : (letzt ? _elmaKommSatz(letzt.schritt) : stand.label);
+    const text = _elmaSatzJetzt(m, stand);
+    const satz = document.getElementById('elmaSendSatz');
+    if (satz) satz.textContent = text;
     const zeit = letzt && !_elmaFlug ? _elmaUhr(letzt.zeit) : '';
     log.innerHTML = `<div class="elma-logline"><time>${_elmaEsc(zeit || '—')}</time><span>${_elmaEsc(text)}</span></div>`;
 }
