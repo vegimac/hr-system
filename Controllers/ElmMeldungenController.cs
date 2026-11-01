@@ -32,6 +32,84 @@ public class ElmMeldungenController : ControllerBase
     [HttpGet]
     public IActionResult Liste() => Ok(Stand());
 
+    /// <summary>Lesen: je Filiale der letzte abgeschlossene Lohnmonat und der Stand schon gesendeter Meldungen. Fasst nichts zusammen.</summary>
+    [HttpGet("uebersicht")]
+    public async Task<IActionResult> Uebersicht(int jahr, CancellationToken ct)
+    {
+        if (jahr < 2000 || jahr > 2100) jahr = DateTime.Now.Year;
+        var filialen = (await _db.CompanyProfiles.AsNoTracking()
+            .Select(p => new { p.Id, p.BranchName, p.CompanyName })
+            .ToListAsync(ct))
+            .OrderBy(p => string.IsNullOrWhiteSpace(p.BranchName) ? p.CompanyName : p.BranchName)
+            .ToList();
+        var perioden = await _db.PayrollPerioden.AsNoTracking()
+            .Where(p => p.Year == jahr)
+            .Select(p => new { p.CompanyProfileId, p.Month, p.Status })
+            .ToListAsync(ct);
+        var meldungen = _dienst.Liste()
+            .Where(v => v.Jahr == jahr && !ElmMeldungAnzeige.Zertifizierungstest(v))
+            .ToList();
+        var monate = new[] { "", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember" };
+
+        string Stufe(ElmVorgang? m)
+        {
+            if (m == null) return "keine";
+            if (m.Adressaten.Any(a => a.Stories.Any(s => s.Art == "DialogMessage" && !s.Beantwortet))) return "rueckfrage";
+            return ElmMeldungAnzeige.CockpitStatus(m) switch
+            {
+                "error" => "fehler",
+                "success" => "angenommen",
+                _ => "unterwegs",
+            };
+        }
+        string Wort(string stufe) => stufe switch
+        {
+            "rueckfrage" => "Rückfrage",
+            "fehler" => "Fehler",
+            "angenommen" => "Angenommen",
+            "unterwegs" => "Unterwegs",
+            "bereit" => "Bereit",
+            _ => "Nicht bereit",
+        };
+        string? Aufgabe(ElmVorgang? m)
+        {
+            if (m == null) return null;
+            var dialog = m.Adressaten.FirstOrDefault(a => a.Stories.Any(s => s.Art == "DialogMessage" && !s.Beantwortet));
+            if (dialog != null) return "Rückfrage von " + (dialog.InstitutionName ?? dialog.Identification);
+            if (m.Adressaten.Any(a => a.State == "CompletionReleaseMissing" && a.Completion != null))
+                return "Freigabe offen";
+            if (ElmMeldungAnzeige.CockpitStatus(m) == "error") return "Nicht angenommen";
+            return null;
+        }
+
+        var zeilen = filialen.Select(f =>
+        {
+            var name = string.IsNullOrWhiteSpace(f.BranchName) ? f.CompanyName : f.BranchName!;
+            var geschlossen = perioden.Where(p => p.CompanyProfileId == f.Id && p.Status == "abgeschlossen").Select(p => p.Month).ToList();
+            var letzter = geschlossen.Count == 0 ? 0 : geschlossen.Max();
+            var eigene = meldungen.Where(m => m.CompanyProfileId == f.Id).ToList();
+            var monatM = letzter == 0 ? null : eigene.Where(m => m.Art == "monthly" && m.Monat == letzter).OrderByDescending(m => m.Gesendet).FirstOrDefault();
+            var jahrM = eigene.Where(m => m.Art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn").OrderByDescending(m => m.Gesendet).FirstOrDefault();
+            var monatStufe = monatM == null ? (letzter == 0 ? "keine" : "bereit") : Stufe(monatM);
+            var jahrStufe = jahrM == null ? (geschlossen.Count == 0 ? "keine" : "bereit") : Stufe(jahrM);
+            var aufgabeVon = new[] { monatM, jahrM }.Where(m => m != null).Select(m => m!).FirstOrDefault(m => Aufgabe(m) != null);
+            return new
+            {
+                id = f.Id,
+                name,
+                letzterMonat = letzter,
+                letzterText = letzter == 0 ? "Kein abgeschlossener Lohnlauf" : monate[letzter] + " " + jahr,
+                monatStatus = monatStufe,
+                monatText = Wort(monatStufe),
+                jahrStatus = jahrStufe,
+                jahrText = Wort(jahrStufe),
+                aufgabe = aufgabeVon == null ? null : Aufgabe(aufgabeVon),
+                aufgabeId = aufgabeVon?.Id,
+            };
+        }).ToList();
+        return Ok(new { jahr, filialen = zeilen });
+    }
+
     [HttpGet("vorschau")]
     public async Task<IActionResult> Vorschau(string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct)
     {
@@ -332,7 +410,7 @@ public class ElmMeldungenController : ControllerBase
         var (jahr, monat) = ElmMeldungAnzeige.Periode(v);
         return new
         {
-            v.Id, v.Art, jahr, monat, v.Gesendet, v.TestCase, v.FreigabePortal,
+            v.Id, v.Art, jahr, monat, v.CompanyProfileId, v.Gesendet, v.TestCase, v.FreigabePortal,
             declarationId = ElmMeldungAnzeige.DeclarationId(v),
             status = ElmMeldungAnzeige.CockpitStatus(v),
             statusText = ElmMeldungAnzeige.CockpitStatusText(ElmMeldungAnzeige.CockpitStatus(v)),

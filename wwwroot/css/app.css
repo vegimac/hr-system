@@ -15214,7 +15214,7 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
     #page-elm-cockpit .xc-seite { position: static; }
 }
 
-/* Lohnmeldung, einfacher Ablauf. Eine Spalte, heller Grund, grosse Türen. */
+/* Lohnmeldung. Übersicht über die Filialen, heller Grund. */
 .main:has(#page-elm-cockpit.active),
 body.theme-dark .main:has(#page-elm-cockpit.active) {
     background: #f6f3ee;
@@ -15226,7 +15226,7 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
     color-scheme: light;
 }
 #eeApp {
-    max-width: 640px;
+    max-width: 1080px;
     margin: 0 auto;
     padding: 28px 24px 80px;
     color: #3f3f3f;
@@ -15236,7 +15236,38 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
 #eeApp h1 { margin: 8px 0 8px; font-size: 32px; font-weight: 560; letter-spacing: -.03em; color: #1a1a1a; }
 #eeApp h2 { margin: 28px 0 6px; font-size: 18px; font-weight: 560; color: #3f3f3f; }
 #eeApp .ee-lead { margin: 0 0 18px; color: #646464; }
-#eeApp .ee-kopf { display: flex; justify-content: space-between; min-height: 28px; margin-bottom: 8px; }
+#eeApp .ee-kopf { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+#eeApp .ee-navs { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+#eeApp .ee-nav {
+    background: none; border: 0; padding: 6px 0; font: inherit; color: #646464; cursor: pointer;
+}
+#eeApp .ee-nav.an { color: #1a1a1a; font-weight: 560; box-shadow: inset 0 -2px 0 #1a1a1a; }
+#eeApp .ee-werk { display: flex; align-items: center; gap: 16px; }
+#eeApp .ee-werk .lqsel-btn { width: auto; min-width: 10rem; max-width: 16rem; }
+#eeApp .ee-split { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 32px; align-items: start; }
+#eeApp .ee-seite h2 { margin-top: 0; }
+#eeApp .ee-seite .ee-karte, #eeApp .ee-tueren .ee-karte { margin-top: 0; }
+#eeApp .ee-seite { display: flex; flex-direction: column; gap: 10px; }
+#eeApp .ee-tabelle { width: 100%; border-collapse: collapse; }
+#eeApp .ee-tabelle th {
+    text-align: left; font-weight: 560; font-size: 13px; color: #8b8b8b; padding: 8px 12px 8px 0;
+}
+#eeApp .ee-tabelle td { padding: 12px 12px 12px 0; border-top: 1px solid rgba(60,55,48,.14); vertical-align: baseline; }
+#eeApp .ee-hist {
+    display: grid; grid-template-columns: 8rem 10rem minmax(8rem, 14rem) minmax(0, 1fr); gap: 8px;
+    width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid rgba(60,55,48,.14);
+    padding: 12px 0; font: inherit; cursor: pointer; color: #1a1a1a;
+}
+#eeApp .ee-hist.an { background: rgba(255,255,255,.55); }
+#eeApp .ee-geld {
+    width: 8rem; height: 40px; padding: 0 10px; font: inherit; box-sizing: border-box;
+    background: #fff; color: #1a1a1a; border: 1px solid rgba(60,55,48,.25); border-radius: 10px;
+}
+#eeApp .ee-zeile .ee-still { margin-top: 0; }
+@media (max-width: 860px) {
+    #eeApp .ee-split { grid-template-columns: 1fr; }
+    #eeApp .ee-hist { grid-template-columns: 1fr 1fr; }
+}
 #eeApp .ee-tueren { display: flex; flex-direction: column; gap: 12px; }
 #eeApp .ee-tuer, #eeApp .ee-karte {
     display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
@@ -15245,6 +15276,8 @@ body.theme-dark .main:has(#page-elm-cockpit.active) {
     box-shadow: 0 2px 8px rgba(60,55,48,.08);
 }
 #eeApp .ee-tuer b, #eeApp .ee-karte b { font-size: 20px; font-weight: 560; }
+#eeApp .ee-seite .ee-karte { padding: 12px 14px; }
+#eeApp .ee-seite .ee-karte b { font-size: 16px; }
 #eeApp .ee-tuer span, #eeApp .ee-karte span { color: #646464; font-size: 15px; }
 #eeApp .ee-karte { margin-top: 22px; }
 #eeApp .ee-liste { display: flex; flex-direction: column; }

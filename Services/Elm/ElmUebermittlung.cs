@@ -53,6 +53,8 @@ public class ElmVorgang
     /// <summary>Lohnjahr/-monat der Meldung — für die Ersatzmeldung (NULL = vor 15.10.2026, dann aus dem Titel).</summary>
     public int? Jahr { get; set; }
     public int? Monat { get; set; }
+    /// <summary>Filiale, für die diese Meldung gebaut wurde. Leer bei älteren Sendungen.</summary>
+    public int? CompanyProfileId { get; set; }
     /// <summary>Versicherungsdomänen: der Benutzer hat «Freigabe im Portal gewünscht» gesetzt (DeclarationIncomplete).</summary>
     public bool FreigabePortal { get; set; }
 }

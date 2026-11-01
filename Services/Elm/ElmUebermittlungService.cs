@@ -189,6 +189,7 @@ public class ElmUebermittlungService
             Url = url,
             Jahr = o.Jahr,
             Monat = art == "monthly" ? o.Monat : null,
+            CompanyProfileId = o.CompanyProfileId is int cp && cp > 0 ? cp : null,
             Adressaten = gewaehlt.Select(a => new ElmVorgangAdressat
             {
                 AddresseeId = a.AddresseeId,
