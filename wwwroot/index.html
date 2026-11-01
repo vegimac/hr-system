@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
-    <link rel="stylesheet" href="css/app.css?v=20261102b">
+    <link rel="stylesheet" href="css/app.css?v=20261102c">
 </head>
 <body>
 
@@ -6807,14 +6807,6 @@
                                 <div id="elmaErsatz" class="elma-ersatz" style="display:none"></div>
                                 <div class="elma-controls" id="elmaControls">
                                     <div class="elma-zeit" id="elmaZeit">
-                                        <label class="elma-zeit-feld">Jahr
-                                            <span class="elma-zeit-wahl">
-                                                <button type="button" class="elma-zeit-pfeil" onclick="elmaZeitSchrittJahr(-1)" aria-label="Jahr zurück">‹</button>
-                                                <button type="button" class="elma-zeit-wert" id="elmaZeitJahrWert" onclick="elmaZeitBlatt('jahr')">2026</button>
-                                                <button type="button" class="elma-zeit-pfeil" onclick="elmaZeitSchrittJahr(1)" aria-label="Jahr vor">›</button>
-                                            </span>
-                                            <div class="elma-zeit-blatt" id="elmaZeitBlattJahr" hidden></div>
-                                        </label>
                                         <label class="elma-zeit-feld" id="elmaZeitMonatFeld" style="display:none">Monat
                                             <span class="elma-zeit-wahl">
                                                 <button type="button" class="elma-zeit-pfeil" onclick="elmaZeitSchrittMonat(-1)" aria-label="Monat zurück">‹</button>
@@ -6823,6 +6815,14 @@
                                             </span>
                                             <div class="elma-zeit-blatt" id="elmaZeitBlattMonat" hidden></div>
                                             <span id="elmaMonatStand"></span>
+                                        </label>
+                                        <label class="elma-zeit-feld">Jahr
+                                            <span class="elma-zeit-wahl">
+                                                <button type="button" class="elma-zeit-pfeil" onclick="elmaZeitSchrittJahr(-1)" aria-label="Jahr zurück">‹</button>
+                                                <button type="button" class="elma-zeit-wert" id="elmaZeitJahrWert" onclick="elmaZeitBlatt('jahr')">2026</button>
+                                                <button type="button" class="elma-zeit-pfeil" onclick="elmaZeitSchrittJahr(1)" aria-label="Jahr vor">›</button>
+                                            </span>
+                                            <div class="elma-zeit-blatt" id="elmaZeitBlattJahr" hidden></div>
                                         </label>
                                     </div>
                                     <select id="elmaMonat" class="no-liquid" hidden></select>
