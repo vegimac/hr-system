@@ -139,6 +139,7 @@ function elmaFilialeWechsel() {
     _elmaAufgabeOffen = null;
     _elmaQuittung = null;
     _elmaBestaetigtText = null;
+    _elmaBahnHolen();
     const el = document.getElementById('elmaVorschau');
     if (el) el.innerHTML = '';
     elmaDomaenenLaden();
@@ -869,19 +870,26 @@ function elmaArtGewechselt() {
     if (monatFeld) monatFeld.style.display = _elmaAnsicht === 'monat' ? '' : 'none';
     const profil = _elmaAnsicht === 'profil';
     const prozess = document.getElementById('elmaProzess');
-    if (prozess) prozess.disabled = _elmaAnsicht !== 'jahr';
+    if (prozess) {
+        prozess.style.display = _elmaAnsicht === 'jahr' ? '' : 'none';
+        prozess.disabled = _elmaAnsicht !== 'jahr';
+    }
     const pruefen = document.getElementById('elmaPruefenBtn');
     const senden = document.getElementById('elmaSendenBtn');
     if (pruefen) {
         pruefen.style.display = _elmaAnsicht === 'monat' ? 'none' : '';
         pruefen.disabled = profil;
     }
-    if (senden) senden.disabled = profil;
+    if (senden) {
+        senden.style.display = _elmaAnsicht === 'monat' ? 'none' : '';
+        senden.disabled = profil;
+    }
     const controls = document.getElementById('elmaControls');
     if (controls) controls.style.display = (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat' || profil) ? '' : 'none';
     _elmaLageKey = '';
     _elmaVorschau = null;
     _elmaKantone = null;
+    _elmaBahnHolen();
     const vorschau = document.getElementById('elmaVorschau');
     if (vorschau) vorschau.innerHTML = '';
     elmaAktionenZeichnen();
@@ -942,8 +950,9 @@ function elmaVorschauPlanen() {
     if (_elmaAnsicht !== 'monat' || !elmaFilialeId()) return;
     _elmaKantone = null;
     _elmaVorschau = null;
+    _elmaBahnHolen();
     const el = document.getElementById('elmaVorschau');
-    if (el) el.innerHTML = '<p class="elma-an" style="margin-top:14px">Meldung wird geprüft …</p>';
+    if (el) el.innerHTML = '<p class="elma-an" style="margin-top:8px">Meldung wird geprüft …</p>';
     _elmaVorschauTimer = setTimeout(function () { elmaPruefen({ auto: true }); }, 200);
 }
 
@@ -951,8 +960,8 @@ async function elmaPruefen(opt) {
     const auto = !!(opt && opt.auto);
     const a = _elmaAuswahl();
     const el = document.getElementById('elmaVorschau');
-    if (!a.jahr) { if (!auto && el) el.innerHTML = _elmaKasten(false, 'Bitte ein Jahr angeben.'); return; }
-    if (!a.companyProfileId) { if (!auto && el) el.innerHTML = _elmaKasten(false, 'Wähle links die Filiale. Eine Meldung gilt nur für diese.'); return; }
+    if (!a.jahr) { if (!auto && el) { _elmaBahnHolen(); el.innerHTML = _elmaKasten(false, 'Bitte ein Jahr angeben.'); } return; }
+    if (!a.companyProfileId) { if (!auto && el) { _elmaBahnHolen(); el.innerHTML = _elmaKasten(false, 'Wähle links die Filiale. Eine Meldung gilt nur für diese.'); } return; }
     if (!auto && _elmaBusy) return;
     if (!auto) clearTimeout(_elmaVorschauTimer);
     const lauf = ++_elmaVorschauLauf;
@@ -960,6 +969,7 @@ async function elmaPruefen(opt) {
     if (!auto) {
         _elmaBusy = true;
         if (btn) btn.disabled = true;
+        _elmaBahnHolen();
         if (el) el.innerHTML = '';
         _elmaWarte('Meldung wird geprüft', 'OneCrew baut die Meldung und schaut, ob sie so rausgehen kann.');
     }
@@ -992,9 +1002,28 @@ function _elmaKasten(ok, html) {
     return `<div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:${f.grund};color:${f.text};font-size:13px">${html}</div>`;
 }
 
+function _elmaBahnHolen() {
+    const buehne = document.getElementById('elmaBuehne');
+    if (!buehne) return;
+    ['elmaStage', 'elmaSchritte'].forEach(id => {
+        const n = document.getElementById(id);
+        if (n && n.parentNode !== buehne) buehne.appendChild(n);
+    });
+}
+
+function _elmaBahnSetzen() {
+    const bahn = document.getElementById('elmaSendBahn');
+    if (!bahn) return;
+    ['elmaStage', 'elmaSchritte'].forEach(id => {
+        const n = document.getElementById(id);
+        if (n) bahn.appendChild(n);
+    });
+}
+
 function elmaVorschauZeichnen() {
     const el = document.getElementById('elmaVorschau');
     if (!el || !_elmaVorschau) return;
+    _elmaBahnHolen();
     const v = _elmaVorschau;
     const fehler = v.fehler || [];
     const gewaehlt = _elmaGewaehlt(v);
@@ -1017,7 +1046,10 @@ function elmaVorschauZeichnen() {
                     <div class="elma-kicker">Meldung</div>
                     <h3>${_elmaEsc(v.titel)}</h3>
                 </div>
-                ${kann ? _elmaPille('ok', 'Bereit zum Senden') : _elmaPille('rot', leer ? 'Keine Empfänger' : 'Bitte zuerst korrigieren')}
+                <div class="elma-send-aktionen">
+                    ${kann ? _elmaPille('ok', 'Bereit zum Senden') : _elmaPille('rot', leer ? 'Keine Empfänger' : 'Bitte zuerst korrigieren')}
+                    <button type="button" class="btn btn-primary" onclick="elmaSenden()" ${kann && !_elmaBusy ? '' : 'disabled'}>${_elmaErsatz ? 'Ersatzmeldung' : 'Übermitteln'}</button>
+                </div>
             </div>
             <div class="elma-send-an">
                 <div class="elma-kicker">Geht an</div>
@@ -1027,11 +1059,9 @@ function elmaVorschauZeichnen() {
             ${fehler.length ? _elmaKasten(false, `<ul style="margin:0 0 0 18px;padding:0">${fehler.map(f => `<li>${_elmaEsc(f)}</li>`).join('')}</ul>`) : ''}
             ${(v.technisch || []).length ? _elmaKasten(false, 'Die Meldung ist fehlerhaft. Bitte dem Support melden.') : ''}
             ${v.sendenGesperrt ? _elmaKasten(false, _elmaEsc(v.sendenGesperrt)) : ''}
-            <div class="elma-send-foot">
-                <p>${kann ? 'OneCrew übergibt die Meldung an Swissdec.' : 'Senden bleibt zu, bis die Meldung in Ordnung ist.'}</p>
-                <button type="button" class="btn btn-primary" onclick="elmaSenden()" ${kann && !_elmaBusy ? '' : 'disabled'}>${_elmaErsatz ? 'Ersatzmeldung' : 'Übermitteln'}</button>
-            </div>
+            <div class="elma-send-bahn" id="elmaSendBahn"></div>
         </section>`;
+    _elmaBahnSetzen();
 }
 
 async function elmaMonatSenden() {
@@ -1094,6 +1124,7 @@ async function elmaSenden() {
         _elmaVorschau = null;
         _elmaErsatz = null;
         elmaErsatzZeichnen();
+        _elmaBahnHolen();
         const el = document.getElementById('elmaVorschau');
         if (el) el.innerHTML = '';
         _elmaHinweis = null;
@@ -1135,6 +1166,7 @@ function elmaErsatzAbbrechen() {
     _elmaErsatz = null;
     _elmaVorschau = null;
     elmaErsatzZeichnen();
+    _elmaBahnHolen();
     const el = document.getElementById('elmaVorschau');
     if (el) el.innerHTML = '';
 }
