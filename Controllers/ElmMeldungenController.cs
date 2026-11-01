@@ -86,7 +86,18 @@ public class ElmMeldungenController : ControllerBase
         var zeilen = filialen.Select(f =>
         {
             var name = string.IsNullOrWhiteSpace(f.BranchName) ? f.CompanyName : f.BranchName!;
-            var geschlossen = perioden.Where(p => p.CompanyProfileId == f.Id && p.Status == "abgeschlossen").Select(p => p.Month).ToList();
+            var derFiliale = perioden.Where(p => p.CompanyProfileId == f.Id).ToList();
+            var geschlossen = derFiliale.Where(p => p.Status == "abgeschlossen").Select(p => p.Month).ToList();
+            var lohnperioden = derFiliale
+                .GroupBy(p => p.Month)
+                .Select(g => new
+                {
+                    monat = g.Key,
+                    status = g.Any(p => p.Status == "abgeschlossen") ? "abgeschlossen"
+                        : g.Any(p => p.Status == "provisorisch_abgeschlossen") ? "provisorisch_abgeschlossen"
+                        : g.Select(p => p.Status).FirstOrDefault() ?? "offen",
+                })
+                .ToList();
             var letzter = geschlossen.Count == 0 ? 0 : geschlossen.Max();
             var eigene = meldungen.Where(m => m.CompanyProfileId == f.Id).ToList();
             var monatM = letzter == 0 ? null : eigene.Where(m => m.Art == "monthly" && m.Monat == letzter).OrderByDescending(m => m.Gesendet).FirstOrDefault();
@@ -98,6 +109,8 @@ public class ElmMeldungenController : ControllerBase
             {
                 id = f.Id,
                 name,
+                abgeschlossen = geschlossen,
+                lohnperioden,
                 letzterMonat = letzter,
                 letzterText = letzter == 0 ? "Kein abgeschlossener Lohnlauf" : monate[letzter] + " " + jahr,
                 monatStatus = monatStufe,

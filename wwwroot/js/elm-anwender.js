@@ -448,7 +448,12 @@ async function elmaMonatStand(setzen) {
             if (r.ok) {
                 const j = await r.json();
                 const zeile = (j.filialen || []).find(f => Number(f.id) === fil);
-                if (zeile) _elmaLetzter = { monat: zeile.letzterMonat || 0, text: zeile.letzterText || '' };
+                if (zeile) _elmaLetzter = {
+                    monat: zeile.letzterMonat || 0,
+                    text: zeile.letzterText || '',
+                    monate: Array.isArray(zeile.abgeschlossen) ? zeile.abgeschlossen.map(Number) : null,
+                    perioden: Array.isArray(zeile.lohnperioden) ? zeile.lohnperioden : null,
+                };
             }
         } catch { /* Monat bleibt, wo er steht. */ }
     }
@@ -829,7 +834,29 @@ function elmaZeitZeichnen() {
     if (jahr) jahr.textContent = String(z.jahr);
     if (monat) monat.textContent = _ELMA_MONATE[z.monat - 1] || '';
     const stand = document.getElementById('elmaMonatStand');
-    if (stand) stand.textContent = (_elmaAnsicht === 'monat' && _elmaLetzter && _elmaLetzter.monat === z.monat) ? 'abgeschlossen' : '';
+    if (stand) {
+        const bekannt = _elmaAnsicht === 'monat' && !!elmaFilialeId() && !!_elmaLetzter;
+        let text = '';
+        let klasse = '';
+        if (bekannt) {
+            const periode = Array.isArray(_elmaLetzter.perioden)
+                ? _elmaLetzter.perioden.find(p => Number(p.monat) === z.monat)
+                : null;
+            if (Array.isArray(_elmaLetzter.perioden)) {
+                if (!periode) { text = 'Keine Periode vorhanden'; klasse = 'ist-offen'; }
+                else if (periode.status === 'abgeschlossen') { text = 'Periode abgeschlossen'; klasse = 'ist-zu'; }
+                else { text = 'Periode offen'; klasse = 'ist-offen'; }
+            } else {
+                const zu = Array.isArray(_elmaLetzter.monate)
+                    ? _elmaLetzter.monate.indexOf(z.monat) >= 0
+                    : _elmaLetzter.monat > 0 && z.monat <= _elmaLetzter.monat;
+                text = zu ? 'Periode abgeschlossen' : 'Periode offen';
+                klasse = zu ? 'ist-zu' : 'ist-offen';
+            }
+        }
+        stand.textContent = text;
+        stand.className = klasse;
+    }
     if (!document.getElementById('elmaZeitBlattJahr')?.hidden) elmaZeitBlattFuellen('jahr');
     if (!document.getElementById('elmaZeitBlattMonat')?.hidden) elmaZeitBlattFuellen('monat');
 }
