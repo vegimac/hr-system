@@ -229,8 +229,7 @@ function xcZeichnen() {
                 <div class="xc-kicker">ELM</div>
                 <h1>Cockpit</h1>
             </div>
-            <div class="xc-link ${link.klasse}" aria-live="polite">${xcEsc(link.wort)}</div>
-            ${aufgaben.length ? `<button type="button" class="xc-text" data-xc="aufgaben">${aufgaben.length} ${aufgaben.length === 1 ? 'Aufgabe' : 'Aufgaben'}</button>` : ''}
+            <div class="xc-link ${link.klasse}" aria-live="polite">${xcEsc(link.wort)}${aufgaben.length ? ' · ' + aufgaben.length : ''}</div>
             <button type="button" class="xc-text" data-xc="${xc.sicht === 'konfig' ? 'zurueck' : 'konfig'}">${xc.sicht === 'konfig' ? 'Zurück' : 'Konfiguration'}</button>
             <button type="button" class="xc-ghost xc-klein" data-xc="aktualisieren" ${xc.busy ? 'disabled' : ''}>Aktualisieren</button>
         </header>
@@ -262,23 +261,26 @@ function xcSendHtml() {
         ? `<p class="xc-ersatz">Ersatz für ${xcEsc(xc.ersatz.titel || 'die Meldung')} vom ${xcEsc(xcDatum(xc.ersatz.gesendet))}.
             <button type="button" class="xc-text" data-xc="ersatz-aus">Abbrechen</button></p>` : '';
     const bereit = xcBereit() && !xc.busy;
-    return `<section class="xc-block">
-        <div class="xc-wahl">${seg}${jahr}${monatStep}</div>
-        ${ersatz}
-        ${koerper}
-        ${geht}
-        ${xc.hinweis ? `<p class="xc-hin">${xcEsc(xc.hinweis)}</p>` : ''}
-        ${fehler}
-        ${sperre}
-        <div class="xc-commit">
-            <label class="xc-test" title="Als Testmeldung gekennzeichnete Übermittlungen werden von den Empfängern nicht verarbeitet.">
-                <input class="xc-check" type="checkbox" data-xc="test" ${xc.test ? 'checked' : ''}> Testmeldung
-            </label>
-            <button type="button" class="xc-ghost" data-xc="pruefen" ${xc.busy ? 'disabled' : ''}>Prüfen</button>
-            <button type="button" class="xc-go" data-xc="senden" ${bereit ? '' : 'disabled'}>${xc.ersatz ? 'Ersatzmeldung' : 'Übermitteln'}</button>
+    return `<div class="xc-flaeche">
+        <div>
+            <div class="xc-wahl">${seg}${jahr}${monatStep}</div>
+            ${ersatz}
+            ${koerper}
+            ${geht}
+            ${xc.hinweis ? `<p class="xc-hin">${xcEsc(xc.hinweis)}</p>` : ''}
+            ${fehler}
+            ${sperre}
+            <div class="xc-commit">
+                <label class="xc-test" title="Als Testmeldung gekennzeichnete Übermittlungen werden von den Empfängern nicht verarbeitet.">
+                    <input class="xc-check" type="checkbox" data-xc="test" ${xc.test ? 'checked' : ''}> Testmeldung
+                </label>
+                <button type="button" class="xc-ghost" data-xc="pruefen" ${xc.busy ? 'disabled' : ''}>Prüfen</button>
+                <button type="button" class="xc-go" data-xc="senden" ${bereit ? '' : 'disabled'}>${xc.ersatz ? 'Ersatzmeldung' : 'Übermitteln'}</button>
+            </div>
+            ${xcStatusHtml()}
         </div>
-        ${xcStatusHtml()}
-    </section>`;
+        <aside class="xc-seite">${xcAufgabenHtml()}</aside>
+    </div>`;
 }
 
 function xcJahrHtml() {
@@ -286,7 +288,7 @@ function xcJahrHtml() {
     if (!xc.domaenen) return '<p class="xc-an">Empfänger werden geladen.</p>';
     const gruppen = xc.domaenen.gruppen || [];
     if (!gruppen.length) return '<p class="xc-an">Keine Empfänger zugeordnet.</p>';
-    return gruppen.map(g => {
+    const html = gruppen.map(g => {
         const rows = (g.zeilen || []).map(z => xcZeile(z)).join('');
         const portal = g.portal && g.id === 'versicherung'
             ? `<label class="xc-row xc-portal" title="${xcEsc(XC_PORTAL)}">
@@ -295,8 +297,9 @@ function xcJahrHtml() {
                 <span></span>
                 <input class="xc-check" type="checkbox" data-xc="portal" ${xc.portal ? 'checked' : ''}>
                </label>` : '';
-        return `<div class="xc-gruppe">${xcEsc(g.name)}</div>${rows}${portal}`;
+        return `<section class="xc-spalte"><div class="xc-gruppe">${xcEsc(g.name)}</div>${rows}${portal}</section>`;
     }).join('');
+    return `<div class="xc-gruppen">${html}</div>`;
 }
 
 function xcZeile(z) {
@@ -465,17 +468,22 @@ function xcKonfigHtml() {
                 : `<button type="button" class="xc-go" data-xc="anmelden" data-domain="${xcEsc(z.domain)}" data-versicherer="${xcEsc(z.an)}" data-kunde="${xcEsc(z.kundennummer || '')}" data-vertrag="${xcEsc(z.vertragsnummer || '')}" data-kennung="${xcEsc(z.kennung || '')}">Anmelden</button>`;
             if (anm && r.profil) aktion += ' <button type="button" class="xc-ghost xc-klein" data-xc="profil">Versicherungsprofil bestellen</button>';
         }
-        return `<div class="xc-row"><span class="xc-name">${xcEsc(r.name)}</span><span class="xc-an">${xcEsc(z ? z.an : 'noch keiner zugeordnet')}</span><span class="xc-aktionen">${aktion}</span></div>`;
+        return `<div class="xc-row xc-anm"><span class="xc-name">${xcEsc(r.name)}</span><span class="xc-an">${xcEsc(z ? z.an : 'noch keiner zugeordnet')}</span><span class="xc-aktionen">${aktion}</span></div>`;
     }).join('');
-    return `<section class="xc-block">
-        <div class="xc-gruppe">Zertifikat</div>
-        ${firma}
-        ${bestellen}
-        <p class="xc-hin">${xcEsc(xc.konfigHinweis || xc.cert?.registrierung?.text || '')}</p>
-        <div class="xc-gruppe">Anmeldung</div>
-        <p class="xc-an">Pro Empfänger eine Anmeldung. Für UVG, UVGZ und KTG erscheint das Versicherungsprofil danach als Aufgabe. Eine eigene Bestellung gibt es nicht.</p>
-        ${zeilen}
-    </section>`;
+    return `<div class="xc-flaeche">
+        <div>
+            <div class="xc-gruppe">Zertifikat</div>
+            ${firma}
+            ${bestellen}
+            <p class="xc-hin">${xcEsc(xc.konfigHinweis || xc.cert?.registrierung?.text || '')}</p>
+        </div>
+        <div>
+            <div class="xc-gruppe">Anmeldung</div>
+            <p class="xc-an">Pro Empfänger eine Anmeldung. Das Versicherungsprofil von UVG, UVGZ und KTG kommt danach als Aufgabe.</p>
+            ${zeilen}
+            ${xcAufgabenHtml()}
+        </div>
+    </div>`;
 }
 
 function xcAnmeldeZeilen() {
@@ -495,6 +503,15 @@ function xcAnmeldeZeilen() {
         else treffer.forEach(z => rows.push(Object.assign({}, f, { zeile: z })));
     }
     return rows;
+}
+
+function xcAufgabenHtml() {
+    const list = xcAufgaben();
+    const rows = list.length ? list.map(a => `<div class="xc-auf ${a.ton}">
+        <div><b>${xcEsc(a.titel)}</b><p>${xcEsc(a.text || '')}</p></div>
+        <button type="button" class="xc-ghost xc-klein" data-xc="${xcEsc(a.aktion)}" ${a.id ? `data-id="${xcEsc(a.id)}"` : ''} ${a.url ? `data-url="${xcEsc(a.url)}"` : ''}>${xcEsc(a.label)}</button>
+    </div>`).join('') : '<p class="xc-an">Keine offenen Aufgaben.</p>';
+    return `<div class="xc-gruppe">Aufgaben</div>${rows}`;
 }
 
 function xcSheetHtml() {
