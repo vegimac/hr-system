@@ -484,13 +484,14 @@ function e2SchritteHtml(m) {
     const verteilt = !!m.jobFinished;
     const verarbeitet = verteilt && empf.length > 0 && empf.every(e => e.stufe !== 'laeuft');
     const wartet = empf.some(e => e.stufe === 'warn');
+    const vonDir = empf.some(e => e.freigabeUrl || (e.nachrichten || []).some(n => n.dialog?.beantwortbar && !n.beantwortet));
     const fehler = empf.some(e => e.stufe === 'rot');
     const quittiert = !!m.fertig;
     const anzahlFertig = empf.filter(e => e.stufe === 'ok' || e.stufe === 'rot').length;
     const schritte = [
         { titel: 'Gesendet', text: e2Datum(m.gesendet), stand: 'fertig' },
         { titel: 'Swissdec verteilt', text: verteilt ? 'an ' + empf.length + ' Empfänger' : (letzte('Stand abgefragt') ? 'zuletzt gefragt ' + e2Datum(letzte('Stand abgefragt')) : 'wartet auf Swissdec'), stand: verteilt ? 'fertig' : 'jetzt' },
-        { titel: 'Empfänger verarbeiten', text: !verteilt ? '' : wartet ? 'wartet auf Sie' : `${anzahlFertig} von ${empf.length} fertig`, stand: !verteilt ? 'offen' : wartet ? 'warten' : verarbeitet ? 'fertig' : 'jetzt' },
+        { titel: 'Empfänger verarbeiten', text: !verteilt ? '' : wartet ? (vonDir ? 'wartet auf Sie' : 'Empfänger geht nicht weiter') : `${anzahlFertig} von ${empf.length} fertig`, stand: !verteilt ? 'offen' : wartet ? 'warten' : verarbeitet ? 'fertig' : 'jetzt' },
         { titel: 'Quittungen abgeholt', text: quittiert ? (letzte('Nachrichten abgeholt') ? e2Datum(letzte('Nachrichten abgeholt')) : '') : '', stand: quittiert ? (fehler ? 'fehler' : 'fertig') : verarbeitet ? 'jetzt' : 'offen' },
     ];
     const zeichen = { fertig: '✓', jetzt: '…', warten: '!', fehler: '!', offen: '' };
@@ -518,6 +519,7 @@ function e2NachlaufHtml(m) {
 
 function e2BenachrichtigungenHtml(e) {
     const teile = [];
+    if ((e.stufe === 'warn' || e.stufe === 'rot') && e.text) teile.push(`<li><b>${e2Esc(e.text)}</b></li>`);
     for (const h of e.hinweise || []) teile.push(`<li>${e2Esc(h)}</li>`);
     for (const n of e.nachrichten || []) {
         const offen = n.dialog && n.dialog.beantwortbar && !n.beantwortet;
@@ -528,12 +530,18 @@ function e2BenachrichtigungenHtml(e) {
     return `<ul class="e2-notiz">${teile.join('')}</ul>`;
 }
 
+// Rückfrage = DialogMessage, gelesen oder nicht (NachrichtArt «Rückfrage» oder ein gelesener Dialog).
+function e2IstRueckfrage(n) { return !!n.dialog || n.art === 'Rückfrage'; }
+
 function e2AktionenHtml(m, e) {
     const k = [];
     if (e.freigabeUrl)
         k.push(`<button type="button" class="e2-pille e2-klein e2-primaer" data-e2="freigabe" data-url="${e2Esc(e.freigabeUrl)}" title="Gültig bis ${e2Esc(e2Datum(e.freigabeBis))}">${E2_B.freigabeStarten}</button>`);
-    if ((e.nachrichten || []).some(n => n.dialog && n.dialog.beantwortbar && !n.beantwortet))
-        k.push(`<button type="button" class="e2-pille e2-klein e2-primaer" data-e2="dialog" data-id="${e2Esc(m.id)}" data-emp="${e2Esc(e.addresseeId)}">${E2_B.dialogAbholen}</button>`);
+    const rueckfragen = (e.nachrichten || []).filter(e2IstRueckfrage);
+    if (rueckfragen.length) {
+        const offen = rueckfragen.some(n => n.dialog?.beantwortbar && !n.beantwortet) || e.stufe === 'warn';
+        k.push(`<button type="button" class="e2-pille e2-klein${offen ? ' e2-primaer' : ''}" data-e2="dialog" data-id="${e2Esc(m.id)}" data-emp="${e2Esc(e.addresseeId)}">${E2_B.dialogAbholen}</button>`);
+    }
     if ((e.nachrichten || []).some(n => /Quittung|Ergebnis/.test(n.art || '')))
         k.push(`<button type="button" class="e2-pille e2-klein" data-e2="quittung" data-id="${e2Esc(m.id)}" data-emp="${e2Esc(e.addresseeId)}">${E2_B.quittungAnzeigen}</button>`);
     return k.join('') || '<span class="e2-still">—</span>';
@@ -549,23 +557,34 @@ function e2DetailHtml(m) {
         return `<div class="e2-detail"><div class="e2-karte-kopf"><h3>${E2_B.quittungAnzeigen} · ${e2Esc(e.name)}</h3><button type="button" class="e2-text" data-e2="detail-weg">Schliessen</button></div>
             ${n.map(x => `<p class="e2-still">${e2Esc(x.art)} · ${e2Esc(e2Datum(x.empfangen))}</p><pre class="e2-pre">${e2Esc(x.xml || '')}</pre>`).join('') || '<p class="e2-leer">Keine Quittung.</p>'}</div>`;
     }
-    let form = '';
-    for (const n of e.nachrichten || []) {
-        if (!n.dialog || !n.dialog.beantwortbar || n.beantwortet) continue;
-        form += `<div class="e2-frage">`;
-        if (n.dialog.titel) form += `<p><b>${e2Esc(n.dialog.titel)}</b></p>`;
-        if (n.dialog.beschreibung) form += `<p>${e2Esc(n.dialog.beschreibung)}</p>`;
-        for (const p of (n.dialog.absaetze || []).filter(x => !x.istFrage && x.label))
-            form += `<p class="e2-still">${e2Esc(p.label)}${p.wert ? ': <b>' + e2Esc(p.wert) + '</b>' : ''}</p>`;
-        for (const p of (n.dialog.absaetze || []).filter(x => x.istFrage)) {
-            form += `<label class="e2-feld"><span>${e2Esc(p.label || 'Antwort')}${p.optional ? '' : ' *'}</span>
-                <input data-frage="${e2Esc(p.id)}" value="${e2Esc(p.default || p.antwort || '')}" placeholder="${e2Esc(E2_TYP[p.frageTyp] || '')}"></label>`;
+    let inhalt = '';
+    for (const n of (e.nachrichten || []).filter(e2IstRueckfrage)) {
+        const kopf = `<p class="e2-still">Rückfrage · empfangen ${e2Esc(e2Datum(n.empfangen))}${n.beantwortet ? ' · beantwortet' : ''}${n.quittiert ? ' · Empfang bestätigt' : ''}</p>`;
+        if (!n.dialog) {
+            inhalt += `<div class="e2-frage">${kopf}<p>OneCrew konnte diese Rückfrage nicht lesen. Hier der Originaltext:</p><pre class="e2-pre">${e2Esc(n.xml || '')}</pre></div>`;
+            continue;
         }
-        form += `<div class="e2-aktionen"><button type="button" class="e2-pille e2-primaer" data-e2="antwort" data-id="${e2Esc(m.id)}" data-emp="${e2Esc(e.addresseeId)}" data-story="${e2Esc(n.storyId)}">Antwort senden</button></div></div>`;
+        inhalt += `<div class="e2-frage">${kopf}`;
+        if (n.dialog.titel) inhalt += `<p><b>${e2Esc(n.dialog.titel)}</b></p>`;
+        if (n.dialog.beschreibung) inhalt += `<p>${e2Esc(n.dialog.beschreibung)}</p>`;
+        for (const p of (n.dialog.absaetze || []).filter(x => !x.istFrage && x.label))
+            inhalt += `<p class="e2-still">${e2Esc(p.label)}${p.wert ? ': <b>' + e2Esc(p.wert) + '</b>' : ''}</p>`;
+        if (n.dialog.beantwortbar && !n.beantwortet) {
+            for (const p of (n.dialog.absaetze || []).filter(x => x.istFrage)) {
+                inhalt += `<label class="e2-feld"><span>${e2Esc(p.label || 'Antwort')}${p.optional ? '' : ' *'}</span>
+                    <input data-frage="${e2Esc(p.id)}" value="${e2Esc(p.default || p.antwort || '')}" placeholder="${e2Esc(E2_TYP[p.frageTyp] || '')}"></label>`;
+            }
+            inhalt += `<div class="e2-aktionen"><button type="button" class="e2-pille e2-primaer" data-e2="antwort" data-id="${e2Esc(m.id)}" data-emp="${e2Esc(e.addresseeId)}" data-story="${e2Esc(n.storyId)}">Antwort senden</button></div>`;
+        } else if (!n.dialog.beantwortbar) {
+            inhalt += '<p class="e2-still">Nur zur Kenntnis, keine Antwort nötig. OneCrew bestätigt dem Empfänger den Empfang beim nächsten «Aktualisieren».</p>';
+        }
+        inhalt += '</div>';
     }
+    const haengt = e.stufe === 'warn' && !(e.nachrichten || []).some(n => n.dialog?.beantwortbar && !n.beantwortet);
     return `<div class="e2-detail"><div class="e2-karte-kopf"><h3>Rückfrage · ${e2Esc(e.name)}</h3><button type="button" class="e2-text" data-e2="detail-weg">Schliessen</button></div>
         <p class="e2-still">Den Text schreibt der Empfänger, oft auf Englisch. Vorgeschlagene Werte sind schon eingetragen.</p>
-        ${form || '<p class="e2-leer">Keine offene Rückfrage. «Aktualisieren» holt sie, falls sie noch unterwegs ist.</p>'}</div>`;
+        ${haengt ? `<p class="e2-hinweis e2-warn">${e2Esc(e.text || '')}. Von Ihrer Seite ist nichts mehr offen. Der Testempfänger von Swissdec schickt solche Rückfragen manchmal immer wieder; dann beim Empfänger nachfragen.</p>` : ''}
+        ${inhalt || '<p class="e2-leer">Keine Rückfrage. «Aktualisieren» holt sie, falls sie noch unterwegs ist.</p>'}</div>`;
 }
 
 function e2HistorieHtml() {
