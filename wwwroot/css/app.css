@@ -1607,6 +1607,10 @@
            von diesem Bereich gar nichts weiss. Fehlerfall = unsichtbar. */
         .entw-only-section { display: none !important; }
         body.entw-on .entw-only-section { display: flex !important; }
+        /* ELM Cockpit (Walter 01.11.2026): wie Entwicklung standardmässig aus.
+           Sichtbar nur mit Klasse elm-cockpit-on, also Administrator oder Super-Admin. */
+        .elm-cockpit-section { display: none !important; }
+        body.elm-cockpit-on .elm-cockpit-section { display: flex !important; }
         .nav-item {
             position: relative;
             width: 100%; min-height: 46px;

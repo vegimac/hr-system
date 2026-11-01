@@ -1394,6 +1394,14 @@ async function startApp() {
         const sec = it.closest('.nav-section') || it;
         sec.style.display = _entwErlaubt ? '' : 'none';
     });
+    // ELM Cockpit (Walter 01.11.2026): Administrator und Super-Admin.
+    // Superuser, Buchhaltung und GF sehen den Eintrag nicht.
+    const _empErlaubt = elmCockpitSichtbar();
+    document.body.classList.toggle('elm-cockpit-on', _empErlaubt);
+    document.querySelectorAll('.nav-item[data-page="elm-cockpit"]').forEach(it => {
+        const sec = it.closest('.nav-section') || it;
+        sec.style.display = _empErlaubt ? '' : 'none';
+    });
     // Einzelne admin-only Karten in Systemeinstellungen (Walter 27.05.2026)
     document.querySelectorAll('.admin-only-card').forEach(el => {
         el.style.display = isAdmin ? '' : 'none';
@@ -1456,6 +1464,7 @@ function applyAreaVisibility() {
     // app.css) statt ueber style.display — damit bleibt der Bereich auch bei
     // einer veralteten, gecachten Skriptversion zuverlaessig verborgen.
     document.body.classList.toggle('entw-on', entwErlaubt);
+    document.body.classList.toggle('elm-cockpit-on', elmCockpitSichtbar());
     if (!Array.isArray(aa)) return;
     const allowed = new Set(['dashboard', ...aa]);
     // Walter-Bug 26.08.2026: Moments hat seit 15.08. eine EIGENE nav-section
@@ -1478,6 +1487,7 @@ function applyAreaVisibility() {
         // «entwicklung» ist oben schon entschieden (Super-Admin ODER Häkchen)
         // — hier nicht nochmals überschreiben.
         if (item.getAttribute('data-page') === 'entwicklung') return;
+        if (item.getAttribute('data-page') === 'elm-cockpit') return;
         sec.style.display = ok(item.getAttribute('data-page')) ? '' : 'none';
     });
     // Dashboard-Kacheln + Mitarbeiter-Nav-Buttons (onclick="showPage('X')").
@@ -1485,6 +1495,12 @@ function applyAreaVisibility() {
         const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'\)/);
         if (m) el.hidden = !ok(m[1]);
     });
+}
+
+// ELM Cockpit (Walter 01.11.2026): nur Administrator und der Super-Admin
+// darüber. Die Rolle superuser ist hier nicht gemeint.
+function elmCockpitSichtbar() {
+    return currentUser?.isSuperAdmin === true || currentUser?.role === 'admin';
 }
 
 function roleName(r) {
@@ -1538,6 +1554,10 @@ function applyAdminBreadcrumb(name) {
 }
 
 function showPage(name) {
+    if (name === 'elm-cockpit' && !elmCockpitSichtbar()) {
+        showPage('dashboard');
+        return;
+    }
     // Walter 16.10.2026: alter Sub-Hub «Globale Daten» → Verzeichnisse & Vorgaben.
     if (name === 'globale-daten') {
         showPage('admin-hub');
@@ -1564,7 +1584,8 @@ function showPage(name) {
     // Admin-Sub-Pages bekommen den feinen Braun-Hintergrund der Startseite.
     document.body.classList.toggle('sys-bg',
         name === 'admin-hub' || _adminSubPages.includes(name)
-        || name === 'entwicklung' || _devSubPages.includes(name));
+        || name === 'entwicklung' || _devSubPages.includes(name)
+        || name === 'elm-cockpit');
     const navPage = _adminSubPages.includes(name) ? 'admin-hub'
                   : _devSubPages.includes(name)   ? 'entwicklung'
                   : name === 'elm-anwender'       ? 'hr-hub'
