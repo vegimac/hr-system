@@ -14740,7 +14740,10 @@ body.theme-dark #leList tr.le-zugeordnet td { background: rgba(255, 255, 255, 0.
 body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 
 /* ELM-Cockpit: Anordnung wie Mission Control, Farben wie der Rest von OneCrew. */
-#page-elm-anwender .elma-cockpit { padding: 72px 28px 36px; max-width: 1480px; }
+#page-elm-anwender .elma-cockpit { padding: 78px 28px 36px; max-width: 1480px; }
+/* Die Zeile Zurück / Handbuch / Dunkel ist fix oben. .liquid-mask zieht
+   das Seitenpolster sonst auf 12px zusammen und legt den Titel darüber. */
+#page-elm-anwender.liquid-mask .elma-cockpit { padding: 78px 28px 36px !important; }
 #page-elm-anwender .elma-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; margin-bottom: 18px; }
 #page-elm-anwender .elma-titelzeile { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
 #page-elm-anwender .elma-head h1 { margin: 0; font-size: 22px; font-weight: 560; letter-spacing: -0.03em; color: #3f3f3f; }
@@ -15049,7 +15052,7 @@ body.theme-dark #page-elm-anwender table.elma-mit td { color: #303130; }
     #page-elm-anwender .elma-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
-    #page-elm-anwender .elma-cockpit { padding: 72px 14px 24px; }
+    #page-elm-anwender.liquid-mask .elma-cockpit { padding: 78px 14px 24px !important; }
     #page-elm-anwender .elma-head { display: block; }
     #page-elm-anwender .elma-connection { justify-content: flex-start; margin-top: 12px; }
     #page-elm-anwender .elma-layout, #page-elm-anwender .elma-right,
