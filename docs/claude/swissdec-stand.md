@@ -383,3 +383,28 @@ Oberfläche über denselben Schnittstellen (`api/elm/meldungen`, `api/elm/zertif
 - **Begriffe** stehen in `E2_B` am Anfang von `elm2.js` — Platzhalter bis Anhang x vorliegt.
 - **Sichtbar «noch nicht verfügbar»:** Jahres-Domänen UVG/UVGZ/KTG/BVG/Lohnausweis (E5),
   Versicherungsprofil bestellen, Aufgaben von aussen. FAK geht mit der AHV-Meldung.
+
+## FAK-Jahresmeldung pro Person (Walter 01.11.2026)
+
+Bis hier schickte die Jahresmeldung jeder FAK nur die Nullmeldung (Totals 0.00) — auch für
+Filialen mit Personal; der Testempfänger lehnte mit «Keine Person übrig für Endpartner» ab.
+Jetzt `FAK-CAF-Salaries` je Person (Richtlinien 8.2.5, Tabelle 8.27), Logik rein in
+`Services/Elm/ElmFakJahreslohn.cs`, Tests `Tests/ElmFakJahreslohnTests.cs`:
+- **Je AHV-Abschnitt mit AHV-Lohn** eine oder mehrere Zeilen, geteilt bei **Wechsel von Kasse
+  oder Arbeitskanton** (TF12 Casanova LU→BE, TF15 Degelo Kasse LU/Kanton ZG). Lohn in
+  `AHV-AVS-Open` (Sonderfall, unter 18, Freibetrag) ⇒ keine FAK-Zeile — wie die Referenz.
+- **Kasse je Monat** = FAK der Filiale des Lohnzettels am Monatsende
+  (`ElmFakAdressierung.FuerFiliale`, gleiche Regel wie die Adressierung inkl. Vereinbarung/IKV);
+  Kanton = Kanton der Filiale. Kassen, die nur bei Personen vorkommen, kommen in den Job
+  (`ElmFakAdressierung.Ergaenzt`).
+- **Zulagen** aus `lohnLines` + `zulagenExtraLines`: Swissdec-Lohnart 3000–3029 wiederkehrend
+  (Kinder-/Ausbildungszulage), 3030–3049 einmalig (Geburt/Adoption, OneCrew 3034). Zusätzliche
+  Zulagen des Arbeitgebers (ab 3050) zählen nicht.
+- **Zeitraum** (AHV und FAK gleich, `ElmFakJahreslohn.Zeitraum`): ganze Monate, ausser Ein-/Austritt
+  der Vertragskette fällt in den ersten/letzten Monat — dann das genaue Datum (TF12 27.02.,
+  TF10 30.10.; Nachzahlung nach Austritt = ganzer Monat, TF41 Juli). Gilt seither auch für
+  `AHV-AVS-Salary/AccountingTime` (vorher immer ganze Monate).
+- **Totale** je Kasse und Kanton = Summe der gemeldeten (gerundeten) Zeilen; Kantone der
+  zugewiesenen Arbeitsorte ohne Personen bleiben mit 0.00 (Nullmeldung). Zähler
+  `NumberOf-FAK-CAF-Salary-Tags` = Anzahl Zeilen.
+- Offen: Abgleich mit dem Quality Tool / den Referenzen auf test.onecrew.ch.

@@ -133,7 +133,7 @@ public class ElmAnnualDeclarationBuilder
         var lohn = from s in _db.PayrollSnapshots
                    join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
                    where p.Year == year && s.Status != "STORNIERT"
-                   select new { s.EmployeeId, s.SvBasisAhv, p.Month, PeriodeStatus = p.Status, p.CompanyProfileId };
+                   select new { s.EmployeeId, s.SvBasisAhv, p.Month, PeriodeStatus = p.Status, p.CompanyProfileId, s.SlipJson };
         if (nurFiliale is int fil && fil > 0)
             lohn = lohn.Where(r => r.CompanyProfileId == fil);
         var rows = await lohn.ToListAsync(ct);
@@ -171,6 +171,29 @@ public class ElmAnnualDeclarationBuilder
         var codesByEmp = versicherung.GroupBy(v => v.EmployeeId)
             .ToDictionary(g => g.Key, g => (IReadOnlyList<EmployeeVersicherungCode>)g.ToList());
         var ahvStand = await AhvBeitragspflichtStand.LadenAsync(_db);
+
+        // FAK pro Person (Walter 01.11.2026): Kasse und Arbeitskanton je Monat aus der Filiale des
+        // Lohnzettels, Zulagen aus den Lohnzeilen (Swissdec-Lohnart über Code bzw. Zusatzfeld).
+        var workplaceIds = branches.Select(b => b.Id).ToHashSet();
+        var kantonByFiliale = branches.ToDictionary(b => b.Id, b => b.KantonCode);
+        var lohnartByCode = (await _db.Lohnpositionen.AsNoTracking()
+                .Select(l => new { l.Code, l.SwissdecLohnart }).ToListAsync(ct))
+            .GroupBy(x => x.Code)
+            .ToDictionary(g => g.Key, g => (g.First().SwissdecLohnart ?? "").Trim());
+        var kasseCache = new Dictionary<(int Filiale, int Monat), ElmFakAdressierung.Eintrag?>();
+        ElmFakAdressierung.Eintrag? KasseIm(int filiale, int monat)
+        {
+            if (!kasseCache.TryGetValue((filiale, monat), out var k))
+            {
+                var stichtag = new DateOnly(year, monat, DateTime.DaysInMonth(year, monat));
+                k = ElmFakAdressierung.FuerFiliale(empf, filiale, stichtag, workplaceIds, id => kantonByFiliale.GetValueOrDefault(id));
+                kasseCache[(filiale, monat)] = k;
+            }
+            return k;
+        }
+        var fakGenutzt = new Dictionary<string, ElmFakAdressierung.Eintrag>(StringComparer.OrdinalIgnoreCase);
+        var fakSummen = new Dictionary<string, Dictionary<string, ElmFakAdressierung.Summe>>(StringComparer.OrdinalIgnoreCase);
+        var fakTags = 0;
 
         // ── Personen ──────────────────────────────────────────────────────
         var persons = new List<XElement>();
@@ -222,11 +245,22 @@ public class ElmAnnualDeclarationBuilder
                     ArtDesMonats(e, year, g.Key, codes, ahvStand)))
                 .ToList();
 
-            var salaries = new XElement(Sd + "AHV-AVS-Salaries");
-            foreach (var a in ElmAhvJahreslohn.Abschnitte(monate))
+            // Ein-/Austritt im ersten bzw. letzten Monat eines Abschnitts: genaues Datum (Swissdec-Referenz).
+            var eigeneVertraege = employments.Where(m => m.EmployeeId == x.EmployeeId).ToList();
+            (DateTime Von, DateTime Bis) Zeit(int von, int bis)
             {
-                var from = new DateTime(year, a.Von, 1);
-                var until = new DateTime(year, a.Bis, DateTime.DaysInMonth(year, a.Bis));
+                var vonKette = ElmMonthlyDeclarationBuilder.Anstellung(eigeneVertraege,
+                    new DateTime(year, von, 1), new DateTime(year, von, DateTime.DaysInMonth(year, von)));
+                var bisKette = ElmMonthlyDeclarationBuilder.Anstellung(eigeneVertraege,
+                    new DateTime(year, bis, 1), new DateTime(year, bis, DateTime.DaysInMonth(year, bis)));
+                return ElmFakJahreslohn.Zeitraum(year, von, bis, vonKette?.Start, bisKette?.Ende);
+            }
+
+            var salaries = new XElement(Sd + "AHV-AVS-Salaries");
+            var ahvAbschnitte = ElmAhvJahreslohn.Abschnitte(monate);
+            foreach (var a in ahvAbschnitte)
+            {
+                var (from, until) = Zeit(a.Von, a.Bis);
                 var salary = new XElement(Sd + "AHV-AVS-Salary",
                     new XAttribute("addresseeIDRef", "#ahv"),
                     new XElement(Sd + "AccountingTime",
@@ -250,21 +284,102 @@ public class ElmAnnualDeclarationBuilder
                 totalAlvFrei += PayrollCalculations.Round05(a.AlvFrei);
             }
 
-            persons.Add(new XElement(Sd + "Person", particulars, work, salaries));
+            var fakSalaries = FakSalaries(e, x.EmployeeId, monate, ahvAbschnitte, Zeit);
+            persons.Add(new XElement(Sd + "Person", particulars, work, salaries, fakSalaries));
+        }
+
+        // FAK-CAF-Salaries einer Person: je AHV-Abschnitt mit AHV-Lohn, aufgeteilt nach Kasse und Kanton.
+        XElement? FakSalaries(Employee e, int empId, List<ElmAhvJahreslohn.Monat> monate,
+            List<ElmAhvJahreslohn.Abschnitt> ahvAbschnitte, Func<int, int, (DateTime Von, DateTime Bis)> zeit)
+        {
+            var fakMonate = new List<ElmFakJahreslohn.Monat>();
+            var ohneKasse = new List<int>();
+            foreach (var g in rowsByEmp[empId].GroupBy(r => r.Month))
+            {
+                var art = monate.FirstOrDefault(m => m.Nr == g.Key).Art;
+                var filiale = g.OrderByDescending(r => r.SvBasisAhv).First().CompanyProfileId;
+                var kasse = KasseIm(filiale, g.Key);
+                if (kasse == null) ohneKasse.Add(g.Key);
+                decimal wieder = 0, einmal = 0;
+                foreach (var r in g) (wieder, einmal) = Zulagen(r.SlipJson, wieder, einmal);
+                var kanton = (kantonByFiliale.GetValueOrDefault(filiale) ?? "").Trim().ToUpperInvariant();
+                if (kanton.Length != 2) kanton = kasse?.Kantone.FirstOrDefault() ?? "EX";
+                fakMonate.Add(new ElmFakJahreslohn.Monat(g.Key,
+                    art == ElmAhvJahreslohn.Art.Frei ? 0m : g.Sum(r => r.SvBasisAhv),
+                    wieder, einmal, kasse?.Kassennummer, kanton));
+                if (kasse != null) fakGenutzt.TryAdd(kasse.Kassennummer, kasse);
+            }
+            if (ohneKasse.Count > 0)
+                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): keine FAK an der Filiale in Monat {string.Join(", ", ohneKasse.Distinct().OrderBy(m => m))} "
+                       + "— dort fehlt die FAK-Zeile (Filiale → Lohndaten Empfänger, Art FAK).");
+
+            var el = new XElement(Sd + "FAK-CAF-Salaries");
+            foreach (var a in ahvAbschnitte.Where(a => a.AhvLohn != 0))
+            {
+                var (von, bis) = zeit(a.Von, a.Bis);
+                foreach (var f in ElmFakJahreslohn.Abschnitte(year, a.Von, a.Bis, fakMonate, von, bis))
+                {
+                    var kasse = fakGenutzt[f.Kasse];
+                    el.Add(new XElement(Sd + "FAK-CAF-Salary",
+                        new XAttribute("addresseeIDRef", kasse.AddresseeId),
+                        new XElement(Sd + "FAK-CAF-Period",
+                            new XElement(Ep + "from", f.Von.ToString("yyyy-MM-dd")),
+                            new XElement(Ep + "until", f.Bis.ToString("yyyy-MM-dd"))),
+                        new XElement(Sd + "FAK-CAF-ContributorySalary", Betrag05(f.Lohn)),
+                        new XElement(Sd + "FAK-CAF-FamilyIncomeSupplementRepetitive", Amt(f.Wiederkehrend)),
+                        new XElement(Sd + "FAK-CAF-FamilyIncomeSupplementSingular", Amt(f.Einmalig)),
+                        new XElement(Sd + "FAK-CAF-WorkplaceCanton", f.Kanton)));
+                    fakTags++;
+                    if (!fakSummen.TryGetValue(f.Kasse, out var jeKanton))
+                        fakSummen[f.Kasse] = jeKanton = new Dictionary<string, ElmFakAdressierung.Summe>(StringComparer.OrdinalIgnoreCase);
+                    var alt = jeKanton.TryGetValue(f.Kanton, out var v) ? v : default;
+                    // Totale = Summe der gemeldeten (gerundeten) Einzelwerte, wie bei der AHV.
+                    jeKanton[f.Kanton] = new ElmFakAdressierung.Summe(alt.Lohn + PayrollCalculations.Round05(f.Lohn),
+                        alt.Wiederkehrend + f.Wiederkehrend, alt.Einmalig + f.Einmalig);
+                }
+            }
+            return el.HasElements ? el : null;
+        }
+
+        // Zulagen eines Lohnzettels: Lohnzeilen und «Weitere Zahlungen» mit Swissdec-Lohnart 3000–3049.
+        (decimal Wieder, decimal Einmal) Zulagen(string? slipJson, decimal wieder, decimal einmal)
+        {
+            if (string.IsNullOrWhiteSpace(slipJson)) return (wieder, einmal);
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(slipJson);
+                foreach (var liste in new[] { "lohnLines", "zulagenExtraLines" })
+                {
+                    if (!doc.RootElement.TryGetProperty(liste, out var ll) || ll.ValueKind != System.Text.Json.JsonValueKind.Array) continue;
+                    foreach (var z in ll.EnumerateArray())
+                    {
+                        var code = z.TryGetProperty("code", out var c) && c.ValueKind == System.Text.Json.JsonValueKind.String ? c.GetString() : null;
+                        if (!int.TryParse(ElmMonthlyDeclarationBuilder.SwissdecNummer(code, lohnartByCode), out var nr)) continue;
+                        var betrag = z.TryGetProperty("betrag", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.Number ? b.GetDecimal() : 0m;
+                        switch (ElmFakJahreslohn.Zulage(nr))
+                        {
+                            case ElmFakJahreslohn.ZulageArt.Wiederkehrend: wieder += betrag; break;
+                            case ElmFakJahreslohn.ZulageArt.Einmalig: einmal += betrag; break;
+                        }
+                    }
+                }
+            }
+            catch (System.Text.Json.JsonException) { /* unlesbarer Lohnzettel: keine Zulagen */ }
+            return (wieder, einmal);
         }
 
         // ── FAK Nullmeldung (S_ELM_V6_01_01_05 / Direktive 8.2.4) ─────────
         // Alle FAKs, die einem Workplace der Rechtseinheit am Stichtag
         // zugeordnet sind — auch ohne Personen an diesem Ort. Alte/abgelaufene
         // und nicht zugewiesene Kassen bleiben draussen.
-        var workplaceIds = branches.Select(b => b.Id).ToHashSet();
-        var kantonByFiliale = branches.ToDictionary(b => b.Id, b => b.KantonCode);
-        var faks = ElmFakAdressierung.AusZuordnungen(
-            empf, workplaceIds, stichtagZuord, id => kantonByFiliale.GetValueOrDefault(id));
+        var faks = ElmFakAdressierung.Ergaenzt(
+            ElmFakAdressierung.AusZuordnungen(empf, workplaceIds, stichtagZuord, id => kantonByFiliale.GetValueOrDefault(id)),
+            fakGenutzt.Values);
         foreach (var f in faks.Where(x => x.Kantone.Count == 0))
             warn.Add($"FAK {f.Kassennummer} ({f.Bezeichnung}): kein Kanton an Filiale/Empfänger — Totals mit EX.");
-        if (faks.Count > 0)
-            warn.Add($"FAK Nullmeldung: {faks.Count} Kasse(n) im Job (zugeordnete Arbeitsorte, auch ohne Personen).");
+        var ohnePersonen = faks.Count(f => !fakSummen.ContainsKey(f.Kassennummer));
+        if (ohnePersonen > 0)
+            warn.Add($"FAK Nullmeldung: {ohnePersonen} Kasse(n) ohne Personen im Job (zugeordnete Arbeitsorte).");
 
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─
         var companyName = stamm.Firmenname;
@@ -306,14 +421,15 @@ public class ElmAnnualDeclarationBuilder
                 new XElement(Sd + "Total-ALVZ-ACS-Incomes", "0.00"),
                 new XElement(Sd + "Total-ALV-AC-Open", Amt(totalAlvFrei)))
         };
-        salaryTotals.AddRange(faks.Select(ElmFakAdressierung.TotalsNull));
+        salaryTotals.AddRange(faks.Select(f => ElmFakAdressierung.Totals(f,
+            fakSummen.TryGetValue(f.Kassennummer, out var jeKanton) ? jeKanton : new Dictionary<string, ElmFakAdressierung.Summe>())));
 
         var counters = new List<XElement>
         {
             new(Sd + "NumberOf-AHV-AVS-Salary-Tags", salaryTags)
         };
         if (faks.Count > 0)
-            counters.Add(new XElement(Sd + "NumberOf-FAK-CAF-Salary-Tags", 0));
+            counters.Add(new XElement(Sd + "NumberOf-FAK-CAF-Salary-Tags", fakTags));
 
         // ── Gesamtdokument ────────────────────────────────────────────────
         var now = DateTime.Now;

@@ -44,29 +44,79 @@ public static class ElmFakAdressierung
 
             foreach (var z in e.Zuordnungen.Where(z => z.GiltAm(stichtag) && workplaceIds.Contains(z.CompanyProfileId)))
             {
-                // Vereinbarung: diese Filiale geht an die Kasse des Hauptsitzes.
-                // Der Kanton in der Meldung bleibt der Arbeitskanton.
-                var ziel = Zielkasse(z, byId);
-                var adressat = ziel ?? e;
-                var adressNr = NormKasse(adressat.Kassennummer);
-                if (adressNr.Length == 0) continue;
-
-                var kunde = ziel == null
-                    ? (z.Mitgliednummer ?? "").Trim()
-                    : MitgliedDerKasse(adressat, stichtag, workplaceIds);
-                if (kunde.Length == 0) kunde = adressNr;
-
-                var kanton = (kantonDerFiliale(z.CompanyProfileId) ?? "").Trim().ToUpperInvariant();
-                if (kanton.Length != 2 && ziel == null)
-                    kanton = (e.KantonCode ?? "").Trim().ToUpperInvariant();
-
-                Mergen(map, adressNr, kunde, adressat.Bezeichnung ?? adressNr, kanton);
+                var k = Kasse(e, z, byId, stichtag, workplaceIds, kantonDerFiliale);
+                if (k != null) Mergen(map, k.Value.Nr, k.Value.Kunde, k.Value.Bezeichnung, k.Value.Kanton);
             }
         }
 
         return map.Values
             .OrderBy(x => x.Kassennummer, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    /// <summary>
+    /// Kasse einer Zuordnung: Vereinbarung (IKV) ⇒ die Kasse des Hauptsitzes, der Kanton in der
+    /// Meldung bleibt der Arbeitskanton. Null = keine Kassennummer.
+    /// </summary>
+    static (string Nr, string Kunde, string Bezeichnung, string Kanton)? Kasse(
+        LohndatenEmpfaenger e, CompanyProfileEmpfaenger z, IReadOnlyDictionary<int, LohndatenEmpfaenger> byId,
+        DateOnly stichtag, IReadOnlySet<int> workplaceIds, Func<int, string?> kantonDerFiliale)
+    {
+        var ziel = Zielkasse(z, byId);
+        var adressat = ziel ?? e;
+        var adressNr = NormKasse(adressat.Kassennummer);
+        if (adressNr.Length == 0) return null;
+
+        var kunde = ziel == null
+            ? (z.Mitgliednummer ?? "").Trim()
+            : MitgliedDerKasse(adressat, stichtag, workplaceIds);
+        if (kunde.Length == 0) kunde = adressNr;
+
+        var kanton = (kantonDerFiliale(z.CompanyProfileId) ?? "").Trim().ToUpperInvariant();
+        if (kanton.Length != 2 && ziel == null)
+            kanton = (e.KantonCode ?? "").Trim().ToUpperInvariant();
+        return (adressNr, kunde, adressat.Bezeichnung ?? adressNr, kanton);
+    }
+
+    /// <summary>
+    /// FAK einer Filiale an einem Tag (FAK-Jahresmeldung pro Person, Walter 01.11.2026):
+    /// dieselbe Regel wie die Adressierung, nur für eine Filiale. Null = keine gültige Zuordnung.
+    /// </summary>
+    public static Eintrag? FuerFiliale(
+        IEnumerable<LohndatenEmpfaenger> katalog,
+        int filialeId,
+        DateOnly stichtag,
+        IReadOnlySet<int> workplaceIds,
+        Func<int, string?> kantonDerFiliale)
+    {
+        var liste = katalog.ToList();
+        var byId = liste.Where(x => x.Id != 0).GroupBy(x => x.Id).ToDictionary(g => g.Key, g => g.First());
+        foreach (var e in liste.Where(x => x.IsActive && string.Equals(x.Art, "FAK", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (NormKasse(e.Kassennummer).Length == 0) continue;
+            foreach (var z in e.Zuordnungen.Where(z => z.CompanyProfileId == filialeId && z.GiltAm(stichtag)))
+            {
+                var k = Kasse(e, z, byId, stichtag, workplaceIds, kantonDerFiliale);
+                if (k == null) continue;
+                var kt = k.Value.Kanton.Length == 2 ? new List<string> { k.Value.Kanton } : new List<string>();
+                return new Eintrag(AddresseeIdFuer(k.Value.Nr), k.Value.Nr, k.Value.Kunde, k.Value.Bezeichnung, kt);
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Kassen der Meldung um die ergänzen, die nur bei Personen vorkommen (Zuordnung im Jahr beendet).</summary>
+    public static List<Eintrag> Ergaenzt(IEnumerable<Eintrag> adressiert, IEnumerable<Eintrag> beiPersonen)
+    {
+        var map = adressiert.ToDictionary(x => x.Kassennummer, StringComparer.OrdinalIgnoreCase);
+        foreach (var p in beiPersonen)
+        {
+            if (map.TryGetValue(p.Kassennummer, out var alt))
+                map[p.Kassennummer] = alt with { Kantone = alt.Kantone.Concat(p.Kantone).Distinct().OrderBy(k => k).ToList() };
+            else
+                map[p.Kassennummer] = p;
+        }
+        return map.Values.OrderBy(x => x.Kassennummer, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>Kantonale Zielkasse der Vereinbarung, sonst keine Umleitung.</summary>
@@ -129,15 +179,29 @@ public static class ElmFakAdressierung
             new XElement(Sd + "FAK-CAF-CustomerNumber", e.CustomerNumber));
 
     /// <summary>Nullmeldung: Totals 0.00 je Kanton der zugewiesenen Arbeitsorte.</summary>
-    public static XElement TotalsNull(Eintrag e)
+    public static XElement TotalsNull(Eintrag e) => Totals(e, new Dictionary<string, Summe>());
+
+    public readonly record struct Summe(decimal Lohn, decimal Wiederkehrend, decimal Einmalig);
+
+    /// <summary>
+    /// Totale je Kanton: Summe der gemeldeten FAK-Zeilen dieser Kasse. Kantone der zugewiesenen
+    /// Arbeitsorte ohne Personen stehen mit 0.00 (Nullmeldung, S_ELM_V6_01_01_05).
+    /// </summary>
+    public static XElement Totals(Eintrag e, IReadOnlyDictionary<string, Summe> jeKanton)
     {
-        var kantone = e.Kantone.Count > 0 ? e.Kantone : new[] { "EX" };
+        var kantone = e.Kantone.Concat(jeKanton.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList();
+        if (kantone.Count == 0) kantone.Add("EX");
         return new XElement(Sd + "FAK-CAF-Totals",
             new XAttribute("addresseeIDRef", e.AddresseeId),
-            kantone.Select(kt => new XElement(Sd + "Total-FAK-CAF-PerCanton",
-                new XElement(Sd + "Total-FAK-CAF-ContributorySalary", "0.00"),
-                new XElement(Sd + "Total-FAK-CAF-FamilyIncomeSupplementRepetitive", "0.00"),
-                new XElement(Sd + "Total-FAK-CAF-FamilyIncomeSupplementSingular", "0.00"),
-                new XElement(Sd + "Canton", kt))));
+            kantone.Select(kt =>
+            {
+                var s = jeKanton.TryGetValue(kt, out var v) ? v : default;
+                return new XElement(Sd + "Total-FAK-CAF-PerCanton",
+                    new XElement(Sd + "Total-FAK-CAF-ContributorySalary", Amt(s.Lohn)),
+                    new XElement(Sd + "Total-FAK-CAF-FamilyIncomeSupplementRepetitive", Amt(s.Wiederkehrend)),
+                    new XElement(Sd + "Total-FAK-CAF-FamilyIncomeSupplementSingular", Amt(s.Einmalig)),
+                    new XElement(Sd + "Canton", kt));
+            }));
     }
 }
