@@ -1081,9 +1081,9 @@ function elmaLaufZeichnen() {
     if (!el || !m || (m.fertig && !_elmaLauf)) return;
     _elmaLauf = true;
     _elmaBahnHolen();
-    const quittung = (m.verlauf || []).some(p => p.schritt === 'Nachrichten abgeholt');
-    const label = m.stufe === 'rot' ? 'Nicht angenommen' : m.fertig ? 'Antwort da' : quittung ? 'Quittung da' : 'Antwort kommt zurück';
-    const stufe = m.stufe === 'rot' ? 'rot' : (m.fertig || quittung) ? 'ok' : 'laeuft';
+    const stand = _elmaKommStand(m);
+    const label = stand.label;
+    const stufe = m.stufe === 'rot' ? 'rot' : stand.laufend ? 'laeuft' : 'ok';
     const chips = (m.empfaenger || []).map(e => e.name).filter(Boolean)
         .map(n => `<span class="elma-send-chip">${_elmaEsc(n)}</span>`).join('');
     el.innerHTML = `
@@ -1519,17 +1519,44 @@ function _elmaText(id, text) {
     if (el) el.textContent = text;
 }
 
+const _ELMA_KOMM = ['Gesendet', 'Warte auf Antwort', 'Antwort erhalten', 'Quittung da'];
+
+function _elmaHatSchritt(m, name) {
+    return !!(m && (m.verlauf || []).some(p => p.schritt === name));
+}
+
+function _elmaHatQuittung(m) {
+    return !!(m && (m.empfaenger || []).some(e => (e.nachrichten || []).some(n => (n.art || '').indexOf('Quittung') >= 0)));
+}
+
+function _elmaHatAntwort(m) {
+    if (!m) return false;
+    if (_elmaHatSchritt(m, 'Stand abgefragt') || _elmaHatSchritt(m, 'Nachrichten abgeholt')) return true;
+    return (m.empfaenger || []).some(e => (e.nachrichten || []).length);
+}
+
+function _elmaKommStand(m) {
+    if (_elmaFlug)
+        return { fertig: -1, jetzt: 0, laufend: true, zurueck: false, kern: 'Sendet', label: 'Gesendet' };
+    if (!m || m.stufe === 'rot' && !_elmaHatSchritt(m, 'Gesendet'))
+        return { fertig: -1, jetzt: m && m.stufe === 'rot' ? 0 : -1, laufend: false, zurueck: false, kern: m && m.stufe === 'rot' ? 'Stopp' : 'Bereit', label: m && m.stufe === 'rot' ? 'Nicht angenommen' : 'Bereit' };
+    if (m.stufe === 'rot')
+        return { fertig: 0, jetzt: 1, laufend: false, zurueck: false, kern: 'Stopp', label: 'Nicht angenommen' };
+    const gesendet = _elmaHatSchritt(m, 'Gesendet') || m.stufe === 'laeuft' || m.stufe === 'ok' || m.stufe === 'warn' || m.fertig;
+    if (!gesendet)
+        return { fertig: -1, jetzt: -1, laufend: false, zurueck: false, kern: 'Bereit', label: 'Bereit' };
+    if (_elmaHatQuittung(m) || (m.fertig && m.stufe !== 'rot'))
+        return { fertig: 3, jetzt: -1, laufend: false, zurueck: false, kern: 'Quittung', label: 'Quittung da' };
+    if (_elmaHatAntwort(m))
+        return { fertig: 1, jetzt: 2, laufend: false, zurueck: false, kern: 'Antwort', label: 'Antwort erhalten' };
+    return { fertig: 0, jetzt: 1, laufend: true, zurueck: true, kern: 'Wartet', label: 'Warte auf Antwort' };
+}
+
 function _elmaSchritteStand(m) {
-    const namen = ['Meldung bauen', 'TLS-Handshake', 'Signieren', 'Verschlüsseln', 'Senden', 'Quittung holen'];
-    let fertig = -1;
-    let jetzt = 0;
-    if (_elmaFlug) { fertig = 3; jetzt = 4; }
-    else if (m && (((m.verlauf || []).some(p => p.schritt === 'Nachrichten abgeholt')) || (m.fertig && m.stufe !== 'rot'))) { fertig = 5; jetzt = -1; }
-    else if (m && ((m.verlauf || []).some(p => p.schritt === 'Gesendet') || m.stufe === 'laeuft')) { fertig = 4; jetzt = 5; }
-    else if (m && m.stufe === 'rot') { fertig = 3; jetzt = 4; }
-    return namen.map((name, i) => {
-        const klasse = i <= fertig ? 'fertig' : (i === jetzt ? 'jetzt' : '');
-        const marke = i <= fertig ? '✓' : (i === jetzt ? '●' : '○');
+    const s = _elmaKommStand(m);
+    return _ELMA_KOMM.map((name, i) => {
+        const klasse = i <= s.fertig ? 'fertig' : (i === s.jetzt ? 'jetzt' : '');
+        const marke = i <= s.fertig ? '✓' : (i === s.jetzt ? '●' : '○');
         return `<span class="elma-schritt ${klasse}"><i>${marke}</i>${name}</span>`;
     }).join('');
 }
@@ -1555,19 +1582,15 @@ function _elmaPhaseVon(m) {
 
 function elmaKommZeichnen() {
     const m = _elmaFlug || !_elmaLauf ? null : _elmaZeitraumMeldung();
-    const phase = _elmaPhaseVon(_elmaFlug ? null : m);
+    const stand = _elmaKommStand(m);
     const schritte = document.getElementById('elmaSchritte');
-    if (schritte) schritte.innerHTML = _elmaSchritteStand(_elmaFlug ? null : m);
-    const bar = document.getElementById('elmaBar');
-    if (bar) bar.style.width = (phase.index / phase.schritte.length * 100) + '%';
-    _elmaText('elmaProgTitel', phase.titel);
-    _elmaText('elmaProgText', `${phase.index} / ${phase.schritte.length}`);
-    _elmaText('elmaCore', phase.kern);
-    _elmaText('elmaPhase', phase.phase);
+    if (schritte) schritte.innerHTML = _elmaSchritteStand(m);
+    _elmaText('elmaCore', stand.kern);
+    _elmaText('elmaPhase', stand.label);
     const stage = document.getElementById('elmaStage');
     if (stage) {
-        stage.classList.toggle('paused', !phase.laufend);
-        stage.classList.toggle('elma-zurueck', !!phase.zurueck);
+        stage.classList.toggle('paused', !stand.laufend);
+        stage.classList.toggle('elma-zurueck', !!stand.zurueck);
     }
 
     const sua = _elmaCert?.sua;
@@ -1577,7 +1600,7 @@ function elmaKommZeichnen() {
     _elmaText('elmaTeleZert', !sua ? '—' : !sua.vorhanden ? 'Keines' : _elmaZertAbgelaufen(sua) ? 'Abgelaufen' : 'Gültig');
     _elmaText('elmaTeleSign', _elmaFlug ? 'Gerade' : signiert ? 'Gesetzt' : 'Ausstehend');
     _elmaText('elmaTeleCrypt', _elmaFlug ? 'Gerade' : signiert ? 'Verschlüsselt' : 'Ausstehend');
-    _elmaText('elmaTeleStand', phase.phase);
+    _elmaText('elmaTeleStand', stand.label);
     const namen = (m?.empfaenger || []).map(e => e.name).filter(Boolean);
     _elmaText('elmaTeleEmpf', namen.length ? namen.join(', ') : '—');
     const letzt = (m?.verlauf || [])[0];
@@ -1585,7 +1608,7 @@ function elmaKommZeichnen() {
 
     const log = document.getElementById('elmaKomm');
     if (!log) return;
-    const text = _elmaFlug ? 'Die Meldung geht an Swissdec.' : (letzt ? _elmaKommSatz(letzt.schritt) : phase.titel);
+    const text = _elmaFlug ? 'Die Meldung geht an Swissdec.' : (letzt ? _elmaKommSatz(letzt.schritt) : stand.label);
     const zeit = letzt && !_elmaFlug ? _elmaUhr(letzt.zeit) : '';
     log.innerHTML = `<div class="elma-logline"><time>${_elmaEsc(zeit || '—')}</time><span>${_elmaEsc(text)}</span></div>`;
 }
