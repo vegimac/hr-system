@@ -54,7 +54,7 @@ const E2_TYP = {
 
 const e2 = {
     gebunden: false,
-    reiter: 'jahr',
+    reiter: 'monat',         // Monatsmeldung zuerst: sie kommt jeden Monat, die Jahresmeldung einmal
     filiale: 0,
     jahr: 0,
     monat: 1,
@@ -260,7 +260,7 @@ function e2ReiterHtml() {
     const offen = e2AufgabenListe().length;
     const r = (id, text, zahl) => `<button type="button" class="e2-reiter${e2.reiter === id ? ' an' : ''}" data-e2="reiter" data-wert="${id}">${text}${zahl ? ` <span class="e2-zahl">${zahl}</span>` : ''}</button>`;
     return `<nav class="e2-reiterleiste">
-        ${r('jahr', 'Jahresmeldung')}${r('monat', 'Monatsmeldung')}${r('aufgaben', 'Aufgaben', offen)}${r('konfig', 'Konfiguration')}
+        ${r('monat', 'Monatsmeldung')}${r('jahr', 'Jahresmeldung')}${r('aufgaben', 'Aufgaben', offen)}${r('konfig', 'Konfiguration')}
     </nav>`;
 }
 
@@ -294,14 +294,16 @@ function e2CockpitHtml() {
 function e2FilialeUebersicht() {
     return (e2.uebersicht?.filialen || []).find(x => x.id === e2.filiale) || null;
 }
+// Farbe je Monat: grün gefüllt = erfolgreich übermittelt, grün = Lohnlauf abgeschlossen,
+// orange = Lohnperiode offen. Monate ohne Lohnperiode und ohne Übermittlung erscheinen nicht.
 function e2MonatStand(m) {
     const meldung = e2Meldungen().find(x => x.art === 'monthly' && x.jahr === e2.jahr && x.monat === m);
-    if (meldung) return { klasse: 'e2-m-' + meldung.status, text: E2_STATUS_TEXT[meldung.status] || meldung.statusText || '' };
     const lp = (e2FilialeUebersicht()?.lohnperioden || []).find(x => x.monat === m);
-    if (!lp) return { klasse: 'e2-m-keine', text: 'kein Lohnlauf' };
-    if (lp.status === 'abgeschlossen') return { klasse: 'e2-m-bereit', text: 'bereit' };
-    if (lp.status === 'provisorisch_abgeschlossen') return { klasse: 'e2-m-offen', text: 'provisorisch' };
-    return { klasse: 'e2-m-offen', text: 'Lohnlauf offen' };
+    if (meldung) return { sichtbar: true, klasse: 'e2-m-' + meldung.status, text: meldung.status === 'success' ? 'übermittelt' : (E2_STATUS_TEXT[meldung.status] || '') };
+    if (!lp) return { sichtbar: false };
+    if (lp.status === 'abgeschlossen') return { sichtbar: true, klasse: 'e2-m-bereit', text: 'abgeschlossen' };
+    if (lp.status === 'provisorisch_abgeschlossen') return { sichtbar: true, klasse: 'e2-m-offen', text: 'provisorisch' };
+    return { sichtbar: true, klasse: 'e2-m-offen', text: 'Lohnlauf offen' };
 }
 function e2JahrStand(y) {
     const m = e2Meldungen().find(x => x.art !== 'monthly' && x.jahr === y);
@@ -315,12 +317,16 @@ function e2PeriodeHtml(jahr) {
         const st = jahr ? e2JahrStand(y) : null;
         return `<button type="button" class="e2-jahrpille${y === e2.jahr ? ' an' : ''}" data-e2="jahr-wahl" data-wert="${y}">${y}${st ? ` <i class="e2-mpunkt ${st.klasse}" title="${e2Esc(st.text)}"></i>` : ''}</button>`;
     }).join('');
-    const monate = jahr ? '' : `<div class="e2-monate">${E2_MONATE.map((name, i) => {
+    const kacheln = jahr ? '' : E2_MONATE.map((name, i) => {
         const m = i + 1;
         const st = e2MonatStand(m);
+        if (!st.sichtbar) return '';
         return `<button type="button" class="e2-monat${m === e2.monat ? ' an' : ''} ${st.klasse}" data-e2="monat-wahl" data-wert="${m}" title="${e2Esc(name + ' ' + e2.jahr + ': ' + st.text)}">
             <b>${name.slice(0, 3)}</b><span>${e2Esc(st.text)}</span></button>`;
-    }).join('')}</div>`;
+    }).join('');
+    const monate = jahr ? '' : (kacheln
+        ? `<div class="e2-monate">${kacheln}</div>`
+        : `<p class="e2-leer">${e2.uebersicht ? 'In ' + e2.jahr + ' gibt es für diese Filiale keine Lohnperiode.' : 'Lohnperioden werden geladen …'}</p>`);
     return `<div class="e2-periodenwahl"><div class="e2-jahre"><span class="e2-still">${jahr ? 'Lohnjahr' : 'Jahr'}</span>${jahrPillen}</div>${monate}</div>`;
 }
 

@@ -15539,19 +15539,18 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
 #e2App .e2-jahre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
 #e2App .e2-jahrpille { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border-radius: 999px; border: 1px solid rgba(60,55,48,0.20); background: rgba(255,255,255,0.45); font: inherit; font-weight: 600; color: #646464; cursor: pointer; }
 #e2App .e2-jahrpille.an { background: #3f3f3f; border-color: #3f3f3f; color: #fff; }
-#e2App .e2-monate { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
-#e2App .e2-monat { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(60,55,48,0.16); border-left-width: 4px; background: rgba(255,255,255,0.45); font: inherit; text-align: left; cursor: pointer; min-width: 0; transition: transform .15s; }
+#e2App .e2-monate { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+#e2App .e2-monat { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(60,55,48,0.16); border-left-width: 5px; background: rgba(255,255,255,0.45); font: inherit; text-align: left; cursor: pointer; min-width: 0; transition: transform .15s, box-shadow .15s; }
 #e2App .e2-monat:hover { transform: translateY(-2px); }
 #e2App .e2-monat b { font-size: 14px; color: #1a1a1a; }
-#e2App .e2-monat span { font-size: 11px; color: #8b8b8b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-#e2App .e2-monat.an { background: #3f3f3f; border-color: #3f3f3f; }
-#e2App .e2-monat.an b, #e2App .e2-monat.an span { color: #fff; }
-#e2App .e2-monat.e2-m-keine { opacity: .55; }
-#e2App .e2-m-keine, #e2App .e2-m-offen { border-left-color: rgba(60,55,48,0.25); }
-#e2App .e2-m-bereit { border-left-color: #6b7280; }
-#e2App .e2-m-success { border-left-color: #16a34a; }
-#e2App .e2-m-pending { border-left-color: #d97706; }
-#e2App .e2-m-error { border-left-color: #dc2626; }
+#e2App .e2-monat span { font-size: 11px; color: #646464; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+#e2App .e2-monat.an { box-shadow: 0 0 0 2px #3f3f3f, 0 6px 14px rgba(60,55,48,0.18); }
+#e2App .e2-m-offen { border-left-color: #d97706; background: rgba(217,119,6,0.07); }
+#e2App .e2-m-bereit { border-left-color: #16a34a; }
+#e2App .e2-m-success { border-color: #16a34a; background: #16a34a; }
+#e2App .e2-monat.e2-m-success b, #e2App .e2-monat.e2-m-success span { color: #fff; }
+#e2App .e2-m-pending { border-left-color: #16a34a; background: rgba(22,163,74,0.10); }
+#e2App .e2-m-error { border-left-color: #dc2626; background: rgba(220,38,38,0.07); }
 #e2App .e2-mpunkt { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 #e2App .e2-mpunkt.e2-m-success { background: #16a34a; }
 #e2App .e2-mpunkt.e2-m-pending { background: #d97706; }
@@ -15615,8 +15614,4 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
 @media (max-width: 760px) {
     #e2App { padding: 16px 16px 60px; }
     #e2App .e2-gruppen { grid-template-columns: 1fr; }
-    #e2App .e2-monate { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-@media (min-width: 761px) and (max-width: 1180px) {
-    #e2App .e2-monate { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
