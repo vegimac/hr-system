@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Models;
 using HrSystem.Services.Elm;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -150,15 +151,27 @@ public class ElmMeldungenController : ControllerBase
         };
     }
 
-    /// <summary>Adressaten der Jahresmeldung, gruppiert wie im Cockpit. Leer = im Katalog nicht erfasst.</summary>
+    /// <summary>Adressaten der Jahresmeldung, gruppiert wie im Cockpit.
+    /// Mit companyProfileId nur die gültigen Lohndatenempfänger dieser Filiale.</summary>
     [HttpGet("domaenen")]
-    public async Task<IActionResult> Domaenen(int jahr, CancellationToken ct)
+    public async Task<IActionResult> Domaenen(int jahr, int? companyProfileId, CancellationToken ct)
     {
-        var empf = await _db.LohndatenEmpfaengers.AsNoTracking()
-            .Include(e => e.Zuordnungen)
-            .Where(e => e.IsActive)
-            .OrderBy(e => e.Bezeichnung)
-            .ToListAsync(ct);
+        var heute = DateOnly.FromDateTime(DateTime.Now);
+        var zuordnungen = companyProfileId is int cp && cp > 0
+            ? (await _db.CompanyProfileEmpfaengers.AsNoTracking()
+                .Include(z => z.Empfaenger)
+                .Where(z => z.CompanyProfileId == cp && z.IsActive && z.Empfaenger != null && z.Empfaenger.IsActive)
+                .ToListAsync(ct))
+                .Where(z => z.GiltAm(heute))
+                .ToList()
+            : null;
+        var empf = zuordnungen == null
+            ? await _db.LohndatenEmpfaengers.AsNoTracking()
+                .Include(e => e.Zuordnungen)
+                .Where(e => e.IsActive)
+                .OrderBy(e => e.Bezeichnung)
+                .ToListAsync(ct)
+            : new List<LohndatenEmpfaenger>();
         object Zeile(string id, string name, string an, string? art, bool lohnsummen,
             string? kennung, string? kundennummer, string? vertragsnummer, string? domain) => new
         {
@@ -168,12 +181,19 @@ public class ElmMeldungenController : ControllerBase
         };
         IEnumerable<object> AusKatalog(string prefix, string name, string[] arten, string? art, bool lohnsummen, string? domain)
         {
-            var heute = DateOnly.FromDateTime(DateTime.Now);
-            var liste = empf.Where(e => arten.Contains(e.Art) && e.Zuordnungen.Any(z =>
+            if (zuordnungen != null)
+            {
+                var liste = zuordnungen.Where(z => arten.Contains(z.Empfaenger!.Art)).ToList();
+                if (liste.Count == 0)
+                    return new[] { Zeile(prefix, name, "", art, lohnsummen, null, null, null, domain) };
+                return liste.Select(z => Zeile(prefix + "-" + z.Id, name, z.Empfaenger!.Bezeichnung.Trim(), art, lohnsummen,
+                    z.Empfaenger.Kassennummer, z.Mitgliednummer, z.Subnummer, domain));
+            }
+            var alle = empf.Where(e => arten.Contains(e.Art) && e.Zuordnungen.Any(z =>
                 z.GueltigBis == null || z.GueltigBis >= heute)).ToList();
-            if (liste.Count == 0)
+            if (alle.Count == 0)
                 return new[] { Zeile(prefix, name, "", art, lohnsummen, null, null, null, domain) };
-            return liste.Select(e =>
+            return alle.Select(e =>
             {
                 var z = e.Zuordnungen.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Mitgliednummer));
                 return Zeile(prefix + "-" + e.Id, name, e.Bezeichnung.Trim(), art, lohnsummen,
@@ -212,7 +232,7 @@ public class ElmMeldungenController : ControllerBase
                     }),
             },
         };
-        return Ok(new { jahr, gruppen });
+        return Ok(new { jahr, companyProfileId, gruppen });
     }
 
     [HttpGet("bvg-lohnsummen")]

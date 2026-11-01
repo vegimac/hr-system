@@ -115,13 +115,14 @@ async function xcLaden() {
             } catch { /* letzter bekannter Stand */ }
             return alt;
         }),
-        xcGet('/api/elm/meldungen/domaenen?jahr=' + xc.jahr),
+        xcGet(xcDomaenenUrl()),
     ]);
     if (stand) xc.stand = stand;
     xc.standFehler = !stand && !xc.stand;
     if (cert) xc.cert = cert;
     if (verb) xc.verb = verb;
-    if (dom) { xc.domaenen = dom; xc.domFehler = false; xcWahlAhv(); }
+    if (!xcFilialeId()) { xc.ohneFiliale = true; xc.domaenen = { gruppen: [] }; xc.domFehler = false; }
+    else if (dom) { xc.ohneFiliale = false; xc.domaenen = dom; xc.domFehler = false; xcWahlAhv(); }
     else xc.domFehler = !xc.domaenen;
     xc.force = true;
     xcZeichnen();
@@ -133,6 +134,37 @@ function xcWahlAhv() {
     for (const z of xcJahrZeilen()) {
         if (String(z.id).startsWith('ahv') && z.an !== 'noch keiner zugeordnet' && xcSendbar(z)) xc.wahl.add(z.id);
     }
+}
+
+function xcFilialeId() {
+    return (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
+}
+
+function xcFilialeName() {
+    const id = xcFilialeId();
+    if (!id || typeof allBranches === 'undefined') return '';
+    const b = allBranches.find(x => x.id === id);
+    return b ? (b.branchName || b.companyName || '') : '';
+}
+
+function xcDomaenenUrl() {
+    const id = xcFilialeId();
+    if (!id) return '/api/elm/meldungen/domaenen?jahr=' + xc.jahr + '&companyProfileId=0';
+    return '/api/elm/meldungen/domaenen?jahr=' + xc.jahr + '&companyProfileId=' + id;
+}
+
+function xcFilialeWechsel() {
+    xc.ahvGesetzt = false;
+    for (const id of [...xc.wahl]) {
+        if (id !== 'qst' && id !== 'statistik') xc.wahl.delete(id);
+    }
+    xcEntschaerfen();
+    xcLaden();
+}
+
+function xcAnText(z) {
+    const nr = [z.kundennummer, z.vertragsnummer].filter(Boolean).join(' · ');
+    return nr ? `${z.an} · ${nr}` : (z.an || '');
 }
 
 function xcJahrZeilen() {
@@ -225,6 +257,8 @@ function xcLink() {
 }
 
 function xcSatz() {
+    if (!xcFilialeId())
+        return 'Zuerst eine Filiale in der Seitenleiste wählen. Die Empfänger sind die Lohndatenempfänger dieser Filiale.';
     if (xc.sicht === 'konfig')
         return 'Hier liegen das Zertifikat und die Anmeldungen bei den Versicherungen. Die Lohnmeldung schickst du über Zurück.';
     const sua = xc.cert?.sua;
@@ -257,7 +291,7 @@ function xcZeichnen() {
     const kopf = `<div class="xc-bar"></div>
         <header class="xc-top">
             <div>
-                <div class="xc-kicker">ELM</div>
+                <div class="xc-kicker">ELM${xcFilialeName() ? ' · ' + xcEsc(xcFilialeName()) : ''}</div>
                 <h1>${xc.sicht === 'konfig' ? 'Zertifikat' : 'Lohnmeldung'}</h1>
             </div>
             ${link.wort ? `<div class="xc-link ${link.klasse}" aria-live="polite">${xcEsc(link.wort)}</div>` : '<div class="xc-link"></div>'}
@@ -315,6 +349,7 @@ function xcSendHtml() {
 }
 
 function xcJahrHtml() {
+    if (xc.ohneFiliale) return '<p class="xc-an">Zuerst eine Filiale in der Seitenleiste wählen.</p>';
     if (xc.domFehler) return '<p class="xc-fault">Empfänger nicht geladen.</p>';
     if (!xc.domaenen) return '<p class="xc-an">Empfänger werden geladen.</p>';
     const gruppen = xc.domaenen.gruppen || [];
@@ -344,7 +379,7 @@ function xcZeile(z) {
         : (tag === 'Freigegeben' ? 'Die Lohnsummen sind für dieses Jahr freigegeben.' : '');
     return `<div class="xc-row">
         <span class="xc-name">${xcEsc(z.name)}</span>
-        <span class="xc-an">${xcEsc(z.an)}${knopf}</span>
+        <span class="xc-an">${xcEsc(xcAnText(z))}${knopf}</span>
         <span class="xc-tag"${tagTitle ? ` title="${xcEsc(tagTitle)}"` : ''}>${xcEsc(tag)}</span>
         <input class="xc-check" type="checkbox" data-xc="wahl" data-id="${xcEsc(z.id)}" ${an ? 'checked' : ''} aria-label="${xcEsc(z.name)}">
     </div>`;
@@ -501,7 +536,7 @@ function xcKonfigHtml() {
                 : `<button type="button" class="xc-go" data-xc="anmelden" data-domain="${xcEsc(z.domain)}" data-versicherer="${xcEsc(z.an)}" data-kunde="${xcEsc(z.kundennummer || '')}" data-vertrag="${xcEsc(z.vertragsnummer || '')}" data-kennung="${xcEsc(z.kennung || '')}">Anmelden</button>`;
             if (anm && r.profil) aktion += ' <button type="button" class="xc-ghost xc-klein" data-xc="profil">Versicherungsprofil bestellen</button>';
         }
-        return `<div class="xc-row xc-anm"><span class="xc-name">${xcEsc(r.name)}</span><span class="xc-an">${xcEsc(z ? z.an : 'noch keiner zugeordnet')}</span><span class="xc-aktionen">${aktion}</span></div>`;
+        return `<div class="xc-row xc-anm"><span class="xc-name">${xcEsc(r.name)}</span><span class="xc-an">${xcEsc(z ? xcAnText(z) : 'noch keiner zugeordnet')}</span><span class="xc-aktionen">${aktion}</span></div>`;
     }).join('');
     return `<div class="xc-flaeche">
         <div>
@@ -671,7 +706,7 @@ async function xcSchrittJahr(delta) {
     if (n < 2015 || n > 2035) return;
     xc.jahr = n;
     xcEntschaerfen();
-    const dom = await xcGet('/api/elm/meldungen/domaenen?jahr=' + n);
+    const dom = await xcGet(xcDomaenenUrl());
     if (dom) xc.domaenen = dom;
     xc.force = true;
     xcZeichnen();

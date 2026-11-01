@@ -1910,6 +1910,8 @@ function onBranchChange() {
         if (typeof akisRefresh === 'function') akisRefresh();
     } else if (currentPageName === 'ema-aufgaben') {
         if (typeof emaRefresh === 'function') emaRefresh();
+    } else if (currentPageName === 'elm-cockpit') {
+        if (typeof xcFilialeWechsel === 'function') xcFilialeWechsel();
     } else if (currentPageName === 'lohn-abtretungen') {
         if (typeof laListInit === 'function') laListInit();
     } else if (currentPageName === 'saldo-vortrag') {
