@@ -14743,9 +14743,12 @@ body.theme-dark #leList .le-zuord { color: #f0ebe3; }
 #page-elm-anwender .elma-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; margin-bottom: 18px; }
 #page-elm-anwender .elma-titelzeile { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
 #page-elm-anwender .elma-head h1 { margin: 0; font-size: 22px; font-weight: 560; letter-spacing: -0.03em; color: #3f3f3f; }
-#page-elm-anwender .elma-nav { display: flex; flex-wrap: wrap; gap: 4px 18px; }
-#page-elm-anwender .elma-nav button { background: none; border: 0; padding: 4px 0; font: inherit; font-size: 15px; color: #646464; cursor: pointer; }
-#page-elm-anwender .elma-nav button.an { color: #1a1a1a; font-weight: 650; box-shadow: inset 0 -2px 0 #1a1a1a; }
+#page-elm-anwender .elma-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+#page-elm-anwender .elma-nav button {
+    background: #fff; border: 1px solid rgba(60,55,48,.18); border-radius: 999px;
+    padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 650; color: #3f3f3f; cursor: pointer;
+}
+#page-elm-anwender .elma-nav button.an { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
 #page-elm-anwender .elma-head p { margin: 0; color: #8b8b8b; font-size: 13px; }
 #page-elm-anwender .elma-eyebrow { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #8b8b8b; font-weight: 700; }
 #page-elm-anwender .elma-connection { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; font-size: 12px; color: #646464; padding-bottom: 4px; }
