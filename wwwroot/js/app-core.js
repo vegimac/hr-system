@@ -1554,7 +1554,7 @@ function applyAdminBreadcrumb(name) {
 }
 
 function showPage(name) {
-    if (name === 'elm-cockpit' && !elmCockpitSichtbar()) {
+    if ((name === 'elm-cockpit' || name === 'elm2') && !elmCockpitSichtbar()) {
         showPage('dashboard');
         return;
     }
@@ -1588,6 +1588,7 @@ function showPage(name) {
     const navPage = _adminSubPages.includes(name) ? 'admin-hub'
                   : _devSubPages.includes(name)   ? 'entwicklung'
                   : name === 'elm-anwender'       ? 'hr-hub'
+                  : name === 'elm2'               ? 'hr-hub'
                   : name;
     document.querySelector(`[data-page="${navPage}"]`)?.classList.add('active');
     // Walter 28.05.2026: Breadcrumb „← Systemeinstellungen / <Page>" einfuegen
@@ -1677,6 +1678,7 @@ function showPage(name) {
     if (name === 'elm-schnittstelle') { elmzInit(); elmmInit(); }
     if (name === 'elm-anwender' && typeof elmaInit === 'function') elmaInit();
     if (name === 'elm-cockpit' && typeof eeInit === 'function') eeInit();
+    if (name === 'elm2' && typeof e2Init === 'function') e2Init();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'moments') momInit();
@@ -1914,6 +1916,8 @@ function onBranchChange() {
         if (typeof elmaFilialeWechsel === 'function') elmaFilialeWechsel();
     } else if (currentPageName === 'elm-cockpit') {
         if (typeof eeFilialeWechsel === 'function') eeFilialeWechsel();
+    } else if (currentPageName === 'elm2') {
+        if (typeof e2FilialeWechsel === 'function') e2FilialeWechsel();
     } else if (currentPageName === 'lohn-abtretungen') {
         if (typeof laListInit === 'function') laListInit();
     } else if (currentPageName === 'saldo-vortrag') {

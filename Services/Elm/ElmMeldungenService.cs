@@ -139,6 +139,31 @@ public class ElmMeldungenService
         return new(fehler.Count == 0, fehler.Count == 0 ? null : string.Join(" · ", fehler));
     }
 
+    public record Aktualisierung(int Geprueft, List<string> Fehler);
+
+    /// <summary>
+    /// «Aktualisieren» im Cockpit (Swissdec-Testfall Aktualisieren, Walter 01.11.2026): alle
+    /// Meldungen und Anmeldungen, die noch nicht fertig sind oder etwas zu quittieren haben,
+    /// in einem Durchgang abfragen — Status, Quittungen, Rückfragen. Keine Einzelknöpfe im UI.
+    /// </summary>
+    public async Task<Aktualisierung> AktualisierenAsync(CancellationToken ct)
+    {
+        var offen = _dienst.Liste()
+            .Where(v => ElmMeldungAnzeige.IstAnwender(v.Art) || v.Art == "subscribe")
+            .Where(v => !ElmMeldungAnzeige.Zertifizierungstest(v))
+            .Where(v => !v.JobFinished
+                        || v.Adressaten.Any(a => !ElmMeldungAnzeige.Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0))
+            .Select(v => v.Id)
+            .ToList();
+        var fehler = new List<string>();
+        foreach (var id in offen)
+        {
+            var r = await AbfragenAsync(id, automatisch: false, ct);
+            if (!r.Ok && !string.IsNullOrWhiteSpace(r.Fehler)) fehler.Add(r.Fehler);
+        }
+        return new(offen.Count, fehler);
+    }
+
     // ── Verbindung (drei Ampeln) ─────────────────────────────────────────────
 
     public ElmVerbindungStand? LetzteVerbindung() => _store.LadeVerbindung();

@@ -366,3 +366,20 @@ Foundation im Foundation-Protokoll (`docs/swissdec-vorfuehrung/vorfuehrung.html`
   (ersetzt «BVG nicht runden» vom 21.09.); Lohnbeleg bleibt beim Kassen-Fixbetrag. Gleich in der
   Jahresmeldung: AHV-/ALV-Löhne je Person auf 5 Rp., Totale = Summe der gerundeten Werte.
   Prozentsätze (13. ML 8.33, Ferien 13.04) bleiben, wie in der Referenz.
+
+## ELM 2 — Cockpit nach den Swissdec-Testfällen (Walter 01.11.2026)
+
+Kachel «ELM 2» im HR-Bereich (nur Administrator/Super-Admin, `body.elm-cockpit-on`), Seite
+`page-elm2`, Code `js/elm2.js` (Präfix `e2`), CSS-Block «ELM 2» in `css/app.css`. Eigene
+Oberfläche über denselben Schnittstellen (`api/elm/meldungen`, `api/elm/zertifikat`); die
+älteren Seiten (`elm-anwender`, `elm-einfach`, `elm-cockpit`) bleiben, bis Walter ELM 2 abnimmt.
+- **Ein Cockpit für Jahr und Monat** (Testfall «Weitere Tests»): Aktualisieren, Testmeldung,
+  Mitteilungsübersicht (7 Spalten) und Mitteilungshistorie (Ersatzmeldung nur von dort) sind
+  dieselben Funktionen. Reiter Aufgaben und Konfiguration (SUA mit Vorschau der Firmendaten,
+  Anmeldung/Abmeldung pro Empfänger).
+- **Aktualisieren = `POST api/elm/meldungen/aktualisieren`** (`ElmMeldungenService.AktualisierenAsync`):
+  alle nicht fertigen Meldungen und Anmeldungen in einem Durchgang (Status, Quittungen,
+  Rückfragen), ohne Prüfpunkt-Fälle der Zertifizierung. Kein GetStatus-Knopf im UI.
+- **Begriffe** stehen in `E2_B` am Anfang von `elm2.js` — Platzhalter bis Anhang x vorliegt.
+- **Sichtbar «noch nicht verfügbar»:** Jahres-Domänen UVG/UVGZ/KTG/BVG/Lohnausweis (E5),
+  Versicherungsprofil bestellen, Aufgaben von aussen. FAK geht mit der AHV-Meldung.

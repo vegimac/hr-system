@@ -184,6 +184,24 @@ public class ElmMeldungenController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { error = "ABFRAGEN", message = ex.Message }); }
     }
 
+    /// <summary>Eine Funktion für alle technischen Schritte (Swissdec-Testfall Aktualisieren).</summary>
+    [HttpPost("aktualisieren")]
+    public async Task<IActionResult> Aktualisieren(CancellationToken ct)
+    {
+        try
+        {
+            var r = await _dienst.AktualisierenAsync(ct);
+            return Ok(new
+            {
+                ok = r.Fehler.Count == 0,
+                geprueft = r.Geprueft,
+                meldung = r.Fehler.Count == 0 ? null : string.Join(" · ", r.Fehler),
+                stand = Stand(),
+            });
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = "AKTUALISIEREN", message = ex.Message }); }
+    }
+
     public record AntwortBody(string AddresseeId, string StoryId, Dictionary<short, string?>? Werte);
 
     [HttpPost("{id}/antworten")]
