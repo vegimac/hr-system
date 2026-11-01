@@ -44,6 +44,7 @@ let _elmaHinweis = null;
 let _elmaTimer = null;
 let _elmaOffen = new Set();
 let _elmaAufgabeOffen = null;
+let _elmaBestaetigtText = null;
 let _elmaArchivOffen = false;
 let _elmaFokus = null;
 let _elmaFlug = false;
@@ -1267,7 +1268,7 @@ function elmaAufgabenZeichnen() {
             });
         }
         (m.empfaenger || []).forEach(e => {
-            if ((e.nachrichten || []).some(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet))
+            if ((e.nachrichten || []).some(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet && (n.dialog.beantwortbar || !n.quittiert)))
                 karten.push({ art: 'warn', aufgabe: true, titel: `Rückfrage von ${e.name}`, text: m.titel || '', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
             if (e.freigabeUrl)
                 karten.push({ art: 'info', aufgabe: true, titel: `Freigabe bei ${e.name}`, text: 'Die Freigabe im Portal steht bereit.', knopf: 'Öffnen', click: `elmaAnsehen('${id}')`, detail });
@@ -1277,9 +1278,10 @@ function elmaAufgabenZeichnen() {
             karten.push({ art: 'info', aufgabe: false, titel: 'Quittung der letzten Übermittlung vorhanden', text: 'Die Verarbeitung durch die Empfänger wurde bestätigt.', knopf: 'Quittung anzeigen', click: `elmaQuittung('${id}')`, detail: '' });
     });
     const offen = karten.filter(k => k.aufgabe).length;
+    const erfolg = _elmaBestaetigtText ? `<p class="elma-an" style="margin:0 0 10px;color:#166534">${_elmaEsc(_elmaBestaetigtText)}</p>` : '';
     const liste = karten.length
-        ? karten.map(k => `<div><article class="elma-hinweis elma-hinweis-${k.art}"><div><b>${_elmaEsc(k.titel)}</b><p>${_elmaEsc(k.text)}</p></div><button type="button" class="btn btn-secondary" onclick="${k.click}">${_elmaEsc(k.knopf)}</button></article>${k.detail || ''}</div>`).join('')
-        : '<div style="font-size:13px;color:#8b8b8b">Keine offenen Aufgaben.</div>';
+        ? erfolg + karten.map(k => `<div><article class="elma-hinweis elma-hinweis-${k.art}"><div><b>${_elmaEsc(k.titel)}</b><p>${_elmaEsc(k.text)}</p></div><button type="button" class="btn btn-secondary" onclick="${k.click}">${_elmaEsc(k.knopf)}</button></article>${k.detail || ''}</div>`).join('')
+        : erfolg + '<div style="font-size:13px;color:#8b8b8b">Keine offenen Aufgaben.</div>';
     box.innerHTML = `<div class="elma-panelhead"><div class="elma-kicker" style="margin:0">Aufgaben & Hinweise</div><span class="elma-an">${offen} ${offen === 1 ? 'offene Aufgabe' : 'offene Aufgaben'}</span></div>
         <div class="elma-aufgabe-spur" style="margin:10px 0 12px"><i style="width:${offen ? '100%' : '0%'}"></i></div>
         ${liste}`;
@@ -1355,11 +1357,32 @@ function _elmaAufgabeDetail(m, mi) {
             if (n.art !== 'Rückfrage' || !n.dialog || n.beantwortet) return;
             const d = n.dialog;
             const zeilen = (d.absaetze || []).map(p => p.label || p.wert || '').filter(Boolean);
-            bloecke.push(`<div><b>${_elmaEsc(e.name)}</b><p>${_elmaEsc(d.titel || d.beschreibung || 'Mitteilung ohne Eingabe')}</p>${zeilen.map(t => `<p>${_elmaEsc(t)}</p>`).join('')}<p class="elma-an">Keine Eingabe nötig. OneCrew bestätigt den Empfang selbst.</p></div>`);
+            const haengt = (e.text || '').indexOf('geht nicht weiter') >= 0;
+            const knopf = n.quittiert || haengt ? '' : `<div style="display:flex;justify-content:flex-end;margin-top:12px"><button type="button" class="btn btn-primary" onclick="elmaBestaetigen('${_elmaEsc(m.id)}')">Bestätigen</button></div>`;
+            const fuss = haengt
+                ? `<p class="elma-an">${_elmaEsc(e.text)}</p>`
+                : '<p class="elma-an">Diese Mitteilung muss bestätigt werden, damit die Meldung weitergeht.</p>';
+            bloecke.push(`<div><b>${_elmaEsc(e.name)}</b><p>${_elmaEsc(d.titel || d.art || 'Mitteilung')}</p>${zeilen.map(t => `<p>${_elmaEsc(t)}</p>`).join('')}${fuss}${knopf}</div>`);
         });
     });
     const innen = bloecke.join('') || '<p class="elma-an">Die Rückfrage enthält keinen Text.</p>';
     return `<div id="elmaAufgabeDetail" class="elma-aufgabe-detail">${innen}</div>`;
+}
+
+async function elmaBestaetigen(id) {
+    _elmaAufgabeOffen = id;
+    const j = await _elmaPost(encodeURIComponent(id) + '/abfragen', {}, 'Bestätigen', 'OneCrew bestätigt den Empfang bei Swissdec.');
+    if (!j || j.ok === false) return;
+    const noch = (_elma?.meldungen || []).find(x => x.id === id);
+    const haengt = (noch?.empfaenger || []).some(e => (e.text || '').indexOf('geht nicht weiter') >= 0);
+    const weiter = (noch?.empfaenger || []).some(e => (e.nachrichten || []).some(n => n.art === 'Rückfrage' && n.dialog && !n.beantwortet && !n.quittiert));
+    _elmaBestaetigtText = haengt
+        ? 'Bestätigt. Der Testempfänger bleibt trotzdem stehen. Das ist keine offene Eingabe.'
+        : weiter
+            ? 'Empfang bestätigt. Der Empfänger hat die Mitteilung erneut geschickt.'
+            : 'Empfang bestätigt. Die Meldung geht weiter.';
+    if (!weiter) _elmaAufgabeOffen = null;
+    elmaListeZeichnen();
 }
 
 function elmaAnsehen(id) {
