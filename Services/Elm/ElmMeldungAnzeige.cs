@@ -50,7 +50,7 @@ public static class ElmMeldungAnzeige
                 : Haengt(a)
                     ? new(Warn, $"Empfänger geht nicht weiter, obwohl OneCrew die Mitteilung schon {Wiederholungen(a)}× bestätigt hat — beim Empfänger nachfragen", true)
                     : new(Laeuft, "Nachricht vom Empfänger erhalten — OneCrew bestätigt den Empfang selbst", false),
-            "CompletionReleaseMissing" => new(Warn, "Freigabe beim Empfänger fehlt — «Beim Empfänger freigeben»", true),
+            "CompletionReleaseMissing" => new(Warn, "Freigabe beim Empfänger fehlt — «Freigabe starten»", true),
             "Processing" => new(Laeuft, "In Bearbeitung beim Empfänger", false),
             null => new(Laeuft, "Angekommen, Ergebnis folgt", false),
             _ => new(Laeuft, a.State, false),

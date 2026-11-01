@@ -661,7 +661,14 @@ function e2HistorieHtml() {
 function e2AufgabenListe() {
     const out = [];
     if (e2.cert && !e2SuaGueltig()) out.push({ titel: 'Unternehmenszertifikat fehlt', text: 'Ohne Zertifikat keine Anmeldung bei Versicherungen.', e2: 'reiter', wert: 'konfig' });
+    // Nur die neuste Übermittlung je Meldung (Art, Jahr, Monat, Filiale) zählt: eine spätere
+    // Übermittlung oder Ersatzmeldung erledigt die Aufgaben der früheren.
+    const neuste = new Map();
     for (const m of e2Meldungen()) {
+        const k = [m.art, m.jahr, m.monat || '', m.companyProfileId || ''].join('|');
+        if (!neuste.has(k)) neuste.set(k, m);   // e2Meldungen ist neuste zuerst sortiert
+    }
+    for (const m of neuste.values()) {
         const reiter = m.art === 'monthly' ? 'monat' : 'jahr';
         for (const e of m.empfaenger || []) {
             if (e.freigabeUrl) out.push({ titel: E2_B.freigabeStarten, text: `${e.name} · ${m.titel}`, e2: 'zeigen', id: m.id, reiter });
