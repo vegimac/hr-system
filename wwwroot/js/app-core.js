@@ -1470,7 +1470,9 @@ function applyAreaVisibility() {
     // dieselbe Regel haben, sonst bleibt sie unsichtbar.
     const ok = (area) => area === 'dashboard' || area === 'todos' || area === 'moments'
         || allowed.has(area)
-        || (area === 'mcadmin' && allowed.has('mitarbeiter'));
+        || (area === 'mcadmin' && allowed.has('mitarbeiter'))
+        // ELM Cockpit (Walter 01.11.2026) ist kein eigener Bereich — er fährt mit dem HR-Hub mit.
+        || (area === 'elm' && allowed.has('hr-hub'));
     // Globale Sidebar: jede nav-section enthält genau einen nav-item (data-page).
     document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
         const item = sec.querySelector('.nav-item[data-page]');
@@ -1487,8 +1489,6 @@ function applyAreaVisibility() {
     });
 }
 
-// ELM Cockpit (Walter 01.11.2026): nur Administrator und der Super-Admin
-// darüber. Die Rolle superuser ist hier nicht gemeint.
 function roleName(r) {
     if (r === 'admin')       return 'Administrator';
     if (r === 'superuser')   return 'Superuser';
@@ -1574,7 +1574,6 @@ function showPage(name) {
         || name === 'entwicklung' || _devSubPages.includes(name));
     const navPage = _adminSubPages.includes(name) ? 'admin-hub'
                   : _devSubPages.includes(name)   ? 'entwicklung'
-                  : name === 'elm'                ? 'hr-hub'
                   : name;
     document.querySelector(`[data-page="${navPage}"]`)?.classList.add('active');
     // Walter 28.05.2026: Breadcrumb „← Systemeinstellungen / <Page>" einfuegen

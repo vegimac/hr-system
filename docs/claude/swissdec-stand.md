@@ -369,7 +369,8 @@ Foundation im Foundation-Protokoll (`docs/swissdec-vorfuehrung/vorfuehrung.html`
 
 ## ELM — Cockpit nach den Swissdec-Testfällen (Walter 01.11.2026)
 
-Kachel «ELM» im HR-Bereich, Seite `page-elm`, Code `js/elm.js` (Präfix `e2`, historisch),
+Seitenmenü «ELM Cockpit» (ELM-Icon, Sichtbarkeit wie HR-Hub: Klasse `hr-section`, Bereich
+«hr-hub»; nicht mehr im HR-Hub), Seite `page-elm`, Code `js/elm.js` (Präfix `e2`, historisch),
 CSS-Block «ELM» in `css/app.css`. Über `api/elm/meldungen` und `api/elm/zertifikat`
 (admin, superuser). **Ersetzt seit 01.11.2026 die früheren Seiten** `elm-anwender.js`
 (Kachel ELM), `elm-einfach.js` (Seitenleiste «Lohnmeldung», `page-elm-cockpit`) und

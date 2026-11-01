@@ -354,6 +354,14 @@
                         <span>Moments</span>
                     </div>
                 </div>
+                <!-- ELM Cockpit (Walter 01.11.2026): Lohnmeldungen an Swissdec (page-elm, js/elm.js).
+                     Sichtbar wie der HR-Hub (Klasse hr-section; Bereich «hr-hub»). -->
+                <div class="nav-section hr-section" style="display:none">
+                    <div class="nav-item" data-page="elm" onclick="showPage('elm')">
+                        <img class="nav-icon-img" src="img/hrkat-elm.webp?v=20261030g" alt="">
+                        <span>ELM Cockpit</span>
+                    </div>
+                </div>
                 <!-- Entwicklung (Walter 31.08.2026): Sammelbereich für alles,
                      was noch im Aufbau ist — heute Swissdec ELMv6.0.1 samt
                      Zertifizierung (docs/swissdec-elm6-konzept.md). Admin-only
@@ -2388,11 +2396,6 @@
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="gastrosocial" onclick="hrHubShowCat('gastrosocial')" title="GastroSocial: AHV-An-/Abmeldung, Familienzulagen, BVG, Abgleiche">
                         <img src="img/hrkat-gastrosocial.webp?v=20261014a" alt="" loading="lazy">
                         <span>GastroSocial</span>
-                    </button>
-                    <!-- ELM (Walter 01.11.2026): Übermittlungscockpit nach den Swissdec-Testfällen. -->
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="elm" onclick="showPage('elm')" title="ELM: Lohnmeldungen an Ausgleichskassen, Versicherer, Vorsorge, Steuer und Statistik (Monats- und Jahresmeldung, Aufgaben, Konfiguration)">
-                        <img src="img/hrkat-elm.webp?v=20261030g" alt="" loading="lazy">
-                        <span>ELM</span>
                     </button>
                 </div>
                 <div class="hr-hub-group" id="hrHubGrp-onb" style="display:none">
@@ -6698,7 +6701,6 @@
             <!-- ELM (Walter 01.11.2026): Übermittlungscockpit nach den Swissdec-Testfällen.
                  Inhalt baut js/elm.js. Die Entwicklungsseite «Lohnmeldungen (ELM)» bleibt unter System. -->
             <div class="page" id="page-elm">
-                <button type="button" class="seite-zurueck" onclick="showPage('hr-hub')" hidden aria-hidden="true">Zurück</button>
                 <div id="e2App"></div>
             </div>
 
@@ -11274,7 +11276,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261101s"></script>
+<script src="js/app-core.js?v=20261101t"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261101b"></script>
