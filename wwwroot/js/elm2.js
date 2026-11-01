@@ -730,18 +730,29 @@ function e2AnmeldungenHtml(suaDa) {
     const zeilen = e2Zeilen().filter(z => E2_VERSICHERUNG.has(z.domain) && e2Zugeordnet(z));
     if (!zeilen.length) return '<p class="e2-leer">Dieser Filiale ist noch keine Versicherung zugeordnet.</p>';
     const tr = zeilen.map(z => {
-        const anm = (e2.stand?.anmeldungen || []).find(m => (m.empfaenger || []).some(e => e.domain === z.domain && (e.name || '').includes(z.an)));
-        const empf = anm?.empfaenger?.find(e => e.domain === z.domain);
+        // Anmeldung zur Zeile: gleiche Domäne und gleiche Empfänger-Kennung (z.B. UVG-LAA + S1000).
+        // Die Antwort von Swissdec nennt nur die Kennung, nicht den Namen der Versicherung.
+        // Die jüngste zählt; «closed» heisst abgemeldet.
+        const passt = e => e.domain === z.domain && String(e.identification || '').trim() === String(z.kennung || '').trim();
+        const anm = (e2.stand?.anmeldungen || []).find(m => (m.empfaenger || []).some(passt));
+        const empf = anm?.empfaenger?.find(passt);
         const nr = [z.kundennummer, z.vertragsnummer].filter(Boolean).join(' · ');
-        let stand = '<span class="e2-chip e2-grau">nicht angemeldet</span>';
-        let knopf = suaDa
+        const anmeldenKnopf = suaDa
             ? `<button type="button" class="e2-pille e2-klein e2-primaer" data-e2="anmelden" data-domain="${e2Esc(z.domain)}" data-versicherer="${e2Esc(z.an)}" data-kunde="${e2Esc(z.kundennummer || '')}" data-vertrag="${e2Esc(z.vertragsnummer || '')}" data-kennung="${e2Esc(z.kennung || '')}">Anmelden</button>`
             : '<span class="e2-still">Zuerst das Zertifikat</span>';
-        if (anm) {
-            const st = empf ? e2EmpfStatus(empf) : anm.status;
-            stand = `<span class="e2-status e2-s-${e2Esc(st)}">${E2_B[st] || e2Esc(st)}</span> <i class="e2-status-text">angemeldet ${e2Esc(e2Datum(anm.gesendet, false))}</i>`;
-            knopf = `<button type="button" class="e2-pille e2-klein" data-e2="abmelden" data-id="${e2Esc(anm.id)}" data-emp="${e2Esc(empf?.addresseeId || '')}">Abmelden</button>`;
-            if (z.domain !== 'BVG-LPP') knopf += ' <span class="e2-chip e2-grau" title="Versicherungsprofil bestellen">Profil: noch nicht verfügbar</span>';
+        let stand = '<span class="e2-chip e2-grau">nicht angemeldet</span>';
+        let knopf = z.kennung ? anmeldenKnopf : '<span class="e2-still">Kennung (Nr.) des Empfängers fehlt im Katalog</span>';
+        if (anm && empf) {
+            const seit = e2Datum(anm.gesendet, false);
+            if (empf.zustand === 'Error') {
+                stand = `<span class="e2-status e2-s-error">error</span> <i class="e2-status-text">${e2Esc(empf.text || 'Anmeldung abgelehnt')}</i>`;
+            } else if (empf.state === 'closed') {
+                stand = `<span class="e2-chip e2-grau">abgemeldet</span> <i class="e2-status-text">zuletzt angemeldet ${e2Esc(seit)}</i>`;
+            } else {
+                stand = `<span class="e2-status e2-s-success">angemeldet</span> <i class="e2-status-text">seit ${e2Esc(seit)}${empf.declarationId ? ' · ' + e2Esc(empf.declarationId) : ''}</i>`;
+                knopf = `<button type="button" class="e2-pille e2-klein" data-e2="abmelden" data-id="${e2Esc(anm.id)}" data-emp="${e2Esc(empf.addresseeId || '')}">Abmelden</button>`;
+                if (z.domain !== 'BVG-LPP') knopf += ' <span class="e2-chip e2-grau" title="Versicherungsprofil bestellen">Profil: noch nicht verfügbar</span>';
+            }
         }
         return `<tr><td>${e2Esc(E2_DOM[z.domain] || z.domain)}</td><td>${e2Esc(z.an)}${nr ? `<br><i class="e2-status-text">${e2Esc(nr)}</i>` : ''}</td><td>${stand}</td><td class="e2-aktionsspalte">${knopf}</td></tr>`;
     }).join('');

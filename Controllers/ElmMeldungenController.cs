@@ -555,6 +555,9 @@ public class ElmMeldungenController : ControllerBase
                 {
                     a.AddresseeId,
                     a.Domain,
+                    a.Identification,
+                    a.State,
+                    a.Zustand,
                     declarationId = a.FallId,
                     name = ElmMeldungAnzeige.EmpfaengerName(a.Domain, a.Identification, a.InstitutionName),
                     stufe = e.Stufe, text = e.Text,
