@@ -1,0 +1,1418 @@
+/* Dark Mode = HELLE INSEL (Walter 18.08.2026): die Zellfarben kommen inline aus
+   dem Kürzel-Katalog (Pastell) — ein halb-dunkles Grid war unlesbar. Der Plan
+   sieht deshalb in beiden Themes identisch aus, wie ein Papier-Dienstplan. */
+body.theme-dark .dp-scroll { background:#fff; border-color:rgba(60,55,48,0.25); }
+body.theme-dark .dp-table td { background:#fff; }
+/* Grid scrollt INTERN (nicht der page-body) — nur so bleiben die sticky
+   Datum-/Tag-Kopfzeilen und die Namensspalte beim Scrollen stehen.
+   (Der frühere @media-print-Hack ist raus — Drucken läuft übers PDF.) */
+.dp-scroll { max-height: calc(100vh - 245px); }
+
+/* ── Kandidaten/Onboarding-Modal (kandidaten.js, Walter 11.08.2026) ──────
+   Tages-Karten im Stil des MA-Hauptbildschirms + Dark-Mode-taugliche
+   Status-Pillen. Die Dark-Karten-Optik kommt über die zentrale
+   body.theme-dark .kd-day-Regel (Selektor-Liste oben). */
+/* Onboarding-Modals: warmer Verlauf wie die MA-Maske (Walter 11.08.2026). */
+.iv-modal-box { background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%); }
+/* Arbeitszeugnis-Maske: eine Ansicht, kein Scrollen (Walter 13.09.2026).
+   Oben Stammdaten, darunter zwei Aufgabenspalten (Crew | höhere MA). */
+.az-modal {
+    display: flex; flex-direction: column;
+    max-width: 1180px; width: 100%;
+    max-height: 92vh; overflow: hidden;
+    padding: 16px 20px 14px; box-sizing: border-box;
+}
+.az-modal .az-meta { flex: 0 0 auto; }
+.az-modal .az-tasks {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px 22px; flex: 1 1 auto; min-height: 0;
+    align-content: start; margin-top: 8px;
+}
+.az-modal .az-tasks.az-tasks-nur-basis { grid-template-columns: 1fr; }
+.az-modal .az-tasks-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.az-modal .az-task {
+    display: flex; align-items: flex-start; gap: 7px;
+    background: transparent; border: 1px solid rgba(60,55,48,0.20);
+    border-radius: 10px; padding: 4px 8px; cursor: pointer;
+    font-size: 11.5px; line-height: 1.25; color: #3f3f3f; font-weight: 600;
+}
+.az-modal .az-task input { margin-top: 2px; flex: 0 0 auto; }
+.az-modal .az-foot { flex: 0 0 auto; margin-top: 8px; }
+body.theme-dark .az-modal .az-task { color: #f1f5f9; border-color: rgba(255,255,255,0.22); }
+.kd-day { background:rgba(255,255,255,0.48); border:1px solid rgba(255,255,255,0.70); border-radius:16px;
+          padding:16px 18px; margin-bottom:12px;
+          box-shadow:0 10px 30px rgba(70,64,55,0.12), inset 0 1px 0 rgba(255,255,255,0.58); }
+.kd-day-title { font-size:17px; font-weight:800; color:#3f3f3f; }
+.kd-dim { color:#8b8b8b; }
+.kd-link { color:#1d4ed8; cursor:pointer; font-weight:700; }
+.kd-sect { font-size:11px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+           color:#8b8b8b; white-space:nowrap; }
+.kd-sect-line { flex:1; height:1px; background:rgba(60,55,48,0.12); }
+/* Feste Spalten (Walter 11.08.2026): Filiale | Name | Telefon | Zustand | Aktionen.
+   ALLE Info-Spalten haben FIXE Breiten (kein fr vor den Aktionen) — sonst
+   verschieben unterschiedlich breite Aktions-Blöcke die Spalten pro Zeile. */
+.kd-row { display:grid; grid-template-columns:112px 230px 150px 380px 1fr;
+          gap:10px; align-items:center; padding:7px 4px; border-top:1px solid rgba(60,55,48,0.08); }
+.kd-chip { display:inline-block; border-radius:8px; padding:2px 9px; font-size:11.5px;
+           font-weight:700; white-space:nowrap; }
+.kd-chip-gelb   { background:#fef9c3; color:#854d0e; }
+.kd-chip-gruen  { background:#dcfce7; color:#166534; }
+.kd-chip-rot    { background:#fecaca; color:#991b1b; }
+.kd-chip-indigo { background:#e0e7ff; color:#3730a3; }
+.kd-chip-grau   { background:#f1efe9; color:#646464; }
+.kd-chip-kohle  { background:#3f3f3f; color:#fff; }
+.kd-chip-orange { background:#fff7ed; color:#9a3412; border:1px solid #fdba74; }
+.kd-btn-glass { background:rgba(255,255,255,0.7); border:1px solid rgba(60,55,48,0.18);
+                border-radius:10px; padding:4px 10px; font-size:11.5px; cursor:pointer;
+                color:#3f3f3f; font-weight:600; }
+body.theme-dark .kd-day-title { color:var(--dlg-text); }
+body.theme-dark .kd-dim { color:#94a3b8; }
+body.theme-dark .kd-link { color:#93c5fd; }
+body.theme-dark .kd-sect-line { background:rgba(255,255,255,0.14); }
+body.theme-dark .kd-row { border-top-color:rgba(255,255,255,0.10); }
+body.theme-dark .kd-chip-gelb   { background:rgba(250,204,21,0.22); color:#fde68a; }
+body.theme-dark .kd-chip-gruen  { background:rgba(34,197,94,0.22); color:#86efac; }
+body.theme-dark .kd-chip-rot    { background:rgba(239,68,68,0.24); color:#fca5a5; }
+body.theme-dark .kd-chip-indigo { background:rgba(99,102,241,0.28); color:#c7d2fe; }
+body.theme-dark .kd-chip-grau   { background:rgba(255,255,255,0.13); color:#cbd5e1; }
+body.theme-dark .kd-chip-kohle  { background:#e2e8f0; color:#1a1a1a; }
+body.theme-dark .kd-chip-orange { background:rgba(251,146,60,0.20); color:#fdba74; border-color:rgba(251,146,60,0.45); }
+body.theme-dark .kd-btn-glass { background:rgba(255,255,255,0.10); border-color:rgba(255,255,255,0.22); color:var(--dlg-text); }
+
+/* ── Zustellart-Wahl auf HR-Dokumenten (Walter 12.08.2026) ───────────────
+   Wichtige Eingabe → markante Segment-Pillen: gewählt = Kohle, sonst Glas.
+   Steuert den Unterzeichner (Abgabe = Allgemein-Unterzeichner der Filiale,
+   Versand = angemeldeter Benutzer). */
+/* Kompakter Segment-Toggle (Walter 12.08.2026 v2: wie «Aktive | Inaktive |
+   Alle» — klein, zusammenhängend, gewähltes Segment Kohle). */
+.zst-wrap { display:inline-flex; margin:4px 0 2px; }
+.zst-pill { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+            padding:6px 14px; border:1px solid rgba(60,55,48,0.28);
+            background:rgba(255,255,255,0.75); font-size:12.5px; font-weight:700; color:#3f3f3f;
+            cursor:pointer; text-align:center; line-height:1.2; white-space:nowrap;
+            transition:background .15s, color .15s; }
+.zst-pill:first-child { border-radius:10px 0 0 10px; }
+.zst-pill:last-child { border-radius:0 10px 10px 0; }
+.zst-pill + .zst-pill { border-left:none; } /* auch bei 3+ Segmenten kein Doppel-Rand */
+
+/* Absenz-Modal Nur-Ansicht (Walter 13.08.2026): gesperrte Absenzen («In Lohn
+   verwendet») im Detail anschaubar — alle Eingaben im Body tot, Kopf (✕) und
+   Fuss (Abbrechen) bleiben bedienbar. */
+#absenceModal.abs-ro .ma-modal-body :is(input, select, textarea, button, label) { pointer-events:none !important; }
+#absenceModal.abs-ro .ma-modal-body { opacity:0.82; }
+.zst-pill input { position:absolute; opacity:0; pointer-events:none; }
+.zst-pill:has(input:checked) { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+.zst-pill:hover:not(:has(input:checked)) { background:rgba(255,255,255,0.95); }
+body.theme-dark .zst-pill { background:rgba(255,255,255,0.08); color:var(--dlg-text); border-color:rgba(255,255,255,0.22); }
+body.theme-dark .zst-pill:has(input:checked) { background:#e2e8f0; color:#1a1a1a; border-color:#e2e8f0; }
+
+/* ── Ferienplaner Manager (Walter 14.08.2026) ─────────────────────────── */
+.fpl-cell { height: 22px; min-width: 26px; cursor: default; user-select: none; }
+.fpl-cell[data-planbar="1"] { cursor: pointer; }
+.fpl-plan { background: #fdba74 !important; }          /* in Planung = orange */
+.fpl-fix  { background: #bbf7d0 !important; }          /* definitiv = grün */
+.fpl-plan.fpl-s, .fpl-fix.fpl-s { border-top-left-radius: 9px; border-bottom-left-radius: 9px; }
+.fpl-plan.fpl-e, .fpl-fix.fpl-e { border-top-right-radius: 9px; border-bottom-right-radius: 9px; }
+.fpl-sel { outline: 2px solid #6b7280; outline-offset: -2px; background: rgba(107,114,128,0.22) !important; }
+body.dark-mode .fpl-plan { background: #b45309 !important; }
+body.dark-mode .fpl-fix  { background: #166534 !important; }
+
+/* Manager-Schulungen (Walter 14.08.2026): der yp-field-wrap (Kalender-Button
+   des Datums-Quickpicks) streckt sich sonst auf 100% Zellbreite und schiebt
+   das «gültig bis»-Badge weit nach rechts — hier kompakt halten. */
+#msBody .yp-field-wrap { width: auto; flex: none; }
+#msBody .yp-field-wrap > input[type="date"], #msBody .yp-field-wrap > input.yp-text { flex: none; width: 108px; }
+
+/* Manager-DP: heutige Spalte markieren (Walter 14.08.2026) — rote
+   Innenränder links+rechts pro Zelle ergeben eine durchgehende Spalten-
+   Markierung, die auch über farbige Absenz-/Code-Zellen sichtbar bleibt. */
+.dp-table .dp-today {
+    box-shadow: inset 2px 0 0 rgba(239, 68, 68, 0.75), inset -2px 0 0 rgba(239, 68, 68, 0.75);
+}
+.dp-table thead th.dp-today {
+    background: #fecaca !important;
+    color: #991b1b;
+}
+
+/* Hauptkategorie-Kacheln System + HR-Hub (Walter 15.08.2026 v3):
+   Icon-Kacheln im ra-tile-Look — grosses Bild/SVG, kleine Schrift unten.
+   Aktive Kategorie = weisse Kachel mit Kohle-Rand (Kohle-Fuellung wuerde
+   die dunklen Sketch-Motive verschlucken). */
+/* 30% groesser als normale ra-tiles (Walter 15.08.2026) */
+.ra-tile.admin-hub-cat,
+.ra-tile.entw-hub-cat {
+    width: 146px;
+    height: 177px;
+    min-height: 177px;
+    max-height: 177px;
+    font-size: 13px;
+}
+.ra-tile.admin-hub-cat img,
+.ra-tile.admin-hub-cat svg,
+.ra-tile.entw-hub-cat img,
+.ra-tile.entw-hub-cat svg { width: 125px !important; height: 125px !important; flex: 0 0 125px !important; }
+.ra-tile.admin-hub-cat.active,
+.ra-tile.entw-hub-cat.active {
+    background: rgba(255,255,255,0.9);
+    border: 2px solid #3f3f3f;
+    box-shadow: 0 14px 36px rgba(60,55,48,0.28);
+}
+.ra-tile.admin-hub-cat.active > span,
+.ra-tile.entw-hub-cat.active > span { font-weight: 800; }
+/* Gewählte Kategorie mit markantem Rand, die übrigen bleiben voll sichtbar
+   (Walter 14.10.2026 — das Abschwächen vom 13.10. ist wieder raus). */
+.ra-tile.admin-hub-cat.active,
+.ra-tile.entw-hub-cat.active {
+    border: 3px solid #1a1a1a;
+    transform: translateY(-3px);
+    box-shadow: 0 0 0 4px rgba(26,26,26,0.10), 0 20px 44px rgba(60,55,48,0.32);
+}
+body.theme-dark .ra-tile.admin-hub-cat.active,
+body.theme-dark .ra-tile.entw-hub-cat.active {
+    background: rgba(255,255,255,0.16);
+    border-color: #f5f3ee;
+    box-shadow: 0 0 0 4px rgba(245,243,238,0.18), 0 20px 44px rgba(0,0,0,0.4);
+}
+
+/* Systembereich: warmes Off-White statt kaltem Grau (Walter 16.08.2026).
+   v2 «wie beim Mitarbeiter»: auch die Karten und Sticky-Koepfe im warmen
+   Glas-Look (halbtransparentes Weiss auf beigem Grund) statt kaltem #fff. */
+body.sys-bg:not(.theme-dark) .main { background: #f6f3ee; }
+body.sys-bg:not(.theme-dark) .admin-card,
+body.sys-bg:not(.theme-dark) .card {
+    background: rgba(255,255,255,0.52);
+    border: 1px solid rgba(255,255,255,0.68);
+    box-shadow: 0 10px 30px rgba(60,55,48,0.10), inset 0 1px 1px rgba(255,255,255,0.8);
+}
+body.sys-bg:not(.theme-dark) .admin-card:hover {
+    background: rgba(255,255,255,0.78);
+    border-color: #3f3f3f;
+    box-shadow: 0 14px 34px rgba(60,55,48,0.18);
+}
+body.sys-bg:not(.theme-dark) .card-hd { border-bottom-color: rgba(60,55,48,0.10); }
+/* Sticky-Koepfe brauchen deckenden Grund — im Systembereich beige statt grau/weiss */
+body.sys-bg:not(.theme-dark) .sticky-page-head,
+body.sys-bg:not(.theme-dark) .sticky-section-head { background: #f6f3ee; }
+/* Tabellen-Kopfzellen mit sticky #fff-Grund wirken sonst als weisse Balken */
+body.sys-bg:not(.theme-dark) thead th { background: #f1ede5; }
+
+/* Glassy-Listen im Systembereich (Walter 16.08.2026, Lohnpositionen & Co.):
+   Spaltenkopf-Band + Zeilen in warmem Glas statt kaltem Grau/Weiss. */
+body.sys-bg:not(.theme-dark) .page.fixhead .fh-cols-head-wrap {
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(255,255,255,0.66);
+    border-bottom: none;
+    backdrop-filter: blur(18px) saturate(125%);
+    -webkit-backdrop-filter: blur(18px) saturate(125%);
+    box-shadow: 0 8px 24px rgba(60,55,48,0.08);
+}
+body.sys-bg:not(.theme-dark) .page.fixhead .fh-table-head thead th { color: #6b6152; }
+body.sys-bg:not(.theme-dark) .page.fixhead .fh-table-body td { border-bottom-color: rgba(60,55,48,0.08); }
+body.sys-bg:not(.theme-dark) .page.fixhead .lp-row:hover td { background: rgba(255,255,255,0.6); }
+/* Gruen-Band FEI/FER/13.ML im Kopf: warm-transparent statt kalt-mint */
+#page-lohnpositionen .fh-table-head thead th.lp-th-green {
+    background: rgba(187,247,208,0.35) !important;
+}
+#page-lohnpositionen .fh-table-head thead th.lp-th-green-l { border-left: 2px solid rgba(22,101,52,0.25); }
+#page-lohnpositionen .fh-table-head thead th.lp-th-green-r { border-right: 2px solid rgba(22,101,52,0.25); }
+
+/* System-Unterkarten: nur Bild + Headline (Walter 16.08.2026) — die
+   Beschreibungstexte bleiben im DOM (Suche/i18n), sind aber ausgeblendet. */
+.admin-hub-group .admin-card-desc { display: none; }
+
+/* Einheitlicher Zurueck-Button auf allen System-Unterseiten (Walter 16.08.2026).
+   Sitzt als eigene Zeile UNTER dem obersten Band (nie oben rechts — dort ist
+   der langSwitcher reserviert). Liquid-Glas-Pill, Kohle-Text. */
+/* Zurueck-Button rechts neben dem Haupttitel (Walter 16.08.2026 final) */
+/* Seiten-Zurück nur noch oben rechts (#backToAdminBtn, Walter 13.10.2026) — die Knöpfe in den
+   Seiten liefern nur noch das Ziel (globalZurueck). */
+.page .seite-zurueck { display: none !important; }
+.sys-back-next-to-title {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 16px;
+    position: relative;
+    top: -2px;
+}
+.sys-back-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(60,55,48,0.2);
+    border-radius: 12px;
+    padding: 6px 14px;
+    font-size: 12.5px; font-weight: 650; color: #3f3f3f;
+    cursor: pointer;
+    transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.sys-back-btn:hover {
+    background: rgba(255,255,255,0.85);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(60,55,48,0.16);
+}
+body.theme-dark .sys-back-btn {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.25);
+    color: #d6d3cc;
+}
+
+/* Mutterschafts-Regeln: Code-Pill sauber in der Zelle halten + warme Optik */
+#page-pregnancy-rules td code {
+    display: inline-block;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    line-height: 1.35;
+}
+
+/* Lohnausweis-Vorschau: ov-Eingabemaske (warme Karte, weisse Felder, Kohle-Knopf). */
+#laPreviewModal .la-maske {
+    position: absolute; top: 8px; bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: min(1100px, calc(100vw - 32px));
+    display: flex; flex-direction: column; overflow: hidden;
+    border-radius: 16px;
+    background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+    box-shadow: 0 24px 50px rgba(60,55,48,0.22);
+}
+#laPreviewModal .la-kopf,
+#laPreviewModal .la-fuss {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 6px 16px;
+}
+#laPreviewModal .la-fuss { justify-content: flex-end; border-top: 1px solid rgba(60,55,48,0.10); }
+#laPreviewModal .la-titel { font-size: 15px; font-weight: 700; color: #3f3f3f; }
+#laPreviewModal .la-sub { font-size: 12px; color: #8b8b8b; margin-top: 1px; }
+#laPreviewModal .la-body { flex: 1; overflow: auto; padding: 0 16px 4px; }
+#laPreviewModal #laFormGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 14.5rem minmax(0, 1fr) 14.5rem;
+    column-gap: 12px; row-gap: 2px;
+    width: 100%; align-items: center;
+}
+#laPreviewModal .la-abschnitt {
+    grid-column: 1 / -1;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    color: #8b8b8b; margin: 5px 0 0;
+}
+#laPreviewModal .la-lbl {
+    font-size: 11px; color: #646464; line-height: 1.15; min-width: 0;
+}
+#laPreviewModal .la-inp,
+#laPreviewModal textarea {
+    display: block; box-sizing: border-box; width: 100%;
+    background: #fff; color: #3f3f3f;
+    border: 1px solid rgba(255,255,255,0.95); border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(60,55,48,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+    padding: 2px 8px; font-size: 12.5px; font-family: inherit; line-height: 1.25;
+}
+#laPreviewModal .la-inp:focus,
+#laPreviewModal textarea:focus {
+    outline: none; border-color: #3f3f3f;
+    box-shadow: 0 0 0 3px rgba(63,63,63,0.10);
+}
+#laPreviewModal .la-geld { text-align: right; }
+#laPreviewModal .la-area { resize: vertical; min-height: 0; }
+#laPreviewModal .la-adresse {
+    grid-column: span 2;
+    display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+#laPreviewModal .la-ganz {
+    grid-column: 1 / -1;
+    flex-direction: row; align-items: center; gap: 8px;
+}
+#laPreviewModal .la-ganz > span { flex: 0 0 220px; }
+#laPreviewModal .la-ganz textarea { flex: 1 1 auto; width: auto; }
+#laPreviewModal .la-bestaetigung {
+    grid-column: 1 / -1;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2px 32px;
+    margin-top: 4px;
+}
+#laPreviewModal .la-best-spalte .la-lbl { display: block; margin-bottom: 2px; }
+#laPreviewModal .la-best-zeile {
+    font-weight: 700; color: #1a1a1a; font-size: 12.5px; line-height: 1.3;
+}
+#laPreviewModal .la-inp[readonly],
+#laPreviewModal textarea[readonly] {
+    background: transparent; color: #1a1a1a; font-weight: 700;
+    border: none; border-radius: 0; box-shadow: none;
+    padding: 2px 0; cursor: default; resize: none;
+}
+#laPreviewModal .la-inp[readonly]:focus,
+#laPreviewModal textarea[readonly]:focus {
+    border: none; box-shadow: none;
+}
+#laPreviewModal .la-check {
+    grid-column: span 2;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #3f3f3f; cursor: default; pointer-events: none;
+    background: transparent; border: 1px solid rgba(60,55,48,0.20);
+    border-radius: 8px; padding: 2px 8px;
+}
+#laPreviewModal .la-kohle,
+#laPreviewModal .la-glas {
+    border-radius: 12px; padding: 8px 16px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+}
+#laPreviewModal .la-kohle {
+    background: #3f3f3f; color: #fff; border: none;
+    box-shadow: 0 6px 16px rgba(60,55,48,0.18);
+}
+#laPreviewModal .la-kohle:hover { background: #1a1a1a; }
+#laPreviewModal .la-glas {
+    background: rgba(255,255,255,0.55); color: #3f3f3f;
+    border: 1px solid rgba(255,255,255,0.72);
+}
+#laPreviewModal .la-glas:hover { background: rgba(255,255,255,0.8); }
+body.theme-dark #laPreviewModal .la-maske { background: #2c2a28; }
+body.theme-dark #laPreviewModal .la-titel,
+body.theme-dark #laPreviewModal .la-check { color: #f3f1ec; }
+body.theme-dark #laPreviewModal .la-inp,
+body.theme-dark #laPreviewModal textarea {
+    background: #1e1c1a; color: #f3f1ec; border-color: rgba(255,255,255,0.16);
+}
+body.theme-dark #laPreviewModal .la-inp[readonly],
+body.theme-dark #laPreviewModal textarea[readonly] {
+    background: transparent; color: #f3f1ec; border: none; box-shadow: none;
+}
+body.theme-dark #laPreviewModal .la-best-zeile { color: #f3f1ec; }
+
+/* ── Lohnschema-Seite (Walter 17.08.2026): kompakte Tabelle, gruppiert nach Art.
+   Farbwelt Liquid-Glass (gedaempft, kein grelles Signal-Rot/Gruen):
+   automatisch = Salbei · saldo = Petrol · ereignis = warmes Grau ·
+   austritt = Bernstein · manuell = gedaempftes Violett ── */
+#page-lohnschema table { font-size: 12px; }
+#page-lohnschema thead th { padding: 4px 10px !important; }
+#page-lohnschema table tbody td { padding: 2px 10px; line-height: 1.35; }
+#page-lohnschema tr.ls-group td {
+    padding: 5px 10px;
+    font-size: 11px; letter-spacing: .08em; font-weight: 800;
+    text-transform: uppercase;
+    border-bottom: none;
+}
+/* Gruppentitel als farbiges Band in der Art-Farbe (Walter 18.08.2026) */
+#page-lohnschema tr.ls-g-automatisch td { background: rgba(77, 124, 95, 0.12); }
+#page-lohnschema tr.ls-g-saldo td       { background: rgba(78, 127, 140, 0.12); }
+#page-lohnschema tr.ls-g-ereignis td    { background: rgba(138, 132, 120, 0.13); }
+#page-lohnschema tr.ls-g-austritt td    { background: rgba(161, 121, 74, 0.13); }
+#page-lohnschema tr.ls-g-manuell td     { background: rgba(125, 107, 150, 0.12); }
+#page-lohnschema tr.ls-group:first-child td { padding-top: 5px; }
+#page-lohnschema .ls-gdot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
+#page-lohnschema tr.ls-g-automatisch td { color:#4d7c5f; }  #page-lohnschema tr.ls-g-automatisch .ls-gdot { background:#4d7c5f; }
+#page-lohnschema tr.ls-g-saldo td       { color:#4e7f8c; }  #page-lohnschema tr.ls-g-saldo .ls-gdot       { background:#4e7f8c; }
+#page-lohnschema tr.ls-g-ereignis td    { color:#8a8478; }  #page-lohnschema tr.ls-g-ereignis .ls-gdot    { background:#8a8478; }
+#page-lohnschema tr.ls-g-austritt td    { color:#a1794a; }  #page-lohnschema tr.ls-g-austritt .ls-gdot    { background:#a1794a; }
+#page-lohnschema tr.ls-g-manuell td     { color:#7d6b96; }  #page-lohnschema tr.ls-g-manuell .ls-gdot     { background:#7d6b96; }
+#page-lohnschema tbody tr.ls-row { border-bottom: 1px solid rgba(60,55,48,0.07); }
+#page-lohnschema tbody tr.ls-row:hover { background: rgba(255,255,255,0.5); }
+/* Zeilen-Akzent links in der Art-Farbe (dezent) */
+#page-lohnschema tr.ls-a-automatisch td:first-child { box-shadow: inset 3px 0 0 rgba(77,124,95,.45); }
+#page-lohnschema tr.ls-a-saldo       td:first-child { box-shadow: inset 3px 0 0 rgba(78,127,140,.45); }
+#page-lohnschema tr.ls-a-ereignis    td:first-child { box-shadow: inset 3px 0 0 rgba(138,132,120,.35); }
+#page-lohnschema tr.ls-a-austritt    td:first-child { box-shadow: inset 3px 0 0 rgba(161,121,74,.45); }
+#page-lohnschema tr.ls-a-manuell     td:first-child { box-shadow: inset 3px 0 0 rgba(125,107,150,.45); }
+/* Liquid-Select-Trigger: flach, kompakt, in der Art-Farbe getoent —
+   und HART auf die Zellenbreite begrenzt (Kollision Art/AHV, 18.08.2026) */
+#page-lohnschema td .lqsel { width: 100%; max-width: 100%; display: block; }
+#page-lohnschema td .lqsel-btn {
+    width: calc(100% - 14px) !important;
+    max-width: calc(100% - 14px) !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 1px 22px 1px 8px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+}
+#page-lohnschema .ls-2col .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.12) !important;
+}
+#page-lohnschema tr.ls-a-automatisch .lqsel-btn { color: #3d6b4f !important; }
+#page-lohnschema tr.ls-a-saldo       .lqsel-btn { color: #3f6a76 !important; }
+#page-lohnschema tr.ls-a-ereignis    .lqsel-btn { color: #6f6a5f !important; }
+#page-lohnschema tr.ls-a-austritt    .lqsel-btn { color: #8a6437 !important; }
+#page-lohnschema tr.ls-a-manuell     .lqsel-btn { color: #695882 !important; }
+/* SV-Flags: Haekchen gedaempft gruen, «nicht pflichtig» neutral (kein Fehler-Rot) */
+#page-lohnschema .ls-on  { color:#4d9964; }
+#page-lohnschema .ls-off { color:#cfc9be; }
+/* Entfernen-Knopf: erst beim Zeilen-Hover richtig sichtbar */
+#page-lohnschema .ls-del { opacity: .25; transition: opacity .15s; }
+#page-lohnschema tbody tr:hover .ls-del { opacity: 1; }
+
+
+/* ── Absenz-Matrix + Absenz-Typen-Seite im MA-Masken-Look (ov-card-Rezept, Walter 18.08.2026) ── */
+.at-mx-card,
+#page-absenz-typen .fh-list-card,
+#page-absenz-typen .at-info-box,
+#page-mindestloehne .card,
+#page-lohnschema .ls-2col .card {
+    border: 1px solid transparent;
+    border-radius: 16px;
+    padding: 12px 16px;
+    background-color: #f4f0e8;
+    background-image: linear-gradient(160deg, #fffcf8 0%, #f7f3eb 42%, #efe9df 78%, #e8e1d6 100%),
+                      linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(210,200,185,0.55) 35%, rgba(120,110,95,0.22) 62%, rgba(255,255,255,0.88) 100%);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    box-shadow: 0 0 0 1px rgba(90,80,65,0.12), 0 0 22px rgba(90,80,65,0.08),
+                0 6px 14px rgba(60,55,48,0.10), 0 20px 42px rgba(60,55,48,0.16),
+                inset 0 1px 0 rgba(255,255,255,0.92), inset 0 -1px 0 rgba(90,80,65,0.08);
+    min-width: 0;
+}
+.at-mx-kopf { font-weight: 700; color: #2f2f2f; font-size: 13px; margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid rgba(60,55,48,0.10); }
+.at-mx-lbl  { display: block; font-size: 11px; font-weight: 600; color: #7a7a7a; text-transform: uppercase; letter-spacing: 0.03em; margin: 10px 0 4px; }
+
+
+/* Lohnschema: Modell-Blatt links, «Für alle Modelle» rechts (Walter 18.08.2026) */
+.ls-2col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 1500px) { .ls-2col { grid-template-columns: 1fr; } }
+
+
+/* Lohnschema-Karten: Tabelle folgt den runden ov-Ecken (18.08.2026) */
+#page-lohnschema .ls-2col .card { padding: 4px 6px 6px !important; }
+#page-lohnschema .ls-2col thead th:first-child { border-top-left-radius: 12px; }
+#page-lohnschema .ls-2col thead th:last-child  { border-top-right-radius: 12px; }
+
+
+/* ── ov-Karten-Prinzip «warme Karte, weisse Controls» (Walter 18.08.2026) ── */
+.at-mx-card .f-input,
+.at-mx-card input[type="text"], .at-mx-card input[type="number"] {
+    background: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 11px;
+    box-shadow: 0 2px 7px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.at-mx-card .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 7px rgba(60, 55, 48, 0.13) !important;
+    border-radius: 11px !important;
+}
+
+/* ── Lohnschema-Karten: durchgehend warme Fläche wie die MA-Karten (Walter 18.08.2026 v2).
+   Zwei Übersteuerungen nötig: (1) der ov-Verlauf startete fast weiss → gleichmässiger warm,
+   (2) das fixhead-Muster zwingt thead auf Grau-Blau #f1f5f9 !important → warmer Kopf per ID-Selektor. ── */
+#page-lohnschema .ls-2col .card {
+    padding: 8px 10px 10px !important;
+    background-image: linear-gradient(165deg, #faf6ee 0%, #f1ebe0 50%, #e7dfd3 100%),
+                      linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(210,200,185,0.55) 35%, rgba(120,110,95,0.22) 62%, rgba(255,255,255,0.88) 100%);
+}
+#page-lohnschema.fixhead .page-body .ls-2col table thead th {
+    background: #ece5d8 !important;
+    border-bottom: none;
+    box-shadow: 0 1px 0 rgba(90, 80, 65, 0.16);
+    color: #6f6a5f;
+}
+#page-lohnschema .ls-2col tbody tr:hover { background: rgba(255, 255, 255, 0.45); }
+
+/* ── Lohnschema v3: Datenzeilen als helle Bahnen auf der warmen Karte —
+   erst der Weiss-auf-Warm-Rhythmus macht den ov-Look sichtbar (Walter 18.08.2026) ── */
+#page-lohnschema .ls-2col .card {
+    background-image: linear-gradient(165deg, #f3ecdf 0%, #ece4d5 50%, #e2d9c8 100%),
+                      linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(210,200,185,0.55) 35%, rgba(120,110,95,0.22) 62%, rgba(255,255,255,0.88) 100%);
+}
+#page-lohnschema .ls-2col tbody tr.ls-row td { background: rgba(255, 255, 255, 0.62); }
+#page-lohnschema .ls-2col tbody tr.ls-row:hover td { background: rgba(255, 255, 255, 0.85); }
+#page-lohnschema.fixhead .page-body .ls-2col table thead th {
+    background: #e6ddcc !important;
+    color: #6a6456;
+}
+
+/* ── Lohnschema v4: eine ov-Karte PRO Art-Gruppe mit Zwischenraum (Walter 18.08.2026,
+   Vorbild MA-Maske). Gruppentitel als Kopfzeile der Karte statt Band in der Tabelle. ── */
+#page-lohnschema .ls-gstack { display: flex; flex-direction: column; gap: 14px; }
+#page-lohnschema .ls-gtitle {
+    font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+    border-radius: 10px; padding: 6px 12px 7px; margin: 2px 2px 6px;
+}
+#page-lohnschema .ls-gtitle .ls-gdot { vertical-align: 1px; }
+/* Sticky-Spaltenkopf abschalten — bei getrennten Karten wirkt ein klebender Kopf deplatziert */
+#page-lohnschema.fixhead .page-body .ls-2col table thead th { position: static !important; }
+
+/* ── Lohnschema v5: KEIN sichtbarer Rand — wie die MA-Karten nur weiche Schatten
+   (Walter 18.08.2026: «ohne den braunen Rand der Box wäre es leichter») ── */
+#page-lohnschema .ls-2col .card {
+    border: none;
+    background-image: linear-gradient(165deg, #f7f2e9 0%, #f0e9dc 55%, #e9e1d2 100%);
+    background-origin: padding-box;
+    background-clip: padding-box;
+    box-shadow: 0 4px 10px rgba(60, 55, 48, 0.08), 0 14px 30px rgba(60, 55, 48, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+
+/* ── Mindestlöhne im OneCrew-Look (Walter 18.08.2026): warme Karten,
+   KEIN Sticky-Kopf mehr (die 2-zeiligen Köpfe + rowspan-Ecke überlappten die
+   erste Datenzeile), Planungs-Spalte = weisse «editierbar»-Bahn statt Violett. ── */
+#page-mindestloehne.fixhead .page-body table thead th {
+    position: static !important;
+    background: transparent !important;
+    box-shadow: none;
+}
+#page-mindestloehne .card {
+    border: none;
+    background-image: linear-gradient(165deg, #f7f2e9 0%, #f0e9dc 55%, #e9e1d2 100%);
+    box-shadow: 0 4px 10px rgba(60, 55, 48, 0.08), 0 14px 30px rgba(60, 55, 48, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+#page-mindestloehne .mw-section-head { background: transparent; border-bottom-color: rgba(60, 55, 48, 0.12); color: #2f2f2f; }
+#page-mindestloehne .mw-section-head.mw-youth { background: rgba(192, 95, 0, 0.08); border-bottom-color: rgba(192, 95, 0, 0.25); color: #8f5c1f; }
+#page-mindestloehne .mw-table th { color: #6f6a5f; border-bottom-color: rgba(60, 55, 48, 0.14); }
+#page-mindestloehne .mw-table th .mw-sub { color: #b0aca3; }
+#page-mindestloehne .mw-table td { border-bottom-color: rgba(60, 55, 48, 0.07); }
+#page-mindestloehne .mw-table tbody tr:hover { background: rgba(255, 255, 255, 0.45); }
+#page-mindestloehne .mw-sub-cur { color: #9a948a; }
+#page-mindestloehne .mw-sub-fut { color: #8f5c1f; }
+#page-mindestloehne .mw-table th.mw-fut-col { background: rgba(255, 255, 255, 0.55) !important; }
+#page-mindestloehne .mw-table td.mw-fut-col { background: rgba(255, 255, 255, 0.62); }
+#page-mindestloehne .mw-table tbody tr:hover td.mw-fut-col { background: rgba(255, 255, 255, 0.9); }
+#page-mindestloehne .mw-planhint { color: #6a6456; background: rgba(255, 255, 255, 0.5); border-bottom: none; }
+
+/* ── Mindestlöhne: Ausbildungsstufen-Kopf (IA/IB/II/IIIA/IIIB/IV) = die entscheidende
+   Info → grösser, fetter, schwärzer (Walter 18.08.2026) ── */
+#page-mindestloehne .mw-table thead tr:first-child th { font-size: 13.5px; font-weight: 800; color: #1f1f1f; }
+#page-mindestloehne .mw-table thead tr:first-child th .mw-sub { font-size: 10.5px; font-weight: 600; color: #6f6a5f; }
+
+/* ── Mindestlöhne: kompakter, damit die Seite ohne Scrollen passt (Walter 18.08.2026) ── */
+#page-mindestloehne .mw-table td { padding: 2px 12px; }
+#page-mindestloehne .mw-table th { padding: 3px 12px; }
+#page-mindestloehne .mw-table thead tr:first-child th { font-size: 12.5px; }
+#page-mindestloehne .mw-amount span { padding: 1px 8px; }
+#page-mindestloehne .mw-section-head { padding: 5px 14px; }
+#page-mindestloehne .mw-planhint { padding: 3px 12px; }
+#page-mindestloehne .card { margin-bottom: 10px; }
+
+/* ── Mindestlöhne: rechtsbündige Fluchtlinie — Kopfzeile auf dieselbe rechte Kante
+   wie die Betrags-Pills (12px Zelle + 8px Pill-Innenabstand) (Walter 18.08.2026) ── */
+#page-mindestloehne .mw-table th:not(.mw-edu-top) { padding-right: 20px; }
+#page-mindestloehne .mw-amount span { min-width: 0; }
+
+/* Mindestlöhne: auch die Stufen-Titel (IA/IB/…) auf die rechte Fluchtlinie (Walter 18.08.2026) */
+#page-mindestloehne .mw-table th.mw-edu-top { text-align: right; padding-right: 20px; }
+
+/* SV-Sätze: Kopfzellen laufen nicht mehr in den Nachbarn (Walter 18.08.2026) */
+#page-sv-saetze .fh-table-head th { overflow: hidden; text-overflow: ellipsis; }
+
+/* ── ⋮-Menü deutlich absetzen (Walter 18.08.2026): hart deckend, kräftiger
+   Schatten, klarer Rand — nichts scheint mehr durch. ── */
+body:not(.theme-dark) .dok-menu {
+    background: #ffffff !important;
+    border: 1px solid #d8d2c6 !important;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.24), 0 3px 10px rgba(15, 23, 42, 0.14) !important;
+    z-index: 400 !important;
+    min-width: 170px;
+}
+body:not(.theme-dark) .dok-menu-item { background: #ffffff !important; }
+body:not(.theme-dark) .dok-menu-item:hover { background: #f4f0e8 !important; }
+
+/* ── SV-Formular als mittiges, breites Modal (Walter 18.08.2026): die Feld-Paare
+   verteilen sich auf der Breite; einspaltige Felder bleiben voll breit. ── */
+#svFormPanel form > div { max-width: 100%; }
+
+/* ── SV-Formular im ov-Look (Walter 18.08.2026): warme Karte statt weiss-auf-weiss,
+   Eingabefelder als weisse Pillen mit Schatten (MA-Masken-Prinzip). ── */
+#svFormPanel {
+    background-color: #f1ebe0 !important;
+    background-image: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+    box-shadow: 0 0 0 1px rgba(90, 80, 65, 0.10), 0 25px 60px rgba(60, 55, 48, 0.35) !important;
+}
+#svFormPanel input:not([type="checkbox"]), #svFormPanel select, #svFormPanel .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+#svFormPanel label { color: #3f3f3f !important; margin-bottom: 2px !important; font-size: 11px !important; line-height: 1.2; }
+#svFormPanel .sv-hilfe { display: none !important; }
+#svFormPanel input:not([type="checkbox"]), #svFormPanel select, #svFormPanel .lqsel-btn {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+    min-height: 0 !important;
+}
+#svFormPanel #svFormHint { background: rgba(255, 255, 255, 0.55) !important; }
+
+/* Pflichtfeld-Stern + Feldfehler bei blur (UID/BUR/Firmenname, Walter 16.10.2026).
+   Spezifität bewusst höher als ov-Masken-«weisse Pille», sonst greift der Fehler-Rand nicht. */
+.pflicht-stern { color: #b45309; font-weight: 700; margin-left: 2px; }
+.feld-fehler-text {
+    display: none;
+    color: #b42318;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.35;
+    margin-top: 4px;
+}
+.f-input.feld-ungueltig,
+body:not(.theme-dark) .modal input.feld-ungueltig,
+body:not(.theme-dark) .modal .f-input.feld-ungueltig,
+input.feld-ungueltig {
+    border: 1px solid #c45c5c !important;
+    box-shadow: 0 0 0 2px rgba(185, 70, 70, 0.22), 0 2px 6px rgba(60, 55, 48, 0.10) !important;
+}
+body.theme-dark .f-input.feld-ungueltig,
+body.theme-dark .modal input.feld-ungueltig,
+body.theme-dark input.feld-ungueltig {
+    border-color: #f87171 !important;
+    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25) !important;
+}
+body.theme-dark .feld-fehler-text { color: #fca5a5; }
+body.theme-dark .pflicht-stern { color: #fbbf24; }
+
+/* ── ov-Eingabemasken-STANDARD (Walter 18.08.2026): Eingabemaske = warme Karte,
+   Felder = weisse Pillen mit Schatten. Zentral für die generische .modal-Klasse;
+   die MA-/Familien-/Interview-Masken tragen den Look bereits über eigene Klassen.
+   Neue Modals: .modal verwenden ODER dieses Muster übernehmen. ── */
+body:not(.theme-dark) .modal {
+    background-color: #f1ebe0 !important;
+    background-image: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+}
+body:not(.theme-dark) .modal-hd { background: #f7f2e9; border-bottom-color: rgba(60, 55, 48, 0.10); }
+body:not(.theme-dark) .modal-ft { border-top-color: rgba(60, 55, 48, 0.10); }
+body:not(.theme-dark) .modal input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .modal select,
+body:not(.theme-dark) .modal textarea,
+body:not(.theme-dark) .modal .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ── Erfassungs-Masken auf den neuen ov-Standard gehoben (Walter 18.08.2026):
+   satterer Warm-Verlauf (wie SV-Formular) statt der blassen Stufe vom 12.08.,
+   Felder als weisse Pillen. Deckt: Familienangehörige, Absenz, Lohnabtretung
+   (ma-modal), Verwarnung, Arbeitszeugnis, Interview (iv-modal),
+   Arbeits-Aufforderung (Page-Card). «Dokument hochladen» hängt neu an .modal. ── */
+body:not(.theme-dark) .family-modal-box,
+body:not(.theme-dark) .ma-modal-box,
+body:not(.theme-dark) .iv-modal-box,
+body:not(.theme-dark) #page-aufforderung-arbeit .card {
+    background: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+}
+body:not(.theme-dark) .family-modal-box input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .family-modal-box select,
+body:not(.theme-dark) .family-modal-box textarea,
+body:not(.theme-dark) .family-modal-box .lqsel-btn,
+body:not(.theme-dark) .ma-modal-box input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .ma-modal-box select,
+body:not(.theme-dark) .ma-modal-box textarea,
+body:not(.theme-dark) .ma-modal-box .lqsel-btn,
+body:not(.theme-dark) .iv-modal-box input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .iv-modal-box select,
+body:not(.theme-dark) .iv-modal-box textarea,
+body:not(.theme-dark) .iv-modal-box .lqsel-btn,
+body:not(.theme-dark) #page-aufforderung-arbeit .card input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) #page-aufforderung-arbeit .card select,
+body:not(.theme-dark) #page-aufforderung-arbeit .card textarea,
+body:not(.theme-dark) #page-aufforderung-arbeit .card .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ── «Alles Weiss weg ausser dem Eingabefeld» (Walter 18.08.2026, SV-Vorbild) ──
+   1) kd-day-Karten (Arbeits-Aufforderung, Kündigungs-Masken): warme Fläche statt
+      Halbtransparent-Weiss, Felder als weisse Pillen. */
+body:not(.theme-dark) .kd-day {
+    background: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+    border: 1px solid transparent !important;
+}
+body:not(.theme-dark) .kd-day input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .kd-day select,
+body:not(.theme-dark) .kd-day textarea,
+body:not(.theme-dark) .kd-day .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+/* 2) Sektions-Panels IN den Modals (Person/Aufenthalt/Typ&Zeitraum …): nur noch
+      ein Hauch Gruppierung statt heller Fläche — die MA-Maske selbst bleibt
+      unangetastet (Regel ist auf die Modal-Container beschränkt). */
+body:not(.theme-dark) .family-modal-box .emp-field-grid,
+body:not(.theme-dark) .family-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .family-modal-box .emp-field-grid-3,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid-3,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid-3 {
+    background: rgba(255, 255, 255, 0.20) !important;
+    border-color: rgba(60, 55, 48, 0.10) !important;
+}
+
+/* ── Familien-/MA-Modal-Sektionen KOMPLETT flächenlos (Walter 18.08.2026 v2):
+   nur noch Titel + weisse Eingabefelder auf der warmen Karte — wie SV-Formular. ── */
+body:not(.theme-dark) .family-modal-box .emp-field-grid,
+body:not(.theme-dark) .family-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .family-modal-box .emp-field-grid-3,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid-3,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid-3 {
+    background: transparent !important;
+    border-color: transparent !important;
+    padding-left: 0;
+    padding-right: 0;
+}
+/* Auswahl-Kacheln (Adresse) + Checkbox-Pille: warm-transparent, Auswahl über Rand */
+body:not(.theme-dark) #familyModal .fmf-radio-row {
+    background: transparent !important;
+    border: 1px solid rgba(60, 55, 48, 0.20) !important;
+    box-shadow: none !important;
+}
+body:not(.theme-dark) #familyModal .fmf-radio-row:has(input:checked) {
+    border-color: #3f3f3f !important;
+    background: rgba(255, 255, 255, 0.30) !important;
+    box-shadow: 0 0 0 1px #3f3f3f inset !important;
+}
+body:not(.theme-dark) #familyModal .fmf-checkbox-card {
+    background: transparent !important;
+    border: 1px solid rgba(60, 55, 48, 0.20) !important;
+    box-shadow: none !important;
+}
+
+/* ── ov-Standard v2 (Walter 18.08.2026): Kartenfläche durchgehend SATT warm —
+   der alte Verlauf startete oben fast weiss, dadurch standen Labels im oberen
+   Modalbereich auf Quasi-Weiss. Neu: dunklere, flachere Rampe. ── */
+body:not(.theme-dark) .modal,
+body:not(.theme-dark) .ma-modal-box,
+body:not(.theme-dark) .family-modal-box,
+body:not(.theme-dark) .iv-modal-box,
+body:not(.theme-dark) .kd-day,
+body:not(.theme-dark) #svFormPanel,
+body:not(.theme-dark) #page-aufforderung-arbeit .card {
+    background-image: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%) !important;
+}
+
+/* ── ov-Standard v3 (Walter 18.08.2026): die alte #familyModal-ID-Regel
+   (#f6f3ee !important) stach die Klassen-Regel aus — hier mit ID-Spezifität
+   final übersteuert: Sektions-Flächen weg, nur Eingabefelder weiss. ── */
+body:not(.theme-dark) #familyModal .emp-field-grid,
+body:not(.theme-dark) #familyModal .emp-field-grid-2,
+body:not(.theme-dark) #familyModal .emp-field-grid-3,
+body:not(.theme-dark) #familyModal .fmf-addr-card {
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+/* ── Erfassungsmasken kompakter (Walter 18.08.2026): möglichst alles im Fenster
+   ohne Scrollen — engere Abstände in Modal-Sektionen, gilt hell + dunkel. ── */
+.family-modal-box .family-modal-body { padding: 12px 24px 14px; }
+.ma-modal-box .ma-modal-body { padding: 10px 20px 12px; }
+.family-modal-box .emp-section-title,
+.ma-modal-box .emp-section-title,
+.iv-modal-box .emp-section-title { margin: 6px 0 0; padding: 2px 0 2px 10px; }
+.family-modal-box .emp-field-grid,
+.family-modal-box .emp-field-grid-2,
+.family-modal-box .emp-field-grid-3,
+.ma-modal-box .emp-field-grid,
+.ma-modal-box .emp-field-grid-2,
+.ma-modal-box .emp-field-grid-3 { padding: 4px 0 6px; margin-bottom: 2px; }
+.family-modal-box .fmf-row { margin-bottom: 8px; }
+.family-modal-box .family-modal-head { padding: 14px 24px 10px; }
+.family-modal-box .family-modal-foot { padding: 10px 24px; }
+
+/* ── QST-Modal auf ov-Standard (Walter 18.08.2026): Sektions-Panels flächenlos,
+   Checkbox-Pillen transparent mit Rand — nur Eingabefelder weiss. ── */
+body:not(.theme-dark) #qstModal .qst-grid,
+body:not(.theme-dark) #qstModal div[style*="f6f3ee"] {
+    background: transparent !important;
+    border-color: transparent !important;
+}
+body:not(.theme-dark) #qstModal .qst-cb {
+    background: transparent;
+    border: 1px solid rgba(60, 55, 48, 0.22);
+    box-shadow: none;
+}
+body:not(.theme-dark) #qstModal .qst-cb-ro { background: rgba(60, 55, 48, 0.06) !important; }
+body:not(.theme-dark) #qstModal .ma-modal-head + div[style*="rgba(255,255,255,0.5)"] { background: rgba(255, 255, 255, 0.30) !important; }
+
+/* ── QST-Modal Dark Mode nachgezogen (Walter 18.08.2026): der Style-Block von
+   Mai war nicht theme-gescoped — Creme-RO-Felder + unlesbare Labels im Dunkeln. ── */
+body.theme-dark #qstModal .qst-lbl { color: #94a3b8; }
+body.theme-dark #qstModal .qst-ro-hint { color: #64748b; }
+body.theme-dark #qstModal .qst-ro,
+body.theme-dark #qstModal .qst-cb-ro,
+body.theme-dark #qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea) {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #94a3b8 !important;
+    border-color: var(--dlg-glass-border) !important;
+}
+body.theme-dark #qstModal .qst-cb {
+    background: transparent;
+    border: 1px solid var(--dlg-glass-border);
+    color: #e2e8f0;
+    box-shadow: none;
+}
+body.theme-dark #qstModal .ma-modal-head + div[style*="rgba(255,255,255,0.5)"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-bottom-color: var(--dlg-glass-border) !important;
+}
+body.theme-dark #qstModal div[style*="f6f3ee"] {
+    background: transparent !important;
+    border-color: var(--dlg-glass-border) !important;
+}
+
+/* ── Dark-Mode-PARITÄT für alle neuen ov-Flächen (Walter 18.08.2026, Muster =
+   QST-Modal): dunkles Glas statt Greige, Glas-Felder statt weisser Pillen,
+   lesbare Labels. Fängt auch Inline-Styles der JS-Modals ab. ── */
+body.theme-dark #svFormPanel {
+    background: var(--dlg-glass) !important;
+    background-image: none !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55) !important;
+}
+body.theme-dark #svFormPanel label { color: #94a3b8 !important; }
+body.theme-dark #svFormPanel input:not([type="checkbox"]),
+body.theme-dark #svFormPanel select,
+body.theme-dark #svFormPanel .lqsel-btn {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid var(--dlg-glass-border) !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+}
+body.theme-dark #svFormPanel #svFormHint { background: rgba(255, 255, 255, 0.06) !important; color: #cbd5e1 !important; border-color: var(--dlg-glass-border) !important; }
+
+body.theme-dark .at-mx-card,
+body.theme-dark #page-absenz-typen .fh-list-card,
+body.theme-dark #page-absenz-typen .at-info-box,
+body.theme-dark #page-mindestloehne .card,
+body.theme-dark #page-lohnschema .ls-2col .card {
+    background: var(--dlg-glass) !important;
+    background-image: none !important;
+    border: 1px solid var(--dlg-glass-border) !important;
+    box-shadow: none !important;
+}
+body.theme-dark .at-mx-card .f-input,
+body.theme-dark .at-mx-card input[type="text"],
+body.theme-dark .at-mx-card input[type="number"],
+body.theme-dark .at-mx-card .lqsel-btn {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid var(--dlg-glass-border) !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+}
+/* Tabellen-Bahnen + Köpfe der neuen Seiten */
+body.theme-dark #page-lohnschema .ls-2col tbody tr.ls-row td { background: rgba(255, 255, 255, 0.03); }
+body.theme-dark #page-lohnschema .ls-2col tbody tr.ls-row:hover td { background: rgba(255, 255, 255, 0.08); }
+body.theme-dark #page-lohnschema.fixhead .page-body .ls-2col table thead th { background: #2a3446 !important; color: #94a3b8; box-shadow: 0 1px 0 var(--dlg-glass-border); }
+body.theme-dark #page-mindestloehne.fixhead .page-body table thead th { background: #2a3446 !important; color: #94a3b8; }
+body.theme-dark #page-mindestloehne .mw-table th.mw-fut-col { background: rgba(255, 255, 255, 0.05) !important; }
+body.theme-dark #page-mindestloehne .mw-table td.mw-fut-col { background: rgba(255, 255, 255, 0.05); }
+body.theme-dark #page-mindestloehne .mw-table tbody tr:hover td.mw-fut-col { background: rgba(255, 255, 255, 0.10); }
+body.theme-dark #page-mindestloehne .mw-section-head { color: #e2e8f0; }
+/* Inline-helle Panels/Verläufe in JS-gebauten Modals → dunkles Glas */
+body.theme-dark div[style*="eeece4"] { background: var(--dlg-glass) !important; }
+body.theme-dark div[style*="#f6f3ee"] { background: rgba(255, 255, 255, 0.04) !important; border-color: var(--dlg-glass-border) !important; }
+
+/* ── Familien-Maske noch kompakter (Walter 18.08.2026): letzte ~100px Höhe
+   einsparen, damit sie komplett ohne Scrollen passt — hell + dunkel. ── */
+.family-modal-box .emp-field-grid,
+.family-modal-box .emp-field-grid-2,
+.family-modal-box .emp-field-grid-3 { gap: 4px 10px; padding-top: 3px; padding-bottom: 5px; }
+body.theme-dark .family-modal-box .emp-field-grid,
+body.theme-dark .family-modal-box .emp-field-grid-2,
+body.theme-dark .family-modal-box .emp-field-grid-3 { padding: 6px 10px 8px !important; }
+.family-modal-box .emp-field-value { min-height: 24px; padding-top: 2px; padding-bottom: 2px; }
+#familyModal .fmf-checkbox-card { min-height: 24px !important; padding-top: 2px !important; padding-bottom: 2px !important; }
+#familyModal .fmf-radio-row { padding: 6px 10px !important; }
+.family-modal-box .emp-section-title { margin-top: 4px !important; }
+.family-modal-box .fmf-label { margin-bottom: 1px; }
+.family-modal-box .fmf-row { margin-bottom: 6px; }
+
+/* ── Uniformen-Depot im Dark Mode (Walter 18.08.2026): helles Blau-Glas statt
+   Braun; Grün bei Zurückbezahlt, Rot bei Verfallen. Hell bleibt unverändert. ── */
+body.theme-dark .ud-card { background: rgba(96, 165, 250, 0.10) !important; border-color: rgba(96, 165, 250, 0.45) !important; }
+body.theme-dark .ud-card.ud-ZURUECKBEZAHLT { background: rgba(52, 211, 153, 0.10) !important; border-color: rgba(52, 211, 153, 0.45) !important; }
+body.theme-dark .ud-card.ud-VERFALLEN { background: rgba(248, 113, 113, 0.10) !important; border-color: rgba(248, 113, 113, 0.40) !important; }
+body.theme-dark .ud-amt { color: #f1f5f9 !important; }
+body.theme-dark .ud-card div[style*="#64748b"],
+body.theme-dark .ud-card div[style*="#94a3b8"] { color: var(--dlg-text-soft) !important; }
+body.theme-dark .ud-pill { background: rgba(255, 255, 255, 0.10) !important; border-color: var(--dlg-glass-border) !important; }
+body.theme-dark .ud-card.ud-EINBEHALTEN .ud-pill { color: #fcd34d !important; }
+body.theme-dark .ud-card.ud-ZURUECKBEZAHLT .ud-pill { color: #6ee7b7 !important; }
+body.theme-dark .ud-card.ud-VERFALLEN .ud-pill { color: #fca5a5 !important; }
+
+/* ── Manager-DP helle Insel v2 (Walter 18.08.2026): generische Dark-Table-Regeln
+   färbten die Schrift hell — hier hart auf die Hell-Optik zurückgezwungen. ── */
+body.theme-dark .dp-table td { color: #3f3f3f !important; }
+body.theme-dark .dp-table thead th { background: #f6f3ee !important; color: #646464 !important; }
+body.theme-dark .dp-side { background: #f6f3ee !important; color: #3f3f3f !important; }
+body.theme-dark .dp-name { background: #fff !important; color: #3f3f3f !important; }
+body.theme-dark .dp-table .dp-sum { background: #f6f3ee !important; color: #3f3f3f !important; }
+body.theme-dark .dp-branch td { background: #3f3f3f !important; color: #fff !important; }
+body.theme-dark .dp-table td.dp-weok { color: #166534 !important; }
+body.theme-dark .dp-table td.dp-wenok { color: #b91c1c !important; }
+body.theme-dark .dp-we { background: #efece6; }
+
+/* Manager-DP: Kopfzeilen (KW/Datum/Tag) — das fixhead-Dark-Muster hat höhere
+   Spezifität, darum hier per Page-ID final hell erzwungen (Walter 18.08.2026) */
+body.theme-dark #page-manager-dienstplan .dp-table thead th {
+    background: #f6f3ee !important;
+    color: #646464 !important;
+    box-shadow: none !important;
+}
+
+/* ── Admin-Kachel-Icons im Dark Mode (Walter 18.08.2026): invertiert + screen-
+   Blend — dadurch verschwinden auch die weissen Boxen der PNG-Hintergründe
+   (Lohnraster ELM, Lohnschema), übrig bleiben helle, kräftige Striche. ── */
+body.theme-dark .admin-card img {
+    mix-blend-mode: screen;
+    filter: invert(1) hue-rotate(180deg) brightness(1.55) contrast(1.2);
+}
+
+/* Lohnraster-ELM-Icon: die Zeichnung hat viel Innenrand im PNG und wirkt sonst
+   winzig — deutlich grösser als die übrigen Kachel-Icons (Walter 18.08.2026) */
+.admin-card img[src*="lohnraster-elm"] { width: 156px !important; height: 156px !important; }
+
+/* Lohnschema + Absenz-Typen: ebenfalls viel PNG-Innenrand — grösser (Walter 18.08.2026) */
+.admin-card img[src*="lohnkat-lohnschema"] { width: 140px !important; height: 140px !important; }
+.admin-card img[src*="vvkat-absenz-typen"] { width: 140px !important; height: 140px !important; }
+
+/* Kachel-Raster wie in der Systemsteuerung, ca. 30 % kleiner (Walter 14.10.2026):
+   gilt für alle Raster mit Klasse .admin-card-grid (System, Entwicklung, Globale Daten,
+   HR → GastroSocial). Feste Spaltenbreite statt 4 gestreckter Spalten. */
+.admin-card-grid { grid-template-columns: repeat(auto-fill, 230px) !important; gap: 12px !important; }
+.admin-card-grid .admin-card { padding: 14px; gap: 6px; }
+.admin-card-grid .admin-card img { width: 73px !important; height: 73px !important; margin-bottom: 4px !important; }
+.admin-card-grid .admin-card img[src*="lohnraster-elm"] { width: 109px !important; height: 109px !important; }
+.admin-card-grid .admin-card img[src*="lohnkat-lohnschema"],
+.admin-card-grid .admin-card img[src*="vvkat-absenz-typen"] { width: 98px !important; height: 98px !important; }
+/* Entwicklung → Lohn: gleiche Kachelhöhe wie Import & Schnittstellen (Walter 19.10.2026).
+   Icon-Mass = Standard-Raster (73px), nur Kontrast für die hellen Skizzen. */
+.admin-card-grid .admin-card img[src*="entwkat-lohn-formeln"],
+.admin-card-grid .admin-card img[src*="entwkat-lohn-engine"] {
+    filter: contrast(1.28) brightness(0.86) saturate(1.05);
+}
+body.theme-dark .admin-card-grid .admin-card img[src*="entwkat-lohn-formeln"],
+body.theme-dark .admin-card-grid .admin-card img[src*="entwkat-lohn-engine"] {
+    filter: invert(1) hue-rotate(180deg) brightness(1.65) contrast(1.35);
+}
+.admin-card-grid .admin-card-title { font-size: 13px; }
+.admin-card-grid .admin-card-desc { display: none; }
+body:not(.theme-dark) .admin-card-grid .admin-card {
+    background: rgba(255,255,255,0.52);
+    border: 1px solid rgba(255,255,255,0.68);
+    box-shadow: 0 10px 30px rgba(60,55,48,0.10), inset 0 1px 1px rgba(255,255,255,0.8);
+}
+body:not(.theme-dark) .admin-card-grid .admin-card:hover {
+    background: rgba(255,255,255,0.78);
+    border-color: #3f3f3f;
+    box-shadow: 0 14px 34px rgba(60,55,48,0.18);
+}
+
+/* ── Abgeleitete (nicht klickbare) Checkbox-Pillen klar erkennbar (Walter 19.08.2026):
+   gestrichelter Rand wie die Doku-Chips + gedämpft — z.B. «Kirchensteuer aus
+   Konfession» im QST-Modal. Klickbare Pillen bleiben mit durchgezogenem Rand. ── */
+body:not(.theme-dark) #qstModal .qst-cb-ro {
+    background: rgba(60, 55, 48, 0.04) !important;
+    border: 1px dashed rgba(60, 55, 48, 0.30) !important;
+    color: #8b8578 !important;
+    box-shadow: none !important;
+    cursor: default !important;
+}
+#qstModal .qst-cb-ro input[type=checkbox] { opacity: 0.45; }
+body.theme-dark #qstModal .qst-cb-ro {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px dashed var(--dlg-glass-border) !important;
+    color: #94a3b8 !important;
+}
+
+/* ── Familien-Modal mit Dokumenten-Panel (Walter 20.08.2026) ─────────────
+   Beim Erfassen/Bearbeiten des Ehepartners (QST-Anmeldung, Ausweiskopie)
+   bzw. beim Neueintritt (Bewerbungsbogen) wird rechts ein Dokument des MA
+   angezeigt. Damit BEIDES nebeneinander Platz hat, wird die Erfassungsbox
+   schmaler, sobald das Panel offen ist (Klasse fam-docs-open auf #familyModal,
+   gesetzt in famLoadSpouseDocs). Auf schmalen Fenstern (<1000px) verschwindet
+   das Panel — die Erfassung hat Vorrang. */
+#familyModal.fam-docs-open .family-modal-box {
+    width: min(980px, 56vw);
+    flex-shrink: 0;
+}
+/* ── Dokumenten-Seitenpanels so gross wie der Bildschirm erlaubt (Walter
+   07.09.2026): gilt für ALLE Panels neben einer Erfassung — Ehepartner
+   (#fam-docpanel), Zulagen-Entscheid (#al-docpanel), Bewilligung
+   (#phf-docpanel), Tarifbestätigung (#qstBestDocPanel). Das Panel steht
+   IMMER RECHTS der Erfassung, nimmt die ganze Restbreite und die volle
+   Fensterhöhe; die Vorschau (iframe/Bild) füllt das Panel. */
+.side-docpanel {
+    flex: 1 1 auto !important;
+    min-width: 380px !important;
+    max-width: none !important;
+    height: calc(100vh - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
+    box-sizing: border-box;
+}
+.side-docview {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+}
+.side-docview iframe { width: 100% !important; height: 100% !important; min-height: 0 !important; border: none; }
+.side-docview img    { max-width: 100%; max-height: 100%; object-fit: contain; }
+#familyModal.fam-docs-open #fam-docpanel { display: flex; }
+@media (max-width: 1100px) {
+    #familyModal.fam-docs-open .family-modal-box { width: min(1280px, calc(100vw - 32px)); }
+    #familyModal.fam-docs-open #fam-docpanel { display: none !important; }
+}
+
+/* ── Familien-Modal kompakter (Walter 20.08.2026) ────────────────────────
+   Mit Arbeitgeber-Adresse + Stellenantritt muss die Maske ohne Scrollen
+   passen: engere Abstände, kleinere Paddings. */
+#familyModal .family-modal-head { padding: 14px 20px 10px; }
+#familyModal .family-modal-body { padding: 14px 20px; }
+#familyModal .family-modal-foot { padding: 10px 20px; }
+#familyModal .emp-section-title { margin-top: 12px !important; margin-bottom: 6px !important; }
+#familyModal .emp-field-grid,
+#familyModal .emp-field-grid-3 { gap: 8px 10px !important; margin-bottom: 8px !important; }
+#familyModal .fmf-field { gap: 3px; }
+#familyModal .fmf-input, #familyModal .fmf-select { padding: 6px 9px !important; }
+
+/* ── Familien-Modal: OHNE Scrollen (Walter 20.08.2026, Verschärfung) ─────
+   Alles noch enger: kleinere Feld-/Label-Grössen, flache Adress-Karten,
+   knappe Sektionsabstände. Ziel: Ehepartner-Maske inkl. Erwerbstätigkeit
+   passt komplett in 92vh. */
+#familyModal .family-modal-head { padding: 10px 20px 8px; }
+#familyModal .family-modal-body { padding: 10px 20px 12px; }
+#familyModal .family-modal-foot { padding: 8px 20px; }
+#familyModal .emp-section-title { margin-top: 8px !important; margin-bottom: 4px !important; font-size: 12.5px; }
+#familyModal .emp-field-grid,
+#familyModal .emp-field-grid-3 { gap: 6px 10px !important; margin-bottom: 6px !important; }
+#familyModal .fmf-field { gap: 2px; }
+#familyModal .fmf-label { font-size: 11px; }
+#familyModal .fmf-input, #familyModal .fmf-select { padding: 5px 8px !important; font-size: 12.5px; }
+#familyModal .fmf-checkbox-card { min-height: 20px !important; }
+#familyModal .fmf-addr-card { padding: 6px 8px !important; margin-bottom: 0 !important; }
+#familyModal .fmf-radio-row { padding: 3px 8px !important; margin: 0 !important; }
+#familyModal .fmf-radio-row * { font-size: 12px !important; line-height: 1.3 !important; }
+#familyModal .fmf-radio-hint, #familyModal .fmf-addr-alt-hint { font-size: 10.5px !important; }
+#familyModal .zst-pill { padding: 4px 10px; font-size: 12px; }
+
+/* Ehepartner-Maske ohne Scrollen (Walter 26.10.2026):
+   die drei Adressfragen nebeneinander, kurze Felder nur so breit wie der Inhalt. */
+#familyModal .fmf-addr-card {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    align-items: stretch;
+}
+#familyModal .fmf-addr-alt-box { grid-column: 1 / -1; }
+#familyModal .fmf-radio-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+#familyModal .fmf-radio-hint {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+#familyModal .fm-person-grid {
+    grid-template-columns: minmax(168px, 1.15fr) minmax(132px, 0.85fr) minmax(120px, 1fr) minmax(140px, 1.1fr) minmax(130px, 0.95fr) !important;
+}
+#familyModal #fmAufenthaltGrid {
+    grid-template-columns: 16ch minmax(180px, 0.9fr) minmax(280px, 1.7fr) !important;
+    align-items: end;
+}
+#familyModal .fm-bew-zeile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    height: 32px;
+}
+#familyModal #fmPermitStandText {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 650;
+    color: #3f3f3f;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+body.theme-dark #familyModal #fmPermitStandText { color: #f2f5f8; }
+#familyModal #fmPermitWechselBtn {
+    flex: 0 0 auto;
+    background: #3f3f3f;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+#familyModal #fmLivesInChField .fmf-checkbox-card { height: 32px; min-height: 32px; }
+#familyModal #fmSocialSecurity-status:empty { display: none; }
+#familyModal #fmPermitStatusBlock { margin-top: 4px; }
+#familyModal #fmPermitHistList { margin-top: 4px !important; }
+#familyModal .fm-ag-zeile {
+    display: grid;
+    grid-template-columns: minmax(160px, 1.15fr) minmax(180px, 1.4fr) 18ch;
+    gap: 6px 10px;
+    margin-bottom: 6px;
+}
+#familyModal .fm-ag-adr {
+    display: grid;
+    grid-template-columns: 6.6ch minmax(120px, 220px);
+    gap: 6px 8px;
+    justify-content: start;
+}
+#familyModal .fm-qst-erwerb {
+    display: grid;
+    grid-template-columns: 88px 152px 152px;
+    gap: 6px 10px;
+    justify-content: start;
+}
+#familyModal .fm-qst-erwerb .fmf-select,
+#familyModal .fm-qst-erwerb .lqsel-btn,
+#familyModal .fm-qst-erwerb .yp-field-wrap,
+#familyModal .fm-qst-erwerb .fmf-input {
+    width: 100%;
+    max-width: 100%;
+}
+#familyModal #fmPhone,
+#familyModal #fmArbeitgeberTelefon { max-width: 18ch; }
+#familyModal #fmSocialSecurity,
+#familyModal #fmZemisNumber { max-width: 18ch; }
+#familyModal .yp-field-wrap { max-width: 168px; }
+#familyModal #fmEinkommenRow .fmf-field {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+}
+#familyModal #fmEinkommenRow .fmf-label { margin: 0; flex: 1 1 240px; }
+#familyModal #fmEinkommenRow #fmEinkommenFamzHint { flex: 1 1 100%; }
+#familyModal #fmFamzPartnerFelder .emp-field-grid-3 {
+    grid-template-columns: 108px minmax(168px, 1fr) minmax(210px, 1.25fr) minmax(180px, 1.1fr) !important;
+}
+#familyModal #fmFamzPartnerFelder .fmf-label {
+    white-space: normal;
+    line-height: 1.25;
+}
+#familyModal .fmf-field .fmf-input,
+#familyModal .fmf-field .fmf-select,
+#familyModal .fmf-field .lqsel-btn,
+#familyModal .fmf-field .yp-field-wrap {
+    height: 32px;
+    min-height: 32px;
+    max-height: 32px;
+}
+#familyModal .fmf-field .yp-cal-btn { width: 30px; height: 30px; }
+#fmPermitStatusBlock > div:first-child,
+#fmErwerbStatusBlock > div:first-child { padding: 7px 10px !important; }
+
+/* ═══════════════ GESPRÄCHSMODUS BEWERBUNGSGESPRÄCH (Walter 03.09.2026) — js/gespraech.js ═══════════════ */
+.bgs-empty { padding: 26px; text-align: center; color: #6b6152; font-size: 13.5px; }
+.bgs-start { max-width: 1040px; }
+.bgs-hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+    padding: 22px 26px; border-radius: 20px; margin-bottom: 20px;
+    background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+    border: 1px solid rgba(255,255,255,0.62); box-shadow: 0 18px 50px rgba(60,55,48,0.14); }
+.bgs-hero-title { font-size: 22px; font-weight: 800; color: #3f3f3f; letter-spacing: -.01em; }
+.bgs-hero-sub { font-size: 13px; color: #6b6152; margin-top: 4px; max-width: 620px; line-height: 1.5; }
+.bgs-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #8b8b8b; margin: 6px 0 8px; }
+.bgs-list-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    padding: 12px 16px; margin-bottom: 8px; border-radius: 14px;
+    background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.72); box-shadow: 0 2px 10px rgba(60,55,48,0.08); }
+.bgs-list-done { background: rgba(255,255,255,0.35); }
+.bgs-list-name { font-size: 15px; font-weight: 700; color: #3f3f3f; display: flex; gap: 8px; align-items: center; }
+.bgs-list-meta { font-size: 12px; color: #6b6152; margin-top: 2px; }
+.bgs-list-actions { display: flex; gap: 8px; }
+.bgs-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+
+.bgs-btn { padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid rgba(60,55,48,0.20); background: rgba(255,255,255,0.55); color: #3f3f3f;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+.bgs-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.8); }
+.bgs-btn:disabled { opacity: .45; cursor: default; transform: none; }
+.bgs-btn-primary { background: #3f3f3f; color: #fff; border-color: #3f3f3f; box-shadow: 0 6px 18px rgba(60,55,48,0.22); }
+.bgs-btn-primary:hover { background: #1a1a1a; }
+.bgs-btn-ghost { background: transparent; }
+.bgs-btn-big { font-size: 16px; padding: 14px 24px; border-radius: 16px; }
+
+.bgs-wrap { display: flex; gap: 20px; align-items: flex-start; min-height: 70vh; }
+.bgs-rail { width: 250px; flex: 0 0 250px; position: sticky; top: 8px; border-radius: 18px; padding: 14px 12px;
+    background: rgba(255,255,255,0.42); border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 10px 30px rgba(60,55,48,0.10);
+    max-height: calc(100vh - 40px); overflow-y: auto; }
+.bgs-rail-head { padding: 4px 6px 10px; border-bottom: 1px solid rgba(60,55,48,0.12); margin-bottom: 8px; }
+.bgs-rail-name { font-size: 15px; font-weight: 800; color: #3f3f3f; }
+.bgs-rail-meta { font-size: 11.5px; color: #8b8b8b; margin-top: 2px; }
+.bgs-state { font-size: 11.5px; margin-top: 6px; font-weight: 600; color: #8b8b8b; }
+.bgs-state-saved { color: #166534; }
+.bgs-state-saving { color: #6b7280; }
+.bgs-state-dirty { color: #92400e; }
+.bgs-state-offline { color: #991b1b; }
+.bgs-rail-teil { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #8b8b8b; margin: 10px 6px 4px; }
+.bgs-rail-step { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 6px 6px; border-radius: 10px;
+    border: none; background: transparent; color: #646464; font-size: 12.5px; cursor: pointer; }
+.bgs-rail-step:hover { background: rgba(255,255,255,0.6); }
+.bgs-rail-step.cur { background: rgba(255,255,255,0.85); color: #1a1a1a; font-weight: 700; box-shadow: 0 2px 8px rgba(60,55,48,0.10); }
+.bgs-dot { width: 20px; height: 20px; border-radius: 50%; flex: 0 0 20px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10.5px; font-weight: 700; background: rgba(60,55,48,0.10); color: #6b6152; }
+.bgs-rail-step.done .bgs-dot { background: #dcfce7; color: #166534; }
+.bgs-rail-step.cur .bgs-dot { background: #3f3f3f; color: #fff; }
+.bgs-rail-foot { display: flex; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(60,55,48,0.12); }
+
+.bgs-main { flex: 1; min-width: 0; }
+.bgs-card { max-width: 820px; margin: 0 auto; padding: 28px 32px 22px; border-radius: 22px;
+    background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+    border: 1px solid rgba(255,255,255,0.62); box-shadow: 0 22px 60px rgba(60,55,48,0.16); }
+.bgs-kicker { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: #8b8b8b; }
+.bgs-title { font-size: 26px; font-weight: 800; color: #1a1a1a; margin: 6px 0 4px; letter-spacing: -.01em; }
+.bgs-hint { font-size: 13px; color: #6b6152; margin: 0 0 6px; line-height: 1.5; }
+.bgs-fields { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; }
+.bgs-field { display: flex; flex-direction: column; gap: 5px; }
+.bgs-label { font-size: 13px; font-weight: 600; color: #3f3f3f; }
+.bgs-fhint { font-size: 11.5px; color: #8b8b8b; min-height: 1em; }
+.bgs-input { width: 100%; box-sizing: border-box; padding: 11px 14px; font-size: 16px; color: #1a1a1a;
+    background: #fff; border: 1px solid rgba(255,255,255,0.95); border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9); outline: none; }
+.bgs-input:focus { box-shadow: 0 0 0 3px rgba(63,63,63,0.18), 0 2px 6px rgba(60,55,48,0.13); }
+.bgs-input-short { max-width: 240px; }
+.bgs-jugend { background: #fff7ed; border: 1.5px solid #f59e0b; color: #7c2d12; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.bgs-field .bgs-jugend { margin: 8px 0 0; }
+.bgs-full .bgs-jugend { font-size: 17px; }
+body.theme-dark .bgs-jugend { background: rgba(245,158,11,0.15); color: #fcd34d; }
+.bgs-field .yp-field-wrap { max-width: 280px; width: 100%; }
+.bgs-alter-heute { margin-top: 6px; font-size: 15px; font-weight: 700; color: #3f3f3f; }
+.bgs-full .bgs-alter-heute { font-size: 17px; }
+body.theme-dark .bgs-alter-heute { color: #e7e5e4; }
+.bgs-full input[type="date"]::-webkit-calendar-picker-indicator { display: none; -webkit-appearance: none; }
+.bgs-input-error { border-color: #b91c1c !important; box-shadow: 0 0 0 3px rgba(185,28,28,.18) !important; }
+.bgs-input-mono { font-family: ui-monospace, Menlo, monospace; letter-spacing: .04em; max-width: 340px; }
+.bgs-input-time { padding: 7px 8px; font-size: 14px; max-width: 130px; }
+.bgs-textarea { min-height: 84px; resize: vertical; font-family: inherit; }
+.bgs-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.bgs-opt { padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: transparent; border: 1.5px solid rgba(60,55,48,0.22); color: #3f3f3f; transition: all .12s ease; }
+.bgs-opt:hover { background: rgba(255,255,255,0.55); }
+.bgs-opt.on { background: #3f3f3f; color: #fff; border-color: #3f3f3f; box-shadow: 0 4px 12px rgba(60,55,48,0.22); }
+.bgs-opt:disabled { opacity: .6; cursor: default; }
+.bgs-yn { min-width: 84px; }
+.bgs-nav { display: flex; gap: 10px; align-items: center; margin-top: 22px; padding-top: 14px; border-top: 1px solid rgba(60,55,48,0.12); flex-wrap: wrap; }
+.bgs-gate { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.45); }
+.bgs-gate-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; color: #6b6152; }
+.bgs-gate-row b { color: #1a1a1a; text-align: right; }
+.bgs-bedingungen { margin: 0 0 6px; padding-left: 18px; font-size: 13px; color: #3f3f3f; line-height: 1.55; }
+.bgs-bedingungen li { margin-bottom: 4px; }
+.bgs-summary { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,0.5); margin-bottom: 6px; }
+.bgs-sum-row { display: grid; grid-template-columns: 160px 1fr; gap: 10px; font-size: 13px; padding: 4px 0; border-bottom: 1px solid rgba(60,55,48,0.08); }
+.bgs-sum-row span { color: #8b8b8b; }
+.bgs-sum-row b { color: #1a1a1a; font-weight: 600; word-break: break-word; }
+.bgs-verf { border-collapse: collapse; font-size: 13.5px; }
+.bgs-verf th { font-size: 11px; text-transform: uppercase; color: #8b8b8b; text-align: left; padding: 2px 8px; }
+.bgs-verf td { padding: 4px 8px; color: #3f3f3f; }
+.bgs-verf td:first-child { font-weight: 600; min-width: 96px; }
+.bgs-kinder { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+.bgs-kinder th { font-size: 11px; text-transform: uppercase; color: #8b8b8b; text-align: left; padding: 2px 6px; }
+.bgs-kinder td { padding: 3px 4px; }
+.bgs-kinder .bgs-input { padding: 7px 9px; font-size: 13.5px; }
+.bgs-sig-wrap { position: relative; background: #fff; border-radius: 12px; border: 1px dashed rgba(60,55,48,0.35); overflow: hidden; }
+.bgs-sig { width: 100%; height: 180px; display: block; touch-action: none; cursor: crosshair; }
+.bgs-sig-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.bgs-sig-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; }
+.bgs-dub { padding: 10px 14px; border-radius: 12px; background: #fef3c7; border: 1px solid #fde68a; color: #92400e; font-size: 13px; margin-bottom: 4px; }
+.bgs-dub-title { font-weight: 800; margin-bottom: 4px; }
+.bgs-dub-row { margin-top: 3px; }
+.bgs-locked .bgs-card { opacity: .92; }
+@media (max-width: 900px) {
+    .bgs-wrap { flex-direction: column; }
+    .bgs-rail { width: auto; flex: none; position: static; max-height: none; }
+    .bgs-card { padding: 20px 18px; }
+    .bgs-title { font-size: 22px; }
+}
+body.theme-dark .bgs-card, body.theme-dark .bgs-hero { background: linear-gradient(165deg, #2b2b2b, #232323); border-color: rgba(255,255,255,0.08); }
+body.theme-dark .bgs-title, body.theme-dark .bgs-hero-title, body.theme-dark .bgs-label, body.theme-dark .bgs-sum-row b, body.theme-dark .bgs-gate-row b { color: #f1f1f1; }
+body.theme-dark .bgs-input { background: #1b1b1b; color: #f1f1f1; border-color: rgba(255,255,255,0.1); }
+body.theme-dark .bgs-opt { color: #e5e5e5; border-color: rgba(255,255,255,0.25); }
+body.theme-dark .bgs-rail, body.theme-dark .bgs-list-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+body.theme-dark .bgs-rail-step.cur { background: rgba(255,255,255,0.14); color: #fff; }
+body.theme-dark .bgs-rail-name, body.theme-dark .bgs-list-name { color: #f1f1f1; }
+
+/* ── Vollbild-Modus (Walter 03.09.2026): Gespräch am Tisch, grosse Schrift ── */
+body.bgs-fullscreen { overflow: hidden; }
+.bgs-full { position: fixed; inset: 0; z-index: 9000; display: flex; flex-direction: column;
+    background: linear-gradient(165deg, #f4f2ec 0%, #ebe8df 60%, #e3e0d5 100%); }
+.bgs-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 22px;
+    background: rgba(255,255,255,0.55); border-bottom: 1px solid rgba(60,55,48,0.12); backdrop-filter: blur(18px); }
+.bgs-top-left, .bgs-top-right { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; }
+.bgs-top-mid { flex: 1; min-width: 0; text-align: center; }
+.bgs-top-name { font-size: 18px; font-weight: 800; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bgs-top-branch { font-weight: 500; color: #8b8b8b; }
+.bgs-top-sub { font-size: 13px; color: #6b6152; margin-top: 1px; }
+.bgs-top-sub .bgs-state { display: inline; margin: 0; }
+.bgs-topbar .bgs-btn { font-size: 15px; padding: 10px 16px; }
+.bgs-progress { height: 5px; background: rgba(60,55,48,0.10); }
+.bgs-progress-bar { height: 100%; background: #3f3f3f; transition: width .3s ease; }
+.bgs-body { display: flex; flex: 1; min-height: 0; }
+.bgs-full .bgs-rail { position: static; flex: 0 0 300px; width: 300px; max-height: none; overflow-y: auto; border-radius: 0;
+    border: none; border-right: 1px solid rgba(60,55,48,0.12); box-shadow: none; background: rgba(255,255,255,0.35); padding: 16px 12px 30px; }
+.bgs-full .bgs-rail-head { display: block; }
+.bgs-full .bgs-rail-name { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #8b8b8b; }
+.bgs-full .bgs-rail-meta { font-size: 15px; font-weight: 700; color: #3f3f3f; margin-top: 2px; }
+.bgs-full .bgs-rail-step { font-size: 15px; padding: 9px 8px; }
+.bgs-full .bgs-dot { width: 24px; height: 24px; flex-basis: 24px; font-size: 12px; }
+/* Kein Scrollen auf Frage-Bildschirmen: main ist der Rahmen, die Karte wird
+   per JS (bgsFitCard, CSS zoom) eingepasst, wenn sie nicht hineinpasst. */
+.bgs-full .bgs-main { flex: 1; min-width: 0; overflow: hidden; padding: 18px 26px 18px; display: flex; align-items: stretch; justify-content: center; }
+.bgs-full .bgs-card { width: 100%; max-width: 1240px; height: 100%; max-height: 100%; min-height: 0; padding: 30px 46px 20px; border-radius: 26px; box-sizing: border-box; display: flex; flex-direction: column; }
+.bgs-full .bgs-card-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.bgs-full .bgs-title { font-size: 38px; margin: 0 0 6px; }
+.bgs-full .bgs-hint { font-size: 18px; line-height: 1.4; }
+.bgs-full .bgs-fields { margin-top: 18px; gap: 18px; }
+.bgs-full .bgs-field { gap: 8px; }
+.bgs-full .bgs-label { font-size: 21px; font-weight: 700; }
+.bgs-full .bgs-fhint { font-size: 15px; }
+.bgs-full .bgs-input { font-size: 24px; padding: 13px 18px; border-radius: 16px; }
+.bgs-full .bgs-input-short { max-width: 340px; }
+.bgs-full .bgs-input-mono { max-width: 520px; }
+.bgs-full .bgs-input-time { font-size: 20px; padding: 7px 10px; max-width: 160px; }
+.bgs-full .bgs-textarea { min-height: 96px; }
+.bgs-full .bgs-opts { gap: 10px; }
+.bgs-full .bgs-opt { font-size: 21px; padding: 12px 26px; }
+.bgs-full .bgs-yn { min-width: 130px; }
+.bgs-full .bgs-nav { margin-top: 0; padding-top: 16px; flex: 0 0 auto; min-height: 68px; align-items: center; }
+.bgs-full .bgs-nav .bgs-btn { font-size: 19px; padding: 12px 24px; border-radius: 16px; }
+.bgs-full .bgs-verf td { padding: 2px 8px; }
+.bgs-full .bgs-verf .bgs-btn { padding: 4px 10px; font-size: 14px; }
+.bgs-full .bgs-gate-row, .bgs-full .bgs-sum-row { font-size: 18px; }
+.bgs-full .bgs-sum-row { grid-template-columns: 220px 1fr; padding: 6px 0; }
+.bgs-full .bgs-bedingungen { font-size: 19px; line-height: 1.5; }
+.bgs-full .bgs-verf { font-size: 20px; }
+.bgs-full .bgs-verf td:first-child { min-width: 150px; }
+.bgs-full .bgs-verf th { font-size: 13px; }
+.bgs-full .bgs-kinder { font-size: 17px; }
+.bgs-full .bgs-kinder .bgs-input { font-size: 18px; padding: 9px 11px; }
+.bgs-full .bgs-sig { height: 260px; }
+.bgs-full .bgs-dub { font-size: 17px; padding: 14px 18px; }
+.bgs-full .bgs-dub-title { font-size: 19px; }
+@media (max-width: 900px) {
+    .bgs-topbar { flex-wrap: wrap; padding: 10px 12px; }
+    .bgs-top-mid { order: 3; flex-basis: 100%; }
+    .bgs-full .bgs-card { padding: 22px 18px; border-radius: 18px; }
+    .bgs-full .bgs-title { font-size: 30px; }
+    .bgs-full .bgs-label { font-size: 18px; }
+    .bgs-full .bgs-input { font-size: 20px; padding: 12px 14px; }
+    .bgs-full .bgs-opt { font-size: 18px; padding: 11px 18px; }
+    .bgs-body { flex-direction: column; }
+    .bgs-full .bgs-rail { flex: none; width: auto; max-height: 34vh; border-right: none; border-bottom: 1px solid rgba(60,55,48,0.12); }
+}
+body.theme-dark .bgs-full { background: linear-gradient(165deg, #232323, #1b1b1b); }
+body.theme-dark .bgs-topbar { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+body.theme-dark .bgs-top-name { color: #f1f1f1; }
+body.theme-dark .bgs-full .bgs-rail { background: #262626; }
+

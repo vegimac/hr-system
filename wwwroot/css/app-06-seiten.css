@@ -1,0 +1,1416 @@
+        /* Dark: Stempelzeiten mit dlg-Tokens */
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-filter-row,
+        body.theme-dark #page-mitarbeiter.liquid-employee #stempelFilterRow.stempel-filter-row {
+            background: #161e2a !important;
+            box-shadow: inset 0 -1px 0 var(--dlg-glass-border) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-period-sel {
+            background-color: var(--dlg-fill-field) !important;
+            background-image:
+                linear-gradient(var(--dlg-fill-field), var(--dlg-fill-field)),
+                var(--dlg-rim-soft) !important;
+            color: var(--dlg-text-strong) !important;
+            box-shadow: none !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-filter-row .lqsel-btn {
+            background: var(--dlg-fill-field) !important;
+            border: 1.5px solid rgba(150, 200, 255, 0.35) !important;
+            color: var(--dlg-text-strong) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-filter-row .lqsel-btn:hover {
+            border-color: rgba(150, 200, 255, 0.55) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-filter-row .lqsel-chev {
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-period-label {
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-count {
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-loading,
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-empty {
+            color: var(--dlg-text-muted);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-table-card {
+            background-color: var(--dlg-fill) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
+            box-shadow: var(--dlg-shadow) !important;
+            overflow: hidden !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-cols {
+            background: #1c2634 !important;
+            border-bottom-color: rgba(150, 200, 255, 0.14) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-th {
+            background: #1c2634 !important;
+            color: var(--dlg-text-soft) !important;
+            box-shadow: none !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-td {
+            border-top-color: rgba(165, 215, 255, 0.10);
+            color: var(--dlg-text);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-row:hover .stempel-td {
+            background: rgba(125, 160, 205, 0.10) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-row-week-end .stempel-td {
+            border-bottom-color: rgba(165, 215, 255, 0.18);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-td-date,
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-td-comment {
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-td-total {
+            color: var(--dlg-text-strong);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-night { color: var(--dlg-text-soft); }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-night-zero { color: var(--dlg-text-muted); }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-week-badge {
+            background: rgba(80, 140, 210, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(165, 215, 255, 0.14);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-week-kw { color: var(--dlg-text-muted); }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-week-hrs { color: var(--dlg-text-strong); }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-week-hrs.over { color: #fbbf24; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-time-edited { color: #fbbf24 !important; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-orig-row td,
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-orig-row .stempel-td {
+            background: rgba(120, 80, 20, 0.34) !important;
+            border-top-color: rgba(252, 211, 77, 0.32) !important;
+            color: #fcd34d !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-orig-time {
+            color: #fcd34d !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-ft {
+            background: rgba(80, 140, 210, 0.10) !important;
+            border-top-color: var(--dlg-glass-border);
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .stempel-ft-total {
+            color: var(--dlg-text-strong);
+        }
+
+        /* Datumsfeld tippbar + Kalender-Button daneben (Walter 27.07.2026).
+           Klick aufs Feld = Tippen; 📅 öffnet das Jahresmenü. */
+        .yp-field-wrap {
+            display: flex;
+            align-items: stretch;
+            gap: 6px;
+            width: 100%;
+            min-width: 0;
+        }
+        .yp-field-wrap > input[type="date"],
+        .yp-field-wrap > input.yp-text,
+        .yp-field-wrap > input[data-chdate],
+        .yp-field-wrap > input[data-yp] {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .yp-cal-btn {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            min-height: 36px;
+            padding: 0;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.62);
+            background: rgba(255,255,255,.55);
+            color: #646464;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(72,63,53,.08), inset 0 1px 0 rgba(255,255,255,.62);
+        }
+        .yp-cal-btn:hover {
+            background: rgba(255,255,255,.72);
+            color: #3f3f3f;
+            transform: translateY(-1px);
+        }
+        body.theme-dark .yp-cal-btn {
+            background: rgba(255,255,255,.06);
+            border-color: rgba(255,255,255,.12);
+            color: #cbd5e1;
+        }
+        /* Kompaktes Jahres-/Monats-Datumsmenü (Walter 26.07.2026):
+           Chrome-ähnlich klein, öffnet sofort die Jahresliste mit Vorjahr
+           (2025) sichtbar oberhalb des aktuellen Jahres (2026). */
+        .yp-menu {
+            position: fixed;
+            z-index: 10050;
+            width: 200px;
+            max-width: calc(100vw - 16px);
+            background: #fff;
+            border: 1px solid #d8d1c4;
+            border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(60, 55, 48, 0.14);
+            padding: 4px 4px 2px;
+            display: none;
+            color: #3f3f3f;
+            font-family: inherit;
+        }
+        .yp-menu-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            margin-bottom: 2px;
+            padding: 0 1px 1px;
+        }
+        .yp-menu-title, .yp-back {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #1a1a1a;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 1px 0;
+        }
+        .yp-back:hover { color: #3f3f3f; }
+        .yp-menu-close {
+            width: 20px; height: 20px;
+            border-radius: 5px;
+            border: 1px solid #e2ddd3;
+            background: #fff;
+            color: #8b8b8b;
+            cursor: pointer;
+            font-size: 11px;
+            line-height: 1;
+        }
+        .yp-menu-close:hover { background: #f6f3ee; color: #3f3f3f; }
+        .yp-year-list {
+            overflow-y: auto;
+            max-height: 200px;
+            border-radius: 5px;
+            border: 1px solid #efeae2;
+        }
+        .yp-year-row {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 5px 8px;
+            border: none;
+            border-bottom: 1px solid #f0ebe3;
+            border-radius: 0;
+            background: #f5f3ef;
+            color: #3f3f3f;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .yp-year-row:hover { background: #ebe7df; }
+        .yp-year-row.is-open {
+            background: #ebe7df;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        .yp-year-row.is-prev { color: #1a1a1a; }
+        .yp-months {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            padding: 4px 4px 5px;
+            background: #fff;
+            border-bottom: 1px solid #f0ebe3;
+        }
+        .yp-month {
+            padding: 5px 1px;
+            border-radius: 5px;
+            border: none;
+            background: transparent;
+            color: #3f3f3f;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .yp-month:hover { background: #f6f3ee; }
+        .yp-month.is-active {
+            background: #3f3f3f;
+            color: #fff;
+        }
+        .yp-dow {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            margin-bottom: 1px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #8b8b8b;
+        }
+        .yp-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+        }
+        .yp-day {
+            height: 24px;
+            border: none;
+            border-radius: 5px;
+            background: transparent;
+            color: #3f3f3f;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .yp-day.is-empty { cursor: default; }
+        .yp-day:not(.is-empty):hover { background: #f6f3ee; }
+        .yp-day.is-today { box-shadow: inset 0 0 0 1px #cbd5e1; }
+        .yp-day.is-active {
+            background: #3f3f3f;
+            color: #fff;
+        }
+        .yp-menu-foot {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 2px;
+            padding: 1px 1px 0;
+        }
+        .yp-link {
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 3px 2px;
+        }
+        .yp-link:hover { color: #1a1a1a; }
+        body.theme-dark .yp-menu {
+            background: #1e2430;
+            border-color: var(--dlg-glass-border, #334155);
+            color: #e2e8f0;
+        }
+        body.theme-dark .yp-menu-title,
+        body.theme-dark .yp-back { color: #f1f5f9; }
+        body.theme-dark .yp-year-list { border-color: var(--dlg-glass-border, #334155); }
+        body.theme-dark .yp-year-row {
+            background: rgba(255,255,255,0.04);
+            border-bottom-color: var(--dlg-glass-border, #334155);
+            color: #e2e8f0;
+        }
+        body.theme-dark .yp-year-row:hover,
+        body.theme-dark .yp-year-row.is-open { background: rgba(255,255,255,0.08); }
+        body.theme-dark .yp-months {
+            background: #1e2430;
+            border-bottom-color: var(--dlg-glass-border, #334155);
+        }
+        body.theme-dark .yp-month:hover,
+        body.theme-dark .yp-day:not(.is-empty):hover { background: rgba(255,255,255,0.06); }
+        body.theme-dark .yp-menu-close {
+            background: rgba(255,255,255,0.04);
+            border-color: var(--dlg-glass-border, #334155);
+            color: #94a3b8;
+        }
+
+        /* Sticky-Kopfzeile für lange Detail-/Tab-Ansichten (Walter-Vorgabe
+           15.05.2026): Titel + Aktions-Buttons (Speichern, Übertragen …)
+           bleiben beim Scrollen oben sichtbar — nie Buttons, die wegscrollen.
+           Auf die Kopfzeile mit den Aktions-Buttons anwenden; der scrollende
+           Container ist .emp-detail-body. */
+        .sticky-section-head {
+            position: sticky; top: 0; z-index: 5;
+            background: #fff;
+            box-shadow: 0 2px 4px -2px rgba(0, 0, 0, 0.10);
+        }
+        body.theme-dark .sticky-section-head {
+            background: rgba(26, 36, 51, 0.88) !important;
+            border-bottom: 1px solid var(--dlg-glass-border);
+            backdrop-filter: blur(18px) saturate(130%);
+            -webkit-backdrop-filter: blur(18px) saturate(130%);
+        }
+
+        /* Sticky-Kopfbereich für Voll-Seiten mit Liste darunter (Import-
+           Seiten etc., Walter-Vorgabe 15.05.2026): Titel + Eingaben +
+           Aktions-Buttons bleiben oben fix, nur die Ergebnis-Liste darunter
+           scrollt. Scroll-Container ist .main. */
+        .sticky-page-head {
+            position: sticky; top: 0; z-index: 10;
+            background: #f8fafc;
+            padding-bottom: 6px;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.18);
+        }
+        body.theme-dark .sticky-page-head {
+            background: rgba(26, 36, 51, 0.90) !important;
+            border-bottom: 1px solid var(--dlg-glass-border);
+            backdrop-filter: blur(18px) saturate(130%);
+            -webkit-backdrop-filter: blur(18px) saturate(130%);
+        }
+        /* Benutzerverwaltung: Kopf fix, NUR die Liste scrollt (Walter 22.07.2026).
+           position:sticky griff hier nicht zuverlässig → robusteres Muster:
+           Seite als Flex-Spalte, page-body ist der eigene Scroll-Container. */
+        /* Generisch als Klasse (Walter 22.07.2026): .page.fixhead — Seite als
+           Flex-Spalte, page-head (+ alles VOR page-body) bleibt fix, NUR
+           page-body scrollt intern. Toolbars, die im page-body liegen und
+           mitfixiert werden sollen, bekommen .sticky-section-head (sticky
+           innerhalb des scrollenden page-body — das greift dort zuverlässig). */
+        /* !important auf flex: die Regel `.main > .page.liquid-mask.active
+           { flex: 1 0 auto }` (Z.~2065) hat 4-Klassen-Spezifität und gewann
+           sonst — Seite konnte nicht schrumpfen, .main scrollte samt Titel
+           (Walter-Bug 22.07.2026, Benutzerverwaltung). */
+        .page.fixhead.active { display: flex !important; flex-direction: column; flex: 1 1 auto !important; min-height: 0; }
+        .page.fixhead .sticky-page-head { position: static; background: transparent !important; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom: none; }
+        .page.fixhead .page-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+        /* KEIN padding-top am scrollenden page-body (Walter-Bug 22.07.2026:
+           Daten scrollten im Padding-Streifen SICHTBAR ÜBER die klebende
+           Kopfzeile — sticky pinnt erst unterhalb des Paddings). Auch KEIN
+           Ersatz-Spacer: jeder Abstand über dem klebenden Element wäre
+           Anlauf-Weg → die Kopfzeile «hüpft» beim Andocken (Walter-Feedback
+           22.07.2026 v2). Inhalt startet bündig an der Pinn-Position. */
+        .page.fixhead .page-body { padding-top: 0 !important; }
+        /* Seiten mit .page-header (statt page-head): Header bekommt beim
+           fixhead-Wrap einen zum page-body passenden Innenabstand. */
+        .page.fixhead > .page-header,
+        .page.fixhead .fh-page-head > .page-header { padding: 20px 32px 0; }
+        /* Toolbars im scrollenden page-body (.sticky-section-head) — auf den
+           Liquid-Seiten warmes Halbtransparent statt hartem Weiss. */
+        .page.fixhead .page-body > .sticky-section-head {
+            background: rgba(246, 243, 238, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding-top: 6px;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.12);
+        }
+        /* GENERISCH (Walter-Vorgabe 22.07.2026: «Titel sind Titel — auch die
+           Spaltentitel bleiben stehen»): auf ALLEN fixhead-Seiten kleben die
+           Tabellen-Kopfzeilen beim Scrollen oben — unterhalb einer allfällig
+           mitklebenden Filter-Toolbar (Versatz --ssh wird in app-core.js
+           gemessen). Overflow-Wrapper um die Tabellen brechen sticky und sind
+           auf den betroffenen Seiten entfernt. */
+        .page.fixhead .page-body table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .page.fixhead .page-body table thead th {
+            position: sticky; top: var(--ssh, 0px); z-index: 4;
+            background: #f1f5f9 !important;
+            box-shadow: 0 1px 0 #e2e8f0;
+        }
+        body.theme-dark .page.fixhead .page-body table thead th {
+            background: #2a3446 !important;
+            box-shadow: 0 1px 0 var(--dlg-glass-border);
+        }
+        /* Fluktuation-Report: Spaltentitel kleben unter der Filter-Toolbar
+           (Walter 26.07.2026) — kein overflow-x-Wrapper um die Tabelle
+           (bricht sticky). Warmton statt Standard-Blau-Grau. */
+        #page-fluktuation-report.page.fixhead .page-body table.fluk-table thead th {
+            position: sticky !important;
+            top: var(--ssh, 0px) !important;
+            z-index: 5;
+            background: #efeae2 !important;
+            box-shadow: 0 1px 0 #d8d1c4;
+            text-transform: uppercase;
+            font-size: 10.5px !important;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+            color: #475569;
+        }
+        body.theme-dark #page-fluktuation-report.page.fixhead .page-body table.fluk-table thead th {
+            background: #2a3446 !important;
+            box-shadow: 0 1px 0 var(--dlg-glass-border);
+            color: #94a3b8;
+        }
+
+        /* Austritts-Feedback: eine Zeile pro Antwort (Walter 26.07.2026).
+           Gründe-Spalte schrumpft auf max. Inhaltsbreite (width:1% + nowrap),
+           Bemerkung liegt direkt rechts davon. */
+        #page-exit-survey-report .es-kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        #page-exit-survey-report .es-kpi {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
+            padding: 14px 16px;
+        }
+        #page-exit-survey-report .es-kpi-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #8b8b8b;
+        }
+        #page-exit-survey-report .es-kpi-value {
+            font-size: 26px;
+            font-weight: 760;
+            color: #1a1a1a;
+            margin-top: 4px;
+            letter-spacing: -0.02em;
+        }
+        #page-exit-survey-report .es-kpi-hint {
+            font-size: 11.5px;
+            color: #8b8b8b;
+            margin-top: 4px;
+        }
+        #page-exit-survey-report .es-empty {
+            padding: 28px 18px;
+            text-align: center;
+            color: #8b8b8b;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid #e7e1d8;
+            border-radius: 14px;
+            line-height: 1.5;
+        }
+        #page-exit-survey-report .es-empty span { font-size: 12.5px; }
+        #page-exit-survey-report .es-table-card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid #e7e1d8;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
+            padding: 4px 0 2px;
+        }
+        #page-exit-survey-report .es-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: auto;
+            font-size: 13px;
+        }
+        #page-exit-survey-report.page.fixhead .page-body table.es-table thead th {
+            position: sticky;
+            top: var(--ssh, 0px);
+            z-index: 5;
+            background: #efeae2 !important;
+            box-shadow: 0 1px 0 #d8d1c4;
+            text-transform: uppercase;
+            font-size: 10.5px !important;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+            color: #475569;
+            text-align: left;
+            padding: 10px 14px;
+            white-space: nowrap;
+        }
+        #page-exit-survey-report.page.fixhead .page-body table.es-table thead th.es-th-note {
+            text-align: center;
+        }
+        body.theme-dark #page-exit-survey-report.page.fixhead .page-body table.es-table thead th {
+            background: #2a3446 !important;
+            box-shadow: 0 1px 0 var(--dlg-glass-border);
+            color: #94a3b8;
+        }
+        #page-exit-survey-report .es-table tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f0ebe3;
+            color: #3f3f3f;
+            vertical-align: top;
+            background: transparent;
+        }
+        #page-exit-survey-report .es-table tbody tr:last-child td { border-bottom: none; }
+        #page-exit-survey-report .es-table tbody tr:hover td { background: rgba(246, 243, 238, 0.65); }
+        #page-exit-survey-report .es-td-date {
+            white-space: nowrap;
+            color: #646464;
+            font-variant-numeric: tabular-nums;
+        }
+        #page-exit-survey-report .es-td-filiale {
+            white-space: nowrap;
+            font-weight: 650;
+            color: #1a1a1a;
+        }
+        #page-exit-survey-report .es-td-note {
+            text-align: center;
+            white-space: nowrap;
+            width: 1%;
+        }
+        #page-exit-survey-report .es-note {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 0 8px;
+            border-radius: 9px;
+            background: #3f3f3f;
+            color: #fff;
+            font-weight: 760;
+            font-size: 13px;
+            font-variant-numeric: tabular-nums;
+        }
+        /* Max. Breite aller Gründe: Spalte so schmal wie möglich, so breit wie nötig */
+        #page-exit-survey-report .es-td-gruende {
+            width: 1%;
+            white-space: nowrap;
+            padding-right: 22px;
+        }
+        #page-exit-survey-report .es-reason {
+            line-height: 1.45;
+            color: #1a1a1a;
+            font-weight: 550;
+        }
+        #page-exit-survey-report .es-reason + .es-reason { margin-top: 3px; }
+        #page-exit-survey-report .es-td-bemerkung {
+            width: auto;
+            line-height: 1.5;
+            color: #3f3f3f;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        #page-exit-survey-report .es-muted { color: #8b8b8b; }
+        #page-exit-survey-report .es-foot {
+            font-size: 11.5px;
+            color: #8b8b8b;
+            margin-top: 12px;
+        }
+        body.theme-dark #page-exit-survey-report .es-kpi,
+        body.theme-dark #page-exit-survey-report .es-table-card,
+        body.theme-dark #page-exit-survey-report .es-empty {
+            background: var(--dlg-glass);
+            border-color: var(--dlg-glass-border);
+            box-shadow: none;
+        }
+        body.theme-dark #page-exit-survey-report .es-kpi-value,
+        body.theme-dark #page-exit-survey-report .es-td-filiale,
+        body.theme-dark #page-exit-survey-report .es-reason { color: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-table tbody td {
+            border-bottom-color: var(--dlg-glass-border);
+            color: #c9c4bb;
+        }
+        body.theme-dark #page-exit-survey-report .es-table tbody tr:hover td {
+            background: rgba(125, 160, 205, 0.08);
+        }
+        body.theme-dark #page-exit-survey-report .es-note {
+            background: #e8e6e1;
+            color: #1a1a1a;
+        }
+        @media (max-width: 860px) {
+            #page-exit-survey-report .es-kpi-row { grid-template-columns: 1fr; }
+            #page-exit-survey-report .es-td-gruende { white-space: normal; width: auto; }
+        }
+
+        /* Austritts-Feedback Insights (Walter 26.07.2026) — Ø Note, Gründe %, Themen, Trend */
+        #page-exit-survey-report .es-insights {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        #page-exit-survey-report .es-insight-card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid #e7e1d8;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
+            padding: 18px 20px 16px;
+        }
+        #page-exit-survey-report .es-insight-q,
+        #page-exit-survey-report .es-insight-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            letter-spacing: -0.01em;
+            margin: 0 0 14px;
+        }
+        #page-exit-survey-report .es-insight-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        #page-exit-survey-report .es-insight-title-row .es-insight-title { margin: 0; }
+        #page-exit-survey-report .es-insight-rating-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+        #page-exit-survey-report .es-avg-num {
+            font-size: 42px;
+            font-weight: 760;
+            letter-spacing: -0.03em;
+            color: #1a1a1a;
+            line-height: 1;
+        }
+        #page-exit-survey-report .es-avg-of {
+            font-size: 16px;
+            font-weight: 600;
+            color: #646464;
+            margin-left: 6px;
+        }
+        #page-exit-survey-report .es-avg-label {
+            margin-top: 6px;
+            font-size: 12.5px;
+            color: #8b8b8b;
+        }
+        #page-exit-survey-report .es-score-circles {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+        #page-exit-survey-report .es-score-circle {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #3f3f3f;
+            background: rgba(255, 255, 255, 0.45);
+            border: 1.4px solid rgba(70, 64, 56, 0.28);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+        }
+        #page-exit-survey-report .es-score-circle.is-mid {
+            border-color: rgba(40, 36, 32, 0.45);
+            background: rgba(63, 63, 63, 0.08);
+        }
+        #page-exit-survey-report .es-score-circle.is-strong {
+            background: #1a1a1a;
+            border-color: #1a1a1a;
+            color: #fff;
+        }
+        #page-exit-survey-report .es-scale-legend {
+            margin-top: 14px;
+            font-size: 12px;
+            color: #8b8b8b;
+        }
+        #page-exit-survey-report .es-insight-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        #page-exit-survey-report .es-bars { display: flex; flex-direction: column; gap: 10px; }
+        #page-exit-survey-report .es-bar-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.4fr) 42px;
+            align-items: center;
+            gap: 10px;
+        }
+        #page-exit-survey-report .es-bar-label {
+            font-size: 12.5px;
+            color: #3f3f3f;
+            line-height: 1.3;
+        }
+        #page-exit-survey-report .es-bar-track {
+            height: 11px;
+            border-radius: 999px;
+            background: #efeae2;
+            overflow: hidden;
+        }
+        #page-exit-survey-report .es-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background:
+                repeating-linear-gradient(
+                    -18deg,
+                    rgba(26, 26, 26, 0.92) 0 3px,
+                    rgba(55, 52, 48, 0.78) 3px 5px
+                );
+            min-width: 6px;
+        }
+        #page-exit-survey-report .es-bar-val {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+        #page-exit-survey-report .es-bars-empty {
+            font-size: 13px;
+            color: #8b8b8b;
+            padding: 8px 0 4px;
+        }
+        #page-exit-survey-report .es-trend-badge {
+            font-size: 11.5px;
+            font-weight: 650;
+            color: #646464;
+            background: #efeae2;
+            border: 1px solid #e2ddd3;
+            border-radius: 999px;
+            padding: 4px 10px;
+            white-space: nowrap;
+        }
+        #page-exit-survey-report .es-trend-badge.is-up { color: #1a1a1a; }
+        #page-exit-survey-report .es-trend-badge.is-down { color: #6b4f3a; }
+        #page-exit-survey-report .es-trend-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 4px;
+        }
+        #page-exit-survey-report .es-trend-line {
+            stroke: #2a2a2a;
+            stroke-width: 2.2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        #page-exit-survey-report .es-trend-dot { fill: #1a1a1a; }
+        #page-exit-survey-report .es-trend-val {
+            fill: #1a1a1a;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: inherit;
+        }
+        #page-exit-survey-report .es-trend-lbl {
+            fill: #8b8b8b;
+            font-size: 11px;
+            font-family: inherit;
+        }
+        #page-exit-survey-report .es-trend-axis {
+            fill: #a3a3a3;
+            font-size: 10px;
+            font-family: inherit;
+        }
+        #page-exit-survey-report .es-trend-grid {
+            stroke: #ebe4da;
+            stroke-width: 1;
+        }
+        body.theme-dark #page-exit-survey-report .es-insight-card {
+            background: var(--dlg-glass);
+            border-color: var(--dlg-glass-border);
+            box-shadow: none;
+        }
+        body.theme-dark #page-exit-survey-report .es-insight-q,
+        body.theme-dark #page-exit-survey-report .es-insight-title,
+        body.theme-dark #page-exit-survey-report .es-avg-num,
+        body.theme-dark #page-exit-survey-report .es-bar-val { color: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-bar-label { color: #c9c4bb; }
+        body.theme-dark #page-exit-survey-report .es-bar-track { background: rgba(255, 255, 255, 0.06); }
+        body.theme-dark #page-exit-survey-report .es-score-circle {
+            color: #e8e6e1;
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(232, 230, 225, 0.28);
+        }
+        body.theme-dark #page-exit-survey-report .es-score-circle.is-strong {
+            background: #e8e6e1;
+            border-color: #e8e6e1;
+            color: #1a1a1a;
+        }
+        body.theme-dark #page-exit-survey-report .es-trend-line { stroke: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-trend-dot { fill: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-trend-val { fill: #e8e6e1; }
+        body.theme-dark #page-exit-survey-report .es-trend-grid { stroke: rgba(255, 255, 255, 0.08); }
+        body.theme-dark #page-exit-survey-report .es-trend-badge {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--dlg-glass-border);
+            color: #c9c4bb;
+        }
+        @media (max-width: 960px) {
+            #page-exit-survey-report .es-insight-grid { grid-template-columns: 1fr; }
+            #page-exit-survey-report .es-bar-row {
+                grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 40px;
+            }
+        }
+
+        /* Aktivitäts-Log: Spaltentitel im sticky Filter-Kopf (kein sticky-thead).
+           Sonst rutscht der thead beim Scrollen mitten zwischen die Zeilen
+           (Walter-Bug 26.07.2026). */
+        #page-audit-log.page.fixhead .page-body > .al-sticky-head {
+            padding: 10px 0 0;
+            margin-bottom: 0;
+        }
+        #page-audit-log.page.fixhead .page-body table.al-cols-head {
+            width: 100%;
+            margin-top: 8px;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+            font-size: 12px;
+        }
+        #page-audit-log.page.fixhead .page-body table.al-cols-head thead th {
+            position: static !important;
+            top: auto !important;
+            text-align: left;
+            padding: 6px 8px;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            white-space: nowrap;
+            background: #f1f5f9 !important;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: none;
+        }
+        #page-audit-log.page.fixhead .page-body #alResults table.al-data {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 12px;
+        }
+        #page-audit-log.page.fixhead .page-body #alResults table.al-data thead {
+            display: none; /* Spaltentitel leben im sticky Kopf */
+        }
+        #page-audit-log .al-col-zeit { width: 9.5rem; }
+        #page-audit-log .al-col-user { width: 14rem; }
+        #page-audit-log .al-col-aktion { width: 5.5rem; }
+        #page-audit-log .al-col-entity { width: 11rem; }
+        #page-audit-log .al-col-changes { width: auto; }
+        #page-audit-log .al-col-detail { width: 4.5rem; }
+        body.theme-dark #page-audit-log.page.fixhead .page-body table.al-cols-head thead th {
+            background: #2a3446 !important;
+            color: #94a3b8;
+            border-bottom-color: var(--dlg-glass-border);
+        }
+        .page.fixhead .page-body .tbl-wrap { overflow: visible; }
+        .main:has(.page.fixhead.active) { overflow: hidden !important; }
+        /* ── Fixhead + Spaltenköpfe im Kopf (Walter 22.07.2026) ───────────
+           Generisches Muster: Titel/Filter + Spaltenköpfe = EIN fixer Block,
+           darunter scrollen NUR die Datenzeilen. Kein position:sticky thead. */
+        .page.fixhead .fh-page-head {
+            flex: 0 0 auto;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.14);
+            z-index: 5;
+        }
+        .page.fixhead .fh-toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 10px 32px 4px;
+        }
+        .page.fixhead .fh-cols-head-wrap {
+            margin: 10px 14px 0;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+        body.theme-dark .page.fixhead .fh-cols-head-wrap {
+            background: #2a3446;
+            border-color: var(--dlg-glass-border);
+        }
+        .page.fixhead .fh-body {
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            padding-top: 0 !important;
+            padding-bottom: 16px !important;
+        }
+        .page.fixhead .fh-list-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin-top: 0;
+            padding: 0;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+        }
+        .page.fixhead .fh-list-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            scrollbar-gutter: stable;
+        }
+        .page.fixhead .fh-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .page.fixhead .fh-table-head thead th {
+            position: static !important;
+            top: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        .page.fixhead .fh-table-head thead th.fh-th-center { text-align: center; }
+        .page.fixhead .fh-table-head thead th.fh-th-right { text-align: right; }
+        body.theme-dark .page.fixhead .fh-table-head thead th { color: #94a3b8; }
+        .page.fixhead .fh-table-body td {
+            padding: 10px 12px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        body.theme-dark .page.fixhead .fh-table-body td { border-bottom-color: var(--dlg-glass-border); }
+
+        /* Benutzerverwaltung: Spaltentitel SITZEN IM fixen Kopf (Walter 22.07.2026).
+           Kein position:sticky mehr — Titel/View-as/Spaltenköpfe = ein Block,
+           darunter scrollen nur die Datenzeilen. */
+        #page-benutzer .um-page-head {
+            flex: 0 0 auto;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.14);
+            z-index: 5;
+        }
+        /* Spaltenkopf + Datenkarte teilen denselben 14px-Inset wie .liquid-mask .page-body */
+        #page-benutzer .um-cols-head-wrap {
+            margin: 10px 14px 0;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+        body.theme-dark #page-benutzer .um-cols-head-wrap {
+            background: #2a3446;
+            border-color: var(--dlg-glass-border);
+        }
+        #page-benutzer .page-body.um-body {
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            padding-top: 0 !important;
+            padding-bottom: 16px !important;
+        }
+        #page-benutzer .um-list-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin-top: 0;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+        }
+        #page-benutzer .um-list-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            scrollbar-gutter: stable;
+        }
+        #page-benutzer .um-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+        #page-benutzer .um-c-user { width: 20%; }
+        #page-benutzer .um-c-email { width: 16%; }
+        #page-benutzer .um-c-role { width: 11%; }
+        #page-benutzer .um-c-branch { width: 11%; }
+        #page-benutzer .um-c-status { width: 8%; }
+        #page-benutzer .um-c-2fa { width: 9%; }
+        #page-benutzer .um-c-created { width: 9%; }
+        #page-benutzer .um-c-login { width: 11%; }
+        #page-benutzer .um-c-actions { width: 5%; }
+        #page-benutzer .um-table-head thead th {
+            position: static !important;
+            top: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        body.theme-dark #page-benutzer .um-table-head thead th { color: #94a3b8; }
+        #page-benutzer .um-table-body td {
+            padding: 12px 14px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        body.theme-dark #page-benutzer .um-table-body td { border-bottom-color: var(--dlg-glass-border); }
+        /* Lohnperioden: Spaltentitel SITZEN IM fixen Kopf (Walter 22.07.2026) —
+           gleiches Muster wie Benutzerverwaltung. */
+        #page-perioden .per-page-head {
+            flex: 0 0 auto;
+            box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.14);
+            z-index: 5;
+        }
+        #page-perioden .per-cols-head-wrap {
+            margin: 10px 14px 0;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+        body.theme-dark #page-perioden .per-cols-head-wrap {
+            background: #2a3446;
+            border-color: var(--dlg-glass-border);
+        }
+        #page-perioden .page-body.per-body {
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            padding-top: 0 !important;
+            padding-bottom: 16px !important;
+        }
+        #page-perioden .per-list-card {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            margin-top: 0;
+            padding: 0;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+        }
+        #page-perioden .per-list-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            scrollbar-gutter: stable;
+        }
+        #page-perioden .per-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+        #page-perioden .per-c-label { width: 14%; }
+        #page-perioden .per-c-range { width: 10%; }
+        #page-perioden .per-c-slip { width: 8%; }
+        #page-perioden .per-c-final { width: 8%; }
+        #page-perioden .per-c-status { width: 14%; }
+        #page-perioden .per-c-done { width: 14%; }
+        #page-perioden .per-c-actions { width: 32%; }
+        #page-perioden .per-table-head thead th {
+            position: static !important;
+            top: auto !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        #page-perioden .per-table-head thead th.per-th-center { text-align: center; }
+        body.theme-dark #page-perioden .per-table-head thead th { color: #94a3b8; }
+        #page-perioden .per-table-body td {
+            padding: 12px 14px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        body.theme-dark #page-perioden .per-table-body td { border-bottom-color: var(--dlg-glass-border); }
+
+        /* Spaltenbreiten pro Admin-Liste (fh-Muster) */
+        /* Neu verteilt (Walter 06.08.2026): Name + Basis brauchen Platz
+           («Nichtberufsunfallversicherung» + 🔒-Pille bzw. die BVG-Limits-
+           Zeile liefen sonst optisch in die Nachbarspalten). */
+        /* Walter 06.08.2026 (2. Runde): «in Lohn»-Pille bleibt HINTER dem
+           Namen in EINER Zeile — Platz kommt aus den Zahlen-/Kurzspalten. */
+        /* Walter 07.09.2026 (3. Runde, Lösungs-Codes): Bezeichnung braucht
+           deutlich mehr Platz («UVG Betriebsteil B — BU+NBU, NBU-Abzug AN») —
+           Basis, Fibu und die Kurzspalten geben ab. */
+        #page-sv-saetze .sv-neu-satz {
+            padding: 12px 26px;
+            font-size: 15px;
+            line-height: 1.2;
+            border-radius: 999px;
+        }
+        #page-sv-saetze .sv-c-nr { width: 2.5%; }
+        #page-sv-saetze .sv-c-typ { width: 6%; }
+        #page-sv-saetze .sv-c-name { width: 31.7%; }
+        #page-sv-saetze .sv-c-an { width: 6.4%; }
+        #page-sv-saetze .sv-c-ag { width: 6.4%; }
+        #page-sv-saetze .sv-c-basis { width: 13%; }
+        #page-sv-saetze .sv-c-alter { width: 4%; }
+        #page-sv-saetze .sv-c-vertrag { width: 4.5%; }
+        #page-sv-saetze .sv-c-fibu { width: 6.5%; }
+        #page-sv-saetze .sv-c-ab { width: 5%; }
+        #page-sv-saetze .sv-c-bis { width: 5%; }
+        #page-sv-saetze .sv-c-status { width: 5%; }
+        #page-sv-saetze .sv-c-act { width: 3.5%; }
+
+        /* AHV-Beitragspflicht quer über den Satzkopf. Lesen ist der Normalfall. */
+        #page-sv-saetze .ahv-bar {
+            margin: 6px 14px 0;
+            padding: 5px 10px;
+            border-radius: 10px;
+            background: linear-gradient(165deg, #eeece4 0%, #e7e4db 55%, #dfdcd1 100%);
+            border: 1px solid rgba(255,255,255,0.62);
+        }
+        #page-sv-saetze .ahv-lese {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            min-height: 0;
+        }
+        #page-sv-saetze .ahv-grund {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 0 0 auto;
+        }
+        #page-sv-saetze .ahv-lese-titel {
+            font-size: 12px;
+            font-weight: 700;
+            color: #5c574e;
+            white-space: nowrap;
+        }
+        #page-sv-saetze .ahv-kacheln { display: flex; gap: 12px; }
+        #page-sv-saetze .ahv-kachel {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            min-width: 0;
+            box-shadow: none;
+        }
+        #page-sv-saetze .ahv-kachel span {
+            display: inline;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: none;
+            color: #6f6a5f;
+        }
+        #page-sv-saetze .ahv-kachel b {
+            display: inline;
+            font-size: 14px;
+            font-weight: 720;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            color: #2c2c2c;
+        }
+        #page-sv-saetze .ahv-21 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1 1 360px;
+            min-width: 0;
+            padding: 3px 10px;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #e6eef6 0%, #d7e3ef 100%);
+            border: 1px solid #b9cbe0;
+        }
+        #page-sv-saetze .ahv-21-titel {
+            flex: 0 0 auto;
+            font-size: 12px;
+            font-weight: 720;
+            color: #1e3a56;
+            line-height: 1.1;
+        }
+        #page-sv-saetze .ahv-21-titel span {
+            display: block;
+            margin-top: 0;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0;
+            color: #4d6882;
+        }
+        #page-sv-saetze .ahv-21-chips {
+            display: flex;
+            flex: 1 1 auto;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
+        }
+        #page-sv-saetze .ahv-21-chip {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+        #page-sv-saetze .ahv-21-chip span {
+            display: inline;
+            font-size: 11px;
+            font-weight: 600;
+            color: #4d6882;
+        }
+        #page-sv-saetze .ahv-21-chip b {
+            display: inline;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1e3a56;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        #page-sv-saetze .ahv-21-danach b { font-weight: 600; color: #4d6882; }
+        #page-sv-saetze .ahv-bearbeiten,
+        #page-sv-saetze .ahv-abbruch,
+        #page-sv-saetze .ahv-zeile,
+        #page-sv-saetze .ahv-weg {
+            margin-left: auto;
+            background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(60,55,48,0.22);
+            border-radius: 10px;
+            color: #3f3f3f;
+            font-size: 12px;
+            padding: 5px 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        #page-sv-saetze .ahv-edit { margin-top: 4px; }
+        #page-sv-saetze .ahv-edit > label {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 3px;
+            margin: 0 10px 8px 0;
+            font-size: 11px;
+            font-weight: 700;
+            color: #3f3f3f;
+            vertical-align: top;
+        }
+        #page-sv-saetze .ahv-edit input {
+            width: 88px;
+            box-sizing: border-box;
+            background: #fff;
+            border: 1px solid rgba(255,255,255,0.95);
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);
+            padding: 6px 8px;
+            font-size: 14px;
+            font-weight: 650;
+            color: #3f3f3f;
+        }
+        #page-sv-saetze .ahv-edit-ueb { margin-top: 2px; }
+        #page-sv-saetze .ahv-edit-ueb-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #3f3f3f;
+            margin-bottom: 6px;
+        }
+        #page-sv-saetze .ahv-edit-ueb-head .ahv-zeile { margin-left: 0; }
+        #page-sv-saetze .ahv-edit table { border-collapse: collapse; }
+        #page-sv-saetze .ahv-edit th {
+            position: static !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            text-align: left;
+            font-size: 10px;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #6f6a5f;
+            padding: 0 8px 4px 0;
+        }
+        #page-sv-saetze .ahv-edit td { padding: 0 8px 4px 0; }
+        #page-sv-saetze .ahv-hinweis { margin: 2px 0 6px; font-size: 11px; color: #6f6a5f; }
+        #page-sv-saetze .ahv-edit-actions { display: flex; align-items: center; gap: 8px; }
+        #page-sv-saetze #ahvPflichtErr { font-size: 12px; color: #9b2c2c; font-weight: 650; margin-right: auto; }
+        #page-sv-saetze .ahv-pflicht-save {
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        body.theme-dark #page-sv-saetze .ahv-lese-titel,
+        body.theme-dark #page-sv-saetze .ahv-edit > label,
+        body.theme-dark #page-sv-saetze .ahv-edit-ueb-head { color: #f3f0ea; }
+        body.theme-dark #page-sv-saetze .ahv-kachel {
+            background: transparent;
+            border: none;
+        }
+        body.theme-dark #page-sv-saetze .ahv-kachel span { color: #c8c2b6; }
+        body.theme-dark #page-sv-saetze .ahv-kachel b { color: #f3f0ea; }
+        body.theme-dark #page-sv-saetze .ahv-21 {
+            background: rgba(120, 165, 205, 0.18);
+            border-color: rgba(160, 195, 225, 0.35);
+        }
+        body.theme-dark #page-sv-saetze .ahv-21-titel { color: #d5e4f2; }
+        body.theme-dark #page-sv-saetze .ahv-21-titel span,
+        body.theme-dark #page-sv-saetze .ahv-21-chip span { color: #9eb4c8; }
+        body.theme-dark #page-sv-saetze .ahv-21-chip b { color: #e7f0f8; }
+        body.theme-dark #page-sv-saetze .ahv-21-danach b { color: #9eb4c8; }
+        body.theme-dark #page-sv-saetze .ahv-hinweis,
+        body.theme-dark #page-sv-saetze .ahv-edit th { color: #c8c2b6; }
+
+        #page-lohnpositionen .lp-c-code { width: 6%; }
+        #page-lohnpositionen .lp-c-name { width: 30%; }
+        #page-lohnpositionen .lp-c-flag { width: 3.2%; }
+        #page-lohnpositionen .lp-c-qst { width: 6.5%; }
+        #page-lohnpositionen .lp-c-fei,
+        #page-lohnpositionen .lp-c-fer { width: 3.2%; }
+        #page-lohnpositionen .lp-c-ml { width: 4.2%; }
+        #page-lohnpositionen .lp-c-la { width: 3.6%; }
+        #page-lohnpositionen .lp-c-sd { width: 7%; }
+        #page-lohnpositionen .lp-c-mirus { width: 6.5%; }
+        #page-lohnpositionen .lp-c-typ { width: 9%; }
+        #page-lohnpositionen .lp-c-act { width: 4.8%; }
+        #page-lohnpositionen .fh-table-head thead th { padding-left: 14px; padding-right: 14px; overflow: hidden; }
+        #page-lohnpositionen .fh-table-head thead th.fh-th-center { padding-left: 2px; padding-right: 2px; }
+        #page-lohnpositionen .fh-table-body td.lp-td-tight { padding: 8px 2px; text-align: center; }
+        #page-lohnpositionen .fh-table-head thead th.lp-th-green {
+            color: #166534;
+            background: #f0fdf4 !important;
+        }
+        #page-lohnpositionen .fh-table-head thead th.lp-th-green-l { border-left: 2px solid #86efac; }
+        #page-lohnpositionen .fh-table-head thead th.lp-th-green-r { border-right: 2px solid #86efac; }
+
+        #page-warnungen .wc-c-drag { width: 5%; }
+        #page-warnungen .wc-c-label { width: 28%; }
+        #page-warnungen .wc-c-aktiv { width: 7%; }
+        #page-warnungen .wc-c-farbe { width: 14%; }
+        #page-warnungen .wc-c-vorlauf { width: 10%; }
+        #page-warnungen .wc-c-krit { width: 12%; }
+        #page-warnungen .wc-c-sev { width: 12%; }
+        #page-warnungen .wc-c-esk { width: 12%; }
+
+        #page-kontoplan .kp-c-sub { width: 78px; }
+        #page-kontoplan .kp-c-kst { width: 172px; }
+        #page-kontoplan .kp-c-bez { width: auto; }
+        #page-kontoplan .kp-c-soll { width: 118px; }
+        #page-kontoplan .kp-c-gegen { width: 74px; }
+        #page-kontoplan .kp-c-typ { width: 120px; }
+        #page-kontoplan .kp-c-act { width: 92px; }
+
+        /* Mutterschafts-Regeln — Spaltenbreiten (fixhead, Walter 23.07.2026) */
+        #page-pregnancy-rules .pr-c-sort { width: 48px; }
+        /* Walter 16.08.2026: Codes wie FERNBLEIBEN_RECHT liefen in die
+           Nachbarspalte — Spalte breiter, Pill bricht notfalls um. */
+        #page-pregnancy-rules .pr-c-code { width: 158px; }
+        #page-pregnancy-rules .pr-c-bez { width: 18%; }
+        #page-pregnancy-rules .pr-c-besch { width: auto; }
+        #page-pregnancy-rules .pr-c-gesetz { width: 140px; }
+        #page-pregnancy-rules .pr-c-phase { width: 150px; }
+        #page-pregnancy-rules .pr-c-lohn { width: 130px; }
+        #page-pregnancy-rules .pr-c-status { width: 150px; }
+        #page-pregnancy-rules .pr-c-act { width: 52px; }
+
+        #page-absenz-typen .at-c-code { width: 8%; }
+        #page-absenz-typen .at-c-name { width: 15%; }
+        #page-absenz-typen .at-c-zg { width: 10%; }
+        #page-absenz-typen .at-c-modus { width: 7%; }
+        #page-absenz-typen .at-c-basis { width: 8%; }
+        #page-absenz-typen .at-c-flex { width: 8%; }
+        #page-absenz-typen .at-c-verl { width: 10%; }
+        #page-absenz-typen .at-c-red { width: 10%; }
+        #page-absenz-typen .at-c-sort { width: 6%; }
+        #page-absenz-typen .at-c-status { width: 8%; }
+        #page-absenz-typen .at-c-act { width: 5%; }
+        #page-absenz-typen .at-info-box {
+            margin: 8px 32px 0;
+            background: #f6f3ee;
+            border: 1px solid #e5e0d6;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12.5px;
+            color: #6b6152;
+        }
+
+        #page-behoerden .bh-c-name { width: 22%; }
+        #page-behoerden .bh-c-typ { width: 14%; }
+        #page-behoerden .bh-c-addr { width: 28%; }
+        #page-behoerden .bh-c-iban { width: 20%; }
+        #page-behoerden .bh-c-status { width: 10%; }
+        #page-behoerden .bh-c-act { width: 6%; }
+

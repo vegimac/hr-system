@@ -1,0 +1,1376 @@
+        /* Familienmitglied-Maske = MA-Übersicht-Standard (Walter 18.07.2026)
+           Opake Sektions-Karten mit Verlaufs-Rim, Labels/Inputs wie .ov-card. */
+        body.theme-dark #familyModal {
+            background: rgba(4, 10, 20, 0.68);
+        }
+        body.theme-dark #familyModal .family-modal-box {
+            border-radius: 16px;
+        }
+        body.theme-dark #familyModal .family-modal-head,
+        body.theme-dark #familyModal .family-modal-foot {
+            border-color: rgba(140, 195, 255, 0.14) !important;
+        }
+        body.theme-dark #familyModal .family-modal-title {
+            color: #ffffff !important;
+            font-size: 16px;
+            font-weight: 760;
+            letter-spacing: -0.01em;
+        }
+        body.theme-dark #familyModal .family-modal-close {
+            background: var(--dlg-fill-field) !important;
+            color: var(--dlg-text-soft) !important;
+        }
+        /* Section-Titel wie .ov-card-h */
+        body.theme-dark #familyModal .emp-section-title {
+            color: #ffffff !important;
+            background: transparent !important;
+            border-left: none !important;
+            font-size: 13.5px !important;
+            font-weight: 760 !important;
+            letter-spacing: -0.01em !important;
+            text-transform: none !important;
+            margin: 16px 0 8px !important;
+            padding: 0 !important;
+        }
+        /* Sektions-Karten wie .ov-card: Innen-Verlauf + klarer Rim */
+        body.theme-dark #familyModal .emp-field-grid,
+        body.theme-dark #familyModal .emp-field-grid-3,
+        body.theme-dark #familyModal .fmf-addr-card {
+            border: 1px solid transparent !important;
+            background-color: var(--dlg-fill) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow) !important;
+            border-radius: 14px !important;
+            padding: 12px 14px !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        /* Labels wie .ov-pfl / .ov-fl */
+        body.theme-dark #familyModal .fmf-label {
+            color: var(--dlg-text-muted) !important;
+            font-size: 10.5px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.04em !important;
+        }
+        /* Inputs wie .ov-softin / MA-Dark-Felder */
+        body.theme-dark #familyModal .fmf-input,
+        body.theme-dark #familyModal .fmf-select,
+        body.theme-dark #familyModal .emp-field-grid-3 .fmf-input,
+        body.theme-dark #familyModal .emp-field-grid-3 .fmf-select,
+        body.theme-dark #familyModal .emp-field-grid-2 .fmf-input,
+        body.theme-dark #familyModal .emp-field-grid-2 .fmf-select,
+        body.theme-dark #familyModal .emp-field-grid .fmf-input,
+        body.theme-dark #familyModal .emp-field-grid .fmf-select,
+        body.theme-dark #familyModal .fmf-addr-select {
+            background: var(--dlg-fill-field) !important;
+            border: 1px solid rgba(145, 200, 255, 0.28) !important;
+            border-radius: 8px !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+            min-height: 29px !important;
+            padding: 4px 10px !important;
+            box-shadow: inset 0 1px 0 rgba(200, 230, 255, 0.05) !important;
+        }
+        body.theme-dark #familyModal .fmf-input:focus,
+        body.theme-dark #familyModal .fmf-select:focus,
+        body.theme-dark #familyModal .emp-field-grid-3 .fmf-input:focus,
+        body.theme-dark #familyModal .emp-field-grid-3 .fmf-select:focus,
+        body.theme-dark #familyModal .fmf-addr-select:focus {
+            border-color: rgba(165, 220, 255, 0.50) !important;
+            background: #0c1a30 !important;
+            box-shadow: 0 0 0 2px rgba(60, 140, 230, 0.14) !important;
+        }
+        body.theme-dark #familyModal .fmf-checkbox-card {
+            background: var(--dlg-fill-field) !important;
+            border: 1px solid rgba(145, 200, 255, 0.28) !important;
+            color: #ffffff !important;
+            box-shadow: none !important;
+            border-radius: 8px !important;
+            min-height: 29px !important;
+        }
+        body.theme-dark #familyModal .fmf-checkbox-text {
+            color: var(--dlg-text) !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+        }
+        body.theme-dark #familyModal .fmf-radio-row {
+            background: var(--dlg-fill-field) !important;
+            border: 1px solid rgba(145, 200, 255, 0.26) !important;
+            box-shadow: none !important;
+            border-radius: 10px !important;
+        }
+        body.theme-dark #familyModal .fmf-radio-row:hover {
+            border-color: rgba(165, 220, 255, 0.42) !important;
+            background: #12263e !important;
+        }
+        body.theme-dark #familyModal .fmf-radio-row:has(input:checked) {
+            border-color: transparent !important;
+            background-color: #1a3a5c !important;
+            background-image: linear-gradient(#1a3a5c, #1a3a5c), var(--dlg-rim-hot) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: inset 0 1px 0 rgba(210, 235, 255, 0.12) !important;
+        }
+        body.theme-dark #familyModal .fmf-radio-title {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        body.theme-dark #familyModal .fmf-radio-hint,
+        body.theme-dark #familyModal .fmf-addr-alt-hint,
+        body.theme-dark #familyModal #fmAgeDisplay {
+            color: var(--dlg-text-soft) !important;
+        }
+        body.theme-dark #familyModal .fmf-addr-add-btn {
+            background: var(--dlg-fill-field) !important;
+            border: 1px solid rgba(145, 200, 255, 0.28) !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            font-weight: 650 !important;
+            box-shadow: none !important;
+        }
+        body.theme-dark #familyModal .fmf-addr-add-btn:hover {
+            background: #12263e !important;
+            border-color: rgba(165, 220, 255, 0.45) !important;
+        }
+        body.theme-dark #familyModal #fmSpouseDocBtn {
+            background: #3f3f3f !important;
+            color: #fff !important;
+            border-color: #1a1a1a !important;
+            border-radius: 8px !important;
+        }
+        body.theme-dark #familyModal .family-modal-foot .btn-outline {
+            background: var(--dlg-fill-field) !important;
+            color: var(--dlg-text) !important;
+            border-color: rgba(145, 200, 255, 0.28) !important;
+        }
+        body.theme-dark #familyModal .family-modal-foot .btn-primary {
+            background: #3f3f3f !important;
+            color: #fff !important;
+            border-color: #1a1a1a !important;
+        }
+
+        .emp-family-card {
+            background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
+            padding: 10px 14px 12px; margin-bottom: 8px;
+        }
+        .emp-family-card-head { display: flex; align-items: baseline; gap: 12px; }
+        .emp-family-name { font-size: 15px; font-weight: 600; color: #0f172a; }
+        .emp-family-meta { font-size: 12px; color: #64748b; }
+
+        /* Familie-Tab: kompakte Kacheln (Walter 18.07.2026) */
+        .fam-tile-grid {
+            display: grid;
+            /* Walter 04.09.2026: breitere Kacheln, max. 4 nebeneinander —
+               damit die Zulagen-Pille («KZ Satz 1») nicht abgeschnitten wird. */
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+        @media (min-width: 1400px) {
+            .fam-tile-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        .fam-tile {
+            display: flex; flex-direction: column; gap: 6px;
+            padding: 12px 14px 10px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.62);
+            background: rgba(255,255,255,.42);
+            box-shadow: 0 8px 22px rgba(60,55,48,.08), inset 0 1px 0 rgba(255,255,255,.55);
+            backdrop-filter: blur(16px) saturate(140%);
+            -webkit-backdrop-filter: blur(16px) saturate(140%);
+            cursor: pointer;
+            transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+            min-width: 0;
+        }
+        .fam-tile:hover {
+            transform: translateY(-1px);
+            border-color: rgba(63,63,63,.28);
+            box-shadow: 0 12px 28px rgba(60,55,48,.12), inset 0 1px 0 rgba(255,255,255,.65);
+        }
+        .fam-tile-wide { grid-column: span 1; min-width: 0; }
+        @media (min-width: 900px) {
+            .fam-tile-wide { grid-column: span 2; max-width: 480px; }
+        }
+        .fam-tile-top {
+            display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+        }
+        .fam-tile-name {
+            font-size: 14.5px; font-weight: 700; color: #1a1a1a;
+            line-height: 1.25; min-width: 0;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .fam-tile-meta {
+            font-size: 12px; font-weight: 550; color: #8b8b8b;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .fam-tile-badges {
+            display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+        }
+        .fam-tile-badge {
+            font-size: 11px; font-weight: 650; padding: 2px 8px; border-radius: 999px;
+            white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+        }
+        .fam-tile-badge-permit { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+        .fam-tile-badge-ch { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .fam-tile-badge-warn { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
+        .fam-tile-badge-addr { background: #efece5; color: #6b6152; border: 1px solid #ddd5c8; }
+        .fam-tile-doc {
+            background: rgba(255,255,255,.7); border: 1px solid #d4cfc4; border-radius: 8px;
+            padding: 3px 8px; cursor: pointer; color: #526071;
+            font-size: 11px; font-weight: 650; line-height: 1.2;
+        }
+        .fam-tile-doc:hover { border-color: #3f3f3f; color: #1a1a1a; }
+        .fam-tile-doc-ok { background: #dcfce7; border-color: #86efac; color: #15803d; }
+        .fam-tile-doc-danger { border-color: #fecaca; color: #b91c1c; }
+        .fam-tile-foot {
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+            margin-top: 2px; padding-top: 8px;
+            border-top: 1px solid rgba(120,110,95,.12);
+        }
+        .fam-tile-chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; min-width: 0; }
+        /* Zulagen als Liste (Walter 04.09.2026): Pille + Gültigkeit, neueste zuoberst */
+        .fam-tile-foot-list { align-items: flex-start; flex-wrap: nowrap; }
+        .fam-tile-zulage-list { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+        .fam-tile-zulage-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .fam-tile-zulage-zeit { font-size: 11px; color: #6b6152; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .fam-tile-zulage-row.is-past .fam-tile-chip { opacity: .55; }
+        .fam-tile-chip.is-fixed { border-style: dashed; color: #92400e; }
+        .fam-tile-zulage-row.is-past .fam-tile-zulage-zeit { color: #a39c90; text-decoration: line-through; }
+        .fam-tile-zulage-row.is-future .fam-tile-zulage-zeit { color: #1d4ed8; }
+        body.theme-dark .fam-tile-zulage-zeit { color: var(--dlg-text-soft); }
+        .fam-tile-chip {
+            background: rgba(255,255,255,.72); border: 1px solid #d8d2c6; border-radius: 999px;
+            padding: 3px 10px; font-size: 11.5px; font-weight: 650; color: #3f3f3f;
+            cursor: pointer; white-space: nowrap; max-width: 100%;
+            overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
+        }
+        .fam-tile-zulage-row .fam-tile-chip { min-width: 96px; text-align: left; }
+        .fam-tile-chip:hover { border-color: #3f3f3f; }
+        .fam-tile-chip.is-locked { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
+        .fam-tile-zulage-btn {
+            background: transparent; border: 1px dashed rgba(100,90,75,.35); border-radius: 8px;
+            padding: 3px 9px; font-size: 11px; font-weight: 700; color: #8b8b8b;
+            cursor: pointer; white-space: nowrap;
+        }
+        .fam-tile-zulage-btn:hover { border-color: #3f3f3f; color: #3f3f3f; background: rgba(255,255,255,.5); }
+        body.theme-dark .fam-tile {
+            border-radius: 14px !important;
+            padding: 12px 14px 10px !important;
+            /* Rim kommt global — kein Extra-Glow (Milch) */
+        }
+        body.theme-dark .fam-tile:hover {
+            transform: translateY(-1px);
+            box-shadow:
+                0 0 0 1px rgba(145, 200, 255, 0.18),
+                0 16px 34px rgba(0, 6, 18, 0.48),
+                inset 0 1px 0 rgba(210, 235, 255, 0.18) !important;
+        }
+        body.theme-dark .fam-tile-name { color: #ffffff; font-size: 15px; }
+        body.theme-dark .fam-tile-meta { color: var(--dlg-text-soft); }
+        body.theme-dark .fam-tile-foot { border-top-color: rgba(140, 200, 255, 0.20); }
+        body.theme-dark .fam-tile-chip {
+            background: rgba(70, 130, 210, 0.22); border-color: rgba(145, 205, 255, 0.38); color: #ffffff;
+        }
+        body.theme-dark .fam-tile-zulage-btn {
+            border-color: rgba(145, 205, 255, 0.40); color: var(--dlg-text-soft);
+            border-style: dashed;
+        }
+        body.theme-dark .fam-tile-zulage-btn:hover {
+            border-color: rgba(175, 225, 255, 0.60); color: #ffffff;
+            background: rgba(70, 130, 210, 0.18);
+        }
+        body.theme-dark .fam-tile-doc {
+            background: rgba(12, 26, 46, 0.65); border-color: rgba(160, 210, 255, 0.42); color: #ffffff;
+        }
+        body.theme-dark .fam-tile-badge-warn {
+            background: rgba(180, 90, 40, 0.35); color: #ffd7b0; border-color: rgba(230, 140, 80, 0.45);
+        }
+        body.theme-dark .fam-tile-badge-ch {
+            background: rgba(40, 120, 80, 0.35); color: #b8f0d0; border-color: rgba(90, 190, 140, 0.40);
+        }
+        body.theme-dark .fam-tile-badge-permit {
+            background: rgba(90, 70, 160, 0.35); color: #ddd0ff; border-color: rgba(160, 140, 230, 0.40);
+        }
+        body.theme-dark .fam-tile-badge-addr {
+            background: rgba(70, 90, 120, 0.35); color: #d0dde8; border-color: rgba(140, 170, 200, 0.35);
+        }
+
+        /* Walter-Vorgabe 27.05.2026: Sub-Datenfelder innerhalb der Familie-Card
+           (z.B. Zulagen-Tabelle für Kinderzulagen) — Tabellen-Zellen mit
+           weisser Background-Box + Border, damit sie nicht „weiss auf weiss"
+           verschwinden. Einheitlicher Look mit MA-Maske. */
+        .emp-family-card table.fm-subtable td,
+        .emp-family-card .fm-subrow {
+            background: #fff;
+            border: 1px solid #e2ddd3;
+            border-radius: 9px;
+            padding: 5px 10px;
+        }
+        .emp-family-card table.fm-subtable {
+            border-collapse: separate; border-spacing: 6px 4px;
+            margin-top: 4px; width: 100%;
+        }
+        .emp-family-card table.fm-subtable th {
+            font-size: 9.5px; font-weight: 700; color: #475569;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            padding: 2px 10px; text-align: left;
+        }
+        body.theme-dark .emp-family-card {
+            background: var(--dlg-glass-field) !important; border-color: #1e293b !important;
+        }
+        body.theme-dark .emp-family-card table.fm-subtable td,
+        body.theme-dark .emp-family-card .fm-subrow {
+            background: var(--dlg-glass) !important; border-color: var(--dlg-glass-border) !important;
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           Walter-Vorgabe 27.05.2026: Programmweiter Erfassungsmasken-Stil
+           (analog MA-Maske). JEDES Modal/Formular im Programm soll diesen
+           Look haben: blauer Section-Streifen + graue Card + weisse
+           Wert-Boxen mit border #94a3b8 + 4px-Ecken.
+           Klassen-Konvention: .ma-modal-box  (Container — eckiger),
+                               .ma-modal-head / .ma-modal-foot,
+                               .ma-section    (= .emp-section-title-Look),
+                               .ma-grid       (Wrapper grau, 1–4 Spalten),
+                               .ma-field      (Label + Wert-Box),
+                               .ma-input/.ma-select/.ma-textarea (Wert-Box).
+        ════════════════════════════════════════════════════════════════ */
+        .ma-modal-box {
+            /* OneCrew-Standard (Walter 12.08.2026): warmer Verlauf statt Weiss. */
+            background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%); border-radius: 14px;
+            width: min(1080px, calc(100vw - 40px)); max-height: 92vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.25);
+        }
+        .ma-modal-box.narrow { width: min(720px, calc(100vw - 40px)); }
+        .ma-modal-box.wide   { width: min(1280px, calc(100vw - 40px)); }
+        .ma-modal-head {
+            padding: 14px 20px 12px; border-bottom: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .ma-modal-title { font-size: 15px; font-weight: 700; color: #0f172a; }
+        .ma-modal-sub   { font-size: 11.5px; color: #64748b; margin-top: 1px; }
+        .ma-modal-close {
+            width: 28px; height: 28px; border-radius: 4px; border: none;
+            background: #f1f5f9; cursor: pointer; font-size: 16px; color: #64748b;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ma-modal-body { padding: 14px 20px; overflow-y: auto; flex: 1; }
+        .ma-modal-foot {
+            padding: 12px 20px; border-top: 1px solid #e2e8f0;
+            display: flex; justify-content: flex-end; gap: 10px;
+        }
+        .ma-modal-foot .ma-foot-left { margin-right: auto; }
+
+        /* Inputs in den Wert-Box-Karten innerhalb des Modals (analog
+           emp-field-value): weiss auf grauer Card, kaum gerundet,
+           leichte Border + Schatten. */
+        .ma-grid .ma-input,
+        .ma-grid .ma-select,
+        .ma-grid .ma-textarea {
+            background: #fff; border: 1px solid #e2ddd3; border-radius: 9px;
+            padding: 4px 9px; min-height: 27px;
+            font-size: 13px; color: #0f172a; font-weight: 500;
+            font-family: inherit; outline: none;
+            box-shadow: 0 1px 2px rgba(15,23,42,0.08);
+            transition: border-color .12s, box-shadow .12s;
+            width: 100%;
+        }
+        .ma-grid .ma-textarea { min-height: 60px; padding: 6px 9px; line-height: 1.4; resize: vertical; }
+        .ma-grid .ma-input:hover,
+        .ma-grid .ma-select:hover,
+        .ma-grid .ma-textarea:hover { border-color: #1a1a1a; box-shadow: 0 2px 4px rgba(60,55,48,0.15); }
+        .ma-grid .ma-input:focus,
+        .ma-grid .ma-select:focus,
+        .ma-grid .ma-textarea:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(60,55,48,0.15); }
+        /* Gruppen-E-Mail (Walter-Bug 01.09.2026): Betreff und Nachricht liegen
+           dort in einer .card, NICHT in .ma-grid oder .ma-modal-box — die
+           Regeln oben griffen also gar nicht. Die Felder waren komplett
+           ungestylt: Browser-Standard mit Monospace-Schrift und ohne
+           definierte Zeilenhöhe, weshalb der Cursor nach einem Zeilenumbruch
+           nicht dort stand, wo man ihn erwartet. Hier bekommen sie dasselbe
+           Aussehen wie überall sonst, mit ausdrücklicher line-height und
+           sichtbarem Cursor. */
+        .card > .ma-field .ma-input,
+        .card > .ma-field .ma-textarea {
+            background: #fff; border: 1px solid #e2ddd3; border-radius: 9px;
+            padding: 6px 9px; font-size: 13.5px; color: #0f172a; font-weight: 500;
+            font-family: inherit; line-height: 1.5; caret-color: #0f172a;
+            outline: none; box-shadow: 0 1px 2px rgba(15,23,42,0.08);
+            transition: border-color .12s, box-shadow .12s;
+            width: 100%; box-sizing: border-box;
+        }
+        .card > .ma-field .ma-textarea { min-height: 120px; resize: vertical; }
+        .card > .ma-field .ma-input:hover,
+        .card > .ma-field .ma-textarea:hover { border-color: #1a1a1a; box-shadow: 0 2px 4px rgba(60,55,48,0.15); }
+        .card > .ma-field .ma-input:focus,
+        .card > .ma-field .ma-textarea:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(60,55,48,0.15); }
+        body.theme-dark .card > .ma-field .ma-input,
+        body.theme-dark .card > .ma-field .ma-textarea {
+            background: #1b2431; border-color: #2a3543; color: #e6ebf2; caret-color: #e6ebf2;
+        }
+
+        .ma-field { display: flex; flex-direction: column; gap: 2px; }
+        .ma-field-label {
+            font-size: 9.5px; font-weight: 700; color: #475569;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            padding-left: 2px; line-height: 1.2;
+        }
+        .ma-field-label .opt { color: #94a3b8; font-weight: 500; text-transform: none; letter-spacing: 0; }
+        /* Card-Wrapper analog .emp-field-grid */
+        .ma-grid   { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px 10px;
+                     background: #f6f3ee; border: 1px solid #e7e1d8; border-radius: 14px;
+                     padding: 9px 12px 11px; margin-bottom: 6px; }
+        .ma-grid.cols-1 { grid-template-columns: 1fr; }
+        .ma-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .ma-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+        body.theme-dark .ma-modal-box { background: var(--dlg-glass); }
+        body.theme-dark .ma-modal-head,
+        body.theme-dark .ma-modal-foot { border-color: var(--dlg-glass-border); }
+        body.theme-dark .ma-modal-title { color: #f1f5f9; }
+        body.theme-dark .ma-modal-sub { color: #94a3b8; }
+        body.theme-dark .ma-modal-close { background: var(--dlg-glass-field); color: #cbd5e1; }
+        body.theme-dark .ma-grid { background: var(--dlg-glass-field); border-color: #1e293b; }
+        body.theme-dark .ma-grid .ma-input,
+        body.theme-dark .ma-grid .ma-select,
+        body.theme-dark .ma-grid .ma-textarea {
+            background: var(--dlg-glass); border-color: var(--dlg-glass-border); color: #f1f5f9;
+        }
+
+        /* ── MA-Modals im neuen warmen Look (Walter 27.06.2026) ────────────
+           Gilt für ALLE .ma-modal-box-Dialoge (Absenz, Bankverbindung, …):
+           kein Blau — Sektions-Köpfe neutral, Feld-Boxen warm statt blau-grau
+           (#e2e8f0), warmer Fokus. Analog Familien-Modal. */
+        .ma-modal-box .emp-section-title {
+            background: transparent !important;
+            border-left: none !important;
+            border-radius: 0 !important;
+            color: #364152 !important;
+            text-transform: none !important;
+            letter-spacing: -.01em !important;
+            font-size: 12px !important;
+            font-weight: 760 !important;
+            padding: 0 0 0 3px !important;
+            margin: 14px 0 5px !important;
+        }
+        .ma-modal-box .ma-grid {
+            background: #f6f3ee !important;
+            border: 1px solid #e7e1d8 !important;
+            border-radius: 14px !important;
+        }
+        .ma-modal-box .ma-input,
+        .ma-modal-box .ma-select,
+        .ma-modal-box .ma-textarea {
+            border: 1px solid #e2ddd3 !important;
+            border-radius: 9px !important;
+        }
+        .ma-modal-box .ma-input:focus,
+        .ma-modal-box .ma-select:focus,
+        .ma-modal-box .ma-textarea:focus {
+            border-color: #c9bfb0 !important;
+            box-shadow: 0 0 0 3px rgba(180,165,140,.14) !important;
+        }
+
+        .emp-no-selection {
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 10px; height: 100%; color: #94a3b8;
+        }
+        .emp-no-selection svg { opacity: 0.3; }
+
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 80px 32px; text-align: center;
+        }
+        .empty-icon {
+            width: 64px; height: 64px; background: #f1f5f9; border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; margin-bottom: 16px;
+        }
+        .empty-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+        .empty-text { color: #64748b; font-size: 14px; max-width: 340px; line-height: 1.6; }
+
+        /* ── CONTRACT PAGE (embedded styles) ───────────────────── */
+        .contract-wrap { max-width: 100%; }
+        .c-section {
+            margin-bottom: 20px; padding: 20px 22px; border: 1px solid #e2e8f0;
+            border-radius: 12px; background: white;
+        }
+        .c-section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #0f172a; }
+        .c-grid { display: grid; grid-template-columns: 240px 1fr; gap: 10px 16px; align-items: center; }
+        .c-grid label { font-weight: 500; font-size: 13.5px; color: #374151; }
+        .c-grid input, .c-grid select, .c-grid textarea {
+            width: 100%; padding: 8px 10px; font-size: 14px; font-family: inherit;
+            border: 1.5px solid #e2e8f0; border-radius: 8px; background: white;
+            outline: none; transition: all 0.2s; box-sizing: border-box;
+        }
+        .c-grid input:focus, .c-grid select:focus { border-color: #3f3f3f; box-shadow: 0 0 0 3px rgba(63,63,63,0.1); }
+        .c-readonly {
+            padding: 9px 10px; background: #f8fafc; border-radius: 8px;
+            font-size: 14px; color: #374151; border: 1px solid #e2e8f0; min-height: 22px;
+        }
+        .c-top { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+
+        /* Vertragshistorie */
+        .ch-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+        .ch-table th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.04em; color: #64748b;
+            border-bottom: 2px solid #e2e8f0; }
+        .ch-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+        .ch-active td { background: #f0fdf4; }
+        .ch-past td { color: #64748b; }
+        .ch-badge-active { background: #dcfce7; color: #16a34a; font-size: 11px;
+            font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+        .ch-badge-past { background: #f1f5f9; color: #64748b; font-size: 11px;
+            font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+        .c-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+        .c-btn {
+            padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 600; font-family: inherit; transition: all 0.15s;
+        }
+        .c-btn-blue { background: #3f3f3f; color: white; }
+        .c-btn-blue:hover { background: #1a1a1a; }
+        .c-btn-orange { background: #f97316; color: white; }
+        .c-btn-orange:hover { background: #ea580c; }
+        .c-btn-gray { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .c-btn-gray:hover { background: #e2e8f0; }
+        .c-status { margin-top: 12px; padding: 12px 14px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 13.5px; }
+        .c-ok { background: #f0fdf4; border-color: #86efac; }
+        .c-warn { background: #fef2f2; border-color: #fca5a5; }
+        .c-info { background: #fffbeb; border-color: #fcd34d; }
+        .txt-ok { color: #16a34a; font-weight: 600; }
+        .txt-warn { color: #dc2626; font-weight: 600; }
+        .txt-info { color: #d97706; font-weight: 600; }
+        .txt-muted { color: #94a3b8; }
+        .dropzone {
+            border: 2px dashed #d1d5db; border-radius: 10px; padding: 24px;
+            background: #f8fafc; text-align: center; cursor: pointer; transition: 0.2s;
+        }
+        .dropzone:hover, .dropzone.dragover { border-color: #3f3f3f; background: #f6f3ee; }
+        .hidden { display: none !important; }
+
+        /* ── SCROLLBAR ─────────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* ── Liquid Glass Prototype: Dashboard only ───────────────────────
+           Rücknehmbar über Klassen .liquid-ui / .liquid-dashboard.
+           Keine IDs, Handler oder Fetch-Logik werden verändert. */
+        .liquid-ui {
+            --liquid-cream-1: #f7f4ef;
+            --liquid-cream-2: #efebe3;
+            --liquid-glass: rgba(255, 255, 255, 0.36);
+            --liquid-glass-strong: rgba(255, 255, 255, 0.58);
+            --liquid-border: rgba(255, 255, 255, 0.68);
+            --liquid-text: #3f3f3f;
+            --liquid-muted: #686868;
+            --liquid-shadow: 0 22px 70px rgba(70, 64, 55, 0.16);
+            --liquid-shadow-strong: 0 28px 78px rgba(70, 64, 55, 0.24);
+            --liquid-inset: inset 0 1px 1px rgba(255, 255, 255, 0.86), inset 0 -1px 2px rgba(255, 255, 255, 0.22);
+        }
+        .liquid-dashboard {
+            position: relative;
+            min-height: 100%;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 58% 47%, rgba(255, 255, 255, 0.78), transparent 25%),
+                radial-gradient(circle at 28% 50%, rgba(224, 218, 209, 0.42), transparent 36%),
+                linear-gradient(135deg, var(--liquid-cream-1) 0%, var(--liquid-cream-2) 48%, #faf8f5 100%);
+            color: var(--liquid-text);
+        }
+        .liquid-dashboard::before {
+            content: "";
+            position: absolute;
+            inset: -10vh -8vw;
+            pointer-events: none;
+            opacity: .24;
+            transform: none;
+            background-image: url('../img/liquid-glass-arches-reference.webp');
+            background-repeat: no-repeat;
+            background-position: calc(50% + 10vw) center;
+            background-size: 95% auto;
+        }
+        .liquid-dashboard::after {
+            content: "";
+            position: absolute;
+            inset: -10vh -8vw;
+            pointer-events: none;
+            opacity: .18;
+            background:
+                linear-gradient(88deg, transparent 0 34%, rgba(80, 80, 80, 0.07) 34.2% 34.35%, transparent 34.6% 100%),
+                linear-gradient(1deg, transparent 0 78%, rgba(80, 80, 80, 0.08) 78.1% 78.22%, transparent 78.45% 100%),
+                linear-gradient(90deg, transparent 0 97.5%, rgba(80, 80, 80, 0.12) 97.55% 97.8%, transparent 98% 100%);
+        }
+        .liquid-dashboard > .page-head,
+        .liquid-dashboard > .page-body {
+            position: relative;
+            z-index: 1;
+        }
+        /* Globale Sidebar nur noch auf dem Dashboard ausblenden (Walter 28.06.2026).
+           Auf der Mitarbeiter-Seite zeigt jetzt dieselbe globale Sidebar wie überall
+           — kein Springen mehr beim Seitenwechsel. */
+        body.dashboard-shell-active .sidebar {
+            display: none;
+        }
+        body.dashboard-shell-active .main {
+            width: 100%;
+            min-width: 0;
+        }
+        body.dashboard-shell-active .liquid-dashboard > .page-head {
+            display: none !important;
+        }
+        body.dashboard-shell-active .liquid-dashboard > .page-body {
+            padding-top: 26px !important;
+        }
+        .liquid-dashboard .liquid-home-top-left {
+            position: fixed;
+            z-index: 20;
+            top: 24px;
+            left: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: auto;
+        }
+        .liquid-dashboard .liquid-branch-select {
+            display: none;
+        }
+        .liquid-dashboard .liquid-branch-menu {
+            position: relative;
+        }
+        .liquid-dashboard .liquid-branch-btn {
+            width: 215px;
+            height: 34px;
+            border: 1px solid var(--liquid-border);
+            border-radius: 15px;
+            padding: 0 10px 0 14px;
+            background: var(--liquid-glass);
+            color: var(--liquid-muted);
+            font: inherit;
+            font-size: 12px;
+            box-shadow: 0 22px 70px rgba(70, 64, 55, 0.16), var(--liquid-inset);
+            backdrop-filter: blur(24px) saturate(132%);
+            -webkit-backdrop-filter: blur(24px) saturate(132%);
+            outline: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .liquid-dashboard .liquid-branch-btn span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .liquid-dashboard .liquid-branch-btn svg {
+            width: 14px;
+            height: 14px;
+            flex: 0 0 auto;
+        }
+        .liquid-dashboard .liquid-branch-options {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            min-width: 236px;
+            border: 1px solid var(--liquid-border);
+            border-radius: 22px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.50);
+            color: var(--liquid-text);
+            box-shadow: 0 28px 78px rgba(70, 64, 55, 0.22), var(--liquid-inset);
+            backdrop-filter: blur(30px) saturate(138%);
+            -webkit-backdrop-filter: blur(30px) saturate(138%);
+        }
+        .liquid-dashboard .liquid-branch-menu.open .liquid-branch-options {
+            display: grid;
+            gap: 3px;
+        }
+        .liquid-dashboard .liquid-branch-option {
+            height: 34px;
+            border: 0;
+            border-radius: 14px;
+            padding: 0 10px;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            font-size: 13px;
+            text-align: left;
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: 18px 1fr;
+            align-items: center;
+            gap: 8px;
+        }
+        .liquid-dashboard .liquid-branch-option:hover {
+            background: rgba(255, 255, 255, 0.34);
+        }
+        .liquid-dashboard .liquid-branch-option.active {
+            background: rgba(255, 255, 255, 0.58);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,.85);
+            font-weight: 650;
+        }
+        .liquid-dashboard .liquid-branch-check {
+            color: #6b7280;
+            font-weight: 800;
+        }
+        .liquid-dashboard .liquid-home-user {
+            position: fixed;
+            z-index: 4;
+            left: 28px;
+            bottom: 24px;
+            min-width: 230px;
+            border: 1px solid rgba(255,255,255,.62);
+            border-radius: 24px;
+            padding: 12px 12px 12px 14px;
+            background: rgba(255,255,255,.44);
+            color: #4f4a43;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            box-shadow: 0 18px 54px rgba(74,55,34,.12), var(--liquid-inset);
+            backdrop-filter: blur(22px) saturate(145%);
+            -webkit-backdrop-filter: blur(22px) saturate(145%);
+        }
+        .liquid-dashboard .liquid-user-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(145deg, #5f6b73, #b9c0c3);
+            color: white;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .liquid-dashboard .liquid-user-copy {
+            min-width: 0;
+            flex: 1;
+        }
+        .liquid-dashboard .liquid-user-name {
+            font-size: 13px;
+            font-weight: 750;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .liquid-dashboard .liquid-user-role {
+            font-size: 11px;
+            color: #7e766c;
+            margin-top: 1px;
+        }
+        .liquid-dashboard .liquid-logout {
+            width: 34px;
+            height: 34px;
+            border-radius: 14px;
+            border: 1px solid rgba(185, 28, 28, .28);
+            background: rgba(254,226,226,.42);
+            color: #b91c1c;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .liquid-dashboard > .page-head {
+            margin: 18px 24px 0;
+            padding: 22px 24px !important;
+            border: 1px solid var(--liquid-border);
+            border-radius: 26px;
+            background: linear-gradient(135deg, rgba(255,255,255,.68), rgba(255,255,255,.34));
+            box-shadow: var(--liquid-shadow), var(--liquid-inset);
+            backdrop-filter: blur(22px) saturate(155%);
+            -webkit-backdrop-filter: blur(22px) saturate(155%);
+        }
+        .liquid-dashboard .page-title {
+            font-size: 30px;
+            letter-spacing: -0.035em;
+            color: var(--liquid-text);
+        }
+        .liquid-dashboard .page-sub {
+            color: var(--liquid-muted);
+            font-size: 13px;
+            margin-top: 6px;
+        }
+        .liquid-dashboard > .page-body {
+            padding: 18px 24px 40px !important;
+        }
+        .liquid-dashboard .liquid-home-shell {
+            position: relative;
+            min-height: calc(100vh - 66px);
+        }
+        .liquid-dashboard .liquid-module-grid {
+            position: absolute;
+            top: 43%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: grid;
+            grid-template-columns: repeat(5, 112px);
+            gap: 12px;
+            align-items: center;
+            max-width: none;
+            width: auto;
+        }
+        .liquid-dashboard .liquid-module-card {
+            width: 112px;
+            height: 136px;
+            min-height: 136px;
+            border: 1px solid var(--liquid-border);
+            border-radius: 20px;
+            background: var(--liquid-glass);
+            box-shadow: var(--liquid-shadow), var(--liquid-inset);
+            backdrop-filter: blur(24px) saturate(132%);
+            -webkit-backdrop-filter: blur(24px) saturate(132%);
+            color: #5f5f5f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .liquid-dashboard .liquid-module-card::before {
+            content: "";
+            position: absolute;
+            top: 27px;
+            left: 50%;
+            width: 54px;
+            height: 54px;
+            border-radius: 19px;
+            transform: translateX(-50%);
+            background:
+                radial-gradient(circle at 30% 22%, rgba(255,255,255,.28), transparent 32%),
+                linear-gradient(145deg, rgba(128,128,128,.07), rgba(255,255,255,.04));
+            border: 1px solid rgba(255,255,255,.18);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,.24), inset 0 -1px 2px rgba(255,255,255,.06), 0 14px 28px rgba(70,64,55,.035);
+            backdrop-filter: blur(18px) saturate(120%);
+            -webkit-backdrop-filter: blur(18px) saturate(120%);
+            pointer-events: none;
+        }
+        .liquid-dashboard .liquid-module-card:hover {
+            transform: translateY(-2px);
+            background: var(--liquid-glass-strong);
+            box-shadow: var(--liquid-shadow-strong), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+        }
+        .liquid-dashboard .liquid-module-card[hidden] {
+            display: none;
+        }
+        .liquid-dashboard .liquid-module-card svg {
+            width: 43px;
+            height: 43px;
+            stroke-width: 1.85;
+            color: rgba(92,92,92,.72);
+            filter: drop-shadow(0 4px 8px rgba(255,255,255,.28));
+            position: relative;
+            z-index: 1;
+        }
+        /* Bild-Icon (Mitarbeiter-Sketch) im Dark-Mode: invertieren + screen,
+           damit die Bleistift-Linien hell auf der dunklen Kachel erscheinen
+           (multiply würde sie sonst schlucken). Walter 28.06.2026 */
+        body.theme-dark .liquid-dashboard .liquid-module-card img {
+            mix-blend-mode: screen !important;
+            filter: invert(1) brightness(1.1);
+        }
+        .liquid-dashboard .liquid-module-card span {
+            font-size: 13px;
+            font-weight: 650;
+            letter-spacing: 0;
+            text-align: center;
+            line-height: 1.18;
+            position: relative;
+            z-index: 1;
+        }
+        /* To-dos jetzt als Kachel + eigene Seite — Seiten-Panel ausgeblendet (Walter 04.07.2026) */
+        .liquid-dashboard .liquid-todo-panel { display: none !important; }
+        /* Badge-Marker auf der To-dos-Kachel */
+        #dashTodoTile { position: relative; }
+        /* Höhere Spezifität als „.liquid-module-card span { position:relative }",
+           sonst würde das Badge als Flex-Element Icon+Text nach oben schieben
+           (Walter-Bug 04.07.2026). */
+        .liquid-dashboard .liquid-module-card span.liquid-todo-badge {
+            position: absolute;
+            top: 6px;
+            right: 14px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border-radius: 11px;
+            background: #b91c1c;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 750;
+            line-height: 22px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(150,30,30,0.35);
+            z-index: 3;
+        }
+        /* ── To-dos: Liquid Glass wie MA-Maske (Walter 18.07.2026) ──
+           Sketch-Papier bewusst verlassen — gleiche Tokens/Rim/Schatten
+           wie Übersicht-Karten, damit ToDo nicht «fremd» wirkt. */
+        #page-todos {
+            padding: 12px 16px 16px;
+            background:
+                radial-gradient(ellipse 70% 50% at 85% -5%, rgba(255, 255, 255, 0.70) 0%, transparent 55%),
+                radial-gradient(ellipse 55% 45% at 8% 100%, rgba(180, 165, 140, 0.14) 0%, transparent 55%),
+                linear-gradient(160deg, #f6f3ee 0%, #efebe3 48%, #faf8f5 100%);
+        }
+        body.theme-dark #page-todos {
+            background: transparent;
+        }
+        #page-todos .todo-paper {
+            position: relative;
+            min-height: calc(100vh - 48px);
+            padding: 58px 22px 32px;
+            color: #3f3f3f;
+            background: transparent;
+            border-radius: 0;
+            overflow: visible;
+        }
+        body.theme-dark #page-todos .todo-paper {
+            color: var(--dlg-text);
+        }
+        /* Alter Sketch-Rahmen + rauhe Filter: ausblenden */
+        #page-todos .todo-frame { display: none !important; }
+        #page-todos .todo-back {
+            position: absolute; top: 18px; left: 22px; z-index: 3;
+            background: transparent; border: none; cursor: pointer;
+            color: #8b8b8b; font-size: 13px; font-weight: 600;
+            letter-spacing: 0.3px; padding: 6px 4px;
+        }
+        #page-todos .todo-back:hover { color: #3f3f3f; }
+        body.theme-dark #page-todos .todo-back { color: var(--dlg-text-muted); }
+        body.theme-dark #page-todos .todo-back:hover { color: var(--dlg-text-strong); }
+
+        /* PDF unter der reservierten #langSwitcher-Zone (y≥60) */
+        #page-todos .todo-pdf {
+            position: absolute; top: 62px; right: 22px; z-index: 3;
+            background: #3f3f3f; color: #fff; border: none; cursor: pointer;
+            font-size: 12.5px; font-weight: 600; letter-spacing: 0.3px;
+            padding: 7px 14px; border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(60, 55, 48, 0.18);
+        }
+        #page-todos .todo-pdf:hover { background: #1a1a1a; }
+        /* Kontrollliste — markant oben in der Mitte (Walter 23.09.2026) */
+        #page-todos .todo-kontroll {
+            position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 3;
+            background: #1a1a1a; color: #fff; border: none; cursor: pointer;
+            font-family: inherit; font-size: 14px; font-weight: 800; letter-spacing: 0.3px;
+            padding: 10px 22px; border-radius: 999px;
+            box-shadow: 0 8px 22px rgba(26, 26, 26, 0.30);
+            transition: transform .1s ease, box-shadow .14s ease;
+        }
+        #page-todos .todo-kontroll:hover {
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 12px 28px rgba(26, 26, 26, 0.36);
+        }
+        body.theme-dark #page-todos .todo-kontroll { border: 1px solid rgba(165, 215, 255, 0.28); }
+        /* «Was ist zu tun?» als Pille neben dem Titel (Walter 30.08.2026) */
+        #page-todos .todo-guide {
+            display: inline-flex; align-items: center; gap: 7px;
+            background: #2f2f2f; color: #fff; border: none; cursor: pointer;
+            font-family: inherit; font-size: 12.5px; font-weight: 700;
+            letter-spacing: 0.2px; padding: 7px 15px 7px 12px; border-radius: 999px;
+            box-shadow: 0 4px 14px rgba(47, 47, 47, 0.26);
+            transition: transform .1s ease, box-shadow .14s ease, background .14s ease;
+        }
+        #page-todos .todo-guide .tg-ico {
+            width: 17px; height: 17px; flex-shrink: 0; color: #fbbf24;
+        }
+        #page-todos .todo-guide:hover {
+            background: #1a1a1a; transform: translateY(-1px);
+            box-shadow: 0 7px 20px rgba(26, 26, 26, 0.32);
+        }
+        #page-todos .todo-guide:active { transform: translateY(0); }
+        body.theme-dark #page-todos .todo-guide {
+            border: 1px solid rgba(165, 215, 255, 0.28);
+        }
+        body.theme-dark #page-todos .todo-pdf {
+            background: #3f3f3f;
+            color: #ffffff;
+            border: 1px solid rgba(165, 215, 255, 0.28);
+            box-shadow:
+                0 4px 12px rgba(0, 4, 14, 0.35),
+                inset 0 1px 0 rgba(235, 248, 255, 0.12);
+        }
+        body.theme-dark #page-todos .todo-pdf:hover {
+            background: #2a2a2a;
+        }
+
+        /* Druck / PDF: nur die ToDo-Seite, Chrome ausblenden */
+        /* Saubere, klassische Druck-/PDF-Ansicht der To-do-Liste (nicht der
+           Sketch-Bildschirm). Am Bildschirm versteckt, nur beim Drucken sichtbar. */
+        #todosPrintArea { display: none; }
+        @media print {
+            body * { visibility: hidden !important; }
+            #todosPrintArea, #todosPrintArea * { visibility: visible !important; }
+            #todosPrintArea {
+                display: block !important; position: absolute; left: 0; top: 0; width: 100%;
+                color: #111; font-family: 'Helvetica Neue', Arial, sans-serif;
+            }
+            /* margin:0 unterdrueckt die Browser-Kopf-/Fusszeile (Datum/URL/Seitenzahl)
+               — Walter-Vorgabe 14.07.2026. Rand kommt als Padding auf den Container. */
+            @page { size: portrait; margin: 0; }
+            #todosPrintArea { padding: 14mm 14mm 16mm; box-sizing: border-box; }
+        }
+        #todosPrintArea .tp-head { border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
+/* ── Menuepunkte in der HR-Hub-Karte «Kuendigung / Zeugnisse»
+   (Walter 15.07.2026): schlichte klickbare Zeilen, Liquid-Look. ── */
+.kz-menu-item {
+    display: block; text-align: left; width: 100%;
+    background: none; border: none; padding: 4px 0; cursor: pointer;
+    font-size: 13px; font-weight: 600; color: #3f3f3f;
+    transition: color .15s ease;
+}
+.kz-menu-item:hover { color: #0f172a; text-decoration: underline; }
+body.theme-dark .kz-menu-item { color: #d6d3cc; }
+body.theme-dark .kz-menu-item:hover { color: #ffffff; }
+
+/* ── Restaurant-Admin-Kacheln (Walter 15.07.2026, v5): wie die Modul-
+   Kacheln der Startseite — Glas-Kachel, freigestelltes Sketch-Icon,
+   Beschriftung darunter. Hover hebt sanft (Liquid-Regel 2-4px). ── */
+.ra-tile-row {
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start;
+    margin: 4px 0 22px;
+}
+/* Farbschema exakt wie die Startseiten-Modulkacheln (Walter 15.07.2026):
+   Grundzustand cremig (36% Weiss ueber warmem Hintergrund), angewaehlt/
+   Hover WEISS (58%) mit staerkerem Schatten — Werte = .liquid-ui-Tokens. */
+.ra-tile {
+    /* Masse exakt wie .liquid-module-card der Startseite (112x136, Icon 96).
+       height fix — 2-Zeilen-Labels («Arbeits Aufforderung», «Face ID …»)
+       dürfen die Kachel nicht höher machen (Walter 30.07.2026). */
+    width: 112px;
+    height: 136px;
+    min-height: 136px;
+    max-height: 136px;
+    box-sizing: border-box;
+    border: 1px solid rgba(255,255,255,0.68);
+    border-radius: 20px;
+    background: rgba(255,255,255,0.36);
+    box-shadow: 0 22px 70px rgba(70,64,55,0.16),
+                inset 0 1px 1px rgba(255,255,255,0.86), inset 0 -1px 2px rgba(255,255,255,0.22);
+    backdrop-filter: blur(24px) saturate(132%);
+    -webkit-backdrop-filter: blur(24px) saturate(132%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 6px 4px 6px; cursor: pointer;
+    color: #3f3f3f; font-size: 11.5px; font-weight: 650; line-height: 1.15; text-align: center;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    overflow: hidden;
+}
+.ra-tile:hover, .ra-tile:focus-visible {
+    transform: translateY(-2px);
+    background: rgba(255,255,255,0.58);
+    box-shadow: 0 28px 78px rgba(70,64,55,0.24), inset 0 1px 1px rgba(255,255,255,0.9);
+}
+/* Icon fuellt die Kachel fast aus (Walter 15.07.2026) — 96px wie Startseite */
+.ra-tile img { width: 96px; height: 96px; flex: 0 0 96px; object-fit: contain; display: block; }
+/* Label: immer Platz für 2 Zeilen — alle Kacheln gleich hoch */
+.ra-tile > span {
+    flex: 0 0 auto;
+    min-height: calc(2 * 1.15em);
+    max-height: calc(2 * 1.15em);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    padding: 0 2px;
+    /* Label IMMER ganz unten (Walter 15.08.2026) — unabhaengig von der
+       Icon-Groesse; das Icon zentriert sich im Restraum (margin-auto). */
+    margin-top: auto;
+}
+.ra-tile img { margin-top: auto; }
+/* Eng zugeschnittene Motive → etwas groesser in der Kachel */
+.ra-tile img[src*="bewerbungsbogen.webp"] { width: 104px; height: 104px; }
+/* Gespräch starten (Icon war «Kandidat an HR»): Quermotiv → volle Kachelbreite */
+.ra-tile img[src*="Kandidat-an-HR.webp"] { width: 110px; height: 110px; }
+.ra-tile img[src*="arbeitszeugnis-bestellen.png"] { width: 110px; height: 110px; }
+.ra-tile img[src*="verwarnung.webp"] { width: 104px; height: 104px; }
+.ra-tile img[src*="aufhebungsvertrag.png"] { width: 104px; height: 104px; }
+body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #f1f5f9; }
+/* Walter 18.08.2026: Sketch-Icons im Dark Mode KRÄFTIGER — stärker invertiert,
+   mehr Kontrast + Helligkeit statt der ausgewaschenen 0.88-Invertierung. */
+body.theme-dark .ra-tile img { filter: invert(1) hue-rotate(180deg) brightness(1.7) contrast(1.3); }
+/* Bewerbungsbogen-Icon 1:1 — nicht invertieren (Walter 28.07.2026). */
+body.theme-dark .ra-tile img[src*="bewerbungsbogen.webp"] { filter: brightness(1.45) contrast(1.15); }
+/* Aufforderung-Icon 1:1 — ebenfalls nicht invertieren (Walter 30.07.2026). */
+body.theme-dark .ra-tile img[src*="Aufforderung.webp"] { filter: brightness(1.45) contrast(1.15); }
+
+        /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
+        #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
+        #todosPrintArea .tp-head h1 { font-size: 22px; margin: 0; font-weight: 800; letter-spacing: 0.3px; }
+        #todosPrintArea .tp-meta { font-size: 12px; color: #444; margin-top: 3px; }
+        #todosPrintArea .tp-h {
+            font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+            margin: 18px 0 4px; padding-bottom: 3px; border-bottom: 1px solid #999;
+        }
+        #todosPrintArea .tp-h span { font-weight: 600; color: #666; }
+        #todosPrintArea .tp-critical { color: #8a1010; border-bottom-color: #d99; }
+        #todosPrintArea .tp-warning  { color: #8a5a10; border-bottom-color: #dcb37a; }
+        #todosPrintArea .tp-info     { color: #1e3a5a; border-bottom-color: #a9bdd6; }
+        #todosPrintArea .tp-tbl { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+        #todosPrintArea .tp-tbl td { padding: 5px 8px 5px 0; vertical-align: top; border-bottom: 1px solid #eee; font-size: 12px; }
+        #todosPrintArea .tp-t { font-weight: 700; color: #111; width: 42%; }
+        #todosPrintArea .tp-t.tp-crit { color: #b91c1c; }
+        #todosPrintArea .tp-s { color: #444; }
+        #todosPrintArea .tp-empty { color: #999; font-style: italic; }
+
+        /* Sketch-Logo ersetzen durch ruhigen Seitentitel (wie page-title) */
+        #page-todos .todo-logo {
+            text-align: left; margin: 0 0 18px; position: relative; z-index: 2;
+            padding: 0 2px;
+            /* Titel und «Was ist zu tun?» in einer Zeile (Walter 30.08.2026).
+               Das ::after traegt den Titel, darum order:-1 — sonst stuende der
+               Knopf links davor. */
+            display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+        }
+        #page-todos .todo-logo img { display: none !important; }
+        #page-todos .todo-logo::after {
+            content: 'To do';
+            display: block; order: -1;
+            font-size: 22px; font-weight: 750; letter-spacing: -0.02em;
+            color: #2f2f2f; line-height: 1.2;
+        }
+        body.theme-dark #page-todos .todo-logo::after { color: var(--dlg-text-strong); }
+
+        #page-todos .todo-cols {
+            position: relative; z-index: 2;
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px; align-items: stretch;
+            max-width: 1320px; margin: 0 auto;
+        }
+        /* Spalten = gleiche Glas-Karten wie MA-Übersicht */
+        #page-todos .todo-col {
+            min-width: 0;
+            overflow: hidden;
+            padding: 14px 16px 16px;
+            border-radius: 16px;
+            border: 1px solid transparent;
+            background-color: #f4f0e8;
+            background-image:
+                linear-gradient(160deg, #fffcf8 0%, #f7f3eb 42%, #efe9df 78%, #e8e1d6 100%),
+                linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(210,200,185,0.55) 35%, rgba(120,110,95,0.22) 62%, rgba(255,255,255,0.88) 100%);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.10),
+                0 0 18px rgba(90, 80, 65, 0.06),
+                0 4px 12px rgba(60, 55, 48, 0.08),
+                0 16px 36px rgba(60, 55, 48, 0.14),
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.06);
+        }
+        body.theme-dark #page-todos .todo-col {
+            background-color: var(--dlg-fill) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow) !important;
+            color: var(--dlg-text);
+        }
+
+        #page-todos .todo-col-head {
+            display: flex; align-items: center; gap: 10px;
+            padding: 0 2px 10px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.12);
+            position: relative;
+        }
+        body.theme-dark #page-todos .todo-col-head {
+            border-bottom-color: rgba(165, 215, 255, 0.14);
+        }
+        #page-todos .todo-col-head::after { display: none; }
+        #page-todos .tch-ico {
+            width: 26px; height: 26px; flex: none;
+            color: #646464;
+        }
+        #page-todos .tch-ico circle[fill],
+        #page-todos .tch-ico [fill]:not([fill="none"]) { fill: currentColor; }
+        #page-todos .tch-ico circle,
+        #page-todos .tch-ico line { stroke: currentColor; }
+        body.theme-dark #page-todos .tch-ico { color: var(--dlg-text-soft); }
+        #page-todos .todo-col[data-sev="critical"] .tch-ico { color: #b91c1c; }
+        body.theme-dark #page-todos .todo-col[data-sev="critical"] .tch-ico { color: #fca5a5; }
+        #page-todos .tch-label {
+            flex: 1; font-size: 15px; font-weight: 720; letter-spacing: -0.01em;
+            font-family: inherit; color: #2f2f2f;
+        }
+        body.theme-dark #page-todos .tch-label { color: var(--dlg-text-strong); }
+        #page-todos .tch-cnt {
+            font-size: 12px; font-weight: 700; color: #8b8b8b;
+            min-width: 22px; height: 22px; line-height: 22px;
+            text-align: center; border-radius: 999px;
+            background: rgba(63, 63, 63, 0.08);
+        }
+        body.theme-dark #page-todos .tch-cnt {
+            color: var(--dlg-text-soft);
+            background: rgba(80, 140, 210, 0.18);
+        }
+        #page-todos .todo-col-body { padding-top: 4px; }
+
+        #page-todos .td-row {
+            display: grid; grid-template-columns: 28px minmax(0,1fr) 22px;
+            align-items: center; gap: 10px;
+            padding: 10px 8px; cursor: pointer;
+            position: relative;
+            border-radius: 10px;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.08);
+            transition: background .15s ease;
+        }
+        #page-todos .td-row:last-child { border-bottom: none; }
+        #page-todos .td-row::after { display: none; }
+        body.theme-dark #page-todos .td-row {
+            border-bottom-color: rgba(165, 215, 255, 0.08);
+        }
+        #page-todos .td-row:hover {
+            background: rgba(63, 63, 63, 0.05);
+        }
+        body.theme-dark #page-todos .td-row:hover {
+            background: rgba(80, 140, 210, 0.12);
+        }
+        #page-todos .td-check {
+            width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            color: #8b8b8b;
+        }
+        #page-todos .td-check svg { width: 20px; height: 20px; display: block; }
+        #page-todos .td-check circle { stroke: currentColor; fill: none; }
+        body.theme-dark #page-todos .td-check { color: var(--dlg-text-muted); }
+        #page-todos .td-text { min-width: 0; overflow: hidden; }
+        #page-todos .td-title {
+            display: block;
+            font-size: 13.5px; color: #2f2f2f; line-height: 1.3;
+            font-family: inherit; font-weight: 650;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        body.theme-dark #page-todos .td-title { color: var(--dlg-text-strong); }
+        /* Kritische Punkte in ROTER Schrift (Walter-Vorgabe 12.07.2026) */
+        #page-todos .td-title.td-crit { color: #b91c1c; font-weight: 700; }
+        body.theme-dark #page-todos .td-title.td-crit { color: #fca5a5; }
+        #page-todos .td-sub { display: block; font-size: 11.5px; color: #8b8b8b; margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        body.theme-dark #page-todos .td-sub { color: var(--dlg-text-muted); }
+        #page-todos .td-arrow {
+            display: flex; align-items: center; justify-content: center;
+            color: #8b8b8b; opacity: 0.7;
+        }
+        #page-todos .td-arrow svg { width: 16px; height: 16px; display: block; }
+        #page-todos .td-arrow path { stroke: currentColor; fill: none; }
+        body.theme-dark #page-todos .td-arrow { color: var(--dlg-text-muted); }
+        #page-todos .todo-empty {
+            padding: 20px 8px; color: #8b8b8b; font-size: 13px;
+            font-family: inherit;
+        }
+        body.theme-dark #page-todos .todo-empty { color: var(--dlg-text-muted); }
+        @media (max-width: 900px) {
+            #page-todos .todo-cols { grid-template-columns: 1fr; }
+        }
+        .liquid-dashboard .liquid-todo-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px 10px;
+            color: #5a554f;
+            font-size: 16px;
+            font-weight: 750;
+        }
+        .liquid-dashboard .liquid-more {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.55);
+            background: rgba(255,255,255,.32);
+            color: #8b8378;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+        .liquid-dashboard .liquid-legacy-dashboard {
+            display: none;
+        }
+        .liquid-dashboard .liquid-todo-panel #dashAlertsContainer {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-height: calc(min(560px, 100vh - 150px) - 58px);
+            overflow-y: auto;
+            padding-right: 3px;
+        }
+        .liquid-dashboard .liquid-todo-row {
+            min-height: 42px;
+            border-radius: 18px;
+            display: grid;
+            grid-template-columns: 24px minmax(0, 1fr) 14px;
+            gap: 10px;
+            align-items: center;
+            padding: 7px 10px;
+            color: #666;
+            font-size: 11px;
+            background: transparent;
+            border: 1px solid transparent;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            cursor: pointer;
+            transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+        }
+        .liquid-dashboard .liquid-todo-row:hover {
+            transform: translateY(-2px);
+            background: rgba(255,255,255,.38);
+            border-color: rgba(255,255,255,.42);
+            box-shadow: 0 12px 30px rgba(70, 64, 55, 0.10), var(--liquid-inset);
+        }
+        .liquid-dashboard .liquid-todo-row > span:nth-child(2) {
+            min-width: 0;
+        }
+        .liquid-dashboard .liquid-todo-row .liquid-todo-title {
+            font-size: 12px;
+            font-weight: 620;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Kritische Punkte in ROTER Schrift (Walter-Vorgabe 12.07.2026). */
+        .liquid-dashboard .liquid-todo-row .liquid-todo-title.liquid-todo-crit {
+            color: #b91c1c;
+            font-weight: 700;
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-row .liquid-todo-title.liquid-todo-crit {
+            color: #f87171;
+        }
+        .liquid-dashboard .liquid-todo-row .liquid-todo-sub {
+            font-size: 10.5px;
+            color: #8c867c;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* To-do-Wichtigkeitsstufen (Kritisch offen, Achtung/Info eingeklappt) — Walter 04.07.2026 */
+        .liquid-dashboard .liquid-todo-sev { margin-bottom: 6px; }
+        .liquid-dashboard .liquid-todo-sev-head {
+            display: flex; align-items: center; gap: 11px;
+            padding: 12px 12px; cursor: pointer; border-radius: 16px;
+            background: rgba(255,255,255,.30); border: 1px solid rgba(255,255,255,.42);
+            transition: background .18s ease;
+        }
+        .liquid-dashboard .liquid-todo-sev-head:hover { background: rgba(255,255,255,.48); }
+        .liquid-dashboard .liquid-todo-sev-head .lts-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .liquid-dashboard .liquid-todo-sev-head .liquid-todo-sev-label {
+            font-size: 13px; font-weight: 720; text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .liquid-dashboard .liquid-todo-sev-head .ltg-count {
+            font-size: 11.5px; font-weight: 700; color: #646464;
+            background: rgba(60,55,48,0.08); border-radius: 11px; padding: 1px 9px; flex-shrink: 0;
+        }
+        .liquid-dashboard .liquid-todo-sev-head .ltg-chevron { color: #b3a99a; font-size: 16px; flex-shrink: 0; transition: transform .2s ease; }
+        .liquid-dashboard .liquid-todo-sev.open .ltg-chevron { transform: rotate(90deg); }
+        .liquid-dashboard .liquid-todo-sev-body { display: none; padding: 6px 0 4px 4px; }
+        .liquid-dashboard .liquid-todo-sev.open .liquid-todo-sev-body { display: block; }
+

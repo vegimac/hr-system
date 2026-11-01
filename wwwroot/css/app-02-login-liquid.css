@@ -1,0 +1,1469 @@
+        /* ── LOGIN — OneCrew (Walter-Spec 28.06.2026) ───────────────
+           Editorial / Dieter Rams / Schweizer Typografie. Extrem
+           reduziert: Off-White, viel Weissraum, keine Karten/Schatten/
+           Verläufe/Glas. Nur Typografie + Architektur-Sketch. */
+        /* McDonald's Speedee für den OneCrew-Schriftzug. Font-Dateien unter
+           wwwroot/fonts/ ablegen (Speedee_Lt.woff2 / Speedee_Bd.woff2);
+           fehlen sie, greift der Fallback-Sans automatisch. */
+        @font-face { font-family: 'Speedee'; font-weight: 300; font-style: normal; font-display: swap; src: url('fonts/Speedee_Lt.woff2') format('woff2'); }
+        @font-face { font-family: 'Speedee'; font-weight: 700; font-style: normal; font-display: swap; src: url('fonts/Speedee_Bd.woff2') format('woff2'); }
+        #loginScreen {
+            position: fixed; inset: 0; z-index: 1000;
+            color: #111111;
+            /* Beige-Hintergrund wie im Hauptmenü (Dashboard) */
+            background:
+                radial-gradient(circle at 58% 47%, rgba(255, 255, 255, 0.78), transparent 25%),
+                radial-gradient(circle at 28% 50%, rgba(224, 218, 209, 0.42), transparent 36%),
+                linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+            display: flex; flex-direction: column;
+            overflow: auto;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Header — ~30% höher als gewöhnlich */
+        .login-header { padding: 7vh 24px 0; text-align: center; flex-shrink: 0; }
+        /* Offizielles OneCrew-Logo (Master-Bild, 1:1 eingebunden — nicht
+           nachgezeichnet, kein SVG, keine Proportions-Änderung). */
+        .login-logo {
+            display: block; margin: 0 auto;
+            width: auto; max-width: 660px; max-height: 188px; height: auto;
+        }
+        .login-rule {
+            width: min(825px, 88%); height: 1px; background: #BFBFBF;
+            border: 0; margin: 38px auto 0;
+        }
+        .login-tagline {
+            margin: 20px 0 0; font-size: 15px; line-height: 1;
+            letter-spacing: 0.34em; color: #555555;
+            text-transform: uppercase; font-weight: 500;
+        }
+        /* Loginbereich — perfekt zentriert */
+        .login-main {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 48px 24px;
+        }
+        .login-inner { width: 100%; max-width: 360px; }
+        .login-title {
+            font-size: 42px; font-weight: 600; letter-spacing: -0.6px;
+            color: #111111; margin: 0; text-align: center; line-height: 1.05;
+        }
+        .login-sub {
+            color: #777777; font-size: 14px; margin: 10px 0 46px;
+            text-align: center;
+        }
+        /* Felder — nur Unterlinien, keine Rahmen */
+        .login-field { position: relative; margin-bottom: 30px; }
+        .login-field .lf-icon {
+            position: absolute; left: 2px; top: 50%; transform: translateY(-50%);
+            color: #777777; pointer-events: none; display: flex;
+        }
+        .login-input {
+            width: 100%; box-sizing: border-box;
+            border: 0; border-bottom: 1px solid #BFBFBF;
+            background: transparent; color: #111111;
+            padding: 10px 30px 10px 32px; font-size: 15px;
+            font-family: inherit; outline: none;
+            transition: border-color 0.2s;
+        }
+        .login-input::placeholder { color: #999999; }
+        .login-input:focus { border-bottom-color: #111111; }
+        .login-eye {
+            position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+            background: none; border: 0; padding: 4px; cursor: pointer;
+            color: #999999; display: flex; line-height: 0;
+        }
+        .login-eye:hover { color: #111111; }
+        /* Button — schwarz, leicht strukturiert */
+        .login-btn {
+            width: 100%; margin-top: 10px; padding: 16px 20px;
+            background-color: #111111;
+            background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.025) 0 2px, rgba(255,255,255,0) 2px 4px);
+            color: #ffffff; border: 0; cursor: pointer;
+            font-family: inherit; font-size: 14px; font-weight: 500;
+            letter-spacing: 1.5px;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            transition: background-color 0.2s;
+        }
+        .login-btn:hover { background-color: #000000; }
+        .login-btn .login-arrow { font-size: 16px; transition: transform 0.2s; }
+        .login-btn:hover .login-arrow { transform: translateX(4px); }
+        .login-forgot {
+            display: block; text-align: center; margin-top: 22px;
+            font-size: 13px; color: #aaaaaa; text-decoration: none;
+            cursor: pointer; transition: color 0.2s;
+        }
+        .login-forgot:hover { color: #777777; }
+        .login-error {
+            background: transparent; border: 0; color: #b4322a;
+            padding: 0 0 18px; font-size: 13px; text-align: center;
+            display: none;
+        }
+        /* Footer — eine Zeile, ~30% grösser, viel Laufweite */
+        .login-footer {
+            flex-shrink: 0; padding: 24px 24px 36px; text-align: center;
+        }
+        .login-footer-line {
+            font-size: 13px; letter-spacing: 0.28em; color: #111111;
+            text-transform: uppercase; font-weight: 500;
+        }
+        .login-footer-line .sep { color: #BFBFBF; margin: 0 14px; font-weight: 400; }
+        /* Zweite Prüfung / Passwortwechsel im Login (Walter 11.09.2026):
+           gleicher ruhiger Look wie das Anmeldeformular, Liquid-Glass-Karte
+           für QR + Schlüssel, Code-Feld mit Laufweite zum Abtippen. */
+        .login-step-title {
+            font-size: 22px; font-weight: 600; color: #111111; text-align: center;
+            letter-spacing: -0.3px; margin: 0 0 8px;
+        }
+        .login-step-text {
+            color: #646464; font-size: 13.5px; line-height: 1.5; text-align: center; margin: 0 0 18px;
+        }
+        .totp-qr-wrap {
+            display: flex; justify-content: center; margin: 0 0 18px;
+        }
+        .totp-qr-wrap img {
+            width: 196px; height: 196px; display: block; background: #fff;
+            border: 1px solid rgba(255,255,255,0.62); border-radius: 16px; padding: 10px;
+            box-shadow: 0 18px 50px rgba(60,55,48,0.14);
+        }
+        .totp-secret {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px;
+            letter-spacing: 1.5px; text-align: center; color: #3f3f3f;
+            background: rgba(255,255,255,0.58); border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 12px; padding: 10px 12px; margin: 0 0 22px; user-select: all;
+            word-break: break-all;
+        }
+        .login-input.totp-code { letter-spacing: 6px; font-size: 20px; font-variant-numeric: tabular-nums; }
+        .login-input.totp-code::placeholder { letter-spacing: 0; font-size: 15px; }
+        @media (max-width: 600px) {
+            .login-header { padding-top: 5vh; }
+            .login-logo { max-width: 88%; }
+            .login-title { font-size: 34px; }
+            .login-footer-line { font-size: 11px; letter-spacing: 0.18em; }
+            .login-footer-line .sep { margin: 0 7px; }
+        }
+
+        /* Impersonation-/Testmodus-Hinweisbalken (zentrierte Pille oben). */
+        #impersonationBanner {
+            position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 4000;
+            background: #f59e0b; color: #1f2937;
+            font-size: 13px; font-weight: 600; border-radius: 999px;
+            padding: 6px 8px 6px 16px; display: inline-flex; align-items: center; gap: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+        }
+        #impersonationBanner button {
+            background: #1f2937; color: #fff; border: 0; border-radius: 999px;
+            padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+        #impersonationBanner button:hover { background: #111827; }
+
+        /* ── APP SHELL ─────────────────────────────────────────── */
+        #app { display: none; height: 100vh; }
+        .layout { display: flex; height: 100vh; }
+
+        /* ── SIDEBAR ───────────────────────────────────────────── */
+        /* Globale Sidebar im warmen Liquid-Look (Walter-Vorgabe 27.06.2026) —
+           gilt auf allen Seiten (ausser den Liquid-Shells Dashboard/Mitarbeiter,
+           die ihre eigene Nav haben). Dark-Mode-Varianten weiter unten. */
+        /* Globale Sidebar = exakt die schmale Liquid-Rail der Mitarbeiter-Seite
+           (Walter-Vorgabe 28.06.2026). Alter Marken-/Label-Code entfernt. */
+        .sidebar {
+            width: 160px; min-width: 160px;
+            background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+            border-right: 1px solid rgba(120,110,95,0.12);
+            display: flex; flex-direction: column; overflow-y: auto;
+            padding: 6px 8px 8px;
+        }
+        .sidebar-header { padding: 6px 2px 8px; border: 0; }
+        /* Offizielles OneCrew-Logo (Master-Bild, 1:1) in der Sidebar. */
+        .sidebar-logo { display: block; width: 100%; max-width: 124px; height: auto; margin: 0 auto; }
+        body.theme-dark .sidebar-logo { filter: invert(1) brightness(1.12); }
+
+        .branch-selector { padding: 2px 2px 8px; border: 0; }
+        .branch-label { display: block; font-size: 10px; font-weight: 700; color: #8b96a5; text-transform: uppercase; letter-spacing: 0.1em; padding: 0 2px 4px; }
+        .branch-select {
+            width: 100%; padding: 8px 10px; background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.62); border-radius: 12px;
+            color: #364152; font-size: 11.5px; font-weight: 700; font-family: inherit; cursor: pointer; outline: none;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 6px 14px rgba(72,63,53,0.06);
+        }
+        .branch-select option { background: #fff; color: #364152; }
+
+        /* Helles Glas-Dropdown für die Filialauswahl in der Sidebar (wie Dashboard) */
+        .sb-branch-menu { position: relative; }
+        /* Walter 04.08.2026: gewählte Filiale MARKANT — Kohle-Pille
+           (Liquid-Glass-Primär) statt dezentem Glas, weisser fetter Text. */
+        .sb-branch-btn {
+            width: 100%; padding: 10px 12px; background: #3f3f3f;
+            border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
+            color: #fff; font-size: 12.5px; font-weight: 750; font-family: inherit;
+            letter-spacing: 0.01em;
+            cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 16px rgba(60,55,48,0.22);
+            text-align: left;
+            transition: background 0.15s;
+        }
+        .sb-branch-btn:hover { background: #1a1a1a; }
+        .sb-branch-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sb-branch-btn svg { width: 15px; height: 15px; flex: none; fill: none; stroke: rgba(255,255,255,0.75); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .sb-branch-options {
+            position: fixed; min-width: 260px;
+            z-index: 4000; background: rgba(250,248,245,0.98);
+            border: 1px solid rgba(255,255,255,0.72); border-radius: 14px; padding: 6px;
+            max-height: min(70vh, 520px); overflow-y: auto;
+            box-shadow: 0 24px 60px rgba(72,63,53,0.22), inset 0 1px 0 rgba(255,255,255,0.7);
+            backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%);
+            display: none;
+        }
+        .sb-branch-menu.open .sb-branch-options { display: block; }
+        .sb-branch-option {
+            width: 100%; display: flex; align-items: center; gap: 8px;
+            padding: 9px 10px; border: none; background: transparent; border-radius: 10px;
+            color: #3f3f3f; font-size: 12.5px; font-weight: 600; font-family: inherit;
+            cursor: pointer; text-align: left; white-space: nowrap;
+        }
+        .sb-branch-option:hover { background: rgba(120,110,95,0.09); }
+        .sb-branch-option.active { background: rgba(255,255,255,0.92); font-weight: 750; box-shadow: 0 3px 10px rgba(72,63,53,0.10); }
+        .sb-branch-check { width: 13px; flex: none; color: #3f3f3f; }
+        body.theme-dark .sb-branch-btn {
+            /* Kohle-Pille auch im Dunkel-Modus — heller Rand als Kontrast */
+            background: #1a1a1a !important;
+            border: 1px solid rgba(255,255,255,0.22) !important;
+            color: #fff;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+        }
+        body.theme-dark .sb-branch-btn:hover { background: #000 !important; }
+        body.theme-dark .sb-branch-options {
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-strong), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow), 0 24px 60px rgba(0,10,40,.45) !important;
+        }
+        body.theme-dark .sb-branch-option { color: #cbd5e1; }
+        body.theme-dark .sb-branch-option.active { background: rgba(51,65,85,.7); }
+        body.theme-dark .sb-branch-check { color: #e2e8f0; }
+
+        .sidebar-nav { flex: 1; padding: 4px 0; display: flex; flex-direction: column; gap: 6px; }
+        .nav-section { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+        /* Bereich «Entwicklung» (Walter 31.08.2026): standardmaessig AUS.
+           Sichtbar wird er ausschliesslich, wenn applyAreaVisibility() die
+           Klasse «entw-on» an den <body> haengt — also fuer den Super-Admin
+           oder bei gesetztem Haekchen. Bewusst per CSS und nicht per
+           style.display: so bleibt der Eintrag auch dann verborgen, wenn ein
+           Browser noch eine aeltere app-core.js aus dem Cache ausfuehrt, die
+           von diesem Bereich gar nichts weiss. Fehlerfall = unsichtbar. */
+        .entw-only-section { display: none !important; }
+        body.entw-on .entw-only-section { display: flex !important; }
+        /* ELM Cockpit (Walter 01.11.2026): wie Entwicklung über eine Body-Klasse (elm-on). */
+        .elm-only-section { display: none !important; }
+        body.elm-on .elm-only-section { display: flex !important; }
+        .nav-item {
+            position: relative;
+            width: 100%; min-height: 46px;
+            display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 8px;
+            padding: 7px 8px; border-radius: 16px;
+            cursor: pointer; color: #626d78; font-size: 11px; font-weight: 720; line-height: 1.12;
+            background: rgba(255,255,255,0.34); border: 1px solid rgba(255,255,255,0.46);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+            transition: transform .14s ease, background .14s ease, box-shadow .14s ease; user-select: none;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.58); color: #364152; transform: translateY(-1px); box-shadow: 0 10px 24px rgba(72,63,53,0.10), inset 0 1px 0 rgba(255,255,255,0.70); }
+        .nav-item.active { background: rgba(219,234,254,0.68); color: #245b92; border-color: rgba(147,197,253,0.6); }
+        .nav-icon { width: 24px; height: 24px; flex-shrink: 0; opacity: 1; }
+        .nav-icon-img { width: 32px; height: 32px; flex-shrink: 0; object-fit: contain; mix-blend-mode: multiply; }
+        body.theme-dark .nav-icon-img { mix-blend-mode: screen; filter: invert(1) brightness(1.12); }
+        #posteingangBadge { position: absolute !important; right: 6px; top: 6px; margin: 0 !important; }
+        /* Footer kompakt: nur Logout-Icon (Rail-Breite) */
+        .sidebar-footer { padding: 8px 2px; }
+        .sidebar-footer .user-avatar, .sidebar-footer .user-info { display: none; }
+        .sidebar-footer .user-row { justify-content: center; }
+        .sidebar-footer .logout-btn { margin: 0 !important; }
+
+        /* Dark-Mode Sidebar — blaues Glas-Rail (Mockup) */
+        body.theme-dark .sidebar {
+            background:
+                radial-gradient(circle at 20% 0%, rgba(60,120,200,.14) 0, transparent 240px),
+                linear-gradient(180deg, rgba(14, 26, 44, 0.88) 0%, rgba(8, 16, 30, 0.94) 100%);
+            border-right: 1px solid rgba(120,180,255,.22);
+            backdrop-filter: blur(20px) saturate(120%);
+            -webkit-backdrop-filter: blur(20px) saturate(120%);
+            box-shadow: inset -1px 0 0 rgba(160,210,255,.08), 4px 0 28px rgba(0,8,24,.40);
+        }
+        body.theme-dark .sidebar-header,
+        body.theme-dark .branch-selector,
+        body.theme-dark .sidebar-footer { border-color: rgba(122,145,165,.12); }
+        body.theme-dark .branch-label { color: var(--dlg-text-soft); }
+        body.theme-dark .branch-select {
+            background: rgba(255,255,255,.06);
+            border-color: var(--dlg-glass-border);
+            color: var(--dlg-text);
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
+        }
+        body.theme-dark .branch-select option { background: #121c28; color: var(--dlg-text); }
+        body.theme-dark .nav-item {
+            border: 1px solid transparent !important;
+            background-image: linear-gradient(rgba(14,26,44,.62), rgba(14,26,44,.62)), var(--dlg-rim-soft) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            color: var(--dlg-text);
+            box-shadow: inset 0 1px 0 rgba(180,210,245,.06);
+        }
+        body.theme-dark .nav-item:hover {
+            background-image: linear-gradient(rgba(22,40,66,.78), rgba(22,40,66,.78)), var(--dlg-rim) !important;
+            color: #ffffff;
+            box-shadow: none;
+            transform: none;
+        }
+        body.theme-dark .nav-item.active {
+            border: 1px solid transparent !important;
+            background-image: linear-gradient(rgba(40,90,160,.50), rgba(28,70,130,.48)), var(--dlg-rim-hot) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            color: #ffffff !important;
+            box-shadow: inset 0 1px 0 rgba(200,230,255,.14);
+        }
+        body.theme-dark .user-name { color: var(--dlg-text-strong); }
+        .nav-soon {
+            margin-left: auto; font-size: 10px; font-weight: 600; color: #e2e8f0;
+            background: rgba(255,255,255,0.14); padding: 2px 8px; border-radius: 10px;
+        }
+
+        /* Admin-Hub Kacheln */
+        .admin-card {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 20px; cursor: pointer; transition: all 0.15s;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .admin-card:hover {
+            border-color: #3f3f3f;
+            box-shadow: 0 4px 12px rgba(63,63,63,0.15);
+            transform: translateY(-2px);
+        }
+        .admin-card-icon {
+            width: 44px; height: 44px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 4px;
+        }
+        .admin-card-title { font-weight: 700; font-size: 15px; color: #0f172a; }
+        .admin-card-desc  { font-size: 12px; color: #64748b; line-height: 1.4; }
+
+        .sidebar-footer { padding: 14px 18px; border-top: 1px solid rgba(120,110,95,0.12); }
+        .user-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .user-row > .user-info { flex: 1 1 0; min-width: 0; overflow: hidden; }
+        .user-row > .user-info .user-name,
+        .user-row > .user-info .user-role-badge {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .user-avatar {
+            width: 32px; height: 32px; background: #3f3f3f; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 13px; flex-shrink: 0;
+        }
+        .user-name { color: #364152; font-size: 13px; font-weight: 500; }
+        .user-role-badge { color: #8b96a5; font-size: 11px; }
+        .logout-btn {
+            margin-left: auto; padding: 6px 12px;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            border-radius: 6px;
+            color: #fca5a5; cursor: pointer; font-size: 12px;
+            font-weight: 600; font-family: inherit;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.25);
+            border-color: rgba(239, 68, 68, 0.8);
+            color: #fee2e2;
+        }
+
+        /* ── Floating Topbar-Widget (oben rechts, jeder Screen) ──
+           Muss auf dem hellen Liquid-Glass-Hintergrund klar sichtbar bleiben
+           (Walter 17.07.2026: fast-transparentes Glas machte Theme-Toggle
+           unbenutzbar — «Dunkelmodus lässt sich nicht aktivieren»). */
+        #langSwitcher {
+            background: rgba(255,255,255,.92) !important;
+            border-color: rgba(60,55,48,.14) !important;
+            box-shadow: 0 10px 28px rgba(60,55,48,.12), inset 0 1px 0 rgba(255,255,255,.70) !important;
+            backdrop-filter: blur(22px) saturate(145%) !important;
+            -webkit-backdrop-filter: blur(22px) saturate(145%) !important;
+        }
+        #langSwitcher .lang-control {
+            display: none !important;
+        }
+
+        /* ── Klickflaeche der Kopf-Pillen (Walter-Bug 01.09.2026) ──
+           «diese pillen sind oft schwer anzuklicken». Ursache: Lupe und
+           Fragezeichen hatten padding:3px 8px inline — rund 22 px hoch, also
+           deutlich unter den ~34 px, die man zum sicheren Treffen braucht;
+           beim Theme-Toggle war die Pille zwar groesser, aber die Abstaende
+           dazwischen so knapp, dass ein Fehlklick beim Nachbarn landete.
+           !important ist hier noetig, weil die Masse als style="" direkt am
+           Element stehen und sonst gewinnen wuerden.
+           Wichtig: display NICHT setzen — #lsEmpSyncBtn wird von JS zwischen
+           none und flex umgeschaltet. */
+        /* ── Das Widget darf Fenster nicht verdecken (Walter-Bug 02.09.2026) ──
+           Es lag auf z-index 1500 und damit ÜBER praktisch jedem Dialog der
+           App (.modal-bg = 500, die eingebetteten Vollbild-Fenster 299–320).
+           In der rechten oberen Ecke sitzt aber bei fast jedem Fenster das
+           Schliessen-Kreuz — das war schlicht darunter begraben. Aufgefallen
+           an der QST-Anmeldung: «kein Kreuz zum Beenden sichtbar».
+           Zwei Vollbild-PDFs (Lohnbelege, Akonto) waren früher einzeln auf
+           1600 hochgesetzt worden — Symptombehandlung derselben Ursache.
+           Richtig ist: Das Widget schwebt über dem SEITENinhalt, aber unter
+           jedem Fenster. 250 liegt über Menüs (200) und unter allem ab 299.
+           Auf der Anmeldeseite spielt es keine Rolle: #langSwitcher steckt in
+           #app, und das ist beim Login ausgeblendet. */
+        #langSwitcher { z-index: 250 !important; gap: 8px !important; padding: 6px 10px !important; }
+        #langSwitcher > button {
+            min-height: 34px;
+            padding: 6px 12px !important;
+            border-radius: 10px !important;
+            transition: background .12s, border-color .12s, transform .12s;
+        }
+        /* Lupe und Fragezeichen sind randlos — ein sichtbarer Hover zeigt,
+           wie gross die Flaeche wirklich ist. */
+        #langSwitcher > button:hover {
+            background: rgba(60,55,48,.08) !important;
+            border-color: rgba(60,55,48,.28) !important;
+        }
+        #langSwitcher > #themeToggleBtn:hover { background: #1a1a1a !important; }
+        #langSwitcher > button:active { transform: scale(.97); }
+        body.theme-dark #langSwitcher > button:hover {
+            background: rgba(255,255,255,.12) !important;
+            border-color: rgba(255,255,255,.30) !important;
+        }
+        body.theme-dark #langSwitcher > #themeToggleBtn:hover { background: #ffffff !important; }
+
+        body.theme-dark #langSwitcher {
+            background: rgba(40, 54, 72, 0.82) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: 0 12px 34px rgba(0,0,0,.28), inset 0 1px 0 var(--dlg-glass-inner) !important;
+            backdrop-filter: blur(22px) saturate(140%) !important;
+            -webkit-backdrop-filter: blur(22px) saturate(140%) !important;
+        }
+        body.theme-dark #langSwitcher .ls-label   { color: var(--dlg-text) !important; }
+        body.theme-dark #langSwitcher .ls-divider { background: rgba(122,145,165,.28) !important; }
+
+        /* Theme-Toggle: Kohle-Pille hell; im Dark = ruhige Glas-Pille
+           (kein grelles Gelb — passt zum Liquid-Glass-Dunkel). */
+        #themeToggleBtn {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #3f3f3f; color: #ffffff;
+            border: 1px solid #1a1a1a; border-radius: 16px;
+            cursor: pointer; padding: 7px 13px;
+            font-size: 12px; font-weight: 700; font-family: inherit;
+            line-height: 1; transition: background .15s, color .15s, transform .15s, border-color .15s;
+            box-shadow: 0 6px 16px rgba(60,55,48,.18);
+        }
+        #themeToggleBtn .tt-icon  { font-size: 14px; line-height: 1; }
+        #themeToggleBtn:hover     { background: #1a1a1a; transform: translateY(-1px); }
+        body.theme-dark #themeToggleBtn {
+            background: rgba(233, 236, 240, 0.92);
+            color: #1a1a1a;
+            border-color: rgba(255,255,255,.35);
+            box-shadow: 0 8px 20px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.45);
+        }
+        body.theme-dark #themeToggleBtn:hover {
+            background: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        /* easy@work-Sync unter «Dunkel», nur MA-Übersicht auf Produktiv. */
+        #lsEmpActions {
+            position: fixed;
+            top: 62px;
+            right: 18px;
+            z-index: 1490;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #lsEmpActions > button {
+            align-items: center;
+            gap: 5px;
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(60,55,48,.16);
+            background: rgba(255,255,255,.94);
+            box-shadow: 0 6px 16px rgba(60,55,48,.12);
+            cursor: pointer;
+            font-size: 12.5px;
+            font-weight: 700;
+            font-family: inherit;
+            color: #3f3f3f;
+            line-height: 1;
+        }
+        #lsEmpActions > button:hover { background: #fff; }
+        #lsEmpSyncBtn.ls-emp-sync {
+            position: static;
+            display: none;
+            color: #15803d;
+        }
+        #lsEmpSyncBtn.ls-emp-sync img {
+            width: 14px; height: 14px; object-fit: contain; display: block;
+        }
+        #lsEmpSyncBtn.ls-emp-sync:hover {
+            background: #fff;
+            border-color: rgba(22,101,52,.35);
+        }
+        #lsEmpSyncBtn.ls-emp-sync:disabled {
+            opacity: .65; cursor: wait;
+        }
+        body.theme-dark #lsEmpSyncBtn.ls-emp-sync {
+            background: rgba(40,54,72,.88);
+            border-color: rgba(130,190,255,.28);
+            color: #86efac;
+            box-shadow: 0 8px 20px rgba(0,0,0,.28);
+        }
+
+        /* ── MAIN CONTENT ──────────────────────────────────────── */
+        .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; background: #f8fafc; }
+        .page-head {
+            padding: 28px 32px 0; display: flex;
+            align-items: flex-start; justify-content: space-between;
+        }
+        .page-title { font-size: 22px; font-weight: 700; color: #0f172a; }
+        .page-sub { color: #64748b; font-size: 13px; margin-top: 5px; }
+        .page-body { padding: 20px 32px 40px; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* ── CARDS ─────────────────────────────────────────────── */
+        .card {
+            background: white; border-radius: 12px;
+            border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .card-hd {
+            padding: 16px 20px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-hd-title { font-size: 15px; font-weight: 600; }
+        .card-hd-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+        /* ── STATS GRID ────────────────────────────────────────── */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+        .stat-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; }
+        .stat-label { font-size: 12px; color: #64748b; font-weight: 500; margin-bottom: 10px; }
+        .stat-value { font-size: 30px; font-weight: 700; line-height: 1; }
+        .stat-hint { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+
+        /* ── TABLES ────────────────────────────────────────────── */
+        .tbl-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        thead th {
+            padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700;
+            color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;
+            background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+        }
+        tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
+        tbody tr:hover { background: #f8fafc; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody td { padding: 12px 16px; color: #374151; vertical-align: middle; }
+
+        /* ── BADGES ────────────────────────────────────────────── */
+        .badge {
+            display: inline-flex; align-items: center; padding: 3px 10px;
+            border-radius: 20px; font-size: 11px; font-weight: 600;
+        }
+        .b-admin { background: #fef3c7; color: #92400e; }
+        .b-superuser { background: #ede9fe; color: #6d28d9; }
+        .b-user { background: #f0fdf4; color: #166534; }
+        .b-lowuser { background: #f1f5f9; color: #475569; }
+        .b-super-admin { background: #1e1b4b; color: #fde047; font-weight: 700; }
+        .b-active { background: #f0fdf4; color: #166534; }
+        .b-inactive { background: #fef2f2; color: #991b1b; }
+        .b-code { background: #f6f3ee; color: #6b7280; }
+
+        /* ── BUTTONS ───────────────────────────────────────────── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: 8px; font-size: 13px;
+            font-weight: 600; cursor: pointer; border: none; font-family: inherit;
+            transition: all 0.15s; white-space: nowrap; text-decoration: none;
+        }
+        .btn-primary { background: #3f3f3f; color: white; box-shadow: 0 5px 14px rgba(60,55,48,.16); }
+        .btn-primary:hover { background: #1a1a1a; }
+        /* Speichern / bestätigen — kräftiges Grün */
+        .btn-success { background: #10b981; color: white; border: 1px solid #10b981; }
+        .btn-success:hover { background: #059669; border-color: #059669; }
+        /* Löschen — kräftiges Rot mit weisser Schrift */
+        .btn-danger { background: #ef4444; color: white; border: 1px solid #ef4444; }
+        .btn-danger:hover { background: #dc2626; border-color: #dc2626; }
+        /* Abbrechen / Sekundär — sichtbar (kein Weiss auf Weiss) */
+        .btn-outline { background: white; color: #475569; border: 1.5px solid #94a3b8; }
+        .btn-outline:hover { background: #f1f5f9; border-color: #64748b; }
+        .btn-ghost { background: transparent; color: #64748b; padding: 5px 10px; }
+        .btn-ghost:hover { background: #f1f5f9; color: #0f172a; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+        /* ── ⋯-DROPDOWN-MENÜ (Walter-Vorgabe 31.05.2026) ───────
+           Wiederverwendbares Pattern für Sekundär-Aktionen in
+           Action-Bars. Hauptaktionen bleiben sichtbar, alles
+           Seltene (Reports, Admin, Wartung) wandert ins Menü. */
+        .action-menu { position: relative; display: inline-block; }
+        .action-menu-trigger {
+            background: white; color: #475569; border: 1.5px solid #94a3b8;
+            border-radius: 8px; padding: 5px 10px; font-size: 13px;
+            font-weight: 500; cursor: pointer; line-height: 1; transition: background .15s;
+        }
+        .action-menu-trigger:hover { background: #f1f5f9; border-color: #64748b; }
+        .action-menu-list {
+            position: absolute; top: calc(100% + 4px); right: 0; min-width: 220px;
+            background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,.12); padding: 6px;
+            z-index: 100; display: none;
+        }
+        .action-menu.open .action-menu-list { display: block; }
+        .action-menu-item {
+            display: flex; align-items: center; gap: 8px; width: 100%;
+            background: transparent; border: none; padding: 7px 10px;
+            font-size: 13px; color: #334155; text-align: left;
+            border-radius: 6px; cursor: pointer; transition: background .12s;
+        }
+        .action-menu-item:hover { background: #f1f5f9; }
+        .action-menu-item.danger { color: #b91c1c; }
+        .action-menu-item.danger:hover { background: #fee2e2; }
+        .action-menu-divider { height: 1px; background: #e2e8f0; margin: 4px 0; }
+        body.theme-dark .action-menu-trigger { background: var(--dlg-glass); color: #e2e8f0; border-color: var(--dlg-glass-border); }
+        body.theme-dark .action-menu-trigger:hover { background: var(--dlg-glass-strong); }
+        body.theme-dark .action-menu-list { background: var(--dlg-glass); border-color: var(--dlg-glass-border); }
+        body.theme-dark .action-menu-item { color: #e2e8f0; }
+        body.theme-dark .action-menu-item:hover { background: var(--dlg-glass-strong); }
+
+        /* ── MODAL ─────────────────────────────────────────────── */
+        .modal-bg {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(4px); display: none;
+            align-items: center; justify-content: center; z-index: 500;
+        }
+        .modal-bg.open { display: flex; }
+        .modal {
+            background: white; border-radius: 16px; width: 580px;
+            max-width: 95vw; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.2);
+        }
+        .modal-hd {
+            padding: 22px 26px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; background: white; z-index: 1;
+        }
+        .modal-hd-title { font-size: 18px; font-weight: 700; }
+        .modal-x {
+            width: 32px; height: 32px; background: #f1f5f9; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 20px; color: #64748b;
+            display: flex; align-items: center; justify-content: center;
+            line-height: 1; transition: all 0.15s;
+        }
+        .modal-x:hover { background: #e2e8f0; color: #0f172a; }
+        /* Sichtbare-Bereiche-Häkchen im Benutzer-Modal. */
+        .um-area-cb { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 13.5px; color: #364152; padding: 6px 4px; }
+        .um-area-cb input { width: 17px; height: 17px; cursor: pointer; flex-shrink: 0; }
+        body.theme-dark .um-area-cb { color: #cbd5e1; }
+        .modal-body { padding: 26px; }
+        .modal-ft { padding: 16px 26px; border-top: 1px solid #f1f5f9; display: flex; gap: 10px; justify-content: flex-end; }
+
+        /* ── FORM ──────────────────────────────────────────────── */
+        .f-group { margin-bottom: 18px; }
+        .f-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 7px; }
+        .f-input, .f-select {
+            width: 100%; padding: 10px 13px; border: 1.5px solid #e2e8f0; border-radius: 9px;
+            font-size: 14px; font-family: inherit; color: #0f172a;
+            outline: none; transition: all 0.2s; background: white;
+        }
+        .f-input:focus, .f-select:focus { border-color: #3f3f3f; box-shadow: 0 0 0 3px rgba(63,63,63,0.1); }
+        .f-hint { font-size: 12px; color: #94a3b8; margin-top: 5px; }
+        .f-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .f-divider { border: none; border-top: 1px solid #f1f5f9; margin: 22px 0; }
+
+        /* ── BRANCH CHECKBOXES ─────────────────────────────────── */
+        .branch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .branch-cb {
+            display: flex; align-items: center; gap: 9px; padding: 9px 11px;
+            border-radius: 8px; border: 1.5px solid #e2e8f0; cursor: pointer;
+            transition: all 0.15s; user-select: none;
+        }
+        .branch-cb:hover { border-color: #d0c8b8; background: #f6f3ee; }
+        .branch-cb input { accent-color: #3f3f3f; width: 15px; height: 15px; flex-shrink: 0; }
+        .branch-cb-name { font-size: 12.5px; font-weight: 500; color: #374151; }
+        .branch-cb-code { font-size: 11px; color: #94a3b8; }
+
+        /* ── ALERTS ────────────────────────────────────────────── */
+        .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+        .alert-ok { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+        .alert-err { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .alert-info { background: #f6f3ee; color: #6b7280; border: 1px solid #e5e0d6; }
+
+        /* ── COMING SOON ───────────────────────────────────────── */
+        /* ── MITARBEITER LAYOUT ────────────────────────────────── */
+        .emp-layout { display: flex; gap: 0; height: calc(100vh - 130px); overflow: hidden; }
+        /* Hinweis: früher wurde die MA-Liste im Dokumente-Tab ausgeblendet
+           (volle Breite für die Dokumenten-Tabelle). Walter hat das geändert
+           — die Liste bleibt jetzt überall sichtbar, damit man im Doku-Tab
+           genauso schnell zwischen MA wechseln kann wie bei Stempelzeiten. */
+
+        /* Linke Liste — Walter 06.06.2026: schlanker (230 statt 300 px), damit
+           die Dokumenten-Tabelle rechts genug Platz behält. */
+        .emp-list-panel {
+            width: 230px; min-width: 230px; border-right: 1px solid #e2e8f0;
+            display: flex; flex-direction: column; background: white; border-radius: 12px 0 0 12px;
+        }
+        .emp-list-search {
+            padding: 10px 12px; border-bottom: 1px solid #f1f5f9;
+        }
+        .emp-search-input {
+            width: 100%; padding: 8px 12px 8px 34px; border: 1.5px solid #e2e8f0;
+            border-radius: 8px; font-size: 13px; font-family: inherit; outline: none;
+            background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;
+            transition: border-color 0.2s;
+        }
+        .emp-search-input:focus { border-color: #3f3f3f; background-color: white; }
+        .emp-list-scroll { flex: 1; overflow-y: auto; }
+        .emp-list-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 12px; cursor: pointer; border-bottom: 1px solid #f8fafc;
+            transition: background 0.1s;
+        }
+        .emp-list-item:hover { background: #f8fafc; }
+        .emp-list-item.active { background: #f6f3ee; border-left: 3px solid #3f3f3f; }
+        .emp-avatar {
+            width: 28px; height: 28px; border-radius: 50%; background: #ece9e2;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; color: #3f3f3f; flex-shrink: 0;
+        }
+        .emp-avatar.female { background: #fce7f3; color: #ec4899; }
+        .emp-list-name { font-size: 12.5px; font-weight: 600; color: #0f172a; }
+        .emp-list-nr { font-size: 10.5px; color: #94a3b8; margin-top: 1px; }
+
+        /* Rechtes Detail-Panel */
+        .emp-detail-panel {
+            flex: 1; display: flex; flex-direction: column;
+            background: white; border-radius: 0 12px 12px 0; overflow: hidden;
+        }
+        .emp-detail-header {
+            padding: 0 22px 0; border-bottom: 1px solid #e2e8f0;
+            /* Walter-Vorgabe 01.06.2026: MA-Header sticky — Name + Header-Aktions-
+               Buttons (Postfach-Passwort, Bearbeiten) und Tab-Bar bleiben immer
+               oben sichtbar, auch wenn der äußere Container scrollt. */
+            position: sticky; top: 0; z-index: 20;
+            background: white;
+        }
+        /* Anti-Flackern: opake dunkle Basis — kein Milch-Nebel */
+        body.theme-dark .emp-detail-panel,
+        body.theme-dark #empDetailPanel {
+            background-color: var(--dlg-fill) !important;
+        }
+        body.theme-dark .emp-detail-header {
+            background: var(--dlg-fill-strong) !important;
+            border-bottom-color: rgba(140, 195, 255, 0.18) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        body.theme-dark .emp-detail-body {
+            background: transparent !important;
+        }
+        body.theme-dark .ov-card {
+            background-color: var(--dlg-fill) !important;
+        }
+        /* Postfach-Passwort-Button visuell hervorgehoben (orange/amber), damit
+           er sich von „Bearbeiten" abhebt — Walter-Vorgabe 01.06.2026. */
+        .btn-emp-edit.btn-postfach {
+            background: #fef3c7; color: #92400e; border-color: #fcd34d;
+        }
+        .btn-emp-edit.btn-postfach:hover { background: #fde68a; }
+        body.theme-dark .btn-emp-edit.btn-postfach {
+            background: #422006; color: #fde68a; border-color: #78350f;
+        }
+        /* Zulagen-/Abzüge-Modal Dark-Mode (Walter-Vorgabe 01.06.2026):
+           weisses Modal blendet stark im Dunkelmodus — auf Dark-Slate umstellen. */
+        body.theme-dark #lohnZulagenForm {
+            background: var(--dlg-glass-strong) !important;
+            color: var(--dlg-text-strong) !important;
+            border: 1px solid var(--dlg-glass-border) !important;
+            box-shadow: 0 18px 40px rgba(0,0,0,0.35), inset 0 1px 0 var(--dlg-glass-inner) !important;
+            backdrop-filter: blur(22px) saturate(130%);
+            -webkit-backdrop-filter: blur(22px) saturate(130%);
+        }
+        body.theme-dark #lohnZulagenForm > div:first-child {
+            color: var(--dlg-text-strong) !important;
+        }
+        body.theme-dark #lohnZulagenForm .f-label { color: var(--dlg-text-soft) !important; }
+        body.theme-dark #lohnZulagenForm .f-input {
+            background: var(--dlg-glass-field) !important;
+            color: var(--dlg-text-strong) !important;
+            border-color: var(--dlg-glass-border) !important;
+        }
+        body.theme-dark #lohnZulagenForm .f-input::placeholder { color: var(--dlg-text-muted) !important; }
+        body.theme-dark #lohnZulagenForm .btn-secondary {
+            background: rgba(255,255,255,.08) !important;
+            color: var(--dlg-text) !important;
+            border-color: var(--dlg-glass-border) !important;
+        }
+
+        /* Ausbezahlt-Status-Badge (Walter-Vorgabe 01.06.2026):
+           Light-Mode hellgrün/dunkelgrün, Dark-Mode invertiert (dunkelgrüner
+           Hintergrund + hellgrüner Text) für gute Lesbarkeit. */
+        .ak-ausbezahlt-badge {
+            background: #bbf7d0;
+            color: #15803d;
+        }
+        body.theme-dark .ak-ausbezahlt-badge {
+            background: #14532d;
+            color: #bbf7d0;
+        }
+
+        /* Bearbeiten-Button im MA-Header (Walter-Vorgabe 01.06.2026):
+           volles Primary-Blau (gleich wie „+ Neuer Vertrag" / .btn-primary)
+           — klare Primär-Aktion neben dem orangen Postfach-Button. */
+        .btn-emp-edit.btn-edit-blue {
+            background: #3f3f3f; color: #ffffff; border-color: #3f3f3f;
+        }
+        .btn-emp-edit.btn-edit-blue:hover {
+            background: #1a1a1a; border-color: #1a1a1a;
+        }
+        body.theme-dark .btn-emp-edit.btn-edit-blue {
+            background: #3f3f3f; color: #ffffff; border-color: #3f3f3f;
+        }
+        .emp-detail-name { font-size: 17px; font-weight: 700; color: #0f172a; }
+        .emp-detail-meta { font-size: 11px; color: #64748b; margin-top: 1px; margin-bottom: 5px; }
+        /* flex-wrap: bei 8 Sub-Tabs (inkl. „Bank & Postfach") dürfen sie
+           bei schmalem Detail-Panel auf eine 2. Zeile umbrechen statt zu
+           überlaufen. */
+        .emp-detail-tabs { display: flex; gap: 0; flex-wrap: wrap; }
+        .emp-tab {
+            padding: 4px 13px; font-size: 12px; font-weight: 500; color: #64748b;
+            cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .emp-tab:hover { color: #3f3f3f; }
+        .emp-tab.active { color: #3f3f3f; border-bottom-color: #3f3f3f; font-weight: 600; }
+        .emp-detail-body { flex: 1; overflow-y: auto; padding: 8px 20px 12px; }
+        .emp-tab-content { display: none; }
+        .emp-tab-content.active { display: block; }
+
+        /* Felder im Detail — Walter-Vorgabe 26.05.2026 (V5: kompakt, ohne harte
+           Border um die Wert-Boxen). Sektion-Cards in slate-200, Wert-Boxen
+           weiss mit nur leichtem Schatten — die Form entsteht durch den
+           Background-Kontrast, NICHT durch eine schwarze Border.
+           „emp-grid-attached" docks die Card oben an die vorherige Card,
+           ohne Gap und ohne wiederholten Section-Title. */
+        /* ov-Standard 18.08.2026: Sektions-Grids app-weit FLÄCHENLOS — nur die
+           Eingabefelder sind weiss. Die MA-Maske (#page-mitarbeiter) hat eigene
+           ID-scoped Regeln und ist davon nicht betroffen. */
+        .emp-field-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px 10px;
+                            background: transparent; border: 1px solid transparent; border-radius: 14px;
+                            padding: 9px 0 11px; margin-bottom: 6px; }
+        .emp-field-grid-3 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px 10px;
+                            background: transparent; border: 1px solid transparent; border-radius: 14px;
+                            padding: 9px 0 11px; margin-bottom: 6px; }
+        .emp-field-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 10px;
+                            background: transparent; border: 1px solid transparent; border-radius: 14px;
+                            padding: 9px 0 11px; margin-bottom: 6px; }
+        /* „attached"-Variante: docks die Card nahtlos an die vorherige an
+           (keine Top-Border, keine obere Rundung, kein Top-Margin). Wird in
+           der MA-Maske benutzt, um Adresse/Kontakt-Felder als Fortsetzung
+           der Personalien-Card zu zeigen — ohne eigene Section-Headers. */
+        .emp-field-grid.emp-grid-attached,
+        .emp-field-grid-3.emp-grid-attached,
+        .emp-field-grid-2.emp-grid-attached {
+            margin-top: -7px;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            padding-top: 4px;
+        }
+        /* Anstellungs-Block: drei gleiche Spalten (Eintritt, Austritt, Aktiv). */
+        .emp-field-grid-3.emp-grid-3col { grid-template-columns: repeat(3, 1fr); }
+        /* Aufenthalt-Block: Bewilligungs-Text breit, Datums-Felder schmal —
+           Walter-Vorgabe 06.06.2026: Bewilligung muss immer einzeilig sein. */
+        .emp-field-grid-3.emp-grid-permit { grid-template-columns: 2fr 1fr 1fr; }
+        .emp-field-grid-3.emp-grid-permit .emp-field-value {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        /* Optionaler kleiner Hint UNTER dem Eingabe-Feld. Wird vom eField()-
+           Helper gerendert, wenn ein dritter Parameter übergeben wird. So
+           bleibt das Label einzeilig und alle Inputs liegen auf einer Linie. */
+        .emp-field-hint {
+            font-size: 10px; color: #94a3b8;
+            padding: 2px 4px 0; line-height: 1.3;
+            font-style: italic;
+        }
+        .emp-field {
+            display: flex; flex-direction: column; gap: 2px;
+            background: transparent; border: none; padding: 0;
+            min-height: auto;
+        }
+        .emp-field-label {
+            font-size: 9.5px; font-weight: 700; color: #475569;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            padding-left: 2px; line-height: 1.2;
+        }
+        /* Wert-Container: WEISS auf grauem Card-Background mit DEUTLICHER
+           Border + Schatten. Walter-Vorgabe 27.05.2026: Felder müssen klar
+           sichtbar als Daten-Container erkennbar sein, nicht im Card-
+           Background untergehen. */
+        .emp-field-value {
+            font-size: 13px; color: #0f172a; font-weight: 500;
+            background: #fff; border: 1px solid #e2ddd3; border-radius: 9px;
+            padding: 4px 9px; min-height: 27px;
+            display: flex; align-items: center; gap: 6px;
+            line-height: 1.2;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+            transition: border-color .12s, box-shadow .12s;
+        }
+        .emp-field-value:hover { border-color: #1a1a1a; box-shadow: 0 2px 4px rgba(60,55,48, 0.15); }
+        .emp-field-value.empty { color: #94a3b8; font-style: italic; font-weight: 400; background: #faf8f5; border-color: #e7e1d8; border-style: dashed; box-shadow: none; }
+        /* Sektions-Titel: kompakter blauer Akzent-Block, oben angedockt an
+           die Card. */
+        .emp-section-title {
+            font-size: 10.5px; font-weight: 800; color: #5a5348; text-transform: uppercase;
+            letter-spacing: 0.08em; margin: 10px 0 0;
+            padding: 4px 0 4px 10px;
+            border-left: 4px solid #1a1a1a;
+            border-bottom: none;
+            background: linear-gradient(to right, #ece9e2 0%, #f6f3ee 60%, transparent 90%);
+            border-radius: 3px 3px 0 0;
+        }
+        .emp-section-title:first-child { margin-top: 0; }
+
+        /* ── WIEDERVERWENDBARER LIQUID-GLASS-LOOK FÜR ERFASSUNGSMASKEN ──
+           (Walter-Vorgabe 04.07.2026) — Klasse `liquid-mask` auf einer Seite
+           mit .emp-*-Layout gibt ihr denselben warmen Glas-Look wie die
+           MA-Maske. Höher-spezifische MA-Regeln (#page-mitarbeiter…) bleiben
+           unberührt. */
+        .page.liquid-mask {
+            --emp-glass-bg: rgba(255,255,255,.38);
+            --emp-glass-strong: rgba(255,255,255,.58);
+            --emp-glass-field: rgba(255,255,255,.94);
+            --emp-glass-border: rgba(255,255,255,.70);
+            --emp-text-strong: #364152;
+            --emp-text: #526071;
+            --emp-text-soft: #8b96a5;
+            --emp-shadow: 0 22px 70px rgba(70,64,55,.14), inset 0 1px 0 rgba(255,255,255,.58);
+            background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+            color: var(--emp-text);
+        }
+        /* Walter-Bug 16.07.2026 («warum ist der untere Bereich weiss?»):
+           der Verlauf deckte nur die Inhaltshoehe — bei kurzen Seiten
+           (z.B. Kuendigung) schien darunter das weisse .main durch.
+           Aktive liquid-Seiten fuellen jetzt die volle Resthoehe. */
+        .main > .page.liquid-mask.active { flex: 1 0 auto; }
+        .liquid-mask .page-body { padding: 12px 14px 14px !important; }
+        .liquid-mask .emp-layout { gap: 10px; height: calc(100vh - 86px); }
+        .liquid-mask .emp-detail-panel {
+            background: var(--emp-glass-bg);
+            border: 1px solid var(--emp-glass-border);
+            border-radius: 16px;
+            box-shadow: var(--emp-shadow);
+            backdrop-filter: blur(26px) saturate(160%);
+            -webkit-backdrop-filter: blur(26px) saturate(160%);
+        }
+        .liquid-mask .emp-list-panel {
+            background: var(--emp-glass-bg);
+            border: 1px solid var(--emp-glass-border);
+            border-radius: 16px;
+            box-shadow: var(--emp-shadow);
+            backdrop-filter: blur(26px) saturate(160%);
+            -webkit-backdrop-filter: blur(26px) saturate(160%);
+            overflow: hidden;
+        }
+        .liquid-mask .emp-search-input {
+            border: 1px solid rgba(160,169,180,.30);
+            background: rgba(255,255,255,.90);
+            border-radius: 10px;
+        }
+        .liquid-mask .emp-tab {
+            padding: 6px 13px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            color: var(--emp-text);
+            font-size: 12px;
+            font-weight: 650;
+        }
+        .liquid-mask .emp-tab:hover { background: rgba(255,255,255,.38); color: var(--emp-text-strong); }
+        .liquid-mask .emp-tab.active {
+            background: rgba(255,255,255,.72);
+            border-color: rgba(255,255,255,.64);
+            color: #3f3f3f;
+            box-shadow: 0 8px 22px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.74);
+        }
+        .liquid-mask .emp-detail-body { padding: 10px 16px 16px; }
+        .liquid-mask .emp-section-title {
+            margin: 12px 0 5px;
+            padding: 0 0 0 3px;
+            border-left: none;
+            background: transparent;
+            color: var(--emp-text-strong);
+            font-size: 13px;
+            letter-spacing: -.01em;
+            text-transform: none;
+            font-weight: 760;
+        }
+        /* Feld-Raster-Karte: warmes Glas statt slate-blauem #e2e8f0 */
+        .liquid-mask .emp-field-grid,
+        .liquid-mask .emp-field-grid-2,
+        .liquid-mask .emp-field-grid-3 {
+            background: rgba(255,255,255,.28);
+            border: 1px solid rgba(255,255,255,.55);
+            border-radius: 12px;
+        }
+        /* Anzeige-/Eingabefelder als warmes Glas (kein blauer Rand/Hover) */
+        .liquid-mask .emp-field-label {
+            color: var(--emp-text-soft);
+        }
+        .liquid-mask .emp-field-value {
+            background: var(--emp-glass-field);
+            border: 1px solid rgba(184,194,206,.34);
+            border-radius: 8px;
+            color: var(--emp-text-strong);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.82), 0 8px 18px rgba(86,76,63,.08);
+        }
+        .liquid-mask .emp-field-value:hover {
+            border-color: rgba(63,63,63,.30);
+            background: rgba(255,255,255,.99);
+            box-shadow: 0 0 0 3px rgba(120,110,95,.09), 0 8px 18px rgba(86,76,63,.08);
+        }
+        .liquid-mask .emp-field-value.empty {
+            background: rgba(255,255,255,.34);
+            border-color: rgba(166,176,188,.22);
+            color: #a2acb8;
+        }
+        /* Buttons im Masken-Kontext: Kohle-Pille statt grellem Blau.
+           Inline eingefärbte Buttons (z.B. grüne Speichern) bleiben unberührt. */
+        .liquid-mask .btn-primary {
+            background: #3f3f3f; border: none; color: #fff;
+            border-radius: 12px; box-shadow: 0 6px 16px rgba(60,55,48,.18);
+        }
+        .liquid-mask .btn-primary:hover { background: #1a1a1a; }
+        .liquid-mask .btn-outline, .liquid-mask .btn-secondary {
+            background: rgba(255,255,255,.55);
+            border: 1px solid rgba(255,255,255,.72);
+            color: #3f3f3f; border-radius: 12px;
+        }
+        .liquid-mask .btn-outline:hover, .liquid-mask .btn-secondary:hover { background: rgba(255,255,255,.80); }
+        /* Tabellen in Masken: weicher, ohne harte Linien */
+        .liquid-mask .data-table th { color: var(--emp-text-soft); border-bottom: 1px solid rgba(90,80,66,.12); }
+        .liquid-mask .data-table td { border-bottom: 1px solid rgba(90,80,66,.08); }
+        body.theme-dark .page.liquid-mask {
+            --emp-glass-bg: rgba(120,165,230,.10);
+            --emp-glass-border: rgba(130,190,255,.38);
+            --emp-text-strong: #f2f7ff;
+            --emp-text: #d4e2f4;
+            --emp-text-soft: #9eb6d4;
+            background: var(--dlg-bg);
+        }
+
+        /* ── LIQUID GLASS: MITARBEITER-MASKE (Hell = Kohle + Tiefe) ──
+           Walter 18.07.2026: dasselbe Prinzip wie Dark (Fill-Grad + Rim +
+           gestaffelte Schatten), aber warmes Off-White / Kohle — kein
+           Eisblau, kein Milch-Blur. */
+        #page-mitarbeiter.liquid-employee {
+            --emp-glass-bg: #f4f0e8;
+            --emp-glass-strong: #faf7f2;
+            --emp-glass-field: #ffffff;
+            --emp-glass-border: rgba(255, 255, 255, 0.78);
+            --emp-glass-inner: rgba(255, 255, 255, 0.72);
+            --emp-text-strong: #2f2f2f;
+            --emp-text: #4a4a4a;
+            --emp-text-soft: #7a7a7a;
+            --emp-blue: #3f3f3f;
+            /* Opaker Innen-Verlauf = Volumen (analog Dark) */
+            /* v4-Greige wie alle Erfassungsmasken (Walter 19.08.2026) —
+               vorher: #f4f0e8 + Verlauf #fffcf8→#e8e1d6 (oben fast weiss). */
+            --emp-fill: #e9e6dd;
+            --emp-fill-grad: linear-gradient(165deg,
+                                #eeece4 0%,
+                                #e7e4db 50%,
+                                #dfdcd1 100%);
+            /* Pearl/Kohle-Rim statt Eisblau */
+            --emp-rim: linear-gradient(135deg,
+                                rgba(255, 255, 255, 0.98) 0%,
+                                rgba(210, 200, 185, 0.55) 35%,
+                                rgba(120, 110, 95, 0.22) 62%,
+                                rgba(255, 255, 255, 0.88) 100%);
+            /* Gestaffelte Tiefe: Ring → Ambient → Drop → Bevel */
+            --emp-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.10),
+                0 0 18px rgba(90, 80, 65, 0.06),
+                0 4px 12px rgba(60, 55, 48, 0.08),
+                0 16px 36px rgba(60, 55, 48, 0.14),
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.06);
+            --emp-shadow-lift:
+                0 0 0 1px rgba(90, 80, 65, 0.12),
+                0 0 22px rgba(90, 80, 65, 0.08),
+                0 6px 14px rgba(60, 55, 48, 0.10),
+                0 20px 42px rgba(60, 55, 48, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.08);
+            background:
+                radial-gradient(ellipse 70% 50% at 85% -5%, rgba(255, 255, 255, 0.70) 0%, transparent 55%),
+                radial-gradient(ellipse 55% 45% at 8% 100%, rgba(180, 165, 140, 0.14) 0%, transparent 55%),
+                linear-gradient(160deg, #f6f3ee 0%, #efebe3 48%, #faf8f5 100%);
+            color: var(--emp-text);
+        }
+        #page-mitarbeiter.liquid-employee .page-body {
+            padding: 12px 14px 14px !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-layout,
+        #page-mitarbeiter.liquid-employee .liquid-employee-layout-grid {
+            gap: 12px;
+            /* Bildschirm bis ganz unten nutzen (Walter 17.07.2026): page-body
+               hat effektiv 12px oben + 14px unten (!important-Padding) —
+               die frueheren 86px liessen unten einen weissen Streifen. */
+            height: calc(100vh - 27px);
+        }
+        /* In-Page-Menü der Mitarbeiter-Seite ausgeblendet — die globale Sidebar
+           übernimmt jetzt überall die Navigation (Walter 28.06.2026, kein Springen
+           mehr). Elemente bleiben im DOM, damit Branch-JS nicht bricht. */
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav { display: none !important; }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-OLD {
+            width: 132px;
+            min-width: 132px;
+            padding: 10px 8px;
+            border: 1px solid var(--emp-glass-border);
+            border-radius: 18px;
+            background: rgba(255,255,255,.34);
+            box-shadow: 0 18px 50px rgba(92,78,57,.12), inset 0 1px 0 rgba(255,255,255,.56);
+            backdrop-filter: blur(24px) saturate(150%);
+            -webkit-backdrop-filter: blur(24px) saturate(150%);
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+            overflow-y: auto;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-brand { padding: 2px 2px 8px; }
+        #page-mitarbeiter.liquid-employee .liquid-employee-brand .sidebar-logo { max-width: 116px; }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn {
+            width: 100%;
+            min-height: 46px;
+            border: 1px solid rgba(255,255,255,.46);
+            border-radius: 16px;
+            padding: 7px 8px;
+            background: rgba(255,255,255,.34);
+            color: #626d78;
+            display: grid;
+            grid-template-columns: 28px 1fr;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            text-align: left;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 720;
+            line-height: 1.12;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.50);
+            transition: transform .14s ease, background .14s ease, box-shadow .14s ease;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn:hover {
+            transform: translateY(-1px);
+            background: rgba(255,255,255,.58);
+            color: var(--emp-text-strong);
+            box-shadow: 0 10px 24px rgba(72,63,53,.10), inset 0 1px 0 rgba(255,255,255,.70);
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn.active {
+            background: rgba(219,234,254,.68);
+            color: #245b92;
+            border-color: rgba(147,197,253,.60);
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn[hidden] {
+            display: none;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn svg {
+            width: 24px;
+            height: 24px;
+            stroke-width: 1.9;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn img.le-nav-img {
+            width: 32px; height: 32px; object-fit: contain; mix-blend-mode: multiply;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-nav-btn img.le-nav-img {
+            mix-blend-mode: screen; filter: invert(1) brightness(1.12);
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch {
+            padding: 6px 4px 8px;
+            display: grid;
+            gap: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch[hidden] {
+            display: none !important;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch label {
+            color: var(--emp-text-soft);
+            font-size: 10px;
+            font-weight: 760;
+            padding-left: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch-btn {
+            width: 100%;
+            min-height: 34px;
+            border: 1px solid rgba(255,255,255,.42);
+            border-radius: 14px;
+            padding: 5px 8px;
+            background: rgba(255,255,255,.30);
+            color: var(--emp-text-strong);
+            font: inherit;
+            font-size: 11px;
+            font-weight: 720;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.46), 0 8px 20px rgba(72,63,53,.08);
+            backdrop-filter: blur(18px) saturate(145%);
+            -webkit-backdrop-filter: blur(18px) saturate(145%);
+            display: grid;
+            grid-template-columns: minmax(0,1fr) 14px;
+            align-items: center;
+            gap: 6px;
+            text-align: left;
+            cursor: pointer;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch-btn span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #page-mitarbeiter.liquid-employee .liquid-employee-branch-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+        /* Dropdown wird beim Öffnen an <body> portalt (siehe toggleLiquidEmployeeBranchMenu),
+           damit es NICHT vom backdrop-filter + overflow der Glas-Nav eingefangen/abgeschnitten
+           wird. Deshalb sind diese Regeln global (kein #page-mitarbeiter-Scope) und nutzen feste
+           Farben statt der --emp-*-Variablen, die nur auf der Seite definiert sind. */
+        .liquid-employee-branch-options {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            width: 230px;
+            max-height: 340px;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,.42);
+            border-radius: 18px;
+            padding: 6px;
+            background: rgba(255,255,255,.42);
+            box-shadow: 0 18px 56px rgba(70,64,55,.20), inset 0 1px 0 rgba(255,255,255,.55);
+            backdrop-filter: blur(28px) saturate(145%);
+            -webkit-backdrop-filter: blur(28px) saturate(145%);
+        }
+        .liquid-employee-branch-options.open {
+            display: grid;
+            gap: 3px;
+        }
+        .liquid-employee-branch-option {
+            border: 0;
+            border-radius: 13px;
+            padding: 8px 10px;
+            background: transparent;
+            color: #526071;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 680;
+            text-align: left;
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: 16px minmax(0,1fr);
+            gap: 7px;
+            align-items: center;
+        }
+        .liquid-employee-branch-option:hover,
+        .liquid-employee-branch-option.active {
+            background: rgba(255,255,255,.48);
+            color: #364152;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-branch-btn,
+        body.theme-dark .liquid-employee-branch-options {
+            background: rgba(24,36,49,.54);
+            border-color: rgba(122,145,165,.20);
+            color: #cbd5e1;
+        }
+        body.theme-dark .liquid-employee-branch-option {
+            color: #cbd5e1;
+        }
+        body.theme-dark .liquid-employee-branch-option:hover,
+        body.theme-dark .liquid-employee-branch-option.active {
+            background: rgba(255,255,255,.10);
+            color: #f8fafc;
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list,
+        #page-mitarbeiter.liquid-employee .emp-detail-panel {
+            border: 1px solid transparent;
+            border-radius: 16px;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: var(--emp-shadow);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+        /* Liste etwas breiter (Walter 18.07.2026) — Platz sparsam aus Detail */
+        #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list {
+            width: 278px;
+            min-width: 278px;
+            overflow: hidden;
+        }
+        /* «Neuer MA aus easy@work» = selber Weiss-Pill-Look wie #lsEmpSyncBtn */
+        #page-mitarbeiter .emp-eaw-new-btn {
+            width: 100%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 6px 11px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            color: #3f3f3f;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(60, 55, 48, 0.08);
+            transition: transform .14s ease, box-shadow .14s ease;
+        }
+        #page-mitarbeiter .emp-eaw-new-btn img {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        #page-mitarbeiter .emp-eaw-new-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(60, 55, 48, 0.14);
+        }
+        /* Testsystem: Neuer MA und Bearbeiten ersetzen «Neuer MA aus easy@work». */
+        #empTestAktionen {
+            display: none;
+            gap: 6px;
+        }
+        #empTestAktionen .emp-eaw-new-btn {
+            flex: 1;
+            width: auto;
+            min-width: 0;
+        }
+        body.theme-dark #page-mitarbeiter .emp-eaw-new-btn {
+            background: #fff;
+            border-color: #e2e8f0;
+            color: #3f3f3f;
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-panel::before {
+            content: "Mitarbeiter";
+            display: block;
+            padding: 14px 14px 8px;
+            /* Platz für «N aktiv · letzte Nr. … · nächste …» rechts daneben.
+               Seit 02.09.2026 steht dort zusätzlich die nächste freie Nummer
+               (Walter), darum 190px statt 150px. */
+            padding-right: 190px;
+            font-size: 17px;
+            font-weight: 760;
+            letter-spacing: -.02em;
+            color: var(--emp-text-strong);
+        }
+        /* Letzte vergebene Personalnummern der Filiale (Walter 12.07.2026) —
+           Erfassungs-Hilfe für die fortlaufende Nummernvergabe. Inhalt kommt
+           per data-lastnums aus applyEmpFilter (employees.js) — eine Zeile. */
+        #page-mitarbeiter.liquid-employee .emp-list-panel { position: relative; }
+        #page-mitarbeiter.liquid-employee .emp-list-panel::after {
+            content: attr(data-lastnums);
+            position: absolute;
+            top: 16px;
+            right: 12px;
+            max-width: 68%;
+            font-size: 10px;
+            font-weight: 600;
+            line-height: 1.2;
+            color: #8b8b8b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: right;
+            pointer-events: none;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-panel::after { color: #a9a294; }
+        /* ── Liquid-Select (Walter-Vorgabe 13.07.2026) ─────────────────────
+           Generisches Liquid-Glass-Dropdown als Ersatz für native Selects
+           (js/liquid-select.js). Original-Select bleibt versteckt im DOM. */
+        .lqsel-wrap { position: relative; display: inline-block; min-width: 140px; max-width: 100%; vertical-align: middle; }
+        .lqsel-btn {
+            display: inline-flex; align-items: center; justify-content: space-between;
+            gap: 10px; width: 100%;
+            background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(139,139,139,0.35);
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 13px; font-weight: 600; color: #3f3f3f;
+            cursor: pointer; text-align: left;
+            transition: background .15s, box-shadow .15s;
+        }
+        .lqsel-btn:hover { background: rgba(255,255,255,0.8); box-shadow: 0 2px 8px rgba(60,55,48,0.14); }
+        .lqsel-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+        .lqsel-chev { flex-shrink: 0; color: #8b8b8b; font-size: 11px; }
+        .lqsel-panel {
+            position: absolute; top: calc(100% + 4px); left: 0; z-index: 3000;
+            min-width: 100%; max-height: 340px; overflow-y: auto;
+            background: #faf8f5;
+            border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 12px;
+            box-shadow: 0 16px 40px rgba(60,55,48,0.22);
+            padding: 6px;
+        }
+        .lqsel-group {
+            padding: 8px 10px 3px;
+            font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+            text-transform: uppercase; color: #8b8b8b;
+        }
+        .lqsel-opt {
+            padding: 8px 12px; border-radius: 8px;
+            font-size: 13px; color: #3f3f3f; cursor: pointer;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .lqsel-opt:hover, .lqsel-opt.active { background: #ece9e2; }
+        /* Tipp-Suche im Dropdown (Walter 04.10.2026): Suchfeld bleibt oben,
+           nur die Liste darunter scrollt. */
+        .lqsel-panel.lqsel-mit-suche { overflow: hidden; }
+        .lqsel-panel.lq-voll { max-height: none; overflow: visible; }
+        .lqsel-mit-suche .lqsel-list { max-height: 286px; overflow-y: auto; }
+        .lqsel-search {
+            display: block; box-sizing: border-box; width: 100%;
+            margin: 0 0 6px; padding: 8px 12px;
+            font-size: 13px; color: #3f3f3f; font-family: inherit;
+            background: #fff; border: 1px solid rgba(60,55,48,0.14); border-radius: 10px;
+            box-shadow: inset 0 1px 2px rgba(60,55,48,0.08); outline: none;
+        }
+        .lqsel-search:focus { border-color: #6b7280; }
+        body.theme-dark .lqsel-search { background: rgba(255,255,255,0.08); color: var(--dlg-text); border-color: rgba(255,255,255,0.18); }
+        .lqsel-opt.sel { font-weight: 700; }
+        .lqsel-opt.sel::before { content: "✓ "; color: #6b7280; }
+        .lqsel-opt.dis { color: #b8b2a7; cursor: default; }
+        /* Zähler-Spalte in Dropdowns (Walter 08.09.2026): Name links, Anzahl
+           rechts fix ausgerichtet als Pille — «welches Postfach hat Post?» auf
+           einen Blick. Leer = dezenter Strich. */
+        .lqsel-opt-badge { display: flex; align-items: center; gap: 12px; padding: 9px 12px; font-size: 13.5px; }
+        .lqsel-opt-badge .lqsel-opt-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+        .lqsel-badge {
+            flex: 0 0 auto; min-width: 2.4em; text-align: center; box-sizing: border-box;
+            font-size: 12px; font-weight: 700; line-height: 1; padding: 5px 8px; border-radius: 999px;
+            color: #b8b2a7; background: transparent; font-variant-numeric: tabular-nums;
+        }
+        .lqsel-badge.on { color: #fff; background: #c9a227; box-shadow: 0 1px 2px rgba(60,55,48,0.18); }
+        .lqsel-opt.sel .lqsel-badge.on { background: #3f3f3f; }
+        .lqsel-btn .lqsel-badge { margin-left: 8px; }
+        body.theme-dark .lqsel-badge { color: #6b7280; }
+        body.theme-dark .lqsel-badge.on { color: #1a1a1a; background: #e8cf7a; }
+        body.theme-dark .lqsel-btn { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .lqsel-btn:hover {
+            background-image: var(--dlg-fill), var(--dlg-rim) !important;
+        }
+        body.theme-dark .lqsel-panel {
+            border: 1px solid transparent !important;
+            background-image: var(--dlg-fill-strong), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow), 0 18px 40px rgba(0,10,40,.45) !important;
+            color: var(--dlg-text);
+        }
+        body.theme-dark .lqsel-group { color: var(--dlg-text-soft); }
+        body.theme-dark .lqsel-opt { color: var(--dlg-text); }
+        body.theme-dark .lqsel-opt:hover { background: rgba(120,170,240,.16); }
+

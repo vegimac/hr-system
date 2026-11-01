@@ -1,0 +1,1406 @@
+        /* To-do-Hauptgruppen (ausklappbar) — Walter 04.07.2026 */
+        .liquid-dashboard .liquid-todo-group { margin-bottom: 2px; }
+        .liquid-dashboard .liquid-todo-group-head {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 10px; cursor: pointer; border-radius: 16px;
+            transition: background .18s ease;
+        }
+        .liquid-dashboard .liquid-todo-group-head:hover { background: rgba(255,255,255,.42); }
+        .liquid-dashboard .liquid-todo-group-head .ltg-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+        .liquid-dashboard .liquid-todo-group-head .liquid-todo-title {
+            font-size: 13.5px; font-weight: 680; color: #3f3f3f;
+        }
+        .liquid-dashboard .liquid-todo-group-head .ltg-count {
+            font-size: 11.5px; font-weight: 700; color: #646464;
+            background: rgba(60,55,48,0.08); border-radius: 11px; padding: 1px 9px; flex-shrink: 0;
+        }
+        .liquid-dashboard .liquid-todo-group-head .ltg-chevron {
+            color: #b3a99a; font-size: 16px; flex-shrink: 0;
+            transition: transform .2s ease;
+        }
+        .liquid-dashboard .liquid-todo-group.open .ltg-chevron { transform: rotate(90deg); }
+        .liquid-dashboard .liquid-todo-group-body { display: none; padding: 2px 0 8px 14px; }
+        .liquid-dashboard .liquid-todo-group.open .liquid-todo-group-body { display: block; }
+        .liquid-dashboard #dashWageAdjustBanner > * {
+            border-radius: 20px !important;
+            background: rgba(255, 244, 205, .62) !important;
+            border-color: rgba(234, 179, 8, .42) !important;
+            box-shadow: 0 14px 34px rgba(120, 82, 20, .10), var(--liquid-inset) !important;
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+        }
+        .liquid-dashboard #dashSeverityRow {
+            gap: 14px !important;
+            margin-bottom: 16px !important;
+        }
+        .liquid-dashboard #dashSeverityRow button,
+        .liquid-dashboard #dashFilterRow button,
+        .liquid-dashboard #dashAlertsContainer .card,
+        .liquid-dashboard #dashAlertsContainer [style*="border-radius"] {
+            background: linear-gradient(135deg, rgba(255,255,255,.66), rgba(255,255,255,.34)) !important;
+            border: 1px solid rgba(255,255,255,.58) !important;
+            color: var(--liquid-text) !important;
+            box-shadow: 0 16px 42px rgba(74, 55, 34, .10), var(--liquid-inset) !important;
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+        }
+        .liquid-dashboard #dashSeverityRow button {
+            min-height: 88px;
+            border-radius: 24px !important;
+            padding: 16px 18px !important;
+            transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+        }
+        .liquid-dashboard #dashSeverityRow button:hover,
+        .liquid-dashboard #dashFilterRow button:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255,255,255,.82) !important;
+            box-shadow: 0 20px 54px rgba(74, 55, 34, .14), var(--liquid-inset) !important;
+        }
+        .liquid-dashboard #dashSeverityRow button > div:first-child {
+            font-size: 34px !important;
+            letter-spacing: -0.04em;
+            color: #3a3125;
+        }
+        .liquid-dashboard #dashSeverityRow button > div:last-child {
+            color: #6b6258 !important;
+            font-size: 12px !important;
+        }
+        .liquid-dashboard #dashFilterRow {
+            gap: 8px !important;
+            margin-bottom: 16px !important;
+        }
+        .liquid-dashboard #dashFilterRow button {
+            border-radius: 999px !important;
+            padding: 7px 12px !important;
+            font-size: 12px !important;
+        }
+        .liquid-dashboard #dashAlertsContainer > div {
+            margin-bottom: 18px !important;
+        }
+        .liquid-dashboard #dashAlertsContainer h2 {
+            color: #4e3d26 !important;
+            letter-spacing: .08em !important;
+        }
+        .liquid-dashboard #dashAlertsContainer [onclick] {
+            border-radius: 18px !important;
+            padding: 12px 16px !important;
+            transition: transform .14s ease, box-shadow .14s ease;
+        }
+        .liquid-dashboard #dashAlertsContainer [onclick]:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Dashboard Dark = Mockup elevated Liquid Glass (Walter 18.07.2026) */
+        body.theme-dark .liquid-ui {
+            --liquid-glass: var(--dlg-glass);
+            --liquid-glass-strong: var(--dlg-glass-strong);
+            --liquid-border: var(--dlg-glass-border);
+            --liquid-text: var(--dlg-text-strong);
+            --liquid-muted: var(--dlg-text-soft);
+            --liquid-shadow: var(--dlg-shadow);
+            --liquid-inset: inset 0 1px 0 var(--dlg-glass-inner);
+        }
+        body.theme-dark .liquid-dashboard {
+            background: var(--dlg-bg);
+            color: var(--liquid-text);
+        }
+        body.theme-dark .liquid-dashboard::before {
+            opacity: .18;
+            background-image: url('../img/liquid-glass-arches-reference.webp');
+            background-repeat: no-repeat;
+            background-position: calc(50% + 10vw) center;
+            background-size: 95% auto;
+            filter: invert(1) brightness(.85) contrast(1.05);
+            mix-blend-mode: screen;
+        }
+        body.theme-dark .liquid-dashboard > .page-head,
+        body.theme-dark .liquid-dashboard #dashSeverityRow button,
+        body.theme-dark .liquid-dashboard #dashFilterRow button,
+        body.theme-dark .liquid-dashboard #dashAlertsContainer .card,
+        body.theme-dark .liquid-dashboard #dashAlertsContainer [style*="border-radius"] {
+            background: var(--dlg-glass) !important;
+            border-color: var(--liquid-border) !important;
+            color: var(--liquid-text) !important;
+            box-shadow: var(--liquid-shadow), var(--liquid-inset) !important;
+            backdrop-filter: blur(18px) saturate(130%);
+            -webkit-backdrop-filter: blur(18px) saturate(130%);
+        }
+        body.theme-dark .liquid-dashboard .page-title,
+        body.theme-dark .liquid-dashboard #dashSeverityRow button > div:first-child {
+            color: var(--liquid-text) !important;
+        }
+        body.theme-dark .liquid-dashboard .page-sub,
+        body.theme-dark .liquid-dashboard #dashSeverityRow button > div:last-child {
+            color: var(--liquid-muted) !important;
+        }
+        body.theme-dark .liquid-dashboard #dashAlertsContainer h2 {
+            color: var(--dlg-text-soft) !important;
+        }
+        body.theme-dark .liquid-dashboard .liquid-module-card {
+            background: var(--dlg-glass);
+            border-color: var(--dlg-glass-border);
+            color: var(--liquid-text);
+            box-shadow: var(--dlg-shadow);
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-panel {
+            background: var(--dlg-glass);
+            border-color: var(--dlg-glass-border);
+            box-shadow: var(--dlg-shadow), var(--liquid-inset);
+        }
+        body.theme-dark .liquid-dashboard .liquid-module-card:hover {
+            background: rgba(255,255,255,.12);
+        }
+        body.theme-dark .liquid-dashboard .liquid-module-card svg,
+        body.theme-dark .liquid-dashboard .liquid-module-card span,
+        body.theme-dark .liquid-dashboard .liquid-todo-head {
+            color: var(--dlg-text-strong);
+        }
+        body.theme-dark .liquid-dashboard .liquid-module-card::before {
+            background:
+                radial-gradient(circle at 30% 22%, rgba(255,255,255,.14), transparent 32%),
+                linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+            border-color: rgba(255,255,255,.10);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,.12), inset 0 -1px 2px rgba(255,255,255,.04), 0 14px 30px rgba(0,0,0,.10);
+        }
+        body.theme-dark .liquid-dashboard .liquid-module-card svg {
+            color: rgba(235,235,235,.88);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,.12));
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-row {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            color: var(--dlg-text);
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-row:hover {
+            background: rgba(255,255,255,.10);
+            border-color: var(--dlg-glass-border);
+            box-shadow: 0 12px 30px rgba(0,0,0,.16), var(--liquid-inset);
+        }
+        body.theme-dark .liquid-dashboard .liquid-todo-row .liquid-todo-sub {
+            color: var(--dlg-text-soft);
+        }
+        body.theme-dark .liquid-dashboard .liquid-branch-btn,
+        body.theme-dark .liquid-dashboard .liquid-branch-options,
+        body.theme-dark .liquid-dashboard .liquid-home-user {
+            background: var(--dlg-glass-strong);
+            border-color: var(--dlg-glass-border);
+            color: var(--dlg-text-strong);
+            box-shadow: var(--dlg-shadow), var(--liquid-inset);
+            backdrop-filter: blur(18px) saturate(130%);
+            -webkit-backdrop-filter: blur(18px) saturate(130%);
+        }
+        body.theme-dark .liquid-dashboard .liquid-branch-option:hover {
+            background: rgba(255,255,255,.10);
+        }
+        body.theme-dark .liquid-dashboard .liquid-branch-option.active {
+            background: var(--dlg-active);
+            color: var(--dlg-active-text);
+        }
+        body.theme-dark .liquid-dashboard .liquid-user-role {
+            color: var(--dlg-text-soft);
+        }
+
+        /* ══ Auswahl in Listen klar sichtbar (Walter 02.08.2026) ══
+           War zu blass (rgba 0.13) — auf manchen Monitoren unsichtbar.
+           Jetzt: warmer Kohle-Hintergrund + linker Rand + fette Schrift.
+           Gilt: Mitarbeiter, Verträge/Dok-Struktur, Lohnlauf Definitiv+Akonto. */
+        .emp-list-item.active,
+        .dokstruktur-row.active,
+        .lohn-emp-active,
+        .lohn-emp-row.lohn-emp-active,
+        #page-mitarbeiter.liquid-employee .emp-list-item.active,
+        #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
+            background: #ddd5c8 !important;
+            border-left: 3px solid #3f3f3f !important;
+            box-shadow: inset 0 0 0 1px rgba(60,55,48,0.10) !important;
+            color: #000 !important;
+            font-weight: 700;
+        }
+        .emp-list-item.active,
+        #page-mitarbeiter.liquid-employee .emp-list-item.active {
+            opacity: 1 !important;   /* Inaktiv-Zeilen haben inline opacity:0.65 */
+            padding-left: 11px !important;
+        }
+        .lohn-emp-row.lohn-emp-active { padding-left: 11px !important; }
+        .emp-list-item.active .emp-list-name,
+        #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-name,
+        .lohn-emp-active .lohn-emp-name,
+        .lohn-emp-row.lohn-emp-active .lohn-emp-name,
+        .dokstruktur-row.active {
+            color: #000 !important;
+            font-weight: 800 !important;
+        }
+        .emp-list-item.active .emp-list-nr,
+        .lohn-emp-active .lohn-emp-nr { color: #3f3f3f !important; }
+        body.theme-dark .emp-list-item.active,
+        body.theme-dark .dokstruktur-row.active,
+        body.theme-dark .lohn-emp-active,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active,
+        body.theme-dark #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
+            background: var(--dlg-active) !important;
+            border-left-color: transparent !important;
+            color: var(--dlg-active-text) !important;
+            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
+        }
+        body.theme-dark .emp-list-item.active .emp-list-name,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-name,
+        body.theme-dark .lohn-emp-active .lohn-emp-name {
+            color: var(--dlg-active-text) !important; font-weight: 800 !important;
+        }
+
+        /* ══ DARK MOCKUP UNIFY (Walter 18.07.2026) ══
+           Letzte Schicht: Rest-Screens (Admin, HR-Hub, Perioden, Import)
+           auf elevated Liquid Glass — ohne .ls-wrap anzutasten. */
+        body.theme-dark .card-hd {
+            border-bottom-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text-strong);
+        }
+        body.theme-dark .card-hd-title { color: var(--dlg-text-strong) !important; }
+        body.theme-dark .card-hd-sub { color: var(--dlg-text-soft) !important; }
+        body.theme-dark .btn-ghost {
+            background: rgba(255,255,255,.06) !important;
+            color: var(--dlg-text) !important;
+            border-color: var(--dlg-glass-border) !important;
+        }
+        body.theme-dark .btn-ghost:hover {
+            background: rgba(255,255,255,.12) !important;
+            color: var(--dlg-text-strong) !important;
+        }
+        body.theme-dark .emp-search-input,
+        body.theme-dark .dok-search,
+        body.theme-dark input[type="search"] {
+            background: var(--dlg-glass-field) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text-strong) !important;
+        }
+        body.theme-dark .page-head {
+            background: transparent !important;
+        }
+        body.theme-dark #page-lohn .card,
+        body.theme-dark #page-lohnlauf .card,
+        body.theme-dark #page-perioden .card,
+        body.theme-dark #page-admin-hub .card,
+        body.theme-dark #page-hr-hub .card,
+        body.theme-dark #page-fibu .card,
+        body.theme-dark #page-vertraege .card {
+            background: var(--dlg-glass) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: var(--dlg-shadow) !important;
+            backdrop-filter: blur(16px) saturate(130%);
+            -webkit-backdrop-filter: blur(16px) saturate(130%);
+        }
+        body.theme-dark .lqsel-btn {
+            background: var(--dlg-glass-field) !important;
+            border-color: var(--dlg-glass-border) !important;
+            color: var(--dlg-text-strong) !important;
+        }
+        body.theme-dark .lqsel-panel {
+            background: rgba(32, 44, 60, 0.96) !important;
+            border-color: var(--dlg-glass-border) !important;
+            box-shadow: 0 16px 40px rgba(0,0,0,.35), inset 0 1px 0 var(--dlg-glass-inner) !important;
+            backdrop-filter: blur(22px) saturate(140%);
+            -webkit-backdrop-filter: blur(22px) saturate(140%);
+        }
+        body.theme-dark .lqsel-opt { color: var(--dlg-text) !important; }
+        body.theme-dark .lqsel-opt:hover,
+        body.theme-dark .lqsel-opt.active {
+            background: var(--dlg-active) !important;
+            color: var(--dlg-active-text) !important;
+        }
+
+
+        /* ── Nachtarbeit-Karte (Walter 19.07.2026) ──
+           Z1: Badge · Nächte · ⋮
+           Z2: Ausgestellt · gültig bis
+           Z3: Warn-Chips
+           Z4: Actions unten fix — Kartenhöhe unverändert */
+        .nw-card-body { padding: 0; box-sizing: border-box; }
+        .nw-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: 100%;
+            justify-content: flex-start;
+        }
+        .nw-row1,
+        .nw-row2,
+        .nw-row3,
+        .nw-row4 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
+            min-width: 0;
+            flex: 0 0 auto;
+        }
+        .nw-row1 { gap: 8px; }
+        .nw-row2 { gap: 6px; flex-wrap: wrap; }
+        .nw-row3 { gap: 5px; }
+        /* Schmalere Nachtarbeit-Karte: Aktions-Buttons umbrechen */
+        .nw-row4.nw-actions {
+            margin-top: auto; /* Buttons immer am Kartenboden */
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .nw-col-menu {
+            margin-left: auto;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+        }
+        .nw-duty-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+        .nw-duty-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .nw-duty-on {
+            background: rgba(220, 38, 38, 0.08);
+            color: #9f1239;
+            border: 1px solid rgba(244, 63, 94, 0.28);
+        }
+        .nw-duty-on .nw-duty-dot { background: #e11d48; }
+        /* Pflicht besteht, Nachweise aber vollständig — ruhiges Grün, kein Alarm. */
+        .nw-duty-met {
+            background: rgba(22, 163, 74, 0.09);
+            color: #166534;
+            border: 1px solid rgba(34, 197, 94, 0.28);
+        }
+        .nw-duty-met .nw-duty-dot { background: #16a34a; }
+        .nw-duty-off {
+            background: rgba(22, 163, 74, 0.09);
+            color: #166534;
+            border: 1px solid rgba(34, 197, 94, 0.28);
+        }
+        .nw-duty-off .nw-duty-dot { background: #16a34a; }
+        .nw-duty-count {
+            font-size: 12px;
+            font-weight: 650;
+            color: #3f3f3f;
+            white-space: nowrap;
+            flex: 0 0 auto;
+        }
+        .nw-duty-count-on { color: #9f1239; }
+        .nw-dotsep {
+            color: #c4bdb2;
+            font-weight: 600;
+            flex: 0 0 auto;
+        }
+        .nw-dates {
+            min-width: 0;
+            flex: 1 1 auto;
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #57534e;
+            line-height: 1.25;
+        }
+        .nw-row2 .nw-dates {
+            /* Eigene Zeile: Daten vollständig lesbar, kein Abschneiden durch Badge */
+            white-space: nowrap;
+        }
+        .nw-inline-lbl { color: #8b8b8b; font-weight: 550; }
+        .nw-inline-val { color: #3f3f3f; font-weight: 650; }
+        .nw-inline-muted { color: #8b8b8b; font-style: italic; font-weight: 500; }
+        .nw-date-ok { color: #166534 !important; }
+        .nw-date-expired { color: #9f1239 !important; }
+        .nw-date-tag {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #9f1239;
+        }
+        .nw-dates-empty { font-style: italic; }
+        .nw-warns {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            align-items: center;
+            min-width: 0;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        .nw-warns:empty { display: none; }
+        .nw-warn-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 650;
+            white-space: nowrap;
+            color: #9f1239;
+            background: rgba(244, 63, 94, 0.08);
+            border: 1px solid rgba(244, 63, 94, 0.22);
+        }
+        .nw-warn-chip::before {
+            content: '';
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: #e11d48;
+            flex-shrink: 0;
+        }
+        .nw-warn-chip-sm { font-size: 10px; padding: 1px 7px; }
+        .nw-ok-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 650;
+            white-space: nowrap;
+            color: #166534;
+            background: rgba(22, 163, 74, 0.09);
+            border: 1px solid rgba(34, 197, 94, 0.28);
+        }
+        .nw-ok-chip::before {
+            content: '';
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: #16a34a;
+            flex-shrink: 0;
+        }
+        .nw-actions {
+            display: flex;
+            gap: 5px;
+            flex-wrap: nowrap;
+            align-items: center;
+            flex: 0 0 auto;
+        }
+        .nw-act-btn {
+            background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(90,80,65,0.14);
+            border-radius: 8px;
+            padding: 2px 7px;
+            cursor: pointer;
+            color: #525252;
+            font-size: 10.5px;
+            font-weight: 600;
+            white-space: nowrap;
+            line-height: 1.25;
+        }
+        .nw-act-btn:hover { background: rgba(255,255,255,0.85); }
+        .nw-act-btn.nw-act-view {
+            background: rgba(63,63,63,0.06);
+            border-color: rgba(63,63,63,0.12);
+            color: #3f3f3f;
+        }
+        .nw-edit {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .nw-edit-label {
+            font-size: 11px;
+            font-weight: 650;
+            color: #8b8b8b;
+        }
+        .nw-edit-input {
+            width: auto;
+            min-width: 130px;
+            padding: 4px 8px;
+            border: 1px solid #e5e0d6;
+            border-radius: 8px;
+            font-size: 12.5px;
+            background: #fff;
+        }
+        .nw-edit-save {
+            background: #3f3f3f;
+            border: 0;
+            border-radius: 10px;
+            padding: 5px 12px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .nw-edit-cancel {
+            background: #fff;
+            border: 1px solid #e5e0d6;
+            border-radius: 10px;
+            padding: 5px 12px;
+            cursor: pointer;
+            color: #646464;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        @media (max-width: 900px) {
+            .nw-row1, .nw-row2, .nw-row3, .nw-row4 { flex-wrap: wrap; }
+            .nw-col-menu { margin-left: 0; }
+            .nw-actions { flex-wrap: wrap; }
+        }
+        body.theme-dark .nw-act-btn {
+            background: var(--dlg-glass-field, rgba(255,255,255,.08));
+            border-color: var(--dlg-glass-border, rgba(255,255,255,.18));
+            color: var(--dlg-text, #e2e8f0);
+        }
+        body.theme-dark .nw-act-btn.nw-act-view {
+            background: rgba(148,163,184,.15);
+            border-color: rgba(148,163,184,.35);
+            color: #e2e8f0;
+        }
+        body.theme-dark .nw-duty-count,
+        body.theme-dark .nw-inline-val { color: #e2e8f0; }
+        body.theme-dark .nw-inline-lbl,
+        body.theme-dark .nw-inline-muted,
+        body.theme-dark .nw-edit-label,
+        body.theme-dark .nw-dates { color: #94a3b8; }
+        body.theme-dark .nw-date-ok { color: #86efac !important; }
+        body.theme-dark .nw-date-expired,
+        body.theme-dark .nw-date-tag,
+        body.theme-dark .nw-duty-count-on { color: #fda4af !important; }
+        /* Pflicht-Pillen: dunkles Grün/Rot auf dunklem Glas war unlesbar (Walter 20.07.2026). */
+        body.theme-dark .nw-duty-off,
+        body.theme-dark .nw-duty-met {
+            background: rgba(16, 185, 129, 0.16);
+            color: #86efac;
+            border-color: rgba(52, 211, 153, 0.45);
+        }
+        body.theme-dark .nw-duty-off .nw-duty-dot,
+        body.theme-dark .nw-duty-met .nw-duty-dot { background: #4ade80; }
+        body.theme-dark .nw-duty-on {
+            background: rgba(244, 63, 94, 0.16);
+            color: #fda4af;
+            border-color: rgba(251, 113, 133, 0.45);
+        }
+        body.theme-dark .nw-duty-on .nw-duty-dot { background: #fb7185; }
+        body.theme-dark .nw-warn-chip {
+            color: #fda4af;
+            background: rgba(244, 63, 94, 0.16);
+            border-color: rgba(251, 113, 133, 0.40);
+        }
+        body.theme-dark .nw-warn-chip::before { background: #fb7185; }
+        body.theme-dark .nw-ok-chip {
+            color: #86efac;
+            background: rgba(16, 185, 129, 0.16);
+            border-color: rgba(52, 211, 153, 0.45);
+        }
+        body.theme-dark .nw-ok-chip::before { background: #4ade80; }
+
+/* ═══ Absenz- & Ferienkalender pro Filiale (Walter 22.07.2026) ═══ */
+        .akal-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .akal-monthnav {
+            display: flex; align-items: center; gap: 4px;
+            background: rgba(255,255,255,0.48); border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 12px; padding: 4px 6px;
+            box-shadow: 0 8px 22px rgba(60,55,48,0.10);
+        }
+        .akal-monthnav button {
+            border: none; background: transparent; font-size: 15px; color: #646464;
+            cursor: pointer; padding: 4px 9px; border-radius: 8px;
+        }
+        .akal-monthnav button:hover { background: rgba(255,255,255,0.6); }
+        .akal-monthnav .cur { font-size: 13.5px; font-weight: 800; color: #3f3f3f; padding: 0 8px; min-width: 118px; text-align: center; }
+        .akal-btn-heute {
+            background: #3f3f3f; color: #fff; border: none; border-radius: 12px;
+            padding: 8px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 8px 20px rgba(60,55,48,0.18);
+        }
+        .akal-filterrow { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .akal-fpill {
+            font-size: 12px; font-weight: 700; color: #646464; cursor: pointer;
+            background: rgba(255,255,255,0.46); border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 999px; padding: 5px 13px; user-select: none;
+        }
+        .akal-fpill.on { background: #3f3f3f; color: #fff; border-color: #3f3f3f; }
+        .akal-fsep { width: 1px; height: 18px; background: rgba(90,80,65,0.18); margin: 0 4px; }
+        .akal-namecol.akal-inaktiv { color: #a8a29a; }
+        .akal-inaktiv-chip {
+            background: rgba(90,80,65,0.10); border-radius: 8px; padding: 1px 7px;
+            color: #8b8b8b !important; font-size: 9px !important;
+        }
+        .akal-legend { display: flex; gap: 14px; margin-left: auto; flex-wrap: wrap; }
+        .akal-legend span { font-size: 11.5px; color: #646464; display: flex; align-items: center; gap: 5px; }
+        .akal-dot { width: 11px; height: 11px; border-radius: 4px; display: inline-block; }
+        .akal-card {
+            background: rgba(255,255,255,0.44);
+            border: 1px solid rgba(255,255,255,0.62);
+            border-radius: 18px;
+            box-shadow: 0 18px 50px rgba(60,55,48,0.14), inset 0 1px 0 rgba(255,255,255,0.7);
+            padding: 14px 14px 10px;
+            overflow-x: auto;
+        }
+        /* table-layout fixed: Fenster (31 Tage) wird IMMER auf volle Breite
+           eingepasst — kein horizontaler Scroll (Walter 22.07.2026 v2). */
+        .akal-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+        .akal-table th, .akal-table td { padding: 0; }
+        .akal-table thead .dmon { font-size: 8.5px; font-weight: 800; color: #b07940; text-align: center; text-transform: uppercase; letter-spacing: .04em; }
+        .akal-table thead .dnum { font-size: 10px; font-weight: 700; color: #646464; text-align: center; padding-bottom: 1px; }
+        .akal-table thead .dwd  { font-size: 8.5px; font-weight: 600; color: #a8a29a; text-align: center; padding-bottom: 5px; }
+        .akal-table thead .we .dnum, .akal-table thead .we .dwd { color: #c2b8a8; }
+        .akal-table thead .today .dnum { background: #3f3f3f; color: #fff; border-radius: 6px; width: 20px; margin: 0 auto; }
+        .akal-namecol {
+            text-align: left; font-size: 12px; font-weight: 700; color: #3f3f3f;
+            padding: 0 8px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            width: 205px; cursor: pointer;
+        }
+        tbody .akal-namecol:hover { text-decoration: underline; text-underline-offset: 3px; }
+        .akal-namecol .mod { font-size: 9.5px; font-weight: 700; color: #8b8b8b; margin-left: 5px; }
+        .akal-namecol .saldo { color: #a8a29a; font-weight: 500; }
+        .akal-table tbody tr { height: 26px; }
+        .akal-table tbody tr + tr td { border-top: 1px solid rgba(90,80,65,0.07); }
+        /* kleine Lücke zwischen den Modell-Gruppen (FIX-M | FIX | MTP | FLEX) */
+        .akal-table tbody tr.akal-gap { height: 8px; }
+        .akal-table tbody tr.akal-gap td { border-top: none !important; }
+        td.akal-day { position: relative; }
+        td.akal-day.we,   th.we    { background: rgba(90,80,65,0.045); }
+        td.akal-day.today { background: rgba(63,63,63,0.06); }
+        td.akal-day.mstart, .akal-table thead th.mstart { border-left: 2px solid rgba(90,80,65,0.22); }
+        .akal-seg {
+            position: absolute; top: 4px; bottom: 4px; left: 0; right: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.92); cursor: pointer;
+        }
+        .akal-seg.start { left: 2px; border-radius: 7px 0 0 7px; }
+        .akal-seg.end   { right: 2px; border-radius: 0 7px 7px 0; }
+        .akal-seg.start.end { border-radius: 7px; }
+        .akal-seg.halb { top: 9px; }
+        .akal-ferien   { background: linear-gradient(180deg,#7fb08a,#5f9970); }
+        .akal-krank    { background: linear-gradient(180deg,#d98a8a,#c96a6a); }
+        .akal-unfall   { background: linear-gradient(180deg,#e0a468,#d18b45); }
+        .akal-mutter   { background: linear-gradient(180deg,#a48ec4,#8a70b0); }
+        .akal-militaer { background: linear-gradient(180deg,#8fa3b8,#71879e); }
+        .akal-frei     { background: repeating-linear-gradient(135deg,#cfc8bc 0 4px,#dfd9cf 4px 8px); color: #646464; }
+        .akal-seg .tip {
+            display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+            transform: translateX(-50%); background: #3f3f3f; color: #fff;
+            font-size: 10.5px; font-weight: 600; padding: 5px 9px; border-radius: 8px;
+            white-space: nowrap; z-index: 5; box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        }
+        .akal-seg:hover .tip { display: block; }
+        .akal-table tfoot td { border-top: 2px solid rgba(90,80,65,0.14); padding-top: 6px; padding-bottom: 4px; }
+        .akal-table tfoot .akal-namecol { font-size: 11px; color: #8b8b8b; font-weight: 700; cursor: default; }
+        .akal-cnt { font-size: 10.5px; font-weight: 800; color: #a8a29a; text-align: center; }
+        .akal-cnt.mid  { color: #b07940; }
+        .akal-cnt.warn { color: #fff; background: #c96a6a; border-radius: 7px; width: 22px; margin: 0 auto; }
+        .akal-footnote {
+            display: flex; gap: 10px; align-items: center; margin-top: 12px;
+            font-size: 12px; color: #646464;
+            background: rgba(255,246,240,0.7); border: 1px solid rgba(201,106,106,0.25);
+            border-radius: 12px; padding: 9px 13px;
+        }
+        .akal-footnote b { color: #b05555; }
+        /* Dark-Mode */
+        body.theme-dark .akal-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.10); }
+        body.theme-dark .akal-namecol { color: #d6d3cc; }
+        body.theme-dark .akal-monthnav, body.theme-dark .akal-fpill { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); color: #d6d3cc; }
+        body.theme-dark .akal-fpill.on { background: #d6d3cc; color: #26241f; border-color: #d6d3cc; }
+        body.theme-dark .akal-monthnav .cur, body.theme-dark .akal-table thead .dnum { color: #d6d3cc; }
+        body.theme-dark td.akal-day.we { background: rgba(255,255,255,0.04); }
+        body.theme-dark .akal-table thead .today .dnum { background: #d6d3cc; color: #26241f; }
+
+        /* ── Vertrags-Modal (Walter 01.08.2026): EXAKT MA-Übersicht-Palette ──
+           Dieselben --emp-* Variablen wie #page-mitarbeiter.liquid-employee:
+           warmes Cream, Pearl-Rim, weisse Soft-Inputs, Uppercase-Labels. */
+        #contractEditModal {
+            --emp-glass-bg: #f4f0e8;
+            --emp-glass-strong: #faf7f2;
+            --emp-glass-field: #ffffff;
+            --emp-glass-border: rgba(255, 255, 255, 0.78);
+            --emp-glass-inner: rgba(255, 255, 255, 0.72);
+            --emp-text-strong: #2f2f2f;
+            --emp-text: #4a4a4a;
+            --emp-text-soft: #7a7a7a;
+            --emp-blue: #3f3f3f;
+            /* v4-Greige wie alle Erfassungsmasken (Walter 19.08.2026) —
+               vorher: #f4f0e8 + Verlauf #fffcf8→#e8e1d6 (oben fast weiss). */
+            --emp-fill: #e9e6dd;
+            --emp-fill-grad: linear-gradient(165deg,
+                                #eeece4 0%,
+                                #e7e4db 50%,
+                                #dfdcd1 100%);
+            --emp-rim: linear-gradient(135deg,
+                                rgba(255, 255, 255, 0.98) 0%,
+                                rgba(210, 200, 185, 0.55) 35%,
+                                rgba(120, 110, 95, 0.22) 62%,
+                                rgba(255, 255, 255, 0.88) 100%);
+            --emp-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.10),
+                0 0 18px rgba(90, 80, 65, 0.06),
+                0 4px 12px rgba(60, 55, 48, 0.08),
+                0 16px 36px rgba(60, 55, 48, 0.14),
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.06);
+            --emp-shadow-lift:
+                0 0 0 1px rgba(90, 80, 65, 0.12),
+                0 0 22px rgba(90, 80, 65, 0.08),
+                0 6px 14px rgba(60, 55, 48, 0.10),
+                0 20px 42px rgba(60, 55, 48, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.08);
+        }
+        #contractEditModal.ce-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: none;
+            align-items: flex-start;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 28px 16px;
+            background:
+                radial-gradient(ellipse 70% 50% at 85% -5%, rgba(255, 255, 255, 0.55) 0%, transparent 55%),
+                radial-gradient(ellipse 55% 45% at 8% 100%, rgba(180, 165, 140, 0.18) 0%, transparent 55%),
+                linear-gradient(160deg, rgba(246,243,238,.92) 0%, rgba(239,235,227,.94) 48%, rgba(250,248,245,.92) 100%),
+                rgba(60, 55, 48, 0.28);
+        }
+        #contractEditModal .ce-modal-box {
+            margin: auto;
+            width: min(1040px, calc(100vw - 32px));
+            max-width: 1040px;
+            border-radius: 16px;
+            border: 1px solid transparent;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: var(--emp-shadow-lift);
+            color: var(--emp-text);
+            font-size: 12.5px;
+            overflow: hidden;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+        #contractEditModal .ce-modal-head {
+            padding: 16px 20px 14px;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.10);
+            background: transparent;
+        }
+        #contractEditModal .ce-modal-head .ma-modal-title {
+            font-size: 16px;
+            font-weight: 760;
+            letter-spacing: -0.02em;
+            color: var(--emp-text-strong);
+        }
+        #contractEditModal .ce-modal-head .ma-modal-sub {
+            margin-top: 2px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #8b8b8b;
+        }
+        #contractEditModal .ce-modal-head .ma-modal-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 10px;
+            background: #ffffff;
+            border: 1px solid rgba(90, 80, 65, 0.14);
+            color: #7a7a7a;
+            box-shadow: 0 2px 8px rgba(60, 55, 48, 0.06);
+        }
+        #contractEditModal .ce-modal-head .ma-modal-close:hover {
+            background: #fff;
+            color: #1a1a1a;
+            border-color: rgba(90, 80, 65, 0.28);
+        }
+        #contractEditModal .ce-modal-body {
+            padding: 12px 16px 14px;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        /* Sektions-Karten = .ov-card auf der MA-Übersicht */
+        #contractEditModal .ce-block {
+            border: 1px solid transparent;
+            border-radius: 16px;
+            padding: 12px 16px 14px;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: var(--emp-shadow);
+        }
+        #contractEditModal .emp-section-title {
+            background: transparent !important;
+            border-left: none !important;
+            border-radius: 0 !important;
+            color: var(--emp-text-strong) !important;
+            text-transform: none !important;
+            letter-spacing: -0.01em !important;
+            font-size: 15px !important;
+            font-weight: 760 !important;
+            padding: 0 0 10px 0 !important;
+            margin: 0 !important;
+        }
+        #contractEditModal .ce-grid {
+            display: grid;
+            gap: 10px 16px;
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        #contractEditModal .ce-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        #contractEditModal .ce-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        #contractEditModal .ce-field {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
+        #contractEditModal .ce-span-2 { grid-column: span 2; }
+        #contractEditModal .ce-span-4 { grid-column: 1 / -1; }
+        /* Labels = .ov-pfl */
+        #contractEditModal .ce-lbl {
+            display: block;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #8b8b8b;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0;
+            padding-left: 0;
+            line-height: 1.2;
+        }
+        /* Inputs = .ov-softin */
+        #contractEditModal .ce-inp {
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 9px;
+            border: 1px solid rgba(90, 80, 65, 0.18);
+            background: #ffffff;
+            color: #2a2a2a;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            outline: none;
+            box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.05);
+            transition: border-color .12s, box-shadow .12s;
+        }
+        #contractEditModal select.ce-inp {
+            height: 32px;
+            padding-right: 28px;
+        }
+        #contractEditModal .ce-inp:hover {
+            border-color: rgba(90, 80, 65, 0.28);
+        }
+        #contractEditModal .ce-inp:focus {
+            border-color: #3f3f3f;
+            box-shadow: 0 0 0 2px rgba(63, 63, 63, 0.10);
+        }
+        #contractEditModal .ce-inp-ro {
+            background: #faf7f2;
+            color: #8b8b8b;
+            font-weight: 650;
+        }
+        #contractEditModal #ceTeilzeitUnter8hWrap {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            min-width: 0;
+        }
+        /* L-GAV-Toggle 1:1 */
+        #contractEditModal .emp-yesno-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            width: fit-content;
+            padding: 3px;
+            border: 1px solid rgba(60, 55, 48, 0.16);
+            border-radius: 15px;
+            background: #f0ece4;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+            min-height: 32px;
+            box-sizing: border-box;
+        }
+        #contractEditModal .emp-yesno-toggle button {
+            border: 0;
+            border-radius: 12px;
+            background: transparent;
+            color: #8b8b8b;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 760;
+            line-height: 1;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
+        #contractEditModal .emp-yesno-toggle button.active {
+            background: #3f3f3f;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(60, 55, 48, 0.18);
+        }
+        #contractEditModal .ce-eaw {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 2px;
+            padding: 9px 12px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(90, 80, 65, 0.14);
+            box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.03);
+        }
+        #contractEditModal .ce-eaw-cb {
+            width: 15px;
+            height: 15px;
+            margin-top: 2px;
+            accent-color: #3f3f3f;
+            flex-shrink: 0;
+        }
+        #contractEditModal .ce-eaw-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        #contractEditModal .ce-eaw-text label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #2f2f2f;
+            cursor: pointer;
+        }
+        #contractEditModal .ce-eaw-text span {
+            font-size: 11.5px;
+            color: #8b8b8b;
+            font-weight: 500;
+        }
+        #contractEditModal .ce-mw-slot {
+            margin-top: 10px;
+        }
+        #contractEditModal .ce-compl-slot {
+            margin-top: 2px;
+        }
+        #contractEditModal .ce-mw-info,
+        #contractEditModal .ce-compl-card {
+            display: flex;
+            align-items: center;
+            gap: 12px 16px;
+            flex-wrap: wrap;
+            padding: 10px 13px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(90, 80, 65, 0.12);
+            box-shadow: 0 4px 12px rgba(60, 55, 48, 0.04);
+            color: #4a4a4a;
+            font-size: 12.5px;
+        }
+        #contractEditModal .ce-mw-info .ce-mw-k {
+            font-weight: 760;
+            color: #2f2f2f;
+        }
+        #contractEditModal .ce-mw-info .ce-mw-meta {
+            color: #8b8b8b;
+            font-size: 11.5px;
+        }
+        #contractEditModal .ce-compl-card {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+        #contractEditModal .ce-compl-card.ok {
+            background: #ffffff;
+            border-color: rgba(90, 80, 65, 0.12);
+        }
+        #contractEditModal .ce-compl-card.bad {
+            background: #ffffff;
+            border-color: rgba(150, 90, 80, 0.22);
+        }
+        #contractEditModal .ce-compl-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        #contractEditModal .ce-compl-title {
+            font-size: 13.5px;
+            font-weight: 760;
+            color: #2f2f2f;
+        }
+        #contractEditModal .ce-compl-card.ok .ce-compl-title { color: #2f2f2f; }
+        #contractEditModal .ce-compl-card.bad .ce-compl-title { color: #7a4038; }
+        #contractEditModal .ce-compl-grid {
+            display: grid;
+            grid-template-columns: auto 1fr 1fr;
+            gap: 4px 16px;
+            font-size: 12px;
+            color: #4a4a4a;
+        }
+        #contractEditModal .ce-compl-apply {
+            border: none;
+            border-radius: 10px;
+            padding: 6px 14px;
+            background: #3f3f3f;
+            color: #fff;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 6px 14px rgba(60, 55, 48, 0.16);
+        }
+        #contractEditModal .ce-compl-apply:hover { background: #1a1a1a; }
+        #contractEditModal .ce-hint {
+            font-size: 11.5px;
+            color: #8b8b8b;
+            padding: 2px 1px;
+        }
+        #contractEditModal .ce-hint.warn { color: #8a6a3f; }
+        #contractEditModal .ce-modal-foot {
+            padding: 12px 16px 16px;
+            border-top: 1px solid rgba(90, 80, 65, 0.10);
+            background: transparent;
+            gap: 8px;
+        }
+        #contractEditModal .ce-error {
+            color: #8a4038;
+            font-size: 12px;
+            font-weight: 650;
+        }
+        #contractEditModal .ce-inp-sperre {
+            border-color: #8a4038;
+            box-shadow: 0 0 0 1px #8a4038;
+        }
+        #contractEditModal .ce-feld-hinweis {
+            color: #8a4038;
+            font-size: 12px;
+            font-weight: 650;
+            line-height: 1.35;
+            margin-top: 6px;
+        }
+        #contractEditModal .ce-btn {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform .12s, background .12s, box-shadow .12s;
+        }
+        #contractEditModal .ce-btn:hover { transform: translateY(-1px); }
+        #contractEditModal .ce-btn-ghost {
+            background: #ffffff;
+            border: 1px solid rgba(140, 132, 120, 0.32);
+            color: #3f3f3f;
+            box-shadow: 0 2px 8px rgba(60, 55, 48, 0.06);
+        }
+        #contractEditModal .ce-btn-ghost:hover {
+            border-color: #3f3f3f;
+        }
+        #contractEditModal .ce-btn-primary {
+            background: #3f3f3f;
+            border: 1px solid #3f3f3f;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(60, 55, 48, 0.16);
+        }
+        #contractEditModal .ce-btn-primary:hover { background: #1a1a1a; border-color: #1a1a1a; }
+        @media (max-width: 820px) {
+            #contractEditModal .ce-grid-4,
+            #contractEditModal .ce-grid-2 { grid-template-columns: 1fr 1fr; }
+            #contractEditModal .ce-span-2 { grid-column: span 2; }
+        }
+        @media (max-width: 560px) {
+            #contractEditModal .ce-grid-4,
+            #contractEditModal .ce-grid-2 { grid-template-columns: 1fr; }
+            #contractEditModal .ce-span-2,
+            #contractEditModal .ce-span-4 { grid-column: auto; }
+        }
+        /* Dark: gleiche dlg-Palette wie MA-Karten */
+        body.theme-dark #contractEditModal.ce-overlay {
+            background:
+                radial-gradient(900px 500px at 30% 0%, rgba(80,140,210,.16), transparent 55%),
+                rgba(0, 4, 14, 0.62);
+        }
+        body.theme-dark #contractEditModal .ce-modal-box,
+        body.theme-dark #contractEditModal .ce-block {
+            border: 1px solid transparent !important;
+            background-color: var(--dlg-fill) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow) !important;
+            color: var(--dlg-text) !important;
+        }
+        body.theme-dark #contractEditModal .ce-modal-head,
+        body.theme-dark #contractEditModal .ce-modal-foot {
+            background: transparent;
+            border-color: rgba(165, 215, 255, 0.14);
+        }
+        body.theme-dark #contractEditModal .ce-modal-head .ma-modal-title,
+        body.theme-dark #contractEditModal .emp-section-title,
+        body.theme-dark #contractEditModal .ce-compl-title,
+        body.theme-dark #contractEditModal .ce-mw-info .ce-mw-k,
+        body.theme-dark #contractEditModal .ce-eaw-text label {
+            color: #ffffff !important;
+        }
+        body.theme-dark #contractEditModal .ce-modal-head .ma-modal-sub,
+        body.theme-dark #contractEditModal .ce-lbl,
+        body.theme-dark #contractEditModal .ce-eaw-text span,
+        body.theme-dark #contractEditModal .ce-mw-info .ce-mw-meta,
+        body.theme-dark #contractEditModal .ce-hint {
+            color: var(--dlg-text-muted) !important;
+        }
+        body.theme-dark #contractEditModal .ce-modal-head .ma-modal-close,
+        body.theme-dark #contractEditModal .ce-inp,
+        body.theme-dark #contractEditModal .ce-eaw,
+        body.theme-dark #contractEditModal .ce-mw-info,
+        body.theme-dark #contractEditModal .ce-compl-card,
+        body.theme-dark #contractEditModal .ce-btn-ghost {
+            background: var(--dlg-fill-field) !important;
+            border-color: rgba(165, 215, 255, 0.28) !important;
+            color: #f1f5f9 !important;
+            box-shadow: none !important;
+        }
+        body.theme-dark #contractEditModal .ce-inp:focus {
+            border-color: rgba(155, 210, 255, 0.72) !important;
+            box-shadow: 0 0 0 2px rgba(70, 150, 235, 0.18) !important;
+        }
+        body.theme-dark #contractEditModal .ce-inp-ro {
+            background: rgba(0, 0, 0, 0.22) !important;
+            color: var(--dlg-text-muted) !important;
+        }
+        body.theme-dark #contractEditModal .emp-yesno-toggle {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(122, 145, 165, 0.28);
+        }
+        body.theme-dark #contractEditModal .emp-yesno-toggle button { color: #94a3b8; }
+        body.theme-dark #contractEditModal .emp-yesno-toggle button.active {
+            background: #e8e4dc;
+            color: #1a1a1a;
+        }
+        body.theme-dark #contractEditModal .ce-btn-primary {
+            background: #e8e4dc !important;
+            border-color: #e8e4dc !important;
+            color: #1a1a1a !important;
+        }
+
+/* ── AHV-Anmeldung 318.260 (Walter 06.08.2026, Look 22.10.2026 wie Famz) ─ */
+#page-ahv-anmeldung .ahv-card {
+    max-width: 1180px; padding: 12px 14px 14px !important;
+    border: 1px solid transparent !important; border-radius: 18px !important;
+    background: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+    box-shadow: 0 6px 22px rgba(60,55,48,0.14) !important;
+}
+.ahv-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 14px; align-items: start; }
+.ahv-ma { min-width: 0; }
+.ahv-kopf-titel { font-size: 12px; font-weight: 700; color: #3f3f3f; margin-bottom: 6px; }
+.ahv-main { min-width: 0; }
+.ahv-leer {
+    font-size: 13px; color: #8b8b8b; padding: 28px 12px; text-align: center;
+    background: rgba(255,255,255,0.35); border-radius: 12px; border: 1px dashed rgba(60,55,48,0.18);
+}
+#page-ahv-anmeldung .ahv-pill:not(.ahv-maliste),
+#page-ahv-anmeldung .ahv-f > input:not([type=checkbox]),
+#page-ahv-anmeldung .ahv-f .lqsel-btn {
+    display: block; width: 100%; box-sizing: border-box;
+    background: #fff !important;
+    border: 1px solid rgba(255,255,255,0.95) !important;
+    border-radius: 9px !important;
+    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    padding: 4px 9px !important; min-height: 28px; height: 28px;
+    font-size: 12.5px !important; font-weight: 500 !important; color: #1a1a1a !important;
+    font-family: inherit;
+}
+#page-ahv-anmeldung .ahv-f .lqsel-btn { display: flex; align-items: center; }
+#page-ahv-anmeldung .ahv-f .lqsel-wrap { display: block; width: 100%; margin-top: 2px; }
+#page-ahv-anmeldung .ahv-maliste {
+    display: block; width: 100%; box-sizing: border-box;
+    background: #fff !important;
+    border: 1px solid rgba(255,255,255,0.95) !important;
+    border-radius: 9px !important;
+    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    height: auto !important; max-height: calc(100vh - 220px); margin-top: 6px;
+    padding: 4px 6px !important; overflow: auto;
+    font-size: 12.5px !important; font-family: inherit; color: #1a1a1a;
+}
+#page-ahv-anmeldung .ahv-maliste option { padding: 3px 4px; border-radius: 5px; }
+.ahv-titel {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(90,80,65,0.10); border-radius: 10px;
+    padding: 4px 12px; margin: 0 0 6px;
+    font-size: 12.5px; font-weight: 700; color: #3f3f3f;
+}
+.ahv-titel + .ahv-raster + .ahv-titel { margin-top: 10px; }
+.ahv-titel-info { font-weight: 500; color: #8b8b8b; font-size: 11.5px; }
+.ahv-raster { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px 8px; }
+.ahv-f { display: block; min-width: 0; font-size: 10.5px; font-weight: 700; color: #8b8b8b; letter-spacing: 0.02em; }
+.ahv-f > input, .ahv-f > select, .ahv-f > .lqsel-wrap { margin-top: 2px; }
+.ahv-span2 { grid-column: span 2; }
+.ahv-span3 { grid-column: span 3; }
+.ahv-check {
+    display: flex; align-items: flex-end; padding-bottom: 4px;
+    font-size: 12px; font-weight: 600; color: #3f3f3f;
+}
+.ahv-check span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.ahv-check input { width: 15px; height: 15px; margin: 0; }
+.ahv-fuss {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-top: 12px; flex-wrap: wrap;
+}
+.ahv-beilage { font-size: 12.5px; color: #3f3f3f; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ahv-beilage input { width: 15px; height: 15px; margin: 0; }
+.ahv-btn-primaer {
+    background: #3f3f3f; color: #fff; border: none; padding: 8px 18px; border-radius: 12px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.ahv-btn-primaer:hover { background: #1a1a1a; }
+.ahv-btn-primaer:disabled { opacity: 0.55; cursor: wait; }
+@media (max-width: 900px) {
+    .ahv-layout { grid-template-columns: 1fr; }
+    .ahv-raster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    #page-ahv-anmeldung .ahv-maliste { max-height: 160px; }
+}
+body.theme-dark #page-ahv-anmeldung .ahv-card { background: rgba(255,255,255,0.04) !important; }
+body.theme-dark .ahv-titel { background: rgba(255,255,255,0.08); color: #e2e8f0; }
+
+/* ── Anmeldung Familienzulagen (Walter 11.10.2026): ov-Maske — warme Karte,
+   weisse Feld-Pillen, Abschnitts-Balken, kompaktes 6er-Raster. Rot = fehlt
+   wirklich (Pflichtangabe leer), gelb = Hinweis. ── */
+#page-famz-anmeldung .famz-card {
+    max-width: 1180px; padding: 14px 18px 16px !important;
+    border: 1px solid transparent !important; border-radius: 18px !important;
+    background: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+    box-shadow: 0 6px 22px rgba(60,55,48,0.14) !important;
+}
+#page-famz-anmeldung .famz-pill,
+#page-famz-anmeldung .famz-f > input:not([type=checkbox]),
+#page-famz-anmeldung .famz-f .lqsel-btn,
+#page-famz-anmeldung .famz-kinder td > input:not([type=checkbox]),
+#page-famz-anmeldung .famz-kinder .lqsel-btn {
+    display: block; width: 100%; box-sizing: border-box;
+    background: #fff !important;
+    border: 1px solid rgba(255,255,255,0.95) !important;
+    border-radius: 9px !important;
+    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    padding: 4px 9px !important; min-height: 28px; height: 28px;
+    font-size: 12.5px !important; font-weight: 500 !important; color: #1a1a1a !important;
+    font-family: inherit;
+}
+#page-famz-anmeldung .famz-f .lqsel-btn,
+#page-famz-anmeldung .famz-kinder .lqsel-btn { display: flex; align-items: center; }
+#page-famz-anmeldung .famz-f > input::placeholder,
+#page-famz-anmeldung .famz-kinder td > input::placeholder { color: #b0a99c; font-weight: 400; }
+#page-famz-anmeldung .famz-f .lqsel-wrap,
+#page-famz-anmeldung .famz-kinder .lqsel-wrap { display: block; width: 100%; }
+#page-famz-anmeldung .famz-maliste { height: auto !important; padding: 4px 6px !important; margin-top: 6px; }
+#page-famz-anmeldung .famz-maliste option { padding: 2px 4px; border-radius: 5px; }
+.famz-kopf { display: grid; grid-template-columns: 1.1fr 1fr 1.3fr; gap: 16px; align-items: start; }
+.famz-kopf-titel { font-size: 12px; font-weight: 700; color: #3f3f3f; margin-bottom: 6px; }
+.famz-kind-cb-zeile { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 2px 0; color: #1a1a1a; }
+.famz-kind-cb-zeile span { color: #8b8b8b; }
+.famz-box { border-radius: 10px; padding: 7px 11px; font-size: 12px; line-height: 1.45; margin-bottom: 8px; }
+.famz-box-rot { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.35); color: #991b1b; }
+.famz-box-gelb { background: rgba(245,158,11,0.10); border: 1px solid rgba(217,119,6,0.30); color: #92400e; }
+.famz-box b { font-weight: 700; }
+.famz-beilagen { font-size: 11.5px; color: #646464; }
+.famz-beilagen summary { cursor: pointer; font-weight: 700; color: #3f3f3f; }
+.famz-beilagen ul { margin: 4px 0 0 16px; padding: 0; }
+.famz-titel {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(90,80,65,0.10); border-radius: 10px;
+    padding: 5px 12px; margin: 12px 0 7px;
+    font-size: 12.5px; font-weight: 700; color: #3f3f3f;
+}
+.famz-titel .famz-titel-info { font-weight: 500; color: #8b8b8b; font-size: 11.5px; }
+.famz-titel .famz-titel-info.rot { color: #b91c1c; font-weight: 600; }
+.famz-titel-knopf {
+    margin-left: auto; background: rgba(255,255,255,0.6); border: 1px solid rgba(60,55,48,0.2);
+    color: #3f3f3f; padding: 2px 10px; border-radius: 10px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+}
+.famz-raster { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px 10px; }
+.famz-f { display: block; min-width: 0; font-size: 10.5px; font-weight: 700; color: #8b8b8b; letter-spacing: 0.02em; }
+.famz-f > input, .famz-f > select, .famz-f > .lqsel-wrap { margin-top: 2px; }
+.famz-f.fehlt { color: #b91c1c; }
+#page-famz-anmeldung .famz-f.fehlt > input:not([type=checkbox]),
+#page-famz-anmeldung .famz-f.fehlt .lqsel-btn,
+#page-famz-anmeldung .famz-kinder td.fehlt > input,
+#page-famz-anmeldung .famz-kinder td.fehlt .lqsel-btn {
+    border: 1.5px solid #dc2626 !important;
+    box-shadow: 0 0 0 2px rgba(220,38,38,0.10) !important;
+}
+.famz-kinder { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.famz-kinder th { text-align: left; font-size: 10.5px; font-weight: 700; color: #8b8b8b; padding: 0 4px 2px; }
+.famz-kinder td { padding: 2px 3px; }
+.famz-fuss { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 14px; }
+.famz-fuss-info { font-size: 12px; color: #b91c1c; font-weight: 600; }
+.famz-btn-primaer {
+    background: #3f3f3f; color: #fff; border: none; padding: 8px 18px; border-radius: 12px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.famz-btn-primaer:hover { background: #1a1a1a; }
+.famz-btn-sek {
+    background: rgba(255,255,255,0.6); border: 1px solid rgba(60,55,48,0.2); color: #3f3f3f;
+    padding: 5px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+@media (max-width: 980px) {
+    .famz-kopf { grid-template-columns: 1fr; }
+    .famz-raster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+body.theme-dark #page-famz-anmeldung .famz-card { background: rgba(255,255,255,0.04) !important; }
+body.theme-dark .famz-titel { background: rgba(255,255,255,0.08); color: #e2e8f0; }
+
+/* Filialen-Seite mit fixhead (Walter 06.08.2026): emp-layout füllt den
+   page-body statt 100vh zu erzwingen — Panels scrollen intern, kein
+   Ganzseiten-Scroll mehr. */
+#page-filialen .emp-layout { height: 100%; }
+
+/* ── Manager-Dienstplan (Walter 08.08.2026) ─────────────────────────── */
+.dp-scroll { overflow:auto; border:1px solid rgba(60,55,48,0.14); border-radius:12px; background:#fff; }
+.dp-table { border-collapse:collapse; font-size:11.5px; width:max-content; }
+.dp-table th, .dp-table td { border:1px solid rgba(60,55,48,0.12); text-align:center; min-width:27px; padding:2px 3px; }
+.dp-table thead th { background:#f6f3ee; font-weight:700; color:#646464; position:sticky; top:0; z-index:2; height:24px; box-sizing:border-box; }
+/* Alle DREI Kopfzeilen fixieren (Walter 09.08.2026): jede Zeile braucht ihren
+   eigenen top-Offset, sonst überdeckt die letzte (TAG) die anderen beiden. */
+.dp-table thead tr:nth-child(1) th { top:0; }
+.dp-table thead tr:nth-child(2) th { top:24px; }
+.dp-table thead tr:nth-child(3) th { top:48px; }
+.dp-side { position:sticky; left:0; background:#f6f3ee !important; z-index:3; text-align:left !important; padding:2px 8px !important; min-width:110px; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dp-name { font-weight:600; color:#3f3f3f; background:#fff !important; }
+.dp-gf { font-weight:800; }
+
+.dp-we { background:#efece6; }
+.dp-branch td { background:#3f3f3f !important; color:#fff !important; font-weight:700; font-size:11px; letter-spacing:.4px; text-align:left; padding:3px 8px; }
+.dp-cell { font-weight:700; color:#3f3f3f; user-select:none; }
+.dp-cell:focus { outline:2px solid #6b7280; outline-offset:-2px; }
+.dp-abs { cursor:default; }
+/* Feiertag-/Schulferien-Marker (Walter 09.08.2026): in der Filial-Zeile pro
+   Tag — Feiertag rot (★), Schulferien blaues Band; Tageszellen am Feiertag
+   leicht rot getönt. !important nötig gegen .dp-branch td. */
+.dp-branch td.dp-brday { padding:0; font-size:10px; text-align:center; }
+/* To-do-Tooltip (Walter 21.08.2026): ersetzt den winzigen nativen title auf
+   den Pendenz-Zeilen — deutlich grössere Schrift, Umbruch, Titel fett. */
+.td-tip { position:fixed; z-index:9600; display:none; max-width:520px;
+          background:#3f3f3f; color:#fff; border-radius:12px; padding:12px 16px;
+          box-shadow:0 10px 30px rgba(60,55,48,0.34); pointer-events:none;
+          line-height:1.45; }
+.td-tip .td-tip-h { font-size:16.5px; font-weight:700; }
+.td-tip .td-tip-s { font-size:15px; font-weight:500; color:#e8e4dd; margin-top:5px; }
+body.theme-dark .td-tip { background:#1f1d1a; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+.td-row[data-todotip] { cursor:pointer; }
+
+.dp-tip { position:fixed; z-index:9500; background:#3f3f3f; color:#fff; font-size:12px; font-weight:600;
+          padding:5px 10px; border-radius:8px; box-shadow:0 6px 18px rgba(60,55,48,0.3);
+          pointer-events:none; white-space:nowrap; display:none; }
+/* Wochen-Trennlinie vor jedem Montag + F/M/S-Summenspalten (Walter 09.08.2026).
+   Wochenende wird NUR noch im Kopf (dp-we auf th) gefärbt. */
+.dp-table .dp-mo { border-left:2px solid #a39c8f !important; }
+.dp-table .dp-sum { background:#f6f3ee; font-weight:700; color:#3f3f3f; min-width:26px; }
+.dp-table td.dp-weok { color:#166534; font-size:10.5px; letter-spacing:.3px; }
+.dp-table td.dp-wenok { color:#b91c1c; font-size:10.5px; letter-spacing:.3px; }
+.dp-table .dp-sumfirst { border-left:2px solid #a39c8f !important; }
+.dp-branch td.dp-sumfirst { border-left-color:#a39c8f; }
+
+
+.dp-branch td.dp-brft { background:#f87171 !important; color:#fff !important; }
+.dp-branch td.dp-brsf { background:#93c5fd !important; }
+td.dp-cell.dp-ftday { background:#fdeaea; }
+

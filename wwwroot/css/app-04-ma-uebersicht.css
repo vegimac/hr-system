@@ -1,0 +1,1339 @@
+        /* ══ TAB «UEBERSICHT» — Karten-Grid (Etappe 2, Walter 17.07.2026) ══ */
+        /* Walter 17.07.2026: gesamte Übersicht FIX im Viewport — kein Scrollen,
+           kein Springen. Andere MA-Tabs behalten .emp-detail-body-Scroll. */
+        .main:has(#page-mitarbeiter.active) { overflow: hidden; }
+        #page-mitarbeiter.liquid-employee.active {
+            height: 100%; max-height: 100%; overflow: hidden;
+            display: flex; flex-direction: column; min-height: 0;
+        }
+        #page-mitarbeiter.liquid-employee .page-body {
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        #page-mitarbeiter.liquid-employee .emp-layout,
+        #page-mitarbeiter.liquid-employee .liquid-employee-layout-grid {
+            flex: 1 1 auto; min-height: 0; height: auto !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-panel {
+            min-height: 0;
+            flex: 1 1 auto;
+            align-self: stretch;
+        }
+        #page-mitarbeiter.liquid-employee .emp-list-panel,
+        #page-mitarbeiter.liquid-employee .liquid-employee-list {
+            align-self: stretch;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll {
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            min-height: 0;
+            flex: 1 1 auto;
+            padding-bottom: 6px;
+            background: transparent !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll #emp-tab-uebersicht.active {
+            display: flex; flex-direction: column;
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll #uebersichtContent {
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
+            flex: 1 1 auto; min-height: 0;
+            /* Walter 02.08.2026: gleiche Abstände; Verträge/Saldi wachsen
+               (1fr); Weitere Adressen unten fix inhaltshoch. */
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: 100%;
+            align-content: stretch;
+            grid-template-rows: max-content minmax(140px, auto) minmax(160px, 1fr) auto;
+        }
+        .ov-wrap {
+            display: grid;
+            /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
+            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
+            gap: 10px; /* gleiche Abstände zwischen allen Boxen */
+            /* Knappes Boden-Padding — Schatten knapp sichtbar, ohne Leerraum */
+            padding: 2px 2px 8px;
+        }
+        /* Volle Breite (Walter 17.07.2026): Personalien & Adresse spannt
+           ueber beide Spalten. */
+        .ov-full { grid-column: 1 / -1; min-width: 0; }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full {
+            grid-row: 1;
+            min-height: min-content;
+            height: auto;
+            overflow: visible;
+            align-self: start;
+        }
+        /* MA-Daten: Hauptblock — genug Platz für Felder + Zusatzadresse */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card {
+            min-height: min-content;
+            height: auto;
+            overflow: visible;
+            box-sizing: border-box;
+            padding: 12px 14px 10px !important;
+        }
+        /* Weitere Adressen — eigene volle Breite unten (Walter 02.08.2026) */
+        .ov-addr-full {
+            grid-column: 1 / -1;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full {
+            grid-row: 4;
+            align-self: start;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full > .ov-card {
+            padding: 10px 14px 10px !important;
+            box-sizing: border-box;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full > .ov-card > .ov-card-h {
+            font-size: 15px;
+            margin-bottom: 6px;
+            align-items: baseline;
+            gap: 8px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full > .ov-card > .ov-card-h > span:first-child {
+            display: inline-flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0 6px;
+            min-width: 0;
+            font-weight: 700;
+        }
+        .ov-addr-count {
+            font-weight: 700;
+            color: inherit;
+        }
+        .ov-addr-hint {
+            font-size: 11.5px;
+            font-weight: 500;
+            color: #a2acb8;
+            margin: 0;
+            line-height: 1.3;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        body.theme-dark .ov-addr-hint { color: rgba(210, 220, 232, 0.55); }
+        /* Box fix: immer 1 Adresszeile sichtbar, weitere scrollen (Walter 02.08.2026) */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full #otherAddressesContent {
+            min-height: 40px;
+            height: 40px;
+            max-height: 40px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full #otherAddressesContent .emp-addr-row {
+            flex: 0 0 40px;
+            height: 40px;
+            box-sizing: border-box;
+            margin-bottom: 0;
+            padding: 0 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 12px;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card > .ov-card-h {
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow {
+            gap: 10px 16px;
+            margin-bottom: 10px;
+            padding-bottom: 0;
+            width: 100%;
+            justify-content: flex-start;
+        }
+        /* Personalien: ein 5-Spalten-Raster über Z1–Z3 (Walter 19.07.2026)
+           Z1: Strasse | PLZ | Ort+Kt. | Telefon 2 | AHV
+           Z2: Briefanrede | Nickname | Sex | Konfession | —
+           Z3: Zivilstand | seit | Ledigname | Nationalität | ZEMIS
+           Zeilenabstand etwas luftiger (Walter 02.08.2026). */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned {
+            display: grid;
+            grid-template-columns:
+                minmax(150px, 1.35fr)  /* Strasse / Ledigname / Zivilstand */
+                minmax(120px, 1.2fr)   /* PLZ / Briefanrede / seit */
+                minmax(120px, 1.1fr)   /* Ort+Kt / Kurzname / Konfession */
+                minmax(140px, 1.2fr)   /* Tel2 / Sex / Nationalität */
+                minmax(150px, 1.25fr); /* — / AHV / ZEMIS */
+            column-gap: 12px;
+            row-gap: 15px;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        /* Z1 eigene Spalten: PLZ nur 4 Ziffern, Kanton mit Pfeil, AHV inkl. «unbekannt».
+           Nicht die 5 Spalten der Karte — sonst wird die PLZ so breit wie die Strasse
+           und «unbekannt» am Rand abgeschnitten (Walter 26.10.2026). */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns:
+                minmax(150px, 1.15fr)  /* Strasse */
+                calc(7.2ch + 9rem + 3rem + 11.4rem + 30px) /* PLZ + Ort + Kt. + Land, fest */
+                max-content            /* Telefon, ganze Nummer */
+                minmax(240px, 1fr);    /* AHV + unbekannt */
+            column-gap: 16px;
+            align-items: start;
+            min-width: 0;
+            padding-bottom: 11px;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.10);
+            margin-bottom: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 > .ov-pf,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe > .ov-pf {
+            min-width: 0;
+            margin-bottom: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe {
+            display: grid;
+            grid-template-columns: 7.2ch 9rem 3rem 11.4rem;
+            column-gap: 10px;
+            align-items: start;
+            width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
+            min-width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
+            max-width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-plz,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-kt {
+            width: auto;
+            min-width: 0;
+            max-width: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-land {
+            width: 11.4rem;
+            min-width: 11.4rem;
+            max-width: 11.4rem;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city .ov-pfv,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city .ov-softin {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ma-land-zeile {
+            display: grid;
+            grid-template-columns: 2.4rem 8.6rem;
+            align-items: center;
+            column-gap: 0.4rem;
+            width: 11.4rem;
+            min-width: 11.4rem;
+            max-width: 11.4rem;
+            height: 30px;
+        }
+        .ma-land-zeile .lqsel-wrap { width: 2.4rem; min-width: 2.4rem; max-width: 2.4rem; }
+        .ma-land-zeile .lqsel-btn {
+            min-width: 0;
+            width: 2.4rem;
+            padding-left: 0;
+            padding-right: 14px;
+        }
+        .ma-land-code {
+            display: block;
+            width: 2.4rem;
+            min-width: 2.4rem;
+            max-width: 2.4rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .ma-land-en {
+            display: block;
+            width: 8.6rem;
+            min-width: 8.6rem;
+            max-width: 8.6rem;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #8b8b8b;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            line-height: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        body.theme-dark .ma-land-en { color: rgba(210, 220, 232, 0.78); }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-tel2 .ov-softin {
+            width: 20ch;
+            min-width: 20ch;
+            max-width: none;
+            text-overflow: clip;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf {
+            min-width: 0;
+            margin-bottom: 0;
+            width: auto;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf.ov-pf-ahv { min-width: 240px; }
+        #page-mitarbeiter.liquid-employee .ov-ahv-zeile {
+            display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;
+        }
+        #page-mitarbeiter.liquid-employee .ov-ahv-voll {
+            white-space: nowrap; overflow: visible; font-variant-numeric: tabular-nums;
+        }
+        #page-mitarbeiter.liquid-employee .ov-ahv-eingabe {
+            width: auto !important; min-width: 15ch !important; max-width: 18ch;
+            flex: 1 1 15ch; padding-right: 2px !important;
+        }
+        #page-mitarbeiter.liquid-employee .ov-ahv-unb {
+            font-size: 12px; color: #3f3f3f; white-space: nowrap;
+            display: flex; align-items: center; gap: 4px;
+            flex: 0 0 auto;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .ov-softin {
+            width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
+            /* Wie .ov-pfv (Strasse): gleiche Schrift + linksbündig unter dem Label */
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #2a2a2a;
+            line-height: 30px;
+            min-height: 30px;
+            height: 30px;
+            padding: 0 28px 0 0; /* links 0 = bündig mit Strasse; rechts Platz für Datums-Icon */
+            border-radius: 8px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned select.ov-softin {
+            padding-right: 22px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ortkt {
+            display: flex;
+            gap: 8px;
+            align-items: start;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ortkt > .ov-pf {
+            margin-bottom: 0;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ortkt > .ov-pf-city {
+            flex: 1 1 auto;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ortkt > .ov-pf-kt {
+            flex: 0 0 54px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-sex {
+            max-width: 44px;
+        }
+        /* Z2 über die ganze Breite, in zwei Zeilen (Walter 26.10.2026):
+           Zeile A: Briefanrede | Kurzname | Geschlecht | Konfession | Nationalität | Sprache | Geburtsdatum
+           Zeile B: Mobil | E-Mail | Bewilligung | ZEMIS
+           Vorher ein 7-Spalten-Raster für die alte Feldliste — Sprache, Geburt,
+           Mobil und E-Mail sind in die schmalen Spalten gerutscht. */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b {
+            display: grid;
+            column-gap: 12px;
+            align-items: start;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a {
+            grid-template-columns:
+                minmax(118px, 1fr)     /* Briefanrede */
+                minmax(120px, 1.05fr)  /* Kurzname */
+                84px                   /* Geschlecht, ein Buchstabe */
+                minmax(230px, 1.7fr)   /* Konfession, «Israelitische Kultusgemeinde» */
+                58px                   /* Sprache, zwei Buchstaben */
+                146px;                 /* Geburtsdatum + Kalender */
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b {
+            grid-template-columns:
+                168px                  /* Mobilnummer */
+                300px                  /* E-Mail, nicht die ganze Zeile */
+                minmax(260px, 1.4fr)   /* Nationalität, rechts neben der E-Mail */
+                max-content            /* Bewilligung */
+                132px;                 /* ZEMIS */
+            column-gap: 16px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a > .ov-pf,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b > .ov-pf {
+            min-width: 0;
+            margin-bottom: 0;
+            max-width: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 .ov-pf-sex {
+            max-width: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .lqsel-wrap {
+            display: block;
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .lqsel-btn {
+            min-height: 30px;
+            height: 30px;
+            padding: 0 8px 0 0;
+            font-size: 14.5px;
+            font-weight: 700;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-nat-zeile {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-nat-zeile > .lqsel-wrap,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-nat-zeile > select {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: auto;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-nat-zeile > .emp-field-docbtn {
+            flex: 0 0 auto;
+            margin-left: 0 !important;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned .yp-field-wrap > input.ov-softin {
+            padding-right: 6px;
+            width: auto;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned input.ov-softin:not([type="date"]) {
+            padding-right: 8px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2 .ov-pfv {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-bew .ov-pfv {
+            overflow: visible;
+            text-overflow: clip;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-mobil .ov-softin {
+            width: 100%;
+            max-width: 158px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-mail .ov-softin {
+            width: 100%;
+            max-width: 300px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-bew-code {
+            font-size: 14.5px;
+            font-weight: 700;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            text-decoration-color: rgba(60, 55, 48, 0.35);
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-bew-bis {
+            margin-left: 12px;
+            font-size: 14.5px;
+            font-weight: 600;
+            color: #2a2a2a;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-bew-datum {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z4 {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns:
+                minmax(188px, 1.25fr)  /* Zivilstand + Historie */
+                146px                  /* Zivilstand seit */
+                minmax(150px, 1.25fr)  /* Ledigname */
+                minmax(240px, 2fr)     /* Familienbetreuung */
+                92px;                  /* Schuhgrösse, zwei Ziffern */
+            column-gap: 14px;
+            align-items: start;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z4 > .ov-pf {
+            min-width: 0;
+            margin-bottom: 0;
+            max-width: none;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2b .ov-pf-zemis .ov-softin,
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-zemis .ov-softin {
+            width: 100%;
+            max-width: 132px;
+        }
+        /* Familienbetreuung 1 Spalte (darf umbrechen), daneben Schuhgrösse (Walter 15.10.2026) */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-fb .ov-pfv {
+            white-space: normal;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-schuh .ov-softin {
+            width: 100%;
+            max-width: 92px;
+        }
+        /* ZEMIS-Nr. — Feld nicht auf Spaltenbreite strecken, aber breit genug
+           für das lange Format «017.335.114-6» (Walter 21.08.2026: 118px
+           schnitt die letzte Ziffer ab). */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-zemis .ov-softin {
+            width: 132px;
+            max-width: 132px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-slot > .ov-pf {
+            width: 100%;
+            margin-bottom: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
+            font-size: 10.5px;
+            letter-spacing: 0.05em;
+            margin-bottom: 3px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfv {
+            font-size: 14.5px;
+            font-weight: 700;
+            min-height: 30px;
+            line-height: 30px;
+            color: #2a2a2a;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-softin {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #2a2a2a;
+            min-height: 30px;
+            height: 30px;
+            line-height: 30px;
+            padding: 0 28px 0 0;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pfl {
+            color: rgba(210, 220, 232, 0.78) !important;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 {
+            border-bottom-color: rgba(255, 255, 255, 0.10);
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-bew-bis,
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-bew-code {
+            color: #f2f5f8;
+        }
+        /* Anstellung / Nachtarbeit = mittlere Zeile (kompakt, Walter 26.07.2026) */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
+            grid-row: 2;
+            min-height: 0;
+            height: 100%;
+            max-height: 100%;
+            overflow: hidden;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 1px;
+            padding-top: 6px;
+            padding-bottom: 4px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .nw-card-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            padding-top: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-card-h {
+            flex: 0 0 auto;
+            font-size: 15px;
+            margin-bottom: 6px;
+            line-height: 1.25;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card > .ov-anst-grid {
+            flex: 1 1 auto;
+            min-height: 0;
+            align-content: start;
+        }
+        /* Verträge + Stundenbox: gleiche Spaltenbreite wie Anstellung/Nachtarbeit
+           (Walter Aug 2026) — rechte Kante Nachtarbeit = rechte Kante Saldi. */
+        .ov-vertraege-ktg {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
+            gap: 10px; /* wie .ov-wrap */
+            min-width: 0;
+            align-items: stretch;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
+            grid-row: 3;
+            height: 100%;
+            min-height: 160px;
+            max-height: none;
+            overflow: hidden;
+            align-self: stretch;
+        }
+        /* Verträge/Saldi füllen die mittlere Flex-Zeile (Walter 02.08.2026) */
+        .ov-vertraege-ktg > .ov-card {
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Unterste Karten: Schatten nur leicht tiefer als Standard-Lift */
+        #page-mitarbeiter.liquid-employee .ov-vertraege-ktg > .ov-card {
+            box-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.12),
+                0 0 20px rgba(90, 80, 65, 0.07),
+                0 6px 14px rgba(60, 55, 48, 0.10),
+                0 14px 28px rgba(60, 55, 48, 0.14),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.08);
+        }
+        .ov-vertraege-ktg > .ov-card > .ov-card-h { flex: 0 0 auto; font-size: 15px; }
+        .ov-vertraege-ktg > .ov-card > .ov-vlist {
+            flex: 1 1 auto;
+            min-height: calc(2 * 36px + 3px); /* mind. 2 Vertragszeilen */
+            height: auto;
+            max-height: none;
+            overflow-y: auto;
+        }
+        .ov-vertraege-ktg > .ov-card > #ovSaldiContent,
+        .ov-vertraege-ktg > .ov-card > .ov-saldi-slot {
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
+        }
+        .ov-saldi-card {
+            padding: 6px 10px 8px !important;
+            display: flex;
+            flex-direction: column;
+        }
+        .ov-saldi-head {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            flex: 0 0 auto;
+            margin-bottom: 2px;
+        }
+        .ov-saldi-switch {
+            display: inline-flex;
+            gap: 2px;
+            padding: 2px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.45);
+            border: 1px solid rgba(90, 80, 65, 0.14);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        }
+        .ov-saldi-sw {
+            border: none;
+            background: transparent;
+            color: #646464;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            line-height: 1.2;
+        }
+        .ov-saldi-sw:hover { color: #3f3f3f; }
+        .ov-saldi-sw.on {
+            background: #3f3f3f;
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(60, 55, 48, 0.18);
+        }
+        .ov-saldi-slot {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1 1 auto;
+            overflow: hidden;
+        }
+        .ov-saldi-tbl {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 12px;
+        }
+        .ov-saldi-tbl th,
+        .ov-saldi-tbl td {
+            padding: 4px 5px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.10);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ov-saldi-tbl th:first-child,
+        .ov-saldi-tbl td:first-child {
+            text-align: left;
+            width: 72px;
+            font-weight: 760;
+            color: #3f3f3f;
+        }
+        .ov-saldi-tbl thead th {
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #8b8b8b;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.18);
+            padding-top: 1px;
+            padding-bottom: 5px;
+        }
+        .ov-saldi-tbl tbody tr:last-child td { border-bottom: none; }
+        .ov-saldi-tbl .ov-saldi-n { font-weight: 650; color: #3f3f3f; }
+        .ov-saldi-tbl .ov-saldi-pos { color: #166534; font-weight: 780; }
+        .ov-saldi-tbl .ov-saldi-neg { color: #9f1239; font-weight: 780; }
+        .ov-saldi-tbl .ov-saldi-dash { color: #b0b0b0; font-weight: 500; }
+        .ov-saldi-msg {
+            display: flex; align-items: center; justify-content: center;
+            height: 100%; min-height: 120px;
+            font-size: 13px; color: #8b8b8b; text-align: center; padding: 12px;
+        }
+        .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
+        /* Zusatzadressen: 1 Zeile sichtbar, Rest scrollt (Walter 02.08.2026) */
+        #otherAddressesContent {
+            min-height: 40px;
+            max-height: 40px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .emp-addr-row {
+            flex: 0 0 40px;
+            height: 40px;
+            box-sizing: border-box;
+            margin-bottom: 0;
+            padding: 0 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 12px;
+            min-width: 0;
+        }
+        .emp-addr-type {
+            flex-shrink: 0;
+            font-size: 11px; font-weight: 700;
+            padding: 2px 10px; border-radius: 10px;
+            background: #ece9e2; color: #6b7280;
+        }
+        .emp-addr-text {
+            flex: 1; min-width: 0;
+            font-size: 13.5px; font-weight: 600; color: #0f172a;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .emp-addr-empty { color: #94a3b8; font-style: italic; font-weight: 400; }
+        .emp-addr-valid {
+            flex-shrink: 0;
+            font-size: 11.5px; color: #64748b; white-space: nowrap;
+        }
+        .emp-addr-actions { flex-shrink: 0; display: flex; gap: 6px; }
+        body.theme-dark .emp-addr-type { background: rgba(255,255,255,.10); color: #cbd5e1; }
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full #otherAddressesContent .emp-addr-row {
+            background: rgba(255,255,255,.04);
+            border-color: rgba(255,255,255,.12);
+        }
+        body.theme-dark .emp-addr-text { color: #f1f5f9; }
+        body.theme-dark .emp-addr-valid { color: #94a3b8; }
+        @media (max-width: 1100px) {
+            .ov-wrap { grid-template-columns: 1fr; }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
+                grid-template-rows: max-content minmax(140px, auto) minmax(140px, auto) minmax(140px, 1fr) auto;
+                gap: 10px;
+            }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
+                grid-row: auto;
+            }
+            .ov-vertraege-ktg { grid-template-columns: 1fr; }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
+                grid-row: 4;
+                height: 100%;
+                min-height: 140px;
+                max-height: none;
+                align-self: stretch;
+            }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full {
+                grid-row: 5;
+            }
+        }
+        .ov-card {
+            background: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(60, 55, 48, 0.06);
+            padding: 10px 14px 10px;
+            min-width: 0;
+        }
+        /* Hell: Übersicht-Karten mit Kohle-Tiefe (Rim + Fill-Grad + Lift) */
+        #page-mitarbeiter.liquid-employee .ov-card {
+            border: 1px solid transparent;
+            border-radius: 16px;
+            padding: 12px 16px 12px;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: var(--emp-shadow-lift);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            color: var(--emp-text);
+        }
+        #page-mitarbeiter.liquid-employee .ov-card-h {
+            color: var(--emp-text-strong);
+            letter-spacing: -0.01em;
+        }
+        #page-mitarbeiter.liquid-employee .ov-pfl,
+        #page-mitarbeiter.liquid-employee .ov-fl {
+            color: #8b8b8b;
+        }
+        #page-mitarbeiter.liquid-employee .ov-pfv,
+        #page-mitarbeiter.liquid-employee .ov-fv,
+        #page-mitarbeiter.liquid-employee .ov-vrole {
+            color: #2a2a2a;
+        }
+        #page-mitarbeiter.liquid-employee .ov-softin {
+            background: #ffffff;
+            border: 1px solid rgba(90, 80, 65, 0.18);
+            color: #2a2a2a;
+            box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.05);
+        }
+        #page-mitarbeiter.liquid-employee .ov-softin:focus {
+            border-color: #3f3f3f;
+            box-shadow: 0 0 0 2px rgba(63, 63, 63, 0.10);
+        }
+        #page-mitarbeiter.liquid-employee .ov-addrsep {
+            border-top-color: rgba(90, 80, 65, 0.12);
+        }
+        .ov-card-h {
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 13.5px; font-weight: 760; color: #1a1a1a;
+            margin-bottom: 7px;
+        }
+        .ov-count { font-weight: 650; color: #8b8b8b; font-size: 13px; margin-left: 4px; }
+        .ov-jump {
+            background: #fff; border: 1px solid rgba(140,132,120,.3); border-radius: 8px;
+            width: 28px; height: 26px; cursor: pointer; color: #64748b;
+            font-size: 14px; font-weight: 700; line-height: 1;
+        }
+        .ov-jump:hover { border-color: #3f3f3f; color: #1a1a1a; }
+        .ov-grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; }
+        .ov-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+        .ov-f { min-width: 0; }
+        .ov-span3 { grid-column: span 3; }
+        .ov-span2 { grid-column: span 2; }
+        /* Freie Fluss-Zeilen (Walter 17.07.2026): proportionale Breiten
+           statt starrem Raster — Edit-Felder bekommen genug Platz. */
+        .ov-row { display: flex; gap: 18px; align-items: flex-end; }
+        .ov-row + .ov-row { margin-top: 12px; }
+        /* Edit-Feld im Text-Look (Walter 17.07.2026): identisch zu den
+           Read-only-Werten, nur gestrichelte Unterlinie als Hinweis —
+           Rahmen erscheint erst beim Fokus. */
+        .ov-editin {
+            width: 100%;
+            font: inherit; font-size: 14px; font-weight: 700; color: #0a0a0a;
+            background: transparent;
+            border: none;
+            border-bottom: 1px dashed transparent;
+            border-radius: 0;
+            padding: 0 0 2px;
+            outline: none;
+        }
+        .ov-editin::placeholder { color: #b8c0ca; font-weight: 500; }
+        input[type="date"].ov-editin, input.yp-text.ov-editin { min-height: 22px; }
+        .ov-editin:hover { border-bottom-color: rgba(140, 132, 120, 0.55); }
+        /* 3-Spalten-Steckbrief mit buendigen Label-Wert-Zeilen */
+        .ov-cols { display: flex; }
+        .ov-col { flex: 1; min-width: 0; }
+        .ov-colsep { border-left: 1px solid #eee8de; padding-left: 24px; margin-left: 24px; }
+        .ov-kv { display: flex; align-items: center; gap: 12px; padding: 4.5px 0; min-height: 27px; }
+        /* NUR editierbare Zeilen reagieren (Walter 17.07.2026): dezentes ✎
+           kennzeichnet sie dauerhaft, Hover/Fokus gibt sanften Ton. */
+        /* ── Unter-Panels PERSON/KONTAKT/AMTLICH (Walter 17.07.2026, nach
+           Mockup-Richtung): ruhige Inset-Flaechen, Label ueber Wert.
+           Ansichtsmodus ohne Input-Optik; «Bearbeiten» schaltet die
+           editierbaren Felder auf sanfte Soft-Inputs um. ── */
+        .ov-panels {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr 0.95fr;
+            gap: 14px;
+        }
+        @media (max-width: 1200px) { .ov-panels { grid-template-columns: 1fr; } }
+        .ov-panel {
+            background: #faf8f5;
+            border: 1px solid #f0ece4;
+            border-radius: 14px;
+            padding: 13px 16px 6px;
+            min-width: 0;
+        }
+        .ov-ptitle {
+            font-size: 10.5px; font-weight: 780; color: #a89f8d;
+            letter-spacing: 0.09em; text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .ov-pf { margin-bottom: 11px; min-width: 0; }
+        /* Fliessendes Feld-Layout (Walter 17.07.2026: KEINE starren Spalten
+           — Felder sind unterschiedlich lang und nehmen ihre natuerliche
+           Breite, der Rest fliesst nach). */
+        .ov-pflow { display: flex; flex-wrap: wrap; gap: 11px 30px; }
+        .ov-pflow .ov-pf { margin-bottom: 0; width: auto; }
+        /* Vier logische Fluss-Zeilen (Walter 17.07.2026, final): jede Zeile
+           eine Themengruppe, Felder in natuerlicher Breite, kein Raster. */
+        /* Hoehen-Ausrichtung (Walter 17.07.2026): Labels alle auf gleicher
+           OBERKANTE, Werte vertikal mittig auf Input-Hoehe — Text-Felder
+           und Input-Felder stehen damit exakt auf einer Linie. */
+        /* nowrap (Walter 17.07.2026): lange Strasse darf KEINE 2. Zeile
+           erzeugen — sonst springt die ganze Maske. Stattdessen Ellipsis. */
+        .ov-frow {
+            display: flex; flex-wrap: nowrap; gap: 8px 18px;
+            align-items: flex-start; margin-bottom: 8px;
+            overflow: hidden; min-width: 0;
+        }
+        /* Anstellung (Walter 02.08.2026):
+           Zeile 1 Eintritt|Austritt|Probezeit|L-GAV · Zeile 2 Kündigung.
+           Eintritt/Austritt nur so breit wie die Daten brauchen. */
+        .ov-anst-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: stretch;
+            min-width: 0;
+        }
+        .ov-anst-top {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: flex-end;
+            gap: 8px 14px;
+            min-width: 0;
+        }
+        /* Eintritt | Austritt | Dienstalter: feste, knappe Spalten.
+           Breite = längstes Datum bzw. das Label «Dienstalter seit».
+           Kurzes Datum rückt die nächste Spalte nicht (Walter 30.10.2026). */
+        .ov-anst-daten {
+            display: grid;
+            grid-template-columns: 6.05rem 6.35rem 8.35rem;
+            column-gap: 0.7rem;
+            align-items: end;
+            flex: 0 0 auto;
+            min-width: 0;
+        }
+        .ov-anst-datum {
+            flex: 0 0 auto;
+            width: auto;
+            margin-bottom: 0;
+            min-width: 0;
+        }
+        .ov-anst-datum .ov-pfl {
+            margin-bottom: 1px;
+            white-space: nowrap;
+        }
+        .ov-anst-datum .ov-pfv {
+            font-size: 14px;
+            line-height: 28px;
+            min-height: 28px;
+            white-space: nowrap;
+        }
+        /* Probezeit direkt nach Austritt — restlicher Platz bis L-GAV */
+        .ov-anst-pz-slot {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            min-height: 28px;
+            padding-bottom: 0;
+            overflow: hidden;
+        }
+        .ov-anst-pz {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px 6px;
+            line-height: 1.25;
+            min-height: 26px;
+        }
+        .ov-anst-pz-empty {
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .ov-anst-pz-status { font-weight: 650; }
+        .ov-anst-pz-status.open { color: #9f1239; }
+        .ov-anst-pz-status.ok { color: #166534; }
+        .ov-anst-pz-btn {
+            margin: 0;
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 3px 9px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        body.theme-dark .ov-anst-pz { color: #94a3b8; }
+        .ov-anst-kuend-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+            gap: 6px 14px;
+            align-items: start;
+            min-width: 0;
+        }
+        .ov-anst-kuend-row > .ov-pf {
+            margin-bottom: 0;
+            min-width: 0;
+        }
+        /* L-GAV + Probezeit nebeneinander (Walter 31.07.2026):
+           Titelzeile: L-GAV links | Probezeit bis Datum rechts
+           Wertzeile:  Toggle links | offen + Button rechts */
+        .ov-anst-lgav-pz-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 1px;
+            min-width: 0;
+        }
+        .ov-anst-lgav-pz-head .ov-pfl {
+            flex: 0 0 auto;
+            margin-bottom: 0;
+        }
+        .ov-anst-pz-title {
+            flex: 0 1 auto;
+            margin-left: auto;
+            min-width: 0;
+            font-size: 10px;
+            font-weight: 700;
+            color: #9a9a9a;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: right;
+        }
+        .ov-anst-lgav-pz-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 28px;
+            min-width: 0;
+        }
+        .ov-anst-lgav-pz-body > .ov-pfv {
+            flex: 0 0 auto;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+        }
+        .ov-anst-pz-line {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            min-width: 0;
+            flex-wrap: nowrap;
+            justify-content: flex-end;
+        }
+        .ov-anst-pz-status {
+            font-size: 12px;
+            font-weight: 650;
+            line-height: 1.2;
+        }
+        .ov-anst-pz-status.open { color: #9f1239; }
+        .ov-anst-pz-status.ok { color: #166534; }
+        .ov-anst-pz-btn {
+            margin: 0;
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 3px 9px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        .ov-anst-pz-btn:hover { background: #1a1a1a; }
+        body.theme-dark .ov-anst-pz-title { color: #94a3b8; }
+        body.theme-dark .ov-anst-pz-btn { background: #e9ecf0; color: #1a1a1a; }
+        body.theme-dark .ov-anst-pz-btn:hover { background: #fff; }
+        .ov-anst-grid .ov-anst-date .ov-softin {
+            width: 100%;
+            min-width: 0;
+            max-width: 160px;
+            box-sizing: border-box;
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #2a2a2a;
+            line-height: 30px;
+            min-height: 30px;
+            height: 30px;
+            padding: 0 28px 0 0;
+            text-align: left;
+            border-radius: 8px;
+        }
+        .ov-anst-grid .ov-anst-date .ov-softin::-webkit-datetime-edit,
+        .ov-anst-grid .ov-anst-date .ov-softin::-webkit-datetime-edit-fields-wrapper {
+            padding: 0;
+            text-align: left;
+        }
+        .ov-anst-grid .ov-anst-date .ov-softin::placeholder {
+            font-size: 14.5px;
+            font-weight: 700;
+            text-align: left;
+        }
+        .ov-anst-grid .ov-anst-date select.ov-softin {
+            padding-right: 22px;
+            max-width: 200px;
+            cursor: pointer;
+        }
+        /* Kündigung + Austrittsgrund: etwas kleiner als Personalien, gut lesbar */
+        .ov-anst-grid .ov-anst-kuend .ov-pfl {
+            font-size: 10px;
+            letter-spacing: 0.03em;
+            margin-bottom: 0;
+            color: #9a9a9a;
+        }
+        .ov-anst-grid .ov-anst-kuend .ov-softin {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 26px;
+            min-height: 26px;
+            height: 26px;
+            max-width: 152px;
+            padding: 0 24px 0 0;
+            border-radius: 7px;
+        }
+        .ov-anst-grid .ov-anst-kuend .ov-softin::placeholder {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .ov-anst-grid .ov-anst-kuend select.ov-softin {
+            max-width: 100%;
+            padding-right: 18px;
+        }
+        /* L-GAV rechts in Zeile 1 */
+        .ov-anst-top .ov-anst-tog {
+            flex: 0 0 auto;
+            margin-left: auto;
+            margin-bottom: 0;
+        }
+        .ov-anst-grid .ov-anst-tog .ov-pfl {
+            font-size: 10px;
+            margin-bottom: 0;
+        }
+        .ov-anst-grid .ov-anst-tog .ov-pfv {
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+        }
+        .ov-vmenu { align-self: center; }
+        /* Legacy-Klassen (falls noch referenziert) */
+        .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
+        .ov-anst-row:last-child { margin-bottom: 2px; }
+        /* Fussbereich «Weitere Adressen» — kompakt (selten belegt) */
+        .ov-addrsep {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px;
+            border-top: 1px solid #eee8de;
+            margin-top: 2px; padding-top: 4px; margin-bottom: 0;
+        }
+        body.theme-dark .ov-addrsep { border-top-color: rgba(255,255,255,.12); }
+        .ov-frow .ov-pf { margin-bottom: 0; width: auto; min-width: 0; flex: 0 1 auto; }
+        .ov-frow .ov-pfl { margin-bottom: 2px; }
+        .ov-frow .ov-pfv {
+            min-height: 32px; display: flex; align-items: center; gap: 6px;
+            max-width: 100%; overflow: hidden;
+        }
+        .ov-frow .ov-pfv > span,
+        .ov-frow .ov-pfv {
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        /* Strasse / Ort: mehr Platz, Truncate nur als Notbremse */
+        .ov-frow .ov-pf-shrink {
+            flex: 1 1 140px; min-width: 100px; max-width: 280px;
+        }
+        .ov-frow .ov-pf-shrink .ov-pfv {
+            display: block; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap; line-height: 32px; min-height: 32px;
+        }
+        .ov-frow .lqsel-wrap { width: 170px; }
+        .ov-pfl {
+            font-size: 10.5px; font-weight: 700; color: #8b8b8b;
+            letter-spacing: 0.04em; text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .ov-ahv-kasse {
+            margin-left: 6px;
+            font-size: inherit;
+            font-weight: inherit;
+            letter-spacing: inherit;
+            text-transform: inherit;
+        }
+        .ov-ahv-kasse.ok { color: #15803d; }
+        .ov-ahv-kasse.weg { color: #c2410c; }
+        .ov-ahv-kasse.fehl { color: #b91c1c; }
+        body.theme-dark .ov-ahv-kasse.ok { color: #86efac; }
+        body.theme-dark .ov-ahv-kasse.weg { color: #fdba74; }
+        body.theme-dark .ov-ahv-kasse.fehl { color: #fca5a5; }
+        .ov-pfv {
+            font-size: 14.5px; font-weight: 650; color: #0a0a0a;
+            white-space: nowrap;
+        }
+        /* Dark: Labels lesbar, Werte klar weiss — Inhalt vor Effekt */
+        body.theme-dark .ov-pfl,
+        body.theme-dark .ov-fl {
+            color: var(--dlg-text-muted) !important;
+        }
+        body.theme-dark .ov-card-h {
+            color: #ffffff !important;
+            letter-spacing: -0.01em;
+        }
+        body.theme-dark .ov-card {
+            border-radius: 16px !important;
+            padding: 12px 16px 12px !important;
+            /* Extra Lift gegenüber Panel — Karten schweben sichtbar */
+            box-shadow:
+                0 0 0 1px rgba(175, 225, 255, 0.30),
+                0 0 26px rgba(70, 150, 235, 0.24),
+                0 6px 14px rgba(0, 4, 14, 0.38),
+                0 20px 44px rgba(0, 4, 14, 0.58),
+                inset 0 1px 0 rgba(235, 248, 255, 0.34),
+                inset 0 -1px 0 rgba(0, 8, 24, 0.38) !important;
+        }
+        body.theme-dark .ov-pfv,
+        body.theme-dark .ov-fv,
+        body.theme-dark .ov-vrole,
+        body.theme-dark .ov-dname {
+            color: #ffffff !important;
+            font-weight: 650;
+        }
+        body.theme-dark .ov-empty { color: #7a8fa8 !important; }
+        /* Soft-Inputs im Bearbeiten-Modus */
+        .ov-softin {
+            max-width: 100%;
+            font: inherit; font-size: 13.5px; font-weight: 600; color: #0a0a0a;
+            background: #ffffff;
+            border: 1px solid #e7e1d6;
+            border-radius: 9px;
+            padding: 5px 9px;
+            outline: none;
+            box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.04);
+            box-sizing: border-box;
+        }
+        .ov-softin:focus { border-color: #3f3f3f; }
+        .ov-softin::placeholder { color: #b8c0ca; font-weight: 500; }
+        /* Karten-Kopf-Buttons: Bearbeiten (hell) / Speichern (Kohle) */
+        .ov-hbtn {
+            background: #fff; border: 1px solid rgba(140, 132, 120, 0.32);
+            border-radius: 10px; padding: 6px 15px;
+            font-size: 12.5px; font-weight: 700; color: #3f3f3f;
+            cursor: pointer;
+        }
+        .ov-hbtn:hover { border-color: #3f3f3f; }
+        .ov-hbtn-primary { background: #3f3f3f; border-color: #3f3f3f; color: #fff; }
+        .ov-hbtn-primary:hover { background: #1a1a1a; }
+        /* Liquid-Select-Trigger IN der kv-Zeile flach im Text-Look (kein
+           Pill-Rahmen — das PANEL bleibt das normale Liquid-Menue). */
+        .ov-kval .lqsel-wrap { flex: 1; min-width: 0; display: block; }
+        .ov-kval .lqsel-btn {
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0;
+            padding: 0 0 2px;
+            min-height: 0;
+            font-size: 14px; font-weight: 700; color: #0a0a0a;
+            box-shadow: none !important;
+        }
+        .ov-kval .lqsel-chev { font-size: 10px; color: #c9c2b4; }
+        .ov-kv-edit:hover .ov-kval .lqsel-chev { color: #3f3f3f; }
+        .ov-kl {
+            width: 104px; flex-shrink: 0;
+            font-size: 10.5px; font-weight: 700; color: #8b8b8b;
+            letter-spacing: 0.04em; text-transform: uppercase;
+        }
+        .ov-kval {
+            flex: 1; min-width: 0;
+            display: flex; align-items: center; gap: 6px;
+            font-size: 14px; font-weight: 700; color: #0a0a0a;
+        }
+        .ov-ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        body.theme-dark .ov-colsep { border-left-color: rgba(255,255,255,.12); }
+        body.theme-dark .ov-kval { color: #f2f5f8; }
+        body.theme-dark .ov-panel { background: rgba(255,255,255,.04); border-color: rgba(122,145,165,.2); }
+        body.theme-dark .ov-pfv { color: #f2f5f8; }
+        body.theme-dark .ov-softin {
+            background: rgba(6, 16, 32, 0.62);
+            border-color: rgba(145, 200, 255, 0.28);
+            color: #ffffff;
+            box-shadow: inset 0 1px 0 rgba(200, 230, 255, 0.06);
+        }
+        body.theme-dark .ov-softin:focus {
+            border-color: rgba(165, 220, 255, 0.50);
+            background: rgba(8, 20, 38, 0.78);
+            box-shadow: 0 0 0 2px rgba(60, 140, 230, 0.16);
+        }
+        body.theme-dark .ov-hbtn { background: transparent; color: #cbd5e1; border-color: rgba(122,145,165,.4); }
+        body.theme-dark .ov-hbtn-primary { background: #e9ecf0; color: #1a1a1a; border-color: #e9ecf0; }
+        body.theme-dark .ov-kval .lqsel-btn { color: #f2f5f8; }
+        .ov-editin:focus {
+            background: #ffffff;
+            border-bottom: 1px solid #3f3f3f;
+        }
+        body.theme-dark .ov-editin { color: #f2f5f8; border-bottom-color: rgba(255,255,255,.25); }
+        body.theme-dark .ov-editin:focus { background: rgba(255,255,255,.08); border-bottom-color: #b8c8d8; }
+        .ov-fl {
+            font-size: 10.5px; font-weight: 700; color: #8b8b8b;
+            letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 2px;
+        }
+        .ov-fv {
+            font-size: 14px; font-weight: 700; color: #0a0a0a;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .ov-empty { color: #a2acb8; font-weight: 500; }
+        .ov-code { color: #94a3b8; font-weight: 500; font-size: 11.5px; }
+        .ov-tag { font-size: 11.5px; font-weight: 700; padding: 2px 10px; border-radius: 7px; }
+        .ov-tag.ok  { background: #e7f0e4; color: #2f7d32; }
+        .ov-tag.min { background: #f1f5f9; color: #94a3b8; }
+        /* Feste Liste = 3 dichte Zeilen (Walter 17.07.2026): 4 passten nicht
+           ohne Seiten-Scroll. Mehr Verträge → nur innere Liste scrollt. */
+        .ov-vlist {
+            height: calc(3 * 36px + 2 * 3px);
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-width: 0;
+        }
+        .ov-vrow {
+            display: flex; align-items: center; gap: 7px;
+            background: #fbfaf7; border: 1px solid #f0ece4; border-radius: 9px;
+            padding: 4px 10px; margin-bottom: 3px; min-width: 0;
+            height: 36px; box-sizing: border-box;
+        }
+        .ov-vlist .ov-vrow:last-child { margin-bottom: 0; }
+        .ov-vlist + .contractShareBox { margin-top: 4px !important; }
+        .ov-vrow.archiv { opacity: .65; }
+        .ov-vdot { width: 8px; height: 8px; border-radius: 50%; background: #b9b2a6; flex-shrink: 0; }
+        .ov-vdot.g { background: #34a853; }
+        .ov-vrole { font-size: 13px; font-weight: 750; color: #1a1a1a; white-space: nowrap; }
+        .ov-vfil {
+            flex-shrink: 0;
+            font-size: 11px; font-weight: 750; color: #3f3f3f; letter-spacing: 0.02em;
+            background: rgba(60,55,48,0.08); border: 1px solid rgba(60,55,48,0.18);
+            border-radius: 7px; padding: 1px 6px; line-height: 1.35;
+        }
+        .ov-vmeta { font-size: 12.5px; font-weight: 600; color: #8b8b8b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ov-drow {
+            display: flex; align-items: center; gap: 10px;
+            border: 1px solid #f0ece4; border-radius: 11px; background: #fbfaf7;
+            padding: 8px 12px; margin-bottom: 7px; cursor: pointer; min-width: 0;
+        }
+        .ov-drow:hover { border-color: rgba(63,63,63,.35); }
+        .ov-dname { flex: 1; font-size: 13px; font-weight: 700; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ov-dmeta { font-size: 12px; font-weight: 600; color: #8b8b8b; white-space: nowrap; }
+        .ov-more { font-size: 12.5px; font-weight: 650; color: #2374b7; cursor: pointer; margin-top: 3px; }
+        .ov-more:hover { text-decoration: underline; }
+        /* Dark-Mode Overview-Cards (volle Glas-Regel weiter unten) */
+        body.theme-dark .ov-card-h { color: #ffffff !important; }
+
