@@ -15601,6 +15601,25 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
 #e2App .e2-nachlauf { display: flex; align-items: center; gap: 10px; }
 #e2App .e2-dreher { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid rgba(22,163,74,0.25); border-top-color: #16a34a; animation: e2Drehen 0.9s linear infinite; }
 @keyframes e2Drehen { to { transform: rotate(360deg); } }
+#e2App .e2-zeit { display: inline-flex; align-items: center; gap: 8px; }
+#e2App .e2-schritte { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 12px 0 14px; padding: 0; }
+#e2App .e2-schritt { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-right: 12px; }
+#e2App .e2-schritt:not(:last-child)::after { content: ''; position: absolute; top: 14px; left: 34px; right: 6px; height: 2px; background: rgba(60,55,48,0.14); }
+#e2App .e2-schritt.e2-st-fertig:not(:last-child)::after { background: #16a34a; }
+#e2App .e2-schritt-punkt { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; font-weight: 700; border: 2px solid rgba(60,55,48,0.20); background: #faf8f5; color: #8b8b8b; }
+#e2App .e2-schritt-text { display: flex; flex-direction: column; min-width: 0; }
+#e2App .e2-schritt-text b { font-size: 13px; color: #1a1a1a; }
+#e2App .e2-schritt-text i { font-style: normal; font-size: 11px; color: #8b8b8b; }
+#e2App .e2-st-fertig .e2-schritt-punkt { background: #16a34a; border-color: #16a34a; color: #fff; }
+#e2App .e2-st-jetzt .e2-schritt-punkt { border-color: #16a34a; color: #16a34a; animation: e2Puls 1.4s ease-in-out infinite; }
+#e2App .e2-st-warten .e2-schritt-punkt { background: #d97706; border-color: #d97706; color: #fff; }
+#e2App .e2-st-fehler .e2-schritt-punkt { background: #dc2626; border-color: #dc2626; color: #fff; }
+#e2App .e2-st-offen .e2-schritt-text b { color: #8b8b8b; }
+@keyframes e2Puls { 50% { box-shadow: 0 0 0 6px rgba(22,163,74,0.15); } }
+#e2App .e2-verlauf { margin-top: 14px; }
+#e2App .e2-verlauf summary { cursor: pointer; font-weight: 600; font-size: 14px; color: #3f3f3f; }
+#e2App .e2-nowrap { white-space: nowrap; }
+@media (max-width: 760px) { #e2App .e2-schritte { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; } }
 #e2App .e2-leer { color: #8b8b8b; margin: 8px 0; }
 #e2App .e2-bvg-kopf { cursor: default; }
 #e2App .e2-bvg { margin-top: 8px; }

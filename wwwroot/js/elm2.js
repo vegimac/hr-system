@@ -79,6 +79,7 @@ const e2 = {
     hinweis: null,           // { ok, text }
     konfigHinweis: null,
     letzteAktualisierung: null,
+    verbindung: null,        // Text, solange gerade eine Verbindung zu Swissdec läuft
     nachlauf: null,          // { bis, timer, naechste, schritt }: nach dem Übermitteln fragt die offene Seite selbst nach
     busy: false,
 };
@@ -231,7 +232,7 @@ function e2KopfHtml() {
             <span>${E2_B.testmeldung}</span>
         </label>
         <span class="e2-tipp">${e2.test ? 'Empfänger verarbeiten Testmeldungen nicht. Ideal, um die Einrichtung zu prüfen.' : 'Echte Übermittlung: die Empfänger verarbeiten die Daten.'}</span>
-        <span class="e2-zeit">${e2Esc(zeit)}</span>
+        <span class="e2-zeit">${e2.verbindung ? `<span class="e2-dreher"></span>${e2Esc(e2.verbindung)}` : e2Esc(zeit)}</span>
     </div>
     ${gesperrt ? `<p class="e2-hinweis e2-warn">${e2Esc(gesperrt)}</p>` : ''}
     ${e2.hinweis ? `<p class="e2-hinweis ${e2.hinweis.ok ? 'e2-gut' : 'e2-warn'}">${e2Esc(e2.hinweis.text)}</p>` : ''}`;
@@ -480,13 +481,48 @@ function e2UebersichtHtml() {
     return `<section class="e2-karte e2-uebersicht" id="e2Uebersicht">
         <div class="e2-karte-kopf">${titel}<span class="e2-rechts">${marken}${m.ersetzbar ? `<button type="button" class="e2-pille" data-e2="ersatz" data-id="${e2Esc(m.id)}">${E2_B.ersatz}</button>` : ''}</span></div>
         <p class="e2-still">${e2Esc(m.titel || '')}${ausHistorie ? ' · aus der Historie gewählt <button type="button" class="e2-text" data-e2="auswahl-weg">zur letzten Übermittlung</button>' : ' · letzte Übermittlung'}${m.letzteAbfrage ? ' · Stand abgefragt ' + e2Esc(e2Datum(m.letzteAbfrage)) : ' · Stand noch nicht abgefragt'}</p>
+        ${e2SchritteHtml(m)}
         ${e2NachlaufHtml(m)}
         <div class="e2-tabelle-rahmen"><table class="e2-tabelle">
             <thead><tr><th>${E2_B.status}</th><th>${E2_B.zeitpunkt}</th><th>${E2_B.declarationId}</th><th>${E2_B.domaene}</th><th>${E2_B.empfaenger}</th><th>${E2_B.benachrichtigungen}</th><th>${E2_B.aktionen}</th></tr></thead>
             <tbody>${zeilen || '<tr><td colspan="7">Keine Empfänger in dieser Übermittlung.</td></tr>'}</tbody>
         </table></div>
         ${e2DetailHtml(m)}
+        ${e2VerlaufHtml(m)}
     </section>`;
+}
+
+// Kommunikationsschritte sichtbar, aber ohne Knöpfe (Swissdec: Technik nur hinter «Aktualisieren»).
+// 1 Gesendet → 2 Swissdec verteilt → 3 Empfänger verarbeiten → 4 Quittungen abgeholt
+function e2SchritteHtml(m) {
+    const empf = (m.empfaenger || []).filter(e => e.stufe !== 'grau');
+    const letzte = art => (m.verlauf || []).find(v => v.schritt === art)?.zeit;
+    const verteilt = !!m.jobFinished;
+    const verarbeitet = verteilt && empf.length > 0 && empf.every(e => e.stufe !== 'laeuft');
+    const wartet = empf.some(e => e.stufe === 'warn');
+    const fehler = empf.some(e => e.stufe === 'rot');
+    const quittiert = !!m.fertig;
+    const anzahlFertig = empf.filter(e => e.stufe === 'ok' || e.stufe === 'rot').length;
+    const schritte = [
+        { titel: 'Gesendet', text: e2Datum(m.gesendet), stand: 'fertig' },
+        { titel: 'Swissdec verteilt', text: verteilt ? 'an ' + empf.length + ' Empfänger' : (letzte('Stand abgefragt') ? 'zuletzt gefragt ' + e2Datum(letzte('Stand abgefragt')) : 'wartet auf Swissdec'), stand: verteilt ? 'fertig' : 'jetzt' },
+        { titel: 'Empfänger verarbeiten', text: !verteilt ? '' : wartet ? 'wartet auf Sie' : `${anzahlFertig} von ${empf.length} fertig`, stand: !verteilt ? 'offen' : wartet ? 'warten' : verarbeitet ? 'fertig' : 'jetzt' },
+        { titel: 'Quittungen abgeholt', text: quittiert ? (letzte('Nachrichten abgeholt') ? e2Datum(letzte('Nachrichten abgeholt')) : '') : '', stand: quittiert ? (fehler ? 'fehler' : 'fertig') : verarbeitet ? 'jetzt' : 'offen' },
+    ];
+    const zeichen = { fertig: '✓', jetzt: '…', warten: '!', fehler: '!', offen: '' };
+    return `<ol class="e2-schritte">${schritte.map((x, i) => `<li class="e2-schritt e2-st-${x.stand}">
+        <span class="e2-schritt-punkt">${zeichen[x.stand] || i + 1}</span>
+        <span class="e2-schritt-text"><b>${x.titel}</b><i>${e2Esc(x.text)}</i></span></li>`).join('')}</ol>`;
+}
+
+function e2VerlaufHtml(m) {
+    const v = m.verlauf || [];
+    if (!v.length) return '';
+    const zeilen = v.slice(0, 50).map(x => `<tr><td class="e2-nowrap">${e2Esc(e2Datum(x.zeit))}</td><td class="e2-nowrap">${e2Esc(x.schritt)}</td><td>${e2Esc(x.text || '')}</td></tr>`).join('');
+    return `<details class="e2-verlauf"><summary>Kommunikation mit Swissdec · ${m.verlaufAnzahl || v.length} Schritt${(m.verlaufAnzahl || v.length) === 1 ? '' : 'e'}</summary>
+        <p class="e2-still">Jede Zeile ist eine Verbindung zu Swissdec: OneCrew schickt eine signierte und verschlüsselte Nachricht und erhält die Antwort. Die neusten oben.</p>
+        <div class="e2-tabelle-rahmen"><table class="e2-tabelle"><thead><tr><th>Zeit</th><th>Schritt</th><th>Antwort</th></tr></thead><tbody>${zeilen}</tbody></table></div>
+    </details>`;
 }
 
 function e2NachlaufHtml(m) {
@@ -739,8 +775,10 @@ function e2ZurUebersicht() {
 
 async function e2Aktualisieren(still = false) {
     if (e2.busy) return;
-    e2.busy = true; if (!still) e2.hinweis = null; e2Zeichnen();
+    e2.busy = true; if (!still) e2.hinweis = null;
+    e2.verbindung = 'Verbindung zu Swissdec: Stand und Quittungen werden abgeholt …'; e2Zeichnen();
     const r = await e2Post('/api/elm/meldungen/aktualisieren', {});
+    e2.verbindung = null;
     if (r.j.stand) e2.stand = r.j.stand;
     const cert = await e2Get('/api/elm/zertifikat');
     if (cert) e2.cert = cert;
@@ -887,6 +925,7 @@ async function e2Senden() {
             ? Object.fromEntries((c.v.empfaenger || []).map(e => [e.addresseeId, p.kantone.has(e.addresseeId)]))
             : null;
         const versicherung = (c.v.empfaenger || []).some(e => E2_VERSICHERUNG.has(e.domain));
+        e2.verbindung = 'Verbindung zu Swissdec: Meldung wird signiert, verschlüsselt und gesendet …'; e2Zeichnen();
         const r = await e2Post('/api/elm/meldungen/senden', {
             art: c.art, jahr: e2.jahr, monat: c.art === 'monthly' ? e2.monat : null,
             ersetztId: e2.ersatz && e2.ersatz.art === c.art ? e2.ersatz.id : null,
@@ -897,7 +936,7 @@ async function e2Senden() {
         if (!r.ok || !r.j.ok) { fehler = r.j.meldung || r.j.message || 'Nicht übermittelt.'; break; }
         letzte = r.j.vorgangId || letzte;
     }
-    e2.busy = false; e2.pruefung = null; e2.ersatz = null;
+    e2.busy = false; e2.verbindung = null; e2.pruefung = null; e2.ersatz = null;
     e2.auswahl[e2.reiter] = null;
     e2.hinweis = fehler ? { ok: false, text: fehler } : { ok: true, text: 'Übermittelt. Die Mitteilungen der Empfänger erscheinen unten; «Aktualisieren» holt neue.' };
     e2Zeichnen();

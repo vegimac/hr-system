@@ -534,6 +534,7 @@ public class ElmMeldungenController : ControllerBase
             ersatz = v.Substitution != null,
             zertifizierung = ElmMeldungAnzeige.Zertifizierungstest(v),
             stufe = st.Stufe, text = st.Text, aktionNoetig = st.AktionNoetig,
+            jobFinished = v.JobFinished,
             fertig = v.JobFinished && v.Adressaten.All(ElmMeldungAnzeige.Erledigt),
             ersetzbar = ElmMeldungAnzeige.Ersetzbar(v),
             letzteAbfrage = new[] { v.LetzteStatusAbfrage }.Concat(v.Adressaten.Select(a => a.LetzteSynchronisierung)).Max(),
