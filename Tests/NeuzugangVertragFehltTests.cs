@@ -56,7 +56,7 @@ public class NeuzugangVertragFehltTests
     [Fact]
     public void Oberflaeche_ZeigtDieEigeneMarke()
     {
-        var js = Quelle("wwwroot/employees.js");
+        var js = Quelle("wwwroot/js/ma/ma-16-neuzugang.js");   // früher employees.js (aufgeteilt 01.11.2026)
         Assert.Contains("VERTRAG FEHLT", js);
         Assert.Contains("x.vertragFehlt", js);
     }

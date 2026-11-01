@@ -21,6 +21,7 @@ public class StatikZugangTests
     [InlineData("/js/webauthn.js", false)]
     [InlineData("/js/personaldaten.js", false)]
     [InlineData("/employees.js", true)]
+    [InlineData("/js/ma/ma-01-liste.js", true)]   // Mitarbeiter-Maske seit 01.11.2026 unter /js/ma/
     [InlineData("/import.html", true)]
     [InlineData("/lib/xlsx/xlsx.full.min.js", false)]
     [InlineData("/helpful", false)]

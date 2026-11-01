@@ -129,7 +129,7 @@ public class EasyAtWorkBranchSwitchTests
     }
 
     // ───────────────────── Frontend: Vertrags-Aktiv-Regel ─────────────────────
-    // Spiegelt _empContractActiveOn(v, refDate) aus wwwroot/employees.js:
+    // Spiegelt _empContractActiveOn(v, refDate) aus wwwroot/js/ma/ (früher employees.js):
     // Beginn ≤ Stichtag UND (kein Ende ODER Ende ≥ Stichtag).
 
     private static bool ContractActiveOn(DateTime? start, DateTime? end, DateTime refDate)
