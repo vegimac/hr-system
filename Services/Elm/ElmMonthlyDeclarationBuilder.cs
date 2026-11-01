@@ -992,10 +992,10 @@ public class ElmMonthlyDeclarationBuilder
         var ferienwochen = ElmStatistikCodes.Ferienwochen(
             e.DateOfBirth, DateOnly.FromDateTime(stichtag),
             filiale.VacationSixWeeksFromAge, filiale.DefaultVacationWeeks);
+        // Gemeldet wird der Stand dieses Monats (Walter 01.11.2026): mit Ferienentschädigung 0 Tage,
+        // sonst die erfassten Tage. Kein Hinweis — die erfassten Tage gelten wieder, sobald kein
+        // Ferienprozent mehr bezahlt wird (TF14 Egli: Stundenlohn 0, ab Monatslohn 09.2025 20).
         var tage = ElmStatistikCodes.Ferientage(entsch, ferienwochen, lse?.LeaveEntitlementDays);
-        if (entsch && lse?.LeaveEntitlementDays is > 0m)
-            warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Ferientage von Hand "
-                   + $"{lse!.LeaveEntitlementDays:0}, gemeldet wird 0, weil dieser Monat eine Ferienentschädigung enthält.");
         // Verwaltungsrat hat keinen Ferienanspruch (RefXML Jan 2025: TF39 Hasler 0).
         if ((em?.SwissdecVertragsart ?? "").Trim() == "administrativeBoard" && lse?.LeaveEntitlementDays == null)
             tage = 0m;
