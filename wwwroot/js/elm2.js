@@ -79,7 +79,8 @@ const e2 = {
     hinweis: null,           // { ok, text }
     konfigHinweis: null,
     letzteAktualisierung: null,
-    verbindung: null,        // Text, solange gerade eine Verbindung zu Swissdec läuft
+    verbindung: null,
+    laeuftZeile: null,       // { domain | anmeldung, text }: Zeile in der Anmeldeliste, die gerade bei Swissdec ist        // Text, solange gerade eine Verbindung zu Swissdec läuft
     nachlauf: null,          // { bis, timer, naechste, schritt }: nach dem Übermitteln fragt die offene Seite selbst nach
     busy: false,
 };
@@ -714,12 +715,13 @@ function e2KonfigHtml() {
         <h2>Unternehmenszertifikat (SUA)</h2>
         ${E2_SUA_TEXT.map(t => `<p class="e2-still">${e2Esc(t)}</p>`).join('')}
         ${sua}
-        ${e2.konfigHinweis ? `<p class="e2-hinweis ${e2.konfigHinweis.ok ? 'e2-gut' : 'e2-warn'}">${e2Esc(e2.konfigHinweis.text)}</p>` : ''}
+        ${e2.konfigHinweis && e2.konfigHinweis.ort !== 'anmeldung' ? `<p class="e2-hinweis ${e2.konfigHinweis.ok ? 'e2-gut' : 'e2-warn'}">${e2Esc(e2.konfigHinweis.text)}</p>` : ''}
     </section>
     <section class="e2-karte">
         <h2>Anmeldung bei Versicherungen</h2>
         <p class="e2-still">Mit der Anmeldung erlauben Sie einer Versicherung, Prozesse bei Ihnen auszulösen, zum Beispiel ein Versicherungsprofil (UVG, UVGZ, KTG) oder eine Beitragsänderung (BVG) zu schicken. Die Anmeldung gilt pro Standard und pro Empfänger und lässt sich jederzeit aufheben. Sie ist erst möglich, wenn das Zertifikat hinterlegt ist.</p>
         ${e2AnmeldungenHtml(da)}
+        ${e2.konfigHinweis?.ort === 'anmeldung' ? `<p class="e2-hinweis ${e2.konfigHinweis.ok ? 'e2-gut' : 'e2-warn'}">${e2Esc(e2.konfigHinweis.text)}</p>` : ''}
         <p class="e2-still">Welche Versicherungen eine Filiale hat, steht in den Stammdaten der Filiale unter «Versicherungen». Diese Liste folgt ihnen.</p>
     </section>`;
 }
@@ -741,6 +743,8 @@ function e2AnmeldungenHtml(suaDa) {
             ? `<button type="button" class="e2-pille e2-klein e2-primaer" data-e2="anmelden" data-domain="${e2Esc(z.domain)}" data-versicherer="${e2Esc(z.an)}" data-kunde="${e2Esc(z.kundennummer || '')}" data-vertrag="${e2Esc(z.vertragsnummer || '')}" data-kennung="${e2Esc(z.kennung || '')}">Anmelden</button>`
             : '<span class="e2-still">Zuerst das Zertifikat</span>';
         let stand = '<span class="e2-chip e2-grau">nicht angemeldet</span>';
+        const lz = e2.laeuftZeile;
+        const laeuft = lz && (lz.domain === z.domain || (lz.anmeldung && lz.anmeldung === anm?.id));
         let knopf = z.kennung ? anmeldenKnopf : '<span class="e2-still">Kennung (Nr.) des Empfängers fehlt im Katalog</span>';
         if (anm && empf) {
             const seit = e2Datum(anm.gesendet, false);
@@ -754,6 +758,7 @@ function e2AnmeldungenHtml(suaDa) {
                 if (z.domain !== 'BVG-LPP') knopf += ' <span class="e2-chip e2-grau" title="Versicherungsprofil bestellen">Profil: noch nicht verfügbar</span>';
             }
         }
+        if (laeuft) { stand = `<span class="e2-laeuft"><span class="e2-dreher"></span>${e2Esc(lz.text)}</span>`; knopf = ''; }
         return `<tr><td>${e2Esc(E2_DOM[z.domain] || z.domain)}</td><td>${e2Esc(z.an)}${nr ? `<br><i class="e2-status-text">${e2Esc(nr)}</i>` : ''}</td><td>${stand}</td><td class="e2-aktionsspalte">${knopf}</td></tr>`;
     }).join('');
     return `<div class="e2-tabelle-rahmen"><table class="e2-tabelle"><thead><tr><th>Standard / ${E2_B.domaene}</th><th>${E2_B.empfaenger}</th><th>Stand</th><th>${E2_B.aktionen}</th></tr></thead><tbody>${tr}</tbody></table></div>`;
@@ -1025,25 +1030,25 @@ function e2Ersatz(id) {
 
 async function e2DialogAbholen(id, emp) {
     e2.detail = { id, emp, art: 'dialog' };
-    e2.busy = true; e2Zeichnen();
-    const r = await e2Post('/api/elm/meldungen/' + encodeURIComponent(id) + '/abfragen', {});
-    if (r.j.stand) e2.stand = r.j.stand;
-    if (!r.ok) e2.hinweis = { ok: false, text: r.j.message || 'Die Rückfrage konnte nicht geholt werden.' };
-    e2.busy = false; e2Zeichnen();
+    await e2MitVerbindung('Rückfrage wird beim Empfänger abgeholt …', async () => {
+        const r = await e2Post('/api/elm/meldungen/' + encodeURIComponent(id) + '/abfragen', {});
+        if (r.j.stand) e2.stand = r.j.stand;
+        if (!r.ok) e2.hinweis = { ok: false, text: r.j.message || 'Die Rückfrage konnte nicht geholt werden.' };
+    });
 }
 
 async function e2Antworten(el) {
     const box = el.closest('.e2-frage');
     const werte = {};
     box?.querySelectorAll('[data-frage]').forEach(f => { werte[f.dataset.frage] = f.value.trim() || null; });
-    e2.busy = true; e2Zeichnen();
-    const r = await e2Post('/api/elm/meldungen/' + encodeURIComponent(el.dataset.id) + '/antworten', {
-        addresseeId: el.dataset.emp, storyId: el.dataset.story, werte,
+    await e2MitVerbindung('Antwort wird signiert und an den Empfänger gesendet …', async () => {
+        const r = await e2Post('/api/elm/meldungen/' + encodeURIComponent(el.dataset.id) + '/antworten', {
+            addresseeId: el.dataset.emp, storyId: el.dataset.story, werte,
+        });
+        if (r.j.stand) e2.stand = r.j.stand;
+        e2.hinweis = { ok: r.ok && r.j.ok !== false, text: r.j.meldung || r.j.message || (r.ok ? 'Antwort gesendet.' : 'Antwort nicht angekommen.') };
+        if (r.ok) e2.detail = null;
     });
-    if (r.j.stand) e2.stand = r.j.stand;
-    e2.hinweis = { ok: r.ok && r.j.ok !== false, text: r.j.meldung || r.j.message || (r.ok ? 'Antwort gesendet.' : 'Antwort nicht angekommen.') };
-    if (r.ok) e2.detail = null;
-    e2.busy = false; e2Zeichnen();
 }
 
 async function e2BvgUmschalten() {
@@ -1069,49 +1074,60 @@ async function e2BvgSpeichern(frei) {
 
 async function e2ZertBestellen() {
     const v = e2.cert?.vorlage || {};
-    e2.busy = true; e2Zeichnen();
-    const r = await e2Post('/api/elm/zertifikat/registrieren', {
-        firma: v.firma, uid: v.uid, kontakt: v.kontakt, plz: v.plz, ort: v.ort,
-        domain: v.domain, versicherer: v.versicherer, kundennummer: v.kundennummer,
-        vertragsnummer: v.vertragsnummer, addresseeIdentification: v.addresseeIdentification,
+    await e2MitVerbindung('Zertifikat wird bei Swissdec bestellt …', async () => {
+        const r = await e2Post('/api/elm/zertifikat/registrieren', {
+            firma: v.firma, uid: v.uid, kontakt: v.kontakt, plz: v.plz, ort: v.ort,
+            domain: v.domain, versicherer: v.versicherer, kundennummer: v.kundennummer,
+            vertragsnummer: v.vertragsnummer, addresseeIdentification: v.addresseeIdentification,
+        });
+        if (r.j.stand) e2.cert = r.j.stand;
+        e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, ort: 'sua', text: r.j.meldung || r.j.message || (r.ok ? 'Bestellt.' : 'Nicht bestellt.') };
+        e2.suaVorschau = false;
     });
-    if (r.j.stand) e2.cert = r.j.stand;
-    e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, text: r.j.meldung || r.j.message || (r.ok ? 'Bestellt.' : 'Nicht bestellt.') };
-    e2.suaVorschau = false;
-    e2.busy = false; e2Zeichnen();
 }
 
 async function e2ZertHinterlegen() {
     const passwort = document.getElementById('e2Brief')?.value?.trim();
-    if (!passwort) { e2.konfigHinweis = { ok: false, text: 'Bitte das Passwort aus dem Brief eingeben.' }; e2Zeichnen(); return; }
-    e2.busy = true; e2Zeichnen();
-    const r = await e2Post('/api/elm/zertifikat/abschliessen', { passwort });
-    if (r.j.stand) e2.cert = r.j.stand;
-    e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, text: r.j.meldung || r.j.message || (r.ok ? 'Hinterlegt.' : 'Nicht hinterlegt.') };
-    e2.busy = false; e2Zeichnen();
+    if (!passwort) { e2.konfigHinweis = { ok: false, ort: 'sua', text: 'Bitte das Passwort aus dem Brief eingeben.' }; e2Zeichnen(); return; }
+    await e2MitVerbindung('Zertifikat wird abgeholt und hinterlegt …', async () => {
+        const r = await e2Post('/api/elm/zertifikat/abschliessen', { passwort });
+        if (r.j.stand) e2.cert = r.j.stand;
+        e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, ort: 'sua', text: r.j.meldung || r.j.message || (r.ok ? 'Hinterlegt.' : 'Nicht hinterlegt.') };
+    });
+}
+
+// Was gerade bei Swissdec läuft, steht oben in der Leiste (wie beim Übermitteln);
+// bei Anmelden/Abmelden zusätzlich in der betroffenen Zeile.
+async function e2MitVerbindung(text, arbeit) {
+    e2.busy = true; e2.verbindung = 'Verbindung zu Swissdec: ' + text; e2Zeichnen();
+    try { return await arbeit(); }
+    finally { e2.busy = false; e2.verbindung = null; e2.laeuftZeile = null; e2Zeichnen(); }
 }
 
 async function e2Anmelden(el) {
     const d = el.dataset;
     if (!d.versicherer || !d.kunde || !d.vertrag) {
-        e2.konfigHinweis = { ok: false, text: 'Bei dieser Versicherung fehlen Kundennummer oder Vertragsnummer in den Stammdaten der Filiale.' };
+        e2.konfigHinweis = { ok: false, ort: 'anmeldung', text: 'Bei dieser Versicherung fehlen Kundennummer oder Vertragsnummer in den Stammdaten der Filiale.' };
         e2Zeichnen(); return;
     }
-    e2.busy = true; e2Zeichnen();
-    const r = await e2Post('/api/elm/meldungen/anmelden', {
-        domain: d.domain, versicherer: d.versicherer, kundennummer: d.kunde, vertragsnummer: d.vertrag, kennung: d.kennung,
+    e2.laeuftZeile = { domain: d.domain, text: 'Anmeldung läuft …' };
+    const name = (E2_DOM[d.domain] || d.domain) + ' bei ' + d.versicherer;
+    await e2MitVerbindung(`Anmeldung ${name} wird signiert und gesendet …`, async () => {
+        const r = await e2Post('/api/elm/meldungen/anmelden', {
+            domain: d.domain, versicherer: d.versicherer, kundennummer: d.kunde, vertragsnummer: d.vertrag, kennung: d.kennung,
+        });
+        if (r.j.stand) e2.stand = r.j.stand;
+        e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, ort: 'anmeldung', text: (r.ok && r.j.ok !== false ? name + ': ' : '') + (r.j.meldung || r.j.message || (r.ok ? 'Anmeldung gesendet.' : 'Nicht angemeldet.')) };
     });
-    if (r.j.stand) e2.stand = r.j.stand;
-    e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, text: r.j.meldung || r.j.message || (r.ok ? 'Anmeldung gesendet.' : 'Nicht angemeldet.') };
-    e2.busy = false; e2Zeichnen();
 }
 
 async function e2Abmelden(el) {
     if (!el.dataset.emp) return;
     if (!(await liquidConfirm('Die Anmeldung bei dieser Versicherung wird aufgehoben.', { title: 'Abmelden', yesLabel: 'Abmelden', noLabel: 'Abbrechen' }))) return;
-    e2.busy = true; e2Zeichnen();
-    const r = await e2Post('/api/elm/meldungen/anmeldungen/' + encodeURIComponent(el.dataset.id) + '/abmelden', { addresseeId: el.dataset.emp, storyId: '' });
-    if (r.j.stand) e2.stand = r.j.stand;
-    e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, text: r.j.meldung || r.j.message || (r.ok ? 'Abgemeldet.' : 'Nicht abgemeldet.') };
-    e2.busy = false; e2Zeichnen();
+    e2.laeuftZeile = { anmeldung: el.dataset.id, text: 'Abmeldung läuft …' };
+    await e2MitVerbindung('Abmeldung wird gesendet …', async () => {
+        const r = await e2Post('/api/elm/meldungen/anmeldungen/' + encodeURIComponent(el.dataset.id) + '/abmelden', { addresseeId: el.dataset.emp, storyId: '' });
+        if (r.j.stand) e2.stand = r.j.stand;
+        e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, ort: 'anmeldung', text: r.j.meldung || r.j.message || (r.ok ? 'Abgemeldet.' : 'Nicht abgemeldet.') };
+    });
 }

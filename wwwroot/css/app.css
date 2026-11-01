@@ -15721,3 +15721,4 @@ body:not(.elm-cockpit-on) .elm2-kachel { display: none !important; }
 #e2App .e2-spalte .e2-pruefung .e2-chip { white-space: normal; }
 #e2App .e2-spalte .e2-kantone { margin-left: 0; }
 #e2App .e2-spalte .e2-bvg-kopf { flex-wrap: wrap; }
+#e2App .e2-laeuft { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #166534; }
