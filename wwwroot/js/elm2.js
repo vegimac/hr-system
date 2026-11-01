@@ -198,6 +198,7 @@ async function e2Laden() {
     if (!e2.nachlauf && e2LaufendeMeldungen().length) e2NachlaufStarten();
     if (f && !e2.wahlJahr.size) for (const z of e2Zeilen()) if (z.art === 'annual' && e2Sendbar(z)) e2.wahlJahr.add(z.id);
     e2Zeichnen();
+    e2MonatAutoPruefen();
 }
 
 // ── Zeichnen ────────────────────────────────────────────────────────────────
@@ -385,19 +386,42 @@ function e2BvgHtml() {
 }
 
 function e2MonatAuswahlHtml() {
-    const kantone = e2.pruefung?.kantoneListe || [];
-    const qstKantone = kantone.filter(e => e.domain === 'TaxAtSource');
-    const kantonHtml = qstKantone.length
-        ? `<div class="e2-kantone">${qstKantone.map(e => `<label class="e2-kanton"><input type="checkbox" data-e2="kanton" data-id="${e2Esc(e.addresseeId)}" ${e2.pruefung.kantone.has(e.addresseeId) ? 'checked' : ''}><span>${e2Esc(e.name)}</span></label>`).join('')}</div>
-           <p class="e2-still">Normalerweise gehen alle Kantone zusammen. Einzelne Kantone abwählen geht, wenn nur ein Kanton übermittelt werden soll.</p>`
-        : '<p class="e2-still">Nach «Prüfen» erscheinen hier die Kantone, an die die Quellensteuer geht. Jeder Kanton ist einzeln wählbar.</p>';
-    return `<div class="e2-gruppen">
+    const p = e2.pruefung;
+    const laeuft = !p;   // ohne Ergebnis läuft die automatische Prüfung gleich bzw. schon
+    const liste = p?.kantoneListe || [];
+    const qstKantone = liste.filter(e => e.domain === 'TaxAtSource');
+    const bfs = liste.find(e => e.domain === 'Statistic');
+    const lauf = e2MonatStand(e2.monat);
+    const chip = (text, art) => `<span class="e2-chip ${art}">${e2Esc(text)}</span>`;
+    const pruefChip = laeuft ? chip('wird geprüft …', 'e2-grau') : null;
+
+    // Quellensteuer: Kantone dieser Filiale im gewählten Monat
+    let qstChip, qstAus = false, kantonHtml = '';
+    if (pruefChip) qstChip = pruefChip;
+    else if (!qstKantone.length) { qstChip = chip('keine quellensteuerpflichtigen Personen', 'e2-grau'); qstAus = true; }
+    else {
+        qstChip = chip(qstKantone.length === 1 ? '1 Kanton' : qstKantone.length + ' Kantone', 'e2-ok');
+        kantonHtml = `<div class="e2-kantone">${qstKantone.map(e => `<label class="e2-kanton"><input type="checkbox" data-e2="kanton" data-id="${e2Esc(e.addresseeId)}" ${p.kantone.has(e.addresseeId) ? 'checked' : ''}><span>${e2Esc(e.name)}</span></label>`).join('')}</div>
+           ${qstKantone.length > 1 ? '<p class="e2-still">Normalerweise gehen alle Kantone zusammen. Einen Kanton abwählen, wenn nur einzelne übermittelt werden sollen.</p>' : ''}`;
+    }
+    // Statistik: BFS nur, wenn es in der Meldung dieser Filiale vorkommt
+    let statChip, statAus = false;
+    if (pruefChip) statChip = pruefChip;
+    else if (!bfs) { statChip = chip('nicht in dieser Meldung', 'e2-grau'); statAus = true; }
+    else statChip = chip('bereit', 'e2-ok');
+
+    const zeile = (id, titel, unter, chipHtml, aus) => aus
+        ? `<div class="e2-zeile e2-gedimmt"><input type="checkbox" disabled><span class="e2-an"><b>${titel}</b><i>${unter}</i></span>${chipHtml}</div>`
+        : `<label class="e2-zeile"><input type="checkbox" data-e2="wahl-monat" data-id="${id}" ${e2.wahlMonat.has(id) ? 'checked' : ''}><span class="e2-an"><b>${titel}</b><i>${unter}</i></span>${chipHtml}</label>`;
+    const offen = lauf.sichtbar && lauf.klasse === 'e2-m-offen'
+        ? `<p class="e2-hinweis e2-warn">Der Lohnlauf ${E2_MONATE[e2.monat - 1]} ${e2.jahr} ist ${e2Esc(lauf.text === 'provisorisch' ? 'erst provisorisch abgeschlossen' : 'noch offen')}. Eine Übermittlung wäre unvollständig. Für eine Testmeldung ist das in Ordnung.</p>` : '';
+    return `${offen}<div class="e2-gruppen">
         <div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Quellensteuer</h3></div>
-            <label class="e2-zeile"><input type="checkbox" data-e2="wahl-monat" data-id="qst" ${e2.wahlMonat.has('qst') ? 'checked' : ''}><span class="e2-an"><b>Quellensteuer</b><i>an die Steuerverwaltung jedes Kantons mit quellensteuerpflichtigen Personen</i></span><span class="e2-chip e2-ok">bereit</span></label>
-            ${e2.wahlMonat.has('qst') ? kantonHtml : ''}
+            ${zeile('qst', 'Quellensteuer', 'an die Steuerverwaltung jedes Kantons mit quellensteuerpflichtigen Personen', qstChip, qstAus)}
+            ${!qstAus && e2.wahlMonat.has('qst') ? kantonHtml : ''}
         </div>
         <div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Statistik</h3></div>
-            <label class="e2-zeile"><input type="checkbox" data-e2="wahl-monat" data-id="statistik" ${e2.wahlMonat.has('statistik') ? 'checked' : ''}><span class="e2-an"><b>Statistik</b><i>an das Bundesamt für Statistik</i></span><span class="e2-chip e2-ok">bereit</span></label>
+            ${zeile('statistik', 'Statistik', 'an das Bundesamt für Statistik', statChip, statAus)}
         </div>
         <div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Versicherungen</h3></div>
             <div class="e2-zeile e2-gedimmt"><input type="checkbox" disabled><span class="e2-an"><b>UVG TariTemp</b><i>an die Suva · nur für die Personalverleihbranche</i></span><span class="e2-chip e2-grau">nicht relevant</span></div>
@@ -647,7 +671,11 @@ function e2Klick(ev) {
     const a = el.dataset.e2;
     if (['test', 'portal', 'wahl-jahr', 'wahl-monat', 'kanton'].includes(a)) return;
     if (e2.busy && a !== 'reiter' && a !== 'historie' && a !== 'sua-mehr') return;
-    if (a === 'reiter') { e2.reiter = el.dataset.wert; e2.hinweis = null; e2.detail = null; e2Zeichnen(); }
+    if (a === 'reiter') {
+        const neu = el.dataset.wert;
+        if (neu !== e2.reiter && (neu === 'monat' || neu === 'jahr')) e2.pruefung = null;
+        e2.reiter = neu; e2.hinweis = null; e2.detail = null; e2Zeichnen(); e2MonatAutoPruefen();
+    }
     else if (a === 'aktualisieren') e2Aktualisieren();
     else if (a === 'sua-mehr') { e2.suaOffen = !e2.suaOffen; e2Zeichnen(); }
     else if (a === 'jahr-wahl') e2JahrWahl(parseInt(el.dataset.wert, 10));
@@ -682,7 +710,20 @@ function e2Change(ev) {
     if (a === 'test') { e2.test = el.checked; }
     else if (a === 'portal') { e2.portal = el.checked; }
     else if (a === 'wahl-jahr') { if (el.checked) e2.wahlJahr.add(el.dataset.id); else e2.wahlJahr.delete(el.dataset.id); e2.pruefung = null; }
-    else if (a === 'wahl-monat') { if (el.checked) e2.wahlMonat.add(el.dataset.id); else e2.wahlMonat.delete(el.dataset.id); e2.pruefung = null; }
+    else if (a === 'wahl-monat') {
+        if (el.checked) e2.wahlMonat.add(el.dataset.id); else e2.wahlMonat.delete(el.dataset.id);
+        // Kein neuer Abruf nötig: die Empfänger dieser Filiale sind bekannt, nur die Auswahl ändert.
+        const p = e2.pruefung;
+        if (p) {
+            for (const e of p.kantoneListe || []) {
+                const zuQst = e.domain !== 'Statistic';
+                if ((zuQst && el.dataset.id === 'qst') || (!zuQst && el.dataset.id === 'statistik')) {
+                    if (el.checked) p.kantone.add(e.addresseeId); else p.kantone.delete(e.addresseeId);
+                }
+            }
+            p.ok = p.okOhneKantone && e2MonatHatEmpfaenger();
+        }
+    }
     else if (a === 'kanton' && e2.pruefung) {
         if (el.checked) e2.pruefung.kantone.add(el.dataset.id); else e2.pruefung.kantone.delete(el.dataset.id);
         e2.pruefung.ok = e2.pruefung.okOhneKantone && e2MonatHatEmpfaenger();
@@ -771,6 +812,7 @@ function e2MonatWahl(m) {
     e2.monatVonHand = true;
     e2.pruefung = null; e2.hinweis = null;
     e2Zeichnen();
+    e2MonatAutoPruefen();
 }
 
 function e2MonatHatEmpfaenger() {
@@ -779,12 +821,24 @@ function e2MonatHatEmpfaenger() {
     return (p.kantoneListe || []).some(e => p.kantone.has(e.addresseeId));
 }
 
-async function e2Pruefen() {
+// Schlüssel der Prüfung: wechselt Filiale, Periode oder Reiter, gilt ein altes Ergebnis nicht mehr.
+function e2PruefSchluessel() { return [e2.filiale, e2.jahr, e2.monat, e2.reiter].join('|'); }
+
+// Die Monatsmeldung prüft sich selbst, sobald Filiale oder Monat feststehen: so zeigen
+// Quellensteuer (Kantone) und Statistik den Stand dieser Filiale, nicht einen festen Text.
+function e2MonatAutoPruefen() {
+    if (e2.reiter !== 'monat' || !e2FilialeId() || e2.pruefung) return;
+    if (e2.busy) { setTimeout(e2MonatAutoPruefen, 800); return; }
+    e2Pruefen(true);
+}
+
+async function e2Pruefen(auto = false) {
     if (e2.busy || !e2FilialeId()) return;
     const monat = e2.reiter === 'monat';
     const arts = monat ? ['monthly'] : [...new Set(e2ZeilenGewaehlt().map(z => z.art))];
     if (!arts.length) return;
-    e2.busy = true; e2.pruefung = null; e2.hinweis = null; e2Zeichnen();
+    const schluessel = e2PruefSchluessel();
+    e2.busy = true; e2.pruefung = null; if (!auto) e2.hinweis = null; e2Zeichnen();
     const liste = [];
     let ok = true;
     for (const art of arts) {
@@ -798,6 +852,10 @@ async function e2Pruefen() {
         } catch { v = { fehler: ['Server nicht erreichbar.'], empfaenger: [] }; }
         liste.push({ art, v });
         if ((v.fehler || []).length || (v.technisch || []).length || v.sendenGesperrt || !(v.empfaenger || []).length) ok = false;
+    }
+    if (schluessel !== e2PruefSchluessel()) {
+        // Inzwischen andere Filiale oder anderer Monat gewählt: Ergebnis verwerfen, neu prüfen.
+        e2.busy = false; e2Zeichnen(); e2MonatAutoPruefen(); return;
     }
     const p = { liste, ok, okOhneKantone: ok, kantone: new Set(), kantoneListe: [] };
     if (monat) {
