@@ -26,6 +26,18 @@
     // Ab so vielen Einträgen zeigt das Panel oben ein Suchfeld.
     const SUCH_AB = 8;
 
+    // Ganze Liste ohne Suchfeld und ohne Scrollen (Walter 01.11.2026: «bei der Auswahl der
+    // Monate immer alle 12 zeigen»): Klasse lq-voll ODER eine reine Monatsliste.
+    const MONATE = ['januar', 'februar', 'marz', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'dezember'];
+    function istMonatsliste(sel) {
+        const texte = Array.from(sel.options)
+            .filter(o => o.value !== '' && !o.hidden)
+            .map(o => o.textContent.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+        return texte.length >= 2 && texte.length <= 12
+            && texte.every(t => MONATE.some(m => t.includes(m)));
+    }
+    function istVoll(sel) { return sel.classList.contains('lq-voll') || istMonatsliste(sel); }
+
     function lqEsc(s) {
         return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     }
@@ -120,7 +132,9 @@
                 }
             });
             list.innerHTML = html || '<div class="lqsel-group">— leer —</div>';
-            const mitSuche = !sel.classList.contains('lq-voll') && sel.options.length >= SUCH_AB;
+            const voll = istVoll(sel);
+            panel.classList.toggle('lq-voll', voll);
+            const mitSuche = !voll && sel.options.length >= SUCH_AB;
             panel.classList.toggle('lqsel-mit-suche', mitSuche);
             search.style.display = mitSuche ? '' : 'none';
             if (!mitSuche) search.value = '';
@@ -188,7 +202,7 @@
             panel.style.minWidth = w + 'px';
             panel.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
             const below = window.innerHeight - r.bottom;
-            const voll = sel.classList.contains('lq-voll');
+            const voll = istVoll(sel);
             const panelH = voll ? panel.scrollHeight : Math.min(panel.scrollHeight, 340);
             if (below < panelH + 12 && r.top > panelH + 12) {
                 // Unten verankert, damit das Panel beim Filtern am Feld bleibt.
@@ -219,7 +233,7 @@
             if (e.key === 'Escape') { close(); return; }
             // Tippen auf dem fokussierten Feld öffnet direkt mit Suche.
             if (e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey
-                && sel.options.length >= SUCH_AB && panel.style.display === 'none') {
+                && sel.options.length >= SUCH_AB && !istVoll(sel) && panel.style.display === 'none') {
                 e.preventDefault();
                 open(e.key);
             }
