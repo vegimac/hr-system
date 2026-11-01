@@ -106,6 +106,31 @@ function elmAnwenden(art) {
 }
 
 let _elmaDavor = 'jahr';
+let _elmaLetzter = null;
+
+function elmaFilialeId() {
+    const id = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? Number(fixedCompanyProfileId) : 0;
+    return id > 0 ? id : null;
+}
+function elmaFilialeName() {
+    const id = elmaFilialeId();
+    if (!id) return '';
+    const b = (typeof allBranches !== 'undefined' && Array.isArray(allBranches))
+        ? allBranches.find(x => Number(x.id) === id) : null;
+    if (b && typeof filialKurzname === 'function') {
+        const k = filialKurzname(b);
+        if (k) return k;
+    }
+    return (b && (b.branchName || b.companyName)) || '';
+}
+function elmaFilialeWechsel() {
+    _elmaVorschau = null;
+    _elmaLetzter = null;
+    const el = document.getElementById('elmaVorschau');
+    if (el) el.innerHTML = '';
+    elmaDomaenenLaden();
+    elmaMonatStand();
+}
 
 function elmaZurueck() {
     if (_elmaAnsicht === 'konfig') { elmaAnsicht(_elmaDavor || 'jahr'); return; }
@@ -293,6 +318,7 @@ function elmaAnsicht(name) {
     elmaDomaenenZeichnen();
     elmaHomeAufgaben();
     elmaArtGewechselt();
+    elmaMonatStand();
 }
 
 function elmaHaken(id, an) {
@@ -326,7 +352,22 @@ function elmaDomaenenZeichnen() {
     }
     const portalAn = !!document.getElementById('elmaPortal')?.checked;
     if (_elmaAnsicht === 'monat') {
-        box.innerHTML = `<div class="elma-domcols">
+        const fil = elmaFilialeId();
+        const name = elmaFilialeName();
+        if (!fil) {
+            box.innerHTML = '<p class="elma-an">Wähle links die Filiale. Die Monatsmeldung gilt nur für diese, nicht für alle zusammen.</p>';
+            return;
+        }
+        const z = elmaZeitLesen();
+        let stand = `${_elmaEsc(name)}.`;
+        if (_elmaLetzter && _elmaLetzter.monat && _elmaLetzter.monat !== z.monat) {
+            stand += ` Abgeschlossen ist ${_elmaEsc(_elmaLetzter.text)}. <button type="button" class="elma-textlink" onclick="elmaZeitSetzen(${z.jahr}, ${_elmaLetzter.monat})">Diesen Monat nehmen</button>`;
+        } else if (_elmaLetzter && _elmaLetzter.monat === z.monat) {
+            stand += ' Dieser Lohnlauf ist abgeschlossen. Die Monatsmeldung kann raus.';
+        } else if (_elmaLetzter && !_elmaLetzter.monat) {
+            stand += ` In ${z.jahr} ist kein Lohnlauf abgeschlossen.`;
+        }
+        box.innerHTML = `<p class="elma-an">${stand}</p><div class="elma-domcols">
             <div><div class="elma-kicker">Quellensteuer</div>${_elmaCheck('qst', 'Quellensteuer', 'qst')}
                 <small class="elma-an">Nach dem Prüfen lässt sich jeder Kanton einzeln an- und abwählen.</small></div>
             <div><div class="elma-kicker">Statistik</div>${_elmaCheck('statistik', 'Statistik', 'statistik')}
@@ -375,12 +416,30 @@ function elmaDomWaehlen(art) {
 
 async function elmaDomaenenLaden() {
     const jahr = parseInt(document.getElementById('elmaJahr')?.value, 10) || new Date().getFullYear();
+    const fil = elmaFilialeId() || 0;
     try {
-        const r = await fetch('/api/elm/meldungen/domaenen?jahr=' + jahr, { headers: ah(), cache: 'no-store' });
+        const r = await fetch('/api/elm/meldungen/domaenen?jahr=' + jahr + '&companyProfileId=' + fil, { headers: ah(), cache: 'no-store' });
         if (r.ok) _elmaDomaenen = await r.json();
     } catch { /* Katalog bleibt leer, die Seite zeigt den Hinweis. */ }
     if (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat') elmaDomaenenZeichnen();
     else if (_elmaAnsicht === 'konfig' || _elmaAnsicht === 'profil') elmaMitteZeichnen();
+}
+async function elmaMonatStand() {
+    if (_elmaAnsicht !== 'monat') return;
+    const fil = elmaFilialeId();
+    const jahr = elmaZeitLesen().jahr;
+    _elmaLetzter = null;
+    if (fil) {
+        try {
+            const r = await fetch('/api/elm/meldungen/uebersicht?jahr=' + jahr, { headers: ah(), cache: 'no-store' });
+            if (r.ok) {
+                const j = await r.json();
+                const zeile = (j.filialen || []).find(f => Number(f.id) === fil);
+                if (zeile) _elmaLetzter = { monat: zeile.letzterMonat || 0, text: zeile.letzterText || '' };
+            }
+        } catch { /* Hinweis bleibt ohne den abgeschlossenen Monat. */ }
+    }
+    if (_elmaAnsicht === 'monat') elmaDomaenenZeichnen();
 }
 
 function elmaMitteZeichnen() {
@@ -722,6 +781,7 @@ function elmaZeitSetzen(jahr, monat) {
     if (feldMonat && monat) feldMonat.value = String(monat);
     elmaZeitZeichnen();
     if (jahr !== alt) elmaDomaenenLaden();
+    elmaMonatStand();
 }
 
 function elmaZeitSchrittJahr(dir) {
@@ -853,6 +913,7 @@ function _elmaAuswahl() {
         art,
         jahr: parseInt(document.getElementById('elmaJahr')?.value, 10),
         monat: art === 'monthly' ? parseInt(document.getElementById('elmaMonat')?.value, 10) : null,
+        companyProfileId: elmaFilialeId(),
     };
 }
 
@@ -874,6 +935,7 @@ async function elmaPruefen() {
     const a = _elmaAuswahl();
     const el = document.getElementById('elmaVorschau');
     if (!a.jahr) { if (el) el.innerHTML = _elmaKasten(false, 'Bitte ein Jahr angeben.'); return; }
+    if (!a.companyProfileId) { if (el) el.innerHTML = _elmaKasten(false, 'Wähle links die Filiale. Eine Meldung gilt nur für diese.'); return; }
     if (_elmaBusy) return;
     _elmaBusy = true;
     const btn = document.getElementById('elmaPruefenBtn');
@@ -881,7 +943,7 @@ async function elmaPruefen() {
     if (el) el.innerHTML = '';
     _elmaWarte('Meldung wird geprüft', 'OneCrew baut die Meldung und schaut, ob sie so rausgehen kann.');
     try {
-        const q = new URLSearchParams({ art: a.art, jahr: String(a.jahr) });
+        const q = new URLSearchParams({ art: a.art, jahr: String(a.jahr), companyProfileId: String(a.companyProfileId) });
         if (a.monat) q.set('monat', String(a.monat));
         const r = await fetch('/api/elm/meldungen/vorschau?' + q, { headers: ah() });
         const j = await r.json().catch(() => ({}));
