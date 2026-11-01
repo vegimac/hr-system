@@ -860,7 +860,10 @@ function elmaArtGewechselt() {
     if (prozess) prozess.disabled = _elmaAnsicht !== 'jahr';
     const pruefen = document.getElementById('elmaPruefenBtn');
     const senden = document.getElementById('elmaSendenBtn');
-    if (pruefen) pruefen.disabled = profil;
+    if (pruefen) {
+        pruefen.style.display = _elmaAnsicht === 'monat' ? 'none' : '';
+        pruefen.disabled = profil;
+    }
     if (senden) senden.disabled = profil;
     const controls = document.getElementById('elmaControls');
     if (controls) controls.style.display = (_elmaAnsicht === 'jahr' || _elmaAnsicht === 'monat' || profil) ? '' : 'none';
