@@ -1584,8 +1584,7 @@ function showPage(name) {
     // Admin-Sub-Pages bekommen den feinen Braun-Hintergrund der Startseite.
     document.body.classList.toggle('sys-bg',
         name === 'admin-hub' || _adminSubPages.includes(name)
-        || name === 'entwicklung' || _devSubPages.includes(name)
-        || name === 'elm-cockpit');
+        || name === 'entwicklung' || _devSubPages.includes(name));
     const navPage = _adminSubPages.includes(name) ? 'admin-hub'
                   : _devSubPages.includes(name)   ? 'entwicklung'
                   : name === 'elm-anwender'       ? 'hr-hub'
@@ -1677,6 +1676,7 @@ function showPage(name) {
     if (name === 'virenscanner') vsInit();
     if (name === 'elm-schnittstelle') { elmzInit(); elmmInit(); }
     if (name === 'elm-anwender' && typeof elmaInit === 'function') elmaInit();
+    if (name === 'elm-cockpit' && typeof xcInit === 'function') xcInit();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'moments') momInit();

@@ -15041,3 +15041,145 @@ body.theme-dark #page-elm-anwender table.elma-mit td { color: #303130; }
     #page-elm-anwender .elma-beam:after,
     #page-elm-anwender .elma-core { animation: none; }
 }
+
+/* ELM Cockpit — Crew-Anzeige (Walter 01.11.2026). Eigenes Bild, unabhängig vom Hell/Dunkel der App. */
+.main:has(#page-elm-cockpit.active),
+body.theme-dark .main:has(#page-elm-cockpit.active) {
+    background: #07080a;
+    color: #e8eaed;
+}
+#page-elm-cockpit.page.active {
+    display: block;
+    min-height: 100%;
+    background: #07080a;
+    color: #e8eaed;
+    color-scheme: dark;
+}
+#page-elm-cockpit .xc {
+    max-width: 920px;
+    padding: 28px 280px 72px 40px;
+    box-sizing: border-box;
+}
+#page-elm-cockpit .xc-bar { height: 2px; background: transparent; margin-bottom: 18px; }
+#page-elm-cockpit .xc.ist-busy .xc-bar { background: #e8eaed; }
+#page-elm-cockpit .xc-top { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+#page-elm-cockpit .xc-kicker {
+    font-size: 11px; letter-spacing: .18em; color: #6b7280; text-transform: uppercase;
+}
+#page-elm-cockpit h1 {
+    margin: 0; font-size: 32px; font-weight: 560; letter-spacing: -.03em; color: #e8eaed; line-height: 1.05;
+}
+#page-elm-cockpit h2 { margin: 0 0 16px; font-size: 28px; font-weight: 560; color: #e8eaed; }
+#page-elm-cockpit .xc-link { margin-left: auto; font-size: 12px; letter-spacing: .16em; color: #9aa0a6; }
+#page-elm-cockpit .xc-gruen { color: #3dd68c; }
+#page-elm-cockpit .xc-gelb { color: #f5a524; }
+#page-elm-cockpit .xc-rot { color: #ff5c5c; }
+#page-elm-cockpit .xc-sua { max-width: 62ch; margin: 14px 0 0; color: #9aa0a6; font-size: 14px; line-height: 1.45; }
+#page-elm-cockpit .xc-block { margin-top: 28px; }
+#page-elm-cockpit .xc-wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
+#page-elm-cockpit .xc-seg { display: inline-flex; border: 1px solid #3a3f46; }
+#page-elm-cockpit .xc-seg button {
+    height: 40px; padding: 0 16px; background: transparent; color: #9aa0a6;
+    border: 0; cursor: pointer; font: inherit; font-size: 14px;
+}
+#page-elm-cockpit .xc-seg button.an { background: #e8eaed; color: #07080a; }
+#page-elm-cockpit .xc-step { display: inline-flex; align-items: center; gap: 8px; color: #9aa0a6; font-size: 13px; }
+#page-elm-cockpit .xc-step b { color: #e8eaed; font-size: 16px; font-weight: 560; min-width: 7.2rem; text-align: center; }
+#page-elm-cockpit .xc-step button {
+    width: 40px; height: 40px; background: transparent; color: #e8eaed;
+    border: 1px solid #3a3f46; cursor: pointer; font: inherit; font-size: 20px;
+}
+#page-elm-cockpit .xc-gruppe {
+    margin: 26px 0 0; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #6b7280;
+}
+#page-elm-cockpit .xc-row {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr) auto auto 22px;
+    gap: 12px 16px;
+    align-items: center;
+    min-height: 48px;
+    border-top: 1px solid #1c1f24;
+}
+#page-elm-cockpit .xc-name { font-weight: 600; color: #e8eaed; }
+#page-elm-cockpit .xc-an { color: #9aa0a6; font-size: 14px; }
+#page-elm-cockpit .xc-tag { font-size: 11px; letter-spacing: .12em; color: #f5a524; }
+#page-elm-cockpit .xc-check {
+    appearance: none; width: 22px; height: 22px; margin: 0; padding: 0;
+    border: 1px solid #6b7280; background: transparent; border-radius: 2px;
+    display: grid; place-items: center; cursor: pointer;
+}
+#page-elm-cockpit .xc-check:checked { background: #e8eaed; border-color: #e8eaed; }
+#page-elm-cockpit .xc-check:checked::after {
+    content: ''; width: 5px; height: 9px; border: solid #07080a; border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+}
+#page-elm-cockpit .xc-commit { display: flex; align-items: center; gap: 12px; margin-top: 28px; }
+#page-elm-cockpit .xc-test { display: inline-flex; align-items: center; gap: 10px; margin-right: auto; color: #e8eaed; cursor: pointer; }
+#page-elm-cockpit .xc-go, #page-elm-cockpit .xc-ghost, #page-elm-cockpit .xc-text, #page-elm-cockpit .xc-leis {
+    font: inherit; cursor: pointer;
+}
+#page-elm-cockpit .xc-go {
+    height: 48px; padding: 0 22px; background: #e8eaed; color: #07080a; border: 0; font-weight: 650;
+}
+#page-elm-cockpit .xc-ghost {
+    height: 48px; padding: 0 16px; background: transparent; color: #e8eaed; border: 1px solid #3a3f46;
+}
+#page-elm-cockpit .xc-klein { height: 36px; padding: 0 12px; font-size: 13px; }
+#page-elm-cockpit .xc-text {
+    height: auto; padding: 0; background: none; border: 0; color: #9aa0a6; text-decoration: underline; text-underline-offset: 3px;
+}
+#page-elm-cockpit .xc-go:disabled, #page-elm-cockpit .xc-ghost:disabled { opacity: .35; cursor: default; }
+#page-elm-cockpit .xc-geht { margin: 18px 0 0; color: #e8eaed; }
+#page-elm-cockpit .xc-hin { color: #f5a524; font-size: 14px; line-height: 1.45; }
+#page-elm-cockpit .xc-fault, #page-elm-cockpit .xc-warn { margin: 12px 0 0; padding: 0 0 0 16px; }
+#page-elm-cockpit .xc-fault { color: #ff5c5c; }
+#page-elm-cockpit .xc-warn { color: #f5a524; }
+#page-elm-cockpit .xc-ersatz { color: #f5a524; }
+#page-elm-cockpit .xc-status { margin-top: 36px; padding-top: 8px; }
+#page-elm-cockpit .xc-wort { font-size: 42px; font-weight: 560; letter-spacing: .06em; line-height: 1; }
+#page-elm-cockpit .xc-meta { margin-top: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #c4c7cc; }
+#page-elm-cockpit .xc-kv { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 6px 16px; margin-top: 16px; font-size: 14px; }
+#page-elm-cockpit .xc-kv span { color: #6b7280; }
+#page-elm-cockpit .xc-kv b { font-weight: 560; color: #e8eaed; }
+#page-elm-cockpit .xc-aktionen { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+#page-elm-cockpit .xc-leis {
+    display: block; width: 100%; margin-top: 28px; padding: 12px 0; text-align: left;
+    background: none; border: 0; border-top: 1px solid #1c1f24; color: #9aa0a6; font-size: 14px;
+}
+#page-elm-cockpit .xc-hist-row {
+    display: grid; grid-template-columns: 9rem 11rem 1fr; gap: 12px; width: 100%;
+    min-height: 44px; align-items: center; text-align: left; background: none; border: 0;
+    border-top: 1px solid #1c1f24; color: #c4c7cc; font: inherit; font-size: 14px; cursor: pointer;
+}
+#page-elm-cockpit .xc-hist-row.an { color: #e8eaed; }
+#page-elm-cockpit .xc-dialog { margin-top: 18px; padding-top: 12px; border-top: 1px solid #1c1f24; }
+#page-elm-cockpit .xc-frage { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 12px; color: #c4c7cc; font-size: 14px; }
+#page-elm-cockpit .xc-frage i { color: #6b7280; font-style: normal; }
+#page-elm-cockpit .xc-frage input, #page-elm-cockpit .xc-geld {
+    background: #101216; color: #e8eaed; border: 1px solid #3a3f46; height: 40px; padding: 0 10px; font: inherit;
+}
+#page-elm-cockpit .xc-frage input { width: 22rem; max-width: 100%; }
+#page-elm-cockpit .xc-geld { width: 8rem; text-align: right; font-variant-numeric: tabular-nums; }
+#page-elm-cockpit .xc-pre {
+    margin: 12px 0 0; padding: 12px; background: #101216; color: #c4c7cc; border: 1px solid #1c1f24;
+    white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+}
+#page-elm-cockpit .xc-sheet {
+    position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, .55);
+    display: flex; justify-content: flex-end;
+}
+#page-elm-cockpit .xc-panel {
+    width: min(520px, 100%); height: 100%; overflow: auto; box-sizing: border-box;
+    background: #0c0e11; border-left: 1px solid #2a2e33; padding: 28px 24px 48px;
+}
+#page-elm-cockpit .xc-auf {
+    display: flex; justify-content: space-between; gap: 16px; align-items: center;
+    min-height: 56px; border-top: 1px solid #1c1f24; padding: 8px 0;
+}
+#page-elm-cockpit .xc-auf p { margin: 2px 0 0; color: #9aa0a6; font-size: 13px; }
+#page-elm-cockpit .xc-auf.rot b { color: #ff5c5c; }
+#page-elm-cockpit .xc-auf.gelb b { color: #f5a524; }
+#page-elm-cockpit .xc-leer { margin-top: 28px; }
+@media (max-width: 1100px) {
+    #page-elm-cockpit .xc { padding: 64px 24px 72px; }
+}
