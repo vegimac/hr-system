@@ -188,18 +188,11 @@ function eeZeichnen() {
 }
 
 function eeKopf() {
-    const filialen = eeFilialenListe();
-    const opts = ['<option value="0">Alle Filialen</option>']
-        .concat(filialen.map(f => `<option value="${f.id}"${f.id === ee.filiale ? ' selected' : ''}>${eeEsc(eeFilialeLabel(f.id, f.name))}</option>`))
-        .join('');
     const nav = EE_NAV.map(([id, name]) =>
         `<button type="button" class="ee-nav${ee.schritt === id ? ' an' : ''}" data-ee="nav" data-wert="${id}">${name}</button>`).join('');
     return `<header class="ee-kopf">
         <nav class="ee-navs">${nav}</nav>
-        <div class="ee-werk">
-            <select data-ee="filiale" aria-label="Filiale">${opts}</select>
-            <button type="button" class="ee-text" data-ee="neu" ${ee.busy ? 'disabled' : ''}>Aktualisieren</button>
-        </div>
+        <button type="button" class="ee-text" data-ee="neu" ${ee.busy ? 'disabled' : ''}>Aktualisieren</button>
     </header>`;
 }
 
@@ -251,7 +244,7 @@ function eeAufgabenKurz() {
 }
 
 function eeMonatHtml() {
-    if (!eeFilialeId()) return '<h1>Monat</h1><p class="ee-lead">Wähle oben eine Filiale. Alle Filialen ist nur die Übersicht.</p>';
+    if (!eeFilialeId()) return '<h1>Monat</h1><p class="ee-lead">Wähle links die Filiale. Alle Filialen ist nur die Übersicht.</p>';
     const name = `${EE_MONATE[ee.monat - 1] || ''} ${ee.jahr}`;
     const reihe = (id, titel, text) => `<label class="ee-zeile"><span><b>${titel}</b><i>${text}</i></span>
         <input type="checkbox" data-ee="wahl" data-id="${id}" ${ee.wahl.has(id) ? 'checked' : ''}></label>`;
@@ -276,7 +269,7 @@ function eeMonatHtml() {
 }
 
 function eeJahrHtml() {
-    if (!eeFilialeId()) return '<h1>Jahr</h1><p class="ee-lead">Wähle oben eine Filiale. Alle Filialen ist nur die Übersicht.</p>';
+    if (!eeFilialeId()) return '<h1>Jahr</h1><p class="ee-lead">Wähle links die Filiale. Alle Filialen ist nur die Übersicht.</p>';
     const gruppen = ee.domaenen?.gruppen || [];
     const bloecke = gruppen.map(g => {
         const rows = (g.zeilen || []).map(z => eeJahrZeile(z)).join('');
@@ -419,7 +412,7 @@ function eeKonfigHtml() {
         ${vers}`;
 }
 function eeVersicherungHtml() {
-    if (!eeFilialeId()) return '<p class="ee-lead">Wähle oben eine Filiale.</p>';
+    if (!eeFilialeId()) return '<p class="ee-lead">Wähle links die Filiale.</p>';
     const zeilen = eeZeilen().filter(z => ['UVG-LAA', 'UVGZ-LAAC', 'KTG-AMC', 'BVG-LPP'].includes(z.domain) && z.an && z.an !== 'noch keiner zugeordnet');
     const sua = ee.cert?.sua;
     const da = !!(sua?.vorhanden && !(sua.restTage != null && sua.restTage < 0));
@@ -463,7 +456,7 @@ function eeKlick(ev) {
     const el = ev.target.closest('[data-ee]');
     if (!el) return;
     const a = el.dataset.ee;
-    if (a === 'wahl' || a === 'test' || a === 'kanton' || a === 'portal' || a === 'filiale') return;
+    if (a === 'wahl' || a === 'test' || a === 'kanton' || a === 'portal') return;
     if (ee.busy && a !== 'nav') return;
     if (a === 'nav') { ee.schritt = el.dataset.wert; ee.hinweis = ''; ee.force = true; eeZeichnen(); if (el.dataset.wert === 'jahr' || el.dataset.wert === 'konfiguration') eeDomaenenNach(); }
     else if (a === 'oeffnen') eeOeffnen(el);
@@ -489,17 +482,6 @@ function eeChange(ev) {
     const el = ev.target.closest('[data-ee]');
     if (!el) return;
     const a = el.dataset.ee;
-    if (a === 'filiale') {
-        const id = parseInt(el.value, 10) || 0;
-        if (id === ee.filiale) return;
-        ee.filiale = id;
-        ee.jahrGesetzt = false;
-        ee.arm = null;
-        ee.checks = [];
-        ee.domaenen = null;
-        eeLaden();
-        return;
-    }
     if (a === 'wahl') { if (el.checked) ee.wahl.add(el.dataset.id); else ee.wahl.delete(el.dataset.id); ee.arm = null; }
     else if (a === 'test') { ee.test = el.checked; ee.arm = null; }
     else if (a === 'portal') { ee.portal = el.checked; ee.arm = null; }
@@ -512,7 +494,7 @@ function eeChange(ev) {
     eeZeichnen();
 }
 function eeOeffnen(el) {
-    ee.filiale = parseInt(el.dataset.id, 10) || 0;
+    const id = parseInt(el.dataset.id, 10) || 0;
     ee.schritt = el.dataset.ziel === 'jahr' ? 'jahr' : 'monat';
     if (el.dataset.monat) ee.monat = parseInt(el.dataset.monat, 10) || ee.monat;
     ee.arm = null;
@@ -520,6 +502,10 @@ function eeOeffnen(el) {
     ee.hinweis = '';
     ee.jahrGesetzt = false;
     ee.domaenen = null;
+    if (id && id !== ee.filiale && typeof selectSidebarBranch === 'function') {
+        selectSidebarBranch(String(id));
+        return;
+    }
     eeLaden();
 }
 async function eeDomaenenNach() {
@@ -672,10 +658,13 @@ function eeErsatz(id) {
     if (!m) return;
     ee.ersatz = { id: m.id, art: m.art, gesendet: m.gesendet };
     ee.schritt = m.art === 'monthly' ? 'monat' : 'jahr';
-    if (m.companyProfileId) ee.filiale = m.companyProfileId;
     if (m.jahr) ee.jahr = m.jahr;
     if (m.monat) ee.monat = m.monat;
     ee.arm = null; ee.checks = []; ee.jahrGesetzt = false; ee.domaenen = null;
+    if (m.companyProfileId && m.companyProfileId !== ee.filiale && typeof selectSidebarBranch === 'function') {
+        selectSidebarBranch(String(m.companyProfileId));
+        return;
+    }
     eeLaden();
 }
 async function eeAntworten(el) {
