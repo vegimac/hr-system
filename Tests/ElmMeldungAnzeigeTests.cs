@@ -222,4 +222,20 @@ public class ElmMeldungAnzeigeTests
         Assert.Equal("AHV-Ausgleichskasse 046.000", ElmMeldungAnzeige.EmpfaengerName("AHV-AVS", "046.000", null));
         Assert.Equal("GastroSocial", ElmMeldungAnzeige.EmpfaengerName("AHV-AVS", "046.000", "GastroSocial"));
     }
+
+    [Fact]
+    public void Je_Meldung_zaehlt_nur_die_neuste_Uebermittlung()
+    {
+        // Walter 02.11.2026: dieselbe Testmeldung 11.2024 stand nach mehreren Sendungen mehrfach als To-do da.
+        var alt1 = new ElmVorgang { Id = "a1", Art = "monthly", Jahr = 2024, Monat = 11, CompanyProfileId = 3, Gesendet = new DateTime(2026, 11, 1, 18, 0, 0) };
+        var alt2 = new ElmVorgang { Id = "a2", Art = "monthly", Jahr = 2024, Monat = 11, CompanyProfileId = 3, Gesendet = new DateTime(2026, 11, 1, 21, 0, 0) };
+        var neu  = new ElmVorgang { Id = "n",  Art = "monthly", Jahr = 2024, Monat = 11, CompanyProfileId = 3, Gesendet = new DateTime(2026, 11, 2, 8, 0, 0) };
+        var dez  = new ElmVorgang { Id = "d",  Art = "monthly", Jahr = 2024, Monat = 12, CompanyProfileId = 3, Gesendet = new DateTime(2026, 11, 1, 20, 0, 0) };
+        var bern = new ElmVorgang { Id = "b",  Art = "monthly", Jahr = 2024, Monat = 11, CompanyProfileId = 4, Gesendet = new DateTime(2026, 11, 1, 19, 0, 0) };
+        var jahr = new ElmVorgang { Id = "j",  Art = "annual",  Jahr = 2024, CompanyProfileId = 3, Gesendet = new DateTime(2026, 11, 1, 22, 0, 0) };
+
+        var ids = ElmMeldungAnzeige.NeusteJeMeldung(new[] { alt1, neu, dez, alt2, bern, jahr }).Select(v => v.Id).OrderBy(x => x);
+
+        Assert.Equal(new[] { "b", "d", "j", "n" }, ids);
+    }
 }

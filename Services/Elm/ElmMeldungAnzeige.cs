@@ -179,6 +179,17 @@ public static class ElmMeldungAnzeige
         };
     }
 
+    /// <summary>
+    /// Je Meldung (Art, Lohnjahr, Monat, Filiale) nur die neuste Übermittlung (Walter 02.11.2026):
+    /// eine spätere Übermittlung oder Ersatzmeldung löst die früheren ab — To-dos und Aufgaben
+    /// kommen nur von ihr, sonst steht dieselbe Meldung mehrfach auf der Liste.
+    /// </summary>
+    public static List<ElmVorgang> NeusteJeMeldung(IEnumerable<ElmVorgang> vorgaenge)
+        => vorgaenge
+            .GroupBy(v => { var (j, m) = Periode(v); return (v.Art, j, m, v.CompanyProfileId); })
+            .Select(g => g.OrderByDescending(v => v.Gesendet).First())
+            .ToList();
+
     /// <summary>Ersetzen geht, sobald der Job fertig ist und mindestens ein Empfänger angenommen hat.</summary>
     public static bool Ersetzbar(ElmVorgang v)
         => IstAnwender(v.Art) && v.JobFinished && DeclarationId(v) != null;

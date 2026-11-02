@@ -1080,9 +1080,10 @@ public class DashboardService
         // Adresse (ab 15.10.2026) und höchstens 90 Tage alt; admin-only (DashboardController).
         if (_elmStore != null && Enabled("elm_meldung"))
         {
-            foreach (var v in _elmStore.LadeUebermittlungen().Vorgaenge
-                         .Where(v => HrSystem.Services.Elm.ElmMeldungAnzeige.IstAnwender(v.Art) && v.Url != null
-                                     && (DateTime.Now - v.Gesendet).TotalDays <= HrSystem.Services.Elm.ElmMeldungAnzeige.AutoHoechstensTage))
+            // Je Meldung nur die neuste Übermittlung (Walter 02.11.2026: dieselbe Testmeldung stand mehrfach da).
+            foreach (var v in HrSystem.Services.Elm.ElmMeldungAnzeige.NeusteJeMeldung(_elmStore.LadeUebermittlungen().Vorgaenge
+                         .Where(v => HrSystem.Services.Elm.ElmMeldungAnzeige.IstAnwender(v.Art) && v.Url != null))
+                         .Where(v => (DateTime.Now - v.Gesendet).TotalDays <= HrSystem.Services.Elm.ElmMeldungAnzeige.AutoHoechstensTage))
             {
                 var st = HrSystem.Services.Elm.ElmMeldungAnzeige.Meldung(v);
                 if (!st.AktionNoetig) continue;
