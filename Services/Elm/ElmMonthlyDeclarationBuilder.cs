@@ -388,6 +388,7 @@ public class ElmMonthlyDeclarationBuilder
         var monatStr = $"{year:0000}-{month:00}";
 
         var personen = new List<XElement>();
+        var zeitFehler = new List<string>();   // Zeit passt nicht zum Arbeitszeitmodell → Meldung stoppen
         var qstKantone = new SortedSet<string>(StringComparer.Ordinal);
         var qstTotal = new Dictionary<string, (decimal Basis, decimal Steuer)>(StringComparer.Ordinal);
         var gemeldeteFilialen = new HashSet<int>();
@@ -404,6 +405,14 @@ public class ElmMonthlyDeclarationBuilder
 
             var statistikZeilen = new List<XElement>();
             var qstZeilenPerson = new List<XElement>();
+
+            // Am Monatsende gueltiges Modell (juengstes Gueltig-ab <= Monatsende).
+            var zuordnung = zuordnungen
+                .Where(z => z.EmployeeId == e.Id && z.GueltigAb <= DateOnly.FromDateTime(monatsEnde))
+                .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id)
+                .FirstOrDefault();
+            var modell = zuordnung != null ? modelle.FirstOrDefault(m => m.Id == zuordnung.ArbeitszeitmodellId) : null;
+            modell ??= modelle.FirstOrDefault();   // Rueckfall: Standardmodell der Rechtseinheit
 
             var anstellung = Anstellung(employments.Where(m => m.EmployeeId == e.Id), monatsAnfang, monatsEnde);
             var jahrStart = new DateTime(year, 1, 1);
@@ -473,7 +482,8 @@ public class ElmMonthlyDeclarationBuilder
                 if (imMonatAngestellt)
                 {
                     statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, lohnartByCode, lse, stellungMapping,
-                                                           monatStr, periodeVon, periodeBis, jahresToepfe, warn, statistikByLohnart));
+                                                           monatStr, periodeVon, periodeBis, jahresToepfe, warn, statistikByLohnart,
+                                                           ArtDesModells(modell, zuordnung), zeitFehler));
                     statZeilen++;
                     gemeldeteFilialen.Add(filialId);
                 }
@@ -558,13 +568,6 @@ public class ElmMonthlyDeclarationBuilder
                 .OrderByDescending(m => m.ContractStartDate).FirstOrDefault()
                 ?? employments.Where(m => m.EmployeeId == e.Id)
                        .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
-            // Am Monatsende gueltiges Modell (juengstes Gueltig-ab <= Monatsende).
-            var zuordnung = zuordnungen
-                .Where(z => z.EmployeeId == e.Id && z.GueltigAb <= DateOnly.FromDateTime(monatsEnde))
-                .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id)
-                .FirstOrDefault();
-            var modell = zuordnung != null ? modelle.FirstOrDefault(m => m.Id == zuordnung.ArbeitszeitmodellId) : null;
-            modell ??= modelle.FirstOrDefault();   // Rueckfall: Standardmodell der Rechtseinheit
 
             var person = new XElement(Sd + "Person",
                 Particulars(e, warn, WohnGemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde,
@@ -574,7 +577,8 @@ public class ElmMonthlyDeclarationBuilder
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
                     new XElement(C + "WorkingTime", WorkingTime(emHaupt,
                         modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : stamm.Haupt.NormalWeeklyHours ?? 42m,
-                        zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen)),
+                        zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen,
+                        modell?.Wochenlektionen)),
                     // Beginn der nahtlosen Vertragskette, nicht des Abschnitts im Monat
                     // (RefXML Jan 2025: TF37 Oberli 2024-11-16 trotz neuem Vertrag ab 01.01.).
                     new XElement(C + "EntryDate", (anstellung?.Start ?? emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd")),
@@ -584,6 +588,13 @@ public class ElmMonthlyDeclarationBuilder
                 statistikZeilen.Count > 0 ? new XElement(Sd + "StatisticSalaries", statistikZeilen) : null);
             personen.Add(person);
         }
+
+        if (zeitFehler.Count > 0)
+            return new BuildResult("", 0, 0, 0,
+                zeitFehler.Prepend("Geleistete Zeit passt nicht zum Arbeitszeitmodell — bitte beim Mitarbeiter "
+                    + "ein Modell mit Stunden und Lektionen zuordnen oder «abweichende Lektionen/Woche» "
+                    + "bzw. «abweichende Stunden/Woche» eintragen, dann neu erzeugen:").ToList(),
+                new List<string>());
 
         if (personen.Count == 0)
             return new BuildResult("", 0, 0, 0,
@@ -772,7 +783,8 @@ public class ElmMonthlyDeclarationBuilder
         List<LseCodeMapping> stellungMapping, string monatStr,
         DateTime periodeVon, DateTime periodeBis,
         Dictionary<ElmStatistikCodes.Topf, decimal> jahresToepfe, List<string> warn,
-        IReadOnlyDictionary<int, ElmStatistikCodes.Topf?> statistikByLohnart)
+        IReadOnlyDictionary<int, ElmStatistikCodes.Topf?> statistikByLohnart,
+        ArbeitszeitArt? modellArt, List<string> zeitFehler)
     {
         var topf = Toepfe(slip, lohnartByCode, warn, statistikByLohnart);
         decimal Wert(ElmStatistikCodes.Topf t) => topf.TryGetValue(t, out var v) ? v : 0m;
@@ -786,7 +798,8 @@ public class ElmMonthlyDeclarationBuilder
             new XAttribute("workIDRef", WorkId(e)),
             new XElement(Sd + "CurrentMonth", monatStr),
             BaueStatistikStammdaten(e, em, filiale, slip, lse, stellungMapping, warn, periodeBis, lohnartByCode),
-            KindOfWagePayment(em, filiale, slip, lohnartByCode),
+            KindOfWagePayment(em, filiale, slip, lohnartByCode, modellArt, zeitFehler,
+                $"{e.FirstName} {e.LastName} ({e.EmployeeNumber})"),
             new XElement(Sd + "MonthlyValues",
                 new XElement(Sd + "GrossBaseSalaryAndRegularAllowance", Betrag05(Wert(ElmStatistikCodes.Topf.Bruttolohn))),
                 new XElement(Sd + "Allowances", Betrag05(Wert(ElmStatistikCodes.Topf.Zulagen))),
@@ -846,8 +859,42 @@ public class ElmMonthlyDeclarationBuilder
     /// gehoeren Ansatz, Ferien-, Feiertags- und 13.-ML-Prozent in den Block
     /// ContractualHourlyWage, danach die tatsaechlich geleistete Zeit.
     /// </summary>
+    public enum ArbeitszeitArt { Stunden, Lektionen, StundenUndLektionen }
+
+    /// <summary>
+    /// Grund, warum die geleistete Zeit eines Stundenlöhners nicht zum Arbeitszeitmodell passt —
+    /// NULL = passt. Lektionen bei «nur Stunden» bzw. Stunden bei «nur Lektionen» kann die Meldung
+    /// nicht abbilden, ohne vom Modell abzuweichen (XSD TotalHoursAndLessonsOfWork).
+    /// </summary>
+    public static string? ZeitPasstNichtZumModell(ArbeitszeitArt? modellArt, decimal stunden, decimal lektionen)
+        => modellArt switch
+        {
+            ArbeitszeitArt.Stunden when lektionen > 0m =>
+                $"{lektionen:0.00} Lektionen geleistet, das Arbeitszeitmodell kennt nur Stunden",
+            ArbeitszeitArt.Lektionen when stunden > 0m =>
+                $"{stunden:0.00} Stunden geleistet, das Arbeitszeitmodell kennt nur Lektionen",
+            _ => null,
+        };
+
+    /// <summary>
+    /// Art der Arbeitszeit aus dem Arbeitszeitmodell der Person; abweichende Werte der Zuordnung
+    /// gehen vor. NULL = kein Modell oder weder Stunden noch Lektionen.
+    /// </summary>
+    public static ArbeitszeitArt? ArtDesModells(Arbeitszeitmodell? modell, EmployeeArbeitszeitmodell? zuordnung)
+    {
+        if (modell == null) return null;
+        var std = (zuordnung?.AbweichendeWochenstunden ?? modell.Wochenstunden) is > 0m;
+        var lek = (zuordnung?.AbweichendeWochenlektionen ?? modell.Wochenlektionen) is > 0m;
+        return std && lek ? ArbeitszeitArt.StundenUndLektionen
+             : lek ? ArbeitszeitArt.Lektionen
+             : std ? ArbeitszeitArt.Stunden
+             : null;
+    }
+
     private static XElement KindOfWagePayment(Employment? em, CompanyProfile filiale, JsonElement slip,
-                                              IReadOnlyDictionary<string, string> lohnartByCode)
+                                              IReadOnlyDictionary<string, string> lohnartByCode,
+                                              ArbeitszeitArt? modellArt = null,
+                                              List<string>? zeitFehler = null, string? wer = null)
     {
         var dreizehnter = Amt(em?.ThirteenthSalary == true ? filiale.DefaultThirteenthSalaryPercent ?? 8.33m : 0m);
         // Ein vertraglicher 14. Monatslohn ist ein zweites «Contractual13th» (RefXML TF04 Fankhauser 8.33 + 8.33).
@@ -888,10 +935,28 @@ public class ElmMonthlyDeclarationBuilder
 
         var stunden = Num(slip, "workedHours");
         var lektionen = Lektionen(slip, lohnartByCode, em?.LessonRate);
+        // Massgebend ist das Arbeitszeitmodell der Person (XSD TotalHoursAndLessonsOfWork):
+        // Stunden UND Lektionen im Modell → beide melden, Lektionen auch mit 0.00.
+        // Quality Tool Jan 2025: TF01 Herz Modell «Standard» (nur Stunden) → TotalHoursOfWork,
+        // auch wenn der Vertrag einen Lektionenansatz hat (Walter 02.11.2026).
+        // Ohne Modell bleibt die bisherige Herleitung aus dem Vertrag.
+        // Passt die geleistete Zeit nicht zum Modell (z.B. Lektionen bei «nur Stunden»), wird die
+        // Meldung gestoppt statt still umgedeutet — Zuordnung nachtragen (Walter 02.11.2026).
+        if (zeitFehler != null && ZeitPasstNichtZumModell(modellArt, stunden, lektionen) is { } grund)
+            zeitFehler.Add($"{wer}: {grund}");
+        XElement gearbeitet;
+        if (modellArt is { } ma)
+            gearbeitet = ma switch
+            {
+                ArbeitszeitArt.StundenUndLektionen => new XElement(Sd + "TotalHoursAndLessonsOfWork",
+                    new XElement(Sd + "TotalHoursOfWork", Amt(stunden)),
+                    new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen))),
+                ArbeitszeitArt.Lektionen => new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen)),
+                _ => new XElement(Sd + "TotalHoursOfWork", Amt(stunden)),
+            };
         // RefXML Feb: Degelo (nur Wochenlektionen) → TotalLessonsOfWork;
         // Paganini (Stunden- + Lektionenansatz) → TotalHoursAndLessonsOfWork auch bei 0 Lektionen.
-        XElement gearbeitet;
-        if (em?.WeeklyLessons is > 0m)
+        else if (em?.WeeklyLessons is > 0m)
             gearbeitet = new XElement(Sd + "TotalLessonsOfWork", Amt(lektionen));
         else if (em?.LessonRate is > 0m)
             gearbeitet = new XElement(Sd + "TotalHoursAndLessonsOfWork",
@@ -1035,6 +1100,10 @@ public class ElmMonthlyDeclarationBuilder
         var basis = Num(zeile, "basis");
         var satzBasis = zeile.TryGetProperty("satzBasis", out var sb) && sb.ValueKind == JsonValueKind.Number
             ? sb.GetDecimal() : basis;
+        // Jahresmodell (GE/FR/VD/VS/TI): satzbestimmend ist der Satz-Lohn (YTD, Bonus ÷ 12),
+        // nicht der Monatsbeitrag «satzBasis» (Quality Tool Feb 2025 TF23 Koller 7'500 statt 5'000).
+        if (zeile.TryGetProperty("satzLohn", out var sl) && sl.ValueKind == JsonValueKind.Number)
+            satzBasis = sl.GetDecimal();
         var steuer = -Num(zeile, "betrag");          // im Slip negativ
         var code = (Str(zeile, "qstCode") ?? "").Trim().ToUpperInvariant();
 

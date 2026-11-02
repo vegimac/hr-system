@@ -141,6 +141,17 @@ Bleibt bewusst bzw. offen (nicht angleichen):
 | TF29 Forster | TaxAtSourceCode / TaxAtSource | A0N / 576.00 | R0N / 459.00 | offene Swissdec-Frage 3 (R0N vs A0N), `docs/swissdec-call-2026-09-24.md` |
 | alle mit BVG | BVG-LPP-RegularContribution | ungerundet (z.B. −197.16) | auf 5 Rp. (−197.15) | **K2** — lokale Referenz veraltet, Quality Tool rundet |
 
+### 2025-02 — erste Sendung 02.11.2026 10:55 (18e431d2620842797), Korrekturen K11–K14
+
+| Testfall | Feld | Soll | Ist | Ursache |
+|---|---|---:|---:|---|
+| TF21/22/23/29/35/41 (TI) | AscertainedTaxableEarning | z.B. 7'500 | 5'000 | **K11** — Jahresmodell: Meldung zeigte nur den periodischen Monatsbeitrag, nicht den Satz-Lohn (YTD, aperiodisch ÷ 12). Steuer selbst war richtig. |
+| TF25 Lehmann / TF26 Jenzer | TaxableEarning, AscertainedTaxableEarning, TaxAtSource | 5'714.30 / 11'428.55 | 8'400 / 8'400 | **K12** — Schritt 5b: Arbeitstage CH/effektiv (10/14) aus den Grunddaten fehlten im Eintrittsmonat (Wert am 10.02., gesucht ab 01.02.) + K11 |
+| TF12 Casanova, TF25/26 | BVG-LPP-RegularContribution | −899.50 / −910.00 | 0.00 | **K13** — BVG-Fix bei Eintritt Monatsmitte (wie Oberli 11.2024, Commit a20a1eb); Schritt 5b für 02.2025 neu |
+| TF15 Degelo | ActivityRate | 50.00 | 100.00 | **K14** — Pensum fehlt im Stundenlohn-Vertrag (Formular speichert keins); neu Wochenlektionen ÷ Lektionen des Modells (10.5 / 21) |
+| TF12 Casanova | Status | partnershipDissolvedByDeclarationOfLost | …ByLaw | Daten: Zivilstand steht auf «aufgeloeste_partnerschaft» statt «…_verschollen» — in der Maske korrigieren |
+| TF25/26 | GrossBaseSalary, SocialContributions, Rest TaxAtSource | 8'000 | 8'400 | **bewusst A7** (Eintrittstag zählt, 21/30) |
+
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 
 ### F1 — TF14 Egli, Quellensteuer-Code (November 2024)

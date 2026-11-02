@@ -193,6 +193,15 @@ public class DeductionRule
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public decimal? QstSatzAperiodisch { get; set; }
 
+    /// <summary>
+    /// Transient: Satz-Lohn des Jahresmodells (YTD periodisch ÷ QST-Tage × 360 + YTD aperiodisch,
+    /// ÷ 12) — das ist der satzbestimmende Lohn der Meldung (AscertainedTaxableEarning).
+    /// «satzBasis» bleibt der Monatsbeitrag für den YTD-Topf. Slip-Feld «satzLohn» (Walter 02.11.2026,
+    /// Quality Tool Feb 2025 TF23 Koller 7'500 = 5'000 + 30'000 ÷ 12).
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal? QstSatzLohn { get; set; }
+
     /// <summary>Transient: Tarifcode der QST-Zeile (A0N) — Jahresmodell-Töpfe.</summary>
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string? QstTarifCode { get; set; }

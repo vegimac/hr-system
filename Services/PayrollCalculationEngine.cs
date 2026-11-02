@@ -5188,6 +5188,7 @@ public class PayrollCalculationEngine
                             && vordef == null
                             && !offen
                             && _qstJahresYtd != null;
+        decimal? jahresSatzLohn = null;   // Satz-Lohn des Jahresmodells → Slip «satzLohn»
 
         if (offen)
         {
@@ -5246,6 +5247,7 @@ public class PayrollCalculationEngine
                 periodFrom.Year, periodFrom.Month, _qstJahresVertraege);
             int qstTage = ytd.QstTageBisher + tageMonat;
             var satzLohnLookup = QstJahresmodell.SatzLohnAusTagen(ytdPeriodic, qstTage, ytdAper);
+            jahresSatzLohn = satzLohnLookup;
 
             var codeJetzt = QstJahresmodell.CodeVon(einstellung);
             var toepfe = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
@@ -5408,6 +5410,7 @@ public class PayrollCalculationEngine
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
             QstSatzBasis     = slipSatz,
             QstSatzAperiodisch = slipAper,
+            QstSatzLohn      = jahresSatzLohn,
             QstTarifCode     = qstCode,
             QstMedianAngewendet = medianAngewendet,
             BasisOverride    = (tageHinweis != null || jahresmodell) ? bruttolohn : null,

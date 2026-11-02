@@ -464,11 +464,17 @@ public partial class SwissdecTestmandantController
         return res;
     }
 
-    private static decimal? WertImMonat(Dictionary<string, SortedDictionary<DateOnly, decimal>> reihen, string fall, DateOnly m)
+    /// <summary>
+    /// Wert eines Monats aus der Reihe. Der Grunddaten-Wert steht am Eintrittsdatum — bei
+    /// Eintritt Monatsmitte gilt er schon für den Eintrittsmonat (Walter 02.11.2026, TF25/TF26
+    /// Eintritt 10.02.2025: Arbeitstage CH 10 von 14 fehlten im Februar).
+    /// </summary>
+    public static decimal? WertImMonat(Dictionary<string, SortedDictionary<DateOnly, decimal>> reihen, string fall, DateOnly m)
     {
         if (!reihen.TryGetValue(fall, out var reihe)) return null;
+        var ende = m.AddMonths(1).AddDays(-1);
         decimal? w = null;
-        foreach (var kv in reihe) { if (kv.Key <= m) w = kv.Value; else break; }
+        foreach (var kv in reihe) { if (kv.Key <= ende) w = kv.Value; else break; }
         return w;
     }
 

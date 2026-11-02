@@ -513,7 +513,8 @@ public static class ElmGemeinsam
     /// </para>
     /// </summary>
     public static XElement WorkingTime(Employment? em, decimal vollzeitWochenstunden,
-        decimal? abweichendeStunden = null, decimal? abweichendeLektionen = null)
+        decimal? abweichendeStunden = null, decimal? abweichendeLektionen = null,
+        decimal? vollzeitWochenlektionen = null)
     {
         // Honorar ohne Zeitbindung und Verwaltungsrat haben keine feste Arbeitszeit
         // (Walter 27.09.2026; RefXML Jan 2025 TF39 Hasler Unsteady).
@@ -543,7 +544,10 @@ public static class ElmGemeinsam
         if (em?.WeeklyLessons is decimal wl && wl > 0m)
             return new XElement(C + "Steady",
                 new XElement(C + "WeeklyLessons", Amt(wl)),
-                new XElement(C + "ActivityRate", Amt(em.EmploymentPercentage ?? 100m)));
+                new XElement(C + "ActivityRate", Amt(em.EmploymentPercentage
+                    // Ohne Pensum (Stundenlohn speichert keins): Wochenlektionen ÷ Lektionen des
+                    // Arbeitszeitmodells — TF15 Degelo 10.5 / 21 = 50 % (Walter 02.11.2026).
+                    ?? (vollzeitWochenlektionen is > 0m ? PayrollCalculations.Rappen(wl / vollzeitWochenlektionen.Value * 100m) : 100m))));
         if ((model == "FIX" || model == "FIX-M") && em != null)
         {
             var pct = em.EmploymentPercentage ?? 100m;

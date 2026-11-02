@@ -554,6 +554,7 @@ public static class PayrollCalculations
                 basis       = (decimal?)Rappen(basis),
                 satzBasis   = d.QstSatzBasis,
                 satzAperiodisch = d.QstSatzAperiodisch,
+                satzLohn    = d.QstSatzLohn,
                 qstCode     = d.QstTarifCode,
                 qstMedian   = d.QstMedianAngewendet,
                 betrag,
