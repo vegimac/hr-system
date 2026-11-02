@@ -37,8 +37,8 @@ public class MirusSwissdecZuordnungTests
     [InlineData("80.3", "2000")]
     [InlineData("565.1", "5102")]
     [InlineData("600.5", "5212")]
-    [InlineData("600.24", "600.24")]
-    [InlineData("950.1", "950.1")]
+    [InlineData("600.24", "9100")]
+    [InlineData("950.1", "9200")]
     public void Verwendete_Mirus_zeigen_auf_Swissdec(string mirus, string swissdec)
         => Assert.Equal(swissdec, LohnCodeAlias.Normiere(mirus));
 

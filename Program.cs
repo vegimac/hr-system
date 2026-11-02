@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 133;  // 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 134;  // 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -454,6 +454,54 @@ using (var scope = app.Services.CreateScope())
 
     if (startSqlNoetig)
     {
+    // Stand 134: OneCrew-eigene Lohnpositionen in den 9000er-Bereich (Walter 02.11.2026).
+    // Keine Mirus-Nummern mehr als Code: 901–906 → 9001–9006 (Saldo-Vorträge), 600.24 → 9100
+    // LGAV, 600.32 → 9110 Uniform-Depot, 950.1 → 9200 Vorschuss, 180.3 → 9300 13.-ML-Auslöser.
+    // Die alte Nummer bleibt in mirus_code (Import, alte Lohnzettel). Läuft VOR den übrigen
+    // Seeds, damit diese die neue Nummer schon vorfinden und nichts doppelt anlegen.
+    // Existiert die neue Nummer bereits, wandern Zulagen/Schema auf sie, die alte wird inaktiv.
+    if (dbStand < 134)
+        db.Database.ExecuteSqlRaw(@"
+            DO $$
+            DECLARE r record; alt_id int; neu_id int;
+            BEGIN
+              IF to_regclass('public.lohnposition') IS NULL THEN RETURN; END IF;
+              FOR r IN SELECT * FROM (VALUES
+                    ('901','9001'),('902','9002'),('903','9003'),('904','9004'),('905','9005'),('906','9006'),
+                    ('600.24','9100'),('600.32','9110'),('950.1','9200'),('180.3','9300')) AS v(alt, neu)
+              LOOP
+                SELECT id INTO alt_id FROM lohnposition WHERE code = r.alt;
+                SELECT id INTO neu_id FROM lohnposition WHERE code = r.neu;
+                IF alt_id IS NOT NULL AND neu_id IS NULL THEN
+                  UPDATE lohnposition SET code = r.neu, mirus_code = COALESCE(NULLIF(TRIM(mirus_code), ''), r.alt)
+                   WHERE id = alt_id;
+                ELSIF alt_id IS NOT NULL AND neu_id IS NOT NULL THEN
+                  UPDATE lohn_zulage SET lohnposition_id = neu_id WHERE lohnposition_id = alt_id;
+                  IF to_regclass('public.vertragsmodell_lohnschema') IS NOT NULL THEN
+                    UPDATE vertragsmodell_lohnschema SET lohnposition_id = neu_id
+                     WHERE lohnposition_id = alt_id
+                       AND NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema x
+                                        WHERE x.lohnposition_id = neu_id AND x.modell = vertragsmodell_lohnschema.modell
+                                          AND x.art = vertragsmodell_lohnschema.art);
+                  END IF;
+                  UPDATE lohnposition SET is_active = false WHERE id = alt_id;
+                  UPDATE lohnposition SET mirus_code = COALESCE(NULLIF(TRIM(mirus_code), ''), r.alt) WHERE id = neu_id;
+                END IF;
+                IF to_regclass('public.lohn_konto_mapping') IS NOT NULL THEN
+                  UPDATE lohn_konto_mapping SET lohnart_code = r.neu WHERE lohnart_code = r.alt;
+                END IF;
+                IF to_regclass('public.simulation_vortrag') IS NOT NULL THEN
+                  UPDATE simulation_vortrag SET code = r.neu WHERE code = r.alt;
+                END IF;
+                IF to_regclass('public.vertragstyp_lohnposition') IS NOT NULL THEN
+                  UPDATE vertragstyp_lohnposition SET lohnposition_code = r.neu WHERE lohnposition_code = r.alt;
+                END IF;
+              END LOOP;
+              UPDATE lohnposition SET swissdec_lohnart = NULL
+               WHERE code IN ('9001','9002','9003','9004','9005','9006','9100','9110','9200');
+            END $$;
+        ");
+
     // Stand 133: Lohnarten-Korrekturen aus dem Quality Tool März 2025 (Walter 02.11.2026).
     // Einmalig, weil die Positionen schon in Lohnläufen stecken und die Maske sie sperrt.
     //  - 2060 Lohnabzug KA/SW ist eine Bruttokürzung (Swissdec), kein Netto-Abzug: Typ ZULAGE.
@@ -2569,8 +2617,8 @@ using (var scope = app.Services.CreateScope())
                 (10, '1000'), (20, '1005'), (55, '1061'), (40, '1160'),
                 (180, '1200'), (190, '3000'), (195, '1161'),
                 (500, '5010'), (510, '5012'), (530, '5042'), (540, '5020'),
-                (550, '5050'), (560, '5100'), (600, '600.24'),
-                (1060, '2050'), (1090, '950.1'), (2010, '1200'), (4070, '1160')
+                (550, '5050'), (560, '5100'), (600, '9100'),
+                (1060, '2050'), (1090, '9200'), (2010, '1200'), (4070, '1160')
               ) AS v(pos, code)
              WHERE position = v.pos AND (lohnart_code IS NULL OR lohnart_code = '');
         ");
@@ -2649,7 +2697,7 @@ using (var scope = app.Services.CreateScope())
              WHERE position = 200 AND sub_position = 20 AND fibukonto = '2071';
             UPDATE lohn_konto_mapping SET lohnart_code = '6070'
              WHERE position = 200 AND sub_position = 1 AND fibukonto = '4095';
-            UPDATE lohn_konto_mapping SET lohnart_code = '180.3'
+            UPDATE lohn_konto_mapping SET lohnart_code = '9300'
              WHERE position = 180 AND gegenkonto = '1920';
             UPDATE lohn_konto_mapping SET lohnart_code = '5010' WHERE position = 500 AND fibukonto = '1920';
             UPDATE lohn_konto_mapping SET lohnart_code = '5012' WHERE position = 510 AND fibukonto = '1920';
@@ -2662,9 +2710,9 @@ using (var scope = app.Services.CreateScope())
             UPDATE lohn_konto_mapping SET lohnart_code = '5102' WHERE position = 565 AND fibukonto = '1920';
             UPDATE lohn_konto_mapping SET lohnart_code = '5212'
              WHERE position = 600 AND sub_position = 5 AND fibukonto = '1920';
-            UPDATE lohn_konto_mapping SET lohnart_code = '600.24' WHERE position = 600 AND sub_position = 24;
-            UPDATE lohn_konto_mapping SET lohnart_code = '600.32' WHERE position = 600 AND sub_position = 32;
-            UPDATE lohn_konto_mapping SET lohnart_code = '950.1' WHERE position = 950 AND fibukonto = '1920';
+            UPDATE lohn_konto_mapping SET lohnart_code = '9100' WHERE position = 600 AND sub_position = 24;
+            UPDATE lohn_konto_mapping SET lohnart_code = '9110' WHERE position = 600 AND sub_position = 32;
+            UPDATE lohn_konto_mapping SET lohnart_code = '9200' WHERE position = 950 AND fibukonto = '1920';
         ");
         startLog.LogInformation("Stand 96: Kontoplan-Nummer entspricht der Lohnposition");
     }
@@ -2685,7 +2733,7 @@ using (var scope = app.Services.CreateScope())
                 ('55.1','1061'),('55.2','1065'),('55.10','1076'),('55.11','1076'),('55.12','1076'),
                 ('40.1','1160'),('195.1','1160'),('195.3','1160'),('195.5','1160'),('195.6','1160'),
                 ('50.1','1161'),('195.2','1161'),('195.4','1161'),
-                ('180.1','1200'),('180.2','1200'),('180.3','180.3'),('200.10','1200'),
+                ('180.1','1200'),('180.2','1200'),('180.3','9300'),('200.10','1200'),
                 ('200.5','1210'),('200.1','6070'),
                 ('190.1','3000'),('190.2','3000'),('200.190','3000'),('190.3','3034'),
                 ('70.1','1301'),('70.2','2035'),
@@ -2698,7 +2746,7 @@ using (var scope = app.Services.CreateScope())
                 ('103','5010'),('104','5012'),('107','5042'),('110','5020'),('111','5050'),
                 ('565','5102'),('565.1','5102'),('565.2','5102'),
                 ('600.5','5212'),
-                ('600.24','600.24'),('600.32','600.32'),('950.1','950.1');
+                ('600.24','9100'),('600.32','9110'),('950.1','9200');
 
             UPDATE elm_lohnraster e
                SET verwendet_lohnposition_id = lp.id
@@ -4899,12 +4947,12 @@ using (var scope = app.Services.CreateScope())
             false, false, false, false, false,
             NULL, v.sort_order, true
         FROM (VALUES
-            ('901', 'Vortrag Zeitsaldo (Stunden)',        901),
-            ('902', 'Vortrag Feiertag-Saldo (Tage)',      902),
-            ('903', 'Vortrag Ferien-Saldo (Tage)',        903),
-            ('904', 'Vortrag Nacht-Saldo (Stunden)',      904),
-            ('905', 'Vortrag Ferien-Geld-Saldo (CHF)',    905),
-            ('906', 'Vortrag 13. Monatslohn-Saldo (CHF)', 906)
+            ('9001', 'Vortrag Zeitsaldo (Stunden)',        901),
+            ('9002', 'Vortrag Feiertag-Saldo (Tage)',      902),
+            ('9003', 'Vortrag Ferien-Saldo (Tage)',        903),
+            ('9004', 'Vortrag Nacht-Saldo (Stunden)',      904),
+            ('9005', 'Vortrag Ferien-Geld-Saldo (CHF)',    905),
+            ('9006', 'Vortrag 13. Monatslohn-Saldo (CHF)', 906)
         ) AS v(code, bezeichnung, sort_order)
         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
 
@@ -4912,7 +4960,7 @@ using (var scope = app.Services.CreateScope())
            SET kategorie = 'Saldo-Vortrag',
                typ       = 'ZULAGE',
                is_active = true
-         WHERE code IN ('901','902','903','904','905','906')
+         WHERE code IN ('9001','9002','9003','9004','9005','9006')
            AND (kategorie IS DISTINCT FROM 'Saldo-Vortrag' OR is_active IS NOT TRUE);
     ");
 
@@ -4990,11 +5038,11 @@ using (var scope = app.Services.CreateScope())
              lohnausweis_code, sort_order, is_active,
              nicht_drucken_wenn_null, nicht_im_vertrag_drucken)
         SELECT
-            '600.32', 'Uniformen-Depot', 'ABZUG',
+            '9110', 'Uniformen-Depot', 'ABZUG',
             false, false, false, false, false,
             NULL, 632, true,
             true, true
-        WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '600.32');
+        WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '9110');
 
         UPDATE lohnposition
            SET bezeichnung = 'Uniformen-Depot',
@@ -5005,7 +5053,7 @@ using (var scope = app.Services.CreateScope())
                ktg_pflichtig     = false,
                bvg_pflichtig     = false,
                qst_pflichtig     = false
-         WHERE code = '600.32';
+         WHERE code = '9110';
 
         UPDATE lohn_konto_mapping
            SET bezeichnung = 'Uniformen-Depot'
@@ -6385,7 +6433,7 @@ using (var scope = app.Services.CreateScope())
             -- Fuer ALLE Modelle
             ('ALLE',  '190.1', 'automatisch', 10),
             ('ALLE',  '190.2', 'automatisch', 20),
-            ('ALLE',  '600.24','automatisch', 30)
+            ('ALLE',  '9100','automatisch', 30)
         ) AS v(modell, code, art, sort_order)
         JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
         WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema LIMIT 1);
@@ -6434,14 +6482,14 @@ using (var scope = app.Services.CreateScope())
                v.feld, v.so, true, true, true
         FROM (VALUES
             ('600.5', 'Korrektur BVG Vorjahr', '10', 601),
-            ('950.1', 'Vorschuss',             NULL, 950)
+            ('9200', 'Vorschuss',             NULL, 950)
         ) AS v(code, bezeichnung, feld, so)
         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
 
         UPDATE elm_lohnraster r
            SET verwendet_lohnposition_id = lp.id
           FROM lohnposition lp
-         WHERE lp.code = r.code AND lp.is_active = true
+         WHERE (lp.code = r.code OR lp.mirus_code = r.code) AND lp.is_active = true
            AND r.code IN ('200.5', '600.5', '950.1')
            AND r.verwendet_lohnposition_id IS NULL
            AND NOT EXISTS (SELECT 1 FROM elm_lohnraster x WHERE x.verwendet_lohnposition_id = lp.id);
@@ -6468,25 +6516,25 @@ using (var scope = app.Services.CreateScope())
             nicht_drucken_wenn_null, nicht_im_vertrag_drucken,
             sort_order, is_active, created_at
         )
-        SELECT '180.3', '13. Monatslohn auszahlen', 'ZULAGE',
+        SELECT '9300', '13. Monatslohn auszahlen', 'ZULAGE',
                false, false, false, false, false,
                NULL, false,
                false, false, false,
                true, true,
                181, true, CURRENT_TIMESTAMP
-         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '180.3');
+         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '9300');
         UPDATE lohnposition
            SET mirus_code = COALESCE(mirus_code, '180.3'),
                swissdec_lohnart = COALESCE(swissdec_lohnart, '1200')
-         WHERE code = '180.3';
+         WHERE code = '9300';
 
         INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
         SELECT v.modell, lp.id, v.art, v.sort_order
           FROM (VALUES
-            ('FIX',   '180.3', 'ereignis', 45),
-            ('FIX-M', '180.3', 'ereignis', 45),
-            ('MTP',   '180.3', 'ereignis', 75),
-            ('FLEX',  '180.3', 'ereignis', 65)
+            ('FIX',   '9300', 'ereignis', 45),
+            ('FIX-M', '9300', 'ereignis', 45),
+            ('MTP',   '9300', 'ereignis', 75),
+            ('FLEX',  '9300', 'ereignis', 65)
           ) AS v(modell, code, art, sort_order)
           JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
          WHERE NOT EXISTS (
@@ -7436,7 +7484,7 @@ using (var scope = app.Services.CreateScope())
                 ('125.1','2050'),('125.2','2050'),
                 ('65.1','2050'),('65.2','2050'),('75.1','2050'),('75.2','2050'),
                 ('85.1','2050'),('95.1','2050'),
-                ('1200.2','1200'),('1200.3','180.3');
+                ('1200.2','1200'),('1200.3','9300');
             INSERT INTO _sd84_map (alt, kanon)
             SELECT lp.code, v.kanon
               FROM lohnposition lp
@@ -7464,7 +7512,7 @@ using (var scope = app.Services.CreateScope())
                 ('2050', '75.1',  'Korrektur Taggelder',          'Korrekturen', '2050', true, true, 60),
                 ('2000', '80.1',  'EO-Taggeld Militär / Zivilschutz', 'EO', '2000', false, false, 40),
                 ('2001', '120.1', 'Mutterschaftsentschädigung EO', 'EO', '2001', true,  false, 40),
-                ('180.3','180.3', '13. Monatslohn auszahlen',      '13. ML', '1200', false, false, 181)
+                ('9300','180.3', '13. Monatslohn auszahlen',      '13. ML', '1200', false, false, 181)
             ) AS v(code, mirus, bez, kat, sd, nbuv, ft, so)
             WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
 
@@ -7499,11 +7547,11 @@ using (var scope = app.Services.CreateScope())
              WHERE v.lohnposition_code = m.alt;
 
             UPDATE lohnposition
-               SET code = '180.3', swissdec_lohnart = '1200', mirus_code = '180.3',
+               SET code = '9300', swissdec_lohnart = '1200', mirus_code = '180.3',
                    bezeichnung = CASE WHEN bezeichnung ILIKE '%auszahl%' THEN bezeichnung
                                       ELSE '13. Monatslohn auszahlen' END
              WHERE code = '1200.3'
-               AND NOT EXISTS (SELECT 1 FROM lohnposition x WHERE x.code = '180.3');
+               AND NOT EXISTS (SELECT 1 FROM lohnposition x WHERE x.code = '9300');
 
             UPDATE lohnposition SET is_active = false
              WHERE is_active = true
@@ -7515,7 +7563,7 @@ using (var scope = app.Services.CreateScope())
                 ('FIX','2001','ereignis',50),('FIX-M','2001','ereignis',50),('MTP','2001','ereignis',50),('FLEX','2001','ereignis',50),
                 ('FIX','2002','ereignis',52),('FIX-M','2002','ereignis',52),('MTP','2002','ereignis',52),('FLEX','2002','ereignis',52),
                 ('FIX','2050','ereignis',70),('FIX-M','2050','ereignis',70),('MTP','2050','ereignis',70),('FLEX','2050','ereignis',70),
-                ('FIX','180.3','ereignis',45),('FIX-M','180.3','ereignis',45),('MTP','180.3','ereignis',75),('FLEX','180.3','ereignis',65)
+                ('FIX','9300','ereignis',45),('FIX-M','9300','ereignis',45),('MTP','9300','ereignis',75),('FLEX','9300','ereignis',65)
             ) AS v(modell, code, art, sort_order)
             JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
             WHERE NOT EXISTS (
@@ -7816,14 +7864,14 @@ using (var scope = app.Services.CreateScope())
             UPDATE lohnposition SET is_active = true, kategorie = 'Auslöser',
                    swissdec_lohnart = '1200', mirus_code = '180.3',
                    bezeichnung = '13. Monatslohn auszahlen'
-             WHERE code = '180.3';
+             WHERE code = '9300';
 
             INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
             SELECT v.modell, lp.id, 'ereignis', v.so
             FROM (VALUES
                 ('FIX', 45), ('FIX-M', 45), ('MTP', 75), ('FLEX', 65)
             ) AS v(modell, so)
-            JOIN lohnposition lp ON lp.code = '180.3' AND lp.is_active = true
+            JOIN lohnposition lp ON lp.code = '9300' AND lp.is_active = true
             WHERE NOT EXISTS (
                 SELECT 1 FROM vertragsmodell_lohnschema x
                 WHERE x.modell = v.modell AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
@@ -7846,18 +7894,18 @@ using (var scope = app.Services.CreateScope())
             UPDATE lohnposition
                SET kategorie = 'Betrieb', swissdec_lohnart = NULL,
                    mirus_code = COALESCE(mirus_code, code)
-             WHERE code IN ('600.24','600.32','950.1');
+             WHERE code IN ('9100','9110','9200');
             UPDATE lohnposition
                SET kategorie = 'Saldo-Vortrag', swissdec_lohnart = NULL,
                    mirus_code = COALESCE(mirus_code, code)
-             WHERE code IN ('901','902','903','904','905','906');
+             WHERE code IN ('9001','9002','9003','9004','9005','9006');
 
             -- Alle echten Swissdec-Positionen: swissdec_lohnart = code
             -- ACHTUNG: Regex-Klammern fuer ExecuteSqlRaw verdoppeln (sonst FormatException).
             UPDATE lohnposition SET swissdec_lohnart = code
              WHERE is_active = true
                AND code ~ '^[0-9]{{4,5}}$'
-               AND code NOT IN ('901','902','903','904','905','906');
+               AND code NOT IN ('9001','9002','9003','9004','9005','9006','9100','9110','9200','9300');
         ");
         startLog.LogInformation("Stand 88: nur Swissdec-Stamm; Betrieb/Vortrag/Auslöser intern; 120→5100, 600.5→5212");
     }
@@ -7934,7 +7982,7 @@ using (var scope = app.Services.CreateScope())
             UPDATE lohnposition SET is_active = false
              WHERE is_active = true
                AND position('.' in code) > 0
-               AND code NOT IN ('600.24','600.32','950.1','180.3');
+               AND code NOT IN ('9100','9110','9200','9300');
 
             -- reine Kurz-Nr. (Mirus 103, 20, …)
             UPDATE lohnposition SET is_active = false
@@ -8002,7 +8050,7 @@ using (var scope = app.Services.CreateScope())
                    is_active = false
              WHERE is_active = true
                AND code !~ '^[0-9]{{4,5}}$'
-               AND code NOT IN ('600.24','600.32','950.1','901','902','903','904','905','906','180.3');
+               AND code NOT IN ('9100','9110','9200','9001','9002','9003','9004','9005','9006','9300');
         ");
         startLog.LogInformation("Stand 103: {N} Mirus-Nummern aus der Auswahl genommen", nMirus);
 

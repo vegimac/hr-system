@@ -68,8 +68,8 @@ public class FibuKatalogTests
     [Fact]
     public void Depot_ist_nicht_die_Lgav_Zeile()
     {
-        var lgav = FibuKatalog.Fuer("600.24")!.Value;
-        var depot = FibuKatalog.Fuer("600.32")!.Value;
+        var lgav = FibuKatalog.Fuer("9100")!.Value;
+        var depot = FibuKatalog.Fuer("9110")!.Value;
         Assert.Equal(24, lgav.MapSub);
         Assert.Equal(32, depot.MapSub);
         Assert.NotEqual(lgav.Haben, depot.Haben);
@@ -93,7 +93,7 @@ public class FibuKatalogTests
     [Fact]
     public void Ausloeser_13_ml_bucht_Rueckstellung_an_1920()
     {
-        var k = FibuKatalog.Fuer("180.3")!.Value;
+        var k = FibuKatalog.Fuer("9300")!.Value;
         Assert.Equal("2017", k.Soll);
         Assert.Equal("1920", k.Haben);
         Assert.Equal(180, k.MapPosition);

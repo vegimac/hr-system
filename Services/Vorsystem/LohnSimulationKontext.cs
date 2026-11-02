@@ -71,7 +71,7 @@ public sealed class LohnSimulationKontext
         "600.5",   // Korrektur BVG Vorjahr
         "600.22",  // Lohnabzug Art. 337d OR
         "600.23",  // Lohnabzug Art. 337d OR
-        "600.24",  // LGAV-Beitrag (in der Simulation nicht automatisch)
+        "600.24",  // LGAV-Beitrag (in der Simulation nicht automatisch) — Mirus-Code aus dem Import
         "600.32",  // Uniformen-Depot (in der Simulation nicht automatisch)
         "950.1",   // Vorschuss
     };

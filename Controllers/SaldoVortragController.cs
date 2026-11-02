@@ -52,12 +52,12 @@ public class SaldoVortragController : ControllerBase
             .FirstOrDefaultAsync();
 
     // Lohnposition-Codes (siehe add_saldo_vortrag.sql)
-    private const string CodeZeit         = "901";
-    private const string CodeFeiertag     = "902";
-    private const string CodeFerienTage   = "903";
-    private const string CodeNacht        = "904";
-    private const string CodeFerienGeld   = "905";
-    private const string CodeDreizehnter  = "906";
+    private const string CodeZeit         = LohnCodes.VortragZeit;
+    private const string CodeFeiertag     = LohnCodes.VortragFeiertag;
+    private const string CodeFerienTage   = LohnCodes.VortragFerienTage;
+    private const string CodeNacht        = LohnCodes.VortragNacht;
+    private const string CodeFerienGeld   = LohnCodes.VortragFerienGeld;
+    private const string CodeDreizehnter  = LohnCodes.Vortrag13Ml;
 
     private static readonly string[] AllCodes =
         { CodeZeit, CodeFeiertag, CodeFerienTage, CodeNacht, CodeFerienGeld, CodeDreizehnter };
@@ -85,7 +85,9 @@ public class SaldoVortragController : ControllerBase
 
     /// <summary>Öffentlich für Unit-Tests (Relevanz-Matrix).</summary>
     public static bool IsVortragRelevantForModel(string saldoCode, string model) =>
-        IsRelevantForModel(saldoCode, model == "UTP" ? "FLEX" : model);
+        IsRelevantForModel(
+            LohnCodes.InternAltNachNeu.TryGetValue(saldoCode, out var neu) ? neu : saldoCode,   // alte Mirus-Nr. 901–906
+            model == "UTP" ? "FLEX" : model);
 
     public record VortragDto(
         string Periode,                    // "YYYY-MM" — Periode in der die Vortrag-Einträge angelegt werden
@@ -274,7 +276,7 @@ public class SaldoVortragController : ControllerBase
     public record SaldoKorrekturDto(
         int EmployeeId,
         string Periode,        // "YYYY-MM" — Periode, in der die Korrektur wirkt
-        string Code,           // "901"…"906" — Saldo-Vortrag-Lohnposition
+        string Code,           // LohnCodes.VortragZeit…LohnCodes.Vortrag13Ml — Saldo-Vortrag-Lohnposition
         decimal Betrag,        // DELTA (signed) — wird zum bestehenden Eintrag addiert
         string? Begruendung    // PFLICHT — Audit-Trail («Abgleich mit Mirus» etc.)
     );

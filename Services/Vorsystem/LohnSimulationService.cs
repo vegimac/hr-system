@@ -1,3 +1,4 @@
+using HrSystem.Services.LohnFormelwerk;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using HrSystem.Data;
@@ -237,12 +238,12 @@ public class LohnSimulationService
         zeile.SvBasisAhv = Wert("svBasisAhv") ?? 0m;
         zeile.SvBasisNbuv = Wert("svBasisNbuv") ?? 0m;
         zeile.SvBasisKtg = Wert("svBasisKtg") ?? 0m;
-        zeile.HourSaldo = Wert("neuerHourSaldo") ?? Alt("901", z => z.HourSaldo);
-        zeile.NachtSaldo = Wert("neuerNachtSaldo") ?? Alt("904", z => z.NachtSaldo);
-        zeile.FerienGeldSaldo = Wert("ferienGeldSaldoNeu") ?? Alt("905", z => z.FerienGeldSaldo);
-        zeile.FerienTageSaldo = Wert("ferienTageSaldoNeu") ?? Alt("903", z => z.FerienTageSaldo);
-        zeile.FeiertagTageSaldo = Wert("feiertagTageSaldoNeu") ?? Alt("902", z => z.FeiertagTageSaldo);
-        zeile.ThirteenthAccumulated = Wert("thirteenthAccumulated") ?? Alt("906", z => z.ThirteenthAccumulated);
+        zeile.HourSaldo = Wert("neuerHourSaldo") ?? Alt(LohnCodes.VortragZeit, z => z.HourSaldo);
+        zeile.NachtSaldo = Wert("neuerNachtSaldo") ?? Alt(LohnCodes.VortragNacht, z => z.NachtSaldo);
+        zeile.FerienGeldSaldo = Wert("ferienGeldSaldoNeu") ?? Alt(LohnCodes.VortragFerienGeld, z => z.FerienGeldSaldo);
+        zeile.FerienTageSaldo = Wert("ferienTageSaldoNeu") ?? Alt(LohnCodes.VortragFerienTage, z => z.FerienTageSaldo);
+        zeile.FeiertagTageSaldo = Wert("feiertagTageSaldoNeu") ?? Alt(LohnCodes.VortragFeiertag, z => z.FeiertagTageSaldo);
+        zeile.ThirteenthAccumulated = Wert("thirteenthAccumulated") ?? Alt(LohnCodes.Vortrag13Ml, z => z.ThirteenthAccumulated);
         zeile.SlipJson = slip.ToJsonString();
     }
 

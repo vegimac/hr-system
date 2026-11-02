@@ -1,3 +1,4 @@
+using HrSystem.Services.LohnFormelwerk;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
@@ -854,7 +855,7 @@ public class ZwischenverdienistController : ControllerBase
                     bonus += betrag;
                     continue;
                 }
-                if (codeU is "180.1" or "180.3"
+                if (codeU is "180.1" or "180.3" or LohnCodes.Ml13Auszahlen
                     || bezU.Contains("13. MONATSLOHN") || bezU.Contains("13. ML"))
                 {
                     dreizehn += betrag;

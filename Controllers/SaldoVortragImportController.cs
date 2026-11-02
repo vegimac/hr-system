@@ -210,7 +210,7 @@ public class SaldoVortragImportController : ControllerBase
             .Where(l => l.Code == LohnCodes.VortragFerienGeld || l.Code == LohnCodes.Vortrag13Ml)
             .ToDictionaryAsync(l => l.Code, l => l);
 
-        if (!lps.ContainsKey("905") || !lps.ContainsKey("906"))
+        if (!lps.ContainsKey(LohnCodes.VortragFerienGeld) || !lps.ContainsKey(LohnCodes.Vortrag13Ml))
             return Problem("Vortrag-Lohnpositionen 905/906 fehlen. Bitte add_saldo_vortrag.sql ausführen.", statusCode: 500);
 
         // MA + Vertragsmodelle laden (für Relevanz-Filterung pro MA).
@@ -228,8 +228,8 @@ public class SaldoVortragImportController : ControllerBase
                 var emp = emps.FirstOrDefault(e => e.Id == row.EmployeeId);
                 if (emp is null) continue;
                 var model = NormalizeModel(FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode)?.EmploymentModel);
-                werte.Add(new SimWert(row.EmployeeId, "905", row.FerienGeldChf, IsRelevant905(model)));
-                werte.Add(new SimWert(row.EmployeeId, "906", row.DreizehnterChf, IsRelevant906(model)));
+                werte.Add(new SimWert(row.EmployeeId, LohnCodes.VortragFerienGeld, row.FerienGeldChf, IsRelevant905(model)));
+                werte.Add(new SimWert(row.EmployeeId, LohnCodes.Vortrag13Ml, row.DreizehnterChf, IsRelevant906(model)));
             }
             return await SimulationsVortragSpeichernAsync(dto.CompanyProfileId, werte, "Mirus Saldomethode (CHF)", dto.Rows.Count - emps.Count);
         }
@@ -253,8 +253,8 @@ public class SaldoVortragImportController : ControllerBase
             var modelEmp = FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode);
             var model = NormalizeModel(modelEmp?.EmploymentModel);
 
-            UpsertCode("905", lps["905"], row.FerienGeldChf,  IsRelevant905(model));
-            UpsertCode("906", lps["906"], row.DreizehnterChf, IsRelevant906(model));
+            UpsertCode(LohnCodes.VortragFerienGeld, lps[LohnCodes.VortragFerienGeld], row.FerienGeldChf,  IsRelevant905(model));
+            UpsertCode(LohnCodes.Vortrag13Ml, lps[LohnCodes.Vortrag13Ml], row.DreizehnterChf, IsRelevant906(model));
 
             void UpsertCode(string code, Lohnposition lp, decimal value, bool relevant)
             {
@@ -566,7 +566,7 @@ public class SaldoVortragImportController : ControllerBase
             return BadRequest(new { error = "Keine Zeilen zum Speichern." });
 
         // Vortrag-Lohnpositionen 901/902/903/904 (Stunden, Feiertag-Tage, Ferien-Tage, Nacht).
-        var codes = new[] { "901", "902", "903", "904" };
+        var codes = new[] { LohnCodes.VortragZeit, LohnCodes.VortragFeiertag, LohnCodes.VortragFerienTage, LohnCodes.VortragNacht };
         Dictionary<string, Lohnposition> lps;
         try
         {
@@ -626,10 +626,10 @@ public class SaldoVortragImportController : ControllerBase
                 var emp = emps.FirstOrDefault(e => e.Id == row.EmployeeId);
                 if (emp is null) continue;
                 var model = NormalizeModel(FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode)?.EmploymentModel);
-                werte.Add(new SimWert(row.EmployeeId, "901", row.StundenSaldo, IsRelevant901(model)));
-                werte.Add(new SimWert(row.EmployeeId, "904", row.NachtSaldo, IsRelevant904(model)));
-                werte.Add(new SimWert(row.EmployeeId, "903", row.FerienTageSaldo, IsRelevant903(model)));
-                werte.Add(new SimWert(row.EmployeeId, "902", row.FeiertagTageSaldo, IsRelevant902(model)));
+                werte.Add(new SimWert(row.EmployeeId, LohnCodes.VortragZeit, row.StundenSaldo, IsRelevant901(model)));
+                werte.Add(new SimWert(row.EmployeeId, LohnCodes.VortragNacht, row.NachtSaldo, IsRelevant904(model)));
+                werte.Add(new SimWert(row.EmployeeId, LohnCodes.VortragFerienTage, row.FerienTageSaldo, IsRelevant903(model)));
+                werte.Add(new SimWert(row.EmployeeId, LohnCodes.VortragFeiertag, row.FeiertagTageSaldo, IsRelevant902(model)));
             }
             return await SimulationsVortragSpeichernAsync(dto.CompanyProfileId, werte, "Mirus Monatsblatt", dto.Rows.Count - emps.Count);
         }
@@ -654,10 +654,10 @@ public class SaldoVortragImportController : ControllerBase
             var modelEmp = FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode);
             var model = NormalizeModel(modelEmp?.EmploymentModel);
 
-            UpsertSaldo("901", lps["901"], row.StundenSaldo,       IsRelevant901(model));
-            UpsertSaldo("904", lps["904"], row.NachtSaldo,         IsRelevant904(model));
-            UpsertSaldo("903", lps["903"], row.FerienTageSaldo,    IsRelevant903(model));
-            UpsertSaldo("902", lps["902"], row.FeiertagTageSaldo,  IsRelevant902(model));
+            UpsertSaldo(LohnCodes.VortragZeit, lps[LohnCodes.VortragZeit], row.StundenSaldo,       IsRelevant901(model));
+            UpsertSaldo(LohnCodes.VortragNacht, lps[LohnCodes.VortragNacht], row.NachtSaldo,         IsRelevant904(model));
+            UpsertSaldo(LohnCodes.VortragFerienTage, lps[LohnCodes.VortragFerienTage], row.FerienTageSaldo,    IsRelevant903(model));
+            UpsertSaldo(LohnCodes.VortragFeiertag, lps[LohnCodes.VortragFeiertag], row.FeiertagTageSaldo,  IsRelevant902(model));
 
             void UpsertSaldo(string code, Lohnposition lp, decimal? value, bool relevant)
             {

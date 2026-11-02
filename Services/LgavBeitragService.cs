@@ -1,3 +1,4 @@
+using HrSystem.Services.LohnFormelwerk;
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -32,7 +33,7 @@ public class LgavBeitragService
     // der Kontoplan-Position entsprechen (lohn_konto_mapping 600.24 → Soll 1920 /
     // Gegen 2023), damit das Fibu-Journal die LGAV-Abzüge verbuchen kann. Früher
     // "140" — das traf keine Kontoplan-Zeile, alle LGAV-Zeilen wurden übersprungen.
-    private const string LgavCode = "600.24";
+    private const string LgavCode = LohnCodes.Lgav;
 
     public LgavBeitragService(AppDbContext db)
     {

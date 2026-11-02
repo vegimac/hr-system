@@ -1,3 +1,4 @@
+using HrSystem.Services.LohnFormelwerk;
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ namespace HrSystem.Services;
 /// </summary>
 public class UniformDepotService
 {
-    public const string LohnpositionCode = "600.32";
+    public const string LohnpositionCode = LohnCodes.UniformDepot;
     public const decimal DepotBetrag = 50m;
     public static readonly DateOnly BackfillEntryBefore = new(2026, 7, 1);
 

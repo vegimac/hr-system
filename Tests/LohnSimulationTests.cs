@@ -75,7 +75,7 @@ public class LohnSimulationTests
         var slip = JsonNode.Parse("""{ "totalLohn": 0, "nettolohn": 0 }""")!;
         var z = new SimulationLohn();
         LohnSimulationService.Uebernimm(z, slip, null,
-            new Dictionary<string, decimal> { ["901"] = -12.5m, ["903"] = 7m, ["906"] = 1200m });
+            new Dictionary<string, decimal> { ["9001"] = -12.5m, ["9003"] = 7m, ["9006"] = 1200m });
         Assert.Equal(-12.5m, z.HourSaldo);
         Assert.Equal(7m, z.FerienTageSaldo);
         Assert.Equal(1200m, z.ThirteenthAccumulated);
@@ -86,7 +86,7 @@ public class LohnSimulationTests
     {
         var slip = JsonNode.Parse("""{ "totalLohn": 0 }""")!;
         var z = new SimulationLohn();
-        LohnSimulationService.Uebernimm(z, slip, Z(2026, 2, 8.75m), new Dictionary<string, decimal> { ["901"] = 99m });
+        LohnSimulationService.Uebernimm(z, slip, Z(2026, 2, 8.75m), new Dictionary<string, decimal> { ["9001"] = 99m });
         Assert.Equal(8.75m, z.HourSaldo);
     }
 

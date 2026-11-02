@@ -26,7 +26,7 @@ public static class FerienAuszahlungDaten
             .Select(z => new { z.Lohnposition!.Code, z.Betrag })
             .ToListAsync();
         if (vortrag.Count == 0) return null;
-        return new(vortrag.Where(v => v.Code == "903").Sum(v => v.Betrag),
-                   vortrag.Where(v => v.Code == "905").Sum(v => v.Betrag));
+        return new(vortrag.Where(v => v.Code == LohnCodes.VortragFerienTage).Sum(v => v.Betrag),
+                   vortrag.Where(v => v.Code == LohnCodes.VortragFerienGeld).Sum(v => v.Betrag));
     }
 }

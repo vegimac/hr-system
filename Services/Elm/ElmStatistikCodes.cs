@@ -192,6 +192,8 @@ public static class ElmStatistikCodes
         >= 5000 and <= 5999 => Topf.Keiner,
         // Spesen sind kein Lohn
         >= 6000 and <= 6999 => Topf.Keiner,
+        // OneCrew intern (Saldo-Vortrag, LGAV, Depot, Vorschuss, 13.-ML-Auslöser) — nie melden
+        >= 9000 and <= 9999 => Topf.Keiner,
         _ => null,
     };
 

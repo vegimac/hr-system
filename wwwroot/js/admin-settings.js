@@ -1446,16 +1446,17 @@ async function lpSwissdecVorschlaegeAnwenden() {
 
 function lpIstSwissdecNr(code) {
     const c = String(code || '').trim();
-    return /^[0-9]{4,5}$/.test(c) && !['901','902','903','904','905','906'].includes(c);
-}
-function lpIstBetrieb(l) {
-    const c = String(l.code || '').trim();
-    return c === '600.24' || c === '600.32' || c === '950.1' || c === '180.3'
-        || c.startsWith('600.') || c.startsWith('950.');
+    // 9000–9999 = OneCrew intern, nie Swissdec (Walter 02.11.2026)
+    return /^[0-9]{4,5}$/.test(c) && !/^9[0-9]{3}$/.test(c);
 }
 function lpIstVortrag(l) {
     const c = String(l.code || '').trim();
-    return ['901','902','903','904','905','906'].includes(c);
+    return ['9001','9002','9003','9004','9005','9006'].includes(c);
+}
+function lpIstBetrieb(l) {
+    // OneCrew-Betrieb/Auslöser: 9000er ausser Saldo-Vortrag (9100 LGAV, 9110 Depot, 9200 Vorschuss, 9300 13.-ML-Auslöser)
+    const c = String(l.code || '').trim();
+    return /^9[0-9]{3}$/.test(c) && !lpIstVortrag(l);
 }
 
 function lpRender() {
@@ -1488,7 +1489,7 @@ function lpRender() {
     }
 
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="17" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="16" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
         return;
     }
 
@@ -1497,7 +1498,6 @@ function lpRender() {
         const tbadge = l.typ === 'ABZUG'
             ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ABZUG</span>'
             : '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ZULAGE</span>';
-        const mirus = (l.mirusCode && String(l.mirusCode).trim()) || '';
         const nrTitle = lpIstSwissdecNr(l.code) ? 'Swissdec' : (lpIstVortrag(l) ? 'Saldo-Vortrag (intern)' : 'Betrieb (intern, kein Swissdec)');
         return `<tr class="lp-row" style="${bg}border-bottom:1px solid rgba(60,55,48,0.08)">
             <td style="padding:10px 14px;font-weight:700;font-family:ui-monospace,Menlo,monospace;color:#3f3f3f;font-size:13px" title="${nrTitle}">${l.code}</td>
@@ -1514,7 +1514,6 @@ function lpRender() {
             <td class="lp-td-tight" style="background:rgba(187,247,208,0.28)">${chk(l.zaehltAlsBasisFerien)}</td>
             <td class="lp-td-tight" style="background:rgba(187,247,208,0.28);border-right:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasis13ml)}</td>
             <td class="lp-td-tight" style="font-family:monospace;font-size:12px;color:#6366f1" title="Lohnausweis / Statistik">${l.lohnausweisCode || '—'}</td>
-            <td style="padding:10px 8px;text-align:center;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#a8a29a" title="Frühere Mirus-Nr. (Parallelvergleich)">${mirus || '—'}</td>
             <td style="padding:10px 14px;text-align:center">${tbadge}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">
                 <div style="position:relative;display:inline-block">
@@ -1553,7 +1552,7 @@ function lpSuggestBasisFlags(code, typ) {
         '1166':  { feiertag: false, ferien: false, ml13: true  },
         '1168':  { feiertag: false, ferien: false, ml13: true  },
         '1200':  { feiertag: false, ferien: false, ml13: false },
-        '180.3': { feiertag: false, ferien: false, ml13: false },
+        '9300':  { feiertag: false, ferien: false, ml13: false },
         '1300':  { feiertag: true,  ferien: false, ml13: true  },
         '1301':  { feiertag: true,  ferien: false, ml13: true  },
         '2000':  { feiertag: false, ferien: false, ml13: true  },

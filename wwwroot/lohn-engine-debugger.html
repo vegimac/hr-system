@@ -174,7 +174,7 @@ const EX = {
   },
   ml13Topf: {
     title: '13. ML · MTP / FIX / FIX-M → Topf',
-    why: 'Immer ansammeln. Auszahlung nur Raster-Monat oder Auslöser 180.3.',
+    why: 'Immer ansammeln. Auszahlung nur Raster-Monat oder Auslöser 9300.',
     box: 'Zuwachs → Topf. Auszahlung: Pott + Monat → 1201 (MTP/FLEX) bzw. 1200 (FIX), Topf → 0.<br>FIX: oft Jahres-1/12-Logik in der Engine.'
   },
   ahvB: {
@@ -426,7 +426,7 @@ const MODELS = {
   MTP: {
     title: 'MTP',
     meta: 'Garantie + Mehrstunden = 1005 · Ferien → Topf · 13. ML immer Topf',
-    callout: 'Stundenlöhner: Garantie und Mehrstunden = Swissdec 1005 (nie 1000 Festlohn). 🟡 Ferien → Topf. 🟠 13. ML → Topf bis Raster/180.3.',
+    callout: 'Stundenlöhner: Garantie und Mehrstunden = Swissdec 1005 (nie 1000 Festlohn). 🟡 Ferien → Topf. 🟠 13. ML → Topf bis Raster/9300.',
     tree: [
       {
         id: 'brutto', label: 'Ausbezahlt Brutto (Beleg)', tag: 'Σ', tagClass: 'f', amt: '…', amtClass: 'pos',
@@ -471,11 +471,11 @@ const MODELS = {
       {
         id: 'ml13Topf', label: '13. ML → Topf', tag: '1201', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
         formula: 'Basis × 8.33%',
-        pot: 'Monatlich ansammeln · Auszahlung: Raster-Monat oder Auslöser 180.3 → 1201, Topf → 0',
+        pot: 'Monatlich ansammeln · Auszahlung: Raster-Monat oder Auslöser 9300 → 1201, Topf → 0',
         leaves: [
           { t: 'Monat ohne Raster', v: 'Beleg oft 0 · Saldo wächst' },
           { t: 'Auszahlungsmonat', v: 'Pott + Monat → 1201' },
-          { t: 'Auslöser', v: '180.3 «13. ML auszahlen»' }
+          { t: 'Auslöser', v: '9300 «13. ML auszahlen» (früher 9300)' }
         ]
       },
       {
@@ -543,7 +543,7 @@ const MODELS = {
       {
         id: 'ml13Topf', label: '13. ML → Topf', tag: '1200', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
         formula: 'Jahres-1/12 bzw. Basis × % (Engine)',
-        pot: 'Zuwachs → Topf. Auszahlung Raster oder 180.3 → Beleg 1200, Topf → 0',
+        pot: 'Zuwachs → Topf. Auszahlung Raster oder Auslöser 9300 → Beleg 1200, Topf → 0',
         leaves: [
           { t: 'Monat ohne Auszahlung', v: 'nur Saldo wächst' },
           { t: 'Auszahlungsmonat', v: 'Pott + Monat → 1200' },

@@ -114,8 +114,8 @@ public class FixThirteenthMonatszuwachsTests
     [Fact]
     public void Code13mlAuszahlen_Ist1803_AusloeserNichtSwissdecSuffix()
     {
-        // ELM-Nummer beider Zeilen ist 1200. Der Mirus-Auslöser 180.3 steht an der Lohnposition (mirus_code), nicht in dieser Konstante.
-        Assert.Equal("1200", PayrollCalculations.Code13mlAuszahlen);
+        // Auslöser ist OneCrew 9300 (früher Mirus 180.3, Walter 02.11.2026); ausbezahlt wird auf 1200.
+        Assert.Equal("9300", PayrollCalculations.Code13mlAuszahlen);
         Assert.Equal("1200", PayrollCalculations.Code13ml);
     }
 

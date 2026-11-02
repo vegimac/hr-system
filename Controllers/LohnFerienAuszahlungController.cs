@@ -85,8 +85,8 @@ public class LohnFerienAuszahlungController : ControllerBase
                 .ToListAsync();
             if (vortrag.Count > 0)
                 vormonat = new { quelle = "VORTRAG", periode,
-                                 tage = Math.Round(vortrag.Where(v => v.Code == "903").Sum(v => v.Betrag), 2),
-                                 chf  = Math.Round(vortrag.Where(v => v.Code == "905").Sum(v => v.Betrag), 2) };
+                                 tage = Math.Round(vortrag.Where(v => v.Code == LohnCodes.VortragFerienTage).Sum(v => v.Betrag), 2),
+                                 chf  = Math.Round(vortrag.Where(v => v.Code == LohnCodes.VortragFerienGeld).Sum(v => v.Betrag), 2) };
         }
         var vj = await FerienAuszahlungDaten.SaldoVorjahrAsync(_db, employeeId, year);
         return Ok(new

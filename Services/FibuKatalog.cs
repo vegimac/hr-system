@@ -62,9 +62,11 @@ public static class FibuKatalog
             // Spesen ausserhalb des Personalaufwands
             ["6070"] = new("4095", "1920", MapPosition: 200, MapSub: 1, MapFibukonto: "4095"),
 
-            // 13. ML aus dem Saldo — die Lohnart 180.3 ist nur der Auslöser
-            ["180.3"] = new("2017", "1920", MapPosition: 180,
+            // 13. ML aus dem Saldo — der Auslöser 9300 (früher 180.3) hat keinen Betrag
+            ["9300"] = new("2017", "1920", MapPosition: 180,
                 Hinweis: "Crew und Flex 2017, Management 2016, an 1920. Die Lohnart selbst hat keinen Betrag."),
+            ["180.3"] = new("2017", "1920",
+                Hinweis: "Alte Nummer des Auslösers (heute 9300) — nur für alte Lohnzettel."),
 
             // Abzüge Arbeitnehmer. Arbeitgeber daneben, berührt 1920 nicht.
             ["5010"] = new("1920", "2070", MapPosition: 500, MapFibukonto: "1920", AgSoll: "4062", AgHaben: "2070"),
@@ -78,10 +80,14 @@ public static class FibuKatalog
             ["5102"] = new("1920", "2010", MapPosition: 565, MapFibukonto: "1920"),
             ["5212"] = new("1920", "2080", MapPosition: 600, MapSub: 5, MapFibukonto: "1920", AgSoll: "4060", AgHaben: "2080"),
 
-            // Betrieb, keine Swissdec-Lohnart, aber eine Buchung
-            ["600.24"] = new("1920", "2023", MapPosition: 600, MapSub: 24, MapFibukonto: "1920"),
-            ["600.32"] = new("1920", "2021", MapPosition: 600, MapSub: 32, MapFibukonto: "1920"),
-            ["950.1"] = new("1920", "2050", MapPosition: 950, MapFibukonto: "1920"),
+            // Betrieb OneCrew 9000er, keine Swissdec-Lohnart, aber eine Buchung (Walter 02.11.2026)
+            ["9100"] = new("1920", "2023", MapPosition: 600, MapSub: 24, MapFibukonto: "1920"),
+            ["9110"] = new("1920", "2021", MapPosition: 600, MapSub: 32, MapFibukonto: "1920"),
+            ["9200"] = new("1920", "2050", MapPosition: 950, MapFibukonto: "1920"),
+            // Alte Mirus-Nummern derselben Positionen — nur für Lohnzettel vor der Umstellung
+            ["600.24"] = new("1920", "2023"),
+            ["600.32"] = new("1920", "2021"),
+            ["950.1"] = new("1920", "2050"),
         };
 
     public static bool Kennt(string? code)
@@ -94,7 +100,7 @@ public static class FibuKatalog
     public static bool OhneBuchung(string? code)
     {
         var c = (code ?? "").Trim();
-        return c is "901" or "902" or "903" or "904" or "905" or "906";
+        return LohnFormelwerk.LohnCodes.IstSaldoVortrag(c);
     }
 
     /// <summary>Jede Katalog-Zeile mit eigener Kontoplan-Position, für den Nummern-Abgleich.</summary>

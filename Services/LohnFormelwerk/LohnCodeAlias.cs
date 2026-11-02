@@ -82,6 +82,10 @@ public static class LohnCodeAlias
             ["600.24"] = LohnCodes.Lgav,
             ["600.32"] = LohnCodes.UniformDepot,
             ["950.1"] = LohnCodes.Vorschuss,
+            // Saldo-Vorträge Mirus 901–906 → OneCrew 9001–9006 (Walter 02.11.2026)
+            ["901"] = LohnCodes.VortragZeit, ["902"] = LohnCodes.VortragFeiertag,
+            ["903"] = LohnCodes.VortragFerienTage, ["904"] = LohnCodes.VortragNacht,
+            ["905"] = LohnCodes.VortragFerienGeld, ["906"] = LohnCodes.Vortrag13Ml,
             ["600.5"] = LohnCodes.BvgAusgleichAg,
             // Erfundene Alt-Suffixe → Treuhand
             ["2001.2"] = LohnCodes.VaterschaftEo,
@@ -133,9 +137,10 @@ public static class LohnCodeAlias
         return false;
     }
 
-    /// <summary>13.-ML-Auslöser (früher 180.3) — Erkennung über mirus_code, Code ist 1200.</summary>
+    /// <summary>13.-ML-Auslöser: OneCrew 9300 (früher Mirus 180.3, auch über mirus_code).</summary>
     public static bool Ist13mlAuszahlen(string? code, string? mirusCode, string? bezeichnung = null)
     {
+        if (string.Equals(code?.Trim(), LohnCodes.Ml13Auszahlen, StringComparison.OrdinalIgnoreCase)) return true;
         if (string.Equals(mirusCode?.Trim(), "180.3", StringComparison.OrdinalIgnoreCase)) return true;
         if (string.Equals(code?.Trim(), "180.3", StringComparison.OrdinalIgnoreCase)) return true;
         if (bezeichnung != null

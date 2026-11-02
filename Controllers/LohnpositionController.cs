@@ -149,9 +149,9 @@ public class LohnpositionController : ControllerBase
         dto.MirusCode = string.IsNullOrWhiteSpace(dto.MirusCode) ? null : dto.MirusCode.Trim();
         dto.FormelId  = string.IsNullOrWhiteSpace(dto.FormelId) ? null : dto.FormelId.Trim();
         if (!LohnCodes.IstSwissdecStammNr(dto.Code) && !LohnCodes.IstInternOhneSwissdec(dto.Code)
-            && !string.Equals(dto.Code, "180.3", StringComparison.OrdinalIgnoreCase))
+            && !string.Equals(dto.Code, "180.3", StringComparison.OrdinalIgnoreCase)) // 180.3 nur noch Alt-Datenbanken
             return BadRequest(new { error = "CODE_NICHT_SWISSDEC",
-                message = "Nur Swissdec-Stammnummern oder bekannte Betrieb-/Vortrag-Codes (600.24, 901–906, 180.3 …)." });
+                message = "Nur Swissdec-Stammnummern oder bekannte Betrieb-/Vortrag-Codes (OneCrew 9000–9999: Saldo-Vorträge, LGAV, Depot, Vorschuss, 13.-ML-Auslöser)." });
         // code = Swissdec-Stamm; swissdec_lohnart = vierstelliger ELM-Kopf (leer bei Betrieb)
         dto.SwissdecLohnart = LohnCodes.IstInternOhneSwissdec(dto.Code)
             ? null
@@ -193,7 +193,7 @@ public class LohnpositionController : ControllerBase
         if (!LohnCodes.IstSwissdecStammNr(neuerCode) && !LohnCodes.IstInternOhneSwissdec(neuerCode)
             && !string.Equals(neuerCode, "180.3", StringComparison.OrdinalIgnoreCase))
             return BadRequest(new { error = "CODE_NICHT_SWISSDEC",
-                message = "Nur Swissdec-Stammnummern oder bekannte Betrieb-/Vortrag-Codes (600.24, 901–906, 180.3 …)." });
+                message = "Nur Swissdec-Stammnummern oder bekannte Betrieb-/Vortrag-Codes (OneCrew 9000–9999: Saldo-Vorträge, LGAV, Depot, Vorschuss, 13.-ML-Auslöser)." });
         var probe = new Lohnposition
         {
             Code = neuerCode,

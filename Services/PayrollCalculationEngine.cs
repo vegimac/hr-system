@@ -788,10 +788,10 @@ public class PayrollCalculationEngine
             : new Dictionary<string, decimal>();
         if (vortragLookup.Count > 0)
         {
-            if (vortragLookup.TryGetValue("901", out var v901)) vormonatHourSaldo  = v901;
-            if (vortragLookup.TryGetValue("903", out var v903)) vormonatFerienTage = v903;
-            if (vortragLookup.TryGetValue("904", out var v904)) vormonatNachtSaldo = v904;
-            if (vortragLookup.TryGetValue("905", out var v905)) vormonatFerienGeld = v905;
+            if (vortragLookup.TryGetValue(LohnCodes.VortragZeit, out var v901)) vormonatHourSaldo  = v901;
+            if (vortragLookup.TryGetValue(LohnCodes.VortragFerienTage, out var v903)) vormonatFerienTage = v903;
+            if (vortragLookup.TryGetValue(LohnCodes.VortragNacht, out var v904)) vormonatNachtSaldo = v904;
+            if (vortragLookup.TryGetValue(LohnCodes.VortragFerienGeld, out var v905)) vormonatFerienGeld = v905;
             // 906 = 13.-ML-Alt-Saldo aus Mirus — gilt für ALLE Modelle inkl.
             // FLEX (Walter-Entscheidung 04.08.2026: Mirus stellte bei FLEX
             // ganzjährig zurück; der Alt-Saldo läuft bei uns über denselben
@@ -799,7 +799,7 @@ public class PayrollCalculationEngine
             // Alt-Saldi existiert KEINE OneCrew-RST-Bildungsbuchung — der
             // Bestand stammt aus der Mirus-Eröffnungsbilanz; die Auszahlung
             // bucht Fibu v3 trotzdem als RST-Abbau (S 2017/2016 / H 1920).
-            if (vortragLookup.TryGetValue("906", out var v906)) prevThirteenth     = v906;
+            if (vortragLookup.TryGetValue(LohnCodes.Vortrag13Ml, out var v906)) prevThirteenth     = v906;
             // 902 (Feiertag-Tage-Saldo) wird weiter unten injiziert,
             // direkt vor der Feiertag-Saldo-Berechnung — siehe dort.
         }
@@ -1267,7 +1267,7 @@ public class PayrollCalculationEngine
         // Vorperiode existiert. Greift nur bei FIX/FIX-M, da andere
         // Vertragsmodelle das Feld nicht nutzen.
         decimal vormonatFeiertagTage   = prevSaldo?.FeiertagTageSaldo ?? 0m;
-        if (prevSaldo == null && vortragLookup.TryGetValue("902", out var v902))
+        if (prevSaldo == null && vortragLookup.TryGetValue(LohnCodes.VortragFeiertag, out var v902))
             vormonatFeiertagTage = v902;
         decimal feiertagTageAccrual    = 0m;
         decimal feiertagTageGenommen   = 0m;
@@ -2243,12 +2243,12 @@ public class PayrollCalculationEngine
         // Saldo-Vortrag separat einsammeln — nur für die Saldi-Übersicht im
         // Lohnzettel (Initial-Vormonat). Wird im Result-Block übergeben.
         var vortragEntries = zulagenEntries.Where(IsVortrag).ToList();
-        decimal vortragZeit       = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "901")?.Betrag ?? 0;
-        decimal vortragFeiertag   = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "902")?.Betrag ?? 0;
-        decimal vortragFerien     = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "903")?.Betrag ?? 0;
-        decimal vortragNacht      = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "904")?.Betrag ?? 0;
-        decimal vortragFerienGeld = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "905")?.Betrag ?? 0;
-        decimal vortrag13Ml       = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == "906")?.Betrag ?? 0;
+        decimal vortragZeit       = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == LohnCodes.VortragZeit)?.Betrag ?? 0;
+        decimal vortragFeiertag   = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == LohnCodes.VortragFeiertag)?.Betrag ?? 0;
+        decimal vortragFerien     = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == LohnCodes.VortragFerienTage)?.Betrag ?? 0;
+        decimal vortragNacht      = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == LohnCodes.VortragNacht)?.Betrag ?? 0;
+        decimal vortragFerienGeld = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == LohnCodes.VortragFerienGeld)?.Betrag ?? 0;
+        decimal vortrag13Ml       = vortragEntries.FirstOrDefault(z => z.Lohnposition!.Code == LohnCodes.Vortrag13Ml)?.Betrag ?? 0;
         bool   hatVortrag         = vortragEntries.Any();
 
         // Lohnpositions-Abzüge (z. B. LGAV-Beitrag): NICHT SV-pflichtig, aber
@@ -6202,8 +6202,8 @@ public class PayrollCalculationEngine
     {
         if (_sim.Aktiv)
         {
-            bool hatTage = _sim.Vortrag.TryGetValue("903", out var t);
-            bool hatChf  = _sim.Vortrag.TryGetValue("905", out var c);
+            bool hatTage = _sim.Vortrag.TryGetValue(LohnCodes.VortragFerienTage, out var t);
+            bool hatChf  = _sim.Vortrag.TryGetValue(LohnCodes.VortragFerienGeld, out var c);
             return hatTage || hatChf ? new(t, c) : null;
         }
         return await FerienAuszahlungDaten.SaldoVorjahrAsync(_db, employeeId, year);

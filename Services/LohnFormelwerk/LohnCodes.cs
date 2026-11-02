@@ -30,8 +30,9 @@ public static class LohnCodes
     public const string Ml13 = "1200";                  // Monatslohn (FIX/FIX-M)
     public const string Ml13Stundenlohn = "1201";       // FLEX/MTP Stundenlohn
     public const string Ml13Lektionenlohn = "1202";     // Lektionenlohn
-    /// <summary>Auslöser «13. ML auszahlen» = dieselbe Nr. 1200; Erkennung über mirus_code 180.3 / Bezeichnung.</summary>
-    public const string Ml13Auszahlen = "1200";
+    /// <summary>Auslöser «13. ML auszahlen» — OneCrew 9300 (früher Mirus 180.3, Walter 02.11.2026).
+    /// Kein Betrag, kein ELM-Code: die Engine zahlt Pott + Monat auf 1200/1201/1202 aus.</summary>
+    public const string Ml13Auszahlen = "9300";
     public const string McBonus = "1210";
     public const string DiverseSpesen = "6070";
 
@@ -72,22 +73,38 @@ public static class LohnCodes
     public const string QstKorr = "5102";
     public const string BvgAusgleichAg = "5212";
 
-    // ── Betrieb intern (kein Swissdec — Fibu/Engine, UI-Sektion «Betrieb») ─
-    public const string Lgav = "600.24";
-    public const string UniformDepot = "600.32";
-    public const string Vorschuss = "950.1";
+    // ── OneCrew intern, Nummernbereich 9000–9999 (kein Swissdec, Walter 02.11.2026) ──
+    // Früher Mirus-Nummern: 600.24 / 600.32 / 950.1 / 901–906 / 180.3 (stehen in mirus_code).
+    public const string Lgav = "9100";
+    public const string UniformDepot = "9110";
+    public const string Vorschuss = "9200";
     /// <summary>Legacy-Alias; kanonisch <see cref="BvgAusgleichAg"/> (5212).</summary>
     public const string BvgKorrVorjahr = "5212";
 
-    // ── Saldo-Vortrag intern (901–906, nie ELM) ─────────────────────────
-    public const string VortragZeit = "901";
-    public const string VortragFeiertag = "902";
-    public const string VortragFerienTage = "903";
-    public const string VortragNacht = "904";
-    public const string VortragFerienGeld = "905";
-    public const string Vortrag13Ml = "906";
+    // ── Saldo-Vortrag intern (9001–9006, nie ELM; früher Mirus 901–906) ──
+    public const string VortragZeit = "9001";
+    public const string VortragFeiertag = "9002";
+    public const string VortragFerienTage = "9003";
+    public const string VortragNacht = "9004";
+    public const string VortragFerienGeld = "9005";
+    public const string Vortrag13Ml = "9006";
 
-    /// <summary>901–906. Der Lohn erkennt den Vortrag an der Nummer, nicht an einem Text.</summary>
+    /// <summary>Alt (Mirus) → neu (OneCrew 9000er). Für Migration, Import und alte Lohnzettel.</summary>
+    public static readonly IReadOnlyDictionary<string, string> InternAltNachNeu = new Dictionary<string, string>
+    {
+        ["901"] = VortragZeit, ["902"] = VortragFeiertag, ["903"] = VortragFerienTage,
+        ["904"] = VortragNacht, ["905"] = VortragFerienGeld, ["906"] = Vortrag13Ml,
+        ["600.24"] = Lgav, ["600.32"] = UniformDepot, ["950.1"] = Vorschuss, ["180.3"] = Ml13Auszahlen,
+    };
+
+    /// <summary>OneCrew-interne Nummer (9000–9999) — nie eine Swissdec-Lohnart.</summary>
+    public static bool IstOneCrewIntern(string? code)
+    {
+        var c = (code ?? "").Trim();
+        return c.Length == 4 && c[0] == '9' && c.All(char.IsDigit);
+    }
+
+    /// <summary>9001–9006. Der Lohn erkennt den Vortrag an der Nummer, nicht an einem Text.</summary>
     public static readonly string[] VortragCodes =
     [
         VortragZeit, VortragFeiertag, VortragFerienTage,
@@ -95,7 +112,9 @@ public static class LohnCodes
     ];
 
     public static bool IstSaldoVortrag(string? code)
-        => !string.IsNullOrWhiteSpace(code) && VortragCodes.Contains(code.Trim());
+        => !string.IsNullOrWhiteSpace(code)
+           && (VortragCodes.Contains(code.Trim())
+               || (InternAltNachNeu.TryGetValue(code.Trim(), out var neu) && VortragCodes.Contains(neu)));
 
     // ── Legacy-Aliase (gleiche Swissdec-Nr., nur Lesbarkeit im Code) ─────
     public const string FestlohnFerien = Festlohn;
@@ -117,7 +136,7 @@ public static class LohnCodes
     {
         if (string.IsNullOrWhiteSpace(code)) return false;
         var c = code.Trim();
-        return c.Length >= 4 && c.Length <= 5 && c.All(char.IsDigit);
+        return c.Length >= 4 && c.Length <= 5 && c.All(char.IsDigit) && !IstOneCrewIntern(c);
     }
 
     /// <summary>
@@ -137,9 +156,8 @@ public static class LohnCodes
     {
         if (string.IsNullOrWhiteSpace(code)) return false;
         var c = code.Trim();
-        if (c is Lgav or UniformDepot or Vorschuss) return true;
-        if (c is VortragZeit or VortragFeiertag or VortragFerienTage
-            or VortragNacht or VortragFerienGeld or Vortrag13Ml) return true;
+        // 180.3 (alter 13.-ML-Auslöser) läuft weiter über den Alias auf 1200.
+        if (IstOneCrewIntern(c) || (InternAltNachNeu.ContainsKey(c) && c != "180.3")) return true;
         return c.StartsWith("600.", StringComparison.Ordinal) || c.StartsWith("950.", StringComparison.Ordinal);
     }
 
@@ -173,7 +191,7 @@ public static class LohnCodes
         if (IstSwissdecStammNr(c)) return c.Length > 4 ? c[..4] : c;
         var punkt = c.IndexOf('.');
         var kopf = punkt > 0 ? c[..punkt] : c;
-        if (kopf is "600" or "950" or "901" or "902" or "903" or "904" or "905" or "906") return "";
+        if (kopf is "600" or "950" or "901" or "902" or "903" or "904" or "905" or "906" || IstOneCrewIntern(kopf)) return "";
         if (kopf.Length >= 4 && kopf.All(char.IsDigit)) return kopf[..4];
         return "";
     }

@@ -4184,21 +4184,22 @@ async function addLohnCorrectionMa(empId) {
 // Modal wird beim ersten Aufruf dynamisch erzeugt (Muster filePreviewModal),
 // Liquid-Glass-Look gemäss docs/liquid-glass-ui-konzept.md.
 
+// OneCrew 9001–9006 (früher Mirus 901–906, Walter 02.11.2026)
 const _LOHN_SK_TYPES = [
-    { code: '901', label: '901 · Zeitsaldo (Std)' },
-    { code: '902', label: '902 · Feiertag-Saldo (Tage)' },
-    { code: '903', label: '903 · Ferien-Saldo (Tage)' },
-    { code: '904', label: '904 · Nacht-Saldo (Std)' },
-    { code: '905', label: '905 · Ferien-Geld (CHF)' },
-    { code: '906', label: '906 · 13. Monatslohn (CHF)' },
+    { code: '9001', label: '9001 · Zeitsaldo (Std)' },
+    { code: '9002', label: '9002 · Feiertag-Saldo (Tage)' },
+    { code: '9003', label: '9003 · Ferien-Saldo (Tage)' },
+    { code: '9004', label: '9004 · Nacht-Saldo (Std)' },
+    { code: '9005', label: '9005 · Ferien-Geld (CHF)' },
+    { code: '9006', label: '9006 · 13. Monatslohn (CHF)' },
 ];
 // Relevanz pro Vertragsmodell — Spiegel von SaldoVortragController.IsRelevantForModel.
 // Unbekanntes Modell → alle Codes (der Server validiert ohnehin nochmals).
 const _LOHN_SK_RELEVANT = {
-    'FLEX':  ['903', '904', '905', '906'],
-    'MTP':   ['901', '903', '904', '905', '906'],
-    'FIX':   ['901', '902', '903', '904', '906'],
-    'FIX-M': ['901', '902', '903', '904', '906'],
+    'FLEX':  ['9003', '9004', '9005', '9006'],
+    'MTP':   ['9001', '9003', '9004', '9005', '9006'],
+    'FIX':   ['9001', '9002', '9003', '9004', '9006'],
+    'FIX-M': ['9001', '9002', '9003', '9004', '9006'],
 };
 
 function _lohnEnsureSaldoKorrModal() {
