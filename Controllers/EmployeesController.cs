@@ -939,7 +939,10 @@ public class EmployeesController : ControllerBase
         // ── ALV / Zwischenverdienst ───────────────────────────────────────
         if (dto.AhvNummer  is not null) employee.SocialSecurityNumber = dto.AhvNummer == "" ? null : dto.AhvNummer;
         var zivilstandAlt = employee.MaritalStatus;
-        if (dto.MaritalStatus is not null) employee.MaritalStatus = dto.MaritalStatus == "" ? null : dto.MaritalStatus;
+        // Leeren ist nicht erlaubt (Walter 02.11.2026) — unbekannt heisst «unbekannt».
+        if (dto.MaritalStatus is not null && string.IsNullOrWhiteSpace(dto.MaritalStatus))
+            return BadRequest(new { error = "ZIVILSTAND_FEHLT", message = "Zivilstand fehlt. Ist er nicht bekannt, bitte «unbekannt» wählen." });
+        if (dto.MaritalStatus is not null) employee.MaritalStatus = dto.MaritalStatus;
 
         // ── Erweiterte Zivilstand-Angaben (allgemein) ────────────────────
         if (dto.MaritalStatusSinceSet) employee.MaritalStatusSince = dto.MaritalStatusSince;

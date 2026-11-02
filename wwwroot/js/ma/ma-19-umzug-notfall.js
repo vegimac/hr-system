@@ -575,9 +575,13 @@ const ZIV_OPTIONEN = [
     ['konkubinat', 'Konkubinat'],
 ];
 
+const ZIV_FEHLT_TEXT = 'Zivilstand fehlt. Ist er nicht bekannt, bitte «unbekannt» wählen.';
+
 function zivOptionenHtml(aktuell) {
     const cur = String(aktuell || '').toLowerCase().trim();
-    const leer = `<option value="" ${cur ? '' : 'selected'}>–</option>`;
+    // Leer ist keine Wahl mehr (Walter 02.11.2026) — nur Platzhalter, solange nichts erfasst ist;
+    // wer den Zivilstand nicht kennt, wählt «unbekannt».
+    const leer = `<option value="" hidden disabled ${cur ? '' : 'selected'}>– bitte wählen –</option>`;
     return leer + ZIV_OPTIONEN.map(([v, l]) =>
         `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`).join('');
 }

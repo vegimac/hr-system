@@ -273,6 +273,9 @@
         .nav-icon { width: 24px; height: 24px; flex-shrink: 0; opacity: 1; }
         .nav-icon-img { width: 32px; height: 32px; flex-shrink: 0; object-fit: contain; mix-blend-mode: multiply; }
         body.theme-dark .nav-icon-img { mix-blend-mode: screen; filter: invert(1) brightness(1.12); }
+        /* Farbige Marken (Swissdec-Logo beim ELM Cockpit, Walter 02.11.2026): nicht einfärben/invertieren */
+        .nav-icon-img.nav-icon-farbig,
+        body.theme-dark .nav-icon-img.nav-icon-farbig { mix-blend-mode: normal; filter: none; }
         #posteingangBadge { position: absolute !important; right: 6px; top: 6px; margin: 0 !important; }
         /* Footer kompakt: nur Logout-Icon (Rail-Breite) */
         .sidebar-footer { padding: 8px 2px; }

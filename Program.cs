@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 130;  // 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 131;  // 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -678,6 +678,12 @@ using (var scope = app.Services.CreateScope())
     // Schuhgrösse (Walter 15.10.2026, Schema-Stand 72): Handeingabe am MA, z.B. 42 oder 38.5.
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS schuhgroesse VARCHAR(10) NULL;
+    ");
+
+    // Zivilstand bis 40 Zeichen wie im Modell (Walter 02.11.2026, Schema-Stand 131):
+    // «aufgeloeste_partnerschaft_verschollen» (37) sprengte varchar(30) beim Speichern.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee ALTER COLUMN marital_status TYPE VARCHAR(40);
     ");
 
     // Kind ohne Unterhaltspflicht (Walter-Vorgabe 01.09.2026): zählt nie für

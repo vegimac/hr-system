@@ -824,6 +824,7 @@ async function neuerMaSpeichern() {
     }
     const mail = v('ov-email');
     if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { alert('E-Mail-Adresse ist ungültig.'); return; }
+    if (!v('ov-zivilstand')) { alert(ZIV_FEHLT_TEXT); document.getElementById('ov-zivilstand')?.focus(); return; }
     const landRoh = (v('ov-land') || 'CH').toUpperCase();
     const land = landIstCh(landRoh) ? 'CH' : landRoh;
     const body = {

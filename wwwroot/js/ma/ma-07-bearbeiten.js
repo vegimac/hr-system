@@ -659,6 +659,12 @@ async function saveEmpEdit() {
     const zivAlt = (emp.zivilstand ?? emp.maritalStatus) || null;
     const zivNeu = zivSel ? (zivSel.value || null) : zivAlt;
     const zivGewechselt = (zivNeu || '') !== (zivAlt || '');
+    // Leer gibt es nicht mehr (Walter 02.11.2026): ohne Zivilstand kein Speichern.
+    if (zivSel && !zivSel.value) {
+        alert(typeof ZIV_FEHLT_TEXT !== 'undefined' ? ZIV_FEHLT_TEXT : 'Zivilstand fehlt. Ist er nicht bekannt, bitte «unbekannt» wählen.');
+        zivSel.focus();
+        return;
+    }
     if (zivGewechselt && zivNeu && !formVal('ef-maritalStatusSince', 'ov-maritalStatusSince')) {
         alert('Neuer Zivilstand: bitte «Zivilstand seit» (gültig ab) eintragen.');
         document.getElementById('ov-maritalStatusSince')?.focus();
