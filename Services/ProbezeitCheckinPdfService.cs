@@ -36,9 +36,9 @@ public class ProbezeitCheckinPdfService
             if (_logoBytes != null) return _logoBytes;
             foreach (var pfad in new[]
             {
-                Path.Combine(AppContext.BaseDirectory, "Assets", "onecrew-logo.png"),
-                Path.Combine(AppContext.BaseDirectory, "wwwroot", "img", "onecrew-logo.png"),
-                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "img", "onecrew-logo.png"),
+                Path.Combine(AppContext.BaseDirectory, "Assets", Branding.LogoPng),
+                Path.Combine(AppContext.BaseDirectory, "wwwroot", "img", Branding.LogoPng),
+                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "img", Branding.LogoPng),
             })
             {
                 if (File.Exists(pfad)) { _logoBytes = File.ReadAllBytes(pfad); break; }

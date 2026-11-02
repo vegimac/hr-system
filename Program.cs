@@ -8160,6 +8160,15 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
+// Logo ohne Bogen pro Server (Walter 02.11.2026, BRANDING_OHNE_BOGEN): gleiche Adresse,
+// anderer Inhalt — alle Seiten, Drucke und Mails wechseln auf einmal.
+app.Use(async (ctx, next) =>
+{
+    if (HrSystem.Services.Branding.Umleitung(ctx.Request.Path.Value, HrSystem.Services.Branding.OhneBogen) is { } ziel)
+        ctx.Request.Path = ziel;
+    await next();
+});
+
 // Statische Dateien / Startseite
 app.UseDefaultFiles();
 // Walter-Vorgabe 27.05.2026: .md-Files (Hilfe-Texte unter wwwroot/help/)
@@ -8259,6 +8268,7 @@ app.MapGet("/mobil", (HttpContext ctx) => { ctx.Response.Redirect("/mobil.html")
 app.MapGet("/api/instance-info", () => Results.Ok(new
 {
     label = Environment.GetEnvironmentVariable("INSTANCE_LABEL") ?? "",
+    ohneBogen = HrSystem.Services.Branding.OhneBogen,
     // true, solange Warmlaufen noch läuft — Login-Sanduhr + nginx-502-Seite
     // warten darauf, nicht nur auf den offenen Port (Walter 20.09.2026).
     laden         = !AppStartStatus.Bereit,

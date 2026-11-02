@@ -204,7 +204,7 @@ function _orgHtml(d, modus) {
         if (_orgIstStab(s)) gruppen[gruppen.length - 1].stab.push(s);
     });
     let html = `<div class="dpo ${farbig ? 'f' : 'n'}">`;
-    html += `<div class="dpo-logo"><img src="${location.origin}/img/onecrew-logo.webp" alt="OneCrew"></div>`;
+    html += `<div class="dpo-logo"><img src="${location.origin}/img/onecrew-logo.webp?v=20261102b" alt="OneCrew"></div>`;
     if (!gruppen.length)
         html += '<div class="dpo-leer">Obere Stellen (Lizenznehmer, Supervisor, HR …) noch nicht erfasst</div><div class="dpo-v dpo-v2"></div>';
     gruppen.forEach(g => {
@@ -368,7 +368,7 @@ function _orgDruckHtml(daten, modus) {
         h1{position:absolute;top:9mm;right:12mm;font-size:13px;font-weight:600;color:#8b8b8b;margin:0}
         .blatt-logo{position:absolute;left:7mm;top:5mm;width:118px;height:92px;overflow:hidden}.blatt-logo img{height:92px;width:auto;display:block}
         #o{width:277mm;height:190mm;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center}#o .dpo-logo{display:none}${ORG_CSS}${ORG_DRUCK_CSS}</style></head>
-        <body><div class="blatt-logo"><img src="${location.origin}/img/onecrew-logo.webp" alt="OneCrew"></div>${farbig ? `<h1>Organigramm · Stand ${ORG_MONATE[daten.month - 1]} ${daten.year}</h1>` : ''}<div id="o">${_orgHtml(daten, modus)}</div>
+        <body><div class="blatt-logo"><img src="${location.origin}/img/onecrew-logo.webp?v=20261102b" alt="OneCrew"></div>${farbig ? `<h1>Organigramm · Stand ${ORG_MONATE[daten.month - 1]} ${daten.year}</h1>` : ''}<div id="o">${_orgHtml(daten, modus)}</div>
         <script>window.onload=function(){var o=document.getElementById('o'),b=o.firstElementChild,sw=Math.min(1,o.clientWidth/b.scrollWidth);
         for(var t=0.05;t<=2.5;t+=0.05){b.style.setProperty('--dz',1+t);b.style.setProperty('--dzi',1+t*0.7);if(b.scrollHeight*sw>o.clientHeight*0.9){t-=0.05;b.style.setProperty('--dz',1+t);b.style.setProperty('--dzi',1+t*0.7);break;}}
         var s=Math.min(1,o.clientWidth/b.scrollWidth,o.clientHeight/b.scrollHeight);if(s<1){b.style.zoom=s;}setTimeout(function(){window.print();},150);};<\/script></body></html>`;

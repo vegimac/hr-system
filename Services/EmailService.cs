@@ -159,7 +159,7 @@ public class EmailService
             _logoGesucht = true;
             try
             {
-                const string datei = "onecrew-logo.png";
+                var datei = Branding.LogoPng;   // ohne Bogen je nach Server (Walter 02.11.2026)
                 var kandidaten = new[]
                 {
                     Path.Combine(_env.WebRootPath ?? "", "img", datei),
@@ -176,7 +176,7 @@ public class EmailService
                         return _logoBytes;
                     }
                 }
-                _log.LogWarning("[EmailService] Mail-Logo onecrew-logo.png nicht gefunden — "
+                _log.LogWarning($"[EmailService] Mail-Logo {datei} nicht gefunden — "
                               + "der Mail-Kopf zeigt stattdessen nur den alt-Text.");
             }
             catch (Exception ex)
