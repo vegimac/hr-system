@@ -415,3 +415,32 @@ Jetzt `FAK-CAF-Salaries` je Person (Richtlinien 8.2.5, Tabelle 8.27), Logik rein
   zugewiesenen Arbeitsorte ohne Personen bleiben mit 0.00 (Nullmeldung). Zähler
   `NumberOf-FAK-CAF-Salary-Tags` = Anzahl Zeilen.
 - Offen: Abgleich mit dem Quality Tool / den Referenzen auf test.onecrew.ch.
+
+## UVG / UVGZ / KTG in der Jahresmeldung (Walter 02.11.2026)
+
+Für den Lohntest (YearlyRetrospective) meldet die Jahresmeldung jetzt neben AHV und FAK auch
+`UVG-LAA-Salaries`, `UVGZ-LAAC-Salaries` und `KTG-AMC-Salaries` je Person (Richtlinien 8.3.7, 8.4, 8.5).
+Logik rein in `Services/Elm/ElmVersicherungJahreslohn.cs`, Einbau in `ElmAnnualDeclarationBuilder`,
+Tests `Tests/ElmVersicherungJahreslohnTests.cs` (Totale gegen `RefXML_2025-12_RETROSPECTIVE` nachgerechnet,
+ganze Meldung XSD-gültig).
+- **Beitragsdauer** je Code: neu bei Eintritt/Wiedereintritt (Monat ohne Lohnzettel) und Codewechsel;
+  Codewechsel mitten im Monat ⇒ Beginn = Gültig-ab des Codes. KTG/UVGZ mit zwei Codes gleichzeitig
+  (11 + 12) ⇒ je Code eigene Zeile.
+- **Codes je Monat** (Monatsende): Versicherungs-Codes der Person, sonst Standard-Lösung der SV-Sätze
+  (`PayrollCalculations.EffektiverCode`). UVG-Code nur mit Betriebsteil ⇒ Ziffer aus dem Lohnzettel
+  (NBU-Abzug ⇒ 1, sonst 2) und Warnung.
+- **Beträge:** Brutto = `Brutto` des Lohnzettels; UVG-/UVGZ-Basis = `SvBasisNbuv`; KTG-Referenz =
+  `SvBasisAhv`; beitragspflichtig = Basis der Abzugszeile (NBUV, sonst BUV; UVGZ/KTG je Code). UVG-Code
+  x0 ⇒ 0; ohne Abzugszeile (x2/x3 ohne AN-Abzug) ⇒ Basis bis Höchstlohn der Beitragsdauer
+  (Monat 12'350 bzw. `MaxBaseMonthly` der NBUV/BUV-Sätze, Teilmonat /30).
+- **Neu im Lohnzettel:** jede Abzugszeile trägt `loesungsCode` (KTG/UVGZ 11, 12 …). Ältere Lohnzettel
+  haben ihn nicht — bei nur einem Code je Art egal, bei zwei Codes kommt die Warnung «Lohnzettel neu
+  berechnen».
+- **Totale:** UVG je Betriebsteil und Geschlecht (x1/x2 ⇒ NBU-BU-ANP-AP, x3 ⇒ BU-AP, x0 zählt nicht),
+  UVGZ/KTG je Code und Geschlecht; Codes der SV-Sätze ohne Personen mit 0.00. Master-Total = Summe.
+- **Versicherer** aus dem Empfänger-Katalog (Art UVG / UVGZ bzw. UVG mit «Zusatz» / KTG): Kassennummer =
+  AddresseeIdentification, Mitgliednummer = CustomerIdentity, Subnummer = ContractIdentity. Gemeldet nur,
+  wenn es Personen gibt. Vorerst ein Versicherer je Art für die Rechtseinheit.
+- **Noch offen für den Lohntest:** Lohnausweis (`TaxSalaries`), BVG-Vorausmeldung (YearlyProspective),
+  EMA (NotifyChanges), mehrere AHV-Kassen je Rechtseinheit (Referenz #AHV_KK + #AHV_Spida). Ob `Brutto`
+  dem UVG-Bruttolohn der Referenz entspricht, zeigt erst das Quality Tool.

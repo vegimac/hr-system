@@ -544,6 +544,9 @@ public static class PayrollCalculations
                 categoryCode = d.CategoryCode,
                 // Swissdec-Nr. auf dem Beleg (Walter 19.10.2026) — parallel zur Kategorie.
                 code = LohnCodes.SwissdecFuerSvKategorie(d.CategoryCode),
+                // Versicherungs-Lösung der Zeile (KTG/UVGZ 11, 12 …) — die ELM-Jahresmeldung
+                // ordnet die Basis darüber dem Code zu (Walter 02.11.2026).
+                loesungsCode = string.IsNullOrWhiteSpace(d.LoesungsCode) ? null : d.LoesungsCode.Trim(),
                 // Prozent: zuerst DisplayRatePercent (z.B. QST mit Tarif-Satz),
                 // sonst die echte Rate bei Type=percent, sonst null.
                 prozent     = d.DisplayRatePercent

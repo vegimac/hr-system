@@ -15,7 +15,7 @@ keine neue Riesendatei (Richtwert ≤ ~1'500 Zeilen). Stand: 01.11.2026.
 | `Services/PayrollCalculationEngine.cs` | Lohnberechnung (Orchestrierung, DB-gekoppelt) |
 | `Services/PayrollCalculationService.cs` | reine Rechen-Helfer (`PayrollCalculations`, unit-testbar) |
 | `Services/LohnFormelwerk/` | Lohncodes (`LohnCodes`), Aliase, Formeln |
-| `Services/Elm/` | Swissdec ELM: Builder Monat/Jahr/Grenzgänger, FAK (`ElmFakAdressierung`, `ElmFakJahreslohn`), Übermittlung, SUA/Zertifikat, Dialoge |
+| `Services/Elm/` | Swissdec ELM: Builder Monat/Jahr/Grenzgänger, FAK (`ElmFakAdressierung`, `ElmFakJahreslohn`), UVG/UVGZ/KTG (`ElmVersicherungJahreslohn`), Übermittlung, SUA/Zertifikat, Dialoge |
 | `Services/EasyAtWork/` | easy@work-Abgleich (MA, Verträge, Stempelzeiten, Absenzen) |
 | `Services/Personaldaten/` | Plausibilitätsprüfung Personaldaten |
 | `Services/DokumentAblage/` | Ablage nach Angabe (Zielliste) |

@@ -133,7 +133,7 @@ public class ElmAnnualDeclarationBuilder
         var lohn = from s in _db.PayrollSnapshots
                    join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
                    where p.Year == year && s.Status != "STORNIERT"
-                   select new { s.EmployeeId, s.SvBasisAhv, p.Month, PeriodeStatus = p.Status, p.CompanyProfileId, s.SlipJson };
+                   select new { s.EmployeeId, s.SvBasisAhv, s.SvBasisNbuv, s.Brutto, p.Month, PeriodeStatus = p.Status, p.CompanyProfileId, s.SlipJson };
         if (nurFiliale is int fil && fil > 0)
             lohn = lohn.Where(r => r.CompanyProfileId == fil);
         var rows = await lohn.ToListAsync(ct);
@@ -165,11 +165,54 @@ public class ElmAnnualDeclarationBuilder
 
         var yearStart = new DateTime(year, 1, 1);
         var yearEnd = new DateTime(year, 12, 31);
-        var versicherung = await _db.EmployeeVersicherungCodes.AsNoTracking()
-            .Where(v => empIds.Contains(v.EmployeeId) && v.Art == EmployeeVersicherungCode.ArtAhv)
+        var versicherungAlle = await _db.EmployeeVersicherungCodes.AsNoTracking()
+            .Where(v => empIds.Contains(v.EmployeeId))
             .ToListAsync(ct);
-        var codesByEmp = versicherung.GroupBy(v => v.EmployeeId)
+        var codesByEmp = versicherungAlle.Where(v => v.Art == EmployeeVersicherungCode.ArtAhv)
+            .GroupBy(v => v.EmployeeId)
             .ToDictionary(g => g.Key, g => (IReadOnlyList<EmployeeVersicherungCode>)g.ToList());
+        var versCodesByEmp = versicherungAlle.Where(v => v.Art is "UVG" or "UVGZ" or "KTG")
+            .GroupBy(v => v.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // UVG / UVGZ / KTG (Walter 02.11.2026): Versicherer aus dem Empfänger-Katalog, Codes je Monat
+        // aus den Versicherungs-Codes der Person bzw. der Standard-Lösung der SV-Sätze.
+        var svSaetze = await _db.SocialInsuranceRates.AsNoTracking()
+            .Where(r => r.IsActive && (r.Code == "NBUV" || r.Code == "BUV" || r.Code == "UVGZ" || r.Code == "KTG"))
+            .ToListAsync(ct);
+        var uvgHoechstMonat = svSaetze.Where(r => r.Code is "NBUV" or "BUV" && r.MaxBaseMonthly is > 0)
+            .Select(r => r.MaxBaseMonthly!.Value).DefaultIfEmpty(AlvMonatsCap).Max();
+        var uvgzE = empf.FirstOrDefault(e => (e.Art == "UVGZ" || (e.Art == "UVG" && IstZusatz(e))) && GehoertHier(e));
+        var ktgE = empf.FirstOrDefault(e => e.Art == "KTG" && GehoertHier(e));
+        var vers = new Dictionary<string, Versicherer>();
+        foreach (var (art, e, id) in new[] { ("UVG", uvgE, "#uvg"), ("UVGZ", uvgzE, "#uvgz"), ("KTG", ktgE, "#ktg") })
+        {
+            if (e == null) continue;
+            var kasse = (e.Kassennummer ?? "").Trim();
+            if (kasse.Length == 0)
+            {
+                warn.Add($"{art}-Versicherer «{e.Bezeichnung}»: Kassennummer fehlt (Empfänger-Katalog) — {art} nicht gemeldet.");
+                continue;
+            }
+            var zu = e.Zuordnungen.Where(z => z.GiltAm(stichtagZuord) && (ganzeFirma || filialIds.Contains(z.CompanyProfileId))).ToList();
+            string? Eindeutig(Func<Models.CompanyProfileEmpfaenger, string?> feld)
+            {
+                var w = zu.Select(z => (feld(z) ?? "").Trim()).Where(v => v.Length > 0).Distinct().ToList();
+                return w.Count == 1 ? w[0] : null;
+            }
+            var kunde = Eindeutig(z => z.Mitgliednummer);
+            var vertrag = Eindeutig(z => z.Subnummer);
+            if (kunde == null || vertrag == null)
+                warn.Add($"{art}-Versicherer «{e.Bezeichnung}»: Kunden- oder Vertragsnummer fehlt bzw. ist pro Filiale verschieden "
+                       + "(Filiale → Lohndaten Empfänger: Mitgliednummer = Kunde, Subnummer = Vertrag) — im XML steht die Kassennummer.");
+            vers[art] = new Versicherer(id, kasse, e.Bezeichnung.Trim(), kunde ?? kasse, vertrag ?? kasse);
+        }
+        var versZeilen = new Dictionary<string, List<ElmVersicherungJahreslohn.Zeile>>
+        {
+            ["UVG"] = new(), ["UVGZ"] = new(), ["KTG"] = new(),
+        };
+        var versTags = new Dictionary<string, int> { ["UVG"] = 0, ["UVGZ"] = 0, ["KTG"] = 0 };
+        var versOhneVersicherer = new HashSet<string>();
         var ahvStand = await AhvBeitragspflichtStand.LadenAsync(_db);
 
         // FAK pro Person (Walter 01.11.2026): Kasse und Arbeitskanton je Monat aus der Filiale des
@@ -285,7 +328,156 @@ public class ElmAnnualDeclarationBuilder
             }
 
             var fakSalaries = FakSalaries(e, x.EmployeeId, monate, ahvAbschnitte, Zeit);
-            persons.Add(new XElement(Sd + "Person", particulars, work, salaries, fakSalaries));
+            persons.Add(new XElement(Sd + "Person", particulars, work, salaries, fakSalaries,
+                VersicherungSalaries(e, x.EmployeeId, Zeit)));
+        }
+
+        // UVG-, UVGZ- und KTG-Salaries einer Person: je Beitragsdauer und Code (ElmVersicherungJahreslohn).
+        IEnumerable<XElement> VersicherungSalaries(Employee e, int empId, Func<int, int, (DateTime Von, DateTime Bis)> zeit)
+        {
+            var eintraege = versCodesByEmp.TryGetValue(empId, out var l) ? l : new List<EmployeeVersicherungCode>();
+            var geschlecht = (e.Gender ?? "").ToLowerInvariant() is var g && (g.StartsWith("f") || g.StartsWith("w")) ? "F" : "M";
+            var monateJeArt = new Dictionary<string, List<ElmVersicherungJahreslohn.Monat>>
+            {
+                ["UVG"] = new(), ["UVGZ"] = new(), ["KTG"] = new(),
+            };
+            var hinweise = new HashSet<string>();
+            foreach (var mg in rowsByEmp[empId].GroupBy(r => r.Month).OrderBy(mg => mg.Key))
+            {
+                var filiale = mg.OrderByDescending(r => r.SvBasisAhv).First().CompanyProfileId;
+                var stichtag = new DateOnly(year, mg.Key, DateTime.DaysInMonth(year, mg.Key));
+                var saetze = svSaetze.Where(r => r.CompanyProfileId == null || r.CompanyProfileId == filiale).ToList();
+                var zeilen = mg.SelectMany(r => VersicherungsZeilen(r.SlipJson)).ToList();
+                decimal brutto = mg.Sum(r => r.Brutto), basis = mg.Sum(r => r.SvBasisNbuv), ahv = mg.Sum(r => r.SvBasisAhv);
+                decimal? Summe(Func<(string Kat, string? Code, decimal Basis), bool> f)
+                    => zeilen.Any(f) ? zeilen.Where(f).Sum(z => z.Basis) : null;
+
+                // UVG: ein Code je Monat (Betriebsteil + Ziffer 0–3).
+                var uvg = PayrollCalculations.EffektiverCode("UVG", eintraege, saetze, stichtag)?.Trim().ToUpperInvariant();
+                var nbu = Summe(z => z.Kat == "NBUV");
+                if (uvg is { Length: 1 })
+                {
+                    // Nur der Betriebsteil der Standard-Lösung: Ziffer aus dem Lohnzettel (NBU-Abzug ja/nein).
+                    uvg += nbu != null ? "1" : "2";
+                    hinweise.Add($"UVG-Code ohne Ziffer — als {uvg} gemeldet (Versicherungs-Codes erfassen).");
+                }
+                if (string.IsNullOrEmpty(uvg))
+                    hinweise.Add($"kein UVG-Code in Monat {mg.Key} — UVG nicht gemeldet.");
+                else
+                    monateJeArt["UVG"].Add(new(mg.Key, uvg, brutto, basis,
+                        ElmVersicherungJahreslohn.UvgVersichert(uvg) ? nbu ?? Summe(z => z.Kat == "BUV") : 0m, ahv));
+
+                // UVGZ und KTG: ein oder mehrere Codes gleichzeitig.
+                foreach (var art in new[] { "UVGZ", "KTG" })
+                {
+                    var codes = eintraege.Where(c => c.Art == art && c.GiltAm(stichtag) && !string.IsNullOrWhiteSpace(c.Code))
+                        .Select(c => c.Code!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    if (codes.Count == 0 && PayrollCalculations.EffektiverCode(art, eintraege, saetze, stichtag) is string std)
+                        codes.Add(std.Trim());
+                    var artZeilen = zeilen.Where(z => z.Kat == art).ToList();
+                    if (codes.Count == 0)
+                    {
+                        if (artZeilen.Count > 0) hinweise.Add($"{art}-Abzug ohne Code in Monat {mg.Key} — {art} nicht gemeldet.");
+                        continue;
+                    }
+                    var ohneCode = artZeilen.Any(z => z.Code == null);
+                    if (ohneCode && codes.Count > 1)
+                        hinweise.Add($"{art} mit {codes.Count} Codes in Monat {mg.Key}: Lohnzettel ohne Code-Zuordnung — Lohnzettel neu berechnen.");
+                    foreach (var code in codes)
+                    {
+                        var pflichtig = artZeilen.Where(z => string.Equals(z.Code, code, StringComparison.OrdinalIgnoreCase)
+                                                             || (z.Code == null && codes.Count == 1)).Sum(z => z.Basis);
+                        monateJeArt[art].Add(new(mg.Key, code, 0m, basis, pflichtig, ahv));
+                    }
+                }
+            }
+            foreach (var h in hinweise)
+                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): {h}");
+
+            (DateTime Von, DateTime Bis) Dauer(string art, ElmVersicherungJahreslohn.Abschnitt a)
+            {
+                var (von, bis) = zeit(a.Von, a.Bis);
+                // Codewechsel mitten im Monat: die Beitragsdauer beginnt am Gültig-ab des Codes.
+                var ab = eintraege.Where(c => c.Art == art && string.Equals((c.Code ?? "").Trim(), a.Code, StringComparison.OrdinalIgnoreCase))
+                    .Select(c => c.ValidFrom.ToDateTime(TimeOnly.MinValue))
+                    .Where(d => d.Year == year && d.Month == a.Von && d > von && d <= bis)
+                    .DefaultIfEmpty(von).Max();
+                return (ab, bis);
+            }
+            XElement Zeitraum((DateTime Von, DateTime Bis) d) => new(Sd + "AccountingTime",
+                new XElement(Ep + "from", d.Von.ToString("yyyy-MM-dd")),
+                new XElement(Ep + "until", d.Bis.ToString("yyyy-MM-dd")));
+
+            var result = new List<XElement>();
+            foreach (var (art, liste, element) in new[]
+                     {
+                         ("UVG", "UVG-LAA-Salaries", "UVG-LAA-Salary"),
+                         ("UVGZ", "UVGZ-LAAC-Salaries", "UVGZ-LAAC-Salary"),
+                         ("KTG", "KTG-AMC-Salaries", "KTG-AMC-Salary"),
+                     })
+            {
+                var abschnitte = ElmVersicherungJahreslohn.Abschnitte(monateJeArt[art]);
+                if (abschnitte.Count == 0) continue;
+                if (!vers.TryGetValue(art, out var v)) { versOhneVersicherer.Add(art); continue; }
+                var el = new XElement(Sd + liste);
+                foreach (var a in abschnitte)
+                {
+                    var dauer = Dauer(art, a);
+                    var pflichtig = a.Beitragspflichtig
+                        ?? Math.Min(a.Basis, ElmVersicherungJahreslohn.Hoechstlohn(dauer.Von, dauer.Bis, uvgHoechstMonat));
+                    var s = new XElement(Sd + element, new XAttribute("addresseeIDRef", v.Id), Zeitraum(dauer));
+                    switch (art)
+                    {
+                        case "UVG":
+                            s.Add(new XElement(Sd + "UVG-LAA-Code", a.Code),
+                                new XElement(Sd + "UVG-LAA-GrossSalary", Betrag05(a.Brutto)),
+                                new XElement(Sd + "UVG-LAA-BaseSalary", Betrag05(a.Basis)),
+                                new XElement(Sd + "UVG-LAA-ContributorySalary", Betrag05(pflichtig)));
+                            break;
+                        case "UVGZ":
+                            s.Add(new XElement(Sd + "UVGZ-LAAC-Code", a.Code),
+                                new XElement(Sd + "UVGZ-LAAC-BaseSalary", Betrag05(a.Basis)),
+                                new XElement(Sd + "UVGZ-LAAC-ContributorySalary", Betrag05(pflichtig)));
+                            break;
+                        default:
+                            s.Add(new XElement(Sd + "KTG-AMC-Code", a.Code),
+                                new XElement(Sd + "Reference-AHV-AVS-Salary", Betrag05(a.AhvLohn)),
+                                new XElement(Sd + "KTG-AMC-ContributorySalary", Betrag05(pflichtig)));
+                            break;
+                    }
+                    el.Add(s);
+                    versTags[art]++;
+                    // Totale = Summe der gemeldeten (gerundeten) Einzelwerte.
+                    versZeilen[art].Add(new(a.Code, geschlecht, PayrollCalculations.Round05(pflichtig)));
+                }
+                result.Add(el);
+            }
+            return result;
+        }
+
+        // Abzugszeilen NBUV/BUV/UVGZ/KTG eines Lohnzettels mit Basis und Versicherungs-Code (falls gespeichert).
+        static IEnumerable<(string Kat, string? Code, decimal Basis)> VersicherungsZeilen(string? slipJson)
+        {
+            var liste = new List<(string, string?, decimal)>();
+            if (string.IsNullOrWhiteSpace(slipJson)) return liste;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(slipJson);
+                if (!doc.RootElement.TryGetProperty("abzugLines", out var al) || al.ValueKind != System.Text.Json.JsonValueKind.Array)
+                    return liste;
+                foreach (var z in al.EnumerateArray())
+                {
+                    var kat = (z.TryGetProperty("categoryCode", out var c) && c.ValueKind == System.Text.Json.JsonValueKind.String
+                        ? c.GetString() : null)?.Trim().ToUpperInvariant();
+                    if (kat is not ("NBUV" or "BUV" or "UVGZ" or "KTG")) continue;
+                    var code = z.TryGetProperty("loesungsCode", out var lc) && lc.ValueKind == System.Text.Json.JsonValueKind.String
+                        ? lc.GetString()?.Trim() : null;
+                    var basis = z.TryGetProperty("basis", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.Number ? b.GetDecimal() : 0m;
+                    liste.Add((kat, string.IsNullOrEmpty(code) ? null : code, basis));
+                }
+            }
+            catch (System.Text.Json.JsonException) { /* unlesbarer Lohnzettel: keine Zeilen */ }
+            return liste;
         }
 
         // FAK-CAF-Salaries einer Person: je AHV-Abschnitt mit AHV-Lohn, aufgeteilt nach Kasse und Kanton.
@@ -398,6 +590,14 @@ public class ElmAnnualDeclarationBuilder
                 new XElement(Ep + "ProcessByDistributor", "true"))
         };
         jobAddressees.AddRange(faks.Select(ElmFakAdressierung.JobAddressee));
+        foreach (var art in versOhneVersicherer)
+            warn.Add($"{art}: Personen mit {art}-Code, aber kein {art}-Versicherer im Empfänger-Katalog — {art} nicht gemeldet.");
+        // Nur Versicherer melden, für die es Personen gibt (wie die Referenz).
+        var versGemeldet = new[] { "UVG", "UVGZ", "KTG" }.Where(a => vers.ContainsKey(a) && versTags[a] > 0).ToList();
+        jobAddressees.AddRange(versGemeldet.Select(a => new XElement(Sdc + "Addressee",
+            new XAttribute("addresseeID", vers[a].Id),
+            new XElement(Ep + "AddresseeIdentification", vers[a].Kassennummer),
+            new XElement(Ep + "ProcessByDistributor", "true"))));
 
         var institutions = new List<XElement>
         {
@@ -410,6 +610,11 @@ public class ElmAnnualDeclarationBuilder
                     "BVG-Meldung folgt in Aufbau-Etappe E5"))
         };
         institutions.AddRange(faks.Select(ElmFakAdressierung.Institution));
+        institutions.AddRange(versGemeldet.Select(a => new XElement(Sd + VersElement[a],
+            new XAttribute("addresseeIDRef", vers[a].Id),
+            new XElement(Sd + "InsuranceCompanyName", vers[a].Name),
+            new XElement(Sd + "CustomerIdentity", vers[a].Kunde),
+            new XElement(Sd + "ContractIdentity", vers[a].Vertrag))));
 
         var salaryTotals = new List<XElement>
         {
@@ -424,12 +629,48 @@ public class ElmAnnualDeclarationBuilder
         salaryTotals.AddRange(faks.Select(f => ElmFakAdressierung.Totals(f,
             fakSummen.TryGetValue(f.Kassennummer, out var jeKanton) ? jeKanton : new Dictionary<string, ElmFakAdressierung.Summe>())));
 
+        // UVG-Totale je Betriebsteil und Geschlecht, UVGZ/KTG je Code; Codes der SV-Sätze ohne Personen mit 0.00.
+        IEnumerable<string> SatzCodes(params string[] svCodes) => svSaetze
+            .Where(r => svCodes.Contains(r.Code) && !string.IsNullOrWhiteSpace(r.LoesungsCode)
+                        && (ganzeFirma || r.CompanyProfileId == null || filialIds.Contains(r.CompanyProfileId.Value)))
+            .Select(r => r.LoesungsCode!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase);
+        if (versGemeldet.Contains("UVG"))
+        {
+            var branchen = ElmVersicherungJahreslohn.UvgTotale(versZeilen["UVG"], SatzCodes("NBUV", "BUV"));
+            salaryTotals.Add(new XElement(Sd + "UVG-LAA-Totals",
+                new XAttribute("addresseeIDRef", vers["UVG"].Id),
+                new XElement(Sd + "UVG-LAA-BranchTotals", branchen.Select(b => new XElement(Sd + "UVG-LAA-BranchTotal",
+                    new XElement(Sd + "BranchIdentifier", b.Betriebsteil),
+                    new XElement(Sd + "Female-Totals",
+                        new XElement(Sd + "NBU-BU-ANP-AP-Total", Amt(b.FrauNbu)),
+                        new XElement(Sd + "BU-AP-Total", Amt(b.FrauBu))),
+                    new XElement(Sd + "Male-Totals",
+                        new XElement(Sd + "NBU-BU-ANP-AP-Total", Amt(b.MannNbu)),
+                        new XElement(Sd + "BU-AP-Total", Amt(b.MannBu)))))),
+                new XElement(Sd + "UVG-LAA-MasterTotal",
+                    Amt(branchen.Sum(b => b.FrauNbu + b.FrauBu + b.MannNbu + b.MannBu)))));
+        }
+        foreach (var (art, prefix) in new[] { ("UVGZ", "UVGZ-LAAC"), ("KTG", "KTG-AMC") })
+        {
+            if (!versGemeldet.Contains(art)) continue;
+            var kat = ElmVersicherungJahreslohn.KategorieTotale(versZeilen[art], SatzCodes(art));
+            salaryTotals.Add(new XElement(Sd + $"{prefix}-Totals",
+                new XAttribute("addresseeIDRef", vers[art].Id),
+                new XElement(Sd + $"{prefix}-CategoryTotals", kat.Select(k => new XElement(Sd + $"{prefix}-CategoryTotal",
+                    new XElement(Sd + "CategoryCode", k.Code),
+                    new XElement(Sd + "Female-Total", Amt(k.Frau)),
+                    new XElement(Sd + "Male-Total", Amt(k.Mann))))),
+                new XElement(Sd + $"{prefix}-MasterTotal", Amt(kat.Sum(k => k.Frau + k.Mann)))));
+        }
+
         var counters = new List<XElement>
         {
             new(Sd + "NumberOf-AHV-AVS-Salary-Tags", salaryTags)
         };
         if (faks.Count > 0)
             counters.Add(new XElement(Sd + "NumberOf-FAK-CAF-Salary-Tags", fakTags));
+        foreach (var a in versGemeldet)
+            counters.Add(new XElement(Sd + $"NumberOf-{VersElement[a]}-Salary-Tags", versTags[a]));
 
         // ── Gesamtdokument ────────────────────────────────────────────────
         var now = DateTime.Now;
@@ -461,6 +702,15 @@ public class ElmAnnualDeclarationBuilder
 
         return new BuildResult(xml, persons.Count, skipped, totalAhv, totalAlv, warn, xsdFehler);
     }
+
+    /// <summary>UVG-/UVGZ-/KTG-Versicherer der Meldung (Empfänger-Katalog).</summary>
+    private sealed record Versicherer(string Id, string Kassennummer, string Name, string Kunde, string Vertrag);
+
+    /// <summary>Elementname der Domäne im XML (Institution, Zähler).</summary>
+    private static readonly Dictionary<string, string> VersElement = new()
+    {
+        ["UVG"] = "UVG-LAA", ["UVGZ"] = "UVGZ-LAAC", ["KTG"] = "KTG-AMC",
+    };
 
     /// <summary>
     /// Sonderfall und das Kalenderjahr vor dem 18. Geburtstag: nicht AHV-/ALV-pflichtig.
