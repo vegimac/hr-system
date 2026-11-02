@@ -141,6 +141,7 @@ passende bestehende Datei bzw. eine neue kleine Datei im Modul-Ordner — **kein
 
 **Oberfläche**
 - Liquid Glass für alles Neue; Eingabemasken nach ov-Standard (`class="modal"`); keine grellen Default-Farben.
+- Farben nur über die Variablen `--oc-*` aus `css/farben.css` (hell + dunkel an einer Stelle), nie feste Farben; was im Dunkel-Modus hell bleiben muss ⇒ Klasse `hell-bleiben`; `css/dark.css` wird erzeugt (`Scripts/dark-css-erzeugen.py`), nicht von Hand ändern.
 - Ja/Nein immer `liquidConfirm`, nie `confirm()`; Downloads nur über `saveBlobAsk`/`saveUrlAsk`, PDF/Bild zuerst `previewFileModal`.
 - Natives `<select>` schreiben (liquid-select macht den Look), nie `.no-liquid` auf sichtbaren Selects; Datumsfelder einfach `type="date"`.
 - Keine Aktionsbuttons oben rechts (Zone `#langSwitcher`, bis y≈60 px); Titel + Buttons bleiben beim Scrollen fix (`fixhead`); Zurück nur über `seite-zurueck`.

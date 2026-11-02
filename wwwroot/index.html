@@ -10,6 +10,7 @@
     <title>OneCrew</title>
     <link rel="stylesheet" href="css/fonts-inter.css?v=20261022a">
     <!-- Stile (aufgeteilt 01.11.2026, vorher eine app.css): Reihenfolge NICHT ändern — sie ist die Kaskade. -->
+    <link rel="stylesheet" href="css/farben.css?v=20261102a">
     <link rel="stylesheet" href="css/app.css?v=20261103a">
     <link rel="stylesheet" href="css/app-02-login-liquid.css?v=20261103a">
     <link rel="stylesheet" href="css/app-03-mitarbeiter.css?v=20261103a">
@@ -21,7 +22,9 @@
     <link rel="stylesheet" href="css/app-09-vertraege-kalender.css?v=20261103a">
     <link rel="stylesheet" href="css/app-10-lohnschema-darkmode.css?v=20261103a">
     <link rel="stylesheet" href="css/app-11-diverses.css?v=20261103a">
-    <link rel="stylesheet" href="css/elm.css?v=20261103a">
+    <link rel="stylesheet" href="css/elm.css?v=20261103b">
+    <!-- Dunkel-Modus-Sicherheitsnetz: IMMER zuletzt (erzeugt, siehe Kopf der Datei). -->
+    <link rel="stylesheet" href="css/dark.css?v=20261102a">
 </head>
 <body>
 
@@ -11265,7 +11268,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
                     Wird auf Formularen (QST-Anmeldung, RAV …) eingebettet. PNG mit transparentem Hintergrund, max 2 MB.
                 </div>
                 <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-                    <div id="umSigPreview"
+                    <div id="umSigPreview" class="hell-bleiben"
                          style="width:220px;height:90px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;overflow:hidden">
                         Keine Unterschrift hinterlegt
                     </div>

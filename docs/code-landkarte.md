@@ -82,6 +82,7 @@ Datei; Cache-Buster (`?v=`) der geänderten Datei in index.html hochzählen.
 
 | Datei | Hauptinhalt |
 |---|---|
+| `farben.css` | **Zentrale Farben** `--oc-*` für hell und dunkel (zuerst geladen) |
 | `app.css` | Reset, Grundlayout, Listen, Basis-Komponenten |
 | `app-02-login-liquid.css` | Login, Liquid Glass, Selects, Mitarbeiter-Grundlagen |
 | `app-03-mitarbeiter.css` | Mitarbeiter-Maske |
@@ -93,7 +94,10 @@ Datei; Cache-Buster (`?v=`) der geänderten Datei in index.html hochzählen.
 | `app-09-vertraege-kalender.css` | Vertragsfenster, Absenz-Kalender, Familienzulagen-Anmeldung, Manager-Dienstplan |
 | `app-10-lohnschema-darkmode.css` | Lohnschema, Mindestlöhne, ov-Eingabemasken-Standard, Dark Mode |
 | `app-11-diverses.css` | Dokument-Struktur, Gesprächsmodus, Sitzungen, Lohnart-Maske u.a. |
-| `elm.css` | ELM Cockpit (`#e2App`) |
+| `elm.css` | ELM Cockpit (`#e2App`) — Vorbild: nur `var(--oc-…)` |
+| `dark.css` | Dunkel-Sicherheitsnetz für feste Farben in Inline-Stilen (zuletzt geladen, **erzeugt** von `Scripts/dark-css-erzeugen.py` — nicht von Hand ändern) |
+
+**Dunkel-Modus (02.11.2026):** Neue Oberflächen nehmen nur die Variablen `--oc-*` aus `farben.css`, nie feste Farben wie `#fff` oder `#3f3f3f`. Elemente, die im Dunkel-Modus bewusst hell bleiben (Unterschrift, Briefvorschau), bekommen die Klasse `hell-bleiben`.
 
 ## Ältere Verweise
 In `docs/claude/*.md` (wörtlich übernommene Regeln) steht oft noch `employees.js` oder

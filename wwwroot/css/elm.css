@@ -1,57 +1,58 @@
 /* ── ELM (Walter 01.11.2026): Übermittlungscockpit nach den Swissdec-Testfällen ──
-   Liquid Glass: warmes Off-White, Glaskarten, Kohle-Pille primär. Seite: js/elm.js. */
-#page-elm.page.active { background: #f6f3ee; color: #3f3f3f; color-scheme: light; }
-#e2App { padding: 24px 32px 80px 48px; max-width: 1240px; color: #3f3f3f; font-size: 15px; line-height: 1.45; }
-#e2App h1 { margin: 2px 0 2px; font-size: 28px; font-weight: 700; color: #1a1a1a; }
-#e2App h2 { margin: 0; font-size: 17px; font-weight: 650; color: #1a1a1a; }
-#e2App h3 { margin: 0; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: #646464; }
+   Liquid Glass: warmes Off-White, Glaskarten, Kohle-Pille primär. Seite: js/elm.js.
+   Farben nur über css/farben.css (--oc-…): so gilt hell und dunkel ohne eigene Dunkel-Regeln. */
+#page-elm.page.active { background: var(--oc-seite); color: var(--oc-text); }
+#e2App { padding: 24px 32px 80px 48px; max-width: 1240px; color: var(--oc-text); font-size: 15px; line-height: 1.45; }
+#e2App h1 { margin: 2px 0 2px; font-size: 28px; font-weight: 700; color: var(--oc-text-stark); }
+#e2App h2 { margin: 0; font-size: 17px; font-weight: 650; color: var(--oc-text-stark); }
+#e2App h3 { margin: 0; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--oc-text-2); }
 #e2App .e2-kopf { margin-top: 44px; }
-#e2App .e2-eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #8b8b8b; }
-#e2App .e2-unter { margin: 0; color: #646464; }
+#e2App .e2-eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--oc-text-3); }
+#e2App .e2-unter { margin: 0; color: var(--oc-text-2); }
 #e2App .e2-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin: 16px 0 12px; }
-#e2App .e2-tipp, #e2App .e2-still { color: #8b8b8b; font-size: 13px; }
-#e2App .e2-zeit { margin-left: auto; color: #8b8b8b; font-size: 12px; }
+#e2App .e2-tipp, #e2App .e2-still { color: var(--oc-text-3); font-size: 13px; }
+#e2App .e2-zeit { margin-left: auto; color: var(--oc-text-3); font-size: 12px; }
 #e2App .e2-rechts { margin-left: auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 #e2App .e2-pille {
-    border: 1px solid rgba(60,55,48,0.20); background: rgba(255,255,255,0.58); color: #3f3f3f;
+    border: 1px solid var(--oc-rand); background: var(--oc-flaeche-2); color: var(--oc-text);
     border-radius: 12px; padding: 8px 16px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
-    box-shadow: 0 2px 6px rgba(60,55,48,0.10); transition: transform .15s, box-shadow .15s;
+    box-shadow: var(--oc-schatten-klein); transition: transform .15s, box-shadow .15s;
 }
-#e2App .e2-pille:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(60,55,48,0.16); }
+#e2App .e2-pille:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--oc-schatten); }
 #e2App .e2-pille:disabled { opacity: .45; cursor: default; }
-#e2App .e2-primaer { background: #3f3f3f; border-color: #3f3f3f; color: #fff; }
+#e2App .e2-primaer { background: var(--oc-primaer); border-color: var(--oc-primaer); color: var(--oc-primaer-text); }
 #e2App .e2-klein { padding: 4px 10px; font-size: 12px; border-radius: 9px; }
-#e2App .e2-text { background: none; border: 0; padding: 2px 4px; color: #3f3f3f; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
-#e2App .e2-schalter { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 12px; border: 1px solid rgba(60,55,48,0.20); background: rgba(255,255,255,0.45); font-weight: 600; cursor: pointer; }
+#e2App .e2-text { background: none; border: 0; padding: 2px 4px; color: var(--oc-text); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+#e2App .e2-schalter { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 12px; border: 1px solid var(--oc-rand); background: var(--oc-flaeche-2); font-weight: 600; cursor: pointer; }
 #e2App .e2-schalter.e2-klein { padding: 4px 10px; font-size: 12px; font-weight: 500; }
-#e2App .e2-schalter input { width: 16px; height: 16px; accent-color: #3f3f3f; }
-#e2App .e2-info { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid #8b8b8b; font-size: 10px; font-style: normal; color: #646464; }
+#e2App .e2-schalter input { width: 16px; height: 16px; accent-color: var(--oc-primaer); }
+#e2App .e2-info { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--oc-text-3); font-size: 10px; font-style: normal; color: var(--oc-text-2); }
 #e2App .e2-hinweis { margin: 8px 0; padding: 10px 14px; border-radius: 12px; font-size: 14px; }
 #e2App .e2-gut { background: rgba(22,163,74,0.08); border: 1px solid rgba(22,163,74,0.25); }
 #e2App .e2-warn { background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.28); }
-#e2App .e2-sua { margin: 8px 0 14px; padding: 12px 16px; border-radius: 16px; background: rgba(255,255,255,0.42); border: 1px solid rgba(255,255,255,0.62); box-shadow: 0 4px 14px rgba(60,55,48,0.10); }
+#e2App .e2-sua { margin: 8px 0 14px; padding: 12px 16px; border-radius: 16px; background: var(--oc-flaeche); border: 1px solid var(--oc-glasrand); box-shadow: var(--oc-schatten); }
 #e2App .e2-sua-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-#e2App .e2-sua-text p { margin: 10px 0 0; font-size: 14px; color: #646464; max-width: 72rem; }
+#e2App .e2-sua-text p { margin: 10px 0 0; font-size: 14px; color: var(--oc-text-2); max-width: 72rem; }
 #e2App .e2-punkt { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 #e2App .e2-p-ok { background: #16a34a; }
 #e2App .e2-p-warn { background: #d97706; }
-#e2App .e2-reiterleiste { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; border-bottom: 1px solid rgba(60,55,48,0.14); }
-#e2App .e2-reiter { border: 0; background: none; padding: 10px 14px; font: inherit; font-weight: 600; color: #8b8b8b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-#e2App .e2-reiter.an { color: #1a1a1a; border-bottom-color: #3f3f3f; }
+#e2App .e2-reiterleiste { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; border-bottom: 1px solid var(--oc-rand); }
+#e2App .e2-reiter { border: 0; background: none; padding: 10px 14px; font: inherit; font-weight: 600; color: var(--oc-text-3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+#e2App .e2-reiter.an { color: var(--oc-text-stark); border-bottom-color: var(--oc-text); }
 #e2App .e2-zahl { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #d97706; color: #fff; font-size: 11px; }
-#e2App .e2-karte { margin: 0 0 16px; padding: 18px 20px; border-radius: 18px; background: rgba(255,255,255,0.50); border: 1px solid rgba(255,255,255,0.62); box-shadow: 0 6px 20px rgba(60,55,48,0.12); }
+#e2App .e2-karte { margin: 0 0 16px; padding: 18px 20px; border-radius: 18px; background: var(--oc-flaeche); border: 1px solid var(--oc-glasrand); box-shadow: var(--oc-schatten); }
 #e2App .e2-karte > p { margin: 8px 0; }
 #e2App .e2-karte-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 8px; }
 #e2App .e2-periodenwahl { margin: 4px 0 14px; }
 #e2App .e2-jahre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
-#e2App .e2-jahrpille { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border-radius: 999px; border: 1px solid rgba(60,55,48,0.20); background: rgba(255,255,255,0.45); font: inherit; font-weight: 600; color: #646464; cursor: pointer; }
-#e2App .e2-jahrpille.an { background: #3f3f3f; border-color: #3f3f3f; color: #fff; }
+#e2App .e2-jahrpille { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border-radius: 999px; border: 1px solid var(--oc-rand); background: var(--oc-flaeche-2); font: inherit; font-weight: 600; color: var(--oc-text-2); cursor: pointer; }
+#e2App .e2-jahrpille.an { background: var(--oc-primaer); border-color: var(--oc-primaer); color: var(--oc-primaer-text); }
 #e2App .e2-monate { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
-#e2App .e2-monat { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(60,55,48,0.16); border-left-width: 5px; background: rgba(255,255,255,0.45); font: inherit; text-align: left; cursor: pointer; min-width: 0; transition: transform .15s, box-shadow .15s; }
+#e2App .e2-monat { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--oc-rand); border-left-width: 5px; background: var(--oc-flaeche-2); font: inherit; text-align: left; cursor: pointer; min-width: 0; transition: transform .15s, box-shadow .15s; }
 #e2App .e2-monat:hover { transform: translateY(-2px); }
-#e2App .e2-monat b { font-size: 14px; color: #1a1a1a; }
-#e2App .e2-monat span { font-size: 11px; color: #646464; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-#e2App .e2-monat.an { box-shadow: 0 0 0 2px #3f3f3f, 0 6px 14px rgba(60,55,48,0.18); }
+#e2App .e2-monat b { font-size: 14px; color: var(--oc-text-stark); }
+#e2App .e2-monat span { font-size: 11px; color: var(--oc-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+#e2App .e2-monat.an { box-shadow: 0 0 0 2px var(--oc-primaer), var(--oc-schatten-klein); }
 #e2App .e2-m-offen { border-left-color: #d97706; background: rgba(217,119,6,0.07); }
 #e2App .e2-m-bereit { border-left-color: #16a34a; }
 #e2App .e2-m-success { border-color: #16a34a; background: #16a34a; }
@@ -63,80 +64,80 @@
 #e2App .e2-mpunkt.e2-m-pending { background: #d97706; }
 #e2App .e2-mpunkt.e2-m-error { background: #dc2626; }
 #e2App .e2-gruppen { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin: 12px 0; }
-#e2App .e2-gruppe { padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(60,55,48,0.14); }
+#e2App .e2-gruppe { padding: 12px 14px; border-radius: 14px; border: 1px solid var(--oc-rand); }
 #e2App .e2-gruppe-kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-#e2App .e2-zeile { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(60,55,48,0.08); cursor: pointer; }
+#e2App .e2-zeile { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--oc-rand-schwach); cursor: pointer; }
 #e2App .e2-zeile:first-of-type { border-top: 0; }
-#e2App .e2-zeile input { width: 16px; height: 16px; accent-color: #3f3f3f; flex: none; }
+#e2App .e2-zeile input { width: 16px; height: 16px; accent-color: var(--oc-primaer); flex: none; }
 #e2App .e2-gedimmt { opacity: .6; cursor: default; }
 #e2App .e2-an { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-#e2App .e2-an i { font-style: normal; font-size: 12px; color: #8b8b8b; }
+#e2App .e2-an i { font-style: normal; font-size: 12px; color: var(--oc-text-3); }
 #e2App .e2-chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-#e2App .e2-chip.e2-ok { background: rgba(22,163,74,0.12); color: #166534; }
-#e2App .e2-chip.e2-grau { background: rgba(60,55,48,0.08); color: #646464; }
+#e2App .e2-chip.e2-ok { background: var(--oc-ok-bg); color: var(--oc-ok-text); }
+#e2App .e2-chip.e2-grau { background: var(--oc-rand-schwach); color: var(--oc-text-2); }
 #e2App .e2-kantone { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px 26px; }
-#e2App .e2-kanton { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 10px; border: 1px solid rgba(60,55,48,0.20); font-size: 13px; cursor: pointer; }
+#e2App .e2-kanton { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 10px; border: 1px solid var(--oc-rand); font-size: 13px; cursor: pointer; }
 #e2App .e2-pruefung { margin: 10px 0; padding: 12px 14px; border-radius: 12px; font-size: 14px; }
 #e2App .e2-pruefung p, #e2App .e2-pruefung ul { margin: 6px 0 0; }
 #e2App .e2-aktionen { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 12px; }
 #e2App .e2-tabelle-rahmen { overflow-x: auto; }
 #e2App .e2-tabelle { width: 100%; border-collapse: collapse; font-size: 13px; }
-#e2App .e2-tabelle th { text-align: left; font-weight: 600; color: #646464; padding: 8px 10px; border-bottom: 1px solid rgba(60,55,48,0.16); white-space: nowrap; }
-#e2App .e2-tabelle td { padding: 9px 10px; border-bottom: 1px solid rgba(60,55,48,0.08); vertical-align: top; }
+#e2App .e2-tabelle th { text-align: left; font-weight: 600; color: var(--oc-text-2); padding: 8px 10px; border-bottom: 1px solid var(--oc-rand); white-space: nowrap; }
+#e2App .e2-tabelle td { padding: 9px 10px; border-bottom: 1px solid var(--oc-rand-schwach); vertical-align: top; }
 #e2App .e2-tabelle tfoot td { border-bottom: 0; }
 #e2App .e2-klickbar { cursor: pointer; }
-#e2App .e2-klickbar:hover, #e2App .e2-klickbar.an { background: rgba(255,255,255,0.65); }
+#e2App .e2-klickbar:hover, #e2App .e2-klickbar.an { background: var(--oc-hover); }
 #e2App .e2-zahlspalte { text-align: right; }
 #e2App .e2-aktionsspalte { white-space: nowrap; }
 #e2App .e2-aktionsspalte .e2-pille + .e2-pille { margin-left: 6px; }
 #e2App .e2-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 #e2App .e2-status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-#e2App .e2-s-success { background: rgba(22,163,74,0.12); color: #166534; }
-#e2App .e2-s-pending { background: rgba(217,119,6,0.12); color: #92400e; }
-#e2App .e2-s-error { background: rgba(220,38,38,0.10); color: #991b1b; }
-#e2App .e2-status-text { display: block; font-style: normal; font-size: 11px; color: #8b8b8b; margin-top: 2px; }
+#e2App .e2-s-success { background: var(--oc-ok-bg); color: var(--oc-ok-text); }
+#e2App .e2-s-pending { background: var(--oc-warn-bg); color: var(--oc-warn-text); }
+#e2App .e2-s-error { background: var(--oc-rot-bg); color: var(--oc-rot-text); }
+#e2App .e2-status-text { display: block; font-style: normal; font-size: 11px; color: var(--oc-text-3); margin-top: 2px; }
 #e2App .e2-notiz { margin: 0; padding-left: 16px; }
-#e2App .e2-detail { margin-top: 14px; padding: 14px; border-radius: 14px; border: 1px solid rgba(60,55,48,0.14); background: rgba(255,255,255,0.45); }
+#e2App .e2-detail { margin-top: 14px; padding: 14px; border-radius: 14px; border: 1px solid var(--oc-rand); background: var(--oc-flaeche-2); }
 #e2App .e2-frage { margin-top: 8px; }
-#e2App .e2-feld { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; font-size: 13px; color: #646464; max-width: 28rem; }
+#e2App .e2-feld { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; font-size: 13px; color: var(--oc-text-2); max-width: 28rem; }
 #e2App .e2-feld input, #e2App .e2-betrag {
-    background: #fff; border: 1px solid rgba(255,255,255,0.95); border-radius: 10px; padding: 8px 10px; font: inherit; color: #3f3f3f;
-    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);
+    background: var(--oc-feld); border: 1px solid var(--oc-feld-rand); border-radius: 10px; padding: 8px 10px; font: inherit; color: var(--oc-text);
+    box-shadow: var(--oc-schatten-klein);
 }
 #e2App .e2-betrag { width: 8.5rem; text-align: right; padding: 5px 8px; }
-#e2App .e2-pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; color: #646464; max-height: 320px; overflow: auto; background: rgba(255,255,255,0.6); padding: 10px; border-radius: 10px; }
+#e2App .e2-pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; color: var(--oc-text-2); max-height: 320px; overflow: auto; background: var(--oc-flaeche-2); padding: 10px; border-radius: 10px; }
 #e2App .e2-nachlauf { display: flex; align-items: center; gap: 10px; }
 #e2App .e2-dreher { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid rgba(22,163,74,0.25); border-top-color: #16a34a; animation: e2Drehen 0.9s linear infinite; }
 @keyframes e2Drehen { to { transform: rotate(360deg); } }
 #e2App .e2-zeit { display: inline-flex; align-items: center; gap: 8px; }
 #e2App .e2-schritte { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 12px 0 14px; padding: 0; }
 #e2App .e2-schritt { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-right: 12px; }
-#e2App .e2-schritt:not(:last-child)::after { content: ''; position: absolute; top: 14px; left: 34px; right: 6px; height: 2px; background: rgba(60,55,48,0.14); }
+#e2App .e2-schritt:not(:last-child)::after { content: ''; position: absolute; top: 14px; left: 34px; right: 6px; height: 2px; background: var(--oc-rand); }
 #e2App .e2-schritt.e2-st-fertig:not(:last-child)::after { background: #16a34a; }
-#e2App .e2-schritt-punkt { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; font-weight: 700; border: 2px solid rgba(60,55,48,0.20); background: #faf8f5; color: #8b8b8b; }
+#e2App .e2-schritt-punkt { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; font-weight: 700; border: 2px solid var(--oc-rand); background: var(--oc-flaeche-fest); color: var(--oc-text-3); }
 #e2App .e2-schritt-text { display: flex; flex-direction: column; min-width: 0; }
-#e2App .e2-schritt-text b { font-size: 13px; color: #1a1a1a; }
-#e2App .e2-schritt-text i { font-style: normal; font-size: 11px; color: #8b8b8b; }
+#e2App .e2-schritt-text b { font-size: 13px; color: var(--oc-text-stark); }
+#e2App .e2-schritt-text i { font-style: normal; font-size: 11px; color: var(--oc-text-3); }
 #e2App .e2-st-fertig .e2-schritt-punkt { background: #16a34a; border-color: #16a34a; color: #fff; }
 #e2App .e2-st-jetzt .e2-schritt-punkt { border-color: #16a34a; color: #16a34a; animation: e2Puls 1.4s ease-in-out infinite; }
 #e2App .e2-st-warten .e2-schritt-punkt { background: #d97706; border-color: #d97706; color: #fff; }
 #e2App .e2-st-fehler .e2-schritt-punkt { background: #dc2626; border-color: #dc2626; color: #fff; }
-#e2App .e2-st-offen .e2-schritt-text b { color: #8b8b8b; }
+#e2App .e2-st-offen .e2-schritt-text b { color: var(--oc-text-3); }
 @keyframes e2Puls { 50% { box-shadow: 0 0 0 6px rgba(22,163,74,0.15); } }
 #e2App .e2-verlauf { margin-top: 14px; }
-#e2App .e2-verlauf summary { cursor: pointer; font-weight: 600; font-size: 14px; color: #3f3f3f; }
+#e2App .e2-verlauf summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--oc-text); }
 #e2App .e2-nowrap { white-space: nowrap; }
 @media (max-width: 760px) { #e2App .e2-schritte { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; } }
-#e2App .e2-leer { color: #8b8b8b; margin: 8px 0; }
+#e2App .e2-leer { color: var(--oc-text-3); margin: 8px 0; }
 #e2App .e2-bvg-kopf { cursor: default; }
 #e2App .e2-bvg { margin-top: 8px; }
 #e2App .e2-bvg-stand { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
 #e2App .e2-aufgaben { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 10px; }
-#e2App .e2-aufgabe { text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 14px; border: 1px solid rgba(60,55,48,0.18); background: rgba(255,255,255,0.55); font: inherit; cursor: pointer; }
-#e2App .e2-aufgabe span { font-size: 13px; color: #646464; }
+#e2App .e2-aufgabe { text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 14px; border: 1px solid var(--oc-rand); background: var(--oc-flaeche-2); font: inherit; cursor: pointer; }
+#e2App .e2-aufgabe span { font-size: 13px; color: var(--oc-text-2); }
 #e2App .e2-angaben { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 10px 0; }
-#e2App .e2-angabe { display: flex; flex-direction: column; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(60,55,48,0.14); }
-#e2App .e2-angabe span { font-size: 12px; color: #8b8b8b; }
+#e2App .e2-angabe { display: flex; flex-direction: column; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--oc-rand); }
+#e2App .e2-angabe span { font-size: 12px; color: var(--oc-text-3); }
 @media (max-width: 760px) {
     #e2App { padding: 16px 16px 60px; }
     #e2App .e2-gruppen { grid-template-columns: 1fr; }
@@ -150,15 +151,15 @@
 #e2App { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; max-width: none; padding: 14px 28px 16px 40px; box-sizing: border-box; }
 #e2App .e2-kopf { margin: 0; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-right: 420px; }
 #e2App .e2-kopf h1 { font-size: 24px; margin: 0; }
-#e2App .e2-unter { font-size: 14px; color: #646464; }
-#e2App .e2-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 18px 0 10px; border-bottom: 1px solid rgba(60,55,48,0.14); }
+#e2App .e2-unter { font-size: 14px; color: var(--oc-text-2); }
+#e2App .e2-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 18px 0 10px; border-bottom: 1px solid var(--oc-rand); }
 #e2App .e2-reiterleiste { margin: 0; border-bottom: 0; }
 #e2App .e2-leiste .e2-rechts { padding-bottom: 6px; }
-#e2App .e2-sua-pille { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: 999px; border: 1px solid rgba(60,55,48,0.18); background: rgba(255,255,255,0.45); }
+#e2App .e2-sua-pille { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: 999px; border: 1px solid var(--oc-rand); background: var(--oc-flaeche-2); }
 #e2App .e2-sua-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; font-weight: 600; font-size: 13px; }
-#e2App .e2-info-knopf { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(60,55,48,0.25); background: #fff; font: inherit; font-size: 12px; font-weight: 700; color: #646464; cursor: pointer; }
-#e2App .e2-sua-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: min(460px, 80vw); padding: 14px 16px; border-radius: 16px; background: #faf8f5; border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 14px 40px rgba(60,55,48,0.22); }
-#e2App .e2-sua-pop p { margin: 8px 0 0; font-size: 13px; color: #646464; }
+#e2App .e2-info-knopf { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--oc-rand-stark); background: var(--oc-feld); font: inherit; font-size: 12px; font-weight: 700; color: var(--oc-text-2); cursor: pointer; }
+#e2App .e2-sua-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: min(460px, 80vw); padding: 14px 16px; border-radius: 16px; background: var(--oc-flaeche-fest); border: 1px solid var(--oc-glasrand); box-shadow: var(--oc-schatten); }
+#e2App .e2-sua-pop p { margin: 8px 0 0; font-size: 13px; color: var(--oc-text-2); }
 #e2App .e2-zeile-hinweis { margin: 0 0 10px; padding: 7px 12px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 #e2App .e2-dreher-hell { border-color: rgba(255,255,255,0.35); border-top-color: #fff; width: 12px; height: 12px; display: inline-block; vertical-align: -1px; margin-right: 6px; }
 #e2App .e2-inhalt { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
@@ -190,7 +191,7 @@
 #e2App .e2-spalten { grid-template-columns: minmax(340px, 4fr) minmax(0, 7fr); }
 #e2App .e2-jobkopf { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 4px 0 8px; font-size: 13px; }
 #e2App .e2-jobkopf span { display: flex; flex-direction: column; }
-#e2App .e2-jobkopf i { font-style: normal; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #8b8b8b; }
+#e2App .e2-jobkopf i { font-style: normal; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--oc-text-3); }
 #e2App .e2-mitteilungen { table-layout: fixed; width: 100%; }
 #e2App .e2-mitteilungen td { overflow-wrap: anywhere; }
 #e2App .e2-mitteilungen .e2-aktionsspalte { white-space: normal; }
@@ -198,21 +199,21 @@
 #e2App .e2-mitteilungen .e2-aktionsspalte .e2-pille + .e2-pille { margin-left: 0; }
 #e2App .e2-mitteilungen .e2-notiz { padding-left: 14px; }
 /* ELM: Rückfrage lesbar (Walter 01.11.2026). */
-#e2App .e2-dlg-titel { margin: 6px 0 2px; font-size: 16px; font-weight: 700; color: #1a1a1a; }
-#e2App .e2-dlg-abschnitt { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(60,55,48,0.10); }
-#e2App .e2-dlg-abschnitt h4 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: #3f3f3f; }
+#e2App .e2-dlg-titel { margin: 6px 0 2px; font-size: 16px; font-weight: 700; color: var(--oc-text-stark); }
+#e2App .e2-dlg-abschnitt { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--oc-rand-schwach); }
+#e2App .e2-dlg-abschnitt h4 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--oc-text); }
 #e2App .e2-dlg-angaben { display: grid; grid-template-columns: minmax(140px, max-content) 1fr; gap: 4px 16px; margin: 6px 0; font-size: 13px; }
-#e2App .e2-dlg-angaben dt { color: #8b8b8b; }
-#e2App .e2-dlg-angaben dd { margin: 0; font-weight: 600; color: #1a1a1a; overflow-wrap: anywhere; }
+#e2App .e2-dlg-angaben dt { color: var(--oc-text-3); }
+#e2App .e2-dlg-angaben dd { margin: 0; font-weight: 600; color: var(--oc-text-stark); overflow-wrap: anywhere; }
 #e2App .e2-dlg-fragen { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 16px; }
 #e2App .e2-dlg-fragen .e2-feld { max-width: none; margin: 4px 0; }
-#e2App .e2-dlg-fragen .e2-feld span i { font-style: normal; color: #8b8b8b; }
+#e2App .e2-dlg-fragen .e2-feld span i { font-style: normal; color: var(--oc-text-3); }
 #e2App .e2-dlg-fragen select, #e2App .e2-dlg-fragen input[type="date"] {
-    background: #fff; border: 1px solid rgba(255,255,255,0.95); border-radius: 10px; padding: 8px 10px; font: inherit; color: #3f3f3f;
-    box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);
+    background: var(--oc-feld); border: 1px solid var(--oc-feld-rand); border-radius: 10px; padding: 8px 10px; font: inherit; color: var(--oc-text);
+    box-shadow: var(--oc-schatten-klein);
 }
 #e2App .e2-rechtsbuendig { text-align: right; }
-#e2App .e2-dlg-problem { font-style: normal; font-size: 11px; color: #991b1b; }
+#e2App .e2-dlg-problem { font-style: normal; font-size: 11px; color: var(--oc-rot-text); }
 #e2App .e2-frage .e2-aktionen { align-items: center; }
 /* ELM: linke Spalte wurde breiter als ihr Platz (Walter 01.11.2026, «linker Teil nicht ganz sichtbar»).
    Ursache: 1fr-Raster nehmen die Breite des längsten nicht umbrechenden Textes an. minmax(0, …) und
@@ -228,6 +229,6 @@
 #e2App .e2-spalte .e2-pruefung .e2-chip { white-space: normal; }
 #e2App .e2-spalte .e2-kantone { margin-left: 0; }
 #e2App .e2-spalte .e2-bvg-kopf { flex-wrap: wrap; }
-#e2App .e2-laeuft { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #166534; }
-#e2App .e2-chip.e2-rot { background: rgba(220,38,38,0.10); color: #991b1b; }
-#e2App .e2-chip.e2-warnchip { background: rgba(217,119,6,0.12); color: #92400e; }
+#e2App .e2-laeuft { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--oc-ok-text); }
+#e2App .e2-chip.e2-rot { background: var(--oc-rot-bg); color: var(--oc-rot-text); }
+#e2App .e2-chip.e2-warnchip { background: var(--oc-warn-bg); color: var(--oc-warn-text); }

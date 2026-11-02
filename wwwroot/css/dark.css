@@ -1,0 +1,434 @@
+/* ══ Dunkel-Modus: Sicherheitsnetz (Walter 02.11.2026) ══════════════════════════════════
+   Erzeugt — nicht von Hand ergänzen, sondern neue Oberflächen gleich mit den Farben aus
+   css/farben.css (--oc-…) bauen. Diese Datei wird ZULETZT geladen und wirkt nur mit
+   body.theme-dark: Sie fängt in älterem Code fest eingetragene helle Flächen und dunkle
+   Schriften in style="…" ab (rund 1'500 Stellen in HTML und JS, Bestand 02.11.2026) und gibt
+   Feldern, Tabellen und Linien ohne eigene Dunkel-Regel die Farben der Mitarbeiter-Maske.
+   Soll etwas absichtlich hell bleiben (z.B. eine Unterschrift auf Weiss): Klasse «hell-bleiben». */
+
+
+/* Helle Flächen → dunkle Glasfläche */
+body.theme-dark [style*="background:#fff;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fff " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fff!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="background:#fff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fff;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fff " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fff!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="background: #fff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fff;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fff " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fff!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="background-color:#fff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fff;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fff " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fff!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="background-color: #fff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#ffffff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #ffffff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#ffffff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #ffffff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:white" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: white" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:white" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: white" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fdfdfd" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fdfdfd" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fdfdfd" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fdfdfd" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fafafa" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fafafa" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fafafa" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fafafa" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f9fafb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f9fafb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f9fafb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f9fafb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f8fafc" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f8fafc" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f8fafc" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f8fafc" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f8f9fa" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f8f9fa" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f8f9fa" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f8f9fa" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f7f7f7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f7f7f7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f7f7f7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f7f7f7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f5f5f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f5f5f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f5f5f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f5f5f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f4f4f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f4f4f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f4f4f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f4f4f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f3f4f6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f3f4f6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f3f4f6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f3f4f6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f1f5f9" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f1f5f9" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f1f5f9" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f1f5f9" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#faf8f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #faf8f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#faf8f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #faf8f5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f6f3ee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f6f3ee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f6f3ee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f6f3ee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#eef2f7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #eef2f7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#eef2f7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #eef2f7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    background-color: var(--dlg-fill) !important;
+    background-image: none !important;
+    color: var(--oc-text);
+}
+
+/* Hellgraue Flächen → zweite Ebene */
+body.theme-dark [style*="background:#e5e7eb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #e5e7eb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#e5e7eb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #e5e7eb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#e2e8f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #e2e8f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#e2e8f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #e2e8f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#eeece4" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #eeece4" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#eeece4" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #eeece4" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#e7e4db" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #e7e4db" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#e7e4db" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #e7e4db" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#ece9e2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #ece9e2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#ece9e2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #ece9e2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f0f0f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f0f0f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f0f0f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f0f0f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#eee;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#eee " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#eee!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="background:#eee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #eee;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #eee " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #eee!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="background: #eee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#eee;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#eee " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#eee!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="background-color:#eee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #eee;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #eee " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #eee!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="background-color: #eee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#eeeeee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #eeeeee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#eeeeee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #eeeeee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    background-color: var(--dlg-fill-strong) !important;
+    background-image: none !important;
+}
+
+/* Helle Tönung gelb → dunkle Tönung */
+body.theme-dark [style*="background:#fffbeb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fffbeb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fffbeb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fffbeb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fef3c7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fef3c7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fef3c7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fef3c7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fef9c3" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fef9c3" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fef9c3" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fef9c3" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fefce8" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fefce8" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fefce8" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fefce8" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fff7ed" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fff7ed" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fff7ed" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fff7ed" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#ffedd5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #ffedd5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#ffedd5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #ffedd5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    background-color: rgba(245, 158, 11, 0.16) !important;
+    background-image: none !important;
+}
+
+/* Helle Tönung rot → dunkle Tönung */
+body.theme-dark [style*="background:#fef2f2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fef2f2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fef2f2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fef2f2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fee2e2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fee2e2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fee2e2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fee2e2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#fff1f2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #fff1f2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#fff1f2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #fff1f2" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#ffe4e6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #ffe4e6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#ffe4e6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #ffe4e6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    background-color: rgba(239, 68, 68, 0.16) !important;
+    background-image: none !important;
+}
+
+/* Helle Tönung gruen → dunkle Tönung */
+body.theme-dark [style*="background:#ecfdf5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #ecfdf5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#ecfdf5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #ecfdf5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f0fdf4" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f0fdf4" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f0fdf4" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f0fdf4" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#dcfce7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #dcfce7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#dcfce7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #dcfce7" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#d1fae5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #d1fae5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#d1fae5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #d1fae5" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    background-color: rgba(34, 197, 94, 0.16) !important;
+    background-image: none !important;
+}
+
+/* Helle Tönung blau → dunkle Tönung */
+body.theme-dark [style*="background:#eff6ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #eff6ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#eff6ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #eff6ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#dbeafe" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #dbeafe" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#dbeafe" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #dbeafe" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#e0f2fe" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #e0f2fe" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#e0f2fe" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #e0f2fe" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#f0f9ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #f0f9ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#f0f9ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #f0f9ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#eef2ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #eef2ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#eef2ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #eef2ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background:#e0e7ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background: #e0e7ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color:#e0e7ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="background-color: #e0e7ff" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    background-color: rgba(59, 130, 246, 0.18) !important;
+    background-image: none !important;
+}
+
+/* Dunkle Schrift → hell */
+body.theme-dark [style*="color:#000;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#000 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#000!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color:#000" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #000;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #000 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #000!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color: #000" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:black" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: black" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#111;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#111 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#111!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color:#111" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #111;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #111 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #111!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color: #111" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#111827" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #111827" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#0f172a" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #0f172a" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#1e293b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #1e293b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#1f2937" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #1f2937" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#1a1a1a" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #1a1a1a" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#222;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#222 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#222!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color:#222" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #222;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #222 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #222!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color: #222" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#333;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#333 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#333!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color:#333" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #333;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #333 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #333!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color: #333" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#3f3f3f" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #3f3f3f" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#374151" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #374151" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#334155" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #334155" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#2d3748" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #2d3748" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#27272a" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #27272a" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    color: var(--oc-text) !important;
+}
+
+/* Mittelgraue Schrift → hellgrau */
+body.theme-dark [style*="color:#475569" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #475569" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#4b5563" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #4b5563" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#555;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#555 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#555!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color:#555" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #555;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #555 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #555!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color: #555" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#646464" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #646464" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#6b7280" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #6b7280" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#52525b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #52525b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#57534e" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #57534e" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    color: var(--oc-text-2) !important;
+}
+
+/* Leise Schrift → gedämpft hell */
+body.theme-dark [style*="color:#64748b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #64748b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#8b8b8b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #8b8b8b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#94a3b8" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #94a3b8" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#9ca3af" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #9ca3af" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#999;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#999 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#999!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color:#999" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #999;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #999 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #999!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color: #999" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#888;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#888 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#888!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color:#888" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #888;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #888 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #888!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color: #888" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#777;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#777 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#777!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color:#777" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #777;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #777 " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #777!" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="color: #777" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    color: var(--oc-text-3) !important;
+}
+
+/* Dunkle Statusschrift → helle Variante */
+body.theme-dark [style*="color:#166534" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #166534" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#15803d" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #15803d" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#14532d" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #14532d" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#065f46" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #065f46" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    color: #86efac !important;
+}
+
+/* Dunkle Statusschrift → helle Variante */
+body.theme-dark [style*="color:#991b1b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #991b1b" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#b91c1c" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #b91c1c" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#7f1d1d" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #7f1d1d" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    color: #fca5a5 !important;
+}
+
+/* Dunkle Statusschrift → helle Variante */
+body.theme-dark [style*="color:#92400e" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #92400e" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#b45309" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #b45309" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#78350f" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #78350f" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#854d0e" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #854d0e" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#a16207" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #a16207" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    color: #fcd34d !important;
+}
+
+/* Dunkle Statusschrift → helle Variante */
+body.theme-dark [style*="color:#1d4ed8" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #1d4ed8" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#1e40af" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #1e40af" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color:#1e3a8a" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="color: #1e3a8a" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    color: #93c5fd !important;
+}
+
+/* Helle Linien und Ränder → dezente Linie */
+body.theme-dark [style*="#e2e8f0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#e5e7eb" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#cbd5e1" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#d1d5db" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#ddd;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#ddd " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="#ddd" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#eee;" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#eee " i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style$="#eee" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#e0e0e0" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *),
+body.theme-dark [style*="#dee2e6" i]:not(img):not(canvas):not(video):not(iframe):not(.hell-bleiben):not(.hell-bleiben *) {
+    border-color: var(--oc-rand) !important;
+}
+
+/* Grundelemente ohne eigene Dunkel-Regel. :where() = Gewicht 0: jede bestehende Regel gewinnt,
+   hier wird nur der helle Browser-Standard ersetzt. */
+body.theme-dark :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select) {
+    background-color: var(--oc-feld);
+    color: var(--oc-text);
+    border-color: var(--oc-feld-rand);
+}
+body.theme-dark :where(input, textarea)::placeholder { color: var(--oc-text-3); }
+body.theme-dark :where(table) :where(th) { color: var(--oc-text-2); border-color: var(--oc-rand); }
+body.theme-dark :where(table) :where(td) { border-color: var(--oc-rand-schwach); }
+body.theme-dark :where(hr) { border-color: var(--oc-rand); }
+body.theme-dark :where(a:not([class])) { color: #93c5fd; }
+body.theme-dark :where(code, pre, kbd) { background-color: rgba(210, 235, 255, 0.06); color: var(--oc-text); }
+

@@ -1,0 +1,54 @@
+/* ══ Zentrale Farben (Walter 02.11.2026) ═══════════════════════════════════════════════
+   Eine Stelle für hell UND dunkel. Neue Oberflächen nehmen NUR diese Variablen — nie feste
+   Farben wie #fff oder #3f3f3f. Hell = Liquid Glass (warmes Off-White, Glaskarten, Kohle-Pille),
+   Dunkel = wie die Mitarbeiter-Maske (dunkelblaue Glaskarten über den --dlg-Tokens in app.css).
+   Diese Datei wird als ERSTE geladen; die Werte für dunkel stehen unter body.theme-dark.
+   Feste Farben in älterem Code fängt im Dunkel-Modus css/dark.css ab (zuletzt geladen). */
+:root {
+    --oc-seite:        #f6f3ee;                      /* Seitengrund */
+    --oc-flaeche:      rgba(255, 255, 255, 0.50);    /* Karte */
+    --oc-flaeche-fest: #faf8f5;                      /* Karte ohne Transparenz (Einblendungen, Punkte) */
+    --oc-flaeche-2:    rgba(255, 255, 255, 0.45);    /* zweite Ebene in der Karte, Pillen */
+    --oc-hover:        rgba(255, 255, 255, 0.65);
+    --oc-feld:         #ffffff;                      /* Eingabefeld */
+    --oc-feld-rand:    rgba(255, 255, 255, 0.95);
+    --oc-glasrand:     rgba(255, 255, 255, 0.62);    /* heller Rand um Glaskarten */
+    --oc-rand:         rgba(60, 55, 48, 0.16);
+    --oc-rand-schwach: rgba(60, 55, 48, 0.08);
+    --oc-rand-stark:   rgba(60, 55, 48, 0.25);
+    --oc-text-stark:   #1a1a1a;                      /* Titel */
+    --oc-text:         #3f3f3f;                      /* Fliesstext */
+    --oc-text-2:       #646464;                      /* Nebentext */
+    --oc-text-3:       #8b8b8b;                      /* Hinweis, Beschriftung */
+    --oc-primaer:      #3f3f3f;                      /* Kohle-Pille */
+    --oc-primaer-text: #ffffff;
+    --oc-schatten:     0 6px 20px rgba(60, 55, 48, 0.12);
+    --oc-schatten-klein: 0 2px 6px rgba(60, 55, 48, 0.10);
+    --oc-ok:   #16a34a;  --oc-ok-bg:   rgba(22, 163, 74, 0.12);  --oc-ok-text:   #166534;
+    --oc-warn: #d97706;  --oc-warn-bg: rgba(217, 119, 6, 0.12);  --oc-warn-text: #92400e;
+    --oc-rot:  #dc2626;  --oc-rot-bg:  rgba(220, 38, 38, 0.10);  --oc-rot-text:  #991b1b;
+}
+body.theme-dark {
+    --oc-seite:        transparent;                  /* der Grund kommt von body (--dlg-bg) */
+    --oc-flaeche:      var(--dlg-fill-grad);
+    --oc-flaeche-fest: var(--dlg-fill-strong);
+    --oc-flaeche-2:    rgba(210, 235, 255, 0.06);
+    --oc-hover:        rgba(210, 235, 255, 0.10);
+    --oc-feld:         var(--dlg-fill-field);
+    --oc-feld-rand:    rgba(165, 215, 255, 0.28);
+    --oc-glasrand:     rgba(165, 215, 255, 0.30);
+    --oc-rand:         rgba(165, 215, 255, 0.24);
+    --oc-rand-schwach: rgba(165, 215, 255, 0.12);
+    --oc-rand-stark:   rgba(165, 215, 255, 0.40);
+    --oc-text-stark:   var(--dlg-text-strong);
+    --oc-text:         var(--dlg-text);
+    --oc-text-2:       var(--dlg-text-soft);
+    --oc-text-3:       var(--dlg-text-muted);
+    --oc-primaer:      #e8f0fa;                      /* heller Knopf auf dunklem Grund */
+    --oc-primaer-text: #0e1a2e;
+    --oc-schatten:     var(--dlg-shadow);
+    --oc-schatten-klein: 0 2px 8px rgba(0, 4, 14, 0.45);
+    --oc-ok:   #22c55e;  --oc-ok-bg:   rgba(34, 197, 94, 0.18);  --oc-ok-text:   #86efac;
+    --oc-warn: #f59e0b;  --oc-warn-bg: rgba(245, 158, 11, 0.18); --oc-warn-text: #fcd34d;
+    --oc-rot:  #ef4444;  --oc-rot-bg:  rgba(239, 68, 68, 0.18);  --oc-rot-text:  #fca5a5;
+}

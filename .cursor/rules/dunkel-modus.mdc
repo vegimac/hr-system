@@ -1,0 +1,16 @@
+---
+description: Farben und Dunkel-Modus — nur zentrale Variablen aus farben.css
+globs: wwwroot/**/*.css, wwwroot/**/*.js, wwwroot/**/*.html
+alwaysApply: false
+---
+
+# Dunkel-Modus (Walter 02.11.2026)
+
+- Hell und dunkel werden an EINER Stelle festgelegt: `wwwroot/css/farben.css` (Variablen `--oc-*`).
+  Dunkel = Look der Mitarbeiter-Maske (`body.theme-dark`, Tokens `--dlg-*`).
+- Neue Oberflächen (CSS und Inline-Stile in JS) nehmen NUR `var(--oc-…)` — nie feste Farben wie
+  `#fff`, `#f8fafc`, `#3f3f3f`. Vorbild: `wwwroot/css/elm.css`.
+- Element soll im Dunkel-Modus bewusst hell bleiben (Unterschrift, Briefvorschau) ⇒ Klasse `hell-bleiben`.
+- `wwwroot/css/dark.css` ist ein erzeugtes Sicherheitsnetz für alte feste Farben
+  (`python3 Scripts/dark-css-erzeugen.py`). Nicht von Hand ändern; wird zuletzt geladen.
+- Nach jeder CSS-Änderung Cache-Buster (`?v=`) in `index.html` hochzählen.
