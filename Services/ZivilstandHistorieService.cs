@@ -32,8 +32,12 @@ public class ZivilstandHistorieService
     /// (MaritalStatusSince, sonst heute). Ohne Historie wird der alte Stand
     /// als «seit jeher» vorangestellt. Kein SaveChanges — der Aufrufer speichert.
     /// </summary>
-    public async Task NachfuehrenAsync(int employeeId, string? alt, string? neu, DateOnly? seit, string quelle)
+    /// <param name="erfahrenAmExplizit">true = <paramref name="erfahrenAm"/> übernehmen (NULL = gleich Gültig ab;
+    /// MA-Maske, Walter 02.11.2026); false = heute (easy@work-Sync: dann erst bekannt geworden).</param>
+    public async Task NachfuehrenAsync(int employeeId, string? alt, string? neu, DateOnly? seit, string quelle,
+        DateOnly? erfahrenAm = null, bool erfahrenAmExplizit = false)
     {
+        var erfahren = erfahrenAmExplizit ? erfahrenAm : DateOnly.FromDateTime(DateTime.Now);
         var neuN = Norm(neu);
         if (neuN.Length == 0) return;
         var altN = Norm(alt);
@@ -67,11 +71,16 @@ public class ZivilstandHistorieService
         var ab = seit ?? DateOnly.FromDateTime(DateTime.Today);
         // Gleicher Tag wie der letzte Eintrag → ersetzen statt Dublette
         var gleich = hist.FirstOrDefault(h => h.GueltigAb == ab);
-        if (gleich != null) { gleich.Zivilstand = neuN; gleich.Bemerkung = quelle; return; }
+        if (gleich != null)
+        {
+            gleich.Zivilstand = neuN; gleich.Bemerkung = quelle;
+            if (erfahrenAmExplizit) gleich.ErfahrenAm = erfahrenAm;
+            return;
+        }
         _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory
         {
             EmployeeId = employeeId, Zivilstand = neuN, GueltigAb = ab,
-            ErfahrenAm = DateOnly.FromDateTime(DateTime.Now),
+            ErfahrenAm = erfahren,
             Bemerkung = quelle,
         });
     }

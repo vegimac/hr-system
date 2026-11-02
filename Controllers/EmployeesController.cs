@@ -955,7 +955,10 @@ public class EmployeesController : ControllerBase
             {
                 await new Services.ZivilstandHistorieService(_context)
                     .NachfuehrenAsync(employee.Id, zivilstandAlt, employee.MaritalStatus, employee.MaritalStatusSince,
-                        string.IsNullOrWhiteSpace(dto.ZivilstandBemerkung) ? "aus MA-Maske" : $"{dto.ZivilstandBemerkung.Trim()} (MA-Maske)");
+                        string.IsNullOrWhiteSpace(dto.ZivilstandBemerkung) ? "aus MA-Maske" : $"{dto.ZivilstandBemerkung.Trim()} (MA-Maske)",
+                        // «Erfahren am» nur im Historie-Fenster (seltener QST-Fall, Walter 02.11.2026) —
+                        // aus der Maske gilt der Wechsel ab «Zivilstand seit».
+                        erfahrenAm: null, erfahrenAmExplizit: true);
             }
             catch { /* Historie best-effort */ }
         }

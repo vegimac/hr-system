@@ -269,7 +269,7 @@ public static class ElmStatistikCodes
                 false);
 
         var m = (modell ?? "").ToUpperInvariant();
-        var monatslohn = m is "FIX" or "FIX-M" or "MTP";
+        var monatslohn = ElmGemeinsam.IstMonatslohnModell(m);
         if (!monatslohn && ferienProzent > 0m)
         {
             var prozent = ferienProzent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)

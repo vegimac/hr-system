@@ -16,6 +16,14 @@ namespace HrSystem.Services.Elm;
 /// </summary>
 public static class ElmGemeinsam
 {
+    /// <summary>
+    /// Monatslohn nach Swissdec (Lohnzahlung pro Monat): nur FIX und FIX-M. MTP ist ein
+    /// Stundenlöhner — gemeldet wird Stunden × Stundenlohn; die garantierten Wochenstunden
+    /// sind nur unsere interne Stundenkontrolle (Walter 02.11.2026). FLEX ebenso Stundenlohn.
+    /// </summary>
+    public static bool IstMonatslohnModell(string? modell)
+        => (modell ?? "").Trim().ToUpperInvariant() is "FIX" or "FIX-M";
+
     public static readonly XNamespace Sdst  = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types";
     public static readonly XNamespace Sdcst = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types";
     public static readonly XNamespace Sdc   = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container";

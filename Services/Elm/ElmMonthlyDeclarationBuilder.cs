@@ -911,7 +911,7 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "Contract", art),
                     new XElement(Sd + "ContractualAnnualWage", Amt(em?.JahreslohnOhneZeitbindung ?? 0m))));
 
-        var monatsvertrag = model is "FIX" or "FIX-M" or "MTP";
+        var monatsvertrag = IstMonatslohnModell(model);
         if (art.Length > 0) monatsvertrag = art is "indefiniteSalaryMth" or "indefiniteSalaryMthAWT" or "fixedSalaryMth" or "apprentice" or "internshipContract";
 
         if (monatsvertrag)
@@ -1047,7 +1047,7 @@ public class ElmMonthlyDeclarationBuilder
             warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): berufliche Stellung nicht erfasst "
                    + "— gemeldet wird «ohne Kaderfunktion» (Zuordnung Funktion → Stellung).");
 
-        var stundenlohn = (em?.EmploymentModel?.ToUpperInvariant() ?? "") is not ("FIX" or "FIX-M" or "MTP");
+        var stundenlohn = !IstMonatslohnModell(em?.EmploymentModel);
         // Ferien-% und Ferientage nie zusammen (Richtlinien). Nur wenn der Lohnzettel
         // wirklich 1160 führt, sind die Tage 0 — sonst Tage (TF15 Degelo Vacation 0 → 20 Tage).
         var ferienPct = lohnartByCode != null
@@ -1293,7 +1293,7 @@ public class ElmMonthlyDeclarationBuilder
             var art = (em?.SwissdecVertragsart ?? "").Trim();
             var stundenlohn = art.Length > 0
                 ? art is "indefiniteSalaryHrs" or "fixedSalaryHrs"
-                : model is not ("FIX" or "FIX-M" or "MTP");
+                : !IstMonatslohnModell(model);
             if (stundenlohn)
             {
                 var vollzeit = PayrollCalculations.MonatsstundenVollzeit(filiale);
