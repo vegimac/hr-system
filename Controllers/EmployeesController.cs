@@ -951,7 +951,8 @@ public class EmployeesController : ControllerBase
             try
             {
                 await new Services.ZivilstandHistorieService(_context)
-                    .NachfuehrenAsync(employee.Id, zivilstandAlt, employee.MaritalStatus, employee.MaritalStatusSince, "aus MA-Maske");
+                    .NachfuehrenAsync(employee.Id, zivilstandAlt, employee.MaritalStatus, employee.MaritalStatusSince,
+                        string.IsNullOrWhiteSpace(dto.ZivilstandBemerkung) ? "aus MA-Maske" : $"{dto.ZivilstandBemerkung.Trim()} (MA-Maske)");
             }
             catch { /* Historie best-effort */ }
         }
@@ -2669,6 +2670,8 @@ public class EmployeeUpdateDto
     // ALV / Zwischenverdienst
     public string? AhvNummer  { get; set; }
     public string? MaritalStatus { get; set; }
+    /// <summary>Bemerkung zum Zivilstand-Wechsel → Historie-Eintrag (Walter 02.11.2026).</summary>
+    public string? ZivilstandBemerkung { get; set; }
 
     // Erweiterte Zivilstand-Angaben (allgemein, nicht nur QST)
     public bool      MaritalStatusSinceSet { get; set; } = false;

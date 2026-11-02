@@ -603,8 +603,8 @@ function _zivEnsureModal() {
         <span id="zivOptV2" hidden></span>
         <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🕘 Zivilstand-Historie</div>
         <div id="zivMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:12px"></div>
-        <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:10px 12px;align-items:end;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:10px 12px">
-            <label style="${lbl}">Zivilstand<select id="zivNeu" style="${inp}">${ZIV_OPTIONEN.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
+        <div style="display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr) auto;gap:10px 12px;align-items:end;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:10px 12px">
+            <label style="${lbl};grid-column:1 / -1">Zivilstand<select id="zivNeu" style="${inp}">${ZIV_OPTIONEN.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
             <label style="${lbl}">Gültig ab <span style="font-weight:400">(leer = seit jeher)</span><input id="zivAb" type="date" style="${inp}"></label>
             <label style="${lbl}">Erfahren am <span style="font-weight:400">(leer = gleich Gültig ab)</span><input id="zivEa" type="date" style="${inp}" title="Ab wann wir vom Zivilstandswechsel wussten — steuert QST-Nachzahlung wie bei Kindern"></label>
             <button onclick="zivAdd()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;height:36px">+ Eintrag</button>

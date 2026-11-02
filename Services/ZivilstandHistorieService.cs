@@ -12,6 +12,21 @@ public class ZivilstandHistorieService
 
     public static string Norm(string? s) => (s ?? "").Trim().ToLowerInvariant().Replace(' ', '_');
 
+    /// <summary>Zivilstände, die easy@work kennt (cf_marital_status M/S/D/W/E/P/C).</summary>
+    public static readonly IReadOnlySet<string> EasyAtWorkZivilstaende = new HashSet<string>
+        { "ledig", "verheiratet", "geschieden", "verwitwet", "getrennt", "eingetragene_partnerschaft", "konkubinat" };
+
+    /// <summary>
+    /// Sonderfall, den nur OneCrew kennt (aufgelöste Partnerschaft gerichtlich/Tod/Verschollen,
+    /// unbekannt — Swissdec-Codes). easy@work überschreibt ihn beim Sync nicht (Walter 02.11.2026):
+    /// bei normalen Zivilständen gewinnt easy@work, bei Sonderfällen OneCrew.
+    /// </summary>
+    public static bool IstOneCrewSonderfall(string? zivilstand)
+    {
+        var n = Norm(zivilstand);
+        return n.Length > 0 && !EasyAtWorkZivilstaende.Contains(n);
+    }
+
     /// <summary>
     /// Zivilstand hat gewechselt (alt → neu): neuen Eintrag ab «seit»
     /// (MaritalStatusSince, sonst heute). Ohne Historie wird der alte Stand

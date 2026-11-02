@@ -444,11 +444,14 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z4 {
             grid-column: 1 / -1;
             display: grid;
+            /* Zivilstand breiter: «gerichtlich aufgelöste Partnerschaft» + Dokument + Historie
+               lief in «Zivilstand seit» hinein; Familienbetreuung ist meist nur «Nein»
+               (Walter 02.11.2026). */
             grid-template-columns:
-                minmax(188px, 1.25fr)  /* Zivilstand + Historie */
+                minmax(390px, 2.6fr)   /* Zivilstand + Dokument + Historie */
                 146px                  /* Zivilstand seit */
-                minmax(150px, 1.25fr)  /* Ledigname */
-                minmax(240px, 2fr)     /* Familienbetreuung */
+                minmax(150px, 1fr)     /* Ledigname */
+                minmax(170px, 1.2fr)   /* Familienbetreuung */
                 92px;                  /* Schuhgrösse, zwei Ziffern */
             column-gap: 14px;
             align-items: start;
@@ -463,6 +466,22 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-zemis .ov-softin {
             width: 100%;
             max-width: 132px;
+        }
+        /* Zivilstand: Text und Knöpfe bleiben in der eigenen Spalte, notfalls zweizeilig */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-zivil .ov-pfv {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+        /* Auswahl + Dokument + Historie in einer Zeile, Auswahl nimmt den Rest */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ziv-zeile {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-ziv-zeile select {
+            flex: 1 1 auto;
+            min-width: 0;
         }
         /* Familienbetreuung 1 Spalte (darf umbrechen), daneben Schuhgrösse (Walter 15.10.2026) */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-fb .ov-pfv {

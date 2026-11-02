@@ -654,6 +654,17 @@ async function saveEmpEdit() {
     };
     const formEl = (efId, ovId) => document.getElementById(efId) || (ovId ? document.getElementById(ovId) : null);
 
+    // Zivilstand-Wechsel aus der Übersicht: neuer Wert braucht ein Gültig ab («Zivilstand seit»).
+    const zivSel = document.getElementById('ov-zivilstand');
+    const zivAlt = (emp.zivilstand ?? emp.maritalStatus) || null;
+    const zivNeu = zivSel ? (zivSel.value || null) : zivAlt;
+    const zivGewechselt = (zivNeu || '') !== (zivAlt || '');
+    if (zivGewechselt && zivNeu && !formVal('ef-maritalStatusSince', 'ov-maritalStatusSince')) {
+        alert('Neuer Zivilstand: bitte «Zivilstand seit» (gültig ab) eintragen.');
+        document.getElementById('ov-maritalStatusSince')?.focus();
+        return;
+    }
+
     const _phone2Raw = formVal('ef-phone2', 'ov-phone2');
     const _phone2Fmt = _phone2Raw ? window.formatPhoneIntl(_phone2Raw) : '';
     if (_phone2Raw && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(_phone2Fmt)) {
@@ -774,8 +785,10 @@ async function saveEmpEdit() {
         shortName:    formEl('ef-shortName', 'ov-shortName')
                         ? (formVal('ef-shortName', 'ov-shortName') || null)
                         : (emp.shortName || null),
-        zivilstand:   easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
-        maritalStatus:easyWorkLocked ? ((emp.zivilstand ?? emp.maritalStatus) || null) : (document.getElementById('ef-zivilstand')?.value || null),
+        // Zivilstand aus der Übersicht (Walter 02.11.2026) — sonst unverändert.
+        zivilstand:   zivNeu,
+        maritalStatus:zivNeu,
+        zivilstandBemerkung: zivGewechselt ? ((document.getElementById('ov-zivBemerkung')?.value || '').trim() || null) : null,
 
         // Erweiterte Zivilstand-Angaben (allgemein, nicht QST-spezifisch).
         // QST-spezifische Felder (Konkubinat, gemeinsame elterliche Sorge,

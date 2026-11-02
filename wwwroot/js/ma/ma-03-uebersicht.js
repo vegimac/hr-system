@@ -297,8 +297,15 @@ function loadUebersichtTab() {
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
                 <div class="ov-pfv">${emp._neu
                     ? `<select id="ov-zivilstand" class="ov-softin" onchange="ovDirty()">${zivOptionenHtml('')}</select>`
-                    : `${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${directDocButton(emp.zivilstandDokumentId, 'zivilstand', 'marriage_cert')}
-                    <button type="button" class="qst-warum-btn" style="margin-left:6px;vertical-align:middle;padding:2px 10px;font-size:11px" title="Zivilstand-Historie — Zivilstand mit Gültig-ab (für QST-Alt-Einträge)" onclick="openZivilstandHistorie(${emp.id})">🕘 Historie</button>`}</div>
+                    // Wechsel direkt hier (Walter 02.11.2026): neuer Zivilstand + «Zivilstand seit» als
+                    // Gültig ab + Bemerkung → beim Speichern Historie-Eintrag, Vorgänger endet am Vortag.
+                    : `<div class="ov-ziv-zeile"><select id="ov-zivilstand" class="ov-softin" data-alt="${esc(emp.zivilstand ?? emp.maritalStatus ?? '')}"
+                        data-easy="${(emp.easyAtWorkEmployeeId || emp.easyatworkEmployeeId) ? '1' : ''}"
+                        onchange="ovZivGeaendert()">${zivOptionenHtml(emp.zivilstand ?? emp.maritalStatus)}</select>
+                    ${directDocButton(emp.zivilstandDokumentId, 'zivilstand', 'marriage_cert')}
+                    <button type="button" class="qst-warum-btn" style="padding:2px 10px;font-size:11px;white-space:nowrap" title="Zivilstand-Historie — alle Einträge mit Gültig-ab" onclick="openZivilstandHistorie(${emp.id})">🕘 Historie</button></div>
+                    <input id="ov-zivBemerkung" class="ov-softin" type="text" placeholder="Bemerkung zum Wechsel (optional), z.B. Heirat, Scheidungsurteil" style="display:none;margin-top:6px" oninput="ovDirty()">
+                    <div id="ov-zivHinweis" style="display:none;margin-top:4px;font-size:11.5px;color:#92400e"></div>`}</div>
             </div>
             <div class="ov-pf ov-pf-seit"><div class="ov-pfl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
             <input id="ov-maritalStatusSince" class="ov-softin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()"></div>
@@ -627,6 +634,35 @@ async function ovKuendAmChanged(empId) {
     if (typeof kuendAmChanged === 'function') await kuendAmChanged(empId);
     ovDirty();
 }
+/** Zivilstand gewechselt: Gültig ab («Zivilstand seit») neu verlangen, Bemerkung anbieten. */
+function ovZivGeaendert() {
+    const sel = document.getElementById('ov-zivilstand');
+    if (!sel) return;
+    const gewechselt = (sel.value || '') !== (sel.dataset.alt || '');
+    const bem = document.getElementById('ov-zivBemerkung');
+    if (bem) bem.style.display = gewechselt ? '' : 'none';
+    const seit = document.getElementById('ov-maritalStatusSince');
+    if (seit && gewechselt && !seit.dataset.vorWechsel) {
+        seit.dataset.vorWechsel = seit.value || '-';
+        seit.value = '';
+        seit.focus();
+    } else if (seit && !gewechselt && seit.dataset.vorWechsel) {
+        seit.value = seit.dataset.vorWechsel === '-' ? '' : seit.dataset.vorWechsel;
+        delete seit.dataset.vorWechsel;
+    }
+    // Normale Zivilstände pflegt easy@work — nur Sonderfälle bleiben in OneCrew stehen.
+    const hinweis = document.getElementById('ov-zivHinweis');
+    const easyKennt = ['ledig', 'verheiratet', 'geschieden', 'verwitwet', 'getrennt', 'eingetragene_partnerschaft', 'konkubinat'];
+    if (hinweis) {
+        const ueberschrieben = gewechselt && sel.dataset.easy && easyKennt.includes(sel.value);
+        hinweis.textContent = ueberschrieben
+            ? 'Dieser Zivilstand kommt aus easy@work und wird beim nächsten Abgleich wieder überschrieben — bitte in easy@work ändern.'
+            : '';
+        hinweis.style.display = ueberschrieben ? '' : 'none';
+    }
+    ovDirty();
+}
+
 function ovSave() {
     saveEmpEdit();
 }

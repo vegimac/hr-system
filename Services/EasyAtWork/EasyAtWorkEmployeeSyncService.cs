@@ -856,7 +856,10 @@ public class EasyAtWorkEmployeeSyncService
         }
         SetString("AHV-Nummer", emp.SocialSecurityNumber, master.Ahv, v => emp.SocialSecurityNumber = v);
         var zivAltSync = emp.MaritalStatus;
-        SetString("Zivilstand", emp.MaritalStatus, master.MaritalStatus, v => emp.MaritalStatus = v);
+        // Sonderfall aus OneCrew (z.B. Verschollenerklärung) bleibt stehen; ein leerer easy@work-Wert
+        // löscht nie (Walter 02.11.2026).
+        if (!ZivilstandHistorieService.IstOneCrewSonderfall(emp.MaritalStatus))
+            SetString("Zivilstand", emp.MaritalStatus, master.MaritalStatus, v => emp.MaritalStatus = v, allowNull: false);
         if (emp.Id > 0 && result.UpdatedFields.Contains("Zivilstand"))
             await new ZivilstandHistorieService(_db).NachfuehrenAsync(emp.Id, zivAltSync, emp.MaritalStatus, emp.MaritalStatusSince, "aus easy@work übernommen");
         SetString("Sprache", emp.LanguageCode, master.LanguageCode, v => emp.LanguageCode = v);
@@ -4721,6 +4724,8 @@ public class EasyAtWorkEmployeeSyncService
                             data.DateOfBirth?.ToString("yyyy-MM-dd"));
         Add("AHV-Nummer",  co?.SocialSecurityNumber, data.Ahv);
         Add("Zivilstand",  co?.MaritalStatus, data.MaritalStatus);
+        // Sonderfall aus OneCrew: Unterschied zeigen, aber nicht übernehmen (Walter 02.11.2026).
+        if (ZivilstandHistorieService.IstOneCrewSonderfall(co?.MaritalStatus)) diffs[^1].WillSet = false;
         if (co == null || !string.IsNullOrWhiteSpace(co.LanguageCode))
             Add("Sprache", co?.LanguageCode, data.LanguageCode);
         AddNullable("Briefanrede", co?.LetterSalutation, data.LetterSalutation, data.Gender == "divers");
