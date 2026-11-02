@@ -152,6 +152,23 @@ Bleibt bewusst bzw. offen (nicht angleichen):
 | TF12 Casanova | Status | partnershipDissolvedByDeclarationOfLost | …ByLaw | Daten: Zivilstand steht auf «aufgeloeste_partnerschaft» statt «…_verschollen» — in der Maske korrigieren |
 | TF25/26 | GrossBaseSalary, SocialContributions, Rest TaxAtSource | 8'000 | 8'400 | **bewusst A7** (Eintrittstag zählt, 21/30) |
 
+**Endstand Sendung 02.11.2026 13:03 (18e438d30044fca87): erledigt bis auf A7.** Alle übrigen
+Testfälle grün (K11–K14 wirken, Casanova/Lamon Zivilstand korrigiert, Snapshots neu berechnet).
+Rot nur noch TF25 Lehmann / TF26 Jenzer, alles Folge der 8'400 statt 8'000 — rechnerisch geprüft:
+
+| Feld | Swissdec (aus 8'000) | OneCrew (aus 8'400) |
+|---|---:|---:|
+| GrossBaseSalaryAndRegularAllowance | 8'000.00 | 8'400.00 |
+| SocialContributions | −640.50 | −672.50 |
+| TaxableEarning (× 10/14 Tage CH) | 5'714.30 | 6'000.00 |
+| AscertainedTaxableEarning (÷ 21 QST-Tage × 30) | 11'428.55 | 12'000.00 |
+| TaxAtSource Lehmann A0N / Jenzer R0N | 925.70 / 737.15 | 1'002.00 / 798.00 |
+| SalaryTotals TotalTaxableEarning | 158'296.45 | 158'867.85 (+571.40 = 2 × 285.70) |
+| SalaryTotals TotalTaxAtSource | 20'864.35 | 21'001.50 (+137.15 = 76.30 + 60.85) |
+
+Argument für Swissdec: die Referenz rechnet die QST-Hochrechnung selbst mit **21** Tagen
+(11'428.55 = 8'000 ÷ 21 × 30), den Bruttolohn aber mit 20 — die Zählung mit Eintrittstag ist die stimmige.
+
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 
 ### F1 — TF14 Egli, Quellensteuer-Code (November 2024)
