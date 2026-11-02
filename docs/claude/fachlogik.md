@@ -276,6 +276,9 @@ BVG- und BVG-Zusatz-Abzug sowie der AG-Beitrag werden in `BuildResult` auf 5 Rap
 ### BVG-Versicherungspflicht pro Person (Walter-Vorgabe 04.10.2026)
 
 Ob jemand BVG-versichert ist, entscheidet der **mutmassliche Jahreslohn inkl. 13. ML**, nicht der einzelne Monat — wie Mirus (Subcodes 101 nicht pflichtig / 102 / 103 pro Person). Erfasst in `employee_bvg_pflicht` (ab/bis), Vorschlag nach Vertrag (FIX/FIX-M/MTP) bzw. Ø Lohnmonate ohne Krankheit (FLEX, ab 3 Monaten), To-do `bvg_pflicht_pruefen` bei Abweichung. Ohne Eintrag bleibt die alte Monats-Schwelle. Formeln: `docs/lohn-formeln.md` (BVG).
+**Sperre wie Verträge/QST (Walter 02.11.2026):** Erfassen/Ändern/Löschen sperrt erst eine DEFINITIV
+«abgeschlossene» Periode (`GetFirstAllowedDateForContractsAsync`) — während der HR-Kontrolle
+(provisorisch) und im Akonto-Strang bleibt die Pflicht korrigierbar. Danach die betroffenen Monate neu rechnen.
 
 ### BVG-Zusatz-Mitgliedschaft (Walter-Vorgabe 26.05.2026)
 

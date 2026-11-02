@@ -500,19 +500,40 @@ public partial class SwissdecTestmandantController
         await _db.SaveChangesAsync();
     }
 
-    /// <summary>BVG-Fixbetrag (AN = AG, Annahme) ab Monat — neuer Eintrag nur bei Änderung. Dubletten ab demselben Tag werden zusammengelegt (5050 gewinnt).</summary>
+    /// <summary>
+    /// Welcher BVG-Eintrag bekommt den Fixbetrag eines Monats? Der jüngste, der im Monat beginnt —
+    /// auch nach dem Ersten (Eintritt Monatsmitte, Walter 02.11.2026, TF37 Oberli 16.11.2024).
+    /// Früher zählte nur ein Eintrag genau am Ersten: 5b legte daneben einen zweiten ab dem Ersten
+    /// an, die Engine nahm den jüngeren vom Eintritt mit Fix 0 → BVG 0.00 statt 800.00.
+    /// <c>Weg</c>: Dubletten am selben Tag und von 5b angelegte Zeilen ohne Code vor dem Ziel.
+    /// </summary>
+    public static (EmployeeVersicherungCode? Ziel, List<EmployeeVersicherungCode> Weg) BvgFixZielImMonat(
+        IEnumerable<EmployeeVersicherungCode> eintraege, DateOnly monat)
+    {
+        var ende = monat.AddMonths(1).AddDays(-1);
+        var imMonat = eintraege.Where(v => v.Art == "BVG" && v.ValidFrom >= monat && v.ValidFrom <= ende).ToList();
+        if (imMonat.Count == 0) return (null, new());
+        var tag = imMonat.Max(v => v.ValidFrom);
+        var amTag = imMonat.Where(v => v.ValidFrom == tag).ToList();
+        var ziel = PayrollCalculations.WaehleBvgFix(amTag) ?? amTag[0];
+        var weg = imMonat.Where(v => v.Id != ziel.Id && (v.ValidFrom == tag
+            || (string.IsNullOrWhiteSpace(v.Code) && v.Bemerkung != null
+                && v.Bemerkung.Contains("5050", StringComparison.OrdinalIgnoreCase)))).ToList();
+        return (ziel, weg);
+    }
+
+    /// <summary>BVG-Fixbetrag (AN = AG, Annahme) ab Monat — neuer Eintrag nur bei Änderung. Ein Eintrag, der im Monat beginnt, bekommt den Betrag (<see cref="BvgFixZielImMonat"/>).</summary>
     private async Task SetzeBvgFixAsync(int employeeId, DateOnly monat, decimal betrag)
     {
         var eintraege = await _db.EmployeeVersicherungCodes.Where(v => v.EmployeeId == employeeId && v.Art == "BVG").OrderBy(v => v.ValidFrom).ToListAsync();
-        var amMonat = eintraege.Where(v => v.ValidFrom == monat).ToList();
-        if (amMonat.Count > 0)
+        var (keep, weg) = BvgFixZielImMonat(eintraege, monat);
+        if (keep != null)
         {
-            var keep = PayrollCalculations.WaehleBvgFix(amMonat) ?? amMonat[0];
             keep.BeitragFixAn = betrag;
             keep.BeitragFixAg = betrag;
             if (keep.Bemerkung == null || keep.Bemerkung.IndexOf("5050", StringComparison.OrdinalIgnoreCase) < 0)
                 keep.Bemerkung = "Swissdec-Testdaten (Lohnart 5050)";
-            foreach (var d in amMonat.Where(x => x.Id != keep.Id))
+            foreach (var d in weg)
                 _db.EmployeeVersicherungCodes.Remove(d);
             await _db.SaveChangesAsync();
             return;

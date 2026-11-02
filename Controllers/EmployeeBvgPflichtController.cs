@@ -131,7 +131,10 @@ public class EmployeeBvgPflichtController : ControllerBase
             .OrderByDescending(e => e.ContractStartDate)
             .Select(e => (int?)e.CompanyProfileId)
             .FirstOrDefaultAsync();
-        var firstAllowed = branchId.HasValue ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value) : null;
+        // Weiche Sperre wie QST/Verträge (Walter 02.11.2026): nur DEFINITIV «abgeschlossen»
+        // sperrt — während der HR-Kontrolle (provisorisch) bleibt die Pflicht korrigierbar
+        // (TF37 Oberli: Bern Nov 2024–Feb 2025 provisorisch, Eintrag ab 16.11.2024 war gesperrt).
+        var firstAllowed = branchId.HasValue ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value) : null;
         if (firstAllowed.HasValue && gueltigAb < firstAllowed.Value)
             return Conflict(new
             {
