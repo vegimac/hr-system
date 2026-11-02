@@ -1941,7 +1941,8 @@ public class PayrollCalculationEngine
 
             bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.UvgPflichtig || lp.UvgzPflichtig
                         || lp.KtgPflichtig || lp.BvgPflichtig || lp.QstPflichtig;
-            if (!anyFlag) continue; // → geht in zulagenExtraLines
+            // Ohne SV-Häkchen: Spesen nach dem Netto, alles andere im Brutto ohne SV-Basis.
+            if (!anyFlag && LohnCodes.IstAusserhalbBrutto(lp.Code, lp.SwissdecLohnart, null)) continue; // → zulagenExtraLines
 
             if (istUeberstundenAusz)
                 ueberstundenAuszahlungStunden += ueberAnzahl!.Value;
@@ -2007,7 +2008,7 @@ public class PayrollCalculationEngine
             if (LohnCodeAlias.Ist13mlAuszahlen(lp2.Code, lp2.MirusCode, lp2.Bezeichnung)) continue; // Auslöser, nicht Extra-Zahlung
             bool anyFlag2 = lp2.AhvAlvPflichtig || lp2.NbuvPflichtig || lp2.KtgPflichtig
                          || lp2.BvgPflichtig    || lp2.QstPflichtig;
-            if (anyFlag2) continue; // bereits in zulagenSvLines
+            if (anyFlag2 || !LohnCodes.IstAusserhalbBrutto(lp2.Code, lp2.SwissdecLohnart, null)) continue; // bereits in zulagenSvLines
 
             decimal b = PayrollCalculations.Rappen(z.Betrag);
             zulagenExtraLines.Add(new { bezeichnung = lp2.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""), code = lp2.Code, betrag = b });
@@ -5590,7 +5591,9 @@ public class PayrollCalculationEngine
                 if (lp.ZaehltAlsBasisFeiertag && !IstLohnersatzCode(lp.Code)) feiertagBasisExact += b;
                 if (lp.ZaehltAlsBasisFerien)   ferienBasisKorrExact += b;
                 if (lp.ZaehltAlsBasis13ml)     basis13KorrExact += b;
-                if (anyFlag)
+                // Ohne SV-Häkchen: nur Spesen nach dem Netto, alles andere im Brutto (Walter 02.11.2026).
+                if (anyFlag || (!LohnCodes.IstSaldoVortrag(lp.Code)
+                                && !LohnCodes.IstAusserhalbBrutto(lp.Code, lp.SwissdecLohnart, null)))
                 {
                     zulagenSvLines.Add(new {
                         bezeichnung = bez,

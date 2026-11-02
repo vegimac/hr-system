@@ -120,6 +120,18 @@ public static class LohnCodes
         return c.Length >= 4 && c.Length <= 5 && c.All(char.IsDigit);
     }
 
+    /// <summary>
+    /// Zulage ausserhalb des Bruttolohns, nach dem Nettolohn ausbezahlt: Spesen (Swissdec 6000–6999
+    /// oder Kategorie «Spesen»). Alles andere gehört in den Bruttolohn — auch ohne SV-Häkchen
+    /// (2060 Lohnabzug KA/SW, 1420 Lohnnachgenuss; Walter 02.11.2026, TF10 Ganz März 2025).
+    /// </summary>
+    public static bool IstAusserhalbBrutto(string? code, string? swissdecLohnart, string? kategorie)
+    {
+        if (string.Equals((kategorie ?? "").Trim(), "Spesen", StringComparison.OrdinalIgnoreCase)) return true;
+        var nr = string.IsNullOrWhiteSpace(swissdecLohnart) ? (code ?? "").Trim() : swissdecLohnart!.Trim();
+        return nr.Length == 4 && nr[0] == '6' && nr.All(char.IsDigit);
+    }
+
     /// <summary>Betrieb oder Saldo-Vortrag — aktiv für Engine, kein ELM-Code.</summary>
     public static bool IstInternOhneSwissdec(string? code)
     {
