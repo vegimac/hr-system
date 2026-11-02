@@ -152,6 +152,11 @@ public class Employment
     /// <summary>13. Monatslohn ja/nein (Walter 08.09.2026): Standard true (L-GAV: alle). false = kein 13. ML,
     /// keine Rückstellung — für Verträge ausserhalb L-GAV (Lizenznehmer, Swissdec-Testfälle).</summary>
     public bool ThirteenthSalary { get; set; } = true;
+    /// <summary>
+    /// Ferien und Feiertag sind im Stunden-/Lektionenansatz bereits enthalten (Walter 02.11.2026,
+    /// Swissdec TF15 Degelo): keine Ferien- und Feiertagsentschädigung dazurechnen.
+    /// </summary>
+    public bool FerienFeiertagImAnsatz { get; set; } = false;
 
     /// <summary>Lektionenlohn (Walter 07.09.2026, Swissdec Lohnart 1006): Lohn pro Lektion — nur bei Lehrpersonal; leer = kein Lektionenlohn.</summary>
     public decimal? LessonRate { get; set; }

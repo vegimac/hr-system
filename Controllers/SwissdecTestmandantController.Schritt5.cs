@@ -441,7 +441,7 @@ public partial class SwissdecTestmandantController
         TeilzeitUnter8hWoche = a.TeilzeitUnter8hWoche, MonthlySalaryFte = a.MonthlySalaryFte, MonthlySalary = a.MonthlySalary, HourlyRate = a.HourlyRate,
         EasyAtWorkManualOverride = true, VacationPaymentMode = a.VacationPaymentMode, ThirteenthSalary = a.ThirteenthSalary, IsActive = true,
         SwissdecVertragsart = a.SwissdecVertragsart, JahreslohnOhneZeitbindung = a.JahreslohnOhneZeitbindung,
-        VierzehnterMonatslohn = a.VierzehnterMonatslohn,
+        VierzehnterMonatslohn = a.VierzehnterMonatslohn, FerienFeiertagImAnsatz = a.FerienFeiertagImAnsatz,
     };
 
     /// <summary>Startwert aus testcases_export + Änderungen aus testcase_differences → Wert je Fall ab Monat.</summary>

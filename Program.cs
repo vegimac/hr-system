@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 131;  // 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 132;  // 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -454,6 +454,12 @@ using (var scope = app.Services.CreateScope())
 
     if (startSqlNoetig)
     {
+    // Stand 132: Ferien/Feiertag im Ansatz inbegriffen (Walter 02.11.2026, TF15 Degelo).
+    if (dbStand < 132)
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employment ADD COLUMN IF NOT EXISTS ferien_feiertag_im_ansatz boolean NOT NULL DEFAULT false;
+        ");
+
     // Stand 104: Spalten vor dem Schema-Check, sonst meldet er sie als fehlend.
     if (dbStand < 104)
         db.Database.ExecuteSqlRaw(@"

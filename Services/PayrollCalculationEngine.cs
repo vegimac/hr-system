@@ -895,6 +895,14 @@ public class PayrollCalculationEngine
             }
         }
 
+        // Ferien und Feiertag im Ansatz inbegriffen (Vertragsmerkmal, Walter 02.11.2026):
+        // keine Entschädigung obendrauf — Swissdec meldet dann weder 1160/1162 noch 1161/1163.
+        if (emp.FerienFeiertagImAnsatz && !isFIX)
+        {
+            vacationPct = 0m;
+            holidayPct  = 0m;
+        }
+
         // Absolute gestempelte Stunden = gesamte Anwesenheit (Tag + Nacht).
         // Walter 03.08.2026: NICHT nur DurationHours/Tag — Nacht gehört zur
         // bezahlten IST-Zeit. Nacht-Saldo (10 %) läuft separat daneben.

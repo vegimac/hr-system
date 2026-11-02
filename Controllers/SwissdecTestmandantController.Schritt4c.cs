@@ -371,7 +371,7 @@ public partial class SwissdecTestmandantController
                             TeilzeitUnter8hWoche = vorher.TeilzeitUnter8hWoche, MonthlySalaryFte = vorher.MonthlySalaryFte, MonthlySalary = vorher.MonthlySalary, HourlyRate = vorher.HourlyRate,
                             EasyAtWorkManualOverride = true, VacationPaymentMode = vorher.VacationPaymentMode, IsActive = true, ThirteenthSalary = vorher.ThirteenthSalary,
                             SwissdecVertragsart = vorher.SwissdecVertragsart, JahreslohnOhneZeitbindung = vorher.JahreslohnOhneZeitbindung,
-                            VierzehnterMonatslohn = vorher.VierzehnterMonatslohn,
+                            VierzehnterMonatslohn = vorher.VierzehnterMonatslohn, FerienFeiertagImAnsatz = vorher.FerienFeiertagImAnsatz,
                         };
                         _db.Employments.Add(neuV); emp.Employments.Add(neuV);
                     }
@@ -494,7 +494,7 @@ public partial class SwissdecTestmandantController
                             EasyAtWorkManualOverride = true, VacationPaymentMode = aktiv.VacationPaymentMode, IsActive = true,
                             ThirteenthSalary = aktiv.ThirteenthSalary,
                             SwissdecVertragsart = aktiv.SwissdecVertragsart, JahreslohnOhneZeitbindung = aktiv.JahreslohnOhneZeitbindung,
-                            VierzehnterMonatslohn = aktiv.VierzehnterMonatslohn,
+                            VierzehnterMonatslohn = aktiv.VierzehnterMonatslohn, FerienFeiertagImAnsatz = aktiv.FerienFeiertagImAnsatz,
                         };
                         WendeVertragAn(neu, w, neuesModell, fil);
                         aktiv.ContractEndDate = vortag.ToDateTime(TimeOnly.MinValue);

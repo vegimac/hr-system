@@ -161,6 +161,11 @@ public partial class SwissdecTestmandantController
                 vertrag.HourlyRate = modell == "FLEX" ? stdSatz : null;
                 vertrag.LessonRate = (wochenLekt != null || V("PersonNumberOfLessons") != null) ? lektSatz : null;
                 vertrag.WeeklyLessons = wochenLekt;
+                // Ferien/Feiertag im Ansatz (Walter 02.11.2026): Stundenlohn-Vertrag ohne Ferien- und
+                // Feiertags-% in den Testdaten (TF15 Degelo) — sonst rechnete OneCrew die Filial-% dazu.
+                vertrag.FerienFeiertagImAnsatz = modell != "FIX" && V("PersonContractHourly") != null
+                    && V("PersonContractHourlyWageVacation") == null
+                    && V("PersonContractHourlyWagePublicHolidayCompensation") == null;
                 // Monatslohn kommt aus 5b (Lohnart 1000) — ein Wiederholungslauf darf ihn nicht löschen.
                 var lohnNeu = modell == "FIX" ? (lohnMt ?? vertrag.MonthlySalary) : null;
                 vertrag.MonthlySalary = lohnNeu;

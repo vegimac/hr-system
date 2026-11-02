@@ -11358,7 +11358,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script type="text/plain" data-modul="js/austritt.js?v=20261011a"></script>
-<script type="text/plain" data-modul="js/contracts-edit.js?v=20261028f"></script>
+<script type="text/plain" data-modul="js/contracts-edit.js?v=20261102a"></script>
 <script type="text/plain" data-modul="js/payroll.js?v=20261101b"></script>
 <script type="text/plain" data-modul="js/elm-meldungen.js?v=20261030c"></script>
 <script type="text/plain" data-modul="js/fibu.js?v=20260805a"></script>
@@ -13150,6 +13150,14 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
                             <input type="hidden" id="ceThirteenth" value="true">
                             <button type="button" class="active" onclick="empSetYesNo('ceThirteenth', true)">ja</button>
                             <button type="button" onclick="empSetYesNo('ceThirteenth', false)">nein</button>
+                        </div>
+                    </div>
+                    <div class="ce-field" id="ceFerienImAnsatzWrap" style="display:none">
+                        <label class="ce-lbl" title="Ferien und Feiertag sind im Stunden- bzw. Lektionenansatz schon enthalten — OneCrew rechnet keine Ferien- und Feiertagsentschädigung dazu (Swissdec: keine 1160/1161/1162/1163).">Ferien/Feiertag im Ansatz</label>
+                        <div class="emp-yesno-toggle" data-target="ceFerienImAnsatz">
+                            <input type="hidden" id="ceFerienImAnsatz" value="false">
+                            <button type="button" onclick="empSetYesNo('ceFerienImAnsatz', true)">ja</button>
+                            <button type="button" class="active" onclick="empSetYesNo('ceFerienImAnsatz', false)">nein</button>
                         </div>
                     </div>
                     <div class="ce-field" id="ceVierzehnterWrap">

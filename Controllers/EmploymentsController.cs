@@ -189,7 +189,7 @@ public class EmploymentsController : ControllerBase
                 jobGroupCode = e.JobGroup != null ? e.JobGroup.Code : null,
                 e.EducationLevelCode,
                 e.EmploymentPercentage,
-                e.WeeklyHours, e.GuaranteedHoursPerWeek, e.LessonRate, e.WeeklyLessons, e.ThirteenthSalary,
+                e.WeeklyHours, e.GuaranteedHoursPerWeek, e.LessonRate, e.WeeklyLessons, e.ThirteenthSalary, e.FerienFeiertagImAnsatz,
                 e.VierzehnterMonatslohn, e.JahreslohnOhneZeitbindung, e.Regelmaessig,
                 e.TeilzeitUnter8hWoche,
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
@@ -789,6 +789,9 @@ public class EmploymentsController : ControllerBase
         existing.GuaranteedHoursPerWeek = dto.GuaranteedHoursPerWeek;
         // Lektionenlohn (Walter 07.09.2026): nur bei Stundenlohn-Modellen sinnvoll; leer = keiner.
         existing.ThirteenthSalary       = dto.ThirteenthSalary;
+        // Ferien/Feiertag im Ansatz (Walter 02.11.2026): nur aus der Vertragsmaske, nie aus dem
+        // easy@work-Import (der kennt das Merkmal nicht und würde es löschen).
+        if (meldungsartUebernehmen) existing.FerienFeiertagImAnsatz = dto.FerienFeiertagImAnsatz;
         if (dto.VierzehnterGesetzt) existing.VierzehnterMonatslohn = dto.VierzehnterMonatslohn;
         if (dto.JahreslohnGesetzt)
             existing.JahreslohnOhneZeitbindung = dto.JahreslohnOhneZeitbindung is > 0m

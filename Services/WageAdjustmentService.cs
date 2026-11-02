@@ -237,6 +237,7 @@ public class WageAdjustmentService
                 MonthlySalary          = monthly ? newActual   : src.MonthlySalary,
                 HourlyRate             = monthly ? src.HourlyRate : it.NewWage,
                 VacationPaymentMode    = src.VacationPaymentMode,
+                FerienFeiertagImAnsatz = src.FerienFeiertagImAnsatz,
                 ProbationPeriodMonths  = src.ProbationPeriodMonths,
                 ProbationEndDate       = src.ProbationEndDate,
                 IsActive               = true,

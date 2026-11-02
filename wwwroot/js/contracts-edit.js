@@ -232,6 +232,10 @@ async function openContractEditModal(c, mode = 'edit') {
     const dreizehnter = c.thirteenthSalary !== false;
     if (typeof empSetYesNo === 'function') empSetYesNo('ceThirteenth', dreizehnter);
     else { const t13 = document.getElementById('ceThirteenth'); if (t13) t13.value = dreizehnter ? 'true' : 'false'; }
+    // Ferien/Feiertag im Ansatz inbegriffen (Walter 02.11.2026) — Standard nein.
+    const imAnsatz = c.ferienFeiertagImAnsatz === true;
+    if (typeof empSetYesNo === 'function') empSetYesNo('ceFerienImAnsatz', imAnsatz);
+    else { const fa = document.getElementById('ceFerienImAnsatz'); if (fa) fa.value = imAnsatz ? 'true' : 'false'; }
     const overrideEl = document.getElementById('ceEasyAtWorkManualOverride');
     // Handerfassung (Walter 07.09.2026): neuer Vertrag ohne easy@work-Herkunft ist
     // automatisch geschützt — sonst könnte der Sync ihn später kappen.
@@ -380,6 +384,8 @@ function onCeModelChange() {
     const lektionWert = !!(document.getElementById('ceLessonRate')?.value || document.getElementById('ceWeeklyLessons')?.value);
     const lektionen = !isFix && (_ceLektionenLohnAktiv || lektionWert);
     show('ceLessonRateWrap', lektionen);
+    // Ferien/Feiertag im Ansatz: nur Stundenlohn-Modelle (FIX hat Ferientage, keine Entschädigung).
+    show('ceFerienImAnsatzWrap', !isFix);
     show('ceWeeklyLessonsWrap', lektionen);
     // < 8 h / Wo. nur bei FLEX — eigene Grid-Zelle rechts neben Max. h/Woche.
     show('ceTeilzeitUnter8hWrap', isUtp);
@@ -871,6 +877,7 @@ async function saveContractEdit() {
                                 : null,
         guaranteedHoursPerWeek:  parseFloat(document.getElementById('ceGuaranteedHours').value) || null,
         thirteenthSalary:        document.getElementById('ceThirteenth')?.value !== 'false',
+        ferienFeiertagImAnsatz:  !isFix && document.getElementById('ceFerienImAnsatz')?.value === 'true',
         vierzehnterMonatslohn:   document.getElementById('ceVierzehnter')?.value === 'true',
         vierzehnterGesetzt:      true,
         jahreslohnOhneZeitbindung: art.ohneMonatslohn
