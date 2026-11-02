@@ -140,7 +140,8 @@ const EX = {
     why: 'Jeden Monat: % auf die FER-Basis. Füllt den Ferien-CHF-/Tage-Topf — nicht «Ferien genommen».',
     box: `<code>Zuwachs = Round05(Basis × Filiale.Ferien%)</code> · Code <strong>1160</strong><br>
           <strong>Topf CHF neu</strong> = Vormonat + Zuwachs − Auszahlung<br>
-          <strong>Topf Tage neu</strong> = Vormonat + Accrual − bezogene Tage`
+          <strong>Topf Tage neu</strong> = Vormonat + Accrual − bezogene Tage<br>
+          Vertrag «Ferien/Feiertag im Ansatz inbegriffen» = ja → Ferien-% = 0, keine Zeile (z.B. Lektionenlohn mit Ferien im Ansatz).`
   },
   ferienBezug: {
     title: 'Ferienbezug → Topf leeren',
@@ -158,7 +159,7 @@ const EX = {
   feiertag: {
     title: 'Feiertag-%',
     why: 'FLEX/MTP: % auf FEI-Basis (Code 1161). FIX: oft Tage-Saldo / Kürzung.',
-    box: '<code>Round05(Basis × Filiale.Feiertag%)</code> — modellabhängig Auszahlung oder Saldo.'
+    box: '<code>Round05(Basis × Filiale.Feiertag%)</code> — modellabhängig Auszahlung oder Saldo.<br>Vertrag «Ferien/Feiertag im Ansatz inbegriffen» = ja → Feiertag-% = 0, keine Zeile.'
   },
   ml13Flex: {
     title: '13. ML · FLEX nach Probezeit',
@@ -299,6 +300,7 @@ const MODELS = {
         formula: '2’458.20 × 10.65%',
         pot: 'Topf Ferien-CHF: 77.55 Vor + 261.80 Zuwachs − 0 Bezug = <strong>339.35</strong> · Tage analog',
         leaves: [
+          { t: 'Vertrag «Ferien/Feiertag im Ansatz»', v: 'ja → 0 %, keine Zeile' },
           { t: 'Basis (FER-Häkchen)', v: '2’458.20' },
           { t: 'Filiale Ferien%', v: '10.65%' },
           { t: 'Beleg ausbezahlt', v: '0.00 (nur Saldo wächst)' }
@@ -316,6 +318,7 @@ const MODELS = {
         id: 'feiertag', label: 'Feiertag-% (Beispiel)', tag: '1161', tagClass: 'c', amt: 'klein / 0', amtClass: 'neu',
         formula: 'Basis × Feiertag%',
         leaves: [
+          { t: 'Vertrag «Ferien/Feiertag im Ansatz»', v: 'ja → 0 %, keine Zeile' },
           { t: 'Filiale Feiertag%', v: 'z.B. 2.27%' },
           { t: 'Flags', v: 'wie Katalog' }
         ]
@@ -369,6 +372,7 @@ const MODELS = {
         formula: '2’458.20 × 10.65%',
         pot: 'Topf Ferien: Vor + 261.80 − Bezug = neu · gleiches Muster wie nach Probezeit',
         leaves: [
+          { t: 'Vertrag «Ferien/Feiertag im Ansatz»', v: 'ja → 0 %, keine Zeile' },
           { t: 'Basis (FER)', v: '2’458.20' },
           { t: 'Beleg ausbezahlt', v: '0.00' }
         ]
@@ -395,7 +399,8 @@ const MODELS = {
       {
         id: 'feiertag', label: 'Feiertag-% (Beispiel)', tag: '1161', tagClass: 'c', amt: 'klein / 0', amtClass: 'neu',
         formula: 'Basis × Feiertag%',
-        leaves: [{ t: 'wie FLEX nach PZ', v: 'Filiale %' }]
+        leaves: [
+          { t: 'Vertrag «Ferien/Feiertag im Ansatz»', v: 'ja → 0 %, keine Zeile' },{ t: 'wie FLEX nach PZ', v: 'Filiale %' }]
       },
       blockAhvBasis([
         { t: 'aus 1005', v: '2’458.20 (AHV✓)' },
@@ -449,6 +454,7 @@ const MODELS = {
         formula: 'Basis × Ferien%',
         pot: 'Wie FLEX: Vor + Zuwachs − Bezug = neu (CHF + Tage)',
         leaves: [
+          { t: 'Vertrag «Ferien/Feiertag im Ansatz»', v: 'ja → 0 %, keine Zeile' },
           { t: 'Basis', v: 'FER-Häkchen auf 1005-Zeilen' },
           { t: 'Beleg ausbezahlt', v: '0 ohne Bezug' }
         ]
@@ -474,7 +480,8 @@ const MODELS = {
       {
         id: 'feiertag', label: 'Feiertag-%', tag: '1161', tagClass: 'c', amt: 'Zuwachs / Auszahlung', amtClass: 'neu',
         formula: 'Basis × Feiertag%',
-        leaves: [{ t: 'Filiale %', v: 'wie FLEX' }]
+        leaves: [
+          { t: 'Vertrag «Ferien/Feiertag im Ansatz»', v: 'ja → 0 %, keine Zeile' },{ t: 'Filiale %', v: 'wie FLEX' }]
       },
       blockAhvBasis([
         { t: 'ausbezahlte 1005 (Garantie + Mehr)', v: 'AHV✓' },
