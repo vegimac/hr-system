@@ -172,6 +172,8 @@ public static class ElmStatistikCodes
         // Naturalleistungen und geldwerte Vorteile
         >= 1900 and <= 1969 => Topf.Naturalleistungen,
         // Vom Arbeitgeber übernommene Beiträge
+        // Weiterbildung: nur Lohnausweis, kein Lohn für die Statistik (Quality Tool März 2025 TF12 Casanova)
+        1980 => Topf.Keiner,
         >= 1970 and <= 1989 => Topf.Uebrige,
         // Kurzarbeit / Schlechtwetter (2070 = ALV-Entschädigung KA — TF02 Paganini Feb:
         // 3'000+2'200+200 = 5'400 Kurzarbeit, nicht Drittleistungen)
@@ -181,6 +183,9 @@ public static class ElmStatistikCodes
         2050 => Topf.Keiner,
         // Ersatzeinkünfte über den Arbeitgeber
         >= 2000 and <= 2099 => Topf.Drittleistungen,
+        // Geburts- und Adoptionszulage: einmalig, unregelmässig — nicht Familienzulage im Monat
+        // (Quality Tool März 2025 TF11 Bosshard: FamilyIncomeSupplement 483, Sporadic 1'000)
+        3034 or 3035 => Topf.Unregelmaessig,
         // Familienzulagen
         >= 3000 and <= 3999 => Topf.Familienzulagen,
         // Abzüge und Ausgleichsbuchungen gehören nicht in die Lohntöpfe

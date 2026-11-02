@@ -169,6 +169,19 @@ Rot nur noch TF25 Lehmann / TF26 Jenzer, alles Folge der 8'400 statt 8'000 — r
 Argument für Swissdec: die Referenz rechnet die QST-Hochrechnung selbst mit **21** Tagen
 (11'428.55 = 8'000 ÷ 21 × 30), den Bruttolohn aber mit 20 — die Zählung mit Eintrittstag ist die stimmige.
 
+### 2025-03 — Sendung 02.11.2026 14:30 (18e43d871111cd3a0), Korrekturen K15–K18
+
+| Testfall | Feld | Soll | Ist | Ursache |
+|---|---|---:|---:|---|
+| TF10 Ganz | ShortTimeWorkCompensation | −600.00 | 2'400.00 | **K15** — 2060 Lohnabzug KA/SW war Netto-Abzug (Katalog `ABZUG`): −3'000 erhöhte das Netto um 3'000. Jetzt Bruttokürzung (`ZULAGE`), Schema-Stand 133 |
+| TF38 Jung | GrossBase / Sporadic / QST Current | 8'000 / 0 | 3'000 / 5'000 | **K16** — 1218 Provision regelmässig: Statistik Bruttolohn, QST periodisch |
+| TF11 Bosshard | FamilyIncomeSupplement / Sporadic | 483 / 1'000 | 1'483 / 0 | **K17** — 3034 Geburtszulage unregelmässig, nicht Familienzulage |
+| TF12 Casanova | OtherBenefits | 0 | 2'000 | **K18** — 1980 Weiterbildung nur Lohnausweis, nicht Statistik |
+| TF08 Lamon | CivilStatus ValidAsOf | 1987-03-16 | 2025-01-01 | Daten: Historie-Eintrag «unbekannt» auf 16.03.1987 |
+| TF11 Bosshard | FringeBenefits / SocialContributions | 24'350 / −2'427.65 | 4'350 / −1'267.65 | **offen** — 20'000 geldwerter Vorteil fehlt im CSV (nur Ausgleich 5210 = 20'250) |
+| TF15 Degelo | SocialContributions | −163.65 | −172.25 | **offen** — vermutlich ALV-Höchstgrenze bei 2 Tagen Anstellung |
+| TF25/26, SalaryTotals | AscertainedTaxableEarning, TaxAtSource | 11'764.70 | 12'000.00 | **bewusst A7** (YTD aus Feb 8'000 statt 8'400) |
+
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 
 ### F1 — TF14 Egli, Quellensteuer-Code (November 2024)

@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 132;  // 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 133;  // 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -454,6 +454,28 @@ using (var scope = app.Services.CreateScope())
 
     if (startSqlNoetig)
     {
+    // Stand 133: Lohnarten-Korrekturen aus dem Quality Tool März 2025 (Walter 02.11.2026).
+    // Einmalig, weil die Positionen schon in Lohnläufen stecken und die Maske sie sperrt.
+    //  - 2060 Lohnabzug KA/SW ist eine Bruttokürzung (Swissdec), kein Netto-Abzug: Typ ZULAGE.
+    //    Als Abzug positiv erfasste Beträge werden negativ, damit die Wirkung gleich bleibt.
+    //  - 3034 Geburtszulage: unregelmässig statt Familienzulage (TF11 Bosshard).
+    //  - 1980 Weiterbildung: nur Lohnausweis, nicht in der Lohnstatistik (TF12 Casanova).
+    //  - 1218 Provision: regelmässig — Bruttolohn und QST periodisch (TF38 Jung).
+    if (dbStand < 133)
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE lohn_zulage SET betrag = -betrag
+             WHERE betrag > 0
+               AND lohnposition_id IN (SELECT id FROM lohnposition WHERE code = '2060' AND typ = 'ABZUG');
+            UPDATE lohnposition SET typ = 'ZULAGE' WHERE code = '2060' AND typ = 'ABZUG';
+            UPDATE lohnposition SET statistik_monat = NULL, statistik_jahr = 'Unregelmaessig'
+             WHERE code = '3034' AND COALESCE(statistik_monat, '') = 'Familienzulagen';
+            UPDATE lohnposition SET statistik_monat = 'Keiner', statistik_jahr = NULL
+             WHERE code = '1980';
+            UPDATE lohnposition SET statistik_monat = 'Bruttolohn', statistik_jahr = NULL,
+                   qst_charakter = 'monatlich', qst_periodisch = true
+             WHERE code = '1218';
+        ");
+
     // Stand 132: Ferien/Feiertag im Ansatz inbegriffen (Walter 02.11.2026, TF15 Degelo).
     if (dbStand < 132)
         db.Database.ExecuteSqlRaw(@"
