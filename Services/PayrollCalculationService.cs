@@ -131,6 +131,22 @@ public static class PayrollCalculations
     /// gewinnt die jüngste «ab»-Zeile, dann Lohnart 5050, dann die höchste Id.
     /// (Walter 12.09.2026, TF22 Bucher Februar.)
     /// </summary>
+    /// <summary>
+    /// Betrag (Basis × %) nach Lohnform aufteilen: Stundenteil und Lektionenteil je eine Zeile, je
+    /// auf 5 Rappen — wie die Swissdec-Testdaten (TF02 Paganini 1160/1162, 1161/1163, 1201/1202).
+    /// Ohne Lektionen eine Zeile mit <paramref name="codeStunden"/> (Walter 02.11.2026).
+    /// </summary>
+    public static List<(string Code, decimal BasisExact, decimal Exact, decimal Betrag)> TeileNachLohnform(
+        decimal basisExact, decimal lektionenBasisExact, decimal pct, string codeStunden, string codeLektionen)
+    {
+        var teile = new List<(string, decimal, decimal, decimal)>();
+        var lek = Math.Max(0m, Math.Min(lektionenBasisExact, basisExact));
+        var std = basisExact - lek;
+        if (std != 0) { var x = std * pct / 100m; teile.Add((codeStunden, std, x, Round05(x))); }
+        if (lek != 0) { var x = lek * pct / 100m; teile.Add((codeLektionen, lek, x, Round05(x))); }
+        return teile;
+    }
+
     public static EmployeeVersicherungCode? WaehleBvgFix(IEnumerable<EmployeeVersicherungCode> eintraege)
     {
         return eintraege
@@ -1429,7 +1445,9 @@ public static class PayrollCalculations
             if (line.TryGetProperty("code", out var c) || line.TryGetProperty("Code", out c))
                 code = c.ValueKind == JsonValueKind.String ? c.GetString() : null;
             var alt13 = LohnCodes.MirusVonSwissdec.TryGetValue(LohnCodes.Ml13, out var mirus13) ? mirus13 : null;
-            if (code != LohnCodes.Ml13 && !string.Equals(code, alt13, StringComparison.OrdinalIgnoreCase)) continue;
+            // 13. ML nach Lohnform: 1200 Monatslohn, 1201 Stundenlohn, 1202 Lektionenlohn (Walter 02.11.2026).
+            if (code is not (LohnCodes.Ml13 or LohnCodes.Ml13Stundenlohn or LohnCodes.Ml13Lektionenlohn)
+                && !string.Equals(code, alt13, StringComparison.OrdinalIgnoreCase)) continue;
             if ((TryJsonDecimal(line, "basis", out var basis) || TryJsonDecimal(line, "Basis", out basis))
                 && basis != 0m)
                 return basis;

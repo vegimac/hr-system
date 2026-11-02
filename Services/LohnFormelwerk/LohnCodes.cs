@@ -10,6 +10,7 @@ public static class LohnCodes
     // ── Lohn (Swissdec) ──────────────────────────────────────────────────
     public const string Festlohn = "1000";              // nur FIX/FIX-M (Monatslohn)
     public const string Stundenlohn = "1005";           // FLEX + MTP (Garantie und Mehrstunden)
+    public const string Lektionenlohn = "1006";
     public const string Ueberstunden25 = "1061";
     public const string UeberstundenOhneZuschlag = "1065";
     public const string NachtKompensation = "1076";
@@ -19,11 +20,16 @@ public static class LohnCodes
     public const string FeiertagEntschaedigung = "1161";
     public const string FerienFixGeld = "1166";
     public const string FerienAustritt = "1168";
+    /// <summary>Lektionenlohn: Ferien 1162 / Feiertag 1163 (Swissdec, Walter 02.11.2026).</summary>
+    public const string FerienLektionen = "1162";
+    public const string FeiertagLektionen = "1163";
     /// <summary>Alias: ausbezahlte Feiertage — Swissdec 1161.</summary>
     public const string FeiertagAusbezahlt = "1161";
 
     // ── 13. ML / Bonus ───────────────────────────────────────────────────
-    public const string Ml13 = "1200";
+    public const string Ml13 = "1200";                  // Monatslohn (FIX/FIX-M)
+    public const string Ml13Stundenlohn = "1201";       // FLEX/MTP Stundenlohn
+    public const string Ml13Lektionenlohn = "1202";     // Lektionenlohn
     /// <summary>Auslöser «13. ML auszahlen» = dieselbe Nr. 1200; Erkennung über mirus_code 180.3 / Bezeichnung.</summary>
     public const string Ml13Auszahlen = "1200";
     public const string McBonus = "1210";

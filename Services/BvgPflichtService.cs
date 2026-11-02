@@ -148,7 +148,7 @@ public class BvgPflichtService
             {
                 var code = z.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.String ? (c.GetString() ?? "").Trim() : "";
                 decimal betrag = z.TryGetProperty("betrag", out var b) && b.ValueKind == JsonValueKind.Number && b.TryGetDecimal(out var d) ? d : 0m;
-                if (code.StartsWith("180.", StringComparison.Ordinal) || code == "1200") dreizehnter += betrag;
+                if (code.StartsWith("180.", StringComparison.Ordinal) || code is "1200" or "1201" or "1202") dreizehnter += betrag;
                 else if (betrag != 0 && IstKrankUnfall(code)) krank = true;
             }
             return (dreizehnter, krank);

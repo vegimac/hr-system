@@ -928,8 +928,8 @@ public class ElmMonthlyDeclarationBuilder
         // Ferien-/Feiertagsprozent nur aus dem Lohnzettel (1160/1161). Ohne Zeile = 0 —
         // Filial-Default wäre falsch bei Lektionenlohn mit Ferien im Ansatz (TF15 Degelo
         // RefXML Feb: Vacation 0 / PublicHoliday 0, nicht 8.33 / 4).
-        var ferienProzent = ProzentAusLohnzeile(slip, lohnartByCode, 1160) ?? 0m;
-        var feiertagProzent = ProzentAusLohnzeile(slip, lohnartByCode, 1161) ?? 0m;
+        var ferienProzent = (ProzentAusLohnzeile(slip, lohnartByCode, 1160) ?? ProzentAusLohnzeile(slip, lohnartByCode, 1162)) ?? 0m;
+        var feiertagProzent = (ProzentAusLohnzeile(slip, lohnartByCode, 1161) ?? ProzentAusLohnzeile(slip, lohnartByCode, 1163)) ?? 0m;
         var stundenansatz = em?.HourlyRate ?? 0m;
         var lektionenansatz = em?.LessonRate ?? stundenansatz;
 
@@ -1051,7 +1051,7 @@ public class ElmMonthlyDeclarationBuilder
         // Ferien-% und Ferientage nie zusammen (Richtlinien). Nur wenn der Lohnzettel
         // wirklich 1160 führt, sind die Tage 0 — sonst Tage (TF15 Degelo Vacation 0 → 20 Tage).
         var ferienPct = lohnartByCode != null
-            ? (ProzentAusLohnzeile(slip, lohnartByCode, 1160) ?? 0m)
+            ? ((ProzentAusLohnzeile(slip, lohnartByCode, 1160) ?? ProzentAusLohnzeile(slip, lohnartByCode, 1162)) ?? 0m)
             : 0m;
         var entsch = stundenlohn && ferienPct > 0m;
         var ferienwochen = ElmStatistikCodes.Ferienwochen(

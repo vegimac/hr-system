@@ -141,7 +141,8 @@ const EX = {
     box: `<code>Zuwachs = Round05(Basis × Filiale.Ferien%)</code> · Code <strong>1160</strong><br>
           <strong>Topf CHF neu</strong> = Vormonat + Zuwachs − Auszahlung<br>
           <strong>Topf Tage neu</strong> = Vormonat + Accrual − bezogene Tage<br>
-          Vertrag «Ferien/Feiertag im Ansatz inbegriffen» = ja → Ferien-% = 0, keine Zeile (z.B. Lektionenlohn mit Ferien im Ansatz).`
+          Vertrag «Ferien/Feiertag im Ansatz inbegriffen» = ja → Ferien-% = 0, keine Zeile (z.B. Lektionenlohn mit Ferien im Ansatz).<br>
+          Lohnform: Stundenteil <strong>1160</strong>, Lektionenteil <strong>1162</strong> — je eine Zeile (Swissdec TF02 Paganini).`
   },
   ferienBezug: {
     title: 'Ferienbezug → Topf leeren',
@@ -159,11 +160,11 @@ const EX = {
   feiertag: {
     title: 'Feiertag-%',
     why: 'FLEX/MTP: % auf FEI-Basis (Code 1161). FIX: oft Tage-Saldo / Kürzung.',
-    box: '<code>Round05(Basis × Filiale.Feiertag%)</code> — modellabhängig Auszahlung oder Saldo.<br>Vertrag «Ferien/Feiertag im Ansatz inbegriffen» = ja → Feiertag-% = 0, keine Zeile.'
+    box: '<code>Round05(Basis × Filiale.Feiertag%)</code> — modellabhängig Auszahlung oder Saldo.<br>Vertrag «Ferien/Feiertag im Ansatz inbegriffen» = ja → Feiertag-% = 0, keine Zeile.<br>Lohnform: Stundenteil 1161, Lektionenteil 1163 — je eine Zeile.'
   },
   ml13Flex: {
     title: '13. ML · FLEX nach Probezeit',
-    why: 'Kein Topf — monatlich ausbezahlt (1200).',
+    why: 'Kein Topf — monatlich ausbezahlt. Swissdec nach Lohnform: Stundenlohn 1201, Lektionenlohn 1202 (gemischt: je eine Zeile). Monatslohn FIX: 1200.',
     box: '<code>Round05(Basis × 8.33%)</code> → Beleg diesen Monat. Saldo 13. ML wird nicht geführt.'
   },
   ml13Pz: {
@@ -174,7 +175,7 @@ const EX = {
   ml13Topf: {
     title: '13. ML · MTP / FIX / FIX-M → Topf',
     why: 'Immer ansammeln. Auszahlung nur Raster-Monat oder Auslöser 180.3.',
-    box: 'Zuwachs → Topf. Auszahlung: Pott + Monat → 1200, Topf → 0.<br>FIX: oft Jahres-1/12-Logik in der Engine.'
+    box: 'Zuwachs → Topf. Auszahlung: Pott + Monat → 1201 (MTP/FLEX) bzw. 1200 (FIX), Topf → 0.<br>FIX: oft Jahres-1/12-Logik in der Engine.'
   },
   ahvB: {
     title: 'AHV-Basis (Flags)',
@@ -282,7 +283,7 @@ const MODELS = {
             ]
           },
           {
-            id: 'ml13Flex', label: '13. ML (dieser Monat)', tag: '1200', tagClass: 'c', amt: '+204.80', amtClass: 'pos',
+            id: 'ml13Flex', label: '13. ML (dieser Monat)', tag: '1201', tagClass: 'c', amt: '+204.80', amtClass: 'pos',
             formula: 'Basis × 8.33%',
             leaves: [
               { t: 'Basis (13.ML-Häkchen)', v: '2’458.20' },
@@ -325,10 +326,10 @@ const MODELS = {
       },
       blockAhvBasis([
         { t: 'aus 1005', v: '2’458.20 (AHV✓)' },
-        { t: 'aus 1200', v: '204.80 (AHV✓)' },
+        { t: 'aus 1201', v: '204.80 (AHV✓)' },
         { t: 'nicht: reiner Ferien-Zuwachs', v: 'ohne Auszahlung' }
       ]),
-      blockAbzuege('1005 + 1200 + Ferien-Auszahlung'),
+      blockAbzuege('1005 + 1201 + Ferien-Auszahlung'),
       {
         id: 'saldoBlock', label: 'Saldi-Block auf dem Beleg', tag: 'Beleg', tagClass: 'i', amt: 'Töpfe', amtClass: 'pot',
         leaves: [
@@ -362,7 +363,7 @@ const MODELS = {
             ]
           },
           {
-            id: 'ml13Pz', label: '13. ML (Rückstellung, nicht ausbezahlt)', tag: '1200', tagClass: 'p', amt: '0.00 Beleg', amtClass: 'pot',
+            id: 'ml13Pz', label: '13. ML (Rückstellung, nicht ausbezahlt)', tag: '1201', tagClass: 'p', amt: '0.00 Beleg', amtClass: 'pot',
             leaves: [{ t: 'Zuwachs nur im Saldo', v: '+204.80 → Topf' }]
           }
         ]
@@ -386,7 +387,7 @@ const MODELS = {
         ]
       },
       {
-        id: 'ml13Pz', label: '13. ML → Topf (Probezeit)', tag: '1200', tagClass: 'p', amt: '+204.80 → Topf', amtClass: 'pot',
+        id: 'ml13Pz', label: '13. ML → Topf (Probezeit)', tag: '1201', tagClass: 'p', amt: '+204.80 → Topf', amtClass: 'pot',
         formula: 'Basis × 8.33% · Auszahlung 0',
         pot: '13.-Topf: Vor + Zuwachs = neu · Beleg oft «Rückstellung» · Abbruch Probezeit → Verfall möglich',
         leaves: [
@@ -468,12 +469,12 @@ const MODELS = {
         ]
       },
       {
-        id: 'ml13Topf', label: '13. ML → Topf', tag: '1200', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
+        id: 'ml13Topf', label: '13. ML → Topf', tag: '1201', tagClass: 'p', amt: 'Zuwachs', amtClass: 'pot',
         formula: 'Basis × 8.33%',
-        pot: 'Monatlich ansammeln · Auszahlung: Raster-Monat oder Auslöser 180.3 → 1200, Topf → 0',
+        pot: 'Monatlich ansammeln · Auszahlung: Raster-Monat oder Auslöser 180.3 → 1201, Topf → 0',
         leaves: [
           { t: 'Monat ohne Raster', v: 'Beleg oft 0 · Saldo wächst' },
-          { t: 'Auszahlungsmonat', v: 'Pott + Monat → 1200' },
+          { t: 'Auszahlungsmonat', v: 'Pott + Monat → 1201' },
           { t: 'Auslöser', v: '180.3 «13. ML auszahlen»' }
         ]
       },

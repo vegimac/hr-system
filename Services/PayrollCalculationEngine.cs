@@ -1769,6 +1769,26 @@ public class PayrollCalculationEngine
                     sum += kv.Value;
             return sum;
         }
+        // ── Swissdec-Lohnart nach Lohnform (Walter 02.11.2026) ──────────────
+        // Stundenlohn: Ferien 1160, Feiertag 1161, 13. ML 1201. Lektionenlohn: 1162 / 1163 / 1202.
+        // Monatslohn (FIX/FIX-M): 13. ML 1200. Wer beides hat (TF02 Paganini), bekommt je eine
+        // Zeile pro Teil — wie die Swissdec-Testdaten. Fehlt die Position im Katalog, bleibt die
+        // bisherige Nummer (alte Datenbanken).
+        string Vorhanden(string code, string ersatz) => lohnposByCode.ContainsKey(code) ? code : ersatz;
+        static bool IstLektionenteil(Lohnposition lp)
+            => (string.IsNullOrWhiteSpace(lp.SwissdecLohnart) ? lp.Code : lp.SwissdecLohnart!.Trim())
+               is LohnCodes.Lektionenlohn or LohnCodes.FerienLektionen or LohnCodes.FeiertagLektionen
+                  or LohnCodes.Ml13Lektionenlohn;
+        decimal LektionenBasis(Func<Lohnposition, bool> flag, bool feiertagBasis = false)
+            => SumByFlag(lp => flag(lp) && IstLektionenteil(lp), feiertagBasis);
+        // Ein Betrag (Basis × %) aufgeteilt in Stunden- und Lektionenteil, je auf 5 Rappen.
+        List<(string Code, decimal BasisExact, decimal Exact, decimal Betrag)> NachLohnform(
+            decimal basisExact, decimal lektionenBasisExact, decimal pct, string codeStunden, string codeLektionen)
+            => PayrollCalculations.TeileNachLohnform(basisExact, lektionenBasisExact, pct,
+                codeStunden, Vorhanden(codeLektionen, codeStunden));
+        // 13. ML für die SV-Häkchen: Monatslohn 1200, sonst 1201 (1202 nur bei reinem Lektionenlohn).
+        string code13Sv = Code13ml;
+
         // Walter-Vorgabe 28.05.2026: Helfer für die SV-pflicht-Anwendung — die
         // Engine hat ein paar Stellen (Krank-/Unfall-Taggeld 80%, BVG-Wartefrist-
         // Korrekturen), wo Beträge AUSSERHALB des mainLohn-Pfads auf die
@@ -1831,7 +1851,7 @@ public class PayrollCalculationEngine
             foreach (var kv in svGrundzeilen)
                 if (lohnposByCode.TryGetValue(kv.Key, out var lp) && !pflichtig(lp))
                     sum += kv.Value;
-            if (dreizehnter != 0 && lohnposByCode.TryGetValue(Code13ml, out var lp13) && !pflichtig(lp13))
+            if (dreizehnter != 0 && lohnposByCode.TryGetValue(code13Sv, out var lp13) && !pflichtig(lp13))
                 sum += dreizehnter;
             return sum;
         }
@@ -3168,6 +3188,8 @@ public class PayrollCalculationEngine
             // Austritts-Schlussabrechnung (Walter 04.08.2026): beim LETZTEN Lohn
             // wird der komplette 13.-ML-Saldo ausbezahlt statt weiter
             // zurückgestellt — die Verfall-Regel (Probezeit) sticht weiterhin.
+            // MTP ist Stundenlöhner: 13. ML Swissdec 1201 (Walter 02.11.2026).
+            code13Sv = Vorhanden(LohnCodes.Ml13Stundenlohn, Code13ml);
             bool isPayoutMonthMtp = (IsThirteenthPayoutMonth(company, month) || isLetzterLohn || zahlt13mlAus)
                                     && !isInProbation && !thirteenthForfeited;
             decimal dreizehnterMtp = 0;
@@ -3196,7 +3218,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
-                        code    = LohnCodes.Ml13,
+                        code    = code13Sv,
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)mtp13Basis,
@@ -3222,7 +3244,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (akt. Monat)",
-                        code    = LohnCodes.Ml13,
+                        code    = code13Sv,
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)mtp13Basis,
@@ -3235,7 +3257,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (Saldo-Auszahlung)",
-                        code    = LohnCodes.Ml13,
+                        code    = code13Sv,
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)null,
                         basis       = (decimal?)null,
@@ -3266,7 +3288,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn",
-                        code    = LohnCodes.Ml13,
+                        code    = code13Sv,
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)mtp13Basis,
@@ -3620,10 +3642,17 @@ public class PayrollCalculationEngine
             }
             if (feiertagEnt > 0)
             {
-                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = LohnCodes.FeiertagEntschaedigung, anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)PayrollCalculations.Rappen(feiertagBasisUtpExact), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
-                totalLohn += feiertagEnt;
-                AddAmount(LohnCodes.FeiertagEntschaedigung, feiertagEntExact, feiertagEnt);
-                Grundzeile(LohnCodes.FeiertagEntschaedigung, feiertagEnt);
+                // Lohnform (Walter 02.11.2026): Stundenteil 1161, Lektionenteil 1163 — je eine Zeile.
+                var teileFei = NachLohnform(feiertagBasisUtpExact,
+                    LektionenBasis(lp => lp.ZaehltAlsBasisFeiertag, feiertagBasis: true), holidayPct,
+                    LohnCodes.FeiertagEntschaedigung, LohnCodes.FeiertagLektionen);
+                foreach (var t in teileFei.Where(t => t.Betrag > 0))
+                {
+                    lohnLines.Add(new { bezeichnung = t.Code == LohnCodes.FeiertagLektionen ? "Feiertagsentschädigung Lektionen" : "Feiertagentschädigung", code = t.Code, anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)PayrollCalculations.Rappen(t.BasisExact), betrag = t.Betrag, accrued = (decimal?)t.Betrag });
+                    totalLohn += t.Betrag;
+                    AddAmount(t.Code, t.Exact, t.Betrag);
+                    Grundzeile(t.Code, t.Betrag);
+                }
             }
             if (feiertagLohnersatzUtp > 0)
             {
@@ -3651,21 +3680,28 @@ public class PayrollCalculationEngine
             bool ferienMonatlichUtp = company.FerienAuszahlungMonatlich;
             if (ferienEnt > 0)
             {
-                string ferienCodeUtp = vacationPct >= 13m ? LohnCodes.FerienAccrual : LohnCodes.FerienAccrual;
-                lohnLines.Add(new {
-                    bezeichnung = "Ferienentschädigung",
-                    code    = ferienCodeUtp,
-                    anzahl  = (decimal?)null,
-                    prozent = (decimal?)vacationPct,
-                    basis   = (decimal?)PayrollCalculations.Rappen(ferienBasisUtpExact),
-                    betrag  = ferienMonatlichUtp ? ferienEnt : 0m,
-                    accrued = (decimal?)ferienEnt
-                });
-                if (ferienMonatlichUtp)
+                // Lohnform (Walter 02.11.2026): Stundenteil 1160, Lektionenteil 1162 — je eine Zeile.
+                var teileFer = NachLohnform(ferienBasisUtpExact,
+                    LektionenBasis(lp => lp.ZaehltAlsBasisFerien), vacationPct,
+                    LohnCodes.FerienAccrual, LohnCodes.FerienLektionen);
+                if (teileFer.Count > 1) ferienEnt = teileFer.Sum(t => t.Betrag);
+                foreach (var t in teileFer.Where(t => t.Betrag > 0))
                 {
-                    totalLohn += ferienEnt;
-                    AddAmount(ferienCodeUtp, ferienEntExactUtp, ferienEnt);
-                    Grundzeile(ferienCodeUtp, ferienEnt);
+                    lohnLines.Add(new {
+                        bezeichnung = t.Code == LohnCodes.FerienLektionen ? "Ferienvergütung Lektionen" : "Ferienentschädigung",
+                        code    = t.Code,
+                        anzahl  = (decimal?)null,
+                        prozent = (decimal?)vacationPct,
+                        basis   = (decimal?)PayrollCalculations.Rappen(t.BasisExact),
+                        betrag  = ferienMonatlichUtp ? t.Betrag : 0m,
+                        accrued = (decimal?)t.Betrag
+                    });
+                    if (ferienMonatlichUtp)
+                    {
+                        totalLohn += t.Betrag;
+                        AddAmount(t.Code, t.Exact, t.Betrag);
+                        Grundzeile(t.Code, t.Betrag);
+                    }
                 }
             }
 
@@ -3812,6 +3848,11 @@ public class PayrollCalculationEngine
                 decimal lohnersatz13Utp = tagessatzMit13mlUtp ? 0m
                     : LohnersatzNachFlag(lp => lp.ZaehltAlsBasis13ml, ohneKatalog: false);
                 decimal basis13Exact = SumByFlag(lp => lp.ZaehltAlsBasis13ml) + lohnersatz13Utp;
+                // Lohnform (Walter 02.11.2026): Stundenlohn 1201, reiner Lektionenlohn 1202.
+                decimal lektionenBasis13 = LektionenBasis(lp => lp.ZaehltAlsBasis13ml);
+                code13Sv = basis13Exact > 0 && lektionenBasis13 >= basis13Exact
+                    ? Vorhanden(LohnCodes.Ml13Lektionenlohn, Vorhanden(LohnCodes.Ml13Stundenlohn, Code13ml))
+                    : Vorhanden(LohnCodes.Ml13Stundenlohn, Code13ml);
                 // Anzeige aus den Beleg-Beträgen (Walter 26.09.2026, TF14 Egli).
                 decimal basis13 = PayrollCalculations.Rappen(
                     SumByFlagAnzeige(lp => lp.ZaehltAlsBasis13ml) + lohnersatz13Utp);
@@ -3828,7 +3869,7 @@ public class PayrollCalculationEngine
                     {
                         lohnLines.Add(new {
                             bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
-                            code    = LohnCodes.Ml13,
+                            code    = code13Sv,
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
                             basis       = (decimal?)basis13,
@@ -3845,7 +3886,7 @@ public class PayrollCalculationEngine
                     {
                         lohnLines.Add(new {
                             bezeichnung = "13. Monatslohn (Probe.Z. Rückstellung)",
-                            code    = LohnCodes.Ml13,
+                            code    = code13Sv,
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
                             basis       = (decimal?)basis13,
@@ -3860,18 +3901,23 @@ public class PayrollCalculationEngine
                 else
                 {
                     // Bestanden (auch am Periodenende) → laufender 13. monatlich.
-                    if (currentAccrual > 0)
+                    // Aufgeteilt nach Lohnform: Stundenteil 1201, Lektionenteil 1202 (TF02 Paganini).
+                    var teile13 = NachLohnform(basis13Exact, lektionenBasis13, thirteenthPct,
+                        code13Sv == LohnCodes.Ml13Lektionenlohn ? Vorhanden(LohnCodes.Ml13Stundenlohn, Code13ml) : code13Sv,
+                        LohnCodes.Ml13Lektionenlohn);
+                    if (teile13.Count > 1) currentAccrual = teile13.Sum(t => t.Betrag);
+                    foreach (var t13 in teile13.Where(t => t.Betrag > 0))
                     {
                         lohnLines.Add(new {
                             bezeichnung = "13. Monatslohn",
-                            code    = LohnCodes.Ml13,
+                            code    = t13.Code,
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
-                            basis       = (decimal?)basis13,
-                            betrag      = currentAccrual,
-                            accrued     = (decimal?)currentAccrual
+                            basis       = (decimal?)(teile13.Count > 1 ? PayrollCalculations.Rappen(t13.BasisExact) : basis13),
+                            betrag      = t13.Betrag,
+                            accrued     = (decimal?)t13.Betrag
                         });
-                        totalLohn += currentAccrual;
+                        totalLohn += t13.Betrag;
                     }
                     dreizehnterUtp = currentAccrual;
 
@@ -3891,7 +3937,7 @@ public class PayrollCalculationEngine
                     {
                         lohnLines.Add(new {
                             bezeichnung = saldoPayoutLabelUtp,
-                            code    = LohnCodes.Ml13,
+                            code    = code13Sv,
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)null,
                             basis       = (decimal?)null,
