@@ -190,6 +190,13 @@ Monatsletzten, Abzugsbasis auf Rappen vor dem Satz (ALVZ Degelo 6.20), neuer Ver
 
 ### 2025-04 — Sendung 03.11.2026 09:33 (18e47bea24cf009a8), Korrekturen K20–K22
 
+**Stand 03.11.2026 (Nachmittag): 2024-11 bis 2025-04 alle grün** (auch Februar/März nach A7
+Variante B). Für April zusätzlich nötig: QST-Erfassung liest das Land aus der Wohnort-Historie
+(nicht fest CH), ersetzt einen alten Wohnsitzstaat «CH», und beim Bearbeiten überschreiben die
+versteckten Fensterfelder die Ableitung nicht mehr; ohne ermittelbaren Kanton keine Version
+(QST_KANTON_FEHLT) und keine CH-Adresse ohne Kanton (KANTON_FEHLT). Daten Lehmann: Wohnort
+Milano bis 25.04., Arbeitstage CH April 18/20. Müller: Bern ab 16.04.
+
 | Testfall | Feld | Soll | Ist | Ursache |
 |---|---|---|---|---|
 | TF25 Lehmann, TF30 Müller | DepartureDate / Residence | 25.04. bzw. 15.04., `AbroadCountry IT/DE Daily` | 31.03., `CantonCH` | **K20** — `PersonDepartureDate` ist das Wegzugsdatum vom alten (Auslands-)Wohnort, nicht «Wegzug aus der Schweiz». Neuer Wohnort ab Folgetag (4c `UmzugAb`). QST-Wohnsitz der Monatsmeldung = Stand am **Monatsersten** (KS 45: Umzug am 2. oder später → alter Wohnsitz bis Monatsende). |
