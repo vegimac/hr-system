@@ -240,7 +240,7 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 | SalaryTotals | Reihenfolge CorrectionMonth (Juni 05,04 / Juli 05,06) | **K34** — Reihenfolge einer java.util.HashMap (`JavaHashReihenfolge`), trifft beide Monate. |
 | TF36 Maldini | WorkOrCompensatory der Partnerin (Start 28.07.) schon im Juli | **K35** — Erwerb des Partners ab dem Folgemonat des Stellenantritts (wie der Tarif C0Y ab August). |
 | TF41 Meier Max | zweiter Work-Block und Jahreswerte der ersten Anstellung fehlen | **K36** — frühere Anstellung im selben Jahr: eigener Work-Block (`#w…_0`) und eigene AnnualValues (ohne Zahlungen nach Austritt). |
-| TF34 Rinaldi | Korrekturposten Mai B0N → B1N fehlt, Juli 46.35 statt 141.35 | offen — Daten prüfen (Posten-Liste). |
+| TF34 Rinaldi | Korrekturposten Mai B0N → B1N fehlt, Juli 46.35 statt 141.35 | **K37** — Korrektur-Kette im Jahresmodell zählt bei den Vormonaten die bereits verrechneten Posten zum Bezahlten (April 425 − 240 = 185). Posten neu erzeugen: «Erfahren am» der Version ab 01.05. einmal ändern und zurücksetzen. |
 | TF36 Maldini | Zivilstand single statt married (ab 25.05.) | offen — Zivilstand-Historie prüfen. |
 | TF22 Bucher | QST 509.35 statt 509.30 | offen — 5-Rappen-Rundung im Jahresmodell mit zwei Töpfen. |
 

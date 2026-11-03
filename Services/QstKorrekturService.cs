@@ -295,6 +295,17 @@ public class QstKorrekturService
                     altByM[g.Key] = altByM.GetValueOrDefault(g.Key) + z.QstBezahlt;
                 }
             }
+            // Bereits verrechnete Korrektur-Posten zählen zum Bezahlten des Monats (TF34 Rinaldi Juli:
+            // April 425 Beleg + −240 Posten A0N→B0N = 185 bezahlt). Ohne sie rechnete die Kette den
+            // Mai mit 240 zu viel bezahlt und der Posten B0N→B1N für Mai fehlte.
+            var postenJahr = await _db.QstKorrekturen.AsNoTracking()
+                .Where(k => k.EmployeeId == neu.EmployeeId && k.Jahr == year
+                         && (k.Status == "VERRECHNET" || k.Status == "IN_DARLEHEN" || k.Status == "GEMELDET"))
+                .Select(k => new { k.Monat, k.Differenz })
+                .ToListAsync(ct);
+            foreach (var pk in postenJahr.GroupBy(k => k.Monat))
+                altByM[pk.Key] = altByM.GetValueOrDefault(pk.Key) + pk.Sum(k => k.Differenz);
+
             foreach (var r in yg)
             {
                 if (istByM.ContainsKey(r.Month)) continue;
