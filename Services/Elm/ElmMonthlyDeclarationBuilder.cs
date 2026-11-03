@@ -113,7 +113,10 @@ public class ElmMonthlyDeclarationBuilder
     public static string SwissdecNummer(string? code, IReadOnlyDictionary<string, string>? lohnartByCode)
     {
         var c = (code ?? "").Trim();
-        var direkt = LohnCodes.SwissdecVon(c);
+        // Nur eine echte Swissdec-Nummer zählt direkt — SwissdecVon würde einen Mirus-Alias
+        // (10.1 → 1000) still übersetzen; der Lohnzettel soll dann neu gerechnet werden.
+        var kopf = c.Contains('.') ? c[..c.IndexOf('.')] : c;   // 1000.2 → 1000
+        var direkt = LohnCodes.IstSwissdecStammNr(kopf) ? LohnCodes.SwissdecVon(kopf) : "";
         if (direkt.Length == 4) return direkt;
         if (c.Length > 0 && lohnartByCode != null
             && lohnartByCode.TryGetValue(c, out var feld))
