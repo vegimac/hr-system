@@ -171,6 +171,12 @@ Argument für Swissdec: die Referenz rechnet die QST-Hochrechnung selbst mit **2
 
 ### 2025-03 — Sendung 02.11.2026 14:30 (18e43d871111cd3a0), Korrekturen K15–K18
 
+**Stand 03.11.2026 08:14 (18e47797e342d44bf): erledigt bis auf A7** (TF25 Lehmann, TF26 Jenzer,
+SalaryTotals BE; catchAll BE nur noch Warnung). Auf dem Weg: K19 SV-Tage bei Eintritt am
+Monatsletzten, Abzugsbasis auf Rappen vor dem Satz (ALVZ Degelo 6.20), neuer Vertrag Degelo ab
+01.03. mit Ferien/Feiertag im Ansatz = ja, 13. ML = nein, Regelmässig beschäftigt = ja
+(sonst `Unsteady` statt `Steady` 10.50 Lektionen / 50 %). TF08 Lamon: Zivilstand-Historie bereinigt.
+
 | Testfall | Feld | Soll | Ist | Ursache |
 |---|---|---:|---:|---|
 | TF10 Ganz | ShortTimeWorkCompensation | −600.00 | 2'400.00 | **K15** — 2060 Lohnabzug KA/SW war Netto-Abzug (Katalog `ABZUG`): −3'000 erhöhte das Netto um 3'000. Jetzt Bruttokürzung (`ZULAGE`), Schema-Stand 133 |
