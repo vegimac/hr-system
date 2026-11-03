@@ -242,7 +242,8 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 | TF41 Meier Max | zweiter Work-Block und Jahreswerte der ersten Anstellung fehlen | **K36** — frühere Anstellung im selben Jahr: eigener Work-Block (`#w…_0`) und eigene AnnualValues (ohne Zahlungen nach Austritt). |
 | TF34 Rinaldi | Korrekturposten Mai B0N → B1N fehlt, Juli 46.35 statt 141.35 | **K37** — Korrektur-Kette im Jahresmodell zählt bei den Vormonaten die bereits verrechneten Posten zum Bezahlten (April 425 − 240 = 185). Posten neu erzeugen: «Erfahren am» der Version ab 01.05. einmal ändern und zurücksetzen. |
 | TF36 Maldini | Zivilstand single statt married (ab 25.05.) | **K38** — die Start-Bereinigung «ledig seit jeher» (25.09.2026) lief bei jedem Deploy und löschte die Heirat, nachdem Schritt 4a das Stammblatt auf «ledig» zurückgesetzt hatte. Aus dem Start-SQL entfernt; Daten: 4c Mai (TF35, TF36) neu. |
-| TF22 Bucher | QST 509.35 statt 509.30 | offen — 5-Rappen-Rundung im Jahresmodell mit zwei Töpfen. |
+| TF22 Bucher | QST 509.35 statt 509.30 | **K39** — Jahresmodell rundet je Topf den Zuwachs zum Vormonat auf 5 Rp. (A0N 85.51 → 85.50, C0N 423.82 → 423.80), nicht die Summe. Nachgerechnet: Bucher Jul–Dez, Rinaldi Jul/Sep. Lücke ≥ 1.00 zum Bezahlten wird nachgeholt (TF41). Die RefXML im Repo rechnete noch über die Summe (Juli 2'789.65 kumuliert). |
+| TF34 Rinaldi | Korrektur Mai fehlt im XML (Lohnzettel +190) | **K40** — «Snapshots neu berechnen» nahm den offenen Posten in den Lohnzettel, markierte ihn aber nicht als verrechnet; jetzt wie beim Bestätigen. |
 
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 

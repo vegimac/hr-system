@@ -330,6 +330,7 @@ public class QstKorrekturService
             int qstTage = 0;
             var toepfe = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
             var neuCode = QstJahresmodell.CodeVon(neu);
+            Dictionary<string, decimal>? standJeCode = null;
             for (int m = start.Month; m <= maxM; m++)
             {
                 ytdPer += satzByM.GetValueOrDefault(m);
@@ -347,12 +348,22 @@ public class QstKorrekturService
                 var istM = istByM.GetValueOrDefault(m);
                 if (!string.IsNullOrWhiteSpace(code) && istM != 0)
                     toepfe[code] = toepfe.GetValueOrDefault(code) + istM;
+                var satzLohn = QstJahresmodell.SatzLohnAusTagen(ytdPer, qstTage, ytdAper);
+                decimal SatzPct(string c)
+                {
+                    if (!QstJahresmodell.TryParseCode(c, out var tarif, out var kinder, out var kirche))
+                        return 0;
+                    return _tarifService.GetSteuersatzProzent(
+                        kanton, tarif, kinder, kirche, satzLohn, year) ?? 0m;
+                }
+                // Stand je Topf per Vormonat — der Lohnlauf rundet je Topf den Zuwachs (RechneToepfe).
+                var vorJeCode = standJeCode;
+                standJeCode = QstJahresmodell.SteuerJeCodeExakt(toepfe, SatzPct);
                 if (!betroffenMonate.Contains(m))
                 {
                     paidNew += altByM.GetValueOrDefault(m);
                     continue;
                 }
-                var satzLohn = QstJahresmodell.SatzLohnAusTagen(ytdPer, qstTage, ytdAper);
                 if (neu.Prozentsatz.HasValue)
                 {
                     var ytdIst = toepfe.Values.Sum();
@@ -365,15 +376,7 @@ public class QstKorrekturService
                 else
                 {
                     var t = QstJahresmodell.RechneToepfe(
-                        satzLohn, toepfe,
-                        c =>
-                        {
-                            if (!QstJahresmodell.TryParseCode(c, out var tarif, out var kinder, out var kirche))
-                                return 0;
-                            return _tarifService.GetSteuersatzProzent(
-                                kanton, tarif, kinder, kirche, satzLohn, year) ?? 0m;
-                        },
-                        paidNew);
+                        satzLohn, toepfe, SatzPct, paidNew, vormonatJeCode: vorJeCode);
                     map[(year, m)] = t.QstMonat;
                     paidNew += t.QstMonat;
                 }

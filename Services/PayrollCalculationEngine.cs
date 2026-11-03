@@ -5338,29 +5338,21 @@ public class PayrollCalculationEngine
             }
             else
             {
-                // Rundungsrest des Vormonats (Walter 26.09.2026): kumulierte Steuer
-                // per Vormonat rappengenau minus das, was tatsaechlich abgezogen wurde.
-                // Frisch gerechnet statt gespeichert — wirkt damit auch auf Monate, die
-                // vor dieser Regel abgeschlossen wurden, und braucht keine Migration.
-                decimal restVormonat = 0;
+                // Je Topf der Zuwachs zum Vormonat, einzeln auf 5 Rp. (QstJahresmodell.RechneToepfe).
+                // Der Vormonats-Stand wird frisch gerechnet statt gespeichert — wirkt damit auch auf
+                // Monate, die vor dieser Regel abgeschlossen wurden, und braucht keine Migration.
+                Dictionary<string, decimal>? vormonatJeCode = null;
                 if (ytd.IstJeCode is { Count: > 0 } vorToepfe && ytd.QstTageBisher > 0)
                 {
                     var satzLohnVormonat = QstJahresmodell.SatzLohnAusTagen(
                         ytd.SatzBisher, ytd.QstTageBisher, ytd.AperiodischBisher);
-                    var exaktVormonat = QstJahresmodell.JahressteuerExakt(
-                        satzLohnVormonat, vorToepfe,
+                    vormonatJeCode = QstJahresmodell.SteuerJeCodeExakt(vorToepfe,
                         c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnVormonat, periodFrom.Year));
-                    restVormonat = exaktVormonat - ytd.BezahltBisher;
-                    // Nur ein echter Rundungsrest (< 5 Rp.) wird weitergetragen. Ein grösserer Rest ist
-                    // ein aufgeschobener Ausgleich — z.B. nach einer Nachzahlung nach Austritt, die nur
-                    // die Zahlung belastet (TF41 Meier Max: Mai 5'580, Juli 2'910 inkl. 1'050 Ausgleich
-                    // Januar–März; vorher zog der Juli die 1'050 als «Rest» wieder ab → 1'860).
-                    if (Math.Abs(restVormonat) >= 0.05m) restVormonat = 0;
                 }
                 var t = QstJahresmodell.RechneToepfe(
                     satzLohnLookup, toepfe,
                     c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnLookup, periodFrom.Year),
-                    ytd.BezahltBisher, restVormonat);
+                    ytd.BezahltBisher, vormonatJeCode: vormonatJeCode);
                 qstBetrag = t.QstMonat;
                 satzPct = !string.IsNullOrWhiteSpace(codeJetzt) && t.SatzJeCode.TryGetValue(codeJetzt, out var p)
                     ? p
