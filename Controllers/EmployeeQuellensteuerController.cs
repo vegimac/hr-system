@@ -741,6 +741,11 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.DatenaustauschItalien      = dto.DatenaustauschItalien;
         entry.TelearbeitProzent          = dto.TelearbeitProzent;
 
+        // Wohnsitz/Grenzgänger nach dem Kopieren der Client-Felder nochmals aus der
+        // Wohnort-Historie — sonst überschreiben die versteckten Felder des Fensters
+        // (Wohnsitzstaat «CH») die Ableitung (Walter 03.11.2026, TF25 Lehmann April).
+        await ApplyWohnadresseAsync(entry, employeeId);
+
         // Konkubinat IMMER aus dem Familie-Tab (Walter 25.08.2026) — analog
         // Wohnadresse/Kirchensteuer, siehe ApplyKonkubinatAsync.
         await ApplyKonkubinatAsync(entry, employeeId);
