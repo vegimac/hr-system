@@ -411,7 +411,7 @@ public partial class SwissdecTestmandantController
                         p.LivesInSwitzerland = V("PersonPartnerResidenceCantonCH") != null || LandCode(V("PersonPartnerCountry")) == "CH";
                     if (V("PersonPartnerStreet") != null || V("PersonPartnerCity") != null || V("PersonPartnerZIPCode") != null)
                         await SetzePartnerAdresseAsync(emp, p, V("PersonPartnerStreet"), NummerOhneKomma(V("PersonPartnerZIPCode")), V("PersonPartnerCity"),
-                            LandCode(V("PersonPartnerCountry")) ?? V("PersonPartnerResidenceAbroadCountry"), V("PersonPartnerResidenceCantonCH"));
+                            LandCode(V("PersonPartnerCountry")) ?? V("PersonPartnerResidenceAbroadCountry"), V("PersonPartnerResidenceCantonCH"), tag1);
                     if (Datum(V("PersonPartnerStartActivity")) is { } pstart)
                     {
                         p.Erwerbstaetig = true; p.Stellenantritt = pstart.ToDateTime(TimeOnly.MinValue);

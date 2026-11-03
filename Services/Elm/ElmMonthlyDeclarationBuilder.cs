@@ -336,12 +336,12 @@ public class ElmMonthlyDeclarationBuilder
         var wochenAdressen = await _db.EmployeeAddresses.AsNoTracking()
             .Where(a => empIds.Contains(a.EmployeeId) && a.AddressType == "Wochenaufenthalt")
             .ToListAsync(ct);
+        // Partner-Adressen mit Verlauf (Typ «Adresse Ehepartner», Gültig-ab) plus die direkt
+        // verknüpften (Alt-Fälle ohne Verlauf) — gewählt wird je Monat mit PartnerAdresse.Am.
         var partnerAdressIds = familie.Where(f => f.AlternativeAddressId != null).Select(f => f.AlternativeAddressId!.Value).ToList();
-        var partnerAdressen = partnerAdressIds.Count == 0
-            ? new Dictionary<int, EmployeeAddress>()
-            : await _db.EmployeeAddresses.AsNoTracking()
-                .Where(a => partnerAdressIds.Contains(a.Id))
-                .ToDictionaryAsync(a => a.Id, ct);
+        var partnerAdressen = await _db.EmployeeAddresses.AsNoTracking()
+            .Where(a => (empIds.Contains(a.EmployeeId) && a.AddressType == PartnerAdresse.Typ) || partnerAdressIds.Contains(a.Id))
+            .ToListAsync(ct);
 
         // QST-Korrekturen der Vormonate, die in diesem Monat verrechnet wurden (TF14 Egli Dez 2024).
         var korrekturen = await _db.QstKorrekturen.AsNoTracking()
@@ -432,7 +432,7 @@ public class ElmMonthlyDeclarationBuilder
             var partner = familie
                 .Where(f => f.EmployeeId == e.Id && f.MemberType == "Ehepartner" && f.DateOfDeath == null)
                 .OrderByDescending(f => f.Id).FirstOrDefault();
-            var partnerAdresse = partner?.AlternativeAddressId is int paId && partnerAdressen.TryGetValue(paId, out var pa) ? pa : null;
+            var partnerAdresse = PartnerAdresse.Am(partner, partnerAdressen, monatsEndeTag);
             var (zivAm, zivSeitAm, _) = ZivilstandHistorieService.Am(
                 zivilHist.Where(h => h.EmployeeId == e.Id), monatsEndeTag, e.MaritalStatus, e.MaritalStatusSince);
             var wohnAm = WohnortHistorieService.Am(

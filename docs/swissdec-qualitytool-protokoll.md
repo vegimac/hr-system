@@ -225,7 +225,7 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 | TF25 Lehmann, TF30 Müller | alte Auslandsadresse auch im Juni | **K28** — alte Adresse mit DepartureDate ab Umzugsmonat bis Ende Jahr (Referenz Müller bis November). |
 | SalaryTotals | CorrectionMonth-Reihenfolge | **K29** — absteigend (2025-05 vor 2025-04) wie die Referenz. |
 | TF26 Jenzer | SocialContributions −754.45 statt −763.30 | **K30** — «Snapshots neu berechnen» zog die SV-Basen-Spalten nicht nach (Februar 8'400 statt 8'000). Gefixt; TI Februar neu berechnen, dann Juni TI neu. |
-| TF35 Roos, TF36 Maldini | Partner-Adresse falsch (Roos zeigt Blockweg 2 Bern, Maldini schon Como) | **offen, Daten** — Partner-Adresse hat keine Historie; Maldini-Partnerin wohnt bis August in Bern, ab September in Como. |
+| TF35 Roos, TF36 Maldini | Partner-Adresse falsch (Roos zeigt Blockweg 2 Bern, Maldini schon Como) | **K31** — Partner-Adresse mit Verlauf: Zusatzadressen Typ «Adresse Ehepartner» mit Gültig-ab, gewählt am Monatsende (`PartnerAdresse.Am`), nur Adressen des eigenen MA. Testmandant 4c legt beim Partner-Umzug eine neue Adresse ab Mutationsmonat an statt zu überschreiben. Danach 4c Mai (TF35, TF36) und September (TF36) neu laufen lassen. |
 
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 

@@ -567,9 +567,13 @@ public partial class SwissdecTestmandantController
     /// Partner-Adresse aus den Testdaten: dieselbe Adresse wie der MA = im Haushalt
     /// (TF24 Utzinger); sonst eine eigene «Adresse Ehepartner», auf die das
     /// Familienmitglied verweist (TF18 Blanc: Riehen BS, MA in Bern).
+    /// Verlauf statt Überschreiben (Walter 03.11.2026): ein Umzug ist eine neue Adresse ab
+    /// <paramref name="ab"/> (TF36 Maldini: Bern, ab September Como). Nur Adressen DIESES
+    /// Mitarbeiters — nie eine fremde über die Verknüpfung weiterschreiben (TF35 Roos zeigte
+    /// die Berner Adresse von Maldinis Partnerin).
     /// </summary>
     private async Task SetzePartnerAdresseAsync(Employee emp, EmployeeFamilyMember p,
-        string? strasse, string? plz, string? ort, string? land, string? kanton)
+        string? strasse, string? plz, string? ort, string? land, string? kanton, DateOnly? ab = null)
     {
         if (string.IsNullOrWhiteSpace(strasse) && string.IsNullOrWhiteSpace(ort)) return;
         var gleich = string.Equals((strasse ?? "").Trim(), (emp.Street ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
@@ -580,12 +584,27 @@ public partial class SwissdecTestmandantController
             p.AlternativeAddressId = null;
             return;
         }
-        var a = p.AlternativeAddressId is int id ? await _db.EmployeeAddresses.FirstOrDefaultAsync(x => x.Id == id) : null;
-        a ??= new EmployeeAddress { EmployeeId = emp.Id, AddressType = "Adresse Ehepartner", CreatedAt = DateTime.Now };
-        a.Street = strasse; a.ZipCode = plz; a.City = ort; a.Country = land ?? "CH"; a.Canton = kanton;
+        var verlauf = await _db.EmployeeAddresses
+            .Where(x => x.EmployeeId == emp.Id && x.AddressType == PartnerAdresse.Typ)
+            .ToListAsync();
+        var stichtag = ab ?? DateOnly.MinValue;
+        var aktuell = PartnerAdresse.AmVerlauf(emp.Id, verlauf, stichtag);
+        EmployeeAddress a;
+        if (aktuell != null && PartnerAdresse.Gleich(aktuell, strasse, plz, ort))
+            a = aktuell;                                                   // schon so erfasst
+        else
+        {
+            // Erneuter Lauf desselben Monats: den Eintrag dieses Datums nachführen, nicht verdoppeln.
+            a = verlauf.FirstOrDefault(x => x.ValidFrom == ab)
+                ?? new EmployeeAddress { EmployeeId = emp.Id, AddressType = PartnerAdresse.Typ, ValidFrom = ab, CreatedAt = DateTime.Now };
+            a.Street = strasse; a.ZipCode = plz; a.City = ort;
+        }
+        a.Country = land ?? "CH"; a.Canton = kanton;
         a.Description = "Swissdec-Testdaten"; a.UpdatedAt = DateTime.Now;
         if (a.Id == 0) { _db.EmployeeAddresses.Add(a); await _db.SaveChangesAsync(); }
-        p.AlternativeAddressId = a.Id;
+        // Verknüpfung = jüngste Adresse (die Maske zeigt den heutigen Stand).
+        var juengste = verlauf.Append(a).OrderBy(x => x.ValidFrom == null ? 0 : 1).ThenBy(x => x.ValidFrom).ThenBy(x => x.Id).Last();
+        p.AlternativeAddressId = juengste.Id;
         p.LebtImHaushalt = false;
     }
 
