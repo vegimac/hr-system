@@ -50,10 +50,11 @@ public class QstKorrekturService
         //  • Sonst klassisch K1: alle abgeschlossenen Monate ab Gültig-ab
         //    bis ValidTo (null = offen).
         var letzterUnbekannt = QstVersionWahl.LetzterUnbekannterMonat(neueVersion);
-        DateOnly? bisMonat = letzterUnbekannt
-            ?? (neueVersion.ValidTo is { } vt
-                ? new DateOnly(vt.Year, vt.Month, 1)
-                : null);
+        DateOnly? bisValidTo = neueVersion.ValidTo is { } vt ? new DateOnly(vt.Year, vt.Month, 1) : null;
+        DateOnly? bisMonat = letzterUnbekannt ?? bisValidTo;
+        // Nie über das eigene Ende hinaus (TF34 Rinaldi: B0N gilt bis 30.04., erfahren 1.6. —
+        // ohne die Grenze rechnete sie den Mai mit und räumte dabei den Mai-Posten B0N→B1N ab).
+        if (bisMonat is { } bm && bisValidTo is { } bv && bv < bm) bisMonat = bv;
 
         // Alle DEFINITIV abgeschlossenen Snapshots des MA im Wirkungsbereich
         var rows = await (from s in _db.PayrollSnapshots
@@ -104,7 +105,8 @@ public class QstKorrekturService
             var bestehende = await _db.QstKorrekturen
                 .Where(k => k.EmployeeId == neueVersion.EmployeeId && k.Jahr == r.Year && k.Monat == r.Month)
                 .ToListAsync(ct);
-            var ersetzbar = bestehende.Where(k => k.Status is "OFFEN" or "VORJAHR").ToList();
+            // Nur eigene offene Posten ersetzen — nie die einer anderen (neueren) Version desselben Monats.
+            var ersetzbar = bestehende.Where(k => k.Status is "OFFEN" or "VORJAHR" && k.NeueVersionId == neueVersion.Id).ToList();
             if (ersetzbar.Count > 0) _db.QstKorrekturen.RemoveRange(ersetzbar);
             var slipCode = QstJahresmodell.LeseSlip(r.SlipJson).TarifCode;
             decimal bereitsVerrechnet = bestehende
@@ -236,7 +238,7 @@ public class QstKorrekturService
         var versionen = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == employeeId)
             .ToListAsync(ct);
-        foreach (var v in versionen)
+        foreach (var v in versionen.OrderBy(v => v.ValidFrom).ThenBy(v => v.Id))
         {
             if (QstVersionWahl.LetzterUnbekannterMonat(v) == null) continue;
             if (QstVersionWahl.BekanntAb(v) > periodTo) continue;
