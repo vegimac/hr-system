@@ -229,6 +229,15 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 | TF26 Jenzer | SocialContributions −754.45 statt −763.30 | **K30** — «Snapshots neu berechnen» zog die SV-Basen-Spalten nicht nach (Februar 8'400 statt 8'000). Gefixt; TI Februar neu berechnen, dann Juni TI neu. |
 | TF35 Roos, TF36 Maldini | Partner-Adresse falsch (Roos zeigt Blockweg 2 Bern, Maldini schon Como) | **K31** — Partner-Adresse mit Verlauf: Zusatzadressen Typ «Adresse Ehepartner» mit Gültig-ab, gewählt am Monatsende (`PartnerAdresse.Am`), nur Adressen des eigenen MA. Testmandant 4c legt beim Partner-Umzug eine neue Adresse ab Mutationsmonat an statt zu überschreiben. Danach 4c Mai (TF35, TF36) und September (TF36) neu laufen lassen. |
 
+### 2025-07 — Vorprüfung 03.11.2026 (vor dem Senden)
+
+| Testfall | Befund | Korrektur |
+|---|---|---|
+| TF41 Meier Max | QST Juli 1'860 statt 2'910 | **K32** — der «Rundungsrest Vormonat» trug den nach der Nachzahlung im Mai absichtlich aufgeschobenen Ausgleich (1'050, Januar–März zum Jahressatz 18.6 %) weiter und zog ihn ab. Weitergetragen wird nur noch ein echter Rundungsrest < 5 Rp. |
+| TF41 Meier Max | Entry 01.07. und Withdrawal 31.07. im selben Monat | **K33** — DeclarationCategory baut Entry?, Mutation*, Withdrawal? zusammen. |
+| TF22 Bucher | A0N → C0N: zwei Mutationen | **K33** — partnerWork + civilstate (`MutationsGruende`). |
+| TF33 Châtelain | Korrektur Mai/Juni B0Y → B1Y | stimmt (+333.00). |
+
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 
 ### F1 — TF14 Egli, Quellensteuer-Code (November 2024)
