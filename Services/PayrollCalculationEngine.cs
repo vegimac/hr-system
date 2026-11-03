@@ -6190,7 +6190,7 @@ public class PayrollCalculationEngine
     /// <summary>
     /// Anteiliger Monatslohn im Teilmonat nach Filial-Methode (Walter 09.09.2026).
     /// 30-Tage-Methode: Tag 31 zählt als 30, ein Monatsende (auch 28./29. Februar)
-    /// zählt als Tag 30 — Eintritt 16.11. → 15 Tage, Eintritt 27.02. → 4 Tage.
+    /// zählt als Tag 30 — Eintritt 16.11. → 15 Tage, Eintritt 27.02. → 4 Tage, Eintritt 28.02. → 1 Tag.
     /// </summary>
     /// <summary>Tage/Basis für die Anzeige im Lohnzeilen-Label, passend zur Methode (TAGE30: x von 30).</summary>
     /// <summary>
@@ -6243,7 +6243,7 @@ public class PayrollCalculationEngine
     {
         if (!string.Equals(methode, "TAGE30", StringComparison.OrdinalIgnoreCase)) return (kalendertage, monatstage);
         int letzterTag = DateTime.DaysInMonth(bis.Year, bis.Month);
-        int start = Math.Min(von.Day, 30);
+        int start = PayrollCalculations.Tag30(von.Day, DateTime.DaysInMonth(von.Year, von.Month));
         int ende  = bis.Day >= letzterTag ? 30 : Math.Min(bis.Day, 30);
         return (Math.Max(0, ende - start + 1), 30);
     }
@@ -6257,7 +6257,7 @@ public class PayrollCalculationEngine
             case "TAGE30":
             {
                 int letzterTag = DateTime.DaysInMonth(bis.Year, bis.Month);
-                int start = Math.Min(von.Day, 30);
+                int start = PayrollCalculations.Tag30(von.Day, DateTime.DaysInMonth(von.Year, von.Month));
                 int ende  = bis.Day >= letzterTag ? 30 : Math.Min(bis.Day, 30);
                 int tage  = Math.Max(0, ende - start + 1);
                 return monatslohn * tage / 30m;

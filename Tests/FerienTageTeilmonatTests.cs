@@ -55,4 +55,24 @@ public class FerienTageTeilmonatTests
         var f = Faktor("TAGE30", new DateOnly(2025, 3, 1), new DateOnly(2025, 3, 15));
         Assert.Equal(0.25m, Math.Round(0.5m * f, 4));
     }
+
+    [Fact]
+    public void Tage30_Eintritt_am_Monatsletzten_ein_Tag()
+    {
+        // Swissdec TF15 Degelo: Eintritt 28.02.2025 = 1 SV-Tag (Monatsletzter zählt als Tag 30).
+        Assert.Equal(1m / 30m, Faktor("TAGE30", new DateOnly(2025, 2, 28), new DateOnly(2025, 2, 28)));
+        // TF12 Casanova: Eintritt 27.02. bleibt 4 Tage.
+        Assert.Equal(4m / 30m, Faktor("TAGE30", new DateOnly(2025, 2, 27), new DateOnly(2025, 2, 28)));
+    }
+
+    [Fact]
+    public void Beschaeftigungsmonate_Degelo_zwei_Tage()
+    {
+        // Eintritt 28.02., Austritt 01.03.2025 → 2 SV-Tage → ALV-Höchstlohn 823.35 (Referenz März 2025).
+        var v = new[] { new HrSystem.Models.Employment
+            { ContractStartDate = new DateTime(2025, 2, 28), ContractEndDate = new DateTime(2025, 3, 1) } };
+        var monate = PayrollCalculations.BeschaeftigungsMonate(v, 2025, 1, 3);
+        Assert.Equal(Math.Round(2m / 30m, 10), Math.Round(monate, 10));
+        Assert.Equal(823.35m, PayrollCalculations.Round05(12350m * monate));
+    }
 }

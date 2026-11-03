@@ -68,9 +68,10 @@ public static class ElmVersicherungJahreslohn
             var ende = new DateTime(m.Year, m.Month, DateTime.DaysInMonth(m.Year, m.Month));
             var a = von > m ? von : m;
             var b = bis < ende ? bis : ende;
-            if (a == m && b == ende) { summe += monatsHoechstlohn; continue; }
-            var tage = Math.Min(30, (b - a).Days + 1);
-            summe += monatsHoechstlohn * tage / 30m;
+            // 30-Tage-Basis wie die Lohnrechnung: Monatsletzter = Tag 30, auch als erster Tag.
+            int start = PayrollCalculations.Tag30(a.Day, ende.Day);
+            int schluss = b.Day >= ende.Day ? 30 : Math.Min(b.Day, 30);
+            summe += monatsHoechstlohn * Math.Max(0, schluss - start + 1) / 30m;
         }
         return summe;
     }

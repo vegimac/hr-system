@@ -1739,6 +1739,13 @@ public static class PayrollCalculations
         return pflichtigTotal - pflichtigBisher;
     }
 
+    /// <summary>
+    /// Erster Tag eines Teilmonats auf der 30-Tage-Basis: Tag 31 zählt als 30, und ein Beginn am
+    /// Monatsletzten ebenfalls (Swissdec TF15 Degelo: Eintritt 28.02.2025 = 1 SV-Tag, Referenz
+    /// ALV 823.35 für 28.02.–01.03.; TF12 Casanova Eintritt 27.02. = 4 Tage bleibt).
+    /// </summary>
+    public static int Tag30(int tag, int tageImMonat) => tag >= tageImMonat ? 30 : Math.Min(tag, 30);
+
     public static decimal BeschaeftigungsMonate(IEnumerable<Employment> employments, int year, int von, int bis, ISet<int>? nurMonate = null)
     {
         decimal summe = 0m;
@@ -1765,7 +1772,7 @@ public static class PayrollCalculations
             // 30-Tage-Basis: erster/letzter beschäftigter Tag → Tag 31 zählt als 30, Monatsende als 30
             int ersterTag = Array.IndexOf(tage, true) + 1;
             int letzterTag = Array.LastIndexOf(tage, true) + 1;
-            int s = Math.Min(ersterTag, 30);
+            int s = Tag30(ersterTag, letzter);
             int en = letzterTag >= letzter ? 30 : Math.Min(letzterTag, 30);
             summe += Math.Max(0, en - s + 1) / 30m;
         }

@@ -59,6 +59,12 @@ public class ElmVersicherungJahreslohnTests
     {
         // Jan–Mär = 3 × 12'350 = 37'050 (Referenz UVG A1, Beitragsdauer 01.01.–31.03.2025).
         Assert.Equal(37050m, ElmVersicherungJahreslohn.Hoechstlohn(new DateTime(2025, 1, 1), new DateTime(2025, 3, 31), 12350m));
+        // Eintritt 28.02. (Monatsletzter) bis 01.03.: 2 Tage = 823.33 (Referenz TF15 Degelo 823.35).
+        Assert.Equal(12350m * 2 / 30m,
+            ElmVersicherungJahreslohn.Hoechstlohn(new DateTime(2025, 2, 28), new DateTime(2025, 3, 1), 12350m));
+        // Eintritt 27.02.: 4 Tage (TF12 Casanova 1'646.65).
+        Assert.Equal(12350m * 4 / 30m,
+            ElmVersicherungJahreslohn.Hoechstlohn(new DateTime(2025, 2, 27), new DateTime(2025, 2, 28), 12350m));
         // Austritt 20.12.: 20/30 × 12'350.
         Assert.Equal(12350m * 20 / 30m,
             ElmVersicherungJahreslohn.Hoechstlohn(new DateTime(2024, 12, 1), new DateTime(2024, 12, 20), 12350m));

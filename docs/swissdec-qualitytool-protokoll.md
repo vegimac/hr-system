@@ -179,7 +179,7 @@ Argument für Swissdec: die Referenz rechnet die QST-Hochrechnung selbst mit **2
 | TF12 Casanova | OtherBenefits | 0 | 2'000 | **K18** — 1980 Weiterbildung nur Lohnausweis, nicht Statistik |
 | TF08 Lamon | CivilStatus ValidAsOf | 1987-03-16 | 2025-01-01 | Daten: Historie-Eintrag «unbekannt» auf 16.03.1987 |
 | TF11 Bosshard | FringeBenefits / SocialContributions | 24'350 / −2'427.65 | 4'350 / −1'267.65 | **offen** — 20'000 geldwerter Vorteil fehlt im CSV (nur Ausgleich 5210 = 20'250) |
-| TF15 Degelo | SocialContributions | −163.65 | −172.25 | **offen** — vermutlich ALV-Höchstgrenze bei 2 Tagen Anstellung |
+| TF15 Degelo | SocialContributions | −163.65 | −172.25 | **K19** — Eintritt am Monatsletzten (28.02.) zählte als 3 SV-Tage statt 1 (`PayrollCalculations.Tag30`): ALV-Höchstlohn 2 Tage = 823.35. Dazu im neuen Vertrag ab 01.03.: Ferien/Feiertag im Ansatz = ja, 13. ML = nein |
 | TF25/26, SalaryTotals | AscertainedTaxableEarning, TaxAtSource | 11'764.70 | 12'000.00 | **bewusst A7** (YTD aus Feb 8'000 statt 8'400) |
 
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
