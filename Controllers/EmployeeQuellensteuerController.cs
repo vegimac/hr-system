@@ -1002,7 +1002,7 @@ public class EmployeeQuellensteuerController : ControllerBase
                                        && em.ContractStartDate < naechsterTag
                                        && (em.ContractEndDate == null || em.ContractEndDate >= tag)
                                  orderby em.ContractStartDate
-                                 select new { c.ZipCode, c.City })
+                                 select new { c.ZipCode, c.City, c.KantonCode, c.BfsGemeindeNr })
                 .FirstOrDefaultAsync();
 
             entry.Steuerkanton = null; entry.SteuerkantonName = null;
@@ -1022,6 +1022,16 @@ public class EmployeeQuellensteuerController : ControllerBase
                     entry.QstGemeinde      = fMatch.Gemeindename;
                     entry.QstGemeindeBfsNr = fMatch.BfsNr;
                 }
+            }
+            // Ohne PLZ-Treffer (PLZ-Verzeichnis leer oder Ort weicht ab) die Angaben der Filiale
+            // selbst nehmen, statt den Kanton zu leeren (Walter 03.11.2026, TF25 Lehmann April:
+            // «Kanton –» nach dem Speichern → keine Quellensteuer im Lohnlauf).
+            if (string.IsNullOrWhiteSpace(entry.Steuerkanton) && filiale?.KantonCode is { Length: 2 } fk)
+            {
+                entry.Steuerkanton     = fk.ToUpperInvariant();
+                entry.SteuerkantonName = KantonNamen.TryGetValue(entry.Steuerkanton, out var fkn2) ? fkn2 : null;
+                entry.QstGemeinde    ??= string.IsNullOrWhiteSpace(filiale.City) ? null : filiale.City.Trim();
+                entry.QstGemeindeBfsNr ??= filiale.BfsGemeindeNr;
             }
             return;
         }
