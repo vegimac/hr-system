@@ -1158,50 +1158,46 @@ public class ElmMonthlyDeclarationBuilder
             version?.IsWochenaufenthalter == true, wochenAdresse);
 
         // Ein- und Austritt melden, wenn sie in diesen Monat fallen (wie Work-Block).
-        XElement? declaration = null;
+        // DeclarationCategory laut Schema: Entry?, Mutation*, Withdrawal? — mehrere Teile im selben
+        // Monat möglich (RefXML Juli 2025: TF41 Meier Max Eintritt 01.07. UND Austritt 31.07.;
+        // TF22 Bucher zwei Mutationen partnerWork + civilstate).
         var monatsEnde = monatsAnfang.AddMonths(1).AddDays(-1);
         var eintritt = eintrittAm ?? e.EntryDate;
         var austrittDekl = austrittAm ?? e.ExitDate;
-        if (eintritt is DateTime ed && ed >= monatsAnfang && ed <= monatsEnde)
-            declaration = new XElement(Sd + "DeclarationCategory",
-                new XElement(Sd + "Entry",
-                    new XElement(Sd + "ValidAsOf", ed.ToString("yyyy-MM-dd")),
-                    new XElement(Sd + "Reason", "entryCompany")));
-        else if (austrittDekl is DateTime xd && xd >= monatsAnfang && xd <= monatsEnde)
-            declaration = new XElement(Sd + "DeclarationCategory",
-                new XElement(Sd + "Withdrawal",
-                    new XElement(Sd + "ValidAsOf", xd.ToString("yyyy-MM-dd")),
-                    new XElement(Sd + "Reason", "withdrawalCompany")));
+        XElement? Teil(string art, DateTime tag, string grund) => new XElement(Sd + art,
+            new XElement(Sd + "ValidAsOf", tag.ToString("yyyy-MM-dd")),
+            new XElement(Sd + "Reason", grund));
+        XElement? entryEl = eintritt is DateTime ed && ed >= monatsAnfang && ed <= monatsEnde
+            ? Teil("Entry", ed, "entryCompany") : null;
+        XElement? withdrawalEl = austrittDekl is DateTime xd && xd >= monatsAnfang && xd <= monatsEnde
+            ? Teil("Withdrawal", xd, "withdrawalCompany") : null;
+        var mutationen = new List<XElement>();
 
         // Kantonswechsel (Quality Tool April 2025, TF25 Lehmann TI → LU per 01.04.): im neuen
         // Kanton Entry «cantonChange» ab Gültig-ab, im alten eine Zeile mit 0.00 und Withdrawal
         // «cantonChange» am Vortag. Nur wenn die Person schon vorher angestellt war.
         var vorher = QstVersionWahl.Waehle(versionen.Where(v => v.EmployeeId == e.Id).ToList(), stichtag.AddDays(-1));
         var kantonVorher = (vorher?.Steuerkanton ?? "").Trim().ToUpperInvariant();
-        bool kantonswechsel = declaration == null && kantonVorher.Length == 2 && kantonVorher != kanton
+        bool kantonswechsel = entryEl == null && kantonVorher.Length == 2 && kantonVorher != kanton
                               && (eintritt == null || eintritt.Value < monatsAnfang);
+        var monatsAnfangTag = stichtag.ToDateTime(TimeOnly.MinValue);
         if (kantonswechsel)
-            declaration = new XElement(Sd + "DeclarationCategory",
-                new XElement(Sd + "Entry",
-                    new XElement(Sd + "ValidAsOf", stichtag.ToString("yyyy-MM-dd")),
-                    new XElement(Sd + "Reason", "cantonChange")));
-        // Neue QST-Version ab dem Monatsersten im selben Kanton (Quality Tool Juni 2025: TF23 Koller,
-        // TF35 Roos, TF36 Maldini Heirat → B0N/B0Y ab 01.06.): Mutation mit dem Grund aus dem Code.
-        else if (declaration == null && version != null && vorher != null && version.ValidFrom == stichtag
-                 && kantonVorher == kanton && MutationsGrund(vorher.QstCode, version.QstCode) is string grund)
-            declaration = new XElement(Sd + "DeclarationCategory",
-                new XElement(Sd + "Mutation",
-                    new XElement(Sd + "ValidAsOf", stichtag.ToString("yyyy-MM-dd")),
-                    new XElement(Sd + "Reason", grund)));
-        // Wohnsitzwechsel ohne Kantonswechsel der QST (Quality Tool Mai 2025: TF25 Lehmann Italien →
-        // Malters, TF30 Müller Deutschland → Bern): Mutation «residence» ab Monatsersten.
-        else if (declaration == null && wohnVormonat != null && wohnAmStichtag != null
-                 && (eintritt == null || eintritt.Value < monatsAnfang)
-                 && WohnsitzSchluessel(wohnVormonat) != WohnsitzSchluessel(wohnAmStichtag))
-            declaration = new XElement(Sd + "DeclarationCategory",
-                new XElement(Sd + "Mutation",
-                    new XElement(Sd + "ValidAsOf", stichtag.ToString("yyyy-MM-dd")),
-                    new XElement(Sd + "Reason", "residence")));
+            entryEl = Teil("Entry", monatsAnfangTag, "cantonChange");
+        else if (entryEl == null)
+        {
+            // Neue QST-Version ab dem Monatsersten im selben Kanton (Quality Tool Juni 2025: TF23 Koller,
+            // TF35 Roos, TF36 Maldini Heirat → B0N/B0Y ab 01.06.): Mutation(en) mit dem Grund aus dem Code.
+            if (version != null && vorher != null && version.ValidFrom == stichtag && kantonVorher == kanton)
+                mutationen.AddRange(MutationsGruende(vorher.QstCode, version.QstCode).Select(g => Teil("Mutation", monatsAnfangTag, g)!));
+            // Wohnsitzwechsel ohne Kantonswechsel der QST (Quality Tool Mai 2025: TF25 Lehmann Italien →
+            // Malters, TF30 Müller Deutschland → Bern): Mutation «residence» ab Monatsersten.
+            if (mutationen.Count == 0 && wohnVormonat != null && wohnAmStichtag != null
+                && (eintritt == null || eintritt.Value < monatsAnfang)
+                && WohnsitzSchluessel(wohnVormonat) != WohnsitzSchluessel(wohnAmStichtag))
+                mutationen.Add(Teil("Mutation", monatsAnfangTag, "residence")!);
+        }
+        XElement? declaration = entryEl == null && mutationen.Count == 0 && withdrawalEl == null ? null
+            : new XElement(Sd + "DeclarationCategory", entryEl, mutationen, withdrawalEl);
 
         var aperiodisch = aperiodischeCodes == null ? 0m : SummeCodes(slip, aperiodischeCodes);
         var ehepartner = TarifMitEhepartner(code)
@@ -1495,19 +1491,27 @@ public class ElmMonthlyDeclarationBuilder
     }
 
     /// <summary>
-    /// Grund einer QST-Mutation aus dem Tarifcode (Buchstabe, Kinder, Kirchensteuer): A↔B/H u.a. =
-    /// Zivilstand, B↔C = Erwerb des Ehepartners, Ziffer = Kinderabzug, Y/N = Kirchensteuer.
-    /// Null, wenn sich am Code nichts geändert hat.
+    /// Gründe einer QST-Mutation aus dem Tarifcode (Buchstabe, Kinder, Kirchensteuer): Heirat/
+    /// Scheidung = civilstate, Wechsel von/zu C = partnerWork (A→C beides), Ziffer = Kinderabzug,
+    /// Y/N = Kirchensteuer. Leer, wenn sich am Code nichts geändert hat.
     /// </summary>
-    public static string? MutationsGrund(string? alt, string? neu)
+    public static List<string> MutationsGruende(string? alt, string? neu)
     {
+        var g = new List<string>();
         var a = (alt ?? "").Trim().ToUpperInvariant();
         var n = (neu ?? "").Trim().ToUpperInvariant();
-        if (a.Length != 3 || n.Length != 3 || a == n) return null;
+        if (a.Length != 3 || n.Length != 3 || a == n) return g;
         if (a[0] != n[0])
-            return (a[0] is 'B' or 'C') && (n[0] is 'B' or 'C') ? "partnerWork" : "civilstate";
-        if (a[1] != n[1]) return "childrenDeduction";
-        return a[2] != n[2] ? "churchTax" : null;
+        {
+            bool verheiratetVorher = a[0] is 'B' or 'C';
+            bool partnerErwerb = (a[0] == 'C') != (n[0] == 'C');
+            // Reihenfolge wie die Referenz: partnerWork vor civilstate (TF22 Bucher A0N → C0N).
+            if (partnerErwerb) g.Add("partnerWork");
+            if (!verheiratetVorher || !(n[0] is 'B' or 'C')) g.Add("civilstate");
+        }
+        if (a[1] != n[1]) g.Add("childrenDeduction");
+        if (a[2] != n[2]) g.Add("churchTax");
+        return g;
     }
 
     /// <summary>Wohnsitz für die QST verglichen: Kanton in der Schweiz, sonst das Land.</summary>
