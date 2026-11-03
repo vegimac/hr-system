@@ -980,8 +980,13 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.IsGrenzgaenger = istAusland;
         if (istAusland)
         {
-            if (string.IsNullOrWhiteSpace(entry.Wohnsitzstaat)) entry.Wohnsitzstaat = land;
-            if (string.IsNullOrWhiteSpace(entry.WohnsitzAusland)) entry.WohnsitzAusland = land;
+            // Leer ODER noch «CH» von einem früheren Inland-Stand (Walter 03.11.2026, TF25 Lehmann
+            // April: Wohnsitzstaat CH blieb stehen → Arbeitstage CH 18/20 wirkten nicht).
+            static bool LeerOderCh(string? v) => string.IsNullOrWhiteSpace(v)
+                || v.Trim().Equals("CH", StringComparison.OrdinalIgnoreCase)
+                || v.Trim().Equals("Schweiz", StringComparison.OrdinalIgnoreCase);
+            if (LeerOderCh(entry.Wohnsitzstaat)) entry.Wohnsitzstaat = land;
+            if (LeerOderCh(entry.WohnsitzAusland)) entry.WohnsitzAusland = land;
             if (string.IsNullOrWhiteSpace(entry.AdresseAusland))
                 entry.AdresseAusland = string.Join(", ",
                     new[] { e.Street, $"{e.ZipCode} {e.City}".Trim(), land }
