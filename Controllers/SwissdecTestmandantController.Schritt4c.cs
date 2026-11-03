@@ -510,12 +510,15 @@ public partial class SwissdecTestmandantController
                 var wp = V("PersonWorkplace"); var fil = wp == null ? null : filialen.FirstOrDefault(c => string.Equals(c.RestaurantCode, wp, StringComparison.OrdinalIgnoreCase));
                 if (wp != null && fil == null) probleme.Add($"Filiale «{wp}» nicht gefunden.");
                 felder["Vertrag"] = $"neuer Abschnitt {neuesModell} ab {tag1:dd.MM.yyyy}: " + string.Join(" · ", aend);
+                // Neue Vertragsart (alt leer → neu gesetzt): 13./14. ML der neuen Art, auch beim erneuten Ausführen.
+                var artWechsel = rows.Any(r => r.Tag is "PersonContractMonthly" or "PersonContractHourly"
+                                               && string.IsNullOrWhiteSpace(r.Alt) && !string.IsNullOrWhiteSpace(r.Neu));
                 if (!vorschau)
                 {
                     if (aktiv.ContractStartDate.Date >= tag1.ToDateTime(TimeOnly.MinValue).Date)
                     {
                         // Abschnitt beginnt im selben Monat → direkt anpassen
-                        WendeVertragAn(aktiv, w, neuesModell, fil);
+                        WendeVertragAn(aktiv, w, neuesModell, fil, artWechsel);
                     }
                     else
                     {
@@ -531,7 +534,7 @@ public partial class SwissdecTestmandantController
                             SwissdecVertragsart = aktiv.SwissdecVertragsart, JahreslohnOhneZeitbindung = aktiv.JahreslohnOhneZeitbindung,
                             VierzehnterMonatslohn = aktiv.VierzehnterMonatslohn, FerienFeiertagImAnsatz = aktiv.FerienFeiertagImAnsatz,
                         };
-                        WendeVertragAn(neu, w, neuesModell, fil);
+                        WendeVertragAn(neu, w, neuesModell, fil, artWechsel);
                         aktiv.ContractEndDate = vortag.ToDateTime(TimeOnly.MinValue);
                         _db.Employments.Add(neu); emp.Employments.Add(neu);
                     }
@@ -889,14 +892,15 @@ public partial class SwissdecTestmandantController
         or "PersonBVGLPPCode1" or "PersonBVGLPPInsured" or "PersonBVGLPPManuallyBase" or "PersonGrantTASCode" or "PersonOtherActivity" or "PersonTotalOtherActivityRate"
         or "PersonWaiveOfPensionDeduct";
 
-    private static void WendeVertragAn(Employment v, Dictionary<string, string?> w, string modell, CompanyProfile? fil)
+    private static void WendeVertragAn(Employment v, Dictionary<string, string?> w, string modell, CompanyProfile? fil,
+                                       bool vertragsartWechsel = false)
     {
         string? V(string k) => w.TryGetValue(k, out var x) && !string.IsNullOrWhiteSpace(x) && x != "None" ? x : null;
         bool Hat(string k) => w.ContainsKey(k);
         // Wechsel Stunden- ↔ Monatslohn: der 13./14. Monatslohn gehört zur Vertragsart (PersonContractHourly13th
         // bzw. PersonContractMonthly13th) und wird nicht vom alten Vertrag geerbt (Quality Tool Sep 2025:
         // TF14 Egli Stundenlohn mit 13. ML → Praktikum Monatslohn ohne, Contractual13th 0.00).
-        if (!string.Equals(v.EmploymentModel, modell, StringComparison.OrdinalIgnoreCase))
+        if (vertragsartWechsel)
         {
             var monat = modell == "FIX";
             v.ThirteenthSalary = V(monat ? "PersonContractMonthly13th" : "PersonContractHourly13th") != null;
