@@ -106,8 +106,10 @@ public class QstKorrekturService
                 .ToListAsync(ct);
             var ersetzbar = bestehende.Where(k => k.Status is "OFFEN" or "VORJAHR").ToList();
             if (ersetzbar.Count > 0) _db.QstKorrekturen.RemoveRange(ersetzbar);
+            var slipCode = QstJahresmodell.LeseSlip(r.SlipJson).TarifCode;
             decimal bereitsVerrechnet = bestehende
                 .Where(k => k.Status is "VERRECHNET" or "IN_DARLEHEN" or "GEMELDET")
+                .Where(k => !SlipHatSchon(slipCode, k.NeuerCode))
                 .Sum(k => k.Differenz);
 
             // Alte QST-Zeile aus dem eingefrorenen Slip
@@ -298,12 +300,17 @@ public class QstKorrekturService
             // Bereits verrechnete Korrektur-Posten zählen zum Bezahlten des Monats (TF34 Rinaldi Juli:
             // April 425 Beleg + −240 Posten A0N→B0N = 185 bezahlt). Ohne sie rechnete die Kette den
             // Mai mit 240 zu viel bezahlt und der Posten B0N→B1N für Mai fehlte.
+            // Trägt der Lohnzettel schon den neuen Code (Monat nach der Version neu berechnet), steckt
+            // die Korrektur bereits im Slip — dann nicht nochmals zählen (Rinaldi April: Slip B0N 185
+            // plus Posten −240 ergab −55 und eine falsche Nachbelastung von 145).
+            var codeByM = slips.GroupBy(x => x.Month)
+                .ToDictionary(g => g.Key, g => QstJahresmodell.LeseSlip(g.First().SlipJson).TarifCode);
             var postenJahr = await _db.QstKorrekturen.AsNoTracking()
                 .Where(k => k.EmployeeId == neu.EmployeeId && k.Jahr == year
                          && (k.Status == "VERRECHNET" || k.Status == "IN_DARLEHEN" || k.Status == "GEMELDET"))
-                .Select(k => new { k.Monat, k.Differenz })
+                .Select(k => new { k.Monat, k.Differenz, k.NeuerCode })
                 .ToListAsync(ct);
-            foreach (var pk in postenJahr.GroupBy(k => k.Monat))
+            foreach (var pk in postenJahr.Where(k => !SlipHatSchon(codeByM.GetValueOrDefault(k.Monat), k.NeuerCode)).GroupBy(k => k.Monat))
                 altByM[pk.Key] = altByM.GetValueOrDefault(pk.Key) + pk.Sum(k => k.Differenz);
 
             foreach (var r in yg)
@@ -372,6 +379,11 @@ public class QstKorrekturService
     /// Liest die QST-Abzugszeile aus dem eingefrorenen SlipJson:
     /// (bezahlt vorzeichenbehaftet, basis, satzBasis?). Ohne QST-Zeile: (0, brutto, null).
     /// </summary>
+    /// <summary>Lohnzettel trägt schon den Code, auf den der Posten korrigiert hat.</summary>
+    private static bool SlipHatSchon(string? slipCode, string? neuerCode)
+        => !string.IsNullOrWhiteSpace(slipCode) && !string.IsNullOrWhiteSpace(neuerCode)
+           && string.Equals(slipCode.Trim(), neuerCode.Trim(), StringComparison.OrdinalIgnoreCase);
+
     private static (decimal betrag, decimal basis, decimal? satzBasis) LeseQstZeile(string slipJson)
     {
         var z = QstJahresmodell.LeseSlip(slipJson);
