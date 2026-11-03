@@ -517,6 +517,10 @@ public static class PayrollCalculations
                 basis = Math.Min(basis, d.MaxBaseFlatMonthly.Value);
 
             // Abzug-Betrag: auf 2 Dezimalen (0.05-Rundung erst auf Schlussresultat)
+            // Basis auf Rappen, bevor der Satz greift — so wie sie auf dem Beleg steht (Walter
+            // 03.11.2026, Swissdec TF15 Degelo März 2025: ALVZ 2/30 × 18'525 = 1'234.99999… ergab
+            // 6.17 → 6.15; mit 1'235.00 × 0.5 % = 6.175 → 6.20 = Referenz −163.65).
+            basis = Rappen(basis);
             decimal betrag = d.Type == "fixed"
                 ? -Rappen(d.Rate)
                 : -Rappen(basis * d.Rate / 100m);
