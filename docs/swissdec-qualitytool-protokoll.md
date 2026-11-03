@@ -208,6 +208,8 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 
 ### 2025-05 — Sendung 03.11.2026 10:55 (18e4806b8958aeae5), Korrekturen K23–K26
 
+**Stand 03.11.2026: Mai grün** (nach K23–K26, Sendung ohne Neuberechnung).
+
 | Testfall | Befund | Korrektur |
 |---|---|---|
 | TF25 Lehmann, TF30 Müller | alte Auslandsadresse mit DepartureDate fehlt im Mai; Mutation `residence` 01.05. fehlt | **K23** — alte Adresse auch im Folgemonat, wenn der Umzug nach dem 1. lag (dann wirkt er für die QST erst dort); Reihenfolge aktuelle → alte. **K24** — Wohnsitzwechsel ohne Kantonswechsel: `Mutation residence` ab Monatsersten (Wohnsitz am 1. des Vormonats ≠ am 1. des Monats). |
