@@ -16,3 +16,13 @@ public class ElmQstMutationTests
     public void Gruende(string alt, string neu, string erwartet)
         => Assert.Equal(erwartet, string.Join(",", ElmMonthlyDeclarationBuilder.MutationsGruende(alt, neu)));
 }
+
+/// <summary>Reihenfolge der CorrectionMonth-Totale wie die Swissdec-Referenz (Java-HashMap).</summary>
+public class ElmKorrekturReihenfolgeTests
+{
+    [Theory]
+    [InlineData("2025-04,2025-05", "2025-05,2025-04")]   // RefXML Juni 2025
+    [InlineData("2025-05,2025-06", "2025-05,2025-06")]   // RefXML Juli 2025
+    public void Wie_Referenz(string ein, string aus)
+        => Assert.Equal(aus, string.Join(",", ElmMonthlyDeclarationBuilder.JavaHashReihenfolge(ein.Split(','))));
+}

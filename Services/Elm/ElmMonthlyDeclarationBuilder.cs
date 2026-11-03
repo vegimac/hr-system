@@ -422,6 +422,15 @@ public class ElmMonthlyDeclarationBuilder
             var periodeVon = anstellung == null ? monatsAnfang
                 : anstellung.Value.Start > jahrStart ? anstellung.Value.Start : jahrStart;
             var austritt = anstellung?.Ende is DateTime aus && aus >= monatsAnfang && aus <= monatsEnde ? aus : (DateTime?)null;
+            // Frühere Anstellung im selben Jahr (Austritt und Wiedereintritt, RefXML Juli 2025 TF41
+            // Meier Max: 01.01.–31.03. und 01.07.–31.07.): eigener Work-Block und eigene Jahreswerte.
+            (DateTime Start, DateTime? Ende)? vorKette = null;
+            if (anstellung is { } akt && akt.Start > jahrStart)
+            {
+                var vk = Anstellung(employments.Where(m => m.EmployeeId == e.Id), jahrStart, akt.Start.AddDays(-1));
+                if (vk is { Ende: DateTime vkEnde } && vkEnde < akt.Start && vkEnde >= jahrStart)
+                    vorKette = vk;
+            }
             var periodeBis = austritt ?? monatsEnde;
             var ersterMonatDerPeriode = new DateTime(periodeVon.Year, periodeVon.Month, 1);
             // Lohn nach dem Austritt (z.B. Überstunden-Auszahlung) gehört nicht mehr in die
@@ -495,12 +504,36 @@ public class ElmMonthlyDeclarationBuilder
                         jahresToepfe[t] = (jahresToepfe.TryGetValue(t, out var v0) ? v0 : 0m) + b;
                 }
 
+                // Jahreswerte der früheren Anstellung im Jahr (nur deren Monate, ohne Zahlungen danach).
+                (DateTime Von, DateTime Bis, Dictionary<ElmStatistikCodes.Topf, decimal> Toepfe)? vorJahr = null;
+                if (vorKette is { Ende: DateTime vkBis } vkk)
+                {
+                    var vkVon = vkk.Start > jahrStart ? vkk.Start : jahrStart;
+                    var t0 = new Dictionary<ElmStatistikCodes.Topf, decimal>();
+                    foreach (var vor in vorSnaps.Where(v => v.EmployeeId == e.Id))
+                    {
+                        var vp = vorPeriodeById[vor.PayrollPeriodeId];
+                        var mStart = new DateTime(year, vp.Month, 1);
+                        if (vp.CompanyProfileId != filialId || mStart < new DateTime(vkVon.Year, vkVon.Month, 1) || mStart > vkBis) continue;
+                        if (string.IsNullOrWhiteSpace(vor.SlipJson)) continue;
+                        try
+                        {
+                            var vs = JsonDocument.Parse(vor.SlipJson).RootElement;
+                            if (vs.TryGetProperty("isCorrection", out var ic) && ic.ValueKind == JsonValueKind.True) continue;
+                            foreach (var (t, b) in Toepfe(vs, lohnartByCode, null, statistikByLohnart))
+                                t0[t] = (t0.TryGetValue(t, out var v0) ? v0 : 0m) + b;
+                        }
+                        catch (JsonException) { }
+                    }
+                    vorJahr = (vkVon, vkBis, t0);
+                }
+
                 lseById.TryGetValue(e.Id, out var lse);
                 if (imMonatAngestellt)
                 {
                     statistikZeilen.Add(BaueStatistikZeile(e, em, filiale, slip, lohnartByCode, lse, stellungMapping,
                                                            monatStr, periodeVon, periodeBis, jahresToepfe, warn, statistikByLohnart,
-                                                           ArtDesModells(modell, zuordnung), zeitFehler));
+                                                           ArtDesModells(modell, zuordnung), zeitFehler, vorJahr));
                     statZeilen++;
                     gemeldeteFilialen.Add(filialId);
                 }
@@ -597,6 +630,19 @@ public class ElmMonthlyDeclarationBuilder
             var person = new XElement(Sd + "Person",
                 Particulars(e, warn, WohnGemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde,
                     zivAm, zivSeitAm, adresseAm, adresseVorher, umzug?.Wegzug),
+                vorKette is { Ende: DateTime vkWd } vkw
+                    ? new XElement(C + "Work",
+                        new XAttribute("workID", WorkId(e) + "_0"),
+                        modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
+                        new XElement(C + "WorkingTime", WorkingTime(
+                            employments.Where(m => m.EmployeeId == e.Id && m.ContractStartDate <= vkWd)
+                                .OrderByDescending(m => m.ContractStartDate).FirstOrDefault() ?? emHaupt,
+                            modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : stamm.Haupt.NormalWeeklyHours ?? 42m,
+                            zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen,
+                            modell?.Wochenlektionen)),
+                        new XElement(C + "EntryDate", vkw.Start.ToString("yyyy-MM-dd")),
+                        new XElement(C + "WithdrawalDate", vkWd.ToString("yyyy-MM-dd")))
+                    : null,
                 new XElement(C + "Work",
                     new XAttribute("workID", WorkId(e)),
                     modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
@@ -690,8 +736,10 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "TotalCommission", "0.00"),
                 new XElement(Sd + "CurrentMonth", monatStr)),
             korrTotal.TryGetValue(kt, out var jeMonat)
-                // Absteigend wie die Referenz (RefXML Juni 2025: 2025-05 vor 2025-04).
-                ? jeMonat.Reverse().Select(m => new XElement(Sd + "CorrectionMonth",
+                // Reihenfolge wie die Referenz: Ablage-Reihenfolge einer Java-HashMap (RefXML Juni 2025
+                // 05 vor 04, Juli 05 vor 06 — weder auf- noch absteigend; siehe JavaHashReihenfolge).
+                ? JavaHashReihenfolge(jeMonat.Keys).Select(k => new KeyValuePair<string, (decimal Basis, decimal Steuer)>(k, jeMonat[k]))
+                    .Select(m => new XElement(Sd + "CorrectionMonth",
                     new XElement(Sd + "TotalTaxableEarning", Amt(m.Value.Basis)),
                     new XElement(Sd + "TotalTaxAtSource", Amt(m.Value.Steuer)),
                     new XElement(Sd + "TotalCommission", "0.00"),
@@ -813,7 +861,8 @@ public class ElmMonthlyDeclarationBuilder
         DateTime periodeVon, DateTime periodeBis,
         Dictionary<ElmStatistikCodes.Topf, decimal> jahresToepfe, List<string> warn,
         IReadOnlyDictionary<int, ElmStatistikCodes.Topf?> statistikByLohnart,
-        ArbeitszeitArt? modellArt, List<string> zeitFehler)
+        ArbeitszeitArt? modellArt, List<string> zeitFehler,
+        (DateTime Von, DateTime Bis, Dictionary<ElmStatistikCodes.Topf, decimal> Toepfe)? vorJahr = null)
     {
         var topf = Toepfe(slip, lohnartByCode, warn, statistikByLohnart);
         decimal Wert(ElmStatistikCodes.Topf t) => topf.TryGetValue(t, out var v) ? v : 0m;
@@ -840,18 +889,26 @@ public class ElmMonthlyDeclarationBuilder
                 // der Lohnbeleg bleibt beim Fixbetrag der Kasse.
                 new XElement(Sd + "BVG-LPP-RegularContribution", Amt(bvg)),
                 new XElement(Sd + "ShortTimeWorkCompensation", Betrag05(Wert(ElmStatistikCodes.Topf.Kurzarbeit)))),
-            new XElement(Sd + "AnnualValues",
-                // Kumuliert ab Beginn der Anstellung im Jahr bis Monatsende bzw. Austritt.
-                new XElement(Sd + "Period",
-                    new XElement(Ep + "from", periodeVon.ToString("yyyy-MM-dd")),
-                    new XElement(Ep + "until", periodeBis.ToString("yyyy-MM-dd"))),
-                new XElement(Sd + "Overtime", Betrag05(Jahr(ElmStatistikCodes.Topf.Ueberstunden))),
-                new XElement(Sd + "Earnings13th", Betrag05(Jahr(ElmStatistikCodes.Topf.Dreizehnter))),
-                new XElement(Sd + "SporadicBenefits", Betrag05(Jahr(ElmStatistikCodes.Topf.Unregelmaessig))),
-                new XElement(Sd + "FringeBenefits", Betrag05(Jahr(ElmStatistikCodes.Topf.Naturalleistungen))),
-                new XElement(Sd + "CapitalPayment", Betrag05(Jahr(ElmStatistikCodes.Topf.Kapitalleistung))),
-                new XElement(Sd + "OtherBenefits", Betrag05(Jahr(ElmStatistikCodes.Topf.Uebrige)))));
+            // Frühere Anstellung im Jahr zuerst, dann die laufende (RefXML Juli 2025 TF41 Meier Max).
+            vorJahr is { } vj ? JahresWerte(vj.Von, vj.Bis, vj.Toepfe) : null,
+            // Kumuliert ab Beginn der Anstellung im Jahr bis Monatsende bzw. Austritt.
+            JahresWerte(periodeVon, periodeBis, jahresToepfe));
         return stat1;
+
+        XElement JahresWerte(DateTime von, DateTime bis, Dictionary<ElmStatistikCodes.Topf, decimal> t)
+        {
+            decimal J(ElmStatistikCodes.Topf k) => t.TryGetValue(k, out var v) ? v : 0m;
+            return new XElement(Sd + "AnnualValues",
+                new XElement(Sd + "Period",
+                    new XElement(Ep + "from", von.ToString("yyyy-MM-dd")),
+                    new XElement(Ep + "until", bis.ToString("yyyy-MM-dd"))),
+                new XElement(Sd + "Overtime", Betrag05(J(ElmStatistikCodes.Topf.Ueberstunden))),
+                new XElement(Sd + "Earnings13th", Betrag05(J(ElmStatistikCodes.Topf.Dreizehnter))),
+                new XElement(Sd + "SporadicBenefits", Betrag05(J(ElmStatistikCodes.Topf.Unregelmaessig))),
+                new XElement(Sd + "FringeBenefits", Betrag05(J(ElmStatistikCodes.Topf.Naturalleistungen))),
+                new XElement(Sd + "CapitalPayment", Betrag05(J(ElmStatistikCodes.Topf.Kapitalleistung))),
+                new XElement(Sd + "OtherBenefits", Betrag05(J(ElmStatistikCodes.Topf.Uebrige))));
+        }
     }
 
     /// <summary>
@@ -1460,8 +1517,11 @@ public class ElmMonthlyDeclarationBuilder
         XElement? arbeit = null;
         var antritt = p.Stellenantritt.HasValue ? DateOnly.FromDateTime(p.Stellenantritt.Value) : (DateOnly?)null;
         var ende = p.Stellenende.HasValue ? DateOnly.FromDateTime(p.Stellenende.Value) : (DateOnly?)null;
-        var antrittGilt = antritt.HasValue && (stichtag == null || antritt.Value <= stichtag.Value);
         var monatAnfang = stichtag is { } s ? new DateOnly(s.Year, s.Month, 1) : (DateOnly?)null;
+        // Erwerb ab dem Folgemonat des Stellenantritts melden — wie der Tarif (KS 45): RefXML Juli 2025
+        // TF36 Maldini, Partnerin arbeitet ab 28.07., gemeldet erst im August (C0Y); TF22 Bucher ab
+        // 28.06., im Juli gemeldet.
+        var antrittGilt = antritt.HasValue && (monatAnfang == null || antritt.Value <= monatAnfang.Value);
         var vorbei = ende.HasValue && monatAnfang.HasValue && ende.Value < monatAnfang.Value;
         var endeVorBeginn = antritt.HasValue && ende.HasValue && ende.Value < antritt.Value;
         // Auch nach «nicht mehr erwerbstätig» den Monat des Endes noch melden.
@@ -1512,6 +1572,27 @@ public class ElmMonthlyDeclarationBuilder
         if (a[1] != n[1]) g.Add("childrenDeduction");
         if (a[2] != n[2]) g.Add("churchTax");
         return g;
+    }
+
+    /// <summary>
+    /// Reihenfolge der Schlüssel wie beim Durchlaufen einer java.util.HashMap mit Standard-
+    /// Kapazität: nach Bucket (String.hashCode gestreut, modulo Kapazität), innerhalb des Buckets in
+    /// Einfügereihenfolge. Die Swissdec-Referenz ordnet die CorrectionMonth-Totale so
+    /// (Juni 2025: 2025-05, 2025-04; Juli 2025: 2025-05, 2025-06).
+    /// </summary>
+    public static List<string> JavaHashReihenfolge(IEnumerable<string> schluessel)
+    {
+        var liste = schluessel.ToList();
+        int kapazitaet = 16;
+        while (liste.Count > kapazitaet * 3 / 4) kapazitaet *= 2;
+        int Bucket(string k)
+        {
+            int h = 0;
+            foreach (var c in k) h = unchecked(31 * h + c);
+            h ^= (int)((uint)h >> 16);
+            return h & (kapazitaet - 1);
+        }
+        return liste.Select((k, i) => (k, i)).OrderBy(x => Bucket(x.k)).ThenBy(x => x.i).Select(x => x.k).ToList();
     }
 
     /// <summary>Wohnsitz für die QST verglichen: Kanton in der Schweiz, sonst das Land.</summary>
