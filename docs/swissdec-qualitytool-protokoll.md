@@ -219,6 +219,8 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 
 ### 2025-06 — Sendung 03.11.2026 12:04 (18e48426bb960ae95), Korrekturen K27–K30
 
+**Stand 03.11.2026: Juni grün** (nach K27–K31, 4c Mai TF35/36 und September TF36 neu, Jenzer Juni nach Februar-Recompute).
+
 | Testfall | Befund | Korrektur / Stand |
 |---|---|---|
 | TF23 Koller, TF35 Roos, TF36 Maldini | `Mutation civilstate` 01.06. fehlt | **K27** — neue QST-Version ab Monatsersten im selben Kanton: Mutation mit Grund aus dem Code (Buchstabe = civilstate, B↔C = partnerWork, Ziffer = childrenDeduction, Y/N = churchTax). |
