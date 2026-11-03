@@ -5338,21 +5338,11 @@ public class PayrollCalculationEngine
             }
             else
             {
-                // Je Topf der Zuwachs zum Vormonat, einzeln auf 5 Rp. (QstJahresmodell.RechneToepfe).
-                // Der Vormonats-Stand wird frisch gerechnet statt gespeichert — wirkt damit auch auf
-                // Monate, die vor dieser Regel abgeschlossen wurden, und braucht keine Migration.
-                Dictionary<string, decimal>? vormonatJeCode = null;
-                if (ytd.IstJeCode is { Count: > 0 } vorToepfe && ytd.QstTageBisher > 0)
-                {
-                    var satzLohnVormonat = QstJahresmodell.SatzLohnAusTagen(
-                        ytd.SatzBisher, ytd.QstTageBisher, ytd.AperiodischBisher);
-                    vormonatJeCode = QstJahresmodell.SteuerJeCodeExakt(vorToepfe,
-                        c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnVormonat, periodFrom.Year));
-                }
+                // Je Topf kumuliert auf 5 Rp., minus bereits bezahlt (QstJahresmodell.RechneToepfe).
                 var t = QstJahresmodell.RechneToepfe(
                     satzLohnLookup, toepfe,
                     c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnLookup, periodFrom.Year),
-                    ytd.BezahltBisher, vormonatJeCode: vormonatJeCode);
+                    ytd.BezahltBisher);
                 qstBetrag = t.QstMonat;
                 satzPct = !string.IsNullOrWhiteSpace(codeJetzt) && t.SatzJeCode.TryGetValue(codeJetzt, out var p)
                     ? p

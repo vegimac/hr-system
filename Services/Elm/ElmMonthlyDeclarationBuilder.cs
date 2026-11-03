@@ -52,9 +52,10 @@ public class ElmMonthlyDeclarationBuilder
         List<string> Warnungen, List<string> XsdFehler);
 
     /// <summary>
-    /// Die Monatsmeldung führt nur Arbeitsorte, an denen im Monat jemand Lohn hat
-    /// (Walter 28.09.2026, Quality Tool Nov 2024: nur #LU und #BE). Die Jahresmeldung
-    /// bleibt bei allen Filialen — die FAK wird je Arbeitsort adressiert, auch ohne Personen.
+    /// Die Monatsmeldung führt die Arbeitsorte, an denen im Kalenderjahr bis und mit Meldemonat
+    /// jemand Lohn hatte (Quality Tool Nov 2024: nur #LU und #BE; Aug 2025: auch #AG und #ZG,
+    /// obwohl dort seit Mai bzw. März niemand mehr arbeitet). Die Jahresmeldung bleibt bei
+    /// allen Filialen — die FAK wird je Arbeitsort adressiert, auch ohne Personen.
     /// </summary>
     public static RechtseinheitStamm NurArbeitsorteMitLohn(RechtseinheitStamm stamm, IReadOnlySet<int> filialenMitLohn)
         => stamm with { Filialen = stamm.Filialen.Where(b => filialenMitLohn.Contains(b.Id)).ToList() };
@@ -225,6 +226,12 @@ public class ElmMonthlyDeclarationBuilder
                 new List<string>());
 
         var periodeIds = perioden.Select(p => p.Id).ToList();
+        // Arbeitsorte mit Lohn seit Jahresbeginn (für CompanyDescription, siehe NurArbeitsorteMitLohn).
+        var arbeitsorteImJahr = (await (from sn in _db.PayrollSnapshots.AsNoTracking()
+                                        join pp in _db.PayrollPerioden.AsNoTracking() on sn.PayrollPeriodeId equals pp.Id
+                                        where pp.Year == year && pp.Month < month && sn.Status != "STORNIERT"
+                                              && filialIds.Contains(pp.CompanyProfileId)
+                                        select pp.CompanyProfileId).Distinct().ToListAsync(ct)).ToHashSet();
         var snaps = await _db.PayrollSnapshots.AsNoTracking()
             .Where(s => periodeIds.Contains(s.PayrollPeriodeId) && s.Status != "STORNIERT")
             .Select(s => new { s.EmployeeId, s.PayrollPeriodeId, s.SlipJson })
@@ -810,6 +817,7 @@ public class ElmMonthlyDeclarationBuilder
         var mobilXml = PersonaldatenPruefung.TelefonFuerSwissdec(kontaktMobil);
 
         var jetzt = DateTime.Now;
+        arbeitsorteImJahr.UnionWith(gemeldeteFilialen);
         var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null),
             new XElement(Sdcst + "DeclareMonthlySalary",
                 new XAttribute(XNamespace.Xmlns + "sdcst", Sdcst),
@@ -826,7 +834,7 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sdc + "Addressees", addressees)),
                 new XElement(Sd + "MonthlySalaryDeclaration",
                     new XAttribute("schemaVersion", "0.0"),
-                    CompanyDescription(NurArbeitsorteMitLohn(stamm, gemeldeteFilialen), arbeitszeit),
+                    CompanyDescription(NurArbeitsorteMitLohn(stamm, arbeitsorteImJahr), arbeitszeit),
                     new XElement(Sd + "Staff", personen),
                     new XElement(Sd + "Institutions", institutions),
                     totals.Count > 0 ? new XElement(Sd + "SalaryTotals", totals) : null,

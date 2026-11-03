@@ -330,7 +330,6 @@ public class QstKorrekturService
             int qstTage = 0;
             var toepfe = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
             var neuCode = QstJahresmodell.CodeVon(neu);
-            Dictionary<string, decimal>? standJeCode = null;
             for (int m = start.Month; m <= maxM; m++)
             {
                 ytdPer += satzByM.GetValueOrDefault(m);
@@ -356,9 +355,6 @@ public class QstKorrekturService
                     return _tarifService.GetSteuersatzProzent(
                         kanton, tarif, kinder, kirche, satzLohn, year) ?? 0m;
                 }
-                // Stand je Topf per Vormonat — der Lohnlauf rundet je Topf den Zuwachs (RechneToepfe).
-                var vorJeCode = standJeCode;
-                standJeCode = QstJahresmodell.SteuerJeCodeExakt(toepfe, SatzPct);
                 if (!betroffenMonate.Contains(m))
                 {
                     paidNew += altByM.GetValueOrDefault(m);
@@ -376,7 +372,7 @@ public class QstKorrekturService
                 else
                 {
                     var t = QstJahresmodell.RechneToepfe(
-                        satzLohn, toepfe, SatzPct, paidNew, vormonatJeCode: vorJeCode);
+                        satzLohn, toepfe, SatzPct, paidNew);
                     map[(year, m)] = t.QstMonat;
                     paidNew += t.QstMonat;
                 }

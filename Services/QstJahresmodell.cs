@@ -22,8 +22,7 @@ public static class QstJahresmodell
         decimal Jahressteuer,
         decimal QstMonat,
         IReadOnlyDictionary<string, decimal> SteuerJeCode,
-        IReadOnlyDictionary<string, decimal> SatzJeCode,
-        decimal Rest = 0);
+        IReadOnlyDictionary<string, decimal> SatzJeCode);
 
     public readonly record struct SlipZeile(
         decimal QstBezahlt,
@@ -311,100 +310,40 @@ public static class QstJahresmodell
     }
 
     /// <summary>
-    /// Anhang Y15/Y23: je Code Steuer kumuliert = Satz(Code, Satz-Lohn) × Topf.
+    /// Anhang Y15/Y23: je Code Steuer kumuliert = Satz(Code, Satz-Lohn) × Topf, JEDER TOPF auf
+    /// 5 Rp. gerundet; Monatsabzug = Σ Töpfe − bereits bezahlt.
     /// <para>
-    /// Gerundet wird NUR der Monatsabzug, nicht der einzelne Topf (Walter 26.09.2026,
-    /// nachgerechnet an TF22 Bucher Aug/Sep, TF23 Koller Dez, TF34 Rinaldi Sep): die
-    /// RefXML fuehrt die kumulierte Steuer rappengenau weiter und rundet erst die
-    /// Differenz des Monats auf 5 Rp. Rundet man schon den Topf, weicht der Monat um
-    /// bis zu 5 Rp. ab (TF34 Sep 99.05 statt 99.10, Jahr 2'739.50 statt 2'739.55).
+    /// Nachgerechnet am Quality Tool (Claude 03.11.2026) über alle Jahresmodell-Fälle TI/VD
+    /// Jan–Aug 2025: TF22 Bucher Jul 509.30 (A0N 2'365.80 + C0N 423.80 − 2'280.30) und Aug
+    /// 309.65, TF34 Rinaldi Jul 141.35 / Aug 119.10, Koller, Roos, Utzinger, Bolletto. Rundung
+    /// erst der Summe (Regel vom 26.09.2026, aus den älteren RefXML-Dateien) ergab Jul 509.35,
+    /// je Topf gerundeter Zuwachs Aug 309.60 — beides verlangt das Quality Tool nicht.
     /// </para>
     /// <para>
-    /// <paramref name="restVormonat"/> ist der Rundungsrest des Vormonats
-    /// (kumulierte Steuer exakt − tatsaechlich abgezogen). Ohne ihn liefe der Rest
-    /// ueber «bereits bezahlt» wieder verloren. Er wird NICHT gespeichert, sondern
-    /// aus den Vormonats-Toepfen neu gerechnet (<see cref="JahressteuerExakt"/>) —
-    /// so wirkt die Regel sofort, auch auf laengst abgeschlossenen Monaten. Die
-    /// gerundeten Toepfe in <c>SteuerJeCode</c> bleiben die Anzeige auf dem Beleg.
+    /// Ein Rückstand (Stand höher als bezahlt, z.B. TF41 Meier Max: Juli 2'910 inkl. 1'050
+    /// Januar–März) wird damit von selbst im nächsten Monat ausgeglichen.
     /// </para>
     /// </summary>
-    /// <summary>
-    /// Kumulierte Steuer eines Standes, rappengenau (Σ Topf × Satz). Dient als
-    /// Stand des Vormonats fuer den Rundungsrest — mit den HEUTE gueltigen Codes,
-    /// damit eine rueckwirkende Umbuchung (K1) nicht doppelt zaehlt: der Posten
-    /// steckt in «bereits bezahlt», die Umbuchung im Stand.
-    /// </summary>
-    public static decimal JahressteuerExakt(
-        decimal satzLohn,
-        IReadOnlyDictionary<string, decimal> istJeCode,
-        Func<string, decimal> satzPctFuerCode)
-        => SteuerJeCodeExakt(istJeCode, satzPctFuerCode).Values.Sum();
-
-    /// <summary>Kumulierte Steuer je Topf, rappengenau (Topf × Satz des Codes).</summary>
-    public static Dictionary<string, decimal> SteuerJeCodeExakt(
-        IReadOnlyDictionary<string, decimal> istJeCode,
-        Func<string, decimal> satzPctFuerCode)
-    {
-        var r = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in istJeCode)
-        {
-            if (kv.Value == 0 || string.IsNullOrWhiteSpace(kv.Key)) continue;
-            r[kv.Key] = r.GetValueOrDefault(kv.Key) + kv.Value * satzPctFuerCode(kv.Key) / 100m;
-        }
-        return r;
-    }
-
-    /// <summary>
-    /// Ab dieser Luecke zwischen Stand des Vormonats und tatsaechlich Abgezogenem ist es kein
-    /// Rundungsrest mehr, sondern ein aufgeschobener Ausgleich, den der Monat nachholt (TF41
-    /// Meier Max: Juli 2'910 inkl. 1'050 Januar–März). Rundungsreste je Topf bleiben weit darunter
-    /// (≤ 2.5 Rp. je Topf und Monat).
-    /// </summary>
-    public const decimal AusgleichAb = 1.00m;
-
-    /// <param name="vormonatJeCode">
-    /// Kumulierte Steuer je Topf per Vormonat (rappengenau, Satz des Vormonats, heutige Codes —
-    /// <see cref="SteuerJeCodeExakt"/>). Gesetzt ⇒ Monatsabzug = Σ je Topf gerundeter Zuwachs
-    /// (Quality Tool Juli 2025, TF22 Bucher: A0N 2'365.811 − 2'280.30 = 85.51 → 85.50, C0N
-    /// 423.820 → 423.80, zusammen 509.30; über die Summe gerundet 509.35). Stimmt mit dem Soll
-    /// Bucher Jul–Dez und Rinaldi Jul/Sep überein. Eine Luecke ≥ <see cref="AusgleichAb"/>
-    /// zwischen Vormonats-Stand und «bereits bezahlt» wird zusaetzlich nachgeholt.
-    /// </param>
     public static TopfErgebnis RechneToepfe(
         decimal satzLohn,
         IReadOnlyDictionary<string, decimal> istJeCode,
         Func<string, decimal> satzPctFuerCode,
-        decimal bereitsBezahlt,
-        decimal restVormonat = 0,
-        IReadOnlyDictionary<string, decimal>? vormonatJeCode = null)
+        decimal bereitsBezahlt)
     {
         var steuer = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         var saetze = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        var exakt = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        decimal jahresExakt = 0;
+        decimal jahres = 0;
         foreach (var kv in istJeCode.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (kv.Value == 0 || string.IsNullOrWhiteSpace(kv.Key)) continue;
             var pct = satzPctFuerCode(kv.Key);
             saetze[kv.Key] = pct;
-            var topf = kv.Value * pct / 100m;
-            steuer[kv.Key] = PayrollCalculations.Round05(topf);
-            exakt[kv.Key] = topf;
-            jahresExakt += topf;
+            var topf = PayrollCalculations.Round05(kv.Value * pct / 100m);
+            steuer[kv.Key] = topf;
+            jahres += topf;
         }
-        decimal monat;
-        if (vormonatJeCode != null)
-        {
-            monat = 0;
-            foreach (var c in exakt.Keys.Union(vormonatJeCode.Keys, StringComparer.OrdinalIgnoreCase))
-                monat += PayrollCalculations.Round05(exakt.GetValueOrDefault(c) - vormonatJeCode.GetValueOrDefault(c));
-            var luecke = vormonatJeCode.Values.Sum() - bereitsBezahlt;
-            if (Math.Abs(luecke) >= AusgleichAb) monat += PayrollCalculations.Round05(luecke);
-        }
-        else
-            monat = PayrollCalculations.Round05(jahresExakt - bereitsBezahlt - restVormonat);
-        var rest = jahresExakt - bereitsBezahlt - monat;
-        return new TopfErgebnis(satzLohn, PayrollCalculations.Round05(jahresExakt), monat, steuer, saetze, rest);
+        var monat = PayrollCalculations.Round05(jahres - bereitsBezahlt);
+        return new TopfErgebnis(satzLohn, jahres, monat, steuer, saetze);
     }
 
     /// <summary>

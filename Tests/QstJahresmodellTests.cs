@@ -32,110 +32,35 @@ public class QstJahresmodellTests
         Assert.Equal(344.65m, r.QstMonat);
     }
 
-    [Fact]
-    public void Toepfe_RundenNurDenMonat_TF34RinaldiSeptember()
+    // ── Je Topf kumuliert gerundet (Quality Tool Juli/August 2025, Claude 03.11.2026) ──
+    [Theory]
+    // C0N-Topf, Satz A0N, Satz C0N, bezahlt bisher, Quality Tool
+    [InlineData( 5504.15, 8.30, 7.70, 2280.30, 509.30)]   // Juli: 2'365.80 + 423.80 − 2'280.30
+    [InlineData(10025.45, 8.20, 7.60, 2789.60, 309.65)]   // August: 2'337.30 + 761.95 − 2'789.60
+    public void Toepfe_JeTopfGerundet_TF22Bucher(double c, double aPct, double cPct, double bezahlt, double soll)
     {
-        // RefXML 2025-09: 99.10. Mit gerundeten Toepfen kam 99.05 heraus
-        // (B1N 26'290 x 1.90 % = 499.51 -> 499.50), Jahr 2'739.50 statt 2'739.55.
-        var toepfe = new Dictionary<string, decimal>
-        {
-            ["A0N"] = 15000.00m,   // Jan-Maerz
-            ["B0N"] = 5000.00m,    // April
-            ["B1N"] = 26290.00m,   // Mai-September
-        };
-        decimal Satz(string c) => c switch { "A0N" => 8.70m, "B0N" => 3.90m, _ => 1.90m };
-        // Rest des Vormonats: kumuliert exakt 1'900.425 minus abgezogen 1'900.45.
-        var t = QstJahresmodell.RechneToepfe(5125.42m, toepfe, Satz, 1900.45m, -0.025m);
-        Assert.Equal(99.10m, t.QstMonat);
+        var toepfe = new Dictionary<string, decimal> { ["A0N"] = 28503.75m, ["C0N"] = (decimal)c };
+        var t = QstJahresmodell.RechneToepfe(0m, toepfe, x => x == "A0N" ? (decimal)aPct : (decimal)cPct, (decimal)bezahlt);
+        Assert.Equal((decimal)soll, t.QstMonat);
     }
-
-    [Fact]
-    public void Toepfe_RundenNurDenMonat_TF22BucherSeptember()
-    {
-        // RefXML 2025-09: 388.45 (mit gerundeten Toepfen kam 388.40 heraus).
-        var toepfe = new Dictionary<string, decimal>
-        {
-            ["A0N"] = 28503.75m,   // Jan-Juni
-            ["C0N"] = 15136.45m,   // Juli-September
-        };
-        decimal Satz(string c) => c == "A0N" ? 8.20m : 7.60m;
-        var t = QstJahresmodell.RechneToepfe(4848.91m, toepfe, Satz, 3099.25m, -0.0083m);
-        Assert.Equal(388.45m, t.QstMonat);
-    }
-
-    [Fact]
-    public void RestVormonat_AusDemStandGerechnet_TF22BucherAugust()
-    {
-        // Der Rest wird NICHT gespeichert, sondern aus den Toepfen des Vormonats
-        // neu gerechnet — so wirkt die Regel auch auf laengst abgeschlossene Monate.
-        var juli = new Dictionary<string, decimal> { ["A0N"] = 28503.75m, ["C0N"] = 5504.15m };
-        decimal SatzJuli(string c) => c == "A0N" ? 8.30m : 7.70m;
-        var exaktJuli = QstJahresmodell.JahressteuerExakt(4858.27m, juli, SatzJuli);
-        var restJuli = exaktJuli - 2789.60m;                 // tatsaechlich abgezogen Jan-Juli
-        Assert.Equal(0.031m, Math.Round(restJuli, 3));
-
-        var august = new Dictionary<string, decimal> { ["A0N"] = 28503.75m, ["C0N"] = 10025.45m };
-        decimal SatzAugust(string c) => c == "A0N" ? 8.20m : 7.60m;
-        var t = QstJahresmodell.RechneToepfe(4816.15m, august, SatzAugust, 2789.60m, restJuli);
-        Assert.Equal(309.60m, t.QstMonat);                   // RefXML 2025-08, vorher 309.65
-    }
-
-    // ── Je Topf gerundeter Zuwachs (Quality Tool Juli 2025, Claude 03.11.2026) ──
-    private static Dictionary<string, decimal> Stand(decimal a, decimal aPct, decimal c, decimal cPct)
-        => QstJahresmodell.SteuerJeCodeExakt(
-            new Dictionary<string, decimal> { ["A0N"] = a, ["C0N"] = c },
-            x => x == "A0N" ? aPct : cPct);
 
     [Theory]
-    // Monat, C0N-Topf jetzt, Sätze jetzt, C0N-Topf Vormonat, Sätze Vormonat, bezahlt bisher, Soll
-    [InlineData(7,  5504.15, 8.30, 7.70,     0.00, 8.00, 7.70, 2280.30, 509.30)]
-    [InlineData(8, 10025.45, 8.20, 7.60,  5504.15, 8.30, 7.70, 2789.60, 309.60)]
-    [InlineData(9, 15136.45, 8.20, 7.60, 10025.45, 8.20, 7.60, 3099.20, 388.45)]
-    [InlineData(10, 18674.85, 8.00, 7.30, 15136.45, 8.20, 7.60, 3487.65, 155.90)]
-    [InlineData(11, 23392.70, 8.00, 7.30, 18674.85, 8.00, 7.30, 3643.55, 344.40)]
-    [InlineData(12, 28503.70, 8.00, 7.30, 23392.70, 8.00, 7.30, 3987.95, 373.10)]
-    public void Toepfe_JeTopfGerundet_TF22Bucher(int monat, double c, double aPct, double cPct,
-        double cVor, double aPctVor, double cPctVor, double bezahlt, double soll)
+    [InlineData(15860.00, 8.60, 3.80, 1.90, 1640.00, 141.35)]   // Juli
+    [InlineData(21075.00, 8.70, 3.90, 1.90, 1781.35, 119.10)]   // August: B1N 400.425 → 400.45
+    public void Toepfe_JeTopfGerundet_TF34Rinaldi(double b1, double aPct, double bPct, double b1Pct, double bezahlt, double soll)
     {
-        _ = monat;
-        const decimal a = 28503.75m;   // A0N Jan–Juni
-        var jetzt = new Dictionary<string, decimal> { ["A0N"] = a, ["C0N"] = (decimal)c };
-        var vor = Stand(a, (decimal)aPctVor, (decimal)cVor, (decimal)cPctVor);
-        var t = QstJahresmodell.RechneToepfe(0m, jetzt, x => x == "A0N" ? (decimal)aPct : (decimal)cPct,
-            (decimal)bezahlt, vormonatJeCode: vor);
+        var toepfe = new Dictionary<string, decimal> { ["A0N"] = 15000m, ["B0N"] = 5000m, ["B1N"] = (decimal)b1 };
+        decimal Satz(string x) => x switch { "A0N" => (decimal)aPct, "B0N" => (decimal)bPct, _ => (decimal)b1Pct };
+        var t = QstJahresmodell.RechneToepfe(0m, toepfe, Satz, (decimal)bezahlt);
         Assert.Equal((decimal)soll, t.QstMonat);
     }
 
     [Fact]
-    public void Toepfe_JeTopfGerundet_TF34RinaldiSeptember()
+    public void Toepfe_RueckstandWirdAusgeglichen()
     {
-        var jetzt = new Dictionary<string, decimal> { ["A0N"] = 15000m, ["B0N"] = 5000m, ["B1N"] = 26290m };
-        var vor = new Dictionary<string, decimal> { ["A0N"] = 15000m, ["B0N"] = 5000m, ["B1N"] = 21075m };
-        decimal Satz(string c) => c switch { "A0N" => 8.70m, "B0N" => 3.90m, _ => 1.90m };
-        var t = QstJahresmodell.RechneToepfe(0m, jetzt, Satz, 1900.45m,
-            vormonatJeCode: QstJahresmodell.SteuerJeCodeExakt(vor, Satz));
-        Assert.Equal(99.10m, t.QstMonat);
-    }
-
-    [Fact]
-    public void Toepfe_JeTopf_GrosseLueckeWirdNachgeholt()
-    {
-        // Aufgeschobener Ausgleich (TF41 Meier Max): Stand Vormonat 1'050 höher als bezahlt.
-        var jetzt = new Dictionary<string, decimal> { ["A0N"] = 20000m };
-        var vor = new Dictionary<string, decimal> { ["A0N"] = 15000m };
-        var t = QstJahresmodell.RechneToepfe(0m, jetzt, _ => 10m, 450m,
-            vormonatJeCode: QstJahresmodell.SteuerJeCodeExakt(vor, _ => 10m));
-        Assert.Equal(500m + 1050m, t.QstMonat);
-    }
-
-    [Fact]
-    public void Toepfe_RestLaeuftInDenNaechstenMonat()
-    {
-        // Der Rest ist die Bruecke: kumuliert exakt minus tatsaechlich abgezogen.
-        var toepfe = new Dictionary<string, decimal> { ["A0N"] = 5111.00m };
-        var t = QstJahresmodell.RechneToepfe(5111.00m, toepfe, _ => 8.70m, 0m);
-        Assert.Equal(444.65m, t.QstMonat);
-        Assert.Equal(0.007m, Math.Round(t.Rest, 3));   // 444.657 - 444.65
+        // Stand 1'050 höher als bezahlt (TF41 Meier Max): der Monat holt ihn nach.
+        var t = QstJahresmodell.RechneToepfe(0m, new Dictionary<string, decimal> { ["A0N"] = 20000m }, _ => 10m, 450m);
+        Assert.Equal(1550m, t.QstMonat);
     }
 
     [Fact]
