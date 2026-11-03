@@ -2094,26 +2094,10 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS dienstalter_bemerkung TEXT;
         -- Kündigungsschreiben am MA (Walter 25.09.2026)
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS kuendigung_dokument_id INTEGER;
-        -- Zivilstand «ledig» ist immer eine Korrektur (Walter 25.09.2026, Fall
-        -- Pavikjevikj): wer heute ledig ist, war es immer. Historien mit einem
-        -- anderen Stand (z.B. «verheiratet seit jeher» + «ledig ab heute») werden
-        -- einmalig auf «ledig seit jeher» zurückgesetzt — sonst verlangt der Lohn
-        -- vergangener Monate einen Ehepartner. Idempotent: danach gibt es keinen
-        -- betroffenen MA mehr.
-        WITH betroffen AS (
-            SELECT DISTINCT e.id
-            FROM employee e
-            JOIN employee_zivilstand_history x ON x.employee_id = e.id
-            WHERE lower(trim(coalesce(e.marital_status, ''))) = 'ledig'
-              AND lower(replace(trim(coalesce(x.zivilstand, '')), ' ', '_')) <> 'ledig'
-        ), weg AS (
-            DELETE FROM employee_zivilstand_history h
-            USING betroffen b WHERE h.employee_id = b.id
-            RETURNING h.employee_id
-        )
-        INSERT INTO employee_zivilstand_history (employee_id, zivilstand, gueltig_ab, erfahren_am, bemerkung, created_at)
-        SELECT id, 'ledig', NULL, NULL, 'Korrektur: ledig seit jeher (Bereinigung 25.09.2026)', LOCALTIMESTAMP
-        FROM betroffen;
+        -- Zivilstand-Bereinigung «ledig seit jeher» (25.09.2026) lief hier bei JEDEM Start und
+        -- löschte die Historie, sobald das Stammblatt kurz «ledig» zeigte (Walter 03.11.2026,
+        -- TF36 Maldini: Heirat 25.05.2025 nach Testmandant 4a weg). Einmalig erledigt; die
+        -- Regel «ledig = Korrektur» gilt weiter beim Speichern (ZivilstandHistorieService).
         -- Briefpost über WebStamp der Post (Walter 24.09.2026): Zugangsdaten
         -- (Singleton, Passwort AES) + Protokoll jeder Vorschau/Bestellung.
         CREATE TABLE IF NOT EXISTS webstamp_setting (

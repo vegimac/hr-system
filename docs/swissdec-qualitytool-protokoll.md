@@ -241,7 +241,7 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 | TF36 Maldini | WorkOrCompensatory der Partnerin (Start 28.07.) schon im Juli | **K35** — Erwerb des Partners ab dem Folgemonat des Stellenantritts (wie der Tarif C0Y ab August). |
 | TF41 Meier Max | zweiter Work-Block und Jahreswerte der ersten Anstellung fehlen | **K36** — frühere Anstellung im selben Jahr: eigener Work-Block (`#w…_0`) und eigene AnnualValues (ohne Zahlungen nach Austritt). |
 | TF34 Rinaldi | Korrekturposten Mai B0N → B1N fehlt, Juli 46.35 statt 141.35 | **K37** — Korrektur-Kette im Jahresmodell zählt bei den Vormonaten die bereits verrechneten Posten zum Bezahlten (April 425 − 240 = 185). Posten neu erzeugen: «Erfahren am» der Version ab 01.05. einmal ändern und zurücksetzen. |
-| TF36 Maldini | Zivilstand single statt married (ab 25.05.) | offen — Zivilstand-Historie prüfen. |
+| TF36 Maldini | Zivilstand single statt married (ab 25.05.) | **K38** — die Start-Bereinigung «ledig seit jeher» (25.09.2026) lief bei jedem Deploy und löschte die Heirat, nachdem Schritt 4a das Stammblatt auf «ledig» zurückgesetzt hatte. Aus dem Start-SQL entfernt; Daten: 4c Mai (TF35, TF36) neu. |
 | TF22 Bucher | QST 509.35 statt 509.30 | offen — 5-Rappen-Rundung im Jahresmodell mit zwei Töpfen. |
 
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
