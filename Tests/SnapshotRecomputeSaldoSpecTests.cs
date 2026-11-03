@@ -118,4 +118,16 @@ public class SnapshotRecomputeSaldoSpecTests
             Regex.IsMatch(src, "Add\\(\"1920\",\\s*\"4000\",\\s*\"Rundungsdifferenz\""),
             "Rundungsdifferenz darf NIE als S 1920 / H 4000 gebucht werden — sonst fehlt der MWST-Code im Abacus-Export.");
     }
+
+    [Fact]
+    public void Recompute_markiert_verrechnete_QST_Posten()
+    {
+        // QT Juli 2025 TF34 Rinaldi: Lohnzettel nach «Snapshots neu berechnen» +190 (Mai+Juni),
+        // der Mai-Posten blieb OFFEN → fehlte in der ELM-Meldung, wäre im August doppelt.
+        var src = Src("Services/SnapshotRecomputeService.cs");
+        Assert.Contains("LetzteQstKorrekturIds", src);
+        Assert.Matches(@"k\.Status\s*=\s*«VERRECHNET»".Replace("«", "\"").Replace("»", "\""), src);
+        Assert.Matches(@"k\.VerrechnetPeriodeId\s*=\s*periode\.Id", src);
+        Assert.Contains("LetzteQstKorrekturIds = kPosten.Select(k => k.Id)", Src("Services/PayrollCalculationEngine.cs"));
+    }
 }

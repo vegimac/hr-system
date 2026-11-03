@@ -94,6 +94,23 @@ public class SnapshotRecomputeService
                 isCorrection: isCorrection, ignoreFrozenSnapshot: true);
             if (calc is not OkObjectResult ok || ok.Value is null) continue;
 
+            // Posten, die der neu gerechnete Lohnzettel verrechnet, gehören dieser Periode —
+            // wie beim Bestätigen (PayrollController K2). Ohne das blieb Rinaldis Mai-Posten
+            // OFFEN: im Lohnzettel +190, in der ELM-Meldung nur Juni (QT Juli 2025, TF34).
+            if (!isCorrection && _calcEngine.LetzteQstKorrekturIds.Count > 0)
+            {
+                var korrIds = _calcEngine.LetzteQstKorrekturIds;
+                var offen = await _db.QstKorrekturen
+                    .Where(k => korrIds.Contains(k.Id) && k.Status == "OFFEN")
+                    .ToListAsync();
+                foreach (var k in offen)
+                {
+                    k.Status              = "VERRECHNET";
+                    k.VerrechnetPeriodeId = periode.Id;
+                    k.VerrechnetAt        = DateTime.Now;
+                }
+            }
+
             var json = JsonSerializer.Serialize(ok.Value, Camel);
             JsonNode? node;
             try { node = JsonNode.Parse(json); } catch { continue; }

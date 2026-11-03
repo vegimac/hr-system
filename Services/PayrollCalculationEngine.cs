@@ -74,6 +74,14 @@ public class PayrollCalculationEngine
     /// </summary>
     public List<FamzZahlung> LetzteFamzZahlungen { get; private set; } = new();
 
+    /// <summary>
+    /// QST-Korrektur-Posten, die die letzte Rechnung als QST_KORR-Zeile verrechnet hat.
+    /// «Snapshots neu berechnen» markiert die noch OFFENEN davon für diese Periode als
+    /// VERRECHNET — sonst stehen sie im Lohnzettel, fehlen aber in der ELM-Meldung und
+    /// würden im Folgemonat ein zweites Mal verrechnet (Quality Tool Juli 2025, TF34 Rinaldi Mai).
+    /// </summary>
+    public List<int> LetzteQstKorrekturIds { get; private set; } = new();
+
     private AhvBeitragspflichtStand? _ahvPflicht;
 
     private async Task<AhvBeitragspflichtStand> AhvPflichtAsync()
@@ -95,6 +103,7 @@ public class PayrollCalculationEngine
         bool ignoreFrozenSnapshot = false)
     {
       LetzteFamzZahlungen = new List<FamzZahlung>();
+      LetzteQstKorrekturIds = new List<int>();
       if (isCorrection)
           return await CalculateCorrectionAsync(employeeId, year, month, companyProfileId);
 
@@ -280,6 +289,7 @@ public class PayrollCalculationEngine
             if (kPosten.Count > 0)
             {
                 qstKorrBetrag = PayrollCalculations.Rappen(kPosten.Sum(k => k.Differenz));
+                LetzteQstKorrekturIds = kPosten.Select(k => k.Id).ToList();
 
                 // «Alt» = zuletzt gemeldeter Code DESSELBEN Monats (Swissdec Old-Block),
                 // nicht der Ur-Code des eingefrorenen Belegs: bei der zweiten Korrektur
