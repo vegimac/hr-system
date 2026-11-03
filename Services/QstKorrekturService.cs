@@ -334,9 +334,14 @@ public class QstKorrekturService
                 ytdAper += aperByM.GetValueOrDefault(m);
                 qstTage += QstJahresmodell.QstTageDesMonats(year, m, vertraege);
                 var stichtag = new DateOnly(year, m, 1).AddMonths(1).AddDays(-1);
+                // Topf = Tarif, den wir zum Zeitpunkt DIESER Korrektur für den Monat kennen (rückwirkende
+                // Versionen eingeschlossen) — wie der Lohnlauf (TopfCodeFuerMonat). Mit Waehle(Stichtag)
+                // lag April noch im A0N-Topf, obwohl die Zahlung schon auf B0N korrigiert war
+                // (TF34 Rinaldi: Mai B0N→B1N +145 statt −95).
                 var code = neu.ValidFrom <= stichtag
                     ? neuCode
-                    : QstJahresmodell.CodeVon(QstVersionWahl.Waehle(versionen, stichtag));
+                    : QstJahresmodell.TopfCodeFuerMonat(versionen, year, m, QstVersionWahl.BekanntAb(neu), kanton)
+                      ?? QstJahresmodell.CodeVon(QstVersionWahl.Waehle(versionen, stichtag));
                 var istM = istByM.GetValueOrDefault(m);
                 if (!string.IsNullOrWhiteSpace(code) && istM != 0)
                     toepfe[code] = toepfe.GetValueOrDefault(code) + istM;
