@@ -450,12 +450,12 @@ public class ElmMonthlyDeclarationBuilder
                 wohnHist.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsAnfang.AddMonths(-1)),
                 e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
             var adresseQstVormonat = new PersonAdresseAm(wohnVormonat.Strasse, wohnVormonat.Plz, wohnVormonat.Ort, wohnVormonat.Land, wohnVormonat.KantonCode);
-            // Alte Adresse mit Wegzugsdatum im Umzugsmonat UND im Folgemonat, wenn der Umzug nach
-            // dem 1. lag — dort wirkt er für die Quellensteuer (Quality Tool Mai 2025: TF25 Lehmann
-            // Wegzug 25.04., TF30 Müller 15.04. — Adresse Mailand/München im Mai noch dabei).
+            // Alte Adresse mit Wegzugsdatum ab dem Umzugsmonat bis Ende Jahr (Quality Tool Mai/Juni
+            // 2025 und Referenz bis November: TF30 Müller Wegzug München 15.04., TF25 Lehmann
+            // Mailand 25.04.).
             var umzug = WohnortHistorieService.UmzugImMonat(
                 wohnHist.Where(h => h.EmployeeId == e.Id),
-                DateOnly.FromDateTime(monatsAnfang.AddMonths(-1)).AddDays(1), monatsEndeTag);
+                new DateOnly(monatsAnfang.Year, 1, 2), monatsEndeTag);
             PersonAdresseAm? adresseVorher = umzug is { } u
                 ? new PersonAdresseAm(u.Alt.Strasse, u.Alt.Plz, u.Alt.Ort, u.Alt.Land, u.Alt.KantonCode)
                 : null;
@@ -690,7 +690,8 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "TotalCommission", "0.00"),
                 new XElement(Sd + "CurrentMonth", monatStr)),
             korrTotal.TryGetValue(kt, out var jeMonat)
-                ? jeMonat.Select(m => new XElement(Sd + "CorrectionMonth",
+                // Absteigend wie die Referenz (RefXML Juni 2025: 2025-05 vor 2025-04).
+                ? jeMonat.Reverse().Select(m => new XElement(Sd + "CorrectionMonth",
                     new XElement(Sd + "TotalTaxableEarning", Amt(m.Value.Basis)),
                     new XElement(Sd + "TotalTaxAtSource", Amt(m.Value.Steuer)),
                     new XElement(Sd + "TotalCommission", "0.00"),
@@ -1184,6 +1185,14 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "Entry",
                     new XElement(Sd + "ValidAsOf", stichtag.ToString("yyyy-MM-dd")),
                     new XElement(Sd + "Reason", "cantonChange")));
+        // Neue QST-Version ab dem Monatsersten im selben Kanton (Quality Tool Juni 2025: TF23 Koller,
+        // TF35 Roos, TF36 Maldini Heirat → B0N/B0Y ab 01.06.): Mutation mit dem Grund aus dem Code.
+        else if (declaration == null && version != null && vorher != null && version.ValidFrom == stichtag
+                 && kantonVorher == kanton && MutationsGrund(vorher.QstCode, version.QstCode) is string grund)
+            declaration = new XElement(Sd + "DeclarationCategory",
+                new XElement(Sd + "Mutation",
+                    new XElement(Sd + "ValidAsOf", stichtag.ToString("yyyy-MM-dd")),
+                    new XElement(Sd + "Reason", grund)));
         // Wohnsitzwechsel ohne Kantonswechsel der QST (Quality Tool Mai 2025: TF25 Lehmann Italien →
         // Malters, TF30 Müller Deutschland → Bern): Mutation «residence» ab Monatsersten.
         else if (declaration == null && wohnVormonat != null && wohnAmStichtag != null
@@ -1483,6 +1492,22 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(C + "Country", LandName(land))),
             residence,
             arbeit);
+    }
+
+    /// <summary>
+    /// Grund einer QST-Mutation aus dem Tarifcode (Buchstabe, Kinder, Kirchensteuer): A↔B/H u.a. =
+    /// Zivilstand, B↔C = Erwerb des Ehepartners, Ziffer = Kinderabzug, Y/N = Kirchensteuer.
+    /// Null, wenn sich am Code nichts geändert hat.
+    /// </summary>
+    public static string? MutationsGrund(string? alt, string? neu)
+    {
+        var a = (alt ?? "").Trim().ToUpperInvariant();
+        var n = (neu ?? "").Trim().ToUpperInvariant();
+        if (a.Length != 3 || n.Length != 3 || a == n) return null;
+        if (a[0] != n[0])
+            return (a[0] is 'B' or 'C') && (n[0] is 'B' or 'C') ? "partnerWork" : "civilstate";
+        if (a[1] != n[1]) return "childrenDeduction";
+        return a[2] != n[2] ? "churchTax" : null;
     }
 
     /// <summary>Wohnsitz für die QST verglichen: Kanton in der Schweiz, sonst das Land.</summary>

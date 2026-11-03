@@ -217,6 +217,16 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 | TF41 Meier Max | `WithdrawalDate` 31.03. fehlt bei Zahlung nach Austritt | **K26** — Work-Block meldet den Austritt auch, wenn er vor dem Meldemonat lag. |
 | catchAll | Arbeitsorte AG/ZG | offen (nur Warnung), siehe April |
 
+### 2025-06 — Sendung 03.11.2026 12:04 (18e48426bb960ae95), Korrekturen K27–K30
+
+| Testfall | Befund | Korrektur / Stand |
+|---|---|---|
+| TF23 Koller, TF35 Roos, TF36 Maldini | `Mutation civilstate` 01.06. fehlt | **K27** — neue QST-Version ab Monatsersten im selben Kanton: Mutation mit Grund aus dem Code (Buchstabe = civilstate, B↔C = partnerWork, Ziffer = childrenDeduction, Y/N = churchTax). |
+| TF25 Lehmann, TF30 Müller | alte Auslandsadresse auch im Juni | **K28** — alte Adresse mit DepartureDate ab Umzugsmonat bis Ende Jahr (Referenz Müller bis November). |
+| SalaryTotals | CorrectionMonth-Reihenfolge | **K29** — absteigend (2025-05 vor 2025-04) wie die Referenz. |
+| TF26 Jenzer | SocialContributions −754.45 statt −763.30 | **K30** — «Snapshots neu berechnen» zog die SV-Basen-Spalten nicht nach (Februar 8'400 statt 8'000). Gefixt; TI Februar neu berechnen, dann Juni TI neu. |
+| TF35 Roos, TF36 Maldini | Partner-Adresse falsch (Roos zeigt Blockweg 2 Bern, Maldini schon Como) | **offen, Daten** — Partner-Adresse hat keine Historie; Maldini-Partnerin wohnt bis August in Bern, ab September in Como. |
+
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 
 ### F1 — TF14 Egli, Quellensteuer-Code (November 2024)
