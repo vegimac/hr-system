@@ -100,7 +100,7 @@ Das Quality Tool wird diese Felder ankreiden. Begründung mitnehmen, nicht die E
 | **OneCrew** | TAGE30, Monatsende = Tag 30, Eintritt inklusiv: 10.–30. = **21 Tage** → 12'000 × 21/30 = **8'400**. 13. im Pott Round05(8'400/12) = **700.00**. 1001 wird im Teilmonat nicht importiert (sonst doppelt). Dieselbe Zählung wie Eintritt 16.11. = 15 Tage und 27.02. = 4 Tage (TF12 Casanova, CSV dort ebenfalls 4 Tage). |
 | **Swissdec** | 1000 = 12'000, 1001 = −4'000 → Brutto **8'000** (20/30). Quality Tool Jenzer Feb: AHV 424, ALV 88, NBU 128.48, KTG 12 = 3.00, BVG 910, QST R0N 737.14. 13. CSV erst Juni 4'166.65 auf Basis Feb 8'000. |
 | **Begründung** | Am 10. arbeitet die Person. Den Eintrittstag nicht zu zahlen (Tage 1–10 = 10 Tage Abzug) ist in der CSV falsch und widerspricht Swissdecs eigener 27.02.-Regel. OneCrew verbiegt die 30-Tage-Methode nicht. Differenz zeigen, nicht nachbauen. |
-| **Status** | BEWUSST — Swissdec den Fehler zeigen. |
+| **Status** | ~~BEWUSST — Swissdec den Fehler zeigen.~~ **ERGÄNZT (Walter 03.11.2026, Variante B):** Der Swissdec-Experte hält die Zählung «Eintrittstag zählt nicht» für möglich korrekt. Walter bleibt fachlich bei 21 Tagen, will A7 im Lohntest aber nicht mehr sehen. Darum **nur Testdaten**, keine andere Rechenregel: auf test.onecrew.ch bei TF25 Lehmann und TF26 Jenzer im Februar 2025 je eine Zulage **1001 Lohnkorrektur −400.00**, Bemerkung «A7: Eintrittstag nach Swissdec-Testdaten (CSV 1001 −4'000)» — bewusst NICHT «Swissdec-Testdaten», sonst räumt 5b sie ab. Engine, Import und Prod unverändert (TAGE30, Eintrittstag zählt). |
 
 ---
 
