@@ -892,6 +892,14 @@ public class EmployeesController : ControllerBase
             await EnrichAddressFromZipAsync(employee, forceCantonRefresh: forceRefresh);
         }
 
+        // Wohnort Schweiz ohne Kanton wird nicht gespeichert (Walter 03.11.2026) — der Kanton
+        // bestimmt die Quellensteuer; still leer lassen führte zu Versionen ohne Kanton.
+        if (!landIstAusland
+            && (!string.IsNullOrWhiteSpace(employee.ZipCode) || !string.IsNullOrWhiteSpace(employee.City))
+            && (string.IsNullOrWhiteSpace(employee.CantonCode) || employee.CantonCode == "EX"))
+            return BadRequest(new { error = "KANTON_FEHLT",
+                message = "Wohnort in der Schweiz ohne Kanton — bitte den Kanton wählen (PLZ und Ort prüfen)." });
+
         // ── Aufenthalt ────────────────────────────────────────────────────
         if (dto.PermitTypeId.HasValue)     employee.PermitTypeId     = dto.PermitTypeId == 0 ? null : dto.PermitTypeId;
         // dto.PermitExpiryDate wird IGNORIERT (Walter 01.06.2026) — das Ablauf-

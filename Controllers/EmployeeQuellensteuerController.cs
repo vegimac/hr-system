@@ -463,6 +463,8 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Abweichung = keine falsche Steuermeldung). Die Spalten bleiben
         // als eingefrorene Historie pro Gültigkeits-Version erhalten.
         await ApplyWohnadresseAsync(dto, employeeId);
+        var kantonNeu = PruefeKanton(dto);
+        if (kantonNeu != null) return kantonNeu;
 
         var zusatzNeu = PruefeQstZusatz(dto);
         if (zusatzNeu != null) return zusatzNeu;
@@ -678,6 +680,8 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Client-Wert wird ignoriert.
         // Wohnort-Kette server-autoritativ (Walter 12.08.2026) — siehe Create.
         await ApplyWohnadresseAsync(entry, employeeId);
+        var kantonUpd = PruefeKanton(entry);
+        if (kantonUpd != null) return kantonUpd;
         var zusatzUpd = PruefeQstZusatz(dto);
         if (zusatzUpd != null) return zusatzUpd;
         var grenzUpd = await PruefeGrenzgaengerAsync(dto, employeeId);
@@ -931,6 +935,21 @@ public class EmployeeQuellensteuerController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Ohne Steuerkanton keine Quellensteuer-Version (Walter 03.11.2026): nie still leer speichern
+    /// und nie einen Kanton erfinden. Wohnort Schweiz → Kanton des MA fehlt; Wohnsitz Ausland →
+    /// Arbeitskanton aus der Filiale des Vertrags nicht ermittelbar. Versionen ohne Tarif bleiben frei.
+    /// </summary>
+    private IActionResult? PruefeKanton(EmployeeQuellensteuer q)
+    {
+        if (!string.IsNullOrWhiteSpace(q.Steuerkanton)) return null;
+        if (string.IsNullOrWhiteSpace(q.TarifCode) && string.IsNullOrWhiteSpace(q.QstCode)) return null;
+        var message = q.IsGrenzgaenger
+            ? $"Kein Quellensteuer-Kanton gefunden. Die Person wohnt am {q.ValidFrom:dd.MM.yyyy} im Ausland — der QST-Kanton ist dann der Arbeitskanton. Für diesen Tag ist kein Vertrag mit einer Filiale hinterlegt, deren PLZ im Ortsverzeichnis steht. Bitte Vertrag bzw. Filial-Adresse prüfen."
+            : $"Kein Quellensteuer-Kanton gefunden. Beim Mitarbeiter fehlt der Wohnkanton (Wohnort am {q.ValidFrom:dd.MM.yyyy}). Bitte zuerst in den Personalien Adresse und Kanton erfassen.";
+        return Conflict(new { error = "QST_KANTON_FEHLT", message });
+    }
+
     private async Task ApplyWohnadresseAsync(EmployeeQuellensteuer entry, int employeeId)
     {
         // Adresse AM STICHTAG (Gültig-ab der Version) — aus der Wohnort-
@@ -1002,7 +1021,7 @@ public class EmployeeQuellensteuerController : ControllerBase
                                        && em.ContractStartDate < naechsterTag
                                        && (em.ContractEndDate == null || em.ContractEndDate >= tag)
                                  orderby em.ContractStartDate
-                                 select new { c.ZipCode, c.City, c.KantonCode, c.BfsGemeindeNr })
+                                 select new { c.ZipCode, c.City })
                 .FirstOrDefaultAsync();
 
             entry.Steuerkanton = null; entry.SteuerkantonName = null;
@@ -1022,16 +1041,6 @@ public class EmployeeQuellensteuerController : ControllerBase
                     entry.QstGemeinde      = fMatch.Gemeindename;
                     entry.QstGemeindeBfsNr = fMatch.BfsNr;
                 }
-            }
-            // Ohne PLZ-Treffer (PLZ-Verzeichnis leer oder Ort weicht ab) die Angaben der Filiale
-            // selbst nehmen, statt den Kanton zu leeren (Walter 03.11.2026, TF25 Lehmann April:
-            // «Kanton –» nach dem Speichern → keine Quellensteuer im Lohnlauf).
-            if (string.IsNullOrWhiteSpace(entry.Steuerkanton) && filiale?.KantonCode is { Length: 2 } fk)
-            {
-                entry.Steuerkanton     = fk.ToUpperInvariant();
-                entry.SteuerkantonName = KantonNamen.TryGetValue(entry.Steuerkanton, out var fkn2) ? fkn2 : null;
-                entry.QstGemeinde    ??= string.IsNullOrWhiteSpace(filiale.City) ? null : filiale.City.Trim();
-                entry.QstGemeindeBfsNr ??= filiale.BfsGemeindeNr;
             }
             return;
         }

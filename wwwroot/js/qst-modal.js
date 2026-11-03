@@ -1510,6 +1510,10 @@ async function saveQstEntry() {
             if (window.lohnEditLock) window.lohnEditLock.invalidateCache();
             return;
         }
+        if (body && body.error === 'QST_KANTON_FEHLT') {
+            resultEl.innerHTML = `<span style="color:#dc2626">${body.message}</span>`;
+            return;
+        }
         if (body && body.error === 'KORREKTUR_GRUND_NOETIG') {
             qstShowKorrGrundRow();
             resultEl.innerHTML = `<span style="color:#b45309">${body.message}</span>`;
