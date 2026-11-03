@@ -208,8 +208,13 @@ public partial class SwissdecTestmandantController
             var tag1 = mon;                      // Wirkung ab Monatsanfang
             var vortag = tag1.AddDays(-1);
             // Umzug ab dem Tag nach dem Wegzugsdatum, wenn es in diesen Monat fällt; sonst ab Monatsanfang.
+            // Umzug ab dem Tag nach dem Wegzugsdatum — auch wenn es im Vormonat liegt (Quality Tool Sep 2025:
+            // TF36 Maldini Wegzug 28.08., im September gemeldet → DepartureDate 2025-08-28). Der QST-Wohnsitz
+            // folgt ohnehin dem Monatsersten (KS 45), der abgeschlossene August bleibt unverändert.
             DateOnly UmzugAb(DateOnly ab) => Hat("PersonDepartureDate") && Datum(V("PersonDepartureDate")) is DateOnly wz
-                && wz.Year == ab.Year && wz.Month == ab.Month && wz.AddDays(1) > ab ? wz.AddDays(1) : ab;
+                && wz.AddDays(1) <= ab && wz.AddDays(1) > ab.AddMonths(-1) ? wz.AddDays(1)
+                : Hat("PersonDepartureDate") && Datum(V("PersonDepartureDate")) is DateOnly wz2
+                  && wz2.Year == ab.Year && wz2.Month == ab.Month && wz2.AddDays(1) > ab ? wz2.AddDays(1) : ab;
             DateOnly? rueckAb = null;
             if (!Hat("PersonTASCodeValidAsOf")
                 && string.Equals(V("PersonTASTriggerOfChange"), "AwaitCorrectionFromCompany", StringComparison.OrdinalIgnoreCase))
@@ -416,6 +421,26 @@ public partial class SwissdecTestmandantController
                     {
                         p.Erwerbstaetig = true; p.Stellenantritt = pstart.ToDateTime(TimeOnly.MinValue);
                         var pw = V("PersonPartnerWorkplace"); if (pw != null) { p.ArbeitgeberOrt = pw.Length > 2 ? pw : null; p.ArbeitgeberKanton = pw.Length == 2 ? pw : p.ArbeitgeberKanton; }
+                    }
+                    // Arbeitsort als Verlauf (Quality Tool Sep 2025: TF36 Maldini, Partnerin TI → EX ab 01.09.):
+                    // der Vormonat muss den alten Kanton behalten, sonst fehlt die Mutation
+                    // «partnerWorkplaceChangeCHAbroad» und ein neu gesendeter Vormonat zeigte schon EX.
+                    if (V("PersonPartnerWorkplace") is { Length: 2 } pwKt)
+                    {
+                        pwKt = pwKt.ToUpperInvariant();
+                        var ab = Datum(V("PersonPartnerStartActivity")) ?? tag1;
+                        var erwerb = p.Id == 0 ? new List<FamilyMemberErwerbHistory>()
+                            : await _db.FamilyMemberErwerbHistories.Where(h => h.FamilyMemberId == p.Id).ToListAsync();
+                        var antritt = p.Stellenantritt.HasValue ? DateOnly.FromDateTime(p.Stellenantritt.Value) : (DateOnly?)null;
+                        if (!erwerb.Any(h => !string.IsNullOrWhiteSpace(h.ArbeitgeberKanton))
+                            && Alt("PersonPartnerWorkplace") is { Length: 2 } altKt && antritt is DateOnly seit && seit < ab)
+                            p.ErwerbHistories.Add(new FamilyMemberErwerbHistory { Erwerbstaetig = true, ArbeitgeberKanton = altKt.ToUpperInvariant(),
+                                Stellenantritt = seit, ValidFrom = seit, Note = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
+                        var amTag = erwerb.FirstOrDefault(h => h.ValidFrom == ab);
+                        if (amTag != null) { amTag.ArbeitgeberKanton = pwKt; amTag.Erwerbstaetig = true; }
+                        else p.ErwerbHistories.Add(new FamilyMemberErwerbHistory { Erwerbstaetig = true, ArbeitgeberKanton = pwKt,
+                                Stellenantritt = antritt ?? ab, ValidFrom = ab, Note = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
+                        p.ArbeitgeberKanton = pwKt;
                     }
                     p.Gender = emp.Gender == "female" ? "male" : emp.Gender == "male" ? "female" : p.Gender;
                     var tas = V("PersonTASCode") ?? (await _db.EmployeeQuellensteuer.AsNoTracking()
@@ -868,6 +893,15 @@ public partial class SwissdecTestmandantController
     {
         string? V(string k) => w.TryGetValue(k, out var x) && !string.IsNullOrWhiteSpace(x) && x != "None" ? x : null;
         bool Hat(string k) => w.ContainsKey(k);
+        // Wechsel Stunden- ↔ Monatslohn: der 13./14. Monatslohn gehört zur Vertragsart (PersonContractHourly13th
+        // bzw. PersonContractMonthly13th) und wird nicht vom alten Vertrag geerbt (Quality Tool Sep 2025:
+        // TF14 Egli Stundenlohn mit 13. ML → Praktikum Monatslohn ohne, Contractual13th 0.00).
+        if (!string.Equals(v.EmploymentModel, modell, StringComparison.OrdinalIgnoreCase))
+        {
+            var monat = modell == "FIX";
+            v.ThirteenthSalary = V(monat ? "PersonContractMonthly13th" : "PersonContractHourly13th") != null;
+            v.VierzehnterMonatslohn = V(monat ? "PersonContractMonthly14th" : "PersonContractHourly14th") != null;
+        }
         v.EmploymentModel = modell; v.SalaryType = modell == "FIX" ? "monthly" : "hourly";
         if (fil != null) v.CompanyProfileId = fil.Id;
         if (Hat("PersonAgreedWeeklyHours")) v.WeeklyHours = Dez(V("PersonAgreedWeeklyHours"));

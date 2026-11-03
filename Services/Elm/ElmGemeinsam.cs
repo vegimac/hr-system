@@ -399,7 +399,8 @@ public static class ElmGemeinsam
                                        PermitType? bewilligungAmStichtag = null,
                                        string? zivilstandAmStichtag = null, DateOnly? zivilstandSeit = null,
                                        PersonAdresseAm? adresseAmStichtag = null,
-                                       PersonAdresseAm? adresseVorher = null, DateOnly? wegzug = null)
+                                       PersonAdresseAm? adresseVorher = null, DateOnly? wegzug = null,
+                                       int? gemeindeVorher = null)
     {
         var svDigits = Regex.Replace(e.SocialSecurityNumber ?? "", @"\D", "");
         XElement svEl;
@@ -480,7 +481,7 @@ public static class ElmGemeinsam
         var adressen = new XElement(C + "Addresses");
         adressen.Add(Adresse(street, zipRoh, cityRoh, landRoh, kantonRoh, wohnGemeindeNr, null));
         if (adresseVorher != null && wegzug != null)
-            adressen.Add(Adresse(adresseVorher.Street, adresseVorher.Zip, adresseVorher.City, adresseVorher.Country, adresseVorher.Canton, null, wegzug));
+            adressen.Add(Adresse(adresseVorher.Street, adresseVorher.Zip, adresseVorher.City, adresseVorher.Country, adresseVorher.Canton, gemeindeVorher, wegzug));
 
         // Bewilligungsart nur bei Ausländern (Reihenfolge laut XSD nach Nationality).
         var permit = bewilligungAmStichtag ?? e.PermitType;

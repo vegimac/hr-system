@@ -340,6 +340,10 @@ public class ElmMonthlyDeclarationBuilder
             .Where(f => empIds.Contains(f.EmployeeId))
             .ToListAsync(ct);
         _kindVerlauf = await KindQstVerlaufLader.LadeAsync(_db, familie.Where(f => f.MemberType == "Kind").ToList());
+        var partnerIds = familie.Where(f => f.MemberType != "Kind").Select(f => f.Id).ToList();
+        var erwerbVerlauf = await _db.FamilyMemberErwerbHistories.AsNoTracking()
+            .Where(h => partnerIds.Contains(h.FamilyMemberId))
+            .ToListAsync(ct);
         var wochenAdressen = await _db.EmployeeAddresses.AsNoTracking()
             .Where(a => empIds.Contains(a.EmployeeId) && a.AddressType == "Wochenaufenthalt")
             .ToListAsync(ct);
@@ -449,6 +453,11 @@ public class ElmMonthlyDeclarationBuilder
                 .Where(f => f.EmployeeId == e.Id && f.MemberType == "Ehepartner" && f.DateOfDeath == null)
                 .OrderByDescending(f => f.Id).FirstOrDefault();
             var partnerAdresse = PartnerAdresse.Am(partner, partnerAdressen, monatsEndeTag);
+            var partnerErwerb = partner == null ? new List<FamilyMemberErwerbHistory>()
+                : erwerbVerlauf.Where(h => h.FamilyMemberId == partner.Id).ToList();
+            var partnerArbeitsort = partner == null ? null : PartnerArbeitsort(partner, partnerErwerb, monatsEndeTag);
+            var partnerArbeitsortVormonat = partner == null ? null
+                : PartnerArbeitsort(partner, partnerErwerb, DateOnly.FromDateTime(monatsAnfang).AddDays(-1));
             var (zivAm, zivSeitAm, _) = ZivilstandHistorieService.Am(
                 zivilHist.Where(h => h.EmployeeId == e.Id), monatsEndeTag, e.MaritalStatus, e.MaritalStatusSince);
             var wohnAm = WohnortHistorieService.Am(
@@ -499,10 +508,18 @@ public class ElmMonthlyDeclarationBuilder
                            .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
 
                 var jahresToepfe = Toepfe(slip, lohnartByCode, null, statistikByLohnart);
+                // Ein Filialwechsel ohne Unterbruch ist kein Austritt: die Monate in der früheren
+                // Filiale zählen mit (Quality Tool Sep 2025: TF35 Roos TI → BE, TF36 Maldini BE → TI,
+                // Bonus 30'000 vom Februar). Monate, in denen die Person auch hier Lohn hatte, zählen
+                // nur hier — sonst stünde eine gleichzeitige zweite Anstellung doppelt.
+                var monateHier = vorSnaps.Where(v => v.EmployeeId == e.Id)
+                    .Select(v => vorPeriodeById[v.PayrollPeriodeId])
+                    .Where(vp => vp.CompanyProfileId == filialId).Select(vp => vp.Month).ToHashSet();
+                bool ZaehltHier(PayrollPeriode vp) => vp.CompanyProfileId == filialId || !monateHier.Contains(vp.Month);
                 foreach (var vor in vorSnaps.Where(v => v.EmployeeId == e.Id))
                 {
                     var vp = vorPeriodeById[vor.PayrollPeriodeId];
-                    if (vp.CompanyProfileId != filialId || new DateTime(year, vp.Month, 1) < ersterMonatDerPeriode) continue;
+                    if (!ZaehltHier(vp) || new DateTime(year, vp.Month, 1) < ersterMonatDerPeriode) continue;
                     if (string.IsNullOrWhiteSpace(vor.SlipJson)) continue;
                     JsonElement vorSlip;
                     try { vorSlip = JsonDocument.Parse(vor.SlipJson).RootElement; }
@@ -521,7 +538,7 @@ public class ElmMonthlyDeclarationBuilder
                     {
                         var vp = vorPeriodeById[vor.PayrollPeriodeId];
                         var mStart = new DateTime(year, vp.Month, 1);
-                        if (vp.CompanyProfileId != filialId || mStart < new DateTime(vkVon.Year, vkVon.Month, 1) || mStart > vkBis) continue;
+                        if (!ZaehltHier(vp) || mStart < new DateTime(vkVon.Year, vkVon.Month, 1) || mStart > vkBis) continue;
                         if (string.IsNullOrWhiteSpace(vor.SlipJson)) continue;
                         try
                         {
@@ -557,7 +574,8 @@ public class ElmMonthlyDeclarationBuilder
                                        wochenAdressen.Where(a => a.EmployeeId == e.Id)
                                            .OrderByDescending(a => a.ValidFrom).FirstOrDefault(),
                                        qstAperiodisch, partner, partnerAdresse, adresseQst,
-                                       qstEintritt, qstAustritt, adresseQstVormonat);
+                                       qstEintritt, qstAustritt, adresseQstVormonat,
+                                       partnerArbeitsort, partnerArbeitsortVormonat);
                 if (qst != null)
                 {
                     gemeldeteFilialen.Add(filialId);
@@ -636,7 +654,9 @@ public class ElmMonthlyDeclarationBuilder
 
             var person = new XElement(Sd + "Person",
                 Particulars(e, warn, WohnGemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde,
-                    zivAm, zivSeitAm, adresseAm, adresseVorher, umzug?.Wegzug),
+                    zivAm, zivSeitAm, adresseAm, adresseVorher, umzug?.Wegzug,
+                    // Auch die alte Adresse trägt die Gemeinde (Quality Tool Sep 2025: TF35 Roos 5002, TF36 Maldini 351).
+                    adresseVorher == null ? null : WohnGemeinde(adresseVorher.Zip, adresseVorher.City)),
                 vorKette is { Ende: DateTime vkWd } vkw
                     ? new XElement(C + "Work",
                         new XAttribute("workID", WorkId(e) + "_0"),
@@ -1183,7 +1203,8 @@ public class ElmMonthlyDeclarationBuilder
         EmployeeFamilyMember? partner = null, EmployeeAddress? partnerAdresse = null,
         PersonAdresseAm? wohnAmStichtag = null,
         DateTime? eintrittAm = null, DateTime? austrittAm = null,
-        PersonAdresseAm? wohnVormonat = null)
+        PersonAdresseAm? wohnVormonat = null,
+        string? partnerArbeitsort = null, string? partnerArbeitsortVormonat = null)
     {
         if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
         JsonElement? qstZeile = null;
@@ -1246,8 +1267,23 @@ public class ElmMonthlyDeclarationBuilder
         bool kantonswechsel = entryEl == null && kantonVorher.Length == 2 && kantonVorher != kanton
                               && (eintritt == null || eintritt.Value < monatsAnfang);
         var monatsAnfangTag = stichtag.ToDateTime(TimeOnly.MinValue);
+        bool schonAngestellt = eintritt == null || eintritt.Value < monatsAnfang;
+        bool wohnsitzWechsel = wohnVormonat != null && wohnAmStichtag != null && schonAngestellt
+                               && WohnsitzSchluessel(wohnVormonat) != WohnsitzSchluessel(wohnAmStichtag);
+        // Arbeitsort des Ehepartners wechselt von der Schweiz ins Ausland (Quality Tool Sep 2025:
+        // TF36 Maldini, Partnerin TI → EX ab 01.09.). Nur bei Tarifen mit Ehepartner.
+        bool partnerInsAusland = schonAngestellt && TarifMitEhepartner(code)
+                                 && partnerArbeitsortVormonat is { Length: 2 } pv && pv != "EX"
+                                 && partnerArbeitsort == "EX";
         if (kantonswechsel)
+        {
             entryEl = Teil("Entry", monatsAnfangTag, "cantonChange");
+            // Umzug in den neuen Kanton: zusätzlich Mutation «residence», im alten wie im neuen
+            // Kanton (Quality Tool Sep 2025: TF35 Roos TI → BE, TF36 Maldini BE → Como/TI).
+            // Beim Wechsel nur des Arbeitskantons (TF25 Lehmann April) bleibt der Wohnsitz gleich.
+            if (wohnsitzWechsel) mutationen.Add(Teil("Mutation", monatsAnfangTag, "residence")!);
+            if (partnerInsAusland) mutationen.Add(Teil("Mutation", monatsAnfangTag, "partnerWorkplaceChangeCHAbroad")!);
+        }
         else if (entryEl == null)
         {
             // Neue QST-Version ab dem Monatsersten im selben Kanton (Quality Tool Juni 2025: TF23 Koller,
@@ -1256,17 +1292,17 @@ public class ElmMonthlyDeclarationBuilder
                 mutationen.AddRange(MutationsGruende(vorher.QstCode, version.QstCode).Select(g => Teil("Mutation", monatsAnfangTag, g)!));
             // Wohnsitzwechsel ohne Kantonswechsel der QST (Quality Tool Mai 2025: TF25 Lehmann Italien →
             // Malters, TF30 Müller Deutschland → Bern): Mutation «residence» ab Monatsersten.
-            if (mutationen.Count == 0 && wohnVormonat != null && wohnAmStichtag != null
-                && (eintritt == null || eintritt.Value < monatsAnfang)
-                && WohnsitzSchluessel(wohnVormonat) != WohnsitzSchluessel(wohnAmStichtag))
+            if (mutationen.Count == 0 && wohnsitzWechsel)
                 mutationen.Add(Teil("Mutation", monatsAnfangTag, "residence")!);
+            if (partnerInsAusland && !mutationen.Any(m => (string?)m.Element(Sd + "Reason") == "partnerWorkplaceChangeCHAbroad"))
+                mutationen.Add(Teil("Mutation", monatsAnfangTag, "partnerWorkplaceChangeCHAbroad")!);
         }
         XElement? declaration = entryEl == null && mutationen.Count == 0 && withdrawalEl == null ? null
             : new XElement(Sd + "DeclarationCategory", entryEl, mutationen, withdrawalEl);
 
         var aperiodisch = aperiodischeCodes == null ? 0m : SummeCodes(slip, aperiodischeCodes);
         var ehepartner = TarifMitEhepartner(code)
-            ? Ehepartner(e, partner, partnerAdresse, warn, DateOnly.FromDateTime(monatsEnde))
+            ? Ehepartner(e, partner, partnerAdresse, warn, DateOnly.FromDateTime(monatsEnde), partnerArbeitsort)
             : null;
 
         var x = new XElement(Sd + "TaxAtSourceSalary",
@@ -1305,6 +1341,7 @@ public class ElmMonthlyDeclarationBuilder
                 cur.Element(Sd + feld)!.Value = "0.00";
             cur.Element(Sd + "SporadicBenefits")?.Remove();
             cur.Element(Sd + "DeclarationCategory")!.ReplaceWith(new XElement(Sd + "DeclarationCategory",
+                mutationen.Select(m => new XElement(m)),
                 new XElement(Sd + "Withdrawal",
                     new XElement(Sd + "ValidAsOf", stichtag.AddDays(-1).ToString("yyyy-MM-dd")),
                     new XElement(Sd + "Reason", "cantonChange"))));
@@ -1475,6 +1512,18 @@ public class ElmMonthlyDeclarationBuilder
     /// C (Doppelverdiener), T (Grenzgänger IT, verheiratet) — so in allen RefXML 2025/26;
     /// A, H und die vordefinierten Kategorien melden keinen.
     /// </summary>
+    /// <summary>
+    /// Arbeitsort-Kanton des Ehepartners am Stichtag («EX» = Ausland): jüngster Erwerbs-Eintrag
+    /// mit Kanton (Gültig-ab und Erfahren-am ≤ Stichtag), ohne solchen Verlauf das Feld am Partner.
+    /// </summary>
+    public static string? PartnerArbeitsort(EmployeeFamilyMember p, IEnumerable<FamilyMemberErwerbHistory> verlauf, DateOnly stichtag)
+    {
+        var mitKanton = verlauf.Where(h => !string.IsNullOrWhiteSpace(h.ArbeitgeberKanton)).ToList();
+        if (mitKanton.Count == 0)
+            return string.IsNullOrWhiteSpace(p.ArbeitgeberKanton) ? null : p.ArbeitgeberKanton.Trim().ToUpperInvariant();
+        return FamilyMemberQstHistorie.ErwerbAm(mitKanton, stichtag)?.ArbeitgeberKanton?.Trim().ToUpperInvariant();
+    }
+
     public static bool TarifMitEhepartner(string? code)
     {
         var m = System.Text.RegularExpressions.Regex.Match((code ?? "").Trim().ToUpperInvariant(), @"^([A-Z]{1,2})\d[YN]$");
@@ -1490,7 +1539,8 @@ public class ElmMonthlyDeclarationBuilder
     /// liegt — sonst meldet Jan TF24 Utzinger den Partner-Job von Sept. mit (QT: 7 statt 6).
     /// Null + Hinweis, wenn kein Ehepartner erfasst ist.
     /// </summary>
-    public static XElement? Ehepartner(Employee e, EmployeeFamilyMember? p, EmployeeAddress? eigeneAdresse, List<string> warn, DateOnly? stichtag = null)
+    public static XElement? Ehepartner(Employee e, EmployeeFamilyMember? p, EmployeeAddress? eigeneAdresse, List<string> warn, DateOnly? stichtag = null,
+                                       string? arbeitsortAmStichtag = null)
     {
         if (p == null)
         {
@@ -1537,7 +1587,7 @@ public class ElmMonthlyDeclarationBuilder
             && (p.Erwerbstaetig == true || ende.HasValue);
         if (melden && antritt.HasValue)
         {
-            var akt = (p.ArbeitgeberKanton ?? "").Trim().ToUpperInvariant();
+            var akt = (arbeitsortAmStichtag ?? p.ArbeitgeberKanton ?? "").Trim().ToUpperInvariant();
             arbeit = new XElement(Sd + "WorkOrCompensatory",
                 new XElement(Sd + "Workplace", akt.Length == 2 ? akt : "EX"),
                 new XElement(Sd + "Start", antritt.Value.ToString("yyyy-MM-dd")),
