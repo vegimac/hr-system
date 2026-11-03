@@ -207,6 +207,9 @@ public partial class SwissdecTestmandantController
             gruppen++;
             var tag1 = mon;                      // Wirkung ab Monatsanfang
             var vortag = tag1.AddDays(-1);
+            // Umzug ab dem Tag nach dem Wegzugsdatum, wenn es in diesen Monat fällt; sonst ab Monatsanfang.
+            DateOnly UmzugAb(DateOnly ab) => Hat("PersonDepartureDate") && Datum(V("PersonDepartureDate")) is DateOnly wz
+                && wz.Year == ab.Year && wz.Month == ab.Month && wz.AddDays(1) > ab ? wz.AddDays(1) : ab;
             DateOnly? rueckAb = null;
             if (!Hat("PersonTASCodeValidAsOf")
                 && string.Equals(V("PersonTASTriggerOfChange"), "AwaitCorrectionFromCompany", StringComparison.OrdinalIgnoreCase))
@@ -292,7 +295,11 @@ public partial class SwissdecTestmandantController
                 var plz = NummerOhneKomma(V("PersonZIPCode")) ?? emp.ZipCode; var ort = V("PersonCity") ?? emp.City; var str = V("PersonStreet") ?? emp.Street;
                 var kt = land == "CH" ? (V("PersonResidenceCanton") ?? emp.CantonCode) : null;
                 if (kt == "EX") kt = null;
-                stamm.Add($"Umzug → {str}, {plz} {ort} ({land}{(kt != null ? " " + kt : "")}) ab {tag1:dd.MM.yyyy}");
+                // Wegzugsdatum (Swissdec PersonDepartureDate) = letzter Tag am alten Wohnort; der neue
+                // gilt ab dem Folgetag, nicht ab dem Mutationsmonat (Quality Tool April 2025: TF25
+                // Lehmann 25.04., TF30 Müller 15.04. — im April noch Wohnsitz Ausland).
+                var umzugAb = UmzugAb(tag1);
+                stamm.Add($"Umzug → {str}, {plz} {ort} ({land}{(kt != null ? " " + kt : "")}) ab {umzugAb:dd.MM.yyyy}");
                 if (!vorschau)
                 {
                     // Stand vor dem Umzug = CSV-Alt (nicht aktueller MA — nach erstem Lauf
@@ -336,15 +343,18 @@ public partial class SwissdecTestmandantController
                     var schonZiel = !string.IsNullOrWhiteSpace(kt) && await _db.EmployeeWohnortHistories
                         .AnyAsync(h => h.EmployeeId == emp.Id && h.KantonCode == kt && h.GueltigAb != null);
                     var mutBestehend = await _db.EmployeeWohnortHistories
-                        .FirstOrDefaultAsync(h => h.EmployeeId == emp.Id && h.GueltigAb == tag1);
+                        .FirstOrDefaultAsync(h => h.EmployeeId == emp.Id && (h.GueltigAb == tag1 || h.GueltigAb == umzugAb));
+                    if (mutBestehend != null && mutBestehend.GueltigAb != umzugAb)
+                        mutBestehend.GueltigAb = umzugAb;
                     if (mutBestehend != null && string.IsNullOrWhiteSpace(mutBestehend.Land))
                         mutBestehend.Land = land;
                     else if (!schonZiel && mutBestehend == null)
-                        _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory { EmployeeId = emp.Id, Plz = plz, Ort = ort, Strasse = str, KantonCode = kt, Land = land, GueltigAb = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
+                        _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory { EmployeeId = emp.Id, Plz = plz, Ort = ort, Strasse = str, KantonCode = kt, Land = land, GueltigAb = umzugAb, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
                     emp.Street = str; emp.ZipCode = plz; emp.City = ort; emp.Country = land; emp.CantonCode = kt;
                 }
             }
-            if (Hat("PersonDepartureDate")) { stamm.Add($"Wegzug aus der Schweiz per {Datum(V("PersonDepartureDate")):dd.MM.yyyy} (QST-Wirkung mit der Adressmutation)"); }
+            if (Hat("PersonDepartureDate") && Datum(V("PersonDepartureDate")) is DateOnly wegzug)
+                stamm.Add($"Wegzugsdatum {wegzug:dd.MM.yyyy} — bis dahin alter Wohnort (QST-Wohnsitz im Monat: Stand am Monatsersten)");
             // Wiedereintritt (Walter 11.09.2026, TF16 Aebi: Austritt 20.12.2024, Wiedereintritt 15.01.2025):
             // neuer Vertragsabschnitt ab dem Wiedereintritt (Kopie des letzten), der alte Vertrag
             // bleibt per Austritt beendet — auch wenn im selben Monat «Austritt → leer» kommt.
@@ -796,7 +806,9 @@ public partial class SwissdecTestmandantController
                         // Umzug = QST (Walter 16.09.2026): Wohnort-Historie auf TAS-Datum
                         // ziehen + Grenzgänger-Flags auf der neuen CH-Version löschen
                         // (TF25: CSV-Adresse 1.4. Malters, TAS LU erst 1.5.).
-                        if (!zugAusland && kt != null && QstKantonswechselService.KantonName(kt) != null)
+                        // Wegzug später im Monat (TF25 Lehmann 25.04.): im Monat noch Wohnsitz Ausland,
+                        // QST-Kanton LU ist der Arbeitsort — Wohnort und Grenzgänger-Angaben bleiben.
+                        if (!zugAusland && kt != null && QstKantonswechselService.KantonName(kt) != null && UmzugAb(ab) == ab)
                         {
                             var wohn = await _db.EmployeeWohnortHistories
                                 .Where(h => h.EmployeeId == emp.Id && h.KantonCode == kt && !h.DatumOffen && h.GueltigAb != null)

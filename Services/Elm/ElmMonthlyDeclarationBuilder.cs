@@ -439,6 +439,13 @@ public class ElmMonthlyDeclarationBuilder
                 wohnHist.Where(h => h.EmployeeId == e.Id), monatsEndeTag,
                 e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
             var adresseAm = new PersonAdresseAm(wohnAm.Strasse, wohnAm.Plz, wohnAm.Ort, wohnAm.Land, wohnAm.KantonCode);
+            // QST-Wohnsitz = Stand am Monatsersten (KS 45: Umzug am 2. oder später → alter Wohnsitz
+            // bis Monatsende). Quality Tool April 2025: TF25 Lehmann (Wegzug Italien 25.04.) und
+            // TF30 Müller (Wegzug Deutschland 15.04.) bleiben im April «AbroadCountry … Daily».
+            var wohnStart = WohnortHistorieService.Am(
+                wohnHist.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsAnfang),
+                e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
+            var adresseQst = new PersonAdresseAm(wohnStart.Strasse, wohnStart.Plz, wohnStart.Ort, wohnStart.Land, wohnStart.KantonCode);
             var umzug = WohnortHistorieService.UmzugImMonat(
                 wohnHist.Where(h => h.EmployeeId == e.Id),
                 DateOnly.FromDateTime(monatsAnfang), monatsEndeTag);
@@ -502,7 +509,7 @@ public class ElmMonthlyDeclarationBuilder
                                        stamm, monatStr, monatsAnfang, warn,
                                        wochenAdressen.Where(a => a.EmployeeId == e.Id)
                                            .OrderByDescending(a => a.ValidFrom).FirstOrDefault(),
-                                       qstAperiodisch, partner, partnerAdresse, adresseAm,
+                                       qstAperiodisch, partner, partnerAdresse, adresseQst,
                                        qstEintritt, qstAustritt);
                 if (qst != null)
                 {
@@ -512,6 +519,14 @@ public class ElmMonthlyDeclarationBuilder
                     var bisher = qstTotal.TryGetValue(qst.Value.Kanton, out var t) ? t : (0m, 0m);
                     qstTotal[qst.Value.Kanton] = (bisher.Item1 + qst.Value.Basis, bisher.Item2 + qst.Value.Steuer);
                     qstZeilen++;
+                    // Kantonswechsel: Abmeldung im alten Kanton als eigene Zeile mit 0.00.
+                    if (qst.Value.Abmeldung is { } ab)
+                    {
+                        qstZeilenPerson.Add(ab.Zeile);
+                        qstKantone.Add(ab.Kanton);
+                        if (!qstTotal.ContainsKey(ab.Kanton)) qstTotal[ab.Kanton] = (0m, 0m);
+                        qstZeilen++;
+                    }
                 }
             }
 
@@ -1084,7 +1099,7 @@ public class ElmMonthlyDeclarationBuilder
     /// tatsächlich eine QST-Zeile hat — sonst gehört die Person nicht in die
     /// QST-Meldung dieses Kantons.
     /// </summary>
-    private (XElement Zeile, string Kanton, decimal Basis, decimal Steuer)? BaueQstZeile(
+    private (XElement Zeile, string Kanton, decimal Basis, decimal Steuer, (XElement Zeile, string Kanton)? Abmeldung)? BaueQstZeile(
         Employee e, Employment? em, CompanyProfile filiale, JsonElement slip,
         List<EmployeeQuellensteuer> versionen, List<EmployeeFamilyMember> kinder,
         RechtseinheitStamm stamm, string monatStr, DateTime monatsAnfang, List<string> warn,
@@ -1146,6 +1161,19 @@ public class ElmMonthlyDeclarationBuilder
                     new XElement(Sd + "ValidAsOf", xd.ToString("yyyy-MM-dd")),
                     new XElement(Sd + "Reason", "withdrawalCompany")));
 
+        // Kantonswechsel (Quality Tool April 2025, TF25 Lehmann TI → LU per 01.04.): im neuen
+        // Kanton Entry «cantonChange» ab Gültig-ab, im alten eine Zeile mit 0.00 und Withdrawal
+        // «cantonChange» am Vortag. Nur wenn die Person schon vorher angestellt war.
+        var vorher = QstVersionWahl.Waehle(versionen.Where(v => v.EmployeeId == e.Id).ToList(), stichtag.AddDays(-1));
+        var kantonVorher = (vorher?.Steuerkanton ?? "").Trim().ToUpperInvariant();
+        bool kantonswechsel = declaration == null && kantonVorher.Length == 2 && kantonVorher != kanton
+                              && (eintritt == null || eintritt.Value < monatsAnfang);
+        if (kantonswechsel)
+            declaration = new XElement(Sd + "DeclarationCategory",
+                new XElement(Sd + "Entry",
+                    new XElement(Sd + "ValidAsOf", stichtag.ToString("yyyy-MM-dd")),
+                    new XElement(Sd + "Reason", "cantonChange")));
+
         var aperiodisch = aperiodischeCodes == null ? 0m : SummeCodes(slip, aperiodischeCodes);
         var ehepartner = TarifMitEhepartner(code)
             ? Ehepartner(e, partner, partnerAdresse, warn, DateOnly.FromDateTime(monatsEnde))
@@ -1171,7 +1199,28 @@ public class ElmMonthlyDeclarationBuilder
                 residence,
                 stamm.GemeindeNr.TryGetValue(filiale.Id, out var wg) ? new XElement(Sd + "WorkMunicipalityID", wg) : null,
                 declaration));
-        return (x, kanton, basis, steuer);
+
+        (XElement, string)? abmeldung = null;
+        if (kantonswechsel)
+        {
+            // Kopie der Zeile: alter Kanton und alte QST-Gemeinde, Beträge 0.00, Withdrawal.
+            var alt = new XElement(x);
+            alt.SetAttributeValue("addresseeIDRef", $"#QST-{kantonVorher}");
+            alt.Element(Sd + "TaxAtSourceCanton")!.Value = kantonVorher;
+            alt.Element(Sd + "TaxAtSourceMunicipalityID")?.Remove();
+            if (vorher?.QstGemeindeBfsNr is > 0)
+                alt.Element(Sd + "TaxAtSourceCanton")!.AddAfterSelf(new XElement(Sd + "TaxAtSourceMunicipalityID", vorher.QstGemeindeBfsNr.Value));
+            var cur = alt.Element(Sd + "Current")!;
+            foreach (var feld in new[] { "TaxableEarning", "AscertainedTaxableEarning", "TaxAtSource" })
+                cur.Element(Sd + feld)!.Value = "0.00";
+            cur.Element(Sd + "SporadicBenefits")?.Remove();
+            cur.Element(Sd + "DeclarationCategory")!.ReplaceWith(new XElement(Sd + "DeclarationCategory",
+                new XElement(Sd + "Withdrawal",
+                    new XElement(Sd + "ValidAsOf", stichtag.AddDays(-1).ToString("yyyy-MM-dd")),
+                    new XElement(Sd + "Reason", "cantonChange"))));
+            abmeldung = (alt, kantonVorher);
+        }
+        return (x, kanton, basis, steuer, abmeldung);
     }
 
     /// <summary>

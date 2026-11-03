@@ -188,6 +188,17 @@ Monatsletzten, Abzugsbasis auf Rappen vor dem Satz (ALVZ Degelo 6.20), neuer Ver
 | TF15 Degelo | SocialContributions | −163.65 | −172.25 | **K19** — Eintritt am Monatsletzten (28.02.) zählte als 3 SV-Tage statt 1 (`PayrollCalculations.Tag30`): ALV-Höchstlohn 2 Tage = 823.35. Dazu im neuen Vertrag ab 01.03.: Ferien/Feiertag im Ansatz = ja, 13. ML = nein |
 | TF25/26, SalaryTotals | AscertainedTaxableEarning, TaxAtSource | 11'764.70 | 12'000.00 | **bewusst A7** (YTD aus Feb 8'000 statt 8'400) |
 
+### 2025-04 — Sendung 03.11.2026 09:33 (18e47bea24cf009a8), Korrekturen K20–K22
+
+| Testfall | Feld | Soll | Ist | Ursache |
+|---|---|---|---|---|
+| TF25 Lehmann, TF30 Müller | DepartureDate / Residence | 25.04. bzw. 15.04., `AbroadCountry IT/DE Daily` | 31.03., `CantonCH` | **K20** — `PersonDepartureDate` ist das Wegzugsdatum vom alten (Auslands-)Wohnort, nicht «Wegzug aus der Schweiz». Neuer Wohnort ab Folgetag (4c `UmzugAb`). QST-Wohnsitz der Monatsmeldung = Stand am **Monatsersten** (KS 45: Umzug am 2. oder später → alter Wohnsitz bis Monatsende). |
+| TF25 Lehmann | TaxableEarning / TaxAtSource | 10'800 / 1'637.30 | 12'000 / 1'819.20 | **K21** — im April noch Grenzgängerin: Arbeitstage CH 18/20; die QST-Version ab 01.04. (LU A0Y = Arbeitskanton) behält den Wohnsitz Italien. 4c zieht den Wohnort nicht mehr auf das TAS-Datum, wenn der Wegzug später im Monat liegt. |
+| TF25 Lehmann, SalaryTotals, catchAll | TaxAtSourceSalary TI, DeclarationCategory, Anzahl 19 | Entry LU `cantonChange` 01.04. + Zeile TI 0.00 mit Withdrawal `cantonChange` 31.03. | fehlte | **K22** — Kantonswechsel der QST: Entry im neuen Kanton, Abmeldezeile im alten Kanton (`BaueQstZeile`). |
+| catchAll | CompanyDescription Workplaces | alle sechs Arbeitsorte | nur mit Lohn | **offen (nur Warnung)** — Referenz führt die Arbeitsorte des Jahres laut Firmendaten (2024: LU/BE, 2025: alle sechs), K1 «nur mit Lohn» passte nur zufällig. Braucht Gültigkeitsdaten je Filiale. |
+
+Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. setzen QST LU schon ab 01.04. und das Wegzugsdatum 25.04.
+
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 
 ### F1 — TF14 Egli, Quellensteuer-Code (November 2024)
