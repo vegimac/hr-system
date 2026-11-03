@@ -446,9 +446,16 @@ public class ElmMonthlyDeclarationBuilder
                 wohnHist.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsAnfang),
                 e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
             var adresseQst = new PersonAdresseAm(wohnStart.Strasse, wohnStart.Plz, wohnStart.Ort, wohnStart.Land, wohnStart.KantonCode);
+            var wohnVormonat = WohnortHistorieService.Am(
+                wohnHist.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsAnfang.AddMonths(-1)),
+                e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
+            var adresseQstVormonat = new PersonAdresseAm(wohnVormonat.Strasse, wohnVormonat.Plz, wohnVormonat.Ort, wohnVormonat.Land, wohnVormonat.KantonCode);
+            // Alte Adresse mit Wegzugsdatum im Umzugsmonat UND im Folgemonat, wenn der Umzug nach
+            // dem 1. lag — dort wirkt er für die Quellensteuer (Quality Tool Mai 2025: TF25 Lehmann
+            // Wegzug 25.04., TF30 Müller 15.04. — Adresse Mailand/München im Mai noch dabei).
             var umzug = WohnortHistorieService.UmzugImMonat(
                 wohnHist.Where(h => h.EmployeeId == e.Id),
-                DateOnly.FromDateTime(monatsAnfang), monatsEndeTag);
+                DateOnly.FromDateTime(monatsAnfang.AddMonths(-1)).AddDays(1), monatsEndeTag);
             PersonAdresseAm? adresseVorher = umzug is { } u
                 ? new PersonAdresseAm(u.Alt.Strasse, u.Alt.Plz, u.Alt.Ort, u.Alt.Land, u.Alt.KantonCode)
                 : null;
@@ -510,7 +517,7 @@ public class ElmMonthlyDeclarationBuilder
                                        wochenAdressen.Where(a => a.EmployeeId == e.Id)
                                            .OrderByDescending(a => a.ValidFrom).FirstOrDefault(),
                                        qstAperiodisch, partner, partnerAdresse, adresseQst,
-                                       qstEintritt, qstAustritt);
+                                       qstEintritt, qstAustritt, adresseQstVormonat);
                 if (qst != null)
                 {
                     gemeldeteFilialen.Add(filialId);
@@ -600,7 +607,10 @@ public class ElmMonthlyDeclarationBuilder
                     // Beginn der nahtlosen Vertragskette, nicht des Abschnitts im Monat
                     // (RefXML Jan 2025: TF37 Oberli 2024-11-16 trotz neuem Vertrag ab 01.01.).
                     new XElement(C + "EntryDate", (anstellung?.Start ?? emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd")),
-                    austritt == null ? null : new XElement(C + "WithdrawalDate", austritt.Value.ToString("yyyy-MM-dd"))),
+                    // Austritt im Monat, oder schon vorher bei Zahlung nach Austritt (Quality Tool
+                    // Mai 2025: TF41 Meier Max, Austritt 31.03., Dienstaltersgeschenk im Mai).
+                    (austritt ?? (anstellung?.Ende is DateTime ausVorher && ausVorher < monatsAnfang ? ausVorher : null)) is DateTime wd
+                        ? new XElement(C + "WithdrawalDate", wd.ToString("yyyy-MM-dd")) : null),
                 // Reihenfolge laut XSD (MonthlyPersonType): Quellensteuer VOR Statistik.
                 qstZeilenPerson.Count > 0 ? new XElement(Sd + "TaxAtSourceSalaries", qstZeilenPerson) : null,
                 statistikZeilen.Count > 0 ? new XElement(Sd + "StatisticSalaries", statistikZeilen) : null);
@@ -1106,7 +1116,8 @@ public class ElmMonthlyDeclarationBuilder
         EmployeeAddress? wochenAdresse = null, IReadOnlySet<string>? aperiodischeCodes = null,
         EmployeeFamilyMember? partner = null, EmployeeAddress? partnerAdresse = null,
         PersonAdresseAm? wohnAmStichtag = null,
-        DateTime? eintrittAm = null, DateTime? austrittAm = null)
+        DateTime? eintrittAm = null, DateTime? austrittAm = null,
+        PersonAdresseAm? wohnVormonat = null)
     {
         if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
         JsonElement? qstZeile = null;
@@ -1173,6 +1184,15 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(Sd + "Entry",
                     new XElement(Sd + "ValidAsOf", stichtag.ToString("yyyy-MM-dd")),
                     new XElement(Sd + "Reason", "cantonChange")));
+        // Wohnsitzwechsel ohne Kantonswechsel der QST (Quality Tool Mai 2025: TF25 Lehmann Italien →
+        // Malters, TF30 Müller Deutschland → Bern): Mutation «residence» ab Monatsersten.
+        else if (declaration == null && wohnVormonat != null && wohnAmStichtag != null
+                 && (eintritt == null || eintritt.Value < monatsAnfang)
+                 && WohnsitzSchluessel(wohnVormonat) != WohnsitzSchluessel(wohnAmStichtag))
+            declaration = new XElement(Sd + "DeclarationCategory",
+                new XElement(Sd + "Mutation",
+                    new XElement(Sd + "ValidAsOf", stichtag.ToString("yyyy-MM-dd")),
+                    new XElement(Sd + "Reason", "residence")));
 
         var aperiodisch = aperiodischeCodes == null ? 0m : SummeCodes(slip, aperiodischeCodes);
         var ehepartner = TarifMitEhepartner(code)
@@ -1262,6 +1282,10 @@ public class ElmMonthlyDeclarationBuilder
         // Zeiträume aus dem QST-Verlauf am Kind (anerkannte Entscheide, sonst
         // Minderjährigkeit + Erstausbildung — KindQstVerlauf.ElmZeitraeume).
         var monatsEndeD = DateOnly.FromDateTime(monatsEnde);
+        // Tarif ohne Kinder (Version am Monat noch ohne Kind, z.B. Geburt erst später gemeldet):
+        // keine <Children> (Quality Tool Mai 2025: TF33 Châtelain / TF34 Rinaldi, Kind 23.04.,
+        // B1Y/B1N erst rückwirkend im Juli).
+        if (version is { AnzahlKinder: 0 }) kinder = new List<EmployeeFamilyMember>();
         var kinderEl = kinder
             .OrderBy(k => k.DateOfBirth)
             .SelectMany(k => (_kindVerlauf.TryGetValue(k.Id, out var d)
@@ -1459,6 +1483,15 @@ public class ElmMonthlyDeclarationBuilder
                 new XElement(C + "Country", LandName(land))),
             residence,
             arbeit);
+    }
+
+    /// <summary>Wohnsitz für die QST verglichen: Kanton in der Schweiz, sonst das Land.</summary>
+    static string WohnsitzSchluessel(PersonAdresseAm a)
+    {
+        var land = (a.Country ?? "").Trim().ToUpperInvariant();
+        var kanton = (a.Canton ?? "").Trim().ToUpperInvariant();
+        return (land.Length == 0 || land is "CH" or "CHE" or "SCHWEIZ" or "SWITZERLAND") && kanton.Length == 2 && kanton != "EX"
+            ? "CH-" + kanton : "X-" + land;
     }
 
     /// <summary>

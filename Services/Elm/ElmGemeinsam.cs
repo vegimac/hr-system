@@ -476,10 +476,11 @@ public static class ElmGemeinsam
                 abreise == null ? null : new XElement(C + "DepartureDate", abreise.Value.ToString("yyyy-MM-dd")));
         }
 
+        // Reihenfolge wie die Referenz: aktuelle Adresse, dann die alte mit Wegzugsdatum.
         var adressen = new XElement(C + "Addresses");
+        adressen.Add(Adresse(street, zipRoh, cityRoh, landRoh, kantonRoh, wohnGemeindeNr, null));
         if (adresseVorher != null && wegzug != null)
             adressen.Add(Adresse(adresseVorher.Street, adresseVorher.Zip, adresseVorher.City, adresseVorher.Country, adresseVorher.Canton, null, wegzug));
-        adressen.Add(Adresse(street, zipRoh, cityRoh, landRoh, kantonRoh, wohnGemeindeNr, null));
 
         // Bewilligungsart nur bei Ausländern (Reihenfolge laut XSD nach Nationality).
         var permit = bewilligungAmStichtag ?? e.PermitType;

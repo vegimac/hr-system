@@ -206,6 +206,15 @@ Milano bis 25.04., Arbeitstage CH April 18/20. Müller: Bern ab 16.04.
 
 Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. setzen QST LU schon ab 01.04. und das Wegzugsdatum 25.04.
 
+### 2025-05 — Sendung 03.11.2026 10:55 (18e4806b8958aeae5), Korrekturen K23–K26
+
+| Testfall | Befund | Korrektur |
+|---|---|---|
+| TF25 Lehmann, TF30 Müller | alte Auslandsadresse mit DepartureDate fehlt im Mai; Mutation `residence` 01.05. fehlt | **K23** — alte Adresse auch im Folgemonat, wenn der Umzug nach dem 1. lag (dann wirkt er für die QST erst dort); Reihenfolge aktuelle → alte. **K24** — Wohnsitzwechsel ohne Kantonswechsel: `Mutation residence` ab Monatsersten (Wohnsitz am 1. des Vormonats ≠ am 1. des Monats). |
+| TF33 Châtelain, TF34 Rinaldi | `<Children>` (Kind 23.04.) zu früh | **K25** — Version mit 0 Kindern (B0Y/B0N, Kind erst im Juli rückwirkend gemeldet) ⇒ keine Children. |
+| TF41 Meier Max | `WithdrawalDate` 31.03. fehlt bei Zahlung nach Austritt | **K26** — Work-Block meldet den Austritt auch, wenn er vor dem Meldemonat lag. |
+| catchAll | Arbeitsorte AG/ZG | offen (nur Warnung), siehe April |
+
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
 
 ### F1 — TF14 Egli, Quellensteuer-Code (November 2024)
