@@ -1520,7 +1520,13 @@ async function saveQstEntry() {
             return;
         }
     }
-    if (!res.ok) { resultEl.innerHTML = `<span style="color:#dc2626">Fehler: ${await res.text()}</span>`; return; }
+    if (!res.ok) {
+        const roh = await res.text();
+        let text = roh;
+        try { const j = JSON.parse(roh); text = j.message || j.error || roh; } catch (_) { /* kein JSON */ }
+        resultEl.innerHTML = `<span style="color:#dc2626">${text}</span>`;
+        return;
+    }
 
     await qstAfterSaveSuccess(await res.json(), resultEl);
 }

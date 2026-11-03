@@ -900,10 +900,15 @@ public class EmployeeQuellensteuerController : ControllerBase
                 && (!string.Equals(treffer.Plz ?? "", e.ZipCode ?? "", StringComparison.OrdinalIgnoreCase)
                     || !string.Equals(treffer.Ort ?? "", e.City ?? "", StringComparison.OrdinalIgnoreCase)))
             {
+                // Land aus dem Historie-Eintrag, nicht fest «CH» (Walter 03.11.2026, TF25 Lehmann:
+                // Milano bis 25.04. wurde als Schweizer Wohnort ohne Kanton gelesen).
+                var land = WohnortHistorieService.LandAus(treffer);
                 var kanton = (treffer.KantonCode ?? "").Trim();
-                if (kanton.Length == 0 && (treffer.Plz ?? "").Trim().Length == 4)
+                if (land is null or "CH" && kanton.Length == 0 && (treffer.Plz ?? "").Trim().Length == 4)
                     kanton = (await _db.SwissLocations.AsNoTracking().Where(l => l.Plz4 == treffer.Plz!.Trim()).Select(l => l.Kantonskuerzel).FirstOrDefaultAsync() ?? "").Trim();
-                return new WohnadresseAm(treffer.Strasse, treffer.Plz, treffer.Ort, kanton.Length > 0 ? kanton.ToUpperInvariant() : null, "CH", true, treffer.GueltigAb, bis);
+                if (land is not (null or "CH")) kanton = "";
+                return new WohnadresseAm(treffer.Strasse, treffer.Plz, treffer.Ort, kanton.Length > 0 ? kanton.ToUpperInvariant() : null,
+                    land ?? (kanton.Length > 0 ? "CH" : null), true, treffer.GueltigAb, bis);
             }
         }
         return new WohnadresseAm(e.Street, e.ZipCode, e.City, e.CantonCode, e.Country, false, null, null);
