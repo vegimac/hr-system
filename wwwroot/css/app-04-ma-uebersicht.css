@@ -179,7 +179,7 @@
             display: grid;
             grid-template-columns:
                 minmax(150px, 1.15fr)  /* Strasse */
-                calc(7.2ch + 9rem + 3rem + 11.4rem + 30px) /* PLZ + Ort + Kt. + Land, fest */
+                calc(7.2ch + 8rem + 4rem + 11.4rem + 30px) /* PLZ + Ort + Kt. + Land, fest */
                 max-content            /* Telefon, ganze Nummer */
                 minmax(240px, 1fr);    /* AHV + unbekannt */
             column-gap: 16px;
@@ -196,12 +196,13 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe {
             display: grid;
-            grid-template-columns: 7.2ch 9rem 3rem 11.4rem;
+            /* Kt. und Land-Code breit genug für die Auswahl mit Pfeil (Walter 03.11.2026: «L…», «C.»). */
+            grid-template-columns: 7.2ch 8rem 4rem 11.4rem;
             column-gap: 10px;
             align-items: start;
-            width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
-            min-width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
-            max-width: calc(7.2ch + 9rem + 3rem + 11.4rem + 30px);
+            width: calc(7.2ch + 8rem + 4rem + 11.4rem + 30px);
+            min-width: calc(7.2ch + 8rem + 4rem + 11.4rem + 30px);
+            max-width: calc(7.2ch + 8rem + 4rem + 11.4rem + 30px);
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-plz,
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city,
@@ -223,7 +224,7 @@
         }
         .ma-land-zeile {
             display: grid;
-            grid-template-columns: 2.4rem 8.6rem;
+            grid-template-columns: 3.6rem 7.4rem;
             align-items: center;
             column-gap: 0.4rem;
             width: 11.4rem;
@@ -231,12 +232,19 @@
             max-width: 11.4rem;
             height: 30px;
         }
-        .ma-land-zeile .lqsel-wrap { width: 2.4rem; min-width: 2.4rem; max-width: 2.4rem; }
+        .ma-land-zeile .lqsel-wrap { width: 3.6rem; min-width: 3.6rem; max-width: 3.6rem; }
         .ma-land-zeile .lqsel-btn {
             min-width: 0;
-            width: 2.4rem;
-            padding-left: 0;
-            padding-right: 14px;
+            width: 3.6rem;
+            padding-left: 6px;
+            padding-right: 18px;
+        }
+        #page-mitarbeiter.liquid-employee .ov-adr-gruppe .ov-pf-kt .lqsel-wrap { width: 100%; min-width: 0; }
+        #page-mitarbeiter.liquid-employee .ov-adr-gruppe .ov-pf-kt .lqsel-btn {
+            min-width: 0;
+            width: 100%;
+            padding-left: 6px;
+            padding-right: 18px;
         }
         .ma-land-code {
             display: block;
@@ -248,9 +256,9 @@
         }
         .ma-land-en {
             display: block;
-            width: 8.6rem;
-            min-width: 8.6rem;
-            max-width: 8.6rem;
+            width: 7.4rem;
+            min-width: 7.4rem;
+            max-width: 7.4rem;
             font-size: 10.5px;
             font-weight: 700;
             color: #8b8b8b;
