@@ -122,6 +122,16 @@ public class SnapshotRecomputeService
             s.Brutto    = gross;
             s.Netto     = net;
             s.SlipJson  = json;
+            // Spalten wie beim Bestätigen nachziehen (Walter 03.11.2026): die Höchstlohn-Kumulation
+            // der Folgemonate liest SvBasis* aus diesen Spalten. Nach einer Korrektur im Lohnzettel
+            // (TF25 Lehmann Februar 1001 −400) blieb hier 8'400 stehen → ALV Juni 400 zu tief.
+            s.SvBasisAhv            = ReadDec(node, "svBasisAhv",            s.SvBasisAhv);
+            s.SvBasisBvg            = ReadDec(node, "svBasisBvg",            s.SvBasisBvg);
+            s.SvBasisNbuv           = ReadDec(node, "svBasisNbuv",           s.SvBasisNbuv);
+            s.SvBasisKtg            = ReadDec(node, "svBasisKtg",            s.SvBasisKtg);
+            s.QstBetrag             = ReadDec(node, "qstBetrag",             s.QstBetrag);
+            s.ThirteenthAccumulated = ReadDec(node, "thirteenthAccumulated", s.ThirteenthAccumulated);
+            s.FerienGeldSaldo       = ReadDec(node, "ferienGeldSaldoNeu",    s.FerienGeldSaldo);
             // payroll_snapshot.updated_at / payroll_saldo.updated_at sind seit
             // der Vereinheitlichung (Walter 04.08.2026, Migration
             // fix_payroll_snapshot_saldo_timestamps.sql) timestamp WITHOUT time
