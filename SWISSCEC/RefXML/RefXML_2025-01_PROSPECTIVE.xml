@@ -1,19 +1,14 @@
-<sdcst:DeclareAnnualSalary xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
-                           xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
-                           xmlns:c="urn:ch:swissdec:common:v3:20260306"
-                           xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
-                           xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
-                           xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+<sdcst:DeclareAnnualSalary xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
     <ep:RequestContext>
         <ep:UserAgent>
             <ep:Producer>Swissdec</ep:Producer>
             <ep:Name>SalaryCalculator</ep:Name>
-            <ep:Version>20260828</ep:Version>
+            <ep:Version>20261013</ep:Version>
             <ep:StandardVersion>6.0</ep:StandardVersion>
             <ep:Certificate>n/A</ep:Certificate>
         </ep:UserAgent>
         <ep:CompanyName>Muster AG</ep:CompanyName>
-        <ep:TransmissionDate>2026-08-28T16:56:33.254+02:00</ep:TransmissionDate>
+        <ep:TransmissionDate>2026-10-13T08:58:12.375+02:00</ep:TransmissionDate>
         <ep:RequestID>requestID</ep:RequestID>
         <ep:LanguageCode>de</ep:LanguageCode>
     </ep:RequestContext>
@@ -97,18 +92,6 @@
                     <c:Country>SWITZERLAND</c:Country>
                     <c:Canton>AG</c:Canton>
                     <c:MunicipalityID>4164</c:MunicipalityID>
-                </c:AddressExtended>
-            </c:Workplace>
-            <c:Workplace workplaceID="#ZG">
-                <c:BUR-REE-Number>A38197423</c:BUR-REE-Number>
-                <c:AddressExtended>
-                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
-                    <c:Street>Grafenaustrasse 5</c:Street>
-                    <c:ZIP-Code>6300</c:ZIP-Code>
-                    <c:City>Zug</c:City>
-                    <c:Country>SWITZERLAND</c:Country>
-                    <c:Canton>ZG</c:Canton>
-                    <c:MunicipalityID>1711</c:MunicipalityID>
                 </c:AddressExtended>
             </c:Workplace>
             <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime1">
@@ -1315,7 +1298,7 @@
             <sd:NumberOf-BVG-LPP-Salary-Tags>27</sd:NumberOf-BVG-LPP-Salary-Tags>
         </sd:SalaryCounters>
         <sd:GeneralSalaryDeclarationDescription>
-            <sd:CreationDate>2026-08-28T16:56:33.289717200</sd:CreationDate>
+            <sd:CreationDate>2026-10-13T08:58:12.400527762</sd:CreationDate>
             <sd:AccountingPeriod>2025</sd:AccountingPeriod>
             <sd:ContactPerson>
                 <sd:Name>Hans Muster</sd:Name>

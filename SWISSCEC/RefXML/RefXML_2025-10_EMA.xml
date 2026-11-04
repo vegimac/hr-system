@@ -1,19 +1,14 @@
-<sdcst:NotifyChanges xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
-                     xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
-                     xmlns:c="urn:ch:swissdec:common:v3:20260306"
-                     xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
-                     xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
-                     xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+<sdcst:NotifyChanges xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
     <ep:RequestContext>
         <ep:UserAgent>
             <ep:Producer>Swissdec</ep:Producer>
             <ep:Name>SalaryCalculator</ep:Name>
-            <ep:Version>20260828</ep:Version>
+            <ep:Version>20261013</ep:Version>
             <ep:StandardVersion>6.0</ep:StandardVersion>
             <ep:Certificate>n/A</ep:Certificate>
         </ep:UserAgent>
         <ep:CompanyName>Muster AG</ep:CompanyName>
-        <ep:TransmissionDate>2026-08-28T16:56:50.127+02:00</ep:TransmissionDate>
+        <ep:TransmissionDate>2026-10-13T08:58:30.344+02:00</ep:TransmissionDate>
         <ep:RequestID>requestID</ep:RequestID>
         <ep:LanguageCode>de</ep:LanguageCode>
     </ep:RequestContext>
@@ -33,18 +28,6 @@
             </sdc:Addressee>
             <sdc:Addressee addresseeID="#FAK_VD_KK">
                 <ep:AddresseeIdentification>022.000</ep:AddresseeIdentification>
-                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
-            </sdc:Addressee>
-            <sdc:Addressee addresseeID="#FAK_TI_KK">
-                <ep:AddresseeIdentification>021.000</ep:AddresseeIdentification>
-                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
-            </sdc:Addressee>
-            <sdc:Addressee addresseeID="#FAK_AG_SVA">
-                <ep:AddresseeIdentification>019.000</ep:AddresseeIdentification>
-                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
-            </sdc:Addressee>
-            <sdc:Addressee addresseeID="#FAK_Spida">
-                <ep:AddresseeIdentification>079.000</ep:AddresseeIdentification>
                 <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
             </sdc:Addressee>
             <sdc:Addressee addresseeID="#BVG">
@@ -278,14 +261,6 @@
                     <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF10_0">
                         <sd:Withdrawal>
                             <sd:ValidAsOf>2025-10-30</sd:ValidAsOf>
-                            <sd:Reason>withdrawalPensionPlan</sd:Reason>
-                        </sd:Withdrawal>
-                        <sd:BVG-LPP-Code>22</sd:BVG-LPP-Code>
-                        <sd:BVG-LPP-AnnualBasis>76800.00</sd:BVG-LPP-AnnualBasis>
-                    </sd:BVG-LPP-ChangeNotification>
-                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF10_0">
-                        <sd:Withdrawal>
-                            <sd:ValidAsOf>2025-10-30</sd:ValidAsOf>
                             <sd:Reason>deceased</sd:Reason>
                         </sd:Withdrawal>
                         <sd:BVG-LPP-Code>22</sd:BVG-LPP-Code>
@@ -499,9 +474,6 @@
                     <sd:ValidAsOf>2021-01-01</sd:ValidAsOf>
                 </sd:BVG-LPP-Insurance>
             </sd:AHV-AVS>
-            <sd:FAK-CAF addresseeIDRef="#FAK_Spida">
-                <sd:FAK-CAF-CustomerNumber>5676.3</sd:FAK-CAF-CustomerNumber>
-            </sd:FAK-CAF>
             <sd:FAK-CAF addresseeIDRef="#FAK_LU_KK">
                 <sd:FAK-CAF-CustomerNumber>100-9976.70</sd:FAK-CAF-CustomerNumber>
             </sd:FAK-CAF>
@@ -510,12 +482,6 @@
             </sd:FAK-CAF>
             <sd:FAK-CAF addresseeIDRef="#FAK_VD_KK">
                 <sd:FAK-CAF-CustomerNumber>100-7766.80</sd:FAK-CAF-CustomerNumber>
-            </sd:FAK-CAF>
-            <sd:FAK-CAF addresseeIDRef="#FAK_TI_KK">
-                <sd:FAK-CAF-CustomerNumber>100-5467.80</sd:FAK-CAF-CustomerNumber>
-            </sd:FAK-CAF>
-            <sd:FAK-CAF addresseeIDRef="#FAK_AG_SVA">
-                <sd:FAK-CAF-CustomerNumber>5050.1</sd:FAK-CAF-CustomerNumber>
             </sd:FAK-CAF>
             <sd:BVG-LPP addresseeIDRef="#BVG">
                 <sd:InsuranceCompanyName>Pensionskasse Oldsoft</sd:InsuranceCompanyName>

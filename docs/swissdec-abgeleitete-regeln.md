@@ -34,6 +34,8 @@ Status: **offen** = noch nicht gefragt oder keine Antwort · **bestätigt** · *
 
 | 14 | Zahlung nach dem Austritt: Ein Umzug in einen anderen Kanton ergibt **keine** Entry-, Mutations- oder Abmeldezeile. | TF29 Forster Feb 2026. | Ein einziger Fall. | `ElmMonthlyDeclarationBuilder.NachAustritt` | offen |
 
+| 15 | Stundenlohn **ohne festes Pensum**: EMA `changeSalary`, wenn die neu gerechnete BVG-Basis mehr als **10 %** von der zuletzt gemeldeten abweicht. Nur als Vorschlag. | TF02 Paganini Mai 2025: 70'000 → 59'890.10 (−14.4 %) gemeldet. TF22 Bucher bis +9.4 %: nichts gemeldet. | Ein einziger Positivfall. Der Lohntest trägt 10 bis 14 %, die 10 % sind unsere Wahl. Die RL nennt keine Schwelle. Bei festem Pensum gilt sie nicht (Bosshard, Jung). | `ElmEmaEreignisse.SchwelleProzentOhnePensum` | offen |
+
 ## Durch die Richtlinien gedeckt (keine Frage)
 
 | Regel | Kapitel | Code |

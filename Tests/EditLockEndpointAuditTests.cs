@@ -208,6 +208,7 @@ public class EditLockEndpointAuditTests
         ,["BriefVorlageController"]              = "Austrittsbrief-Vorlage und PDF — erzeugt den Brief, schreibt keinen Lohn"
         ,["BvgVersichertenAbgleichController"]  = "Übernahme historischer BVG-Daten der Versichertenliste (Walter 31.10.2026) — Fondsdaten vor dem ersten Lohnlauf, bewusst ohne Lohn-Sperre"
         ,["EmaAufgabeController"]               = "Freigabe einer Swissdec-EMA-Aufgabe (Anzeige) — schreibt keine Lohndaten und sendet keine Meldung"
+        ,["ElmEmaController"]                   = "Vom Anwender ausgelöste EMA-Ereignisse nach RL 8.6.8 (Walter 04.11.2026) — schreibt keine Lohndaten und sendet keine Meldung"
         ,["GrenzregionenController"]            = "Grenzregionen-Verzeichnis (ESTV) — Katalog, keine MA-Daten"
         ,["LohnausweisAngabenController"]       = "Angaben auf dem Lohnausweis (Person und Filiale) — Urkunde, ändert keinen abgeschlossenen Lohnlauf"
         ,["MeldepflichtMeldungController"]      = "Meldepflicht-Brief an die Behörde — Versand, kein Lohn"

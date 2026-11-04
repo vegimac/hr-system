@@ -1,19 +1,14 @@
-<sdcst:DeclareAnnualSalary xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
-                           xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
-                           xmlns:c="urn:ch:swissdec:common:v3:20260306"
-                           xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
-                           xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
-                           xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+<sdcst:DeclareAnnualSalary xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
     <ep:RequestContext>
         <ep:UserAgent>
             <ep:Producer>Swissdec</ep:Producer>
             <ep:Name>SalaryCalculator</ep:Name>
-            <ep:Version>20260828</ep:Version>
+            <ep:Version>20261013</ep:Version>
             <ep:StandardVersion>6.0</ep:StandardVersion>
             <ep:Certificate>n/A</ep:Certificate>
         </ep:UserAgent>
         <ep:CompanyName>Muster AG</ep:CompanyName>
-        <ep:TransmissionDate>2026-08-28T16:56:32.543+02:00</ep:TransmissionDate>
+        <ep:TransmissionDate>2026-10-13T08:58:11.791+02:00</ep:TransmissionDate>
         <ep:RequestID>requestID</ep:RequestID>
         <ep:LanguageCode>de</ep:LanguageCode>
     </ep:RequestContext>
@@ -171,18 +166,6 @@
                     <c:MunicipalityID>4164</c:MunicipalityID>
                 </c:AddressExtended>
             </c:Workplace>
-            <c:Workplace workplaceID="#ZG">
-                <c:BUR-REE-Number>A38197423</c:BUR-REE-Number>
-                <c:AddressExtended>
-                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
-                    <c:Street>Grafenaustrasse 5</c:Street>
-                    <c:ZIP-Code>6300</c:ZIP-Code>
-                    <c:City>Zug</c:City>
-                    <c:Country>SWITZERLAND</c:Country>
-                    <c:Canton>ZG</c:Canton>
-                    <c:MunicipalityID>1711</c:MunicipalityID>
-                </c:AddressExtended>
-            </c:Workplace>
             <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime1">
                 <c:WeeklyHours>42.00</c:WeeklyHours>
             </c:CompanyWorkingTime>
@@ -295,8 +278,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -374,8 +357,7 @@
                             <ep:until>2025-01-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>6556.25</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>215.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>215.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>LU</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -416,8 +398,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -428,7 +410,7 @@
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>408.35</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>5838.05</sd:NetIncome>
+                        <sd:NetIncome>5838.00</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:RelocationCosts>4251.00</sd:RelocationCosts>
@@ -531,8 +513,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#NW_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -644,8 +626,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -756,8 +738,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -770,7 +752,9 @@
                         </sd:BVG-LPP-Contribution>
                         <sd:NetIncome>1124.90</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark/>
+                        <sd:StandardRemark>
+                            <sd:PartTimeEmployment/>
+                        </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -870,8 +854,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -990,8 +974,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2024-11-01</ep:from>
                             <ep:until>2024-12-31</ep:until>
@@ -1062,8 +1046,7 @@
                             <ep:until>2025-01-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>10343.40</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>250.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>250.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -1104,8 +1087,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -1219,8 +1202,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -1294,8 +1277,7 @@
                             <ep:until>2025-01-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>11550.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>260.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>268.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>LU</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -1307,7 +1289,7 @@
                             <ep:until>2025-01-31</ep:until>
                         </sd:AccountingTime>
                         <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
-                        <sd:UVG-LAA-GrossSalary>11810.00</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-GrossSalary>11818.00</sd:UVG-LAA-GrossSalary>
                         <sd:UVG-LAA-BaseSalary>11550.00</sd:UVG-LAA-BaseSalary>
                         <sd:UVG-LAA-ContributorySalary>11550.00</sd:UVG-LAA-ContributorySalary>
                     </sd:UVG-LAA-Salary>
@@ -1354,15 +1336,15 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#OW_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
                         </sd:Period>
                         <sd:FreeTransport/>
                         <sd:CanteenLunchCheck/>
-                        <sd:Income>10360.00</sd:Income>
+                        <sd:Income>10368.00</sd:Income>
                         <sd:FringeBenefits>
                             <sd:CompanyCar>250.00</sd:CompanyCar>
                             <sd:Other>
@@ -1370,12 +1352,12 @@
                                 <sd:Sum>1200.00</sd:Sum>
                             </sd:Other>
                         </sd:FringeBenefits>
-                        <sd:GrossIncome>11810.00</sd:GrossIncome>
+                        <sd:GrossIncome>11818.00</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>924.70</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>864.50</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>10020.80</sd:NetIncome>
+                        <sd:NetIncome>10028.80</sd:NetIncome>
                         <sd:ChargesRule>
                             <sd:WithRegulation>
                                 <sd:Allowed>2021-01-01</sd:Allowed>
@@ -1386,6 +1368,7 @@
                         <sd:StandardRemark>
                             <sd:RelocationCosts>2000.00</sd:RelocationCosts>
                             <sd:MinimalEmployeeCarPartPercentage/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -1476,8 +1459,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -1572,8 +1555,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -1587,157 +1570,6 @@
                             <sd:Guidance/>
                         </sd:ChargesRule>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                    </sd:TaxSalary>
-                </sd:TaxSalaries>
-            </sd:Person>
-            <sd:Person>
-                <c:Particulars>
-                    <c:Social-InsuranceIdentification>
-                        <c:SV-AS-Number>756.3047.5009.62</c:SV-AS-Number>
-                    </c:Social-InsuranceIdentification>
-                    <c:EmployeeNumber>16</c:EmployeeNumber>
-                    <c:Lastname>Aebi</c:Lastname>
-                    <c:Firstname>Anna</c:Firstname>
-                    <c:Sex>F</c:Sex>
-                    <c:DateOfBirth>1960-12-31</c:DateOfBirth>
-                    <c:Nationality>CH</c:Nationality>
-                    <c:CivilStatus>
-                        <c:Status>single</c:Status>
-                        <c:ValidAsOf>1960-12-31</c:ValidAsOf>
-                    </c:CivilStatus>
-                    <c:Addresses>
-                        <c:Address>
-                            <c:Street>Bundesstrasse 5</c:Street>
-                            <c:ZIP-Code>6003</c:ZIP-Code>
-                            <c:City>Luzern</c:City>
-                            <c:Country>SWITZERLAND</c:Country>
-                            <c:ResidenceCanton>LU</c:ResidenceCanton>
-                            <c:MunicipalityID>1061</c:MunicipalityID>
-                        </c:Address>
-                    </c:Addresses>
-                    <c:LanguageCode>de</c:LanguageCode>
-                </c:Particulars>
-                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime1" workID="#work_TF16_0">
-                    <c:WorkingTime>
-                        <c:Unsteady/>
-                    </c:WorkingTime>
-                    <c:EntryDate>2025-01-15</c:EntryDate>
-                </c:Work>
-                <sd:AHV-AVS-Salaries>
-                    <sd:AHV-AVS-Salary addresseeIDRef="#AHV_KK">
-                        <sd:AccountingTime>
-                            <ep:from>2025-01-15</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:AccountingTime>
-                        <sd:AHV-AVS-BaseSalary>0.00</sd:AHV-AVS-BaseSalary>
-                        <sd:AHV-AVS-Income>0.00</sd:AHV-AVS-Income>
-                        <sd:ALV-AC-Income>0.00</sd:ALV-AC-Income>
-                    </sd:AHV-AVS-Salary>
-                </sd:AHV-AVS-Salaries>
-                <sd:FAK-CAF-Salaries>
-                    <sd:FAK-CAF-Salary addresseeIDRef="#FAK_LU_KK">
-                        <sd:FAK-CAF-Period>
-                            <ep:from>2025-01-15</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:FAK-CAF-Period>
-                        <sd:FAK-CAF-ContributorySalary>0.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
-                        <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
-                        <sd:FAK-CAF-WorkplaceCanton>LU</sd:FAK-CAF-WorkplaceCanton>
-                    </sd:FAK-CAF-Salary>
-                </sd:FAK-CAF-Salaries>
-                <sd:UVG-LAA-Salaries>
-                    <sd:UVG-LAA-Salary addresseeIDRef="#UVG">
-                        <sd:AccountingTime>
-                            <ep:from>2025-01-15</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:AccountingTime>
-                        <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
-                        <sd:UVG-LAA-GrossSalary>0.00</sd:UVG-LAA-GrossSalary>
-                        <sd:UVG-LAA-BaseSalary>0.00</sd:UVG-LAA-BaseSalary>
-                        <sd:UVG-LAA-ContributorySalary>0.00</sd:UVG-LAA-ContributorySalary>
-                    </sd:UVG-LAA-Salary>
-                </sd:UVG-LAA-Salaries>
-                <sd:UVGZ-LAAC-Salaries>
-                    <sd:UVGZ-LAAC-Salary addresseeIDRef="#UVGZ">
-                        <sd:AccountingTime>
-                            <ep:from>2025-01-15</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:AccountingTime>
-                        <sd:UVGZ-LAAC-Code>12</sd:UVGZ-LAAC-Code>
-                        <sd:UVGZ-LAAC-BaseSalary>0.00</sd:UVGZ-LAAC-BaseSalary>
-                        <sd:UVGZ-LAAC-ContributorySalary>0.00</sd:UVGZ-LAAC-ContributorySalary>
-                    </sd:UVGZ-LAAC-Salary>
-                </sd:UVGZ-LAAC-Salaries>
-                <sd:KTG-AMC-Salaries>
-                    <sd:KTG-AMC-Salary addresseeIDRef="#KTG">
-                        <sd:AccountingTime>
-                            <ep:from>2025-01-15</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:AccountingTime>
-                        <sd:KTG-AMC-Code>10</sd:KTG-AMC-Code>
-                        <sd:Reference-AHV-AVS-Salary>0.00</sd:Reference-AHV-AVS-Salary>
-                        <sd:KTG-AMC-ContributorySalary>0.00</sd:KTG-AMC-ContributorySalary>
-                    </sd:KTG-AMC-Salary>
-                </sd:KTG-AMC-Salaries>
-                <sd:TaxSalaries>
-                    <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
-                        <sd:Period>
-                            <ep:from>2025-01-15</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:Period>
-                        <sd:GrossIncome>0.00</sd:GrossIncome>
-                        <sd:NetIncome>0.00</sd:NetIncome>
-                        <sd:ChargesRule>
-                            <sd:WithRegulation>
-                                <sd:Allowed>2021-01-01</sd:Allowed>
-                                <sd:Canton>LU</sd:Canton>
-                            </sd:WithRegulation>
-                        </sd:ChargesRule>
-                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark>
-                            <sd:RelocationCosts>2000.00</sd:RelocationCosts>
-                        </sd:StandardRemark>
-                    </sd:TaxSalary>
-                    <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
-                        <sd:Period>
-                            <ep:from>2024-11-01</ep:from>
-                            <ep:until>2024-12-20</ep:until>
-                        </sd:Period>
-                        <sd:Income>18353.35</sd:Income>
-                        <sd:SporadicBenefits>
-                            <sd:Text>Sonderzulage</sd:Text>
-                            <sd:Sum>3000.00</sd:Sum>
-                        </sd:SporadicBenefits>
-                        <sd:OtherBenefits>
-                            <sd:Text>Vom AG übern. Säule 3 b, Vom AG übern. Säule 3 a, Vom AG übern. AN-Anteil KTG
-                            </sd:Text>
-                            <sd:Sum>1250.00</sd:Sum>
-                        </sd:OtherBenefits>
-                        <sd:GrossIncome>22603.35</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>1750.55</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
-                        <sd:BVG-LPP-Contribution>
-                            <sd:Regular>1516.65</sd:Regular>
-                        </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>19336.15</sd:NetIncome>
-                        <sd:ChargesRule>
-                            <sd:WithRegulation>
-                                <sd:Allowed>2021-01-01</sd:Allowed>
-                                <sd:Canton>LU</sd:Canton>
-                            </sd:WithRegulation>
-                        </sd:ChargesRule>
-                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark>
-                            <sd:Rectificate>
-                                <sd:OriginalDate>2024-12-25</sd:OriginalDate>
-                                <sd:OriginalDocID>#DOC-ID-OLD</sd:OriginalDocID>
-                            </sd:Rectificate>
-                        </sd:StandardRemark>
-                        <sd:Remark>Testfall 16 - Rectificate</sd:Remark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -1837,8 +1669,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -1854,6 +1686,7 @@
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -1954,15 +1787,15 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
                         </sd:Period>
                         <sd:Income>1179.45</sd:Income>
                         <sd:GrossIncome>1179.45</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>75.50</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>75.45</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>76.45</sd:Regular>
                         </sd:BVG-LPP-Contribution>
@@ -1971,6 +1804,7 @@
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2071,8 +1905,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -2088,6 +1922,7 @@
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2188,8 +2023,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -2205,6 +2040,7 @@
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2305,8 +2141,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -2317,11 +2153,12 @@
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>151.65</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>1688.20</sd:NetIncome>
+                        <sd:NetIncome>1688.25</sd:NetIncome>
                         <sd:DeductionAtSource>170.00</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2419,8 +2256,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -2536,8 +2373,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -2653,8 +2490,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -2769,8 +2606,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -2786,6 +2623,7 @@
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2885,8 +2723,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -2902,6 +2740,7 @@
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2998,8 +2837,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -3112,8 +2951,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#VD_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -3229,8 +3068,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -3345,8 +3184,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -3476,8 +3315,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -3593,8 +3432,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -3670,8 +3509,7 @@
                             <ep:until>2025-01-18</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>5000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>250.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>250.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -3712,8 +3550,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-18</ep:until>
@@ -3833,8 +3671,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -3845,7 +3683,7 @@
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>393.35</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>2366.50</sd:NetIncome>
+                        <sd:NetIncome>2366.45</sd:NetIncome>
                         <sd:DeductionAtSource>171.60</sd:DeductionAtSource>
                         <sd:ChargesRule>
                             <sd:WithRegulation>
@@ -3858,101 +3696,6 @@
                                 <sd:Car>300.00</sd:Car>
                             </sd:LumpSum>
                         </sd:Charges>
-                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark>
-                            <sd:TaxAtSourcePeriodForObjection/>
-                        </sd:StandardRemark>
-                    </sd:TaxSalary>
-                </sd:TaxSalaries>
-            </sd:Person>
-            <sd:Person>
-                <c:Particulars>
-                    <c:Social-InsuranceIdentification>
-                        <c:SV-AS-Number>756.3466.0443.68</c:SV-AS-Number>
-                    </c:Social-InsuranceIdentification>
-                    <c:EmployeeNumber>39</c:EmployeeNumber>
-                    <c:Lastname>Hasler</c:Lastname>
-                    <c:Firstname>Harald</c:Firstname>
-                    <c:Sex>M</c:Sex>
-                    <c:DateOfBirth>1970-01-01</c:DateOfBirth>
-                    <c:Nationality>DE</c:Nationality>
-                    <c:CivilStatus>
-                        <c:Status>single</c:Status>
-                        <c:ValidAsOf>1970-01-01</c:ValidAsOf>
-                    </c:CivilStatus>
-                    <c:Addresses>
-                        <c:Address>
-                            <c:Street>Maffeistrasse 5</c:Street>
-                            <c:ZIP-Code>80333</c:ZIP-Code>
-                            <c:City>München</c:City>
-                            <c:Country>GERMANY</c:Country>
-                            <c:ResidenceCanton>EX</c:ResidenceCanton>
-                        </c:Address>
-                    </c:Addresses>
-                    <c:ResidenceCategory>othersNotSwiss</c:ResidenceCategory>
-                    <c:LanguageCode>de</c:LanguageCode>
-                </c:Particulars>
-                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime2" workID="#work_TF39_0">
-                    <c:WorkingTime>
-                        <c:Unsteady/>
-                    </c:WorkingTime>
-                    <c:EntryDate>2025-01-01</c:EntryDate>
-                </c:Work>
-                <sd:AHV-AVS-Salaries>
-                    <sd:AHV-AVS-Salary addresseeIDRef="#AHV_KK">
-                        <sd:AccountingTime>
-                            <ep:from>2025-01-01</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:AccountingTime>
-                        <sd:AHV-AVS-BaseSalary>0.00</sd:AHV-AVS-BaseSalary>
-                        <sd:AHV-AVS-Income>0.00</sd:AHV-AVS-Income>
-                        <sd:ALV-AC-Income>0.00</sd:ALV-AC-Income>
-                    </sd:AHV-AVS-Salary>
-                </sd:AHV-AVS-Salaries>
-                <sd:UVG-LAA-Salaries>
-                    <sd:UVG-LAA-Salary addresseeIDRef="#UVG">
-                        <sd:AccountingTime>
-                            <ep:from>2025-01-01</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:AccountingTime>
-                        <sd:UVG-LAA-Code>A0</sd:UVG-LAA-Code>
-                        <sd:UVG-LAA-GrossSalary>0.00</sd:UVG-LAA-GrossSalary>
-                        <sd:UVG-LAA-BaseSalary>0.00</sd:UVG-LAA-BaseSalary>
-                        <sd:UVG-LAA-ContributorySalary>0.00</sd:UVG-LAA-ContributorySalary>
-                    </sd:UVG-LAA-Salary>
-                </sd:UVG-LAA-Salaries>
-                <sd:UVGZ-LAAC-Salaries>
-                    <sd:UVGZ-LAAC-Salary addresseeIDRef="#UVGZ">
-                        <sd:AccountingTime>
-                            <ep:from>2025-01-01</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:AccountingTime>
-                        <sd:UVGZ-LAAC-Code>10</sd:UVGZ-LAAC-Code>
-                        <sd:UVGZ-LAAC-BaseSalary>0.00</sd:UVGZ-LAAC-BaseSalary>
-                        <sd:UVGZ-LAAC-ContributorySalary>0.00</sd:UVGZ-LAAC-ContributorySalary>
-                    </sd:UVGZ-LAAC-Salary>
-                </sd:UVGZ-LAAC-Salaries>
-                <sd:KTG-AMC-Salaries>
-                    <sd:KTG-AMC-Salary addresseeIDRef="#KTG">
-                        <sd:AccountingTime>
-                            <ep:from>2025-01-01</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:AccountingTime>
-                        <sd:KTG-AMC-Code>10</sd:KTG-AMC-Code>
-                        <sd:Reference-AHV-AVS-Salary>0.00</sd:Reference-AHV-AVS-Salary>
-                        <sd:KTG-AMC-ContributorySalary>0.00</sd:KTG-AMC-ContributorySalary>
-                    </sd:KTG-AMC-Salary>
-                </sd:KTG-AMC-Salaries>
-                <sd:TaxSalaries>
-                    <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
-                        <sd:Period>
-                            <ep:from>2025-01-01</ep:from>
-                            <ep:until>2025-01-31</ep:until>
-                        </sd:Period>
-                        <sd:GrossIncome>0.00</sd:GrossIncome>
-                        <sd:NetIncome>0.00</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
@@ -4015,8 +3758,7 @@
                             <ep:until>2025-01-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>4000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>250.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>250.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -4057,8 +3799,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -4189,8 +3931,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -4302,8 +4044,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#NW_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>Entwurf – Brouillon – Bozza (It's not allowed to transmit a Tax Certificate without UUID as DocID in the production, this element is only here for demonstration purposes)</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-31</ep:until>
@@ -4375,7 +4117,7 @@
             </sd:FAK-CAF>
             <sd:UVG-LAA addresseeIDRef="#UVG">
                 <sd:InsuranceCompanyName>Backwork-Versicherungen</sd:InsuranceCompanyName>
-                <sd:CustomerIdentity>12577.2</sd:CustomerIdentity>
+                <sd:CustomerIdentity>12577.2 </sd:CustomerIdentity>
                 <sd:ContractIdentity>125</sd:ContractIdentity>
             </sd:UVG-LAA>
             <sd:UVGZ-LAAC addresseeIDRef="#UVGZ">
@@ -4418,60 +4160,48 @@
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_LU_KK">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>30885.70</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>475.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>483.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>LU</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_Spida">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>15000.00</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>BE</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_BE_KK">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>90693.40</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>750.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>750.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>BE</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_VD_KK">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>5000.00</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>VD</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_AG_SVA">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>10416.95</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>AG</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_TI_KK">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>53261.00</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>TI</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
@@ -4541,16 +4271,16 @@
             </sd:TaxCrossborderTotals>
         </sd:SalaryTotals>
         <sd:SalaryCounters>
-            <sd:NumberOf-AHV-AVS-Salary-Tags>35</sd:NumberOf-AHV-AVS-Salary-Tags>
-            <sd:NumberOf-FAK-CAF-Salary-Tags>32</sd:NumberOf-FAK-CAF-Salary-Tags>
-            <sd:NumberOf-UVG-LAA-Salary-Tags>35</sd:NumberOf-UVG-LAA-Salary-Tags>
-            <sd:NumberOf-UVGZ-LAAC-Salary-Tags>36</sd:NumberOf-UVGZ-LAAC-Salary-Tags>
-            <sd:NumberOf-KTG-AMC-Salary-Tags>36</sd:NumberOf-KTG-AMC-Salary-Tags>
-            <sd:NumberOf-TaxSalary-Tags>36</sd:NumberOf-TaxSalary-Tags>
+            <sd:NumberOf-AHV-AVS-Salary-Tags>33</sd:NumberOf-AHV-AVS-Salary-Tags>
+            <sd:NumberOf-FAK-CAF-Salary-Tags>31</sd:NumberOf-FAK-CAF-Salary-Tags>
+            <sd:NumberOf-UVG-LAA-Salary-Tags>33</sd:NumberOf-UVG-LAA-Salary-Tags>
+            <sd:NumberOf-UVGZ-LAAC-Salary-Tags>34</sd:NumberOf-UVGZ-LAAC-Salary-Tags>
+            <sd:NumberOf-KTG-AMC-Salary-Tags>34</sd:NumberOf-KTG-AMC-Salary-Tags>
+            <sd:NumberOf-TaxSalary-Tags>33</sd:NumberOf-TaxSalary-Tags>
             <sd:NumberOf-TaxCrossborderSalary-Tags>1</sd:NumberOf-TaxCrossborderSalary-Tags>
         </sd:SalaryCounters>
         <sd:GeneralSalaryDeclarationDescription>
-            <sd:CreationDate>2026-08-28T16:56:32.858148200</sd:CreationDate>
+            <sd:CreationDate>2026-10-13T08:58:12.101703570</sd:CreationDate>
             <sd:AccountingPeriod>2025</sd:AccountingPeriod>
             <sd:ContactPerson>
                 <sd:Name>Hans Muster</sd:Name>

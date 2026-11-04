@@ -1,0 +1,171 @@
+<sdcst:DeclareAnnualSalary xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
+    <ep:RequestContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>SalaryCalculator</ep:Name>
+            <ep:Version>20261013</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/A</ep:Certificate>
+        </ep:UserAgent>
+        <ep:CompanyName>Muster AG</ep:CompanyName>
+        <ep:TransmissionDate>2026-10-13T08:58:12.486+02:00</ep:TransmissionDate>
+        <ep:RequestID>requestID</ep:RequestID>
+        <ep:LanguageCode>de</ep:LanguageCode>
+    </ep:RequestContext>
+    <sdc:Job>
+        <sdc:Addressees>
+            <sdc:Addressee addresseeID="#LU_TAX">
+                <ep:AddresseeIdentification>LU</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+        </sdc:Addressees>
+    </sdc:Job>
+    <sd:AnnualSalaryDeclaration schemaVersion="0.0">
+        <sd:CompanyDescription>
+            <c:Name>
+                <c:HR-RC-Name>Muster AG</c:HR-RC-Name>
+            </c:Name>
+            <c:Address>
+                <c:Street>Bahnhofstrasse 1</c:Street>
+                <c:ZIP-Code>6003</c:ZIP-Code>
+                <c:City>Luzern</c:City>
+                <c:Country>SWITZERLAND</c:Country>
+            </c:Address>
+            <c:UID-BFS>
+                <ep:UID>CHE-999.999.996</ep:UID>
+            </c:UID-BFS>
+            <c:Workplace workplaceID="#LU">
+                <c:BUR-REE-Number>A92978109</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Hauptsitz</c:ComplementaryLine>
+                    <c:Street>Bahnhofstrasse 1</c:Street>
+                    <c:ZIP-Code>6003</c:ZIP-Code>
+                    <c:City>Luzern</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>LU</c:Canton>
+                    <c:MunicipalityID>1061</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#BE">
+                <c:BUR-REE-Number>A89058593</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Werkhof/Büro</c:ComplementaryLine>
+                    <c:Street>Zeughausgasse 9</c:Street>
+                    <c:ZIP-Code>3011</c:ZIP-Code>
+                    <c:City>Bern</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>BE</c:Canton>
+                    <c:MunicipalityID>351</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime1">
+                <c:WeeklyHours>42.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime2">
+                <c:WeeklyHours>40.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime3">
+                <c:WeeklyLessons>21.00</c:WeeklyLessons>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime4">
+                <c:WeeklyHoursAndLessons>
+                    <c:WeeklyHours>20.00</c:WeeklyHours>
+                    <c:WeeklyLessons>10.00</c:WeeklyLessons>
+                </c:WeeklyHoursAndLessons>
+            </c:CompanyWorkingTime>
+        </sd:CompanyDescription>
+        <sd:Staff>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.3047.5009.62</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>16</c:EmployeeNumber>
+                    <c:Lastname>Aebi</c:Lastname>
+                    <c:Firstname>Anna</c:Firstname>
+                    <c:Sex>F</c:Sex>
+                    <c:DateOfBirth>1960-12-31</c:DateOfBirth>
+                    <c:Nationality>CH</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>single</c:Status>
+                        <c:ValidAsOf>1960-12-31</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Bundesstrasse 5</c:Street>
+                            <c:ZIP-Code>6003</c:ZIP-Code>
+                            <c:City>Luzern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>LU</c:ResidenceCanton>
+                            <c:MunicipalityID>1061</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime1" workID="#work_TF16_0">
+                    <c:WorkingTime>
+                        <c:Unsteady/>
+                    </c:WorkingTime>
+                    <c:EntryDate>2024-11-01</c:EntryDate>
+                    <c:WithdrawalDate>2024-12-20</c:WithdrawalDate>
+                </c:Work>
+                <sd:TaxSalaries>
+                    <sd:TaxSalary addresseeIDRef="#LU_TAX">
+                        <sd:DocID>eaa5c6d9-0812-4dc9-87cc-ba47bc912d14</sd:DocID>
+                        <sd:CreationDate>2025-01-25T00:00:00.000</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-20</ep:until>
+                        </sd:Period>
+                        <sd:Income>18353.35</sd:Income>
+                        <sd:SporadicBenefits>
+                            <sd:Text>Sonderzulage</sd:Text>
+                            <sd:Sum>3000.00</sd:Sum>
+                        </sd:SporadicBenefits>
+                        <sd:OtherBenefits>
+                            <sd:Text>Vom AG übern. Säule 3 b, Vom AG übern. Säule 3 a, Vom AG übern. AN-Anteil KTG</sd:Text>
+                            <sd:Sum>1250.00</sd:Sum>
+                        </sd:OtherBenefits>
+                        <sd:GrossIncome>22603.35</sd:GrossIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>1750.60</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:BVG-LPP-Contribution>
+                            <sd:Regular>1516.70</sd:Regular>
+                        </sd:BVG-LPP-Contribution>
+                        <sd:NetIncome>19336.05</sd:NetIncome>
+                        <sd:ChargesRule>
+                            <sd:WithRegulation>
+                                <sd:Allowed>2021-01-01</sd:Allowed>
+                                <sd:Canton>LU</sd:Canton>
+                            </sd:WithRegulation>
+                        </sd:ChargesRule>
+                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
+                        <sd:StandardRemark>
+                            <sd:RelocationCosts>2000.00</sd:RelocationCosts>
+                            <sd:Rectificate>
+                                <sd:OriginalDate>2024-12-25</sd:OriginalDate>
+                                <sd:OriginalDocID>428fcbb7-6dce-44ec-9bad-54ad0bed621f</sd:OriginalDocID>
+                            </sd:Rectificate>
+                        </sd:StandardRemark>
+                        <sd:Remark>Testfall 16 - Rectificate</sd:Remark>
+                    </sd:TaxSalary>
+                </sd:TaxSalaries>
+            </sd:Person>
+        </sd:Staff>
+        <sd:Institutions>
+            <sd:Tax addresseeIDRef="#LU_TAX"/>
+        </sd:Institutions>
+        <sd:SalaryTotals/>
+        <sd:SalaryCounters>
+            <sd:NumberOf-TaxSalary-Tags>1</sd:NumberOf-TaxSalary-Tags>
+        </sd:SalaryCounters>
+        <sd:GeneralSalaryDeclarationDescription>
+            <sd:CreationDate>2026-10-13T08:58:12.491052477</sd:CreationDate>
+            <sd:AccountingPeriod>2024</sd:AccountingPeriod>
+            <sd:ContactPerson>
+                <sd:Name>Hans Muster</sd:Name>
+                <sd:EmailAddress>MusterAG@xxxxx.ch</sd:EmailAddress>
+                <sd:PhoneNumber>041 218 65 32</sd:PhoneNumber>
+            </sd:ContactPerson>
+        </sd:GeneralSalaryDeclarationDescription>
+    </sd:AnnualSalaryDeclaration>
+</sdcst:DeclareAnnualSalary>

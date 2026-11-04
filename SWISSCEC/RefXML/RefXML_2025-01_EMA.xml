@@ -1,19 +1,14 @@
-<sdcst:NotifyChanges xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
-                     xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
-                     xmlns:c="urn:ch:swissdec:common:v3:20260306"
-                     xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
-                     xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
-                     xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+<sdcst:NotifyChanges xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
     <ep:RequestContext>
         <ep:UserAgent>
             <ep:Producer>Swissdec</ep:Producer>
             <ep:Name>SalaryCalculator</ep:Name>
-            <ep:Version>20260828</ep:Version>
+            <ep:Version>20261013</ep:Version>
             <ep:StandardVersion>6.0</ep:StandardVersion>
             <ep:Certificate>n/A</ep:Certificate>
         </ep:UserAgent>
         <ep:CompanyName>Muster AG</ep:CompanyName>
-        <ep:TransmissionDate>2026-08-28T16:56:33.410+02:00</ep:TransmissionDate>
+        <ep:TransmissionDate>2026-10-13T08:58:12.571+02:00</ep:TransmissionDate>
         <ep:RequestID>requestID</ep:RequestID>
         <ep:LanguageCode>de</ep:LanguageCode>
     </ep:RequestContext>
@@ -41,10 +36,6 @@
             </sdc:Addressee>
             <sdc:Addressee addresseeID="#FAK_AG_SVA">
                 <ep:AddresseeIdentification>019.000</ep:AddresseeIdentification>
-                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
-            </sdc:Addressee>
-            <sdc:Addressee addresseeID="#FAK_Spida">
-                <ep:AddresseeIdentification>079.000</ep:AddresseeIdentification>
                 <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
             </sdc:Addressee>
             <sdc:Addressee addresseeID="#BVG">
@@ -125,18 +116,6 @@
                     <c:Country>SWITZERLAND</c:Country>
                     <c:Canton>AG</c:Canton>
                     <c:MunicipalityID>4164</c:MunicipalityID>
-                </c:AddressExtended>
-            </c:Workplace>
-            <c:Workplace workplaceID="#ZG">
-                <c:BUR-REE-Number>A38197423</c:BUR-REE-Number>
-                <c:AddressExtended>
-                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
-                    <c:Street>Grafenaustrasse 5</c:Street>
-                    <c:ZIP-Code>6300</c:ZIP-Code>
-                    <c:City>Zug</c:City>
-                    <c:Country>SWITZERLAND</c:Country>
-                    <c:Canton>ZG</c:Canton>
-                    <c:MunicipalityID>1711</c:MunicipalityID>
                 </c:AddressExtended>
             </c:Workplace>
             <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime1">
@@ -2059,9 +2038,6 @@
                     <sd:ValidAsOf>2021-01-01</sd:ValidAsOf>
                 </sd:BVG-LPP-Insurance>
             </sd:AHV-AVS>
-            <sd:FAK-CAF addresseeIDRef="#FAK_Spida">
-                <sd:FAK-CAF-CustomerNumber>5676.3</sd:FAK-CAF-CustomerNumber>
-            </sd:FAK-CAF>
             <sd:FAK-CAF addresseeIDRef="#FAK_LU_KK">
                 <sd:FAK-CAF-CustomerNumber>100-9976.70</sd:FAK-CAF-CustomerNumber>
             </sd:FAK-CAF>

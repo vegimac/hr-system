@@ -1,19 +1,14 @@
-<sdcst:DeclareMonthlySalary xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
-                            xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
-                            xmlns:c="urn:ch:swissdec:common:v3:20260306"
-                            xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
-                            xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
-                            xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+<sdcst:DeclareMonthlySalary xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
     <ep:RequestContext>
         <ep:UserAgent>
             <ep:Producer>Swissdec</ep:Producer>
             <ep:Name>SalaryCalculator</ep:Name>
-            <ep:Version>20260828</ep:Version>
+            <ep:Version>20261013</ep:Version>
             <ep:StandardVersion>6.0</ep:StandardVersion>
             <ep:Certificate>n/A</ep:Certificate>
         </ep:UserAgent>
         <ep:CompanyName>Muster AG</ep:CompanyName>
-        <ep:TransmissionDate>2026-08-28T16:56:51.178+02:00</ep:TransmissionDate>
+        <ep:TransmissionDate>2026-10-13T08:58:31.621+02:00</ep:TransmissionDate>
         <ep:RequestID>requestID</ep:RequestID>
         <ep:LanguageCode>de</ep:LanguageCode>
     </ep:RequestContext>
@@ -525,7 +520,7 @@
                             <sd:FamilyIncomeSupplement>250.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-666.00</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-603.79</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-603.80</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -678,7 +673,7 @@
                             <sd:FamilyIncomeSupplement>215.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-2995.55</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-2469.83</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-2469.85</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -750,7 +745,7 @@
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-800.60</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-866.67</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-866.65</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -1090,7 +1085,7 @@
                         <sd:CurrentMonth>2025-11</sd:CurrentMonth>
                         <sd:Current workplaceIDRef="#LU">
                             <sd:OtherActivities>
-                                <sd:HourlyOrLessonSalary>29.10</sd:HourlyOrLessonSalary>
+                                <sd:HourlyOrLessonSalary>29.12</sd:HourlyOrLessonSalary>
                                 <sd:TotalOtherActivityRate>60.00</sd:TotalOtherActivityRate>
                             </sd:OtherActivities>
                             <sd:TaxAtSourceCategory>
@@ -1138,7 +1133,7 @@
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-133.35</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-76.44</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-76.45</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -1237,7 +1232,7 @@
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-208.15</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-197.16</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-197.15</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -1364,7 +1359,7 @@
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-377.70</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-320.83</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-320.85</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -1493,7 +1488,7 @@
                             <sd:FamilyIncomeSupplement>215.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-400.30</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-379.16</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-379.15</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -1619,7 +1614,7 @@
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-880.65</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-834.17</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-834.15</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -1798,7 +1793,7 @@
                                 <sd:KindOfResidence>
                                     <sd:Weekly>
                                         <c:Street>Laupenstrasse 10</c:Street>
-                                        <c:ZIP-Code>3008.00</c:ZIP-Code>
+                                        <c:ZIP-Code>3008</c:ZIP-Code>
                                         <c:City>Bern</c:City>
                                         <c:Country>SWITZERLAND</c:Country>
                                     </sd:Weekly>
@@ -2350,7 +2345,7 @@
                             <sd:FamilyIncomeSupplement>250.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-400.30</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-379.17</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-379.15</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -2448,7 +2443,7 @@
                                 <sd:KindOfResidence>
                                     <sd:Weekly>
                                         <c:Street>Via Aeroporto 2</c:Street>
-                                        <c:ZIP-Code>6982.00</c:ZIP-Code>
+                                        <c:ZIP-Code>6982</c:ZIP-Code>
                                         <c:City>Agno</c:City>
                                         <c:Country>SWITZERLAND</c:Country>
                                     </sd:Weekly>
@@ -2618,7 +2613,7 @@
                             <sd:FamilyIncomeSupplement>250.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-400.30</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-433.33</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-433.35</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -2762,7 +2757,7 @@
                             <sd:FamilyIncomeSupplement>215.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-400.30</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-379.17</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-379.15</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -2878,7 +2873,7 @@
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-240.20</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-393.33</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-393.35</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -3082,7 +3077,7 @@
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-533.75</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-466.67</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-466.65</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -3189,7 +3184,7 @@
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
                             <sd:SocialContributions>-533.75</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-533.33</sd:BVG-LPP-RegularContribution>
+                            <sd:BVG-LPP-RegularContribution>-533.35</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>

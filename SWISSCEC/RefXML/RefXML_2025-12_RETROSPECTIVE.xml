@@ -1,19 +1,14 @@
-<sdcst:DeclareAnnualSalary xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
-                           xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
-                           xmlns:c="urn:ch:swissdec:common:v3:20260306"
-                           xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
-                           xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
-                           xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+<sdcst:DeclareAnnualSalary xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
     <ep:RequestContext>
         <ep:UserAgent>
             <ep:Producer>Swissdec</ep:Producer>
             <ep:Name>SalaryCalculator</ep:Name>
-            <ep:Version>20260828</ep:Version>
+            <ep:Version>20261013</ep:Version>
             <ep:StandardVersion>6.0</ep:StandardVersion>
             <ep:Certificate>n/A</ep:Certificate>
         </ep:UserAgent>
         <ep:CompanyName>Muster AG</ep:CompanyName>
-        <ep:TransmissionDate>2026-08-28T16:56:53.191+02:00</ep:TransmissionDate>
+        <ep:TransmissionDate>2026-10-13T08:58:33.807+02:00</ep:TransmissionDate>
         <ep:RequestID>requestID</ep:RequestID>
         <ep:LanguageCode>de</ep:LanguageCode>
     </ep:RequestContext>
@@ -301,8 +296,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>f594adee-bedb-43f5-bfe6-8d31a6a7334f</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-03-31</ep:until>
@@ -317,11 +312,11 @@
                             <sd:Sum>2046.00</sd:Sum>
                         </sd:OtherBenefits>
                         <sd:GrossIncome>59359.30</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4028.15</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4028.25</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>2205.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>53126.15</sd:NetIncome>
+                        <sd:NetIncome>53126.05</sd:NetIncome>
                         <sd:ChargesRule>
                             <sd:WithRegulation>
                                 <sd:Allowed>2021-01-01</sd:Allowed>
@@ -395,8 +390,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>61011.90</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>2580.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>2580.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>LU</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -437,8 +431,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>e81ee308-4814-47d1-b9d8-6fc96d2204c5</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -451,9 +445,9 @@
                         <sd:GrossIncome>66591.90</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4805.65</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>3674.95</sd:Regular>
+                            <sd:Regular>3675.15</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>58111.30</sd:NetIncome>
+                        <sd:NetIncome>58111.10</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:RelocationCosts>4251.00</sd:RelocationCosts>
@@ -597,8 +591,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#NW_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>bf8a54c1-917b-47ec-877e-80b3741331eb</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -613,13 +607,15 @@
                             <sd:Sum>6000.00</sd:Sum>
                         </sd:CapitalPayment>
                         <sd:GrossIncome>84400.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>5321.50</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>5321.55</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>1925.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>77153.50</sd:NetIncome>
+                        <sd:NetIncome>77153.45</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark/>
+                        <sd:StandardRemark>
+                            <sd:PartTimeEmployment/>
+                        </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -721,19 +717,19 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>b8b06229-eba0-4c9f-b805-67e3d83fc987</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:Income>420000.00</sd:Income>
                         <sd:GrossIncome>420000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>27381.80</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>27381.90</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>33600.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>359018.20</sd:NetIncome>
+                        <sd:NetIncome>359018.10</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -845,21 +841,23 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>8d7bab2f-6300-4ade-a93e-e9d4f13e10d7</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:Income>17550.00</sd:Income>
                         <sd:GrossIncome>17550.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>677.80</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>678.00</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>468.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>16404.20</sd:NetIncome>
+                        <sd:NetIncome>16404.00</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark/>
+                        <sd:StandardRemark>
+                            <sd:PartTimeEmployment/>
+                        </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -960,19 +958,19 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>597e024d-c66c-433a-b517-912c7d2e43ae</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-10-31</ep:until>
                         </sd:Period>
                         <sd:Income>135000.00</sd:Income>
                         <sd:GrossIncome>135000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>10554.40</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>10554.50</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>10800.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>113645.60</sd:NetIncome>
+                        <sd:NetIncome>113645.50</sd:NetIncome>
                         <sd:ChargesRule>
                             <sd:WithRegulation>
                                 <sd:Allowed>2021-01-01</sd:Allowed>
@@ -1079,8 +1077,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>72b0e616-2221-4d43-949e-cddcff77a82c</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2024-11-01</ep:from>
                             <ep:until>2024-12-31</ep:until>
@@ -1090,8 +1088,8 @@
                             <sd:Sum>15000.00</sd:Sum>
                         </sd:SporadicBenefits>
                         <sd:GrossIncome>15000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>440.35</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
-                        <sd:NetIncome>14559.65</sd:NetIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>440.30</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:NetIncome>14559.70</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -1152,8 +1150,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>120439.20</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>3000.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>3000.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -1194,8 +1191,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>cb2d5252-2756-4b60-8ee0-b3c5e16d2257</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -1204,11 +1201,13 @@
                         <sd:GrossIncome>123439.20</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>9642.35</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>8423.90</sd:Regular>
+                            <sd:Regular>8424.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>105372.95</sd:NetIncome>
+                        <sd:NetIncome>105372.85</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark/>
+                        <sd:StandardRemark>
+                            <sd:PartTimeEmployment/>
+                        </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -1313,8 +1312,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>98ed5b4e-12e7-4930-958f-c01d4e1bdba4</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -1335,7 +1334,9 @@
                             </sd:WithRegulation>
                         </sd:ChargesRule>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark/>
+                        <sd:StandardRemark>
+                            <sd:PartTimeEmployment/>
+                        </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -1435,8 +1436,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>e5592d1c-f093-4446-bdb4-c1f56bd1df97</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-02-01</ep:from>
                             <ep:until>2025-10-30</ep:until>
@@ -1457,20 +1458,18 @@
                             <sd:Sum>-600.00</sd:Sum>
                         </sd:OtherBenefits>
                         <sd:GrossIncome>109000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7373.45</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7373.55</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>4032.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>97594.55</sd:NetIncome>
+                        <sd:NetIncome>97594.45</sd:NetIncome>
                         <sd:ChargesRule>
                             <sd:WithRegulation>
                                 <sd:Allowed>2021-01-01</sd:Allowed>
                                 <sd:Canton>LU</sd:Canton>
                             </sd:WithRegulation>
                         </sd:ChargesRule>
-                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien, Stark verbilligte Abgabe eines
-                            Personenwagens
-                        </sd:OtherFringeBenefits>
+                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien, Stark verbilligte Abgabe eines Personenwagens</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:ChildAllowancePerAHV-AVS/>
                             <sd:StaffShareMarketValue>
@@ -1552,8 +1551,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>353000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>4750.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>4830.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>1000.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>LU</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -1565,7 +1563,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:AccountingTime>
                         <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
-                        <sd:UVG-LAA-GrossSalary>408750.00</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-GrossSalary>408830.00</sd:UVG-LAA-GrossSalary>
                         <sd:UVG-LAA-BaseSalary>353000.00</sd:UVG-LAA-BaseSalary>
                         <sd:UVG-LAA-ContributorySalary>148200.00</sd:UVG-LAA-ContributorySalary>
                     </sd:UVG-LAA-Salary>
@@ -1612,15 +1610,15 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#OW_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>5507a163-60b4-4907-928e-61032be858d2</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:FreeTransport/>
                         <sd:CanteenLunchCheck/>
-                        <sd:Income>325250.00</sd:Income>
+                        <sd:Income>325330.00</sd:Income>
                         <sd:FringeBenefits>
                             <sd:CompanyCar>3000.00</sd:CompanyCar>
                             <sd:Other>
@@ -1640,13 +1638,13 @@
                             <sd:Text>Vom AG übern. AN-Anteil Einkauf BVG</sd:Text>
                             <sd:Sum>5000.00</sd:Sum>
                         </sd:OtherBenefits>
-                        <sd:GrossIncome>408750.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>23743.30</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:GrossIncome>408830.00</sd:GrossIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>23743.40</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>21611.30</sd:Regular>
+                            <sd:Regular>21611.45</sd:Regular>
                             <sd:Purchase>5000.00</sd:Purchase>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>358395.40</sd:NetIncome>
+                        <sd:NetIncome>358475.15</sd:NetIncome>
                         <sd:ChargesRule>
                             <sd:WithRegulation>
                                 <sd:Allowed>2021-01-01</sd:Allowed>
@@ -1793,8 +1791,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>40eba6d2-8306-4fda-bd9f-afa8b673f06b</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-02-27</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -1812,9 +1810,9 @@
                         <sd:GrossIncome>135400.00</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>9025.10</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>9796.00</sd:Regular>
+                            <sd:Regular>9795.95</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>116578.90</sd:NetIncome>
+                        <sd:NetIncome>116578.95</sd:NetIncome>
                         <sd:Charges>
                             <sd:LumpSum>
                                 <sd:Car>2400.00</sd:Car>
@@ -1825,9 +1823,7 @@
                             </sd:LumpSum>
                             <sd:Education>2000.00</sd:Education>
                         </sd:Charges>
-                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien, Stark verbilligte Abgabe eines
-                            Personenwagens
-                        </sd:OtherFringeBenefits>
+                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien, Stark verbilligte Abgabe eines Personenwagens</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:StaffShareMarketValue>
                                 <sd:Allowed>2021-07-01</sd:Allowed>
@@ -1908,7 +1904,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:AccountingTime>
                         <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
-                        <sd:UVG-LAA-GrossSalary>24025.00</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-GrossSalary>23810.00</sd:UVG-LAA-GrossSalary>
                         <sd:UVG-LAA-BaseSalary>23810.00</sd:UVG-LAA-BaseSalary>
                         <sd:UVG-LAA-ContributorySalary>23810.00</sd:UVG-LAA-ContributorySalary>
                     </sd:UVG-LAA-Salary>
@@ -1946,16 +1942,16 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>f598bfeb-5eb1-4597-a064-2466239d00b5</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
-                        <sd:Income>28425.00</sd:Income>
-                        <sd:GrossIncome>28425.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>382.40</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
-                        <sd:NetIncome>28042.60</sd:NetIncome>
+                        <sd:Income>28210.00</sd:Income>
+                        <sd:GrossIncome>28210.00</sd:GrossIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>382.45</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:NetIncome>27827.55</sd:NetIncome>
                         <sd:Charges>
                             <sd:Effective>
                                 <sd:TravelFoodAccommodation>4500.00</sd:TravelFoodAccommodation>
@@ -2061,8 +2057,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>dd198034-5a49-4065-9bd6-cb22981b42ed</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -2071,13 +2067,15 @@
                         <sd:Income>42399.25</sd:Income>
                         <sd:OwnershipRight>10000.00</sd:OwnershipRight>
                         <sd:GrossIncome>52399.25</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>761.25</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
-                        <sd:NetIncome>51638.00</sd:NetIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>761.20</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:NetIncome>51638.05</sd:NetIncome>
                         <sd:ChargesRule>
                             <sd:Guidance/>
                         </sd:ChargesRule>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark/>
+                        <sd:StandardRemark>
+                            <sd:PartTimeEmployment/>
+                        </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -2179,8 +2177,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>ac311bf3-fec9-42fe-9595-c5db2533b268</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-02-28</ep:from>
                             <ep:until>2025-03-01</ep:until>
@@ -2199,7 +2197,9 @@
                             </sd:Effective>
                         </sd:Charges>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark/>
+                        <sd:StandardRemark>
+                            <sd:PartTimeEmployment/>
+                        </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -2307,8 +2307,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>a9713cc3-d6cc-42c8-92cd-0cf2107f32fa</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-15</ep:from>
                             <ep:until>2025-03-27</ep:until>
@@ -2435,8 +2435,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>3f117484-3dbe-4b92-9351-858bc3e817af</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -2447,15 +2447,16 @@
                             <sd:Sum>2000.00</sd:Sum>
                         </sd:SporadicBenefits>
                         <sd:GrossIncome>56600.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4531.35</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4531.15</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>3822.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>48246.65</sd:NetIncome>
+                        <sd:NetIncome>48246.85</sd:NetIncome>
                         <sd:DeductionAtSource>6339.20</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2556,23 +2557,24 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>d97f79c8-be62-4235-9364-dd06e1e3e5f7</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:Income>19696.90</sd:Income>
                         <sd:GrossIncome>19696.90</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>1260.55</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>1260.35</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>917.30</sd:Regular>
+                            <sd:Regular>917.40</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>17519.05</sd:NetIncome>
-                        <sd:DeductionAtSource>1647.70</sd:DeductionAtSource>
+                        <sd:NetIncome>17519.15</sd:NetIncome>
+                        <sd:DeductionAtSource>1647.55</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2674,23 +2676,24 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>dd574453-e623-4daa-8c27-7ddd04573211</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:Income>33800.00</sd:Income>
                         <sd:GrossIncome>33800.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>2706.05</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>2705.95</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>2365.90</sd:Regular>
+                            <sd:Regular>2365.80</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>28728.00</sd:NetIncome>
+                        <sd:NetIncome>28728.25</sd:NetIncome>
                         <sd:DeductionAtSource>1588.60</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2792,8 +2795,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>8f89ffe0-7aab-4063-8a29-0bdb063d009b</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-03-15</ep:until>
@@ -2806,13 +2809,14 @@
                         <sd:GrossIncome>10416.65</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>825.95</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>520.00</sd:Regular>
+                            <sd:Regular>520.05</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>9070.75</sd:NetIncome>
+                        <sd:NetIncome>9070.65</sd:NetIncome>
                         <sd:DeductionAtSource>1538.20</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -2914,8 +2918,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>27b1efdf-390b-4686-a49d-181497abce5d</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-03-15</ep:until>
@@ -2928,13 +2932,14 @@
                         <sd:GrossIncome>10416.65</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>825.95</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>455.00</sd:Regular>
+                            <sd:Regular>454.95</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>9135.70</sd:NetIncome>
+                        <sd:NetIncome>9135.75</sd:NetIncome>
                         <sd:DeductionAtSource>1010.40</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -3032,19 +3037,20 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>833d2f89-4c61-437b-8920-cdcf33333ca6</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:Income>57007.45</sd:Income>
                         <sd:GrossIncome>57007.45</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4564.05</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4564.10</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>3680.80</sd:Regular>
+                            <sd:Regular>3681.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>48762.65</sd:NetIncome>
+                        <sd:NetIncome>48762.35</sd:NetIncome>
+                        <sd:DeductionAtSource>4361.05</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
@@ -3108,8 +3114,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>95000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>645.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>645.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>TI</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -3150,8 +3155,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>aba6c6f3-79b6-4431-bebb-e51acd10675e</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -3162,12 +3167,12 @@
                             <sd:Sum>30000.00</sd:Sum>
                         </sd:SporadicBenefits>
                         <sd:GrossIncome>95645.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7605.70</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7605.75</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>4549.90</sd:Regular>
+                            <sd:Regular>4549.80</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>83489.40</sd:NetIncome>
-                        <sd:DeductionAtSource>9915.65</sd:DeductionAtSource>
+                        <sd:NetIncome>83489.45</sd:NetIncome>
+                        <sd:DeductionAtSource>9915.60</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
@@ -3272,19 +3277,19 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>8b497fa0-41b5-4a5f-bfd8-f910b6a26eb1</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:Income>123500.00</sd:Income>
                         <sd:GrossIncome>123500.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>9887.40</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>9887.50</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>8645.05</sd:Regular>
+                            <sd:Regular>8644.80</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>104967.55</sd:NetIncome>
+                        <sd:NetIncome>104967.70</sd:NetIncome>
                         <sd:DeductionAtSource>10967.00</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
@@ -3409,8 +3414,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#LU_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>6f94c39c-9433-4247-bc83-1e86b660f954</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-02-10</ep:from>
                             <ep:until>2025-06-15</ep:until>
@@ -3527,8 +3532,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>e8f2005f-1199-4e53-9207-54d9a0c91d0a</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-02-10</ep:from>
                             <ep:until>2025-06-15</ep:until>
@@ -3558,7 +3563,7 @@
                         <sd:PlaceOfBirth>DE</sd:PlaceOfBirth>
                         <sd:TaxID>JNZMCL72A01Z112Y</sd:TaxID>
                         <sd:CrossborderValidAsOf>2024-07-18</sd:CrossborderValidAsOf>
-                        <sd:TaxableEarning>28296.80</sd:TaxableEarning>
+                        <sd:TaxableEarning>28296.85</sd:TaxableEarning>
                         <sd:DeductionAtSource>3961.55</sd:DeductionAtSource>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4285.90</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-ContributionRegular>4550.00</sd:BVG-LPP-ContributionRegular>
@@ -3660,8 +3665,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>0b1b6dcb-d498-4fd2-b8f2-2fac3939a7f7</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-05-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -3777,8 +3782,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>1e3705f5-bd14-45c9-9c68-a2799419fd75</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -3789,15 +3794,16 @@
                             <sd:Sum>20000.00</sd:Sum>
                         </sd:SporadicBenefits>
                         <sd:GrossIncome>98000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7845.90</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7845.75</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>6240.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>83914.10</sd:NetIncome>
-                        <sd:DeductionAtSource>11864.80</sd:DeductionAtSource>
+                        <sd:NetIncome>83914.25</sd:NetIncome>
+                        <sd:DeductionAtSource>11864.85</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -3898,8 +3904,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>1b3cc559-f926-4f92-a5cf-a5e87bc0119f</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -3910,15 +3916,16 @@
                             <sd:Sum>20000.00</sd:Sum>
                         </sd:SporadicBenefits>
                         <sd:GrossIncome>98000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7845.90</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7845.75</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>5460.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>84694.10</sd:NetIncome>
+                        <sd:NetIncome>84694.25</sd:NetIncome>
                         <sd:DeductionAtSource>9570.15</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
+                            <sd:PartTimeEmployment/>
                         </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
@@ -4056,8 +4063,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>34c703ab-969b-4870-a1bd-2321a4cac7c7</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-09-30</ep:until>
@@ -4069,11 +4076,11 @@
                         </sd:SporadicBenefits>
                         <sd:OwnershipRight>22000.00</sd:OwnershipRight>
                         <sd:GrossIncome>50000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>3649.70</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>3649.80</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>2200.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>44150.30</sd:NetIncome>
+                        <sd:NetIncome>44150.20</sd:NetIncome>
                         <sd:DeductionAtSource>9848.80</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
@@ -4179,8 +4186,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#VD_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>b8941baa-cb0b-465d-ac89-ddf46c83eacc</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -4296,8 +4303,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>75d4e4fc-eb9b-4551-a9b0-511e0047733b</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-09-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -4373,8 +4380,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>65000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>2250.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>2250.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -4415,8 +4421,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>64d54456-ff2a-4aac-97b1-b3f9e741dbb1</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -4429,10 +4435,10 @@
                         <sd:GrossIncome>67250.00</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>5203.90</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>4550.05</sd:Regular>
+                            <sd:Regular>4549.80</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>57496.05</sd:NetIncome>
-                        <sd:DeductionAtSource>4734.30</sd:DeductionAtSource>
+                        <sd:NetIncome>57496.30</sd:NetIncome>
+                        <sd:DeductionAtSource>4734.35</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
@@ -4495,8 +4501,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>65000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>1935.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>1935.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>TI</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -4537,8 +4542,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>668fcd5f-a152-4464-be41-ce4c429feabe</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -4651,8 +4656,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>25000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>750.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>750.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -4693,8 +4697,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>73ae0fcf-abf1-4f1c-bef1-332cde787cce</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -4705,11 +4709,11 @@
                             <sd:Sum>30000.00</sd:Sum>
                         </sd:SporadicBenefits>
                         <sd:GrossIncome>95750.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7605.70</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7605.75</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>4766.70</sd:Regular>
+                            <sd:Regular>4766.60</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>83377.60</sd:NetIncome>
+                        <sd:NetIncome>83377.65</sd:NetIncome>
                         <sd:DeductionAtSource>9986.10</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
@@ -4792,8 +4796,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>25000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>645.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>645.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>TI</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -4834,8 +4837,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>441b7c64-e3ee-4602-8fe7-23d24c0e4c3d</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -4846,12 +4849,12 @@
                             <sd:Sum>30000.00</sd:Sum>
                         </sd:SporadicBenefits>
                         <sd:GrossIncome>95645.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7605.70</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>7605.75</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>4983.30</sd:Regular>
+                            <sd:Regular>4983.40</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>83056.00</sd:NetIncome>
-                        <sd:DeductionAtSource>16128.50</sd:DeductionAtSource>
+                        <sd:NetIncome>83055.85</sd:NetIncome>
+                        <sd:DeductionAtSource>16128.55</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
                             <sd:TaxAtSourcePeriodForObjection/>
@@ -4870,9 +4873,9 @@
                         <sd:TaxID>MLDFBA88H17C933G</sd:TaxID>
                         <sd:CrossborderValidAsOf>2024-09-01</sd:CrossborderValidAsOf>
                         <sd:TaxableEarning>25645.00</sd:TaxableEarning>
-                        <sd:DeductionAtSource>1917.50</sd:DeductionAtSource>
+                        <sd:DeductionAtSource>1917.55</sd:DeductionAtSource>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>2001.50</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
-                        <sd:BVG-LPP-ContributionRegular>1516.70</sd:BVG-LPP-ContributionRegular>
+                        <sd:BVG-LPP-ContributionRegular>1516.60</sd:BVG-LPP-ContributionRegular>
                     </sd:ItalianCrossborderSalary>
                 </sd:TaxCrossborderSalaries>
             </sd:Person>
@@ -4932,8 +4935,7 @@
                             <ep:until>2025-01-18</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>5000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>250.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>250.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -4974,8 +4976,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#BE_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>1aeb4e79-5952-4f03-add6-17262e59d1f5</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-01-18</ep:until>
@@ -5104,19 +5106,19 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>bbf83f00-d268-41fe-9558-9f6bddcd8f77</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:Income>59800.00</sd:Income>
                         <sd:GrossIncome>59800.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4787.60</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>4787.75</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>4719.95</sd:Regular>
+                            <sd:Regular>4720.20</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>50292.45</sd:NetIncome>
+                        <sd:NetIncome>50292.05</sd:NetIncome>
                         <sd:DeductionAtSource>4837.10</sd:DeductionAtSource>
                         <sd:ChargesRule>
                             <sd:WithRegulation>
@@ -5240,8 +5242,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>5ab5c29f-4fc9-4b41-8980-f47d30471426</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -5357,8 +5359,7 @@
                             <ep:until>2025-03-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>32300.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>750.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>750.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -5368,8 +5369,7 @@
                             <ep:until>2025-10-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>4000.00</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>322.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>322.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>VD</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -5379,8 +5379,7 @@
                             <ep:until>2025-12-31</ep:until>
                         </sd:FAK-CAF-Period>
                         <sd:FAK-CAF-ContributorySalary>42483.35</sd:FAK-CAF-ContributorySalary>
-                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>322.00
-                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>322.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
                         <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
                         <sd:FAK-CAF-WorkplaceCanton>VD</sd:FAK-CAF-WorkplaceCanton>
                     </sd:FAK-CAF-Salary>
@@ -5505,8 +5504,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#VD_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>35887b9d-9146-4fa7-a149-1cfa6e1b4fd5</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
@@ -5521,10 +5520,10 @@
                         <sd:GrossIncome>80177.35</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>5733.30</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>1733.35</sd:Regular>
+                            <sd:Regular>1733.30</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>72710.70</sd:NetIncome>
-                        <sd:DeductionAtSource>16596.10</sd:DeductionAtSource>
+                        <sd:NetIncome>72710.75</sd:NetIncome>
+                        <sd:DeductionAtSource>16596.15</sd:DeductionAtSource>
                         <sd:ChargesRule>
                             <sd:WithRegulation>
                                 <sd:Allowed>2021-01-01</sd:Allowed>
@@ -5613,6 +5612,7 @@
                         <sd:AHV-AVS-BaseSalary>10000.00</sd:AHV-AVS-BaseSalary>
                         <sd:AHV-AVS-Income>10000.00</sd:AHV-AVS-Income>
                         <sd:ALV-AC-Income>12350.00</sd:ALV-AC-Income>
+                        <sd:ALVZ-ACS-Income>-2350.00</sd:ALVZ-ACS-Income>
                     </sd:AHV-AVS-Salary>
                 </sd:AHV-AVS-Salaries>
                 <sd:FAK-CAF-Salaries>
@@ -5701,8 +5701,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#TI_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>402acc69-0811-411c-b31e-c303014c8e4d</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-07-31</ep:until>
@@ -5713,8 +5713,8 @@
                             <sd:Sum>50000.00</sd:Sum>
                         </sd:SporadicBenefits>
                         <sd:GrossIncome>90000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>6309.75</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
-                        <sd:NetIncome>83690.25</sd:NetIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>6309.80</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:NetIncome>83690.20</sd:NetIncome>
                         <sd:DeductionAtSource>16740.00</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
@@ -5819,8 +5819,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>7e23c8af-025a-4e1c-aa3f-8d46d083407d</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-11-01</ep:from>
                             <ep:until>2025-12-15</ep:until>
@@ -5829,9 +5829,9 @@
                         <sd:GrossIncome>10000.00</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>800.60</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>933.35</sd:Regular>
+                            <sd:Regular>933.30</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>8266.05</sd:NetIncome>
+                        <sd:NetIncome>8266.10</sd:NetIncome>
                         <sd:DeductionAtSource>746.65</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
@@ -5850,10 +5850,10 @@
                         <sd:PlaceOfBirth>Alessandria</sd:PlaceOfBirth>
                         <sd:TaxID>PTRTTO91S11A182V</sd:TaxID>
                         <sd:CrossborderValidAsOf>2024-10-01</sd:CrossborderValidAsOf>
-                        <sd:TaxableEarning>6666.65</sd:TaxableEarning>
+                        <sd:TaxableEarning>6666.70</sd:TaxableEarning>
                         <sd:DeductionAtSource>746.65</sd:DeductionAtSource>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>800.60</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
-                        <sd:BVG-LPP-ContributionRegular>933.35</sd:BVG-LPP-ContributionRegular>
+                        <sd:BVG-LPP-ContributionRegular>933.30</sd:BVG-LPP-ContributionRegular>
                     </sd:ItalianCrossborderSalary>
                 </sd:TaxCrossborderSalaries>
             </sd:Person>
@@ -5953,8 +5953,8 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#EX_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>0951ce72-1bda-4d8c-8490-a03f0a1c95a9</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-11-01</ep:from>
                             <ep:until>2025-12-15</ep:until>
@@ -5963,9 +5963,9 @@
                         <sd:GrossIncome>10000.00</sd:GrossIncome>
                         <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>800.60</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
-                            <sd:Regular>1066.65</sd:Regular>
+                            <sd:Regular>1066.70</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>8132.75</sd:NetIncome>
+                        <sd:NetIncome>8132.70</sd:NetIncome>
                         <sd:DeductionAtSource>890.00</sd:DeductionAtSource>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
                         <sd:StandardRemark>
@@ -6121,21 +6121,23 @@
                 </sd:KTG-AMC-Salaries>
                 <sd:TaxSalaries>
                     <sd:TaxSalary addresseeIDRef="#NW_TAX">
-                        <sd:DocID>#DOC-ID</sd:DocID>
-                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:DocID>cb16b7ce-bf66-4f11-ae62-844b4eb2a65a</sd:DocID>
+                        <sd:CreationDate>2025-12-25T00:00:00.000</sd:CreationDate>
                         <sd:Period>
                             <ep:from>2025-01-01</ep:from>
                             <ep:until>2025-12-31</ep:until>
                         </sd:Period>
                         <sd:Income>26000.00</sd:Income>
                         <sd:GrossIncome>26000.00</sd:GrossIncome>
-                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>191.65</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>191.70</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
                         <sd:BVG-LPP-Contribution>
                             <sd:Regular>770.00</sd:Regular>
                         </sd:BVG-LPP-Contribution>
-                        <sd:NetIncome>25038.35</sd:NetIncome>
+                        <sd:NetIncome>25038.30</sd:NetIncome>
                         <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
-                        <sd:StandardRemark/>
+                        <sd:StandardRemark>
+                            <sd:PartTimeEmployment/>
+                        </sd:StandardRemark>
                     </sd:TaxSalary>
                 </sd:TaxSalaries>
             </sd:Person>
@@ -6195,7 +6197,7 @@
             </sd:FAK-CAF>
             <sd:UVG-LAA addresseeIDRef="#UVG">
                 <sd:InsuranceCompanyName>Backwork-Versicherungen</sd:InsuranceCompanyName>
-                <sd:CustomerIdentity>12577.2</sd:CustomerIdentity>
+                <sd:CustomerIdentity>12577.2 </sd:CustomerIdentity>
                 <sd:ContractIdentity>125</sd:ContractIdentity>
             </sd:UVG-LAA>
             <sd:UVGZ-LAAC addresseeIDRef="#UVGZ">
@@ -6229,7 +6231,7 @@
                 <sd:Total-AHV-AVS-Incomes>2970880.10</sd:Total-AHV-AVS-Incomes>
                 <sd:Total-AHV-AVS-Open>120009.25</sd:Total-AHV-AVS-Open>
                 <sd:Total-ALV-AC-Incomes>2358637.95</sd:Total-ALV-AC-Incomes>
-                <sd:Total-ALVZ-ACS-Incomes>532924.30</sd:Total-ALVZ-ACS-Incomes>
+                <sd:Total-ALVZ-ACS-Incomes>530574.30</sd:Total-ALVZ-ACS-Incomes>
                 <sd:Total-ALV-AC-Open>201677.10</sd:Total-ALV-AC-Open>
             </sd:AHV-AVS-Totals>
             <sd:AHV-AVS-Totals addresseeIDRef="#AHV_Spida">
@@ -6242,68 +6244,54 @@
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_LU_KK">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>749440.50</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>7330.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>1000.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>7410.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>1000.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>LU</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>2800.35</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>ZG</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_Spida">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>5500.00</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>BE</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_BE_KK">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>1243305.85</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>7000.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>7000.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>BE</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_VD_KK">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>111483.35</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>644.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>644.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>VD</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_AG_SVA">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>55359.30</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>AG</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
             <sd:FAK-CAF-Totals addresseeIDRef="#FAK_TI_KK">
                 <sd:Total-FAK-CAF-PerCanton>
                     <sd:Total-FAK-CAF-ContributorySalary>808490.75</sd:Total-FAK-CAF-ContributorySalary>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>3225.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
-                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
-                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>3225.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
                     <sd:Canton>TI</sd:Canton>
                 </sd:Total-FAK-CAF-PerCanton>
             </sd:FAK-CAF-Totals>
@@ -6369,7 +6357,7 @@
                     <ep:until>2025-12-31</ep:until>
                 </sd:Period>
                 <sd:TaxAtSourceCanton>TI</sd:TaxAtSourceCanton>
-                <sd:TaxableEarning>127543.45</sd:TaxableEarning>
+                <sd:TaxableEarning>127543.55</sd:TaxableEarning>
             </sd:TaxCrossborderTotals>
             <sd:TaxCrossborderTotals addresseeIDRef="#BE_TAC">
                 <sd:Period>
@@ -6390,7 +6378,7 @@
             <sd:NumberOf-TaxCrossborderSalary-Tags>6</sd:NumberOf-TaxCrossborderSalary-Tags>
         </sd:SalaryCounters>
         <sd:GeneralSalaryDeclarationDescription>
-            <sd:CreationDate>2026-08-28T16:56:53.504776300</sd:CreationDate>
+            <sd:CreationDate>2026-10-13T08:58:34.107899837</sd:CreationDate>
             <sd:AccountingPeriod>2025</sd:AccountingPeriod>
             <sd:ContactPerson>
                 <sd:Name>Hans Muster</sd:Name>

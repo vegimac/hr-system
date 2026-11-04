@@ -1,19 +1,14 @@
-<sdcst:NotifyChanges xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
-                     xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
-                     xmlns:c="urn:ch:swissdec:common:v3:20260306"
-                     xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
-                     xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
-                     xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+<sdcst:NotifyChanges xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
     <ep:RequestContext>
         <ep:UserAgent>
             <ep:Producer>Swissdec</ep:Producer>
             <ep:Name>SalaryCalculator</ep:Name>
-            <ep:Version>20260828</ep:Version>
+            <ep:Version>20261013</ep:Version>
             <ep:StandardVersion>6.0</ep:StandardVersion>
             <ep:Certificate>n/A</ep:Certificate>
         </ep:UserAgent>
         <ep:CompanyName>Muster AG</ep:CompanyName>
-        <ep:TransmissionDate>2026-08-28T16:56:30.245+02:00</ep:TransmissionDate>
+        <ep:TransmissionDate>2026-10-13T08:58:10.080+02:00</ep:TransmissionDate>
         <ep:RequestID>requestID</ep:RequestID>
         <ep:LanguageCode>de</ep:LanguageCode>
     </ep:RequestContext>
@@ -69,54 +64,6 @@
                     <c:Country>SWITZERLAND</c:Country>
                     <c:Canton>BE</c:Canton>
                     <c:MunicipalityID>351</c:MunicipalityID>
-                </c:AddressExtended>
-            </c:Workplace>
-            <c:Workplace workplaceID="#VD">
-                <c:BUR-REE-Number>A89058588</c:BUR-REE-Number>
-                <c:AddressExtended>
-                    <c:ComplementaryLine>Verkauf</c:ComplementaryLine>
-                    <c:Street>Rue des Moulins 9</c:Street>
-                    <c:ZIP-Code>1800</c:ZIP-Code>
-                    <c:City>Vevey</c:City>
-                    <c:Country>SWITZERLAND</c:Country>
-                    <c:Canton>VD</c:Canton>
-                    <c:MunicipalityID>5890</c:MunicipalityID>
-                </c:AddressExtended>
-            </c:Workplace>
-            <c:Workplace workplaceID="#TI">
-                <c:BUR-REE-Number>A92978114</c:BUR-REE-Number>
-                <c:AddressExtended>
-                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
-                    <c:Street>Via Canonico Ghiringhelli 19</c:Street>
-                    <c:ZIP-Code>6500</c:ZIP-Code>
-                    <c:City>Bellinzona</c:City>
-                    <c:Country>SWITZERLAND</c:Country>
-                    <c:Canton>TI</c:Canton>
-                    <c:MunicipalityID>5002</c:MunicipalityID>
-                </c:AddressExtended>
-            </c:Workplace>
-            <c:Workplace workplaceID="#AG">
-                <c:BUR-REE-Number>A12054926</c:BUR-REE-Number>
-                <c:AddressExtended>
-                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
-                    <c:Street>Galterstrasse 3</c:Street>
-                    <c:ZIP-Code>5272</c:ZIP-Code>
-                    <c:City>Gansingen</c:City>
-                    <c:Country>SWITZERLAND</c:Country>
-                    <c:Canton>AG</c:Canton>
-                    <c:MunicipalityID>4164</c:MunicipalityID>
-                </c:AddressExtended>
-            </c:Workplace>
-            <c:Workplace workplaceID="#ZG">
-                <c:BUR-REE-Number>A38197423</c:BUR-REE-Number>
-                <c:AddressExtended>
-                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
-                    <c:Street>Grafenaustrasse 5</c:Street>
-                    <c:ZIP-Code>6300</c:ZIP-Code>
-                    <c:City>Zug</c:City>
-                    <c:Country>SWITZERLAND</c:Country>
-                    <c:Canton>ZG</c:Canton>
-                    <c:MunicipalityID>1711</c:MunicipalityID>
                 </c:AddressExtended>
             </c:Workplace>
             <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime1">
@@ -193,15 +140,6 @@
                     <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF07_0">
                         <sd:Withdrawal>
                             <sd:ValidAsOf>2024-12-31</sd:ValidAsOf>
-                            <sd:Reason>withdrawalPensionPlan</sd:Reason>
-                            <sd:FullyFitForWork/>
-                        </sd:Withdrawal>
-                        <sd:BVG-LPP-Code>11</sd:BVG-LPP-Code>
-                        <sd:BVG-LPP-AnnualBasis>96000.00</sd:BVG-LPP-AnnualBasis>
-                    </sd:BVG-LPP-ChangeNotification>
-                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF07_0">
-                        <sd:Withdrawal>
-                            <sd:ValidAsOf>2024-12-31</sd:ValidAsOf>
                             <sd:Reason>retirement</sd:Reason>
                             <sd:FullyFitForWork/>
                         </sd:Withdrawal>
@@ -268,7 +206,7 @@
                             <sd:FullyFitForWork/>
                         </sd:Withdrawal>
                         <sd:BVG-LPP-Code>22</sd:BVG-LPP-Code>
-                        <sd:BVG-LPP-AnnualBasis>132144.10</sd:BVG-LPP-AnnualBasis>
+                        <sd:BVG-LPP-AnnualBasis>130000.00</sd:BVG-LPP-AnnualBasis>
                     </sd:BVG-LPP-ChangeNotification>
                 </sd:BVG-LPP-ChangeNotifications>
             </sd:Person>

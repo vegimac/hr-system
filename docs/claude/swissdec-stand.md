@@ -478,3 +478,32 @@ ganze Meldung XSD-gültig).
 - Manuell nach RL 8.6.8: Arbeitsunterbruch (3 Arten), `partialRetirement`, `incapacityToWork`, `fullyFitForWork`. `FullyFitForWork` ist eine Frage an den Anwender bei Ein- und Austritt (Ganz, verstorben: ohne).
 
 **Vorgehen im neuen Chat:** Zuerst die Ereignisse und Basen als Prototyp gegen alle 15 Dateien abgleichen, bis alles erklärt ist. Dann Builder, Versand und Oberfläche bauen. Die BVG-Basis einmal bauen, die YearlyProspective nutzt dieselbe Rechnung (RL 8.6.6).
+
+## EMA — Abgleich abgeschlossen 04.11.2026: 291/291 Ereignisse, 34/34 Prospective-Basen
+
+Kern: `ElmBvgBasis` und `ElmEmaEreignisse` (rein, ohne Datenbank), Test `ElmEmaEreignisseTests` rechnet aus den Testmandant-Exporten gegen `*_EMA.xml`, inkl. Reihenfolge je Person und Domäne. Die «noch nicht erklärten» Punkte oben sind damit geklärt.
+
+**BVG-Basis (RL 8.6.6):** manuell, sonst voraussichtlich + rückwirkend, auf 5 Rappen.
+- Voraussichtlich: Lohnarten mit `bvgErwartet` × Faktor. Faktor «x» = 12, plus 1 je 13. und 14. ML (Fankhauser 30'000 × 14). Ortszulage und Naturalien × 12 (Combertaldi (2000 + 200) × 12, Casanova, Bosshard). Festes Pensum im Stundenlohn: Wochenstunden × Satz × 52, mal (1 + 13.-ML-%) (Lamon 112'663.20).
+- Rückwirkend: `bvgRueck` der letzten 12 Läufe **inkl. Meldemonat** × 360 / SV-Tage. Gruppe 3 und 4 immer, Gruppe 1 und 2 nur ohne festes Pensum. Lamon 90'569.25 = 90'130.56 + 329 × 360/270. Paganini 59'890.10 = 24'954.20 × 360/150, inkl. 2065 Lohnausfall KA/SW (Gruppe 1).
+- Die Rückschau beginnt am BVG-Eintritt und nach einem Wechsel der Vertragsart neu (Combertaldi, Müller, Farine).
+- Beim BVG-Eintritt nur der voraussichtliche Teil.
+- Prospective: Rückschau = die 12 Läufe **vor** dem Stichtag (Bosshard 413'400 + 40'000, Bucher 57'007.45), Lohnart 1000 aus dem Januar (Oberli 5'000 × 12). Ereignisse danach übernehmen diese Basis: **Austritt und übrige Mutationen melden die zuletzt gemeldete Basis** und rechnen nicht neu.
+
+**Ereignisse:**
+- AHV/FAK-Eintritt ab Beginn der Pflicht (1.1. nach dem 17. Geburtstag, Combertaldi 2026). AHV-Sonderfall ohne AHV- und FAK-Ereignis (Egli, Hasler).
+- BVG-Eintritt am Eintrittsdatum oder am 1. des Monats, ab dem versichert (Müller, Combertaldi). BVG-Ende ohne Austritt: per Vormonatsende im Vormonat gemeldet (Lusser, Moser, Paganini).
+- Grund `retirement`, wenn das Datum am oder nach dem **genauen Tag** des Referenzalters liegt (Aebi 20.12. vor 31.12.: nicht). `deceased` aus dem Todestag.
+- `changeSalary`: manuelle Basis geändert, oder voraussichtlicher Teil geändert, und nur wenn die Basis von der zuletzt gemeldeten abweicht (Oberli). Ohne festes Pensum zusätzlich ab 10 % Abweichung, abgeleitet: `docs/swissdec-abgeleitete-regeln.md` Nr. 15.
+- FAK-Kantonswechsel: Entry steht vor Withdrawal.
+
+**Vom Anwender auszulösen (RL 8.6.8), im Test als Eingabe:** Herz, Farine (Arbeitsunterbruch), Casanova (`partialRetirement`), Maldini (`incapacityToWork`, `fullyFitForWork`).
+
+**XML:** `ElmEmaEreignisse.Bloecke` ist Zeichen für Zeichen gegen die 291 Referenz-Ereignisse getestet, inkl. `FullyFitForWork` und `oldCode` beim Grund `changeBVG-LPP-Code`.
+
+**Stand Bau:**
+- Gebaut: `ElmEmaBuilder` (Datenbank → Monatsstand → `NotifyChanges`), Tabelle `elm_ema_manuell` (Schema-Stand 139), `GET /api/elm/ema/{jahr}/{monat}` mit Referenzvergleich, `api/elm/ema/manuell` für die Ereignisse nach RL 8.6.8 und die Antwort zur Arbeitsfähigkeit.
+- **Nicht gegen die Referenz geprüft:** Die lokale Datenbank hat keinen Testmandanten. Der Builder ist nur kompiliert, er lief noch nie gegen Daten. Erst auf test.onecrew.ch abgleichbar. Dort zuerst prüfen: «versichert» (`employee_bvg_pflicht` vor BVG-Code-Zeile, Zeilen «Lohnart 5050»), Wegzug aus der Wohnort-Historie, Arbeitsorte, Reihenfolge der Adressaten.
+- Dort müssen die manuellen Ereignisse erfasst sein: Herz, Farine, Casanova, Maldini (siehe oben).
+- **Offen:** Versand (`NotifyChanges` synchron, `SynchronizeNotifyChanges` mit Credentials), Oberfläche, XML der Prospective (Basis und Bestand sind getestet: `ElmBvgBasis.FuerJahresmeldung`, `ElmEmaEreignisse.BvgPeriodeAm`).
+- **Offen, braucht Entscheid:** Die Gründe in `EmaAufgabeRegel` weichen weiter von der Referenz ab. `ema_freigabe` hat `grund` im Schlüssel, ein Umbenennen liesse bereits freigegebene Zeilen wieder offen erscheinen.

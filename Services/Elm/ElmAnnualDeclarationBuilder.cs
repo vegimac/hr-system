@@ -1117,7 +1117,7 @@ public class ElmAnnualDeclarationBuilder
     /// «versichert seit» (aus elm_stammdaten, E3) — sonst NoneWithReason.
     /// InsuranceControlType = choice( Name+UID-BFS+ValidAsOf | NoneWithReason ).
     /// </summary>
-    private static XElement InsuranceBlock(string elementName, string? name, string? uid, DateOnly? seit, string fallbackGrund)
+    public static XElement InsuranceBlock(string elementName, string? name, string? uid, DateOnly? seit, string fallbackGrund)
     {
         name = (name ?? "").Trim();
         uid = (uid ?? "").Trim();

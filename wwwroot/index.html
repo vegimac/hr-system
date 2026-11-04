@@ -4236,6 +4236,13 @@
                     <div class="card" style="padding:20px;max-width:980px">
                         <div id="emaPreview"></div>
                     </div>
+                    <div class="card" style="padding:20px;max-width:980px;margin-top:14px">
+                        <h3 style="margin:0 0 6px">EMA-Meldung gegen die Referenz prüfen</h3>
+                        <p class="page-sub" style="margin:0 0 12px">Alle RefXML_…_EMA.xml aus dem Ordner SWISSCEC/RefXML wählen. Die Dateien werden nur gelesen, es wird nichts gespeichert und nichts gesendet.</p>
+                        <input type="file" id="emaRefDateien" accept=".xml" multiple style="display:none" onchange="emaRefPruefen(this)">
+                        <button type="button" class="btn btn-outline" onclick="document.getElementById('emaRefDateien').click()">Dateien wählen und prüfen</button>
+                        <div id="emaRefErgebnis" style="margin-top:12px"></div>
+                    </div>
                 </div>
             </div>
 
@@ -13277,7 +13284,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/famz-anmeldung.js?v=20261022a"></script>
 <script type="text/plain" data-modul="js/famz-gastrosocial.js?v=20261011p"></script>
 <script type="text/plain" data-modul="js/akis-meldung.js?v=20261030f"></script>
-<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261030a"></script>
+<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261104a"></script>
 <script type="text/plain" data-modul="js/manager-dienstplan.js?v=20261013b"></script>
 <script type="text/plain" data-modul="js/organigramm.js?v=20261102b"></script>
 <script type="text/plain" data-modul="js/ferien-planer.js?v=20260814b"></script>

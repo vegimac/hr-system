@@ -1,19 +1,14 @@
-<sdcst:DeclareMonthlySalary xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
-                            xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
-                            xmlns:c="urn:ch:swissdec:common:v3:20260306"
-                            xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
-                            xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
-                            xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+<sdcst:DeclareMonthlySalary xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container">
     <ep:RequestContext>
         <ep:UserAgent>
             <ep:Producer>Swissdec</ep:Producer>
             <ep:Name>SalaryCalculator</ep:Name>
-            <ep:Version>20260828</ep:Version>
+            <ep:Version>20261013</ep:Version>
             <ep:StandardVersion>6.0</ep:StandardVersion>
             <ep:Certificate>n/A</ep:Certificate>
         </ep:UserAgent>
         <ep:CompanyName>Muster AG</ep:CompanyName>
-        <ep:TransmissionDate>2026-08-28T16:56:55.214+02:00</ep:TransmissionDate>
+        <ep:TransmissionDate>2026-10-13T08:58:35.819+02:00</ep:TransmissionDate>
         <ep:RequestID>requestID</ep:RequestID>
         <ep:LanguageCode>de</ep:LanguageCode>
     </ep:RequestContext>
@@ -109,18 +104,6 @@
                     <c:Country>SWITZERLAND</c:Country>
                     <c:Canton>AG</c:Canton>
                     <c:MunicipalityID>4164</c:MunicipalityID>
-                </c:AddressExtended>
-            </c:Workplace>
-            <c:Workplace workplaceID="#ZG">
-                <c:BUR-REE-Number>A38197423</c:BUR-REE-Number>
-                <c:AddressExtended>
-                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
-                    <c:Street>Grafenaustrasse 5</c:Street>
-                    <c:ZIP-Code>6300</c:ZIP-Code>
-                    <c:City>Zug</c:City>
-                    <c:Country>SWITZERLAND</c:Country>
-                    <c:Canton>ZG</c:Canton>
-                    <c:MunicipalityID>1711</c:MunicipalityID>
                 </c:AddressExtended>
             </c:Workplace>
             <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime1">
@@ -284,8 +267,8 @@
                             <sd:Allowances>0.00</sd:Allowances>
                             <sd:FamilyIncomeSupplement>215.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
-                            <sd:SocialContributions>-2120.15</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-2644.83</sd:BVG-LPP-RegularContribution>
+                            <sd:SocialContributions>-2120.20</sd:SocialContributions>
+                            <sd:BVG-LPP-RegularContribution>-2644.85</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -522,7 +505,7 @@
                         <sd:CurrentMonth>2026-02</sd:CurrentMonth>
                         <sd:Current workplaceIDRef="#LU">
                             <sd:OtherActivities>
-                                <sd:HourlyOrLessonSalary>19.25</sd:HourlyOrLessonSalary>
+                                <sd:HourlyOrLessonSalary>19.23</sd:HourlyOrLessonSalary>
                                 <sd:TotalOtherActivityRate>60.00</sd:TotalOtherActivityRate>
                             </sd:OtherActivities>
                             <sd:TaxAtSourceCategory>
@@ -575,8 +558,8 @@
                             <sd:Allowances>0.00</sd:Allowances>
                             <sd:FamilyIncomeSupplement>0.00</sd:FamilyIncomeSupplement>
                             <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
-                            <sd:SocialContributions>-88.05</sd:SocialContributions>
-                            <sd:BVG-LPP-RegularContribution>-89.18</sd:BVG-LPP-RegularContribution>
+                            <sd:SocialContributions>-88.10</sd:SocialContributions>
+                            <sd:BVG-LPP-RegularContribution>-89.20</sd:BVG-LPP-RegularContribution>
                             <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
                         </sd:MonthlyValues>
                         <sd:AnnualValues>
@@ -893,7 +876,7 @@
                                 <sd:KindOfResidence>
                                     <sd:Weekly>
                                         <c:Street>Laupenstrasse 10</c:Street>
-                                        <c:ZIP-Code>3008.00</c:ZIP-Code>
+                                        <c:ZIP-Code>3008</c:ZIP-Code>
                                         <c:City>Bern</c:City>
                                         <c:Country>SWITZERLAND</c:Country>
                                     </sd:Weekly>
@@ -961,6 +944,7 @@
                         <sd:Current workplaceIDRef="#TI">
                             <sd:OtherActivities>
                                 <sd:MonthlySalary>60.00</sd:MonthlySalary>
+                                <sd:TotalOtherActivityRate>20.00</sd:TotalOtherActivityRate>
                             </sd:OtherActivities>
                             <sd:TaxAtSourceCategory>
                                 <c:TaxAtSourceCode>A0Y</c:TaxAtSourceCode>
@@ -973,49 +957,6 @@
                                 <sd:CantonCH>BE</sd:CantonCH>
                             </sd:Residence>
                             <sd:WorkMunicipalityID>5002</sd:WorkMunicipalityID>
-                            <sd:DeclarationCategory>
-                                <sd:Entry>
-                                    <sd:ValidAsOf>2026-02-01</sd:ValidAsOf>
-                                    <sd:Reason>cantonChange</sd:Reason>
-                                </sd:Entry>
-                                <sd:Mutation>
-                                    <sd:ValidAsOf>2026-02-01</sd:ValidAsOf>
-                                    <sd:Reason>residence</sd:Reason>
-                                </sd:Mutation>
-                            </sd:DeclarationCategory>
-                        </sd:Current>
-                    </sd:TaxAtSourceSalary>
-                    <sd:TaxAtSourceSalary addresseeIDRef="#QST-TI">
-                        <sd:AdditionalParticulars>
-                            <sd:Denomination>romanCatholic</sd:Denomination>
-                        </sd:AdditionalParticulars>
-                        <sd:TaxAtSourceCanton>TI</sd:TaxAtSourceCanton>
-                        <sd:TaxAtSourceMunicipalityID>5002</sd:TaxAtSourceMunicipalityID>
-                        <sd:CurrentMonth>2026-02</sd:CurrentMonth>
-                        <sd:Current workplaceIDRef="#TI">
-                            <sd:OtherActivities>
-                                <sd:MonthlySalary>60.00</sd:MonthlySalary>
-                            </sd:OtherActivities>
-                            <sd:TaxAtSourceCategory>
-                                <c:TaxAtSourceCode>A0Y</c:TaxAtSourceCode>
-                            </sd:TaxAtSourceCategory>
-                            <sd:TaxableEarning>0.00</sd:TaxableEarning>
-                            <sd:AscertainedTaxableEarning>0.00</sd:AscertainedTaxableEarning>
-                            <sd:TaxAtSource>0.00</sd:TaxAtSource>
-                            <sd:Residence>
-                                <sd:CantonCH>BE</sd:CantonCH>
-                            </sd:Residence>
-                            <sd:WorkMunicipalityID>5002</sd:WorkMunicipalityID>
-                            <sd:DeclarationCategory>
-                                <sd:Mutation>
-                                    <sd:ValidAsOf>2026-02-01</sd:ValidAsOf>
-                                    <sd:Reason>residence</sd:Reason>
-                                </sd:Mutation>
-                                <sd:Withdrawal>
-                                    <sd:ValidAsOf>2026-01-31</sd:ValidAsOf>
-                                    <sd:Reason>cantonChange</sd:Reason>
-                                </sd:Withdrawal>
-                            </sd:DeclarationCategory>
                         </sd:Current>
                     </sd:TaxAtSourceSalary>
                 </sd:TaxAtSourceSalaries>
@@ -1211,7 +1152,7 @@
                             </sd:TaxAtSourceCategory>
                             <sd:TaxableEarning>4322.00</sd:TaxableEarning>
                             <sd:AscertainedTaxableEarning>4322.00</sd:AscertainedTaxableEarning>
-                            <sd:TaxAtSource>32.40</sd:TaxAtSource>
+                            <sd:TaxAtSource>32.45</sd:TaxAtSource>
                             <sd:GrantTaxAtSourceCode/>
                             <sd:Residence>
                                 <sd:CantonCH>VD</sd:CantonCH>
@@ -1416,7 +1357,7 @@
             <sd:TaxAtSourceTotals addresseeIDRef="#QST-VD">
                 <sd:TotalMonth>
                     <sd:TotalTaxableEarning>4322.00</sd:TotalTaxableEarning>
-                    <sd:TotalTaxAtSource>32.40</sd:TotalTaxAtSource>
+                    <sd:TotalTaxAtSource>32.45</sd:TotalTaxAtSource>
                     <sd:TotalCommission>0.00</sd:TotalCommission>
                     <sd:CurrentMonth>2026-02</sd:CurrentMonth>
                 </sd:TotalMonth>
@@ -1439,7 +1380,7 @@
             </sd:TaxAtSourceTotals>
         </sd:SalaryTotals>
         <sd:SalaryCounters>
-            <sd:NumberOf-TaxAtSourceSalary-Tags>10</sd:NumberOf-TaxAtSourceSalary-Tags>
+            <sd:NumberOf-TaxAtSourceSalary-Tags>9</sd:NumberOf-TaxAtSourceSalary-Tags>
             <sd:NumberOf-StatisticSalary-Tags>9</sd:NumberOf-StatisticSalary-Tags>
         </sd:SalaryCounters>
         <sd:ContactPerson>

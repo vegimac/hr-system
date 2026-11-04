@@ -93,3 +93,42 @@ async function emaZurueck(id) {
         showToast('Verbindungsfehler.', 'error');
     }
 }
+
+// EMA-Meldung NotifyChanges gegen die Swissdec-Referenz (Walter 04.11.2026). Nur lesen, nichts senden.
+let _emaRefBericht = '';
+
+async function emaRefPruefen(input) {
+    const el = document.getElementById('emaRefErgebnis');
+    const fd = new FormData();
+    for (const f of input.files) fd.append('dateien', f);
+    input.value = '';
+    el.innerHTML = '<div style="color:var(--oc-text-3);font-size:12.5px">Wird geprüft…</div>';
+    try {
+        const res = await fetch('/api/elm/ema/pruefen', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { el.textContent = d.message || 'Prüfung fehlgeschlagen.'; return; }
+        _emaRefBericht = d.bericht || '';
+        const zeilen = d.monate.map(m => {
+            const hinweise = [...m.xsdFehler.map(x => 'XSD: ' + x), ...m.warnungen];
+            return `<tr><td>${m.monat}</td><td style="text-align:right">${m.ereignisse}</td>`
+                + `<td style="text-align:right">${m.geprueft ?? '–'}</td><td style="text-align:right">${m.referenz ? (m.offen ?? 'keine Meldung') : 'keine Referenz'}</td>`
+                + `<td style="font-size:11.5px">${hinweise.map(emaRefText).join('<br>')}</td></tr>`;
+        }).join('');
+        el.innerHTML = '<table class="data-table" style="width:100%"><thead><tr><th>Monat</th><th style="text-align:right">Ereignisse</th>'
+            + '<th style="text-align:right">Felder</th><th style="text-align:right">Offen</th><th>Hinweise</th></tr></thead>'
+            + `<tbody>${zeilen}</tbody></table>`
+            + '<button type="button" class="btn btn-outline" style="margin-top:10px" onclick="emaRefBerichtLaden()">Bericht herunterladen</button>';
+    } catch (_) {
+        el.textContent = 'Verbindungsfehler.';
+    }
+}
+
+function emaRefText(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
+
+function emaRefBerichtLaden() {
+    saveBlobAsk(new Blob([_emaRefBericht], { type: 'text/markdown' }), 'ema-abgleich.md');
+}

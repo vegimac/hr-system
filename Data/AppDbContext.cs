@@ -75,6 +75,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeVersicherungCode> EmployeeVersicherungCodes => Set<EmployeeVersicherungCode>();
     public DbSet<EmployeeBvgPflicht> EmployeeBvgPflichten => Set<EmployeeBvgPflicht>();
     public DbSet<EmaFreigabe> EmaFreigaben => Set<EmaFreigabe>();
+    public DbSet<ElmEmaManuell> ElmEmaManuelle => Set<ElmEmaManuell>();
     public DbSet<VorsystemLohnkonto> VorsystemLohnkonten => Set<VorsystemLohnkonto>();
     public DbSet<SimulationVortrag> SimulationVortraege => Set<SimulationVortrag>();
     public DbSet<SimulationLohn> SimulationLoehne => Set<SimulationLohn>();
@@ -4157,6 +4158,23 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ErfasstVonUserId).HasColumnName("erfasst_von_user_id");
             entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von").HasMaxLength(200);
             entity.HasIndex(e => new { e.EmployeeId, e.CompanyProfileId, e.Art, e.Stichtag }).IsUnique();
+        });
+
+        modelBuilder.Entity<ElmEmaManuell>(entity =>
+        {
+            entity.ToTable("elm_ema_manuell");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Monat).HasColumnName("monat").HasColumnType("date");
+            entity.Property(e => e.Art).HasColumnName("art").HasMaxLength(12);
+            entity.Property(e => e.Grund).HasColumnName("grund").HasMaxLength(40);
+            entity.Property(e => e.ValidAsOf).HasColumnName("valid_as_of").HasColumnType("date");
+            entity.Property(e => e.ErfasstAm).HasColumnName("erfasst_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErfasstVonUserId).HasColumnName("erfasst_von_user_id");
+            entity.Property(e => e.ErfasstVon).HasColumnName("erfasst_von").HasMaxLength(200);
+            entity.HasIndex(e => new { e.EmployeeId, e.Monat });
         });
 
         modelBuilder.Entity<EmaFreigabe>(entity =>
