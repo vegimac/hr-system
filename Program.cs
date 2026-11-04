@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 137;  // 137: Reihenfolge der Kassen in Meldungen · 136: Filial-Schalter 13. ML Probezeit · 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 138;  // 138: Wohnort Erfahren-am, AHV-Aufteilung Negativlohn · 137: Reihenfolge der Kassen in Meldungen · 136: Filial-Schalter 13. ML Probezeit · 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -522,6 +522,22 @@ using (var scope = app.Services.CreateScope())
             UPDATE lohnposition SET statistik_monat = 'Bruttolohn', statistik_jahr = NULL,
                    qst_charakter = 'monatlich', qst_periodisch = true
              WHERE code = '1218';
+        ");
+
+    // Stand 138: Wohnort «Erfahren am» wie Zivilstand/Bewilligung; AHV-Aufteilung bei Negativlohn (Richtlinien 8.7.5.3).
+    if (dbStand < 138)
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employee_wohnort_history ADD COLUMN IF NOT EXISTS erfahren_am date;
+            CREATE TABLE IF NOT EXISTS employee_ahv_split (
+                id serial PRIMARY KEY,
+                employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+                jahr integer NOT NULL,
+                vorjahr_von date,
+                vorjahr_bis date,
+                vorjahr_lohn numeric(12,2),
+                nachlieferung_am date
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_employee_ahv_split ON employee_ahv_split (employee_id, jahr);
         ");
 
     // Stand 137: optionale Reihenfolge der Kassen in den Meldungs-Totalen (leer = nach Kassennummer, Walter 04.11.2026).

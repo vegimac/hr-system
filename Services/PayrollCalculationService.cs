@@ -463,7 +463,8 @@ public static class PayrollCalculations
                 // der Betrag geht unverändert durch, damit die Rückerstattung so
                 // ausfällt wie bei der ungedeckelten AHV (Walter 26.09.2026).
                 decimal Kum(decimal lohn, decimal monate)
-                    => lohn < 0 ? lohn : Math.Max(0m, Math.Min(lohn, cap * monate) - von * monate);
+                    // Überschuss-Band: unter null fällt nichts ins Band (Referenz 2025-12: TF09 Estermann, KTG 12).
+                    => lohn < 0 ? (von > 0m ? 0m : lohn) : Math.Max(0m, Math.Min(lohn, cap * monate) - von * monate);
                 // Wechselt die Versicherungslösung mitten im Jahr (TF03 Pia Lusser:
                 // KTG 12 bis 31.05., KTG 11 ab 01.06.), bringt die Regel ihre EIGENE
                 // Aufroll-Basis mit — nur die Monate, in denen sie galt. Sonst zöge der

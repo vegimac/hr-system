@@ -30,7 +30,7 @@ public class WohnortHistorieService
             .ToList();
         EmployeeWohnortHistory? treffer = null;
         foreach (var h in sortiert)
-            if (h.GueltigAb == null || h.GueltigAb <= stichtag) treffer = h;
+            if (GiltAm(h, stichtag)) treffer = h;
         if (treffer != null)
             return new Stand(treffer.Strasse, treffer.Plz, treffer.Ort, treffer.KantonCode,
                 LandAus(treffer), treffer.GueltigAb, true);
@@ -50,7 +50,7 @@ public class WohnortHistorieService
         EmployeeWohnortHistory? davor = null;
         foreach (var h in sortiert)
         {
-            if (h.GueltigAb == null || h.GueltigAb <= bis)
+            if (GiltAm(h, bis))
             {
                 davor = treffer;
                 treffer = h;
@@ -63,6 +63,10 @@ public class WohnortHistorieService
         return (new Stand(davor.Strasse, davor.Plz, davor.Ort, davor.KantonCode, LandAus(davor), davor.GueltigAb, true),
             ab.AddDays(-1));
     }
+
+    /// <summary>Gültig und bekannt am Stichtag (Referenz 2025-08: TF36 Maldini, Wegzug 28.08. erst im September bekannt).</summary>
+    static bool GiltAm(EmployeeWohnortHistory h, DateOnly stichtag)
+        => (h.GueltigAb == null || h.GueltigAb <= stichtag) && (h.ErfahrenAm == null || h.ErfahrenAm <= stichtag);
 
     static bool Gleich(string? a, string? b)
         => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);

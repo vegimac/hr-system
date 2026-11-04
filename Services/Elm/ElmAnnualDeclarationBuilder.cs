@@ -306,6 +306,7 @@ public class ElmAnnualDeclarationBuilder
         // ── Personen ──────────────────────────────────────────────────────
         var lpByCode = (await _db.Lohnpositionen.AsNoTracking().ToListAsync(ct))
             .GroupBy(l => l.Code).ToDictionary(g => g.Key, g => g.First());
+        var ahvSplits = await _db.EmployeeAhvSplits.AsNoTracking().Where(s => empIds.Contains(s.EmployeeId)).ToListAsync(ct);
         var personenLa = await _db.EmployeeLohnausweise.AsNoTracking().Where(p => empIds.Contains(p.EmployeeId)).ToListAsync(ct);
         var fassungenLa = await _db.CompanyLohnausweise.AsNoTracking().Where(f => filialIds.Contains(f.CompanyProfileId)).ToListAsync(ct);
         var qstZeiten = await _db.EmployeeQuellensteuer.AsNoTracking().Where(q => empIds.Contains(q.EmployeeId)).ToListAsync(ct);
@@ -442,6 +443,21 @@ public class ElmAnnualDeclarationBuilder
                         new XElement(Ep + "until", until.ToString("yyyy-MM-dd"))),
                     new XElement(Sd + "AHV-AVS-BaseSalary", Betrag05(a.Basis)),
                     new XElement(Sd + "AHV-AVS-Income", Betrag05(a.AhvLohn)));
+                if (a.AhvLohn < 0m)
+                {
+                    var split = ahvSplits.FirstOrDefault(s => s.EmployeeId == e.Id && s.Jahr == year);
+                    if (split == null)
+                        warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): negativer AHV-Lohn {year} ohne Aufteilung auf die Jahre (Richtlinien 8.7.5.3).");
+                    else if (split.NachlieferungAm is DateOnly nach)
+                        salary.Add(new XElement(Sd + "AHV-AVS-IncomeSplits",
+                            new XElement(Sd + "AdditionalDeliveryDate", nach.ToString("yyyy-MM-dd"))));
+                    else if (split is { VorjahrVon: DateOnly vjVon, VorjahrBis: DateOnly vjBis, VorjahrLohn: decimal vjLohn })
+                        salary.Add(new XElement(Sd + "AHV-AVS-IncomeSplits", new XElement(Sd + "Splits",
+                            new XElement(Sd + "SplitCurrentYearIncome", Betrag05(a.AhvLohn - vjLohn)),
+                            new XElement(Sd + "SplitPreviousYear",
+                                new XElement(Sd + "Period", new XElement(Ep + "from", vjVon.ToString("yyyy-MM-dd")), new XElement(Ep + "until", vjBis.ToString("yyyy-MM-dd"))),
+                                new XElement(Sd + "Income", Betrag05(vjLohn))))));
+                }
                 if (a.AhvFrei != 0)
                     salary.Add(new XElement(Sd + "AHV-AVS-Open", Betrag05(a.AhvFrei)));
                 salary.Add(new XElement(Sd + "ALV-AC-Income", Betrag05(a.AlvLohn)));

@@ -750,10 +750,11 @@ public class PayrollCalculationEngine
         // der UVG-Höchstlohn rollt über ALLE Monate mit UVG-Versicherung auf, gleich unter welchem Code
         // (TF12 Casanova A2 bis Sep, A1 ab Okt → Oktober 7'303.35). Monate mit Code «…0» (nicht versichert)
         // zählen nicht (TF40 Farine A1 Jan/Feb, A0 März, A1 Okt → 7'600). Ohne UVG-Codes: null = wie bisher.
-        var uvgCodes = simAktiv ? new List<EmployeeVersicherungCode>()
+        var alleVersCodes = simAktiv ? new List<EmployeeVersicherungCode>()
             : await _db.EmployeeVersicherungCodes.AsNoTracking()
-                .Where(v => v.EmployeeId == employeeId && v.Art == "UVG" && v.Code != null)
+                .Where(v => v.EmployeeId == employeeId && v.Code != null)
                 .ToListAsync();
+        var uvgCodes = alleVersCodes.Where(v => v.Art == "UVG").ToList();
         var uvgMonate = PayrollCalculations.UvgVersicherteMonate(uvgCodes, year);
 
         foreach (var r in deductions)
@@ -781,11 +782,18 @@ public class PayrollCalculationEngine
             if (eigeneBasis) r.YtdBasenEigen = eigeneArt;
 
             if (r.LoesungAb is not { } ab || ab.Year != year || ab.Month <= 1) continue;
-            r.YtdBasenEigen = ytdSnapshots.Where(x => x.Month >= ab.Month)
+            // Dieselbe Lösung früher im Jahr zählt mit (Referenz 2025-10: TF40 Farine KTG 11 Jan/Feb, 10 März, 11 Oktober).
+            var artDerRegel = EmployeeVersicherungCode.ArtFuerSvCode(r.CategoryCode);
+            var fruehereMonate = ytdSnapshots.Where(x => x.Month < ab.Month && alleVersCodes.Any(v => v.Art == artDerRegel
+                    && string.Equals((v.Code ?? "").Trim(), (r.LoesungsCode ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
+                    && v.GiltAm(new DateOnly(year, x.Month, DateTime.DaysInMonth(year, x.Month)))))
+                .Select(x => x.Month).ToHashSet();
+            r.YtdBasenEigen = ytdSnapshots.Where(x => x.Month >= ab.Month || fruehereMonate.Contains(x.Month))
                 .Select(x => YtdBasisFuer(r.CategoryCode, x.SvBasisAhv, x.SvBasisNbuv, x.SvBasisKtg))
                 .ToList();
             r.AusgleichMonateBisherEigen = PayrollCalculations.BeschaeftigungsMonate(
-                employee.Employments, year, ab.Month, month - 1, ytdMonate);
+                employee.Employments, year, ab.Month, month - 1, ytdMonate)
+                + fruehereMonate.Sum(m => PayrollCalculations.BeschaeftigungsMonate(employee.Employments, year, m, m, ytdMonate));
             r.AusgleichMonateEigen = r.AusgleichMonateBisherEigen
                 + PayrollCalculations.BeschaeftigungsMonate(employee.Employments, year, month, month);
         }

@@ -36,6 +36,9 @@ public class EmployeeWohnortHistory
     /// </summary>
     public string? Strasse { get; set; }
 
+    /// <summary>Ab wann die Firma den Umzug kennt; leer = ab Gültig-ab. Meldungen zeigen ihn erst ab dann.</summary>
+    public DateOnly? ErfahrenAm { get; set; }
+
     /// <summary>NULL = «seit jeher» (initialer Eintrag aus der Bestandsadresse).</summary>
     public DateOnly? GueltigAb { get; set; }
 

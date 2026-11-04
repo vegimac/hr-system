@@ -125,6 +125,7 @@ public class AppDbContext : DbContext
     public DbSet<LohndatenEmpfaenger>       LohndatenEmpfaengers        => Set<LohndatenEmpfaenger>();
     public DbSet<CompanyProfileEmpfaenger>  CompanyProfileEmpfaengers   => Set<CompanyProfileEmpfaenger>();
     public DbSet<EmployeeWohnortHistory>    EmployeeWohnortHistories    => Set<EmployeeWohnortHistory>();
+    public DbSet<EmployeeAhvSplit>          EmployeeAhvSplits           => Set<EmployeeAhvSplit>();
     public DbSet<EmployeeZivilstandHistory> EmployeeZivilstandHistories => Set<EmployeeZivilstandHistory>();
     // BFS Lohnstrukturerhebung (Walter 13.08.2026)
     public DbSet<LseVersion>                LseVersions                 => Set<LseVersion>();
@@ -2191,6 +2192,19 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.ErledigtVonUser).WithMany().HasForeignKey(e => e.ErledigtVon).OnDelete(DeleteBehavior.SetNull);
         });
 
+        modelBuilder.Entity<EmployeeAhvSplit>(entity =>
+        {
+            entity.ToTable("employee_ahv_split");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Jahr).HasColumnName("jahr");
+            entity.Property(e => e.VorjahrVon).HasColumnName("vorjahr_von");
+            entity.Property(e => e.VorjahrBis).HasColumnName("vorjahr_bis");
+            entity.Property(e => e.VorjahrLohn).HasColumnName("vorjahr_lohn").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.NachlieferungAm).HasColumnName("nachlieferung_am");
+        });
+
         modelBuilder.Entity<EmployeeWohnortHistory>(entity =>
         {
             entity.ToTable("employee_wohnort_history");
@@ -2203,6 +2217,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Land).HasColumnName("land");
             // Walter 20.08.2026: genaue Strasse mit-historisieren.
             entity.Property(e => e.Strasse).HasColumnName("strasse");
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am");
             entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
             entity.Property(e => e.DatumOffen).HasColumnName("datum_offen");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");

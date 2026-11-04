@@ -148,6 +148,55 @@ public partial class SwissdecTestmandantController
             aktionen.Add(new Aktion("aktualisieren", "FAK-Kasse", k.Bezeichnung, new Dictionary<string, string?> { ["Reihenfolge"] = soll?.ToString() }));
             if (!vorschau) k.MeldungReihenfolge = soll;
         }
+        // Mutationen, die in den Lohnausweis-Angaben oder der Historie wirken: Wegzug wird erst im Mutationsmonat bekannt
+        // (TF36 Maldini 28.08., gemeldet ab September), Aufteilung negativer AHV-Löhne (TF44 Lusser, TF09 Estermann).
+        var personJeFall = new Dictionary<string, int>();
+        foreach (var f in LeseTestfaelle(pfad))
+        {
+            var nr = NummerOhneKomma(f.W.GetValueOrDefault("PersonEmployeeNumber")) ?? f.Id;
+            var id = await _db.Employees.AsNoTracking().Where(e => e.EmployeeNumber == nr).Select(e => (int?)e.Id).FirstOrDefaultAsync();
+            if (id != null) personJeFall[f.Id] = id.Value;
+        }
+        var splits = new Dictionary<(int Emp, int Jahr), EmployeeAhvSplit>();
+        foreach (var datei in new[] { "testcase_differences_export.csv", "testcase_differences_zusatz.csv" }.Select(CsvPfad).Where(System.IO.File.Exists))
+            foreach (var zeile in System.IO.File.ReadLines(datei).Skip(1))
+            {
+                var s = zeile.Split(',');
+                if (s.Length < 6 || !personJeFall.TryGetValue(s[0].Split(' ')[0], out var empId)) continue;
+                var neuWert = s[^1].Trim();
+                if (neuWert.Length == 0 || !DateOnly.TryParse(s[^3], System.Globalization.CultureInfo.InvariantCulture, out var mutation)) continue;
+                if (s[1] == "PersonDepartureDate" && Datum(neuWert) is DateOnly wegzug)
+                {
+                    var ab = wegzug.AddDays(1);
+                    var umzug = await _db.EmployeeWohnortHistories.FirstOrDefaultAsync(h => h.EmployeeId == empId && h.GueltigAb == ab);
+                    if (umzug != null && umzug.ErfahrenAm != mutation)
+                    {
+                        aktionen.Add(new Aktion("aktualisieren", "Wohnort", $"{s[0]} ab {ab:dd.MM.yyyy}", new Dictionary<string, string?> { ["Erfahren am"] = mutation.ToString("dd.MM.yyyy") }));
+                        if (!vorschau) umzug.ErfahrenAm = mutation;
+                    }
+                }
+                if (s[1] is not ("PersonSplitPreviousYearIncome" or "PersonSplitPreviousYearPeriodFrom" or "PersonSplitPreviousYearPeriodUntil" or "PersonAdditionalDeliveryDate")) continue;
+                if (!splits.TryGetValue((empId, mutation.Year), out var split))
+                    splits[(empId, mutation.Year)] = split = new EmployeeAhvSplit { EmployeeId = empId, Jahr = mutation.Year };
+                switch (s[1])
+                {
+                    case "PersonSplitPreviousYearIncome": split.VorjahrLohn = decimal.Parse(neuWert, System.Globalization.CultureInfo.InvariantCulture); break;
+                    case "PersonSplitPreviousYearPeriodFrom": split.VorjahrVon = Datum(neuWert); break;
+                    case "PersonSplitPreviousYearPeriodUntil": split.VorjahrBis = Datum(neuWert); break;
+                    case "PersonAdditionalDeliveryDate": split.NachlieferungAm = Datum(neuWert); break;
+                }
+            }
+        aktionen.AddRange(splits.Values.Select(sp => new Aktion("aktualisieren", "AHV-Aufteilung", $"Mitarbeiter {sp.EmployeeId}, {sp.Jahr}", new Dictionary<string, string?>
+        {
+            ["Vorjahr"] = sp.VorjahrLohn?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
+            ["Mitteilung am"] = sp.NachlieferungAm?.ToString("dd.MM.yyyy"),
+        })));
+        if (!vorschau)
+        {
+            _db.EmployeeAhvSplits.RemoveRange(_db.EmployeeAhvSplits);
+            _db.EmployeeAhvSplits.AddRange(splits.Values);
+        }
+
         var uvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSUVGLAAInsurerValidAsOf");
         var bvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSBVGLPPInsurerValidAsOf");
         aktionen.Add(new Aktion("aktualisieren", "Stammdaten", "Versichert seit", new Dictionary<string, string?>
@@ -164,6 +213,49 @@ public partial class SwissdecTestmandantController
         }
         if (!vorschau) await _db.SaveChangesAsync();
         return Ok(new SchrittErgebnis("4d · Lohnausweis-Angaben", vorschau, aktionen, hinweise));
+    }
+
+    /// <summary>Einzelne Lohnzettel neu rechnen, die vor einer Korrektur abgeschlossen wurden; der Rest bleibt unberührt.</summary>
+    private static readonly (string Nr, int Jahr, int Monat)[] TmNeuRechnen =
+    {
+        ("1", 2025, 1), ("15", 2025, 3), ("11", 2025, 3),
+        ("1", 2025, 10), ("11", 2025, 10), ("40", 2025, 10),
+        ("11", 2025, 11),
+        ("11", 2025, 12), ("9", 2025, 12),
+    };
+
+    [HttpGet("schritt5d/vorschau")]
+    public async Task<IActionResult> Schritt5dVorschau() => await Schritt5d(true);
+
+    [HttpPost("schritt5d/anlegen")]
+    public async Task<IActionResult> Schritt5dAnlegen() => await Schritt5d(false);
+
+    private async Task<IActionResult> Schritt5d(bool vorschau)
+    {
+        if (!IstTestinstanz())
+            return StatusCode(403, new { error = "NUR_TESTINSTANZ", message = "Der Swissdec-Testmandant darf nur auf der Testinstanz geladen werden." });
+        var recompute = HttpContext.RequestServices.GetRequiredService<HrSystem.Services.SnapshotRecomputeService>();
+        var aktionen = new List<Aktion>();
+        foreach (var (nr, jahr, monat) in TmNeuRechnen)
+        {
+            var snap = await (from s in _db.PayrollSnapshots
+                              join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+                              join e in _db.Employees on s.EmployeeId equals e.Id
+                              where e.EmployeeNumber == nr && p.Year == jahr && p.Month == monat && s.Status != "STORNIERT"
+                              select new { s.Id, s.EmployeeId, p.CompanyProfileId, s.Netto, s.SvBasisAhv, e.LastName }).FirstOrDefaultAsync();
+            if (snap == null) continue;
+            var felder = new Dictionary<string, string?> { ["vorher Netto"] = snap.Netto.ToString("0.00"), ["vorher AHV-Basis"] = snap.SvBasisAhv.ToString("0.00") };
+            if (!vorschau)
+            {
+                await recompute.RecomputeAsync(snap.CompanyProfileId, jahr, monat, snap.EmployeeId);
+                await _db.SaveChangesAsync();
+                var neu = await _db.PayrollSnapshots.AsNoTracking().Where(s => s.Id == snap.Id).Select(s => new { s.Netto, s.SvBasisAhv }).FirstAsync();
+                felder["Netto"] = neu.Netto.ToString("0.00");
+                felder["AHV-Basis"] = neu.SvBasisAhv.ToString("0.00");
+            }
+            aktionen.Add(new Aktion("aktualisieren", "Lohnzettel", $"{snap.LastName} {monat:00}.{jahr}", felder));
+        }
+        return Ok(new SchrittErgebnis("5d · Einzelne Lohnzettel neu rechnen", vorschau, aktionen, new List<string>()));
     }
 
     private static DateOnly? TmFirmaDatum(string pfad, string feld) =>

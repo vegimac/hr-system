@@ -50,14 +50,15 @@ public class SnapshotRecomputeService
     /// Rechnet alle nicht-stornierten Snapshots der Periode neu. Liefert die Anzahl
     /// aktualisierter Snapshots. Macht ein eigenes SaveChanges (self-contained).
     /// </summary>
-    public async Task<int> RecomputeAsync(int companyProfileId, int year, int month)
+    public async Task<int> RecomputeAsync(int companyProfileId, int year, int month, int? nurEmployeeId = null)
     {
         var periode = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId && p.Year == year && p.Month == month);
         if (periode is null) return 0;
 
         var snaps = await _db.PayrollSnapshots
-            .Where(s => s.PayrollPeriodeId == periode.Id && s.Status != "STORNIERT")
+            .Where(s => s.PayrollPeriodeId == periode.Id && s.Status != "STORNIERT"
+                        && (nurEmployeeId == null || s.EmployeeId == nurEmployeeId))
             .ToListAsync();
         if (snaps.Count == 0) return 0;
 
