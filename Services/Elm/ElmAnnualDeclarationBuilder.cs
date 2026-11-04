@@ -296,6 +296,10 @@ public class ElmAnnualDeclarationBuilder
         var fakTags = 0;
 
         // ── Personen ──────────────────────────────────────────────────────
+        var lpByCode = (await _db.Lohnpositionen.AsNoTracking().ToListAsync(ct))
+            .GroupBy(l => l.Code).ToDictionary(g => g.Key, g => g.First());
+        var taxKantone = new SortedSet<string>(StringComparer.Ordinal);
+        int taxTags = 0;
         var persons = new List<XElement>();
         int skipped = rows.GroupBy(r => r.EmployeeId).Count() - perEmp.Count;
         if (skipped > 0)
@@ -408,7 +412,58 @@ public class ElmAnnualDeclarationBuilder
 
             var fakSalaries = FakSalaries(e, x.EmployeeId, monate, ahvAbschnitte, Zeit);
             persons.Add(new XElement(Sd + "Person", particulars, work, salaries, fakSalaries,
-                VersicherungSalaries(e, x.EmployeeId, Zeit)));
+                VersicherungSalaries(e, x.EmployeeId, Zeit),
+                TaxSalaries(rowsByEmp[x.EmployeeId].OrderBy(r => r.Month).Select(r => r.SlipJson), adresseAm,
+                    Zeit(rowsByEmp[x.EmployeeId].Min(r => r.Month), rowsByEmp[x.EmployeeId].Max(r => r.Month)))));
+        }
+
+        // Lohnausweis einer Person (Richtlinien Kapitel 9): adressiert an den Wohnkanton, im Ausland EX.
+        XElement TaxSalaries(IEnumerable<string?> lohnzettel, PersonAdresseAm adresse, (DateTime Von, DateTime Bis) periode)
+        {
+            var a = ElmLohnausweisJahr.Rechne(lohnzettel, c => lpByCode.TryGetValue(c, out var l) ? (l.LohnausweisCode, l.Bezeichnung) : (null, null));
+            var land = (adresse.Country ?? "").Trim().ToUpperInvariant();
+            var kanton = (adresse.Canton ?? "").Trim().ToUpperInvariant();
+            if (land is not ("" or "CH") || kanton.Length != 2) kanton = "EX";
+            taxKantone.Add(kanton);
+            taxTags++;
+            XElement Betrag(string name, decimal v) => new(Sd + name, Amt(PayrollCalculations.Round05(v)));
+            XElement? WennBetrag(string name, decimal v) => v != 0m ? Betrag(name, v) : null;
+            XElement? MitText(string name, ElmLohnausweisJahr.Feld f) => a.Von(f) != 0m
+                ? new XElement(Sd + name, new XElement(Sd + "Text", a.TextVon(f)), Betrag("Sum", a.Von(f))) : null;
+            var v = ElmLohnausweisJahr.Feld.Verpflegung;
+            var w = ElmLohnausweisJahr.Feld.Geschaeftswagen;
+            var n = ElmLohnausweisJahr.Feld.Nebenleistung;
+            XElement? fringe = a.Von(v) != 0m || a.Von(w) != 0m || a.Von(n) != 0m
+                ? new XElement(Sd + "FringeBenefits", WennBetrag("FoodLodging", a.Von(v)), WennBetrag("CompanyCar", a.Von(w)), MitText("Other", n))
+                : null;
+            var pw = a.Von(ElmLohnausweisJahr.Feld.SpesenPauschalWagen);
+            var pu = ElmLohnausweisJahr.Feld.SpesenPauschalUebrige;
+            var ef = a.Von(ElmLohnausweisJahr.Feld.SpesenEffektiv);
+            var wb = a.Von(ElmLohnausweisJahr.Feld.Weiterbildung);
+            XElement? spesen = ef != 0m || pw != 0m || a.Von(pu) != 0m || wb != 0m
+                ? new XElement(Sd + "Charges",
+                    ef != 0m ? new XElement(Sd + "Effective", Betrag("TravelFoodAccommodation", ef)) : null,
+                    pw != 0m || a.Von(pu) != 0m ? new XElement(Sd + "LumpSum", WennBetrag("Car", pw), MitText("Other", pu)) : null,
+                    WennBetrag("Education", wb))
+                : null;
+            return new XElement(Sd + "TaxSalaries", new XElement(Sd + "TaxSalary",
+                new XAttribute("addresseeIDRef", "#TAX-" + kanton),
+                new XElement(Sd + "DocID", Guid.NewGuid().ToString()),
+                new XElement(Sd + "CreationDate", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff")),
+                new XElement(Sd + "Period", new XElement(Ep + "from", periode.Von.ToString("yyyy-MM-dd")), new XElement(Ep + "until", periode.Bis.ToString("yyyy-MM-dd"))),
+                WennBetrag("Income", a.Von(ElmLohnausweisJahr.Feld.Lohn)),
+                fringe,
+                MitText("SporadicBenefits", ElmLohnausweisJahr.Feld.Unregelmaessig),
+                MitText("CapitalPayment", ElmLohnausweisJahr.Feld.Kapital),
+                WennBetrag("OwnershipRight", a.Von(ElmLohnausweisJahr.Feld.Beteiligung)),
+                WennBetrag("BoardOfDirectorsRemuneration", a.Von(ElmLohnausweisJahr.Feld.Verwaltungsrat)),
+                MitText("OtherBenefits", ElmLohnausweisJahr.Feld.Uebrige),
+                Betrag("GrossIncome", a.Brutto),
+                WennBetrag("AHV-ALV-NBUV-AVS-AC-AANP-Contribution", a.Beitraege),
+                a.Bvg != 0m ? new XElement(Sd + "BVG-LPP-Contribution", Betrag("Regular", a.Bvg)) : null,
+                Betrag("NetIncome", a.Netto),
+                WennBetrag("DeductionAtSource", a.Quellensteuer),
+                spesen));
         }
 
         // UVG-, UVGZ- und KTG-Salaries einer Person: je Beitragsdauer und Code (ElmVersicherungJahreslohn).
@@ -669,6 +724,10 @@ public class ElmAnnualDeclarationBuilder
             warn.Add($"{art}: Personen mit {art}-Code, aber kein {art}-Versicherer im Empfänger-Katalog — {art} nicht gemeldet.");
         // Nur Versicherer melden, für die es Personen gibt (wie die Referenz).
         var versGemeldet = new[] { "UVG", "UVGZ", "KTG" }.Where(a => vers.ContainsKey(a) && versTags[a] > 0).ToList();
+        jobAddressees.AddRange(taxKantone.Select(k => new XElement(Sdc + "Addressee",
+            new XAttribute("addresseeID", "#TAX-" + k),
+            new XElement(Ep + "AddresseeIdentification", k),
+            new XElement(Ep + "ProcessByDistributor", "true"))));
         jobAddressees.AddRange(versGemeldet.Select(a => new XElement(Sdc + "Addressee",
             new XAttribute("addresseeID", vers[a].Id),
             new XElement(Ep + "AddresseeIdentification", vers[a].Kassennummer),
@@ -690,6 +749,7 @@ public class ElmAnnualDeclarationBuilder
             new XElement(Sd + "InsuranceCompanyName", vers[a].Name),
             new XElement(Sd + "CustomerIdentity", vers[a].Kunde),
             new XElement(Sd + "ContractIdentity", vers[a].Vertrag))));
+        institutions.AddRange(taxKantone.Select(k => new XElement(Sd + "Tax", new XAttribute("addresseeIDRef", "#TAX-" + k))));
 
         var salaryTotals = new List<XElement>
         {
@@ -746,6 +806,7 @@ public class ElmAnnualDeclarationBuilder
             counters.Add(new XElement(Sd + "NumberOf-FAK-CAF-Salary-Tags", fakTags));
         foreach (var a in versGemeldet)
             counters.Add(new XElement(Sd + $"NumberOf-{VersElement[a]}-Salary-Tags", versTags[a]));
+        if (taxTags > 0) counters.Add(new XElement(Sd + "NumberOf-TaxSalary-Tags", taxTags));
 
         // ── Gesamtdokument ────────────────────────────────────────────────
         var now = DateTime.Now;
