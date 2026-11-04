@@ -90,6 +90,15 @@ public static class ElmMeldungAnzeige
     /// </summary>
     public static bool Zertifizierungstest(ElmVorgang v) => v.Url == null;
 
+    /// <summary>
+    /// Meldung ans Quality Tool, älter als eine halbe Stunde: das Tool wertet die Meldung beim Empfang aus,
+    /// spätere Abfragen bringen nichts. Ohne diese Grenze fragte die Testinstanz nach 16 Monaten Lohntest
+    /// rund um die Uhr nach und blockierte das Senden (Walter 04.11.2026, über 90'000 Abfragen).
+    /// </summary>
+    public static bool LohntestVorbei(ElmVorgang v, DateTime jetzt)
+        => (v.Url ?? "").Contains("/qualitytool/", StringComparison.OrdinalIgnoreCase)
+           && jetzt - v.Gesendet > TimeSpan.FromMinutes(30);
+
     /// <summary>Ampel einer Meldung: rot vor «Handlung nötig» vor «läuft» vor grün.</summary>
     public static Stand Meldung(ElmVorgang v)
     {
@@ -210,14 +219,14 @@ public static class ElmMeldungAnzeige
     /// die älteren Prüfpunkt-Fälle aus der Zertifizierung fragt sie nicht nach.
     /// </summary>
     public static bool StatusFaellig(ElmVorgang v, DateTime jetzt)
-        => IstAnwender(v.Art) && !v.JobFinished && !string.IsNullOrEmpty(v.JobKey)
+        => !LohntestVorbei(v, jetzt) && IstAnwender(v.Art) && !v.JobFinished && !string.IsNullOrEmpty(v.JobKey)
            && v.Url != null && (jetzt - v.Gesendet).TotalDays <= AutoHoechstensTage
            && (v.LetzteStatusAbfrage is not DateTime t || jetzt - t >= AutoStatusAbstand);
 
     /// <summary>Empfänger, bei denen die Automatik jetzt synchronisieren soll (Quittung/Rückfrage abholen).</summary>
     public static List<ElmVorgangAdressat> SyncFaellig(ElmVorgang v, DateTime jetzt)
     {
-        if (!IstAnwender(v.Art) || !v.JobFinished || v.Url == null
+        if (LohntestVorbei(v, jetzt) || !IstAnwender(v.Art) || !v.JobFinished || v.Url == null
             || (jetzt - v.Gesendet).TotalDays > AutoHoechstensTage)
             return new();
         return v.Adressaten.Where(a => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId)

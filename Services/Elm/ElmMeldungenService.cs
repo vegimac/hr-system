@@ -111,6 +111,7 @@ public class ElmMeldungenService
     {
         var jetzt = DateTime.Now;
         var v = Finde(id);
+        if (ElmMeldungAnzeige.LohntestVorbei(v, jetzt)) return new(true, null);
         var url = UrlVon(v);
         var fehler = new List<string>();
 
@@ -151,6 +152,7 @@ public class ElmMeldungenService
         var offen = _dienst.Liste()
             .Where(v => ElmMeldungAnzeige.IstAnwender(v.Art) || v.Art == "subscribe")
             .Where(v => !ElmMeldungAnzeige.Zertifizierungstest(v))
+            .Where(v => !ElmMeldungAnzeige.LohntestVorbei(v, DateTime.Now))
             .Where(v => !v.JobFinished
                         || v.Adressaten.Any(a => !ElmMeldungAnzeige.Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0))
             .Select(v => v.Id)

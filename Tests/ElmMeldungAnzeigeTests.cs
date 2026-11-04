@@ -238,4 +238,14 @@ public class ElmMeldungAnzeigeTests
 
         Assert.Equal(new[] { "b", "d", "j", "n" }, ids);
     }
+
+    [Fact]
+    public void Quality_Tool_wird_nach_einer_halben_Stunde_nicht_mehr_abgefragt()
+    {
+        var jetzt = new DateTime(2026, 11, 4, 18, 0, 0);
+        var v = new ElmVorgang { Art = "annual", Url = "https://test.swissdec.ch/qualitytool/stable/x", Gesendet = jetzt.AddMinutes(-31) };
+        Assert.True(ElmMeldungAnzeige.LohntestVorbei(v, jetzt));
+        Assert.False(ElmMeldungAnzeige.LohntestVorbei(new ElmVorgang { Url = v.Url, Gesendet = jetzt.AddMinutes(-5) }, jetzt));
+        Assert.False(ElmMeldungAnzeige.LohntestVorbei(new ElmVorgang { Url = "https://distributor.swissdec.ch/x", Gesendet = jetzt.AddDays(-5) }, jetzt));
+    }
 }

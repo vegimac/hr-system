@@ -24,9 +24,9 @@ public class ElmUebermittlungService
     /// </summary>
     private static readonly SemaphoreSlim Sperre = new(1, 1);
 
-    private static async Task<T> Exklusiv<T>(Func<Task<T>> arbeit)
+    private static async Task<T> Exklusiv<T>(Func<Task<T>> arbeit, int wartenSekunden = 0)
     {
-        if (!await Sperre.WaitAsync(0))
+        if (!await Sperre.WaitAsync(TimeSpan.FromSeconds(wartenSekunden)))
             throw new InvalidOperationException("Es läuft gerade eine andere Übermittlung — bitte warten, bis sie fertig ist.");
         try { return await arbeit(); }
         finally { Sperre.Release(); }
@@ -133,7 +133,8 @@ public class ElmUebermittlungService
     // ── Declare (UC001) ──────────────────────────────────────────────────
 
     public Task<Ergebnis> DeclareAsync(string url, DeclareOptionen o, CancellationToken ct)
-        => Exklusiv(() => DeclareInternAsync(url, o, ct));
+        // Senden wartet kurz: eine laufende Abfrage im Hintergrund soll die Meldung nicht abweisen.
+        => Exklusiv(() => DeclareInternAsync(url, o, ct), wartenSekunden: 120);
 
     private async Task<Ergebnis> DeclareInternAsync(string url, DeclareOptionen o, CancellationToken ct)
     {
