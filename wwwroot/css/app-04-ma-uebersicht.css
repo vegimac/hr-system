@@ -52,7 +52,7 @@
         .ov-wrap {
             display: grid;
             /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
-            grid-template-columns: minmax(0, 2.3fr) minmax(280px, 0.8fr);
+            grid-template-columns: minmax(0, 1.9fr) minmax(330px, 0.9fr);
             gap: 10px; /* gleiche Abstände zwischen allen Boxen */
             /* Knappes Boden-Padding — Schatten knapp sichtbar, ohne Leerraum */
             padding: 2px 2px 8px;
@@ -580,7 +580,7 @@
         .ov-vertraege-ktg {
             grid-column: 1 / -1;
             display: grid;
-            grid-template-columns: minmax(0, 2.3fr) minmax(280px, 0.8fr);
+            grid-template-columns: minmax(0, 1.9fr) minmax(330px, 0.9fr);
             gap: 10px; /* wie .ov-wrap */
             min-width: 0;
             align-items: stretch;
