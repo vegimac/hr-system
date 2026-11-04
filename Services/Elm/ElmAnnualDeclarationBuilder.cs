@@ -313,6 +313,7 @@ public class ElmAnnualDeclarationBuilder
         var taxKantone = new SortedSet<string>(StringComparer.Ordinal);
         var grenzSteuerbar = new SortedDictionary<string, decimal>(StringComparer.Ordinal);
         var grenzTags = 0;
+        var grenzJahr = 0;
         int taxTags = 0;
         var persons = new List<XElement>();
         decimal totalAhv = 0, totalAlv = 0, totalAlvz = 0, totalAhvFrei = 0, totalAlvFrei = 0;
@@ -435,6 +436,14 @@ public class ElmAnnualDeclarationBuilder
             foreach (var a in ahvAbschnitte)
             {
                 var (from, until) = Zeit(a.Von, a.Bis);
+                // Lohn nach Austritt beim Rentner: AHV-Zeitraum ab Erreichen des Referenzalters (Referenz 2026-02: TF05 Moser ab 01.05.2025).
+                if (a.Art == ElmAhvJahreslohn.Art.Rentner && until < new DateTime(year, a.Von, 1))
+                    for (var rm = 1; rm <= 12; rm++)
+                        if (PayrollCalculations.HatReferenzalterErreicht(e.Gender, e.DateOfBirth!.Value, until.Year, rm, ahvStand))
+                        {
+                            if (new DateTime(until.Year, rm, 1) > from) from = new DateTime(until.Year, rm, 1);
+                            break;
+                        }
                 var ahvKasse = AhvKasseAm(DateOnly.FromDateTime(until));
                 var salary = new XElement(Sd + "AHV-AVS-Salary",
                     new XAttribute("addresseeIDRef", ahvKasse.Id),
@@ -542,6 +551,7 @@ public class ElmAnnualDeclarationBuilder
             }
             if (steuerbar == null) return null;
             grenzSteuerbar[kanton] = grenzSteuerbar.GetValueOrDefault(kanton) + steuerbar.Value;
+            if (periodeBis.Year > grenzJahr) grenzJahr = periodeBis.Year;
             return xml;
         }
 
@@ -905,9 +915,16 @@ public class ElmAnnualDeclarationBuilder
             warn.Add($"FAK Nullmeldung: {ohnePersonen} Kasse(n) ohne Personen im Job (zugeordnete Arbeitsorte).");
 
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─
+        // Arbeitsorte wie die Monatsmeldung: auch Lohn im Rückblick zählt (Referenz 2026-01: AG, letzter Lohn Oktober 2025).
+        var arbeitsorteRueckblick = (await (from sn in _db.PayrollSnapshots.AsNoTracking()
+                                            join pp in _db.PayrollPerioden.AsNoTracking() on sn.PayrollPeriodeId equals pp.Id
+                                            where sn.Status != "STORNIERT" && filialIds.Contains(pp.CompanyProfileId) && pp.Year >= year - 1 && pp.Year <= year
+                                            select new { pp.CompanyProfileId, pp.Year, pp.Month }).Distinct().ToListAsync(ct))
+            .Where(x => ElmMonthlyDeclarationBuilder.ImArbeitsortRueckblick(x.Year, x.Month, year, letzterMonat))
+            .Select(x => x.CompanyProfileId).ToList();
         var companyName = stamm.Firmenname;
         var companyDescription = CompanyDescription(
-            ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(stamm, rows.Select(r => r.CompanyProfileId).ToHashSet()),
+            ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(stamm, rows.Select(r => r.CompanyProfileId).Concat(arbeitsorteRueckblick).ToHashSet()),
             ElmMonthlyDeclarationBuilder.ArbeitszeitModelle(modelle, zuordnungen, empIds, main.NormalWeeklyHours ?? 42m, warn));
 
         var jobAddressees = ahvKassen.Select(k => new XElement(Sdc + "Addressee",
@@ -1008,8 +1025,9 @@ public class ElmAnnualDeclarationBuilder
         salaryTotals.AddRange(grenzSteuerbar.Select(g => new XElement(Sd + "TaxCrossborderTotals",
             new XAttribute("addresseeIDRef", "#QST-" + g.Key),
             new XElement(Sd + "Period",
-                new XElement(Ep + "from", yearStart.ToString("yyyy-MM-dd")),
-                new XElement(Ep + "until", yearEnd.ToString("yyyy-MM-dd"))),
+                // Nur Lohn nach Austritt aus dem Vorjahr: Totale für jenes Jahr (Referenz 2026-02: TF42 Peters).
+                new XElement(Ep + "from", new DateTime(grenzJahr, 1, 1).ToString("yyyy-MM-dd")),
+                new XElement(Ep + "until", (grenzJahr == year ? yearEnd : new DateTime(grenzJahr, 12, 31)).ToString("yyyy-MM-dd"))),
             new XElement(Sd + "TaxAtSourceCanton", g.Key),
             new XElement(Sd + "TaxableEarning", Betrag05(g.Value)))));
 

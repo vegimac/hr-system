@@ -119,6 +119,12 @@ public partial class SwissdecTestmandantController
             _db.EmployeeLohnausweise.RemoveRange(bisher);
             _db.EmployeeLohnausweise.AddRange(fassungen);
         }
+        // TF08 Lamon: Sonntagszulage 1073 ohne 13. ML (Referenz 2026-01: AHV 20'000, nicht 21'666).
+        if (await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == "1073") is { ZaehltAlsBasis13ml: true } lp1073)
+        {
+            aktionen.Add(new Aktion("aktualisieren", "Lohnposition", "1073", new Dictionary<string, string?> { ["Basis 13. ML"] = "nein" }));
+            if (!vorschau) lp1073.ZaehltAlsBasis13ml = false;
+        }
         // Lohnausweis-Texte kommen aus der Lohnposition: dort die Bezeichnung der Testdaten
         // (Quality Tool 2025-01: TF37 Oberli, 1210 «Bonuszahlung» statt «McBonus»).
         var lohnarten = CsvPfad("wagetypes_export.csv");
@@ -231,6 +237,7 @@ public partial class SwissdecTestmandantController
         ("1", 2025, 10), ("11", 2025, 10), ("40", 2025, 10),
         ("11", 2025, 11),
         ("11", 2025, 12), ("9", 2025, 12), ("40", 2025, 12),
+        ("8", 2026, 1), ("8", 2026, 2),
     };
 
     /// <summary>
@@ -265,6 +272,19 @@ public partial class SwissdecTestmandantController
             return StatusCode(403, new { error = "NUR_TESTINSTANZ", message = "Der Swissdec-Testmandant darf nur auf der Testinstanz geladen werden." });
         var recompute = HttpContext.RequestServices.GetRequiredService<HrSystem.Services.SnapshotRecomputeService>();
         var aktionen = new List<Aktion>();
+        // TF08 Lamon Februar 2026: 1005 nach dem Austritt fehlte als Lohnzeile (Schritt 5b hat das jetzt behoben).
+        var lamon = await _db.Employees.AsNoTracking().Where(e => e.EmployeeNumber == "8").Select(e => (int?)e.Id).FirstOrDefaultAsync();
+        var lp1005 = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == "1005");
+        if (lamon != null && lp1005 != null && !vorschau
+            && !await _db.LohnZulagen.AnyAsync(z => z.EmployeeId == lamon && z.Periode == "2026-02" && z.LohnpositionId == lp1005.Id))
+        {
+            _db.LohnZulagen.Add(new LohnZulage
+            {
+                EmployeeId = lamon.Value, Periode = "2026-02", LohnpositionId = lp1005.Id, Betrag = 17500m,
+                Bemerkung = "Swissdec-Testdaten", CreatedAt = DateTime.Now, UpdatedAt = DateTime.Now,
+            });
+            await _db.SaveChangesAsync();
+        }
         foreach (var (nr, jahr, monat) in TmNeuRechnen)
         {
             var snap = await (from s in _db.PayrollSnapshots

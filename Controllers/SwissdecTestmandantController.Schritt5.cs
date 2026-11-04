@@ -249,7 +249,9 @@ public partial class SwissdecTestmandantController
                     felder["Stunden"] = $"{stunden?.ToString("0.##") ?? "?"} h (Lohnart 1005 = {w.Betrag:0.00}{(satz != null ? $" bei CHF {satz:0.00}/h" : "")})" + (std != null && stdAusBetrag != null && Math.Abs(std.Value - stdAusBetrag.Value) > 0.05m ? $" ⚠ Stunden {std} ≠ Betrag/Satz {stdAusBetrag}" : "");
                     if (!vorschau && stunden is > 0 && vertrag != null)
                         await SchreibeStempelzeitenAsync(emp.Id, vertrag.CompanyProfileId, m, stunden.Value);
-                    continue;
+                    // Ohne Vertrag (Nachzahlung nach Austritt, TF08 Lamon Februar 2026): keine Stempel,
+                    // der Betrag kommt als Lohnzeile in den Korrekturlohn.
+                    if (vertrag != null) continue;
                 }
                 if (w.Code == "1006")
                 {
