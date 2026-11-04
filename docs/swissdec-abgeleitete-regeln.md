@@ -30,6 +30,8 @@ Status: **offen** = noch nicht gefragt oder keine Antwort · **bestätigt** · *
 
 | 12 | **Nur Testdaten:** Farines Vertrag ab 01.12. hat Probezeit bis 28.02.2026, damit der 13. ML beim Austritt verfällt. | TF40 Farine Feb 2026: Referenz meldet Contractual13th 8.33, zahlt aber nichts aus. | Die Testdaten nennen keine Probezeit. Fachlich wäre der Anteil geschuldet. | Testinstanz, `ThirteenthVerfaelltInProbezeit` | offen |
 
+| 13 | **Testdaten:** Forsters Umzug nach Bern (Wegzug 28.01.2026, A0Y, QST-Kanton BE, annual-B) fehlt in allen Testdaten-Dateien. | Nur in der Referenz und im Quality Tool Feb 2026. | Wie die Mutation erfasst wird, ist unsere Sache. Offen ist, ob die Dateien korrigiert werden. | Testinstanz | offen |
+
 ## Durch die Richtlinien gedeckt (keine Frage)
 
 | Regel | Kapitel | Code |
@@ -40,6 +42,7 @@ Status: **offen** = noch nicht gefragt oder keine Antwort · **bestätigt** · *
 | Vorjahres-Korrektur bis 31.03. des Folgejahres über den Lohnlauf | 10.11.1.1 | `QstKorrekturService.PostenStatus` |
 | Kantonswechsel: zusätzlich Mutation «residence» | Feldbeschreibung Mutation | `ElmMonthlyDeclarationBuilder.BaueQstZeile` |
 | Bonus nach Austritt: Satz = periodisch Austrittsmonat/-jahr + Nachzahlung | 10.6.5 | `PayrollCalculationEngine`, `austrittsStand` |
+| Kantonswechsel zwischen Austritt und Nachzahlung: Version des Auszahlungsmonats, Satz nur aus der Zahlung | 10.6.5 | `PayrollCalculationEngine`, `kantonswechselNachAustritt` |
 
 Teilweise abgeleitet ist bei der C-Regel die Ausnahme: Wer schon beim Eintritt C hat oder eine Karte
 erneuert, ist sofort befreit. Das ist unsere Auslegung, ein Testfall dazu fehlt.
@@ -80,6 +83,8 @@ Noch nicht gesendet. Empfänger von Walter zu bestimmen, sinnvoll nach Abschluss
 >     Austritt ausbezahlt werden, ebenfalls als Anspruch mit dem Austritt?
 > 11. **13. Monatslohn beim Austritt (TF40 Farine, 28.02.2026):** Der Vertrag nennt 8.33 %, die Referenz meldet
 >     `Contractual13th` 8.33, zahlt für Januar und Februar aber nichts aus. Warum entfällt der anteilige 13. Monatslohn?
+> 12. **TF29 Forster Februar 2026:** Das Quality Tool erwartet einen Umzug nach Bern (Wegzug 28.01.2026, A0Y, QST-Kanton
+>     BE, annual-B). Diese Mutation fehlt in `testcase_differences_export.csv`. Können Sie die Datei prüfen?
 >
 > Besten Dank und freundliche Grüsse
 >

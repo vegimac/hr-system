@@ -6020,6 +6020,7 @@ public class PayrollCalculationEngine
             System.Text.Json.Nodes.JsonObject? qstAustrittKorrektur = null;
             string? lohnausweisHinweis = null;
             int lohnausweisJahr = 0;
+            bool kantonswechselNachAustritt = false;
             if (deltaQst > 0)
             {
                 var qstPflichtKorr = await _qstCheck.CheckAsync(employeeId, qstBis);
@@ -6027,9 +6028,18 @@ public class PayrollCalculationEngine
                 if (qstPflichtKorr.IsQstPflichtig)
                 {
                     var qstAlleKorr = await _db.EmployeeQuellensteuer
-                        .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= qstBis)
+                        .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= (qstBis > periodTo ? qstBis : periodTo))
                         .ToListAsync();
                     qstEinstellungKorr = QstVersionWahl.Waehle(qstAlleKorr, qstBis);
+                    // Kantonswechsel zwischen Austritt und Nachzahlung (RL 10.6.5, Variante Y33.1/M33.1): Version des
+                    // Auszahlungsmonats, Satz nur aus der Zahlung (TF29 Forster Feb 2026: BE A0Y, 15'000 → 21.29 %).
+                    if (qstMitAustritt && !korrekturAustrittsmonat
+                        && QstVersionWahl.Waehle(qstAlleKorr, periodTo) is { } versionZahlung
+                        && !string.Equals((versionZahlung.Steuerkanton ?? "").Trim(), (qstEinstellungKorr?.Steuerkanton ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        qstEinstellungKorr = versionZahlung;
+                        kantonswechselNachAustritt = true;
+                    }
                 }
                 if (qstEinstellungKorr != null)
                 {
@@ -6070,7 +6080,8 @@ public class PayrollCalculationEngine
                     // bzw. -jahres + Nachzahlung (TF43 Ochsenbein 6'666.70 + 30'000, TF28 Arbenz 16'000 + 15'000).
                     // Im Jahresmodell zählt nur das Aperiodische des Auszahlungsjahres; laufen die Vormonate über
                     // die Töpfe des Auszahlungsjahres (gleiches Jahr, TF41 Meier Max), sind sie schon drin.
-                    if (nachzahlungNachAustritt && !korrekturAustrittsmonat
+                    if (kantonswechselNachAustritt) _qstTarifPeriode = periodFrom;
+                    else if (nachzahlungNachAustritt && !korrekturAustrittsmonat
                         && (qstMitAustritt || _qstJahresYtd == null)
                         && await QstStandAustrittsmonatAsync(employeeId, svYear, svMonth, year, month) is { } austrittsStand)
                     {
