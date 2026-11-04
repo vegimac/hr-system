@@ -155,7 +155,13 @@ public class ElmAnnualDeclarationBuilder
                    select new { s.EmployeeId, s.SvBasisAhv, s.SvBasisNbuv, s.Brutto, p.Month, PeriodeStatus = p.Status, p.CompanyProfileId, s.SlipJson };
         if (nurFiliale is int fil && fil > 0)
             lohn = lohn.Where(r => r.CompanyProfileId == fil);
-        var rows = await lohn.ToListAsync(ct);
+        // Basen aus dem Lohnzettel: die Spalten des Snapshots können nach einer Nachberechnung abweichen (Referenz 2025-01: TF01 Herz).
+        var rows = (await lohn.ToListAsync(ct)).Select(r => new
+        {
+            r.EmployeeId, r.Brutto, r.Month, r.PeriodeStatus, r.CompanyProfileId, r.SlipJson,
+            SvBasisAhv = ElmAhvJahreslohn.BasisAusLohnzettel(r.SlipJson, "svBasisAhv") ?? r.SvBasisAhv,
+            SvBasisNbuv = ElmAhvJahreslohn.BasisAusLohnzettel(r.SlipJson, "svBasisNbuv") ?? r.SvBasisNbuv,
+        }).ToList();
         if (rows.Count == 0)
             return new BuildResult("", 0, 0, 0, 0,
                 new List<string> { nurFiliale is int and > 0
@@ -615,12 +621,7 @@ public class ElmAnnualDeclarationBuilder
                 var stichtag = new DateOnly(year, mg.Key, DateTime.DaysInMonth(year, mg.Key));
                 var saetze = svSaetze.Where(r => r.CompanyProfileId == null || r.CompanyProfileId == filiale).ToList();
                 var zeilen = mg.SelectMany(r => VersicherungsZeilen(r.SlipJson)).ToList();
-                // Basen aus den Abzugszeilen, wo vorhanden; beim Rentner die AHV-Basis vor dem Freibetrag (Referenz 2025-01: TF01 Herz, TF09 Estermann).
-                var zeilenAhv = ElmAhvJahreslohn.AusLohnzetteln(mg.Select(r => r.SlipJson));
-                var nbuZeilen = zeilen.Where(z => z.Kat is "NBUV" or "BUV").ToList();
-                decimal? nbuBasis = nbuZeilen.Count > 0 ? nbuZeilen.Sum(z => z.Basis) : null;
-                decimal brutto = mg.Sum(r => r.Brutto), basis = nbuBasis ?? mg.Sum(r => r.SvBasisNbuv),
-                    ahv = zeilenAhv is { OhneAlv: false, Ahv: decimal az } ? az : mg.Sum(r => r.SvBasisAhv);
+                decimal brutto = mg.Sum(r => r.Brutto), basis = mg.Sum(r => r.SvBasisNbuv), ahv = mg.Sum(r => r.SvBasisAhv);
                 decimal? Summe(Func<(string Kat, string? Code, decimal Basis), bool> f)
                     => zeilen.Any(f) ? zeilen.Where(f).Sum(z => z.Basis) : null;
 

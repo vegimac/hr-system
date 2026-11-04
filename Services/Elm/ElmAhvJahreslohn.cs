@@ -61,6 +61,16 @@ public static class ElmAhvJahreslohn
         return ahv == null && alv == null && alvz == null ? null : new Zeilen(ahv, alv, alvz);
     }
 
+    /// <summary>Betragsfeld des Lohnzettels; null = fehlt (ältere Lohnzettel).</summary>
+    public static decimal? BasisAusLohnzettel(string? lohnzettel, string feld)
+    {
+        if (string.IsNullOrWhiteSpace(lohnzettel)) return null;
+        using var doc = JsonDocument.Parse(lohnzettel);
+        return doc.RootElement.ValueKind == JsonValueKind.Object
+               && doc.RootElement.TryGetProperty(feld, out var v) && v.ValueKind == JsonValueKind.Number
+            ? v.GetDecimal() : null;
+    }
+
     public static List<Abschnitt> Abschnitte(IReadOnlyList<Monat> monate)
     {
         var list = monate.OrderBy(m => m.Nr).Select(m => m with { Art = ArtMitZeilen(m) }).ToList();
