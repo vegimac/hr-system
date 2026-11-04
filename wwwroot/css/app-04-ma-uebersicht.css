@@ -52,7 +52,7 @@
         .ov-wrap {
             display: grid;
             /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
-            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
+            grid-template-columns: minmax(0, 2.3fr) minmax(280px, 0.8fr);
             gap: 10px; /* gleiche Abstände zwischen allen Boxen */
             /* Knappes Boden-Padding — Schatten knapp sichtbar, ohne Leerraum */
             padding: 2px 2px 8px;
@@ -580,7 +580,7 @@
         .ov-vertraege-ktg {
             grid-column: 1 / -1;
             display: grid;
-            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
+            grid-template-columns: minmax(0, 2.3fr) minmax(280px, 0.8fr);
             gap: 10px; /* wie .ov-wrap */
             min-width: 0;
             align-items: stretch;
@@ -1343,14 +1343,14 @@
         .ov-vrow.archiv { opacity: .65; }
         .ov-vdot { width: 8px; height: 8px; border-radius: 50%; background: #b9b2a6; flex-shrink: 0; }
         .ov-vdot.g { background: #34a853; }
-        .ov-vrole { font-size: 13px; font-weight: 750; color: #1a1a1a; white-space: nowrap; }
+        .ov-vrole { font-size: 12px; font-weight: 750; color: #1a1a1a; white-space: nowrap; }
         .ov-vfil {
             flex-shrink: 0;
             font-size: 11px; font-weight: 750; color: #3f3f3f; letter-spacing: 0.02em;
             background: rgba(60,55,48,0.08); border: 1px solid rgba(60,55,48,0.18);
             border-radius: 7px; padding: 1px 6px; line-height: 1.35;
         }
-        .ov-vmeta { font-size: 12.5px; font-weight: 600; color: #8b8b8b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ov-vmeta { font-size: 11.5px; font-weight: 600; color: #8b8b8b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .ov-drow {
             display: flex; align-items: center; gap: 10px;
             border: 1px solid #f0ece4; border-radius: 11px; background: #fbfaf7;

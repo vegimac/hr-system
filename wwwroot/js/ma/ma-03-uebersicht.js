@@ -460,7 +460,7 @@ function loadUebersichtTab() {
         const actions = _empContractActionsHtml(emp, c, contracts);
         // Punkt: offen/laufend = grün, beendet = grau (unabhängig von den Aktions-Buttons)
         const laufend = !_empContractIsEnded(c);
-        const metaExtra = [pensum, empArbeitstageText(c), lohn].filter(Boolean).map(t => ' · ' + esc(t)).join('');
+        const metaExtra = [pensum, empArbeitstageText(c), lohn, ...empVertragsendeText(c, contracts)].filter(Boolean).map(t => ' · ' + esc(t)).join('');
         const filCode = empContractBranchCode(c);
         const filHtml = filCode
             ? `<span class="ov-vfil" title="${esc(empContractBranchTitle(c))}">${esc(filCode)}</span>`
@@ -1019,6 +1019,22 @@ function empArbeitstageVorschlag(c) {
     const p = Number(c.employmentPercentage);
     const roh = 5 * (p > 0 ? p : 100) / 100;
     return Math.min(5, Math.max(2.5, Math.round(roh * 2) / 2));
+}
+// Art des Endes und Arbeitsfähigkeit (EMA, Walter 05.11.2026). Mit nahtlosem Folgevertrag endet nichts.
+function empVertragsendeText(c, contracts) {
+    if (!c.contractEndDate) return [];
+    const folgetag = new Date(String(c.contractEndDate).slice(0, 10) + 'T12:00:00');
+    folgetag.setDate(folgetag.getDate() + 1);
+    const iso = `${folgetag.getFullYear()}-${String(folgetag.getMonth() + 1).padStart(2, '0')}-${String(folgetag.getDate()).padStart(2, '0')}`;
+    if (contracts.some(x => String(x.contractStartDate || '').slice(0, 10) === iso)) return [];
+    const art = {
+        interruptionOfEmployment: 'Arbeitsunterbruch',
+        interruptionOfEmploymentOnlyRisk: 'Unterbruch nur Risiko',
+        interruptionOfEmploymentNotInsured: 'Unterbruch nicht versichert',
+        deceased: 'Todesfall',
+    }[c.endeArt] || 'Austritt';
+    const fit = c.endeVollArbeitsfaehig === true ? '100 % arbeitsfähig' : c.endeVollArbeitsfaehig === false ? 'nicht 100 % arbeitsfähig' : '';
+    return [art, fit];
 }
 function empArbeitstageText(c) {
     const a = empArbeitstage(c);
