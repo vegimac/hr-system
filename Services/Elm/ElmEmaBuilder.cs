@@ -303,7 +303,7 @@ public class ElmEmaBuilder
         if (ahvGemeldet)
         {
             if (akE == null) warn.Add("Keine Ausgleichskasse im Empfänger-Katalog: AHV-Ereignisse ohne Adressat.");
-            addressees.Add(Adr("#AHV", akE?.Kassennummer));
+            addressees.Add(Adr("#AHV", ElmFakAdressierung.KasseFuerMeldung(akE?.Kassennummer)));
             institutions.Add(new XElement(Sd + "AHV-AVS", new XAttribute("addresseeIDRef", "#AHV"),
                 new XElement(Sd + "AK-CC-CustomerNumber", Mitglied(akE) ?? (akE?.Kassennummer ?? "").Trim()),
                 ElmAnnualDeclarationBuilder.InsuranceBlock("UVG-LAA-Insurance", uvgE?.Bezeichnung, uvgE?.UidNummer, st?.UvgVersichertSeit, "Keine UVG-Versicherung erfasst"),
@@ -346,7 +346,12 @@ public class ElmEmaBuilder
                     new XElement(Sd + "ContactPerson", Kontakt(stamm, warn)))));
 
         var xml = doc.Declaration + Environment.NewLine + doc.ToString();
-        return new Ergebnis(xml, zeilen, warn, _validator.Validate(xml));
+        var fehler = _validator.Validate(xml);
+        // Swissdec 8.1.3 / 8.2.3: Der Katalog lehnt «000.003» ab, alte Einträge dürfen trotzdem nicht hinaus.
+        if (ahvGemeldet && AusgleichskasseNummer.Fehler(akE?.Kassennummer, AusgleichskasseNummer.BegriffAhv) is { } ahvFehler) fehler.Add(ahvFehler);
+        fehler.AddRange(fakKassen.Values.Select(k => AusgleichskasseNummer.Fehler(k.Kassennummer, AusgleichskasseNummer.BegriffFak))
+            .OfType<string>().Distinct());
+        return new Ergebnis(xml, zeilen, warn, fehler);
     }
 
     /// <summary>

@@ -167,10 +167,21 @@ public static class ElmFakAdressierung
         return Regex.Replace(nr.Trim().Replace('\u00a0', ' '), @"\s+", "").ToUpperInvariant();
     }
 
+    /// <summary>
+    /// Kassennummer, wie sie an den Distributor geht: immer NNN.NNN (Referenz: 003.000).
+    /// Der Katalog darf «003» führen. Anderes (L1200 beim BVG) bleibt, wie es ist. Ein erster Block 000 ist
+    /// ungültig und wird nicht schön gemacht: Der Katalog lehnt ihn ab (AusgleichskasseNummer).
+    /// </summary>
+    public static string KasseFuerMeldung(string? nr)
+    {
+        var n = (nr ?? "").Trim();
+        return Regex.IsMatch(n, @"^\d{3}$") && n != "000" ? n + ".000" : n;
+    }
+
     public static XElement JobAddressee(Eintrag e) =>
         new(Sdc + "Addressee",
             new XAttribute("addresseeID", e.AddresseeId),
-            new XElement(Ep + "AddresseeIdentification", e.Kassennummer),
+            new XElement(Ep + "AddresseeIdentification", KasseFuerMeldung(e.Kassennummer)),
             new XElement(Ep + "ProcessByDistributor", "true"));
 
     public static XElement Institution(Eintrag e) =>

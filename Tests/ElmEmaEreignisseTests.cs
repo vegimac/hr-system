@@ -307,6 +307,18 @@ public class ElmEmaEreignisseTests
         Assert.Empty(new ElmXmlValidator().Validate(xml.ToString()));
     }
 
+    [Theory]
+    [InlineData("003", "003.000")]
+    [InlineData(" 079 ", "079.000")]
+    [InlineData("003.000", "003.000")]
+    [InlineData("051.003", "051.003")]
+    [InlineData("L1200", "L1200")]
+    [InlineData("000", "000")]
+    [InlineData("000.003", "000.003")]
+    [InlineData(null, "")]
+    public void Kassennummer_im_Format_der_Referenz(string? katalog, string soll)
+        => Assert.Equal(soll, ElmFakAdressierung.KasseFuerMeldung(katalog));
+
     [Fact]
     public void Monatslohn_aus_dem_Vertrag_nicht_anteilig()
     {

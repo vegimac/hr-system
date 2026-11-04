@@ -929,7 +929,7 @@ public class ElmAnnualDeclarationBuilder
 
         var jobAddressees = ahvKassen.Select(k => new XElement(Sdc + "Addressee",
             new XAttribute("addresseeID", k.Id),
-            new XElement(Ep + "AddresseeIdentification", k.Kasse),
+            new XElement(Ep + "AddresseeIdentification", ElmFakAdressierung.KasseFuerMeldung(k.Kasse)),
             new XElement(Ep + "ProcessByDistributor", "true"))).ToList();
         jobAddressees.AddRange(faks.Select(ElmFakAdressierung.JobAddressee));
         foreach (var art in versOhneVersicherer)
