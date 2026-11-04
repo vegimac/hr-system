@@ -148,4 +148,12 @@ public class ElmAhvJahreslohnTests
         Assert.Equal(90m, z.Value.Alv);
         Assert.Null(z.Value.Alvz);
     }
+
+    [Fact]
+    public void Lohnzettel_ohne_Lohn_ergibt_einen_Abschnitt_mit_null()
+    {
+        var a = Assert.Single(ElmAhvJahreslohn.Abschnitte(new[] { Z(1, 0m, 0m, null, null, new DateTime(2025, 1, 15)) }));
+        Assert.Equal(0m, a.AhvLohn);
+        Assert.Equal(0m, a.AlvFrei);
+    }
 }

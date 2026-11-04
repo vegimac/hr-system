@@ -169,7 +169,7 @@ public class ElmAnnualDeclarationBuilder
 
         var perEmp = rows.GroupBy(r => r.EmployeeId)
             .Select(g => new { EmployeeId = g.Key, Ahv = g.Sum(r => r.SvBasisAhv) })
-            .Where(x => x.Ahv > 0).OrderBy(x => x.EmployeeId).ToList();
+            .OrderBy(x => x.EmployeeId).ToList();
         var rowsByEmp = rows.GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
 
         var empIds = perEmp.Select(x => x.EmployeeId).ToList();
@@ -280,14 +280,14 @@ public class ElmAnnualDeclarationBuilder
                 .Select(l => new { l.Code, l.SwissdecLohnart }).ToListAsync(ct))
             .GroupBy(x => x.Code)
             .ToDictionary(g => g.Key, g => (g.First().SwissdecLohnart ?? "").Trim());
-        var kasseCache = new Dictionary<(int Filiale, int Monat), ElmFakAdressierung.Eintrag?>();
-        ElmFakAdressierung.Eintrag? KasseIm(int filiale, int monat)
+        var kasseCache = new Dictionary<(int Filiale, DateOnly Am), ElmFakAdressierung.Eintrag?>();
+        ElmFakAdressierung.Eintrag? KasseIm(int filiale, int monat, DateOnly? am = null)
         {
-            if (!kasseCache.TryGetValue((filiale, monat), out var k))
+            var stichtag = am ?? new DateOnly(year, monat, DateTime.DaysInMonth(year, monat));
+            if (!kasseCache.TryGetValue((filiale, stichtag), out var k))
             {
-                var stichtag = new DateOnly(year, monat, DateTime.DaysInMonth(year, monat));
                 k = ElmFakAdressierung.FuerFiliale(empf, filiale, stichtag, workplaceIds, id => kantonByFiliale.GetValueOrDefault(id));
-                kasseCache[(filiale, monat)] = k;
+                kasseCache[(filiale, stichtag)] = k;
             }
             return k;
         }
@@ -302,12 +302,26 @@ public class ElmAnnualDeclarationBuilder
         var fassungenLa = await _db.CompanyLohnausweise.AsNoTracking().Where(f => filialIds.Contains(f.CompanyProfileId)).ToListAsync(ct);
         var qstZeiten = await _db.EmployeeQuellensteuer.AsNoTracking().Where(q => empIds.Contains(q.EmployeeId)).ToListAsync(ct);
         var taxKantone = new SortedSet<string>(StringComparer.Ordinal);
+        var grenzSteuerbar = new SortedDictionary<string, decimal>(StringComparer.Ordinal);
+        var grenzTags = 0;
         int taxTags = 0;
         var persons = new List<XElement>();
-        int skipped = rows.GroupBy(r => r.EmployeeId).Count() - perEmp.Count;
-        if (skipped > 0)
-            warn.Add($"{skipped} MA ohne AHV-pflichtigen Lohn {year} übersprungen (z.B. unter 18 / nur 0-Läufe).");
         decimal totalAhv = 0, totalAlv = 0, totalAlvz = 0, totalAhvFrei = 0, totalAlvFrei = 0;
+        // Ausgleichskasse je Abschnitt: Lohn nach dem Austritt geht an die Kasse von damals (Referenz 2025-01: TF07 Burri).
+        var ahvKassen = new List<AhvKasseTotal> { new("#ahv", akKasse, akAbrechnung) };
+        AhvKasseTotal AhvKasseAm(DateOnly am)
+        {
+            var e = WaehleEmpfaenger(empf.Where(x => x.Art == "AUSGLEICHSKASSE"), am, ganzeFirma ? null : filialIds);
+            var nummer = (e?.Kassennummer ?? "").Trim();
+            if (nummer.Length == 0) return ahvKassen[0];
+            var da = ahvKassen.FirstOrDefault(k => k.Kasse == nummer);
+            if (da != null) return da;
+            var mitglied = e!.Zuordnungen.Where(z => z.GiltAm(am) && (ganzeFirma || filialIds.Contains(z.CompanyProfileId)))
+                .Select(z => (z.Mitgliednummer ?? "").Trim()).FirstOrDefault(v => v.Length > 0);
+            var neu = new AhvKasseTotal("#ahv-" + nummer, nummer, mitglied ?? nummer);
+            ahvKassen.Add(neu);
+            return neu;
+        }
         var salaryTags = 0;
 
         foreach (var x in perEmp)
@@ -342,7 +356,7 @@ public class ElmAnnualDeclarationBuilder
             var permitId = ElmMonthlyDeclarationBuilder.BewilligungAmStichtag(bewilligungen.Where(h => h.EmployeeId == e.Id), stichtagEnde);
             var permitAmEnde = permitId != null && permitTypen.TryGetValue(permitId.Value, out var pt) ? pt : null;
             var particulars = Particulars(e, warn, WohnGemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde,
-                zivAm, zivSeitAm, adresseAm, adresseVorher, umzug?.Wegzug,
+                zivAm, zivSeitAm ?? (MapCivilStatus(zivAm) == "single" ? DateOnly.FromDateTime(e.DateOfBirth.Value) : null), adresseAm, adresseVorher, umzug?.Wegzug,
                 adresseVorher == null ? null : WohnGemeinde(adresseVorher.Zip, adresseVorher.City));
 
             var zuordnung = zuordnungen
@@ -412,8 +426,9 @@ public class ElmAnnualDeclarationBuilder
             foreach (var a in ahvAbschnitte)
             {
                 var (from, until) = Zeit(a.Von, a.Bis);
+                var ahvKasse = AhvKasseAm(DateOnly.FromDateTime(until));
                 var salary = new XElement(Sd + "AHV-AVS-Salary",
-                    new XAttribute("addresseeIDRef", "#ahv"),
+                    new XAttribute("addresseeIDRef", ahvKasse.Id),
                     new XElement(Sd + "AccountingTime",
                         new XElement(Ep + "from", from.ToString("yyyy-MM-dd")),
                         new XElement(Ep + "until", until.ToString("yyyy-MM-dd"))),
@@ -436,6 +451,11 @@ public class ElmAnnualDeclarationBuilder
                 if (a.MitAlvz) totalAlvz += PayrollCalculations.Round05(a.AlvzLohn);
                 totalAhvFrei += PayrollCalculations.Round05(a.AhvFrei);
                 totalAlvFrei += PayrollCalculations.Round05(a.AlvFrei);
+                ahvKasse.Ahv += PayrollCalculations.Round05(a.AhvLohn);
+                ahvKasse.Alv += PayrollCalculations.Round05(a.AlvLohn);
+                if (a.MitAlvz) ahvKasse.Alvz += PayrollCalculations.Round05(a.AlvzLohn);
+                ahvKasse.AhvFrei += PayrollCalculations.Round05(a.AhvFrei);
+                ahvKasse.AlvFrei += PayrollCalculations.Round05(a.AlvFrei);
             }
 
             var fakSalaries = FakSalaries(e, x.EmployeeId, monate, ahvAbschnitte, Zeit);
@@ -451,16 +471,44 @@ public class ElmAnnualDeclarationBuilder
             // Code NON = rückwirkend nicht quellensteuerpflichtig (Quality Tool 2024-12: TF14 Egli, Bewilligung C ab 01.11.).
             var qstAmEnde = qstZeiten.Any(q => q.EmployeeId == e.Id && q.ValidFrom <= qstBis && (q.ValidTo == null || q.ValidTo >= qstBis)
                                                && !string.Equals(q.QstCode, "NON", StringComparison.OrdinalIgnoreCase));
+            // Regelmässiges Pensum unter 100 % (Quality Tool 2025-01: TF17 Binggeli, TF05 Moser).
+            var teilzeit = works[^1].Descendants(C + "ActivityRate").Any(r => decimal.TryParse(r.Value, CultureInfo.InvariantCulture, out var satz) && satz < 100m);
+            var grenz = Grenzgaenger(e, eigeneVertraege);
             persons.Add(new XElement(Sd + "Person", particulars, works, salaries, fakSalaries,
                 VersicherungSalaries(e, x.EmployeeId, Zeit),
                 TaxSalaries(rowsByEmp[x.EmployeeId].OrderBy(r => r.Month).Select(r => r.SlipJson), adresseAm,
                     Zeit(rowsByEmp[x.EmployeeId].Min(r => r.Month), rowsByEmp[x.EmployeeId].Max(r => r.Month)),
-                    wirkung, qstAmEnde)));
+                    wirkung, qstAmEnde, teilzeit),
+                grenz?.Xml));
+        }
+
+        // Grenzgänger: TaxCrossborderSalaries neben dem Lohnausweis (Referenz 2025-01: TF34 Rinaldi); Inhalt wie die eigene Grenzgänger-Meldung.
+        (XElement Xml, string Kanton, decimal Steuerbar)? Grenzgaenger(Employee e, List<Employment> vertraege)
+        {
+            var versionen = qstZeiten.Where(q => q.EmployeeId == e.Id && q.ValidFrom <= stichtagEnde
+                                                 && (q.ValidTo == null || q.ValidTo >= DateOnly.FromDateTime(yearStart)))
+                .OrderByDescending(q => q.ValidFrom).ToList();
+            var vertrag = vertraege.Where(m => m.ContractStartDate <= yearEnd).OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
+            if (versionen.Count == 0 || vertrag == null) return null;
+            var wahl = ElmGrenzgaengerJahresBuilder.ArtDerPerson(versionen, e, vertraege, branches.ToDictionary(b => b.Id), yearStart, yearEnd);
+            if (wahl == null) return null;
+            var kanton = (wahl.Value.Q.Steuerkanton ?? "").Trim().ToUpperInvariant();
+            if (kanton.Length != 2)
+            {
+                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Grenzgänger ohne Steuerkanton — nicht gemeldet.");
+                return null;
+            }
+            var g = ElmGrenzgaengerJahresBuilder.Gehalt(wahl.Value.Art, wahl.Value.Q, e, kanton, DateOnly.FromDateTime(yearStart), stichtagEnde, vertrag,
+                rowsByEmp[e.Id].Select(r => r.SlipJson ?? ""), warn);
+            if (g == null) return null;
+            grenzSteuerbar[kanton] = grenzSteuerbar.GetValueOrDefault(kanton) + g.Value.Steuerbar;
+            grenzTags++;
+            return (g.Value.Xml, kanton, g.Value.Steuerbar);
         }
 
         // Lohnausweis einer Person (Richtlinien Kapitel 9): adressiert an den Wohnkanton, im Ausland EX.
         XElement TaxSalaries(IEnumerable<string?> lohnzettel, PersonAdresseAm adresse, (DateTime Von, DateTime Bis) periode,
-            LohnausweisAngaben.Wirkung angaben, bool qstAmEnde)
+            LohnausweisAngaben.Wirkung angaben, bool qstAmEnde, bool teilzeit)
         {
             var a = ElmLohnausweisJahr.Rechne(lohnzettel, c => lpByCode.TryGetValue(c, out var l) ? (l.LohnausweisCode, l.Bezeichnung) : (null, null));
             var land = (adresse.Country ?? "").Trim().ToUpperInvariant();
@@ -504,7 +552,8 @@ public class ElmAnnualDeclarationBuilder
                 Kreuz("CompanyCarClarify", angaben.WagenAbklaeren),
                 Kreuz("MinimalEmployeeCarPartPercentage", angaben.WagenMinimal),
                 Kreuz("TaxAtSourcePeriodForObjection", qstBemerkung),
-                angaben.Expat is { } ex ? Grant("ExpatriateRuling", ex) : null);
+                angaben.Expat is { } ex ? Grant("ExpatriateRuling", ex) : null,
+                Kreuz("PartTimeEmployment", teilzeit));
             XElement? spesen = ef != 0m || pw != 0m || a.Von(pu) != 0m || wb != 0m
                 ? new XElement(Sd + "Charges",
                     ef != 0m ? new XElement(Sd + "Effective", Betrag("TravelFoodAccommodation", ef)) : null,
@@ -553,7 +602,12 @@ public class ElmAnnualDeclarationBuilder
                 var stichtag = new DateOnly(year, mg.Key, DateTime.DaysInMonth(year, mg.Key));
                 var saetze = svSaetze.Where(r => r.CompanyProfileId == null || r.CompanyProfileId == filiale).ToList();
                 var zeilen = mg.SelectMany(r => VersicherungsZeilen(r.SlipJson)).ToList();
-                decimal brutto = mg.Sum(r => r.Brutto), basis = mg.Sum(r => r.SvBasisNbuv), ahv = mg.Sum(r => r.SvBasisAhv);
+                // Basen aus den Abzugszeilen, wo vorhanden; beim Rentner die AHV-Basis vor dem Freibetrag (Referenz 2025-01: TF01 Herz, TF09 Estermann).
+                var zeilenAhv = ElmAhvJahreslohn.AusLohnzetteln(mg.Select(r => r.SlipJson));
+                var nbuZeilen = zeilen.Where(z => z.Kat is "NBUV" or "BUV").ToList();
+                decimal? nbuBasis = nbuZeilen.Count > 0 ? nbuZeilen.Sum(z => z.Basis) : null;
+                decimal brutto = mg.Sum(r => r.Brutto), basis = nbuBasis ?? mg.Sum(r => r.SvBasisNbuv),
+                    ahv = zeilenAhv is { OhneAlv: false, Ahv: decimal az } ? az : mg.Sum(r => r.SvBasisAhv);
                 decimal? Summe(Func<(string Kat, string? Code, decimal Basis), bool> f)
                     => zeilen.Any(f) ? zeilen.Where(f).Sum(z => z.Basis) : null;
 
@@ -678,6 +732,12 @@ public class ElmAnnualDeclarationBuilder
                     var code = z.TryGetProperty("loesungsCode", out var lc) && lc.ValueKind == System.Text.Json.JsonValueKind.String
                         ? lc.GetString()?.Trim() : null;
                     var basis = z.TryGetProperty("basis", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.Number ? b.GetDecimal() : 0m;
+                    // Ältere Lohnzettel: Code steht nur im Text («KTG 11 — KTG-Lohn», Referenz 2025-01: TF11 Bosshard).
+                    if (string.IsNullOrEmpty(code) && kat is "UVGZ" or "KTG" && z.TryGetProperty("bezeichnung", out var bz) && bz.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        var m = Regex.Match(bz.GetString() ?? "", @"^(?:KTG|UVG-Zusatz)\s+(\w+)\s+—");
+                        if (m.Success) code = m.Groups[1].Value;
+                    }
                     liste.Add((kat, string.IsNullOrEmpty(code) ? null : code, basis));
                 }
             }
@@ -693,16 +753,19 @@ public class ElmAnnualDeclarationBuilder
             var ohneKasse = new List<int>();
             foreach (var g in rowsByEmp[empId].GroupBy(r => r.Month))
             {
-                var art = monate.FirstOrDefault(m => m.Nr == g.Key).Art;
+                var monat = monate.FirstOrDefault(m => m.Nr == g.Key);
+                var art = monat.Art;
                 var filiale = g.OrderByDescending(r => r.SvBasisAhv).First().CompanyProfileId;
-                var kasse = KasseIm(filiale, g.Key);
+                // Lohn nach dem Austritt gehört der Kasse von damals (Referenz 2025-01: TF07 Burri).
+                var kasse = KasseIm(filiale, g.Key, DateOnly.FromDateTime(zeit(g.Key, g.Key).Bis));
                 if (kasse == null) ohneKasse.Add(g.Key);
                 decimal wieder = 0, einmal = 0;
                 foreach (var r in g) (wieder, einmal) = Zulagen(r.SlipJson, wieder, einmal);
                 var kanton = (kantonByFiliale.GetValueOrDefault(filiale) ?? "").Trim().ToUpperInvariant();
                 if (kanton.Length != 2) kanton = kasse?.Kantone.FirstOrDefault() ?? "EX";
                 fakMonate.Add(new ElmFakJahreslohn.Monat(g.Key,
-                    art == ElmAhvJahreslohn.Art.Frei ? 0m : g.Sum(r => r.SvBasisAhv),
+                    // AHV-Lohn der Zeile: ohne Freibetrag (Referenz 2025-01: TF09 Estermann, TF01 Herz).
+                    art == ElmAhvJahreslohn.Art.Frei ? 0m : monat.Lohnzettel?.Ahv ?? g.Sum(r => r.SvBasisAhv),
                     wieder, einmal, kasse?.Kassennummer, kanton));
                 if (kasse != null) fakGenutzt.TryAdd(kasse.Kassennummer, kasse);
             }
@@ -711,11 +774,13 @@ public class ElmAnnualDeclarationBuilder
                        + "— dort fehlt die FAK-Zeile (Filiale → Lohndaten Empfänger, Art FAK).");
 
             var el = new XElement(Sd + "FAK-CAF-Salaries");
-            foreach (var a in ahvAbschnitte.Where(a => a.AhvLohn != 0))
+            foreach (var a in ahvAbschnitte.Where(a => a.Art != ElmAhvJahreslohn.Art.Frei))
             {
                 var (von, bis) = zeit(a.Von, a.Bis);
-                foreach (var f in ElmFakJahreslohn.Abschnitte(year, a.Von, a.Bis, fakMonate, von, bis))
+                foreach (var roh in ElmFakJahreslohn.Abschnitte(year, a.Von, a.Bis, fakMonate, von, bis))
                 {
+                    // Lohn nach dem Austritt: Zeitraum der beendeten Anstellung (Referenz 2025-01: TF07 Burri).
+                    var f = roh with { Von = roh.Von > bis ? von : roh.Von, Bis = roh.Bis > bis ? bis : roh.Bis };
                     var kasse = fakGenutzt[f.Kasse];
                     el.Add(new XElement(Sd + "FAK-CAF-Salary",
                         new XAttribute("addresseeIDRef", kasse.AddresseeId),
@@ -784,13 +849,10 @@ public class ElmAnnualDeclarationBuilder
             ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(stamm, rows.Select(r => r.CompanyProfileId).ToHashSet()),
             ElmMonthlyDeclarationBuilder.ArbeitszeitModelle(modelle, zuordnungen, empIds, main.NormalWeeklyHours ?? 42m, warn));
 
-        var jobAddressees = new List<XElement>
-        {
-            new(Sdc + "Addressee",
-                new XAttribute("addresseeID", "#ahv"),
-                new XElement(Ep + "AddresseeIdentification", akKasse),
-                new XElement(Ep + "ProcessByDistributor", "true"))
-        };
+        var jobAddressees = ahvKassen.Select(k => new XElement(Sdc + "Addressee",
+            new XAttribute("addresseeID", k.Id),
+            new XElement(Ep + "AddresseeIdentification", k.Kasse),
+            new XElement(Ep + "ProcessByDistributor", "true"))).ToList();
         jobAddressees.AddRange(faks.Select(ElmFakAdressierung.JobAddressee));
         foreach (var art in versOhneVersicherer)
             warn.Add($"{art}: Personen mit {art}-Code, aber kein {art}-Versicherer im Empfänger-Katalog — {art} nicht gemeldet.");
@@ -800,21 +862,22 @@ public class ElmAnnualDeclarationBuilder
             new XAttribute("addresseeID", "#TAX-" + k),
             new XElement(Ep + "AddresseeIdentification", k),
             new XElement(Ep + "ProcessByDistributor", "true"))));
+        jobAddressees.AddRange(grenzSteuerbar.Keys.Select(k => new XElement(Sdc + "Addressee",
+            new XAttribute("addresseeID", "#QST-" + k),
+            new XElement(Ep + "AddresseeIdentification", k),
+            new XElement(Ep + "ProcessByDistributor", "true"))));
         jobAddressees.AddRange(versGemeldet.Select(a => new XElement(Sdc + "Addressee",
             new XAttribute("addresseeID", vers[a].Id),
             new XElement(Ep + "AddresseeIdentification", vers[a].Kassennummer),
             new XElement(Ep + "ProcessByDistributor", "true"))));
 
-        var institutions = new List<XElement>
-        {
-            new(Sd + "AHV-AVS",
-                new XAttribute("addresseeIDRef", "#ahv"),
-                new XElement(Sd + "AK-CC-CustomerNumber", akAbrechnung),
+        var institutions = ahvKassen.Select(k => new XElement(Sd + "AHV-AVS",
+                new XAttribute("addresseeIDRef", k.Id),
+                new XElement(Sd + "AK-CC-CustomerNumber", k.Abrechnung),
                 InsuranceBlock("UVG-LAA-Insurance", uvgE?.Bezeichnung, uvgE?.UidNummer, st?.UvgVersichertSeit,
                     "UVG-Meldung folgt in Aufbau-Etappe E5"),
                 InsuranceBlock("BVG-LPP-Insurance", bvgE?.Bezeichnung, bvgE?.UidNummer, st?.BvgVersichertSeit,
-                    "BVG-Meldung folgt in Aufbau-Etappe E5"))
-        };
+                    "BVG-Meldung folgt in Aufbau-Etappe E5"))).ToList();
         institutions.AddRange(faks.Select(ElmFakAdressierung.Institution));
         institutions.AddRange(versGemeldet.Select(a => new XElement(Sd + VersElement[a],
             new XAttribute("addresseeIDRef", vers[a].Id),
@@ -822,17 +885,24 @@ public class ElmAnnualDeclarationBuilder
             new XElement(Sd + "CustomerIdentity", vers[a].Kunde),
             new XElement(Sd + "ContractIdentity", vers[a].Vertrag))));
         institutions.AddRange(taxKantone.Select(k => new XElement(Sd + "Tax", new XAttribute("addresseeIDRef", "#TAX-" + k))));
-
-        var salaryTotals = new List<XElement>
+        var qstKassen = empf.Where(x => x.Art == "QST" && x.IsActive).ToList();
+        foreach (var k in grenzSteuerbar.Keys)
         {
-            new(Sd + "AHV-AVS-Totals",
-                new XAttribute("addresseeIDRef", "#ahv"),
-                new XElement(Sd + "Total-AHV-AVS-Incomes", Amt(totalAhv)),
-                new XElement(Sd + "Total-AHV-AVS-Open", Amt(totalAhvFrei)),
-                new XElement(Sd + "Total-ALV-AC-Incomes", Amt(totalAlv)),
-                new XElement(Sd + "Total-ALVZ-ACS-Incomes", Amt(totalAlvz)),
-                new XElement(Sd + "Total-ALV-AC-Open", Amt(totalAlvFrei)))
-        };
+            var nummer = ElmGrenzgaengerJahresBuilder.SslNummer(qstKassen, k);
+            if (nummer.Length == 0) warn.Add($"Kanton {k}: SSL-Nummer fehlt (Empfänger-Katalog QST) — im XML steht das Kantonskürzel.");
+            institutions.Add(new XElement(Sd + "TaxCrossborder",
+                new XAttribute("addresseeIDRef", "#QST-" + k),
+                new XElement(Sd + "CustomerIdentity", nummer.Length == 0 ? k : nummer),
+                new XElement(Sd + "TaxAtSourceType", "salaries")));
+        }
+
+        var salaryTotals = ahvKassen.Select(k => new XElement(Sd + "AHV-AVS-Totals",
+            new XAttribute("addresseeIDRef", k.Id),
+            new XElement(Sd + "Total-AHV-AVS-Incomes", Amt(k.Ahv)),
+            new XElement(Sd + "Total-AHV-AVS-Open", Amt(k.AhvFrei)),
+            new XElement(Sd + "Total-ALV-AC-Incomes", Amt(k.Alv)),
+            new XElement(Sd + "Total-ALVZ-ACS-Incomes", Amt(k.Alvz)),
+            new XElement(Sd + "Total-ALV-AC-Open", Amt(k.AlvFrei)))).ToList();
         salaryTotals.AddRange(faks.Select(f => ElmFakAdressierung.Totals(f,
             fakSummen.TryGetValue(f.Kassennummer, out var jeKanton) ? jeKanton : new Dictionary<string, ElmFakAdressierung.Summe>())));
 
@@ -870,6 +940,14 @@ public class ElmAnnualDeclarationBuilder
                 new XElement(Sd + $"{prefix}-MasterTotal", Amt(kat.Sum(k => k.Frau + k.Mann)))));
         }
 
+        salaryTotals.AddRange(grenzSteuerbar.Select(g => new XElement(Sd + "TaxCrossborderTotals",
+            new XAttribute("addresseeIDRef", "#QST-" + g.Key),
+            new XElement(Sd + "Period",
+                new XElement(Ep + "from", yearStart.ToString("yyyy-MM-dd")),
+                new XElement(Ep + "until", yearEnd.ToString("yyyy-MM-dd"))),
+            new XElement(Sd + "TaxAtSourceCanton", g.Key),
+            new XElement(Sd + "TaxableEarning", Betrag05(g.Value)))));
+
         var counters = new List<XElement>
         {
             new(Sd + "NumberOf-AHV-AVS-Salary-Tags", salaryTags)
@@ -879,6 +957,7 @@ public class ElmAnnualDeclarationBuilder
         foreach (var a in versGemeldet)
             counters.Add(new XElement(Sd + $"NumberOf-{VersElement[a]}-Salary-Tags", versTags[a]));
         if (taxTags > 0) counters.Add(new XElement(Sd + "NumberOf-TaxSalary-Tags", taxTags));
+        if (grenzTags > 0) counters.Add(new XElement(Sd + "NumberOf-TaxCrossborderSalary-Tags", grenzTags));
 
         // ── Gesamtdokument ────────────────────────────────────────────────
         var now = DateTime.Now;
@@ -908,7 +987,13 @@ public class ElmAnnualDeclarationBuilder
         var xml = doc.Declaration + Environment.NewLine + doc.ToString();
         var xsdFehler = _validator.Validate(xml);
 
-        return new BuildResult(xml, persons.Count, skipped, totalAhv, totalAlv, warn, xsdFehler);
+        return new BuildResult(xml, persons.Count, 0, totalAhv, totalAlv, warn, xsdFehler);
+    }
+
+    /// <summary>Ausgleichskasse der Meldung mit ihren Totalen.</summary>
+    private sealed record AhvKasseTotal(string Id, string Kasse, string Abrechnung)
+    {
+        public decimal Ahv, Alv, Alvz, AhvFrei, AlvFrei;
     }
 
     /// <summary>UVG-/UVGZ-/KTG-Versicherer der Meldung (Empfänger-Katalog).</summary>

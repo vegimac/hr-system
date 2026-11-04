@@ -231,7 +231,7 @@ public class ElmGrenzgaengerJahresBuilder
     /// Schuldnernummer des Kantons. Liegen zwei Einträge vor (Platzhalter «TI» und die echte Nummer),
     /// gilt die Nummer mit Ziffern.
     /// </summary>
-    private static string SslNummer(IEnumerable<LohndatenEmpfaenger> kassen, string kt)
+    internal static string SslNummer(IEnumerable<LohndatenEmpfaenger> kassen, string kt)
     {
         var nummern = kassen
             .Where(x => string.Equals((x.KantonCode ?? "").Trim(), kt, StringComparison.OrdinalIgnoreCase))
@@ -277,7 +277,18 @@ public class ElmGrenzgaengerJahresBuilder
         return (b.KantonCode ?? "").Trim().ToUpperInvariant() != "EX";
     }
 
-    private static (XElement Xml, decimal Steuerbar)? Gehalt(string art, EmployeeQuellensteuer q, Employee e,
+    /// <summary>Welche Grenzgänger-Meldung für die Person gilt; null = keine. Versionen: neueste zuerst.</summary>
+    internal static (string Art, EmployeeQuellensteuer Q)? ArtDerPerson(List<EmployeeQuellensteuer> versionen, Employee e,
+        List<Employment> employments, Dictionary<int, CompanyProfile> filialen, DateTime yearStart, DateTime yearEnd)
+    {
+        if (Waehle(ArtItalien, versionen) is { } it) return (ArtItalien, it);
+        if (Waehle(ArtSfn, versionen) is { } sfn) return (ArtSfn, sfn);
+        if (Waehle(ArtFrankreich, versionen) is { } fr && PasstFrankreich(fr, e, employments, filialen, yearStart, yearEnd))
+            return (ArtFrankreich, fr);
+        return null;
+    }
+
+    internal static (XElement Xml, decimal Steuerbar)? Gehalt(string art, EmployeeQuellensteuer q, Employee e,
         string kanton, DateOnly jahrVon, DateOnly jahrBis, Employment em, IEnumerable<string> slips, List<string> warn)
     {
         var name = $"{e.FirstName} {e.LastName}".Trim();

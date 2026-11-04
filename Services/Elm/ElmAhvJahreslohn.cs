@@ -114,6 +114,9 @@ public static class ElmAhvJahreslohn
                     basis, ahvLohn, ahvFrei, alvLohn, alvFrei, alvz, mitAlvz));
             i = j + 1;
         }
+        // Lohnzettel ohne Lohn: die Person steht mit 0.00 in der Meldung (Referenz 2025-01: TF16 Aebi, TF39 Hasler).
+        if (result.Count == 0 && list.Count > 0)
+            result.Add(new Abschnitt(list[0].Nr, list[^1].Nr, list[0].Art, 0m, 0m, 0m, 0m, 0m));
         return result;
     }
 
