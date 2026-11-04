@@ -110,6 +110,8 @@ public class ElmQstAustrittKorrekturTests
     [InlineData("1168", null, true)]
     [InlineData("1067", null, true)]
     [InlineData("9000", "1168", true)]
+    [InlineData("1061", "1061", true)]   // Überstunden nach Austritt (Produktiv)
+    [InlineData("1065", "1065", true)]
     [InlineData("1209", null, false)]   // Bonus: Anspruch nach dem Austritt, Auszahlungsmonat
     [InlineData("1230", null, false)]
     public void Anspruch_mit_Austritt(string code, string? sd, bool soll)
