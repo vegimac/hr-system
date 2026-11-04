@@ -295,6 +295,11 @@ public class ElmEmaEreignisseTests
         static ElmFakAdressierung.Eintrag K(string nr, string kt) => new("#" + nr, nr, "k", "b", new[] { kt });
         var r = ElmEmaBuilder.KassenNachArbeitsort(new[] { K("019", "AG"), K("021", "TI"), K("003", "LU") }, new[] { "LU", "BE", "VD", "TI", "AG" });
         Assert.Equal(new[] { "003", "021", "019" }, r.Select(k => k.Kassennummer));
+        // Kasse LU auch für ZG (Referenz 2025-02): Der früheste Arbeitsort zählt.
+        var mehrere = ElmEmaBuilder.KassenNachArbeitsort(
+            new[] { K("021", "TI"), new ElmFakAdressierung.Eintrag("#003", "003", "k", "b", new[] { "ZG", "LU" }) },
+            new[] { "LU", "BE", "VD", "TI", "AG", "ZG" });
+        Assert.Equal(new[] { "003", "021" }, mehrere.Select(k => k.Kassennummer));
     }
 
     [Theory]

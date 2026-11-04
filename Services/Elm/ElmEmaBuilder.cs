@@ -303,7 +303,10 @@ public class ElmEmaBuilder
                     warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): keine FAK an der Filiale per {x.ValidAsOf:dd.MM.yyyy}. Dort fehlt die FAK-Zeile (Filiale → Lohndaten Empfänger, Art FAK).");
                     return "#FAK";
                 }
-                fakKassen[k.AddresseeId] = k;
+                // Eine Kasse kann mehrere Arbeitsorte haben (TF15 Degelo: ZG über die Kasse LU), keiner darf verloren gehen.
+                fakKassen[k.AddresseeId] = fakKassen.TryGetValue(k.AddresseeId, out var bisher)
+                    ? bisher with { Kantone = bisher.Kantone.Concat(k.Kantone).Distinct().ToList() }
+                    : k;
                 return k.AddresseeId;
             }
 
