@@ -12,7 +12,7 @@ Elektronische Lohnmeldung: Konzept + Etappenplan E1–E9 in `docs/swissdec-elm6-
 
 ## 05.11.2026 — Lohntest im Quality Tool komplett: Active 1129/1129
 
-Alle 16 Monate grün, alle Meldungsarten: Monat, YearlyRetrospective, EMA, YearlyProspective, Rectification. Das Rektifikat ordnet das Tool nur mit dem Original der Referenz zu: DocID `428fcbb7-6dce-44ec-9bad-54ad0bed621f`, Datum 25.12.2024, von Hand eingegeben. Mit der DocID unserer eigenen Jahresmeldung kam die Meldung an (Quittung), der Testfall blieb aber offen. Im Betrieb nimmt OneCrew die DocID der gesendeten Jahresmeldung, das ist fachlich richtig. In 2024-11 bleibt ein gelbes Dreieck in der Zeile catchAll / BE / YearlyRetrospective, ohne Einfluss auf den Fortschritt und noch nicht angeschaut.
+Alle 16 Monate grün, alle Meldungsarten: Monat, YearlyRetrospective, EMA, YearlyProspective, Rectification. Das Rektifikat ordnet das Tool nur mit dem Original der Referenz zu: DocID `428fcbb7-6dce-44ec-9bad-54ad0bed621f`, Datum 25.12.2024, von Hand eingegeben. Mit der DocID unserer eigenen Jahresmeldung kam die Meldung an (Quittung), der Testfall blieb aber offen. Im Betrieb nimmt OneCrew die DocID der gesendeten Jahresmeldung, das ist fachlich richtig. In 2024-11 bleibt ein gelbes Dreieck in der Zeile catchAll / BE / YearlyRetrospective: nur Altlast aus den Sendungen vom 04.11. um 16:01, 16:08 und 16:33 (alte Arbeitsorte, Versicherer, Totale). Die letzte Sendung um 16:49 meldet «No difference».
 
 ## 04.11.2026 — Monatsmeldung im Quality Tool komplett grün
 
