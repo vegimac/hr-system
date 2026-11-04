@@ -189,6 +189,10 @@
             border-bottom: 1px solid rgba(90, 80, 65, 0.10);
             margin-bottom: 4px;
         }
+        /* Lange Strasse läuft nicht in die PLZ, der ganze Text steht im Tooltip. */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 > .ov-pf-street .ov-pfv {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z1 > .ov-pf,
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe > .ov-pf {
             min-width: 0;
@@ -272,8 +276,8 @@
         body.theme-dark .ma-land-en { color: rgba(210, 220, 232, 0.78); }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-tel2 .ov-softin {
             /* Kein Datums-Icon, also kein Platz rechts: Das Dokument-Zeichen bei der AHV-Nummer blieb sonst draussen. */
-            width: 15ch;
-            min-width: 15ch;
+            width: 10ch;
+            min-width: 10ch;
             max-width: none;
             padding-right: 4px !important;
             text-overflow: clip;
