@@ -110,6 +110,21 @@ public partial class SwissdecTestmandantController
             _db.EmployeeLohnausweise.RemoveRange(bisher);
             _db.EmployeeLohnausweise.AddRange(fassungen);
         }
+        // Lohnausweis-Texte kommen aus der Lohnposition: dort die Bezeichnung der Testdaten
+        // (Quality Tool 2025-01: TF37 Oberli, 1210 «Bonuszahlung» statt «McBonus»).
+        var lohnarten = CsvPfad("wagetypes_export.csv");
+        if (System.IO.File.Exists(lohnarten))
+        {
+            var texte = System.IO.File.ReadLines(lohnarten).Skip(1).Select(l => l.Split(','))
+                .Where(s => s.Length > 2 && s[1].Length > 0 && s[2].Length > 0)
+                .GroupBy(s => s[1]).ToDictionary(g => g.Key, g => g.First()[2].Trim());
+            foreach (var lp in await _db.Lohnpositionen.Where(l => texte.Keys.Contains(l.Code)).ToListAsync())
+            {
+                if (lp.Bezeichnung.Trim() == texte[lp.Code]) continue;
+                aktionen.Add(new Aktion("aktualisieren", "Lohnposition", lp.Code, new Dictionary<string, string?> { ["Bezeichnung"] = texte[lp.Code] }));
+                if (!vorschau) lp.Bezeichnung = texte[lp.Code];
+            }
+        }
         var uvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSUVGLAAInsurerValidAsOf");
         var bvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSBVGLPPInsurerValidAsOf");
         aktionen.Add(new Aktion("aktualisieren", "Stammdaten", "Versichert seit", new Dictionary<string, string?>
