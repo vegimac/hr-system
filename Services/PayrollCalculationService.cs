@@ -1750,6 +1750,27 @@ public static class PayrollCalculations
     /// </summary>
     public static int Tag30(int tag, int tageImMonat) => tag >= tageImMonat ? 30 : Math.Min(tag, 30);
 
+    /// <summary>
+    /// Monate des Jahres, in denen der MA UVG-versichert war — für den kumulierten UVG-Höchstlohn
+    /// (NBU/BU). Ausgeschlossen ist nur ein Monat, den durchgehend ein Code «…0» (nicht versichert,
+    /// z.B. A0) abdeckt; Monate ohne Eintrag gelten als versichert. Null = keine UVG-Codes erfasst.
+    /// </summary>
+    public static HashSet<int>? UvgVersicherteMonate(IEnumerable<EmployeeVersicherungCode> uvgCodes, int year)
+    {
+        var liste = uvgCodes.Where(c => !string.IsNullOrWhiteSpace(c.Code)).ToList();
+        if (liste.Count == 0) return null;
+        var monate = new HashSet<int>();
+        for (int m = 1; m <= 12; m++)
+        {
+            var von = new DateOnly(year, m, 1);
+            var bis = von.AddMonths(1).AddDays(-1);
+            var imMonat = liste.Where(c => c.ValidFrom <= bis && (c.ValidTo == null || c.ValidTo >= von)).ToList();
+            bool nichtVersichert = imMonat.Count > 0 && imMonat.All(c => c.Code!.Trim().EndsWith("0"));
+            if (!nichtVersichert) monate.Add(m);
+        }
+        return monate;
+    }
+
     public static decimal BeschaeftigungsMonate(IEnumerable<Employment> employments, int year, int von, int bis, ISet<int>? nurMonate = null)
     {
         decimal summe = 0m;

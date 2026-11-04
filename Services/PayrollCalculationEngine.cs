@@ -745,8 +745,31 @@ public class PayrollCalculationEngine
         // etwas ab — läuft die Lösung schon seit dem Vorjahr, gilt die gemeinsame
         // YTD-Liste unverändert. Der Wechselmonat zählt ganz: die Lösung gilt für den
         // ganzen Lohnlauf dieses Monats, Teilmonate gibt es hier nicht.
+        // UVG-versicherte Monate des Jahres (Quality Tool Okt 2025, RETROSPECTIVE UVG-LAA-ContributorySalary):
+        // der UVG-Höchstlohn rollt über ALLE Monate mit UVG-Versicherung auf, gleich unter welchem Code
+        // (TF12 Casanova A2 bis Sep, A1 ab Okt → Oktober 7'303.35). Monate mit Code «…0» (nicht versichert)
+        // zählen nicht (TF40 Farine A1 Jan/Feb, A0 März, A1 Okt → 7'600). Ohne UVG-Codes: null = wie bisher.
+        var uvgCodes = simAktiv ? new List<EmployeeVersicherungCode>()
+            : await _db.EmployeeVersicherungCodes.AsNoTracking()
+                .Where(v => v.EmployeeId == employeeId && v.Art == "UVG" && v.Code != null)
+                .ToListAsync();
+        var uvgMonate = PayrollCalculations.UvgVersicherteMonate(uvgCodes, year);
+
         foreach (var r in deductions)
         {
+            if (uvgMonate != null && EmployeeVersicherungCode.ArtFuerSvCode(r.CategoryCode) == "UVG")
+            {
+                var monate = ytdSnapshots.Where(x => uvgMonate.Contains(x.Month)).ToList();
+                r.YtdBasenEigen = monate
+                    .Select(x => YtdBasisFuer(r.CategoryCode, x.SvBasisAhv, x.SvBasisNbuv, x.SvBasisKtg))
+                    .ToList();
+                r.AusgleichMonateBisherEigen = PayrollCalculations.BeschaeftigungsMonate(
+                    employee.Employments, year, 1, month - 1, monate.Select(x => x.Month).ToHashSet());
+                r.AusgleichMonateEigen = r.AusgleichMonateBisherEigen
+                    + PayrollCalculations.BeschaeftigungsMonate(employee.Employments, year, month, month);
+                continue;
+            }
+
             // NBU/UVGZ und KTG rollen auf ihrer eigenen Basis auf, nicht auf der AHV
             // (Walter 26.09.2026). Ohne eigene Basis bleibt YtdBasenEigen null → die
             // gemeinsame AHV-Liste greift wie bisher (ALV/ALVZ).

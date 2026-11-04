@@ -249,6 +249,7 @@ Ersetzt A6 (Lehmann «Umzug = QST» ab 1.5.): die neuen Testdaten vom 28.09. set
 | TF35 Roos, TF36 Maldini | Mutation «residence» fehlt beim Kantonswechsel | **K44** — Umzug mit Kantonswechsel: Entry/Withdrawal «cantonChange» plus Mutation «residence» in beiden Kantonen; reiner Arbeitskantonswechsel (TF25 Lehmann April) ohne. |
 | TF36 Maldini | DepartureDate 31.08. statt 28.08.; Partnerin Workplace TI statt EX, Mutation partnerWorkplaceChangeCHAbroad fehlt | **K45** — 4c setzt den Umzug ab Tag nach dem Wegzug, auch im Vormonat. Arbeitsort des Ehepartners aus dem Erwerbs-Verlauf (`PartnerArbeitsort`); Wechsel CH → EX = Mutation partnerWorkplaceChangeCHAbroad. 4c schreibt den Arbeitsort als Verlauf. |
 | TF14 Egli | Contractual13th 8.33 statt 0.00 | **K46** — 4c: Wechsel Stunden- ↔ Monatslohn übernimmt den 13./14. ML der neuen Vertragsart, nicht den des alten Vertrags. |
+| TF12 Casanova, TF40 Farine | SocialContributions Okt −129.90 / −320.25 statt −231.15 / −378.05 | **K47** — UVG-Höchstlohn (NBU/BU) rollt über alle UVG-versicherten Monate auf, über Codewechsel hinweg (A2 → A1); Monate mit Code «…0» zählen nicht. NBU-Basis Okt 7'303.35 bzw. 7'600 (RETROSPECTIVE UVG-LAA-ContributorySalary). UVGZ/KTG bleiben je Lösung. |
 | TF34 Rinaldi | Korrektur Mai fehlt im XML (Lohnzettel +190) | **K40** — «Snapshots neu berechnen» nahm den offenen Posten in den Lohnzettel, markierte ihn aber nicht als verrechnet; jetzt wie beim Bestätigen. |
 
 ## Bewusste Abweichungen (Begründung für das Quality Tool)
