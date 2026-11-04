@@ -106,7 +106,7 @@ public class ElmUebermittlungService
     }
 
     private static DateTime Periodenende(string art, int jahr, int? monat)
-        => art == "annual" || monat is null or < 1 or > 12
+        => monat is null or < 1 or > 12 || art is "grenz-it" or "grenz-fr" or "grenz-sfn"
             ? new DateTime(jahr, 12, 31)
             : new DateTime(jahr, monat.Value, DateTime.DaysInMonth(jahr, monat.Value));
 
@@ -115,8 +115,8 @@ public class ElmUebermittlungService
     {
         if (art == "annual")
         {
-            var r = await _jahr.BuildAhvAsync(jahr, companyProfileId, ct);
-            return (r.Xml, $"Jahresmeldung AHV {jahr}", r.Warnungen, r.XsdFehler);
+            var r = await _jahr.BuildAhvAsync(jahr, companyProfileId, ct, monat);
+            return (r.Xml, monat is >= 1 and < 12 ? $"Jahresmeldung AHV {jahr} bis {monat:00}" : $"Jahresmeldung AHV {jahr}", r.Warnungen, r.XsdFehler);
         }
         if (art is ElmGrenzgaengerJahresBuilder.ArtItalien or ElmGrenzgaengerJahresBuilder.ArtFrankreich
             or ElmGrenzgaengerJahresBuilder.ArtSfn)

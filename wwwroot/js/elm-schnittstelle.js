@@ -222,7 +222,7 @@ function elmmSendenZeichnen() {
                     <option value="monthly" ${art === 'monthly' ? 'selected' : ''}>Monatsmeldung (Quellensteuer + Statistik)</option>
                     <option value="annual" ${art === 'annual' ? 'selected' : ''}>Jahresmeldung (AHV)</option>
                 </select></label>
-            <label id="elmmMonatWrap" style="display:${art === 'annual' ? 'none' : 'flex'};flex-direction:column;gap:4px;font-size:12px;color:#646464">Monat
+            <label id="elmmMonatWrap" style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464"><span id="elmmMonatTitel">${art === 'annual' ? 'Bis Monat' : 'Monat'}</span>
                 <select id="elmmMonat" ${gesperrt} onchange="_elmmVorschau=null;elmmVorschauZeichnen()">
                     ${_ELMM_MONATE.map((n, i) => `<option value="${i + 1}" ${+monat === i + 1 ? 'selected' : ''}>${n}</option>`).join('')}
                 </select></label>
@@ -241,8 +241,11 @@ function elmmSendenZeichnen() {
 
 function elmmArtGewechselt() {
     const art = document.getElementById('elmmArt')?.value;
-    const w = document.getElementById('elmmMonatWrap');
-    if (w) w.style.display = art === 'annual' ? 'none' : 'flex';
+    // Jahresmeldung: bis und mit Monat, Standard ganzes Jahr.
+    const t = document.getElementById('elmmMonatTitel');
+    if (t) t.textContent = art === 'annual' ? 'Bis Monat' : 'Monat';
+    const m = document.getElementById('elmmMonat');
+    if (m && art === 'annual') m.value = '12';
     _elmmVorschau = null;
     elmmVorschauZeichnen();
 }
@@ -252,7 +255,7 @@ function _elmmAuswahl() {
     return {
         art,
         jahr: parseInt(document.getElementById('elmmJahr')?.value, 10),
-        monat: art === 'monthly' ? parseInt(document.getElementById('elmmMonat')?.value, 10) : null,
+        monat: parseInt(document.getElementById('elmmMonat')?.value, 10),
     };
 }
 

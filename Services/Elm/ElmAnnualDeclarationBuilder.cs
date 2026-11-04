@@ -49,8 +49,11 @@ public class ElmAnnualDeclarationBuilder
         => BuildAhvAsync(year, null, ct);
 
     /// <summary>Mit nurFiliale nur die Lohnzettel und Arbeitsorte dieser Filiale. Ohne: alle Filialen der Rechtseinheit.</summary>
-    public async Task<BuildResult> BuildAhvAsync(int year, int? nurFiliale, CancellationToken ct = default)
+    /// <param name="bisMonat">Meldung bis und mit diesem Monat (Lohntest YearlyRetrospective: je Monat kumuliert,
+    /// Referenz 2025-04 = Januar–April). Null = ganzes Jahr.</param>
+    public async Task<BuildResult> BuildAhvAsync(int year, int? nurFiliale, CancellationToken ct = default, int? bisMonat = null)
     {
+        int letzterMonat = bisMonat is >= 1 and <= 12 ? bisMonat.Value : 12;
         var warn = new List<string>();
 
         // ── Stammdaten Rechtseinheit (gemeinsam mit der Monatsmeldung) ────
@@ -89,7 +92,7 @@ public class ElmAnnualDeclarationBuilder
         static bool IstZusatz(Models.LohndatenEmpfaenger e) =>
             (e.Bezeichnung + " " + (e.Zusatz ?? "")).ToLowerInvariant().Contains("zusatz");
         // Stichtag für die Zuordnung = 31.12. des Lohnjahres (Gültig ab/bis, Walter 07.09.2026)
-        var stichtagZuord = new DateOnly(year, 12, 31);
+        var stichtagZuord = new DateOnly(year, letzterMonat, DateTime.DaysInMonth(year, letzterMonat));
         bool GehoertHier(Models.LohndatenEmpfaenger e) =>
             ganzeFirma
             || e.Zuordnungen.Any(z => filialIds.Contains(z.CompanyProfileId) && z.GiltAm(stichtagZuord));
@@ -132,7 +135,7 @@ public class ElmAnnualDeclarationBuilder
         // ── Lohndaten des Jahres (alle Filialen, STORNIERTE ausgenommen) ──
         var lohn = from s in _db.PayrollSnapshots
                    join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
-                   where p.Year == year && s.Status != "STORNIERT"
+                   where p.Year == year && p.Month <= letzterMonat && s.Status != "STORNIERT"
                    select new { s.EmployeeId, s.SvBasisAhv, s.SvBasisNbuv, s.Brutto, p.Month, PeriodeStatus = p.Status, p.CompanyProfileId, s.SlipJson };
         if (nurFiliale is int fil && fil > 0)
             lohn = lohn.Where(r => r.CompanyProfileId == fil);
@@ -164,7 +167,7 @@ public class ElmAnnualDeclarationBuilder
             .ToListAsync(ct);
 
         var yearStart = new DateTime(year, 1, 1);
-        var yearEnd = new DateTime(year, 12, 31);
+        var yearEnd = new DateTime(year, letzterMonat, DateTime.DaysInMonth(year, letzterMonat));
         var versicherungAlle = await _db.EmployeeVersicherungCodes.AsNoTracking()
             .Where(v => empIds.Contains(v.EmployeeId))
             .ToListAsync(ct);
