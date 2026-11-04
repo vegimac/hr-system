@@ -57,6 +57,7 @@ public class ElmMonthlyDeclarationBuilder
     /// Die Jahresmeldung bleibt bei allen Filialen — die FAK wird je Arbeitsort adressiert, auch ohne Personen.
     /// </summary>
     /// <remarks>
+    /// Vorläufig, Frage an Swissdec offen (docs/swissdec-abgeleitete-regeln.md, Nr. 1).
     /// Aus dem Quality Tool abgeleitet, die Richtlinien nennen keine Frist: Nov 2024 nur #LU/#BE;
     /// Aug–Dez 2025 auch #AG (zuletzt Mai/Okt) und #ZG (zuletzt März); Jan 2026 #AG, aber kein #ZG mehr.
     /// </remarks>
@@ -495,6 +496,7 @@ public class ElmMonthlyDeclarationBuilder
                 wohnHist.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsAnfang.AddMonths(-1)),
                 e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
             var adresseQstVormonat = new PersonAdresseAm(wohnVormonat.Strasse, wohnVormonat.Plz, wohnVormonat.Ort, wohnVormonat.Land, wohnVormonat.KantonCode);
+            // Vorläufig, Frage an Swissdec offen (docs/swissdec-abgeleitete-regeln.md, Nr. 2).
             // Alte Adresse mit Wegzugsdatum 12 Monate ab dem Umzug, auch über den Jahreswechsel (Quality Tool
             // Mai/Juni 2025: TF30 Müller Wegzug 15.04., TF25 Lehmann 25.04.; Jan 2026: TF40 Farine 28.09.2025).
             var umzug = WohnortHistorieService.UmzugImMonat(
