@@ -129,9 +129,7 @@ public class ElmMeldungenService
 
         var offen = automatisch ? ElmMeldungAnzeige.SyncFaellig(v, jetzt)
             : !v.JobFinished ? new()
-            : v.Adressaten.Where(a => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId)
-                                      && !string.IsNullOrEmpty(a.Key) && !string.IsNullOrEmpty(a.Password)
-                                      && (!ElmMeldungAnzeige.Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0)).ToList();
+            : v.Adressaten.Where(a => ElmMeldungAnzeige.Synchronisierbar(v, a)).ToList();
         foreach (var a in offen)
         {
             var r = await _dienst.SynchronizeAsync(url, id, a.AddresseeId, null, false, ct);

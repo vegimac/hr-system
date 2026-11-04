@@ -225,15 +225,22 @@ public static class ElmMeldungAnzeige
            && v.Url != null && (jetzt - v.Gesendet).TotalDays <= AutoHoechstensTage
            && (v.LetzteStatusAbfrage is not DateTime t || jetzt - t >= AutoStatusAbstand);
 
+    /// <summary>
+    /// Hat dieser Empfänger einen Fall, der noch etwas zu holen oder zu quittieren hat? Die EMA kommt nach
+    /// Schema 6.0 ohne Credentials aus, erst ELMv6.0.1 liefert sie (Patch Nr. 5).
+    /// </summary>
+    public static bool Synchronisierbar(ElmVorgang v, ElmVorgangAdressat a)
+        => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId)
+           && (v.Art == "ema" || (!string.IsNullOrEmpty(a.Key) && !string.IsNullOrEmpty(a.Password)))
+           && (!Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0);
+
     /// <summary>Empfänger, bei denen die Automatik jetzt synchronisieren soll (Quittung/Rückfrage abholen).</summary>
     public static List<ElmVorgangAdressat> SyncFaellig(ElmVorgang v, DateTime jetzt)
     {
         if (LohntestVorbei(v, jetzt) || !IstAnwender(v.Art) || !v.JobFinished || v.Url == null
             || (jetzt - v.Gesendet).TotalDays > AutoHoechstensTage)
             return new();
-        return v.Adressaten.Where(a => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId)
-                                       && (v.Art == "ema" || (!string.IsNullOrEmpty(a.Key) && !string.IsNullOrEmpty(a.Password)))
-                                       && (!Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0)
+        return v.Adressaten.Where(a => Synchronisierbar(v, a)
                                        && (a.LetzteSynchronisierung is not DateTime t
                                            || jetzt - t >= (WartetAufQuittung(a) ? AutoQuittungAbstand : AutoSyncAbstand)))
             .ToList();

@@ -289,6 +289,16 @@ public class ElmEmaEreignisseTests
     }
 
     [Fact]
+    public void Ema_wird_ohne_Credentials_synchronisiert()
+    {
+        var a = new ElmVorgangAdressat { Zustand = "Success", FallId = "n1" };
+        Assert.True(ElmMeldungAnzeige.Synchronisierbar(new ElmVorgang { Art = "ema" }, a));
+        Assert.False(ElmMeldungAnzeige.Synchronisierbar(new ElmVorgang { Art = "monthly" }, a));
+        var fertig = new ElmVorgangAdressat { Zustand = "Success", FallId = "n1", State = "Finished" };
+        Assert.False(ElmMeldungAnzeige.Synchronisierbar(new ElmVorgang { Art = "ema" }, fertig));
+    }
+
+    [Fact]
     public void Antwort_liefert_NotificationID()
     {
         var antwort = XElement.Parse(File.ReadAllText(Path.Combine(TestmandantDaten.RepoRoot, "docs", "swissdec", "Transmitter_Richtlinien", "samples", "NotifyChangesResponse.xml")));
