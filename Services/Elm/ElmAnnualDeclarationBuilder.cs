@@ -473,37 +473,50 @@ public class ElmAnnualDeclarationBuilder
                                                && !string.Equals(q.QstCode, "NON", StringComparison.OrdinalIgnoreCase));
             // Regelmässiges Pensum unter 100 % (Quality Tool 2025-01: TF17 Binggeli, TF05 Moser).
             var teilzeit = works[^1].Descendants(C + "ActivityRate").Any(r => decimal.TryParse(r.Value, CultureInfo.InvariantCulture, out var satz) && satz < 100m);
-            var grenz = Grenzgaenger(e, eigeneVertraege);
+            var taxPeriode = Zeit(rowsByEmp[x.EmployeeId].Min(r => r.Month), rowsByEmp[x.EmployeeId].Max(r => r.Month));
+            var grenz = Grenzgaenger(e, eigeneVertraege, taxPeriode);
             persons.Add(new XElement(Sd + "Person", particulars, works, salaries, fakSalaries,
                 VersicherungSalaries(e, x.EmployeeId, Zeit),
                 TaxSalaries(rowsByEmp[x.EmployeeId].OrderBy(r => r.Month).Select(r => r.SlipJson), adresseAm,
-                    Zeit(rowsByEmp[x.EmployeeId].Min(r => r.Month), rowsByEmp[x.EmployeeId].Max(r => r.Month)),
-                    wirkung, qstAmEnde, teilzeit),
-                grenz?.Xml));
+                    taxPeriode, wirkung, qstAmEnde, teilzeit),
+                grenz));
         }
 
-        // Grenzgänger: TaxCrossborderSalaries neben dem Lohnausweis (Referenz 2025-01: TF34 Rinaldi); Inhalt wie die eigene Grenzgänger-Meldung.
-        (XElement Xml, string Kanton, decimal Steuerbar)? Grenzgaenger(Employee e, List<Employment> vertraege)
+        // Grenzgänger: TaxCrossborderSalaries neben dem Lohnausweis (Referenz 2025-01: TF34 Rinaldi); Inhalt wie die eigene
+        // Grenzgänger-Meldung. Massgebend ist die Quellensteuer-Version am Ende der Periode; der Zeitraum beginnt mit der
+        // ersten Version derselben Art (Referenz 2025-09: TF36 Maldini ab 01.09.; 2025-11: TF38 Jung Frankreich + SFN).
+        XElement? Grenzgaenger(Employee e, List<Employment> vertraege, (DateTime Von, DateTime Bis) periode)
         {
-            var versionen = qstZeiten.Where(q => q.EmployeeId == e.Id && q.ValidFrom <= stichtagEnde
-                                                 && (q.ValidTo == null || q.ValidTo >= DateOnly.FromDateTime(yearStart)))
+            var periodeVon = DateOnly.FromDateTime(periode.Von);
+            var periodeBis = DateOnly.FromDateTime(periode.Bis);
+            var versionen = qstZeiten.Where(q => q.EmployeeId == e.Id && q.ValidFrom <= periodeBis && (q.ValidTo == null || q.ValidTo >= periodeVon))
                 .OrderByDescending(q => q.ValidFrom).ToList();
-            var vertrag = vertraege.Where(m => m.ContractStartDate <= yearEnd).OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
+            var vertrag = vertraege.Where(m => m.ContractStartDate <= periode.Bis).OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
             if (versionen.Count == 0 || vertrag == null) return null;
-            var wahl = ElmGrenzgaengerJahresBuilder.ArtDerPerson(versionen, e, vertraege, branches.ToDictionary(b => b.Id), yearStart, yearEnd);
-            if (wahl == null) return null;
-            var kanton = (wahl.Value.Q.Steuerkanton ?? "").Trim().ToUpperInvariant();
-            if (kanton.Length != 2)
+            var aktuell = versionen[0];
+            var kanton = (aktuell.Steuerkanton ?? "").Trim().ToUpperInvariant();
+            var xml = new XElement(Sd + "TaxCrossborderSalaries");
+            decimal? steuerbar = null;
+            foreach (var art in new[] { ElmGrenzgaengerJahresBuilder.ArtItalien, ElmGrenzgaengerJahresBuilder.ArtFrankreich, ElmGrenzgaengerJahresBuilder.ArtSfn })
             {
-                warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Grenzgänger ohne Steuerkanton — nicht gemeldet.");
-                return null;
+                if (!ElmGrenzgaengerJahresBuilder.GiltFuer(art, aktuell)) continue;
+                if (kanton.Length != 2)
+                {
+                    warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Grenzgänger ohne Steuerkanton — nicht gemeldet.");
+                    return null;
+                }
+                var ab = versionen.TakeWhile(q => ElmGrenzgaengerJahresBuilder.GiltFuer(art, q)).Last().ValidFrom;
+                if (ab < periodeVon) ab = periodeVon;
+                var slips = rowsByEmp[e.Id].Where(r => ab.Year < year || r.Month >= ab.Month).Select(r => r.SlipJson ?? "");
+                var g = ElmGrenzgaengerJahresBuilder.Gehalt(art, aktuell, e, kanton, ab, periodeBis, vertrag, slips, warn);
+                if (g == null) continue;
+                xml.Add(g.Value.Xml.Elements());
+                steuerbar ??= g.Value.Steuerbar;
+                grenzTags++;
             }
-            var g = ElmGrenzgaengerJahresBuilder.Gehalt(wahl.Value.Art, wahl.Value.Q, e, kanton, DateOnly.FromDateTime(yearStart), stichtagEnde, vertrag,
-                rowsByEmp[e.Id].Select(r => r.SlipJson ?? ""), warn);
-            if (g == null) return null;
-            grenzSteuerbar[kanton] = grenzSteuerbar.GetValueOrDefault(kanton) + g.Value.Steuerbar;
-            grenzTags++;
-            return (g.Value.Xml, kanton, g.Value.Steuerbar);
+            if (steuerbar == null) return null;
+            grenzSteuerbar[kanton] = grenzSteuerbar.GetValueOrDefault(kanton) + steuerbar.Value;
+            return xml;
         }
 
         // Lohnausweis einer Person (Richtlinien Kapitel 9): adressiert an den Wohnkanton, im Ausland EX.

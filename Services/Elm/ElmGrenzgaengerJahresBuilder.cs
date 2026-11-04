@@ -277,16 +277,17 @@ public class ElmGrenzgaengerJahresBuilder
         return (b.KantonCode ?? "").Trim().ToUpperInvariant() != "EX";
     }
 
-    /// <summary>Welche Grenzgänger-Meldung für die Person gilt; null = keine. Versionen: neueste zuerst.</summary>
-    internal static (string Art, EmployeeQuellensteuer Q)? ArtDerPerson(List<EmployeeQuellensteuer> versionen, Employee e,
-        List<Employment> employments, Dictionary<int, CompanyProfile> filialen, DateTime yearStart, DateTime yearEnd)
+    /// <summary>
+    /// Trägt diese Quellensteuer-Version die Grenzgänger-Art? Für die Jahresmeldung, die pro Version
+    /// entscheidet: Stammdaten zeigen den heutigen Wohnsitz (Referenz: TF38 Jung erst ab November).
+    /// </summary>
+    internal static bool GiltFuer(string art, EmployeeQuellensteuer q) => art switch
     {
-        if (Waehle(ArtItalien, versionen) is { } it) return (ArtItalien, it);
-        if (Waehle(ArtSfn, versionen) is { } sfn) return (ArtSfn, sfn);
-        if (Waehle(ArtFrankreich, versionen) is { } fr && PasstFrankreich(fr, e, employments, filialen, yearStart, yearEnd))
-            return (ArtFrankreich, fr);
-        return null;
-    }
+        ArtItalien => q.DatenaustauschItalien,
+        ArtSfn => GrenzgaengerMeldung.Sfn(q.QstCode) || GrenzgaengerMeldung.Sfn(q.TarifCode),
+        ArtFrankreich => q.IsGrenzgaenger && GrenzgaengerMeldung.WohnsitzFrankreich(q.Wohnsitzstaat),
+        _ => false,
+    };
 
     internal static (XElement Xml, decimal Steuerbar)? Gehalt(string art, EmployeeQuellensteuer q, Employee e,
         string kanton, DateOnly jahrVon, DateOnly jahrBis, Employment em, IEnumerable<string> slips, List<string> warn)

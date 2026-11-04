@@ -125,6 +125,19 @@ public partial class SwissdecTestmandantController
                 if (!vorschau) lp.Bezeichnung = texte[lp.Code];
             }
         }
+        // Grenzgänger Italien: Steuernummern der Testfälle und Mutationen tragen den Datenaustausch, sonst keiner.
+        var steuerIds = new[] { pfad, CsvPfad("testcase_differences_export.csv") }.Where(System.IO.File.Exists)
+            .SelectMany(System.IO.File.ReadLines)
+            .SelectMany(l => System.Text.RegularExpressions.Regex.Matches(l, @"[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]").Select(m => m.Value))
+            .ToHashSet();
+        foreach (var q in await _db.EmployeeQuellensteuer.ToListAsync())
+        {
+            var soll = q.GrenzgaengerSteuerId != null && steuerIds.Contains(q.GrenzgaengerSteuerId.Trim());
+            if (q.DatenaustauschItalien == soll) continue;
+            aktionen.Add(new Aktion("aktualisieren", "Quellensteuer", $"Mitarbeiter {q.EmployeeId} ab {q.ValidFrom:dd.MM.yyyy}",
+                new Dictionary<string, string?> { ["Datenaustausch Italien"] = soll ? "ja" : "nein" }));
+            if (!vorschau) q.DatenaustauschItalien = soll;
+        }
         var uvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSUVGLAAInsurerValidAsOf");
         var bvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSBVGLPPInsurerValidAsOf");
         aktionen.Add(new Aktion("aktualisieren", "Stammdaten", "Versichert seit", new Dictionary<string, string?>
