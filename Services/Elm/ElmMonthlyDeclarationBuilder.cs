@@ -636,7 +636,10 @@ public class ElmMonthlyDeclarationBuilder
                     if (!qstTotal.ContainsKey(kt)) qstTotal[kt] = (0m, 0m);
                     qstZeilen++;
                 }
-                ziel.Add(QstAustrittKorrekturBlock(ak, WpId(akFiliale)));
+                var akEm = employments.Where(m => m.EmployeeId == e.Id).OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
+                using var leer = JsonDocument.Parse("{}");
+                var weitere = WeitereErwerbstaetigkeit(kopf, akEm, akFiliale, leer.RootElement);
+                ziel.Add(QstAustrittKorrekturBlock(ak, WpId(akFiliale), weitere));
                 gemeldeteFilialen.Add(akFilialId);
                 var (dBasis, dSteuer) = QstAustrittKorrekturWirkung(ak);
                 if (!korrTotal.TryGetValue(kt, out var jeMonat)) korrTotal[kt] = jeMonat = new SortedDictionary<string, (decimal, decimal)>(StringComparer.Ordinal);
@@ -1775,7 +1778,7 @@ public class ElmMonthlyDeclarationBuilder
     /// Old = das Gemeldete mit umgekehrtem Vorzeichen, New = die Nachrechnung. NON/NOY melden
     /// 0.00 und einen Austritt, alle anderen eine Mutation.
     /// </summary>
-    public static XElement QstAustrittKorrekturBlock(JsonElement k, string workplaceIdRef)
+    public static XElement QstAustrittKorrekturBlock(JsonElement k, string workplaceIdRef, XElement? weitereErwerbstaetigkeit = null)
     {
         var code = k.GetProperty("code").GetString();
         decimal D(string n) => k.GetProperty(n).GetDecimal();
@@ -1783,17 +1786,19 @@ public class ElmMonthlyDeclarationBuilder
             new XElement(Sd + "Month", $"{k.GetProperty("jahr").GetInt32():0000}-{k.GetProperty("monat").GetInt32():00}"),
             new XElement(Sd + "Old",
                 new XAttribute("workplaceIDRef", workplaceIdRef),
+                weitereErwerbstaetigkeit == null ? null : new XElement(weitereErwerbstaetigkeit),
                 QstKategorie(code),
                 new XElement(Sd + "TaxableEarning", Betrag05(-D("altBasis"))),
                 new XElement(Sd + "AscertainedTaxableEarning", Betrag05(-D("altSatzBasis"))),
                 new XElement(Sd + "TaxAtSource", Betrag05(-D("altSteuer")))),
             new XElement(Sd + "New",
                 new XAttribute("workplaceIDRef", workplaceIdRef),
+                weitereErwerbstaetigkeit == null ? null : new XElement(weitereErwerbstaetigkeit),
                 QstKategorie(code),
                 new XElement(Sd + "TaxableEarning", Betrag05(D("neuBasis"))),
                 new XElement(Sd + "AscertainedTaxableEarning", Betrag05(D("neuSatzBasis"))),
                 new XElement(Sd + "TaxAtSource", Betrag05(D("neuSteuer"))),
-                new XElement(Sd + "SporadicBenefits", Betrag05(D("aperiodisch")))));
+                D("aperiodisch") != 0m ? new XElement(Sd + "SporadicBenefits", Betrag05(D("aperiodisch"))) : null));
     }
 
     public static (decimal Basis, decimal Steuer) QstAustrittKorrekturWirkung(JsonElement k)

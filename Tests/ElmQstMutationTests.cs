@@ -105,6 +105,13 @@ public class ElmQstAustrittKorrekturTests
     }
 
     [Fact]
+    public void Lohnkorrektur_allein_nicht()
+    {
+        Assert.True(HrSystem.Services.NachzahlungQstZeit.IstLohnkorrektur("1001"));
+        Assert.False(HrSystem.Services.NachzahlungQstZeit.AnspruchMitAustritt("1001"));
+    }
+
+    [Fact]
     public void Wirkung_Differenz()
         => Assert.Equal((500m, 100.05m), ElmMonthlyDeclarationBuilder.QstAustrittKorrekturWirkung(Mueller()));
 

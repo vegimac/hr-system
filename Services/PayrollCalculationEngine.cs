@@ -5212,7 +5212,18 @@ public class PayrollCalculationEngine
             {
                 var z = QstJahresmodell.LeseSlip(x.SlipJson);
                 if (z.IstBasis != 0 || z.QstBezahlt != 0)
-                    stand = new QstAustrittStand(z.IstBasis, z.SatzBasis ?? z.IstBasis, z.QstBezahlt, z.SatzAperiodisch ?? 0m, z.TarifCode);
+                {
+                    using var alt = JsonDocument.Parse(x.SlipJson!);
+                    var brutto = alt.RootElement.TryGetProperty("svBasisQst", out var bq) && bq.ValueKind == JsonValueKind.Number ? bq.GetDecimal() : z.IstBasis;
+                    decimal? satzLohn = null;
+                    if (alt.RootElement.TryGetProperty("abzugLines", out var zeilen))
+                        foreach (var zeile in zeilen.EnumerateArray())
+                            if (zeile.TryGetProperty("categoryCode", out var cc) && cc.GetString() == "QST"
+                                && zeile.TryGetProperty("satzLohn", out var sl) && sl.ValueKind == JsonValueKind.Number)
+                                satzLohn = sl.GetDecimal();
+                    var satz = z.SatzBasis ?? z.IstBasis;
+                    stand = new QstAustrittStand(z.IstBasis, satz, satzLohn ?? satz, z.QstBezahlt, z.SatzAperiodisch ?? 0m, brutto, z.TarifCode);
+                }
                 continue;
             }
             if (stand == null || string.IsNullOrWhiteSpace(x.SlipJson)) continue;
@@ -5221,7 +5232,9 @@ public class PayrollCalculationEngine
             stand = stand.Value with
             {
                 Basis = k.GetProperty("neuBasis").GetDecimal(),
-                SatzBasis = k.GetProperty("neuSatzBasis").GetDecimal(),
+                SatzBasis = k.GetProperty("neuSatzRechnung").GetDecimal(),
+                SatzMeldung = k.GetProperty("neuSatzBasis").GetDecimal(),
+                Brutto = k.GetProperty("neuBrutto").GetDecimal(),
                 Steuer = k.GetProperty("neuSteuer").GetDecimal(),
                 Aperiodisch = k.GetProperty("aperiodisch").GetDecimal(),
             };
@@ -5229,7 +5242,10 @@ public class PayrollCalculationEngine
         return stand;
     }
 
-    private readonly record struct QstAustrittStand(decimal Basis, decimal SatzBasis, decimal Steuer, decimal Aperiodisch, string? Code);
+    private readonly record struct QstAustrittStand(decimal Basis, decimal SatzBasis, decimal SatzMeldung, decimal Steuer, decimal Aperiodisch, decimal Brutto, string? Code);
+
+    /// <summary>Steuerbare Bemessung der letzten <see cref="ComputeQstDeduction"/>-Rechnung.</summary>
+    private decimal _qstBemessungLetzte;
 
     private DeductionRule? ComputeQstDeduction(
         EmployeeQuellensteuer? einstellung,
@@ -5239,7 +5255,10 @@ public class PayrollCalculationEngine
         decimal? satzbestimmenderBrutto = null,
         decimal aperiodisch = 0,
         decimal dreizehnter = 0,
-        bool medianAngewendet = false)
+        bool medianAngewendet = false,
+        decimal bemessungBisher = 0,
+        decimal bruttoBisher = 0,
+        decimal aperiodischBisher = 0)
     {
         if (einstellung is null || string.IsNullOrEmpty(einstellung.Steuerkanton))
             return null;
@@ -5298,6 +5317,12 @@ public class PayrollCalculationEngine
                     : $" (13. ML/Sonderzahlung Σ CH {ratioAper * 100m:0.#} % seit Jahresbeginn)";
             }
         }
+
+        // Korrektur des Austrittsmonats: bruttolohn war nur die Zahlung, dazu der schon ausgeschiedene Stand.
+        bruttolohn += bemessungBisher;
+        bruttoVoll += bruttoBisher;
+        aperiodisch += aperiodischBisher;
+        _qstBemessungLetzte = bruttolohn;
 
         // ── Satzbestimmender Lohn ──────────────────────────────────────────
         // Reihenfolge:
@@ -5636,6 +5661,7 @@ public class PayrollCalculationEngine
             decimal deltaQstEinmalig = 0;   // aperiodischer Anteil (Jahresmodell: ÷ 12 statt annualisiert)
             decimal qstZulage = 0, qstZulageEinmalig = 0; // nur erfasste Zulagen, ohne Ferien/Feiertag/13. ML
             decimal qstZulageMitAustritt = 0;             // davon Anspruch mit dem Austritt (RL 10.6.5)
+            decimal qstZulageLohnkorrektur = 0;           // davon 1001: zählt nur zusammen mit einem Guthaben
             var zulagenExtraLines = new List<object>();
             decimal zulagenExtraTotal = 0;
             var lohnposAbzugLines = new List<object>();
@@ -5678,6 +5704,7 @@ public class PayrollCalculationEngine
                         qstZulage += b;
                         if (!IstPeriodischeZulage(lp)) qstZulageEinmalig += b;
                         if (NachzahlungQstZeit.AnspruchMitAustritt(lp.Code, lp.SwissdecLohnart)) qstZulageMitAustritt += b;
+                        else if (NachzahlungQstZeit.IstLohnkorrektur(lp.Code, lp.SwissdecLohnart)) qstZulageLohnkorrektur += b;
                     }
                 }
                 else
@@ -5976,7 +6003,7 @@ public class PayrollCalculationEngine
             // im Austrittsmonat ausbezahlt, und im Auszahlungsmonat als Korrektur dieses Monats melden
             // (Quality Tool Nov 2025 TF30 Müller: Sept 5'500 → 6'000, Steuer 651.75 → 751.80, Abzug 100.05).
             bool korrekturAustrittsmonat = nachzahlungNachAustritt && qstZulage > 0
-                && qstZulageMitAustritt == qstZulage && qstZulage == deltaQst;
+                && qstZulageMitAustritt != 0 && qstZulageMitAustritt + qstZulageLohnkorrektur == qstZulage && qstZulage == deltaQst;
             var lohnausweisVorjahr = qstMitAustritt;
             if (korrekturAustrittsmonat) qstMitAustritt = true;
             var qstBis = qstMitAustritt ? svPeriodTo : periodTo;
@@ -6032,11 +6059,15 @@ public class PayrollCalculationEngine
                     var altStand = korrekturAustrittsmonat
                         ? await QstStandAustrittsmonatAsync(employeeId, svYear, svMonth, year, month)
                         : null;
+                    // Nur die Zahlung wird nach Arbeitstagen CH ausgeschieden (periodisch Monat, einmalig Σ Jahr:
+                    // TF28 Arbenz 5'000 × 154/240, TF29 Forster + 2'000 × 9/20), die alte Basis ist es schon.
                     var qstRuleKorr = altStand is { } alt
                         ? ComputeQstDeduction(
-                            qstEinstellungKorr, alt.Basis + deltaQst, companyProfileId, qstVon,
-                            satzbestimmenderBrutto: alt.SatzBasis + deltaQst, aperiodisch: alt.Aperiodisch + deltaQst, dreizehnter: 0m,
-                            medianAngewendet: false)
+                            qstEinstellungKorr, deltaQst, companyProfileId, qstVon,
+                            satzbestimmenderBrutto: alt.SatzBasis + (satzKorr ?? deltaQst),
+                            aperiodisch: deltaQstEinmalig, dreizehnter: 0m,
+                            medianAngewendet: false,
+                            bemessungBisher: alt.Basis, bruttoBisher: alt.Brutto, aperiodischBisher: alt.Aperiodisch)
                         : ComputeQstDeduction(
                             qstEinstellungKorr, deltaQst, companyProfileId, qstVon,
                             satzbestimmenderBrutto: satzKorr, aperiodisch: deltaQstEinmalig, dreizehnter: 0m,
@@ -6051,9 +6082,13 @@ public class PayrollCalculationEngine
                             {
                                 ["jahr"] = svYear, ["monat"] = svMonth,
                                 ["code"] = a.Code ?? QstJahresmodell.CodeVon(qstEinstellungKorr),
-                                ["altBasis"] = a.Basis, ["altSatzBasis"] = a.SatzBasis, ["altSteuer"] = a.Steuer,
-                                ["neuBasis"] = a.Basis + deltaQst, ["neuSatzBasis"] = a.SatzBasis + deltaQst, ["neuSteuer"] = neuSteuer,
-                                ["aperiodisch"] = a.Aperiodisch + deltaQst,
+                                ["altBasis"] = a.Basis, ["altSatzBasis"] = a.SatzMeldung, ["altSteuer"] = a.Steuer,
+                                ["neuBasis"] = _qstBemessungLetzte, ["neuSteuer"] = neuSteuer,
+                                // Meldung: Jahresmodell der Satz-Lohn, Monatsmodell die Satzbasis.
+                                ["neuSatzBasis"] = qstRuleKorr.QstSatzLohn ?? a.SatzBasis + (satzKorr ?? deltaQst),
+                                ["neuSatzRechnung"] = a.SatzBasis + (satzKorr ?? deltaQst),
+                                ["neuBrutto"] = a.Brutto + deltaQst,
+                                ["aperiodisch"] = a.Aperiodisch + deltaQstEinmalig,
                             };
                         }
                         deductions.Add(qstRuleKorr);

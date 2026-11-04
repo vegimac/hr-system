@@ -325,6 +325,10 @@ public static class NachzahlungQstZeit
     public static bool AnspruchMitAustritt(string? code, string? swissdecLohnart = null)
         => IstAustrittsguthaben(swissdecLohnart) || IstAustrittsguthaben(code);
 
+    /// <summary>1001 Lohnkorrektur: allein Realisierungsprinzip (RL 10.11.1), zusammen mit einem Guthaben Teil der Korrektur (TF29 Forster).</summary>
+    public static bool IstLohnkorrektur(string? code, string? swissdecLohnart = null)
+        => (swissdecLohnart ?? "").Trim() == "1001" || (code ?? "").Trim() == "1001";
+
     private static bool IstAustrittsguthaben(string? c) => (c ?? "").Trim() is "1061" or "1065" or "1067" or "1168";
 
     public static bool LeistungsanspruchMitAustritt(bool nachAustritt, DateOnly? austritt, int auszahlungsjahr, bool nurJaehrlich) =>
