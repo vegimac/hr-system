@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 135;  // 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 136;  // 136: Filial-Schalter 13. ML Probezeit · 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -522,6 +522,12 @@ using (var scope = app.Services.CreateScope())
             UPDATE lohnposition SET statistik_monat = 'Bruttolohn', statistik_jahr = NULL,
                    qst_charakter = 'monatlich', qst_periodisch = true
              WHERE code = '1218';
+        ");
+
+    // Stand 136: 13. Monatslohn verfällt in der Probezeit, pro Filiale (Walter 04.11.2026). Standard = bisheriges Verhalten.
+    if (dbStand < 136)
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS thirteenth_verfaellt_in_probezeit boolean NOT NULL DEFAULT true;
         ");
 
     // Stand 135: Geburts-/Adoptionszulage ist einmalig (Swissdec TF22 Bucher Feb 2026: Satz-Lohn +250, nicht +1'500).

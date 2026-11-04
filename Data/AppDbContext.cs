@@ -889,6 +889,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LohnlaufNurHr).HasColumnName("lohnlauf_nur_hr").HasDefaultValue(false);
             // Schlussabrechnung / Stunden im Lohn (Walter 10.09.2026)
             entity.Property(e => e.FerientageAmAustrittAuszahlen).HasColumnName("ferientage_am_austritt_auszahlen").HasDefaultValue(true);
+            entity.Property(e => e.ThirteenthVerfaelltInProbezeit).HasColumnName("thirteenth_verfaellt_in_probezeit").HasDefaultValue(true);
             entity.Property(e => e.FeiertagstageAmAustrittAuszahlen).HasColumnName("feiertagstage_am_austritt_auszahlen").HasDefaultValue(true);
             entity.Property(e => e.StundenSaldoImLohnVerrechnen).HasColumnName("stunden_saldo_im_lohn_verrechnen").HasDefaultValue(true);
             entity.Property(e => e.UniformDepotAktiv).HasColumnName("uniform_depot_aktiv").HasDefaultValue(true);   // Walter 10.09.2026

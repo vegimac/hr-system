@@ -1231,15 +1231,18 @@ public static class PayrollCalculations
         DateOnly? probationEnd,
         DateOnly? austritt,
         DateOnly periodFrom,
-        DateOnly periodToFull)
+        DateOnly periodToFull,
+        bool verfaelltInProbezeit = true)
     {
-        bool forfeited = probationEnd.HasValue
+        bool austrittInProbezeit = probationEnd.HasValue
                       && austritt.HasValue
                       && austritt.Value <= probationEnd.Value
                       && austritt.Value >= periodFrom
                       && austritt.Value <= periodToFull;
+        bool forfeited = austrittInProbezeit && verfaelltInProbezeit;
 
-        bool inProbation = !forfeited
+        // Filial-Schalter aus: beim Austritt in der Probezeit wird ausbezahlt, nichts mehr angespart.
+        bool inProbation = !austrittInProbezeit
                         && probationEnd.HasValue
                         && probationEnd.Value > periodToFull;
 

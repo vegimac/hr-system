@@ -177,12 +177,14 @@ public class CompanyProfilesController : ControllerBase
         if (profile is null) return NotFound();
 
         profile.DefaultThirteenthSalaryPercent = dto.DefaultThirteenthSalaryPercent;
+        if (dto.ThirteenthVerfaelltInProbezeit.HasValue)
+            profile.ThirteenthVerfaelltInProbezeit = dto.ThirteenthVerfaelltInProbezeit.Value;
         await _context.SaveChangesAsync();
 
         return Ok(profile);
     }
 
-    public record DefaultThirteenthPercentDto(decimal? DefaultThirteenthSalaryPercent);
+    public record DefaultThirteenthPercentDto(decimal? DefaultThirteenthSalaryPercent, bool? ThirteenthVerfaelltInProbezeit = null);
 
     // PATCH /api/companyprofiles/{id}/probation
     // Probezeit-Vorgabe pro Filiale (Walter-Vorgabe 29.06.2026): gespeichert als
@@ -916,6 +918,7 @@ public class CompanyProfilesController : ControllerBase
             t.DefaultHolidayPercent        = source.DefaultHolidayPercent;
             t.VacationSixWeeksFromAge      = source.VacationSixWeeksFromAge;
             t.DefaultThirteenthSalaryPercent = source.DefaultThirteenthSalaryPercent;
+            t.ThirteenthVerfaelltInProbezeit = source.ThirteenthVerfaelltInProbezeit;
             t.ProbationMonths              = source.ProbationMonths;
             // ── 13. ML + Ferien-Geld Dezember ──
             t.ThirteenthMonthPayoutMonths     = source.ThirteenthMonthPayoutMonths;

@@ -890,7 +890,8 @@ public class PayrollCalculationEngine
             ? DateOnly.FromDateTime(emp.ProbationEndDate.Value) : null;
         DateOnly? austritt13 = ResolveAustrittDate(employee.ExitDate, emp.ContractEndDate);
         var (isInProbation, thirteenthForfeited) = ResolveThirteenthProbationStatus(
-            probationEnd13, austritt13, periodFrom, periodToFull);
+            probationEnd13, austritt13, periodFrom, periodToFull,
+            company?.ThirteenthVerfaelltInProbezeit ?? true);
         // FLEX-Saldi-Zeile zeigen während Probezeit, im Bestands-Monat
         // (ProbezeitEnde in dieser Periode) und bei Verfall — auch wenn 0.00
         // (sonst «sehe den 13. Saldo nicht», Walter 02.08.2026).

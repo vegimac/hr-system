@@ -13,6 +13,26 @@ public class ThirteenthProbationStatusTests
     private static readonly DateOnly JulTo   = new(2026, 7, 31);
 
     [Fact]
+    public void Filialschalter_aus_Austritt_in_Probezeit_wird_ausbezahlt()
+    {
+        var (inPz, forfeit) = PayrollCalculations.ResolveThirteenthProbationStatus(
+            new DateOnly(2026, 9, 30), new DateOnly(2026, 8, 15),
+            new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 31), verfaelltInProbezeit: false);
+        Assert.False(inPz);
+        Assert.False(forfeit);
+    }
+
+    [Fact]
+    public void Filialschalter_aus_ohne_Austritt_bleibt_Probezeit()
+    {
+        var (inPz, forfeit) = PayrollCalculations.ResolveThirteenthProbationStatus(
+            new DateOnly(2026, 9, 30), null,
+            new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 31), verfaelltInProbezeit: false);
+        Assert.True(inPz);
+        Assert.False(forfeit);
+    }
+
+    [Fact]
     public void ProbezeitAmPeriodenende_Bestanden_KeinVerfall()
     {
         // Ljubinka: Probezeit bis 31.7., befristet danach (z.B. 31.10.)

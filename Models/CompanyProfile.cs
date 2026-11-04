@@ -431,6 +431,10 @@ public class CompanyProfile
     /// bzw. Vorbezug verrechnen; bei false bleibt der Tages-Saldo stehen.</remarks>
     public bool FerientageAmAustrittAuszahlen { get; set; } = true;
 
+    /// <summary>13. Monatslohn verfällt bei Austritt in der Probezeit (Walter 04.11.2026, pro Filiale).
+    /// Aus: Der angesparte Anteil wird mit dem letzten Lohn ausbezahlt.</summary>
+    public bool ThirteenthVerfaelltInProbezeit { get; set; } = true;
+
     /// <summary>Feiertag-Tage-Saldo beim letzten Lohn (FIX/FIX-M, Code 50.1) in CHF
     /// auszahlen; bei false bleibt der Tages-Saldo stehen. (Walter 10.09.2026)</summary>
     public bool FeiertagstageAmAustrittAuszahlen { get; set; } = true;

@@ -28,6 +28,8 @@ Status: **offen** = noch nicht gefragt oder keine Antwort · **bestätigt** · *
 | 10 | Korrektur des Austrittsmonats: **1001 Lohnkorrektur** zählt nur zusammen mit einem Austrittsguthaben. Allein gilt der Auszahlungsmonat. | TF29 Forster Jan 2026: 1001 + 1067 + 1168 als Korrektur. RL 10.11.1.1 zur Korrektur des Bruttolohns. | Der Fall «1001 allein nach Austritt» ist nicht getestet. | `NachzahlungQstZeit` | offen |
 | 11 | Als Anspruch mit dem Austritt gelten auch **1061/1065** (Überstunden), wenn sie nach dem Austritt ausbezahlt werden. | RL 10.6.5 nennt Überzeitguthaben. Die Testfälle haben nur 1067 und 1168. | Unsere Erweiterung für Produktiv, nicht getestet. | `NachzahlungQstZeit.AnspruchMitAustritt` | offen |
 
+| 12 | **Nur Testdaten:** Farines Vertrag ab 01.12. hat Probezeit bis 28.02.2026, damit der 13. ML beim Austritt verfällt. | TF40 Farine Feb 2026: Referenz meldet Contractual13th 8.33, zahlt aber nichts aus. | Die Testdaten nennen keine Probezeit. Fachlich wäre der Anteil geschuldet. | Testinstanz, `ThirteenthVerfaelltInProbezeit` | offen |
+
 ## Durch die Richtlinien gedeckt (keine Frage)
 
 | Regel | Kapitel | Code |
@@ -76,6 +78,8 @@ Noch nicht gesendet. Empfänger von Walter zu bestimmen, sinnvoll nach Abschluss
 > 10. **Zahlungen nach Austritt:** Gehört `1001 Lohnkorrektur` nur zusammen mit einem Austrittsguthaben in die
 >     Korrektur des Austrittsmonats (TF29 Forster Januar 2026)? Und gelten Überstunden (1061, 1065), die nach dem
 >     Austritt ausbezahlt werden, ebenfalls als Anspruch mit dem Austritt?
+> 11. **13. Monatslohn beim Austritt (TF40 Farine, 28.02.2026):** Der Vertrag nennt 8.33 %, die Referenz meldet
+>     `Contractual13th` 8.33, zahlt für Januar und Februar aber nichts aus. Warum entfällt der anteilige 13. Monatslohn?
 >
 > Besten Dank und freundliche Grüsse
 >

@@ -672,7 +672,11 @@ function renderFilialenDetail(b) {
                     <div id="einTpGrid" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px"></div>
                     <div id="einTpHint" style="font-size:11.5px;margin-top:3px"></div>
                 </div>
-            </div>`,
+            </div>
+            <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--oc-text,inherit);cursor:pointer">
+                <input type="checkbox" id="ein13VerfaelltProbezeit" ${b.thirteenthVerfaelltInProbezeit !== false ? 'checked' : ''} style="width:16px;height:16px">
+                13. Monatslohn verfällt bei Austritt in der Probezeit
+            </label>`,
                 'Vorgabe-Prozentsatz und in welchen Monaten ausgezahlt wird') +
             einSec('lohnbestaetigung', 'Lohnlauf-Bestätigung',
                 b.lohnlaufNurHr ? 'nur HR' : 'GF und HR', `
@@ -1194,7 +1198,7 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/lohnlauf-bestaetigung`,       { method: 'PATCH', headers: H, body: JSON.stringify({ nurHr: lohnlaufNurHr }) }),
             fetch(`/api/companyprofiles/${branchId}/max-weekly-hours`,            { method: 'PATCH', headers: H, body: JSON.stringify({ maxWeeklyHours: maxWeekly, normalWeeklyHours: normalWeekly }) }),
             fetch(`/api/companyprofiles/${branchId}/vacation-six-weeks-from-age`, { method: 'PATCH', headers: H, body: JSON.stringify({ vacationSixWeeksFromAge: vacSixWeeksAge }) }),
-            fetch(`/api/companyprofiles/${branchId}/default-thirteenth-percent`,  { method: 'PATCH', headers: H, body: JSON.stringify({ defaultThirteenthSalaryPercent: defaultThirteenth }) }),
+            fetch(`/api/companyprofiles/${branchId}/default-thirteenth-percent`,  { method: 'PATCH', headers: H, body: JSON.stringify({ defaultThirteenthSalaryPercent: defaultThirteenth, thirteenthVerfaelltInProbezeit: document.getElementById('ein13VerfaelltProbezeit')?.checked ?? true }) }),
         ]);
         const failed = results.filter(r => !r.ok).length;
         // Akonto ja/nein kann fachlich abgelehnt werden (Periode mitten im Akonto-Strang) —
