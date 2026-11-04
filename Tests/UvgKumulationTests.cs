@@ -41,6 +41,17 @@ public class UvgKumulationTests
     }
 
     [Fact]
+    public void Teilmonat_auf_5_Rappen_TF43Ochsenbein()
+    {
+        var exakt = HrSystem.Services.PayrollCalculationEngine.TeilmonatAnteil("TAGE30", 6666.65m,
+            new DateOnly(2025, 12, 1), new DateOnly(2025, 12, 15), 15, 31);
+        var lohn = PayrollCalculations.Round05(exakt);
+        Assert.Equal(3333.35m, lohn);
+        Assert.Equal(6666.70m, PayrollCalculations.Rappen(lohn * (6666.65m / exakt)));   // Satzbasis
+        Assert.Equal(2666.68m, lohn * 8m / 10m);                                          // CH-Tage 8/10
+    }
+
+    [Fact]
     public void Ohne_Codes_null_wie_bisher()
         => Assert.Null(PayrollCalculations.UvgVersicherteMonate(Array.Empty<EmployeeVersicherungCode>(), 2025));
 

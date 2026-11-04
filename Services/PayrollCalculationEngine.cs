@@ -4177,7 +4177,10 @@ public class PayrollCalculationEngine
             decimal monthSalaryExact = isShortPeriod
                 ? TeilmonatAnteil(company.TeilmonatMethode, monthSalaryFull, periodEffectiveFrom, periodTo, shortPeriodDays, normalPeriodDays)
                 : monthSalaryFull;
-            decimal monthSalary = PayrollCalculations.Rappen(monthSalaryExact);
+            // Teilmonat auf 5 Rappen (RL 5.1.1 «5er-Rundung», Swissdec TF42/43 Dez 2025: 6'666.65 × 15/30 = 3'333.35).
+            decimal monthSalary = isShortPeriod
+                ? PayrollCalculations.Round05(monthSalaryExact)
+                : PayrollCalculations.Rappen(monthSalaryExact);
 
             string fixReasonTxt = (shortReasonStart && shortReasonEnd)
                 ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy} / Austritt {periodTo:dd.MM.yyyy}"
@@ -4799,8 +4802,9 @@ public class PayrollCalculationEngine
             decimal satzBasisFix = svBasesFix.Qst;
             if (isShortPeriod && monthSalaryFull > 0 && monthSalaryFull > monthSalary && _qstJahresYtd == null)
             {
-                var faktorKurz = monthSalary > 0 ? monthSalaryFull / monthSalary : 1m;
-                satzBasisFix = svBasesFix.Qst - monthSalary + monthSalaryFull
+                // Hochgerechnet wird der ausbezahlte Teilmonat (TF43 Ochsenbein 3'333.35 × 30/15 = 6'666.70).
+                var faktorKurz = monthSalaryExact > 0 ? monthSalaryFull / monthSalaryExact : 1m;
+                satzBasisFix = svBasesFix.Qst - monthSalary + PayrollCalculations.Rappen(monthSalary * faktorKurz)
                              + PayrollCalculations.Rappen(deltaQstPeriodisch * (faktorKurz - 1m))
                              + PayrollCalculations.Rappen(dreizehnterFix * (faktorKurz - 1m));
             }

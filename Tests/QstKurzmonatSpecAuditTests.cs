@@ -34,8 +34,8 @@ public class QstKurzmonatSpecAuditTests
     [Fact]
     public void Fix_Kurzmonat_ErsetztKurzlohnDurchVollenMonatslohn()
     {
-        // svBasesFix.Qst - monthSalary + monthSalaryFull → Satzbasis voller Monat.
-        Assert.Contains("svBasesFix.Qst - monthSalary + monthSalaryFull", Engine);
+        // Satzbasis voller Monat: der ausbezahlte Teilmonat hochgerechnet (TF43 Ochsenbein 3'333.35 → 6'666.70).
+        Assert.Contains("svBasesFix.Qst - monthSalary + PayrollCalculations.Rappen(monthSalary * faktorKurz)", Engine);
         Assert.Contains("isShortPeriod && monthSalaryFull > 0 && monthSalaryFull > monthSalary", Engine);
     }
 
