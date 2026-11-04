@@ -81,7 +81,8 @@ public class ElmUebermittlungService
         bool DoppeltSignieren = true,
         bool RequestIdWiederverwenden = false,
         bool FreigabePortal = false,
-        int? CompanyProfileId = null);
+        int? CompanyProfileId = null,
+        ElmRektifikat.Angaben? Rektifikat = null);
 
     public record DialogAntwort(string StoryId, Dictionary<short, string?> Werte);
 
@@ -98,9 +99,10 @@ public class ElmUebermittlungService
         public List<Hinweis> Plausibilitaet { get; init; } = new();
     }
 
-    public async Task<Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct, int? companyProfileId = null)
+    public async Task<Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct, int? companyProfileId = null,
+        ElmRektifikat.Angaben? rektifikat = null)
     {
-        var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, jahr, monat, companyProfileId, ct);
+        var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, jahr, monat, companyProfileId, ct, rektifikat);
         if (xml.Length == 0) return new Vorschau(art, titel, new(), "", "", warn, xsd);
         var root = XDocument.Parse(xml).Root!;
         var v = LiesVorlage(root);
@@ -114,8 +116,9 @@ public class ElmUebermittlungService
             : new DateTime(jahr, monat.Value, DateTime.DaysInMonth(jahr, monat.Value));
 
     private async Task<(string Xml, string Titel, List<string> Warn, List<string> Xsd)> BaueMeldungAsync(
-        string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct)
+        string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct, ElmRektifikat.Angaben? rektifikat = null)
     {
+        if (art == "rectificate") return await BaueRektifikatAsync(jahr, companyProfileId, rektifikat, ct);
         if (art == "annual")
         {
             var r = await _jahr.BuildAhvAsync(jahr, companyProfileId, ct, monat);
@@ -148,6 +151,39 @@ public class ElmUebermittlungService
         return (m.Xml, $"Monatsmeldung {monat:00}.{jahr}", m.Warnungen, m.XsdFehler);
     }
 
+    /// <summary>Rektifikat: Jahresmeldung bauen, Person herausnehmen. Original von Hand, sonst aus der letzten gesendeten Jahresmeldung.</summary>
+    private async Task<(string Xml, string Titel, List<string> Warn, List<string> Xsd)> BaueRektifikatAsync(
+        int jahr, int? companyProfileId, ElmRektifikat.Angaben? a, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(a?.PersonalNr))
+            throw new InvalidOperationException("Für das Rektifikat die Personalnummer angeben.");
+        var original = !string.IsNullOrWhiteSpace(a.OriginalDocId) && a.OriginalDatum is { } d
+            ? new ElmRektifikat.Original(a.OriginalDocId.Trim(), d)
+            : OriginalAusArchiv(jahr, a.PersonalNr)
+              ?? throw new InvalidOperationException($"Für Personalnummer {a.PersonalNr} gibt es keine gesendete Jahresmeldung {jahr}. Bitte DocID und Datum des Originals eingeben.");
+        var r = await _jahr.BuildAhvAsync(jahr, companyProfileId, ct);
+        if (r.Xml.Length == 0) return ("", $"Rektifikat Lohnausweis {jahr}", r.Warnungen, r.XsdFehler);
+        var el = ElmRektifikat.Baue(XDocument.Parse(r.Xml).Root!, a.PersonalNr, original, a.Bemerkung, DateTime.Now);
+        var xml = el.ToString();
+        var warn = r.Warnungen.Where(w => w.Contains($"({a.PersonalNr})", StringComparison.Ordinal)).ToList();
+        warn.Add($"Korrigiert den Lohnausweis {original.DocId} vom {original.Datum:dd.MM.yyyy}.");
+        return (xml, $"Rektifikat Lohnausweis Nr. {a.PersonalNr} {jahr}", warn, _validator.Validate(xml));
+    }
+
+    private ElmRektifikat.Original? OriginalAusArchiv(int jahr, string personalNr)
+    {
+        foreach (var v in _store.LadeUebermittlungen().Vorgaenge
+                     .Where(v => v.Art is "annual" or "rectificate" && v.Jahr == jahr).OrderByDescending(v => v.Gesendet))
+            foreach (var z in Enumerable.Reverse(v.Protokoll).Where(z => z.Schritt == "declare" && z.ArchivAnfrage != null))
+            {
+                var xml = _store.LeseArchiv(z.ArchivAnfrage!);
+                if (xml == null) continue;
+                try { if (ElmRektifikat.FindeOriginal(xml, personalNr) is { } o) return o; }
+                catch (System.Xml.XmlException) { /* nicht lesbar: nächste Meldung */ }
+            }
+        return null;
+    }
+
     // ── Declare (UC001) ──────────────────────────────────────────────────
 
     public Task<Ergebnis> DeclareAsync(string url, DeclareOptionen o, CancellationToken ct)
@@ -157,7 +193,7 @@ public class ElmUebermittlungService
     private async Task<Ergebnis> DeclareInternAsync(string url, DeclareOptionen o, CancellationToken ct)
     {
         var art = ElmMeldungAnzeige.NormalisiereArt(o.Art);
-        var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, o.Jahr, o.Monat, o.CompanyProfileId, ct);
+        var (xml, titel, warn, xsd) = await BaueMeldungAsync(art, o.Jahr, o.Monat, o.CompanyProfileId, ct, o.Rektifikat);
         if (xml.Length == 0)
             return new Ergebnis(false, "Keine Meldung erzeugt: " + string.Join(" · ", warn), null, null) { Warnungen = warn };
         if (xsd.Count > 0)
@@ -377,7 +413,7 @@ public class ElmUebermittlungService
         var s = await SendeAsync(url, anfrage, v.Art switch
         {
             "subscribe" => "sync-subscribe",
-            "annual" or "prospective" => "sync-annual",
+            "annual" or "prospective" or "rectificate" => "sync-annual",
             "ema" => "sync-ema",
             _ => "sync-monthly",
         }, v.DoppeltSigniert, stand, requestId, ct);

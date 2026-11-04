@@ -57,7 +57,7 @@ public static class EmaAufgabeRegel
                     || string.Equals(code?.Eintrittsgrund, "interruptionOfEmployment", StringComparison.OrdinalIgnoreCase);
                 bool fit = code?.VollArbeitsfaehig ?? !eigeneKrank.Any(a => a.Von <= iv.Von && a.Bis >= iv.Von);
                 Add(res, emp, Bvg, "EINTRITT",
-                    unterbruch ? "interruptionOfEmployment" : "entryCompany",
+                    unterbruch ? "interruptionOfEmployment" : "entryPensionPlan",
                     unterbruch ? "Beginn nach Arbeitsunterbruch" : "Eintritt Vorsorgeplan",
                     iv.Von, Fit(fit));
 
@@ -79,35 +79,35 @@ public static class EmaAufgabeRegel
             foreach (var c in eigeneCodes)
             {
                 if (letzter != null && !Gleich(letzter, c.Code) && LiegtIn(ivs, c.Von) && ivs.All(iv => iv.Von != c.Von))
-                    Add(res, emp, Bvg, "MUTATION", "plan", "Vorsorgeplan, Betrieb, Kategorie", c.Von, null);
+                    Add(res, emp, Bvg, "MUTATION", "changeBVG-LPP-Code", "Vorsorgeplan, Betrieb, Kategorie", c.Von, null);
                 letzter = c.Code;
             }
             foreach (var a in eigeneKrank)
             {
                 if (!LiegtIn(ivs, a.Von) || ivs.Any(iv => iv.Von == a.Von)) continue;
-                Add(res, emp, Bvg, "MUTATION", "incapacity", "Arbeitsunfähigkeit", a.Von, null);
+                Add(res, emp, Bvg, "MUTATION", "incapacityToWork", "Arbeitsunfähigkeit", a.Von, null);
                 if (LiegtIn(ivs, a.Bis.AddDays(1)))
-                    Add(res, emp, Bvg, "MUTATION", "fullyFit", "vollständig arbeitsfähig", a.Bis.AddDays(1), null);
+                    Add(res, emp, Bvg, "MUTATION", "fullyFitForWork", "vollständig arbeitsfähig", a.Bis.AddDays(1), null);
             }
             string? lohnVor = null;
             foreach (var w in lohn.Where(w => w.EmployeeId == emp).OrderBy(w => w.Datum))
             {
                 if (lohnVor != null && !Gleich(lohnVor, w.Wert) && LiegtIn(ivs, w.Datum) && ivs.All(iv => iv.Von != w.Datum))
-                    Add(res, emp, Bvg, "MUTATION", "salary", "Lohnänderung", w.Datum, null);
+                    Add(res, emp, Bvg, "MUTATION", "changeSalary", "Lohnänderung", w.Datum, null);
                 lohnVor = w.Wert;
             }
             string? adrVor = null;
             foreach (var w in adresse.Where(w => w.EmployeeId == emp).OrderBy(w => w.Datum))
             {
                 if (adrVor != null && !Gleich(adrVor, w.Wert) && LiegtIn(ivs, w.Datum))
-                    Add(res, emp, Bvg, "MUTATION", "address", "Wohnadresse", w.Datum, null);
+                    Add(res, emp, Bvg, "MUTATION", "residence", "Wohnadresse", w.Datum, null);
                 adrVor = w.Wert;
             }
             string? zivVor = null;
             foreach (var w in zivilstand.Where(w => w.EmployeeId == emp).OrderBy(w => w.Datum))
             {
                 if (zivVor != null && !Gleich(zivVor, w.Wert) && LiegtIn(ivs, w.Datum))
-                    Add(res, emp, Bvg, "MUTATION", "civilStatus", "Zivilstandsänderung", w.Datum, null);
+                    Add(res, emp, Bvg, "MUTATION", "civilstate", "Zivilstandsänderung", w.Datum, null);
                 zivVor = w.Wert;
             }
         }

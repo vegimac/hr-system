@@ -368,30 +368,16 @@ public class ElmEmaBuilder
         var stichtag = new DateOnly(year, 1, 1);
         var kopf = await LadeKopfdatenAsync(geladen, ct);
         var personen = new List<XElement>();
-        foreach (var e in geladen.Mitarbeitende)
+        foreach (var z in ProspectiveZeilen(geladen, stichtag, warn))
         {
-            if (!geladen.Stand.TryGetValue(e.Id, out var stand)) continue;
-            var ohneMeldung = stand with { Jahresmeldungen = new Dictionary<DateOnly, decimal>() };
-            if (E.BvgPeriodeAm(E.Erkenne(ohneMeldung, geladen.Steuerung), stichtag) is not { } ab) continue;
-            var s = stand.Monate.FirstOrDefault(m => m.Monat == stichtag);
-            if (s == null) continue;
-            var laeufe = stand.Monate.Select(m => new ElmBvgBasis.LohnMonat(m.Monat, m.Lohnarten));
-            var basis = ElmBvgBasis.FuerJahresmeldung(stichtag, s.ManuelleBasis, s.Vertrag, s.Lohnarten, laeufe, ab, geladen.Steuerung);
-            // Der Anwender prüft die Basen und korrigiert sie vor der Übermittlung (RL 8.6.6): Freigegeben geht vor.
-            if (stand.Jahresmeldungen.TryGetValue(stichtag, out var freigegeben))
-            {
-                if (freigegeben != basis)
-                    warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): freigegebene BVG-Basis {Amt(freigegeben)} statt gerechnet {Amt(basis)}.");
-                basis = freigegeben;
-            }
-            var (kopfInhalt, _) = PersonKopf(e, geladen, kopf, year, stichtag.AddMonths(1).AddDays(-1), warn);
+            var (kopfInhalt, _) = PersonKopf(z.Mitarbeiter, geladen, kopf, year, stichtag.AddMonths(1).AddDays(-1), warn);
             personen.Add(new XElement(Sd + "Person", kopfInhalt,
                 new XElement(Sd + "BVG-LPP-Salaries",
                     new XElement(Sd + "BVG-LPP-Salary",
                         new XAttribute("addresseeIDRef", "#BVG"),
-                        new XAttribute("workIDRef", WorkId(e)),
-                        new XElement(Sd + "BVG-LPP-Code", s.BvgCode),
-                        new XElement(Sd + "BVG-LPP-AnnualBasis", Amt(basis))))));
+                        new XAttribute("workIDRef", WorkId(z.Mitarbeiter)),
+                        new XElement(Sd + "BVG-LPP-Code", z.Code),
+                        new XElement(Sd + "BVG-LPP-AnnualBasis", Amt(z.Basis))))));
         }
         if (personen.Count == 0)
         {
@@ -438,6 +424,41 @@ public class ElmEmaBuilder
                         new XElement(Sd + "ContactPerson", Kontakt(stamm, warn))))));
         var xml = doc.Declaration + Environment.NewLine + doc.ToString();
         return new Ergebnis(xml, new(), warn, _validator.Validate(xml));
+    }
+
+    public sealed record ProspectiveZeile(Employee Mitarbeiter, string? Code, decimal Gerechnet, decimal Basis);
+
+    /// <summary>Wer am 1.1. versichert ist, mit der Basis nach RL 8.6.6. Auch der Vorschlag im Cockpit.</summary>
+    public async Task<List<ProspectiveZeile>> ProspectiveZeilenAsync(int year, int? nurFiliale, CancellationToken ct = default)
+    {
+        var warn = new List<string>();
+        var geladen = await LadeAsync(year, 1, nurFiliale, warn, ct);
+        return geladen == null ? new() : ProspectiveZeilen(geladen, new DateOnly(year, 1, 1), warn);
+    }
+
+    private static List<ProspectiveZeile> ProspectiveZeilen(Personen geladen, DateOnly stichtag, List<string> warn)
+    {
+        var res = new List<ProspectiveZeile>();
+        foreach (var e in geladen.Mitarbeitende)
+        {
+            if (!geladen.Stand.TryGetValue(e.Id, out var stand)) continue;
+            var ohneMeldung = stand with { Jahresmeldungen = new Dictionary<DateOnly, decimal>() };
+            if (E.BvgPeriodeAm(E.Erkenne(ohneMeldung, geladen.Steuerung), stichtag) is not { } ab) continue;
+            var s = stand.Monate.FirstOrDefault(m => m.Monat == stichtag);
+            if (s == null) continue;
+            var laeufe = stand.Monate.Select(m => new ElmBvgBasis.LohnMonat(m.Monat, m.Lohnarten));
+            var gerechnet = ElmBvgBasis.FuerJahresmeldung(stichtag, s.ManuelleBasis, s.Vertrag, s.Lohnarten, laeufe, ab, geladen.Steuerung);
+            var basis = gerechnet;
+            // Der Anwender prüft die Basen und korrigiert sie vor der Übermittlung (RL 8.6.6): Freigegeben geht vor.
+            if (stand.Jahresmeldungen.TryGetValue(stichtag, out var freigegeben))
+            {
+                if (freigegeben != gerechnet)
+                    warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): freigegebene BVG-Basis {Amt(freigegeben)} statt gerechnet {Amt(gerechnet)}.");
+                basis = freigegeben;
+            }
+            res.Add(new ProspectiveZeile(e, s.BvgCode, gerechnet, basis));
+        }
+        return res;
     }
 
     private sealed record Kopfdaten(

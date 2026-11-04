@@ -25,10 +25,12 @@ public static class ElmMeldungAnzeige
     /// <summary>Fall ist bei diesem Empfänger erledigt — nichts mehr abzufragen.</summary>
     public static bool Erledigt(ElmVorgangAdressat a)
         => a.Zustand is "Error" or "Ignored"
-           || a.State is "Finished" or "Rejected" or "closed";
+           || a.State is "Finished" or "Rejected" or "closed"
+           || a.FallUnbekannt;
 
     public static Stand Empfaenger(ElmVorgangAdressat a)
     {
+        if (a.FallUnbekannt) return new(Warn, "Empfänger kennt diesen Fall nicht mehr, OneCrew fragt nicht weiter nach", false);
         switch (a.Zustand)
         {
             case "Error":
@@ -165,15 +167,15 @@ public static class ElmMeldungAnzeige
 
     /// <summary>Monats-, Jahres- und die drei Grenzgängermeldungen. Alles andere bleibt in der Entwicklung.</summary>
     public static bool IstAnwender(string? art)
-        => art is "monthly" or "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "ema" or "prospective";
+        => art is "monthly" or "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "ema" or "prospective" or "rectificate";
 
     /// <summary>Grenzgänger steckt in DeclareAnnualSalary, nicht in einer eigenen SOAP-Operation.</summary>
     public static bool IstJahresSoap(string? art)
-        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "prospective";
+        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "prospective" or "rectificate";
 
     /// <summary>Unbekanntes wird Monatsmeldung. Die drei Grenzgänger-Arten bleiben erhalten.</summary>
     public static string NormalisiereArt(string? art)
-        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "ema" or "prospective" ? art : "monthly";
+        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "ema" or "prospective" or "rectificate" ? art : "monthly";
 
     public static string Titel(ElmVorgang v)
     {
@@ -186,6 +188,7 @@ public static class ElmMeldungAnzeige
             "grenz-sfn" => $"Grenzgänger SFN {jahr}",
             "ema" => $"EMA {monat:00}.{jahr}",
             "prospective" => $"Voraussichtliche BVG-Jahresmeldung {jahr}",
+            "rectificate" => string.IsNullOrWhiteSpace(v.Titel) ? $"Rektifikat Lohnausweis {jahr}" : v.Titel,
             _ => monat != null ? $"Monatsmeldung {monat:00}.{jahr}" : (string.IsNullOrWhiteSpace(v.Titel) ? "Lohnmeldung" : v.Titel),
         };
     }
@@ -203,7 +206,7 @@ public static class ElmMeldungAnzeige
 
     /// <summary>Ersetzen geht, sobald der Job fertig ist und mindestens ein Empfänger angenommen hat.</summary>
     public static bool Ersetzbar(ElmVorgang v)
-        => IstAnwender(v.Art) && v.Art != "ema" && v.JobFinished && DeclarationId(v) != null;
+        => IstAnwender(v.Art) && v.Art is not ("ema" or "rectificate") && v.JobFinished && DeclarationId(v) != null;
 
     /// <summary>Lohnjahr und -monat: gespeichert, sonst aus dem Titel («Monatsmeldung 01.2025», «Jahresmeldung AHV 2025»).</summary>
     public static (int? Jahr, int? Monat) Periode(ElmVorgang v)

@@ -22,9 +22,11 @@ public class ElmMeldungenController : ControllerBase
     private readonly ElmMeldungenService _dienst;
     private readonly AppDbContext _db;
     private readonly ElmZertifikatStore _store;
+    private readonly ElmEmaBuilder _ema;
 
-    public ElmMeldungenController(ElmMeldungenService dienst, AppDbContext db, ElmZertifikatStore store)
+    public ElmMeldungenController(ElmMeldungenService dienst, AppDbContext db, ElmZertifikatStore store, ElmEmaBuilder ema)
     {
+        _ema = ema;
         _dienst = dienst;
         _db = db;
         _store = store;
@@ -125,12 +127,14 @@ public class ElmMeldungenController : ControllerBase
     }
 
     [HttpGet("vorschau")]
-    public async Task<IActionResult> Vorschau(string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct)
+    public async Task<IActionResult> Vorschau(string art, int jahr, int? monat, int? companyProfileId,
+        string? personalNr, string? originalDocId, DateOnly? originalDatum, string? bemerkung, CancellationToken ct)
     {
         art = ElmMeldungAnzeige.NormalisiereArt(art);
         try
         {
-            var v = await _dienst.VorschauAsync(art, jahr, monat, ct, companyProfileId);
+            var v = await _dienst.VorschauAsync(art, jahr, monat, ct, companyProfileId,
+                Rektifikat(art, personalNr, originalDocId, originalDatum, bemerkung));
             return Ok(new
             {
                 v.Titel, v.Firmenname, v.Uid,
@@ -151,7 +155,11 @@ public class ElmMeldungenController : ControllerBase
     }
 
     public record SendenBody(string? Art, int Jahr, int? Monat, string? ErsetztId, string? Ziel,
-        bool? Testmeldung, bool FreigabePortal, Dictionary<string, bool>? Adressaten, int? CompanyProfileId);
+        bool? Testmeldung, bool FreigabePortal, Dictionary<string, bool>? Adressaten, int? CompanyProfileId,
+        string? PersonalNr = null, string? OriginalDocId = null, DateOnly? OriginalDatum = null, string? Bemerkung = null);
+
+    private static ElmRektifikat.Angaben? Rektifikat(string art, string? personalNr, string? docId, DateOnly? datum, string? bemerkung)
+        => art == "rectificate" ? new ElmRektifikat.Angaben(personalNr ?? "", docId, datum, bemerkung) : null;
 
     [HttpPost("senden")]
     public async Task<IActionResult> Senden([FromBody] SendenBody dto, CancellationToken ct)
@@ -160,7 +168,8 @@ public class ElmMeldungenController : ControllerBase
         try
         {
             var r = await _dienst.SendenAsync(art, dto.Jahr, dto.Monat, dto.ErsetztId, dto.Ziel,
-                dto.Testmeldung, dto.FreigabePortal, dto.Adressaten, ct, dto.CompanyProfileId);
+                dto.Testmeldung, dto.FreigabePortal, dto.Adressaten, ct, dto.CompanyProfileId,
+                Rektifikat(art, dto.PersonalNr, dto.OriginalDocId, dto.OriginalDatum, dto.Bemerkung));
             return Ok(new
             {
                 ok = r.Ok,
@@ -431,32 +440,18 @@ public class ElmMeldungenController : ControllerBase
     [HttpGet("bvg-lohnsummen")]
     public async Task<IActionResult> BvgLohnsummen(int jahr, CancellationToken ct)
     {
-        var summen = await (
-            from s in _db.PayrollSnapshots.AsNoTracking()
-            join p in _db.PayrollPerioden.AsNoTracking() on s.PayrollPeriodeId equals p.Id
-            where p.Year == jahr && s.Status != "STORNIERT"
-            group s by s.EmployeeId into g
-            select new { EmployeeId = g.Key, Summe = g.Sum(x => x.SvBasisBvg) }
-        ).ToListAsync(ct);
-        var ids = summen.Select(s => s.EmployeeId).ToList();
-        var namen = await _db.Employees.AsNoTracking()
-            .Where(e => ids.Contains(e.Id) && !e.IsPayrollExcluded)
-            .Select(e => new { e.Id, e.FirstName, e.LastName })
-            .ToListAsync(ct);
+        // Vorschlag = die Basis der voraussichtlichen Jahresmeldung (RL 8.6.6), nicht die Summe der Löhne des Jahres.
+        var basen = await _ema.ProspectiveZeilenAsync(jahr, null, ct);
         var gespeichert = _store.LadeBvgLohnsummen().FirstOrDefault(j => j.Jahr == jahr);
         var betrag = (gespeichert?.Zeilen ?? new()).ToDictionary(z => z.EmployeeId, z => z.Betrag);
-        var zeilen = namen
-            .OrderBy(n => n.FirstName).ThenBy(n => n.LastName)
-            .Select(n =>
+        var zeilen = basen
+            .OrderBy(z => z.Mitarbeiter.FirstName).ThenBy(z => z.Mitarbeiter.LastName)
+            .Select(z => new
             {
-                var vorschlag = summen.First(s => s.EmployeeId == n.Id).Summe;
-                return new
-                {
-                    employeeId = n.Id,
-                    name = $"{n.FirstName} {n.LastName}".Trim(),
-                    vorschlag,
-                    betrag = betrag.TryGetValue(n.Id, out var b) ? b : vorschlag,
-                };
+                employeeId = z.Mitarbeiter.Id,
+                name = $"{z.Mitarbeiter.FirstName} {z.Mitarbeiter.LastName}".Trim(),
+                vorschlag = z.Gerechnet,
+                betrag = betrag.TryGetValue(z.Mitarbeiter.Id, out var b) ? b : z.Gerechnet,
             }).ToList();
         return Ok(new
         {

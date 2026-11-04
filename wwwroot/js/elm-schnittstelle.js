@@ -223,8 +223,9 @@ function elmmSendenZeichnen() {
                     <option value="annual" ${art === 'annual' ? 'selected' : ''}>Jahresmeldung (AHV)</option>
                     <option value="ema" ${art === 'ema' ? 'selected' : ''}>Eintritte, Mutationen, Austritte (EMA)</option>
                     <option value="prospective" ${art === 'prospective' ? 'selected' : ''}>Voraussichtliche BVG-Jahresmeldung</option>
+                    <option value="rectificate" ${art === 'rectificate' ? 'selected' : ''}>Rektifikat Lohnausweis</option>
                 </select></label>
-            <label id="elmmMonatWrap" style="display:${art === 'prospective' ? 'none' : 'flex'};flex-direction:column;gap:4px;font-size:12px;color:#646464"><span id="elmmMonatTitel">${art === 'annual' ? 'Bis Monat' : 'Monat'}</span>
+            <label id="elmmMonatWrap" style="display:${art === 'prospective' || art === 'rectificate' ? 'none' : 'flex'};flex-direction:column;gap:4px;font-size:12px;color:#646464"><span id="elmmMonatTitel">${art === 'annual' ? 'Bis Monat' : 'Monat'}</span>
                 <select id="elmmMonat" ${gesperrt} onchange="_elmmVorschau=null;elmmVorschauZeichnen()">
                     ${_ELMM_MONATE.map((n, i) => `<option value="${i + 1}" ${+monat === i + 1 ? 'selected' : ''}>${n}</option>`).join('')}
                 </select></label>
@@ -236,6 +237,12 @@ function elmmSendenZeichnen() {
                     ${ziele.map(z => `<option value="${_elmzEsc(z.schluessel)}" ${z.schluessel === zielWahl ? 'selected' : ''}>${_elmzEsc(z.name)}</option>`).join('')}
                 </select></label>` : ''}
             <button type="button" class="btn btn-secondary" onclick="elmmPruefen()" ${_elmmBusy ? 'disabled' : ''}>Prüfen</button>
+        </div>
+        <div id="elmmRekt" style="display:${art === 'rectificate' ? 'flex' : 'none'};gap:12px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:#646464">
+            <label style="display:flex;flex-direction:column;gap:4px">Personalnummer<input id="elmmRektNr" style="${feld};width:120px"></label>
+            <label style="display:flex;flex-direction:column;gap:4px">Bemerkung (Ziffer 15, optional)<input id="elmmRektText" style="${feld};width:280px"></label>
+            <label style="display:flex;flex-direction:column;gap:4px">DocID des Originals (leer = aus der gesendeten Jahresmeldung)<input id="elmmRektDoc" style="${feld};width:340px"></label>
+            <label style="display:flex;flex-direction:column;gap:4px">Datum des Originals<input id="elmmRektDatum" type="date" style="${feld}"></label>
         </div>
         <div id="elmmVorschau"></div>`;
     elmmVorschauZeichnen();
@@ -250,18 +257,24 @@ function elmmArtGewechselt() {
     if (m && art === 'annual') m.value = '12';
     // Die voraussichtliche Jahresmeldung gilt per 1.1. des Jahres, ohne Monat.
     const w = document.getElementById('elmmMonatWrap');
-    if (w) w.style.display = art === 'prospective' ? 'none' : 'flex';
+    if (w) w.style.display = art === 'prospective' || art === 'rectificate' ? 'none' : 'flex';
+    const rekt = document.getElementById('elmmRekt');
+    if (rekt) rekt.style.display = art === 'rectificate' ? 'flex' : 'none';
     _elmmVorschau = null;
     elmmVorschauZeichnen();
 }
 
 function _elmmAuswahl() {
     const art = document.getElementById('elmmArt')?.value || 'monthly';
-    return {
+    const wert = id => (document.getElementById(id)?.value || '').trim() || null;
+    return Object.assign({
         art,
         jahr: parseInt(document.getElementById('elmmJahr')?.value, 10),
         monat: parseInt(document.getElementById('elmmMonat')?.value, 10),
-    };
+    }, art === 'rectificate' ? {
+        personalNr: wert('elmmRektNr'), bemerkung: wert('elmmRektText'),
+        originalDocId: wert('elmmRektDoc'), originalDatum: wert('elmmRektDatum'),
+    } : {});
 }
 
 async function elmmPruefen() {
@@ -277,6 +290,7 @@ async function elmmPruefen() {
     try {
         const q = new URLSearchParams({ art: a.art, jahr: String(a.jahr) });
         if (a.monat) q.set('monat', String(a.monat));
+        for (const k of ['personalNr', 'bemerkung', 'originalDocId', 'originalDatum']) if (a[k]) q.set(k, a[k]);
         const r = await fetch('/api/elm/meldungen/vorschau?' + q, { headers: ah() });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.message || 'Fehler ' + r.status);

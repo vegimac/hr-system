@@ -330,6 +330,42 @@ public class ElmEmaEreignisseTests
         => Assert.Equal(soll, ElmFakAdressierung.KasseFuerMeldung(katalog));
 
     [Fact]
+    public void Rektifikat_aus_der_Jahresmeldung_wie_die_Referenz()
+    {
+        var jahr = XDocument.Load(Datei("RefXML_2024-12_RETROSPECTIVE.xml")).Root!;
+        var original = ElmRektifikat.FindeOriginal(jahr.ToString(), "16")!;
+        Assert.Equal(("428fcbb7-6dce-44ec-9bad-54ad0bed621f", new DateOnly(2024, 12, 25)), (original.DocId, original.Datum));
+        var r = ElmRektifikat.Baue(jahr, "16", original, "Testfall 16 - Rectificate", new DateTime(2025, 1, 25));
+        var soll = File.ReadAllText(Datei("RefXML_2025-01_RECTIFICATE.xml"));
+        var v = ElmXmlVergleich.Vergleiche(r.ToString(), soll);
+        var offen = v.Unterschiede.Where(u => !u.IstBewusst && !u.Feld.EndsWith("DocID", StringComparison.Ordinal)).Select(u => $"{u.Feld}: {u.Ist} / {u.Soll}").ToList();
+        Assert.True(offen.Count == 0, string.Join("\n", offen));
+        Assert.Empty(ElmEmaPruefung.Verweise(r.ToString(), soll));
+        Assert.Empty(new ElmXmlValidator().Validate(r.ToString()));
+    }
+
+    [Fact]
+    public void Rektifikat_ohne_Person_wird_nicht_gebaut()
+    {
+        var jahr = XDocument.Load(Datei("RefXML_2024-12_RETROSPECTIVE.xml")).Root!;
+        Assert.Throws<InvalidOperationException>(() => ElmRektifikat.Baue(jahr, "999", new("a", new DateOnly(2024, 1, 1)), null, DateTime.Now));
+        Assert.Null(ElmRektifikat.FindeOriginal(jahr.ToString(), "999"));
+    }
+
+    [Fact]
+    public void Fall_nicht_mehr_bekannt_beendet_das_Nachfragen()
+    {
+        var a = new ElmVorgangAdressat { Zustand = "Success", FallId = "f", Key = "k", Password = "p" };
+        var v = new ElmVorgang { Art = "monthly" };
+        Assert.True(ElmMeldungAnzeige.Synchronisierbar(v, a));
+        ElmUebermittlungXml.Uebernehme(a, ElmUebermittlungXml.LiesSynchronize(XElement.Parse(
+            """<r xmlns:e="urn:x"><Error><EndUserInformation>No Case found with delivered Credentials!</EndUserInformation></Error></r>""")),
+            Array.Empty<string>());
+        Assert.True(a.FallUnbekannt);
+        Assert.False(ElmMeldungAnzeige.Synchronisierbar(v, a));
+    }
+
+    [Fact]
     public void Monatslohn_aus_dem_Vertrag_nicht_anteilig()
     {
         var em = new HrSystem.Models.Employment { EmploymentModel = "FIX", MonthlySalary = 12000m };

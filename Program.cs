@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 141;  // 141: Teilpensionierung am Vertrag · 140: Art des Vertragsendes · 139: EMA manuelle Ereignisse · 138: Wohnort Erfahren-am, AHV-Aufteilung Negativlohn · 137: Reihenfolge der Kassen in Meldungen · 136: Filial-Schalter 13. ML Probezeit · 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 142;  // 142: EMA-Gründe wie die Referenz · 141: Teilpensionierung am Vertrag · 140: Art des Vertragsendes · 139: EMA manuelle Ereignisse · 138: Wohnort Erfahren-am, AHV-Aufteilung Negativlohn · 137: Reihenfolge der Kassen in Meldungen · 136: Filial-Schalter 13. ML Probezeit · 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -526,6 +526,17 @@ using (var scope = app.Services.CreateScope())
         ");
 
     // Stand 138: Wohnort «Erfahren am» wie Zivilstand/Bewilligung; AHV-Aufteilung bei Negativlohn (Richtlinien 8.7.5.3).
+    // Stand 142: EMA-Gründe BVG heissen wie in der Referenz, bereits freigegebene Zeilen bleiben freigegeben (Walter 04.11.2026).
+    if (dbStand < 142)
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE ema_freigabe SET grund = 'entryPensionPlan' WHERE domaene = 'BVG' AND grund = 'entryCompany';
+            UPDATE ema_freigabe SET grund = 'changeBVG-LPP-Code' WHERE domaene = 'BVG' AND grund = 'plan';
+            UPDATE ema_freigabe SET grund = 'incapacityToWork' WHERE domaene = 'BVG' AND grund = 'incapacity';
+            UPDATE ema_freigabe SET grund = 'fullyFitForWork' WHERE domaene = 'BVG' AND grund = 'fullyFit';
+            UPDATE ema_freigabe SET grund = 'changeSalary' WHERE domaene = 'BVG' AND grund = 'salary';
+            UPDATE ema_freigabe SET grund = 'residence' WHERE domaene = 'BVG' AND grund = 'address';
+            UPDATE ema_freigabe SET grund = 'civilstate' WHERE domaene = 'BVG' AND grund = 'civilStatus';
+        ");
     // Stand 141: Teilpensionierung am Vertrag (Walter 05.11.2026).
     if (dbStand < 141)
         db.Database.ExecuteSqlRaw(@"

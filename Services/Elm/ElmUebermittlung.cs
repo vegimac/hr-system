@@ -97,6 +97,8 @@ public class ElmVorgangAdressat
     public List<ElmHinweis> Hinweise { get; set; } = new();
     /// <summary>Letzter State aus dem Synchronize (wird im nächsten als ReceivedState quittiert).</summary>
     public string? State { get; set; }
+    /// <summary>Der Empfänger kennt den Fall nicht mehr («No Case found»). Weiteres Nachfragen bringt nichts.</summary>
+    public bool FallUnbekannt { get; set; }
     public DateTime? LetzteSynchronisierung { get; set; }
     public int Synchronisierungen { get; set; }
     public List<ElmStoryEmpfangen> Stories { get; set; } = new();
@@ -576,6 +578,7 @@ public static class ElmUebermittlungXml
         {
             a.Fehler = s.Fehler;
             a.FehlerDetail = s.FehlerDetail;
+            if (s.Fehler.Contains("No Case found", StringComparison.OrdinalIgnoreCase)) a.FallUnbekannt = true;
             return;
         }
         foreach (var st in a.Stories.Where(x => gesendetQuittiert.Contains(x.StoryId)))

@@ -15,7 +15,7 @@ public class EmaAufgabeTests
         var codes = new[] { new R.BvgCode(1, D(2026, 3, 1), D(2026, 8, 31), "11", null, true) };
         var personen = new[] { new R.Person(1, D(2026, 3, 1), D(2026, 8, 31), null, null) };
         var a = R.BvgAufgaben(spannen, codes, Array.Empty<R.Abwesenheit>(), Array.Empty<R.Wechsel>(), Array.Empty<R.Wechsel>(), Array.Empty<R.Wechsel>(), personen);
-        Assert.Contains(a, x => x.Grund == "entryCompany" && x.Stichtag == D(2026, 3, 1) && x.Zusatz == "100 % arbeitsfähig");
+        Assert.Contains(a, x => x.Grund == "entryPensionPlan" && x.Stichtag == D(2026, 3, 1) && x.Zusatz == "100 % arbeitsfähig");
         Assert.Contains(a, x => x.Grund == "withdrawalPensionPlan" && x.Stichtag == D(2026, 8, 31));
     }
 
@@ -41,8 +41,8 @@ public class EmaAufgabeTests
             new[] { new R.Person(1, D(2026, 1, 1), null, null, null) });
         Assert.Contains(a, x => x.Grund == "interruptionOfEmployment" && x.Art == "EINTRITT" && x.Stichtag == D(2026, 4, 1));
         Assert.Contains(a, x => x.Grund == "interruptionOfEmployment" && x.Art == "AUSTRITT" && x.Text == "Beginn Arbeitsunterbruch" && x.Stichtag == D(2026, 2, 28));
-        Assert.Contains(a, x => x.Grund == "salary" && x.Stichtag == D(2026, 5, 1) && x.Text == "Lohnänderung");
-        Assert.Contains(a, x => x.Grund == "incapacity" && x.Stichtag == D(2026, 6, 1));
+        Assert.Contains(a, x => x.Grund == "changeSalary" && x.Stichtag == D(2026, 5, 1) && x.Text == "Lohnänderung");
+        Assert.Contains(a, x => x.Grund == "incapacityToWork" && x.Stichtag == D(2026, 6, 1));
 
         var tod = R.BvgAufgaben(
             new[] { new R.BvgSpanne(2, D(2026, 1, 1), D(2026, 6, 30)) },

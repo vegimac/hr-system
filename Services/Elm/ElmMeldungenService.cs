@@ -52,15 +52,17 @@ public class ElmMeldungenService
         => _dienst.Liste().FirstOrDefault(v => v.Id == id)
            ?? throw new InvalidOperationException("Meldung nicht gefunden.");
 
-    public Task<ElmUebermittlungService.Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct, int? companyProfileId = null)
-        => _dienst.VorschauAsync(art, jahr, monat, ct, companyProfileId);
+    public Task<ElmUebermittlungService.Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct, int? companyProfileId = null,
+        ElmRektifikat.Angaben? rektifikat = null)
+        => _dienst.VorschauAsync(art, jahr, monat, ct, companyProfileId, rektifikat);
 
     public List<ElmVorgang> Anmeldungen()
         => _dienst.Liste().Where(v => v.Art == "subscribe").ToList();
 
     public async Task<ElmUebermittlungService.Ergebnis> SendenAsync(string art, int jahr, int? monat, string? ersetztId,
         string? zielSchluessel, bool? testmeldung, bool freigabePortal,
-        Dictionary<string, bool>? adressaten, CancellationToken ct, int? companyProfileId = null)
+        Dictionary<string, bool>? adressaten, CancellationToken ct, int? companyProfileId = null,
+        ElmRektifikat.Angaben? rektifikat = null)
     {
         var ziel = string.IsNullOrWhiteSpace(ersetztId) ? ZielFuerNeue(zielSchluessel)
             : ElmEndpunkte.FindeNachUrl(UrlVon(Finde(ersetztId))) ?? Ziel;
@@ -79,7 +81,7 @@ public class ElmMeldungenService
         return await _dienst.DeclareAsync(ziel.Url, new ElmUebermittlungService.DeclareOptionen(
             art, jahr, art is "monthly" or "annual" or "ema" ? monat : null,
             TestCase: testmeldung ?? ziel.IstTest, Substitution: substitution, Adressaten: adressaten,
-            DoppeltSignieren: true, FreigabePortal: freigabePortal, CompanyProfileId: companyProfileId), ct);
+            DoppeltSignieren: true, FreigabePortal: freigabePortal, CompanyProfileId: companyProfileId, Rektifikat: rektifikat), ct);
     }
 
     public Task<ElmUebermittlungService.Ergebnis> AnmeldenAsync(ElmUebermittlungService.SubscribeOptionen o, CancellationToken ct)
