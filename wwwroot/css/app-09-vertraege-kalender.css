@@ -856,6 +856,8 @@
             min-width: 0;
         }
         #contractEditModal .ce-span-2 { grid-column: span 2; }
+        #contractEditModal .ce-span-3 { grid-column: span 3; }
+        #contractEditModal .ce-neue-zeile { grid-column-start: 1; }
         #contractEditModal .ce-span-4 { grid-column: 1 / -1; }
         /* Labels = .ov-pfl */
         #contractEditModal .ce-lbl {
@@ -1106,12 +1108,14 @@
         @media (max-width: 820px) {
             #contractEditModal .ce-grid-4,
             #contractEditModal .ce-grid-2 { grid-template-columns: 1fr 1fr; }
-            #contractEditModal .ce-span-2 { grid-column: span 2; }
+            #contractEditModal .ce-span-2,
+            #contractEditModal .ce-span-3 { grid-column: span 2; }
         }
         @media (max-width: 560px) {
             #contractEditModal .ce-grid-4,
             #contractEditModal .ce-grid-2 { grid-template-columns: 1fr; }
             #contractEditModal .ce-span-2,
+            #contractEditModal .ce-span-3,
             #contractEditModal .ce-span-4 { grid-column: auto; }
         }
         /* Dark: gleiche dlg-Palette wie MA-Karten */

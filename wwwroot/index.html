@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="css/app-06-seiten.css?v=20261103a">
     <link rel="stylesheet" href="css/app-07-dokumente-familie.css?v=20261103a">
     <link rel="stylesheet" href="css/app-08-familie-todos.css?v=20261103a">
-    <link rel="stylesheet" href="css/app-09-vertraege-kalender.css?v=20261103a">
+    <link rel="stylesheet" href="css/app-09-vertraege-kalender.css?v=20261105a">
     <link rel="stylesheet" href="css/app-10-lohnschema-darkmode.css?v=20261103a">
     <link rel="stylesheet" href="css/app-11-diverses.css?v=20261103a">
     <link rel="stylesheet" href="css/elm.css?v=20261103b">
@@ -11411,7 +11411,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script type="text/plain" data-modul="js/austritt.js?v=20261011a"></script>
-<script type="text/plain" data-modul="js/contracts-edit.js?v=20261105b"></script>
+<script type="text/plain" data-modul="js/contracts-edit.js?v=20261105c"></script>
 <script type="text/plain" data-modul="js/payroll.js?v=20261104a"></script>
 <script type="text/plain" data-modul="js/elm-meldungen.js?v=20261030c"></script>
 <script type="text/plain" data-modul="js/fibu.js?v=20260805a"></script>
@@ -13120,25 +13120,25 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
                             <option value="befristet" data-i18n="vt.modal.contractType.fixed">befristet</option>
                         </select>
                     </div>
-                    <div class="ce-field" id="ceEndDateWrap">
-                        <label class="ce-lbl" data-i18n="vt.modal.field.endDate">Vertragsende</label>
-                        <input type="date" id="ceEndDate" class="ce-inp" onchange="ceEndeFelder()">
-                    </div>
-                    <div class="ce-field ce-span-2">
-                        <label class="ce-lbl" data-i18n="vt.modal.field.jobTitle">Im Unternehmen ausgeübter Beruf</label>
-                        <input type="text" id="ceJobTitle" class="ce-inp" data-i18n-placeholder="vt.modal.field.jobTitlePh" placeholder="z.B. Informatikerin, ohne Zahlen oder Sonderzeichen" onbeforeinput="ceBerufVorEingabe(event)" oninput="cePruefeBeruf()">
-                        <div id="ceJobTitleHinweis" class="ce-feld-hinweis" hidden></div>
-                    </div>
                     <div class="ce-field">
                         <label class="ce-lbl" data-i18n="vt.modal.field.probation">Probezeit (Monate)</label>
                         <input type="number" id="ceProbationMonths" class="ce-inp" min="0" max="12">
                     </div>
-                    <div class="ce-field">
+                    <div class="ce-field ce-neue-zeile">
                         <label class="ce-lbl" data-i18n="vt.modal.field.active">Aktiv</label>
                         <select id="ceIsActive" class="ce-inp">
                             <option value="true" data-i18n="vt.modal.statusActive">Aktiv</option>
                             <option value="false" data-i18n="vt.modal.statusInactive">Inaktiv</option>
                         </select>
+                    </div>
+                    <div class="ce-field ce-span-3">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.jobTitle">Im Unternehmen ausgeübter Beruf</label>
+                        <input type="text" id="ceJobTitle" class="ce-inp" data-i18n-placeholder="vt.modal.field.jobTitlePh" placeholder="z.B. Informatikerin, ohne Zahlen oder Sonderzeichen" onbeforeinput="ceBerufVorEingabe(event)" oninput="cePruefeBeruf()">
+                        <div id="ceJobTitleHinweis" class="ce-feld-hinweis" hidden></div>
+                    </div>
+                    <div class="ce-field ce-neue-zeile" id="ceEndDateWrap">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.endDate">Vertragsende</label>
+                        <input type="date" id="ceEndDate" class="ce-inp" onchange="ceEndeFelder()">
                     </div>
                     <div class="ce-field" id="ceEndeArtWrap" style="display:none">
                         <label class="ce-lbl">Art des Endes</label>
