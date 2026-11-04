@@ -179,7 +179,7 @@
             display: grid;
             grid-template-columns:
                 minmax(110px, 1fr)     /* Strasse nimmt den Rest */
-                calc(7.2ch + 8rem + 4rem + 11.4rem + 30px) /* PLZ + Ort + Kt. + Land, fest */
+                calc(5.5ch + 8rem + 4rem + 11.4rem + 30px) /* PLZ + Ort + Kt. + Land, fest */
                 max-content            /* Telefon, ganze Nummer */
                 max-content;           /* AHV + unbekannt + Dokument, nie abgeschnitten */
             column-gap: 12px;
@@ -201,12 +201,12 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe {
             display: grid;
             /* Kt. und Land-Code breit genug für die Auswahl mit Pfeil (Walter 03.11.2026: «L…», «C.»). */
-            grid-template-columns: 7.2ch 8rem 4rem 11.4rem;
+            grid-template-columns: 5.5ch 8rem 4rem 11.4rem;
             column-gap: 10px;
             align-items: start;
-            width: calc(7.2ch + 8rem + 4rem + 11.4rem + 30px);
-            min-width: calc(7.2ch + 8rem + 4rem + 11.4rem + 30px);
-            max-width: calc(7.2ch + 8rem + 4rem + 11.4rem + 30px);
+            width: calc(5.5ch + 8rem + 4rem + 11.4rem + 30px);
+            min-width: calc(5.5ch + 8rem + 4rem + 11.4rem + 30px);
+            max-width: calc(5.5ch + 8rem + 4rem + 11.4rem + 30px);
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-plz,
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-adr-gruppe .ov-pf-city,
@@ -276,9 +276,9 @@
         body.theme-dark .ma-land-en { color: rgba(210, 220, 232, 0.78); }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-tel2 .ov-softin {
             /* Kein Datums-Icon, also kein Platz rechts: Das Dokument-Zeichen bei der AHV-Nummer blieb sonst draussen. */
-            /* Passt auch für +49 1512 3456789. */
-            width: 10.5ch;
-            min-width: 10.5ch;
+            /* Passt auch für +49 1512 3456789. Mit !important, die Regel für alle Felder steht weiter unten. */
+            width: 16ch !important;
+            min-width: 16ch !important;
             max-width: none;
             padding-right: 4px !important;
             text-overflow: clip;
@@ -298,8 +298,8 @@
         }
         #page-mitarbeiter.liquid-employee .ov-ahv-eingabe {
             /* Fest auf die 16 Zeichen der AHV-Nummer. */
-            width: 9ch !important; min-width: 9ch !important; max-width: 9ch;
-            flex: 0 0 9ch; padding-right: 2px !important;
+            width: 14.5ch !important; min-width: 14.5ch !important; max-width: 14.5ch;
+            flex: 0 0 14.5ch; padding-right: 2px !important;
         }
         #page-mitarbeiter.liquid-employee .ov-ahv-unb {
             font-size: 12px; color: #3f3f3f; white-space: nowrap;
