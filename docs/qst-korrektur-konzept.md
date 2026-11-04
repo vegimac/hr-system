@@ -80,10 +80,10 @@ sein.
   (2) Ausweis in der kantonalen QST-Abrechnung des Korrekturmonats — **AG
   zahlt sofort**; (3) ab E6 als Swissdec-Korrekturmeldung der betroffenen
   Monate.
-- **Jahresgrenze:** Verrechnung über den Lohnlauf nur INNERHALB des
-  laufenden Steuerjahres. Vorjahres-Korrekturen → Hinweis «via
-  Steuerverwaltung» (berichtigte Jahresabrechnung / Neuberechnung; MA-Frist
-  31.03. des Folgejahres).
+- **Frist (Walter 04.11.2026, RL 10.11.1.1, ersetzt die frühere Jahresgrenze):**
+  Verrechnung über den Lohnlauf bis 31.03. des Folgejahres, mit den Tarifen des
+  betroffenen Jahres. Danach → Hinweis «via Steuerverwaltung» (berichtigte
+  Jahresabrechnung / Neuberechnung).
 - Gilt generisch für alle Auslöser: Heirat, Trennung, Geburt,
   Kirchenein-/austritt, Partner-Erwerbsaufnahme/-aufgabe, rückwirkender
   Bewilligungswechsel, nachträgliche Befreiung (C-Ausweis/Heirat mit CH).

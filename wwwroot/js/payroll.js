@@ -3251,7 +3251,7 @@ async function lohnFibuJournal() {
 // ── K2 (Walter 29.08.2026): QST-Korrektur-Ausweis der Periode ───────────
 // Zeigt die in dieser Periode VERRECHNETEN qst_korrektur-Posten (mit
 // Kantonssummen für die kantonale QST-Abrechnung) und darunter die offenen
-// VORJAHR-Posten (Meldung an die Steuerverwaltung — nie über den Lohnlauf).
+// VORJAHR-Posten (Frist 31.03. des Folgejahres vorbei — Steuerverwaltung, nie über den Lohnlauf).
 async function lohnQstKorrekturen() {
     const p = window._currentLohnPeriode || {};
     const cid = p.companyProfileId || document.getElementById('lohnBranchSelect')?.value;
@@ -3293,7 +3293,7 @@ async function lohnQstKorrekturen() {
 
     const vjTab = (d.vorjahr && d.vorjahr.length)
         ? `<table style="border-collapse:collapse;font-size:12.5px;width:100%">${head}${d.vorjahr.map(row).join('')}</table>
-           <div style="margin-top:6px;color:#b45309;font-size:11.5px">⚠ Vorjahres-Posten laufen NICHT über den Lohnlauf — Abwicklung direkt mit der Steuerverwaltung.</div>`
+           <div style="margin-top:6px;color:#b45309;font-size:11.5px">⚠ Frist 31.03. des Folgejahres vorbei: diese Posten laufen NICHT über den Lohnlauf — Abwicklung direkt mit der Steuerverwaltung.</div>`
         : '<div style="color:#94a3b8;font-size:12.5px">Keine offenen Vorjahres-Posten.</div>';
 
     let modal = document.getElementById('lohnQstKorrModal');

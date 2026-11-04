@@ -242,8 +242,8 @@ public class PayrollCalculationEngine
         // als eigene Abzugszeile (categoryCode QST_KORR) verrechnet. Damit die
         // Rechnung nach dem Bestätigen STABIL bleibt (GetPdf/Recompute rufen
         // Calculate erneut), zählen auch Posten mit, die bereits in DIESER
-        // Periode verrechnet wurden. VORJAHR-Posten laufen NIE über den
-        // Lohnlauf (Meldung an die Steuerverwaltung, Kap. 3 Konzept).
+        // Periode verrechnet wurden. VORJAHR-Posten (Frist 31.03. des Folgejahres
+        // vorbei) laufen NIE über den Lohnlauf (Steuerverwaltung, RL 10.11.1.1).
         // Positenwahl bewusst über ALLE Filialen (ein Arbeitgeber); die
         // Markierung VERRECHNET passiert erst in ConfirmPayroll (atomar).
         //

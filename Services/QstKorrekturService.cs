@@ -17,13 +17,21 @@ namespace HrSystem.Services;
 ///    NICHT «was wir damals schon wussten» (das gilt nur für den Live-
 ///    Lohnlauf via QstVersionWahl.Waehle). Walter 18.09.2026, TF34.
 ///  • Zwischenmonate: ValidFrom … Vormonat von Erfahren am (sonst bis ValidTo).
-///  • Jahresgrenze: Postenjahr &lt; Jahr von «Erfahren am» → VORJAHR
-///    (Steuerverwaltung). Referenz = BekanntAb.Year, nicht DateTime.Now.
+///  • Frist: «Erfahren am» nach dem 31.03. des Folgejahres → VORJAHR
+///    (Steuerverwaltung), siehe PostenStatus. Referenz = BekanntAb, nicht DateTime.Now.
 /// </summary>
 public class QstKorrekturService
 {
     private readonly AppDbContext _db;
     private readonly QuellensteuerTarifService _tarifService;
+
+    /// <summary>
+    /// Korrekturen durch den Arbeitgeber sind bis 31. März des Folgejahres möglich (RL 10.11.1.1,
+    /// Walter 04.11.2026, Quality Tool Jan 2026 TF32 Armanini: Heirat 26.10., im Januar bekannt).
+    /// Später bleibt nur der Weg über die Steuerverwaltung: VORJAHR, nie über den Lohnlauf.
+    /// </summary>
+    public static string PostenStatus(int postenJahr, DateOnly bekanntAm)
+        => bekanntAm > new DateOnly(postenJahr + 1, 3, 31) ? "VORJAHR" : "OFFEN";
 
     public QstKorrekturService(AppDbContext db, QuellensteuerTarifService tarifService)
     {
@@ -82,8 +90,8 @@ public class QstKorrekturService
         var posten = new List<object>();
         decimal totalDiff = 0;
         int vorjahrCount = 0;
-        // Laufendes Steuerjahr = Jahr der Kenntnis/Verrechnung, nicht Kalender-heute.
-        var laufendesSteuerjahr = QstVersionWahl.BekanntAb(neueVersion).Year;
+        // Massgebend ist der Tag der Kenntnis/Verrechnung, nicht Kalender-heute.
+        var bekanntAm = QstVersionWahl.BekanntAb(neueVersion);
 
         var alleVersionen = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == neueVersion.EmployeeId)
@@ -170,7 +178,7 @@ public class QstKorrekturService
             var diff = Math.Round(neuerBetrag - effektivAlt, 2);
             if (Math.Abs(diff) < 0.05m) continue; // keine relevante Differenz
 
-            var status = r.Year < laufendesSteuerjahr ? "VORJAHR" : "OFFEN";
+            var status = PostenStatus(r.Year, bekanntAm);
             if (status == "VORJAHR") vorjahrCount++;
 
             string neuerCode = !string.IsNullOrWhiteSpace(sollVersion.TarifCode)

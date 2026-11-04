@@ -144,3 +144,16 @@ public class ElmQstAustrittKorrekturTests
         Assert.False(ElmMonthlyDeclarationBuilder.CAusweisImMonat(v, typen, new DateTime(2025, 12, 1), new DateTime(2025, 12, 31)));
     }
 }
+
+/// <summary>RL 10.11.1.1: Korrektur durch den Arbeitgeber bis 31.03. des Folgejahres.</summary>
+public class QstKorrekturFristTests
+{
+    [Theory]
+    [InlineData(2025, 2025, 11, 1, "OFFEN")]
+    [InlineData(2025, 2026, 1, 1, "OFFEN")]    // TF32 Armanini
+    [InlineData(2025, 2026, 3, 31, "OFFEN")]
+    [InlineData(2025, 2026, 4, 1, "VORJAHR")]
+    [InlineData(2024, 2026, 1, 1, "VORJAHR")]
+    public void Status(int postenJahr, int j, int m, int t, string soll)
+        => Assert.Equal(soll, HrSystem.Services.QstKorrekturService.PostenStatus(postenJahr, new DateOnly(j, m, t)));
+}
