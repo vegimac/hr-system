@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 134;  // 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 135;  // 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -522,6 +522,14 @@ using (var scope = app.Services.CreateScope())
             UPDATE lohnposition SET statistik_monat = 'Bruttolohn', statistik_jahr = NULL,
                    qst_charakter = 'monatlich', qst_periodisch = true
              WHERE code = '1218';
+        ");
+
+    // Stand 135: Geburts-/Adoptionszulage ist einmalig (Swissdec TF22 Bucher Feb 2026: Satz-Lohn +250, nicht +1'500).
+    // Nur der bisherige Standard wird umgestellt, eine bewusst andere Einstellung bleibt.
+    if (dbStand < 135)
+        db.Database.ExecuteSqlRaw(@"
+            UPDATE lohnposition SET qst_charakter = 'jaehrlich', qst_periodisch = false
+             WHERE code = '3034' AND qst_charakter = 'monatlich' AND qst_periodisch = true;
         ");
 
     // Stand 132: Ferien/Feiertag im Ansatz inbegriffen (Walter 02.11.2026, TF15 Degelo).

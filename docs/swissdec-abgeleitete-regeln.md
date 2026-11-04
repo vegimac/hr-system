@@ -37,6 +37,7 @@ Status: **offen** = noch nicht gefragt oder keine Antwort · **bestätigt** · *
 | Leistung mit Anspruch beim Austritt: Korrektur des Austrittsmonats | 10.6.5, 10.11.1.1 | `PayrollCalculationEngine`, `qstAustrittKorrektur` |
 | Vorjahres-Korrektur bis 31.03. des Folgejahres über den Lohnlauf | 10.11.1.1 | `QstKorrekturService.PostenStatus` |
 | Kantonswechsel: zusätzlich Mutation «residence» | Feldbeschreibung Mutation | `ElmMonthlyDeclarationBuilder.BaueQstZeile` |
+| Bonus nach Austritt: Satz = periodisch Austrittsmonat/-jahr + Nachzahlung | 10.6.5 | `PayrollCalculationEngine`, `austrittsStand` |
 
 Teilweise abgeleitet ist bei der C-Regel die Ausnahme: Wer schon beim Eintritt C hat oder eine Karte
 erneuert, ist sofort befreit. Das ist unsere Auslegung, ein Testfall dazu fehlt.

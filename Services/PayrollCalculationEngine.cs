@@ -6059,6 +6059,17 @@ public class PayrollCalculationEngine
                     var altStand = korrekturAustrittsmonat
                         ? await QstStandAustrittsmonatAsync(employeeId, svYear, svMonth, year, month)
                         : null;
+                    // Anspruch NACH dem Austritt (RL 10.6.5, Bonus): Satz = periodische Leistung des Austrittsmonats
+                    // bzw. -jahres + Nachzahlung (TF43 Ochsenbein 6'666.70 + 30'000, TF28 Arbenz 16'000 + 15'000).
+                    // Im Jahresmodell zählt nur das Aperiodische des Auszahlungsjahres; laufen die Vormonate über
+                    // die Töpfe des Auszahlungsjahres (gleiches Jahr, TF41 Meier Max), sind sie schon drin.
+                    if (nachzahlungNachAustritt && !korrekturAustrittsmonat
+                        && (qstMitAustritt || _qstJahresYtd == null)
+                        && await QstStandAustrittsmonatAsync(employeeId, svYear, svMonth, year, month) is { } austrittsStand)
+                    {
+                        satzKorr = austrittsStand.SatzBasis - austrittsStand.Aperiodisch + (satzKorr ?? deltaQst);
+                        if (_qstJahresYtd is { } ytdAustritt) _qstJahresYtd = ytdAustritt with { AperiodischBisher = 0m };
+                    }
                     // Nur die Zahlung wird nach Arbeitstagen CH ausgeschieden (periodisch Monat, einmalig Σ Jahr:
                     // TF28 Arbenz 5'000 × 154/240, TF29 Forster + 2'000 × 9/20), die alte Basis ist es schon.
                     var qstRuleKorr = altStand is { } alt
