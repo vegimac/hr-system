@@ -448,7 +448,9 @@ public class ElmAnnualDeclarationBuilder
                 LohnausweisFassung.FuerJahr(personenLa.Where(p => p.EmployeeId == e.Id), year, p => p.GueltigAb, p => p.GueltigBis),
                 year, null);
             var qstBis = stichtagEnde;
-            var qstAmEnde = qstZeiten.Any(q => q.EmployeeId == e.Id && q.ValidFrom <= qstBis && (q.ValidTo == null || q.ValidTo >= qstBis));
+            // Code NON = rückwirkend nicht quellensteuerpflichtig (Quality Tool 2024-12: TF14 Egli, Bewilligung C ab 01.11.).
+            var qstAmEnde = qstZeiten.Any(q => q.EmployeeId == e.Id && q.ValidFrom <= qstBis && (q.ValidTo == null || q.ValidTo >= qstBis)
+                                               && !string.Equals(q.QstCode, "NON", StringComparison.OrdinalIgnoreCase));
             persons.Add(new XElement(Sd + "Person", particulars, works, salaries, fakSalaries,
                 VersicherungSalaries(e, x.EmployeeId, Zeit),
                 TaxSalaries(rowsByEmp[x.EmployeeId].OrderBy(r => r.Month).Select(r => r.SlipJson), adresseAm,
