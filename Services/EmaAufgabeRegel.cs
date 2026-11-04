@@ -312,6 +312,7 @@ public static class EmaAufgabeRegel
 /// <summary>
 /// Nachzahlung nach Austritt im Vorjahr (Systemtest 04_04_04, RL 9.6.5).
 /// Jährlicher Charakter = Leistungsanspruch im Austritt: Verhältnisse des Austrittsmonats
+/// (Version, Satzlohn; der Tarif ist der des Auszahlungsmonats, Quality Tool Feb 2026)
 /// und Hinweis auf den Lohnausweis dieses Jahres. Monatlicher Charakter = Verhältnisse
 /// des Auszahlungsmonats. Gleicher Jahr wie der Austritt bleibt beim Auszahlungsmonat.
 /// </summary>

@@ -104,6 +104,7 @@ public class PayrollCalculationEngine
     {
       LetzteFamzZahlungen = new List<FamzZahlung>();
       LetzteQstKorrekturIds = new List<int>();
+      _qstTarifPeriode = null;
       if (isCorrection)
           return await CalculateCorrectionAsync(employeeId, year, month, companyProfileId);
 
@@ -5248,6 +5249,9 @@ public class PayrollCalculationEngine
     /// <summary>Steuerbare Bemessung der letzten <see cref="ComputeQstDeduction"/>-Rechnung.</summary>
     private decimal _qstBemessungLetzte;
 
+    /// <summary>Tarifperiode, wenn sie von den Verhältnissen abweicht (Bonus nach Austritt im Vorjahr).</summary>
+    private DateOnly? _qstTarifPeriode;
+
     private DeductionRule? ComputeQstDeduction(
         EmployeeQuellensteuer? einstellung,
         decimal bruttolohn,
@@ -5267,6 +5271,7 @@ public class PayrollCalculationEngine
         bool offen = string.Equals(einstellung.KategorieArt, "OFFEN", StringComparison.OrdinalIgnoreCase);
         if (vordef == null && string.IsNullOrEmpty(einstellung.TarifCode) && !offen)
             return null;
+        int tarifJahr = (_qstTarifPeriode ?? periodFrom).Year;
         // Handwert «Satzbest. Medianlohn» hat Vorrang — dann war der Tabellen-Median nicht die Basis.
         if (einstellung.MindestlohnSatzbestimmung != null) medianAngewendet = false;
 
@@ -5374,7 +5379,7 @@ public class PayrollCalculationEngine
             else if (QstVordefinierteKategorie.IstMitarbeiterbeteiligung(vordef.Value.Art)
                   || QstVordefinierteKategorie.IstVerwaltungsrat(vordef.Value.Art))
             {
-                var satz = QstVordefinierteKategorie.SatzFuer(vordef.Value.Code, einstellung.Steuerkanton, periodFrom, _sonderSaetze);
+                var satz = QstVordefinierteKategorie.SatzFuer(vordef.Value.Code, einstellung.Steuerkanton, _qstTarifPeriode ?? periodFrom, _sonderSaetze);
                 if (satz == null)
                 {
                     qstBetrag = 0;
@@ -5434,7 +5439,7 @@ public class PayrollCalculationEngine
                 // Je Topf kumuliert auf 5 Rp., minus bereits bezahlt (QstJahresmodell.RechneToepfe).
                 var t = QstJahresmodell.RechneToepfe(
                     satzLohnLookup, toepfe,
-                    c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnLookup, periodFrom.Year),
+                    c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnLookup, tarifJahr),
                     ytd.BezahltBisher);
                 qstBetrag = t.QstMonat;
                 satzPct = !string.IsNullOrWhiteSpace(codeJetzt) && t.SatzJeCode.TryGetValue(codeJetzt, out var p)
@@ -5446,11 +5451,11 @@ public class PayrollCalculationEngine
                 // Topf-Code ohne Tarif: nicht stillschweigend mit 0 % rechnen (Walter 26.09.2026).
                 var ohneTarif = toepfe.Keys
                     .Where(c => !string.IsNullOrWhiteSpace(c)
-                             && !QstTarifVorhanden(einstellung.Steuerkanton!, c, satzLohnLookup, periodFrom.Year))
+                             && !QstTarifVorhanden(einstellung.Steuerkanton!, c, satzLohnLookup, tarifJahr))
                     .ToList();
                 if (ohneTarif.Count > 0)
                     sonderHinweis += $" · ACHTUNG: kein Tarif «{string.Join("», «", ohneTarif)}» im Kanton "
-                        + $"{einstellung.Steuerkanton} fuer {periodFrom.Year} — dieser Anteil wird mit 0 % gerechnet.";
+                        + $"{einstellung.Steuerkanton} fuer {tarifJahr} — dieser Anteil wird mit 0 % gerechnet.";
                 if (_qstNachzahlungStandalone && satzPct.HasValue)
                 {
                     // Nachzahlung nach Austritt: nur die Zahlung zum neuen Satz (Showcase TF41
@@ -5480,7 +5485,7 @@ public class PayrollCalculationEngine
                 einstellung.Kirchensteuer,
                 satzbestimmenderBruttoCHF: satzBrutto,
                 istBruttoCHF: bruttolohn,
-                jahr: periodFrom.Year);   // Tarif der Lohnperiode, nicht des Rechen-Tages (Walter 09.09.2026)
+                jahr: tarifJahr);   // Tarif der Lohnperiode, nicht des Rechen-Tages (Walter 09.09.2026)
             if (qstCalc is null)
             {
                 // Kein Tarif fuer diese Kombination (Walter 26.09.2026, TF36 Maldini:
@@ -5491,7 +5496,7 @@ public class PayrollCalculationEngine
                 satzPct = null;
                 sonderHinweis = $"Kein Tarif «{einstellung.TarifCode}{einstellung.AnzahlKinder}"
                     + $"{(einstellung.Kirchensteuer ? 'Y' : 'N')}» im Kanton {einstellung.Steuerkanton} "
-                    + $"fuer {periodFrom.Year} hinterlegt — Quellensteuer NICHT berechnet. "
+                    + $"fuer {tarifJahr} hinterlegt — Quellensteuer NICHT berechnet. "
                     + "Tarifcode pruefen oder Tarifdatei einlesen.";
             }
             else
@@ -6057,6 +6062,7 @@ public class PayrollCalculationEngine
                     decimal? pensumKorr = emp.EmploymentModel is "FIX" or "FIX-M" ? emp.EmploymentPercentage : null;
                     var satzKorr = ComputeSatzBruttoForNebenjob(
                         qstEinstellungKorr, deltaQst, 0, company, pensumKorr, deltaQstEinmalig, 0, medianKorr, nebenjobKorr);
+                    _qstTarifPeriode = null;
                     var altStand = korrekturAustrittsmonat
                         ? await QstStandAustrittsmonatAsync(employeeId, svYear, svMonth, year, month)
                         : null;
@@ -6070,6 +6076,8 @@ public class PayrollCalculationEngine
                     {
                         satzKorr = austrittsStand.SatzBasis - austrittsStand.Aperiodisch + (satzKorr ?? deltaQst);
                         if (_qstJahresYtd is { } ytdAustritt) _qstJahresYtd = ytdAustritt with { AperiodischBisher = 0m };
+                        // Tarif des Auszahlungsmonats (RL 10.6.5; TF28 Arbenz Feb 2026: 29.5 % aus tar26, nicht 29.74 %).
+                        _qstTarifPeriode = periodFrom;
                     }
                     // Nur die Zahlung wird nach Arbeitstagen CH ausgeschieden (periodisch Monat, einmalig Σ Jahr:
                     // TF28 Arbenz 5'000 × 154/240, TF29 Forster + 2'000 × 9/20), die alte Basis ist es schon.
