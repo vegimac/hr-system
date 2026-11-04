@@ -221,8 +221,10 @@ function elmmSendenZeichnen() {
                 <select id="elmmArt" ${gesperrt} onchange="elmmArtGewechselt()">
                     <option value="monthly" ${art === 'monthly' ? 'selected' : ''}>Monatsmeldung (Quellensteuer + Statistik)</option>
                     <option value="annual" ${art === 'annual' ? 'selected' : ''}>Jahresmeldung (AHV)</option>
+                    <option value="ema" ${art === 'ema' ? 'selected' : ''}>Eintritte, Mutationen, Austritte (EMA)</option>
+                    <option value="prospective" ${art === 'prospective' ? 'selected' : ''}>Voraussichtliche BVG-Jahresmeldung</option>
                 </select></label>
-            <label id="elmmMonatWrap" style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#646464"><span id="elmmMonatTitel">${art === 'annual' ? 'Bis Monat' : 'Monat'}</span>
+            <label id="elmmMonatWrap" style="display:${art === 'prospective' ? 'none' : 'flex'};flex-direction:column;gap:4px;font-size:12px;color:#646464"><span id="elmmMonatTitel">${art === 'annual' ? 'Bis Monat' : 'Monat'}</span>
                 <select id="elmmMonat" ${gesperrt} onchange="_elmmVorschau=null;elmmVorschauZeichnen()">
                     ${_ELMM_MONATE.map((n, i) => `<option value="${i + 1}" ${+monat === i + 1 ? 'selected' : ''}>${n}</option>`).join('')}
                 </select></label>
@@ -246,6 +248,9 @@ function elmmArtGewechselt() {
     if (t) t.textContent = art === 'annual' ? 'Bis Monat' : 'Monat';
     const m = document.getElementById('elmmMonat');
     if (m && art === 'annual') m.value = '12';
+    // Die voraussichtliche Jahresmeldung gilt per 1.1. des Jahres, ohne Monat.
+    const w = document.getElementById('elmmMonatWrap');
+    if (w) w.style.display = art === 'prospective' ? 'none' : 'flex';
     _elmmVorschau = null;
     elmmVorschauZeichnen();
 }
