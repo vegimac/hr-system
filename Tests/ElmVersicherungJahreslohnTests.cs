@@ -113,6 +113,19 @@ public class ElmVersicherungJahreslohnTests
         Assert.Equal(D(t.Element(Sd + $"{prefix}-MasterTotal")!), ist.Sum(x => x.Frau + x.Mann));
     }
 
+    [Fact]
+    public void Lohn_nach_Austritt_bleibt_in_der_Beitragsdauer_der_Anstellung()
+    {
+        var k = new DateTime(2025, 1, 1);
+        var a = Assert.Single(ElmVersicherungJahreslohn.Abschnitte(new ElmVersicherungJahreslohn.Monat[]
+        {
+            new(3, "A1", 100m, 100m, 100m, 100m) { Kette = k },
+            new(5, "A1", 30m, 30m, 0m, 30m) { Kette = k },
+        }));
+        Assert.Equal((3, 5), (a.Von, a.Bis));
+        Assert.Equal(130m, a.Brutto);
+    }
+
     // ── Referenz lesen ──────────────────────────────────────────────────────
     static readonly XNamespace Sd = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration";
     static readonly XNamespace C = "urn:ch:swissdec:common:v3:20260306";

@@ -12,7 +12,7 @@ public static class ElmLohnausweisJahr
     public enum Feld
     {
         Lohn, Verpflegung, Geschaeftswagen, Nebenleistung, Unregelmaessig, Kapital, Beteiligung, Verwaltungsrat, Uebrige,
-        SpesenEffektiv, SpesenPauschalWagen, SpesenPauschalUebrige, Weiterbildung, Keine,
+        SpesenEffektiv, SpesenEffektivUebrige, SpesenPauschalWagen, SpesenPauschalUebrige, Weiterbildung, Keine,
     }
 
     public sealed class Summen
@@ -46,6 +46,7 @@ public static class ElmLohnausweisJahr
             case "3034": case "3001": return Feld.Unregelmaessig;
             case "2065": return Feld.Keine; // Richtlinien 8.7.2.5: zählt für AHV/UVG, aber nicht zum Bruttolohn
             case "6000": return Feld.SpesenEffektiv;
+            case "6020": return Feld.SpesenEffektivUebrige;
             case "6050": return Feld.SpesenPauschalWagen;
             case "6070": return Feld.SpesenPauschalUebrige;
         }

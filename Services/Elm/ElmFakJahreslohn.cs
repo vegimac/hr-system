@@ -50,7 +50,7 @@ public static class ElmFakJahreslohn
     /// Monate ohne Kasse fehlen (Meldung hängt dann eine Warnung an).
     /// </summary>
     public static List<Abschnitt> Abschnitte(int jahr, int vonMonat, int bisMonat,
-        IReadOnlyList<Monat> monate, DateTime? eintritt, DateTime? austritt)
+        IReadOnlyList<Monat> monate, DateTime? eintritt, DateTime? austritt, bool ueberLuecken = false)
     {
         var liste = monate.Where(m => m.Nr >= vonMonat && m.Nr <= bisMonat && !string.IsNullOrWhiteSpace(m.Kasse))
             .OrderBy(m => m.Nr).ToList();
@@ -62,7 +62,7 @@ public static class ElmFakJahreslohn
             var kanton = liste[i].Kanton ?? "";
             var j = i;
             while (j + 1 < liste.Count
-                   && liste[j + 1].Nr == liste[j].Nr + 1
+                   && (ueberLuecken || liste[j + 1].Nr == liste[j].Nr + 1)
                    && string.Equals(liste[j + 1].Kasse, kasse, StringComparison.OrdinalIgnoreCase)
                    && string.Equals(liste[j + 1].Kanton ?? "", kanton, StringComparison.OrdinalIgnoreCase))
                 j++;

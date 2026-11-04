@@ -484,7 +484,7 @@ public class ElmAnnualDeclarationBuilder
             var taxPeriode = Zeit(rowsByEmp[x.EmployeeId].Min(r => r.Month), rowsByEmp[x.EmployeeId].Max(r => r.Month));
             var grenz = Grenzgaenger(e, eigeneVertraege, taxPeriode);
             persons.Add(new XElement(Sd + "Person", particulars, works, salaries, fakSalaries,
-                VersicherungSalaries(e, x.EmployeeId, Zeit),
+                VersicherungSalaries(e, x.EmployeeId, Zeit, m => KetteIm(m)?.Start),
                 TaxSalaries(rowsByEmp[x.EmployeeId].OrderBy(r => r.Month).Select(r => r.SlipJson), adresseAm,
                     taxPeriode, wirkung, qstAmEnde, teilzeit),
                 grenz));
@@ -550,6 +550,9 @@ public class ElmAnnualDeclarationBuilder
             var pw = a.Von(ElmLohnausweisJahr.Feld.SpesenPauschalWagen);
             var pu = ElmLohnausweisJahr.Feld.SpesenPauschalUebrige;
             var ef = a.Von(ElmLohnausweisJahr.Feld.SpesenEffektiv);
+            var eu = ElmLohnausweisJahr.Feld.SpesenEffektivUebrige;
+            // Expat-Spesen: keine Deklaration, wenn ein Ruling vorliegt (Richtlinien Tabelle 9.9).
+            var mitEu = a.Von(eu) != 0m && angaben.Expat == null && angaben.Spesenreglement == null && !angaben.Rz52;
             var wb = a.Von(ElmLohnausweisJahr.Feld.Weiterbildung);
             // Reglement oder RZ 52: effektive Spesen stehen nicht auf dem Lohnausweis (Quality Tool 2024-11: TF16 Aebi).
             if (angaben.Spesenreglement != null || angaben.Rz52) ef = 0m;
@@ -575,9 +578,9 @@ public class ElmAnnualDeclarationBuilder
                 Kreuz("TaxAtSourcePeriodForObjection", qstBemerkung),
                 angaben.Expat is { } ex ? Grant("ExpatriateRuling", ex) : null,
                 Kreuz("PartTimeEmployment", teilzeit));
-            XElement? spesen = ef != 0m || pw != 0m || a.Von(pu) != 0m || wb != 0m
+            XElement? spesen = ef != 0m || mitEu || pw != 0m || a.Von(pu) != 0m || wb != 0m
                 ? new XElement(Sd + "Charges",
-                    ef != 0m ? new XElement(Sd + "Effective", Betrag("TravelFoodAccommodation", ef)) : null,
+                    ef != 0m || mitEu ? new XElement(Sd + "Effective", ef != 0m ? Betrag("TravelFoodAccommodation", ef) : null, mitEu ? MitText("Other", eu) : null) : null,
                     pw != 0m || a.Von(pu) != 0m ? new XElement(Sd + "LumpSum", WennBetrag("Car", pw), MitText("Other", pu)) : null,
                     WennBetrag("Education", wb))
                 : null;
@@ -608,7 +611,7 @@ public class ElmAnnualDeclarationBuilder
         }
 
         // UVG-, UVGZ- und KTG-Salaries einer Person: je Beitragsdauer und Code (ElmVersicherungJahreslohn).
-        IEnumerable<XElement> VersicherungSalaries(Employee e, int empId, Func<int, int, (DateTime Von, DateTime Bis)> zeit)
+        IEnumerable<XElement> VersicherungSalaries(Employee e, int empId, Func<int, int, (DateTime Von, DateTime Bis)> zeit, Func<int, DateTime?> kette)
         {
             var eintraege = versCodesByEmp.TryGetValue(empId, out var l) ? l : new List<EmployeeVersicherungCode>();
             var geschlecht = (e.Gender ?? "").ToLowerInvariant() is var g && (g.StartsWith("f") || g.StartsWith("w")) ? "F" : "M";
@@ -642,7 +645,7 @@ public class ElmAnnualDeclarationBuilder
                     hinweise.Add($"kein UVG-Code in Monat {mg.Key} — UVG nicht gemeldet.");
                 else
                     monateJeArt["UVG"].Add(new(mg.Key, uvg, brutto, basis,
-                        ElmVersicherungJahreslohn.UvgVersichert(uvg) ? nbu ?? Summe(z => z.Kat == "BUV") : 0m, ahv));
+                        ElmVersicherungJahreslohn.UvgVersichert(uvg) ? nbu ?? Summe(z => z.Kat == "BUV") : 0m, ahv) { Kette = kette(mg.Key) });
 
                 // UVGZ und KTG: ein oder mehrere Codes gleichzeitig.
                 foreach (var art in new[] { "UVGZ", "KTG" })
@@ -664,7 +667,7 @@ public class ElmAnnualDeclarationBuilder
                     {
                         var pflichtig = artZeilen.Where(z => string.Equals(z.Code, code, StringComparison.OrdinalIgnoreCase)
                                                              || (z.Code == null && codes.Count == 1)).Sum(z => z.Basis);
-                        monateJeArt[art].Add(new(mg.Key, code, 0m, basis, pflichtig, ahv));
+                        monateJeArt[art].Add(new(mg.Key, code, 0m, basis, pflichtig, ahv) { Kette = kette(mg.Key) });
                     }
                 }
             }
@@ -792,10 +795,13 @@ public class ElmAnnualDeclarationBuilder
                        + "— dort fehlt die FAK-Zeile (Filiale → Lohndaten Empfänger, Art FAK).");
 
             var el = new XElement(Sd + "FAK-CAF-Salaries");
-            foreach (var a in ahvAbschnitte.Where(a => a.Art != ElmAhvJahreslohn.Art.Frei))
+            // Je Anstellung, nicht je AHV-Abschnitt: Referenzalter oder Lücken trennen die FAK nicht (Referenz 2025-03: TF44 Lusser, TF41 Meier).
+            foreach (var kette in monate.Where(m => m.Art != ElmAhvJahreslohn.Art.Frei).GroupBy(m => m.Kette))
             {
-                var (von, bis) = zeit(a.Von, a.Bis);
-                foreach (var roh in ElmFakJahreslohn.Abschnitte(year, a.Von, a.Bis, fakMonate, von, bis))
+                var vonNr = kette.Min(m => m.Nr);
+                var bisNr = kette.Max(m => m.Nr);
+                var (von, bis) = zeit(vonNr, bisNr);
+                foreach (var roh in ElmFakJahreslohn.Abschnitte(year, vonNr, bisNr, fakMonate.Where(m => kette.Any(k => k.Nr == m.Nr)).ToList(), von, bis, ueberLuecken: true))
                 {
                     // Lohn nach dem Austritt: Zeitraum der beendeten Anstellung (Referenz 2025-01: TF07 Burri).
                     var f = roh with { Von = roh.Von > bis ? von : roh.Von, Bis = roh.Bis > bis ? bis : roh.Bis };

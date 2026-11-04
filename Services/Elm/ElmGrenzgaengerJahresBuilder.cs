@@ -330,7 +330,11 @@ public class ElmGrenzgaengerJahresBuilder
                     {
                         case "QST":
                             steuerbar += PayrollCalculations.Round05(Zahl(z, "basis"));
-                            abzug += PayrollCalculations.Round05(Math.Abs(betrag));
+                            abzug -= PayrollCalculations.Round05(betrag);
+                            break;
+                        // Rückwirkende Tarifkorrektur mindert den Abzug (Referenz 2025-06: TF34 Rinaldi).
+                        case "QST_KORR":
+                            abzug -= PayrollCalculations.Round05(betrag);
                             break;
                         case "AHV": ahv += betrag; break;
                         case "ALV": alv += betrag; break;

@@ -17,7 +17,11 @@ public static class ElmVersicherungJahreslohn
 {
     /// <summary>Ein Lohnmonat der Person für einen Code. Beitragspflichtig null = keine Abzugszeile.</summary>
     public readonly record struct Monat(int Nr, string Code, decimal Brutto, decimal Basis,
-        decimal? Beitragspflichtig, decimal AhvLohn);
+        decimal? Beitragspflichtig, decimal AhvLohn)
+    {
+        /// <summary>Beginn der Anstellung; Monate derselben Anstellung gehören trotz Lücke zusammen (Lohn nach Austritt).</summary>
+        public DateTime? Kette { get; init; }
+    }
 
     public readonly record struct Abschnitt(int Von, int Bis, string Code, decimal Brutto, decimal Basis,
         decimal? Beitragspflichtig, decimal AhvLohn);
@@ -38,7 +42,9 @@ public static class ElmVersicherungJahreslohn
             while (i < liste.Count)
             {
                 var j = i;
-                while (j + 1 < liste.Count && liste[j + 1].Nr == liste[j].Nr + 1) j++;
+                while (j + 1 < liste.Count
+                       && (liste[j + 1].Nr == liste[j].Nr + 1
+                           || (liste[i].Kette != null && liste[j + 1].Kette == liste[i].Kette))) j++;
                 decimal brutto = 0, basis = 0, ahv = 0, pflichtig = 0;
                 var mitZeile = false;
                 for (var k = i; k <= j; k++)
