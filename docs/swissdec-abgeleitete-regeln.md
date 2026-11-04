@@ -89,6 +89,10 @@ Noch nicht gesendet. Empfänger von Walter zu bestimmen, sinnvoll nach Abschluss
 >     BE, annual-B). Diese Mutation fehlt in `testcase_differences_export.csv`. Können Sie die Datei prüfen?
 >     Erwartet wird dort weder `cantonChange` noch `residence` noch eine Abmeldezeile für TI. Gilt das allgemein für
 >     Zahlungen nach dem Austritt?
+> 13. **Reihenfolge von `FAK-CAF-Totals` (YearlyRetrospective 2025-01):** Alle Beträge stimmen, das Quality Tool meldet
+>     aber Abweichungen, weil es die Kassen der Reihe nach vergleicht. Erwartet wird LU, Spida, BE, VD, AG, TI; eine Regel
+>     dafür finden wir nicht. Ist die Reihenfolge fachlich massgebend? Wenn ja, nach welchem Kriterium? Wenn nein, kann das
+>     Quality Tool über die Kasse (AddresseeIdentification) vergleichen?
 >
 > Besten Dank und freundliche Grüsse
 >
