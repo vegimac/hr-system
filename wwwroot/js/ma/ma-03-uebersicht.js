@@ -470,7 +470,7 @@ function loadUebersichtTab() {
             <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
             <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
             ${filHtml}
-            <span class="ov-vmeta">${von} – ${bis}${metaExtra}</span>
+            <span class="ov-vmeta" title="${von} – ${bis}${metaExtra}">${von} – ${bis}${metaExtra}</span>
 <!-- SMS-/Öffnungs-Status entfernt (Walter 10.08.2026): die Info lebt jetzt
      in der ONBOARDING-Auswertung im HR-Hub. loadOvVertragSms bleibt als
      toter Code erhalten, wird aber nicht mehr aufgerufen. -->

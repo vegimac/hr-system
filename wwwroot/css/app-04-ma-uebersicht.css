@@ -144,7 +144,7 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full > .ov-card > .ov-card-h {
             font-size: 15px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-frow {
             gap: 10px 16px;
@@ -167,9 +167,9 @@
                 minmax(140px, 1.2fr)   /* Tel2 / Sex / Nationalität */
                 minmax(150px, 1.25fr); /* — / AHV / ZEMIS */
             column-gap: 12px;
-            row-gap: 15px;
+            row-gap: 12px;
             align-items: start;
-            margin-bottom: 10px;
+            margin-bottom: 7px;
         }
         /* Z1 eigene Spalten: PLZ nur 4 Ziffern, Kanton mit Pfeil, AHV inkl. «unbekannt».
            Nicht die 5 Spalten der Karte — sonst wird die PLZ so breit wie die Strasse
@@ -182,10 +182,10 @@
                 calc(7.2ch + 8rem + 4rem + 11.4rem + 30px) /* PLZ + Ort + Kt. + Land, fest */
                 max-content            /* Telefon, ganze Nummer */
                 minmax(240px, 1fr);    /* AHV + unbekannt */
-            column-gap: 16px;
+            column-gap: 12px;
             align-items: start;
             min-width: 0;
-            padding-bottom: 11px;
+            padding-bottom: 8px;
             border-bottom: 1px solid rgba(90, 80, 65, 0.10);
             margin-bottom: 4px;
         }
@@ -271,9 +271,11 @@
         }
         body.theme-dark .ma-land-en { color: rgba(210, 220, 232, 0.78); }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-tel2 .ov-softin {
-            width: 20ch;
-            min-width: 20ch;
+            /* Kein Datums-Icon, also kein Platz rechts: Das Dokument-Zeichen bei der AHV-Nummer blieb sonst draussen. */
+            width: 17ch;
+            min-width: 17ch;
             max-width: none;
+            padding-right: 4px !important;
             text-overflow: clip;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf {
@@ -285,6 +287,7 @@
         #page-mitarbeiter.liquid-employee .ov-ahv-zeile {
             display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;
         }
+        #page-mitarbeiter.liquid-employee .ov-ahv-zeile > :last-child { flex-shrink: 0; }
         #page-mitarbeiter.liquid-employee .ov-ahv-voll {
             white-space: nowrap; overflow: visible; font-variant-numeric: tabular-nums;
         }
@@ -342,7 +345,7 @@
             grid-column: 1 / -1;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 11px;
             min-width: 0;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-z2a,
