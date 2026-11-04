@@ -14,6 +14,8 @@ public class ElmQstMutationTests
     [InlineData("B0Y", "B1Y", "childrenDeduction")]           // TF33 Châtelain Kind
     [InlineData("A0N", "A0Y", "churchTax")]
     [InlineData("A0N", "A0N", "")]
+    [InlineData("A0Y", "SFN", "")]                            // TF38 Jung: nur «residence» aus dem Wohnsitz
+    [InlineData("MEY", "A0Y", "")]                            // TF30 Müller Mai
     public void Gruende(string alt, string neu, string erwartet)
         => Assert.Equal(erwartet, string.Join(",", ElmMonthlyDeclarationBuilder.MutationsGruende(alt, neu)));
 }

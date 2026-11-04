@@ -1665,6 +1665,10 @@ public class ElmMonthlyDeclarationBuilder
         var a = (alt ?? "").Trim().ToUpperInvariant();
         var n = (neu ?? "").Trim().ToUpperInvariant();
         if (a.Length != 3 || n.Length != 3 || a == n) return g;
+        // Vordefinierte Kategorien (MEY, SFN …) sind kein Tarifcode aus Buchstabe, Kindern und Kirche:
+        // aus dem Wechsel folgt kein Grund, er hängt am Wohnsitz (Quality Tool Nov 2025 TF38 Jung A0Y → SFN,
+        // Mai 2025 TF30 Müller MEY → A0Y: je nur «residence»).
+        if (QstVordefinierteKategorie.Parse(a) != null || QstVordefinierteKategorie.Parse(n) != null) return g;
         if (a[0] != n[0])
         {
             bool verheiratetVorher = a[0] is 'B' or 'C';
