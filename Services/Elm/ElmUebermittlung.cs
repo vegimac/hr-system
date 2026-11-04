@@ -59,6 +59,8 @@ public class ElmVorgang
     public int? CompanyProfileId { get; set; }
     /// <summary>Versicherungsdomänen: der Benutzer hat «Freigabe im Portal gewünscht» gesetzt (DeclarationIncomplete).</summary>
     public bool FreigabePortal { get; set; }
+    /// <summary>Warnungen und Informationen, die für die ganze Meldung gelten, nicht für einen einzelnen Empfänger.</summary>
+    public List<ElmHinweis> Hinweise { get; set; } = new();
 }
 
 public class ElmProtokollZeile
@@ -99,6 +101,11 @@ public class ElmVorgangAdressat
     public string? State { get; set; }
     /// <summary>Der Empfänger kennt den Fall nicht mehr («No Case found»). Weiteres Nachfragen bringt nichts.</summary>
     public bool FallUnbekannt { get; set; }
+    /// <summary>
+    /// Der Empfänger hat das Synchronisieren mit einem Fehler beantwortet (SwissdecFault). Der Prozess
+    /// ist damit beendet, der Fall kann nicht weiter bearbeitet werden (System Test ST_ELM_V6_02_07).
+    /// </summary>
+    public bool FallAbgebrochen { get; set; }
     public DateTime? LetzteSynchronisierung { get; set; }
     public int Synchronisierungen { get; set; }
     public List<ElmStoryEmpfangen> Stories { get; set; } = new();
@@ -169,7 +176,7 @@ public static class ElmUebermittlungXml
 
     public record Kopf(string? ResponseId, string? RequestId, string? Institution);
 
-    public record Fault(string? Code, List<Hinweis> Hinweise);
+    public record Fault(string? Code, List<Hinweis> Hinweise, string? Wartung = null);
 
     // ── Declare vorbereiten ──────────────────────────────────────────────
 
@@ -397,6 +404,7 @@ public static class ElmUebermittlungXml
                     new XElement(Sdc + "SubscriptionID", a.FallId ?? ""),
                     v.TestCase ? new XElement(Sdc + "TestCase") : null),
                 a.State != null ? new XElement(Sdc + "ReceivedState", a.State) : null,
+                a.Ausstehend.Select(s => XElement.Parse(s.Xml)),
                 abmelden ? new XElement(Sdc + "Unsubscribe") : null));
 
     // ── Antworten lesen ──────────────────────────────────────────────────
@@ -425,7 +433,7 @@ public static class ElmUebermittlungXml
         var sdf = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "SalaryDeclarationFault");
         if (sdf == null) return null;
         var f = K(sdf, "Fault");
-        return new Fault(T(f, "Code"), Hinweise(f));
+        return new Fault(T(f, "Code"), Hinweise(f), WartungText(K(sdf, "PlannedMaintenance")));
     }
 
     /// <summary>
@@ -456,7 +464,39 @@ public static class ElmUebermittlungXml
         string? FallId, string? Key, string? Password, bool TestCase, string? Institution,
         List<Hinweis> Hinweise);
 
-    public record StatusAntwort(bool? JobFinished, string? JobKey, List<AdressatStatus> Adressaten);
+    public record StatusAntwort(bool? JobFinished, string? JobKey, List<AdressatStatus> Adressaten, List<Hinweis>? Global = null);
+
+    /// <summary>Hinweise ausserhalb der genannten Teile der Antwort: sie gelten für die ganze Meldung.</summary>
+    public static List<Hinweis> GlobaleHinweise(XElement? body, Func<string, bool> teilEinesEmpfaengers)
+        => body?.Elements().Where(e => !teilEinesEmpfaengers(e.Name.LocalName)).SelectMany(Hinweise).ToList() ?? new();
+
+    /// <summary>Geplante Wartung lesbar, oder null. Bis zum Ende ist der Empfänger nicht verfügbar.</summary>
+    public static string? WartungText(XElement? pm)
+    {
+        if (pm == null) return null;
+        static string Zeit(string? roh) => DateTimeOffset.TryParse(roh, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+            ? d.ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture) : roh ?? "";
+        var text = $"{Zeit(T(pm, "Start"))} bis {Zeit(T(pm, "End"))}";
+        return string.IsNullOrWhiteSpace(T(pm, "Message")) ? text : $"{text}: {T(pm, "Message")}";
+    }
+
+    /// <summary>Neue Hinweise anhängen, ohne Doppelte: alles bleibt sichtbar, auch wenn die nächste Antwort keine mehr nennt.</summary>
+    public static void HinweiseMischen(List<ElmHinweis> ziel, IEnumerable<Hinweis>? neu)
+    {
+        foreach (var h in neu ?? Enumerable.Empty<Hinweis>())
+            if (!ziel.Any(x => x.Art == h.Art && x.Code == h.Code && x.Text == h.Text))
+                ziel.Add(ZuModell(h));
+    }
+
+    /// <summary>Der Empfänger antwortet aufs Synchronisieren mit einem SwissdecFault: Prozess beendet.</summary>
+    public static void FaultUebernehmen(ElmVorgangAdressat a, string? code, string text, IEnumerable<Hinweis>? hinweise)
+    {
+        a.FallAbgebrochen = true;
+        a.Fehler = text;
+        a.FehlerCode = code;
+        a.LetzteSynchronisierung = DateTime.Now;
+        HinweiseMischen(a.Hinweise, hinweise);
+    }
 
     /// <summary>
     /// GetStatusFrom…Response und SubscribeOrganizationResponse (gleicher Aufbau je Adressat:
@@ -484,8 +524,7 @@ public static class ElmUebermittlungXml
                 detail = T(err, "DetailInformation");
                 var fi = K(err, "FaultInformation");
                 code = T(K(fi, "FaultState"), "Code");
-                if (K(err, "PlannedMaintenance") is XElement pm)
-                    wartung = $"{T(pm, "Start")} – {T(pm, "End")}: {T(pm, "Message")}";
+                wartung = WartungText(K(err, "PlannedMaintenance"));
                 hinweise = Hinweise(fi);
             }
             else if (K(a, "Success") is XElement ok)
@@ -506,7 +545,7 @@ public static class ElmUebermittlungXml
         }
         return new StatusAntwort(
             fertig == null ? null : string.Equals(fertig, "true", StringComparison.Ordinal),
-            T(body, "JobKey"), liste);
+            T(body, "JobKey"), liste, GlobaleHinweise(body, n => n == "Addressees"));
     }
 
     public record SyncStory(string StoryId, string Art, string Xml);
@@ -516,7 +555,7 @@ public static class ElmUebermittlungXml
         List<string> Quittiert, List<string> UnterdruecktSender, List<string> UnterdruecktInstitution,
         List<SyncStory> Stories, List<Hinweis> Hinweise, List<string> Verfuegbar,
         string? CompletionUrl, DateTime? CompletionAblauf, string? CompletionKey, string? CompletionPassword,
-        bool TestCase);
+        bool TestCase, string? Wartung = null, List<Hinweis>? Global = null);
 
     /// <summary>Synchronize…Response lesen: Error ODER Consumer mit Case (+ Available bei der Anmeldung).</summary>
     public static SyncAntwort LiesSynchronize(XElement? body)
@@ -524,7 +563,8 @@ public static class ElmUebermittlungXml
         var leer = new List<string>();
         if (K(body, "Error") is XElement err)
             return new SyncAntwort(T(err, "EndUserInformation") ?? "Fehler ohne Text", T(err, "DetailInformation"),
-                null, null, leer, new(), new(), new(), Hinweise(err), new(), null, null, null, null, false);
+                null, null, leer, new(), new(), new(), Hinweise(err), new(), null, null, null, null, false,
+                WartungText(K(err, "PlannedMaintenance")));
 
         var consumer = body?.Elements().FirstOrDefault(e => e.Name.LocalName.EndsWith("Consumer", StringComparison.Ordinal));
         var fall = K(consumer, "Case");
@@ -562,7 +602,8 @@ public static class ElmUebermittlungXml
         return new SyncAntwort(null, null, T(fall, "State"),
             T(ctx, "DeclarationID") ?? T(ctx, "SubscriptionID"),
             Ids("ReceivedStoryIDs"), Ids("SuppressedSenderStoryIDs"), Ids("SuppressedInstitutionStoryIDs"),
-            stories, hinweise, verfuegbar, cUrl, cAblauf, cKey, cPw, K(ctx, "TestCase") != null);
+            stories, hinweise, verfuegbar, cUrl, cAblauf, cKey, cPw, K(ctx, "TestCase") != null, null,
+            GlobaleHinweise(body, n => n.EndsWith("Consumer", StringComparison.Ordinal)));
     }
 
     /// <summary>
@@ -578,9 +619,14 @@ public static class ElmUebermittlungXml
         {
             a.Fehler = s.Fehler;
             a.FehlerDetail = s.FehlerDetail;
+            HinweiseMischen(a.Hinweise, s.Hinweise);
+            // Geplante Wartung geht vorbei, der Fall bleibt offen.
+            if (s.Wartung != null) { a.Wartung = s.Wartung; return; }
             if (s.Fehler.Contains("No Case found", StringComparison.OrdinalIgnoreCase)) a.FallUnbekannt = true;
+            else a.FallAbgebrochen = true;
             return;
         }
+        a.Wartung = null;
         foreach (var st in a.Stories.Where(x => gesendetQuittiert.Contains(x.StoryId)))
             st.Quittiert = true;
         if (s.State != null) a.State = s.State;
@@ -603,7 +649,7 @@ public static class ElmUebermittlungXml
             }
             a.Stories.Add(new ElmStoryEmpfangen { StoryId = st.StoryId, Art = st.Art, Xml = st.Xml });
         }
-        a.Hinweise = s.Hinweise.Select(ZuModell).ToList();
+        HinweiseMischen(a.Hinweise, s.Hinweise);
         a.Verfuegbar = s.Verfuegbar;
         if (s.CompletionUrl != null)
         {

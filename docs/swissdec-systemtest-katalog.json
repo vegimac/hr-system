@@ -3288,16 +3288,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3324,16 +3324,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3360,16 +3360,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3396,16 +3396,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3432,16 +3432,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3468,16 +3468,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3504,16 +3504,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3546,16 +3546,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3588,16 +3588,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3630,16 +3630,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3672,16 +3672,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3702,16 +3702,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3732,16 +3732,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3762,16 +3762,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3948,16 +3948,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     },
@@ -3984,16 +3984,16 @@
         }
       ],
       "stand": "vorhanden",
-      "kommentarQt": "Tech-Ablauf in OneCrew («ELM-Meldungen») vorführbar — QT-Gate noch bewerten.",
+      "kommentarQt": "Tech-Ablauf in OneCrew («Lohnmeldungen (ELM)») vorführbar — QT-Gate noch bewerten.",
       "notiz": "",
       "gebaut": true,
-      "seite": "elm-meldungen",
-      "seiteLabel": "ELM-Meldungen",
+      "seite": "elm-schnittstelle",
+      "seiteLabel": "Lohnmeldungen (ELM)",
       "aktionen": [
         {
-          "label": "Öffnen: ELM-Meldungen",
+          "label": "Öffnen: Lohnmeldungen (ELM)",
           "art": "seite",
-          "seite": "elm-meldungen"
+          "seite": "elm-schnittstelle"
         }
       ]
     }

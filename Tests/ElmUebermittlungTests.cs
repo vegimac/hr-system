@@ -379,6 +379,187 @@ public class ElmUebermittlungTests
         Assert.Equal("Fall unbekannt", a.Fehler);
     }
 
+    // ── System Tests Tech: Fault, Hinweise, Wartung, Profil ─────────────────
+
+    [Fact]
+    public void Synchronize_Fehler_BeendetDenFall_Wartung_Nicht()
+    {
+        var fehler = LiesSynchronize(XElement.Parse("""
+            <x:R xmlns:x="urn:x" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components">
+              <ep:Error><ep:EndUserInformation>Nicht plausibel</ep:EndUserInformation></ep:Error>
+            </x:R>
+            """));
+        var a = Adressat("UVG-LAA");
+        a.State = "Processing";
+        Uebernehme(a, fehler, Array.Empty<string>());
+        Assert.True(a.FallAbgebrochen);
+        Assert.True(ElmMeldungAnzeige.Erledigt(a));
+        Assert.False(ElmMeldungAnzeige.Synchronisierbar(Vorgang("monthly"), a));
+        Assert.Equal(ElmMeldungAnzeige.Rot, ElmMeldungAnzeige.Empfaenger(a).Stufe);
+        Assert.Contains("Nicht plausibel", ElmMeldungAnzeige.Empfaenger(a).Text);
+        Assert.Contains("nicht weiter bearbeitet", ElmMeldungAnzeige.NaechsterSchritt(a, DateTime.Now));
+
+        var wartung = LiesSynchronize(XElement.Parse("""
+            <x:R xmlns:x="urn:x" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components">
+              <ep:Error><ep:EndUserInformation>Wartung</ep:EndUserInformation>
+                <ep:PlannedMaintenance><ep:Start>2026-11-06T20:00:00+01:00</ep:Start><ep:End>2026-11-06T22:30:00+01:00</ep:End><ep:Message>Update</ep:Message></ep:PlannedMaintenance>
+              </ep:Error>
+            </x:R>
+            """));
+        var b = Adressat("UVG-LAA");
+        b.State = "Processing";
+        Uebernehme(b, wartung, Array.Empty<string>());
+        Assert.False(b.FallAbgebrochen);
+        Assert.False(ElmMeldungAnzeige.Erledigt(b));
+        Assert.Contains("06.11.2026 22:30", ElmMeldungAnzeige.NaechsterSchritt(b, DateTime.Now));
+    }
+
+    [Fact]
+    public void SwissdecFault_MusterDatei_WirdGelesen_UndBeendetDenFall()
+    {
+        var f = LiesFault(Muster("SalaryDeclarationFault.xml"));
+        Assert.Equal("NOT_plausible", f!.Code);
+        var a = Adressat("UVG-LAA");
+        a.State = "Accepted";
+        FaultUebernehmen(a, f.Code, "Abgewiesen", f.Hinweise);
+        Assert.True(a.FallAbgebrochen);
+        Assert.Equal("SwissdecFault: NOT_plausible", ElmMeldungAnzeige.Empfangsstatus(a));
+        Assert.Contains(a.Hinweise, h => h.Art == "Error" && h.Text == "Configured exception from RefApps");
+        Assert.Equal("error", ElmMeldungAnzeige.CockpitStatus(new ElmVorgang { JobFinished = true, Adressaten = { a } }));
+    }
+
+    [Fact]
+    public void Fault_MitWartung_LiestDasZeitfenster()
+    {
+        var f = LiesFault(XDocument.Parse("""
+            <sdst:SalaryDeclarationFault xmlns:sdst="urn:s" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components">
+              <ep:PlannedMaintenance><ep:Start>2026-11-06T20:00:00+01:00</ep:Start><ep:End>2026-11-06T22:30:00+01:00</ep:End><ep:Message>Update</ep:Message></ep:PlannedMaintenance>
+            </sdst:SalaryDeclarationFault>
+            """));
+        Assert.Equal("06.11.2026 20:00 bis 06.11.2026 22:30: Update", f!.Wartung);
+    }
+
+    [Theory]
+    [InlineData("Accepted", "ReceivedState: Accepted")]
+    [InlineData("CompletionReleaseMissing", "ReceivedState: CompletionReleaseMissing")]
+    [InlineData("DialogMessagePending", "ReceivedState: DialogMessagePending")]
+    [InlineData("Processing", "ReceivedState: Processing")]
+    [InlineData("Finished", "ReceivedState: Finished")]
+    [InlineData("Rejected", "ReceivedState: Rejected")]
+    public void ReceivedState_IstJederzeitErsichtlich(string state, string erwartet)
+    {
+        var a = Adressat("UVG-LAA");
+        a.State = state;
+        Assert.Equal(erwartet, ElmMeldungAnzeige.Empfangsstatus(a));
+    }
+
+    [Theory]
+    [InlineData("Finished")]
+    [InlineData("Rejected")]
+    public void Abgeschlossen_WirdGesagt(string state)
+    {
+        var a = Adressat("UVG-LAA");
+        a.State = state;
+        Assert.Contains("kann nicht weiter bearbeitet werden", ElmMeldungAnzeige.NaechsterSchritt(a, DateTime.Now));
+        Assert.True(ElmMeldungAnzeige.Erledigt(a));
+    }
+
+    [Fact]
+    public void Meldung_Accepted_HeisstNichtAbgeschlossen()
+    {
+        var a = Adressat("UVG-LAA");
+        a.State = "Accepted";
+        var v = Vorgang("monthly");
+        v.Url = "https://x";
+        v.JobFinished = true;
+        v.Adressaten.Add(a);
+        Assert.Equal("Angenommen", ElmMeldungAnzeige.Meldung(v).Text);
+    }
+
+    [Fact]
+    public void Hinweise_Global_UndProEmpfaenger_BleibenErhalten()
+    {
+        var body = XElement.Parse("""
+            <x:R xmlns:x="urn:x" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components">
+              <ep:Warning><ep:Notification><ep:QualityLevel>Plausibility</ep:QualityLevel><ep:DescriptionCode>1</ep:DescriptionCode><ep:Description>Global</ep:Description></ep:Notification></ep:Warning>
+              <ep:Addressees><ep:Addressee addresseeID="#A"><ep:AddresseeIdentification>X</ep:AddresseeIdentification>
+                <ep:Success><ep:AddresseeContext><ep:Info><ep:Notification><ep:QualityLevel>Plausibility</ep:QualityLevel><ep:Description>Je Empfaenger</ep:Description></ep:Notification></ep:Info></ep:AddresseeContext></ep:Success>
+              </ep:Addressee></ep:Addressees>
+            </x:R>
+            """);
+        var st = LiesStatus(body);
+        Assert.Equal("Global", Assert.Single(st.Global!).Text);
+        Assert.Equal("Warning", st.Global![0].Art);
+        Assert.Equal("Je Empfaenger", Assert.Single(st.Adressaten[0].Hinweise).Text);
+
+        var a = Adressat("UVG-LAA");
+        HinweiseMischen(a.Hinweise, st.Global);
+        HinweiseMischen(a.Hinweise, st.Global);
+        Assert.Single(a.Hinweise);
+        Uebernehme(a, Sync("Processing"), Array.Empty<string>());
+        Assert.Equal("Warnung: Global (1)", ElmMeldungAnzeige.HinweisText(Assert.Single(a.Hinweise)));
+        Assert.StartsWith("Information: ", ElmMeldungAnzeige.HinweisText(new ElmHinweis { Art = "Info", Text = "x" }));
+    }
+
+    [Theory]
+    [InlineData("2026", true)]
+    [InlineData("2025", true)]
+    [InlineData("2024", false)]
+    [InlineData("2027", false)]
+    [InlineData("2003", false)]
+    [InlineData("20010", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    [InlineData("20a6", false)]
+    public void AccountingPeriod_NurAktuellesOderVergangenesJahr(string? eingabe, bool gueltig)
+    {
+        var problem = ElmProfilBestellung.Pruefe(eingabe, new DateTime(2026, 11, 5));
+        Assert.Equal(gueltig, problem == null);
+        if (!gueltig) Assert.Contains("nichts gesendet", problem);
+    }
+
+    [Theory]
+    [InlineData("UVG-LAA")]
+    [InlineData("UVGZ-LAAC")]
+    [InlineData("KTG-AMC")]
+    public void ProfilBestellung_IstSchemaGueltig(string domain)
+    {
+        var v = Vorgang("subscribe");
+        var a = Adressat(domain);
+        a.Key = null; a.Password = null; a.State = "subscribed";
+        var story = ElmProfilBestellung.BaueStory(domain, "2026", new DateTime(2026, 11, 5), "S-9");
+        a.Ausstehend.Add(new ElmStoryGesendet { StoryId = "S-9", Art = story.Name.LocalName, Xml = story.ToString(SaveOptions.DisableFormatting) });
+        var body = BaueSynchronizeSubscribe(v, a, Array.Empty<string>(), false, Kontext());
+        IstGueltig(body);
+        Assert.Contains(body.Descendants(), e => e.Name.LocalName == "AccountingPeriod" && e.Value == "2026");
+    }
+
+    [Fact]
+    public void ProfilBestellung_NurUvgUvgzKtg()
+        => Assert.Throws<InvalidOperationException>(() => ElmProfilBestellung.ElementName("BVG-LPP"));
+
+    [Theory]
+    [InlineData("https://x.ch", "https://x.ch?key=K&password=P")]
+    [InlineData("https://x.ch?lang=fr&a=1", "https://x.ch?lang=fr&a=1&key=K&password=P")]
+    [InlineData("https://x.ch?lang=fr#start", "https://x.ch?lang=fr&key=K&password=P#start")]
+    public void Completion_ZusatzParameter(string basis, string erwartet)
+        => Assert.Equal(erwartet, ElmCompletion.Url(basis, "K", "P"));
+
+    [Fact]
+    public void Completion_MaximaleLaenge_GehtVollstaendigDurch()
+    {
+        var key = new string('k', 4000) + "&=?#+ %";
+        var pw = new string('p', 4000) + "&=?#+ %";
+        var parameter = string.Join("&", Enumerable.Range(0, 200).Select(i => $"p{i}={new string('x', 40)}"));
+        var url = ElmCompletion.Url("https://x.ch/a?" + parameter, key, pw);
+        var uri = new Uri(url);
+        Assert.StartsWith("https://x.ch/a?" + parameter + "&key=", url);
+        var teile = uri.Query.TrimStart('?').Split('&').Select(t => t.Split('=', 2)).ToDictionary(t => t[0], t => Uri.UnescapeDataString(t[1]));
+        Assert.Equal(key, teile["key"]);
+        Assert.Equal(pw, teile["password"]);
+        Assert.Equal(202, teile.Count);
+    }
+
     // ── Stories: quittieren, Doubletten, Unterdrückung (UC005 / UC009) ──────
 
     private static SyncAntwort Sync(string? state, IEnumerable<SyncStory>? stories = null,

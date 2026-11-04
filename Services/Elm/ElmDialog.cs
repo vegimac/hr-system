@@ -205,7 +205,8 @@ public static class ElmDialog
 
         short.TryParse(Text(p, "ID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var id);
         var label = Text(p, "Label") ?? $"Feld {id}";
-        var optional = string.Equals((string?)answer.Attribute("optional"), "true", StringComparison.OrdinalIgnoreCase);
+        var optional = string.Equals((string?)answer.Attribute("optional"), "true", StringComparison.OrdinalIgnoreCase)
+                    || (string?)answer.Attribute("optional") == "1";
         var ns = typEl.Name.Namespace;
 
         eingaben.TryGetValue(id, out var eingabe);

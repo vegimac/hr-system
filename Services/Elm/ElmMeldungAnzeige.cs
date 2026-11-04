@@ -26,10 +26,12 @@ public static class ElmMeldungAnzeige
     public static bool Erledigt(ElmVorgangAdressat a)
         => a.Zustand is "Error" or "Ignored"
            || a.State is "Finished" or "Rejected" or "closed"
-           || a.FallUnbekannt;
+           || a.FallUnbekannt || a.FallAbgebrochen;
 
     public static Stand Empfaenger(ElmVorgangAdressat a)
     {
+        if (a.FallAbgebrochen)
+            return new(Rot, "Fehler beim Synchronisieren" + (string.IsNullOrWhiteSpace(a.Fehler) ? "" : ": " + a.Fehler.Trim()), true);
         if (a.FallUnbekannt) return new(Warn, "Empfänger kennt diesen Fall nicht mehr, OneCrew fragt nicht weiter nach", false);
         switch (a.Zustand)
         {
@@ -52,7 +54,7 @@ public static class ElmMeldungAnzeige
                 : Haengt(a)
                     ? new(Warn, $"Empfänger geht nicht weiter, obwohl OneCrew die Mitteilung schon {Wiederholungen(a)}× bestätigt hat — beim Empfänger nachfragen", true)
                     : new(Laeuft, "Nachricht vom Empfänger erhalten — OneCrew bestätigt den Empfang selbst", false),
-            "CompletionReleaseMissing" => new(Warn, "Freigabe beim Empfänger fehlt — «Freigabe starten»", true),
+            "CompletionReleaseMissing" => new(Warn, "Freigabe beim Empfänger fehlt — «Beim Empfänger freigeben»", true),
             "Processing" => new(Laeuft, "In Bearbeitung beim Empfänger", false),
             null => new(Laeuft, "Angekommen, Ergebnis folgt", false),
             _ => new(Laeuft, a.State, false),
@@ -113,8 +115,57 @@ public static class ElmMeldungAnzeige
         var warn = teile.Count(t => t.Stufe == Warn);
         if (warn > 0) return new(Warn, warn == 1 ? "1 Empfänger wartet auf Sie" : $"{warn} Empfänger warten auf Sie", true);
         if (teile.Any(t => t.Stufe == Laeuft)) return new(Laeuft, "In Bearbeitung", false);
-        return new(Ok, "Abgeschlossen", false);
+        return v.Adressaten.Any(a => a.State == "Accepted") ? new(Ok, "Angenommen", false) : new(Ok, "Abgeschlossen", false);
     }
+
+    /// <summary>
+    /// Stand so, wie der Empfänger ihn liefert (System Tests 02_01 bis 02_07: der ReceivedState muss
+    /// klar ersichtlich sein). Der Text von <see cref="Empfaenger"/> erklärt ihn in Alltagssprache.
+    /// </summary>
+    public static string Empfangsstatus(ElmVorgangAdressat a)
+    {
+        var code = string.IsNullOrWhiteSpace(a.FehlerCode) ? "" : ": " + a.FehlerCode.Trim();
+        if (a.FallAbgebrochen) return "SwissdecFault" + code;
+        if (a.Zustand == "Error") return "Error" + code;
+        if (a.Zustand != "Success") return a.Zustand == "offen" ? "Processing" : a.Zustand;
+        return a.State != null ? "ReceivedState: " + a.State : "Success";
+    }
+
+    /// <summary>Was jetzt gilt und was der Benutzer tun kann. Null: nichts Besonderes.</summary>
+    public static string? NaechsterSchritt(ElmVorgangAdressat a, DateTime jetzt)
+    {
+        const string fertig = "Der Prozess ist abgeschlossen. Der Fall kann nicht weiter bearbeitet werden.";
+        const string korrigieren = " Daten korrigieren und die Meldung neu senden.";
+        if (a.FallAbgebrochen) return fertig + " Die Fehlermeldung prüfen, die Daten korrigieren und die Meldung neu senden. Bei Fragen den Empfänger kontaktieren.";
+        if (a.FallUnbekannt) return fertig;
+        if (!string.IsNullOrWhiteSpace(a.Wartung)) return $"Der Empfänger ist nicht verfügbar, geplante Wartung {a.Wartung.Trim()}. Danach geht es weiter.";
+        if (a.Zustand == "Error") return "Die Meldung wurde von diesem Empfänger nicht angenommen." + korrigieren;
+        if (a.Zustand != "Success") return null;
+        return a.State switch
+        {
+            "Finished" => fertig,
+            "Rejected" => fertig + korrigieren,
+            "Accepted" => "Der Empfänger hat die Meldung angenommen. OneCrew fragt weiter nach, bis er den Fall abschliesst.",
+            "CompletionReleaseMissing" when a.Completion == null => "Der Link zur Freigabe kommt mit der nächsten Abfrage.",
+            "CompletionReleaseMissing" when a.Completion.Ablauf is DateTime b && b <= jetzt => "Der Freigabe-Link ist abgelaufen. Die Meldung neu senden.",
+            _ => null,
+        };
+    }
+
+    /// <summary>Warnung oder Information in einer Zeile, damit die Art sichtbar bleibt. Null: nichts anzuzeigen.</summary>
+    public static string? HinweisText(ElmHinweis h)
+    {
+        var text = !string.IsNullOrWhiteSpace(h.Text) ? h.Text.Trim() : h.Code?.Trim();
+        if (string.IsNullOrEmpty(text)) return null;
+        var art = h.Art switch { "Warning" => "Warnung", "Error" => "Fehler", _ => "Information" };
+        return !string.IsNullOrWhiteSpace(h.Text) && !string.IsNullOrWhiteSpace(h.Code)
+            ? $"{art}: {text} ({h.Code.Trim()})" : $"{art}: {text}";
+    }
+
+    /// <summary>Text bei einer abgebrochenen Übermittlung: was passiert ist und wie es weitergeht.</summary>
+    public static string AbbruchText(string grund, bool swissdecFault)
+        => $"Übermittlung abgebrochen, die Meldung wurde nicht angenommen. {grund.Trim()} "
+           + (swissdecFault ? "Bitte die Daten korrigieren und die Meldung neu senden." : "Bitte später nochmals senden.");
 
     /// <summary>Empfänger in Alltagssprache: Institution, sonst Zweig + Kennung.</summary>
     public static string EmpfaengerName(string? domain, string identification, string? institution)
@@ -143,13 +194,14 @@ public static class ElmMeldungAnzeige
         if (art.Contains("Completion", StringComparison.OrdinalIgnoreCase)) return "Freigabe-Aufforderung";
         if (art.Contains("Quittance", StringComparison.OrdinalIgnoreCase)) return "Quittung";
         if (art.Contains("Result", StringComparison.OrdinalIgnoreCase)) return "Ergebnis";
+        if (art.EndsWith("-Profile", StringComparison.Ordinal)) return "Versicherungsprofil";
         return art;
     }
 
     /// <summary>Mitteilungsübersicht: success, pending oder error. Deutsch daneben über <see cref="CockpitStatusText"/>.</summary>
     public static string CockpitStatus(ElmVorgang v)
     {
-        if (v.Adressaten.Any(a => a.Zustand == "Error")) return "error";
+        if (v.Adressaten.Any(a => a.Zustand == "Error" || a.FallAbgebrochen || a.State == "Rejected")) return "error";
         if (!v.JobFinished || v.Adressaten.Any(a => a.Zustand is "offen" or "Processing")) return "pending";
         return "success";
     }
@@ -233,7 +285,7 @@ public static class ElmMeldungAnzeige
     /// Schema 6.0 ohne Credentials aus, erst ELMv6.0.1 liefert sie (Patch Nr. 5).
     /// </summary>
     public static bool Synchronisierbar(ElmVorgang v, ElmVorgangAdressat a)
-        => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId)
+        => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId) && !a.FallAbgebrochen && !a.FallUnbekannt
            && (v.Art == "ema" || (!string.IsNullOrEmpty(a.Key) && !string.IsNullOrEmpty(a.Password)))
            && (!Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0);
 

@@ -174,7 +174,8 @@ public class ElmMeldungenController : ControllerBase
             {
                 ok = r.Ok,
                 meldung = r.Ok ? "Gesendet. OneCrew holt den Stand bei Swissdec jetzt ab." : r.Meldung,
-                hinweise = r.Hinweise.Select(h => h.Text ?? h.Code),
+                // Bei einer abgebrochenen Übermittlung stehen sie schon in der Meldung.
+                hinweise = r.Uebertragungsfehler ? Enumerable.Empty<string?>() : r.Hinweise.Select(h => h.Text ?? h.Code),
                 vorgangId = r.Vorgang?.Id,
                 stand = Stand(),
             });
@@ -511,6 +512,19 @@ public class ElmMeldungenController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { error = "ABMELDEN", message = ex.Message }); }
     }
 
+    public record ProfilBody(string AddresseeId, string? Jahr);
+
+    [HttpPost("anmeldungen/{id}/profil")]
+    public async Task<IActionResult> ProfilBestellen(string id, [FromBody] ProfilBody dto, CancellationToken ct)
+    {
+        try
+        {
+            var r = await _dienst.ProfilBestellenAsync(id, dto.AddresseeId, dto.Jahr, ct);
+            return Ok(new { ok = r.Ok, meldung = r.Ok ? "Profil bestellt. Es kommt mit einer der nächsten Abfragen." : r.Meldung, stand = Stand() });
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { error = "PROFIL", message = ex.Message }); }
+    }
+
     /// <summary>Verlauf je Meldung in der Liste — die automatische Abfrage schreibt stündlich eine Zeile.</summary>
     private const int VerlaufMax = 200;
 
@@ -540,6 +554,7 @@ public class ElmMeldungenController : ControllerBase
                 anfrage = p.ArchivAnfrage, antwort = p.ArchivAntwort,
             }),
             verlaufAnzahl = v.Protokoll.Count,
+            hinweise = v.Hinweise.Select(ElmMeldungAnzeige.HinweisText).Where(t => t != null),
             empfaenger = v.Adressaten.Select(a =>
             {
                 var e = ElmMeldungAnzeige.Empfaenger(a);
@@ -556,7 +571,10 @@ public class ElmMeldungenController : ControllerBase
                     declarationId = a.FallId,
                     name = ElmMeldungAnzeige.EmpfaengerName(a.Domain, a.Identification, a.InstitutionName),
                     stufe = e.Stufe, text = e.Text,
-                    hinweise = a.Hinweise.Where(h => !string.IsNullOrWhiteSpace(h.Text)).Select(h => h.Text),
+                    empfangsstatus = ElmMeldungAnzeige.Empfangsstatus(a),
+                    naechsterSchritt = ElmMeldungAnzeige.NaechsterSchritt(a, DateTime.Now),
+                    abgeschlossen = ElmMeldungAnzeige.Erledigt(a),
+                    hinweise = a.Hinweise.Select(ElmMeldungAnzeige.HinweisText).Where(t => t != null),
                     freigabeUrl = freigabe ? a.Completion!.AufrufUrl : null,
                     freigabeBis = freigabe ? a.Completion!.Ablauf : null,
                     freigabeAbgelaufen = abgelaufen,

@@ -102,6 +102,9 @@ public class ElmMeldungenService
         return _dienst.SynchronizeAsync(UrlVon(v), id, addresseeId, new(), abmelden: true, ct);
     }
 
+    public Task<ElmUebermittlungService.Ergebnis> ProfilBestellenAsync(string id, string addresseeId, string? jahr, CancellationToken ct)
+        => _dienst.ProfilBestellenAsync(UrlVon(Finde(id)), id, addresseeId, jahr, ct);
+
     public record Abfrage(bool Ok, string? Fehler);
 
     /// <summary>

@@ -229,7 +229,7 @@ public class ElmUebermittlungService
         if (s.Abbruch != null || (jobKey == null && art != "ema"))
         {
             _store.SpeichereUebermittlungen(stand);
-            return new Ergebnis(false, s.Abbruch ?? "Antwort ohne JobKey — Antwort-XML prüfen.", null, s.Call)
+            return new Ergebnis(false, ElmMeldungAnzeige.AbbruchText(s.Abbruch ?? "Antwort ohne JobKey — Antwort-XML prüfen.", s.SwissdecFault), null, s.Call)
             { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = warn, Uebertragungsfehler = true };
         }
 
@@ -259,6 +259,7 @@ public class ElmUebermittlungService
                 Verarbeiten = a.Verarbeiten,
             }).ToList(),
         };
+        HinweiseMischen(v.Hinweise, LiesStatus(s.Body).Global);
         if (art == "ema")
         {
             foreach (var n in LiesStatus(s.Body).Adressaten)
@@ -316,6 +317,7 @@ public class ElmUebermittlungService
         }
 
         var st = LiesStatus(s.Body);
+        HinweiseMischen(v.Hinweise, st.Global);
         foreach (var neu in st.Adressaten)
         {
             var a = v.Adressaten.FirstOrDefault(x => x.AddresseeId == neu.AddresseeId)
@@ -348,7 +350,7 @@ public class ElmUebermittlungService
         if (n.Password != null) a.Password = n.Password;
         a.TestCaseBestaetigt = n.TestCase;
         if (n.Institution != null) a.InstitutionName = n.Institution;
-        a.Hinweise = n.Hinweise.Select(ZuModell).ToList();
+        HinweiseMischen(a.Hinweise, n.Hinweise);
     }
 
     private static string Zusammenfassung(ElmVorgang v, bool fertig)
@@ -383,6 +385,10 @@ public class ElmUebermittlungService
                 : "Noch kein Fall für diesen Adressaten — zuerst «Status abfragen», bis er erfolgreich ist.");
         if (v.Art is not ("subscribe" or "ema") && (string.IsNullOrEmpty(a.Key) || string.IsNullOrEmpty(a.Password)))
             throw new InvalidOperationException("Credentials fehlen — sie kommen mit der erfolgreichen Statusabfrage.");
+        if (a.FallAbgebrochen && !abmelden)
+            throw new InvalidOperationException("Der Empfänger hat diesen Fall mit einem Fehler beendet. Er kann nicht weiter bearbeitet werden.");
+        if ((antworten?.Count ?? 0) > 0 && ElmMeldungAnzeige.Erledigt(a))
+            throw new InvalidOperationException("Der Fall ist abgeschlossen. Er kann nicht weiter bearbeitet werden.");
         var quittieren = ZuQuittieren(a);
         if (a.State is "Finished" or "closed" && quittieren.Count == 0 && (antworten?.Count ?? 0) == 0 && !abmelden)
             throw new InvalidOperationException($"Fall abgeschlossen ({a.State}) — es gibt nichts mehr zu synchronisieren.");
@@ -420,12 +426,14 @@ public class ElmUebermittlungService
         warn.AddRange(s.Warnungen);
         if (s.Abbruch != null)
         {
+            if (s.SwissdecFault) FaultUebernehmen(a, s.FaultCode, s.Abbruch, s.Hinweise);
             v.Protokoll.Add(Zeile("sync", $"{a.Identification}: {s.Abbruch}", requestId, s.Call));
             _store.SpeichereUebermittlungen(stand);
             return new Ergebnis(false, s.Abbruch, v, s.Call) { Hinweise = s.Hinweise, FaultCode = s.FaultCode, Warnungen = warn, Uebertragungsfehler = true };
         }
 
         var sync = LiesSynchronize(s.Body);
+        HinweiseMischen(v.Hinweise, sync.Global);
         if (sync.FallId != null && sync.FallId != a.FallId)
             warn.Add($"Die Antwort nennt eine andere Fall-ID ({sync.FallId}) als gesendet ({a.FallId}).");
         var bekannt = a.Stories.Select(x => x.StoryId).ToHashSet();
@@ -443,6 +451,33 @@ public class ElmUebermittlungService
         return new Ergebnis(sync.Fehler == null, text, v, s.Call)
         { Hinweise = sync.Hinweise, Warnungen = warn };
     }
+
+    /// <summary>
+    /// Versicherungsprofil über eine bestehende Anmeldung bestellen. Eine ungültige AccountingPeriod
+    /// weist OneCrew zurück, bevor etwas gesendet wird (System Test ST_ELM_V6_06_02).
+    /// </summary>
+    public Task<Ergebnis> ProfilBestellenAsync(string url, string vorgangId, string addresseeId, string? jahr, CancellationToken ct)
+        => Exklusiv(() =>
+        {
+            var stand = _store.LadeUebermittlungen();
+            var v = Finde(stand, vorgangId);
+            var a = v.Adressaten.FirstOrDefault(x => x.AddresseeId == addresseeId)
+                ?? throw new InvalidOperationException("Adressat nicht gefunden.");
+            var problem = ElmProfilBestellung.Pruefe(jahr, DateTime.Now);
+            if (problem != null) throw new InvalidOperationException(problem);
+            if (v.Art != "subscribe" || ElmMeldungAnzeige.Erledigt(a))
+                throw new InvalidOperationException("Ein Profil lässt sich nur über eine bestehende Anmeldung bestellen.");
+            var story = ElmProfilBestellung.BaueStory(a.Domain, jahr!.Trim(), DateTime.Now, NeueId());
+            var art = story.Name.LocalName;
+            // Pro Art höchstens eine Bestellung in einer Nachricht (Schema).
+            a.Ausstehend.RemoveAll(x => x.Art == art);
+            a.Ausstehend.Add(new ElmStoryGesendet
+            {
+                StoryId = ElmProfilBestellung.StoryId(story), Art = art, Xml = story.ToString(SaveOptions.DisableFormatting),
+            });
+            _store.SpeichereUebermittlungen(stand);
+            return SynchronizeInternAsync(url, vorgangId, addresseeId, null, false, ct);
+        });
 
     // ── SubscribeOrganization (Kap. 7, synchron) ────────────────────────
 
@@ -530,7 +565,7 @@ public class ElmUebermittlungService
 
     private record Gesendet(
         ElmTransmitterClient.ElmCallResult Call, XElement? Body, Kopf Kopf,
-        string? Abbruch, string? FaultCode, List<Hinweis> Hinweise, List<string> Warnungen);
+        string? Abbruch, string? FaultCode, List<Hinweis> Hinweise, List<string> Warnungen, bool SwissdecFault = false);
 
     private static string NeueId() => Guid.NewGuid().ToString("N");
 
@@ -595,10 +630,13 @@ public class ElmUebermittlungService
         {
             var hinweise = fault?.Hinweise ?? new();
             var grund = FaultText(fault?.Code);
-            var erste = hinweise.FirstOrDefault();
+            if (fault?.Wartung != null)
+                return new Gesendet(call, null, kopf, "Geplante Wartung bei Swissdec oder beim Empfänger: " + fault.Wartung,
+                    null, hinweise, warn);
+            var zeilen = hinweise.Select(h => $"{h.Code}: {h.Text}").Distinct().ToList();
             var text = $"Abgewiesen — {grund}"
-                + (erste != null ? $" ({erste.Code}: {erste.Text})" : call.FaultText != null ? $" ({call.FaultText})" : "");
-            return new Gesendet(call, null, kopf, text, fault?.Code ?? call.FaultCode, hinweise, warn);
+                + (zeilen.Count > 0 ? $" ({string.Join(" · ", zeilen)})" : call.FaultText != null ? $" ({call.FaultText})" : "");
+            return new Gesendet(call, null, kopf, text, fault?.Code ?? call.FaultCode, hinweise, warn, SwissdecFault: fault != null);
         }
         if (call.Security != null && !call.Security.Ok)
             return new Gesendet(call, null, kopf, "WS-Security: " + call.Security.Meldung + " — Antwort nicht übernommen.", null, new(), warn);

@@ -361,6 +361,7 @@ async function elmmSenden() {
         _elmmMeldung = { ok: false, text: (j.meldung || '') + ' — ' + j.hinweise.join(' · ') };
         elmmListeZeichnen();
     }
+    if (j && !j.ok) document.getElementById('elmmListe')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /** Gewähltes Ziel, wenn es mehr als eines gibt (nur Testinstanz) — sonst null, der Server nimmt den Standard. */
@@ -510,6 +511,7 @@ function _elmmMeldungHtml(m, mi) {
             <span style="margin-left:auto">${_elmmPille(m.stufe, m.text)}</span>
         </summary>
         <div style="padding:0 14px 14px">
+            ${(m.hinweise || []).length ? `<div style="font-size:12px;color:#646464;margin-bottom:8px"><b>Für die ganze Meldung:</b><br>${m.hinweise.map(h => '• ' + _elmzEsc(h)).join('<br>')}</div>` : ''}
             ${m.empfaenger.map((e, ei) => _elmmEmpfaengerHtml(m, mi, e, ei)).join('')}
             ${_elmmVerlaufHtml(m)}
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
@@ -568,13 +570,15 @@ function _elmmEmpfaengerHtml(m, mi, e, ei) {
     const freigabe = e.freigabeUrl
         ? `<div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
               <button type="button" class="btn btn-primary" onclick="elmmFreigeben(${mi}, ${ei})">Beim Empfänger freigeben</button>
-              <span style="font-size:12px;color:#8b8b8b">Link gültig bis ${_elmmDatum(e.freigabeBis)}</span></div>` : '';
+              <span style="font-size:12px;color:#8b8b8b">${e.freigabeBis ? 'Link gültig bis ' + _elmmDatum(e.freigabeBis) : ''}</span></div>` : '';
     const nachrichten = (e.nachrichten || []).map((n, ni) => _elmmNachrichtHtml(m, mi, e, ei, n, ni)).join('');
     return `<div style="padding:10px 0;border-top:1px solid rgba(60,55,48,0.10)">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <b style="color:#3f3f3f;font-size:13px">${_elmzEsc(e.name)}</b>
+            <span style="font-size:12px;color:#646464;font-family:ui-monospace,Menlo,monospace">${_elmzEsc(e.empfangsstatus || '')}</span>
             <span style="margin-left:auto">${_elmmPille(e.stufe, e.text)}</span>
         </div>
+        ${e.naechsterSchritt ? `<div style="font-size:12px;color:#3f3f3f;margin-top:4px">${_elmzEsc(e.naechsterSchritt)}</div>` : ''}
         ${hinweise}${freigabe}${nachrichten}
     </div>`;
 }
@@ -593,7 +597,7 @@ function _elmmNachrichtHtml(m, mi, e, ei, n, ni) {
                 <span>${_elmzEsc(_uebDialogWert(p.wertTyp, p.wert))}</span></div>`;
         return `<label style="display:flex;gap:10px;align-items:center;font-size:13px;margin-top:6px">
             <span style="color:#646464;min-width:180px">${_elmzEsc(p.label)}${p.optional ? '' : ' *'}</span>
-            ${_uebDialogFeld(`elmmDlg-${mi}-${ei}-${ni}-${p.id}`, p, n.beantwortet)}
+            ${_uebDialogFeld(`elmmDlg-${mi}-${ei}-${ni}-${p.id}`, p, n.beantwortet || e.abgeschlossen)}
             ${p.problem ? `<span style="color:#991b1b">${_elmzEsc(p.problem)}</span>` : ''}</label>`;
     };
     const fuss = !d.beantwortbar
@@ -601,13 +605,21 @@ function _elmmNachrichtHtml(m, mi, e, ei, n, ni) {
             ? '<div style="font-size:12px;color:#166534;margin-top:6px">✓ Nur zur Kenntnis — Empfang bestätigt.</div>'
             : '<div style="font-size:12px;color:#8b8b8b;margin-top:6px">Nur zur Kenntnis, keine Antwort nötig — OneCrew bestätigt den Empfang beim nächsten Abfragen selbst.</div>')
         : n.beantwortet ? '<div style="font-size:12px;color:#166534;margin-top:6px">✓ Beantwortet.</div>'
+        : e.abgeschlossen ? '<div style="font-size:12px;color:#8b8b8b;margin-top:6px">Der Fall ist abgeschlossen, eine Antwort ist nicht mehr möglich.</div>'
         : `<div style="display:flex;justify-content:flex-end;margin-top:10px">
               <button type="button" class="btn btn-primary" onclick="elmmAntworten(${mi}, ${ei}, ${ni})" ${_elmmBusy ? 'disabled' : ''}>Antwort senden</button></div>`;
     return `<div style="margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(60,55,48,0.16);background:rgba(255,255,255,0.45)">
         <div style="font-size:12px">${kopf}</div>
         ${d.titel ? `<div style="font-weight:600;color:#3f3f3f;margin-top:4px">${_elmzEsc(d.titel)}</div>` : ''}
         ${d.beschreibung ? `<div style="font-size:13px;color:#646464;margin-top:2px">${_elmzEsc(d.beschreibung)}</div>` : ''}
-        ${d.absaetze.map(absatz).join('')}${fuss}
+        ${[{ id: null }, ...(d.abschnitte || [])].map(g => {
+            const liste = d.absaetze.filter(p => (p.abschnittRef || null) === g.id
+                || (g.id === null && !(d.abschnitte || []).some(x => x.id === p.abschnittRef)));
+            if (!liste.length && !g.titel) return '';
+            return `${g.titel ? `<div style="font-weight:600;color:#3f3f3f;font-size:13px;margin-top:10px">${_elmzEsc(g.titel)}</div>` : ''}
+                ${g.beschreibung ? `<div style="font-size:12px;color:#646464">${_elmzEsc(g.beschreibung)}</div>` : ''}
+                ${liste.map(absatz).join('')}`;
+        }).join('')}${fuss}
     </div>`;
 }
 

@@ -464,7 +464,7 @@ function e2UebersichtHtml() {
         const st = e2EmpfStatus(e);
         const eigeneId = !eineId && (e.declarationId || m.declarationId);
         return `<tr>
-            <td><span class="e2-status e2-s-${st}" title="${e2Esc(e.text || '')}">${E2_B[st]}</span><i class="e2-status-text">${e2Esc(E2_STATUS_TEXT[st])}</i></td>
+            <td><span class="e2-status e2-s-${st}" title="${e2Esc(e.text || '')}">${E2_B[st]}</span><i class="e2-status-text">${e2Esc(E2_STATUS_TEXT[st])}</i><i class="e2-status-text e2-mono">${e2Esc(e.empfangsstatus || '')}</i></td>
             <td><b>${e2Esc(E2_DOM[e.domain] || e.domain || '')}</b><i class="e2-status-text">${e2Esc(e.name || e.addresseeId || '')}${eigeneId ? `<br><span class="e2-mono">${E2_B.declarationId} ${e2Esc(eigeneId)}</span>` : ''}</i></td>
             <td>${e2BenachrichtigungenHtml(e)}</td>
             <td class="e2-aktionsspalte">${e2AktionenHtml(m, e)}</td>
@@ -480,6 +480,7 @@ function e2UebersichtHtml() {
             <span><i>${E2_B.zeitpunkt}</i><b>${e2Esc(e2Datum(m.gesendet))}</b></span>
             <span><i>${E2_B.declarationId}</i><b class="e2-mono">${e2Esc(eineId ? (ids[0] || 'noch nicht vergeben') : 'je Empfänger, siehe unten')}</b></span>
         </div>
+        ${(m.hinweise || []).length ? `<p class="e2-hinweis e2-warn"><b>Für die ganze Meldung:</b><br>${m.hinweise.map(e2Esc).join('<br>')}</p>` : ''}
         <table class="e2-tabelle e2-mitteilungen">
             <colgroup><col style="width:17%"><col style="width:24%"><col><col style="width:22%"></colgroup>
             <thead><tr><th>${E2_B.status}</th><th>${E2_B.domaene} · ${E2_B.empfaenger}</th><th>${E2_B.benachrichtigungen}</th><th>${E2_B.aktionen}</th></tr></thead>
@@ -534,6 +535,7 @@ function e2NachlaufHtml(m) {
 function e2BenachrichtigungenHtml(e) {
     const teile = [];
     if ((e.stufe === 'warn' || e.stufe === 'rot') && e.text) teile.push(`<li><b>${e2Esc(e.text)}</b></li>`);
+    if (e.naechsterSchritt) teile.push(`<li>${e2Esc(e.naechsterSchritt)}</li>`);
     for (const h of e.hinweise || []) teile.push(`<li>${e2Esc(h)}</li>`);
     for (const n of e.nachrichten || []) {
         const offen = n.dialog && n.dialog.beantwortbar && !n.beantwortet;
@@ -563,8 +565,10 @@ function e2DlgFeld(p) {
     const typ = p.frageTyp || 'String';
     const attr = `data-frage="${e2Esc(p.id)}"`;
     const wahl = (opts, akt) => `<select ${attr}>${opts.map(([v, l]) => `<option value="${v}"${v === akt ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
-    if (typ === 'Boolean') return wahl([['ja', 'ja'], ['nein', 'nein']], e2DlgAnzeige(typ, roh) || 'nein');
-    if (typ === 'YesNoUnknown') return wahl([['ja', 'ja'], ['nein', 'nein'], ['unbekannt', 'unbekannt']], e2DlgAnzeige(typ, roh) || 'unbekannt');
+    // Freiwillige Frage ohne Vorschlag: nichts vorwählen, sonst ginge ungefragt eine Antwort mit.
+    const leer = p.optional && !roh ? [['', '—']] : [];
+    if (typ === 'Boolean') return wahl([...leer, ['ja', 'ja'], ['nein', 'nein']], e2DlgAnzeige(typ, roh) || (leer.length ? '' : 'nein'));
+    if (typ === 'YesNoUnknown') return wahl([...leer, ['ja', 'ja'], ['nein', 'nein'], ['unbekannt', 'unbekannt']], e2DlgAnzeige(typ, roh) || (leer.length ? '' : 'unbekannt'));
     if (typ === 'Date') { const d = String(roh).match(/^(\d{4}-\d{2}-\d{2})/); return `<input type="date" ${attr} value="${d ? d[1] : ''}">`; }
     if (typ === 'DateTime') return `<input ${attr} value="${e2Esc(e2DlgAnzeige(typ, roh))}" placeholder="TT.MM.JJJJ HH:MM">`;
     if (typ === 'Amount') return `<input ${attr} inputmode="decimal" class="e2-rechtsbuendig" value="${e2Esc(e2DlgAnzeige(typ, roh))}" placeholder="0.00">`;
@@ -573,7 +577,7 @@ function e2DlgFeld(p) {
 }
 function e2DialogHtml(m, e, n) {
     const d = n.dialog;
-    const offen = d.beantwortbar && !n.beantwortet;
+    const offen = d.beantwortbar && !n.beantwortet && !e.abgeschlossen;
     const absaetze = d.absaetze || [];
     const gruppen = [{ id: null, titel: null, beschreibung: null }, ...(d.abschnitte || [])];
     const teil = g => {
@@ -594,7 +598,8 @@ function e2DialogHtml(m, e, n) {
         ${gruppen.map(teil).join('')}
         ${offen ? `<div class="e2-aktionen"><span class="e2-still">Die Felder sind mit den Vorschlägen des Empfängers ausgefüllt.</span><button type="button" class="e2-pille e2-primaer" data-e2="antwort" data-id="${e2Esc(m.id)}" data-emp="${e2Esc(e.addresseeId)}" data-story="${e2Esc(n.storyId)}">Antwort senden</button></div>`
             : !d.beantwortbar ? '<p class="e2-still">Nur zur Kenntnis, keine Antwort nötig. OneCrew bestätigt dem Empfänger den Empfang beim nächsten «Aktualisieren».</p>'
-            : '<p class="e2-still">Beantwortet.</p>'}`;
+            : n.beantwortet ? '<p class="e2-still">Beantwortet.</p>'
+            : '<p class="e2-still">Der Fall ist abgeschlossen, eine Antwort ist nicht mehr möglich.</p>'}`;
 }
 
 // Rückfrage = DialogMessage, gelesen oder nicht (NachrichtArt «Rückfrage» oder ein gelesener Dialog).
@@ -778,7 +783,12 @@ function e2AnmeldungenHtml(suaDa) {
             } else {
                 stand = `<span class="e2-status e2-s-success">angemeldet</span> <i class="e2-status-text">seit ${e2Esc(seit)}${empf.declarationId ? ' · ' + e2Esc(empf.declarationId) : ''}</i>`;
                 knopf = `<button type="button" class="e2-pille e2-klein" data-e2="abmelden" data-id="${e2Esc(anm.id)}" data-emp="${e2Esc(empf.addresseeId || '')}">Abmelden</button>`;
-                if (z.domain !== 'BVG-LPP') knopf += ' <span class="e2-chip e2-grau" title="Versicherungsprofil bestellen">Profil: noch nicht verfügbar</span>';
+                if (z.domain !== 'BVG-LPP') {
+                    knopf += ` <span class="e2-profil"><input type="text" size="6" aria-label="Geschäftsjahr" value="${new Date().getFullYear()}">
+                        <button type="button" class="e2-pille e2-klein" data-e2="profil" data-id="${e2Esc(anm.id)}" data-emp="${e2Esc(empf.addresseeId || '')}">Profil bestellen</button></span>`;
+                    const profile = (empf.nachrichten || []).filter(n => n.art === 'Versicherungsprofil');
+                    if (profile.length) stand += `<details><summary class="e2-status-text">Profil erhalten ${e2Esc(e2Datum(profile[profile.length - 1].empfangen))}</summary><pre class="e2-pre">${e2Esc(profile[profile.length - 1].xml || '')}</pre></details>`;
+                }
             }
         }
         if (laeuft) { stand = `<span class="e2-laeuft"><span class="e2-dreher"></span>${e2Esc(lz.text)}</span>`; knopf = ''; }
@@ -828,6 +838,7 @@ function e2Klick(ev) {
     else if (a === 'zert-erneuern') e2ZertErneuern();
     else if (a === 'anmelden') e2Anmelden(el);
     else if (a === 'abmelden') e2Abmelden(el);
+    else if (a === 'profil') e2ProfilBestellen(el);
 }
 
 function e2Change(ev) {
@@ -1151,6 +1162,15 @@ async function e2Anmelden(el) {
         });
         if (r.j.stand) e2.stand = r.j.stand;
         e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, ort: 'anmeldung', text: (r.ok && r.j.ok !== false ? name + ': ' : '') + (r.j.meldung || r.j.message || (r.ok ? 'Anmeldung gesendet.' : 'Nicht angemeldet.')) };
+    });
+}
+
+async function e2ProfilBestellen(el) {
+    const jahr = el.closest('.e2-profil')?.querySelector('input')?.value ?? '';
+    await e2MitVerbindung('Profil wird bestellt …', async () => {
+        const r = await e2Post('/api/elm/meldungen/anmeldungen/' + encodeURIComponent(el.dataset.id) + '/profil', { addresseeId: el.dataset.emp, jahr });
+        if (r.j.stand) e2.stand = r.j.stand;
+        e2.hinweis = { ok: r.ok && r.j.ok !== false, text: r.j.meldung || r.j.message || (r.ok ? 'Profil bestellt.' : 'Profil nicht bestellt.') };
     });
 }
 
