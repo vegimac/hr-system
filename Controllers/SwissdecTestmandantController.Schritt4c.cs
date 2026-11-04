@@ -822,7 +822,9 @@ public partial class SwissdecTestmandantController
                         if (code != null)
                         {
                             var m = System.Text.RegularExpressions.Regex.Match(code, @"^([A-Z]{1,2})(\d)([YN])$");
-                            q.QstCode = code; q.TarifCode = m.Success ? m.Groups[1].Value : q.TarifCode;
+                            q.QstCode = code;
+                            // Vordefinierte Kategorie (SFN …): kein Tarifbuchstabe, wie beim Speichern in der Maske (TF38 Jung).
+                            q.TarifCode = m.Success ? m.Groups[1].Value : QstVordefinierteKategorie.Parse(code) != null ? null : q.TarifCode;
                             q.AnzahlKinder = m.Success ? int.Parse(m.Groups[2].Value) : q.AnzahlKinder; q.Kirchensteuer = m.Success ? m.Groups[3].Value == "Y" : q.Kirchensteuer;
                         }
                         if (kt != null) { q.Steuerkanton = kt; q.SteuerkantonName = null; }

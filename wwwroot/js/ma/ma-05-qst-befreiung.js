@@ -699,7 +699,9 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
         // Walter-Vorgabe 23.08.2026: IMMER aus den gerechneten Feldern
         // zusammensetzen (tarifCode+Kinder+Kirchensteuer) — qstCode ist nur
         // Cache und war vereinzelt inkonsistent (zeigte C0N, gerechnet A).
-        const code     = e.tarifCode
+        // Ausnahme vordefinierte Kategorien (SFN, MEY …): sie bestehen nicht aus diesen Feldern.
+        const vordefiniert = /^(MEN|MEY|HEN|HEY|NON|NOY|SFN)$/i.test((e.qstCode ?? '').trim());
+        const code     = !vordefiniert && e.tarifCode
             ? `${e.tarifCode}${e.anzahlKinder ?? 0}${e.kirchensteuer ? 'Y' : 'N'}`
             : (e.qstCode ?? '–');
         // Tarif-Warnungen direkt in der AKTUELL-Zeile (Walter 23.08.2026):
@@ -758,7 +760,7 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                         <span>${vonStr} bis ${bisStr}</span>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-top:3px">
-                        Kanton <strong>${kanton}</strong> · Code ${codeHtml} · ${kinder} Kinder · ${kirche}${pct}${gemeinde}${teleHtml}${eaHtml}
+                        Kanton <strong>${kanton}</strong> · Code ${codeHtml}${vordefiniert ? '' : ` · ${kinder} Kinder · ${kirche}`}${pct}${gemeinde}${teleHtml}${eaHtml}
                         <!-- Walter 30.08.2026: Klartext-Erklärung zum Tarif.
                              Rein lokal aus der Tabelle qst_erklaerung — kein
                              externer Dienst, keine Daten nach draussen. -->
