@@ -13,6 +13,7 @@ namespace HrSystem.Controllers;
 /// </summary>
 public partial class SwissdecTestmandantController
 {
+    private const decimal TmNachgenussBetrag = 6400m; // Lohnart 1420 November (wagetypes_export.csv)
     private const string TmZweiteNebenleistung = "Stark verbilligte Abgabe eines Personenwagens";
 
     [HttpGet("schritt4d/vorschau")]
@@ -83,6 +84,14 @@ public partial class SwissdecTestmandantController
                 grund.BeteiligungGesperrt = X("PersonTAXBlockedOptions");
                 grund.BeteiligungNichtKotiert = X("PersonTAXUnquotedOptions");
                 grund.BeteiligungAnwartschaft = X("PersonTAXDeferredBenefitsStaffShares");
+            }
+
+            // Die Empfängerin des Besoldungsnachgenusses steht nicht in den Testdaten-CSV, nur im Quality Tool (TF10 Ganz).
+            if (f.Id == "TF10")
+            {
+                grund.Nachgenuss = true; grund.NachgenussJahr = 2025; grund.NachgenussBetrag = TmNachgenussBetrag;
+                grund.NachgenussName = "Ganz"; grund.NachgenussVorname = "Stephanie";
+                grund.NachgenussStrasse = "Neuhofstrasse 47"; grund.NachgenussPlz = "6020"; grund.NachgenussOrt = "Emmenbrücke";
             }
 
             var umzug = decimal.TryParse(V("PersonTAXRelocationCosts"), System.Globalization.CultureInfo.InvariantCulture, out var u) ? u : (decimal?)null;
@@ -221,7 +230,7 @@ public partial class SwissdecTestmandantController
         ("1", 2025, 1), ("15", 2025, 3), ("11", 2025, 3),
         ("1", 2025, 10), ("11", 2025, 10), ("40", 2025, 10),
         ("11", 2025, 11),
-        ("11", 2025, 12), ("9", 2025, 12),
+        ("11", 2025, 12), ("9", 2025, 12), ("40", 2025, 12),
     };
 
     [HttpGet("schritt5d/vorschau")]

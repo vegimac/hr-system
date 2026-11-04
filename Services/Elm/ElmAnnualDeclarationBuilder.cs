@@ -502,7 +502,8 @@ public class ElmAnnualDeclarationBuilder
             persons.Add(new XElement(Sd + "Person", particulars, works, salaries, fakSalaries,
                 VersicherungSalaries(e, x.EmployeeId, Zeit, m => KetteIm(m)?.Start),
                 TaxSalaries(rowsByEmp[x.EmployeeId].OrderBy(r => r.Month).Select(r => r.SlipJson), adresseAm,
-                    taxPeriode, wirkung, qstAmEnde, teilzeit),
+                    taxPeriode, wirkung, qstAmEnde, teilzeit,
+                    rowsByEmp[x.EmployeeId].Any(r => KetteIm(r.Month)?.Ende is DateTime ende && ende < new DateTime(year, r.Month, 1))),
                 grenz));
         }
 
@@ -535,7 +536,8 @@ public class ElmAnnualDeclarationBuilder
                 var g = ElmGrenzgaengerJahresBuilder.Gehalt(art, aktuell, e, kanton, ab, periodeBis, vertrag, slips, warn);
                 if (g == null) continue;
                 xml.Add(g.Value.Xml.Elements());
-                steuerbar ??= g.Value.Steuerbar;
+                // Frankreich und SFN zählen beide in den Totalen (Referenz 2025-11: TF38 Jung).
+                steuerbar = (steuerbar ?? 0m) + g.Value.Steuerbar;
                 grenzTags++;
             }
             if (steuerbar == null) return null;
@@ -545,7 +547,7 @@ public class ElmAnnualDeclarationBuilder
 
         // Lohnausweis einer Person (Richtlinien Kapitel 9): adressiert an den Wohnkanton, im Ausland EX.
         XElement TaxSalaries(IEnumerable<string?> lohnzettel, PersonAdresseAm adresse, (DateTime Von, DateTime Bis) periode,
-            LohnausweisAngaben.Wirkung angaben, bool qstAmEnde, bool teilzeit)
+            LohnausweisAngaben.Wirkung angaben, bool qstAmEnde, bool teilzeit, bool nachAustritt)
         {
             var a = ElmLohnausweisJahr.Rechne(lohnzettel, c => lpByCode.TryGetValue(c, out var l) ? (l.LohnausweisCode, l.Bezeichnung) : (null, null));
             var land = (adresse.Country ?? "").Trim().ToUpperInvariant();
@@ -592,6 +594,13 @@ public class ElmAnnualDeclarationBuilder
                 Kreuz("CompanyCarClarify", angaben.WagenAbklaeren),
                 Kreuz("MinimalEmployeeCarPartPercentage", angaben.WagenMinimal),
                 Kreuz("TaxAtSourcePeriodForObjection", qstBemerkung),
+                // Besoldungsnachgenuss erst, wenn er ausbezahlt ist: Lohn nach dem Austritt (Referenz 2025-11: TF10 Ganz).
+                angaben.Nachgenuss is { } ng && nachAustritt
+                    ? new XElement(Sd + "ContinuedProvisionOfSalary",
+                        new XElement(Sd + "Lastname", ng.Name), new XElement(Sd + "Firstname", ng.Vorname),
+                        new XElement(Sd + "Address", new XElement(C + "Street", ng.Strasse), new XElement(C + "ZIP-Code", ng.Plz),
+                            new XElement(C + "City", ng.Ort), new XElement(C + "Country", "SWITZERLAND")))
+                    : null,
                 angaben.Expat is { } ex ? Grant("ExpatriateRuling", ex) : null,
                 Kreuz("PartTimeEmployment", teilzeit));
             XElement? spesen = ef != 0m || mitEu || pw != 0m || a.Von(pu) != 0m || wb != 0m
