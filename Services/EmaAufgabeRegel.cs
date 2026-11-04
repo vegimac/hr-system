@@ -317,6 +317,13 @@ public static class EmaAufgabeRegel
 /// </summary>
 public static class NachzahlungQstZeit
 {
+    /// <summary>
+    /// Lohnart, deren Anspruch mit dem Austritt entsteht (RL 10.6.5, Swissdec-Lohnarten 1067 Überzeit nach
+    /// Austritt, 1168 Ferienauszahlung nach Austritt). Eigene Lohnpositionen über ihre Swissdec-Lohnart.
+    /// </summary>
+    public static bool AnspruchMitAustritt(string? code, string? swissdecLohnart = null)
+        => (swissdecLohnart ?? "").Trim() is "1067" or "1168" || (code ?? "").Trim() is "1067" or "1168";
+
     public static bool LeistungsanspruchMitAustritt(bool nachAustritt, DateOnly? austritt, int auszahlungsjahr, bool nurJaehrlich) =>
         nachAustritt && nurJaehrlich && austritt != null && austritt.Value.Year < auszahlungsjahr;
 }

@@ -58,6 +58,13 @@ public partial class SwissdecTestmandantController
         return aufBeleg != null && aufBeleg.ValidFrom < mutationsMonat ? aufBeleg.ValidFrom : null;
     }
 
+    public static string? GrenzgaengerLand(string? crossborder)
+    {
+        // Testdaten nennen teils Land und Tarif zusammen (TF38 Jung: «FR + SFN»); gespeichert wird nur das Land.
+        var c = (crossborder ?? "").Trim().ToUpperInvariant();
+        return c.Length == 0 ? null : c.Length >= 2 ? c[..2] : c;
+    }
+
     /// <summary>
     /// Zieht die Person mit dieser Mutation ins Ausland? (Walter 26.09.2026, TF36 Maldini September.)
     /// Dann ist der QST-Kanton der ARBEITSkanton und sagt nichts ueber den Wohnort — der
@@ -711,7 +718,7 @@ public partial class SwissdecTestmandantController
                 // QST-Kanton der ARBEITSkanton (TI), nicht der Wohnkanton — der Inland-Zweig
                 // «Umzug = QST» unten gilt hier NICHT, sonst loescht er die frisch gesetzten
                 // Grenzgaenger-Angaben (Steuer-ID, Geburtsort, Wohnsitzstaat) gleich wieder.
-                var auslandCode = V("PersonCrossborder");
+                var auslandCode = GrenzgaengerLand(V("PersonCrossborder"));
                 var zugAusland = WohnsitzImAusland(auslandCode, V("PersonResidenceCanton"));
                 var aend = rows.Where(r => qstTags.Contains(r.Tag)).Select(r => $"{r.Label}: {r.Alt ?? "–"} → {r.Neu ?? "–"}").ToList();
                 // QST-Pflicht endet (Walter 10.09.2026): Code leer UND Kanton leer (Januar-Muster)

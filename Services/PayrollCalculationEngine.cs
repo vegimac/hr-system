@@ -5187,6 +5187,46 @@ public class PayrollCalculationEngine
             .FirstOrDefaultAsync();
     }
 
+    /// <summary>
+    /// Zuletzt gemeldeter QST-Stand des Austrittsmonats: dessen Lohnzettel, darüber frühere Korrekturen
+    /// dieses Monats (qstAustrittKorrektur). Null = im Austrittsmonat keine Quellensteuer gemeldet.
+    /// </summary>
+    private async Task<QstAustrittStand?> QstStandAustrittsmonatAsync(int employeeId, int svYear, int svMonth, int year, int month)
+    {
+        var slips = await (
+            from s in _db.PayrollSnapshots.AsNoTracking()
+            join p in _db.PayrollPerioden.AsNoTracking() on s.PayrollPeriodeId equals p.Id
+            where s.EmployeeId == employeeId && s.Status != "STORNIERT"
+               && (p.Year > svYear || (p.Year == svYear && p.Month >= svMonth))
+               && (p.Year < year || (p.Year == year && p.Month < month))
+            orderby p.Year, p.Month
+            select new { p.Year, p.Month, s.SlipJson }).ToListAsync();
+        QstAustrittStand? stand = null;
+        foreach (var x in slips)
+        {
+            if (x.Year == svYear && x.Month == svMonth)
+            {
+                var z = QstJahresmodell.LeseSlip(x.SlipJson);
+                if (z.IstBasis != 0 || z.QstBezahlt != 0)
+                    stand = new QstAustrittStand(z.IstBasis, z.SatzBasis ?? z.IstBasis, z.QstBezahlt, z.SatzAperiodisch ?? 0m, z.TarifCode);
+                continue;
+            }
+            if (stand == null || string.IsNullOrWhiteSpace(x.SlipJson)) continue;
+            using var doc = JsonDocument.Parse(x.SlipJson);
+            if (!doc.RootElement.TryGetProperty("qstAustrittKorrektur", out var k)) continue;
+            stand = stand.Value with
+            {
+                Basis = k.GetProperty("neuBasis").GetDecimal(),
+                SatzBasis = k.GetProperty("neuSatzBasis").GetDecimal(),
+                Steuer = k.GetProperty("neuSteuer").GetDecimal(),
+                Aperiodisch = k.GetProperty("aperiodisch").GetDecimal(),
+            };
+        }
+        return stand;
+    }
+
+    private readonly record struct QstAustrittStand(decimal Basis, decimal SatzBasis, decimal Steuer, decimal Aperiodisch, string? Code);
+
     private DeductionRule? ComputeQstDeduction(
         EmployeeQuellensteuer? einstellung,
         decimal bruttolohn,
@@ -5591,6 +5631,7 @@ public class PayrollCalculationEngine
             decimal deltaUvg = 0, deltaUvgz = 0;
             decimal deltaQstEinmalig = 0;   // aperiodischer Anteil (Jahresmodell: ÷ 12 statt annualisiert)
             decimal qstZulage = 0, qstZulageEinmalig = 0; // nur erfasste Zulagen, ohne Ferien/Feiertag/13. ML
+            decimal qstZulageMitAustritt = 0;             // davon Anspruch mit dem Austritt (RL 10.6.5)
             var zulagenExtraLines = new List<object>();
             decimal zulagenExtraTotal = 0;
             var lohnposAbzugLines = new List<object>();
@@ -5632,6 +5673,7 @@ public class PayrollCalculationEngine
                     {
                         qstZulage += b;
                         if (!IstPeriodischeZulage(lp)) qstZulageEinmalig += b;
+                        if (NachzahlungQstZeit.AnspruchMitAustritt(lp.Code, lp.SwissdecLohnart)) qstZulageMitAustritt += b;
                     }
                 }
                 else
@@ -5926,11 +5968,19 @@ public class PayrollCalculationEngine
             bool qstMitAustritt = NachzahlungQstZeit.LeistungsanspruchMitAustritt(
                 nachzahlungNachAustritt, austrittKorr, year,
                 qstZulage > 0 && qstZulageEinmalig == qstZulage);
+            // Anspruch mit dem Austritt (RL 10.6.5: Überzeit, nicht bezogene Ferien): so rechnen, wie wenn
+            // im Austrittsmonat ausbezahlt, und im Auszahlungsmonat als Korrektur dieses Monats melden
+            // (Quality Tool Nov 2025 TF30 Müller: Sept 5'500 → 6'000, Steuer 651.75 → 751.80, Abzug 100.05).
+            bool korrekturAustrittsmonat = nachzahlungNachAustritt && qstZulage > 0
+                && qstZulageMitAustritt == qstZulage && qstZulage == deltaQst;
+            var lohnausweisVorjahr = qstMitAustritt;
+            if (korrekturAustrittsmonat) qstMitAustritt = true;
             var qstBis = qstMitAustritt ? svPeriodTo : periodTo;
             var qstVon = qstMitAustritt ? svPeriodFrom : periodFrom;
             int qstJahr = qstMitAustritt ? svYear : year;
             int qstMonat = qstMitAustritt ? svMonth : month;
             string? qstVerhaeltnis = null;
+            System.Text.Json.Nodes.JsonObject? qstAustrittKorrektur = null;
             string? lohnausweisHinweis = null;
             int lohnausweisJahr = 0;
             if (deltaQst > 0)
@@ -5964,7 +6014,7 @@ public class PayrollCalculationEngine
                     _sonderSaetze = await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
                     _qstJahresYtd = null;
                     _qstJahresVertraege = new();
-                    _qstNachzahlungStandalone = nachzahlungNachAustritt;
+                    _qstNachzahlungStandalone = nachzahlungNachAustritt && !korrekturAustrittsmonat;
                     if (QstJahresmodell.GiltFuer(qstEinstellungKorr.Steuerkanton))
                         _qstJahresYtd = await LadeQstJahresYtdAsync(
                             employee, qstEinstellungKorr, qstJahr, qstMonat, qstVon, qstBis);
@@ -5975,17 +6025,38 @@ public class PayrollCalculationEngine
                     decimal? pensumKorr = emp.EmploymentModel is "FIX" or "FIX-M" ? emp.EmploymentPercentage : null;
                     var satzKorr = ComputeSatzBruttoForNebenjob(
                         qstEinstellungKorr, deltaQst, 0, company, pensumKorr, deltaQstEinmalig, 0, medianKorr, nebenjobKorr);
-                    var qstRuleKorr = ComputeQstDeduction(
-                        qstEinstellungKorr, deltaQst, companyProfileId, qstVon,
-                        satzbestimmenderBrutto: satzKorr, aperiodisch: deltaQstEinmalig, dreizehnter: 0m,
-                        medianAngewendet: nebenjobKorr.MedianAngewendet);
+                    var altStand = korrekturAustrittsmonat
+                        ? await QstStandAustrittsmonatAsync(employeeId, svYear, svMonth, year, month)
+                        : null;
+                    var qstRuleKorr = altStand is { } alt
+                        ? ComputeQstDeduction(
+                            qstEinstellungKorr, alt.Basis + deltaQst, companyProfileId, qstVon,
+                            satzbestimmenderBrutto: alt.SatzBasis + deltaQst, aperiodisch: alt.Aperiodisch + deltaQst, dreizehnter: 0m,
+                            medianAngewendet: false)
+                        : ComputeQstDeduction(
+                            qstEinstellungKorr, deltaQst, companyProfileId, qstVon,
+                            satzbestimmenderBrutto: satzKorr, aperiodisch: deltaQstEinmalig, dreizehnter: 0m,
+                            medianAngewendet: nebenjobKorr.MedianAngewendet);
                     if (qstRuleKorr is not null)
                     {
+                        if (altStand is { } a)
+                        {
+                            var neuSteuer = qstRuleKorr.Rate;
+                            qstRuleKorr.Rate = neuSteuer - a.Steuer;   // der Lohnzettel zieht nur die Differenz ab
+                            qstAustrittKorrektur = new System.Text.Json.Nodes.JsonObject
+                            {
+                                ["jahr"] = svYear, ["monat"] = svMonth,
+                                ["code"] = a.Code ?? QstJahresmodell.CodeVon(qstEinstellungKorr),
+                                ["altBasis"] = a.Basis, ["altSatzBasis"] = a.SatzBasis, ["altSteuer"] = a.Steuer,
+                                ["neuBasis"] = a.Basis + deltaQst, ["neuSatzBasis"] = a.SatzBasis + deltaQst, ["neuSteuer"] = neuSteuer,
+                                ["aperiodisch"] = a.Aperiodisch + deltaQst,
+                            };
+                        }
                         deductions.Add(qstRuleKorr);
                         if (nachzahlungNachAustritt)
                         {
                             qstVerhaeltnis = qstMitAustritt ? "Austrittsmonat" : "Auszahlungsmonat";
-                            if (qstMitAustritt)
+                            if (lohnausweisVorjahr)
                             {
                                 lohnausweisJahr = svYear;
                                 lohnausweisHinweis = $"Lohnausweis {svYear} korrigieren: die Nachzahlung ist ein Leistungsanspruch im Austritt und gehört in den Lohnausweis dieses Jahres.";
@@ -6072,6 +6143,7 @@ public class PayrollCalculationEngine
             node["isCorrection"] = true;
             node["periodLabel"] = $"Korrektur {month:00}/{year}";
             if (qstVerhaeltnis != null) node["qstVerhaeltnis"] = qstVerhaeltnis;
+            if (qstAustrittKorrektur != null) node["qstAustrittKorrektur"] = qstAustrittKorrektur;
             if (lohnausweisHinweis != null)
                 node["lohnausweisKorrektur"] = new System.Text.Json.Nodes.JsonObject
                 {

@@ -485,6 +485,7 @@ public class ElmMonthlyDeclarationBuilder
                 ? new PersonAdresseAm(u.Alt.Strasse, u.Alt.Plz, u.Alt.Ort, u.Alt.Land, u.Alt.KantonCode)
                 : null;
 
+            var austrittKorrekturen = new List<(JsonElement Daten, CompanyProfile Filiale, int FilialId)>();
             foreach (var s in g.OrderBy(x => x.PayrollPeriodeId))
             {
                 if (string.IsNullOrWhiteSpace(s.SlipJson)) continue;
@@ -568,6 +569,13 @@ public class ElmMonthlyDeclarationBuilder
                 var qstEintritt = anstellung?.Start ?? em?.ContractStartDate ?? e.EntryDate;
                 var qstAustritt = austritt ?? (e.ExitDate is DateTime xd
                     && xd >= monatsAnfang && xd <= monatsEnde ? xd : null);
+                // Leistung mit Anspruch beim Austritt: nur Korrektur des Austrittsmonats, keine laufende Zeile.
+                if (slip.TryGetProperty("qstAustrittKorrektur", out var austrittKorr)
+                    && slip.TryGetProperty("abzugLines", out _))
+                {
+                    austrittKorrekturen.Add((austrittKorr.Clone(), filiale, filialId));
+                    continue;
+                }
                 var qst = BaueQstZeile(e, em, filiale, slip, qstVersionen,
                                        familie.Where(k => k.EmployeeId == e.Id && k.MemberType == "Kind").ToList(),
                                        stamm, monatStr, monatsAnfang, warn,
@@ -575,7 +583,8 @@ public class ElmMonthlyDeclarationBuilder
                                            .OrderByDescending(a => a.ValidFrom).FirstOrDefault(),
                                        qstAperiodisch, partner, partnerAdresse, adresseQst,
                                        qstEintritt, qstAustritt, adresseQstVormonat,
-                                       partnerArbeitsort, partnerArbeitsortVormonat);
+                                       partnerArbeitsort, partnerArbeitsortVormonat,
+                                       CAusweisImMonat(bewilligungen.Where(h => h.EmployeeId == e.Id), permitTypen, monatsAnfang, monatsEnde));
                 if (qst != null)
                 {
                     gemeldeteFilialen.Add(filialId);
@@ -597,6 +606,38 @@ public class ElmMonthlyDeclarationBuilder
 
             var permitId = BewilligungAmStichtag(bewilligungen.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsEnde));
             var permitAmEnde = permitId != null && permitTypen.TryGetValue(permitId.Value, out var pt) ? pt : null;
+
+            foreach (var (ak, akFiliale, akFilialId) in austrittKorrekturen)
+            {
+                var kopf = QstVersionWahl.Waehle(qstVersionen.Where(v => v.EmployeeId == e.Id), DateOnly.FromDateTime(monatsAnfang));
+                var kt = (kopf?.Steuerkanton ?? "").Trim().ToUpperInvariant();
+                if (kt.Length != 2)
+                {
+                    warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): QST-Korrektur des Austrittsmonats ohne Steuerkanton — nicht gemeldet.");
+                    continue;
+                }
+                var ziel = qstZeilenPerson.FirstOrDefault(z => (string?)z.Attribute("addresseeIDRef") == $"#QST-{kt}");
+                if (ziel == null)
+                {
+                    ziel = new XElement(Sd + "TaxAtSourceSalary",
+                        new XAttribute("addresseeIDRef", $"#QST-{kt}"),
+                        QstZusatz(e, kopf, familie.Where(f => f.EmployeeId == e.Id && f.MemberType == "Kind").ToList(), monatsEnde),
+                        new XElement(Sd + "TaxAtSourceCanton", kt),
+                        kopf?.QstGemeindeBfsNr is > 0 ? new XElement(Sd + "TaxAtSourceMunicipalityID", kopf.QstGemeindeBfsNr.Value) : null,
+                        new XElement(Sd + "CurrentMonth", monatStr));
+                    qstZeilenPerson.Add(ziel);
+                    qstKantone.Add(kt);
+                    if (!qstTotal.ContainsKey(kt)) qstTotal[kt] = (0m, 0m);
+                    qstZeilen++;
+                }
+                ziel.Add(QstAustrittKorrekturBlock(ak, WpId(akFiliale)));
+                gemeldeteFilialen.Add(akFilialId);
+                var (dBasis, dSteuer) = QstAustrittKorrekturWirkung(ak);
+                if (!korrTotal.TryGetValue(kt, out var jeMonat)) korrTotal[kt] = jeMonat = new SortedDictionary<string, (decimal, decimal)>(StringComparer.Ordinal);
+                var mKey = $"{ak.GetProperty("jahr").GetInt32():0000}-{ak.GetProperty("monat").GetInt32():00}";
+                var bisherK = jeMonat.TryGetValue(mKey, out var bk) ? bk : (0m, 0m);
+                jeMonat[mKey] = (bisherK.Item1 + dBasis, bisherK.Item2 + dSteuer);
+            }
 
             foreach (var k in korrekturen.Where(x => x.EmployeeId == e.Id))
             {
@@ -1204,7 +1245,8 @@ public class ElmMonthlyDeclarationBuilder
         PersonAdresseAm? wohnAmStichtag = null,
         DateTime? eintrittAm = null, DateTime? austrittAm = null,
         PersonAdresseAm? wohnVormonat = null,
-        string? partnerArbeitsort = null, string? partnerArbeitsortVormonat = null)
+        string? partnerArbeitsort = null, string? partnerArbeitsortVormonat = null,
+        bool cAusweisImMonat = false)
     {
         if (!slip.TryGetProperty("abzugLines", out var al) || al.ValueKind != JsonValueKind.Array) return null;
         JsonElement? qstZeile = null;
@@ -1257,6 +1299,10 @@ public class ElmMonthlyDeclarationBuilder
             ? Teil("Entry", ed, "entryCompany") : null;
         XElement? withdrawalEl = austrittDekl is DateTime xd && xd >= monatsAnfang && xd <= monatsEnde
             ? Teil("Withdrawal", xd, "withdrawalCompany") : null;
+        // C-Ausweis im Meldemonat: letzte Abrechnung, Austritt per Monatsende (Quality Tool Nov 2025 TF24 Utzinger).
+        if (withdrawalEl == null && cAusweisImMonat && (wohnAmStichtag?.Country ?? e.Country) is var wl
+            && (string.IsNullOrWhiteSpace(wl) || wl.Trim().ToUpperInvariant() == "CH"))
+            withdrawalEl = Teil("Withdrawal", monatsEnde, "settled-C");
         var mutationen = new List<XElement>();
 
         // Kantonswechsel (Quality Tool April 2025, TF25 Lehmann TI → LU per 01.04.): im neuen
@@ -1676,7 +1722,9 @@ public class ElmMonthlyDeclarationBuilder
         if ((landCode.Length == 0 || landCode == "CH") && kanton.Length == 2)
             return new XElement(Sd + "Residence", new XElement(Sd + "CantonCH", kanton));
 
-        var staat = !string.IsNullOrWhiteSpace(wohnsitzstaat) ? wohnsitzstaat!.Trim().ToUpperInvariant()
+        // Nur ein gültiger ISO-Code zählt als Wohnsitzstaat, sonst das Land der Adresse (Schema: CountryISOType).
+        var staatRoh = (wohnsitzstaat ?? "").Trim().ToUpperInvariant();
+        var staat = staatRoh.Length == 2 && staatRoh.All(char.IsAsciiLetterUpper) ? staatRoh
                   : landCode.Length == 2 && landCode != "CH" ? landCode : "XX";
         XElement art = wochenaufenthalter && wochenAdresse != null
             ? new XElement(Sd + "Weekly",
@@ -1712,6 +1760,38 @@ public class ElmMonthlyDeclarationBuilder
     /// Old = das Gemeldete mit umgekehrtem Vorzeichen, New = die Nachrechnung. NON/NOY melden
     /// 0.00 und einen Austritt, alle anderen eine Mutation.
     /// </summary>
+    public static XElement QstAustrittKorrekturBlock(JsonElement k, string workplaceIdRef)
+    {
+        var code = k.GetProperty("code").GetString();
+        decimal D(string n) => k.GetProperty(n).GetDecimal();
+        return new XElement(Sd + "Correction",
+            new XElement(Sd + "Month", $"{k.GetProperty("jahr").GetInt32():0000}-{k.GetProperty("monat").GetInt32():00}"),
+            new XElement(Sd + "Old",
+                new XAttribute("workplaceIDRef", workplaceIdRef),
+                QstKategorie(code),
+                new XElement(Sd + "TaxableEarning", Betrag05(-D("altBasis"))),
+                new XElement(Sd + "AscertainedTaxableEarning", Betrag05(-D("altSatzBasis"))),
+                new XElement(Sd + "TaxAtSource", Betrag05(-D("altSteuer")))),
+            new XElement(Sd + "New",
+                new XAttribute("workplaceIDRef", workplaceIdRef),
+                QstKategorie(code),
+                new XElement(Sd + "TaxableEarning", Betrag05(D("neuBasis"))),
+                new XElement(Sd + "AscertainedTaxableEarning", Betrag05(D("neuSatzBasis"))),
+                new XElement(Sd + "TaxAtSource", Betrag05(D("neuSteuer"))),
+                new XElement(Sd + "SporadicBenefits", Betrag05(D("aperiodisch")))));
+    }
+
+    public static (decimal Basis, decimal Steuer) QstAustrittKorrekturWirkung(JsonElement k)
+        => (PayrollCalculations.Round05(k.GetProperty("neuBasis").GetDecimal()) - PayrollCalculations.Round05(k.GetProperty("altBasis").GetDecimal()),
+            PayrollCalculations.Round05(k.GetProperty("neuSteuer").GetDecimal()) - PayrollCalculations.Round05(k.GetProperty("altSteuer").GetDecimal()));
+
+    /// <summary>Beginnt der C-Ausweis in diesem Monat? Dann ist er die letzte QST-Abrechnung (RL 10.6.2).</summary>
+    public static bool CAusweisImMonat(IEnumerable<EmployeePermitHistory> verlauf, IReadOnlyDictionary<int, PermitType> typen,
+        DateTime monatsAnfang, DateTime monatsEnde)
+        => verlauf.Any(h => h.ValidFrom >= DateOnly.FromDateTime(monatsAnfang) && h.ValidFrom <= DateOnly.FromDateTime(monatsEnde)
+                            && (h.ErfahrenAm ?? h.ValidFrom) <= DateOnly.FromDateTime(monatsEnde)
+                            && h.PermitTypeId is int id && typen.TryGetValue(id, out var t) && QstPflichtCheckService.IstCAusweis(t.Code));
+
     public static XElement QstKorrekturBlock(QstKorrektur k, string workplaceIdRef, DateOnly gueltigAb, string grund)
     {
         var neuNull = IstNullKategorie(k.NeuerCode);

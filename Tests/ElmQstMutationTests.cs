@@ -61,3 +61,66 @@ public class ElmPartnerArbeitsortTests
         Assert.Equal("TI", aug.Element(ElmGemeinsam.Sd + "WorkOrCompensatory")?.Element(ElmGemeinsam.Sd + "Workplace")?.Value);
     }
 }
+
+/// <summary>Quality Tool Nov 2025: TF38 Jung, Grenzgänger-Angabe «FR + SFN» in den Testdaten.</summary>
+public class ElmWohnsitzstaatTests
+{
+    [Theory]
+    [InlineData("FR + SFN", "FR", "FR")]
+    [InlineData("IT", "IT", "IT")]
+    [InlineData(null, "DE", "DE")]
+    public void Nur_gueltiger_Laendercode(string? staat, string land, string soll)
+    {
+        var r = ElmMonthlyDeclarationBuilder.QstResidence(null, land, staat, false, null);
+        Assert.Equal(soll, r.Element(ElmGemeinsam.Sd + "AbroadCountry")?.Value);
+    }
+
+    [Theory]
+    [InlineData("FR + SFN", "FR")]
+    [InlineData("IT", "IT")]
+    [InlineData(null, null)]
+    public void Testdaten_nur_das_Land(string? ein, string? aus)
+        => Assert.Equal(aus, HrSystem.Controllers.SwissdecTestmandantController.GrenzgaengerLand(ein));
+}
+
+/// <summary>RL 10.6.5, Quality Tool Nov 2025 TF30 Müller: Ferienauszahlung nach Austritt = Korrektur des Austrittsmonats.</summary>
+public class ElmQstAustrittKorrekturTests
+{
+    private static System.Text.Json.JsonElement Mueller() => System.Text.Json.JsonDocument.Parse(
+        """{"jahr":2025,"monat":9,"code":"A0Y","altBasis":5500,"altSatzBasis":5500,"altSteuer":651.75,"neuBasis":6000,"neuSatzBasis":6000,"neuSteuer":751.80,"aperiodisch":500}""").RootElement;
+
+    [Fact]
+    public void Block_wie_Referenz()
+    {
+        var b = ElmMonthlyDeclarationBuilder.QstAustrittKorrekturBlock(Mueller(), "#BE");
+        var sd = ElmGemeinsam.Sd;
+        Assert.Equal("2025-09", b.Element(sd + "Month")?.Value);
+        Assert.Equal("-5500.00", b.Element(sd + "Old")?.Element(sd + "TaxableEarning")?.Value);
+        Assert.Equal("-651.75", b.Element(sd + "Old")?.Element(sd + "TaxAtSource")?.Value);
+        Assert.Equal("6000.00", b.Element(sd + "New")?.Element(sd + "AscertainedTaxableEarning")?.Value);
+        Assert.Equal("751.80", b.Element(sd + "New")?.Element(sd + "TaxAtSource")?.Value);
+        Assert.Equal("500.00", b.Element(sd + "New")?.Element(sd + "SporadicBenefits")?.Value);
+    }
+
+    [Fact]
+    public void Wirkung_Differenz()
+        => Assert.Equal((500m, 100.05m), ElmMonthlyDeclarationBuilder.QstAustrittKorrekturWirkung(Mueller()));
+
+    [Theory]
+    [InlineData("1168", null, true)]
+    [InlineData("1067", null, true)]
+    [InlineData("9000", "1168", true)]
+    [InlineData("1209", null, false)]   // Bonus: Anspruch nach dem Austritt, Auszahlungsmonat
+    [InlineData("1230", null, false)]
+    public void Anspruch_mit_Austritt(string code, string? sd, bool soll)
+        => Assert.Equal(soll, HrSystem.Services.NachzahlungQstZeit.AnspruchMitAustritt(code, sd));
+
+    [Fact]
+    public void C_Ausweis_im_Monat()
+    {
+        var typen = new Dictionary<int, PermitType> { [7] = new PermitType { Id = 7, Code = "C" }, [6] = new PermitType { Id = 6, Code = "B" } };
+        var v = new[] { new EmployeePermitHistory { PermitTypeId = 7, ValidFrom = new DateOnly(2025, 11, 1) } };
+        Assert.True(ElmMonthlyDeclarationBuilder.CAusweisImMonat(v, typen, new DateTime(2025, 11, 1), new DateTime(2025, 11, 30)));
+        Assert.False(ElmMonthlyDeclarationBuilder.CAusweisImMonat(v, typen, new DateTime(2025, 12, 1), new DateTime(2025, 12, 31)));
+    }
+}

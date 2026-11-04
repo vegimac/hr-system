@@ -149,13 +149,16 @@ public class QstPflichtCheckService
         // ValidFrom MUSS ≤ Stichtag sein — sonst befreit ein C ab November
         // den Januar-Lohn (TF24 Utzinger: B 1.1.2025, C erst 1.11.2025).
         // Fachlogik: ValidFrom ≤ Stichtag. 0a: Auslands-Wohnsitz → keine Befreiung.
+        // Wirkung erst ab dem Folgemonat (RL 10.6.2; Quality Tool Nov 2025 TF24 Utzinger: C ab 01.11.,
+        // November noch C0N 1'728.00, Austritt «settled-C» per 30.11.).
+        var ersterDesMonats = new DateOnly(stichtag.Year, stichtag.Month, 1);
         var cEintrag = istAusland ? null : await _db.EmployeePermitHistories
             .AsNoTracking()
             .Include(h => h.PermitType)
             .Where(h => h.EmployeeId == employeeId
                      && h.PermitType != null
                      && CAusweisCodes.Contains(h.PermitType.Code)
-                     && h.ValidFrom <= stichtag
+                     && h.ValidFrom < ersterDesMonats
                      && (h.ErfahrenAm ?? h.ValidFrom) <= stichtag)
             .OrderByDescending(h => h.ValidFrom)
             .ThenByDescending(h => h.Id)
