@@ -354,7 +354,10 @@ public class ElmGrenzgaengerJahresBuilder
         {
             var ort = (q.GrenzgaengerGeburtsort ?? "").Trim();
             var steuerId = (q.GrenzgaengerSteuerId ?? "").Trim().ToUpperInvariant().Replace(" ", "");
-            if (ort.Length == 0 || q.GrenzgaengerAb == null || !CodiceFiscale.Gueltig(steuerId, out _))
+            // Falsche Prüfziffer nur als Hinweis: die Referenz meldet auch solche Nummern (TF26 Jenzer).
+            if (steuerId.Length > 0 && !CodiceFiscale.Gueltig(steuerId, out var grund))
+                warn.Add($"{name}: Steuernummer prüfen — {grund}");
+            if (ort.Length == 0 || q.GrenzgaengerAb == null || steuerId.Length == 0)
             {
                 warn.Add($"{name}: Geburtsort, italienische Steuernummer oder Grenzgänger-Datum fehlt — nicht in der Meldung.");
                 return null;

@@ -61,6 +61,23 @@ public static class ElmLohnausweisJahr
         };
     }
 
+    /// <summary>Summe der Lohnart 2065 (Lohnausfall KA/SW): gehört zur AHV-/UVG-Basis, nicht zum Bruttolohn.</summary>
+    public static decimal LohnausfallKurzarbeit(IEnumerable<string?> lohnzettel)
+    {
+        decimal summe = 0m;
+        foreach (var json in lohnzettel)
+        {
+            if (string.IsNullOrWhiteSpace(json)) continue;
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("lohnLines", out var zeilen) || zeilen.ValueKind != JsonValueKind.Array) continue;
+            foreach (var z in zeilen.EnumerateArray())
+                if (z.TryGetProperty("code", out var c) && c.ToString() == "2065"
+                    && z.TryGetProperty("betrag", out var b) && b.ValueKind == JsonValueKind.Number)
+                    summe += b.GetDecimal();
+        }
+        return summe;
+    }
+
     /// <summary>Summiert die Lohnzettel. lohnposition liefert je Code den Lohnausweis-Code und die Bezeichnung.</summary>
     public static Summen Rechne(IEnumerable<string?> lohnzettel, Func<string, (string? La, string? Name)> lohnposition)
     {

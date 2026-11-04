@@ -97,10 +97,11 @@ public static class ElmAhvJahreslohn
                 ahv += z?.Ahv ?? list[k].Basis;
                 alv += z?.Alv ?? (z == null ? list[k].AlvGedeckelt : 0m);
                 alvz += z?.Alvz ?? 0m;
-                mitAlvz |= (z?.Alvz ?? 0m) != 0m;
                 mitZeilen |= z != null;
             }
 
+            // Gleicht sich der ALVZ-Lohn im Abschnitt aus, steht er nicht in der Meldung (Referenz 2025-02: TF07 Burri).
+            mitAlvz = alvz != 0m;
             decimal basis, ahvLohn, ahvFrei, alvLohn, alvFrei;
             switch (art)
             {

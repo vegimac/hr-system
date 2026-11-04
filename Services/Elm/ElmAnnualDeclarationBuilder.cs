@@ -173,7 +173,9 @@ public class ElmAnnualDeclarationBuilder
         if (offenePerioden.Count > 0)
             warn.Add($"Nicht definitiv abgeschlossene Monate im XML enthalten: {string.Join(", ", offenePerioden)} — für Übungszwecke ok, für eine echte Meldung müssen alle Monate abgeschlossen sein.");
 
+        // Lohnzettel ohne jeden Betrag gehören nicht in die Meldung (Referenz 2025-02: TF15 Degelo, TF39 Hasler).
         var perEmp = rows.GroupBy(r => r.EmployeeId)
+            .Where(g => g.Any(r => r.Brutto != 0m || r.SvBasisAhv != 0m))
             .Select(g => new { EmployeeId = g.Key, Ahv = g.Sum(r => r.SvBasisAhv) })
             .OrderBy(x => x.EmployeeId).ToList();
         var rowsByEmp = rows.GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
@@ -621,7 +623,9 @@ public class ElmAnnualDeclarationBuilder
                 var stichtag = new DateOnly(year, mg.Key, DateTime.DaysInMonth(year, mg.Key));
                 var saetze = svSaetze.Where(r => r.CompanyProfileId == null || r.CompanyProfileId == filiale).ToList();
                 var zeilen = mg.SelectMany(r => VersicherungsZeilen(r.SlipJson)).ToList();
-                decimal brutto = mg.Sum(r => r.Brutto), basis = mg.Sum(r => r.SvBasisNbuv), ahv = mg.Sum(r => r.SvBasisAhv);
+                // Lohnausfall KA/SW zählt für die UVG-Basis, nicht zum Bruttolohn (Referenz 2025-02: TF02 Paganini).
+                decimal brutto = mg.Sum(r => r.Brutto) - ElmLohnausweisJahr.LohnausfallKurzarbeit(mg.Select(r => r.SlipJson)),
+                    basis = mg.Sum(r => r.SvBasisNbuv), ahv = mg.Sum(r => r.SvBasisAhv);
                 decimal? Summe(Func<(string Kat, string? Code, decimal Basis), bool> f)
                     => zeilen.Any(f) ? zeilen.Where(f).Sum(z => z.Basis) : null;
 
@@ -842,6 +846,18 @@ public class ElmAnnualDeclarationBuilder
             }
             catch (System.Text.Json.JsonException) { /* unlesbarer Lohnzettel: keine Zulagen */ }
             return (wieder, einmal);
+        }
+
+        // Kanton mit Lohnzettel, aber ohne gemeldete Person: 0.00 in den Totalen (Referenz 2025-02: FAK LU, TF15 Degelo in ZG).
+        foreach (var r in rows)
+        {
+            var kasse = KasseIm(r.CompanyProfileId, r.Month);
+            var kanton = (kantonByFiliale.GetValueOrDefault(r.CompanyProfileId) ?? "").Trim().ToUpperInvariant();
+            if (kasse == null || kanton.Length != 2) continue;
+            fakGenutzt.TryAdd(kasse.Kassennummer, kasse);
+            if (!fakSummen.TryGetValue(kasse.Kassennummer, out var jeKanton))
+                fakSummen[kasse.Kassennummer] = jeKanton = new Dictionary<string, ElmFakAdressierung.Summe>(StringComparer.OrdinalIgnoreCase);
+            jeKanton.TryAdd(kanton, default);
         }
 
         // ── FAK Nullmeldung (S_ELM_V6_01_01_05 / Direktive 8.2.4) ─────────

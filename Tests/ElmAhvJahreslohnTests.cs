@@ -156,4 +156,17 @@ public class ElmAhvJahreslohnTests
         Assert.Equal(0m, a.AhvLohn);
         Assert.Equal(0m, a.AlvFrei);
     }
+
+    [Fact]
+    public void Ausgeglichener_ALVZ_Lohn_steht_nicht_in_der_Meldung()
+    {
+        var k = new DateTime(2024, 11, 1);
+        var a = Assert.Single(ElmAhvJahreslohn.Abschnitte(new[]
+        {
+            Z(1, 15000m, 15000m, 8700m, 6300m, k),
+            Z(2, -9500m, -9500m, -3200m, -6300m, k),
+        }));
+        Assert.False(a.MitAlvz);
+        Assert.Equal(5500m, a.AlvLohn);
+    }
 }
