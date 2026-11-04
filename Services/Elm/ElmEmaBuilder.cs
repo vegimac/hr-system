@@ -164,7 +164,8 @@ public class ElmEmaBuilder
                     .Select(w => (w.GueltigAb!.Value, w.ErfahrenAm ?? w.GueltigAb!.Value)).ToList(),
                 manuell.Where(x => x.EmployeeId == e.Id && x.Art != ElmEmaManuell.ArtFit)
                     .Select(x => new E.Manuell(x.Monat, x.Art, x.Grund, x.ValidAsOf))
-                    .Concat(UnterbruecheAusVertraegen(eigene)).ToList(),
+                    .Concat(UnterbruecheAusVertraegen(eigene))
+                    .Concat(TeilpensionierungenAusVertraegen(eigene)).ToList(),
                 jahresmeldungen.SelectMany(j => j.Zeilen.Where(z => z.EmployeeId == e.Id)
                         .Select(z => (Tag: new DateOnly(j.Jahr, 1, 1), z.Betrag)))
                     .ToDictionary(x => x.Tag, x => x.Betrag));
@@ -447,6 +448,14 @@ public class ElmEmaBuilder
             yield return new E.Manuell(new DateOnly(ende.Year, ende.Month, 1), E.Withdrawal, v.EndeArt);
         }
     }
+
+    /// <summary>Teilpensionierung ab Beginn des Vertrags, gemeldet im Monat des Vertragsbeginns (TF12 Casanova).</summary>
+    public static IEnumerable<E.Manuell> TeilpensionierungenAusVertraegen(IReadOnlyList<Employment> vertraege)
+        => vertraege.Where(v => v.Teilpensionierung).Select(v =>
+        {
+            var ab = DateOnly.FromDateTime(v.ContractStartDate);
+            return new E.Manuell(new DateOnly(ab.Year, ab.Month, 1), E.Mutation, "partialRetirement", ab);
+        });
 
     /// <summary>Todesfall am Vertrag. Der alte Austrittsgrund TODESFALL gilt weiter.</summary>
     public static DateOnly? Todestag(Employee e, IReadOnlyList<Employment> vertraege)

@@ -452,6 +452,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.VierzehnterMonatslohn).HasColumnName("vierzehnter_monatslohn");
             entity.Property(e => e.EndeArt).HasColumnName("ende_art").HasMaxLength(40);
             entity.Property(e => e.EndeVollArbeitsfaehig).HasColumnName("ende_voll_arbeitsfaehig");
+            entity.Property(e => e.Teilpensionierung).HasColumnName("teilpensionierung");
             entity.Property(e => e.Regelmaessig).HasColumnName("regelmaessig");
             entity.Property(e => e.JobTitle).HasColumnName("job_title");
             entity.Property(e => e.JobGroupId).HasColumnName("job_group_id");

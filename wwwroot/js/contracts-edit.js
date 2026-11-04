@@ -195,8 +195,10 @@ async function openContractEditModal(c, mode = 'edit') {
     _ceCompanyProfileId = c.companyProfileId ?? (typeof currentBranchId !== 'undefined' ? currentBranchId : null);
     document.getElementById('ceContractType').value    = isBefristet ? 'befristet' : 'unbefristet';
     document.getElementById('ceEndDate').value         = c.contractEndDate ? c.contractEndDate.slice(0,10) : '';
-    document.getElementById('ceEndeArt').value = c.endeArt || '';
-    document.getElementById('ceEndeFit').value = c.endeVollArbeitsfaehig === true ? 'ja' : c.endeVollArbeitsfaehig === false ? 'nein' : '';
+    document.getElementById('ceEndeArt').value = (mode === 'edit' && c.endeArt) || '';
+    // Nur beim Bearbeiten übernehmen: Ein neuer Vertrag erbt die Teilpensionierung nicht.
+    document.getElementById('ceTeilpension').value = mode === 'edit' && c.teilpensionierung ? 'ja' : '';
+    document.getElementById('ceEndeFit').value = mode !== 'edit' ? '' : c.endeVollArbeitsfaehig === true ? 'ja' : c.endeVollArbeitsfaehig === false ? 'nein' : '';
     ceEndeFelder();
     document.getElementById('ceJobTitle').value        = c.jobTitle ?? '';
     cePruefeBeruf();
@@ -864,6 +866,7 @@ async function saveContractEdit() {
         contractStartDate:       startDate,
         contractEndDate:         isBefristet && endDate ? endDate : null,
         endeGesetzt:             true,
+        teilpensionierung:       document.getElementById('ceTeilpension').value === 'ja',
         endeArt:                 (isBefristet && endDate && document.getElementById('ceEndeArt').value) || null,
         endeVollArbeitsfaehig:   isBefristet && endDate ? (({ ja: true, nein: false })[document.getElementById('ceEndeFit').value] ?? null) : null,
         contractType:            isBefristet ? 'befristet' : 'unbefristet',

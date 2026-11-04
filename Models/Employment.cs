@@ -71,6 +71,9 @@ public class Employment
     /// <summary>Antwort auf «100 % arbeitsfähig?» zum Vertragsende (RL 8.6.8.2). Leer = noch nicht beantwortet.</summary>
     public bool? EndeVollArbeitsfaehig { get; set; }
 
+    /// <summary>Dieser Vertrag beginnt mit einer Teilpensionierung: EMA-Mutation partialRetirement (RL 8.6.8).</summary>
+    public bool Teilpensionierung { get; set; }
+
     /// <summary>Nur die Vertrags- und die Kündigungsmaske setzen das Vertragsende. Der Import schickt die Felder nicht.</summary>
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public bool EndeGesetzt { get; set; }

@@ -11411,7 +11411,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script type="text/plain" data-modul="js/austritt.js?v=20261011a"></script>
-<script type="text/plain" data-modul="js/contracts-edit.js?v=20261105c"></script>
+<script type="text/plain" data-modul="js/contracts-edit.js?v=20261105e"></script>
 <script type="text/plain" data-modul="js/payroll.js?v=20261104a"></script>
 <script type="text/plain" data-modul="js/elm-meldungen.js?v=20261030c"></script>
 <script type="text/plain" data-modul="js/fibu.js?v=20260805a"></script>
@@ -12167,7 +12167,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <!-- Mitarbeiter-Maske (früher employees.js, aufgeteilt 01.11.2026): Reihenfolge NICHT ändern. -->
 <script type="text/plain" data-modul="js/ma/ma-01-liste.js?v=20261101a"></script>
 <script type="text/plain" data-modul="js/ma/ma-02-detail.js?v=20261101a"></script>
-<script type="text/plain" data-modul="js/ma/ma-03-uebersicht.js?v=20261105b"></script>
+<script type="text/plain" data-modul="js/ma/ma-03-uebersicht.js?v=20261105c"></script>
 <script type="text/plain" data-modul="js/ma/ma-04-quellensteuer.js?v=20261101a"></script>
 <script type="text/plain" data-modul="js/ma/ma-05-qst-befreiung.js?v=20261104a"></script>
 <script type="text/plain" data-modul="js/ma/ma-06-familie.js?v=20261101a"></script>
@@ -13156,6 +13156,13 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
                             <option value="">Noch offen</option>
                                         <option value="ja">Ja</option>
                                         <option value="nein">Nein (auch bei laufender Abklärung)</option>
+                        </select>
+                    </div>
+                    <div class="ce-field" id="ceTeilpensionWrap">
+                        <label class="ce-lbl">Teilpensionierung ab Vertragsbeginn</label>
+                        <select id="ceTeilpension" class="ce-inp">
+                            <option value="">Nein</option>
+                            <option value="ja">Ja</option>
                         </select>
                     </div>
                 </div>

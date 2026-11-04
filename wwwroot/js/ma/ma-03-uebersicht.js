@@ -460,7 +460,7 @@ function loadUebersichtTab() {
         const actions = _empContractActionsHtml(emp, c, contracts);
         // Punkt: offen/laufend = grün, beendet = grau (unabhängig von den Aktions-Buttons)
         const laufend = !_empContractIsEnded(c);
-        const metaExtra = [pensum, empArbeitstageText(c), lohn, ...empVertragsendeText(c, contracts)].filter(Boolean).map(t => ' · ' + esc(t)).join('');
+        const metaExtra = [pensum, empArbeitstageText(c), lohn, c.teilpensionierung ? 'Teilpensionierung' : '', ...empVertragsendeText(c, contracts)].filter(Boolean).map(t => ' · ' + esc(t)).join('');
         const filCode = empContractBranchCode(c);
         const filHtml = filCode
             ? `<span class="ov-vfil" title="${esc(empContractBranchTitle(c))}">${esc(filCode)}</span>`

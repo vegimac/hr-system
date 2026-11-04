@@ -226,6 +226,15 @@ public class ElmEmaEreignisseTests
     }
 
     [Fact]
+    public void Teilpensionierung_am_Vertrag_wirkt_ab_Vertragsbeginn()
+    {
+        var neu = V("2025-10-01", "2025-12-31");
+        neu.Teilpensionierung = true;
+        var z = Assert.Single(ElmEmaBuilder.TeilpensionierungenAusVertraegen(new[] { V("2025-02-27", "2025-09-30"), neu }));
+        Assert.Equal((new DateOnly(2025, 10, 1), E.Mutation, "partialRetirement", (DateOnly?)new DateOnly(2025, 10, 1)), (z.Monat, z.Art, z.Grund, z.ValidAsOf));
+    }
+
+    [Fact]
     public void Todesfall_am_Vertrag()
     {
         var e = new HrSystem.Models.Employee();

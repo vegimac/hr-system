@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 140;  // 140: Art des Vertragsendes · 139: EMA manuelle Ereignisse · 138: Wohnort Erfahren-am, AHV-Aufteilung Negativlohn · 137: Reihenfolge der Kassen in Meldungen · 136: Filial-Schalter 13. ML Probezeit · 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
+const int SchemaStand = 141;  // 141: Teilpensionierung am Vertrag · 140: Art des Vertragsendes · 139: EMA manuelle Ereignisse · 138: Wohnort Erfahren-am, AHV-Aufteilung Negativlohn · 137: Reihenfolge der Kassen in Meldungen · 136: Filial-Schalter 13. ML Probezeit · 135: Geburtszulage 3034 einmalig · 134: OneCrew-Positionen 9000er · 133: Lohnarten 2060/3034/1980/1218 · 132: Ferien/Feiertag im Ansatz · 131: Zivilstand varchar(40) · 130: Bereich ELM Cockpit · 129: EMA BVG/QST · 128: FAK-Kantonswechsel · 127: AKIS-Abmeldung Filialwechsel · 126: Grenzgänger IT/FR
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -526,6 +526,11 @@ using (var scope = app.Services.CreateScope())
         ");
 
     // Stand 138: Wohnort «Erfahren am» wie Zivilstand/Bewilligung; AHV-Aufteilung bei Negativlohn (Richtlinien 8.7.5.3).
+    // Stand 141: Teilpensionierung am Vertrag (Walter 05.11.2026).
+    if (dbStand < 141)
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE employment ADD COLUMN IF NOT EXISTS teilpensionierung boolean NOT NULL DEFAULT false;
+        ");
     // Stand 140: Art des Vertragsendes und Arbeitsfähigkeit am Vertrag (Walter 05.11.2026).
     if (dbStand < 140)
         db.Database.ExecuteSqlRaw(@"

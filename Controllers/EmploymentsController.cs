@@ -190,7 +190,7 @@ public class EmploymentsController : ControllerBase
                 e.EducationLevelCode,
                 e.EmploymentPercentage,
                 e.WeeklyHours, e.GuaranteedHoursPerWeek, e.LessonRate, e.WeeklyLessons, e.ThirteenthSalary, e.FerienFeiertagImAnsatz,
-                e.VierzehnterMonatslohn, e.JahreslohnOhneZeitbindung, e.Regelmaessig, e.EndeArt, e.EndeVollArbeitsfaehig,
+                e.VierzehnterMonatslohn, e.JahreslohnOhneZeitbindung, e.Regelmaessig, e.EndeArt, e.EndeVollArbeitsfaehig, e.Teilpensionierung,
                 e.TeilzeitUnter8hWoche,
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
                 e.EasyAtWorkManualOverride,
@@ -801,6 +801,7 @@ public class EmploymentsController : ControllerBase
                 return BadRequest(new { error = "ENDE_ART_INVALID", message = "Ungültige Art des Vertragsendes." });
             existing.EndeArt = string.IsNullOrWhiteSpace(dto.EndeArt) ? null : dto.EndeArt;
             existing.EndeVollArbeitsfaehig = dto.EndeVollArbeitsfaehig;
+            existing.Teilpensionierung = dto.Teilpensionierung;
         }
         if (dto.JahreslohnGesetzt)
             existing.JahreslohnOhneZeitbindung = dto.JahreslohnOhneZeitbindung is > 0m
