@@ -52,11 +52,23 @@ public class ElmMonthlyDeclarationBuilder
         List<string> Warnungen, List<string> XsdFehler);
 
     /// <summary>
-    /// Die Monatsmeldung führt die Arbeitsorte, an denen im Kalenderjahr bis und mit Meldemonat
-    /// jemand Lohn hatte (Quality Tool Nov 2024: nur #LU und #BE; Aug 2025: auch #AG und #ZG,
-    /// obwohl dort seit Mai bzw. März niemand mehr arbeitet). Die Jahresmeldung bleibt bei
-    /// allen Filialen — die FAK wird je Arbeitsort adressiert, auch ohne Personen.
+    /// Die Monatsmeldung führt die Arbeitsorte, an denen in den letzten
+    /// <see cref="ArbeitsortRueckblickMonate"/> Monaten bis und mit Meldemonat jemand Lohn hatte.
+    /// Die Jahresmeldung bleibt bei allen Filialen — die FAK wird je Arbeitsort adressiert, auch ohne Personen.
     /// </summary>
+    /// <remarks>
+    /// Aus dem Quality Tool abgeleitet, die Richtlinien nennen keine Frist: Nov 2024 nur #LU/#BE;
+    /// Aug–Dez 2025 auch #AG (zuletzt Mai/Okt) und #ZG (zuletzt März); Jan 2026 #AG, aber kein #ZG mehr.
+    /// </remarks>
+    public const int ArbeitsortRueckblickMonate = 9;
+
+    /// <summary>Liegt die Periode im Rückblick auf den Meldemonat (ohne diesen selbst)?</summary>
+    public static bool ImArbeitsortRueckblick(int jahr, int monat, int meldeJahr, int meldeMonat)
+    {
+        var abstand = (meldeJahr * 12 + meldeMonat) - (jahr * 12 + monat);
+        return abstand > 0 && abstand <= ArbeitsortRueckblickMonate;
+    }
+
     public static RechtseinheitStamm NurArbeitsorteMitLohn(RechtseinheitStamm stamm, IReadOnlySet<int> filialenMitLohn)
         => stamm with { Filialen = stamm.Filialen.Where(b => filialenMitLohn.Contains(b.Id)).ToList() };
 
@@ -226,12 +238,14 @@ public class ElmMonthlyDeclarationBuilder
                 new List<string>());
 
         var periodeIds = perioden.Select(p => p.Id).ToList();
-        // Arbeitsorte mit Lohn seit Jahresbeginn (für CompanyDescription, siehe NurArbeitsorteMitLohn).
-        var arbeitsorteImJahr = (await (from sn in _db.PayrollSnapshots.AsNoTracking()
-                                        join pp in _db.PayrollPerioden.AsNoTracking() on sn.PayrollPeriodeId equals pp.Id
-                                        where pp.Year == year && pp.Month < month && sn.Status != "STORNIERT"
-                                              && filialIds.Contains(pp.CompanyProfileId)
-                                        select pp.CompanyProfileId).Distinct().ToListAsync(ct)).ToHashSet();
+        // Arbeitsorte mit Lohn im Rückblick (für CompanyDescription, siehe NurArbeitsorteMitLohn).
+        var rueckblick = await (from sn in _db.PayrollSnapshots.AsNoTracking()
+                               join pp in _db.PayrollPerioden.AsNoTracking() on sn.PayrollPeriodeId equals pp.Id
+                               where sn.Status != "STORNIERT" && filialIds.Contains(pp.CompanyProfileId)
+                                     && pp.Year >= year - 1 && pp.Year <= year
+                               select new { pp.CompanyProfileId, pp.Year, pp.Month }).Distinct().ToListAsync(ct);
+        var arbeitsorteImJahr = rueckblick.Where(x => ImArbeitsortRueckblick(x.Year, x.Month, year, month))
+            .Select(x => x.CompanyProfileId).ToHashSet();
         var snaps = await _db.PayrollSnapshots.AsNoTracking()
             .Where(s => periodeIds.Contains(s.PayrollPeriodeId) && s.Status != "STORNIERT")
             .Select(s => new { s.EmployeeId, s.PayrollPeriodeId, s.SlipJson })
@@ -481,12 +495,11 @@ public class ElmMonthlyDeclarationBuilder
                 wohnHist.Where(h => h.EmployeeId == e.Id), DateOnly.FromDateTime(monatsAnfang.AddMonths(-1)),
                 e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
             var adresseQstVormonat = new PersonAdresseAm(wohnVormonat.Strasse, wohnVormonat.Plz, wohnVormonat.Ort, wohnVormonat.Land, wohnVormonat.KantonCode);
-            // Alte Adresse mit Wegzugsdatum ab dem Umzugsmonat bis Ende Jahr (Quality Tool Mai/Juni
-            // 2025 und Referenz bis November: TF30 Müller Wegzug München 15.04., TF25 Lehmann
-            // Mailand 25.04.).
+            // Alte Adresse mit Wegzugsdatum 12 Monate ab dem Umzug, auch über den Jahreswechsel (Quality Tool
+            // Mai/Juni 2025: TF30 Müller Wegzug 15.04., TF25 Lehmann 25.04.; Jan 2026: TF40 Farine 28.09.2025).
             var umzug = WohnortHistorieService.UmzugImMonat(
                 wohnHist.Where(h => h.EmployeeId == e.Id),
-                new DateOnly(monatsAnfang.Year, 1, 2), monatsEndeTag);
+                monatsEndeTag.AddYears(-1).AddDays(1), monatsEndeTag);
             PersonAdresseAm? adresseVorher = umzug is { } u
                 ? new PersonAdresseAm(u.Alt.Strasse, u.Alt.Plz, u.Alt.Ort, u.Alt.Land, u.Alt.KantonCode)
                 : null;

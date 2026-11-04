@@ -157,3 +157,16 @@ public class QstKorrekturFristTests
     public void Status(int postenJahr, int j, int m, int t, string soll)
         => Assert.Equal(soll, HrSystem.Services.QstKorrekturService.PostenStatus(postenJahr, new DateOnly(j, m, t)));
 }
+
+/// <summary>Arbeitsorte der Monatsmeldung, wie das Quality Tool sie verlangt.</summary>
+public class ElmArbeitsortRueckblickTests
+{
+    [Theory]
+    [InlineData(2025, 5, 2025, 8, true)]     // AG im August 2025
+    [InlineData(2025, 3, 2025, 12, true)]    // ZG im Dezember 2025
+    [InlineData(2025, 3, 2026, 1, false)]    // ZG nicht mehr im Januar 2026
+    [InlineData(2025, 10, 2026, 1, true)]    // AG im Januar 2026
+    [InlineData(2025, 8, 2025, 8, false)]    // Meldemonat selbst zählt über die gemeldeten Filialen
+    public void Rueckblick(int j, int m, int mj, int mm, bool soll)
+        => Assert.Equal(soll, ElmMonthlyDeclarationBuilder.ImArbeitsortRueckblick(j, m, mj, mm));
+}
